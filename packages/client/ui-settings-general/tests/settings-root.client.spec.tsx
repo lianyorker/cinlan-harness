@@ -1,20 +1,20 @@
 // @vitest-environment jsdom
-import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useEffect, useState } from 'react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { useEffect, useState, type ReactNode } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SettingsRootComponentProps } from '../src/client/shell-contract.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
 import { en } from '../src/client/locales.ts'
 
-// Every fixture carries the resource hook the resources plugin merges into GlobalStandardProps.
-const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
+const settingsCss = readFileSync(join(
+  process.cwd(),
+  'packages/client/ui-settings-general/src/client/SettingsRoot.module.css',
+), 'utf8')
 
-afterEach(() => {
-  cleanup()
-  vi.useRealTimers()
-})
+afterEach(cleanup)
 
 type Row = { id: string; order: number; label: string }
 type Step = { id: string; order: number }
@@ -24,17 +24,17 @@ const SEAT_CONTENT: Record<string, string> = {
   'settings.trigger': 'Settings',
   'settings.header': 'Settings Title',
   'settings.action': 'Open configuration file',
-  'settings.close': 'Close',
+  'settings.close': 'Back to app',
 }
 
-type AttentionSnapshot = Parameters<Parameters<SettingsRootComponentProps['useSessionPendingInteraction']>[0]>[0]
-type ConnectionSnapshot = Parameters<Parameters<SettingsRootComponentProps['useConnectionState']>[0]>[0]
+// Global standard kit stubs: SettingsRoot does not consume these hooks.
+const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
+type AttentionSnapshot = Parameters<Parameters<GlobalStandardProps['useSessionPendingInteraction']>[0]>[0]
 const noAttention: AttentionSnapshot = new Map()
-const useSessionPendingInteraction: SettingsRootComponentProps['useSessionPendingInteraction'] = selector => selector(noAttention)
+const useSessionPendingInteraction: GlobalStandardProps['useSessionPendingInteraction'] = selector => selector(noAttention)
 
 function mount({
   wide = true,
-  connectionState = 'connected',
   onboardingActive = true,
   rows = [
     { id: 'general', order: 0, label: 'General' },
@@ -45,23 +45,23 @@ function mount({
     { id: 'welcome', order: -100 },
     { id: 'credential', order: 0 },
   ],
-}: {
-  wide?: boolean
-  connectionState?: ConnectionSnapshot
-  onboardingActive?: boolean
-  rows?: Row[]
-  steps?: Step[]
-} = {}) {
+}: { wide?: boolean; onboardingActive?: boolean; rows?: Row[]; steps?: Step[] } = {}) {
   // Mutable row source standing in for the bound useSections hook; bump()
   // plays a ledger change through the same observable contract.
   let current = rows
-  let currentConnectionState = connectionState
   const listeners = new Set<() => void>()
-  const connectionListeners = new Set<() => void>()
-  const reconnect = vi.fn()
   const renderSlot = vi.fn(
-    ((key: string, _owner: unknown, opts?: { only?: string }) => {
+    ((key: string, _owner: unknown, opts?: {
+      only?: string
+      entryKey?: string
+      fallback?: ReactNode
+    }) => {
       if (key === 'settings.section') return <div data-testid={`section-${opts?.only ?? 'all'}`} />
+      if (key === 'settings.section.icon') {
+        return opts?.entryKey === 'missing'
+          ? opts.fallback
+          : <i data-testid={`icon-${opts?.entryKey ?? 'none'}`} />
+      }
       return SEAT_CONTENT[key]
     }) as SettingsRootComponentProps['renderSlot'],
   )
@@ -79,17 +79,6 @@ function mount({
     useResource,
     useWorkspaces: unusedHook,
     wide,
-    reconnect,
-    t: makeTranslate(en),
-    useConnectionState: (select) => {
-      const [, force] = useState(0)
-      useEffect(() => {
-        const listener = () => { force(n => n + 1) }
-        connectionListeners.add(listener)
-        return () => { connectionListeners.delete(listener) }
-      }, [])
-      return select(currentConnectionState)
-    },
     useOnboardingSteps: select => select(steps),
     useSections: (select) => {
       const [, force] = useState(0)
@@ -100,6 +89,7 @@ function mount({
       }, [])
       return select(current)
     },
+    t: key => (en as Record<string, string>)[key] ?? key,
     renderSlot,
   }
   const view = render(<SettingsRoot {...props} />)
@@ -109,20 +99,11 @@ function mount({
       for (const fn of [...listeners]) fn()
     })
   }
-  const setConnectionState = (next: typeof currentConnectionState) => {
-    act(() => {
-      currentConnectionState = next
-      for (const fn of [...connectionListeners]) fn()
-    })
-  }
-  return { view, renderSlot, bump, listeners, reconnect, setConnectionState }
+  return { view, renderSlot, bump, listeners }
 }
 
-function openPanel() {
-  const trigger = screen.getByRole('button', { name: 'Settings' })
-  trigger.focus()
-  fireEvent.click(trigger)
-  return trigger
+function openPage() {
+  fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
 }
 
 describe('SettingsRoot trigger', () => {
@@ -130,10 +111,11 @@ describe('SettingsRoot trigger', () => {
     const { renderSlot } = mount()
     const trigger = screen.getByRole('button', { name: 'Settings' })
     expect(trigger.hasAttribute('aria-label')).toBe(false)
+    expect(trigger.hasAttribute('aria-haspopup')).toBe(false)
     expect(renderSlot).toHaveBeenCalledWith('settings.trigger', { wide: true })
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(trigger)
-    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByRole('region')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Settings', expanded: true })).toBeTruthy()
   })
 
@@ -141,142 +123,156 @@ describe('SettingsRoot trigger', () => {
     const { renderSlot } = mount({ wide: false })
     expect(renderSlot).toHaveBeenCalledWith('settings.trigger', { wide: false })
   })
-
-  it('shows outage, retry progress, and a two-second recovery confirmation', () => {
-    vi.useFakeTimers()
-    const mounted = mount()
-    expect(screen.queryByRole('button', { name: 'Disconnected, reconnect now' })).toBeNull()
-
-    mounted.setConnectionState('disconnected')
-    const indicator = screen.getByRole('button', { name: 'Disconnected, reconnect now' })
-    expect(indicator.textContent).toContain('Disconnected')
-    expect(indicator.hasAttribute('title')).toBe(false)
-    expect(indicator.querySelector('svg')).toBeTruthy()
-    fireEvent.click(indicator)
-    expect(mounted.reconnect).toHaveBeenCalledOnce()
-
-    mounted.setConnectionState('connecting')
-    expect(screen.getByRole('button', { name: 'Reconnecting automatically, reconnect now' }).textContent)
-      .toContain('Reconnecting...')
-
-    mounted.setConnectionState('connected')
-    expect(screen.getByRole('status', { name: 'Connected' })).toBeTruthy()
-    act(() => { vi.advanceTimersByTime(1_999) })
-    expect(screen.getByRole('status', { name: 'Connected' })).toBeTruthy()
-    act(() => { vi.advanceTimersByTime(1) })
-    expect(screen.queryByRole('status')).toBeNull()
-  })
-
-  it('keeps the reconnect indicator out of the collapsed rail', () => {
-    mount({ wide: false, connectionState: 'disconnected' })
-    expect(screen.queryByRole('button', { name: 'Disconnected, reconnect now' })).toBeNull()
-  })
 })
 
-describe('SettingsPanel chrome seats', () => {
-  it('names the dialog via aria-labelledby pointing at the header seat node', () => {
+describe('SettingsPage chrome seats', () => {
+  it('aligns the back command with the content header and paints only interaction feedback', () => {
+    expect(settingsCss).toMatch(/\.navHeader\s*\{[^}]*min-height:\s*64px;[^}]*align-items:\s*center;[^}]*border-bottom:/su)
+    const backRule = new RegExp(
+      '\\.back\\s*\\{[^}]*height:\\s*34px;[^}]*border:\\s*none;'
+      + '[^}]*border-radius:\\s*999px;[^}]*background:\\s*'
+      + 'var\\(--dsw-alias-settings-control-bg\\);', 'su',
+    )
+    expect(settingsCss).toMatch(backRule)
+    expect(settingsCss).toMatch(/\.back:hover\s*\{[^}]*background:\s*var\(--dsw-alias-settings-control-bg-hover\);/su)
+    expect(settingsCss).toMatch(/\.back:active\s*\{[^}]*background:\s*var\(--dsw-alias-settings-control-bg-active\);/su)
+    expect(settingsCss).toMatch(/\.nav\s*\{(?:(?!border-right|box-shadow)[\s\S])*?\}/u)
+  })
+
+  it('names the page via aria-labelledby pointing at the header seat node', () => {
     mount()
-    openPanel()
-    const dialog = screen.getByRole('dialog')
-    const titleId = dialog.getAttribute('aria-labelledby')!
+    openPage()
+    const page = screen.getByRole('region')
+    const titleId = page.getAttribute('aria-labelledby')!
     expect(titleId).toBeTruthy()
     const title = document.getElementById(titleId)!
     expect(title.textContent).toBe('Settings Title')
-    expect(screen.getByRole('dialog', { name: 'Settings Title' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'Settings Title' })).toBeTruthy()
   })
 
-  it('names the close button through the visually-hidden close seat text', () => {
+  it('renders the back command with the close seat text', () => {
     mount()
-    openPanel()
-    const close = screen.getByRole('button', { name: 'Close' })
+    openPage()
+    const close = screen.getByRole('button', { name: 'Back to app' })
     expect(close.hasAttribute('aria-label')).toBe(false)
-    expect(close.textContent).toContain('Close')
+    expect(close.textContent).toContain('Back to app')
   })
 
-  it('renders header actions before the shell-owned close control', () => {
+  it('renders contributed actions in the content toolbar', () => {
     const { renderSlot } = mount()
-    openPanel()
+    openPage()
     expect(screen.getByText('Open configuration file')).toBeTruthy()
     expect(renderSlot).toHaveBeenCalledWith('settings.action', {})
   })
 })
 
-describe('SettingsPanel close paths', () => {
-  it('closes via the header button and restores trigger focus', async () => {
+describe('SettingsPage close paths', () => {
+  it('returns via the navigation command', () => {
     mount()
-    const trigger = openPanel()
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(screen.queryByRole('dialog')).toBeNull()
-    await vi.waitFor(() => { expect(document.activeElement).toBe(trigger) })
+    openPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to app' }))
+    expect(screen.queryByRole('region')).toBeNull()
   })
 
-  it('closes via a mask click and restores trigger focus', async () => {
+  it('uses a full-page region without dialog or mask semantics', () => {
     mount()
-    const trigger = openPanel()
-    const dialog = screen.getByRole('dialog')
-    fireEvent.click(dialog.parentElement!.firstElementChild!)
+    openPage()
+    const page = screen.getByRole('region', { name: 'Settings Title' })
+    expect(page.getAttribute('data-dsh-settings-page')).toBe('')
     expect(screen.queryByRole('dialog')).toBeNull()
-    await vi.waitFor(() => { expect(document.activeElement).toBe(trigger) })
+    expect(document.querySelector('[aria-modal="true"]')).toBeNull()
+    fireEvent.click(page)
+    expect(screen.getByRole('region', { name: 'Settings Title' })).toBeTruthy()
   })
 
-  it('closes via document-level Escape, restores trigger focus, and unhooks the listener', async () => {
+  it('closes via document-level Escape and unhooks the listener with the page', () => {
     mount()
-    const trigger = openPanel()
+    openPage()
     fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('dialog')).toBeNull()
-    await vi.waitFor(() => { expect(document.activeElement).toBe(trigger) })
+    expect(screen.queryByRole('region')).toBeNull()
     // Ignored while closed (listener removed with the panel) and non-Escape
     // keys are ignored while open.
     fireEvent.keyDown(document, { key: 'Escape' })
-    openPanel()
+    openPage()
     fireEvent.keyDown(document, { key: 'Enter' })
-    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByRole('region')).toBeTruthy()
   })
 
-  it('lands focus on the close button when the dialog opens', () => {
+  it('lands focus on the back command when the page opens', () => {
     mount()
-    openPanel()
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }))
+    openPage()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Back to app' }))
   })
 })
 
-describe('SettingsPanel navigation', () => {
+describe('SettingsPage navigation', () => {
   it('projects rows, marks the first active, and renders only that section', () => {
     mount()
-    openPanel()
-    expect(screen.getByRole('button', { name: 'General' }).getAttribute('aria-current')).toBe('true')
+    openPage()
+    expect(screen.getByRole('button', { name: 'General' }).getAttribute('aria-current')).toBe('page')
     expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBeNull()
     expect(screen.getByTestId('section-general')).toBeTruthy()
   })
 
-  it('gives every section a nav glyph, distinct for the ids the shell knows', () => {
-    mount({
+  it('dispatches each nav glyph by section id and uses the gear fallback for an empty key', () => {
+    const { renderSlot } = mount({
       rows: [
-        { id: 'general', order: 0, label: 'General' },
-        { id: 'models', order: 10, label: 'Models' },
-        { id: 'agent-presets', order: 20, label: 'Agent presets' },
-        { id: 'plugins', order: 30, label: 'Plugins' },
-        { id: 'contributed', order: 40, label: 'Contributed' },
+        { id: 'alpha', order: 0, label: 'Alpha' },
+        { id: 'beta', order: 10, label: 'Beta' },
+        { id: 'missing', order: 20, label: 'Missing' },
       ],
     })
-    openPanel()
-    // Glyphs carry no id of their own, so the drawn paths are what tells them apart.
-    const glyphs = ['General', 'Models', 'Agent presets', 'Plugins', 'Contributed']
-      .map(name => screen.getByRole('button', { name }).querySelector('svg')?.innerHTML)
-
-    expect(glyphs.every(glyph => glyph !== undefined && glyph !== '')).toBe(true)
-    // The three ids the shell names get their own glyph; every other section —
-    // including one this package never heard of — shares the gear.
-    expect(new Set(glyphs.slice(0, 4)).size).toBe(4)
-    expect(glyphs[4]).toBe(glyphs[0])
+    openPage()
+    const iconCalls = renderSlot.mock.calls
+      .filter(call => call[0] === 'settings.section.icon')
+      .map(call => ({ owner: call[1], entryKey: call[2]?.entryKey }))
+    expect(iconCalls).toEqual([
+      { owner: { size: 16 }, entryKey: 'alpha' },
+      { owner: { size: 16 }, entryKey: 'beta' },
+      { owner: { size: 16 }, entryKey: 'missing' },
+    ])
+    expect(screen.getByRole('button', { name: 'Alpha' }).querySelector('[data-testid="icon-alpha"]')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Beta' }).querySelector('[data-testid="icon-beta"]')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Missing' }).querySelector('svg')).toBeTruthy()
   })
 
   it('switches the rendered section on nav click', () => {
     mount()
-    openPanel()
+    openPage()
     fireEvent.click(screen.getByRole('button', { name: 'Models' }))
-    expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBe('page')
     expect(screen.getByTestId('section-models')).toBeTruthy()
+    expect(screen.queryByTestId('section-general')).toBeNull()
+  })
+
+  it('filters section labels case-insensitively and restores the selected section when cleared', () => {
+    mount()
+    openPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Models' }))
+    const search = screen.getByRole('searchbox', { name: 'Search settings...' })
+
+    fireEvent.change(search, { target: { value: 'AGENT' } })
+    expect(screen.queryByRole('button', { name: 'General' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Models' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Agent presets' }).getAttribute('aria-current')).toBe('page')
+    expect(screen.getByTestId('section-agent-presets')).toBeTruthy()
+
+    fireEvent.change(search, { target: { value: '' } })
+    expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBe('page')
+    expect(screen.getByTestId('section-models')).toBeTruthy()
+  })
+
+  it('shows a localized empty state when no section label matches', () => {
+    const { renderSlot } = mount()
+    openPage()
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search settings...' }), {
+      target: { value: 'missing section' },
+    })
+
+    expect(screen.getByRole('status').textContent).toBe('No matching settings')
+    expect(screen.queryByRole('button', { name: 'General' })).toBeNull()
+    const sectionCalls = renderSlot.mock.calls.filter(call => call[0] === 'settings.section')
+    expect(sectionCalls.at(-1)?.[2]).toEqual({ only: 'general' })
     expect(screen.queryByTestId('section-general')).toBeNull()
   })
 
@@ -297,7 +293,7 @@ describe('SettingsPanel navigation', () => {
     act(() => {
       (second?.[1] as { openSection: (id: string) => void }).openSection('models')
     })
-    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByRole('region')).toBeTruthy()
     expect(screen.getByTestId('section-models')).toBeTruthy()
 
     cleanup()
@@ -324,7 +320,7 @@ describe('SettingsPanel navigation', () => {
 
   it('falls back to the first row when the active entry unregisters', () => {
     const { bump } = mount()
-    openPanel()
+    openPage()
     fireEvent.click(screen.getByRole('button', { name: 'Models' }))
     bump([{ id: 'general', order: 0, label: 'General' }])
     expect(screen.queryByRole('button', { name: 'Models' })).toBeNull()
@@ -333,8 +329,8 @@ describe('SettingsPanel navigation', () => {
 
   it('renders an empty content column when the ledger is empty', () => {
     const { renderSlot } = mount({ rows: [] })
-    openPanel()
-    expect(screen.getByRole('dialog')).toBeTruthy()
+    openPage()
+    expect(screen.getByRole('region')).toBeTruthy()
     const sectionCalls = renderSlot.mock.calls.filter(c => c[0] === 'settings.section')
     expect(sectionCalls).toHaveLength(0)
   })

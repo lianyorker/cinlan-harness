@@ -1,6 +1,7 @@
 /** Settings shell registration: slot declaration injection, the ledger projections, and HMR recovery. */
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
+import { IconSettingsOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -24,12 +25,6 @@ async function bench() {
   const settings = {
     describe: async () => ({ ok: false, error: new RemoteError('gateway/internal', 'no settings', {}) }),
   }
-  const reconnect = vi.fn()
-  const connectionState = {
-    getSnapshot: () => 'connected' as const,
-    subscribe: () => () => {},
-  }
-  ctx.provide('connection', { state: connectionState, reconnect } as never)
   ctx.provide('remote', {
     $on: () => () => {},
     $host: { home: undefined, isLoopback: false },
@@ -37,7 +32,7 @@ async function bench() {
   } as never)
   ctx.provide('remote.settings', settings as never)
   await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
-  return { ctx, slots: ctx.get('slots') as SlotRegistry, connectionState, reconnect }
+  return { ctx, slots: ctx.get('slots') as SlotRegistry }
 }
 
 function declare(slots: SlotRegistry): () => void {
@@ -52,20 +47,21 @@ function injectedOf(slots: SlotRegistry): SettingsRootInjected {
   return (entry.inject as () => SettingsRootInjected)()
 }
 
-/** The shell's child declarations (chrome, actions, sections, and onboarding overlays). */
+/** The shell's child declarations (chrome, actions, sections, icons, and onboarding overlays). */
 const CHILD_SPECS = {
   'settings.trigger': { kind: 'single', scope: 'root' },
   'settings.header': { kind: 'single', scope: 'root' },
   'settings.action': { kind: 'list', scope: 'root' },
   'settings.close': { kind: 'single', scope: 'root' },
   'settings.section': { kind: 'list', scope: 'root' },
+  'settings.section.icon': { kind: 'keyed', scope: 'root' },
   'settings.onboarding': { kind: 'list', scope: 'root' },
 } as const
 
 describe('ui-settings apply', () => {
   it('declares only the slot registry (a pure composition face, no locale)', () => {
     expect(inject).toEqual([
-      'slots', 'locale', 'connection', 'remote', 'remote.settings', 'settingsScope',
+      'slots', 'locale', 'remote', 'remote.settings', 'settingsScope',
     ])
   })
 
@@ -73,7 +69,13 @@ describe('ui-settings apply', () => {
     const before = await bench()
     declare(before.slots)
     await before.ctx.plugin({ inject: [...inject], apply }).await()
-    expect(before.slots.entries('sidebar.settings')[0]!.component).toBe(SettingsRoot)
+    const beforeEntry = before.slots.entries('sidebar.settings')[0]!
+    expect(beforeEntry.component).toBe(SettingsRoot)
+    expect(beforeEntry.locale).toBe('settings')
+    expect(before.slots.entries('settings.section.icon')[0]).toMatchObject({
+      component: IconSettingsOutline16,
+      options: { key: 'general' },
+    })
     for (const name of Object.keys(CHILD_SPECS) as Array<keyof typeof CHILD_SPECS>) {
       expect(before.slots.spec(name)).toEqual(CHILD_SPECS[name])
     }
@@ -117,16 +119,6 @@ describe('ui-settings apply', () => {
     off()
   })
 
-  it('projects the Gateway connection control without copying its state', async () => {
-    const b = await bench()
-    declare(b.slots)
-    await b.ctx.plugin({ inject: [...inject], apply }).await()
-    const injected = injectedOf(b.slots)
-    expect(injected.hooks.connectionState).toBe(b.connectionState)
-    injected.reconnect()
-    expect(b.reconnect).toHaveBeenCalledOnce()
-  })
-
   it('projects onboarding entries into stable coordinator order', async () => {
     const b = await bench()
     declare(b.slots)
@@ -160,6 +152,7 @@ describe('ui-settings apply', () => {
     redeclare()
     expect(b.slots.entries('sidebar.settings')).toHaveLength(0)
     expect(b.slots.spec('settings.trigger')).toBeUndefined()
+    expect(b.slots.entries('settings.section.icon')).toHaveLength(0)
     declare(b.slots)
     await Promise.resolve()
     expect(b.slots.entries('sidebar.settings')[0]!.component).toBe(SettingsRoot)
@@ -175,6 +168,7 @@ describe('ui-settings apply', () => {
     await fiber.await()
     await fiber.dispose()
     expect(b.slots.entries('sidebar.settings')).toHaveLength(0)
+    expect(b.slots.entries('settings.section.icon')).toHaveLength(0)
     for (const name of Object.keys(CHILD_SPECS) as Array<keyof typeof CHILD_SPECS>) {
       expect(b.slots.spec(name)).toBeUndefined()
     }

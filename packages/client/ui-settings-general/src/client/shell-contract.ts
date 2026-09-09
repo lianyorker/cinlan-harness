@@ -6,7 +6,6 @@
  * reference graph closes a cycle through ui-sidebar → ui-layout → ui-theme.
  * The settings SLOT types (what registrants contribute) stay in ui-settings.
  */
-import type { ConnectionState } from '@deepseek-ai/dsh-client-connection/client'
 import type {
   HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime,
 } from '@deepseek-ai/dsh-client-ui-slots'
@@ -31,15 +30,11 @@ export interface SettingsOnboardingStep {
 
 /**
  * Registrant-private injected share of the settings shell (assembled in
- * apply): connection state and ledger projections arrive as hook-compartment
- * sources, while the reconnect command remains a plain callback.
+ * apply): the ledger's nav-row projection as a hooks-compartment source.
+ * Locale copy arrives through the registration's standard `t` seat.
  */
 export type SettingsRootInjected = {
-  /** Request a fresh logical generation and physical WebSocket immediately. */
-  reconnect: () => void
   hooks: {
-    /** Connection-owned state for the current Host connection. */
-    connectionState: HostObservable<ConnectionState | undefined>
     /** settings.section ledger projected into ordered nav rows. */
     sections: HostObservable<readonly SettingsSectionRow[]>
     /** settings.onboarding ledger projected into coordinator order. */
@@ -61,6 +56,7 @@ export type SettingsRootComponentProps =
     | 'settings.action'
     | 'settings.close'
     | 'settings.section'
+    | 'settings.section.icon'
     | 'settings.onboarding'
   >
   & InjectFace<SettingsRootInjected>

@@ -1,35 +1,20 @@
 /**
- * Settings shell root: the sidebar-foot trigger row plus the centered modal
- * panel (figma 501:29947, 1080x700) with the section nav rail. The shell is
- * a pure composition face — every piece of text (trigger label, panel title,
- * close label, sections) arrives from registrants through slots; accessible
- * names resolve to that content (trigger: its own text; dialog:
- * aria-labelledby the title node; close: visually-hidden slot text). Modal
- * open state and the active section id are component-local viewing state;
- * the onboarding coordinator mounts exactly one ordered registrant while the
+ * Settings shell root: the sidebar-foot trigger plus a full-viewport page
+ * with a searchable section rail and independently scrolling content. The shell is
+ * a pure composition face: trigger, page title, back label, actions, and
+ * sections arrive through slots. The named page region uses the title node,
+ * while page-open and active-section ids remain component-local viewing state.
+ * The onboarding coordinator mounts exactly one ordered registrant while the
  * sessions-derived empty-Hero fact is active. Visible dialog chrome belongs
  * to the step, so a mounted-but-deciding step paints nothing here.
  */
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  ConnectionIndicator,
-  IconAgentPresetOutline16, IconCloseOutline16, IconDataOutline16,
-  IconPersonalizationOutline16, IconSettingsOutline16,
+  IconChevronLeftOutline14, IconSearchOutline16, IconSettingsOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ConnectionIndicatorState } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
 import css from './SettingsRoot.module.css'
-
-const RECOVERY_CONFIRMATION_MS = 2_000
-
-/** Nav glyph by section id; unknown ids fall back to the settings gear. */
-function navIcon(id: string) {
-  if (id === 'models') return <IconDataOutline16 className={css.navIcon} size={16} />
-  if (id === 'agent-presets') return <IconAgentPresetOutline16 className={css.navIcon} size={16} />
-  if (id === 'plugins') return <IconPersonalizationOutline16 className={css.navIcon} size={16} />
-  return <IconSettingsOutline16 className={css.navIcon} size={16} />
-}
 
 type PanelProps = {
   rows: readonly SettingsSectionRow[]
@@ -37,66 +22,81 @@ type PanelProps = {
   activeId: string | undefined
   onSelect: (id: string) => void
   onClose: () => void
+  t: SettingsRootComponentProps['t']
 }
 
-/**
- * The modal layer: full-viewport mask + centered panel. Close paths: the
- * header button, a mask click, and document-level Escape (mounted only while
- * open, so the listener lifetime is the panel's).
- */
-function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelProps) {
-  // Entries can unmount underneath the requested id, so the render-time
-  // projection falls back to the first row when the id is gone.
-  const active = rows.find(r => r.id === activeId)?.id ?? rows[0]?.id
+/** Full-page settings shell with fixed navigation and an independently scrolling content pane. */
+function SettingsPage({ rows, renderSlot, activeId, onSelect, onClose, t }: PanelProps) {
+  const [query, setQuery] = useState('')
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const visibleRows = normalizedQuery === ''
+    ? rows
+    : rows.filter(row => row.label.toLocaleLowerCase().includes(normalizedQuery))
+  const active = visibleRows.find(r => r.id === activeId)?.id ?? visibleRows[0]?.id
   const titleId = useId()
+  const backButton = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => { document.removeEventListener('keydown', onKeyDown) }
   }, [onClose])
-
-  // Entering the dialog focuses the close button; the root restores its trigger on close.
-  const closeButton = useRef<HTMLButtonElement | null>(null)
-  useEffect(() => { closeButton.current?.focus() }, [])
+  useEffect(() => { backButton.current?.focus() }, [])
 
   return (
-    <div className={css.overlay} role="presentation">
-      <div className={css.mask} aria-hidden="true" onClick={onClose} />
-      <div className={css.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <nav className={css.nav}>
-          <div className={css.navTitle} id={titleId}>{renderSlot('settings.header', {})}</div>
-          <div className={css.navList}>
-            {rows.map(row => (
-              <button
-                key={row.id}
-                type="button"
-                className={clsx(css.navCell, row.id === active && css.active)}
-                aria-current={row.id === active ? 'true' : undefined}
-                onClick={() => { onSelect(row.id) }}
-              >
-                {navIcon(row.id)}
-                <span className={css.navLabel}>{row.label}</span>
-              </button>
-            ))}
-          </div>
-        </nav>
-        <div className={css.content}>
-          <div className={css.header}>
-            <div className={css.actions}>{renderSlot('settings.action', {})}</div>
-            <button ref={closeButton} type="button" className={css.close} onClick={onClose}>
-              <IconCloseOutline16 size={14} />
-              <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
+    <section className={css.page} role="region" aria-labelledby={titleId} data-dsh-settings-page="">
+      <nav className={css.nav}>
+        <div className={css.navHeader}>
+          <button ref={backButton} type="button" className={css.back} onClick={onClose}>
+            <IconChevronLeftOutline14 size={14} />
+            <span>{renderSlot('settings.close', {})}</span>
+          </button>
+        </div>
+        <label className={css.search}>
+          <IconSearchOutline16 size={16} aria-hidden="true" />
+          <input
+            type="search"
+            value={query}
+            aria-label={t('search.placeholder')}
+            placeholder={t('search.placeholder')}
+            onChange={(event) => { setQuery(event.currentTarget.value) }}
+          />
+        </label>
+        <div className={css.navTitle} id={titleId}>{renderSlot('settings.header', {})}</div>
+        <div className={css.navList}>
+          {visibleRows.map(row => (
+            <button
+              key={row.id}
+              type="button"
+              className={clsx(css.navCell, row.id === active && css.active)}
+              aria-current={row.id === active ? 'page' : undefined}
+              onClick={() => { onSelect(row.id) }}
+            >
+              <span className={css.navIcon} aria-hidden="true">
+                {renderSlot('settings.section.icon', { size: 16 }, {
+                  entryKey: row.id,
+                  fallback: <IconSettingsOutline16 size={16} />,
+                })}
+              </span>
+              <span className={css.navLabel}>{row.label}</span>
             </button>
-          </div>
-          <div className={css.options}>
-            {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
-          </div>
+          ))}
+          {visibleRows.length === 0 && (
+            <p className={css.noResults} role="status">{t('search.noResults')}</p>
+          )}
+        </div>
+      </nav>
+      <div className={css.content}>
+        <header className={css.header}>
+          <div className={css.actions}>{renderSlot('settings.action', {})}</div>
+        </header>
+        <div className={css.options}>
+          {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
         </div>
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -106,24 +106,14 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
  * @returns the settings shell element tree.
  */
 export function SettingsRoot(props: SettingsRootComponentProps) {
-  const {
-    wide, reconnect, useConnectionState, useSections, useOnboardingSteps, useSessions, renderSlot, t,
-  } = props
+  const { wide, useSections, useOnboardingSteps, useSessions, renderSlot, t } = props
   const [open, setOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | undefined>(undefined)
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
-  const [showRecovery, setShowRecovery] = useState(false)
-  const triggerButton = useRef<HTMLButtonElement | null>(null)
-  const wasOpen = useRef(open)
   const close = useCallback(() => {
     setOpen(false)
     setActiveId(undefined)
   }, [])
-  // Restore after the close commit, when the dialog can no longer own focus.
-  useEffect(() => {
-    if (wasOpen.current && !open) triggerButton.current?.focus()
-    wasOpen.current = open
-  }, [open])
   const openSection = useCallback((id: string) => {
     setActiveId(id)
     setOpen(true)
@@ -133,8 +123,6 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   // freshly localized text on locale change, and the trigger/header/close
   // seats re-render through their own outlets' subscriptions.
   const rows = useSections(s => s)
-  const connectionState = useConnectionState(state => state)
-  const previousConnectionState = useRef(connectionState)
   const onboardingSteps = useOnboardingSteps(s => s)
   const onboardingActive = useSessions(state =>
     state.phase === 'ready'
@@ -148,19 +136,6 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     setCompletedOnboarding(new Set())
   }, [onboardingActive])
 
-  useLayoutEffect(() => {
-    const previous = previousConnectionState.current
-    previousConnectionState.current = connectionState
-    if (connectionState !== 'connected') {
-      setShowRecovery(false)
-      return
-    }
-    if (previous !== 'disconnected' && previous !== 'connecting') return
-    setShowRecovery(true)
-    const timeout = window.setTimeout(() => { setShowRecovery(false) }, RECOVERY_CONFIRMATION_MS)
-    return () => { window.clearTimeout(timeout) }
-  }, [connectionState])
-
   const completeOnboardingStep = useCallback((id: string) => {
     setCompletedOnboarding((previous) => {
       if (previous.has(id)) return previous
@@ -168,46 +143,24 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     })
   }, [])
 
-  let connectionIndicator: ConnectionIndicatorState | undefined
-  if (connectionState === 'disconnected') {
-    connectionIndicator = 'disconnected'
-  } else if (connectionState === 'connecting') {
-    connectionIndicator = 'connecting'
-  } else if (showRecovery) {
-    connectionIndicator = 'recovered'
-  }
-
   return (
     <>
-      <div className={clsx(css.triggerRow, !wide && css.railRow)}>
-        <button
-          ref={triggerButton}
-          type="button"
-          className={clsx(css.trigger, !wide && css.rail)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          onClick={() => { setOpen(true) }}
-        >
-          {renderSlot('settings.trigger', { wide })}
-        </button>
-        <ConnectionIndicator
-          state={wide ? connectionIndicator : undefined}
-          disconnectedLabel={t('connection.error')}
-          reconnectLabel={t('connection.retry')}
-          connectingLabel={t('connection.connecting')}
-          recoveredLabel={t('connection.connected')}
-          reconnectActionLabel={t('connection.reconnect')}
-          restartActionLabel={t('connection.restart')}
-          onReconnect={reconnect}
-        />
-      </div>
+      <button
+        type="button"
+        className={clsx(css.trigger, !wide && css.rail)}
+        aria-expanded={open}
+        onClick={() => { setOpen(true) }}
+      >
+        {renderSlot('settings.trigger', { wide })}
+      </button>
       {open && (
-        <SettingsPanel
+        <SettingsPage
           rows={rows}
           renderSlot={renderSlot}
           activeId={activeId}
           onSelect={setActiveId}
           onClose={close}
+          t={t}
         />
       )}
       {/* Dialog chrome and `#root` inert ownership live inside each step's

@@ -4,16 +4,14 @@
 export const zh = {
   'trigger': '设置',
   'title': '设置',
-  'close': '关闭',
+  'close': '返回应用',
+  'search.placeholder': '搜索设置...',
+  'search.noResults': '没有匹配的设置',
   'openDocument': '打开配置文件',
+  'openDocument.fileManager': '在 Explorer 中定位',
+  'openDocument.default': '用默认编辑器打开',
   'openDocument.error': '无法打开配置文件',
   'general.nav': '通用设置',
-  'connection.error': '连接异常',
-  'connection.retry': '立即重连',
-  'connection.connecting': '自动重连中',
-  'connection.connected': '连接成功',
-  'connection.reconnect': '连接异常，点击立即重连',
-  'connection.restart': '连接中断，正在自动重试，点击立即重连',
 } satisfies Record<string, string>
 
 /** The settings namespace key union. */
@@ -23,14 +21,12 @@ export type SettingsKey = keyof typeof zh
 export const en = {
   'trigger': 'Settings',
   'title': 'Settings',
-  'close': 'Close',
+  'close': 'Back to app',
+  'search.placeholder': 'Search settings...',
+  'search.noResults': 'No matching settings',
   'openDocument': 'Open configuration file',
+  'openDocument.fileManager': 'Show in Explorer',
+  'openDocument.default': 'Open in default editor',
   'openDocument.error': 'Could not open configuration file',
   'general.nav': 'General',
-  'connection.error': 'Disconnected',
-  'connection.retry': 'Reconnect now',
-  'connection.connecting': 'Reconnecting',
-  'connection.connected': 'Connected',
-  'connection.reconnect': 'Disconnected, reconnect now',
-  'connection.restart': 'Reconnecting automatically, reconnect now',
 } satisfies Record<SettingsKey, string>

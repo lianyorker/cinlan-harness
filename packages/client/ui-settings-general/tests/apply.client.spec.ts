@@ -2,6 +2,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
+import { IconSettingsOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
@@ -47,15 +48,11 @@ async function bench(isLoopback = true) {
   })
   // The fixed Host facts the shell reads its loopback-only action from.
   remote.$host = { home: undefined, isLoopback }
-  ctx.provide('connection', {
-    state: { getSnapshot: () => 'connected', subscribe: () => () => {} },
-    reconnect: () => {},
-  } as never)
   await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
   return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, settingsDescribe, settingsOpenDocument }
 }
 
-/** Declare the shell's six child slots the way ui-settings' entry does. */
+/** Declare the shell's child slots the way ui-settings' entry does. */
 function declare(slots: SlotRegistry): () => void {
   return slots.register(
     {
@@ -66,6 +63,7 @@ function declare(slots: SlotRegistry): () => void {
         'settings.action': { kind: 'list', scope: 'root' },
         'settings.close': { kind: 'single', scope: 'root' },
         'settings.section': { kind: 'list', scope: 'root' },
+        'settings.section.icon': { kind: 'keyed', scope: 'root' },
         'settings.onboarding': { kind: 'list', scope: 'root' },
       },
     } as never,
@@ -79,7 +77,7 @@ function generalEntry(slots: SlotRegistry) {
 
 describe('ui-settings-general apply', () => {
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale', 'connection', 'remote', 'remote.settings', 'settingsScope'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.settings', 'settingsScope'])
   })
 
   it('fills all five seats for declarations before or after apply', async () => {
@@ -91,6 +89,9 @@ describe('ui-settings-general apply', () => {
     }
     const entry = generalEntry(before.slots)!
     expect(entry.options).toMatchObject({ id: 'general', order: 0 })
+    const icon = before.slots.entries('settings.section.icon')[0]!
+    expect(icon.component).toBe(IconSettingsOutline16)
+    expect(icon.options.key).toBe('general')
     // The nav label is a locale-following thunk; owners resolve at read time.
     expect(resolveSlotLabel(entry.options.label)).toBe('通用设置')
     expect(before.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
@@ -116,6 +117,7 @@ describe('ui-settings-general apply', () => {
       // The self-inflicted ledger notifications hit the duplicate guard.
       expect(after.slots.entries(name)).toHaveLength(1)
     }
+    expect(after.slots.entries('settings.section.icon')[0]!.component).toBe(IconSettingsOutline16)
     await vi.waitFor(() => {
       expect(after.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
     })
@@ -127,13 +129,9 @@ describe('ui-settings-general apply', () => {
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(b.locale.bind('settings')('title')).toBe('设置')
-    expect(b.locale.bind('settings')('connection.error')).toBe('连接异常')
-    expect(b.locale.bind('settings')('connection.connecting')).toBe('自动重连中')
-    expect(b.locale.bind('settings')('connection.connected')).toBe('连接成功')
     b.locale.setLocale('en')
-    expect(b.locale.bind('settings')('close')).toBe('Close')
-    expect(b.locale.bind('settings')('connection.reconnect')).toBe('Disconnected, reconnect now')
-    expect(b.locale.bind('settings')('connection.connecting')).toBe('Reconnecting')
+    expect(b.locale.bind('settings')('close')).toBe('Back to app')
+    expect(b.locale.bind('settings')('search.placeholder')).toBe('Search settings...')
     b.locale.setLocale('zh')
     await fiber.dispose()
     // The (ns, locale) seats are free again — the dictionary disposer ran.
@@ -192,12 +190,14 @@ describe('ui-settings-general apply', () => {
     // declaration while our local disposers go stale.
     redeclare()
     for (const [name] of SEATS) expect(b.slots.entries(name)).toHaveLength(0)
+    expect(b.slots.entries('settings.section.icon')).toHaveLength(0)
     expect(b.slots.spec('settings.general.item')).toBeUndefined()
     declare(b.slots)
     await Promise.resolve()
     for (const [name, component] of SEATS) {
       expect(b.slots.entries(name)[0]!.component).toBe(component)
     }
+    expect(b.slots.entries('settings.section.icon')[0]!.component).toBe(IconSettingsOutline16)
     expect(b.slots.entries('settings.general.item')).toEqual([])
     expect(b.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
     // The recovered registrations still ride the locale path.
@@ -214,6 +214,7 @@ describe('ui-settings-general apply', () => {
     expect(b.slots.spec('settings.general.item')).toBeDefined()
     await fiber.dispose()
     for (const [name] of SEATS) expect(b.slots.entries(name)).toHaveLength(0)
+    expect(b.slots.entries('settings.section.icon')).toHaveLength(0)
     expect(b.slots.spec('settings.general.item')).toBeUndefined()
   })
 })
