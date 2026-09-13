@@ -149,6 +149,49 @@ describe('Web optional Security Research', () => {
     } finally { await handle.dispose() }
   })
 
+  it('edits explicit egress and credential references and retains drafts after Host rejection', async () => {
+    const section = page.locator('[data-capability="security"]')
+    await section.getByRole('button', { name: '添加出口', exact: true }).click()
+    const egress = section.getByRole('group', { name: '出口 1', exact: true })
+    await egress.getByRole('combobox', { name: '协议', exact: true }).selectOption('https')
+    await egress.getByLabel('目标主机', { exact: true }).fill('example.test')
+    await egress.getByLabel('端口', { exact: true }).fill('443')
+    await egress.getByRole('combobox', { name: '用途', exact: true }).selectOption('target-access')
+    await egress.getByLabel('关联目标 ID', { exact: true }).fill('local-fixture')
+    await section.getByRole('button', { name: '添加凭证引用', exact: true }).click()
+    const credential = section.getByRole('group', { name: '凭证引用 1', exact: true })
+    await credential.getByLabel('引用名称', { exact: true }).fill('FIXTURE_REFERENCE')
+    await credential.getByRole('combobox', { name: '用途', exact: true }).selectOption('target-authentication')
+    await credential.getByLabel('关联目标 ID', { exact: true }).fill('local-fixture')
+    await section.getByRole('button', { name: '保存授权范围', exact: true }).click()
+    await section.getByText('授权范围已保存。', { exact: true }).waitFor()
+    const expectedEgress = [{ protocol: 'https', host: 'example.test', port: 443, purpose: 'target-access', targetId: 'local-fixture' }]
+    const expectedCredentials = [{ ref: 'FIXTURE_REFERENCE', purpose: 'target-authentication', targetId: 'local-fixture' }]
+    expect(scaffold.ctx.assessmentScope.rootGrant.egress).toEqual(expectedEgress)
+    expect(scaffold.ctx.assessmentScope.rootGrant.credentials).toEqual(expectedCredentials)
+    const persisted = await readFile(scaffold.ctx.settings.documentPath!, 'utf8')
+    expect(persisted).toContain('FIXTURE_REFERENCE')
+    expect(persisted).toContain('example.test')
+    await compareOrRefreshGolden(fileURLToPath(new URL('./expected/device-capabilities/security-access.expected.md', import.meta.url)),
+      (await captureStableAria(page, '[data-capability="security"] fieldset:has(> legend:text-is("网络出口"))', scaffold.workspaceCwd))
+        + '\n' + (await captureStableAria(page, '[data-capability="security"] fieldset:has(> legend:text-is("凭证引用"))', scaffold.workspaceCwd)), webSnapshotMode())
+    for (const row of [egress, credential]) {
+      await row.getByLabel('关联目标 ID', { exact: true }).fill('unknown-target')
+      await section.getByRole('button', { name: '保存授权范围', exact: true }).click()
+      await section.getByRole('alert').waitFor()
+      expect(await row.getByLabel('关联目标 ID', { exact: true }).inputValue()).toBe('unknown-target')
+      expect(scaffold.ctx.assessmentScope.rootGrant.egress).toEqual(expectedEgress)
+      expect(scaffold.ctx.assessmentScope.rootGrant.credentials).toEqual(expectedCredentials)
+      expect(await readFile(scaffold.ctx.settings.documentPath!, 'utf8')).toBe(persisted)
+      await section.getByRole('button', { name: '放弃范围草稿', exact: true }).click()
+    }
+    for (const width of [1680, 1000, 600]) {
+      await page.setViewportSize({ width, height: 1000 })
+      expect(await section.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+    }
+    await page.setViewportSize({ width: 1680, height: 1000 })
+  })
+
   it('saves scope drafts, refuses invalid settings, and downloads exact report bytes', async () => {
     const section = page.locator('[data-capability="security"]')
     const ctx = scaffold.ctx
@@ -212,11 +255,28 @@ describe('Web optional Security Research', () => {
     scaffold = await launchWebScaffold({ extraOverlayPath: overlay, harnessHome: join(root, 'home') })
     expect(scaffold.ctx.assessmentScope.rootGrant.targets).toEqual([{ id: 'local-fixture', kind: 'service', value: 'fixture' }])
     expect(scaffold.ctx.assessmentScope.rootGrant.actions).toEqual([])
+    expect(scaffold.ctx.assessmentScope.rootGrant.egress).toEqual([{ protocol: 'https', host: 'example.test', port: 443, purpose: 'target-access', targetId: 'local-fixture' }])
+    expect(scaffold.ctx.assessmentScope.rootGrant.credentials).toEqual([{ ref: 'FIXTURE_REFERENCE', purpose: 'target-authentication', targetId: 'local-fixture' }])
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.getByRole('button', { name: '设置', exact: true }).click()
     await page.getByRole('button', { name: '安全研究', exact: true }).click()
     await expect.poll(() => page.getByLabel('目标（每行 id|kind|value）').inputValue()).toBe('local-fixture|service|fixture')
+    expect(await page.getByLabel('引用名称', { exact: true }).inputValue()).toBe('FIXTURE_REFERENCE')
+    expect(await page.getByLabel('目标主机', { exact: true }).inputValue()).toBe('example.test')
   }, 120_000)
+
+  it('clears advanced lists explicitly after restoring them from disk', async () => {
+    for (const group of ['出口 1', '凭证引用 1']) {
+      await page.getByRole('group', { name: group, exact: true }).getByRole('button', { name: '删除此行', exact: true }).click()
+    }
+    await page.getByRole('button', { name: '保存授权范围', exact: true }).click()
+    await page.getByText('授权范围已保存。', { exact: true }).waitFor()
+    expect(scaffold.ctx.assessmentScope.rootGrant.egress).toEqual([])
+    expect(scaffold.ctx.assessmentScope.rootGrant.credentials).toEqual([])
+    const persisted = await readFile(scaffold.ctx.settings.documentPath!, 'utf8')
+    expect(persisted).not.toContain('FIXTURE_REFERENCE')
+    expect(persisted).not.toContain('example.test')
+  })
 
   it('withdraws the settings page when its bundle-owned preset root is disposed', async () => {
     const contribution = [...scaffold.ctx.loader.entries()].find(e => e.options.id === 'security-research-presets')

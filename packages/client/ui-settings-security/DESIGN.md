@@ -27,7 +27,7 @@ The independently installed workbench stays collapsed by default. With visible S
 
 Browser launch preferences use native labelled controls inside the first setup row. Saving reports persistence separately from activation and preserves failed drafts; preference controls do not launch a browser. Explicit navigation and file controls sit below the preference form, use native labelled inputs, and keep status separate from deployment configuration.
 
-Security scope and report controls use native labels, 40px controls, the same semantic borders, and explicit saved/error states. Failed edits remain visible; loading Settings does not trigger report generation.
+Security scope and report controls use native labels, 40px controls, the same semantic borders, and explicit saved/error states. Failed edits remain visible; loading Settings does not trigger report generation. Egress and credential references use separately labelled row groups, stacked fields, and explicit add/remove buttons. New rows leave protocol, purpose, and target unset; credential guidance distinguishes reference names from secret values.
 
 ## Verification
 

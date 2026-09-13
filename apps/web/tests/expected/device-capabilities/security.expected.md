@@ -44,6 +44,14 @@
   - textbox "目标（每行 id|kind|value）"
   - text: 排除目标 ID（每行一个）
   - textbox "排除目标 ID（每行一个）"
+  - group "网络出口":
+    - text: 网络出口
+    - paragraph: 逐项指定协议、主机、端口、用途和已配置的目标 ID。删除全部行会清空出口授权；保存不会发起网络连接。
+    - button "添加出口"
+  - group "凭证引用":
+    - text: 凭证引用
+    - paragraph: 只填写已配置的环境变量名称作为凭证引用，不填写密码、Token 或密钥。保存不创建、解析或验证凭证；删除全部行会清空引用授权。
+    - button "添加凭证引用"
   - group "允许的操作":
     - text: 允许的操作 reconnaissance
     - checkbox "reconnaissance"
@@ -96,7 +104,7 @@
     - option "允许"
   - button "保存授权范围" [disabled]
   - button "放弃范围草稿" [disabled]
-- paragraph: 目标 kind：hostname、ip-address、url-prefix、artifact-scope、service。网络出口与凭证引用保留原配置，可在插件配置中编辑。报告含原始 Finding 文本，本地下载需 report-download，并允许 none 脱敏级别。
+- paragraph: 目标 kind：hostname、ip-address、url-prefix、artifact-scope、service。报告含原始 Finding 文本，本地下载需 report-download，并允许 none 脱敏级别。
 - heading "导出安全报告" [level=4]
 - paragraph: 将 Findings 导出为支持的 JSON、SARIF 或 Markdown 格式。
 - text: 活动 Session ID

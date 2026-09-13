@@ -93,6 +93,8 @@ export function apply(ctx: ClientContext): void {
             { op: 'set', path: ['root', 'executionHostIds'], value: [...value.executionHostIds] },
             { op: 'set', path: ['root', 'targets'], value: value.targets.map(target => ({ ...target })) },
             { op: 'set', path: ['root', 'excludedTargetIds'], value: [...value.excludedTargetIds] },
+            { op: 'set', path: ['root', 'egress'], value: value.egress.map(entry => ({ ...entry })) },
+            { op: 'set', path: ['root', 'credentials'], value: value.credentials.map(entry => ({ ...entry })) },
             { op: 'set', path: ['root', 'actions'], value: [...value.actions] },
             { op: 'set', path: ['root', 'approvalRequiredActions'], value: [...value.approvalRequiredActions] },
             { op: 'set', path: ['root', 'evidence'], value: { ...value.evidence } },

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SecurityResearchReportValue } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SecurityResearchReportValue, SecurityResearchScopeSettings } from '@deepseek-ai/dsh-api-remotes/client'
 import type { CapabilitySectionProps } from '../src/client/CapabilitySection.tsx'
 import { en } from '../src/client/locales.ts'
 import { SecurityScopeEditor } from '../src/client/SecurityScopeEditor.tsx'
@@ -24,7 +24,7 @@ function scopeBench() {
     value: { root: {
       engagementId: 'engagement', grantId: 'grant', authorizationRef: 'auth', notBefore: 0, expiresAt: 100,
       executionHostIds: ['host'], targets: [{ id: 'target', kind: 'hostname', value: 'example.test' }], excludedTargetIds: [],
-      actions: ['reconnaissance'], approvalRequiredActions: [], egress: [], credentials: [],
+      actions: ['reconnaissance'], approvalRequiredActions: [], egress: [] as SecurityResearchScopeSettings['root']['egress'], credentials: [] as SecurityResearchScopeSettings['root']['credentials'],
       evidence: { retainUntil: 100, minimumRedaction: 'sensitive', externalReporting: 'deny' },
     } }, base: undefined, user: undefined,
   }
@@ -89,6 +89,75 @@ describe('Security scope drafts', () => {
     expect((screen.getByLabelText<HTMLInputElement>(en.securityGrantId)).value).toBe('new-grant')
     fireEvent.click(screen.getByRole('button', { name: en.securityScopeDiscard }))
     expect((screen.getByLabelText<HTMLInputElement>(en.securityGrantId)).value).toBe('remote-grant')
+  })
+
+  it('edits advanced rows atomically at the first-edit revision without default grants', async () => {
+    const b = scopeBench()
+    const view = render(<SecurityScopeEditor {...b.props} />)
+    fireEvent.click(screen.getByRole('button', { name: en.securityAddEgress }))
+    const row = within(screen.getByRole('group', { name: 'Egress 1' }))
+    expect(row.getByRole<HTMLSelectElement>('combobox', { name: en.securityProtocol }).value).toBe('')
+    expect(row.getByRole<HTMLSelectElement>('combobox', { name: en.securityPurpose }).value).toBe('')
+    fireEvent.change(row.getByRole('combobox', { name: en.securityProtocol }), { target: { value: 'https' } })
+    fireEvent.change(row.getByLabelText(en.securityDestinationHost), { target: { value: 'example.test' } })
+    fireEvent.change(row.getByLabelText(en.securityPort), { target: { value: '443' } })
+    fireEvent.change(row.getByRole('combobox', { name: en.securityPurpose }), { target: { value: 'target-access' } })
+    fireEvent.change(row.getByLabelText(en.securityTargetId), { target: { value: 'target' } })
+    fireEvent.click(screen.getByRole('button', { name: en.securityAddCredential }))
+    const credential = within(screen.getByRole('group', { name: 'Credential reference 1' }))
+    fireEvent.change(credential.getByLabelText(en.securityCredentialRef), { target: { value: 'FIXTURE_REFERENCE' } })
+    fireEvent.change(credential.getByRole('combobox', { name: en.securityPurpose }), { target: { value: 'target-authentication' } })
+    fireEvent.change(credential.getByLabelText(en.securityTargetId), { target: { value: 'target' } })
+    b.snapshot.revision = 9
+    view.rerender(<SecurityScopeEditor {...b.props} />)
+    fireEvent.click(screen.getByRole('button', { name: en.securityScopeSave }))
+    await screen.findByText(en.securityScopeSaved)
+    expect(b.save).toHaveBeenCalledWith(expect.objectContaining({
+      egress: [{ protocol: 'https', host: 'example.test', port: 443, purpose: 'target-access', targetId: 'target' }],
+      credentials: [{ ref: 'FIXTURE_REFERENCE', purpose: 'target-authentication', targetId: 'target' }],
+    }), 4)
+  })
+
+  it.each(['', '0', '65536', '1.5'])('retains invalid port %j without submitting even when native validation is bypassed', async (port) => {
+    const b = scopeBench()
+    b.snapshot.value.root.egress = [{ protocol: 'https', host: 'example.test', port: 443, purpose: 'target-access', targetId: 'target' }]
+    render(<SecurityScopeEditor {...b.props} />)
+    const input = screen.getByLabelText<HTMLInputElement>(en.securityPort)
+    fireEvent.change(input, { target: { value: port } })
+    fireEvent.submit(screen.getByRole('button', { name: en.securityScopeSave }).closest('form')!)
+    await screen.findByRole('alert')
+    expect(b.save).not.toHaveBeenCalled()
+    expect(input.value).toBe(port)
+  })
+
+  it('keeps advanced drafts after Host refusal without displaying rejection details and discards to current settings', async () => {
+    const b = scopeBench()
+    b.snapshot.value.root.credentials = [{ ref: 'FIXTURE_REFERENCE', purpose: 'target-authentication', targetId: 'target' }]
+    b.save.mockRejectedValueOnce(new Error('private-host-diagnostic'))
+    const view = render(<SecurityScopeEditor {...b.props} />)
+    fireEvent.change(screen.getByLabelText(en.securityTargetId), { target: { value: 'unknown' } })
+    fireEvent.click(screen.getByRole('button', { name: en.securityScopeSave }))
+    await screen.findByRole('alert')
+    expect(screen.queryByText('private-host-diagnostic')).toBeNull()
+    expect(screen.getByLabelText<HTMLInputElement>(en.securityTargetId).value).toBe('unknown')
+    b.snapshot.value.root.credentials = []
+    view.rerender(<SecurityScopeEditor {...b.props} />)
+    expect(screen.getByLabelText<HTMLInputElement>(en.securityTargetId).value).toBe('unknown')
+    fireEvent.click(screen.getByRole('button', { name: en.securityScopeDiscard }))
+    expect(screen.queryByRole('group', { name: 'Credential reference 1' })).toBeNull()
+  })
+
+  it('clears advanced authorization by removing every row without changing the remaining grant fields', async () => {
+    const b = scopeBench()
+    b.snapshot.value.root.egress = [{ protocol: 'https', host: 'example.test', port: 443, purpose: 'target-access', targetId: 'target' }]
+    b.snapshot.value.root.credentials = [{ ref: 'FIXTURE_REFERENCE', purpose: 'target-authentication', targetId: 'target' }]
+    render(<SecurityScopeEditor {...b.props} />)
+    for (const group of ['Egress 1', 'Credential reference 1']) {
+      fireEvent.click(within(screen.getByRole('group', { name: group })).getByRole('button', { name: en.securityRemoveRow }))
+    }
+    fireEvent.click(screen.getByRole('button', { name: en.securityScopeSave }))
+    await screen.findByText(en.securityScopeSaved)
+    expect(b.save).toHaveBeenCalledWith({ ...b.snapshot.value.root, egress: [], credentials: [] }, 4)
   })
 
   it('disables writes on a read-only connection', () => {

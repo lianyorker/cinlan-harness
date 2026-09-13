@@ -56,3 +56,46 @@ it('keeps the static Provider usable without Settings', () => {
   const policy = new StaticPolicy(ctx, { root })
   expect(policy.rootGrant.targets[0]?.value).toBe('fixture.test')
 })
+
+const egress = { protocol: 'https', host: 'fixture.test', port: 443, purpose: 'target-access', targetId: 'target' }
+const credential = { ref: 'FIXTURE_REFERENCE', purpose: 'target-authentication', targetId: 'target' }
+
+it('commits and clears advanced grants atomically without widening existing bindings', async () => {
+  const ctx = await bench()
+  const bound = ctx.assessmentScope.rootGrant
+  await ctx.settings.mutate('assessment-scope', [
+    { op: 'set', path: ['root', 'egress'], value: [egress] },
+    { op: 'set', path: ['root', 'credentials'], value: [credential] },
+  ], 0)
+  expect(ctx.assessmentScope.rootGrant.egress).toEqual([egress])
+  expect(ctx.assessmentScope.rootGrant.credentials).toEqual([credential])
+  expect(ctx.assessmentScope.restore(bound)).toEqual(bound)
+  const expanded = ctx.assessmentScope.rootGrant
+  await ctx.settings.mutate('assessment-scope', [
+    { op: 'set', path: ['root', 'egress'], value: [] }, { op: 'set', path: ['root', 'credentials'], value: [] },
+  ], 1)
+  expect(ctx.assessmentScope.rootGrant.egress).toEqual([])
+  expect(ctx.assessmentScope.rootGrant.credentials).toEqual([])
+  expect(() => ctx.assessmentScope.restore(expanded)).toThrow()
+})
+
+it.each([
+  ['unknown egress target', 'egress', [{ ...egress, targetId: 'unknown' }]],
+  ['unknown credential target', 'credentials', [{ ...credential, targetId: 'unknown' }]],
+  ['duplicate egress', 'egress', [egress, egress]],
+  ['duplicate credentials', 'credentials', [credential, credential]],
+  ['invalid port', 'egress', [{ ...egress, port: 65536 }]],
+  ['unsupported protocol', 'egress', [{ ...egress, protocol: 'ftp' }]],
+  ['unsupported egress purpose', 'egress', [{ ...egress, purpose: 'target-authentication' }]],
+  ['unsupported credential purpose', 'credentials', [{ ...credential, purpose: 'target-access' }]],
+  ['inline credential value', 'credentials', [{ ...credential, value: 'non-secret-invalid-fixture' }]],
+  ['invalid reference grammar', 'credentials', [{ ...credential, ref: 'invalid-reference' }]],
+] as const)('rejects %s without committing other fields', async (_name, field, values) => {
+  const ctx = await bench()
+  const initial = ctx.assessmentScope.rootGrant
+  await expect(ctx.settings.mutate('assessment-scope', [
+    { op: 'set', path: ['root', 'grantId'], value: 'must-not-commit' },
+    { op: 'set', path: ['root', field], value: values.map(value => ({ ...value })) },
+  ], 0)).rejects.toThrow()
+  expect(ctx.assessmentScope.rootGrant).toEqual(initial)
+})

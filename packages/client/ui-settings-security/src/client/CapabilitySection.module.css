@@ -170,3 +170,6 @@
 .browserControls input:focus-visible,
 .browserControls select:focus-visible,
 .browserControls summary:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+
+.securityEditor fieldset.accessRow label { flex-direction: column; align-items: stretch; }
+.securityEditor fieldset.accessRow button { align-self: flex-start; }

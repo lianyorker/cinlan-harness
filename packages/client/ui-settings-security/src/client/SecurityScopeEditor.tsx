@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { SecurityResearchScopeSettings } from '@deepseek-ai/dsh-api-remotes/client'
 import type { CapabilitySectionProps } from './CapabilitySection.tsx'
+import { SecurityScopeAccessEditor, type EgressDraft } from './SecurityScopeAccessEditor.tsx'
 import css from './CapabilitySection.module.css'
 
 type Root = SecurityResearchScopeSettings['root']
@@ -11,6 +12,7 @@ interface Draft {
   readonly targets: string
   readonly hosts: string
   readonly excluded: string
+  readonly egress: readonly EgressDraft[]
   readonly revision: number
 }
 
@@ -28,6 +30,14 @@ function targetText(root: Root): string {
   return root.targets.map(target => `${target.id}|${target.kind}|${target.value}`).join('\n')
 }
 
+function parseEgress(rows: readonly EgressDraft[]): Root['egress'] {
+  return rows.map((row) => {
+    const port = Number(row.port)
+    if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw new Error('Invalid egress port')
+    return { ...row, port }
+  })
+}
+
 function parseTargets(value: string): Root['targets'] {
   return lines(value).map((line) => {
     const [id, kind, ...rest] = line.split('|').map(item => item.trim())
@@ -38,7 +48,7 @@ function parseTargets(value: string): Root['targets'] {
 }
 
 /**
- * Edit only the displayed grant fields while preserving advanced egress and credential references.
+ * Edit root authority with explicit egress destinations and credential references; Host validation owns admission.
  * @param props - Framework-bound Settings source, rejecting write callback, and localized copy.
  * @returns The scope form, or an explicit loading/unavailable state.
  */
@@ -54,11 +64,11 @@ export function SecurityScopeEditor({ useSecurityScope, saveSecurityScope, t }: 
   }, [])
   const root = draft?.root ?? snapshot.value?.root
   const writable = snapshot.status === 'ready' && snapshot.writable && snapshot.mode === 'host'
-  const change = (patch: Partial<Root>, text: Partial<Pick<Draft, 'targets' | 'hosts' | 'excluded'>> = {}): void => {
+  const change = (patch: Partial<Root>, text: Partial<Pick<Draft, 'targets' | 'hosts' | 'excluded' | 'egress'>> = {}): void => {
     if (!writable || root === undefined || snapshot.revision === undefined || pending.current) return
     const current = draft ?? {
       root, targets: targetText(root), hosts: root.executionHostIds.join('\n'),
-      excluded: root.excludedTargetIds.join('\n'), revision: snapshot.revision,
+      excluded: root.excludedTargetIds.join('\n'), egress: root.egress.map(row => ({ ...row, port: String(row.port) })), revision: snapshot.revision,
     }
     setDraft({ ...current, ...text, root: { ...root, ...patch } })
     setStatus('idle')
@@ -70,7 +80,7 @@ export function SecurityScopeEditor({ useSecurityScope, saveSecurityScope, t }: 
     try {
       await saveSecurityScope({
         ...draft.root, targets: parseTargets(draft.targets), executionHostIds: lines(draft.hosts),
-        excludedTargetIds: lines(draft.excluded),
+        excludedTargetIds: lines(draft.excluded), egress: parseEgress(draft.egress),
       }, draft.revision)
       if (mounted.current) { setDraft(undefined); setStatus('saved') }
     } catch (_scopeWriteRejected) {
@@ -102,6 +112,9 @@ export function SecurityScopeEditor({ useSecurityScope, saveSecurityScope, t }: 
         onChange={(event) => { change({}, { targets: event.currentTarget.value }) }} /></label>
       <label><span>{t('securityExcludedTargets')}</span><textarea rows={2} value={draft?.excluded ?? root.excludedTargetIds.join('\n')}
         onChange={(event) => { change({}, { excluded: event.currentTarget.value }) }} /></label>
+      <SecurityScopeAccessEditor egress={draft?.egress ?? root.egress.map(row => ({ ...row, port: String(row.port) }))}
+        credentials={root.credentials} changeEgress={(egress) => { change({}, { egress }) }}
+        changeCredentials={(credentials) => { change({ credentials }) }} t={t} />
       <fieldset><legend>{t('securityActions')}</legend>{ACTIONS.map(action => <label key={action}>
         <span>{action}</span><input type="checkbox" checked={root.actions.includes(action)} onChange={(event) => {
           const next = new Set(root.actions)

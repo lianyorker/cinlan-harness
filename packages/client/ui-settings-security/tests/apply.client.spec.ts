@@ -8,6 +8,7 @@ import type {
   PluginEntryId, PluginInventorySnapshot,
 } from '@deepseek-ai/dsh-host-plugin-inventory/types'
 import { describe, expect, it, vi } from 'vitest'
+import type { SecurityResearchScopeSettings } from '@deepseek-ai/dsh-api-remotes/client'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as hostApply } from '../src/index.ts'
 import { CAPABILITIES, CapabilitySection, type CapabilitySectionInjected } from '../src/client/CapabilitySection.tsx'
@@ -35,19 +36,23 @@ async function bench(list: () => Promise<{ ok: boolean }>, presetIds = ['securit
   const inventory = { list: vi.fn(list) }
   const deviceCapabilities = { check: vi.fn(async (request: { capability: string }) => ({ ok: true, value: { capability: request.capability, status: 'not-configured', reason: 'not-configured' } })) }
   const securityResearch = { describe: vi.fn(async () => ({ ok: true, value: { status: 'not-configured', preset: { present: true, trust: 'system' }, scope: { present: true, state: 'empty', targetCount: 0, actionCount: 0, executionHostCount: 0, egressCount: 0, credentialCount: 0 }, components: { assessmentScope: true, findings: true, artifacts: true, vulnerabilityKnowledgeBase: true, securitySkills: true, workflowPrompt: true, findingTools: true }, skillCount: 24, skillsComplete: true } })) }
-  ctx.provide('remote', { $host: { home: undefined, isLoopback: true }, pluginInventory: inventory, deviceCapabilities, agentPresets, securityResearch, browser: {}, $on: () => () => {} } as never)
+  const settings = { mutate: vi.fn(async () => ({ ok: true, value: {} })) }
+  const settingsState = { status: 'unavailable', mode: 'host', writable: false }
+  const acceptView = vi.fn()
+  ctx.provide('remote', { settings, $host: { home: undefined, isLoopback: true }, pluginInventory: inventory, deviceCapabilities, agentPresets, securityResearch, browser: {}, $on: () => () => {} } as never)
   ctx.provide('remote.agentPresets', agentPresets as never)
   ctx.provide('remote.deviceCapabilities', deviceCapabilities as never)
   ctx.provide('remote.pluginInventory', inventory as never)
   ctx.provide('remote.securityResearch', securityResearch as never)
   ctx.provide('remote.browser', {} as never)
-  ctx.provide('remote.settings', {} as never)
-  ctx.provide('settingsScope', { bind: () => ({
-    getSnapshot: () => ({ status: 'unavailable', mode: 'host', writable: false }),
+  ctx.provide('remote.settings', settings as never)
+  ctx.provide('settingsScope', { describe: () => ({ acceptView }), bind: () => ({
+    getSnapshot: () => settingsState,
     subscribe: () => () => {}, mutate: vi.fn(async () => {}),
   }) } as never)
   await ctx.plugin(SlotRegistry).await()
-  return { ctx, locale, slots: ctx.slots, inventory, deviceCapabilities, agentPresets, securityResearch }
+  return { ctx, locale, slots: ctx.slots, inventory, deviceCapabilities, agentPresets, securityResearch,
+    settings, settingsState, acceptView }
 }
 
 /** Declare the section list and the keyed icon slot this plugin injects into. */
@@ -98,6 +103,41 @@ describe('ui-settings-security registration', () => {
     expect(b.slots.entries('settings.section')).toEqual([])
     expect(b.slots.entries('settings.section.icon')).toEqual([])
     await b.ctx.fiber.dispose()
+  })
+
+  it('writes advanced scope rows atomically, accepts only successful views, and refuses read-only writes', async () => {
+    const b = await bench(async () => ({ ok: true, value: snapshot([]) }))
+    try {
+      declare(b.slots)
+      await b.ctx.plugin({ inject, apply }).await()
+      const section = b.slots.entries('settings.section')[0]!
+      const injected = (section.inject as unknown as () => CapabilitySectionInjected)()
+      const root: SecurityResearchScopeSettings['root'] = {
+        engagementId: 'engagement', grantId: 'grant', authorizationRef: 'auth', notBefore: 0, expiresAt: 100,
+        executionHostIds: ['host'], targets: [{ id: 'target', kind: 'hostname', value: 'example.test' }], excludedTargetIds: [],
+        actions: ['reconnaissance'], approvalRequiredActions: [],
+        egress: [{ protocol: 'https', host: 'example.test', port: 443, purpose: 'target-access', targetId: 'target' }],
+        credentials: [{ ref: 'FIXTURE_REFERENCE', purpose: 'target-authentication', targetId: 'target' }],
+        evidence: { retainUntil: 100, minimumRedaction: 'sensitive', externalReporting: 'deny' },
+      }
+      await expect(injected.saveSecurityScope(root, 4)).rejects.toThrow(zh.securityScopeReadOnly)
+      expect(b.settings.mutate).not.toHaveBeenCalled()
+      b.settingsState.status = 'ready'
+      b.settingsState.writable = true
+      await injected.saveSecurityScope(root, 4)
+      expect(b.settings.mutate).toHaveBeenCalledExactlyOnceWith('assessment-scope', expect.arrayContaining([
+        { op: 'set', path: ['root', 'egress'], value: root.egress },
+        { op: 'set', path: ['root', 'credentials'], value: root.credentials },
+      ]), 4)
+      expect(b.acceptView).toHaveBeenCalledExactlyOnceWith({})
+      b.settings.mutate.mockResolvedValueOnce({ ok: false, error: { message: 'private-diagnostic' } } as never)
+      await expect(injected.saveSecurityScope(root, 4)).rejects.toThrow(zh.securityScopeSaveFailed)
+      expect(b.acceptView).toHaveBeenCalledTimes(1)
+      await injected.saveSecurityScope({ ...root, egress: [], credentials: [] }, 5)
+      expect(b.settings.mutate).toHaveBeenLastCalledWith('assessment-scope', expect.arrayContaining([
+        { op: 'set', path: ['root', 'egress'], value: [] }, { op: 'set', path: ['root', 'credentials'], value: [] },
+      ]), 5)
+    } finally { await b.ctx.fiber.dispose() }
   })
 
   it('shares one inventory-reading callback across every registered section', async () => {
