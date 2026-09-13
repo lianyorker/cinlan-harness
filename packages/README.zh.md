@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会话与 agent 循环、面向模型的工具、shell 与文件系统执行、Web 访问、subagent 等等。把本页当作顶层地图使用：先找到拥有某能力的组，再打开其 README 查看包列表。每个包都以 `@deepseek-ai/dsh-*` 为作用域、只属于一个组；每个组的 README 都是该能力系列的权威包映射。
+本页是 packages/ 的能力分组索引。每个 @deepseek-ai/dsh-* 包只属于一个组；各组 README 持有包清单与职责说明。
 
 ## 目录
 
@@ -53,6 +53,14 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`workflow/`](workflow/README.zh.md) | 工作流 seam、worker 线程引擎、面向模型的 `workflow`/`ralph` 工具 |
 | [`webhook/`](webhook/README.zh.md) | 已验证外部事件、受信规则与即发即弃 Workspace Session |
 | [`web/`](web/README.zh.md) | Web 能力系列：seam、搜索/获取提供方、面向模型的 Web 工具 |
+| [`work-items/`](work-items/README.zh.md) | Provider 工单、持久化确认写入与 Workspace 关联 |
+| [`browser/`](browser/README.zh.md) | 持久 Browser 页面、provider、权限策略与面向模型的控制 |
+| [`computer-use/`](computer-use/README.zh.md) | 桌面 Provider、观察、权限策略和工具 |
+| [`mobile-device/`](mobile-device/README.zh.md) | 移动设备 Provider、一次性 observation 和输入工具 |
+| [`coordination/`](coordination/README.zh.md) | 有界任务图、Executor 与面向模型的 coordination 工具 |
+| [`git/`](git/README.zh.md) | 只读 Git observation、本地 provider 与面向模型的工具 |
+| [`artifact/`](artifact/README.zh.md) | 带 scope 的不可变证据存储与 metadata |
+| [`execution-host/`](execution-host/README.zh.md) | 用于证据 provenance 的 execution-host identity |
 | [`attachment/`](attachment/README.zh.md) | 持久附件标识、校验、本地内容寻址存储 |
 | [`spill/`](spill/README.zh.md) | spill 能力系列：存储 seam、本地实现、工具结果 spill 策略 |
 | [`todo/`](todo/README.zh.md) | 面向模型的 `todo_write` 工具 |

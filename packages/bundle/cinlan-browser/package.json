@@ -1,0 +1,62 @@
+{
+  "name": "@deepseek-ai/dsh-cinlan-browser",
+  "description": "Opt-in Cinlan persistent-browser composition for dsh profiles",
+  "version": "0.1.5-alpha.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/bundle/cinlan-browser"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "cordis.patch.yml",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-browser": "workspace:^",
+    "@deepseek-ai/dsh-browser-permission-policy": "workspace:^",
+    "@deepseek-ai/dsh-tool-browser": "workspace:^",
+    "@deepseek-ai/dsh-browser-playwright": "workspace:^",
+    "@deepseek-ai/dsh-api-browser-controller": "workspace:^"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
+    "@deepseek-ai/dsh-attachment": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-subprocess": "workspace:^",
+    "@deepseek-ai/dsh-system-prompt": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@types/js-yaml": "^4.0.9",
+    "js-yaml": "^4.2.0",
+    "@deepseek-ai/dsh-settings-file": "workspace:^",
+    "@deepseek-ai/dsh-settings": "workspace:^",
+    "playwright-core": "^1.61.1",
+    "@deepseek-ai/dsh-typert-registry": "workspace:^"
+  }
+}

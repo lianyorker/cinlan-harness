@@ -11,6 +11,7 @@ import type { SessionProjectionMap } from '@deepseek-ai/dsh-session-projection/t
 import type { JobId } from '@deepseek-ai/dsh-jobs/brand'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
+import type { WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task/types'
 
 declare module '@deepseek-ai/dsh-session-projection/types' {
   interface SessionProjectionStateMap {
@@ -265,6 +266,10 @@ export interface SessionCreateRequest {
   readonly cwd?: string
   readonly sessionId?: SessionId
   readonly agentPreset?: string
+  /** Create the Session in a provider-managed Git worktree derived from its source Workspace. */
+  readonly isolate?: boolean
+  /** Bind the Session to an existing Worktree Task; the task's checkout becomes the Session cwd. */
+  readonly taskId?: WorktreeTaskId
 }
 
 /** Session creation response value. */

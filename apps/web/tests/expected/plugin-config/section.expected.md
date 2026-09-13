@@ -1,22 +1,21 @@
-- dialog "设置":
+- region "设置":
   - navigation:
-    - text: 设置
-    - button "通用设置":
+    - button "返回应用":
       - img
-      - text: 通用设置
-    - button "模型":
-      - img
-      - text: 模型
-    - button "插件":
-      - img
-      - text: 插件
-    - button "Agent 预设":
-      - img
-      - text: Agent 预设
-  - button "打开配置文件"
-  - button "关闭":
+      - text: 返回应用
     - img
-    - text: 关闭
+    - searchbox "搜索设置..."
+    - text: 设置
+    - button "通用设置"
+    - button "模型"
+    - button "插件"
+    - button "Agent 预设"
+    - button "浏览器"
+    - button "计算机控制"
+    - button "手机模拟器"
+    - button "设计"
+    - button "侧边卡片"
+  - button "打开配置文件"
   - heading "插件" [level=2]
   - paragraph: 配置和查看本部署已安装的插件。
   - tablist "插件视图":

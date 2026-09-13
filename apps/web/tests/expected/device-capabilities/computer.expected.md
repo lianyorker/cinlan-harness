@@ -1,0 +1,25 @@
+- heading "计算机控制" [level=2]
+- paragraph: 通过独立 profile 启用桌面观察、指针、键盘与 accessibility 工具。
+- heading "计算机控制能力" [level=3]
+- status: 未启用
+- paragraph: Provider 就绪后，Harness 可以观察应用和窗口，并按权限策略执行指针、键盘和 accessibility 操作。
+- paragraph: 当前 profile 未挂载此能力。可在另一个终端启动 device-control profile。
+- code: dsh --profile device-control
+- button "复制启动命令":
+  - img
+- paragraph: 当前设备 profile 仍挂载历史外部 CLI 适配器，不能作为 Harness 原生设备能力验收。原生 Provider 尚待迁移。
+- button "重新检查":
+  - img
+  - text: 重新检查
+- heading "如何使用" [level=3]
+- paragraph: 在 Cinlan Harness 中使用 Computer Use 工具。
+- article:
+  - heading "观察应用和窗口" [level=4]
+  - paragraph: 列出本地应用与窗口，并读取当前桌面 accessibility 状态。
+- article:
+  - heading "执行桌面操作" [level=4]
+  - paragraph: 在权限策略允许时使用指针、键盘和 accessibility action。
+- article:
+  - heading "验证操作结果" [level=4]
+  - paragraph: 每次操作后重新观察，确认桌面状态已达到预期。
+- group: Host 组件 · 0

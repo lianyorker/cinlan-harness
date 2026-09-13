@@ -125,6 +125,8 @@ export class AgentPresets extends TypertRemoteService {
    */
   private readonly resolvedRoots: readonly PresetRoot[]
 
+  private readonly contributedRoots: PresetRoot[] = []
+
   /**
    * Where a row's package name resolves from: the base URL of the composition
    * this roster was loaded by, which is inside the installed harness.
@@ -246,7 +248,23 @@ export class AgentPresets extends TypertRemoteService {
    * @returns the presets, first-root-wins per id.
    */
   async list(): Promise<AgentPreset[]> {
-    return await discoverPresets(this.resolvedRoots, this.harnessBase)
+    return await discoverPresets(this.roots, this.harnessBase)
+  }
+
+  /**
+   * Contribute an installed plugin's read-only preset directory for its lifetime.
+   * Shipped and explicitly configured roots win duplicate ids; contributions
+   * precede the implicit user root. Removal leaves already joined agents intact.
+   * @param path - Directory holding the plugin's preset subdirectories.
+   * @returns An idempotent disposer withdrawing the directory from discovery.
+   */
+  registerSystemRoot(path: string): () => void {
+    const root: PresetRoot = { path, trust: 'system' }
+    const dispose = this.ctx.effect(() => {
+      this.contributedRoots.push(root)
+      return () => { this.contributedRoots.splice(this.contributedRoots.indexOf(root), 1) }
+    }, 'agentPresets.registerSystemRoot()')
+    return () => { void dispose() }
   }
 
   /**
@@ -479,12 +497,15 @@ export class AgentPresets extends TypertRemoteService {
   /**
    * The roots this roster scans, which is not `config.roots`: the package's
    * shipped root unless `includeShippedRoot` is false, every configured root
-   * in order, then the harness-home user root unless `includeUserRoot` is
-   * false. Read this — not the config field — to answer whether a roster is
+   * in order, plugin-contributed system roots, then the harness-home user root
+   * unless `includeUserRoot` is false. Read this — not the config field — to
+   * answer whether a roster is
    * composed at all, so one derivation decides it.
    */
   get roots(): readonly PresetRoot[] {
-    return this.resolvedRoots
+    const roots = [...this.resolvedRoots]
+    roots.splice(roots.length - (this.config.includeUserRoot ? 1 : 0), 0, ...this.contributedRoots)
+    return roots
   }
 
   /** Whether this deployment has a root locally authored presets go to. */

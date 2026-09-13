@@ -69,6 +69,10 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
+interface WorkspaceIsolationSource {
+  sourceFor(sessionId: SessionId, cwd: string): string | undefined
+}
+
 interface BootstrapGroup {
   readonly path: string
   readonly headers: SessionHeader[]
@@ -103,6 +107,7 @@ export class WorkspaceRegistry extends Service {
   private readonly host: WorkspaceEntityHost = {
     table: () => this.requireTable(),
     sessionPath: id => this.sessionPaths.get(id),
+    sourcePath: (id, cwd) => (this.ctx.get('workspaceIsolation') as WorkspaceIsolationSource | undefined)?.sourceFor(id, cwd),
     readSessionHeader: id => this.readSessionHeader(id),
     rememberSessionPath: (id, path) => {
       this.sessionPaths.set(id, path)
@@ -576,7 +581,8 @@ export class WorkspaceRegistry extends Service {
       return
     }
     try {
-      const path = await realpathNormalize(header.cwd)
+      const source = (this.ctx.get('workspaceIsolation') as WorkspaceIsolationSource | undefined)?.sourceFor(header.id, header.cwd) ?? header.cwd
+      const path = await realpathNormalize(source)
       if (!(await stat(path)).isDirectory()) {
         this.invalidSessionPaths.set(header.id, `cwd '${header.cwd}' is not a directory`)
         return

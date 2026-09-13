@@ -26,6 +26,8 @@ import type { CodeSdkLanguage } from './ptc.ts'
 import { renderToolsSdk } from './ts-types.ts'
 import type { ToolSdkSchema } from './ts-types.ts'
 import { renderToolsSdkPy } from './py-types.ts'
+import { defineTool } from './schema.ts'
+import type { DefineToolOptions, ParameterSchemaSpec, ValueSchemaSpec } from './schema.ts'
 
 /**
  * Language → SDK-section renderer. The registry looks up the loaded
@@ -1016,6 +1018,19 @@ export class ToolRuntime extends Service {
       throw new Error(`dsh-tools: no SDK renderer registered for runtime language ${JSON.stringify(runtime.language)} (known: ${known})`)
     }
     return runtime
+  }
+
+  /**
+   * Compile typed author schemas into a registry-ready tool through the
+   * injected service, so Consumers need no runtime module identity.
+   * @param options - typed definition and optional finalizer and presenters.
+   * @returns a registry-ready definition.
+   */
+  define<const S extends ParameterSchemaSpec, const O extends ValueSchemaSpec>(
+    options: DefineToolOptions<S, O>,
+  ): ToolDefinition {
+    // The method signature performs the generic check before this erased call.
+    return (defineTool as unknown as (value: unknown) => ToolDefinition)(options)
   }
 
   /**

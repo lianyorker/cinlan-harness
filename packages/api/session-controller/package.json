@@ -103,7 +103,9 @@
     "@deepseek-ai/dsh-util-time": "workspace:^",
     "@deepseek-ai/dsh-util-values": "workspace:^",
     "@deepseek-ai/dsh-util-workspace-path": "workspace:^",
-    "@deepseek-ai/dsh-workspace": "workspace:^"
+    "@deepseek-ai/dsh-workspace": "workspace:^",
+    "@deepseek-ai/dsh-workspace-isolation": "workspace:^",
+    "@deepseek-ai/dsh-worktree-task": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-jobs": {
@@ -155,6 +157,8 @@
     "@deepseek-ai/dsh-util-values": "workspace:^",
     "@deepseek-ai/dsh-util-workspace-path": "workspace:^",
     "@deepseek-ai/dsh-workspace": "workspace:^",
-    "@types/mime-types": "^3.0.1"
+    "@types/mime-types": "^3.0.1",
+    "@deepseek-ai/dsh-workspace-isolation": "workspace:^",
+    "@deepseek-ai/dsh-worktree-task": "workspace:^"
   }
 }

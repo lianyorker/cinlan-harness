@@ -52,6 +52,15 @@ import type {
   SessionRequestId,
 } from './types.ts'
 
+interface WorkspaceIsolationLease {
+  readonly id: string
+  readonly checkoutPath: string
+}
+interface WorkspaceIsolationProvider {
+  ensure(request: { sessionId: SessionId; sourcePath: string }): Promise<WorkspaceIsolationLease>
+  teardown(leaseId: WorkspaceIsolationLease['id']): Promise<unknown>
+}
+
 interface SessionReadState {
   readonly id: SessionId
   readonly header: SessionHeader
@@ -98,7 +107,43 @@ export class SessionCommandController {
         })
       }
     }
-    const cwd = workspace?.path ?? request.cwd ?? this.defaultCwd
+    const sourceCwd = workspace?.path ?? request.cwd ?? this.defaultCwd
+    const isolation = request.isolate
+      ? this.ctx.get('workspaceIsolation') as WorkspaceIsolationProvider | undefined
+      : undefined
+    if (request.isolate && isolation === undefined) {
+      throw new RemoteError('gateway/bad-request', 'session.create requested isolation but no Workspace Isolation provider is mounted', {})
+    }
+    if (request.isolate && request.sessionId !== undefined && this.ctx.sessions.get(sessionId) === undefined) {
+      throw new RemoteError('gateway/bad-request', 'isolated Session creation does not adopt a cold identity', {})
+    }
+    if (request.taskId !== undefined && request.isolate === true) {
+      throw new RemoteError('gateway/bad-request', 'session.create accepts taskId or isolate, not both', {})
+    }
+    let lease: WorkspaceIsolationLease | undefined
+    let cwd = sourceCwd
+    if (isolation !== undefined) {
+      try {
+        lease = await isolation.ensure({ sessionId, sourcePath: sourceCwd })
+        cwd = lease.checkoutPath
+      } catch (error) {
+        this.rejectCreation(sessionId, error)
+      }
+    }
+    let boundTask: { taskId: import('@deepseek-ai/dsh-worktree-task/types').WorktreeTaskId } | undefined
+    if (request.taskId !== undefined) {
+      const worktreeTask = this.ctx.get('worktreeTask')
+      if (worktreeTask === undefined) {
+        throw new RemoteError('gateway/bad-request', 'session.create requested a Worktree Task binding but no Worktree Task provider is mounted', {})
+      }
+      try {
+        const result = await worktreeTask.bindSession({ taskId: request.taskId, sessionId })
+        cwd = result.checkoutPath
+        boundTask = { taskId: request.taskId }
+      } catch (error) {
+        this.rejectCreation(sessionId, error)
+      }
+    }
     let adopted: Agent
     try {
       adopted = await this.agents.ensureSession(
@@ -108,6 +153,15 @@ export class SessionCommandController {
         request.agentPreset,
       )
     } catch (error) {
+      if (lease !== undefined) {
+        try { await isolation?.teardown(lease.id) } catch (cleanupError) {
+          throw new AggregateError([error, cleanupError], 'isolated Session creation and worktree cleanup both failed')
+        }
+      }
+      if (boundTask !== undefined) {
+        const worktreeTask = this.ctx.get('worktreeTask')
+        try { await worktreeTask?.unbindSession(boundTask.taskId, sessionId) } catch { /* best-effort cleanup */ }
+      }
       this.rejectCreation(sessionId, error)
     }
     if (workspace !== undefined) {

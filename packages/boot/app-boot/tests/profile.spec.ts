@@ -211,6 +211,18 @@ describe('loadProfile', () => {
     // @deepseek-ai/* through tsconfig paths regardless of the staged anchor.
     expect(PROFILE_TEMPLATES.web?.bundles).toContain('@deepseek-ai/dsh-base')
     expect(PROFILE_TEMPLATES.web?.patchReload).toBe('live')
+    expect(PROFILE_TEMPLATES.browser).toEqual({
+      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-cinlan-browser'],
+      patchReload: 'live',
+    })
+    expect(PROFILE_TEMPLATES['work-items']).toEqual({
+      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-cinlan-work-items'],
+      patchReload: 'live',
+    })
+    expect(PROFILE_TEMPLATES['device-control']).toEqual({
+      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-cinlan-computer-use', '@deepseek-ai/dsh-cinlan-mobile-device'],
+      patchReload: 'live',
+    })
     expect(PROFILE_TEMPLATES.headless?.patchReload).toBe('startup')
     expect(PROFILE_TEMPLATES.acp).toEqual({
       bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-acp-app'],

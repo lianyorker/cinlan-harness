@@ -16,8 +16,13 @@ const root = resolve(import.meta.dirname, '..')
  */
 export const GROUPS_WITHOUT_SUBSYSTEM_PAGE: Readonly<Record<string, string>> = {
   acp: 'Protocol transport entry point; the server package README owns its interoperability contract.',
+  artifact: 'Artifact storage and authorization contracts are documented by the artifact group and package READMEs; no standalone subsystem page exists.',
+  browser: 'Persistent Browser contracts are documented by the browser group and package READMEs; no standalone subsystem page exists.',
   boot: 'Shared application-bin boot library rather than a runtime subsystem.',
   bundle: 'Composition patch carriers whose mounted packages own all runtime contracts.',
+  coordination: 'Task-graph contracts are documented by the coordination group and package READMEs; no standalone subsystem page exists.',
+  'execution-host': 'Execution-host identity contracts are documented by the execution-host group and package READMEs; no standalone subsystem page exists.',
+  git: 'Read-only Git contracts are documented by the Git group and package READMEs; no standalone subsystem page exists.',
   hooks: 'External hook-protocol bridges over existing interception points, not a new Harness service.',
   sdk: 'Out-of-process protocol and client packages whose package READMEs own the SDK contracts.',
   util: 'Low-level primitives whose business semantics remain with their consuming subsystems.',

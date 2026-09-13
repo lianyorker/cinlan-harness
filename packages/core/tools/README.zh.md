@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 注册工具
 
-`defineTool` 构建类型化工具定义：面向模型的名称、描述与参数 schema、规范输出声明，以及只返回所声明 JSON 值的 `execute` 主体。模型参数在执行前被校验；无效输入变成普通错误结果。
+`defineTool` 构建类型化工具定义：面向模型的名称、描述与参数 schema、规范输出声明，以及只返回所声明 JSON 值的 `execute` 主体。模型参数在执行前被校验；无效输入变成普通错误结果。已经注入注册表的 Consumer 可以调用 `ctx.tools.define(options)` 使用同一编译器，再注册其返回值，而无需增加运行时模块导入。
 
 ```ts
 import { readFile } from 'node:fs/promises'

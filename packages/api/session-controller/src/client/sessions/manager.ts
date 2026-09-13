@@ -5,6 +5,7 @@
 import type { SubagentAddress, SubagentCatalog } from '@deepseek-ai/dsh-subagent/client'
 import { SessionSeq, type SessionId, type SessionSeqCursor } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
+import type { WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task/types'
 import type {
   SessionControlBaseline,
   SessionControlFrame,
@@ -555,9 +556,15 @@ export class SessionManager {
       workspaceId?: WorkspaceId
       cwd?: string
       sessionId?: SessionId
+      isolate?: boolean
+      taskId?: WorktreeTaskId
     } = {},
   ): Promise<RemoteResult<{ sessionId: SessionId }>> {
-    const shared = opts.sessionId === undefined ? {} : { sessionId: opts.sessionId }
+    const shared = {
+      ...(opts.sessionId === undefined ? {} : { sessionId: opts.sessionId }),
+      ...(opts.isolate === undefined ? {} : { isolate: opts.isolate }),
+      ...(opts.taskId === undefined ? {} : { taskId: opts.taskId }),
+    }
     const payload = opts.workspaceId !== undefined
       ? { workspaceId: opts.workspaceId, ...shared }
       : { ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }), ...shared }

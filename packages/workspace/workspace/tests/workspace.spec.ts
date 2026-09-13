@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -175,6 +176,27 @@ function storedState(pool: MemoryMediaPool): WorkspaceDomainState {
 let base: string
 const tempDirs: string[] = []
 
+/** Windows directory junctions are usable only when the test process can follow one. */
+const canFollowDirectoryJunction = process.platform !== 'win32' || (() => {
+  const probe = mkdtempSync(join(tmpdir(), 'dsh-workspace-junction-probe-'))
+  const target = join(probe, 'target')
+  const link = join(probe, 'link')
+  try {
+    mkdirSync(target)
+    symlinkSync(target, link, 'junction')
+    return statSync(link).isDirectory()
+  } catch {
+    return false
+  } finally {
+    rmSync(probe, { recursive: true, force: true })
+  }
+})()
+
+/** Create a directory link using the unprivileged Windows junction form. */
+async function createDirectoryLink(target: string, link: string): Promise<void> {
+  await symlink(target, link, process.platform === 'win32' ? 'junction' : 'dir')
+}
+
 async function makeDir(name: string): Promise<string> {
   base ??= await realpath(await mkdtemp(join(tmpdir(), 'dsh-workspace-')))
   if (tempDirs.length === 0) tempDirs.push(base)
@@ -204,12 +226,12 @@ describe('WorkspaceRegistry lifecycle and bootstrap', () => {
     expect(storedState(pool)).toEqual({ initialized: true, workspaceIds: [], archivedSessionIds: [] })
   })
 
-  it('bootstraps once from list headers only, in workspace/session createdAt order', async () => {
+  it.skipIf(!canFollowDirectoryJunction)('bootstraps once from list headers only, in workspace/session createdAt order', async () => {
     const older = await makeDir('older')
     const newer = await makeDir('newer')
     const alias = join(base, 'older-link')
     const plain = join(base, 'plain.txt')
-    await symlink(older, alias)
+    await createDirectoryLink(older, alias)
     await writeFile(plain, 'not a directory')
     const missing = join(base, 'missing')
     const result = await harness({
@@ -375,11 +397,11 @@ describe('WorkspaceRegistry create and lookup', () => {
     expect(fullyQualifiedWorkspacePath('work', 'linux')).toBe(false)
   })
 
-  it('creates newest-first and idempotently reuses a canonical path without retitling', async () => {
+  it.skipIf(!canFollowDirectoryJunction)('creates newest-first and idempotently reuses a canonical path without retitling', async () => {
     const firstDir = await makeDir('first')
     const secondDir = await makeDir('second')
     const alias = join(base, 'first-link')
-    await symlink(firstDir, alias)
+    await createDirectoryLink(firstDir, alias)
     const { registry, pool } = await harness()
     const first = await registry.create(firstDir, 'Original')
     const second = await registry.create(secondDir)

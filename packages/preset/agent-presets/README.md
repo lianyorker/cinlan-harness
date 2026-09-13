@@ -31,7 +31,9 @@ Mount this package in a composition that should give each agent session its own 
 
 A session composed from a preset runs the plugins that preset's `agent.cordis.yml` names: its tools, prompt sections, and skills. Sessions joined to the same preset share one installed composition, and each session's state stays separate. A child agent (subagent) joins its parent's composition, so it sees the same tools and prompt sections as the agent that spawned it.
 
-The presets you can choose from come from two places: the presets shipped inside this package under `presets/`, and your own presets under `<dshHome>/.agent-presets`. The picker shows each preset's display name and description; a preset whose composition cannot load is listed with the reason rather than hidden, so you can see what to fix or delete.
+Presets come from this package's `presets/`, configured directories, installed plugin contributions, and your own `<dshHome>/.agent-presets` directory. The picker shows each preset's display name and description; a preset whose composition cannot load is listed with the reason rather than hidden, so you can see what to fix or delete.
+
+Installed plugins contribute read-only directories through `registerSystemRoot(path)`. Shipped and explicitly configured roots have priority, followed by contributions in registration order, then the implicit user root. The returned disposer removes only the contribution from discovery; it does not remove files or already joined compositions.
 
 ### Minimal configuration
 

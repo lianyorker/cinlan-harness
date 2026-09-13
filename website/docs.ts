@@ -256,6 +256,14 @@ const develop = pairedPages([
     section: { root: '实战', en: 'Practice' },
     order: 3,
   },
+  {
+    source: 'docs/user/develop/practice/device-control.md',
+    route: 'develop/practice/device-control.md',
+    label: { root: '本地设备控制', en: 'Local device control' },
+    sidebar: { root: 'zh-develop', en: 'en-develop' },
+    section: { root: '实战', en: 'Practice' },
+    order: 4,
+  },
 ])
 
 const cordisTutorial = pairedPages(([
@@ -353,6 +361,7 @@ const subsystemGroups = [
     ['typert.md', 'Typert', 'Typert'],
     ['storage.md', '存储', 'Storage'],
     ['workspace.md', '工作区', 'Workspaces'],
+    ['work-items.md', '工作项', 'Work Items'],
     ['settings.md', '用户设置', 'User settings'],
     ['credentials.md', '用户凭据', 'User credentials'],
   ]],

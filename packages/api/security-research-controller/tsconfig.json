@@ -1,0 +1,57 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../preset/agent-presets"
+    },
+    {
+      "path": "../../security/assessment-scope"
+    },
+    {
+      "path": "../../artifact/artifact"
+    },
+    {
+      "path": "../../security/finding"
+    },
+    {
+      "path": "../../security/vuln-kb-service"
+    },
+    {
+      "path": "../../skill/skill"
+    },
+    {
+      "path": "../../../vendor/loader"
+    },
+    {
+      "path": "../../security/finding-export"
+    },
+    {
+      "path": "../../security/assessment-scope-session"
+    },
+    {
+      "path": "../../execution-host/execution-host"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../core/agent"
+    }
+  ]
+}

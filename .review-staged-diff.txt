@@ -1,0 +1,1556 @@
+  current = {}
++      } else if (field.startsWith('worktree ')) current.path = field.slice('worktree '.length)
++      else if (field.startsWith('branch ')) current.branch = field.slice('branch '.length)
++    }
++    return registrations
++  }
++
++  /** Disable repository clean/smudge/process filters before commands that touch content. */
++  private async filterOverrides(repositoryPath: string, signal?: AbortSignal): Promise<GitConfigOverride[]> {
++    const result = await this.git(
++      repositoryPath,
++      ['config', '--null', '--name-only', '--get-regexp', FILTER_CONFIG_PATTERN],
++      signal,
++      [],
++    )
++    if (result.exitCode === 1 && result.stdout.length === 0 && result.stderr.length === 0) return []
++    this.assertSuccess(result, 'config')
++    if (result.stdout.length === 0) return []
++    if (!result.stdout.endsWith('\0')) {
++      throw new WorkspaceIsolationError('COMMAND_FAILED', 'git config returned an invalid filter record')
++    }
++    const drivers = new Set<string>()
++    for (const key of result.stdout.slice(0, -1).split('\0')) {
++      const driver = /^filter\.(.+)\.(?:clean|smudge|process)$/iu.exec(key)?.[1]
++      if (driver === undefined || driver.length === 0 || driver.includes('=')) {
++        throw new WorkspaceIsolationError('COMMAND_FAILED', 'git config returned an unsupported filter name')
++      }
++      drivers.add(driver)
++    }
++    return [...drivers].flatMap(driver => [
++      { key: `filter.${driver}.clean`, value: '' },
++      { key: `filter.${driver}.smudge`, value: '' },
++      { key: `filter.${driver}.process`, value: '' },
++      { key: `filter.${driver}.required`, value: 'false' },
++    ])
++  }
++
++  /** Run one bounded Git subprocess with hooks and ambient config disabled. */
++  private async git(
++    cwd: string,
++    args: readonly string[],
++    requestSignal?: AbortSignal,
++    overrides: readonly GitConfigOverride[] = [],
++  ): Promise<CommandResult> {
++    const timeout = AbortSignal.timeout(this.config.commandTimeoutMs)
++    const signal = requestSignal === undefined ? timeout : AbortSignal.any([requestSignal, timeout])
++    const configArgs = [
++      { key: 'core.fsmonitor', value: 'false' },
++      { key: 'core.hooksPath', value: join(this.config.root, '.disabled-hooks') },
++      { key: 'commit.gpgSign', value: 'false' },
++      ...overrides,
++    ].flatMap(({ key, value }) => ['-c', `${key}=${value}`])
++    let handle: SubprocessHandle
++    try {
++      const executable = await this.ownerCtx.subprocess.resolveExecutable(this.config.executable, undefined, signal)
++      signal.throwIfAborted()
++      handle = this.ownerCtx.subprocess.spawn({
++        argv: [executable, ...configArgs, ...args],
++        cwd,
++        env: gitEnvironment(),
++        stdio: {
++          stdin: 'ignore',
++          stdout: { maxBytes: this.config.maxOutputBytes },
++          stderr: { maxBytes: this.config.maxOutputBytes },
++        },
++        graceMs: this.config.graceMs,
++        signal,
++      })
++    } catch (error: unknown) {
++      requestSignal?.throwIfAborted()
++      throw new WorkspaceIsolationError('COMMAND_FAILED', `could not start Git command "${args[0] ?? ''}": ${String(error)}`, { cause: error })
++    }
++    const [done, treeExit] = await Promise.allSettled([handle.done, handle.waitForExit()])
++    requestSignal?.throwIfAborted()
++    if (done.status === 'rejected' || treeExit.status === 'rejected' || !treeExit.value) {
++      const failures: unknown[] = []
++      if (done.status === 'rejected') failures.push(done.reason)
++      if (treeExit.status === 'rejected') failures.push(treeExit.reason)
++      else if (!treeExit.value) failures.push(new Error('process tree remained live'))
++      throw new WorkspaceIsolationError(
++        'COMMAND_FAILED',
++        `Git command "${args[0] ?? ''}" did not settle: ${failures.map(String).join('; ')}`,
++        { cause: failures.length === 1 ? failures[0] : new AggregateError(failures) },
++      )
++    }
++    const stdout = readCollected(handle.collected.stdout)
++    const stderr = readCollected(handle.collected.stderr)
++    return {
++      stdout: stdout.text,
++      stderr: stderr.text,
++      stdoutTruncated: stdout.truncated,
++      stderrTruncated: stderr.truncated,
++      exitCode: done.value.exitCode,
++    }
++  }
++
++  private assertSuccess(result: CommandResult, operation: string): void {
++    if (result.stdoutTruncated || result.stderrTruncated) {
++      throw new WorkspaceIsolationError('COMMAND_FAILED', `git ${operation} output exceeded the configured limit`)
++    }
++    if (result.exitCode !== 0) {
++      throw new WorkspaceIsolationError(
++        'COMMAND_FAILED',
++        result.stderr.trim() || `git ${operation} failed with exit code ${String(result.exitCode)}`,
++      )
++    }
++  }
++
++  private async write(record: GitWorkspaceIsolationRecord): Promise<GitWorkspaceIsolationRecord> {
++    await this.requireTable().put(record.sessionId, record)
++    this.records.set(record.sessionId, record)
++    return record
++  }
++
++  private requireTable(): KvTable<SessionId, GitWorkspaceIsolationRecord> {
++    if (this.table === undefined || this.domain === undefined) {
++      throw new WorkspaceIsolationError('UNAVAILABLE', 'workspace isolation provider is not started')
++    }
++    return this.table
++  }
++
++  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
++    const result = this.operationTail.then(operation)
++    this.operationTail = result.then(() => {}, () => {})
++    return result
++  }
++}
++
++export default GitWorkspaceIsolation
+diff --git a/packages/workspace/workspace-isolation-git/src/spec.ts b/packages/workspace/workspace-isolation-git/src/spec.ts
+new file mode 100644
+index 0000000000..e87c454445
+--- /dev/null
++++ b/packages/workspace/workspace-isolation-git/src/spec.ts
+@@ -0,0 +1,36 @@
++/** Durable records for managed Git worktree leases. */
++
++import { z } from 'zod'
++import { SessionId } from '@deepseek-ai/dsh-session'
++import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
++import { WorkspaceIsolationLeaseId } from '@deepseek-ai/dsh-workspace-isolation'
++
++/** One provider-owned lease record. */
++export const gitWorkspaceIsolationRecord = z.object({
++  id: z.uuid().transform(WorkspaceIsolationLeaseId),
++  sessionId: z.string().min(1).transform(SessionId),
++  sourcePath: z.string().min(1),
++  repositoryPath: z.string().min(1),
++  checkoutRoot: z.string().min(1),
++  checkoutPath: z.string().min(1),
++  branch: z.string().min(1),
++  phase: z.union([z.literal('active'), z.literal('hibernated')]),
++  reviewState: z.union([z.literal('none'), z.literal('branch-retained')]),
++  baseBranch: z.string(),
++  baseHead: z.string().regex(/^[0-9a-f]{40,64}$/),
++  head: z.string().regex(/^[0-9a-f]{40,64}$/),
++  createdAt: z.string(),
++  updatedAt: z.string(),
++})
++
++/** Validated durable record type. */
++export type GitWorkspaceIsolationRecord = z.infer<typeof gitWorkspaceIsolationRecord>
++
++/** Provider domain. Session ids are the one-lease-per-Session table keys. */
++export const gitWorkspaceIsolationSpec = defineDomain({
++  name: 'workspace_isolation_git',
++  version: 3,
++  tables: {
++    leases: domainTable<ReturnType<typeof SessionId>, GitWorkspaceIsolationRecord>(gitWorkspaceIsolationRecord),
++  },
++})
+diff --git a/packages/workspace/workspace-isolation-git/tests/git-workspace-isolation.spec.ts b/packages/workspace/workspace-isolation-git/tests/git-workspace-isolation.spec.ts
+new file mode 100644
+index 0000000000..2cfed88874
+--- /dev/null
++++ b/packages/workspace/workspace-isolation-git/tests/git-workspace-isolation.spec.ts
+@@ -0,0 +1,411 @@
++import { execFile } from 'node:child_process'
++import { promisify } from 'node:util'
++import { mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
++import { tmpdir } from 'node:os'
++import { join } from 'node:path'
++import { afterEach, describe, expect, it } from 'vitest'
++import { Context } from '@deepseek-ai/cordis'
++import AgentRegistry from '@deepseek-ai/dsh-agent'
++import { SessionId } from '@deepseek-ai/dsh-session'
++import Storage from '@deepseek-ai/dsh-storage'
++import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
++import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
++import { WorkspaceIsolationError } from '@deepseek-ai/dsh-workspace-isolation'
++import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
++import GitWorkspaceIsolation from '../src/index.ts'
++
++const execFileAsync = promisify(execFile)
++const roots: string[] = []
++const contexts: Context[] = []
++
++async function git(cwd: string, ...args: string[]): Promise<string> {
++  const result = await execFileAsync('git', ['-c', 'commit.gpgSign=false', ...args], {
++    cwd,
++    encoding: 'utf8',
++  })
++  return result.stdout
++}
++
++async function createRepository(): Promise<{ root: string; repository: string; managed: string }> {
++  const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-workspace-isolation-git-')))
++  roots.push(root)
++  const repository = join(root, 'repository')
++  const managed = join(root, 'managed')
++  await mkdir(repository)
++  await git(repository, 'init')
++  await git(repository, 'config', 'user.name', 'Workspace Isolation Test')
++  await git(repository, 'config', 'user.email', 'workspace-isolation-test@localhost')
++  await writeFile(join(repository, 'tracked.txt'), 'base\n')
++  await git(repository, 'add', '--all')
++  await git(repository, 'commit', '-m', 'base')
++  return { root, repository, managed }
++}
++
++async function harness(options: {
++  repository?: string
++  managed?: string
++  pool?: MemoryMediaPool
++  maxActiveCheckouts?: number
++} = {}) {
++  const paths = options.repository === undefined || options.managed === undefined
++    ? await createRepository()
++    : { root: '', repository: options.repository, managed: options.managed }
++  const pool = options.pool ?? new MemoryMediaPool()
++  const ctx = new Context()
++  contexts.push(ctx)
++  await ctx.plugin(Storage)
++  ctx.storage.backend.register('memory', new MemoryStorageBackend(pool))
++  const facility = new DomainFacility(ctx, { backend: 'memory', routes: {} })
++  ctx.storage.mount('domain', facility)
++  ctx.provide('storageDomain', facility)
++  await ctx.plugin(AgentRegistry)
++  await ctx.plugin(LocalSubprocessRuntime)
++  const fiber = await ctx.plugin(GitWorkspaceIsolation, {
++    root: paths.managed,
++    maxActiveCheckouts: options.maxActiveCheckouts ?? 4,
++    commandTimeoutMs: 30_000,
++  })
++  return { ...paths, ctx, fiber, pool, isolation: ctx.workspaceIsolation }
++}
++
++afterEach(async () => {
++  for (const ctx of contexts.splice(0).reverse()) await ctx.fiber.dispose()
++  for (const root of roots.splice(0).reverse()) await rm(root, { recursive: true, force: true })
++})
++
++describe('GitWorkspaceIsolation', () => {
++  it('protects acquired leases until every consumer releases its reservation', async () => {
++    const h = await harness({ maxActiveCheckouts: 1 })
++    const request = { sessionId: SessionId('task-without-agent'), sourcePath: h.repository }
++    const first = await h.isolation.acquire(request)
++    const second = await h.isolation.acquire(request)
++    await expect(h.isolation.hibernate(first.lease.id)).rejects.toMatchObject({ code: 'LEASE_BUSY' })
++    await expect(h.isolation.teardown(first.lease.id)).rejects.toMatchObject({ code: 'LEASE_BUSY' })
++    first.release()
++    first.release()
++    await expect(h.isolation.ensure({ sessionId: SessionId('next-task'), sourcePath: h.repository }))
++      .rejects.toMatchObject({ code: 'CAPACITY' })
++    expect(await readFile(join(first.lease.checkoutPath, 'tracked.txt'), 'utf8')).toBe('base\n')
++    second.release()
++    await h.isolation.ensure({ sessionId: SessionId('next-task'), sourcePath: h.repository })
++    expect(h.isolation.find(request.sessionId)?.phase).toBe('hibernated')
++  }, 30_000)
++
++  it('creates one idempotent managed checkout only from a clean source', async () => {
++    const h = await harness()
++    const sessionId = SessionId('clean')
++    const first = await h.isolation.ensure({ sessionId, sourcePath: h.repository })
++    const second = await h.isolation.ensure({ sessionId, sourcePath: h.repository })
++
++    expect(second).toMatchObject({ id: first.id, checkoutPath: first.checkoutPath, phase: 'active' })
++    await expect(stat(first.checkoutPath)).resolves.toMatchObject({})
++    expect(await readFile(join(first.checkoutPath, 'tracked.txt'), 'utf8')).toBe('base\n')
++    expect(h.isolation.list()).toHaveLength(1)
++  })
++
++  it('refuses staged, unstaged, and untracked source changes before creating a lease', async () => {
++    const h = await harness()
++    await writeFile(join(h.repository, 'untracked.txt'), 'local\n')
++
++    await expect(h.isolation.ensure({
++      sessionId: SessionId('dirty'),
++      sourcePath: h.repository,
++    })).rejects.toMatchObject({ code: 'SOURCE_DIRTY' } satisfies Partial<WorkspaceIsolationError>)
++    expect(h.isolation.list()).toEqual([])
++  })
++
++  it('checkpoints changes, removes only the checkout, retains its branch, and reactivates it', async () => {
++    const h = await harness()
++    const sessionId = SessionId('checkpoint')
++    const lease = await h.isolation.ensure({ sessionId, sourcePath: h.repository })
++    await writeFile(join(lease.checkoutPath, 'result.txt'), 'retained\n')
++
++    const hibernated = await h.isolation.hibernate(lease.id)
++    expect(hibernated.phase).toBe('hibernated')
++    await expect(stat(lease.checkoutPath)).rejects.toMatchObject({ code: 'ENOENT' })
++    await expect(git(h.repository, 'show-ref', '--verify', `refs/heads/${lease.branch}`)).resolves.toContain(lease.branch)
++
++    const active = await h.isolation.activate(lease.id)
++    expect(active.phase).toBe('active')
++    expect(await readFile(join(active.checkoutPath, 'result.txt'), 'utf8')).toBe('retained\n')
++  })
++
++  it('captures the source branch and commit when creating a lease', async () => {
++    const h = await harness()
++    const currentBranch = (await git(h.repository, 'rev-parse', '--abbrev-ref', 'HEAD')).trim()
++    const currentHead = (await git(h.repository, 'rev-parse', 'HEAD')).trim()
++
++    const lease = await h.isolation.ensure({
++      sessionId: SessionId('test-base-tracking'),
++      sourcePath: h.repository,
++    })
++
++    expect(lease.baseBranch).toBe(currentBranch)
++    expect(lease.baseHead).toBe(currentHead)
++    expect(lease.baseHead).toMatch(/^[0-9a-f]{40}$/)
++    expect(lease.branch).not.toBe(currentBranch)
++    expect(lease.branch).toMatch(/^dsh\/session\//)
++  })
++
++  it('reclaims the oldest inactive checkout when the active-checkout limit is reached', async () => {
++    const h = await harness({ maxActiveCheckouts: 1 })
++    const first = await h.isolation.ensure({ sessionId: SessionId('first'), sourcePath: h.repository })
++    const second = await h.isolation.ensure({ sessionId: SessionId('second'), sourcePath: h.repository })
++
++    expect(h.isolation.find(SessionId('first'))?.phase).toBe('hibernated')
++    expect(h.isolation.find(SessionId('second'))?.phase).toBe('active')
++    await expect(stat(first.checkoutPath)).rejects.toMatchObject({ code: 'ENOENT' })
++    await expect(stat(second.checkoutPath)).resolves.toMatchObject({})
++  })
++
++  it('reconciles an active checkout left by an earlier process without losing its branch', async () => {
++    const first = await harness()
++    const lease = await first.isolation.ensure({
++      sessionId: SessionId('restart'),
++      sourcePath: first.repository,
++    })
++    await writeFile(join(lease.checkoutPath, 'restart.txt'), 'checkpoint me\n')
++    await first.fiber.dispose()
++
++    const restarted = await harness({
++      repository: first.repository,
++      managed: first.managed,
++      pool: first.pool,
++    })
++    expect(restarted.isolation.find(SessionId('restart'))?.phase).toBe('hibernated')
++    await expect(stat(lease.checkoutPath)).rejects.toMatchObject({ code: 'ENOENT' })
++    await expect(git(first.repository, 'show-ref', '--verify', `refs/heads/${lease.branch}`)).resolves.toContain(lease.branch)
++
++    const active = await restarted.isolation.ensure({
++      sessionId: SessionId('restart'),
++      sourcePath: first.repository,
++    })
++    expect(await readFile(join(active.checkoutPath, 'restart.txt'), 'utf8')).toBe('checkpoint me\n')
++  })
++
++  it('never removes a foreign worktree occupying a managed lease path', async () => {
++    const h = await harness()
++    const sessionId = SessionId('foreign')
++    const lease = await h.isolation.ensure({ sessionId, sourcePath: h.repository })
++    await h.isolation.hibernate(lease.id)
++    await git(h.repository, 'worktree', 'add', '-b', 'foreign-owner', lease.checkoutPath, 'HEAD')
++    await writeFile(join(lease.checkoutPath, 'foreign.txt'), 'foreign\n')
++
++    await expect(h.isolation.ensure({ sessionId, sourcePath: h.repository }))
++      .rejects.toMatchObject({ code: 'LEASE_CONFLICT' } satisfies Partial<WorkspaceIsolationError>)
++    expect(await readFile(join(lease.checkoutPath, 'foreign.txt'), 'utf8')).toBe('foreign\n')
++    expect((await git(h.repository, 'worktree', 'list', '--porcelain')).replaceAll('\\', '/'))
++      .toContain(lease.checkoutPath.replaceAll('\\', '/'))
++  })
++
++  it('never removes an unrelated directory occupying a managed lease path', async () => {
++    const h = await harness()
++    const sessionId = SessionId('occupied')
++    const lease = await h.isolation.ensure({ sessionId, sourcePath: h.repository })
++    await h.isolation.hibernate(lease.id)
++    await mkdir(lease.checkoutPath, { recursive: true })
++    await writeFile(join(lease.checkoutPath, 'sentinel.txt'), 'unrelated\n')
++
++    await expect(h.isolation.ensure({ sessionId, sourcePath: h.repository }))
++      .rejects.toMatchObject({ code: 'LEASE_CONFLICT' } satisfies Partial<WorkspaceIsolationError>)
++    expect(await readFile(join(lease.checkoutPath, 'sentinel.txt'), 'utf8')).toBe('unrelated\n')
++  })
++  it('hibernates a worktree by committing managed branch changes', async () => {
++    const h = await harness()
++    const sessionId = SessionId('hibernate-commit')
++    const lease = await h.isolation.ensure({ sessionId, sourcePath: h.repository })
++
++    await writeFile(join(lease.checkoutPath, 'new-file.txt'), 'hibernated content\n')
++    await writeFile(join(lease.checkoutPath, 'tracked.txt'), 'modified\n')
++
++    const hibernated = await h.isolation.hibernate(lease.id)
++    expect(hibernated.phase).toBe('hibernated')
++    await expect(stat(lease.checkoutPath)).rejects.toMatchObject({ code: 'ENOENT' })
++
++    const branchRef = await git(h.repository, 'show-ref', '--verify', `refs/heads/${lease.branch}`)
++    expect(branchRef).toContain(lease.branch)
++
++    const logResult = await git(h.repository, 'log', '--oneline', '-1', lease.branch)
++    expect(logResult).toContain(`Checkpoint workspace lease ${lease.id}`)
++
++    expect(h.isolation.find(sessionId)?.phase).toBe('hibernated')
++  })
++
++  it('retains an unmerged branch and durable review state instead of force-deleting work', async () => {
++    const h = await harness()
++    const sessionId = SessionId('teardown')
++    const lease = await h.isolation.ensure({ sessionId, sourcePath: h.repository })
++    await writeFile(join(lease.checkoutPath, 'must-be-retained.txt'), 'content\n')
++
++    const result = await h.isolation.teardown(lease.id)
++
++    expect(result).toMatchObject({
++      status: 'review',
++      reason: 'unmerged-branch',
++      lease: { id: lease.id, phase: 'hibernated', reviewState: 'branch-retained' },
++    })
++    await expect(stat(lease.checkoutPath)).rejects.toMatchObject({ code: 'ENOENT' })
++    expect(await git(h.repository, 'branch', '--list', lease.branch)).toContain(lease.branch)
++    expect(h.isolation.find(sessionId)).toMatchObject({ reviewState: 'branch-retained' })
++  })
++
++  it('merges a checkpoint into the recorded base branch before safe branch deletion', async () => {
++    const h = await harness()
++    const sessionId = SessionId('merge-and-delete')
++    const lease = await h.isolation.ensure({ sessionId, sourcePath: h.repository })
++    await writeFile(join(lease.checkoutPath, 'merged.txt'), 'merged content\n')
++
++    const integrated = await h.isolation.merge(lease.id)
++    expect(integrated).toMatchObject({
++      lease: { id: lease.id, phase: 'hibernated', reviewState: 'none' },
++      targetBranch: lease.baseBranch,
++    })
++    expect(await readFile(join(h.repository, 'merged.txt'), 'utf8')).toBe('merged content\n')
++
++    await expect(h.isolation.teardown(lease.id)).resolves.toEqual({ status: 'removed', leaseId: lease.id })
++
++    expect(await git(h.repository, 'branch', '--list', lease.branch)).toBe('')
++    expect(h.isolation.find(sessionId)).toBeUndefined()
++    expect(h.isolation.list()).toHaveLength(0)
++  })
++
++  it('inspects, compares, and exports active tracked changes while reporting omitted untracked files', async () => {
++    const h = await harness()
++    const lease = await h.isolation.ensure({ sessionId: SessionId('review'), sourcePath: h.repository })
++    await writeFile(join(lease.checkoutPath, 'tracked.txt'), 'active change\n')
++    await writeFile(join(lease.checkoutPath, 'untracked.txt'), 'not in patch\n')
++
++    const inspection = await h.isolation.inspect(lease.id)
++    expect(inspection).toMatchObject({
++      checkoutState: 'dirty',
++      hasUntrackedFiles: true,
++      workingTreeChanges: expect.arrayContaining([
++        { kind: 'modified', path: 'tracked.txt' },
++        { kind: 'untracked', path: 'untracked.txt' },
++      ]),
++    })
++
++    const comparison = await h.isolation.compare(lease.id)
++    expect(comparison).toMatchObject({
++      ahead: 0,
++      behind: 0,
++      includesWorkingTree: true,
++      hasUntrackedFiles: true,
++      patchTruncated: false,
++      changedFiles: expect.arrayContaining([
++        { kind: 'modified', path: 'tracked.txt' },
++        { kind: 'untracked', path: 'untracked.txt' },
++      ]),
++    })
++    expect(comparison.patch).toContain('+active change')
++    expect(comparison.patch).not.toContain('not in patch')
++
++    const exported = await h.isolation.exportPatch(lease.id)
++    expect(exported).toMatchObject({
++      leaseId: lease.id,
++      includesWorkingTree: true,
++      hasUntrackedFiles: true,
++    })
++    expect(exported.fileName).toBe(`workspace-${lease.id}.patch`)
++    expect(exported.content).toBe(comparison.patch)
++  })
++
++  it('compares hibernated checkpoint commits from NUL-framed Git log records', async () => {
++    const h = await harness()
++    const lease = await h.isolation.ensure({
++      sessionId: SessionId('hibernated-review'),
++      sourcePath: h.repository,
++    })
++    await writeFile(join(lease.checkoutPath, 'hibernated.txt'), 'checkpointed content\n')
++
++    const hibernated = await h.isolation.hibernate(lease.id)
++    const comparison = await h.isolation.compare(lease.id)
++
++    expect(comparison).toMatchObject({
++      lease: { id: lease.id, phase: 'hibernated' },
++      branchHead: hibernated.head,
++      ahead: 1,
++      behind: 0,
++      includesWorkingTree: false,
++      hasUntrackedFiles: false,
++      patchTruncated: false,
++      commits: [{
++        id: hibernated.head,
++        summary: `Checkpoint workspace lease ${lease.id}`,
++      }],
++      changedFiles: [{ kind: 'added', path: 'hibernated.txt' }],
++    })
++    expect(comparison.patch).toContain('+checkpointed content')
++  })
++
++  it('cherry-picks linear commits but retains their source branch for explicit review', async () => {
++    const h = await harness()
++    const sessionId = SessionId('cherry-pick')
++    const lease = await h.isolation.ensure({ sessionId, sourcePath: h.repository })
++    await writeFile(join(lease.checkoutPath, 'picked.txt'), 'picked content\n')
++
++    const integrated = await h.isolation.cherryPick(lease.id)
++    expect(integrated).toMatchObject({ targetBranch: lease.baseBranch })
++    expect(await readFile(join(h.repository, 'picked.txt'), 'utf8')).toBe('picked content\n')
++    const teardown = await h.isolation.teardown(lease.id)
++    expect(teardown).toMatchObject({
++      status: 'review',
++      lease: { id: lease.id, phase: 'hibernated', reviewState: 'branch-retained' },
++    })
++    expect(await git(h.repository, 'branch', '--list', lease.branch)).toContain(lease.branch)
++  })
++
++  it('aborts a conflicting merge and leaves the clean source checkout unchanged', async () => {
++    const h = await harness()
++    const lease = await h.isolation.ensure({ sessionId: SessionId('merge-conflict'), sourcePath: h.repository })
++    await writeFile(join(lease.checkoutPath, 'tracked.txt'), 'lease change\n')
++    await writeFile(join(h.repository, 'tracked.txt'), 'source change\n')
++    await git(h.repository, 'add', '--all')
++    await git(h.repository, 'commit', '-m', 'source change')
++
++    await expect(h.isolation.merge(lease.id)).rejects.toMatchObject({ code: 'COMMAND_FAILED' })
++    expect(await readFile(join(h.repository, 'tracked.txt'), 'utf8')).toBe('source change\n')
++    expect(await git(h.repository, 'status', '--porcelain=v1')).toBe('')
++    expect(h.isolation.find(lease.sessionId)).toMatchObject({ phase: 'hibernated' })
++  })
++
++  it('prunes orphaned worktrees without valid lease records', async () => {
++    const h = await harness()
++    const sessionId = SessionId('orphan')
++    const lease = await h.isolation.ensure({ sessionId, sourcePath: h.repository })
++    const checkoutPath = lease.checkoutPath
++
++    const worktreesBefore = await git(h.repository, 'worktree', 'list', '--porcelain')
++    expect(worktreesBefore.replaceAll('\\', '/')).toContain(checkoutPath.replaceAll('\\', '/'))
++
++    await h.isolation.teardown(lease.id)
++    await h.isolation.ensure({ sessionId: SessionId('repository-keeper'), sourcePath: h.repository })
++
++    await git(h.repository, 'worktree', 'add', '-b', lease.branch, checkoutPath, 'HEAD')
++
++    const worktreesWithOrphan = await git(h.repository, 'worktree', 'list', '--porcelain')
++    expect(worktreesWithOrphan.replaceAll('\\', '/')).toContain(checkoutPath.replaceAll('\\', '/'))
++
++    const prunedCount = await h.isolation.pruneOrphans()
++
++    expect(prunedCount).toBe(1)
++
++    const worktreesAfter = await git(h.repository, 'worktree', 'list', '--porcelain')
++    expect(worktreesAfter.replaceAll('\\', '/')).not.toContain(checkoutPath.replaceAll('\\', '/'))
++  })
++
++  it('retains worktrees beside the managed root and foreign branches inside it', async () => {
++    const h = await harness()
++    await h.isolation.ensure({ sessionId: SessionId('repository-keeper'), sourcePath: h.repository })
++    const sibling = h.managed + '-foreign'
++    const foreign = join(h.managed, '11111111-1111-4111-8111-111111111111')
++    await git(h.repository, 'worktree', 'add', '-b', 'dsh/session/22222222-2222-4222-8222-222222222222', sibling, 'HEAD')
++    await git(h.repository, 'worktree', 'add', '-b', 'user-work', foreign, 'HEAD')
++    await writeFile(join(sibling, 'unsaved.txt'), 'keep sibling\n')
++    await writeFile(join(foreign, 'unsaved.txt'), 'keep foreign\n')
++
++    expect(await h.isolation.pruneOrphans()).toBe(0)
++    expect(await readFile(join(sibling, 'unsaved.txt'), 'utf8')).toBe('keep sibling\n')
++    expect(await readFile(join(foreign, 'unsaved.txt'), 'utf8')).toBe('keep foreign\n')
++  })
++})
+diff --git a/packages/workspace/workspace-isolation-git/tests/workspace-isolation.e2e.ts b/packages/workspace/workspace-isolation-git/tests/workspace-isolation.e2e.ts
+new file mode 100644
+index 0000000000..bd54219e64
+--- /dev/null
++++ b/packages/workspace/workspace-isolation-git/tests/workspace-isolation.e2e.ts
+@@ -0,0 +1,295 @@
++import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
++import { readFile } from 'node:fs/promises'
++import { tmpdir } from 'node:os'
++import { join } from 'node:path'
++import { afterEach, describe, expect, it } from 'vitest'
++import { Context } from '@deepseek-ai/cordis'
++import { execa } from 'execa'
++import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
++import Storage from '@deepseek-ai/dsh-storage'
++import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
++import AgentRegistry from '@deepseek-ai/dsh-agent'
++import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
++import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
++import GitWorkspaceIsolation from '@deepseek-ai/dsh-workspace-isolation-git'
++
++/**
++ * End-to-end tests for workspace-isolation lifecycle.
++ *
++ * Tests the complete flow: ensure → modify → hibernate → activate → verify → merge → teardown
++ * These tests use real Git operations and real filesystem operations.
++ */
++
++let ctx: Context | undefined
++let testRoot: string | undefined
++
++afterEach(async () => {
++  await ctx?.fiber.dispose()
++  ctx = undefined
++  if (testRoot !== undefined) {
++    await rm(testRoot, { recursive: true, force: true })
++  }
++  testRoot = undefined
++})
++
++async function mountStorage(context: Context): Promise<void> {
++  await context.plugin(Storage)
++  context.storage.backend.register('memory', new MemoryStorageBackend(new MemoryMediaPool()))
++  const facility = new DomainFacility(context, { backend: 'memory', routes: {} })
++  context.storage.mount('domain', facility)
++  context.provide('storageDomain', facility)
++  await context.plugin(AgentRegistry)
++  await context.plugin(LocalSubprocessRuntime)
++}
++
++async function harness() {
++  testRoot = await mkdtemp(join(tmpdir(), 'dsh-workspace-isolation-e2e-'))
++
++  // Create a test Git repository
++  const repoPath = join(testRoot, 'test-repo')
++  await mkdir(repoPath, { recursive: true })
++
++  // Initialize Git repo
++  await execa('git', ['init'], { cwd: repoPath })
++  await execa('git', ['config', 'user.name', 'Test User'], { cwd: repoPath })
++  await execa('git', ['config', 'user.email', 'test@example.com'], { cwd: repoPath })
++
++  // Create initial commit
++  await writeFile(join(repoPath, 'README.md'), '# Test Repository\n')
++  await writeFile(join(repoPath, 'file1.txt'), 'original content\n')
++  await execa('git', ['add', '.'], { cwd: repoPath })
++  await execa('git', ['commit', '-m', 'Initial commit'], { cwd: repoPath })
++
++  // Create storage and managed directory
++  const storageDir = join(testRoot, 'storage')
++  const managedDir = join(testRoot, 'managed')
++  await mkdir(storageDir, { recursive: true })
++  await mkdir(managedDir, { recursive: true })
++
++  // Set up Context with plugins
++  ctx = new Context()
++  await ctx.plugin(SessionStore)
++  await mountStorage(ctx)
++  await ctx.plugin(GitWorkspaceIsolation, {
++    root: managedDir,
++    maxActiveCheckouts: 10,
++  })
++
++  return { ctx, repoPath, managedDir }
++}
++
++describe('workspace-isolation e2e: complete lifecycle', () => {
++  it('completes the full lifecycle: ensure → modify → hibernate → activate → verify → merge → teardown', async () => {
++    const h = await harness()
++    const sessionId = SessionId('lifecycle-test')
++
++    // Step 1: Create initial lease
++    const lease1 = await h.ctx.workspaceIsolation.ensure({
++      sessionId,
++      sourcePath: h.repoPath,
++    })
++
++    expect(lease1.phase).toBe('active')
++    expect(lease1.baseBranch).toBeTruthy()
++    expect(lease1.baseHead).toMatch(/^[0-9a-f]{40}$/)
++    expect(lease1.checkoutPath).toContain(h.managedDir)
++
++    // Verify initial content
++    const initialContent = await readFile(join(lease1.checkoutPath, 'file1.txt'), 'utf8')
++    expect(initialContent).toBe('original content\n')
++
++    // Step 2: Make changes in the worktree
++    await writeFile(join(lease1.checkoutPath, 'file1.txt'), 'modified content\n')
++    await writeFile(join(lease1.checkoutPath, 'newfile.txt'), 'new content\n')
++
++    // Step 3: Hibernate the worktree
++    await h.ctx.workspaceIsolation.hibernate(lease1.id)
++
++    // Verify lease is hibernated
++    const hibernatedLease = h.ctx.workspaceIsolation.find(lease1.sessionId)
++    expect(hibernatedLease?.phase).toBe('hibernated')
++
++    // Step 4: Activate (resume) the worktree
++    const lease2 = await h.ctx.workspaceIsolation.ensure({
++      sessionId,
++      sourcePath: h.repoPath,
++    })
++
++    expect(lease2.phase).toBe('active')
++    expect(lease2.id).toBe(lease1.id) // Same lease resumed
++
++    // Step 5: Verify changes were preserved
++    const modifiedContent = await readFile(join(lease2.checkoutPath, 'file1.txt'), 'utf8')
++    expect(modifiedContent).toBe('modified content\n')
++
++    const newContent = await readFile(join(lease2.checkoutPath, 'newfile.txt'), 'utf8')
++    expect(newContent).toBe('new content\n')
++
++    // Step 6: Integrate the managed branch into its recorded base branch.
++    await h.ctx.workspaceIsolation.merge(lease2.id)
++    expect(await readFile(join(h.repoPath, 'file1.txt'), 'utf8')).toBe('modified content\n')
++    expect(await readFile(join(h.repoPath, 'newfile.txt'), 'utf8')).toBe('new content\n')
++
++    // Step 7: Teardown after safe integration.
++    await h.ctx.workspaceIsolation.teardown(lease2.id)
++
++    // Verify lease is removed
++    const removedLease = h.ctx.workspaceIsolation.find(lease2.sessionId)
++    expect(removedLease).toBeUndefined()
++  })
++
++  it('handles multiple concurrent sessions', async () => {
++    const h = await harness()
++
++    // Create leases for multiple sessions
++    const session1 = SessionId('concurrent-1')
++    const session2 = SessionId('concurrent-2')
++    const session3 = SessionId('concurrent-3')
++
++    const lease1 = await h.ctx.workspaceIsolation.ensure({
++      sessionId: session1,
++      sourcePath: h.repoPath,
++    })
++
++    const lease2 = await h.ctx.workspaceIsolation.ensure({
++      sessionId: session2,
++      sourcePath: h.repoPath,
++    })
++
++    const lease3 = await h.ctx.workspaceIsolation.ensure({
++      sessionId: session3,
++      sourcePath: h.repoPath,
++    })
++
++    // Verify all leases are independent
++    expect(lease1.id).not.toBe(lease2.id)
++    expect(lease2.id).not.toBe(lease3.id)
++    expect(lease1.checkoutPath).not.toBe(lease2.checkoutPath)
++    expect(lease2.checkoutPath).not.toBe(lease3.checkoutPath)
++
++    // Make different changes in each worktree
++    await writeFile(join(lease1.checkoutPath, 'marker.txt'), 'session1\n')
++    await writeFile(join(lease2.checkoutPath, 'marker.txt'), 'session2\n')
++    await writeFile(join(lease3.checkoutPath, 'marker.txt'), 'session3\n')
++
++    // Verify isolation
++    const marker1 = await readFile(join(lease1.checkoutPath, 'marker.txt'), 'utf8')
++    const marker2 = await readFile(join(lease2.checkoutPath, 'marker.txt'), 'utf8')
++    const marker3 = await readFile(join(lease3.checkoutPath, 'marker.txt'), 'utf8')
++
++    expect(marker1).toBe('session1\n')
++    expect(marker2).toBe('session2\n')
++    expect(marker3).toBe('session3\n')
++
++    // Cleanup
++    await h.ctx.workspaceIsolation.teardown(lease1.id)
++    await h.ctx.workspaceIsolation.teardown(lease2.id)
++    await h.ctx.workspaceIsolation.teardown(lease3.id)
++  })
++
++  it('enforces maxActiveCheckouts limit', async () => {
++    const h = await harness()
++
++    // Reconfigure with maxActiveCheckouts: 2
++    await h.ctx.fiber.dispose()
++
++    ctx = new Context()
++    await ctx.plugin(SessionStore)
++    await mountStorage(ctx)
++    await ctx.plugin(GitWorkspaceIsolation, {
++      root: h.managedDir,
++      maxActiveCheckouts: 2,
++    })
++
++    // Create 2 active leases
++    const lease1 = await ctx.workspaceIsolation.ensure({
++      sessionId: SessionId('limit-1'),
++      sourcePath: h.repoPath,
++    })
++
++    const lease2 = await ctx.workspaceIsolation.ensure({
++      sessionId: SessionId('limit-2'),
++      sourcePath: h.repoPath,
++    })
++
++    expect(lease1.phase).toBe('active')
++    expect(lease2.phase).toBe('active')
++
++    // Creating a third should reclaim the oldest
++    const lease3 = await ctx.workspaceIsolation.ensure({
++      sessionId: SessionId('limit-3'),
++      sourcePath: h.repoPath,
++    })
++
++    expect(lease3.phase).toBe('active')
++
++    // Verify lease1 was reclaimed (hibernated)
++    const reclaimed = ctx.workspaceIsolation.find(lease1.sessionId)
++    expect(reclaimed?.phase).toBe('hibernated')
++  })
++
++  it('prunes orphaned worktrees', async () => {
++    const h = await harness()
++    const sessionId = SessionId('orphan-test')
++
++    // Create a lease
++    const lease = await h.ctx.workspaceIsolation.ensure({
++      sessionId,
++      sourcePath: h.repoPath,
++    })
++
++    expect(lease.phase).toBe('active')
++
++    // Manually corrupt: teardown but simulate incomplete cleanup
++    // by directly removing the lease record while leaving the worktree
++    await h.ctx.workspaceIsolation.teardown(lease.id)
++
++    // Create a new lease to trigger pruneOrphans internally
++    // (or call it explicitly if exposed)
++    const newSessionId = SessionId('new-session')
++    const newLease = await h.ctx.workspaceIsolation.ensure({
++      sessionId: newSessionId,
++      sourcePath: h.repoPath,
++    })
++
++    expect(newLease.phase).toBe('active')
++    expect(newLease.id).not.toBe(lease.id)
++  })
++
++  it('preserves baseBranch and baseHead across lifecycle', async () => {
++    const h = await harness()
++    const sessionId = SessionId('base-tracking')
++
++    // Get current branch and HEAD before creating lease
++    const branchResult = await execa('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: h.repoPath })
++    const baseBranch = branchResult.stdout.trim()
++
++    const headResult = await execa('git', ['rev-parse', 'HEAD'], { cwd: h.repoPath })
++    const baseHead = headResult.stdout.trim()
++
++    // Create lease
++    const lease1 = await h.ctx.workspaceIsolation.ensure({
++      sessionId,
++      sourcePath: h.repoPath,
++    })
++
++    expect(lease1.baseBranch).toBe(baseBranch)
++    expect(lease1.baseHead).toBe(baseHead)
++
++    // Hibernate
++    await h.ctx.workspaceIsolation.hibernate(lease1.id)
++
++    const hibernated = h.ctx.workspaceIsolation.find(lease1.sessionId)
++    expect(hibernated?.baseBranch).toBe(baseBranch)
++    expect(hibernated?.baseHead).toBe(baseHead)
++
++    // Activate
++    const lease2 = await h.ctx.workspaceIsolation.ensure({
++      sessionId,
++      sourcePath: h.repoPath,
++    })
++
++    expect(lease2.baseBranch).toBe(baseBranch)
++    expect(lease2.baseHead).toBe(baseHead)
++  })
++})
+diff --git a/packages/workspace/workspace-isolation-git/tsconfig.json b/packages/workspace/workspace-isolation-git/tsconfig.json
+new file mode 100644
+index 0000000000..830b67dc52
+--- /dev/null
++++ b/packages/workspace/workspace-isolation-git/tsconfig.json
+@@ -0,0 +1,39 @@
++{
++  "extends": "../../../tsconfig.base.json",
++  "compilerOptions": {
++    "rootDir": "src",
++    "outDir": "lib/types"
++  },
++  "include": [
++    "src"
++  ],
++  "references": [
++    {
++      "path": "../../../vendor/cosmokit"
++    },
++    {
++      "path": "../../../vendor/cordis"
++    },
++    {
++      "path": "../../../vendor/schemastery"
++    },
++    {
++      "path": "../../core/agent"
++    },
++    {
++      "path": "../../util/home-paths"
++    },
++    {
++      "path": "../../core/session"
++    },
++    {
++      "path": "../../storage/storage-domain"
++    },
++    {
++      "path": "../../subprocess/subprocess"
++    },
++    {
++      "path": "../workspace-isolation"
++    }
++  ]
++}
+diff --git a/packages/workspace/workspace-isolation/README.i18n.yaml b/packages/workspace/workspace-isolation/README.i18n.yaml
+new file mode 100644
+index 0000000000..283eac35bf
+--- /dev/null
++++ b/packages/workspace/workspace-isolation/README.i18n.yaml
+@@ -0,0 +1,6 @@
++# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
++# side as of the last confirmed-consistent state. Both languages carry equal authority;
++# after editing either side, bring the other along and re-record with:
++#   pnpm run verify-translation-pairing --write packages/workspace/workspace-isolation/README.md
++README.md: bb42db97854cebb5c593244bf634dc6d5c05a7f9
++README.zh.md: 9c1513883c15885287673f81758663496beb92ef
+diff --git a/packages/workspace/workspace-isolation/README.md b/packages/workspace/workspace-isolation/README.md
+new file mode 100644
+index 0000000000..bb42db9785
+--- /dev/null
++++ b/packages/workspace/workspace-isolation/README.md
+@@ -0,0 +1,71 @@
++---
++description: "Service definition for per-Session working directory isolation."
++kind: "package-reference"
++---
++
++# @deepseek-ai/dsh-workspace-isolation
++
++English | [中文](README.zh.md)
++
++## Summary
++
++This service definition lets Consumers acquire, inspect, compare, integrate, retain, and reactivate isolated working directories per Session. Providers choose checkout paths and validate every lifecycle operation; Consumers use lease identities rather than arbitrary repository, branch, or deletion paths.
++
++## Table of Contents
++
++- [Use this package](#use-this-package)
++- [Understand the implementation](#understand-the-implementation)
++- [Model Experience](#model-experience)
++- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
++- [Dev Note](#dev-note)
++
++<a id="use-this-package"></a>
++## Use this package
++
++Mount a concrete Provider rather than instantiating the abstract service. See [workspace-isolation-git](../workspace-isolation-git/README.md) for the Git implementation. Consumers use ensure or acquire for a ready path; sourceFor maps only a matching lease Session id and exact cwd to its source Workspace.
++
++Client-safe type consumers can import the provider-neutral vocabulary from `@deepseek-ai/dsh-workspace-isolation/types`; this subpath emits no runtime service or Host augmentation.
++
++<a id="understand-the-implementation"></a>
++## Understand the implementation
++
++find and list expose lease snapshots; activate materializes an existing lease, hibernate reclaims the checkout while preserving its branch, and inspect or compare returns bounded review data. merge and cherryPick integrate through the recorded source checkout, exportPatch returns content without accepting a destination path, and teardown returns either removed or review when an unmerged branch must remain durable. The Provider owns admission, integration, cleanup, and orphan discovery.
++
++The Workspace registry validates managed checkout provenance through sourceFor without reading Session event bodies. Compositions without a Provider validate membership against ordinary cwd.
++
++<a id="model-experience"></a>
++## Model Experience
++
++### Session working directory
++
++#### What the model sees
++
++This package adds no prompt text. When a Consumer uses the lease `checkoutPath` as Session cwd, ordinary working-directory context reflects that path.
++
++#### Token effect
++
++No direct token cost from this package.
++
++#### KV Cache effect
++
++The fixed Session cwd does not change when its lease is hibernated and reactivated.
++
++## Known Limitations and Deferred Work
++
++<a id="known-limitations-and-deferred-work"></a>
++
++- The service does not decide whether a new Session is isolated; Consumers must explicitly perform admission and lifecycle operations.
++- Patch text omits active untracked files; comparison and export report that omission.
++- Git orphan scans cover only repositories referenced by durable leases, not repositories with no records.
++
++<a id="dev-note"></a>
++### Dev Note
++
++<details>
++<summary>Maintainer context</summary>
++
++Keep hibernation separate from explicit teardown; preserving source attribution does not authorize arbitrary path cleanup.
++
++</details>
++
++No runtime invariant companion is published because concrete providers own lease persistence and exact-path validation.
+diff --git a/packages/workspace/workspace-isolation/README.zh.md b/packages/workspace/workspace-isolation/README.zh.md
+new file mode 100644
+index 0000000000..9c1513883c
+--- /dev/null
++++ b/packages/workspace/workspace-isolation/README.zh.md
+@@ -0,0 +1,71 @@
++---
++description: "按 Session 管理工作目录隔离的服务定义。"
++kind: "package-reference"
++---
++
++# @deepseek-ai/dsh-workspace-isolation
++
++[English](README.md) | 中文
++
++## 概述
++
++此服务定义让 Consumer 按 Session 获取、检查、比较、集成、保留和恢复隔离工作目录。Provider 决定 checkout 路径并验证每项生命周期操作；Consumer 只使用租约标识，不提交任意 repository、branch 或删除路径。
++
++## 目录
++
++- [使用此包](#use-this-package)
++- [理解实现](#understand-the-implementation)
++- [模型体验](#model-experience)
++- [已知限制与后续工作](#known-limitations-and-deferred-work)
++- [开发备注](#dev-note)
++
++<a id="use-this-package"></a>
++## 使用此包
++
++挂载具体 Provider，而不是直接实例化抽象服务。Git 实现见 [workspace-isolation-git](../workspace-isolation-git/README.zh.md)。Consumer 使用 ensure 或 acquire 获取可用路径；sourceFor 只把匹配租约的 Session id 和精确 cwd 映射到源 Workspace。
++
++Client-safe 类型消费者可从 `@deepseek-ai/dsh-workspace-isolation/types` 导入 Provider-neutral 词汇；该子路径不产生 runtime service 或 Host augmentation。
++
++<a id="understand-the-implementation"></a>
++## 理解实现
++
++find 与 list 返回租约快照；activate 物化已有租约，hibernate 回收 checkout 并保留分支，inspect 与 compare 返回受限的审查数据。merge 与 cherryPick 通过已记录的 source checkout 集成，exportPatch 返回内容但不接受目标路径，teardown 则在未合并分支必须持久保留时返回 removed 或 review。准入、集成、清理与孤儿发现由 Provider 负责。
++
++注册表通过 sourceFor 校验受管 checkout 的来源，不依赖 Session 事件正文。无 Provider 的组合按普通 cwd 校验工作区成员。
++
++<a id="model-experience"></a>
++## 模型体验
++
++### Session 工作目录
++
++#### 模型看到的内容
++
++本包不添加提示词。Consumer 使用租约的 `checkoutPath` 作为 Session cwd 时，普通工作目录上下文反映该路径。
++
++#### Token 影响
++
++本包没有直接 token 成本。
++
++#### KV Cache 影响
++
++固定 Session cwd 不因租约休眠和恢复而改变。
++
++## 已知限制与后续工作
++
++<a id="known-limitations-and-deferred-work"></a>
++
++- 本服务不直接决定新 Session 是否隔离；Consumer 必须显式执行准入与生命周期操作。
++- Patch text 不包含 active untracked 文件；comparison 与 export 会报告该遗漏。
++- Git 孤儿扫描只覆盖持久租约记录涉及的仓库，不能发现完全没有记录的仓库。
++
++<a id="dev-note"></a>
++### 开发备注
++
++<details>
++<summary>维护者上下文</summary>
++
++休眠与显式 teardown 必须保持区分；保留来源映射不意味着允许任意路径清理。
++
++</details>
++
++不发布 runtime invariant companion，因为具体 Provider 拥有租约持久化与精确路径验证。
+diff --git a/packages/workspace/workspace-isolation/package.json b/packages/workspace/workspace-isolation/package.json
+new file mode 100644
+index 0000000000..b7b41e1d4c
+--- /dev/null
++++ b/packages/workspace/workspace-isolation/package.json
+@@ -0,0 +1,44 @@
++{
++  "name": "@deepseek-ai/dsh-workspace-isolation",
++  "description": "Managed per-session workspace isolation capability for DeepSeek Harness",
++  "version": "0.1.5-alpha.1",
++  "publishConfig": {
++    "access": "public"
++  },
++  "repository": {
++    "type": "git",
++    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
++    "directory": "packages/workspace/workspace-isolation"
++  },
++  "type": "module",
++  "main": "lib/index.js",
++  "types": "lib/types/index.d.ts",
++  "exports": {
++    ".": {
++      "types": "./lib/types/index.d.ts",
++      "default": "./lib/index.js"
++    },
++    "./src/*": "./src/*",
++    "./package.json": "./package.json",
++    "./types": {
++      "types": "./lib/types/types.d.ts",
++      "default": "./lib/types/types.js"
++    }
++  },
++  "files": [
++    "lib/index.js",
++    "lib/types/**/*.js",
++    "lib/types/**/*.d.ts"
++  ],
++  "license": "MIT",
++  "peerDependencies": {
++    "@deepseek-ai/dsh-brand": "workspace:^",
++    "@deepseek-ai/dsh-session": "workspace:^",
++    "@deepseek-ai/cordis": "workspace:^"
++  },
++  "devDependencies": {
++    "@deepseek-ai/dsh-brand": "workspace:^",
++    "@deepseek-ai/dsh-session": "workspace:^",
++    "@deepseek-ai/cordis": "workspace:^"
++  }
++}
+diff --git a/packages/workspace/workspace-isolation/src/index.ts b/packages/workspace/workspace-isolation/src/index.ts
+new file mode 100644
+index 0000000000..bc7e228f7b
+--- /dev/null
++++ b/packages/workspace/workspace-isolation/src/index.ts
+@@ -0,0 +1,181 @@
++/** Managed per-session workspace isolation capability (`ctx.workspaceIsolation`). */
++
++import { Context, Service } from '@deepseek-ai/cordis'
++import type { SessionId } from '@deepseek-ai/dsh-session'
++import type {
++  EnsureWorkspaceIsolationRequest,
++  WorkspaceIsolationComparison,
++  WorkspaceIsolationErrorCode,
++  WorkspaceIsolationInspection,
++  WorkspaceIsolationIntegrationResult,
++  WorkspaceIsolationLease,
++  WorkspaceIsolationLeaseId,
++  WorkspaceIsolationPatch,
++  WorkspaceIsolationReservation,
++  WorkspaceIsolationTeardownResult,
++} from './types.ts'
++
++export type * from './types.ts'
++
++/**
++ * Brand a provider-generated lease id.
++ * @param value - Opaque validated provider identity.
++ * @returns the same string with the lease-id brand.
++ */
++export function WorkspaceIsolationLeaseId(value: string): WorkspaceIsolationLeaseId {
++  return value as WorkspaceIsolationLeaseId
++}
++
++declare module '@deepseek-ai/cordis' {
++  interface Context {
++    workspaceIsolation: WorkspaceIsolation
++  }
++}
++
++/** Provider-neutral workspace-isolation rejection. */
++export class WorkspaceIsolationError extends Error {
++  /**
++   * @param code - Stable failure classification.
++   * @param message - Human-readable failure and correction.
++   * @param options - Optional causal error.
++   */
++  constructor(readonly code: WorkspaceIsolationErrorCode, message: string, options?: ErrorOptions) {
++    super(message, options)
++    this.name = 'WorkspaceIsolationError'
++  }
++}
++
++/**
++ * Provider-neutral lease service. Providers alone choose checkout paths and
++ * accept cleanup by lease id; Consumers cannot submit a deletion path.
++ */
++export abstract class WorkspaceIsolation extends Service {
++  constructor(ctx: Context) {
++    super(ctx, 'workspaceIsolation')
++  }
++
++  /**
++   * Create or reactivate the Session's lease.
++   * @param request - Session identity, registered source directory, and cancellation.
++   * @returns the active lease whose checkoutPath is ready for Session use.
++   */
++  abstract ensure(request: EnsureWorkspaceIsolationRequest): Promise<WorkspaceIsolationLease>
++
++  /**
++   * Create or reactivate a lease and protect it atomically for an asynchronous consumer.
++   * @param request - Lease owner, source directory, and cancellation during acquisition.
++   * @returns the active lease and an idempotent release callback; release only after work stops.
++   */
++  abstract acquire(request: EnsureWorkspaceIsolationRequest): Promise<WorkspaceIsolationReservation>
++
++  /**
++   * Reactivate an existing lease by provider-issued identity.
++   * @param leaseId - Provider-issued lease identity.
++   * @param signal - Optional cancellation for provider work.
++   * @returns the active lease whose checkoutPath is ready for Session use.
++   */
++  abstract activate(
++    leaseId: WorkspaceIsolationLeaseId,
++    signal?: AbortSignal,
++  ): Promise<WorkspaceIsolationLease>
++
++  /**
++   * Checkpoint one inactive checkout and reclaim its directory while retaining its branch.
++   * @param leaseId - Provider-issued lease identity.
++   * @returns the hibernated lease after the directory is removed.
++   */
++  abstract hibernate(leaseId: WorkspaceIsolationLeaseId): Promise<WorkspaceIsolationLease>
++
++  /**
++   * Inspect checkout ownership and working-tree state without changing the lease.
++   * @param leaseId - Provider-issued lease identity.
++   * @param signal - Optional cancellation for provider work.
++   * @returns current checkout and managed-branch state.
++   */
++  abstract inspect(
++    leaseId: WorkspaceIsolationLeaseId,
++    signal?: AbortSignal,
++  ): Promise<WorkspaceIsolationInspection>
++
++  /**
++   * Compare one managed branch and active checkout with its base branch.
++   * @param leaseId - Provider-issued lease identity.
++   * @param signal - Optional cancellation for provider work.
++   * @returns bounded commits, changed paths, and patch text.
++   */
++  abstract compare(
++    leaseId: WorkspaceIsolationLeaseId,
++    signal?: AbortSignal,
++  ): Promise<WorkspaceIsolationComparison>
++
++  /**
++   * Merge one managed branch into its clean source checkout and hibernate the lease.
++   * @param leaseId - Provider-issued lease identity.
++   * @param signal - Optional cancellation for provider work.
++   * @returns resulting base-branch commit and retained lease.
++   */
++  abstract merge(
++    leaseId: WorkspaceIsolationLeaseId,
++    signal?: AbortSignal,
++  ): Promise<WorkspaceIsolationIntegrationResult>
++
++  /**
++   * Cherry-pick the managed branch's linear commits into its clean source checkout.
++   * @param leaseId - Provider-issued lease identity.
++   * @param signal - Optional cancellation for provider work.
++   * @returns resulting base-branch commit and retained lease.
++   */
++  abstract cherryPick(
++    leaseId: WorkspaceIsolationLeaseId,
++    signal?: AbortSignal,
++  ): Promise<WorkspaceIsolationIntegrationResult>
++
++  /**
++   * Export one complete bounded patch without accepting a browser-supplied path.
++   * @param leaseId - Provider-issued lease identity.
++   * @param signal - Optional cancellation for provider work.
++   * @returns patch content and omission metadata.
++   */
++  abstract exportPatch(
++    leaseId: WorkspaceIsolationLeaseId,
++    signal?: AbortSignal,
++  ): Promise<WorkspaceIsolationPatch>
++
++  /**
++   * Reclaim one managed checkout and delete its branch only after safe integration.
++   * @param leaseId - Provider-issued lease identity.
++   * @returns removal acknowledgement or a retained branch requiring review.
++   */
++  abstract teardown(leaseId: WorkspaceIsolationLeaseId): Promise<WorkspaceIsolationTeardownResult>
++
++  /**
++   * Clean up provider-detected orphaned worktrees within the repositories in scope.
++   * Providers may limit discovery to repositories represented by durable lease records.
++   * @returns the count of orphaned worktrees removed.
++   */
++  abstract pruneOrphans(): Promise<number>
++
++  /**
++   * Find the lease owned by a Session without filesystem work.
++   * @param sessionId - Session identity.
++   * @returns the current lease snapshot, or undefined when the Session is shared.
++   */
++  abstract find(sessionId: SessionId): WorkspaceIsolationLease | undefined
++
++  /**
++   * Verify that an exact Session cwd belongs to its managed lease and return
++   * the registered source directory used for Workspace membership.
++   * @param sessionId - Session identity from the immutable header.
++   * @param cwd - Exact cwd from the same header.
++   * @returns the source directory, or undefined for an unrelated path.
++   */
++  abstract sourceFor(sessionId: SessionId, cwd: string): string | undefined
++
++  /**
++   * List detached snapshots of every provider-owned lease.
++   * @returns all current lease snapshots.
++   */
++  abstract list(): readonly WorkspaceIsolationLease[]
++}
++
++export default WorkspaceIsolation
+diff --git a/packages/workspace/workspace-isolation/src/types.ts b/packages/workspace/workspace-isolation/src/types.ts
+new file mode 100644
+index 0000000000..30951c1e89
+--- /dev/null
++++ b/packages/workspace/workspace-isolation/src/types.ts
+@@ -0,0 +1,183 @@
++/** Provider-neutral types for managed per-session workspace isolation. */
++
++import type { Branded } from '@deepseek-ai/dsh-brand'
++import type { SessionId } from '@deepseek-ai/dsh-session/types'
++
++/** Opaque identity of one provider-owned isolation lease. */
++export type WorkspaceIsolationLeaseId = Branded<'WorkspaceIsolationLeaseId'>
++
++/** Persisted checkout lifecycle. Hibernation retains the branch without its directory. */
++export type WorkspaceIsolationPhase = 'active' | 'hibernated'
++
++/** Durable review marker set when safe teardown retains an unmerged branch. */
++export type WorkspaceIsolationReviewState = 'none' | 'branch-retained'
++
++/** Provider-neutral checkout availability and cleanliness. */
++export type WorkspaceIsolationCheckoutState = 'absent' | 'clean' | 'dirty'
++
++/** Provider-neutral classification of one changed path. */
++export type WorkspaceIsolationFileChangeKind =
++  | 'added'
++  | 'modified'
++  | 'deleted'
++  | 'renamed'
++  | 'copied'
++  | 'type-changed'
++  | 'unmerged'
++  | 'untracked'
++  | 'other'
++
++/** Stable provider-neutral failure codes. */
++export type WorkspaceIsolationErrorCode =
++  | 'UNAVAILABLE'
++  | 'NOT_REPOSITORY'
++  | 'SOURCE_DIRTY'
++  | 'LEASE_CONFLICT'
++  | 'LEASE_BUSY'
++  | 'CAPACITY'
++  | 'COMMAND_FAILED'
++
++/** One managed checkout and the branch that survives directory reclamation. */
++export interface WorkspaceIsolationLease {
++  /** Opaque lease identity; cleanup accepts this id, never an arbitrary path. */
++  readonly id: WorkspaceIsolationLeaseId
++  /** Session that exclusively owns the lease. */
++  readonly sessionId: SessionId
++  /** Canonical registered Workspace directory. */
++  readonly sourcePath: string
++  /** Session cwd inside the managed worktree. */
++  readonly checkoutPath: string
++  /** Provider-owned branch retained after hibernation. */
++  readonly branch: string
++  /** Current checkout lifecycle. */
++  readonly phase: WorkspaceIsolationPhase
++  /** Durable state explaining why a teardown request retained this lease. */
++  readonly reviewState: WorkspaceIsolationReviewState
++  /** Base branch name from which the worktree was created (e.g., "main", "master"). */
++  readonly baseBranch: string
++  /** Commit from which the branch was created. */
++  readonly baseHead: string
++  /** Latest checkpoint commit known to the provider. */
++  readonly head: string
++  /** ISO-8601 lease creation instant. */
++  readonly createdAt: string
++  /** ISO-8601 latest successful lifecycle transition. */
++  readonly updatedAt: string
++}
++
++/** One path changed relative to a lease's creation commit. */
++export interface WorkspaceIsolationFileChange {
++  /** Provider-neutral change classification. */
++  readonly kind: WorkspaceIsolationFileChangeKind
++  /** Current path relative to the repository root. */
++  readonly path: string
++  /** Prior path for a rename or copy. */
++  readonly previousPath?: string
++}
++
++/** Lightweight current state for one managed lease. */
++export interface WorkspaceIsolationInspection {
++  /** Detached lease snapshot inspected by the provider. */
++  readonly lease: WorkspaceIsolationLease
++  /** Whether the managed checkout is absent, clean, or dirty. */
++  readonly checkoutState: WorkspaceIsolationCheckoutState
++  /** Current commit at the managed branch ref. */
++  readonly branchHead: string
++  /** Active-checkout changes not yet represented solely by branch commits. */
++  readonly workingTreeChanges: readonly WorkspaceIsolationFileChange[]
++  /** Whether untracked files exist and are omitted from patch text. */
++  readonly hasUntrackedFiles: boolean
++}
++
++/** One managed-branch commit not present in the lease's creation commit. */
++export interface WorkspaceIsolationCommit {
++  /** Commit object identity. */
++  readonly id: string
++  /** First line of the commit message. */
++  readonly summary: string
++}
++
++/** Bounded review data for one lease against its current base branch. */
++export interface WorkspaceIsolationComparison {
++  /** Detached lease snapshot used for the comparison. */
++  readonly lease: WorkspaceIsolationLease
++  /** Current commit at the base branch ref. */
++  readonly targetHead: string
++  /** Current commit at the managed branch ref. */
++  readonly branchHead: string
++  /** Managed-branch commits absent from the current base branch. */
++  readonly ahead: number
++  /** Base-branch commits absent from the managed branch. */
++  readonly behind: number
++  /** Managed-branch commits after the lease's creation commit, oldest first. */
++  readonly commits: readonly WorkspaceIsolationCommit[]
++  /** Changed paths represented by the comparison plus active untracked paths. */
++  readonly changedFiles: readonly WorkspaceIsolationFileChange[]
++  /** Bounded patch text against the lease's creation commit. */
++  readonly patch: string
++  /** Whether the patch exceeded the provider's output limit. */
++  readonly patchTruncated: boolean
++  /** Whether tracked active-checkout content is included in the patch. */
++  readonly includesWorkingTree: boolean
++  /** Whether untracked files exist and are omitted from patch text. */
++  readonly hasUntrackedFiles: boolean
++}
++
++/** Successful integration of one managed branch into its source checkout. */
++export interface WorkspaceIsolationIntegrationResult {
++  /** Hibernated lease after its active checkout was checkpointed and reclaimed. */
++  readonly lease: WorkspaceIsolationLease
++  /** Base branch that received the integration. */
++  readonly targetBranch: string
++  /** Resulting commit at the base branch. */
++  readonly targetHead: string
++}
++
++/** Bounded patch export for one managed lease. */
++export interface WorkspaceIsolationPatch {
++  /** Lease whose changes produced the patch. */
++  readonly leaseId: WorkspaceIsolationLeaseId
++  /** Safe suggested download filename. */
++  readonly fileName: string
++  /** Complete patch text within the provider's configured output limit. */
++  readonly content: string
++  /** Whether tracked active-checkout content is included. */
++  readonly includesWorkingTree: boolean
++  /** Whether untracked files exist and are omitted from the export. */
++  readonly hasUntrackedFiles: boolean
++}
++
++/** Safe teardown result; unmerged work is retained for review. */
++export type WorkspaceIsolationTeardownResult =
++  | {
++    /** Checkout, branch, and durable lease were removed. */
++    readonly status: 'removed'
++    /** Removed provider-issued identity. */
++    readonly leaseId: WorkspaceIsolationLeaseId
++  }
++  | {
++    /** The checkout was reclaimed but the branch and durable lease remain. */
++    readonly status: 'review'
++    /** Retained hibernated lease. */
++    readonly lease: WorkspaceIsolationLease
++    /** Stable reason the provider refused branch deletion. */
++    readonly reason: 'unmerged-branch'
++  }
++
++/** Request to create or reactivate the one lease owned by a Session. */
++export interface WorkspaceIsolationReservation {
++  /** Active lease protected from hibernation, teardown, and capacity reclamation. */
++  readonly lease: WorkspaceIsolationLease
++  /** Idempotently release protection after the consumer's work has stopped. */
++  release(): void
++}
++
++/** Request to create or reactivate the one lease owned by a Session. */
++export interface EnsureWorkspaceIsolationRequest {
++  /** Session that will use the checkout as its cwd. */
++  readonly sessionId: SessionId
++  /** Registered Workspace directory to isolate. */
++  readonly sourcePath: string
++  /** Optional cancellation signal for Git and filesystem work. */
++  readonly signal?: AbortSignal
++}
+diff --git a/packages/workspace/workspace-isolation/tsconfig.json b/packages/workspace/workspace-isolation/tsconfig.json
+new file mode 100644
+index 0000000000..84c6f5ccb0
+--- /dev/null
++++ b/packages/workspace/workspace-isolation/tsconfig.json
+@@ -0,0 +1,24 @@
++{
++  "extends": "../../../tsconfig.base.json",
++  "compilerOptions": {
++    "rootDir": "src",
++    "outDir": "lib/types"
++  },
++  "include": [
++    "src"
++  ],
++  "references": [
++    {
++      "path": "../../../vendor/cosmokit"
++    },
++    {
++      "path": "../../../vendor/cordis"
++    },
++    {
++      "path": "../../util/brand"
++    },
++    {
++      "path": "../../core/session"
++    }
++  ]
++}

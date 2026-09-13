@@ -1,0 +1,4 @@
+# Optional capability rows applied after the profile supplies their required services.
+- insert:
+    - id: security-workflow-prompt
+      name: '@deepseek-ai/dsh-security-workflow-prompt'

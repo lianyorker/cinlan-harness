@@ -31,6 +31,12 @@
 | `@deepseek-ai/dsh-tool-fs` | `edit`、`read`、`read_image`、`write` | `ctx.tools`、`ctx.fs`、`ctx.systemPrompt`、`ctx.attachments (image-tool registration)`、`ctx.llm + an image-capable route (image-tool execution)` | `tool/call`、`fs/write-intent or fs/edit-intent for mutations`、`fs/observed after read presence/absence or successful file operation`、`durable attachment (read_image)`、`tool/result` | - | 先读后写／编辑策略由 `@deepseek-ai/dsh-fs-observation-policy` 添加；它是一个 `fs/*` 事件门禁插件，不会改变 schema。加载这些工具的部署按预期也应加载该插件。没有 `ctx.attachments` 时图片工具不会注册；其 schema 与路由无关，执行时除非确切路由的模型声明图片输入，否则拒绝。 |
 | `@deepseek-ai/dsh-tool-fs-search` | `glob`、`grep` | `ctx.tools`、`ctx.subprocess`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn 随包提供的 ripgrep 二进制文件（`@vscode/ripgrep`），并作为普通前台调用运行，绝不作为后台任务；无需在宿主机安装 `rg`，也不经过 shell 层。本目录使用 `sampleOverCapGlobResults: true`；部署必须显式选择该行为。结果超过上限时，会通过可选的 ctx.spillStore 后端保存完整的格式化列表；在共置部署中，如果后端公开本地路径，返回的定位信息可供后续读取／搜索。 |
 | `@deepseek-ai/dsh-tool-terminal` | `terminal_close`、`terminal_list`、`terminal_open`、`terminal_read`、`terminal_send`、`terminal_signal` | `ctx.tools`、`ctx.terminals`、`ctx.systemPrompt`、`ctx.jobs at call time for run_in_background` | `tool/call`、`tool/result` | - | 这 6 个终端工具需要选择启用，用于补充一次性 bash／文件系统工具。`terminal_send(run_in_background: true)` 会注册到 `ctx.jobs`；schema 不包含 TUI、具名按键序列、BEL、调整尺寸、自动启动和跨 agent 共享。 |
+| `@deepseek-ai/dsh-tool-browser` | `browser_back`, `browser_click`, `browser_close`, `browser_downloads`, `browser_forward`, `browser_history`, `browser_home`, `browser_list`, `browser_navigate`, `browser_network`, `browser_open`, `browser_save_download`, `browser_screenshot`, `browser_search`, `browser_snapshot`, `browser_upload` | `ctx.tools`, `ctx.browser`, `ctx.attachments`, `ctx.systemPrompt`, `ctx.llm for screenshot execution`, `ctx.fs for workspace-file upload` | `tool/call`, `durable image attachment from browser_screenshot`, `tool/result` | - | 十六个持久浏览器工具在选定 Browser Provider 中维护页面及观察句柄。截图执行还需要支持图像的模型路由。 |
+| `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`、`browser_select_element` | `ctx.tools`、`ctx.browser`、`ctx.coordination`、`ctx.systemPrompt`、`an image-capable route for capture execution` | `tool/call`、`durable verified crop attachment through Coordination`、`tool/result` | - | 这两个工具组成选择与捕获工作流。schema 使用默认 60000 ms 超时与 PNG 输出；执行需要带元素捕获功能的 Browser provider 及匹配的 Coordination executor。 |
+| `@deepseek-ai/dsh-tool-computer-use` | `computer_accessibility`, `computer_keyboard`, `computer_list_apps`, `computer_list_windows`, `computer_observe`, `computer_pointer` | `ctx.tools`, `ctx.computerUse`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `optional image attachments` | - | 设备工具按需启用。每次桌面操作使用当前 observation；截图需要支持图像的模型路由和允许截图的 attachment 策略。 |
+| `@deepseek-ai/dsh-tool-mobile-device` | `mobile_button`, `mobile_list_devices`, `mobile_observe`, `mobile_touch`, `mobile_type` | `ctx.tools`, `ctx.mobileDevice`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `optional image attachments` | - | 移动设备工具使用归一化坐标和一次性 observation token。device-control profile 中的设备输入需要明确的策略审批。 |
+| `@deepseek-ai/dsh-tool-coordination` | `coordination_add_task`、`coordination_cancel`、`coordination_send_message`、`coordination_start`、`coordination_status`、`coordination_wait` | `ctx.tools`、`ctx.agents`、`ctx.coordination` | `tool/call`、`process-local task graph state and executor messages`、`tool/result` | - | 六个 task-graph 工具归当前 Session 所有。目录使用默认 subagent executor 名称与有界等待默认值；启动 task 需要已注册的 executor。 |
+| `@deepseek-ai/dsh-tool-git` | `git_diff`、`git_log`、`git_status` | `ctx.tools`、`ctx.agents`、`ctx.git` | `tool/call`、`tool/result` | - | 目录使用 local provider、显式 executable 与上述有界限制展示三个只读 Git 工具；部署可以选择其他 provider 配置。 |
 | `@deepseek-ai/dsh-tool-goal` | `create_goal`、`get_goal`、`update_goal` | `ctx.tools`、`ctx.agents`、`ctx.goals`、`ctx.systemPrompt`、`a calling Agent in an authorized open turn` | `tool/call`、`goal/change for mutations`、`tool/result` | - | create、edit、pause 和 resume 要求直接来自人类的根权限；complete 和 blocked 也接受确切的当前 Goal Round。blocked 的默认下限是 3 个获准的 Round。 |
 | `@deepseek-ai/dsh-schedule` | `schedule_create`、`schedule_delete`、`schedule_list` | `ctx.tools`、`ctx.sessions`、Session 持久化、未来创建的 live 根 Agent | `tool/call`、`schedule/change create or delete`、`tool/result` | - | 仅在选择启用的 Schedule 插件加载后创建的 live 根 Agent scope 内注册。版本 1 接受 after_seconds、显式绝对 at 和有界固定速率 every_seconds，并披露 session-local 交付；管理读取与变更必须通过共享的 Session 持久化 barrier。 |
 | `@deepseek-ai/dsh-tool-lsp` | `lsp` | `ctx.tools`、`ctx.lsp`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，因此其模型可见 schema 在更换提供方时保持稳定。运行时要求已注册提供方，例如 `@deepseek-ai/dsh-lsp-stdio`；如果没有提供方，查询会返回结构化 `LSP_UNAVAILABLE` 错误，而不会改变 schema。 |
@@ -43,6 +49,9 @@
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `interrupt_agent`、`list_agents`、`send_message`、`spawn_teammate`、`team_task_create`、`team_task_get`、`team_task_list`、`team_task_update`、`wait_agent` | `ctx.tools`、`ctx.systemPrompt`、`ctx.agentTeams`、`an exact live Team member Agent` | `tool/call`、`team/member`、`team/message/queued`、`team/message/delivered`、`team/task`、`tool/result` | - | 这 9 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。 |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-finding` | `finding_export`、`finding_query`、`finding_record`、`finding_transition` | `ctx.tools`、`ctx.findings`、`ctx.artifacts`、`ctx.executionHost`、当前会话权限所需的调用 Agent | `tool/call`、`finding/change`、报告 Artifact、`tool/result` | - | 四个 finding 工具使用当前 Session 和 Artifact 提供方；报告 provenance 绑定当前 execution host，reproduction 和 remediation 状态转换要求类型化证据。 |
+| `@deepseek-ai/dsh-tool-vuln-kb` | `vuln_query`、`vuln_read` | `ctx.tools`、`ctx.vulnKb`、执行时配置的漏洞知识库提供方 | `tool/call`、`tool/result` | - | vuln_query 和 vuln_read 暴露提供方结果，不判断可利用性，也不授予评估权限；目录启动使用 NVD+OSV 适配器且不会发起网络请求。 |
+| `@deepseek-ai/dsh-tool-work-items` | `work_items_cancel_write`, `work_items_confirm_write`, `work_items_get`, `work_items_list`, `work_items_list_writes`, `work_items_prepare_write` | `ctx.tools`, `ctx.workItems`, `ctx.systemPrompt`, `ctx.storageDomain 用于写入预览和回执` | `tool/call`, `持久化写入预览和回执`, `tool/result` | - | Provider 写入默认关闭。启用后仍需持久化预览和独立确认；不确定结果绝不自动重发。 |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
 
 <a id="deepseek-aidsh-tool-ask-user"></a>
@@ -1008,6 +1017,1143 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 
 这 6 个终端工具需要选择启用，用于补充一次性 bash／文件系统工具。`terminal_send(run_in_background: true)` 会注册到 `ctx.jobs`；schema 不包含 TUI、具名按键序列、BEL、调整尺寸、自动启动和跨 agent 共享。
 
+<a id="deepseek-aidsh-tool-browser"></a>
+
+## `@deepseek-ai/dsh-tool-browser`
+
+### `browser_back`
+
+将一个持久浏览器页面后退一步。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_click`
+
+点击最新 browser_snapshot 观察中的元素。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Observation id returned by the latest browser_snapshot for this page."
+    },
+    "element_id": {
+      "type": "string",
+      "description": "Element id from that exact browser_snapshot observation."
+    }
+  },
+  "required": [
+    "page_id",
+    "observation_id",
+    "element_id"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_close`
+
+关闭一个持久浏览器页面。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_downloads`
+
+列出属于一个打开页面的已捕获下载。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_forward`
+
+将一个持久浏览器页面前进一步。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_history`
+
+读取一个持久页面的有界访问记录。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum entries from 1 through 100."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_home`
+
+在新的持久页面中打开配置的 Browser 主页。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_list`
+
+列出持久浏览器页面及其稳定页面 id。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_navigate`
+
+将一个持久页面导航到 HTTP 或 HTTPS URL。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "url": {
+      "type": "string",
+      "description": "Absolute HTTP or HTTPS destination URL."
+    }
+  },
+  "required": [
+    "page_id",
+    "url"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_network`
+
+读取一个持久页面捕获的有界网络请求元数据。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum entries from 1 through 100."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_open`
+
+在新的持久浏览器页面中打开 HTTP 或 HTTPS URL。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "url": {
+      "type": "string",
+      "description": "Absolute HTTP or HTTPS URL to open."
+    }
+  },
+  "required": [
+    "url"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_save_download`
+
+将一个已完成的浏览器下载持久化为文件附件；只返回元数据，不返回文件内容。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "download_id": {
+      "type": "string",
+      "description": "Download id returned by browser_downloads."
+    }
+  },
+  "required": [
+    "page_id",
+    "download_id"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_screenshot`
+
+捕获当前浏览器视口并以图像返回。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_search`
+
+在新持久页面中使用配置的 Browser 搜索引擎搜索。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Search text."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_snapshot`
+
+读取持久页面的无障碍树和新鲜元素 id。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_upload`
+
+将工作区文件设置到浏览器文件输入框。页面 input/change 事件可能上传数据。需要新鲜 browser_snapshot。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Latest page observation."
+    },
+    "element_id": {
+      "type": "string",
+      "description": "File input element from that observation."
+    },
+    "file_path": {
+      "type": "string",
+      "description": "File inside the calling Session workspace."
+    }
+  },
+  "required": [
+    "page_id",
+    "observation_id",
+    "element_id",
+    "file_path"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+十六个持久浏览器工具在选定 Browser Provider 中维护页面及观察句柄。截图执行还需要支持图像的模型路由。
+
+<a id="deepseek-aidsh-tool-browser-element-capture"></a>
+
+## `@deepseek-ai/dsh-tool-browser-element-capture`
+
+### `browser_capture_element`
+
+使用 `browser_snapshot` id 或 `browser_select_element` selection id 捕获经过验证的裁剪图像。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent browser page id."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Exact observation_id returned by browser_snapshot; use with element_id."
+    },
+    "element_id": {
+      "type": "string",
+      "description": "Element id from the same browser_snapshot observation."
+    },
+    "selection_id": {
+      "type": "string",
+      "description": "Temporary selection id returned by browser_select_element."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser-element-capture/src/index.ts`](../packages/browser/tool-browser-element-capture/src/index.ts)
+
+### `browser_select_element`
+
+在持久浏览器页面上显示临时 hover highlight，并等待用户选择一个元素。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源： [`packages/browser/tool-browser-element-capture/src/index.ts`](../packages/browser/tool-browser-element-capture/src/index.ts)
+
+这两个工具组成选择与捕获工作流。schema 使用默认 60000 ms 超时与 PNG 输出；执行需要带元素捕获功能的 Browser provider 及匹配的 Coordination executor。
+
+<a id="deepseek-aidsh-tool-computer-use"></a>
+
+## `@deepseek-ai/dsh-tool-computer-use`
+
+### `computer_accessibility`
+
+Perform a secondary accessibility action or set one element value using an exact observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    },
+    "window_id": {
+      "type": "string",
+      "description": "Window id returned by computer_list_windows or computer_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Exact observation id returned by the latest computer_observe or action for this window."
+    },
+    "restore_window": {
+      "type": "boolean",
+      "description": "Bring the exact target window forward before acting."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "secondary_action",
+        "set_value"
+      ]
+    },
+    "element_id": {
+      "type": "string"
+    },
+    "action_name": {
+      "type": "string",
+      "description": "Provider-advertised action name for secondary_action."
+    },
+    "value": {
+      "type": "string",
+      "description": "Exact value for set_value."
+    }
+  },
+  "required": [
+    "app_id",
+    "window_id",
+    "observation_id",
+    "action",
+    "element_id"
+  ]
+}
+```
+
+来源：[`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_keyboard`
+
+Type, paste, press one key, or press one hotkey using one exact desktop observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    },
+    "window_id": {
+      "type": "string",
+      "description": "Window id returned by computer_list_windows or computer_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Exact observation id returned by the latest computer_observe or action for this window."
+    },
+    "restore_window": {
+      "type": "boolean",
+      "description": "Bring the exact target window forward before acting."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "type_text",
+        "paste_text",
+        "press_key",
+        "hotkey"
+      ]
+    },
+    "text": {
+      "type": "string",
+      "description": "Literal text for type_text or paste_text."
+    },
+    "key": {
+      "type": "string",
+      "description": "Single key or modifier chord for press_key or hotkey."
+    }
+  },
+  "required": [
+    "app_id",
+    "window_id",
+    "observation_id",
+    "action"
+  ]
+}
+```
+
+来源：[`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_list_apps`
+
+List local desktop applications available to Computer Use.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_list_windows`
+
+List current windows for one desktop application.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    }
+  },
+  "required": [
+    "app_id"
+  ]
+}
+```
+
+来源：[`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_observe`
+
+Read one desktop application accessibility tree and fresh element ids.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    },
+    "window_id": {
+      "type": "string",
+      "description": "Optional window id; omit only when the application has one unambiguous window."
+    },
+    "restore_window": {
+      "type": "boolean",
+      "description": "Bring the target window forward before observing it."
+    }
+  },
+  "required": [
+    "app_id"
+  ]
+}
+```
+
+来源：[`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_pointer`
+
+Click, scroll, or drag using one exact desktop observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    },
+    "window_id": {
+      "type": "string",
+      "description": "Window id returned by computer_list_windows or computer_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Exact observation id returned by the latest computer_observe or action for this window."
+    },
+    "restore_window": {
+      "type": "boolean",
+      "description": "Bring the exact target window forward before acting."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "click",
+        "scroll",
+        "drag"
+      ]
+    },
+    "element_id": {
+      "type": "string",
+      "description": "Element id for click/scroll or drag start."
+    },
+    "to_element_id": {
+      "type": "string",
+      "description": "Element id for drag destination."
+    },
+    "x": {
+      "type": "number",
+      "description": "Window-local x for click/scroll or drag start."
+    },
+    "y": {
+      "type": "number",
+      "description": "Window-local y for click/scroll or drag start."
+    },
+    "to_x": {
+      "type": "number",
+      "description": "Window-local drag destination x."
+    },
+    "to_y": {
+      "type": "number",
+      "description": "Window-local drag destination y."
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ]
+    },
+    "pages": {
+      "type": "integer"
+    },
+    "click_count": {
+      "type": "integer"
+    },
+    "mouse_button": {
+      "type": "string",
+      "enum": [
+        "left",
+        "right",
+        "middle"
+      ]
+    },
+    "modifiers": {
+      "type": "string",
+      "description": "One provider-supported modifier chord."
+    }
+  },
+  "required": [
+    "app_id",
+    "window_id",
+    "observation_id",
+    "action"
+  ]
+}
+```
+
+来源：[`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+设备工具按需启用。每次桌面操作使用当前 observation；截图需要支持图像的模型路由和允许截图的 attachment 策略。
+
+<a id="deepseek-aidsh-tool-mobile-device"></a>
+
+## `@deepseek-ai/dsh-tool-mobile-device`
+
+### `mobile_button`
+
+Press one provider-supported device navigation button using an exact observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Exact device id returned by mobile_list_devices."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "One-use observation id returned by the latest mobile_observe for this device."
+    },
+    "button": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "device_id",
+    "observation_id",
+    "button"
+  ]
+}
+```
+
+来源：[`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+### `mobile_list_devices`
+
+List exact local Android emulator and iOS simulator device ids.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+### `mobile_observe`
+
+Read one fresh mobile-device tree and optional native PNG image.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Exact device id returned by mobile_list_devices."
+    }
+  },
+  "required": [
+    "device_id"
+  ]
+}
+```
+
+来源：[`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+### `mobile_touch`
+
+Tap or swipe with normalized coordinates using one exact observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Exact device id returned by mobile_list_devices."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "One-use observation id returned by the latest mobile_observe for this device."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "tap",
+        "swipe"
+      ]
+    },
+    "x": {
+      "type": "number",
+      "description": "Normalized tap x from 0 to 1."
+    },
+    "y": {
+      "type": "number",
+      "description": "Normalized tap y from 0 to 1."
+    },
+    "from_x": {
+      "type": "number",
+      "description": "Normalized swipe start x from 0 to 1."
+    },
+    "from_y": {
+      "type": "number",
+      "description": "Normalized swipe start y from 0 to 1."
+    },
+    "to_x": {
+      "type": "number",
+      "description": "Normalized swipe destination x from 0 to 1."
+    },
+    "to_y": {
+      "type": "number",
+      "description": "Normalized swipe destination y from 0 to 1."
+    }
+  },
+  "required": [
+    "device_id",
+    "observation_id",
+    "action"
+  ]
+}
+```
+
+来源：[`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+### `mobile_type`
+
+Type literal text through stdin using one exact mobile observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Exact device id returned by mobile_list_devices."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "One-use observation id returned by the latest mobile_observe for this device."
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "device_id",
+    "observation_id",
+    "text"
+  ]
+}
+```
+
+来源：[`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+移动设备工具使用归一化坐标和一次性 observation token。device-control profile 中的设备输入需要明确的策略审批。
+
+<a id="deepseek-aidsh-tool-coordination"></a>
+
+## `@deepseek-ai/dsh-tool-coordination`
+
+### `coordination_add_task`
+
+向 live coordination run 添加一个 task。其 dependency 与 parent 必须已属于该 run。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Run id returned by coordination_start."
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "description": "Optional stable id. Assign ids to tasks referenced by dependencies."
+        },
+        "label": {
+          "type": "string",
+          "description": "Short task label."
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Standalone instructions for the task executor."
+        },
+        "dependencies": {
+          "type": "array",
+          "description": "Task ids that must succeed first.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "executor": {
+          "type": "string",
+          "description": "Registered executor kind. Omit to use the configured default."
+        },
+        "parent_task_id": {
+          "type": "string",
+          "description": "Optional acyclic parent task for subtree cancellation."
+        }
+      },
+      "required": [
+        "label",
+        "prompt"
+      ]
+    }
+  },
+  "required": [
+    "run_id",
+    "task"
+  ]
+}
+```
+
+来源： [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_cancel`
+
+取消一个所属 run；也可取消一个所属 task 的 parent subtree，以及因已取消 dependency 而传递性阻塞的 task。运行中的 executor 通过 `AbortSignal` 接收原因。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Run id to cancel; mutually exclusive with task_id."
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task id whose parent-subtree and dependency-blocked descendants should be cancelled; mutually exclusive with run_id."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Optional cancellation reason."
+    }
+  }
+}
+```
+
+来源： [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_send_message`
+
+提交一条发给所属 task 的 message。message listener 决定是否交付；coordination record 本身并不表示 executor 支持 live steering。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "Recipient task id."
+    },
+    "message": {
+      "type": "string",
+      "description": "Non-empty message for the task."
+    }
+  },
+  "required": [
+    "task_id",
+    "message"
+  ]
+}
+```
+
+来源： [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_start`
+
+启动后台 task DAG。独立 task 可以并发运行；dependency task 仅在每个具名 dependency 成功后启动。保留返回的 run id 与 task id，以便查询状态、发送 message、取消和等待。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "tasks": {
+      "type": "array",
+      "description": "Complete initial task graph.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "description": "Optional stable id. Assign ids to tasks referenced by dependencies."
+          },
+          "label": {
+            "type": "string",
+            "description": "Short task label."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Standalone instructions for the task executor."
+          },
+          "dependencies": {
+            "type": "array",
+            "description": "Task ids that must succeed first.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "executor": {
+            "type": "string",
+            "description": "Registered executor kind. Omit to use the configured default."
+          },
+          "parent_task_id": {
+            "type": "string",
+            "description": "Optional acyclic parent task for subtree cancellation."
+          }
+        },
+        "required": [
+          "label",
+          "prompt"
+        ]
+      }
+    }
+  },
+  "required": [
+    "tasks"
+  ]
+}
+```
+
+来源： [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_status`
+
+读取一个所属 coordination run 及其全部 task，或读取一个所属 task。该调用绝不等待。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Run id to inspect; mutually exclusive with task_id."
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task id to inspect; mutually exclusive with run_id."
+    }
+  }
+}
+```
+
+来源： [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_wait`
+
+等待一个所属 run 或 task 进入 terminal 状态，最长不超过配置的 timeout cap。超时会返回带 `timedOut: true` 的当前状态，并让工作继续运行。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Run id to wait for; mutually exclusive with task_id."
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task id to wait for; mutually exclusive with run_id."
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "description": "Optional positive wait duration, capped by deployment configuration."
+    }
+  }
+}
+```
+
+来源： [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+六个 task-graph 工具归当前 Session 所有。目录使用默认 subagent executor 名称与有界等待默认值；启动 task 需要已注册的 executor。
+
+<a id="deepseek-aidsh-tool-git"></a>
+
+## `@deepseek-ai/dsh-tool-git`
+
+### `git_diff`
+
+读取 calling agent workspace repository 的有界 diff observation。该工具绝不修改 repository。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "max_bytes": {
+      "type": "integer",
+      "description": "Optional positive byte cap within the configured provider limit."
+    }
+  }
+}
+```
+
+来源： [`packages/git/tool-git/src/index.ts`](../packages/git/tool-git/src/index.ts)
+
+### `git_log`
+
+以有界结构化条目读取 calling agent workspace repository 的近期 commit。该工具绝不修改 repository。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "integer",
+      "description": "Optional positive entry limit within the configured provider limit."
+    }
+  }
+}
+```
+
+来源： [`packages/git/tool-git/src/index.ts`](../packages/git/tool-git/src/index.ts)
+
+### `git_status`
+
+读取 calling agent workspace repository 的结构化 branch、divergence 与 working-tree 计数。该工具绝不修改 repository。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源： [`packages/git/tool-git/src/index.ts`](../packages/git/tool-git/src/index.ts)
+
+目录使用 local provider、显式 executable 与上述有界限制展示三个只读 Git 工具；部署可以选择其他 provider 配置。
+
 <a id="deepseek-aidsh-tool-goal"></a>
 
 ## `@deepseek-ai/dsh-tool-goal`
@@ -1035,11 +2181,11 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
-来源：[`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
+来源： [`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
 
 ### `get_goal`
 
-读取当前的同会话目标，包括确切的 id／revision、目标、阶段、已完成的延续 Round 数、Round 上限、存在时的阻塞原因，以及是否已准备下一次延续。更新目标前请先调用此工具。
+读取当前同会话目标，包括准确的 id/revision、objective、phase、已完成的 continuation round、round 上限、可用时的阻塞原因，以及是否已启用下一次 continuation。更新目标前调用此工具。
 
 ```json
 {
@@ -1048,11 +2194,11 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
-来源：[`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
+来源： [`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
 
 ### `update_goal`
 
-更新确切的当前目标 revision。edit、pause 和 resume 要求直接的顶层人类请求。在自动延续当前目标期间，也允许 complete 和 blocked。在达到配置的最小 Round 数之前会拒绝 blocked；模型仍须判断相同条件是否在这些 Round 中持续存在，并在 blocked_reason 中予以说明。
+更新准确的当前 goal revision。edit、pause 和 resume 要求直接来自顶层人类请求。在当前 goal 的自动 continuation 中，complete 和 blocked 也可以使用。达到配置的最小 round 数之前会拒绝 blocked；模型必须判断同一阻塞条件是否持续，并在 blocked_reason 中说明。
 
 ```json
 {
@@ -1098,9 +2244,9 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
-来源：[`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
+来源： [`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
 
-create、edit、pause 和 resume 要求直接来自人类的根权限；complete 和 blocked 也接受确切的当前 Goal Round。blocked 的默认下限是 3 个获准的 Round。
+create、edit、pause 和 resume 要求直接来自人类的 root 权限；complete 和 blocked 也接受准确的当前 goal round。blocked 的默认下限是 3 个获准 round。
 
 <a id="deepseek-aidsh-schedule"></a>
 
@@ -1108,7 +2254,7 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 
 ### `schedule_create`
 
-在当前会话中创建一条提醒。请提供非空 prompt 和恰好一个 selector：正的安全整数 after_seconds 延时；作为严格带偏移日期时间或本地日期／时间对象的 at；或不小于 300 的安全整数 every_seconds。固定速率提醒始终与创建时刻对齐，会跳过错过的发生时点，并把每条逾期规则的最新一个发生时点合并到一个批次中。交付模式是 session-local：只有此会话处于 live 状态时，提醒才会准时运行；否则提醒会进入 overdue 状态，直至会话恢复。
+在当前会话创建一条提醒。提供非空 prompt 和恰好一个 selector：正的安全整数 after_seconds 延迟、严格 offset date-time 或本地日期时间对象 at，或至少为 300 的安全整数 every_seconds。固定速率提醒保持创建时对齐，跳过错过的发生，并为每条逾期规则批量保留最新一次发生。交付限定于当前会话：只有会话存活时提醒才会按时运行，否则会保持逾期直到会话恢复。
 
 ```json
 {
@@ -1161,11 +2307,11 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 }
 ```
 
-来源：[`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
+来源： [`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
 
 ### `schedule_delete`
 
-使用 schedule_create 或 schedule_list 返回的确切 id，删除当前会话中的一条活动提醒。未知或已经结束的 id 会返回 deleted false。
+使用 schedule_create 或 schedule_list 返回的准确 id，删除当前会话中的一条活动提醒。未知或已完成的 id 返回 deleted false。
 
 ```json
 {
@@ -1182,11 +2328,11 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 }
 ```
 
-来源：[`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
+来源： [`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
 
 ### `schedule_list`
 
-按创建顺序列出当前会话中的所有活动提醒，包括确切 id、UTC 目标、scheduled 或 overdue 状态，以及 session-local 交付模式。
+按创建顺序列出当前会话的所有活动提醒，包括准确 id、UTC 目标、scheduled 或 overdue 状态，以及 session-local 交付模式。
 
 ```json
 {
@@ -1195,9 +2341,9 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 }
 ```
 
-来源：[`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
+来源： [`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
 
-仅在选择启用的 Schedule 插件加载后创建的 live 根 Agent scope 内注册。版本 1 接受 after_seconds、显式绝对 at 和有界固定速率 every_seconds，并披露 session-local 交付；管理读取与变更必须通过共享的 Session 持久化 barrier。
+只在选择启用 Schedule plugin 后创建的活动 root Agent scope 中注册。版本 1 接受 after_seconds、明确的绝对 at 和有界固定速率 every_seconds，并披露 session-local 交付；管理读取和变更需要共享的 Session persistence barrier。
 
 <a id="deepseek-aidsh-tool-lsp"></a>
 
@@ -1205,7 +2351,7 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 
 ### `lsp`
 
-查询语言服务器，以精确导航代码。operation 可取 goToDefinition、findReferences、goToImplementation 或 hover。line 和 character 是从 1 开始的 UTF-16 光标坐标。findReferences 包含声明。
+查询语言服务器以进行精确的代码导航。operation 为 goToDefinition、findReferences、goToImplementation、hover 之一。line 和 character 是从 1 开始的 UTF-16 光标坐标。findReferences 包含声明。
 
 ```json
 {
@@ -1243,9 +2389,9 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 }
 ```
 
-来源：[`packages/lsp/tool-lsp/src/index.ts`](../packages/lsp/tool-lsp/src/index.ts)
+来源： [`packages/lsp/tool-lsp/src/index.ts`](../packages/lsp/tool-lsp/src/index.ts)
 
-lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，因此其模型可见 schema 在更换提供方时保持稳定。运行时要求已注册提供方，例如 `@deepseek-ai/dsh-lsp-stdio`；如果没有提供方，查询会返回结构化 `LSP_UNAVAILABLE` 错误，而不会改变 schema。
+lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，因此其模型可见 schema 在不同提供方之间保持稳定。运行时需要已注册的提供方（例如 `@deepseek-ai/dsh-lsp-stdio`）；没有提供方时，查询返回结构化的 `LSP_UNAVAILABLE` 错误，而不会改变 schema。
 
 <a id="deepseek-aidsh-tool-ralph"></a>
 
@@ -1253,7 +2399,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `ralph`
 
-围绕一个不可变目标运行使用全新 agent 的前台 Ralph 循环。仅当直接人类明确要求 Ralph 或使用全新 agent 迭代时使用。每个 Round 都会启动一个全新子级，该子级看不到父级对话或先前子会话；共享工作区充当长期记忆，Round 之间只传递有界的结构化报告。当工作进程报告完成、报告具体阻塞项或达到 Round 上限时，调用返回。普通的长期同会话工作应使用 goal 工具。
+围绕一个不可变目标运行前台 fresh-agent Ralph loop。仅在直接人类明确要求 Ralph 或 fresh-agent iteration 时使用。每个 round 都会打开没有父会话或旧 child session 的新 child；共享 workspace 作为长期记忆，round 之间只传递有界结构化报告。worker 报告完成、具体阻塞或达到 round 上限时调用返回。普通的长期同会话工作应使用 goal 工具。
 
 ```json
 {
@@ -1274,9 +2420,9 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/workflow/tool-ralph/src/index.ts`](../packages/workflow/tool-ralph/src/index.ts)
+来源： [`packages/workflow/tool-ralph/src/index.ts`](../packages/workflow/tool-ralph/src/index.ts)
 
-固定的前台工作流会在每个 Round 启动一个全新的结构化子级；模型只能选择不可变目标和可选的 Round 上限。
+固定的前台工作流每个 round 启动一个全新的结构化 child；模型只能选择不可变目标和可选的 round 上限。
 
 <a id="deepseek-aidsh-tool-skill"></a>
 
@@ -1284,7 +2430,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `skill`
 
-加载可用 skill（技能）的完整说明。在执行点名某项 skill 或与其明确匹配的任务前，请使用会话 skill 目录中的确切名称调用此工具。
+加载可用 skill 的完整说明。处理明确点名或明显匹配某个 skill 的任务前，使用会话 skill catalog 中的准确 skill 名称调用此工具。
 
 ```json
 {
@@ -1301,7 +2447,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/skill/tool-skill/src/index.ts`](../packages/skill/tool-skill/src/index.ts)
+来源： [`packages/skill/tool-skill/src/index.ts`](../packages/skill/tool-skill/src/index.ts)
 
 <a id="deepseek-aidsh-tool-session-query"></a>
 
@@ -1309,7 +2455,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `session_event_read`
 
-从一个已获授权的会话中读取一个完整且未删节的事件，以及可选的相邻原始事件概述。
+Read one full unabridged event and optional neighboring raw-event summaries from an authorized session.
 
 ```json
 {
@@ -1338,11 +2484,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
+来源： [`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
 ### `session_event_search`
 
-在一个已获授权的会话中搜索先前事件；如果搜索当前会话，则排除执行此次调用的步骤。
+Search prior events in one authorized session; the current session excludes the step performing this call.
 
 ```json
 {
@@ -1398,11 +2544,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
+来源： [`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
 ### `session_event_trace`
 
-读取已获授权会话中某个事件的所有直接替换关系，以及该事件与其引用的来源事件之间的关系。
+Read every direct replacement and relationship to a cited source event for one event in an authorized session.
 
 ```json
 {
@@ -1423,11 +2569,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
+来源： [`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
 ### `session_search`
 
-搜索调用方工作区中的先前会话，并从每个会话返回匹配度最高的事件。
+Search prior sessions in the caller workspace and return the strongest matching event from each session.
 
 ```json
 {
@@ -1516,11 +2662,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
+来源： [`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
 ### `session_trace`
 
-读取围绕一个会话的已授权会话谱系，包括完整可见的祖先和后代关系。
+Read the authorized session lineage around one session, including complete visible ancestor and descendant relationships.
 
 ```json
 {
@@ -1534,9 +2680,9 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
+来源： [`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
-这 5 个只读工具会隐藏提供方游标，并根据不可变的调用 agent 会话为每个结果授权。该包需要选择启用；需要强制截止时间或限制行内输出的组合还会挂载通用超时或 spill 策略。
+这 5 个只读工具隐藏提供方游标，并根据不可变的调用 agent session 为每个结果授权。该包需要选择启用；需要强制截止时间或限制行内输出的组合还会挂载通用 timeout 或 spill 策略。
 
 <a id="deepseek-aidsh-tool-subagent"></a>
 
@@ -1544,7 +2690,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `list_subagent_models`
 
-发现 subagent 可用的 LLM 路由，不更改当前 Agent。无参数调用会列出已注册提供方；提供 `provider` 时会列出其公布的模型；同时提供 `provider` 和 `model` 时会检查该精确模型及其推理强度。目录条目只提供建议：adapter 可能接受未列出的模型 id。把返回的 id 用于委派工具的 `provider`、`model` 与 `reasoning_effort` 字段。
+发现 subagent 的 LLM 路由，不改变当前 Agent。不带参数调用以列出已注册提供方，带 `provider` 列出其声明的模型，或同时带 `provider` 和 `model` 检查准确模型及其 reasoning effort。目录成员关系仅供参考：适配器可能接受未列出的 model id。将返回的 id 用于委派工具的 `provider`、`model` 和 `reasoning_effort` 字段。
 
 ```json
 {
@@ -1562,11 +2708,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/subagent/tool-subagent/src/list-models.ts`](../packages/subagent/tool-subagent/src/list-models.ts)
+来源： [`packages/subagent/tool-subagent/src/list-models.ts`](../packages/subagent/tool-subagent/src/list-models.ts)
 
 ### `subagent`
 
-将一项自包含任务委派给 subagent（在自身上下文中工作的独立 agent），用它卸载聚焦且独立的工作，例如研究、限定范围的实现或分析，以免消耗当前对话的上下文。subagent 会返回结果，但不会返回中间步骤。请提供完整、独立的提示词，因为它看不到当前对话。此调用默认等待结果。设置 `run_in_background: true` 可返回 job id；使用 `job_output` 收集结果，使用 `job_kill` 停止任务。
+Delegate a self-contained task to a subagent (a separate agent that works in its own context) to offload focused, independent work — research, a scoped implementation, an analysis — so it does not consume this conversation's context. The subagent returns its result, not its intermediate steps. Give it a complete, standalone prompt: it does not see this conversation. This call waits for the result by default. Set `run_in_background: true` to return a job id; collect with `job_output` and stop with `job_kill`.
 
 ```json
 {
@@ -1592,9 +2738,9 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/subagent/tool-subagent/src/index.ts`](../packages/subagent/tool-subagent/src/index.ts)
+来源： [`packages/subagent/tool-subagent/src/index.ts`](../packages/subagent/tool-subagent/src/index.ts)
 
-注册的委派工具名称取决于加载时 `toolName` 配置（默认为 `subagent`）；上述默认 schema 关闭模型选择，而发现 schema 则展示为已启用 Session 中可用的固定配套工具。Web preset 会在每个新顶层 Session 创建时读取插件页偏好，并为其子 Session 保留该决定；`subagent_fork` 始终使用固定路由。每个实例通过 `modelSelectionSettings`、`backgroundMode` 与 `enableRunInBackground` 独立控制是否读取模型选择设置及其后台行为。
+注册的委派名称是加载时的 `toolName` 配置（默认值为 `subagent`）；上面的默认 schema 关闭模型选择，而 discovery schema 作为启用 Session 中可用的固定 companion 展示。Web preset 为每个新的顶层 Session 读取 Plugins 偏好，并为其 child Session 保留该决定；`subagent_fork` 始终使用固定路由。每个实例通过 `modelSelectionSettings`、`backgroundMode` 和 `enableRunInBackground` 独立控制是否读取模型选择设置及后台行为。
 
 <a id="deepseek-aidsh-tool-subagent-control"></a>
 
@@ -1602,7 +2748,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `interrupt_agent`
 
-根据 agent id 请求取消后台 agent 的当前轮次。目标可以是你的直接子级，也可以是在你下方创建的更深层 agent。只有当前轮次会停止：已经排队发给该 agent 的消息会一直搁置到后续的 send_message；它启动的 agent 会继续运行；该 agent 本身仍可接受后续操作。停止请求被接受后，此调用立即返回，因此目标可能还会短暂运行；中断一个已经完成的 agent 是可接受的空操作。
+Request cancellation of a background agent's current turn by its agent id. The target may be your direct child or a deeper agent created under you. Only the current turn stops: messages already queued for the agent stay parked until a later send_message, agents it started keep running, and the agent itself stays available for follow-ups. This call returns as soon as the stop request is accepted, so the target may keep running briefly; interrupting an agent that already finished is an accepted no-op.
 
 ```json
 {
@@ -1619,11 +2765,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)
+来源： [`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)
 
 ### `list_agents`
 
-按持久 id 和标签列出你的可继续后台 subagent。用它回忆你启动过哪些 subagent，而不是轮询完成情况——subagent 完成时你会被告知。状态来自实时注册表：running 表示 agent 此刻正在工作；idle 表示已加载但处于轮次之间，可能正在等待它启动的 agent；ready 表示它只存在于存储中——可恢复而非终态，也不表示有结果等待收集；`send_message` 会在运行中 child 的最近 step 边界 steer 消息，或为 idle、ready child 启动轮次，且无论处于哪种状态，直接子级都仍可作为 `send_message` 的目标。该快照并非投递承诺；`send_message` 会执行权威检查，仍可能失败。无法读取的子级会作为诊断信息报告，而不会被静默丢弃。`descendants` 作用域会按稳定的前序顺序遍历你下方的整棵树，并为每个条目标注其持久的直接父会话 id 和深度。只有深度为 1 的条目可以使用 `send_message`；更深的条目只能作为 `interrupt_agent` 的候选目标。
+List your continuable background subagents by durable id and label. Use it to recall which ones you started, not to poll for completion — you are told when one finishes. Status comes from the live registry: running means the agent is working right now, idle means it is loaded but between turns (it may be waiting on agents it started), and ready means it exists only in storage — resumable, not terminal, and not a result waiting to be collected; a `send_message` steers a running child at its nearest step boundary or starts a turn for an idle or ready child, and a direct child remains a `send_message` candidate in every status. The snapshot is not a delivery promise — `send_message` performs the authoritative check and may still fail. Children that could not be read are reported as diagnostics instead of being silently dropped. Scope `descendants` walks the whole tree below you in stable pre-order, annotating each entry with its durable direct-parent session id and depth. You may use `send_message` only for depth-1 entries; deeper entries are candidates for `interrupt_agent` only.
 
 ```json
 {
@@ -1641,11 +2787,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/subagent/tool-subagent-control/src/list-agents.ts`](../packages/subagent/tool-subagent-control/src/list-agents.ts)
+来源： [`packages/subagent/tool-subagent-control/src/list-agents.ts`](../packages/subagent/tool-subagent-control/src/list-agents.ts)
 
 ### `send_message`
 
-根据 agent id 向直接可继续 child 发送消息。如果你是驻留的可继续 child，也可以把自己的直接 parent 作为目标。如果目标仍在工作，消息会 steer 其最近的 step；如果目标处于 idle，消息会启动一个轮次。此调用不会返回该 agent 的答案，只会确认消息已投递。调用失败表示消息**未**投递。
+按 agent id 向直接可继续 child 发送消息。如果当前是驻留的可继续 child，也可以将直接 parent 作为目标。目标仍在工作时，消息会在最近步骤调整它；目标 idle 时，消息会开启一个 turn。此调用不返回 agent 答案，只确认消息已交付。失败表示消息未交付。
 
 ```json
 {
@@ -1667,9 +2813,9 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)
+来源： [`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)
 
-这些是控制可继续后台 subagent 的全局命名工具：绑定提供方的 `tool-subagent` 实例注册不同的委派工具；本包注册一次 `send_message` 和 `interrupt_agent`，另由 `list_agents` 通过单独加载的 `/list-agents` 插件提供，其目录行使用 sessionProjections 和实时 Agent 注册表。
+针对可继续后台 subagent 的全局命名控制工具：绑定提供方的 `tool-subagent` 实例注册不同的委派工具；本包注册一次 `send_message` 和 `interrupt_agent`，另由单独加载的 `/list-agents` plugin 提供 `list_agents`（其目录行使用 sessionProjections 和实时 Agent registry）。
 
 <a id="deepseek-aidsh-tool-jobs"></a>
 
@@ -1677,7 +2823,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `job_kill`
 
-根据 job id 请求取消正在运行的后台任务。此调用立即返回；任务的工作真正停止后，会以 killed 状态结算。
+Request cancellation of a running background job by job id. Returns immediately; the job settles as killed once its work actually stops.
 
 ```json
 {
@@ -1698,11 +2844,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
+来源： [`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
 
 ### `job_list`
 
-列出你的后台任务（包括正在运行和已完成的任务）及其 id、种类和状态。
+列出后台 job（运行中和已完成）的 id、kind 和 status。
 
 ```json
 {
@@ -1711,11 +2857,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
+来源： [`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
 
 ### `job_output`
 
-读取后台任务。流式任务只返回自上次读取以来的输出；最终输出任务会在结算后返回结果。每个响应都以 `[status: ...]` 结尾。读取默认不阻塞；设置 `wait: true` 后，最长等待到配置的上限。
+Read a background job. Stream jobs return only output since the previous read; final-output jobs return their result after settlement. Every response ends with `[status: ...]`. Reads are non-blocking unless `wait: true`, which waits up to the configured cap.
 
 ```json
 {
@@ -1740,9 +2886,9 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
+来源： [`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
 
-与任务种类无关的后台任务控制器：后台 bash 命令、PTY 发送和 subagent 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。
+与任务 kind 无关的后台 job 控制器：后台 bash 命令、PTY send 和 subagent 都通过相同的三个工具读取、列出和终止。加载 plugin 会连接控制器，从而启用生产方的 `ctx.jobs.start()`。
 
 <a id="deepseek-aidsh-experimental-tool-agent-team"></a>
 
@@ -1750,7 +2896,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `interrupt_agent`
 
-中断一名 teammate 的当前 turn，同时保留其待处理 inbox。仅 Team Lead 可用。
+中断一个 teammate 的当前 turn，同时保留其待处理 inbox。仅 Team Lead 可用。
 
 ```json
 {
@@ -1767,11 +2913,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+来源： [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `list_agents`
 
-列出 Lead 与所有持久 teammate，以及各自当前的运行时状态。
+列出 Lead 和每个持久 teammate 的当前运行时状态。
 
 ```json
 {
@@ -1780,11 +2926,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+来源： [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `send_message`
 
-向另一名 Team member 发送一条持久消息。running target 会在最近的步骤边界收到消息；idle target 会启动一个 turn；inactive teammate 会冷恢复。
+向另一个 Team member 发送一条持久消息。运行中的目标在最近步骤边界接收消息；idle 目标开启一个 turn；inactive teammate 冷恢复。
 
 ```json
 {
@@ -1806,11 +2952,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+来源： [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `spawn_teammate`
 
-创建一名具名、持久的 teammate。只有 Team Lead 可以调用此工具。
+创建一个命名的持久 teammate。只有 Team Lead 可以调用此工具。
 
 ```json
 {
@@ -1845,11 +2991,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+来源： [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `team_task_create`
 
-在共享 Team 任务板上创建一个无 owner 的 pending task。
+在共享 Team task board 上创建一项没有 owner 的 pending task。
 
 ```json
 {
@@ -1885,11 +3031,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+来源： [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `team_task_get`
 
-在修改或执行共享任务前，读取其完整的最新值。
+在更改或执行共享 task 前，读取该 task 的完整最新值。
 
 ```json
 {
@@ -1906,11 +3052,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+来源： [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `team_task_list`
 
-列出共享任务，包括 readiness、owner、revision、blocker 与 write-scope warning。
+列出共享 task，包括 readiness、owner、revision、blocker 和 write-scope warning。
 
 ```json
 {
@@ -1945,11 +3091,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+来源： [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `team_task_update`
 
-使用 team_task_get 或 team_task_list 返回的最新 revision，对共享任务操作执行 compare-and-set。
+使用 team_task_get 或 team_task_list 返回的最新 revision，对共享 task action 执行 compare-and-set。
 
 ```json
 {
@@ -2012,11 +3158,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+来源： [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `wait_agent`
 
-等待本次调用开始后下一次 teammate 状态、mailbox 或共享任务变更。它绝不会唤醒 inactive member；若没有其他 member 正在 running 或 provisioning，则立即返回 noProgress。唤醒或超时后应重新列出状态，而不是轮询。
+等待此调用开始后下一次 teammate 状态、mailbox 或共享 task 变化。它不会唤醒 inactive member；没有其他 member 正在运行或 provisioning 时立即返回 noProgress。唤醒或超时后重新列出状态，不要轮询。
 
 ```json
 {
@@ -2030,10 +3176,9 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+来源： [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
-这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。
-
+这 9 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。
 
 <a id="deepseek-aidsh-tool-todo"></a>
 
@@ -2180,6 +3325,1147 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 ```
 
 来源：[`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
+
+<a id="deepseek-aidsh-tool-finding"></a>
+
+## `@deepseek-ai/dsh-tool-finding`
+
+### `finding_export`
+
+将当前会话中所有匹配的 finding 以确定性的 JSON、Markdown 或 SARIF 2.1.0 导出，并发布一个报告 Artifact。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "observation",
+          "hypothesis",
+          "reproduced-vulnerability",
+          "remediation",
+          "unresolved"
+        ]
+      }
+    },
+    "severities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "informational",
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ]
+      }
+    },
+    "ruleIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "targetIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "format": {
+      "type": "string",
+      "enum": [
+        "json",
+        "markdown",
+        "sarif"
+      ]
+    }
+  },
+  "required": [
+    "format"
+  ]
+}
+```
+
+来源： [`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
+
+### `finding_query`
+
+读取当前会话 finding 的有界确定性分页结果；执行状态转换前使用准确的 id 和 revision。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "observation",
+          "hypothesis",
+          "reproduced-vulnerability",
+          "remediation",
+          "unresolved"
+        ]
+      }
+    },
+    "severities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "informational",
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ]
+      }
+    },
+    "ruleIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "targetIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cursor": {
+      "type": "string"
+    },
+    "limit": {
+      "type": "integer"
+    },
+    "detail": {
+      "type": "string",
+      "enum": [
+        "summary",
+        "full"
+      ]
+    }
+  }
+}
+```
+
+来源： [`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
+
+### `finding_record`
+
+记录一个类型化的当前会话安全 finding。服务派生 id 和 fingerprint；重复身份只增加一次 occurrence，不会提升状态。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "ruleId": {
+      "type": "string",
+      "description": "Stable detector or rule identifier."
+    },
+    "title": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "observation",
+        "hypothesis",
+        "reproduced-vulnerability"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "host",
+              "service",
+              "url",
+              "repository",
+              "package",
+              "file",
+              "component",
+              "other"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "displayName"
+        ]
+      }
+    },
+    "locations": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "code"
+                ]
+              },
+              "targetId": {
+                "type": "string"
+              },
+              "uri": {
+                "type": "string"
+              },
+              "startLine": {
+                "type": "integer"
+              },
+              "startColumn": {
+                "type": "integer"
+              },
+              "endLine": {
+                "type": "integer"
+              },
+              "endColumn": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "targetId",
+              "uri"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "dependency"
+                ]
+              },
+              "targetId": {
+                "type": "string"
+              },
+              "ecosystem": {
+                "type": "string"
+              },
+              "packageName": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "manifestUri": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "targetId",
+              "ecosystem",
+              "packageName"
+            ]
+          }
+        ]
+      }
+    },
+    "cweIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cveIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cvss": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "enum": [
+            "3.1",
+            "4.0"
+          ]
+        },
+        "vector": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "version",
+        "vector",
+        "score"
+      ]
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reachability": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "unreachable"
+              ]
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "reason"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "reachable"
+              ]
+            },
+            "entrypoint": {
+              "type": "string"
+            },
+            "pathEvidence": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "artifactId": {
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "bytes": {
+                  "type": "integer"
+                },
+                "sha256": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "provenance": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "producerId": {
+                      "type": "string"
+                    },
+                    "executionHostId": {
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "type": "string"
+                    },
+                    "taskId": {
+                      "type": "string"
+                    },
+                    "engagementId": {
+                      "type": "string"
+                    },
+                    "scopeRef": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "producerId",
+                    "executionHostId"
+                  ]
+                },
+                "retention": {
+                  "type": "string",
+                  "enum": [
+                    "ephemeral",
+                    "session",
+                    "task",
+                    "engagement",
+                    "pinned",
+                    "managed"
+                  ]
+                },
+                "redaction": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "redacted",
+                    "unknown"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "artifactId",
+                "mediaType",
+                "kind",
+                "bytes",
+                "sha256",
+                "createdAt",
+                "provenance",
+                "retention",
+                "redaction"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "entrypoint"
+          ]
+        }
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "observation",
+              "reproduction",
+              "remediation-validation",
+              "supporting"
+            ]
+          },
+          "artifact": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "artifactId": {
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "provenance": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "producerId": {
+                    "type": "string"
+                  },
+                  "executionHostId": {
+                    "type": "string"
+                  },
+                  "sessionId": {
+                    "type": "string"
+                  },
+                  "taskId": {
+                    "type": "string"
+                  },
+                  "engagementId": {
+                    "type": "string"
+                  },
+                  "scopeRef": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "producerId",
+                  "executionHostId"
+                ]
+              },
+              "retention": {
+                "type": "string",
+                "enum": [
+                  "ephemeral",
+                  "session",
+                  "task",
+                  "engagement",
+                  "pinned",
+                  "managed"
+                ]
+              },
+              "redaction": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "redacted",
+                  "unknown"
+                ]
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "artifactId",
+              "mediaType",
+              "kind",
+              "bytes",
+              "sha256",
+              "createdAt",
+              "provenance",
+              "retention",
+              "redaction"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "artifact"
+        ]
+      }
+    }
+  },
+  "required": [
+    "ruleId",
+    "title",
+    "summary",
+    "state",
+    "severity",
+    "confidence",
+    "targets",
+    "locations",
+    "reachability"
+  ]
+}
+```
+
+来源： [`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
+
+### `finding_transition`
+
+转换一个准确 finding revision。reproduced-vulnerability 和 remediation 状态要求满足对应的类型化证据前置条件。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "findingId": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "integer"
+    },
+    "to": {
+      "type": "string",
+      "enum": [
+        "hypothesis",
+        "reproduced-vulnerability",
+        "remediation",
+        "unresolved"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "observation",
+              "reproduction",
+              "remediation-validation",
+              "supporting"
+            ]
+          },
+          "artifact": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "artifactId": {
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "provenance": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "producerId": {
+                    "type": "string"
+                  },
+                  "executionHostId": {
+                    "type": "string"
+                  },
+                  "sessionId": {
+                    "type": "string"
+                  },
+                  "taskId": {
+                    "type": "string"
+                  },
+                  "engagementId": {
+                    "type": "string"
+                  },
+                  "scopeRef": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "producerId",
+                  "executionHostId"
+                ]
+              },
+              "retention": {
+                "type": "string",
+                "enum": [
+                  "ephemeral",
+                  "session",
+                  "task",
+                  "engagement",
+                  "pinned",
+                  "managed"
+                ]
+              },
+              "redaction": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "redacted",
+                  "unknown"
+                ]
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "artifactId",
+              "mediaType",
+              "kind",
+              "bytes",
+              "sha256",
+              "createdAt",
+              "provenance",
+              "retention",
+              "redaction"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "artifact"
+        ]
+      }
+    },
+    "fixGuidance": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "findingId",
+    "revision",
+    "to"
+  ]
+}
+```
+
+来源： [`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
+
+这四个 finding 工具使用当前的 Session 和 Artifact 提供方。报告 provenance 绑定当前 execution host；reproduction 和 remediation 状态转换要求类型化证据。
+
+<a id="deepseek-aidsh-tool-vuln-kb"></a>
+
+## `@deepseek-ai/dsh-tool-vuln-kb`
+
+### `vuln_query`
+
+按包名和生态系统查询漏洞知识库中的 CVE，也可以按版本筛选。返回包含严重性和修复可用性的紧凑匹配条目；使用 vuln_read 获取受影响范围和参考链接。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "cveId": {
+      "type": "string",
+      "description": "Specific CVE id (e.g., CVE-2024-12345). If provided, ecosystem/package/version are ignored."
+    },
+    "ecosystem": {
+      "type": "string",
+      "description": "Package ecosystem (e.g., npm, pypi, maven, go, nuget). Required if cveId is not provided."
+    },
+    "package": {
+      "type": "string",
+      "description": "Package name within the ecosystem. Required if cveId is not provided."
+    },
+    "version": {
+      "type": "string",
+      "description": "Specific version to check for affectedness. Optional."
+    },
+    "maxResults": {
+      "type": "integer",
+      "description": "Positive maximum number of results to return. The active provider supplies the default."
+    }
+  }
+}
+```
+
+来源： [`packages/security/tool-vuln-kb/src/index.ts`](../packages/security/tool-vuln-kb/src/index.ts)
+
+### `vuln_read`
+
+按 CVE id 读取单个漏洞的完整详情，包括描述、CVSS 向量、受影响包范围和参考 URL。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "cveId": {
+      "type": "string",
+      "description": "The CVE id (e.g., CVE-2024-12345)."
+    }
+  },
+  "required": [
+    "cveId"
+  ]
+}
+```
+
+来源： [`packages/security/tool-vuln-kb/src/index.ts`](../packages/security/tool-vuln-kb/src/index.ts)
+
+vuln_query 和 vuln_read 暴露提供方结果，但不判断可利用性，也不授予评估权限；目录启动使用 NVD+OSV 适配器且不会发起网络请求。
+
+<a id="deepseek-aidsh-tool-work-items"></a>
+
+## `@deepseek-ai/dsh-tool-work-items`
+
+### `work_items_cancel_write`
+
+按精确的持久化 operation_id 取消一个尚未执行的 Work Items 预览。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation_id": {
+      "type": "string",
+      "description": "Exact operation_id returned by work_items_prepare_write or work_items_list_writes."
+    }
+  },
+  "required": [
+    "operation_id"
+  ]
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_confirm_write`
+
+按 operation_id 确认一个已持久化的 Work Items 预览；不接受替换修改内容。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation_id": {
+      "type": "string",
+      "description": "Exact operation_id returned by work_items_prepare_write or work_items_list_writes."
+    }
+  },
+  "required": [
+    "operation_id"
+  ]
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_get`
+
+按不透明 Provider id 读取一个标准化 Work Item。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Opaque id returned by work_items_list, such as github:owner/repository#123."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_list`
+
+从已配置的 GitHub 或 Linear Provider 列出标准化 Work Items。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "description": "Optional provider family; omit only when exactly one provider is usable.",
+      "enum": [
+        "github",
+        "linear"
+      ]
+    },
+    "scope": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "github"
+            },
+            "owner": {
+              "type": "string",
+              "description": "Configured GitHub repository owner."
+            },
+            "repository": {
+              "type": "string",
+              "description": "Configured GitHub repository name."
+            }
+          },
+          "required": [
+            "source",
+            "owner",
+            "repository"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "linear"
+            },
+            "team": {
+              "type": "string",
+              "description": "Configured Linear team id."
+            },
+            "project": {
+              "type": "string",
+              "description": "Configured Linear project id."
+            }
+          },
+          "required": [
+            "source"
+          ]
+        }
+      ],
+      "description": "Optional configured provider scope. GitHub requires owner and repository; Linear requires team or project."
+    },
+    "query": {
+      "type": "string",
+      "description": "Optional bounded title/body text filter."
+    },
+    "state": {
+      "type": "string",
+      "description": "Optional provider-neutral state filter; defaults to open.",
+      "enum": [
+        "open",
+        "closed",
+        "all"
+      ]
+    },
+    "cursor": {
+      "type": "string",
+      "description": "Opaque cursor returned by a prior page."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum items to request, from 1 through 100."
+    }
+  }
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_list_writes`
+
+读取一个 Provider 类型的持久化 Work Items 预览及回执，不发起 Provider 修改请求。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": [
+        "github",
+        "linear"
+      ]
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum history rows, from 1 through 100."
+    }
+  },
+  "required": [
+    "source",
+    "limit"
+  ]
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_prepare_write`
+
+校验并持久化预览一次 Work Item 修改，不联系外部 Provider 执行修改。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "mutation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "create"
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "github",
+                "linear"
+              ]
+            },
+            "title": {
+              "type": "string",
+              "description": "New Work Item title."
+            },
+            "body": {
+              "type": "string",
+              "description": "New Work Item body."
+            }
+          },
+          "required": [
+            "kind",
+            "source",
+            "title",
+            "body"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "comment"
+            },
+            "id": {
+              "type": "string",
+              "description": "Opaque id returned by a Work Items read."
+            },
+            "body": {
+              "type": "string",
+              "description": "Comment body."
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "body"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "state"
+            },
+            "id": {
+              "type": "string",
+              "description": "Opaque id returned by a Work Items read."
+            },
+            "state": {
+              "type": "string",
+              "description": "Provider state value."
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "state"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "assign"
+            },
+            "id": {
+              "type": "string",
+              "description": "Opaque id returned by a Work Items read."
+            },
+            "assignees": {
+              "type": "array",
+              "description": "Provider assignee ids; an empty list clears assignment.",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "assignees"
+          ]
+        }
+      ],
+      "description": "Exact external mutation to preview. The returned operation_id is required for confirmation."
+    }
+  },
+  "required": [
+    "mutation"
+  ]
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+Provider 写入默认关闭。启用后仍需持久化预览和独立确认；不确定结果绝不自动重发。
 
 <a id="deepseek-aidsh-tool-web"></a>
 

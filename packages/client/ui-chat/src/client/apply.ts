@@ -46,7 +46,7 @@ const CHAT_NODE_INJECT: ChatNodeTurnDataInjected = {
 /** Services required by the Chat target and its presentation registrations. */
 export const inject = [
   'slots', 'sessions', 'uiSession', 'uiConversation', 'locale',
-  'settingsScope', 'remote', 'remote.session', 'sidebarRight',
+  'settingsScope', 'remote', 'remote.session',
 ]
 
 /**
@@ -132,8 +132,15 @@ export function apply(ctx: Context): void {
           openFile: async (path, options) => {
             const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
             const url = fileAddressFor(sessionId, cwd, path)
-            if (options?.line === undefined) ctx.sidebarRight.openResource(url)
-            else ctx.sidebarRight.openResource(url, { params: { line: options.line } })
+            const sidebar = ctx.get('sidebarRight') as { openResource(url: string, opts?: { params?: Record<string, unknown> }): void } | undefined
+            const betterSidebar = ctx.get('betterSidebar') as { openFile(scope: { sessionId: string; cwd?: string }, path: string): void } | undefined
+            if (betterSidebar !== undefined) {
+              const cwd2 = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
+              betterSidebar.openFile({ sessionId, ...cwd2 === undefined ? {} : { cwd: cwd2 } }, path)
+            } else if (sidebar !== undefined) {
+              if (options?.line === undefined) sidebar.openResource(url)
+              else sidebar.openResource(url, { params: { line: options.line } })
+            }
             await Promise.resolve()
           },
           loadOlder: () => { void session.loadOlder() },

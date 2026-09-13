@@ -104,6 +104,30 @@ afterEach(() => {
 })
 
 describe('WorkspaceAnalyzer', { timeout: 60_000 }, () => {
+  it('retains qualified import value queries without treating values as type declarations', () => {
+    const root = copyFixture('typert-import-value-query-')
+    const models = join(root, 'packages/host/src/models.ts')
+    writeFileSync(models, readFileSync(models, 'utf8') + [
+      '',
+      '/** Import value-query fixture fields. */',
+      'export interface SyntaxZoo {',
+      "  importedConstant: typeof import('./models.ts').phaseOrder",
+      "  importedFunction: typeof import('./models.ts').genericFactory<string>",
+      '}',
+      '',
+    ].join('\n'))
+    const model = new WorkspaceAnalyzer({ root }).analyze()
+    const host = model.faces.find(face => face.face === 'host')!
+    const queries = host.graph.nodes.filter((node): node is Extract<TypeNodeModel, { kind: 'import-type' }> => node.kind === 'import-type' && node.typeof && node.qualifier !== undefined)
+    expect(queries.map(node => node.qualifier)).toEqual(['phaseOrder', 'genericFactory'])
+    expect(queries.every(node => node.target === undefined)).toBe(true)
+    const renderer = new TypeGraphRenderer(host.graph)
+    expect(queries.map(node => renderer.renderType(node.id))).toEqual([
+      "typeof import('./models.ts').phaseOrder", "typeof import('./models.ts').genericFactory<string>",
+    ])
+    expect(host.graph.declarations.some(declaration => declaration.name === 'phaseOrder' || declaration.name === 'genericFactory')).toBe(false)
+  })
+
   it('builds independent face models with an explicit cross-face type graph', () => {
     const model = new WorkspaceAnalyzer({ root: fixtureRoot }).analyze()
 

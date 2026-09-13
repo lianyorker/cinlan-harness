@@ -153,3 +153,4 @@ export function apply(ctx: Context) {
 ## Next steps
 
 - [LLM adapter](./llm-adapter.md) — implement an LLM provider
+- [Local device control](./device-control.md) — enable a device profile and check its Provider

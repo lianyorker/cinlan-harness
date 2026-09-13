@@ -1,0 +1,24 @@
+# The opt-in Cinlan Mobile Device layer. Profiles apply it after dsh-base;
+# emulator transport remains outside the shared base composition.
+
+- insert:
+    - id: mobile-device
+      name: '@deepseek-ai/dsh-mobile-device'
+      config:
+        provider: cinlan
+
+    - id: mobile-device-cinlan
+      name: '@deepseek-ai/dsh-mobile-device-cinlan'
+      config:
+        providerId: cinlan
+
+    - id: mobile-device-permission-policy
+      name: '@deepseek-ai/dsh-mobile-device-permission-policy'
+      config:
+        observe: ask
+        touch: ask
+        textInput: ask
+        deviceNavigation: ask
+
+    - id: tool-mobile-device
+      name: '@deepseek-ai/dsh-tool-mobile-device'

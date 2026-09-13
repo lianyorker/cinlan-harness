@@ -1,0 +1,8 @@
+# Optional capability rows applied after the profile supplies their required services.
+- insert:
+    - id: vuln-kb-service
+      name: '@deepseek-ai/dsh-vuln-kb-service'
+    - id: vuln-kb-nvd
+      name: '@deepseek-ai/dsh-vuln-kb-nvd'
+    - id: tool-vuln-kb
+      name: '@deepseek-ai/dsh-tool-vuln-kb'

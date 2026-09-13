@@ -16,6 +16,13 @@ describe('presetDisplayText', () => {
     })
   })
 
+  it('localizes the optional system research preset but not a custom preset with the same id', () => {
+    expect(presetDisplayText({ id: 'security-research', trust: 'system' }, t)).toEqual({
+      name: 't:presetSecurityResearchName', description: 't:presetSecurityResearchDescription',
+    })
+    expect(presetDisplayText({ id: 'security-research', trust: 'user', name: 'My research' }, t)).toEqual({ name: 'My research' })
+  })
+
   it('keeps user-authored metadata untranslated', () => {
     expect(presetDisplayText({ id: 'mine', trust: 'user', name: '我的模式', description: '自述' }, t))
       .toEqual({ name: '我的模式', description: '自述' })

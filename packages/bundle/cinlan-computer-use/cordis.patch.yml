@@ -1,0 +1,24 @@
+# The opt-in Cinlan desktop Computer Use layer. Profiles apply it after dsh-base;
+# platform transport remains outside the shared base composition.
+
+- insert:
+    - id: computer-use
+      name: '@deepseek-ai/dsh-computer-use'
+      config:
+        provider: cinlan
+
+    - id: computer-use-cinlan
+      name: '@deepseek-ai/dsh-computer-use-cinlan'
+      config:
+        providerId: cinlan
+
+    - id: computer-use-permission-policy
+      name: '@deepseek-ai/dsh-computer-use-permission-policy'
+      config:
+        observe: ask
+        pointer: ask
+        keyboard: ask
+        accessibilityAction: ask
+
+    - id: tool-computer-use
+      name: '@deepseek-ai/dsh-tool-computer-use'

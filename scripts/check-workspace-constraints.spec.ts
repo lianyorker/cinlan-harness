@@ -1,5 +1,6 @@
 /** Experimental-package publication and dependency constraints. */
 
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   checkDshFamilyVersion,
@@ -119,5 +120,21 @@ describe('package payload constraints', () => {
       'cordis.patch.yml',
       'lib/types/**/*.d.ts',
     ])
+  })
+})
+
+describe('runtime-loaded security and sidebar payloads', () => {
+  it.each([
+    ['bundle/security-research', 'presets'],
+    ['security/security-skills', 'assets'],
+    ['client/ui-better-sidebar', 'lib/client-terminal.js'],
+    ['client/ui-better-sidebar', 'lib/client-editor.js'],
+    ['client/ui-better-sidebar', 'lib/client-mermaid.js'],
+  ])('requires %s to publish %s', (directory, asset) => {
+    const manifest = JSON.parse(readFileSync('packages/' + directory + '/package.json', 'utf8'))
+    const expected = expectedDshPackageFiles(manifest)
+    expect(expected).toContain(asset)
+    expect(manifest.files).toEqual(expected)
+    expect(manifest.files.filter((file: string) => file !== asset)).not.toEqual(expected)
   })
 })

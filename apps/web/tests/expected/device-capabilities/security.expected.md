@@ -1,0 +1,110 @@
+- heading "安全研究" [level=2]
+- paragraph: 授权评估、证据记录、Findings 与安全研究工具。
+- heading "安全研究能力" [level=3]
+- status: 待配置
+- paragraph: 安装后，Harness 可以记录授权范围、证据、Findings 与漏洞研究结果。
+- paragraph: 在 Agent 预设中选择“安全研究”。配置授权范围后再执行评估；启动命令不会安装外部软件。
+- paragraph: 本页仅检查组合与配置，不证明外部工具可运行，也不保证范围策略已覆盖所有工具执行路径。
+- strong: Agent 预设
+- text: 已提供
+- strong: 评估范围
+- text: 目标、操作或执行主机尚未配置
+- strong: 内置 Skills
+- text: 22 项
+- button "重新检查":
+  - img
+  - text: 重新检查
+- heading "如何使用" [level=3]
+- paragraph: 在 Cinlan Harness 中使用安全研究 Agent 预设与工具。
+- article:
+  - heading "管理授权范围" [level=4]
+  - paragraph: 为评估记录目标、操作、Execution Host 与证据保留策略。
+- article:
+  - heading "记录与验证 Findings" [level=4]
+  - paragraph: 将观察、复现、修复验证和证据关联到持久化 Session。
+- article:
+  - heading "导出安全报告" [level=4]
+  - paragraph: 将 Findings 导出为支持的 JSON、SARIF 或 Markdown 格式。
+- heading "管理授权范围" [level=4]
+- paragraph: 保存前校验授权范围，提交后应用于根授权。已有 Session 不会获得新增权限；收紧或变更身份可能使已有 Session 失效，请新建评估会话。
+- group:
+  - text: Engagement ID
+  - textbox "Engagement ID": security-research
+  - text: Grant ID
+  - textbox "Grant ID": security-research-root
+  - text: 授权引用
+  - textbox "授权引用": security-research-profile
+  - text: 生效时间（Unix ms）
+  - spinbutton "生效时间（Unix ms）": "0"
+  - text: 过期时间（Unix ms）
+  - spinbutton "过期时间（Unix ms）": "9007199254740991"
+  - text: Execution Host IDs（每行一个）
+  - textbox "Execution Host IDs（每行一个）"
+  - text: 目标（每行 id|kind|value）
+  - textbox "目标（每行 id|kind|value）"
+  - text: 排除目标 ID（每行一个）
+  - textbox "排除目标 ID（每行一个）"
+  - group "允许的操作":
+    - text: 允许的操作 reconnaissance
+    - checkbox "reconnaissance"
+    - text: active-validation
+    - checkbox "active-validation"
+    - text: credential-use
+    - checkbox "credential-use"
+    - text: persistence-change
+    - checkbox "persistence-change"
+    - text: exploit-execution
+    - checkbox "exploit-execution"
+    - text: destructive-operation
+    - checkbox "destructive-operation"
+    - text: report-download
+    - checkbox "report-download"
+    - text: data-export
+    - checkbox "data-export"
+    - text: external-reporting
+    - checkbox "external-reporting"
+  - group "需要审批的操作":
+    - text: 需要审批的操作 reconnaissance
+    - checkbox "reconnaissance" [disabled]
+    - text: active-validation
+    - checkbox "active-validation" [disabled]
+    - text: credential-use
+    - checkbox "credential-use" [disabled]
+    - text: persistence-change
+    - checkbox "persistence-change" [disabled]
+    - text: exploit-execution
+    - checkbox "exploit-execution" [disabled]
+    - text: destructive-operation
+    - checkbox "destructive-operation" [disabled]
+    - text: report-download
+    - checkbox "report-download" [disabled]
+    - text: data-export
+    - checkbox "data-export" [disabled]
+    - text: external-reporting
+    - checkbox "external-reporting" [disabled]
+  - text: 证据保留至（Unix ms）
+  - spinbutton "证据保留至（Unix ms）": "9007199254740991"
+  - text: 最低脱敏
+  - combobox "最低脱敏":
+    - option "无脱敏（none）"
+    - option "密钥（secrets）"
+    - option "敏感数据（sensitive）" [selected]
+  - text: 外部报告策略
+  - combobox "外部报告策略":
+    - option "禁止" [selected]
+    - option "需要审批"
+    - option "允许"
+  - button "保存授权范围" [disabled]
+  - button "放弃范围草稿" [disabled]
+- paragraph: 目标 kind：hostname、ip-address、url-prefix、artifact-scope、service。网络出口与凭证引用保留原配置，可在插件配置中编辑。报告含原始 Finding 文本，本地下载需 report-download，并允许 none 脱敏级别。
+- heading "导出安全报告" [level=4]
+- paragraph: 将 Findings 导出为支持的 JSON、SARIF 或 Markdown 格式。
+- text: 活动 Session ID
+- textbox "活动 Session ID"
+- text: 报告格式
+- combobox "报告格式":
+  - option "JSON" [selected]
+  - option "Markdown"
+  - option "SARIF"
+- button "生成报告" [disabled]
+- group: Host 组件 · 9

@@ -1,0 +1,49 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  max-width: 960px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.header { padding-bottom: 12px; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
+.header h2, .header p, .empty, .error, .detail h3, .detail p { margin: 0; }
+.header h2 { font: var(--dsw-font-l-20); }
+.header p { margin-top: 4px; color: var(--dsw-alias-label-secondary); font: var(--dsw-font-s-14); }
+.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.filter { display: flex; min-width: 0; max-width: 100%; flex-direction: column; gap: 4px; color: var(--dsw-alias-label-secondary); font: var(--dsw-font-xxs-12); }
+.filter select, .filter input, .filter textarea { width: 100%; max-width: 100%; min-height: 32px; box-sizing: border-box; padding: 5px 8px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 4px; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1); font: var(--dsw-font-s-14); }
+.search { flex: 1 1 220px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 5px 12px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 4px; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1); cursor: pointer; font: var(--dsw-font-s-14); }
+.button:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); }
+.button:disabled { color: var(--dsw-alias-label-tertiary); cursor: default; }
+.layout { display: grid; width: 100%; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px; min-width: 0; }
+.list { display: flex; flex-direction: column; gap: 6px; min-width: 0; list-style: none; margin: 0; padding: 0; }
+.item, .selected { display: flex; box-sizing: border-box; overflow-wrap: anywhere; flex-direction: column; gap: 3px; width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid transparent; border-radius: 6px; color: inherit; background: var(--dsw-alias-bg-layer-1); cursor: pointer; font: inherit; text-align: left; }
+.item:hover, .selected { border-color: var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2); }
+.itemTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--dsw-font-s-14); }
+.itemMeta { color: var(--dsw-alias-label-tertiary); font: var(--dsw-font-xxs-12); }
+.detail { min-width: 0; padding: 14px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-bg-layer-1); }
+.detail h3 { overflow-wrap: anywhere; font: var(--dsw-font-base-16); }
+.detail p { margin-top: 8px; color: var(--dsw-alias-label-secondary); white-space: pre-wrap; overflow-wrap: anywhere; font: var(--dsw-font-s-14); }
+.detail dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 10px; margin: 14px 0 0; font: var(--dsw-font-xxs-12); }
+.detail dt { color: var(--dsw-alias-label-tertiary); }
+.detail dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.detail a { display: block; max-width: 100%; color: var(--dsw-alias-link); font-weight: 500; text-decoration: none; overflow-wrap: anywhere; }
+.detail a:hover, .detail a:focus-visible { text-decoration: underline dotted; text-underline-offset: 3px; }
+.badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
+.badge { padding: 2px 6px; border-radius: 10px; color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-2); font: var(--dsw-font-xxs-12); }
+.empty, .error { color: var(--dsw-alias-label-secondary); font: var(--dsw-font-s-14); }
+.error { color: var(--dsw-alias-state-error-primary); }
+.pager { display: flex; justify-content: flex-end; gap: 8px; }
+@media (max-width: 700px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .detail dl { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .detail dd { margin-bottom: 8px; }
+  .detail a { white-space: normal; word-break: break-all; }
+}
+
+.detail pre { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }

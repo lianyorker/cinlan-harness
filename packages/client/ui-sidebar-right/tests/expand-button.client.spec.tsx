@@ -4,7 +4,7 @@
  * while the panel is collapsed, asks for it to expand, and leaves a same-size
  * footprint while the panel is shown so the header row never moves.
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -28,17 +28,19 @@ function hookOf<T>(inst: { subscribe: (fn: () => void) => () => void; getSnapsho
  */
 function mountButton() {
   const instance = createSidebarRightStore(() => 'Start').create()
+  const openTab = vi.fn()
   const props = {
     sessionId: SESSION,
     useStore: hookOf(instance),
     actions: instance.actions,
     // Copy is the dictionary's contract; the key stands in for the translation.
     t: (key: string) => key,
+    openTab,
   } as unknown as ExpandButtonProps
   const view = render(<ExpandButton {...props} />)
   const control = (): HTMLElement | null => view.container.querySelector('[data-sidebar-right-expand]')
   const placeholder = (): HTMLElement | null => view.container.querySelector('[data-sidebar-right-expand-placeholder]')
-  return { instance, view, control, placeholder }
+  return { instance, view, control, placeholder, openTab }
 }
 
 describe('ExpandButton', () => {
@@ -53,6 +55,26 @@ describe('ExpandButton', () => {
     // Shown: the control gives way to its footprint, so the seat keeps its width.
     expect(control()).toBeNull()
     expect(placeholder()).not.toBeNull()
+    cleanup()
+  })
+
+  it('opens every page from the integrated tools menu', () => {
+    const { view, openTab } = mountButton()
+    const tools = view.container.querySelector('[data-sidebar-right-tools]')
+    if (!(tools instanceof HTMLElement)) throw new Error('expected the tools control')
+    const kinds = ['files', 'review', 'terminal', 'tasks', 'browser']
+    fireEvent.click(tools)
+    expect([...view.container.querySelectorAll('[role=menuitem]')].map(item => item.textContent)).toEqual(
+      kinds.map(kind => `tools.${kind}`),
+    )
+    fireEvent.click(tools)
+    for (const [index] of kinds.entries()) {
+      fireEvent.click(tools)
+      const item = view.container.querySelectorAll('[role=menuitem]')[index]
+      if (!(item instanceof HTMLElement)) throw new Error('expected the page menu item')
+      fireEvent.click(item)
+    }
+    expect(openTab.mock.calls.map(([kind]) => kind)).toEqual(kinds)
     cleanup()
   })
 

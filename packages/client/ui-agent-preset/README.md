@@ -31,6 +31,8 @@ Mount this plugin alongside the settings and conversation packages; the preset s
 
 The settings section shows the roster as cards: a copy dialog is the only way a preset is created — the browser edits no composition text — and every custom card keeps a location action that opens the preset's own files. The default is set from any surface; deleting removes the preset directory while sessions already composed from it keep running. A shipped preset opens in a read-only viewer and offers no location or delete. A roster row carrying `broken` renders as a marked card whose body and duplication are disabled, because a copy of a broken preset is another broken preset; broken custom rows keep their location and delete actions so the files can be fixed and ghost directories cleared. The card face still shows the preset's own description — a chooser cannot act on a package specifier there — and the host's reason rides the badge as a tooltip, plus a visually hidden alert that carries it to assistive technology, which a disabled card body cannot.
 
+System-trusted `security-research` rows use localized Security Research names and descriptions. This plugin never adds that preset to the roster; the optional bundle owns its availability. User-authored metadata remains untranslated.
+
 ### The conversational entry
 
 When the roster carries the self-referential `cordis` preset, a dashed add-card stages it and starts a new session — the section closes the settings panel and the new-session chip's own applier composes the blank session the workspace flow produces.

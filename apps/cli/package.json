@@ -90,6 +90,7 @@
     "@deepseek-ai/dsh-tool-todo": "workspace:^",
     "@deepseek-ai/dsh-tool-web": "workspace:^",
     "@deepseek-ai/dsh-tool-workflow": "workspace:^",
+    "@deepseek-ai/dsh-security-research": "workspace:^",
     "@deepseek-ai/dsh-web-app": "workspace:^",
     "@deepseek-ai/dsh-webhook": "workspace:^",
     "@deepseek-ai/dsh-webhook-github": "workspace:^",
@@ -98,7 +99,11 @@
     "commander": "^15.0.0",
     "js-yaml": "^4.2.0",
     "node-addon-require-builtin": "^0.1.4",
-    "@deepseek-ai/dsh-http-proxy": "workspace:^"
+    "@deepseek-ai/dsh-http-proxy": "workspace:^",
+    "@deepseek-ai/dsh-cinlan-computer-use": "workspace:^",
+    "@deepseek-ai/dsh-cinlan-mobile-device": "workspace:^",
+    "@deepseek-ai/dsh-cinlan-work-items": "workspace:^",
+    "@deepseek-ai/dsh-cinlan-browser": "workspace:^"
   },
   "devDependencies": {
     "@agentclientprotocol/sdk": "1.4.0",

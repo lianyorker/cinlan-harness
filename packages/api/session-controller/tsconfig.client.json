@@ -28,6 +28,8 @@
     { "path": "../../util/crypto" },
     { "path": "../../util/workspace-path" },
     { "path": "../../workspace/workspace" },
+    { "path": "../../workspace/workspace-isolation" },
+    { "path": "../../workspace/worktree-task" },
     { "path": "../../typert/protocol" }
   ]
 }

@@ -1,0 +1,54 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cosmokit"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../artifact/artifact"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../execution-host/execution-host"
+    },
+    {
+      "path": "../finding"
+    },
+    {
+      "path": "../finding-export"
+    },
+    {
+      "path": "../assessment-scope-session"
+    },
+    {
+      "path": "../assessment-scope"
+    },
+    {
+      "path": "../../credentials/credentials"
+    },
+    {
+      "path": "../../session/session-projection"
+    }
+  ]
+}

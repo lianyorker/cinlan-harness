@@ -86,6 +86,10 @@ function propertyName(node: ts.PropertyName | ts.BindingName): string | undefine
   return ts.isIdentifier(node) || ts.isStringLiteral(node) ? node.text : undefined
 }
 
+function isProtocolCollectionName(name: string): boolean {
+  return /^[A-Z][A-Z0-9]*(?:_[A-Z][A-Z0-9]*)*_(?:KEYS|SCHEMES)$/.test(name)
+}
+
 function copyAttribute(name: string): boolean {
   return !name.endsWith('Key')
     && (COPY_ATTRIBUTES.has(name) || COPY_ATTRIBUTE_SUFFIX.test(name))
@@ -277,7 +281,9 @@ export function findUiI18nViolations(file: string, sourceText: string): UiI18nVi
 
     if (ts.isVariableDeclaration(node) && node.initializer !== undefined) {
       const name = propertyName(node.name)
-      if (name !== undefined && (COPY_NAME.test(name) || COPY_SUFFIX.test(name))) {
+      if (name !== undefined
+        && !isProtocolCollectionName(name)
+        && (COPY_NAME.test(name) || COPY_SUFFIX.test(name))) {
         collectExpression(node.initializer, `${name} value`)
       }
     }

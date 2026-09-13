@@ -51,6 +51,17 @@ import * as ToolFsSearch from '@deepseek-ai/dsh-tool-fs-search'
 import * as ToolStrReplaceEditor from '@deepseek-ai/dsh-tool-str-replace-editor'
 import TerminalSessionService from '@deepseek-ai/dsh-terminal'
 import * as ToolPty from '@deepseek-ai/dsh-tool-terminal'
+import ComputerUseRuntime from '@deepseek-ai/dsh-computer-use'
+import * as ToolComputerUse from '@deepseek-ai/dsh-tool-computer-use'
+import MobileDeviceRuntime from '@deepseek-ai/dsh-mobile-device'
+import * as ToolMobileDevice from '@deepseek-ai/dsh-tool-mobile-device'
+import BrowserRuntime from '@deepseek-ai/dsh-browser'
+import * as ToolBrowser from '@deepseek-ai/dsh-tool-browser'
+import * as ToolBrowserElementCapture from '@deepseek-ai/dsh-tool-browser-element-capture'
+import LocalCoordinationService from '@deepseek-ai/dsh-coordination-local'
+import * as ToolCoordination from '@deepseek-ai/dsh-tool-coordination'
+import LocalGitRuntime from '@deepseek-ai/dsh-git-local'
+import * as ToolGit from '@deepseek-ai/dsh-tool-git'
 import * as ToolGoal from '@deepseek-ai/dsh-tool-goal'
 import * as ToolSchedule from '@deepseek-ai/dsh-schedule'
 import Lsp from '@deepseek-ai/dsh-lsp'
@@ -64,6 +75,15 @@ import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import { registerListSubagentModels } from '../packages/subagent/tool-subagent/src/list-models.ts'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
+import WorkItemsRuntime from '@deepseek-ai/dsh-work-items'
+import * as ToolWorkItems from '@deepseek-ai/dsh-tool-work-items'
+import ArtifactMemoryProvider from '@deepseek-ai/dsh-artifact-memory'
+import ExecutionHostLocal from '@deepseek-ai/dsh-execution-host-local'
+import SessionFindingService from '@deepseek-ai/dsh-finding-session'
+import * as ToolFinding from '@deepseek-ai/dsh-tool-finding'
+import VulnKbRuntime from '@deepseek-ai/dsh-vuln-kb-service'
+import * as VulnKbNvd from '@deepseek-ai/dsh-vuln-kb-nvd'
+import * as ToolVulnKb from '@deepseek-ai/dsh-tool-vuln-kb'
 import VmWorkflowEngine from '@deepseek-ai/dsh-workflow-worker-thread'
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
 import * as ToolWorkflow from '@deepseek-ai/dsh-tool-workflow'
@@ -360,6 +380,89 @@ const TOOL_PACKAGES: ToolPackage[] = [
       'The six terminal tools are opt-in and complement one-shot shell/filesystem tools. `terminal_send(run_in_background: true)` registers with `ctx.jobs`; TUI, named key sequences, BEL, resize, auto-start, and cross-agent sharing are absent from the schema.',
   },
   {
+    pkg: '@deepseek-ai/dsh-tool-browser',
+    dir: 'tool-browser',
+    source: 'packages/browser/tool-browser/src/index.ts',
+    requires: ['ctx.tools', 'ctx.browser', 'ctx.attachments', 'ctx.systemPrompt', 'ctx.llm for screenshot execution', 'ctx.fs for workspace-file upload'],
+    writes: ['tool/call', 'durable image attachment from browser_screenshot', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(BrowserRuntime)
+      await ctx.plugin(CatalogAttachmentStore)
+      await ctx.plugin(ToolBrowser)
+    },
+    note:
+      'The sixteen persistent-browser tools keep page and observation handles in the selected Browser provider. Screenshot execution additionally requires an image-capable model route.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-browser-element-capture',
+    dir: 'tool-browser-element-capture',
+    source: 'packages/browser/tool-browser-element-capture/src/index.ts',
+    requires: ['ctx.tools', 'ctx.browser', 'ctx.coordination', 'ctx.systemPrompt', 'an image-capable route for capture execution'],
+    writes: ['tool/call', 'durable verified crop attachment through Coordination', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(BrowserRuntime)
+      await ctx.plugin(LocalCoordinationService, {})
+      await ctx.plugin(ToolBrowserElementCapture)
+    },
+    note:
+      'The two tools form a selection-and-capture workflow. Schemas use the default 60000 ms timeout and PNG output; execution requires a Browser provider with element capture and a matching Coordination executor.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-computer-use',
+    dir: 'tool-computer-use',
+    source: 'packages/computer-use/tool-computer-use/src/index.ts',
+    requires: ['ctx.tools', 'ctx.computerUse', 'ctx.attachments', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'tool/result', 'optional image attachments'],
+    async mount(ctx) {
+      await ctx.plugin(ComputerUseRuntime)
+      await ctx.plugin(CatalogAttachmentStore)
+      await ctx.plugin(ToolComputerUse)
+    },
+    note: 'Device tools are opt-in. Every desktop action uses a current observation; screenshots require an image-capable route and accepted attachment policy.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-mobile-device',
+    dir: 'tool-mobile-device',
+    source: 'packages/mobile-device/tool-mobile-device/src/index.ts',
+    requires: ['ctx.tools', 'ctx.mobileDevice', 'ctx.attachments', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'tool/result', 'optional image attachments'],
+    async mount(ctx) {
+      await ctx.plugin(MobileDeviceRuntime)
+      await ctx.plugin(CatalogAttachmentStore)
+      await ctx.plugin(ToolMobileDevice)
+    },
+    note: 'Mobile tools use normalized coordinates and one-use observation tokens. Device input requires explicit policy approval in the device-control profile.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-coordination',
+    dir: 'tool-coordination',
+    source: 'packages/coordination/tool-coordination/src/index.ts',
+    requires: ['ctx.tools', 'ctx.agents', 'ctx.coordination'],
+    writes: ['tool/call', 'process-local task graph state and executor messages', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(LocalCoordinationService, {})
+      await ctx.plugin(ToolCoordination, {})
+    },
+    note:
+      'The six task-graph tools are session-owned. The catalog uses the default subagent executor name and bounded wait defaults; execution requires a registered executor for started tasks.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-git',
+    dir: 'tool-git',
+    source: 'packages/git/tool-git/src/index.ts',
+    requires: ['ctx.tools', 'ctx.agents', 'ctx.git'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(LocalGitRuntime, { executable: 'git', maxOutputBytes: 4096, maxLogEntries: 5, graceMs: 1000 })
+      await ctx.plugin(ToolGit)
+    },
+    note:
+      'The three read-only Git tools are catalogued with the local provider using the explicit executable and bounded limits shown above; a deployment may choose different provider configuration.',
+  },
+  {
     pkg: '@deepseek-ai/dsh-tool-goal',
     dir: 'tool-goal',
     source: 'packages/goal/tool-goal/src/index.ts',
@@ -572,6 +675,49 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(VmWorkflowEngine, { provider: 'mock' })
       await ctx.plugin(ToolWorkflow)
     },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-finding',
+    dir: 'tool-finding',
+    source: 'packages/security/tool-finding/src/index.ts',
+    requires: ['ctx.tools', 'ctx.findings', 'ctx.artifacts', 'ctx.executionHost', 'a calling Agent for same-session authority'],
+    writes: ['tool/call', 'finding/change', 'durable report Artifact', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(SessionStore)
+      await ctx.plugin(ExecutionHostLocal)
+      await ctx.plugin(ArtifactMemoryProvider)
+      await ctx.plugin(SessionFindingService)
+      await ctx.plugin(ToolFinding, {})
+    },
+    note:
+      'The four finding tools use the active Session and Artifact providers. Report provenance is bound to the current execution host; reproduction and remediation transitions require typed evidence.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-vuln-kb',
+    dir: 'tool-vuln-kb',
+    source: 'packages/security/tool-vuln-kb/src/index.ts',
+    requires: ['ctx.tools', 'ctx.vulnKb', 'a configured vulnerability KB provider at execution time'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(VulnKbRuntime)
+      await ctx.plugin(VulnKbNvd)
+      await ctx.plugin(ToolVulnKb)
+    },
+    note:
+      'vuln_query and vuln_read expose provider results without asserting exploitability or granting assessment authority; the catalog boot uses the NVD+OSV adapter without making a network request.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-work-items',
+    dir: 'tool-work-items',
+    source: 'packages/work-items/tool-work-items/src/index.ts',
+    requires: ['ctx.tools', 'ctx.workItems', 'ctx.systemPrompt', 'ctx.storageDomain for write previews and receipts'],
+    writes: ['tool/call', 'durable write previews and receipts', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(WorkItemsRuntime)
+      await ctx.plugin(ToolWorkItems)
+    },
+    note: 'Provider writes are disabled by default. Enabled writes require a persisted preview and separate confirmation; uncertain outcomes are never automatically resent.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-web',

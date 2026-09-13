@@ -1,6 +1,7 @@
 /** Behavior of the browse backend over a real temporary directory tree. */
 
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -13,6 +14,22 @@ import type { ListingCandidate } from '../src/index.ts'
 let root: string
 let capability: DirectoryPickerBrowseCapability
 let dispose: () => Promise<void>
+
+/** Windows Node junctions are usable only when the test process can follow one. */
+const canFollowDirectoryJunction = process.platform !== 'win32' || (() => {
+  const probe = mkdtempSync(join(tmpdir(), 'dsh-browse-junction-probe-'))
+  const target = join(probe, 'target')
+  const link = join(probe, 'link')
+  try {
+    mkdirSync(target)
+    symlinkSync(target, link, 'junction')
+    return statSync(link).isDirectory()
+  } catch {
+    return false
+  } finally {
+    rmSync(probe, { recursive: true, force: true })
+  }
+})()
 
 beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), 'dsh-browse-'))
@@ -45,7 +62,7 @@ afterAll(async () => {
 })
 
 describe('BrowseDirectoryPicker', () => {
-  it('lists directories only, flags hidden rows, follows symlinks, skips broken links, sorts by name', async () => {
+  it.skipIf(!canFollowDirectoryJunction)('lists directories only, flags hidden rows, follows symlinks, skips broken links, sorts by name', async () => {
     const listing = await capability.list(root)
     expect(listing.path).toBe(root)
     expect(listing.home).toBe(homedir())
@@ -83,7 +100,7 @@ describe('BrowseDirectoryPicker', () => {
     }
   })
 
-  it('stops the scan with the caller: an aborted signal rejects with its own reason', async () => {
+  it.skipIf(!canFollowDirectoryJunction)('stops the scan with the caller: an aborted signal rejects with its own reason', async () => {
     const gone = new AbortController()
     gone.abort(new Error('caller left'))
     // The abort surfaces as-is, not dressed as an unreadable directory —

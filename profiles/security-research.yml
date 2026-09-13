@@ -1,0 +1,6 @@
+# Security Research profile reference.
+# The supported launcher uses the shipped profile template in app-boot.
+name: security-research
+patch:
+  - '@deepseek-ai/dsh-security-research'
+

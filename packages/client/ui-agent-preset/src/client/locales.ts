@@ -8,6 +8,7 @@ export type AgentPresetSettingsKey =
   | 'presetPtcName' | 'presetPtcDescription'
   | 'presetMinimalName' | 'presetMinimalDescription'
   | 'presetCordisName' | 'presetCordisDescription'
+  | 'presetSecurityResearchName' | 'presetSecurityResearchDescription'
   | 'duplicate' | 'duplicateUnavailable' | 'delete' | 'presetId' | 'presetIdPlaceholder' | 'copyOf'
   | 'displayName' | 'displayNamePlaceholder'
   | 'inUse' | 'noDescription' | 'builtInGroup' | 'customGroup'
@@ -31,6 +32,8 @@ export const en: Record<AgentPresetSettingsKey, string> = {
   builtIn: 'Built-in',
   setDefault: 'Set as default',
   view: 'View',
+  presetSecurityResearchName: 'Security Research',
+  presetSecurityResearchDescription: 'Authorized security assessment, reverse engineering, vulnerability validation, and evidence-based reporting.',
   presetStandardName: 'Standard mode',
   presetStandardDescription:
     'Full coding agent with file editing, shell, file and web search, skills, planning, goals, subagents, and workflows.',
@@ -93,6 +96,8 @@ export const zh: Record<AgentPresetSettingsKey, string> = {
   builtIn: '内置',
   setDefault: '设为默认',
   view: '查看',
+  presetSecurityResearchName: '安全研究',
+  presetSecurityResearchDescription: '面向授权安全评估、逆向分析、漏洞验证与证据化报告的 Agent。',
   presetStandardName: '标准模式',
   presetStandardDescription: '功能完整的编码 Agent，支持文件编辑、Shell、文件与网页检索、Skills、计划、目标、子代理和工作流。',
   presetPtcName: 'PTC 模式',

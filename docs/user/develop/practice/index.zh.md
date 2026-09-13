@@ -153,3 +153,4 @@ export function apply(ctx: Context) {
 ## 下一步
 
 - [LLM（大语言模型）适配器](./llm-adapter.zh.md)：实现一个 LLM 提供方
+- [本地设备控制](./device-control.zh.md) — 启用设备 profile 并检查 Provider

@@ -162,6 +162,13 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@deepseek-ai/dsh-experimental-code-runtime-python': ['py/**/*.py'],
   // The shipped preset compositions travel inside the roster package.
   '@deepseek-ai/dsh-agent-presets': ['presets'],
+  // Optional research presets and skill bodies are runtime-loaded assets.
+  '@deepseek-ai/dsh-security-research': ['presets'],
+  '@deepseek-ai/dsh-security-skills': ['assets'],
+  // The sidebar requests these browser chunks when a viewer first opens.
+  '@deepseek-ai/dsh-client-ui-better-sidebar': [
+    'lib/client-registry.js', 'lib/client-terminal.js', 'lib/client-editor.js', 'lib/client-mermaid.js',
+  ],
   // The Web Host mounts the default-off settings owner independently of each
   // Agent-scoped delegation-tool instance.
   '@deepseek-ai/dsh-tool-subagent': ['lib/model-selection-settings.js'],
@@ -184,6 +191,7 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // through a hashed chunk. The committed bin.js is the link target pnpm can
   // resolve at install time, before the build produces lib/bin.js.
   '@deepseek-ai/dsh-experimental-webworker-packer': ['bin.js', 'lib/repository-*.js'],
+  '@deepseek-ai/dsh-finding': ['lib/fold-*.js'],
 }
 
 function sameStringList(actual: readonly string[] | undefined, expected: readonly string[]): boolean {

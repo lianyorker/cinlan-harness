@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The harness is assembled from npm packages under `packages/`, grouped by capability family: sessions and the agent loop, model-facing tools, shell and filesystem execution, web access, subagents, and the rest. Use this page as the top-level map: find the owning group, then open its README for the package list. Every package is scoped `@deepseek-ai/dsh-*` and lives in exactly one group; each group README is the authoritative package map for its family.
+Use this index to find capability groups under packages/. Every @deepseek-ai/dsh-* package belongs to one group; its group README owns the package list and responsibilities.
 
 ## Table of Contents
 
@@ -53,6 +53,14 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`workflow/`](workflow/README.md) | Workflow seam, worker-thread engine, and model-facing `workflow`/`ralph` tools |
 | [`webhook/`](webhook/README.md) | Verified external events, trusted rules, and fire-and-forget Workspace Sessions |
 | [`web/`](web/README.md) | Web capability family: seam, search/fetch providers, model-facing web tools |
+| [`work-items/`](work-items/README.md) | Provider issues, confirmed writes, and Workspace links |
+| [`browser/`](browser/README.md) | Persistent Browser pages, providers, permission policy, and model-facing controls |
+| [`computer-use/`](computer-use/README.md) | Desktop Providers, observations, permission policy, and tools |
+| [`mobile-device/`](mobile-device/README.md) | Mobile Providers, one-use observations, and input tools |
+| [`coordination/`](coordination/README.md) | Bounded task graphs, executors, and model-facing coordination tools |
+| [`git/`](git/README.md) | Read-only Git observations, local provider, and model-facing tools |
+| [`artifact/`](artifact/README.md) | Scoped immutable evidence storage and metadata |
+| [`execution-host/`](execution-host/README.md) | Execution-host identity for evidence provenance |
 | [`attachment/`](attachment/README.md) | Durable attachment identity, validation, local content-addressed storage |
 | [`spill/`](spill/README.md) | Spill capability family: storage seam, local impl, tool-result spill policy |
 | [`todo/`](todo/README.md) | The model-facing `todo_write` tool |

@@ -195,6 +195,30 @@ Source: [`packages/interaction/user-approval/src/types.ts:55`](../packages/inter
 
 Source: [`packages/interaction/user-approval/src/index.ts:33`](../packages/interaction/user-approval/src/index.ts)
 
+### `assessment/*`
+
+<a id="assessmentoperation-decided--log-only"></a>
+
+#### `assessment/operation-decided` — log-only
+
+```ts persistence-catalog
+/** Required, log-only authorization decision committed before its proposed effect. */
+'assessment/operation-decided': AssessmentOperationDecidedEvent
+```
+
+Source: [`packages/security/assessment-scope/src/types.ts:258`](../packages/security/assessment-scope/src/types.ts)
+
+<a id="assessmentscope-bound--log-only"></a>
+
+#### `assessment/scope-bound` — log-only
+
+```ts persistence-catalog
+/** Required, log-only whole grant bound before this Session's first model or tool effect. */
+'assessment/scope-bound': AssessmentScopeBoundEvent
+```
+
+Source: [`packages/security/assessment-scope/src/types.ts:256`](../packages/security/assessment-scope/src/types.ts)
+
 ### `assistant/*`
 
 <a id="assistantattempt--log-only"></a>
@@ -434,6 +458,19 @@ Source: [`packages/feedback/message-feedback/src/types.ts:53`](../packages/feedb
 
 Source: [`packages/feedback/command-feedback/src/index.ts:25`](../packages/feedback/command-feedback/src/index.ts)
 
+### `finding/*`
+
+<a id="findingchange--log-only"></a>
+
+#### `finding/change` — log-only
+
+```ts persistence-catalog
+/** Complete post-mutation state for one durable security finding. */
+'finding/change': FindingChange
+```
+
+Source: [`packages/security/finding/src/types.ts:249`](../packages/security/finding/src/types.ts)
+
 ### `goal/*`
 
 <a id="goalchange--log-only"></a>
@@ -537,7 +574,7 @@ Source: [`packages/llm/llm-retry/src/types.ts:11`](../packages/llm/llm-retry/src
 'model/selection': ModelSelection
 ```
 
-Source: [`packages/api/session-controller/src/types.ts:40`](../packages/api/session-controller/src/types.ts)
+Source: [`packages/api/session-controller/src/types.ts:41`](../packages/api/session-controller/src/types.ts)
 
 ### `permission/*`
 

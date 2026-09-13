@@ -116,6 +116,22 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'],
     patchReload: 'live',
   },
+  browser: {
+    bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-cinlan-browser'],
+    patchReload: 'live',
+  },
+  'device-control': {
+    bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-cinlan-computer-use', '@deepseek-ai/dsh-cinlan-mobile-device'],
+    patchReload: 'live',
+  },
+  'security-research': {
+    bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-security-research'],
+    patchReload: 'live',
+  },
+  'work-items': {
+    bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-cinlan-work-items'],
+    patchReload: 'live',
+  },
   headless: {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'],
     patchReload: 'startup',

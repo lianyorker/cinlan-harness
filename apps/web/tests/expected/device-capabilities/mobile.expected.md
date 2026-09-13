@@ -1,0 +1,31 @@
+- heading "手机模拟器" [level=2]
+- paragraph: 让 Agent 观察与操作手机模拟器；不是通过手机远程连接 Harness 的移动端。
+- heading "手机模拟器能力" [level=3]
+- status: 未启用
+- paragraph: 配置后，Harness 可以观察模拟器画面，并在权限策略允许时执行触控、滑动、输入和设备按钮操作。
+- heading "检查模拟器可用性" [level=4]
+- paragraph: 当前 profile 未挂载此能力。可在另一个终端启动 device-control profile。
+- button "重新检查":
+  - img
+  - text: 重新检查
+- term: Android SDK / iOS Simulator
+- definition: Harness 尚未提供 SDK 检测和路径保存；这是本项目待补功能，不代表本机缺少 SDK。
+- term: 默认设备
+- definition: 尚未提供默认设备设置；工具调用通过 device_id 明确选择设备。
+- heading "智能体手机模拟器控制" [level=4]
+- paragraph: 在 Cinlan Harness 中使用手机模拟器工具。
+- list:
+  - listitem:
+    - heading "启用设备控制 profile" [level=4]
+    - paragraph: 当前设备 profile 仍挂载历史外部 CLI 适配器，不能作为 Harness 原生设备能力验收。原生 Provider 尚待迁移。
+    - code: dsh --profile device-control
+    - button "复制启动命令":
+      - img
+  - listitem:
+    - heading "执行设备操作" [level=4]
+    - paragraph: 在审批策略允许时执行触控、滑动、文本输入和设备按钮操作。
+- heading "试一试 · 示例提示" [level=4]
+- code: 列出可用设备，观察我指定的手机模拟器并描述当前页面。执行输入前先征询我，操作后重新观察确认结果。
+- button "复制示例提示":
+  - img
+- group: Host 组件 · 0

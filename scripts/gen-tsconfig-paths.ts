@@ -37,7 +37,7 @@ interface PackageAlias {
   readonly specifier: string
   /** Repository-relative source directory, e.g. `./packages/session/session/src`. */
   readonly source: string
-  /** Whether the package carries `src/invariant.ts`, which earns a second alias. */
+  /** Whether the package carries `src/invariant.ts`, which earns an invariant alias. */
   readonly hasInvariant: boolean
 }
 
@@ -87,12 +87,11 @@ function workspacePackages(): WorkspacePackage[] {
 }
 
 /**
- * Collect every package the removed wildcards could resolve.
+ * Collect every workspace package source directory.
  *
- * A wildcard substituted the specifier's suffix into `packages/<group>/<suffix>/src`,
- * so it only ever resolved a package whose declared name is exactly
- * `@deepseek-ai/dsh-<directory>`. Packages named after something other than
- * their directory already carry a hand-written alias and are skipped here.
+ * Packages whose declared name differs from their directory keep their
+ * hand-written bare alias. Every package still needs a generated `/src/*` alias
+ * so same-package tests resolve through source instead of a workspace symlink.
  *
  * @returns Aliases sorted by specifier.
  * @throws When two package directories claim one specifier, which the removed
@@ -101,7 +100,6 @@ function workspacePackages(): WorkspacePackage[] {
 export function collectPackageAliases(): PackageAlias[] {
   const bySpecifier = new Map<string, PackageAlias & { directory: string }>()
   for (const { group, directory, packageDir, name } of workspacePackages()) {
-    if (name !== `${PREFIX}${directory}`) continue
     const previous = bySpecifier.get(name)
     if (previous !== undefined) {
       throw new Error(
@@ -124,10 +122,8 @@ export function collectPackageAliases(): PackageAlias[] {
 /**
  * Collect every workspace package the aliases must cover.
  *
- * Unlike {@link collectPackageAliases} this keeps packages whose name does not
- * match their directory. The generator cannot map those — only a hand-written
- * alias can — but they still have to be mapped by something, because deleting
- * the group wildcards removed the fallback that used to catch them.
+ * This keeps the manifest names used to confirm that each package has either a
+ * generated or hand-written bare alias.
  *
  * @returns Declared names of every `@deepseek-ai/dsh-` package carrying a `src` directory.
  */
@@ -181,6 +177,10 @@ export function renderAliases(aliases: readonly PackageAlias[], handWritten: Rea
   for (const alias of aliases) {
     if (!handWritten.has(alias.specifier)) {
       lines.push(`      ${JSON.stringify(alias.specifier)}: [${JSON.stringify(alias.source)}]`)
+    }
+    const sourceSubpath = `${alias.specifier}/src/*`
+    if (!handWritten.has(sourceSubpath)) {
+      lines.push(`      ${JSON.stringify(sourceSubpath)}: [${JSON.stringify(`${alias.source}/*`)}]`)
     }
     const invariant = `${alias.specifier}/invariant`
     if (alias.hasInvariant && !handWritten.has(invariant)) {

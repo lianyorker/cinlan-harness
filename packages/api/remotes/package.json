@@ -84,6 +84,13 @@
     "@deepseek-ai/dsh-scope": "workspace:^",
     "@deepseek-ai/dsh-api-session-controller": "workspace:^",
     "@deepseek-ai/dsh-api-workspace-files": "workspace:^",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@deepseek-ai/dsh-api-workspace-isolation-controller": "workspace:^",
+    "@deepseek-ai/dsh-api-worktree-task-controller": "workspace:^",
+    "@deepseek-ai/dsh-api-terminal-controller": "workspace:^",
+    "@deepseek-ai/dsh-api-device-capabilities-controller": "workspace:^",
+    "@deepseek-ai/dsh-api-security-research-controller": "workspace:^",
+    "@deepseek-ai/dsh-api-work-items-controller": "workspace:^",
+    "@deepseek-ai/dsh-api-browser-controller": "workspace:^"
   }
 }

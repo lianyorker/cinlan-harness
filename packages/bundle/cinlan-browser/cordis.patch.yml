@@ -1,0 +1,29 @@
+# The opt-in Cinlan persistent-browser layer. Profiles apply it after dsh-base;
+# the browser capability remains outside the shared base composition.
+
+- insert:
+    - id: browser
+      name: '@deepseek-ai/dsh-browser'
+      config:
+        provider: local
+
+    - id: browser-playwright
+      name: '@deepseek-ai/dsh-browser-playwright'
+      config:
+        providerId: local
+
+    # Every browser operation requires an approval decision by default. A
+    # profile may replace this complete config with a deployment-specific policy.
+    - id: browser-permission-policy
+      name: '@deepseek-ai/dsh-browser-permission-policy'
+      config:
+        observe: ask
+        navigate: ask
+        interact: ask
+
+    - id: tool-browser
+      name: '@deepseek-ai/dsh-tool-browser'
+
+    # Activates only in a Host composition that supplies Typert.
+    - id: browser-controller
+      name: '@deepseek-ai/dsh-api-browser-controller'

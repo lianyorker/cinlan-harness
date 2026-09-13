@@ -47,6 +47,14 @@ export interface WorkspaceEntityHost {
   sessionPath(id: SessionId): string | undefined
 
   /**
+   * Resolve an exact managed checkout to its source Workspace.
+   * @param id - Session from the immutable header.
+   * @param cwd - Exact checkout path from that header.
+   * @returns registered source path, or `undefined` for an unmanaged Session.
+   */
+  sourcePath(id: SessionId, cwd: string): string | undefined
+
+  /**
    * Read one stored session header for attach validation.
    * @param id - The session whose header to read.
    * @returns the header; rejects when session persistence is absent or holds
@@ -121,7 +129,7 @@ export class WorkspaceEntity implements Workspace {
       }
       let cwd: string
       try {
-        cwd = await realpathNormalize(header.cwd)
+        cwd = await realpathNormalize(this.host.sourcePath(sessionId, header.cwd) ?? header.cwd)
       } catch (error) {
         throw new Error(
           `cannot attach session '${sessionId}' to workspace '${this.record.path}': `

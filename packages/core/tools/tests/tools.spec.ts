@@ -40,6 +40,22 @@ const echoTool = defineTool({
 describe('ToolRuntime', () => {
   it('registers tools, exposes schemas, and feeds the system-prompt assembly', async () => {
     const ctx = await setup()
+    const serviceDefined = ctx.tools.define({
+      name: 'service-defined',
+      description: 'compile through the service',
+      parameters: { text: { type: 'string', required: true } },
+      output: {
+        schema: { type: 'string' },
+        render: (_args, value) => [{ type: 'text', text: value }],
+      },
+      execute: async args => args.text,
+    })
+    expect(serviceDefined.parameters).toEqual({
+      type: 'object',
+      properties: { text: { type: 'string' } },
+      required: ['text'],
+    })
+
     ctx.tools.register(echoTool)
 
     expect(ctx.tools.schemas()).toEqual([{

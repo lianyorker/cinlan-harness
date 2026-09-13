@@ -13,6 +13,7 @@ export type BuiltInPresetCopyKey =
   | 'presetPtcName' | 'presetPtcDescription'
   | 'presetMinimalName' | 'presetMinimalDescription'
   | 'presetCordisName' | 'presetCordisDescription'
+  | 'presetSecurityResearchName' | 'presetSecurityResearchDescription'
 
 /** Preset roster fields needed to resolve display copy. */
 export interface PresetDisplaySource {
@@ -40,6 +41,7 @@ interface PresetLocaleKeys {
 }
 
 const BUILT_IN_PRESET_KEYS: Readonly<Partial<Record<string, PresetLocaleKeys>>> = {
+  'security-research': { name: 'presetSecurityResearchName', description: 'presetSecurityResearchDescription' },
   standard: { name: 'presetStandardName', description: 'presetStandardDescription' },
   ptc: { name: 'presetPtcName', description: 'presetPtcDescription' },
   minimal: { name: 'presetMinimalName', description: 'presetMinimalDescription' },

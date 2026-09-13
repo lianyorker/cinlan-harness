@@ -419,6 +419,10 @@ type Branded<B extends string> = string & { readonly [BRAND]: B }
 
 两个核心 ID 是 `ToolCallId`（关联工具调用及其结果；dsh-llm）和 `SessionId`（活跃 agent 与持久会话共享的标识；dsh-session）。能力包也会品牌化各自的 id，例如 [jobs.md](jobs.zh.md) 中的 `JobId`。
 
+## 插件贡献的预设
+
+已安装插件可通过 `AgentPresets.registerSystemRoot(path)` 贡献只读预设目录。发现过程只在注册插件的生命周期内包含该目录，且随附与显式配置根目录优先。撤回不会删除文件或已加入的组装。[预设包](../../packages/preset/agent-presets/README.zh.md)负责发现与创作细节。
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>

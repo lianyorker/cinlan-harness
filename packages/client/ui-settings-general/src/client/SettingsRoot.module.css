@@ -34,6 +34,7 @@
   gap: 0;
   padding: 0;
   border-radius: 50%;
+  corner-shape: round;
 }
 
 .triggerLabel {
@@ -52,6 +53,8 @@
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-base);
   font-family: var(--dsw-font-family);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
 .nav {
@@ -67,7 +70,7 @@
   min-height: 64px;
   flex: none;
   align-items: center;
-  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
 }
 
 .back {
@@ -81,6 +84,7 @@
   padding: 0 12px;
   border: none;
   border-radius: 999px;
+  corner-shape: round;
   color: var(--dsw-alias-label-secondary);
   background: var(--dsw-alias-settings-control-bg);
   font: inherit;
@@ -124,8 +128,9 @@
   min-width: 0;
   box-sizing: border-box;
   padding: 0 12px 0 34px;
-  border: 1px solid var(--dsw-alias-border-l2);
+  border: 0.5px solid var(--dsw-alias-border-l2);
   border-radius: 999px;
+  corner-shape: round;
   outline: none;
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-base);
@@ -223,7 +228,7 @@
   align-items: center;
   justify-content: flex-end;
   padding: 0 36px;
-  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
   background: var(--dsw-alias-bg-base);
 }
 
@@ -279,7 +284,7 @@
   }
 
   .nav {
-    border-bottom: 1px solid var(--dsw-alias-border-l2);
+    border-bottom: 0.5px solid var(--dsw-alias-border-l2);
   }
 
   .navTitle {
@@ -300,6 +305,7 @@
   }
 
   .header {
-    display: none;
+    min-height: 48px;
+    padding-inline: 16px;
   }
 }

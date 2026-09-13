@@ -1,22 +1,21 @@
-- dialog "Settings":
+- region "Settings":
   - navigation:
-    - text: Settings
-    - button "General":
+    - button "Back to app":
       - img
-      - text: General
-    - button "Models":
-      - img
-      - text: Models
-    - button "Plugins":
-      - img
-      - text: Plugins
-    - button "Agent presets":
-      - img
-      - text: Agent presets
-  - button "Open configuration file"
-  - button "Close":
+      - text: Back to app
     - img
-    - text: Close
+    - searchbox "Search settings..."
+    - text: Settings
+    - button "General"
+    - button "Models"
+    - button "Plugins"
+    - button "Agent presets"
+    - button "Browser"
+    - button "Computer use"
+    - button "Mobile emulator"
+    - button "Design"
+    - button "Side card"
+  - button "Open configuration file"
   - text: Permission Choose the default permission mode for new sessions
   - button "Workspace Write":
     - text: Workspace Write

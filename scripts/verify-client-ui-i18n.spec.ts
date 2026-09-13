@@ -56,6 +56,14 @@ describe('Client UI i18n source check', () => {
     `)).toEqual([])
   })
 
+  it('accepts uppercase protocol key and scheme collections without allowing natural copy', () => {
+    expect(messages(`
+      const ARGS_SUMMARY_KEYS = ['command', 'path'] as const
+      const TITLE_BAR_SCHEMES = ['auto', 'web', 'preset', 'custom'] as const
+      const ERROR_MESSAGE = 'Something failed'
+    `)).toEqual(['Something failed'])
+  })
+
   it('does not inspect locale dictionary owners', () => {
     expect(findUiI18nViolations(
       'packages/client/ui-example/src/client/locales.ts',

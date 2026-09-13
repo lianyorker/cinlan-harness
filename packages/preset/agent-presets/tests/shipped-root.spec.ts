@@ -9,7 +9,7 @@
  * suite: the derived writable root is resolved in the constructor.
  */
 
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -150,5 +150,37 @@ describe('the shipped preset root', () => {
     for (const id of ['standard', 'cordis']) {
       expect(findEntry(await shippedEntries(id), 'tool-workflow')?.disabled, id).not.toBe(true)
     }
+  })
+})
+
+describe('plugin-contributed system presets', () => {
+  it('adds and withdraws read-only presets with the contributing plugin lifetime', async () => {
+    const root = join(home, 'bundle-presets')
+    await mkdir(join(root, 'plugin-agent'), { recursive: true })
+    await writeFile(join(root, 'plugin-agent', 'agent.cordis.yml'), '[]\n')
+    const ctx = await roster()
+    try {
+      const plugin = ctx.plugin({ inject: ['agentPresets'], apply: (scope) => {
+        scope.agentPresets.registerSystemRoot(root)
+      } })
+      await plugin.await()
+      expect((await ctx.agentPresets.resolve('plugin-agent')).trust).toBe('system')
+      expect(ctx.agentPresets.roots.at(-2)?.path).toBe(root)
+      await expect(ctx.agentPresets.remove('plugin-agent')).rejects.toThrow(/ships with the deployment/)
+      await plugin.dispose()
+      expect((await ctx.agentPresets.list()).map(p => p.id)).not.toContain('plugin-agent')
+      expect(ctx.agentPresets.roots.map(p => p.path)).not.toContain(root)
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('keeps shipped presets ahead of contributions and disposers idempotent', async () => {
+    const ctx = await roster({ includeUserRoot: false })
+    try {
+      const release = ctx.agentPresets.registerSystemRoot(SYSTEM_ROOT)
+      expect((await ctx.agentPresets.resolve('minimal')).path.startsWith(SHIPPED_PRESET_ROOT)).toBe(true)
+      release()
+      release()
+      expect(ctx.agentPresets.roots).toEqual([{ path: SHIPPED_PRESET_ROOT, trust: 'system' }])
+    } finally { await ctx.fiber.dispose() }
   })
 })

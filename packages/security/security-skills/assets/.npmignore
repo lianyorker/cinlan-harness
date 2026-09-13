@@ -1,0 +1,14 @@
+skills/field-journal/
+skills/**/raw/
+skills/**/private/
+skills/**/findings.jsonl
+skills/**/.env
+skills/**/.env.*
+skills/**/*.pem
+skills/**/*.key
+skills/**/*.p12
+skills/**/*.pfx
+skills/**/*.jks
+skills/**/*.keystore
+skills/**/id_rsa
+skills/**/id_ed25519

@@ -1,0 +1,359 @@
+{
+  "observedAt": "2026-09-12T05:32:14.551Z",
+  "destination": "D:\\Company\\cinlan\\cinlan-harness",
+  "destinationPackageCount": 325,
+  "sourceDeletionAllowed": false,
+  "scope": "Package-name presence only. Absent names require capability-level migration or an explicit replacement decision; matching names do not prove content equivalence.",
+  "completedDevicePackages": [
+    {
+      "name": "@deepseek-ai/dsh-api-device-capabilities-controller",
+      "relativePath": "packages/api/device-capabilities-controller"
+    },
+    {
+      "name": "@deepseek-ai/dsh-cinlan-computer-use",
+      "relativePath": "packages/bundle/cinlan-computer-use"
+    },
+    {
+      "name": "@deepseek-ai/dsh-cinlan-mobile-device",
+      "relativePath": "packages/bundle/cinlan-mobile-device"
+    },
+    {
+      "name": "@deepseek-ai/dsh-computer-use",
+      "relativePath": "packages/computer-use/computer-use"
+    },
+    {
+      "name": "@deepseek-ai/dsh-computer-use-cinlan",
+      "relativePath": "packages/computer-use/computer-use-cinlan"
+    },
+    {
+      "name": "@deepseek-ai/dsh-computer-use-permission-policy",
+      "relativePath": "packages/computer-use/computer-use-permission-policy"
+    },
+    {
+      "name": "@deepseek-ai/dsh-tool-computer-use",
+      "relativePath": "packages/computer-use/tool-computer-use"
+    },
+    {
+      "name": "@deepseek-ai/dsh-mobile-device",
+      "relativePath": "packages/mobile-device/mobile-device"
+    },
+    {
+      "name": "@deepseek-ai/dsh-mobile-device-cinlan",
+      "relativePath": "packages/mobile-device/mobile-device-cinlan"
+    },
+    {
+      "name": "@deepseek-ai/dsh-mobile-device-permission-policy",
+      "relativePath": "packages/mobile-device/mobile-device-permission-policy"
+    },
+    {
+      "name": "@deepseek-ai/dsh-tool-mobile-device",
+      "relativePath": "packages/mobile-device/tool-mobile-device"
+    }
+  ],
+  "sources": [
+    {
+      "root": "D:/Company/cinlan/cinlan-harness-integration",
+      "packageCount": 281,
+      "absentNames": [
+        {
+          "name": "@deepseek-ai/dsh-api-work-items-controller",
+          "relativePath": "packages/api/work-items-controller"
+        },
+        {
+          "name": "@deepseek-ai/dsh-cinlan-web",
+          "relativePath": "packages/bundle/cinlan-web"
+        },
+        {
+          "name": "@deepseek-ai/dsh-client-ui-brand-cinlan",
+          "relativePath": "packages/client/ui-brand-cinlan"
+        },
+        {
+          "name": "@deepseek-ai/dsh-client-ui-work-items",
+          "relativePath": "packages/client/ui-work-items"
+        },
+        {
+          "name": "@deepseek-ai/dsh-coordination-worktree-executor",
+          "relativePath": "packages/coordination/coordination-worktree-executor"
+        },
+        {
+          "name": "@deepseek-ai/dsh-tool-work-items",
+          "relativePath": "packages/work-items/tool-work-items"
+        },
+        {
+          "name": "@deepseek-ai/dsh-work-items",
+          "relativePath": "packages/work-items/work-items"
+        },
+        {
+          "name": "@deepseek-ai/dsh-work-items-github",
+          "relativePath": "packages/work-items/work-items-github"
+        },
+        {
+          "name": "@deepseek-ai/dsh-work-items-linear",
+          "relativePath": "packages/work-items/work-items-linear"
+        }
+      ]
+    },
+    {
+      "root": "D:/Company/cinlan/cinlan-harness-integration-20260909",
+      "packageCount": 283,
+      "absentNames": [
+        {
+          "name": "@deepseek-ai/dsh-api-work-items-controller",
+          "relativePath": "packages/api/work-items-controller"
+        },
+        {
+          "name": "@deepseek-ai/dsh-cinlan-web",
+          "relativePath": "packages/bundle/cinlan-web"
+        },
+        {
+          "name": "@deepseek-ai/dsh-client-ui-brand-cinlan",
+          "relativePath": "packages/client/ui-brand-cinlan"
+        },
+        {
+          "name": "@deepseek-ai/dsh-client-ui-work-items",
+          "relativePath": "packages/client/ui-work-items"
+        },
+        {
+          "name": "@deepseek-ai/dsh-coordination-worktree-executor",
+          "relativePath": "packages/coordination/coordination-worktree-executor"
+        },
+        {
+          "name": "@deepseek-ai/dsh-tool-work-items",
+          "relativePath": "packages/work-items/tool-work-items"
+        },
+        {
+          "name": "@deepseek-ai/dsh-work-items",
+          "relativePath": "packages/work-items/work-items"
+        },
+        {
+          "name": "@deepseek-ai/dsh-work-items-github",
+          "relativePath": "packages/work-items/work-items-github"
+        },
+        {
+          "name": "@deepseek-ai/dsh-work-items-linear",
+          "relativePath": "packages/work-items/work-items-linear"
+        }
+      ]
+    },
+    {
+      "root": "D:/Company/cinlan/cinlan-harness-staged-final-b84814d3",
+      "packageCount": 288,
+      "absentNames": [
+        {
+          "name": "@deepseek-ai/dsh-codex-app-server",
+          "relativePath": "packages/api/codex-app-server"
+        },
+        {
+          "name": "@deepseek-ai/dsh-codex-app-server-harness",
+          "relativePath": "packages/api/codex-app-server-harness"
+        },
+        {
+          "name": "@deepseek-ai/dsh-cinlan-codex-tui",
+          "relativePath": "packages/bundle/cinlan-codex-tui"
+        },
+        {
+          "name": "@deepseek-ai/dsh-cinlan-tui",
+          "relativePath": "packages/bundle/cinlan-tui"
+        },
+        {
+          "name": "@deepseek-ai/dsh-cinlan-web",
+          "relativePath": "packages/bundle/cinlan-web"
+        },
+        {
+          "name": "@deepseek-ai/dsh-design-studio",
+          "relativePath": "packages/bundle/design-studio"
+        },
+        {
+          "name": "@deepseek-ai/dsh-execution-host-ssh-bundle",
+          "relativePath": "packages/bundle/execution-host-ssh"
+        },
+        {
+          "name": "@deepseek-ai/dsh-client-runtime",
+          "relativePath": "packages/client/runtime"
+        },
+        {
+          "name": "@deepseek-ai/dsh-client-ui-brand-cinlan",
+          "relativePath": "packages/client/ui-brand-cinlan"
+        },
+        {
+          "name": "@deepseek-ai/dsh-client-ui-design-studio",
+          "relativePath": "packages/client/ui-design-studio"
+        },
+        {
+          "name": "@deepseek-ai/dsh-client-ui-settings-cinlan-capabilities",
+          "relativePath": "packages/client/ui-settings-cinlan-capabilities"
+        },
+        {
+          "name": "@deepseek-ai/dsh-client-ui-voice-dictation",
+          "relativePath": "packages/client/ui-voice-dictation"
+        },
+        {
+          "name": "@deepseek-ai/dsh-code-runtime-python",
+          "relativePath": "packages/code-runtime/code-runtime-python"
+        },
+        {
+          "name": "@deepseek-ai/dsh-design-studio-service",
+          "relativePath": "packages/design/design-studio"
+        },
+        {
+          "name": "@deepseek-ai/dsh-design-studio-local",
+          "relativePath": "packages/design/design-studio-local"
+        },
+        {
+          "name": "@deepseek-ai/dsh-design-studio-prompt",
+          "relativePath": "packages/design/design-studio-prompt"
+        },
+        {
+          "name": "@deepseek-ai/dsh-tool-design-studio",
+          "relativePath": "packages/design/tool-design-studio"
+        },
+        {
+          "name": "@deepseek-ai/dsh-acp-demo",
+          "relativePath": "packages/examples/acp-demo"
+        },
+        {
+          "name": "@deepseek-ai/dsh-agent-spine-demo",
+          "relativePath": "packages/examples/agent-spine-demo"
+        },
+        {
+          "name": "@deepseek-ai/dsh-sdk-jsonrpc-demo",
+          "relativePath": "packages/examples/jsonrpc-demo"
+        },
+        {
+          "name": "@deepseek-ai/dsh-execution-host-bind",
+          "relativePath": "packages/execution-host/execution-host-bind"
+        },
+        {
+          "name": "@deepseek-ai/dsh-execution-host-ssh",
+          "relativePath": "packages/execution-host/execution-host-ssh"
+        },
+        {
+          "name": "@deepseek-ai/dsh-turn-budget-policy",
+          "relativePath": "packages/guard/turn-budget-policy"
+        },
+        {
+          "name": "@deepseek-ai/dsh-host-apiproxy",
+          "relativePath": "packages/host/apiproxy"
+        },
+        {
+          "name": "@deepseek-ai/dsh-codex-tui",
+          "relativePath": "packages/interaction/codex-tui"
+        },
+        {
+          "name": "@deepseek-ai/dsh-tui",
+          "relativePath": "packages/interaction/tui"
+        },
+        {
+          "name": "@deepseek-ai/dsh-agent-execution-guidance",
+          "relativePath": "packages/preset/agent-execution-guidance"
+        },
+        {
+          "name": "@deepseek-ai/dsh-session-persistence-sqlite",
+          "relativePath": "packages/session/session-persistence-sqlite"
+        },
+        {
+          "name": "@deepseek-ai/dsh-tool-subagent-report",
+          "relativePath": "packages/subagent/tool-subagent-report"
+        },
+        {
+          "name": "@deepseek-ai/dsh-acp-snapshot",
+          "relativePath": "packages/test-support/acp-snapshot"
+        },
+        {
+          "name": "@deepseek-ai/dsh-voice",
+          "relativePath": "packages/voice/voice"
+        },
+        {
+          "name": "@deepseek-ai/dsh-voice-sherpa-onnx",
+          "relativePath": "packages/voice/voice-sherpa-onnx"
+        },
+        {
+          "name": "@deepseek-ai/dsh-web-permission-policy",
+          "relativePath": "packages/web/web-permission-policy"
+        }
+      ]
+    }
+  ],
+  "knownReplacements": [
+    {
+      "source": "@deepseek-ai/dsh-client-ui-settings-cinlan-capabilities",
+      "current": "@deepseek-ai/dsh-client-ui-settings-security",
+      "note": "Settings sections exist; desktop/mobile readiness is now read from a dedicated Host Remote."
+    },
+    {
+      "source": "@deepseek-ai/dsh-code-runtime-python",
+      "current": "@deepseek-ai/dsh-experimental-code-runtime-python",
+      "note": "Current main location is retained; this receipt does not certify old/new protocol equivalence."
+    }
+  ],
+  "liveProbe": {
+    "capability": "computer",
+    "status": "unavailable",
+    "reason": "protocol-error",
+    "note": "The installed Orca CLI was probed through the migrated Provider; no desktop input was attempted."
+  },
+  "verification": {
+    "build": {
+      "command": "pnpm run build",
+      "status": "passed",
+      "evidence": ".artifacts/device-control/final-build.log"
+    },
+    "hostAndClientTypes": {
+      "command": "node node_modules/typescript/bin/tsc -b tsconfig.host.json tsconfig.client.json --pretty false",
+      "status": "passed"
+    },
+    "deviceAndProfileUnits": {
+      "status": "passed",
+      "files": 16,
+      "tests": 252
+    },
+    "sourceProfile": {
+      "status": "passed",
+      "file": "apps/cli/tests/profiles/device-control/profile.expected.e2e.ts",
+      "tests": 1
+    },
+    "gui": {
+      "command": "pnpm run test:gui",
+      "status": "passed",
+      "files": 432,
+      "passed": 5607,
+      "skipped": 7,
+      "evidence": ".artifacts/device-control/final-gui-tests.log"
+    },
+    "webReplay": {
+      "status": "passed",
+      "files": 7,
+      "tests": 44,
+      "evidence": [
+        ".artifacts/device-control/final-web-replay.log",
+        ".artifacts/device-control/final-related-settings-replay.log"
+      ]
+    },
+    "scopedLint": {
+      "status": "passed",
+      "includes": "Imported devices, readiness controller/UI, build orchestration, adjusted browser and symlink fixtures"
+    },
+    "docs": {
+      "status": "not-complete",
+      "quickGatesPassed": 14,
+      "quickGatesFailed": 2,
+      "remaining": [
+        "Existing docs/dev bilingual pairing debt",
+        "Existing Markdown wrapping debt",
+        "Typert full documentation graph: members is not iterable; full generated catalog freshness and global export JSDoc remain unclosed"
+      ],
+      "evidence": ".artifacts/device-control/final-doc-checks.log"
+    },
+    "currentDeviceProbe": {
+      "capability": "computer",
+      "status": "unavailable",
+      "reason": "protocol-error",
+      "note": "The installed Orca CLI was probed through the migrated Provider; no desktop input was attempted."
+    }
+  },
+  "notes": [
+    "No source directories were deleted.",
+    "No commit, push, tag, or release was performed.",
+    "Only the Computer Use / Mobile Device migration batch is delivered here; other source-only capability families remain pending."
+  ]
+}

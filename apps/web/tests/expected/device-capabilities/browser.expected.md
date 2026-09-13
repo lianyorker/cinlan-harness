@@ -1,0 +1,29 @@
+- heading "浏览器" [level=2]
+- paragraph: 连接浏览器、配置 Agent 工具与管理会话登录状态。
+- heading "智能体浏览器使用" [level=3]
+- status: 未加载
+- paragraph: 配置持久浏览器 Provider 后，Agent 可以在审批策略允许时观察和操作页面。
+- heading "使用持久浏览器会话" [level=4]
+- paragraph: 通过 Browser Provider 管理页面，而不是控制操作系统窗口。
+- list:
+  - listitem:
+    - heading "Harness 本地浏览器" [level=4]
+    - paragraph: Cinlan Browser 组合使用 Harness 自有 Playwright Provider，直接启动本机浏览器，不需要 Orca。
+    - paragraph: 这里显示插件加载状态，不是浏览器启动或登录状态；首次工具调用才启动浏览器，操作仍需审批。
+    - paragraph: 当前 profile 未加载本地浏览器设置。需先添加 cinlan-browser 组合包。
+    - button "重新检查":
+      - img
+      - text: 重新检查
+  - listitem:
+    - heading "浏览器工具与技能" [level=4]
+    - paragraph: 工具由独立的 tool-browser 插件提供。Skill 是操作指引，不等于 Provider，也不代替工具安装。
+  - listitem:
+    - heading "浏览器 Cookie" [level=4]
+    - paragraph: 本页没有 Cookie 导入接口。后续由 Harness 自有浏览器配置管理，不要求到其他系统配置。
+    - text: 待接入 Harness 会话管理
+- heading "试一试 · 示例提示" [level=4]
+- paragraph: 浏览器工具可用后，将提示粘贴到对话中。
+- code: 列出当前浏览器页面，获取目标页面的 snapshot，并总结页面上的主要操作。不要提交表单。
+- button "复制示例提示":
+  - img
+- group: Host 组件 · 0

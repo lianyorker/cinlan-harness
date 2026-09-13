@@ -99,6 +99,16 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'workItems', pkg: 'work-items', title: 'Work Items provider registry and write ledger', mode: 'seam',
+    implementations: ['work-items-github', 'work-items-linear'], consumers: ['tool-work-items', 'api-work-items-controller'],
+    note: 'Providers own fixed-origin requests; the service owns immutable write previews and durable receipts.',
+  },
+  {
+    key: 'workItemsController', pkg: 'api-work-items-controller', title: 'Work Items Remote controller', mode: 'core',
+    consumers: ['client-ui-work-items'],
+    note: 'Projects normalized issues and persists explicit Workspace and Session associations independently of external mutations.',
+  },
+  {
     key: 'attachments',
     pkg: 'attachment',
     title: 'Durable binary attachment storage',

@@ -344,7 +344,7 @@ describe('rows naming a plugin that cannot be resolved', () => {
     const home = await mkdtemp(join(tmpdir(), 'dsh-presets-dangling-'))
     roots.push(home)
     await mkdir(join(home, 'node_modules', '@scope'), { recursive: true })
-    await symlink(join(home, 'deleted-checkout'), join(home, 'node_modules', '@scope', 'pkg'))
+    await symlink(join(home, 'deleted-checkout'), join(home, 'node_modules', '@scope', 'pkg'), 'junction')
     await mkdir(join(home, 'presets', 'probe'), { recursive: true })
     await writeFile(join(home, 'presets', 'probe', COMPOSITION_FILE), "- id: p\n  name: '@scope/pkg'\n")
 

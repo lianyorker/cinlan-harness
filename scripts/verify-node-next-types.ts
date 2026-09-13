@@ -7,7 +7,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
@@ -80,11 +80,12 @@ function publicSpecifiers(pkg: WorkspacePackage): string[] {
   return [...specifiers].sort()
 }
 
-function linkPackage(pkg: WorkspacePackage, nodeModules: string): void {
+function linkPackage(pkg: WorkspacePackage, nodeModules: string): string {
   const parts = pkg.name.split('/')
   const link = resolve(nodeModules, ...parts)
   mkdirSync(dirname(link), { recursive: true })
-  symlinkSync(pkg.dir, link, 'dir')
+  symlinkSync(pkg.dir, link, process.platform === 'win32' ? 'junction' : 'dir')
+  return link
 }
 
 const packages = workspacePackages()
@@ -107,17 +108,21 @@ if (missingOutputs.length > 0) {
 
 const tmp = mkdtempSync(resolve(root, '.node-next-types-'))
 let failed = false
+let phase = 'setup'
+const links: string[] = []
 
 try {
   const nodeModules = resolve(tmp, 'node_modules')
   mkdirSync(nodeModules, { recursive: true })
-  for (const pkg of packages) linkPackage(pkg, nodeModules)
+  for (const pkg of packages) links.push(linkPackage(pkg, nodeModules))
 
   const rootTypes = resolve(root, 'node_modules/@types/node')
   if (existsSync(rootTypes)) {
     const typesDir = resolve(nodeModules, '@types')
     mkdirSync(typesDir, { recursive: true })
-    symlinkSync(rootTypes, resolve(typesDir, 'node'), 'dir')
+    const link = resolve(typesDir, 'node')
+    symlinkSync(rootTypes, link, process.platform === 'win32' ? 'junction' : 'dir')
+    links.push(link)
   }
 
   writeFileSync(resolve(tmp, 'package.json'), `${JSON.stringify({ type: 'module', private: true }, null, 2)}\n`)
@@ -147,6 +152,7 @@ try {
   // shim isn't spawnable on Windows (CVE-2024-27980) and the .cmd variant needs
   // shell:true, which space-joins args UNESCAPED (DEP0190) — a hazard for the
   // temp tsconfig path. The JS entry behaves identically on every platform.
+  phase = 'typecheck'
   execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '-p', resolve(tmp, 'tsconfig.json'), '--pretty', 'false'], {
     cwd: root,
     stdio: 'pipe',
@@ -155,9 +161,11 @@ try {
 } catch (error: unknown) {
   failed = true
   const output = error as { stdout?: Buffer; stderr?: Buffer }
-  console.error('verify-node-next-types: NodeNext consumer typecheck failed.\n')
-  console.error(`${output.stdout?.toString() ?? ''}${output.stderr?.toString() ?? ''}`)
+  console.error(`verify-node-next-types: NodeNext consumer ${phase} failed.`)
+  const diagnostic = `${output.stdout?.toString() ?? ''}${output.stderr?.toString() ?? ''}`
+  console.error(diagnostic || (error instanceof Error ? error.message : String(error)))
 } finally {
+  for (const link of links.reverse()) unlinkSync(link)
   rmSync(tmp, { recursive: true, force: true })
 }
 

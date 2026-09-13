@@ -79,6 +79,27 @@
     },
     {
       "path": "../../typert/protocol"
+    },
+    {
+      "path": "../workspace-isolation-controller/tsconfig.json"
+    },
+    {
+      "path": "../worktree-task-controller/tsconfig.json"
+    },
+    {
+      "path": "../terminal-controller/tsconfig.json"
+    },
+    {
+      "path": "../device-capabilities-controller"
+    },
+    {
+      "path": "../security-research-controller"
+    },
+    {
+      "path": "../work-items-controller"
+    },
+    {
+      "path": "../browser-controller"
     }
   ]
 }

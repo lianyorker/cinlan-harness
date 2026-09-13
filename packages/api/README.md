@@ -26,6 +26,9 @@ The packages below provide the Remote layer; the package READMEs own the exhaust
 
 | Package | Role | ctx key |
 |---|---|---|
+| [`device-capabilities-controller`](device-capabilities-controller/README.md) | Read-only device Provider readiness | `ctx.deviceCapabilitiesController` / `ctx.remote.deviceCapabilities` |
+| [`browser-controller/`](browser-controller/README.md) | Human native Browser navigation, cookie import, and transfers | `ctx.browserController` / `ctx.remote.browser` |
+| [`work-items-controller/`](work-items-controller/README.md) | Work Items reads, local associations, and approved writes | `ctx.workItemsController` / `ctx.remote.workItems` |
 | [`remotes/`](remotes/README.md) | Chooses which Host capabilities and events the Client can consume. | — |
 | [`gateway/`](gateway/README.md) | Carries typed unary calls, multiplexed streams, and forwarded Host events. | `ctx.typertGateway` / `ctx.remote` |
 | [`session-controller/`](session-controller/README.md) | Owns Session commands, history streams, live control state, and Agent/Session identity policy. | `ctx.sessionController` / `ctx.remote.session` |

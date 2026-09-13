@@ -22,6 +22,9 @@ kind: "package-group"
 
 | 包 | 职责 | ctx key |
 |---|---|---|
+| [`cinlan-work-items`](cinlan-work-items/README.zh.md) | 可选工单读取、确认写入与本地关联 | `workItems` |
+| [`cinlan-computer-use`](cinlan-computer-use/README.zh.md) | 可选桌面控制能力 | `computerUse` |
+| [`cinlan-mobile-device`](cinlan-mobile-device/README.zh.md) | 可选移动设备控制 | `mobileDevice` |
 | [`base`](base/README.zh.md) | 基于 base 的 profile 共享核心 | —（仅 patch） |
 | [`acp-app`](acp-app/README.zh.md) | 基于 base 的纯自动化 ACP stdio 应用 | 挂载 ACP bridge |
 | [`web-app`](web-app/README.zh.md) | 基于 base 的浏览器应用层 | 挂载 Web 配置项 |

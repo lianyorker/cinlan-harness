@@ -1,0 +1,6 @@
+# Optional capability rows applied after the profile supplies their required services.
+- insert:
+    - id: finding-session
+      name: '@deepseek-ai/dsh-finding-session'
+    - id: tool-finding
+      name: '@deepseek-ai/dsh-tool-finding'

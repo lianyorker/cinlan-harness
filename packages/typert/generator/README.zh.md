@@ -81,6 +81,8 @@ files:
 
 Host 与 Client 是两个独立的 TypeScript 程序。直接项目引用确定编译器 face 的成员归属，`dsh.client` 包子路径则确定运行时 face 的贡献；`package.json#exports` 划定所有跨包公开边界，跨 face 的边只能来自导入或重新导出。解析到本包内部模块的相对导入会沿该模块的重新导出继续追踪，直到出现包说明符，因此包内转发模块保留原始声明引用；解析到其他包的相对导入会失败。`check` 模式遇到语法或语义诊断、缺失的公开类型标注、跨包私有引用，以及模型无法无损保留的可达声明合并时都会失败；`write` 模式插入类型检查器推导出的标注，并返回无诊断的 check 模式模型。NPM 依赖拥有的类型继续以 `external` 引用表示，不会被展开。
 
+带限定名称的 typeof import 值查询保留模块、限定名称和类型参数，不会为变量或函数创建 class/interface 声明。
+
 ### 生成与发布约定
 
 `FaceModelEmitter` 输出包含受支持 Zod schema 与 `TYPERT` 贡献的可执行 JavaScript，以及把 schema 通过包的公开导出标注为 `z.ZodType<SourceType>` 的声明文件；不支持的 Zod 投影会失败。含 Remote 方法的 Host face 还会额外为 Client 生成 Host Remote 约定的 `typert.remote-client.*` 投影。`WorkspaceTypertGenerator` 校验每个贡献方的 `package.json`：`./typert` 与 `./client/typert`（存在 Remote 方法时还有 `./remote`）必须指向精确的生成文件，且 `files` 清单必须包含它们。

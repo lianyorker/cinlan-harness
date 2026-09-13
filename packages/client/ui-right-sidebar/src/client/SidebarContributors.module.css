@@ -1,0 +1,15 @@
+.panel { display: flex; flex-direction: column; gap: 12px; padding: 12px; min-width: 0; }
+.browserPanel { display: flex; flex-direction: column; gap: 10px; height: 100%; min-height: 0; padding: 10px; }
+.browserToolbar, .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.button, .primaryButton { min-height: 30px; padding: 0 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 5px; background: var(--dsw-alias-fill-tertiary); color: var(--dsw-alias-label-primary); cursor: pointer; }
+.primaryButton { background: var(--dsw-alias-brand-primary); color: var(--dsw-alias-label-primary-foreground); }
+.button:disabled, .primaryButton:disabled { opacity: .55; cursor: wait; }
+.input, .select { min-height: 30px; min-width: 0; flex: 1; padding: 0 8px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 5px; background: var(--dsw-alias-fill-tertiary); color: var(--dsw-alias-label-primary); }
+.label { display: flex; flex-direction: column; gap: 5px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.output { min-height: 92px; max-height: 260px; overflow: auto; margin: 0; padding: 8px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 5px; background: var(--dsw-alias-fill-secondary); color: var(--dsw-alias-label-primary); font: 12px/1.45 var(--ds-font-family-code, monospace); white-space: pre-wrap; overflow-wrap: anywhere; }
+.muted { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.error { margin: 0; color: var(--dsw-alias-label-error); font-size: 12px; overflow-wrap: anywhere; }
+.items { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.item { display: flex; flex-direction: column; gap: 4px; padding: 9px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 5px; color: var(--dsw-alias-label-primary); font-size: 12px; overflow-wrap: anywhere; }
+.heading { margin: 2px 0 0; color: var(--dsw-alias-label-primary); font-size: 13px; }
+.frame { flex: 1; width: 100%; min-height: 180px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 5px; background: var(--dsw-alias-fill-secondary); }

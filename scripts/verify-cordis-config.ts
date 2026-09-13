@@ -10,7 +10,7 @@
  * Loader fixtures resolve from their package manifest.
  */
 
-import { globSync, readFileSync } from 'node:fs'
+import { existsSync, globSync, readFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import { Script } from 'node:vm'
 import ts from 'typescript'
@@ -61,7 +61,7 @@ if (import.meta.main) {
   const files = cordisConfigFiles(root)
 
   for (const file of files) {
-    const document = loadCordisYaml(readFileSync(resolve(root, file), 'utf8'))
+    const document = loadCordisYaml(readCordisConfigSource(file))
     if (!isUnknownArray(document)) {
       errors.push(`${file}: root must be a Loader entry array`)
       continue
@@ -160,11 +160,30 @@ function validatePresetPlaneSeparation(): string[] {
   return problems
 }
 
+/**
+ * Read one Cordis config, following a checked-out Git symlink surrogate on
+ * platforms where the link is materialized as its one-line target path.
+ * @param file - repository-relative config path.
+ * @param repoRoot - repository root used to resolve the config and target.
+ * @returns the Loader YAML source.
+ */
+export function readCordisConfigSource(file: string, repoRoot: string = root): string {
+  const sourcePath = resolve(repoRoot, file)
+  const source = readFileSync(sourcePath, 'utf8')
+  const pointer = source.trim()
+  if (pointer.includes('\n') || pointer.includes('\r') || !/^(?:\.\.?[\\/])+.*\.ya?ml$/i.test(pointer)) {
+    return source
+  }
+  const targetPath = resolve(dirname(sourcePath), pointer)
+  return existsSync(targetPath) ? readFileSync(targetPath, 'utf8') : source
+}
+
 /** Every entry of one config file, or an empty list when it is not an entry array. */
 function loadEntries(file: string): unknown[] {
-  const document = loadCordisYaml(readFileSync(resolve(root, file), 'utf8'))
+  const document = loadCordisYaml(readCordisConfigSource(file))
   return isUnknownArray(document) ? document : []
 }
+
 
 /**
  * Row ids declared anywhere in one config file, including inside group `config`

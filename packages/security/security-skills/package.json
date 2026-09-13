@@ -1,0 +1,40 @@
+{
+  "name": "@deepseek-ai/dsh-security-skills",
+  "description": "Bundled Cinlan skill provider for cyber-security, design, and browser evidence workflows",
+  "version": "0.1.5-alpha.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/security/security-skills"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "assets",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "yaml": "^2.4.2"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-skill": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-skill": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

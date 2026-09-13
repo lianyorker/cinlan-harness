@@ -1,0 +1,46 @@
+{
+  "name": "@deepseek-ai/dsh-vuln-kb",
+  "version": "0.1.5-alpha.1",
+  "type": "module",
+  "description": "Vulnerability knowledge base integration",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-vuln-kb-service": "workspace:*",
+    "@deepseek-ai/dsh-vuln-kb-nvd": "workspace:*",
+    "@deepseek-ai/dsh-tool-vuln-kb": "workspace:*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/bundle/vuln-kb"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "license": "MIT",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "files": [
+    "lib/index.js",
+    "cordis.patch.yml",
+    "lib/types/**/*.d.ts"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

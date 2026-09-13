@@ -39,9 +39,9 @@ describe('web e2e: agent-preset authoring is a host-side copy', () => {
   let tripwire: ReturnType<typeof watchConsole>
   let userRoot: string
 
-  /** The settings dialog, opened on the Agent-presets section. */
-  function settingsDialog(): Locator {
-    return page.getByRole('dialog', { name: '设置' })
+  /** The settings page, opened on the Agent-presets section. */
+  function settingsPage(): Locator {
+    return page.getByRole('region', { name: '设置' })
   }
 
   beforeAll(async () => {
@@ -71,13 +71,13 @@ describe('web e2e: agent-preset authoring is a host-side copy', () => {
   it('offers the roster with copy as the only way to create', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-preset-authoring-section'))
     await page.getByRole('button', { name: '设置', exact: true }).click()
-    const dialog = settingsDialog()
+    const dialog = settingsPage()
     await dialog.waitFor({ timeout: 10_000 })
     await dialog.getByRole('button', { name: 'Agent 预设' }).click()
     await dialog.getByRole('heading', { name: 'Agent 预设' }).waitFor({ timeout: 10_000 })
     await dialog.getByText('标准模式').first().waitFor({ timeout: 10_000 })
 
-    const snapshot = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
+    const snapshot = await captureStableAria(page, '[data-dsh-settings-page]', scaffold.workspaceCwd)
 
     await compareOrRefreshGolden(SECTION_EXPECTED, snapshot, MODE)
     // The intro states the copy path directly, and the shipped rows offer
@@ -92,7 +92,7 @@ describe('web e2e: agent-preset authoring is a host-side copy', () => {
 
   it('views a shipped composition read-only instead of editing it', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-preset-authoring-view'))
-    const dialog = settingsDialog()
+    const dialog = settingsPage()
     await dialog.getByRole('button', { name: '查看: 标准模式' }).click()
     const viewer = page.getByRole('dialog', { name: '查看 · 标准模式' })
     await viewer.waitFor({ timeout: 10_000 })
@@ -110,7 +110,7 @@ describe('web e2e: agent-preset authoring is a host-side copy', () => {
 
   it('copies 极简模式 whole under a new id and lands in its files', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-preset-authoring-copy'))
-    const dialog = settingsDialog()
+    const dialog = settingsPage()
     await dialog.getByRole('button', { name: '复制: 极简模式' }).click()
     const copyDialog = page.getByRole('dialog', { name: '复制预设 · 复制自 极简模式' })
     await copyDialog.waitFor({ timeout: 10_000 })
@@ -136,11 +136,11 @@ describe('web e2e: agent-preset authoring is a host-side copy', () => {
     // The copy dialog is detached, so the settings dialog is the only one
     // left (it names itself via aria-labelledby, which a CSS attribute
     // selector cannot address).
-    const snapshot = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd, {
+    const snapshot = await captureStableAria(page, '[data-dsh-settings-page]', scaffold.workspaceCwd, {
       replacements: [[userRoot, '{{presetRoot}}']],
     })
     await compareOrRefreshGolden(CREATED_EXPECTED, snapshot, MODE)
-    expect(snapshot).toContain('{{presetRoot}}/my-agent')
+    expect(snapshot).toMatch(/\{\{presetRoot\}\}[\\\/]my-agent/)
 
     // The host copied the whole directory and rewrote only the display
     // metadata: the composition is byte-identical to the shipped source, the
@@ -156,7 +156,7 @@ describe('web e2e: agent-preset authoring is a host-side copy', () => {
 
   it('deletes the copy after confirmation and reclaims the roster', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-preset-authoring-delete'))
-    const dialog = settingsDialog()
+    const dialog = settingsPage()
     await dialog.getByRole('button', { name: '删除: 我的模式' }).click()
     const confirm = page.getByRole('dialog', { name: '删除该预设？' })
     await confirm.waitFor({ timeout: 10_000 })
@@ -182,12 +182,12 @@ describe('web e2e: agent-preset authoring is a host-side copy', () => {
     await writeFile(join(userRoot, 'ghost', 'preset.yml'), 'name: 幽灵预设\ndescription: composition 已被手动删除。\n')
 
     // The section reads the roster when it mounts; hop away and back.
-    const dialog = settingsDialog()
+    const dialog = settingsPage()
     await dialog.getByRole('button', { name: '通用设置' }).click()
     await dialog.getByRole('button', { name: 'Agent 预设' }).click()
     await dialog.getByText('加载失败').first().waitFor({ timeout: 10_000 })
 
-    const snapshot = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd, {
+    const snapshot = await captureStableAria(page, '[data-dsh-settings-page]', scaffold.workspaceCwd, {
       replacements: [[userRoot, '{{presetRoot}}']],
     })
     await compareOrRefreshGolden(DAMAGED_EXPECTED, snapshot, MODE)
@@ -235,10 +235,10 @@ describe('web e2e: agent-preset authoring is a host-side copy', () => {
     // Without a workspace the flow only stages (there is no session to land
     // in until one is connected); connect first so the gesture carries all
     // the way to a composed host session.
-    await settingsDialog().getByRole('button', { name: '关闭' }).last().click()
+    await settingsPage().getByRole('button', { name: '返回应用', exact: true }).click()
     await connectFreshWorkspaceZh(page, scaffold.workspaceCwd)
     await page.getByRole('button', { name: '设置', exact: true }).click()
-    const dialog = settingsDialog()
+    const dialog = settingsPage()
     await dialog.waitFor({ timeout: 10_000 })
     await dialog.getByRole('button', { name: 'Agent 预设' }).click()
     await dialog.getByRole('button', { name: '用「创造模式」创作自定义预设' }).click()

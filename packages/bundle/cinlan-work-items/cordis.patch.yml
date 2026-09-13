@@ -1,0 +1,18 @@
+# Apply after dsh-base and dsh-web-app. Providers stay unavailable until scoped.
+- insert:
+    - id: work-items
+      name: '@deepseek-ai/dsh-work-items'
+    - id: work-items-github
+      name: '@deepseek-ai/dsh-work-items-github'
+      config:
+        allowWrites: false
+    - id: work-items-linear
+      name: '@deepseek-ai/dsh-work-items-linear'
+      config:
+        allowWrites: false
+    - id: tool-work-items
+      name: '@deepseek-ai/dsh-tool-work-items'
+    - id: work-items-controller
+      name: '@deepseek-ai/dsh-api-work-items-controller'
+    - id: ui-work-items
+      name: '@deepseek-ai/dsh-client-ui-work-items'

@@ -29,7 +29,7 @@ Mount `dsh-tools` wherever agents call tools: it provides `ctx.tools`, the regis
 
 ### Register a tool
 
-`defineTool` builds a typed tool definition: a model-facing name, description, and parameter schema, a canonical output declaration, and an `execute` body that returns only the declared JSON value. Model arguments are validated before execution; invalid input becomes a normal error result.
+`defineTool` builds a typed tool definition: a model-facing name, description, and parameter schema, a canonical output declaration, and an `execute` body that returns only the declared JSON value. Model arguments are validated before execution; invalid input becomes a normal error result. A Consumer that already injects the registry may call `ctx.tools.define(options)` for the same compiler and then register its return value, without taking a runtime module import.
 
 ```ts
 import { readFile } from 'node:fs/promises'

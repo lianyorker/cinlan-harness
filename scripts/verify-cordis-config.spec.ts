@@ -14,7 +14,30 @@ import {
   metadataExpressionErrors,
   packageTestFixtureDependencyErrors,
   packageTestPluginDependencyErrors,
+  readCordisConfigSource,
 } from './verify-cordis-config.ts'
+
+describe('Cordis config source loading', () => {
+  it('follows a one-line Git symlink surrogate without reinterpreting ordinary YAML', () => {
+    const fixture = mkdtempSync(join(tmpdir(), 'dsh-cordis-source-'))
+    try {
+      const configDir = join(fixture, 'profiles/acp')
+      const targetDir = join(fixture, 'snapshots/acp')
+      mkdirSync(configDir, { recursive: true })
+      mkdirSync(targetDir, { recursive: true })
+      writeFileSync(join(targetDir, 'cordis.yml'), '- id: acp\n  name: pkg\n')
+      writeFileSync(join(configDir, 'cordis.yml'), '../../snapshots/acp/cordis.yml\n')
+      writeFileSync(join(configDir, 'ordinary.yml'), 'plain-scalar\n')
+      writeFileSync(join(configDir, 'missing.yml'), '../missing.yml\n')
+
+      expect(readCordisConfigSource('profiles/acp/cordis.yml', fixture)).toBe('- id: acp\n  name: pkg\n')
+      expect(readCordisConfigSource('profiles/acp/ordinary.yml', fixture)).toBe('plain-scalar\n')
+      expect(readCordisConfigSource('profiles/acp/missing.yml', fixture)).toBe('../missing.yml\n')
+    } finally {
+      rmSync(fixture, { recursive: true, force: true })
+    }
+  })
+})
 
 describe('verify-cordis-config metadata expressions', () => {
   it('accepts a disabled !!js expression', () => {

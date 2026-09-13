@@ -1,0 +1,21 @@
+- heading "设计" [level=2]
+- paragraph: Design Studio 文档、预览与设计方法。
+- heading "Design Studio 能力" [level=3]
+- status: 未加载
+- paragraph: 安装后，Harness 可以创建、读取、预览和导出设计文档。
+- paragraph: Design Studio 的独立安装与替换方案尚未确认。本页仅提供能力说明，不会安装或覆盖现有设计工具。
+- button "重新检查":
+  - img
+  - text: 重新检查
+- heading "如何使用" [level=3]
+- paragraph: 在 Cinlan Harness 中使用 Design Studio 文档工作流。
+- article:
+  - heading "创建设计文档" [level=4]
+  - paragraph: 创建 HTML、SVG 或 Markdown 设计文档。
+- article:
+  - heading "预览设计" [level=4]
+  - paragraph: 在导出前渲染并检查设计文档。
+- article:
+  - heading "导出设计" [level=4]
+  - paragraph: 将设计文档导出为 Provider 支持的格式。
+- group: Host 组件 · 0

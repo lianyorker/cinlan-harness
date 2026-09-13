@@ -26,6 +26,9 @@ kind: "package-group"
 
 | 包 | 职责 | ctx key |
 |---|---|---|
+| [`device-capabilities-controller`](device-capabilities-controller/README.zh.md) | 只读设备 Provider 就绪探测 | `ctx.deviceCapabilitiesController` / `ctx.remote.deviceCapabilities` |
+| [`browser-controller/`](browser-controller/README.zh.md) | 原生浏览器人工导航、Cookie 导入与文件传输 | `ctx.browserController` / `ctx.remote.browser` |
+| [`work-items-controller/`](work-items-controller/README.zh.md) | Work Items 读取、本地关联和经确认的写入 | `ctx.workItemsController` / `ctx.remote.workItems` |
 | [`remotes/`](remotes/README.zh.md) | 决定 Client 可以消费哪些 Host 能力与事件。 | — |
 | [`gateway/`](gateway/README.zh.md) | 承载带类型的单次调用、多路复用 stream 与转发的 Host 事件。 | `ctx.typertGateway` / `ctx.remote` |
 | [`session-controller/`](session-controller/README.zh.md) | 拥有 Session 命令、历史 stream、实时控制状态与 Agent/Session 身份策略。 | `ctx.sessionController` / `ctx.remote.session` |

@@ -24,9 +24,13 @@ describe('generated tsconfig package aliases', () => {
     })
     // Sorted, so a package added anywhere lands in a stable spot in the diff.
     expect([...aliases].sort((a, b) => a.specifier.localeCompare(b.specifier))).toEqual(aliases)
-    // Only packages named after their directory: the rest carry hand-written
-    // aliases, because the removed wildcards could never have resolved them.
-    expect(aliases.some(alias => alias.specifier === '@deepseek-ai/dsh-typert-protocol')).toBe(false)
+    // Packages named differently from their directory keep hand-written bare
+    // aliases but still participate in generated source-subpath aliases.
+    expect(aliases.find(alias => alias.specifier === '@deepseek-ai/dsh-typert-protocol')).toEqual({
+      specifier: '@deepseek-ai/dsh-typert-protocol',
+      source: './packages/typert/protocol/src',
+      hasInvariant: false,
+    })
   })
 
   it('yields to a hand-written alias and closes without a trailing comma', () => {
@@ -38,8 +42,10 @@ describe('generated tsconfig package aliases', () => {
 
     // The hand-written bare alias is skipped; its /invariant sibling is not.
     expect(body).toBe([
+      '      "@deepseek-ai/dsh-a/src/*": ["./packages/g/a/src/*"]',
       '      "@deepseek-ai/dsh-a/invariant": ["./packages/g/a/src/invariant.ts"]',
       '      "@deepseek-ai/dsh-b": ["./packages/g/b/src"]',
+      '      "@deepseek-ai/dsh-b/src/*": ["./packages/g/b/src/*"]',
     ].join(',\n'))
     expect(body.endsWith(',')).toBe(false)
   })

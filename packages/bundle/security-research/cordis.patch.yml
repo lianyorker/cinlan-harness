@@ -1,0 +1,65 @@
+# Security Research capability layer. Assessment actions remain denied until
+# the profile owner adds authorized targets and actions in a later patch.
+- insert:
+    - id: security-research-presets
+      name: '@deepseek-ai/dsh-security-research'
+
+    # Runtime invariant registry backing the assessment-scope and finding
+    # companions below; base compositions do not mount it, so this layer owns it.
+    - id: invariants
+      name: '@deepseek-ai/dsh-invariants'
+
+    - id: execution-host-local
+      name: '@deepseek-ai/dsh-execution-host-local'
+
+    - id: artifact-local
+      name: '@deepseek-ai/dsh-artifact-local'
+
+    - id: assessment-scope
+      name: '@deepseek-ai/dsh-assessment-scope-settings'
+      config:
+        root:
+          engagementId: security-research
+          grantId: security-research-root
+          authorizationRef: security-research-profile
+          notBefore: 0
+          expiresAt: 9007199254740991
+          executionHostIds: []
+          targets: []
+          excludedTargetIds: []
+          actions: []
+          approvalRequiredActions: []
+          egress: []
+          credentials: []
+          evidence:
+            retainUntil: 9007199254740991
+            minimumRedaction: sensitive
+            externalReporting: deny
+
+    - id: assessment-scope-session
+      name: '@deepseek-ai/dsh-assessment-scope-session'
+    - id: assessment-scope-tool-policy
+      name: '@deepseek-ai/dsh-assessment-scope-tool-policy'
+
+    - id: assessment-scope-invariant
+      name: '@deepseek-ai/dsh-assessment-scope/invariant'
+
+    - id: finding-session
+      name: '@deepseek-ai/dsh-finding-session'
+    - id: finding-invariant
+      name: '@deepseek-ai/dsh-finding/invariant'
+
+    - id: vuln-kb
+      name: '@deepseek-ai/dsh-vuln-kb-service'
+    - id: vuln-kb-nvd
+      name: '@deepseek-ai/dsh-vuln-kb-nvd'
+    - id: tool-vuln-kb
+      name: '@deepseek-ai/dsh-tool-vuln-kb'
+
+    - id: security-skills
+      name: '@deepseek-ai/dsh-security-skills'
+    - id: security-workflow-prompt
+      name: '@deepseek-ai/dsh-security-workflow-prompt'
+
+    - id: tool-finding
+      name: '@deepseek-ai/dsh-tool-finding'

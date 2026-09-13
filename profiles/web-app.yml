@@ -1,0 +1,7 @@
+# Web Application Profile
+# 使用 web-app bundle 启动完整的 Web 应用
+
+name: web-app
+
+patch:
+  - '@deepseek-ai/dsh-web-app'

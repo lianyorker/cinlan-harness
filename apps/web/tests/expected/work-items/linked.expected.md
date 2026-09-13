@@ -1,0 +1,47 @@
+- region "工作项":
+  - heading "工作项" [level=2]
+  - paragraph: 查看 GitHub 和 Linear 工单、管理本地关联，并通过预览确认外部修改。
+  - text: 来源
+  - combobox "来源":
+    - option "GitHub" [selected]
+    - option "Linear"
+  - text: 状态
+  - combobox "状态":
+    - option "未关闭" [selected]
+    - option "已关闭"
+    - option "全部"
+  - text: 工作区范围
+  - combobox "工作区范围":
+    - option "所有工作区关联"
+    - option "Work Items fixture workspace" [selected]
+  - text: 搜索标题或描述
+  - textbox "搜索标题或描述"
+  - button "刷新"
+  - group: 修改外部工单
+  - list "工作项":
+    - listitem:
+      - button "#7 · Native Work Items fixture github · open"
+  - button "上一页" [disabled]
+  - button "下一页" [disabled]
+  - article:
+    - heading "Native Work Items fixture" [level=3]
+    - paragraph: Local association fixture.
+    - term: 来源
+    - definition: github
+    - term: 状态
+    - definition: open
+    - term: 打开来源
+    - definition:
+      - link "https://github.com/native-fixture/repository/issues/7":
+        - /url: https://github.com/native-fixture/repository/issues/7
+    - text: bug
+    - heading "关联工作区" [level=4]
+    - list:
+      - listitem:
+        - text: Work Items fixture workspace
+        - button "取消关联"
+    - text: 关联会话
+    - combobox "关联会话":
+      - option "仅关联工作区" [selected]
+      - option "session-{{uuid}}"
+    - button "关联"

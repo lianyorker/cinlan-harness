@@ -36,6 +36,7 @@ export interface ISessions {
     workspaceId?: WorkspaceId
     cwd?: string
     sessionId?: SessionId
+    isolate?: boolean
   }): Promise<SessionId>
   /**
    * Select a session as current.

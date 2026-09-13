@@ -1,0 +1,447 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: 960px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.intro {
+  min-width: 0;
+}
+
+.intro h2,
+.intro p,
+.loading,
+.empty,
+.notice,
+.inlineLoading,
+.changeSection p,
+.warning {
+  margin: 0;
+}
+
+.intro h2 {
+  font-size: 22px;
+  line-height: 30px;
+}
+
+.intro p {
+  max-width: 620px;
+  margin-top: 5px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.toolbar,
+.actions,
+.reviewActions,
+.badges,
+.divergence {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar {
+  justify-content: flex-end;
+  flex: none;
+}
+
+.localTag {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.metric strong {
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.metric span {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.loading,
+.empty {
+  border: 1px dashed var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  padding: 22px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.error,
+.notice {
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.notice {
+  border: 1px solid var(--dsw-alias-state-success-primary);
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  min-width: 0;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--dsw-alias-bg-layer-3);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.identity code,
+.details code,
+.reviewMetrics code,
+.changeList code,
+.commitList code {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionLabel {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.badges {
+  justify-content: flex-end;
+}
+
+.phaseActive,
+.phaseHibernated,
+.reviewBadge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 6px;
+  border-radius: 999px;
+  corner-shape: round;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.phaseActive {
+  background: var(--dsw-alias-state-business-tertiary);
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.phaseHibernated {
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.reviewBadge {
+  border: 1px solid var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.phaseDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: currentcolor;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 14px 0 0;
+}
+
+.details div {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+
+.details dt,
+.reviewMetrics dt {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.details dd {
+  overflow: hidden;
+  min-width: 0;
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.details time {
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+}
+
+.actions {
+  justify-content: flex-end;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.destructive {
+  border-color: var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.reviewPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+  padding-top: 14px;
+}
+
+.inlineLoading {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.reviewMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.reviewMetrics div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.reviewMetrics dd {
+  overflow: hidden;
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reviewActions {
+  justify-content: flex-start;
+}
+
+.comparison {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.divergence span {
+  border-radius: 999px;
+  corner-shape: round;
+  padding: 3px 8px;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.warning {
+  border-left: 3px solid var(--dsw-alias-state-error-primary);
+  padding-left: 9px;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.changeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.changeSection h3,
+.patchTitle {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.changeSection p {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.changeList,
+.commitList {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.changeList li,
+.commitList li {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.commitList li {
+  grid-template-columns: 100px minmax(0, 1fr);
+}
+
+.changeList li > span,
+.commitList li > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patch {
+  overflow: auto;
+  max-height: 360px;
+  margin: 0;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 7px;
+  padding: 10px;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  line-height: 17px;
+  white-space: pre;
+}
+
+@media (max-width: 760px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .toolbar,
+  .actions,
+  .reviewActions {
+    justify-content: flex-start;
+  }
+
+  .summary,
+  .reviewMetrics {
+    grid-template-columns: 1fr;
+  }
+
+  .details div {
+    grid-template-columns: 1fr;
+    gap: 1px;
+  }
+
+  .details dd {
+    text-align: left;
+  }
+
+  .changeList li,
+  .commitList li {
+    grid-template-columns: 1fr;
+    gap: 1px;
+  }
+}

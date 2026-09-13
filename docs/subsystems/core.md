@@ -409,6 +409,10 @@ type Branded<B extends string> = string & { readonly [BRAND]: B }
 
 The two core IDs are `ToolCallId` (correlates a tool call with its result; dsh-llm) and `SessionId` (the shared live agent and durable session identity; dsh-session). Capability packages brand their own ids too, such as `JobId` in [jobs.md](jobs.md).
 
+## Plugin-contributed presets
+
+Installed plugins can contribute a read-only preset directory through `AgentPresets.registerSystemRoot(path)`. Discovery includes the directory only for the registering plugin's lifetime and gives shipped and explicitly configured roots precedence. Withdrawal leaves files and joined compositions intact. The [preset package](../../packages/preset/agent-presets/README.md) owns discovery and authoring details.
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>

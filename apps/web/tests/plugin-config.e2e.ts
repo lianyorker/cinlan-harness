@@ -19,6 +19,8 @@ import { ZH_BROWSER_LOCALE, saveFailureShot } from './support.ts'
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/plugin-config', import.meta.url))
 const SECTION_EXPECTED = join(SNAPSHOT_DIR, 'section.expected.md')
 const MODE = webSnapshotMode()
+// The Windows profile uses the PowerShell default; the POSIX profile overrides Bash.
+const COMPOSED_TERMINAL_TIMEOUT = process.platform === 'win32' ? '120000' : '60000'
 
 describe('web e2e: plugin configuration section', () => {
   let scaffold: WebScaffold
@@ -49,17 +51,17 @@ describe('web e2e: plugin configuration section', () => {
    * swallow the trigger click.
    */
   async function openPlugins() {
-    if (await page.getByRole('dialog', { name: '设置' }).count() > 0) {
+    if (await page.getByRole('region', { name: '设置' }).count() > 0) {
       await page.keyboard.press('Escape')
-      await expect.poll(() => page.getByRole('dialog', { name: '设置' }).count(), { timeout: 5_000 }).toBe(0)
+      await expect.poll(() => page.getByRole('region', { name: '设置' }).count(), { timeout: 5_000 }).toBe(0)
     }
     await page.getByRole('button', { name: '设置', exact: true }).click()
-    const dialog = page.getByRole('dialog', { name: '设置' })
+    const dialog = page.getByRole('region', { name: '设置' })
     await dialog.waitFor({ timeout: 10_000 })
     await dialog.getByRole('button', { name: '插件', exact: true }).click()
     await expect
       .poll(() => dialog.getByRole('button', { name: '插件', exact: true }).getAttribute('aria-current'), { timeout: 5_000 })
-      .toBe('true')
+      .toBe('page')
     await expect
       .poll(() => dialog.getByRole('tab', { name: '插件配置', exact: true }).getAttribute('aria-selected'), { timeout: 5_000 })
       .toBe('true')
@@ -85,7 +87,7 @@ describe('web e2e: plugin configuration section', () => {
     // Collapsed: a card's fields appear only once it is expanded.
     expect(await dialog.getByLabel('命令超时（毫秒）').count()).toBe(0)
 
-    const snapshot = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
+    const snapshot = await captureStableAria(page, '[data-dsh-settings-page]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(SECTION_EXPECTED, snapshot, MODE)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
@@ -137,7 +139,7 @@ describe('web e2e: plugin configuration section', () => {
     const timeout = dialog.getByLabel('命令超时（毫秒）')
     await timeout.waitFor({ timeout: 10_000 })
     // The composed default this deployment ships, before any user layer.
-    expect(await timeout.inputValue()).toBe('60000')
+    expect(await timeout.inputValue()).toBe(COMPOSED_TERMINAL_TIMEOUT)
     await timeout.fill('12000')
     await timeout.blur()
 
@@ -204,7 +206,7 @@ describe('web e2e: plugin configuration section', () => {
     // The reset stages the composed default; the document still carries the
     // override until the save lands.
     await dialog.getByRole('button', { name: '恢复默认' }).click()
-    await expect.poll(() => timeout.inputValue(), { timeout: 5_000 }).toBe('60000')
+    await expect.poll(() => timeout.inputValue(), { timeout: 5_000 }).toBe(COMPOSED_TERMINAL_TIMEOUT)
     expect(await settingsDocument()).toContain('timeoutMs: 12000')
 
     await dialog.getByRole('button', { name: '保存', exact: true }).click()
@@ -214,7 +216,7 @@ describe('web e2e: plugin configuration section', () => {
     const expandTerminal = dialog.getByRole('button', { name: '展开设置: 终端' })
     await expandTerminal.waitFor({ timeout: 5_000 })
     await expandTerminal.click()
-    expect(await timeout.inputValue()).toBe('60000')
+    expect(await timeout.inputValue()).toBe(COMPOSED_TERMINAL_TIMEOUT)
     expect(await dialog.getByText('已覆盖').count()).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
