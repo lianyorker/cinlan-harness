@@ -18,6 +18,9 @@
       "path": "../../core/tools"
     },
     {
+      "path": "../assessment-scope"
+    },
+    {
       "path": "../assessment-scope-session"
     },
     {

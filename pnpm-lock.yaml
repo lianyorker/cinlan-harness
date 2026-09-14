@@ -1076,6 +1076,9 @@ importers:
       '@deepseek-ai/dsh-finding':
         specifier: workspace:^
         version: link:../../security/finding
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
       '@deepseek-ai/dsh-skill':
         specifier: workspace:^
         version: link:../../skill/skill
@@ -9486,6 +9489,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-assessment-scope':
+        specifier: workspace:^
+        version: link:../assessment-scope
       '@deepseek-ai/dsh-assessment-scope-session':
         specifier: workspace:^
         version: link:../assessment-scope-session

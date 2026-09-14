@@ -26,12 +26,14 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/dsh-assessment-scope": "workspace:^",
     "@deepseek-ai/dsh-assessment-scope-session": "workspace:^",
     "@deepseek-ai/dsh-execution-host": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/dsh-assessment-scope": "workspace:^",
     "@deepseek-ai/dsh-assessment-scope-session": "workspace:^",
     "@deepseek-ai/dsh-execution-host": "workspace:^",
     "@deepseek-ai/dsh-browser": "workspace:^"

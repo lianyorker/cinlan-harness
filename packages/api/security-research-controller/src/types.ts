@@ -1,5 +1,7 @@
 /** Browser-safe Security Research status returned by the Host Remote. */
 
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+
 /** Security Research components that the current Host composition can provide. */
 export interface SecurityResearchComponents {
   readonly assessmentScope: boolean
@@ -43,7 +45,7 @@ export interface SecurityResearchSnapshot {
 
 /** Session identity and output format for a user-triggered report export. */
 export interface SecurityResearchReportRequest {
-  readonly sessionId: import('@deepseek-ai/dsh-session/types').SessionId
+  readonly sessionId: SessionId
   readonly format: 'json' | 'markdown' | 'sarif'
 }
 /** Report bytes include verbatim Finding metadata and Artifact references, not Artifact contents. */
@@ -89,10 +91,10 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     /** No durable Session checkpoint completed. */
     'security-research/report-storage': Record<string, never>
     /** Requested report Session is not live. */
-    'security-research/session-not-live': { readonly sessionId: import('@deepseek-ai/dsh-session/types').SessionId }
+    'security-research/session-not-live': { readonly sessionId: SessionId }
     /** Report export requires a live Session assessment scope binding. */
-    'security-research/scope-required': { readonly sessionId: import('@deepseek-ai/dsh-session/types').SessionId }
+    'security-research/scope-required': { readonly sessionId: SessionId }
     /** Report export was refused by the assessment scope decision. */
-    'security-research/export-not-authorized': { readonly sessionId: import('@deepseek-ai/dsh-session/types').SessionId; readonly code: string }
+    'security-research/export-not-authorized': { readonly sessionId: SessionId; readonly code: string }
   }
 }

@@ -58,7 +58,8 @@
     "@deepseek-ai/dsh-skill": "workspace:^",
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",
     "@deepseek-ai/dsh-assessment-scope-session": "workspace:^",
-    "@deepseek-ai/dsh-execution-host": "workspace:^"
+    "@deepseek-ai/dsh-execution-host": "workspace:^",
+    "@deepseek-ai/dsh-session": "workspace:^"
   },
   "dependencies": {
     "zod": "^4.4.3",
