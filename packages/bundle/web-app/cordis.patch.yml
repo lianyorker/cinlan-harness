@@ -378,6 +378,10 @@
     - id: ui-integrations
       name: '@deepseek-ai/dsh-client-ui-integrations'
 
+    # Git and source control settings: branch prefix, keep local main, group order, attribution.
+    - id: ui-git-settings
+      name: '@deepseek-ai/dsh-client-ui-git-settings'
+
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #
 # Every row below composes what ONE agent contributes to the host registries:

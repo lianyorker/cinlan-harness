@@ -203,35 +203,35 @@ Git 设置页面中的部分功能依赖集成状态：
 
 ## 4. 实施阶段
 
-### 阶段 1：基础框架和分支前缀（2 天）
-- 创建 `ui-git-settings` 包
-- 注册 `settings.section` 插槽
-- 实现 GitSettingsSection 容器
-- 实现 BranchPrefixSetting
-- 添加本地化文本
+### 阶段 1：基础框架和分支前缀 ✅
+- ✅ 创建 `ui-git-settings` 包（package.json, tsconfig.json, tsdown.config.ts）
+- ✅ 注册 `settings.section` 插槽（id: `git-source-control`, order: 36）
+- ✅ 实现 GitSettingsSection 容器
+- ✅ 实现 BranchPrefixSetting（三选一 + 自定义输入 + 预览）
+- ✅ 添加本地化文本（中英文）
 
-### 阶段 2：基础 Git 设置（2 天）
-- 实现 KeepLocalMainSetting
-- 实现 GroupOrderSetting
-- 实现 CompareUpstreamSetting
-- 实现 AttributionSetting
+### 阶段 2：基础 Git 设置 ✅
+- ✅ 实现 KeepLocalMainSetting（开关）
+- ✅ 实现 GroupOrderSetting（分段控件）
+- ✅ 实现 CompareUpstreamSetting（开关）
+- ✅ 实现 AttributionSetting（开关 + 关键词提示）
 
-### 阶段 3：AI 相关设置（2-3 天）
-- 实现 AutoRenameBranchSetting
-- 实现 CommitMessageAiSetting
-- 添加后端 AI 设置存储
-- 实现异步设置写入
+### 阶段 3：AI 相关设置（待实施）
+- ⏳ 实现 AutoRenameBranchSetting
+- ⏳ 实现 CommitMessageAiSetting
+- ⏳ 添加后端 AI 设置存储
+- ⏳ 实现异步设置写入
 
-### 阶段 4：API 预算显示（1-2 天）
-- 实现 ApiBudgetDisplay
-- 连接集成状态
-- 显示 GitHub/GitLab API 速率限制
+### 阶段 4：API 预算显示（待实施）
+- ⏳ 实现 ApiBudgetDisplay
+- ⏳ 连接集成状态
+- ⏳ 显示 GitHub/GitLab API 速率限制
 
-### 阶段 5：侧边栏清理和测试（1-2 天）
-- 清理侧边栏中的 Git 配置项
-- 添加设置页面链接
-- 编写单元测试
-- 端到端验证
+### 阶段 5：侧边栏清理和测试 ✅
+- ✅ 侧边栏卡片中无 Git 配置项，无需清理（SideCardSection 只管理 tab/viewer）
+- ✅ 编写单元测试（4 项全部通过）
+- ✅ typecheck + build 通过
+- ✅ web 服务器验证启动
 
 ## 5. 依赖项
 

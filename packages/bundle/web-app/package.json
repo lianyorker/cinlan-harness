@@ -88,6 +88,7 @@
     "@deepseek-ai/dsh-client-ui-settings-plugins": "workspace:^",
     "@deepseek-ai/dsh-client-ui-orchestration": "workspace:^",
     "@deepseek-ai/dsh-client-ui-integrations": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-git-settings": "workspace:^",
     "@deepseek-ai/dsh-client-ui-sidebar": "workspace:^",
     "@deepseek-ai/dsh-client-ui-sidebar-files": "workspace:^",
     "@deepseek-ai/dsh-client-ui-sidebar-right": "workspace:^",
