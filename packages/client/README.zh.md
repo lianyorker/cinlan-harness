@@ -38,6 +38,7 @@ kind: "package-group"
 | [`ui-slots/`](ui-slots/README.zh.md) | 定义 UI 功能注册与组合扩展 slot 的方式 | — |
 | [`ui-session/`](ui-session/README.zh.md) | 把 Session Controller 状态适配为标准 Slot source 与 hook | — |
 | [`ui-theme/`](ui-theme/README.zh.md) | 应用所选颜色主题 | — |
+| [`ui-notifications/`](ui-notifications/README.zh.md) | 提供通知设置与浏览器通知投递 | — |
 | [`ui-primitives/`](ui-primitives/README.zh.md) | 提供共享 React 控件、图标与内容渲染器 | — |
 | [`ui-attachment/`](ui-attachment/README.zh.md) | 注册输入框与消息图片的附件呈现 | — |
 | [`ui-layout/`](ui-layout/README.zh.md) | 排列应用的主要区域 | — |
