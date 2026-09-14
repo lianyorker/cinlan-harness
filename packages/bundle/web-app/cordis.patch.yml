@@ -55,6 +55,10 @@
       config:
         maxNoteBytes: 8192
 
+    # Host settings namespace and browser system-notification preferences.
+    - id: notifications
+      name: '@deepseek-ai/dsh-notifications'
+
     # Browser Session export: `/export` command plus the shared download dialog.
     - id: session-log-download
       name: '@deepseek-ai/dsh-session-log-export'
@@ -200,6 +204,9 @@
 
     - id: ui-theme
       name: '@deepseek-ai/dsh-client-ui-theme'
+
+    - id: ui-notifications
+      name: '@deepseek-ai/dsh-client-ui-notifications'
 
     - id: locale
       name: '@deepseek-ai/dsh-client-locale'
