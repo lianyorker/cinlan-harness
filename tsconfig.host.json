@@ -403,6 +403,7 @@
     { "path": "./packages/lsp/tool-lsp" },
     { "path": "./packages/api/work-items-controller" },
     { "path": "./packages/api/browser-controller" },
+    { "path": "./packages/api/integration-preflight-controller" },
     { "path": "./packages/work-items/work-items" },
     { "path": "./packages/work-items/work-items-github" },
     { "path": "./packages/work-items/work-items-linear" },

@@ -931,6 +931,19 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
+  packages/api/integration-preflight-controller:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+
   packages/api/remotes:
     dependencies:
       '@deepseek-ai/dsh-deque':
@@ -961,6 +974,9 @@ importers:
       '@deepseek-ai/dsh-api-gateway':
         specifier: workspace:^
         version: link:../gateway
+      '@deepseek-ai/dsh-api-integration-preflight-controller':
+        specifier: workspace:^
+        version: link:../integration-preflight-controller
       '@deepseek-ai/dsh-api-security-research-controller':
         specifier: workspace:^
         version: link:../security-research-controller
@@ -2511,6 +2527,9 @@ importers:
       '@deepseek-ai/dsh-api-device-capabilities-controller':
         specifier: workspace:^
         version: link:../../api/device-capabilities-controller
+      '@deepseek-ai/dsh-api-integration-preflight-controller':
+        specifier: workspace:^
+        version: link:../../api/integration-preflight-controller
       '@deepseek-ai/dsh-api-remotes':
         specifier: workspace:^
         version: link:../../api/remotes
@@ -2601,6 +2620,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-input-trigger':
         specifier: workspace:^
         version: link:../../client/ui-input-trigger
+      '@deepseek-ai/dsh-client-ui-integrations':
+        specifier: workspace:^
+        version: link:../../client/ui-integrations
       '@deepseek-ai/dsh-client-ui-jobs':
         specifier: workspace:^
         version: link:../../client/ui-jobs
@@ -2619,6 +2641,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-open-in-app':
         specifier: workspace:^
         version: link:../../client/ui-open-in-app
+      '@deepseek-ai/dsh-client-ui-orchestration':
+        specifier: workspace:^
+        version: link:../../client/ui-orchestration
       '@deepseek-ai/dsh-client-ui-permission-presets':
         specifier: workspace:^
         version: link:../../client/ui-permission-presets
@@ -3950,6 +3975,42 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.3.1
+
+  packages/client/ui-integrations:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@deepseek-ai/dsh-client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@deepseek-ai/dsh-client-test-runtime':
+        specifier: workspace:^
+        version: link:../../test-support/client-runtime
+      '@deepseek-ai/dsh-client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@deepseek-ai/dsh-client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@deepseek-ai/dsh-client-ui-settings':
+        specifier: workspace:^
+        version: link:../ui-settings
+      '@deepseek-ai/dsh-client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
 
   packages/client/ui-jobs:
     devDependencies:

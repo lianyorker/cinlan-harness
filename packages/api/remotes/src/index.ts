@@ -33,6 +33,7 @@ export type {} from '@deepseek-ai/dsh-api-terminal-controller/types'
 export type {} from '@deepseek-ai/dsh-api-security-research-controller/types'
 export type {} from '@deepseek-ai/dsh-api-work-items-controller/types'
 export type {} from '@deepseek-ai/dsh-api-browser-controller/types'
+export type {} from '@deepseek-ai/dsh-api-integration-preflight-controller/types'
 
 export { API_REMOTE_FORWARDED_EVENTS } from './remote-events.ts'
 export type { ApiRemoteForwardedEvent } from './types.ts'

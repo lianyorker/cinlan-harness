@@ -91,6 +91,7 @@
     "@deepseek-ai/dsh-api-device-capabilities-controller": "workspace:^",
     "@deepseek-ai/dsh-api-security-research-controller": "workspace:^",
     "@deepseek-ai/dsh-api-work-items-controller": "workspace:^",
-    "@deepseek-ai/dsh-api-browser-controller": "workspace:^"
+    "@deepseek-ai/dsh-api-browser-controller": "workspace:^",
+    "@deepseek-ai/dsh-api-integration-preflight-controller": "workspace:^"
   }
 }

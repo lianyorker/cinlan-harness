@@ -86,6 +86,8 @@
     "@deepseek-ai/dsh-client-ui-settings-plugin-inventory": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings-security": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings-plugins": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-orchestration": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-integrations": "workspace:^",
     "@deepseek-ai/dsh-client-ui-sidebar": "workspace:^",
     "@deepseek-ai/dsh-client-ui-sidebar-files": "workspace:^",
     "@deepseek-ai/dsh-client-ui-sidebar-right": "workspace:^",
@@ -136,6 +138,7 @@
     "open": "^11.0.0",
     "@deepseek-ai/dsh-api-device-capabilities-controller": "workspace:^",
     "@deepseek-ai/dsh-api-security-research-controller": "workspace:^",
+    "@deepseek-ai/dsh-api-integration-preflight-controller": "workspace:^",
     "@deepseek-ai/dsh-client-ui-voice-dictation": "workspace:^",
     "@deepseek-ai/dsh-voice": "workspace:^",
     "@deepseek-ai/dsh-voice-sherpa-onnx": "workspace:^"

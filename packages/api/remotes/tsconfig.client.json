@@ -100,6 +100,9 @@
     },
     {
       "path": "../browser-controller"
+    },
+    {
+      "path": "../integration-preflight-controller"
     }
   ]
 }

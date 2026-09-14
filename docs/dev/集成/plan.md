@@ -189,39 +189,33 @@ ctx.slots.inject('settings.section', () => ctx.slots.register({
 
 ## 4. 实施阶段
 
-### 阶段 1：后端 Preflight 检查（2-3 天）
-- 新建 Preflight 检查服务
-- 实现 CLI 安装检测
-- 实现 CLI 认证检测
-- 实现 Token 配置检测
-- 添加 Remote API
+### 阶段 1：后端 Preflight 检查 ✅ 已完成
+- ✅ 新建 `@deepseek-ai/dsh-api-integration-preflight-controller` 包
+- ✅ 实现 CLI 安装检测（`gh` / `glab`，通过 `node:child_process.execFile`）
+- ✅ 实现 CLI 认证检测（`gh auth status` / `glab auth status`）
+- ✅ 实现 Token 配置检测（`GITEE_TOKEN` 环境变量 + Gitee API `/api/v5/user` 验证）
+- ✅ 添加 Remote API（`@Remote('check')` 方法，返回 `IntegrationPreflightSnapshot`）
+- ✅ 在 `api/remotes` 中注册 Remote contribution（client + host 两侧）
+- ✅ 在 `web-app` bundle 的 `cordis.patch.yml` 中注册 host-side controller
+- ✅ 编写主机测试（3 个测试用例：GITEE_TOKEN 未设置、取消传播、快照返回）
 
-### 阶段 2：集成设置 UI（2-3 天）
-- 创建 `ui-integrations` 包
-- 注册 `settings.section` 插槽
-- 实现 IntegrationsSection 容器
-- 实现通用 IntegrationCard 组件
-- 添加本地化文本
+### 阶段 2：集成设置 UI ✅ 已完成
+- ✅ 创建 `@deepseek-ai/dsh-client-ui-integrations` 包
+- ✅ 注册 `settings.section` 插槽（id: `integrations`, order: 40）
+- ✅ 实现 `IntegrationsSection` 容器组件（三合一卡片列表 + 全局刷新）
+- ✅ 实现通用 `IntegrationCard` 逻辑（内联于 `IntegrationsSection.tsx`，按 provider 渲染状态徽章和引导）
+- ✅ 添加中英本地化（`locales.ts`，27 个文本键）
+- ✅ 注册 `settings.section.icon` 插槽（`IconLinkOutline16`）
+- ✅ 在 `tsconfig.client.json` 添加 reference
+- ✅ 在 `web-app` bundle 的 `cordis.patch.yml` 和 `package.json` 中注册
+- ✅ 编写客户端测试（4 个测试用例：注册验证、Remote 调用、错误传播）
 
-### 阶段 3：GitHub 卡片（1-2 天）
-- 实现 GitHubIntegrationCard
-- 连接 Preflight API
-- 显示安装/认证引导
-- 实现刷新逻辑
+### 阶段 3-5：GitHub / GitLab / Gitee 卡片 ✅ 已合并到阶段 2
+- 三个卡片已统一在 `IntegrationsSection.tsx` 中实现，按 `IntegrationProvider` 分支渲染
+- GitHub/GitLab：CLI 安装检测 + 认证命令引导
+- Gitee：Token 配置引导 + API 验证
 
-### 阶段 4：GitLab 卡片（1-2 天）
-- 实现 GitLabIntegrationCard
-- 连接 Preflight API
-- 显示安装/认证引导
-- 实现刷新逻辑
-
-### 阶段 5：Gitee 卡片（1-2 天）
-- 实现 GiteeIntegrationCard
-- 连接 Preflight API
-- 显示 Token 配置引导
-- 实现刷新逻辑
-
-### 阶段 6：后端 Provider 扩展（3-4 天）
+### 阶段 6：后端 Provider 扩展（3-4 天）⏳ 待实施
 - 新建 `work-items-gitlab` 包
 - 新建 `work-items-gitee` 包
 - 实现各自的 API 客户端

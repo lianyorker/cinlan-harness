@@ -112,6 +112,10 @@
     - id: security-research-controller
       name: '@deepseek-ai/dsh-api-security-research-controller'
 
+    # Integration readiness: GitHub, GitLab, and Gitee preflight checks.
+    - id: integration-preflight-controller
+      name: '@deepseek-ai/dsh-api-integration-preflight-controller'
+
     # Session commands, cold reads, and live control over Typert Remote.
     - id: session-controller
       name: '@deepseek-ai/dsh-api-session-controller'
@@ -365,6 +369,14 @@
 
     - id: ui-trajectory
       name: '@deepseek-ai/dsh-client-ui-trajectory'
+
+    # Orchestration settings: workflow engine overview and agent-preset coverage.
+    - id: ui-orchestration
+      name: '@deepseek-ai/dsh-client-ui-orchestration'
+
+    # Integrations settings: GitHub, GitLab, and Gitee connection status.
+    - id: ui-integrations
+      name: '@deepseek-ai/dsh-client-ui-integrations'
 
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #
