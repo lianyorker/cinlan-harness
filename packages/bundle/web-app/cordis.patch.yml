@@ -359,6 +359,8 @@
       name: '@deepseek-ai/dsh-client-ui-settings-plugins'
     - id: ui-settings-security
       name: '@deepseek-ai/dsh-client-ui-settings-security'
+    - id: ui-floating-workspace
+      name: '@deepseek-ai/dsh-client-ui-floating-workspace'
 
     # Plan control: the composer plan seat over the plan projection + /plan channel.
     - id: ui-plan

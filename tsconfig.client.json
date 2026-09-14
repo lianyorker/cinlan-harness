@@ -116,6 +116,7 @@
     { "path": "./packages/client/ui-settings-models" },
     { "path": "./packages/client/ui-settings-plugin-inventory" },
     { "path": "./packages/client/ui-settings-security" },
+    { "path": "./packages/client/ui-floating-workspace" },
     { "path": "./packages/client/ui-orchestration" },
     { "path": "./packages/client/ui-integrations" },
     { "path": "./packages/client/ui-git-settings" },
