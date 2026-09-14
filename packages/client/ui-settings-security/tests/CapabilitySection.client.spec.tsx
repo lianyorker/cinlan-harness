@@ -181,4 +181,34 @@ describe('Security Research status details', () => {
     expect(screen.queryByText(en.securityConfigured)).toBeNull()
     expect(screen.getAllByText(en.securityReadFailed).length).toBeGreaterThan(0)
   })
+
+  it('shows the install card and hides the scope editor when the preset is missing', async () => {
+    const view = mount('not-configured', 'en', 'security')
+    await screen.findByText(en.securityNotConfigured)
+    const snapshot = await view.describeSecurity(new AbortController().signal)
+    view.describeSecurity.mockResolvedValue({ ...snapshot, preset: { present: false }, status: 'not-configured' })
+    fireEvent.click(screen.getByRole('button', { name: en.computerRecheck }))
+    expect(await screen.findByText(en.securityInstallTitle)).toBeTruthy()
+    expect(screen.getByText(en.securityCommand)).toBeTruthy()
+    expect(screen.queryByText(en.securityScopeUnavailable)).toBeNull()
+  })
+
+  it('shows the broken preset card and hides the scope editor when the preset is broken', async () => {
+    const view = mount('not-configured', 'en', 'security')
+    await screen.findByText(en.securityNotConfigured)
+    const snapshot = await view.describeSecurity(new AbortController().signal)
+    view.describeSecurity.mockResolvedValue({ ...snapshot, preset: { present: true, trust: 'system', broken: 'preset-invalid' }, status: 'attention' })
+    fireEvent.click(screen.getByRole('button', { name: en.computerRecheck }))
+    expect(await screen.findByText(en.securityPresetBrokenTitle)).toBeTruthy()
+    expect(screen.queryByText(en.securityScopeUnavailable)).toBeNull()
+    expect(screen.queryByText(en.securityInstallTitle)).toBeNull()
+  })
+
+  it('shows the scope editor when the preset is present and not broken', async () => {
+    mount('not-configured', 'en', 'security')
+    await screen.findByText(en.securityNotConfigured)
+    expect(screen.getByText(en.securityScopeUnavailable)).toBeTruthy()
+    expect(screen.queryByText(en.securityInstallTitle)).toBeNull()
+    expect(screen.queryByText(en.securityPresetBrokenTitle)).toBeNull()
+  })
 })

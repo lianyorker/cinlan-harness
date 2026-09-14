@@ -194,26 +194,37 @@ securityInstallCommand: 'dsh --profile security-research',
 
 ## 5. 实施阶段
 
-### 阶段 1：修复条件注册（1 天）
-- 修改 `index.ts`，始终注册 security 设置页面
-- 移除预设存在性条件注册逻辑
-- 确保页面在预设缺失时也能显示
+### 阶段 1：修复条件注册 ✅
 
-### 阶段 2：添加安装引导 UI（1-2 天）
-- 创建 `SkillInstallCard` 组件
-- 在 `SecurityResearchBody` 中根据预设状态显示安装卡片
-- 添加本地化文本
-- 添加复制命令功能
+- `index.ts` 已无条件注册所有能力页面（`for (const definition of CAPABILITIES) register(definition)`）
+- 移除了预设存在性条件注册逻辑
+- 页面在预设缺失时也能显示
 
-### 阶段 3：优化状态展示（1 天）
-- 改进预设缺失时的状态展示
-- 添加"检查再次"按钮
-- 优化加载和错误状态
+### 阶段 2：添加安装引导 UI ✅
 
-### 阶段 4：测试和验证（1 天）
-- 测试预设存在时的正常流程
-- 测试预设缺失时的安装引导
+- 参考 Orca `AgentSkillSetupPanel` 视觉模式，创建 `SkillInstallCard` 组件
+- 卡片头部：icon + 标题 + 状态药丸（未安装/已安装/失败）
+- 命令栏：显示 `dsh --profile security-research`，可复制
+- 动作行：Recheck 按钮，触发状态刷新
+- `SecurityResearchBody` 中根据 `presetMissing` / `presetBroken` 分别渲染安装卡片和修复引导卡片
+- 添加了中英文本地化文本
+- 预设缺失/损坏时隐藏授权范围编辑器和报告导出
+
+### 阶段 3：优化状态展示 ✅
+
+- 三态预设处理：`presetMissing`（安装卡片）、`presetBroken`（修复引导卡片）、`presetReady`（授权范围编辑器 + 报告导出）
+- 预设损坏时显示修复引导卡片（`securityPresetBrokenTitle`），隐藏 scope editor
+- `RefreshButton` 提供"重新检查"功能
+- 加载和错误状态通过 `ViewState` phase 区分
+
+### 阶段 4：测试和验证 ✅
+
+- 测试预设存在时的正常流程（scope editor 可见）
+- 测试预设缺失时的安装引导（install card 可见，scope editor 隐藏）
+- 测试预设损坏时的修复引导（broken card 可见，scope editor 隐藏）
 - 测试连接重置后的状态刷新
+- 测试 scope 状态（configured/empty/missing/expired/not-yet-valid）
+- 测试读取失败时的错误展示
 
 ## 6. 依赖项
 

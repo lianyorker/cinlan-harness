@@ -28,6 +28,7 @@ import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { SecurityResearchScopeSettings, SecurityResearchReportRequest, SecurityResearchReportValue } from '@deepseek-ai/dsh-api-remotes/client'
 import { SecurityScopeEditor } from './SecurityScopeEditor.tsx'
 import { SecurityReportExport } from './SecurityReportExport.tsx'
+import { SkillInstallCard } from './SkillInstallCard.tsx'
 import { BrowserPreferencesForm } from './BrowserPreferencesForm.tsx'
 import { BrowserControls, type BrowserControlsCallbacks } from './BrowserControls.tsx'
 
@@ -253,6 +254,8 @@ function SecurityResearchBody(props: BodyProps & Pick<CapabilitySectionProps, 'u
   const security = state.phase === 'ready' ? state.security : undefined
   const unread = state.phase === 'loading' ? 'securityStatusLoading' : 'securityReadFailed'
   const presetMissing = security !== undefined && security.preset.present !== true && security.preset.broken === undefined
+  const presetBroken = security !== undefined && security.preset.broken !== undefined
+  const presetReady = security !== undefined && security.preset.present && security.preset.broken === undefined
   const scopeStatusText = {
     configured: t('securityScopeConfigured'), expired: t('securityScopeExpired'),
     'not-yet-valid': t('securityScopeFuture'), empty: t('securityScopeEmpty'), missing: t('securityScopeMissing'),
@@ -276,20 +279,34 @@ function SecurityResearchBody(props: BodyProps & Pick<CapabilitySectionProps, 'u
       </div>
       <RefreshButton {...props} />
     </div>
-    {presetMissing && <div className={css.computerCard}>
-      <h3>{t('securityInstallTitle')}</h3>
-      <p>{t('securityInstallDescription')}</p>
-      <CopyText text={t('securityCommand')} t={t} />
-      <p className={css.capabilityFact}>{t('securityInstallHint')}</p>
-    </div>}
+    {presetMissing && <SkillInstallCard
+      icon={<IconSkillOutline16 size={22} />}
+      title={t('securityInstallTitle')}
+      description={t('securityInstallDescription')}
+      command={t('securityCommand')}
+      status="not-installed"
+      statusLabel={t('securityPresetMissing')}
+      hint={t('securityInstallHint')}
+      onRecheck={props.onRefresh}
+      t={t} />}
+    {presetBroken && <SkillInstallCard
+      icon={<IconSkillOutline16 size={22} />}
+      title={t('securityPresetBrokenTitle')}
+      description={t('securityPresetBrokenDescription')}
+      command={undefined}
+      status="failed"
+      statusLabel={t('securityPresetBroken')}
+      hint={t('securityPresetBrokenHint')}
+      onRecheck={props.onRefresh}
+      t={t} />}
     <div className={css.computerHowTo}>
       <h3>{t('securityHowToUse')}</h3><p>{t('securityHowToUseDescription')}</p>
       <FeatureCards cards={SECURITY_CARDS} t={t} />
-      {!presetMissing && <SecurityScopeEditor useSecurityScope={props.useSecurityScope} saveSecurityScope={async (value, revision) => {
+      {presetReady && <SecurityScopeEditor useSecurityScope={props.useSecurityScope} saveSecurityScope={async (value, revision) => {
         await props.saveSecurityScope(value, revision)
         props.onRefresh()
       }} t={t} />}
-      {!presetMissing && props.exportReport !== undefined && <SecurityReportExport exportReport={props.exportReport} t={t} />}
+      {presetReady && props.exportReport !== undefined && <SecurityReportExport exportReport={props.exportReport} t={t} />}
     </div>
   </>
 }

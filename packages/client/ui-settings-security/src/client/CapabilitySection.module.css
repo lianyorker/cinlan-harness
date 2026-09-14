@@ -46,11 +46,14 @@
 .computerBadge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 6px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; corner-shape: round; background: currentColor; flex: none; }
 .computerBadge[data-capability-status='available'] .dot,
-.computerBadge[data-capability-status='ready'] .dot { background: var(--dsw-alias-state-success-primary); }
+.computerBadge[data-capability-status='ready'] .dot,
+.computerBadge[data-capability-status='installed'] .dot { background: var(--dsw-alias-state-success-primary); }
 .computerBadge[data-capability-status='unavailable'] .dot,
-.computerBadge[data-capability-status='attention'] .dot { background: var(--dsw-alias-state-error-primary); }
+.computerBadge[data-capability-status='attention'] .dot,
+.computerBadge[data-capability-status='not-installed'] .dot { background: var(--dsw-alias-state-error-primary); }
 .computerBadge[data-capability-status='checking'] .dot,
 .computerBadge[data-capability-status='loading'] .dot { background: var(--dsw-alias-state-business-primary); }
+.computerBadge[data-capability-status='failed'] .dot { background: var(--dsw-alias-state-error-primary); }
 
 .computerCardDescription,
 .computerHowTo > p,
@@ -173,3 +176,5 @@
 
 .securityEditor fieldset.accessRow label { flex-direction: column; align-items: stretch; }
 .securityEditor fieldset.accessRow button { align-self: flex-start; }
+
+.installActions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
