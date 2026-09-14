@@ -406,6 +406,7 @@
     { "path": "./packages/api/integration-preflight-controller" },
     { "path": "./packages/work-items/work-items" },
     { "path": "./packages/work-items/work-items-github" },
+    { "path": "./packages/work-items/work-items-gitlab" },
     { "path": "./packages/work-items/work-items-linear" },
     { "path": "./packages/work-items/tool-work-items" },
     { "path": "./packages/bundle/cinlan-work-items" },

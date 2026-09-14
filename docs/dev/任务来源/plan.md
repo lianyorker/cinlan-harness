@@ -183,17 +183,22 @@ WorkItemsSection
 - ✅ 添加未连接状态提示（`goToIntegrationsHint`）
 - ✅ 过滤器中隐藏不可见 Provider
 
-### 阶段 3：GitLab Provider 后端（2-3 天）
-- 新建 `work-items-gitlab` 包
-- 实现 GitLab REST API 客户端
-- 实现 WorkItemsProvider 接口
-- 注册到 Work Items 服务
-- 编写测试
+### 阶段 3：GitLab Provider 后端 ✅
+- ✅ 新建 `work-items-gitlab` 包（`packages/work-items/work-items-gitlab`）
+- ✅ 实现 GitLab REST API v4 客户端（`PRIVATE-TOKEN` 认证、URL 编码项目路径）
+- ✅ 实现 `WorkItemsProvider` 接口（list / get / writer）
+- ✅ 注册到 Work Items 服务（`cinlan-work-items` bundle 已包含）
+- ✅ 支持自托管 GitLab 实例（`origin` 配置项）
+- ✅ 编写 11 项测试（覆盖写入、认证、分页、错误分类、生命周期）
+- ✅ 更新核心类型 `WorkItemSource` / `WorkItemScope` 支持 `gitlab`
+- ✅ 更新 `tool-work-items` 枚举和 scope 验证支持 `gitlab`
 
-### 阶段 4：Provider 可见性持久化（1 天）
-- 添加 Provider 可见性设置
-- 使用 `ctx.settingsScope` 持久化
-- 过滤器中隐藏不可见 Provider
+### 阶段 4：Provider 可见性持久化 ✅
+- ✅ 新建 `WorkItemsSettings` 设置命名空间（`work-items` namespace）
+- ✅ Host 端注册命名空间（`ctx.settings.register` + schemastery schema）
+- ✅ Client 端绑定设置 scope（`ctx.settingsScope.bind`）
+- ✅ 可见性开关通过 `settings.set()` 持久化（`githubVisible` / `gitlabVisible` / `linearVisible`）
+- ✅ 过滤器中隐藏不可见 Provider
 
 ### 阶段 5：测试和集成（1 天）
 - 编写单元测试

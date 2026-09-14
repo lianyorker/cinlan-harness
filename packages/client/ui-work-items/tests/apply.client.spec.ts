@@ -26,6 +26,16 @@ describe('Work Items registration', () => {
       ctx.provide('remote', { workItems: remote, integrationPreflight } as unknown as TypertClientRemote)
       ctx.provide('remote.workItems', remote as unknown as TypertClientRemote['workItems'])
       ctx.provide('remote.integrationPreflight', integrationPreflight as unknown as TypertClientRemote['integrationPreflight'])
+      ctx.provide('settingsScope', {
+        bind: vi.fn(() => ({
+          getSnapshot: () => ({ status: 'ready', value: { githubVisible: true, gitlabVisible: true, linearVisible: true }, base: undefined, user: undefined, revision: 1, writable: true, mode: 'host' }),
+          subscribe: () => () => {},
+          set: vi.fn(async () => {}),
+          unset: vi.fn(async () => {}),
+          mutate: vi.fn(async () => {}),
+        })),
+      })
+      ctx.provide('settings', { register: vi.fn() })
       await ctx.plugin(SlotRegistry).await()
       ctx.slots.register({ name: 'root', children: { 'settings.section': { kind: 'list', scope: 'root' } } } as never, () => null)
       const fiber = ctx.plugin({ inject, apply })
@@ -39,7 +49,7 @@ describe('Work Items registration', () => {
       await expect(callbacks.list({}, signal)).rejects.toThrow('check Provider configuration')
       remote.get.mockResolvedValue({ ok: false, error: { code: 'work-items/operation-failed', message: 'forbidden', details: { providerCode: 'forbidden' } } })
       await expect(callbacks.get({ id: 'github:one' as never }, signal)).rejects.toThrow('forbidden')
-      hostApply()
+      hostApply(ctx)
       await fiber.dispose()
       expect(ctx.slots.entries('settings.section')).toHaveLength(0)
     } finally {

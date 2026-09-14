@@ -6,6 +6,10 @@
       name: '@deepseek-ai/dsh-work-items-github'
       config:
         allowWrites: false
+    - id: work-items-gitlab
+      name: '@deepseek-ai/dsh-work-items-gitlab'
+      config:
+        allowWrites: false
     - id: work-items-linear
       name: '@deepseek-ai/dsh-work-items-linear'
       config:

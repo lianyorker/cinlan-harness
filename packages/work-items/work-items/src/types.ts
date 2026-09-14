@@ -5,7 +5,7 @@ import type { Branded } from '@deepseek-ai/dsh-brand'
 export type WorkItemId = Branded<'WorkItemId'>
 
 /** Stable provider families supported by the first Work Items release. */
-export type WorkItemSource = 'github' | 'linear'
+export type WorkItemSource = 'github' | 'linear' | 'gitlab'
 
 /** State filter understood by every provider. */
 export type WorkItemStateFilter = 'open' | 'closed' | 'all'
@@ -14,6 +14,7 @@ export type WorkItemStateFilter = 'open' | 'closed' | 'all'
 export type WorkItemScope =
   | { readonly source: 'github'; readonly owner: string; readonly repository: string }
   | { readonly source: 'linear'; readonly team?: string; readonly project?: string }
+  | { readonly source: 'gitlab'; readonly owner: string; readonly repository: string }
 
 /** One normalized issue or task returned by a provider. */
 export interface WorkItem {

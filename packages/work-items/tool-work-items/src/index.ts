@@ -71,14 +71,24 @@ const LINEAR_SCOPE_SCHEMA = {
   },
 } as const
 
-const SCOPE_SCHEMA = { oneOf: [GITHUB_SCOPE_SCHEMA, LINEAR_SCOPE_SCHEMA] } as const
+const GITLAB_SCOPE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    source: { type: 'string', const: 'gitlab', required: true },
+    owner: { type: 'string', required: true, description: 'Configured GitLab namespace.' },
+    repository: { type: 'string', required: true, description: 'Configured GitLab project path.' },
+  },
+} as const
+
+const SCOPE_SCHEMA = { oneOf: [GITHUB_SCOPE_SCHEMA, LINEAR_SCOPE_SCHEMA, GITLAB_SCOPE_SCHEMA] } as const
 
 const ITEM_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
     id: { type: 'string', required: true },
-    source: { type: 'string', required: true, enum: ['github', 'linear'] },
+    source: { type: 'string', required: true, enum: ['github', 'linear', 'gitlab'] },
     externalId: { type: 'string', required: true },
     key: { type: 'string' },
     title: { type: 'string', required: true },
@@ -110,7 +120,7 @@ const MUTATION_SCHEMA = {
       additionalProperties: false,
       properties: {
         kind: { type: 'string', const: 'create', required: true },
-        source: { type: 'string', required: true, enum: ['github', 'linear'] },
+        source: { type: 'string', required: true, enum: ['github', 'linear', 'gitlab'] },
         title: { type: 'string', required: true, description: 'New Work Item title.' },
         body: { type: 'string', required: true, description: 'New Work Item body.' },
       },
@@ -150,7 +160,7 @@ const OPERATION_SCHEMA = {
   additionalProperties: false,
   properties: {
     operationId: { type: 'string', required: true },
-    source: { type: 'string', required: true, enum: ['github', 'linear'] },
+    source: { type: 'string', required: true, enum: ['github', 'linear', 'gitlab'] },
     mutation: { ...MUTATION_SCHEMA, required: true },
     status: {
       type: 'string',
@@ -188,7 +198,7 @@ const OPERATION_SCHEMA = {
   },
 } as const
 
-const SOURCE_SCHEMA = { type: 'string', required: true, enum: ['github', 'linear'] } as const
+const SOURCE_SCHEMA = { type: 'string', required: true, enum: ['github', 'linear', 'gitlab'] } as const
 
 function resolveConfig(config: Config): ResolvedConfig {
   for (const key of Object.keys(config)) {
@@ -216,13 +226,13 @@ function nonEmpty(value: string, field: string, maximum = MAX_SCOPE_LENGTH): str
 }
 
 function source(value: string): WorkItemSource {
-  if (value !== 'github' && value !== 'linear') throw new Error('source must be github or linear')
+  if (value !== 'github' && value !== 'linear' && value !== 'gitlab') throw new Error('source must be github, linear, or gitlab')
   return value
 }
 
 function itemId(value: string): WorkItemIdType {
   const id = nonEmpty(value, 'id')
-  if (!id.startsWith('github:') && !id.startsWith('linear:')) throw new Error('id must start with github: or linear:')
+  if (!id.startsWith('github:') && !id.startsWith('linear:') && !id.startsWith('gitlab:')) throw new Error('id must start with github:, linear:, or gitlab:')
   return WorkItemId(id)
 }
 
@@ -240,6 +250,7 @@ function positiveLimit(value: number): number {
 type ModelScope =
   | { readonly source: 'github'; readonly owner: string; readonly repository: string }
   | { readonly source: 'linear'; readonly team?: string; readonly project?: string }
+  | { readonly source: 'gitlab'; readonly owner: string; readonly repository: string }
 
 type ModelMutation =
   | { readonly kind: 'create'; readonly source: WorkItemSource; readonly title: string; readonly body: string }
@@ -251,6 +262,13 @@ function normalizeScope(value: ModelScope): WorkItemScope {
   if (value.source === 'github') {
     return {
       source: 'github',
+      owner: nonEmpty(value.owner, 'scope.owner'),
+      repository: nonEmpty(value.repository, 'scope.repository'),
+    }
+  }
+  if (value.source === 'gitlab') {
+    return {
+      source: 'gitlab',
       owner: nonEmpty(value.owner, 'scope.owner'),
       repository: nonEmpty(value.repository, 'scope.repository'),
     }
@@ -442,10 +460,10 @@ export function apply(ctx: Context, config: Config = {}): void {
 
   ctx.tools.register(defineTool({
     name: 'work_items_list',
-    description: 'List normalized Work Items from the configured GitHub or Linear provider.',
+    description: 'List normalized Work Items from the configured GitHub, GitLab, or Linear provider.',
     parameters: {
-      source: { type: 'string', enum: ['github', 'linear'], description: 'Optional provider family; omit only when exactly one provider is usable.' },
-      scope: { ...SCOPE_SCHEMA, description: 'Optional configured provider scope. GitHub requires owner and repository; Linear requires team or project.' },
+      source: { type: 'string', enum: ['github', 'linear', 'gitlab'], description: 'Optional provider family; omit only when exactly one provider is usable.' },
+      scope: { ...SCOPE_SCHEMA, description: 'Optional configured provider scope. GitHub requires owner and repository; Linear requires team or project; GitLab requires owner and repository.' },
       query: { type: 'string', description: 'Optional bounded title/body text filter.' },
       state: { type: 'string', enum: ['open', 'closed', 'all'], description: 'Optional provider-neutral state filter; defaults to open.' },
       cursor: { type: 'string', description: 'Opaque cursor returned by a prior page.' },

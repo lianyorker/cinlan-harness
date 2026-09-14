@@ -148,6 +148,7 @@ export class WorkItemsWriteLedger {
   private sourceOf(id: string): WorkItemSource {
     if (id.startsWith('github:')) return 'github'
     if (id.startsWith('linear:')) return 'linear'
+    if (id.startsWith('gitlab:')) return 'gitlab'
     throw new WorkItemsError('invalid-request', 'Unknown Work Item source')
   }
 

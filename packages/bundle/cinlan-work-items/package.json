@@ -36,6 +36,7 @@
   "dependencies": {
     "@deepseek-ai/dsh-work-items": "workspace:^",
     "@deepseek-ai/dsh-work-items-github": "workspace:^",
+    "@deepseek-ai/dsh-work-items-gitlab": "workspace:^",
     "@deepseek-ai/dsh-work-items-linear": "workspace:^",
     "@deepseek-ai/dsh-tool-work-items": "workspace:^",
     "@deepseek-ai/dsh-api-work-items-controller": "workspace:^",

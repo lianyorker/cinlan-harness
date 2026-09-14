@@ -12,7 +12,8 @@ import type {
   WorkItemsGetRequest, WorkItemsListRequest, WorkItemsListValue,
 } from '@deepseek-ai/dsh-api-work-items-controller/types'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { WorkItemsSettings } from '../types.ts'
 import { NS } from './locales.ts'
 import css from './WorkItemsSection.module.css'
 import { WorkItemWritePanel } from './WorkItemWritePanel.tsx'
@@ -28,6 +29,7 @@ export interface WorkItemsSectionInjected {
   associate: (request: WorkItemsAssociationRequest, signal: AbortSignal) => Promise<WorkItemsAssociationValue>
   disassociate: (request: WorkItemsAssociationRequest, signal: AbortSignal) => Promise<WorkItemsAssociationValue>
   checkIntegration: (provider: IntegrationProvider) => Promise<IntegrationPreflightSnapshot>
+  settings: SettingsScope<WorkItemsSettings>
 }
 
 /** Settings props derived from runtime, locale, and injected callbacks. */
@@ -44,7 +46,7 @@ function errorText(error: unknown, fallback: string): string {
  * @returns The Work Items Settings section.
  */
 export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
-  const { t, useWorkspaces, list, get, associate, disassociate, checkIntegration, close } = props
+  const { t, useWorkspaces, list, get, associate, disassociate, checkIntegration, close, settings } = props
   const workspaces = useWorkspaces(snapshot => snapshot.items)
   const archivedSessionIds = useWorkspaces(snapshot => snapshot.archivedSessionIds)
   const [source, setSource] = useState<WorkItemSource>('github')
@@ -67,7 +69,14 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
   const detailController = useRef<AbortController>()
   const writeController = useRef<AbortController>()
 
-  const [providerVisibility, setProviderVisibility] = useState<Record<string, boolean>>({ github: true, gitlab: true, linear: true })
+  const settingsSnapshot = settings.getSnapshot()
+  const [, forceRender] = useState(0)
+  useEffect(() => settings.subscribe(() => forceRender(n => n + 1)), [settings])
+  const providerVisibility: Record<string, boolean> = {
+    github: settingsSnapshot.value?.githubVisible ?? true,
+    gitlab: settingsSnapshot.value?.gitlabVisible ?? true,
+    linear: settingsSnapshot.value?.linearVisible ?? true,
+  }
   const [providerStates, setProviderStates] = useState<Record<string, IntegrationPreflightSnapshot | undefined>>({})
   const integrationController = useRef<AbortController>()
 
@@ -195,7 +204,7 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
               : null}
             {connected
               ? <div className={css.providerActions}>
-                <button type="button" className={css.button} onClick={() => { setProviderVisibility(prev => ({ ...prev, [provider]: !visible })) }}>
+                <button type="button" className={css.button} onClick={() => { void settings.set(provider + 'Visible', !visible) }}>
                   {visible ? t('providerHidden') : t('providerVisible')}
                 </button>
               </div>
@@ -209,8 +218,12 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
     </div>
     <div className={css.filters}>
       <label className={css.filter}><span>{t('source')}</span>
-        <select value={source} onChange={(event) => { setSource(event.currentTarget.value === 'linear' ? 'linear' : 'github') }}>
+        <select value={source} onChange={(event) => {
+          const value = event.currentTarget.value
+          setSource(value === 'linear' ? 'linear' : value === 'gitlab' ? 'gitlab' : 'github')
+        }}>
           {providerVisibility.github !== false ? <option value="github">{t('github')}</option> : null}
+          {providerVisibility.gitlab !== false ? <option value="gitlab">{t('gitlab')}</option> : null}
           {providerVisibility.linear !== false ? <option value="linear">{t('linear')}</option> : null}
         </select>
       </label>

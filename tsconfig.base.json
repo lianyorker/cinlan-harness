@@ -893,6 +893,8 @@
       "@deepseek-ai/dsh-work-items/src/*": ["./packages/work-items/work-items/src/*"],
       "@deepseek-ai/dsh-work-items-github": ["./packages/work-items/work-items-github/src"],
       "@deepseek-ai/dsh-work-items-github/src/*": ["./packages/work-items/work-items-github/src/*"],
+      "@deepseek-ai/dsh-work-items-gitlab": ["./packages/work-items/work-items-gitlab/src"],
+      "@deepseek-ai/dsh-work-items-gitlab/src/*": ["./packages/work-items/work-items-gitlab/src/*"],
       "@deepseek-ai/dsh-work-items-linear": ["./packages/work-items/work-items-linear/src"],
       "@deepseek-ai/dsh-work-items-linear/src/*": ["./packages/work-items/work-items-linear/src/*"],
       "@deepseek-ai/dsh-workflow": ["./packages/workflow/workflow/src"],

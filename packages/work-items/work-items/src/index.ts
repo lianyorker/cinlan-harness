@@ -156,7 +156,7 @@ function assertNotAborted(signal?: AbortSignal): void {
 /** Registry and dispatch facade for Work Items providers. */
 export class WorkItemsRuntime extends Service {
   static Config: z<Config> = z.object({
-    provider: z.union(['github', 'linear'] as const),
+    provider: z.union(['github', 'linear', 'gitlab'] as const),
     writeApprovalTtlMs: z.number().step(1).min(1).default(300_000),
   })
   private readonly writeLedger: WorkItemsWriteLedger
@@ -180,7 +180,7 @@ export class WorkItemsRuntime extends Service {
    * @returns disposer for this exact provider contribution.
    */
   registerProvider(provider: WorkItemsProvider): () => void {
-    if (!['github', 'linear'].includes(provider.id)) throw new WorkItemsError('invalid-request', 'Work Items provider id must be github or linear')
+    if (!['github', 'linear', 'gitlab'].includes(provider.id)) throw new WorkItemsError('invalid-request', 'Work Items provider id must be github, linear, or gitlab')
     if (this.providers.has(provider.id)) throw new WorkItemsError('invalid-request', 'Work Items provider ' + provider.id + ' is already registered')
     const dispose = this.ctx.effect(function* (this: WorkItemsRuntime) {
       this.providers.set(provider.id, provider)
@@ -270,7 +270,7 @@ export class WorkItemsRuntime extends Service {
    * @returns the normalized item.
    */
   async get(request: WorkItemGetRequest, signal?: AbortSignal): Promise<WorkItem> {
-    const source = request.id.startsWith('github:') ? 'github' : request.id.startsWith('linear:') ? 'linear' : undefined
+    const source = request.id.startsWith('github:') ? 'github' : request.id.startsWith('linear:') ? 'linear' : request.id.startsWith('gitlab:') ? 'gitlab' : undefined
     if (source === undefined) throw new WorkItemsError('invalid-request', 'Work Item id has no supported provider prefix')
     assertNotAborted(signal)
     const item = await this.active(source).get(request, signal)

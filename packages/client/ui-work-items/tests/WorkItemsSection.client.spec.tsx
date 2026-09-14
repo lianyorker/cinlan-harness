@@ -29,6 +29,13 @@ function props(): WorkItemsSectionProps {
     disassociate: vi.fn(async () => ({ associations: [] })),
     checkIntegration: vi.fn(async () => ({ provider: 'github', status: 'connected', reason: 'connected', account: 'octocat' })),
     close: vi.fn(),
+    settings: {
+      getSnapshot: vi.fn(() => ({ status: 'ready', value: { githubVisible: true, gitlabVisible: true, linearVisible: true }, base: undefined, user: undefined, revision: 1, writable: true, mode: 'host' })),
+      subscribe: vi.fn(() => () => {}),
+      set: vi.fn(async () => {}),
+      unset: vi.fn(async () => {}),
+      mutate: vi.fn(async () => {}),
+    },
   } as WorkItemsSectionProps
 }
 async function select(): Promise<void> {
