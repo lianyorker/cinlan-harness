@@ -5,6 +5,7 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-cli
 import type { WorkItemSource, WorkItemStateFilter } from '@deepseek-ai/dsh-work-items/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { IntegrationProvider, IntegrationPreflightSnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 import type {
   WorkItemsPrepareWriteRequest, WorkItemsWriteRequest, WorkItemsWriteValue, WorkItemsWriteHistoryRequest, WorkItemsWriteHistoryValue,
   WorkItemAssociation, WorkItemView, WorkItemsAssociationRequest, WorkItemsAssociationValue,
@@ -26,6 +27,7 @@ export interface WorkItemsSectionInjected {
   get: (request: WorkItemsGetRequest, signal: AbortSignal) => Promise<WorkItemView>
   associate: (request: WorkItemsAssociationRequest, signal: AbortSignal) => Promise<WorkItemsAssociationValue>
   disassociate: (request: WorkItemsAssociationRequest, signal: AbortSignal) => Promise<WorkItemsAssociationValue>
+  checkIntegration: (provider: IntegrationProvider) => Promise<IntegrationPreflightSnapshot>
 }
 
 /** Settings props derived from runtime, locale, and injected callbacks. */
@@ -42,7 +44,7 @@ function errorText(error: unknown, fallback: string): string {
  * @returns The Work Items Settings section.
  */
 export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
-  const { t, useWorkspaces, list, get, associate, disassociate } = props
+  const { t, useWorkspaces, list, get, associate, disassociate, checkIntegration, close } = props
   const workspaces = useWorkspaces(snapshot => snapshot.items)
   const archivedSessionIds = useWorkspaces(snapshot => snapshot.archivedSessionIds)
   const [source, setSource] = useState<WorkItemSource>('github')
@@ -64,6 +66,25 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
   const listController = useRef<AbortController>()
   const detailController = useRef<AbortController>()
   const writeController = useRef<AbortController>()
+
+  const [providerVisibility, setProviderVisibility] = useState<Record<string, boolean>>({ github: true, gitlab: true, linear: true })
+  const [providerStates, setProviderStates] = useState<Record<string, IntegrationPreflightSnapshot | undefined>>({})
+  const integrationController = useRef<AbortController>()
+
+  useEffect(() => {
+    integrationController.current?.abort()
+    const controller = new AbortController()
+    integrationController.current = controller
+    const providers: IntegrationProvider[] = ['github', 'gitlab']
+    for (const provider of providers) {
+      checkIntegration(provider).then((snapshot) => {
+        if (!controller.signal.aborted) setProviderStates(prev => ({ ...prev, [provider]: snapshot }))
+      }).catch(() => {
+        if (!controller.signal.aborted) setProviderStates(prev => ({ ...prev, [provider]: { provider, status: 'unavailable', reason: 'probe-failed', account: null } }))
+      })
+    }
+    return () => { controller.abort() }
+  }, [checkIntegration])
 
   const clearDetail = useCallback(() => {
     detailController.current?.abort()
@@ -149,10 +170,48 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
 
   return <section className={css.section} aria-labelledby="work-items-title">
     <header className={css.header}><h2 id="work-items-title">{t('title')}</h2><p>{t('description')}</p></header>
+    <div className={css.providerArea}>
+      <h3>{t('providerManagement')}</h3><p>{t('providerManagementDesc')}</p>
+      <div className={css.providerGrid}>
+        {(['github', 'gitlab', 'linear'] as const).map((provider) => {
+          const snapshot = providerStates[provider]
+          const connected = snapshot?.status === 'connected'
+          const visible = providerVisibility[provider] !== false
+          const labelKey = provider === 'github' ? 'github' : provider === 'gitlab' ? 'gitlab' : 'linear'
+          return <div key={provider} className={css.providerCard}>
+            <div className={css.providerHeader}>
+              <span className={css.providerName}>{t(labelKey)}</span>
+              <span className={connected ? css.providerBadgeConnected : css.providerBadgeDisconnected}>
+                {snapshot === undefined ? t('providerChecking') : connected ? t('providerConnected') : t('providerNotConnected')}
+              </span>
+            </div>
+            {connected && snapshot?.account !== null
+              ? <p className={css.providerAccount}>{t('providerAccount')}: {snapshot.account}</p>
+              : null}
+            {!connected && provider !== 'linear'
+              ? <div className={css.providerActions}>
+                <button type="button" className={css.button} onClick={() => { close() }}>{t('goToIntegrations')}</button>
+              </div>
+              : null}
+            {connected
+              ? <div className={css.providerActions}>
+                <button type="button" className={css.button} onClick={() => { setProviderVisibility(prev => ({ ...prev, [provider]: !visible })) }}>
+                  {visible ? t('providerHidden') : t('providerVisible')}
+                </button>
+              </div>
+              : null}
+          </div>
+        })}
+      </div>
+      {providerStates.github?.status !== 'connected' || providerStates.gitlab?.status !== 'connected'
+        ? <p className={css.providerHint}>{t('goToIntegrationsHint')}</p>
+        : null}
+    </div>
     <div className={css.filters}>
       <label className={css.filter}><span>{t('source')}</span>
         <select value={source} onChange={(event) => { setSource(event.currentTarget.value === 'linear' ? 'linear' : 'github') }}>
-          <option value="github">{t('github')}</option><option value="linear">{t('linear')}</option>
+          {providerVisibility.github !== false ? <option value="github">{t('github')}</option> : null}
+          {providerVisibility.linear !== false ? <option value="linear">{t('linear')}</option> : null}
         </select>
       </label>
       <label className={css.filter}><span>{t('state')}</span>

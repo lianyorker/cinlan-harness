@@ -20,8 +20,12 @@ describe('Work Items registration', () => {
         get: vi.fn(), associate: vi.fn(), disassociate: vi.fn(),
         prepareWrite: vi.fn(), confirmWrite: vi.fn(), cancelWrite: vi.fn(), listWrites: vi.fn(),
       }
-      ctx.provide('remote', { workItems: remote } as unknown as TypertClientRemote)
+      const integrationPreflight = {
+        check: vi.fn().mockResolvedValue({ ok: true, value: { provider: 'github', status: 'connected', reason: 'connected', account: 'octocat' } }),
+      }
+      ctx.provide('remote', { workItems: remote, integrationPreflight } as unknown as TypertClientRemote)
       ctx.provide('remote.workItems', remote as unknown as TypertClientRemote['workItems'])
+      ctx.provide('remote.integrationPreflight', integrationPreflight as unknown as TypertClientRemote['integrationPreflight'])
       await ctx.plugin(SlotRegistry).await()
       ctx.slots.register({ name: 'root', children: { 'settings.section': { kind: 'list', scope: 'root' } } } as never, () => null)
       const fiber = ctx.plugin({ inject, apply })

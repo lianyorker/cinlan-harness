@@ -13,7 +13,7 @@ export type { WorkItemsSectionInjected, WorkItemsSectionProps } from './WorkItem
 export type { WorkItemsKey } from './locales.ts'
 
 /** Services used by Settings registration and the generated Work Items namespace. */
-export const inject = ['slots', 'locale', 'remote', 'remote.workItems']
+export const inject = ['slots', 'locale', 'remote', 'remote.workItems', 'remote.integrationPreflight']
 
 /**
  * Register the localized Settings entry for the lifetime of its declaring slots.
@@ -40,6 +40,11 @@ export function apply(ctx: Context): void {
     get: async (request, signal) => value(await ctx.remote.workItems.get(request, signal)),
     associate: async (request, signal) => value(await ctx.remote.workItems.associate(request, signal)),
     disassociate: async (request, signal) => value(await ctx.remote.workItems.disassociate(request, signal)),
+    checkIntegration: async (provider) => {
+      const result = await ctx.remote.integrationPreflight.check({ provider })
+      if (!result.ok) throw new Error(`integrationPreflight.check failed: ${result.error.code}: ${result.error.message}`)
+      return result.value
+    },
   }
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: NS, order: 25, label: () => t('nav'), locale: NS,

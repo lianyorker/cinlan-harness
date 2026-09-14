@@ -13,7 +13,7 @@ export const zh = {
   writeStatusFailed: '未执行或被拒绝', writeStatusUnknown: '结果不确定', writeStatusCanceled: '已取消', writeStatusExpired: '确认已过期',
 
   nav: '工作项', title: '工作项', description: '查看 GitHub 和 Linear 工单、管理本地关联，并通过预览确认外部修改。',
-  source: '来源', github: 'GitHub', linear: 'Linear', state: '状态', open: '未关闭', closed: '已关闭', all: '全部',
+  source: '来源', github: 'GitHub', linear: 'Linear', gitlab: 'GitLab', state: '状态', open: '未关闭', closed: '已关闭', all: '全部',
   search: '搜索标题或描述', workspaceContext: '工作区范围', allWorkspaceContexts: '所有工作区关联',
   refresh: '刷新', previous: '上一页', next: '下一页', loading: '正在加载工作项…', empty: '没有符合条件的工作项。',
   unavailable: '工作项服务暂不可用，请检查 Provider 配置。', error: '工作项操作失败：{message}', unknownError: '未知错误',
@@ -21,6 +21,13 @@ export const zh = {
   branch: '分支', phase: '租约状态', active: '活跃', hibernated: '休眠', labels: '标签', assignees: '负责人',
   session: '关联会话', workspaceOnly: '仅关联工作区', associate: '关联', disassociate: '取消关联', saving: '正在保存…',
   chooseWorkspace: '选择工作区后可创建关联。', truncated: '结果已截断；请缩小搜索范围或继续翻页。',
+
+  providerManagement: '任务来源管理', providerManagementDesc: '管理任务来源 Provider 的连接状态和可见性。',
+  providerConnected: '已连接', providerNotConnected: '未连接', providerChecking: '检查中…',
+  providerVisible: '可见', providerHidden: '已隐藏',
+  providerToggleVisible: '切换可见性',
+  goToIntegrations: '前往集成设置', goToIntegrationsHint: '在集成设置页面配置 GitHub / GitLab 连接。',
+  providerAccount: '账号',
 } as const
 
 /** Work Items locale keys. */
@@ -38,7 +45,7 @@ export const en: Record<WorkItemsKey, string> = {
   writeStatusFailed: 'Not executed or rejected', writeStatusUnknown: 'Unknown outcome', writeStatusCanceled: 'Canceled', writeStatusExpired: 'Approval expired',
 
   nav: 'Work Items', title: 'Work Items', description: 'Read GitHub and Linear issues, manage local links, and preview external changes before confirmation.',
-  source: 'Source', github: 'GitHub', linear: 'Linear', state: 'State', open: 'Open', closed: 'Closed', all: 'All',
+  source: 'Source', github: 'GitHub', linear: 'Linear', gitlab: 'GitLab', state: 'State', open: 'Open', closed: 'Closed', all: 'All',
   search: 'Search title or description', workspaceContext: 'Workspace scope', allWorkspaceContexts: 'All Workspace links',
   refresh: 'Refresh', previous: 'Previous', next: 'Next', loading: 'Loading work items…', empty: 'No work items match the current filters.',
   unavailable: 'Work Items is unavailable; check Provider configuration.', error: 'Work Items operation failed: {message}', unknownError: 'Unknown error',
@@ -46,6 +53,13 @@ export const en: Record<WorkItemsKey, string> = {
   branch: 'Branch', phase: 'Lease state', active: 'Active', hibernated: 'Hibernated', labels: 'Labels', assignees: 'Assignees',
   session: 'Linked Session', workspaceOnly: 'Workspace only', associate: 'Link', disassociate: 'Unlink', saving: 'Saving…',
   chooseWorkspace: 'Select a Workspace to create a link.', truncated: 'Results are truncated; narrow the search or continue to the next page.',
+
+  providerManagement: 'Task Source Providers', providerManagementDesc: 'Manage connection status and visibility of Work Item providers.',
+  providerConnected: 'Connected', providerNotConnected: 'Not connected', providerChecking: 'Checking…',
+  providerVisible: 'Visible', providerHidden: 'Hidden',
+  providerToggleVisible: 'Toggle visibility',
+  goToIntegrations: 'Go to Integrations', goToIntegrationsHint: 'Configure GitHub / GitLab connections in the Integrations settings page.',
+  providerAccount: 'Account',
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

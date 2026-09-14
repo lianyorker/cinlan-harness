@@ -27,6 +27,8 @@ function props(): WorkItemsSectionProps {
     get: vi.fn(async () => item),
     associate: vi.fn<WorkItemsSectionProps['associate']>(async request => ({ associations: [{ workspaceId: request.workspaceId, workspaceTitle: 'Product', ...(request.sessionId === undefined ? {} : { sessionId: request.sessionId }) }] })),
     disassociate: vi.fn(async () => ({ associations: [] })),
+    checkIntegration: vi.fn(async () => ({ provider: 'github', status: 'connected', reason: 'connected', account: 'octocat' })),
+    close: vi.fn(),
   } as WorkItemsSectionProps
 }
 async function select(): Promise<void> {
@@ -81,7 +83,7 @@ describe('Work Items Settings', () => {
     await waitFor(() =>{  expect(signal.aborted).toBe(true) })
     settle({ associations: [] })
     await waitFor(() =>{  expect(screen.getByText(en.noSelection)).toBeTruthy() })
-    expect(screen.queryByRole('heading', { level: 3 })).toBeNull()
+    expect(screen.queryByRole('heading', { level: 3, name: 'Fix login' })).toBeNull()
   })
 
   it('ignores superseded detail responses and does not present stale list data as detail on error', async () => {

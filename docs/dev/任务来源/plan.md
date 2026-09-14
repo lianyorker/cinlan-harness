@@ -171,17 +171,17 @@ WorkItemsSection
 
 ## 4. 实施阶段
 
-### 阶段 1：Provider 管理区域（2 天）
-- 在 `WorkItemsSection` 顶部添加 Provider 管理区域
-- 实现 ProviderCard 组件
-- 添加可见性开关
-- 添加集成状态显示
-- 添加本地化文本
+### 阶段 1：Provider 管理区域 ✅
+- ✅ 在 `WorkItemsSection` 顶部添加 Provider 管理区域
+- ✅ 实现 ProviderCard 组件（GitHub / GitLab / Linear 三卡片）
+- ✅ 添加可见性开关（本地状态，阶段 4 持久化）
+- ✅ 添加集成状态显示（通过 `integrationPreflight` 检查 GitHub / GitLab 连接）
+- ✅ 添加本地化文本（中英文 `workItems` 命名空间扩展）
 
-### 阶段 2：集成引导链接（1 天）
-- 添加"前往集成设置"按钮
-- 实现设置页面跳转
-- 添加未连接状态提示
+### 阶段 2：集成引导链接 ✅
+- ✅ 添加"前往集成设置"按钮（未连接时显示，调用 `close()` 返回设置列表）
+- ✅ 添加未连接状态提示（`goToIntegrationsHint`）
+- ✅ 过滤器中隐藏不可见 Provider
 
 ### 阶段 3：GitLab Provider 后端（2-3 天）
 - 新建 `work-items-gitlab` 包
