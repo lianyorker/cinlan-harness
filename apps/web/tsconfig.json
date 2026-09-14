@@ -11,7 +11,8 @@
     ],
     "types": [
       "node"
-    ]
+    ],
+    "paths": {}
   },
   "include": [
     "src",
