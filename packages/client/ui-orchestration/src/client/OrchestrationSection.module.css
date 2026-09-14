@@ -1,0 +1,187 @@
+﻿.section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0 0 24px;
+}
+
+.card {
+  border: 1px solid var(--dsh-border-subtle, #e4e4e7);
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--dsh-surface, #fff);
+}
+
+.cardTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--dsh-text-primary, #18181b);
+}
+
+.cardDescription {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 16px;
+  color: var(--dsh-text-secondary, #71717a);
+}
+
+.factRow {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.factLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dsh-text-tertiary, #a1a1aa);
+}
+
+.factValue {
+  font-size: 14px;
+  color: var(--dsh-text-primary, #18181b);
+}
+
+.coverageList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coverageRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--dsh-surface-hover, #f4f4f5);
+}
+
+.coverageName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--dsh-text-primary, #18181b);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.badge[data-coverage-status='ready'] {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+}
+
+.badge[data-coverage-status='missing'] {
+  background: rgba(234, 179, 8, 0.12);
+  color: #a16207;
+}
+
+.badge[data-coverage-status='broken'] {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.summary {
+  font-size: 13px;
+  color: var(--dsh-text-secondary, #71717a);
+  margin: 8px 0 0;
+}
+
+.refreshButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--dsh-border-subtle, #e4e4e7);
+  background: var(--dsh-surface, #fff);
+  color: var(--dsh-text-primary, #18181b);
+  cursor: pointer;
+}
+
+.refreshButton:hover {
+  background: var(--dsh-surface-hover, #f4f4f5);
+}
+
+.errorText {
+  font-size: 14px;
+  color: #b91c1c;
+  margin: 0;
+}
+
+.loadingText {
+  font-size: 14px;
+  color: var(--dsh-text-secondary, #71717a);
+  margin: 0;
+}
+
+.exampleList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.exampleItem {
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: var(--dsh-surface-hover, #f4f4f5);
+}
+
+.exampleTitle {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--dsh-text-primary, #18181b);
+}
+
+.exampleDescription {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  color: var(--dsh-text-secondary, #71717a);
+}
+
+.docsLink {
+  font-size: 14px;
+  color: var(--dsh-accent, #2563eb);
+  text-decoration: none;
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.docsLink:hover {
+  text-decoration: underline;
+}
+
+.noPresets {
+  font-size: 14px;
+  color: var(--dsh-text-secondary, #71717a);
+  margin: 0;
+}
