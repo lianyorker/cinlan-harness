@@ -422,6 +422,8 @@
     { "path": "./packages/security/vuln-kb-service" },
     { "path": "./apps/cli" },
     { "path": "./apps/desktop-host" },
-    { "path": "./apps/desktop" }
+    { "path": "./apps/desktop" },
+    { "path": "./packages/voice/voice" },
+    { "path": "./packages/voice/voice-sherpa-onnx" },
   ]
 }

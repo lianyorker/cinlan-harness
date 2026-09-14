@@ -39,7 +39,7 @@ export default class ArtifactMemoryProvider extends ArtifactService {
   async publish(request: ArtifactPublishRequest): Promise<ArtifactRef> {
     const artifactId = ArtifactId(randomUUID())
     const sha256 = createHash('sha256').update(request.data).digest('hex')
-    
+
     const ref: ArtifactRef = {
       artifactId,
       mediaType: request.mediaType,

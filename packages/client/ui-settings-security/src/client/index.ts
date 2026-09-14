@@ -29,7 +29,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const NS = 'settings.cinlanCapabilities'
 
 /** Services required by the Settings and Host inventory registrations. */
-export const inject = ['slots', 'locale', 'remote', 'remote.pluginInventory', 'remote.deviceCapabilities', 'remote.agentPresets', 'remote.securityResearch', 'remote.browser', 'remote.settings', 'settingsScope']
+export const inject = ['slots', 'locale', 'remote', 'remote.pluginInventory', 'remote.deviceCapabilities', 'remote.securityResearch', 'remote.browser', 'remote.settings', 'settingsScope']
 
 const ICONS = {
   security: IconSkillOutline16,
@@ -139,32 +139,6 @@ export function apply(ctx: ClientContext): void {
   }
 
   for (const definition of CAPABILITIES) {
-    if (definition.id !== 'security') register(definition)
-    else ctx.effect(() => {
-      let generation = 0
-      let stopped = false
-      let release: (() => void) | undefined
-      const refresh = async (): Promise<void> => {
-        const request = ++generation
-        const result = await ctx.remote.agentPresets.list().catch(() => undefined)
-        if (stopped || request !== generation) return
-        const present = result?.ok === true && result.value.presets.some(preset => preset.id === 'security-research')
-        if (present && release === undefined) release = register(definition)
-        if (!present) { release?.(); release = undefined }
-        if (result?.ok !== true) ctx.logger.warn('Could not read Security Research preset availability; retry on focus or reconnect.')
-      }
-      const onFocus = (): void => { void refresh() }
-      const stopReset = ctx.on('connection/reset', onFocus)
-      const stopSettings = ctx.remote.$on('settings/document-updated', () => { onFocus() })
-      window.addEventListener('focus', onFocus)
-      void refresh()
-      return () => {
-        stopped = true
-        stopReset()
-        stopSettings()
-        window.removeEventListener('focus', onFocus)
-        release?.()
-      }
-    }, 'ui-settings-security: optional preset section')
+    register(definition)
   }
 }

@@ -133,7 +133,10 @@
     "commander": "^15.0.0",
     "open": "^11.0.0",
     "@deepseek-ai/dsh-api-device-capabilities-controller": "workspace:^",
-    "@deepseek-ai/dsh-api-security-research-controller": "workspace:^"
+    "@deepseek-ai/dsh-api-security-research-controller": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-voice-dictation": "workspace:^",
+    "@deepseek-ai/dsh-voice": "workspace:^",
+    "@deepseek-ai/dsh-voice-sherpa-onnx": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
