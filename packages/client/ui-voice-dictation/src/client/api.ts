@@ -15,7 +15,13 @@ export class VoiceApiError extends Error {
 
 /** One model row as reported by models.list. */
 export interface VoiceModelRow {
-  readonly definition: { readonly id: string; readonly name: string; readonly approximateBytes: number }
+  readonly definition: {
+    readonly id: string
+    readonly name: string
+    readonly description: string
+    readonly recommended: boolean
+    readonly approximateBytes: number
+  }
   readonly status: VoiceModelStatus
 }
 

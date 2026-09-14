@@ -27,11 +27,13 @@ function definition(): VoiceModelDefinition {
   return {
     id: VoiceModelId('fixture-model'),
     name: 'fixture-model',
+    description: 'test model',
+    recommended: false,
     kind: 'streaming',
     approximateBytes: 0,
-    archiveUrl: 'https://example.invalid/fixture-model.tar.bz2',
-    archiveSha256: '4c60d3d6068e1f601433271f210feb2db99f548d0e83a038b29451d801dc91f7',
-    files: {
+    download: { type: 'archive', url: 'https://example.invalid/fixture-model.tar.bz2', sha256: '4c60d3d6068e1f601433271f210feb2db99f548d0e83a038b29451d801dc91f7' },
+    architecture: {
+      type: 'transducer',
       encoder: 'fixture-model/encoder.onnx',
       decoder: 'fixture-model/decoder.onnx',
       joiner: 'fixture-model/joiner.onnx',
@@ -329,7 +331,7 @@ describe('model-cache', () => {
     failSecond = false
 
     await expect(ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(1, 1))).rejects.toThrow(
-      `download failed: expected SHA-256 ${model.archiveSha256}`,
+      `download failed: expected SHA-256 ${model.download.type === 'archive' ? model.download.sha256 : ''}`,
     )
     await expect(readFile(join(partsDir, '000000.part'))).rejects.toThrow()
 

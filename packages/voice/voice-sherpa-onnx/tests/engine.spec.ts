@@ -10,11 +10,13 @@ function definition(): VoiceModelDefinition {
   return {
     id: VoiceModelId('fixture-model'),
     name: 'fixture-model',
+    description: 'test model',
+    recommended: false,
     kind: 'streaming',
     approximateBytes: 0,
-    archiveUrl: 'https://example.invalid/fixture-model.tar.bz2',
-    archiveSha256: '4c60d3d6068e1f601433271f210feb2db99f548d0e83a038b29451d801dc91f7',
-    files: {
+    download: { type: 'archive', url: 'https://example.invalid/fixture-model.tar.bz2', sha256: '4c60d3d6068e1f601433271f210feb2db99f548d0e83a038b29451d801dc91f7' },
+    architecture: {
+      type: 'transducer',
       encoder: 'fixture-model/encoder.onnx',
       decoder: 'fixture-model/decoder.onnx',
       joiner: 'fixture-model/joiner.onnx',
@@ -34,7 +36,7 @@ describe('sherpaOnnxEngine.loadModel', () => {
   })
 
   it('constructs an OnlineRecognizer with the model file paths joined under cacheDir and wraps transcribe/dispose', async () => {
-    const createStream = vi.fn(() => ({ acceptWaveform: vi.fn() }))
+    const createStream = vi.fn(() => ({ acceptWaveform: vi.fn(), inputFinished: vi.fn() }))
     const isReady = vi.fn().mockReturnValueOnce(true).mockReturnValueOnce(false)
     const decode = vi.fn()
     const getResult = vi.fn(() => ({ text: 'hello world' }))
@@ -48,7 +50,7 @@ describe('sherpaOnnxEngine.loadModel', () => {
       decode = decode
       getResult = getResult
     }
-    vi.spyOn(sherpaDeps, 'loadSherpaOnnx').mockReturnValue({ OnlineRecognizer: FakeOnlineRecognizer })
+    vi.spyOn(sherpaDeps, 'loadSherpaOnnx').mockReturnValue({ OnlineRecognizer: FakeOnlineRecognizer, OfflineRecognizer: FakeOnlineRecognizer as never })
     const recognizer = await sherpaOnnxEngine.loadModel(definition(), '/cache/fixture-model')
     expect(capturedConfig).toMatchObject({
       featConfig: { sampleRate: 16_000, featureDim: 80 },

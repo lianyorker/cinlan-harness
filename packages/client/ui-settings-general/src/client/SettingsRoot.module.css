@@ -215,6 +215,7 @@
   min-height: 0;
   flex-direction: column;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   background: var(--dsw-alias-bg-base);
 }
 

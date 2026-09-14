@@ -4,7 +4,8 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { voiceApi } from './api.ts'
-import { decodeAndResample, encodePcmBase64, startRecording, type DictationRecording } from './dictation.ts'
+import { encodePcmBase64, startRecording, type DictationRecording } from './dictation.ts'
+import type { VoiceSettings } from './voice-settings.ts'
 
 /** Observable lifecycle of the single application-wide dictation operation. */
 export type DictationState =
@@ -36,7 +37,25 @@ function appendToDraft(ctx: ClientContext, sessionId: SessionId, text: string): 
   }
 }
 
-async function readyModelId(): Promise<string | undefined> {
+/** Surface a dictation failure as a visible composer notice (console.error alone leaves the user with no feedback). */
+function notifyDictationError(ctx: ClientContext, sessionId: SessionId, message: string): void {
+  try {
+    const actx = ctx.sessions.scope(sessionId)
+    if (actx === undefined) return
+    const conversation = ctx.get('conversation')
+    if (conversation === undefined) return
+    conversation.input.for(actx).notify('error', message)
+  } catch (error) {
+    console.warn('[dsh-client-ui-voice-dictation] error notice failed:', error)
+  }
+}
+
+async function readyModelId(settings: VoiceSettings): Promise<string | undefined> {
+  if (settings.sttModel !== null) {
+    const { models } = await voiceApi.modelsList()
+    const selected = models.find(model => model.definition.id === settings.sttModel && model.status.state === 'ready')
+    if (selected !== undefined) return selected.definition.id
+  }
   const { models } = await voiceApi.modelsList()
   return models.find(model => model.status.state === 'ready')?.definition.id
 }
@@ -49,7 +68,7 @@ export class DictationController {
   private pending: Promise<void> | undefined
   private generation = 0
 
-  constructor(private readonly ctx: ClientContext) {}
+  constructor(private readonly ctx: ClientContext, private readonly settingsStore: SnapshotStore<VoiceSettings>) {}
 
   /**
    * Start when idle/error, stop only from the owning session, and ignore gestures while another operation owns the controller.
@@ -58,11 +77,11 @@ export class DictationController {
   toggle(sessionId: SessionId): void {
     const state = this.store.getSnapshot()
     if (state.phase === 'recording') {
-      if (state.sessionId === sessionId) this.track(this.stop())
+      if (state.sessionId === sessionId) this.track(this.stopRecording())
       return
     }
     if (state.phase === 'starting' || state.phase === 'processing') return
-    this.track(this.start(sessionId))
+    this.track(this.startInternal(sessionId))
   }
 
   private track(operation: Promise<void>): void {
@@ -73,11 +92,38 @@ export class DictationController {
     void operation.then(clear, clear)
   }
 
-  private async start(sessionId: SessionId): Promise<void> {
+  /** Start recording for the given session (hold mode entry point). */
+  start(sessionId: SessionId): void {
+    const state = this.store.getSnapshot()
+    if (state.phase === 'recording' || state.phase === 'starting') return
+    this.track(this.startInternal(sessionId))
+  }
+
+  /** Stop recording for the given session (hold mode entry point). */
+  stop(sessionId: SessionId): void {
+    const state = this.store.getSnapshot()
+    if (state.phase === 'recording' && state.sessionId === sessionId) {
+      this.track(this.stopRecording())
+      return
+    }
+    if (state.phase === 'starting' && state.sessionId === sessionId) {
+      this.generation += 1
+      this.store.set({ phase: 'idle' })
+    }
+  }
+
+  private async startInternal(sessionId: SessionId): Promise<void> {
     const generation = ++this.generation
     this.store.set({ phase: 'starting', sessionId })
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const { microphoneDeviceId } = this.settingsStore.getSnapshot()
+      const audioConstraints: MediaStreamConstraints['audio'] = {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        ...(microphoneDeviceId !== null ? { deviceId: { exact: microphoneDeviceId } } : {}),
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints })
       if (generation !== this.generation) {
         for (const track of stream.getTracks()) track.stop()
         return
@@ -86,23 +132,24 @@ export class DictationController {
       this.store.set({ phase: 'recording', sessionId })
     } catch (error) {
       if (generation !== this.generation) return
-      this.store.set({ phase: 'error', message: error instanceof Error ? error.message : String(error) })
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('[dsh-voice] failed to start recording:', error)
+      notifyDictationError(this.ctx, sessionId, message)
+      this.store.set({ phase: 'error', message })
     }
   }
 
-  private async stop(): Promise<void> {
+  private async stopRecording(): Promise<void> {
     const current = this.active
     if (current === undefined) return
     const generation = this.generation
     this.active = undefined
     this.store.set({ phase: 'processing', sessionId: current.sessionId })
     try {
-      const modelId = await readyModelId()
+      const modelId = await readyModelId(this.settingsStore.getSnapshot())
       if (generation !== this.generation) return
       if (modelId === undefined) throw new Error('no ready dictation model; download one in Settings first')
-      const blob = await current.recording.stop()
-      if (generation !== this.generation) return
-      const samples = await decodeAndResample(blob)
+      const samples = await current.recording.stop()
       if (generation !== this.generation) return
       const { text } = await voiceApi.transcribe(modelId, encodePcmBase64(samples))
       if (generation !== this.generation) return
@@ -112,7 +159,10 @@ export class DictationController {
       this.store.set({ phase: 'idle' })
     } catch (error) {
       if (generation === this.generation) {
-        this.store.set({ phase: 'error', message: error instanceof Error ? error.message : String(error) })
+        const message = error instanceof Error ? error.message : String(error)
+        console.error('[dsh-voice] transcription failed:', error)
+        notifyDictationError(this.ctx, current.sessionId, message)
+        this.store.set({ phase: 'error', message })
       }
     } finally {
       for (const track of current.stream.getTracks()) track.stop()

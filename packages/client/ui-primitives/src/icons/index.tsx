@@ -934,3 +934,13 @@ export const IconArchiveOutline20 = ({ size = 20, className }: IconProps) => (
     <path d="M12.7962 12.5661V11.0832H7.20548V12.5661L12.7962 12.5661Z" fill="currentColor" />
   </svg>
 )
+
+/** ic_ds_microphone_outline_16 (harness-only): microphone glyph for voice dictation. */
+export const IconMicrophoneOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M490.666667 809.856c-136.149333-10.346667-244.842667-119.04-255.189334-255.189333h42.816C289.066667 674.282667 389.589333 768 512 768s222.933333-93.717333 233.706667-213.333333h42.816c-10.346667 136.149333-119.04 244.842667-255.189334 255.189333V896h170.666667v42.666667H320v-42.666667h170.666667v-86.144zM512 85.333333a192 192 0 0 1 192 192v256a192 192 0 0 1-384 0V277.333333a192 192 0 0 1 192-192z m0 42.666667a149.333333 149.333333 0 0 0-149.333333 149.333333v256a149.333333 149.333333 0 0 0 298.666666 0V277.333333a149.333333 149.333333 0 0 0-149.333333-149.333333z"
+      fill="currentColor"
+    />
+  </svg>
+)

@@ -15,7 +15,7 @@ import { pipeline } from 'node:stream/promises'
 import unbzip2 from 'unbzip2-stream'
 import * as tar from 'tar'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
-import type { VoiceModelDefinition, VoiceModelStatus } from '@deepseek-ai/dsh-voice'
+import { architectureFilePaths, type VoiceModelDefinition, type VoiceModelStatus } from '@deepseek-ai/dsh-voice'
 
 /** Sentinel filename marking a fully extracted, ready model directory. */
 export const READY_MARKER = '.dsh-voice-ready'
@@ -90,13 +90,14 @@ export async function extractArchiveJs(archivePath: string, cacheDir: string, si
   await pipeline(createReadStream(archivePath), unbzip2(), tar.extract({ cwd: cacheDir, strip: 1 }), { signal })
 }
 
-function extractedPath(cacheDir: string, archivedPath: string): string {
-  return join(cacheDir, ...archivedPath.split('/').slice(1))
+function resolvedFilePath(cacheDir: string, filePath: string): string {
+  const parts = filePath.split('/')
+  return parts.length > 1 ? join(cacheDir, ...parts.slice(1)) : join(cacheDir, filePath)
 }
 
 async function requiredModelFilesReady(definition: VoiceModelDefinition, cacheDir: string): Promise<boolean> {
-  return (await Promise.all(Object.values(definition.files).map(async (path) => {
-    const info = await stat(extractedPath(cacheDir, path)).catch(() => undefined)
+  return (await Promise.all(architectureFilePaths(definition.architecture).map(async (path) => {
+    const info = await stat(resolvedFilePath(cacheDir, path)).catch(() => undefined)
     return info?.isFile() === true && info.size > 0
   }))).every(Boolean)
 }
@@ -136,6 +137,15 @@ class DownloadHttpError extends Error {
 class DownloadProtocolError extends Error {}
 
 class ArchiveIntegrityError extends DownloadProtocolError {}
+
+/** Translate a raw fetch/transport error into a user-facing message with network troubleshooting hints. */
+function friendlyDownloadError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  if (/fetch failed|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|Connect Timeout|UND_ERR_CONNECT_TIMEOUT/i.test(message)) {
+    return `下载失败：无法连接到模型服务器 (${message})。请检查网络连接或开启代理后重试。`
+  }
+  return message
+}
 
 function retryableDownloadError(error: unknown): boolean {
   if (error instanceof DownloadProtocolError) return false
@@ -256,9 +266,11 @@ async function downloadArchive(
   options: DownloadOptions | undefined,
   signal: AbortSignal,
 ): Promise<number> {
+  if (definition.download.type !== 'archive') throw new Error('downloadArchive called for a file-download model')
+  const archiveUrl = definition.download.url
   const expectedTotal = definition.approximateBytes
   if (expectedTotal <= 0) {
-    const response = await fetchImpl(definition.archiveUrl, { signal })
+    const response = await fetchImpl(archiveUrl, { signal })
     const header = response.headers.get('content-length')
     const total = header === null || header === '' ? expectedTotal : Number(header)
     const progress = inFlight.get(definition.id)
@@ -286,7 +298,7 @@ async function downloadArchive(
     const end = start + segmentSize(index) - 1
     const idleTimeout = downloadIdleTimeout(options.requestTimeoutMs, signal)
     try {
-      const response = await fetchImpl(definition.archiveUrl, {
+      const response = await fetchImpl(archiveUrl, {
         headers: { range: `bytes=${start}-${end}` },
         signal: idleTimeout.signal,
       })
@@ -362,11 +374,62 @@ async function verifyArchiveIntegrity(
   archivePath: string,
   signal: AbortSignal,
 ): Promise<void> {
+  if (definition.download.type !== 'archive') throw new Error('verifyArchiveIntegrity called for a file-download model')
   const actual = await sha256File(archivePath, signal)
-  if (actual !== definition.archiveSha256) {
+  if (actual !== definition.download.sha256) {
     throw new ArchiveIntegrityError(
-      `download failed: expected SHA-256 ${definition.archiveSha256}, received ${actual}`,
+      `download failed: expected SHA-256 ${definition.download.sha256}, received ${actual}`,
     )
+  }
+}
+
+/** Download individual model files directly into the cache directory. */
+async function downloadFiles(
+  definition: VoiceModelDefinition,
+  fetchImpl: FetchLike,
+  cacheDir: string,
+  signal: AbortSignal,
+): Promise<void> {
+  if (definition.download.type !== 'files') throw new Error('downloadFiles called for an archive-download model')
+  await mkdir(cacheDir, { recursive: true })
+  for (const entry of definition.download.entries) {
+    signal.throwIfAborted()
+    const dest = join(cacheDir, entry.name)
+    const info = await stat(dest).catch(() => undefined)
+    if (info?.isFile() === true && info.size === entry.bytes) {
+      updateDownloadProgress(definition.id, entry.bytes)
+      continue
+    }
+    const response = await fetchImpl(entry.url, { signal })
+    if (!response.ok || response.body === null) throw new DownloadHttpError(response.status)
+    const temp = `${dest}.partial`
+    await rm(temp, { force: true })
+    let fileReceived = 0
+    let committed = false
+    try {
+      await pipeline(
+        trackProgress(response.body, (bytes) => {
+          fileReceived += bytes
+          updateDownloadProgress(definition.id, bytes)
+        }),
+        createWriteStream(temp),
+        { signal },
+      )
+      if (fileReceived !== entry.bytes) {
+        throw new Error(`download failed: expected ${entry.bytes} bytes for ${entry.name}, received ${fileReceived}`)
+      }
+      await rename(temp, dest)
+      committed = true
+    } finally {
+      if (!committed) updateDownloadProgress(definition.id, -fileReceived)
+      await rm(temp, { force: true }).catch(() => {})
+    }
+    const actualHash = await sha256File(dest, signal)
+    if (actualHash !== entry.sha256) {
+      throw new ArchiveIntegrityError(
+        `download failed: ${entry.name} expected SHA-256 ${entry.sha256}, received ${actualHash}`,
+      )
+    }
   }
 }
 
@@ -386,13 +449,17 @@ async function installModel(
     if (status.state === 'ready') return status.cacheDir
     await rm(cacheDir, { recursive: true, force: true })
     await rm(archivePath, { force: true })
-    await mkdir(dirname(archivePath), { recursive: true })
-    const totalBytes = await downloadArchive(definition, fetchImpl, archivePath, downloadOptions, signal)
-    await verifyArchiveIntegrity(definition, archivePath, signal)
+    if (definition.download.type === 'archive') {
+      await mkdir(dirname(archivePath), { recursive: true })
+      const totalBytes = await downloadArchive(definition, fetchImpl, archivePath, downloadOptions, signal)
+      await verifyArchiveIntegrity(definition, archivePath, signal)
 
-    inFlight.set(definition.id, { state: 'extracting', receivedBytes: totalBytes, totalBytes })
-    await mkdir(cacheDir, { recursive: true })
-    await extractArchive(archivePath, cacheDir, signal)
+      inFlight.set(definition.id, { state: 'extracting', receivedBytes: totalBytes, totalBytes })
+      await mkdir(cacheDir, { recursive: true })
+      await extractArchive(archivePath, cacheDir, signal)
+    } else {
+      await downloadFiles(definition, fetchImpl, cacheDir, signal)
+    }
     signal.throwIfAborted()
     await writeFile(join(cacheDir, READY_MARKER), '')
     await rm(modelPartsDir(definition.id), { recursive: true, force: true })
@@ -403,7 +470,7 @@ async function installModel(
       await rm(modelPartsDir(definition.id), { recursive: true, force: true }).catch(() => {})
     }
     if (signal.aborted) failures.delete(definition.id)
-    else failures.set(definition.id, error instanceof Error ? error.message : String(error))
+    else failures.set(definition.id, friendlyDownloadError(error))
     throw error
   } finally {
     await rm(archivePath, { force: true }).catch(() => {})

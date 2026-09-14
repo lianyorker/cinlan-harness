@@ -8,25 +8,42 @@ export type VoiceModelId = Branded<'VoiceModelId'>
 /** Streaming (chunk-by-chunk) or non-streaming (whole-utterance) recognizer family. */
 export type VoiceModelKind = 'streaming' | 'non-streaming'
 
-/** One shipped model definition: display metadata plus its download source. */
+/** Recognizer architecture and the model file paths each one expects in its cache directory. */
+export type VoiceModelArchitecture =
+  | { readonly type: 'transducer'; readonly encoder: string; readonly decoder: string; readonly joiner: string; readonly tokens: string }
+  | { readonly type: 'paraformer'; readonly encoder: string; readonly decoder: string; readonly tokens: string }
+  | { readonly type: 'whisper'; readonly encoder: string; readonly decoder: string; readonly tokens: string; readonly language: string }
+  | { readonly type: 'sense-voice'; readonly model: string; readonly tokens: string; readonly language: string }
+
+/** Download source: either a single tar.bz2 archive or individual files from a hosting provider. */
+export type VoiceModelDownload =
+  | { readonly type: 'archive'; readonly url: string; readonly sha256: string }
+  | { readonly type: 'files'; readonly entries: readonly { readonly name: string; readonly url: string; readonly sha256: string; readonly bytes: number }[] }
+
+/** All file paths the architecture references, for cache readiness checks. */
+export function architectureFilePaths(arch: VoiceModelArchitecture): readonly string[] {
+  switch (arch.type) {
+    case 'transducer': return [arch.encoder, arch.decoder, arch.joiner, arch.tokens]
+    case 'paraformer': return [arch.encoder, arch.decoder, arch.tokens]
+    case 'whisper': return [arch.encoder, arch.decoder, arch.tokens]
+    case 'sense-voice': return [arch.model, arch.tokens]
+  }
+}
+
+/** One shipped model definition: display metadata plus its download source and recognizer architecture. */
 export interface VoiceModelDefinition {
   readonly id: VoiceModelId
   /** Localization-free display name (matches the upstream sherpa-onnx release naming). */
   readonly name: string
+  /** Short user-facing description of the model's language coverage and strengths. */
+  readonly description: string
+  /** Whether this model is recommended for most users. */
+  readonly recommended: boolean
   readonly kind: VoiceModelKind
-  /** Approximate encoded download size in bytes, for the settings page's size hint. */
+  /** Approximate total download size in bytes, for the settings page's size hint. */
   readonly approximateBytes: number
-  /** The exact upstream release archive to download and cache locally. */
-  readonly archiveUrl: string
-  /** Lowercase SHA-256 of the encoded archive; installation rejects any other bytes. */
-  readonly archiveSha256: string
-  /** The relative path, inside the extracted archive, sherpa-onnx-node's OnlineRecognizer config expects for each required file. */
-  readonly files: {
-    readonly encoder: string
-    readonly decoder: string
-    readonly joiner: string
-    readonly tokens: string
-  }
+  readonly download: VoiceModelDownload
+  readonly architecture: VoiceModelArchitecture
 }
 
 /** Per-model download/cache lifecycle state reported to the settings page. */

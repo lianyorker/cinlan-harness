@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-该 Service Provider 把 `sherpa-onnx-node` 挂载为 `ctx.voice` 上的本地语音转文本引擎，并拥有设置页与 Ctrl+Shift+E 听写客户端调用的 `/voice/api` 仅回环 Host 路由。两个出厂模型验证了完整链路：[`sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23`](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models)（流式，纯中文，约 74MB 归档）与 [`sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20`](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models)（流式，中英双语，约 511MB 归档）。
+该 Service Provider 把 `sherpa-onnx-node` 挂载为 `ctx.voice` 上的本地语音转文本引擎，并拥有设置页与 Ctrl+Shift+E 听写客户端调用的 `/voice/api` 仅回环 Host 路由。六个出厂模型覆盖完整链路：两个流式 Zipformer 模型来自 [GitHub releases](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models)（纯中文约 74MB，中英双语约 511MB），四个额外模型来自 [HuggingFace](https://huggingface.co) 经 `hf-mirror.com` 镜像下载（英文 Zipformer 约 92MB，双语 Paraformer 约 237MB，Sense Voice 约 240MB，Whisper tiny 约 153MB）。
 
 ## 降级模式
 
@@ -42,4 +42,5 @@
 
 ## 已知限制与暂缓事项
 
-- **目前只出厂两个模型** —— 上游 sherpa-onnx 剩余模型家族的规划见 group README。
+- **HuggingFace 模型使用 `hf-mirror.com`** —— 四个文件下载模型从 `hf-mirror.com` 而非 `huggingface.co` 下载，以在网络不可达地区提供可访问性；镜像 URL 硬编码在 `model-registry.ts` 中。
+- **网络错误显示友好提示** —— `fetch failed` 等传输错误会被翻译为用户可读的消息，提示用户检查网络或开启代理。

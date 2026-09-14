@@ -1,81 +1,84 @@
 /**
- * Ctrl+Shift+E dictation capture: records the microphone via MediaRecorder,
- * decodes the clip through AudioContext.decodeAudioData, resamples to 16kHz
- * mono, and POSTs the base64-encoded PCM to the Host's /voice/api/transcribe
- * method. Kept dependency-free (no React) so the capture/encode logic is
- * unit-testable without a DOM renderer.
+ * Ctrl+Shift+E dictation capture: records the microphone via ScriptProcessorNode
+ * at the system's native sample rate, then manually resamples to 16kHz mono.
+ * POSTs the base64-encoded PCM to the Host's /voice/api/transcribe method.
+ * Kept dependency-free (no React) so the capture/encode logic is unit-testable
+ * without a DOM renderer.
  */
 import { voiceApi } from './api.ts'
 
 /** The sample rate the Host's shipped models require. */
 const TARGET_SAMPLE_RATE = 16_000
 
-/** One active recording session (MediaRecorder + its accumulated chunks). */
+/** One active recording session (ScriptProcessorNode + its accumulated samples). */
 export interface DictationRecording {
-  /** Stop recording and resolve the finished audio Blob. */
-  stop(): Promise<Blob>
+  /** Stop recording and resolve the captured 16kHz mono float32 samples. */
+  stop(): Promise<Float32Array>
 }
 
 /**
- * Start recording the given microphone stream. The caller owns the stream's
- * lifecycle (acquired via getUserMedia) and must stop its tracks after
- * {@link DictationRecording.stop} resolves.
+ * Start recording the given microphone stream via ScriptProcessorNode.
+ * The AudioContext uses the system's native sample rate; samples are resampled
+ * to 16kHz on stop. The caller owns the stream's lifecycle (acquired via
+ * getUserMedia) and must stop its tracks after {@link DictationRecording.stop}
+ * resolves.
  * @param stream - an active microphone MediaStream.
- * @returns a handle whose stop() resolves the recorded clip.
+ * @param audioContextCtor - injectable AudioContext constructor (tests provide a fake).
+ * @returns a handle whose stop() resolves the captured PCM samples.
  */
-export function startRecording(stream: MediaStream): DictationRecording {
-  const chunks: Blob[] = []
-  const recorder = new MediaRecorder(stream)
-  recorder.addEventListener('dataavailable', (event) => {
-    if (event.data.size > 0) chunks.push(event.data)
-  })
-  recorder.start()
+export function startRecording(
+  stream: MediaStream,
+  audioContextCtor: typeof AudioContext = AudioContext,
+): DictationRecording {
+  const context = new audioContextCtor()
+  const source = context.createMediaStreamSource(stream)
+  const processor = context.createScriptProcessor(4096, 1, 1)
+  const chunks: Float32Array[] = []
+  processor.onaudioprocess = (event: AudioProcessingEvent) => {
+    const input = event.inputBuffer.getChannelData(0)
+    chunks.push(new Float32Array(input))
+  }
+  source.connect(processor)
+  // ScriptProcessorNode requires a connection to destination to fire onaudioprocess;
+  // route through a zero-gain node to avoid feedback.
+  const muteGain = context.createGain()
+  muteGain.gain.value = 0
+  processor.connect(muteGain)
+  muteGain.connect(context.destination)
+
   return {
-    stop: () => new Promise<Blob>((resolve) => {
-      recorder.addEventListener('stop', () => { resolve(new Blob(chunks, { type: recorder.mimeType })) }, { once: true })
-      recorder.stop()
+    stop: () => new Promise<Float32Array>((resolve) => {
+      // Allow any pending onaudioprocess callbacks to flush.
+      setTimeout(() => {
+        source.disconnect()
+        processor.disconnect()
+        muteGain.disconnect()
+        const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+        const raw = new Float32Array(total)
+        let offset = 0
+        for (const chunk of chunks) {
+          raw.set(chunk, offset)
+          offset += chunk.length
+        }
+        const result = resampleToMono16k(raw, context.sampleRate)
+        context.close().then(() => resolve(result))
+      }, 200)
     }),
   }
 }
 
-/**
- * Decode a recorded clip and resample it to 16kHz mono float32 samples.
- * @param blob - the recorded audio clip (any MediaRecorder-produced format the browser's decoder accepts).
- * @param audioContextCtor - injectable AudioContext constructor (tests provide a fake).
- * @returns 16kHz mono PCM float32 samples.
- */
-export async function decodeAndResample(
-  blob: Blob,
-  audioContextCtor: typeof AudioContext = AudioContext,
-): Promise<Float32Array> {
-  const arrayBuffer = await blob.arrayBuffer()
-  const context = new audioContextCtor()
-  try {
-    const decoded = await context.decodeAudioData(arrayBuffer)
-    return resampleToMono(decoded, TARGET_SAMPLE_RATE)
-  } finally {
-    await context.close()
-  }
-}
-
-/** Downmix every channel to mono (simple average) and linearly resample to `targetRate`. */
-function resampleToMono(buffer: AudioBuffer, targetRate: number): Float32Array {
-  const channels = buffer.numberOfChannels
-  const mono = new Float32Array(buffer.length)
-  for (let channel = 0; channel < channels; channel++) {
-    const data = buffer.getChannelData(channel)
-    for (let i = 0; i < data.length; i++) mono[i] = (mono[i] ?? 0) + (data[i] ?? 0) / channels
-  }
-  if (buffer.sampleRate === targetRate) return mono
-  const ratio = buffer.sampleRate / targetRate
-  const outLength = Math.round(mono.length / ratio)
+/** Linear-interpolation resample from nativeRate to 16kHz mono. */
+function resampleToMono16k(input: Float32Array, nativeRate: number): Float32Array {
+  if (nativeRate === TARGET_SAMPLE_RATE) return input
+  const ratio = nativeRate / TARGET_SAMPLE_RATE
+  const outLength = Math.round(input.length / ratio)
   const out = new Float32Array(outLength)
   for (let i = 0; i < outLength; i++) {
     const sourceIndex = i * ratio
     const lower = Math.floor(sourceIndex)
-    const upper = Math.min(lower + 1, mono.length - 1)
+    const upper = Math.min(lower + 1, input.length - 1)
     const frac = sourceIndex - lower
-    out[i] = (mono[lower] ?? 0) * (1 - frac) + (mono[upper] ?? 0) * frac
+    out[i] = (input[lower] ?? 0) * (1 - frac) + (input[upper] ?? 0) * frac
   }
   return out
 }
@@ -94,17 +97,15 @@ export function encodePcmBase64(samples: Float32Array): string {
 
 /**
  * Full record-decode-transcribe pipeline for one dictation gesture.
- * @param recording - active recording to stop and decode.
+ * @param recording - active recording to stop.
  * @param modelId - the shipped model to transcribe against.
- * @param recording - the active DictationRecording handle to stop.
  * @returns the transcript text.
  */
 export async function finishDictation(
   recording: DictationRecording,
   modelId: string,
 ): Promise<string> {
-  const blob = await recording.stop()
-  const samples = await decodeAndResample(blob)
+  const samples = await recording.stop()
   const { text } = await voiceApi.transcribe(modelId, encodePcmBase64(samples))
   return text
 }

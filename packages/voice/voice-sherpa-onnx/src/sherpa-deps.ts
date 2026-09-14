@@ -11,13 +11,15 @@ import { createRequire } from 'node:module'
 /** The minimal sherpa-onnx-node surface this Provider consumes. */
 export interface SherpaOnnxModule {
   OnlineRecognizer: new (config: SherpaOnlineRecognizerConfig) => SherpaOnlineRecognizer
+  OfflineRecognizer: new (config: SherpaOfflineRecognizerConfig) => SherpaOfflineRecognizer
 }
 
 /** Configuration accepted by sherpa-onnx-node's streaming `OnlineRecognizer`. */
 export interface SherpaOnlineRecognizerConfig {
   featConfig: { sampleRate: number; featureDim: number }
   modelConfig: {
-    transducer: { encoder: string; decoder: string; joiner: string }
+    transducer?: { encoder: string; decoder: string; joiner: string }
+    paraformer?: { encoder: string; decoder: string }
     tokens: string
     numThreads: number
     provider: 'cpu'
@@ -25,17 +27,43 @@ export interface SherpaOnlineRecognizerConfig {
   }
 }
 
-/** One streaming decode session bound to a recognizer instance. */
-export interface SherpaOnlineStream {
-  acceptWaveform(input: { sampleRate: number; samples: Float32Array }): void
+/** Configuration accepted by sherpa-onnx-node's non-streaming `OfflineRecognizer`. */
+export interface SherpaOfflineRecognizerConfig {
+  featConfig: { sampleRate: number; featureDim: number }
+  modelConfig: {
+    whisper?: { encoder: string; decoder: string; language: string; task: 'transcribe' | 'translate' }
+    senseVoice?: { model: string; language: string }
+    tokens: string
+    numThreads: number
+    provider: 'cpu'
+    debug: 0 | 1
+  }
 }
 
-/** The recognizer methods this Provider calls. */
+/** One streaming decode session bound to an `OnlineRecognizer` instance. */
+export interface SherpaOnlineStream {
+  acceptWaveform(input: { sampleRate: number; samples: Float32Array }): void
+  inputFinished(): void
+}
+
+/** sherpa-onnx-node's streaming recognizer: decode is polled to exhaustion via `isReady`. */
 export interface SherpaOnlineRecognizer {
   createStream(): SherpaOnlineStream
   isReady(stream: SherpaOnlineStream): boolean
   decode(stream: SherpaOnlineStream): void
   getResult(stream: SherpaOnlineStream): { text: string }
+}
+
+/** One decode session bound to an `OfflineRecognizer` instance. */
+export interface SherpaOfflineStream {
+  acceptWaveform(input: { sampleRate: number; samples: Float32Array }): void
+}
+
+/** sherpa-onnx-node's non-streaming recognizer: decode runs exactly once per stream, with no `isReady` polling. */
+export interface SherpaOfflineRecognizer {
+  createStream(): SherpaOfflineStream
+  decode(stream: SherpaOfflineStream): void
+  getResult(stream: SherpaOfflineStream): { text: string }
 }
 
 /** A require-compatible loader, injectable for tests. */

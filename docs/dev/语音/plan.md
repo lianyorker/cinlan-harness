@@ -32,14 +32,20 @@
 
 **位置**：`@/packages/voice/voice-sherpa-onnx/src/index.ts`
 
-注册 sherpa-onnx 引擎 + 2 个内置模型 + `/voice/api` Host 路由。
+注册 sherpa-onnx 引擎 + 6 个内置模型 + `/voice/api` Host 路由。
 
 **内置模型**（`model-registry.ts`）：
 
-| 模型 ID | 语言 | 大小 | 类型 |
-|---|---|---|---|
-| `zh-streaming-zipformer-14m` | 中文 | ~71MB | streaming |
-| `bilingual-streaming-zipformer` | 中英双语 | ~488MB | streaming |
+| 模型 ID | 语言 | 大小 | 类型 | 下载源 |
+|---|---|---|---|---|
+| `zh-streaming-zipformer-14m` | 中文 | ~74MB | streaming | GitHub release (archive) |
+| `bilingual-streaming-zipformer` | 中英双语 | ~511MB | streaming | GitHub release (archive) |
+| `en-streaming-zipformer-20m` | 英文 | ~92MB | streaming | HuggingFace (files, hf-mirror.com) |
+| `bilingual-streaming-paraformer` | 中英双语 | ~237MB | streaming | HuggingFace (files, hf-mirror.com) |
+| `sense-voice-zh-en-ja-ko-yue` | 中日英韩粤 | ~240MB | non-streaming | HuggingFace (files, hf-mirror.com) |
+| `whisper-tiny` | 90+ 语言 | ~153MB | non-streaming | HuggingFace (files, hf-mirror.com) |
+
+HuggingFace 模型使用 `hf-mirror.com` 镜像以在网络不可达地区提供可访问性。网络错误（`fetch failed` 等）显示友好提示，建议用户检查网络或开启代理。
 
 **Host 路由**（`/voice/api`）：
 
@@ -84,7 +90,7 @@
 
 | 功能 | 状态 | 说明 |
 |---|---|---|
-| 录音 | ✅ | MediaRecorder → decodeAndResample → 16kHz mono PCM |
+| 录音 | ✅ | ScriptProcessorNode（原生采样率）→ resampleToMono16k → 16kHz mono PCM |
 | 转写 | ✅ | POST /voice/api/transcribe |
 | 插入 | ✅ | 追加到当前 session 的 composer draft |
 | 快捷键 | ✅ | Ctrl+Shift+E toggle 模式 |
@@ -207,10 +213,10 @@ orca 有 **12 个模型**（DSH 仅 2 个）：
 | 终端确认插入 | ❌ | ✅ | 缺失 |
 | 快捷键显示 | ❌ | ✅ | 缺失 |
 | **模型** | | | |
-| 模型数量 | 2 | 12 | 缺 10 个 |
-| 模型类型 | streaming only | streaming + offline | 缺 offline |
+| 模型数量 | 6 | 12 | 缺 6 个（Parakeet、韩语 Zipformer、日语 CTC、2 个 OpenAI） |
+| 模型类型 | streaming + non-streaming | streaming + offline | ✅ 已补齐 offline |
 | 云端模型 | ❌ | ✅ (OpenAI) | 缺失 |
-| 推荐标记 | ❌ | ✅ | 缺失 |
+| 推荐标记 | ✅ | ✅ | ✅ 已补齐 |
 | **听写** | | | |
 | 转写方式 | 整段录音后转写 | 流式实时转写 | 架构差异 |
 | 部分转写 | ❌ | ✅ | 缺失 |
@@ -366,7 +372,7 @@ DSH 的语音架构与 orca 差异较大（整段转写 vs 流式、主进程 vs
 
 当前 DSH 流程：
 ```
-录音 → MediaRecorder → Blob → decodeAndResample → base64 PCM → POST /voice/api/transcribe → 文本
+录音 → ScriptProcessorNode（原生采样率）→ resampleToMono16k → base64 PCM → POST /voice/api/transcribe → 文本
 ```
 
 目标流程：
@@ -478,4 +484,5 @@ DSH 的语音架构与 orca 差异较大（整段转写 vs 流式、主进程 vs
 4. **设置持久化**：DSH 无 orca 的 `GlobalSettings.voice` 对象，需新增 voice settings scope。当前 DSH 的 voice 设置无持久化（模型选择靠自动，无启用开关）。
 5. **插入目标安全**：向任意聚焦元素插入文本需处理终端、contentEditable、input/textarea 的不同插入方式，以及大文本分块。
 6. **OpenAI Key 存储**：DSH 无 Electron `safeStorage`，需自行实现加密存储或使用 DSH 的 credentials capability。
-7. **模型下载兼容性**：orca 的模型下载使用多文件并行下载（`downloadFiles`），DSH 使用单 archive 下载 + tar 解压。迁移模型目录需适配下载方式。
+7. **模型下载兼容性**：DSH 已支持两种下载方式：archive（tar.bz2，GitHub release）和 files（多文件并行，HuggingFace）。新增的 4 个 HuggingFace 模型使用 `files` 方式，经 `hf-mirror.com` 镜像下载。
+8. **转写空结果**：当前 `ScriptProcessorNode` 采集在某些浏览器/音频驱动组合下可能产生近零振幅样本，导致转写结果为空。迁移到 `AudioWorkletNode` 是已知的后续工作。

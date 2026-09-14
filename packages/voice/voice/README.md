@@ -28,6 +28,6 @@ None; engine registration, model registration, and download/cache state never en
 
 ## Known Limitations and Deferred Work
 
-- **Two shipped models only** — the first vertical slice registers one streaming Chinese-only model and one streaming bilingual (Chinese/English) model from the upstream sherpa-onnx release roster; the remaining reference model families (Parakeet, additional Zipformer languages, Whisper) are not yet registered.
+- **Six shipped models** — the slice registers two streaming Zipformer archive models from GitHub releases and four file-download models from HuggingFace (English Zipformer, bilingual Paraformer, Sense Voice, Whisper tiny) via the `hf-mirror.com` mirror.
 - **No durable model-preference record** — the last-selected model is not persisted; each session starts from the settings page's default selection.
 - **No streaming partial-result API** — `VoiceRecognizer.transcribe` returns one final transcript per submitted clip; incremental partial hypotheses during an in-progress utterance are not exposed.

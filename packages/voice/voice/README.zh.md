@@ -28,6 +28,6 @@
 
 ## 已知限制与暂缓事项
 
-- **目前只出厂两个模型** —— 首个垂直切片只注册了上游 sherpa-onnx 发布清单中的一个纯中文流式模型和一个中英双语流式模型；其余参考模型家族（Parakeet、更多 Zipformer 语言、Whisper）尚未注册。
+- **六个出厂模型** —— 该切片注册了两个来自 GitHub releases 的流式 Zipformer 归档模型和四个来自 HuggingFace 的文件下载模型（英文 Zipformer、双语 Paraformer、Sense Voice、Whisper tiny），经 `hf-mirror.com` 镜像下载。
 - **没有持久化的模型偏好记录** —— 上次选择的模型不会持久化；每个会话都从设置页的默认选择开始。
 - **没有流式部分结果 API** —— `VoiceRecognizer.transcribe` 对每段提交的音频只返回一条最终转写；正在进行的语句的增量部分假设不对外暴露。

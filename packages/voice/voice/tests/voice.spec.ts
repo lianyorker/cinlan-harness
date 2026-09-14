@@ -7,11 +7,12 @@ function definition(id: string): VoiceModelDefinition {
   return {
     id: VoiceModelId(id),
     name: id,
+    description: 'test model',
+    recommended: false,
     kind: 'streaming',
     approximateBytes: 1024,
-    archiveUrl: 'https://example.invalid/model.tar.bz2',
-    archiveSha256: '0'.repeat(64),
-    files: { encoder: 'encoder.onnx', decoder: 'decoder.onnx', joiner: 'joiner.onnx', tokens: 'tokens.txt' },
+    download: { type: 'archive', url: 'https://example.invalid/model.tar.bz2', sha256: '0'.repeat(64) },
+    architecture: { type: 'transducer', encoder: 'encoder.onnx', decoder: 'decoder.onnx', joiner: 'joiner.onnx', tokens: 'tokens.txt' },
   }
 }
 

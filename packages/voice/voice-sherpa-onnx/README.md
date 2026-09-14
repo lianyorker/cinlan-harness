@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-This Service Provider mounts `sherpa-onnx-node` as the local speech-to-text engine on `ctx.voice` and owns the `/voice/api` loopback-only Host route the settings page and Ctrl+Shift+E dictation client call. Two shipped models prove the full pipeline: [`sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23`](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models) (streaming, Chinese-only, ~74MB archive) and [`sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20`](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models) (streaming, Chinese/English, ~511MB archive).
+This Service Provider mounts `sherpa-onnx-node` as the local speech-to-text engine on `ctx.voice` and owns the `/voice/api` loopback-only Host route the settings page and Ctrl+Shift+E dictation client call. Six shipped models cover the full pipeline: two streaming Zipformer models from [GitHub releases](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models) (Chinese-only ~74MB, bilingual ~511MB) and four additional models from [HuggingFace](https://huggingface.co) via the `hf-mirror.com` mirror (English Zipformer ~92MB, bilingual Paraformer ~237MB, Sense Voice ~240MB, Whisper tiny ~153MB).
 
 ## Degraded mode
 
@@ -42,4 +42,5 @@ None; engine loading, model download/cache state, and transcription never enter 
 
 ## Known Limitations and Deferred Work
 
-- **Two shipped models only** — see the group README's roadmap for the remaining upstream sherpa-onnx model families.
+- **HuggingFace models use `hf-mirror.com`** — the four file-download models are sourced from `hf-mirror.com` instead of `huggingface.co` for network accessibility in regions where the latter is unreachable; the mirror URL is hardcoded in `model-registry.ts`.
+- **Network errors show a friendly hint** — `fetch failed` and similar transport errors are translated to a user-facing message prompting the user to check their network or enable a proxy.

@@ -114,7 +114,14 @@ describe('voice-sherpa-onnx: /voice/api route', () => {
     const { status, json } = await post(port, '/voice/api/models.list', {})
     expect(status).toBe(200)
     const models = (json as { value: { models: { definition: { id: string }; status: { state: string } }[] } }).value.models
-    expect(models.map(model => model.definition.id)).toEqual(['zh-streaming-zipformer-14m', 'bilingual-streaming-zipformer'])
+    expect(models.map(model => model.definition.id)).toEqual([
+      'zh-streaming-zipformer-14m',
+      'bilingual-streaming-zipformer',
+      'en-streaming-zipformer-20m',
+      'bilingual-streaming-paraformer',
+      'sense-voice-zh-en-ja-ko-yue',
+      'whisper-tiny',
+    ])
     expect(models.every(model => model.status.state === 'not-downloaded')).toBe(true)
   })
 

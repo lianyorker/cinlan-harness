@@ -7,10 +7,12 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { DictationController } from './dictation-controller.ts'
 import { en, zh, type VoiceSettingsKey } from './locales.ts'
 import { VoiceButton, type VoiceButtonInjected } from './VoiceButton.tsx'
-import { VoiceSettingsSection } from './VoiceSettingsSection.tsx'
+import { VoiceSettingsSection, type VoiceSettingsInjected } from './VoiceSettingsSection.tsx'
+import { createVoiceSettingsStore, type VoiceSettings } from './voice-settings.ts'
 
 export type { VoiceModelRow } from './api.ts'
 export type { MicrophonePermissionState } from './microphone.ts'
+export type { VoiceSettings, DictationMode } from './voice-settings.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -33,35 +35,66 @@ function isEditableTarget(target: EventTarget | null): boolean {
     || target.closest('[contenteditable="true"]') !== null
 }
 
-function registerDictationShortcut(ctx: ClientContext, controller: DictationController): () => void {
+type SettingsStore = ReturnType<typeof createVoiceSettingsStore>
+
+function registerDictationShortcut(ctx: ClientContext, controller: DictationController, settingsStore: SettingsStore): () => void {
   const onKeyDown = (event: KeyboardEvent): void => {
     if (!event.ctrlKey || event.key.toLowerCase() !== 'e' || !event.shiftKey || event.altKey || event.metaKey) return
     if (event.repeat || event.isComposing || event.defaultPrevented || isEditableTarget(event.target)) return
+    const { enabled, dictationMode } = settingsStore.getSnapshot()
+    if (!enabled) return
     const sessionId = ctx.sessions.list.getSnapshot().current
     if (sessionId === undefined) return
     event.preventDefault()
-    controller.toggle(sessionId)
+    if (dictationMode === 'hold') {
+      if (event.repeat) return
+      controller.start(sessionId)
+    } else {
+      controller.toggle(sessionId)
+    }
+  }
+  const onKeyUp = (event: KeyboardEvent): void => {
+    if (!event.ctrlKey || event.key.toLowerCase() !== 'e' || !event.shiftKey || event.altKey || event.metaKey) return
+    const { enabled, dictationMode } = settingsStore.getSnapshot()
+    if (!enabled || dictationMode !== 'hold') return
+    const sessionId = ctx.sessions.list.getSnapshot().current
+    if (sessionId === undefined) return
+    event.preventDefault()
+    controller.stop(sessionId)
   }
   document.addEventListener('keydown', onKeyDown)
-  return () => { document.removeEventListener('keydown', onKeyDown) }
+  document.addEventListener('keyup', onKeyUp)
+  return () => {
+    document.removeEventListener('keydown', onKeyDown)
+    document.removeEventListener('keyup', onKeyUp)
+  }
 }
 
 /** Mount the Voice settings page, composer button, and Ctrl+Shift+E shortcut. */
 export function apply(ctx: ClientContext): void {
-  const controller = new DictationController(ctx)
+  const settingsStore = createVoiceSettingsStore()
+  const updateSettings = (patch: Partial<VoiceSettings>): void => {
+    settingsStore.update((draft) => { Object.assign(draft, patch) })
+  }
+  const controller = new DictationController(ctx, settingsStore)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-voice-dictation: dictionaries')
   const t = ctx.locale.bind(NS)
 
+  const sectionInjected = (): VoiceSettingsInjected => ({
+    hooks: { settings: settingsStore },
+    updateSettings,
+  })
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'voice',
     order: 85,
     label: () => t('nav'),
     locale: NS,
+    inject: sectionInjected,
   }, VoiceSettingsSection))
 
   const buttonInjected = (): VoiceButtonInjected => ({
-    hooks: { dictation: controller.store },
+    hooks: { dictation: controller.store, settings: settingsStore },
     toggle: (sessionId) => { controller.toggle(sessionId) },
   })
   ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
@@ -72,6 +105,6 @@ export function apply(ctx: ClientContext): void {
     inject: buttonInjected,
   }, VoiceButton))
 
-  ctx.effect(() => registerDictationShortcut(ctx, controller), 'ui-voice-dictation: Ctrl+Shift+E trigger')
+  ctx.effect(() => registerDictationShortcut(ctx, controller, settingsStore), 'ui-voice-dictation: Ctrl+Shift+E trigger')
   ctx.effect(() => async () => { await controller.dispose() }, 'ui-voice-dictation: controller teardown')
 }

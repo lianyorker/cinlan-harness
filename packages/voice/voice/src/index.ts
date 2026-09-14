@@ -16,7 +16,9 @@ import type {
 
 export type {
   VoiceEngine,
+  VoiceModelArchitecture,
   VoiceModelDefinition,
+  VoiceModelDownload,
   VoiceModelKind,
   VoiceModelStatus,
   VoiceModelSummary,
@@ -24,6 +26,7 @@ export type {
   VoiceTranscribeRequest,
   VoiceTranscribeResult,
 } from './types.ts'
+export { architectureFilePaths } from './types.ts'
 
 /** Exact shipped model selector. */
 export type VoiceModelId = VoiceModelIdValue
