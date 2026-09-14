@@ -20,3 +20,37 @@ export interface DeviceCapabilitySnapshot {
   readonly status: DeviceCapabilityStatus
   readonly reason: DeviceCapabilityReason | null
 }
+
+/** Android SDK detection result. */
+export interface AndroidSdkAvailability {
+  readonly found: boolean
+  readonly sdkPath: string | null
+  readonly message: string
+}
+
+/** iOS Simulator detection result (macOS only). */
+export interface IosSimulatorAvailability {
+  readonly simctlOk: boolean
+  readonly message: string
+}
+
+/** SDK availability snapshot for the mobile emulator settings page. */
+export interface MobileSdkSnapshot {
+  readonly platform: string
+  readonly android: AndroidSdkAvailability
+  readonly ios: IosSimulatorAvailability | null
+}
+
+/** One redacted mobile device for the default-device selector. */
+export interface MobileDeviceSummary {
+  readonly id: string
+  readonly name: string
+  readonly state: string
+  readonly isAvailable: boolean
+}
+
+/** Result of listing mobile devices for the settings UI. */
+export interface MobileDeviceListSnapshot {
+  readonly devices: readonly MobileDeviceSummary[]
+  readonly available: boolean
+}

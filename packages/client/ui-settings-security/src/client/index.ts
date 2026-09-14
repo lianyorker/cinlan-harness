@@ -16,8 +16,11 @@ import {
 import { CAPABILITIES, CapabilitySection, type CapabilitySectionInjected } from './CapabilitySection.tsx'
 import { en, zh, type CapabilitySettingsKey } from './locales.ts'
 import type { BrowserPreferences } from '@deepseek-ai/dsh-browser-playwright/types'
+import type { MobileDeviceSettings } from '../types.ts'
+import { MOBILE_DEVICE_NAMESPACE } from '../types.ts'
 
 export type { CapabilityId, CapabilityDefinition, CapabilitySectionInjected } from './CapabilitySection.tsx'
+export type { MobileDeviceSettings } from '../types.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -45,6 +48,7 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
   const browserPreferences = ctx.settingsScope.bind<BrowserPreferences>({ namespace: 'browser-playwright' })
   const securityScope = ctx.settingsScope.bind<SecurityResearchScopeSettings>({ namespace: 'assessment-scope' })
+  const mobileSettings = ctx.settingsScope.bind<MobileDeviceSettings>({ namespace: MOBILE_DEVICE_NAMESPACE })
   const list: CapabilitySectionInjected['list'] = async () => {
     const result = await ctx.remote.pluginInventory.list()
     if (!result.ok) throw new Error(`pluginInventory.list failed: ${result.error.code}: ${result.error.message}`)
@@ -54,6 +58,16 @@ export function apply(ctx: ClientContext): void {
   const checkDevice: CapabilitySectionInjected['checkDevice'] = async (capability, signal) => {
     const result = await ctx.remote.deviceCapabilities.check({ capability }, signal)
     if (!result.ok) throw new Error('Device readiness check failed')
+    return result.value
+  }
+  const checkSdk: CapabilitySectionInjected['checkSdk'] = async (signal) => {
+    const result = await ctx.remote.deviceCapabilities.checkSdk(signal)
+    if (!result.ok) throw new Error('SDK detection failed')
+    return result.value
+  }
+  const listMobileDevices: CapabilitySectionInjected['listMobileDevices'] = async (signal) => {
+    const result = await ctx.remote.deviceCapabilities.listMobileDevices(signal)
+    if (!result.ok) throw new Error('Device list failed')
     return result.value
   }
   const describeSecurity: CapabilitySectionInjected['describeSecurity'] = async (signal) => {
@@ -78,8 +92,9 @@ export function apply(ctx: ClientContext): void {
       label: () => t(definition.navKey),
       locale: NS,
       inject: (): CapabilitySectionInjected => ({
-        list, definition, checkDevice, describeSecurity,
+        list, definition, checkDevice, checkSdk, listMobileDevices, describeSecurity,
         hooks: { browserPreferences, securityScope },
+        mobileSettings,
         exportReport,
         saveSecurityScope: async (value, revision) => {
           const current = securityScope.getSnapshot()

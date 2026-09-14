@@ -32,11 +32,27 @@ function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', la
       vulnerabilityKnowledgeBase: true, securitySkills: true, workflowPrompt: true, findingTools: true },
     skillCount: 24, skillsComplete: true,
   }))
+  const checkSdk = vi.fn<CapabilitySectionProps['checkSdk']>(async () => ({
+    platform: 'linux',
+    android: { found: false, sdkPath: null, message: 'Not found' },
+    ios: null,
+  }))
+  const listMobileDevices = vi.fn<CapabilitySectionProps['listMobileDevices']>(async () => ({ devices: [], available: false }))
+  const mobileSettings = {
+    getSnapshot: () => ({ status: 'ready', value: { enabled: false, defaultDeviceId: '', androidSdkPath: '' }, base: undefined, user: undefined, revision: 1, writable: true, mode: 'host' }),
+    subscribe: () => () => {},
+    set: vi.fn(async () => {}),
+    unset: vi.fn(async () => {}),
+    mutate: vi.fn(async () => {}),
+  }
   const props = {
     definition,
     list: vi.fn(async () => inventory),
     checkDevice,
+    checkSdk,
+    listMobileDevices,
     describeSecurity,
+    mobileSettings,
     useBrowserPreferences: (selector: (value: unknown) => unknown) => selector({ status: 'unavailable', mode: 'host', writable: false }),
     useSecurityScope: (select: (value: unknown) => unknown) => select({ status: 'unavailable', mode: 'host', writable: false }),
     saveSecurityScope: vi.fn(),
@@ -125,12 +141,12 @@ describe('capability reference pages', () => {
     expect(screen.getByRole('list').children).toHaveLength(3)
   })
 
-  it('does not interpret an absent SDK API as a missing SDK', async () => {
+  it('shows the enable toggle and hides SDK/device sections when disabled', async () => {
     mount('available', 'zh', 'mobile')
     await screen.findByText(zh.deviceAvailable)
-    expect(screen.getByText(zh.mobileSdkDescription)).toBeTruthy()
-    expect(screen.getByText(zh.mobileDefaultDescription)).toBeTruthy()
-    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.getByText(zh.mobileEnable)).toBeTruthy()
+    expect(screen.queryByText(zh.mobileSdkAndroid)).toBeNull()
+    expect(screen.queryByText(zh.mobileDefaultDevice)).toBeNull()
   })
 
   it.each([

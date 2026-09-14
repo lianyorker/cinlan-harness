@@ -235,34 +235,37 @@ mobileDefaultDeviceDescription: 'Default device for new emulator tabs and agent 
 
 ## 4. 实施阶段
 
-### 阶段 1：后端 SDK 检测（2-3 天）
-- 扩展 `device-capabilities-controller` 添加 SDK 检测
-- 实现 Android SDK 自动检测（`ANDROID_HOME` / `ANDROID_SDK_ROOT` / 常见路径）
-- 实现 iOS Simulator 检测（`xcrun simctl` / `serveSim`）
-- 添加 SDK 路径持久化
-- 添加 Remote API
+### 阶段 1：后端 SDK 检测 ✅
+- ✅ 扩展 `device-capabilities-controller` 添加 `checkSdk` 和 `listMobileDevices` Remote 方法
+- ✅ 实现 Android SDK 自动检测（`ANDROID_HOME` / `ANDROID_SDK_ROOT` / 常见路径）
+- ✅ 实现 iOS Simulator 检测（`xcrun simctl`，仅 macOS）
+- ✅ 添加 `MobileSdkSnapshot` / `MobileDeviceListSnapshot` / `MobileDeviceSummary` 类型
+- ✅ 添加 Remote API（`@Remote('checkSdk')` / `@Remote('listMobileDevices')`）
 
-### 阶段 2：前端 SDK 设置 UI（2 天）
-- 创建 `MobileSdkSettings` 组件
-- 实现 SDK 状态显示
-- 实现路径选择器
-- 实现下载链接
-- 添加本地化文本
+### 阶段 2：前端 SDK 设置 UI ✅
+- ✅ 在 `MobileCapabilityBody` 中实现 SDK 状态显示
+- ✅ 实现 SDK 路径输入框和"使用检测到的路径"按钮
+- ✅ 实现"下载 Android Studio"链接
+- ✅ 实现 iOS Simulator 状态行（仅 macOS 检测到时显示）
+- ✅ 添加本地化文本（中英文 16 个新键）
 
-### 阶段 3：默认设备选择（1-2 天）
-- 后端添加默认设备设置
-- 创建 `MobileDefaultDeviceSelect` 组件
-- 实现设备列表下拉框
-- 实现"自动选择"选项
+### 阶段 3：默认设备选择 ✅
+- ✅ 新建 `MobileDeviceSettings` 设置命名空间（`mobile-device` namespace）
+- ✅ Host 端注册命名空间（`ctx.settings.register` + schemastery schema）
+- ✅ Client 端绑定设置 scope（`ctx.settingsScope.bind`）
+- ✅ 实现设备列表下拉框（`listMobileDevices` Remote 调用）
+- ✅ 实现"自动选择设备"选项
 
-### 阶段 4：启用开关和整合（1 天）
-- 添加启用开关
-- 整合到 `MobileCapabilityBody`
-- 替换现有限制说明
-- 添加本地化文本
+### 阶段 4：启用开关和整合 ✅
+- ✅ 添加启用开关（`enabled` 字段，通过 `settings.set()` 持久化）
+- ✅ 整合到 `MobileCapabilityBody`（禁用时隐藏 SDK 和设备选择区域）
+- ✅ 替换现有限制说明（`mobileSdkTitle` / `mobileSdkDescription` / `mobileDefaultTitle` / `mobileDefaultDescription` 已移除）
+- ✅ 添加本地化文本
 
-### 阶段 5：测试和验证（1 天）
-- 编写单元测试
+### 阶段 5：测试和验证 ✅
+- ✅ device-capabilities-controller 测试 11 项通过
+- ✅ ui-settings-security 测试 60 项通过（含新增 enable toggle 测试）
+- ✅ typecheck 通过
 - 测试 SDK 检测
 - 测试设备选择
 - 端到端验证

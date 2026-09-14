@@ -178,3 +178,14 @@
 .securityEditor fieldset.accessRow button { align-self: flex-start; }
 
 .installActions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+
+.factRow { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.factRow input[type="checkbox"] { margin-top: 4px; flex-shrink: 0; }
+.factRow span { min-width: 0; }
+.factRow strong { font-size: 14px; }
+.factRow br + * { font-size: 13px; color: var(--dsw-alias-text-secondary); }
+.button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-text-primary); font-size: 13px; cursor: pointer; }
+.button:hover { background: var(--dsw-alias-bg-layer-2); }
+.button:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+.facts input[type="text"] { padding: 4px 8px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 6px; font-size: 13px; min-width: 0; }
+.facts select { padding: 4px 8px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 6px; font-size: 13px; min-width: 0; }

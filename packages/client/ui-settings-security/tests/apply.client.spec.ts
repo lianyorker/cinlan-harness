@@ -49,7 +49,10 @@ async function bench(list: () => Promise<{ ok: boolean }>, presetIds = ['securit
   ctx.provide('settingsScope', { describe: () => ({ acceptView }), bind: () => ({
     getSnapshot: () => settingsState,
     subscribe: () => () => {}, mutate: vi.fn(async () => {}),
+    set: vi.fn(async () => {}),
+    unset: vi.fn(async () => {}),
   }) } as never)
+  ctx.provide('settings', { register: vi.fn() })
   await ctx.plugin(SlotRegistry).await()
   return { ctx, locale, slots: ctx.slots, inventory, deviceCapabilities, agentPresets, securityResearch,
     settings, settingsState, acceptView }
@@ -98,7 +101,7 @@ describe('ui-settings-security registration', () => {
     expect(icons.map(icon => icon.options.key)).toEqual(CAPABILITIES.map(definition => `cinlan-${definition.id}`))
     expect(icons[0]!.component).toBe(IconSkillOutline16)
 
-    hostApply()
+    hostApply(b.ctx)
     await fiber.dispose()
     expect(b.slots.entries('settings.section')).toEqual([])
     expect(b.slots.entries('settings.section.icon')).toEqual([])

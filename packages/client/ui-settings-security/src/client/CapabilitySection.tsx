@@ -13,7 +13,7 @@ import {
   IconSkillOutline16,
   writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { DeviceCapabilityKind, DeviceCapabilitySnapshot, PluginInventorySnapshot, SecurityResearchSnapshot } from '@deepseek-ai/dsh-api-remotes/client'
+import type { DeviceCapabilityKind, DeviceCapabilitySnapshot, MobileSdkSnapshot, MobileDeviceListSnapshot, PluginInventorySnapshot, SecurityResearchSnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { CapabilitySettingsKey } from './locales.ts'
 import {
@@ -26,6 +26,7 @@ import css from './CapabilitySection.module.css'
 import type { BrowserPreferences } from '@deepseek-ai/dsh-browser-playwright/types'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { SecurityResearchScopeSettings, SecurityResearchReportRequest, SecurityResearchReportValue } from '@deepseek-ai/dsh-api-remotes/client'
+import type { MobileDeviceSettings } from '../types.ts'
 import { SecurityScopeEditor } from './SecurityScopeEditor.tsx'
 import { SecurityReportExport } from './SecurityReportExport.tsx'
 import { SkillInstallCard } from './SkillInstallCard.tsx'
@@ -68,6 +69,8 @@ export interface CapabilitySectionInjected {
   browserControls: BrowserControlsCallbacks | undefined
   /** Settings-owned source bound by the renderer, including unavailable/read-only states. */
   hooks: { browserPreferences: SettingsScope<BrowserPreferences>; securityScope: SettingsScope<SecurityResearchScopeSettings> }
+  /** Mobile device settings scope for the emulator enable toggle, SDK path, and default device. */
+  mobileSettings: SettingsScope<MobileDeviceSettings>
   /** Persist the security scope draft with its opening revision. */
   saveSecurityScope: (value: SecurityResearchScopeSettings['root'], revision: number) => Promise<void>
   /** Persist an explicit draft using the revision at which it was opened. */
@@ -80,6 +83,10 @@ export interface CapabilitySectionInjected {
   definition: CapabilityDefinition
   /** Probe actual device Provider readiness; never infer it from Loader activation. */
   checkDevice: (capability: DeviceCapabilityKind, signal: AbortSignal) => Promise<DeviceCapabilitySnapshot>
+  /** Detect Android SDK and iOS Simulator availability. */
+  checkSdk: (signal: AbortSignal) => Promise<MobileSdkSnapshot>
+  /** List mobile devices for the default-device selector. */
+  listMobileDevices: (signal: AbortSignal) => Promise<MobileDeviceListSnapshot>
   /** Read redacted Harness-native Security Research status. */
   describeSecurity: (signal: AbortSignal) => Promise<SecurityResearchSnapshot>
 }
@@ -365,9 +372,43 @@ function BrowserCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps, '
   </div>
 }
 
-function MobileCapabilityBody(props: BodyProps): ReactNode {
-  const { state, t } = props
+type MobileBodyProps = BodyProps & {
+  checkSdk: (signal: AbortSignal) => Promise<MobileSdkSnapshot>
+  listMobileDevices: (signal: AbortSignal) => Promise<MobileDeviceListSnapshot>
+  mobileSettings: SettingsScope<MobileDeviceSettings>
+}
+
+function MobileCapabilityBody(props: MobileBodyProps): ReactNode {
+  const { state, t, checkSdk, listMobileDevices, mobileSettings } = props
   const status = deviceStatus(state)
+  const settingsSnapshot = mobileSettings.getSnapshot()
+  const enabled = settingsSnapshot.value?.enabled ?? false
+  const defaultDeviceId = settingsSnapshot.value?.defaultDeviceId ?? ''
+  const androidSdkPath = settingsSnapshot.value?.androidSdkPath ?? ''
+  const [, forceRender] = useState(0)
+  useEffect(() => mobileSettings.subscribe(() => forceRender(n => n + 1)), [mobileSettings])
+
+  const [sdkSnapshot, setSdkSnapshot] = useState<MobileSdkSnapshot>()
+  const [deviceList, setDeviceList] = useState<MobileDeviceListSnapshot>()
+  const [sdkLoading, setSdkLoading] = useState(false)
+  const [deviceLoading, setDeviceLoading] = useState(false)
+
+  useEffect(() => {
+    if (!enabled) return
+    const abort = new AbortController()
+    setSdkLoading(true)
+    checkSdk(abort.signal)
+      .then((result) => { if (!abort.signal.aborted) setSdkSnapshot(result) })
+      .catch(() => {})
+      .finally(() => { if (!abort.signal.aborted) setSdkLoading(false) })
+    setDeviceLoading(true)
+    listMobileDevices(abort.signal)
+      .then((result) => { if (!abort.signal.aborted) setDeviceList(result) })
+      .catch(() => {})
+      .finally(() => { if (!abort.signal.aborted) setDeviceLoading(false) })
+    return () => { abort.abort() }
+  }, [enabled, checkSdk, listMobileDevices])
+
   return <div className={css.setupCard}>
     <HeroHeader icon={IconPanelLeftOutline16} title={t('mobileHeroTitle')} description={t('mobileHeroDescription')}
       badge={<Badge status={status}>{t(DEVICE_STATUS_KEYS[status])}</Badge>} />
@@ -375,10 +416,45 @@ function MobileCapabilityBody(props: BodyProps): ReactNode {
       <h4>{t('mobileAvailabilityTitle')}</h4><p>{deviceReason(state, t)}</p>
       <RefreshButton {...props} />
     </div>
-    <dl className={css.facts}>
-      <div><dt>{t('mobileSdkTitle')}</dt><dd>{t('mobileSdkDescription')}</dd></div>
-      <div><dt>{t('mobileDefaultTitle')}</dt><dd>{t('mobileDefaultDescription')}</dd></div>
-    </dl>
+    <div className={css.setupNotice}>
+      <label className={css.factRow}>
+        <input type="checkbox" checked={enabled} onChange={() => { void mobileSettings.set('enabled', !enabled) }} />
+        <span><strong>{t('mobileEnable')}</strong><br />{t('mobileEnableDescription')}</span>
+      </label>
+    </div>
+    {enabled ? <>
+      <dl className={css.facts}>
+        <div>
+          <dt>{t('mobileSdkAndroid')}</dt>
+          <dd>
+            {sdkLoading ? <span>{t('loading')}</span>
+              : sdkSnapshot ? (sdkSnapshot.android.found
+                ? <span>{sdkSnapshot.android.sdkPath ?? t('mobileSdkFound')} <button type="button" className={css.button} onClick={() => { void mobileSettings.set('androidSdkPath', sdkSnapshot.android.sdkPath ?? '') }}>{t('mobileSdkUseDetected')}</button></span>
+                : <span>{t('mobileSdkAndroidNotFound')} <a href="https://developer.android.com/studio" target="_blank" rel="noreferrer">{t('mobileSdkDownload')}</a></span>)
+                : <span>{t('mobileSdkAndroidNotFound')}</span>}
+          </dd>
+        </div>
+        {sdkSnapshot?.ios ? <div>
+          <dt>{t('mobileSdkIos')}</dt>
+          <dd>{sdkSnapshot.ios.simctlOk ? t('mobileSdkIosReady') : t('mobileSdkIosNotReady')}</dd>
+        </div> : null}
+        <div>
+          <dt>{t('mobileSdkCustomPath')}</dt>
+          <dd>
+            <input type="text" value={androidSdkPath} placeholder={sdkSnapshot?.android.sdkPath ?? ''} onChange={(e) => { void mobileSettings.set('androidSdkPath', e.target.value) }} />
+            {androidSdkPath.length > 0 ? <button type="button" className={css.button} onClick={() => { void mobileSettings.set('androidSdkPath', '') }}>{t('mobileSdkClear')}</button> : null}
+          </dd>
+        </div>
+      </dl>
+      <div className={css.setupNotice}>
+        <h4>{t('mobileDefaultDevice')}</h4><p>{t('mobileDefaultDeviceDescription')}</p>
+        <select value={defaultDeviceId} onChange={(e) => { void mobileSettings.set('defaultDeviceId', e.target.value) }}>
+          <option value="">{t('mobileDefaultDeviceAuto')}</option>
+          {deviceLoading ? <option disabled>{t('loading')}</option>
+            : deviceList?.devices.map(device => <option key={device.id} value={device.id}>{device.name} ({device.state})</option>)}
+        </select>
+      </div>
+    </> : null}
     <div className={css.agentSetup}>
       <h4>{t('mobileAgentControl')}</h4><p>{t('mobileHowToUseDescription')}</p>
       <ol className={css.steps}>
@@ -402,8 +478,8 @@ function MobileCapabilityBody(props: BodyProps): ReactNode {
  * @returns The localized capability page and collapsed component diagnostics.
  */
 export function CapabilitySection({
-  list, definition, checkDevice, describeSecurity, useBrowserPreferences, saveBrowserPreferences,
-  browserControls, useSecurityScope, saveSecurityScope, exportReport, t,
+  list, definition, checkDevice, checkSdk, listMobileDevices, describeSecurity, useBrowserPreferences, saveBrowserPreferences,
+  browserControls, useSecurityScope, saveSecurityScope, exportReport, mobileSettings, t,
 }: CapabilitySectionProps): ReactNode {
   const [request, setRequest] = useState(0)
   const [state, setState] = useState<ViewState>({ phase: 'loading' })
@@ -437,7 +513,7 @@ export function CapabilitySection({
           saveBrowserPreferences={saveBrowserPreferences}
           browserControls={browserControls}
         />
-          : definition.id === 'mobile' ? <MobileCapabilityBody {...body} />
+          : definition.id === 'mobile' ? <MobileCapabilityBody {...body} checkSdk={checkSdk} listMobileDevices={listMobileDevices} mobileSettings={mobileSettings} />
             : <DesignCapabilityBody {...body} />}
     <details className={css.diagnostics}>
       <summary>{t('hostFact')}{state.phase === 'ready' ? ` · ${state.components.length}` : ''}</summary>
