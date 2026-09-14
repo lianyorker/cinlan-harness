@@ -156,6 +156,14 @@
         compressionLevel: 1
         compressionThresholdBytes: 1024
 
+    # Local voice-dictation engine: sherpa-onnx model registry, download
+    # cache, and the /voice/api route the Ctrl+Shift+E dictation client calls.
+    - id: voice
+      name: '@deepseek-ai/dsh-voice'
+
+    - id: voice-sherpa-onnx
+      name: '@deepseek-ai/dsh-voice-sherpa-onnx'
+
     # Web glue owned by this bundle: resolves the built frontend dist (an
     # assembly fact of dsh-web-app, never user config), mounts the
     # frontend-static fallback owner, registers the web-surface prompt
@@ -257,6 +265,9 @@
 
     - id: ui-chat
       name: '@deepseek-ai/dsh-client-ui-chat'
+
+    - id: ui-voice-dictation
+      name: '@deepseek-ai/dsh-client-ui-voice-dictation'
 
     # Official occupants for the generic sidebar and conversation brand slots.
     - id: ui-brand-official

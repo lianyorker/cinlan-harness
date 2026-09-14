@@ -68,7 +68,7 @@ function declare(slots: SlotRegistry): () => void {
 
 describe('ui-settings-security registration', () => {
   it('declares the plugin inventory Remote it reads', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.pluginInventory', 'remote.deviceCapabilities', 'remote.agentPresets', 'remote.securityResearch', 'remote.browser', 'remote.settings', 'settingsScope'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.pluginInventory', 'remote.deviceCapabilities', 'remote.securityResearch', 'remote.browser', 'remote.settings', 'settingsScope'])
   })
 
   it('registers one localized section and icon per product capability, without eager reads', async () => {
@@ -179,47 +179,14 @@ describe('ui-settings-security registration', () => {
     await b.ctx.fiber.dispose()
   })
 
-  it('keeps Security Research absent when only generic Skills and the settings plugin are loaded', async () => {
+  it('registers all capabilities unconditionally without reading agent presets', async () => {
     const b = await bench(async () => ({ ok: true, value: snapshot(['@deepseek-ai/dsh-skill', '@deepseek-ai/dsh-client-ui-settings-security']) }), [])
     declare(b.slots)
     await b.ctx.plugin({ inject, apply }).await()
-    await vi.waitFor(() => { expect(b.agentPresets.list).toHaveBeenCalled() })
-    expect(b.slots.entries('settings.section').map(e => e.options.id)).not.toContain('cinlan-security')
-    expect(b.slots.entries('settings.section.icon').map(e => e.options.key)).not.toContain('cinlan-security')
-    await b.ctx.fiber.dispose()
-  })
-
-  it('follows preset installation and removal on focus without caching failures', async () => {
-    const b = await bench(async () => ({ ok: true, value: snapshot([]) }), [])
-    declare(b.slots)
-    const fiber = b.ctx.plugin({ inject, apply })
-    await fiber.await()
-    b.agentPresets.list.mockResolvedValueOnce({ ok: true, value: { presets: [{ id: 'security-research', trust: 'system', isDefault: false }], authorable: true } })
-    window.dispatchEvent(new Event('focus'))
-    await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toHaveLength(5) })
-    window.dispatchEvent(new Event('focus'))
-    await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toHaveLength(4) })
-    b.agentPresets.list.mockRejectedValueOnce(new Error('offline'))
-    window.dispatchEvent(new Event('focus'))
-    await vi.waitFor(() => { expect(b.agentPresets.list).toHaveBeenCalledTimes(4) })
-    await fiber.dispose()
-    const calls = b.agentPresets.list.mock.calls.length
-    window.dispatchEvent(new Event('focus'))
-    expect(b.agentPresets.list).toHaveBeenCalledTimes(calls)
-    await b.ctx.fiber.dispose()
-  })
-
-  it('does not register a late roster response after its plugin unloads', async () => {
-    const b = await bench(async () => ({ ok: true, value: snapshot([]) }))
-    const pending = Promise.withResolvers<Awaited<ReturnType<typeof b.agentPresets.list>>>()
-    b.agentPresets.list.mockReturnValueOnce(pending.promise)
-    declare(b.slots)
-    const fiber = b.ctx.plugin({ inject, apply })
-    await fiber.await()
-    await fiber.dispose()
-    pending.resolve({ ok: true, value: { presets: [{ id: 'security-research', trust: 'system', isDefault: false }], authorable: true } })
-    await pending.promise
-    expect(b.slots.entries('settings.section')).toHaveLength(0)
+    expect(b.agentPresets.list).not.toHaveBeenCalled()
+    expect(b.slots.entries('settings.section')).toHaveLength(CAPABILITIES.length)
+    expect(b.slots.entries('settings.section').map(e => e.options.id)).toContain('cinlan-security')
+    expect(b.slots.entries('settings.section.icon').map(e => e.options.key)).toContain('cinlan-security')
     await b.ctx.fiber.dispose()
   })
 

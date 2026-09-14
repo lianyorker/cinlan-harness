@@ -1,0 +1,17 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "include": ["src", "src/client/css-modules.d.ts"],
+  "references": [
+    { "path": "../../../vendor/cordis" },
+    { "path": "../ui-slots" },
+    { "path": "../ui-primitives" },
+    { "path": "../store" },
+    { "path": "../ui-renderer" },
+    { "path": "../ui-settings" },
+    { "path": "../locale" },
+    { "path": "../ui-conversation" },
+    { "path": "../../runtime-diagnostics/invariants" },
+    { "path": "../../voice/voice" }
+  ]
+}

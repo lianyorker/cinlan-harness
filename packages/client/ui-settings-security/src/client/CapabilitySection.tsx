@@ -252,6 +252,7 @@ function SecurityResearchBody(props: BodyProps & Pick<CapabilitySectionProps, 'u
   const status = securityStatus(state)
   const security = state.phase === 'ready' ? state.security : undefined
   const unread = state.phase === 'loading' ? 'securityStatusLoading' : 'securityReadFailed'
+  const presetMissing = security !== undefined && security.preset.present !== true && security.preset.broken === undefined
   const scopeStatusText = {
     configured: t('securityScopeConfigured'), expired: t('securityScopeExpired'),
     'not-yet-valid': t('securityScopeFuture'), empty: t('securityScopeEmpty'), missing: t('securityScopeMissing'),
@@ -275,14 +276,20 @@ function SecurityResearchBody(props: BodyProps & Pick<CapabilitySectionProps, 'u
       </div>
       <RefreshButton {...props} />
     </div>
+    {presetMissing && <div className={css.computerCard}>
+      <h3>{t('securityInstallTitle')}</h3>
+      <p>{t('securityInstallDescription')}</p>
+      <CopyText text={t('securityCommand')} t={t} />
+      <p className={css.capabilityFact}>{t('securityInstallHint')}</p>
+    </div>}
     <div className={css.computerHowTo}>
       <h3>{t('securityHowToUse')}</h3><p>{t('securityHowToUseDescription')}</p>
       <FeatureCards cards={SECURITY_CARDS} t={t} />
-      <SecurityScopeEditor useSecurityScope={props.useSecurityScope} saveSecurityScope={async (value, revision) => {
+      {!presetMissing && <SecurityScopeEditor useSecurityScope={props.useSecurityScope} saveSecurityScope={async (value, revision) => {
         await props.saveSecurityScope(value, revision)
         props.onRefresh()
-      }} t={t} />
-      {props.exportReport !== undefined && <SecurityReportExport exportReport={props.exportReport} t={t} />}
+      }} t={t} />}
+      {!presetMissing && props.exportReport !== undefined && <SecurityReportExport exportReport={props.exportReport} t={t} />}
     </div>
   </>
 }
