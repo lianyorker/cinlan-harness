@@ -75,7 +75,7 @@ describe('GitLabWorkItemsProvider', () => {
     await expect(provider().list({ source: 'gitlab' })).rejects.toMatchObject({ code: 'invalid-response' })
     vi.stubGlobal('fetch', vi.fn(async (_input: URL | RequestInfo, init?: RequestInit) => { expect(init?.redirect).toBe('error'); throw new TypeError('redirect disallowed') }))
     await expect(provider().list({ source: 'gitlab' })).rejects.toMatchObject({ code: 'provider-failed' })
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([issue(9, false, 'https://evil.com/acme/repo/-/issues/9')]), { status: 200 })))
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([issue(9, 'https://evil.com/acme/repo/-/issues/9')]), { status: 200 })))
     await expect(provider().list({ source: 'gitlab' })).rejects.toMatchObject({ code: 'invalid-response' })
     const controller = new AbortController(); controller.abort()
     await expect(provider().list({ source: 'gitlab' }, controller.signal)).rejects.toMatchObject({ code: 'aborted' })
