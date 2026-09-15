@@ -62,8 +62,8 @@
     "@deepseek-ai/dsh-work-items": "workspace:^",
     "@deepseek-ai/dsh-workspace": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
-    "@types/react": "~18.3.1",
-    "react": "^18.2.0",
+    "@types/react": "~19.2.18",
+    "react": "^19.2.8",
     "react-dom": "^18.2.0",
     "@testing-library/react": "^16.1.0",
     "@deepseek-ai/dsh-client-test-runtime": "workspace:^"
