@@ -1,0 +1,51 @@
+/** Keybindings settings locale dictionaries (zh + en). */
+
+export const zh = {
+  navLabel: '快捷键',
+  title: '快捷键',
+  description: '查看和自定义键盘快捷键。',
+  search: '搜索快捷键...',
+  categoryConversation: '会话',
+  categoryEditor: '编辑器',
+  categoryNavigation: '导航',
+  categoryOther: '其他',
+  record: '录制',
+  recording: '按下按键...',
+  cancel: '取消',
+  reset: '重置',
+  unbind: '取消绑定',
+  conflict: '冲突',
+  conflictDescription: '此快捷键已被其他命令使用。',
+  noResults: '没有匹配的快捷键。',
+  loading: '正在读取设置...',
+  error: '设置读取失败。',
+  command: '命令',
+  binding: '快捷键',
+  actions: '操作',
+} satisfies Record<string, string>
+
+export type KeybindingsKey = keyof typeof zh
+
+export const en = {
+  navLabel: 'Keybindings',
+  title: 'Keybindings',
+  description: 'View and customize keyboard shortcuts.',
+  search: 'Search keybindings...',
+  categoryConversation: 'Conversation',
+  categoryEditor: 'Editor',
+  categoryNavigation: 'Navigation',
+  categoryOther: 'Other',
+  record: 'Record',
+  recording: 'Press keys...',
+  cancel: 'Cancel',
+  reset: 'Reset',
+  unbind: 'Unbind',
+  conflict: 'Conflict',
+  conflictDescription: 'This keybinding is already used by another command.',
+  noResults: 'No matching keybindings.',
+  loading: 'Loading settings...',
+  error: 'Failed to load settings.',
+  command: 'Command',
+  binding: 'Binding',
+  actions: 'Actions',
+} satisfies Record<string, string>

@@ -361,6 +361,8 @@
       name: '@deepseek-ai/dsh-client-ui-settings-security'
     - id: ui-floating-workspace
       name: '@deepseek-ai/dsh-client-ui-floating-workspace'
+    - id: ui-keybindings
+      name: '@deepseek-ai/dsh-client-ui-keybindings'
 
     # Plan control: the composer plan seat over the plan projection + /plan channel.
     - id: ui-plan

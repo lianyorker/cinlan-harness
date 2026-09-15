@@ -1,0 +1,32 @@
+.section { display: flex; flex-direction: column; gap: 16px; padding: 16px; min-width: 0; }
+
+.heading h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.heading p { margin: 4px 0 0; font-size: 14px; color: var(--dsw-alias-text-secondary); }
+
+.search { padding: 6px 12px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 6px; font-size: 14px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-text-primary); }
+.search:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 1px; }
+
+.category { margin-top: 8px; }
+.categoryTitle { font-size: 14px; font-weight: 600; margin: 0 0 8px; padding: 4px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
+
+.commandRow { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
+.commandRow:last-child { border-bottom: none; }
+
+.commandName { flex: 1; font-size: 14px; min-width: 0; }
+.commandDesc { font-size: 12px; color: var(--dsw-alias-text-secondary); }
+
+.binding { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 4px; font-size: 13px; font-family: monospace; background: var(--dsw-alias-bg-layer-1); white-space: nowrap; }
+.bindingUnbound { color: var(--dsw-alias-text-secondary); font-style: italic; }
+
+.actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.btn { padding: 4px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 6px; font-size: 13px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-text-primary); cursor: pointer; }
+.btn:hover { background: var(--dsw-alias-bg-layer-1); }
+.btn:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 1px; }
+.btnRecord { background: var(--dsw-alias-state-business-primary); color: var(--dsw-alias-text-inverse); border-color: transparent; }
+.btnRecord:hover { opacity: 0.9; }
+
+.conflict { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 12px; background: var(--dsw-alias-state-error-bg); color: var(--dsw-alias-state-error-primary); }
+
+.message { font-size: 14px; color: var(--dsw-alias-state-error-primary); }
+.empty { font-size: 14px; color: var(--dsw-alias-text-secondary); padding: 16px 0; text-align: center; }

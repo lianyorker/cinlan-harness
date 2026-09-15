@@ -86,6 +86,7 @@
     "@deepseek-ai/dsh-client-ui-settings-plugin-inventory": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings-security": "workspace:^",
     "@deepseek-ai/dsh-client-ui-floating-workspace": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-keybindings": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings-plugins": "workspace:^",
     "@deepseek-ai/dsh-client-ui-orchestration": "workspace:^",
     "@deepseek-ai/dsh-client-ui-integrations": "workspace:^",
