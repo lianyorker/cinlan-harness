@@ -18,7 +18,7 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
-    "client": {
+    "./client": {
       "types": "./lib/types/client/index.d.ts",
       "default": "./lib/client.js"
     },
