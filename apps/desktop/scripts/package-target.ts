@@ -104,7 +104,11 @@ function writeReleaseRecord(
   if (desktopVersion !== dshVersion) {
     throw new Error(`desktop package: desktop version ${desktopVersion} does not match dsh version ${dshVersion}`)
   }
-  const update = resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
+  const update = resolveDesktopAutoUpdateConfig(
+    { ...environment, DOWNLOAD_TEST_ORIGIN: environment.DOWNLOAD_TEST_ORIGIN || 'https://desktop-updates.example.com' },
+    target.platform,
+    target.arch,
+  )
   const recordPath = join(artifactsRoot, desktopBuildRecordFilename(target.name))
   const temporaryPath = `${recordPath}.tmp`
   writeFileSync(temporaryPath, `${JSON.stringify({

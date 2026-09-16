@@ -944,3 +944,33 @@ export const IconMicrophoneOutline16 = ({ size = 16, className }: IconProps) => 
     />
   </svg>
 )
+
+/** ic_ds_workflow_outline_16 — workflow diagram icon for orchestration. */
+export const IconWorkflowOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1" y="1" width="4" height="4" rx="0.75" stroke="currentColor" strokeWidth="1.25" fill="none" />
+    <rect x="11" y="1" width="4" height="4" rx="0.75" stroke="currentColor" strokeWidth="1.25" fill="none" />
+    <rect x="6" y="11" width="4" height="4" rx="0.75" stroke="currentColor" strokeWidth="1.25" fill="none" />
+    <path d="M3 5V8H8M8 8V11M8 8H13V5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+/** ic_ds_arrow_right_left_outline_16 — bidirectional arrow for handoff/transfer. */
+export const IconArrowRightLeftOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M13 5L15 5M15 5L13 3M15 5H4" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M3 11L1 11M1 11L3 13M1 11H12" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+/** ic_ds_list_checks_outline_16 — checklist icon for task management. */
+export const IconListChecksOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 3H14" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+    <path d="M6 8H14" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+    <path d="M6 13H14" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+    <path d="M2 3L2.5 3.5L4 2" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M2 8L2.5 8.5L4 7" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M2 13L2.5 13.5L4 12" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)

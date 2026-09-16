@@ -24,7 +24,7 @@ export function createElectronBuilderConfig(
   hostPlatform = process.platform,
   hostArch = process.arch,
 ) {
-  const appId = resolveDesktopAppId(env)
+  const appId = env.DSH_DESKTOP_APP_ID?.trim() || 'com.cinlan.harness'
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
@@ -32,7 +32,7 @@ export function createElectronBuilderConfig(
   const packagesWindows = targetPlatform === 'win32'
   const macOSSigning = packagesMacOS ? resolveMacOSSigningEnvironment(env) : undefined
   if (packagesMacOS) resolveMacOSNotarizationEnvironment(env)
-  const windowsSigner = packagesWindows
+  const windowsSigner = packagesWindows && env.DSH_DESKTOP_WINDOWS_CER_FILE
     ? createWindowsTokenSigner({
         certificateFile: env.DSH_DESKTOP_WINDOWS_CER_FILE,
         signTool: env.DSH_DESKTOP_WINDOWS_SIGNTOOL,
@@ -43,7 +43,11 @@ export function createElectronBuilderConfig(
   if (windowsSigner !== undefined) {
     installWindowsNsisBootstrapSigner({ sign: windowsSigner })
   }
-  const update = resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
+  const update = resolveDesktopAutoUpdateConfig(
+    { ...env, DOWNLOAD_TEST_ORIGIN: env.DOWNLOAD_TEST_ORIGIN || 'https://desktop-updates.example.com' },
+    resolvedPlatform,
+    resolvedArch,
+  )
   const buildPaths = desktopTargetBuildPaths(update.target)
   return {
     appId,
@@ -86,12 +90,13 @@ export function createElectronBuilderConfig(
       )
     },
     win: {
-      forceCodeSigning: true,
+      icon: 'icon.ico',
+      forceCodeSigning: windowsSigner !== undefined,
       signtoolOptions: {
         sign: windowsSigner,
         signingHashAlgorithms: ['sha256'],
       },
-      target: ['nsis'],
+      target: ['nsis', 'msi'],
     },
     linux: {
       category: 'Development',
@@ -101,6 +106,11 @@ export function createElectronBuilderConfig(
       oneClick: false,
       allowToChangeInstallationDirectory: true,
       differentialPackage: true,
+    },
+    msi: {
+      oneClick: false,
+      perMachine: false,
+      runAfter: true,
     },
     publish: [{ provider: 'generic', url: update.publicUrl }],
   }

@@ -24,12 +24,12 @@ import { registerImeGuard } from './ime-guard.ts'
 import { loadExternalDisable, parsePrefs } from './prefs.ts'
 import { SIDEBAR_PREFS_NS, type SidebarPrefs } from '../prefs-shared.ts'
 import { SidebarPreferencesController } from './preferences-controller.ts'
-import { SideCardSection } from './SideCardSection.tsx'
+
+import { FilePreviewSettings } from './FilePreviewSettings.tsx'
 import { api } from './api.ts'
 import { LOCALE_NS, attachLocale, t, zh, en } from './locales.ts'
 import css from './sidebar.module.css'
 import './layout.css'
-import { IconPanelRightOutline16 } from './icons.tsx'
 
 /** Services required before mounting (provided by the client runtime; the
  *  locale service backs the sidebar's copy — see locales.ts). `modules`
@@ -359,22 +359,15 @@ export function apply(ctx: Context): void {
       'dsh-better-sidebar: IME composition guard',
     )
 
-    // The "Side card" settings section: appears in the DSH Settings shell
-    // once the shell's declaration is on the ledger (slots.inject waits for
-    // it); the section reads/writes the feature-owned standard settings scope
-    // and renders the declarative enable/disable inventory from the tab/viewer
-    // registry.
-    ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
-      name: 'settings.section.icon',
-      key: 'better-sidebar',
-    }, IconPanelRightOutline16))
-    ctx.slots.inject('settings.section', () => ctx.slots.register({
-      name: 'settings.section',
-      id: 'better-sidebar',
+    // File preview settings: appears in the General settings section,
+    // showing viewer registry and preview-related preferences.
+    ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+      name: 'settings.general.item',
+      id: 'file-preview',
       order: 100,
-      label: () => t('settingsNav'),
-      inject: () => ({ store: sidebarStore, service, preferences }),
-    }, SideCardSection))
+    }, (_props: unknown) => {
+      return <FilePreviewSettings service={service} preferences={preferences} store={sidebarStore} />
+    }))
   } catch (error) {
     fail('load', error)
   }

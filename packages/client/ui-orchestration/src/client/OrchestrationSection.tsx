@@ -1,6 +1,11 @@
 /** Orchestration settings section: workflow engine overview, preset coverage, and usage examples. */
 import { useEffect, useState, type ReactNode } from 'react'
-import { IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  IconRefreshOutline16,
+  IconWorkflowOutline16,
+  IconArrowRightLeftOutline16,
+  IconListChecksOutline16,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { AgentPresetRow, AgentPresetDocument } from '@deepseek-ai/dsh-agent-presets/types'
 import type { OrchestrationSettingsKey } from './locales.ts'
 import { detectOrchestrationCoverage, coverageSummary, type OrchestrationCoverage } from './view.ts'
@@ -105,16 +110,25 @@ export function OrchestrationSection(props: OrchestrationSectionProps): ReactNod
       <p className={css.cardDescription}>{t('examplesDescription')}</p>
       <div className={css.exampleList}>
         <div className={css.exampleItem}>
-          <h3 className={css.exampleTitle}>{t('exampleWorkflowTitle')}</h3>
-          <p className={css.exampleDescription}>{t('exampleWorkflowDescription')}</p>
+          <IconWorkflowOutline16 size={20} className={css.exampleIcon} />
+          <div className={css.exampleContent}>
+            <h3 className={css.exampleTitle}>{t('exampleWorkflowTitle')}</h3>
+            <p className={css.exampleDescription}>{t('exampleWorkflowDescription')}</p>
+          </div>
         </div>
         <div className={css.exampleItem}>
-          <h3 className={css.exampleTitle}>{t('exampleParallelTitle')}</h3>
-          <p className={css.exampleDescription}>{t('exampleParallelDescription')}</p>
+          <IconArrowRightLeftOutline16 size={20} className={css.exampleIcon} />
+          <div className={css.exampleContent}>
+            <h3 className={css.exampleTitle}>{t('exampleParallelTitle')}</h3>
+            <p className={css.exampleDescription}>{t('exampleParallelDescription')}</p>
+          </div>
         </div>
         <div className={css.exampleItem}>
-          <h3 className={css.exampleTitle}>{t('examplePipelineTitle')}</h3>
-          <p className={css.exampleDescription}>{t('examplePipelineDescription')}</p>
+          <IconListChecksOutline16 size={20} className={css.exampleIcon} />
+          <div className={css.exampleContent}>
+            <h3 className={css.exampleTitle}>{t('examplePipelineTitle')}</h3>
+            <p className={css.exampleDescription}>{t('examplePipelineDescription')}</p>
+          </div>
         </div>
       </div>
     </div>

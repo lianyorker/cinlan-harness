@@ -22,8 +22,9 @@ import type { Context, SidebarHttpRequest, SidebarHttpResponse } from './context
 export const CHUNK_NAMES = ['terminal', 'editor', 'mermaid'] as const
 export type ChunkName = (typeof CHUNK_NAMES)[number]
 
-/** Directory of this host-half module (lib/ — the chunk scripts live next to it). */
-const LIB_DIR = dirname(fileURLToPath(import.meta.url))
+/** Directory of this host-half module (lib/ — the chunk scripts live next to it).
+ * Note: bundle-route.js compiles to lib/types/, so we need to go up one level. */
+const LIB_DIR = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 /** sha1 content hash shortened to 12 hex chars (same shape as the client-modules rev). */
 function shortHash(input: string | Buffer): string {

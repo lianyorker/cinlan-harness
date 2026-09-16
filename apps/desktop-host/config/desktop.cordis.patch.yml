@@ -9,6 +9,21 @@
 - id: web-runtime
   disabled: true
 
+# voice-sherpa-onnx and ui-better-sidebar hard-depend on webServer/webRuntime
+# (via inject), which are disabled in desktop mode (IPC replaces HTTP).
+# Disable them until they adopt optional injection like client-modules.
+- id: voice-sherpa-onnx
+  disabled: true
+
+- id: ui-better-sidebar
+  disabled: true
+
+# The bundle-patch self-disable guard checks !e.disabled on the web-app
+# entry above; once we disable it, the guard fails and better-sidebar
+# would activate and hit the same missing webServer. Disable it too.
+- id: better-sidebar
+  disabled: true
+
 - id: client-hmr
   disabled: true
 

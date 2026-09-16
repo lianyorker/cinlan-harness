@@ -18,7 +18,7 @@ import type { ComponentType } from 'react'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import { EditorState } from '@codemirror/state'
-import { EditorView as CodeMirrorView, keymap, lineNumbers } from '@codemirror/view'
+import { EditorView as CodeMirrorView, keymap, lineNumbers, type ViewUpdate } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { IconCheckOutline16, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import { api, htmlUrl } from './api.ts'
@@ -143,7 +143,7 @@ export function TextEditor(props: FileViewerProps) {
         cmSurfaceTheme,
         themeComp.of(dark),
         ...(language !== null ? [language] : []),
-        CodeMirrorView.updateListener.of((update) => {
+        CodeMirrorView.updateListener.of((update: ViewUpdate) => {
           if (update.docChanged) {
             setDraft(update.state.doc.toString())
             setDirty(true)
@@ -163,7 +163,7 @@ export function TextEditor(props: FileViewerProps) {
         // its head. Scrolling (geometry/viewport change) or losing focus
         // hides it; typing collapses the selection and hides it too.
         ...(viewerId === 'code' || viewerId === 'markdown' ? [
-          CodeMirrorView.updateListener.of((update) => {
+          CodeMirrorView.updateListener.of((update: ViewUpdate) => {
             if (update.geometryChanged || update.viewportChanged) {
               hidePopup()
               return
@@ -327,7 +327,6 @@ export function TextEditor(props: FileViewerProps) {
     // registering this render's closures is safe for the mount's lifetime.
     props.onToolbarControls?.({ setMode, save })
     return () => { props.onToolbarControls?.(null) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hostToolbar])
 
   return (
