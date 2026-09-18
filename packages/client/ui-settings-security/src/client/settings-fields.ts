@@ -58,8 +58,4 @@ export const CAPABILITY_FIELDS: Readonly<Record<CapabilityId, readonly Field[]>>
     { anchorId: 'security-credentials', title: 'securityCredentials', description: 'securityCredentialsHelp' },
     { anchorId: 'security-report', title: 'securityReportTitle', description: 'securityReportDescription' },
   ],
-  design: [
-    { anchorId: 'design-readiness', title: 'designHeroTitle', description: 'designPending' },
-    { anchorId: 'design-usage', title: 'designHowToUse', description: 'designHowToUseDescription' },
-  ],
 }

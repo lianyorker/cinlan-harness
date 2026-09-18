@@ -8,7 +8,6 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { SecurityResearchReportValue, SecurityResearchScopeSettings } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   IconBrowseOutline16,
-  IconEnhanceOutline16,
   IconGlobeOutline14,
   IconPanelLeftOutline16,
   IconSkillOutline16,
@@ -42,7 +41,6 @@ const ICONS = {
   browser: IconGlobeOutline14,
   computer: IconBrowseOutline16,
   mobile: IconPanelLeftOutline16,
-  design: IconEnhanceOutline16,
 } as const
 
 /** Register each capability as an independent Settings section. */

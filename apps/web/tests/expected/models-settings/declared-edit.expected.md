@@ -12,8 +12,8 @@
       - img
     - button "通用设置"
     - button "通知"
-    - button "浮动工作区"
     - button "快捷键"
+    - button "浮动工作区"
     - button "AI 与模型" [expanded]:
       - text: AI 与模型
       - img
@@ -33,17 +33,34 @@
     - button "浏览器"
     - button "计算机控制"
     - button "手机模拟器"
-    - button "设计"
     - button "扩展管理" [expanded]:
       - text: 扩展管理
       - img
     - button "插件"
     - button "侧边卡片"
+    - button "实验" [expanded]:
+      - text: 实验
+      - img
+    - button "MCP"
+    - button "自动化"
+    - button "执行主机"
+    - button "终端"
+    - button "使用统计"
   - text: AI 与模型
   - img
   - strong: 模型
   - button "打开配置文件"
   - heading "模型" [level=1]
+  - region "新会话默认值":
+    - text: 默认模型
+    - paragraph: 默认值用于新会话。在会话中切换模型也会保存后续会话的默认值；此处的更改不会覆盖已有会话的模型选择。
+    - combobox "默认模型"
+    - text: 推理等级
+    - paragraph: 使用所选模型支持的推理等级；Default 采用提供方的默认行为。
+    - combobox "推理等级" [disabled]:
+      - option "Default" [selected]
+    - paragraph: 当前模型未提供推理等级。
+    - button "恢复继承值" [disabled]
   - paragraph: 填入各提供方的 API 密钥即可使用其模型。
   - list:
     - listitem:

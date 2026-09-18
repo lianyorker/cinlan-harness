@@ -10,7 +10,7 @@ Settings 外壳此前只显示通用 Computer Use Loader inventory 页面，而�
 
 ## 决策
 
-卡片布局、复制控件和使用说明保留在 ui-settings-security。状态来源和 profile 启动由[设备就绪决策](2026-09-12-device-profile-and-provider-readiness.zh.md)负责；Loader 激活不表示软件安装成功。安全研究与设计共享图标、主卡片和使用说明卡片层级。浏览器与手机模拟器使用有序设置卡片，Loader 诊断收起在产品说明下方。
+卡片布局、复制控件和使用说明保留在 ui-settings-security。状态来源和 profile 启动由[设备就绪决策](2026-09-12-device-profile-and-provider-readiness.zh.md)负责；Loader 激活不表示软件安装成功。安全研究共享图标、主卡片和使用说明卡片层级。浏览器与手机模拟器使用有序设置卡片，Loader 诊断收起在产品说明下方。
 
 计算机观察信息来自设备就绪应答，包括平台、Provider 与协议版本以及声明的支持能力。读取缺失或失败时不复用较早的观察信息。权限保持为 `unknown`；成功读取描述信息不等于获得操作授权。页面既不探测也不更改操作系统权限。
 
@@ -30,4 +30,4 @@ Computer Use 页面现在沿用 Settings 视觉语言：细边框、克制的中
 
 ## 延期工作
 
-手机模拟器表示 Agent 控制设备，不是手机客户端反向连接 Harness。SDK 检测和默认设备偏好由[原生设置所有者](../architecture/2026-09-17-native-settings-runtime-consumers.zh.md)负责；浏览器 Cookie 导入使用[原生 Browser 操作](2026-09-13-native-browser-operations.zh.md)。这些操作不会安装软件或授予设备权限。计算机选择和操作系统权限控件仍不可用。Design Studio 的独立安装与替换仍待决定；已安装的设计 Skill 是方法指引，不证明 Design Studio Provider 存在。GitHub 发布及可下载的依赖闭包需要单独实现发布流程。
+手机模拟器表示 Agent 控制设备，不是手机客户端反向连接 Harness。SDK 检测和默认设备偏好由[原生设置所有者](../architecture/2026-09-17-native-settings-runtime-consumers.zh.md)负责；浏览器 Cookie 导入使用[原生 Browser 操作](2026-09-13-native-browser-operations.zh.md)。这些操作不会安装软件或授予设备权限。计算机选择和操作系统权限控件仍不可用。GitHub 发布及可下载的依赖闭包需要单独实现发布流程。

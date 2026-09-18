@@ -174,14 +174,6 @@ describe('Device Settings readiness', () => {
 
 
 describe('capability reference pages', () => {
-  it('keeps Design informational while installation versus replacement is undecided', async () => {
-    mount('not-configured', 'zh', 'design')
-    await screen.findByText(zh.statusMissing)
-    expect(screen.getByText(zh.designPending)).toBeTruthy()
-    expect(screen.queryByRole('button', { name: '安装' })).toBeNull()
-    expect(screen.getAllByRole('article')).toHaveLength(3)
-  })
-
   it('keeps browser preferences searchable and actions unavailable without a configured Provider', async () => {
     mount('not-configured', 'en', 'browser')
     await screen.findByText(en.statusMissing)
@@ -234,12 +226,12 @@ describe('capability reference pages', () => {
   })
 
   it('retains the page and recheck action after a failed Host read', async () => {
-    const view = mount('not-configured', 'en', 'design')
+    const view = mount('not-configured', 'en', 'browser')
     await screen.findByText(en.statusMissing)
     vi.mocked(view.props.list).mockRejectedValueOnce(new Error('offline'))
     fireEvent.click(screen.getByRole('button', { name: en.computerRecheck }))
     expect(await screen.findByRole('alert')).toBeTruthy()
-    expect(screen.getByText(en.designHeroTitle)).toBeTruthy()
+    expect(screen.getByText(en.browserHeroTitle)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: en.computerRecheck }))
     expect(await screen.findByText(en.statusMissing)).toBeTruthy()
   })

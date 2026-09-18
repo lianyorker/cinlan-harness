@@ -76,16 +76,17 @@ describe('web e2e: plugin configuration section', () => {
   it('shows one card per exposed host-plane namespace', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-config-cards'))
     const dialog = await openPlugins()
+    const configuration = dialog.getByRole('tabpanel', { name: '插件配置', exact: true })
 
     // Every card the shipped web composition exposes: the shell executor, the
     // agent loop, subagent selection, and the DeepSeek search provider.
-    await dialog.getByText('Subagent', { exact: true }).waitFor({ timeout: 10_000 })
-    expect(await dialog.getByRole('button', { name: '展开设置: Subagent' }).count()).toBe(1)
-    await dialog.getByText('终端', { exact: true }).waitFor({ timeout: 10_000 })
-    expect(await dialog.getByText('Agent 循环', { exact: true }).count()).toBe(1)
-    expect(await dialog.getByText('网页搜索', { exact: true }).count()).toBe(1)
+    await configuration.getByRole('button', { name: '展开设置: Subagent', exact: true }).waitFor({ timeout: 10_000 })
+    expect(await configuration.getByRole('button', { name: '展开设置: Subagent', exact: true }).count()).toBe(1)
+    await configuration.getByRole('button', { name: '展开设置: 终端', exact: true }).waitFor({ timeout: 10_000 })
+    expect(await configuration.getByRole('button', { name: '展开设置: Agent 循环', exact: true }).count()).toBe(1)
+    expect(await configuration.getByRole('button', { name: '展开设置: 网页搜索', exact: true }).count()).toBe(1)
     // Collapsed: a card's fields appear only once it is expanded.
-    expect(await dialog.getByLabel('命令超时（毫秒）').count()).toBe(0)
+    expect(await configuration.getByLabel('命令超时（毫秒）').count()).toBe(0)
 
     const snapshot = await captureStableAria(page, '[data-dsh-settings-page]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(SECTION_EXPECTED, snapshot, MODE)
@@ -134,7 +135,8 @@ describe('web e2e: plugin configuration section', () => {
   it('stages an edit and writes it only when saved', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-config-write'))
     const dialog = await openPlugins()
-    await dialog.getByText('终端', { exact: true }).click()
+    await dialog.getByRole('tabpanel', { name: '插件配置', exact: true })
+      .getByRole('button', { name: '展开设置: 终端', exact: true }).click()
 
     const timeout = dialog.getByLabel('命令超时（毫秒）')
     await timeout.waitFor({ timeout: 10_000 })
@@ -167,7 +169,8 @@ describe('web e2e: plugin configuration section', () => {
   it('drops a staged edit on discard without touching the document', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-config-discard'))
     const dialog = await openPlugins()
-    await dialog.getByText('终端', { exact: true }).click()
+    await dialog.getByRole('tabpanel', { name: '插件配置', exact: true })
+      .getByRole('button', { name: '展开设置: 终端', exact: true }).click()
     const timeout = dialog.getByLabel('命令超时（毫秒）')
     await timeout.waitFor({ timeout: 10_000 })
 
@@ -182,7 +185,8 @@ describe('web e2e: plugin configuration section', () => {
   it('refuses to save a draft that is not a number', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-config-invalid'))
     const dialog = await openPlugins()
-    await dialog.getByText('终端', { exact: true }).click()
+    await dialog.getByRole('tabpanel', { name: '插件配置', exact: true })
+      .getByRole('button', { name: '展开设置: 终端', exact: true }).click()
     const timeout = dialog.getByLabel('命令超时（毫秒）')
     await timeout.waitFor({ timeout: 10_000 })
 
@@ -198,7 +202,8 @@ describe('web e2e: plugin configuration section', () => {
   it('clears the field back to the composed default on reset', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-config-reset'))
     const dialog = await openPlugins()
-    await dialog.getByText('终端', { exact: true }).click()
+    await dialog.getByRole('tabpanel', { name: '插件配置', exact: true })
+      .getByRole('button', { name: '展开设置: 终端', exact: true }).click()
     const timeout = dialog.getByLabel('命令超时（毫秒）')
     await timeout.waitFor({ timeout: 10_000 })
     expect(await timeout.inputValue()).toBe('12000')

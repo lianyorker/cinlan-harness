@@ -5,7 +5,6 @@ import {
   IconCheckOutline16,
   IconCopyOutline16,
   IconDownloadOutline16,
-  IconEnhanceOutline16,
   IconGlobeOutline14,
   IconListPenOutline16,
   IconPanelLeftOutline16,
@@ -38,7 +37,7 @@ import { MobilePreferences } from './MobilePreferences.tsx'
 import { BrowserControls, type BrowserControlsCallbacks } from './BrowserControls.tsx'
 
 /** Capability pages contributed by this product plugin. */
-export type CapabilityId = 'security' | 'browser' | 'computer' | 'mobile' | 'design'
+export type CapabilityId = 'security' | 'browser' | 'computer' | 'mobile'
 
 /** Registration metadata for one capability page. */
 export interface CapabilityDefinition {
@@ -55,7 +54,6 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
   { id: 'browser', navKey: 'browserNav', titleKey: 'browserTitle', descriptionKey: 'browserDescription', order: 50 },
   { id: 'computer', navKey: 'computerNav', titleKey: 'computerTitle', descriptionKey: 'computerDescription', order: 60 },
   { id: 'mobile', navKey: 'mobileNav', titleKey: 'mobileTitle', descriptionKey: 'mobileDescription', order: 70 },
-  { id: 'design', navKey: 'designNav', titleKey: 'designTitle', descriptionKey: 'designDescription', order: 80 },
 ] as const
 
 const CAPABILITY_MATCHERS = {
@@ -64,7 +62,6 @@ const CAPABILITY_MATCHERS = {
   browser: /^@deepseek-ai\/dsh-(?:browser(?:-cinlan|-playwright|-permission-policy)?|tool-browser)$/i,
   computer: /^@deepseek-ai\/dsh-(?:computer-use(?:-cinlan|-permission-policy)?|tool-computer-use)$/i,
   mobile: /^@deepseek-ai\/dsh-(?:mobile-device(?:-cinlan|-permission-policy)?|tool-mobile-device)$/i,
-  design: /^@deepseek-ai\/dsh-(?:design-studio(?:-local|-prompt)?|tool-design-studio|cinlan-design)$/i,
 } as const satisfies Record<CapabilityId, RegExp>
 
 /** Injected Remote face shared by every page. */
@@ -167,12 +164,6 @@ interface FeatureCardDefinition {
   readonly titleKey: CapabilitySettingsKey
   readonly descriptionKey: CapabilitySettingsKey
 }
-
-const DESIGN_CARDS = [
-  { id: 'create', icon: IconEnhanceOutline16, titleKey: 'designCreateTitle', descriptionKey: 'designCreateDescription' },
-  { id: 'preview', icon: IconBrowseOutline16, titleKey: 'designPreviewTitle', descriptionKey: 'designPreviewDescription' },
-  { id: 'export', icon: IconDownloadOutline16, titleKey: 'designExportTitle', descriptionKey: 'designExportDescription' },
-] as const satisfies readonly FeatureCardDefinition[]
 
 const SECURITY_CARDS = [
   { id: 'scope', icon: IconSkillOutline16, titleKey: 'securityScopeTitle', descriptionKey: 'securityScopeDescription' },
@@ -346,26 +337,6 @@ function SecurityResearchBody(props: BodyProps & Pick<CapabilitySectionProps, 'u
   </>
 }
 
-function DesignCapabilityBody(props: BodyProps): ReactNode {
-  const { state, t } = props
-  const status = inventoryStatus(state)
-  return <>
-    <div className={css.computerCard} data-settings-anchor="design-readiness">
-      <HeroHeader icon={IconEnhanceOutline16}
-        title={t('designHeroTitle')}
-        description={t('designHeroDescription')}
-        badge={<Badge status={status}>{t(STATUS_KEYS[status])}</Badge>} />
-      <p>{t('designPending')}</p>
-      <RefreshButton {...props} />
-    </div>
-    <div className={css.computerHowTo} data-settings-anchor="design-usage">
-      <h3>{t('designHowToUse')}</h3>
-      <p>{t('designHowToUseDescription')}</p>
-      <FeatureCards cards={DESIGN_CARDS} t={t} />
-    </div>
-  </>
-}
-
 function BrowserCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps,
   'useBrowserPreferences' | 'saveBrowserPreferences' | 'resetBrowserPreferences' | 'browserControls' | 'target'
   | 'useBrowserRouting' | 'saveBrowserRouting' | 'resetBrowserRouting'>): ReactNode {
@@ -471,9 +442,8 @@ export function CapabilitySection({
           browserControls={browserControls}
           {...target === undefined ? {} : { target }}
         />
-          : definition.id === 'mobile' ? <MobileCapabilityBody {...body} checkSdk={checkSdk} listMobileDevices={listMobileDevices}
-            useMobileSettings={useMobileSettings} saveMobileSettings={saveMobileSettings} resetMobileSettings={resetMobileSettings} />
-            : <DesignCapabilityBody {...body} />}
+          : <MobileCapabilityBody {...body} checkSdk={checkSdk} listMobileDevices={listMobileDevices}
+            useMobileSettings={useMobileSettings} saveMobileSettings={saveMobileSettings} resetMobileSettings={resetMobileSettings} />}
     <details ref={diagnostics} className={css.diagnostics} data-settings-anchor={definition.id + '-components'}>
       <summary>{t('hostFact')}{state.phase === 'ready' ? ` · ${state.components.length}` : ''}</summary>
       <p>{t('inventoryCaveat')}</p>

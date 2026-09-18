@@ -75,7 +75,7 @@ describe('web e2e: agent-preset authoring is a host-side copy', () => {
     await dialog.waitFor({ timeout: 10_000 })
     await dialog.getByRole('button', { name: 'Agent 预设' }).click()
     await dialog.getByRole('heading', { name: 'Agent 预设' }).waitFor({ timeout: 10_000 })
-    await dialog.getByText('标准模式').first().waitFor({ timeout: 10_000 })
+    await dialog.getByRole('button', { name: '默认: 标准模式', exact: true }).waitFor({ timeout: 10_000 })
 
     const snapshot = await captureStableAria(page, '[data-dsh-settings-page]', scaffold.workspaceCwd)
 
@@ -131,7 +131,7 @@ describe('web e2e: agent-preset authoring is a host-side copy', () => {
     // The new row lands in the custom group, and — with no desktop opener —
     // its directory is revealed as text right away: landing in the files is
     // the completion of a copy, not a follow-up.
-    await dialog.getByText('我的模式').first().waitFor({ timeout: 10_000 })
+    await dialog.getByRole('button', { name: '设为默认: 我的模式', exact: true }).waitFor({ timeout: 10_000 })
     await dialog.getByText('预设文件：').waitFor({ timeout: 10_000 })
     // The copy dialog is detached, so the settings dialog is the only one
     // left (it names itself via aria-labelledby, which a CSS attribute
@@ -169,7 +169,7 @@ describe('web e2e: agent-preset authoring is a host-side copy', () => {
     // creator entry so the place to author a preset never disappears.
     expect(await dialog.getByRole('heading', { name: '自定义' }).count()).toBe(1)
     expect(await dialog.getByRole('button', { name: '用「创造模式」创作自定义预设' }).count()).toBe(1)
-    expect(await dialog.getByText('标准模式').count()).toBeGreaterThan(0)
+    expect(await dialog.getByRole('button', { name: '默认: 标准模式', exact: true }).count()).toBe(1)
   }, 60_000)
 
   it('marks damaged presets broken and clears a ghost through delete', async () => {

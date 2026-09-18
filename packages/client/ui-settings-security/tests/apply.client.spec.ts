@@ -86,7 +86,11 @@ describe('ui-settings-security registration', () => {
 
     await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toHaveLength(CAPABILITIES.length) })
     const sections = [...b.slots.entries('settings.section')].sort((a, b) => (a.options.order ?? 0) - (b.options.order ?? 0))
-    expect(sections).toHaveLength(CAPABILITIES.length)
+    expect(sections.map(section => section.options.id)).toEqual([
+      'cinlan-security', 'cinlan-browser', 'cinlan-computer', 'cinlan-mobile',
+    ])
+    expect(b.ctx.settingsMetadata.getSnapshot().sections.map(section => section.sectionId)).not.toContain('cinlan-design')
+    expect(b.ctx.settingsMetadata.getSnapshot().items.some(item => item.sectionId === 'cinlan-design')).toBe(false)
     expect(b.inventory.list).not.toHaveBeenCalled()
 
     for (const [index, definition] of CAPABILITIES.entries()) {
@@ -275,7 +279,7 @@ describe('ui-settings-security registration', () => {
       { op: 'unset', path: ['homePage'] }, { op: 'unset', path: ['profileName'] },
     ]), 24)
     expect(b.bindSettings).toHaveBeenCalledWith({ namespace: 'dsh-better-sidebar' })
-    const routingMutation = vi.mocked(injected.hooks.browserRouting.mutate)
+    const routingMutation = vi.spyOn(injected.hooks.browserRouting, 'mutate')
     await injected.saveBrowserRouting({ browserInterceptHttps: true }, 26)
     expect(routingMutation).toHaveBeenLastCalledWith([{ op: 'set', path: ['browserInterceptHttps'], value: true }], 26)
     routingMutation.mockResolvedValueOnce(false)

@@ -532,6 +532,26 @@ async function stopDesktop() {
   }
 }
 
+async function verifyDesignRemoved(settings, language) {
+  const names = language === 'zh'
+    ? { navigation: '设置导航', search: '搜索设置...', empty: '没有匹配的设置', supported: ['安全研究', '浏览器', '计算机控制', '手机模拟器'] }
+    : { navigation: 'Settings navigation', search: 'Search settings...', empty: 'No matching settings', supported: ['Security Research', 'Browser', 'Computer use', 'Mobile emulator'] }
+  const navigation = settings.getByRole('navigation', { name: names.navigation, exact: true })
+  await navigation.waitFor()
+  for (const name of names.supported) assert.equal(await navigation.getByRole('button', { name, exact: true, includeHidden: true }).count(), 1)
+  assert.equal(await navigation.getByRole('button', { name: /^(设计|Design)$/u, includeHidden: true }).count(), 0)
+  const search = settings.getByRole('searchbox', { name: names.search, exact: true })
+  await search.fill(names.supported[1])
+  await settings.getByRole('button', { name: language === 'zh' ? /工具与设备.*浏览器/u : /Tools & devices.*Browser/u }).first().waitFor()
+  for (const query of ['设计', 'Design', 'cinlan-studio']) {
+    await search.fill(query)
+    await settings.getByRole('status').filter({ hasText: names.empty }).waitFor()
+  }
+  await page.screenshot({ path: join(artifactDir, `settings-no-design-${language}.png`), fullPage: true, scale: 'css' })
+  await search.fill('')
+  report.checks.push(`${language} Settings retains four supported capabilities and omits Design from navigation and search`)
+}
+
 async function runScenario() {
   await mkdir(harnessHome)
   await writeFile(join(harnessHome, 'settings.yaml'), initialSettings, { flag: 'wx' })
@@ -593,6 +613,7 @@ async function runScenario() {
   await page.screenshot({ path: join(artifactDir, 'settings-zh.png'), fullPage: true, scale: 'css' })
   await writeFile(join(artifactDir, 'settings-zh.aria.txt'), await settings.ariaSnapshot())
   report.checks.push('Chinese shared settings layout: 280px navigation, 64px toolbar, full viewport, no horizontal overflow')
+  await verifyDesignRemoved(settings, 'zh')
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k')
   const search = settings.getByRole('searchbox', { name: '搜索设置...', exact: true })
   assert.equal(await search.evaluate(element => element === document.activeElement), true)
@@ -608,6 +629,7 @@ async function runScenario() {
   await page.waitForFunction(() => document.documentElement.lang === 'en')
   await page.screenshot({ path: join(artifactDir, 'settings-en.png'), fullPage: true, scale: 'css' })
   await writeFile(join(artifactDir, 'settings-en.aria.txt'), await english.ariaSnapshot())
+  await verifyDesignRemoved(english, 'en')
   await until(async () => /locale:\n\s+preference: en/.test(await readFile(join(harnessHome, 'settings.yaml'), 'utf8')), 'persisted English preference')
   await english.getByRole('searchbox', { name: 'Search settings...', exact: true }).fill('Appearance')
   await english.getByRole('button', { name: /Personal preferences.*Appearance/ }).click()
@@ -721,7 +743,8 @@ async function runScenario() {
       join(report.main.resourcesPath, 'runtime', 'pnpm', 'bin', 'pnpm.mjs'), join(report.main.resourcesPath, 'seed', 'integrity.json'),
       join(harnessHome, 'profiles', 'desktop', 'desktop-release.json'),
       join(harnessHome, 'profiles', 'desktop', 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'lib', 'index.js'),
-      join(harnessHome, 'profiles', 'desktop', 'node_modules', '@deepseek-ai', 'dsh-client-ui-settings-general', 'lib', 'client.js')]
+      join(harnessHome, 'profiles', 'desktop', 'node_modules', '@deepseek-ai', 'dsh-client-ui-settings-general', 'lib', 'client.js'),
+      join(harnessHome, 'profiles', 'desktop', 'node_modules', '@deepseek-ai', 'dsh-client-ui-settings-security', 'lib', 'client.js')]
   for (const path of artifactPaths) {
     const absolute = resolve(root, path)
     report.artifacts.push({ path, modified: (await stat(absolute)).mtime.toISOString(), sha256: createHash('sha256').update(await readFile(absolute)).digest('hex') })

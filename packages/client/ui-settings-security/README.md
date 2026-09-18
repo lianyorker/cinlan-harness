@@ -1,5 +1,5 @@
 ---
-description: "Configure browser preferences and security assessment scope, inspect device readiness, and review available design capabilities."
+description: "Configure browser preferences and security assessment scope, and inspect desktop and mobile device readiness."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Configure browser launch preferences and link routing, inspect desktop and mobile readiness, and review design capability guidance in Settings. Security Research exposes preset and scope status, an authorized scope editor, and report downloads. Mobile settings preserve existing Host preferences while stating which values have no device-operation consumer. Explicit actions retain their Host permission checks; opening a page does not install software or perform device input.
+Configure browser launch preferences and link routing, and inspect desktop and mobile readiness in Settings. Security Research exposes preset and scope status, an authorized scope editor, and report downloads. Mobile settings preserve existing Host preferences while stating which values have no device-operation consumer. Explicit actions retain their Host permission checks; opening a page does not install software or perform device input.
 
 ## Table of Contents
 
@@ -24,9 +24,9 @@ Configure browser launch preferences and link routing, inspect desktop and mobil
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount with Settings, Locale, and the pluginInventory, deviceCapabilities, securityResearch, browser, and settings Remotes. All five navigation sections remain available when a capability is missing. Security Research reports missing or broken presets and keeps its scope editor and export unavailable until the preset is usable. Plugin loading, Provider readiness, and action authorization are separate facts.
+Mount with Settings, Locale, and the pluginInventory, deviceCapabilities, securityResearch, browser, and settings Remotes. The Security Research, Browser, Computer Use, and Mobile navigation sections remain available when a capability is missing. Security Research reports missing or broken presets and keeps its scope editor and export unavailable until the preset is usable. Plugin loading, Provider readiness, and action authorization are separate facts.
 
-The Computer Use and Mobile pages copy the supported `dsh --profile device-control` command. It launches a separate profile without installing external software. Clipboard denial displays a failure message. Design offers capability descriptions and copyable prompts; it has no installer or export-preference controls.
+The Computer Use and Mobile pages copy the supported `dsh --profile device-control` command. It launches a separate profile without installing external software. Clipboard denial displays a failure message.
 
 <a id="settings-and-action-ownership"></a>
 ## Settings and action ownership
@@ -38,7 +38,6 @@ The Computer Use and Mobile pages copy the supported `dsh --profile device-contr
 | Mobile | The [mobile capability](../../mobile-device/mobile-device/README.md) owns the `mobile-device` namespace. `enabled` controls automatic page checks, `androidSdkPath` supplies the Host SDK probe, and `defaultDeviceId` supplies only an omitted `mobile_observe.device_id`. |
 | Security Research | `assessment-scope.root` owns grant identity, validity, targets, hosts, actions, exclusions, evidence policy, egress destinations, and credential references. The scope owner validates and applies the submitted authority. |
 | Computer Use | The read-only Provider check reports platform, Provider/version, protocol, and declared support flags. Missing observations remain unavailable, and action permissions remain unprobed even after a successful check. No screen, cursor, or scaling preferences are supplied. |
-| Design | Read-only inventory and usage guidance. No design-directory or export-format preferences are supplied. |
 
 Browser and Mobile forms read framework-bound SettingsScope snapshots. Drafts retain the first-edit revision; one atomic mutation saves each form. Reset removes user overrides to recover composition defaults. Only successful Host responses update the shared mirror and show success; rejected writes retain the draft. Read-only or unavailable settings cannot be saved or reset.
 
@@ -74,5 +73,5 @@ None; preferences and readiness reads do not enter the model request prefix.
 
 - A loaded plugin does not prove readiness, and a successful Provider probe does not grant action authorization. The device-control profile uses external CLI adapters; native Browser does not depend on them.
 - The SDK path configures only the Host probe, not the external Cinlan device runtime. A successful SDK check does not prove that a device session can launch.
-- Capture content, browser zoom, computer-control preferences, and design export preferences require their own runtime owners; this package does not add preview-only fields.
+- Capture content, browser zoom, and computer-control preferences require their own runtime owners; this package does not add preview-only fields.
 - Security status reports configuration, not scanner readiness or complete policy coverage across external tools.

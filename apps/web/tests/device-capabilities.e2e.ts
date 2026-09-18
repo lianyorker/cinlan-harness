@@ -56,13 +56,24 @@ describe('Web device readiness', () => {
     expect(consoleWatch.pageErrors).toEqual([])
   })
 
-  it('presents supported setup steps without fake installation or Cookie actions', async () => {
+  it('presents supported setup steps and omits Design from navigation and search', async () => {
     await page.getByRole('button', { name: '安全研究', exact: true }).click()
     const security = page.locator('[data-capability="security"]')
     await expect.poll(() => security.getAttribute('aria-busy')).toBe('false')
     expect(await security.getByRole('button', { name: /^(安装|启用)$/u }).count()).toBe(0)
     await security.getByText('本页仅检查组合与配置，不证明外部工具可运行，也不保证范围策略已覆盖所有工具执行路径。', { exact: true }).waitFor()
-    for (const [id, name] of [['design', '设计'], ['browser', '浏览器'], ['mobile', '手机模拟器']] as const) {
+    const settings = page.getByRole('region', { name: '设置', exact: true })
+    const navigation = settings.getByRole('navigation', { name: '设置导航', exact: true })
+    expect(await navigation.getByRole('button', { name: /^(设计|Design)$/u, includeHidden: true }).count()).toBe(0)
+    const search = settings.getByRole('searchbox', { name: '搜索设置...', exact: true })
+    await search.fill('手机模拟器')
+    await settings.getByRole('button', { name: /工具与设备.*手机模拟器/u }).first().waitFor()
+    for (const query of ['设计', 'Design', 'cinlan-studio']) {
+      await search.fill(query)
+      await settings.getByRole('status').filter({ hasText: '没有匹配的设置' }).waitFor()
+    }
+    await search.fill('')
+    for (const [id, name] of [['browser', '浏览器'], ['mobile', '手机模拟器']] as const) {
       await page.getByRole('button', { name, exact: true }).click()
       const section = page.locator(`[data-capability="${id}"]`)
       await expect.poll(() => section.getAttribute('aria-busy')).toBe('false')

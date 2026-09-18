@@ -33,7 +33,6 @@
     - button "浏览器"
     - button "计算机控制"
     - button "手机模拟器"
-    - button "设计"
     - button "扩展管理" [expanded]:
       - text: 扩展管理
       - img

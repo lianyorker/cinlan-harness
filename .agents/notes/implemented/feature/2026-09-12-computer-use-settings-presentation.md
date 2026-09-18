@@ -10,7 +10,7 @@ The Settings shell exposed a generic Computer Use Loader inventory page, while t
 
 ## Decision
 
-The card layout, copy control, and usage guidance remain in ui-settings-security. Status sourcing and profile activation are owned by the [device readiness decision](2026-09-12-device-profile-and-provider-readiness.md); Loader activation is not an installation claim. Security Research and Design share the icon, hero, and guidance-card hierarchy. Browser and Mobile Emulator use ordered setup cards, and Loader diagnostics stay collapsed below the product guidance.
+The card layout, copy control, and usage guidance remain in ui-settings-security. Status sourcing and profile activation are owned by the [device readiness decision](2026-09-12-device-profile-and-provider-readiness.md); Loader activation is not an installation claim. Security Research shares the icon, hero, and guidance-card hierarchy. Browser and Mobile Emulator use ordered setup cards, and Loader diagnostics stay collapsed below the product guidance.
 
 Computer observations come from the device readiness response: platform, Provider and protocol versions, and declared support. Missing or failed reads do not reuse older observations. Permissions remain `unknown`; a successful descriptor read does not establish action authorization. The page neither probes nor changes operating-system permissions.
 
@@ -30,4 +30,4 @@ Component tests and the real Web device readiness scenario cover the current car
 
 ## Deferred
 
-Mobile Emulator means Agent control of a device, not a mobile client connecting back to Harness. SDK detection and default-device preferences use their [native settings owners](../architecture/2026-09-17-native-settings-runtime-consumers.md); browser Cookie import uses the [native Browser operations](2026-09-13-native-browser-operations.md). These operations do not install software or grant device permissions. Computer selection and operating-system permission controls remain unavailable. Design Studio installation versus replacement remains undecided; the installed design Skill is guidance, not proof of a Design Studio Provider. GitHub publishing and downloadable dependency closure require a separate release implementation.
+Mobile Emulator means Agent control of a device, not a mobile client connecting back to Harness. SDK detection and default-device preferences use their [native settings owners](../architecture/2026-09-17-native-settings-runtime-consumers.md); browser Cookie import uses the [native Browser operations](2026-09-13-native-browser-operations.md). These operations do not install software or grant device permissions. Computer selection and operating-system permission controls remain unavailable. GitHub publishing and downloadable dependency closure require a separate release implementation.

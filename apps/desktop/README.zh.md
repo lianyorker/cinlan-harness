@@ -79,7 +79,7 @@ pnpm run start:desktop
 
 Workspace 开发使用调用命令的 Node.js 运行当前 CLI 与私有 Desktop Host 包，并禁用桌面包修改；只有该模式明确链接的一次性 profile 可以从自身目录外解析 bundle。需要验证内置 Node.js、内置 pnpm、发布 seed、插件安装、staging 和 rollback 时，应运行未封装安装器的应用目录。
 
-已有构建产物且处于交互式桌面会话时，可在仓库根目录运行 `node apps/desktop/tests/settings.integration.mjs`，验证 Electron 中的设置界面。开发模式使用 `start:desktop`，并禁用 pnpm 自动依赖安装。验证现有 Windows 未封装应用时，添加 `--packaged '<DeepSeek Harness.exe 的绝对路径>'`；该模式确认打包 ASAR 与内置运行时，通过 UI 保存 Git 和终端偏好，并检查完整进程重启后的持久化。两种模式都隔离 Harness home 和 Electron userData，并检查中英文布局、搜索、焦点、关闭操作及语言持久化。打包应用首次启动还要求在导航到应用前显示可见加载页，并记录观察到的启动阶段、主进程响应延迟和经过时间；观察时间包含调试器连接及测试开销。截图、无障碍树、产物哈希和结果记录保留在 `.artifacts/desktop-settings-*`；检查会关闭自身启动的应用、确认调试端口释放，并移除临时根目录。该检查不构建产物、不运行安装器，也不执行终端命令。
+已有构建产物且处于交互式桌面会话时，可在仓库根目录运行 `node apps/desktop/tests/settings.integration.mjs`，验证 Electron 中的设置界面。开发模式使用 `start:desktop`，并禁用 pnpm 自动依赖安装。验证现有 Windows 未封装应用时，添加 `--packaged '<DeepSeek Harness.exe 的绝对路径>'`；该模式确认打包 ASAR 与内置运行时，通过 UI 保存 Git 和终端偏好，并检查完整进程重启后的持久化。两种模式都隔离 Harness home 和 Electron userData，并检查中英文布局、搜索、焦点、关闭操作及语言持久化。能力导航保留安全研究、浏览器、计算机控制与手机模拟器；导航和搜索中均无设计页面。打包应用首次启动还要求在导航到应用前显示可见加载页，并记录观察到的启动阶段、主进程响应延迟和经过时间；观察时间包含调试器连接及测试开销。截图、无障碍树、产物哈希和结果记录保留在 `.artifacts/desktop-settings-*`；检查会关闭自身启动的应用、确认调试端口释放，并移除临时根目录。该检查不构建产物、不运行安装器，也不执行终端命令。
 
 检查启动生命周期时，将 `--packaged` 与 `--close-during-startup` 组合，可在实际安装期间点击退出并验证锁与 staging 清理；与 `--fail-profile` 组合，则通过仅在临时 home 中创建的无效发布记录验证持续可见的错误页和诊断文件。这些模式不再进入设置页。可选的 `--existing-profile '<仅包含默认配置的独立 profile 快照>'` 用于验证同版本替换和内容相同的重启复用，或验证取消时旧 profile 保持不变；它绝不修改快照源，也不能与 `--fail-profile` 组合。
 

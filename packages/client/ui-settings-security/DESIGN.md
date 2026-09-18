@@ -11,7 +11,7 @@ This reference covers the Cinlan Settings contribution, not the Settings shell o
 - The content column is at most 840px wide; all capability headings share its left edge.
 - Headers use 22px/30px type and a hairline bottom rule; body copy uses 14px/22px.
 - Hero cards use 20px padding, 10px corners, a 44px icon, and a text-labelled status.
-- Computer Use, Security Research, and Design use a two-column guidance grid with a 12px gap. Below 640px it becomes one column.
+- Computer Use and Security Research use a two-column guidance grid with a 12px gap. Below 640px it becomes one column.
 - Browser uses three ordered setup rows. Mobile Emulator separates availability, SDK/default-device explanations, and Agent control setup.
 - Copy and recheck targets are at least 40px. Focus outlines are 2px with a 2px offset.
 

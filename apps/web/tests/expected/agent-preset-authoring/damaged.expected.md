@@ -1,28 +1,72 @@
 - region "设置":
-  - navigation:
+  - text: 设置
+  - navigation "设置导航":
     - button "返回应用":
       - img
       - text: 返回应用
     - img
     - searchbox "搜索设置..."
-    - text: 设置
+    - text: Ctrl / ⌘ K
+    - button "个人偏好" [expanded]:
+      - text: 个人偏好
+      - img
     - button "通用设置"
+    - button "通知"
+    - button "快捷键"
+    - button "浮动工作区"
+    - button "AI 与模型" [expanded]:
+      - text: AI 与模型
+      - img
     - button "模型"
-    - button "插件"
     - button "Agent 预设"
+    - button "编排"
+    - button "语音"
+    - button "开发工作流" [expanded]:
+      - text: 开发工作流
+      - img
+    - button "Git 与源代码控制"
+    - button "集成"
+    - button "工具与设备" [expanded]:
+      - text: 工具与设备
+      - img
+    - button "安全研究"
     - button "浏览器"
     - button "计算机控制"
     - button "手机模拟器"
-    - button "设计"
+    - button "扩展管理" [expanded]:
+      - text: 扩展管理
+      - img
+    - button "插件"
     - button "侧边卡片"
+    - button "实验" [expanded]:
+      - text: 实验
+      - img
+    - button "MCP"
+    - button "自动化"
+    - button "执行主机"
+    - button "终端"
+    - button "使用统计"
+  - text: AI 与模型
+  - img
+  - strong: Agent 预设
   - button "打开配置文件"
-  - heading "Agent 预设" [level=2]
+  - heading "Agent 预设" [level=1]
   - paragraph: 预设即一个会话的 Agent 所运行的插件组装 —— 它的工具、提示词与能力。复制一份既有预设改成自己的，或用「创造模式」让 Agent 帮你创建。
-  - heading "内置" [level=3]
+  - text: 新会话使用
+  - paragraph: 默认值只用于之后创建的会话，已有会话保留原来的预设。
+  - combobox "新会话使用":
+    - option "标准模式" [selected]
+    - option "PTC 模式"
+    - option "极简模式"
+    - option "创造模式"
+    - option "broken-yaml" [disabled]
+    - option "幽灵预设" [disabled]
+  - heading "内置" [level=2]
+  - paragraph: 内置预设只读。可以查看组成，或复制一份进行自定义。
   - list:
     - listitem:
-      - 'button "当前使用: 标准模式" [disabled] [pressed]':
-        - text: 标准模式 内置 当前使用 功能完整的编码 Agent，支持文件编辑、Shell、文件与网页检索、Skills、计划、目标、子代理和工作流。
+      - 'button "默认: 标准模式" [disabled] [pressed]':
+        - text: 标准模式 内置 默认 功能完整的编码 Agent，支持文件编辑、Shell、文件与网页检索、Skills、计划、目标、子代理和工作流。
         - code: standard
       - 'button "查看: 标准模式"':
         - img
@@ -60,7 +104,8 @@
       - 'button "复制: 创造模式"':
         - img
         - text: 复制
-  - heading "自定义" [level=3]
+  - heading "自定义" [level=2]
+  - paragraph: 从现有预设复制，再编辑预设文件。打开与删除操作由当前主机执行。
   - list:
     - listitem:
       - 'button "加载失败: broken-yaml" [disabled]':

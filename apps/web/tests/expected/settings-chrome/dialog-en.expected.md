@@ -33,7 +33,6 @@
     - button "Browser"
     - button "Computer use"
     - button "Mobile emulator"
-    - button "Design"
     - button "Extensions" [expanded]:
       - text: Extensions
       - img
