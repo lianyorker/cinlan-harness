@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -75,6 +75,40 @@ afterEach(() => {
 })
 
 describe('desktop host process', () => {
+  it('owns a starting Host until shutdown rejects readiness and the process exits', async () => {
+    const project = projectWithHost(`
+import { writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+writeFileSync(join(process.cwd(), 'starting-pid'), String(process.pid))
+process.on('exit', () => { writeFileSync(join(process.cwd(), 'host-exited'), 'closed') })
+function onRequestFrame() {}
+`)
+    const host = new DesktopHostProcess(process.execPath, project)
+    const starting = expect(host.start()).rejects.toThrow(/stopping/u)
+    try {
+      await expect.poll(() => existsSync(join(project, 'starting-pid'))).toBe(true)
+      const pid = Number(readFileSync(join(project, 'starting-pid'), 'utf8'))
+      const stopping = host.stop()
+      expect(host.stop()).toBe(stopping)
+      await Promise.all([starting, stopping])
+      expect(readFileSync(join(project, 'host-exited'), 'utf8')).toBe('closed')
+      expect(() => process.kill(pid, 0)).toThrow()
+      await expect(host.start()).rejects.toThrow(/stopping/u)
+    } finally {
+      await host.stop()
+    }
+  })
+
+  it('settles failed executable startup and teardown after the spawn error closes', async () => {
+    const project = projectWithHost('function onRequestFrame() {}')
+    const host = new DesktopHostProcess(join(project, 'missing-node'), project)
+    try {
+      await expect(host.start()).rejects.toThrow(/ENOENT/u)
+    } finally {
+      await host.stop()
+    }
+  })
+
   it.each([
     { inspectPort: undefined, allowLinkedProfile: true },
     { inspectPort: 0, allowLinkedProfile: true },

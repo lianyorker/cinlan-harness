@@ -1,6 +1,7 @@
 /**
  * Opt-in settings check through start:desktop or --packaged <executable>; requires a desktop session.
  * Add --existing-profile <absolute detached profile snapshot> to prove replacement of stale same-version packages.
+ * Add --close-during-startup with --packaged to exercise Exit during installation and verify transaction cleanup.
  * The fixture must contain only the default managed profile, with no symlinks, junctions, patches, or extra bundles;
  * only its runtime is copied into the isolated test home, and its source is never launched or modified.
  */
@@ -18,9 +19,19 @@ import { parseArgs } from 'node:util'
 
 const root = resolve(import.meta.dirname, '../../..')
 const pnpm = join(root, 'apps/desktop/node_modules/pnpm/bin/pnpm.mjs')
-const { values } = parseArgs({ options: { packaged: { type: 'string' }, 'existing-profile': { type: 'string' } }, allowPositionals: false })
+const { values } = parseArgs({ options: {
+  packaged: { type: 'string' }, 'existing-profile': { type: 'string' }, 'close-during-startup': { type: 'boolean', default: false },
+  'fail-profile': { type: 'boolean', default: false },
+}, allowPositionals: false })
 const packaged = values.packaged
 const existingProfile = values['existing-profile']
+const closeDuringStartup = values['close-during-startup']
+const failProfile = values['fail-profile']
+if (closeDuringStartup) assert.ok(packaged !== undefined, '--close-during-startup requires --packaged')
+if (failProfile) {
+  assert.ok(packaged !== undefined, '--fail-profile requires --packaged')
+  assert.ok(existingProfile === undefined && !closeDuringStartup, '--fail-profile cannot be combined with other fixture modes')
+}
 if (packaged !== undefined) assert.ok(isAbsolute(packaged), '--packaged requires an absolute executable path')
 if (existingProfile !== undefined) {
   assert.ok(packaged !== undefined, '--existing-profile requires --packaged')
@@ -28,7 +39,7 @@ if (existingProfile !== undefined) {
 }
 // The Web test owner supplies the existing browser driver; this check starts no browser binary.
 const { chromium } = createRequire(new URL('../../web/package.json', import.meta.url))('playwright')
-// A packaged first launch unpacks the offline seed and installs its private profile before opening a window.
+// The shell page appears before offline installation; these budgets cover application readiness.
 // A detached profile replacement also materializes the copied profile before rebuilding the target.
 const startupTimeout = packaged === undefined
   ? 120_000
@@ -112,6 +123,7 @@ const settingsPackage = '@deepseek-ai/dsh-client-ui-settings-general'
 const settingsBundle = join('node_modules', '@deepseek-ai', 'dsh-client-ui-settings-general', 'lib', 'client.js')
 const managedProfileEntries = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'desktop-release.json', 'desktop-packages.json', 'desktop-packages', 'node_modules']
 const initialSettings = 'locale:\n  preference: zh\nui-onboarding:\n  welcomeNoticeVersion: "2026-08-13.1"\n'
+const invalidReleaseFixture = 'BAD_JSON!\n'
 const sharedSessionSentinel = 'isolated desktop same-version upgrade: retain shared session-directory bytes\n'
 const profileReuseSentinel = 'isolated desktop same-version upgrade: retain the reconciled profile on restart\n'
 
@@ -229,7 +241,7 @@ const developmentRoot = await mkdtemp(join(tmpdir(), 'dsh-desktop-settings-'))
 const harnessHome = join(developmentRoot, 'home')
 const userData = join(developmentRoot, 'electron-user-data')
 const logPath = join(artifactDir, 'launch.log')
-const report = { command: packaged ?? 'pnpm run start:desktop', artifactDir, developmentRoot, checks: [], pageErrors: [], consoleErrors: [], lifecycleConsoleErrors: [], clientRequests: [], phases: [], networkResponses: [], requestFailures: [] }
+const report = { command: packaged ?? 'pnpm run start:desktop', artifactDir, developmentRoot, checks: [], startups: [], pageErrors: [], consoleErrors: [], lifecycleConsoleErrors: [], clientRequests: [], phases: [], networkResponses: [], requestFailures: [] }
 let phase = 'startup'
 const observedAt = () => ({ phase, time: new Date().toISOString() })
 const setPhase = value => { phase = value; report.phases.push(observedAt()) }
@@ -280,6 +292,9 @@ async function startDesktop(logPath) {
   const launchArguments = packaged === undefined ? [pnpm, 'run', 'start:desktop']
     : ['--inspect=127.0.0.1:0', '--remote-debugging-port=0', `--user-data-dir=${userData}`]
   report.launchArguments = launchArguments
+  const launchStarted = performance.now()
+  const startup = { launch: report.startups.length + 1, launchedAt: new Date().toISOString(), stages: [] }
+  report.startups.push(startup)
   child = spawn(packaged ?? process.execPath, launchArguments, {
     cwd: packaged === undefined ? root : developmentRoot,
     env: environment, stdio: ['ignore', logFile.fd, logFile.fd], detached: process.platform !== 'win32',
@@ -300,9 +315,12 @@ async function startDesktop(logPath) {
   browser = await chromium.connectOverCDP('http://127.0.0.1:' + rendererPort, { timeout: startupTimeout })
   page = await until(() => {
     assert.equal(exit, undefined, 'desktop launcher exited before renderer readiness: ' + JSON.stringify(exit))
-    return browser.contexts().flatMap(context => context.pages()).find(candidate => candidate.url() === 'dsh-app://app/index.html')
-  }, 'desktop renderer', startupTimeout)
+    return browser.contexts().flatMap(context => context.pages()).find(candidate =>
+      candidate.url() === 'dsh-app://shell/startup.html' || candidate.url() === 'dsh-app://app/index.html')
+  }, 'visible desktop page', 30_000)
+  startup.firstPageObservedAfterMs = Math.round(performance.now() - launchStarted)
   page.setDefaultTimeout(15_000)
+  await page.setViewportSize({ width: 1264, height: 775 })
   page.on('pageerror', error => report.pageErrors.push(error.message))
   page.on('console', message => {
     if (message.type() !== 'error') return
@@ -330,6 +348,108 @@ async function startDesktop(logPath) {
   page.on('requestfailed', request => {
     report.requestFailures.push({ ...observedAt(), request: observedRequest(request), failure: request.failure() })
   })
+  async function observeStartup() {
+    if (page.url() !== 'dsh-app://shell/startup.html') return undefined
+    try {
+      return await page.evaluate(async () => (await window.dshStartup?.read())?.state)
+    } catch (error) {
+      if (page.url() === 'dsh-app://app/index.html'
+        || (error instanceof Error && error.message.includes('Execution context was destroyed'))) return undefined
+      throw error
+    }
+  }
+  const initialStartup = await observeStartup()
+  startup.loadingPageObserved = initialStartup !== undefined
+  if (initialStartup !== undefined) {
+    assert.ok(initialStartup.phase === 'starting' || (failProfile && initialStartup.phase === 'error'),
+      'startup must report progress or the requested failure before the application is ready')
+    startup.initialState = initialStartup
+    const probeStarted = performance.now()
+    startup.window = await evaluateMain(mainUrl, '(() => { const {app,BrowserWindow} = process.getBuiltinModule("module").createRequire(process.cwd() + "/package.json")("electron"); const window = BrowserWindow.getAllWindows().find(candidate => candidate.webContents.getURL() === "dsh-app://shell/startup.html"); return window && {pid:process.pid, visible:window.isVisible(), bounds:window.getBounds(), home:process.env.DSH_HOME, userData:app.getPath("userData")} })()')
+    startup.mainReplyAfterMs = Math.round(performance.now() - probeStarted)
+    if (startup.window !== undefined) {
+      assert.equal(startup.window.visible, true, 'the loading page must be in a visible native window')
+      assert.equal(startup.window.home, harnessHome)
+      assert.equal(startup.window.userData, userData)
+      try {
+        startup.content = await page.evaluate(() => {
+          const read = selector => {
+            const element = document.querySelector(selector)
+            const rect = element?.getBoundingClientRect()
+            const style = element && getComputedStyle(element)
+            return { text: element?.textContent.trim(), visible: Boolean(rect?.width && rect.height && style.visibility !== 'hidden' && style.display !== 'none') }
+          }
+          return { url: location.href, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio }, heading: read('#startup-title'), status: read('#stage-label'), exit: read('#quit') }
+        })
+        if (startup.content.url === 'dsh-app://shell/startup.html') {
+          assert.ok(startup.content.heading.visible && startup.content.heading.text, 'loading heading must be visibly rendered')
+          assert.ok(startup.content.exit.visible && startup.content.exit.text, 'Exit must be visibly rendered')
+          if (!failProfile) assert.ok(startup.content.status.visible && startup.content.status.text, 'actual loading status must be visibly rendered')
+          await page.screenshot({ path: join(artifactDir, `startup-${startup.launch}.png`), fullPage: true, scale: 'css' })
+          await writeFile(join(artifactDir, `startup-${startup.launch}.aria.txt`), await page.locator('body').ariaSnapshot())
+        }
+      } catch (error) {
+        if (page.url() !== 'dsh-app://app/index.html') throw error
+        startup.navigatedDuringCapture = true
+      }
+    }
+  }
+  if (packaged !== undefined && startup.launch === 1) {
+    assert.ok(startup.loadingPageObserved && startup.window?.visible && startup.content?.heading.visible && startup.content.exit.visible
+      && (failProfile || startup.content.status.visible),
+      'a packaged fresh or replacement install must render its loading page before application readiness')
+  }
+  if (failProfile) {
+    const error = await until(async () => {
+      assert.equal(exit, undefined, 'startup failure must remain visible until the user exits')
+      assert.notEqual(page.url(), 'dsh-app://app/index.html', 'an invalid profile cannot open the application')
+      const state = await observeStartup()
+      return state?.phase === 'error' ? state : undefined
+    }, 'persistent startup error page', startupTimeout)
+    assert.ok(error.message.includes(invalidReleaseFixture.trim()), 'failure must identify the intentionally invalid release bytes')
+    assert.equal(error.canRestart, true)
+    assert.equal(error.diagnosticFile, join(artifactDir, 'startup-error.log'))
+    assert.ok((await readFile(error.diagnosticFile, 'utf8')).includes(error.message))
+    await page.locator('#failure').waitFor({ state: 'visible' })
+    assert.equal(await page.locator('#restart').isVisible(), true)
+    await page.screenshot({ path: join(artifactDir, 'startup-failure.png'), fullPage: true, scale: 'css' })
+    startup.failure = error
+    await page.locator('#quit').click()
+    await until(() => exit, 'exit from startup error page', 30_000)
+    assert.deepEqual(exit, { code: 0, signal: null })
+    return
+  }
+  if (closeDuringStartup) {
+    const installing = await until(async () => {
+      assert.equal(exit, undefined, 'desktop exited before cancellation')
+      const state = await observeStartup()
+      if (state?.phase === 'error') throw new Error('Desktop startup failed before cancellation: ' + JSON.stringify(state))
+      assert.notEqual(page.url(), 'dsh-app://app/index.html', 'installation finished before its cancellation could be exercised')
+      const installerPid = Number((await readWhenPresent(join(harnessHome, 'desktop', 'lock')))?.trim())
+      return state?.phase === 'starting' && state.stage === 'installing'
+        && Number.isSafeInteger(installerPid) && installerPid > 0 && installerPid !== startup.window.pid
+        ? { state, installerPid } : undefined
+    }, 'live installation owner before closing', startupTimeout)
+    startup.cancelledAt = { ...installing, observedAfterMs: Math.round(performance.now() - launchStarted) }
+    await page.locator('#quit').click()
+    await until(() => exit, 'safe shutdown after startup cancellation', startupTimeout)
+    startup.exitedAfterMs = Math.round(performance.now() - launchStarted)
+    assert.deepEqual(exit, { code: 0, signal: null })
+    assert.throws(() => process.kill(installing.installerPid, 0), { code: 'ESRCH' }, 'the observed installer must exit before Electron finishes')
+    startup.installerExited = true
+    return
+  }
+  await until(async () => {
+    assert.equal(exit, undefined, 'desktop exited during startup: ' + JSON.stringify(exit))
+    if (page.url() === 'dsh-app://app/index.html') return true
+    const state = await observeStartup()
+    if (state?.phase === 'error') throw new Error('Desktop startup failed: ' + JSON.stringify(state))
+    if (state !== undefined && startup.stages.at(-1)?.stage !== state.stage) {
+      startup.stages.push({ stage: state.stage, observedAfterMs: Math.round(performance.now() - launchStarted) })
+    }
+    return false
+  }, 'application navigation after startup', startupTimeout)
+  startup.applicationObservedAfterMs = Math.round(performance.now() - launchStarted)
   report.main = await evaluateMain(mainUrl, '(() => { const {app} = process.getBuiltinModule("module").createRequire(process.cwd() + "/package.json")("electron"); return {pid:process.pid, versions:process.versions, home:process.env.DSH_HOME, userData:app.getPath("userData"), appPath:app.getAppPath(), isPackaged:app.isPackaged, version:app.getVersion(), execPath:process.execPath, resourcesPath:process.resourcesPath, children:process._getActiveHandles().filter(handle => handle.constructor?.name === "ChildProcess").map(handle => ({pid:handle.pid, executable:handle.spawnfile, args:handle.spawnargs}))} })()')
   assert.equal(report.main.home, harnessHome)
   assert.equal(report.main.userData, userData)
@@ -403,11 +523,37 @@ async function stopDesktop() {
   }
 }
 
-try {
+async function runScenario() {
   await mkdir(harnessHome)
   await writeFile(join(harnessHome, 'settings.yaml'), initialSettings, { flag: 'wx' })
   if (existingProfile !== undefined) await prepareExistingProfile()
+  if (failProfile) {
+    await mkdir(join(harnessHome, 'profiles', 'desktop'), { recursive: true })
+    await writeFile(join(harnessHome, 'profiles', 'desktop', 'desktop-release.json'), invalidReleaseFixture, { flag: 'wx' })
+  }
   await startDesktop(logPath)
+  if (failProfile) {
+    assert.equal(await readWhenPresent(join(harnessHome, 'desktop', 'lock')), undefined)
+    assert.equal(await readFile(join(harnessHome, 'profiles', 'desktop', 'desktop-release.json'), 'utf8'), invalidReleaseFixture)
+    assert.equal(await readFile(join(harnessHome, 'settings.yaml'), 'utf8'), initialSettings)
+    report.checks.push('invalid isolated profile leaves a visible error page with persisted diagnostics and restart/exit actions; Exit closes cleanly without changing the fixture')
+    report.passed = true
+    return
+  }
+  if (closeDuringStartup) {
+    assert.equal(await readWhenPresent(join(harnessHome, 'desktop', 'lock')), undefined, 'cancellation releases the transaction lock')
+    assert.equal(await readWhenPresent(join(harnessHome, 'desktop', 'pending.json')), undefined, 'cancellation before activation leaves no journal')
+    assert.deepEqual(await readdir(join(harnessHome, 'desktop', 'staging')), [], 'cancellation removes owned staging roots')
+    assert.equal(await readFile(join(harnessHome, 'settings.yaml'), 'utf8'), initialSettings)
+    if (existingProfile !== undefined) {
+      assert.deepEqual(await profileFingerprint(join(harnessHome, 'profiles', 'desktop')), report.existingProfile.before)
+    } else {
+      assert.equal(await readWhenPresent(join(harnessHome, 'profiles', 'desktop', 'package.json')), undefined)
+    }
+    report.checks.push('Exit during actual packaged installation waits for worker cleanup, releases the lock, removes staging, and leaves shared settings and the active profile unchanged')
+    report.passed = true
+    return
+  }
   if (existingProfile !== undefined) await verifyExistingProfileUpgrade()
   const credentialStep = page.getByRole('dialog', { name: '添加一个 API Key 开始使用', exact: true })
   await credentialStep.getByRole('button', { name: '稍后配置', exact: true }).click()
@@ -429,13 +575,13 @@ try {
     navigation: await navigation.boundingBox(),
     toolbar: await settings.locator('header').boundingBox(),
     page: await settings.boundingBox(),
-    viewport: await page.evaluate(() => ({ width: innerWidth, height: innerHeight, language: document.documentElement.lang })),
+    viewport: await page.evaluate(() => ({ width: innerWidth, height: innerHeight, dpr: devicePixelRatio, language: document.documentElement.lang })),
   }
   assert.equal(report.layout.navigation.width, 280)
   assert.ok(report.layout.toolbar.height >= 64 && report.layout.toolbar.height <= 65)
   assert.equal(await settings.evaluate(element => element.scrollWidth <= element.clientWidth), true)
   assert.equal(await settings.getByRole('button', { name: '通用设置', exact: true }).getAttribute('aria-current'), 'page')
-  await page.screenshot({ path: join(artifactDir, 'settings-zh.png'), fullPage: true })
+  await page.screenshot({ path: join(artifactDir, 'settings-zh.png'), fullPage: true, scale: 'css' })
   await writeFile(join(artifactDir, 'settings-zh.aria.txt'), await settings.ariaSnapshot())
   report.checks.push('Chinese shared settings layout: 280px navigation, 64px toolbar, full viewport, no horizontal overflow')
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k')
@@ -444,14 +590,14 @@ try {
   await search.fill('外观')
   await settings.getByRole('button', { name: /个人偏好.*外观/ }).click()
   await page.waitForFunction(() => document.activeElement?.closest('[data-settings-anchor]')?.getAttribute('data-settings-anchor') === 'appearance')
-  await page.screenshot({ path: join(artifactDir, 'settings-search-focus.png'), fullPage: true })
+  await page.screenshot({ path: join(artifactDir, 'settings-search-focus.png'), fullPage: true, scale: 'css' })
   report.checks.push('Ctrl/Meta+K focuses search; Chinese field search opens and focuses Appearance')
   await settings.getByRole('button', { name: '中文', exact: true }).click()
   await page.getByRole('menuitem', { name: 'English', exact: true }).click()
   const english = page.getByRole('region', { name: 'Settings', exact: true })
   await english.getByRole('button', { name: 'General', exact: true }).waitFor()
   await page.waitForFunction(() => document.documentElement.lang === 'en')
-  await page.screenshot({ path: join(artifactDir, 'settings-en.png'), fullPage: true })
+  await page.screenshot({ path: join(artifactDir, 'settings-en.png'), fullPage: true, scale: 'css' })
   await writeFile(join(artifactDir, 'settings-en.aria.txt'), await english.ariaSnapshot())
   await until(async () => /locale:\n\s+preference: en/.test(await readFile(join(harnessHome, 'settings.yaml'), 'utf8')), 'persisted English preference')
   await english.getByRole('searchbox', { name: 'Search settings...', exact: true }).fill('Appearance')
@@ -483,7 +629,7 @@ try {
     await until(async () => /branchPrefix: none/.test(await readFile(join(harnessHome, 'settings.yaml'), 'utf8')), 'persisted Git branch prefix')
     await english.getByRole('combobox', { name: 'Source Control Group Order', exact: true }).selectOption('staged-first')
     await until(async () => /sourceControlGroupOrder: staged-first/.test(await readFile(join(harnessHome, 'settings.yaml'), 'utf8')), 'persisted Git group order')
-    await page.screenshot({ path: join(artifactDir, 'settings-git.png'), fullPage: true })
+    await page.screenshot({ path: join(artifactDir, 'settings-git.png'), fullPage: true, scale: 'css' })
     await writeFile(join(artifactDir, 'settings-git.aria.txt'), await english.ariaSnapshot())
     report.checks.push('packaged Git settings save branch prefix and source-control group order to the isolated settings file')
     await english.getByRole('button', { name: 'Terminal', exact: true }).click()
@@ -504,7 +650,7 @@ try {
       assert.equal(await english.getByRole('button', { name: 'Save preferences', exact: true }).count(), 0)
       report.checks.push('packaged Terminal page reports ' + terminalState + ' and exposes no save action')
     }
-    await page.screenshot({ path: join(artifactDir, 'settings-terminal.png'), fullPage: true })
+    await page.screenshot({ path: join(artifactDir, 'settings-terminal.png'), fullPage: true, scale: 'css' })
     await writeFile(join(artifactDir, 'settings-terminal.aria.txt'), await english.ariaSnapshot())
     const persisted = await readFile(join(harnessHome, 'settings.yaml'), 'utf8')
     await writeFile(join(artifactDir, 'settings-before-restart.yaml'), persisted)
@@ -535,11 +681,11 @@ try {
     await restartedSettings.getByRole('searchbox', { name: 'Search settings...', exact: true }).fill('Appearance')
     await restartedSettings.getByRole('button', { name: /Personal preferences.*Appearance/ }).click()
     await page.waitForFunction(() => document.activeElement?.closest('[data-settings-anchor]')?.getAttribute('data-settings-anchor') === 'appearance')
-    await page.screenshot({ path: join(artifactDir, 'settings-restart-en.png'), fullPage: true })
+    await page.screenshot({ path: join(artifactDir, 'settings-restart-en.png'), fullPage: true, scale: 'css' })
     await restartedSettings.getByRole('button', { name: 'Git & Source Control', exact: true }).click()
     assert.equal(await restartedSettings.getByRole('combobox', { name: 'Branch Prefix', exact: true }).inputValue(), 'none')
     assert.equal(await restartedSettings.getByRole('combobox', { name: 'Source Control Group Order', exact: true }).inputValue(), 'staged-first')
-    await page.screenshot({ path: join(artifactDir, 'settings-restart-git.png'), fullPage: true })
+    await page.screenshot({ path: join(artifactDir, 'settings-restart-git.png'), fullPage: true, scale: 'css' })
     if (terminalState === 'available') {
       await restartedSettings.getByRole('button', { name: 'Terminal', exact: true }).click()
       assert.equal(await restartedSettings.getByRole('spinbutton', { name: 'Font size', exact: true }).inputValue(), '16')
@@ -555,7 +701,7 @@ try {
       status: 'not-run',
       reason: 'The isolated home has no Workspace or Session. Creating one requires the native Windows directory chooser, which renderer CDP input cannot operate.',
     }
-    await page.screenshot({ path: join(artifactDir, 'packaged-main.png'), fullPage: true })
+    await page.screenshot({ path: join(artifactDir, 'packaged-main.png'), fullPage: true, scale: 'css' })
     await writeFile(join(artifactDir, 'packaged-main.aria.txt'), await page.locator('body').ariaSnapshot())
   }
   report.clientScripts = await page.evaluate(() => [...document.scripts].map(script => script.src).filter(Boolean))
@@ -574,12 +720,16 @@ try {
   assert.deepEqual(report.pageErrors, [])
   assert.deepEqual(report.consoleErrors, [])
   report.passed = true
+}
+
+try {
+  await runScenario()
 } catch (error) {
   failure = error
   report.passed = false
   report.error = error.stack ?? String(error)
   if (page && !page.isClosed()) {
-    try { await page.screenshot({ path: join(artifactDir, 'failure.png'), fullPage: true }) }
+    try { await page.screenshot({ path: join(artifactDir, 'failure.png'), fullPage: true, scale: 'css' }) }
     catch (captureError) { report.captureError = String(captureError) }
   }
 } finally {

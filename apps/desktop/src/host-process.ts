@@ -82,6 +82,9 @@ export class DesktopHostProcess {
     this.readyReject = reject
   })
   private exitPromise: Promise<void> | undefined
+  private stopTask: Promise<void> | undefined
+  private stopping = false
+  private started = false
   private stderr = ''
 
   /**
@@ -99,7 +102,9 @@ export class DesktopHostProcess {
 
   /** Start the child once and resolve only after its complete composition is active. */
   async start(): Promise<DesktopHostReady> {
-    if (this.child !== undefined) return this.readyPromise
+    if (this.stopping) throw new Error('dsh desktop host is stopping')
+    if (this.started) return this.readyPromise
+    this.started = true
     const entry = join(this.projectDir, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'lib', 'index.js')
     const child = spawn(this.node, [
       ...(this.inspectPort === undefined ? [] : [`--inspect=127.0.0.1:${String(this.inspectPort)}`]),
@@ -112,14 +117,26 @@ export class DesktopHostProcess {
         name !== 'NODE_OPTIONS' && !/^DSH_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
       ))),
       stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe', 'ipc'],
+      windowsHide: true,
+    })
+    this.child = child
+    child.once('error', (error) => { this.fail(error) })
+    this.exitPromise = new Promise<void>((resolve) => {
+      // close also follows spawn errors and waits for the child's stdio handles to close.
+      child.once('close', (code) => {
+        const suffix = this.stderr.trim() === '' ? '' : `: ${this.stderr.trim()}`
+        if (code !== 0 && code !== null) this.fail(new Error(`dsh desktop host exited with ${String(code)}${suffix}`))
+        else this.fail(new Error(`dsh desktop host stopped${suffix}`))
+        resolve()
+      })
     })
     const requestPipe = child.stdio[DESKTOP_REQUEST_PIPE_FD]
     const responsePipe = child.stdio[DESKTOP_RESPONSE_PIPE_FD]
     if (!(requestPipe instanceof Writable) || !(responsePipe instanceof Readable)) {
       child.kill('SIGTERM')
-      throw new Error('dsh desktop host did not expose the required byte pipes and IPC channel')
+      this.fail(new Error('dsh desktop host did not expose the required byte pipes and IPC channel'))
+      return this.readyPromise
     }
-    this.child = child
     this.requestPipe = requestPipe
     this.responsePipe = responsePipe
     child.stderr?.setEncoding('utf8')
@@ -143,15 +160,6 @@ export class DesktopHostProcess {
         return
       }
       this.handleMessage(message)
-    })
-    child.once('error', (error) => { this.fail(error) })
-    this.exitPromise = new Promise<void>((resolve) => {
-      child.once('exit', (code) => {
-        const suffix = this.stderr.trim() === '' ? '' : `: ${this.stderr.trim()}`
-        if (code !== 0 && code !== null) this.fail(new Error(`dsh desktop host exited with ${String(code)}${suffix}`))
-        else this.fail(new Error(`dsh desktop host stopped${suffix}`))
-        resolve()
-      })
     })
     return this.readyPromise
   }
@@ -199,13 +207,25 @@ export class DesktopHostProcess {
     })
   }
 
-  /** Request graceful teardown, then wait for child exit. */
-  async stop(): Promise<void> {
+  /** Reject pending readiness and requests, then await child and pipe closure; concurrent callers share teardown. */
+  stop(): Promise<void> {
+    this.stopping = true
+    this.stopTask ??= this.stopChild().catch((error: unknown) => {
+      this.stopTask = undefined
+      throw error
+    })
+    return this.stopTask
+  }
+
+  private async stopChild(): Promise<void> {
     const child = this.child
     if (child === undefined) return
+    this.fail(new Error('dsh desktop host is stopping'))
     this.blockedResponses.clear()
     this.responsePipe?.resume()
-    if (child.connected) this.send({ type: 'shutdown' })
+    if (child.connected) child.send({ type: 'shutdown' } satisfies DesktopHostCommand, () => {
+      // IPC can close between connected and send; pipe closure and the exit ladder still own teardown.
+    })
     // Closing the parent-owned write end releases the Host's pending Windows pipe read.
     this.requestPipe?.destroy()
     const exited = this.exitPromise ?? Promise.resolve()
@@ -270,12 +290,6 @@ export class DesktopHostProcess {
     })
     this.requestWriteTail = write.catch(() => undefined)
     return write
-  }
-
-  private send(message: DesktopHostCommand): void {
-    const child = this.child
-    if (child === undefined || !child.connected) throw new Error('dsh desktop host IPC is unavailable')
-    child.send(message)
   }
 
   private acceptResponseBytes(chunk: Buffer): void {

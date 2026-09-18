@@ -16,6 +16,7 @@ import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { DESKTOP_PACKAGES_DIR, DESKTOP_PACKAGE_SET_FILE } from '../src/core-package-set.ts'
 import type { DesktopRelease } from '../src/release.ts'
 import { archivePnpmStore } from '../src/seed-store.ts'
+import { checkDesktopStartupHost } from '../src/startup-probe.ts'
 
 const roots: string[] = []
 const releaseWorkers: Array<() => Promise<void>> = []
@@ -193,6 +194,97 @@ describe('desktop package policy', () => {
 })
 
 describe('desktop project transactions', () => {
+  it('reports performed startup stages and skips install stages for an identical verified release', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const manager = new DesktopProjectManager(resolveDesktopPaths(root), { node: process.execPath, pnpm: writeFakePnpm(root) })
+    const stages: string[] = []
+    await manager.applyRelease(seed, '1.0.0', hooks(), { checkpoint: (stage) => { stages.push(stage) } })
+    expect(stages).toEqual(['recovering', 'verifying', 'extracting', 'installing', 'checking', 'activating'])
+    stages.length = 0
+    await expect(manager.applyRelease(seed, '1.0.0', hooks(), { checkpoint: (stage) => { stages.push(stage) } })).resolves.toBe(false)
+    expect(stages).toEqual(['recovering', 'verifying'])
+  })
+
+  it('lets an in-flight installer exit before canceled startup releases its lock and staging', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    const ready = join(root, 'installer-ready')
+    const finish = join(root, 'installer-finish')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(root)
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeBlockingFakePnpm(root, ready, finish) })
+    const cancellation = new AbortController()
+    const health = vi.fn(async () => {})
+    const installing = manager.applyRelease(seed, '1.0.0', hooks({ healthCheck: health }), {
+      checkpoint: () => { cancellation.signal.throwIfAborted() },
+    })
+    const outcome = installing.catch((error: unknown) => error)
+    releaseWorkers.push(async () => { writeFileSync(finish, 'finish'); await outcome })
+    await expect.poll(() => existsSync(ready)).toBe(true)
+    const pid = Number(readFileSync(ready, 'utf8'))
+    cancellation.abort(new Error('startup closed'))
+    expect(readFileSync(paths.lock, 'utf8').trim()).toBe(String(pid))
+    expect(() => process.kill(pid, 0)).not.toThrow()
+    writeFileSync(finish, 'finish')
+    expect(await outcome).toMatchObject({ message: 'startup closed' })
+    expect(health).not.toHaveBeenCalled()
+    expect(() => process.kill(pid, 0)).toThrow()
+    expect(existsSync(paths.lock)).toBe(false)
+    expect(existsSync(paths.pending)).toBe(false)
+    expect(existsSync(paths.profile)).toBe(false)
+    expect(readdirSync(paths.staging)).toEqual([])
+  })
+
+  it('holds the lock and staged profile while a failed health-check stop is retried', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(root)
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    const cancellation = new AbortController()
+    let retrying!: () => void
+    let closeHost!: () => void
+    const retry = new Promise<void>((done) => { retrying = done })
+    const closed = new Promise<void>((done) => { closeHost = done })
+    let staged = ''
+    const stop = vi.fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('Host did not exit'))
+      .mockImplementation(() => closed)
+    const applying = manager.applyRelease(seed, '1.0.0', hooks({
+      healthCheck: async (projectDir) => {
+        staged = projectDir
+        await checkDesktopStartupHost({
+          start: async () => ({ protocolVersion: 3, dshVersion: 'fixture' }), stop,
+        }, cancellation.signal, () => { retrying() })
+      },
+    }))
+    const outcome = applying.catch((error: unknown) => error)
+    releaseWorkers.push(async () => { closeHost(); await outcome })
+    await retry
+    cancellation.abort(new Error('startup closed during cleanup'))
+    expect(readFileSync(paths.lock, 'utf8').trim()).toBe(String(process.pid))
+    expect(existsSync(join(staged, 'node_modules'))).toBe(true)
+    expect(existsSync(paths.profile)).toBe(false)
+    expect(stop).toHaveBeenCalledOnce()
+    closeHost()
+    expect(await outcome).toMatchObject({ message: 'startup closed during cleanup' })
+    expect(stop).toHaveBeenCalledTimes(2)
+    expect(existsSync(paths.lock)).toBe(false)
+    expect(existsSync(staged)).toBe(false)
+    expect(readdirSync(paths.staging)).toEqual([])
+  })
+
   it('installs the offline seed and reconciles a mismatched private Host', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')

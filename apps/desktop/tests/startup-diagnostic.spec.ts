@@ -22,7 +22,7 @@ describe('desktop startup diagnostics', () => {
     const diagnostic = join(desktopRoot, 'startup-error.log')
 
     await writeStartupDiagnostic(new Error('first startup failure'), desktopRoot, '')
-    await writeStartupDiagnostic(new Error('latest startup failure'), desktopRoot, '')
+    await expect(writeStartupDiagnostic(new Error('latest startup failure'), desktopRoot, '')).resolves.toBe(diagnostic)
 
     const content = readFileSync(diagnostic, 'utf8')
     expect(content).toContain('Error: latest startup failure')
@@ -34,7 +34,7 @@ describe('desktop startup diagnostics', () => {
     const root = temporaryRoot()
     const override = join(root, 'diagnostics', 'explicit.log')
 
-    await writeStartupDiagnostic('explicit startup failure', join(root, 'desktop'), override)
+    await expect(writeStartupDiagnostic('explicit startup failure', join(root, 'desktop'), override)).resolves.toBe(override)
 
     expect(readFileSync(override, 'utf8')).toBe('explicit startup failure\n')
     expect(existsSync(join(root, 'desktop', 'startup-error.log'))).toBe(false)

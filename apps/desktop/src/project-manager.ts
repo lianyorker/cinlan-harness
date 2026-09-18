@@ -89,6 +89,12 @@ export interface DesktopProjectHooks {
   afterActivate(): Promise<void>
 }
 
+/** Safe cancellation checkpoints occur outside activation's journaled directory replacement. */
+export interface DesktopReleasePreparation {
+  /** Report the next operation; throwing cancels before it begins and still releases the transaction lock. */
+  checkpoint(stage: 'recovering' | 'verifying' | 'extracting' | 'installing' | 'checking' | 'activating'): void
+}
+
 /** Supported dependency mutation. */
 export type DesktopProjectMutation =
   | { readonly type: 'plugin-add'; readonly spec: string }
@@ -504,11 +510,19 @@ export class DesktopProjectManager {
    * @param seedDir - Packaged offline seed containing release metadata, tarballs, and store archives.
    * @param electronVersion - Exact application version that the seed must match.
    * @param hooks - Backend health and lifecycle operations for staged activation.
+   * @param preparation - Optional operation reporting and cooperative cancellation outside activation.
    * @returns Whether a staged profile was activated; equal versions with different content still reconcile.
    */
-  async applyRelease(seedDir: string, electronVersion: string, hooks: DesktopProjectHooks): Promise<boolean> {
+  async applyRelease(
+    seedDir: string,
+    electronVersion: string,
+    hooks: DesktopProjectHooks,
+    preparation?: DesktopReleasePreparation,
+  ): Promise<boolean> {
     return this.withLock(async () => {
+      preparation?.checkpoint('recovering')
       await this.recover()
+      preparation?.checkpoint('verifying')
       verifySeedIntegrity(seedDir)
       const target = releaseFile(seedDir)
       const targetPackages = verifyDesktopCorePackageSet(seedDir, target.version)
@@ -523,7 +537,9 @@ export class DesktopProjectManager {
         if (isDeepStrictEqual(activeRelease, target)
           && isDeepStrictEqual(activePackages, targetPackages)) return false
       }
+      preparation?.checkpoint('extracting')
       await this.mergeSeedPnpmState(seedDir)
+      preparation?.checkpoint('installing')
       const stagingProfile = this.newStagingProfile()
       try {
         if (existsSync(this.paths.profile)) {
@@ -531,6 +547,7 @@ export class DesktopProjectManager {
           copyMetadata(seedDir, stagingProfile)
           await this.runPnpm(stagingProfile, ['install', '--offline', '--frozen-lockfile', '--trust-lockfile'])
           if (plugins.length > 0) {
+            preparation?.checkpoint('installing')
             await this.runPnpm(stagingProfile, [
               'add',
               ...plugins.map(plugin => `${plugin.name}@${plugin.version}`),
@@ -543,7 +560,9 @@ export class DesktopProjectManager {
           copyMetadata(seedDir, stagingProfile)
           await this.runPnpm(stagingProfile, ['install', '--offline', '--frozen-lockfile', '--trust-lockfile'])
         }
+        preparation?.checkpoint('checking')
         await hooks.healthCheck(stagingProfile)
+        preparation?.checkpoint('activating')
         await this.activate(stagingProfile, hooks)
         return true
       } catch (error) {
@@ -813,22 +832,10 @@ export class DesktopProjectManager {
           XDG_STATE_HOME: this.paths.pnpm.state,
         },
         stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
       })
-      const childPid = child.pid
-      if (childPid === undefined) {
-        child.kill('SIGKILL')
-        reject(new Error('desktop project: pnpm did not report a process id'))
-        return
-      }
-      try {
-        this.writeLockOwner(childPid)
-      } catch (error) {
-        child.kill('SIGKILL')
-        reject(errorOf(error, 'desktop project: failed to assign the package transaction lock to pnpm'))
-        return
-      }
+      let failure: Error | undefined
       let diagnostics = ''
-      let completed = false
       const appendDiagnostics = (chunk: string): void => {
         diagnostics = (diagnostics + chunk).slice(-MAX_PNPM_DIAGNOSTIC_BYTES)
       }
@@ -836,29 +843,32 @@ export class DesktopProjectManager {
       child.stdout.on('data', appendDiagnostics)
       child.stderr.setEncoding('utf8')
       child.stderr.on('data', appendDiagnostics)
-      const complete = (settleChild: () => void): void => {
-        if (completed) return
-        completed = true
+      child.once('error', (error) => { failure = error })
+      child.once('close', (code, signal) => {
+        // Keep the transaction lock and staging tree until even a failed spawn has closed its pipes.
         try {
           this.writeLockOwner(process.pid)
         } catch (error) {
           reject(errorOf(error, 'desktop project: failed to return the package transaction lock to Electron'))
           return
         }
-        settleChild()
-      }
-      child.once('error', (error) => { complete(() => { reject(error) }) })
-      child.once('close', (code, signal) => {
-        complete(() => {
-          if (code === 0) {
-            settle()
-            return
-          }
-          reject(new Error(
-            `desktop project: pnpm exited with ${String(code ?? signal)}${diagnostics.trim() === '' ? '' : `: ${diagnostics.trim()}`}`,
-          ))
-        })
+        if (failure !== undefined) reject(failure)
+        else if (code === 0) settle()
+        else reject(new Error(
+          `desktop project: pnpm exited with ${String(code ?? signal)}${diagnostics.trim() === '' ? '' : `: ${diagnostics.trim()}`}`,
+        ))
       })
+      const childPid = child.pid
+      if (childPid === undefined) {
+        failure = new Error('desktop project: pnpm did not report a process id')
+      } else {
+        try {
+          this.writeLockOwner(childPid)
+        } catch (error) {
+          // Do not kill an installer between writes; wait for its close before releasing ownership.
+          failure = errorOf(error, 'desktop project: failed to assign the package transaction lock to pnpm')
+        }
+      }
     })
   }
 

@@ -21,6 +21,10 @@ import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 import { installFloatingWindowPolicy, type FloatingWindowPolicy } from './floating-window.ts'
 import { writeStartupDiagnostic } from './startup-diagnostic.ts'
+import { DesktopStartup } from './startup.ts'
+import { desktopMenuTemplate } from './desktop-menu.ts'
+import { prepareDesktopProfile } from './startup-preparation.ts'
+import { desktopStartupTheme, localizeStartupDocument } from './startup-document.ts'
 
 const SCHEME = 'dsh-app'
 let focusPrimaryWindow = (): void => {}
@@ -41,8 +45,9 @@ protocol.registerSchemesAsPrivileged([{
   },
 }])
 
+const CSS_MIME = 'text/css; charset=utf-8'
 const MIME: Readonly<Record<string, string>> = {
-  '.css': 'text/css; charset=utf-8',
+  '.css': CSS_MIME,
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.svg': 'image/svg+xml',
@@ -116,6 +121,9 @@ async function serveShellAsset(request: Request): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response(null, { status: 405 })
   const root = resolve(app.getAppPath(), 'renderer')
   const url = new URL(request.url)
+  if (url.pathname === '/startup-theme.css') {
+    return new Response(request.method === 'HEAD' ? null : desktopStartupTheme(), { headers: { 'content-type': CSS_MIME } })
+  }
   let pathname: string
   try {
     pathname = decodeURIComponent(url.pathname)
@@ -125,7 +133,10 @@ async function serveShellAsset(request: Request): Promise<Response> {
   const target = resolve(normalize(join(root, pathname)))
   if (target !== root && !target.startsWith(root + sep)) return new Response(null, { status: 403 })
   try {
-    const body = request.method === 'HEAD' ? null : await readFile(target)
+    const bytes = request.method === 'HEAD' ? null : await readFile(target)
+    const body = bytes !== null && pathname === '/startup.html'
+      ? localizeStartupDocument(bytes.toString('utf8'), resolveDesktopLocale(app.getLocale()))
+      : bytes
     return new Response(body, { headers: { 'content-type': MIME[extname(target)] ?? 'application/octet-stream' } })
   } catch {
     return new Response(null, { status: 404 })
@@ -144,6 +155,14 @@ async function main(): Promise<void> {
   let pluginWindow: BrowserWindow | undefined
   let floatingWindows: FloatingWindowPolicy | undefined
   let shellInstallerOwnsQuit = false
+  let quitting = false
+  const isQuitting = (): boolean => quitting
+  let quitReady = false
+  let quitTask: Promise<void> | undefined
+  let mutationTask: Promise<void> | undefined
+  let updateTimer: ReturnType<typeof setTimeout> | undefined
+  const ownedHosts = new Set<DesktopHostProcess>()
+  const startupUrl = `${SCHEME}://shell/startup.html`
   let updateState: DesktopUpdateState = { phase: 'idle' }
   const locale = resolveDesktopLocale(app.getLocale())
   const messages = locale.messages
@@ -158,28 +177,47 @@ async function main(): Promise<void> {
     return state
   }
 
+  const stopHost = async (active: DesktopHostProcess | undefined): Promise<void> => {
+    if (active === undefined) return
+    await active.stop()
+    ownedHosts.delete(active)
+  }
+  const stopHosts = async (): Promise<void> => {
+    host = undefined
+    const results = await Promise.allSettled([...ownedHosts].map(active => stopHost(active)))
+    const errors = results.flatMap(result => result.status === 'rejected' ? [result.reason as unknown] : [])
+    if (errors.length > 0) throw new AggregateError(errors, 'Desktop Host cleanup failed')
+  }
   const startHost = async (projectDir = activeProject): Promise<DesktopHostProcess> => {
+    if (isQuitting()) throw new Error('Desktop is closing')
     const next = new DesktopHostProcess(resources.node, projectDir, hostInspectPort, development !== undefined)
-    await next.start()
-    return next
+    ownedHosts.add(next)
+    try {
+      await next.start()
+      if (isQuitting()) throw new Error('Desktop is closing')
+      return next
+    } catch (error) {
+      await stopHost(next)
+      throw error
+    }
   }
   const hooks: DesktopProjectHooks = {
     healthCheck: async (projectDir) => {
       floatingWindows?.close()
       const active = host
       host = undefined
-      await active?.stop()
+      await stopHost(active)
       let healthFailure: unknown
       let probe: DesktopHostProcess | undefined
       try {
         probe = await startHost(projectDir)
-        await probe.stop()
+        await stopHost(probe)
       } catch (error) {
         healthFailure = error
-        await probe?.stop().catch(() => undefined)
+        await stopHost(probe).catch(() => undefined)
       }
       let restartFailure: unknown
-      if (active !== undefined) {
+      if (active !== undefined && !isQuitting()) {
         try {
           host = await startHost()
         } catch (error) {
@@ -199,30 +237,18 @@ async function main(): Promise<void> {
       floatingWindows?.close()
       const active = host
       host = undefined
-      await active?.stop()
+      await stopHost(active)
     },
     afterActivate: async () => {
-      host = await startHost()
+      if (!isQuitting()) host = await startHost()
     },
   }
-
-  if (development === undefined) {
-    await manager.applyRelease(resources.seed, app.getVersion(), {
-      ...hooks,
-      beforeActivate: async () => {},
-      afterActivate: async () => {},
-    })
-  }
-  host = await startHost()
 
   const updates = new DesktopUpdateCoordinator(
     publishUpdate,
     async () => {
+      await finishWork()
       shellInstallerOwnsQuit = true
-      floatingWindows?.close()
-      const active = host
-      host = undefined
-      await active?.stop()
     },
   )
 
@@ -240,8 +266,15 @@ async function main(): Promise<void> {
     if (development !== undefined) {
       throw new Error('dsh desktop: plugin package changes require a packaged application')
     }
-    await manager.mutate(mutation, hooks)
-    if (mainWindow !== undefined && !mainWindow.isDestroyed()) mainWindow.webContents.reload()
+    if (isQuitting() || startup.state.phase !== 'ready') throw new Error('Desktop is not ready for package changes')
+    if (mutationTask !== undefined) throw new Error('Desktop package changes are already in progress')
+    mutationTask = manager.mutate(mutation, hooks)
+    try {
+      await mutationTask
+      if (!isQuitting() && mainWindow !== undefined && !mainWindow.isDestroyed()) mainWindow.webContents.reload()
+    } finally {
+      mutationTask = undefined
+    }
   }
   ipcMain.handle(DESKTOP_IPC.localeGet, (event) => {
     assertDesktopSender(event, ['shell'])
@@ -276,7 +309,9 @@ async function main(): Promise<void> {
   })
 
   const checkAndPrompt = async (manual: boolean): Promise<void> => {
+    if (isQuitting() || startup.state.phase !== 'ready') return
     const state = await updates.check()
+    if (isQuitting()) return
     if (state.phase === 'error') {
       if (manual) {
         await dialog.showMessageBox({
@@ -318,6 +353,7 @@ async function main(): Promise<void> {
   }
 
   const openPluginWindow = (): void => {
+    if (isQuitting() || startup.state.phase !== 'ready') return
     if (pluginWindow !== undefined && !pluginWindow.isDestroyed()) {
       pluginWindow.focus()
       return
@@ -330,20 +366,14 @@ async function main(): Promise<void> {
     void pluginWindow.loadURL(`${SCHEME}://shell/plugin-manager.html`)
   }
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate([{
-    label: process.platform === 'darwin' ? app.name : messages.application,
-    submenu: [
-      {
-        label: development === undefined ? messages.pluginsMenu : messages.pluginsMenuPackagedOnly,
-        accelerator: 'CmdOrCtrl+,',
-        enabled: development === undefined,
-        click: openPluginWindow,
-      },
-      { label: messages.checkUpdatesMenu, click: () => { void checkAndPrompt(true) } },
-      { type: 'separator' },
-      { role: 'quit' },
-    ],
-  }]))
+  Menu.setApplicationMenu(Menu.buildFromTemplate(desktopMenuTemplate({
+    platform: process.platform,
+    appName: app.name,
+    messages,
+    development: development !== undefined,
+    openPlugins: openPluginWindow,
+    checkUpdates: () => { void checkAndPrompt(true) },
+  })))
 
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload)
@@ -351,6 +381,13 @@ async function main(): Promise<void> {
     const floating = installFloatingWindowPolicy(window, appPreload, options => new BrowserWindow(options))
     floatingWindows = floating
     window.once('ready-to-show', () => { if (!window.isDestroyed()) window.show() })
+    window.on('close', (event) => {
+      if (quitReady || shellInstallerOwnsQuit) return
+      if (startup.state.phase !== 'ready' || process.platform !== 'darwin') {
+        event.preventDefault()
+        void requestQuit(false)
+      }
+    })
     window.on('closed', () => {
       floating.dispose()
       if (floatingWindows === floating) floatingWindows = undefined
@@ -358,26 +395,115 @@ async function main(): Promise<void> {
     })
     return window
   }
+  const showStartup = async (signal?: AbortSignal): Promise<void> => {
+    const window = mainWindow ?? createMainWindow()
+    await window.loadURL(startupUrl)
+    if (window.isDestroyed()) throw new Error('Desktop startup window closed before display')
+    window.show()
+    // A visible compositor frame precedes seed verification, extraction, or package installation.
+    await new Promise<void>((resolve, reject) => {
+      const abort = (): void => {
+        signal?.removeEventListener('abort', abort)
+        reject(errorOf(signal?.reason, 'Desktop startup canceled'))
+      }
+      signal?.addEventListener('abort', abort, { once: true })
+      void window.webContents.executeJavaScript('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))')
+        .then(() => { resolve() }, (error: unknown) => { reject(errorOf(error, 'Desktop startup page could not paint')) })
+        .finally(() => { signal?.removeEventListener('abort', abort) })
+      if (signal?.aborted === true) abort()
+    })
+  }
+  const startup = new DesktopStartup({
+    show: showStartup,
+    prepare: async (signal, report) => {
+      if (development === undefined) {
+        await prepareDesktopProfile({ paths, runtime: resources, seed: resources.seed, version: app.getVersion() }, signal, report)
+      }
+    },
+    startHost: async () => { host = await startHost() },
+    openApp: async () => {
+      const window = mainWindow
+      if (window === undefined || window.isDestroyed()) throw new Error('Desktop window closed before application load')
+      await window.loadURL(`${SCHEME}://app/index.html`)
+    },
+    stopHosts,
+    diagnose: async (error) => {
+      console.error(error)
+      return writeStartupDiagnostic(error, paths.root)
+    },
+    publish: (state) => {
+      const window = mainWindow
+      if (window === undefined || window.isDestroyed()) return
+      if (state.phase === 'error' && window.webContents.getURL() !== startupUrl) {
+        void showStartup().catch((error: unknown) => {
+          console.error(error)
+          dialog.showErrorBox(messages.startupFailed, state.message)
+        })
+      } else {
+        window.webContents.send(DESKTOP_IPC.startupState, state)
+      }
+    },
+  })
+  const finishWork = async (): Promise<void> => {
+    quitting = true
+    if (updateTimer !== undefined) {
+      clearTimeout(updateTimer)
+      updateTimer = undefined
+    }
+    floatingWindows?.close()
+    const results = await Promise.allSettled([startup.close(), mutationTask])
+    // Mutations can finish rollback after the initial child stop; their hooks never launch while quitting.
+    await stopHosts()
+    const shutdown = results[0]
+    if (shutdown.status === 'rejected') throw shutdown.reason
+  }
+  const requestQuit = (restart: boolean): Promise<void> => {
+    quitTask ??= (async () => {
+      try {
+        await finishWork()
+        if (restart) app.relaunch()
+        quitReady = true
+        app.quit()
+      } catch (error) {
+        console.error(error)
+        quitTask = undefined
+      }
+    })()
+    return quitTask
+  }
+  const assertStartupSender = (event: IpcMainInvokeEvent): void => {
+    assertDesktopSender(event, ['shell'])
+    if (event.sender !== mainWindow?.webContents || event.senderFrame?.url !== startupUrl
+      || event.senderFrame !== event.sender.mainFrame) {
+      throw new Error('Desktop startup operation requires the primary startup document')
+    }
+  }
+  ipcMain.handle(DESKTOP_IPC.startupGet, (event) => {
+    assertStartupSender(event)
+    return { locale, state: startup.state }
+  })
+  ipcMain.handle(DESKTOP_IPC.startupQuit, (event) => {
+    assertStartupSender(event)
+    void requestQuit(false)
+  })
+  ipcMain.handle(DESKTOP_IPC.startupRestart, (event) => {
+    assertStartupSender(event)
+    if (startup.state.phase !== 'error' || !startup.state.canRestart) throw new Error('Desktop cannot safely restart')
+    void requestQuit(true)
+  })
   focusPrimaryWindow = () => {
+    if (isQuitting()) return
     const window = mainWindow
     if (window === undefined || window.isDestroyed()) {
       const replacement = createMainWindow()
-      void replacement.loadURL(`${SCHEME}://app/index.html`)
+      void replacement.loadURL(startup.state.phase === 'ready' ? `${SCHEME}://app/index.html` : startupUrl)
+        .catch((error: unknown) => { console.error(error) })
       return
     }
     if (window.isMinimized()) window.restore()
     window.show()
     window.focus()
   }
-
-  mainWindow = createMainWindow()
-  await mainWindow.loadURL(`${SCHEME}://app/index.html`)
-  if (development !== undefined && process.env.DSH_DESKTOP_OPEN_DEVTOOLS !== '0') {
-    mainWindow.webContents.openDevTools({ mode: 'detach' })
-  }
-  publishUpdate(updateState)
-  setTimeout(() => { void checkAndPrompt(false) }, 10_000)
-
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) focusPrimaryWindow()
   })
@@ -385,14 +511,18 @@ async function main(): Promise<void> {
     if (process.platform !== 'darwin') app.quit()
   })
   app.on('before-quit', (event) => {
-    floatingWindows?.close()
-    if (shellInstallerOwnsQuit) return
-    if (host === undefined) return
+    if (quitReady || shellInstallerOwnsQuit) return
     event.preventDefault()
-    const active = host
-    host = undefined
-    void active.stop().finally(() => { app.quit() })
+    void requestQuit(false)
   })
+
+  await startup.start()
+  if (startup.state.phase !== 'ready' || isQuitting()) return
+  if (development !== undefined && process.env.DSH_DESKTOP_OPEN_DEVTOOLS !== '0') {
+    mainWindow?.webContents.openDevTools({ mode: 'detach' })
+  }
+  publishUpdate(updateState)
+  updateTimer = setTimeout(() => { void checkAndPrompt(false) }, 10_000)
 }
 
 const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimaryWindow() })

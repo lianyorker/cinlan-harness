@@ -69,7 +69,7 @@ Electron 拥有保留 profile `.dsh/profiles/desktop`。其中精确的 `@deepse
 
 ## 安装与解析
 
-安装器绝不原地修改活跃 profile。它把 profile 元数据复制到事务暂存目录，并使用内置 pnpm 应用精确依赖变更。测试 staging 前，Electron 会停止活跃后端；它单独启动并停止 staging 后端，再在激活前恢复活跃后端，因此两个 Desktop 后端绝不会并发共享 `.dsh` 状态。激活过程再次停止后端，在对应目录移动前先持久化 `pending.json` 的每个下一阶段，把活跃 profile 移到 `rollback/profile`，把暂存 profile 移到 `.dsh/profiles/desktop`，然后重启。恢复过程会结合预写阶段与真实的 active、rollback 和 staging 目录，因此任一个写入与移动间隙中断后仍会保留或恢复一个完整 profile。
+安装器绝不原地修改活跃 profile。它把 profile 元数据复制到事务暂存目录，并使用内置 pnpm 应用精确依赖变更。Electron 单独启动并停止 staging 后端。如果已有后端运行，插件修改会在检查前停止它，并在激活前恢复它，因此两个 Desktop 后端绝不会并发共享 `.dsh` 状态。激活过程再次停止后端，在对应目录移动前先持久化 `pending.json` 的每个下一阶段，把活跃 profile 移到 `rollback/profile`，把暂存 profile 移到 `.dsh/profiles/desktop`，然后重启。恢复过程会结合预写阶段与真实的 active、rollback 和 staging 目录，因此任一个写入与移动间隙中断后仍会保留或恢复一个完整 profile。
 
 进程生命周期 Electron 锁是 Desktop 的权威 owner。包事务锁用于纵深防御，并记录仍能修改包状态的进程：包操作之间记录 Electron，pnpm 运行期间记录已生成的 pnpm PID。Owner 变更通过已经打开的排他锁文件完成截断、写入与同步。如果 Electron 在 pnpm 执行期间终止，后续进程会发现仍存活的 worker，并拒绝启动并发的 store 或 staging 事务；该 worker 退出后，陈旧 PID 才可以恢复。
 
@@ -89,7 +89,9 @@ Electron-builder 的生产收集器通过仅供 builder 使用的 pnpm filter �
 
 Electron 更新只使用一个 `electron-updater` 发布流和签名 `electron-builder` 产物。该版本就是 Desktop 发布版本；不存在独立 dsh manifest、兼容范围或仅更新 dsh 的操作。前台安装会等待正在进行的后台检查，而不会把检查结果复用成安装结果。更新弹窗下载并安装 Electron 产物，然后重启进入新发布。
 
-新发布在打开窗口前从安装包种子校准 dsh，同时保留已安装桌面插件。健康检查覆盖依赖解析、原生模块、壳 API 兼容性、后端启停、Web 资源和客户端启动图。不兼容插件会阻止激活，并保留上一个项目用于回滚。启动过程会明确失败，而不会运行版本不匹配的壳与 dsh。
+主窗口先绘制壳拥有的启动页，再从安装包种子校准 dsh，同时保留已安装桌面插件。Profile 准备在 worker 中运行：归档提取与包校验可以执行同步操作，而不阻塞 Electron 的窗口事件循环。页面使用内置的产品主题 token 和 locale 拥有的阶段文案，应用 UI 仍绑定经过验证的已安装发布。健康检查覆盖依赖解析、原生模块、壳 API 兼容性、后端启停、Web 资源和客户端启动图。不兼容插件会阻止激活，并保留上一个项目用于回滚。同一窗口显示启动错误与诊断路径，或在后端就绪后导航到应用。
+
+准备期间关闭窗口会请求协作式取消。正在运行的 pnpm 操作先结束，随后在事务检查点观察取消；壳会等待事务清理、探测 Host 停止和 worker 退出后再关闭。探测进程未能停止时继续持有事务锁和 staging 文件，清理会重试，页面会报告该状态；取消操作也会等待同一清理完成。强制终止 worker 可能使包操作在 Electron 释放归属锁后继续写入。因此，重启操作只有在当前启动和后端工作都停止后才启动新应用。原生编辑及 macOS 窗口、应用操作始终保留在菜单中，不依赖后端是否可用。
 
 `DSH_DESKTOP_AUTO_UPDATE_ENV` 默认为测试部署，也可以选择生产部署，并同时决定目标专用的 generic-provider URL 与 COS 目标。发布自动化通过 `DOWNLOAD_TEST_ORIGIN` 提供测试 HTTPS origin，并通过 `DOWNLOAD_TEST_COS_BUCKET` 或 `DOWNLOAD_PROD_COS_BUCKET` 提供各部署的 bucket；可变的测试路由与 COS 存储身份不写入源码，部署基础设施变更时无需发布新代码，而公开的生产 origin 仍固定。打包只解析公开更新 URL、禁止 electron-builder 发布、从子进程环境中删除每个 COS 凭据字段，并且只有在 electron-builder 以及每个签名或公证 hook 成功后才写入完成记录。目标上传还必须提供所选 bucket，随后会先要求完成记录、根 dsh 版本、Desktop 版本、根据版本得出的频道元数据、产物名称、大小与 SHA-512 全部一致，再读取所选凭据或发送数据。它先上传不可变且带版本的更新载荷与所有独立 blockmap，最后替换 electron-builder 生成的频道元数据，并且不会删除历史对象。稳定版本使用 `latest` 元数据名称，预发布版本则使用语义化版本的第一个预发布标识符。NSIS 与 macOS ZIP 都使用独立 blockmap。Windows 上传计划要求实际生成且非空的 `.exe.blockmap`；独立 blockmap 的元数据不声明内嵌的 `blockMapSize`。两者都让 electron-updater 在平台支持时只下载变化的数据块，而应用替换与本地 pnpm staging 事务仍是两个独立操作。
 
@@ -147,7 +149,7 @@ Windows 发布打包通过 `/f` 向已配置且与 SafeNet 兼容的 SignTool �
 - Electron-only GUI 安装、删除和更新普通 npm 插件包，而不暴露原始 pnpm 参数。
 - 后端与浏览器应用不能修改桌面包。
 - npm/CLI dsh 与 Electron 绝不从对方的 `node_modules` 解析或安装插件。
-- 在产品窗口打开前，活跃后端与 Web UI 报告相同 dsh 版本和兼容壳 API。
+- 主窗口在 profile 准备前报告启动进度，只有活跃后端与 Web UI 报告相同 dsh 版本和兼容壳 API 后才加载应用。
 - 安装、健康检查或更新失败后，当前 profile 仍然可用，或在重启后恢复 `rollback/profile`。
 - 一个 Desktop 版本绑定 Electron 与 dsh；每次 dsh 更新都通过一个 Electron 更新弹窗交付，并产生一次用户可见的重启。
 - 共享 `.dsh` 数据在迁移或修改前拒绝不兼容的读取方。

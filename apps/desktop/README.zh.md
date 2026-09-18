@@ -25,7 +25,13 @@ Electron 拥有保留 profile `$DSH_HOME/profiles/desktop`。其 manifest 通过
 
 dsh 主渲染进程只获得桌面协议标记。独立插件窗口获得结构化的列出、安装、移除、更新和更新检查操作；两个渲染进程都拿不到文件系统、原始 Electron IPC、shell 或任意 pnpm 参数。
 
-Electron 根据应用 locale 选择类型化的中英文字典，并以英文作为 fallback。菜单、原生对话框与插件管理渲染进程使用同一 locale 数据；仓库的 Client UI i18n gate 会检查这些桌面源文件。
+Electron 根据应用 locale 选择类型化的中英文字典，并以英文作为 fallback。启动页、菜单、原生对话框与插件管理渲染进程使用同一 locale 数据；仓库的 Client UI i18n gate 会检查这些桌面源文件。每个平台都保留原生编辑操作；macOS 还保留标准文件、窗口和应用显隐操作。
+
+### 可见的启动过程
+
+主窗口在 profile 校准开始前显示 `dsh-app://shell/startup.html`。这个本地页面继承产品主题和字体，报告实际的恢复、校验、安装、健康检查和后端启动阶段，不估算百分比。Worker 执行 profile 准备，使同步归档和包处理不会阻塞 Electron 的窗口操作。只有后端就绪后，同一窗口才导航到匹配的应用页面。
+
+准备期间关闭窗口会请求取消并显示正在停止的状态。壳会等待正在进行的包操作结束，完成事务清理和探测 Host 的停止，并等待 worker 退出后再关闭；它不会中途终止文件系统事务。健康检查 Host 未能停止时，事务继续持锁并保留 staging 文件，页面同时报告清理重试。失败信息及诊断路径持续可见。只有安全清理完成后才提供重启；退出操作可以重试失败的后端清理。启动 preload 仅向精确匹配的启动页暴露状态、locale 和这些生命周期操作；应用渲染进程仍只获得协议标记。
 
 ### Seed 安装
 
@@ -44,7 +50,7 @@ Electron 根据应用 locale 选择类型化的中英文字典，并以英文作
 2. 只有活跃 profile 解析后的发布元数据、已安装的 dsh 与 Desktop Host 版本，以及经过验证的本地包描述文件均与 seed 一致时才复用，包括每个 tarball 的名称、版本、文件名、大小和 SHA-512 完整性值。同一版本号下的内容变化也必须重新校准。
 3. 否则验证每个归档条目，把全部 store 分片解包到 Desktop 拥有的临时 staging 目录，将包文件与 SQLite 包索引记录合并进私有 store，再创建 staging profile，并通过内置 Node.js 与 pnpm 执行 `pnpm install --offline --frozen-lockfile --trust-lockfile`。Seed 记录替换匹配的索引键，插件专属记录继续保留。
 4. 只要现有 profile 需要重新校准，就从旧活跃 profile 读取每个插件的名称和精确版本，再通过现有 Desktop pnpm 状态以 `--offline` 把这些版本加入 staging。首次安装不执行插件恢复。
-5. 停止活跃后端，启动并停止完整的 staging 后端执行健康检查，再在激活前重新启动活跃后端。这种串行方式避免两个桌面后端共享 `$DSH_HOME`；安装错误或插件不兼容会删除 staging，并保持活跃 profile 不变。
+5. 启动并停止完整的 staging 后端执行健康检查。启动阶段尚无活跃后端；插件修改则先停止已经运行的后端，检查后再恢复。这种串行方式避免两个桌面后端共享 `$DSH_HOME`；激活前发生安装错误或插件不兼容时，会在探测进程停止后删除 staging，并保持活跃 profile 不变。
 6. 在每次目录移动前以原子替换方式持久化下一个激活阶段，把活跃 profile 移到 `$DSH_HOME/desktop/rollback/profile`，再把 staging 移到 `$DSH_HOME/profiles/desktop`。Windows 目录移动与清理会对暂时性的文件占用错误执行有界重试。恢复过程会为中断的激活恢复 rollback，在恢复不完整时保留日志，并保留日志已经到达 `committed` 的活跃 profile；提交后仍残留的 UUID 事务目录会在下一次操作取得锁后重试清理。
 
 启动失败时会把堆栈写入 `$DSH_HOME/desktop/startup-error.log`；设置 `DSH_DESKTOP_DIAGNOSTIC_FILE` 后使用该路径覆盖默认位置。
@@ -73,7 +79,9 @@ pnpm run start:desktop
 
 Workspace 开发使用调用命令的 Node.js 运行当前 CLI 与私有 Desktop Host 包，并禁用桌面包修改；只有该模式明确链接的一次性 profile 可以从自身目录外解析 bundle。需要验证内置 Node.js、内置 pnpm、发布 seed、插件安装、staging 和 rollback 时，应运行未封装安装器的应用目录。
 
-已有构建产物且处于交互式桌面会话时，可在仓库根目录运行 `node apps/desktop/tests/settings.integration.mjs`，验证 Electron 中的设置界面。开发模式使用 `start:desktop`，并禁用 pnpm 自动依赖安装。验证现有 Windows 未封装应用时，添加 `--packaged '<DeepSeek Harness.exe 的绝对路径>'`；该模式确认打包 ASAR 与内置运行时，通过 UI 保存 Git 和终端偏好，并检查完整进程重启后的持久化。两种模式都隔离 Harness home 和 Electron userData，并检查中英文布局、搜索、焦点、关闭操作及语言持久化。截图、无障碍树、产物哈希和结果记录保留在 `.artifacts/desktop-settings-*`；检查会关闭自身启动的应用、确认调试端口释放，并移除临时根目录。该检查不构建产物、不运行安装器，也不执行终端命令。
+已有构建产物且处于交互式桌面会话时，可在仓库根目录运行 `node apps/desktop/tests/settings.integration.mjs`，验证 Electron 中的设置界面。开发模式使用 `start:desktop`，并禁用 pnpm 自动依赖安装。验证现有 Windows 未封装应用时，添加 `--packaged '<DeepSeek Harness.exe 的绝对路径>'`；该模式确认打包 ASAR 与内置运行时，通过 UI 保存 Git 和终端偏好，并检查完整进程重启后的持久化。两种模式都隔离 Harness home 和 Electron userData，并检查中英文布局、搜索、焦点、关闭操作及语言持久化。打包应用首次启动还要求在导航到应用前显示可见加载页，并记录观察到的启动阶段、主进程响应延迟和经过时间；观察时间包含调试器连接及测试开销。截图、无障碍树、产物哈希和结果记录保留在 `.artifacts/desktop-settings-*`；检查会关闭自身启动的应用、确认调试端口释放，并移除临时根目录。该检查不构建产物、不运行安装器，也不执行终端命令。
+
+检查启动生命周期时，将 `--packaged` 与 `--close-during-startup` 组合，可在实际安装期间点击退出并验证锁与 staging 清理；与 `--fail-profile` 组合，则通过仅在临时 home 中创建的无效发布记录验证持续可见的错误页和诊断文件。这些模式不再进入设置页。可选的 `--existing-profile '<仅包含默认配置的独立 profile 快照>'` 用于验证同版本替换和内容相同的重启复用，或验证取消时旧 profile 保持不变；它绝不修改快照源，也不能与 `--fail-profile` 组合。
 
 ## 打包
 
