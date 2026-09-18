@@ -60,7 +60,8 @@ export async function createHarness() {
     try { for (const cleanup of cleanups.reverse()) await cleanup() }
     finally { await rm(root, { recursive: true, force: true }) }
   })
-  const clientKey = utils.generateKeyPairSync('ed25519')
+  // ssh2 1.17 drops valid leading-zero Ed25519 public bytes; P-256 fixtures avoid that key generator defect.
+  const clientKey = utils.generateKeyPairSync('ecdsa', { bits: 256 })
   const parsed = utils.parseKey(clientKey.private)
   if (parsed instanceof Error) throw parsed
   const privateFile = join(root, 'client_key')
@@ -104,8 +105,8 @@ export async function createHarness() {
     },
     /** Start a real authenticated SSH server; only the supported fixed worker command is accepted. */
     async worker(alias: string, options: { roots?: boolean; wrongHostKey?: boolean; denyAuthentication?: boolean } = {}) {
-      const serverKey = utils.generateKeyPairSync('ed25519')
-      const wrongKey = utils.generateKeyPairSync('ed25519')
+      const serverKey = utils.generateKeyPairSync('ecdsa', { bits: 256 })
+      const wrongKey = utils.generateKeyPairSync('ecdsa', { bits: 256 })
       const directory = join(root, alias, 'export')
       await mkdir(directory, { recursive: true })
       await writeFile(join(directory, alias + '.txt'), alias)
