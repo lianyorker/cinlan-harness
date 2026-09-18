@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { useEffect, useState, type ReactNode } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SettingsRootComponentProps } from '../src/client/shell-contract.ts'
+import type { SettingsRootComponentProps, SettingsSectionRow } from '../src/client/shell-contract.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
 import { en } from '../src/client/locales.ts'
 
@@ -14,9 +14,15 @@ const settingsCss = readFileSync(join(
   'packages/client/ui-settings-general/src/client/SettingsRoot.module.css',
 ), 'utf8')
 
-afterEach(cleanup)
+const scrollIntoView = vi.fn()
+beforeEach(() => {
+  scrollIntoView.mockClear()
+  Element.prototype.scrollIntoView = scrollIntoView
+})
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-type Row = { id: string; order: number; label: string }
+type Row = Pick<SettingsSectionRow, 'id' | 'order' | 'label'> & Partial<Pick<SettingsSectionRow, 'groupId' | 'items'>>
+const resolveRows = (rows: Row[]): SettingsSectionRow[] => rows.map(row => ({ ...row, groupId: row.groupId ?? (row.id === 'general' ? 'personal' : 'ai'), items: row.items ?? [] }))
 type Step = { id: string; order: number }
 
 /** Slot-content stand-ins: the shell renders whatever the seats contribute. */
@@ -33,6 +39,11 @@ type AttentionSnapshot = Parameters<Parameters<GlobalStandardProps['useSessionPe
 const noAttention: AttentionSnapshot = new Map()
 const useSessionPendingInteraction: GlobalStandardProps['useSessionPendingInteraction'] = selector => selector(noAttention)
 
+function DraftControl() {
+  const [value, setValue] = useState('')
+  return <input aria-label="Pending setting" value={value} onChange={(event) => { setValue(event.currentTarget.value) }} />
+}
+
 function mount({
   wide = true,
   onboardingActive = true,
@@ -48,7 +59,7 @@ function mount({
 }: { wide?: boolean; onboardingActive?: boolean; rows?: Row[]; steps?: Step[] } = {}) {
   // Mutable row source standing in for the bound useSections hook; bump()
   // plays a ledger change through the same observable contract.
-  let current = rows
+  let current = resolveRows(rows)
   const listeners = new Set<() => void>()
   const renderSlot = vi.fn(
     ((key: string, _owner: unknown, opts?: {
@@ -56,7 +67,7 @@ function mount({
       entryKey?: string
       fallback?: ReactNode
     }) => {
-      if (key === 'settings.section') return <div data-testid={`section-${opts?.only ?? 'all'}`} />
+      if (key === 'settings.section') return <div data-testid={`section-${opts?.only ?? 'all'}`}><div data-settings-anchor="appearance"><button type="button">Choose appearance</button></div><DraftControl /></div>
       if (key === 'settings.section.icon') {
         return opts?.entryKey === 'missing'
           ? opts.fallback
@@ -80,6 +91,7 @@ function mount({
     useWorkspaces: unusedHook,
     wide,
     useOnboardingSteps: select => select(steps),
+    useNarrowViewport: select => select(false),
     useSections: (select) => {
       const [, force] = useState(0)
       useEffect(() => {
@@ -95,7 +107,7 @@ function mount({
   const view = render(<SettingsRoot {...props} />)
   const bump = (next: Row[]) => {
     act(() => {
-      current = next
+      current = resolveRows(next)
       for (const fn of [...listeners]) fn()
     })
   }
@@ -198,6 +210,23 @@ describe('SettingsPage close paths', () => {
     expect(screen.getByRole('region')).toBeTruthy()
   })
 
+  it('isolates the covered app and restores its prior inert state and trigger focus', () => {
+    const { view } = mount()
+    view.container.id = 'root'
+    view.container.inert = false
+    const trigger = screen.getByRole('button', { name: 'Settings' })
+    fireEvent.click(trigger)
+    expect(view.container.inert).toBe(true)
+    expect(view.container.contains(screen.getByRole('region'))).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Back to app' }))
+    expect(view.container.inert).toBe(false)
+    expect(document.activeElement).toBe(trigger)
+    view.container.inert = true
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('button', { name: 'Back to app' }))
+    expect(view.container.inert).toBe(true)
+  })
+
   it('lands focus on the back command when the page opens', () => {
     mount()
     openPage()
@@ -245,17 +274,17 @@ describe('SettingsPage navigation', () => {
     expect(screen.queryByTestId('section-general')).toBeNull()
   })
 
-  it('filters section labels case-insensitively and restores the selected section when cleared', () => {
+  it('searches section labels without hiding navigation and restores the selected page when cleared', () => {
     mount()
     openPage()
     fireEvent.click(screen.getByRole('button', { name: 'Models' }))
     const search = screen.getByRole('searchbox', { name: 'Search settings...' })
 
     fireEvent.change(search, { target: { value: 'AGENT' } })
-    expect(screen.queryByRole('button', { name: 'General' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Models' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Agent presets' }).getAttribute('aria-current')).toBe('page')
-    expect(screen.getByTestId('section-agent-presets')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'General' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBeNull()
+    expect(screen.getByRole('button', { name: 'AI & models / Agent presets Agent presets' })).toBeTruthy()
+    expect(screen.queryByTestId('section-agent-presets')).toBeNull()
 
     fireEvent.change(search, { target: { value: '' } })
     expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBe('page')
@@ -270,10 +299,59 @@ describe('SettingsPage navigation', () => {
     })
 
     expect(screen.getByRole('status').textContent).toBe('No matching settings')
-    expect(screen.queryByRole('button', { name: 'General' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'General' })).toBeTruthy()
     const sectionCalls = renderSlot.mock.calls.filter(call => call[0] === 'settings.section')
     expect(sectionCalls.at(-1)?.[2]).toEqual({ only: 'general' })
-    expect(screen.queryByTestId('section-general')).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Pending setting' })).toBeNull()
+  })
+
+  it('preserves an unsaved field while searching and returning to its page', () => {
+    mount()
+    openPage()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Pending setting' }), { target: { value: 'unsaved draft' } })
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'models' } })
+    expect(screen.queryByRole('textbox', { name: 'Pending setting' })).toBeNull()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Pending setting' }).value).toBe('unsaved draft')
+  })
+
+  it('groups live pages and preserves the active section while a group is collapsed', () => {
+    mount()
+    openPage()
+    const group = screen.getByRole('button', { name: 'Personal preferences' })
+    fireEvent.click(group)
+    expect(group.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('button', { name: 'General' })).toBeNull()
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+    fireEvent.click(group)
+    expect(screen.getByRole('button', { name: 'General' })).toBeTruthy()
+  })
+
+  it('finds a feature field from keywords and focuses its control after opening its page', () => {
+    const { renderSlot } = mount({ rows: [{ id: 'general', order: 0, label: 'General', items: [{
+      sectionId: 'general', id: 'appearance', anchorId: 'appearance', title: 'Appearance',
+      description: 'Choose a theme', keywords: ['dark mode'],
+    }] }] })
+    openPage()
+    fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
+    const search = screen.getByRole('searchbox')
+    expect(document.activeElement).toBe(search)
+    fireEvent.change(search, { target: { value: 'dark mode' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Personal preferences / General Appearance Choose a theme' }))
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Choose appearance' }))
+    const sectionCalls = renderSlot.mock.calls.filter(call => call[0] === 'settings.section')
+    expect(sectionCalls.at(-1)?.[1]).toMatchObject({ target: { itemId: 'appearance', anchorId: 'appearance' } })
+    expect(scrollIntoView).toHaveBeenCalled()
+  })
+
+  it('clears the search on Escape before closing the settings page', () => {
+    mount()
+    openPage()
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'unknown' } })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('region')).toBeNull()
   })
 
   it('mounts onboarding steps in order and transfers ownership only on completion', () => {

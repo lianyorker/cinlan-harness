@@ -77,7 +77,7 @@ function generalEntry(slots: SlotRegistry) {
 
 describe('ui-settings-general apply', () => {
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.settings', 'settingsScope'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.settings', 'settingsScope', 'settingsMetadata'])
   })
 
   it('fills all five seats for declarations before or after apply', async () => {

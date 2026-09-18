@@ -73,6 +73,8 @@ Host 通过 settings 服务为 loopback 页面持久化偏好。Client 会刻意
 
 本节解释 locale 服务的构建方式；可观察行为已在[使用本包](#use-this-package)中说明。
 
+语言行以稳定的 `language` 锚点提供本地化搜索元数据；元数据与通用设置行共享注册生命周期。
+
 ### 设计理念
 
 一个 `LocaleRuntime` 同时拥有偏好与词典注册表，并且自身就是 slot 系统的 `LocaleFace`：`getSnapshot`／`subscribe` 通过 `ctx.slots.installLocale` 支撑框架注入的 `t` 席位。不可变快照携带生效中的 locale、可选择的 locale 列表与单调 revision；词典注册与 locale 切换都会推进 revision，但只有切换会发出 `locale/change` 事件。产品编写的 Client UI 文本必须来自这些带类型的字典，或来自已经本地化的 primitive prop；`verify-client-ui-i18n` 强制执行该源码归属（见[决策](../../../.agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.zh.md)）。

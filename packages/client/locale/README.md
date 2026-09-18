@@ -73,6 +73,8 @@ The Host persists the preference through the settings service on loopback pages.
 
 This section explains how the locale service is built; observable behavior is covered in [Use this package](#use-this-package).
 
+The Language row contributes localized search metadata with the stable `language` anchor; the metadata shares the General row’s registration lifetime.
+
 ### Design concept
 
 One `LocaleRuntime` owns the preference and the dictionary registry, and is itself the slot system's `LocaleFace`: `getSnapshot`/`subscribe` back the framework-injected `t` seat through `ctx.slots.installLocale`. The immutable snapshot carries the active locale, the selectable locales, and a monotonic revision; dictionary registration and locale switches both advance the revision, but only a switch emits the `locale/change` event. Product-authored Client UI text must enter through these typed dictionaries or an already-localized primitive prop; `verify-client-ui-i18n` enforces that source ownership ([decision](../../../.agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.md)).

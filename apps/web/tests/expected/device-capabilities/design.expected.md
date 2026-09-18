@@ -1,4 +1,4 @@
-- heading "设计" [level=2]
+- heading "设计" [level=1]
 - paragraph: Design Studio 文档、预览与设计方法。
 - heading "Design Studio 能力" [level=3]
 - status: 未加载

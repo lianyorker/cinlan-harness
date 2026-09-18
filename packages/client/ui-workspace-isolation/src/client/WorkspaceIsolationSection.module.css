@@ -1,9 +1,9 @@
 .section {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 28px;
   width: 100%;
-  max-width: 960px;
+  min-width: 0;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -12,15 +12,14 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
-  padding-bottom: 16px;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+
 }
 
 .intro {
   min-width: 0;
 }
 
-.intro h2,
+.intro h1,
 .intro p,
 .loading,
 .empty,
@@ -31,17 +30,17 @@
   margin: 0;
 }
 
-.intro h2 {
-  font-size: 22px;
-  line-height: 30px;
+.intro h1 {
+  font-size: 26px;
+  line-height: 34px;
+  font-weight: 600;
 }
 
 .intro p {
-  max-width: 620px;
-  margin-top: 5px;
-  color: var(--dsw-alias-label-secondary);
+  margin-top: 8px;
+  color: var(--dsw-alias-label-tertiary);
   font-size: 13px;
-  line-height: 20px;
+  line-height: 22px;
 }
 
 .toolbar,
@@ -62,31 +61,28 @@
 
 .localTag {
   color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 16px;
   white-space: nowrap;
 }
 
 .summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-bottom: 18px;
 }
 
 .metric {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  gap: 6px;
   min-width: 0;
-  border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
-  padding: 12px 14px;
-  background: var(--dsw-alias-bg-layer-1);
 }
 
 .metric strong {
-  font-size: 20px;
-  line-height: 26px;
+  font-size: 14px;
+  line-height: 22px;
 }
 
 .metric span {
@@ -97,9 +93,7 @@
 
 .loading,
 .empty {
-  border: 1px dashed var(--dsw-alias-border-l2);
-  border-radius: 8px;
-  padding: 22px;
+  padding: 18px 0;
   color: var(--dsw-alias-label-tertiary);
   font-size: 13px;
   line-height: 20px;
@@ -140,9 +134,8 @@
 .card {
   min-width: 0;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 10px;
-  padding: 14px;
-  background: var(--dsw-alias-bg-layer-3);
+  border-radius: 12px;
+  padding: 16px;
 }
 
 .cardHeader {
@@ -176,7 +169,7 @@
 
 .sessionLabel {
   color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 16px;
 }
 
@@ -194,7 +187,7 @@
   border-radius: 999px;
   corner-shape: round;
   padding: 3px 8px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 16px;
 }
@@ -239,7 +232,7 @@
 .details dt,
 .reviewMetrics dt {
   color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 18px;
 }
 
@@ -257,7 +250,7 @@
 
 .details time {
   font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .actions {
@@ -297,12 +290,10 @@
 .reviewMetrics div {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
-  border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 7px;
-  padding: 8px 10px;
-  background: var(--dsw-alias-bg-layer-1);
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+  padding: 8px 0;
 }
 
 .reviewMetrics dd {
@@ -334,7 +325,7 @@
   padding: 3px 8px;
   background: var(--dsw-alias-bg-layer-3);
   color: var(--dsw-alias-label-secondary);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 16px;
 }
 
@@ -355,8 +346,8 @@
 .changeSection h3,
 .patchTitle {
   margin: 0;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 22px;
 }
 
 .changeSection p {
@@ -409,13 +400,48 @@
   background: var(--dsw-alias-bg-layer-3);
   color: var(--dsw-alias-label-secondary);
   font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 17px;
   white-space: pre;
 }
 
+.policy {
+  padding-bottom: 18px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.policy summary,
+.guide h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 500;
+}
+
+.policy summary {
+  cursor: pointer;
+}
+
+.policy summary:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 4px;
+}
+
+.help {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 19px;
+  color: var(--dsw-alias-label-tertiary);
+  overflow-wrap: anywhere;
+}
+
+.section [data-settings-anchor] {
+  scroll-margin-top: 24px;
+}
+
 @media (max-width: 760px) {
-  .header {
+  .header,
+  .cardHeader {
     flex-direction: column;
   }
 
@@ -425,7 +451,6 @@
     justify-content: flex-start;
   }
 
-  .summary,
   .reviewMetrics {
     grid-template-columns: 1fr;
   }

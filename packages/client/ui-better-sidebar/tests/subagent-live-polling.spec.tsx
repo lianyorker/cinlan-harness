@@ -73,6 +73,12 @@ function jsonResponse(value: unknown): Response {
   return { ok: true, status: 200, json: async () => value } as unknown as Response
 }
 
+/** Extract the canonical sidebar API method query used by Client Fetch. */
+function apiMethod(url: string | URL | Request): string | null {
+  const href = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url
+  return new URL(href, 'http://sidebar.test').searchParams.get('method')
+}
+
 /** A topology snapshot with two running direct subagents and a ready catalog. */
 function runningSnapshot(): SidebarSessionList {
   return {
@@ -183,7 +189,7 @@ describe('SubagentView live polling', () => {
     const historySpy = vi.fn()
     const liveCalls: string[] = []
     vi.stubGlobal('fetch', async (url: string | URL | Request, init?: RequestInit) => {
-      const method = String(url).split('/').pop()
+      const method = apiMethod(url)
       if (method === 'subagents.live') {
         const body = JSON.parse(String(init?.body)) as { rootSessionId?: string }
         liveCalls.push(body.rootSessionId ?? '')
@@ -214,7 +220,7 @@ describe('SubagentView live polling', () => {
     const liveCalls: string[] = []
     let resolveFirst: ((response: Response) => void) | undefined
     vi.stubGlobal('fetch', (url: string | URL | Request, init?: RequestInit) => {
-      const method = String(url).split('/').pop()
+      const method = apiMethod(url)
       if (method === 'subagents.live') {
         const body = JSON.parse(String(init?.body)) as { rootSessionId?: string }
         liveCalls.push(body.rootSessionId ?? '')
@@ -252,7 +258,7 @@ describe('SubagentView live polling', () => {
     const liveCalls: string[] = []
     let resolveFirst: ((response: Response) => void) | undefined
     vi.stubGlobal('fetch', (url: string | URL | Request, init?: RequestInit) => {
-      const method = String(url).split('/').pop()
+      const method = apiMethod(url)
       if (method === 'subagents.live') {
         const body = JSON.parse(String(init?.body)) as { rootSessionId?: string }
         liveCalls.push(body.rootSessionId ?? '')
@@ -290,7 +296,7 @@ describe('SubagentView live polling', () => {
     const historySpy = vi.fn()
     const liveCalls: string[] = []
     vi.stubGlobal('fetch', async (url: string | URL | Request, init?: RequestInit) => {
-      const method = String(url).split('/').pop()
+      const method = apiMethod(url)
       if (method === 'subagents.live') {
         const body = JSON.parse(String(init?.body)) as { rootSessionId?: string }
         liveCalls.push(body.rootSessionId ?? '')

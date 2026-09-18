@@ -500,8 +500,15 @@ const url = `/sidebar/file?${new URLSearchParams({ sessionId: scope.sessionId, p
 
 ## 7. 服务方法完整清单
 
+<a id="terminal-capability"></a>
+### 终端可用性
+
+`await ctx.betterSidebar.getTerminalCapability()` 返回 `TerminalCapability`：`{ status: 'available' }` 表示当前终端传输与主机原生依赖可用；`{ status: 'unavailable', reason }` 中，`unsupported-scheme` 表示当前地址协议没有受支持的传输，`missing-dependencies` 表示主机缺少原生 PTY 依赖，`probe-failed` 表示本次探测未能完成。Web 与 Desktop 使用已认证的终端 Remote 执行探测。调用不会创建终端，也不证明自定义可执行文件能够启动；消费插件可根据结果启用终端功能，并在用户准备打开时重新查询。
+
 ```ts
 interface BetterSidebarService {
+  /** 探测当前终端传输与主机依赖，不启动进程。 */
+  getTerminalCapability(): Promise<TerminalCapability>
   /** 注册 tab 类型；返回 disposer */
   registerTab(descriptor: TabDescriptor): () => void
   /** 注册文件预览器；返回 disposer */

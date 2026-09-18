@@ -292,6 +292,7 @@ export async function runDesktopHost(
   )), (hostCtx) => {
     current = hostCtx
     hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, environment)
+    hostCtx.provide('dshProfileName', 'desktop')
     provideCmdline(hostCtx, { args: [], exit: () => {} })
   })
   current = ctx

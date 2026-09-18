@@ -1,14 +1,16 @@
 /**
  * Per-session sidebar state: the panel geometry, the split-pane workbench
  * tree, open tabs, and the explorer expansion set. One state instance per
- * conversation id, persisted to localStorage under `dsh-sidebar:v1:<id>` so
- * a reload restores the exact layout of the session it belongs to — switching
- * conversations swaps the whole state (memory + isolation).
+ * conversation id, persisted to localStorage under `dsh-sidebar:v1:<id>`.
+ * Floating windows use `dsh-sidebar:v1:window:<windowId>:<id>` from their
+ * first load; the floating owner supplies the validated window identity.
  *
  * The split tree is a recursive structure: a leaf holds a tab group, a split
  * divides the space row- or column-wise with fractional sizes. All tree
  * operations are pure functions over the node, unit-tested in tests/state.spec.ts.
  */
+import type { FloatingWorkspaceTerminalContext, FloatingWorkspaceWindowId } from '@deepseek-ai/dsh-sidebar-terminals/types'
+import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import { SIDEBAR_PREFS_DEFAULTS, type SidebarPrefs } from '../prefs-shared.ts'
 import { isNarrowWidth } from './breakpoints.ts'
 
@@ -37,6 +39,35 @@ export interface SidebarTab {
   /** Plugin-owned state (v0.12.0+): MUST be JSON-serializable — it is
    *  persisted with the layout and restored verbatim on reload. */
   meta?: unknown
+}
+
+/**
+ * Mint one UI terminal tab from the context captured at creation. Existing
+ * tabs retain their ids and directory metadata when preferences change.
+ * @param state - Session state supplying the next floating terminal counter.
+ * @param title - Localized display title for the new terminal.
+ * @param context - Validated floating owner context; undefined is the main window.
+ * @returns The new tab and counter patch, or null until floating preferences are ready.
+ */
+export function createTerminalTab(
+  state: SidebarState,
+  title: string,
+  context?: FloatingWorkspaceTerminalContext,
+): { tab: SidebarTab; patch: Partial<SidebarState> } | null {
+  if (context !== undefined && context.status !== 'ready') return null
+  return {
+    tab: {
+      id: context === undefined
+        ? `terminal:${randomUUID()}`
+        : `terminal:${context.windowId}:${state.nextTerminal}`,
+      type: 'terminal',
+      title,
+      ...(context === undefined ? {} : {
+        meta: { terminalFloating: { windowId: context.windowId, directory: context.directory } },
+      }),
+    },
+    patch: { nextTerminal: state.nextTerminal + 1 },
+  }
 }
 
 /** A tab group. */
@@ -163,8 +194,9 @@ export function makeDefaultState(width = PANEL_DEFAULT, panelOpen = true, seed: 
   if (seed === 'editor-home') {
     // No path: the editor host renders its empty-state hint and the docked
     // tree panel (treeOpen defaults open for path-less tabs; meta pins it).
-    leaf.tabs = [{ id: uid('tab'), type: 'editor', title: 'Files', meta: { treeOpen: true } }]
-    leaf.active = leaf.tabs[0]!.id
+    const tab: SidebarTab = { id: uid('tab'), type: 'editor', title: 'Files', meta: { treeOpen: true } }
+    leaf.tabs = [tab]
+    leaf.active = tab.id
   }
   // The bottom panel starts closed with an empty pane (its welcome cards
   // offer the openable types on first use).
@@ -221,6 +253,7 @@ export function mapLeaf(node: SplitNode, paneId: string, visit: (leaf: SidebarLe
 /** The first leaf of the tree (fallback pane when activePane is gone). */
 export function firstLeaf(node: SplitNode): SidebarLeaf {
   if (node.kind === 'leaf') return node
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- Split constructors and sanitizeNode require nonempty children.
   return firstLeaf(node.children[0]!)
 }
 
@@ -361,6 +394,7 @@ export function moveTabToEdge(
     // or split (edge) a pane of the OTHER tree with the tab.
     const source = leafWithTab(state[key], tabId)
     if (source === undefined) return state
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- leafWithTab found this id in the returned leaf.
     const tab = source.tabs.find(candidate => candidate.id === tabId)!
     let emptied = false
     let sourceNode = mapLeaf(state[key], source.id, (leaf) => {
@@ -388,6 +422,7 @@ export function moveTabToEdge(
   const node = state[key]
   const source = leafWithTab(node, tabId)
   if (source === undefined) return state
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- leafWithTab found this id in the returned leaf.
   const tab = source.tabs.find(candidate => candidate.id === tabId)!
   let emptied = false
   let splits = mapLeaf(node, source.id, (leaf) => {
@@ -422,7 +457,10 @@ export function removeLeafAt(node: SplitNode, paneId: string): SplitNode {
       children: node.children.map(child => removeLeafAt(child, paneId)),
     }
   }
-  if (children.length === 1) return children[0]!
+  if (children.length === 1) {
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- A split with one child promotes that child by invariant.
+    return children[0]!
+  }
   return { ...node, sizes: [...node.sizes], children }
 }
 
@@ -537,10 +575,11 @@ export function moveTab(state: SidebarState, fromPane: string, tabId: string, to
       if (leaf.tabs.length === 0) emptied = true
     })
     if (moved === undefined) return state
+    const movedTab = moved
     const target = mapLeaf(state[toKey], toPane, (leaf) => {
       const insertAt = index >= 0 && index <= leaf.tabs.length ? index : leaf.tabs.length
-      leaf.tabs = [...leaf.tabs.slice(0, insertAt), moved!, ...leaf.tabs.slice(insertAt)]
-      leaf.active = moved!.id
+      leaf.tabs = [...leaf.tabs.slice(0, insertAt), movedTab, ...leaf.tabs.slice(insertAt)]
+      leaf.active = movedTab.id
     })
     return {
       ...state,
@@ -560,11 +599,12 @@ export function moveTab(state: SidebarState, fromPane: string, tabId: string, to
     if (leaf.tabs.length === 0) emptied = true
   })
   if (moved === undefined) return state
+  const movedTab = moved
   if (emptied) splits = removeLeafAt(splits, fromPane)
   splits = mapLeaf(splits, toPane, (leaf) => {
     const insertAt = index >= 0 && index <= leaf.tabs.length ? index : leaf.tabs.length
-    leaf.tabs = [...leaf.tabs.slice(0, insertAt), moved!, ...leaf.tabs.slice(insertAt)]
-    leaf.active = moved!.id
+    leaf.tabs = [...leaf.tabs.slice(0, insertAt), movedTab, ...leaf.tabs.slice(insertAt)]
+    leaf.active = movedTab.id
   })
   return { ...state, [fromKey]: splits, activePane: toPane }
 }
@@ -654,7 +694,9 @@ export function resizeSplit(node: SplitNode, splitId: string, index: number, del
   if (node.kind === 'leaf') return node
   if (node.id === splitId) {
     const sizes = [...node.sizes]
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- Workbench passes the left child index of an existing divider.
     const left = Math.min(0.92, Math.max(0.08, sizes[index]! + delta))
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- An existing divider also has an adjacent right child.
     const right = Math.min(0.92, Math.max(0.08, sizes[index + 1]! - delta))
     sizes[index] = left
     sizes[index + 1] = right
@@ -761,9 +803,9 @@ export function defaultWidthFor(viewport: number, percent: number): number {
   return Math.min(viewport, Math.max(PANEL_MIN, Math.round(viewport * percent / 100)))
 }
 
-function loadState(sessionId: string, prefs: SidebarPrefs): SidebarState {
+function loadState(storageKey: string, prefs: SidebarPrefs): SidebarState {
   try {
-    const raw = localStorage.getItem(`${STORAGE_PREFIX}:${sessionId}`)
+    const raw = localStorage.getItem(storageKey)
     if (raw !== null) {
       const parsed = JSON.parse(raw) as unknown
       // Seed the uid counter past the persisted ids (it resets on reload);
@@ -979,8 +1021,20 @@ function sanitizeNode(node: unknown, seen: Set<string>, reid: Map<string, string
   return undefined
 }
 
-/** The session-scoped store: one state per conversation, localStorage-backed. */
+/** Storage identity supplied synchronously by the validated floating-window owner. */
+export interface SidebarStoreOptions {
+  readonly floatingWindowId?: FloatingWorkspaceWindowId
+}
+
+/** The session-scoped store: one state per conversation and window, localStorage-backed. */
 export class SidebarStore {
+  private readonly storagePrefix: string
+
+  constructor(options: SidebarStoreOptions = {}) {
+    this.storagePrefix = options.floatingWindowId === undefined
+      ? STORAGE_PREFIX
+      : `${STORAGE_PREFIX}:window:${options.floatingWindowId}`
+  }
   private readonly bySession = new Map<string, SidebarState>()
   private snapshot: SidebarSnapshot = {
     sessionId: undefined,
@@ -1039,7 +1093,7 @@ export class SidebarStore {
     } else {
       let state = this.bySession.get(sessionId)
       if (state === undefined) {
-        state = loadState(sessionId, this.prefs)
+        state = loadState(`${this.storagePrefix}:${sessionId}`, this.prefs)
         this.bySession.set(sessionId, state)
       } else {
         // Cache hit: another session's load/ops may have left the uid
@@ -1123,7 +1177,7 @@ export class SidebarStore {
     const counterBefore = nextIdCounter
     let state = this.bySession.get(sessionId)
     if (state === undefined) {
-      state = loadState(sessionId, this.prefs)
+      state = loadState(`${this.storagePrefix}:${sessionId}`, this.prefs)
       this.bySession.set(sessionId, state)
     } else {
       // Re-seed the uid counter past THIS session's persisted ids, exactly
@@ -1150,7 +1204,7 @@ export class SidebarStore {
     const timer = window.setTimeout(() => {
       this.persistTimers.delete(sessionId)
       try {
-        localStorage.setItem(`${STORAGE_PREFIX}:${sessionId}`, JSON.stringify(state))
+        localStorage.setItem(`${this.storagePrefix}:${sessionId}`, JSON.stringify(state))
       } catch {
         // Storage full or unavailable: layout memory is best-effort.
       }
@@ -1169,7 +1223,9 @@ export class SidebarStore {
  * prop); tests call it directly. No module-level singleton: the store's
  * lifetime belongs to the plugin activation, exactly like the official
  * `createXXXStore()` factory rule.
+ * @param options - Fixed storage identity, supplied before any session loads.
+ * @returns A store isolated to the main window or the supplied floating window.
  */
-export function createSidebarStore(): SidebarStore {
-  return new SidebarStore()
+export function createSidebarStore(options: SidebarStoreOptions = {}): SidebarStore {
+  return new SidebarStore(options)
 }

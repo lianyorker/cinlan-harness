@@ -24,25 +24,22 @@ import { WebSearchCardController, type WebSearchSettings } from '../src/client/w
 function acceptWrites<T>(host: StubSettingsScope<T>): void {
   const section = (): Record<string, unknown> => ({ ...host.scope.getSnapshot().value as object })
   const layer = (): Record<string, unknown> => ({ ...host.scope.getSnapshot().user as object })
-  host.set.mockImplementation((field: string, value: unknown) => {
-    host.publish({ value: { ...section(), [field]: value } as T, user: { ...layer(), [field]: value } })
-  })
   host.mutate.mockImplementation((ops: readonly SettingsPathOpView[]) => {
     const value = { ...section() }
-    const user = { ...layer() }
+    let user = { ...layer() }
+    const base = host.scope.getSnapshot().base as Record<string, unknown> | undefined
     for (const op of ops) {
       const field = op.path[0]!
       if (op.op === 'set') {
         value[field] = op.value
         user[field] = op.value
+      } else if (op.op === 'unset') {
+        user = Object.fromEntries(Object.entries(user).filter(([key]) => key !== field))
+        value[field] = base?.[field]
       }
     }
     host.publish({ value: value as T, user })
-  })
-  host.unset.mockImplementation((field: string) => {
-    const user = Object.fromEntries(Object.entries(layer()).filter(([key]) => key !== field))
-    const base = host.scope.getSnapshot().base as Record<string, unknown> | undefined
-    host.publish({ value: { ...section(), [field]: base?.[field] } as T, user })
+    return true
   })
 }
 
@@ -125,11 +122,11 @@ describe('CardForm', () => {
 
     expect(subject.field('timeoutMs')).toEqual({ text: '9000', overridden: true, invalid: false })
     expect(subject.shell().dirty).toBe(true)
-    expect(host.set).not.toHaveBeenCalled()
+    expect(host.mutate).not.toHaveBeenCalled()
 
     await subject.save()
 
-    expect(host.set.mock.calls).toEqual([['timeoutMs', 9_000]])
+    expect(host.mutate.mock.calls).toEqual([[[{ op: 'set', path: ['timeoutMs'], value: 9_000 }]]])
     expect(subject.shell()).toMatchObject({ dirty: false, failed: false, saving: false })
   })
 
@@ -142,7 +139,7 @@ describe('CardForm', () => {
     expect(subject.shell().dirty).toBe(false)
     await subject.save()
 
-    expect(host.set).not.toHaveBeenCalled()
+    expect(host.mutate).not.toHaveBeenCalled()
   })
 
   it('refuses to save while a draft is not a value the field accepts', async () => {
@@ -155,7 +152,7 @@ describe('CardForm', () => {
 
     await subject.save()
 
-    expect(host.set).not.toHaveBeenCalled()
+    expect(host.mutate).not.toHaveBeenCalled()
     expect(subject.field('timeoutMs').text).toBe('soon')
   })
 
@@ -168,11 +165,11 @@ describe('CardForm', () => {
 
     // The badge previews the save: the field will no longer be overridden.
     expect(subject.field('timeoutMs')).toEqual({ text: '60000', overridden: false, invalid: false })
-    expect(host.unset).not.toHaveBeenCalled()
+    expect(host.mutate).not.toHaveBeenCalled()
 
     await subject.save()
 
-    expect(host.unset.mock.calls).toEqual([['timeoutMs']])
+    expect(host.mutate.mock.calls).toEqual([[[{ op: 'unset', path: ['timeoutMs'] }]]])
     expect(subject.shell()).toMatchObject({ dirty: false, failed: false })
   })
 
@@ -184,7 +181,7 @@ describe('CardForm', () => {
     expect(subject.shell().dirty).toBe(false)
     await subject.save()
 
-    expect(host.unset).not.toHaveBeenCalled()
+    expect(host.mutate).not.toHaveBeenCalled()
   })
 
   it('clears a number field by emptying it', async () => {
@@ -197,7 +194,7 @@ describe('CardForm', () => {
     expect(subject.field('timeoutMs')).toEqual({ text: '', overridden: false, invalid: false })
     await subject.save()
 
-    expect(host.unset.mock.calls).toEqual([['timeoutMs']])
+    expect(host.mutate.mock.calls).toEqual([[[{ op: 'unset', path: ['timeoutMs'] }]]])
   })
 
   it('clears a text field by emptying it', async () => {
@@ -208,7 +205,7 @@ describe('CardForm', () => {
     subject.actions().edit('baseURL', '   ')
     await subject.save()
 
-    expect(host.unset.mock.calls).toEqual([['baseURL']])
+    expect(host.mutate.mock.calls).toEqual([[[{ op: 'unset', path: ['baseURL'] }]]])
   })
 
   it('writes the trimmed text of a text field', async () => {
@@ -218,31 +215,86 @@ describe('CardForm', () => {
     subject.actions().edit('baseURL', '  https://other.test  ')
     await subject.save()
 
-    expect(host.set.mock.calls).toEqual([['baseURL', 'https://other.test']])
+    expect(host.mutate.mock.calls).toEqual([[[{ op: 'set', path: ['baseURL'], value: 'https://other.test' }]]])
   })
 
-  it('keeps the drafts a save did not land, and reports the failure', async () => {
+  it('keeps the drafts when an accepted write is absent from the user layer', async () => {
     const { host, subject } = form()
+    host.mutate.mockResolvedValueOnce(true)
 
     subject.actions().edit('timeoutMs', '9000')
     await subject.save()
 
-    // The stub Host accepted the call without storing it, exactly as a
-    // validator that refuses the value does.
-    expect(host.set).toHaveBeenCalledWith('timeoutMs', 9_000)
+    expect(host.mutate).toHaveBeenCalledWith([{ op: 'set', path: ['timeoutMs'], value: 9_000 }])
     expect(subject.shell()).toMatchObject({ dirty: true, failed: true, saving: false })
     expect(subject.field('timeoutMs').text).toBe('9000')
   })
 
-  it('reports a reset the Host did not apply as a failure', async () => {
+  it('reports an accepted reset that retains a user override as a failure', async () => {
     const { host, subject } = form()
     host.publish({ user: { timeoutMs: 9_000 } })
+    host.mutate.mockResolvedValueOnce(true)
 
     subject.actions().resetField('timeoutMs')
     await subject.save()
 
-    expect(host.unset).toHaveBeenCalledWith('timeoutMs')
+    expect(host.mutate).toHaveBeenCalledWith([{ op: 'unset', path: ['timeoutMs'] }])
     expect(subject.shell().failed).toBe(true)
+  })
+
+  it.each(['store', 'reset'] as const)('retains a refused %s draft even when recovery matches it', async (operation) => {
+    const { host, subject } = form()
+    const before = { timeoutMs: 9_000 }
+    host.publish({ value: before, user: before })
+    if (operation === 'store') subject.actions().edit('timeoutMs', '5000')
+    else subject.actions().resetField('timeoutMs')
+    vi.spyOn(host.scope, 'mutate').mockImplementationOnce(async () => {
+      host.publish({
+        value: { timeoutMs: operation === 'store' ? 5_000 : 60_000 },
+        user: operation === 'store' ? { timeoutMs: 5_000 } : {},
+      })
+      return false
+    })
+
+    await subject.save()
+
+    expect(host.mutate).toHaveBeenCalledOnce()
+    expect(subject.shell()).toMatchObject({ failed: true, saving: false })
+    host.publish({ value: before, user: before })
+    expect(subject.shell()).toMatchObject({ dirty: true, failed: true })
+    expect(subject.field('timeoutMs').text).toBe(operation === 'store' ? '5000' : '60000')
+  })
+
+  it.each(['store', 'reset'] as const)('retains a %s draft after a transport failure and allows retry', async (operation) => {
+    const { host, subject } = form()
+    acceptWrites(host)
+    host.publish({ value: { timeoutMs: 9_000 }, user: { timeoutMs: 9_000 } })
+    host.mutate.mockRejectedValueOnce(new Error('connection lost'))
+    if (operation === 'store') subject.actions().edit('timeoutMs', '5000')
+    else subject.actions().resetField('timeoutMs')
+
+    await subject.save()
+
+    expect(subject.shell()).toMatchObject({ dirty: true, failed: true, saving: false })
+    expect(subject.field('timeoutMs').text).toBe(operation === 'store' ? '5000' : '60000')
+    await subject.save()
+    expect(host.mutate).toHaveBeenCalledTimes(2)
+    expect(subject.shell()).toMatchObject({ dirty: false, failed: false, saving: false })
+  })
+
+  it('keeps a failed draft when a later field write succeeds', async () => {
+    const { host, subject } = form()
+    acceptWrites(host)
+    host.mutate.mockRejectedValueOnce(new Error('connection lost'))
+    subject.actions().edit('timeoutMs', '9000')
+    subject.actions().edit('baseURL', 'https://other.test')
+
+    await subject.save()
+
+    expect(host.mutate).toHaveBeenCalledTimes(2)
+    expect(host.scope.getSnapshot().user).toEqual({ baseURL: 'https://other.test' })
+    expect(subject.shell()).toMatchObject({ dirty: true, failed: true, saving: false })
+    expect(subject.field('timeoutMs').text).toBe('9000')
   })
 
   it('clears the failure as soon as the user edits again', async () => {
@@ -272,7 +324,7 @@ describe('CardForm', () => {
     expect(subject.shell()).toEqual(before)
 
     await subject.save()
-    expect(host.set).not.toHaveBeenCalled()
+    expect(host.mutate).not.toHaveBeenCalled()
   })
 
   it('refuses a second save while one is in flight', async () => {
@@ -285,7 +337,7 @@ describe('CardForm', () => {
     const second = subject.save()
     await Promise.all([first, second])
 
-    expect(host.set).toHaveBeenCalledTimes(1)
+    expect(host.mutate).toHaveBeenCalledTimes(1)
   })
 
   it('publishes a projection whenever the scope or a draft changes', () => {
@@ -354,9 +406,12 @@ describe('BashCardController', () => {
     expect(face.hooks.bashCard.getSnapshot().dirty).toBe(true)
 
     face.save()
-    await vi.waitFor(() => { expect(host.set).toHaveBeenCalledTimes(2) })
+    await vi.waitFor(() => { expect(host.mutate).toHaveBeenCalledTimes(2) })
 
-    expect(host.set.mock.calls).toEqual([['timeoutMs', 9_000], ['maxOutputBytes', 1_024]])
+    expect(host.mutate.mock.calls).toEqual([
+      [[{ op: 'set', path: ['timeoutMs'], value: 9_000 }]],
+      [[{ op: 'set', path: ['maxOutputBytes'], value: 1_024 }]],
+    ])
     expect(face.hooks.bashCard.getSnapshot().dirty).toBe(false)
   })
 
@@ -377,7 +432,7 @@ describe('BashCardController', () => {
     expect(face.hooks.bashCard.getSnapshot().timeoutMs.text).toBe('60000')
 
     face.save()
-    await vi.waitFor(() => { expect(host.unset).toHaveBeenCalledWith('timeoutMs') })
+    await vi.waitFor(() => { expect(host.mutate).toHaveBeenCalledWith([{ op: 'unset', path: ['timeoutMs'] }]) })
 
     expect(face.hooks.bashCard.getSnapshot()).toMatchObject({
       dirty: false,
@@ -395,7 +450,7 @@ describe('BashCardController', () => {
     face.discard()
 
     expect(face.hooks.bashCard.getSnapshot().timeoutMs.text).toBe('5000')
-    expect(host.set).not.toHaveBeenCalled()
+    expect(host.mutate).not.toHaveBeenCalled()
   })
 })
 
@@ -415,7 +470,7 @@ describe('AgentLoopCardController', () => {
 
     face.edit('maxParallelToolCalls', '4')
     face.save()
-    await vi.waitFor(() => { expect(host.set).toHaveBeenCalledWith('maxParallelToolCalls', 4) })
+    await vi.waitFor(() => { expect(host.mutate).toHaveBeenCalledWith([{ op: 'set', path: ['maxParallelToolCalls'], value: 4 }]) })
 
     expect(face.hooks.agentLoopCard.getSnapshot()).toMatchObject({
       dirty: false,
@@ -501,8 +556,10 @@ describe('SubagentModelSelectionCardController', () => {
     })
   })
 
-  it('keeps the Host value and reports a rejected write', async () => {
+  it.each(['refused', 'rejected'] as const)('keeps the Host value and reports a %s write', async (outcome) => {
     const host = stubSettingsScope<SubagentModelSelectionSettings>()
+    if (outcome === 'refused') host.mutate.mockResolvedValueOnce(false)
+    else host.mutate.mockRejectedValueOnce(new Error('connection lost'))
     const models = modelsApi({
       groups: [{ id: 'alpha', name: 'Alpha API', models: [{ id: 'fast', name: 'Fast' }] }],
     })
@@ -525,6 +582,66 @@ describe('SubagentModelSelectionCardController', () => {
       dirty: true,
       saving: false,
     })
+  })
+
+  it('reports refusal even when the recovered settings already match the requested state', async () => {
+    const host = stubSettingsScope<SubagentModelSelectionSettings>()
+    const allowedModels = [{ provider: 'alpha', model: 'fast' }]
+    host.publish({
+      status: 'ready', writable: true, revision: 1,
+      value: { enabled: true, allowedModels }, user: {},
+    })
+    vi.spyOn(host.scope, 'mutate').mockImplementationOnce(async () => {
+      host.publish({ value: { enabled: false, allowedModels }, revision: 2 })
+      return false
+    })
+    const controller = new SubagentModelSelectionCardController(host.scope, modelsApi().ctx)
+    const face = controller.inject()
+    const state = () => face.hooks.subagentModelSelectionCard.getSnapshot()
+    try {
+      face.toggleEnabled()
+      face.save()
+      await vi.waitFor(() => { expect(state().saving).toBe(false) })
+      expect(host.mutate).toHaveBeenCalledOnce()
+      expect(host.scope.getSnapshot().value).toEqual({ enabled: false, allowedModels })
+      expect(state()).toMatchObject({ failed: true, dirty: false, enabled: false })
+      host.publish({ value: { enabled: true, allowedModels }, revision: 3 })
+      expect(state()).toMatchObject({ failed: true, conflicted: true, dirty: true, enabled: false })
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it.each([
+    { field: 'enabled', value: { enabled: false, allowedModels: [{ provider: 'alpha', model: 'fast' }] } },
+    { field: 'allowedModels', value: { enabled: true, allowedModels: [] } },
+  ])('checks the effective $field after an accepted write', async ({ value }) => {
+    const host = stubSettingsScope<SubagentModelSelectionSettings>()
+    host.publish({
+      status: 'ready', writable: true, revision: 1,
+      value: { enabled: false, allowedModels: [] }, user: {},
+    })
+    vi.spyOn(host.scope, 'mutate').mockImplementationOnce(async () => {
+      host.publish({ value, revision: 2 })
+      return true
+    })
+    const models = modelsApi({
+      groups: [{ id: 'alpha', name: 'Alpha', models: [{ id: 'fast', name: 'Fast' }] }],
+    })
+    const controller = new SubagentModelSelectionCardController(host.scope, models.ctx)
+    const face = controller.inject()
+    const state = () => face.hooks.subagentModelSelectionCard.getSnapshot()
+    try {
+      face.toggleEnabled()
+      await vi.waitFor(() => { expect(state().catalogStatus).toBe('ready') })
+      face.toggleModel('alpha\0fast')
+      face.save()
+      await vi.waitFor(() => { expect(state().saving).toBe(false) })
+      expect(host.mutate).toHaveBeenCalledOnce()
+      expect(state()).toMatchObject({ failed: true, dirty: true, enabled: true })
+    } finally {
+      controller.dispose()
+    }
   })
 
   it('loads stored routes, stages removal and disablement, and discards both', async () => {
@@ -763,42 +880,51 @@ describe('SubagentModelSelectionCardController', () => {
     expect(models).toHaveBeenCalledTimes(2)
   })
 
-  it('suppresses duplicate actions and late save settlements', async () => {
+  it.each(['accepted', 'refused', 'rejected'] as const)('suppresses duplicate actions and late %s save settlements', async (outcome) => {
     const host = stubSettingsScope<SubagentModelSelectionSettings>()
     const catalog = modelsApi({
       groups: [{ id: 'alpha', name: 'Alpha API', models: [{ id: 'fast', name: 'Fast' }] }],
     })
-    const write = deferred<undefined>()
+    const write = deferred<boolean>()
     const mutate = vi.fn(async (ops: readonly SettingsPathOpView[]) => {
-      await write.promise
+      const accepted = await write.promise
       const enabled = ops.find(op => op.path[0] === 'enabled')
       const allowedModels = ops.find(op => op.path[0] === 'allowedModels')
       host.publish({ value: {
         enabled: enabled?.op === 'set' ? enabled.value as boolean : false,
         allowedModels: allowedModels?.op === 'set' ? allowedModels.value as never[] : [],
       } })
+      return accepted
     })
     const controller = new SubagentModelSelectionCardController({ ...host.scope, mutate }, catalog.ctx)
     const face = controller.inject()
 
-    face.save()
-    face.toggleModel('alpha\0fast')
-    host.publish({ status: 'ready', writable: true, value: { enabled: false, allowedModels: [] }, user: {} })
-    face.save()
-    face.toggleEnabled()
-    await vi.waitFor(() => { expect(face.hooks.subagentModelSelectionCard.getSnapshot().catalogStatus).toBe('ready') })
-    face.save()
-    face.toggleModel('alpha\0fast')
-    face.save()
-    expect(face.hooks.subagentModelSelectionCard.getSnapshot().saving).toBe(true)
-    face.toggleEnabled()
-    face.toggleModel('alpha\0fast')
-    face.save()
-    face.discard()
-    controller.dispose()
-    write.resolve(undefined)
-    await write.promise
+    try {
+      face.save()
+      face.toggleModel('alpha\0fast')
+      host.publish({ status: 'ready', writable: true, value: { enabled: false, allowedModels: [] }, user: {} })
+      face.save()
+      face.toggleEnabled()
+      await vi.waitFor(() => { expect(face.hooks.subagentModelSelectionCard.getSnapshot().catalogStatus).toBe('ready') })
+      face.save()
+      face.toggleModel('alpha\0fast')
+      face.save()
+      expect(face.hooks.subagentModelSelectionCard.getSnapshot().saving).toBe(true)
+      face.toggleEnabled()
+      face.toggleModel('alpha\0fast')
+      face.save()
+      face.discard()
+    } finally {
+      controller.dispose()
+      if (outcome === 'rejected') write.reject(new Error('connection lost'))
+      else write.resolve(outcome === 'accepted')
+      await Promise.allSettled([
+        write.promise,
+        ...mutate.mock.results.flatMap(result => result.type === 'return' ? [result.value] : []),
+      ])
+    }
     expect(mutate).toHaveBeenCalledOnce()
+    expect(face.hooks.subagentModelSelectionCard.getSnapshot()).toMatchObject({ saving: true, failed: false })
   })
 
   it('suppresses duplicate directory loads and late settlements', async () => {
@@ -889,7 +1015,7 @@ describe('WebSearchCardController', () => {
     await vi.waitFor(() => { expect(credentials.set).toHaveBeenCalled() })
 
     expect(credentials.set).toHaveBeenCalledWith('DEEPSEEK_API_KEY', 'ds-secret')
-    expect(host.set).not.toHaveBeenCalled()
+    expect(host.mutate).not.toHaveBeenCalled()
     await vi.waitFor(() => {
       expect(face.hooks.webSearchCard.getSnapshot()).toMatchObject({ dirty: false, apiKeyConfigured: true })
     })
@@ -948,7 +1074,7 @@ describe('WebSearchCardController', () => {
     expect(credentials.set).toHaveBeenCalledWith('SEARCH_KEY', 'ds-secret')
   })
 
-  it('reports a key the Host did not store as a failed save', async () => {
+  it('reports an accepted key without configured readback as a failed save', async () => {
     const host = stubSettingsScope<WebSearchSettings>()
     const credentials = credentialsApi(false)
     const controller = new WebSearchCardController(host.scope, credentials.ctx)
@@ -959,8 +1085,57 @@ describe('WebSearchCardController', () => {
     face.save()
 
     await vi.waitFor(() => {
-      expect(face.hooks.webSearchCard.getSnapshot()).toMatchObject({ failed: true, dirty: true })
+      expect(face.hooks.webSearchCard.getSnapshot()).toMatchObject({
+        failed: true, dirty: true, saving: false, apiKey: { text: 'ds-secret' },
+      })
     })
+  })
+
+  it('retains a refused key draft when a credential is already configured', async () => {
+    const host = stubSettingsScope<WebSearchSettings>()
+    const credentials = credentialsApi(true)
+    const set = vi.fn(async () => ({
+      ok: false as const, error: new RemoteError('credential/rejected', 'write refused', { ref: 'DEEPSEEK_API_KEY' }),
+    }))
+    const controller = new WebSearchCardController(host.scope, ctxWith({
+      credentials: { describe: credentials.describe, set },
+    }))
+    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
+    const face = controller.inject()
+    const state = () => face.hooks.webSearchCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().apiKeyConfigured).toBe(true) })
+
+    face.edit('apiKey', 'replacement-key')
+    face.save()
+
+    await vi.waitFor(() => { expect(state().saving).toBe(false) })
+    expect(set).toHaveBeenCalledOnce()
+    expect(state()).toMatchObject({
+      failed: true, dirty: true, apiKeyConfigured: true, apiKey: { text: 'replacement-key' },
+    })
+  })
+
+  it.each(['write', 'read'] as const)('retains the key draft after a credential %s transport failure', async (operation) => {
+    const host = stubSettingsScope<WebSearchSettings>()
+    const credentials = credentialsApi(true)
+    const controller = new WebSearchCardController(host.scope, credentials.ctx)
+    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
+    const face = controller.inject()
+    const state = () => face.hooks.webSearchCard.getSnapshot()
+    await vi.waitFor(() => { expect(state().apiKeyConfigured).toBe(true) })
+    if (operation === 'write') credentials.set.mockRejectedValueOnce(new Error('connection lost'))
+    else credentials.describe.mockRejectedValueOnce(new Error('connection lost'))
+
+    face.edit('apiKey', 'replacement-key')
+    face.save()
+
+    await vi.waitFor(() => { expect(state().saving).toBe(false) })
+    expect(state()).toMatchObject({
+      failed: true, dirty: true, apiKeyConfigured: true, apiKey: { text: 'replacement-key' },
+    })
+    face.save()
+    await vi.waitFor(() => { expect(state()).toMatchObject({ failed: false, dirty: false, saving: false }) })
+    expect(credentials.set).toHaveBeenCalledTimes(2)
   })
 
   it('keeps the card usable when the credential read is refused', async () => {
@@ -1012,9 +1187,12 @@ describe('WebSearchCardController', () => {
     face.edit('baseURL', 'https://other.test')
     face.edit('maxUses', '3')
     face.save()
-    await vi.waitFor(() => { expect(host.set).toHaveBeenCalledTimes(2) })
+    await vi.waitFor(() => { expect(host.mutate).toHaveBeenCalledTimes(2) })
 
-    expect(host.set.mock.calls).toEqual([['baseURL', 'https://other.test'], ['maxUses', 3]])
+    expect(host.mutate.mock.calls).toEqual([
+      [[{ op: 'set', path: ['baseURL'], value: 'https://other.test' }]],
+      [[{ op: 'set', path: ['maxUses'], value: 3 }]],
+    ])
     expect(credentials.set).not.toHaveBeenCalled()
   })
 })

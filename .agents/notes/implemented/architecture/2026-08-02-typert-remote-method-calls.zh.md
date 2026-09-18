@@ -32,7 +32,7 @@ Remote 消费端投影同时包含 `.d.ts`、`.d.ts.map` 和 `.js`。`.d.ts` 只
 | Typert registry | `ctx.typert` | 分开保存当前环境 reflection、导入的 Remote contribution、lookup provider 和 Context provider |
 | Typert generator/loader | 无新增业务服务 | 从 Host/Client Program 生成三类 `lib` 产物，并把当前环境产物注册到 `ctx.typert` |
 | API Gateway 的 Host face | `ctx.typertGateway` | 关联 Host definition 与活 Service，解码参数、解析 receiver、调用方法和编码结果 |
-| Connection | `ctx.connection` | 独占 HTTP Server/未来 WebSocket、共享 `/api` route、RPC envelope、rpcId、序列化、trust、错误传输、Typert 拦截，以及各 owner 在同一 channel 上注册的精确 Fetch route |
+| Connection | `ctx.connection` | 独占 HTTP Server/未来 WebSocket、共享 `/api` route、RPC envelope、rpcId、序列化、trust、错误传输、Typert 拦截，以及各 owner 在同一 channel 上注册的 Fetch route |
 | API Gateway 的 Client face | `ctx.remote`、`ctx.remote.<namespace>` | mount Remote contribution，把每个 namespace 实体化为可追踪的 `remote.<namespace>` 子 Service，并把规范调用交给 `ctx.connection.rpc` |
 | API Remotes | 无新增服务 | 负责 Host Agent/Session lookup 策略，并作为 Client 业务的唯一 facade，选择并挂载 `/remote` contribution，同时暴露所选 API 声明 |
 | Agent/Session owning 包 | 既有领域服务 | 同时提供静态 interface merge 与运行时 lookup/Context provider |
@@ -401,9 +401,9 @@ ctx.connection.rpc.intercept(
 )
 ```
 
-Host registry 中存在 strict descriptor、记录过已撤回的 strict descriptor，或 active SRC Service binding 上存在匹配的 `@Remote` 标记时，Gateway 认领该 endpoint。endpoint 一旦被认领，即使 payload 解码、descriptor 解析或调用失败也继续由 Gateway 返回错误；既不匹配精确 Fetch route、也不被 Gateway 认领的 endpoint 返回 404。
+Host registry 中存在 strict descriptor、记录过已撤回的 strict descriptor，或 active SRC Service binding 上存在匹配的 `@Remote` 标记时，Gateway 认领该 endpoint。endpoint 一旦被认领，即使 payload 解码、descriptor 解析或调用失败也继续由 Gateway 返回错误；既不匹配 Fetch route、也不被 Gateway 认领的 endpoint 返回 404。
 
-Connection Host half 把一个复合 FetchHandler 交给 HTTP bridge。bridge 创建标准 `Request` 后，该 handler 先用 pathname 匹配各 owner 在该 channel 上注册的精确 Fetch route，再匹配该 channel 唯一的 interceptor——即 Gateway——两者都不认领时返回 404。该 channel 上的每条路径复用同一 request/response envelope、rpcId、序列化、trust 与错误传输，失败则携带共享的 `{ code, message, details }` 数据。当前物理映射是：
+Connection Host half 把一个复合 FetchHandler 交给 HTTP bridge。bridge 创建标准 `Request` 后，该 handler 按 pathname 选择 owner 注册的 Fetch route；没有 Fetch route 匹配时才使用该 channel 唯一的 interceptor——即 Gateway；无人认领的请求返回 404。[带作用域的 Fetch 资源](2026-09-17-scoped-fetch-resources.zh.md)规定精确／前缀匹配与请求方法拒绝的规则。该 channel 上的每条路径复用同一 request/response envelope、rpcId、序列化、trust 与错误传输，失败则携带共享的 `{ code, message, details }` 数据。当前物理映射是：
 
 ```text
 POST /api/<namespace>/<method>
@@ -442,13 +442,13 @@ ctx.remote.goals.create(sessionId, request, signal?)
 
 Remote 不在 wire 上定义第二层 `{ ok, value/error }` response。成功值与失败都直接使用既有 RPC response 的 `result`，失败分支携带共享的 `{ code, message, details }` 数据。owner、resolver 与 Gateway 抛的都是同一个类 `RemoteError`，其码来自合并后的 `RemoteErrorDetailsMap`：Host 把结构识别出的 `RemoteError` 原样编码上 wire——包括 Gateway 自己的 `gateway/*` 装配码，以及 resolver 的 `session/not-found`、`session/agent-busy`——只把未归类的 throw 折成 `gateway/internal`，并把诊断串留在 message 里。Client face 为 `RemoteResult` 的错误分支重建实例，因此 `throw result.error` 的 throw 语义成立。[失败词汇 Agent Note](2026-08-28-ctx-remote-failure-vocabulary.zh.md) 持有码表、落点规则，以及为什么判别读 `code` 而不用 `instanceof`。
 
-Gateway 不处理逐方法权限、调用者身份、幂等或长连接状态。它只把 Connection 的协作式取消传播给显式支持取消的业务方法。共享 channel 上的每个请求——无论是 Typert endpoint 还是精确 Fetch route——都先过 Connection 的浏览器认证与 trusted-host 策略再分发；Gateway 不叠加第二套策略。Connection/WebSocket 迁移后续独立完成。
+Gateway 不处理逐方法权限、调用者身份、幂等或长连接状态。它只把 Connection 的协作式取消传播给显式支持取消的业务方法。共享 channel 上的每个请求——无论是 Typert endpoint 还是 Fetch route——都先过 Connection 的浏览器认证与 trusted-host 策略再分发；Gateway 不叠加第二套策略。Connection/WebSocket 迁移后续独立完成。
 
 ## Connection 与协议边界
 
 Client Remote Service 负责 Remote contribution、namespace Service 实体化、Scope 绑定以及位置参数与 descriptor 的对应。Gateway 负责 Host descriptor、endpoint ownership、lookup、Context 和业务调用。Connection 把 `/api`、endpoint 和 `{ args }` 作为一个 RPC 调用发送到目标并返回既有 RPC result；它不理解 Goal、Agent、lookup、descriptor 或 Client Remote 类型。
 
-Gateway 只向 Connection 注册 ownership matcher 和 RPC handler，不注册 HTTP route。Connection 把共享 `/api` route 挂到 HTTP Server，并把一个复合 FetchHandler 交给 bridge；该 handler 把精确注册路径分发给它的 route owner、把已认领 endpoint 分发给 Gateway，其余一律 404。未来 Connection transport 可以保留相同顺序，而不改变 Remote payload、业务 decorator、生成的 DTS、Remote API 类型或 Agent Scope 编程界面。
+Gateway 只向 Connection 注册 ownership matcher 和 RPC handler，不注册 HTTP route。Connection 把共享 `/api` route 挂到 HTTP Server，并把一个复合 FetchHandler 交给 bridge；该 handler 把匹配的 Fetch route 分发给其 owner，否则将已认领 endpoint 分发给 Gateway，其余一律 404。未来 Connection transport 可以保留相同顺序，而不改变 Remote payload、业务 decorator、生成的 DTS、Remote API 类型或 Agent Scope 编程界面。
 
 ## 包边界
 
@@ -457,7 +457,7 @@ Gateway 只向 Connection 注册 ownership matcher 和 RPC handler，不注册 H
 - Typert runtime：分别保存当前环境的 local reflection 与导入的 Remote contribution。
 - `@deepseek-ai/dsh-api-gateway`：默认入口关联 Host definition 与 Service，认领 Remote endpoint，执行 lookup、Context receiver 解析、调用和结果编码，并向 Connection 注册 `/api` interceptor；`/client` 入口挂载 Remote contribution，创建严格 Remote namespace Service 和方法，并把调用交给 `ctx.connection.rpc`。两个入口共享 Remote 协议，但不互相导入各自的 Cordis interface merge。
 - `@deepseek-ai/dsh-api-remotes`：BFF 层；注册本应用转发的 Cordis 事件源与随 generation readiness 携带的 Host home，选择 Client `/remote` contribution，并通过共享的 `TypertClientRemote` 约定向业务包暴露合并后的 Remote 类型。
-- Connection：拥有唯一 HTTP Server/未来 WebSocket carrier、共享 `/api` route 与其复合 FetchHandler、各 owner 注册的精确 Fetch route、RPC envelope、rpcId、序列化、trust 和错误传输。
+- Connection：拥有唯一 HTTP Server/未来 WebSocket carrier、共享 `/api` route 与其复合 FetchHandler、各 owner 注册的 Fetch route、RPC envelope、rpcId、序列化、trust 和错误传输。
 - Agent/Session 等业务对象包：拥有 lookup、Context provider、唯一 ID 类型和纯类型公共出口。
 - `@deepseek-ai/dsh-api-session-controller`：配置共享的 `agent`/`session` lookup 与 `agent` Host Context resolver，因此每个接收这些对象的 Remote endpoint 共用同一套恢复与 ownership fence 策略。
 - 业务 Service 包：声明 binding、Remote 方法及其 request/result 类型，并导出生成的 `/remote` 子路径。
@@ -488,7 +488,7 @@ Connection 提供共享 channel interceptor 与当前 HTTP carrier 映射。WebS
 
 **让 `/remote` 的顶层 import 偷偷注册全局状态。** ESM 求值时未必已有目标 Cordis Context，多个 Context、HMR 和 dispose 也无法明确归属，因此普通 value import 只返回 contribution，由环境 assembly 的 Client Remote Service 显式挂载。
 
-**为 Remote 新建独立 transport、HTTP route 或 `/api2` channel。** 这会复制或拆分 Connection 的 Server ownership、rpcId、序列化、trust、错误和未来 WebSocket 生命周期。共享 `/api` interceptor 保留唯一物理 route，并让 Connection 用各 owner 注册的精确 Fetch route 与该 channel 唯一的 interceptor 组合出它。
+**为 Remote 新建独立 transport、HTTP route 或 `/api2` channel。** 这会复制或拆分 Connection 的 Server ownership、rpcId、序列化、trust、错误和未来 WebSocket 生命周期。共享 `/api` interceptor 保留唯一物理 route，并让 Connection 用各 owner 注册的 Fetch route 与该 channel 唯一的 interceptor 组合出它。
 
 ## 验证
 
@@ -502,7 +502,7 @@ Connection 提供共享 channel interceptor 与当前 HTTP carrier 映射。WebS
 - Remote 产物与 map 仅包含已标记的方法，不依赖 Browser，从而为未来 TUI 保留相同的消费方边界。
 - 生命周期测试会撤回并重新挂载 descriptor、Service、lookup、Context 提供方和 Client namespace；依赖不可用时，调用会失败，且不会使用陈旧调用或回退原始 ID。
 - 取消测试覆盖严格生成、SRC 末位参数名识别、Client signal 合并、Connection 到 Gateway 的传播，以及 Host 在 wire `args` 之外的注入。
-- 既不匹配精确 Fetch route、也不属于已认领 Remote endpoint 的请求在同一 channel 上返回 404，而已撤回的 route 随即停止服务。
+- 既不匹配 Fetch route、也不属于已认领 Remote endpoint 的请求在同一 channel 上返回 404，而已撤回的 route 随即停止服务。
 
 ## 后果
 

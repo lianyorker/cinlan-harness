@@ -12,9 +12,9 @@ describe('startRecording', () => {
     const samples1 = new Float32Array([0.1, 0.2, 0.3, 0.4])
     const samples2 = new Float32Array([0.5, 0.6])
     const fakeBuffer = { getChannelData: () => samples1 }
-    const fakeEvent = { inputBuffer: fakeBuffer } as unknown as AudioProcessingEvent
+    const fakeEvent = { inputBuffer: fakeBuffer }
     const fakeProcessor = {
-      onaudioprocess: null as ((event: AudioProcessingEvent) => void) | null,
+      onaudioprocess: null as ((event: typeof fakeEvent) => void) | null,
       connect: vi.fn(),
       disconnect: vi.fn(),
     }
@@ -41,6 +41,25 @@ describe('startRecording', () => {
     expect(fakeSource.connect).toHaveBeenCalledWith(fakeProcessor)
     expect(fakeProcessor.connect).toHaveBeenCalledWith(fakeGain)
     expect(fakeGain.connect).toHaveBeenCalledWith(fakeDestination)
+  })
+})
+
+describe('capture cleanup failures', () => {
+  it('rejects stop when AudioContext closure rejects, after disconnecting its nodes', async () => {
+    const disconnect = vi.fn()
+    const processor = { onaudioprocess: null, connect: vi.fn(), disconnect }
+    class FailingAudioContext {
+      sampleRate = 16_000
+      destination = {}
+      createMediaStreamSource() { return { connect: vi.fn(), disconnect } }
+      createScriptProcessor() { return processor }
+      createGain() { return { gain: { value: 1 }, connect: vi.fn(), disconnect } }
+      close() { return Promise.reject(new Error('audio context cleanup failed')) }
+    }
+    const recording = startRecording(fakeStream(), FailingAudioContext as unknown as typeof AudioContext)
+    await expect(recording.stop()).rejects.toThrow('audio context cleanup failed')
+    expect(disconnect).toHaveBeenCalledTimes(3)
+    expect(processor.onaudioprocess).toBeNull()
   })
 })
 

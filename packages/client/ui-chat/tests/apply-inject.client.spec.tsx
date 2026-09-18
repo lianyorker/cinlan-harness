@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 /** Chat inject factories exercised over independently mounted Conversation and Chat plugins. */
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import type { ISession } from '@deepseek-ai/dsh-api-session-controller/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import { KeyboardController } from '@deepseek-ai/dsh-client-keyboard/src/client/controller.ts'
+import type { KeybindingsSettings } from '@deepseek-ai/dsh-client-keyboard/client'
 import {
   SlotTestRuntime, TestRemote, stubSettingsScope, usePinnedBrowserLanguages,
 } from '@deepseek-ai/dsh-client-test-runtime'
@@ -47,6 +49,11 @@ function sessionFakeFor() {
 
 async function bench() {
   const runtime = await SlotTestRuntime.create()
+  const shortcuts = stubSettingsScope<KeybindingsSettings>()
+  shortcuts.publish({ status: 'ready', writable: true, revision: 1, value: { overrides: [] } })
+  const keyboard = new KeyboardController(shortcuts.scope, false)
+  onTestFinished(() => { keyboard.dispose() })
+  runtime.ctx.provide('keyboard', keyboard)
   runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
   const layout = { closeRightbar: vi.fn(), openRightbar: vi.fn() }
   runtime.ctx.provide('layout', layout as never)

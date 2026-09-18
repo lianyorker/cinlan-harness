@@ -110,6 +110,13 @@ describe('client bundle purity gate', () => {
     expect(() => resolveId('@deepseek-ai/dsh-spill-policy/notice/internal')).toThrow(/purity/)
   })
 
+  it('admits only the pure Git preference schema and rejects its Host owner', () => {
+    expect(resolveId('@deepseek-ai/dsh-git-settings/settings-schema')).toBeNull()
+    expect(() => resolveId('@deepseek-ai/dsh-git-settings')).toThrow(/purity/)
+    expect(() => resolveId('@deepseek-ai/dsh-git-settings/settings-schema/internal')).toThrow(/purity/)
+    expect(() => resolveId('@deepseek-ai/dsh-sidebar-git')).toThrow(/purity/)
+  })
+
   it('lets exact generated Remote contributions inline without admitting their package implementation', () => {
     expect(resolveId('@deepseek-ai/dsh-goal/remote')).toBeNull()
     expect(() => resolveId('@deepseek-ai/dsh-goal')).toThrow(/purity/)

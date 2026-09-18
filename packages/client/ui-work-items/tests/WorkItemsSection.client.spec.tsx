@@ -27,15 +27,10 @@ function props(): WorkItemsSectionProps {
     get: vi.fn(async () => item),
     associate: vi.fn<WorkItemsSectionProps['associate']>(async request => ({ associations: [{ workspaceId: request.workspaceId, workspaceTitle: 'Product', ...(request.sessionId === undefined ? {} : { sessionId: request.sessionId }) }] })),
     disassociate: vi.fn(async () => ({ associations: [] })),
-    checkIntegration: vi.fn(async () => ({ provider: 'github', status: 'connected', reason: 'connected', account: 'octocat' })),
+    checkIntegration: vi.fn<WorkItemsSectionProps['checkIntegration']>(async provider => ({ provider, status: 'connected', reason: 'connected', account: 'octocat' })),
     close: vi.fn(),
-    settings: {
-      getSnapshot: vi.fn(() => ({ status: 'ready', value: { githubVisible: true, gitlabVisible: true, linearVisible: true }, base: undefined, user: undefined, revision: 1, writable: true, mode: 'host' })),
-      subscribe: vi.fn(() => () => {}),
-      set: vi.fn(async () => {}),
-      unset: vi.fn(async () => {}),
-      mutate: vi.fn(async () => {}),
-    },
+    useSettings: selector => selector({ status: 'ready', value: { githubVisible: true, gitlabVisible: true, linearVisible: true }, base: undefined, user: undefined, revision: 1, writable: true, mode: 'host' }),
+    setVisibility: vi.fn(async () => {}), resetVisibility: vi.fn(async () => {}),
   } as WorkItemsSectionProps
 }
 async function select(): Promise<void> {
@@ -141,4 +136,94 @@ describe('Work Items Settings', () => {
     expect(screen.queryByRole('button', { name: en.associate })).toBeNull()
     await waitFor(() =>{  expect(p.list).toHaveBeenLastCalledWith({ source: 'github', state: 'open' }, expect.any(AbortSignal)) })
   })
+})
+
+it('retains the selected issue and external-write draft after a failed refresh', async () => {
+  const p = props()
+  p.list = vi.fn().mockResolvedValueOnce({ items: [item], truncated: false }).mockRejectedValue(new Error('refresh offline'))
+  render(<WorkItemsSection {...p} />)
+  await select()
+  fireEvent.click(screen.getByText(en.writes))
+  fireEvent.change(screen.getByRole('textbox', { name: en.writeTitle }), { target: { value: 'Unsubmitted issue' } })
+  fireEvent.click(screen.getByRole('button', { name: en.refresh }))
+  await waitFor(() => { expect(screen.getByRole('alert').textContent).toContain('refresh offline') })
+  expect(screen.getByRole('heading', { level: 3, name: item.title })).toBeTruthy()
+  expect(screen.getByRole<HTMLInputElement>('textbox', { name: en.writeTitle }).value).toBe('Unsubmitted issue')
+  expect(p.prepareWrite).not.toHaveBeenCalled()
+})
+
+it('sends the query, state, cursor, and Workspace projection scope to the selected provider', async () => {
+  const p = props()
+  p.list = vi.fn(async () => ({ items: [], nextCursor: 'page-two', truncated: false }))
+  render(<WorkItemsSection {...p} />)
+  fireEvent.change(screen.getByRole('combobox', { name: en.source }), { target: { value: 'gitlab' } })
+  fireEvent.change(screen.getByRole('combobox', { name: en.state }), { target: { value: 'closed' } })
+  fireEvent.change(screen.getByRole('combobox', { name: en.workspaceContext }), { target: { value: workspace.workspaceId } })
+  fireEvent.change(screen.getByRole('textbox', { name: en.search }), { target: { value: 'missing login' } })
+  const request = { source: 'gitlab', state: 'closed', query: 'missing login', workspaceId: workspace.workspaceId }
+  await waitFor(() => { expect(p.list).toHaveBeenLastCalledWith(request, expect.any(AbortSignal)) })
+  await waitFor(() => { expect(screen.getByRole('button', { name: en.next }).hasAttribute('disabled')).toBe(false) })
+  fireEvent.click(screen.getByRole('button', { name: en.next }))
+  await waitFor(() => { expect(p.list).toHaveBeenLastCalledWith({ ...request, cursor: 'page-two' }, expect.any(AbortSignal)) })
+  await waitFor(() => { expect(screen.getByRole('button', { name: en.previous }).hasAttribute('disabled')).toBe(false) })
+  fireEvent.click(screen.getByRole('button', { name: en.previous }))
+  await waitFor(() => { expect(p.list).toHaveBeenLastCalledWith(request, expect.any(AbortSignal)) })
+})
+
+it('reflects accepted visibility, keeps a rejected choice unchanged, and resets the override', async () => {
+  const p = props()
+  const values = { githubVisible: true, gitlabVisible: true, linearVisible: true }
+  const snapshot = { status: 'ready' as const, value: values, base: undefined, user: { githubVisible: true }, revision: 1, writable: true, mode: 'host' as const }
+  p.useSettings = selector => selector(snapshot)
+  p.setVisibility = vi.fn().mockRejectedValueOnce(new Error('visibility rejected')).mockImplementation(async () => { values.githubVisible = false })
+  p.resetVisibility = vi.fn(async () => { values.githubVisible = true })
+  const view = render(<WorkItemsSection {...p} />)
+  await waitFor(() => { expect(screen.getByRole('button', { name: en.refresh }).hasAttribute('disabled')).toBe(false) })
+  fireEvent.click(screen.getByRole('button', { name: 'Show GitHub' }))
+  await waitFor(() => { expect(screen.getByRole('alert').textContent).toContain('visibility rejected') })
+  expect(screen.getByRole('button', { name: 'Show GitHub' }).getAttribute('aria-pressed')).toBe('true')
+  fireEvent.click(screen.getByRole('button', { name: 'Show GitHub' }))
+  await waitFor(() => { expect(p.list).toHaveBeenLastCalledWith({ source: 'gitlab', state: 'open' }, expect.any(AbortSignal)) })
+  expect(screen.getByRole('button', { name: 'Show GitHub' }).getAttribute('aria-pressed')).toBe('false')
+  fireEvent.click(screen.getByRole('button', { name: 'Reset GitHub to inherited settings' }))
+  await waitFor(() => { expect(p.resetVisibility).toHaveBeenCalledWith('githubVisible') })
+  await waitFor(() => { expect(screen.getByRole('button', { name: 'Show GitHub' }).getAttribute('aria-pressed')).toBe('true') })
+  snapshot.writable = false
+  view.rerender(<WorkItemsSection {...p} />)
+  expect(screen.getByRole('button', { name: 'Show GitHub' }).hasAttribute('disabled')).toBe(true)
+  expect(screen.getByRole('button', { name: 'Reset GitHub to inherited settings' }).hasAttribute('disabled')).toBe(true)
+})
+
+it('keeps all hidden providers unqueried while exposing searchable write fields', async () => {
+  const p = props()
+  p.useSettings = selector => selector({ status: 'ready', value: { githubVisible: false, gitlabVisible: false, linearVisible: false }, base: undefined, user: undefined, revision: 1, writable: true, mode: 'host' })
+  render(<WorkItemsSection {...p} target={{ itemId: 'write-state', anchorId: 'work-items-write-state' }} />)
+  expect(screen.getByRole('textbox', { name: en.writeStateValue }).hasAttribute('disabled')).toBe(true)
+  expect(screen.getByRole('button', { name: en.writePreview }).hasAttribute('disabled')).toBe(true)
+  expect(p.list).not.toHaveBeenCalled()
+  expect(p.prepareWrite).not.toHaveBeenCalled()
+  await waitFor(() => { expect(p.checkIntegration).toHaveBeenCalledTimes(2) })
+  expect(screen.getByText(en.providerOnQuery)).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: en.closeSettings }))
+  expect(p.close).toHaveBeenCalledOnce()
+})
+
+it('cancels provider status checks and page loading on unmount', async () => {
+  const p = props()
+  const signals: AbortSignal[] = []
+  let settleList!: (value: { items: []; truncated: false }) => void
+  const settleChecks: (() => void)[] = []
+  p.list = vi.fn<WorkItemsSectionProps['list']>((_request, signal) => { signals.push(signal); return new Promise((resolve) => { settleList = resolve }) })
+  p.checkIntegration = vi.fn<WorkItemsSectionProps['checkIntegration']>((provider, signal) => {
+    signals.push(signal)
+    return new Promise((resolve) => { settleChecks.push(() => { resolve({ provider, status: 'unavailable', reason: 'probe-failed', account: null }) }) })
+  })
+  const view = render(<WorkItemsSection {...p} />)
+  expect(signals).toHaveLength(3)
+  view.unmount()
+  expect(signals.every(signal => signal.aborted)).toBe(true)
+  settleList({ items: [], truncated: false })
+  for (const settle of settleChecks) settle()
+  await Promise.all(vi.mocked(p.checkIntegration).mock.results.flatMap(result => result.type === 'return' ? [result.value] : []))
+  expect(p.associate).not.toHaveBeenCalled()
 })

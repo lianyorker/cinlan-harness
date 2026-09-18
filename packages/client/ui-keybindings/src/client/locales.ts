@@ -1,6 +1,22 @@
 /** Keybindings settings locale dictionaries (zh + en). */
 
 export const zh = {
+  categoryPopup: '输入补全',
+  categorySettings: '设置',
+  categoryVoice: '语音',
+  categoryUnavailable: '未提供的操作',
+  readOnly: '当前主机的快捷键偏好为只读。',
+  unavailableCommand: '当前没有可用的操作处理此快捷键，保存的覆盖项仍会保留。',
+  reserved: '此组合由浏览器或操作系统保留，请选择其他按键。',
+  invalid: '请按下一个有效按键及所需的修饰键。',
+  saveFailed: '未能保存快捷键。请核对当前绑定，然后重试。',
+  retry: '重试',
+  unbound: '未绑定',
+  resetAll: '恢复所有快捷键默认值',
+  resetAllDescription: '移除快捷键用户覆盖，恢复各操作所有者的默认绑定。',
+  recordAction: '录制：{command}',
+  unbindAction: '取消绑定：{command}',
+  resetAction: '重置：{command}',
   navLabel: '快捷键',
   title: '快捷键',
   description: '查看和自定义键盘快捷键。',
@@ -19,14 +35,27 @@ export const zh = {
   noResults: '没有匹配的快捷键。',
   loading: '正在读取设置...',
   error: '设置读取失败。',
-  command: '命令',
-  binding: '快捷键',
-  actions: '操作',
 } satisfies Record<string, string>
 
 export type KeybindingsKey = keyof typeof zh
 
 export const en = {
+  categoryPopup: 'Input completion',
+  categorySettings: 'Settings',
+  categoryVoice: 'Voice',
+  categoryUnavailable: 'Unavailable actions',
+  readOnly: 'Keyboard preferences are read-only on this host.',
+  unavailableCommand: 'No available action handles this shortcut. Its saved override is retained.',
+  reserved: 'This combination is reserved by the browser or operating system. Choose another shortcut.',
+  invalid: 'Press a valid key with the modifiers you want.',
+  saveFailed: 'Could not save this shortcut. Review the current bindings, then retry.',
+  retry: 'Retry',
+  unbound: 'Unbound',
+  resetAll: 'Restore all shortcut defaults',
+  resetAllDescription: 'Remove user overrides and restore the defaults supplied by each action owner.',
+  recordAction: 'Record: {command}',
+  unbindAction: 'Unbind: {command}',
+  resetAction: 'Reset: {command}',
   navLabel: 'Keybindings',
   title: 'Keybindings',
   description: 'View and customize keyboard shortcuts.',
@@ -45,7 +74,4 @@ export const en = {
   noResults: 'No matching keybindings.',
   loading: 'Loading settings...',
   error: 'Failed to load settings.',
-  command: 'Command',
-  binding: 'Binding',
-  actions: 'Actions',
 } satisfies Record<string, string>

@@ -41,5 +41,4 @@ Finding 工具 schema 可能贡献稳定的模型工具前缀内容；组合包�
 <a id="dev-note"></a>
 ### 开发备注
 
-保持 Loader 根为 entry array；Finding schema 变化后更新工具目录。
-
+保持 Loader patch 为 insert 列表；Finding schema 变化后更新工具目录。

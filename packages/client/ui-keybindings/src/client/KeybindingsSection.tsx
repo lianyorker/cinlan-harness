@@ -1,211 +1,121 @@
-/** Keybindings settings section: registry, search, record, conflict detection. */
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+/** Effective shortcuts for registered actions, with a locally focused recorder. */
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { KeyBinding, KeybindingDefinition, KeybindingOverride, KeybindingsSettings } from '../types.ts'
-import { KEYBINDINGS_NAMESPACE, serializeBinding, parseKeyEvent, detectConflicts } from '../types.ts'
-import { en, zh, type KeybindingsKey } from './locales.ts'
+import type { KeyboardService, KeyboardWriteResult } from '@deepseek-ai/dsh-client-keyboard/client'
+import type { KeybindingsKey } from './locales.ts'
 import css from './KeybindingsSection.module.css'
 
-declare module '@deepseek-ai/dsh-client-ui-slots' {
-  interface LocaleNamespaceMap {
-    'settings.keybindings': KeybindingsKey
-  }
-}
-
-/** Injected face: the settings scope for keybindings preferences. */
+/** Plain callbacks and the renderer-bound command snapshot. */
 export interface KeybindingsSectionInjected {
-  keybindings: SettingsScope<KeybindingsSettings>
+  hooks: { keyboard: Pick<KeyboardService, 'getSnapshot' | 'subscribe'> }
+  captureKey: KeyboardService['capture']
+  setBinding: KeyboardService['setBinding']
+  resetBinding: KeyboardService['resetBinding']
+  resetAll: KeyboardService['resetAll']
 }
 
-export type KeybindingsSectionProps =
-  & PropsRuntime<'settings.section'>
-  & PropsLocale<'settings.keybindings'>
-  & InjectFace<KeybindingsSectionInjected>
+/** Settings owner props, localized copy, and the injected keyboard face. */
+export type KeybindingsSectionProps = PropsRuntime<'settings.section'> & PropsLocale<'settings.keybindings'> & InjectFace<KeybindingsSectionInjected>
 
-const NS = 'settings.keybindings'
-
-/** Built-in command definitions. */
-const BUILTIN_COMMANDS: KeybindingDefinition[] = [
-  { id: 'conversation.submit', label: 'Submit Conversation', category: 'conversation', defaultBinding: { key: 'Enter', modifiers: {} } },
-  { id: 'conversation.newLine', label: 'New Line', category: 'conversation', defaultBinding: { key: 'Enter', modifiers: { shift: true } } },
-  { id: 'conversation.navigateUp', label: 'Navigate Up', category: 'conversation', defaultBinding: { key: 'ArrowUp', modifiers: {} } },
-  { id: 'conversation.navigateDown', label: 'Navigate Down', category: 'conversation', defaultBinding: { key: 'ArrowDown', modifiers: {} } },
-  { id: 'conversation.dismissPopup', label: 'Dismiss Popup', category: 'conversation', defaultBinding: { key: 'Escape', modifiers: {} } },
-  { id: 'conversation.complete', label: 'Complete', category: 'conversation', defaultBinding: { key: 'Tab', modifiers: {} } },
-  { id: 'editor.save', label: 'Save', category: 'editor', defaultBinding: { key: 's', modifiers: { ctrl: true } } },
-  { id: 'editor.find', label: 'Find', category: 'editor', defaultBinding: { key: 'f', modifiers: { ctrl: true } } },
-  { id: 'editor.replace', label: 'Replace', category: 'editor', defaultBinding: { key: 'h', modifiers: { ctrl: true } } },
-]
-
-export const inject = ['slots', 'locale', 'settingsScope']
-
-export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-keybindings: dictionaries')
-  const t = ctx.locale.bind(NS)
-  const keybindings = ctx.settingsScope.bind<KeybindingsSettings>({ namespace: KEYBINDINGS_NAMESPACE })
-
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'keybindings',
-    order: 95,
-    label: () => t('navLabel'),
-    locale: NS,
-    inject: (): KeybindingsSectionInjected => ({ keybindings }),
-  }, KeybindingsSection))
+const SCOPE_KEYS: Record<string, KeybindingsKey> = {
+  composer: 'categoryConversation', 'composer-popup': 'categoryPopup', editor: 'categoryEditor',
+  shell: 'categoryNavigation', settings: 'categorySettings', voice: 'categoryVoice', unavailable: 'categoryUnavailable',
 }
 
-/** Render the Keybindings settings page. */
-export function KeybindingsSection({
-  keybindings, t,
-}: KeybindingsSectionProps): ReactNode {
-  const snapshot = keybindings.getSnapshot()
-  const [, forceRender] = useState(0)
-  useEffect(() => keybindings.subscribe(() => forceRender(n => n + 1)), [keybindings])
-
+/**
+ * Render effective bindings and preserve failed choices for an explicit retry.
+ * @param props - framework-bound keyboard preferences and commands.
+ * @returns the responsive shortcuts page.
+ */
+export function KeybindingsSection(props: KeybindingsSectionProps): ReactNode {
+  const { useKeyboard, captureKey, setBinding, resetBinding, resetAll, t, target } = props
+  const snapshot = useKeyboard(value => value)
   const [search, setSearch] = useState('')
   const [recordingId, setRecordingId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const inFlight = useRef(false)
+  const [error, setError] = useState<KeybindingsKey | null>(null)
+  const [retry, setRetry] = useState<(() => Promise<KeyboardWriteResult>) | null>(null)
+  const writable = snapshot.status === 'ready' && snapshot.writable && !saving
+  useEffect(() => { if (target !== undefined) setSearch('') }, [target])
 
-  const overrides = snapshot.status === 'ready' ? (snapshot.value?.overrides ?? []) : []
-  const overrideMap = useMemo(() => {
-    const map = new Map<string, KeybindingOverride>()
-    for (const o of overrides) map.set(o.commandId, o)
-    return map
-  }, [overrides])
+  const save = (operation: () => Promise<KeyboardWriteResult>): void => {
+    if (!writable || inFlight.current) return
+    inFlight.current = true
+    setSaving(true)
+    setError(null)
+    setRetry(null)
+    void operation().then((result) => {
+      if (result.ok) setRecordingId(null)
+      else {
+        setError(result.reason === 'failed' ? 'saveFailed' : result.reason === 'conflict' ? 'conflictDescription'
+          : result.reason === 'reserved' ? 'reserved' : result.reason === 'invalid' ? 'invalid' : 'unavailableCommand')
+        if (result.reason === 'failed') setRetry(() => operation)
+      }
+    }, () => { setError('saveFailed'); setRetry(() => operation) }).finally(() => {
+      inFlight.current = false
+      setSaving(false)
+    })
+  }
 
-  const conflicts = useMemo(() => detectConflicts(overrides), [overrides])
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (q === '') return BUILTIN_COMMANDS
-    return BUILTIN_COMMANDS.filter(cmd => cmd.label.toLowerCase().includes(q) || cmd.id.toLowerCase().includes(q))
-  }, [search])
-
-  const categories = useMemo(() => {
-    const map = new Map<string, KeybindingDefinition[]>()
-    for (const cmd of filtered) {
-      const list = map.get(cmd.category) ?? []
-      list.push(cmd)
-      map.set(cmd.category, list)
+  const record = (event: KeyboardEvent<HTMLElement>): void => {
+    if (recordingId === null || !writable) return
+    const native = event.nativeEvent
+    const facts = {
+      key: event.key, ctrlKey: event.ctrlKey, shiftKey: event.shiftKey, altKey: event.altKey, metaKey: event.metaKey,
+      isComposing: native.isComposing, repeat: event.repeat, defaultPrevented: event.defaultPrevented,
+      // oxlint-disable-next-line typescript/no-deprecated
+      keyCode: native.keyCode, altGraph: event.getModifierState('AltGraph'),
     }
-    return map
-  }, [filtered])
-
-  const categoryLabel = (cat: string): string => {
-    const key = `category${cat.charAt(0).toUpperCase()}${cat.slice(1)}` as KeybindingsKey
-    return t(key)
-  }
-
-  const getBinding = (cmd: KeybindingDefinition): KeyBinding | null => {
-    const override = overrideMap.get(cmd.id)
-    if (override !== undefined) return override.binding
-    return cmd.defaultBinding
-  }
-
-  const setOverride = (commandId: string, binding: KeyBinding | null): void => {
-    const next = overrides.filter(o => o.commandId !== commandId)
-    next.push({ commandId, binding })
-    void keybindings.set('overrides', next)
-  }
-
-  const resetOverride = (commandId: string): void => {
-    const next = overrides.filter(o => o.commandId !== commandId)
-    void keybindings.set('overrides', next)
-  }
-
-  useEffect(() => {
-    if (recordingId === null) return
-    const handleKeyDown = (event: KeyboardEvent): void => {
+    if (facts.isComposing || facts.keyCode === 229 || facts.altGraph) return
+    if (event.key === 'Escape' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
       event.preventDefault()
       event.stopPropagation()
-      if (event.key === 'Escape') {
-        setRecordingId(null)
-        return
-      }
-      const binding = parseKeyEvent(event)
-      setOverride(recordingId, binding)
       setRecordingId(null)
+      return
     }
-    window.addEventListener('keydown', handleKeyDown, { capture: true })
-    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [recordingId])
-
-  if (snapshot.status !== 'ready') {
-    return <section className={css.section} data-keybindings-section>
-      <div className={css.heading}>
-        <h2>{t('title')}</h2>
-        <p>{t('description')}</p>
-      </div>
-      <p className={css.message}>{snapshot.status === 'unavailable' ? t('error') : t('loading')}</p>
-    </section>
+    const result = captureKey(facts)
+    if (result.kind === 'ignored') return
+    if (result.kind !== 'binding') { setError(result.kind); return }
+    event.preventDefault()
+    event.stopPropagation()
+    save(() => setBinding(recordingId, result.binding))
   }
 
-  const writable = snapshot.writable
-
-  return <section className={css.section} data-keybindings-section>
-    <div className={css.heading}>
-      <h2>{t('title')}</h2>
-      <p>{t('description')}</p>
+  const query = search.trim().toLowerCase()
+  const filtered = snapshot.commands.filter(command =>
+    command.label.toLowerCase().includes(query) || command.id.toLowerCase().includes(query))
+  const scopes = [...new Set(filtered.map(command => command.scope))]
+  return <section className={css.section} data-keybindings-section aria-busy={saving} onKeyDownCapture={record}>
+    <header className={css.heading}><h1>{t('title')}</h1><p>{t('description')}</p></header>
+    {snapshot.status !== 'ready' || !snapshot.writable
+      ? <p className={css.message} role="status">{t(snapshot.status === 'loading' ? 'loading' : snapshot.status === 'unavailable' ? 'error' : 'readOnly')}</p> : null}
+    <input className={css.search} type="search" placeholder={t('search')} aria-label={t('search')} value={search} onChange={(event) => { setSearch(event.currentTarget.value) }} />
+    {error !== null ? <div role="alert" className={css.actions}><span className={css.conflict}>{t(error)}</span>
+      {retry !== null ? <Button className={css.button} variant="outline" disabled={!writable} onClick={() => { save(retry) }}>{t('retry')}</Button> : null}</div> : null}
+    {filtered.length === 0 ? <p className={css.empty}>{t('noResults')}</p> : null}
+    {scopes.map(scope => <section className={css.category} key={scope}>
+      <h2 className={css.categoryTitle}>{t(SCOPE_KEYS[scope] ?? 'categoryOther')}</h2>
+      {filtered.filter(command => command.scope === scope).map(command => <div key={command.id} className={css.commandRow} data-settings-anchor={'keybinding-' + command.id}>
+        <div className={css.commandName}><div>{command.label}</div><div className={css.commandDesc}>{command.description}</div>
+          {command.status !== 'available' ? <p className={css.commandDesc}>{t(command.status === 'unavailable' ? 'unavailableCommand' : command.status === 'conflict' ? 'conflictDescription' : command.status)}</p> : null}
+        </div>
+        <div className={css.binding}>{command.bindingLabels.length > 0 ? command.bindingLabels.join(' / ') : t('unbound')}</div>
+        <div className={css.actions}>
+          <Button className={css.button} variant="outline" disabled={!writable || !command.registered || command.status === 'unavailable'} aria-label={t('recordAction', { command: command.label })}
+            onClick={() => { setRecordingId(command.id); setError(null) }}>{t(recordingId === command.id ? 'recording' : 'record')}</Button>
+          {recordingId === command.id ? <Button className={css.button} variant="outline" disabled={saving} onClick={() => { setRecordingId(null) }}>{t('cancel')}</Button> : null}
+          <Button className={css.button} variant="outline" disabled={!writable || !command.registered || command.status === 'unavailable' || command.bindings.length === 0}
+            aria-label={t('unbindAction', { command: command.label })} onClick={() => { save(() => setBinding(command.id, null)) }}>{t('unbind')}</Button>
+          <Button className={css.button} variant="outline" disabled={!writable || !command.overridden} aria-label={t('resetAction', { command: command.label })}
+            onClick={() => { save(() => resetBinding(command.id)) }}>{t('reset')}</Button>
+        </div>
+      </div>)}
+    </section>)}
+    <div className={css.commandRow} data-settings-anchor="keybindings-reset">
+      <div className={css.commandName}><div>{t('resetAll')}</div><div className={css.commandDesc}>{t('resetAllDescription')}</div></div>
+      <Button className={css.button} variant="outline" disabled={!writable || !snapshot.hasOverrides} onClick={() => { save(resetAll) }}>{t('resetAll')}</Button>
     </div>
-    <input
-      type="text"
-      className={css.search}
-      placeholder={t('search')}
-      aria-label={t('search')}
-      value={search}
-      onChange={e => setSearch(e.currentTarget.value)}
-    />
-    {filtered.length === 0 && <div className={css.empty}>{t('noResults')}</div>}
-    {Array.from(categories.entries()).map(([category, commands]) => (
-      <div key={category} className={css.category}>
-        <h3 className={css.categoryTitle}>{categoryLabel(category)}</h3>
-        {commands.map((cmd) => {
-          const binding = getBinding(cmd)
-          const bindingStr = binding !== null ? serializeBinding(binding) : null
-          const isConflicting = bindingStr !== null && conflicts.has(bindingStr)
-          const isRecording = recordingId === cmd.id
-          return (
-            <div key={cmd.id} className={css.commandRow}>
-              <div className={css.commandName}>
-                <div>{cmd.label}</div>
-                {cmd.description && <div className={css.commandDesc}>{cmd.description}</div>}
-              </div>
-              <div className={css.binding}>
-                {bindingStr !== null ? bindingStr : <span className={css.bindingUnbound}>{t('unbind')}</span>}
-              </div>
-              {isConflicting && <span className={css.conflict}>{t('conflict')}</span>}
-              <div className={css.actions}>
-                {isRecording ? (
-                  <button type="button" className={`${css.btn} ${css.btnRecord}`} disabled={!writable}>
-                    {t('recording')}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className={css.btn}
-                    disabled={!writable}
-                    onClick={() => setRecordingId(cmd.id)}
-                  >
-                    {t('record')}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={css.btn}
-                  disabled={!writable}
-                  onClick={() => resetOverride(cmd.id)}
-                >
-                  {t('reset')}
-                </button>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    ))}
   </section>
 }

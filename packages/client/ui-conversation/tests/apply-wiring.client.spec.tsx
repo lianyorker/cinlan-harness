@@ -7,6 +7,7 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { apply, inject, type ViewTab } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { createKeyboardFixture } from './keyboard-fixture.client.ts'
 
 usePinnedBrowserLanguages('zh-CN')
 
@@ -14,6 +15,7 @@ const SID = 'session-1' as SessionId
 
 async function bench(options: { declareConversation?: boolean } = {}) {
   const runtime = await SlotTestRuntime.create()
+  runtime.ctx.provide('keyboard', createKeyboardFixture(false).keyboard)
   runtime.ctx.provide('uiWorkspace', { connectWorkspace: vi.fn(async () => SID) } as never)
   runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
   const locale = new LocaleRuntime(runtime.ctx)
@@ -40,6 +42,7 @@ describe('target-neutral Conversation apply wiring', () => {
   it('waits for the layout-owned conversation declaration before registering its subtree', async () => {
     const b = await bench({ declareConversation: false })
     expect(b.runtime.slots.entries('conversation')).toHaveLength(0)
+    expect(b.runtime.ctx.settingsMetadata.getSnapshot().items).toEqual([])
 
     await b.runtime.root.declare({
       'conversation': { kind: 'single', scope: 'session-maybe' },
@@ -72,6 +75,16 @@ describe('target-neutral Conversation apply wiring', () => {
       .toEqual({ kind: 'chain', scope: 'session' })
     expect(b.runtime.slots.entries('settings.general.item').map(row => row.options.id))
       .toEqual(['composer-enter'])
+    expect(b.runtime.ctx.settingsMetadata.getSnapshot().items).toEqual([{
+      sectionId: 'general', id: 'busy-send', anchorId: 'busy-send', title: '繁忙时的发送行为',
+      description: '智能体运行时发送快捷键和发送按钮的行为；加速发送快捷键使用另一行为',
+      keywords: ['busy', 'send', 'enter', 'queue', 'steer'],
+    }])
+    b.runtime.ctx.locale.setLocale('en')
+    expect(b.runtime.ctx.settingsMetadata.getSnapshot().items[0]).toMatchObject({
+      title: 'Send behavior while busy',
+      description: 'What the send shortcut and Send button do while the agent is running; the accelerated shortcut uses the other behavior',
+    })
     await b.runtime.dispose()
   })
 
@@ -112,6 +125,7 @@ describe('target-neutral Conversation apply wiring', () => {
     expect(b.runtime.ctx.get('uiConversation')).toBeUndefined()
     expect(b.runtime.slots.entries('conversation')).toHaveLength(0)
     expect(b.runtime.slots.spec('conversation.view')).toBeUndefined()
+    expect(b.runtime.ctx.settingsMetadata.getSnapshot().items).toEqual([])
     await b.runtime.dispose()
   })
 })

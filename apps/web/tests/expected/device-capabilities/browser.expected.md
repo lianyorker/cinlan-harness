@@ -1,27 +1,38 @@
-- heading "浏览器" [level=2]
+- heading "浏览器" [level=1]
 - paragraph: 连接浏览器、配置 Agent 工具与管理会话登录状态。
 - heading "智能体浏览器使用" [level=3]
 - status: 未加载
 - paragraph: 配置持久浏览器 Provider 后，Agent 可以在审批策略允许时观察和操作页面。
-- heading "使用持久浏览器会话" [level=4]
-- paragraph: 通过 Browser Provider 管理页面，而不是控制操作系统窗口。
-- list:
-  - listitem:
-    - heading "Harness 本地浏览器" [level=4]
-    - paragraph: Cinlan Browser 组合使用 Harness 自有 Playwright Provider，直接启动本机浏览器，不需要 Orca。
-    - paragraph: 这里显示插件加载状态，不是浏览器启动或登录状态；首次工具调用才启动浏览器，操作仍需审批。
-    - paragraph: 当前 profile 未加载本地浏览器设置。需先添加 cinlan-browser 组合包。
-    - button "重新检查":
-      - img
-      - text: 重新检查
-  - listitem:
-    - heading "浏览器工具与技能" [level=4]
-    - paragraph: 工具由独立的 tool-browser 插件提供。Skill 是操作指引，不等于 Provider，也不代替工具安装。
-  - listitem:
-    - heading "浏览器 Cookie" [level=4]
-    - paragraph: 本页没有 Cookie 导入接口。后续由 Harness 自有浏览器配置管理，不要求到其他系统配置。
-    - text: 待接入 Harness 会话管理
-- heading "试一试 · 示例提示" [level=4]
+- paragraph: 这里显示插件加载状态，不是浏览器启动或登录状态；首次工具调用才启动浏览器，操作仍需审批。
+- button "重新检查":
+  - img
+  - text: 重新检查
+- form "链接路由":
+  - heading "链接路由" [level=2]
+  - group:
+    - text: 在侧边栏中打开链接 使用已启用的侧边栏标签页打开聊天和终端中的外部链接；对应协议的开关也必须开启。
+    - switch "在侧边栏中打开链接" [checked]
+    - text: 接管 HTTP 链接 开启链接路由时，将 http:// 链接交给侧边栏。
+    - switch "接管 HTTP 链接" [checked]
+    - text: 接管 HTTPS 链接 开启链接路由时，将 https:// 链接交给侧边栏。部分网站不允许内嵌显示。
+    - switch "接管 HTTPS 链接"
+    - button "保存链接路由" [disabled]
+    - button "放弃草稿" [disabled]
+    - button "恢复默认值"
+- status: 当前 profile 未加载本地浏览器设置。需先添加 cinlan-browser 组合包。
+- group:
+  - text: 主页 URL 打开主页操作使用此地址。 不可用 搜索引擎 浏览器搜索操作使用此搜索引擎。 不可用 浏览器引擎 选择本机已安装的浏览器；保存不会安装软件。 不可用 无窗口运行 启用后，浏览器运行时不显示窗口。 不可用 视口宽度（px） 浏览器启动时使用的内容视口尺寸。 不可用 视口高度（px） 浏览器启动时使用的内容视口尺寸。 不可用 浏览器配置名 使用 default 或小写字母开头的独立名称。保存后重启 Harness profile 切换，现有页面不会被即时替换。 不可用
+  - button "保存浏览器设置" [disabled]
+  - button "放弃草稿" [disabled]
+  - button "恢复默认值" [disabled]
+- paragraph: 保存只修改 Harness 配置；重启当前 profile 后生效，不会自动安装浏览器或授予操作权限。
+- paragraph: 当前连接不支持持久化修改。
+- heading "使用持久浏览器会话" [level=2]
+- paragraph: 从你选择的 JSON 数组导入 Cookie；不会扫描其他浏览器的数据库，也不会将 Cookie 值写入模型日志。
+- paragraph: Cookie 保留在当前 Harness Browser profile，由本地浏览器管理。
+- status: 浏览器操作尚不可用，请检查当前主机的浏览器配置。
+- heading "浏览器工具与技能" [level=2]
+- paragraph: 工具由独立的 tool-browser 插件提供。Skill 是操作指引，不等于 Provider，也不代替工具安装。
 - paragraph: 浏览器工具可用后，将提示粘贴到对话中。
 - code: 列出当前浏览器页面，获取目标页面的 snapshot，并总结页面上的主要操作。不要提交表单。
 - button "复制示例提示":

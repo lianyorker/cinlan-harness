@@ -54,7 +54,7 @@ const NS = 'settings.plugins'
 
 /** Required services (cordis fiber inject). */
 export const inject = [
-  'slots', 'locale', 'remote', 'remote.credentials', 'remote.session', 'settingsScope',
+  'settingsMetadata',   'slots', 'locale', 'remote', 'remote.credentials', 'remote.session', 'settingsScope',
 ]
 
 /**
@@ -142,27 +142,36 @@ export function apply(ctx: ClientContext): void {
 
   // This package owns the one Plugins navigation entry and the tab chrome;
   // feature plugins contribute pages without competing for Settings nav rows.
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'plugins',
-    order: 15,
-    label: () => t('nav'),
-    locale: NS,
-    inject: sectionInjected,
-    children: { 'settings.plugins.tab': { kind: 'list', scope: 'root' } },
-  }, PluginsSettingsSection))
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'plugins', groupId: 'extensions' })
+    yield ctx.slots.register({
+      name: 'settings.section',
+      id: 'plugins',
+      order: 15,
+      label: () => t('nav'),
+      locale: NS,
+      inject: sectionInjected,
+      children: { 'settings.plugins.tab': { kind: 'list', scope: 'root' } },
+    }, PluginsSettingsSection)
+  })
 
   // The existing configuration page is one ordinary tab. It keeps ownership
   // of the card slot and the shipped card contributions below.
-  ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({
-    name: 'settings.plugins.tab',
-    id: 'configurable',
-    order: 0,
-    label: () => t('configurableTab'),
-    locale: NS,
-    inject: () => configurable.inject(),
-    children: { 'settings.plugin.item': { kind: 'keyed', scope: 'root' } },
-  }, ConfigurablePluginsTab))
+  ctx.slots.inject('settings.plugins.tab', function* () {
+    yield ctx.settingsMetadata.registerItems('plugins', [{
+      id: 'configuration', anchorId: 'plugins-configuration', tabId: 'configurable',
+      title: () => t('configurableTab'), description: () => t('intro'),
+    }])
+    yield ctx.slots.register({
+      name: 'settings.plugins.tab',
+      id: 'configurable',
+      order: 0,
+      label: () => t('configurableTab'),
+      locale: NS,
+      inject: () => configurable.inject(),
+      children: { 'settings.plugin.item': { kind: 'keyed', scope: 'root' } },
+    }, ConfigurablePluginsTab)
+  })
 
   ctx.slots.inject('settings.plugin.item', function* () {
     yield ctx.slots.register({
@@ -189,5 +198,53 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: () => webSearch.inject(),
     }, WebSearchCard)
+    const source = configurable.inject().hooks.configurablePlugins
+    const items = [
+      {
+        namespace: SHELL_NS,
+        item: {
+          id: 'shell', anchorId: 'plugins-shell', tabId: 'configurable',
+          title: () => t('bashTitle'), description: () => t('bashDescription'),
+          keywords: () => [t('bashTimeoutMs'), t('bashTimeoutMsHint'), t('bashMaxOutputBytes'), t('bashMaxOutputBytesHint')],
+        },
+      },
+      {
+        namespace: AGENT_LOOP_NS,
+        item: {
+          id: 'agent-loop', anchorId: 'plugins-agent-loop', tabId: 'configurable',
+          title: () => t('agentLoopTitle'), description: () => t('agentLoopDescription'),
+          keywords: () => [t('agentLoopMaxParallel'), t('agentLoopMaxParallelHint')],
+        },
+      },
+      {
+        namespace: SUBAGENT_MODEL_SELECTION_NS,
+        item: {
+          id: 'subagent-model-selection', anchorId: 'plugins-subagent-model-selection', tabId: 'configurable',
+          title: () => t('subagentModelSelectionTitle'), description: () => t('subagentModelSelectionDescription'),
+          keywords: () => [t('subagentModelSelectionToggle'), t('subagentModelSelectionAllowed')],
+        },
+      },
+      {
+        namespace: WEB_SEARCH_NS,
+        item: {
+          id: 'web-search', anchorId: 'plugins-web-search', tabId: 'configurable',
+          title: () => t('webSearchTitle'), description: () => t('webSearchDescription'),
+          keywords: () => [t('webSearchApiKey'), t('webSearchBaseUrl'), t('webSearchMaxUses')],
+        },
+      },
+    ]
+    yield ctx.effect(() => {
+      let disposeItems = (): void => {}
+      const refresh = (): void => {
+        disposeItems()
+        const { namespaces } = source.getSnapshot()
+        disposeItems = ctx.settingsMetadata.registerItems('plugins', items
+          .filter(({ namespace }) => namespaces.includes(namespace))
+          .map(({ item }) => item))
+      }
+      refresh()
+      const unsubscribe = source.subscribe(refresh)
+      return () => { unsubscribe(); disposeItems() }
+    }, 'ui-settings-plugins: searchable available cards')
   })
 }

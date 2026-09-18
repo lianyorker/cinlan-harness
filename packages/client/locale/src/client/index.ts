@@ -527,8 +527,8 @@ function detectBrowserLocale(locales: readonly LocaleDefinition[]): LocaleId | u
   return undefined
 }
 
-/** Required services: slot registration plus the settings transport. */
-export const inject = ['slots', 'remote', 'settingsScope']
+/** Required services for locale state and the searchable Language settings row. */
+export const inject = ['slots', 'remote', 'settingsScope', 'settingsMetadata']
 
 /**
  * Client plugin body: provide the locale service with base dictionaries and
@@ -571,12 +571,21 @@ export function apply(ctx: ClientContext): void {
       setLocale: (id) => { locale.setLocale(id) },
     }
   }
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
-    id: 'language',
-    order: 0,
-    store,
-    locale: SETTINGS_NS,
-    inject: injected,
-  }, LanguageRow))
+  const t = locale.bind(SETTINGS_NS)
+  ctx.slots.inject('settings.general.item', function* () {
+    yield ctx.slots.register({
+      name: 'settings.general.item',
+      id: 'language',
+      order: 0,
+      store,
+      locale: SETTINGS_NS,
+      inject: injected,
+    }, LanguageRow)
+    yield ctx.settingsMetadata.registerItems('general', [{
+      id: 'language',
+      anchorId: 'language',
+      title: () => t('language.title'),
+      keywords: () => ['locale', 'language', 'translation'],
+    }])
+  })
 }

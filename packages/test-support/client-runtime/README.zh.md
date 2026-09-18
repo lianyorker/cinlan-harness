@@ -42,6 +42,8 @@ await runtime.dispose()
 
 `mount` 会预检必需服务，缺失时自明报错——先用 `provide(name, value)` 提供额外服务。运行时会提供不可用的 `fileUpload` 替身，使装配可以挂载；测试上传行为时，需要在挂载前替换 `runtime.fileUpload.upload`。`storeOf(key, scopeKey)` 返回渲染器交给 slot 组件的实时 store 实例，用于身份与动作驱动写入断言。
 
+每个运行时都会挂载生产 Settings 元数据注册表。功能无需挂载 Settings 外壳即可贡献可搜索偏好；元数据断言使用 `runtime.ctx.settingsMetadata`，而不再安装另一个提供者。运行时 dispose 时会释放该注册表。
+
 ### 局部 DOM 快照
 
 注册的快照序列化器把 CSS-module 哈希类名折回语义名（`_frame_a1b2c3` → `frame`），使 `.snap` 文件只含结构，并把 `<svg>` 内部折叠为 `data-content` 指纹。需要自定义页面 frame 的套件改用 `root.declare(children, Frame)` 而非自动 frame；`dispose()` 沿单一轴拆除视图、feature fiber、已铸 scope 与持久化 store 状态，且幂等。

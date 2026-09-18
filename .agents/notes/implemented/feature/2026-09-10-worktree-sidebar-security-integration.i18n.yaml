@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-10-worktree-sidebar-security-integration.md
-2026-09-10-worktree-sidebar-security-integration.md: a95c5b984bc16d3d6fdc2a052f0693c373ed4f4e
-2026-09-10-worktree-sidebar-security-integration.zh.md: 394faba8bf0058c53f75d14ae4d2316baf7f3a4c
+2026-09-10-worktree-sidebar-security-integration.md: f29057e32c856c9fffce0a97dd0bc4d83f6778f1
+2026-09-10-worktree-sidebar-security-integration.zh.md: 930bbdc7ae60c3417d47d03ce08b750a3a5f94da

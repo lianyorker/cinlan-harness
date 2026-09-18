@@ -13,6 +13,8 @@
  * registering its own card already depends on this package for the slot's
  * declaration. The type therefore lives with its declarer.
  */
+import type { SettingsPluginsTabOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
+
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /** One plugin's card inside the plugin configuration section (see module JSDoc). */
@@ -20,8 +22,5 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-/** Owner share of a plugin card (the section supplies nothing). */
-export interface SettingsPluginItemOwnerProps {
-  /** Marker field: card owner props are intentionally empty. */
-  children?: never
-}
+/** Search destination forwarded from the Plugins tab to its owning card. */
+export type SettingsPluginItemOwnerProps = Pick<SettingsPluginsTabOwnerProps, 'target'>

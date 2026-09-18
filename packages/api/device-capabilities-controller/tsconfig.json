@@ -19,6 +19,15 @@
     },
     {
       "path": "../../mobile-device/mobile-device"
+    },
+    {
+      "path": "../../subprocess/subprocess"
+    },
+    {
+      "path": "../../util/timeout"
+    },
+    {
+      "path": "../../../vendor/schemastery"
     }
   ]
 }

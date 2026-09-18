@@ -25,6 +25,12 @@ kind: "package-reference"
 
 可选的 `provider` 配置固定一个 Provider id。省略时，每次调用都选择唯一可用的 Provider。缺失、不可用、不存在、歧义、空白或重复的 Provider 都通过结构化 `MobileDeviceError` code 失败，不做隐式选择。
 
+## 已保存偏好
+
+能力拥有可选 settings namespace `mobile-device`。`getPreferences()` 返回当前解析后的 `enabled`、`defaultDeviceId` 和 `androidSdkPath`；没有 settings 服务时，默认值分别为 `false`、`''` 和 `''`。能力或 settings 服务卸载时会移除注册。这些偏好不会授予输入权限，也不会启用 Provider。浏览器 Consumer 从 `@deepseek-ai/dsh-mobile-device/types` 以 type-only 方式导入 `MobileDeviceSettings`。
+
+Observation request 可以省略 `deviceId`。服务捕获一个 Provider 和一份偏好值，并要求设备清单中恰好有一条当前可用的记录与保存的默认设备匹配。显式非空 id 不经过默认选择。默认设备缺失、无效、有歧义或不可用时都会失败；发现或观察失败后绝不替换为其他设备。Provider 接收具有必填精确 id 的 `MobileObserveSpec`，mutation 仍要求显式 device id 和 observation id。
+
 ## 标识与 observation
 
 `MobileDeviceId` 是 opaque 的精确 selector。`MobileDeviceGeneration` 标识一个 Provider 报告的设备实例，`MobileObservationId` 是 opaque 的一次性 token。每次 mutation 都需要精确 device id 和最新 observation id；Provider 在 dispatch 前消费 token，无论成功或失败，调用方随后都必须重新 observe。
@@ -51,6 +57,7 @@ Provider 注册、选择和 observation state 不会改变模型 request prefix�
 ## 已知限制与延后工作
 
 - 服务没有持久设备记录、远程 pairing、Execution Host 绑定或 emulator 生命周期所有权。
+- `androidSdkPath` 是保存的本地 SDK 探测偏好，不是外部 Cinlan 设备后端支持的 SDK 覆盖参数。
 - 初始 API 不包含应用管理、运行时权限、logcat、文件传输、raw execution、相机、传感器、剪贴板以及设备 boot 或 shutdown。
 
 不发布 runtime invariant companion：Provider 注册、协议校验和 observation 新鲜度由各自操作执行，并由包级测试覆盖。

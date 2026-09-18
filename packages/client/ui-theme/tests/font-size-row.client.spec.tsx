@@ -66,7 +66,8 @@ const arrow = (name: string): HTMLButtonElement =>
 describe('FontSizeRow', () => {
   it('renders the title and the current size with both arrows enabled mid-range', () => {
     mount(14)
-    expect(screen.getByText('Font size')).toBeDefined()
+    expect(screen.getByText('Font size').closest('[data-settings-anchor]')
+      ?.getAttribute('data-settings-anchor')).toBe('font-size')
     expect(screen.getByText('Only affects conversation content')).toBeDefined()
     expect(screen.getByText('14')).toBeDefined()
     expect(arrow('Increase font size').disabled).toBe(false)

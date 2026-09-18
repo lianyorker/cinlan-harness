@@ -8,8 +8,11 @@
  * (the old standalone explorer merged into it).
  */
 import { IconBranchOutline16, IconCodeOutline16, IconFolderOpen16, IconNewChatOutline16, IconPanelLeftOutline16, IconThinkOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type { Context } from '../../context-types.ts'
-import { allLeaves, isAgentTabId, type SidebarState } from '../state.ts'
+import { allLeaves, isAgentTabId, agentUuidOf, createTerminalTab, type SidebarState, type SidebarTab } from '../state.ts'
+import type { TerminalCallbacks } from '@deepseek-ai/dsh-api-sidebar-terminal-controller/types'
+import type { FloatingWorkspaceTerminalContext, SidebarFloatingTerminalDirectory, SidebarAgentTerminalId, SidebarTerminalSessionId, SidebarTerminalTabId } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import { t } from '../locales.ts'
 import { openSidebarFile } from '../intercept.tsx'
 import { EditorHost } from '../EditorHost.tsx'
@@ -19,13 +22,12 @@ import { GitView } from '../GitView.tsx'
 import { DiffTab } from '../DiffTab.tsx'
 import { SubagentView } from '../SubagentView.tsx'
 import { consumeSidechatSeed, SideChatView, sidechatThreadIdOf } from '../SideChatView.tsx'
-import { api } from '../api.ts'
+import { api, type SidebarGitClient } from '../api.ts'
 import { BrowserView } from '../BrowserView.tsx'
 import { IconTerminalOutline16, IconDiffOutline16, IconGlobeOutline16 } from '../icons.tsx'
 import { TERMINAL_FONT_SIZE_MAX, TERMINAL_FONT_SIZE_MIN } from '../../prefs-shared.ts'
 import type { ComponentType } from 'react'
-import type { SessionScope } from '../api.ts'
-import type { SidebarStore } from '../state.ts'
+import type { TerminalViewProps } from '../TerminalView.tsx'
 import type { TabDescriptor } from '../service.ts'
 
 /**
@@ -45,28 +47,26 @@ const LazyTerminal = lazyChunkComponent<TerminalViewProps>(
   mod => mod.TerminalView as ComponentType<TerminalViewProps> | undefined,
 )
 
-/** The terminal view's props (mirror of TerminalView's own signature). */
-interface TerminalViewProps {
-  scope: SessionScope
-  tabId: string
-  store: SidebarStore
-}
-
 /** How many UI-owned terminals may be open at once (agent-owned ones are uncapped). */
 export const TERMINAL_LIMIT = 3
 
-/** Optional per-registration builtin behavior (currently terminal title). */
+/** Instance-owned callbacks and presentation options for built-in tabs. */
 export interface BuiltinTabOptions {
+  /** Git callbacks captured by apply and shared by the source-control and diff tabs. */
+  git: SidebarGitClient
   /** Returns the display title for newly opened terminal tabs. */
   terminalTitle?: () => string
+  terminal?: Pick<TerminalCallbacks, 'connectTerminal' | 'terminalInput' | 'terminalResize' | 'terminalCloseUi' | 'terminalCloseAgent'>
+  floatingContext?: () => FloatingWorkspaceTerminalContext | undefined
 }
 
-/** A client-side uuid for terminal tab identity (not shown in the UI). */
-function terminalUuid(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  return `t${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
+/** Read the immutable floating directory from persisted tab data. */
+function floatingDirectoryOf(tab: SidebarTab): SidebarFloatingTerminalDirectory | undefined {
+  if (tab.meta === null || typeof tab.meta !== 'object' || !('terminalFloating' in tab.meta)) return undefined
+  const value = tab.meta.terminalFloating
+  if (value === null || typeof value !== 'object' || !('windowId' in value) || !('directory' in value)) return undefined
+  if (typeof value.windowId !== 'string' || typeof value.directory !== 'string') return undefined
+  return value as SidebarFloatingTerminalDirectory
 }
 
 /** Count UI-owned terminals (agent:` tabs excluded — they are the model's). */
@@ -77,7 +77,7 @@ function uiTerminalCount(state: SidebarState): number {
 }
 
 /** The 6 built-in tab descriptors. */
-export function builtinTabs(ctx: Context, options: BuiltinTabOptions = {}): readonly TabDescriptor[] {
+export function builtinTabs(_ctx: Context, options: BuiltinTabOptions): readonly TabDescriptor[] {
   return [
     {
       id: 'editor',
@@ -141,6 +141,7 @@ export function builtinTabs(ctx: Context, options: BuiltinTabOptions = {}): read
       component: ({ ctx, store, scope, onOpenDiff }) => (
         <GitView
           scope={scope}
+          git={options.git}
           onOpenFile={(path) => { openSidebarFile(ctx, store, scope.sessionId, path) }}
           onOpenDiff={onOpenDiff ?? (() => { /* no-op */ })}
         />
@@ -197,7 +198,7 @@ export function builtinTabs(ctx: Context, options: BuiltinTabOptions = {}): read
         }
         return {
           tab: {
-            id: `sidechat:new-${crypto.randomUUID()}`,
+            id: `sidechat:new-${randomUUID()}`,
             type: 'sidechat',
             title: t('sideChatUntitled'),
             meta: { autoCreate: true },
@@ -270,18 +271,20 @@ export function builtinTabs(ctx: Context, options: BuiltinTabOptions = {}): read
       createTab: (state) => {
         const count = uiTerminalCount(state)
         if (count >= TERMINAL_LIMIT) return null
-        return {
-          tab: {
-            id: `terminal:${terminalUuid()}`,
-            type: 'terminal',
-            title: options.terminalTitle?.() ?? t('terminal'),
-          },
-          // Keep the legacy counter advancing for compatibility with older
-          // persisted states; new ids no longer use it.
-          patch: { nextTerminal: state.nextTerminal + 1 },
-        }
+        return createTerminalTab(state, options.terminalTitle?.() ?? t('terminal'), options.floatingContext?.())
       },
-      component: ({ tab, scope, store }) => <LazyTerminal scope={scope} store={store} tabId={tab.id} />,
+      onClose: (tab, scope) => {
+        if (options.terminal === undefined) return
+        const closing = isAgentTabId(tab.id)
+          ? options.terminal.terminalCloseAgent(agentUuidOf(tab.id) as SidebarAgentTerminalId)
+          : options.terminal.terminalCloseUi(scope.sessionId as SidebarTerminalSessionId, tab.id as SidebarTerminalTabId)
+        void closing.catch((error: unknown) => { console.warn('dsh-better-sidebar: terminal close failed', error) })
+      },
+      component: ({ tab, scope, store }) => options.terminal === undefined ? null : (
+        <LazyTerminal scope={scope} store={store} tabId={tab.id} floating={floatingDirectoryOf(tab)}
+          connectTerminal={options.terminal.connectTerminal} terminalInput={options.terminal.terminalInput}
+          terminalResize={options.terminal.terminalResize} />
+      ),
     },
     {
       id: 'browser',
@@ -330,7 +333,7 @@ export function builtinTabs(ctx: Context, options: BuiltinTabOptions = {}): read
       dedupeKey: tab => tab.id,
       component: ({ scope, tab }) => (
         tab.diff === undefined ? null
-          : <DiffTab sessionId={scope.sessionId} cwd={scope.cwd} diff={tab.diff} />
+          : <DiffTab sessionId={scope.sessionId} cwd={scope.cwd} diff={tab.diff} git={options.git} />
       ),
     },
   ]

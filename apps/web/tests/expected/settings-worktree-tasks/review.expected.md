@@ -1,0 +1,28 @@
+- 'region "Review: Native worktree acceptance"':
+  - 'heading "Review: Native worktree acceptance" [level=2]'
+  - button "Refresh review"
+  - button "Close"
+  - paragraph: Read-only comparison against the captured base, with captured programs and cleanup receipts. This does not activate the task or run programs.
+  - term: Captured base commit
+  - definition: {{baseHead}}
+  - term: Task branch commit
+  - definition: {{baseHead}}
+  - term: Checkout path
+  - definition: {{checkout}}
+  - term: Working tree
+  - definition: Uncommitted changes
+  - term: Setup program
+  - definition:
+    - code: "[\"{{node}}\",\"{{hook}}\",\"{{setupMarker}}\",\"setup\",\"literal $HOME; & argument with spaces\"]"
+  - term: Cleanup program
+  - definition:
+    - code: "[\"{{node}}\",\"{{hook}}\",\"{{cleanupMarker}}\",\"cleanup\",\"literal $HOME; & argument with spaces\"]"
+  - term: Cleanup receipt
+  - definition: No execution receipt
+  - heading "Tracked changes" [level=3]
+  - text: diff --git a/tracked.txt b/tracked.txt index 44552f9..433b7e9 100644 --- a/tracked.txt +++ b/tracked.txt @@ -1 +1 @@ -captured baseline +reviewed task change
+  - heading "Untracked files" [level=3]
+  - paragraph: Paths only. Their contents are not included in the patch.
+  - list:
+    - listitem:
+      - code: untracked notes.txt

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/worktree-task-controller/README.md
-README.md: fd069cb6f90d3b5bb00e2b17e5c825facf5167c9
-README.zh.md: 151e3ba735469733b2f4420ecf9e9f7b03abb6f4
+README.md: 9a5c564377a11c826c9d5a6e2e0bdf117a1482a9
+README.zh.md: 504c96f720e418c5fb82add1d6cda6a1a7779bd5

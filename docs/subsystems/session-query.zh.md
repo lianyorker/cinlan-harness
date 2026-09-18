@@ -362,6 +362,12 @@ type SessionQueryErrorCode =
   | 'SESSION_QUERY_SOURCE_CONFLICT'
 ```
 
+## 用量报告
+
+[Usage Query](../../packages/session-query/usage-query/src/types.ts)聚合各 Session 记录的 Turn，不公开会话内容或凭证值。`UsageQueryRequest` 以 Unix 毫秒指定 Turn 开始时间区间，包含 `from`、排除 `to`，并可按精确 Provider／模型过滤。
+
+`UsageQueryResult` 返回实际请求、`generatedAt`、已知精确总量、确定顺序的路由行、可选 Provider／模型过滤项、已扫描／跳过 Session 数、已检查事件数和无法归属的 Turn 数。`partial` 与 `reasons` 标明来源限制、读取错误、未知计量、无法归属的过滤或继承边界。`tokens: null` 表示没有已知的精确计量；零则是测量值。可选的缓存读取、缓存写入和推理桶只有完全已知时才存在，推理属于输出子集，不能再次计入总量。
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -506,4 +512,26 @@ async readEvent(request: SessionEventReadRequest, signal?: AbortSignal): Promise
 Types: [SessionId](core.zh.md) · [SessionTitleSnapshot](session-title.zh.md)
 
 Source: [`packages/session-query/session-query/src/index.ts`](../../packages/session-query/session-query/src/index.ts)
+
+<a id="ctxusagequery--usagequeryservice"></a>
+
+### `ctx.usageQuery` — `UsageQueryService`
+
+Concrete local Host aggregator; Session JSONL remains the only source of accounting.
+
+```ts cordis-catalog
+/**
+ * Read each Session's own Turns without activating or mutating any Session.
+ * A source that fails or exceeds aggregation bounds is reported as partial.
+ * Cold decoding uses the sessionQuery owner's cancellable observation API;
+ * its preparation may read a complete log before its event count is known.
+ * @param request - exclusive-end UTC interval and exact route filters.
+ * @param signal - caller cancellation, propagated through listing and cold reads.
+ * @returns known exact subtotals, route groups, and explicit coverage limitations.
+ * @throws on cancellation, service disposal, deadline, invalid range, or unsafe totals.
+ */
+async query(request: UsageQueryRequest, signal: AbortSignal): Promise<UsageQueryResult>
+```
+
+Source: [`packages/session-query/usage-query/src/index.ts`](../../packages/session-query/usage-query/src/index.ts)
 <!-- END GENERATED cordis-surface -->

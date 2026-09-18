@@ -25,6 +25,21 @@
     },
     {
       "path": "../../test-support/client-runtime"
+    },
+    {
+      "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-conversation"
+    },
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-session"
+    },
+    {
+      "path": "../../typert/protocol"
     }
   ]
 }

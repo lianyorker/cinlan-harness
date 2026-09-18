@@ -275,7 +275,10 @@ export class GitLabWorkItemsProvider implements WorkItemsProvider {
   constructor(private readonly ctx: Context, private readonly config: ResolvedConfig) {
     if (config.allowWrites) this.writer = {
       scope: JSON.stringify([config.owner, config.repository, 'sha256:' + credentialScopeFingerprint(config.credentialRef)]),
-      validate: (mutation, signal) => Promise.resolve().then(() => { this.validateMutation(mutation, signal) }),
+      validate: async (mutation, signal) => {
+        this.validateMutation(mutation, signal)
+        if (mutation.kind === 'assign') await this.assigneeIds(mutation.assignees, signal)
+      },
       execute: (mutation, signal) => this.executeMutation(mutation, signal),
     }
   }
@@ -410,6 +413,25 @@ export class GitLabWorkItemsProvider implements WorkItemsProvider {
     }
   }
 
+  private async assigneeIds(usernames: readonly string[], signal?: AbortSignal): Promise<number[]> {
+    const ids: number[] = []
+    for (const username of usernames) {
+      const query = new URLSearchParams({ username, per_page: '2' })
+      const users = await this.request('/api/v4/users?' + query.toString(), signal)
+      if (!Array.isArray(users)) throw new WorkItemsError('invalid-response', 'GitLab returned an invalid user lookup')
+      if (users.length !== 1) throw new WorkItemsError('write-rejected', 'Each GitLab assignee must resolve to exactly one user')
+      const user = objectValue(users[0])
+      if (typeof user.username !== 'string' || user.username.toLowerCase() !== username.toLowerCase()) {
+        throw new WorkItemsError('write-rejected', 'GitLab did not resolve the requested assignee')
+      }
+      if (typeof user.id !== 'number' || !Number.isSafeInteger(user.id) || user.id < 1) {
+        throw new WorkItemsError('invalid-response', 'GitLab returned an invalid assignee id')
+      }
+      ids.push(user.id)
+    }
+    return ids
+  }
+
   private async executeMutation(mutation: WorkItemMutation, signal?: AbortSignal): Promise<WorkItemMutationResult> {
     this.validateMutation(mutation, signal)
     const base = '/api/v4/projects/' + projectPath(this.config) + '/issues'
@@ -423,7 +445,8 @@ export class GitLabWorkItemsProvider implements WorkItemsProvider {
       await this.request(path + '/notes', signal, { method: 'POST', body: { body: mutation.body } })
       return { itemId: mutation.id, url: this.config.origin + '/' + this.config.owner + '/' + this.config.repository + '/-/issues/' + iid }
     }
-    const body = mutation.kind === 'state' ? { state_event: mutation.state === 'closed' ? 'close' : 'reopen' } : { assignee_ids: [] }
+    const body = mutation.kind === 'state' ? { state_event: mutation.state === 'closed' ? 'close' : 'reopen' }
+      : { assignee_ids: await this.assigneeIds(mutation.assignees, signal) }
     const item = mapIssue(await this.request(path, signal, { method: 'PUT', body }), this.config)
     if (item.id !== mutation.id) throw new WorkItemsError('invalid-response', 'GitLab returned a different issue')
     return { itemId: item.id, url: item.url }

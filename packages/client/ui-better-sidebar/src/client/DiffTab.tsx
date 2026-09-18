@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { SessionScope } from './api.ts'
+import type { SessionScope, SidebarGitClient } from './api.ts'
 import { api } from './api.ts'
 import type { SidebarDiffRef } from './state.ts'
 import { DiffView } from './DiffView.tsx'
@@ -22,8 +22,13 @@ interface DiffData {
   untracked?: string
 }
 
-export function DiffTab(props: { sessionId: string; cwd: string | undefined; diff: SidebarDiffRef }) {
-  const { sessionId, cwd, diff } = props
+/**
+ * Display an existing worktree/index or commit tab through plain Git callbacks.
+ * @param props - Session scope, persisted diff selection, and instance-owned callbacks.
+ * @returns the refreshable diff panel.
+ */
+export function DiffTab(props: { sessionId: string; cwd: string | undefined; diff: SidebarDiffRef; git: SidebarGitClient }) {
+  const { sessionId, cwd, diff, git } = props
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<DiffData | null>(null)
@@ -32,50 +37,53 @@ export function DiffTab(props: { sessionId: string; cwd: string | undefined; dif
   const refresh = useCallback((): void => { setTick(value => value + 1) }, [])
 
   useEffect(() => {
-    let cancelled = false
-    const scope: SessionScope = { sessionId, cwd }
+    const controller = new AbortController()
+    const cancelled = (): boolean => controller.signal.aborted
+    const scope: SessionScope = { sessionId, ...(cwd === undefined ? {} : { cwd }) }
     setLoading(true)
     setError(null)
     setData(null)
     const load = async (): Promise<void> => {
       try {
         if (diff.kind === 'commit') {
-          const result = await api.gitCommitDiff(scope, diff.hashFull)
-          if (!cancelled) setData({ diff: result.diff })
+          const result = await git.gitCommitDiff(scope, diff.hashFull, controller.signal)
+          if (!cancelled()) setData({ diff: result.diff })
           return
         }
-        let result = await api.gitDiff(scope, diff.path, diff.staged)
+        let result = await git.gitDiff(scope, diff.path, diff.staged, controller.signal)
+        if (cancelled()) return
         if (result.diff === '') {
           // The requested side is empty — try the OTHER side once: the ref
           // may predate the staged-flag fix, or the change moved sides (a
           // file staged after its tab opened). Both sides empty means the
           // file genuinely has no text changes.
-          const other = await api.gitDiff(scope, diff.path, !diff.staged)
+          const other = await git.gitDiff(scope, diff.path, !diff.staged, controller.signal)
           if (other.diff !== '') result = other
         }
+        if (cancelled()) return
         if (result.diff !== '') {
-          if (!cancelled) setData({ diff: result.diff })
+          if (!cancelled()) setData({ diff: result.diff })
           return
         }
         // Empty diff: an untracked file (git diff never lists it) falls back
         // to a full-file addition; anything else is a genuine no-text-change.
         if (diff.untracked === true && !diff.staged) {
-          const text = await api.fsRead(scope, diff.path)
-          if (!cancelled) {
+          const text = await api.fsRead(scope, diff.path, controller.signal)
+          if (!cancelled()) {
             setData(text.kind === 'text' ? { diff: '', untracked: text.content } : { diff: '' })
           }
           return
         }
-        if (!cancelled) setData({ diff: '' })
+        if (!cancelled()) setData({ diff: '' })
       } catch (reason) {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason))
+        if (!cancelled()) setError(reason instanceof Error ? reason.message : String(reason))
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled()) setLoading(false)
       }
     }
     void load()
-    return () => { cancelled = true }
-  }, [sessionId, cwd, diff, tick])
+    return () => { controller.abort() }
+  }, [sessionId, cwd, diff, git, tick])
 
   return (
     <div className={css.gitDiffTab}>

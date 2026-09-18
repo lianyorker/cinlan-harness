@@ -108,6 +108,16 @@ This section explains the design decisions behind the bridge and points at the c
 - **Full generation or none.** Syncs swap generations atomically: a fetch failure keeps the previous generation, and a registration conflict rolls back the entire attempted generation.
 - **One canonical value, one projection.** The executor returns the protocol-complete canonical `McpResult`; a separate ordered projection prepares Native content, and `finalizeContent` installs it only when the registry's post-execute result is unchanged, so policy blocks and value replacements stay authoritative.
 
+### Management observations
+
+The package root, `./registry`, and `./invariant` entries are bundled together. Their shared runtime chunks are published beside the entry files under `lib/`.
+
+Mount `@deepseek-ai/dsh-mcp-client/registry` before root MCP clients to read `ctx.mcpRegistry.getSnapshot()` and subscribe to changes. Agent-scoped clients remain outside this catalog. Each immutable row identifies the live instance, server namespace, transport kind, owner, lifecycle phase, retry attempt, and committed public tool descriptors. Rows contain no executable configuration, endpoint, environment, request headers, or raw upstream errors. Composition ownership uses the actual Loader entry id or plugin name; it does not grant profile-write authority or identify the originating patch layer.
+
+`launchMcpClient(ctx, config, options)` shares the plugin's namespace reservation, transport supervisor, and tool registrations. Its handle exposes initial settlement, observation, discovery-only `probe(signal)`, and quiescent `dispose()`. The launcher accepts managed ownership and fresh per-attempt configuration resolution privately; plugin `Config` cannot claim managed ownership. A managed launcher suppresses child stderr and raw transport diagnostics. Its redactor removes known credentials from public descriptions and schemas; a credential embedded in a public tool name rejects discovery.
+
+`connecting` covers initialization and initial discovery; `ready` means the latest discovery committed with no later observed error; `backoff` includes the next retry time; `error` carries a fixed safe code; `stopped` follows cleanup. SDK HTTP errors mark the live connection as errored without adding another reconnect loop. A successful probe or list-change synchronization restores readiness. Probes serialize with ordinary discovery and never call a tool; cancellation preserves the previous generation. Disconnected tools remain listed until successful replacement, stop, or retry exhaustion. If transport shutdown times out, the stopped observation retains `close-timeout` and the launcher keeps that namespace reserved across HMR until Host restart; a replacement cannot overlap an unconfirmed old process.
+
 ### Source map
 
 | File | Role |
@@ -116,7 +126,8 @@ This section explains the design decisions behind the bridge and points at the c
 | [`src/connection.ts`](src/connection.ts) | Connection supervisor: client generations, reconnect policy, attempt budget, disposal |
 | [`src/tools.ts`](src/tools.ts) | Tool bridge: discovery, naming, registration swap, execution, image projection |
 | [`src/transport.ts`](src/transport.ts) | Transport factory: stdio spawn with scrubbed env, Streamable HTTP |
-| — | No runtime invariant companion is published; MCP generations contribute through the tool registry, but the bridge exposes no independent server-to-tool snapshot after an asynchronous resync. |
+| [`src/registry.ts`](src/registry.ts) | Read-only root connection catalog and effect-scoped observations |
+| [`src/invariant.ts`](src/invariant.ts) | Verifies observed tool names exist in the root tool registry before tool dispatch |
 
 ### Lifecycle and sync
 
@@ -188,7 +199,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 These limits describe what you cannot do with this plugin and when it needs operational attention. They are current package constraints, not a comparison with other MCP clients or a task backlog.
 
 - **Tools are the only bridged MCP capability** — Resources and Prompts have no harness consumer mechanism and are deferred.
-- **Startup and discovery timeouts are inherited from the MCP SDK** — the plugin exposes no connection or discovery timeout; each `initialize` and paginated `tools/list` request uses the SDK's 60-second request default, so an unresponsive server or cursor chain can delay both activation and teardown while the initial synchronization settles.
+- **Startup and discovery timeouts are inherited from the MCP SDK** — the plugin exposes no connection or discovery timeout; each `initialize` and paginated `tools/list` request uses the SDK's 60-second request default, so an unresponsive server or cursor chain can delay activation. Disposal aborts requests and discovery checks cancellation before replacing registrations.
 - **Reconnect triggers on transport close** — a crashed stdio child fires it; Streamable HTTP failures surface per request through the SDK transport's own recovery, so an unreachable HTTP server is retried per call rather than respawned by the supervisor.
 - **Image is the only durable rich-result bridge** — PNG, JPEG, WebP, and GIF enter Native context after exact capability proof. Audio and embedded-resource payloads remain execution-local with explicit diagnostics, while resource links preserve only their name and URI as text.
 - **Unsupported MCP output schemas are not enforced** — `structuredContent` falls back to `JsonValue` when the advertised schema uses vocabulary outside the harness subset.
@@ -203,8 +214,8 @@ These limits describe what you cannot do with this plugin and when it needs oper
 This Dev Note is working context for maintainers: open design questions and directions that are not decided. It is explicitly non-authoritative — shipped behavior, limits, and accepted rationale live in the sections above, the package code, and the linked Agent Notes.
 
 - The public-name algorithm is a v1 contract pinned by tests; changing it after release would break session history and permission rules.
-- An explicit DSH-owned connection and discovery timeout is an open direction; the SDK's 60-second default bounds startup and teardown.
-- Reconnect ownership for Streamable HTTP is open: per-request retry is SDK behavior, and the supervisor could also own the HTTP generation.
+- An explicit DSH-owned connection and discovery timeout is an open direction; each request currently uses the SDK's 60-second default.
+- Streamable HTTP stream recovery remains SDK-owned; explicit reconnect replaces the launcher instance.
 - Bridging MCP Resources needs a harness-side injection decision (system prompt, on demand, or model-triggered); bridging Prompts needs a prompt-template concept the harness lacks.
 - The pinned MCP SDK is still evolving; a breaking upstream change requires updating the bridge.
 

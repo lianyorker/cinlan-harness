@@ -1,4 +1,4 @@
-/** Install-guidance card adapted from Orca's AgentSkillSetupPanel visual pattern. */
+/** Host capability status with a copyable supported profile command. */
 import { useState, type ReactNode } from 'react'
 import { IconCheckOutline16, IconCopyOutline16, IconRefreshOutline16, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CapabilitySectionProps } from './CapabilitySection.tsx'
@@ -20,14 +20,14 @@ interface SkillInstallCardProps {
 }
 
 /**
- * Render an install-guidance card following Orca's AgentSkillSetupPanel layout:
- * header (icon + title + status badge), description, command bar, action row, hint.
- * DSH has no inline terminal; the command bar copies the profile launch command.
+ * Copy the supported profile command and expose refreshed capability status.
+ * @param props - localized capability status, command, and recheck callback.
+ * @returns status guidance with explicit clipboard success or failure.
  */
 export function SkillInstallCard({
   icon, title, description, command, status, statusLabel, hint, onRecheck, t,
 }: SkillInstallCardProps): ReactNode {
-  const [copied, setCopied] = useState(false)
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   return <div className={css.computerCard}>
     <div className={css.computerCardHeader}>
       <div className={css.computerIcon} aria-hidden="true">{icon}</div>
@@ -38,18 +38,18 @@ export function SkillInstallCard({
             <span className={css.dot} aria-hidden="true" />{statusLabel}
           </span>
         </div>
-        <p className={css.computerCardDescription}>{description}</p>
+        <p>{description}</p>
       </div>
     </div>
     {command !== undefined && <div className={css.commandRow}>
       <code>{command}</code>
       <button type="button" className={css.copyButton} aria-label={t('computerCopyCommand')} onClick={() => {
-        void writeClipboard(command).then((ok) => { setCopied(ok) })
+        void writeClipboard(command).then((ok) => { setCopyState(ok ? 'copied' : 'failed') })
       }}>
-        {copied ? <IconCheckOutline16 size={18} /> : <IconCopyOutline16 size={18} />}
+        {copyState === 'copied' ? <IconCheckOutline16 size={18} /> : <IconCopyOutline16 size={18} />}
       </button>
     </div>}
-    {copied && <p className={css.copyFeedback} role="status">{t('computerCopied')}</p>}
+    {copyState !== 'idle' && <p className={css.copyFeedback} role="status">{t(copyState === 'copied' ? 'computerCopied' : 'copyFailed')}</p>}
     <div className={css.installActions}>
       <button type="button" className={css.recheckButton} onClick={onRecheck}>
         <IconRefreshOutline16 size={16} />{t('computerRecheck')}

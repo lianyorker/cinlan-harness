@@ -1,5 +1,27 @@
 /** Browser-safe results of read-only device Provider readiness checks. */
 
+import type { ComputerCapabilities } from '@deepseek-ai/dsh-computer-use'
+
+/** Read-only descriptor of the selected local Computer Use provider; permissions are not probed. */
+export interface ComputerCapabilityObservation {
+  readonly platform: string
+  readonly provider: string
+  readonly providerVersion: string
+  readonly protocolVersion: number
+  readonly supports: ComputerCapabilities['supports']
+  readonly permissions: 'unknown'
+}
+
+/** Deployment bounds for managed SDK readiness commands. */
+export interface Config {
+  /** Total executable lookup and command deadline for one check; defaults to 5 seconds. */
+  readonly probeTimeoutMs?: number
+  /** Process-range termination and output-drain grace; defaults to 1 second. */
+  readonly probeGraceMs?: number
+  /** Maximum retained bytes per stdout/stderr stream; defaults to 64 KiB. */
+  readonly maxProbeOutputBytes?: number
+}
+
 /** Device families supported by the readiness controller. */
 export type DeviceCapabilityKind = 'computer' | 'mobile'
 
@@ -19,6 +41,8 @@ export interface DeviceCapabilitySnapshot {
   readonly capability: DeviceCapabilityKind
   readonly status: DeviceCapabilityStatus
   readonly reason: DeviceCapabilityReason | null
+  /** Present only after a successful computer capability observation. */
+  readonly computer?: ComputerCapabilityObservation
 }
 
 /** Android SDK detection result. */

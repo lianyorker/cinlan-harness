@@ -1,4 +1,4 @@
-- heading "计算机控制" [level=2]
+- heading "计算机控制" [level=1]
 - paragraph: 通过独立 profile 启用桌面观察、指针、键盘与 accessibility 工具。
 - heading "计算机控制能力" [level=3]
 - status: 未启用
@@ -11,6 +11,12 @@
 - button "重新检查":
   - img
   - text: 重新检查
+- heading "Provider 报告的计算机信息" [level=2]
+- paragraph: 信息来自所连接 Host 的 Provider，不包含屏幕选择、分辨率、缩放或指针设置。
+- status: 本次检查未提供计算机观察信息。
+- heading "操作权限" [level=2]
+- status: 权限尚未检查
+- paragraph: 能力检查不探测、请求或授予操作系统权限。Provider 声明支持某项功能不代表已获授权；操作仍受权限策略限制。
 - heading "如何使用" [level=3]
 - paragraph: 在 Cinlan Harness 中使用 Computer Use 工具。
 - article:

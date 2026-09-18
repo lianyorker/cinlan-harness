@@ -37,4 +37,4 @@ kind: "package-group"
 <a id="dev-note"></a>
 ## 开发备注
 
-该包组没有独立的 subsystem 页面；持久 Browser 文档由组 README 与包 README 负责。
+[Browser 子系统参考](../../docs/subsystems/browser.zh.md)列出生成的 Cordis API；持久页面、观测与 Provider 约定仍由各包 README 负责。

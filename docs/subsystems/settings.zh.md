@@ -165,6 +165,12 @@ type SettingsUpdateSource = 'update' | 'provider'
 
 `SettingsDocumentOpenValue` 确认 `settings/openSettingsDocument` 已准备好 provider 持有的文档，并将其交给原生文本编辑器。`AgentPresetDirectoryOpenValue` 报告已完成的原生交接，或在桌面打开不可用时返回解析后的用户 preset 目录。两项操作都不接受由浏览器选择的 Host 路径。
 
+## 客户端导航元数据
+
+[设置 Client 底座](../../packages/client/ui-settings/README.zh.md) 独立于 Host 设置 schema，持有本地化分组与字段搜索元数据。页面所有者登记分组归属；设置行所有者登记公开标题、说明、关键词别名和聚焦锚点。登记随 fiber 释放、拒绝重复标识，并发布随语言字典刷新的稳定快照。设置值和凭据不进入搜索。
+
+[设置外壳](../../packages/client/ui-settings-general/README.zh.md) 将元数据与已挂载的分区 slot 关联。元数据不能创建页面；未声明分组时归入扩展管理。搜索选择携带可选的分区/标签页定位目标，由对应功能渲染目标。用户文档和 Session 格式不受影响。
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>

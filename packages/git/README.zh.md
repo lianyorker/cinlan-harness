@@ -31,4 +31,4 @@ Commit、push、branch creation 和 worktree isolation 保持为独立 Consumer 
 <a id="dev-note"></a>
 ## 开发备注
 
-Git mutation 与 workspace isolation 仍属于独立能力，不在该包组内。
+[Git 子系统参考](../../docs/subsystems/git.zh.md)列出生成的 Cordis API。核心 Git 能力保持只读；Session 绑定的变更约定属于 [Sidebar Git 包](sidebar-git/README.zh.md)，Workspace 隔离则是独立能力。

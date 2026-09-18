@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { Context } from '@deepseek-ai/cordis'
+import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
 import { IconSkillOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -29,6 +30,7 @@ function snapshot(names: readonly string[]): PluginInventorySnapshot {
 
 async function bench(list: () => Promise<{ ok: boolean }>, presetIds = ['security-research']) {
   const ctx = new Context()
+  new SettingsMetadataService(ctx)
   const locale = new LocaleRuntime(ctx)
   locale.setLocale('zh')
   ctx.provide('locale', locale)
@@ -46,16 +48,18 @@ async function bench(list: () => Promise<{ ok: boolean }>, presetIds = ['securit
   ctx.provide('remote.securityResearch', securityResearch as never)
   ctx.provide('remote.browser', {} as never)
   ctx.provide('remote.settings', settings as never)
-  ctx.provide('settingsScope', { describe: () => ({ acceptView }), bind: () => ({
+  const bindSettings = vi.fn(() => ({
     getSnapshot: () => settingsState,
-    subscribe: () => () => {}, mutate: vi.fn(async () => {}),
+    subscribe: () => () => {}, mutate: vi.fn(async () => true),
     set: vi.fn(async () => {}),
     unset: vi.fn(async () => {}),
-  }) } as never)
-  ctx.provide('settings', { register: vi.fn() })
+  }))
+  ctx.provide('settingsScope', { describe: () => ({ acceptView }), bind: bindSettings } as never)
+  const registerSettings = vi.fn()
+  ctx.provide('settings', { register: registerSettings })
   await ctx.plugin(SlotRegistry).await()
   return { ctx, locale, slots: ctx.slots, inventory, deviceCapabilities, agentPresets, securityResearch,
-    settings, settingsState, acceptView }
+    settings, settingsState, acceptView, bindSettings, registerSettings }
 }
 
 /** Declare the section list and the keyed icon slot this plugin injects into. */
@@ -71,7 +75,7 @@ function declare(slots: SlotRegistry): () => void {
 
 describe('ui-settings-security registration', () => {
   it('declares the plugin inventory Remote it reads', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.pluginInventory', 'remote.deviceCapabilities', 'remote.securityResearch', 'remote.browser', 'remote.settings', 'settingsScope'])
+    expect(inject).toEqual(['settingsMetadata', 'slots', 'locale', 'remote', 'remote.pluginInventory', 'remote.deviceCapabilities', 'remote.securityResearch', 'remote.browser', 'remote.settings', 'settingsScope'])
   })
 
   it('registers one localized section and icon per product capability, without eager reads', async () => {
@@ -101,7 +105,8 @@ describe('ui-settings-security registration', () => {
     expect(icons.map(icon => icon.options.key)).toEqual(CAPABILITIES.map(definition => `cinlan-${definition.id}`))
     expect(icons[0]!.component).toBe(IconSkillOutline16)
 
-    hostApply(b.ctx)
+    await b.ctx.plugin({ apply: hostApply }).await()
+    expect(b.registerSettings).not.toHaveBeenCalled()
     await fiber.dispose()
     expect(b.slots.entries('settings.section')).toEqual([])
     expect(b.slots.entries('settings.section.icon')).toEqual([])
@@ -178,7 +183,7 @@ describe('ui-settings-security registration', () => {
     await expect(injected.checkDevice('computer', signal)).resolves.toMatchObject({ status: 'not-configured' })
     expect(b.deviceCapabilities.check).toHaveBeenCalledWith({ capability: 'computer' }, signal)
     b.deviceCapabilities.check.mockResolvedValueOnce({ ok: false } as never)
-    await expect(injected.checkDevice('computer', signal)).rejects.toThrow('Device readiness check failed')
+    await expect(injected.checkDevice('computer', signal)).rejects.toThrow(zh.deviceCheckFailed)
     await b.ctx.fiber.dispose()
   })
 
@@ -204,6 +209,90 @@ describe('ui-settings-security registration', () => {
     release()
     await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toEqual([]) })
     await fiber.dispose()
+    await b.ctx.fiber.dispose()
+  })
+  it('indexes localized public fields and removes them with the section', async () => {
+    const b = await bench(async () => ({ ok: true as const, value: snapshot([]) } as never))
+    const release = declare(b.slots)
+    const fiber = b.ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const metadata = b.ctx.settingsMetadata.getSnapshot().items
+    expect(metadata.some(item => item.anchorId === 'browser-homepage' && item.title === zh.browserHomePage)).toBe(true)
+    expect(metadata.find(item => item.anchorId === 'browser-link-routing'))
+      .toMatchObject({ title: zh.browserRouteLinks, description: zh.browserRouteLinksHelp })
+    expect(metadata.find(item => item.anchorId === 'computer-observations'))
+      .toMatchObject({ title: zh.computerMachine, description: zh.computerLocalLimit })
+    expect(metadata.find(item => item.anchorId === 'computer-permissions'))
+      .toMatchObject({ title: zh.computerPermissions, description: zh.computerPermissionsHelp })
+    expect(metadata.find(item => item.anchorId === 'mobile-sdk-path'))
+      .toMatchObject({ title: zh.mobileSdkCustomPath, description: zh.mobileSdkPathHelp })
+    expect(metadata.find(item => item.anchorId === 'mobile-device'))
+      .toMatchObject({ description: zh.mobileDefaultDeviceDescription })
+    expect(metadata.some(item => item.anchorId === 'security-credentials')).toBe(true)
+    b.locale.setLocale('en')
+    await vi.waitFor(() => {
+      expect(b.ctx.settingsMetadata.getSnapshot().items.some(item => item.title === en.browserHomePage)).toBe(true)
+      expect(b.ctx.settingsMetadata.getSnapshot().items.find(item => item.anchorId === 'browser-link-routing'))
+        .toMatchObject({ title: en.browserRouteLinks, description: en.browserRouteLinksHelp })
+      expect(b.ctx.settingsMetadata.getSnapshot().items.find(item => item.anchorId === 'mobile-device'))
+        .toMatchObject({ description: en.mobileDefaultDeviceDescription })
+    })
+    expect(JSON.stringify(metadata)).not.toContain('credentialRef')
+    release()
+    expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+    declare(b.slots)
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(metadata.length)
+    await fiber.dispose()
+    expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+    await b.ctx.fiber.dispose()
+  })
+
+  it('writes mobile fields and removes preference overrides only after successful Host mutations', async () => {
+    const b = await bench(async () => ({ ok: true as const, value: snapshot([]) } as never))
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    Object.assign(b.settingsState, { status: 'ready', writable: true })
+    const mobile = b.slots.entries('settings.section').find(section => section.options.id === 'cinlan-mobile')!
+    const injected = (mobile.inject as unknown as () => CapabilitySectionInjected)()
+    expect(b.bindSettings).toHaveBeenCalledWith({ namespace: 'mobile-device' })
+    const value = { enabled: true, androidSdkPath: 'D:/sdk', defaultDeviceId: 'saved-device' }
+    await injected.saveMobileSettings(value, 21)
+    expect(b.settings.mutate).toHaveBeenLastCalledWith('mobile-device', [
+      { op: 'set', path: ['enabled'], value: true },
+      { op: 'set', path: ['androidSdkPath'], value: 'D:/sdk' },
+      { op: 'set', path: ['defaultDeviceId'], value: 'saved-device' },
+    ], 21)
+    expect(b.acceptView).toHaveBeenCalledTimes(1)
+    b.settings.mutate.mockResolvedValueOnce({ ok: false, value: {} })
+    await expect(injected.resetMobileSettings(22)).rejects.toThrow(zh.preferencesFailed)
+    expect(b.acceptView).toHaveBeenCalledTimes(1)
+    await injected.resetMobileSettings(23)
+    expect(b.settings.mutate).toHaveBeenLastCalledWith('mobile-device', [
+      { op: 'unset', path: ['enabled'] }, { op: 'unset', path: ['androidSdkPath'] }, { op: 'unset', path: ['defaultDeviceId'] },
+    ], 23)
+    await injected.resetBrowserPreferences(24)
+    expect(b.settings.mutate).toHaveBeenLastCalledWith('browser-playwright', expect.arrayContaining([
+      { op: 'unset', path: ['homePage'] }, { op: 'unset', path: ['profileName'] },
+    ]), 24)
+    expect(b.bindSettings).toHaveBeenCalledWith({ namespace: 'dsh-better-sidebar' })
+    const routingMutation = vi.mocked(injected.hooks.browserRouting.mutate)
+    await injected.saveBrowserRouting({ browserInterceptHttps: true }, 26)
+    expect(routingMutation).toHaveBeenLastCalledWith([{ op: 'set', path: ['browserInterceptHttps'], value: true }], 26)
+    routingMutation.mockResolvedValueOnce(false)
+    await expect(injected.resetBrowserRouting(27)).rejects.toThrow(zh.browserSettingsFailed)
+    await injected.resetBrowserRouting(28)
+    expect(routingMutation).toHaveBeenLastCalledWith([
+      { op: 'unset', path: ['browserInterceptLinks'] },
+      { op: 'unset', path: ['browserInterceptHttp'] },
+      { op: 'unset', path: ['browserInterceptHttps'] },
+    ], 28)
+    routingMutation.mockResolvedValueOnce(false)
+    await expect(injected.saveBrowserRouting({ browserInterceptHttp: false }, 29)).rejects.toThrow(zh.browserSettingsFailed)
+    const accepted = b.acceptView.mock.calls.length
+    b.settingsState.writable = false
+    await expect(injected.saveMobileSettings(value, 25)).rejects.toThrow(zh.preferencesReadOnly)
+    expect(b.acceptView).toHaveBeenCalledTimes(accepted)
+    expect(JSON.stringify(b.ctx.settingsMetadata.getSnapshot().items)).not.toContain('saved-device')
     await b.ctx.fiber.dispose()
   })
 })

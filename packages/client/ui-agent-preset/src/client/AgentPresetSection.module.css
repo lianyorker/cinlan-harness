@@ -2,24 +2,25 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 720px;
+  width: 100%;
+  min-width: 0;
   color: var(--dsw-alias-label-primary);
 }
 
 .title {
   margin: 0;
-  font-size: 18px;
+  font-size: 26px;
+  line-height: 34px;
   font-weight: 600;
 }
 
 .intro {
   margin: 0;
   font-size: 13px;
+  line-height: 22px;
   color: var(--dsw-alias-label-tertiary);
 }
 
-/* Cards, not rows: a preset is a thing you pick, and the description is the
-   part that tells them apart — a row would bury it beside the actions. */
 .group {
   display: flex;
   flex-direction: column;
@@ -34,10 +35,9 @@
 
 .groupHead {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 22px;
   font-weight: 600;
-  letter-spacing: .06em;
-  text-transform: uppercase;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -45,19 +45,17 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
-  /* Every row the same height, so a short description does not make its card
-     shorter than the one beside it. */
-  grid-auto-rows: 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
 .card {
   border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 20px;
-  display: flex;
-  flex-direction: column;
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
   background: transparent;
   transition: border-color .16s, background .16s;
 }
@@ -67,12 +65,9 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-/* The default preset reads as selected exactly like the Appearance cubes:
-   platform fill + the bluish-400 border (static token — the bluish-400 step
-   has no alias-layer name). */
 .cardActive {
   background: var(--dsw-alias-bg-module-platform);
-  border-color: var(--dsw-static-neutral-bluish-400);
+  border-color: var(--dsw-alias-border-l4);
 }
 
 /* A broken preset reads as damaged before anything else: the card cannot be
@@ -91,7 +86,8 @@
   padding: 1px 8px;
   font-size: 11px;
   line-height: 17px;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   font-weight: 500;
   background: var(--dsw-alias-state-error-primary);
   color: var(--dsw-alias-bg-layer-3);
@@ -167,9 +163,10 @@
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px 12px;
-  border-radius: 12px 12px 0 0;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 12px;
 }
 
 .cardMain:disabled {
@@ -183,6 +180,8 @@
 
 .cardHead {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
   gap: 8px;
   /* Anchors the broken badge's tooltip: the badge itself stays unpositioned so
@@ -193,28 +192,22 @@
 }
 
 .cardName {
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+  overflow-wrap: anywhere;
 }
 
 /* Placement only: the capsule geometry and palette come from `Tag`. */
 .inUse {
-  margin-left: auto;
+  margin-left: 0;
 }
 
-/* Bounded to four lines. A preset publishes its own description, so one long
-   one would otherwise stretch every card in its grid row (`.cards` sizes rows
-   1fr). Clamping is CSS alone: the whole text stays in the DOM for assistive
-   tech, and the card offers it on hover when it is actually cut off. The
-   description does not grow to fill the card — `-webkit-line-clamp` on a
-   flex-stretched box leaves the clamp height and the box height disagreeing,
-   so `.cardId` takes the free space with an auto margin instead. */
+/* Long descriptions remain available to assistive technology and the hover preview. */
 .cardDesc {
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 12px;
+  line-height: 19px;
   color: var(--dsw-alias-label-secondary);
-  min-height: 42px;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
@@ -225,26 +218,33 @@
 
 .cardId {
   margin-top: auto;
+  overflow-wrap: anywhere;
   font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 11px;
   color: var(--dsw-alias-label-tertiary);
 }
 
 .cardFoot {
+  position: relative;
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 2px;
-  padding: 6px 10px;
-  border-top: 0.5px solid var(--dsw-alias-border-l2);
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 12px;
 }
 
 /* Icon-only actions: the label rides `title` so the row stays quiet until
    someone reaches for it. */
 .iconButton {
-  position: relative;
+  position: static;
   appearance: none;
   border: 0;
-  border-radius: 7px;
+  border-radius: 999px;
+  corner-shape: round;
+  min-width: 36px;
+  min-height: 36px;
+  justify-content: center;
   padding: 6px;
   background: none;
   color: var(--dsw-alias-label-tertiary);
@@ -272,15 +272,18 @@
   content: attr(data-tip);
   position: absolute;
   bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+  right: 0;
+  width: max-content;
+  max-width: min(260px, calc(100vw - 48px));
+  box-sizing: border-box;
   padding: 3px 8px;
   border-radius: 6px;
   background: var(--dsw-alias-label-primary);
   color: var(--dsw-alias-bg-layer-3);
   font-size: 11px;
   line-height: 17px;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   opacity: 0;
   pointer-events: none;
   transition: opacity .12s;
@@ -299,6 +302,9 @@
 /* Where the host has no desktop opener, the row answers with the directory
    itself — text to copy, not a control that would spawn into nothing. */
 .revealedPath {
+  grid-column: 1 / -1;
+  min-width: 0;
+  flex-wrap: wrap;
   margin: 0;
   padding: 6px 16px 10px;
   font-size: 11px;
@@ -347,14 +353,16 @@
 }
 
 .fieldLabel {
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 22px;
   font-weight: 500;
   color: var(--dsw-alias-label-secondary);
 }
 
 .input {
   box-sizing: border-box;
-  padding: 9px 12px;
+  min-height: 36px;
+  padding: 7px 12px;
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: 10px;
   font: inherit;
@@ -430,7 +438,8 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 44px;
+  min-height: 36px;
+  padding: 6px 12px;
   border: 1px dashed var(--dsw-alias-border-l3);
   border-radius: 20px;
   font: inherit;
@@ -448,4 +457,76 @@
 .creatorButton:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+.defaultRow {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 73px;
+  margin-top: 12px;
+  padding: 18px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.defaultCopy {
+  flex: 1;
+  min-width: 0;
+}
+
+.defaultLabel {
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.help {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 19px;
+  color: var(--dsw-alias-label-tertiary);
+  overflow-wrap: anywhere;
+}
+
+.select {
+  min-height: 36px;
+  max-width: 50%;
+  padding: 0 16px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+}
+
+.section [data-settings-anchor] {
+  scroll-margin-top: 24px;
+}
+
+@media (max-width: 600px) {
+  .defaultRow {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .select {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cardFoot {
+    padding-top: 0;
+  }
 }

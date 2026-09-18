@@ -1,5 +1,5 @@
 ---
-description: "在 Settings 中检查桌面与手机模拟器 Provider 就绪状态，查看浏览器设置和设计能力说明。仅当 Host 预设名单包含 security-research 时显示安全研究。"
+description: "配置浏览器偏好与安全评估范围、检查设备就绪状态，并查看可用设计能力。"
 kind: "package-reference"
 ---
 
@@ -9,45 +9,70 @@ kind: "package-reference"
 
 ## 概述
 
-在 Settings 中检查桌面与手机模拟器 Provider 就绪状态，查看浏览器设置和设计能力说明。仅当 Host 预设名单包含 security-research 时显示安全研究。
+在设置中配置浏览器启动偏好和链接路由、检查桌面与移动设备就绪状态，并查看设计能力说明。安全研究提供预设和范围状态、经过授权的范围编辑器与报告下载。移动设备设置保留现有 Host 偏好，并说明哪些值尚无设备操作消费者。显式操作保留 Host 权限检查；打开页面不会安装软件或执行设备输入。
 
 ## 目录
 
-- [Use this package](#use-this-package)
-- [Model Experience](#model-experience)
-- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [使用本包](#use-this-package)
+- [设置与操作归属](#settings-and-action-ownership)
+- [开发笔记](#dev-note)
+- [模型体验](#model-experience)
+- [已知限制与暂缓事项](#known-limitations-and-deferred-work)
+
+-----
 
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 Settings、Locale、pluginInventory、deviceCapabilities 和 agentPresets Remote 一起挂载。Computer Use 卡片复制 `dsh --profile device-control`；此命令启动独立 profile，不会安装外部软件。三个使用卡片说明观察、输入和操作后验证。
+与 Settings、Locale 以及 pluginInventory、deviceCapabilities、securityResearch、browser 和 settings Remote 一起挂载。能力缺失时，五个导航分区仍然可见。安全研究报告缺失或损坏的预设；预设可用之前，范围编辑器与导出保持不可用。插件加载、Provider 就绪和动作授权是不同事实。
 
-安全研究导航在挂载、窗口获得焦点、设置更新与重连时读取权威预设名单。失败或过期读取不能新增分区。通用 Skills 和本 Settings 插件不是安装证据。页面及导航图标均由可释放的 Slot 贡献提供。
+计算机控制与移动设备页面复制受支持的 `dsh --profile device-control` 命令。它启动独立 profile，不会安装外部软件。剪贴板拒绝写入时显示失败提示。设计页面提供能力说明和可复制提示词，不提供安装器或导出偏好控件。
 
-浏览器与手机模拟器采用有序设置卡片。SDK 配置和默认设备持久化尚不可用；Browser 通过原生 Remote 提供显式 Cookie 文件导入与上传下载操作。Design Studio 的安装与替换方案尚未确定；本页不覆盖设计工具，也不声称存在可用安装器。[设计参考](DESIGN.md)负责布局与状态展示。
+<a id="settings-and-action-ownership"></a>
+## 设置与操作归属
 
-安全研究通过专属 securityResearch/describe Remote 读取预设可用性、范围有效性和实际内置技能数量。技能发现不完整或预设损坏时保持需要检查状态。这些是配置事实，不表示扫描器就绪或所有动作已受授权约束。设备页面将现有 CLI 适配器明确列为尚未完成的原生迁移，不再引导到其他应用配置。
+| 页面 | 存储字段与运行消费者 |
+|---|---|
+| 浏览器 | `browser-playwright` 存储浏览器渠道、无窗口模式、视口宽高、配置名、主页和搜索引擎。浏览器启动消费渠道/无窗口/视口/配置名；主页和搜索操作消费各自偏好。重启当前 profile 后应用改动。 |
+| 浏览器链接路由 | 侧边栏在 `dsh-better-sidebar` 中拥有 `browserInterceptLinks`、`browserInterceptHttp` 和 `browserInterceptHttps`。GUI 与终端超链接独立于 Browser Provider 使用这些设置。保存只发送更改的路由字段；重置只移除它们的覆盖，保留其他侧边栏偏好。 |
+| 移动设备 | [移动设备能力](../../mobile-device/mobile-device/README.zh.md) 拥有 `mobile-device` 命名空间。`enabled` 控制本页自动检查，`androidSdkPath` 提供给 Host SDK 探测，`defaultDeviceId` 仅在 `mobile_observe.device_id` 未指定时使用。 |
+| 安全研究 | `assessment-scope.root` 拥有授权身份、有效期、目标、主机、操作、排除项、证据策略、出口目的地和凭证引用。范围 owner 校验并应用提交的授权。 |
+| 计算机控制 | 只读 Provider 检查报告平台、Provider/版本、协议和声明的支持标志。缺失的观察信息保持不可用，检查成功也不代表已探测操作权限。不提供屏幕、指针或缩放偏好。 |
+| 设计 | 只读组件清单与使用说明。不提供设计目录或导出格式偏好。 |
 
-浏览器设置通过共享 Settings 镜像绑定 browser-playwright 命名空间。草稿保留读取修订号，写入通过一次原子修改完成，失败保留草稿。保存不会启动浏览器或授予权限；重启后应用保存的偏好。显式连接、主页/搜索、记录检查和文件操作由 browser Remote 执行；挂载页面或保存偏好不启动浏览器。Cookie 不显示值；下载以 inert Blob 保存，离开面板时释放 URL。
+浏览器与移动设备表单读取框架绑定的 SettingsScope 快照。草稿保留首次编辑修订号，每个表单通过一次原子修改保存。重置移除用户覆盖，恢复组合默认值。仅成功的 Host 响应更新共享镜像并显示成功；写入拒绝时保留草稿。只读或不可用设置不能保存或重置。
 
-安全范围草稿通过框架绑定的 Settings selector 读取，保留首次编辑修订号；Host 拒绝后不显示保存成功。表单在一次修改中编辑授权身份、有效期、目标、主机、操作、排除项、证据策略、显式网络出口与凭证引用。高级条目支持添加、编辑和删除；空列表清除对应授权。凭证引用是环境变量名称，不是秘密值；保存不解析凭证，也不连接目标。Host 校验拒绝未知目标引用、重复条目、非法端口与不支持的用途。生成报告需要显式活动 Session id 与格式；经过授权的 Remote 返回有界字节，供 inert Blob 下载。切换格式或 Session、重试或离开面板时释放旧链接。
+移动设备 SDK 与设备列表读取各自具有加载、失败和重试状态，离开视图时取消。Host SDK 检查读取已保存路径，执行只读 `adb version` 探测；未保存的编辑不影响检查。已保存但缺失或离线的设备保持选中，直到用户更改。`mobile_observe` 仅在未指定显式设备时使用已保存默认值；默认设备不可用时失败，不回退到其他设备。设备修改仍要求精确设备和观察令牌。开启自动检查不授予动作权限，手动检查不保存偏好，也不安装工具。
+
+显式浏览器连接、主页/搜索、历史/网络检查、Cookie 文件导入和文件传输使用 browser Remote。挂载页面或保存偏好不会启动浏览器。Cookie 不显示值；下载使用 inert Blob，离开所属视图时释放 URL。文件传输保留在详情面板中，已选择页面时搜索导航会展开该面板。
+
+安全范围编辑保留首次编辑修订号，Host 拒绝后不显示保存成功。高级出口和凭证条目支持添加、编辑及移除；空列表清除对应授权。凭证引用是环境变量名称，不是秘密值；保存不解析凭证，也不连接目的地。报告生成需要显式活动 Session id 与格式；经过授权的 Remote 返回有界字节，供 inert Blob 下载。切换 Session 或格式、重试或离开时释放旧链接。
+
+原生风格标题和设置行继承设置壳层的宽度。搜索仅索引本地化公共标题、说明与关键词，不包含偏好值、设备标识、范围内容、凭证或报告。描述符与页面 slot 共享声明生命周期。不可用状态仍保留可识别的搜索目标；搜索目标为组件诊断时展开详情，不发起新的操作动作。
+
+-----
+
+<a id="dev-note"></a>
+## 开发笔记
+
+[包测试](tests/) 覆盖元数据生命周期和本地化、偏好修订号约束与重置、草稿拒绝、就绪失败、剪贴板反馈、浏览器操作，以及安全范围/报告行为。不发布运行时 invariant companion：本包读取 Host 权威结果，仅保留 UI 草稿与视图状态。协议语义归 [Device control](../../../docs/subsystems/device-control.zh.md) 所有。
+
+-----
 
 <a id="model-experience"></a>
 ## 模型体验
 
-无。设置展示不注册 prompt、tool 或 Session event。
+无，因为查看或保存设置不会增加模型内容或 token，且本包不注册提示词、工具或 Session 事件；只有用户粘贴并发送时，可复制提示词才会进入模型。
 
-#### KV Cache effect
+#### KV Cache 影响
 
-无；这些读取不改变模型请求。
+无；偏好与就绪读取不会进入模型请求前缀。
+
+## 已知限制与暂缓事项
 
 <a id="known-limitations-and-deferred-work"></a>
-## 已知限制与延期工作
 
-- 插件加载不证明 Provider 就绪；Provider 探测成功也不代表动作授权。历史 device-control profile 仍使用外部 CLI 适配器，并在设备操作前请求审批；原生 Browser 不依赖它们。剪贴板写入被拒绝时会显示失败，不会谎报复制成功。
-
-不发布 runtime invariant companion：页面只保留组件本地状态，权威状态由 Host 返回。
-
-### 开发备注
-
-协议和状态语义见 [Device control](../../../docs/subsystems/device-control.zh.md)。
+- 插件加载不证明就绪，Provider 探测成功也不授予操作权限。device-control profile 使用外部 CLI 适配器，原生 Browser 不依赖它们。
+- SDK 路径仅配置 Host 探测，不配置外部 Cinlan 设备运行时。SDK 检查成功不证明设备会话能够启动。
+- 捕获内容、浏览器缩放、计算机控制偏好和设计导出偏好需要各自的运行 owner；本包不添加仅供预览的字段。
+- 安全状态报告配置事实，不证明扫描器就绪或外部工具的策略覆盖完整。

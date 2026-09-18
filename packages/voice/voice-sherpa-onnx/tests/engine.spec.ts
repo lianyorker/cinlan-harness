@@ -50,7 +50,7 @@ describe('sherpaOnnxEngine.loadModel', () => {
       decode = decode
       getResult = getResult
     }
-    vi.spyOn(sherpaDeps, 'loadSherpaOnnx').mockReturnValue({ OnlineRecognizer: FakeOnlineRecognizer, OfflineRecognizer: FakeOnlineRecognizer as never })
+    vi.spyOn(sherpaDeps, 'loadSherpaOnnx').mockReturnValue({ OnlineRecognizer: FakeOnlineRecognizer, OfflineRecognizer: FakeOnlineRecognizer })
     const recognizer = await sherpaOnnxEngine.loadModel(definition(), '/cache/fixture-model')
     expect(capturedConfig).toMatchObject({
       featConfig: { sampleRate: 16_000, featureDim: 80 },

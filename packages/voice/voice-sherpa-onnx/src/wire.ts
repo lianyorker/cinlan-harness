@@ -6,6 +6,8 @@
  * these helpers).
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { VoiceError } from '@deepseek-ai/dsh-voice'
+import { MAX_VOICE_BODY_BYTES } from '@deepseek-ai/dsh-voice/transport'
 
 /** Machine-readable error codes of the /voice/api route. */
 export type VoiceApiErrorCode = 'bad-request' | 'not-found' | 'forbidden' | 'method-error' | 'internal'
@@ -21,9 +23,6 @@ export class VoiceApiError extends Error {
   }
 }
 
-/** Body size bound of one JSON request (defense against unbounded reads). Audio clips ride this route base64-encoded. */
-const MAX_BODY_BYTES = 32 << 20
-
 /**
  * Read and parse one bounded JSON request body.
  * @param req - incoming request stream.
@@ -35,7 +34,7 @@ export async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   for await (const chunk of req) {
     const buffer = Buffer.from(chunk as Uint8Array)
     total += buffer.length
-    if (total > MAX_BODY_BYTES) throw new VoiceApiError('bad-request', 'request body too large')
+    if (total > MAX_VOICE_BODY_BYTES) throw new VoiceApiError('bad-request', 'request body too large')
     chunks.push(buffer)
   }
   const text = Buffer.concat(chunks).toString('utf8')
@@ -80,6 +79,17 @@ export function writeOk(res: ServerResponse, value: unknown): void {
  * @param error - thrown value to classify.
  */
 export function writeError(res: ServerResponse, error: unknown): void {
+  if (error instanceof VoiceError) {
+    switch (error.code) {
+      case 'VOICE_INVALID_REQUEST':
+      case 'VOICE_MODEL_NOT_READY': writeJson(res, 400, { ok: false, error: { code: 'bad-request', message: error.message } }); return
+      case 'VOICE_MODEL_UNKNOWN': writeJson(res, 404, { ok: false, error: { code: 'not-found', message: error.message } }); return
+      case 'VOICE_UNAVAILABLE': writeJson(res, 503, { ok: false, error: { code: error.code, message: error.message } }); return
+      case 'VOICE_MODEL_BUSY': writeJson(res, 409, { ok: false, error: { code: error.code, message: error.message } }); return
+      // Provider-defined codes retain their stable identifier below.
+      default: break
+    }
+  }
   if (error instanceof VoiceApiError) {
     writeJson(res, error.status, { ok: false, error: { code: error.code, message: error.message } })
     return

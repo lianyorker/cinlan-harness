@@ -55,7 +55,7 @@ export { AGENT_PRESET_SETTINGS_NS, writeDefaultPreset } from './settings-store.t
 
 /** Required services (cordis fiber inject). */
 export const inject = [
-  'slots', 'locale', 'remote', 'remote.agentPresets', 'remote.settings',
+  'settingsMetadata', 'slots', 'locale', 'remote', 'remote.agentPresets', 'remote.settings',
 ]
 
 /**
@@ -193,12 +193,33 @@ export function apply(ctx: ClientContext): void {
 
   // Ordered after Models: choosing a model is routine, and composing an
   // agent is the deployment-shaping act behind it.
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'agent-presets',
-    order: 20,
-    label: () => ctx.locale.bind('settings.agentPreset')('nav'),
-    locale: 'settings.agentPreset',
-    inject: sectionInjected,
-  }, AgentPresetSection))
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'agent-presets', groupId: 'ai' })
+    const t = ctx.locale.bind('settings.agentPreset')
+    yield ctx.settingsMetadata.registerItems('agent-presets', [
+      {
+        id: 'default', anchorId: 'agent-presets-default',
+        title: () => t('defaultLabel'), description: () => t('defaultHelp'),
+        keywords: () => [t('setDefault'), t('nav')],
+      },
+      {
+        id: 'built-in', anchorId: 'agent-presets-built-in',
+        title: () => t('builtInGroup'), description: () => t('builtInHelp'),
+        keywords: () => [t('view'), t('duplicate'), t('composition')],
+      },
+      {
+        id: 'custom', anchorId: 'agent-presets-custom',
+        title: () => t('customGroup'), description: () => t('customHelp'),
+        keywords: () => [t('duplicate'), t('openLocation'), t('delete'), t('presetId'), t('displayName')],
+      },
+    ])
+    yield ctx.slots.register({
+      name: 'settings.section',
+      id: 'agent-presets',
+      order: 20,
+      label: () => ctx.locale.bind('settings.agentPreset')('nav'),
+      locale: 'settings.agentPreset',
+      inject: sectionInjected,
+    }, AgentPresetSection)
+  })
 }

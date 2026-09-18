@@ -25,6 +25,8 @@ kind: "package-reference"
 
 Merge、cherry-pick、teardown 与 orphan pruning 都要求显式确认。命令只发送 Provider 签发的 lease id；浏览器回调不接受 repository path、目标分支、删除路径或 force flag。安全 teardown 被拒绝时，hibernated lease 会携带 review marker 继续显示。被替代的读取与组件卸载会中止进行中的浏览器请求，过期响应不能覆盖更新的列表。
 
+原生行沿用 Settings 父级内容宽度。本地化字段搜索覆盖租约记录、审查操作、孤儿清理与 Provider 策略说明，不索引路径、id、分支名或当前值。策略目标会展开说明。描述符和页面共享同一槽位注册生命周期。检查失败后提供重试；Host 尚未提供租约列表时禁用清理。
+
 <a id="model-experience"></a>
 ## 模型体验
 
@@ -38,6 +40,7 @@ Merge、cherry-pick、teardown 与 orphan pruning 都要求显式确认。命令
 <a id="known-limitations-and-deferred-work"></a>
 
 - 租约创建仍由 Session 与任务执行路径负责，而不是 Settings。
+- Checkout 根目录与活动上限属于 Provider 配置。此页面没有隔离方式、执行主机、缓存共享或闲置超时的可写偏好消费者。
 - 状态需要显式刷新；页面不订阅 Provider 生命周期事件。
 - Active untracked 文件会被报告，但不会进入 patch preview 与 export。
 

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to give the dsh web client a full-page Settings surface, feature-contributed navigation, and sequential first-run onboarding. Users can open it from the sidebar, search for a section by label, and access a local configuration file when the Host makes one available on a loopback browser. Feature packages supply their own settings rows, sections, and onboarding steps; this package supplies their shared presentation and does not add onboarding copy or built-in General rows.
+Use this package to give the dsh web client a full-page Settings surface, feature-contributed navigation, and sequential first-run onboarding. Users can open it from the sidebar, search pages and registered setting fields, and access a local configuration file when the Host makes one available on a loopback browser. Feature packages supply their own settings rows, sections, and onboarding steps; this package supplies their shared presentation and does not add onboarding copy or built-in General rows.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ Use this package to give the dsh web client a full-page Settings surface, featur
 <a id="use-this-package"></a>
 ## Use this package
 
-Users reach the shell through the sidebar's bottom Settings control; feature plugins contribute their pages and onboarding steps through the slot ledgers this shell projects. Opening Settings replaces the viewport with a full-page region: a left navigation rail with a back button, a search input that filters section labels in real time, and an independently scrolling content pane. Each section can register a navigation glyph through the `settings.section.icon` keyed slot. The shell renders the page, the navigation built from `settings.section` entries, and exactly one mounted onboarding step at a time.
+Users reach the shell through the sidebar's bottom Settings control; feature plugins contribute their pages and onboarding steps through the slot ledgers this shell projects. Opening Settings replaces the viewport with a full-page region: a grouped navigation rail with a back button, a search input, and an independently scrolling content pane. Six ordered groups organize mounted pages; empty groups are omitted. The page is portaled outside the inert application root; closing restores the prior root state and trigger focus. Search keeps the active section mounted but hidden to preserve unsaved drafts, and shows matching page labels or feature-owned field titles, descriptions, and keywords. Selecting a field opens its section and optional tab, then scrolls to and focuses its control. Ctrl/Command+K focuses search; Escape clears a search before closing Settings. On narrow screens, a native modal drawer owns navigation focus and returns focus to the menu control when dismissed. Each section can register a navigation glyph through the `settings.section.icon` keyed slot. The shell renders the page, the navigation built from `settings.section` entries, and exactly one mounted onboarding step at a time.
 
 ### The General section
 
@@ -51,7 +51,7 @@ The shell owns the chrome and the projections; every piece of content and copy b
 
 ### Ledger projections
 
-The navigation is a projection of the `settings.section` ledger; nav labels may be locale-following thunks, resolved through `resolveSlotLabel` and re-rendered on the section ledger bump or the locale revision (an optional `ctx.get('locale')` read; no hard locale dependency). The onboarding ledger projects in ascending order; the active registrant receives its id, `complete()`, and an `openSection(id)` callback, and completing or skipping transfers ownership to the next entry.
+The navigation joins live `settings.section` entries with [settings-domain metadata](../ui-settings/README.md). Slot entries own page labels, order, and icons; metadata owns group membership and localized field targets. Undeclared group membership resolves to Extensions. Stable row snapshots refresh on slot, metadata, and locale changes. Metadata without a mounted page never creates a navigation entry. The shell exposes General, Models, and Plugins page headings; other sections retain their feature-owned headings. The onboarding ledger projects in ascending order; the active registrant receives its id, `complete()`, and an `openSection(id)` callback, and completing or skipping transfers ownership to the next entry.
 
 ### Document availability
 

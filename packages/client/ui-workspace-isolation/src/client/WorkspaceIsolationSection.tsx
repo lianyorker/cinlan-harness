@@ -1,5 +1,5 @@
 /** Workspace Isolation lease management page for Web Settings. */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   Button, IconPauseOutline16, IconPlayOutline16, IconRefreshOutline16,
   IconTrashOutline16, RiskConfirmation,
@@ -180,6 +180,11 @@ export function WorkspaceIsolationSection(props: WorkspaceIsolationSectionProps)
   const loadSerial = useRef(0)
   const loadAbort = useRef<AbortController | undefined>(undefined)
   const operationAbort = useRef<AbortController | undefined>(undefined)
+  const policy = useRef<HTMLDetailsElement>(null)
+
+  useLayoutEffect(() => {
+    if (props.target?.anchorId === 'workspace-isolation-policy' && policy.current !== null) policy.current.open = true
+  }, [props.target])
 
   const refresh = useCallback(async (): Promise<void> => {
     const serial = ++loadSerial.current
@@ -389,13 +394,13 @@ export function WorkspaceIsolationSection(props: WorkspaceIsolationSectionProps)
     >
       <header className={css.header}>
         <div className={css.intro}>
-          <h2>{t('title')}</h2>
+          <h1>{t('title')}</h1>
           <p>{t('description')}</p>
         </div>
         <div className={css.toolbar}>
           <span className={css.localTag}>{t('hostOnly')}</span>
           <Button
-            size="sm"
+            size="md"
             variant="outline"
             icon={<IconRefreshOutline16 size={16} />}
             disabled={loading || anyBusy}
@@ -404,9 +409,10 @@ export function WorkspaceIsolationSection(props: WorkspaceIsolationSectionProps)
             {loading ? t('refreshing') : t('refresh')}
           </Button>
           <Button
-            size="sm"
+            size="md"
             variant="outline"
-            disabled={initialLoading || anyBusy}
+            disabled={leases === null || anyBusy}
+            data-settings-anchor="workspace-isolation-prune"
             onClick={() => {
               setAcknowledged(false)
               setConfirmation({ kind: 'prune' })
@@ -417,158 +423,258 @@ export function WorkspaceIsolationSection(props: WorkspaceIsolationSectionProps)
         </div>
       </header>
 
-      {initialLoading && <p className={css.loading} role="status">{t('loading')}</p>}
+      <details className={css.policy} ref={policy}>
+        <summary>{t('policyTitle')}</summary>
+        <p className={css.help} data-settings-anchor="workspace-isolation-policy">{t('policyHelp')}</p>
+      </details>
+      <div className={css.guide} data-settings-anchor="workspace-isolation-review">
+        <h2>{t('reviewTitle')}</h2>
+        <p className={css.help}>{t('reviewHelp')}</p>
+      </div>
+      <section data-settings-anchor="workspace-isolation-leases">
+        {initialLoading && <p className={css.loading} role="status">{t('loading')}</p>}
 
-      {leases !== null && (
-        <div className={css.summary} aria-label={t('total')}>
-          <div className={css.metric}>
-            <strong>{items.length}</strong>
-            <span>{t('total')}</span>
+        {leases !== null && (
+          <div className={css.summary} aria-label={t('total')}>
+            <div className={css.metric}>
+              <strong>{items.length}</strong>
+              <span>{t('total')}</span>
+            </div>
+            <div className={css.metric}>
+              <strong>{activeCount}</strong>
+              <span>{t('activeCount')}</span>
+            </div>
+            <div className={css.metric}>
+              <strong>{hibernatedCount}</strong>
+              <span>{t('hibernatedCount')}</span>
+            </div>
           </div>
-          <div className={css.metric}>
-            <strong>{activeCount}</strong>
-            <span>{t('activeCount')}</span>
+        )}
+
+        {error !== null && (
+          <div className={css.error} role="alert">
+            <span>{error}</span>
+            {leases === null && (
+              <Button size="md" variant="outline" onClick={() => { void refresh() }}>
+                {t('retry')}
+              </Button>
+            )}
           </div>
-          <div className={css.metric}>
-            <strong>{hibernatedCount}</strong>
-            <span>{t('hibernatedCount')}</span>
-          </div>
-        </div>
-      )}
+        )}
+        {notice !== null && <p className={css.notice} role="status">{notice}</p>}
 
-      {error !== null && (
-        <div className={css.error} role="alert">
-          <span>{error}</span>
-          {leases === null && (
-            <Button size="sm" variant="outline" onClick={() => { void refresh() }}>
-              {t('retry')}
-            </Button>
-          )}
-        </div>
-      )}
-      {notice !== null && <p className={css.notice} role="status">{notice}</p>}
+        {leases !== null && items.length === 0 && <p className={css.empty}>{t('empty')}</p>}
 
-      {leases !== null && items.length === 0 && <p className={css.empty}>{t('empty')}</p>}
-
-      {items.length > 0 && (
-        <ul className={css.cards}>
-          {items.map((lease) => {
-            const leaseBusy = busy?.leaseId === lease.leaseId
-            const expanded = expandedLeaseId === lease.leaseId
-            const inspection = inspections[lease.leaseId]
-            const comparison = comparisons[lease.leaseId]
-            return (
-              <li
-                key={lease.leaseId}
-                className={css.card}
-                data-lease-id={lease.leaseId}
-                data-phase={lease.phase}
-                data-review-state={lease.reviewState}
-              >
-                <div className={css.cardHeader}>
-                  <div className={css.identity}>
-                    <span className={css.sessionLabel}>{t('session')}</span>
-                    <code>{lease.sessionId}</code>
+        {items.length > 0 && (
+          <ul className={css.cards}>
+            {items.map((lease) => {
+              const leaseBusy = busy?.leaseId === lease.leaseId
+              const expanded = expandedLeaseId === lease.leaseId
+              const inspection = inspections[lease.leaseId]
+              const comparison = comparisons[lease.leaseId]
+              return (
+                <li
+                  key={lease.leaseId}
+                  className={css.card}
+                  data-lease-id={lease.leaseId}
+                  data-phase={lease.phase}
+                  data-review-state={lease.reviewState}
+                >
+                  <div className={css.cardHeader}>
+                    <div className={css.identity}>
+                      <span className={css.sessionLabel}>{t('session')}</span>
+                      <code>{lease.sessionId}</code>
+                    </div>
+                    <div className={css.badges}>
+                      {lease.reviewState === 'branch-retained' && (
+                        <span className={css.reviewBadge}>{t('reviewRequired')}</span>
+                      )}
+                      <span className={lease.phase === 'active' ? css.phaseActive : css.phaseHibernated}>
+                        <span className={css.phaseDot} aria-hidden="true" />
+                        {t(lease.phase === 'active' ? 'phaseActive' : 'phaseHibernated')}
+                      </span>
+                    </div>
                   </div>
-                  <div className={css.badges}>
-                    {lease.reviewState === 'branch-retained' && (
-                      <span className={css.reviewBadge}>{t('reviewRequired')}</span>
-                    )}
-                    <span className={lease.phase === 'active' ? css.phaseActive : css.phaseHibernated}>
-                      <span className={css.phaseDot} aria-hidden="true" />
-                      {t(lease.phase === 'active' ? 'phaseActive' : 'phaseHibernated')}
-                    </span>
-                  </div>
-                </div>
-                <dl className={css.details}>
-                  <div>
-                    <dt>{t('sourcePath')}</dt>
-                    <dd><code title={lease.sourcePath}>{lease.sourcePath}</code></dd>
-                  </div>
-                  <div>
-                    <dt>{t('checkoutPath')}</dt>
-                    <dd><code title={lease.checkoutPath}>{lease.checkoutPath}</code></dd>
-                  </div>
-                  <div>
-                    <dt>{t('branch')}</dt>
-                    <dd><code title={lease.branch}>{lease.branch}</code></dd>
-                  </div>
-                  <div>
-                    <dt>{t('updatedAt')}</dt>
-                    <dd><time dateTime={lease.updatedAt}>{lease.updatedAt}</time></dd>
-                  </div>
-                </dl>
-                <div className={css.actions}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={anyBusy}
-                    onClick={() => {
-                      if (expanded) setExpandedLeaseId(null)
-                      else void loadInspection(lease)
-                    }}
-                  >
-                    {leaseBusy && busy?.operation === 'inspect'
-                      ? t('working')
-                      : t(expanded ? 'hideDetails' : 'details')}
-                  </Button>
-                  {lease.phase === 'active'
-                    ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        icon={<IconPauseOutline16 size={16} />}
-                        disabled={anyBusy}
-                        onClick={() => { void runLeaseOperation('hibernate', lease) }}
-                      >
-                        {leaseBusy ? t('working') : t('hibernate')}
-                      </Button>
-                    )
-                    : (
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        icon={<IconPlayOutline16 size={16} />}
-                        disabled={anyBusy}
-                        onClick={() => { void runLeaseOperation('activate', lease) }}
-                      >
-                        {leaseBusy ? t('working') : t('activate')}
-                      </Button>
-                    )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className={css.destructive}
-                    icon={<IconTrashOutline16 size={16} />}
-                    disabled={anyBusy}
-                    onClick={() => {
-                      setAcknowledged(false)
-                      setConfirmation({ kind: 'teardown', lease })
-                    }}
-                  >
-                    {t('teardown')}
-                  </Button>
-                </div>
-
-                {expanded && (
-                  <div className={css.reviewPanel} data-review-panel="">
-                    {inspection === undefined
-                      ? <p className={css.inlineLoading}>{t('loadingDetails')}</p>
+                  <dl className={css.details}>
+                    <div>
+                      <dt>{t('sourcePath')}</dt>
+                      <dd><code title={lease.sourcePath}>{lease.sourcePath}</code></dd>
+                    </div>
+                    <div>
+                      <dt>{t('checkoutPath')}</dt>
+                      <dd><code title={lease.checkoutPath}>{lease.checkoutPath}</code></dd>
+                    </div>
+                    <div>
+                      <dt>{t('branch')}</dt>
+                      <dd><code title={lease.branch}>{lease.branch}</code></dd>
+                    </div>
+                    <div>
+                      <dt>{t('updatedAt')}</dt>
+                      <dd><time dateTime={lease.updatedAt}>{lease.updatedAt}</time></dd>
+                    </div>
+                  </dl>
+                  <div className={css.actions}>
+                    <Button
+                      size="md"
+                      variant="outline"
+                      disabled={anyBusy}
+                      onClick={() => {
+                        if (expanded) setExpandedLeaseId(null)
+                        else void loadInspection(lease)
+                      }}
+                    >
+                      {leaseBusy && busy.operation === 'inspect'
+                        ? t('working')
+                        : t(expanded ? 'hideDetails' : 'details')}
+                    </Button>
+                    {lease.phase === 'active'
+                      ? (
+                        <Button
+                          size="md"
+                          variant="outline"
+                          icon={<IconPauseOutline16 size={16} />}
+                          disabled={anyBusy}
+                          onClick={() => { void runLeaseOperation('hibernate', lease) }}
+                        >
+                          {leaseBusy ? t('working') : t('hibernate')}
+                        </Button>
+                      )
                       : (
-                        <>
-                          <dl className={css.reviewMetrics}>
-                            <div><dt>{t('checkoutState')}</dt><dd>{t(`checkout${inspection.checkoutState === 'absent' ? 'Absent' : inspection.checkoutState === 'clean' ? 'Clean' : 'Dirty'}`)}</dd></div>
-                            <div><dt>{t('baseBranch')}</dt><dd><code>{lease.baseBranch}</code></dd></div>
-                            <div><dt>{t('baseHead')}</dt><dd><code>{lease.baseHead}</code></dd></div>
-                            <div><dt>{t('branchHead')}</dt><dd><code>{inspection.branchHead}</code></dd></div>
-                          </dl>
+                        <Button
+                          size="md"
+                          variant="primary"
+                          icon={<IconPlayOutline16 size={16} />}
+                          disabled={anyBusy}
+                          onClick={() => { void runLeaseOperation('activate', lease) }}
+                        >
+                          {leaseBusy ? t('working') : t('activate')}
+                        </Button>
+                      )}
+                    <Button
+                      size="md"
+                      variant="outline"
+                      className={css.destructive}
+                      icon={<IconTrashOutline16 size={16} />}
+                      disabled={anyBusy}
+                      onClick={() => {
+                        setAcknowledged(false)
+                        setConfirmation({ kind: 'teardown', lease })
+                      }}
+                    >
+                      {t('teardown')}
+                    </Button>
+                  </div>
+
+                  {expanded && (
+                    <div className={css.reviewPanel} data-review-panel="">
+                      {inspection === undefined
+                        ? <div>
+                          <p className={css.inlineLoading}>{t(leaseBusy ? 'loadingDetails' : 'detailsUnavailable')}</p>
+                          {!leaseBusy && <Button disabled={anyBusy} variant="outline"
+                            onClick={() => { void loadInspection(lease) }}>{t('retry')}</Button>}
+                        </div>
+                        : (
+                          <>
+                            <dl className={css.reviewMetrics}>
+                              <div><dt>{t('checkoutState')}</dt><dd>{t(`checkout${inspection.checkoutState === 'absent' ? 'Absent' : inspection.checkoutState === 'clean' ? 'Clean' : 'Dirty'}`)}</dd></div>
+                              <div><dt>{t('baseBranch')}</dt><dd><code>{lease.baseBranch}</code></dd></div>
+                              <div><dt>{t('baseHead')}</dt><dd><code>{lease.baseHead}</code></dd></div>
+                              <div><dt>{t('branchHead')}</dt><dd><code>{inspection.branchHead}</code></dd></div>
+                            </dl>
+                            <div className={css.changeSection}>
+                              <h3>{t('workingTreeChanges')}</h3>
+                              {inspection.workingTreeChanges.length === 0
+                                ? <p>{t('noWorkingTreeChanges')}</p>
+                                : (
+                                  <ul className={css.changeList}>
+                                    {inspection.workingTreeChanges.map(change => (
+                                      <li key={`${change.kind}:${change.previousPath ?? ''}:${change.path}`}>
+                                        <span>{changeLabel(change, t)}</span>
+                                        <code>{change.previousPath === undefined
+                                          ? change.path
+                                          : `${change.previousPath} → ${change.path}`}</code>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                            </div>
+                          </>
+                        )}
+
+                      <div className={css.reviewActions}>
+                        <Button
+                          size="md"
+                          variant="outline"
+                          disabled={anyBusy}
+                          onClick={() => { void loadComparison(lease) }}
+                        >
+                          {leaseBusy && busy.operation === 'compare' ? t('working') : t('reviewChanges')}
+                        </Button>
+                        <Button
+                          size="md"
+                          variant="outline"
+                          disabled={anyBusy}
+                          onClick={() => {
+                            setAcknowledged(false)
+                            setConfirmation({ kind: 'merge', lease })
+                          }}
+                        >
+                          {t('merge')}
+                        </Button>
+                        <Button
+                          size="md"
+                          variant="outline"
+                          disabled={anyBusy}
+                          onClick={() => {
+                            setAcknowledged(false)
+                            setConfirmation({ kind: 'cherryPick', lease })
+                          }}
+                        >
+                          {t('cherryPick')}
+                        </Button>
+                        <Button
+                          size="md"
+                          variant="outline"
+                          disabled={anyBusy}
+                          onClick={() => { void runExportPatch(lease) }}
+                        >
+                          {leaseBusy && busy.operation === 'exportPatch' ? t('working') : t('exportPatch')}
+                        </Button>
+                      </div>
+
+                      {comparison !== undefined && (
+                        <div className={css.comparison}>
+                          <div className={css.divergence}>
+                            <span>{t('ahead', { n: comparison.ahead })}</span>
+                            <span>{t('behind', { n: comparison.behind })}</span>
+                            <span>{t('commitCount', { n: comparison.commits.length })}</span>
+                            <span>{t('fileCount', { n: comparison.changedFiles.length })}</span>
+                          </div>
+                          {comparison.hasUntrackedFiles && (
+                            <p className={css.warning}>{t('untrackedOmitted')}</p>
+                          )}
+                          {comparison.patchTruncated && (
+                            <p className={css.warning}>{t('patchTruncated')}</p>
+                          )}
                           <div className={css.changeSection}>
-                            <h3>{t('workingTreeChanges')}</h3>
-                            {inspection.workingTreeChanges.length === 0
-                              ? <p>{t('noWorkingTreeChanges')}</p>
+                            <h3>{t('commits')}</h3>
+                            {comparison.commits.length === 0
+                              ? <p>{t('noCommits')}</p>
+                              : (
+                                <ul className={css.commitList}>
+                                  {comparison.commits.map(commit => (
+                                    <li key={commit.id}><code>{commit.id.slice(0, 12)}</code><span>{commit.summary}</span></li>
+                                  ))}
+                                </ul>
+                              )}
+                          </div>
+                          <div className={css.changeSection}>
+                            <h3>{t('changedFiles')}</h3>
+                            {comparison.changedFiles.length === 0
+                              ? <p>{t('noChangedFiles')}</p>
                               : (
                                 <ul className={css.changeList}>
-                                  {inspection.workingTreeChanges.map(change => (
+                                  {comparison.changedFiles.map(change => (
                                     <li key={`${change.kind}:${change.previousPath ?? ''}:${change.path}`}>
                                       <span>{changeLabel(change, t)}</span>
                                       <code>{change.previousPath === undefined
@@ -579,107 +685,21 @@ export function WorkspaceIsolationSection(props: WorkspaceIsolationSectionProps)
                                 </ul>
                               )}
                           </div>
-                        </>
+                          <h3 className={css.patchTitle}>{t('patch')}</h3>
+                          <pre className={css.patch} aria-label={t('patch')}>
+                            {comparison.patch.length === 0 ? t('emptyPatch') : comparison.patch}
+                          </pre>
+                        </div>
                       )}
-
-                    <div className={css.reviewActions}>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={anyBusy}
-                        onClick={() => { void loadComparison(lease) }}
-                      >
-                        {leaseBusy && busy?.operation === 'compare' ? t('working') : t('reviewChanges')}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={anyBusy}
-                        onClick={() => {
-                          setAcknowledged(false)
-                          setConfirmation({ kind: 'merge', lease })
-                        }}
-                      >
-                        {t('merge')}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={anyBusy}
-                        onClick={() => {
-                          setAcknowledged(false)
-                          setConfirmation({ kind: 'cherryPick', lease })
-                        }}
-                      >
-                        {t('cherryPick')}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={anyBusy}
-                        onClick={() => { void runExportPatch(lease) }}
-                      >
-                        {leaseBusy && busy?.operation === 'exportPatch' ? t('working') : t('exportPatch')}
-                      </Button>
                     </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
 
-                    {comparison !== undefined && (
-                      <div className={css.comparison}>
-                        <div className={css.divergence}>
-                          <span>{t('ahead', { n: comparison.ahead })}</span>
-                          <span>{t('behind', { n: comparison.behind })}</span>
-                          <span>{t('commitCount', { n: comparison.commits.length })}</span>
-                          <span>{t('fileCount', { n: comparison.changedFiles.length })}</span>
-                        </div>
-                        {comparison.hasUntrackedFiles && (
-                          <p className={css.warning}>{t('untrackedOmitted')}</p>
-                        )}
-                        {comparison.patchTruncated && (
-                          <p className={css.warning}>{t('patchTruncated')}</p>
-                        )}
-                        <div className={css.changeSection}>
-                          <h3>{t('commits')}</h3>
-                          {comparison.commits.length === 0
-                            ? <p>{t('noCommits')}</p>
-                            : (
-                              <ul className={css.commitList}>
-                                {comparison.commits.map(commit => (
-                                  <li key={commit.id}><code>{commit.id.slice(0, 12)}</code><span>{commit.summary}</span></li>
-                                ))}
-                              </ul>
-                            )}
-                        </div>
-                        <div className={css.changeSection}>
-                          <h3>{t('changedFiles')}</h3>
-                          {comparison.changedFiles.length === 0
-                            ? <p>{t('noChangedFiles')}</p>
-                            : (
-                              <ul className={css.changeList}>
-                                {comparison.changedFiles.map(change => (
-                                  <li key={`${change.kind}:${change.previousPath ?? ''}:${change.path}`}>
-                                    <span>{changeLabel(change, t)}</span>
-                                    <code>{change.previousPath === undefined
-                                      ? change.path
-                                      : `${change.previousPath} → ${change.path}`}</code>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                        </div>
-                        <h3 className={css.patchTitle}>{t('patch')}</h3>
-                        <pre className={css.patch} aria-label={t('patch')}>
-                          {comparison.patch.length === 0 ? t('emptyPatch') : comparison.patch}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      )}
-
+      </section>
       <RiskConfirmation
         open={confirmation !== null}
         title={dialogCopy.title}

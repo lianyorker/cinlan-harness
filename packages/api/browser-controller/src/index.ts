@@ -1,10 +1,14 @@
 /** Native Browser commands for authenticated Web clients; cookie values never enter model tools. */
 import { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-browser'
+import type {} from '@deepseek-ai/dsh-attachment'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { z } from 'zod'
 import schema from '@deepseek-ai/schemastery'
 import type {
+  BrowserElementCaptureCommand,
+  BrowserElementCaptureValue,
+  BrowserElementSelectionValue,
   BrowserObservationValue,
   BrowserFileUploadRequest,
   BrowserFileUploadValue,
@@ -38,7 +42,7 @@ export interface Config {
 
 /** Authenticated human-facing Browser operations, separate from model tool permissions. */
 export class BrowserController extends TypertRemoteService {
-  static inject = ['typert', 'browser']
+  static inject = ['typert', 'browser', 'attachments']
   static Config: schema<Config> = schema.object({
     maxFileBytes: schema.number().step(1).min(1).max(100 * 1024 * 1024).default(4 * 1024 * 1024),
   })
@@ -69,6 +73,38 @@ export class BrowserController extends TypertRemoteService {
     return {
       profileName: this.ctx.browser.currentProfile(), pages: await this.ctx.browser.listPages(signal), maxFileBytes: this.maxFileBytes,
     }
+  }
+  /** Wait for a human to choose an element; cancellation removes the Provider overlay.
+   * @param request - Existing native page selected by the caller.
+   * @param signal - Caller cancellation, forwarded to the Provider.
+   * @returns One-use selection with element identity and visible bounds.
+   */
+  @Remote('selectElement') async selectElement(request: BrowserPageRequest, signal: AbortSignal): Promise<BrowserElementSelectionValue> {
+    return this.ctx.browser.selectElement(request, signal)
+  }
+  /** Capture and persist a verified crop without sending a Session message.
+   * @param request - Page and one-use selection from selectElement.
+   * @param signal - Caller cancellation; cancelled work returns no preview.
+   * @returns Digest-verified stored bytes, encoded as base64, and their canonical metadata.
+   */
+  @Remote('captureElement') async captureElement(request: BrowserElementCaptureCommand, signal: AbortSignal): Promise<BrowserElementCaptureValue> {
+    signal.throwIfAborted()
+    const capture = await this.ctx.browser.captureElement({
+      pageId: request.pageId,
+      target: { kind: 'selection', selectionId: request.selectionId },
+      format: 'png',
+    }, signal)
+    signal.throwIfAborted()
+    const image = await this.ctx.attachments.saveImage({
+      data: capture.data, mediaType: capture.mediaType, name: 'browser-element.png',
+    })
+    signal.throwIfAborted()
+    if (image.bytes > this.maxFileBytes) {
+      throw new RemoteError('browser/invalid-request', 'Captured image exceeds the Remote byte limit', {})
+    }
+    const stored = await this.ctx.attachments.readImage(image, signal)
+    signal.throwIfAborted()
+    return { ...request, verified: true, image: stored.ref, data: Buffer.from(stored.data).toString('base64') }
   }
   /** Resolve an intent and open it with the active Provider settings.
    * @param request - Home, search, or absolute URL intent.

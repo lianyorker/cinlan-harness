@@ -6,12 +6,14 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { voiceApi } from './api.ts'
+import type { VoiceApi } from './api.ts'
 import type { DictationState } from './dictation-controller.ts'
 import type { VoiceSettings } from './voice-settings.ts'
 import css from './VoiceButton.module.css'
 
+/** Composer gesture callbacks and framework-bound voice preferences/state. */
 export interface VoiceButtonInjected {
+  modelsList: VoiceApi['modelsList']
   hooks: { dictation: SnapshotStore<DictationState>; settings: SnapshotStore<VoiceSettings> }
   toggle: (sessionId: SessionId) => void
 }
@@ -21,7 +23,7 @@ export type VoiceButtonProps = PropsRuntime<'conversation.input.right'>
   & PropsLocale<'settings.voice'>
 
 /** Small composer-tool-row control sharing the application DictationController. */
-export function VoiceButton({ sessionId, useInput, useDictation, useSettings, toggle, t }: VoiceButtonProps) {
+export function VoiceButton({ sessionId, useInput, useDictation, useSettings, toggle, modelsList, t }: VoiceButtonProps) {
   const state = useDictation(value => value)
   const input = useInput(value => value)
   const settings = useSettings(value => value)
@@ -35,7 +37,7 @@ export function VoiceButton({ sessionId, useInput, useDictation, useSettings, to
     if (!settings.enabled) return
     let current = true
     const refresh = (): void => {
-      void voiceApi.modelsList().then(
+      void modelsList().then(
         ({ models }) => { if (current) setHasReadyModel(models.some(model => model.status.state === 'ready')) },
         () => { if (current) setHasReadyModel(false) },
       )
@@ -48,7 +50,7 @@ export function VoiceButton({ sessionId, useInput, useDictation, useSettings, to
       current = false
       if (timer !== undefined) clearInterval(timer)
     }
-  }, [settings.enabled, state.phase])
+  }, [settings.enabled, state.phase, modelsList])
 
   if (!settings.enabled || !hasReadyModel) return null
 

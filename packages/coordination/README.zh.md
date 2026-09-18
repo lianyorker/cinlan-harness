@@ -36,4 +36,4 @@ kind: "package-group"
 <a id="dev-note"></a>
 ## 开发备注
 
-该包组没有独立的 subsystem 页面；任务图 coordination 文档由组 README 与包 README 负责。
+[Coordination 子系统参考](../../docs/subsystems/coordination.zh.md)列出生成的 Cordis API；Run／Task、执行器与生命周期约定仍由各包 README 负责。

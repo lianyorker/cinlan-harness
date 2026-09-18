@@ -35,7 +35,7 @@ export type FontSizeRowComponentProps =
 export function FontSizeRow({ t, setFontSize, useStore }: FontSizeRowComponentProps) {
   const fontSize = useStore(s => s.fontSize)
   return (
-    <div className={css.row}>
+    <div className={css.row} data-settings-anchor="font-size">
       <div className={css.rowText}>
         <div className={css.title}>{t('fontSize.title')}</div>
         <div className={css.desc}>{t('fontSize.description')}</div>

@@ -25,7 +25,7 @@ const CREDENTIAL_PURPOSES = ['model-provider', 'web-search', 'target-authenticat
  */
 export function SecurityScopeAccessEditor({ egress, credentials, changeEgress, changeCredentials, t }: Props): ReactNode {
   return <>
-    <fieldset><legend>{t('securityEgress')}</legend>
+    <fieldset data-settings-anchor="security-egress"><legend>{t('securityEgress')}</legend>
       <p>{t('securityEgressHelp')}</p>
       {egress.map((row, index) => <fieldset key={index} className={css.accessRow}>
         <legend>{t('securityEgressRow', { index: index + 1 })}</legend>
@@ -50,7 +50,7 @@ export function SecurityScopeAccessEditor({ egress, credentials, changeEgress, c
         changeEgress([...egress, { protocol: '', host: '', port: '', purpose: '', targetId: '' }])
       }}>{t('securityAddEgress')}</button>
     </fieldset>
-    <fieldset><legend>{t('securityCredentials')}</legend>
+    <fieldset data-settings-anchor="security-credentials"><legend>{t('securityCredentials')}</legend>
       <p>{t('securityCredentialsHelp')}</p>
       {credentials.map((row, index) => <fieldset key={index} className={css.accessRow}>
         <legend>{t('securityCredentialRow', { index: index + 1 })}</legend>

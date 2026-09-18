@@ -1,0 +1,17 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`floating entry presentation > keeps blocked feedback visible in the overlay for a header entry 1`] = `
+{
+  "entryButtons": 0,
+  "message": "The browser blocked the workspace window. Allow pop-ups for this app, then try Open again.",
+  "phase": "blocked",
+}
+`;
+
+exports[`floating entry presentation > keeps unavailable feedback visible in the overlay for a header entry 1`] = `
+{
+  "entryButtons": 0,
+  "message": "A separate workspace window is unavailable in this environment.",
+  "phase": "unavailable",
+}
+`;

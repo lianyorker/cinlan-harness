@@ -4,7 +4,7 @@ import type { Branded } from '@deepseek-ai/dsh-brand'
 /** Opaque identity of one provider item. */
 export type WorkItemId = Branded<'WorkItemId'>
 
-/** Stable provider families supported by the first Work Items release. */
+/** Provider families supported by the Work Items service. */
 export type WorkItemSource = 'github' | 'linear' | 'gitlab'
 
 /** State filter understood by every provider. */
@@ -57,7 +57,7 @@ export interface WorkItemPage {
 
 /** Provider implementation for one Work Items source. */
 export interface WorkItemsProvider {
-  /** Stable provider id, normally github or linear. */
+  /** Provider family registered with the Work Items service. */
   readonly id: WorkItemSource
   /** Cheap local check that must not perform network or credential I/O. */
   available(): boolean

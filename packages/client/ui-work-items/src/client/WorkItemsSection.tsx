@@ -1,6 +1,7 @@
 /** Work Items reads and explicit local associations through the Settings slot. */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkItemSource, WorkItemStateFilter } from '@deepseek-ai/dsh-work-items/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
@@ -28,8 +29,10 @@ export interface WorkItemsSectionInjected {
   get: (request: WorkItemsGetRequest, signal: AbortSignal) => Promise<WorkItemView>
   associate: (request: WorkItemsAssociationRequest, signal: AbortSignal) => Promise<WorkItemsAssociationValue>
   disassociate: (request: WorkItemsAssociationRequest, signal: AbortSignal) => Promise<WorkItemsAssociationValue>
-  checkIntegration: (provider: IntegrationProvider) => Promise<IntegrationPreflightSnapshot>
-  settings: SettingsScope<WorkItemsSettings>
+  checkIntegration: (provider: IntegrationProvider, signal: AbortSignal) => Promise<IntegrationPreflightSnapshot>
+  hooks: { settings: Pick<SettingsScope<WorkItemsSettings>, 'getSnapshot' | 'subscribe'> }
+  setVisibility: (field: keyof WorkItemsSettings, visible: boolean) => Promise<void>
+  resetVisibility: (field: keyof WorkItemsSettings) => Promise<void>
 }
 
 /** Settings props derived from runtime, locale, and injected callbacks. */
@@ -46,10 +49,14 @@ function errorText(error: unknown, fallback: string): string {
  * @returns The Work Items Settings section.
  */
 export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
-  const { t, useWorkspaces, list, get, associate, disassociate, checkIntegration, close, settings } = props
+  const { t, useWorkspaces, list, get, associate, disassociate, checkIntegration, close } = props
   const workspaces = useWorkspaces(snapshot => snapshot.items)
   const archivedSessionIds = useWorkspaces(snapshot => snapshot.archivedSessionIds)
-  const [source, setSource] = useState<WorkItemSource>('github')
+  const settings = props.useSettings(snapshot => snapshot)
+  const providers = ['github', 'gitlab', 'linear'] as const
+  const sources = providers.filter(provider => settings.value?.[`${provider}Visible`] !== false)
+  const [preferredSource, setSource] = useState<WorkItemSource>('github')
+  const source = sources.find(provider => provider === preferredSource) ?? sources[0]
   const [state, setState] = useState<WorkItemStateFilter>('open')
   const [query, setQuery] = useState('')
   const [workspaceId, setWorkspaceId] = useState<WorkspaceId>()
@@ -64,29 +71,18 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
   const [loading, setLoading] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string>()
+  const [error, setError] = useState<unknown>()
   const listController = useRef<AbortController>()
   const detailController = useRef<AbortController>()
   const writeController = useRef<AbortController>()
-
-  const settingsSnapshot = settings.getSnapshot()
-  const [, forceRender] = useState(0)
-  useEffect(() => settings.subscribe(() => forceRender(n => n + 1)), [settings])
-  const providerVisibility: Record<string, boolean> = {
-    github: settingsSnapshot.value?.githubVisible ?? true,
-    gitlab: settingsSnapshot.value?.gitlabVisible ?? true,
-    linear: settingsSnapshot.value?.linearVisible ?? true,
-  }
-  const [providerStates, setProviderStates] = useState<Record<string, IntegrationPreflightSnapshot | undefined>>({})
-  const integrationController = useRef<AbortController>()
+  const [providerStates, setProviderStates] = useState<Partial<Record<IntegrationProvider, IntegrationPreflightSnapshot>>>({})
+  const [visibilitySaving, setVisibilitySaving] = useState(false)
+  const [visibilityError, setVisibilityError] = useState<unknown>()
 
   useEffect(() => {
-    integrationController.current?.abort()
     const controller = new AbortController()
-    integrationController.current = controller
-    const providers: IntegrationProvider[] = ['github', 'gitlab']
-    for (const provider of providers) {
-      checkIntegration(provider).then((snapshot) => {
+    for (const provider of ['github', 'gitlab'] as const) {
+      checkIntegration(provider, controller.signal).then((snapshot) => {
         if (!controller.signal.aborted) setProviderStates(prev => ({ ...prev, [provider]: snapshot }))
       }).catch(() => {
         if (!controller.signal.aborted) setProviderStates(prev => ({ ...prev, [provider]: { provider, status: 'unavailable', reason: 'probe-failed', account: null } }))
@@ -94,6 +90,19 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
     }
     return () => { controller.abort() }
   }, [checkIntegration])
+
+  const changeVisibility = async (field: keyof WorkItemsSettings, visible?: boolean): Promise<void> => {
+    setVisibilitySaving(true)
+    setVisibilityError(undefined)
+    try {
+      if (visible === undefined) await props.resetVisibility(field)
+      else await props.setVisibility(field, visible)
+    } catch (cause) {
+      setVisibilityError(cause ?? null)
+    } finally {
+      setVisibilitySaving(false)
+    }
+  }
 
   const clearDetail = useCallback(() => {
     detailController.current?.abort()
@@ -105,7 +114,7 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
 
   const load = useCallback(async (nextCursor?: string, direction: 'reset' | 'next' | 'previous' = 'reset') => {
     listController.current?.abort()
-    clearDetail()
+    if (source === undefined) { setLoading(false); return }
     const controller = new AbortController()
     listController.current = controller
     setLoading(true)
@@ -116,20 +125,25 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
         ...(scope === undefined ? {} : { workspaceId: scope }),
       }, controller.signal)
       if (controller.signal.aborted) return
+      clearDetail()
       setPage(next)
       const previous = cursor.current
       setHistory(values => direction === 'reset' ? [] : direction === 'next' ? [...values, previous] : values.slice(0, -1))
       cursor.current = nextCursor
     } catch (cause) {
-      if (controller.signal.aborted) return
-      setError(errorText(cause, t('unknownError')))
-      setPage({ items: [], truncated: false })
+      if (!controller.signal.aborted) setError(cause ?? null)
     } finally {
       if (!controller.signal.aborted) setLoading(false)
     }
-  }, [clearDetail, list, query, scope, source, state, t])
+  }, [clearDetail, list, query, scope, source, state])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    clearDetail()
+    setPage({ items: [], truncated: false })
+    setHistory([])
+    cursor.current = undefined
+    void load()
+  }, [clearDetail, load])
   useEffect(() => () => {
     listController.current?.abort()
     detailController.current?.abort()
@@ -146,7 +160,7 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
       const detail = await get({ id: item.id, ...(scope === undefined ? {} : { workspaceId: scope }) }, controller.signal)
       if (!controller.signal.aborted) setSelected(detail)
     } catch (cause) {
-      if (!controller.signal.aborted) setError(errorText(cause, t('unknownError')))
+      if (!controller.signal.aborted) setError(cause ?? null)
     } finally {
       if (!controller.signal.aborted) setDetailLoading(false)
     }
@@ -170,7 +184,7 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
       setSelected({ ...selected, associations })
       setPage(current => ({ ...current, items: current.items.map(item => item.id === selected.id ? { ...item, associations } : item) }))
     } catch (cause) {
-      if (!controller.signal.aborted) setError(errorText(cause, t('unknownError')))
+      if (!controller.signal.aborted) setError(cause ?? null)
     } finally {
       if (!controller.signal.aborted) setSaving(false)
       controller.abort()
@@ -178,89 +192,86 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
   }
 
   return <section className={css.section} aria-labelledby="work-items-title">
-    <header className={css.header}><h2 id="work-items-title">{t('title')}</h2><p>{t('description')}</p></header>
-    <div className={css.providerArea}>
-      <h3>{t('providerManagement')}</h3><p>{t('providerManagementDesc')}</p>
-      <div className={css.providerGrid}>
-        {(['github', 'gitlab', 'linear'] as const).map((provider) => {
-          const snapshot = providerStates[provider]
-          const connected = snapshot?.status === 'connected'
-          const visible = providerVisibility[provider] !== false
-          const labelKey = provider === 'github' ? 'github' : provider === 'gitlab' ? 'gitlab' : 'linear'
-          return <div key={provider} className={css.providerCard}>
-            <div className={css.providerHeader}>
-              <span className={css.providerName}>{t(labelKey)}</span>
+    <header className={css.header}><h1 id="work-items-title">{t('title')}</h1><p>{t('description')}</p></header>
+    <section className={css.providerArea} aria-labelledby="work-items-providers">
+      <h2 id="work-items-providers">{t('providerManagement')}</h2><p className={css.help}>{t('providerManagementDesc')}</p>
+      {providers.map((provider) => {
+        const field = `${provider}Visible` as const
+        const snapshot = provider === 'linear' ? undefined : providerStates[provider]
+        const connected = snapshot?.status === 'connected'
+        const visible = settings.value?.[field] !== false
+        const overridden = settings.user !== null && typeof settings.user === 'object' && Object.hasOwn(settings.user, field)
+        return <div key={provider} className={css.providerRow} data-settings-anchor={'work-items-' + provider + '-visible'}>
+          <div className={css.providerCopy}>
+            <div className={css.providerHeader}><span>{t('providerVisibility', { provider: t(provider) })}</span>
               <span className={connected ? css.providerBadgeConnected : css.providerBadgeDisconnected}>
-                {snapshot === undefined ? t('providerChecking') : connected ? t('providerConnected') : t('providerNotConnected')}
+                {provider === 'linear' ? t('providerOnQuery') : snapshot === undefined || snapshot.status === 'checking' ? t('providerChecking')
+                  : connected ? t('providerConnected') : snapshot.status === 'not-installed' ? t('providerNotInstalled')
+                    : snapshot.status === 'not-authenticated' ? t('providerNotAuthenticated') : t('providerUnavailable')}
               </span>
             </div>
-            {connected && snapshot?.account !== null
-              ? <p className={css.providerAccount}>{t('providerAccount')}: {snapshot.account}</p>
-              : null}
-            {!connected && provider !== 'linear'
-              ? <div className={css.providerActions}>
-                <button type="button" className={css.button} onClick={() => { close() }}>{t('goToIntegrations')}</button>
-              </div>
-              : null}
-            {connected
-              ? <div className={css.providerActions}>
-                <button type="button" className={css.button} onClick={() => { void settings.set(provider + 'Visible', !visible) }}>
-                  {visible ? t('providerHidden') : t('providerVisible')}
-                </button>
-              </div>
-              : null}
+            <p className={css.help}>{t('visibilityHelp')}</p>
+            {connected && snapshot.account !== null ? <p className={css.help}>{t('providerAccount')}: {snapshot.account}</p> : null}
           </div>
-        })}
-      </div>
-      {providerStates.github?.status !== 'connected' || providerStates.gitlab?.status !== 'connected'
-        ? <p className={css.providerHint}>{t('goToIntegrationsHint')}</p>
-        : null}
-    </div>
+          <div className={css.actions}>
+            <Button variant="outline" className={css.button} aria-pressed={visible} aria-label={t('providerVisibility', { provider: t(provider) })}
+              disabled={visibilitySaving || settings.status !== 'ready' || !settings.writable || settings.mode !== 'host'}
+              onClick={() => { void changeVisibility(field, !visible) }}>{visible ? t('providerVisible') : t('providerHidden')}</Button>
+            {overridden ? <Button className={css.button} disabled={visibilitySaving || !settings.writable || settings.mode !== 'host'}
+              aria-label={t('resetProvider', { provider: t(provider) })} onClick={() => { void changeVisibility(field) }}>{t('reset')}</Button> : null}
+          </div>
+        </div>
+      })}
+      {settings.status !== 'ready' || !settings.writable || settings.mode !== 'host' ? <p className={css.help}>{t('visibilityReadOnly')}</p> : null}
+      {visibilityError === undefined ? null : <p role="alert" className={css.error}>{t('error', { message: errorText(visibilityError, t('unknownError')) })}</p>}
+      <div className={css.providerFooter}><p className={css.help}>{t('goToIntegrationsHint')}</p>
+        <Button className={css.button} onClick={close}>{t('closeSettings')}</Button></div>
+    </section>
     <div className={css.filters}>
-      <label className={css.filter}><span>{t('source')}</span>
-        <select value={source} onChange={(event) => {
+      <label className={css.filter} data-settings-anchor="work-items-source"><span>{t('source')}</span>
+        <select aria-label={t('source')} value={source ?? ''} disabled={source === undefined} onChange={(event) => {
           const value = event.currentTarget.value
           setSource(value === 'linear' ? 'linear' : value === 'gitlab' ? 'gitlab' : 'github')
-        }}>
-          {providerVisibility.github !== false ? <option value="github">{t('github')}</option> : null}
-          {providerVisibility.gitlab !== false ? <option value="gitlab">{t('gitlab')}</option> : null}
-          {providerVisibility.linear !== false ? <option value="linear">{t('linear')}</option> : null}
-        </select>
+        }}>{source === undefined ? <option value="">{t('noVisibleProviders')}</option> : null}
+          {sources.map(provider => <option key={provider} value={provider}>{t(provider)}</option>)}
+        </select><span className={css.help}>{t('sourceHelp')}</span>
       </label>
-      <label className={css.filter}><span>{t('state')}</span>
-        <select value={state} onChange={(event) => {
+      <label className={css.filter} data-settings-anchor="work-items-state"><span>{t('state')}</span>
+        <select aria-label={t('state')} value={state} onChange={(event) => {
           const value = event.currentTarget.value
           setState(value === 'all' || value === 'closed' ? value : 'open')
         }}><option value="open">{t('open')}</option><option value="closed">{t('closed')}</option><option value="all">{t('all')}</option></select>
+        <span className={css.help}>{t('stateHelp')}</span>
       </label>
-      <label className={css.filter}><span>{t('workspaceContext')}</span>
-        <select value={scope ?? ''} onChange={(event) => {
+      <label className={css.filter} data-settings-anchor="work-items-workspace-scope"><span>{t('workspaceContext')}</span>
+        <select aria-label={t('workspaceContext')} value={scope ?? ''} onChange={(event) => {
           setWorkspaceId(workspaces.find(item => item.workspaceId === event.currentTarget.value)?.workspaceId)
           setSessionId(undefined)
         }}><option value="">{t('allWorkspaceContexts')}</option>
-          {workspaces.map(item =>
-            <option key={item.workspaceId} value={item.workspaceId}>{item.title}</option>)}
-        </select>
+          {workspaces.map(item => <option key={item.workspaceId} value={item.workspaceId}>{item.title}</option>)}
+        </select><span className={css.help}>{t('workspaceScopeHelp')}</span>
       </label>
-      <label className={css.filter}><span>{t('search')}</span><input value={query} onChange={(event) => { setQuery(event.currentTarget.value) }} /></label>
-      <button className={css.button} type="button" disabled={loading} onClick={() => { void load() }}>{t('refresh')}</button>
+      <label className={css.filter} data-settings-anchor="work-items-query"><span>{t('search')}</span>
+        <Input className={css.input ?? ''} aria-label={t('search')} value={query} maxLength={500} onChange={(event) => { setQuery(event.currentTarget.value) }} /><span className={css.help}>{t('queryHelp')}</span>
+      </label>
     </div>
-    <WorkItemWritePanel key={source + ':' + (selected?.id ?? '')} source={source} item={selected}
+    <div className={css.actions}><Button variant="outline" className={css.button} disabled={loading || source === undefined} onClick={() => { void load() }}>{t('refresh')}</Button></div>
+    <WorkItemWritePanel key={String(source) + ':' + (selected?.id ?? '')} source={source} item={selected} {...(props.target === undefined ? {} : { target: props.target })}
       t={t} prepareWrite={props.prepareWrite} confirmWrite={props.confirmWrite}
       cancelWrite={props.cancelWrite} listWrites={props.listWrites} />
-    {error === undefined ? null : <p role="alert" className={css.error}>{t('error', { message: error })}</p>}
-    {page.truncated ? <p>{t('truncated')}</p> : null}
+    {error === undefined ? null : <p role="alert" className={css.error}>{t('error', { message: errorText(error, t('unknownError')) })}</p>}
+    {page.truncated ? <p className={css.help}>{t('truncated')}</p> : null}
     <div className={css.layout}>
-      <div>{loading ? <p>{t('loading')}</p> : <ul className={css.list} aria-label={t('title')}>
-        {page.items.length === 0 ? <li>{t('empty')}</li> : page.items.map(item => <li key={item.id}>
+      <div>{loading ? <p className={css.help}>{t('loading')}</p> : <ul className={css.list} aria-label={t('title')}>
+        {page.items.length === 0 ? <li className={css.help}>{source === undefined ? t('noVisibleProviders') : t('empty')}</li> : page.items.map(item => <li key={item.id}>
           <button className={selected?.id === item.id ? css.selected : css.item} type="button" onClick={() => { void select(item) }}>
             <span>{item.key === undefined ? item.title : item.key + ' · ' + item.title}</span><span className={css.itemMeta}>{item.source} · {item.state}</span>
           </button></li>)}
       </ul>}
-      <div className={css.pager}>
-        <button className={css.button} type="button" disabled={loading || history.length === 0} onClick={() => { void load(history.at(-1), 'previous') }}>{t('previous')}</button>
-        <button className={css.button} type="button" disabled={loading || page.nextCursor === undefined} onClick={() => { void load(page.nextCursor, 'next') }}>{t('next')}</button>
-      </div>
+      <div data-settings-anchor="work-items-paging"><p className={css.help}>{t('pagingHelp')}</p><div className={css.pager} aria-label={t('paging')}>
+        <Button className={css.button} disabled={loading || history.length === 0} onClick={() => { void load(history.at(-1), 'previous') }}>{t('previous')}</Button>
+        <Button className={css.button} disabled={loading || page.nextCursor === undefined} onClick={() => { void load(page.nextCursor, 'next') }}>{t('next')}</Button>
+      </div></div>
       </div>
       <article className={css.detail} aria-live="polite">
         {detailLoading ? <p>{t('loading')}</p> : selected === undefined ? <p>{t('noSelection')}</p> : <>
@@ -270,24 +281,25 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
             {selected.assignees.length === 0 ? null : <><dt>{t('assignees')}</dt><dd>{selected.assignees.join(', ')}</dd></>}
           </dl>
           <div className={css.badges} aria-label={t('labels')}>{selected.labels.map(label => <span key={label} className={css.badge}>{label}</span>)}</div>
-          <h4>{t('workspace')}</h4>
-          {selected.associations.length === 0 ? <p>{t('noWorkspace')}</p> : <ul>
+        </>}
+        <div data-settings-anchor="work-items-links"><h4>{t('workspace')}</h4><p className={css.help}>{t('linksHelp')}</p>
+          {selected === undefined ? null : selected.associations.length === 0 ? <p>{t('noWorkspace')}</p> : <ul className={css.links}>
             {selected.associations.map(link => <li key={JSON.stringify([link.workspaceId, link.sessionId])}>
               <span>{link.workspaceTitle}</span>{link.sessionId === undefined ? null : <p>{t('session')}: {link.sessionId}</p>}
               {link.branch === undefined ? null : <p>{t('branch')}: {link.branch}</p>}
               {link.phase === undefined ? null : <p>{t('phase')}: {link.phase === 'active' ? t('active') : t('hibernated')}</p>}
-              <button className={css.button} type="button" disabled={saving} onClick={() => { void write(link) }}>{t('disassociate')}</button>
+              <Button className={css.button} disabled={saving} onClick={() => { void write(link) }}>{t('disassociate')}</Button>
             </li>)}
           </ul>}
-          {workspace === undefined ? <p>{t('chooseWorkspace')}</p> : <div className={css.filters}>
-            <label className={css.filter}><span>{t('session')}</span>
-              <select value={sessionId !== undefined && sessionIds.includes(sessionId) ? sessionId : ''} disabled={saving} onChange={(event) => { setSessionId(sessionIds.find(id => id === event.currentTarget.value)) }}>
-                <option value="">{t('workspaceOnly')}</option>{sessionIds.map(id => <option key={id} value={id}>{id}</option>)}
-              </select>
-            </label>
-            <button className={css.button} type="button" disabled={saving} onClick={() => { void write() }}>{saving ? t('saving') : t('associate')}</button>
-          </div>}
-        </>}
+        </div>
+        <label className={css.filter} data-settings-anchor="work-items-session"><span>{t('session')}</span>
+          <select value={sessionId !== undefined && sessionIds.includes(sessionId) ? sessionId : ''} disabled={saving || workspace === undefined || selected === undefined}
+            onChange={(event) => { setSessionId(sessionIds.find(id => id === event.currentTarget.value)) }}>
+            <option value="">{t('workspaceOnly')}</option>{sessionIds.map(id => <option key={id} value={id}>{id}</option>)}
+          </select>
+        </label>
+        {workspace === undefined ? <p className={css.help}>{t('chooseWorkspace')}</p> : selected === undefined ? null
+          : <Button className={css.button} disabled={saving} onClick={() => { void write() }}>{saving ? t('saving') : t('associate')}</Button>}
       </article>
     </div>
   </section>

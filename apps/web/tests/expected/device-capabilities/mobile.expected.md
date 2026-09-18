@@ -1,30 +1,39 @@
-- heading "手机模拟器" [level=2]
+- heading "手机模拟器" [level=1]
 - paragraph: 让 Agent 观察与操作手机模拟器；不是通过手机远程连接 Harness 的移动端。
 - heading "手机模拟器能力" [level=3]
 - status: 未启用
 - paragraph: 配置后，Harness 可以观察模拟器画面，并在权限策略允许时执行触控、滑动、输入和设备按钮操作。
-- heading "检查模拟器可用性" [level=4]
 - paragraph: 当前 profile 未挂载此能力。可在另一个终端启动 device-control profile。
 - button "重新检查":
   - img
   - text: 重新检查
-- term: Android SDK / iOS Simulator
-- definition: Harness 尚未提供 SDK 检测和路径保存；这是本项目待补功能，不代表本机缺少 SDK。
-- term: 默认设备
-- definition: 尚未提供默认设备设置；工具调用通过 device_id 明确选择设备。
-- heading "智能体手机模拟器控制" [level=4]
+- paragraph: SDK 路径用于主机 adb 检查；仅当 mobile_observe 未指定 device_id 时使用默认设备。设备修改仍需精确目标和观察令牌。
+- status: 当前主机未提供此设置。
+- group:
+  - text: 打开设置时检查设备 打开本页时自动运行只读 SDK 与设备检查；这不会授予设备控制权限。
+  - status: 当前主机未提供此设置。
+  - text: 自定义 SDK 路径 保存的路径用于主机只读 adb version 检查；不会配置外部 Cinlan 运行时。
+  - status: 当前主机未提供此设置。
+  - text: 默认设备 仅当 mobile_observe 未指定 device_id 时使用；显式设备优先，已保存设备缺失或离线时会失败，不会回退到其他设备。
+  - status: 当前主机未提供此设置。
+  - button "保存偏好" [disabled]
+  - button "放弃草稿" [disabled]
+  - button "恢复默认值" [disabled]
+- status: 当前连接只读，不能保存或重置设置。
+- heading "工具链与设备检测" [level=2]
+- paragraph: 运行主机 adb version 检查并读取设备列表；只使用已保存的偏好，不安装工具或操作设备。
+- button "重新检查"
+- term: Android SDK
+- definition: 尚未检查
+- term: 已检测设备
+- definition: 尚未检查
+- heading "智能体手机模拟器控制" [level=2]
 - paragraph: 在 Cinlan Harness 中使用手机模拟器工具。
-- list:
-  - listitem:
-    - heading "启用设备控制 profile" [level=4]
-    - paragraph: 当前设备 profile 仍挂载历史外部 CLI 适配器，不能作为 Harness 原生设备能力验收。原生 Provider 尚待迁移。
-    - code: dsh --profile device-control
-    - button "复制启动命令":
-      - img
-  - listitem:
-    - heading "执行设备操作" [level=4]
-    - paragraph: 在审批策略允许时执行触控、滑动、文本输入和设备按钮操作。
-- heading "试一试 · 示例提示" [level=4]
+- paragraph: 当前设备 profile 仍挂载历史外部 CLI 适配器，不能作为 Harness 原生设备能力验收。原生 Provider 尚待迁移。
+- code: dsh --profile device-control
+- button "复制启动命令":
+  - img
+- paragraph: 在审批策略允许时执行触控、滑动、文本输入和设备按钮操作。
 - code: 列出可用设备，观察我指定的手机模拟器并描述当前页面。执行输入前先征询我，操作后重新观察确认结果。
 - button "复制示例提示":
   - img

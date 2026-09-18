@@ -1,0 +1,3 @@
+- heading "启用语音听写" [level=2]
+- paragraph: 开启后可通过快捷键或按钮启动听写。
+- switch "启用语音听写"

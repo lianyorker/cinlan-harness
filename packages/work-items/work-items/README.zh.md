@@ -18,13 +18,13 @@ kind: "package-reference"
 - 已知限制与后续工作
 - 开发备注
 
-WorkItemsRuntime 是标准化外部 Work Item 与持久化审批写入的 Service Definition。它注册 GitHub 和 Linear Provider，选择显式 source 或唯一可用的 Provider，转发有界读取并拥有 prepare/confirm/cancel write ledger。它不执行 HTTP、不解析凭据；持久化字节由 storageDomain 所有。
+WorkItemsRuntime 是标准化外部 Work Item 与持久化审批写入的 Service Definition。它注册 GitHub、GitLab 和 Linear Provider，选择显式 source 或唯一可用的 Provider，转发有界读取并拥有 prepare/confirm/cancel write ledger。它不执行 HTTP、不解析凭据；持久化字节由 storageDomain 所有。
 
 ## Service API
 
 | 成员 | 行为 |
 |---|---|
-| registerProvider(provider) | 为调用方 plugin lifetime 注册一个 github 或 linear Provider，并返回 disposer。 |
+| registerProvider(provider) | 为调用方 plugin lifetime 注册一个 github、gitlab 或 linear Provider，并返回 disposer。 |
 | list(request, signal?) | 按 request source 选择 Provider，返回有界的标准化 page。 |
 | get(request, signal?) | 按配置 source 或 opaque id 前缀选择 Provider，返回一个 item。 |
 

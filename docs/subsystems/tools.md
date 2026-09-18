@@ -148,6 +148,8 @@ type InferArgs<S> = InferProperties<S, []>
 
 `defineTool({ name, description, parameters, output, execute, … })` ties parameter inference to `parameterSchemaSpecToJsonSchema()` and `validateArgs()`, and ties `execute`/`render`/`presentationMeta` to `InferValue<OutputSchema>`. Schema records contain only own enumerable string keys, and schema arrays are dense intrinsic arrays, so inference, compilation, and validation observe the same declaration. Inference stays exact through 16 container levels and then widens to `JsonValue`; runtime validation keeps walking the complete schema. `valueSchemaSpecToJsonSchema()` compiles output declarations through the same enforced raw subset. A parameter mismatch throws `ToolArgsError` (`INVALID_ARGS`); an invalid body or post-policy value throws `ToolOutputError` (`INVALID_TOOL_OUTPUT`). Both use the normal tool-error path. Raw JSON Schema remains open by default; unsupported keywords reject instead of being accepted without enforcement.
 
+`DefineToolOptions<S, O>` is the typed authoring input to `defineTool`: required identity, parameter schema, output schema/rendering, and execution callbacks share inferred argument and result types. Optional timeout, overlap classification, final-content transformation, and presenters follow the corresponding `ToolDefinition` rules; `finalizeContent` still receives unknown arguments because it also observes validation failures.
+
 Registration is a trusted same-process contract. The registry borrows the typed definition as readonly input, requires `output`, validates its raw schema, and checks semantic requirements such as a positive finite `timeoutMs`; `schemas()` constructs the model-facing projection when building a request, so execution and presentation share one resolved definition without leaking callbacks onto the wire.
 
 ## `ToolRestriction` — one scope's live filter over what it inherits
@@ -420,7 +422,7 @@ type JsonSchemaType = 'object' | 'array' | 'string' | 'number' | 'integer' | 'bo
 ```ts type-equiv
 /**
  * One raw JSON Schema node in the enforced subset. The optional fields express
- * the external wire schema; {@link assertSupportedJsonSchema} rejects invalid
+ * the external wire schema; the runtime schema parser rejects invalid
  * combinations before a caller treats the node as trusted.
  */
 interface JsonSchemaNode {
@@ -494,6 +496,14 @@ Tool registry and execution pipeline. Scoped registrations shadow globals; one v
  * @returns the exact disposer that restores the deployment default.
  */
 presentAs(mode: ToolPresentationMode): () => void
+
+/**
+ * Compile typed author schemas into a registry-ready tool through the
+ * injected service, so Consumers need no runtime module identity.
+ * @param options - typed definition and optional finalizer and presenters.
+ * @returns a registry-ready definition.
+ */
+define<const S extends ParameterSchemaSpec, const O extends ValueSchemaSpec>( options: DefineToolOptions<S, O>, ): ToolDefinition
 
 /**
  * Register globally or in the calling agent scope. Scoped tools shadow

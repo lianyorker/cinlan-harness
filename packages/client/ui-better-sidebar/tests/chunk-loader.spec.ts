@@ -95,10 +95,10 @@ describe('production path (script injection + global registry + externals requir
     const loaded: string[] = []
     setChunkScriptLoaderForTests(async (src) => {
       loaded.push(src)
-      simulateScript('editor', (require) => ({ TextEditor: `view:${String(require('react'))}` }))
+      simulateScript('editor', require => ({ TextEditor: `view:${String(require('react'))}` }))
     })
     const exports = await loadChunk('editor')
-    expect(loaded).toEqual(['/sidebar/bundle/editor.js'])
+    expect(loaded).toEqual(['/api/sidebar.bundle?name=editor'])
     expect(exports).toEqual({ TextEditor: 'view:[object Object]' })
     expect(modules.import).toHaveBeenCalledTimes(CHUNK_EXTERNALS.length)
     // The injection also lands on a plugin-owned global so chunk-bundle
@@ -120,10 +120,10 @@ describe('production path (script injection + global registry + externals requir
     const loaded: string[] = []
     setChunkScriptLoaderForTests(async (src) => {
       loaded.push(src)
-      simulateScript('editor', (require) => ({ TextEditor: `view:${String(require('react'))}` }))
+      simulateScript('editor', require => ({ TextEditor: `view:${String(require('react'))}` }))
     })
     const exports = await loadChunk('editor')
-    expect(loaded).toEqual(['/sidebar/bundle/editor.js'])
+    expect(loaded).toEqual(['/api/sidebar.bundle?name=editor'])
     expect(exports).toEqual({ TextEditor: 'view:[object Object]' })
     // Externals resolved through the module system's seed branch, once.
     expect(modules.import).toHaveBeenCalledTimes(CHUNK_EXTERNALS.length)
@@ -138,11 +138,11 @@ describe('production path (script injection + global registry + externals requir
     const seen: string[] = []
     setChunkScriptLoaderForTests(async (src) => {
       seen.push(src)
-      simulateScript(src.endsWith('editor.js') ? 'editor' : 'terminal', () => ({}))
+      simulateScript(src.endsWith('name=editor') ? 'editor' : 'terminal', () => ({}))
     })
     await loadChunk('terminal')
     await loadChunk('editor')
-    expect(seen).toEqual(['/sidebar/bundle/terminal.js', '/sidebar/bundle/editor.js'])
+    expect(seen).toEqual(['/api/sidebar-terminal.bundle?name=terminal', '/api/sidebar.bundle?name=editor'])
     expect(modules.import).toHaveBeenCalledTimes(CHUNK_EXTERNALS.length)
   })
 
@@ -233,7 +233,7 @@ describe('revalidateChunksOnReactivate (HMR re-activation keeps unchanged chunks
   }
 
   /** Let the fire-and-forget ETag recorder (recordEtag) settle. */
-  const settleEtag = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5))
+  const settleEtag = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 5))
 
   it('keeps the resolved exports of an unchanged chunk — no re-inject / re-execute', async () => {
     installModuleSystem()
@@ -311,7 +311,7 @@ describe('revalidateChunksOnReactivate (HMR re-activation keeps unchanged chunks
     let resolved = false
     let pendingLoad: Promise<ChunkExports> | null = null
     pendingLoad = loadChunk('editor').then((exports) => { resolved = true; return exports })
-    await new Promise((resolve) => setTimeout(resolve, 5))
+    await new Promise(resolve => setTimeout(resolve, 5))
     expect(resolved, 'loadChunk must await the pending revalidation').toBe(false)
     // Release the HEAD; the barrier lifts and the load re-injects fresh exports.
     release?.()
@@ -346,7 +346,7 @@ describe('revalidateChunksOnReactivate (HMR re-activation keeps unchanged chunks
     const revalidating = revalidateChunksOnReactivate()
     let resolved = false
     const pendingLoad = loadChunk('editor').then((exports) => { resolved = true; return exports })
-    await new Promise((resolve) => setTimeout(resolve, 5))
+    await new Promise(resolve => setTimeout(resolve, 5))
     expect(resolved, 'loadChunk must await the pending revalidation').toBe(false)
     controller.abort() // the timeout fires
     await revalidating
@@ -364,7 +364,7 @@ describe('revalidateChunksOnReactivate (HMR re-activation keeps unchanged chunks
       scriptCalls += 1
       simulateScript('editor', () => ({ TextEditor: `editor-view:${scriptCalls}` }))
     })
-    let etag = '"v1"'
+    const etag = '"v1"'
     stubBundleHead(() => etag)
     await loadChunk('editor')
     await settleEtag()

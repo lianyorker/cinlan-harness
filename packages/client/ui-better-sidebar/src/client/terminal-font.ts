@@ -1,10 +1,20 @@
+/** Integrated sidebar terminal preferences resolved into xterm rendering options. */
+import { clampTerminalFontSize, clampTerminalScrollback, type SidebarPrefs } from '../prefs-shared.ts'
+
 /**
- * Terminal font resolution: the user's custom font prefs (SidebarPrefs,
- * configured under the terminal card's secondary settings) turned into the
- * xterm options. Kept as a pure module (no DOM, no xterm) so the fallback
- * chain and clamping are unit-testable without mounting a terminal.
+ * Resolve preferences supported by the active xterm renderer.
+ * @param prefs - current integrated-sidebar terminal preferences.
+ * @param themeFontFamily - theme monospace family when no explicit family is stored.
+ * @returns xterm font, scrollback, and cursor options; applying them does not replace the PTY.
  */
-import { clampTerminalFontSize, type SidebarPrefs } from '../prefs-shared.ts'
+export function resolveTerminalOptions(prefs: SidebarPrefs, themeFontFamily: string | undefined) {
+  return {
+    ...resolveTerminalFont(prefs, themeFontFamily),
+    scrollback: clampTerminalScrollback(prefs.terminalScrollback),
+    cursorStyle: prefs.terminalCursorStyle,
+    cursorBlink: prefs.terminalCursorBlink,
+  }
+}
 
 /** The built-in fallback stack when neither the user nor the theme sets one. */
 export const DEFAULT_TERMINAL_FONT_FAMILY = '"SF Mono", Menlo, Consolas, "Liberation Mono", monospace'

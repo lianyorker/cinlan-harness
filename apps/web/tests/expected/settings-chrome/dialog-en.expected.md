@@ -1,21 +1,58 @@
 - region "Settings":
-  - navigation:
+  - text: Settings
+  - navigation "Settings navigation":
     - button "Back to app":
       - img
       - text: Back to app
     - img
     - searchbox "Search settings..."
-    - text: Settings
+    - text: Ctrl / ⌘ K
+    - button "Personal preferences" [expanded]:
+      - text: Personal preferences
+      - img
     - button "General"
+    - button "Notifications"
+    - button "Keybindings"
+    - button "Floating Workspace"
+    - button "AI & models" [expanded]:
+      - text: AI & models
+      - img
     - button "Models"
-    - button "Plugins"
     - button "Agent presets"
+    - button "Orchestration"
+    - button "Voice"
+    - button "Development workflow" [expanded]:
+      - text: Development workflow
+      - img
+    - button "Git & Source Control"
+    - button "Integrations"
+    - button "Tools & devices" [expanded]:
+      - text: Tools & devices
+      - img
+    - button "Security Research"
     - button "Browser"
     - button "Computer use"
     - button "Mobile emulator"
     - button "Design"
+    - button "Extensions" [expanded]:
+      - text: Extensions
+      - img
+    - button "Plugins"
     - button "Side card"
+    - button "Experimental" [expanded]:
+      - text: Experimental
+      - img
+    - button "MCP"
+    - button "Automation"
+    - button "Execution hosts"
+    - button "Terminal"
+    - button "Usage"
+  - text: Personal preferences
+  - img
+  - strong: General
   - button "Open configuration file"
+  - heading "General" [level=1]
+  - paragraph: Customize the interface, conversations, and default permissions for your work.
   - text: Permission Choose the default permission mode for new sessions
   - button "Workspace Write":
     - text: Workspace Write
@@ -43,7 +80,7 @@
   - button "Compact":
     - text: Compact
     - img
-  - text: Send behavior while busy What Enter and the Send button do while the agent is running; Cmd/Ctrl+Enter uses the other behavior
+  - text: Send behavior while busy What the send shortcut and Send button do while the agent is running; the accelerated shortcut uses the other behavior
   - button "Queue":
     - text: Queue
     - img

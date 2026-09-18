@@ -49,6 +49,8 @@ kind: "package-reference"
 
 服务拥有主题与字号状态并发布快照。ui-layout 呈现器应用这些快照，token 样式表则拥有颜色与会话文本尺度。
 
+通用设置行以稳定的 `appearance` 和 `font-size` 锚点提供本地化搜索元数据；每行的元数据与其 slot 注册共享生命周期。
+
 ### 样式表
 
 `src/styles/` 下有六张样式表，由 ui-theme 的动态客户端 entry 依次导入：`base.css`、`corner-shape.css`、`design-platform.css`、`scrollbar.css`、`gradient-shadow-text.css` 与 `shiki.css`。客户端 bundle 将其编译并注入为插件持有的全局样式，因此卸载与 HMR 会随 ui-theme 一同移除。`scrollbar.css` 是 `--dsw-alias-scrollbar-*` token 的唯一消费方，必须排在声明这些 token 的 `design-platform.css` 之后。

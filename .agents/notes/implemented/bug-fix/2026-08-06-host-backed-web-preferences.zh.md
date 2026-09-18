@@ -18,7 +18,11 @@ Web 的 Appearance、Language 和繁忙态 Enter 偏好原本存在浏览器 `lo
 
 用户变更会同步更新实时服务，并经 `scope.set` 将一项 `settings.mutate` 路径操作排入队列。scope 会串行处理手势，以最新已知 namespace revision 作为 `expectedRevision` 发送，记录每次成功写入的 revision，并且只允许最新写入的结算结果重新发布实时状态。最新写入被拒或失败时，scope 会重新加载 Host 状态。插件释放会拒绝新工作、跳过已排队操作、抑制运行中操作发布状态，并等待该操作结算后才让插件达到完全停稳。
 
+报告持久化成功的表单使用 `scope.mutate`，其布尔结果记录 Host 应答：拒绝或跳过调度为 false；接受为 true，即使后续写入或释放抑制了此次结果发布。传输抛错会恢复最新状态，并继续拒绝。恢复后的值相同不能证明已调度写入成功。`set` 与 `unset` 保持 void 便利方法；暂存表单还检查原始覆盖字段是否存在，拒绝后保留草稿。
+
 Client 在非 loopback 页面禁用 Host 持久化，因此这些页面的偏好仍只保留在进程内，尽管 Connection 认证完整 API。动态第三方主题 id 仍是内置 Host schema 之外的进程内扩展；移除其中一个会重置实时注册表，但不会替换上一个持久化的内置偏好。
+
+[浮动工作区与命令归属决策](../architecture/2026-09-17-floating-workspace-command-ownership.zh.md)把这些 namespace scope 用于实时快捷键与窗口偏好，同时让各消费功能保留执行与焦点裁决。
 
 ## 曾考虑的替代方案
 

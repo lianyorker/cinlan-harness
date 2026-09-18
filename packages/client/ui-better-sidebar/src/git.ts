@@ -1,244 +1,87 @@
-/**
- * Git operations for the sidebar source-control panel. Everything goes
- * through the system `git` binary spawned per request (no library, no state),
- * with porcelain-parseable output formats (`-z` NUL framing, unit separators)
- * so parsing never depends on locale or color config. All commands run with
- * `-C <cwd>` on the session's working directory and `--no-pager` /
- * `-c color.ui=false` so output stays machine-readable.
- *
- * Commits use the user's git global identity untouched (never sets
- * user.name/user.email).
- */
-import { spawn } from 'node:child_process'
+/** HTTP request decoding for the shared sidebar Git owner. */
+import { SidebarGitError } from '@deepseek-ai/dsh-sidebar-git'
+import type { SidebarGit } from '@deepseek-ai/dsh-sidebar-git'
+import type { GitCommitPreview, GitMutationRequest, GitSessionRequest } from '@deepseek-ai/dsh-sidebar-git/types'
+import { SidebarError, requireString } from './wire.ts'
 
-/** A parsed `git status --porcelain=v1 -z` entry. */
-export interface GitStatusEntry {
-  path: string
-  /** Two-letter index/worktree status (X Y), e.g. 'M ', ' M', 'A ', '??'. */
-  xy: string
+function recordOf(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new SidebarError('bad-request', 'Expected a JSON object')
+  return value as Record<string, unknown>
 }
 
-/** The source-control panel snapshot. */
-export interface GitStatusResult {
-  isRepo: boolean
-  branch?: string
-  entries: GitStatusEntry[]
+function session(payload: unknown): GitSessionRequest {
+  return { sessionId: requireString(payload, 'sessionId') as GitSessionRequest['sessionId'] }
 }
 
-/** One `git log` row. */
-export interface GitLogEntry {
-  /** Short hash (7+ chars, display). */
-  hash: string
-  /** Full 40-char hash (advanced operations: revert / cherry-pick). */
-  hashFull: string
-  subject: string
-  author: string
-  /** ISO 8601 author date (`%ai`), e.g. `2024-01-01 10:00:00 +0800`. */
-  date: string
-  /** Ref decorations (`%D` with --decorate=short), e.g. `HEAD -> main, origin/main`; '' when none. */
-  refs: string
+function mutation(payload: unknown): GitMutationRequest {
+  return { ...session(payload), repositoryRoot: requireString(payload, 'repositoryRoot') }
 }
 
-/** One git failure (stderr text as the message). */
-export class GitCommandError extends Error {
-  constructor(
-    message: string,
-    readonly code = 'git-error',
-    readonly command: string,
-  ) {
-    super(message)
+function optionalPath(payload: unknown): { path?: string } {
+  return recordOf(payload).path === undefined ? {} : { path: requireString(payload, 'path') }
+}
+
+function nullableString(payload: unknown, key: string): string | null {
+  return recordOf(payload)[key] === null ? null : requireString(payload, key)
+}
+
+function boolean(payload: unknown, key: string): boolean {
+  const value = recordOf(payload)[key]
+  if (typeof value !== 'boolean') throw new SidebarError('bad-request', key + ' must be a boolean')
+  return value
+}
+
+function previewOf(payload: unknown): GitCommitPreview {
+  const preview = recordOf(payload).preview
+  return {
+    ...session(preview), root: requireString(preview, 'root'), gitDirectory: requireString(preview, 'gitDirectory'),
+    sessionCwd: requireString(preview, 'sessionCwd'), head: nullableString(preview, 'head'), branch: nullableString(preview, 'branch'),
+    indexFingerprint: requireString(preview, 'indexFingerprint'), message: requireString(preview, 'message'),
+    attributed: boolean(preview, 'attributed'),
   }
 }
 
-/** Parse porcelain v1 -z output into entries (rename/copy pairs collapse to one row). */
-export function parsePorcelainZ(output: string): GitStatusEntry[] {
-  const tokens = output.split('\0')
-  const entries: GitStatusEntry[] = []
-  let index = 0
-  while (index < tokens.length) {
-    const token = tokens[index]!
-    index += 1
-    if (token === '') continue
-    const xy = token.slice(0, 2)
-    const rest = token.slice(3)
-    entries.push({ path: rest, xy })
-    // Rename/copy entries carry the ORIGIN path as the next NUL field; the
-    // new path (the file as it exists now) is the display path.
-    if ((xy[0] === 'R' || xy[0] === 'C') && tokens[index] !== undefined && tokens[index] !== '') {
-      index += 1
+function page(payload: unknown, key: 'count' | 'skip'): { count?: number; skip?: number } {
+  const value = recordOf(payload)[key]
+  if (value === undefined) return {}
+  if (typeof value !== 'number') throw new SidebarError('bad-request', key + ' must be a number')
+  return { [key]: value }
+}
+
+/**
+ * Decode the legacy HTTP carrier without accepting caller-supplied working directories.
+ * @param getOwner - current concrete Git service; missing deployments report unavailable.
+ * @returns route callbacks sharing the same executor as the sidebarGit Remote namespace.
+ */
+export function buildGitApi(getOwner: () => SidebarGit | undefined): Record<string, (payload: unknown) => Promise<unknown>> {
+  const invoke = async (operation: (owner: SidebarGit) => Promise<unknown>): Promise<unknown> => {
+    const owner = getOwner()
+    if (owner === undefined) throw new SidebarError('unavailable', 'The sidebar Git capability is unavailable', 503)
+    try {
+      return await operation(owner)
+    } catch (error) {
+      if (error instanceof SidebarGitError) {
+        const status = error.code === 'unavailable' ? 503 : error.code === 'stale' || error.code === 'conflict' ? 409 : 400
+        throw new SidebarError(error.code, error.message, status)
+      }
+      throw error
     }
   }
-  return entries
-}
-
-/** Parse `git log --pretty=format:%h%x1f%s%x1f%an%x1f%ai%x1f%H%x1f%D` rows. */
-export function parseLogLines(output: string): GitLogEntry[] {
-  const rows: GitLogEntry[] = []
-  for (const line of output.split('\n')) {
-    if (line === '') continue
-    const [hash, subject, author, date, hashFull, refs] = line.split('\x1f')
-    if (hash === undefined || subject === undefined) continue
-    rows.push({
-      hash,
-      subject,
-      author: author ?? '',
-      date: date ?? '',
-      hashFull: hashFull ?? hash,
-      refs: refs ?? '',
-    })
+  return {
+    'git.status': payload => invoke(owner => owner.status(session(payload))),
+    'git.diff': payload => invoke(owner => owner.diff({ ...session(payload), ...optionalPath(payload), staged: boolean(payload, 'staged') })),
+    'git.stage': payload => invoke(owner => owner.stage({ ...mutation(payload), ...optionalPath(payload) })),
+    'git.unstage': payload => invoke(owner => owner.unstage({ ...mutation(payload), ...optionalPath(payload) })),
+    'git.branch': payload => invoke(owner => owner.branches(session(payload))),
+    'git.checkout': payload => invoke(owner => owner.checkout({ ...mutation(payload), branch: requireString(payload, 'branch') })),
+    'git.prepareCommit': payload => invoke(owner => owner.prepareCommit({ ...mutation(payload), message: requireString(payload, 'message') })),
+    'git.commit': payload => invoke(owner => owner.commit({ preview: previewOf(payload) })),
+    'git.compare': payload => invoke(owner => owner.compare(session(payload))),
+    'git.log': payload => invoke(owner => owner.log({ ...session(payload), ...page(payload, 'count'), ...page(payload, 'skip') })),
+    'git.show': payload => invoke(owner => owner.show({ ...session(payload), ref: requireString(payload, 'rev'), path: requireString(payload, 'path') })),
+    'git.commit-diff': payload => invoke(owner => owner.commitDiff({ ...session(payload), hash: requireString(payload, 'hash') })),
+    'git.discard': payload => invoke(owner => owner.discard({ ...mutation(payload), path: requireString(payload, 'path'), head: nullableString(payload, 'head') })),
+    'git.revert': payload => invoke(owner => owner.revert({ ...mutation(payload), hash: requireString(payload, 'hash'), head: nullableString(payload, 'head') })),
+    'git.cherry-pick': payload => invoke(owner => owner.cherryPick({ ...mutation(payload), hash: requireString(payload, 'hash'), head: nullableString(payload, 'head') })),
   }
-  return rows
-}
-
-/** Run one git command; resolves with stdout, rejects with GitCommandError. */
-function runGit(cwd: string, args: string[], timeoutMs = 30_000): Promise<string> {
-  const full = ['-C', cwd, '--no-pager', '-c', 'color.ui=false', ...args]
-  return new Promise<string>((resolvePromise, reject) => {
-    const child = spawn('git', full, {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      windowsHide: true,
-      env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
-    })
-    let stdout = ''
-    let stderr = ''
-    const timer = setTimeout(() => {
-      child.kill('SIGKILL')
-      reject(new GitCommandError(`git ${args[0] ?? ''} timed out after ${timeoutMs}ms`, 'git-error', args.join(' ')))
-    }, timeoutMs)
-    child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString('utf8') })
-    child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString('utf8') })
-    child.on('error', (error) => {
-      clearTimeout(timer)
-      reject(new GitCommandError(`cannot run git: ${error.message}`, 'git-error', args.join(' ')))
-    })
-    child.on('close', (code) => {
-      clearTimeout(timer)
-      if (code === 0) {
-        resolvePromise(stdout)
-      } else {
-        reject(new GitCommandError(stderr.trim() || `git exited with ${String(code)}`, 'git-error', args.join(' ')))
-      }
-    })
-  })
-}
-
-/** Whether the directory is inside a git work tree (exit-0 `git rev-parse`). */
-export async function isGitRepo(cwd: string): Promise<boolean> {
-  try {
-    const out = await runGit(cwd, ['rev-parse', '--is-inside-work-tree'])
-    return out.trim() === 'true'
-  } catch {
-    return false
-  }
-}
-
-/** The repository top level containing `cwd` (`git rev-parse --show-toplevel`). */
-export async function repoRoot(cwd: string): Promise<string> {
-  const out = await runGit(cwd, ['rev-parse', '--show-toplevel'])
-  return out.trim()
-}
-
-/** The current branch name (`git rev-parse --abbrev-ref HEAD`; 'HEAD' when detached). */
-export async function currentBranch(cwd: string): Promise<string> {
-  const out = await runGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD'])
-  return out.trim()
-}
-
-/**
- * Working-tree status (untracked included). `--untracked-files=all` lists
- * the CONTENTS of new directories as individual entries (`?? newdir/a.ts`
- * rather than a collapsed `?? newdir/`), so every row in the source-control
- * panel is a real file whose diff tab can load. With `=normal`, git folds a
- * new folder into one trailing-slash entry that has no diff output and
- * cannot be read as a file.
- */
-export async function status(cwd: string): Promise<GitStatusResult> {
-  const repo = await isGitRepo(cwd)
-  if (!repo) return { isRepo: false, entries: [] }
-  const [branch, raw] = await Promise.all([
-    currentBranch(cwd).catch(() => 'HEAD'),
-    runGit(cwd, ['status', '--porcelain=v1', '-z', '--untracked-files=all']),
-  ])
-  return { isRepo: true, branch, entries: parsePorcelainZ(raw) }
-}
-
-/** Diff text of the worktree (unstaged) or the index (staged). */
-export async function diff(cwd: string, path: string | undefined, staged: boolean): Promise<string> {
-  const args = ['diff', '--no-ext-diff', '--no-color', '-U3']
-  if (staged) args.push('--cached')
-  if (path !== undefined) args.push('--', path)
-  return runGit(cwd, args)
-}
-
-/** Stage paths (all when path is undefined). */
-export async function stage(cwd: string, path: string | undefined): Promise<void> {
-  await runGit(cwd, ['add', '-A', ...(path !== undefined ? ['--', path] : [])])
-}
-
-/** Unstage paths (all when path is undefined). */
-export async function unstage(cwd: string, path: string | undefined): Promise<void> {
-  await runGit(cwd, ['reset', '-q', ...(path !== undefined ? ['--', path] : [])])
-}
-
-/** Commit the staged changes with a message (global identity untouched). */
-export async function commit(cwd: string, message: string): Promise<void> {
-  await runGit(cwd, ['commit', '-m', message])
-}
-
-/** Branch names (current first). */
-export async function branches(cwd: string): Promise<{ current: string; names: string[] }> {
-  const [current, raw] = await Promise.all([
-    currentBranch(cwd).catch(() => 'HEAD'),
-    runGit(cwd, ['for-each-ref', '--format=%(refname:short)', 'refs/heads']),
-  ])
-  const names = raw.split('\n').filter(line => line !== '')
-  return { current, names: names.includes(current) ? names : [current, ...names] }
-}
-
-/** Switch to an existing branch. */
-export async function checkout(cwd: string, branch: string): Promise<void> {
-  await runGit(cwd, ['checkout', branch])
-}
-
-/** Recent commit history (newest first), lazily pageable via skip/count. */
-export async function log(cwd: string, count = 30, skip = 0): Promise<GitLogEntry[]> {
-  const raw = await runGit(cwd, [
-    'log', '-n', String(count), '--skip', String(skip), '--decorate=short',
-    '--pretty=format:%h%x1f%s%x1f%an%x1f%ai%x1f%H%x1f%D',
-  ])
-  return parseLogLines(raw)
-}
-
-/**
- * Content of a file at a revision (`git show <rev>:<path>`), or null when the
- * revision has no such path (a new/untracked file has no HEAD side).
- */
-export async function show(cwd: string, rev: string, path: string): Promise<string | null> {
-  try {
-    return await runGit(cwd, ['show', `${rev}:${path}`])
-  } catch {
-    return null
-  }
-}
-
-/** Full patch text of one commit (`git show` with the commit header suppressed).
- *  Merge commits show their diff against the first parent (`-m --first-parent`
- *  is a no-op for regular commits), so a history click always has content. */
-export async function commitDiff(cwd: string, hash: string): Promise<string> {
-  return runGit(cwd, ['show', '--no-ext-diff', '--no-color', '--format=', '-m', '--first-parent', hash])
-}
-
-/** Discard the worktree changes of one path (`git checkout -- <path>`; the index is untouched). */
-export async function discard(cwd: string, path: string): Promise<void> {
-  await runGit(cwd, ['checkout', '--', path])
-}
-
-/** Revert one commit onto the current branch with an auto-generated message. */
-export async function revert(cwd: string, hash: string): Promise<void> {
-  await runGit(cwd, ['revert', '--no-edit', hash])
-}
-
-/** Cherry-pick one commit onto the current branch. */
-export async function cherryPick(cwd: string, hash: string): Promise<void> {
-  await runGit(cwd, ['cherry-pick', hash])
 }

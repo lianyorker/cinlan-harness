@@ -1,10 +1,13 @@
 /** Browser-safe requests and projections for Worktree Task management. */
 
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { WorktreeTaskId, WorktreeTaskStatus } from '@deepseek-ai/dsh-worktree-task/types'
+import type { WorktreeTaskId, WorktreeTaskStatus, WorktreeTaskCleanupReceipt } from '@deepseek-ai/dsh-worktree-task/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 
-export type { WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task/types'
+export type {
+  WorktreeTaskId, WorktreeTaskHook, WorktreeTaskDefaults, WorktreeTaskSettings,
+  UpdateWorktreeTaskSettingsRequest, WorktreeTaskReview, WorktreeTaskCleanupReceipt,
+} from '@deepseek-ai/dsh-worktree-task/types'
 
 /** Detached JSON projection of one Worktree Task. */
 export interface WorktreeTaskView {
@@ -16,6 +19,7 @@ export interface WorktreeTaskView {
   readonly branch: string
   readonly checkoutPath: string
   readonly status: WorktreeTaskStatus
+  readonly cleanupReceipt?: WorktreeTaskCleanupReceipt
   readonly linkedIssue?: string
   readonly sessionIds: readonly SessionId[]
   readonly createdAt: string
@@ -64,15 +68,19 @@ export interface WorktreeTaskBindSessionValue {
 }
 
 /** Deletion response. */
-export type WorktreeTaskDeleteValue =
+export type WorktreeTaskDeleteValue = (
   | { readonly status: 'deleted'; readonly taskId: WorktreeTaskId }
   | { readonly status: 'retained'; readonly taskId: WorktreeTaskId; readonly retainedBranch: string }
+) & { readonly cleanupReceipt?: WorktreeTaskCleanupReceipt }
 
 /** Lifecycle operation names exposed by the Remote namespace. */
 export type WorktreeTaskOperation =
   | 'create'
   | 'list'
   | 'get'
+  | 'settings'
+  | 'updateSettings'
+  | 'review'
   | 'bindSession'
   | 'activate'
   | 'hibernate'
@@ -85,8 +93,8 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'worktree-task/unavailable': {}
     /** A live session prevents the requested task mutation. */
     'worktree-task/busy': { readonly operation: WorktreeTaskOperation; readonly taskId: WorktreeTaskId }
-    /** The task identity no longer identifies the requested provider state. */
-    'worktree-task/conflict': { readonly operation: WorktreeTaskOperation; readonly taskId: WorktreeTaskId }
+    /** The task state or defaults revision changed before the operation committed. */
+    'worktree-task/conflict': { readonly operation: WorktreeTaskOperation; readonly taskId?: WorktreeTaskId }
     /** The task identity is unknown to the provider. */
     'worktree-task/not-found': { readonly operation: WorktreeTaskOperation; readonly taskId: WorktreeTaskId }
     /** Provider failure that has no narrower Remote classification. */

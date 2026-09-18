@@ -20,13 +20,13 @@ import { builtinViewers } from './viewers.tsx'
 export function registerBuiltins(
   ctx: Context,
   service: BetterSidebarService,
-  options: BuiltinTabOptions = {},
+  options: BuiltinTabOptions,
 ): () => void {
   const disposers: (() => void)[] = []
   for (const tab of builtinTabs(ctx, options)) {
     disposers.push(service.registerTab(tab))
   }
-  for (const viewer of builtinViewers()) {
+  for (const viewer of builtinViewers((id, facts) => ctx.keyboard.matches(id, facts))) {
     disposers.push(service.registerFileViewer(viewer))
   }
   return () => {

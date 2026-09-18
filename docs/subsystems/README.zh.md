@@ -6,6 +6,14 @@
 
 | 页面 | 负责内容 |
 |---|---|
+| [artifact.md](artifact.zh.md) | Artifact Cordis API，以及不可变引用、字节存储与授权约定的链接 |
+| [browser.md](browser.zh.md) | Browser Cordis API，以及持久页面、观测、导航与传输约定的链接 |
+| [coordination.md](coordination.zh.md) | Run／Task 协调 API、依赖、消息、审批与执行器归属 |
+| [execution-host.md](execution-host.zh.md) | Host 身份、保存的执行目标、worker 检查与已提交变更事件 |
+| [git.md](git.zh.md) | Git Provider 与 Session 绑定的审查／变更 API，请求与结果类型由各包负责 |
+| [mcp.md](mcp.zh.md) | MCP 连接观测、当前 profile 管理修订号与运行时注册表 |
+| [security-research.md](security-research.zh.md) | 评估授权、授权决策、持久 Finding 与漏洞查询 |
+| [voice.md](voice.zh.md) | 本地转写引擎、模型定义／缓存状态与共享操作结果 |
 | [work-items.md](work-items.zh.md) | Provider 工单、持久化写入和 Workspace 关联 |
 | [device-control.md](device-control.zh.md) | 桌面与移动设备 Provider、observation、权限和就绪状态 |
 | [core.md](core.zh.md) | `packages/core` 如何控制 agent loop（智能体循环）：逐包的循环说明、agent 创建与所有权（`AgentHandle`）、`Agent` 句柄的投递/取消/拦截约定，以及全仓通用类型模式（`…Map → 派生联合`、品牌化 id） |
@@ -15,6 +23,7 @@
 | [typert.md](typert.zh.md) | 远程调用描述符、lookup/Context 声明、Typert 注册表，以及 Host Gateway/Client API 边界 |
 | [goal.md](goal.zh.md) | 持久 goal 标识、生命周期快照、激活、变更记录与 Round 归属 |
 | [schedule.md](schedule.zh.md) | 仅限 Session 内的提醒记录、持久转换、活动视图与普通对话交付 |
+| [automation.md](automation.zh.md) | 保存的 UTC 定义、独占进程所有权、调用认领与 Agent 结果 |
 | [todo.md](todo.zh.md) | todo 包的整列表条目类型、持久事件所有权、投影和开放轮次不变量 |
 | [commands.md](commands.zh.md) | 人类命令注册表服务：定义、适配器发现、直接调用、结果与解析视图 |
 | [session.md](session.zh.md) | 完整的 `SessionEventMap` 变体目录、`TurnEndReason`、`deriveMessages()`、执行封闭与独立事件 |

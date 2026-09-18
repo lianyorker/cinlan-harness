@@ -1,0 +1,25 @@
+- region "Browser element capture":
+  - heading "Browser element capture" [level=1]
+  - paragraph: Select an element from a persistent browser page and create a revalidated cropped screenshot.
+  - paragraph: Capture an element from an existing page, review the preview, then attach it to the initiating Session draft. Send it from the conversation when ready.
+  - list:
+    - listitem:
+      - heading "Choose a browser page" [level=2]
+      - paragraph: Refresh the page list, then choose the page to capture.
+      - button "Refresh pages"
+      - text: Browser page
+      - combobox "Browser page":
+        - option "about:blank"
+        - option "Capture target — {{browserUrl}}" [selected]
+    - listitem:
+      - heading "Select an element" [level=2]
+      - paragraph: Start selection and click the highlighted element on the target page; Escape or Cancel exits selection.
+      - button "Select and capture"
+    - listitem:
+      - heading "Capture the element image" [level=2]
+      - paragraph: Review the preview, then attach the image to your Session draft. Capture again to choose a fresh element.
+      - status: Attached to the “Element capture draft” draft. It has not been sent.
+  - region "Safety confirmation":
+    - heading "Safety confirmation" [level=2]
+    - paragraph: Element capture reads the current page and saves an image attachment; it does not grant click, navigation, script, or upload access.
+  - paragraph: The selected element and its visible bounds are checked before and after capture. Choose a model that supports images when sending the screenshot.

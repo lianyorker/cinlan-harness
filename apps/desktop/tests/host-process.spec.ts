@@ -75,6 +75,33 @@ afterEach(() => {
 })
 
 describe('desktop host process', () => {
+  it.each([
+    { inspectPort: undefined, allowLinkedProfile: true },
+    { inspectPort: 0, allowLinkedProfile: true },
+    { inspectPort: undefined, allowLinkedProfile: false },
+    { inspectPort: 0, allowLinkedProfile: false },
+  ])('keeps linked-profile permission independent of inspector $inspectPort ($allowLinkedProfile)', async ({ inspectPort, allowLinkedProfile }) => {
+    const project = projectWithHost(`
+process.send({ type: 'ready', protocolVersion: 3, dshVersion: 'launch-options' })
+function onRequestFrame(frame) {
+  if (frame.type !== 1) return
+  responseStart(frame.streamId)
+  responseData(frame.streamId, JSON.stringify({ argv: process.argv.slice(3), execArgv: process.execArgv }))
+  responseEnd(frame.streamId)
+}
+`)
+    const host = new DesktopHostProcess(process.execPath, project, inspectPort, allowLinkedProfile)
+    try {
+      const response = await host.fetch(new Request('dsh-app://app/launch-options'))
+      expect(await response.json()).toEqual({
+        argv: allowLinkedProfile ? ['--allow-linked-profile'] : [],
+        execArgv: inspectPort === undefined ? [] : ['--inspect=127.0.0.1:0'],
+      })
+    } finally {
+      await host.stop()
+    }
+  })
+
   it('carries raw request and response bytes and shuts the child down cleanly', async () => {
     const project = projectWithHost(`
 const bodies = new Map()

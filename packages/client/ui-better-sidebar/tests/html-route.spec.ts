@@ -13,19 +13,19 @@ import { isWin32 } from './platform.ts'
 describe('encodeHtmlUrl', () => {
   it('encodes a POSIX absolute path into route segments', () => {
     expect(encodeHtmlUrl('sess-1', '/Users/me/proj/index.html'))
-      .toBe('/sidebar/html/sess-1/Users/me/proj/index.html')
+      .toBe('/api/sidebar/html/sess-1/Users/me/proj/index.html')
   })
 
   it('encodes a Windows absolute path (drive colon percent-encoded)', () => {
     expect(encodeHtmlUrl('sess-1', 'C:\\Users\\me\\a.html'))
-      .toBe('/sidebar/html/sess-1/C%3A/Users/me/a.html')
+      .toBe('/api/sidebar/html/sess-1/C%3A/Users/me/a.html')
   })
 
   it('encodes a UNC path with the // marker (backslash and forward-slash forms)', () => {
     expect(encodeHtmlUrl('sess-1', '\\\\server\\share\\proj\\a.html'))
-      .toBe('/sidebar/html/sess-1//server/share/proj/a.html')
+      .toBe('/api/sidebar/html/sess-1//server/share/proj/a.html')
     expect(encodeHtmlUrl('sess-1', '//server/share/proj/a.html'))
-      .toBe('/sidebar/html/sess-1//server/share/proj/a.html')
+      .toBe('/api/sidebar/html/sess-1//server/share/proj/a.html')
   })
 
   it('keeps a POSIX // path marker-encoded (the marker is platform-neutral)', () => {
@@ -33,20 +33,24 @@ describe('encodeHtmlUrl', () => {
     // '/server/share/...' on POSIX and '\\server\share\...' on win32 — so the
     // leading double slash round-trips without any platform signal.
     expect(encodeHtmlUrl('s-1', '//server/share/a.html'))
-      .toBe('/sidebar/html/s-1//server/share/a.html')
+      .toBe('/api/sidebar/html/s-1//server/share/a.html')
   })
 
   it('percent-encodes special characters in segments', () => {
     expect(encodeHtmlUrl('s-1', '/a b/中文/100%.html'))
-      .toBe('/sidebar/html/s-1/a%20b/%E4%B8%AD%E6%96%87/100%25.html')
+      .toBe('/api/sidebar/html/s-1/a%20b/%E4%B8%AD%E6%96%87/100%25.html')
   })
 
   it('ignores leading/trailing slashes (files only)', () => {
-    expect(encodeHtmlUrl('s', '/a//b/x.html')).toBe('/sidebar/html/s/a/b/x.html')
+    expect(encodeHtmlUrl('s', '/a//b/x.html')).toBe('/api/sidebar/html/s/a/b/x.html')
   })
 })
 
 describe('decodeHtmlUrl', () => {
+  it('retains the original Web alias', () => {
+    expect(decodeHtmlUrl('/sidebar/html/s/work/index.html')).toEqual({ ok: true, ref: { sessionId: 's', path: '/work/index.html' } })
+  })
+
   it('decodes a POSIX round-trip', () => {
     const url = encodeHtmlUrl('sess-1', '/Users/me/proj/index.html')
     expect(decodeHtmlUrl(url)).toEqual({
@@ -90,12 +94,12 @@ describe('decodeHtmlUrl', () => {
   })
 
   it('refuses a marker-only UNC URL and stray double slashes (400)', () => {
-    expect(decodeHtmlUrl('/sidebar/html/s//').ok).toBe(false)
-    expect(decodeHtmlUrl('/sidebar/html/s//server//x.html').ok).toBe(false)
+    expect(decodeHtmlUrl('/api/sidebar/html/s//').ok).toBe(false)
+    expect(decodeHtmlUrl('/api/sidebar/html/s//server//x.html').ok).toBe(false)
   })
 
   it('decodes a lowercase-drive Windows path without a leading slash', () => {
-    expect(decodeHtmlUrl('/sidebar/html/s/d%3A/work/x.html')).toEqual({
+    expect(decodeHtmlUrl('/api/sidebar/html/s/d%3A/work/x.html')).toEqual({
       ok: true,
       ref: { sessionId: 's', path: 'd:/work/x.html' },
     })
@@ -115,19 +119,19 @@ describe('decodeHtmlUrl', () => {
   })
 
   it('refuses an empty or double-slash path (400)', () => {
-    expect(decodeHtmlUrl('/sidebar/html/').ok).toBe(false)
-    expect(decodeHtmlUrl('/sidebar/html//s/a.html').ok).toBe(false)
+    expect(decodeHtmlUrl('/api/sidebar/html/').ok).toBe(false)
+    expect(decodeHtmlUrl('/api/sidebar/html//s/a.html').ok).toBe(false)
   })
 
   it('refuses malformed percent encoding (400)', () => {
-    expect(decodeHtmlUrl('/sidebar/html/s/%E0%A4%A').ok).toBe(false)
+    expect(decodeHtmlUrl('/api/sidebar/html/s/%E0%A4%A').ok).toBe(false)
   })
 
   it('refuses a missing sessionId or file path (400)', () => {
-    expect(decodeHtmlUrl('/sidebar/html//a.html')).toEqual({
+    expect(decodeHtmlUrl('/api/sidebar/html//a.html')).toEqual({
       ok: false, status: 400, message: 'sessionId and file path are required',
     })
-    expect(decodeHtmlUrl('/sidebar/html/s/')).toEqual({
+    expect(decodeHtmlUrl('/api/sidebar/html/s/')).toEqual({
       ok: false, status: 400, message: 'sessionId and file path are required',
     })
   })
@@ -136,7 +140,7 @@ describe('decodeHtmlUrl', () => {
     // The decoder is not a security boundary by itself: an encoded `..`
     // decodes to `..` and the HOST refuses it via requireAbsolute +
     // isWithin(cwd) (the decoded path resolves outside the cwd).
-    const result = decodeHtmlUrl('/sidebar/html/s/Users/me/../../etc/passwd')
+    const result = decodeHtmlUrl('/api/sidebar/html/s/Users/me/../../etc/passwd')
     expect(result.ok).toBe(true)
     if (result.ok) expect(result.ref.path).toBe('/Users/me/../../etc/passwd')
   })
@@ -150,7 +154,7 @@ describe('relative asset resolution stays in-route', () => {
     // session prefix.
     const doc = encodeHtmlUrl('sess-1', '/Users/me/proj/index.html')
     const asset = new URL('./style.css', `http://h${doc}`).pathname
-    expect(asset).toBe('/sidebar/html/sess-1/Users/me/proj/style.css')
+    expect(asset).toBe('/api/sidebar/html/sess-1/Users/me/proj/style.css')
     expect(decodeHtmlUrl(asset)).toEqual({
       ok: true,
       ref: { sessionId: 'sess-1', path: '/Users/me/proj/style.css' },
@@ -159,8 +163,8 @@ describe('relative asset resolution stays in-route', () => {
 
   it('deeper and parent-relative references resolve inside the route', () => {
     const doc = `http://h${encodeHtmlUrl('s', '/a/b/index.html')}`
-    expect(new URL('img/x.png', doc).pathname).toBe('/sidebar/html/s/a/b/img/x.png')
-    expect(new URL('../c.css', doc).pathname).toBe('/sidebar/html/s/a/c.css')
+    expect(new URL('img/x.png', doc).pathname).toBe('/api/sidebar/html/s/a/b/img/x.png')
+    expect(new URL('../c.css', doc).pathname).toBe('/api/sidebar/html/s/a/c.css')
   })
 
   it('relative assets of a UNC document stay inside the same route', () => {
@@ -168,7 +172,7 @@ describe('relative asset resolution stays in-route', () => {
     // so ./style.css lands back on the route with the UNC prefix intact.
     const doc = `http://h${encodeHtmlUrl('s', '\\\\server\\share\\proj\\index.html')}`
     expect(new URL('./style.css', doc).pathname)
-      .toBe('/sidebar/html/s//server/share/proj/style.css')
+      .toBe('/api/sidebar/html/s//server/share/proj/style.css')
     expect(decodeHtmlUrl(new URL('./style.css', doc).pathname)).toEqual({
       ok: true,
       ref: { sessionId: 's', path: '//server/share/proj/style.css' },

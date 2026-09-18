@@ -106,17 +106,19 @@ export type ConnectionRpcHandler = (
 /** Synchronous ownership test for one endpoint on a shared RPC channel. */
 export type ConnectionRpcEndpointMatcher = (endpoint: string) => boolean
 
-/** HTTP methods supported by exact Fetch routes on the shared API channel. */
+/** HTTP methods supported by Fetch routes on the shared API channel. */
 export type ConnectionFetchMethod = 'GET' | 'HEAD' | 'POST'
 
 /** How the node:http bridge presents one request body to its Fetch route. */
 export type ConnectionRequestBodyMode = 'buffered' | 'streaming'
 
-/** One exact, transport-independent Fetch route owned by a Host feature. */
+/** One transport-independent Fetch route owned by a Host feature. */
 export interface ConnectionFetchRoute {
-  /** Absolute path below `/api`; query parameters remain available on the request URL. */
+  /** Absolute path below `/api`; prefix paths end in `/`. Query parameters remain on the request URL. */
   readonly path: string
-  /** Methods this route owns. Other methods continue through normal shared-channel dispatch. */
+  /** Literal URL pathname matching, defaulting to exact. Exact routes win, then the longest prefix. */
+  readonly match?: 'exact' | 'prefix'
+  /** Methods this route owns. A selected route returns 404 for other methods without falling back. */
   readonly methods: readonly ConnectionFetchMethod[]
   /** Buffered requests obey the configured JSON cap; streaming requests arrive with backpressure and no aggregate cap. */
   readonly requestBody: ConnectionRequestBodyMode
@@ -124,12 +126,13 @@ export interface ConnectionFetchRoute {
   readonly fetch: (request: Request) => Promise<Response>
 }
 
-/** Host registry for exact Fetch routes that cannot use JSON Remote invocation. */
+/** Host registry for Fetch routes that cannot use JSON Remote invocation. */
 export interface HostConnectionFetch {
   /**
-   * Register one exact route on the shared API channel.
-   * @param route - path, methods, and Fetch-shaped implementation.
-   * @returns asynchronous disposer removing this exact contribution.
+   * Register one unique path on the shared API channel, scoped to the caller fiber.
+   * @param route - path, matching mode, methods, and Fetch-shaped implementation.
+   * @returns asynchronous disposer withdrawing this contribution; active requests remain carrier/handler-owned.
+   * @throws when the path is invalid, already registered, or methods are empty or repeated.
    */
   register(route: ConnectionFetchRoute): () => Promise<void>
 }
@@ -165,11 +168,11 @@ export interface HostConnectionRpc {
 export interface HostConnectionHandle {
   /** Generic RPC channel registry. */
   readonly rpc: HostConnectionRpc
-  /** Exact Fetch routes for streaming or browser-native responses. */
+  /** Fetch routes for streaming or browser-native responses. */
   readonly fetch: HostConnectionFetch
 
   /**
-   * Compose exact Fetch routes and the shared-channel RPC interceptor.
+   * Compose Fetch routes and the shared-channel RPC interceptor.
    * @param channel - shared channel mounted by Connection.
    * @returns Fetch handler for trusted, authenticated requests.
    */
@@ -204,7 +207,7 @@ export interface ConnectionFetchHandler {
   /**
    * Resolve body handling before the bridge reads any request bytes.
    * @param request - request method and URL available from node:http headers.
-   * @returns the registered route's body handling mode.
+   * @returns the selected route's body mode, or buffered when its method is denied or no route matches.
    */
   requestBodyMode(request: { readonly method: string; readonly url: URL }): ConnectionRequestBodyMode
 

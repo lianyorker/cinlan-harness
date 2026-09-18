@@ -71,7 +71,7 @@ describe('ui-settings-plugins apply', () => {
 
   it('declares the services it uses', () => {
     expect(inject).toEqual([
-      'slots', 'locale', 'remote', 'remote.credentials', 'remote.session', 'settingsScope',
+      'settingsMetadata', 'slots', 'locale', 'remote', 'remote.credentials', 'remote.session', 'settingsScope',
     ])
   })
 
@@ -228,6 +228,42 @@ describe('ui-settings-plugins apply', () => {
     declareRoot(slots)
 
     await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
+  })
+
+  it('indexes only available cards and releases search targets with the slot declaration', async () => {
+    const served = ['shell', 'agent-loop', 'subagent-model-selection', 'web-search-deepseek']
+    const { ctx, slots, remote } = await bench(served)
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    try {
+      expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+      const release = declareRoot(slots)
+      await vi.waitFor(() => { expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(5) })
+      expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'plugins', groupId: 'extensions' }])
+      expect(ctx.settingsMetadata.getSnapshot().items.map(item => [item.id, item.tabId])).toEqual([
+        ['configuration', 'configurable'], ['shell', 'configurable'], ['agent-loop', 'configurable'],
+        ['subagent-model-selection', 'configurable'], ['web-search', 'configurable'],
+      ])
+      ctx.locale.setLocale('en')
+      const shellItem = ctx.settingsMetadata.getSnapshot().items.find(item => item.id === 'shell')
+      expect(shellItem).toMatchObject({ title: 'Shell', anchorId: 'plugins-shell' })
+      expect(shellItem?.keywords).toContain('Command timeout (ms)')
+      served.splice(0, served.length, 'agent-loop')
+      remote.emit('settings/document-updated', ['agent-loop', 1])
+      await vi.waitFor(() => {
+        expect(ctx.settingsMetadata.getSnapshot().items.map(item => item.id)).toEqual(['configuration', 'agent-loop'])
+      })
+      release()
+      expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+      declareRoot(slots)
+      await vi.waitFor(() => {
+        expect(ctx.settingsMetadata.getSnapshot().items.map(item => item.id)).toEqual(['configuration', 'agent-loop'])
+      })
+      await fiber.dispose()
+      expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+    } finally {
+      await ctx.fiber.dispose()
+    }
   })
 
   it('collapses every contribution on teardown', async () => {

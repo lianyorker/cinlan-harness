@@ -9,12 +9,15 @@ import css from './CapabilitySection.module.css'
  * @param props - Open page, transfer limits, localized labels, and Host operations.
  * @returns File controls; no requests run until a person acts.
  */
-export function BrowserTransfersPanel({ pageId, maxFileBytes, callbacks, t }: {
+export function BrowserTransfersPanel({ pageId, maxFileBytes, callbacks, target, t }: {
   pageId: BrowserPageId
   maxFileBytes: number
   callbacks: BrowserControlsCallbacks
-  t: CapabilitySectionProps['t']
-}): ReactNode {
+} & Pick<CapabilitySectionProps, 't' | 'target'>): ReactNode {
+  const details = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    if (target?.itemId === 'browserTransfers' && details.current !== null) details.current.open = true
+  }, [target])
   const [observation, setObservation] = useState<BrowserObservationValue['observation']>()
   const [element, setElement] = useState('')
   const [file, setFile] = useState<File>()
@@ -34,7 +37,7 @@ export function BrowserTransfersPanel({ pageId, maxFileBytes, callbacks, t }: {
       if (!controller.signal.aborted) setError(true)
     } finally { if (!controller.signal.aborted) setBusy(false); controller.abort() }
   }
-  return <details className={css.browserControls}>
+  return <details ref={details} className={css.browserControls}>
     <summary>{t('browserTransfers')}</summary>
     <p>{t('browserTransferLimit', { bytes: maxFileBytes })}</p>
     <button type="button" className={css.recheckButton} disabled={busy} onClick={() => { void run(async (signal) => {

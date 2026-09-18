@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package defines the Worktree Task service used to create and manage isolated repository checkouts. Tasks have opaque ids, explicit active or hibernated lifecycle states, bounded operations, and provider-owned records. Remote controllers, Settings pages, and execution consumers use this contract without importing Git implementation details.
+This package defines the Worktree Task service used to create and manage isolated repository checkouts. Tasks have opaque ids, explicit active, hibernated, or archived lifecycle states, bounded operations, and provider-owned records. Remote controllers, Settings pages, and execution consumers use this contract without importing Git implementation details.
 
 ## Table of Contents
 
@@ -19,6 +19,10 @@ This package defines the Worktree Task service used to create and manage isolate
 <a id="use-this-package"></a>
 ## Use this package
 Mount a provider such as dsh-worktree-task-git as ctx.worktreeTask. Pass branded task ids across service and Remote calls, and use lifecycle methods rather than manipulating checkout paths directly.
+
+Revisioned settings apply to future tasks; each task retains its captured starting point and programs. Read-only review returns bounded tracked changes, untracked filenames, and captured programs without activating a checkout. Archive and delete may return a cleanup receipt; a settled failure permits an explicit retry, while an unsettled claim blocks it. Successful cleanup is not repeated. Safe deletion retains an unmerged branch and archived record; receipts survive task deletion. Hibernation does not run cleanup.
+
+The [Git provider](../worktree-task-git/README.md) owns command execution, checkout containment, settlement, and durability.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -40,4 +44,4 @@ No runtime invariant companion is published because this package defines the ser
 <a id="dev-note"></a>
 ### Dev Note
 
-WorktreeTaskId is an opaque branded identifier; keep filesystem paths inside providers and Host controllers.
+`WorktreeTaskId` is an opaque branded identifier. Address lifecycle calls with provider-issued ids; do not derive a checkout path from an id. Current acceptance evidence and remaining verification are tracked in the [acceptance status](../../../.agents/plans/settings-native-acceptance-status.md).

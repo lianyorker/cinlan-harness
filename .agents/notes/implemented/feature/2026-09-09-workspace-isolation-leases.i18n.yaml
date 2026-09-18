@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-09-workspace-isolation-leases.md
-2026-09-09-workspace-isolation-leases.md: d5d8b3032496b1f698edc9ac543366845dca5d80
+2026-09-09-workspace-isolation-leases.md: 7cdb1032cb6596102e1d3cbe34a4139abb63fae5
 2026-09-09-workspace-isolation-leases.zh.md: 0ed62447ccdaaf9f6610db5affd4b243966531e9

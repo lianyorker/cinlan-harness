@@ -2823,15 +2823,25 @@ function exportTarget(value: unknown): string | undefined {
   return undefined
 }
 
+/**
+ * Map artifact exports to sources, preferring .ts over .tsx. Targets outside
+ * lib/ stay exact; absent candidates retain the mapped path for diagnostics.
+ */
 function sourcePathForExport(packageRoot: string, target: string): string {
   const normalized = target.replace(/^\.\//, '')
+  let sourcePath: string
   if (normalized.startsWith('lib/types/')) {
-    return resolve(packageRoot, 'src', normalized.slice('lib/types/'.length).replace(/\.d\.(?:mts|cts|ts)$/, '.ts'))
+    sourcePath = resolve(packageRoot, 'src', normalized.slice('lib/types/'.length).replace(/\.d\.(?:mts|cts|ts)$/, '.ts'))
+  } else if (normalized.startsWith('lib/')) {
+    sourcePath = resolve(packageRoot, 'src', normalized.slice('lib/'.length).replace(/\.(?:mjs|cjs|js|d\.ts)$/, '.ts'))
+  } else {
+    return resolve(packageRoot, normalized)
   }
-  if (normalized.startsWith('lib/')) {
-    return resolve(packageRoot, 'src', normalized.slice('lib/'.length).replace(/\.(?:mjs|cjs|js|d\.ts)$/, '.ts'))
+  if (sourcePath.endsWith('.ts') && !existsSync(sourcePath)) {
+    const tsxPath = `${sourcePath}x`
+    if (existsSync(tsxPath)) return tsxPath
   }
-  return resolve(packageRoot, normalized)
+  return sourcePath
 }
 
 function preferredDeclaration(symbol: ts.Symbol): ts.Declaration | undefined {

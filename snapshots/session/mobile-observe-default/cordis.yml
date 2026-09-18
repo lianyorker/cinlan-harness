@@ -1,0 +1,22 @@
+- id: settings-file
+  name: '@deepseek-ai/dsh-settings-file'
+  config:
+    path: !!js dshHomePath('settings.yaml')
+    watch: false
+
+- insert:
+    - id: mobile-device
+      name: '@deepseek-ai/dsh-mobile-device'
+      config:
+        provider: snapshot
+    - id: mobile-device-snapshot-provider
+      name: '../../../packages/mobile-device/tool-mobile-device/tests/fixtures/snapshot-provider.ts'
+    - id: mobile-device-permission-policy
+      name: '@deepseek-ai/dsh-mobile-device-permission-policy'
+      config:
+        observe: allow
+        touch: deny
+        textInput: deny
+        deviceNavigation: deny
+    - id: tool-mobile-device
+      name: '@deepseek-ai/dsh-tool-mobile-device'

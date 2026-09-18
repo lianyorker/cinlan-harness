@@ -24,14 +24,14 @@ kind: "package-reference"
 | 工具 | 行为 |
 |---|---|
 | `mobile_list_devices` | 列举 canonical 的精确 device id 与 availability |
-| `mobile_observe` | 返回新的、一次性的 observation、tree text 和可选原生 PNG attachment |
+| `mobile_observe` | 观察显式指定的设备或已保存的默认设备；返回新的、一次性的 observation、tree text 和可选原生 PNG attachment |
 | `mobile_touch` | 使用归一化 `0..1` 坐标执行 tap 或 swipe |
 | `mobile_type` | 输入有界字面文本，但不在 result 中回显 |
 | `mobile_button` | 按下一个 Provider 支持的设备导航按钮 |
 
 只有 deployment attachment policy 接受 PNG，且精确 routed Provider 与 model 解析为原生 image input 时，`mobile_observe` 才请求 screenshot。接受的图片使用 Computer Use 所用的 attachment-backed `ImageBlock` 路径，绝不经过 MCP。即使 capture 被跳过、失败或 image persistence 失败，tree text 仍然可用。
 
-每次 mutation 都需要精确 `device_id` 和最新 `observation_id`。Tap 与 swipe field 相互排斥，坐标必须是从 `0` 到 `1` 的有限闭区间值；成功 result 会要求模型重新 observe，但不会回显 typed text。
+只有 `mobile_observe` 允许省略 `device_id`：Mobile Device 服务将已保存的默认设备解析为当前可用的精确设备，不会回退。显式 id 优先；空 id 和首尾空白均无效。每次 mutation 都需要观察结果返回的精确 `device_id` 和最新 `observation_id`。Tap 与 swipe field 相互排斥，坐标必须是从 `0` 到 `1` 的有限闭区间值；成功 result 会要求模型重新 observe，但不会回显 typed text。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -40,7 +40,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-对于 `mobile_observe`，模型会看到设备 metadata、generation 与 observation id、归一化 coordinate space、有界 tree text、显式 screenshot status 和可选原生 image block。Mutation result 只包含 target identity 和 fresh-observe requirement。
+对于 `mobile_observe`，模型会看到实际解析的设备 metadata、generation 与 observation id、归一化 coordinate space、有界 tree text、显式 screenshot status 和可选原生 image block。解析后的设备 id 也会持久化到呈现 metadata，让完成后的卡片在回放时显示相同目标。Mutation result 只包含 target identity 和 fresh-observe requirement。
 
 #### Token 影响
 
@@ -48,7 +48,7 @@ kind: "package-reference"
 
 #### KV Cache 影响
 
-同一工具配置下的静态 guidance 与 schema 保持稳定。Device observation 和 image 属于逐调用 result content，不改变 request prefix。
+同一工具配置下的静态 guidance 与 schema 保持稳定，绝不嵌入已保存的设备偏好。Device observation 和 image 属于逐调用 result content，不改变 request prefix。
 
 ## 已知限制与延后工作
 

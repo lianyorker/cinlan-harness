@@ -1,0 +1,4 @@
+mobile-device:
+  enabled: true
+  defaultDeviceId: snapshot-default
+  androidSdkPath: ""

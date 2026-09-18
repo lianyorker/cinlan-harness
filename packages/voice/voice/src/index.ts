@@ -12,21 +12,16 @@ import type {
   VoiceEngine,
   VoiceModelDefinition,
   VoiceModelId as VoiceModelIdValue,
-} from './types.ts'
-
-export type {
-  VoiceEngine,
-  VoiceModelArchitecture,
-  VoiceModelDefinition,
-  VoiceModelDownload,
-  VoiceModelKind,
-  VoiceModelStatus,
-  VoiceModelSummary,
-  VoiceRecognizer,
+  VoiceOperations,
+  VoiceEngineStatus,
+  VoiceModelsListValue,
+  VoiceModelsDownloadValue,
   VoiceTranscribeRequest,
   VoiceTranscribeResult,
 } from './types.ts'
-export { architectureFilePaths } from './types.ts'
+
+export type * from './types.ts'
+export { architectureFilePaths } from './architecture.ts'
 
 /** Exact shipped model selector. */
 export type VoiceModelId = VoiceModelIdValue
@@ -56,12 +51,77 @@ declare module '@deepseek-ai/cordis' {
  * not several competing backends a deployment chooses between at runtime).
  */
 export class VoiceRuntime extends Service {
+  private operations: VoiceOperations | undefined
   private engine: VoiceEngine | undefined
   private readonly models = new Map<string, VoiceModelDefinition>()
 
   /** Create the provider-neutral voice runtime. */
   constructor(ctx: Context) {
     super(ctx, 'voice')
+  }
+
+  /**
+   * Register one provider's management and transcription operations.
+   * @param operations - Provider-owned callbacks, independent of transport.
+   * @returns Disposer that immediately prevents new calls to this provider.
+   */
+  registerOperations(operations: VoiceOperations): () => void {
+    if (this.operations !== undefined) throw new VoiceError('voice operations are already registered', 'VOICE_OPERATIONS_DUPLICATE')
+    this.operations = operations
+    return () => { if (this.operations === operations) this.operations = undefined }
+  }
+
+  private requireOperations(signal: AbortSignal): VoiceOperations {
+    signal.throwIfAborted()
+    if (this.operations === undefined) throw new VoiceError('no voice provider is available', 'VOICE_UNAVAILABLE')
+    return this.operations
+  }
+
+  /**
+   * Read the provider's native engine status.
+   * @param signal - Caller cancellation.
+   * @returns Availability and repair guidance; rejects when no provider is mounted.
+   */
+  engineStatus(signal: AbortSignal): Promise<VoiceEngineStatus> {
+    return this.requireOperations(signal).engineStatus(signal)
+  }
+
+  /**
+   * Read display metadata and current installation state.
+   * @param signal - Caller cancellation.
+   * @returns The provider's model roster.
+   */
+  modelsList(signal: AbortSignal): Promise<VoiceModelsListValue> {
+    return this.requireOperations(signal).modelsList(signal)
+  }
+
+  /**
+   * Download or await one model's shared installation.
+   * @param modelId - Registered model identity.
+   * @param signal - Cancellation of the shared installation.
+   * @returns Ready cache directory after all installation work settles.
+   */
+  modelsDownload(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelsDownloadValue> {
+    return this.requireOperations(signal).modelsDownload(modelId, signal)
+  }
+
+  /**
+   * Cancel model work and remove its cache after resources settle.
+   * @param modelId - Registered model identity.
+   * @param signal - Caller cancellation before deletion begins.
+   */
+  modelsRemove(modelId: VoiceModelId, signal: AbortSignal): Promise<void> {
+    return this.requireOperations(signal).modelsRemove(modelId, signal)
+  }
+
+  /**
+   * Transcribe decoded audio with the installed model.
+   * @param request - Model identity and 16kHz mono float32 samples.
+   * @param signal - Caller cancellation; native calls settle before resources release.
+   * @returns Transcript after recognizer disposal.
+   */
+  transcribe(request: VoiceTranscribeRequest, signal: AbortSignal): Promise<VoiceTranscribeResult> {
+    return this.requireOperations(signal).transcribe(request, signal)
   }
 
   /**

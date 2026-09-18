@@ -47,7 +47,9 @@ const ctx = await boot('dsh', resolveConfigPath(argv[2], process.env.DSH_SNAPSHO
 
 Profile 与 bundle 的声明类型从 [`@deepseek-ai/dsh-package-manifest`](../../util/package-manifest/README.zh.md) 导入。App-boot 负责 profile 加载、JSON 校验和解析后的运行时数据。
 
-profile 是同一套 dsh 安装提供不同应用界面的方式：`web`、`headless`、`acp`、`sdk` 与 `sdk-minimal` 从同一 launcher 启动不同组合。可选的 [device-control profile](../../../docs/user/develop/practice/device-control.zh.md) 增加桌面和移动设备 Provider，不改变通用 Web profile。profile 位于 `$DSH_HOME/profiles/<name>`，由可安装 bundle、自身 `cordis.patch.yml` 与 `patchReload: live | startup` 组成；自定义 profile 省略 reload 策略时保留历史 `live` 默认值。随附的 `web`、`browser`、`device-control`、`security-research` 和 `work-items` 模板实时重载；stdio 和 headless 模板只在启动时应用 patch。`sdk-minimal` 只列出自身的独立 bundle，其他模板保留 base 加模式 bundle 的栈。`dsh --profile <name> --from-default-profile <template>` 从一个随附模板，在新的非内置名称处创建自定义 profile；`dsh plugin` 则初始化以 base 为基础的 profile，并管理其中安装的 bundle。缺失 bundle 或未声明 patch 的 bundle 会让启动明确失败。由应用持有的 npm 项目（例如 Electron 保留的 Desktop profile）通过 `loadProfileDirectory` 加载已经初始化的目录，而不会将它暴露给 CLI profile 查找。
+profile 是同一套 dsh 安装提供不同应用界面的方式：`web`、`headless`、`acp`、`sdk`、`sdk-minimal` 与 `execution-host` 从同一 launcher 启动不同组合。可选的 [device-control profile](../../../docs/user/develop/practice/device-control.zh.md) 增加桌面和移动设备 Provider，不改变通用 Web profile。profile 位于 `$DSH_HOME/profiles/<name>`，由可安装 bundle、自身 `cordis.patch.yml` 与 `patchReload: live | startup` 组成；自定义 profile 省略 reload 策略时保留历史 `live` 默认值。随附的 `web`、`browser`、`device-control`、`security-research` 和 `work-items` 模板实时重载；stdio 和 headless 模板只在启动时应用 patch。`sdk-minimal` 与 [execution-host worker](../../bundle/execution-host-app/README.zh.md) 分别只列出自身的独立 bundle，其他模板保留 base 加模式 bundle 的栈。worker 在目标端配置前不导出任何文件系统根目录，也不启动 Agent 或 HTTP 服务器。`dsh --profile <name> --from-default-profile <template>` 从一个随附模板，在新的非内置名称处创建自定义 profile；`dsh plugin` 则初始化以 base 为基础的 profile，并管理其中安装的 bundle。缺失 bundle 或未声明 patch 的 bundle 会让启动明确失败。由应用持有的 npm 项目（例如 Electron 保留的 Desktop profile）通过 `loadProfileDirectory` 加载已经初始化的目录，而不会将它暴露给 CLI profile 查找。
+
+Loader 求值 profile 配置前，CLI 从已加载的 profile 提供 `dshProfileName`。Electron 提供保留的 `desktop` 标识，暂存启动时也相同。按 profile 保存状态的服务可使用 `profile: !!js dshProfileName`；可变状态仍位于 Harness home 下，与可替换的 profile 安装包分开。直接使用底层 `boot()` 的嵌入方组合这些服务时，应显式提供自身的 profile 标识。
 
 你的机器本地偏好同样位于 harness home 中：
 
@@ -100,7 +102,7 @@ profile 是同一套 dsh 安装提供不同应用界面的方式：`web`、`head
 |---|---|
 | [`src/index.ts`](src/index.ts) | 启动 helper：配置解析、环境加载、会明确报错的保护机制、激活审计、patch 解析、配置 dump、harness 源码段落 |
 | [`src/profile.ts`](src/profile.ts) | profile 发现、初始化、组合包解析、模块后备机制 |
-| — | 不发布运行时不变式伴生入口；边界与回放测试覆盖其协议映射。 |
+| — | 不发布运行时不变式伴生入口；此启动库不拥有包内持久化事件流；边界与回放测试覆盖其协议映射。 |
 
 </details>
 

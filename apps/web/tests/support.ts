@@ -173,6 +173,13 @@ export async function writeComposerDraft(
   else await page.keyboard.type(text)
 }
 
+/** Wait for the application frame, reporting a visible Loader failure with its details. */
+export async function waitForApplicationFrame(page: Page): Promise<void> {
+  const frame = page.locator('[data-shell-overlay]').locator('..')
+  await frame.or(page.getByText('Failed to load plugins', { exact: true })).first().waitFor({ timeout: 30_000 })
+  if (!await frame.isVisible()) throw new Error('Application boot failed: ' + await page.locator('body').innerText())
+}
+
 /** Failure evidence goes to the gitignored .artifacts/ (repo convention). */
 export async function saveFailureShot(page: Page, name: string): Promise<void> {
   const dir = fileURLToPath(new URL('../../../.artifacts', import.meta.url))

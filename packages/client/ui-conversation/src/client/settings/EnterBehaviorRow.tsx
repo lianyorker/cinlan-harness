@@ -42,7 +42,7 @@ export function EnterBehaviorRow({ useBusyEnter, setBusyEnter, t }: EnterBehavio
   const selectedLabel = behavior === 'queue' ? 'settings.enter.queue' : 'settings.enter.steer'
 
   return (
-    <div className={css.row}>
+    <div className={css.row} data-settings-anchor="busy-send">
       <div className={css.rowText}>
         <div className={css.title}>{t('settings.enter.title')}</div>
         <div className={css.desc}>{t('settings.enter.description')}</div>

@@ -1,0 +1,22 @@
+# Complete worker tree. Exported roots are configured explicitly on the target.
+
+- insert:
+    - id: execution-host
+      name: '@deepseek-ai/dsh-execution-host-local'
+
+    - id: fs
+      name: '@deepseek-ai/dsh-fs-local'
+
+    - id: subprocess
+      name: '@deepseek-ai/dsh-subprocess-local'
+
+    - id: execution-host-worker
+      name: '@deepseek-ai/dsh-execution-host-worker'
+      config:
+        roots: []
+        maxFrameBytes: 262144
+        operationTimeoutMs: 30000
+        maxEntries: 1000
+        maxResultBytes: 131072
+        maxConcurrentOperations: 16
+        maxCompletedOperations: 256

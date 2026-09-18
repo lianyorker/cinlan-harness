@@ -6,14 +6,21 @@
  *
  * Namespace plugin (named exports, no default export). Lifecycle is
  * effect-scoped: disposal disconnects from the server, unregisters all tools,
- * and releases the `serverName` namespace reservation. HMR hot-swaps by
- * disposing the old instance and creating a new one; identical `serverName`
+ * and releases the namespace after confirmed shutdown. A close timeout keeps
+ * the namespace reserved until Host restart. HMR replaces the old instance; identical `serverName`
  * reproduces identical public tool names.
  *
  * @module @deepseek-ai/dsh-mcp-client
  */
 
+import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/cordis-plugin-loader'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import { contributeConnection } from './registry-internal.ts'
+import type {} from './registry.ts'
+import { McpConnectionFailure } from './failure.ts'
+import type { Config as McpConfig, StdioConfig, StreamableHttpConfig, ConnectionHandle, McpConnectionId, McpLaunchOptions, McpOwner } from './types.ts'
 import z from '@deepseek-ai/schemastery'
 import { scopeOf } from '@deepseek-ai/dsh-scope'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
@@ -24,6 +31,9 @@ import type {} from '@deepseek-ai/dsh-tools'
 
 export type { McpResult } from './tools.ts'
 export type { ReconnectConfig, ResolvedReconnectPolicy } from './connection.ts'
+export { resolveReconnectPolicy } from './connection.ts'
+export { McpConnectionFailure } from './failure.ts'
+export type { ConnectionHandle, ConnectionOutcome, McpConnectionError, McpConnectionId, McpConnectionSnapshot, McpConnectionState, McpLaunchOptions, McpOwner, McpServerId, McpToolDescriptor } from './types.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'mcp-client'
@@ -46,56 +56,9 @@ const activeServerNames = new WeakMap<object, Set<string>>()
 
 // ---- Config ----
 
-/** Config for connecting to an MCP server via a spawned child process over stdio. */
-export interface StdioConfig {
-  /** Selects child-process stdio transport. */
-  transport: 'stdio'
-  /**
-   * Stable local namespace for this server's model-facing tool names
-   * (`mcp__<serverName>__<rawName>`). Must match `[A-Za-z0-9_-]{1,32}` and be
-   * unique across live mcp-client instances.
-   */
-  serverName: string
-  /** Executable used to start the server. */
-  command: string
-  /** Arguments passed directly, without shell interpolation. */
-  args: string[]
-  /** Extra env vars merged on top of scrubbed ambient env. */
-  env: Record<string, string>
-  /** Working directory for the child process. */
-  cwd: string
-  /** Per-tool-call timeout in milliseconds. */
-  toolCallTimeoutMs: number
-  /** Fail plugin activation when the initial connection or tool synchronization fails. */
-  failOnStartupError: boolean
-  /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
-  reconnect?: ReconnectConfig
-}
-
-/** Config for connecting to an MCP server over Streamable HTTP (SSE). */
-export interface StreamableHttpConfig {
-  /** Selects Streamable HTTP transport. */
-  transport: 'streamable-http'
-  /**
-   * Stable local namespace for this server's model-facing tool names
-   * (`mcp__<serverName>__<rawName>`). Must match `[A-Za-z0-9_-]{1,32}` and be
-   * unique across live mcp-client instances.
-   */
-  serverName: string
-  /** MCP endpoint URL. */
-  url: string
-  /** Additional headers attached to MCP requests. */
-  headers: Record<string, string>
-  /** Per-tool-call timeout in milliseconds. */
-  toolCallTimeoutMs: number
-  /** Fail plugin activation when the initial connection or tool synchronization fails. */
-  failOnStartupError: boolean
-  /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
-  reconnect?: ReconnectConfig
-}
-
-/** Configuration for one stdio or Streamable HTTP MCP server. */
-export type Config = StdioConfig | StreamableHttpConfig
+/** Configuration for one MCP transport. */
+export type Config = McpConfig
+export type { StdioConfig, StreamableHttpConfig } from './types.ts'
 
 type StdioConfigInput = Omit<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError'>
   & Partial<Pick<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError'>>
@@ -133,56 +96,63 @@ export const Config = z.union([
   }),
 ]) as unknown as z<ConfigInput, Config>
 
-// ---- Plugin apply ----
-
 /**
- * Connect one MCP server and publish its initial tool generation before activation.
- * This entry remains explicitly `async`: Cordis treats a prototype-bearing
- * ordinary function as a constructor, whose returned Promise is not startup work.
- * @param ctx - plugin context carrying the tool registry.
- * @param config - resolved transport and server namespace configuration.
- * @returns startup readiness after connection and initial tool discovery settle.
+ * Launch one MCP instance with the same namespace and effects as the plugin entry.
+ * @param ctx - context owning this instance and providing tools.
+ * @param config - resolved MCP configuration; launch authority is never read from it.
+ * @param options - private owner, credential resolver, and metadata redactor.
+ * @returns a handle whose disposal releases its namespace after transport cleanup.
  */
-export async function apply(ctx: Context, config: Config): Promise<void> {
-  // Fail loud at load: reconnect misconfiguration (including programmatic
-  // construction that bypassed Schemastery) rejects THIS instance before any
-  // effect registers.
-  const reconnect = resolveReconnectPolicy(config.reconnect, `mcp-client(${config.serverName}): reconnect`)
-
-  // Reserve the namespace next: a duplicate `serverName` fails THIS instance
-  // at load with an actionable error and leaves the earlier instance intact.
+export function launchMcpClient(ctx: Context, config: Config, options: McpLaunchOptions = {}): ConnectionHandle {
+  const reconnect = resolveReconnectPolicy(config.reconnect, 'mcp-client(' + config.serverName + '): reconnect')
+  let handle!: ConnectionHandle
   ctx.effect(() => {
-    const owner = scopeOf(ctx) ?? ctx.root
-    let names = activeServerNames.get(owner)
-    if (!names) {
-      names = new Set()
-      activeServerNames.set(owner, names)
-    }
+    const scope = scopeOf(ctx) ?? ctx.root
+    let names = activeServerNames.get(scope)
+    if (names === undefined) { names = new Set(); activeServerNames.set(scope, names) }
     if (names.has(config.serverName)) {
-      throw new Error(
-        `mcp-client: serverName "${config.serverName}" is already in use by another mcp-client instance — pick a unique serverName in cordis.yml`,
-      )
+      if (options.owner?.kind === 'managed') throw new McpConnectionFailure('namespace-conflict')
+      throw new Error('mcp-client: serverName "' + config.serverName + '" is already in use by another mcp-client instance — pick a unique serverName in cordis.yml')
     }
     names.add(config.serverName)
-    return () => void names.delete(config.serverName)
-  }, 'mcp-client.serverName')
-
-  // The supervisor owns the client/transport generations, the reconnect
-  // loop, and the live tool registrations; disposal stops reconnection,
-  // quiesces in-flight work, and unregisters the current generation.
-  const connection = startConnection(ctx, config, reconnect)
-
-  ctx.effect(() => {
-    return () => connection.dispose()
+    const connection = startConnection(ctx, config, reconnect, options)
+    let stopping: Promise<void> | undefined
+    handle = {
+      ...connection,
+      dispose: () => stopping ??= (async () => {
+        await connection.dispose()
+        // Cordis unloads independent effects concurrently. Keep namespace
+        // release in this cleanup, after transport shutdown is acknowledged.
+        if (connection.getSnapshot().errorCode !== 'close-timeout') names.delete(config.serverName)
+      })(),
+    }
+    return () => handle.dispose()
   }, 'mcp-client.connection')
+  const registry = ctx.get('mcpRegistry')
+  if (scopeOf(ctx) === undefined && registry !== undefined) {
+    const owner: McpOwner = options.owner === undefined
+      ? { kind: 'composition', label: ctx.get('loader')?.locate(ctx.fiber) ?? ctx.fiber.runtime?.name ?? 'root' }
+      : { ...options.owner }
+    contributeConnection(ctx, registry, {
+      id: brandString<McpConnectionId>(randomUUID()),
+      serverName: config.serverName,
+      transport: config.transport,
+      owner: Object.freeze(owner),
+    }, handle)
+  }
+  return handle
+}
 
-  // Block plugin activation on the initial connection + tool discovery so
-  // Cordis consumers observe the tools immediately after the fiber activates.
-  // When failOnStartupError is true, a failed initial attempt rejects the
-  // fiber (Cordis rolls it back); otherwise the error is logged and the
-  // supervisor enters its reconnect loop.
+/**
+ * Connect and discover tools before Cordis activates this plugin.
+ * @param ctx - plugin context carrying the tool registry.
+ * @param config - resolved configuration.
+ * @returns initial connection settlement; strict startup rejects failed discovery.
+ */
+export async function apply(ctx: Context, config: Config): Promise<void> {
+  const connection = launchMcpClient(ctx, config)
   const outcome = await connection.ready
   if (outcome.error !== undefined && config.failOnStartupError) {
-    throw new Error(`mcp-client(${config.serverName}): initial connection or tool synchronization failed`, { cause: outcome.error })
+    throw new Error('mcp-client(' + config.serverName + '): initial connection or tool synchronization failed', { cause: outcome.error })
   }
 }

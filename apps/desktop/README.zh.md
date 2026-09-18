@@ -61,6 +61,8 @@ pnpm run dev:desktop
 
 开发 Harness 状态默认写入 `apps/desktop/.desktop-build/development/home`，一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`，Electron 浏览器数据则位于 `apps/desktop/.desktop-build/development/electron-user-data`。因此，会话、设置、凭据、包链接和浏览器数据都不会进入用户正常使用的 Harness home；显式 `DSH_HOME` 只会替换开发 Harness home。Renderer DevTools 默认自动打开，Main、Renderer 和 dsh Host 调试端口依次为 9229、9222 和 9230。`DSH_DESKTOP_MAIN_INSPECT_PORT`、`DSH_DESKTOP_RENDERER_DEBUG_PORT` 与 `DSH_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`DSH_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。
 
+设置 `DSH_DESKTOP_DEVELOPMENT_ROOT` 可为单次运行分配独立的 `project`、`home` 和 `electron-user-data` 目录；显式 `DSH_HOME` 仍只覆盖 `home`。Main 和 Renderer 调试端口接受 `0`，由操作系统分配端口；Host 端口为 `0` 时关闭其调试器。Workspace 链接 profile 的可用性与调试状态无关。
+
 显式构建完成后，`start:desktop` 会重新生成一次性项目，并跳过构建直接启动已有产物：
 
 ```sh
@@ -69,9 +71,11 @@ pnpm run start:desktop
 
 Workspace 开发使用调用命令的 Node.js 运行当前 CLI 与私有 Desktop Host 包，并禁用桌面包修改；只有该模式明确链接的一次性 profile 可以从自身目录外解析 bundle。需要验证内置 Node.js、内置 pnpm、发布 seed、插件安装、staging 和 rollback 时，应运行未封装安装器的应用目录。
 
+已有构建产物且处于交互式桌面会话时，可在仓库根目录运行 `node apps/desktop/tests/settings.integration.mjs`，验证 Electron 中的设置界面。开发模式使用 `start:desktop`，并禁用 pnpm 自动依赖安装。验证现有 Windows 未封装应用时，添加 `--packaged '<DeepSeek Harness.exe 的绝对路径>'`；该模式确认打包 ASAR 与内置运行时，通过 UI 保存 Git 和终端偏好，并检查完整进程重启后的持久化。两种模式都隔离 Harness home 和 Electron userData，并检查中英文布局、搜索、焦点、关闭操作及语言持久化。截图、无障碍树、产物哈希和结果记录保留在 `.artifacts/desktop-settings-*`；检查会关闭自身启动的应用、确认调试端口释放，并移除临时根目录。该检查不构建产物、不运行安装器，也不执行终端命令。
+
 ## 打包
 
-正常打包只需执行一条完整命令。该命令会先准备发布资源，再生成宿主平台的安装包与更新元数据。所有目标都要求通过 `DSH_DESKTOP_APP_ID` 提供反向域名形式的应用 ID。macOS 目标还要求通过 `DSH_DESKTOP_MACOS_SIGNING_IDENTITY` 提供 electron-builder 证书限定名，通过 `DSH_DESKTOP_MACOS_TEAM_ID` 提供对应的 10 字符 Apple Team ID，并提供一套完整的 notarytool 凭据。App Store Connect API Key 方式使用以下变量：
+正常打包只需执行一条完整命令。生成安装包或未封装应用的命令会在构建或准备发布资源前，按已安装版本的 schema 校验全部 electron-builder 选项；仅准备资源的命令不加载安装器配置。本地 Windows 包默认使用 `com.cinlan.harness`；发布时通过 `DSH_DESKTOP_APP_ID` 设置自己的应用身份。macOS 目标还要求通过 `DSH_DESKTOP_MACOS_SIGNING_IDENTITY` 提供 electron-builder 证书限定名，通过 `DSH_DESKTOP_MACOS_TEAM_ID` 提供对应的 10 字符 Apple Team ID，并提供一套完整的 notarytool 凭据。App Store Connect API Key 方式使用以下变量：
 
 ```sh
 export DSH_DESKTOP_APP_ID='<reverse-DNS application ID>'
@@ -100,9 +104,13 @@ macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS �
 
 每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、seed、pnpm 准备状态、未打包应用、更新元数据和最终产物。Node.js 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。
 
+安装器命令将 pnpm 依赖收集限定为 `@deepseek-ai/dsh-desktop` 及其完整生产依赖树。构建前的依赖检查会拒绝额外项目根或缺失的桌面壳直接依赖，并将 pnpm 输出保存在 `.desktop-build/targets/<target>/electron-builder-dependencies.json`，包括命令失败时的输出。源码构建和后端 seed 准备使用各自的依赖图。
+
+Windows 更新上传要求 NSIS `.exe` 及其非空的独立 `.exe.blockmap`；macOS 更新要求 ZIP 及其独立 `.zip.blockmap`，并一同上传 DMG。上传计划校验引用的安装产物摘要，先发送载荷与 blockmap，再发送频道元数据。
+
 ### 上传更新
 
-`DSH_DESKTOP_AUTO_UPDATE_ENV` 同时选择打包时写入的更新 URL 与后续 COS 上传目标，可取 `test` 或 `production`；未设置时使用 `test`。测试打包必须通过 `DOWNLOAD_TEST_ORIGIN` 提供 HTTPS origin，生产 origin 仍为 `https://download.deepseek.com`。上传还必须通过 `DOWNLOAD_TEST_COS_BUCKET` 或 `DOWNLOAD_PROD_COS_BUCKET` 提供所选环境的 COS bucket。目标路径为 `_/harness/desktop/stable/<target>/`，其中 `target` 为 `mac-arm64`、`mac-x64` 或 `win-x64`。
+`DSH_DESKTOP_AUTO_UPDATE_ENV` 同时选择打包时写入的更新 URL 与后续 COS 上传目标，可取 `test` 或 `production`；未设置时使用 `test`。测试打包使用 `DOWNLOAD_TEST_ORIGIN` 或不提供更新服务的占位地址 `https://desktop-updates.example.com`；测试上传要求显式提供 HTTPS origin。生产 origin 仍为 `https://download.deepseek.com`。上传还必须通过 `DOWNLOAD_TEST_COS_BUCKET` 或 `DOWNLOAD_PROD_COS_BUCKET` 提供所选环境的 COS bucket。目标路径为 `_/harness/desktop/stable/<target>/`，其中 `target` 为 `mac-arm64`、`mac-x64` 或 `win-x64`。
 
 更新目标与上传凭据都与所选环境对应：
 
@@ -129,7 +137,7 @@ macOS 配置使用必填发布环境，不会接受钥匙串中最先发现的�
 
 ### Windows EV 签名
 
-Windows 发布打包要求 `DSH_DESKTOP_WINDOWS_CER_FILE` 标识公开的 GlobalSign EV 叶证书，要求 `DSH_DESKTOP_WINDOWS_SIGNTOOL` 标识与 SafeNet 兼容的 SignTool 可执行文件，要求 `DSH_DESKTOP_WINDOWS_KEY_CONTAINER` 标识匹配的私钥容器，并要求 `DSH_DESKTOP_WINDOWS_TOKEN_PIN` 包含 SafeNet Token Password。证书文件保留在源码仓库之外，匹配的私钥仍位于 USB Token。运行固定 Windows 目标前设置这四个输入：
+本地 Windows 构建在未配置 EV 签名时允许生成未签名包。需要 EV 签名的发布打包要求 `DSH_DESKTOP_WINDOWS_CER_FILE` 标识公开的 GlobalSign EV 叶证书，要求 `DSH_DESKTOP_WINDOWS_SIGNTOOL` 标识与 SafeNet 兼容的 SignTool 可执行文件，要求 `DSH_DESKTOP_WINDOWS_KEY_CONTAINER` 标识匹配的私钥容器，并要求 `DSH_DESKTOP_WINDOWS_TOKEN_PIN` 包含 SafeNet Token Password。证书文件保留在源码仓库之外，匹配的私钥仍位于 USB Token。运行固定 Windows 目标前设置这四个输入：
 
 ```powershell
 $env:DSH_DESKTOP_WINDOWS_CER_FILE = 'C:\path\to\server.cer'

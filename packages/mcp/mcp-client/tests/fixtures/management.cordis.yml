@@ -1,0 +1,7 @@
+# Source-builtins Loader composition for keyless MCP management observations.
+- id: system-prompt
+  name: cordis:test-system-prompt
+- id: tools
+  name: cordis:test-tools
+- id: mcp-registry
+  name: cordis:test-mcp-registry

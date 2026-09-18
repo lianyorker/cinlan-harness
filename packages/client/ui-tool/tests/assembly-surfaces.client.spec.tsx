@@ -4,6 +4,8 @@ import { toolSessionEvents } from './tool-fixtures.client.ts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import { apply as applyKeyboard, inject as injectKeyboard } from '@deepseek-ai/dsh-client-keyboard/client'
+import type { KeybindingsSettings } from '@deepseek-ai/dsh-client-keyboard/client'
 import type { ISession } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { TodoItem } from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -75,7 +77,11 @@ async function bench(nodes: ToolResultNode[]) {
       openWorkspacePath: vi.fn(async () => ({ ok: true, value: { opened: true } })),
     },
   })
-  runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+  const shortcuts = stubSettingsScope<KeybindingsSettings>()
+  shortcuts.publish({ status: 'ready', writable: true, value: { overrides: [] } })
+  runtime.ctx.provide('settingsScope', {
+    bind: ({ namespace }: { namespace: string }) => namespace === 'keybindings' ? shortcuts.scope : stubSettingsScope().scope,
+  } as never)
   runtime.ctx.provide('layout', { openDetails: vi.fn(), closeDetails: vi.fn() })
   runtime.ctx.provide('sidebarRight', { openResource: vi.fn() } as never)
   runtime.ctx.provide('uiWorkspace', {
@@ -94,6 +100,7 @@ async function bench(nodes: ToolResultNode[]) {
     },
   })
   await runtime.root.declare(LAYOUT_CHILDREN, AppRoot)
+  await runtime.mount({ inject: [...injectKeyboard], apply: applyKeyboard })
   await runtime.mount({ inject: [...injectConversation], apply: applyConversation })
   await runtime.mount({ inject: [...injectChat], apply: applyChat })
   await runtime.mount({ inject: [...injectTool], apply: applyTool })

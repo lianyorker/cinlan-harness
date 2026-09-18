@@ -64,7 +64,8 @@ const pressed = (name: RegExp): string | null =>
 describe('AppearanceRow', () => {
   it('renders the title and three cubes with the preference cube selected', () => {
     mount('dark')
-    expect(screen.getByText('Appearance')).toBeDefined()
+    expect(screen.getByText('Appearance').closest('[data-settings-anchor]')
+      ?.getAttribute('data-settings-anchor')).toBe('appearance')
     expect(pressed(/Dark/)).toBe('true')
     expect(pressed(/Light/)).toBe('false')
     expect(pressed(/System/)).toBe('false')

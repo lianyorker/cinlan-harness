@@ -238,7 +238,7 @@ function operationsWith(face: object): ModelsOperations {
 }
 
 /** One recorded child-slot dispatch: seat name, owner share, kind options. */
-type RenderSlotCall = [name: string, owner: Record<string, unknown>, opts?: { entryKey?: string }]
+type RenderSlotCall = Parameters<ModelsSectionProps['renderSlot']>
 
 /** Child-slot dispatch stub: records every seat occurrence, renders nothing. */
 function stubRenderSlot() {
@@ -272,7 +272,7 @@ async function mountFace(scripted: ReturnType<typeof scriptedFace>) {
     operations: operationsWith(face),
     schema: settingsSchema,
     t,
-    renderSlot: renderSlot as unknown as ModelsSectionProps['renderSlot'],
+    renderSlot,
   }
   const view = render(<ModelsSection {...injected} />)
   return { view, ctx, face, update, mutate, set, unset, controller, mirror, renderSlot }
@@ -313,8 +313,30 @@ describe('ModelsSection', () => {
     expect(document.body.textContent).toBe('')
   })
 
+  it('anchors the provider and add controls without duplicating the shell title', async () => {
+    const { view } = await mountSection()
+    expect(screen.queryByRole('heading', { name: en.title })).toBeNull()
+    expect(screen.getByText(en.intro)).toBeTruthy()
+    expect(screen.getByRole('button', { name: openaiCopy(en.editProvider) }).closest('[data-settings-anchor]')
+      ?.getAttribute('data-settings-anchor')).toBe('models-providers')
+    expect(screen.getByRole('button', { name: en.add }).closest('[data-settings-anchor]')
+      ?.getAttribute('data-settings-anchor')).toBe('models-add-provider')
+    expect(screen.getByRole('button', { name: en.customAdd }).getAttribute('data-settings-anchor'))
+      .toBe('models-custom-provider')
+    fireEvent.click(screen.getByRole('button', { name: en.add }))
+    expect(view.container.querySelector('[data-settings-anchor="models-add-provider"]')?.contains(screen.getByLabelText(en.provider)))
+      .toBe(true)
+    const key = screen.getByLabelText<HTMLInputElement>(en.keyInput)
+    fireEvent.change(key, { target: { value: 'unsaved-provider-draft' } })
+    screen.getByRole('button', { name: en.customAdd }).focus()
+    expect(screen.getByRole('button', { name: en.customAdd }).getAttribute('data-settings-anchor'))
+      .toBe('models-custom-provider')
+    expect(key.value).toBe('unsaved-provider-draft')
+  })
+
   it('dispatches the provider-card seat per rendered row, keyed by the owning namespace', async () => {
     const { renderSlot } = await mountSection()
+    expect(renderSlot.mock.calls[0]).toEqual(['settings.models.defaults', {}])
     const cards = cardSeatCalls(renderSlot)
     expect(cards).toContainEqual(['openai', true, true, 'llm-pi-ai'])
     expect(cards).toContainEqual(['deepseek-official', true, false, 'llm-deepseek'])
@@ -1286,14 +1308,16 @@ describe('ModelsSection', () => {
     const controller = new ModelsSettingsStore(
       ctxWith(face.face), settingsSchema, new SettingsDescribeMirror(ctxWith(face.face)))
     await controller.load()
+    const renderSlot = stubRenderSlot()
     render(<ModelsSection
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
       operations={operationsWith(face.face)}
       schema={settingsSchema}
       t={t}
-      renderSlot={() => null}
+      renderSlot={renderSlot}
     />)
+    expect(renderSlot.mock.calls[0]).toEqual(['settings.models.defaults', {}])
     expect(screen.getByText(/directory down/)).toBeTruthy()
     fireEvent.click(screen.getByText(en.retry))
     await waitFor(() => { expect(screen.queryByText(/directory down/)).toBeNull() })

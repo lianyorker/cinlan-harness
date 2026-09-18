@@ -27,6 +27,8 @@ kind: "package-reference"
 
 本插件在 root slot 组合侧栏、会话与右栏。左栏为264～420px，默认280px，收起后保留56px；窗口低于1024px时自动收起，打开右栏也会收起手动展开的左栏。右栏首次打开使用窗口宽度的45%，之后保留用户像素偏好，上限为70%；中栏不足400px时先把右栏压到300px，仍不足则通知占用方收起，最后才继续压缩中栏。拖拽跟手且无过渡延迟，关闭或全屏时不显示右栏拖拽区。
 
+框架向 [keyboard](../keyboard/README.zh.md) 注册 `shell.toggleSidebar`，默认 Mod+B（Apple 平台为 Command，其他平台为 Ctrl）。本地处理器读取当前覆盖，只处理来自框架自身 DOM 子树且尚未被消费的事件。可编辑控件、对话框、菜单、inert 根节点和 body portal 保留各自的键盘行为。
+
 ### 主题呈现
 
 呈现器消费解析后的主题快照，并投影到 document：`html { color-scheme }` 驱动原生 UA 控件，依据当前配色方案设置 `body[data-ds-dark-theme]`，把主题的别名 token 与 `--dsh-content-font-size` 设为 body 上的内联变量，并持有一个 `<meta name="theme-color">`，其内容随计算后的 body 背景色更新。释放呈现器时，它会连同其他全局写入一起移除自己的元数据节点。

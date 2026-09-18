@@ -32,7 +32,7 @@ The Remote consumer projection contains `.d.ts`, `.d.ts.map`, and `.js` files. T
 | Typert registry | `ctx.typert` | Separately stores reflection for the current environment, imported Remote contributions, lookup providers, and Context providers |
 | Typert generator/loader | No new business service | Generates three kinds of `lib` artifacts from the Host/Client Programs and registers the current environment's artifacts with `ctx.typert` |
 | API Gateway's Host face | `ctx.typertGateway` | Associates Host definitions with live Services, decodes parameters, resolves receivers, invokes methods, and encodes results |
-| Connection | `ctx.connection` | Exclusively owns the HTTP Server/future WebSocket, the shared `/api` route, RPC envelope, rpcId, serialization, trust, error transport, Typert interception, and owner-registered exact Fetch routes on the same channel |
+| Connection | `ctx.connection` | Exclusively owns the HTTP Server/future WebSocket, the shared `/api` route, RPC envelope, rpcId, serialization, trust, error transport, Typert interception, and owner-registered Fetch routes on the same channel |
 | API Gateway's Client face | `ctx.remote`, `ctx.remote.<namespace>` | Mounts Remote contributions, materializes each namespace as a traced `remote.<namespace>` child Service, and delegates canonical calls to `ctx.connection.rpc` |
 | API Remotes | No new service | Owns Host Agent/Session lookup policy and serves as the only Client business facade, selecting and mounting `/remote` contributions while exposing the selected API declarations |
 | Agent/Session owning packages | Existing domain services | Provide both static interface merges and runtime lookup/Context providers |
@@ -401,9 +401,9 @@ ctx.connection.rpc.intercept(
 )
 ```
 
-The Gateway claims an endpoint when the Host registry contains its strict descriptor, remembers a withdrawn strict descriptor, or finds a matching `@Remote` marker on an active SRC Service binding. A claimed endpoint stays in the Gateway after payload decoding, descriptor resolution, or invocation fails; an endpoint that neither an exact Fetch route nor the Gateway claims answers 404.
+The Gateway claims an endpoint when the Host registry contains its strict descriptor, remembers a withdrawn strict descriptor, or finds a matching `@Remote` marker on an active SRC Service binding. A claimed endpoint stays in the Gateway after payload decoding, descriptor resolution, or invocation fails; an endpoint that neither an Fetch route nor the Gateway claims answers 404.
 
-The Connection Host half passes one composite FetchHandler to the HTTP bridge. After the bridge creates a standard `Request`, that handler matches the pathname against the exact Fetch routes owners registered on the channel, then against the channel's single interceptor — the Gateway — and answers 404 when neither claims it. Every path on the channel reuses the same request/response envelope, rpcId, serialization, trust, and error transport, and a failure carries the shared `{ code, message, details }` data. The current physical mapping is:
+The Connection Host half passes one composite FetchHandler to the HTTP bridge. After the bridge creates a standard `Request`, that handler selects an owner-registered Fetch route by pathname, or uses the channel's single interceptor — the Gateway — when no Fetch route matches; unclaimed requests answer 404. [Scoped Fetch resources](2026-09-17-scoped-fetch-resources.md) defines exact/prefix matching and method denial. Every path on the channel reuses the same request/response envelope, rpcId, serialization, trust, and error transport, and a failure carries the shared `{ code, message, details }` data. The current physical mapping is:
 
 ```text
 POST /api/<namespace>/<method>
@@ -442,13 +442,13 @@ ctx.remote.goals.create(sessionId, request, signal?)
 
 Remote does not define a second-layer `{ ok, value/error }` response on the wire. Successful values and failures use the existing RPC response's `result` directly, and the failure branch carries the shared `{ code, message, details }` data. Owners, resolvers, and the Gateway all raise one class, `RemoteError`, whose code comes from the merged `RemoteErrorDetailsMap`: the Host encodes a structurally identified `RemoteError` onto the wire unchanged — including the Gateway's own `gateway/*` assembly codes and a resolver's `session/not-found` or `session/agent-busy` — and folds only an unclassified throw into `gateway/internal`, keeping its diagnostic in the message. The Client face rebuilds an instance for the `RemoteResult` error branch, so `throw result.error` keeps throw semantics. [The failure-vocabulary Agent Note](2026-08-28-ctx-remote-failure-vocabulary.md) owns the code table, its ownership rules, and why discrimination reads `code` instead of `instanceof`.
 
-The Gateway does not handle per-method permissions, caller identity, idempotency, or long-lived connection state. It only propagates cooperative cancellation from Connection into explicitly cancellation-aware business methods. Every request on the shared channel, Typert endpoint or exact Fetch route alike, passes Connection's browser authentication and trusted-host policy before dispatch; the Gateway adds no second policy. Connection's WebSocket migration remains separate follow-up work.
+The Gateway does not handle per-method permissions, caller identity, idempotency, or long-lived connection state. It only propagates cooperative cancellation from Connection into explicitly cancellation-aware business methods. Every request on the shared channel, Typert endpoint or Fetch route alike, passes Connection's browser authentication and trusted-host policy before dispatch; the Gateway adds no second policy. Connection's WebSocket migration remains separate follow-up work.
 
 ## Connection and protocol boundaries
 
 The Client Remote Service owns Remote contributions, namespace Service materialization, Scope binding, and the correspondence between positional parameters and descriptors. The Gateway owns Host descriptors, endpoint ownership, lookup, Context, and business invocation. Connection sends `/api`, the endpoint, and `{ args }` as one RPC call to the target and returns the existing RPC result; it does not understand Goal, Agent, lookup, descriptors, or Client Remote types.
 
-The Gateway registers only its ownership matcher and RPC handler with Connection; it does not register an HTTP route. Connection mounts the shared `/api` route into the HTTP Server and gives the bridge one composite FetchHandler; that handler dispatches an exact registered path to its route owner, a claimed endpoint to the Gateway, and anything else to 404. A future Connection transport can preserve this order without changing the Remote payload, business decorators, generated DTS, Remote API types, or Agent Scope programming interface.
+The Gateway registers only its ownership matcher and RPC handler with Connection; it does not register an HTTP route. Connection mounts the shared `/api` route into the HTTP Server and gives the bridge one composite FetchHandler; that handler dispatches a matched Fetch route to its owner, otherwise a claimed endpoint to the Gateway, and anything else to 404. A future Connection transport can preserve this order without changing the Remote payload, business decorators, generated DTS, Remote API types, or Agent Scope programming interface.
 
 ## Package boundaries
 
@@ -457,7 +457,7 @@ The Gateway registers only its ownership matcher and RPC handler with Connection
 - Typert runtime: separately stores the current environment's local reflection and imported Remote contributions.
 - `@deepseek-ai/dsh-api-gateway`: its default entry associates Host definitions with Services, claims Remote endpoints, performs lookup, resolves Context receivers, invokes methods, encodes results, and registers an `/api` interceptor with Connection; its `/client` entry mounts Remote contributions, creates strict Remote namespace Services and methods, and delegates calls to `ctx.connection.rpc`. The entries share the Remote protocol but do not import each other's Cordis interface merges.
 - `@deepseek-ai/dsh-api-remotes`: the BFF layer; registers the application's forwarded Cordis event source and the Host home carried by generation readiness, selects Client `/remote` contributions, and exposes the merged Remote types to business packages through the shared `TypertClientRemote` contract.
-- Connection: owns the single HTTP Server/future WebSocket carrier, the shared `/api` route and its composite FetchHandler, owner-registered exact Fetch routes, the RPC envelope, rpcId, serialization, trust, and error transport.
+- Connection: owns the single HTTP Server/future WebSocket carrier, the shared `/api` route and its composite FetchHandler, owner-registered Fetch routes, the RPC envelope, rpcId, serialization, trust, and error transport.
 - Business-object packages such as Agent/Session: own lookup, Context providers, canonical ID types, and public type-only entries.
 - `@deepseek-ai/dsh-api-session-controller`: configures the shared `agent`/`session` lookup and `agent` Host Context resolver, so every Remote endpoint that accepts one of those objects shares one resume and ownership-fence policy.
 - Business Service packages: declare bindings, Remote methods, and their request/result types, and export the generated `/remote` subpath.
@@ -488,7 +488,7 @@ The package topology is `api/remotes → api/gateway → client/connection → h
 
 **Let a top-level `/remote` import register global state implicitly.** The target Cordis Context may not exist when ESM evaluation occurs, and ownership becomes ambiguous across multiple Contexts, HMR, and disposal. A normal value import therefore returns only a contribution, which the environment assembly explicitly mounts through the Client Remote Service.
 
-**Create a separate transport, HTTP route, or `/api2` channel for Remote.** This would duplicate or split Connection's Server ownership, rpcId, serialization, trust, errors, and future WebSocket lifecycle. The shared `/api` interceptor instead keeps one physical route and lets Connection compose it from owner-registered exact Fetch routes and the channel's single interceptor.
+**Create a separate transport, HTTP route, or `/api2` channel for Remote.** This would duplicate or split Connection's Server ownership, rpcId, serialization, trust, errors, and future WebSocket lifecycle. The shared `/api` interceptor instead keeps one physical route and lets Connection compose it from owner-registered Fetch routes and the channel's single interceptor.
 
 ## Verification
 
@@ -502,7 +502,7 @@ The package topology is `api/remotes → api/gateway → client/connection → h
 - The Remote artifacts and maps contain only marked methods and no Browser dependency, preserving the same consumer boundary for a future TUI.
 - Lifecycle tests withdraw and remount descriptors, Services, lookups, Context providers, and Client namespaces; unavailable dependencies fail without stale calls or raw-ID fallback.
 - Cancellation tests cover strict generation, SRC final-name recognition, Client signal fusion, Connection-to-Gateway propagation, and Host injection outside wire `args`.
-- A request that matches neither an exact Fetch route nor a claimed Remote endpoint answers 404 on the same channel, while a withdrawn route stops being served.
+- A request that matches neither an Fetch route nor a claimed Remote endpoint answers 404 on the same channel, while a withdrawn route stops being served.
 
 ## Consequences
 

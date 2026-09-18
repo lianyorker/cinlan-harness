@@ -18,11 +18,14 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { IconChevronDownOutline14, Tag } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CardShell } from './card-form.ts'
+import type { SettingsPluginItemOwnerProps } from './slot-contract.ts'
 import type { PluginsSettingsLocaleKey } from './locales.ts'
 import css from './PluginCard.module.css'
 
 /** Card chrome shared by every plugin section. */
-export interface PluginCardProps {
+export interface PluginCardProps extends SettingsPluginItemOwnerProps {
+  /** Search anchor on the card containing these controls. */
+  anchorId?: string
   /** Locale reader for this section's copy. */
   t: (key: PluginsSettingsLocaleKey) => string
   /** Locale key of the plugin's name. */
@@ -48,6 +51,9 @@ export function PluginCard(props: PluginCardProps) {
   const [open, setOpen] = useState(false)
   const saveStarted = useRef(false)
   const { state } = props
+  useEffect(() => {
+    if (props.target !== undefined && props.target.anchorId === props.anchorId) setOpen(true)
+  }, [props.anchorId, props.target])
   // Collapse only after Host-confirmed settlement; a rejected write keeps its
   // diagnostics and retained drafts visible for correction.
   useEffect(() => {
@@ -63,7 +69,7 @@ export function PluginCard(props: PluginCardProps) {
   const title = props.t(props.titleKey)
   const blocked = !state.dirty || state.invalid || state.saving
   return (
-    <li className={clsx(css.card, open && css.cardOpen)}>
+    <li className={clsx(css.card, open && css.cardOpen)} data-settings-anchor={props.anchorId}>
       <button
         type="button"
         className={css.header}

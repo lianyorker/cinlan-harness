@@ -27,7 +27,7 @@ Web boot kernel 创建模块系统、预取 `immediately` entry、挂载 vendore
 
 Host 业务 service 使用 Typert Remote decorator 标记可调用 method。Host generation 产出严格 descriptor、runtime codec、declaration merge 与 source map。Client 侧 `api-remotes` assembly 选择这些生成贡献，并把具体 method 挂到 `ctx.remote.<namespace>` 与 Session scope 的 `agentCtx.remote.<namespace>`。功能包依赖生成的 service face，而不依赖 Gateway 实现或 Host 包的运行时 entry。
 
-Connection 拥有 request correlation、`/api` carrier、trust check、精确 Fetch 路由与 connection generation。API Gateway 拥有 Remote dispatch、取消、logical stream 与选定 Host event 的转发。Controller 操作应进入生成的 Remote method 或显式 Remote stream；功能自有的下载则注册精确 Fetch 路由。[API Gateway 参考](../api-gateway.zh.md)定义 generation 与调用，[Connection README](../../packages/client/connection/README.zh.md)定义物理 carrier 与信任策略。
+Connection 拥有 request correlation、`/api` carrier、trust check、Fetch 路由与 connection generation。API Gateway 拥有 Remote dispatch、取消、logical stream 与选定 Host event 的转发。Controller 操作应进入生成的 Remote method 或显式 Remote stream。Fetch 登记默认精确匹配路径；具有作用域的资源子树可以显式登记以 `/` 结尾的前缀，使相对资源保留 URL 作用域。精确匹配优先于最长匹配前缀。[API Gateway 参考](../api-gateway.zh.md)定义 generation 与调用，[Connection README](../../packages/client/connection/README.zh.md)定义物理 carrier 与信任策略。
 
 内部 `$events` logical stream 是 Connection generation source。它的 opening `ready` frame 携带用于路径显示的 Host home，并在 Host listener 已挂载、任何 controller 开始 baseline read 之前建立 generation。`ctx.remote.$on()` 把 allowlist 内的普通 event 交付给 root Client Context，并把 scoped waterfall event 交付给已解析的 Session Context；waterfall listener 可以返回结果、调用 `next()` 或拒绝。
 
@@ -93,3 +93,160 @@ Connection 拥有 request correlation、`/api` carrier、trust check、精确 Fe
 - [API Gateway](../api-gateway.zh.md)：Host method、生成的 Remote contribution、stream 与 forwarded event。
 - [Web Client Slots](slots.zh.md)：component、hook、store、injection 与 placement。
 - [Conversation](conversation.zh.md)：持久 event correlation、target snapshot，以及 Chat 或 Trajectory view contribution。
+
+<!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
+
+<a id="cordis-surface"></a>
+
+## Cordis API
+
+Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxbettersidebar--bettersidebarservice"></a>
+
+### `ctx.betterSidebar` — `BetterSidebarService`
+
+The registry service published as `ctx.betterSidebar`.
+
+```ts cordis-catalog
+/** Probe terminal dependencies without starting a terminal.
+ * @returns Browser transport support and the live Host dependency result.
+ */
+getTerminalCapability(): Promise<TerminalCapability>
+
+/** Register a tab descriptor.
+ * @param descriptor - Tab type to contribute.
+ * @returns Disposer removing this registration.
+ */
+registerTab(descriptor: TabDescriptor): () => void
+
+/** Register a file viewer descriptor.
+ * @param descriptor - File viewer to contribute.
+ * @returns Disposer removing this registration.
+ */
+registerFileViewer(descriptor: FileViewerDescriptor): () => void
+
+/** Read registered tab descriptors.
+ * @returns Tab descriptors in registration order.
+ */
+getTabs(): readonly TabDescriptor[]
+
+/** Read registered file viewer descriptors.
+ * @returns File viewer descriptors in registration order.
+ */
+getFileViewers(): readonly FileViewerDescriptor[]
+
+/** Find a tab descriptor by id (undefined if not registered).
+ * @param id - Registered tab type identity.
+ * @returns Descriptor, or undefined when unregistered.
+ */
+getTab(id: string): TabDescriptor | undefined
+
+/**
+ * Whether a tab type is enabled in the side card prefs. An absent
+ * `tabsEnabled[id]` entry means enabled — only an explicit `false`
+ * disables the type (hidden from the + menu, `openTab` refuses, and
+ * derived flows gate on it).
+ * @param id - Tab type identity.
+ * @returns False only when explicitly disabled by preferences.
+ */
+isTabEnabled(id: string): boolean
+
+/** Whether a file viewer is enabled (absent `viewersEnabled[id]` = enabled).
+ * @param id - File viewer identity.
+ * @returns False only when explicitly disabled by preferences.
+ */
+isViewerEnabled(id: string): boolean
+
+/**
+ * Find a file viewer for a path (priority desc; detect first, then exts).
+ * Disabled viewers are skipped, so files fall through to the next match.
+ * @param path - File path to match.
+ * @param head - Optional leading bytes used for content detection.
+ * @returns First enabled matching viewer, or undefined.
+ */
+matchFileViewer(path: string, head?: Uint8Array): FileViewerDescriptor | undefined
+
+/**
+ * Open a tab (used by external tabs and the + menu). `title` overrides
+ * the descriptor's title when given (the editor tab shows the file name);
+ * when the descriptor provides `createTab` it mints the tab itself and
+ * `title`/`path`/`id` are ignored. `url` lands the tab with its `path`
+ * pre-set to the URL (the browser tab's navigation seed; the caller
+ * usually pairs it with a hostname `title`). A disabled tab type is a
+ * no-op.
+ *
+ * `scope` (v0.12.0+) targets a specific session: when given, the open
+ * lands in THAT session's sidebar state (loading it if it has none yet)
+ * without switching the UI's active session; when absent the open lands
+ * in the currently active session (the pre-0.12 behavior).
+ *
+ * A CONTENT open (a `path` or `url` seed) must land in sight: when the
+ * panel hosting the landing pane is collapsed, it is expanded
+ * automatically (the right panel by default, the bottom panel when the
+ * active pane lives there; on narrow viewports the merged drawer opens).
+ * Type-only opens (the + menu, agent-terminal auto-tabs) never expand —
+ * the panel behavior is their caller's business.
+ *
+ * Note: `available` gates the + menu's disabled state only — it does NOT
+ * refuse `openTab` (only the settings disable switch does).
+ * @param seed - Tab creation fields.
+ * @param scope - Target Session scope; omitted selects the active Session.
+ */
+openTab(seed: OpenTabSeed, scope?: SessionScope): void
+
+/**
+ * Close a tab by id (fires descriptor.onClose). An unknown tab id is a
+ * strict no-op (no state churn, no callbacks). `scope` (v0.12.0+) rides
+ * to the callback (its optional cwd included); absent, the callback gets
+ * `{ sessionId }` of the active session.
+ * @param tabId - Open tab identity.
+ * @param scope - Target Session scope; omitted selects the active Session.
+ */
+closeTab(tabId: string, scope?: SessionScope): void
+
+/** Subscribe to registry changes (register/dispose).
+ * @param listener - Callback invoked after registry changes.
+ * @returns Disposer removing this subscription.
+ */
+subscribe(listener: () => void): () => void
+
+/**
+ * The current sidebar snapshot: the active session id, its state (panel
+ * geometry, open tabs, expansions), and the side card prefs (v0.12.0+).
+ * `state`/`sessionId` are undefined until a session becomes active.
+ * @returns Active Session, sidebar state, and preferences.
+ */
+getSnapshot(): SidebarSnapshot
+
+/** Subscribe to snapshot changes (session switch, state changes, prefs changes). Returns the disposer.
+ * @param listener - Callback invoked after snapshot changes.
+ * @returns Disposer removing this subscription.
+ */
+subscribeState(listener: () => void): () => void
+
+/** Update an open tab's display fields (title / path / meta); a missing tab id is a no-op.
+ * @param tabId - Open tab identity.
+ * @param patch - Display fields to replace.
+ */
+updateTab(tabId: string, patch: { title?: string; path?: string; meta?: unknown }): void
+
+/**
+ * Activate an open tab (the tab-bar activation path; fires
+ * descriptor.onActivate). An unknown tab id is a strict no-op. `scope`
+ * (v0.12.0+) rides to the callback like `closeTab`'s.
+ * @param tabId - Open tab identity.
+ * @param scope - Target Session scope; omitted selects the active Session.
+ */
+activateTab(tabId: string, scope?: SessionScope): void
+
+/** Open a file in the sidebar editor of `scope`'s session (title defaults to the file name).
+ * @param scope - Target Session.
+ * @param path - File path to open.
+ * @param title - Tab title; omitted uses the file name.
+ */
+openFile(scope: SessionScope, path: string, title?: string): void
+```
+
+Source: [`packages/client/ui-better-sidebar/src/client/service.ts`](../../packages/client/ui-better-sidebar/src/client/service.ts)
+<!-- END GENERATED cordis-surface -->

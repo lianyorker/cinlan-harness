@@ -1,0 +1,85 @@
+/* Native settings rows; selectors inherit the active theme's semantic colors. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 60px;
+}
+
+.copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.label {
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.help {
+  margin: 4px 0 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.select {
+  box-sizing: border-box;
+  width: 240px;
+  max-width: 42%;
+  height: 36px;
+  flex-shrink: 0;
+  padding: 0 10px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--dsw-alias-border-l3);
+  outline-offset: 2px;
+}
+
+.select:disabled {
+  opacity: 0.5;
+}
+
+.actions,
+.feedback {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.feedback {
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+@media (max-width: 540px) {
+  .row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .select {
+    width: 100%;
+    max-width: 100%;
+  }
+}

@@ -80,7 +80,9 @@ export const CHUNK_EXTERNALS: readonly string[] = [
 ]
 
 /** Chunk script endpoint served by the plugin host half (src/bundle-route.ts). */
-const CHUNK_URL = (name: ChunkName): string => `/sidebar/bundle/${name}.js`
+const CHUNK_URL = (name: ChunkName): string => name === 'terminal'
+  ? '/api/sidebar-terminal.bundle?name=terminal'
+  : `/api/sidebar.bundle?name=${name}`
 
 /** Bound on the revalidation HEAD round-trip. A timeout fails open (drop +
  *  re-fetch on the next open) so a stuck bundle route can never wedge lazy
@@ -119,7 +121,7 @@ const MODULE_SYSTEM_GLOBAL = '__dshSidebarModuleSystem__'
 export function setChunkModuleSystem(system: ChunkModuleSystem | undefined): void {
   injectedModuleSystem = system
   const g = globalThis as Record<string, unknown>
-  if (system === undefined) delete g[MODULE_SYSTEM_GLOBAL]
+  if (system === undefined) Reflect.deleteProperty(g, MODULE_SYSTEM_GLOBAL)
   else g[MODULE_SYSTEM_GLOBAL] = system
 }
 
@@ -245,8 +247,7 @@ export async function loadChunk(name: ChunkName): Promise<ChunkExports> {
   if (revalidation !== null) await revalidation
   const cached = cache.get(name)
   if (cached !== undefined) return cached
-  let task: Promise<ChunkExports>
-  task = (async (): Promise<ChunkExports> => {
+  const task: Promise<ChunkExports> = (async (): Promise<ChunkExports> => {
     const test = testLoaders.get(name)
     if (test !== undefined) return test()
     const modules = moduleSystem()

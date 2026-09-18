@@ -30,6 +30,7 @@ import type { EnterBehaviorRowInjected } from './settings/EnterBehaviorRow.tsx'
 import { ConversationRoot } from './skeleton/ConversationRoot.tsx'
 import { ConversationSession, ConversationSessionHeader } from './skeleton/ConversationSession.tsx'
 import { InputBar } from './skeleton/InputBar.tsx'
+import { registerComposerCommands } from './keyboard-commands.ts'
 import { todoDockEntry } from './skeleton/TodoPanel.tsx'
 import { resolveActiveView } from './view-selection.ts'
 import { en, NS, zh, type ConversationKey } from './locales.ts'
@@ -44,7 +45,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /** Services required by the Conversation plugin. */
 export const inject = [
-  'slots', 'sessions', 'fileUpload', 'uiSession', 'uiWorkspace', 'locale', 'settingsScope',
+  'slots', 'sessions', 'fileUpload', 'uiSession', 'uiWorkspace', 'locale', 'settingsScope', 'settingsMetadata', 'keyboard',
 ]
 
 /** Conversation runtime configuration. */
@@ -121,21 +122,31 @@ export function apply(ctx: Context, config: Config = Config({})): void {
 
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-conversation: dictionaries')
   const t = ctx.locale.bind(NS)
+  ctx.effect(() => registerComposerCommands(ctx.keyboard, t), 'conversation: keyboard commands')
   const conversationStore = createConversationStore()
   const submissionPolicy = new ComposerSubmissionPolicy(
     ctx.settingsScope.bind<ConversationSettings>({ namespace: CONVERSATION_SETTINGS_NAMESPACE }),
   )
 
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
-    id: 'composer-enter',
-    order: 20,
-    locale: NS,
-    inject: (): EnterBehaviorRowInjected => ({
-      hooks: { busyEnter: submissionPolicy.busyEnter },
-      setBusyEnter: (behavior) => { submissionPolicy.setBusyEnter(behavior) },
-    }),
-  }, EnterBehaviorRow))
+  ctx.slots.inject('settings.general.item', function* () {
+    yield ctx.slots.register({
+      name: 'settings.general.item',
+      id: 'composer-enter',
+      order: 20,
+      locale: NS,
+      inject: (): EnterBehaviorRowInjected => ({
+        hooks: { busyEnter: submissionPolicy.busyEnter },
+        setBusyEnter: (behavior) => { submissionPolicy.setBusyEnter(behavior) },
+      }),
+    }, EnterBehaviorRow)
+    yield ctx.settingsMetadata.registerItems('general', [{
+      id: 'busy-send',
+      anchorId: 'busy-send',
+      title: () => t('settings.enter.title'),
+      description: () => t('settings.enter.description'),
+      keywords: () => ['busy', 'send', 'enter', 'queue', 'steer'],
+    }])
+  })
 
   const viewTabs = (): ViewTab[] => {
     const tabs: ViewTab[] = []
@@ -308,6 +319,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       if (sessionId === undefined) {
         return {
           keyboard: undefined,
+          matchShortcut: (id, facts) => ctx.keyboard.matches(id, facts),
           addFiles: undefined,
           removeAttachment: undefined,
           resolveDraftAttachments: undefined,
@@ -316,6 +328,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
           stop: undefined,
           command: undefined,
           hooks: {
+            shortcuts: ctx.keyboard,
             busyEnter: submissionPolicy.busyEnter,
             fileUploads: ABSENT_FILE_UPLOADS,
             notices: ABSENT_NOTICES,
@@ -329,6 +342,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       const inputTriggers = inputHub.inputTriggers(sessionId)
       return {
         keyboard: shell,
+        matchShortcut: (id, facts) => ctx.keyboard.matches(id, facts),
         addFiles: (files) => {
           if (sessions.binding(sessionId) === undefined) return t('file.sessionUnavailable')
           try {
@@ -374,6 +388,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
           return result.ok && result.value.matched
         },
         hooks: {
+          shortcuts: ctx.keyboard,
           busyEnter: submissionPolicy.busyEnter,
           fileUploads: conversation.fileUploads,
           notices: shell.notices,

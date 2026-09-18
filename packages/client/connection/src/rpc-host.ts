@@ -38,6 +38,7 @@ interface ConnectionRpcInterceptor {
 }
 
 interface RegisteredFetchRoute {
+  readonly match: NonNullable<ConnectionFetchRoute['match']>
   readonly methods: ReadonlySet<string>
   readonly requestBody: ConnectionFetchRoute['requestBody']
   readonly fetch: ConnectionFetchRoute['fetch']
@@ -85,7 +86,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
     }
   }
 
-  /** Exact Fetch-route registry scoped to the Context reading this service. */
+  /** Fetch-route registry scoped to the Context reading this service. */
   get fetch(): HostConnectionFetch {
     const owner = this.ctx
     return {
@@ -110,7 +111,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
   }
 
   /**
-   * Compose one shared-channel Fetch handler from exact routes and its interceptor.
+   * Compose one shared-channel Fetch handler from Fetch routes and its interceptor.
    * @param channel - shared channel mounted by Connection.
    * @returns Fetch handler that selects one owner or returns 404.
    */
@@ -119,13 +120,17 @@ export class HostConnectionService extends Service implements HostConnectionHand
   ): ConnectionFetchHandler {
     return {
       requestBodyMode: ({ method, url }) => {
-        const route = this.fetchRoutes.get(url.pathname)
+        const route = this.matchFetchRoute(url.pathname)
         return route?.methods.has(method) === true ? route.requestBody : 'buffered'
       },
       fetch: (request) => {
         const pathname = new URL(request.url).pathname
-        const route = this.fetchRoutes.get(pathname)
-        if (route?.methods.has(request.method) === true) return route.fetch(request)
+        const route = this.matchFetchRoute(pathname)
+        if (route !== undefined) {
+          return route.methods.has(request.method)
+            ? route.fetch(request)
+            : Promise.resolve(new Response('not found', { status: 404 }))
+        }
         const endpoint = endpointFromPath(channel, pathname)
         const interceptor = this.interceptors.get(channel)
         if (endpoint === undefined || interceptor === undefined || !interceptor.matches(endpoint)) {
@@ -136,19 +141,35 @@ export class HostConnectionService extends Service implements HostConnectionHand
     }
   }
 
+  private matchFetchRoute(pathname: string): RegisteredFetchRoute | undefined {
+    const exact = this.fetchRoutes.get(pathname)
+    if (exact?.match === 'exact') return exact
+    let selected: RegisteredFetchRoute | undefined
+    let longestPrefix = 0
+    for (const [path, route] of this.fetchRoutes) {
+      if (route.match === 'prefix' && path.length > longestPrefix && pathname.startsWith(path)) {
+        selected = route
+        longestPrefix = path.length
+      }
+    }
+    return selected
+  }
+
   private registerFetchRoute(
     owner: Context,
     route: ConnectionFetchRoute,
   ): () => Promise<void> {
-    assertFetchRoute(route)
+    const match = route.match ?? 'exact'
+    assertFetchRoute(route, match)
     const registered: RegisteredFetchRoute = {
+      match,
       methods: new Set(route.methods),
       requestBody: route.requestBody,
       fetch: route.fetch,
     }
     return owner.effect(() => {
       if (this.fetchRoutes.has(route.path)) {
-        throw new Error(`connection: exact Fetch route ${JSON.stringify(route.path)} is already registered`)
+        throw new Error(`connection: ${match} Fetch route ${JSON.stringify(route.path)} is already registered`)
       }
       this.fetchRoutes.set(route.path, registered)
       return () => { this.fetchRoutes.delete(route.path) }
@@ -289,15 +310,22 @@ function assertChannel(channel: string): void {
   }
 }
 
-function assertFetchRoute(route: ConnectionFetchRoute): void {
-  if (endpointFromPath(API_PATH, route.path) === undefined) {
-    throw new Error(`connection: invalid exact Fetch route ${JSON.stringify(route.path)}`)
+function assertFetchRoute(
+  route: ConnectionFetchRoute,
+  match: RegisteredFetchRoute['match'],
+): void {
+  if (match === 'prefix' && !route.path.endsWith('/')) {
+    throw new Error(`connection: prefix Fetch route ${JSON.stringify(route.path)} must end in /`)
+  }
+  const endpointPath = match === 'prefix' ? route.path.slice(0, -1) : route.path
+  if (endpointFromPath(API_PATH, endpointPath) === undefined) {
+    throw new Error(`connection: invalid ${match} Fetch route ${JSON.stringify(route.path)}`)
   }
   if (route.methods.length === 0) {
-    throw new Error(`connection: exact Fetch route ${JSON.stringify(route.path)} declares no methods`)
+    throw new Error(`connection: ${match} Fetch route ${JSON.stringify(route.path)} declares no methods`)
   }
   const methods = new Set(route.methods)
   if (methods.size !== route.methods.length) {
-    throw new Error(`connection: exact Fetch route ${JSON.stringify(route.path)} repeats a method`)
+    throw new Error(`connection: ${match} Fetch route ${JSON.stringify(route.path)} repeats a method`)
   }
 }

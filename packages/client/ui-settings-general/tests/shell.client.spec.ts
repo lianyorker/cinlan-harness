@@ -61,7 +61,7 @@ const CHILD_SPECS = {
 describe('ui-settings apply', () => {
   it('declares only the slot registry (a pure composition face, no locale)', () => {
     expect(inject).toEqual([
-      'slots', 'locale', 'remote', 'remote.settings', 'settingsScope',
+      'slots', 'locale', 'remote', 'remote.settings', 'settingsScope', 'settingsMetadata',
     ])
   })
 
@@ -97,7 +97,7 @@ describe('ui-settings apply', () => {
     const { sections } = injectedOf(b.slots).hooks
     // This package registers the General section itself; every other section
     // arrives from a feature registrant.
-    const GENERAL = { id: 'general', order: 0, label: 'general.nav' }
+    const GENERAL = { id: 'general', order: 0, label: 'general.nav', groupId: 'personal', items: [] }
     expect(sections.getSnapshot()).toEqual([GENERAL])
     b.slots.register({ name: 'settings.section', id: 'z', order: 20, label: 'Z' } as never, () => null)
     // No order and no label: both projection defaults apply.
@@ -105,8 +105,8 @@ describe('ui-settings apply', () => {
     const rows = sections.getSnapshot()
     expect(rows).toEqual([
       GENERAL,
-      { id: 'a', order: 0, label: '' },
-      { id: 'z', order: 20, label: 'Z' },
+      { id: 'a', order: 0, label: '', groupId: 'extensions', items: [] },
+      { id: 'z', order: 20, label: 'Z', groupId: 'extensions', items: [] },
     ])
     // Snapshot identity is stable until the ledger moves (uSES contract).
     expect(sections.getSnapshot()).toBe(rows)
@@ -116,6 +116,26 @@ describe('ui-settings apply', () => {
     await Promise.resolve()
     expect(listener).toHaveBeenCalled()
     expect(sections.getSnapshot()).not.toBe(rows)
+    off()
+  })
+
+  it('joins field metadata only to mounted sections and republishes changes', async () => {
+    const b = await bench()
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const { sections } = injectedOf(b.slots).hooks
+    const listener = vi.fn()
+    const off = sections.subscribe(listener)
+    const metadata = b.ctx.settingsMetadata
+    const remove = metadata.registerItems('optional', [{ id: 'connection', anchorId: 'connection', title: () => 'Connection' }])
+    expect(sections.getSnapshot()).toHaveLength(1)
+    const unregister = b.slots.register({ name: 'settings.section', id: 'optional', label: 'Optional' } as never, () => null)
+    expect(sections.getSnapshot().find(row => row.id === 'optional')?.items[0]?.title).toBe('Connection')
+    remove()
+    expect(sections.getSnapshot().find(row => row.id === 'optional')?.items).toEqual([])
+    expect(listener).toHaveBeenCalled()
+    unregister()
+    expect(sections.getSnapshot()).toHaveLength(1)
     off()
   })
 

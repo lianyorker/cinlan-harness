@@ -41,6 +41,7 @@ The `security/` group provides scoped assessment authority, evidence metadata, f
 ## Related documentation
 
 - [Security Research profile](../../profiles/security-research.md) — the shipped composition and its default authority.
+- [Security Research subsystem reference](../../docs/subsystems/security-research.md) — assessment grants, operation decisions, Finding records, and vulnerability queries.
 - [Scope subsystem reference](../../docs/subsystems/scope.md) — shared scope and authorization semantics.
 - [Skills subsystem reference](../../docs/subsystems/skills.md) — skill registration and loading semantics.
 - [Workflow subsystem reference](../../docs/subsystems/workflow.md) — workflow execution and result semantics.

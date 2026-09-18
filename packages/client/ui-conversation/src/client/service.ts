@@ -18,7 +18,7 @@ import type {
 } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-file-upload/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { ImageMediaType } from '@deepseek-ai/dsh-attachment'
+import type { EncodedImageAttachment, ImageMediaType } from '@deepseek-ai/dsh-attachment'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {
@@ -50,6 +50,13 @@ export interface IConversation {
    * @returns completion; business failures reject (and land in promptError).
    */
   send(text: string): Promise<void>
+  /**
+   * Add an encoded image to the caller scope's existing draft without sending it.
+   * @param image - Canonical image bytes and metadata from a human capture or upload.
+   * @returns Whether the draft accepted the image; an admission in progress refuses it.
+   * @throws When the caller has no live Session scope or image decoding fails.
+   */
+  addImageDraft(image: EncodedImageAttachment): boolean
   /**
    * Apply one edit, remove, or Steer operation to a pending queue occurrence.
    * @param itemId - agent-owned inbox occurrence identity.
@@ -209,6 +216,17 @@ export class ConversationController extends Service implements IConversation {
     const session = this.scopedSession('send')
     const result = await session.prompt([{ type: 'text', text }], 'queue')
     if (!result.ok) throw new Error(`conversation.send failed: ${result.error.code}: ${result.error.message}`)
+  }
+
+  /** Add one encoded image through the existing scoped draft registry. */
+  addImageDraft(image: EncodedImageAttachment): boolean {
+    const session = this.scopedSession('addImageDraft')
+    const input = this.input.for(this.ctx)
+    const data = Uint8Array.from(atob(image.data), character => character.charCodeAt(0))
+    const drafts = this.createDrafts(session.sessionId, [new File([data], image.name ?? '', { type: image.mediaType })])
+    if (input.addAttachments(drafts.map(draft => draft.id))) return true
+    this.releaseDraftAttachments(drafts)
+    return false
   }
 
   /**

@@ -1,5 +1,5 @@
 ---
-description: "Model selection for the Web GUI: the /model popup and the composer model seat over one per-session provider-grouped directory; for users and maintainers of model routing."
+description: "Session model selection and new-session defaults for the Web GUI, using one shared provider-grouped catalog; for users and maintainers of model routing."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The Web GUI lets users switch the model and reasoning effort for an existing session through either the `/model` popup or the composer's model control. Both surfaces present the same provider-grouped choices, and the selected model determines the available effort names and default. A complete selection applies to the next request; a running step keeps the model and effort it started with. If no adapter can serve the session's route, the composer remains disabled until routing becomes available.
+The Web GUI lets users switch the model and reasoning effort for an existing session through either the `/model` popup or the composer's model control. Both surfaces present the same provider-grouped choices, and the selected model determines the available effort names and default. A complete selection applies to the next request; a running step keeps the model and effort it started with. If no adapter can serve the session's route, the composer remains disabled until routing becomes available. The plugin also contributes new-session defaults to the Models settings page.
 
 ## Table of Contents
 
@@ -31,6 +31,13 @@ Mount this plugin alongside `ui-conversation` and the commands package; the comp
 
 Models stay grouped by provider. The menu shows model and effort names only; catalog descriptions remain available to other consumers. The `/model` popup applies the selected model's default effort; the composer can then choose any advertised effort. An adapter without reasoning metadata leaves the Effort row absent; there is no arbitrary effort input.
 
+<a id="new-session-defaults"></a>
+### New-session defaults
+
+Settings → Models exposes Default model and Reasoning effort when the settings services are present. Choices save automatically to the `agent-default-model` namespace for future sessions. Changing the model writes provider and model together and clears the previous route’s effort override; Reset to inherited unsets all three fields, including overrides equal to inherited values. Changes here do not overwrite existing session selections. Switching the model inside a session also saves future defaults.
+
+Unavailable or read-only settings disable the controls. Only the selected route’s advertised reasoning efforts are offered. Rejected writes remain unsaved; a conflict displays the recovered Host values, and Retry save reapplies the intended choice using their revision.
+
 ### Unroutable sessions
 
 When the Host reports that no adapter serves the session's route, this plugin raises a composer block and the input goes inert with its own copy; recovering clears it without a reload. A `null` before the first load or after one failed never blocks, and catalog membership never blocks either — a route serving a model it does not advertise is missing from the groups yet usable.
@@ -43,7 +50,9 @@ When the Host reports that no adapter serves the session's route, this plugin ra
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-Two entries over ONE per-session directory owned by `ModelDirectoryResolver` (`ctx.modelDirectories`): the `/model` popupSelect contribution (registered through `ctx.commandUi`) and the composer's named `conversation.input.model` seat both load the session's advisory directory through `session.models` and submit through `session.selectModel` via the same `ModelDirectory` instance, so a switch made in either entry is what the other shows next. Directory loads and selections share a generation counter so an older response never overwrites a newer one; a connection reset drops every resident projection and repulls the Host-restored selection. Directories are per-session, resolved lazily, and disposed with the session scope; addressed subagent sessions expose neither entry. Every resident directory refetches directly on forwarded `llm/adapters-updated` and `settings/document-updated` owner events.
+`ModelDirectoryResolver` (`ctx.modelDirectories`) owns one Host-generation `ModelCatalogDirectory` and lazy per-session `ModelDirectory` projections. The `/model` popup and composer seat submit through `session.selectModel` and share each Session’s directory; addressed subagent sessions expose neither selector. Forwarded adapter, settings, and credential invalidations refresh the shared catalog.
+
+The defaults contribution binds `agent-default-model` through SettingsScope and exposes that scope and the same catalog through renderer hooks. Atomic mutations use the scope’s revision fencing, queue, and recovery reads. Save confirmation compares all three raw user-layer fields, including own-field presence for unset operations; a settled promise or matching effective value alone cannot announce success. The controls and localized search entries share the optional `settings.models.defaults` slot lifetime.
 
 </details>
 
@@ -64,7 +73,7 @@ Read these pages when the model surface is not enough. They move from the browse
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the `session.selectModel` selection both entries submit: the Host snapshots the complete `ModelSelection` at the next prompt-assembly boundary and owns the model-visible effect, while a running step keeps its assembled selection.
+Indirectly, through session selectors that submit through `session.selectModel` and Settings controls that change the model and effort inherited by future sessions; the Host snapshots the complete `ModelSelection` at the next prompt-assembly boundary, while a running step keeps its assembled selection.
 
 #### KV Cache effect
 
@@ -77,7 +86,7 @@ Switching the route can reduce or invalidate provider-side cache reuse for subse
 
 These limits define the current model surface. They are current package constraints, not a general model-router comparison or a task backlog.
 
-- **No create-time or addressed-subagent selection** — both entries require an existing ordinary session's Agent; there is no draft-phase model choice to fold into session creation, and subagent continuation deliberately exposes no independent model-selection contract.
+- **No per-draft or addressed-subagent selection** — Settings edits shared future defaults; the per-session selectors require an existing ordinary session’s Agent, and subagent continuation exposes no independent model-selection operation.
 - **Directory names are presentation-only** — selection and persistence use provider/model/effort ids; a provider whose catalog or exact-model metadata lookup fails lists as an unselectable failure row until reload.
 - **No arbitrary effort input** — the composer offers only the exact model's adapter-advertised levels; an adapter without reasoning metadata leaves the Effort row absent.
 
@@ -91,4 +100,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No companion is published. A single command contribution registration whose disposal is proven by the HMR-safety spec — it emits no cordis events and owns no cross-plugin mutable state.
+**Runtime invariant:** No companion is published. The settings scope and shared catalog own persisted defaults and advertised choices; the controls hold only transient save feedback. Behavior tests cover write confirmation and contribution disposal.

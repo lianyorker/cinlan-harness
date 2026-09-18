@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-This Service Provider mounts `sherpa-onnx-node` as the local speech-to-text engine on `ctx.voice` and owns the `/voice/api` loopback-only Host route the settings page and Ctrl+Shift+E dictation client call. Six shipped models cover the full pipeline: two streaming Zipformer models from [GitHub releases](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models) (Chinese-only ~74MB, bilingual ~511MB) and four additional models from [HuggingFace](https://huggingface.co) via the `hf-mirror.com` mirror (English Zipformer ~92MB, bilingual Paraformer ~237MB, Sense Voice ~240MB, Whisper tiny ~153MB).
+This Service Provider mounts `sherpa-onnx-node` as the local speech-to-text engine on `ctx.voice` and registers provider operations shared by the authenticated `voice` Remote and an optional loopback `/voice/api` route. Web and Desktop dictation use the Remote; this provider requires `voice` and managed `subprocess`, and activates without `webServer`. Six shipped models cover the full pipeline: two streaming Zipformer models from [GitHub releases](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models) (Chinese-only ~74MB, bilingual ~511MB) and four additional models from [HuggingFace](https://huggingface.co) via the `hf-mirror.com` mirror (English Zipformer ~92MB, bilingual Paraformer ~237MB, Sense Voice ~240MB, Whisper tiny ~153MB).
 
 ## Degraded mode
 
@@ -16,7 +16,7 @@ Each model downloads to `$DSH_HOME/models/voice/<id>/`. Sized archives use confi
 
 ## /voice/api route
 
-Five methods, all POST, all loopback-only (the same DNS-rebinding / cross-site defense as `@deepseek-ai/dsh-client-ui-better-sidebar`'s `/sidebar/api`, copied rather than imported because that package does not export the helper):
+The route mounts only while `webServer` is available and unregisters with that injection lifetime. Both transports dispatch the same provider-owned operations. Caller cancellation aborts the shared installation; removal joins active model work before deletion, and provider disposal joins every owned operation. Native recognition releases its recognizer after settlement even when cancellation prevents returning a transcript. Five methods, all POST, all loopback-only (the same DNS-rebinding / cross-site defense as `@deepseek-ai/dsh-client-ui-better-sidebar`'s `/sidebar/api`, copied rather than imported because that package does not export the helper):
 
 - `engine.status` — the native-addon load state; `{ ok: true }` when `sherpa-onnx-node` loaded, otherwise `{ ok: false, cause, command, profile, note }` with the pasteable repair command.
 - `models.list` — the shipped roster with live cache status.
@@ -41,6 +41,8 @@ None; the Provider adds no request or result tokens.
 None; engine loading, model download/cache state, and transcription never enter a model request prefix.
 
 ## Known Limitations and Deferred Work
+
+No invariant companion is published because registration and disposal enforce contribution ownership in the Voice and web-server registries; the Provider has no independent copy of those registrations.
 
 - **HuggingFace models use `hf-mirror.com`** — the four file-download models are sourced from `hf-mirror.com` instead of `huggingface.co` for network accessibility in regions where the latter is unreachable; the mirror URL is hardcoded in `model-registry.ts`.
 - **Network errors show a friendly hint** — `fetch failed` and similar transport errors are translated to a user-facing message prompting the user to check their network or enable a proxy.

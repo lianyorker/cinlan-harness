@@ -103,8 +103,8 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
    * @param value - JSON-shaped value selected by the user.
    * @returns settlement after the write and any latest-write recovery read.
    */
-  set(field: string, value: unknown): Promise<void> {
-    return this.mutate([{ op: 'set', path: [field], value: value as JsonValue }])
+  async set(field: string, value: unknown): Promise<void> {
+    await this.mutate([{ op: 'set', path: [field], value: value as JsonValue }])
   }
 
   /**
@@ -113,33 +113,41 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
    * @param field - scalar field inside the namespace section.
    * @returns settlement after the clear and any latest-write recovery read.
    */
-  unset(field: string): Promise<void> {
-    return this.mutate([{ op: 'unset', path: [field] }])
+  async unset(field: string): Promise<void> {
+    await this.mutate([{ op: 'unset', path: [field] }])
   }
 
   /**
    * Queue one atomic namespace mutation; see {@link SettingsScope.mutate}.
    * @param ops - ordered field operations copied when queued.
    * @param expectedRevision - optional fixed revision read by the domain editor.
-   * @returns settlement after the mutation and any latest-write recovery read.
+   * @returns whether the Host accepted the mutation, after any latest-write recovery read.
    */
-  mutate(ops: readonly SettingsPathOpView[], expectedRevision?: number): Promise<void> {
+  mutate(ops: readonly SettingsPathOpView[], expectedRevision?: number): Promise<boolean> {
     const ownedOps = structuredClone(ops) as SettingsPathOpView[]
     const generation = ++this.writeGeneration
     return this.enqueue(async () => {
       const revision = expectedRevision ?? this.pendingRevision ?? this.getSnapshot().revision
-      const response = await this.ctx.remote.settings.mutate(this.spec.namespace, ownedOps, revision)
+      let response: Awaited<ReturnType<Context['remote']['settings']['mutate']>>
+      try {
+        response = await this.ctx.remote.settings.mutate(this.spec.namespace, ownedOps, revision)
+      } catch (error) {
+        await this.recover(generation)
+        throw error
+      }
       if (!response.ok) {
         await this.recover(generation)
-        return
+        return false
       }
-      if (this.disposed) return
-      if (generation === this.writeGeneration) {
-        this.pendingRevision = undefined
-        this.mirror.acceptView(response.value)
-      } else {
-        this.pendingRevision = response.value.revision
+      if (!this.disposed) {
+        if (generation === this.writeGeneration) {
+          this.pendingRevision = undefined
+          this.mirror.acceptView(response.value)
+        } else {
+          this.pendingRevision = response.value.revision
+        }
       }
+      return true
     })
   }
 
@@ -162,15 +170,12 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
     await this.tail
   }
 
-  private enqueue(operation: () => Promise<void>): Promise<void> {
-    if (this.persistence === 'memory' || this.disposed) return Promise.resolve()
-    const task = this.tail.then(async () => {
-      if (this.disposed) return
-      await operation()
-    })
+  private enqueue(operation: () => Promise<boolean>): Promise<boolean> {
+    if (this.persistence === 'memory' || this.disposed) return Promise.resolve(false)
+    const task = this.tail.then(() => this.disposed ? false : operation())
     // The returned task carries its own settlement to the caller; the queue
     // tail is kept fulfilled so one failed subscriber cannot strand later operations.
-    this.tail = task.catch(() => {})
+    this.tail = task.then(() => undefined, () => undefined)
     return task
   }
 

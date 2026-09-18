@@ -11,11 +11,13 @@
 import type { api } from './api.ts'
 import {
   clampTerminalFontSize,
+  clampTerminalScrollback,
   clampTitleBarStrip,
   clampWidthPercent,
   SIDEBAR_PREFS_DEFAULTS,
   TITLE_BAR_SCHEMES,
   TITLE_BAR_STRIP_DEFAULT,
+  TERMINAL_CURSOR_STYLES,
   type SidebarPrefs,
   type TitleBarScheme,
 } from '../prefs-shared.ts'
@@ -24,7 +26,9 @@ export {
   SIDEBAR_PREFS_DEFAULTS,
   TITLE_BAR_SCHEMES,
   TITLE_BAR_STRIP_DEFAULT,
+  TERMINAL_CURSOR_STYLES,
   clampTerminalFontSize,
+  clampTerminalScrollback,
   clampTitleBarStrip,
   clampWidthPercent,
 }
@@ -73,6 +77,14 @@ export function parsePrefs(value: unknown): SidebarPrefs {
     terminalFontSize: typeof record.terminalFontSize === 'number' && Number.isFinite(record.terminalFontSize)
       ? clampTerminalFontSize(record.terminalFontSize)
       : SIDEBAR_PREFS_DEFAULTS.terminalFontSize,
+    terminalScrollback: typeof record.terminalScrollback === 'number' && Number.isFinite(record.terminalScrollback)
+      ? clampTerminalScrollback(record.terminalScrollback)
+      : SIDEBAR_PREFS_DEFAULTS.terminalScrollback,
+    terminalCursorStyle: TERMINAL_CURSOR_STYLES.find(style => style === record.terminalCursorStyle)
+      ?? SIDEBAR_PREFS_DEFAULTS.terminalCursorStyle,
+    terminalCursorBlink: typeof record.terminalCursorBlink === 'boolean'
+      ? record.terminalCursorBlink
+      : SIDEBAR_PREFS_DEFAULTS.terminalCursorBlink,
     interceptOpenPath: typeof record.interceptOpenPath === 'boolean'
       ? record.interceptOpenPath
       : SIDEBAR_PREFS_DEFAULTS.interceptOpenPath,

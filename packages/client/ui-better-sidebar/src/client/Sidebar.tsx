@@ -35,8 +35,8 @@ import { IconCloseFill14, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context, SidebarSessionList } from '../context-types.ts'
 import { appendToDraft } from './conversation-draft.ts'
 import {
-  BOTTOM_MIN, PANEL_MIN, agentUuidOf, allLeaves, firstLeaf, isAgentTabId, leafWithTab,
-  migrateBottomTabs, moveTab, moveTabToEdge, openDiffTab, reconcileAgentTerminals,
+  BOTTOM_MIN, PANEL_MIN, allLeaves, firstLeaf, leafWithTab,
+  migrateBottomTabs, moveTab, moveTabToEdge, openDiffTab,
   resizeSplitIn, setBottomHeight, setWidth, toggleBottomPanel, toggleExpanded, togglePanel,
   type DropZone, type SidebarState, type SidebarStore, type SidebarTab,
 } from './state.ts'
@@ -60,9 +60,7 @@ import { t } from './locales.ts'
 import { api, type SessionScope } from './api.ts'
 import css from './sidebar.module.css'
 
-/** How many consecutive reconnect failures stop the agent-terminals push loop
- * (mirror of the terminal view's own cap; the loop restarts on session switch). */
-const FAILURE_LIMIT = 3
+
 
 /**
  * Subagent auto-open debounce (ms). The host delivers a new child's origin
@@ -135,7 +133,9 @@ interface TabContentProps extends TabContentMemoKey {
 
 /** Render the content of one tab (dispatched by type). */
 const TabContent = memo(function TabContent(props: TabContentProps) {
-  const { tab, sessionId, cwd, expanded, onToggleDir, onReferenceFile, ctx, store, preferences, visible, onSubagentJump, onOpenDiff } = props
+  const {
+    tab, sessionId, cwd, expanded, onToggleDir, onReferenceFile, ctx, store, preferences, visible, onSubagentJump, onOpenDiff,
+  } = props
   const scope = { sessionId, cwd }
   const descriptor = ctx.betterSidebar?.getTab(tab.type)
   if (descriptor === undefined) {
@@ -358,62 +358,6 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
     return () => { cancelled = true }
   }, [sessionId, summaryCwd])
   const cwd = summaryCwd ?? fetchedCwd
-
-  /**
-   * Agent terminals push: subscribe to the host's live list of agent-owned
-   * terminals for this session (created by the model through the
-   * `terminal_create` tool). The host pushes a JSON array on every
-   * create / close / exit; the sidebar reconciles the list into tabs
-   * (id `agent:<uuid>`, title from the agent). A disconnected socket
-   * retries with a short backoff so a refresh or transient drop reattaches
-   * the same shell without losing the agent's work — capped like the
-   * terminal view's own reconnect loop, so a refused endpoint never spins
-   * forever (the next session switch restarts the loop).
-   * While the terminal tab type is disabled in settings, pushes are
-   * ignored (no auto-added tabs); re-enabling makes the next push converge.
-   */
-  useEffect(() => {
-    if (sessionId === undefined) return
-    let socket: WebSocket | null = null
-    let retry: number | undefined
-    let closed = false
-    let failures = 0
-    const connect = (): void => {
-      if (closed) return
-      const url = new URL('/sidebar/ws/agent-terminals', location.origin)
-      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-      url.search = new URLSearchParams({ sessionId }).toString()
-      socket = new WebSocket(url.toString())
-      socket.onmessage = (event) => {
-        if (typeof event.data !== 'string') return
-        try {
-          const list = JSON.parse(event.data) as Array<{ uuid: string; title: string; command: string; exited: boolean }>
-          if (!Array.isArray(list)) return
-          store.reduce(s => ctx.betterSidebar?.isTabEnabled('terminal') === false
-            ? s
-            : reconcileAgentTerminals(s, list))
-        } catch {
-          // Malformed push: ignore (the next push will reconcile).
-        }
-      }
-      socket.onclose = () => {
-        if (closed) return
-        failures += 1
-        if (failures >= FAILURE_LIMIT) {
-          console.error('[dsh-better-sidebar] agent-terminals connection failed; stopping reconnect loop', sessionId)
-          return
-        }
-        retry = window.setTimeout(connect, 2000)
-      }
-      socket.onerror = () => { socket?.close() }
-    }
-    connect()
-    return () => {
-      closed = true
-      window.clearTimeout(retry)
-      socket?.close()
-    }
-  }, [sessionId, store])
 
   /**
    * Subagent auto-activation: the moment the current conversation spawns its
@@ -920,33 +864,10 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
 
   const actions: WorkbenchActions = useMemo(() => ({
     closeTab: (paneId, tabId) => {
-      // A closed terminal releases its pty immediately — including when its
-      // socket is mid-reconnect, where the unmount close frame never reaches
-      // the host and the process would hold the quota until the grace ends.
-      // Agent terminals (tabId `agent:<uuid>`) close through a different
-      // host route: the WS close frame is the primary path (sent by
-      // TerminalView on unmount), and the agent-pty.close HTTP route is the
-      // fallback when the WS is down.
-      const current = store.getSnapshot().state
-      // Terminal tabs may live in EITHER tree (the bottom panel hosts them
-      // too) — the pty-release lookup covers both, or the HTTP fallback is
-      // skipped for a bottom-panel terminal whose WS frame never arrived.
-      const leaf = current === undefined
-        ? undefined
-        : leafWithTab(current.splits, tabId) ?? leafWithTab(current.bottomSplits, tabId)
-      const tab = leaf?.tabs.find(candidate => candidate.id === tabId)
       // Route through the service: the tab-bar close is the canonical close
       // path (finds the pane itself, fires descriptor.onClose); the session
       // scope (with its cwd) rides to the callback.
       ctx.betterSidebar?.closeTab(tabId, sessionId === undefined ? undefined : { sessionId, cwd })
-      if (tab?.type === 'terminal') {
-        if (isAgentTabId(tabId)) {
-          const uuid = agentUuidOf(tabId)
-          void api.agentPtyClose(uuid).catch(() => { /* the host may already have released it */ })
-        } else if (sessionId !== undefined) {
-          void api.ptyClose({ sessionId, cwd }, tabId).catch(() => { /* the host may already have released it */ })
-        }
-      }
     },
     activateTab: (paneId, tabId) => {
       // Route through the service: same reducer (finds the pane in EITHER

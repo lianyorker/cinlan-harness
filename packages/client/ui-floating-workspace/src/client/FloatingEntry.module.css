@@ -1,0 +1,4 @@
+.entry { display: flex; align-items: center; }
+.floating { position: fixed; right: 16px; bottom: 16px; pointer-events: auto; display: flex; align-items: center; gap: 8px; max-width: min(380px, calc(100vw - 32px)); padding: 6px; border-radius: 14px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); box-shadow: var(--dsw-shadow-lv2); }
+.notice { position: fixed; top: 80px; right: 16px; pointer-events: none; max-width: min(380px, calc(100vw - 32px)); padding: 10px 12px; border-radius: 10px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary); box-shadow: var(--dsw-shadow-lv2); font-size: 12px; line-height: 1.5; }
+.notice[role="alert"] { color: var(--dsw-alias-state-error-primary); }

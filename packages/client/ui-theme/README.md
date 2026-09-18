@@ -49,6 +49,8 @@ When the host composition includes an HTTP server, the host half embeds the regi
 
 The service owns theme and font-size state and publishes snapshots. The ui-layout presenter applies those snapshots, and the token sheets own the color and conversation text scales.
 
+The General rows contribute localized search metadata with stable `appearance` and `font-size` anchors; each row’s metadata shares its slot registration lifetime.
+
 ### Stylesheets
 
 `src/styles/` holds six sheets imported in order by ui-theme's dynamic client entry: `base.css`, `corner-shape.css`, `design-platform.css`, `scrollbar.css`, `gradient-shadow-text.css`, and `shiki.css`. The client bundle compiles and injects them as plugin-owned global styles, so unload and HMR remove them with ui-theme. `scrollbar.css` is the sole consumer of the `--dsw-alias-scrollbar-*` tokens and must follow `design-platform.css`, which declares them.

@@ -33,6 +33,7 @@ kind: "package-group"
 | [`typert/`](typert/README.zh.md) | 类型图生成、产物加载与运行时注册表 |
 | [`goal/`](goal/README.zh.md) | 同会话 goal 的持久化与生命周期 |
 | [`schedule/`](schedule/README.zh.md) | 仅限会话内的定时后续操作 |
+| [`automation/`](automation/README.zh.md) | 持久 UTC 定义、独占本地调度与常规 Agent 调用 |
 | [`feedback/`](feedback/README.zh.md) | 人类反馈的采集与命令 |
 | [`identity/`](identity/README.zh.md) | 共享匿名身份 |
 | [`llm/`](llm/README.zh.md) | LLM 能力系列：抽象服务 + 提供方适配器 |
@@ -58,9 +59,9 @@ kind: "package-group"
 | [`computer-use/`](computer-use/README.zh.md) | 桌面 Provider、观察、权限策略和工具 |
 | [`mobile-device/`](mobile-device/README.zh.md) | 移动设备 Provider、一次性 observation 和输入工具 |
 | [`coordination/`](coordination/README.zh.md) | 有界任务图、Executor 与面向模型的 coordination 工具 |
-| [`git/`](git/README.zh.md) | 只读 Git observation、本地 provider 与面向模型的工具 |
+| [`git/`](git/README.zh.md) | 只读模型观测、Git 偏好与显式侧栏操作 |
 | [`artifact/`](artifact/README.zh.md) | 带 scope 的不可变证据存储与 metadata |
-| [`execution-host/`](execution-host/README.zh.md) | 用于证据 provenance 的 execution-host identity |
+| [`execution-host/`](execution-host/README.zh.md) | 执行主机来源、保存的 SSH 目标与有界 worker 检查 |
 | [`attachment/`](attachment/README.zh.md) | 持久附件标识、校验、本地内容寻址存储 |
 | [`spill/`](spill/README.zh.md) | spill 能力系列：存储 seam、本地实现、工具结果 spill 策略 |
 | [`todo/`](todo/README.zh.md) | 面向模型的 `todo_write` 工具 |

@@ -884,22 +884,22 @@
     {
       "doc": "docs/subsystems/tools.md",
       "symbol": "JsonSchemaScalar",
-      "source": "packages/core/tools/src/json-schema.ts"
+      "source": "packages/core/tools/src/types.ts"
     },
     {
       "doc": "docs/subsystems/tools.md",
       "symbol": "JsonSchemaType",
-      "source": "packages/core/tools/src/json-schema.ts"
+      "source": "packages/core/tools/src/types.ts"
     },
     {
       "doc": "docs/subsystems/tools.md",
       "symbol": "JsonSchemaNode",
-      "source": "packages/core/tools/src/json-schema.ts"
+      "source": "packages/core/tools/src/types.ts"
     },
     {
       "doc": "docs/subsystems/tools.md",
       "symbol": "ObjectJsonSchema",
-      "source": "packages/core/tools/src/json-schema.ts"
+      "source": "packages/core/tools/src/types.ts"
     },
     {
       "doc": "docs/subsystems/user-questions.md",

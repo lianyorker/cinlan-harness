@@ -13,12 +13,15 @@
  * override equal to the composition default is still an override.
  */
 
+import type { SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 
+type FieldValue = Extract<SettingsPathOpView, { op: 'set' }>['value']
+
 /** The write one field's staged text performs when the card is saved. */
 export type FieldWrite =
-  | { kind: 'set'; value: unknown }
+  | { kind: 'set'; value: FieldValue }
   | { kind: 'clear' }
 
 /** How one section field converts between its stored value and its draft text. */
@@ -101,8 +104,8 @@ interface PlannedWrite {
   /** Field this entry writes. */
   field: string
   /**
-   * Perform the write and report whether the Host holds the staged value
-   * afterwards; undefined when the draft is not a value the field accepts.
+   * Perform the write and confirm Host acceptance and stored state; undefined
+   * when the draft is not a value the field accepts.
    */
   run: (() => Promise<boolean>) | undefined
 }
@@ -248,10 +251,8 @@ export class CardForm<T> {
   /**
    * Write every staged edit, then re-seed from what the Host accepted.
    *
-   * The Host is the only authority on whether a value was accepted — its
-   * validators own the constraints no schema can express — so the outcome is
-   * read back from the section rather than predicted here. A save that did not
-   * land keeps its drafts, so the user can correct them instead of retyping.
+   * Every write requires Host acceptance and matching read-back. Refusals,
+   * transport failures, and mismatched values retain all staged drafts.
    * @returns settlement after every write and the read-back.
    */
   async save(): Promise<void> {
@@ -263,7 +264,11 @@ export class CardForm<T> {
     this.publish()
     let landed = true
     for (const write of writes) {
-      landed = await write() && landed
+      try {
+        landed = await write() && landed
+      } catch (_writeFailure) {
+        landed = false
+      }
     }
     if (landed) this.staged.clear()
     this.saving = false
@@ -301,13 +306,13 @@ export class CardForm<T> {
   }
 
   private async clear(field: string): Promise<boolean> {
-    await this.scope.unset(field)
-    return !this.stored(field)
+    const accepted = await this.scope.mutate([{ op: 'unset', path: [field] }])
+    return accepted && !this.stored(field)
   }
 
-  private async store(field: string, value: unknown): Promise<boolean> {
-    await this.scope.set(field, value)
-    return this.userLayer()?.[field] === value
+  private async store(field: string, value: FieldValue): Promise<boolean> {
+    const accepted = await this.scope.mutate([{ op: 'set', path: [field], value }])
+    return accepted && this.userLayer()?.[field] === value
   }
 
   private stage(field: string, edit: StagedEdit): void {

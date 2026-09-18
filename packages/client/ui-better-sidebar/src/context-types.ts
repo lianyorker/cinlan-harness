@@ -28,6 +28,7 @@
 import type { Context as CordisContext } from '@deepseek-ai/cordis'
 import type { SettingsScope, SettingsScopeSpec } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { BetterSidebarService } from './client/service.ts'
+import type { ConnectionHandle as ClientConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 
 /** The request face route handlers see (structural subset of node's
  *  IncomingMessage: the URL/method/header reads and the async body
@@ -116,6 +117,7 @@ export interface SidebarSlotRegisterOptions {
   locale?: string
   registrant?: string
   /** Business-face factory; args depend on the slot scope. */
+  // oxlint-disable-next-line typescript/no-explicit-any -- Erases slot-specific callback arity and parameter types.
   inject?: (...args: any[]) => Record<string, unknown>
   children?: Record<string, unknown>
 }
@@ -325,7 +327,7 @@ export interface SidebarSessionHistoryRpc {
 }
 
 /** The wire face the Subagent activity summary needs (subset of `ctx.connection`). */
-export interface SidebarConnectionHandle {
+export interface SidebarConnectionHandle extends Pick<ClientConnectionHandle, 'generation'> {
   api: {
     sessions: SidebarSessionHistoryRpc
     subagents: {

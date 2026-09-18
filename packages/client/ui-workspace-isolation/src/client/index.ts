@@ -18,7 +18,7 @@ export type {
 export type { WorkspaceIsolationKey } from './locales.ts'
 
 /** Services used by the local Settings registration and generated namespace. */
-export const inject = ['slots', 'locale', 'remote', 'remote.workspaceIsolation']
+export const inject = ['settingsMetadata', 'slots', 'locale', 'remote', 'remote.workspaceIsolation']
 
 /**
  * Register the local-only Workspace Isolation Settings section.
@@ -61,12 +61,23 @@ export function apply(ctx: Context): void {
     prune: async signal => value(await ctx.remote.workspaceIsolation.prune(signal)).pruned,
   }
 
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'workspace-isolation',
-    order: 15,
-    label: () => t('nav'),
-    locale: NS,
-    inject: () => injected,
-  }, WorkspaceIsolationSection))
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'workspace-isolation', groupId: 'development' })
+    yield ctx.settingsMetadata.registerItems('workspace-isolation', [
+      { id: 'policy', anchorId: 'workspace-isolation-policy', title: () => t('policyTitle'), description: () => t('policyHelp') },
+      { id: 'leases', anchorId: 'workspace-isolation-leases', title: () => t('total'), description: () => t('description'),
+        keywords: () => [t('sourcePath'), t('checkoutPath'), t('activate'), t('hibernate'), t('teardown')] },
+      { id: 'review', anchorId: 'workspace-isolation-review', title: () => t('reviewTitle'), description: () => t('reviewHelp'),
+        keywords: () => [t('details'), t('reviewChanges'), t('merge'), t('cherryPick'), t('exportPatch')] },
+      { id: 'prune', anchorId: 'workspace-isolation-prune', title: () => t('prune'), description: () => t('confirmPruneDescription') },
+    ])
+    yield ctx.slots.register({
+      name: 'settings.section',
+      id: 'workspace-isolation',
+      order: 70,
+      label: () => t('nav'),
+      locale: NS,
+      inject: () => injected,
+    }, WorkspaceIsolationSection)
+  })
 }

@@ -19,7 +19,7 @@ import {
   acknowledgeReloadConnectionLoss, assertFixtureInventory, captureStableAria, compareOrRefreshGolden,
   launchWebScaffold, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { ZH_BROWSER_LOCALE, saveFailureShot } from './support.ts'
+import { ZH_BROWSER_LOCALE, saveFailureShot, waitForApplicationFrame } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/settings-chrome', import.meta.url))
 const DIALOG_EXPECTED = join(SNAPSHOT_DIR, 'dialog.expected.md')
@@ -41,9 +41,10 @@ describe('web e2e: settings page and General preferences', () => {
     // Chinese browser: the shared page asserts the localized settings surface
     // the client derives from it (the English default has its own spec below).
     page = await browser.newPage({ viewport: { width: 1680, height: 1000 }, locale: ZH_BROWSER_LOCALE })
+    page.setDefaultTimeout(10_000)
     tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
-    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    await waitForApplicationFrame(page)
   }, 120_000)
 
   afterAll(async () => {
@@ -53,13 +54,20 @@ describe('web e2e: settings page and General preferences', () => {
 
   it('opens the settings page, switches sections, and returns by Back and Escape', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-shell'))
-    const trigger = page.getByRole('button', { name: '设置', exact: true })
+    const trigger = page.getByRole('button', { name: '设置', exact: true, includeHidden: true })
     expect(await trigger.getAttribute('aria-haspopup')).toBeNull()
     expect(await trigger.getAttribute('aria-expanded')).toBe('false')
     await trigger.click()
     const dialog = page.getByRole('region', { name: '设置' })
     await dialog.waitFor({ timeout: 10_000 })
     expect(await trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(await page.locator('#root').evaluate(element => element instanceof HTMLElement && element.inert)).toBe(true)
+    await page.keyboard.press('Shift+Tab')
+    expect(await page.evaluate(() => document.getElementById('root')?.contains(document.activeElement))).toBe(false)
+    expect((await dialog.getByRole('navigation', { name: '设置导航' }).boundingBox())?.width).toBe(280)
+    const toolbarHeight = (await dialog.locator('header').boundingBox())?.height
+    expect(toolbarHeight).toBeGreaterThanOrEqual(64)
+    expect(toolbarHeight).toBeLessThanOrEqual(65)
     // General is active by default; Permission, Language and Appearance are functional.
     expect(await dialog.getByRole('button', { name: '通用设置' }).getAttribute('aria-current')).toBe('page')
     await dialog.getByRole('button', { name: '工作区内修改' }).waitFor({ timeout: 10_000 })
@@ -92,9 +100,10 @@ describe('web e2e: settings page and General preferences', () => {
     // Golden of the freshly opened dialog (default zh, General active).
     const snapshot = await captureStableAria(page, '[data-dsh-settings-page]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(DIALOG_EXPECTED, snapshot, MODE)
+    if (MODE === 'refresh') await page.screenshot({ path: '.artifacts/settings-native-current-desktop.png', fullPage: true })
     // Section switch: aria-current moves (the Models page itself has its own scenario file).
-    await dialog.getByRole('button', { name: '模型' }).click()
-    await expect.poll(() => dialog.getByRole('button', { name: '模型' }).getAttribute('aria-current'), { timeout: 5_000 }).toBe('page')
+    await dialog.getByRole('button', { name: '模型', exact: true }).click()
+    await expect.poll(() => dialog.getByRole('button', { name: '模型', exact: true }).getAttribute('aria-current'), { timeout: 5_000 }).toBe('page')
     expect(await dialog.getByRole('button', { name: '通用设置' }).getAttribute('aria-current')).toBeNull()
     // Plugins is a read-only projection of the same assembled Loader tree.
     // Capture one stable shipped row rather than the whole inventory so adding
@@ -123,7 +132,7 @@ describe('web e2e: settings page and General preferences', () => {
       .toBe(String(expectedPluginCount))
     expect(await dialog.getByRole('button', { name: '插件', exact: true }).getAttribute('aria-current')).toBe('page')
     expect(await dialog.getByRole('tab', { name: '插件列表', exact: true }).getAttribute('aria-selected')).toBe('true')
-    expect(await dialog.getByRole('button', { name: '模型' }).getAttribute('aria-current')).toBeNull()
+    expect(await dialog.getByRole('button', { name: '模型', exact: true }).getAttribute('aria-current')).toBeNull()
     const pluginsSnapshot = await captureStableAria(
       page,
       PLUGIN_ROW_SELECTOR,
@@ -134,12 +143,76 @@ describe('web e2e: settings page and General preferences', () => {
     await page.keyboard.press('Escape')
     await expect.poll(() => page.getByRole('region', { name: '设置' }).count(), { timeout: 5_000 }).toBe(0)
     expect(await trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(await page.locator('#root').evaluate(element => element instanceof HTMLElement && element.inert)).toBe(false)
+    expect(await trigger.evaluate(element => element === document.activeElement)).toBe(true)
     // Close path 2: the header close button (focus lands there on open).
     await trigger.click()
     await page.getByRole('region', { name: '设置' }).getByRole('button', { name: '返回应用' }).click()
     await expect.poll(() => page.getByRole('region', { name: '设置' }).count(), { timeout: 5_000 }).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
+
+  it('opens real General and plugin controls from grouped field search', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-search'))
+    await page.getByRole('button', { name: '设置', exact: true }).click()
+    const settings = page.getByRole('region', { name: '设置', exact: true })
+    const group = settings.getByRole('button', { name: '个人偏好', exact: true })
+    await group.click()
+    expect(await group.getAttribute('aria-expanded')).toBe('false')
+    expect(await settings.getByRole('button', { name: '通用设置', exact: true }).count()).toBe(0)
+    await group.click()
+    await page.keyboard.press('Control+k')
+    const search = settings.getByRole('searchbox', { name: '搜索设置...', exact: true })
+    expect(await search.evaluate(element => element === document.activeElement)).toBe(true)
+    await search.fill('外观')
+    await settings.getByRole('button', { name: /个人偏好.*外观/ }).click()
+    await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[data-settings-anchor]')?.getAttribute('data-settings-anchor'))).toBe('appearance')
+    await settings.getByRole('button', { name: '模型', exact: true }).click()
+    await settings.getByRole('button', { name: '添加自定义提供方', exact: true }).click()
+    const draft = settings.getByRole('textbox', { name: 'Provider ID', exact: true })
+    await draft.fill('unsaved-search-draft')
+    await search.fill('自定义提供方')
+    await settings.getByRole('button', { name: /AI 与模型.*添加自定义提供方/ }).click()
+    expect(await draft.inputValue()).toBe('unsaved-search-draft')
+    expect(await settings.locator('[data-settings-anchor="models-custom-provider"]').evaluate(element => element.tabIndex)).toBe(0)
+    await search.fill('插件列表')
+    await settings.getByRole('button', { name: /扩展管理.*插件列表/ }).click()
+    expect(await settings.getByRole('tab', { name: '插件列表', exact: true }).getAttribute('aria-selected')).toBe('true')
+    await expect.poll(() => settings.locator('[data-settings-anchor="plugins-inventory"]').count()).toBe(1)
+    await settings.getByRole('button', { name: '返回应用', exact: true }).click()
+    expect(tripwire.pageErrors).toEqual([])
+  })
+
+  it('keeps narrow navigation modal and restores focus without horizontal overflow', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-mobile'))
+    await page.getByRole('button', { name: '设置', exact: true }).click()
+    await page.setViewportSize({ width: 390, height: 844 })
+    const settings = page.getByRole('region', { name: '设置', exact: true })
+    const menu = settings.getByRole('button', { name: '打开设置导航', exact: true })
+    await menu.click()
+    const drawer = page.getByRole('dialog', { name: '设置导航', exact: true })
+    await drawer.waitFor()
+    await page.setViewportSize({ width: 1680, height: 1000 })
+    await menu.waitFor({ state: 'hidden' })
+    await page.keyboard.press('Escape')
+    await settings.waitFor({ state: 'hidden' })
+    await page.getByRole('button', { name: '设置', exact: true }).click()
+    await page.setViewportSize({ width: 390, height: 844 })
+    await menu.click()
+    await page.keyboard.press('Escape')
+    expect(await drawer.count()).toBe(0)
+    expect(await menu.evaluate(element => element === document.activeElement)).toBe(true)
+    await menu.click()
+    await drawer.getByRole('searchbox').fill('外观')
+    await drawer.getByRole('button', { name: '查看搜索结果', exact: true }).click()
+    await settings.getByRole('button', { name: /个人偏好.*外观/ }).click()
+    await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[data-settings-anchor]')?.getAttribute('data-settings-anchor'))).toBe('appearance')
+    expect(await settings.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+    if (MODE === 'refresh') await page.screenshot({ path: '.artifacts/settings-native-current-mobile.png', fullPage: true })
+    await page.keyboard.press('Escape')
+    await page.setViewportSize({ width: 1680, height: 1000 })
+    expect(tripwire.pageErrors).toEqual([])
+  })
 
   it('stores Permission as the default for future sessions without changing an existing session', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-permission'))
@@ -257,7 +330,7 @@ describe('web e2e: settings page and General preferences', () => {
       await page.unroute(pluginPattern)
     }
 
-    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    await waitForApplicationFrame(page)
     acknowledgeReloadConnectionLoss(tripwire, warningStart)
     await page.getByRole('button', { name: '设置', exact: true }).click()
     const restoredDialog = page.getByRole('region', { name: '设置' })
@@ -327,7 +400,7 @@ describe('web e2e: settings page and General preferences', () => {
     // Reload: the preference survives the background Host read + presenter update.
     const warningStart = tripwire.warnings.length
     await page.reload({ waitUntil: 'load' })
-    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    await waitForApplicationFrame(page)
     acknowledgeReloadConnectionLoss(tripwire, warningStart)
     await page.emulateMedia({ colorScheme: 'light' })
     await expect.poll(async () => (await readState()).attr, { timeout: 5_000 }).toBe(true)
@@ -419,7 +492,7 @@ describe('web e2e: settings page and General preferences', () => {
     const warningStart = tripwire.warnings.length
     await page.reload({ waitUntil: 'load' })
     acknowledgeReloadConnectionLoss(tripwire, warningStart)
-    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    await waitForApplicationFrame(page)
     await expect.poll(readFontSize, { timeout: 5_000 }).toBe('16px')
     expect(await readSecondaryFontSize()).toBe('14px')
 
@@ -453,7 +526,7 @@ describe('web e2e: settings page and General preferences', () => {
 
     const warningStart = tripwire.warnings.length
     await page.reload({ waitUntil: 'load' })
-    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    await waitForApplicationFrame(page)
     acknowledgeReloadConnectionLoss(tripwire, warningStart)
     await page.getByRole('button', { name: '设置', exact: true }).click()
     const reloaded = page.getByRole('region', { name: '设置' })
@@ -483,7 +556,7 @@ describe('web e2e: settings page and General preferences', () => {
 
     const warningStart = tripwire.warnings.length
     await page.reload({ waitUntil: 'load' })
-    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    await waitForApplicationFrame(page)
     acknowledgeReloadConnectionLoss(tripwire, warningStart)
     await page.getByRole('button', { name: '设置', exact: true }).click()
     const reloaded = page.getByRole('region', { name: '设置' })
@@ -548,7 +621,7 @@ describe('web e2e: settings page and General preferences', () => {
     // other specs' 设置-anchored selectors + goldens) see the default again.
     const warningStart = tripwire.warnings.length
     await page.reload({ waitUntil: 'load' })
-    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    await waitForApplicationFrame(page)
     acknowledgeReloadConnectionLoss(tripwire, warningStart)
     const enTrigger = page.getByRole('button', { name: 'Settings' })
     await enTrigger.waitFor({ timeout: 10_000 })

@@ -9,9 +9,10 @@
  * its Settings row and invalidates that row on host settings changes.
  */
 import { Context } from '@deepseek-ai/cordis'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { TestRemote, scriptedSettingsRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -34,13 +35,29 @@ const SELECT: PermissionSelect = {
   currentValue: 'workspace-write',
 }
 
-async function bench() {
+const PERMISSION_VIEW: SettingsNamespaceView = {
+  ns: 'permission',
+  schema: {
+    uid: 2,
+    refs: {
+      1: { type: 'const', value: 'read-only' },
+      2: { type: 'object', dict: { defaultPreset: 1 } },
+    },
+  },
+  value: { defaultPreset: 'read-only' },
+  base: { defaultPreset: 'read-only' },
+  applies: 'live',
+  secrets: [],
+  revision: 0,
+}
+
+async function bench(namespaces: readonly SettingsNamespaceView[] = [PERMISSION_VIEW]) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry)
   const locale = new LocaleRuntime(ctx)
   locale.setLocale('en')
   ctx.provide('locale', locale)
-  const settingsRemote = scriptedSettingsRemote()
+  const settingsRemote = scriptedSettingsRemote(namespaces)
   const remote = new TestRemote(ctx, { settings: settingsRemote.settings })
   ctx.slots.register({
     name: 'root',
@@ -79,7 +96,7 @@ async function bench() {
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
   return {
-    ctx, fiber, locale, values, commands, remote,
+    ctx, fiber, locale, values, commands, remote, settingsRemote,
     setResult: (r: { ok: boolean; matched?: boolean }) => { commandResult = r },
     decoration: () => decoration,
     permissionRow: () => ctx.slots.entries('settings.general.item')
@@ -95,12 +112,55 @@ describe('ui-permission browser plugin', () => {
     expect(c.ui.kind).toBe('popupSelect')
     const row = b.permissionRow()!
     expect(row.options).toEqual({ id: 'permission', order: -20 })
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([{
+      sectionId: 'general', id: 'permission', anchorId: 'permission', title: 'Permission',
+      description: 'Choose the default permission mode for new sessions',
+      keywords: ['permission', 'access', 'approval', 'sandbox'],
+    }])
+    b.locale.setLocale('zh')
+    expect(b.ctx.settingsMetadata.getSnapshot().items[0])
+      .toMatchObject({ title: '权限', description: '选择新会话的默认权限模式' })
     const injected = row.inject?.() as PermissionRowInjected | undefined
     expect(injected?.hooks.permission).toBeDefined()
     expect(typeof injected?.load).toBe('function')
     expect(typeof injected?.select).toBe('function')
     await injected!.load()
     await injected!.select('read-only')
+  })
+
+  it('search availability follows Host descriptors before the General control mounts', async () => {
+    const b = await bench([])
+    const mirror = b.ctx.settingsScope.describe()
+    const injected = b.permissionRow()!.inject?.() as unknown as PermissionRowInjected
+    const refresh = async (): Promise<void> => {
+      const previous = mirror.getSnapshot().view
+      b.ctx.emit('connection/reset')
+      await vi.waitFor(() => { expect(mirror.getSnapshot().view).not.toBe(previous) })
+    }
+    try {
+      expect(injected.hooks.permission.getSnapshot().status).toBe('idle')
+      expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
+
+      b.settingsRemote.publish([PERMISSION_VIEW])
+      await refresh()
+      expect(b.ctx.settingsMetadata.getSnapshot().items.map(item => item.id)).toEqual(['permission'])
+      expect(injected.hooks.permission.getSnapshot().status).toBe('idle')
+
+      b.settingsRemote.publish([])
+      await refresh()
+      expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
+
+      b.settingsRemote.publish([PERMISSION_VIEW])
+      await refresh()
+      expect(b.ctx.settingsMetadata.getSnapshot().items.map(item => item.id)).toEqual(['permission'])
+      await b.fiber.dispose()
+      expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
+      await refresh()
+      expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
+      expect(b.settingsRemote.mutate).not.toHaveBeenCalled()
+    } finally {
+      await b.fiber.dispose()
+    }
   })
 
   it('availability follows the projection key; options mark the current value active and exclude custom', async () => {
@@ -177,5 +237,6 @@ describe('ui-permission browser plugin', () => {
     await b.fiber.dispose()
     expect(b.decoration()).toBeUndefined()
     expect(b.permissionRow()).toBeUndefined()
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
   })
 })

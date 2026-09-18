@@ -45,6 +45,12 @@ export interface SidebarPrefs {
    * tab; configured under the terminal card's secondary settings.
    */
   terminalFontSize: number
+  /** Retained xterm scrollback lines (0–100000); changes apply to open integrated terminals. */
+  terminalScrollback: number
+  /** Cursor rendering style; changes apply to open integrated terminals. */
+  terminalCursorStyle: TerminalCursorStyle
+  /** Whether the cursor blinks in open integrated terminals. */
+  terminalCursorBlink: boolean
   /**
    * Whether expanding the bottom panel for the FIRST time in a session tries
    * to open a fresh terminal tab there (the terminal quota/type still gates
@@ -213,6 +219,16 @@ export const TERMINAL_FONT_SIZE_MIN = 9
 export const TERMINAL_FONT_SIZE_MAX = 32
 export const TERMINAL_FONT_SIZE_DEFAULT = 13
 
+/** Validated range and default for retained xterm scrollback lines. */
+export const TERMINAL_SCROLLBACK_MIN = 0
+export const TERMINAL_SCROLLBACK_MAX = 100_000
+export const TERMINAL_SCROLLBACK_DEFAULT = 4000
+
+/** Cursor styles accepted by the integrated xterm renderer. */
+export const TERMINAL_CURSOR_STYLES = ['block', 'underline', 'bar'] as const
+/** One integrated terminal cursor style. */
+export type TerminalCursorStyle = typeof TERMINAL_CURSOR_STYLES[number]
+
 /** Range contract of {@link SidebarPrefs.titleBarStripPx}. */
 export const TITLE_BAR_STRIP_MIN = 0
 export const TITLE_BAR_STRIP_MAX = 120
@@ -232,6 +248,9 @@ export const SIDEBAR_PREFS_DEFAULTS: SidebarPrefs = {
   bottomPanelAutoTerminal: true,
   terminalFontFamily: '',
   terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,
+  terminalScrollback: TERMINAL_SCROLLBACK_DEFAULT,
+  terminalCursorStyle: 'block',
+  terminalCursorBlink: true,
   interceptOpenPath: true,
   editorExplorer: false,
   terminalShell: '',
@@ -260,6 +279,15 @@ export function clampWidthPercent(value: number): number {
 /** Clamp one terminal font size into the contract range (shared by schema and client reads). */
 export function clampTerminalFontSize(value: number): number {
   return Math.min(TERMINAL_FONT_SIZE_MAX, Math.max(TERMINAL_FONT_SIZE_MIN, Math.round(value)))
+}
+
+/**
+ * Clamp the renderer scrollback size to its supported range.
+ * @param value - requested retained line count.
+ * @returns the bounded integer line count.
+ */
+export function clampTerminalScrollback(value: number): number {
+  return Math.min(TERMINAL_SCROLLBACK_MAX, Math.max(TERMINAL_SCROLLBACK_MIN, Math.round(value)))
 }
 
 /** Clamp one title-bar strip height into the contract range (shared by schema and client reads). */

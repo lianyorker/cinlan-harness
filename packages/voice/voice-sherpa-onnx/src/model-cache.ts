@@ -485,16 +485,19 @@ async function installModel(
  * @param fetchImpl - injectable fetch.
  * @param extractArchive - extractor; production supplies native tar.
  * @param downloadOptions - required for sized archives; controls range size, concurrency, retry, and timeout behavior.
- * @returns absolute ready cache directory.
+ * @param signal - Optional caller cancellation; any caller can cancel the shared installation.
+ * @returns absolute ready cache directory after cancellation cleanup or successful installation settles.
  */
 export function ensureModelDownloaded(
   definition: VoiceModelDefinition,
   fetchImpl: FetchLike = fetch,
   extractArchive: ExtractArchive = extractArchiveJs,
   downloadOptions?: DownloadOptions,
+  signal?: AbortSignal,
 ): Promise<string> {
+  signal?.throwIfAborted()
   const active = installations.get(definition.id)
-  if (active !== undefined) return active.promise
+  if (active !== undefined) return awaitInstallation(active, signal)
   const controller = new AbortController()
   const promise = installModel(definition, fetchImpl, extractArchive, downloadOptions, controller.signal)
   const installation = { controller, promise }
@@ -503,7 +506,14 @@ export function ensureModelDownloaded(
     () => { if (installations.get(definition.id) === installation) installations.delete(definition.id) },
     () => { if (installations.get(definition.id) === installation) installations.delete(definition.id) },
   )
-  return promise
+  return awaitInstallation(installation, signal)
+}
+
+function awaitInstallation(installation: Installation, signal: AbortSignal | undefined): Promise<string> {
+  if (signal === undefined) return installation.promise
+  const onAbort = (): void => { installation.controller.abort(signal.reason) }
+  signal.addEventListener('abort', onAbort, { once: true })
+  return installation.promise.finally(() => { signal.removeEventListener('abort', onAbort) })
 }
 
 /** Wrap a web stream as an async iterable while tracking byte progress. */

@@ -182,6 +182,76 @@ describe('SettingsScopeController', () => {
     )
   })
 
+  it('reports acceptance for a superseded write whose publication is withheld', async () => {
+    const first = deferred<Answer<SettingsNamespaceView>>()
+    const second = deferred<Answer<SettingsNamespaceView>>()
+    const describeCall = vi.fn().mockResolvedValueOnce(described({ preference: 'system' }, 4))
+    const mutate = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
+    const { mirror, scope } = derivedScope({ describe: describeCall, mutate })
+    await mirror.load()
+    const earlier = scope.mutate([{ op: 'set', path: ['preference'], value: 'dark' }])
+    const later = scope.mutate([{ op: 'set', path: ['preference'], value: 'light' }])
+    first.resolve(ok(view({ preference: 'dark' }, 5)))
+    await expect(earlier).resolves.toBe(true)
+    expect(scope.getSnapshot()).toMatchObject({ value: { preference: 'system' }, revision: 4 })
+    await vi.waitFor(() => { expect(mutate).toHaveBeenCalledTimes(2) })
+    expect(mutate).toHaveBeenLastCalledWith('ui-test', [{ op: 'set', path: ['preference'], value: 'light' }], 5)
+    second.resolve(ok(view({ preference: 'light' }, 6)))
+    await expect(later).resolves.toBe(true)
+    expect(scope.getSnapshot()).toMatchObject({ value: { preference: 'light' }, revision: 6 })
+  })
+
+  it('reports refusal even when recovery already equals the requested value', async () => {
+    const describeCall = vi.fn()
+      .mockResolvedValueOnce(described({ preference: 'dark' }, 2))
+      .mockResolvedValueOnce(described({ preference: 'dark' }, 3))
+    const mutate = vi.fn().mockResolvedValueOnce(rejected())
+    const { mirror, scope } = derivedScope({ describe: describeCall, mutate })
+    await mirror.load()
+    await expect(scope.mutate([{ op: 'set', path: ['preference'], value: 'dark' }])).resolves.toBe(false)
+    expect(scope.getSnapshot()).toMatchObject({ value: { preference: 'dark' }, revision: 3 })
+    expect(describeCall).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['throw', 'reject'] as const)('recovers the latest transport %s before rejecting and keeps the queue usable', async (mode) => {
+    const failure = new Error('transport disconnected')
+    const recovery = deferred<ReturnType<typeof described>>()
+    const describeCall = vi.fn().mockResolvedValueOnce(described({ preference: 'system' }, 2)).mockReturnValueOnce(recovery.promise)
+    const mutate = vi.fn().mockImplementationOnce(() => {
+      if (mode === 'throw') throw failure
+      return Promise.reject(failure)
+    }).mockResolvedValueOnce(ok(view({ preference: 'dark' }, 4)))
+    const { mirror, scope } = derivedScope({ describe: describeCall, mutate })
+    await mirror.load()
+    let settled = false
+    const failed = scope.mutate([{ op: 'set', path: ['preference'], value: 'dark' }])
+    const rejection = expect(failed).rejects.toBe(failure).then(() => { settled = true })
+    await vi.waitFor(() => { expect(describeCall).toHaveBeenCalledTimes(2) })
+    expect(settled).toBe(false)
+    recovery.resolve(described({ preference: 'light' }, 3))
+    await rejection
+    expect(scope.getSnapshot()).toMatchObject({ value: { preference: 'light' }, revision: 3 })
+    await expect(scope.mutate([{ op: 'set', path: ['preference'], value: 'dark' }])).resolves.toBe(true)
+    expect(mutate).toHaveBeenLastCalledWith('ui-test', [{ op: 'set', path: ['preference'], value: 'dark' }], 3)
+  })
+
+  it('rejects a superseded transport failure without replacing its successor recovery', async () => {
+    const failure = new Error('earlier transport failed')
+    const first = deferred<Answer<SettingsNamespaceView>>()
+    const describeCall = vi.fn().mockResolvedValueOnce(described({ preference: 'system' }, 2))
+    const mutate = vi.fn().mockReturnValueOnce(first.promise).mockResolvedValueOnce(ok(view({ preference: 'light' }, 3)))
+    const { mirror, scope } = derivedScope({ describe: describeCall, mutate })
+    await mirror.load()
+    const earlier = scope.mutate([{ op: 'set', path: ['preference'], value: 'dark' }])
+    const rejectedWrite = expect(earlier).rejects.toBe(failure)
+    const later = scope.mutate([{ op: 'set', path: ['preference'], value: 'light' }])
+    first.reject(failure)
+    await rejectedWrite
+    await expect(later).resolves.toBe(true)
+    expect(describeCall).toHaveBeenCalledOnce()
+    expect(scope.getSnapshot()).toMatchObject({ value: { preference: 'light' }, revision: 3 })
+  })
+
   it('sends one copied multi-field mutation behind one revision fence', async () => {
     const describeCall = vi.fn().mockResolvedValueOnce(described({ preference: 'system' }, 7))
     const mutate = vi.fn().mockResolvedValueOnce(ok(view({ preference: 'dark' }, 8)))
@@ -195,7 +265,7 @@ describe('SettingsScopeController', () => {
     const write = scope.mutate(ops)
     ops[0] = { op: 'unset', path: ['enabled'] }
     ;(ops[1] as unknown as { value: Array<{ model: string }> }).value[0]!.model = 'changed'
-    await write
+    await expect(write).resolves.toBe(true)
 
     expect(mutate).toHaveBeenCalledWith(
       'ui-test',
@@ -221,7 +291,7 @@ describe('SettingsScopeController', () => {
     const earlier = scope.set('preference', 'dark')
     const fenced = scope.mutate([{ op: 'set', path: ['preference'], value: 'light' }], 7)
     first.resolve(ok(view({ preference: 'dark' }, 8)))
-    await Promise.all([earlier, fenced])
+    await expect(Promise.all([earlier, fenced])).resolves.toEqual([undefined, false])
 
     expect(mutate).toHaveBeenNthCalledWith(
       2,
@@ -377,16 +447,17 @@ describe('SettingsScopeController', () => {
     const describeCall = vi.fn()
     const { scope } = derivedScope({ describe: describeCall, mutate })
     const published = trackValues(scope)
-    const dark = scope.set('preference', 'dark')
+    const dark = scope.mutate([{ op: 'set', path: ['preference'], value: 'dark' }])
     await vi.waitFor(() => { expect(mutate).toHaveBeenCalledOnce() })
-    const light = scope.set('preference', 'light')
+    const light = scope.mutate([{ op: 'set', path: ['preference'], value: 'light' }])
     let stopped = false
     const stop = scope.dispose().then(() => { stopped = true })
     await Promise.resolve()
     expect(stopped).toBe(false)
     first.resolve(ok(view({ preference: 'dark' }, 1)))
-    await Promise.all([dark, light, stop])
-    await scope.set('preference', 'system')
+    await expect(Promise.all([dark, light, stop])).resolves.toEqual([true, false, undefined])
+    await expect(scope.mutate([{ op: 'set', path: ['preference'], value: 'system' }])).resolves.toBe(false)
+    await expect(scope.set('preference', 'system')).resolves.toBeUndefined()
     expect(mutate).toHaveBeenCalledOnce()
     expect(describeCall).not.toHaveBeenCalled()
     expect(published).toEqual([undefined])
@@ -446,7 +517,9 @@ describe('SettingsScopeController', () => {
       status: 'unavailable', value: undefined, revision: undefined, writable: false, mode: 'memory',
     })
     await mirror.load()
-    await scope.set('preference', 'dark')
+    await expect(scope.mutate([{ op: 'set', path: ['preference'], value: 'dark' }])).resolves.toBe(false)
+    await expect(scope.set('preference', 'dark')).resolves.toBeUndefined()
+    await expect(scope.unset('preference')).resolves.toBeUndefined()
     await scope.dispose()
     expect(describeCall).not.toHaveBeenCalled()
     expect(mutate).not.toHaveBeenCalled()

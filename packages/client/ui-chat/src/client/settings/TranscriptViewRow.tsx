@@ -59,7 +59,7 @@ export function TranscriptViewRow({ useTranscriptView, setTranscriptView, t }: T
   )
 
   return (
-    <div className={css.row}>
+    <div className={css.row} data-settings-anchor="transcript">
       <div className={css.rowText}>
         <div className={css.title}>{t('settings.transcript.title')}</div>
         <div className={css.desc}>{t('settings.transcript.description')}</div>

@@ -1,0 +1,1 @@
+- alert: The browser blocked the workspace window. Allow pop-ups for this app, then try Open again.

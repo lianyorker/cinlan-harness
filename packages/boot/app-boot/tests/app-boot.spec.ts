@@ -745,6 +745,30 @@ describe('boot', () => {
     expect(disposed).toBe(true)
   })
 
+  it.each(['web-e2e', 'desktop', 'custom-worker'])('exposes explicit profile %s before Loader config evaluation', async (profile) => {
+    const dir = tmp()
+    writeFileSync(join(dir, 'profile.mjs'), [
+      'export const name = "profile-capture"',
+      'export function apply(ctx, config) { ctx.provide("capturedProfile", config.profile) }',
+      '',
+    ].join('\n'))
+    writeFileSync(join(dir, 'cordis.yml'), [
+      '- id: profile-capture',
+      '  name: ./profile.mjs',
+      '  config:',
+      '    profile: !!js dshProfileName',
+      '',
+    ].join('\n'))
+    const ctx = await boot(NAME, join(dir, 'cordis.yml'), undefined, (host) => {
+      host.provide('dshProfileName', profile)
+    })
+    try {
+      expect(ctx.get('capturedProfile')).toBe(profile)
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('exposes dshHomePath to Loader config expressions', async () => {
     const dir = tmp()
     const dshHome = join(dir, 'home')

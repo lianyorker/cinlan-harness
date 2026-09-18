@@ -173,7 +173,7 @@ function CardDescription({ text }: { text: string }): ReactNode {
 /**
  * Render the Agent presets section content column.
  * @param props - composed slot props.
- * @returns the section, or null when the deployment composes no presets.
+ * @returns the roster, or an availability message when the host provides no presets.
  */
 export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
   const { useAgentPresetSection, t, load } = props
@@ -188,14 +188,12 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
     void load()
   }, [load])
 
-  // A deployment that composes no presets has nothing to manage: every
-  // session shares the host composition and the page would be an empty list.
-  if (state.status === 'unavailable') return null
   if (state.status === 'error') {
     /* v8 ignore next -- an error status always carries text; the fallback satisfies the nullable type */
     const detail = state.error ?? ''
     return (
       <div className={css.section}>
+        <h1 className={css.title}>{t('nav')}</h1>
         <p className={css.error} role="alert">{`${t('error')} ${detail}`}</p>
         <button type="button" className={css.secondaryButton} onClick={() => { void load() }}>
           {t('retry')}
@@ -229,20 +227,40 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
 
   return (
     <div className={css.section}>
-      <h2 className={css.title}>{t('nav')}</h2>
+      <h1 className={css.title}>{t('nav')}</h1>
       <p className={css.intro}>{t('sectionIntro')}</p>
+      {state.status === 'unavailable' ? <p className={css.help} role="status">{t('unavailable')}</p> : null}
+
+      <div className={css.defaultRow} data-settings-anchor="agent-presets-default">
+        <div className={css.defaultCopy}>
+          <label className={css.defaultLabel} htmlFor="agent-presets-default-select">{t('defaultLabel')}</label>
+          <p className={css.help} id="agent-presets-default-help">{t('defaultHelp')}</p>
+        </div>
+        <select
+          id="agent-presets-default-select"
+          aria-describedby="agent-presets-default-help"
+          className={css.select}
+          value={state.rows.find(row => row.isDefault)?.id ?? ''}
+          disabled={state.status !== 'ready'}
+          onChange={(event) => { void props.makeDefault(event.target.value) }}
+        >
+          {state.rows.length === 0 ? <option value="">{t(state.status === 'unavailable' ? 'unavailable' : 'loading')}</option> : null}
+          {state.rows.map(row => (
+            <option key={row.id} value={row.id} disabled={row.broken !== undefined}>{presetDisplayText(row, t).name}</option>
+          ))}
+        </select>
+      </div>
       {state.error === null ? null : <p className={css.error} role="alert">{state.error}</p>}
       {([['system', t('builtInGroup')], ['user', t('customGroup')]] as const).map(([trust, heading]) => {
         const group = state.rows
           .filter(row => row.trust === trust)
           .map(row => ({ row, text: presetDisplayText(row, t) }))
-        // The custom group is where a preset of one's own will appear, so it
-        // stays on screen even while empty: heading plus the creator entry.
         const tail = trust === 'user' ? creatorButton : null
-        if (group.length === 0 && tail === null) return null
         return (
-          <section key={trust} className={css.group}>
-            <h3 className={css.groupHead}>{heading}</h3>
+          <section key={trust} className={css.group} data-settings-anchor={trust === 'system' ? 'agent-presets-built-in' : 'agent-presets-custom'}>
+            <h2 className={css.groupHead}>{heading}</h2>
+            <p className={css.help}>{t(trust === 'system' ? 'builtInHelp' : 'customHelp')}</p>
+            {group.length === 0 && trust === 'user' ? <p className={css.help}>{t('emptyCustom')}</p> : null}
             {group.length === 0 ? null : (
               <ul className={css.cards}>
                 {group.map(({ row, text }) => (

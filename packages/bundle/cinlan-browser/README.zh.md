@@ -24,7 +24,7 @@ kind: "package-bundle"
 
 本组合包默认对观察、导航和交互全部请求审批。后续 profile patch 可以替换完整 browser-permission-policy 配置。可执行路径、浏览器通道和存储目录覆盖属于 browser-playwright 行；行配置整体替换，缺省字段使用提供方默认值。
 
-此 bundle 还挂载 [Browser Remote](../../api/browser-controller/README.zh.md)，供经过认证的人工设置操作。原生 browser profile 由 base、web-app 和本 bundle 组成；通用 web 不自动启用它。模型审批策略仍覆盖新增导航、检查与传输工具，人工 Remote 不以模型工具调用运行。
+此 bundle 还挂载 [Browser Remote](../../api/browser-controller/README.zh.md)，供经过认证的人工设置操作，并挂载[元素捕获页](../../client/ui-browser-element-capture/README.zh.md)，在 Web 设置中选择、预览图片并附加到 Session 草稿。原生 browser profile 由 base、web-app 和本 bundle 组成；通用 web 不自动启用它。模型审批策略仍覆盖新增导航、检查与传输工具，人工 Remote 不以模型工具调用运行。
 
 ## 模型体验
 
@@ -32,7 +32,7 @@ kind: "package-bundle"
 
 #### 模型看到的内容
 
-组合包启用后，模型会收到 `browser_list`、`browser_open`、`browser_navigate`、`browser_snapshot`、`browser_click`、undefined，以及由 [`@deepseek-ai/dsh-tool-browser`](../../browser/tool-browser/README.zh.md) 持有的稳定持久浏览器指引。尚未获批的调用会返回 permission-policy 包持有的对应类别 approval 文本。
+组合包启用后，模型会收到 `browser_list`、`browser_open`、`browser_navigate`、`browser_snapshot`、`browser_click`、`browser_screenshot`、`browser_close`，以及原生主页/搜索、历史/网络和文件传输 schema，还有由 [`@deepseek-ai/dsh-tool-browser`](../../browser/tool-browser/README.zh.md) 持有的稳定持久浏览器指引。尚未获批的调用会返回 permission-policy 包持有的对应类别 approval 文本。
 
 #### Token 影响
 
@@ -55,4 +55,4 @@ kind: "package-bundle"
 
 组合包只负责 composition；Browser transport 与 tool contract 保留在各自专用包中。
 
-No runtime invariant companion is published because 此 bundle 声明静态插件组合，不保留独立运行状态。
+本包不发布运行时 invariant 配套入口，因为此 bundle 仅声明静态插件组合，不保留独立运行状态。

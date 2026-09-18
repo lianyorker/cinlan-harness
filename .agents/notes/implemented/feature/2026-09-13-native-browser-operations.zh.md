@@ -16,7 +16,7 @@ profile 名称、主页和搜索引擎复用带修订号校验的 Settings 命�
 
 Cookie 导入接收用户选择的 JSON 数组及预期的当前 profile，原生导入前完成验证，错误与回执均不回显值。不注册模型 Cookie 导入工具，也不自动扫描其他浏览器数据库。
 
-历史与网络检查只为打开的页面保留有界元数据，排除 URL 凭据、查询、片段、请求头和响应体。文件上传消耗新鲜 observation；模型上传只读取调用 Session 的工作区。下载归属其页面，报告 pending/complete/failed 状态，读取时执行字节限制并清理文件名。模型保存复用既有 Attachment Provider 持久化精确字节，人工保存使用普通 Blob。
+历史与网络检查只为打开的页面保留有界元数据，排除 URL 凭据、查询、片段、请求与响应的头和正文。文件上传消耗新鲜 observation；模型上传只读取调用 Session 的工作区。下载归属其页面，报告 pending/complete/failed 状态，读取时执行字节限制并清理文件名。模型保存复用既有 Attachment Provider 持久化精确字节，人工保存使用普通 Blob。
 
 ## 考虑过的替代方案
 

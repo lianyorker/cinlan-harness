@@ -3,7 +3,9 @@ import { Context } from '@deepseek-ai/cordis'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { WorktreeTaskError } from '@deepseek-ai/dsh-worktree-task'
 import type { WorktreeTask, WorktreeTaskService } from '@deepseek-ai/dsh-worktree-task'
-import type { WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task/types'
+import type {
+  WorktreeTaskId, WorktreeTaskSettings, UpdateWorktreeTaskSettingsRequest, WorktreeTaskReview,
+} from '@deepseek-ai/dsh-worktree-task/types'
 import type {
   WorktreeTaskBindSessionRequest,
   WorktreeTaskBindSessionValue,
@@ -52,7 +54,7 @@ export class WorktreeTaskController extends TypertRemoteService {
         sourcePath: request.sourcePath,
         ...(request.baseRef === undefined ? {} : { baseRef: request.baseRef }),
         ...(request.linkedIssue === undefined ? {} : { linkedIssue: request.linkedIssue }),
-      })
+      }, signal)
       this.admit('create', signal)
       return { task: projectTask(task) }
     } catch (error) {
@@ -79,20 +81,67 @@ export class WorktreeTaskController extends TypertRemoteService {
    * Get one task by id without filesystem work.
    * @param request - Task identity.
    * @param signal - Caller cancellation checked before reading provider state.
-   * @returns detached task projection, or undefined when unknown.
+   * @returns detached task projection; an unknown id rejects with not-found.
    */
   @Remote('get')
   get(request: WorktreeTaskRequest, signal: AbortSignal): WorktreeTaskValue {
     this.admit('get', signal)
     try {
       const task = this.provider().get(request.taskId)
-      if (task === undefined) {
-        throw new RemoteError('worktree-task/not-found', `unknown worktree task "${request.taskId}"`,
-          { operation: 'get', taskId: request.taskId })
-      }
       return { task: projectTask(task) }
     } catch (error) {
       throw mapFailure('get', request.taskId, error, signal)
+    }
+  }
+
+  /**
+   * Read provider defaults without running hooks or materializing tasks.
+   * @param signal - Caller cancellation checked before the read.
+   * @returns detached defaults, revision, and managed root.
+   */
+  @Remote('settings')
+  settings(signal: AbortSignal): WorktreeTaskSettings {
+    this.admit('settings', signal)
+    try {
+      return structuredClone(this.provider().settings())
+    } catch (error) {
+      throw mapFailure('settings', undefined, error, signal)
+    }
+  }
+
+  /**
+   * Save defaults for future tasks without changing existing tasks or running hooks.
+   * @param request - Complete defaults and the revision observed by the caller.
+   * @param signal - Caller cancellation forwarded to provider work.
+   * @returns persisted defaults with their new revision; a stale revision rejects.
+   */
+  @Remote('updateSettings')
+  async updateSettings(request: UpdateWorktreeTaskSettingsRequest, signal: AbortSignal): Promise<WorktreeTaskSettings> {
+    this.admit('updateSettings', signal)
+    try {
+      const settings = await this.provider().updateSettings(request, signal)
+      this.admit('updateSettings', signal)
+      return structuredClone(settings)
+    } catch (error) {
+      throw mapFailure('updateSettings', undefined, error, signal)
+    }
+  }
+
+  /**
+   * Read tracked changes against the captured base without activating a dormant task.
+   * @param request - Provider-issued task identity.
+   * @param signal - Caller cancellation forwarded to queued and active provider reads.
+   * @returns complete bounded review, captured hooks, and untracked names without contents.
+   */
+  @Remote('review')
+  async review(request: WorktreeTaskRequest, signal: AbortSignal): Promise<WorktreeTaskReview> {
+    this.admit('review', signal)
+    try {
+      const review = await this.provider().review(request.taskId, signal)
+      this.admit('review', signal)
+      return structuredClone(review)
+    } catch (error) {
+      throw mapFailure('review', request.taskId, error, signal)
     }
   }
 
@@ -107,7 +156,7 @@ export class WorktreeTaskController extends TypertRemoteService {
     this.admit('bindSession', signal)
     try {
       const service = this.provider()
-      const result = await service.bindSession({ taskId: request.taskId, sessionId: request.sessionId })
+      const result = await service.bindSession({ taskId: request.taskId, sessionId: request.sessionId }, signal)
       this.admit('bindSession', signal)
       return { task: projectTask(result.task), checkoutPath: result.checkoutPath }
     } catch (error) {
@@ -126,7 +175,7 @@ export class WorktreeTaskController extends TypertRemoteService {
     this.admit('activate', signal)
     try {
       const service = this.provider()
-      const task = await service.activate({ taskId: request.taskId })
+      const task = await service.activate({ taskId: request.taskId }, signal)
       this.admit('activate', signal)
       return { task: projectTask(task) }
     } catch (error) {
@@ -137,7 +186,7 @@ export class WorktreeTaskController extends TypertRemoteService {
   /**
    * Checkpoint and reclaim one inactive task's checkout.
    * @param request - Task identity.
-   * @param signal - Caller cancellation checked before provider admission.
+   * @param signal - Cancellation forwarded to queued work and provider subprocesses.
    * @returns detached hibernated task projection.
    */
   @Remote('hibernate')
@@ -145,7 +194,7 @@ export class WorktreeTaskController extends TypertRemoteService {
     this.admit('hibernate', signal)
     try {
       const service = this.provider()
-      const task = await service.hibernate({ taskId: request.taskId })
+      const task = await service.hibernate({ taskId: request.taskId }, signal)
       this.admit('hibernate', signal)
       return { task: projectTask(task) }
     } catch (error) {
@@ -154,17 +203,18 @@ export class WorktreeTaskController extends TypertRemoteService {
   }
 
   /**
-   * Archive a task, retaining its branch and records for review.
-   * @param request - Task identity.
-   * @param signal - Caller cancellation checked before provider admission.
-   * @returns detached archived task projection.
+   * Run captured cleanup and archive a task, retaining its branch and records for review.
+   * A succeeded receipt prevents repeat execution; an unsettled receipt rejects another attempt.
+   * @param request - Task identity; repeating a settled failure explicitly retries cleanup.
+   * @param signal - Cancellation forwarded to queued work and provider subprocesses.
+   * @returns detached archived task projection, including any cleanup receipt.
    */
   @Remote('archive')
   async archive(request: WorktreeTaskRequest, signal: AbortSignal): Promise<WorktreeTaskValue> {
     this.admit('archive', signal)
     try {
       const service = this.provider()
-      const task = await service.archive({ taskId: request.taskId })
+      const task = await service.archive({ taskId: request.taskId }, signal)
       this.admit('archive', signal)
       return { task: projectTask(task) }
     } catch (error) {
@@ -173,20 +223,23 @@ export class WorktreeTaskController extends TypertRemoteService {
   }
 
   /**
-   * Delete a task, removing its worktree and branch when safe.
-   * @param request - Task identity.
-   * @param signal - Caller cancellation checked before provider admission.
-   * @returns deletion result.
+   * Archive through captured cleanup, then remove an integrated task branch when safe.
+   * An unmerged branch remains archived and reviewable; successful cleanup is not repeated.
+   * @param request - Task identity; repeating a settled failure explicitly retries cleanup.
+   * @param signal - Cancellation forwarded to queued work and provider subprocesses.
+   * @returns deletion or retained-branch result, including any cleanup receipt.
    */
   @Remote('delete')
   async delete(request: WorktreeTaskRequest, signal: AbortSignal): Promise<WorktreeTaskDeleteValue> {
     this.admit('delete', signal)
     try {
       const service = this.provider()
-      const result = await service.delete({ taskId: request.taskId })
+      const result = await service.delete({ taskId: request.taskId }, signal)
       this.admit('delete', signal)
-      if (result.deleted) return { status: 'deleted', taskId: request.taskId }
-      return { status: 'retained', taskId: request.taskId, retainedBranch: result.retainedBranch! }
+      const receipt = result.cleanupReceipt === undefined ? {} : { cleanupReceipt: structuredClone(result.cleanupReceipt) }
+      if (result.deleted) return { status: 'deleted', taskId: request.taskId, ...receipt }
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- A retained deletion result identifies its surviving branch.
+      return { status: 'retained', taskId: request.taskId, retainedBranch: result.retainedBranch!, ...receipt }
     } catch (error) {
       throw mapFailure('delete', request.taskId, error, signal)
     }
@@ -220,8 +273,9 @@ function projectTask(task: WorktreeTask): WorktreeTaskView {
     branch: task.branch,
     checkoutPath: task.checkoutPath,
     status: task.status,
+    ...(task.cleanupReceipt === undefined ? {} : { cleanupReceipt: structuredClone(task.cleanupReceipt) }),
     ...(task.linkedIssue === undefined ? {} : { linkedIssue: task.linkedIssue }),
-    sessionIds: task.sessionIds,
+    sessionIds: [...task.sessionIds],
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
   }
@@ -244,8 +298,9 @@ function mapFailure(
   if (error.code === 'busy' && taskId !== undefined) {
     return new RemoteError('worktree-task/busy', error.message, { operation, taskId }, { cause: error })
   }
-  if (error.code === 'conflict' && taskId !== undefined) {
-    return new RemoteError('worktree-task/conflict', error.message, { operation, taskId }, { cause: error })
+  if (error.code === 'conflict') {
+    return new RemoteError('worktree-task/conflict', error.message,
+      { operation, ...(taskId === undefined ? {} : { taskId }) }, { cause: error })
   }
   return new RemoteError(
     'worktree-task/operation-failed',

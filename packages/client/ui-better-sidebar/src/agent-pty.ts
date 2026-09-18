@@ -193,6 +193,7 @@ export function snapshotOf(handle: AgentTerminalHandle): AgentTerminalSnapshot {
  */
 export class AgentPtyRegistry {
   private readonly sessions = new Map<string, AgentTerminalHandle>()
+  private readonly pendingExits = new Map<IPty, Promise<void>>()
   private readonly changeListeners = new Set<() => void>()
 
   constructor(
@@ -241,6 +242,8 @@ export class AgentPtyRegistry {
       transcript: '',
       exited: false,
     }
+    let settleExit!: () => void
+    this.pendingExits.set(pty, new Promise<void>((resolve) => { settleExit = resolve }))
     pty.onData((data) => {
       handle.transcript += data
       if (handle.transcript.length > TRANSCRIPT_LIMIT) {
@@ -251,6 +254,8 @@ export class AgentPtyRegistry {
       handle.exited = true
       handle.exitCode = exitCode
       handle.exitSignal = signal
+      this.pendingExits.delete(pty)
+      settleExit()
       this.notify()
     })
     if (command !== '') {
@@ -522,6 +527,13 @@ export class AgentPtyRegistry {
   }
 
   /** Close every agent terminal (plugin teardown). */
+  /** @returns after every native process owned before teardown reports exit, including detached processes. */
+  async disposeAllAndWait(): Promise<void> {
+    const exits = [...this.pendingExits.values()]
+    this.disposeAll()
+    await Promise.all(exits)
+  }
+
   disposeAll(): void {
     for (const uuid of [...this.sessions.keys()]) this.close(uuid)
   }

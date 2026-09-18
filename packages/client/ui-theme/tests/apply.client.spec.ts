@@ -88,7 +88,7 @@ function fontSizeFaceOf(slots: SlotRegistry) {
 
 describe('ui-theme apply', () => {
   it('declares the slot and locale services', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'settingsScope'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'settingsScope', 'settingsMetadata'])
   })
 
   it('provides the service, registers localized copy, and registers both rows (declaration before or after apply)', async () => {
@@ -97,8 +97,22 @@ describe('ui-theme apply', () => {
     await before.ctx.plugin({ inject: [...inject], apply }).await()
     expect(before.locale.bind(SETTINGS_NS)('appearance.title')).toBe('外观')
     expect(before.locale.bind(SETTINGS_NS)('fontSize.title')).toBe('字号大小')
+    expect(before.ctx.settingsMetadata.getSnapshot().items).toEqual([
+      {
+        sectionId: 'general', id: 'appearance', anchorId: 'appearance', title: '外观',
+        keywords: ['theme', 'light', 'dark', 'system'],
+      },
+      {
+        sectionId: 'general', id: 'font-size', anchorId: 'font-size', title: '字号大小',
+        description: '仅影响会话内容的字号', keywords: ['font', 'size', 'text', 'px'],
+      },
+    ])
     before.locale.setLocale('en')
     expect(before.locale.bind(SETTINGS_NS)('appearance.title')).toBe('Appearance')
+    expect(before.ctx.settingsMetadata.getSnapshot().items.map(item => item.title))
+      .toEqual(['Appearance', 'Font size'])
+    expect(before.ctx.settingsMetadata.getSnapshot().items[1]?.description)
+      .toBe('Only affects conversation content')
     const entry = before.slots.entries(SLOT).find(e => e.component === AppearanceRow)!
     expect(entry.options).toMatchObject({ id: 'appearance', order: 10 })
     const fontEntry = before.slots.entries(SLOT).find(e => e.component === FontSizeRow)!
@@ -109,6 +123,7 @@ describe('ui-theme apply', () => {
     const fiber = after.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(after.slots.entries(SLOT)).toHaveLength(0)
+    expect(after.ctx.settingsMetadata.getSnapshot().items).toEqual([])
     declareItems(after.slots)
     await Promise.resolve()
     expect(after.slots.entries(SLOT).some(e => e.component === AppearanceRow)).toBe(true)
@@ -219,11 +234,13 @@ describe('ui-theme apply', () => {
     const host = declareItems(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     expect(b.slots.entries(SLOT)).toHaveLength(2)
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(2)
 
     // Collapse: the declarer dies, the cascade removes our entries while the
     // apply closure still holds its (now stale) disposers.
     host()
     expect(b.slots.entries(SLOT)).toHaveLength(0)
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
 
     declareItems(b.slots)
     await Promise.resolve()
@@ -237,8 +254,10 @@ describe('ui-theme apply', () => {
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(b.slots.entries(SLOT)).toHaveLength(2)
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(2)
     await fiber.dispose()
     expect(b.slots.entries(SLOT)).toHaveLength(0)
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
     // Dictionary disposal: translation falls back to the bare key.
     expect(b.locale.bind(SETTINGS_NS)('appearance.title')).toBe('appearance.title')
 

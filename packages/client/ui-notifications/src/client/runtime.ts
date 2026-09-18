@@ -27,7 +27,7 @@ export interface NotificationRuntimeCopy {
 export interface NotificationRuntimeFace {
   /** Deliver one background notification, respecting current preferences. */
   notify: (payload: NotificationPayload) => Promise<boolean>
-  /** Deliver a test notification from a user gesture, ignoring focus suppression. */
+  /** Deliver a test notification from a user gesture, ignoring focus and scheduled quieting. */
   test: () => Promise<boolean>
   /** Keep a browser-local custom sound file for this runtime. */
   registerCustomSound: (name: string, file: File) => void
@@ -35,7 +35,13 @@ export interface NotificationRuntimeFace {
   dispose: () => void
 }
 
-/** Build a browser notification runtime over one settings scope. */
+/**
+ * Build browser delivery over live notification preferences.
+ * @param ctx - plugin context providing status events and session event sources.
+ * @param settings - persisted preferences read before each delivery.
+ * @param copy - localized notification copy; getters may follow locale changes.
+ * @returns notification commands and a disposer for listeners and custom audio URLs.
+ */
 export function createNotificationRuntime(
   ctx: ClientContext,
   settings: SettingsScope<NotificationSettings>,
@@ -43,6 +49,7 @@ export function createNotificationRuntime(
 ): NotificationRuntimeFace {
   const running = new Map<SessionId, boolean>()
   const customAudio = new Map<string, string>()
+  let disposed = false
 
   const play = (value: NotificationSettings): void => {
     if (value.sound === 'system') return
@@ -54,20 +61,26 @@ export function createNotificationRuntime(
     playTone(value.sound)
   }
 
-  const permission = async (): Promise<boolean> => {
+  const permission = async (request: boolean): Promise<boolean> => {
     if (typeof Notification === 'undefined') return false
     if (Notification.permission === 'granted') return true
-    if (Notification.permission === 'denied') return false
+    if (Notification.permission === 'denied' || !request) return false
     try { return await Notification.requestPermission() === 'granted' } catch { return false }
   }
 
-  const deliver = async (payload: NotificationPayload, ignoreFocus: boolean): Promise<boolean> => {
+  const currentPreferences = (userGesture: boolean): NotificationSettings | undefined => {
     const snapshot = settings.getSnapshot()
     const value = snapshot.value
-    if (snapshot.status !== 'ready' || value?.enabled !== true) return false
-    if (!ignoreFocus && value.suppressWhenFocused && typeof document !== 'undefined' && document.hasFocus()) return false
-    if (!await permission()) return false
-    if (typeof Notification === 'undefined') return false
+    if (disposed || snapshot.status !== 'ready' || value?.enabled !== true) return undefined
+    if (!userGesture && isQuietHours(value, new Date())) return undefined
+    if (!userGesture && value.suppressWhenFocused && typeof document !== 'undefined' && document.hasFocus()) return undefined
+    return value
+  }
+
+  const deliver = async (payload: NotificationPayload, userGesture: boolean): Promise<boolean> => {
+    if (currentPreferences(userGesture) === undefined || !await permission(userGesture)) return false
+    const value = currentPreferences(userGesture)
+    if (value === undefined || typeof Notification === 'undefined') return false
     try {
       new Notification(payload.title, { body: payload.body })
       play(value)
@@ -94,7 +107,7 @@ export function createNotificationRuntime(
     if (binding === undefined) return
     const window = binding.eventSource.getSnapshot()
     const delta = window.change
-    if (delta.kind !== 'append' && delta.kind !== 'replace' && delta.kind !== 'prepend') return
+    if (delta.kind !== 'append') return
     for (const entry of delta.entries) {
       if (entry.type !== 'event') continue
       if (entry.event.type !== 'tool/result') continue
@@ -132,11 +145,14 @@ export function createNotificationRuntime(
     notify: payload => deliver(payload, false),
     test: () => deliver({ title: copy.testTitle, body: copy.testBody }, true),
     registerCustomSound: (name, file) => {
+      if (disposed) return
+      const url = URL.createObjectURL(file)
       const previous = customAudio.get(name)
       if (previous !== undefined) URL.revokeObjectURL(previous)
-      customAudio.set(name, URL.createObjectURL(file))
+      customAudio.set(name, url)
     },
     dispose: () => {
+      disposed = true
       offStatus()
       offReset()
       offList()
@@ -149,9 +165,24 @@ export function createNotificationRuntime(
   }
 }
 
+/**
+ * Check the configured daily interval in the browser's current local time.
+ * @param value - schema-validated notification preferences.
+ * @param now - current local wall-clock time; no catch-up alerts are queued.
+ * @returns whether automatic alerts are suppressed, including the start but excluding the end.
+ */
+export function isQuietHours(value: NotificationSettings, now: Date): boolean {
+  if (!value.quietHoursEnabled) return false
+  const minute = now.getHours() * 60 + now.getMinutes()
+  const start = Number(value.quietHoursStart.slice(0, 2)) * 60 + Number(value.quietHoursStart.slice(3))
+  const end = Number(value.quietHoursEnd.slice(0, 2)) * 60 + Number(value.quietHoursEnd.slice(3))
+  if (start === end) return true
+  return start < end ? minute >= start && minute < end : minute >= start || minute < end
+}
+
 function playTone(sound: NotificationSound): void {
   if (typeof window === 'undefined') return
-  const AudioContextCtor = (window as typeof window & { AudioContext?: typeof AudioContext }).AudioContext
+  const AudioContextCtor = (window as { AudioContext?: typeof AudioContext }).AudioContext
   if (AudioContextCtor === undefined) return
   const frequencies: Partial<Record<NotificationSound, readonly number[]>> = {
     'two-tone': [660, 880], ding: [880], pop: [220], spark: [1046], flame: [392, 523], t: [600], click: [180],

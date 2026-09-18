@@ -18,11 +18,12 @@ import { registerBuiltins } from '../src/client/builtins/index.ts'
 import type { BuiltinTabOptions } from '../src/client/builtins/tabs.tsx'
 import { parkSidechatReopen } from '../src/client/SideChatView.tsx'
 import { t } from '../src/client/locales.ts'
+import { gitCallbacks } from './git-fixture.client.ts'
 
-function setup(options: BuiltinTabOptions = {}): { service: ReturnType<typeof createBetterSidebarService>; store: ReturnType<typeof createSidebarStore>; dispose: () => void } {
+function setup(options: Omit<BuiltinTabOptions, 'git'> = {}): { service: ReturnType<typeof createBetterSidebarService>; store: ReturnType<typeof createSidebarStore>; dispose: () => void } {
   const store = createSidebarStore()
   const service = createBetterSidebarService(store)
-  const dispose = registerBuiltins({} as Context, service, options)
+  const dispose = registerBuiltins({} as Context, service, { ...options, git: gitCallbacks() })
   return { service, store, dispose }
 }
 

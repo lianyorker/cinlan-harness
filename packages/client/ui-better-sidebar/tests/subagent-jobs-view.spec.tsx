@@ -72,11 +72,18 @@ function jsonResponse(value: unknown): Response {
   return { ok: true, status: 200, json: async () => value } as unknown as Response
 }
 
+/** Extract the canonical sidebar API method query used by Client Fetch. */
+function apiMethod(url: string | URL | Request): string | null {
+  const href = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url
+  return new URL(href, 'http://sidebar.test').searchParams.get('method')
+}
+
 function baseSnapshot(): SidebarSessionList {
   return {
     current: 'root',
     byId: {
       root: { id: 'root', displayTitle: '主会话', running: true },
+      child: { id: 'child', displayTitle: '子代理', origin: 'subagent', parentId: 'root', running: true },
       child: { id: 'child', displayTitle: '子代理', origin: 'subagent', parentId: 'root', running: true },
     },
     subagentsByParent: {},
@@ -95,7 +102,7 @@ beforeEach(() => {
   outputCalls.length = 0
   killCalls.length = 0
   vi.stubGlobal('fetch', async (url: string | URL | Request, init?: RequestInit) => {
-    const method = String(url).split('/').pop()
+    const method = apiMethod(url)
     const body = JSON.parse(String(init?.body)) as { sessionId?: string; id?: string; rootSessionId?: string }
     if (method === 'subagents.live') {
       return jsonResponse({ ok: true, value: { live: {} } })

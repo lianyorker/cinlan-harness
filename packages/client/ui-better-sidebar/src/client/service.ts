@@ -20,7 +20,9 @@
  *   then `exts`; `exts: []` is a catch-all that matches any path.
  */
 import type { ReactNode } from 'react'
+import { api } from './api.ts'
 import type { Context } from '../context-types.ts'
+import type { MatchEditorShortcut } from './keyboard-commands.ts'
 import {
   activateTab as activateTabReducer, allLeaves, closeTab as closeTabReducer, leafWithTab,
   openTabInActivePane, patchTab, tabOpenIn, togglePanel, treeOf,
@@ -251,6 +253,8 @@ export type FileFetchStrategy =
 
 /** Props every file viewer component receives. */
 export interface FileViewerProps {
+  /** Internal text-editor matcher supplied by the registering owner. */
+  matchShortcut?: MatchEditorShortcut
   ctx: Context
   store: SidebarStore
   scope: SessionScope
@@ -340,10 +344,18 @@ export interface OpenTabSeed {
   meta?: unknown
 }
 
+/** Result of probing the real terminal transport and Host dependencies. */
+export type TerminalCapability = { status: 'available' }
+  | { status: 'unavailable'; reason: 'unsupported-scheme' | 'missing-dependencies' | 'probe-failed' }
+
 /**
  * The registry service published as `ctx.betterSidebar`.
  */
 export interface BetterSidebarService {
+  /** Probe terminal dependencies without starting a terminal.
+   * @returns Browser transport support and the live Host dependency result.
+   */
+  getTerminalCapability(): Promise<TerminalCapability>
   /** Register a tab descriptor.
    * @param descriptor - Tab type to contribute.
    * @returns Disposer removing this registration.
@@ -503,7 +515,7 @@ export function matchUrlTarget(tabs: readonly TabDescriptor[], url: URL): TabDes
     if (tab.urlTarget === undefined) continue
     let claimed = false
     try {
-      claimed = tab.urlTarget(url) === true
+      claimed = tab.urlTarget(url)
     } catch (error) {
       console.error('[dsh-better-sidebar] urlTarget error:', error)
       continue
@@ -544,6 +556,7 @@ export const SIDEBAR_FEATURES = [
   'pluginSettings',
   'urlTarget',
   'settingSelect',
+  'terminalCapability',
 ] as const
 
 /** Run one plugin callback; a throw is logged and never breaks the caller. */
@@ -560,7 +573,10 @@ function safeCall(fn: () => void): void {
  * tab/viewer registries (Map + listener set) and proxies openTab/closeTab
  * to the store's reducer. One instance per client plugin activation.
  */
-export function createBetterSidebarService(store: SidebarStore): BetterSidebarService {
+export function createBetterSidebarService(
+  store: SidebarStore,
+  terminalCapability?: () => Promise<TerminalCapability>,
+): BetterSidebarService {
   const tabs = new Map<string, TabDescriptor>()
   const viewers = new Map<string, FileViewerDescriptor>()
   const listeners = new Set<() => void>()
@@ -699,7 +715,7 @@ export function createBetterSidebarService(store: SidebarStore): BetterSidebarSe
       const key = dedupeKey?.(tab)
       const inputTabs = allLeaves(state.splits).concat(allLeaves(state.bottomSplits)).flatMap(leaf => leaf.tabs)
       const existedByKey = key !== undefined
-        && inputTabs.some(candidate => candidate.type === tab.type && dedupeKey!(candidate) === key)
+        && inputTabs.some(candidate => candidate.type === tab.type && dedupeKey?.(candidate) === key)
       const existedById = tabOpenIn(state, tab.id)
       const isCreation = !existedByKey && !existedById
       // A URL seed pre-fills a NEWLY CREATED tab's path (the browser tab
@@ -724,7 +740,7 @@ export function createBetterSidebarService(store: SidebarStore): BetterSidebarSe
         // report THAT to onActivate (never the caller's un-inserted seed).
         const candidates = allLeaves(landed.splits).concat(allLeaves(landed.bottomSplits)).flatMap(leaf => leaf.tabs)
         activated = key !== undefined
-          ? candidates.find(candidate => candidate.type === tab.type && dedupeKey!(candidate) === key)
+          ? candidates.find(candidate => candidate.type === tab.type && dedupeKey?.(candidate) === key)
           : candidates.find(candidate => candidate.id === tab.id)
         activated ??= tab
       }
@@ -765,8 +781,10 @@ export function createBetterSidebarService(store: SidebarStore): BetterSidebarSe
     } else {
       store.reduce(reducer)
     }
-    if (created !== undefined) safeCall(() => descriptor.onOpen?.(created!, callbackScope))
-    else if (activated !== undefined) safeCall(() => descriptor.onActivate?.(activated!, callbackScope))
+    const createdTab = created
+    const activatedTab = activated
+    if (createdTab !== undefined) safeCall(() => descriptor.onOpen?.(createdTab, callbackScope))
+    else if (activatedTab !== undefined) safeCall(() => descriptor.onActivate?.(activatedTab, callbackScope))
   }
 
   const closeTab = (tabId: string, scope?: SessionScope): void => {
@@ -781,11 +799,12 @@ export function createBetterSidebarService(store: SidebarStore): BetterSidebarSe
       return closeTabReducer(state, paneId, tabId)
     })
     if (closed !== undefined) {
+      const closedTab = closed
       const sessionId = scope?.sessionId ?? store.getSnapshot().sessionId
       if (sessionId !== undefined) {
         const descriptor = tabs.get(closed.type)
         // An explicit scope (with its optional cwd) rides to the callback.
-        safeCall(() => descriptor?.onClose?.(closed!, scope ?? { sessionId }))
+        safeCall(() => descriptor?.onClose?.(closedTab, scope ?? { sessionId }))
       }
     }
   }
@@ -817,11 +836,12 @@ export function createBetterSidebarService(store: SidebarStore): BetterSidebarSe
       return activateTabReducer(state, paneId, tabId)
     })
     if (activated !== undefined) {
+      const activatedTab = activated
       const sessionId = scope?.sessionId ?? store.getSnapshot().sessionId
       if (sessionId !== undefined) {
         const descriptor = tabs.get(activated.type)
         // An explicit scope (with its optional cwd) rides to the callback.
-        safeCall(() => descriptor?.onActivate?.(activated!, scope ?? { sessionId }))
+        safeCall(() => descriptor?.onActivate?.(activatedTab, scope ?? { sessionId }))
       }
     }
   }
@@ -834,6 +854,18 @@ export function createBetterSidebarService(store: SidebarStore): BetterSidebarSe
   }
 
   return {
+    getTerminalCapability: async () => {
+      if (terminalCapability !== undefined) return terminalCapability()
+      if (typeof location === 'undefined' || !['http:', 'https:'].includes(location.protocol)) {
+        return { status: 'unavailable', reason: 'unsupported-scheme' }
+      }
+      try {
+        const result = await api.terminalDeps()
+        return result.ok ? { status: 'available' } : { status: 'unavailable', reason: 'missing-dependencies' }
+      } catch {
+        return { status: 'unavailable', reason: 'probe-failed' }
+      }
+    },
     registerTab,
     registerFileViewer,
     getTabs,
@@ -869,7 +901,7 @@ function applyDedupe(state: SidebarState, tab: SidebarTab, descriptor: TabDescri
     // The scan covers BOTH trees: opening a single-instance tab from the
     // bottom panel focuses an existing instance wherever it lives.
     for (const leaf of allLeaves(state.splits).concat(allLeaves(state.bottomSplits))) {
-      const existing = leaf.tabs.find(t => t.type === tab.type && dedupeKey!(t) === key)
+      const existing = leaf.tabs.find(t => t.type === tab.type && dedupeKey?.(t) === key)
       if (existing !== undefined) return activateTabReducer(state, leaf.id, existing.id)
     }
   }

@@ -277,16 +277,21 @@ export class SubagentModelSelectionCardController {
     this.failed = false
     this.conflicted = false
     this.publish()
-    await this.scope.mutate([
-      { op: 'set', path: ['enabled'], value: desiredEnabled },
-      {
-        op: 'set',
-        path: ['allowedModels'],
-        value: desired.map(route => ({ provider: route.provider, model: route.model })),
-      },
-    ], this.draftRevision)
+    let accepted: boolean
+    try {
+      accepted = await this.scope.mutate([
+        { op: 'set', path: ['enabled'], value: desiredEnabled },
+        {
+          op: 'set',
+          path: ['allowedModels'],
+          value: desired.map(route => ({ provider: route.provider, model: route.model })),
+        },
+      ], this.draftRevision)
+    } catch (_writeFailure) {
+      accepted = false
+    }
     if (generation !== this.saveGeneration) return
-    const landed = this.currentEnabled() === desiredEnabled && sameRoutes(this.currentRoutes(), desired)
+    const landed = accepted && this.currentEnabled() === desiredEnabled && sameRoutes(this.currentRoutes(), desired)
     this.saving = false
     this.failed = !landed
     if (landed) this.clearDraft()

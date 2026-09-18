@@ -27,6 +27,8 @@ This package provides the Web GUI's three-column AppFrame, edge-column widths, a
 
 The root slot composes the sidebar, conversation, and right column. The sidebar spans 264–420px, defaults to 280px, and retains a 56px rail when collapsed; below 1024px it collapses automatically, and opening the right panel collapses a manually expanded sidebar. The right panel first opens at 45% of the viewport, then retains the user's pixel preference, capped at 70%. To protect 400px for the center, the frame first reduces the right panel to 300px, then reports insufficient room so its occupant closes it, and only then compresses the center further. Dragging has no transition delay; the right handle is absent while closed or fullscreen.
 
+The frame registers `shell.toggleSidebar` with [keyboard](../keyboard/README.md), defaulting to Mod+B (Command on Apple platforms, Ctrl elsewhere). Its local handler uses the current override and acts only on unhandled events from the frame's own DOM subtree. Editable controls, dialogs, menus, inert roots, and body portals keep their own keyboard behavior.
+
 ### Theme presentation
 
 The presenter consumes resolved theme snapshots and projects them onto the document: `html { color-scheme }` for native UA chrome, `body[data-ds-dark-theme]` from the active color scheme, the theme's alias tokens and `--dsh-content-font-size` as inline variables on body, and one owned `<meta name="theme-color">` whose content follows the computed body background. Disposing the presenter removes its metadata node with its other global writes.

@@ -116,6 +116,54 @@
     - id: integration-preflight-controller
       name: '@deepseek-ai/dsh-api-integration-preflight-controller'
 
+    - id: mcp-registry
+      name: '@deepseek-ai/dsh-mcp-client/registry'
+
+    - id: mcp-management
+      name: '@deepseek-ai/dsh-mcp-management'
+      config:
+        profile: !!js dshProfileName
+
+    - id: mcp-controller
+      name: '@deepseek-ai/dsh-api-mcp-controller'
+
+    - id: automation
+      name: '@deepseek-ai/dsh-automation'
+      config:
+        profile: !!js dshProfileName
+        clockCheckIntervalMs: 60000
+        maxStartLatenessMs: 60000
+
+    - id: automation-controller
+      name: '@deepseek-ai/dsh-api-automation-controller'
+
+    - id: execution-host-local
+      name: '@deepseek-ai/dsh-execution-host-local'
+
+    - id: execution-host-targets
+      name: '@deepseek-ai/dsh-execution-host-targets'
+
+    - id: execution-host-controller
+      name: '@deepseek-ai/dsh-api-execution-host-controller'
+
+    - id: sidebar-terminal-controller
+      name: '@deepseek-ai/dsh-api-sidebar-terminal-controller'
+
+    - id: git-settings
+      name: '@deepseek-ai/dsh-git-settings'
+
+    - id: sidebar-git
+      name: '@deepseek-ai/dsh-sidebar-git'
+
+    - id: sidebar-git-controller
+      name: '@deepseek-ai/dsh-api-sidebar-git-controller'
+
+    - id: usage-query
+      name: '@deepseek-ai/dsh-usage-query'
+
+    - id: usage-controller
+      name: '@deepseek-ai/dsh-api-usage-controller'
+
     # Session commands, cold reads, and live control over Typert Remote.
     - id: session-controller
       name: '@deepseek-ai/dsh-api-session-controller'
@@ -160,10 +208,12 @@
         compressionLevel: 1
         compressionThresholdBytes: 1024
 
-    # Local voice-dictation engine: sherpa-onnx model registry, download
-    # cache, and the /voice/api route the Ctrl+Shift+E dictation client calls.
+    # Shared local dictation operations for Web and Desktop carriers.
     - id: voice
       name: '@deepseek-ai/dsh-voice'
+
+    - id: voice-controller
+      name: '@deepseek-ai/dsh-api-voice-controller'
 
     - id: voice-sherpa-onnx
       name: '@deepseek-ai/dsh-voice-sherpa-onnx'
@@ -361,8 +411,23 @@
       name: '@deepseek-ai/dsh-client-ui-settings-security'
     - id: ui-floating-workspace
       name: '@deepseek-ai/dsh-client-ui-floating-workspace'
+    - id: keyboard
+      name: '@deepseek-ai/dsh-client-keyboard'
     - id: ui-keybindings
       name: '@deepseek-ai/dsh-client-ui-keybindings'
+    - id: ui-settings-mcp
+      name: '@deepseek-ai/dsh-client-ui-settings-mcp'
+
+    - id: ui-settings-automation
+      name: '@deepseek-ai/dsh-client-ui-settings-automation'
+
+    - id: ui-settings-hosts
+      name: '@deepseek-ai/dsh-client-ui-settings-hosts'
+
+    - id: ui-settings-usage
+      name: '@deepseek-ai/dsh-client-ui-settings-usage'
+    - id: ui-settings-terminal
+      name: '@deepseek-ai/dsh-client-ui-settings-terminal'
 
     # Plan control: the composer plan seat over the plan projection + /plan channel.
     - id: ui-plan

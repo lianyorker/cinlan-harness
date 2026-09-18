@@ -1,39 +1,86 @@
 /**
- * Smoke spec: mounts the host plugin against a minimal fake context and
+ * Smoke spec: mounts the Host plugin through Loader with test-owned services and
  * exercises the real integrations — route registration, git against the
  * actual repository, and a real directory listing. Runs with `pnpm test`.
  */
-import { describe, expect, it, vi } from 'vitest'
-import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve as resolvePath } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { Context as CordisContext } from '@deepseek-ai/cordis'
+import Loader from '@deepseek-ai/cordis-plugin-loader'
+import Include from '@deepseek-ai/cordis-plugin-include'
 import { SettingsConflictError, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { apply, mediaTypeForPath } from '../src/index.ts'
-import * as git from '../src/git.ts'
+import * as SidebarHost from '../src/index.ts'
+import { mediaTypeForPath } from '../src/index.ts'
+import type { GitDiffRequest, GitDiffResult } from '@deepseek-ai/dsh-sidebar-git/types'
+import { cleanup as cleanupGit, harness as gitHarness } from '../../../git/sidebar-git/tests/fixture.ts'
 import { listDirectory } from '../src/fs-tree.ts'
 import { defaultShell, PtyManager, type SidebarPty } from '../src/pty-manager.ts'
-import type { SidebarWebRoute, SidebarWebUpgradeRoute } from '../src/context-types.ts'
+import type { SidebarHttpRequest, SidebarHttpResponse, SidebarWebRoute, SidebarWebUpgradeRoute } from '../src/context-types.ts'
 
 const PACKAGE_ROOT = resolvePath(import.meta.dirname, '..')
-const REPO_ROOT = resolvePath(PACKAGE_ROOT, '../../..')
-const REPO_GIT_PATH = 'packages/client/ui-better-sidebar/src/git.ts'
 
-interface FakeContext {
-  webRuntime: { trustedHosts: readonly string[] }
-  webServer: {
-    register: (route: SidebarWebRoute) => () => void
-    registerUpgrade: (route: SidebarWebUpgradeRoute) => () => void
+interface SmokeContextOptions {
+  readonly sessions?: { get: (id: string) => { header: { cwd?: string } } | undefined }
+  readonly settings?: unknown
+  readonly tools?: { define: typeof defineTool; register: (tool: unknown) => () => void }
+}
+
+interface SmokeFixture {
+  readonly ctx: CordisContext
+  readonly routes: SidebarWebRoute[]
+  readonly upgrades: SidebarWebUpgradeRoute[]
+  readonly dispose: () => Promise<void>
+}
+
+/** Mount the real Host plugin through Loader with test-owned route faces. */
+async function createSmokeContext(options: SmokeContextOptions = {}): Promise<SmokeFixture> {
+  const ctx = new CordisContext()
+  const root = mkdtempSync(join(tmpdir(), 'dsh-sidebar-smoke-'))
+  const dispose = async (): Promise<void> => {
+    try { await ctx.fiber.dispose() } finally { rmSync(root, { recursive: true, force: true }) }
   }
-  sessions: { get: (id: string) => { header: { cwd?: string } } | undefined }
-  tools: { define: typeof defineTool; register: (tool: unknown) => () => void }
-  effect: (fn: () => void | (() => void), label?: string) => void
-  /** The settings service never appears in the smoke context: the inject
-   *  callback must never run (mirror of cordis' service-less inject). */
-  inject: (deps: readonly string[], callback: (sctx: never) => void) => () => void
-  /** Optional services (jobs/agents) are read lazily; absent → undefined. */
-  get: (key: string) => undefined
+  onTestFinished(dispose)
+  ctx.baseUrl = pathToFileURL(root).href + '/'
+  const routes: SidebarWebRoute[] = []
+  const upgrades: SidebarWebUpgradeRoute[] = []
+  const sessions = options.sessions ?? { get: () => undefined }
+  const tools = options.tools ?? { define: defineTool, register: () => () => {} }
+  const webServer = {
+    register: (route: SidebarWebRoute) => { routes.push(route); return () => { routes.splice(routes.indexOf(route), 1) } },
+    registerUpgrade: (route: SidebarWebUpgradeRoute) => {
+      upgrades.push(route)
+      return () => { upgrades.splice(upgrades.indexOf(route), 1) }
+    },
+  }
+  const config = join(root, 'cordis.yml')
+  writeFileSync(config, [
+    '- name: cordis:smoke-services',
+    '- name: "@deepseek-ai/dsh-client-ui-better-sidebar"',
+    '',
+  ].join('\n'))
+  await ctx.plugin(Loader)
+  ctx.loader.builtins.include = Include
+  ctx.loader.builtins['smoke-services'] = (services: CordisContext) => {
+    services.provide('sessions', sessions)
+    services.provide('tools', tools)
+    services.provide('webServer', webServer)
+    services.provide('webRuntime', { trustedHosts: [] })
+    if (options.settings !== undefined) services.provide('settings', options.settings)
+  }
+  ctx.loader.internal = {
+    version: 'v2',
+    async import(specifier: string) {
+      if (specifier !== '@deepseek-ai/dsh-client-ui-better-sidebar') throw new Error('Unexpected smoke import: ' + specifier)
+      return SidebarHost
+    },
+  } as unknown as NonNullable<typeof ctx.loader.internal>
+  await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(config).href } })
+  await ctx.loader.await()
+  return { ctx, routes, upgrades, dispose }
 }
 
 /**
@@ -48,7 +95,7 @@ interface FakeContext {
 async function rmTempDirAfterPtyExit(handle: { exited: boolean }, dir: string): Promise<void> {
   const deadline = Date.now() + 2000
   while (Date.now() < deadline && !handle.exited) {
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    await new Promise(resolve => setTimeout(resolve, 50))
   }
   for (let attempt = 0; ; attempt++) {
     try {
@@ -57,7 +104,7 @@ async function rmTempDirAfterPtyExit(handle: { exited: boolean }, dir: string): 
     } catch (error) {
       const busy = (error as NodeJS.ErrnoException).code === 'ENOTEMPTY' || (error as NodeJS.ErrnoException).code === 'EBUSY'
       if (!busy || attempt >= 4) throw error
-      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)))
+      await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)))
     }
   }
 }
@@ -68,83 +115,21 @@ describe('host plugin smoke', () => {
     expect(mediaTypeForPath('/work/archive.bin')).toBe('application/octet-stream')
   })
 
-  it('mounts the fenced routes', () => {
-    const routes: SidebarWebRoute[] = []
-    const upgrades: SidebarWebUpgradeRoute[] = []
-    const effects: Array<() => void | (() => void)> = []
-    const ctx: FakeContext = {
-      webRuntime: { trustedHosts: [] },
-      webServer: {
-        register: (route) => { routes.push(route); return () => {} },
-        registerUpgrade: (route) => { upgrades.push(route); return () => {} },
-      },
-      sessions: { get: () => undefined },
-      tools: { define: defineTool, register: () => () => {} },
-      // The DSH-vendored cordis runs the registration effect immediately and
-      // keeps its cleanup for disposal.
-      effect: (fn) => {
-        const cleanup = fn()
-        if (typeof cleanup === 'function') effects.push(cleanup)
-      },
-      // No settings service in the smoke context: the registration callback
-      // never runs (cordis' service-less inject behaves the same).
-      inject: () => () => {},
-      // No jobs/agents services: the jobs routes degrade to a 503.
-      get: () => undefined,
-    }
-    apply(ctx as never)
-    expect(routes.map(route => route.path)).toEqual([
+  it('mounts the fenced routes', async () => {
+    const fixture = await createSmokeContext()
+    expect(fixture.routes.map(route => route.path)).toEqual([
       '/sidebar/api',
       '/sidebar/upload',
-      '/sidebar/bundle',
       '/sidebar/file',
       '/sidebar/html',
+      '/sidebar/bundle',
     ])
-    expect(upgrades.map(route => route.path)).toEqual(['/sidebar/ws/terminal', '/sidebar/ws/agent-terminals'])
-    // Teardown runs without throwing (pty manager has nothing open).
-    for (const cleanup of effects) cleanup()
-  })
-
-  // The repository status includes every untracked path; allow the real GUI lane
-  // budget when other workers are traversing the same worktree.
-  it('runs git status/log/branches against this repository', async () => {
-    const cwd = REPO_ROOT
-    const status = await git.status(cwd)
-    expect(status.isRepo).toBe(true)
-    expect(typeof status.branch).toBe('string')
-    expect(Array.isArray(status.entries)).toBe(true)
-    const log = await git.log(cwd)
-    expect(log.length).toBeGreaterThan(0)
-    expect(log[0]!.hash).toMatch(/^[0-9a-f]{7,}$/)
-    const branches = await git.branches(cwd)
-    expect(branches.names).toContain(branches.current)
-  }, 30_000)
-
-  it('enriches the log (full hash + refs) and renders commit diffs', async () => {
-    const cwd = REPO_ROOT
-    const log = await git.log(cwd)
-    const first = log[0]!
-    expect(first.hashFull).toMatch(/^[0-9a-f]{40}$/)
-    expect(typeof first.refs).toBe('string')
-    const patch = await git.commitDiff(cwd, first.hashFull)
-    expect(patch).toContain('diff --git')
-  })
-
-  it('pages the log lazily with skip/count', async () => {
-    const cwd = REPO_ROOT
-    const first = await git.log(cwd, 5, 0)
-    expect(first).toHaveLength(5)
-    const second = await git.log(cwd, 5, 5)
-    expect(second).toHaveLength(5)
-    // The pages are disjoint windows over the same ordered history.
-    expect(first[0]!.hashFull).not.toBe(second[0]!.hashFull)
-    const all = await git.log(cwd, 10, 0)
-    expect(all.slice(0, 5)).toEqual(first)
-    expect(all.slice(5)).toEqual(second)
-    // A skip past the measured end returns an empty page (the lazy loader's stop sign).
-    const count = spawnSync('git', ['-C', cwd, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' })
-    expect(count.status).toBe(0)
-    expect(await git.log(cwd, 5, Number.parseInt(count.stdout, 10))).toEqual([])
+    expect(fixture.upgrades).toEqual([])
+    expect(fixture.ctx.get('sidebarTerminals')).toBeDefined()
+    await fixture.dispose()
+    expect(fixture.ctx.get('sidebarTerminals')).toBeUndefined()
+    expect(fixture.routes).toEqual([])
+    expect(fixture.upgrades).toEqual([])
   })
 
   it('pty manager releases the quota on close and respawns after exit', async () => {
@@ -320,135 +305,65 @@ describe('host plugin smoke', () => {
   })
 })
 
-/**
- * Destructive git operations (discard / revert / cherry-pick) run against a
- * throwaway repository under the OS temp dir — never the plugin repo. The
- * fixture's commit identity comes from the GIT_AUTHOR / GIT_COMMITTER
- * environment variables, confined to the fixture process: no git config is
- * touched anywhere (the plugin never sets an identity, and neither does its
- * test fixture).
- */
-describe('git destructive operations (scratch repository)', () => {
-  const FIXTURE_IDENTITY = {
-    GIT_AUTHOR_NAME: 'dsh-better-sidebar-test',
-    GIT_AUTHOR_EMAIL: 'test@dsh.invalid',
-    GIT_COMMITTER_NAME: 'dsh-better-sidebar-test',
-    GIT_COMMITTER_EMAIL: 'test@dsh.invalid',
-  }
-
-  const gitRun = (cwd: string, args: string[]): string => {
-    const result = spawnSync('git', ['-C', cwd, '--no-pager', '-c', 'color.ui=false', ...args], {
-      encoding: 'utf8',
-      env: { ...process.env, ...FIXTURE_IDENTITY },
-    })
-    if (result.status !== 0) {
-      throw new Error(result.stderr || `git ${args[0] ?? ''} exited with ${String(result.status)}`)
-    }
-    return result.stdout
-  }
-
-  /** A fresh repo on branch `main` with one committed file `a.txt`. */
-  const makeScratchRepo = (): string => {
-    const dir = mkdtempSync(join(tmpdir(), 'dsh-sidebar-git-'))
-    gitRun(dir, ['init', '-q'])
-    gitRun(dir, ['config', 'core.autocrlf', 'false'])
-    gitRun(dir, ['checkout', '-q', '-b', 'main'])
-    writeFileSync(join(dir, 'a.txt'), 'one\ntwo\nthree\n')
-    gitRun(dir, ['add', '-A'])
-    gitRun(dir, ['commit', '-q', '-m', 'base'])
-    return dir
-  }
-
-  it('discard restores the worktree file from the index (staged changes kept)', async () => {
-    const dir = makeScratchRepo()
-    try {
-      // Unstaged-only changes: fully reverts to the committed content.
-      writeFileSync(join(dir, 'a.txt'), 'one\nCHANGED\nthree\n')
-      await git.discard(dir, 'a.txt')
-      expect(readFileSync(join(dir, 'a.txt'), 'utf8')).toBe('one\ntwo\nthree\n')
-      // Staged changes: the worktree snaps back to the STAGED content and
-      // the index is untouched (`git checkout -- <path>` restores from the
-      // index — VSCode's "Discard Changes" semantics).
-      writeFileSync(join(dir, 'a.txt'), 'one\nCHANGED\nthree\n')
-      gitRun(dir, ['add', '-A'])
-      await git.discard(dir, 'a.txt')
-      expect(readFileSync(join(dir, 'a.txt'), 'utf8')).toBe('one\nCHANGED\nthree\n')
-      const staged = await git.diff(dir, 'a.txt', true)
-      expect(staged).toContain('-two')
-      expect(staged).toContain('+CHANGED')
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
-  it('revert creates a revert commit', async () => {
-    const dir = makeScratchRepo()
-    try {
-      writeFileSync(join(dir, 'a.txt'), 'one\nTWO\nthree\n')
-      gitRun(dir, ['add', '-A'])
-      gitRun(dir, ['commit', '-q', '-m', 'change'])
-      const featureHash = (await git.log(dir))[0]!.hashFull
-      await git.revert(dir, featureHash)
-      expect(readFileSync(join(dir, 'a.txt'), 'utf8')).toBe('one\ntwo\nthree\n')
-      expect((await git.log(dir))[0]!.subject).toBe('Revert "change"')
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
-  it('cherry-pick applies a commit from another branch', async () => {
-    const dir = makeScratchRepo()
-    try {
-      gitRun(dir, ['checkout', '-q', '-b', 'feature'])
-      writeFileSync(join(dir, 'b.txt'), 'feature work\n')
-      gitRun(dir, ['add', '-A'])
-      gitRun(dir, ['commit', '-q', '-m', 'feature work'])
-      const featureHash = (await git.log(dir))[0]!.hashFull
-      gitRun(dir, ['checkout', '-q', 'main'])
-      await git.cherryPick(dir, featureHash)
-      expect(readFileSync(join(dir, 'b.txt'), 'utf8')).toBe('feature work\n')
-      expect((await git.log(dir))[0]!.subject).toBe('feature work')
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
-  it('reports a failing destructive operation as a GitCommandError', async () => {
-    const dir = makeScratchRepo()
-    try {
-      // An unknown revision fails before touching anything.
-      await expect(git.revert(dir, 'deadbeef00000000000000000000000000000000')).rejects.toThrow()
-      await expect(git.cherryPick(dir, 'deadbeef00000000000000000000000000000000')).rejects.toThrow()
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-})
-
 describe('session cwd resolution over the API route', () => {
+  const mountGit = async () => {
+    onTestFinished(cleanupGit)
+    const routes: SidebarWebRoute[] = []
+    const upgrades: SidebarWebUpgradeRoute[] = []
+    const h = await gitHarness({}, { subdirectory: true, extra: [
+      { name: 'test-http-services', module: { apply(ctx: CordisContext) {
+        ctx.provide('tools', { define: defineTool, register: () => () => {} })
+        ctx.provide('webServer', {
+          register: (route: SidebarWebRoute) => {
+            routes.push(route)
+            return () => { routes.splice(routes.indexOf(route), 1) }
+          },
+          registerUpgrade: (route: SidebarWebUpgradeRoute) => {
+            upgrades.push(route)
+            return () => { upgrades.splice(upgrades.indexOf(route), 1) }
+          },
+        })
+        ctx.provide('webRuntime', { trustedHosts: [] })
+      } } },
+      { name: '@deepseek-ai/dsh-client-ui-better-sidebar', module: SidebarHost },
+    ] })
+    const route = routes.find(candidate => candidate.path === '/sidebar/api')
+    if (route === undefined) throw new Error('Sidebar API route was not registered')
+    return { ...h, route }
+  }
+
+  type GitReadResults = {
+    'git.diff': GitDiffResult
+    'fs.read': unknown
+  }
+
+  const invokeGit = async <Method extends keyof GitReadResults>(route: SidebarWebRoute, method: Method, payload: unknown): Promise<{
+    ok: boolean
+    value?: GitReadResults[Method]
+    error?: { code: string; message: string }
+  }> => {
+    const body = Buffer.from(JSON.stringify(payload))
+    const request: SidebarHttpRequest = {
+      method: 'POST', url: '/sidebar/api/' + method, headers: { host: '127.0.0.1:3080' },
+      [Symbol.asyncIterator]: async function* () { yield body },
+    }
+    let responseBody = ''
+    const response: SidebarHttpResponse = {
+      statusCode: 200,
+      writeHead(status) { this.statusCode = status },
+      end(chunk) { responseBody += typeof chunk === 'string' ? chunk : Buffer.from(chunk ?? []).toString('utf8') },
+    }
+    await route.handler(request, response)
+    return JSON.parse(responseBody) as { ok: boolean; value?: GitReadResults[Method]; error?: { code: string; message: string } }
+  }
+
   interface CtxOverrides {
     sessions?: { get: (id: string) => { header: { cwd?: string } } | undefined }
   }
 
-  const mount = (overrides: CtxOverrides = {}): SidebarWebRoute => {
-    const routes: SidebarWebRoute[] = []
-    const ctx = {
-      webRuntime: { trustedHosts: [] },
-      webServer: {
-        register: (route: SidebarWebRoute) => { routes.push(route); return () => {} },
-        registerUpgrade: (route: SidebarWebUpgradeRoute) => { void route; return () => {} },
-      },
-      sessions: overrides.sessions ?? { get: () => undefined },
-      tools: { define: defineTool, register: () => () => {} },
-      // The vendored cordis runs registration effects immediately.
-      effect: (fn: () => void | (() => void)) => { fn() },
-      // No settings service: the namespace registration never runs.
-      inject: () => () => {},
-      // No jobs/agents services in the smoke context: the routes degrade.
-      get: () => undefined,
-    }
-    apply(ctx as never)
-    return routes.find(route => route.path === '/sidebar/api')!
+  const mount = async (overrides: CtxOverrides = {}): Promise<SidebarWebRoute> => {
+    const fixture = await createSmokeContext({ sessions: overrides.sessions })
+    return fixture.routes.find(route => route.path === '/sidebar/api')!
   }
 
   const invoke = async (
@@ -473,7 +388,7 @@ describe('session cwd resolution over the API route', () => {
   }
 
   it('uses the client summary cwd while the session is detached', async () => {
-    const route = mount()
+    const route = await mount()
     const result = await invoke(route, 'session.cwd', { sessionId: 's-detached', cwd: '/tmp/summary-cwd' })
     expect(result.ok).toBe(true)
     // The summary cwd passes through requireAbsolute (platform resolve), so
@@ -482,16 +397,16 @@ describe('session cwd resolution over the API route', () => {
   })
 
   it('falls back to the process cwd with no summary cwd', async () => {
-    const route = mount()
+    const route = await mount()
     const result = await invoke(route, 'session.cwd', { sessionId: 's-unknown' })
     expect(result.ok).toBe(true)
     expect(result.value?.cwd).toBe(process.cwd())
   })
 
   it('prefers the attached session header over the client summary', async () => {
-    const route = mount({
+    const route = await mount({
       sessions: {
-        get: (id) => id === 's-attached' ? { header: { cwd: '/attached-cwd' } } : undefined,
+        get: id => id === 's-attached' ? { header: { cwd: '/attached-cwd' } } : undefined,
       },
     })
     const result = await invoke(route, 'session.cwd', { sessionId: 's-attached', cwd: '/tmp/summary-cwd' })
@@ -500,48 +415,33 @@ describe('session cwd resolution over the API route', () => {
   })
 
   it('rejects a non-absolute client cwd', async () => {
-    const route = mount()
+    const route = await mount()
     const result = await invoke(route, 'session.cwd', { sessionId: 's-detached', cwd: 'relative/path' })
     expect(result.ok).toBe(false)
     expect(result.error?.message).toMatch(/invalid working directory/)
   })
 
-  it('pty.close releases a terminal key (and rejects a missing tab)', async () => {
-    const route = mount()
-    const result = await invoke(route, 'pty.close', { sessionId: 's-pty', tab: 't1' })
+  it('git.diff resolves repo-relative paths through the attached nested Session and ignores caller cwd', async () => {
+    const h = await mountGit()
+    writeFileSync(join(h.repository, 'tracked.txt'), 'route change\n')
+    const request: GitDiffRequest & { cwd: string } = {
+      ...h.request, path: 'tracked.txt', staged: false, cwd: join(h.root, 'wrong-caller-cwd'),
+    }
+    const result = await invokeGit(h.route, 'git.diff', request)
     expect(result.ok).toBe(true)
-    const missing = await invoke(route, 'pty.close', { sessionId: 's-pty' })
-    expect(missing.ok).toBe(false)
-  })
+    expect(result.value?.diff).toContain('diff --git a/tracked.txt b/tracked.txt')
+    expect(result.value?.diff).toContain('-base')
+    expect(result.value?.diff).toContain('+route change')
+  }, 90_000)
 
-  it('git.diff resolves repo-relative paths (session in a subdirectory)', async () => {
-    // The plugin repo's status paths are relative to the repo top level
-    // (e.g. `packages/client/ui-better-sidebar/src/git.ts`); a session whose cwd sits inside the repo must
-    // still load per-file diffs instead of failing with "not an absolute
-    // path". The session header points INTO the repository.
-    const route = mount({
-      sessions: {
-        get: () => ({ header: { cwd: join(PACKAGE_ROOT, 'src') } }),
-      },
+  it('fs.read resolves repo-relative paths through the attached nested Session (untracked diff fallback)', async () => {
+    const h = await mountGit()
+    const result = await invokeGit(h.route, 'fs.read', {
+      ...h.request, path: 'tracked.txt', cwd: join(h.root, 'wrong-caller-cwd'),
     })
-    const result = await invoke(route, 'git.diff', { sessionId: 's-sub', path: REPO_GIT_PATH, staged: false })
     expect(result.ok).toBe(true)
-    const value = result as unknown as { ok: boolean; value?: { diff: string } }
-    expect(typeof value.value?.diff).toBe('string')
-  })
-
-  it('fs.read resolves repo-relative paths (untracked diff fallback)', async () => {
-    const route = mount({
-      sessions: {
-        get: () => ({ header: { cwd: join(PACKAGE_ROOT, 'src') } }),
-      },
-    })
-    const result = await invoke(route, 'fs.read', { sessionId: 's-sub', path: REPO_GIT_PATH })
-    expect(result.ok).toBe(true)
-    const value = result as unknown as { ok: boolean; value?: { kind: string; content: string } }
-    expect(value.value?.kind).toBe('text')
-    expect(value.value?.content).toContain('runGit')
-  })
+    expect(result.value).toEqual({ kind: 'text', content: 'base\n', truncated: false })
+  }, 90_000)
 })
 
 describe('side card settings routes', () => {
@@ -584,26 +484,9 @@ describe('side card settings routes', () => {
     }
   }
 
-  const mountWithSettings = (settings?: unknown): SidebarWebRoute => {
-    const routes: SidebarWebRoute[] = []
-    const ctx = {
-      webRuntime: { trustedHosts: [] },
-      webServer: {
-        register: (route: SidebarWebRoute) => { routes.push(route); return () => {} },
-        registerUpgrade: (route: SidebarWebUpgradeRoute) => { void route; return () => {} },
-      },
-      sessions: { get: () => undefined },
-      tools: { define: defineTool, register: () => () => {} },
-      effect: (fn: () => void | (() => void)) => { fn() },
-      inject: (deps: string[], callback: (sctx: { settings: unknown }) => void) => {
-        if (deps.includes('settings') && settings !== undefined) callback({ settings })
-        return () => {}
-      },
-      // No jobs/agents services: the jobs routes degrade to a 503.
-      get: () => undefined,
-    }
-    apply(ctx as never)
-    return routes.find(route => route.path === '/sidebar/api')!
+  const mountWithSettings = async (settings?: unknown): Promise<SidebarWebRoute> => {
+    const fixture = await createSmokeContext({ settings })
+    return fixture.routes.find(route => route.path === '/sidebar/api')!
   }
 
   const invoke = async (route: SidebarWebRoute, method: string, payload: unknown): Promise<{
@@ -628,28 +511,28 @@ describe('side card settings routes', () => {
   }
 
   it('serves the schema defaults when the settings service is absent', async () => {
-    const route = mountWithSettings(undefined)
+    const route = await mountWithSettings(undefined)
     const result = await invoke(route, 'settings.get', {})
     expect(result.ok).toBe(true)
     expect(result.value).toEqual({ value: undefined, revision: undefined, externalDisable: false })
   })
 
   it('reports externalDisable false when the aionui namespace is absent', async () => {
-    const route = mountWithSettings(createFakeSettings())
+    const route = await mountWithSettings(createFakeSettings())
     const result = await invoke(route, 'settings.get', {})
     expect(result.ok).toBe(true)
     expect((result.value as { externalDisable?: boolean }).externalDisable).toBe(false)
   })
 
   it('reports externalDisable true while the aionui provider is selected', async () => {
-    const route = mountWithSettings(createFakeSettings({ 'aionui-panel': { rightPanel: 'aionui-panel' } }))
+    const route = await mountWithSettings(createFakeSettings({ 'aionui-panel': { rightPanel: 'aionui-panel' } }))
     const result = await invoke(route, 'settings.get', {})
     expect(result.ok).toBe(true)
     expect((result.value as { externalDisable?: boolean }).externalDisable).toBe(true)
   })
 
   it('serves the effective terminal shell and its display name', async () => {
-    const route = mountWithSettings(undefined)
+    const route = await mountWithSettings(undefined)
     const result = await invoke(route, 'shell.get', {})
     expect(result.ok).toBe(true)
     expect(result.value).toMatchObject({
@@ -660,7 +543,7 @@ describe('side card settings routes', () => {
   })
 
   it('reads the resolved prefs and writes a patch through the seam', async () => {
-    const route = mountWithSettings(createFakeSettings())
+    const route = await mountWithSettings(createFakeSettings())
     const read = await invoke(route, 'settings.get', {})
     expect(read.ok).toBe(true)
     expect(read.value).toEqual({
@@ -673,6 +556,9 @@ describe('side card settings routes', () => {
         bottomPanelAutoTerminal: true,
         terminalFontFamily: '',
         terminalFontSize: 13,
+        terminalScrollback: 4000,
+        terminalCursorStyle: 'block',
+        terminalCursorBlink: true,
         interceptOpenPath: true,
         editorExplorer: false,
         terminalShell: '',
@@ -704,7 +590,7 @@ describe('side card settings routes', () => {
   })
 
   it('refuses a stale write with settings-conflict (409)', async () => {
-    const route = mountWithSettings(createFakeSettings())
+    const route = await mountWithSettings(createFakeSettings())
     await invoke(route, 'settings.update', { patch: { openByDefault: false } })
     // The second write carries the pre-write revision: the seam refuses it.
     const stale = await invoke(route, 'settings.update', {
@@ -717,7 +603,7 @@ describe('side card settings routes', () => {
   })
 
   it('rejects a non-object patch as bad-request', async () => {
-    const route = mountWithSettings(createFakeSettings())
+    const route = await mountWithSettings(createFakeSettings())
     const result = await invoke(route, 'settings.update', { patch: 'nope' })
     expect(result.ok).toBe(false)
     expect(result.error?.message).toMatch(/plain object/)
@@ -727,7 +613,7 @@ describe('side card settings routes', () => {
     ({ status, url: 'https://site.example/', headers: new Headers(headers) }) as unknown as Response
 
   it('reports X-Frame-Options and frame-ancestors from the target headers', async () => {
-    const route = mountWithSettings(undefined)
+    const route = await mountWithSettings(undefined)
     vi.stubGlobal('fetch', vi.fn(async () => respond(200, {
       'x-frame-options': 'SAMEORIGIN',
       'content-security-policy': "default-src 'self'; frame-ancestors 'none'",
@@ -748,7 +634,7 @@ describe('side card settings routes', () => {
   })
 
   it('retries a 405 HEAD as GET', async () => {
-    const route = mountWithSettings(undefined)
+    const route = await mountWithSettings(undefined)
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(respond(405, {}))
       .mockResolvedValueOnce(respond(200, {}))
@@ -764,7 +650,7 @@ describe('side card settings routes', () => {
   })
 
   it('reports an unreachable target as reachable:false', async () => {
-    const route = mountWithSettings(undefined)
+    const route = await mountWithSettings(undefined)
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('ENOTFOUND') }))
     try {
       const result = await invoke(route, 'browser.probe', { url: 'https://example.com/' })
@@ -776,7 +662,7 @@ describe('side card settings routes', () => {
   })
 
   it('refuses non-http(s) and loopback URLs', async () => {
-    const route = mountWithSettings(undefined)
+    const route = await mountWithSettings(undefined)
     for (const url of ['javascript:alert(1)', 'file:///etc/passwd', 'http://127.0.0.1:8080/', 'http://localhost/']) {
       const result = await invoke(route, 'browser.probe', { url })
       expect(result.ok, url).toBe(false)
@@ -787,7 +673,7 @@ describe('side card settings routes', () => {
 
 
 describe('agent terminal tool gating', () => {
-  it('injects the eight tools only when the side-card setting is enabled (default off)', () => {
+  it('injects the eight tools only when the side-card setting is enabled (default off)', async () => {
     let registered = 0
     let disposed = 0
     // The tools currently registered (registered minus disposed).
@@ -809,23 +695,10 @@ describe('agent terminal tool gating', () => {
       describe: () => [],
       async update() {},
     }
-    const ctx = {
-      webRuntime: { trustedHosts: [] },
-      webServer: {
-        register: (route: SidebarWebRoute) => { void route; return () => {} },
-        registerUpgrade: (route: SidebarWebUpgradeRoute) => { void route; return () => {} },
-      },
-      sessions: { get: () => undefined },
+    const fixture = await createSmokeContext({
+      settings,
       tools: { define: defineTool, register: () => { registered += 1; return () => { disposed += 1 } } },
-      effect: (fn: () => void | (() => void)) => { fn() },
-      inject: (deps: readonly string[], callback: (sctx: { settings: unknown }) => void) => {
-        if (deps.includes('settings')) callback({ settings })
-        return () => {}
-      },
-      // No jobs/agents services: the jobs routes degrade to a 503.
-      get: () => undefined,
-    }
-    apply(ctx as never)
+    })
     // Default off: no tools are registered even though the settings service is mounted.
     expect(live()).toBe(0)
     // Flipping the setting on registers all eight tools.
@@ -844,6 +717,9 @@ describe('agent terminal tool gating', () => {
     watcherRef.current?.()
     expect(live()).toBe(8)
     expect(registered).toBe(16)
+    await fixture.dispose()
+    expect(live()).toBe(0)
+    expect(disposed).toBe(16)
   })
 
 

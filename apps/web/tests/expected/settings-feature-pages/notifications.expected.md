@@ -1,0 +1,41 @@
+- region "通知":
+  - heading "通知" [level=1]
+  - paragraph: 在需要你关注时提醒你，其余时间保持专注。
+  - region "桌面通知":
+    - heading "桌面通知" [level=2]
+    - text: 启用通知 后台事件的本机系统通知。
+    - switch "启用通知" [checked]
+    - text: 智能体任务完成 编码智能体完成并变得空闲。
+    - switch "智能体任务完成" [checked]
+    - text: 终端响铃 新的工具结果中出现响铃字符时通知。
+    - switch "终端响铃"
+    - text: 专注时静默 当前应用获得焦点时不发送后台通知。
+    - switch "专注时静默"
+    - text: 通知测试 发送真实的系统通知，必要时请求浏览器授权；测试不受专注时静默和定时免打扰影响。
+    - button "发送测试通知"
+  - region "免打扰":
+    - heading "免打扰" [level=2]
+    - text: 定时免打扰 每天按本机时间暂停自动通知和提示音，不补发错过的提醒。
+    - switch "定时免打扰" [checked]
+    - text: 免打扰开始时间 从此时间起静默；开始晚于结束时，时段跨越午夜。
+    - textbox "免打扰开始时间": {{clock}}
+    - text: 免打扰结束时间 到此时间恢复提醒；开始和结束相同表示全天静默。
+    - textbox "免打扰结束时间": {{clock}}
+    - button "保存免打扰时段" [disabled]
+  - region "声音":
+    - heading "声音" [level=2]
+    - text: 通知声音 选择发送桌面通知时 Cinlan IDE 播放的警报。
+    - combobox "通知声音":
+      - option "系统默认值"
+      - option "二音"
+      - option "叮" [selected]
+      - option "扑通"
+      - option "光点"
+      - option "赤焰"
+      - option "T"
+      - option "咔嗒"
+      - option "自定义声音"
+    - text: 自定义声音 声音文件仅在当前页面加载期间可用，刷新后需重新选择。
+    - button "选择自定义文件"
+  - text: 恢复通知默认设置 移除通知偏好的用户覆盖，恢复主机配置的默认值。
+  - button "恢复默认"

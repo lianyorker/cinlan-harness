@@ -20,7 +20,7 @@ import type {
   MobileMutationResult,
   MobileObservation,
   MobileObservationId,
-  MobileObserveRequest,
+  MobileObserveSpec,
   MobileTouchRequest,
   MobileTypeRequest,
 } from '@deepseek-ai/dsh-mobile-device'
@@ -362,7 +362,7 @@ export class CinlanMobileDeviceProvider implements MobileDeviceProvider {
     }
   }
 
-  private publishObservation(value: MobileObservation, request: MobileObserveRequest, runtimeId: string): MobileObservation {
+  private publishObservation(value: MobileObservation, request: MobileObserveSpec, runtimeId: string): MobileObservation {
     this.assertDevice(value.device, request.deviceId)
     this.observations.set(value.device.id, {
       device: value.device,
@@ -417,7 +417,7 @@ export class CinlanMobileDeviceProvider implements MobileDeviceProvider {
   }
 
   /** Capture one fresh tree and optional PNG for an exact device. */
-  observe(request: MobileObserveRequest, signal?: AbortSignal): Promise<MobileObservation> {
+  observe(request: MobileObserveSpec, signal?: AbortSignal): Promise<MobileObservation> {
     return this.track(async () => {
       const { value, runtimeId } = await this.invoke(
         [

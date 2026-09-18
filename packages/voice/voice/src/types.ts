@@ -20,16 +20,6 @@ export type VoiceModelDownload =
   | { readonly type: 'archive'; readonly url: string; readonly sha256: string }
   | { readonly type: 'files'; readonly entries: readonly { readonly name: string; readonly url: string; readonly sha256: string; readonly bytes: number }[] }
 
-/** All file paths the architecture references, for cache readiness checks. */
-export function architectureFilePaths(arch: VoiceModelArchitecture): readonly string[] {
-  switch (arch.type) {
-    case 'transducer': return [arch.encoder, arch.decoder, arch.joiner, arch.tokens]
-    case 'paraformer': return [arch.encoder, arch.decoder, arch.tokens]
-    case 'whisper': return [arch.encoder, arch.decoder, arch.tokens]
-    case 'sense-voice': return [arch.model, arch.tokens]
-  }
-}
-
 /** One shipped model definition: display metadata plus its download source and recognizer architecture. */
 export interface VoiceModelDefinition {
   readonly id: VoiceModelId
@@ -61,11 +51,45 @@ export interface VoiceModelSummary {
   readonly status: VoiceModelStatus
 }
 
-/** One base64-encoded audio clip submitted for transcription. */
+/** One decoded 16kHz mono audio clip submitted to the local provider. */
 export interface VoiceTranscribeRequest {
   readonly modelId: VoiceModelId
-  /** 16kHz mono PCM float32 samples, canonical base64 encoding. */
-  readonly pcm16kMonoBase64: string
+  readonly samples: Float32Array
+}
+
+/** Native engine availability and provider-owned repair guidance. */
+export type VoiceEngineStatus =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly cause: string; readonly command: string; readonly profile: string | null; readonly note: string }
+
+/** Display metadata and live cache status, without native model configuration. */
+export interface VoiceModelRow {
+  readonly definition: Pick<VoiceModelDefinition, 'id' | 'name' | 'description' | 'recommended' | 'approximateBytes'>
+  readonly status: VoiceModelStatus
+}
+
+/** Current model roster and cache state. */
+export interface VoiceModelsListValue {
+  readonly models: readonly VoiceModelRow[]
+}
+
+/** Ready cache directory after a completed download. */
+export interface VoiceModelsDownloadValue {
+  readonly cacheDir: string
+}
+
+/** Provider-owned operations; cancellation settles only after owned work is quiescent. */
+export interface VoiceOperations {
+  /** Read native engine availability. */
+  engineStatus(signal: AbortSignal): Promise<VoiceEngineStatus>
+  /** List models with their current installation state. */
+  modelsList(signal: AbortSignal): Promise<VoiceModelsListValue>
+  /** Install one model; cancelling any waiter cancels its shared installation. */
+  modelsDownload(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelsDownloadValue>
+  /** Cancel model work, await native resources, and remove the cache and resumable parts. */
+  modelsRemove(modelId: VoiceModelId, signal: AbortSignal): Promise<void>
+  /** Transcribe decoded samples and release the recognizer before settlement. */
+  transcribe(request: VoiceTranscribeRequest, signal: AbortSignal): Promise<VoiceTranscribeResult>
 }
 
 /** Transcription result. */

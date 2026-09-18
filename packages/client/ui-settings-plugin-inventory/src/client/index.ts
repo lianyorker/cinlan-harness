@@ -28,7 +28,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export const NS = 'settings.pluginInventory'
 
 /** Services required by the Settings registration and generated Remote face. */
-export const inject = ['slots', 'locale', 'remote', 'remote.pluginInventory']
+export const inject = ['settingsMetadata', 'slots', 'locale', 'remote', 'remote.pluginInventory']
 
 /** Contribute the lazy inventory tab to the Plugins settings section. */
 export function apply(ctx: ClientContext): void {
@@ -49,12 +49,19 @@ export function apply(ctx: ClientContext): void {
     presetDisplayText(preset, agentPresetCopy).name
   const injected = (): PluginInventorySettingsTabInjected => ({ list, presetName })
 
-  ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({
-    name: 'settings.plugins.tab',
-    id: 'all',
-    order: 10,
-    label: () => t('tab'),
-    locale: NS,
-    inject: injected,
-  }, PluginInventorySettingsTab))
+  ctx.slots.inject('settings.plugins.tab', function* () {
+    yield ctx.settingsMetadata.registerItems('plugins', [{
+      id: 'inventory', anchorId: 'plugins-inventory', tabId: 'all',
+      title: () => t('tab'),
+      keywords: () => [t('search'), t('presetTitle'), t('globalTitle'), t('configuration'), t('runtime')],
+    }])
+    yield ctx.slots.register({
+      name: 'settings.plugins.tab',
+      id: 'all',
+      order: 10,
+      label: () => t('tab'),
+      locale: NS,
+      inject: injected,
+    }, PluginInventorySettingsTab)
+  })
 }

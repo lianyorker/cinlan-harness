@@ -22,6 +22,8 @@ export function AgentLoopCard(props: AgentLoopCardProps) {
   const state = props.useAgentLoopCard(snapshot => snapshot)
   return (
     <PluginCard
+      anchorId="plugins-agent-loop"
+      {...props.target === undefined ? {} : { target: props.target }}
       t={t}
       titleKey="agentLoopTitle"
       descriptionKey="agentLoopDescription"

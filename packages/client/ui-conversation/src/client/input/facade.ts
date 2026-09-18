@@ -37,6 +37,7 @@ import { $replaceDetectSpanWithNodes, $replaceDetectSpanWithText } from './edito
 
 /** Popup face the shell needs (dismissal only; typed structurally to avoid a value import). */
 export interface PopupDismissFace {
+  state: Pick<ObservableSnapshot<{ open: boolean }>, 'getSnapshot'>
   dismiss(): void
 }
 
@@ -429,9 +430,12 @@ export class SessionInputShell implements SessionInput {
     // update listener re-tracks at the settled caret on its own.
   }
 
-  /** Dismiss the popupSelect shell (any interaction outside the box). */
-  dismissPopup(): void {
-    this.deps.popup?.()?.dismiss()
+  /** Dismiss the popupSelect shell. @returns whether an open popup consumed this gesture. */
+  dismissPopup(): boolean {
+    const popup = this.deps.popup?.()
+    if (popup?.state.getSnapshot().open !== true) return false
+    popup.dismiss()
+    return true
   }
 
   /**

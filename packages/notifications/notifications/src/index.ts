@@ -2,15 +2,14 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
-import { NOTIFICATIONS_SETTINGS_NAMESPACE, NotificationSettingsSchema } from './types.ts'
+import { NOTIFICATIONS_SETTINGS_NAMESPACE, NotificationSettingsSchema } from './settings.ts'
 
 export {
   NOTIFICATIONS_SETTINGS_NAMESPACE,
   NOTIFICATION_SOUNDS,
   NotificationSettingsSchema,
-  type NotificationSettings,
-  type NotificationSound,
-} from './types.ts'
+} from './settings.ts'
+export type { NotificationSettings, NotificationSound } from './types.ts'
 
 /** Cordis function-plugin name. */
 export const name = 'notifications'

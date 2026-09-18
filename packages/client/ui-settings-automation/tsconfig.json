@@ -1,0 +1,42 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    { "path": "../../util/crypto" },
+    { "path": "../../util/values" },
+    { "path": "../../api/gateway/tsconfig.client.json" },
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../automation/automation"
+    },
+    {
+      "path": "../../api/automation-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../locale"
+    },
+    {
+      "path": "../ui-settings"
+    },
+    {
+      "path": "../ui-slots"
+    },
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-session"
+    },
+    {
+      "path": "../ui-renderer"
+    }
+  ]
+}

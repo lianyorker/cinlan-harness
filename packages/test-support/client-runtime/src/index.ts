@@ -1,6 +1,6 @@
 /**
  * jsdom slot test runtime: a real small runtime — Cordis `Context`, the
- * renderer-owned `SlotRegistry`, the `ui-session` adapter, and the UI renderer — assembled around
+ * renderer-owned `SlotRegistry`, settings metadata, the `ui-session` adapter, and the UI renderer — assembled around
  * test-owned session/workspace doubles and a fail-loud file-upload stub, so feature specs exercise
  * declaration, registration, scope, store, inject, rendering, updates, and
  * disposal without hand-building the machinery per suite.
@@ -23,6 +23,7 @@ import type { RenderResult } from '@testing-library/react'
 import type { queries } from '@testing-library/dom'
 import type { BoundFunctions } from '@testing-library/dom'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
+import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
 import { bindSnapshotSelector as bindRendererSnapshotSelector } from '@deepseek-ai/dsh-client-ui-renderer/src/client/bind.ts'
 import { createSlotRenderer as createRenderer } from '@deepseek-ai/dsh-client-ui-renderer/src/client/scoped-slots.tsx'
 import {
@@ -261,7 +262,7 @@ export class SlotTestRuntime {
 
   /**
    * Assemble a runtime: real Context, mounted SlotRegistry, installed
-   * renderer, and the session/workspace doubles provided as services.
+   * renderer, settings metadata, and the session/workspace doubles provided as services.
    * @returns the ready runtime.
    */
   static async create(): Promise<SlotTestRuntime> {
@@ -271,6 +272,7 @@ export class SlotTestRuntime {
     await fiber.await()
     const runtime = new SlotTestRuntime(ctx, ctx.get('slots') as SlotRegistry)
     await ctx.plugin({ inject: [...uiSessionInject], apply: applyUiSession }).await()
+    await runtime.mount(SettingsMetadataService)
     return runtime
   }
 

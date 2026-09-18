@@ -7,11 +7,24 @@
  * here is the submit plane (phase, claim, attempt) alone.
  */
 import type { Context } from '@deepseek-ai/cordis'
+import type { KeyEventFacts } from '@deepseek-ai/dsh-client-keyboard/client'
 import type { ObservableSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { LexicalEditor } from 'lexical'
 import type { QueueRow } from './queue.ts'
 import type { InputSubmitMode } from './composer-submission.ts'
+
+/** Commands whose actions remain inside the focused composer. */
+export type ComposerCommandId = 'conversation.submit' | 'conversation.submitAccelerated' | 'conversation.navigateUp'
+  | 'conversation.navigateDown' | 'conversation.dismissPopup' | 'conversation.complete'
+
+/**
+ * Match a composer command against the current preferences.
+ * @param id - command belonging to this focused composer.
+ * @param facts - local key event values.
+ * @returns whether the command can handle the event.
+ */
+export type MatchComposerShortcut = (id: ComposerCommandId, facts: KeyEventFacts) => boolean
 
 /** Pick-time draft span guarded by the input revision. */
 export interface TokenSpan {
@@ -280,8 +293,8 @@ export interface ComposerKeyboard {
   arbitrate(key: ArbitrateKey, composing: boolean): ArbitrateOutcome
   /** Space adjudication; true = the input applied a claim — caller preventDefaults. */
   space(): boolean
-  /** Dismiss the popupSelect shell (any interaction outside the box). */
-  dismissPopup(): void
+  /** Dismiss the popupSelect shell. @returns whether an open popup consumed this gesture. */
+  dismissPopup(): boolean
 }
 
 /** One independently addressable row projected from the transient queue snapshot. */

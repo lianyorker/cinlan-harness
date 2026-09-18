@@ -90,6 +90,48 @@ interface TerminalSendResult {
 
 `TerminalSessionService` attaches one awaited cleanup to the exact owner scope, rejects foreign operations, and keeps sessions alive across backend or tool-plugin reload. PTY state and raw bytes remain process-local. Model input and bounded returned output are durable through the existing `tool/call`, `tool/result`, and task-result paths rather than duplicate PTY session events.
 
+## Sidebar terminal attachments
+
+`ctx.sidebarTerminals` connects UI tabs and agent terminals to a renderer through `SidebarTerminals`. Its browser-safe values are declared in [`sidebar-terminals/src/types.ts`](../../packages/terminal/sidebar-terminals/src/types.ts); the [service definition](../../packages/terminal/sidebar-terminals/src/index.ts) owns operations, and the [package reference](../../packages/terminal/sidebar-terminals/README.md) owns provider lifetime and floating-directory policy.
+
+| Identity type | Meaning |
+|---|---|
+| `SidebarTerminalSessionId` | The same `SessionId` brand used by the Session service. |
+| `SidebarTerminalTabId` | Durable UI tab identity minted by the sidebar store. |
+| `SidebarAgentTerminalId` | Agent terminal registry identity, independent of UI tabs. |
+| `SidebarTerminalAttachmentId` | Server-issued identity of one attachment to one process generation. |
+| `SidebarTerminalProcessId` | Server-issued native process identity that survives attachment reconnects. |
+| `FloatingWorkspaceWindowId` | Validated UUID of one floating app window. |
+
+`SidebarTerminalTarget` selects either a UI terminal with `kind: 'ui'`, `sessionId`, `tabId`, and optional `floating`, or an agent terminal with `kind: 'agent'` and `uuid`. `SidebarTerminalOpenRequest` captures that target and the initial `cols` and `rows` for one physical attachment.
+
+`SidebarFloatingTerminalDirectory` captures `windowId` and `directory` when a floating UI tab is created. `FloatingWorkspaceTerminalContext` always carries `windowId`; only `status: 'ready'` carries a directory, while `loading` and `unavailable` do not. `ctx.floatingWorkspaceContext()` returns this context or `undefined`; the `ctx.floatingTerminalConsumer` marker identifies a consumer. Neither contribution creates a Host terminal.
+
+`SidebarTerminalCapability` reports `status: 'available'` with `shellName`, or `status: 'unavailable'` with `reason: 'missing-dependencies'`. Reading capability starts no shell and does not prove that a configured shell can start.
+
+### Output and control
+
+`SidebarTerminalFrame` is a bounded stream value. Every variant carries `attachmentId`; only data frames carry a sequence for renderer acknowledgment.
+
+| `type` | Additional fields | Meaning |
+|---|---|---|
+| `ready` | `processId`, `pid`, `cwd`, `shellName` | Opening metadata for the captured process. |
+| `data` | `sequence`, `data` | Terminal text whose output credit remains held until rendered and acknowledged. |
+| `exit` | `exitCode` | Exit of the attached process. |
+
+| Request type | Fields | Semantics |
+|---|---|---|
+| `SidebarTerminalInputRequest` | `attachmentId`, `data` | Write to a live attachment; a detached generation cannot write. |
+| `SidebarTerminalResizeRequest` | `attachmentId`, `cols`, `rows` | Update the existing attachment's display geometry. |
+| `SidebarTerminalAckRequest` | `attachmentId`, `sequence` | Acknowledge the highest data-frame sequence consumed by the renderer. |
+| `SidebarTerminalReleaseRequest` | `attachmentId`, `mode` | `disconnect` permits the configured reconnect grace period; `park` retains a hidden UI terminal; `close` terminates its UI process. |
+| `SidebarTerminalUiTarget` | `sessionId`, `tabId` | Inspect an existing UI process without spawning it or extending its lifetime. |
+| `SidebarTerminalCloseUiRequest` | `sessionId`, `tabId`, `processId` | Close the previously observed native process, including while disconnected; a replacement generation is rejected and a missing process is already closed. |
+
+`SidebarAgentTerminalSnapshot` contains `uuid`, `title`, `command`, `exited`, and optional nullable `exitCode` and `exitSignal`. Watching a Session yields its current agent-terminal list and later updates. Closing an agent terminal uses its registry identity.
+
+`SidebarTerminalError` carries a `SidebarTerminalErrorCode` for carriers to localize: `invalid-request`, `invalid-directory`, `unavailable`, `not-found`, `stale-attachment`, `output-overflow`, or `ack-timeout`. The attachment id cannot authorize operations on a replacement process; a stalled renderer can hold output credit until its attachment times out.
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -97,6 +139,71 @@ interface TerminalSendResult {
 ## Cordis API
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxsidebarterminals--sidebarterminals-abstract-seam"></a>
+
+### `ctx.sidebarTerminals` — `SidebarTerminals` (abstract seam)
+
+Sidebar PTY ownership; the provider reuses the UI and agent terminal managers.
+
+```ts cordis-catalog
+/** Read native availability without spawning a shell.
+ * @returns Current availability.
+ */
+abstract capability(): SidebarTerminalCapability
+
+/** Attach to a process and observe its output.
+ * @param request - immutable target and initial geometry.
+ * @param signal - attachment lifetime.
+ * @returns bounded terminal frames until exit or release.
+ */
+abstract open(request: SidebarTerminalOpenRequest, signal: AbortSignal): AsyncIterable<SidebarTerminalFrame>
+
+/** Write input to the attached process.
+ * @param request - input for a live attachment.
+ */
+abstract input(request: SidebarTerminalInputRequest): void
+
+/** Resize the attached process display.
+ * @param request - updated display geometry.
+ */
+abstract resize(request: SidebarTerminalResizeRequest): void
+
+/** Acknowledge output after the renderer consumes it.
+ * @param request - highest data sequence rendered by xterm.
+ */
+abstract ack(request: SidebarTerminalAckRequest): void
+
+/** Release a view of its captured process.
+ * @param request - disposition for this attachment's process generation.
+ */
+abstract release(request: SidebarTerminalReleaseRequest): void
+
+/** Observe an existing UI process without spawning or extending its lifetime.
+ * @param request - existing UI tab.
+ * @returns its native process identity, or null; never spawns or extends its lifetime.
+ */
+abstract inspectUi(request: SidebarTerminalUiTarget): SidebarTerminalProcessId | null
+
+/** Request termination of an observed UI process and reject replacement generations.
+ * @param request - exact observed native generation; missing processes are already closed, replacements are rejected.
+ */
+abstract closeUi(request: SidebarTerminalCloseUiRequest): void
+
+/** Observe the agent terminals owned by a Session.
+ * @param sessionId - owning Session.
+ * @param signal - consumer lifetime.
+ * @returns current agent terminal list and later updates.
+ */
+abstract watch(sessionId: SidebarTerminalSessionId, signal: AbortSignal): AsyncIterable<readonly SidebarAgentTerminalSnapshot[]>
+
+/** Request termination of an agent terminal.
+ * @param uuid - agent-owned terminal explicitly closed by its user.
+ */
+abstract closeAgent(uuid: SidebarAgentTerminalId): void
+```
+
+Source: [`packages/terminal/sidebar-terminals/src/index.ts`](../../packages/terminal/sidebar-terminals/src/index.ts)
 
 <a id="ctxterminals--terminalsessionservice"></a>
 

@@ -63,6 +63,8 @@ export function SubagentModelSelectionCard(props: SubagentModelSelectionCardProp
   )
   return (
     <PluginCard
+      anchorId="plugins-subagent-model-selection"
+      {...props.target === undefined ? {} : { target: props.target }}
       t={t}
       titleKey="subagentModelSelectionTitle"
       descriptionKey="subagentModelSelectionDescription"

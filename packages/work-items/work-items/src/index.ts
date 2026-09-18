@@ -35,8 +35,8 @@ function resolveConfig(config: Config): Config {
   for (const key of Object.keys(config)) {
     if (!CONFIG_KEYS.has(key)) throw new Error("work-items: unsupported config key '" + key + "'")
   }
-  if (config.provider !== undefined && !['github', 'linear'].includes(config.provider)) {
-    throw new Error('work-items: provider must be github or linear')
+  if (config.provider !== undefined && !['github', 'gitlab', 'linear'].includes(config.provider)) {
+    throw new Error('work-items: provider must be github, gitlab, or linear')
   }
   if (config.writeApprovalTtlMs !== undefined && (!Number.isSafeInteger(config.writeApprovalTtlMs) || config.writeApprovalTtlMs < 1)) {
     throw new Error('work-items: writeApprovalTtlMs must be a positive safe integer')

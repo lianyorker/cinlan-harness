@@ -1,37 +1,102 @@
+---
+description: "Web 客户端的语音听写偏好、麦克风访问和本地语音模型资源。"
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-client-ui-voice-dictation
 
 [English](README.md) | 中文
 
-该 Cinlan Web 产品 Consumer 贡献一个统一的语音设置面板，麦克风、引擎与模型行使用一致的间距、分隔线和状态样式。面板列出六个出厂 sherpa-onnx 模型，分别显示下载及安装/解压进度；本地引擎降级时显示修复命令。麦克风授权控件会从浏览器权限或 WebView 持久化回退恢复，且只在获得真实权限拒绝结果后才把该回退改为 denied。该包还在 composer 的 `conversation.input.right` 工具行 slot 中贡献一枚始终可见的麦克风按钮。按钮与全局 Ctrl+Shift+E 共用同一个 DictationController：两者都能开始/停止录音，把音频交给 [`@deepseek-ai/dsh-voice-sherpa-onnx`](../../voice/voice-sherpa-onnx/README.zh.md) 转写，并把结果追加到当前会话草稿。
+## 摘要
 
-## 语音设置面板
+在语音设置中选择麦克风、听写模式和首选语音模型。在所连接的主机上下载或删除模型资源、检查引擎状态，并在需要时复制修复命令。听写会把识别结果追加到发起会话的当前草稿，供用户检查后再发送。偏好保存在浏览器中；音频处理和模型资源属于主机。
 
-面板独立读取 `/voice/api/engine.status` 与 `/voice/api/models.list`。麦克风、引擎和模型行使用统一的设置面板间距与分隔线。「引擎」行在原生插件加载成功时显示就绪状态；加载失败时显示 Host 的 `engine-repair.ts` 算出的确切可粘贴修复命令与 allowlist 提示，并提供一键复制按钮。两个出厂「模型」行会持续轮询字节下载与解压阶段、忽略过期响应，并在后续状态刷新失败时保留当前模型行；被拒绝的下载会留在对应模型行。引擎降级不会阻塞模型加载，因为下载与缓存模型不依赖原生模块。
+## 目录
 
-## Ctrl+Shift+E 听写
+- [使用本包](#use-this-package)
+- [了解实现](#understand-the-implementation)
+- [开发笔记](#dev-note)
+- [模型体验](#model-experience)
+- [已知限制与暂缓事项](#known-limitations-and-deferred-work)
 
-第一次按 Ctrl+Shift+E 或点击麦克风按钮会请求麦克风访问（`getUserMedia`，禁用浏览器音频处理——不启用回声消除、降噪或自动增益），并通过 `ScriptProcessorNode` 以系统原生采样率采集；来自同一会话的第二次手势会停止录制。发起会话拥有活动录音，其他会话的控件在操作结算前保持禁用。按钮从共享 controller 显示麦克风、停止和转写中三种状态。采集的原始 PCM 经本包线性重采样器重采样为 16kHz 单声道，base64 编码后 POST 给 `/voice/api/transcribe`，目标是 Host 报告的第一个 `ready` 模型。转写结果通过 `ctx.conversation` 追加到草稿——与 `@deepseek-ai/dsh-client-ui-better-sidebar` 的 @-引用使用同一条通道。缺少模型或操作失败时 controller 进入错误状态，不改草稿。插件拆除会使所有待发布结果失效、释放活动轨道，并在麦克风获取或转写结算后才完成 dispose。
+-----
 
+<a id="use-this-package"></a>
+## 使用本包
+
+在设置的「AI 与模型」分组中打开「语音」。禁用听写时，可搜索的字段仍然可见，依赖控件保持禁用。启用听写且主机上有就绪模型时，输入区显示麦克风按钮。此浏览器插件没有插件配置字段。
+
+### 偏好与资源
+
+| 控件 | 存储或权威来源 | 消费者与效果 |
+|---|---|---|
+| 启用语音听写 | 浏览器 `dsh.voice.settings.enabled` | 启用时，输入区按钮与快捷键接受新的听写操作。 |
+| 听写模式 | 浏览器 `dsh.voice.settings.dictationMode` | 切换模式通过 Ctrl+Shift+E 开始/停止；按住模式在松开 E、修饰键或窗口失焦时停止。按钮始终以切换方式工作。 |
+| 输入设备 | 浏览器 `dsh.voice.settings.microphoneDeviceId` | 下一次录音把所选设备传给 `getUserMedia`；「系统默认」清除设备偏好。 |
+| 麦克风权限 | 浏览器/操作系统；同源本地回退 | 请求权限后释放临时音轨并刷新设备名称。Permissions API 的真实 prompt 状态会清除过期授权；不支持查询时使用最后一次权限决定。 |
+| 语音模型 | 浏览器 `dsh.voice.settings.sttModel` | 转写使用所选的就绪模型，否则使用首个就绪模型；「自动」清除偏好。 |
+| 引擎与模型资源 | 所连接的主机 | 状态、下载、取消和删除通过 Web 与桌面通道调用生成的 `voice` Remote。删除需要确认；操作失败时保留主机报告的资源状态并显示错误。 |
+
+浏览器偏好写入后立即生效。已保存但不可用的麦克风保持选中，直到用户选择其他设备；不会静默替换，也不会复制到主机设置中。拒绝权限不会清除偏好。存储拒绝写入时，当前设置仍可使用，但改动无法在重新加载后保留。
+
+资源列表独立于原生引擎状态，显示下载字节数、解压、就绪及失败状态。引擎降级时提供可复制的主机修复命令。「刷新状态」重新检查引擎；首次模型查询失败时提供「重试」。后续状态读取失败时，模型操作保留当前资源行。
+
+### 听写与草稿
+
+快捷键忽略可编辑字段、重复按键、输入法组合事件，以及已被其他功能处理的事件。即使用户切换到其他会话，录音和插入仍属于发起会话。在 E 之前松开修饰键也能停止按住听写。
+
+停止时先关闭采集并释放麦克风音轨，再查询模型是否可用或等待转写。识别文本追加到最新草稿，保留转写期间的编辑。空转写不修改草稿；权限、采集、缺少模型或主机错误均保留草稿，并在输入区发布错误提示。听写不会发送草稿。
+
+-----
+
+<a id="understand-the-implementation"></a>
+## 了解实现
+
+<details>
+<summary>实现内部细节 — 点击展开</summary>
+
+[apply.ts](src/client/apply.ts) 在设置、快捷键和输入区按钮之间共享一个浏览器本地偏好 store 和听写控制器，并以普通回调提供主机操作。页面分组、六项公共元数据描述与 slot 贡献共享同一次声明生命周期，拆除时一起移除。元数据只包含本地化标签、说明和关键词，不包含偏好值、设备标识、模型路径或转写文本。稳定锚点始终挂载，搜索导航不会顺带启用听写。
+
+[VoiceSettingsSection.tsx](src/client/VoiceSettingsSection.tsx) 负责权限请求和设备枚举、消费主机资源状态，并在设置壳层提供的内容宽度内渲染原生风格设置行。[dictation-controller.ts](src/client/dictation-controller.ts) 采集 PCM、选择就绪模型，并通过会话输入 API 追加草稿。插件拆除会使结果发布失效、中止等待中的 Remote 调用、关闭活动采集，并等待自身异步操作结算后返回。
+
+[包测试](tests/) 覆盖元数据生命周期与语言切换、重新挂载后的偏好、麦克风与设备结果、主机资源操作，以及听写草稿保留。
+
+</details>
+
+-----
+
+<a id="dev-note"></a>
+## 开发笔记
+
+无。
+
+-----
+
+<a id="model-experience"></a>
 ## 模型体验
 
-### 仅传输的设置页面
+### 只写入草稿的听写
 
 #### 模型看到什么
 
-无。经 `input.for(actx).setDraft(...)` 插入的听写转写文本在模型边界上与打字输入的 composer 文本无法区分；该包不贡献任何自己的提示词、schema 或工具。
+用户发送草稿之前，模型看不到任何内容。提交后文本作为 `user` 消息遵循普通输入流程；此包不提供提示词、schema 或工具。
 
 #### Token 影响
 
-无；该设置页面与 Ctrl+Shift+E 触发器不新增请求或结果 token。
+设置、录音和转写本身不增加 token。发送的草稿文本按普通用户消息消耗 token。
 
 #### KV Cache 影响
 
-无；模型下载状态、麦克风权限与听写转写从不进入模型请求前缀。
+语音偏好、权限与模型资源没有影响；这些信息不会进入模型请求前缀。
 
 ## 已知限制与暂缓事项
+<a id="known-limitations-and-deferred-work"></a>
 
-- **修复命令运行后不会自动重新检测** —— 「引擎」子分区只在挂载时读取一次 `engine.status`；运行了修复命令的用户必须重新加载设置页面才能看到状态刷新。
-- **麦克风权限不跨设备同步** —— 状态以当前 WebView 的 Permissions API 为准；持久化回退只属于当前 WebView origin，本身不能授予操作系统权限。
-- **固定的模型选择** —— 听写始终针对 Host 报告的第一个 `ready` 模型；当已下载多个模型时，没有按会话或持久化的模型偏好。
-- **部分浏览器上转写可能返回空** —— `ScriptProcessorNode` 采集在某些浏览器/音频驱动组合下可能产生近零振幅样本，导致转写结果为空。迁移到 `AudioWorkletNode` 已列为后续工作。
-- **已弃用的 ScriptProcessorNode** —— 当前采集使用已弃用的 `ScriptProcessorNode` API；`AudioWorkletNode` 是现代替代方案，但需要从同源提供单独的 worklet 模块文件。
+不发布 invariant companion：slot、locale 和快捷键注册均使用其所有者管理的 effect，听写 UI 不保留这些注册的独立副本。
+
+语音依赖浏览器采集与可访问的主机 Provider。
+
+- Web 与 Desktop 共用生成的 `voice` Remote。引擎是否就绪仍取决于本地 sherpa-onnx 原生模块与模型文件；页面显示降级状态和修复指引。
+- 浏览器麦克风权限与设备标识不在设备或 origin 之间同步。存储的权限回退不能授予浏览器或操作系统访问权限。
+- 采集使用已弃用的 `ScriptProcessorNode`；部分浏览器/音频驱动组合可能产生近乎静音的样本和空转写。迁移到 `AudioWorkletNode` 需要提供可加载的 worklet 模块。
+- 本包不提供自动标点或其他插入位置的偏好。

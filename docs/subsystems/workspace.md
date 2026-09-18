@@ -2,7 +2,7 @@
 
 English | [中文](workspace.zh.md)
 
-A workspace is the persistent record of a directory the user works in: a stable id over a canonical path, a display title, and the ordered account of sessions that belong to it. The subsystem is one package ([dsh-workspace](../../packages/workspace/workspace), `ctx.workspaceRegistry`) — an optional host-side capability, not part of the agent-loop spine, and invisible to models (no tools, no prompt text, no session events). It stores its records through the [storage domain form](storage.md) and validates session membership against [`SessionHeader.cwd`](persistence.md#sessionheader--metadata-beside-the-log), so `storageDomain` and `sessionPersistence` are mandatory startup dependencies: an unavailable persistence peer leaves the plugin pending rather than being mistaken for an empty history. Design record: [domain KV storage Agent Note](../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.md); bootstrap and GUI ordering: [Workspace UI product-flow Agent Note](../../.agents/notes/archived/feature/2026-07-25-workspace-ui-product-flow.md).
+A workspace is the persistent record of a directory the user works in: a stable id over a canonical path, a display title, and the ordered account of sessions that belong to it. The registry lives in [dsh-workspace](../../packages/workspace/workspace) (`ctx.workspaceRegistry`) — an optional host-side capability, not part of the agent-loop spine, and invisible to models (no tools, no prompt text, no session events). It stores its records through the [storage domain form](storage.md) and validates session membership against [`SessionHeader.cwd`](persistence.md#sessionheader--metadata-beside-the-log), so `storageDomain` and `sessionPersistence` are mandatory startup dependencies: an unavailable persistence peer leaves the plugin pending rather than being mistaken for an empty history. Design record: [domain KV storage Agent Note](../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.md); bootstrap and GUI ordering: [Workspace UI product-flow Agent Note](../../.agents/notes/archived/feature/2026-07-25-workspace-ui-product-flow.md).
 
 Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
 
@@ -124,6 +124,99 @@ Sessions get their cwd at create time from whoever creates them, not from this r
 ## Consumers
 
 [`dsh-workspace-controller`](../../packages/api/workspace-controller) serves workspace CRUD to GUI clients over `ctx.workspaceRegistry`, and [`dsh-session-controller`](../../packages/api/session-controller) performs the create-session-then-attach flow above. [dsh-agent-instructions](../../packages/context/agent-instructions) is **not** a consumer despite the name: it discovers AGENTS.md-style instruction files under an agent's own cwd and never touches `ctx.workspaceRegistry` — the shared word refers to the user's working directory, not to this registry's entities.
+
+## Isolation leases
+
+`WorkspaceIsolation` at `ctx.workspaceIsolation` manages one isolation lease per Session. Providers choose checkout paths and accept cleanup by lease id. The branded `WorkspaceIsolationLeaseId` and `WorkspaceIsolationLease` snapshot are declared in [`workspace-isolation/src/types.ts`](../../packages/workspace/workspace-isolation/src/types.ts). API consumers reuse these domain values; [service operations](../../packages/workspace/workspace-isolation/src/index.ts) use the same identity.
+
+| `WorkspaceIsolationLease` fields | Meaning |
+|---|---|
+| `id`, `sessionId` | Provider-issued lease identity and the Session that exclusively owns it. |
+| `sourcePath`, `checkoutPath` | Canonical registered Workspace directory and the Session cwd inside the managed worktree. |
+| `branch` | Provider-owned branch retained when the checkout directory is reclaimed. |
+| `phase` | `WorkspaceIsolationPhase`: `active` or `hibernated`; hibernation retains the branch without its directory. |
+| `reviewState` | `WorkspaceIsolationReviewState`: `none` or `branch-retained`, the durable marker for unmerged work retained by teardown. |
+| `baseBranch`, `baseHead` | Source branch name and creation commit. |
+| `head` | Latest checkpoint commit known to the provider. |
+| `createdAt`, `updatedAt` | ISO-8601 creation time and latest successful lifecycle transition. |
+
+`EnsureWorkspaceIsolationRequest` carries `sessionId`, the registered `sourcePath`, and optional `signal` for provider work. `ensure` returns an active lease; `acquire` also returns a `WorkspaceIsolationReservation` with `lease` and an idempotent `release()` callback. The reservation protects that lease from hibernation, teardown, and capacity reclamation until the consumer stops its work and releases protection.
+
+For a managed Session, the registry resolves the exact header `(sessionId, cwd)` through `workspaceIsolation.sourceFor` before its canonical membership check. An owned checkout maps to the registered source directory; an unrelated path returns `undefined`. The immutable Session cwd remains the checkout path.
+
+### Inspection and comparison
+
+Inspection reports live checkout state separately from the persisted lease phase. Review results distinguish divergence against the current base branch from changes since the lease was created.
+
+| Type | Fields and semantics |
+|---|---|
+| `WorkspaceIsolationCheckoutState` | `absent`, `clean`, or `dirty`, describing current checkout availability and cleanliness. |
+| `WorkspaceIsolationFileChange` | `kind`, repository-relative `path`, and optional `previousPath` for a rename or copy. |
+| `WorkspaceIsolationFileChangeKind` | `added`, `modified`, `deleted`, `renamed`, `copied`, `type-changed`, `unmerged`, `untracked`, or `other`. |
+| `WorkspaceIsolationInspection` | Detached `lease`, `checkoutState`, current `branchHead`, active `workingTreeChanges`, and `hasUntrackedFiles`. Inspection does not mutate the lease. |
+| `WorkspaceIsolationCommit` | Commit `id` and first-line message `summary`. |
+
+`WorkspaceIsolationComparison` contains a detached `lease` and the following review fields:
+
+| Fields | Comparison meaning |
+|---|---|
+| `targetHead`, `branchHead` | Current base-branch and managed-branch commits. |
+| `ahead`, `behind` | Managed commits absent from the current base branch, and base commits absent from the managed branch. |
+| `commits` | `WorkspaceIsolationCommit` values after `baseHead`, oldest first. |
+| `changedFiles` | `WorkspaceIsolationFileChange` values from the comparison, plus active untracked paths. |
+| `patch`, `patchTruncated` | Patch against the creation commit `baseHead`, and whether it exceeded the provider output limit. |
+| `includesWorkingTree`, `hasUntrackedFiles` | Whether tracked active-checkout content is included, and whether untracked files exist whose contents are omitted from the patch. |
+
+`WorkspaceIsolationPatch` contains `leaseId`, a safe suggested `fileName`, bounded complete patch `content`, `includesWorkingTree`, and `hasUntrackedFiles`. The Git provider rejects export when the comparison patch is truncated; the untracked-files flag still reports omitted content. `WorkspaceIsolationIntegrationResult` contains the hibernated `lease`, receiving `targetBranch`, and resulting `targetHead` after merge or cherry-pick into the clean source checkout.
+
+### Safe teardown and failures
+
+`WorkspaceIsolationTeardownResult` distinguishes confirmed removal from retained work. Teardown accepts only a provider-issued lease identity.
+
+| `status` | Fields and result |
+|---|---|
+| `removed` | `leaseId`; the checkout, branch, and durable lease were removed. |
+| `review` | Hibernated `lease` and `reason: 'unmerged-branch'`; the checkout was reclaimed while the branch and durable lease remain for review. |
+
+`WorkspaceIsolationError` carries a `WorkspaceIsolationErrorCode`: `UNAVAILABLE`, `NOT_REPOSITORY`, `SOURCE_DIRTY`, `LEASE_CONFLICT`, `LEASE_BUSY`, `CAPACITY`, or `COMMAND_FAILED`. In the [Git provider](../../packages/workspace/workspace-isolation-git/README.md), a live owning Agent or reservation keeps the lease busy; teardown retains an unmerged branch with `reviewState: 'branch-retained'`.
+
+`GitWorkspaceIsolationRecord`, declared in the [provider record schema](../../packages/workspace/workspace-isolation-git/src/spec.ts), stores the lease fields plus `repositoryPath` and the whole-worktree `checkoutRoot`. The durable `leases` table is keyed by Session id, while public cleanup still uses the branded lease id.
+
+## Worktree Tasks
+
+`WorktreeTaskService` at `ctx.worktreeTask` manages named tasks with a dedicated branch, checkout, and bound Sessions. [`worktree-task/src/types.ts`](../../packages/workspace/worktree-task/src/types.ts) declares `WorktreeTaskId`, `WorktreeTaskStatus`, `WorktreeTask`, and the request/result types below; the [service definition](../../packages/workspace/worktree-task/src/index.ts) declares operations and failures.
+
+| `WorktreeTask` fields | Meaning |
+|---|---|
+| `id`, `name` | Branded `WorktreeTaskId` and task display name. |
+| `workspaceId`, `sourcePath` | Associated Workspace identity and source directory. |
+| `baseRef`, `branch`, `checkoutPath` | Creation ref, managed task branch, and checkout directory available to bound Sessions. |
+| `status` | `WorktreeTaskStatus`: `active` has a checkout; `hibernated` retains the branch without its checkout; `archived` has reclaimed its checkout and permits review and safe deletion. |
+| `cleanupReceipt` | Optional durable cleanup claim or settlement; an unsettled claim prevents mutation, and successful cleanup prevents renewed Session work. |
+| `linkedIssue` | Optional linked issue URL. |
+| `sessionIds` | Sessions bound to the task. |
+| `createdAt`, `updatedAt` | Creation and latest mutation timestamps. |
+
+| Type | Fields and semantics |
+|---|---|
+| `CreateTaskRequest` | `name`, `workspaceId`, `sourcePath`, optional `baseRef`, and optional `linkedIssue`; creates an active task. |
+| `ActivateTaskRequest` | `taskId`; restore the task checkout. |
+| `HibernateTaskRequest` | `taskId`; reclaim the checkout while retaining the branch, without cleanup execution. |
+| `ArchiveTaskRequest` | `taskId`; run captured cleanup, checkpoint, and reclaim the checkout. |
+| `DeleteTaskRequest` | `taskId`; archive through cleanup, then request safe branch removal. |
+| `BindSessionRequest` | `taskId` and `sessionId`; bind a Session to the task checkout. |
+| `BindSessionResult` | Updated `task` and the `checkoutPath` granted to the Session. |
+| `DeleteTaskResult` | `deleted`, optional `retainedBranch`, and optional `cleanupReceipt`; an unmerged branch returns `deleted: false` and remains archived and reviewable. |
+| `WorktreeTaskHook` | Executable and separate literal `args`; shell interpretation requires an explicitly selected shell. |
+| `WorktreeTaskDefaults` | Relative `defaultDirectory`, `baseRef`, and nullable `setup`/`cleanup` programs for future tasks. |
+| `WorktreeTaskSettings` | Defaults `value`, current `revision`, and deployment-owned `managedRoot`. |
+| `UpdateWorktreeTaskSettingsRequest` | Complete defaults `value` and `expectedRevision`; stale writes reject without running programs. |
+| `WorktreeTaskReview` | `taskId`, `baseHead`, `head`, `checkoutRoot`, `dirty`, tracked `patch`, untracked names, captured programs, and optional `cleanupReceipt`; bounded read without activation. |
+| `WorktreeTaskCleanupReceipt` | Captured `hook`, requested `operation` (`archive` or `delete`), `startedAt`, and `status`; only settled `succeeded`/`failed` receipts include `finishedAt`, while `running` also represents an unknown outcome. |
+
+Bound Sessions prevent hibernation, archival, and deletion. `WorktreeTaskError` carries `code`, `message`, and optional `context`; its `WorktreeTaskErrorCode` is `unavailable`, `not-found`, `busy`, `conflict`, `invalid-workspace`, `invalid-path`, `git-failed`, or `operation-failed`. An unknown task lookup rejects rather than returning an empty task.
+
+`GitWorktreeTaskRecord`, declared in the [Git task record schema](../../packages/workspace/worktree-task-git/src/spec.ts), stores task fields plus `repositoryPath`, `checkoutRoot`, `baseBranch`, `baseHead`, checkpoint `head`, and optional captured `launch` defaults. The durable `tasks` and separate `cleanup_receipts` tables are keyed by task id; receipts survive deletion of the task record. The [Git task provider](../../packages/workspace/worktree-task-git/README.md) owns execution, settlement, checkout, and branch lifecycle details.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -304,6 +397,123 @@ Types: [Agent](core.md)
 
 Source: [`packages/api/workspace-files/src/index.ts`](../../packages/api/workspace-files/src/index.ts)
 
+<a id="ctxworkspaceisolation--workspaceisolation-abstract-seam"></a>
+
+### `ctx.workspaceIsolation` — `WorkspaceIsolation` (abstract seam)
+
+Provider-neutral lease service. Providers alone choose checkout paths and accept cleanup by lease id; Consumers cannot submit a deletion path.
+
+```ts cordis-catalog
+/**
+ * Create or reactivate the Session's lease.
+ * @param request - Session identity, registered source directory, and cancellation.
+ * @returns the active lease whose checkoutPath is ready for Session use.
+ */
+abstract ensure(request: EnsureWorkspaceIsolationRequest): Promise<WorkspaceIsolationLease>
+
+/**
+ * Create or reactivate a lease and protect it atomically for an asynchronous consumer.
+ * @param request - Lease owner, source directory, and cancellation during acquisition.
+ * @returns the active lease and an idempotent release callback; release only after work stops.
+ */
+abstract acquire(request: EnsureWorkspaceIsolationRequest): Promise<WorkspaceIsolationReservation>
+
+/**
+ * Reactivate an existing lease by provider-issued identity.
+ * @param leaseId - Provider-issued lease identity.
+ * @param signal - Optional cancellation for provider work.
+ * @returns the active lease whose checkoutPath is ready for Session use.
+ */
+abstract activate( leaseId: WorkspaceIsolationLeaseId, signal?: AbortSignal, ): Promise<WorkspaceIsolationLease>
+
+/**
+ * Checkpoint one inactive checkout and reclaim its directory while retaining its branch.
+ * @param leaseId - Provider-issued lease identity.
+ * @returns the hibernated lease after the directory is removed.
+ */
+abstract hibernate(leaseId: WorkspaceIsolationLeaseId): Promise<WorkspaceIsolationLease>
+
+/**
+ * Inspect checkout ownership and working-tree state without changing the lease.
+ * @param leaseId - Provider-issued lease identity.
+ * @param signal - Optional cancellation for provider work.
+ * @returns current checkout and managed-branch state.
+ */
+abstract inspect( leaseId: WorkspaceIsolationLeaseId, signal?: AbortSignal, ): Promise<WorkspaceIsolationInspection>
+
+/**
+ * Compare one managed branch and active checkout with its base branch.
+ * @param leaseId - Provider-issued lease identity.
+ * @param signal - Optional cancellation for provider work.
+ * @returns bounded commits, changed paths, and patch text.
+ */
+abstract compare( leaseId: WorkspaceIsolationLeaseId, signal?: AbortSignal, ): Promise<WorkspaceIsolationComparison>
+
+/**
+ * Merge one managed branch into its clean source checkout and hibernate the lease.
+ * @param leaseId - Provider-issued lease identity.
+ * @param signal - Optional cancellation for provider work.
+ * @returns resulting base-branch commit and retained lease.
+ */
+abstract merge( leaseId: WorkspaceIsolationLeaseId, signal?: AbortSignal, ): Promise<WorkspaceIsolationIntegrationResult>
+
+/**
+ * Cherry-pick the managed branch's linear commits into its clean source checkout.
+ * @param leaseId - Provider-issued lease identity.
+ * @param signal - Optional cancellation for provider work.
+ * @returns resulting base-branch commit and retained lease.
+ */
+abstract cherryPick( leaseId: WorkspaceIsolationLeaseId, signal?: AbortSignal, ): Promise<WorkspaceIsolationIntegrationResult>
+
+/**
+ * Export one complete bounded patch without accepting a browser-supplied path.
+ * @param leaseId - Provider-issued lease identity.
+ * @param signal - Optional cancellation for provider work.
+ * @returns patch content and omission metadata.
+ */
+abstract exportPatch( leaseId: WorkspaceIsolationLeaseId, signal?: AbortSignal, ): Promise<WorkspaceIsolationPatch>
+
+/**
+ * Reclaim one managed checkout and delete its branch only after safe integration.
+ * @param leaseId - Provider-issued lease identity.
+ * @returns removal acknowledgement or a retained branch requiring review.
+ */
+abstract teardown(leaseId: WorkspaceIsolationLeaseId): Promise<WorkspaceIsolationTeardownResult>
+
+/**
+ * Clean up provider-detected orphaned worktrees within the repositories in scope.
+ * Providers may limit discovery to repositories represented by durable lease records.
+ * @returns the count of orphaned worktrees removed.
+ */
+abstract pruneOrphans(): Promise<number>
+
+/**
+ * Find the lease owned by a Session without filesystem work.
+ * @param sessionId - Session identity.
+ * @returns the current lease snapshot, or undefined when the Session is shared.
+ */
+abstract find(sessionId: SessionId): WorkspaceIsolationLease | undefined
+
+/**
+ * Verify that an exact Session cwd belongs to its managed lease and return
+ * the registered source directory used for Workspace membership.
+ * @param sessionId - Session identity from the immutable header.
+ * @param cwd - Exact cwd from the same header.
+ * @returns the source directory, or undefined for an unrelated path.
+ */
+abstract sourceFor(sessionId: SessionId, cwd: string): string | undefined
+
+/**
+ * List detached snapshots of every provider-owned lease.
+ * @returns all current lease snapshots.
+ */
+abstract list(): readonly WorkspaceIsolationLease[]
+```
+
+Types: [SessionId](core.md)
+
+Source: [`packages/workspace/workspace-isolation/src/index.ts`](../../packages/workspace/workspace-isolation/src/index.ts)
+
 <a id="ctxworkspaceregistry--workspaceregistry"></a>
 
 ### `ctx.workspaceRegistry` — `WorkspaceRegistry`
@@ -380,4 +590,125 @@ async resolveByPath(path: string): Promise<Workspace | undefined>
 Types: [SessionId](core.md)
 
 Source: [`packages/workspace/workspace/src/index.ts`](../../packages/workspace/workspace/src/index.ts)
+
+<a id="ctxworktreetask--worktreetaskservice-abstract-seam"></a>
+
+### `ctx.worktreeTask` — `WorktreeTaskService` (abstract seam)
+
+Abstract Worktree Task service. Providers create Git worktrees, manage branch lifecycle, bind sessions, and persist task state.
+
+```ts cordis-catalog
+/**
+ * Create a new task with a dedicated branch and worktree checkout.
+ * @param request - Task name, workspace, source path, and optional base ref.
+ * @param requestSignal - Cancels queued work and setup; process settlement precedes checkout rollback.
+ * @returns The created task in active status.
+ * @throws WorktreeTaskError when workspace is invalid or Git operation fails.
+ */
+abstract create(request: CreateTaskRequest, requestSignal?: AbortSignal): Promise<WorktreeTask>
+
+/**
+ * List all tasks managed by this provider.
+ * @returns All task records.
+ */
+abstract list(): WorktreeTask[]
+
+/**
+ * Get one task by id.
+ * @param taskId - Task identifier.
+ * @returns The task record.
+ * @throws WorktreeTaskError with code 'not-found' when unknown.
+ */
+abstract get(taskId: WorktreeTaskId): WorktreeTask
+
+/**
+ * Read the defaults captured by future task creation.
+ * @returns The durable defaults and their revision.
+ */
+abstract settings(): WorktreeTaskSettings
+
+/**
+ * Replace defaults without running hooks or modifying existing task launch facts.
+ * @param request - Complete defaults and the revision observed by the editor.
+ * @param requestSignal - Cancels queued work before the settings write.
+ * @returns the persisted defaults and their new revision.
+ */
+abstract updateSettings(request: UpdateWorktreeTaskSettingsRequest, requestSignal?: AbortSignal): Promise<WorktreeTaskSettings>
+
+/**
+ * Read tracked changes against the captured base and list untracked paths without mutating Git.
+ * @param taskId - Provider-issued task identity.
+ * @param requestSignal - Cancellation of queued and active read work.
+ * @returns the complete review; exceeding the provider's byte bound rejects.
+ */
+abstract review(taskId: WorktreeTaskId, requestSignal?: AbortSignal): Promise<WorktreeTaskReview>
+
+/**
+ * Bind a session to an active task, granting it the checkout path.
+ * @param request - Task and session identifiers.
+ * @param requestSignal - Cancels queued work before binding the Session.
+ * @returns The updated task and checkout path.
+ * @throws WorktreeTaskError when task is not active or binding fails.
+ */
+abstract bindSession(request: BindSessionRequest, requestSignal?: AbortSignal): Promise<BindSessionResult>
+
+/**
+ * Unbind a session from a task.
+ * @param taskId - Task identifier.
+ * @param sessionId - Session identifier.
+ * @param requestSignal - Cancels queued work before removing the binding.
+ * @returns The updated task.
+ * @throws WorktreeTaskError with code 'not-found' when unknown.
+ */
+abstract unbindSession(taskId: WorktreeTaskId, sessionId: SessionId, requestSignal?: AbortSignal): Promise<WorktreeTask>
+
+/**
+ * Find the task bound to a session, if any.
+ * @param sessionId - Session identifier.
+ * @returns The bound task, or undefined.
+ */
+abstract findForSession(sessionId: SessionId): WorktreeTask | undefined
+
+/**
+ * Activate a hibernated task by restoring its worktree.
+ * @param request - Task identifier.
+ * @param requestSignal - Cancels queued work and checkout restoration.
+ * @returns The task in active status.
+ * @throws WorktreeTaskError when task is not hibernated or checkout fails.
+ */
+abstract activate(request: ActivateTaskRequest, requestSignal?: AbortSignal): Promise<WorktreeTask>
+
+/**
+ * Hibernate an active task by removing its worktree while retaining the branch.
+ * @param request - Task identifier.
+ * @param requestSignal - Cancels queued work and checkpoint commands.
+ * @returns The task in hibernated status.
+ * @throws WorktreeTaskError with code 'busy' when sessions are bound.
+ */
+abstract hibernate(request: HibernateTaskRequest, requestSignal?: AbortSignal): Promise<WorktreeTask>
+
+/**
+ * Run captured cleanup, then checkpoint and archive the task. Successful cleanup is never rerun.
+ * Failed cleanup retains the checkout; an unsettled durable claim requires manual review before further mutation.
+ * @param request - Task identifier; repeating after a settled failure explicitly retries cleanup.
+ * @param requestSignal - Cancellation forwarded to queued work and subprocesses; settlement is awaited.
+ * @returns The archived task and any cleanup receipt.
+ * @throws WorktreeTaskError when sessions are bound, cleanup fails, or its previous outcome is unknown.
+ */
+abstract archive(request: ArchiveTaskRequest, requestSignal?: AbortSignal): Promise<WorktreeTask>
+
+/**
+ * Archive through the cleanup lifecycle, then delete only an integrated task branch.
+ * Cleanup receipts survive task deletion. An unmerged branch and its archived record remain reviewable.
+ * @param request - Task identifier; repeating after a settled failure explicitly retries cleanup.
+ * @param requestSignal - Cancellation forwarded to queued work and subprocesses; settlement is awaited.
+ * @returns Deletion or retained-branch result and any cleanup receipt.
+ * @throws WorktreeTaskError when sessions are bound, cleanup fails, or its previous outcome is unknown.
+ */
+abstract delete(request: DeleteTaskRequest, requestSignal?: AbortSignal): Promise<DeleteTaskResult>
+```
+
+Types: [SessionId](core.md)
+
+Source: [`packages/workspace/worktree-task/src/index.ts`](../../packages/workspace/worktree-task/src/index.ts)
 <!-- END GENERATED cordis-surface -->

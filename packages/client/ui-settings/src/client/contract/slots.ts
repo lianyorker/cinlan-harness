@@ -103,9 +103,21 @@ export interface SettingsGeneralItemOwnerProps {
   children?: never
 }
 
-/** Owner share of a Plugins tab (the section supplies nothing). */
+/** One settings search result to reveal after its page and optional tab mount. */
+export interface SettingsNavigationTarget {
+  /** Stable metadata item id within the selected section. */
+  itemId: string
+  /** Matching data-settings-anchor value within the selected section. */
+  anchorId: string
+  /** Tab the section must activate before locating the anchor. */
+  tabId?: string
+}
+
+/** Owner share of a Plugins tab, including an optional search destination. */
 export interface SettingsPluginsTabOwnerProps {
-  /** Marker field: tab owner props are intentionally empty. */
+  /** Navigation request forwarded by the Plugins section for this tab. */
+  target?: SettingsNavigationTarget
+  /** This slot accepts no React children through owner props. */
   children?: never
 }
 
@@ -124,13 +136,14 @@ export interface SettingsHeaderOwnerProps {
 /**
  * Owner share of a settings section entry. The shell owns modal visibility
  * and navigation; a section's data arrives through its own inject faces and
- * stores. `close` is the one shell affordance a section receives, for flows
- * that leave settings altogether (starting a session from a section) — the
- * onboarding coordinator's `openSection`/`complete` precedent, inverted.
+ * stores. `close` leaves settings, while `target` identifies an item and any
+ * tab that must mount before the shell can locate its anchor.
  */
 export interface SettingsSectionOwnerProps {
   /** Close the settings panel (the shell owns the open state). */
   close: () => void
+  /** Search destination; activate its tab before the shell locates the anchor. */
+  target?: SettingsNavigationTarget
 }
 
 /** Owner share of a settings section navigation glyph. */

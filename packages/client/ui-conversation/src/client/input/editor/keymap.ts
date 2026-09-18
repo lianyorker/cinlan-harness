@@ -1,135 +1,89 @@
-/**
- * Composer keymap over the Lexical command layer: menu arbitration
- * (arrows/escape/enter), space adjudication, the Enter submit gesture, and
- * paste routing. Registered at CRITICAL priority so it decides before
- * @lexical/plain-text's own Enter/paste defaults; a handler returning false
- * falls through to those defaults (Shift+Enter's line break, ordinary
- * spaces, text paste the bar routes itself).
- *
- * IME guard: a composition-closing Enter/Space must not submit or adjudicate.
- * KeyboardEvent.isComposing covers most engines; Safari delivers the closing
- * keydown AFTER compositionend, so a root-element composition watch holds the
- * guard for 10ms more (the old textarea's proven window); keyCode
- * 229 is the legacy signal engines emit without isComposing.
- */
+/** Local Lexical shortcut dispatch; native newline, paste, and IME ownership stay with the editor. */
 import type { LexicalEditor } from 'lexical'
-import {
-  COMMAND_PRIORITY_CRITICAL, KEY_ARROW_DOWN_COMMAND, KEY_ARROW_UP_COMMAND, KEY_ENTER_COMMAND,
-  KEY_ESCAPE_COMMAND, KEY_SPACE_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND,
-} from 'lexical'
+import { COMMAND_PRIORITY_CRITICAL, KEY_DOWN_COMMAND, KEY_ENTER_COMMAND, KEY_SPACE_COMMAND, PASTE_COMMAND } from 'lexical'
 import { mergeRegister } from '@lexical/utils'
 import type { ArbitrateKey, ArbitrateOutcome } from '../../contract/input.ts'
+import type { MatchComposerShortcut } from '../../contract/input.ts'
 
 /** The bar-supplied behavior behind each intercepted gesture. */
 export interface ComposerKeymapHandlers {
-  /** Keyboard arbitration while the menu is open ('pass' when no pipeline). */
+  matches: MatchComposerShortcut
   arbitrate(key: ArbitrateKey, composing: boolean): ArbitrateOutcome
-  /** Space adjudication; true = a claim was applied — the keystroke is consumed. */
   space(): boolean
-  /** Dismiss the popupSelect shell (Escape layering: an open overlay closes first). */
-  dismissPopup(): void
-  /** Whether Enter may submit right now (locked/busy states refuse). */
+  dismissPopup(): boolean
   canSubmit(): boolean
-  /** The Enter gesture after every guard passed; `accelerated` = Ctrl/Cmd held. */
   submit(accelerated: boolean): void
-  /** Pasted files (image intake). */
   intakeFiles(files: readonly File[]): void
-  /** Pasted plain text (sanitized insertion through the shell). */
   pasteText(text: string): void
 }
 
-/** Composition state a keydown can trust (see the module doc's Safari note). */
-function isComposingEvent(event: KeyboardEvent, recentlyComposing: () => boolean): boolean {
-  // keyCode 229 is the legacy IME-composition signal engines emit without isComposing.
-  // oxlint-disable-next-line typescript/no-deprecated
-  return event.isComposing || event.keyCode === 229 || recentlyComposing()
-}
-
 /**
- * Register the composer keymap on one editor.
- * @param editor - the shell-owned editor.
- * @param handlers - bar-supplied behavior.
- * @returns the unregister disposer.
+ * Register one focused editor's handlers without listening on the document.
+ * @param editor - shell-owned Lexical editor.
+ * @param handlers - live matcher and action callbacks.
+ * @returns disposer for commands and composition listeners.
  */
 export function registerComposerKeymap(editor: LexicalEditor, handlers: ComposerKeymapHandlers): () => void {
-  // Composition watch: true through composition and for one tick after
-  // compositionend (Safari's late closing keydown). The listener rides the
-  // root element and re-arms on root swaps.
   let composing = false
   let composingUntil = 0
-  const onCompositionStart = (): void => {
-    composing = true
-  }
-  const onCompositionEnd = (): void => {
-    composing = false
-    composingUntil = Date.now() + 10
-  }
-  const recentlyComposing = (): boolean => composing || Date.now() < composingUntil
-
-  const arrow = (key: ArbitrateKey) => (event: KeyboardEvent | null): boolean => {
-    const inComposition = event !== null && isComposingEvent(event, recentlyComposing)
-    if (handlers.arbitrate(key, inComposition) !== 'pass') {
-      event?.preventDefault()
-      return true
-    }
-    return false
+  const onCompositionStart = (): void => { composing = true }
+  const onCompositionEnd = (): void => { composing = false; composingUntil = Date.now() + 10 }
+  const isComposing = (event: KeyboardEvent): boolean => {
+    // Safari can close composition before its final keydown; 229 is the legacy IME sentinel.
+    // oxlint-disable-next-line typescript/no-deprecated
+    return event.isComposing || event.keyCode === 229 || composing || Date.now() < composingUntil
   }
 
   return mergeRegister(
-    editor.registerRootListener((root, prevRoot) => {
-      prevRoot?.removeEventListener('compositionstart', onCompositionStart)
-      prevRoot?.removeEventListener('compositionend', onCompositionEnd)
+    editor.registerRootListener((root, previous) => {
+      previous?.removeEventListener('compositionstart', onCompositionStart)
+      previous?.removeEventListener('compositionend', onCompositionEnd)
       root?.addEventListener('compositionstart', onCompositionStart)
       root?.addEventListener('compositionend', onCompositionEnd)
     }),
-    editor.registerCommand(KEY_ARROW_UP_COMMAND, arrow('up'), COMMAND_PRIORITY_CRITICAL),
-    editor.registerCommand(KEY_ARROW_DOWN_COMMAND, arrow('down'), COMMAND_PRIORITY_CRITICAL),
-    // Tab acts only when the trigger menu has a highlighted completion;
-    // otherwise it passes so the browser keeps its native focus traversal.
-    editor.registerCommand(KEY_TAB_COMMAND, arrow('tab'), COMMAND_PRIORITY_CRITICAL),
-    editor.registerCommand(KEY_ESCAPE_COMMAND, (event) => {
-      // Escape layering: an open overlay closes; claimed without an overlay
-      // does NOT release (backspacing the token is the only exit gesture).
-      handlers.dismissPopup()
-      if (handlers.arbitrate('escape', isComposingEvent(event, recentlyComposing)) === 'consumed') {
-        event.preventDefault()
-        return true
+    editor.registerCommand(KEY_DOWN_COMMAND, (event) => {
+      if (event.defaultPrevented) return false
+      if (isComposing(event)) return event.key === 'Enter' && !event.shiftKey
+      if (event.key === 'Enter' && event.shiftKey) return false
+      const facts = {
+        key: event.key, ctrlKey: event.ctrlKey, shiftKey: event.shiftKey, altKey: event.altKey, metaKey: event.metaKey,
+        isComposing: false, repeat: event.repeat, defaultPrevented: event.defaultPrevented,
+        altGraph: event.getModifierState('AltGraph'),
       }
-      return false
-    }, COMMAND_PRIORITY_CRITICAL),
-    editor.registerCommand(KEY_SPACE_COMMAND, (event) => {
-      if (isComposingEvent(event, recentlyComposing)) return false
-      const consumed = handlers.space()
-      if (consumed) {
-        event.preventDefault() // claim token already carries the trailing separator
-        return true
+      for (const [id, key] of [['conversation.navigateUp', 'up'], ['conversation.navigateDown', 'down']] as const) {
+        if (handlers.matches(id, facts) && handlers.arbitrate(key, false) !== 'pass') { event.preventDefault(); return true }
       }
-      return false
-    }, COMMAND_PRIORITY_CRITICAL),
-    editor.registerCommand(KEY_ENTER_COMMAND, (event) => {
-      // Shift+Enter is the native line break UNCONDITIONALLY — decided before
-      // the IME guard so a composition-closing Shift+Enter still breaks the line.
-      if (event?.shiftKey === true) return false
-      if (event !== null && isComposingEvent(event, recentlyComposing)) {
-        // The IME consumes this Enter (candidate pick); neither submit nor
-        // break the line. No preventDefault: the browser owns the gesture.
-        return true
+      if (handlers.matches('conversation.dismissPopup', facts)) {
+        const dismissed = handlers.dismissPopup()
+        if (dismissed || handlers.arbitrate('escape', false) === 'consumed') { event.preventDefault(); return true }
       }
-      // Menu-open Enter picks the highlight through arbitration; a
-      // no-highlight menu passes down to the submit gesture.
-      if (handlers.arbitrate('enter', false) !== 'pass') {
-        event?.preventDefault()
-        return true
+      let enterArbitrated = false
+      if (handlers.matches('conversation.complete', facts)) {
+        const key = event.key === 'Enter' ? 'enter' : 'tab'
+        enterArbitrated = key === 'enter'
+        if (handlers.arbitrate(key, false) !== 'pass') { event.preventDefault(); return true }
       }
-      event?.preventDefault()
-      if (event?.repeat === true) return true // held-down Enter must not machine-gun sends
-      if (!handlers.canSubmit()) return true
-      handlers.submit(event?.ctrlKey === true || event?.metaKey === true)
+      // A held submit shortcut is consumed without inserting text or sending again.
+      const submitFacts = { ...facts, repeat: false }
+      const accelerated = handlers.matches('conversation.submitAccelerated', submitFacts)
+      if (!accelerated && !handlers.matches('conversation.submit', submitFacts)) return false
+      if (!enterArbitrated && handlers.arbitrate('enter', false) !== 'pass') { event.preventDefault(); return true }
+      event.preventDefault()
+      if (!event.repeat && handlers.canSubmit()) handlers.submit(accelerated)
       return true
     }, COMMAND_PRIORITY_CRITICAL),
+    editor.registerCommand(KEY_ENTER_COMMAND, (event) => {
+      // Intrinsic Shift+Enter stays with Lexical, including composition-closing keydowns.
+      if (event?.shiftKey === true) return false
+      return event !== null && isComposing(event)
+    }, COMMAND_PRIORITY_CRITICAL),
+    editor.registerCommand(KEY_SPACE_COMMAND, (event) => {
+      if (event.defaultPrevented || event.getModifierState('AltGraph') || isComposing(event)) return false
+      const consumed = handlers.space()
+      if (consumed) event.preventDefault()
+      return consumed
+    }, COMMAND_PRIORITY_CRITICAL),
     editor.registerCommand(PASTE_COMMAND, (event) => {
-      // Duck-typed: the payload union includes InputEvent, and test engines
-      // deliver clipboardData on plain events.
       const clipboardData = (event as ClipboardEvent).clipboardData ?? null
       if (clipboardData === null) return false
       const files = Array.from(clipboardData.items)

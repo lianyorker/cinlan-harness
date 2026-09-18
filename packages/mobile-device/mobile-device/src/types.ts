@@ -46,10 +46,25 @@ export interface MobileObservation {
   readonly screenshotStatus: MobileScreenshotStatus
 }
 
-/** Request for one fresh observation of an exact device. */
+/** Durable preferences owned by the mobile-device capability. */
+export interface MobileDeviceSettings {
+  /** Saved preference, not operation authorization or Provider activation. */
+  enabled: boolean
+  /** Exact default observation target; an empty string requires an explicit id. */
+  defaultDeviceId: string
+  /** Local SDK probe preference; does not configure an external device backend. */
+  androidSdkPath: string
+}
+
+/** Observation request; an omitted id selects the saved default, never an arbitrary device. */
 export interface MobileObserveRequest {
-  readonly deviceId: MobileDeviceId
+  readonly deviceId?: MobileDeviceId
   readonly captureScreenshot?: boolean
+}
+
+/** Fully resolved observation target passed to one selected Provider. */
+export interface MobileObserveSpec extends MobileObserveRequest {
+  readonly deviceId: MobileDeviceId
 }
 
 /** Shared exact target and one-use token for a mobile mutation. */
@@ -95,7 +110,7 @@ export interface MobileDeviceProvider {
   /** List canonical mobile devices currently known to the Provider. */
   listDevices(signal?: AbortSignal): Promise<readonly MobileDevice[]>
   /** Capture one fresh device observation. */
-  observe(request: MobileObserveRequest, signal?: AbortSignal): Promise<MobileObservation>
+  observe(request: MobileObserveSpec, signal?: AbortSignal): Promise<MobileObservation>
   /** Perform one observation-bound tap or swipe. */
   touch(request: MobileTouchRequest, signal?: AbortSignal): Promise<MobileMutationResult>
   /** Type literal text through an observation-bound input operation. */

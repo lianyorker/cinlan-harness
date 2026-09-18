@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-该 Service Provider 把 `sherpa-onnx-node` 挂载为 `ctx.voice` 上的本地语音转文本引擎，并拥有设置页与 Ctrl+Shift+E 听写客户端调用的 `/voice/api` 仅回环 Host 路由。六个出厂模型覆盖完整链路：两个流式 Zipformer 模型来自 [GitHub releases](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models)（纯中文约 74MB，中英双语约 511MB），四个额外模型来自 [HuggingFace](https://huggingface.co) 经 `hf-mirror.com` 镜像下载（英文 Zipformer 约 92MB，双语 Paraformer 约 237MB，Sense Voice 约 240MB，Whisper tiny 约 153MB）。
+该 Service Provider 把 `sherpa-onnx-node` 挂载为 `ctx.voice` 上的本地语音转文本引擎，并注册由经过身份验证的 `voice` Remote 与可选回环 `/voice/api` 路由共享的 Provider 操作。Web 与 Desktop 听写使用 Remote；本 Provider 需要 `voice` 与托管的 `subprocess`，没有 `webServer` 时也会激活。六个出厂模型覆盖完整链路：两个流式 Zipformer 模型来自 [GitHub releases](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models)（纯中文约 74MB，中英双语约 511MB），四个额外模型来自 [HuggingFace](https://huggingface.co) 经 `hf-mirror.com` 镜像下载（英文 Zipformer 约 92MB，双语 Paraformer 约 237MB，Sense Voice 约 240MB，Whisper tiny 约 153MB）。
 
 ## 降级模式
 
@@ -16,7 +16,7 @@
 
 ## /voice/api 路由
 
-五个方法，全部 POST，全部仅限回环（与 `@deepseek-ai/dsh-client-ui-better-sidebar` 的 `/sidebar/api` 相同的 DNS-rebinding／跨站防护，因为该包未导出这个 helper，所以是复制而非引入）：
+路由只在 `webServer` 可用时挂载，并随该注入生命周期撤销。两种通道调度同一组 Provider 操作。调用方取消会中止共享安装；删除先等待模型的活跃工作结束，Provider 拆除等待自身所有操作结束。即使取消阻止了转写返回，原生识别仍在结算后释放识别器。五个方法，全部 POST，全部仅限回环（与 `@deepseek-ai/dsh-client-ui-better-sidebar` 的 `/sidebar/api` 相同的 DNS-rebinding／跨站防护，因为该包未导出这个 helper，所以是复制而非引入）：
 
 - `engine.status` —— 原生插件的加载状态；`sherpa-onnx-node` 加载成功时为 `{ ok: true }`，否则为带可粘贴修复命令的 `{ ok: false, cause, command, profile, note }`。
 - `models.list` —— 带实时缓存状态的出厂清单。
@@ -41,6 +41,8 @@
 无；引擎加载、模型下载/缓存状态与转写从不进入模型请求前缀。
 
 ## 已知限制与暂缓事项
+
+不发布 invariant companion：注册与卸载操作在 Voice 和 web-server registry 中维护贡献项的所有权，Provider 不保留这些注册的独立副本。
 
 - **HuggingFace 模型使用 `hf-mirror.com`** —— 四个文件下载模型从 `hf-mirror.com` 而非 `huggingface.co` 下载，以在网络不可达地区提供可访问性；镜像 URL 硬编码在 `model-registry.ts` 中。
 - **网络错误显示友好提示** —— `fetch failed` 等传输错误会被翻译为用户可读的消息，提示用户检查网络或开启代理。

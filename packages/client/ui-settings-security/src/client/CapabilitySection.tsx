@@ -1,5 +1,5 @@
 /** Host-backed settings section for one Cinlan capability family. */
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   IconBrowseOutline16,
   IconCheckOutline16,
@@ -26,11 +26,15 @@ import css from './CapabilitySection.module.css'
 import type { BrowserPreferences } from '@deepseek-ai/dsh-browser-playwright/types'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { SecurityResearchScopeSettings, SecurityResearchReportRequest, SecurityResearchReportValue } from '@deepseek-ai/dsh-api-remotes/client'
-import type { MobileDeviceSettings } from '../types.ts'
+import type { MobileDeviceSettings } from '@deepseek-ai/dsh-mobile-device/types'
 import { SecurityScopeEditor } from './SecurityScopeEditor.tsx'
 import { SecurityReportExport } from './SecurityReportExport.tsx'
 import { SkillInstallCard } from './SkillInstallCard.tsx'
 import { BrowserPreferencesForm } from './BrowserPreferencesForm.tsx'
+import { BrowserRoutingForm, type BrowserRoutingPreferences } from './BrowserRoutingForm.tsx'
+import type { SidebarPrefs } from '@deepseek-ai/dsh-client-ui-better-sidebar/client/service'
+import { ComputerObservations } from './ComputerObservations.tsx'
+import { MobilePreferences } from './MobilePreferences.tsx'
 import { BrowserControls, type BrowserControlsCallbacks } from './BrowserControls.tsx'
 
 /** Capability pages contributed by this product plugin. */
@@ -68,9 +72,22 @@ export interface CapabilitySectionInjected {
   /** Explicit human Browser commands through the generated Remote. */
   browserControls: BrowserControlsCallbacks | undefined
   /** Settings-owned source bound by the renderer, including unavailable/read-only states. */
-  hooks: { browserPreferences: SettingsScope<BrowserPreferences>; securityScope: SettingsScope<SecurityResearchScopeSettings> }
-  /** Mobile device settings scope for the emulator enable toggle, SDK path, and default device. */
-  mobileSettings: SettingsScope<MobileDeviceSettings>
+  hooks: {
+    browserPreferences: SettingsScope<BrowserPreferences>
+    browserRouting: SettingsScope<SidebarPrefs>
+    securityScope: SettingsScope<SecurityResearchScopeSettings>
+    mobileSettings: SettingsScope<MobileDeviceSettings>
+  }
+  /** Save only changed sidebar-owned link routing fields with the opening revision. */
+  saveBrowserRouting: (changes: Partial<BrowserRoutingPreferences>, revision: number) => Promise<void>
+  /** Remove only link routing overrides; other sidebar settings remain owned by their pages. */
+  resetBrowserRouting: (revision: number) => Promise<void>
+  /** Persist stored mobile preferences with their opening revision. */
+  saveMobileSettings: (value: MobileDeviceSettings, revision: number) => Promise<void>
+  /** Remove mobile preference overrides so composition defaults apply. */
+  resetMobileSettings: (revision: number) => Promise<void>
+  /** Remove browser preference overrides so composition defaults apply. */
+  resetBrowserPreferences: (revision: number) => Promise<void>
   /** Persist the security scope draft with its opening revision. */
   saveSecurityScope: (value: SecurityResearchScopeSettings['root'], revision: number) => Promise<void>
   /** Persist an explicit draft using the revision at which it was opened. */
@@ -231,7 +248,7 @@ function HeroHeader({ icon: Icon, title, description, badge }: {
     <div className={css.computerIcon} aria-hidden="true"><Icon size={22} /></div>
     <div className={css.heroText}>
       <div className={css.computerCardTitle}><h3>{title}</h3>{badge}</div>
-      <p className={css.computerCardDescription}>{description}</p>
+      <p>{description}</p>
     </div>
   </div>
 }
@@ -240,15 +257,17 @@ function ComputerCapabilityBody(props: BodyProps): ReactNode {
   const { state, t } = props
   const status = deviceStatus(state)
   return <>
-    <div className={css.computerCard}>
+    <div className={css.computerCard} data-settings-anchor="computer-readiness">
       <HeroHeader icon={IconBrowseOutline16} title={t('computerHeroTitle')} description={t('computerInstallDescription')}
         badge={<Badge status={status}>{t(DEVICE_STATUS_KEYS[status])}</Badge>} />
-      <p className={css.computerCardDescription}>{deviceReason(state, t)}</p>
+      <p>{deviceReason(state, t)}</p>
       <CopyText text={t('computerInstallCommand')} t={t} />
       <p className={css.capabilityFact}>{t('devicePrerequisite')}</p>
       <RefreshButton {...props} />
     </div>
-    <div className={css.computerHowTo}>
+    <ComputerObservations observation={state.phase === 'ready' ? state.device?.computer : undefined}
+      loading={state.phase === 'loading'} t={t} />
+    <div className={css.computerHowTo} data-settings-anchor="computer-usage">
       <h3>{t('computerHowToUse')}</h3><p>{t('computerHowToUseDescription')}</p>
       <FeatureCards cards={COMPUTER_CARDS} t={t} />
     </div>
@@ -260,7 +279,7 @@ function SecurityResearchBody(props: BodyProps & Pick<CapabilitySectionProps, 'u
   const status = securityStatus(state)
   const security = state.phase === 'ready' ? state.security : undefined
   const unread = state.phase === 'loading' ? 'securityStatusLoading' : 'securityReadFailed'
-  const presetMissing = security !== undefined && security.preset.present !== true && security.preset.broken === undefined
+  const presetMissing = security !== undefined && !security.preset.present && security.preset.broken === undefined
   const presetBroken = security !== undefined && security.preset.broken !== undefined
   const presetReady = security !== undefined && security.preset.present && security.preset.broken === undefined
   const scopeStatusText = {
@@ -272,11 +291,11 @@ function SecurityResearchBody(props: BodyProps & Pick<CapabilitySectionProps, 'u
     ? t(unread)
     : t(security.skillsComplete ? 'securitySkillsCount' : 'securitySkillsPartial', { count: security.skillCount })
   return <>
-    <div className={css.computerCard}>
+    <div className={css.computerCard} data-settings-anchor="security-readiness">
       <HeroHeader icon={IconSkillOutline16} title={t('securityHeroTitle')} description={t('securityHeroDescription')}
         badge={<Badge status={status}>{t(status === 'ready' ? 'securityConfigured'
           : status === 'missing' ? 'securityNotConfigured' : status === 'loading' ? 'securityStatusLoading' : 'securityAttention')}</Badge>} />
-      <p className={css.computerCardDescription}>{t('securityPresetGuidance')}</p>
+      <p>{t('securityPresetGuidance')}</p>
       <p className={css.capabilityFact}>{t('securityExecutionCaveat')}</p>
       <div className={css.securitySummary}>
         <div><strong>{t('securityPresetLabel')}</strong><span>{security === undefined ? t(unread) : security.preset.broken !== undefined ? t('securityPresetBroken')
@@ -306,14 +325,23 @@ function SecurityResearchBody(props: BodyProps & Pick<CapabilitySectionProps, 'u
       hint={t('securityPresetBrokenHint')}
       onRecheck={props.onRefresh}
       t={t} />}
-    <div className={css.computerHowTo}>
+    <div className={css.computerHowTo} data-settings-anchor="security-usage">
       <h3>{t('securityHowToUse')}</h3><p>{t('securityHowToUseDescription')}</p>
       <FeatureCards cards={SECURITY_CARDS} t={t} />
-      {presetReady && <SecurityScopeEditor useSecurityScope={props.useSecurityScope} saveSecurityScope={async (value, revision) => {
-        await props.saveSecurityScope(value, revision)
-        props.onRefresh()
-      }} t={t} />}
-      {presetReady && props.exportReport !== undefined && <SecurityReportExport exportReport={props.exportReport} t={t} />}
+      <section data-settings-anchor="security-scope">
+        {presetReady ? <SecurityScopeEditor useSecurityScope={props.useSecurityScope} saveSecurityScope={async (value, revision) => {
+          await props.saveSecurityScope(value, revision)
+          props.onRefresh()
+        }} t={t} /> : <div>
+          <p role="status">{t(state.phase === 'loading' ? 'securityScopeLoading' : 'securityScopeUnavailable')}</p>
+          <p data-settings-anchor="security-egress">{t('securityEgress')}: {t('securityScopeUnavailable')}</p>
+          <p data-settings-anchor="security-credentials">{t('securityCredentials')}: {t('securityScopeUnavailable')}</p>
+        </div>}
+      </section>
+      <section data-settings-anchor="security-report">
+        {presetReady && props.exportReport !== undefined ? <SecurityReportExport exportReport={props.exportReport} t={t} />
+          : <p role="status">{t('securityReportUnavailable')}</p>}
+      </section>
     </div>
   </>
 }
@@ -322,15 +350,15 @@ function DesignCapabilityBody(props: BodyProps): ReactNode {
   const { state, t } = props
   const status = inventoryStatus(state)
   return <>
-    <div className={css.computerCard}>
+    <div className={css.computerCard} data-settings-anchor="design-readiness">
       <HeroHeader icon={IconEnhanceOutline16}
         title={t('designHeroTitle')}
         description={t('designHeroDescription')}
         badge={<Badge status={status}>{t(STATUS_KEYS[status])}</Badge>} />
-      <p className={css.computerCardDescription}>{t('designPending')}</p>
+      <p>{t('designPending')}</p>
       <RefreshButton {...props} />
     </div>
-    <div className={css.computerHowTo}>
+    <div className={css.computerHowTo} data-settings-anchor="design-usage">
       <h3>{t('designHowToUse')}</h3>
       <p>{t('designHowToUseDescription')}</p>
       <FeatureCards cards={DESIGN_CARDS} t={t} />
@@ -338,149 +366,74 @@ function DesignCapabilityBody(props: BodyProps): ReactNode {
   </>
 }
 
-function BrowserCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps, 'useBrowserPreferences' | 'saveBrowserPreferences' | 'browserControls'>): ReactNode {
+function BrowserCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps,
+  'useBrowserPreferences' | 'saveBrowserPreferences' | 'resetBrowserPreferences' | 'browserControls' | 'target'
+  | 'useBrowserRouting' | 'saveBrowserRouting' | 'resetBrowserRouting'>): ReactNode {
   const { state, t } = props
   const configured = props.useBrowserPreferences(snapshot => snapshot.status === 'ready')
   const status = inventoryStatus(state)
   return <div className={css.setupCard}>
-    <HeroHeader icon={IconGlobeOutline14} title={t('browserHeroTitle')} description={t('browserHeroDescription')}
-      badge={<Badge status={status}>{t(STATUS_KEYS[status])}</Badge>} />
-    <div className={css.setupNotice}><h4>{t('browserSessionTitle')}</h4><p>{t('browserSessionDescription')}</p></div>
-    <ol className={css.steps}>
-      <li className={css.step}><span className={css.stepNumber} aria-hidden="true">1</span><div>
-        <h4>{t('browserProviderTitle')}</h4><p>{t('browserProviderDescription')}</p>
-        <p>{t('browserProviderLimit')}</p>
-        <BrowserPreferencesForm
-          useBrowserPreferences={props.useBrowserPreferences}
-          saveBrowserPreferences={props.saveBrowserPreferences}
-          t={t}
-        />
-        <RefreshButton {...props} />
-      </div></li>
-      <li className={css.step}><span className={css.stepNumber} aria-hidden="true">2</span><div>
-        <h4>{t('browserSkillTitle')}</h4><p>{t('browserSkillDescription')}</p>
-      </div></li>
-      <li className={css.step}><span className={css.stepNumber} aria-hidden="true">3</span><div>
-        <h4>{t('browserCookieTitle')}</h4><p>{t('browserCookieDescription')}</p>
-        <span className={css.capabilityFact}>{t('browserSessionOwner')}</span>
-        {!configured || props.browserControls === undefined ? null : <BrowserControls callbacks={props.browserControls} t={t} />}
-      </div></li>
-    </ol>
-    <div className={css.examples}><h4>{t('examplesTitle')}</h4><p>{t('browserExamplesDescription')}</p>
+    <section className={css.computerCard} data-settings-anchor="browser-readiness">
+      <HeroHeader icon={IconGlobeOutline14} title={t('browserHeroTitle')} description={t('browserHeroDescription')}
+        badge={<Badge status={status}>{t(STATUS_KEYS[status])}</Badge>} />
+      <p>{t('browserProviderLimit')}</p>
+      <RefreshButton {...props} />
+    </section>
+    <BrowserRoutingForm useBrowserRouting={props.useBrowserRouting} saveBrowserRouting={props.saveBrowserRouting}
+      resetBrowserRouting={props.resetBrowserRouting} t={t} />
+    <BrowserPreferencesForm useBrowserPreferences={props.useBrowserPreferences}
+      saveBrowserPreferences={props.saveBrowserPreferences} resetBrowserPreferences={props.resetBrowserPreferences} t={t} />
+    <section className={css.agentSetup} data-settings-anchor="browser-actions">
+      <h2>{t('browserSessionTitle')}</h2><p>{t('browserCookieDescription')}</p>
+      <p>{t('browserSessionOwner')}</p>
+      {!configured || props.browserControls === undefined
+        ? <p role="status" data-settings-anchor="browser-transfers">{t('browserActionsUnavailable')}</p>
+        : <BrowserControls callbacks={props.browserControls} {...props.target === undefined ? {} : { target: props.target }} t={t} />}
+    </section>
+    <section className={css.examples} data-settings-anchor="browser-usage">
+      <h2>{t('browserSkillTitle')}</h2><p>{t('browserSkillDescription')}</p>
+      <p>{t('browserExamplesDescription')}</p>
       <CopyText text={t('browserExample')} labelKey="copyExample" t={t} />
-    </div>
+    </section>
   </div>
 }
 
-type MobileBodyProps = BodyProps & {
-  checkSdk: (signal: AbortSignal) => Promise<MobileSdkSnapshot>
-  listMobileDevices: (signal: AbortSignal) => Promise<MobileDeviceListSnapshot>
-  mobileSettings: SettingsScope<MobileDeviceSettings>
-}
-
-function MobileCapabilityBody(props: MobileBodyProps): ReactNode {
-  const { state, t, checkSdk, listMobileDevices, mobileSettings } = props
+function MobileCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps,
+  'checkSdk' | 'listMobileDevices' | 'useMobileSettings' | 'saveMobileSettings' | 'resetMobileSettings'>): ReactNode {
+  const { state, t } = props
   const status = deviceStatus(state)
-  const settingsSnapshot = mobileSettings.getSnapshot()
-  const enabled = settingsSnapshot.value?.enabled ?? false
-  const defaultDeviceId = settingsSnapshot.value?.defaultDeviceId ?? ''
-  const androidSdkPath = settingsSnapshot.value?.androidSdkPath ?? ''
-  const [, forceRender] = useState(0)
-  useEffect(() => mobileSettings.subscribe(() => forceRender(n => n + 1)), [mobileSettings])
-
-  const [sdkSnapshot, setSdkSnapshot] = useState<MobileSdkSnapshot>()
-  const [deviceList, setDeviceList] = useState<MobileDeviceListSnapshot>()
-  const [sdkLoading, setSdkLoading] = useState(false)
-  const [deviceLoading, setDeviceLoading] = useState(false)
-
-  useEffect(() => {
-    if (!enabled) return
-    const abort = new AbortController()
-    setSdkLoading(true)
-    checkSdk(abort.signal)
-      .then((result) => { if (!abort.signal.aborted) setSdkSnapshot(result) })
-      .catch(() => {})
-      .finally(() => { if (!abort.signal.aborted) setSdkLoading(false) })
-    setDeviceLoading(true)
-    listMobileDevices(abort.signal)
-      .then((result) => { if (!abort.signal.aborted) setDeviceList(result) })
-      .catch(() => {})
-      .finally(() => { if (!abort.signal.aborted) setDeviceLoading(false) })
-    return () => { abort.abort() }
-  }, [enabled, checkSdk, listMobileDevices])
-
   return <div className={css.setupCard}>
-    <HeroHeader icon={IconPanelLeftOutline16} title={t('mobileHeroTitle')} description={t('mobileHeroDescription')}
-      badge={<Badge status={status}>{t(DEVICE_STATUS_KEYS[status])}</Badge>} />
-    <div className={css.availability}>
-      <h4>{t('mobileAvailabilityTitle')}</h4><p>{deviceReason(state, t)}</p>
+    <section className={css.computerCard} data-settings-anchor="mobile-readiness">
+      <HeroHeader icon={IconPanelLeftOutline16} title={t('mobileHeroTitle')} description={t('mobileHeroDescription')}
+        badge={<Badge status={status}>{t(DEVICE_STATUS_KEYS[status])}</Badge>} />
+      <p>{deviceReason(state, t)}</p>
       <RefreshButton {...props} />
-    </div>
-    <div className={css.setupNotice}>
-      <label className={css.factRow}>
-        <input type="checkbox" checked={enabled} onChange={() => { void mobileSettings.set('enabled', !enabled) }} />
-        <span><strong>{t('mobileEnable')}</strong><br />{t('mobileEnableDescription')}</span>
-      </label>
-    </div>
-    {enabled ? <>
-      <dl className={css.facts}>
-        <div>
-          <dt>{t('mobileSdkAndroid')}</dt>
-          <dd>
-            {sdkLoading ? <span>{t('loading')}</span>
-              : sdkSnapshot ? (sdkSnapshot.android.found
-                ? <span>{sdkSnapshot.android.sdkPath ?? t('mobileSdkFound')} <button type="button" className={css.button} onClick={() => { void mobileSettings.set('androidSdkPath', sdkSnapshot.android.sdkPath ?? '') }}>{t('mobileSdkUseDetected')}</button></span>
-                : <span>{t('mobileSdkAndroidNotFound')} <a href="https://developer.android.com/studio" target="_blank" rel="noreferrer">{t('mobileSdkDownload')}</a></span>)
-                : <span>{t('mobileSdkAndroidNotFound')}</span>}
-          </dd>
-        </div>
-        {sdkSnapshot?.ios ? <div>
-          <dt>{t('mobileSdkIos')}</dt>
-          <dd>{sdkSnapshot.ios.simctlOk ? t('mobileSdkIosReady') : t('mobileSdkIosNotReady')}</dd>
-        </div> : null}
-        <div>
-          <dt>{t('mobileSdkCustomPath')}</dt>
-          <dd>
-            <input type="text" value={androidSdkPath} placeholder={sdkSnapshot?.android.sdkPath ?? ''} onChange={(e) => { void mobileSettings.set('androidSdkPath', e.target.value) }} />
-            {androidSdkPath.length > 0 ? <button type="button" className={css.button} onClick={() => { void mobileSettings.set('androidSdkPath', '') }}>{t('mobileSdkClear')}</button> : null}
-          </dd>
-        </div>
-      </dl>
-      <div className={css.setupNotice}>
-        <h4>{t('mobileDefaultDevice')}</h4><p>{t('mobileDefaultDeviceDescription')}</p>
-        <select value={defaultDeviceId} onChange={(e) => { void mobileSettings.set('defaultDeviceId', e.target.value) }}>
-          <option value="">{t('mobileDefaultDeviceAuto')}</option>
-          {deviceLoading ? <option disabled>{t('loading')}</option>
-            : deviceList?.devices.map(device => <option key={device.id} value={device.id}>{device.name} ({device.state})</option>)}
-        </select>
-      </div>
-    </> : null}
-    <div className={css.agentSetup}>
-      <h4>{t('mobileAgentControl')}</h4><p>{t('mobileHowToUseDescription')}</p>
-      <ol className={css.steps}>
-        <li className={css.step}><span className={css.stepNumber} aria-hidden="true">1</span><div>
-          <h4>{t('mobileProviderTitle')}</h4><p>{t('devicePrerequisite')}</p>
-          <CopyText text={t('computerInstallCommand')} t={t} />
-        </div></li>
-        <li className={css.step}><span className={css.stepNumber} aria-hidden="true">2</span><div>
-          <h4>{t('mobileOperateTitle')}</h4><p>{t('mobileOperateDescription')}</p>
-        </div></li>
-      </ol>
-      <div className={css.examples}><h4>{t('examplesTitle')}</h4>
-        <CopyText text={t('mobileExample')} labelKey="copyExample" t={t} />
-      </div>
-    </div>
+    </section>
+    <MobilePreferences useMobileSettings={props.useMobileSettings} saveMobileSettings={props.saveMobileSettings}
+      resetMobileSettings={props.resetMobileSettings} checkSdk={props.checkSdk} listMobileDevices={props.listMobileDevices} t={t} />
+    <section className={css.agentSetup} data-settings-anchor="mobile-usage">
+      <h2>{t('mobileAgentControl')}</h2><p>{t('mobileHowToUseDescription')}</p>
+      <p>{t('devicePrerequisite')}</p>
+      <CopyText text={t('computerInstallCommand')} t={t} />
+      <p>{t('mobileOperateDescription')}</p>
+      <CopyText text={t('mobileExample')} labelKey="copyExample" t={t} />
+    </section>
   </div>
 }
 
 /** Render a capability page through injected Host reads; no installation or device input occurs here.
- * @param props - Settings slot props and read-only capability callbacks.
+ * @param props - Settings slot hooks, explicit preference/actions callbacks, and optional search target.
  * @returns The localized capability page and collapsed component diagnostics.
  */
 export function CapabilitySection({
   list, definition, checkDevice, checkSdk, listMobileDevices, describeSecurity, useBrowserPreferences, saveBrowserPreferences,
-  browserControls, useSecurityScope, saveSecurityScope, exportReport, mobileSettings, t,
+  browserControls, useSecurityScope, saveSecurityScope, exportReport, useMobileSettings, saveMobileSettings, resetMobileSettings,
+  resetBrowserPreferences, useBrowserRouting, saveBrowserRouting, resetBrowserRouting, target, t,
 }: CapabilitySectionProps): ReactNode {
+  const diagnostics = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    if (target?.anchorId === definition.id + '-components' && diagnostics.current !== null) diagnostics.current.open = true
+  }, [target, definition.id])
   const [request, setRequest] = useState(0)
   const [state, setState] = useState<ViewState>({ phase: 'loading' })
   useEffect(() => {
@@ -503,7 +456,7 @@ export function CapabilitySection({
   }, [definition, list, checkDevice, describeSecurity, request])
   const body = { state, t, onRefresh: () => { setRequest(value => value + 1) } }
   return <section className={css.section} data-capability={definition.id} aria-busy={state.phase === 'loading'}>
-    <header className={css.heading}><h2>{t(definition.titleKey)}</h2><p>{t(definition.descriptionKey)}</p></header>
+    <header className={css.heading}><h1>{t(definition.titleKey)}</h1><p>{t(definition.descriptionKey)}</p></header>
     {state.phase === 'error' && <p className={css.failure} role="alert">{t('loadFailed')}</p>}
     {definition.id === 'security' ? <SecurityResearchBody {...body} useSecurityScope={useSecurityScope} saveSecurityScope={saveSecurityScope} {...exportReport === undefined ? {} : { exportReport }} />
       : definition.id === 'computer' ? <ComputerCapabilityBody {...body} />
@@ -511,11 +464,17 @@ export function CapabilitySection({
           {...body}
           useBrowserPreferences={useBrowserPreferences}
           saveBrowserPreferences={saveBrowserPreferences}
+          resetBrowserPreferences={resetBrowserPreferences}
+          useBrowserRouting={useBrowserRouting}
+          saveBrowserRouting={saveBrowserRouting}
+          resetBrowserRouting={resetBrowserRouting}
           browserControls={browserControls}
+          {...target === undefined ? {} : { target }}
         />
-          : definition.id === 'mobile' ? <MobileCapabilityBody {...body} checkSdk={checkSdk} listMobileDevices={listMobileDevices} mobileSettings={mobileSettings} />
+          : definition.id === 'mobile' ? <MobileCapabilityBody {...body} checkSdk={checkSdk} listMobileDevices={listMobileDevices}
+            useMobileSettings={useMobileSettings} saveMobileSettings={saveMobileSettings} resetMobileSettings={resetMobileSettings} />
             : <DesignCapabilityBody {...body} />}
-    <details className={css.diagnostics}>
+    <details ref={diagnostics} className={css.diagnostics} data-settings-anchor={definition.id + '-components'}>
       <summary>{t('hostFact')}{state.phase === 'ready' ? ` · ${state.components.length}` : ''}</summary>
       <p>{t('inventoryCaveat')}</p>
       {state.phase === 'loading' && <p>{t('loading')}</p>}

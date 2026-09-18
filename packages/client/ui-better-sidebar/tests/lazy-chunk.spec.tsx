@@ -9,17 +9,30 @@
  *   the chunk component rendered.
  */
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement, type ComponentType, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
-import { builtinTabs } from '../src/client/builtins/tabs.tsx'
+import { builtinTabs, type BuiltinTabOptions } from '../src/client/builtins/tabs.tsx'
+import type { TerminalCallbacks } from '../src/client/terminal-transport.ts'
+import { gitCallbacks } from './git-fixture.client.ts'
 import { builtinViewers } from '../src/client/builtins/viewers.tsx'
 import { registerChunkForTests, resetChunks } from '../src/client/chunk-loader.ts'
 import { lazyChunkComponent } from '../src/client/lazy-chunk.tsx'
 import type { Context } from '../src/context-types.ts'
 import type { FileViewerProps, TabComponentProps } from '../src/client/service.ts'
 import css from '../src/client/sidebar.module.css'
+
+function callbacks(): BuiltinTabOptions {
+  return {
+    git: gitCallbacks(),
+    terminal: {
+      connectTerminal: vi.fn<TerminalCallbacks['connectTerminal']>().mockReturnValue(async () => {}),
+      terminalInput: vi.fn<TerminalCallbacks['terminalInput']>().mockResolvedValue(undefined),
+      terminalResize: vi.fn<TerminalCallbacks['terminalResize']>().mockResolvedValue(undefined),
+    },
+  }
+}
 
 /** Render `node` into a detached body container under React's act(). */
 function mount(node: ReactNode): { container: HTMLDivElement; unmount: () => void } {
@@ -54,7 +67,7 @@ describe('lazyChunkComponent', () => {
       calls += 1
       return { TextEditor: Marker }
     })
-    const Wrapper = lazyChunkComponent<{ label: string }>('editor', (mod) => mod.TextEditor as ComponentType<{ label: string }> | undefined)
+    const Wrapper = lazyChunkComponent<{ label: string }>('editor', mod => mod.TextEditor as ComponentType<{ label: string }> | undefined)
     const { container, unmount } = mount(createElement(Wrapper, { label: 'x' }))
     // Initial paint: the loading placeholder (no chunk loaded yet).
     expect(container.querySelector(`.${css.editorPlaceholder}`)).not.toBeNull()
@@ -71,7 +84,7 @@ describe('lazyChunkComponent', () => {
       if (fail) throw new Error('boom')
       return { TextEditor: Marker }
     })
-    const Wrapper = lazyChunkComponent<Record<string, never>>('editor', (mod) => mod.TextEditor as ComponentType<Record<string, never>> | undefined)
+    const Wrapper = lazyChunkComponent<Record<string, never>>('editor', mod => mod.TextEditor as ComponentType<Record<string, never>> | undefined)
     const { container, unmount } = mount(createElement(Wrapper, {}))
     await act(async () => {})
     expect(container.textContent).toContain('boom')
@@ -88,7 +101,7 @@ describe('lazyChunkComponent', () => {
   it('props flow through to the chunk component', async () => {
     const Recorder = (props: { label: string }): ReactNode => createElement('div', { 'data-testid': 'rec', 'data-label': props.label })
     registerChunkForTests('terminal', async () => ({ TerminalView: Recorder }))
-    const Wrapper = lazyChunkComponent<{ label: string }>('terminal', (mod) => mod.TerminalView as ComponentType<{ label: string }> | undefined)
+    const Wrapper = lazyChunkComponent<{ label: string }>('terminal', mod => mod.TerminalView as ComponentType<{ label: string }> | undefined)
     const { container, unmount } = mount(createElement(Wrapper, { label: 'hello' }))
     await act(async () => {})
     expect(container.querySelector('[data-testid="rec"]')?.getAttribute('data-label')).toBe('hello')
@@ -109,7 +122,7 @@ describe('built-in descriptor contract (render-prop functions)', () => {
   })
 
   it('the terminal tab component keeps the same contract', () => {
-    const tabs = builtinTabs({} as Context)
+    const tabs = builtinTabs({} as Context, callbacks())
     const terminal = tabs.find(tab => tab.id === 'terminal')
     expect(terminal).toBeDefined()
     // The descriptor reads tab.id (the tabId mapping); a real tab is part of
@@ -156,7 +169,7 @@ describe('built-in descriptor contract (render-prop functions)', () => {
         return createElement('div', { 'data-testid': 'terminal-tabid' }, props.tabId)
       }) as unknown as ComponentType<Record<string, never>>,
     }))
-    const tabs = builtinTabs({} as Context)
+    const tabs = builtinTabs({} as Context, callbacks())
     const terminal = tabs.find(tab => tab.id === 'terminal')!
     const props = {
       ctx: {},
@@ -178,7 +191,7 @@ describe('built-in descriptor contract (render-prop functions)', () => {
       calls += 1
       return { TerminalView: Marker }
     })
-    const tabs = builtinTabs({} as Context)
+    const tabs = builtinTabs({} as Context, callbacks())
     const terminal = tabs.find(tab => tab.id === 'terminal')!
     const props = { tab: { id: 'terminal:1', type: 'terminal', title: '终端 1' } } as unknown as TabComponentProps
     const { container: first, unmount: unmountFirst } = mount(createElement(terminal.component, props))

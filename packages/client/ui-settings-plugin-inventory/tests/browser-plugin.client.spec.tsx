@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { Context, Service } from '@deepseek-ai/cordis'
+import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
@@ -21,6 +22,7 @@ type ListResult =
 
 async function bench() {
   const ctx = new Context()
+  new SettingsMetadataService(ctx)
   await ctx.plugin(SlotRegistry).await()
   const locale = new LocaleRuntime(ctx)
   ctx.provide('locale', locale)
@@ -49,7 +51,7 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
   })
 
   it('declares only the services used by the Settings Remote contribution', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.pluginInventory'])
+    expect(inject).toEqual(['settingsMetadata', 'slots', 'locale', 'remote', 'remote.pluginInventory'])
   })
 
   it('registers a localized tab without reading the Remote eagerly', async () => {
@@ -63,6 +65,9 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     expect(entry.locale).toBe(NS)
     expect(resolveSlotLabel(entry.options.label)).toBe('插件列表')
     expect(b.list).not.toHaveBeenCalled()
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([expect.objectContaining({
+      sectionId: 'plugins', id: 'inventory', anchorId: 'plugins-inventory', tabId: 'all', title: '插件列表',
+    })])
 
     const injected = (entry.inject as unknown as () => PluginInventorySettingsTabInjected)()
     await expect(injected.list()).resolves.toEqual(EMPTY)
@@ -83,14 +88,17 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(b.slots.entries('settings.plugins.tab')).toHaveLength(0)
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
 
     const stop = declare(b.slots)
     await vi.waitFor(() => { expect(b.slots.entries('settings.plugins.tab')).toHaveLength(1) })
     b.locale.setLocale('en')
     expect(resolveSlotLabel(b.slots.entries('settings.plugins.tab')[0]!.options.label)).toBe('Plugin list')
+    expect(b.ctx.settingsMetadata.getSnapshot().items[0]?.title).toBe('Plugin list')
 
     stop()
     expect(b.slots.entries('settings.plugins.tab')).toHaveLength(0)
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
     declare(b.slots)
     await vi.waitFor(() => {
       expect(b.slots.entries('settings.plugins.tab')[0]?.component).toBe(PluginInventorySettingsTab)
@@ -98,6 +106,7 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
 
     await fiber.dispose()
     expect(b.slots.entries('settings.plugins.tab')).toHaveLength(0)
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
     expect(() => b.locale.register(NS, 'zh', {})).not.toThrow()
     await b.ctx.fiber.dispose()
   })

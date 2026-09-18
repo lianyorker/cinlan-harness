@@ -64,12 +64,14 @@ export interface SettingsScope<T> {
    * Queue one atomic namespace mutation. All operations share one revision
    * fence, Host validation, persistence decision, and recovery read. Supplying
    * `expectedRevision` preserves an earlier read as the fence instead of using
-   * the latest queued or mirrored revision.
+   * the latest queued or mirrored revision. Acceptance is independent of whether
+   * a newer write or disposal suppresses publication. Transport failures reject
+   * after latest-write recovery; callers must suppress stale UI themselves.
    * @param ops - ordered field operations copied when queued.
    * @param expectedRevision - optional fixed revision read by the domain editor.
-   * @returns settlement after the mutation and any latest-write recovery read.
+   * @returns true when the Host accepts; false on refusal, memory mode, or disposal before dispatch.
    */
-  mutate(ops: readonly SettingsPathOpView[], expectedRevision?: number): Promise<void>
+  mutate(ops: readonly SettingsPathOpView[], expectedRevision?: number): Promise<boolean>
   /**
    * Queue one field write. Rapid writes preserve mutation order, each carries
    * the latest known namespace revision, and only the latest settlement may

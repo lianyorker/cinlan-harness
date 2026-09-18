@@ -27,3 +27,6 @@
     # Activates only in a Host composition that supplies Typert.
     - id: browser-controller
       name: '@deepseek-ai/dsh-api-browser-controller'
+
+    - id: ui-browser-element-capture
+      name: '@deepseek-ai/dsh-client-ui-browser-element-capture'

@@ -34,6 +34,7 @@ import {
 } from '../icons.tsx'
 import type { ComponentType } from 'react'
 import type { FileViewerDescriptor, FileViewerProps } from '../service.ts'
+import type { MatchEditorShortcut } from '../keyboard-commands.ts'
 import { t } from '../locales.ts'
 import css from '../sidebar.module.css'
 
@@ -46,7 +47,7 @@ import css from '../sidebar.module.css'
 const LazyTextEditor = lazyChunkComponent<FileViewerProps>('editor', mod => mod.TextEditor as ComponentType<FileViewerProps> | undefined)
 
 /** The 6 built-in file viewer descriptors. */
-export function builtinViewers(): readonly FileViewerDescriptor[] {
+export function builtinViewers(matchShortcut?: MatchEditorShortcut): readonly FileViewerDescriptor[] {
   return [
     {
       id: 'image',
@@ -76,7 +77,7 @@ export function builtinViewers(): readonly FileViewerDescriptor[] {
       icon: (size: number) => <IconMarkdownOutline16 size={size} />,
       exts: ['md', 'markdown'],
       fetchStrategy: 'fsRead',
-      component: props => <LazyTextEditor {...props} />,
+      component: props => <LazyTextEditor {...props} matchShortcut={matchShortcut} />,
     },
     {
       id: 'html',
@@ -98,7 +99,7 @@ export function builtinViewers(): readonly FileViewerDescriptor[] {
           desc: () => t('settingsHtmlDefaultUnsafeDesc'),
         }],
       },
-      component: props => <LazyTextEditor {...props} />,
+      component: props => <LazyTextEditor {...props} matchShortcut={matchShortcut} />,
     },
     {
       id: 'code',
@@ -107,7 +108,7 @@ export function builtinViewers(): readonly FileViewerDescriptor[] {
       exts: [],
       priority: -100,
       fetchStrategy: 'fsRead',
-      component: props => <LazyTextEditor {...props} />,
+      component: props => <LazyTextEditor {...props} matchShortcut={matchShortcut} />,
     },
     {
       id: 'binary-download',

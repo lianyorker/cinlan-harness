@@ -2,7 +2,7 @@
  * dsh-better-sidebar host half: the /sidebar JSON API (explorer listing, file
  * read/write, git), the /sidebar/file media route (images), the /sidebar/html
  * preview route, the /sidebar/bundle lazy-chunk route (client code splits),
- * and the terminal WebSocket upgrade. Every route passes the same
+ * and the sidebar terminal provider. Every Web route passes the same
  * browser-trust fence as the /api gateway — Host-header loopback or the
  * web runtime's `trustedHosts` (LAN IP literals sampled at boot plus
  * `--trusted-host` authorities), read per request from the live service
@@ -13,11 +13,8 @@
  * session's authoritative cwd comes from the session store, and terminal
  * processes are keyed by session.
  */
-import { mkdir, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { basename, dirname, extname, isAbsolute, join } from 'node:path'
-import type { IncomingMessage } from 'node:http'
-import type { Duplex } from 'node:stream'
-import { WebSocket, WebSocketServer } from 'ws'
+import { mkdir, open, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { dirname, extname, isAbsolute, join } from 'node:path'
 import type { Context, SidebarHttpRequest } from './context-types.ts'
 import {
   Config,
@@ -28,29 +25,29 @@ import {
   type SidebarConfig,
   type SidebarPrefs,
 } from './config.ts'
-import { isWithin, parentOf, requireAbsolute, listDirectory, rootLabel } from './fs-tree.ts'
-import { writeWorkspaceUpload } from './fs-operations.ts'
+import { parentOf, requireAbsolute, listDirectory, rootLabel } from './fs-tree.ts'
 import { searchFiles } from './fs-search.ts'
-import { decodeHtmlUrl } from './html-route.ts'
 import { extractFrameAncestors } from './browser-probe.ts'
 import { isTrustedApiRequest, isLoopbackHostname } from './trust-fence.ts'
-import { registerBundleRoute } from './bundle-route.ts'
+import { registerBundleRoute, registerSidebarBundleRoute, registerTerminalBundleRoute } from './bundle-route.ts'
+import { createSidebarOperations, registerSidebarFetch, registerSidebarWebAliases } from './sidebar-transport.ts'
+import { SidebarTerminalProvider } from './terminal-provider.ts'
+import type {} from '@deepseek-ai/dsh-client-connection'
 import { launchExternal } from './open-external.ts'
-import * as git from './git.ts'
+import { buildGitApi } from './git.ts'
 import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import { defaultShell, ensureSpawnHelper, PtyManager, shellDisplayName } from './pty-manager.ts'
-import { AgentPtyRegistry, clampDims, type AgentTerminalHandle } from './agent-pty.ts'
+import { AgentPtyRegistry } from './agent-pty.ts'
 import {
   DSH_NODE_PTY_RANGE,
   depsStatus,
   loadNodePty,
-  PTY_DEPS_MISSING,
 } from './pty-deps.ts'
 import { registerTools } from './tools.ts'
 import { buildJobsApi, type SidebarJobsRoutes } from './jobs-routes.ts'
 import { buildSubagentLiveApi, type SidebarSubagentLiveRoutes } from './subagent-live-route.ts'
 // Phase 4: import { buildSidechatApi } from './sidechat-routes.ts'
-import { readJsonBody, requireString, SidebarError, writeError, writeJson, writeOk } from './wire.ts'
+import { requireString, SidebarError } from './wire.ts'
 
 export { Config }
 export type { SidebarConfig, ResolvedSidebarConfig }
@@ -71,8 +68,8 @@ export type {
 /** Plugin identity for cordis.yml rows. */
 export const name = '@deepseek-ai/dsh-client-ui-better-sidebar'
 
-/** Services required before mounting: the webserver routes, the session store, the web runtime's trusted hosts, and the tool registry. */
-export const inject = ['webServer', 'sessions', 'webRuntime', 'tools']
+/** The native terminal owner needs sessions and tools; Web routes attach when their transport exists. */
+export const inject = ['sessions', 'tools']
 
 /** Content types for the media route, by extension. */
 const MEDIA_TYPES: Record<string, string> = {
@@ -88,6 +85,9 @@ const MEDIA_TYPES: Record<string, string> = {
   '.pdf': 'application/pdf',
   '.html': 'text/html',
   '.htm': 'text/html',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
 }
 
 /** Content type served by /sidebar/file (binary-safe fallback for unknowns). */
@@ -126,10 +126,10 @@ function sessionCwdOf(ctx: Context, sessionId: string, clientCwd?: string): stri
  * paths pass through; relative ones join the repo root (falling back to the
  * cwd when the root cannot be resolved, e.g. a bare directory).
  */
-async function resolveGitPath(cwd: string, raw: string): Promise<string> {
+async function resolveGitPath(ctx: Context, cwd: string, raw: string): Promise<string> {
   if (isAbsolute(raw)) return requireAbsolute(raw)
-  const root = await git.repoRoot(cwd).catch(() => cwd)
-  return requireAbsolute(join(root, raw))
+  const root = await ctx.get('sidebarGit')?.discover(cwd)
+  return requireAbsolute(join(root ?? cwd, raw))
 }
 
 /** How many leading bytes a binary read returns for client-side detect sniffing. */
@@ -195,7 +195,6 @@ export interface SidebarSettingsFace {
   update(patch: Record<string, unknown>, expectedRevision?: number): Promise<{ value?: unknown; revision?: number }>
 }
 
-/** Build the API method table bound to the plugin context, pty manager, agent pty registry, resolved config, and effective terminal shell. */
 /**
  * Resolve the settings-page terminal shell overrides (the terminal card's
  * gear rows). Empty fields mean "unset": keep the yaml `config.shell` /
@@ -278,13 +277,13 @@ function buildApi(
       const { cwd } = cwdOf(payload)
       // Relative paths are git-derived (status/diff report repo-root-relative
       // names; the untracked diff view reads the file through this route).
-      const path = await resolveGitPath(cwd, requireString(payload, 'path'))
+      const path = await resolveGitPath(ctx, cwd, requireString(payload, 'path'))
       const { content, truncated, binary, size, head } = await readText(path, resolved.readLimit)
       if (binary) return { kind: 'binary', size, truncated, head }
       return { kind: 'text', content, truncated }
     },
     'fs.write': async (payload) => {
-      const { cwd } = cwdOf(payload)
+      cwdOf(payload)
       const path = requireAbsolute(requireString(payload, 'path'))
       const content = requireString(payload, 'content')
       const tmp = `${path}.dsh-sidebar-tmp-${process.pid}`
@@ -298,93 +297,7 @@ function buildApi(
       }
       return { ok: true }
     },
-    'git.status': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      return git.status(cwd)
-    },
-    'git.diff': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      const record = payload as { path?: unknown; staged?: unknown }
-      const path = record.path === undefined ? undefined : await resolveGitPath(cwd, requireString(payload, 'path'))
-      return { diff: await git.diff(cwd, path, record.staged === true) }
-    },
-    'git.stage': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      const record = payload as { path?: unknown }
-      const path = record.path === undefined ? undefined : requireString(payload, 'path')
-      await git.stage(cwd, path)
-      return { ok: true }
-    },
-    'git.unstage': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      const record = payload as { path?: unknown }
-      const path = record.path === undefined ? undefined : requireString(payload, 'path')
-      await git.unstage(cwd, path)
-      return { ok: true }
-    },
-    'git.commit': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      const message = requireString(payload, 'message')
-      await git.commit(cwd, message)
-      return { ok: true }
-    },
-    'git.branch': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      return git.branches(cwd)
-    },
-    'git.checkout': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      await git.checkout(cwd, requireString(payload, 'branch'))
-      return { ok: true }
-    },
-    'git.log': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      const record = payload as { count?: unknown; skip?: unknown }
-      const count = typeof record.count === 'number' && Number.isInteger(record.count) && record.count > 0
-        ? record.count
-        : undefined
-      const skip = typeof record.skip === 'number' && Number.isInteger(record.skip) && record.skip >= 0
-        ? record.skip
-        : undefined
-      return git.log(cwd, count, skip)
-    },
-    'git.commit-diff': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      return { diff: await git.commitDiff(cwd, requireString(payload, 'hash')) }
-    },
-    'git.discard': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      await git.discard(cwd, await resolveGitPath(cwd, requireString(payload, 'path')))
-      return { ok: true }
-    },
-    'git.revert': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      await git.revert(cwd, requireString(payload, 'hash'))
-      return { ok: true }
-    },
-    'git.cherry-pick': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      await git.cherryPick(cwd, requireString(payload, 'hash'))
-      return { ok: true }
-    },
-    'git.show': async (payload) => {
-      const { cwd } = cwdOf(payload)
-      const path = await resolveGitPath(cwd, requireString(payload, 'path'))
-      const rev = requireString(payload, 'rev')
-      return { content: await git.show(cwd, rev, path) }
-    },
-    // Release a terminal immediately. The WebSocket close frame already does
-    // this while the socket is open; this route covers the tab-close that
-    // happens while the socket is down (reconnect loop), so a closed tab can
-    // never hold the per-session quota until the reconnect grace expires.
-    'pty.close': (payload) => {
-      const sessionId = requireString(payload, 'sessionId')
-      const tab = requireString(payload, 'tab')
-      // Degraded mode (node-pty unavailable): no live pty can exist, so a
-      // no-op ok is the honest answer — never an error the client must show.
-      ptyManager?.close(`${sessionId}:${tab}`)
-      return { ok: true }
-    },
+    ...buildGitApi(() => ctx.get('sidebarGit')),
     // Release an agent terminal by uuid. The WS close frame already does
     // this while the socket is open; this route covers the tab-close that
     // happens while the socket is down (reconnect loop) so a closed agent
@@ -405,11 +318,11 @@ function buildApi(
     // the agent's bytes), and kill one job. The job LIST itself arrives
     // through the harness's session/jobs push mirror, so no list route
     // exists. Kill is fenced to the owning session by the jobs registry.
-    'jobs.output': (payload) => jobsApi.output(payload),
-    'jobs.kill': (payload) => jobsApi.kill(payload),
+    'jobs.output': payload => jobsApi.output(payload),
+    'jobs.kill': payload => jobsApi.kill(payload),
     // Subagent live previews: one batch request per refresh; the route folds
     // the newest text/tool activity of every running child in the tree.
-    'subagents.live': (payload) => subagentLiveApi.live(payload),
+    'subagents.live': payload => subagentLiveApi.live(payload),
     // The effective terminal shell and its display name. The client uses
     // this to title terminal tabs with the shell name instead of a numbered
     // "Terminal N" label; the shell itself is configured through
@@ -546,11 +459,6 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   // configured shell fixes one surface and silently leaves the other on the
   // platform default.
   const terminalShell = defaultShell({ explicit: resolved.shell })
-  // The web runtime's bind-derived trust list (boot-sampled LAN literals
-  // plus --trusted-host authorities) — the authoritative source the /api
-  // gateway fence derives its list from. Read per request from the live
-  // service value; a replaced list takes effect without a plugin restart.
-  const fence = (req: SidebarHttpRequest): boolean => isTrustedApiRequest(req, ctx.webRuntime.trustedHosts)
   // node-pty is loaded lazily, never at module top level (issue #140): a
   // missing or broken install must degrade THIS plugin — terminal tab shows
   // a repair command, agent terminal tools stay unregistered — instead of
@@ -569,8 +477,8 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   // The agent-owned terminal registry: parallel to the UI-tab ptyManager,
   // keyed by uuid (the model's opaque handle) instead of `${sessionId}:${tabId}`,
   // uncapped, and torn down with the plugin. The model creates terminals here
-  // through the terminal_create tool; the sidebar view attaches through the
-  // same /sidebar/ws/terminal upgrade with ?uuid=... instead of ?tab=...
+  // through the terminal_create tool; sidebar views attach through the
+  // sidebarTerminals Remote service.
   const agentPtyRegistry = nodePty !== null
     ? new AgentPtyRegistry(terminalShell, resolved.shellArgs, nodePty)
     : null
@@ -595,7 +503,12 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
         // Degraded mode (node-pty unavailable): never register the terminal
         // tools — every one of them would fail at spawn time.
         if (agentPtyRegistry === null) return
-        toolsDisposers = registerTools(ctx, agentPtyRegistry, (sessionId) => sessionCwdOf(ctx, sessionId), () => shellOverridesOf(() => settingsFace))
+        toolsDisposers = registerTools(
+          ctx,
+          agentPtyRegistry,
+          sessionId => sessionCwdOf(ctx, sessionId),
+          () => shellOverridesOf(() => settingsFace),
+        )
       }
     } else if (toolsDisposers !== null) {
       toolsDisposers()
@@ -646,477 +559,37 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     scope.watch(() => { syncToolsGate(scope) })
   })
 
-  // ── JSON API ────────────────────────────────────────────────────────────
-  const api = buildApi(ctx, ptyManager, agentPtyRegistry, resolved, terminalShell, () => settingsFace)
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/sidebar/api',
-    handler: async (req, res) => {
-      if (!fence(req)) {
-        writeJson(res, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
-        return
-      }
-      if (req.method !== 'POST') {
-        writeJson(res, 405, { ok: false, error: { code: 'method-error', message: 'method not allowed' } })
-        return
-      }
-      const pathname = new URL(req.url ?? '/', 'http://dsh.internal').pathname
-      const method = pathname.startsWith('/sidebar/api/') ? pathname.slice('/sidebar/api/'.length) : undefined
-      if (method === undefined || method.includes('/')) {
-        writeError(res, new SidebarError('not-found', 'unknown sidebar API method', 404))
-        return
-      }
-      try {
-        const payload = await readJsonBody(req)
-        const handler = api[method]
-        if (handler === undefined) {
-          throw new SidebarError('not-found', `unknown sidebar API method "${method}"`, 404)
-        }
-        writeOk(res, await handler(payload))
-      } catch (error) {
-        writeError(res, error)
-      }
+  const terminalProvider = new SidebarTerminalProvider(ctx, {
+    ui: ptyManager, agents: agentPtyRegistry, config: resolved,
+    sessionCwd: id => sessionCwdOf(ctx, id),
+    sessionWorkspace: id => ctx.sessions.get(id)?.header.cwd,
+    shell: () => {
+      const overrides = shellOverridesOf(() => settingsFace)
+      return { shell: overrides.shell ?? terminalShell, shellArgs: overrides.shellArgs ?? resolved.shellArgs }
     },
-  }), 'dsh-better-sidebar: /sidebar/api routes')
-
-  // ── Raw upload route ───────────────────────────────────────────────────
-  // One request writes one file without JSON/base64 inflation. Folder uploads
-  // send each file with a relativePath, preserving the selected directory
-  // tree. Bytes stream to a temp sibling and are renamed into place, so a
-  // failed or oversized upload never leaves a partial file (see
-  // fs-operations.ts for the containment and shape rules).
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'exact',
-    path: '/sidebar/upload',
-    handler: async (req, res) => {
-      if (!fence(req)) {
-        writeJson(res, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
-        return
-      }
-      if (req.method !== 'POST') {
-        writeJson(res, 405, { ok: false, error: { code: 'method-error', message: 'method not allowed' } })
-        return
-      }
-      try {
-        const url = new URL(req.url ?? '/', 'http://dsh.internal')
-        const sessionId = url.searchParams.get('sessionId')
-        const dir = url.searchParams.get('dir')
-        const relativePath = url.searchParams.get('relativePath')
-        if (sessionId === null || dir === null || relativePath === null || relativePath.trim() === '') {
-          throw new SidebarError('bad-request', 'sessionId, dir, and relativePath are required')
-        }
-        const cwd = sessionCwdOf(ctx, sessionId, url.searchParams.get('cwd') ?? undefined)
-        const { path, size } = await writeWorkspaceUpload({
-          cwd,
-          dir,
-          relativePath,
-          chunks: req,
-          limit: resolved.uploadLimit,
-        })
-        writeOk(res, { path, size })
-      } catch (error) {
-        writeError(res, error)
-      }
-    },
-  }), 'dsh-better-sidebar: /sidebar/upload route')
-
-  // ── Lazy chunk route (client bundle splits) ─────────────────────────────
-  // Serves the client half's split bundles (lib/client-<name>.js) so the
-  // heavy preview/terminal libraries load on first use, not at page start
-  // (see bundle-route.ts / src/client/chunk-loader.ts).
-  ctx.effect(() => registerBundleRoute(ctx, fence), 'dsh-better-sidebar: /sidebar/bundle chunk route')
-
-  // ── Media route (images for the editor) ─────────────────────────────────
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/sidebar/file',
-    handler: async (req, res) => {
-      if (!fence(req)) {
-        res.writeHead(403)
-        res.end('forbidden')
-        return
-      }
-      if (req.method !== 'GET') {
-        res.writeHead(405)
-        res.end()
-        return
-      }
-      try {
-        const url = new URL(req.url ?? '/', 'http://dsh.internal')
-        const sessionId = url.searchParams.get('sessionId')
-        const raw = url.searchParams.get('path')
-        if (sessionId === null || raw === null) throw new SidebarError('bad-request', 'sessionId and path are required')
-        const cwd = sessionCwdOf(ctx, sessionId, url.searchParams.get('cwd') ?? undefined)
-        const path = requireAbsolute(raw)
-        if (!isWithin(cwd, path)) {
-          // Only files under the session cwd are served as media (the editor
-          // opens images from the explorer; produced files go through read).
-          // isWithin (not a raw startsWith) so case-mismatched Windows paths
-          // and mixed separators cannot be misclassified.
-          throw new SidebarError('fs-error', 'media path outside the session working directory', 403)
-        }
-        const info = await stat(path)
-        if (!info.isFile() || info.size > resolved.mediaLimit) {
-          throw new SidebarError('fs-error', 'not a file or too large', 400)
-        }
-        const type = mediaTypeForPath(path)
-        const body = await readFile(path)
-        // Raw bytes either way (binary-safe); ?download=1 switches the
-        // disposition so the browser saves the file instead of showing it.
-        const headers: Record<string, string> = { 'content-type': type, 'cache-control': 'no-cache' }
-        if (url.searchParams.get('download') === '1') {
-          headers['content-disposition'] = `attachment; filename*=UTF-8''${encodeURIComponent(basename(path))}`
-        }
-        res.writeHead(200, headers)
-        res.end(body)
-      } catch (error) {
-        writeError(res, error)
-      }
-    },
-  }), 'dsh-better-sidebar: /sidebar/file media route')
-
-  // ── HTML preview route (sandboxed HTML + its relative assets) ───────────
-  // Serves files under the session cwd for the built-in HTML previewer. The
-  // URL is path-encoded (see html-route.ts) so the previewed page's relative
-  // assets (./style.css, img/x.png) resolve back into this route with the
-  // session scope intact — a query-encoded URL would drop the scope when the
-  // browser resolves relatives. Every response carries the CSP `sandbox`
-  // directive: inside the editor's iframe the sandbox ATTRIBUTE is the
-  // boundary, this header is defense-in-depth so even a top-level load of
-  // the URL (e.g. a popup opened by a previewed page) stays in an opaque
-  // origin with no same-origin access to the GUI.
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/sidebar/html',
-    handler: async (req, res) => {
-      if (!fence(req)) {
-        res.writeHead(403)
-        res.end('forbidden')
-        return
-      }
-      if (req.method !== 'GET') {
-        res.writeHead(405)
-        res.end()
-        return
-      }
-      try {
-        const url = new URL(req.url ?? '/', 'http://dsh.internal')
-        const decoded = decodeHtmlUrl(url.pathname)
-        if (!decoded.ok) {
-          writeError(res, new SidebarError('bad-request', decoded.message, decoded.status))
-          return
-        }
-        const { sessionId, path } = decoded.ref
-        // The session's authoritative cwd (client cwd cannot ride in the URL
-        // — the path encoding has no query; a detached first request falls
-        // back to the process cwd and is normally refused by isWithin, same
-        // semantics as the media route's fallback).
-        const cwd = sessionCwdOf(ctx, sessionId)
-        const absolute = requireAbsolute(path)
-        if (!isWithin(cwd, absolute)) {
-          throw new SidebarError('fs-error', 'html path outside the session working directory', 403)
-        }
-        const info = await stat(absolute)
-        if (!info.isFile() || info.size > resolved.mediaLimit) {
-          throw new SidebarError('fs-error', 'not a file or too large', 400)
-        }
-        const type = mediaTypeForPath(absolute)
-        const body = await readFile(absolute)
-        res.writeHead(200, {
-          'content-type': type,
-          'cache-control': 'no-cache',
-          'x-content-type-options': 'nosniff',
-          'referrer-policy': 'no-referrer',
-          // The sandbox directive (no allow-same-origin → opaque origin) is
-          // the previewer's security boundary even for top-level loads;
-          // object-src 'none' blocks plugin embeds.
-          'content-security-policy': "sandbox allow-scripts allow-popups allow-downloads allow-modals; object-src 'none'",
-        })
-        res.end(body)
-      } catch (error) {
-        writeError(res, error)
-      }
-    },
-  }), 'dsh-better-sidebar: /sidebar/html preview route')
-
-  // ── Terminal WebSocket ──────────────────────────────────────────────────
-  // One upgrade endpoint serves both UI-tab terminals (?tab=...) and
-  // agent-owned terminals (?uuid=...). The two paths attach to different
-  // registries but share the wire protocol: input frames are raw text,
-  // resize frames are JSON `{type:'resize',cols,rows}`, and a close frame
-  // `{type:'close'}` releases the underlying pty (immediate for agent
-  // terminals, scheduled-0 for UI tabs which keep the same reconnect grace
-  // contract the host has always had).
-  const wss = new WebSocketServer({ noServer: true })
-  ctx.effect(() => ctx.webServer.registerUpgrade({
-    path: '/sidebar/ws/terminal',
-    handler: (req, socket, head) => {
-      if (!fence(req)) {
-        socket.destroy()
-        return
-      }
-      // The structural request/socket/head faces satisfy the shared fence;
-      // the `ws` package wants the real Node types — cast at this boundary.
-      wss.handleUpgrade(req as unknown as IncomingMessage, socket as unknown as Duplex, head as Buffer, (ws) => {
-        void attachTerminal(ctx, ptyManager, agentPtyRegistry, ws, req, resolved, () => settingsFace)
-      })
-    },
-  }), 'dsh-better-sidebar: terminal WebSocket')
-
-  // ── Agent terminals push WebSocket ──────────────────────────────────────
-  // Pushes the live list of agent terminals for one session to the sidebar
-  // view: the client mirrors the list into tabs (id `agent:<uuid>`,
-  // title from the agent's `terminal_create` call). The host fires on every
-  // create / close / exit; the client reconciles by adding tabs for new
-  // uuids and dropping tabs whose uuids disappeared (the user closing a tab
-  // sends `{type:'close'}` on the terminal WS, which kills the pty, which
-  // fires a change here, which converges the view).
-  const agentListWss = new WebSocketServer({ noServer: true })
-  ctx.effect(() => ctx.webServer.registerUpgrade({
-    path: '/sidebar/ws/agent-terminals',
-    handler: (req, socket, head) => {
-      if (!fence(req)) {
-        socket.destroy()
-        return
-      }
-      agentListWss.handleUpgrade(req as unknown as IncomingMessage, socket as unknown as Duplex, head as Buffer, (ws) => {
-        void attachAgentList(agentPtyRegistry, ws, req)
-      })
-    },
-  }), 'dsh-better-sidebar: agent-terminals push WebSocket')
-
-  ctx.effect(() => () => {
-    toolsDisposers?.()
-    ptyManager?.disposeAll()
-    agentPtyRegistry?.disposeAll()
-    wss.close()
-    agentListWss.close()
-  }, 'dsh-better-sidebar: teardown')
-}
-
-/** Push the live agent-terminal list for one session to a connected sidebar view. */
-async function attachAgentList(
-  registry: AgentPtyRegistry | null,
-  ws: WebSocket,
-  req: SidebarHttpRequest,
-): Promise<void> {
-  try {
-    const url = new URL(req.url ?? '/', 'http://dsh.internal')
-    const sessionId = url.searchParams.get('sessionId')
-    if (sessionId === null) {
-      ws.close(1008, 'sessionId is required')
-      return
-    }
-    const send = (): void => {
-      if (ws.readyState === WebSocket.OPEN) {
-        // Degraded mode (node-pty unavailable): no agent terminal can exist,
-        // so the honest push is the empty list.
-        ws.send(JSON.stringify(registry?.list(sessionId) ?? []))
-      }
-    }
-    send()
-    const unsubscribe = registry?.subscribe(send)
-    ws.on('close', () => { unsubscribe?.() })
-    ws.on('error', () => { unsubscribe?.() })
-  } catch (error) {
-    ws.close(1011, error instanceof Error ? error.message : String(error))
-  }
-}
-
-/**
- * Wire one terminal socket to its pty: replay transcript, pump both ways.
- * Two attach modes share the wire protocol:
- * - `?uuid=...` attaches to an agent-owned terminal (created by the
- *   `terminal_create` tool). The close frame kills the pty immediately
- *   (the agent's terminal closes when the user closes the sidebar tab); a
- *   bare socket drop (refresh, tab switch) leaves the pty alive for the
- *   reconnect grace, exactly like UI-tab terminals.
- * - `?tab=...&sessionId=...` attaches to a UI-tab terminal (the user
- *   created it from the + menu). The close frame schedules a 0-ms close
- *   (the host's reconnect grace keeps the shell alive across a refresh).
- *   The park frame (sent when the user switches to another conversation)
- *   marks the pty as parked so the upcoming bare socket drop does NOT start
- *   the grace countdown — the tab is still open in its session's state, so
- *   the shell must survive until the user switches back or closes the tab.
- */
-async function attachTerminal(
-  ctx: Context,
-  ptyManager: PtyManager | null,
-  agentPtyRegistry: AgentPtyRegistry | null,
-  ws: WebSocket,
-  req: SidebarHttpRequest,
-  resolved: ResolvedSidebarConfig,
-  getSettings: () => SidebarSettingsFace | undefined,
-): Promise<void> {
-  try {
-    const url = new URL(req.url ?? '/', 'http://dsh.internal')
-    const uuid = url.searchParams.get('uuid')
-    if (uuid !== null) {
-      // Degraded mode (node-pty unavailable): no agent terminal can exist,
-      // so the lookup behaves exactly like a missing uuid.
-      if (agentPtyRegistry === null) {
-        ws.close(1011, `agent terminal "${uuid}" not found`)
-        return
-      }
-      const handle = agentPtyRegistry.get(uuid)
-      if (handle === undefined) {
-        ws.close(1011, `agent terminal "${uuid}" not found`)
-        return
-      }
-      pumpAgentTerminal(agentPtyRegistry, handle, ws)
-      return
-    }
-    const sessionId = url.searchParams.get('sessionId')
-    const tabId = url.searchParams.get('tab')
-    if (sessionId === null || tabId === null) {
-      ws.close(1008, 'either ?uuid or ?sessionId+?tab are required')
-      return
-    }
-    if (ptyManager === null) {
-      // Degraded mode (issue #140): node-pty unavailable. The close reason
-      // is a SHORT marker — a WS close reason is capped at 123 bytes, so the
-      // client fetches the full repair command from /sidebar/api/terminal.deps.
-      ws.close(1011, PTY_DEPS_MISSING)
-      return
-    }
-    const cwd = sessionCwdOf(ctx, sessionId, url.searchParams.get('cwd') ?? undefined)
-    // Settings-page shell overrides win over the yaml/auto shell for
-    // terminals opened from now on (existing pty handles keep their shell).
-    const overrides = shellOverridesOf(getSettings)
-    const handle = ptyManager.open(sessionId, tabId, cwd, 80, 24, overrides.shell, overrides.shellArgs)
-    // Replay the transcript, then follow live output.
-    if (handle.transcript !== '') ws.send(handle.transcript)
-    const onData = (data: string): void => {
-      if (ws.readyState === WebSocket.OPEN && ws.bufferedAmount < 4 * 1024 * 1024) {
-        ws.send(data)
-      }
-    }
-    const onExit = ({ exitCode }: { exitCode: number; signal?: number }): void => {
-      onData(`\r\n[process exited with code ${String(exitCode)}]\r\n`)
-    }
-    const dataSub = handle.pty.onData(onData)
-    const exitSub = handle.pty.onExit(onExit)
-    ws.on('message', (data) => {
-      const text = data.toString('utf8')
-      // Control frames are JSON with a known shape; anything else (including
-      // JSON that is not a recognized control) is terminal input, verbatim.
-      let control: { type?: unknown; cols?: unknown; rows?: unknown } | null = null
-      try {
-        const parsed: unknown = JSON.parse(text)
-        if (parsed !== null && typeof parsed === 'object') {
-          control = parsed as { type?: unknown; cols?: unknown; rows?: unknown }
-        }
-      } catch {
-        // Not JSON: terminal input.
-      }
-      if (control !== null && control.type === 'close') {
-        // The owning tab was closed: release the quota immediately.
-        ptyManager.scheduleClose(handle.key, 0)
-        return
-      }
-      if (control !== null && control.type === 'park') {
-        // The user switched to another conversation: the tab is still open in
-        // its session's persisted state, but its view unmounted. Park the pty
-        // so the upcoming bare socket drop does NOT start the reconnect-grace
-        // countdown — the pty stays alive until the user switches back (a
-        // reconnecting view clears the parked state) or explicitly closes the
-        // tab (a close frame's scheduleClose clears it).
-        ptyManager.park(handle.key)
-        return
-      }
-      if (handle.exited) return
-      if (
-        control !== null
-        && control.type === 'resize'
-        && typeof control.cols === 'number' && typeof control.rows === 'number'
-      ) {
-        const dims = clampDims(control.cols, control.rows)
-        handle.pty.resize(dims.cols, dims.rows)
-      } else {
-        handle.pty.write(text)
-      }
-    })
-    ws.on('close', () => {
-      dataSub.dispose()
-      exitSub.dispose()
-      // A parked pty (the user switched conversations and sent `{type:'park'}`)
-      // stays alive indefinitely — do NOT start the grace countdown. A bare
-      // socket drop without a prior park (refresh, crash) starts the grace
-      // period so a quick reconnect keeps the process; the reconnect's open()
-      // cancels the pending close.
-      if (!ptyManager.isParked(handle.key)) {
-        ptyManager.scheduleClose(handle.key, resolved.reconnectGraceMs)
-      }
-    })
-  } catch (error) {
-    ws.close(1011, error instanceof Error ? error.message : String(error))
-  }
-}
-
-/**
- * Pump one agent terminal's pty to a connected view. The close frame kills
- * the pty immediately (the agent's terminal closes when the user closes the
- * sidebar tab); a bare socket drop leaves the pty alive — the agent owns
- * the lifetime, and only `terminal_close`, a `{type:'close'}` frame, or
- * plugin teardown kills it.
- */
-function pumpAgentTerminal(
-  registry: AgentPtyRegistry,
-  handle: AgentTerminalHandle,
-  ws: WebSocket,
-): void {
-  if (handle.transcript !== '') ws.send(handle.transcript)
-  const onData = (data: string): void => {
-    if (ws.readyState === WebSocket.OPEN && ws.bufferedAmount < 4 * 1024 * 1024) {
-      ws.send(data)
-    }
-  }
-  const onExit = ({ exitCode }: { exitCode: number; signal?: number }): void => {
-    onData(`\r\n[process exited with code ${String(exitCode)}]\r\n`)
-  }
-  const dataSub = handle.pty.onData(onData)
-  const exitSub = handle.pty.onExit(onExit)
-  ws.on('message', (data) => {
-    if (handle.exited) return
-    const text = data.toString('utf8')
-    let control: { type?: unknown; cols?: unknown; rows?: unknown } | null = null
-    try {
-      const parsed: unknown = JSON.parse(text)
-      if (parsed !== null && typeof parsed === 'object') {
-        control = parsed as { type?: unknown; cols?: unknown; rows?: unknown }
-      }
-    } catch {
-      // Not JSON: terminal input.
-    }
-    if (control !== null && control.type === 'close') {
-      // The user closed the sidebar tab: kill the pty immediately. The
-      // agent's next terminal_list / terminal_send will see it gone.
-      registry.close(handle.uuid)
-      return
-    }
-    if (
-      control !== null
-      && control.type === 'resize'
-      && typeof control.cols === 'number' && typeof control.rows === 'number'
-    ) {
-      const dims = clampDims(control.cols, control.rows)
-      handle.pty.resize(dims.cols, dims.rows)
-    } else if (control === null) {
-      // Raw text input (a JSON-looking string the pty would have received
-      // verbatim is reachable in theory but is exotic for an agent terminal;
-      // preserve the UI-tab semantics and forward as input).
-      handle.pty.write(text)
-    }
-    // An unrecognized JSON control frame is dropped (the UI-tab path also
-    // treats non-resize JSON controls as input, but for an agent terminal
-    // there is no realistic input that is also valid JSON).
   })
-  ws.on('close', () => {
-    dataSub.dispose()
-    exitSub.dispose()
-    // A bare socket drop (refresh, tab switch) leaves the agent's pty alive.
-    // The agent owns the lifetime: only `terminal_close`, a `{type:'close'}`
-    // frame, or plugin teardown kills it. A reconnecting view reattaches the
-    // same shell and gets the full transcript replayed.
+  ctx.effect(() => async () => {
+    toolsDisposers?.()
+    await terminalProvider.shutdown()
+  }, 'dsh-better-sidebar: native terminal lifetime')
+  ctx.inject(['connection'], (transport) => {
+    transport.effect(() => registerTerminalBundleRoute(transport.connection.fetch), 'dsh-better-sidebar: authenticated terminal bundle')
+  })
+  const operations = createSidebarOperations({
+    api: buildApi(ctx, ptyManager, agentPtyRegistry, resolved, terminalShell, () => settingsFace),
+    sessionCwd: (sessionId, clientCwd) => sessionCwdOf(ctx, sessionId, clientCwd),
+    mediaType: mediaTypeForPath,
+    config: resolved,
+  })
+  ctx.inject(['connection'], (transport) => {
+    transport.effect(() => registerSidebarFetch(transport.connection.fetch, operations), 'dsh-better-sidebar: authenticated Fetch routes')
+    transport.effect(() => registerSidebarBundleRoute(transport.connection.fetch), 'dsh-better-sidebar: authenticated preview chunks')
+  })
+  ctx.inject(['webServer', 'webRuntime'], (web) => {
+    const ctx = web as Context
+    const fence = (req: SidebarHttpRequest): boolean => isTrustedApiRequest(req, ctx.webRuntime.trustedHosts)
+    ctx.effect(() => registerSidebarWebAliases(ctx.webServer, fence, operations), 'dsh-better-sidebar: Web aliases')
+    ctx.effect(() => registerBundleRoute(ctx, fence), 'dsh-better-sidebar: /sidebar/bundle chunk route')
+
   })
 }

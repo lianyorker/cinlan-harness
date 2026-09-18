@@ -120,7 +120,7 @@ test.afterAll(async () => {
 test('plugin mounts into the DSH shell and survives a built-in tab sweep', async ({ page }) => {
   const pageErrors: string[] = []
   const consoleErrors: string[] = []
-  page.on('pageerror', (error) => pageErrors.push(String(error)))
+  page.on('pageerror', error => pageErrors.push(String(error)))
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text())
   })
@@ -133,7 +133,7 @@ test('plugin mounts into the DSH shell and survives a built-in tab sweep', async
   // before the tree click below — so the response wait must be armed BEFORE
   // goto, or it misses the fetch and times out.
   const editorChunk = page.waitForResponse(
-    (response) => response.url().includes('/sidebar/bundle/editor.js'),
+    response => response.url().includes('/api/sidebar.bundle?name=editor'),
     { timeout: 120_000 },
   )
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' })
@@ -208,8 +208,8 @@ test('plugin mounts into the DSH shell and survives a built-in tab sweep', async
     const stripTexts = await sidebar.locator('div').evaluateAll(
       (nodes, patterns) => nodes.filter((node) => {
         const text = (node.textContent ?? '').trim()
-        return patterns.some((pattern) => pattern.test(text))
-      }).map((node) => (node.textContent ?? '').trim()),
+        return patterns.some(pattern => pattern.test(text))
+      }).map(node => (node.textContent ?? '').trim()),
       CRASH_STRIP_PATTERNS,
     )
     expect(stripTexts, 'a dsh-better-sidebar error strip is present in the sidebar').toEqual([])
@@ -350,7 +350,7 @@ test('plugin mounts into the DSH shell and survives a built-in tab sweep', async
   // tree click above activated the hello.txt tab, so switch back to the
   // Files explorer first (its tree is the only one visible while active).
   const mermaidChunk = page.waitForResponse(
-    (response) => response.url().includes('/sidebar/bundle/mermaid.js'),
+    response => response.url().includes('/api/sidebar.bundle?name=mermaid'),
     { timeout: 30_000 },
   )
   await sidebar.locator('[title="Files"][draggable="true"]').first().click()
@@ -406,7 +406,7 @@ test('plugin mounts into the DSH shell and survives a built-in tab sweep', async
 
   // The plugin's own console prefix must never appear in errors, and no
   // unhandled rejection may escape the sweep.
-  const pluginErrors = consoleErrors.filter((text) => /dsh-better-sidebar|Unhandled/.test(text))
+  const pluginErrors = consoleErrors.filter(text => /dsh-better-sidebar|Unhandled/.test(text))
   expect(pluginErrors, 'plugin-prefixed or unhandled console errors during the sweep').toEqual([])
   expect(pageErrors, 'pageerrors during the sweep').toEqual([])
 

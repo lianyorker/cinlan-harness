@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" style="color-scheme: dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>TerminalView Chromium fixture</title>
+    <style>
+      body {
+        margin: 24px; background: #111114; color: #e6e6e6; font: 14px system-ui;
+        --dsw-alias-bg-base: #111114;
+        --dsw-alias-label-primary: #e6e6e6;
+        --dsw-alias-label-secondary: #c5c5c5;
+        --dsw-alias-bg-layer-2: #28282c;
+        --dsw-alias-border-l2: #53535a;
+        --dsw-alias-state-warn-label: #f4d68a;
+        --dsw-alias-state-warn-tertiary: #362f20;
+        --dsw-font-xxxs-11: 12px/1.5 system-ui;
+        --dsw-font-xxxs-strong-11: 600 12px/1.5 system-ui;
+        --ds-font-family-code: monospace;
+      }
+      #terminal-stage { display: flex; flex-direction: column; width: 880px; height: 420px; border: 1px solid #53535a; }
+    </style>
+  </head>
+  <body data-ds-dark-theme>
+    <h1>TerminalView · real xterm</h1>
+    <div id="terminal-stage"></div>
+    <script type="module" src="./main.client.tsx"></script>
+  </body>
+</html>

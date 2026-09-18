@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to choose the agent preset for a new Web GUI session, see the active preset in the session header, and manage available presets in Settings. A preset is fixed when a session is created, so changing the selection or default affects only later sessions. If the deployment provides no presets, these controls stay hidden and every session uses the host composition.
+Use this package to choose the agent preset for a new Web GUI session, see the active preset in the session header, and manage available presets in Settings. A preset is fixed when a session is created, so changing the selection or default affects only later sessions. If the deployment provides no presets, the session pickers stay hidden and Settings explains that sessions use the host composition.
 
 ## Table of Contents
 
@@ -29,9 +29,11 @@ Mount this plugin alongside the settings and conversation packages; the preset s
 
 ### Managing the roster
 
-The settings section shows the roster as cards: a copy dialog is the only way a preset is created — the browser edits no composition text — and every custom card keeps a location action that opens the preset's own files. The default is set from any surface; deleting removes the preset directory while sessions already composed from it keep running. A shipped preset opens in a read-only viewer and offers no location or delete. A roster row carrying `broken` renders as a marked card whose body and duplication are disabled, because a copy of a broken preset is another broken preset; broken custom rows keep their location and delete actions so the files can be fixed and ghost directories cleared. The card face still shows the preset's own description — a chooser cannot act on a package specifier there — and the host's reason rides the badge as a tooltip, plus a visually hidden alert that carries it to assistive technology, which a disabled card body cannot.
+Settings provides a default selector for future sessions and separate built-in and custom resource lists. Built-in presets open in a read-only viewer; duplication copies an existing preset with an identifier and optional display name. Custom presets keep their open-folder or reveal-path action and confirmed deletion. Broken presets cannot become the default or be copied, but custom files remain reachable for repair or deletion. The browser accepts no arbitrary composition text. Host failures remain visible, and failed copies retain their draft.
 
 System-trusted `security-research` rows use localized Security Research names and descriptions. This plugin never adds that preset to the roster; the optional bundle owns its availability. User-authored metadata remains untranslated.
+
+Settings search indexes localized labels and help for the default, built-in, and custom sections. Search never includes preset metadata, composition text, or revealed paths. Entries leave with the page registration; empty custom lists retain an anchor and creation guidance. The page uses the settings shell’s content width and responsive native rows.
 
 ### The conversational entry
 
@@ -81,7 +83,7 @@ These limits define the current preset surfaces. They are current package constr
 
 - **A preset without metadata is listed by id** — display text is optional, and a copy given no name deliberately falls back to its directory name rather than presenting itself identically to its source. The resolution itself is the shared `presetDisplayText` fold from [`dsh-agent-presets/display`](../../preset/agent-presets/README.md), which the Settings plugin list inlines over this plugin’s dictionaries to show shipped presets in the active locale without translating user-authored metadata.
 - **A revealed path is display text, not a link** — where the host has no desktop opener the row shows the directory to copy by hand; the browser cannot open a host filesystem location itself.
-- **Composition edits are invisible to the page** — the files are edited outside the browser and nothing on the wire announces a file change, so the roster re-reads on its own actions, `settings/changed`, and `connection/reset`, not on every disk edit.
+- **Composition edits are invisible to the page** — the files are edited outside the browser and nothing on the wire announces a file change, so the roster re-reads on its own actions, `settings/document-updated`, and `connection/reset`, not on every disk edit.
 
 <a id="dev-note"></a>
 ### Dev Note

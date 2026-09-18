@@ -56,12 +56,14 @@ describe('readMicrophonePermission', () => {
     await expect(readMicrophonePermission()).resolves.toBe('granted')
   })
 
-  it('uses the persisted result when Permissions reports prompt', async () => {
+  it('clears a stale grant when Permissions reports prompt', async () => {
     const stop = vi.fn()
     vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop }] })) } })
     await requestMicrophonePermission()
     vi.stubGlobal('navigator', { permissions: { query: vi.fn(async () => ({ state: 'prompt' })) } })
-    await expect(readMicrophonePermission()).resolves.toBe('granted')
+    await expect(readMicrophonePermission()).resolves.toBe('unknown')
+    vi.stubGlobal('navigator', {})
+    await expect(readMicrophonePermission()).resolves.toBe('unknown')
   })
 
   it('resolves granted/denied from a successful Permissions query', async () => {

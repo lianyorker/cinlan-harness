@@ -1,14 +1,11 @@
 /** Read-only device readiness Remote; never installs software or performs device input. */
-import { existsSync } from 'node:fs'
-import { homedir, platform } from 'node:os'
-import { join } from 'node:path'
-import { spawn } from 'node:child_process'
 import { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-computer-use'
 import type {} from '@deepseek-ai/dsh-mobile-device'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from 'zod'
-import type { DeviceCapabilityRequest, DeviceCapabilityReason, DeviceCapabilitySnapshot, MobileSdkSnapshot, MobileDeviceListSnapshot, MobileDeviceSummary } from './types.ts'
+import { SdkProbeConfig, SdkProbes } from './sdk-probes.ts'
+import type { Config, DeviceCapabilityRequest, DeviceCapabilityReason, DeviceCapabilitySnapshot, MobileSdkSnapshot, MobileDeviceListSnapshot, MobileDeviceSummary } from './types.ts'
 
 export type * from './types.ts'
 
@@ -22,10 +19,17 @@ declare module '@deepseek-ai/cordis' {
 /** Probe the selected Provider without exposing desktop content or device identities. */
 export class DeviceCapabilitiesController extends TypertRemoteService {
   static inject = ['typert']
+  static Config = SdkProbeConfig
 
-  /** @param ctx - Host context with optional Computer Use and Mobile Device services. */
-  constructor(ctx: Context) {
+  private readonly sdk: SdkProbes
+
+  /**
+   * @param ctx - Host context with optional device and subprocess services.
+   * @param config - Bounds for read-only SDK executable checks.
+   */
+  constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'deviceCapabilitiesController', { namespace: 'deviceCapabilities' })
+    this.sdk = new SdkProbes(ctx, config)
   }
 
   /**
@@ -42,7 +46,13 @@ export class DeviceCapabilitiesController extends TypertRemoteService {
       if (capability === 'computer') {
         const service = this.ctx.get('computerUse')
         if (service === undefined) return { capability, status: 'not-configured', reason: 'not-configured' }
-        await service.capabilities(signal)
+        const descriptor = await service.capabilities(signal)
+        signal.throwIfAborted()
+        return { capability, status: 'available', reason: null, computer: {
+          platform: descriptor.platform, provider: descriptor.provider,
+          providerVersion: descriptor.providerVersion, protocolVersion: descriptor.protocolVersion,
+          supports: descriptor.supports, permissions: 'unknown',
+        } }
       } else {
         const service = this.ctx.get('mobileDevice')
         if (service === undefined) return { capability, status: 'not-configured', reason: 'not-configured' }
@@ -65,13 +75,7 @@ export class DeviceCapabilitiesController extends TypertRemoteService {
    */
   @Remote('checkSdk')
   async checkSdk(signal: AbortSignal): Promise<MobileSdkSnapshot> {
-    signal.throwIfAborted()
-    const osPlatform = platform()
-    return {
-      platform: osPlatform,
-      android: detectAndroidSdk(),
-      ios: osPlatform === 'darwin' ? detectIosSimulator(signal) : null,
-    }
+    return await this.sdk.check(signal)
   }
 
   /**
@@ -110,32 +114,5 @@ function failureReason(error: unknown): DeviceCapabilityReason {
   return 'probe-failed'
 }
 
-function detectAndroidSdk(): { found: boolean; sdkPath: string | null; message: string } {
-  const envPath = process.env.ANDROID_HOME ?? process.env.ANDROID_SDK_ROOT
-  if (envPath !== undefined && envPath.length > 0 && existsSync(envPath)) {
-    return { found: true, sdkPath: envPath, message: 'Found via ANDROID_HOME' }
-  }
-  const home = homedir()
-  const candidates = [
-    join(home, 'Library', 'Android', 'sdk'),
-    join(home, 'AppData', 'Local', 'Android', 'Sdk'),
-    join(home, '.android', 'sdk'),
-  ]
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return { found: true, sdkPath: candidate, message: 'Found in default location' }
-  }
-  return { found: false, sdkPath: null, message: 'Not found. Install Android Studio, then create a Virtual Device.' }
-}
-
-function detectIosSimulator(signal: AbortSignal): { simctlOk: boolean; message: string } {
-  try {
-    const result = spawn('xcrun', ['simctl', 'help'], { stdio: 'ignore', signal })
-    result.kill()
-    return { simctlOk: true, message: 'simctl available' }
-  } catch {
-    if (signal.aborted) return { simctlOk: false, message: 'Cancelled' }
-    return { simctlOk: false, message: 'Install Xcode and add an iOS Simulator runtime.' }
-  }
-}
 
 export default DeviceCapabilitiesController

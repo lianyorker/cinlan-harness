@@ -1,0 +1,80 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`real Loader automation runtime > creates disabled, composes authority before publication, logs its own turn, and reopens exact durable results 1`] = `
+[
+  {
+    "data": {
+      "preset": "unattended",
+    },
+    "type": "permission/preset",
+  },
+  {
+    "data": {
+      "mode": "workspace-write",
+    },
+    "type": "sandbox/mode",
+  },
+  {
+    "data": {
+      "policy": "never",
+    },
+    "type": "approval/policy",
+  },
+  {
+    "data": {
+      "turn": 1,
+    },
+    "type": "turn/start",
+  },
+  {
+    "data": {
+      "content": [
+        {
+          "text": "Summarize the local workspace without changes.",
+          "type": "text",
+        },
+      ],
+      "source": {
+        "form": "notice",
+        "kind": "plugin",
+        "plugin": "automation",
+        "summary": "Scheduled report",
+      },
+    },
+    "type": "user/message",
+  },
+  {
+    "data": {
+      "content": [
+        {
+          "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+
+Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set \`sandbox_permissions\`).",
+          "type": "text",
+        },
+      ],
+      "source": {
+        "form": "snapshot",
+        "kind": "plugin",
+        "plugin": "@deepseek-ai/dsh-system-prompt",
+        "sections": [
+          {
+            "name": "approval:policy",
+            "text": "Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set \`sandbox_permissions\`).",
+          },
+        ],
+      },
+    },
+    "type": "user/message",
+  },
+  {
+    "data": {
+      "reason": {
+        "kind": "completed",
+      },
+      "turn": 1,
+    },
+    "type": "turn/end",
+  },
+]
+`;

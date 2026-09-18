@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package exposes Worktree Task lifecycle operations through a typed Host Remote namespace. Local Web clients can create, list, activate, hibernate, archive, and delete tasks using opaque task ids and structured requests. The controller keeps Git and filesystem policy in ctx.worktreeTask and reports provider errors without accepting browser paths or commands.
+Create and manage Worktree Tasks through the typed `worktreeTasks` Remote namespace. Read and save defaults, review task changes, and request activation, hibernation, archiving, or safe deletion. Creation accepts a source repository and defaults accept structured program/argument configuration; lifecycle calls address provider-issued task ids. The provider owns filesystem policy and execution.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ This package exposes Worktree Task lifecycle operations through a typed Host Rem
 
 <a id="use-this-package"></a>
 ## Use this package
-Mount the controller with the Typert Gateway and a ctx.worktreeTask provider. Mount dsh-api-remotes for the browser namespace. The controller preserves cancellation and maps provider failures to stable Remote error codes.
+Mount the controller with the Typert Gateway and a `ctx.worktreeTask` provider, then mount `dsh-api-remotes` for the browser namespace. The generated Remote exposes `settings`, `updateSettings`, `review`, and lifecycle methods. Saving defaults requires the current revision; review is read-only and bounded; cleanup receipts distinguish unsettled execution, success, and failure. The controller forwards cancellation to the provider and maps provider failures to stable Remote error codes.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -32,7 +32,7 @@ None; task administration does not alter model requests.
 ## Known Limitations and Deferred Work
 <a id="known-limitations-and-deferred-work"></a>
 
-- Task creation and checkout limits remain provider configuration choices.
+- The managed root and active-checkout quota belong to provider deployment configuration; Remote defaults cannot change them.
 - The Remote does not stream Git subprocess output; callers receive operation results or typed errors.
 
 No runtime invariant companion is published because the controller is a stateless Remote projection over the Worktree Task service.
@@ -40,4 +40,4 @@ No runtime invariant companion is published because the controller is a stateles
 <a id="dev-note"></a>
 ### Dev Note
 
-Typert generates the Host and Remote declarations; edit src/index.ts and src/types.ts rather than generated files.
+Typert generates the Host and Remote declarations; edit `src/index.ts` and `src/types.ts` rather than generated files. Current acceptance evidence and remaining verification are tracked in the [acceptance status](../../../.agents/plans/settings-native-acceptance-status.md).

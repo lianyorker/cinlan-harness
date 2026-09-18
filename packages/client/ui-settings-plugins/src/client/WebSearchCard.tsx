@@ -27,6 +27,8 @@ export function WebSearchCard(props: WebSearchCardProps) {
   const disabled = !state.writable
   return (
     <PluginCard
+      anchorId="plugins-web-search"
+      {...props.target === undefined ? {} : { target: props.target }}
       t={t}
       titleKey="webSearchTitle"
       descriptionKey="webSearchDescription"

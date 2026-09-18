@@ -24,7 +24,7 @@ This bundle composes the persistent Browser service, Harness-owned Playwright pr
 
 The bundle's default policy is least-privilege for an approval-capable profile: observation, navigation, and interaction are all `ask`. A later profile patch may replace the complete `browser-permission-policy` row config with deployment-specific decisions. Browser executable, channel, and storage overrides belong on the browser-playwright row; a patch replaces that row's complete config, after which omitted fields use the provider package defaults.
 
-This bundle also mounts the [Browser Remote](../../api/browser-controller/README.md) for authenticated human settings actions. The native browser profile combines base, web-app, and this bundle; generic web does not enable it. Model approval policy covers the additional navigation, inspection, and transfer tools; human Remote commands do not execute as model tool calls.
+This bundle also mounts the [Browser Remote](../../api/browser-controller/README.md) for authenticated human settings actions and the [Element capture page](../../client/ui-browser-element-capture/README.md) for selecting, previewing, and attaching images to Session drafts in Web Settings. The native browser profile combines base, web-app, and this bundle; generic web does not enable it. Model approval policy covers the additional navigation, inspection, and transfer tools; human Remote commands do not execute as model tool calls.
 
 ## Model Experience
 

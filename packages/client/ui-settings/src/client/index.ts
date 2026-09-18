@@ -6,7 +6,8 @@
  * (`settings/document-updated`, `connection/reset`) live here so every derived
  * surface refreshes from a single wire read. It depends on no `ui-*`
  * presentation package, so any feature that owns a preference can reach it:
- * the settings SHELL — the `sidebar.settings` occupant, its navigation, and
+ * `ctx.settingsMetadata` publishes public navigation and search copy.
+ * The settings shell — the `sidebar.settings` occupant, its navigation, and
  * the chrome — lives in ui-settings-general, because a shell dependency on
  * ui-sidebar would close a reference cycle through ui-layout and ui-theme.
  * Export discipline: packages/client/AGENTS.md.
@@ -23,11 +24,16 @@ import type {} from '@deepseek-ai/dsh-settings/types'
 import { SettingsSchemaService } from './schema.ts'
 import { SettingsScopeBinder } from './settings-scope.ts'
 import { SettingsDescribeMirror } from './settings-mirror.ts'
+import { SettingsMetadataService } from './settings-metadata.ts'
 
 export type {
   SettingsGeneralItemOwnerProps, SettingsHeaderOwnerProps, SettingsOnboardingOwnerProps,
-  SettingsPluginsTabOwnerProps, SettingsSectionOwnerProps, SettingsTriggerOwnerProps,
+  SettingsNavigationTarget, SettingsPluginsTabOwnerProps, SettingsSectionOwnerProps, SettingsTriggerOwnerProps,
 } from './contract/slots.ts'
+export type {
+  SettingsGroupId, SettingsSectionMetadata, SettingsItemMetadata, SettingsResolvedItemMetadata,
+  SettingsMetadataSnapshot, SettingsMetadataService,
+} from './settings-metadata.ts'
 export type { SettingsScopeController, SettingsScopeBinder } from './settings-scope.ts'
 export type { SettingsScope, SettingsScopeSnapshot, SettingsScopeSpec } from './settings-contract.ts'
 export type { SettingsSchemaService } from './schema.ts'
@@ -52,6 +58,7 @@ export const inject = ['remote', 'remote.settings']
  * @param ctx - client root context.
  */
 export function apply(ctx: Context): void {
+  new SettingsMetadataService(ctx)
   const schema = new SettingsSchemaService(ctx)
   // Resolved once here, where `remote` is declared in this plugin's own
   // `inject`; the binder hands the same answer to every scope it binds.

@@ -7,7 +7,6 @@
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../../util/brand" },
-    { "path": "../../llm/llm" },
-    { "path": "../../runtime-diagnostics/invariants" }
+    { "path": "../../llm/llm" }
   ]
 }

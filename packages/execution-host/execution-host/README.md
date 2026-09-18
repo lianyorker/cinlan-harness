@@ -40,4 +40,4 @@ No runtime invariant companion is published because this package defines an abst
 <a id="dev-note"></a>
 ### Dev Note
 
-ExecutionHostId is opaque and must remain branded at service and wire boundaries.
+ExecutionHostId is opaque and must remain branded at service and wire boundaries. The `./types` entry exposes process-provenance DTOs to Client programs without importing the Host service; the root entry also exports those types.

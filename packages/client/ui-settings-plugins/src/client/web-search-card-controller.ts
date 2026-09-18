@@ -164,14 +164,12 @@ export class WebSearchCardController {
   /**
    * Write the staged key, then re-read whether the Host now holds one.
    * @param value - the staged credential literal.
-   * @returns whether the Host reports a configured credential afterwards.
+   * @returns whether the Host accepted the write and reports a configured credential afterwards.
    */
   private async writeKey(value: string): Promise<boolean> {
-    // Refusals surface through the re-read below: the Host is the only
-    // authority on whether the key now exists.
-    await this.ctx.remote.credentials.set(refOf(this.scope.getSnapshot()), value)
+    const response = await this.ctx.remote.credentials.set(refOf(this.scope.getSnapshot()), value)
     await this.readCredential()
-    return this.credential.configured
+    return response.ok && this.credential.configured
   }
 }
 

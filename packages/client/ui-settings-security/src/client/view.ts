@@ -20,7 +20,11 @@ function componentStatus(entries: readonly InventoryEntry[]): Exclude<Capability
   return 'loading'
 }
 
-/** Group matching Host inventory entries by exact module specifier. */
+/** Group matching Host inventory entries by exact module specifier.
+ * @param entries - current Host inventory, including disabled declarations.
+ * @param matcher - module specifiers belonging to this capability.
+ * @returns enabled components with status derived from their live entries.
+ */
 export function capabilityComponents(
   entries: readonly InventoryEntry[],
   matcher: RegExp,
@@ -39,7 +43,10 @@ export function capabilityComponents(
   }))
 }
 
-/** Derive one page-level status, giving failures precedence. */
+/** Derive one page-level status, giving failures precedence.
+ * @param components - enabled components of the capability.
+ * @returns the combined availability state, with missing for an empty list.
+ */
 export function capabilityStatus(components: readonly CapabilityComponent[]): CapabilityStatus {
   if (components.length === 0) return 'missing'
   if (components.some(component => component.status === 'attention')) return 'attention'

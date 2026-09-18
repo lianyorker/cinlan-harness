@@ -10,7 +10,7 @@ export interface StubSettingsScope<T> {
   scope: SettingsScope<T>
   /** Spy behind `scope.set`; resolves immediately. */
   set: ReturnType<typeof vi.fn>
-  /** Spy behind `scope.mutate`; resolves immediately. */
+  /** Spy behind `scope.mutate`; resolves accepted unless the test overrides it. */
   mutate: ReturnType<typeof vi.fn>
   /** Spy behind `scope.unset`; resolves immediately. */
   unset: ReturnType<typeof vi.fn>
@@ -36,7 +36,7 @@ export function stubSettingsScope<T>(): StubSettingsScope<T> {
   }
   const listeners = new Set<() => void>()
   const set = vi.fn(() => Promise.resolve())
-  const mutate = vi.fn(() => Promise.resolve())
+  const mutate = vi.fn(() => Promise.resolve(true))
   const unset = vi.fn(() => Promise.resolve())
   return {
     scope: {

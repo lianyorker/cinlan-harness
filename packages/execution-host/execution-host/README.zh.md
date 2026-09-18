@@ -40,4 +40,4 @@ kind: "package-reference"
 <a id="dev-note"></a>
 ### 开发备注
 
-ExecutionHostId 是不透明类型，必须在服务和 wire 边界保持品牌。
+ExecutionHostId 是不透明类型，必须在服务和 wire 边界保持品牌。`./types` 入口向 Client 程序提供进程来源 DTO，无需导入 Host 服务；根入口也导出这些类型。

@@ -1,190 +1,160 @@
 // @vitest-environment jsdom
-import { Context } from '@deepseek-ai/cordis'
-import { IconBranchOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
-import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 import { describe, expect, it, vi } from 'vitest'
-import { apply, inject } from '../src/client/index.ts'
+import { inject } from '../src/client/index.ts'
 import { apply as hostApply } from '../src/index.ts'
-import { OrchestrationSection, type OrchestrationSectionInjected } from '../src/client/OrchestrationSection.tsx'
 import { detectOrchestrationCoverage, coverageSummary } from '../src/client/view.ts'
 import { en, zh } from '../src/client/locales.ts'
-import type { AgentPresetRow, AgentPresetDocument } from '@deepseek-ai/dsh-agent-presets/types'
+import { bench, declare } from './fixture.client.ts'
 
-function presetRow(id: string, broken?: string): AgentPresetRow {
-  return { id, trust: 'system', isDefault: false, ...broken !== undefined ? { broken } : {} }
+type Preset = NonNullable<PluginInventorySnapshot['agentPresets']>[number]
+function preset(id: string, rows: Preset['rows'], broken?: string): Preset {
+  return { id, trust: 'system', isDefault: false, rows, ...broken === undefined ? {} : { broken } }
+}
+function workflow(enabled: boolean | 'conditional', fiberPhase: Preset['rows'][number]['fiberPhase'] = null): Preset['rows'][number] {
+  return { entryId: null, moduleName: '@deepseek-ai/dsh-tool-workflow', enabled, fiberPhase }
 }
 
-function presetDoc(id: string, content: string): AgentPresetDocument {
-  return { agentPreset: id, trust: 'system', content }
-}
-
-async function bench(presets: readonly AgentPresetRow[] = [], docs: Record<string, string> = {}) {
-  const ctx = new Context()
-  const locale = new LocaleRuntime(ctx)
-  locale.setLocale('zh')
-  ctx.provide('locale', locale)
-  const agentPresets = {
-    list: vi.fn(async () => ({ ok: true as const, value: { presets, authorable: true } })),
-    read: vi.fn(async (id: string) => {
-      if (id in docs) return { ok: true as const, value: presetDoc(id, docs[id]!) }
-      return { ok: false as const, error: { code: 'agent-preset/not-found', message: `preset "${id}" not found`, details: { agentPreset: id, available: [] } } }
-    }),
-  }
-  ctx.provide('remote', { agentPresets, $host: { home: undefined, isLoopback: true }, $on: () => () => {} } as never)
-  ctx.provide('remote.agentPresets', agentPresets as never)
-  await ctx.plugin(SlotRegistry).await()
-  return { ctx, locale, slots: ctx.slots, agentPresets }
-}
-
-function declare(slots: SlotRegistry): () => void {
-  return slots.register({
-    name: 'root',
-    children: {
-      'settings.section': { kind: 'list', scope: 'root' },
-      'settings.section.icon': { kind: 'keyed', scope: 'root' },
-    },
-  } as never, () => null)
-}
-
-describe('ui-orchestration registration', () => {
-  it('declares the Remote namespaces it reads', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.agentPresets'])
+describe('orchestration registration and operations', () => {
+  it('declares the services it reads and keeps the Host entry inert', () => {
+    expect(inject).toEqual(['settingsMetadata', 'settingsScope', 'slots', 'locale', 'remote', 'remote.pluginInventory'])
+    expect(hostApply).not.toThrow()
   })
 
-  it('registers one localized section and icon, without eager reads', async () => {
-    const b = await bench()
-    declare(b.slots)
-    const fiber = b.ctx.plugin({ inject: [...inject], apply })
-    await fiber.await()
-
-    await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toHaveLength(1) })
-    const section = b.slots.entries('settings.section')[0]!
-    expect(section.component).toBe(OrchestrationSection)
-    expect(section.options).toMatchObject({ id: 'orchestration', order: 30 })
-    expect(section.locale).toBe('settings.orchestration')
-    expect(resolveSlotLabel(section.options.label)).toBe(zh.nav)
-
-    b.locale.setLocale('en')
+  it('registers localized, value-free search entries with page and icon lifetimes', async () => {
+    const b = await bench(false)
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
+    const release = declare(b.ctx.slots)
+    await vi.waitFor(() => { expect(b.ctx.slots.entries('settings.section')).toHaveLength(1) })
+    const section = b.ctx.slots.entries('settings.section')[0]!
     expect(resolveSlotLabel(section.options.label)).toBe(en.nav)
-
-    expect(b.agentPresets.list).not.toHaveBeenCalled()
-    expect(b.agentPresets.read).not.toHaveBeenCalled()
-
-    const icons = b.slots.entries('settings.section.icon')
-    expect(icons).toHaveLength(1)
-    expect(icons[0]!.options.key).toBe('orchestration')
-    expect(icons[0]!.component).toBe(IconBranchOutline16)
-
-    hostApply()
-    await fiber.dispose()
-    expect(b.slots.entries('settings.section')).toEqual([])
-    expect(b.slots.entries('settings.section.icon')).toEqual([])
-    await b.ctx.fiber.dispose()
-  })
-
-  it('waits for the settings declaration and follows its lifetime', async () => {
-    const b = await bench()
-    const fiber = b.ctx.plugin({ inject: [...inject], apply })
-    await fiber.await()
-    expect(b.slots.entries('settings.section')).toEqual([])
-
-    const release = declare(b.slots)
-    await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toHaveLength(1) })
+    expect(b.ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual([
+      'orchestration-parallelism', 'orchestration-workflow-limits', 'orchestration-coverage', 'orchestration-examples',
+    ])
+    b.locale.setLocale('zh')
+    expect(resolveSlotLabel(section.options.label)).toBe(zh.nav)
+    expect(b.ctx.settingsMetadata.getSnapshot().items[0]?.title).toBe(zh.parallelismLabel)
+    expect(b.pluginInventory.list).not.toHaveBeenCalled()
+    expect(b.ctx.slots.entries('settings.section.icon')).toHaveLength(1)
     release()
-    await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toEqual([]) })
-    await fiber.dispose()
-    await b.ctx.fiber.dispose()
+    await vi.waitFor(() => { expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([]) })
+    declare(b.ctx.slots)
+    await vi.waitFor(() => { expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(4) })
+    await b.fiber.dispose()
+    expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+    expect(b.ctx.slots.entries('settings.section.icon')).toEqual([])
+  })
+
+  it('persists the Host cap with its revision, restores inheritance, and reloads on reconnect', async () => {
+    const b = await bench()
+    const face = b.face()
+    await vi.waitFor(() => { expect(face.hooks.parallelism.getSnapshot().status).toBe('ready') })
+    expect(await face.saveParallelism(2)).toBe(true)
+    expect(b.settings.mutate).toHaveBeenLastCalledWith('agent-loop', [{ op: 'set', path: ['maxParallelToolCalls'], value: 2 }], 1)
+    expect(face.hooks.parallelism.getSnapshot().value?.maxParallelToolCalls).toBe(2)
+    expect(await face.saveParallelism(null)).toBe(true)
+    expect(b.settings.mutate).toHaveBeenLastCalledWith('agent-loop', [{ op: 'unset', path: ['maxParallelToolCalls'] }], 2)
+    expect(face.hooks.parallelism.getSnapshot().value?.maxParallelToolCalls).toBe(4)
+    b.host.value = 7
+    b.host.revision += 1
+    b.ctx.emit('connection/reset')
+    await vi.waitFor(() => { expect(face.hooks.parallelism.getSnapshot().value?.maxParallelToolCalls).toBe(7) })
+  })
+
+  it('reports rejected writes and refuses unavailable or read-only settings', async () => {
+    const b = await bench()
+    const face = b.face()
+    await vi.waitFor(() => { expect(face.hooks.parallelism.getSnapshot().status).toBe('ready') })
+    b.host.reject = true
+    expect(await face.saveParallelism(9)).toBe(false)
+    expect(face.hooks.parallelism.getSnapshot().value?.maxParallelToolCalls).toBe(4)
+    b.host.writable = false
+    b.ctx.emit('connection/reset')
+    await vi.waitFor(() => { expect(face.hooks.parallelism.getSnapshot().writable).toBe(false) })
+    expect(await face.saveParallelism(3)).toBe(false)
+    b.host.available = false
+    b.ctx.emit('connection/reset')
+    await vi.waitFor(() => { expect(face.hooks.parallelism.getSnapshot().status).toBe('unavailable') })
+    expect(await face.saveParallelism(3)).toBe(false)
+    expect(b.settings.mutate).toHaveBeenCalledTimes(1)
+  })
+
+  it('reloads a conflicting revision and waits for an explicit retry', async () => {
+    const b = await bench()
+    const face = b.face()
+    await vi.waitFor(() => { expect(face.hooks.parallelism.getSnapshot().status).toBe('ready') })
+    b.host.revision += 1
+    b.host.value = 3
+    expect(await face.saveParallelism(8)).toBe(false)
+    expect(face.hooks.parallelism.getSnapshot().value?.maxParallelToolCalls).toBe(3)
+    expect(b.settings.mutate).toHaveBeenCalledTimes(1)
+    expect(await face.saveParallelism(8)).toBe(true)
+    expect(b.settings.mutate).toHaveBeenLastCalledWith('agent-loop', [{ op: 'set', path: ['maxParallelToolCalls'], value: 8 }], 2)
+  })
+
+  it('does not report success when rejected recovery matches the requested cap or reset', async () => {
+    const b = await bench()
+    const face = b.face()
+    await vi.waitFor(() => { expect(face.hooks.parallelism.getSnapshot().status).toBe('ready') })
+    b.host.overridden = true
+    b.host.value = 8
+    b.host.revision += 1
+    expect(await face.saveParallelism(8)).toBe(false)
+    expect(face.hooks.parallelism.getSnapshot().value?.maxParallelToolCalls).toBe(8)
+    b.host.overridden = false
+    b.host.value = 4
+    b.host.revision += 1
+    expect(await face.saveParallelism(null)).toBe(false)
+    expect(face.hooks.parallelism.getSnapshot().user).toEqual({})
+  })
+
+  it('accepts an idempotent mutation when the Host leaves its revision unchanged', async () => {
+    const b = await bench()
+    const face = b.face()
+    await vi.waitFor(() => { expect(face.hooks.parallelism.getSnapshot().status).toBe('ready') })
+    b.settings.mutate.mockResolvedValueOnce({ ok: true, value: {
+      ...((await b.settings.describe()).value.namespaces[0]!), user: { maxParallelToolCalls: 4 },
+    } })
+    expect(await face.saveParallelism(4)).toBe(true)
+  })
+
+  it('loads only the structured inventory operation', async () => {
+    const b = await bench()
+    expect(await b.face().loadInventory()).toEqual(b.host.inventory)
+    expect(b.pluginInventory.list).toHaveBeenCalledOnce()
+    b.pluginInventory.list.mockResolvedValueOnce({ ok: false, error: { message: 'host offline' } } as never)
+    await expect(b.face().loadInventory()).rejects.toThrow('host offline')
   })
 })
 
-describe('detectOrchestrationCoverage', () => {
-  it('marks presets whose composition includes tool-workflow as ready', async () => {
-    const presets = [presetRow('alpha'), presetRow('beta')]
-    const docs: Record<string, string> = {
-      alpha: 'plugins:\n  - tool-workflow\n  - tool-read',
-      beta: 'plugins:\n  - tool-read',
-    }
-    const list = async () => presets
-    const read = async (id: string) => presetDoc(id, docs[id]!)
-    const coverage = await detectOrchestrationCoverage(list, read)
-    expect(coverage.presets).toHaveLength(2)
-    expect(coverage.presets[0]!.status).toBe('ready')
-    expect(coverage.presets[1]!.status).toBe('missing')
-  })
-
-  it('marks broken presets as broken without reading their composition', async () => {
-    const presets = [presetRow('broken-preset', 'composition error')]
-    const read = vi.fn(async (id: string) => presetDoc(id, ''))
-    const list = async () => presets
-    const coverage = await detectOrchestrationCoverage(list, read)
-    expect(coverage.presets[0]!.status).toBe('broken')
-    expect(read).not.toHaveBeenCalled()
-  })
-
-  it('returns an empty result when no presets exist', async () => {
-    const list = async () => []
-    const read = vi.fn(async (id: string) => presetDoc(id, ''))
-    const coverage = await detectOrchestrationCoverage(list, read)
-    expect(coverage.presets).toEqual([])
-    expect(read).not.toHaveBeenCalled()
-  })
-})
-
-describe('coverageSummary', () => {
-  it('counts presets by status', () => {
-    const coverage = {
-      presets: [
-        { preset: presetRow('a'), status: 'ready' as const },
-        { preset: presetRow('b'), status: 'ready' as const },
-        { preset: presetRow('c'), status: 'missing' as const },
-        { preset: presetRow('d', 'err'), status: 'broken' as const },
+describe('evaluated capability coverage', () => {
+  it('distinguishes enablement and lifecycle state, matching exact modules', async () => {
+    const coverage = await detectOrchestrationCoverage(async () => ({
+      entries: [{ entryId: 'engine' as never, moduleName: '@deepseek-ai/dsh-workflow-worker-thread', enabled: true, fiberPhase: 'active' }],
+      agentPresets: [
+        preset('active', [workflow(true, 'active'), { ...workflow(true), moduleName: '@deepseek-ai/dsh-tool-subagent' }]),
+        preset('configured', [workflow(true), { ...workflow(true), moduleName: '@deepseek-ai/dsh-workflow-worker-thread' }]),
+        preset('disabled', [workflow(false)]),
+        preset('conditional', [workflow('conditional')]),
+        preset('pending', [workflow(true, 'pending')]),
+        preset('failed', [workflow(true, 'failed')]),
+        preset('lookalike', [{ ...workflow(true), moduleName: '@example/tool-workflow-not-real' }]),
+        preset('broken', [], 'invalid composition'),
+        preset('mixed', [workflow(false), workflow(true, 'active')]),
       ],
-    }
-    const summary = coverageSummary(coverage)
-    expect(summary).toEqual({ ready: 2, missing: 1, broken: 1, total: 4 })
-  })
-})
-
-describe('OrchestrationSection injected face', () => {
-  it('reads the roster and documents through the remote agentPresets namespace', async () => {
-    const b = await bench(
-      [presetRow('alpha'), presetRow('beta')],
-      { alpha: 'tool-workflow', beta: 'tool-read' },
-    )
-    declare(b.slots)
-    await b.ctx.plugin({ inject: [...inject], apply }).await()
-    const section = b.slots.entries('settings.section')[0]!
-    const injected = (section.inject as unknown as () => OrchestrationSectionInjected)()
-
-    const presets = await injected.list()
-    expect(presets).toHaveLength(2)
-    expect(b.agentPresets.list).toHaveBeenCalledOnce()
-
-    const doc = await injected.read('alpha')
-    expect(doc.content).toBe('tool-workflow')
-    expect(b.agentPresets.read).toHaveBeenCalledWith('alpha')
-    await b.ctx.fiber.dispose()
+    }))
+    expect(coverage.engine).toBe('active')
+    expect(coverage.presets.map(row => row.status)).toEqual([
+      'active', 'configured', 'disabled', 'conditional', 'pending', 'failed', 'missing', 'broken', 'active',
+    ])
+    expect(coverage.presets[0]?.subagent).toBe('configured')
+    expect(coverage.presets[0]?.engine).toBe('missing')
+    expect(coverage.presets[1]?.engine).toBe('configured')
+    expect(coverageSummary(coverage)).toEqual({ ready: 3, missing: 4, broken: 2, total: 9 })
   })
 
-  it('surfaces a Remote failure message from the list callback', async () => {
-    const ctx = new Context()
-    const locale = new LocaleRuntime(ctx)
-    locale.setLocale('zh')
-    ctx.provide('locale', locale)
-    const agentPresets = {
-      list: vi.fn(async () => ({ ok: false as const, error: { code: 'gateway/internal', message: 'presets offline', details: {} } })),
-      read: vi.fn(async () => ({ ok: true as const, value: presetDoc('x', '') })),
-    }
-    ctx.provide('remote', { agentPresets, $host: { home: undefined, isLoopback: true }, $on: () => () => {} } as never)
-    ctx.provide('remote.agentPresets', agentPresets as never)
-    await ctx.plugin(SlotRegistry).await()
-    declare(ctx.slots)
-    await ctx.plugin({ inject: [...inject], apply }).await()
-    const section = ctx.slots.entries('settings.section')[0]!
-    const injected = (section.inject as unknown as () => OrchestrationSectionInjected)()
-    await expect(injected.list()).rejects.toThrow('presets offline')
-    await ctx.fiber.dispose()
+  it('discloses absent roster and engine without guessing defaults', async () => {
+    expect(await detectOrchestrationCoverage(async () => ({ entries: [] }))).toEqual({ engine: 'missing', presets: [] })
   })
 })

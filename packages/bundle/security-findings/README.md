@@ -42,4 +42,3 @@ No runtime invariant companion is published because this bundle composes indepen
 ### Dev Note
 
 Keep the Loader patch as an insert list and update tool-catalog output when finding schemas change.
-

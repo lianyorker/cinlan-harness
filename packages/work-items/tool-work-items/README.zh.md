@@ -103,9 +103,9 @@ Tool result 追加在可复用 request prefix 之后，不改变已缓存的 pro
 - Consumer 不提供 repository/team discovery、批量 mutation、删除、任意 Provider endpoint、调用方自选 header、credential value 或调用方编写的 GraphQL text。
 - Provider-specific state name、assignment 规则、pagination 行为和 availability 仍由选定的 Work Items Provider 所有。
 
-<a id="开发备注"></a>
+<a id="dev-note"></a>
 ### 开发备注
 
 Consumer 只投影 model contract。Provider credential、transport、response normalization、durable ledger 语义以及 Host/UI presentation 保留在各自所属 package。
 
-No runtime invariant companion is published because ToolRuntime 拥有日志 call/result 关系，WorkItemsRuntime 拥有 Provider registration 与 durable write state；本包不保留第二份 authority。
+不发布运行时 invariant companion，因为 ToolRuntime 拥有日志 call/result 关系，WorkItemsRuntime 拥有 Provider registration 与 durable write state；本包不保留第二份 authority。

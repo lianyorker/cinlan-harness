@@ -1,5 +1,5 @@
 ---
-description: "Web GUI 的模型选择：/model 弹窗与 composer 模型位共用一份按提供方分组的会话级目录；供模型路由的用户与维护者阅读。"
+description: "Web GUI 的会话模型选择与新会话默认值，共用一份按提供方分组的目录；供模型路由的用户与维护者阅读。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有会话使用的模型与推理强度。两个界面呈现同一组按提供方分组的选择；所选模型决定可用的推理强度名称与默认值。完整选择从下一次请求开始生效；运行中的步骤保留其启动时的模型与推理强度。如果没有适配器可以服务会话路由，composer 会保持停用，直至路由恢复可用。
+Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有会话使用的模型与推理强度。两个界面呈现同一组按提供方分组的选择；所选模型决定可用的推理强度名称与默认值。完整选择从下一次请求开始生效；运行中的步骤保留其启动时的模型与推理强度。如果没有适配器可以服务会话路由，composer 会保持停用，直至路由恢复可用。本插件还向模型设置页贡献新会话默认值。
 
 ## 目录
 
@@ -31,6 +31,13 @@ Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有�
 
 模型按提供方分组。菜单只显示模型与推理强度名称；目录中的说明仍可供其他消费方使用。`/model` 弹窗应用所选模型的默认推理强度；composer 随后可以选择任一已公布的推理强度。适配器没有推理元数据时不显示 Effort 行；不存在任意推理强度输入。
 
+<a id="new-session-defaults"></a>
+### 新会话默认值
+
+设置 → 模型在设置服务存在时提供默认模型与推理等级。选择会自动保存到 `agent-default-model` 命名空间，供后续会话使用。更改模型会同时写入提供方与模型，并清除前一路由的推理等级覆盖；恢复继承值会取消三个字段的覆盖，包括与继承值相同的覆盖。此处的更改不会覆盖已有会话的模型选择。在会话内切换模型也会保存后续会话的默认值。
+
+设置不可用或只读时，控件会停用。推理等级仅提供所选路由公布的选项。写入被拒时不会显示已保存；冲突会显示恢复后的 Host 值，重试保存会使用这些值的 revision 重新提交原先的选择。
+
 ### 不可路由的会话
 
 当宿主报告没有适配器服务该会话的路由时，本插件注册一个 composer 阻塞块，输入随本插件自己的文案停用；恢复后无需重新加载即清除。首次加载之前或加载失败之后的 `null` 绝不阻断；目录成员关系同样不阻断——一条仍在服务、只是不公布该模型的路由不在分组里，却可用。
@@ -43,7 +50,9 @@ Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有�
 <details>
 <summary>实现细节——点击展开</summary>
 
-两个入口共用一份由 `ModelDirectoryResolver`（`ctx.modelDirectories`）持有的会话级目录：`/model` popupSelect 贡献项（经 `ctx.commandUi` 注册）与 composer 的具名 `conversation.input.model` 位都经 `session.models` 加载会话的建议目录、经 `session.selectModel` 通过同一个 `ModelDirectory` 实例提交，因此任一人口所做的切换正是另一个入口接下来显示的。目录加载与选择共享一个代次计数器，旧响应不会覆盖新结果；连接重置丢弃所有常驻投影，并在显示前重新拉取宿主恢复的选择。目录按会话惰性解析，随会话作用域一并释放；已寻址 subagent 会话不公开任一入口。每份常驻目录都会直接在转发的 `llm/adapters-updated` 与 `settings/document-updated` owner 事件上重拉。
+`ModelDirectoryResolver`（`ctx.modelDirectories`）持有一份 Host 代次级 `ModelCatalogDirectory` 与按会话惰性创建的 `ModelDirectory` 投影。`/model` 弹窗与 composer 模型位经 `session.selectModel` 提交，并共享各会话的目录；已寻址 subagent 会话不公开任一选择器。转发的适配器、设置与凭据失效通知会刷新共享目录。
+
+默认值贡献项经 SettingsScope 绑定 `agent-default-model`，并通过呈现器钩子公开该 scope 与同一份目录。原子变更使用 scope 的 revision 校验、队列与恢复读取。保存确认会比较三个原始用户层字段，包括取消覆盖操作后的字段自有存在性；仅 promise 结束或有效值相同均不能宣告成功。控件与本地化搜索条目共享可选 `settings.models.defaults` slot 的生命周期。
 
 </details>
 
@@ -64,7 +73,7 @@ Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有�
 <a id="model-experience"></a>
 ## 模型体验
 
-间接影响。两个入口都提交 `session.selectModel` 选择；宿主在下一次提示词组装边界对完整 `ModelSelection` 快照并拥有模型可见效果，而运行中的步骤保留已组装选择。
+间接通过经 `session.selectModel` 提交的会话内选择器，以及更改后续会话所继承模型与推理等级的设置控件生效；宿主在下一次提示词组装边界对完整 `ModelSelection` 创建快照，运行中的步骤保留已组装选择。
 
 #### KV Cache 影响
 
@@ -77,7 +86,7 @@ Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有�
 
 这些限制界定了当前模型表面。它们是当前包约束，不是通用模型路由器对比或任务积压。
 
-- **无创建期或已寻址 subagent 选择**——两个入口都要求既有普通会话的 agent；没有可纳入会话创建的草稿阶段模型选择，subagent 继续执行也有意不公开独立的模型选择约定。
+- **无逐草稿或已寻址 subagent 选择**——设置编辑共享的后续默认值；会话内选择器要求既有普通会话的 agent，subagent 继续执行不公开独立的模型选择操作。
 - **目录名仅供呈现**——选择与持久化使用提供方／模型／推理强度 id；目录查询或确切模型元数据查询失败的提供方以不可选失败行列出，重新加载前保持原样。
 - **不能任意输入推理强度**——composer 仅提供确切模型由适配器公布的推理强度；适配器没有推理元数据时不显示 Effort 行。
 
@@ -91,4 +100,4 @@ Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有�
 
 </details>
 
-**运行时不变式：** 不发布伴生入口。插件只注册一个 command contribution，HMR 测试覆盖释放；它不发出 Cordis 事件，也不持有跨插件可变状态。
+**运行时不变式：** 不发布伴生入口。设置 scope 与共享目录拥有持久化默认值和公布的选项；控件仅持有临时保存反馈。行为测试覆盖写入确认与贡献项释放。

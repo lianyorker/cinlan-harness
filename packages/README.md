@@ -33,6 +33,7 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`typert/`](typert/README.md) | Type graph generation, artifact loading, and runtime registry |
 | [`goal/`](goal/README.md) | Same-session goal persistence and lifecycle |
 | [`schedule/`](schedule/README.md) | Session-local scheduled follow-ups |
+| [`automation/`](automation/README.md) | Durable UTC definitions, exclusive local scheduling, and ordinary Agent invocations |
 | [`feedback/`](feedback/README.md) | Human feedback capture and command |
 | [`identity/`](identity/README.md) | Shared anonymous identity |
 | [`llm/`](llm/README.md) | LLM capability family: abstract service + provider adapters |
@@ -58,9 +59,9 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`computer-use/`](computer-use/README.md) | Desktop Providers, observations, permission policy, and tools |
 | [`mobile-device/`](mobile-device/README.md) | Mobile Providers, one-use observations, and input tools |
 | [`coordination/`](coordination/README.md) | Bounded task graphs, executors, and model-facing coordination tools |
-| [`git/`](git/README.md) | Read-only Git observations, local provider, and model-facing tools |
+| [`git/`](git/README.md) | Read-only model observations, Git preferences, and explicit sidebar operations |
 | [`artifact/`](artifact/README.md) | Scoped immutable evidence storage and metadata |
-| [`execution-host/`](execution-host/README.md) | Execution-host identity for evidence provenance |
+| [`execution-host/`](execution-host/README.md) | Execution-host provenance, saved SSH targets, and bounded worker inspection |
 | [`attachment/`](attachment/README.md) | Durable attachment identity, validation, local content-addressed storage |
 | [`spill/`](spill/README.md) | Spill capability family: storage seam, local impl, tool-result spill policy |
 | [`todo/`](todo/README.md) | The model-facing `todo_write` tool |

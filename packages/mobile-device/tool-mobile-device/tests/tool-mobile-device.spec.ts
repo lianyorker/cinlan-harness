@@ -12,7 +12,7 @@ import MobileDeviceRuntime, {
 import type {
   MobileDeviceProvider,
   MobileObservation,
-  MobileObserveRequest,
+  MobileObserveSpec,
 } from '@deepseek-ai/dsh-mobile-device'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
@@ -71,7 +71,7 @@ function provider(): MobileDeviceProvider {
       observation().device,
       { backend: 'ios', id: MobileDeviceId('device-2'), name: 'iPhone', state: 'shutdown', isAvailable: false },
     ])),
-    observe: vi.fn((request: MobileObserveRequest) => Promise.resolve(observation(request.captureScreenshot === true))),
+    observe: vi.fn((request: MobileObserveSpec) => Promise.resolve(observation(request.captureScreenshot === true))),
     touch: mutate,
     typeText: mutate,
     pressButton: mutate,
@@ -168,6 +168,76 @@ describe('Mobile Device tool registration', () => {
 })
 
 describe('Mobile Device tool behavior', () => {
+  it('delegates an omitted observe id and records the actual resolved target', async () => {
+    const { ctx } = await harness()
+    const resolved = {
+      ...observation(),
+      device: { ...observation().device, id: MobileDeviceId('resolved-device') },
+      observationId: MobileObservationId('resolved-observation'),
+    }
+    const observe = vi.spyOn(ctx.mobileDevice, 'observe').mockResolvedValueOnce(resolved)
+    const result = await execute(ctx, 'mobile_observe', {})
+    expectSuccess(result)
+    expect(observe).toHaveBeenCalledWith({ captureScreenshot: false }, expect.any(AbortSignal))
+    expect(result.value).toMatchObject({ device: { device_id: 'resolved-device' } })
+    expect(result.content.find(block => block.type === 'text')?.text).toContain('Device: resolved-device Pixel')
+    expect(result.meta).toEqual({ device_id: 'resolved-device' })
+    const tool = ctx.tools.get('mobile_observe')!
+    const presentation = {
+      pending: tool.presentCall?.({}),
+      settled: tool.presentResult?.({}, {
+        content: result.content, isError: false, ...(result.meta === undefined ? {} : { meta: result.meta }),
+      }),
+    }
+    expect(presentation.settled).toEqual({ card: 'generic', title: 'Observe resolved-device' })
+    await expect(JSON.stringify({
+      guidance: (await ctx.systemPrompt.assemble()).sections,
+      schemas: ctx.tools.schemas(),
+      result: { value: result.value, content: result.content, meta: result.meta },
+      presentation,
+    }, null, 2) + '\n').toMatchFileSnapshot('./expected/mobile-observe-default.json')
+  })
+
+  it('reports the missing default without choosing another device', async () => {
+    const { ctx, selected } = await harness()
+    const result = await execute(ctx, 'mobile_observe', {})
+    expect(result.isError).toBe(true)
+    expect(result.content.find(block => block.type === 'text')?.text)
+      .toContain('No default mobile device is configured; specify device_id or save a default device.')
+    expect(selected.listDevices).not.toHaveBeenCalled()
+    expect(selected.observe).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['mobile_touch', { ...base, action: 'tap', x: 0.5, y: 0.5 }, 'action'],
+    ['mobile_type', { ...base, text: 'hello' }, 'text'],
+    ['mobile_button', { ...base, button: 'home' }, 'button'],
+  ] as const)('requires exact device and observation ids for %s', async (name, args, field) => {
+    const { ctx, selected } = await harness()
+    expect(ctx.tools.schemas().find(schema => schema.name === name)).toMatchObject({
+      parameters: { required: ['device_id', 'observation_id', field] },
+    })
+    for (const field of ['device_id', 'observation_id']) {
+      const omitted = Object.fromEntries(Object.entries(args).filter(([key]) => key !== field))
+      expect((await execute(ctx, name, omitted)).isError).toBe(true)
+    }
+    expect(selected.touch).not.toHaveBeenCalled()
+    expect(selected.typeText).not.toHaveBeenCalled()
+    expect(selected.pressButton).not.toHaveBeenCalled()
+  })
+
+  it.each([undefined, null, [], {}, { device_id: 4 }, { device_id: '' }])('falls back for missing or malformed durable observation metadata', async (meta) => {
+    const { ctx } = await harness()
+    expect(ctx.tools.get('mobile_observe')?.presentResult?.({}, { content: [], isError: false, ...(meta === undefined ? {} : { meta }) })).toBeUndefined()
+  })
+
+  it('keeps the pending presentation for a failed observation', async () => {
+    const { ctx } = await harness()
+    expect(ctx.tools.get('mobile_observe')?.presentResult?.({}, {
+      content: [], isError: true, meta: { device_id: 'resolved-device' },
+    })).toBeUndefined()
+  })
+
   it('lists and observes tree-only routes without requesting screenshots', async () => {
     const { ctx, selected } = await harness()
     const listed = await execute(ctx, 'mobile_list_devices', {})
@@ -300,6 +370,9 @@ describe('Mobile Device tool behavior', () => {
   it.each([
     ['mobile_observe', { device_id: '' }],
     ['mobile_observe', { device_id: ' device ' }],
+    ['mobile_observe', { device_id: '   ' }],
+    ['mobile_observe', { device_id: '\t' }],
+    ['mobile_observe', { device_id: null }],
     ['mobile_touch', { ...base, action: 'tap', x: -0.1, y: 0.5 }],
     ['mobile_touch', { ...base, action: 'tap', x: 0.5, y: 1.1 }],
     ['mobile_touch', { ...base, action: 'tap', x: 0.5 }],
@@ -310,9 +383,13 @@ describe('Mobile Device tool behavior', () => {
     ['mobile_button', { ...base, button: '' }],
     ['mobile_button', { ...base, button: ' home ' }],
   ])('rejects invalid model input for %s', async (name, args) => {
-    const { ctx } = await harness({ maxTextChars: 3 })
+    const { ctx, selected } = await harness({ maxTextChars: 3 })
     const result = await execute(ctx, name, args)
     expect(result.isError).toBe(true)
+    expect(selected.observe).not.toHaveBeenCalled()
+    expect(selected.touch).not.toHaveBeenCalled()
+    expect(selected.typeText).not.toHaveBeenCalled()
+    expect(selected.pressButton).not.toHaveBeenCalled()
   })
 
   it('renders empty device lists and failed screenshot state', async () => {

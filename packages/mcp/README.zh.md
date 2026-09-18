@@ -22,11 +22,12 @@ kind: "package-group"
 <a id="packages"></a>
 ## 包
 
-本组只包含一个包；包 README 与下方链接拥有细节。
+本组包含 MCP 传输桥接与当前 profile 管理；各包 README 负责包级行为细节。
 
 | 包 | 提供的能力 |
 |---|---|
 | [`mcp-client/`](mcp-client/README.zh.md) | 挂载一台外部 MCP 服务器，让模型可以把它的工具当作原生工具调用 |
+| [`mcp-management/`](mcp-management/README.zh.md) | 持久化当前 profile 的服务器定义，并拥有其连接生命周期 |
 
 -----
 
@@ -37,6 +38,7 @@ kind: "package-group"
 
 - [MCP 客户端插件 Agent Note](../../.agents/notes/implemented/feature/2026-07-07-mcp-client-plugin.zh.md)——桥接的设计：服务器限定命名、发现、执行与环境清洗。
 - [第三方记忆 MCP 指南](../../docs/user/guide/mcp-memory.zh.md)——可运行的 overlay 配置行与设置说明。
+- [MCP 子系统参考](../../docs/subsystems/mcp.zh.md) — 连接快照、带修订号的管理请求与 Cordis API。
 - [工具子系统参考](../../docs/subsystems/tools.zh.md)——接收已注册工具的 `ToolRuntime`。
 
 <a id="dev-note"></a>

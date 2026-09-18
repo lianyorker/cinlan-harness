@@ -1,5 +1,4 @@
 import {
-  resolveDesktopAppId,
   resolveMacOSNotarizationEnvironment,
   resolveMacOSSigningEnvironment,
 } from './scripts/desktop-release-environment.mjs'
@@ -110,7 +109,7 @@ export function createElectronBuilderConfig(
     msi: {
       oneClick: false,
       perMachine: false,
-      runAfter: true,
+      runAfterFinish: true,
     },
     publish: [{ provider: 'generic', url: update.publicUrl }],
   }

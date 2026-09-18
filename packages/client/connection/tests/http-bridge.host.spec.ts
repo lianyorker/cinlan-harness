@@ -75,6 +75,103 @@ describe('HTTP bridge abort', () => {
     expect(carrierSignal?.aborted).toBe(true)
   })
 
+  it('releases a late response body when the client closed before the handler returned', async () => {
+    const request = Readable.from([]) as unknown as IncomingMessage
+    Object.assign(request, { url: '/api/usage/query', method: 'GET', headers: {} })
+    const writes: string[] = []
+    const response = Object.assign(new EventEmitter(), {
+      writableEnded: false,
+      destroyed: false,
+      writeHead() { writes.push('headers'); return this },
+      write() { writes.push('body'); return false },
+      end() { this.writableEnded = true; return this },
+    }) as unknown as ServerResponse
+    const started = Promise.withResolvers<AbortSignal>()
+    let cancelled = false
+    let settled = false
+    const pending = bridge(request, response, {
+      requestBodyMode: () => 'buffered',
+      fetch: async (input) => {
+        started.resolve(input.signal)
+        await new Promise<void>((resolve) => { input.signal.addEventListener('abort', () => { resolve() }, { once: true }) })
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) { controller.enqueue(Uint8Array.of(1)); controller.close() },
+          cancel() { cancelled = true },
+        }))
+      },
+    }).then(() => { settled = true })
+    const signal = await started.promise
+    response.destroyed = true
+    response.emit('close')
+    try {
+      await expect.poll(() => settled, { timeout: 2000 }).toBe(true)
+      expect(signal.aborted).toBe(true)
+      expect(writes).toEqual([])
+      expect(cancelled).toBe(true)
+    } finally {
+      // Release the fixture's backpressure wait when checking the old implementation.
+      response.emit('close')
+      await pending
+    }
+  })
+
+  it('settles when close happens during a backpressured write', async () => {
+    const request = Readable.from([]) as unknown as IncomingMessage
+    Object.assign(request, { url: '/api/download', method: 'GET', headers: {} })
+    let ended = false
+    const response = Object.assign(new EventEmitter(), {
+      writableEnded: false,
+      destroyed: false,
+      writeHead() { return this },
+      write(this: EventEmitter & { destroyed: boolean }) {
+        this.destroyed = true
+        this.emit('close')
+        return false
+      },
+      end() { ended = true; return this },
+    }) as unknown as ServerResponse
+    let settled = false
+    const pending = bridge(request, response, {
+      requestBodyMode: () => 'buffered',
+      fetch: () => Promise.resolve(new Response('chunk')),
+    }).then(() => { settled = true })
+    try {
+      await expect.poll(() => settled, { timeout: 2000 }).toBe(true)
+      expect(ended).toBe(false)
+      expect(response.listenerCount('drain')).toBe(0)
+    } finally {
+      response.emit('close')
+      await pending
+    }
+  })
+
+  it('stops writing when the next streamed chunk arrives after a disconnect', async () => {
+    const request = Readable.from([]) as unknown as IncomingMessage
+    Object.assign(request, { url: '/api/download', method: 'GET', headers: {} })
+    const written = Promise.withResolvers<undefined>()
+    const chunks: Uint8Array[] = []
+    const response = Object.assign(new EventEmitter(), {
+      writableEnded: false,
+      destroyed: false,
+      writeHead() { return this },
+      write(chunk: Uint8Array) { chunks.push(chunk); written.resolve(undefined); return true },
+      end() { return this },
+    }) as unknown as ServerResponse
+    let producer!: ReadableStreamDefaultController<Uint8Array>
+    const body = new ReadableStream<Uint8Array>({ start(controller) { producer = controller; controller.enqueue(Uint8Array.of(1)) } })
+    const pending = bridge(request, response, {
+      requestBodyMode: () => 'buffered',
+      fetch: () => Promise.resolve(new Response(body)),
+    })
+    await written.promise
+    response.destroyed = true
+    response.emit('close')
+    producer.enqueue(Uint8Array.of(2))
+    producer.close()
+    await pending
+    expect(chunks).toEqual([Uint8Array.of(1)])
+  })
+
   it('streams a declared 2.19 GiB request before the body ends and bypasses the JSON buffer cap', async () => {
     const request = new Readable({ read() {} }) as unknown as IncomingMessage
     Object.assign(request, {

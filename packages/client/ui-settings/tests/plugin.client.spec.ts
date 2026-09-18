@@ -4,6 +4,8 @@ import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply, inject } from '../src/client/index.ts'
 import { SettingsSchemaService } from '../src/client/schema.ts'
 import { SettingsScopeBinder } from '../src/client/settings-scope.ts'
+import { SettingsMetadataService } from '../src/client/settings-metadata.ts'
+import * as clientPlugin from '../src/client/index.ts'
 import { apply as hostApply } from '../src/index.ts'
 
 function bench() {
@@ -25,6 +27,8 @@ describe('settings domain base plugin', () => {
     await fiber.await()
     expect(ctx.get('settingsScope')).toBeInstanceOf(SettingsScopeBinder)
     expect(ctx.get('settingsSchema')).toBeInstanceOf(SettingsSchemaService)
+    expect(ctx.get('settingsMetadata')).toBeInstanceOf(SettingsMetadataService)
+    expect(Object.keys(clientPlugin).sort()).toEqual(['apply', 'inject'])
     await vi.waitFor(() => { expect(describeCall).toHaveBeenCalledTimes(1) })
   })
 
@@ -45,6 +49,7 @@ describe('settings domain base plugin', () => {
     await fiber.dispose()
     expect(ctx.get('settingsScope')).toBeUndefined()
     expect(ctx.get('settingsSchema')).toBeUndefined()
+    expect(ctx.get('settingsMetadata')).toBeUndefined()
     remote.emit('settings/document-updated', ['ui-test', 0])
     ctx.emit('connection/reset')
     await Promise.resolve()

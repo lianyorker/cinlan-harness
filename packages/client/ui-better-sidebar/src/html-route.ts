@@ -1,34 +1,9 @@
 /**
- * Pure URL vocabulary of the /sidebar/html route (HTML previewer).
- *
- * Why path-encoded parameters instead of a query string: the previewed
- * page resolves its relative assets (./style.css, img/x.png) against the
- * document URL, and the WHATWG URL algorithm DROPS the query of a
- * path-relative reference — `/sidebar/html?a=1&path=/a/b/` + `./style.css`
- * would lose the session scope and the route would reject the asset.
- * Encoding everything into the URL path keeps relative resolution inside
- * the same route with every request self-contained:
- *
- *   /sidebar/html/<sessionId>/<absolute-path segments, encodeURIComponent'd>
- *   /sidebar/html/S/Users/me/proj/index.html
- *     + ./style.css → /sidebar/html/S/Users/me/proj/style.css
- *   Windows: C:\Users\me\a.html → /sidebar/html/S/C%3A/Users/me/a.html
- *   UNC (\\server\share\... or //server/share/...):
- *     → /sidebar/html/S//server/share/proj/a.html  ('//' right after the
- *       sessionId marks the UNC prefix; the WHATWG URL keeps '//' intact so
- *       relative assets still resolve inside the same route)
- *
- * The decoder rebuilds the marker as a forward-slash `//server/share/...`
- * path. That form is intentionally platform-neutral: `node:path` resolves it
- * to `\\server\share\...` on win32 and `/server/share/...` on POSIX, so the
- * host's existing requireAbsolute + isWithin fence needs no platform signal
- * (a leading `//` is a legal POSIX absolute path, so no data is lost on
- * either platform).
- *
- * This module is intentionally dependency-free (no node imports, no wire
- * helpers) so the client bundle can import `encodeHtmlUrl` without tripping
- * the build-time purity gate; the host converts decode failures into
- * SidebarError responses at the route boundary.
+ * Browser-safe codec for /api/sidebar/html/<session>/<absolute file path>.
+ * Path segments retain Session scope when the browser resolves relative assets.
+ * The decoder also accepts the original /sidebar/html Web alias. A double slash
+ * after the Session id marks a UNC path; Windows drive paths keep their colon.
+ * Host callers must apply requireAbsolute and the Session workspace fence.
  */
 
 /** One decoded route reference. */
@@ -44,7 +19,8 @@ export type HtmlDecodeResult =
   | { ok: false; status: 400 | 404; message: string }
 
 /** The route prefix both encoders/decoders agree on. */
-export const HTML_ROUTE_PREFIX = '/sidebar/html/'
+export const HTML_ROUTE_PREFIX = '/api/sidebar/html/'
+const LEGACY_HTML_ROUTE_PREFIX = '/sidebar/html/'
 
 /** Build the route URL for one absolute file path (client + tests). */
 export function encodeHtmlUrl(sessionId: string, path: string): string {
@@ -61,10 +37,9 @@ export function encodeHtmlUrl(sessionId: string, path: string): string {
  * segment resolves outside the cwd and is refused there.
  */
 export function decodeHtmlUrl(pathname: string): HtmlDecodeResult {
-  if (!pathname.startsWith(HTML_ROUTE_PREFIX)) {
-    return { ok: false, status: 404, message: 'not an html route' }
-  }
-  const rest = pathname.slice(HTML_ROUTE_PREFIX.length)
+  const prefix = [HTML_ROUTE_PREFIX, LEGACY_HTML_ROUTE_PREFIX].find(value => pathname.startsWith(value))
+  if (prefix === undefined) return { ok: false, status: 404, message: 'not an html route' }
+  const rest = pathname.slice(prefix.length)
   if (rest === '') {
     return { ok: false, status: 400, message: 'invalid html route path' }
   }

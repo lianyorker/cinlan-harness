@@ -34,11 +34,11 @@ dsh plugin --profile <name> add @deepseek-ai/dsh-security-research
 dsh plugin --profile <name> remove @deepseek-ai/dsh-security-research
 ```
 
-The shipped `security-research` profile includes this bundle after `dsh-base` and `dsh-web-app`. A custom profile must include a base layer before this patch.
+The shipped `security-research` profile includes this bundle after `dsh-base` and `dsh-web-app`. A custom profile must include a base layer and an Execution Host provider before this patch; the Web layer supplies the local provider.
 
 ### What you get
 
-The layer mounts local persistent Artifact storage under $DSH_HOME/artifacts/v1, a local Execution Host identity, assessment scope and Session binding, durable Finding tools, NVD/OSV vulnerability queries, the bundled Security Skills provider, and the security workflow prompt. The bundle contributes its packaged `security-research` Agent preset through the preset registry, when present. The preset adds a research persona and scoped Security Skills to the coding composition. The profile-global security providers and tools remain shared. Settings shows Security Research only while that preset is on the roster; generic Web profiles do not acquire it from a CLI dependency alone.
+The layer mounts local persistent Artifact storage under $DSH_HOME/artifacts/v1, assessment scope and Session binding, durable Finding tools, NVD/OSV vulnerability queries, the bundled Security Skills provider, and the security workflow prompt. The bundle contributes its packaged `security-research` Agent preset through the preset registry, when present. The preset adds a research persona and scoped Security Skills to the coding composition. The profile-global security providers and tools remain shared. Settings shows Security Research only while that preset is on the roster; generic Web profiles do not acquire it from a CLI dependency alone.
 
 -----
 

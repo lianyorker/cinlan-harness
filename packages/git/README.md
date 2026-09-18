@@ -15,6 +15,7 @@ Read repository identity, status, diffs, and logs through bounded Git observatio
 - [Packages](#packages)
 - [Dev Note](#dev-note)
 
+<a id="packages"></a>
 ## Packages
 
 The Git capability is split into a provider-neutral Service Definition, providers, and optional Consumers. It gives tools and workflows bounded repository observations without coupling them to branch, worktree, or mutation policy.
@@ -30,4 +31,4 @@ Commit, push, branch creation, and worktree isolation remain separate Consumers 
 <a id="dev-note"></a>
 ## Dev Note
 
-Git mutation and workspace isolation remain separate capabilities and are not part of this package group.
+The [Git subsystem reference](../../docs/subsystems/git.md) lists the generated Cordis API. The core Git capability remains read-only; Session-bound mutation contracts belong to the [Sidebar Git package](sidebar-git/README.md), while Workspace isolation is a separate capability.

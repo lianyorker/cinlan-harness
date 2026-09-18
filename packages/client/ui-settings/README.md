@@ -1,5 +1,5 @@
 ---
-description: "Settings domain base plugin: the settings-namespace scope service, schema service, and the canonical settings slot-type contract for the dsh web client."
+description: "Settings persistence, schema operations, localized search metadata, and typed page navigation for the dsh web client."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package lets web-client features expose editable preferences backed by the Host settings document without implementing their own transport or schema handling. Each feature gets namespace-scoped reads and writes, atomic multi-field updates, schema validation, and protection against silently overwriting concurrent changes. It also provides the standard extension points for settings chrome, pages, header actions, plugin tabs, and onboarding while rendering no interface itself. Any preference-owning feature can use it without depending on a presentation package; a separate package provides the settings shell.
+This package lets web-client features expose editable preferences backed by the Host settings document without implementing their own transport or schema handling. Each feature gets namespace-scoped reads and writes, atomic multi-field updates, schema validation, and protection against silently overwriting concurrent changes. Features can group settings pages and make public field labels searchable in the active language. Typed extension points support settings pages, plugin tabs, and onboarding. A separate package renders the settings shell.
 
 ## Table of Contents
 
@@ -35,7 +35,17 @@ A feature calls `ctx.settingsScope.bind(spec)` with a per-namespace spec and get
 
 A settings surface registers into the slot types this package declares. The shell (`sidebar.settings` occupant, navigation, chrome) lives in ui-settings-general; feature pages register `settings.section` contributions; the Plugins section hosts `settings.plugins.tab` pages; onboarding steps register `settings.onboarding`. Cross-namespace surfaces (schema introspection, the served-namespace directory, `hasDocument`) read the same mirror through `ctx.settingsScope.describe()`.
 
+### Grouping and searching settings
+
+Page owners call `ctx.settingsMetadata.registerSection({ sectionId, groupId })`; field owners call `registerItems(sectionId, items)` with stable item ids, section-wide anchor ids, localized title resolvers, and optional description and keyword resolvers and tab ids. Omitted keywords resolve to an empty array. Resolvers reuse visible locale copy and must never return current values, credentials, tokens, or user directory contents. The service publishes only its declared metadata fields. [The metadata types](src/client/settings-metadata.ts) define the six group ids and accepted fields.
+
+Register metadata alongside its components in the same `slots.inject` lifetime and yield each returned disposer. Duplicate section ids, item ids, or anchors reject registration; item and anchor uniqueness spans every tab in a section. Items may register before section metadata. Removing a section assignment does not remove independently owned items; the shell joins metadata to live section slots before presenting navigation or results. Page labels, ordering, and icons stay slot-owned.
+
+Pass the stable metadata observable through registration `inject.hooks`. Snapshots retain their identity between changes and resolve copy again on every locale revision, including dictionary registration and removal. The shell can pass a `SettingsNavigationTarget` through the optional `target` owner prop of sections and plugin tabs; the page activates `target.tabId` before the shell locates the matching `data-settings-anchor`.
+
 ### Observable success and failures
+
+`mutate` resolves `true` only when the Host accepts its mutation envelope. Host refusal, memory mode, and disposal before dispatch resolve `false`; transport failures reject after any latest-write recovery. Acceptance remains `true` if a newer queued write or disposal suppresses publication of an already dispatched result. A save handler must require acceptance and retain its domain-specific raw/effective-value checks; matching readback alone cannot prove that its write succeeded. Callers suppress stale feedback when their own page or draft has changed. `set` and `unset` remain `Promise<void>` convenience methods that await and discard acceptance.
 
 A bound scope reflects the current document revision immediately; a committed write folds its answer back into the mirror with no re-read. A rejected or failed latest write triggers one mirror recovery read; a superseded write leaves recovery to its successor. Without a `decode` in the spec, a section that is not a plain object or fails schema rehydration publishes no value, so a row renders its own absent state instead of a half-decoded one.
 
@@ -47,7 +57,7 @@ A bound scope reflects the current document revision immediately; a committed wr
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The package realizes one ownership rule: the browser keeps one shared mirror of the settings document, and every derived surface reads that single source, so any moment in time shows the same document revision.
+The package owns a shared settings-document mirror and a separate registry of public navigation metadata. Preference readers derive from the mirror; the settings shell derives grouping and field search from the metadata registry.
 
 ### The describe mirror
 
@@ -56,6 +66,10 @@ The plugin injects `remote` with its `settings` namespace, resolves Host persist
 ### Scope derivation
 
 `ctx.settingsScope.bind(spec)` returns a per-namespace scope derived from the mirror on the caller's context: the scope's disposer belongs to the calling fiber, binding adds no wire read, and a row's activation never blocks on the settings transport. Writes stay per-scope: `set` and `unset` are single-operation forms of `mutate`, which copies and queues several ordered field operations behind one namespace revision as `expectedRevision`. A committed mutation folds its answer in, a rejected or failed latest mutation triggers one recovery read, and a superseded one leaves recovery to its successor. The cold-boot read count is pinned by `../../../apps/web/tests/startup-rpc-budget.e2e.ts`; a new direct `settings.describe` caller in client code is a regression against it.
+
+### Metadata lifecycle
+
+The [metadata service](src/client/settings-metadata.ts) attaches registrations to each caller's Cordis effect lifetime and publishes immutable snapshots after successful registration or disposal. Its locale observer uses a child injection because the locale plugin requires `settingsScope`; observing locale revisions must not delay settings service activation. Metadata remains browser-local and performs no settings reads or writes.
 
 ### Schema service
 
@@ -106,4 +120,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No companion is published. A presentation shell projecting the settings.section ledger into navigation — it emits no cordis events and owns no cross-plugin mutable relation; slot declaration/registration conflicts already fail loud in the slot core at load time.
+**Runtime invariant:** No companion is published. The metadata registry rejects ownership conflicts at registration and derives its snapshots directly from those registrations; settings scopes derive from one shared document mirror. This package maintains no independent observation requiring a runtime comparison.

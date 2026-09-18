@@ -1059,6 +1059,25 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       expect(stdout).not.toMatch(/name: '@deepseek-ai\/dsh-client-/)
     }, SPAWN_TIMEOUT_MS + 30_000)
 
+    it('prints the bounded execution-host worker without Agents or implicit roots', async () => {
+      const { stdout, code, stderr } = await runBuiltBin(
+        ['--profile', 'execution-host', '--dump-default-config'],
+        { DSH_HOME: home },
+      )
+      expect(code).toBe(0)
+      expect(stderr).toBe('')
+      const rows = yaml.load(stdout, { schema: entryListSchema }) as Array<{ id: string; name: string; config?: { roots?: unknown[] } }>
+      expect(rows.map(row => [row.id, row.name])).toEqual([
+        ['execution-host', '@deepseek-ai/dsh-execution-host-local'],
+        ['fs', '@deepseek-ai/dsh-fs-local'],
+        ['subprocess', '@deepseek-ai/dsh-subprocess-local'],
+        ['execution-host-worker', '@deepseek-ai/dsh-execution-host-worker'],
+      ])
+      expect(rows.find(row => row.id === 'execution-host-worker')?.config?.roots).toEqual([])
+      expect(stdout).toContain('# == @deepseek-ai/dsh-execution-host-app')
+      expect(stdout).not.toContain('@deepseek-ai/dsh-base')
+    }, SPAWN_TIMEOUT_MS + 30_000)
+
     it('prints the exact standalone sdk-minimal tree without dsh-base', async () => {
       const { stdout, code, stderr } = await runBuiltBin(
         ['--profile', 'sdk-minimal', '--dump-default-config'],

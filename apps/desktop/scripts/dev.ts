@@ -8,11 +8,11 @@ import { parseArgs } from 'node:util'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import type { DesktopRelease } from '../src/release.ts'
 import { prepareDevelopmentProject } from './development-project.ts'
+import { resolveDevelopmentOptions, type DevelopmentOptions } from './development-options.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
-const BUILD_ROOT = join(APP_ROOT, '.desktop-build')
-const DEVELOPMENT_ROOT = join(BUILD_ROOT, 'development')
+const DEVELOPMENT = resolveDevelopmentOptions(APP_ROOT, process.env)
 
 interface PackageManifest {
   readonly version?: string
@@ -22,16 +22,6 @@ function packageVersion(path: string, subject: string): string {
   const manifest = JSON.parse(readFileSync(path, 'utf8')) as PackageManifest
   if (typeof manifest.version !== 'string') throw new Error(`desktop development: ${subject} has no version`)
   return manifest.version
-}
-
-function debugPort(name: string, fallback: number): number {
-  const value = process.env[name]
-  if (value === undefined || value === '') return fallback
-  const port = Number(value)
-  if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
-    throw new Error(`desktop development: ${name} must be an integer from 1 through 65535`)
-  }
-  return port
 }
 
 async function run(command: string, args: readonly string[], cwd: string, environment = process.env): Promise<void> {
@@ -53,20 +43,16 @@ async function runPackageScript(script: string, cwd: string): Promise<void> {
   await run(process.execPath, [packageManager, 'run', script], cwd)
 }
 
-async function launchElectron(projectDir: string): Promise<void> {
+async function launchElectron(options: DevelopmentOptions): Promise<void> {
   const require = createRequire(import.meta.url)
   const electron: unknown = require('electron')
   if (typeof electron !== 'string') throw new Error('desktop development: electron executable is unavailable')
-  const mainPort = debugPort('DSH_DESKTOP_MAIN_INSPECT_PORT', 9229)
-  const rendererPort = debugPort('DSH_DESKTOP_RENDERER_DEBUG_PORT', 9222)
-  const hostPort = debugPort('DSH_DESKTOP_HOST_INSPECT_PORT', 9230)
-  const home = resolve(process.env.DSH_HOME ?? join(DEVELOPMENT_ROOT, 'home'))
-  const userData = join(DEVELOPMENT_ROOT, 'electron-user-data')
+  const { mainPort, rendererPort, hostPort, home, userData, projectDir } = options
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
     DSH_HOME: home,
     DSH_DESKTOP_DEV_PROJECT_DIR: projectDir,
-    DSH_DESKTOP_HOST_INSPECT_PORT: String(hostPort),
+    DSH_DESKTOP_HOST_INSPECT_PORT: hostPort === undefined ? undefined : String(hostPort),
     DSH_DESKTOP_NODE_BINARY: process.execPath,
     DSH_DESKTOP_OPEN_DEVTOOLS: process.env.DSH_DESKTOP_OPEN_DEVTOOLS ?? '1',
     ELECTRON_ENABLE_LOGGING: process.env.ELECTRON_ENABLE_LOGGING ?? '1',
@@ -102,14 +88,14 @@ async function main(): Promise<void> {
     nodeVersion: process.versions.node,
     pnpmVersion,
   }
-  const projectDir = prepareDevelopmentProject({
-    projectDir: join(DEVELOPMENT_ROOT, 'project'),
+  prepareDevelopmentProject({
+    projectDir: DEVELOPMENT.projectDir,
     cliDir: join(REPOSITORY_ROOT, 'apps', 'cli'),
     hostDir: join(REPOSITORY_ROOT, 'apps', 'desktop-host'),
     dependencyDir: join(REPOSITORY_ROOT, 'node_modules', '.pnpm', 'node_modules'),
     release,
   })
-  await launchElectron(projectDir)
+  await launchElectron(DEVELOPMENT)
 }
 
 main().catch((error: unknown) => {

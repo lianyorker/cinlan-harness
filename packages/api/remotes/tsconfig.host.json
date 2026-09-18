@@ -91,6 +91,27 @@
     },
     {
       "path": "../integration-preflight-controller"
+    },
+    {
+      "path": "../usage-controller"
+    },
+    {
+      "path": "../voice-controller"
+    },
+    {
+      "path": "../mcp-controller"
+    },
+    {
+      "path": "../automation-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../sidebar-terminal-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../execution-host-controller"
+    },
+    {
+      "path": "../sidebar-git-controller"
     }
   ]
 }

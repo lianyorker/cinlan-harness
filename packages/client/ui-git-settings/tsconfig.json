@@ -1,4 +1,4 @@
-﻿{
+{
   "extends": "../../../tsconfig.base.client.json",
   "compilerOptions": {
     "rootDir": "src",
@@ -15,6 +15,6 @@
     { "path": "../ui-renderer" },
     { "path": "../ui-settings" },
     { "path": "../ui-slots" },
-    { "path": "../../settings/settings" }
+    { "path": "../../git/git-settings" }
   ]
 }

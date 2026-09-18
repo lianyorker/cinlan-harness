@@ -13,13 +13,17 @@ import type {
 // into every program that sees this contract.
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 // Type-only: pulls the settings slot declarations the shell renders into.
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {
+  SettingsGroupId, SettingsResolvedItemMetadata,
+} from '@deepseek-ai/dsh-client-ui-settings/client'
 
 /** One nav row projected from a settings.section registration's options. */
 export interface SettingsSectionRow {
   id: string
   order: number
   label: string
+  groupId: SettingsGroupId
+  items: readonly SettingsResolvedItemMetadata[]
 }
 
 /** One ordered onboarding step projected from a slot registration. */
@@ -35,6 +39,8 @@ export interface SettingsOnboardingStep {
  */
 export type SettingsRootInjected = {
   hooks: {
+    /** Settings navigation breakpoint, observed by the registration layer. */
+    narrowViewport: HostObservable<boolean>
     /** settings.section ledger projected into ordered nav rows. */
     sections: HostObservable<readonly SettingsSectionRow[]>
     /** settings.onboarding ledger projected into coordinator order. */

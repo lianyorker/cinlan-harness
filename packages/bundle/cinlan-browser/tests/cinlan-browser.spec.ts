@@ -37,6 +37,7 @@ const BROWSER_PACKAGES = [
   '@deepseek-ai/dsh-browser-permission-policy',
   '@deepseek-ai/dsh-tool-browser',
   '@deepseek-ai/dsh-api-browser-controller',
+  '@deepseek-ai/dsh-client-ui-browser-element-capture',
 ] as const
 
 let fixtureRoot: string | undefined
@@ -105,6 +106,7 @@ describe('dsh-cinlan-browser bundle', () => {
       'browser-permission-policy',
       'tool-browser',
       'browser-controller',
+      'ui-browser-element-capture',
     ])
     expect(rows.find(row => row.id === 'browser')?.config).toEqual({ provider: 'local' })
     expect(rows.find(row => row.id === 'browser-playwright')?.config).toEqual({ providerId: 'local' })
@@ -129,6 +131,10 @@ describe('dsh-cinlan-browser bundle', () => {
       ],
     }]
     const profileOverride: PatchOptions[] = [{
+      // Browser presentation is exercised by the assembled Web acceptance case.
+      id: 'ui-browser-element-capture',
+      disabled: true,
+    }, {
       id: 'browser-playwright',
       config: {
         providerId: 'local',

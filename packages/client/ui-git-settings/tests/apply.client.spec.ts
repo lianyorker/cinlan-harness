@@ -1,94 +1,56 @@
-/** Client tests for ui-git-settings: slot registration, locale, and settings scope binding. */
-import { describe, expect, it, vi } from 'vitest'
-import type { Context } from '@deepseek-ai/cordis'
-import { apply } from '../src/client/index.ts'
+/** Git section and public metadata follow the same declaration and locale lifetime. */
+import { Context } from '@deepseek-ai/cordis'
+import { describe, expect, it, onTestFinished } from 'vitest'
+import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
+import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
+import { apply, inject } from '../src/client/index.ts'
+import { GitSettingsSection, type GitSettingsSectionInjected } from '../src/client/GitSettingsSection.tsx'
+import { en, zh } from '../src/client/locales.ts'
+import { settingsFixture } from './settings-fixture.client.ts'
 
-function createMockCtx(): Context {
-  const sections: { id: string; order: number; locale: string }[] = []
-  const locales: Record<string, unknown> = {}
-  const scopes: { namespace: string }[] = []
+it('declares only the services the contributor uses', () => {
+  expect(inject).toEqual(['settingsMetadata', 'slots', 'locale', 'settingsScope'])
+})
 
-  const ctx = {
-    effect: vi.fn((fn: () => unknown, _label: string) => {
-      fn()
-      return () => {}
-    }),
-    locale: {
-      register: vi.fn((ns: string, dict: unknown) => { locales[ns] = dict }),
-      bind: vi.fn((ns: string) => (key: string, params?: Record<string, string | number>) => {
-        const dict = (locales[ns] as Record<string, string>) ?? {}
-        let result = dict[key] ?? key
-        if (params) {
-          for (const [k, v] of Object.entries(params)) {
-            result = result.replace(`{${k}}`, String(v))
-          }
-        }
-        return result
-      }),
-    },
-    slots: {
-      inject: vi.fn((_slot: string, register: () => unknown) => {
-        register()
-        return () => {}
-      }),
-      register: vi.fn((opts: { id: string; order: number; locale: string }, _component: unknown) => {
-        sections.push({ id: opts.id, order: opts.order, locale: opts.locale })
-        return () => {}
-      }),
-    },
-    settingsScope: {
-      bind: vi.fn((spec: { namespace: string }) => {
-        scopes.push(spec)
-        return {
-          getSnapshot: () => ({ status: 'ready', value: {}, revision: 1, writable: true, mode: 'host' }),
-          subscribe: () => () => {},
-          set: vi.fn(),
-          unset: vi.fn(),
-          mutate: vi.fn(),
-        }
-      }),
-    },
-  } as unknown as Context
-
-  return ctx
-}
-
-describe('ui-git-settings apply', () => {
-  it('registers locale dictionaries', () => {
-    const ctx = createMockCtx()
-    apply(ctx)
-    const effectCalls = (ctx as unknown as { effect: ReturnType<typeof vi.fn> }).effect.mock.calls
-    const registerCall = effectCalls.find((call: unknown[]) => call[1] === 'ui-git-settings: dictionaries')
-    expect(registerCall).toBeDefined()
-  })
-
-  it('registers settings.section with id git-source-control and order 36', () => {
-    const ctx = createMockCtx()
-    apply(ctx)
-    const sections = (ctx as unknown as { slots: { register: ReturnType<typeof vi.fn> } }).slots.register.mock.calls
-    const sectionCall = sections.find((call: unknown[]) => (call[0] as { name?: string })?.name === 'settings.section')
-    expect(sectionCall).toBeDefined()
-    const opts = sectionCall![0] as { id: string; order: number; locale: string }
-    expect(opts.id).toBe('git-source-control')
-    expect(opts.order).toBe(36)
-    expect(opts.locale).toBe('settings.gitSourceControl')
-  })
-
-  it('registers settings.section.icon with key git-source-control', () => {
-    const ctx = createMockCtx()
-    apply(ctx)
-    const sections = (ctx as unknown as { slots: { register: ReturnType<typeof vi.fn> } }).slots.register.mock.calls
-    const iconCall = sections.find((call: unknown[]) => (call[0] as { name?: string })?.name === 'settings.section.icon')
-    expect(iconCall).toBeDefined()
-    const opts = iconCall![0] as { key: string }
-    expect(opts.key).toBe('git-source-control')
-  })
-
-  it('binds settingsScope to namespace git-source-control', () => {
-    const ctx = createMockCtx()
-    apply(ctx)
-    const scopes = (ctx as unknown as { settingsScope: { bind: ReturnType<typeof vi.fn> } }).settingsScope.bind.mock.calls
-    expect(scopes.length).toBe(1)
-    expect(scopes[0]![0].namespace).toBe('git-source-control')
+describe('Git settings contribution', () => {
+  it('registers six localized field targets and releases them on declaration collapse and plugin disposal', async () => {
+    const ctx = new Context()
+    onTestFinished(async () => { await ctx.fiber.dispose() })
+    new SettingsMetadataService(ctx)
+    const locale = new LocaleRuntime(ctx)
+    ctx.provide('locale', locale)
+    const fixture = settingsFixture()
+    ctx.provide('settingsScope', { bind: () => fixture.scope } as never)
+    await ctx.plugin(SlotRegistry).await()
+    const slots = ctx.get('slots') as SlotRegistry
+    const declare = () => slots.register({ name: 'root', children: {
+      'settings.section': { kind: 'list', scope: 'root' }, 'settings.section.icon': { kind: 'keyed', scope: 'root' },
+    } } as never, () => null)
+    const fiber = ctx.plugin({ inject, apply })
+    await fiber.await()
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+    const release = declare()
+    const entry = slots.entries('settings.section')[0]!
+    expect(entry.component).toBe(GitSettingsSection)
+    expect(entry.options).toMatchObject({ id: 'git-source-control', order: 36 })
+    const face = (entry.inject as unknown as () => GitSettingsSectionInjected)()
+    expect(face.hooks.settings).toBe(fixture.scope)
+    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'git-source-control', groupId: 'development' }])
+    expect(ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual([
+      'git-branch-prefix', 'git-custom-prefix', 'git-update-base', 'git-group-order', 'git-upstream', 'git-attribution',
+    ])
+    locale.setLocale('en')
+    expect(ctx.settingsMetadata.getSnapshot().items[0]?.title).toBe(en.branchPrefixTitle)
+    locale.setLocale('zh')
+    expect(ctx.settingsMetadata.getSnapshot().items[0]?.title).toBe(zh.branchPrefixTitle)
+    expect(fixture.mutate).not.toHaveBeenCalled()
+    release()
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+    declare()
+    expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(6)
+    await fiber.dispose()
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+    expect(slots.entries('settings.section.icon')).toEqual([])
   })
 })

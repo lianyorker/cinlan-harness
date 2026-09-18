@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, render } from '@testing-library/react'
 import {
   SlotTestRuntime, TestRemote, stubSettingsScope, usePinnedBrowserLanguages,
 } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import { KeyboardController } from '@deepseek-ai/dsh-client-keyboard/src/client/controller.ts'
+import type { KeybindingsSettings } from '@deepseek-ai/dsh-client-keyboard/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { SessionBinding } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -35,6 +37,11 @@ const SID = 'session-1' as SessionId
 
 async function bench() {
   const runtime = await SlotTestRuntime.create()
+  const shortcuts = stubSettingsScope<KeybindingsSettings>()
+  shortcuts.publish({ status: 'ready', writable: true, revision: 1, value: { overrides: [] } })
+  const keyboard = new KeyboardController(shortcuts.scope, false)
+  onTestFinished(() => { keyboard.dispose() })
+  runtime.ctx.provide('keyboard', keyboard)
   const chatSettings = stubSettingsScope<ChatSettings>()
   runtime.ctx.provide('settingsScope', {
     bind: ({ namespace }: { namespace: string }) => namespace === CHAT_SETTINGS_NAMESPACE
@@ -84,6 +91,14 @@ describe('Chat apply wiring', () => {
       .toEqual(['stats'])
     expect(b.runtime.slots.entries('settings.general.item').map(row => row.options.id))
       .toEqual(['transcript-view', 'composer-enter'])
+    expect(b.runtime.ctx.settingsMetadata.getSnapshot().items.find(item => item.id === 'transcript'))
+      .toEqual({
+        sectionId: 'general', id: 'transcript', anchorId: 'transcript', title: '对话显示',
+        description: '控制已完成轮次的过程内容', keywords: ['transcript', 'chat', 'compact', 'normal'],
+      })
+    b.runtime.ctx.locale.setLocale('en')
+    expect(b.runtime.ctx.settingsMetadata.getSnapshot().items.find(item => item.id === 'transcript'))
+      .toMatchObject({ title: 'Conversation display', description: 'Controls process content in completed turns' })
     await b.runtime.dispose()
   })
 
@@ -122,6 +137,7 @@ describe('Chat apply wiring', () => {
     expect(b.runtime.slots.spec('conversation.chat.node')).toBeUndefined()
     expect(b.runtime.slots.entries('conversation')).toHaveLength(1)
     expect(b.runtime.ctx.get('uiConversation')).toBeDefined()
+    expect(b.runtime.ctx.settingsMetadata.getSnapshot().items.map(item => item.id)).toEqual(['busy-send'])
     await b.runtime.dispose()
   })
 

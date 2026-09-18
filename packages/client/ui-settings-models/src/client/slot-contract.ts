@@ -1,5 +1,5 @@
 /**
- * Models-page extension slots — the two seats through which a plugin
+ * Models-page extension slots — the seats through which a plugin
  * distributed outside this repository adds UI to the Models settings section
  * without editing it.
  *
@@ -22,6 +22,8 @@ import type { ProviderDirectoryEntry } from './store.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
+    /** New-session default preferences before the provider content; empty without a contributor. */
+    'settings.models.defaults': { kind: 'list'; scope: 'root'; owner: { children?: never } }
     /**
      * One provider card's adapter extension area, dispatched with
      * `entryKey = settingsNs` on every card that renders a directory row: a

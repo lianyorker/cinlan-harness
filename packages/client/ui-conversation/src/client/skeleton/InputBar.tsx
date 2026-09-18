@@ -41,7 +41,7 @@ import css from './InputBar.module.css'
 export type InputBarProps = ComposerBarProps
 
 export const InputBar = memo(function InputBar({
-  useSession, useInput, inputActions, keyboard, addFiles, removeAttachment, resolveDraftAttachments,
+  useSession, useInput, inputActions, keyboard, matchShortcut, useShortcuts, addFiles, removeAttachment, resolveDraftAttachments,
   retryFileUpload,
   toggleCommandMenu, stop, command, t,
   renderSlot, useBusyEnter, useFileUploads, useNotices, useLexicon, useMenuLauncher,
@@ -52,6 +52,7 @@ export const InputBar = memo(function InputBar({
   const input = useInput(s => s)
   const notice = useNotices(s => s)
   const busyEnter = useBusyEnter(s => s)
+  const acceleratedShortcut = useShortcuts(snapshot => snapshot.commands.find(command => command.id === 'conversation.submitAccelerated' && command.status === 'available')?.bindingLabels.join(' / ') ?? '')
   void useLexicon // hook seat stays bound by the inject compartment; text-ref decoration rides the shell's editor transforms
   const commandMenuOpen = useMenuLauncher(source => source === 'command')
   const promptError = useSession(s => s.promptError) ?? null
@@ -266,22 +267,23 @@ export const InputBar = memo(function InputBar({
   // registration survives re-renders without re-arming per keystroke.
   const gate = useRef({
     locked, machineBusy, canSteerQueue, running, steeringAvailable, busyEnter,
-    intakeFiles, uploadsPending, showToast, t,
+    intakeFiles, uploadsPending, showToast, t, matchShortcut,
   })
   gate.current = {
     locked, machineBusy, canSteerQueue, running, steeringAvailable, busyEnter,
-    intakeFiles, uploadsPending, showToast, t,
+    intakeFiles, uploadsPending, showToast, t, matchShortcut,
   }
 
   useEffect(() => {
     if (editor === null || keyboard === undefined) return
     return registerComposerKeymap(editor, {
+      matches: (id, facts) => gate.current.matchShortcut(id, facts),
       arbitrate: (key, composing) => keyboard.arbitrate(key, composing),
       space: () => {
         if (gate.current.machineBusy || gate.current.locked) return false
         return keyboard.space()
       },
-      dismissPopup: () => { keyboard.dismissPopup() },
+      dismissPopup: () => keyboard.dismissPopup(),
       canSubmit: () => !gate.current.locked && !gate.current.machineBusy,
       submit: (accelerated) => {
         const g = gate.current
@@ -398,8 +400,8 @@ export const InputBar = memo(function InputBar({
       // The steer hint deliberately outranks the plan placeholder:
       // while it shows, the whole-queue gesture is genuinely available
       // (the gate never consults plan mode), so the actionable hint wins.
-      : canSteerQueue
-        ? t('placeholder.steerQueue')
+      : canSteerQueue && acceleratedShortcut !== ''
+        ? t('placeholder.steerQueue', { shortcut: acceleratedShortcut })
         : planActive ? t('placeholder.plan') : t('placeholder.default'))
 
   return (

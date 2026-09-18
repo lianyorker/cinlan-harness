@@ -33,6 +33,6 @@ Define scoped artifact references and store immutable evidence bytes through int
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-No standalone subsystem page exists for this package group; artifact contracts live with the group and package READMEs.
+The [Artifact subsystem reference](../../docs/subsystems/artifact.md) lists the generated Cordis API; immutable-reference, authorization, and storage contracts remain with the package READMEs.
 
 </details>

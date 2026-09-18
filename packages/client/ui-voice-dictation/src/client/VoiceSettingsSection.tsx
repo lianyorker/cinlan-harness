@@ -1,19 +1,15 @@
-/**
- * The Voice settings section: one aligned panel for microphone permission,
- * native-addon status, and the two shipped model rows. Degraded engine state
- * includes a copyable repair command; model rows retain download and status.
- */
+/** Native voice settings for browser preferences, microphone access, and host model resources. */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { IconCopyOutline16, Switch, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { voiceApi, type VoiceEngineStatus, type VoiceModelRow } from './api.ts'
+import type { VoiceApi, VoiceEngineStatus, VoiceModelRow } from './api.ts'
 import { readMicrophonePermission, requestMicrophonePermission, type MicrophonePermissionState } from './microphone.ts'
 import type { DictationMode, VoiceSettings } from './voice-settings.ts'
 import css from './VoiceSettingsSection.module.css'
 
-/** Injected face: the voice settings store and its updater. */
-export interface VoiceSettingsInjected {
+/** Browser preferences and plain host-operation callbacks provided by the plugin lifetime. */
+export interface VoiceSettingsInjected extends Pick<VoiceApi, 'engineStatus' | 'modelsList' | 'modelsDownload' | 'modelsRemove'> {
   hooks: { settings: SnapshotStore<VoiceSettings> }
   updateSettings: (patch: Partial<VoiceSettings>) => void
 }
@@ -31,24 +27,26 @@ type ModelsViewState =
   | { readonly phase: 'error' }
   | { readonly phase: 'ready'; readonly models: readonly VoiceModelRow[] }
 
-function formatBytes(bytes: number): string {
+function formatBytes(bytes: number, t: VoiceSettingsSectionProps['t']): string {
   const mb = bytes / (1024 * 1024)
-  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb.toFixed(0)} MB`
+  return mb >= 1024 ? t('gigabytes', { value: (mb / 1024).toFixed(1) }) : t('megabytes', { value: mb.toFixed(0) })
 }
 
 /** The Engine sub-section: native-addon load state, with a copyable repair command when degraded. */
-function EngineSection({ t }: { t: VoiceSettingsSectionProps['t'] }): ReactNode {
+function EngineSection({ t, engineStatus }: Pick<VoiceSettingsSectionProps, 't' | 'engineStatus'>): ReactNode {
   const [state, setState] = useState<EngineViewState>({ phase: 'loading' })
   const [copied, setCopied] = useState(false)
+  const [revision, setRevision] = useState(0)
 
   useEffect(() => {
     let current = true
-    void voiceApi.engineStatus().then(
+    setState({ phase: 'loading' })
+    void engineStatus().then(
       (status) => { if (current) setState({ phase: 'ready', status }) },
       () => { if (current) setState({ phase: 'error' }) },
     )
     return () => { current = false }
-  }, [])
+  }, [engineStatus, revision])
 
   useEffect(() => {
     if (!copied) return
@@ -57,15 +55,15 @@ function EngineSection({ t }: { t: VoiceSettingsSectionProps['t'] }): ReactNode 
   }, [copied])
 
   return (
-    <section className={css.settingSection} data-voice-subsection="engine">
+    <section className={css.settingSection} data-voice-subsection="engine" data-settings-anchor="voice-engine">
       <div className={css.settingRow}>
         <div className={css.settingCopy}>
-          <h3 className={css.settingTitle}>{t('engineSectionTitle')}</h3>
+          <h2 className={css.settingTitle}>{t('engineSectionTitle')}</h2>
           <p className={css.settingDescription}>{t('engineDescription')}</p>
         </div>
         <div className={css.settingControl}>
           {state.phase === 'loading' && <span className={css.statusMuted}>{t('engineLoading')}</span>}
-          {state.phase === 'error' && <span className={css.statusFailed}>{t('loadFailed')}</span>}
+          {state.phase === 'error' && <span className={css.statusFailed} role="alert">{t('engineLoadFailed')}</span>}
           {state.phase === 'ready' && state.status.ok && (
             <span className={css.statusBadge} data-engine-status="ok">
               <span className={css.statusDot} aria-hidden="true" />
@@ -78,13 +76,16 @@ function EngineSection({ t }: { t: VoiceSettingsSectionProps['t'] }): ReactNode 
               {t('engineDegraded')}
             </span>
           )}
+          <button type="button" className={css.actionButton} disabled={state.phase === 'loading'} onClick={() => { setRevision(value => value + 1) }}>
+            {t('refreshStatus')}
+          </button>
         </div>
       </div>
       {state.phase === 'ready' && !state.status.ok && (() => {
         const command = state.status.command
         return (
           <div className={css.engineDegraded}>
-            <p className={css.missing}>{t('engineRepairHint')}</p>
+            <p>{t('engineRepairHint')}</p>
             <div className={css.installCommandRow}>
               <code className={css.installCommand}>{command}</code>
               <button
@@ -103,23 +104,21 @@ function EngineSection({ t }: { t: VoiceSettingsSectionProps['t'] }): ReactNode 
   )
 }
 
-/** Unified speech-model section: dropdown listing all models with inline download/delete (orca-style). */
-function SpeechModelSection({ settings, updateSettings, t }: {
+/** Host model resources and the browser-local preferred model. */
+function SpeechModelSection({ settings, updateSettings, t, modelsList, modelsDownload, modelsRemove }: {
   settings: VoiceSettings
-  updateSettings: (patch: Partial<VoiceSettings>) => void
-  t: VoiceSettingsSectionProps['t']
-}): ReactNode {
+} & Pick<VoiceSettingsSectionProps, 'updateSettings' | 't' | 'modelsList' | 'modelsDownload' | 'modelsRemove'>): ReactNode {
   const [state, setState] = useState<ModelsViewState>({ phase: 'loading' })
   const [pendingDownload, setPendingDownload] = useState<string | null>(null)
   const [pendingRemove, setPendingRemove] = useState<string | null>(null)
-  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({})
   const mounted = useRef(true)
   const refreshGeneration = useRef(0)
 
   const refresh = useCallback((showLoading = false) => {
     const generation = ++refreshGeneration.current
     if (showLoading) setState({ phase: 'loading' })
-    void voiceApi.modelsList().then(
+    void modelsList().then(
       ({ models }) => {
         if (mounted.current && generation === refreshGeneration.current) setState({ phase: 'ready', models })
       },
@@ -128,7 +127,7 @@ function SpeechModelSection({ settings, updateSettings, t }: {
         setState(current => current.phase === 'ready' ? current : { phase: 'error' })
       },
     )
-  }, [])
+  }, [modelsList])
 
   useEffect(() => {
     mounted.current = true
@@ -147,28 +146,20 @@ function SpeechModelSection({ settings, updateSettings, t }: {
     return () => { clearInterval(timer) }
   }, [state, pendingDownload, refresh])
 
-  const setModelFailure = (modelId: string, error: unknown): void => {
+  const setModelFailure = (modelId: string, error: unknown): (void) => {
     if (!mounted.current) return
     const message = error instanceof Error ? error.message : String(error)
-    setState(current => current.phase !== 'ready' ? current : {
-      phase: 'ready',
-      models: current.models.map(model => model.definition.id !== modelId ? model : {
-        ...model,
-        status: { state: 'failed', message },
-      }),
-    })
+    setErrors(current => ({ ...current, [modelId]: message }))
   }
 
-  const onDownload = (modelId: string): void => {
+  const clearModelFailure = (modelId: string): (void) => {
+    setErrors(current => ({ ...current, [modelId]: undefined }))
+  }
+
+  const onDownload = (modelId: string): (void) => {
+    clearModelFailure(modelId)
     setPendingDownload(modelId)
-    setState(current => current.phase !== 'ready' ? current : {
-      phase: 'ready',
-      models: current.models.map(model => model.definition.id !== modelId ? model : {
-        ...model,
-        status: { state: 'downloading', receivedBytes: 0, totalBytes: model.definition.approximateBytes },
-      }),
-    })
-    void voiceApi.modelsDownload(modelId).catch((error: unknown) => {
+    void modelsDownload(modelId).catch((error: unknown) => {
       setModelFailure(modelId, error)
     }).finally(() => {
       if (!mounted.current) return
@@ -177,11 +168,12 @@ function SpeechModelSection({ settings, updateSettings, t }: {
     })
   }
 
-  const onRemove = (modelId: string): void => {
+  const onRemove = (modelId: string): (void) => {
     if (!window.confirm(t('removeConfirm'))) return
+    clearModelFailure(modelId)
     setPendingRemove(modelId)
-    void voiceApi.modelsRemove(modelId).then(
-      () => { refresh() },
+    void modelsRemove(modelId).then(
+      () => { if (mounted.current) refresh() },
       (error: unknown) => { setModelFailure(modelId, error) },
     ).finally(() => {
       if (mounted.current) setPendingRemove(null)
@@ -189,125 +181,88 @@ function SpeechModelSection({ settings, updateSettings, t }: {
   }
 
   const models = state.phase === 'ready' ? state.models : []
-  const selectedModel = models.find(model => model.definition.id === settings.sttModel)
-  const selectedIsReady = selectedModel !== undefined && selectedModel.status.state === 'ready'
+  const selectedMissing = settings.sttModel !== null && !models.some(model => model.definition.id === settings.sttModel)
 
   return (
-    <section className={css.settingSection} data-voice-subsection="speech-model">
+    <section className={css.settingSection} data-voice-subsection="speech-model" data-settings-anchor="voice-model">
       <div className={css.settingRow}>
         <div className={css.settingCopy}>
-          <h3 className={css.settingTitle}>{t('selectModel')}</h3>
-          <p className={css.settingDescription}>
-            {selectedModel && selectedIsReady
-              ? selectedModel.definition.name
-              : t('selectModelDescription')}
-          </p>
+          <h2 className={css.settingTitle}><label htmlFor="voice-model">{t('selectModel')}</label></h2>
+          <p className={css.settingDescription} id="voice-model-description">{t('selectModelDescription')}</p>
         </div>
         <div className={css.settingControl}>
-          {state.phase === 'loading' && <span className={css.statusMuted}>{t('loading')}</span>}
-          {state.phase === 'error' && <span className={css.statusFailed}>{t('loadFailed')}</span>}
-          {state.phase === 'ready' && (
-            <div className={css.dropdown}>
-              <button
-                type="button"
-                className={css.dropdownTrigger}
-                onClick={() => { setDropdownOpen(open => !open) }}
-              >
-                {selectedModel && selectedIsReady
-                  ? selectedModel.definition.name
-                  : t('noModelSelected')}
-                <span className={css.dropdownChevron} aria-hidden="true">▾</span>
-              </button>
-              {dropdownOpen && (
-                <>
-                  <div className={css.dropdownBackdrop} onClick={() => { setDropdownOpen(false) }} />
-                  <div className={css.dropdownMenu}>
-                    {models.map((model) => {
-                      const isReady = model.status.state === 'ready'
-                      const isDownloading = model.status.state === 'downloading' || model.status.state === 'extracting'
-                      const isActive = settings.sttModel === model.definition.id
-                      return (
-                        <div
-                          key={model.definition.id}
-                          className={css.dropdownItem}
-                          data-active={isActive && isReady}
-                          data-disabled={isDownloading}
-                          onClick={() => {
-                            if (isReady) {
-                              updateSettings({ sttModel: model.definition.id })
-                              setDropdownOpen(false)
-                            }
-                          }}
-                        >
-                          <div className={css.dropdownItemBody}>
-                            <div className={css.dropdownItemInfo}>
-                              <div className={css.dropdownItemTitleRow}>
-                                <span className={css.dropdownItemTitle} title={model.definition.name}>{model.definition.name}</span>
-                                {model.definition.recommended && (
-                                  <span className={css.recommendedTag}>{t('recommended')}</span>
-                                )}
-                              </div>
-                              <div className={css.dropdownItemDesc}>{model.definition.description}</div>
-                              <div className={css.dropdownItemMeta}>
-                                {formatBytes(model.definition.approximateBytes)}
-                                {model.status.state === 'downloading' && ` · ${t('downloading')} ${formatBytes(model.status.receivedBytes)} / ${formatBytes(model.status.totalBytes)}`}
-                                {model.status.state === 'extracting' && ` · ${t('installing')} ${formatBytes(model.status.receivedBytes)} / ${formatBytes(model.status.totalBytes)}`}
-                                {isReady && ` · ${t('modelReady')}`}
-                                {model.status.state === 'failed' && ` · ${t('statusFailed')}: ${model.status.message}`}
-                              </div>
-                            </div>
-                            <div className={css.dropdownItemActions}>
-                              {!isReady && !isDownloading && (
-                                <button
-                                  type="button"
-                                  className={css.dropdownItemButton}
-                                  disabled={pendingDownload === model.definition.id}
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    onDownload(model.definition.id)
-                                  }}
-                                >
-                                  {t('modelDownload')}
-                                </button>
-                              )}
-                              {isDownloading && (
-                                <button
-                                  type="button"
-                                  className={css.dropdownItemButton}
-                                  disabled={pendingRemove === model.definition.id}
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    onRemove(model.definition.id)
-                                  }}
-                                >
-                                  {pendingRemove === model.definition.id ? t('removing') : t('modelCancel')}
-                                </button>
-                              )}
-                              {(isReady || model.status.state === 'failed') && (
-                                <button
-                                  type="button"
-                                  className={css.dropdownItemButton}
-                                  disabled={pendingRemove === model.definition.id}
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    onRemove(model.definition.id)
-                                  }}
-                                >
-                                  {pendingRemove === model.definition.id ? t('removing') : t('modelRemove')}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+          <select
+            id="voice-model"
+            className={css.modelSelect}
+            value={settings.sttModel ?? ''}
+            disabled={!settings.enabled || state.phase !== 'ready'}
+            aria-describedby="voice-model-description"
+            onChange={(event) => { updateSettings({ sttModel: event.target.value || null }) }}
+          >
+            <option value="">{t('automaticModel')}</option>
+            {selectedMissing && <option value={settings.sttModel} disabled>{t('selectedModelUnavailable')}</option>}
+            {models.map(model => (
+              <option key={model.definition.id} value={model.definition.id} disabled={model.status.state !== 'ready'}>
+                {model.definition.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
+      {state.phase === 'loading' && <p className={css.stateRow} role="status">{t('loading')}</p>}
+      {state.phase === 'error' && (
+        <div className={css.resourceNotice}>
+          <span className={css.statusFailed} role="alert">{t('loadFailed')}</span>
+          <button type="button" className={css.actionButton} onClick={() => { refresh(true) }}>{t('retry')}</button>
+        </div>
+      )}
+      {state.phase === 'ready' && models.length === 0 && <p className={css.stateRow}>{t('noModelReady')}</p>}
+      {models.length > 0 && (
+        <ul className={css.modelList} aria-label={t('modelsSectionTitle')}>
+          {models.map((model) => {
+            const isReady = model.status.state === 'ready'
+            const isDownloading = model.status.state === 'downloading' || model.status.state === 'extracting'
+            return (
+              <li key={model.definition.id} className={css.modelRow}>
+                <div className={css.modelInfo}>
+                  <div className={css.modelTitle}>
+                    {model.definition.name}
+                    {model.definition.recommended && <span className={css.recommendedTag}>{t('recommended')}</span>}
+                  </div>
+                  <p className={css.settingDescription}>{model.definition.description}</p>
+                  <p className={css.modelMeta} role="status">
+                    {formatBytes(model.definition.approximateBytes, t)}
+                    {model.status.state === 'downloading' && ' · ' + t('downloading') + ' ' + formatBytes(model.status.receivedBytes, t) + ' / ' + formatBytes(model.status.totalBytes, t)}
+                    {model.status.state === 'extracting' && ' · ' + t('installing') + ' ' + formatBytes(model.status.receivedBytes, t) + ' / ' + formatBytes(model.status.totalBytes, t)}
+                    {isReady && ' · ' + t('modelReady')}
+                    {model.status.state === 'not-downloaded' && ' · ' + t('modelNotDownloaded')}
+                    {model.status.state === 'failed' && ' · ' + t('statusFailed') + ': ' + model.status.message}
+                  </p>
+                  {errors[model.definition.id] !== undefined && <p className={css.statusFailed} role="alert">{errors[model.definition.id]}</p>}
+                </div>
+                <div className={css.modelActions}>
+                  {!isReady && !isDownloading && (
+                    <button type="button" className={css.actionButton}
+                      disabled={!settings.enabled || pendingDownload !== null || pendingRemove === model.definition.id}
+                      onClick={() => { onDownload(model.definition.id) }}
+                    >
+                      {pendingDownload === model.definition.id ? t('downloading') : t('modelDownload')}
+                    </button>
+                  )}
+                  {(isDownloading || isReady || model.status.state === 'failed') && (
+                    <button type="button" className={css.actionButton}
+                      disabled={!settings.enabled || pendingRemove !== null}
+                      onClick={() => { onRemove(model.definition.id) }}
+                    >
+                      {pendingRemove === model.definition.id ? t('removing') : isDownloading ? t('modelCancel') : t('modelRemove')}
+                    </button>
+                  )}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </section>
   )
 }
@@ -318,15 +273,15 @@ function EnableSection({ settings, updateSettings, t }: {
   updateSettings: (patch: Partial<VoiceSettings>) => void
   t: VoiceSettingsSectionProps['t']
 }): ReactNode {
-  const onModeChange = (mode: DictationMode): void => {
+  const onModeChange = (mode: DictationMode): (void) => {
     updateSettings({ dictationMode: mode })
   }
 
   return (
     <section className={css.settingSection} data-voice-subsection="enable">
-      <div className={css.settingRow}>
+      <div className={css.settingRow} data-settings-anchor="voice-enabled">
         <div className={css.settingCopy}>
-          <h3 className={css.settingTitle}>{t('enableDictation')}</h3>
+          <h2 className={css.settingTitle}>{t('enableDictation')}</h2>
           <p className={css.settingDescription}>{t('enableDictationDescription')}</p>
         </div>
         <div className={css.settingControl}>
@@ -337,153 +292,178 @@ function EnableSection({ settings, updateSettings, t }: {
           />
         </div>
       </div>
-      {settings.enabled && (
-        <div className={css.settingRow} data-voice-setting="dictation-mode">
-          <div className={css.settingCopy}>
-            <h3 className={css.settingTitle}>{t('dictationModeTitle')}</h3>
-            <p className={css.settingDescription}>{t('dictationModeDescription')}</p>
-          </div>
-          <div className={css.settingControl}>
-            <div className={css.modeGroup} role="radiogroup" aria-label={t('dictationModeTitle')}>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={settings.dictationMode === 'toggle'}
-                className={css.modeButton}
-                data-active={settings.dictationMode === 'toggle'}
-                onClick={() => { onModeChange('toggle') }}
-              >
-                {t('modeToggle')}
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={settings.dictationMode === 'hold'}
-                className={css.modeButton}
-                data-active={settings.dictationMode === 'hold'}
-                onClick={() => { onModeChange('hold') }}
-              >
-                {t('modeHold')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </section>
-  )
-}
-
-/** The microphone device selection sub-section: dropdown of available audio inputs. */
-function MicrophoneDeviceSection({ settings, updateSettings, t }: {
-  settings: VoiceSettings
-  updateSettings: (patch: Partial<VoiceSettings>) => void
-  t: VoiceSettingsSectionProps['t']
-}): ReactNode {
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
-
-  useEffect(() => {
-    if (typeof navigator === 'undefined' || navigator.mediaDevices === undefined) return
-    const mediaDevices = navigator.mediaDevices
-    let current = true
-    const enumerate = async (): Promise<void> => {
-      try {
-        const list = await mediaDevices.enumerateDevices()
-        if (!current) return
-        setDevices(list.filter(device => device.kind === 'audioinput'))
-      } catch {
-        if (current) setDevices([])
-      }
-    }
-    void enumerate()
-    if (typeof mediaDevices.addEventListener === 'function') {
-      mediaDevices.addEventListener('devicechange', enumerate)
-    }
-    return () => {
-      current = false
-      if (typeof mediaDevices.removeEventListener === 'function') {
-        mediaDevices.removeEventListener('devicechange', enumerate)
-      }
-    }
-  }, [])
-
-  return (
-    <section className={css.settingSection} data-voice-subsection="microphone-device">
-      <div className={css.settingRow}>
+      <div className={css.settingRow} data-voice-setting="dictation-mode" data-settings-anchor="voice-mode">
         <div className={css.settingCopy}>
-          <h3 className={css.settingTitle}>{t('microphoneDevice')}</h3>
-          <p className={css.settingDescription}>{t('microphoneDeviceDescription')}</p>
+          <h2 className={css.settingTitle}>{t('dictationModeTitle')}</h2>
+          <p className={css.settingDescription}>{t('dictationModeDescription')}</p>
         </div>
         <div className={css.settingControl}>
-          <select
-            className={css.modelSelect}
-            value={settings.microphoneDeviceId ?? ''}
-            onChange={(event) => {
-              const value = event.target.value
-              updateSettings({ microphoneDeviceId: value === '' ? null : value })
-            }}
-          >
-            <option value="">{t('microphoneDeviceDefault')}</option>
-            {devices.length === 0 && <option value="" disabled>{t('microphoneDeviceNone')}</option>}
-            {devices.map(device => (
-              <option key={device.deviceId} value={device.deviceId}>
-                {device.label || `Device ${device.deviceId.slice(0, 8)}`}
-              </option>
-            ))}
-          </select>
+          <div className={css.modeGroup} role="radiogroup" aria-label={t('dictationModeTitle')}>
+            <label className={css.modeOption}>
+              <input className={css.modeInput} type="radio" name="voice-dictation-mode" value="toggle"
+                checked={settings.dictationMode === 'toggle'} disabled={!settings.enabled}
+                onChange={() => { onModeChange('toggle') }}
+              />
+              <span className={css.modeButton}>{t('modeToggle')}</span>
+            </label>
+            <label className={css.modeOption}>
+              <input className={css.modeInput} type="radio" name="voice-dictation-mode" value="hold"
+                checked={settings.dictationMode === 'hold'} disabled={!settings.enabled}
+                onChange={() => { onModeChange('hold') }}
+              />
+              <span className={css.modeButton}>{t('modeHold')}</span>
+            </label>
+          </div>
         </div>
       </div>
     </section>
   )
 }
 
-/** Render the Voice settings section. */
-export function VoiceSettingsSection({ t, useSettings, updateSettings }: VoiceSettingsSectionProps): ReactNode {
-  const settings = useSettings(value => value)
-  const [mic, setMic] = useState<MicrophonePermissionState>('unknown')
+/** Audio-input enumeration refreshes after permission and device changes. */
+function MicrophoneDeviceSection({ settings, updateSettings, permissionRevision, t }: {
+  settings: VoiceSettings
+  updateSettings: (patch: Partial<VoiceSettings>) => void
+  permissionRevision: number
+  t: VoiceSettingsSectionProps['t']
+}): ReactNode {
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
+  const [failed, setFailed] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [revision, setRevision] = useState(0)
+  const supported = typeof (navigator as { mediaDevices?: MediaDevices }).mediaDevices?.enumerateDevices === 'function'
 
   useEffect(() => {
+    if (!supported) return
+    const mediaDevices = navigator.mediaDevices
     let current = true
-    void readMicrophonePermission().then((permission) => { if (current) setMic(permission) })
-    return () => { current = false }
+    let generation = 0
+    const enumerate = async (): Promise<void> => {
+      const requested = ++generation
+      try {
+        const list = await mediaDevices.enumerateDevices()
+        if (!current || requested !== generation) return
+        setDevices(list.filter(device => device.kind === 'audioinput' && device.deviceId !== ''))
+        setFailed(false)
+        setLoaded(true)
+      } catch {
+        if (!current || requested !== generation) return
+        setFailed(true)
+        setLoaded(true)
+      }
+    }
+    void enumerate()
+    const onDeviceChange = (): void => { void enumerate() }
+    if (typeof mediaDevices.addEventListener === 'function') mediaDevices.addEventListener('devicechange', onDeviceChange)
+    return () => {
+      current = false
+      if (typeof mediaDevices.removeEventListener === 'function') mediaDevices.removeEventListener('devicechange', onDeviceChange)
+    }
+  }, [supported, permissionRevision, revision])
+
+  const unavailable = settings.microphoneDeviceId !== null && !devices.some(device => device.deviceId === settings.microphoneDeviceId)
+
+  return (
+    <section className={css.settingSection} data-voice-subsection="microphone-device" data-settings-anchor="voice-device">
+      <div className={css.settingRow}>
+        <div className={css.settingCopy}>
+          <h2 className={css.settingTitle}><label htmlFor="voice-device">{t('microphoneDevice')}</label></h2>
+          <p className={css.settingDescription} id="voice-device-description">{t('microphoneDeviceDescription')}</p>
+          {failed && <p className={css.statusFailed} role="alert">{t('microphoneDeviceFailed')}</p>}
+          {supported && loaded && !failed && devices.length === 0 && <p className={css.settingDescription}>{t('microphoneDeviceNone')}</p>}
+        </div>
+        <div className={css.settingControl}>
+          <select
+            id="voice-device"
+            className={css.modelSelect}
+            value={settings.microphoneDeviceId ?? ''}
+            disabled={!settings.enabled || !supported}
+            aria-describedby="voice-device-description"
+            onChange={(event) => { updateSettings({ microphoneDeviceId: event.target.value || null }) }}
+          >
+            <option value="">{t('microphoneDeviceDefault')}</option>
+            {unavailable && <option value={settings.microphoneDeviceId} disabled>{t('microphoneDeviceUnavailable')}</option>}
+            {devices.map((device, index) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label || t('microphoneDeviceUnnamed', { id: index + 1 })}
+              </option>
+            ))}
+          </select>
+          {failed && <button type="button" className={css.actionButton} onClick={() => { setRevision(value => value + 1) }}>{t('retry')}</button>}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/**
+ * Render stable field targets without enabling dictation during search navigation.
+ * @param props - localized copy, browser preferences, their updater, and injected host operations.
+ * @returns voice preferences, microphone access, and host resource controls.
+ */
+export function VoiceSettingsSection({
+  t, useSettings, updateSettings, engineStatus, modelsList, modelsDownload, modelsRemove,
+}: VoiceSettingsSectionProps): ReactNode {
+  const settings = useSettings(value => value)
+  const [mic, setMic] = useState<MicrophonePermissionState>('unknown')
+  const [requestingMic, setRequestingMic] = useState(false)
+  const [permissionRevision, setPermissionRevision] = useState(0)
+  const mounted = useRef(false)
+  const permissionGeneration = useRef(0)
+  const microphoneAvailable = typeof (navigator as { mediaDevices?: MediaDevices }).mediaDevices?.getUserMedia === 'function'
+
+  useEffect(() => {
+    mounted.current = true
+    const generation = ++permissionGeneration.current
+    void readMicrophonePermission().then((permission) => {
+      if (mounted.current && generation === permissionGeneration.current) setMic(permission)
+    })
+    return () => { mounted.current = false }
   }, [])
 
-  const onRequestMic = (): void => {
-    void requestMicrophonePermission().then(setMic)
+  const onRequestMic = (): (void) => {
+    permissionGeneration.current += 1
+    setRequestingMic(true)
+    void requestMicrophonePermission().then((permission) => {
+      if (!mounted.current) return
+      setMic(permission)
+      setRequestingMic(false)
+      setPermissionRevision(value => value + 1)
+    })
   }
-
-  const disabled = !settings.enabled
 
   return (
     <div className={css.section}>
       <div className={css.heading}>
-        <h2>{t('title')}</h2>
+        <h1>{t('title')}</h1>
         <p>{t('description')}</p>
       </div>
       <div className={css.panel} data-voice-settings-panel="true">
         <EnableSection settings={settings} updateSettings={updateSettings} t={t} />
-        {disabled && <p className={css.stateRow}>{t('disabledHint')}</p>}
-        {!disabled && (
-          <>
-            <div className={css.settingRow} data-voice-setting="microphone">
-              <div className={css.settingCopy}>
-                <h3 className={css.settingTitle}>{t('microphoneTitle')}</h3>
-                <p className={css.settingDescription}>{t('microphoneDescription')}</p>
-              </div>
-              <div className={css.settingControl}>
-                <span className={css.statusBadge} data-microphone-status={mic}>
-                  <span className={css.statusDot} aria-hidden="true" />
-                  {t(mic === 'granted' ? 'micGranted' : mic === 'denied' ? 'micDenied' : 'micUnknown')}
-                </span>
-                <button className={css.actionButton} type="button" onClick={onRequestMic}>
-                  {t('micRequest')}
-                </button>
-              </div>
-            </div>
-            <MicrophoneDeviceSection settings={settings} updateSettings={updateSettings} t={t} />
-            <EngineSection t={t} />
-            <SpeechModelSection settings={settings} updateSettings={updateSettings} t={t} />
-          </>
-        )}
+        {!settings.enabled && <p className={css.stateRow}>{t('disabledHint')}</p>}
+        <div className={css.settingRow} data-voice-setting="microphone" data-settings-anchor="voice-permission">
+          <div className={css.settingCopy}>
+            <h2 className={css.settingTitle}>{t('microphoneTitle')}</h2>
+            <p className={css.settingDescription}>{t('microphoneDescription')}</p>
+            {!microphoneAvailable && <p className={css.settingDescription}>{t('microphoneUnavailable')}</p>}
+          </div>
+          <div className={css.settingControl}>
+            <span className={css.statusBadge} data-microphone-status={mic} role="status">
+              <span className={css.statusDot} aria-hidden="true" />
+              {t(mic === 'granted' ? 'micGranted' : mic === 'denied' ? 'micDenied' : 'micUnknown')}
+            </span>
+            <button className={css.actionButton} type="button" onClick={onRequestMic}
+              disabled={!settings.enabled || !microphoneAvailable || requestingMic}
+            >
+              {requestingMic ? t('micRequesting') : t('micRequest')}
+            </button>
+          </div>
+        </div>
+        <MicrophoneDeviceSection settings={settings} updateSettings={updateSettings} permissionRevision={permissionRevision} t={t} />
+        <EngineSection t={t} engineStatus={engineStatus} />
+        <SpeechModelSection settings={settings} updateSettings={updateSettings} t={t}
+          modelsList={modelsList} modelsDownload={modelsDownload} modelsRemove={modelsRemove}
+        />
       </div>
     </div>
   )

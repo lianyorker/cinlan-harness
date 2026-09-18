@@ -68,7 +68,7 @@ describe('ui-settings-models apply', () => {
 
   it('declares the services it uses', () => {
     expect(inject).toEqual([
-      'slots', 'locale', 'remote', 'remote.credentials', 'remote.llm', 'remote.settings',
+      'settingsMetadata', 'slots', 'locale', 'remote', 'remote.credentials', 'remote.llm', 'remote.settings',
       'settingsScope', 'settingsSchema',
     ])
   })
@@ -80,7 +80,8 @@ describe('ui-settings-models apply', () => {
     const entry = before.slots.entries('settings.section')[0]!
     expect(entry.component).toBe(ModelsSection)
     expect(entry.options).toMatchObject({ id: 'models', order: 10 })
-    // The section claims its two extension seats in the same registration.
+    // The section claims its extension slots in the same registration.
+    expect(before.slots.spec('settings.models.defaults')).toMatchObject({ kind: 'list', scope: 'root' })
     expect(before.slots.spec('settings.models.provider-card')).toMatchObject({ kind: 'keyed', scope: 'root' })
     expect(before.slots.spec('settings.models.footer')).toMatchObject({ kind: 'list', scope: 'root' })
     // The nav label is a locale-following thunk; owners resolve at read time.
@@ -116,6 +117,37 @@ describe('ui-settings-models apply', () => {
     expect(after.slots.entries('settings.onboarding')).toHaveLength(2)
     // The self-inflicted ledger notifications hit the duplicate guard.
     expect(after.slots.entries('settings.section')).toHaveLength(1)
+  })
+
+  it('keeps localized public search targets in the section declaration lifetime', async () => {
+    const b = await bench()
+    const fiber = b.ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    try {
+      expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+      const release = declare(b.slots)
+      await vi.waitFor(() => { expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(3) })
+      expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'models', groupId: 'ai' }])
+      expect(b.ctx.settingsMetadata.getSnapshot().items.map(item => [item.id, item.anchorId, item.title])).toEqual([
+        ['providers', 'models-providers', '提供方'],
+        ['add-provider', 'models-add-provider', '添加提供方'],
+        ['custom-provider', 'models-custom-provider', '添加自定义提供方'],
+      ])
+      b.locale.setLocale('en')
+      expect(b.ctx.settingsMetadata.getSnapshot().items[0]).toMatchObject({
+        title: 'Provider', keywords: ['API key', 'Base URL', 'Models', 'Model ID', 'Context window', 'Max output tokens'],
+      })
+      expect(b.ctx.remote.llm.listConfigurableProviders).not.toHaveBeenCalled()
+      expect(b.ctx.remote.credentials.describe).not.toHaveBeenCalled()
+      release()
+      expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+      declare(b.slots)
+      await vi.waitFor(() => { expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(3) })
+      await fiber.dispose()
+      expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+    } finally {
+      await b.ctx.fiber.dispose()
+    }
   })
 
   it('the label thunk follows the active locale without re-registration', async () => {

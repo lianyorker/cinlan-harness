@@ -35,7 +35,7 @@ import {
 import {
   displayPermissionPreset, FULL_ACCESS_PRESET,
 } from './presentation.ts'
-import { PermissionPresetSettingsController } from './settings-store.ts'
+import { PERMISSION_SETTINGS_NS, PermissionPresetSettingsController } from './settings-store.ts'
 
 export type { PermissionRowInjected, PermissionRowProps } from './PermissionRow.tsx'
 export type {
@@ -45,7 +45,7 @@ export type {
 /** Required services (cordis fiber inject). */
 export const inject = [
   'commandUi', 'sessions', 'slots', 'locale', 'remote', 'remote.settings',
-  'settingsScope', 'settingsSchema',
+  'settingsScope', 'settingsSchema', 'settingsMetadata',
 ]
 
 const ACCESS_NS = 'permission.access'
@@ -120,10 +120,12 @@ export function apply(ctx: ClientContext): void {
     sessions.binding(session.sessionId)?.session
 
   ctx.effect(() => ctx.locale.register('settings.permission', { zh, en }), 'ui-permission: settings row dictionaries')
+  const settingsT = ctx.locale.bind('settings.permission')
 
   // The shared SettingsScope mirror updates after document commits and reconnects.
+  const describe = ctx.settingsScope.describe()
   const controller = new PermissionPresetSettingsController(
-    ctx.settingsScope.describe(), ctx, ctx.settingsSchema)
+    describe, ctx, ctx.settingsSchema)
   const load = (): Promise<void> => controller.load()
   const select = (preset: string): Promise<void> => controller.select(preset)
   const injected = (): PermissionRowInjected => ({
@@ -134,13 +136,38 @@ export function apply(ctx: ClientContext): void {
 
   ctx.effect(() => () => { controller.dispose() }, 'ui-permission: settings row directory')
 
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
-    id: 'permission',
-    order: -20,
-    locale: 'settings.permission',
-    inject: injected,
-  }, PermissionRow))
+  ctx.slots.inject('settings.general.item', function* () {
+    yield ctx.slots.register({
+      name: 'settings.general.item',
+      id: 'permission',
+      order: -20,
+      locale: 'settings.permission',
+      inject: injected,
+    }, PermissionRow)
+    yield ctx.effect(() => {
+      let disposeMetadata: (() => void) | undefined
+      const refresh = (): void => {
+        const snapshot = describe.getSnapshot()
+        const available = snapshot.status !== 'unavailable'
+          && snapshot.view?.namespaces.some(view => view.ns === PERMISSION_SETTINGS_NS) === true
+        if (available && disposeMetadata === undefined) {
+          disposeMetadata = ctx.settingsMetadata.registerItems('general', [{
+            id: 'permission',
+            anchorId: 'permission',
+            title: () => settingsT('title'),
+            description: () => settingsT('description'),
+            keywords: () => ['permission', 'access', 'approval', 'sandbox'],
+          }])
+        } else if (!available) {
+          disposeMetadata?.()
+          disposeMetadata = undefined
+        }
+      }
+      refresh()
+      const unsubscribe = describe.subscribe(refresh)
+      return () => { unsubscribe(); disposeMetadata?.() }
+    }, 'ui-permission: searchable available preference')
+  })
 
   ctx.effect(() => command.decorate({
     name: 'permission',

@@ -15,7 +15,13 @@
       "path": "../../api/remotes/tsconfig.client.json"
     },
     {
+      "path": "../../mobile-device/mobile-device"
+    },
+    {
       "path": "../locale"
+    },
+    {
+      "path": "../ui-better-sidebar"
     },
     {
       "path": "../ui-primitives"

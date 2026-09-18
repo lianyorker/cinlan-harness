@@ -1,0 +1,75 @@
+import { describe, expect, it } from 'vitest'
+import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
+import { api, createSidebarGitClient } from '../src/client/api.ts'
+import { gitRemote, logEntry, patch, preview, repository, scope, status } from './git-fixture.client.ts'
+
+describe('sidebar Git Remote adapter', () => {
+  it('unwraps reads, forwards cancellation, and leaves repository selection to the Host', async () => {
+    const remote = gitRemote()
+    const git = createSidebarGitClient(remote)
+    const controller = new AbortController()
+    const signal = controller.signal
+    expect(await git.gitStatus(scope, signal)).toBe(status)
+    expect(remote.status).toHaveBeenCalledWith({ sessionId: scope.sessionId }, signal)
+    expect(await git.gitDiff(scope, 'literal [name].ts', true, signal)).toEqual({ diff: patch })
+    expect(remote.diff).toHaveBeenCalledWith({ sessionId: scope.sessionId, path: 'literal [name].ts', staged: true }, signal)
+    await git.gitDiff(scope, undefined, false)
+    expect(remote.diff).toHaveBeenLastCalledWith({ sessionId: scope.sessionId, staged: false }, undefined)
+    expect(await git.gitBranch(scope, signal)).toEqual({ current: 'topic', names: ['topic', 'main'] })
+    expect(remote.branches).toHaveBeenCalledWith({ sessionId: scope.sessionId }, signal)
+    expect(await git.gitLog(scope, 20, 40, signal)).toEqual([logEntry])
+    expect(remote.log).toHaveBeenCalledWith({ sessionId: scope.sessionId, count: 20, skip: 40 }, signal)
+    await git.gitLog(scope)
+    expect(remote.log).toHaveBeenLastCalledWith({ sessionId: scope.sessionId }, undefined)
+    expect(await git.gitShow(scope, ':0', 'renamed.ts', signal)).toEqual({ content: null })
+    expect(remote.show).toHaveBeenCalledWith({ sessionId: scope.sessionId, ref: ':0', path: 'renamed.ts' }, signal)
+    expect(await git.gitCommitDiff(scope, logEntry.hashFull, signal)).toEqual({ diff: patch })
+    expect(remote.commitDiff).toHaveBeenCalledWith({ sessionId: scope.sessionId, hash: logEntry.hashFull }, signal)
+    expect(await git.gitCompare(scope, signal)).toEqual({ status: 'unavailable', reason: 'detached' })
+    expect(remote.compare).toHaveBeenCalledWith({ sessionId: scope.sessionId }, signal)
+    expect(Object.keys(api).filter(key => key.startsWith('git'))).toEqual([])
+  })
+
+  it('carries displayed repository provenance and confirms the complete original preview', async () => {
+    const remote = gitRemote()
+    const git = createSidebarGitClient(remote)
+    const request = { sessionId: scope.sessionId, repositoryRoot: repository.root }
+    await git.gitStage(scope, repository.root, 'one.ts')
+    await git.gitUnstage(scope, repository.root, 'two.ts')
+    expect(remote.stage).toHaveBeenCalledWith({ ...request, path: 'one.ts' })
+    expect(remote.unstage).toHaveBeenCalledWith({ ...request, path: 'two.ts' })
+    await git.gitStage(scope, repository.root)
+    await git.gitUnstage(scope, repository.root)
+    expect(remote.stage).toHaveBeenLastCalledWith(request)
+    expect(remote.unstage).toHaveBeenLastCalledWith(request)
+    await git.gitCheckout(scope, repository.root, 'main')
+    expect(remote.checkout).toHaveBeenCalledWith({ ...request, branch: 'main' })
+    const signal = new AbortController().signal
+    const reviewed = await git.gitPrepareCommit(scope, repository.root, 'subject\n\nbody', signal)
+    expect(remote.prepareCommit).toHaveBeenCalledWith({ ...request, message: 'subject\n\nbody' }, signal)
+    expect(reviewed).toBe(preview)
+    await git.gitCommit(reviewed)
+    expect(remote.commit.mock.calls[0]?.[0].preview).toBe(preview)
+    await git.gitDiscard(scope, repository.root, repository.head, 'one.ts')
+    expect(remote.discard).toHaveBeenCalledWith({ ...request, head: repository.head, path: 'one.ts' })
+    await git.gitRevert(scope, repository.root, repository.head, logEntry.hashFull)
+    await git.gitCherryPick(scope, repository.root, repository.head, logEntry.hashFull)
+    expect(remote.revert).toHaveBeenCalledWith({ ...request, head: repository.head, hash: logEntry.hashFull })
+    expect(remote.cherryPick).toHaveBeenCalledWith({ ...request, head: repository.head, hash: logEntry.hashFull })
+  })
+
+  it('rejects the exact Remote failure and keeps adapters bound to their own namespace', async () => {
+    const first = gitRemote()
+    const second = gitRemote()
+    const failure = new RemoteError('gateway/internal', 'Host unavailable', {})
+    first.status.mockResolvedValue({ ok: false, error: failure })
+    const a = createSidebarGitClient(first)
+    const b = createSidebarGitClient(second)
+    await expect(a.gitStatus(scope)).rejects.toBe(failure)
+    await expect(b.gitStatus(scope)).resolves.toBe(status)
+    expect(first.status).toHaveBeenCalledOnce()
+    expect(second.status).toHaveBeenCalledOnce()
+    second.commit.mockResolvedValue({ ok: false, error: failure })
+    await expect(b.gitCommit(preview)).rejects.toBe(failure)
+  })
+})

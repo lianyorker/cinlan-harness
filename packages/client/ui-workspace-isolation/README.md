@@ -25,6 +25,8 @@ Mount the plugin with Settings, Locale, and the official Remote assembly. The se
 
 Merge, cherry-pick, teardown, and orphan pruning require explicit acknowledgement. Commands send only provider-issued lease ids; no browser callback accepts a repository path, target branch, deletion path, or force flag. A safe teardown refusal leaves the hibernated lease visible with a review marker. Superseded reads and component teardown abort in-flight browser requests, and stale responses cannot replace a newer list.
 
+Native rows use the parent Settings content width. Localized field search covers lease records, review operations, orphan pruning, and provider-policy guidance without indexing paths, ids, branch names, or current values. A policy target opens its disclosure. Descriptors and the page share one slot-registration lifetime. Failed inspection offers a retry; pruning stays disabled until the Host provides a lease list.
+
 <a id="model-experience"></a>
 ## Model Experience
 
@@ -38,6 +40,7 @@ None; lease administration does not alter model requests.
 <a id="known-limitations-and-deferred-work"></a>
 
 - Lease creation remains owned by Session and task execution paths rather than Settings.
+- Checkout roots and active limits are provider configuration. Isolation mode, execution host, shared-cache policy, and idle timeout have no writable preference consumer exposed by this page.
 - State refresh is explicit; the page does not subscribe to provider lifecycle events.
 - Active untracked files are reported but omitted from patch preview and export.
 

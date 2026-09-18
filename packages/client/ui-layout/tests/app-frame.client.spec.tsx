@@ -94,6 +94,7 @@ function mountFrame(windowWidth = frameWidth) {
   const element = () => (
     <AppFrame
       useStore={useStore}
+      matchesSidebarShortcut={() => false}
       actions={instance.actions}
       renderSlot={renderSlot}
       useSessions={useSessions}

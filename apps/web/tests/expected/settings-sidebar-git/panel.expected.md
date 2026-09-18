@@ -1,0 +1,28 @@
+- img
+- text: Files
+- button "Close":
+  - img
+- img
+- text: Source Control
+- button "Close":
+  - img
+- button "New tab":
+  - img
+- combobox "Branch":
+  - option "main" [selected]
+- button "Compare branch"
+- button "Refresh":
+  - img
+- text: Loading…
+- region "Unstaged": Unstaged (0) No changes
+- region "Staged": Staged (0) No changes
+- region "Untracked":
+  - text: Untracked (1)
+  - button "Stage all"
+  - button "? acceptance.txt"
+  - button "Stage":
+    - img
+- textbox "Commit message (Ctrl/Cmd+Enter to review)"
+- button "Commit" [disabled]
+- text: History
+- button "Load more"

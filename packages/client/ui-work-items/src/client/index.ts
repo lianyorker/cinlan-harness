@@ -16,7 +16,7 @@ export type { WorkItemsKey } from './locales.ts'
 export type { WorkItemsSettings } from '../types.ts'
 
 /** Services used by Settings registration and the generated Work Items namespace. */
-export const inject = ['slots', 'locale', 'remote', 'remote.workItems', 'remote.integrationPreflight', 'settingsScope']
+export const inject = ['settingsMetadata', 'slots', 'locale', 'remote', 'remote.workItems', 'remote.integrationPreflight', 'settingsScope']
 
 /**
  * Register the localized Settings entry for the lifetime of its declaring slots.
@@ -44,15 +44,52 @@ export function apply(ctx: Context): void {
     get: async (request, signal) => value(await ctx.remote.workItems.get(request, signal)),
     associate: async (request, signal) => value(await ctx.remote.workItems.associate(request, signal)),
     disassociate: async (request, signal) => value(await ctx.remote.workItems.disassociate(request, signal)),
-    checkIntegration: async (provider) => {
-      const result = await ctx.remote.integrationPreflight.check({ provider })
+    checkIntegration: async (provider, signal) => {
+      const result = await ctx.remote.integrationPreflight.check({ provider }, signal)
       if (!result.ok) throw new Error(`integrationPreflight.check failed: ${result.error.code}: ${result.error.message}`)
       return result.value
     },
-    settings,
+    hooks: { settings },
+    setVisibility: async (field, visible) => {
+      const accepted = await settings.mutate([{ op: 'set', path: [field], value: visible }])
+      const snapshot = settings.getSnapshot()
+      const user = snapshot.user
+      if (!accepted || snapshot.status !== 'ready' || snapshot.value?.[field] !== visible
+        || typeof user !== 'object' || user === null || !Object.hasOwn(user, field)
+        || (user as Partial<WorkItemsSettings>)[field] !== visible) {
+        throw new Error(t('visibilityFailed'))
+      }
+    },
+    resetVisibility: async (field) => {
+      const accepted = await settings.mutate([{ op: 'unset', path: [field] }])
+      const snapshot = settings.getSnapshot()
+      if (!accepted || snapshot.status !== 'ready' || snapshot.user && Object.hasOwn(snapshot.user, field)) {
+        throw new Error(t('visibilityFailed'))
+      }
+    },
   }
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section', id: NS, order: 25, label: () => t('nav'), locale: NS,
-    inject: () => injected,
-  }, WorkItemsSection))
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: NS, groupId: 'development' })
+    yield ctx.settingsMetadata.registerItems(NS, [
+      ...(['github', 'gitlab', 'linear'] as const).map(provider => ({
+        id: provider + 'Visible', anchorId: 'work-items-' + provider + '-visible',
+        title: () => t('providerVisibility', { provider: t(provider) }), description: () => t('visibilityHelp'),
+      })),
+      ...([
+        ['source', 'source', 'sourceHelp'], ['state', 'state', 'stateHelp'],
+        ['workspace-scope', 'workspaceContext', 'workspaceScopeHelp'], ['query', 'search', 'queryHelp'],
+        ['paging', 'paging', 'pagingHelp'], ['links', 'workspace', 'linksHelp'], ['session', 'session', 'chooseWorkspace'],
+        ['write-kind', 'writeKind', 'writeHint'], ['write-title', 'writeTitle', 'writeHint'],
+        ['write-body', 'writeBody', 'writeHint'], ['write-state', 'writeStateValue', 'writeStateHelp'],
+        ['write-assignees', 'writeAssignees', 'writeAssigneesHelp'],
+        ['write-preview', 'writePreview', 'writeHint'], ['write-history', 'writeHistory', 'writeUnknown'],
+      ] as const).map(([id, title, description]) => ({
+        id, anchorId: 'work-items-' + id, title: () => t(title), description: () => t(description),
+      })),
+    ])
+    yield ctx.slots.register({
+      name: 'settings.section', id: NS, order: 50, label: () => t('nav'), locale: NS,
+      inject: () => injected,
+    }, WorkItemsSection)
+  })
 }

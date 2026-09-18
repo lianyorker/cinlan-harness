@@ -1,4 +1,3 @@
-/* oxlint-disable typescript/prefer-promise-reject-errors -- abort test uses the signal reason. */
 /** Model download/cache lifecycle tests against a real tiny .tar.bz2 fixture and a stubbed fetch. */
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

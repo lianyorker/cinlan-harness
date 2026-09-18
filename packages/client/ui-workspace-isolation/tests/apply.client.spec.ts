@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { Context } from '@deepseek-ai/cordis'
+import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
@@ -34,6 +35,7 @@ function lease(): WorkspaceIsolationLeaseView {
 
 async function bench(isLoopback = true) {
   const ctx = new Context()
+  new SettingsMetadataService(ctx)
   const locale = new LocaleRuntime(ctx)
   locale.setLocale('zh')
   ctx.provide('locale', locale)
@@ -102,7 +104,7 @@ function declare(slots: SlotRegistry): () => void {
 
 describe('ui-workspace-isolation registration', () => {
   it('declares the generated Remote and presentation services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.workspaceIsolation'])
+    expect(inject).toEqual(['settingsMetadata', 'slots', 'locale', 'remote', 'remote.workspaceIsolation'])
   })
 
   it('registers one localized section without eager reads or a removed icon slot', async () => {
@@ -113,16 +115,24 @@ describe('ui-workspace-isolation registration', () => {
 
     const section = b.slots.entries('settings.section')[0]!
     expect(section.component).toBe(WorkspaceIsolationSection)
-    expect(section.options).toMatchObject({ id: 'workspace-isolation', order: 15 })
+    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'workspace-isolation', groupId: 'development' }])
+    expect(section.options).toMatchObject({ id: 'workspace-isolation', order: 70 })
     expect(section.locale).toBe('settings.workspaceIsolation')
     expect(resolveSlotLabel(section.options.label)).toBe('隔离工作区')
     expect(b.list).not.toHaveBeenCalled()
+    const items = b.ctx.settingsMetadata.getSnapshot().items
+    expect(items).toHaveLength(4)
+    expect(items.find(item => item.id === 'policy')?.title).toBe('隔离策略与可用性')
+    expect(JSON.stringify(items)).not.toContain('/source')
 
     b.locale.setLocale('en')
     expect(resolveSlotLabel(section.options.label)).toBe('Workspace isolation')
+    const policy = b.ctx.settingsMetadata.getSnapshot().items.find(item => item.id === 'policy')
+    expect(policy?.title).toBe('Isolation policy and availability')
     hostApply()
     await fiber.dispose()
     expect(b.slots.entries('settings.section')).toEqual([])
+    expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
     await b.ctx.fiber.dispose()
   })
 
@@ -186,6 +196,7 @@ describe('ui-workspace-isolation registration', () => {
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     expect(b.slots.entries('settings.section')).toEqual([])
+    expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
     expect(b.list).not.toHaveBeenCalled()
     await b.ctx.fiber.dispose()
   })
@@ -195,15 +206,20 @@ describe('ui-workspace-isolation registration', () => {
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(b.slots.entries('settings.section')).toEqual([])
+    expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
 
     const release = declare(b.slots)
     await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toHaveLength(1) })
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(4)
     release()
     expect(b.slots.entries('settings.section')).toEqual([])
+    expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
     declare(b.slots)
     await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toHaveLength(1) })
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(4)
     await fiber.dispose()
     expect(b.slots.entries('settings.section')).toEqual([])
+    expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
     await b.ctx.fiber.dispose()
   })
 })

@@ -3,20 +3,15 @@
 .section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 760px;
+  gap: 20px;
+  min-width: 0;
   color: var(--dsw-alias-label-primary);
-}
-
-.heading {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
 }
 
 .intro {
   margin: 0;
   font-size: 13px;
+  line-height: 22px;
   color: var(--dsw-alias-label-tertiary);
 }
 

@@ -1,13 +1,4 @@
-/** Host entry for the browser-only Security Research settings contributor. */
-import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-settings'
-import { MOBILE_DEVICE_NAMESPACE, MobileDeviceSettingsSchema } from './types.ts'
+/** Host entry for browser-only capability Settings; mobile settings belong to the capability. */
 
-export { MOBILE_DEVICE_NAMESPACE, MobileDeviceSettingsSchema, type MobileDeviceSettings } from './types.ts'
-
-/** Register durable settings namespaces when a settings provider exists. */
-export function apply(ctx: Context): void {
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.register(MOBILE_DEVICE_NAMESPACE, MobileDeviceSettingsSchema)
-  })
-}
+/** Presentation and registration live in the Client entry. */
+export function apply(): void {}

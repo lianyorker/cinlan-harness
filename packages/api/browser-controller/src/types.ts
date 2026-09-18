@@ -1,6 +1,20 @@
 /** Browser-safe Remote commands; cookie JSON is accepted only by explicit human actions. */
+import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import type { BrowserElementSelection, BrowserElementSelectionId } from '@deepseek-ai/dsh-browser/types'
 import type { BrowserDownload, BrowserDownloadId, BrowserObservation, BrowserObservationId, BrowserElementId, BrowserNavigationTarget, BrowserPage, BrowserPageId, BrowserHistoryEntry, BrowserNetworkEntry } from '@deepseek-ai/dsh-browser/types'
 export type { BrowserNavigationTarget, BrowserPage, BrowserPageId, BrowserHistoryEntry, BrowserNetworkEntry }
+/** Provider-verified element selected by a human on the requested page. */
+export type BrowserElementSelectionValue = BrowserElementSelection
+/** Consume a one-use selection to capture its current visible bounds. */
+export interface BrowserElementCaptureCommand { readonly pageId: BrowserPageId; readonly selectionId: BrowserElementSelectionId }
+/** Canonical stored image bytes and metadata for preview and ordinary draft admission. */
+export interface BrowserElementCaptureValue {
+  readonly pageId: BrowserPageId
+  readonly selectionId: BrowserElementSelectionId
+  readonly verified: true
+  readonly image: ImageAttachmentRef
+  readonly data: string
+}
 /** Active Provider profile without exposing its filesystem location. */
 export interface BrowserProfileValue { readonly profileName: string }
 /** Explicit JSON cookie file import; the receipt never echoes file contents. */

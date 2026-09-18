@@ -1,6 +1,6 @@
 /**
- * Model selection plugin, browser half — TWO entries over ONE per-session
- * directory owned by ModelDirectoryResolver (`ctx.modelDirectories`). The /model popupSelect
+ * Model selection plugin, browser half. ModelDirectoryResolver owns the shared
+ * catalog and per-session directories. The /model popupSelect
  * contribution and the composer's named `conversation.input.model` seat share
  * one Host-generation `session/modelCatalog` catalog, combine it with the Session's
  * durable model-selection projection, and submit through `session.selectModel`.
@@ -9,6 +9,9 @@
  * inline error) without forking the state. Addressed subagent sessions expose
  * neither entry because those Agent-bound RPCs would activate persisted
  * history outside the direct-parent continuation path.
+ *
+ * The optional Models settings contribution reads the same catalog and changes
+ * only future-session defaults through the bound settings scope.
  */
 // Type-only: the carrier types, the forwarded Host-event face and the ctx.remote merge.
 import type { ModelSelection } from '@deepseek-ai/dsh-api-session-controller/types'
@@ -21,12 +24,16 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ModelDirectoryState } from './directory.ts'
 import { ModelDirectoryResolver } from './service.ts'
 import type { ModelSelectInjected } from './slots.ts'
 import { ModelSelect } from './ModelSelect.tsx'
 import { en, zh, type ModelKey } from './locales.ts'
+import { DefaultModelSettings, type DefaultModelSettingsInjected } from './DefaultModelSettings.tsx'
+import { DEFAULT_MODEL_NAMESPACE, DefaultModelSettingsController } from './default-settings.ts'
 
 export { ModelDirectory } from './directory.ts'
 export type { ModelDirectoryState } from './directory.ts'
@@ -105,8 +112,7 @@ export const inject = ['commandUi', 'locale', 'sessions', 'slots', 'remote', 're
 
 /**
  * Client plugin body: mount ModelDirectoryResolver, register the `model` dictionaries,
- * then register the /model popup contribution and the composer model seat
- * over the service.
+ * then contribute the Session selectors and optional new-session defaults.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
@@ -150,6 +156,39 @@ export function apply(ctx: ClientContext): void {
         },
       },
     }), 'ui-model-selection: /model contribution')
+  })
+
+  ctx.inject(['settingsScope', 'settingsMetadata', 'modelDirectories'], (scope: ClientContext) => {
+    const defaults = scope.settingsScope.bind<ModelSelection>({ namespace: DEFAULT_MODEL_NAMESPACE })
+    const catalog = scope.modelDirectories.catalog
+    scope.slots.inject('settings.models.defaults', function* () {
+      const controller = new DefaultModelSettingsController(defaults, catalog)
+      yield scope.effect(() => () => controller.dispose(), 'ui-model-selection: default settings lifetime')
+      yield scope.slots.register({
+        name: 'settings.models.defaults',
+        id: 'default-model',
+        locale: NS,
+        inject: (): DefaultModelSettingsInjected => ({
+          hooks: { catalog: catalog.store, defaults, write: controller.store },
+          select: selection => controller.select(selection),
+          reset: () => controller.reset(),
+          retry: () => controller.retry(),
+          reload: () => { catalog.refresh() },
+        }),
+      }, DefaultModelSettings)
+      yield scope.settingsMetadata.registerItems('models', [
+        {
+          id: 'default-model', anchorId: 'default-model',
+          title: () => t('defaults.model'), description: () => t('defaults.scope'),
+          keywords: () => ['default', 'model', 'new session'],
+        },
+        {
+          id: 'default-reasoning', anchorId: 'default-reasoning',
+          title: () => t('defaults.reasoning'), description: () => t('defaults.reasoningDescription'),
+          keywords: () => ['reasoning', 'effort', 'default'],
+        },
+      ])
+    })
   })
 
   // Entry 2: the composer's named model seat over the SAME directory.

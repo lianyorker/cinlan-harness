@@ -46,7 +46,7 @@ const CHAT_NODE_INJECT: ChatNodeTurnDataInjected = {
 /** Services required by the Chat target and its presentation registrations. */
 export const inject = [
   'slots', 'sessions', 'uiSession', 'uiConversation', 'locale',
-  'settingsScope', 'remote', 'remote.session',
+  'settingsScope', 'settingsMetadata', 'remote', 'remote.session',
 ]
 
 /**
@@ -82,16 +82,25 @@ export function apply(ctx: Context): void {
     ctx.settingsScope.bind<ChatSettings>({ namespace: CHAT_SETTINGS_NAMESPACE }),
   )
 
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
-    id: 'transcript-view',
-    order: 12,
-    locale: NS,
-    inject: (): TranscriptViewRowInjected => ({
-      hooks: { transcriptView: transcriptView.mode },
-      setTranscriptView: (mode) => { transcriptView.setMode(mode) },
-    }),
-  }, TranscriptViewRow))
+  ctx.slots.inject('settings.general.item', function* () {
+    yield ctx.slots.register({
+      name: 'settings.general.item',
+      id: 'transcript-view',
+      order: 12,
+      locale: NS,
+      inject: (): TranscriptViewRowInjected => ({
+        hooks: { transcriptView: transcriptView.mode },
+        setTranscriptView: (mode) => { transcriptView.setMode(mode) },
+      }),
+    }, TranscriptViewRow)
+    yield ctx.settingsMetadata.registerItems('general', [{
+      id: 'transcript',
+      anchorId: 'transcript',
+      title: () => t('settings.transcript.title'),
+      description: () => t('settings.transcript.description'),
+      keywords: () => ['transcript', 'chat', 'compact', 'normal'],
+    }])
+  })
 
   ctx.slots.inject('conversation.view', () => {
     const disposeView = ctx.slots.register({

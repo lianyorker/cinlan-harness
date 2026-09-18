@@ -17,7 +17,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
-import { EditorState } from '@codemirror/state'
+import { Compartment, EditorState, Prec } from '@codemirror/state'
+import { openSearchPanel, search } from '@codemirror/search'
 import { EditorView as CodeMirrorView, keymap, lineNumbers, type ViewUpdate } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { IconCheckOutline16, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -31,6 +32,7 @@ import { buildSelectionInsert, linesOfSelection } from './selection-payload.ts'
 import { lazyChunkComponent } from './lazy-chunk.tsx'
 import { splitMermaidBlocks, type MermaidMarkdownProps } from './mermaid-blocks.ts'
 import { t } from './locales.ts'
+import { editorSearchPhrases } from './keyboard-commands.ts'
 import type { EditorToolbarState, FileViewerProps } from './service.ts'
 import css from './sidebar.module.css'
 
@@ -73,6 +75,10 @@ export function TextEditor(props: FileViewerProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<CodeMirrorView | null>(null)
   const savingRef = useRef(false)
+  const phraseCompRef = useRef<Compartment | null>(null)
+  const searchLabel = t('shortcutSearchFind')
+  const shortcutRef = useRef(props.matchShortcut)
+  shortcutRef.current = props.matchShortcut
   /** The theme compartment of the current view (reconfigured on scheme flip). */
   const themeCompRef = useRef<CmThemeCompartment | null>(null)
   /** The app's resolved color scheme; the editor re-themes in place on flips. */
@@ -131,6 +137,8 @@ export function TextEditor(props: FileViewerProps) {
     if (host === null) return
     const language = languageForPath(path)
     const themeComp = new CmThemeCompartment()
+    const phraseComp = new Compartment()
+    phraseCompRef.current = phraseComp
     themeCompRef.current = themeComp
     const state = EditorState.create({
       doc: content,
@@ -149,15 +157,31 @@ export function TextEditor(props: FileViewerProps) {
             setDirty(true)
           }
         }),
-        keymap.of([
-          {
-            key: 'Mod-s',
-            preventDefault: true,
-            run: () => { save(); return true },
+        phraseComp.of(EditorState.phrases.of(editorSearchPhrases(t))),
+        search(),
+        Prec.highest(CodeMirrorView.domEventHandlers({
+          keydown: (event, view) => {
+            const matches = shortcutRef.current
+            if (matches === undefined || event.defaultPrevented || view.composing) return false
+            const facts = { key: event.key, ctrlKey: event.ctrlKey, metaKey: event.metaKey, altKey: event.altKey, shiftKey: event.shiftKey,
+              isComposing: event.isComposing, repeat: event.repeat, defaultPrevented: event.defaultPrevented,
+              // oxlint-disable-next-line typescript/no-deprecated
+              keyCode: event.keyCode, altGraph: event.getModifierState('AltGraph') }
+            if (matches('editor.save', facts)) { save(); return true }
+            if (matches('editor.find', facts)) {
+              const opened = openSearchPanel(view)
+              view.dom.querySelector<HTMLInputElement>('.cm-search input[name="search"]')?.focus()
+              return opened
+            }
+            if (matches('editor.replace', facts)) {
+              const opened = openSearchPanel(view)
+              view.dom.querySelector<HTMLInputElement>('.cm-search input[name="replace"]')?.focus()
+              return opened
+            }
+            return false
           },
-          ...defaultKeymap,
-          ...historyKeymap,
-        ]),
+        })),
+        keymap.of([...defaultKeymap, ...historyKeymap]),
         // Selection popup (the code and markdown editors): a non-empty
         // selection anchors the floating "add to conversation" button above
         // its head. Scrolling (geometry/viewport change) or losing focus
@@ -232,6 +256,14 @@ export function TextEditor(props: FileViewerProps) {
     if (mode === 'edit') viewRef.current?.requestMeasure()
   }, [mode])
 
+  useEffect(() => {
+    const view = viewRef.current
+    const compartment = phraseCompRef.current
+    if (view !== null && compartment !== null) {
+      view.dispatch({ effects: compartment.reconfigure(EditorState.phrases.of(editorSearchPhrases(t))) })
+    }
+  }, [searchLabel])
+
   const save = (): void => {
     const view = viewRef.current
     if (view === null || savingRef.current) return
@@ -305,8 +337,8 @@ export function TextEditor(props: FileViewerProps) {
   // sandbox OFF the preview iframe drops its sandbox attribute entirely —
   // the previewed page then runs on the GUI's own origin with full session
   // access.
-  const [localUnlock, setLocalUnlock] = useState(() => props.store?.getPrefs().htmlViewerDefaultUnsafe === true)
-  const htmlNoSandbox = props.store?.getPrefs().htmlViewerNoSandbox === true || localUnlock
+  const [localUnlock, setLocalUnlock] = useState(() => props.store.getPrefs().htmlViewerDefaultUnsafe)
+  const htmlNoSandbox = props.store.getPrefs().htmlViewerNoSandbox || localUnlock
 
   // Host-toolbar mode (the merged editor header renders the controls): skip
   // the own toolbar row, report the state after every relevant render (the

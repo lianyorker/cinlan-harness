@@ -1,149 +1,85 @@
-/** Integrations settings section: GitHub, GitLab, and Gitee connection status. */
+/** Native provider status rows backed by cancellable Host preflight checks. */
 import { useEffect, useState, type ReactNode } from 'react'
-import { IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { IntegrationProvider, IntegrationPreflightSnapshot, IntegrationStatus } from '@deepseek-ai/dsh-api-remotes/client'
+import { Button, IconLinkOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { IntegrationPreflightSnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 import type { IntegrationSettingsKey } from './locales.ts'
 import css from './IntegrationsSection.module.css'
 
-/** Injected face for the Integrations section. */
+/** Registration-side callback for real provider tool and authentication checks. */
 export interface IntegrationsSectionInjected {
-  readonly check: (provider: IntegrationProvider) => Promise<IntegrationPreflightSnapshot>
-  readonly t: (key: IntegrationSettingsKey, params?: Record<string, string | number>) => string
+  check: (provider: 'github' | 'gitlab' | 'gitee', signal: AbortSignal) => Promise<IntegrationPreflightSnapshot>
 }
 
-/** Owner props from the settings shell. */
-export interface IntegrationsSectionProps extends IntegrationsSectionInjected {
-  close: () => void
-}
+/** Standard section owner, locale, and injected shares. */
+export type IntegrationsSectionProps = PropsRuntime<'settings.section'>
+  & PropsLocale<'settings.integrations'> & InjectFace<IntegrationsSectionInjected>
 
-type ProviderState =
-  | { phase: 'loading' }
-  | { phase: 'ready'; snapshot: IntegrationPreflightSnapshot }
-  | { phase: 'error' }
-
-interface AllState {
-  readonly github: ProviderState
-  readonly gitlab: ProviderState
-  readonly gitee: ProviderState
-}
-
+type Provider = 'github' | 'gitlab' | 'gitee'
+type CheckState = { phase: 'checking' } | { phase: 'ready'; snapshot: IntegrationPreflightSnapshot } | { phase: 'error' }
 const PROVIDERS = ['github', 'gitlab', 'gitee'] as const
+const INITIAL: Record<Provider, CheckState> = { github: { phase: 'checking' }, gitlab: { phase: 'checking' }, gitee: { phase: 'checking' } }
 
-function usePreflight(injected: IntegrationsSectionInjected): {
-  state: AllState
-  refresh: () => void
-} {
-  const { check } = injected
-  const [request, setRequest] = useState(0)
-  const [state, setState] = useState<AllState>(() => ({
-    github: { phase: 'loading' },
-    gitlab: { phase: 'loading' },
-    gitee: { phase: 'loading' },
-  }))
+function statusKey(state: CheckState): IntegrationSettingsKey {
+  if (state.phase === 'error') return 'statusUnavailable'
+  if (state.phase === 'checking') return 'statusChecking'
+  const keys = {
+    connected: 'statusConnected', checking: 'statusChecking', unavailable: 'statusUnavailable',
+    'not-configured': 'statusNotConfigured', 'not-installed': 'statusNotInstalled', 'not-authenticated': 'statusNotAuthenticated',
+  } as const satisfies Record<IntegrationPreflightSnapshot['status'], IntegrationSettingsKey>
+  return keys[state.snapshot.status]
+}
+
+/** Render observed provider status without adding installation or authorization operations. */
+export function IntegrationsSection({ check, t }: IntegrationsSectionProps): ReactNode {
+  const [states, setStates] = useState<Record<Provider, CheckState>>(INITIAL)
+  const [generation, setGeneration] = useState(0)
   useEffect(() => {
-    let current = true
+    const controller = new AbortController()
+    setStates(INITIAL)
     for (const provider of PROVIDERS) {
-      setState(prev => ({ ...prev, [provider]: { phase: 'loading' } }))
-      void check(provider).then(
-        (snapshot) => { if (current) setState(prev => ({ ...prev, [provider]: { phase: 'ready', snapshot } })) },
-        () => { if (current) setState(prev => ({ ...prev, [provider]: { phase: 'error' } })) },
-      )
+      void check(provider, controller.signal).then((snapshot) => {
+        if (!controller.signal.aborted) setStates(previous => ({ ...previous, [provider]: { phase: 'ready', snapshot } }))
+      }, () => {
+        if (!controller.signal.aborted) setStates(previous => ({ ...previous, [provider]: { phase: 'error' } }))
+      })
     }
-    return () => { current = false }
-  }, [check, request])
-  return { state, refresh: () => { setRequest(value => value + 1) } }
-}
+    return () => { controller.abort() }
+  }, [check, generation])
+  const checking = PROVIDERS.some(provider => states[provider].phase === 'checking')
 
-function statusLabel(status: IntegrationStatus, t: IntegrationsSectionInjected['t']): string {
-  switch (status) {
-    case 'connected': return t('statusConnected')
-    case 'not-installed': return t('statusNotInstalled')
-    case 'not-authenticated': return t('statusNotAuthenticated')
-    case 'not-configured': return t('statusNotConfigured')
-    case 'unavailable': return t('statusUnavailable')
-    case 'checking': return t('statusChecking')
-  }
-}
-
-function renderProvider(
-  provider: IntegrationProvider,
-  state: ProviderState,
-  injected: IntegrationsSectionInjected,
-): ReactNode {
-  const { t } = injected
-  const titleKey: Record<IntegrationProvider, IntegrationSettingsKey> = {
-    github: 'githubTitle',
-    gitlab: 'gitlabTitle',
-    gitee: 'giteeTitle',
-  }
-  const descKey: Record<IntegrationProvider, IntegrationSettingsKey> = {
-    github: 'githubDescription',
-    gitlab: 'gitlabDescription',
-    gitee: 'giteeDescription',
-  }
-  return (
-    <div key={provider} className={css.providerCard} data-provider={provider}>
-      <div className={css.providerHeader}>
-        <div>
-          <h3 className={css.providerTitle}>{t(titleKey[provider])}</h3>
-          <p className={css.providerDescription}>{t(descKey[provider])}</p>
-        </div>
-        {state.phase === 'ready' && (
-          <span className={css.badge} data-status={state.snapshot.status}>
-            <span className={css.dot} aria-hidden="true" />
-            {statusLabel(state.snapshot.status, t)}
-          </span>
-        )}
-        {state.phase === 'loading' && (
-          <span className={css.badge} data-status="checking">{t('statusChecking')}</span>
-        )}
-        {state.phase === 'error' && (
-          <span className={css.badge} data-status="unavailable">{t('statusUnavailable')}</span>
-        )}
-      </div>
-      {state.phase === 'ready' && state.snapshot.account !== null && (
-        <p className={css.accountLine}>{t('accountLabel')}: <span className={css.accountValue}>{state.snapshot.account}</span></p>
-      )}
-      {state.phase === 'ready' && state.snapshot.status === 'not-installed' && provider === 'github' && (
-        <p className={css.hint}>{t('installPrompt')} <code className={css.code}>winget install GitHub.cli</code></p>
-      )}
-      {state.phase === 'ready' && state.snapshot.status === 'not-installed' && provider === 'gitlab' && (
-        <p className={css.hint}>{t('installPrompt')} <code className={css.code}>winget install GLab.GLab</code></p>
-      )}
-      {state.phase === 'ready' && state.snapshot.status === 'not-authenticated' && provider !== 'gitee' && (
-        <p className={css.hint}>{t('authPrompt')} <code className={css.code}>{provider === 'github' ? 'gh auth login' : 'glab auth login'}</code></p>
-      )}
-      {state.phase === 'ready' && state.snapshot.status === 'not-configured' && provider === 'gitee' && (
-        <p className={css.hint}>{t('tokenPrompt')}</p>
-      )}
-      {state.phase === 'ready' && state.snapshot.status === 'not-authenticated' && provider === 'gitee' && (
-        <p className={css.hint}>{t('tokenPrompt')}</p>
-      )}
-      {state.phase === 'error' && (
-        <p className={css.errorText}>{t('errorText')}</p>
-      )}
+  return <section className={css.section}>
+    <header className={css.header}>
+      <div className={css.intro}><h1 className={css.title}>{t('title')}</h1><p className={css.description}>{t('description')}</p></div>
+      <Button className={css.refresh} variant="outline" disabled={checking} data-settings-anchor="integrations-refresh"
+        onClick={() => { setGeneration(value => value + 1) }}>{t('refreshAll')}</Button>
+    </header>
+    <div className={css.providers} aria-busy={checking}>
+      {PROVIDERS.map((provider) => {
+        const state = states[provider]
+        const snapshot = state.phase === 'ready' ? state.snapshot : undefined
+        const reason = snapshot?.reason
+        const status = state.phase === 'ready' ? state.snapshot.status : state.phase
+        return <section key={provider} className={css.provider} data-settings-anchor={'integrations-' + provider}
+          aria-labelledby={'integration-name-' + provider}>
+          <span className={css.symbol} aria-hidden="true"><IconLinkOutline16 size={18} /></span>
+          <div className={css.copy}>
+            <h2 id={'integration-name-' + provider} className={css.label}>{t(`${provider}Title`)}</h2>
+            <p className={css.help}>{t(provider === 'github' ? 'githubDescription' : provider === 'gitlab' ? 'gitlabDescription' : 'giteeDescription')}</p>
+            {snapshot?.account != null && <p className={css.detail}>{t('accountLabel')}: {snapshot.account}</p>}
+            {state.phase === 'error' && <p className={css.error} role="alert">{t('errorText')}</p>}
+            {reason === 'cli-not-found' && provider !== 'gitee' && <p className={css.detail}>
+              {t('installPrompt')} <code>{t(provider === 'github' ? 'githubInstallCommand' : 'gitlabInstallCommand')}</code>
+            </p>}
+            {reason === 'cli-auth-failed' && provider !== 'gitee' && <p className={css.detail}>
+              {t('authPrompt')} <code>{t(provider === 'github' ? 'authCommand' : 'gitlabAuthCommand')}</code>
+            </p>}
+            {(reason === 'token-not-set' || reason === 'token-invalid') && <p className={css.detail}>{t('tokenPrompt')}</p>}
+            {reason === 'probe-failed' && <p className={css.error}>{t('authUnavailableHint')}</p>}
+          </div>
+          <span className={css.status} role="status" data-state={status}>{t(statusKey(state))}</span>
+        </section>
+      })}
     </div>
-  )
-}
-
-/** The Integrations settings section component. */
-export function IntegrationsSection(props: IntegrationsSectionProps): ReactNode {
-  const { t } = props
-  const { state, refresh } = usePreflight(props)
-  return (
-    <div className={css.section}>
-      <div className={css.header}>
-        <div>
-          <h2 className={css.title}>{t('title')}</h2>
-          <p className={css.description}>{t('description')}</p>
-        </div>
-        <button type="button" className={css.refreshButton} onClick={refresh}>
-          <IconRefreshOutline16 size={16} />{t('refreshAll')}
-        </button>
-      </div>
-      <div className={css.providerList}>
-        {PROVIDERS.map(provider => renderProvider(provider, state[provider], props))}
-      </div>
-    </div>
-  )
+  </section>
 }

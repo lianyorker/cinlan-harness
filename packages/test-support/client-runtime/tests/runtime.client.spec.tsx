@@ -53,6 +53,32 @@ async function runtimeWithFrame() {
   return runtime
 }
 
+describe('settings metadata dependency', () => {
+  it('mounts metadata consumers and disposes the production registry with the runtime', async () => {
+    const runtime = await SlotTestRuntime.create()
+    try {
+      const feature = await runtime.mount({
+        inject: ['settingsMetadata'],
+        apply(ctx) {
+          ctx.effect(() => ctx.settingsMetadata.registerItems('general', [{
+            id: 'test-preference', anchorId: 'test-preference', title: () => 'Test preference',
+            keywords: () => ['preference'],
+          }]))
+        },
+      })
+      expect(runtime.ctx.settingsMetadata.getSnapshot().items).toEqual([{
+        sectionId: 'general', id: 'test-preference', anchorId: 'test-preference',
+        title: 'Test preference', keywords: ['preference'],
+      }])
+      await feature.dispose()
+      expect(runtime.ctx.settingsMetadata.getSnapshot().items).toEqual([])
+    } finally {
+      await runtime.dispose()
+    }
+    expect(runtime.ctx.get('settingsMetadata')).toBeUndefined()
+  })
+})
+
 describe('root declaration and rendering', () => {
   it('renders declared slots through the real renderer: fallback, then a live registration, then unload', async () => {
     const runtime = await runtimeWithFrame()

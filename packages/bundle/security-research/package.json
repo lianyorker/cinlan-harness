@@ -43,7 +43,6 @@
     "@deepseek-ai/dsh-assessment-scope-session": "workspace:^",
     "@deepseek-ai/dsh-assessment-scope-static": "workspace:^",
     "@deepseek-ai/dsh-execution-host": "workspace:^",
-    "@deepseek-ai/dsh-execution-host-local": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/dsh-finding": "workspace:^",
     "@deepseek-ai/dsh-finding-session": "workspace:^",

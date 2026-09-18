@@ -9,7 +9,8 @@
  * redirect writes outside, matching the trust model of the other /sidebar/*
  * routes. Bytes stream from the request body to a uniquely named temp sibling
  * and are renamed into place, so a failed, aborted, or oversized upload never
- * leaves a partial file at the target path.
+ * leaves a partial file at the target path. Cancellation is checked before rename;
+ * once rename starts, a committed target is not rolled back.
  */
 import { randomUUID } from 'node:crypto'
 import { once } from 'node:events'
@@ -62,6 +63,8 @@ export interface WorkspaceUploadInput {
   chunks: AsyncIterable<string | Uint8Array>
   /** Byte cap; an oversized upload is refused without touching the target. */
   limit: number
+  /** Abort before commit; cancellation after rename starts does not roll back a completed file. */
+  signal?: AbortSignal
 }
 
 /**
@@ -76,7 +79,8 @@ export interface WorkspaceUploadInput {
  * failures; the temp file is always removed on failure.
  */
 export async function writeWorkspaceUpload(input: WorkspaceUploadInput): Promise<{ path: string; size: number }> {
-  const { cwd, dir, relativePath, chunks, limit } = input
+  const { cwd, dir, relativePath, chunks, limit, signal } = input
+  signal?.throwIfAborted()
   const base = requireAbsolute(dir)
   if (!isWithin(cwd, base)) {
     throw new SidebarError('forbidden', 'upload directory escapes the session workspace', 403)
@@ -120,6 +124,7 @@ export async function writeWorkspaceUpload(input: WorkspaceUploadInput): Promise
       })
     })
     if (streamError !== undefined) throw streamError
+    signal?.throwIfAborted()
     await commitUpload(tmp, target)
     const info = await stat(target)
     return { path: target, size: info.size }

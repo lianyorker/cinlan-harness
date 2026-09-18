@@ -83,6 +83,8 @@ export interface SidebarPty {
  */
 export class PtyManager {
   private readonly sessions = new Map<string, SidebarPty>()
+  private readonly pendingExits = new Map<IPty, Promise<void>>()
+  private readonly attachedViews = new Map<SidebarPty, number>()
   private readonly pendingCloses = new Map<string, ReturnType<typeof setTimeout>>()
   /** Tabs whose view unmounted because the user switched conversations — the
    *  tab is still open in its session's state, so the pty must NOT enter the
@@ -163,6 +165,8 @@ export class PtyManager {
       transcript: '',
       exited: false,
     }
+    let settleExit!: () => void
+    this.pendingExits.set(handle.pty, new Promise<void>((resolve) => { settleExit = resolve }))
     handle.pty.onData((data) => {
       handle.transcript += data
       if (handle.transcript.length > TRANSCRIPT_LIMIT) {
@@ -172,6 +176,8 @@ export class PtyManager {
     handle.pty.onExit(({ exitCode }) => {
       handle.exited = true
       handle.exitCode = exitCode
+      this.pendingExits.delete(handle.pty)
+      settleExit()
     })
     this.sessions.set(key, handle)
     return handle
@@ -187,7 +193,7 @@ export class PtyManager {
    */
   scheduleClose(key: string, delayMs: number): void {
     const handle = this.sessions.get(key)
-    if (handle === undefined) return
+    if (handle === undefined || (this.attachedViews.get(handle) ?? 0) > 0) return
     this.cancelClose(key)
     const timer = setTimeout(() => { this.close(key) }, delayMs)
     this.pendingCloses.set(key, timer)
@@ -225,6 +231,20 @@ export class PtyManager {
     this.parked.delete(key)
   }
 
+  /** @param handle - exact process generation being viewed. @returns its idempotent attachment release. */
+  retain(handle: SidebarPty): () => void {
+    this.cancelClose(handle.key)
+    this.attachedViews.set(handle, (this.attachedViews.get(handle) ?? 0) + 1)
+    let retained = true
+    return () => {
+      if (!retained) return
+      retained = false
+      const count = this.attachedViews.get(handle) ?? 0
+      if (count <= 1) this.attachedViews.delete(handle)
+      else this.attachedViews.set(handle, count - 1)
+    }
+  }
+
   /** Resolve a live handle by key, or undefined. */
   get(key: string): SidebarPty | undefined {
     return this.sessions.get(key)
@@ -236,6 +256,7 @@ export class PtyManager {
     const handle = this.sessions.get(key)
     if (handle === undefined) return
     this.sessions.delete(key)
+    this.attachedViews.delete(handle)
     try {
       handle.pty.kill()
     } catch {
@@ -244,6 +265,13 @@ export class PtyManager {
   }
 
   /** Close every terminal (plugin teardown). */
+  /** @returns after every native process owned before teardown reports exit, including detached processes. */
+  async disposeAllAndWait(): Promise<void> {
+    const exits = [...this.pendingExits.values()]
+    this.disposeAll()
+    await Promise.all(exits)
+  }
+
   disposeAll(): void {
     for (const timer of this.pendingCloses.values()) clearTimeout(timer)
     this.pendingCloses.clear()

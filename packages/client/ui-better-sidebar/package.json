@@ -33,9 +33,12 @@
         "@deepseek-ai/dsh-client-ui-slots",
         "@deepseek-ai/dsh-client-ui-settings",
         "@deepseek-ai/dsh-client-ui-conversation",
-        "@deepseek-ai/dsh-client-modules"
+        "@deepseek-ai/dsh-client-modules",
+        "@deepseek-ai/dsh-client-keyboard",
+        "@deepseek-ai/dsh-api-sidebar-terminal-controller"
       ],
-      "platform": "web"
+      "platform": "web",
+      "external": []
     }
   },
   "files": [
@@ -53,7 +56,9 @@
   },
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-sidebar-terminals": "workspace:^",
+    "@deepseek-ai/dsh-sidebar-git": "workspace:^"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.4",
@@ -110,7 +115,21 @@
     "@xterm/xterm": "^5.5.0",
     "lightningcss": "^1.32.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "@deepseek-ai/dsh-client-keyboard": "workspace:^",
+    "@deepseek-ai/dsh-settings-file": "workspace:^",
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@deepseek-ai/dsh-system-prompt": "workspace:^",
+    "@deepseek-ai/dsh-client-test-runtime": "workspace:^",
+    "@deepseek-ai/dsh-sidebar-terminals": "workspace:^",
+    "@deepseek-ai/dsh-api-gateway": "workspace:^",
+    "@deepseek-ai/dsh-api-sidebar-terminal-controller": "workspace:^",
+    "@deepseek-ai/dsh-client-connection": "workspace:^",
+    "@deepseek-ai/dsh-typert-protocol": "workspace:^",
+    "@deepseek-ai/dsh-credentials-local": "workspace:^",
+    "@deepseek-ai/dsh-typert-registry": "workspace:^",
+    "@deepseek-ai/dsh-util-crypto": "workspace:^",
+    "@deepseek-ai/dsh-sidebar-git": "workspace:^"
   },
   "publishConfig": {
     "access": "public"

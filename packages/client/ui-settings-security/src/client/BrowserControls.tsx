@@ -37,7 +37,7 @@ export interface BrowserControlsCallbacks {
  * @param props - Localized labels and Host callbacks, without a Cordis context.
  * @returns Profile, navigation, cookie import, and page inspection controls.
  */
-export function BrowserControls({ callbacks, t }: { callbacks: BrowserControlsCallbacks; t: CapabilitySectionProps['t'] }): ReactNode {
+export function BrowserControls({ callbacks, target, t }: { callbacks: BrowserControlsCallbacks } & Pick<CapabilitySectionProps, 't' | 'target'>): ReactNode {
   const [state, setState] = useState<BrowserPagesValue>()
   const [selected, setSelected] = useState<BrowserPageId>()
   const [query, setQuery] = useState('')
@@ -75,7 +75,7 @@ export function BrowserControls({ callbacks, t }: { callbacks: BrowserControlsCa
     await refresh(signal)
     setSelected(page.pageId)
   }
-  return <div className={css.browserControls}>
+  return <div className={css.browserControls} aria-busy={busy}>
     <p>{t('browserProfileHelp')}</p>
     {state !== undefined && <p>{t('browserActiveProfile', { profile: state.profileName })}</p>}
     <div className={css.browserActions}>
@@ -86,7 +86,7 @@ export function BrowserControls({ callbacks, t }: { callbacks: BrowserControlsCa
       <input aria-label={t('browserSearchQuery')} value={query} maxLength={500} required disabled={busy} onChange={(event) => { setQuery(event.currentTarget.value) }} />
       <button className={css.recheckButton} disabled={busy || query.trim().length === 0} type="submit">{t('browserSearch')}</button>
     </form>
-    <label className={css.browserFile}><span>{t('browserCookieFile')}</span><input ref={fileControl} type="file" accept=".json,application/json" disabled={busy}
+    <label><span>{t('browserCookieFile')}</span><input ref={fileControl} type="file" accept=".json,application/json" disabled={busy}
       onChange={(event) => { setFile(event.currentTarget.files?.[0]); setImported(undefined) }} /></label>
     <button className={css.recheckButton} type="button" disabled={busy || file === undefined || state === undefined} onClick={() => { void run(async (signal) => {
       if (file === undefined || state === undefined || file.size > 262144) throw new Error('Cookie file rejected')
@@ -114,8 +114,12 @@ export function BrowserControls({ callbacks, t }: { callbacks: BrowserControlsCa
     <p>{t('browserInspectionLimit')}</p>
     {visits !== undefined && <ul aria-label={t('browserHistory')}>{visits.entries.map((entry, index) => <li key={index}>{entry.title} — {entry.url}</li>)}</ul>}
     {network !== undefined && <ul aria-label={t('browserNetwork')}>{network.entries.map((entry, index) => <li key={index}>{entry.method} {entry.status ?? (entry.failed ? t('browserRequestFailed') : t('browserRequestPending'))}{entry.status !== undefined && entry.failed ? ' ' + t('browserRequestFailed') : ''} — {entry.url}</li>)}</ul>}
-    {state !== undefined && selected !== undefined && <BrowserTransfersPanel
-      key={selected} pageId={selected} maxFileBytes={state.maxFileBytes} callbacks={callbacks} t={t} />}
+    <section data-settings-anchor="browser-transfers">
+      {state !== undefined && selected !== undefined ? <BrowserTransfersPanel
+        key={selected} pageId={selected} maxFileBytes={state.maxFileBytes} callbacks={callbacks}
+        {...target === undefined ? {} : { target }} t={t} />
+        : <p>{t('browserSelectPageFirst')}</p>}
+    </section>
     {failure && <p role="alert" className={css.failure}>{t('browserOperationFailed')}</p>}
   </div>
 }

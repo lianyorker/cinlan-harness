@@ -41,6 +41,7 @@ security/ 包族提供评估授权范围、证据元数据、Finding 生命周�
 ## 相关文档
 
 - [Security Research profile](../../profiles/security-research.md) — 随附的组合及默认授权。
+- [Security Research 子系统参考](../../docs/subsystems/security-research.zh.md) — 评估授权、操作决策、Finding 记录与漏洞查询。
 - [Scope 子系统参考](../../docs/subsystems/scope.zh.md) — 共享范围和授权语义。
 - [Skills 子系统参考](../../docs/subsystems/skills.zh.md) — 技能注册和加载语义。
 - [Workflow 子系统参考](../../docs/subsystems/workflow.zh.md) — 工作流执行和结果语义。

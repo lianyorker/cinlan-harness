@@ -11,7 +11,8 @@
     { "path": "../ui-settings" },
     { "path": "../locale" },
     { "path": "../ui-conversation" },
-    { "path": "../../runtime-diagnostics/invariants" },
-    { "path": "../../voice/voice" }
+    { "path": "../../voice/voice" },
+    { "path": "../../api/remotes/tsconfig.client.json" },
+    { "path": "../../api/voice-controller" }
   ]
 }

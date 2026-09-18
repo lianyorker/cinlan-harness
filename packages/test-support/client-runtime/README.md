@@ -42,6 +42,8 @@ await runtime.dispose()
 
 `mount` prechecks required services and fails loud when one is missing — `provide(name, value)` supplies an extra service first. The runtime provides an unavailable `fileUpload` stub so assemblies can mount; replace `runtime.fileUpload.upload` before mounting when a test exercises upload behavior. `storeOf(key, scopeKey)` returns the live store instance the renderer hands a slot's component for identity and action-driven-write assertions.
 
+Each runtime mounts the production Settings metadata registry. Features can contribute searchable preferences without mounting the Settings shell; metadata assertions use `runtime.ctx.settingsMetadata` instead of installing another provider. Runtime disposal releases the registry.
+
 ### Local DOM snapshots
 
 A registered snapshot serializer folds CSS-module class hashes (`_frame_a1b2c3` → `frame`) so `.snap` files stay structural, and collapses `<svg>` internals to a `data-content` fingerprint. Suites needing a custom page frame use `root.declare(children, Frame)` instead of the auto frame; `dispose()` tears down views, feature fibers, minted scopes, and persisted store state on one axis and is idempotent.

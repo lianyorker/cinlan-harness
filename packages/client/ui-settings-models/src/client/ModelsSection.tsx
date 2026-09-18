@@ -44,7 +44,7 @@ export interface ModelsSectionInjected {
 }
 
 /** The child slots this section declares and dispatches (see ./slot-contract.ts). */
-type ModelsChildSlots = 'settings.models.provider-card' | 'settings.models.footer'
+type ModelsChildSlots = 'settings.models.defaults' | 'settings.models.provider-card' | 'settings.models.footer'
 
 /** The child-slot dispatch function the renderer binds for the section. */
 type ModelsRenderSlot = PropsRenderSlots<ModelsChildSlots>['renderSlot']
@@ -267,6 +267,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
     const errorText = state.error ?? ''
     return (
       <div className={styles['section']}>
+        {renderSlot('settings.models.defaults', {})}
         <p className={styles['error']}>{`${t('loadFailed')}: ${errorText}`}</p>
         <button type="button" className={styles['secondaryButton']} onClick={() => { void controller.load() }}>
           {t('retry')}
@@ -306,7 +307,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
 
   return (
     <div className={styles['section']}>
-      <h2 className={styles['title']}>{t('title')}</h2>
+      {renderSlot('settings.models.defaults', {})}
       <p className={styles['intro']}>{t('intro')}</p>
       {!state.writable && state.status === 'ready' ? <p className={styles['notice']}>{t('readOnly')}</p> : null}
       {savedIdentity === undefined
@@ -316,7 +317,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
             {providerCopy(t('savedProvider'), savedIdentity)}
           </p>
         )}
-      <ul className={styles['rows']}>
+      <ul className={styles['rows']} data-settings-anchor="models-providers">
         {configured.map((row) => {
           const target = targetOf(row)
           const namespace = state.namespaces.get(target.settingsNs)
@@ -436,7 +437,41 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
           )
         })}
       </ul>
-      <div className={styles['addBlock']}>
+      <div className={styles['addBlock']} data-settings-anchor="models-add-provider">
+        <div className={styles['addActions']}>
+          <button
+            type="button"
+            className={styles['addButton']}
+            disabled={addable.length === 0 || !state.writable}
+            onClick={() => {
+              const first = addable[0]
+              /* v8 ignore next -- the button is disabled while nothing is addable */
+              if (first === undefined) return
+              setSavedTarget(undefined)
+              setDeclaring(false)
+              setAdding(true)
+              setEditing(targetOf(first))
+            }}
+          >
+            <IconPlusOutline16 size={14} />
+            {t('add')}
+          </button>
+          <button
+            type="button"
+            className={styles['addButton']}
+            data-settings-anchor="models-custom-provider"
+            disabled={protocols.length === 0 || !state.writable}
+            onClick={() => {
+              setSavedTarget(undefined)
+              setAdding(false)
+              setEditing(undefined)
+              setDeclaring(true)
+            }}
+          >
+            <IconPlusOutline16 size={14} />
+            {t('customAdd')}
+          </button>
+        </div>
         {addTarget !== undefined && addNamespace !== undefined
           ? (
             <div className={styles['addCard']}>
@@ -498,45 +533,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                 />
               </div>
             )
-            : (
-              // One row for the two ways to gain a provider: adopt one the
-              // adapter already knows, or declare one it does not. Side by side
-              // and equal-width so they read as siblings and line up with the
-              // rows above, rather than two pills of different lengths.
-              <div className={styles['addActions']}>
-                <button
-                  type="button"
-                  className={styles['addButton']}
-                  disabled={addable.length === 0 || !state.writable}
-                  onClick={() => {
-                    const first = addable[0]
-                    /* v8 ignore next -- the button is disabled while nothing is addable */
-                    if (first === undefined) return
-                    setSavedTarget(undefined)
-                    setDeclaring(false)
-                    setAdding(true)
-                    setEditing(targetOf(first))
-                  }}
-                >
-                  <IconPlusOutline16 size={14} />
-                  {t('add')}
-                </button>
-                <button
-                  type="button"
-                  className={styles['addButton']}
-                  disabled={protocols.length === 0 || !state.writable}
-                  onClick={() => {
-                    setSavedTarget(undefined)
-                    setAdding(false)
-                    setEditing(undefined)
-                    setDeclaring(true)
-                  }}
-                >
-                  <IconPlusOutline16 size={14} />
-                  {t('customAdd')}
-                </button>
-              </div>
-            )}
+            : null}
       </div>
       {renderSlot('settings.models.footer', {})}
       <Modal

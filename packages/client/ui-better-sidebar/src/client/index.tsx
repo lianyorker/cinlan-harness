@@ -11,22 +11,26 @@
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { Context } from '../context-types.ts'
-import { allLeaves, createSidebarStore, isAgentTabId } from './state.ts'
+import { allLeaves, createSidebarStore, isAgentTabId, reconcileAgentTerminals } from './state.ts'
+import type {} from '@deepseek-ai/dsh-api-sidebar-terminal-controller/client'
+import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type { SidebarTerminalSessionId } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import { createBetterSidebarService, matchUrlTarget } from './service.ts'
 import { revalidateChunksOnReactivate, setChunkModuleSystem } from './chunk-loader.ts'
 import { registerBuiltins } from './builtins/index.ts'
+import { registerEditorCommands } from './keyboard-commands.ts'
 import { Sidebar } from './Sidebar.tsx'
 import { RenderBoundary } from './RenderBoundary.tsx'
 import { registerOpenPathInterception, registerTurnTailInterception } from './intercept.tsx'
 import { registerLinkInterception } from './link-intercept.ts'
 import { parseDesktopEnv } from './desktop-env.ts'
 import { registerImeGuard } from './ime-guard.ts'
-import { loadExternalDisable, parsePrefs } from './prefs.ts'
+import { parsePrefs } from './prefs.ts'
 import { SIDEBAR_PREFS_NS, type SidebarPrefs } from '../prefs-shared.ts'
 import { SidebarPreferencesController } from './preferences-controller.ts'
 
 import { SideCardSection } from './SideCardSection.tsx'
-import { api } from './api.ts'
+import { api, createSidebarGitClient } from './api.ts'
 import { LOCALE_NS, attachLocale, t, zh, en } from './locales.ts'
 import css from './sidebar.module.css'
 import './layout.css'
@@ -36,7 +40,7 @@ import { IconPanelRightOutline16 } from './icons.tsx'
  *  locale service backs the sidebar's copy — see locales.ts). `modules`
  *  (rc.8+) is the client module system the chunk loader resolves its
  *  externals through — Cordis guards service access without inject. */
-export const inject = ['slots', 'sessions', 'connection', 'workspaces', 'locale', 'modules', 'settingsScope']
+export const inject = ['slots', 'sessions', 'connection', 'workspaces', 'locale', 'modules', 'settingsScope', 'keyboard', 'remote', 'remote.sidebarGit', 'sidebarTerminalClient']
 
 /**
  * Error boundary over the sidebar tree (root scope): a render error in the
@@ -50,6 +54,18 @@ export const inject = ['slots', 'sessions', 'connection', 'workspaces', 'locale'
  * @param ctx - the client cordis context (slots, sessions).
  */
 export function apply(ctx: Context): void {
+  const possibleFloating = new URL(window.location.href).searchParams.get('dsh-floating-workspace') === '1'
+    || window.name.startsWith('dsh-floating-workspace-')
+  if (possibleFloating) {
+    ctx.inject(['floatingWorkspaceContext'], (scoped) => {
+      if (scoped.floatingWorkspaceContext() !== undefined) applySidebar(scoped as Context)
+    })
+    return
+  }
+  applySidebar(ctx)
+}
+
+function applySidebar(ctx: Context): void {
   // The sidebar follows the DSH i18n system: attach the locale service so
   // the module-level t()/isZh() resolve the Host-backed language preference
   // (and switch live — the Sidebar root subscribes to it), and register the
@@ -65,7 +81,12 @@ export function apply(ctx: Context): void {
   // then hands it to the mounted panel and closes over it in the slot
   // registrations (the official createXXXStore() factory rule — no
   // module-level singleton).
-  const sidebarStore = createSidebarStore()
+  const floatingContext = (): ReturnType<Context['floatingWorkspaceContext']> => ctx.get('floatingWorkspaceContext')?.()
+  const windowContext = floatingContext()
+  const sidebarStore = createSidebarStore({ floatingWindowId: windowContext?.windowId })
+  const terminal = ctx.sidebarTerminalClient()
+  const git = createSidebarGitClient(ctx.remote.sidebarGit)
+  ctx.effect(() => () => terminal.dispose(), 'dsh-better-sidebar: terminal streams')
   // Feature-owned preferences use the standard settings scope. The scope
   // shares the Settings mirror with every other settings page and owns the
   // namespace write fence; the controller adapts it to the sidebar store.
@@ -81,7 +102,13 @@ export function apply(ctx: Context): void {
   // file previewers through `ctx.betterSidebar.registerTab/registerFileViewer`.
   // Published before the panel mounts so consumers injecting 'betterSidebar'
   // are ready by the time the sidebar renders.
-  const service = createBetterSidebarService(sidebarStore)
+  const service = createBetterSidebarService(sidebarStore, async () => {
+    try {
+      const capability = await terminal.terminalCapability()
+      return capability.status === 'available' ? { status: 'available' } : capability
+    } catch { return { status: 'unavailable', reason: 'probe-failed' } }
+  })
+  ctx.effect(() => registerEditorCommands(ctx.keyboard, t), 'better-sidebar: editor shortcuts')
   ctx.provide('betterSidebar', service)
   // Terminal tab titles use the host's effective shell name (e.g. bash/zsh)
   // instead of "Terminal 1". Start with a safe fallback and replace it as
@@ -90,7 +117,9 @@ export function apply(ctx: Context): void {
   // terminal tabs that still carry it.
   const fallbackTitle = t('terminal')
   let terminalTitle = fallbackTitle
-  void api.shellGet().then(({ name }) => {
+  void terminal.terminalCapability().then((result) => {
+    if (result.status !== 'available') return
+    const name = result.shellName
     terminalTitle = name
     const snapshot = service.getSnapshot()
     if (snapshot.state === undefined) return
@@ -107,9 +136,27 @@ export function apply(ctx: Context): void {
   // service (eating our own dogfood). The disposer unregisters them on
   // fiber disposal (HMR-safe).
   ctx.effect(
-    () => registerBuiltins(ctx, service, { terminalTitle: () => terminalTitle }),
+    () => registerBuiltins(ctx, service, { terminalTitle: () => terminalTitle, terminal, floatingContext, git }),
     'dsh-better-sidebar: register built-in tabs and viewers',
   )
+  ctx.provide('floatingTerminalConsumer', true)
+  ctx.effect(() => {
+    let sessionId: string | undefined
+    let stop: (() => void) | undefined
+    const sync = (): void => {
+      const next = sidebarStore.getSnapshot().sessionId
+      if (next === sessionId) return
+      stop?.()
+      sessionId = next
+      stop = next === undefined ? undefined : terminal.watchAgentTerminals(next as SidebarTerminalSessionId, (list) => {
+        sidebarStore.reduce(state => service.isTabEnabled('terminal') ? reconcileAgentTerminals(state, [...list]) : state)
+      })
+    }
+    const unsubscribe = sidebarStore.subscribe(sync)
+    sync()
+    return () => { unsubscribe(); stop?.() }
+  }, 'dsh-better-sidebar: agent terminal list')
+  const externalPanel = ctx.settingsScope.bind<{ rightPanel?: string }>({ namespace: 'aionui-panel' })
   // A failure anywhere in the client lifecycle must never take the app down
   // silently: log with the plugin prefix and pin a visible diagnostic strip
   // to the page so a blank panel is never the only symptom.
@@ -236,31 +283,27 @@ export function apply(ctx: Context): void {
           fail('mount', error)
         }
       }
-      const sync = async (): Promise<void> => {
-        if (disposed) return
+      const isDisposed = (): boolean => disposed
+      const sync = (): void => {
+        if (isDisposed()) return
         // The preferences controller mirrors the standard settings scope into
         // the store as soon as the shared settings mirror answers. Mounting
         // does not wait on that read, so a slow Host cannot block the panel.
-        if (disposed) return
         // Mutual exclusion with the dsh-web-ui family right panel: while the
         // aionui-panel provider is selected, the sidebar must not mount at
         // all. Re-evaluated on every settings-document update (live switch).
-        const suspended = await loadExternalDisable(api)
-        if (disposed) return
+        const external = externalPanel.getSnapshot()
+        const suspended = external.status === 'ready' && external.value?.rightPanel === 'aionui-panel'
+        if (isDisposed()) return
         sidebarStore.setSuspended(suspended)
         if (suspended) unmount()
         else mount()
       }
       void sync()
-      // Live re-evaluation: the runtime broadcasts settings-document updates
-      // (the aionui card saves through the same document). Best effort —
-      // deployments without the 'remote' service fall back to boot-time
-      // evaluation only.
-      const remote = ctx.get('remote') as { $on?: (event: string, listener: () => void) => () => void } | undefined
-      const offRemote = remote?.$on?.('settings/document-updated', () => { void sync() })
+      const offExternalPanel = externalPanel.subscribe(sync)
       return () => {
         disposed = true
-        offRemote?.()
+        offExternalPanel()
         unmount()
       }
     }, 'dsh-better-sidebar: sidebar mount')
@@ -308,10 +351,10 @@ export function apply(ctx: Context): void {
             takeoverEnabled: (url) => {
               if (sidebarStore.getSuspended()) return false
               const prefs = sidebarStore.getPrefs()
-              if (prefs.browserInterceptLinks === false) return false
+              if (!prefs.browserInterceptLinks) return false
               const protocolOn = url.protocol === 'https:'
-                ? prefs.browserInterceptHttps !== false
-                : prefs.browserInterceptHttp !== false
+                ? prefs.browserInterceptHttps
+                : prefs.browserInterceptHttp
               if (!protocolOn) return false
               // A plugin claim is the target (already enabled-filtered);
               // otherwise the built-in browser must be enabled.
@@ -321,7 +364,7 @@ export function apply(ctx: Context): void {
               let title: string | undefined
               try { title = new URL(url).hostname } catch { /* keep the default title */ }
               const type = urlTargetOf(new URL(url)) ?? 'browser'
-              ctx.betterSidebar?.openTab({ type, url, title })
+              service.openTab({ type, url, title })
             },
             selfOrigin: window.location.origin,
             // Desktop shell only: its webview cannot open an external page, so

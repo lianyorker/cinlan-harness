@@ -15,11 +15,15 @@ export interface IntegrationDictionary {
   statusNotAuthenticated: string
   statusNotConfigured: string
   statusUnavailable: string
+  authUnavailableHint: string
   statusChecking: string
   accountLabel: string
   installLink: string
   installPrompt: string
+  githubInstallCommand: string
+  gitlabInstallCommand: string
   authCommand: string
+  gitlabAuthCommand: string
   authPrompt: string
   tokenPrompt: string
   tokenConfigured: string
@@ -32,7 +36,7 @@ export interface IntegrationDictionary {
 export const en: IntegrationDictionary = {
   nav: 'Integrations',
   title: 'Integrations',
-  description: 'Connect to GitHub, GitLab, and Gitee for source control workflows.',
+  description: 'Check the tools and authentication used by your development workflows.',
   githubTitle: 'GitHub',
   githubDescription: 'Connect via the GitHub CLI (gh) to manage pull requests and issues.',
   gitlabTitle: 'GitLab',
@@ -44,11 +48,15 @@ export const en: IntegrationDictionary = {
   statusNotAuthenticated: 'Not authenticated',
   statusNotConfigured: 'Not configured',
   statusUnavailable: 'Unavailable',
+  authUnavailableHint: 'Authentication could not be verified. Check the network and credentials, then retry.',
   statusChecking: 'Checking…',
   accountLabel: 'Account',
   installLink: 'Install',
   installPrompt: 'Install the CLI to get started:',
   authCommand: 'gh auth login',
+  gitlabAuthCommand: 'glab auth login',
+  githubInstallCommand: 'winget install GitHub.cli',
+  gitlabInstallCommand: 'winget install GLab.GLab',
   authPrompt: 'Authenticate to connect:',
   tokenPrompt: 'Set the GITEE_TOKEN environment variable to connect.',
   tokenConfigured: 'Token is set. Verify by re-checking.',
@@ -61,7 +69,7 @@ export const en: IntegrationDictionary = {
 export const zh: IntegrationDictionary = {
   nav: '集成',
   title: '集成',
-  description: '连接 GitHub、GitLab 和 Gitee 进行源代码管理工作流。',
+  description: '检查开发流程使用的工具与身份验证状态。',
   githubTitle: 'GitHub',
   githubDescription: '通过 GitHub CLI (gh) 连接，管理 Pull Request 和 Issue。',
   gitlabTitle: 'GitLab',
@@ -73,11 +81,15 @@ export const zh: IntegrationDictionary = {
   statusNotAuthenticated: '未认证',
   statusNotConfigured: '未配置',
   statusUnavailable: '不可用',
+  authUnavailableHint: '暂时无法验证身份，请检查网络和凭据后重试。',
   statusChecking: '检查中…',
   accountLabel: '账号',
   installLink: '安装',
   installPrompt: '安装 CLI 以开始：',
   authCommand: 'gh auth login',
+  gitlabAuthCommand: 'glab auth login',
+  githubInstallCommand: 'winget install GitHub.cli',
+  gitlabInstallCommand: 'winget install GLab.GLab',
   authPrompt: '认证以连接：',
   tokenPrompt: '设置 GITEE_TOKEN 环境变量以连接。',
   tokenConfigured: '令牌已设置。重新检查以验证。',

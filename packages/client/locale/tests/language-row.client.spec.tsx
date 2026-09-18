@@ -55,7 +55,8 @@ function mount(active = 'en') {
 describe('LanguageRow', () => {
   it('shows the title and the active locale label on the selector pill', () => {
     mount('en')
-    expect(screen.getByText('Language')).toBeDefined()
+    expect(screen.getByText('Language').closest('[data-settings-anchor]')
+      ?.getAttribute('data-settings-anchor')).toBe('language')
     const trigger = screen.getByRole('button', { name: /English/ })
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
   })

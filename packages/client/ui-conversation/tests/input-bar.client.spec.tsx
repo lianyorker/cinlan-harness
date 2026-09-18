@@ -29,6 +29,7 @@ import type {
 } from '../src/client/contract/slots.ts'
 import type { DraftAttachmentId } from '../src/client/contract/input.ts'
 import { InputBar } from '../src/client/skeleton/InputBar.tsx'
+import { createKeyboardFixture } from './keyboard-fixture.client.ts'
 import type { InputBarProps } from '../src/client/skeleton/InputBar.tsx'
 import { zh } from '../src/client/locales.ts'
 
@@ -98,6 +99,7 @@ interface BenchOptions {
   addFiles?: (files: readonly File[]) => string | null
   commandMenuOpen?: boolean
   busyEnter?: 'queue' | 'steer'
+  popup?: ConstructorParameters<typeof SessionInputShell>[0]['popup']
   toggleCommandMenu?: (selection: { start: number; end: number }) => void
 }
 
@@ -129,6 +131,7 @@ function bench(over?: BenchOptions) {
   const shell = new SessionInputShell({
     actx: SCTX,
     defaultSink: sink,
+    popup: over?.popup,
     commandAttachments: { serialize: () => Promise.resolve([]), release: () => {}, unsupportedNotice: (token: string) => `${token.trim()} attachments-unsupported` },
     queue: {
       getSnapshot: () => session.getSnapshot().queue,
@@ -186,6 +189,7 @@ function bench(over?: BenchOptions) {
     useInput: bindSnapshotSelector(shell.state),
     inputActions: shell.actions,
     keyboard: shell,
+    ...createKeyboardFixture().props,
     addFiles: over?.addFiles ?? (() => null),
     useFileUploads: bindSnapshotSelector(createSnapshotStore<DraftFileUploads>(over?.fileUploads ?? {})),
     retryFileUpload: undefined,
@@ -268,6 +272,21 @@ function editableOf(input: HTMLElement): boolean {
 function writeDraft(shell: SessionInputShell, text: string): void {
   act(() => { shell.setDraft(text) })
 }
+
+describe('popup dismissal ownership', () => {
+  it('reports consumption only while the real shell observes an open command popup', () => {
+    let open = true
+    const dismiss = vi.fn(() => { open = false })
+    const b = bench({ popup: () => ({ state: { getSnapshot: () => ({ open }) }, dismiss }) })
+    expect(b.shell.dismissPopup()).toBe(true)
+    expect(dismiss).toHaveBeenCalledOnce()
+    expect(b.shell.dismissPopup()).toBe(false)
+    expect(dismiss).toHaveBeenCalledOnce()
+    open = true
+    fireEvent.keyDown(b.textarea, { key: 'Escape' })
+    expect(dismiss).toHaveBeenCalledTimes(2)
+  })
+})
 
 describe('image draft rail', () => {
   it('collects clipboard files while preserving text from a mixed paste', async () => {
@@ -481,7 +500,7 @@ describe('image draft rail', () => {
 describe('Enter semantics', () => {
   it('advertises the empty-draft whole-queue steering gesture when it is available', () => {
     const { placeholder } = bench({ running: true, queue: [row('q-1')], steerQueue: vi.fn() })
-    expect(placeholder).toBe('Cmd/Ctrl+Enter 插话发送全部排队消息')
+    expect(placeholder).toBe('Ctrl + Enter / Meta + Enter 插话发送全部排队消息')
     expect(bench({
       running: true,
       queue: [row('q-1')],
@@ -489,7 +508,7 @@ describe('Enter semantics', () => {
         address: { parentSessionId: 'parent' as SessionId, childSessionId: SID, mode: 'continuable' },
         parentAvailable: true,
       },
-    }).placeholder).toBe('Cmd/Ctrl+Enter 插话发送全部排队消息')
+    }).placeholder).toBe('Ctrl + Enter / Meta + Enter 插话发送全部排队消息')
   })
 
   it('keeps the owning placeholder or ordinary guidance when whole-queue steering is unavailable', () => {
@@ -514,7 +533,7 @@ describe('Enter semantics', () => {
       running: true,
       queue: [row('q-1')],
       plan: { active: true, pending: false },
-    }).placeholder).toBe('Cmd/Ctrl+Enter 插话发送全部排队消息')
+    }).placeholder).toBe('Ctrl + Enter / Meta + Enter 插话发送全部排队消息')
   })
 
   it('an open command menu withholds the whole-queue steering gesture', () => {

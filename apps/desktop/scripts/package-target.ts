@@ -25,6 +25,13 @@ const DESKTOP_UPLOAD_CREDENTIAL_ENV_NAMES = new Set([
   'DOWNLOAD_PROD_COS_SECRET_ID',
   'DOWNLOAD_PROD_COS_SECRET_KEY',
 ])
+const PNPM_DEPENDENCY_FILTER_ENV_NAMES = new Set([
+  'pnpm_config_filter',
+  'pnpm_config_filter_prod',
+  'npm_config_filter',
+  'npm_config_filter_prod',
+])
+const DESKTOP_PACKAGE_NAME = '@deepseek-ai/dsh-desktop'
 
 /** Fixed platform and architecture identifiers exposed by package scripts. */
 export type DesktopPackageTargetName = 'mac-arm64' | 'mac-x64' | 'win-x64'
@@ -80,6 +87,19 @@ export function withoutWindowsSigningEnvironment(environment: NodeJS.ProcessEnv)
 export function withoutDesktopUploadCredentials(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(Object.entries(environment)
     .filter(([name]) => !DESKTOP_UPLOAD_CREDENTIAL_ENV_NAMES.has(name)))
+}
+
+/**
+ * Limit electron-builder's pnpm dependency listing to the desktop shell.
+ * @param environment - Target environment before restoring Windows signing fields.
+ * @returns A copy with one Desktop selector and no inherited dependency selectors.
+ */
+export function desktopElectronBuilderEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return {
+    ...Object.fromEntries(Object.entries(environment)
+      .filter(([name]) => !PNPM_DEPENDENCY_FILTER_ENV_NAMES.has(name.toLowerCase()))),
+    pnpm_config_filter: DESKTOP_PACKAGE_NAME,
+  }
 }
 
 function isTargetName(value: string): value is DesktopPackageTargetName {
@@ -254,9 +274,14 @@ async function main(): Promise<void> {
     DSH_DESKTOP_TARGET_PLATFORM: target.platform,
     DSH_DESKTOP_TARGET_ARCH: target.arch,
   }
-  const electronBuilderEnv = { ...targetEnv }
+  const electronBuilderEnv = desktopElectronBuilderEnvironment(targetEnv)
   for (const name of WINDOWS_SIGNING_ENV_NAMES) {
     if (process.env[name] !== undefined) electronBuilderEnv[name] = process.env[name]
+  }
+  if (!invocation.prepareOnly) {
+    await runPnpm(['exec', 'node', 'scripts/validate-electron-builder-config.mjs'], electronBuilderEnv)
+    await runPnpm(['exec', 'node', 'scripts/validate-electron-builder-dependencies.mjs'],
+      withoutWindowsSigningEnvironment(electronBuilderEnv))
   }
   await runPnpm(['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
   await runPnpm(['run', 'release:pack', '--family', 'dsh', '--out', buildPaths.packedDsh], buildEnv, REPOSITORY_ROOT)

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-12-device-profile-and-provider-readiness.md
-2026-09-12-device-profile-and-provider-readiness.md: 5af2749d68138c501e71865c3d5f7a15438f274a
-2026-09-12-device-profile-and-provider-readiness.zh.md: 8b2ccf1f5041f56b0a599c7970e99d363f5fbcdc
+2026-09-12-device-profile-and-provider-readiness.md: 77ce5dda4a4fa3f68b599b9bd5c3481d27852b97
+2026-09-12-device-profile-and-provider-readiness.zh.md: 03e8dcd5080bb6825df514b16c6f1dfea6457d58

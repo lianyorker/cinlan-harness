@@ -86,6 +86,8 @@ const globalToggle = (): HTMLElement =>
 describe('PluginInventorySettingsTab', () => {
   it('shows the default preset first and keeps the global plane collapsed', async () => {
     const view = await renderReady()
+    expect(screen.getByRole('searchbox', { name: en.search }).closest('[data-settings-anchor]')?.getAttribute('data-settings-anchor'))
+      .toBe('plugins-inventory')
 
     const switcher = screen.getByRole('button', { name: en.switcherLabel })
     expect(switcher.textContent).toBe('标准模式 (default)')

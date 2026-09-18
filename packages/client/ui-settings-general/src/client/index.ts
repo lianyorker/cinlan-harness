@@ -15,7 +15,7 @@ import { IconSettingsOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 // Type-only: the settings slot declarations plus the ctx.settingsScope Context
 // merge. Cross-plugin collaboration goes through the service, never a value
 // import (client bundle purity gate).
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { SettingsMetadataSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 // Type-only: pulls ctx.locale into this program.
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -57,7 +57,7 @@ const NS = 'settings'
  * ui-settings' apply, whose activation order relative to this one is NOT
  * constrained; registrations depend on their slots through `slots.inject()`.
  */
-export const inject = ['slots', 'locale', 'remote', 'remote.settings', 'settingsScope']
+export const inject = ['slots', 'locale', 'remote', 'remote.settings', 'settingsScope', 'settingsMetadata']
 
 /**
  * Register the `settings` dictionaries, the chrome content, and the General
@@ -89,16 +89,27 @@ export function apply(ctx: ClientContext): void {
   // key includes the locale revision and subscribers ride both sources.
   let rowsVersion = -1
   let rowsRevision = -1
+  let rowsMetadata: SettingsMetadataSnapshot | undefined
   let rows: readonly SettingsSectionRow[] = []
   let onboardingVersion = -1
   let onboardingSteps: readonly SettingsOnboardingStep[] = []
-  const shellInjected = (): SettingsRootInjected => ({
+  const media = typeof window === 'undefined' ? undefined : window.matchMedia('(max-width: 700px)')
+  const shellInjected: SettingsRootInjected = {
     hooks: {
+      narrowViewport: {
+        getSnapshot: () => media?.matches ?? false,
+        subscribe: (listener) => {
+          media?.addEventListener('change', listener)
+          return () => { media?.removeEventListener('change', listener) }
+        },
+      },
       sections: {
         getSnapshot: () => {
           const version = ctx.slots.getVersion('settings.section')
           const revision = ctx.locale.getSnapshot().revision
-          if (version !== rowsVersion || revision !== rowsRevision) {
+          const metadata = ctx.settingsMetadata.getSnapshot()
+          if (version !== rowsVersion || revision !== rowsRevision || metadata !== rowsMetadata) {
+            rowsMetadata = metadata
             rowsVersion = version
             rowsRevision = revision
             rows = ctx.slots.entries('settings.section')
@@ -107,6 +118,8 @@ export function apply(ctx: ClientContext): void {
                 id: e.options.id ?? '',
                 order: e.options.order ?? 0,
                 label: resolveSlotLabel(e.options.label) ?? '',
+                groupId: metadata.sections.find(section => section.sectionId === e.options.id)?.groupId ?? 'extensions',
+                items: metadata.items.filter(item => item.sectionId === e.options.id),
               }))
               .sort((a, b) => a.order - b.order)
           }
@@ -115,9 +128,11 @@ export function apply(ctx: ClientContext): void {
         subscribe: (listener) => {
           const offLedger = ctx.slots.subscribe('settings.section', listener)
           const offLocale = ctx.locale.subscribe(listener)
+          const offMetadata = ctx.settingsMetadata.subscribe(listener)
           return () => {
             offLedger()
             offLocale()
+            offMetadata()
           }
         },
       },
@@ -139,7 +154,7 @@ export function apply(ctx: ClientContext): void {
         subscribe: listener => ctx.slots.subscribe('settings.onboarding', listener),
       },
     },
-  })
+  }
   ctx.slots.inject('sidebar.settings', () => ctx.slots.register({
     name: 'sidebar.settings',
     locale: NS,
@@ -152,7 +167,7 @@ export function apply(ctx: ClientContext): void {
       'settings.section.icon': { kind: 'keyed', scope: 'root' },
       'settings.onboarding': { kind: 'list', scope: 'root' },
     },
-    inject: shellInjected,
+    inject: () => shellInjected,
   }, SettingsRoot))
 
   ctx.slots.inject('settings.trigger', () =>
@@ -172,12 +187,15 @@ export function apply(ctx: ClientContext): void {
     ctx.slots.register({ name: 'settings.close', locale: NS }, CloseLabel))
   ctx.slots.inject('settings.section.icon', () =>
     ctx.slots.register({ name: 'settings.section.icon', key: 'general' }, IconSettingsOutline16))
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'general',
-    order: 0,
-    label: () => t('general.nav'),
-    locale: NS,
-    children: { 'settings.general.item': { kind: 'list', scope: 'root' } },
-  }, GeneralSection))
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'general', groupId: 'personal' })
+    yield ctx.slots.register({
+      name: 'settings.section',
+      id: 'general',
+      order: 0,
+      label: () => t('general.nav'),
+      locale: NS,
+      children: { 'settings.general.item': { kind: 'list', scope: 'root' } },
+    }, GeneralSection)
+  })
 }

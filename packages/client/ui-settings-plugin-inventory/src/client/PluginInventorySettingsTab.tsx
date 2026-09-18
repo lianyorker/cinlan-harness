@@ -366,7 +366,7 @@ export function PluginInventorySettingsTab({ list, presetName, t }: PluginInvent
   }
 
   return (
-    <div className={css.section} aria-busy={state.status === 'loading'}>
+    <div className={css.section} data-settings-anchor="plugins-inventory" aria-busy={state.status === 'loading'}>
       {state.status === 'loading' ? <p className={css.status}>{t('loading')}</p> : null}
       {state.status === 'error' ? (
         <div className={css.failure}>

@@ -8,6 +8,8 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
+import type { SettingsScope } from '@deepseek-ai/dsh-settings'
+import { MOBILE_DEVICE_NAMESPACE, MobileDeviceSettingsSchema } from './settings.ts'
 import type {
   Config,
   MobileButtonRequest,
@@ -15,23 +17,28 @@ import type {
   MobileDeviceGeneration as MobileDeviceGenerationValue,
   MobileDeviceId as MobileDeviceIdValue,
   MobileDeviceProvider,
+  MobileDeviceSettings,
   MobileMutationResult,
   MobileObservation,
   MobileObservationId as MobileObservationIdValue,
   MobileObserveRequest,
+  MobileObserveSpec,
   MobileTouchRequest,
   MobileTypeRequest,
 } from './types.ts'
 
+export { MOBILE_DEVICE_NAMESPACE, MobileDeviceSettingsSchema } from './settings.ts'
 export type {
   Config,
   MobileButtonRequest,
   MobileDevice,
   MobileDeviceProvider,
+  MobileDeviceSettings,
   MobileMutationRequest,
   MobileMutationResult,
   MobileObservation,
   MobileObserveRequest,
+  MobileObserveSpec,
   MobileScreenshot,
   MobileScreenshotStatus,
   MobileTouchRequest,
@@ -104,11 +111,24 @@ export class MobileDeviceRuntime extends Service {
 
   private readonly providers = new Map<string, MobileDeviceProvider>()
   private readonly providerId: string | undefined
+  private settings: SettingsScope<MobileDeviceSettings> | undefined
 
   /** Create the provider-neutral mobile-device runtime. */
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'mobileDevice')
     this.providerId = resolveConfig(config).provider
+    ctx.inject(['settings'], (settingsCtx) => {
+      this.settings = settingsCtx.settings.register(MOBILE_DEVICE_NAMESPACE, MobileDeviceSettingsSchema)
+      settingsCtx.effect(() => () => { this.settings = undefined }, 'mobileDevice.settings()')
+    })
+  }
+
+  /**
+   * Read current resolved preferences without retaining a mutable settings reference.
+   * @returns A detached settings value, or schema defaults when no settings service is mounted.
+   */
+  getPreferences(): MobileDeviceSettings {
+    return { ...(this.settings?.get() ?? MobileDeviceSettingsSchema({} as never)) }
   }
 
   /**
@@ -163,12 +183,59 @@ export class MobileDeviceRuntime extends Service {
 
   /**
    * Capture one fresh device observation.
-   * @param request Exact device and screenshot preference.
+   * @param request Explicit device or omitted id for the saved default, and screenshot preference.
    * @param signal Cooperative cancellation signal.
    * @returns Observation valid for one later mutation only.
+   * @throws {MobileDeviceError} When an omitted target has no unique available saved default; no failure selects another device.
    */
-  observe(request: MobileObserveRequest, signal?: AbortSignal): Promise<MobileObservation> {
-    return this.provider().observe(request, signal)
+  async observe(request: MobileObserveRequest, signal?: AbortSignal): Promise<MobileObservation> {
+    const provider = this.provider()
+    const preferences = this.getPreferences()
+    const spec = await this.resolve(request, provider, preferences, signal)
+    signal?.throwIfAborted()
+    return provider.observe(spec, signal)
+  }
+
+  private async resolve(
+    request: MobileObserveRequest,
+    provider: MobileDeviceProvider,
+    preferences: MobileDeviceSettings,
+    signal?: AbortSignal,
+  ): Promise<MobileObserveSpec> {
+    signal?.throwIfAborted()
+    if (request.deviceId !== undefined) {
+      if (request.deviceId.length === 0 || request.deviceId.trim() !== request.deviceId) {
+        throw new MobileDeviceError('mobile device id must be non-empty without surrounding whitespace', 'MOBILE_DEVICE_ID_INVALID')
+      }
+      return { ...request, deviceId: request.deviceId }
+    }
+    const deviceId = preferences.defaultDeviceId
+    if (deviceId.length === 0) {
+      throw new MobileDeviceError(
+        'No default mobile device is configured; specify device_id or save a default device.',
+        'MOBILE_DEFAULT_DEVICE_MISSING',
+      )
+    }
+    if (deviceId.trim() !== deviceId) {
+      throw new MobileDeviceError('saved default mobile device id has surrounding whitespace', 'MOBILE_DEFAULT_DEVICE_INVALID')
+    }
+    const devices = await provider.listDevices(signal)
+    signal?.throwIfAborted()
+    const matches = devices.filter(device => device.id === deviceId)
+    if (matches.length > 1) {
+      throw new MobileDeviceError(
+        `saved default mobile device '${deviceId}' is ambiguous`,
+        'MOBILE_DEFAULT_DEVICE_AMBIGUOUS',
+      )
+    }
+    const device = matches[0]
+    if (device === undefined) {
+      throw new MobileDeviceError(`saved default mobile device '${deviceId}' was not found`, 'MOBILE_DEVICE_NOT_FOUND')
+    }
+    if (!device.isAvailable) {
+      throw new MobileDeviceError(`saved default mobile device '${deviceId}' is unavailable`, 'MOBILE_DEVICE_UNAVAILABLE')
+    }
+    return { ...request, deviceId: device.id }
   }
 
   /**

@@ -88,11 +88,13 @@ export class DesktopHostProcess {
    * @param node - absolute bundled upstream Node.js executable.
    * @param projectDir - active or staged desktop npm project.
    * @param inspectPort - optional loopback inspector port for workspace development.
+   * @param allowLinkedProfile - permit external workspace package links only for development projects.
    */
   constructor(
     private readonly node: string,
     private readonly projectDir: string,
     private readonly inspectPort?: number,
+    private readonly allowLinkedProfile = false,
   ) {}
 
   /** Start the child once and resolve only after its complete composition is active. */
@@ -103,7 +105,7 @@ export class DesktopHostProcess {
       ...(this.inspectPort === undefined ? [] : [`--inspect=127.0.0.1:${String(this.inspectPort)}`]),
       entry,
       this.projectDir,
-      ...(this.inspectPort === undefined ? [] : ['--allow-linked-profile']),
+      ...(this.allowLinkedProfile ? ['--allow-linked-profile'] : []),
     ], {
       cwd: this.projectDir,
       env: Object.fromEntries(Object.entries(process.env).filter(([name]) => (

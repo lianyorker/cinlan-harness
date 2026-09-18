@@ -90,6 +90,48 @@ interface TerminalSendResult {
 
 `TerminalSessionService` 会将一项等待完成的清理附加到确切的拥有者作用域，拒绝其他拥有者的操作，并让会话在后端或工具插件重载期间保持存活。PTY 状态与原始字节仍局限在进程内。模型输入与有界返回输出通过现有 `tool/call`、`tool/result` 和任务结果路径持久保存，而不是重复记录 PTY 会话事件。
 
+## 侧边栏终端连接
+
+`ctx.sidebarTerminals` 通过 `SidebarTerminals` 将 UI 标签页和 agent（智能体）终端连接到渲染器。适用于浏览器的值声明在 [`sidebar-terminals/src/types.ts`](../../packages/terminal/sidebar-terminals/src/types.ts) 中；[服务定义](../../packages/terminal/sidebar-terminals/src/index.ts) 负责操作约定，[包参考](../../packages/terminal/sidebar-terminals/README.zh.md) 负责提供方生命周期与浮动窗口目录策略。
+
+| 标识类型 | 含义 |
+|---|---|
+| `SidebarTerminalSessionId` | 与 Session 服务使用相同的 `SessionId` 品牌。 |
+| `SidebarTerminalTabId` | 由侧边栏存储铸造的持久 UI 标签页标识。 |
+| `SidebarAgentTerminalId` | agent 终端注册表标识，独立于 UI 标签页。 |
+| `SidebarTerminalAttachmentId` | 服务端签发的、连接到某个进程代次的一次连接标识。 |
+| `SidebarTerminalProcessId` | 服务端签发的原生进程标识，在连接重建后保持不变。 |
+| `FloatingWorkspaceWindowId` | 一个浮动应用窗口的已校验 UUID。 |
+
+`SidebarTerminalTarget` 选择两类目标之一：UI 终端携带 `kind: 'ui'`、`sessionId`、`tabId` 和可选的 `floating`；agent 终端携带 `kind: 'agent'` 和 `uuid`。`SidebarTerminalOpenRequest` 为一次实际连接捕获该目标以及初始 `cols` 和 `rows`。
+
+`SidebarFloatingTerminalDirectory` 在创建浮动 UI 标签页时捕获 `windowId` 和 `directory`。`FloatingWorkspaceTerminalContext` 始终携带 `windowId`；只有 `status: 'ready'` 携带目录，`loading` 和 `unavailable` 则不携带。`ctx.floatingWorkspaceContext()` 返回此上下文或 `undefined`；`ctx.floatingTerminalConsumer` 标记表示一个消费方。这两项贡献本身都不会创建 Host 终端。
+
+`SidebarTerminalCapability` 返回 `status: 'available'` 及 `shellName`，或 `status: 'unavailable'` 及 `reason: 'missing-dependencies'`。读取能力不会启动 shell，也不能证明已配置的 shell 能够启动。
+
+### 输出与控制
+
+`SidebarTerminalFrame` 是有界的流值。每个变体都携带 `attachmentId`；只有数据帧携带用于渲染器确认的序号。
+
+| `type` | 额外字段 | 含义 |
+|---|---|---|
+| `ready` | `processId`、`pid`、`cwd`、`shellName` | 所捕获进程的初始元数据。 |
+| `data` | `sequence`、`data` | 终端文本；在渲染并确认之前持续占用输出额度。 |
+| `exit` | `exitCode` | 已连接进程退出。 |
+
+| 请求类型 | 字段 | 语义 |
+|---|---|---|
+| `SidebarTerminalInputRequest` | `attachmentId`、`data` | 向有效连接写入；已分离的代次不能写入。 |
+| `SidebarTerminalResizeRequest` | `attachmentId`、`cols`、`rows` | 更新既有连接的显示尺寸。 |
+| `SidebarTerminalAckRequest` | `attachmentId`、`sequence` | 确认渲染器已消费的最高数据帧序号。 |
+| `SidebarTerminalReleaseRequest` | `attachmentId`、`mode` | `disconnect` 允许配置的重连宽限期；`park` 保留隐藏的 UI 终端；`close` 终止其 UI 进程。 |
+| `SidebarTerminalUiTarget` | `sessionId`、`tabId` | 检查既有 UI 进程，不会启动进程或延长其生命周期。 |
+| `SidebarTerminalCloseUiRequest` | `sessionId`、`tabId`、`processId` | 关闭先前观察到的原生进程，包括在断连期间；替代代次会被拒绝，不存在的进程视为已经关闭。 |
+
+`SidebarAgentTerminalSnapshot` 包含 `uuid`、`title`、`command`、`exited`，以及可选且可为 null 的 `exitCode` 和 `exitSignal`。观察某个 Session 会返回其当前 agent 终端列表及后续更新。关闭 agent 终端使用其注册表标识。
+
+`SidebarTerminalError` 携带供传输载体本地化的 `SidebarTerminalErrorCode`：`invalid-request`、`invalid-directory`、`unavailable`、`not-found`、`stale-attachment`、`output-overflow` 或 `ack-timeout`。连接 id 不能授权操作替代进程；渲染器停滞时可能持续占用输出额度，直到其连接超时。
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -97,6 +139,71 @@ interface TerminalSendResult {
 ## Cordis API
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxsidebarterminals--sidebarterminals-abstract-seam"></a>
+
+### `ctx.sidebarTerminals` — `SidebarTerminals` (abstract seam)
+
+Sidebar PTY ownership; the provider reuses the UI and agent terminal managers.
+
+```ts cordis-catalog
+/** Read native availability without spawning a shell.
+ * @returns Current availability.
+ */
+abstract capability(): SidebarTerminalCapability
+
+/** Attach to a process and observe its output.
+ * @param request - immutable target and initial geometry.
+ * @param signal - attachment lifetime.
+ * @returns bounded terminal frames until exit or release.
+ */
+abstract open(request: SidebarTerminalOpenRequest, signal: AbortSignal): AsyncIterable<SidebarTerminalFrame>
+
+/** Write input to the attached process.
+ * @param request - input for a live attachment.
+ */
+abstract input(request: SidebarTerminalInputRequest): void
+
+/** Resize the attached process display.
+ * @param request - updated display geometry.
+ */
+abstract resize(request: SidebarTerminalResizeRequest): void
+
+/** Acknowledge output after the renderer consumes it.
+ * @param request - highest data sequence rendered by xterm.
+ */
+abstract ack(request: SidebarTerminalAckRequest): void
+
+/** Release a view of its captured process.
+ * @param request - disposition for this attachment's process generation.
+ */
+abstract release(request: SidebarTerminalReleaseRequest): void
+
+/** Observe an existing UI process without spawning or extending its lifetime.
+ * @param request - existing UI tab.
+ * @returns its native process identity, or null; never spawns or extends its lifetime.
+ */
+abstract inspectUi(request: SidebarTerminalUiTarget): SidebarTerminalProcessId | null
+
+/** Request termination of an observed UI process and reject replacement generations.
+ * @param request - exact observed native generation; missing processes are already closed, replacements are rejected.
+ */
+abstract closeUi(request: SidebarTerminalCloseUiRequest): void
+
+/** Observe the agent terminals owned by a Session.
+ * @param sessionId - owning Session.
+ * @param signal - consumer lifetime.
+ * @returns current agent terminal list and later updates.
+ */
+abstract watch(sessionId: SidebarTerminalSessionId, signal: AbortSignal): AsyncIterable<readonly SidebarAgentTerminalSnapshot[]>
+
+/** Request termination of an agent terminal.
+ * @param uuid - agent-owned terminal explicitly closed by its user.
+ */
+abstract closeAgent(uuid: SidebarAgentTerminalId): void
+```
+
+Source: [`packages/terminal/sidebar-terminals/src/index.ts`](../../packages/terminal/sidebar-terminals/src/index.ts)
 
 <a id="ctxterminals--terminalsessionservice"></a>
 

@@ -57,7 +57,7 @@ ctx.tools.register(defineTool({
 }))
 ```
 
-The unified schema DSL supports `string`, `number`, `integer`, `boolean`, `null`, `array`, `object`, author-only `json`, and exact-one `oneOf`; `InferValue` preserves exact types through 16 container levels before widening to `JsonValue`. A raw JSON Schema (`JsonSchemaNode`) is the wire-level counterpart shared with subagents, workflows, and MCP.
+The unified schema DSL supports `string`, `number`, `integer`, `boolean`, `null`, `array`, `object`, author-only `json`, and exact-one `oneOf`; `InferValue` preserves exact types through 16 container levels before widening to `JsonValue`. A raw JSON Schema (`JsonSchemaNode`) is the wire-level counterpart shared with subagents, workflows, and MCP. Browser DTOs import `JsonSchemaNode`, `ObjectJsonSchema`, `JsonSchemaType`, and `JsonSchemaScalar` from the pure `@deepseek-ai/dsh-tools/types` entry; the root exports retain the same types without making browser consumers import Host services.
 
 ### Configure the presentation mode
 

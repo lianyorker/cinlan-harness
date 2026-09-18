@@ -90,7 +90,7 @@ describe('the preset list', () => {
 
     // Display copy is what a picker reads; the id stays visible as the key the
     // composition and the session header actually carry.
-    expect(screen.getByText(en.presetStandardName)).toBeTruthy()
+    expect(within(rowFor('standard')).getByText(en.presetStandardName)).toBeTruthy()
     expect(screen.getByText(en.presetStandardDescription)).toBeTruthy()
     const mine = rowFor('mine')
     expect(within(mine).getAllByText('mine').length).toBeGreaterThan(0)
@@ -116,10 +116,11 @@ describe('the preset list', () => {
     expect(screen.getByRole('heading', { name: en.customGroup })).toBeTruthy()
   })
 
-  it('shows no group heading for a set nobody has', () => {
+  it('keeps a searchable custom section with instructions when it is empty', () => {
     renderSection({ rows: [{ id: 'standard', trust: 'system', isDefault: true }] })
 
-    expect(screen.queryByRole('heading', { name: en.customGroup })).toBeNull()
+    expect(screen.getByRole('heading', { name: en.customGroup })).toBeTruthy()
+    expect(screen.getByText(en.emptyCustom)).toBeTruthy()
   })
 
   it('leads with the two ways a preset is created', () => {
@@ -309,15 +310,16 @@ describe('the preset list', () => {
     expect(rowFor('mine')).toBeTruthy()
   })
 
-  it('renders nothing when the deployment composes no presets', () => {
-    const { container } = render(<AgentPresetSection {...({
+  it('discloses the host composition when no presets are available', () => {
+    render(<AgentPresetSection {...({
       useAgentPresetSection: bindSnapshotSelector(
         createSnapshotStore<AgentPresetSectionState>({ ...READY, status: 'unavailable', rows: [] })),
       t: (key: keyof typeof en) => en[key],
       load: vi.fn(() => Promise.resolve()),
     } as unknown as AgentPresetSectionProps)} />)
 
-    expect(container.firstChild).toBeNull()
+    expect(screen.getByRole('status').textContent).toBe(en.unavailable)
+    expect(screen.getByRole('combobox', { name: en.defaultLabel })).toHaveProperty('disabled', true)
   })
 
   it('offers a retry when the roster could not be read', () => {
@@ -327,6 +329,26 @@ describe('the preset list', () => {
     fireEvent.click(screen.getByText(en.retry))
 
     expect(actions.load).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('preset settings navigation', () => {
+  it('selects a future-session default through the existing operation', () => {
+    const actions = renderSection()
+    const select = screen.getByRole('combobox', { name: en.defaultLabel })
+    expect(select).toHaveProperty('value', 'standard')
+    fireEvent.change(select, { target: { value: 'mine' } })
+    expect(actions.makeDefault).toHaveBeenCalledWith('mine')
+    expect(screen.getByText(en.defaultHelp)).toBeTruthy()
+  })
+
+  it('keeps all field destinations mounted without opening a preset editor', () => {
+    renderSection({ rows: [{ id: 'standard', trust: 'system', isDefault: true }] })
+    expect(screen.getByRole('heading', { level: 1, name: en.nav })).toBeTruthy()
+    for (const anchor of ['agent-presets-default', 'agent-presets-built-in', 'agent-presets-custom']) {
+      expect(document.querySelector('[data-settings-anchor="' + anchor + '"]')).not.toBeNull()
+    }
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
 

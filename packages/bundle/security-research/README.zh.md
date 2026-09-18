@@ -34,11 +34,11 @@ dsh plugin --profile <name> add @deepseek-ai/dsh-security-research
 dsh plugin --profile <name> remove @deepseek-ai/dsh-security-research
 ```
 
-随附的 `security-research` profile 会在 `dsh-base` 与 `dsh-web-app` 之后包含此组合包。自定义 profile 必须先包含 base 层。
+随附的 `security-research` profile 会在 `dsh-base` 与 `dsh-web-app` 之后包含此组合包。自定义 profile 必须先包含 base 层和 Execution Host 提供方；Web 层提供本地实现。
 
 ### 你得到什么
 
-此层在 $DSH_HOME/artifacts/v1 挂载本地持久化 Artifact 存储、本地 Execution Host 身份、评估范围与 Session 绑定、持久 Finding 工具、NVD/OSV 漏洞查询、内置 Security Skills 提供方以及安全工作流提示。组合包在预设注册表存在时贡献随包的 `security-research` Agent 预设。该预设在编码组装上增加研究 persona 与作用域内的 Security Skills。profile 全局安全提供方与工具仍然共享。只有名单包含该预设时，Settings 才显示安全研究；通用 Web profile 不会仅因 CLI 安装依赖而获得它。
+此层在 $DSH_HOME/artifacts/v1 挂载本地持久化 Artifact 存储、评估范围与 Session 绑定、持久 Finding 工具、NVD/OSV 漏洞查询、内置 Security Skills 提供方以及安全工作流提示。组合包在预设注册表存在时贡献随包的 `security-research` Agent 预设。该预设在编码组装上增加研究 persona 与作用域内的 Security Skills。profile 全局安全提供方与工具仍然共享。只有名单包含该预设时，Settings 才显示安全研究；通用 Web profile 不会仅因 CLI 安装依赖而获得它。
 
 -----
 

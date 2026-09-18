@@ -1,10 +1,11 @@
 /** Execution Host service definition for authorized process identity. */
 
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { Branded } from '@deepseek-ai/dsh-brand'
+import type { ExecutionHostId as ExecutionHostIdValue, ExecutionHostInfo } from './types.ts'
+export type { ExecutionHostInfo } from './types.ts'
 
 /** Opaque identifier for one execution host. */
-export type ExecutionHostId = Branded<'ExecutionHostId'>
+export type ExecutionHostId = ExecutionHostIdValue
 
 /**
  * Brand an execution host identifier.
@@ -19,15 +20,6 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     executionHost: ExecutionHostService
   }
-}
-
-/** Execution host metadata. */
-export interface ExecutionHostInfo {
-  readonly hostId: ExecutionHostId
-  readonly hostname: string
-  readonly pid: number
-  readonly platform: string
-  readonly createdAt: string
 }
 
 /**

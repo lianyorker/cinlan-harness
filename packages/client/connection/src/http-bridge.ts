@@ -81,6 +81,11 @@ export async function bridge(
     } as RequestInit & { duplex: 'half' })
   }
   const response = await apiHandler.fetch(request)
+  const responseClosed = (): boolean => res.destroyed || res.writableEnded || abort.signal.aborted
+  if (responseClosed()) {
+    await response.body?.cancel()
+    return
+  }
   const requestUnread = bodyMode === 'streaming' && !req.readableEnded
   const responseHeaders = Object.fromEntries(response.headers.entries())
   res.writeHead(response.status, requestUnread ? { ...responseHeaders, connection: 'close' } : responseHeaders)
@@ -90,6 +95,7 @@ export async function bridge(
     return
   }
   for await (const chunk of response.body) {
+    if (responseClosed()) break
     // Backpressure: a false return means the socket buffer is full — wait for drain
     // instead of buffering unboundedly (slow or suspended consumers). 'close' also
     // resolves so a mid-wait disconnect can't park this loop forever; the close
@@ -103,9 +109,10 @@ export async function bridge(
         }
         res.once('drain', done)
         res.once('close', done)
+        if (responseClosed()) done()
       })
     }
   }
-  res.end()
+  if (!responseClosed()) res.end()
   if (requestUnread) req.destroy()
 }

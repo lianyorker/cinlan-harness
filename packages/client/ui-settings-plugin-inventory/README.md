@@ -25,7 +25,7 @@ The **Plugin list** tab lets Web users inspect plugins without changing their co
 <a id="use-this-package"></a>
 ## Use this package
 
-Open the Plugins section in Settings and select the **Plugin list** tab to inspect the Host's plugin inventory. The tab reads no Remote during plugin activation — selecting it for the first time mounts the component and lazily calls `ctx.remote.pluginInventory.list()` through `api-remotes`.
+Open the Plugins section in Settings and select the **Plugin list** tab to inspect the Host's plugin inventory. The tab reads no Remote during plugin activation — selecting it for the first time mounts the component and lazily calls `ctx.remote.pluginInventory.list()` through `api-remotes`. The tab also appears in Settings search by its localized public labels; selecting that result opens the read-only list without indexing the inventory rows or adding installation or enablement actions.
 
 ### Reading a card
 
@@ -51,7 +51,7 @@ The tab is a read-only projection of a Host-owned snapshot; it performs no Remot
 
 ### Registration
 
-The browser plugin registers one localized `settings.plugins.tab` contribution with id `all`; the Plugins section owns the navigation entry and tab chrome. Registration uses `ctx.slots.inject()`, so it follows late tab declaration, redeclaration, locale changes, and teardown without importing the section owner.
+The browser plugin registers one localized `settings.plugins.tab` contribution with id `all`; the Plugins section owns the navigation entry and tab chrome. Registration uses `ctx.slots.inject()`, so it follows late tab declaration, redeclaration, locale changes, and teardown without importing the section owner. Its search descriptor and DOM anchor share that tab lifetime, so unloading the tab removes its search result.
 
 ### Rendering
 

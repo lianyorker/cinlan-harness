@@ -61,6 +61,8 @@ pnpm run dev:desktop
 
 Development Harness state defaults to `apps/desktop/.desktop-build/development/home`, the disposable npm project lives at `apps/desktop/.desktop-build/development/project`, and Electron browser data lives at `apps/desktop/.desktop-build/development/electron-user-data`. Sessions, settings, credentials, package links, and browser data therefore stay out of the user's normal Harness home. An explicit `DSH_HOME` replaces only the development Harness home. Renderer DevTools opens automatically; Main, Renderer, and dsh Host debugging listen on ports 9229, 9222, and 9230. `DSH_DESKTOP_MAIN_INSPECT_PORT`, `DSH_DESKTOP_RENDERER_DEBUG_PORT`, and `DSH_DESKTOP_HOST_INSPECT_PORT` replace those ports, while `DSH_DESKTOP_OPEN_DEVTOOLS=0` keeps the detached Renderer tools closed.
 
+Set `DSH_DESKTOP_DEVELOPMENT_ROOT` to give a run its own `project`, `home`, and `electron-user-data` directories; an explicit `DSH_HOME` still overrides only `home`. Main and Renderer debug ports accept `0` for OS-assigned ports; Host port `0` disables its inspector. Linked workspace profiles remain available independently of debugging.
+
 After an explicit build, `start:desktop` reconstructs the disposable project and launches the existing artifacts without building again:
 
 ```sh
@@ -69,9 +71,11 @@ pnpm run start:desktop
 
 Workspace development runs the current CLI and private Desktop Host packages under the invoking Node.js and disables desktop package mutations. Its explicitly linked disposable profile is the only mode allowed to resolve bundles outside its own directory. Use an unpacked application to exercise the bundled Node.js, bundled pnpm, release seed, plugin installation, staging, and rollback paths.
 
+With existing build artifacts and an interactive desktop session, run `node apps/desktop/tests/settings.integration.mjs` from the repository root to verify Settings in Electron. Development mode uses `start:desktop` with pnpm automatic dependency installation disabled. To check an existing Windows unpacked application, add `--packaged '<absolute path to DeepSeek Harness.exe>'`; that mode verifies the packaged ASAR and bundled runtime, saves Git and terminal preferences through the UI, and checks persistence after a full process restart. Both modes isolate Harness home and Electron userData and check Chinese/English layout, search, focus, close actions, and language persistence. Screenshots, accessibility trees, artifact hashes, and the result record remain under `.artifacts/desktop-settings-*`; the check shuts down its application, verifies debugger port release, and removes its temporary root. It does not build artifacts, run an installer, or execute terminal commands.
+
 ## Package
 
-The normal packaging path is one complete command. It performs release preparation before creating the host platform's installers and update metadata. Every target requires a reverse-DNS `DSH_DESKTOP_APP_ID`. macOS targets additionally require the electron-builder certificate qualifier in `DSH_DESKTOP_MACOS_SIGNING_IDENTITY`, its 10-character Apple Team ID in `DSH_DESKTOP_MACOS_TEAM_ID`, and one complete notarytool credential strategy. The App Store Connect API-key strategy uses these variables:
+The normal packaging path is one complete command. Installer and unpacked-app commands validate all electron-builder options against the installed schema before building or preparing release resources; preparation-only commands do not load installer configuration. Local Windows packages default to `com.cinlan.harness`; set `DSH_DESKTOP_APP_ID` for your release identity. macOS targets additionally require the electron-builder certificate qualifier in `DSH_DESKTOP_MACOS_SIGNING_IDENTITY`, its 10-character Apple Team ID in `DSH_DESKTOP_MACOS_TEAM_ID`, and one complete notarytool credential strategy. The App Store Connect API-key strategy uses these variables:
 
 ```sh
 export DSH_DESKTOP_APP_ID='<reverse-DNS application ID>'
@@ -100,9 +104,13 @@ The macOS arm64 command requires Apple Silicon. The macOS x64 command runs on In
 
 Each target owns its packed package inputs, prepared runtime, package set, seed, pnpm preparation state, unpacked application, update metadata, and final artifacts under `apps/desktop/.desktop-build/targets/<target>/`. The Node.js archive cache remains shared under `.desktop-build/downloads` because every archive name includes its version, platform, and architecture and is verified before extraction. A target build never consumes another target's mutable preparation state.
 
+Installer commands scope pnpm dependency collection to `@deepseek-ai/dsh-desktop` and its complete production tree. Before building, a dependency check rejects extra project roots or missing direct shell dependencies and preserves the pnpm output at `.desktop-build/targets/<target>/electron-builder-dependencies.json`, including failed command output. Source builds and backend seed preparation use their own dependency graphs.
+
+Windows update uploads require the NSIS `.exe` and its nonempty external `.exe.blockmap`; macOS updates require the ZIP and its external `.zip.blockmap` alongside the DMG. The upload plan checks the referenced installer checksum and sends the payloads and blockmaps before channel metadata.
+
 ### Upload updates
 
-`DSH_DESKTOP_AUTO_UPDATE_ENV` selects `test` or `production` for both the URL embedded during packaging and the later COS upload; an absent value selects `test`. Test packaging requires its HTTPS origin in `DOWNLOAD_TEST_ORIGIN`, while the production origin remains `https://download.deepseek.com`. Upload additionally requires the selected deployment's COS bucket in `DOWNLOAD_TEST_COS_BUCKET` or `DOWNLOAD_PROD_COS_BUCKET`. The target path is `_/harness/desktop/stable/<target>/`, where `target` is `mac-arm64`, `mac-x64`, or `win-x64`.
+`DSH_DESKTOP_AUTO_UPDATE_ENV` selects `test` or `production` for both the URL embedded during packaging and the later COS upload; an absent value selects `test`. Test packaging uses `DOWNLOAD_TEST_ORIGIN` or the placeholder `https://desktop-updates.example.com`, which does not provide an update service; test uploads require an explicit HTTPS origin. The production origin remains `https://download.deepseek.com`. Upload additionally requires the selected deployment's COS bucket in `DOWNLOAD_TEST_COS_BUCKET` or `DOWNLOAD_PROD_COS_BUCKET`. The target path is `_/harness/desktop/stable/<target>/`, where `target` is `mac-arm64`, `mac-x64`, or `win-x64`.
 
 The update destination and upload credentials follow the selected deployment:
 
@@ -129,7 +137,7 @@ The macOS configuration uses the required release environment instead of accepti
 
 ### Windows EV signing
 
-Windows release packaging requires `DSH_DESKTOP_WINDOWS_CER_FILE` to identify the public GlobalSign EV leaf certificate, `DSH_DESKTOP_WINDOWS_SIGNTOOL` to identify the SafeNet-compatible SignTool executable, `DSH_DESKTOP_WINDOWS_KEY_CONTAINER` to identify the matching private-key container, and `DSH_DESKTOP_WINDOWS_TOKEN_PIN` to contain the SafeNet Token Password. The certificate file remains outside source control, and the matching private key stays on the USB token. Set the four inputs before running the fixed Windows target:
+Local Windows builds allow unsigned packages when EV signing is not configured. EV-signed release packaging requires `DSH_DESKTOP_WINDOWS_CER_FILE` to identify the public GlobalSign EV leaf certificate, `DSH_DESKTOP_WINDOWS_SIGNTOOL` to identify the SafeNet-compatible SignTool executable, `DSH_DESKTOP_WINDOWS_KEY_CONTAINER` to identify the matching private-key container, and `DSH_DESKTOP_WINDOWS_TOKEN_PIN` to contain the SafeNet Token Password. The certificate file remains outside source control, and the matching private key stays on the USB token. Set the four inputs before running the fixed Windows target:
 
 ```powershell
 $env:DSH_DESKTOP_WINDOWS_CER_FILE = 'C:\path\to\server.cer'

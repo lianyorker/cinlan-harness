@@ -1,0 +1,85 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`automation settings > records the read-only page in en 1`] = `
+{
+  "actions": [
+    {
+      "disabled": false,
+      "label": "Refresh",
+    },
+    {
+      "disabled": true,
+      "label": "New task",
+    },
+    {
+      "disabled": true,
+      "label": "Edit",
+    },
+    {
+      "disabled": true,
+      "label": "Enable schedule",
+    },
+    {
+      "disabled": true,
+      "label": "Run once",
+    },
+    {
+      "disabled": false,
+      "label": "View runs",
+    },
+    {
+      "disabled": true,
+      "label": "Delete task",
+    },
+  ],
+  "heading": "Automation",
+  "notice": "This connection is read-only. Task changes and execution controls are unavailable.",
+  "sections": [
+    "Task schedules",
+    "Task draft",
+    "Run journal",
+  ],
+}
+`;
+
+exports[`automation settings > records the read-only page in zh 1`] = `
+{
+  "actions": [
+    {
+      "disabled": false,
+      "label": "刷新",
+    },
+    {
+      "disabled": true,
+      "label": "新建任务",
+    },
+    {
+      "disabled": true,
+      "label": "编辑",
+    },
+    {
+      "disabled": true,
+      "label": "启用计划",
+    },
+    {
+      "disabled": true,
+      "label": "运行一次",
+    },
+    {
+      "disabled": false,
+      "label": "查看运行",
+    },
+    {
+      "disabled": true,
+      "label": "删除任务",
+    },
+  ],
+  "heading": "自动化",
+  "notice": "当前连接为只读，无法修改任务或控制运行。",
+  "sections": [
+    "任务计划",
+    "任务草稿",
+    "运行记录",
+  ],
+}
+`;

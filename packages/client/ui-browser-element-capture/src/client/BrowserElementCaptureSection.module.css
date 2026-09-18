@@ -1,19 +1,16 @@
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  width: 100%;
-  max-width: 760px;
-  color: var(--dsw-alias-label-primary);
-}
-
-.heading { padding-bottom: 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
-.heading h2, .heading p, .notice, .steps, .safety p { margin: 0; }
-.heading h2 { font-size: 22px; line-height: 30px; }
-.heading p { margin-top: 5px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
-.steps { display: flex; flex-direction: column; gap: 10px; padding-left: 24px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
-.steps code { color: var(--dsw-alias-label-primary); font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); }
-.safety { border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; padding: 14px; background: var(--dsw-alias-bg-layer-1); }
-.safety h3 { margin: 0; font-size: 14px; line-height: 20px; }
-.safety p { margin-top: 6px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
-.notice { color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 18px; }
+.section { display: flex; flex-direction: column; gap: 20px; width: 100%; min-width: 0; color: var(--dsw-alias-label-primary); }
+.heading h1, .heading p, .notice, .steps, .steps p, .steps h2, .safety p, .safety h2 { margin: 0; }
+.heading h1 { font-size: 26px; font-weight: 600; line-height: 34px; }
+.heading p { margin-top: 6px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
+.steps { padding-left: 20px; }
+.steps li { padding: 18px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l2); overflow-wrap: anywhere; }
+.steps h2, .safety h2 { font-size: 14px; font-weight: 500; line-height: 20px; }
+.steps p, .safety p { margin-top: 4px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.pageLabel { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; }
+.pageLabel select { min-width: 0; max-width: 100%; padding: 6px 8px; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-background-primary); border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; font: inherit; }
+.preview { margin-top: 12px; }
+.preview img { display: block; width: auto; height: auto; max-width: 100%; max-height: 320px; margin-top: 8px; object-fit: contain; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; }
+.safety { padding: 16px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 16px; }
+.notice { color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .safety { padding: 12px; } }

@@ -23,6 +23,8 @@ export function BashCard(props: BashCardProps) {
   const disabled = !state.writable
   return (
     <PluginCard
+      anchorId="plugins-shell"
+      {...props.target === undefined ? {} : { target: props.target }}
       t={t}
       titleKey="bashTitle"
       descriptionKey="bashDescription"

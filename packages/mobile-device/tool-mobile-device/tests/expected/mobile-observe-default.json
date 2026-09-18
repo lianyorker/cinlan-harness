@@ -1,0 +1,183 @@
+{
+  "guidance": [
+    {
+      "name": "harness:identity",
+      "text": "You are an AI agent powered by DeepSeek Harness."
+    },
+    {
+      "name": "deployment:persona-prefix",
+      "text": ""
+    },
+    {
+      "name": "tool:mobile-device",
+      "text": "Use mobile_* tools for local Android emulators and iOS simulators. Run mobile_observe before every mutation. You may omit device_id only for mobile_observe to use the saved default device, which must be currently available; there is no fallback. To choose another device, run mobile_list_devices and pass its exact device_id. For every mutation, pass the exact device_id and latest observation_id returned by mobile_observe; every observation token is one-use and every mutation requires a fresh observe afterward. Touch coordinates are normalized from 0 to 1. Typed text is never echoed in result summaries."
+    },
+    {
+      "name": "deployment:persona-suffix",
+      "text": ""
+    }
+  ],
+  "schemas": [
+    {
+      "name": "mobile_list_devices",
+      "description": "List exact local Android emulator and iOS simulator device ids.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "mobile_observe",
+      "description": "Read one fresh mobile-device tree and optional native PNG image.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "description": "Exact device id returned by mobile_list_devices. Omit to use the saved default device; it must be currently available and there is no fallback."
+          }
+        }
+      }
+    },
+    {
+      "name": "mobile_touch",
+      "description": "Tap or swipe with normalized coordinates using one exact observation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "description": "Exact device id returned by the latest mobile_observe."
+          },
+          "observation_id": {
+            "type": "string",
+            "description": "One-use observation id returned by the latest mobile_observe for this device."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "tap",
+              "swipe"
+            ]
+          },
+          "x": {
+            "type": "number",
+            "description": "Normalized tap x from 0 to 1."
+          },
+          "y": {
+            "type": "number",
+            "description": "Normalized tap y from 0 to 1."
+          },
+          "from_x": {
+            "type": "number",
+            "description": "Normalized swipe start x from 0 to 1."
+          },
+          "from_y": {
+            "type": "number",
+            "description": "Normalized swipe start y from 0 to 1."
+          },
+          "to_x": {
+            "type": "number",
+            "description": "Normalized swipe destination x from 0 to 1."
+          },
+          "to_y": {
+            "type": "number",
+            "description": "Normalized swipe destination y from 0 to 1."
+          }
+        },
+        "required": [
+          "device_id",
+          "observation_id",
+          "action"
+        ]
+      }
+    },
+    {
+      "name": "mobile_type",
+      "description": "Type literal text through stdin using one exact mobile observation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "description": "Exact device id returned by the latest mobile_observe."
+          },
+          "observation_id": {
+            "type": "string",
+            "description": "One-use observation id returned by the latest mobile_observe for this device."
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "observation_id",
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "mobile_button",
+      "description": "Press one provider-supported device navigation button using an exact observation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "description": "Exact device id returned by the latest mobile_observe."
+          },
+          "observation_id": {
+            "type": "string",
+            "description": "One-use observation id returned by the latest mobile_observe for this device."
+          },
+          "button": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "observation_id",
+          "button"
+        ]
+      }
+    }
+  ],
+  "result": {
+    "value": {
+      "device": {
+        "backend": "android",
+        "device_id": "resolved-device",
+        "name": "Pixel",
+        "state": "booted",
+        "is_available": true,
+        "detail": "API 35"
+      },
+      "device_generation": "generation-1",
+      "observation_id": "resolved-observation",
+      "coordinate_space": "normalized",
+      "tree": "button Continue",
+      "screenshot_status": "skipped"
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "Device: resolved-device Pixel\nGeneration: generation-1\nObservation: resolved-observation\nCoordinate space: normalized\nScreenshot: skipped\nbutton Continue"
+      }
+    ],
+    "meta": {
+      "device_id": "resolved-device"
+    }
+  },
+  "presentation": {
+    "pending": {
+      "card": "generic",
+      "title": "Observe saved default device",
+      "kind": "read"
+    },
+    "settled": {
+      "card": "generic",
+      "title": "Observe resolved-device"
+    }
+  }
+}

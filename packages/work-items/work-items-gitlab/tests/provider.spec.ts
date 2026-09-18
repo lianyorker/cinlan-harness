@@ -49,6 +49,68 @@ describe('GitLabWorkItemsProvider', () => {
     expect(calls).toHaveLength(4)
   })
 
+  it('resolves every requested username before assigning exact GitLab user ids', async () => {
+    const p = new GitLabWorkItemsProvider(context('fixture-token'), resolveGitLabWorkItemsConfig({ owner: 'acme', repository: 'repo', origin: 'https://gitlab.example.com', allowWrites: true }))
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : String(input))
+      record(url.href, init)
+      if (url.pathname === '/api/v4/users') {
+        const username = url.searchParams.get('username')
+        expect(url.searchParams.get('per_page')).toBe('2')
+        return response([{ id: username === 'Alice' ? 41 : 72, username: username?.toLowerCase() }])
+      }
+      return response(issue(7, 'https://gitlab.example.com/acme/repo/-/issues/7'))
+    }))
+    try {
+      await p.writer!.execute({ kind: 'assign', id: WorkItemId('gitlab:acme/repo#7'), assignees: ['Alice', 'bob'] })
+      expect(calls.map(call => call.init?.method)).toEqual(['GET', 'GET', 'PUT'])
+      expect(calls.every(call => call.url.startsWith('https://gitlab.example.com/'))).toBe(true)
+      expect(calls.every(call => (call.init?.headers as Record<string, string>)['PRIVATE-TOKEN'] === 'fixture-token')).toBe(true)
+      expect(JSON.parse(calls[2]!.init!.body as string)).toEqual({ assignee_ids: [41, 72] })
+    } finally { p.dispose() }
+  })
+
+  it.each([
+    ['missing', [], 'write-rejected'],
+    ['ambiguous', [{ id: 1, username: 'alice' }, { id: 2, username: 'Alice' }], 'write-rejected'],
+    ['different username', [{ id: 1, username: 'someone-else' }], 'write-rejected'],
+    ['invalid id', [{ id: 0, username: 'alice' }], 'invalid-response'],
+    ['invalid response', { id: 1, username: 'alice' }, 'invalid-response'],
+  ])('rejects a %s assignee lookup without changing the issue', async (_name, users, code) => {
+    const p = new GitLabWorkItemsProvider(context('fixture-token'), resolveGitLabWorkItemsConfig({ owner: 'acme', repository: 'repo', allowWrites: true }))
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      record(input instanceof Request ? input.url : String(input), init)
+      return response(users)
+    }))
+    const mutation = { kind: 'assign' as const, id: WorkItemId('gitlab:acme/repo#7'), assignees: ['alice'] }
+    try {
+      await expect(p.writer!.validate(mutation)).rejects.toMatchObject({ code })
+      await expect(p.writer!.execute(mutation)).rejects.toMatchObject({ code })
+      expect(calls.map(call => call.init?.method)).toEqual(['GET', 'GET'])
+    } finally { p.dispose() }
+  })
+
+  it('keeps assignments intact when a later username lookup is unavailable or canceled', async () => {
+    const p = new GitLabWorkItemsProvider(context('fixture-token'), resolveGitLabWorkItemsConfig({ owner: 'acme', repository: 'repo', allowWrites: true }))
+    const mutation = { kind: 'assign' as const, id: WorkItemId('gitlab:acme/repo#7'), assignees: ['alice', 'bob'] }
+    const controller = new AbortController()
+    let cancel = false
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : String(input))
+      record(url.href, init)
+      if (url.searchParams.get('username') === 'alice') return response([{ id: 41, username: 'alice' }])
+      if (cancel) { controller.abort(); throw new Error('canceled lookup') }
+      return response({}, 503)
+    }))
+    try {
+      await expect(p.writer!.execute(mutation)).rejects.toMatchObject({ code: 'provider-failed' })
+      cancel = true
+      await expect(p.writer!.execute(mutation, controller.signal)).rejects.toMatchObject({ code: 'aborted' })
+      expect(calls).toHaveLength(4)
+      expect(calls.every(call => call.init?.method === 'GET')).toBe(true)
+    } finally { p.dispose() }
+  })
+
   it('maps issues and uses the fixed credentialed endpoint with PRIVATE-TOKEN header', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => { record(input instanceof Request ? input.url : String(input), init); return new Response(JSON.stringify([issue(7)]), { status: 200 }) }))
     const result = await provider().list({ source: 'gitlab', state: 'all', limit: 2 })

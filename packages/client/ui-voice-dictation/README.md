@@ -1,37 +1,102 @@
+---
+description: "Voice dictation preferences, microphone access, and local speech-model resources for the Web client."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-client-ui-voice-dictation
 
 English | [中文](README.zh.md)
 
-This Cinlan Web product Consumer contributes a Voice Settings section with one settings panel whose microphone, engine, and model rows share spacing, separators, and status treatment. The panel lists six shipped sherpa-onnx models, exposes download and install/extraction progress for each model, and shows the native engine repair command when degraded. The microphone permission control rehydrates from the browser permission or a persisted WebView fallback and changes that fallback to denied only after an actual permission rejection. The package also contributes one always-visible microphone button in the composer's `conversation.input.right` tool-row slot. The button and global Ctrl+Shift+E shortcut share one DictationController: either starts/stops recording, sends the clip to [`@deepseek-ai/dsh-voice-sherpa-onnx`](../../voice/voice-sherpa-onnx/README.md), and appends the transcript to the current session's composer draft.
+## Summary
 
-## Voice Settings Panel
+Use Voice settings to choose a microphone, dictation mode, and preferred speech model. Download and remove model resources on the connected host, inspect its engine status, and copy its repair command when needed. Dictation appends recognized text to the initiating session's current draft for review before sending. Preferences stay in the browser; audio processing and model resources belong to the host.
 
-The panel reads `/voice/api/engine.status` and `/voice/api/models.list` independently. The microphone, engine, and model rows use the same settings-panel spacing and separators. The Engine row renders a ready state or, when the native addon failed to load, the exact pasteable repair command and allowlist hint computed by the Host's `engine-repair.ts`, with a one-click copy control. The two Models rows stay visible while polling through byte download and extraction, ignore stale responses, and keep current rows when a later status refresh fails; a rejected download remains visible on its model row. A degraded engine never blocks model loading because downloading and caching a model has no native dependency.
+## Table of Contents
 
-## Ctrl+Shift+E dictation
+- [Use this package](#use-this-package)
+- [Understand the implementation](#understand-the-implementation)
+- [Dev Note](#dev-note)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 
-The first Ctrl+Shift+E press or microphone-button click requests microphone access (`getUserMedia`, with browser audio processing disabled — no echo cancellation, noise suppression, or auto gain control) and starts a `ScriptProcessorNode` capture at the system's native sample rate; the second gesture from the same session stops it. The initiating session owns the active recording, and controls in other sessions remain disabled until it settles. The button shows microphone, stop, and processing states from the shared controller. The captured raw PCM is linear-resampled to 16kHz mono (this package's own resampler — no native audio library), base64-encoded, and POSTed to `/voice/api/transcribe` against the first model the Host reports `ready`. The transcript is appended through `ctx.conversation` — the same funnel `@deepseek-ai/dsh-client-ui-better-sidebar` uses for @-references. A missing model or failed operation leaves an error state on the controller instead of mutating the draft. Plugin teardown invalidates all pending publication, releases active tracks, and waits for microphone acquisition or transcription to settle before disposal completes.
+-----
 
+<a id="use-this-package"></a>
+## Use this package
+
+Open Voice under AI and models in Settings. The page keeps searchable fields visible when dictation is disabled; dependent controls remain disabled. The microphone button appears when dictation is enabled and a host model is ready. This browser plugin has no plugin configuration fields.
+
+### Preferences and resources
+
+| Control | Storage or authority | Consumer and effect |
+|---|---|---|
+| Enable voice dictation | Browser `dsh.voice.settings.enabled` | The composer button and shortcut accept new dictation gestures when enabled. |
+| Dictation mode | Browser `dsh.voice.settings.dictationMode` | Toggle mode starts/stops with Ctrl+Shift+E; hold mode stops when E or a modifier is released, or the window loses focus. The button always toggles. |
+| Input device | Browser `dsh.voice.settings.microphoneDeviceId` | The next recording passes the selected device to `getUserMedia`; System default clears the device preference. |
+| Microphone permission | Browser/OS; origin-local fallback | Request access releases its temporary tracks and refreshes device labels. An authoritative Permissions API prompt clears a stale grant; unsupported queries use the last permission decision. |
+| Speech model | Browser `dsh.voice.settings.sttModel` | Transcription uses the selected ready model, otherwise the first ready model; Automatic clears the preference. |
+| Engine and model resources | Connected host | Status, download, cancel, and delete use the generated `voice` Remote over Web and desktop carriers. Removal requires confirmation; a failed operation preserves the reported resource state and shows its error. |
+
+Browser preference writes apply immediately. An unavailable saved microphone remains selected until the user chooses another device; it is never silently replaced or copied into host settings. A denied permission does not clear preferences. Storage rejection leaves the live settings usable, but changes cannot survive a reload.
+
+The resource list shows download bytes, extraction, readiness, and failures independently of the native engine's status. A degraded engine supplies a copyable host repair command. Refresh status rechecks the engine; failed initial model queries offer Retry. Model operations retain their rows when a later status read fails.
+
+### Dictation and drafts
+
+The shortcut ignores editable fields, repeated keydown, composition events, and events already handled by another feature. The initiating session owns recording and insertion even if the user selects another session. Releasing a held shortcut also works when modifiers are released before E.
+
+Stopping closes capture and releases microphone tracks before querying model availability or waiting for transcription. Recognized text is appended to the latest draft, including edits made during transcription. Empty transcripts leave it unchanged; permission, capture, missing-model, and host failures leave the draft intact and publish a composer error notice. Dictation does not send the draft.
+
+-----
+
+<a id="understand-the-implementation"></a>
+## Understand the implementation
+
+<details>
+<summary>Implementation internals — click to expand</summary>
+
+[apply.ts](src/client/apply.ts) shares one browser-local preference store and dictation controller between settings, the shortcut, and the composer button, and supplies host operations as plain callbacks. Its section, six public metadata descriptors, and slot contribution share one declaration lifetime; disposal removes them together. Metadata contains localized labels, descriptions, and keywords without preference values, device identities, model paths, or transcripts. Stable anchors remain mounted so search navigation does not enable dictation as a side effect.
+
+[VoiceSettingsSection.tsx](src/client/VoiceSettingsSection.tsx) owns permission prompts and device enumeration, consumes host resource status, and renders native settings rows within the shell's content width. [dictation-controller.ts](src/client/dictation-controller.ts) captures PCM, chooses the ready model, and appends through the conversation input API. Plugin disposal invalidates publication, aborts pending Remote calls, closes active capture, and awaits owned asynchronous operations before returning.
+
+[Package tests](tests/) cover metadata lifetime and locale changes, preferences across remounts, microphone/device outcomes, host resource operations, and dictation draft preservation.
+
+</details>
+
+-----
+
+<a id="dev-note"></a>
+## Dev Note
+
+None.
+
+-----
+
+<a id="model-experience"></a>
 ## Model Experience
 
-### Transport-only settings page
+### Draft-only dictation
 
 #### What the model sees
 
-None. The dictated transcript inserted through `input.for(actx).setDraft(...)` is indistinguishable from typed composer text at the model boundary; this package contributes no prompt, schema, or tool of its own.
+None until the user sends the draft. Submitted text follows the ordinary composer path as a `user` message; this package contributes no prompt, schema, or tool.
 
 #### Token effect
 
-None; the settings page and Ctrl+Shift+E trigger add no request or result tokens.
+None from settings, recording, or transcription. Sent draft text consumes ordinary user-message tokens.
 
 #### KV Cache effect
 
-None; model download state, microphone permission, and dictation transcription never enter a model request prefix.
+None from voice preferences, permissions, or model resources; those facts do not enter the model request prefix.
 
 ## Known Limitations and Deferred Work
+<a id="known-limitations-and-deferred-work"></a>
 
-- **No automatic re-check after a repair command runs** — the Engine sub-section reads `engine.status` once on mount; a user who runs the repair command must reload the settings page to see it reflect the fix.
-- **No cross-device permission synchronization** — microphone state follows the current WebView's Permissions API; persisted fallback is local to that WebView origin and cannot grant OS permission by itself.
-- **Fixed model choice** — dictation always targets the first model the Host reports `ready`; there is no per-session or persisted model preference when more than one is downloaded.
-- **Transcription may return empty on some browsers** — `ScriptProcessorNode` capture can produce near-zero amplitude samples on certain browser/audio-driver combinations, resulting in empty transcription. A migration to `AudioWorkletNode` is tracked as future work.
-- **Deprecated ScriptProcessorNode** — the current capture uses the deprecated `ScriptProcessorNode` API; `AudioWorkletNode` is the modern replacement but requires a separate worklet module file served from the same origin.
+No invariant companion is published because slot, locale, and shortcut registrations use owner-managed effects; the dictation UI keeps no independent copy of those registrations.
+
+Voice depends on browser capture and a reachable host provider.
+
+- Web and Desktop share the generated `voice` Remote. Engine readiness still depends on the local sherpa-onnx native module and model files; the page reports degradation and repair guidance.
+- Browser microphone permissions and device identities do not synchronize across devices or origins. A stored permission fallback cannot grant browser or OS access.
+- Capture uses deprecated `ScriptProcessorNode`; some browser/audio-driver combinations can yield nearly silent samples and an empty transcript. Moving capture to `AudioWorkletNode` requires a served worklet module.
+- Automatic punctuation and alternate insertion destinations are not preferences provided by this package.

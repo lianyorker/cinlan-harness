@@ -511,6 +511,15 @@ Discovery is unmemoized: `list()` and `resolve()` re-read the roots on every cal
 async list(): Promise<AgentPreset[]>
 
 /**
+ * Contribute an installed plugin's read-only preset directory for its lifetime.
+ * Shipped and explicitly configured roots win duplicate ids; contributions
+ * precede the implicit user root. Removal leaves already joined agents intact.
+ * @param path - Directory holding the plugin's preset subdirectories.
+ * @returns An idempotent disposer withdrawing the directory from discovery.
+ */
+registerSystemRoot(path: string): () => void
+
+/**
  * The roster off the Host: {@link list} projected to path-free rows, with
  * the default marked and this deployment's authoring capability beside it.
  *

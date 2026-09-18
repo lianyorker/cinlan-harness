@@ -1,21 +1,58 @@
 - region "设置":
-  - navigation:
+  - text: 设置
+  - navigation "设置导航":
     - button "返回应用":
       - img
       - text: 返回应用
     - img
     - searchbox "搜索设置..."
-    - text: 设置
+    - text: Ctrl / ⌘ K
+    - button "个人偏好" [expanded]:
+      - text: 个人偏好
+      - img
     - button "通用设置"
+    - button "通知"
+    - button "快捷键"
+    - button "浮动工作区"
+    - button "AI 与模型" [expanded]:
+      - text: AI 与模型
+      - img
     - button "模型"
-    - button "插件"
     - button "Agent 预设"
+    - button "编排"
+    - button "语音"
+    - button "开发工作流" [expanded]:
+      - text: 开发工作流
+      - img
+    - button "Git 与源代码控制"
+    - button "集成"
+    - button "工具与设备" [expanded]:
+      - text: 工具与设备
+      - img
+    - button "安全研究"
     - button "浏览器"
     - button "计算机控制"
     - button "手机模拟器"
     - button "设计"
+    - button "扩展管理" [expanded]:
+      - text: 扩展管理
+      - img
+    - button "插件"
     - button "侧边卡片"
+    - button "实验" [expanded]:
+      - text: 实验
+      - img
+    - button "MCP"
+    - button "自动化"
+    - button "执行主机"
+    - button "终端"
+    - button "使用统计"
+  - text: 个人偏好
+  - img
+  - strong: 通用设置
   - button "打开配置文件"
+  - heading "通用设置" [level=1]
+  - paragraph: 界面、会话与默认权限，让 Cinlan 更适合你的工作习惯。
   - text: 权限 选择新会话的默认权限模式
   - button "工作区内修改":
     - text: 工作区内修改
@@ -43,7 +80,7 @@
   - button "Compact":
     - text: Compact
     - img
-  - text: 繁忙时的发送行为 智能体运行时 Enter 键和发送按钮的行为；Cmd/Ctrl+Enter 使用另一行为
+  - text: 繁忙时的发送行为 智能体运行时发送快捷键和发送按钮的行为；加速发送快捷键使用另一行为
   - button "排队发送":
     - text: 排队发送
     - img

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { Context } from '@deepseek-ai/cordis'
+import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
 import { IconLinkOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -12,6 +13,7 @@ import { en, zh } from '../src/client/locales.ts'
 
 async function bench() {
   const ctx = new Context()
+  new SettingsMetadataService(ctx)
   const locale = new LocaleRuntime(ctx)
   locale.setLocale('zh')
   ctx.provide('locale', locale)
@@ -39,7 +41,7 @@ function declare(slots: SlotRegistry): () => void {
 
 describe('ui-integrations registration', () => {
   it('declares the Remote namespaces it reads', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.integrationPreflight'])
+    expect(inject).toEqual(['settingsMetadata', 'slots', 'locale', 'remote', 'remote.integrationPreflight'])
   })
 
   it('registers one localized section and icon, without eager reads', async () => {
@@ -51,6 +53,7 @@ describe('ui-integrations registration', () => {
     await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toHaveLength(1) })
     const section = b.slots.entries('settings.section')[0]!
     expect(section.component).toBe(IntegrationsSection)
+    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'integrations', groupId: 'development' }])
     expect(section.options).toMatchObject({ id: 'integrations', order: 40 })
     expect(section.locale).toBe('settings.integrations')
     expect(resolveSlotLabel(section.options.label)).toBe(zh.nav)
@@ -59,6 +62,10 @@ describe('ui-integrations registration', () => {
     expect(resolveSlotLabel(section.options.label)).toBe(en.nav)
 
     expect(b.integrationPreflight.check).not.toHaveBeenCalled()
+    expect(b.ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual([
+      'integrations-github', 'integrations-gitlab', 'integrations-gitee', 'integrations-refresh',
+    ])
+    expect(b.ctx.settingsMetadata.getSnapshot().items[0]?.title).toBe(en.githubTitle)
 
     const icons = b.slots.entries('settings.section.icon')
     expect(icons).toHaveLength(1)
@@ -68,6 +75,7 @@ describe('ui-integrations registration', () => {
     hostApply()
     await fiber.dispose()
     expect(b.slots.entries('settings.section')).toEqual([])
+    expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
     expect(b.slots.entries('settings.section.icon')).toEqual([])
     await b.ctx.fiber.dispose()
   })
@@ -81,14 +89,16 @@ describe('IntegrationsSection injected face', () => {
     const section = b.slots.entries('settings.section')[0]!
     const injected = (section.inject as unknown as () => IntegrationsSectionInjected)()
 
-    const result = await injected.check('github')
+    const signal = new AbortController().signal
+    const result = await injected.check('github', signal)
     expect(result).toEqual({ provider: 'github', status: 'connected', reason: 'connected', account: 'octocat' })
-    expect(b.integrationPreflight.check).toHaveBeenCalledWith({ provider: 'github' })
+    expect(b.integrationPreflight.check).toHaveBeenCalledWith({ provider: 'github' }, signal)
     await b.ctx.fiber.dispose()
   })
 
   it('surfaces a Remote failure message from the check callback', async () => {
     const ctx = new Context()
+    new SettingsMetadataService(ctx)
     const locale = new LocaleRuntime(ctx)
     locale.setLocale('zh')
     ctx.provide('locale', locale)
@@ -102,7 +112,7 @@ describe('IntegrationsSection injected face', () => {
     await ctx.plugin({ inject: [...inject], apply }).await()
     const section = ctx.slots.entries('settings.section')[0]!
     const injected = (section.inject as unknown as () => IntegrationsSectionInjected)()
-    await expect(injected.check('gitlab')).rejects.toThrow('probe offline')
+    await expect(injected.check('gitlab', new AbortController().signal)).rejects.toThrow('probe offline')
     await ctx.fiber.dispose()
   })
 })

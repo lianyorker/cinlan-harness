@@ -6,6 +6,7 @@ import {
   resolveMacOSSigningEnvironment,
 } from '../scripts/desktop-release-environment.mjs'
 import { notarizeMacOSDiskImageArtifact } from '../scripts/notarize-macos-disk-images.mjs'
+import { validateDesktopElectronBuilderConfig } from '../scripts/validate-electron-builder-config.mjs'
 import {
   assertMacOSSeedSignatureDetails,
   assertMacOSSignatureDetails,
@@ -39,6 +40,7 @@ describe('desktop macOS release signature', () => {
   it('loads release identifiers from the environment and requires code signing', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig(RELEASE_ENVIRONMENT, 'darwin', 'arm64')
+    expect(() => validateDesktopElectronBuilderConfig(config)).not.toThrow()
     expect(portablePath(config.directories.output)).toContain('/.desktop-build/targets/mac-arm64/artifacts')
     expect(config.extraResources).toHaveLength(2)
     expect(config.extraResources[0]?.to).toBe('runtime')
@@ -64,12 +66,23 @@ describe('desktop macOS release signature', () => {
     expect(typeof config.artifactBuildCompleted).toBe('function')
   })
 
-  it('validates Windows signing without requiring macOS identifiers for a Windows target', async () => {
+  it('accepts unsigned local Windows installers without macOS credentials', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
-    expect(() => createElectronBuilderConfig({
-      DSH_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
+    const config = createElectronBuilderConfig({
       DSH_DESKTOP_TARGET_PLATFORM: 'win32',
-    }, 'win32')).toThrow(/DSH_DESKTOP_WINDOWS_CER_FILE/u)
+    }, 'win32', 'x64')
+    expect(config).toMatchObject({ win: { forceCodeSigning: false } })
+    expect(() => validateDesktopElectronBuilderConfig(config)).not.toThrow()
+  })
+
+  it('rejects unsupported MSI installer options', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+    }, 'win32', 'x64')
+    expect(() => validateDesktopElectronBuilderConfig({
+      ...config, msi: { runAfter: true },
+    })).toThrow(/msi/u)
   })
 
   it('accepts the configured authority and team', () => {

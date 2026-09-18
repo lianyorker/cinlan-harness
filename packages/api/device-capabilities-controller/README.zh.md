@@ -22,6 +22,16 @@ deviceCapabilities/check Remote 探测可选的 Computer Use 或 Mobile Device P
 
 与 Typert registry 一起挂载此控制器。Computer Use 和 Mobile Device 服务为可选项；缺失时返回 not-configured。桌面检查调用 capabilities；移动设备检查调用 listDevices，在没有可用设备时返回 no-devices。响应不包含应用名称、设备 id、命令路径或 Provider 原始错误。
 
+`checkSdk` Remote 通过已挂载的 subprocess provider 执行 `adb version`，并在 macOS 上执行 `xcrun simctl help`。保存的 `mobile-device.androidSdkPath` 非空时，选择该绝对路径中的 `platform-tools/adb` executable（Windows 上为 `adb.exe`）；配置路径失败时不会回退到其他 SDK。路径为空时搜索 `ANDROID_HOME`、`ANDROID_SDK_ROOT` 和常用 SDK 位置。检查成功要求退出码为零、没有终止信号，且输出完整并符合上限。executable 缺失、启动失败、非零退出、输出溢出及超时均报告不可用，不暴露进程输出。调用方取消会在托管进程范围清理完毕后传播；控制器卸载会取消并等待所有未完成检查。
+
+| 配置字段 | 默认值 | 含义 |
+|---|---:|---|
+| `probeTimeoutMs` | 5,000 | 单次 SDK 检查的 executable 查找与命令共用的截止时间 |
+| `probeGraceMs` | 1,000 | 托管进程终止与输出排空的宽限时间 |
+| `maxProbeOutputBytes` | 65,536 | stdout 或 stderr 各自保留的最大字节数 |
+
+这些上限均为不大于 2,147,483,647 的正整数。截止时间到达后请求终止进程；请求在进程清理完毕后才结束。缺少 subprocess provider 时报告 SDK 不可用。独立的 `listMobileDevices` Remote 仅枚举 Provider 的设备并返回设备 id、名称、状态和可用性，不观察或控制设备。
+
 <a id="model-experience"></a>
 ## 模型体验
 
@@ -35,6 +45,7 @@ deviceCapabilities/check Remote 探测可选的 Computer Use 或 Mobile Device P
 ## 已知限制与延期工作
 
 - 就绪状态仅代表当前传输探测结果，不代表动作授权或全部桌面权限已授予。调用方取消会传播到 Provider。CLI 安装、认证和原生权限仍是外部前置条件。
+- 保存的 SDK 路径仅控制本地 SDK 检查。Mobile Device Provider 使用的公开 CLI 不支持覆盖外部 Cinlan 设备运行时的 SDK；SDK 检查不会配置该运行时。
 
 不发布 runtime invariant companion：控制器返回即时结果，不保留与 Provider 独立的状态。
 

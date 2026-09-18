@@ -33,8 +33,8 @@ kind: "package-reference"
 </div>
 
 <div align="center">
-  <img alt="dsh-better-sidebar 工作台截图" src="https://github.com/user-attachments/assets/dfdb875e-a1a8-4d4b-8340-353736b1708f" />
   <video src="https://github.com/user-attachments/assets/23187822-047e-45cc-b480-fe997bd55b86" muted autoplay loop playsinline controls width="100%"></video>
+  <img alt="dsh-better-sidebar 工作台截图" src="https://github.com/user-attachments/assets/dfdb875e-a1a8-4d4b-8340-353736b1708f" />
 </div>
 
 ## 目录
@@ -59,14 +59,22 @@ kind: "package-reference"
 - **🗂️ 文件工作台**：资源管理器（懒加载目录树；软链接按目标类型展示——目录软链接可展开、失效链接标红）+ CodeMirror 编辑器；图片 / Markdown（含 Mermaid 图表，strict 安全渲染 + 点击放大）/ HTML / PDF
 - **🌐 内嵌浏览器**：多开网页 tab，后退 / 前进 / 刷新；内容运行在沙箱 iframe；外链默认按协议分流——HTTP 在侧边栏打开、HTTPS 走系统浏览器（设置页可分别调整）
 - **💻 真实终端**：xterm.js + node-pty 真实 shell，断线重连回放；可选为模型注入 `terminal_*` 工具
-- **🌿 Git 面板**：真 diff + VSCode 式 diff tab、历史、右键暂存 / 提交 / 还原
+- **🌿 Git 面板**：可排序的变更分组、已暂存与已提交差异、分支比较、历史记录和提交检查
 - **🧩 后台任务页**：subagent 拓扑 + 后台任务（退出码 / 实时输出 / 强制终止）
-- **💬 侧边对话(beta)**：Codex 风格的侧边线程——继承主会话完整上下文（含进行中的回合与工具调用）独立运行，不进入主会话；线程内可持续追问，一键「保存为新会话」提升为顶层会话
+- **💬 侧边对话(beta)**：Codex 风格的侧边线程——继承主会话完整上下文（已完成回合、待回答问题、进行中回合的 assistant 输出与工具活动，以 interrupted 状态冻结）独立运行，不进入主会话；线程内可持续追问（DSH 重启后自动恢复），一键「保存为新会话」提升为顶层会话
 - **🪟 双工作台**：右侧栏 + 底部面板；拖 Tab 拆分 / 合并分栏（可跨面板），移动端自动合并全宽抽屉
 - **🔁 会话隔离**：布局 / Tab / 面板按会话持久化，陈旧状态自动净化
 - **⚙️ 声明式设置**：设置页「侧边卡片」逐项独立开关，二级设置经齿轮弹窗
 - **⚡ 按需加载**：启动只拉 ~325KB 核心，终端 / 编辑器 / Mermaid 图表等重依赖用到才按需拉取（[设计文档](docs/plans/2026-08-12-lazy-chunks-design.md)）
 - **🌏 多语言**：界面文案跟随 DSH 语言（zh / en）实时切换
+
+[Git 偏好](../ui-git-settings/README.zh.md)控制刷新后的分组顺序、“比较分支”的默认基准和可选提交署名。提交会先展示完整消息供确认；Session、仓库、HEAD 或已暂存文件变化后，必须重新检查。Web 与桌面的 Git 调用共用同一个[基于 Session 的 Git 服务](../../git/sidebar-git/README.zh.md)。客户端将 `remote.sidebarGit` 声明为激活依赖，使 Git 回调归属于所挂载命名空间的生命周期。
+
+挂载[原生终端设置页](../ui-settings-terminal/README.zh.md)后，页面编辑现有的 `dsh-better-sidebar` 偏好。Shell 可执行文件与按空白拆分的参数对新建集成侧边栏终端生效；已有进程保留自身的 Shell 和会话工作目录。字体与字号（9–32 px）、回滚行数（0–100,000 行，默认 4,000 行）、光标样式（默认方块）及闪烁（默认开启）立即更新已打开的 xterm 视图。确认恢复时仅清除这些终端覆盖值。
+
+集成终端视图在 Web 与 Desktop 上使用已认证的 `sidebarTerminals` Remote。重连接回存活进程并保留其已捕获的目录。悬浮工作区标签捕获会话工作区内已存在的目录，布局以窗口 UUID 隔离存储；目录无效时保留已保存的输入并显示修正提示。关闭标签会指向已观察到的原生进程代际，即使视图尚未打开也能关闭。能力查询不创建进程。主机重启不能恢复运行中的命令，这些偏好也不配置核心执行工具。
+
+主机无需 Web 服务器即可挂载终端提供方。完整序列化输出帧默认上限为 16 KiB，保留输出为 8 MiB，确认超时为 30 秒，原生退出超时为 10 秒；可在插件配置中修改 `terminalFrameBytes`、`terminalBufferBytes`、`terminalAckTimeoutMs` 和 `terminalShutdownTimeoutMs`。缓冲区至少容纳一帧，并计入 JSON 转义和帧元数据。原生卸载等待全部所属进程退出，包括未连接视图及已开始关闭的终端。
 
 > 🔌 **核心理念**：服务优先——内置的 7 tab + 6 viewer 与第三方插件通过同一套 `ctx.betterSidebar` API 注册，能力完全对等；官方不再内置、可由生态提供的功能，交由生态插件实现（已有 **28+ 生态插件**，见下方「🌐 插件生态」）。接入文档见「🔌 服务化扩展」与 [外部插件接入指南](./docs/external-plugin-guide.md)。
 
@@ -76,8 +84,7 @@ kind: "package-reference"
 
 **前置**：已装好 DSH（`dsh web` 能正常运行），Node.js ≥ 20、pnpm ≥ 10。
 
-**支持的 DSH 版本**：
-<a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="支持的 DSH 版本：0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a>
+**支持的 DSH 版本**：<a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="支持的 DSH 版本：0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a>
 
 ```sh
 dsh plugin --profile web add dsh-better-sidebar@latest   # first run fails: pnpm 11 blocks node-pty build scripts (the dependency is still written)
@@ -105,7 +112,7 @@ If anything fails, check the troubleshooting table in the README at https://gith
 dsh plugin --profile web add dsh-better-sidebar@latest
 ```
 
-也可把 `~/.dsh/profiles/web/package.json` 里的版本号改高后 `pnpm install`。改完**硬刷新浏览器**（Cmd/Ctrl+Shift+R）即可（client 改动无需重启 DSH）。
+也可把 `~/.dsh/profiles/web/package.json` 里的版本号改高（如 `"^0.15.0"`）后 `pnpm install`。改完**硬刷新浏览器**（Cmd/Ctrl+Shift+R）即可（client 改动无需重启 DSH）。
 
 </details>
 
@@ -188,7 +195,7 @@ dsh registry enable dsh-external/dsh-better-sidebar
 
 `ctx.betterSidebar` 服务向所有插件开放两个扩展点：**`registerTab`（注册侧边栏页面）** 与 **`registerFileViewer`（注册文件预览器）**。内置的 7 tab + 6 viewer 与第三方插件走同一套 API，能力完全对等。
 
-```ts
+```tsx
 import type {} from 'dsh-better-sidebar'  // triggers the ctx.betterSidebar type merge
 export const inject = ['betterSidebar']
 export function apply(ctx: Context) {
@@ -274,6 +281,11 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 
 ## 🆕 最近更新
 
+<div align="center">
+  <a href="https://github.com/user-attachments/assets/d2aea86b-a776-4f01-a6b8-b26b27314336"><img width="33%" alt="侧边栏" src="https://github.com/user-attachments/assets/d2aea86b-a776-4f01-a6b8-b26b27314336" /></a>
+  <a href="https://github.com/user-attachments/assets/946f7028-4967-461e-a750-d1b5056b62d0"><img width="33%" alt="服务 API 基础能力截图" src="https://github.com/user-attachments/assets/946f7028-4967-461e-a750-d1b5056b62d0" /></a>
+</div>
+
 **支持的 DSH 版本**：<a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="支持的 DSH 版本：0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a> · 完整发布历史见 [Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases)
 
 ### v0.15.2
@@ -283,7 +295,7 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 **✨ 新功能**
 
 - 🗂️ **文件树「在应用中打开」子菜单**（[#334](https://github.com/omdsh-dev/DSH-better-sidebar/pull/334)）：文件树右键菜单新增「在应用中打开 >」子菜单——内置打开方式（资源管理器显示/选中、VS Code、Cursor、Zed），每行右侧图钉可固定为右键菜单顶层直达项（再点取消）；配置可选 SSH host 后 VSCode 系条目改用 `vscode-remote/ssh-remote+<host>/<path>` 协议打开，本地专用条目自动隐藏；支持自定义编辑器（名称 + URL 模板 `{path}` + 是否 VSCode 系，配置入口在 Files 卡片齿轮弹窗）。打开动作经新宿主路由 `POST /sidebar/api/open.external`（argv 数组 spawn，无 shell 注入）（[设计文档](docs/plans/2026-08-22-open-with-menu-design.md)）
-- 📑 **Tab 右键菜单**（[#331](https://github.com/omdsh-dev/DSH-better-sidebar/pull/331)）：页签右键提供「关闭 / 关闭其他页签 / 关闭左侧页签 / 关闭右侧页签」，作用范围为当前 pane（标签组），无可关对象时置灰；仅打开菜单、不切换激活页签；批量关闭逐条走既有 `onClose` 路径，生命周期完整
+- 📑 **Tab 右键菜单**（[#331](https://github.com/omdsh-dev/DSH-better-sidebar/pull/331)）：页签右键提供「关闭 / 关闭其他页签 / 关闭左侧页签 / 关闭右侧页签」，作用范围为当前 pane（标签组），无可关对象时置灰；仅打开菜单、不切换激活页签；批量关闭逐条走既有 `onClose` 路径，保留生命周期回调、pty 释放和 agent 终端关闭
 - 📄 **Diff 文件默认折叠**（[#270](https://github.com/omdsh-dev/DSH-better-sidebar/pull/270)）：改动文件头部改为可访问的展开/折叠控件；识别出的源文件默认展开，测试 / 文档 / 生成文件 / lockfile 与未知类型默认折叠；保留现有 500 行上限
 - 📖 **README 更新**：特性巡礼改为表格展示（每行两张图，节省空间）；社区补全微信群 / QQ 群二维码（[#325](https://github.com/omdsh-dev/DSH-better-sidebar/pull/325)，QQ 群 577011007）
 
@@ -319,7 +331,7 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 **✨ 新功能**
 
 - 💬 **侧边对话(beta) Tab**（[#286](https://github.com/omdsh-dev/DSH-better-sidebar/pull/286)）：Codex 风格的侧边线程，**每个对话一个独立 Tab**——子会话继承主会话完整上下文（已完成回合 + 未回答消息 + 进行中回合的 assistant 输出与工具调用，以「interrupted」冻结标记诚实继承）；同组合创建（同 preset / provider / model）复用前缀输入缓存；线程对主会话列表不可见、零子代理目录噪音；线程内可持续追问（重启后自动冷恢复）；一键「保存为新会话」提升为顶层会话（[设计文档](docs/plans/2026-08-20-sidechat-tab-design.md)）
-- 📤 **文件窗口上传**（[#239](https://github.com/omdsh-dev/DSH-better-sidebar/pull/239)）：头部「上传文件 / 上传文件夹」按钮 + 拖放上传（拖到树区 = 工作区根，目录行 = 进该目录，文件行 = 进其所在目录，对齐 VSCode）；上传时全屏模糊进度弹层（文件级进度 + 取消 / Esc）；上传中按钮禁用、成功后文件树自动刷新
+- 📤 **文件窗口上传**（[#239](https://github.com/omdsh-dev/DSH-better-sidebar/pull/239)）：头部「上传文件 / 上传文件夹」按钮 + 拖放上传（拖到树区 = 工作区根，目录行 = 进该目录，文件行 = 进其所在目录，对齐 VSCode）；上传时全屏模糊进度弹层（文件级进度 + 取消 / Esc）；上传中按钮禁用、上传结束后文件树自动刷新
 - 🧩 **桌面兼容四选项**（[#284](https://github.com/omdsh-dev/DSH-better-sidebar/pull/284)）：位置兼容模式改为**主行下拉**——**自动检测**（默认，保守：仅使用标准的 Window Controls Overlay 几何，32/36px 等各壳差异自动跟随、最大化/还原实时更新，网页环境零修改）/ **DSH官方Web**（显式零适配）/ **壳兼容方案**（内置预设，手动启用；只收录 issue/PR 中出现过且 100+ star 的壳，命中环境带「已检测」提示）/ **自定义方案**（自定义 CSS + 下移距离）。旧版本已有兼容配置的用户自动落到自定义方案；交互控件统一退出桌面拖拽区（`no-drag`）；底栏推挤锚点复合选择器双保险（`[data-pane]` 与 `:has(> [data-slot])`）
 - 🎛️ **设置页 UI/UX 现代化**（[#300](https://github.com/omdsh-dev/DSH-better-sidebar/pull/300)）：侧边卡片二级设置入口改为卡片底部「功能设置」设置条（替代右下角隐形齿轮，可发现性提升）；协调双色启用态（brand 激活强调 + success 绿勾选徽标）；全部颜色仍为 `--dsw-alias-*` 令牌派生，皮肤体系自动跟随
 - ➕ **推荐插件目录新增**：`dsh-docs-panel` 全局文档面板（[#230](https://github.com/omdsh-dev/DSH-better-sidebar/pull/230)）、`dsh-flowglass`（[#261](https://github.com/omdsh-dev/DSH-better-sidebar/pull/261)）、`dsh-git-forge` 与 `dsh-ssh-tunnel`（[#204](https://github.com/omdsh-dev/DSH-better-sidebar/pull/204)）、`dsh-turn-review`（[#102](https://github.com/omdsh-dev/DSH-better-sidebar/pull/102)）
@@ -330,7 +342,7 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 - 🖱️ **拖拽中断 / 快速释放不再回滚**（[#249](https://github.com/omdsh-dev/DSH-better-sidebar/pull/249)，关闭 [#247](https://github.com/omdsh-dev/DSH-better-sidebar/issues/247) [#248](https://github.com/omdsh-dev/DSH-better-sidebar/issues/248)）：中断 / 快速释放提交最后已知位置；HMR 后中心列重定位兜底（修复热更新后底栏空白）
 - 📐 **推挤变量挂载期持续有效**（[#259](https://github.com/omdsh-dev/DSH-better-sidebar/pull/259)，修复 [#258](https://github.com/omdsh-dev/DSH-better-sidebar/issues/258)）：拖拽松手后底边栏不再闪全宽
 - 🔧 **适配 DSH 0.1.1-rc.1 / rc.2（@next）**（[#297](https://github.com/omdsh-dev/DSH-better-sidebar/pull/297) [#305](https://github.com/omdsh-dev/DSH-better-sidebar/pull/305)）：无代码逻辑改动
-- 🔒 **上传链路安全加固**（[#239](https://github.com/omdsh-dev/DSH-better-sidebar/pull/239)）：`relativePath` 空段 / 绝对路径显式拒绝；临时文件唯一命名（并发上传互不干扰、崩溃不阻塞）；写流错误监听（磁盘失败不崩溃进程）；客户端错误码与服务端统一、413 本地化
+- 🔒 **上传链路安全加固**（[#239](https://github.com/omdsh-dev/DSH-better-sidebar/pull/239)）：`relativePath` 空段 / 绝对路径显式拒绝；临时文件唯一命名（并发上传互不干扰、崩溃不阻塞）；写流错误监听（磁盘失败不崩溃进程）；客户端错误码与服务端统一（`too-large`）、413 本地化
 
 ### v0.14.0
 
@@ -397,6 +409,8 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 | 操作 | 按键 |
 |---|---|
 | 保存编辑 | `Ctrl/Cmd + S` |
+| 在聚焦文件中查找 | `Ctrl/Cmd + F` |
+| 聚焦文件查找面板的替换输入框 | `Ctrl/Cmd + Alt + F` |
 | Git 提交 | `Ctrl + Enter` |
 | 关闭 Tab | 鼠标中键 |
 | Tab 右键菜单 | 关闭 / 关闭其他页签 / 关闭左侧页签 / 关闭右侧页签（当前标签组） |
@@ -404,9 +418,13 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 | 引用文件到输入框 | 悬浮行尾 `@文件` 按钮 |
 | 复制文件路径 | 右键行 → 复制相对/绝对地址 |
 
+文件保存、查找和替换向 [keyboard](../keyboard/README.zh.md) 注册为 `editor.save`、`editor.find` 和 `editor.replace`。CodeMirror 在每个焦点按键事件到达时读取当前绑定，查找/替换使用其维护中的搜索面板。改键或取消绑定立即替换相应默认组合；普通撤销/历史按键除非被显式改键，否则仍由 CodeMirror 处理。编辑器处理器随视图释放，命令注册随插件释放。
+
 <a id="-service-api"></a>
 
 ## 🔌 服务化扩展
+
+`getTerminalCapability()` 返回的 `TerminalCapability` 结果见 [Sidebar 服务指南](docs/external-plugin-guide.md#terminal-capability)。
 
 从 v0.4.0 起暴露 `ctx.betterSidebar` 服务，其他插件可注册侧边栏页面与文件预览器（内置 7 tab + 6 viewer 亦通过同一服务注册）。v0.12.1 补齐基座能力（完整类型导出、能力探测、状态订阅、tab 角标、生命周期回调、定向打开、插件自有设置等）。
 
@@ -432,14 +450,14 @@ pnpm test         # vitest (includes manifest consistency guard; build first)
 pnpm watch        # tsdown --watch
 ```
 
-**架构**：单 npm 包、host/client 双半结构——host（`src/index.ts`）：`/sidebar/api/*` JSON API、`/sidebar/file` 媒体路由、`/sidebar/html` 预览路由、`/sidebar/ws/terminal` WebSocket（fs / git / pty / 预览，全部会话级 + 信任围栏）；client（`src/client/index.tsx`）：portal 侧边栏 + 各视图 + 拦截；状态按会话持久化 localStorage。插件按 DSH 官方规范组织（无 default 导出、双 client bundle），运行期不依赖 npm / checkout（`@deepseek-ai/*` 由 web profile 提供）。
+**架构**：Host 与 Client 位于同一 npm 包中。Client 通过经过认证的 Connection Fetch 调用 Host 现有的侧边栏分发器：`/api/sidebar.api`、`/api/sidebar.upload` 与 `/api/sidebar.file`；`/api/sidebar.bundle` 仅提供编辑器与 Mermaid 分块。路径编码的 `/api/sidebar/html/` 前缀为 HTML 相对资源保留 Session 作用域。这些路由在 Web 与 Desktop 中均可使用，且无需 Web 监听器；可选的 `/sidebar/*` Web 别名复用相同操作并保留 Host/Origin 信任围栏。终端操作使用[侧边栏终端能力](../../terminal/sidebar-terminals/README.zh.md)。Client 负责视图与按 Session 保存的 localStorage 状态。
 
 <a id="-security"></a>
 
 ## 🔐 安全
 
-- 路由受 Host 头信任围栏保护（与 `/api` 一致）；`fs.write` 原子写入；媒体/预览路由仅限会话 cwd 内文件；git 只调 CLI、绝不设置身份
-- HTML 预览与浏览器 tab 的内容在**不透明源沙箱 iframe** 中渲染（无 `allow-same-origin`/`allow-top-navigation`、`no-referrer`、权限策略全禁）；`/sidebar/html` 路由带 CSP `sandbox` + 大小/路径边界；地址栏拒绝 `javascript:`/`data:`/`file:` 与 localhost 等本机地址
+- 规范路由使用 Connection 认证；Web 别名保留实时 Host/Origin 信任围栏。JSON 请求体保持 1 MiB 上限。上传按 `uploadLimit` 流式写入；重命名前取消会删除临时文件并保留目标文件，已开始的重命名则可能完成提交。媒体与 HTML 读取受 Session cwd 和 `mediaLimit` 限制。
+- HTML 预览与浏览器 tab 的内容在**不透明源沙箱 iframe** 中渲染（无 `allow-same-origin`/`allow-top-navigation`、`no-referrer`、权限策略全禁）；`/api/sidebar/html/` 路由带 CSP `sandbox` + 大小/路径边界；地址栏拒绝 `javascript:`/`data:`/`file:` 与 localhost 等本机地址
 - 界面实时显示沙箱状态（关闭时红色警示），可临时解锁当前页面；设置页可按功能关闭沙箱（默认关闭该设置，带警告文案）——关闭后内容与界面同源，仅建议对完全可信内容使用
 
 
@@ -469,6 +487,8 @@ Windows / Linux / macOS 三平台适配（macOS 日常验证；其余经单元�
 - **收录生态插件**：给仓库打 `dsh-better-sidebar` topic + 向 [`src/client/plugins-tabs.ts`](./src/client/plugins-tabs.ts) / [`plugins-viewers.ts`](./src/client/plugins-viewers.ts) 提 PR
 - **提交前自检**：`pnpm typecheck && pnpm build && pnpm test`（CI 另有 npm 打包 → 真实挂载 → 无头渲染门禁 `pnpm test:mount`）
 - 仓库工作规范见 [`AGENTS.md`](./AGENTS.md)（含仓库硬约束与 CI 说明）
+
+<a id="-star-history"></a>
 
 ## ⭐ Star History
 
@@ -519,11 +539,11 @@ Windows / Linux / macOS 三平台适配（macOS 日常验证；其余经单元�
 
 插件配置与已注册 schema 不变时，工具定义前缀可以复用。新调用与结果追加到 Session suffix；composition 或 schema 变化会使缓存从定义变化处起失效。
 
-<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与后续工作
+<a id="known-limitations-and-deferred-work"></a>
 
 - Git 无 push/pull/fetch；无文件 watcher（手动刷新）；工具行内文件打开按钮不可拦截
-- 终端 Tab 拖到另一分栏会重挂载（shell 重开）
+- 主机重启不能恢复运行中的终端命令。
 - Office 三件套预览（.docx/.xlsx/.pptx）由推荐的 Office 插件提供；未安装时此类文件走代码/下载查看兜底
 - 浏览器沙箱无登录态；部分站点登录需走弹窗，被拒绝嵌入的站点会显示原因面板
 - HTML 预览渲染已保存文件，不包含未保存草稿
@@ -533,5 +553,4 @@ Windows / Linux / macOS 三平台适配（macOS 日常验证；其余经单元�
 <a id="dev-note"></a>
 ### 开发备注
 
-Web composition 负责该包的当前终端界面；minimal preset 保留独立的持久终端栈。
-
+Web 与 Desktop 使用相同的侧边栏终端服务；minimal preset 保留独立的持久终端栈。

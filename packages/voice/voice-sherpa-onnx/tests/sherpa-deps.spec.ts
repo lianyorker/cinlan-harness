@@ -1,4 +1,3 @@
-/* oxlint-disable typescript/no-extraneous-class, typescript/no-unsafe-assignment */
 /** sherpa-onnx-node lazy-load tests, mirroring pty-deps.spec.ts. */
 import { beforeEach, describe, expect, it } from 'vitest'
 import {

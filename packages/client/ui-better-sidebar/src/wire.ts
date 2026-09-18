@@ -4,10 +4,12 @@
  * `{ok: true, value}` on success and `{ok: false, error: {code, message}}`
  * (HTTP 4xx/5xx matching the code) on failure.
  */
-import type { SidebarHttpRequest, SidebarHttpResponse } from './context-types.ts'
+import type { SidebarHttpResponse } from './context-types.ts'
+import type { SidebarGitErrorCode } from '@deepseek-ai/dsh-sidebar-git/types'
 
 /** Machine-readable error codes of the sidebar API. */
 export type SidebarErrorCode =
+  | SidebarGitErrorCode
   | 'bad-request'
   | 'not-found'
   | 'forbidden'
@@ -45,7 +47,7 @@ export interface SidebarOk<T> { ok: true; value: T }
 export interface SidebarErr { ok: false; error: { code: SidebarErrorCode; message: string } }
 
 /** Read and parse the JSON request body (bounded; malformed → bad-request). */
-export async function readJsonBody(req: SidebarHttpRequest): Promise<unknown> {
+export async function readJsonBody(req: AsyncIterable<string | Uint8Array>): Promise<unknown> {
   const chunks: Buffer[] = []
   let total = 0
   for await (const chunk of req) {

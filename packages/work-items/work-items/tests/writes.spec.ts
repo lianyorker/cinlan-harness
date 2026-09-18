@@ -13,7 +13,7 @@ const item: WorkItem = {
   state: 'open', url: 'https://github.com/acme/repo/issues/1', labels: [], assignees: [], updatedAt: '2026-09-06T00:00:00Z',
 }
 const comment: WorkItemMutation = { kind: 'comment', id: item.id, body: 'Ready for review' }
-async function harness(pool = new MemoryMediaPool(), writerOverride?: Partial<WorkItemsWriter>, ttl = 300_000) {
+async function harness(pool = new MemoryMediaPool(), writerOverride?: Partial<WorkItemsWriter>, ttl = 300_000, current = item) {
   const ctx = new Context()
   roots.push(ctx)
   await ctx.plugin(Storage)
@@ -21,13 +21,13 @@ async function harness(pool = new MemoryMediaPool(), writerOverride?: Partial<Wo
   const domain = new DomainFacility(ctx, { backend: 'memory', routes: {} })
   ctx.storage.mount('domain', domain)
   ctx.provide('storageDomain', domain)
-  await ctx.plugin(WorkItemsRuntime, { writeApprovalTtlMs: ttl })
+  await ctx.plugin(WorkItemsRuntime, { provider: current.source, writeApprovalTtlMs: ttl })
   const writer: WorkItemsWriter = {
-    scope: 'github:acme/repo', validate: vi.fn(async () => {}),
-    execute: vi.fn(async () => ({ itemId: item.id, url: item.url })), ...writerOverride,
+    scope: current.source + ':acme/repo', validate: vi.fn(async () => {}),
+    execute: vi.fn(async () => ({ itemId: current.id, url: current.url })), ...writerOverride,
   }
-  const get = vi.fn(async () => item)
-  const provider = { id: 'github' as const, available: () => true, list: async () => ({ items: [item], truncated: false }), get, writer }
+  const get = vi.fn(async () => current)
+  const provider = { id: current.source, available: () => true, list: async () => ({ items: [current], truncated: false }), get, writer }
   ctx.workItems.registerProvider(provider)
   return { ctx, service: ctx.workItems, get, writer, provider, pool }
 }
@@ -60,6 +60,36 @@ describe('durable Work Items write approval', () => {
     expect((await restarted.service.confirmWrite(prepared.operationId)).status).toBe('succeeded')
     expect(restarted.writer.execute).not.toHaveBeenCalled()
     expect((await restarted.service.listWrites('github', 5))[0]?.result).toEqual({ itemId: item.id, url: item.url })
+  })
+
+  it('prepares, confirms, and reloads GitLab create and assignment receipts without replaying writes', async () => {
+    const gitlab: WorkItem = { ...item, id: WorkItemId('gitlab:acme/repo#1'), source: 'gitlab',
+      state: 'opened', url: 'https://gitlab.com/acme/repo/-/issues/1' }
+    const h = await harness(undefined, undefined, undefined, gitlab)
+    const mutations: WorkItemMutation[] = [
+      { kind: 'create', source: 'gitlab', title: 'New issue', body: 'Description' },
+      { kind: 'assign', id: gitlab.id, assignees: ['alice'] },
+    ]
+    const operationIds: WorkItemWriteId[] = []
+    for (const mutation of mutations) {
+      const preview = await h.service.prepareWrite(mutation)
+      expect(preview).toMatchObject({ source: 'gitlab', mutation, status: 'prepared' })
+      operationIds.push(preview.operationId)
+      expect(await h.service.confirmWrite(preview.operationId)).toMatchObject({
+        source: 'gitlab', mutation, status: 'succeeded', result: { itemId: gitlab.id, url: gitlab.url },
+      })
+    }
+    expect(h.writer.execute).toHaveBeenCalledTimes(2)
+    await h.ctx.fiber.dispose()
+    const restarted = await harness(h.pool, undefined, undefined, gitlab)
+    for (const operationId of operationIds) {
+      expect(await restarted.service.confirmWrite(operationId)).toMatchObject({ operationId, source: 'gitlab', status: 'succeeded' })
+    }
+    expect(await restarted.service.listWrites('gitlab', 5)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ mutation: mutations[0], status: 'succeeded' }),
+      expect.objectContaining({ mutation: mutations[1], status: 'succeeded' }),
+    ]))
+    expect(restarted.writer.execute).not.toHaveBeenCalled()
   })
 
   it('rejects changed issue content or provider scope before dispatch', async () => {

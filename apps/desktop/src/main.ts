@@ -19,6 +19,7 @@ import { DESKTOP_IPC, type DesktopUpdateState } from './ipc.ts'
 import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
+import { installFloatingWindowPolicy, type FloatingWindowPolicy } from './floating-window.ts'
 
 const SCHEME = 'dsh-app'
 let focusPrimaryWindow = (): void => {}
@@ -141,6 +142,7 @@ async function main(): Promise<void> {
   let host: DesktopHostProcess | undefined
   let mainWindow: BrowserWindow | undefined
   let pluginWindow: BrowserWindow | undefined
+  let floatingWindows: FloatingWindowPolicy | undefined
   let shellInstallerOwnsQuit = false
   let updateState: DesktopUpdateState = { phase: 'idle' }
   const locale = resolveDesktopLocale(app.getLocale())
@@ -157,12 +159,13 @@ async function main(): Promise<void> {
   }
 
   const startHost = async (projectDir = activeProject): Promise<DesktopHostProcess> => {
-    const next = new DesktopHostProcess(resources.node, projectDir, hostInspectPort)
+    const next = new DesktopHostProcess(resources.node, projectDir, hostInspectPort, development !== undefined)
     await next.start()
     return next
   }
   const hooks: DesktopProjectHooks = {
     healthCheck: async (projectDir) => {
+      floatingWindows?.close()
       const active = host
       host = undefined
       await active?.stop()
@@ -193,6 +196,7 @@ async function main(): Promise<void> {
       if (restartFailure !== undefined) throw errorOf(restartFailure, 'desktop project: active backend restart failed')
     },
     beforeActivate: async () => {
+      floatingWindows?.close()
       const active = host
       host = undefined
       await active?.stop()
@@ -215,6 +219,7 @@ async function main(): Promise<void> {
     publishUpdate,
     async () => {
       shellInstallerOwnsQuit = true
+      floatingWindows?.close()
       const active = host
       host = undefined
       await active?.stop()
@@ -343,8 +348,14 @@ async function main(): Promise<void> {
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload)
     mainWindow = window
+    const floating = installFloatingWindowPolicy(window, appPreload, options => new BrowserWindow(options))
+    floatingWindows = floating
     window.once('ready-to-show', () => { if (!window.isDestroyed()) window.show() })
-    window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })
+    window.on('closed', () => {
+      floating.dispose()
+      if (floatingWindows === floating) floatingWindows = undefined
+      if (mainWindow === window) mainWindow = undefined
+    })
     return window
   }
   focusPrimaryWindow = () => {
@@ -374,6 +385,7 @@ async function main(): Promise<void> {
     if (process.platform !== 'darwin') app.quit()
   })
   app.on('before-quit', (event) => {
+    floatingWindows?.close()
     if (shellInstallerOwnsQuit) return
     if (host === undefined) return
     event.preventDefault()

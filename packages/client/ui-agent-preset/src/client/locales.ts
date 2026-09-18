@@ -3,6 +3,7 @@
 /** Locale keys these surfaces render. */
 export type AgentPresetSettingsKey =
   | 'error' | 'userTrust' | 'seatHint' | 'headerHint'
+  | 'defaultLabel' | 'defaultHelp' | 'builtInHelp' | 'customHelp' | 'emptyCustom' | 'unavailable' | 'loading'
   | 'nav' | 'sectionIntro' | 'builtIn' | 'setDefault' | 'view'
   | 'presetStandardName' | 'presetStandardDescription'
   | 'presetPtcName' | 'presetPtcDescription'
@@ -26,6 +27,13 @@ export const en: Record<AgentPresetSettingsKey, string> = {
   seatHint: 'Agent preset for the session you are about to start',
   headerHint: 'The agent preset this session runs, fixed when it started',
   nav: 'Agent presets',
+  defaultLabel: 'Use for new sessions',
+  defaultHelp: 'Changing the default applies to future sessions. Existing sessions keep their preset.',
+  builtInHelp: 'Built-in presets are read-only. View their composition or duplicate one to customize it.',
+  customHelp: 'Duplicate an existing preset, then edit its files. Opening and deleting use the current host.',
+  emptyCustom: 'No custom presets yet. Duplicate an available preset to create one.',
+  unavailable: 'This host provides no agent presets. Sessions use the host composition.',
+  loading: 'Loading agent presets…',
   sectionIntro:
     'A preset is the plugin composition one session\'s agent runs — its tools, prompt, and capabilities. '
     + 'Duplicate an existing one and make it yours, or let the agent draft one for you in Creator mode.',
@@ -53,7 +61,7 @@ export const en: Record<AgentPresetSettingsKey, string> = {
   presetIdPlaceholder: 'my-agent',
   displayName: 'Name',
   displayNamePlaceholder: 'Shown in the picker; defaults to the identifier',
-  inUse: 'In use',
+  inUse: 'Default',
   builtInGroup: 'Built-in',
   customGroup: 'Custom',
   noDescription: 'No description.',
@@ -92,6 +100,13 @@ export const zh: Record<AgentPresetSettingsKey, string> = {
   seatHint: '即将开始的这个会话所用的 Agent 预设',
   headerHint: '本会话运行的 Agent 预设，开始时即固定',
   nav: 'Agent 预设',
+  defaultLabel: '新会话使用',
+  defaultHelp: '默认值只用于之后创建的会话，已有会话保留原来的预设。',
+  builtInHelp: '内置预设只读。可以查看组成，或复制一份进行自定义。',
+  customHelp: '从现有预设复制，再编辑预设文件。打开与删除操作由当前主机执行。',
+  emptyCustom: '还没有自定义预设。复制一份可用预设即可创建。',
+  unavailable: '当前主机未提供 Agent 预设，会话使用主机的组成配置。',
+  loading: '正在加载 Agent 预设…',
   sectionIntro: '预设即一个会话的 Agent 所运行的插件组装 —— 它的工具、提示词与能力。复制一份既有预设改成自己的，或用「创造模式」让 Agent 帮你创建。',
   builtIn: '内置',
   setDefault: '设为默认',
@@ -113,7 +128,7 @@ export const zh: Record<AgentPresetSettingsKey, string> = {
   presetIdPlaceholder: 'my-agent',
   displayName: '名称',
   displayNamePlaceholder: '选择器中显示的名字，缺省用标识符',
-  inUse: '当前使用',
+  inUse: '默认',
   builtInGroup: '内置',
   customGroup: '自定义',
   noDescription: '暂无描述。',

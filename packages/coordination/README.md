@@ -16,6 +16,7 @@ Coordinate small task graphs while choosing scheduling, execution, ownership, an
 - [Packages](#packages)
 - [Dev Note](#dev-note)
 
+<a id="packages"></a>
 ## Packages
 
 This capability coordinates a small directed acyclic graph of tasks. Scheduling stays provider-neutral; an executor may run a task in the current process or delegate it to a child agent. The capability reference is [`coordination/`](coordination/README.md).
@@ -35,4 +36,4 @@ The shipped base and Web bundles do not mount Coordination. [`dsh-web-app`](../b
 <a id="dev-note"></a>
 ## Dev Note
 
-No standalone subsystem page exists; the group and package READMEs own task-graph coordination documentation.
+The [Coordination subsystem reference](../../docs/subsystems/coordination.md) lists the generated Cordis API; Run/Task, executor, and lifecycle contracts remain with the package READMEs.

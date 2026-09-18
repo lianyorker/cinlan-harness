@@ -34,6 +34,8 @@ Plugin setup registers the Provider immediately without resolving the executable
 | `typeText` | `emulator type --text-stdin --device <deviceId> --observation-id <observationId> --json` with literal text on stdin |
 | `pressButton` | `emulator button <button> --device <deviceId> --observation-id <observationId> --json` |
 
+The Provider accepts only resolved `MobileObserveSpec` targets. The mobile-device service resolves an omitted Consumer id before calling the Provider; the CLI always receives an explicit `--device`.
+
 ## Protocol and freshness
 
 The devices result is a direct array of canonical `{backend,id,name,state,isAvailable,detail?}` records with unique ids. Observations require `protocolVersion: 1`, an opaque `deviceGeneration`, opaque `observationId`, `coordinateSpace: normalized`, bounded tree text, explicit screenshot status, and an optional bounded PNG whose dimensions match its IHDR header. Tap, gesture, type, and button results must be exactly `{ok:true}`.
@@ -60,6 +62,7 @@ CLI execution and observation state do not alter the model request prefix.
 
 - The Provider does not install or launch apps, manage device lifecycle, grant runtime permissions, read logs, transfer files, execute raw commands, expose camera or sensors, use the clipboard, or pair remote devices.
 - Real Android and iOS behavior depends on the installed Cinlan CLI and remains outside keyless unit coverage.
+- Saved `androidSdkPath` values do not configure this external CLI backend; the Provider exposes no SDK override or guessed environment forwarding.
 
 No runtime invariant companion is published: provider registration, protocol validation, and observation freshness are enforced by their owning operations and covered by the package tests.
 

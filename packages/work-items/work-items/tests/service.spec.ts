@@ -3,10 +3,10 @@ import { describe, expect, it, vi } from 'vitest'
 import WorkItemsRuntime, { WorkItemId, WorkItemsError } from '../src/index.ts'
 import type { WorkItem, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '../src/types.ts'
 
-function item(source: 'github' | 'linear'): WorkItem {
+function item(source: WorkItem['source']): WorkItem {
   return { id: WorkItemId(source + ':one'), source, externalId: 'one', title: 'One', state: 'open', url: 'https://example.com/item', labels: [], assignees: [] }
 }
-function completeItem(source: 'github' | 'linear'): WorkItem {
+function completeItem(source: WorkItem['source']): WorkItem {
   return {
     ...item(source),
     key: 'KEY-1',
@@ -18,7 +18,7 @@ function completeItem(source: 'github' | 'linear'): WorkItem {
     updatedAt: '2026-01-02T00:00:00.000Z',
   }
 }
-function provider(source: 'github' | 'linear', usable = true) {
+function provider(source: WorkItem['source'], usable = true) {
   return {
     id: source, available: () => usable,
     list: vi.fn(async (_request: WorkItemListRequest): Promise<WorkItemPage> => ({ items: [item(source)], truncated: false })),
@@ -55,7 +55,7 @@ describe('WorkItemsRuntime', () => {
   })
 
   it('rejects invalid configuration and branded ids', async () => {
-    expect(() => new WorkItemsRuntime(new Context(), { provider: 'other' as never })).toThrow(/github or linear/)
+    expect(() => new WorkItemsRuntime(new Context(), { provider: 'other' as never })).toThrow(/github, gitlab, or linear/)
     expect(() => new WorkItemsRuntime(new Context(), { extra: true } as never)).toThrow(/unsupported config key/)
     expect(() => WorkItemId('')).toThrow(/non-empty/)
     expect(() => WorkItemId(' github:one')).toThrow(/trimmed/)
@@ -63,21 +63,21 @@ describe('WorkItemsRuntime', () => {
     expect(WorkItemId('github:one')).toBe('github:one')
   })
 
-  it('honors explicit provider configuration and disposes contributions', async () => {
+  it.each(['linear', 'gitlab'] as const)('honors explicit %s configuration and disposes contributions', async (source) => {
     const ctx = new Context()
-    const fiber = await ctx.plugin(WorkItemsRuntime, { provider: 'linear' })
-    const linear = provider('linear')
-    const dispose = ctx.workItems.registerProvider(linear)
+    const fiber = await ctx.plugin(WorkItemsRuntime, { provider: source })
+    const selected = provider(source)
+    const dispose = ctx.workItems.registerProvider(selected)
     await expect(ctx.workItems.list({ source: 'github' })).rejects.toMatchObject({ code: 'invalid-request' })
-    await expect(ctx.workItems.get({ id: WorkItemId('linear:one') })).resolves.toMatchObject({ source: 'linear' })
+    await expect(ctx.workItems.get({ id: WorkItemId(source + ':one') })).resolves.toMatchObject({ source })
     dispose()
-    await expect(ctx.workItems.get({ id: WorkItemId('linear:one') })).rejects.toThrow(expect.objectContaining({ code: 'configured-missing' }))
+    await expect(ctx.workItems.get({ id: WorkItemId(source + ':one') })).rejects.toThrow(expect.objectContaining({ code: 'configured-missing' }))
     await fiber.dispose()
-    expect(linear.dispose).toHaveBeenCalledOnce()
+    expect(selected.dispose).toHaveBeenCalledOnce()
 
     const unavailableCtx = new Context()
-    const unavailableFiber = await unavailableCtx.plugin(WorkItemsRuntime, { provider: 'linear' })
-    unavailableCtx.workItems.registerProvider(provider('linear', false))
+    const unavailableFiber = await unavailableCtx.plugin(WorkItemsRuntime, { provider: source })
+    unavailableCtx.workItems.registerProvider(provider(source, false))
     await expect(unavailableCtx.workItems.list()).rejects.toMatchObject({ code: 'configured-unavailable' })
     await unavailableFiber.dispose()
   })

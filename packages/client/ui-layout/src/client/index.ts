@@ -14,6 +14,9 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { PanelActions } from './service.ts'
 import { AppFrame } from './AppFrame.tsx'
+import type {} from '@deepseek-ai/dsh-client-keyboard/client'
+import type { ShellShortcutInjected } from './keyboard-commands.ts'
+import { en, zh, type LayoutKeyboardKey } from './locales.ts'
 import { createLayoutStore } from './stores.ts'
 import { LayoutController } from './service.ts'
 import { ThemePresenter } from './theme-presenter.ts'
@@ -34,6 +37,7 @@ declare module '@deepseek-ai/cordis' {
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap { 'layout.keyboard': LayoutKeyboardKey }
   interface SlotMap {
     // The 'root' entry itself is the runtime's built-in slot (declared
     // there); these four are the frame's children, declared by the same
@@ -122,7 +126,7 @@ export interface RightbarOwnerProps {
 }
 
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
-export const inject = ['slots', 'theme', 'locale']
+export const inject = ['slots', 'theme', 'locale', 'keyboard']
 
 /**
  * Client plugin body: provide ctx.layout, then one register() call — AppFrame
@@ -131,6 +135,12 @@ export const inject = ['slots', 'theme', 'locale']
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
+  ctx.effect(() => ctx.locale.register('layout.keyboard', { zh, en }), 'ui-layout: keyboard dictionary')
+  const keyboardT = ctx.locale.bind('layout.keyboard')
+  ctx.effect(() => ctx.keyboard.register({
+    id: 'shell.toggleSidebar', scope: 'shell', label: () => keyboardT('toggleSidebar'), description: () => keyboardT('toggleSidebarDescription'),
+    defaultBindings: [{ key: 'b', modifiers: { mod: true } }],
+  }), 'ui-layout: sidebar shortcut')
   const layout = new LayoutController()
   ctx.effect(() => {
     const disposeService = ctx.reflect.provide('layout', layout)
@@ -148,9 +158,9 @@ export function apply(ctx: ClientContext): void {
       store: createLayoutStore,
       // The hook's only side effect connects the root store to ctx.layout;
       // conversation business actions belong to their registrants.
-      inject: (actions: PanelActions) => {
+      inject: (actions: PanelActions): ShellShortcutInjected => {
         layout.attachPanels(actions)
-        return {}
+        return { matchesSidebarShortcut: facts => ctx.keyboard.matches('shell.toggleSidebar', facts) }
       },
     }, AppFrame)
     return () => {

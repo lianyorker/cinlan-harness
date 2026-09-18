@@ -1,11 +1,9 @@
 /**
- * Typed fetch wrapper over the /sidebar JSON API. Every call posts to
- * `/sidebar/api/<method>` with the sessionId and — when known — the session's
- * cwd from the client's own list summary. The host prefers its attached
- * session header and uses the summary cwd only while the session is still
- * hydrating at page load (a detached session would otherwise fail the
- * request). Failures surface as {@link SidebarApiError} with the wire code.
+ * Instance-owned Git Remote callbacks and the sidebar HTTP helpers for other features.
+ * HTTP calls retain the Session cwd hint; Git repository selection belongs to the Host.
  */
+import type { ClientRemote, RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
+import type { GitCommitPreview, GitSessionRequest } from '@deepseek-ai/dsh-sidebar-git/types'
 import { encodeHtmlUrl } from '../html-route.ts'
 import type { LastActivity } from '../subagent-activity.ts'
 import type { SidechatThreadInfo } from '../sidechat-core.ts'
@@ -33,32 +31,9 @@ export interface FsEntry {
   broken: boolean
 }
 
-/** Git status entry (host git shape). */
-export interface GitStatusEntry {
-  path: string
-  xy: string
-}
-
-/** Git status snapshot. */
-export interface GitStatusResult {
-  isRepo: boolean
-  branch?: string
-  entries: GitStatusEntry[]
-}
-
-/** One git log row. */
-export interface GitLogEntry {
-  /** Short hash (7+ chars, display). */
-  hash: string
-  /** Full 40-char hash (advanced operations). */
-  hashFull: string
-  subject: string
-  author: string
-  /** ISO 8601 author date (`%ai`). */
-  date: string
-  /** Ref decorations (--decorate=short), e.g. `HEAD -> main, origin/main`; '' when none. */
-  refs: string
-}
+export type {
+  GitCommitPreview, GitCompareResult, GitLogEntry, GitRepositoryState, GitStatusEntry, GitStatusResult,
+} from '@deepseek-ai/dsh-sidebar-git/types'
 
 /** Text read result. */
 export interface FsTextResult { kind: 'text'; content: string; truncated: boolean }
@@ -97,7 +72,7 @@ export type TerminalDepsStatus =
 async function call<T>(method: string, payload: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   let response: Response
   try {
-    response = await fetch(`/sidebar/api/${method}`, {
+    response = await fetch(`/api/sidebar.api?method=${encodeURIComponent(method)}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
@@ -106,8 +81,8 @@ async function call<T>(method: string, payload: Record<string, unknown>, signal?
   } catch (error) {
     throw new SidebarApiError('network', error instanceof Error ? error.message : String(error))
   }
-  const parsed: { ok?: boolean; value?: unknown; error?: { code?: string; message?: string } } | null
-    = await response.json().catch(() => null)
+  const responseBody: unknown = await response.json().catch(() => null)
+  const parsed = responseBody as { ok?: boolean; value?: unknown; error?: { code?: string; message?: string } } | null
   if (!response.ok || parsed === null || parsed.ok !== true || parsed.value === undefined) {
     throw new SidebarApiError(
       parsed?.error?.code ?? 'http',
@@ -121,7 +96,7 @@ async function call<T>(method: string, payload: Record<string, unknown>, signal?
  * Upload one file to the sidebar's raw upload route: the File goes straight
  * into the POST body (no JSON/base64 re-encoding — the host streams it into
  * the workspace). Failure surfaces as {@link SidebarApiError} with the wire
- * code, exactly like every `/sidebar/api` call. An aborted `signal` rejects
+ * code, exactly like every sidebar API call. An aborted `signal` rejects
  * with the DOMException as-is (the caller decides whether that is an error).
  */
 async function fetchUpload<T>(
@@ -135,7 +110,7 @@ async function fetchUpload<T>(
   if (scope.cwd !== undefined && scope.cwd !== '') params.set('cwd', scope.cwd)
   let response: Response
   try {
-    response = await fetch(`/sidebar/upload?${params.toString()}`, {
+    response = await fetch(`/api/sidebar.upload?${params.toString()}`, {
       method: 'POST',
       headers: { 'content-type': 'application/octet-stream' },
       body,
@@ -145,8 +120,8 @@ async function fetchUpload<T>(
     if (error instanceof DOMException && error.name === 'AbortError') throw error
     throw new SidebarApiError('network', error instanceof Error ? error.message : String(error))
   }
-  const parsed: { ok?: boolean; value?: unknown; error?: { code?: string; message?: string } } | null
-    = await response.json().catch(() => null)
+  const responseBody: unknown = await response.json().catch(() => null)
+  const parsed = responseBody as { ok?: boolean; value?: unknown; error?: { code?: string; message?: string } } | null
   if (!response.ok || parsed === null || parsed.ok !== true || parsed.value === undefined) {
     throw new SidebarApiError(
       parsed?.error?.code ?? 'http',
@@ -168,6 +143,60 @@ function scopePayload(scope: SessionScope, extra: Record<string, unknown>): Reco
   return { sessionId: scope.sessionId, ...(scope.cwd !== undefined && scope.cwd !== '' ? { cwd: scope.cwd } : {}), ...extra }
 }
 
+/** Plain Git callbacks captured by the plugin instance and passed to its tabs. */
+export type SidebarGitClient = ReturnType<typeof createSidebarGitClient>
+
+async function gitValue<T>(result: Promise<RemoteResult<T>>): Promise<T> {
+  const settled = await result
+  if (!settled.ok) throw settled.error
+  return settled.value
+}
+
+/**
+ * Adapt the generated Git namespace into values and rejected Remote errors.
+ * The Host resolves the Session cwd; the client's cwd hint never selects Git repositories.
+ * @param remoteSidebarGit - namespace owned by this plugin's apply lifetime.
+ * @returns plain callbacks with no HTTP fallback or shared Remote state.
+ */
+export function createSidebarGitClient(remoteSidebarGit: ClientRemote['sidebarGit']) {
+  // Sidebar's persisted scope predates branded Session ids; the attached Session owns this id.
+  const request = (scope: SessionScope): GitSessionRequest => ({ sessionId: scope.sessionId as GitSessionRequest['sessionId'] })
+  return {
+    gitStatus: (scope: SessionScope, signal?: AbortSignal) =>
+      gitValue(remoteSidebarGit.status(request(scope), signal)),
+    gitDiff: (scope: SessionScope, path: string | undefined, staged: boolean, signal?: AbortSignal) =>
+      gitValue(remoteSidebarGit.diff({ ...request(scope), ...(path === undefined ? {} : { path }), staged }, signal)),
+    gitStage: (scope: SessionScope, repositoryRoot: string, path?: string) =>
+      gitValue(remoteSidebarGit.stage({ ...request(scope), repositoryRoot, ...(path === undefined ? {} : { path }) })),
+    gitUnstage: (scope: SessionScope, repositoryRoot: string, path?: string) =>
+      gitValue(remoteSidebarGit.unstage({ ...request(scope), repositoryRoot, ...(path === undefined ? {} : { path }) })),
+    gitBranch: (scope: SessionScope, signal?: AbortSignal) =>
+      gitValue(remoteSidebarGit.branches(request(scope), signal)),
+    gitCheckout: (scope: SessionScope, repositoryRoot: string, branch: string) =>
+      gitValue(remoteSidebarGit.checkout({ ...request(scope), repositoryRoot, branch })),
+    gitPrepareCommit: (scope: SessionScope, repositoryRoot: string, message: string, signal?: AbortSignal) =>
+      gitValue(remoteSidebarGit.prepareCommit({ ...request(scope), repositoryRoot, message }, signal)),
+    gitCommit: (preview: GitCommitPreview) =>
+      gitValue(remoteSidebarGit.commit({ preview })),
+    gitCompare: (scope: SessionScope, signal?: AbortSignal) =>
+      gitValue(remoteSidebarGit.compare(request(scope), signal)),
+    gitLog: (scope: SessionScope, count?: number, skip?: number, signal?: AbortSignal) =>
+      gitValue(remoteSidebarGit.log({
+        ...request(scope), ...(count === undefined ? {} : { count }), ...(skip === undefined ? {} : { skip }),
+      }, signal)),
+    gitShow: (scope: SessionScope, ref: string, path: string, signal?: AbortSignal) =>
+      gitValue(remoteSidebarGit.show({ ...request(scope), ref, path }, signal)),
+    gitCommitDiff: (scope: SessionScope, hash: string, signal?: AbortSignal) =>
+      gitValue(remoteSidebarGit.commitDiff({ ...request(scope), hash }, signal)),
+    gitDiscard: (scope: SessionScope, repositoryRoot: string, head: string | null, path: string) =>
+      gitValue(remoteSidebarGit.discard({ ...request(scope), repositoryRoot, head, path })),
+    gitRevert: (scope: SessionScope, repositoryRoot: string, head: string | null, hash: string) =>
+      gitValue(remoteSidebarGit.revert({ ...request(scope), repositoryRoot, head, hash })),
+    gitCherryPick: (scope: SessionScope, repositoryRoot: string, head: string | null, hash: string) =>
+      gitValue(remoteSidebarGit.cherryPick({ ...request(scope), repositoryRoot, head, hash })),
+  }
+}
+
 /** The sidebar API surface (session scope threaded through every call). */
 export const api = {
   sessionCwd: (scope: SessionScope, signal?: AbortSignal) =>
@@ -186,44 +215,6 @@ export const api = {
    *  `relativePath`); the host streams it under the session workspace. */
   uploadFile: (scope: SessionScope, dir: string, relativePath: string, body: Blob, signal?: AbortSignal) =>
     fetchUpload<{ path: string; size: number }>(scope, dir, relativePath, body, signal),
-  gitStatus: (scope: SessionScope, signal?: AbortSignal) =>
-    call<GitStatusResult>('git.status', scopePayload(scope, {}), signal),
-  gitDiff: (scope: SessionScope, path: string | undefined, staged: boolean, signal?: AbortSignal) =>
-    call<{ diff: string }>('git.diff', scopePayload(scope, { ...(path !== undefined ? { path } : {}), staged }), signal),
-  gitStage: (scope: SessionScope, path?: string) =>
-    call<{ ok: true }>('git.stage', scopePayload(scope, { ...(path !== undefined ? { path } : {}) })),
-  gitUnstage: (scope: SessionScope, path?: string) =>
-    call<{ ok: true }>('git.unstage', scopePayload(scope, { ...(path !== undefined ? { path } : {}) })),
-  gitCommit: (scope: SessionScope, message: string) =>
-    call<{ ok: true }>('git.commit', scopePayload(scope, { message })),
-  gitBranch: (scope: SessionScope, signal?: AbortSignal) =>
-    call<{ current: string; names: string[] }>('git.branch', scopePayload(scope, {}), signal),
-  gitCheckout: (scope: SessionScope, branch: string) =>
-    call<{ ok: true }>('git.checkout', scopePayload(scope, { branch })),
-  /** Recent commit history, lazily pageable (skip/count; defaults 0/30). */
-  gitLog: (scope: SessionScope, count?: number, skip?: number, signal?: AbortSignal) =>
-    call<GitLogEntry[]>('git.log', scopePayload(scope, {
-      ...(count !== undefined ? { count } : {}),
-      ...(skip !== undefined ? { skip } : {}),
-    }), signal),
-  /** Full patch text of one commit (diff display for the history rows). */
-  gitCommitDiff: (scope: SessionScope, hash: string, signal?: AbortSignal) =>
-    call<{ diff: string }>('git.commit-diff', scopePayload(scope, { hash }), signal),
-  /** Discard the worktree changes of one file (the index is untouched). */
-  gitDiscard: (scope: SessionScope, path: string) =>
-    call<{ ok: true }>('git.discard', scopePayload(scope, { path })),
-  /** Revert one commit onto the current branch. */
-  gitRevert: (scope: SessionScope, hash: string) =>
-    call<{ ok: true }>('git.revert', scopePayload(scope, { hash })),
-  /** Cherry-pick one commit onto the current branch. */
-  gitCherryPick: (scope: SessionScope, hash: string) =>
-    call<{ ok: true }>('git.cherry-pick', scopePayload(scope, { hash })),
-  /** Release a terminal's process immediately (tab closed; the WS close frame
-   *  may be unreachable while the socket is down, so the host also accepts
-   *  this explicit route). */
-  ptyClose: (scope: SessionScope, tab: string) =>
-    call<{ ok: true }>('pty.close', scopePayload(scope, { tab })),
-  /** Release an agent terminal by uuid (tab closed while WS was down). */
   agentPtyClose: (uuid: string) =>
     call<{ ok: true }>('agent-pty.close', { uuid }),
   /** Terminal dependency status (issue #140): after a WS close 1011 with
@@ -303,12 +294,12 @@ export function downloadUrl(scope: SessionScope, path: string): string {
   return fileUrl(scope, path, true)
 }
 
-/** Shared URL builder for the /sidebar/file route (media vs download). */
+/** Shared URL builder for the /api/sidebar.file route (media vs download). */
 function fileUrl(scope: SessionScope, path: string, download: boolean): string {
   const params = new URLSearchParams({ sessionId: scope.sessionId, path })
   if (scope.cwd !== undefined && scope.cwd !== '') params.set('cwd', scope.cwd)
   if (download) params.set('download', '1')
-  return `/sidebar/file?${params.toString()}`
+  return `/api/sidebar.file?${params.toString()}`
 }
 
 /**

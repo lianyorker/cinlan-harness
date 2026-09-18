@@ -7,11 +7,12 @@
 
 import z from '@deepseek-ai/schemastery'
 import {
-  SIDEBAR_PREFS_DEFAULTS,
-  SIDEBAR_PREFS_NS,
   TERMINAL_FONT_SIZE_DEFAULT,
   TERMINAL_FONT_SIZE_MAX,
   TERMINAL_FONT_SIZE_MIN,
+  TERMINAL_SCROLLBACK_DEFAULT,
+  TERMINAL_SCROLLBACK_MIN,
+  TERMINAL_SCROLLBACK_MAX,
   TITLE_BAR_STRIP_DEFAULT,
   TITLE_BAR_STRIP_MAX,
   TITLE_BAR_STRIP_MIN,
@@ -27,6 +28,9 @@ export {
   TERMINAL_FONT_SIZE_DEFAULT,
   TERMINAL_FONT_SIZE_MAX,
   TERMINAL_FONT_SIZE_MIN,
+  TERMINAL_SCROLLBACK_DEFAULT,
+  TERMINAL_SCROLLBACK_MIN,
+  TERMINAL_SCROLLBACK_MAX,
   TITLE_BAR_STRIP_DEFAULT,
   TITLE_BAR_STRIP_MAX,
   TITLE_BAR_STRIP_MIN,
@@ -50,6 +54,14 @@ export interface SidebarConfig {
   terminalsPerSession?: number
   /** How long a disconnected terminal process survives awaiting a reconnect. */
   reconnectGraceMs?: number
+  /** Maximum serialized terminal output frame, including metadata (bytes). */
+  terminalFrameBytes?: number
+  /** Maximum retained serialized output per attachment (bytes). */
+  terminalBufferBytes?: number
+  /** Maximum time an attached renderer may withhold an output acknowledgment. */
+  terminalAckTimeoutMs?: number
+  /** Maximum wait for native process exit during provider disposal. */
+  terminalShutdownTimeoutMs?: number
   /**
    * Terminal shell (absolute path or bare executable name) for BOTH the UI
    * terminal tabs and the model-facing `terminal_*` tools. Empty = auto:
@@ -76,6 +88,10 @@ export const Config: z<SidebarConfig> = z.object({
   listLimit: z.number().step(1).min(1).default(1000),
   terminalsPerSession: z.number().step(1).min(1).default(3),
   reconnectGraceMs: z.number().step(1).min(0).default(30_000),
+  terminalFrameBytes: z.number().step(1).min(512).max(1024 * 1024).default(16 * 1024),
+  terminalBufferBytes: z.number().step(1).min(1024).max(16 * 1024 * 1024).default(8 * 1024 * 1024),
+  terminalAckTimeoutMs: z.number().step(1).min(1).default(30_000),
+  terminalShutdownTimeoutMs: z.number().step(1).min(1).default(10_000),
   shell: z.string().default(''),
   shellArgs: z.array(z.string()).default([]),
 })
@@ -88,6 +104,10 @@ export interface ResolvedSidebarConfig {
   listLimit: number
   terminalsPerSession: number
   reconnectGraceMs: number
+  terminalFrameBytes: number
+  terminalBufferBytes: number
+  terminalAckTimeoutMs: number
+  terminalShutdownTimeoutMs: number
   /** The configured terminal shell; empty means the host auto-resolves it. */
   shell: string
   /** Explicit shell arguments; empty means use the platform defaults. */
@@ -108,6 +128,10 @@ export function resolveSidebarConfig(config: SidebarConfig | undefined): Resolve
     listLimit: config?.listLimit ?? 1000,
     terminalsPerSession: config?.terminalsPerSession ?? 3,
     reconnectGraceMs: config?.reconnectGraceMs ?? 30_000,
+    terminalFrameBytes: config?.terminalFrameBytes ?? 16 * 1024,
+    terminalBufferBytes: config?.terminalBufferBytes ?? 8 * 1024 * 1024,
+    terminalAckTimeoutMs: config?.terminalAckTimeoutMs ?? 30_000,
+    terminalShutdownTimeoutMs: config?.terminalShutdownTimeoutMs ?? 10_000,
     shell: config?.shell?.trim() ?? '',
     shellArgs: config?.shellArgs ?? [],
   }
@@ -125,6 +149,9 @@ export const PrefsSchema: z<SidebarPrefs> = z.object({
   bottomPanelAutoTerminal: z.boolean().default(true),
   terminalFontFamily: z.string().default(''),
   terminalFontSize: z.number().step(1).min(TERMINAL_FONT_SIZE_MIN).max(TERMINAL_FONT_SIZE_MAX).default(TERMINAL_FONT_SIZE_DEFAULT),
+  terminalScrollback: z.number().step(1).min(TERMINAL_SCROLLBACK_MIN).max(TERMINAL_SCROLLBACK_MAX).default(TERMINAL_SCROLLBACK_DEFAULT),
+  terminalCursorStyle: z.union([z.const('block'), z.const('underline'), z.const('bar')]).default('block'),
+  terminalCursorBlink: z.boolean().default(true),
   interceptOpenPath: z.boolean().default(true),
   editorExplorer: z.boolean().default(false),
   terminalShell: z.string().default(''),

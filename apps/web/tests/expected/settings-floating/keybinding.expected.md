@@ -1,0 +1,4 @@
+- text: Toggle Floating Workspace Customize the Floating Workspace command on the Keyboard shortcuts page. The shortcut does not depend on the entry position. Ctrl + Shift + ␣
+- 'button "Record: Toggle Floating Workspace"': Record
+- 'button "Unbind: Toggle Floating Workspace"': Unbind
+- 'button "Reset: Toggle Floating Workspace" [disabled]': Reset

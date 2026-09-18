@@ -1,22 +1,49 @@
 - region "设置":
-  - navigation:
+  - text: 设置
+  - navigation "设置导航":
     - button "返回应用":
       - img
       - text: 返回应用
     - img
     - searchbox "搜索设置..."
-    - text: 设置
+    - text: Ctrl / ⌘ K
+    - button "个人偏好" [expanded]:
+      - text: 个人偏好
+      - img
     - button "通用设置"
+    - button "通知"
+    - button "浮动工作区"
+    - button "快捷键"
+    - button "AI 与模型" [expanded]:
+      - text: AI 与模型
+      - img
     - button "模型"
-    - button "插件"
     - button "Agent 预设"
+    - button "编排"
+    - button "语音"
+    - button "开发工作流" [expanded]:
+      - text: 开发工作流
+      - img
+    - button "Git 与源代码控制"
+    - button "集成"
+    - button "工具与设备" [expanded]:
+      - text: 工具与设备
+      - img
+    - button "安全研究"
     - button "浏览器"
     - button "计算机控制"
     - button "手机模拟器"
     - button "设计"
+    - button "扩展管理" [expanded]:
+      - text: 扩展管理
+      - img
+    - button "插件"
     - button "侧边卡片"
+  - text: AI 与模型
+  - img
+  - strong: 模型
   - button "打开配置文件"
-  - heading "模型" [level=2]
+  - heading "模型" [level=1]
   - paragraph: 填入各提供方的 API 密钥即可使用其模型。
   - status: 已保存 minimax-cn。
   - list:

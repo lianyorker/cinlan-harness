@@ -142,11 +142,35 @@ describe('PluginsSettingsSection', () => {
     expect(screen.getByText('all').closest('[role="tabpanel"]')).toHaveProperty('hidden', true)
   })
 
-  it('leads with its own heading and intro', () => {
+  it('leaves the page title to the shell and keeps its intro', () => {
     renderSection([{ id: 'configurable', order: 0, label: en.configurableTab }])
 
-    expect(screen.getByRole('heading', { name: en.title })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: en.title })).toBeNull()
     expect(screen.getByText(en.intro)).toBeTruthy()
+  })
+
+  it('selects every fresh search request and forwards its target to the mounted tab', () => {
+    const rows = [
+      { id: 'configurable', order: 0, label: en.configurableTab },
+      { id: 'all', order: 10, label: 'Plugin list' },
+    ]
+    const renderSlot = vi.fn((_name: string, _owner: unknown, options: { only?: string }) => <span>{options.only}</span>)
+    const target = { itemId: 'inventory', anchorId: 'plugins-inventory', tabId: 'all' }
+    const props = {
+      t, target, renderSlot,
+      useTabs: (select: (value: typeof rows) => unknown) => select(rows),
+    } as unknown as PluginsSettingsSectionProps
+    const view = render(<PluginsSettingsSection {...props} />)
+    const inventory = screen.getByRole('tab', { name: 'Plugin list' })
+    expect(inventory.getAttribute('aria-selected')).toBe('true')
+    expect(renderSlot).toHaveBeenCalledWith('settings.plugins.tab', { target }, { only: 'all' })
+    fireEvent.click(screen.getByRole('tab', { name: en.configurableTab }))
+    expect(inventory.getAttribute('aria-selected')).toBe('false')
+    view.rerender(<PluginsSettingsSection {...props} target={{ ...target }} />)
+    expect(inventory.getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByText('configurable').closest('[role="tabpanel"]')).toHaveProperty('hidden', true)
+    view.rerender(<PluginsSettingsSection {...props} target={{ itemId: 'shell', anchorId: 'plugins-shell', tabId: 'configurable' }} />)
+    expect(screen.getByRole('tab', { name: en.configurableTab }).getAttribute('aria-selected')).toBe('true')
   })
 
   it('moves focus and selection with standard horizontal tab keys', () => {
@@ -196,6 +220,31 @@ describe('ConfigurablePluginsTab', () => {
     renderConfigurable([], { bash: 'shell' }, false)
 
     expect(screen.queryByText(en.empty)).toBeNull()
+  })
+
+  it('passes a search target from the tab to the matching card without writing settings', () => {
+    const cardStore = createSnapshotStore<BashCardState>({
+      ...settled, timeoutMs: field('60000'), maxOutputBytes: field('64000'),
+    })
+    const tabStore = createSnapshotStore<ConfigurablePluginsTabState>({ loaded: true, namespaces: ['shell'] })
+    const actions = cardActions()
+    const target = { itemId: 'shell', anchorId: 'plugins-shell', tabId: 'configurable' }
+    const props = {
+      t, target, useConfigurablePlugins: bindSnapshotSelector(tabStore),
+      renderSlot: (_name: string, owner: { target?: typeof target }) => <BashCard {...{
+        ...actions, ...owner, t, useBashCard: bindSnapshotSelector(cardStore),
+      } as unknown as BashCardProps} />,
+    } as unknown as ConfigurablePluginsTabProps
+    const view = render(<ConfigurablePluginsTab {...props} />)
+    expect(screen.getByLabelText(en.bashTimeoutMs).closest('[data-settings-anchor]')?.getAttribute('data-settings-anchor'))
+      .toBe('plugins-shell')
+    expect(view.container.querySelector('[data-settings-anchor="plugins-configuration"]')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Hide settings: Shell' }))
+    expect(screen.queryByLabelText(en.bashTimeoutMs)).toBeNull()
+    view.rerender(<ConfigurablePluginsTab {...props} target={{ ...target }} />)
+    expect(screen.getByLabelText(en.bashTimeoutMs)).toBeTruthy()
+    expect(actions.edit).not.toHaveBeenCalled()
+    expect(actions.save).not.toHaveBeenCalled()
   })
 
   it('dispatches one card per namespace, keyed by it', () => {

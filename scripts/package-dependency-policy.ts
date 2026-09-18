@@ -57,6 +57,9 @@ const PEER_REQUIRED_HOST_EXPORTS = {
   '@deepseek-ai/dsh-scope': ['carrierKeyOf', 'scopeOf', 'scopeTarget'],
   '@deepseek-ai/dsh-session': ['SESSION_FORMAT_VERSION'],
   '@deepseek-ai/dsh-session-persistence': ['SessionPersistenceNotFoundError'],
+  '@deepseek-ai/dsh-sidebar-terminals': ['SidebarTerminals', 'SidebarTerminalError'],
+  '@deepseek-ai/dsh-automation': ['AutomationError'],
+  '@deepseek-ai/dsh-sidebar-git': ['SidebarGitError'],
 } as const satisfies HostDependencyExports
 
 /** Exact import specifier to reviewed runtime exports. */

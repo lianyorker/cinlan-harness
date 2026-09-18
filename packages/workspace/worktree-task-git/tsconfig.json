@@ -31,6 +31,15 @@
     },
     {
       "path": "../workspace"
+    },
+    {
+      "path": "../../git/git-settings"
+    },
+    {
+      "path": "../../settings/settings"
+    },
+    {
+      "path": "../../util/values"
     }
   ]
 }

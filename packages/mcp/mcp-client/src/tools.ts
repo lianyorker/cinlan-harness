@@ -25,6 +25,9 @@ import type { ToolDefinition, ToolExecution, ToolExecutionResult } from '@deepse
 import { assertSupportedJsonSchema } from '@deepseek-ai/dsh-tools'
 import type { JsonSchemaNode } from '@deepseek-ai/dsh-tools'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
+import { describeTool } from './observation.ts'
+import { McpConnectionFailure, connectionErrorCode } from './failure.ts'
+import type { McpToolDescriptor } from './types.ts'
 
 /** Resolved options relevant to tool bridging. */
 export interface ToolBridgeOptions {
@@ -32,6 +35,16 @@ export interface ToolBridgeOptions {
   registrationFailure: 'contain' | 'throw'
   serverName: string
   toolCallTimeoutMs: number
+  /** Cancel discovery without changing the previous registrations. */
+  signal?: AbortSignal
+  /** Check current generation immediately before the synchronous registration swap. */
+  canCommit?: () => boolean
+  /** Observe the exact committed registrations, including a contained conflict. */
+  onCommit?: (tools: readonly McpToolDescriptor[], error?: unknown) => void
+  /** Suppress raw upstream diagnostics for credential-managed launchers. */
+  safeDiagnostics?: boolean
+  /** Redact discovery metadata without modifying protocol requests. */
+  redact?: (text: string) => string
 }
 
 /** State for one sync generation: the current set of disposers keyed by public name. */
@@ -70,10 +83,11 @@ const IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
 const CANONICAL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
 
 /** List without mutating the SDK's per-page output-validator cache. */
-function listToolsUncached(client: Client, cursor?: string) {
+function listToolsUncached(client: Client, cursor?: string, signal?: AbortSignal) {
   return client.request(
     { method: 'tools/list', ...cursor === undefined ? {} : { params: { cursor } } },
     ListToolsResultSchema,
+    ...signal === undefined ? [] : [{ signal }],
   )
 }
 
@@ -149,15 +163,20 @@ export async function syncTools(
 ): Promise<ToolDisposers> {
   // Phase 1: fetch and build the next generation without touching the registry.
   const definitions = new Map<string, ToolDefinition>()
+  const descriptors: McpToolDescriptor[] = []
   let cursor: string | undefined
   do {
-    const response = await listToolsUncached(client, cursor)
+    opts.signal?.throwIfAborted()
+    const response = await listToolsUncached(client, cursor, opts.signal)
     for (const tool of response.tools) {
       const publicName = publicToolName(opts.serverName, tool.name)
       if (definitions.has(publicName)) {
         throw new Error(
           `mcp-client(${opts.serverName}): server listed tool "${tool.name}" more than once — invalid tool list`,
         )
+      }
+      if (opts.onCommit !== undefined) {
+        descriptors.push(describeTool(publicName, tool.description ?? '', tool.inputSchema as JsonSchemaNode, opts.redact))
       }
       definitions.set(publicName, createDefinition(
         client,
@@ -174,6 +193,10 @@ export async function syncTools(
     cursor = response.nextCursor
   } while (cursor)
 
+  // No await occurs between this guard and the completed registration swap.
+  opts.signal?.throwIfAborted()
+  if (opts.canCommit !== undefined && !opts.canCommit()) return previous
+
   // Phase 2: swap generations.
   for (const dispose of previous.values()) dispose()
   const disposers: ToolDisposers = new Map()
@@ -186,10 +209,12 @@ export async function syncTools(
     // registration occupies this server's namespace. Roll back so the model
     // sees either the full generation or none of it — never a partial set.
     for (const dispose of disposers.values()) dispose()
-    ctx.logger.error(`mcp-client(${opts.serverName}): tool registration failed, no tools registered: ${String(error)}`)
+    ctx.logger.error(`mcp-client(${opts.serverName}): tool registration failed, no tools registered: ${opts.safeDiagnostics ? 'namespace-conflict' : String(error)}`)
+    opts.onCommit?.([], error)
     if (opts.registrationFailure === 'throw') throw error
     return new Map()
   }
+  opts.onCommit?.(Object.freeze(descriptors))
   return disposers
 }
 
@@ -318,7 +343,10 @@ function createExecutor(
     // string/number/null). Fallback to {} lets the MCP server produce a
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
-    const result = await callToolUncached(client, rawName, argsObj, exec, opts)
+    const result = await callToolUncached(client, rawName, argsObj, exec, opts).catch((error: unknown) => {
+      if (opts.safeDiagnostics) throw new McpConnectionFailure(connectionErrorCode(error, 'connection-failed'))
+      throw error
+    })
 
     // The SDK may return a legacy `toolResult` shape; normalize to content array.
     if (!Array.isArray(result.content)) {
@@ -326,7 +354,7 @@ function createExecutor(
         ? JSON.stringify(result.toolResult)
         : '(no output)'
       const text = typeof rendered === 'string' ? rendered : '(no output)'
-      if (result.isError === true) throw new Error(text)
+      if (result.isError === true) throw new Error(opts.redact?.(text) ?? text)
       return {
         content: [{ type: 'text', text }],
         ...result.structuredContent !== undefined
@@ -343,7 +371,7 @@ function createExecutor(
 
     // MCP isError → throw so ToolRuntime produces an isError result for the model.
     if (result.isError === true) {
-      throw new Error(text)
+      throw new Error(opts.redact?.(text) ?? text)
     }
 
     const value: McpResult = {

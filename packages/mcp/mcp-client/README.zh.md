@@ -108,6 +108,16 @@ kind: "package-reference"
 - **要么完整世代，要么没有。** 同步会原子地交换世代：获取失败保留上一世代，注册冲突则回滚整个尝试中的世代。
 - **一个规范值，一个投影。** 执行器返回协议完整的规范 `McpResult`；另一个有序投影准备 Native 内容，`finalizeContent` 只在注册表的执行后结果未变时安装它，因此策略块与值替换保持权威。
 
+### 管理观察
+
+包根入口、`./registry` 与 `./invariant` 一同打包。共享运行时 chunk 与入口文件一起发布在 `lib/` 下。
+
+在根作用域 MCP 客户端之前挂载 `@deepseek-ai/dsh-mcp-client/registry`，即可读取 `ctx.mcpRegistry.getSnapshot()` 并订阅变化。Agent 作用域客户端不进入该目录。每条不可变记录标识活动实例、服务器 namespace、传输类型、所有者、生命周期阶段、重试次数以及已提交的公开工具描述。记录不包含可执行配置、端点、环境变量、请求标头或上游原始错误。组合所有权使用实际 Loader 配置项 id 或插件名称；它既不授予 profile 写权限，也不标识来源 patch 层。
+
+`launchMcpClient(ctx, config, options)` 与插件共享 namespace 预留、传输监督器和工具注册。其句柄提供初始结果、状态观察、只执行发现的 `probe(signal)` 与等待清理完成的 `dispose()`。启动器通过私有调用参数接收托管所有权和每次尝试的新配置解析器；插件 `Config` 无法声明托管所有权。托管启动器抑制子进程 stderr 和原始传输诊断。其脱敏器移除公开描述与 schema 中的已知凭据；公开工具名称中包含凭据时，发现会被拒绝。
+
+`connecting` 包含初始化与初次发现；`ready` 表示最近一次发现已提交且此后未观察到错误；`backoff` 包含下一次重试时间；`error` 携带固定安全代码；`stopped` 在清理后发布。SDK HTTP 错误会将活动连接标为出错，而不增加另一层重连循环。成功的探测或列表变更同步恢复就绪状态。探测与普通发现串行执行，绝不调用工具；取消会保留上一世代。断开连接的工具会保留在列表中，直到成功替换、停止或重试预算耗尽。 传输关闭超时时，停止状态保留 `close-timeout`，启动器会跨 HMR 保留该 namespace，直到 Host 重启；替代连接无法与尚未确认退出的旧进程重叠。
+
 ### 源码地图
 
 | 文件 | 职责 |
@@ -116,7 +126,8 @@ kind: "package-reference"
 | [`src/connection.ts`](src/connection.ts) | 连接监督器：客户端世代、重连策略、尝试预算、dispose |
 | [`src/tools.ts`](src/tools.ts) | 工具桥接：发现、命名、注册交换、执行、图片投影 |
 | [`src/transport.ts`](src/transport.ts) | 传输工厂：带清洗环境的 stdio spawn、Streamable HTTP |
-| — | 不发布运行时不变式伴生入口；世代只能通过工具注册表观察。 |
+| [`src/registry.ts`](src/registry.ts) | 根连接只读目录及受 effect 管理的状态观察 |
+| [`src/invariant.ts`](src/invariant.ts) | 在工具分发前验证观察到的工具名称存在于根工具注册表中 |
 
 ### 生命周期与同步
 
@@ -188,7 +199,7 @@ kind: "package-reference"
 这些限制说明你无法用本插件做什么、以及何时需要运维注意。它们是当前包约束，不是与其他 MCP 客户端的对比，也不是任务积压。
 
 - **只桥接 MCP 的工具能力**——Resources 与 Prompts 没有 harness 消费机制，暂缓实现。
-- **启动与发现超时继承自 MCP SDK**——插件不暴露连接或发现超时；每次 `initialize` 与分页 `tools/list` 请求都使用 SDK 默认的 60 秒请求超时，因此无响应的服务器或 cursor chain 在初始同步完成期间可能同时延迟激活与 teardown。
+- **启动与发现超时继承自 MCP SDK**——插件不暴露连接或发现超时；每次 `initialize` 与分页 `tools/list` 请求都使用 SDK 默认的 60 秒请求超时，因此无响应的服务器或 cursor chain 可能延迟激活。dispose 会中止请求，发现会在替换注册前检查取消。
 - **重连在传输关闭时触发**——崩溃的 stdio 子进程会触发重连；Streamable HTTP 失败按请求经 SDK 传输自身的恢复机制暴露，因此不可达的 HTTP 服务器会按调用重试，而非由 supervisor 重新 spawn。
 - **图片是唯一的持久丰富结果桥接**——PNG、JPEG、WebP 与 GIF 在确切能力得到证明后进入 Native 上下文。音频与嵌入资源载荷仍只存在于执行局部并带明确诊断，资源链接只以文本保留名称与 URI。
 - **不强制执行不受支持的 MCP 输出 schema**——已声明 schema 使用 harness 子集之外的词汇时，`structuredContent` 回退为 `JsonValue`。
@@ -203,8 +214,8 @@ kind: "package-reference"
 本开发备注是维护者的工作上下文：开放设计问题与尚未决定的探索方向。它明确不具权威性——已交付行为、限制与既定理由以上文、包代码与所链接的 Agent Note 为准。
 
 - 公开名称算法是由测试固定的 v1 约定；发布后更改会破坏会话历史与权限规则。
-- 由 DSH 显式拥有的连接与发现超时是开放的探索方向；SDK 的 60 秒默认值约束着启动与 teardown。
-- Streamable HTTP 的重连归属仍未决定：按请求重试是 SDK 行为，supervisor 也可以拥有 HTTP 世代。
+- 由 DSH 显式拥有的连接与发现超时是开放的探索方向；每次请求目前使用 SDK 的 60 秒默认值。
+- Streamable HTTP 的流恢复仍由 SDK 拥有；显式重连会替换启动器实例。
 - 桥接 MCP Resources 需要 harness 侧的注入决策（系统提示词、按需或模型触发）；桥接 Prompts 需要 harness 缺少的提示词模板概念。
 - 固定的 MCP SDK 仍在演化；上游破坏性变更需要更新桥接。
 

@@ -6,6 +6,14 @@ One page per subsystem of the DeepSeek Harness: what it is, the data structures 
 
 | Page | Owns |
 |---|---|
+| [artifact.md](artifact.md) | Artifact Cordis API and links to immutable-reference, byte-storage, and authorization contracts |
+| [browser.md](browser.md) | Browser Cordis API and links to persistent page, observation, navigation, and transfer contracts |
+| [coordination.md](coordination.md) | Run/Task coordination API, dependencies, messaging, approvals, and executor ownership |
+| [execution-host.md](execution-host.md) | Host identity, saved execution targets, worker inspection, and committed change events |
+| [git.md](git.md) | Git Provider and Session-bound review/mutation APIs, with package-owned request and result types |
+| [mcp.md](mcp.md) | MCP connection observations, current-profile management revisions, and runtime registries |
+| [security-research.md](security-research.md) | Assessment grants, authorization decisions, durable Findings, and vulnerability queries |
+| [voice.md](voice.md) | Local transcription engines, model definitions/cache state, and shared operation results |
 | [work-items.md](work-items.md) | Provider-backed Work Items, durable writes, and Workspace associations |
 | [device-control.md](device-control.md) | Desktop/mobile Providers, observations, permissions, and readiness |
 | [core.md](core.md) | how `packages/core` controls the agent loop: the package-by-package loop description, agent creation and ownership (`AgentHandle`), the `Agent` handle's delivery/cancellation/interception contracts, and the repo-wide type patterns (`…Map → derived-union`, branded ids) |
@@ -15,6 +23,7 @@ One page per subsystem of the DeepSeek Harness: what it is, the data structures 
 | [typert.md](typert.md) | Remote invocation descriptors, lookup/Context declarations, Typert registries, and the Host Gateway/Client API boundaries |
 | [goal.md](goal.md) | persisted goal identity, lifecycle snapshots, activation, change records, and round attribution |
 | [schedule.md](schedule.md) | Session-local reminder records, durable transitions, active views, and ordinary-conversation delivery |
+| [automation.md](automation.md) | Saved UTC definitions, exclusive process ownership, invocation claims, and Agent outcomes |
 | [todo.md](todo.md) | the todo package's whole-list item type, durable event ownership, projection, and open-turn invariant |
 | [commands.md](commands.md) | the human-command registry service: definitions, adapter discovery, direct invocation, results, and parsing views |
 | [session.md](session.md) | the full `SessionEventMap` variant catalog, `TurnEndReason`, `deriveMessages()`, execution enclosure, and standalone events |

@@ -18,10 +18,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type {
-  PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
+  InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import { computeColumns, RIGHTBAR_DEFAULT_RATIO, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_DEFAULT } from './columns.ts'
 import { DocumentTitle } from './DocumentTitle.tsx'
+import { handleSidebarShortcut } from './keyboard-commands.ts'
+import type { ShellShortcutInjected } from './keyboard-commands.ts'
 import type { createLayoutStore } from './stores.ts'
 import css from './AppFrame.module.css'
 
@@ -31,6 +33,7 @@ export type AppFrameProps =
   & PropsRenderSlots<'sidebar' | 'conversation' | 'rightbar' | 'shell.overlay'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
   & PropsLocale<'common'>
+  & InjectFace<ShellShortcutInjected>
 
 /** Center column grid item (session-body building block). */
 function CenterColumn(props: { children?: ReactNode }) {
@@ -119,6 +122,7 @@ export function AppFrame({
   actions,
   renderSlot,
   SessionProvider,
+  matchesSidebarShortcut,
   t,
 }: AppFrameProps) {
   const panels = useStore(s => s)
@@ -193,6 +197,7 @@ export function AppFrame({
   return (
     <div
       ref={frameRef}
+      onKeyDown={(event) => { handleSidebarShortcut(event, matchesSidebarShortcut, actions.toggleSidebar) }}
       className={css.frame}
       style={{
         gridTemplateColumns:

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Publish one stable identity for the process producing an artifact, with providers that control how host facts are collected.
+Publish a stable identity for each execution host and manage saved SSH targets for explicit bounded inspection. Local provenance remains separate from remote Session routing, which this group does not provide.
 
 ## Table of Contents
 
@@ -25,6 +25,8 @@ Publish one stable identity for the process producing an artifact, with provider
 |---|---|
 | [`execution-host/`](execution-host/README.md) | Execution-host identity contract used by provenance and authorization |
 | [`execution-host-local/`](execution-host-local/README.md) | Local-process provider for immutable host identity facts |
+| [`execution-host-targets/`](execution-host-targets/README.md) | Saved target records, strict OpenSSH connections, and live inspection ownership |
+| [`execution-host-worker/`](execution-host-worker/README.md) | Stdio worker with explicit exported roots and versioned inspection messages |
 
 <a id="dev-note"></a>
 ## Dev Note
@@ -32,6 +34,6 @@ Publish one stable identity for the process producing an artifact, with provider
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-No standalone subsystem page exists for this package group; execution-host contracts live with the group and package READMEs.
+The [Execution Host subsystem reference](../../docs/subsystems/execution-host.md) lists the generated Cordis API and events; identity, target, and worker protocol contracts remain with the package READMEs.
 
 </details>

@@ -1,0 +1,18 @@
+- id: prompt
+  name: cordis:mcp-fixture-prompt
+- id: tools
+  name: cordis:mcp-fixture-tools
+- id: storage
+  name: cordis:mcp-fixture-storage
+- id: json
+  name: cordis:mcp-fixture-json
+- id: domains
+  name: cordis:mcp-fixture-domains
+  config:
+    backend: json
+- id: credentials
+  name: cordis:mcp-fixture-credentials
+- id: registry
+  name: cordis:mcp-fixture-registry
+- id: manager
+  name: cordis:mcp-fixture-manager

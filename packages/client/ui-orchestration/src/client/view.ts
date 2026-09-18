@@ -1,40 +1,63 @@
-﻿/** Orchestration coverage detection: check whether each agent preset includes the workflow tool. */
-import type { AgentPresetRow, AgentPresetDocument } from '@deepseek-ai/dsh-agent-presets/types'
+/** Orchestration capabilities from the Host's evaluated plugin inventory. */
+import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 
-/** Coverage status of one preset against the workflow tool. */
-export type OrchestrationCoverageStatus = 'ready' | 'missing' | 'broken'
+type Preset = NonNullable<PluginInventorySnapshot['agentPresets']>[number]
+type PluginRow = Preset['rows'][number]
 
-/** One preset's orchestration coverage result. */
+/** Observed plugin state; configured means enabled without a live Fiber. */
+export type OrchestrationCoverageStatus = 'active' | 'configured' | 'disabled' | 'conditional' | 'pending' | 'failed' | 'missing' | 'broken'
+
+/** One preset's workflow and delegation tool availability. */
 export interface PresetCoverage {
-  readonly preset: AgentPresetRow
+  readonly preset: Preset
   readonly status: OrchestrationCoverageStatus
+  readonly subagent: OrchestrationCoverageStatus
+  readonly engine: OrchestrationCoverageStatus
 }
 
-/** Aggregate coverage across all presets. */
+/** Preset tool coverage and the separately owned Host workflow engine. */
 export interface OrchestrationCoverage {
   readonly presets: readonly PresetCoverage[]
+  readonly engine: OrchestrationCoverageStatus
+}
+
+function pluginStatus(rows: readonly PluginRow[], moduleName: string): OrchestrationCoverageStatus {
+  const matches = rows.filter(row => row.moduleName === moduleName)
+  if (matches.length === 0) return 'missing'
+  const enabled = matches.filter(row => row.enabled === true)
+  if (enabled.some(row => row.fiberPhase === 'active')) return 'active'
+  if (enabled.some(row => row.fiberPhase === null)) return 'configured'
+  if (enabled.some(row => row.fiberPhase === 'failed')) return 'failed'
+  if (enabled.length > 0) return 'pending'
+  if (matches.some(row => row.enabled === 'conditional')) return 'conditional'
+  return 'disabled'
 }
 
 /**
- * Detect orchestration coverage by reading each preset's composition text and
- * checking whether it includes the `tool-workflow` module. A broken preset is
- * reported as broken without reading its composition.
+ * Read evaluated rows without parsing or executing preset files in the browser.
+ * @param load - the existing Host plugin-inventory operation.
+ * @returns exact first-party tool coverage; configuration alone does not prove provider connectivity.
  */
 export async function detectOrchestrationCoverage(
-  list: () => Promise<readonly AgentPresetRow[]>,
-  read: (id: string) => Promise<AgentPresetDocument>,
+  load: () => Promise<PluginInventorySnapshot>,
 ): Promise<OrchestrationCoverage> {
-  const presets = await list()
-  const results = await Promise.all(presets.map(async (preset) => {
-    if (preset.broken !== undefined) return { preset, status: 'broken' as const }
-    const doc = await read(preset.id)
-    const hasWorkflow = doc.content.includes('tool-workflow')
-    return { preset, status: hasWorkflow ? 'ready' as const : 'missing' as const }
-  }))
-  return { presets: results }
+  const inventory = await load()
+  return {
+    engine: pluginStatus(inventory.entries, '@deepseek-ai/dsh-workflow-worker-thread'),
+    presets: (inventory.agentPresets ?? []).map(preset => ({
+      preset,
+      status: preset.broken === undefined ? pluginStatus(preset.rows, '@deepseek-ai/dsh-tool-workflow') : 'broken',
+      subagent: preset.broken === undefined ? pluginStatus(preset.rows, '@deepseek-ai/dsh-tool-subagent') : 'broken',
+      engine: preset.broken === undefined ? pluginStatus(preset.rows, '@deepseek-ai/dsh-workflow-worker-thread') : 'broken',
+    })),
+  }
 }
 
-/** Count presets by coverage status. */
+/**
+ * Count compositions with an enabled workflow tool separately from unavailable rows.
+ * @param coverage - evaluated Host inventory projection.
+ * @returns enabled, unavailable, broken, and total preset counts.
+ */
 export function coverageSummary(coverage: OrchestrationCoverage): {
   readonly ready: number
   readonly missing: number
@@ -45,9 +68,9 @@ export function coverageSummary(coverage: OrchestrationCoverage): {
   let missing = 0
   let broken = 0
   for (const entry of coverage.presets) {
-    if (entry.status === 'ready') ready += 1
-    else if (entry.status === 'missing') missing += 1
-    else broken += 1
+    if (entry.status === 'active' || entry.status === 'configured') ready += 1
+    else if (entry.status === 'broken' || entry.status === 'failed') broken += 1
+    else missing += 1
   }
   return { ready, missing, broken, total: coverage.presets.length }
 }

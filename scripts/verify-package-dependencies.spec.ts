@@ -156,6 +156,11 @@ describe('package dependency scope', () => {
       'carrierKeyOf', 'scopeOf', 'scopeTarget',
     ])
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-typert-protocol']).toBeUndefined()
+    expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-sidebar-terminals']).toEqual([
+      'SidebarTerminals', 'SidebarTerminalError',
+    ])
+    expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-automation']).toEqual(['AutomationError'])
+    expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-sidebar-git']).toEqual(['SidebarGitError'])
   })
 
   it('discovers the Client directory, dsh.client declarations, and configured Host packages', () => {
@@ -476,6 +481,9 @@ describe('dependency sections', () => {
       },
     )).toEqual([])
 
+    expect(collectPackageDependencyViolations({
+      facts: [subject], packages: [], policyViolations: [], workspaceNames: subject.workspaceNames,
+    }).some(message => message.includes('@deepseek-ai/dsh-runtime') && message.includes('peerDependencies'))).toBe(true)
     repairPackageDependencyManifest(subject)
     expect(manifest.dependencies).toBeUndefined()
     expect(manifest.peerDependencies).toMatchObject({

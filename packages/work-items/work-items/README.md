@@ -18,13 +18,13 @@ This package implements the provider-neutral Work Items Service Definition; the 
 - Known Limitations and Deferred Work
 - Dev Note
 
-WorkItemsRuntime is the Service Definition for normalized external Work Items and durable approved writes. It registers GitHub and Linear providers, selects an explicit source or exactly one usable provider, and forwards bounded reads while owning the prepare/confirm/cancel write ledger. It does not perform HTTP or resolve credentials; storageDomain owns durable bytes.
+WorkItemsRuntime is the Service Definition for normalized external Work Items and durable approved writes. It registers GitHub, GitLab, and Linear providers, selects an explicit source or exactly one usable provider, and forwards bounded reads while owning the prepare/confirm/cancel write ledger. It does not perform HTTP or resolve credentials; storageDomain owns durable bytes.
 
 ## Service API
 
 | Member | Behavior |
 |---|---|
-| registerProvider(provider) | Registers one github or linear provider for the calling plugin lifetime and returns a disposer. |
+| registerProvider(provider) | Registers one github, gitlab, or linear provider for the calling plugin lifetime and returns a disposer. |
 | list(request, signal?) | Selects the request source and returns a bounded normalized page. |
 | get(request, signal?) | Selects the provider from the configured source or opaque id prefix and returns one item. |
 

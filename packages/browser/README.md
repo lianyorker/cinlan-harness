@@ -16,6 +16,7 @@ Control persistent Browser pages and verified element captures through opt-in pr
 - [Packages](#packages)
 - [Dev Note](#dev-note)
 
+<a id="packages"></a>
 ## Packages
 
 This opt-in family controls persistent web pages exposed by Cinlan IDE without embedding a browser engine in the harness. The capability reference is [`browser/`](browser/README.md).
@@ -36,4 +37,4 @@ The default Cinlan Web composition uses `browser-cinlan` with the element-captur
 <a id="dev-note"></a>
 ## Dev Note
 
-No standalone subsystem page exists; the group and package READMEs own the persistent Browser documentation.
+The [Browser subsystem reference](../../docs/subsystems/browser.md) lists the generated Cordis API; persistent page, observation, and Provider contracts remain with the package READMEs.

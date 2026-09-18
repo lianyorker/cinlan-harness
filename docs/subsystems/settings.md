@@ -165,6 +165,12 @@ type SettingsUpdateSource = 'update' | 'provider'
 
 `SettingsDocumentOpenValue` confirms that `settings/openSettingsDocument` prepared the provider-owned document and handed it to the native text editor. `AgentPresetDirectoryOpenValue` reports either a completed native handoff or the resolved user-preset directory when desktop opening is unavailable. Neither operation accepts a browser-selected Host path.
 
+## Client navigation metadata
+
+The [settings Client base](../../packages/client/ui-settings/README.md) owns localized section-group and field-search metadata independently of Host settings schemas. Page owners register group membership; row owners register public titles, descriptions, keyword aliases, and focus anchors. Registrations are fiber-scoped, reject duplicate identities, and publish stable snapshots that refresh with locale dictionaries. Values and credentials are not search inputs.
+
+The [settings shell](../../packages/client/ui-settings-general/README.md) joins this metadata to mounted section slots. Metadata cannot create a page; missing grouping resolves to Extensions. Search selection carries an optional section/tab target, while the owning feature renders the destination. No user document or Session format changes are involved.
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>

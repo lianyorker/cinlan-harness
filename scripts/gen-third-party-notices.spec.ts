@@ -27,6 +27,7 @@ describe('THIRD_PARTY_NOTICES.md', () => {
   it('matches what the generator produces from the current manifests', () => {
     const generated = render()
     expect(generated).toContain('It depends on the third-party software listed below.')
+    expect(generated).toContain('| [`ssh2`](http://github.com/mscdex/ssh2) | MIT |')
     expect(readFileSync(resolve(root, 'THIRD_PARTY_NOTICES.md'), 'utf8'), 'stale notices — run `pnpm run gen-third-party-notices`').toBe(generated)
   })
 })
@@ -91,6 +92,24 @@ describe('virtualManifest', () => {
       writeFileSync(join(manifestDir, 'package.json'), JSON.stringify({ name, version, license: 'MIT' }))
 
       expect(virtualManifest(store, name)).toMatchObject({ name, version, license: 'MIT' })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('ignores optional platform directories without an installed manifest', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-notices-optional-'))
+    try {
+      const name = '@scope/pkg'
+      const store = join(root, 'store')
+      mkdirSync(join(store, '@scope+pkg@1.0.0', 'node_modules'), { recursive: true })
+      expect(virtualManifest(store, name)).toBeUndefined()
+
+      const installed = join(store, '@scope+pkg@2.0.0', 'node_modules', name)
+      mkdirSync(installed, { recursive: true })
+      writeFileSync(join(installed, 'package.json'), JSON.stringify({ name, version: '2.0.0', license: 'MIT' }))
+      expect(virtualManifest(store, name)).toMatchObject({ name, version: '2.0.0', license: 'MIT' })
+      expect(virtualManifest(store, name, '1.0.0')).toBeUndefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

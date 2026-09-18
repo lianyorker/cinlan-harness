@@ -46,7 +46,7 @@ Service 与 Provider package 不贡献 prompt 或 model tool。`@deepseek-ai/dsh
 - Workspace context 是显示 metadata，不会创建持久化 remote link，也不会修改本地 lease。
 
 
-<a id="开发备注"></a>
+<a id="dev-note"></a>
 ### 开发备注
 
 Provider response data 与 credential 保持 Host 归属；生成 catalog 是 API inventory 的来源。

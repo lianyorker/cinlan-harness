@@ -1,32 +1,21 @@
-.section { display: flex; flex-direction: column; gap: 16px; padding: 16px; min-width: 0; }
-
-.heading h2 { margin: 0; font-size: 18px; font-weight: 600; }
-.heading p { margin: 4px 0 0; font-size: 14px; color: var(--dsw-alias-text-secondary); }
-
-.search { padding: 6px 12px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 6px; font-size: 14px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-text-primary); }
-.search:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 1px; }
-
-.category { margin-top: 8px; }
-.categoryTitle { font-size: 14px; font-weight: 600; margin: 0 0 8px; padding: 4px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
-
-.commandRow { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
-.commandRow:last-child { border-bottom: none; }
-
-.commandName { flex: 1; font-size: 14px; min-width: 0; }
-.commandDesc { font-size: 12px; color: var(--dsw-alias-text-secondary); }
-
-.binding { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 4px; font-size: 13px; font-family: monospace; background: var(--dsw-alias-bg-layer-1); white-space: nowrap; }
-.bindingUnbound { color: var(--dsw-alias-text-secondary); font-style: italic; }
-
-.actions { display: flex; gap: 6px; flex-shrink: 0; }
-
-.btn { padding: 4px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 6px; font-size: 13px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-text-primary); cursor: pointer; }
-.btn:hover { background: var(--dsw-alias-bg-layer-1); }
-.btn:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 1px; }
-.btnRecord { background: var(--dsw-alias-state-business-primary); color: var(--dsw-alias-text-inverse); border-color: transparent; }
-.btnRecord:hover { opacity: 0.9; }
-
-.conflict { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 12px; background: var(--dsw-alias-state-error-bg); color: var(--dsw-alias-state-error-primary); }
-
-.message { font-size: 14px; color: var(--dsw-alias-state-error-primary); }
-.empty { font-size: 14px; color: var(--dsw-alias-text-secondary); padding: 16px 0; text-align: center; }
+.section { display: flex; flex-direction: column; gap: 24px; width: 100%; min-width: 0; }
+.heading h1 { margin: 0; font-size: 26px; line-height: 34px; font-weight: 600; }
+.heading p { margin: 8px 0 0; font: var(--dsw-font-xxs-12); color: var(--dsw-alias-label-secondary); }
+.search { box-sizing: border-box; width: 100%; min-width: 0; height: 36px; padding: 0 14px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 999px; corner-shape: round; font: var(--dsw-font-s-14); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
+.search:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+.category { min-width: 0; }
+.categoryTitle { margin: 0; padding-bottom: 8px; font: var(--dsw-font-s-14); font-weight: 600; }
+.commandRow { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; padding: 16px 0; min-width: 0; }
+.commandRow + .commandRow { border-top: 0.5px solid var(--dsw-alias-border-l2); }
+.commandName { flex: 1 1 220px; min-width: 0; font: var(--dsw-font-s-14); overflow-wrap: anywhere; }
+.commandDesc { margin-top: 4px; font: var(--dsw-font-xxs-12); color: var(--dsw-alias-label-secondary); }
+.binding { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; max-width: 100%; padding: 4px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 6px; font: var(--dsw-font-xxs-12); background: var(--dsw-alias-bg-layer-1); overflow-wrap: anywhere; }
+.actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; max-width: 100%; }
+.button { min-height: 36px; padding: 0 14px; border-width: 0.5px; border-radius: 999px; corner-shape: round; font: var(--dsw-font-s-14); }
+.conflict { font: var(--dsw-font-xxs-12); color: var(--dsw-alias-state-error-primary); overflow-wrap: anywhere; }
+.message { margin: 0; font: var(--dsw-font-xxs-12); color: var(--dsw-alias-label-secondary); }
+.empty { font: var(--dsw-font-s-14); color: var(--dsw-alias-label-secondary); padding: 16px 0; }
+@media (max-width: 600px) {
+  .commandName { flex-basis: 100%; }
+  .actions { margin-left: auto; }
+}

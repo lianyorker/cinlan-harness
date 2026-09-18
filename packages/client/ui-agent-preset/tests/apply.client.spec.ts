@@ -179,7 +179,7 @@ describe('ui-agent-preset apply', () => {
 
   it('declares the services it uses', () => {
     expect(inject).toEqual([
-      'slots', 'locale', 'remote', 'remote.agentPresets', 'remote.settings',
+      'settingsMetadata', 'slots', 'locale', 'remote', 'remote.agentPresets', 'remote.settings',
     ])
   })
 
@@ -206,6 +206,28 @@ describe('ui-agent-preset apply', () => {
     declareRoot(slots)
 
     await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
+  })
+
+  it('localizes value-free field search and removes it with the section declaration', async () => {
+    const { ctx, slots } = await bench()
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    expect(ctx.settingsMetadata.getSnapshot().items).toEqual([])
+    const release = declareRoot(slots)
+    await vi.waitFor(() => { expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(3) })
+    expect(ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual([
+      'agent-presets-default', 'agent-presets-built-in', 'agent-presets-custom',
+    ])
+    expect(ctx.settingsMetadata.getSnapshot().items[0]?.title).toBe('新会话使用')
+    ctx.locale.setLocale('en')
+    expect(ctx.settingsMetadata.getSnapshot().items[0]?.title).toBe('Use for new sessions')
+    release()
+    await vi.waitFor(() => { expect(ctx.settingsMetadata.getSnapshot().items).toEqual([]) })
+    declareRoot(slots)
+    await vi.waitFor(() => { expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(3) })
+    await fiber.dispose()
+    expect(ctx.settingsMetadata.getSnapshot().items).toEqual([])
+    await ctx.fiber.dispose()
   })
 
   it('hands the section its own store and default write', async () => {

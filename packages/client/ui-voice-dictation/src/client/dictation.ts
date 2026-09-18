@@ -1,18 +1,14 @@
 /**
  * Ctrl+Shift+E dictation capture: records the microphone via ScriptProcessorNode
  * at the system's native sample rate, then manually resamples to 16kHz mono.
- * POSTs the base64-encoded PCM to the Host's /voice/api/transcribe method.
- * Kept dependency-free (no React) so the capture/encode logic is unit-testable
- * without a DOM renderer.
+ * The controller owns transcription through its injected host callback.
  */
-import { voiceApi } from './api.ts'
-
 /** The sample rate the Host's shipped models require. */
 const TARGET_SAMPLE_RATE = 16_000
 
 /** One active recording session (ScriptProcessorNode + its accumulated samples). */
 export interface DictationRecording {
-  /** Stop recording and resolve the captured 16kHz mono float32 samples. */
+  /** Stop capture and close its AudioContext; reject if cleanup fails, otherwise resolve the 16kHz mono PCM. */
   stop(): Promise<Float32Array>
 }
 
@@ -24,7 +20,7 @@ export interface DictationRecording {
  * resolves.
  * @param stream - an active microphone MediaStream.
  * @param audioContextCtor - injectable AudioContext constructor (tests provide a fake).
- * @returns a handle whose stop() resolves the captured PCM samples.
+ * @returns a handle whose stop() closes capture and resolves PCM samples, or rejects if cleanup fails.
  */
 export function startRecording(
   stream: MediaStream,
@@ -32,12 +28,14 @@ export function startRecording(
 ): DictationRecording {
   const context = new audioContextCtor()
   const source = context.createMediaStreamSource(stream)
+  /* oxlint-disable typescript/no-deprecated -- Capture uses ScriptProcessorNode until a served AudioWorklet module is available. */
   const processor = context.createScriptProcessor(4096, 1, 1)
   const chunks: Float32Array[] = []
   processor.onaudioprocess = (event: AudioProcessingEvent) => {
     const input = event.inputBuffer.getChannelData(0)
     chunks.push(new Float32Array(input))
   }
+  /* oxlint-enable typescript/no-deprecated */
   source.connect(processor)
   // ScriptProcessorNode requires a connection to destination to fire onaudioprocess;
   // route through a zero-gain node to avoid feedback.
@@ -47,23 +45,25 @@ export function startRecording(
   muteGain.connect(context.destination)
 
   return {
-    stop: () => new Promise<Float32Array>((resolve) => {
-      // Allow any pending onaudioprocess callbacks to flush.
-      setTimeout(() => {
-        source.disconnect()
-        processor.disconnect()
-        muteGain.disconnect()
-        const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
-        const raw = new Float32Array(total)
-        let offset = 0
-        for (const chunk of chunks) {
-          raw.set(chunk, offset)
-          offset += chunk.length
-        }
-        const result = resampleToMono16k(raw, context.sampleRate)
-        context.close().then(() => resolve(result))
-      }, 200)
-    }),
+    stop: async () => {
+      // Allow pending onaudioprocess callbacks to flush before disconnecting.
+      await new Promise<void>((resolve) => { setTimeout(resolve, 200) })
+      source.disconnect()
+      processor.disconnect()
+      muteGain.disconnect()
+      // oxlint-disable-next-line typescript/no-deprecated -- Clear the owned ScriptProcessorNode callback after capture stops.
+      processor.onaudioprocess = null
+      const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+      const raw = new Float32Array(total)
+      let offset = 0
+      for (const chunk of chunks) {
+        raw.set(chunk, offset)
+        offset += chunk.length
+      }
+      const result = resampleToMono16k(raw, context.sampleRate)
+      await context.close()
+      return result
+    },
   }
 }
 
@@ -93,19 +93,4 @@ export function encodePcmBase64(samples: Float32Array): string {
   let binary = ''
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i] ?? 0)
   return btoa(binary)
-}
-
-/**
- * Full record-decode-transcribe pipeline for one dictation gesture.
- * @param recording - active recording to stop.
- * @param modelId - the shipped model to transcribe against.
- * @returns the transcript text.
- */
-export async function finishDictation(
-  recording: DictationRecording,
-  modelId: string,
-): Promise<string> {
-  const samples = await recording.stop()
-  const { text } = await voiceApi.transcribe(modelId, encodePcmBase64(samples))
-  return text
 }

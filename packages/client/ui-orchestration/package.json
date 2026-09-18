@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-orchestration",
-  "description": "Orchestration settings section for the dsh web client: workflow engine overview, agent-preset coverage, and usage examples",
+  "description": "Host tool parallelism and evaluated agent-preset capabilities for the dsh web client",
   "version": "0.1.5-alpha.1",
   "publishConfig": { "access": "public" },
   "type": "module",

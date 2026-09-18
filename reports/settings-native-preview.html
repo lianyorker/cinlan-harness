@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>设置 · Cinlan Harness</title>
+<style>
+:root{color-scheme:light;--bg:#fff;--rail:#f9fafb;--text:#0f1115;--secondary:#61666b;--muted:#81858c;--line:#e8eaed;--control:#f5f6f7;--hover:#f0f2f4;--active:#e4e6e9;--selection:#adb2b8;--option-border:#d5d8dd;--accent:#4176e6;--on:#202328;--on-text:#fff;--green:#398061;--green-bg:#edf5f0;--amber:#9b7029;--amber-bg:#faf4e8;--shadow:0 16px 64px #00000018;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px}
+:root[data-theme=dark]{color-scheme:dark;--bg:#151517;--rail:#1b1b1c;--text:#f1f3f5;--secondary:#b0b3b9;--muted:#898e97;--line:#303135;--control:#2c2c2e;--hover:#303236;--active:#353638;--selection:#676d78;--option-border:#42454a;--on:#e9ecf1;--on-text:#151517;--green:#87bea2;--green-bg:#22352a;--amber:#d5b377;--amber-bg:#362f23;--shadow:0 16px 64px #0005}
+*{box-sizing:border-box}body{margin:0;color:var(--text);background:var(--bg);line-height:1.6}button,input,select,textarea{font:inherit;color:inherit}button,a,select{touch-action:manipulation}button{cursor:pointer}button{border:0;background:none}button:disabled,input:disabled,select:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}a{color:var(--accent);text-decoration:none}button,select,input{transition:background .15s,border-color .15s}svg{display:block;flex-shrink:0;width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}[hidden]{display:none!important}h1,h2,h3,p{margin:0}h1{font-size:26px;font-weight:600;letter-spacing:-.6px;line-height:1.4}h2{font-size:14px;font-weight:600;line-height:22px}h3{font-size:14px;font-weight:500}small{font-size:12px}kbd{font-family:inherit;font-size:11px;line-height:20px;min-width:22px;padding:0 5px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--secondary);box-shadow:0 1px 0 var(--line)}::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:#adb2b866;border-radius:6px}::-webkit-scrollbar-thumb:hover{background:#adb2b8}
+.shell{height:100dvh;display:grid;grid-template-columns:280px minmax(0,1fr);overflow:hidden}.sidebar{background:var(--rail);display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}.nav-top{height:64px;flex:none;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 12px}.back{display:flex;gap:9px;align-items:center;height:34px;padding:0 12px;border-radius:999px;color:var(--secondary);width:100%;text-align:left}.back:hover{background:var(--hover);color:var(--text)}.back svg{width:15px;height:15px}.search-wrap{display:flex;align-items:center;position:relative;margin:14px 12px 7px;flex:none}.search-wrap>svg{position:absolute;left:12px;width:16px;color:var(--muted);pointer-events:none}.search-wrap input{width:100%;height:36px;border:1px solid var(--line);border-radius:999px;background:var(--bg);padding:0 57px 0 36px;outline:0;font-size:13px}.search-wrap input::placeholder{color:var(--muted)}.search-wrap kbd{position:absolute;right:11px;border:0;background:none;box-shadow:none;font-size:10px;pointer-events:none}.search-wrap:focus-within kbd{display:none}.nav-scroll{padding:0 12px 24px;min-height:0;overflow:auto;flex:1;scrollbar-gutter:stable}.nav-group{margin-top:17px}.group-title{width:100%;height:25px;padding:0 11px;display:flex;align-items:center;justify-content:space-between;font-size:11px;letter-spacing:.5px;color:var(--muted);text-align:left;margin-bottom:5px}.group-title:hover{color:var(--text)}.group-title svg{width:12px;height:12px;transition:transform .15s;opacity:.6}.group-title[aria-expanded=false] svg{transform:rotate(-90deg)}.nav-item{display:flex;align-items:center;gap:10px;width:100%;height:35px;margin:1px 0;padding:0 12px;border-radius:6px;color:var(--secondary);text-align:left;font-size:13px;white-space:nowrap}.nav-item svg{width:16px;height:16px}.nav-item:hover{background:var(--hover);color:var(--text)}.nav-item.active{background:var(--active);color:var(--text);font-weight:500}.nav-item .nav-label{flex:1}.nav-badge{font-size:10px;line-height:17px;color:var(--muted);padding:0 5px;border:1px solid var(--line);border-radius:4px;font-weight:400}.sidebar-footer{padding:14px 21px;flex:none;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}.brand-icon{width:28px;height:28px;color:var(--accent);display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;background:var(--bg)}.brand-icon svg{width:19px;height:19px}.brand-name{font-size:12px;font-weight:600;letter-spacing:.1px}.brand-caption{font-size:10px;color:var(--muted);line-height:16px}.icon-button{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;color:var(--secondary);flex:none}.icon-button:hover{background:var(--hover)}.sidebar-footer .icon-button{margin-left:auto}.sidebar-footer .icon-button svg{width:16px}
+.main{min-width:0;display:flex;flex-direction:column;overflow:hidden}.toolbar{height:64px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 30px;border-bottom:1px solid var(--line);background:var(--bg)}.breadcrumbs{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;white-space:nowrap}.breadcrumbs svg{width:12px;height:12px;opacity:.6}.breadcrumbs strong{font-weight:400;color:var(--secondary)}.toolbar-actions{display:flex;align-items:center;gap:17px}.save-status{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:center;white-space:nowrap}.status-dot{width:5px;height:5px;background:var(--green);border-radius:50%;display:inline-block;flex:none}.button{display:inline-flex;justify-content:center;align-items:center;gap:7px;padding:6px 13px;min-height:33px;border:1px solid var(--line);border-radius:9px;background:var(--bg);font-size:12px;white-space:nowrap;line-height:20px}.button svg{width:14px;height:14px}.button:hover{background:var(--hover);border-color:var(--selection)}.button.primary{background:var(--on);color:var(--on-text);border-color:var(--on)}.button.primary:hover{opacity:.86}.button.quiet{background:var(--control);border-color:transparent}.button.text{border-color:transparent;color:var(--secondary);padding-left:0;background:transparent}.button.text:hover{color:var(--text)}.button.danger{color:#c85252}.content-scroll{overflow:auto;min-height:0;flex:1;scrollbar-gutter:stable}.page{width:min(100%,960px);padding:34px 36px 46px;margin:0 auto;min-height:calc(100% - 1px)}.page-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:27px}.page-subtitle{margin-top:8px;font-size:13px;line-height:22px;color:var(--muted)}.page-context{display:inline-flex;align-items:center;gap:5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;white-space:nowrap;font-size:11px;line-height:22px;padding:0 9px;margin-top:6px}.page-context svg{width:12px;height:12px}.section{margin-top:30px}.section:first-of-type{margin-top:0}.section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 0 8px}.section-heading p{font-size:12px;color:var(--muted);margin-top:4px}.section-heading .tag{margin-left:7px}.setting-row{display:flex;align-items:center;gap:24px;padding:18px 0;min-height:73px;border-bottom:1px solid var(--line);scroll-margin-top:24px}.setting-row:last-child{border-bottom:0}.setting-copy{flex:1;min-width:0}.setting-label{font-size:14px;font-weight:400;line-height:22px;display:flex;align-items:center;gap:8px}.setting-description{font-size:12px;line-height:19px;color:var(--muted);margin-top:4px;max-width:590px}.setting-control{flex-shrink:0;display:flex;align-items:center;gap:9px;max-width:50%}.select-wrap{position:relative;display:inline-flex;max-width:100%}.select-wrap select{appearance:none;-webkit-appearance:none;max-width:100%;min-width:104px;height:36px;line-height:20px;border:0;border-radius:18px;background:var(--control);padding:0 36px 0 16px;cursor:pointer;font-size:13px}.select-wrap svg{pointer-events:none;position:absolute;right:13px;top:12px;width:12px;height:12px;color:var(--secondary)}.switch{width:36px;height:21px;border-radius:999px;position:relative;background:#c9cdd3;padding:0;flex:none;border:1px solid transparent}.switch:after{content:"";position:absolute;left:2px;top:2px;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0002;transition:transform .17s}.switch[aria-checked=true]{background:var(--on)}.switch[aria-checked=true]:after{transform:translateX(15px);background:var(--on-text)}.theme-row{padding:16px 0;border-bottom:1px solid var(--line)}.themes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.theme-option{height:84px;border:1px solid var(--option-border);border-radius:20px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;background:transparent;font-size:14px}.theme-option:hover{background:var(--hover)}.theme-option[aria-pressed=true]{background:var(--control);border-color:var(--selection)}.theme-option svg{width:18px;height:18px}.stepper{display:flex;align-items:center;gap:3px;background:var(--control);border-radius:18px;height:36px;padding:0 7px}.stepper button{height:24px;width:24px;border-radius:50%;display:grid;place-items:center;color:var(--secondary)}.stepper button:hover{background:var(--bg)}.stepper button svg{width:12px;height:12px}.stepper output{width:27px;text-align:center;font-variant-numeric:tabular-nums}.unit{font-size:12px;color:var(--muted)}.field{height:35px;border:1px solid var(--line);border-radius:9px;background:var(--bg);padding:0 11px;font-size:13px;min-width:0;width:220px;max-width:100%}.field:focus{border-color:var(--selection);outline-color:var(--accent)}.field.path{font-family:Consolas,monospace;font-size:12px;width:340px}.wide-row{align-items:flex-start;flex-direction:column;gap:10px}.wide-row .setting-control{width:100%;max-width:none}.wide-row .field{flex:1;max-width:none}.inline-tip{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:flex-start;margin-top:12px}.inline-tip svg{width:13px;height:13px;margin-top:2px}.tag{font-size:10px;line-height:19px;padding:0 7px;border-radius:5px;display:inline-flex;align-items:center;gap:5px;color:var(--secondary);background:var(--control);font-weight:400;white-space:nowrap}.tag.green{color:var(--green);background:var(--green-bg)}.tag.amber{color:var(--amber);background:var(--amber-bg)}.section-rule{border:0;border-top:1px solid var(--line);margin:22px 0 0}.notice{display:flex;gap:10px;align-items:flex-start;padding:13px 15px;border:1px solid var(--line);background:var(--rail);border-radius:10px;color:var(--secondary);font-size:12px;line-height:20px;margin:4px 0 21px}.notice svg{width:16px;height:16px;margin-top:2px;color:var(--muted)}.notice strong{font-weight:500;color:var(--text)}.notice p+p{margin-top:3px}.footer-note{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-top:36px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}.footer-note button{font-size:11px;color:var(--muted);padding:0}.footer-note button:hover{color:var(--text)}.footer-note .left{display:flex;align-items:center;gap:6px}.footer-note svg{width:12px;height:12px}.highlight{animation:highlight 1.8s ease}@keyframes highlight{0%,50%{background:var(--green-bg);box-shadow:0 0 0 8px var(--green-bg)}100%{background:transparent;box-shadow:0 0 0 0 transparent}}
+.resource-list{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:10px}.resource{display:flex;align-items:center;gap:14px;padding:17px 19px;min-height:82px;border-bottom:1px solid var(--line)}.resource:last-child{border-bottom:0}.resource-symbol{width:36px;height:36px;display:grid;place-items:center;background:var(--control);border:1px solid var(--line);border-radius:10px;flex:none;color:var(--secondary);font-size:14px;font-weight:600}.resource-symbol svg{width:19px;height:19px}.resource-copy{flex:1;min-width:0}.resource-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:500}.resource-description{font-size:11px;color:var(--muted);line-height:18px;margin-top:4px;overflow-wrap:anywhere}.resource-actions{display:flex;align-items:center;gap:12px}.resource-actions .button{min-height:29px;padding:3px 10px}.data-label{font-size:11px;color:var(--muted);font-weight:400}.subtabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin:4px 0 21px}.subtab{padding:10px 0;color:var(--muted);border-bottom:2px solid transparent;font-size:12px}.subtab.active{color:var(--text);border-color:var(--text)}.empty{padding:50px 24px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}.empty>svg{margin:0 auto 15px;width:27px;height:27px}.empty h3{color:var(--text);margin-bottom:6px}.empty p{font-size:12px}.empty .button{margin-top:18px}.key-combo{display:flex;gap:4px;align-items:center}.key-button{display:flex;align-items:center;gap:10px;color:var(--muted);padding:5px 7px;border-radius:8px}.key-button:hover{background:var(--control)}.key-button svg{width:13px;height:13px}.key-button kbd{min-width:26px;line-height:25px;font-size:12px;text-align:center}.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:14px 0 27px}.metric{border:1px solid var(--line);padding:19px 20px;border-radius:12px}.metric-label{font-size:12px;color:var(--muted)}.metric-value{font-size:27px;line-height:38px;letter-spacing:-.7px;margin:7px 0 3px;font-weight:500}.metric-foot{font-size:11px;color:var(--muted)}.chart{height:122px;display:flex;align-items:flex-end;gap:10px;padding-top:12px}.chart-column{height:100%;flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;color:var(--muted);font-size:10px}.bar{width:100%;min-height:4px;border-radius:4px 4px 0 0;background:var(--active)}.chart-column:last-child .bar{background:var(--secondary)}.terminal-preview{background:#1d2027;color:#c7ccd5;border-radius:12px;padding:20px;font:12px/1.9 Consolas,monospace;margin:14px 0 6px}.terminal-preview .green{color:#9ac4a8}.terminal-preview .dim{color:#808996}.flow{display:flex;align-items:center;justify-content:center;gap:14px;padding:27px 18px;border:1px solid var(--line);border-radius:12px;margin:12px 0 20px;background:var(--rail)}.flow-node{background:var(--bg);border:1px solid var(--line);border-radius:9px;text-align:center;padding:12px 20px;font-size:12px}.flow-node svg{margin:0 auto 6px;width:17px;height:17px}.flow-node small{display:block;font-size:10px;color:var(--muted);margin-top:2px}.flow>svg{width:15px;color:var(--muted)}.search-result{width:100%;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 0;border-bottom:1px solid var(--line);text-align:left}.search-result:hover{background:var(--rail)}.result-context{font-size:11px;color:var(--muted);margin-bottom:4px}.result-title{font-size:14px}.result-description{font-size:12px;color:var(--muted);margin-top:4px}mark{background:var(--amber-bg);color:inherit;border-radius:2px}.result-count{font-size:12px;color:var(--muted);margin-bottom:13px}
+.dialog{width:min(540px,calc(100vw - 32px));border:1px solid var(--line);border-radius:18px;padding:0;background:var(--bg);color:var(--text);box-shadow:var(--shadow);max-height:85dvh;overflow:auto}.dialog.wide{width:min(690px,calc(100vw - 32px))}.dialog::backdrop{background:#12182055;backdrop-filter:blur(3px)}.dialog-head{padding:23px 25px 16px;display:flex;align-items:center;justify-content:space-between}.dialog-head h2{font-size:18px;font-weight:600}.dialog-body{padding:0 25px 24px;font-size:13px;color:var(--secondary)}.dialog-body p{margin-bottom:12px}.dialog-actions{padding:16px 25px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:9px;border-top:1px solid var(--line);background:var(--rail)}.form-row{display:flex;flex-direction:column;gap:7px;margin-top:17px}.form-row label{color:var(--text);font-size:12px}.form-row .field,.form-row select{width:100%;max-width:none;height:39px}.form-row textarea{border:1px solid var(--line);border-radius:9px;background:var(--bg);padding:10px;resize:vertical;width:100%;min-height:90px;font-size:12px}.form-help{font-size:11px;color:var(--muted)}.form-error{font-size:12px;color:#c85252;margin-top:12px}.code-preview{white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--line);border-radius:10px;background:var(--rail);padding:16px;font:11px/1.8 Consolas,monospace;max-height:370px;overflow:auto;color:var(--secondary)}.mapping{width:100%;border-collapse:collapse;font-size:12px;margin:16px 0}.mapping th,.mapping td{text-align:left;vertical-align:top;padding:10px 8px;border-bottom:1px solid var(--line)}.mapping th{font-weight:500;color:var(--text)}.mapping td:first-child{width:110px;color:var(--text)}.toast{position:fixed;bottom:25px;left:calc(50% + 140px);transform:translate(-50%,14px);padding:10px 17px;border:1px solid var(--line);border-radius:10px;background:var(--bg);box-shadow:0 5px 25px #00000013;color:var(--text);font-size:12px;display:flex;align-items:center;gap:9px;z-index:50;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}.toast svg{width:15px;height:15px;color:var(--green)}.mobile-menu{display:none}.scrim{display:none}.required{color:var(--muted)}
+@media(min-width:1900px){.page{padding-top:44px}.nav-item{height:38px}}
+@media(max-width:1000px){.shell{grid-template-columns:238px minmax(0,1fr)}.page{padding:28px 28px 40px}.toolbar{padding:0 24px}.toolbar-actions{gap:10px}.save-status{display:none}.setting-row{gap:16px}.setting-control{max-width:53%}.setting-description{max-width:350px}.toast{left:calc(50% + 119px)}.resource-actions{gap:7px}.resource{padding:15px}.metric{padding:16px}.field.path{width:250px}}
+@media(max-width:700px){.shell{grid-template-columns:minmax(0,1fr)}.sidebar{position:fixed;inset:0 auto 0 0;width:280px;z-index:20;transform:translateX(-100%);transition:transform .2s}.shell.nav-open .sidebar{transform:translateX(0)}.shell.nav-open .scrim{display:block;position:fixed;inset:0;background:#0005;z-index:19}.mobile-menu{display:inline-flex;margin-right:5px}.toolbar{height:56px;padding:0 15px;gap:8px}.breadcrumbs{gap:6px;font-size:11px}.toolbar-actions{gap:5px}.toolbar-actions .button{font-size:11px;padding:5px 9px}.page{padding:27px 22px 35px}.page-heading{gap:10px;margin-bottom:22px}h1{font-size:23px}.page-context{font-size:10px;padding:0 7px}.page-subtitle{font-size:12px}.setting-row{gap:12px}.setting-label{font-size:13px}.setting-description{font-size:11px;line-height:18px}.select-wrap select{font-size:12px;min-width:88px;padding-left:12px}.setting-control{max-width:50%}.theme-option{height:77px;border-radius:16px;font-size:12px}.resource{gap:10px;flex-wrap:wrap}.resource-actions{margin-left:46px}.resource-actions .tag{margin-right:8px}.metric-grid{gap:8px}.metric{padding:13px 11px}.metric-value{font-size:22px}.metric-label,.metric-foot{font-size:10px}.flow{gap:8px;padding:18px 10px}.flow-node{padding:10px;flex:1}.flow-node small{font-size:9px}.footer-note{align-items:flex-start}.footer-note .left{max-width:70%;font-size:10px}.toast{left:50%;max-width:90%;width:max-content}.field{width:165px}.dialog-head{padding:20px}.dialog-body{padding:0 20px 20px}.dialog-actions{padding:14px 20px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="shell" id="shell">
+<button class="scrim" id="scrim" aria-label="关闭设置导航"></button>
+<aside class="sidebar" aria-label="设置导航">
+ <div class="nav-top"><button class="back" data-action="back"><span data-icon="arrowLeft"></span>返回应用</button></div>
+ <label class="search-wrap"><span data-icon="search"></span><input type="search" id="search" aria-label="搜索全部设置" placeholder="搜索设置…" autocomplete="off"><kbd>Ctrl K</kbd></label>
+ <nav class="nav-scroll" id="navigation" aria-label="设置分类"></nav>
+ <div class="sidebar-footer"><div class="brand-icon"><span data-icon="brand"></span></div><div><div class="brand-name">Cinlan Harness</div><div class="brand-caption">本机 · 默认配置</div></div><button class="icon-button" data-action="about" title="查看预览说明" aria-label="查看预览说明"><span data-icon="info"></span></button></div>
+</aside>
+<main class="main">
+ <header class="toolbar"><div class="breadcrumbs"><button class="icon-button mobile-menu" id="mobile-menu" aria-label="打开设置导航"><span data-icon="menu"></span></button><span id="breadcrumb-group">个人偏好</span><span data-icon="chevronRight"></span><strong id="breadcrumb-page">通用</strong></div><div class="toolbar-actions"><span class="save-status" id="save-status"><i class="status-dot"></i>更改自动保存在本地</span><button class="button quiet" data-action="config"><span data-icon="fileCode"></span>查看配置</button></div></header>
+ <div class="content-scroll" id="content-scroll"><div class="page" id="page"></div></div>
+</main>
+</div>
+<dialog class="dialog" id="dialog" aria-labelledby="dialog-title"><div class="dialog-head"><h2 id="dialog-title"></h2><button class="icon-button" id="dialog-close" aria-label="关闭对话框"><span data-icon="x"></span></button></div><form id="dialog-form"><div class="dialog-body" id="dialog-body"></div><div class="dialog-actions" id="dialog-actions"></div></form></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+// This offline prototype owns only its browser storage; it never writes Harness configuration.
+const ICONS={
+brand:'<path d="M19 5a9 9 0 1 0 0 14M19 5l-8 7 8 7M7 12h9"/>',
+arrowLeft:'<path d="m12 5-7 7 7 7M5 12h15"/>',arrowRight:'<path d="m12 5 7 7-7 7M4 12h15"/>',chevronRight:'<path d="m9 5 7 7-7 7"/>',chevronDown:'<path d="m6 9 6 6 6-6"/>',
+search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/>',x:'<path d="m6 6 12 12M6 18 18 6"/>',check:'<path d="m5 12 4 4L19 6"/>',plus:'<path d="M12 5v14M5 12h14"/>',minus:'<path d="M5 12h14"/>',menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+sliders:'<path d="M4 6h7m5 0h4M4 12h2m5 0h9M4 18h10m5 0h1M11 3v6M6 9v6M14 15v6"/>',bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',keyboard:'<rect x="2" y="5" width="20" height="14" rx="3"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10"/>',window:'<rect x="3" y="3" width="16" height="15" rx="2"/><path d="M3 8h16M8 18v3h13V9h-2"/>',
+model:'<path d="m12 3 9 5-9 5-9-5 9-5ZM3 12l9 5 9-5M3 16l9 5 9-5"/>',bot:'<rect x="4" y="7" width="16" height="13" rx="3"/><path d="M12 3v4M10 3h4M1 12h3M20 12h3M8 12v2M16 12v2M9 17h6"/>',workflow:'<rect x="9" y="2" width="6" height="5" rx="1"/><rect x="2" y="17" width="6" height="5" rx="1"/><rect x="16" y="17" width="6" height="5" rx="1"/><path d="M12 7v5M5 17v-5h14v5"/>',mic:'<rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/>',
+git:'<circle cx="6" cy="5" r="3"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="6" r="3"/><path d="M6 8v8M18 9c0 6-12 2-12 7"/>',integration:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17.5h7M17.5 14v7"/>',ticket:'<path d="M4 4h16v5a3 3 0 0 0 0 6v5H4v-5a3 3 0 0 0 0-6V4ZM13 4v3m0 3v4m0 3v3"/>',worktree:'<path d="M6 3v12M6 9h8a4 4 0 0 1 4 4v2"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/>',shield:'<path d="m12 2 8 4v6c0 5-8 10-8 10S4 17 4 12V6l8-4Z"/><path d="m8 12 3 3 5-6"/>',
+security:'<path d="m12 2 8 4v6c0 5-8 10-8 10S4 17 4 12V6l8-4Z"/><path d="m10 9-3 3 3 3m4-6 3 3-3 3"/>',browser:'<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>',capture:'<path d="M9 3H3v6m12-6h6v6M3 15v6h6m6 0h6v-6M8 8l9 4-4 1-1 4-4-9Z"/>',computer:'<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M12 17v4M8 21h8m0-13-6 3 3 1 1 3 2-7Z"/>',phone:'<rect x="6" y="2" width="12" height="20" rx="3"/><path d="M10 5h4M11 19h2"/>',design:'<path d="m16 3 5 5-10 10-7 2 2-7L16 3ZM13 6l5 5M6 13l5 5"/>',puzzle:'<path d="M4 4h5a3 3 0 1 1 6 0h5v5a3 3 0 1 0 0 6v5h-5a3 3 0 1 0-6 0H4v-5a3 3 0 1 1 0-6V4Z"/>',
+mcp:'<path d="m4 14 8-8a4 4 0 0 1 6 6l-7 7m-7-1 9-9m-3 13-6-6a4 4 0 0 1 0-6l7-7"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',server:'<rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01M11 6.5h6M11 17.5h6"/>',terminal:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m6 9 3 3-3 3m6 1h5"/>',chart:'<path d="M4 3v17h17M8 15V9m5 6V5m5 10v-4"/>',
+sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',moon:'<path d="M20 14A8.5 8.5 0 0 1 10 3 9 9 0 1 0 20 14Z"/>',monitor:'<rect x="3" y="3" width="18" height="13" rx="2"/><path d="M12 16v5M8 21h8"/>',folder:'<path d="M3 6V4h6l2 3h10v13H3V6Z"/>',fileCode:'<path d="M14 2H5v20h14V7l-5-5Zm0 0v5h5M9 11l-3 3 3 3m5-6 3 3-3 3"/>',info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',download:'<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',edit:'<path d="m15 4 5 5M4 20l5-1L21 7l-5-5L4 14v6Z"/>',play:'<path d="m8 4 12 8-12 8V4Z"/>',link:'<path d="m9 15 6-6M7 13l-2 2a4 4 0 0 0 6 6l4-4m-2-10 2-2a4 4 0 0 1 6 6l-4 4"/>',lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 14v3"/>',refresh:'<path d="M20 7v5h-5M4 17v-5h5M5 8a8 8 0 0 1 13-4l2 3M4 17l2 3a8 8 0 0 0 13-4"/>',flask:'<path d="M9 2h6m-5 0v7L4 19a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3L14 9V2M7 15h10"/>'};
+const icon=(name)=>'<svg viewBox="0 0 24 24" aria-hidden="true">'+(ICONS[name]||ICONS.sliders)+'</svg>';
+const esc=(value)=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function hydrateIcons(root=document){root.querySelectorAll('[data-icon]').forEach(e=>e.replaceWith(Object.assign(document.createElement('span'),{innerHTML:icon(e.dataset.icon)}).firstChild));}
+
+const GROUPS=[
+{id:'personal',label:'个人偏好',pages:['general','notifications','shortcuts','floating']},
+{id:'ai',label:'AI 与模型',pages:['models','presets','orchestration','voice']},
+{id:'development',label:'开发工作流',pages:['git','integrations','issues','worktree','isolation']},
+{id:'tools',label:'工具与设备',pages:['security','browser','capture','computer','mobile','design']},
+{id:'extensions',label:'扩展管理',pages:['plugins']},
+{id:'experimental',label:'实验',pages:['mcp','automation','hosts','terminal','usage']}];
+const select=(id,label,description,value,options,extra={})=>({id,label,description,value,options,type:'select',...extra});
+const toggle=(id,label,description,value=true,extra={})=>({id,label,description,value,type:'toggle',...extra});
+const input=(id,label,description,value,extra={})=>({id,label,description,value,type:'input',...extra});
+const action=(id,label,description,button,actionName,extra={})=>({id,label,description,button,action:actionName,type:'action',...extra});
+const number=(id,label,description,value,min,max,unit='',extra={})=>({id,label,description,value,min,max,unit,type:'number',...extra});
+const section=(title,rows,extra={})=>({title,rows,...extra});
+const PAGES={
+general:{label:'通用',title:'通用设置',icon:'sliders',description:'界面、会话与工作区，让 Cinlan 更适合你的工作习惯。',scope:'用户偏好',sections:[
+ section('',[
+ select('permission','默认权限','用于新会话；已开始的会话保留自己的权限设置。','workspace',['只读','workspace|工作区内修改','full|完全访问']),
+ select('language','语言','选择界面使用的语言。','zh',['zh|简体中文','en|English'],{preview:true}),
+ {id:'theme',type:'theme',label:'外观',value:'system',description:'浅色、深色或跟随系统外观。'},
+ number('fontSize','字号大小','仅影响会话内容的字号。',14,12,22,'px'),
+ select('transcript','对话显示','控制已完成轮次的过程内容。','compact',['compact|紧凑','expanded|展开详情']),
+ select('busySend','繁忙时的发送行为','智能体运行时，Enter 和发送按钮的行为；Ctrl + Enter 使用另一行为。','queue',['queue|排队发送','interrupt|立即打断'])]),
+ section('导航与工作区',[
+ select('tabOrder','标签切换顺序','使用快捷键切换标签时的排列方式。','recent',['recent|最近使用','position|标签位置']),
+ toggle('confirmPinned','关闭固定标签页前确认','避免意外关闭正在使用的固定标签页。'),
+ input('worktreeDirectory','工作区目录','相对路径按项目存放；绝对路径让所有项目共用一个目录。','.cinlan/worktrees',{wide:true,path:true}),
+ toggle('nestWorkspaces','按仓库组织工作区','在以仓库命名的子目录中创建新工作区。'),
+ toggle('confirmDelete','删除工作区前确认','删除前显示影响范围，并检查未提交的更改。')],{tag:'方案预览'}),
+ section('应用',[
+ select('editor','默认编辑器','从工作区打开文件时使用。','vscode',['vscode|Visual Studio Code','cursor|Cursor','system|系统默认']),
+ toggle('restoreWorkspace','启动时恢复工作区','继续上次打开的工作区和标签。'),
+ action('update','应用更新','预览使用本地示例版本，不会下载或安装应用。','查看版本','version')],{tag:'方案预览'})]},
+notifications:{label:'通知',title:'通知',icon:'bell',description:'在需要你关注时提醒你，其余时间保持专注。',scope:'用户偏好',sections:[
+ section('桌面通知',[
+ toggle('enabled','启用通知','允许 Cinlan 在任务状态变化时发出提醒。'),
+ toggle('completed','Agent 完成任务','智能体从运行状态转为空闲时通知。',true,{depends:'enabled'}),
+ toggle('bell','终端铃声','终端或工具输出铃声信号时通知。',true,{depends:'enabled'}),
+ toggle('focused','专注时静默','当前应用在前台时不重复发送桌面通知。',true,{depends:'enabled'}),
+ action('test','测试通知','在这个页面预览一条完成提醒，不请求系统权限。','发送测试通知','test-notification')]),
+ section('声音',[
+ toggle('sound','通知提示音','通知出现时播放声音。'),
+ select('soundType','提示音','为不同工作场景选择提醒声音。','soft',['soft|轻提示','bell|铃声','system|系统默认'],{depends:'sound'}),
+ number('volume','音量','通知声音的播放音量。',60,0,100,'%',{step:10,depends:'sound'})]),
+ section('免打扰',[
+ toggle('quiet','定时免打扰','指定时间内暂停声音与桌面提醒。',false),
+ input('quietStart','开始时间','根据本机时区计算。','22:00',{inputType:'time',depends:'quiet'}),
+ input('quietEnd','结束时间','跨过午夜时，在次日恢复通知。','08:00',{inputType:'time',depends:'quiet'})],{tag:'方案预览'})]},
+shortcuts:{label:'快捷键',title:'快捷键',icon:'keyboard',description:'用熟悉的按键完成常用操作。点击组合键可以重新录制。',scope:'用户偏好',notice:'快捷键编辑为交互方案预览。Ctrl + K 可直接搜索当前预览中的全部设置。',sections:[
+ section('会话',[
+ {id:'newSession',type:'shortcut',label:'新建会话',description:'在当前工作区开始新对话。',value:'Ctrl + N'},
+ {id:'send',type:'shortcut',label:'发送消息',description:'输入框中发送当前消息。',value:'Enter'},
+ {id:'newLine',type:'shortcut',label:'换行',description:'在输入框中插入换行。',value:'Shift + Enter'},
+ {id:'stop',type:'shortcut',label:'停止生成',description:'停止当前正在运行的轮次。',value:'Ctrl + Escape'}]),
+ section('导航',[
+ {id:'search',type:'shortcut',label:'搜索设置',description:'打开设置搜索。',value:'Ctrl + K'},
+ {id:'command',type:'shortcut',label:'命令面板',description:'查找并执行命令。',value:'Ctrl + Shift + P'},
+ {id:'floating',type:'shortcut',label:'切换浮动工作区',description:'打开或收起浮动工作区。',value:'Ctrl + Shift + Space'},
+ {id:'terminal',type:'shortcut',label:'切换终端',description:'聚焦终端面板。',value:'Ctrl + J'}])]},
+floating:{label:'浮动工作区',title:'浮动工作区',icon:'window',description:'随时打开一个轻量工作区，在终端、浏览器与文档之间切换。',scope:'用户偏好',notice:'当前项目已具备这些偏好的存储与设置入口；独立窗口和终端路由仍需接入。这里演示配置方式。',sections:[
+ section('工作区入口',[
+ toggle('enabled','启用浮动工作区','在主工作区外提供一个随手可用的入口。'),
+ select('position','入口位置','选择浮动工作区切换按钮的位置。','statusbar',['statusbar|状态栏','floating|浮动按钮'],{depends:'enabled'}),
+ input('directory','终端启动目录','留空时沿用当前工作区目录。','',{placeholder:'使用当前工作区目录',path:true,wide:true,depends:'enabled'})]),
+ section('默认窗口',[
+ number('width','窗口宽度','新建浮动窗口时使用。',960,640,1600,'px',{step:80,depends:'enabled'}),
+ number('height','窗口高度','新建浮动窗口时使用。',640,400,1200,'px',{step:40,depends:'enabled'}),
+ action('shortcut','切换快捷键','快捷键可独立于入口位置使用。','编辑快捷键','goto:shortcuts')])]},
+models:{label:'模型',title:'模型',icon:'model',description:'管理模型提供商与凭据，选择新会话使用的默认模型。',scope:'主机配置',sections:[
+ section('新会话默认值',[
+ select('default','默认模型','作为新会话的初始选择；会话中的模型可以单独切换。','deepseek-v4',['deepseek-v4|DeepSeek V4','gpt-6-astra|GPT-6 Astra','claude-sonnet|Claude Sonnet']),
+ select('effort','推理强度','模型支持时使用；当前正在执行的请求不会被更改。','medium',['low|低','medium|中','high|高'])]),
+ section('模型提供商',[],{custom:'providers',description:'API 凭据由凭据服务管理，与普通偏好分开保存。',button:'添加提供商',action:'add-provider'}),
+ section('其他设置',[
+ action('childModels','子智能体模型','在编排中管理模型选择与并行任务。','前往编排','goto:orchestration'),
+ action('advanced','高级模型配置','查看提供商地址、模型列表和配置归属。','查看配置','config')])]},
+presets:{label:'Agent 预设',title:'Agent 预设',icon:'bot',description:'为不同任务准备不同的模型、工具和工作方式。',scope:'预设文件',sections:[
+ section('默认 Agent',[
+ select('default','新会话使用','更改只用于新会话，已有对话保留原来的预设。','coding',['coding|编程助手','review|代码审查','research|研究助手'])]),
+ section('可用预设',[],{custom:'presets',description:'内置预设可查看和复制；自定义预设由独立文件管理。',button:'新建预设',action:'add-preset'}),
+ section('权限',[
+ action('permissions','新会话默认权限','权限与 Agent 预设分别管理。','前往通用设置','goto:general')])]},
+orchestration:{label:'编排',title:'编排',icon:'workflow',description:'让多个智能体共同处理任务，明确协作方式与资源使用。',scope:'主机与预设',sections:[
+ section('协作方式',[],{custom:'orchestration'}),
+ section('任务执行',[
+ number('parallel','并行工具调用上限','限制同一轮次中并行运行的工具数量。',4,1,16,'个'),
+ toggle('delegateModel','允许为子智能体选择模型','关闭时，子智能体沿用默认模型选择。',false),
+ select('childModel','子智能体默认模型','仅在允许选择子智能体模型时使用。','inherit',['inherit|沿用父智能体','deepseek-v4|DeepSeek V4','gpt-6-astra|GPT-6 Astra'],{depends:'delegateModel'})]),
+ section('Agent 能力覆盖',[],{custom:'coverage',description:'示例清单；实际能力由当前预设挂载的插件决定。'})]},
+voice:{label:'语音',title:'语音输入',icon:'mic',description:'将语音转为输入草稿，确认后再发送给智能体。',scope:'本机设备',sections:[
+ section('听写',[
+ toggle('enabled','启用语音输入','使用麦克风按钮开始听写。'),
+ select('input','输入设备','实际设备列表由浏览器授权后提供。','default',['default|系统默认麦克风'],{depends:'enabled'}),
+ toggle('punctuation','自动添加标点','识别完成后整理语句标点。',true,{depends:'enabled',preview:true}),
+ action('permission','麦克风权限','权限由浏览器或操作系统管理。预览不会申请权限。','查看说明','microphone')]),
+ section('本地识别模型',[],{custom:'voiceModels',description:'音频在本机处理；模型资源与普通偏好分开管理。'}),
+ section('识别结果',[
+ select('destination','输入位置','识别文字先进入草稿，便于检查和修改。','draft',['draft|当前会话草稿']),
+ action('try','体验听写结果','查看示例文字如何进入草稿。','预览结果','dictation')])]},
+git:{label:'Git',title:'Git',icon:'git',description:'统一分支命名、提交习惯与代码审查的默认行为。',scope:'用户偏好',sections:[
+ section('分支',[
+ select('prefixType','分支前缀','创建工作分支时附加的命名前缀。','custom',['custom|自定义','username|Git 用户名','none|无前缀']),
+ input('prefix','自定义前缀','例如 cinlan/feature-name。','cinlan/',{dependsSelect:['prefixType','custom']}),
+ toggle('autoName','根据任务自动命名','根据工作内容建议清晰的分支名称。'),
+ toggle('updateBase','创建前更新基准分支','开始新工作区前同步本地基准分支。')]),
+ section('提交与审查',[
+ toggle('upstream','与上游分支对比','代码审查时优先使用追踪的上游分支。'),
+ toggle('signoff','为提交添加签署信息','使用 Git 身份添加 Signed-off-by。',false),
+ toggle('aiCommit','AI 提交说明','根据差异生成提交说明，提交前由你确认。'),
+ select('commitLanguage','提交说明语言','用于生成提交说明和变更摘要。','zh',['zh|简体中文','en|English'])],{tag:'方案预览'})]},
+integrations:{label:'集成',title:'集成',icon:'integration',description:'集中管理代码托管与项目服务的连接，供工单和开发流程使用。',scope:'主机连接',sections:[
+ section('服务连接',[],{custom:'integrations',description:'此处为连接状态示例，不包含真实账户或凭据。',button:'添加连接',action:'add-integration'}),
+ section('连接偏好',[
+ toggle('verifyOnStart','启动时检查连接','打开应用后检查已配置服务的可用性。'),
+ action('issues','工单来源','选择哪些已连接服务出现在工单列表。','前往工单','goto:issues'),
+ action('credentials','凭据保存方式','访问令牌交由主机凭据服务，普通设置只保留凭据引用。','查看说明','credentials')])]},
+issues:{label:'工单',title:'工单',icon:'ticket',description:'从已有项目任务开始工作，将工单关联到工作区和会话。',scope:'可选能力',notice:'工单能力通过可选组合加载。当前支持 GitHub 和 Linear；项目范围与凭据由主机配置。',sections:[
+ section('工单来源',[
+ toggle('github','GitHub Issues','显示已配置仓库中的工单。'),
+ toggle('linear','Linear','显示已配置团队的任务。'),
+ select('defaultSource','默认来源','打开工单时优先显示。','github',['github|GitHub Issues','linear|Linear'])]),
+ section('关联与写入',[
+ toggle('showLinked','显示已关联的工作区','在工单详情中显示现有工作区和会话链接。'),
+ select('writePolicy','外部写入','启用后，每次修改工单仍需预览并单独确认。','readonly',['readonly|只读访问','confirm|预览并确认']),
+ action('connections','服务连接','账户与令牌统一在集成中管理。','管理集成','goto:integrations')]),
+ section('关联示例',[],{custom:'issueSample'})]},
+worktree:{label:'Worktree 任务',title:'Worktree 任务',icon:'worktree',description:'将一个开发任务放进独立工作树，保留清晰的创建、审查与收尾流程。',scope:'可选能力',notice:'任务由主机能力创建和管理。下面的默认目录、Hook 与收尾偏好为设置方案预览。',sections:[
+ section('创建任务',[
+ input('baseBranch','默认基准分支','新任务从该分支派生。','main'),
+ input('directory','工作树目录','相对项目根目录创建独立工作树。','.cinlan/worktrees',{wide:true,path:true}),
+ select('branchNaming','分支命名','任务标题会转换为便于使用的分支名。','task',['task|前缀 / 任务标题','id|前缀 / 任务编号']),
+ action('git','分支前缀','所有工作树任务使用统一的 Git 命名偏好。','管理 Git 偏好','goto:git')]),
+ section('生命周期',[
+ input('setup','初始化命令','创建完成后运行；预览不会执行命令。','pnpm install',{wide:true,path:true}),
+ input('cleanup','清理命令','归档前运行；留空则跳过。','',{wide:true,path:true,placeholder:'可选，例如 pnpm clean'}),
+ select('afterComplete','完成任务后','归档前先检查未提交更改。','keep',['keep|保留，等待审查','hibernate|休眠工作区','archive|提示归档'])]),
+ section('任务示例',[],{custom:'tasks'})]},
+isolation:{label:'工作区隔离',title:'工作区隔离',icon:'shield',description:'检查任务工作区的隔离方式，审查变更后再合并到主工作区。',scope:'可选能力',notice:'隔离工作区的创建与回收由主机管理。资源限制和默认策略在此作为后续配置入口预览。',sections:[
+ section('默认隔离策略',[
+ select('mode','隔离方式','为新任务选择独立文件目录或 Git 工作树。','worktree',['worktree|Git Worktree','copy|独立目录副本']),
+ select('execution','执行环境','执行环境需要在相应主机上可用。','local',['local|本机','wsl|WSL','remote|远程主机']),
+ toggle('sharedDependencies','复用依赖缓存','共享包管理器缓存，任务文件保持独立。'),
+ toggle('protectMain','保护主工作区','合并或 cherry-pick 前显示变更预览并确认。')]),
+ section('资源与回收',[
+ number('maxActive','同时活跃的工作区','限制同时执行任务的工作区数量。',4,1,12,'个'),
+ select('idle','闲置工作区','暂停后保留任务上下文和未提交更改。','manual',['manual|手动休眠','30|30 分钟后休眠','60|1 小时后休眠']),
+ action('leases','隔离工作区记录','查看活动、休眠与等待审查的示例记录。','查看记录','leases')])]},
+security:{label:'安全研究',title:'安全研究',icon:'security',description:'为逆向分析与授权安全研究准备工具和隔离环境。',scope:'可选能力',sections:[
+ section('能力与工具',[],{custom:'securityTools',description:'展示检测状态与配置入口；示例检测不会运行本机命令。'}),
+ section('研究偏好',[
+ select('environment','默认运行位置','安全工具执行环境与工作区隔离分别配置。','isolated',['isolated|隔离工作区','current|当前工作区']),
+ toggle('report','保存研究产物','将报告、日志和导出文件放入指定目录。'),
+ input('output','产物目录','相对当前工作区保存。','reports/security',{wide:true,path:true,depends:'report'}),
+ action('permissions','执行权限','工具权限沿用会话的文件和审批策略。','查看默认权限','goto:general')],{tag:'方案预览'})]},
+browser:{label:'浏览器',title:'浏览器',icon:'browser',description:'设置浏览器的启动、链接处理与会话行为。',scope:'用户偏好',sections:[
+ section('浏览偏好',[
+ input('homepage','主页','新建浏览器标签页时打开的地址。','about:blank',{wide:true}),
+ select('engine','搜索引擎','地址栏输入非网址内容时使用。','google',['google|Google','bing|Bing','baidu|百度']),
+ number('zoom','默认缩放','新页面使用的显示比例。',100,50,200,'%',{step:10}),
+ select('links','链接打开方式','从会话或终端点击普通链接时使用。','internal',['internal|内置浏览器','external|系统浏览器']),
+ toggle('localhost','突出显示本地服务','为 localhost 和工作区开发服务器显示标记。')]),
+ section('浏览会话',[
+ toggle('persist','保留登录状态','在同一浏览配置中保留 Cookie 和站点数据。'),
+ select('profile','默认浏览配置','浏览配置按主机独立管理。','work',['work|工作','clean|临时会话']),
+ action('data','浏览数据','预览管理入口，不会清除真实浏览器数据。','管理浏览数据','browser-data')])]},
+capture:{label:'元素捕获',title:'元素捕获',icon:'capture',description:'将页面中的目标元素连同必要上下文一起交给智能体。',scope:'方案预览',sections:[
+ section('捕获内容',[
+ select('target','默认捕获目标','从当前浏览页面选择需要分析的内容。','element',['element|单个元素','area|页面区域','page|完整页面']),
+ toggle('screenshot','元素截图','保留元素及相邻区域的视觉上下文。'),
+ toggle('dom','DOM 结构','包含目标元素的结构与属性。'),
+ toggle('styles','计算样式','包含字体、间距、颜色与布局属性。'),
+ toggle('accessibility','可访问性信息','包含角色、可访问名称和状态。'),
+ toggle('selector','选择器','包含可用于重新定位元素的选择器。')]),
+ section('交给智能体',[
+ select('attach','附加方式','捕获完成后的下一步操作。','draft',['draft|附加到当前草稿','preview|先预览，再附加']),
+ toggle('context','包含页面地址','记录来源，便于追踪和复现。'),
+ action('preview','捕获结果预览','查看元素与上下文组合后的示例。','查看示例','capture-preview')])]},
+computer:{label:'计算机控制',title:'计算机控制',icon:'computer',description:'配置可供智能体操作的桌面，检查工具和系统授权状态。',scope:'本机设备',sections:[
+ section('设备能力',[],{custom:'computerStatus'}),
+ section('控制偏好',[
+ toggle('enabled','启用计算机控制','允许当前配置提供桌面交互工具。',false),
+ select('display','默认屏幕','执行截图和指针操作时使用的目标。','primary',['primary|主显示器','active|当前活动窗口'],{depends:'enabled'}),
+ toggle('cursor','在截图中显示指针','便于判断刚刚进行的操作。',true,{depends:'enabled'}),
+ number('scale','截图缩放','控制发给智能体的截图尺寸比例。',80,40,100,'%',{step:10,depends:'enabled'})],{tag:'方案预览'}),
+ section('执行环境',[
+ action('host','设备所在主机','远程桌面的能力和权限在对应主机管理。','查看执行主机','goto:hosts')])]},
+mobile:{label:'移动设备',title:'移动设备',icon:'phone',description:'查看设备与 Android 工具链，为移动端任务准备连接。',scope:'本机设备',notice:'设备检测已有能力入口。SDK 路径与首选设备可保存为偏好，自动路由与环境安装仍需接入。',sections:[
+ section('设备连接',[],{custom:'devices',description:'以下设备为演示数据。',button:'添加演示设备',action:'add-device'}),
+ section('Android 工具链',[
+ toggle('enabled','启用移动设备能力','向当前环境提供设备控制工具。',false),
+ input('sdk','Android SDK 路径','用于展示和保存首选路径；此预览不会安装工具链。','C:\Android\Sdk',{wide:true,path:true}),
+ action('detect','工具链检测','检查 adb、模拟器和设备连接的示例状态。','模拟检测','detect-mobile'),
+ select('preferred','首选设备','保存设备偏好；实际操作时仍需选择可用目标。','auto',['auto|执行时选择','pixel|Pixel 9 · 模拟器'])])]},
+design:{label:'设计',title:'设计',icon:'design',description:'整理设计工具与产物偏好，让界面、资源和交付文件保持一致。',scope:'方案预览',notice:'当前设计入口以能力清单和使用说明为主。以下产物偏好是扩展方案，预览未调用设计技能或安装任何能力。',sections:[
+ section('设计产物',[
+ input('directory','资源目录','设计文件、截图和导出资源的默认位置。','assets/design',{wide:true,path:true}),
+ select('format','默认导出格式','位图资源的首选导出格式。','png',['png|PNG','webp|WebP','svg|SVG']),
+ select('scale','导出倍率','用于图像资源与界面截图。','2',['1|1×','2|2×','3|3×']),
+ toggle('source','保留可编辑源文件','将源文件和最终交付一起保存。'),
+ toggle('manifest','附带资源清单','记录文件用途、尺寸和来源信息。')]),
+ section('能力说明',[
+ action('tools','设计工具清单','查看原型、截图、资源生成与导出的能力分工。','查看能力','design-capabilities'),
+ action('plugins','扩展来源','设计能力随对应插件提供，独立管理配置。','查看插件','goto:plugins')])]},
+plugins:{label:'插件',title:'插件',icon:'puzzle',description:'查看当前组合提供的能力，并进入各插件拥有的设置。',scope:'当前配置',sections:[
+ section('已加载插件',[],{custom:'plugins',description:'示例清单按主机与 Agent 预设分组；这里只读查看。'}),
+ section('扩展设置',[
+ action('config','插件配置','可编辑字段由各插件注册，复杂配置通过配置文件管理。','查看配置','config'),
+ action('future','安装与生命周期','安装、启停、更新与回滚的入口安排。','查看扩展方案','plugin-roadmap')])]},
+mcp:{label:'MCP 服务',title:'MCP 服务',icon:'mcp',description:'连接外部工具服务，为智能体扩展可用工具。',scope:'实验',notice:'现有 MCP 能力通过配置组合启用，仅桥接 Tools。服务管理表单为方案预览，默认不会启动任何外部进程。',sections:[
+ section('服务列表',[],{custom:'mcp',description:'配置示例支持 stdio 与 Streamable HTTP。',button:'添加服务',action:'add-mcp'}),
+ section('工具偏好',[
+ toggle('showSource','显示工具来源','在工具名称旁区分 MCP 服务与内置工具。'),
+ number('timeout','工具请求超时','超时后报告错误，不自动重复有副作用的操作。',60,10,300,'秒',{step:10}),
+ action('preset','分配给 Agent','服务由预设的插件组合决定，避免向所有 Agent 暴露相同工具。','查看 Agent 预设','goto:presets')])]},
+automation:{label:'自动化',title:'自动化',icon:'clock',description:'将重复工作整理为可查看、可暂停的任务计划。',scope:'实验',notice:'跨工作区计划管理为方案预览。当前已有编排、会话提醒和 Webhook 能力，执行语义分别管理。',sections:[
+ section('任务计划',[],{custom:'automations',description:'所有计划仅在这个 HTML 内演示，不会执行或调度。',button:'新建计划',action:'add-automation'}),
+ section('执行偏好',[
+ select('timezone','默认时区','计划时间按所选时区展示。','local',['local|跟随本机','shanghai|Asia / Shanghai','utc|UTC']),
+ select('overlap','上一次任务仍在运行','避免同一计划重复执行。','skip',['skip|跳过本次','queue|加入队列']),
+ toggle('notify','运行完成后通知','使用通知页面中的提醒偏好。'),
+ select('history','运行记录保留','示例展示的默认保留时间。','30',['7|7 天','30|30 天','90|90 天'])])]},
+hosts:{label:'执行主机',title:'执行主机',icon:'server',description:'集中查看任务执行的位置，以及每台主机可提供的能力。',scope:'实验',notice:'主机管理列表为方案预览。每台主机分别拥有自己的模型连接、凭据、工具与设备。',sections:[
+ section('主机',[],{custom:'hosts',description:'连接状态为示例，不会发起 SSH 或网络连接。',button:'添加主机',action:'add-host'}),
+ section('新任务默认值',[
+ select('default','默认执行主机','未指定位置的新任务使用。','local',['local|本机 · Windows','remote|开发服务器 · Linux']),
+ toggle('confirmSwitch','切换主机时提示','提醒工作目录、设备和凭据将使用目标主机的配置。'),
+ action('isolation','任务隔离','配置新任务所用的工作区隔离方式。','前往工作区隔离','goto:isolation')])]},
+terminal:{label:'终端',title:'终端',icon:'terminal',description:'设置命令行的启动环境与阅读体验。',scope:'实验',sections:[
+ section('默认环境',[
+ select('shell','默认 Shell','新终端使用的命令解释器。','pwsh',['pwsh|PowerShell 7','cmd|Windows Command Prompt','wsl|WSL · Ubuntu']),
+ select('directory','启动目录','新建终端时进入的位置。','workspace',['workspace|当前工作区','home|用户主目录']),
+ number('scrollback','回滚行数','保留最近的终端输出。',10000,1000,50000,'行',{step:1000}),
+ toggle('bell','终端铃声通知','声音与静默时段由通知偏好管理。')]),
+ section('显示',[
+ select('font','字体','用于终端输出和输入。','consolas',['consolas|Consolas','cascadia|Cascadia Code','mono|系统等宽字体']),
+ number('fontSize','字号', '终端文字大小。',13,10,22,'px'),
+ select('cursor','光标样式','终端获得焦点时的光标外观。','block',['block|方块','line|竖线','underline|下划线'])],{customAfter:'terminal'}),
+ section('持久会话',[
+ toggle('reconnect','重新连接时恢复终端','保留会话标识，尝试恢复主机上的活动终端。'),
+ toggle('confirmClose','关闭运行中的终端前确认','有命令正在运行时，先显示确认提示。')])]},
+usage:{label:'使用统计',title:'使用统计',icon:'chart',description:'了解模型消耗与任务使用情况，按时间和模型查看趋势。',scope:'实验',sections:[
+ section('使用概览',[
+ select('period','统计周期','以下统计均为示例数据，不读取真实会话。','7',['7|最近 7 天','30|最近 30 天']),
+ select('model','模型','按模型筛选概览数据。','all',['all|全部模型','deepseek|DeepSeek V4','astra|GPT-6 Astra'])],{customAfter:'usage'}),
+ section('记录偏好',[
+ toggle('track','记录用量','记录请求与 Token 数量，不包含消息正文。'),
+ select('retention','用量记录保留','用于本地统计的默认时间范围。','90',['30|30 天','90|90 天','365|1 年']),
+ action('export','导出统计','将当前示例范围导出为 CSV。','导出 CSV','export-usage')])]} };
+const SEED={
+providers:[{id:'deepseek',name:'DeepSeek',detail:'api.deepseek.com · 1 个模型',symbol:'D',status:'已配置（示例）',target:'provider-detail'},{id:'openai',name:'OpenAI',detail:'api.openai.com · 1 个模型',symbol:'O',status:'已配置（示例）',target:'provider-detail'}],
+presets:[{id:'coding',name:'编程助手',detail:'代码编写、调试与测试 · 默认工具集',icon:'bot',status:'内置',readonly:true},{id:'review',name:'代码审查',detail:'只读分析、差异检查与改进建议',icon:'shield',status:'内置',readonly:true},{id:'research',name:'研究助手',detail:'信息检索、资料整理与来源核实',icon:'browser',status:'内置',readonly:true}],
+integrations:[{id:'github',name:'GitHub',detail:'仓库与 Issues · 示例账户 cinlan-dev',icon:'git',status:'已连接（示例）'},{id:'linear',name:'Linear',detail:'项目任务 · 示例团队 Cinlan',icon:'ticket',status:'已连接（示例）'},{id:'gitlab',name:'GitLab',detail:'代码托管连接预览 · 不作为当前工单提供商',icon:'git',status:'未配置'}],
+devices:[{id:'pixel',name:'Pixel 9',detail:'Android 15 · emulator-5554 · 模拟器',icon:'phone',status:'离线（示例）'}],
+mcp:[{id:'docs',name:'项目文档',detail:'Streamable HTTP · https://mcp.example.com/tools',icon:'mcp',status:'未连接',transport:'http',endpoint:'https://mcp.example.com/tools'}],
+automations:[{id:'daily',name:'每日代码巡检',detail:'工作日 09:00 · 代码审查 · cinlan-harness',icon:'clock',status:'已暂停',enabled:false,task:'检查最近提交的变更，整理潜在问题和改进建议。'}],
+hosts:[{id:'local',name:'本机',detail:'Windows · PowerShell · 浏览器与设备控制',icon:'monitor',status:'当前主机（示例）'},{id:'remote',name:'开发服务器',detail:'Linux · SSH · dev.example.com',icon:'server',status:'未连接'}]
+};
+
+
+const STORAGE_KEY='cinlan-settings-native-preview-1';
+let storageAvailable=true;
+let saved={};
+try{saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');if(!saved||typeof saved!=='object')saved={};}catch{saved={};storageAvailable=false;}
+const state={values:saved.values&&typeof saved.values==='object'?saved.values:{},lists:{},folded:{},pluginTab:'host'};
+for(const [key,rows]of Object.entries(SEED))state.lists[key]=Array.isArray(saved.lists?.[key])?saved.lists[key]:structuredClone(rows);
+let active=PAGES[location.hash.slice(1)]?location.hash.slice(1):'general';
+let query='';let toastTimer;let statusTimer;let dialogSubmit=null;let shortcutDraft='';
+const $=(id)=>document.getElementById(id);
+const groupFor=(page)=>GROUPS.find(g=>g.pages.includes(page));
+const rowFor=(page,id)=>PAGES[page].sections.flatMap(s=>s.rows).find(r=>r.id===id);
+const val=(page,id)=>Object.hasOwn(state.values,page+'.'+id)?state.values[page+'.'+id]:rowFor(page,id)?.value;
+const opt=(entry)=>{const parts=entry.split('|');return {id:parts[0],label:parts.slice(1).join('|')||parts[0]};};
+function optionsFor(page,row){if(page==='presets'&&row.id==='default')return state.lists.presets.map(p=>p.id+'|'+p.name);if(page==='models'&&row.id==='default'){const options=[...row.options];for(const p of state.lists.providers)if(p.model&&!options.some(o=>opt(o).id===p.model))options.push(p.model+'|'+p.model+' · '+p.name);return options;}return row.options;}
+function toast(text){clearTimeout(toastTimer);$('toast').innerHTML=icon('check')+'<span>'+esc(text)+'</span>';$('toast').classList.add('show');toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2600);}
+function persist(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify({values:state.values,lists:state.lists}));storageAvailable=true;}catch{storageAvailable=false;}
+$('save-status').innerHTML='<i class="status-dot"></i>'+(storageAvailable?'已保存到此浏览器':'仅在本次预览中保留');clearTimeout(statusTimer);statusTimer=setTimeout(()=>$('save-status').innerHTML='<i class="status-dot"></i>'+(storageAvailable?'更改自动保存在本地':'本地存储不可用'),3000);}
+function applyTheme(){const mode=val('general','theme');document.documentElement.dataset.theme=mode==='dark'||mode==='system'&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+function change(page,id,value){state.values[page+'.'+id]=value;persist();if(page==='general'&&id==='theme')applyTheme();}
+function renderNav(){const oldScroll=$('navigation').scrollTop;$('navigation').innerHTML=GROUPS.map(g=>'<div class="nav-group"><button class="group-title" data-group="'+g.id+'" aria-expanded="'+!state.folded[g.id]+'" aria-controls="group-'+g.id+'"><span>'+g.label+'</span>'+icon('chevronDown')+'</button><div id="group-'+g.id+'" '+(state.folded[g.id]?'hidden':'')+'>'+g.pages.map(id=>'<button class="nav-item '+(active===id&&!query?'active':'')+'" data-page="'+id+'" '+(active===id&&!query?'aria-current="page"':'')+'>'+icon(PAGES[id].icon)+'<span class="nav-label">'+PAGES[id].label+'</span></button>').join('')+'</div></div>').join('');$('navigation').scrollTop=oldScroll;}
+function button(label,actionName,iconName='',kind=''){return '<button type="button" class="button '+kind+'" data-action="'+esc(actionName)+'">'+(iconName?icon(iconName):'')+esc(label)+'</button>';}
+function isEnabled(page,row){return (!row.depends||val(page,row.depends))&&(!row.dependsSelect||val(page,row.dependsSelect[0])===row.dependsSelect[1]);}
+function rowHTML(page,row){const key=page+'.'+row.id;const value=val(page,row.id);const disabled=isEnabled(page,row)?'':' disabled';const attrs=' data-setting="'+key+'" aria-labelledby="label-'+key+'"'+(row.description?' aria-describedby="desc-'+key+'"':'')+disabled;let control='';
+if(row.type==='theme')return '<div class="theme-row" id="row-'+key+'"><div class="setting-label" id="label-'+key+'">'+row.label+'</div><div class="themes" role="group" aria-labelledby="label-'+key+'">'+[['light','sun','浅色'],['dark','moon','深色'],['system','monitor','跟随系统']].map(([id,ic,label])=>'<button type="button" class="theme-option" data-theme-choice="'+id+'" aria-pressed="'+(value===id)+'">'+icon(ic)+label+'</button>').join('')+'</div></div>';
+if(row.type==='select')control='<span class="select-wrap"><select'+attrs+'>'+optionsFor(page,row).map(item=>{const o=opt(item);return '<option value="'+esc(o.id)+'" '+(value===o.id?'selected':'')+'>'+esc(o.label)+'</option>';}).join('')+'</select>'+icon('chevronDown')+'</span>';
+if(row.type==='toggle')control='<button type="button" class="switch" role="switch" aria-checked="'+!!value+'"'+attrs+'></button>';
+if(row.type==='number')control='<div class="stepper"><button type="button" data-step="'+key+'" data-delta="-'+(row.step||1)+'" aria-label="减小'+row.label+'"'+(disabled||Number(value)<=row.min?' disabled':'')+'>'+icon('minus')+'</button><output aria-label="'+row.label+'">'+esc(value)+'</output><button type="button" data-step="'+key+'" data-delta="'+(row.step||1)+'" aria-label="增大'+row.label+'"'+(disabled||Number(value)>=row.max?' disabled':'')+'>'+icon('plus')+'</button></div><span class="unit">'+esc(row.unit)+'</span>';
+if(row.type==='input')control='<input class="field '+(row.path?'path':'')+'" type="'+(row.inputType||'text')+'" value="'+esc(value)+'" placeholder="'+esc(row.placeholder||'')+'"'+attrs+'>';
+if(row.type==='action')control=button(row.button,row.action,row.button.includes('前往')?'arrowRight':'');
+if(row.type==='shortcut')control='<button class="key-button" type="button" data-shortcut="'+row.id+'" aria-label="修改'+row.label+'快捷键"><span class="key-combo">'+String(value).split(' + ').map(k=>'<kbd>'+esc(k)+'</kbd>').join('')+'</span>'+icon('edit')+'</button>';
+return '<div class="setting-row '+(row.wide?'wide-row':'')+'" id="row-'+key+'"><div class="setting-copy"><div class="setting-label" id="label-'+key+'">'+esc(row.label)+(row.preview?'<span class="tag">预览</span>':'')+'</div>'+(row.description?'<p class="setting-description" id="desc-'+key+'">'+esc(row.description)+'</p>':'')+'</div><div class="setting-control">'+control+'</div></div>';}
+function tag(text,color=''){return '<span class="tag '+color+'">'+esc(text)+'</span>';}
+function resources(list,collection,buttons){return '<div class="resource-list">'+list.map(r=>'<div class="resource"><div class="resource-symbol">'+(r.symbol?esc(r.symbol):icon(r.icon||'puzzle'))+'</div><div class="resource-copy"><div class="resource-title">'+esc(r.name)+'</div><div class="resource-description">'+esc(r.detail)+'</div></div><div class="resource-actions">'+(r.status?tag(r.status,r.status.includes('已配置')||r.status.includes('已连接')||r.status.includes('当前')?'green':''):'')+(buttons?buttons(r):button('查看','detail:'+collection+':'+r.id))+'</div></div>').join('')+'</div>';}
+function customHTML(type){switch(type){
+case 'providers':return resources(state.lists.providers,'providers',r=>button('配置','detail:providers:'+r.id));
+case 'presets':return resources(state.lists.presets,'presets',r=>button('查看','detail:presets:'+r.id)+button('复制','copy-preset:'+r.id));
+case 'integrations':return resources(state.lists.integrations,'integrations',r=>button(r.status==='未配置'?'配置':'管理','detail:integrations:'+r.id));
+case 'orchestration':return '<div class="flow"><div class="flow-node">'+icon('bot')+'主智能体<small>拆分任务 · 汇总结果</small></div>'+icon('arrowRight')+'<div class="flow-node">'+icon('workflow')+'并行协作<small>独立研究 · 实现 · 验证</small></div>'+icon('arrowRight')+'<div class="flow-node">'+icon('check')+'交付结果<small>回收状态 · 完成任务</small></div></div><p class="inline-tip">'+icon('info')+'编排能力随 Agent 预设提供。工作流、子智能体和交接可以独立组合。</p>';
+case 'coverage':return resources([{id:'subagent',name:'子智能体',detail:'委派独立任务，支持后台运行与继续沟通。',icon:'bot',status:'能力示例'},{id:'workflow',name:'工作流',detail:'为有依赖关系的步骤编排执行顺序。',icon:'workflow',status:'能力示例'}],'coverage',r=>button('查看说明','coverage:'+r.id));
+case 'voiceModels':return resources([{id:'sherpa',name:'本地语音识别',detail:'sherpa-onnx · 本地模型资源 · 由引擎选择首个就绪模型',icon:'mic',status:state.values['demo.voiceReady']?'就绪（模拟）':'待检查'}],'voice',r=>button('模拟检查','detect-voice'));
+case 'issueSample':return resources([{id:'42',name:'#42 优化设置搜索体验',detail:'GitHub · cinlan-harness · 已关联工作区 settings-search',icon:'ticket',status:'示例'}],'issue',r=>button('查看关联','issue-links'));
+case 'tasks':return resources([{id:'settings',name:'优化设置搜索',detail:'cinlan/settings-search · main → 独立工作树',icon:'worktree',status:'等待审查'},{id:'docs',name:'整理接入文档',detail:'cinlan/docs-onboarding · 已保留工作区',icon:'worktree',status:'休眠'}],'tasks',r=>button('查看记录','task:'+r.id));
+case 'securityTools':return resources([{id:'security',name:'安全研究工具集',detail:'工具由可选提供程序提供，检测状态取决于执行主机。',icon:'shield',status:state.values['demo.security']?'可用（模拟）':'待检查'},{id:'isolation',name:'隔离环境',detail:'将研究过程与主要开发工作区分开。',icon:'worktree',status:'可选配置'}],'security',r=>button(r.id==='security'?'模拟检测':'配置',r.id==='security'?'detect-security':'goto:isolation'));
+case 'computerStatus':return resources([{id:'desktop',name:'本机桌面',detail:'Windows · 计算机控制提供程序 · 授权由系统管理',icon:'monitor',status:state.values['demo.computer']?'可用（模拟）':'待检查'}],'computer',r=>button('模拟检测','detect-computer'));
+case 'devices':return state.lists.devices.length?resources(state.lists.devices,'devices',r=>button('详情','detail:devices:'+r.id)):'<div class="empty">'+icon('phone')+'<h3>还没有演示设备</h3><p>添加一个设备，查看连接和首选项布局。</p>'+button('添加演示设备','add-device','plus')+'</div>';
+case 'plugins':{const host=[{id:'model',name:'模型提供商',detail:'模型目录、连接配置与凭据引用',icon:'model',status:'主机',page:'models'},{id:'shell',name:'Shell 执行',detail:'PowerShell 与本机命令执行',icon:'terminal',status:'主机',page:'terminal'},{id:'browser',name:'浏览器',detail:'页面操作与浏览偏好',icon:'browser',status:'主机',page:'browser'},{id:'notifications',name:'通知',detail:'完成提醒、终端铃声与静默偏好',icon:'bell',status:'主机',page:'notifications'}];const preset=[{id:'subagent',name:'子智能体',detail:'任务委派、并发与模型选择',icon:'bot',status:'编程助手',page:'orchestration'},{id:'workflows',name:'工作流',detail:'按预设组合协作能力',icon:'workflow',status:'编程助手',page:'orchestration'},{id:'tools',name:'文件与命令工具',detail:'由预设文件配置工具组合',icon:'fileCode',status:'编程助手',page:'presets'}];return '<div class="subtabs" role="tablist" aria-label="插件归属"><button role="tab" aria-selected="'+(state.pluginTab==='host')+'" class="subtab '+(state.pluginTab==='host'?'active':'')+'" data-plugin-tab="host">主机插件 <span class="data-label">4</span></button><button role="tab" aria-selected="'+(state.pluginTab==='preset')+'" class="subtab '+(state.pluginTab==='preset'?'active':'')+'" data-plugin-tab="preset">Agent 预设 <span class="data-label">3</span></button></div><div role="tabpanel">'+resources(state.pluginTab==='host'?host:preset,'plugin',r=>button('设置','goto:'+r.page))+'</div><p class="inline-tip">'+icon('info')+'每个插件拥有自己的设置；卸载后的入口随能力一同移除。</p>';}
+case 'mcp':return state.lists.mcp.length?resources(state.lists.mcp,'mcp',r=>button('管理','detail:mcp:'+r.id)):'<div class="empty">'+icon('mcp')+'<h3>还没有 MCP 服务</h3><p>添加服务配置示例，查看工具连接的管理方式。</p>'+button('添加服务','add-mcp','plus')+'</div>';
+case 'automations':return state.lists.automations.length?resources(state.lists.automations,'automations',r=>'<button type="button" class="switch" role="switch" aria-label="启用'+esc(r.name)+'演示计划" aria-checked="'+!!r.enabled+'" data-plan-toggle="'+esc(r.id)+'"></button>'+button('编辑','detail:automations:'+r.id)):'<div class="empty">'+icon('clock')+'<h3>从一项重复工作开始</h3><p>设置时间、选择 Agent，再填写需要完成的任务。</p>'+button('新建计划','add-automation','plus')+'</div>';
+case 'hosts':return resources(state.lists.hosts,'hosts',r=>button('详情','detail:hosts:'+r.id));
+case 'terminal':{const font=val('terminal','font');const family=font==='cascadia'?'Cascadia Code':font==='consolas'?'Consolas':'monospace';return '<div class="terminal-preview" style="font-size:'+Number(val('terminal','fontSize'))+'px;font-family:'+family+',monospace"><div class="dim">'+esc(opt(rowFor('terminal','shell').options.find(o=>opt(o).id===val('terminal','shell'))||'PowerShell').label)+'</div><div><span class="green">PS</span> D:\Company\cinlan\cinlan-harness&gt; git status</div><div>On branch main</div><div class="dim">nothing to commit, working tree clean</div><div><span class="green">❯</span> <span style="opacity:.65">'+(val('terminal','cursor')==='block'?'▊':val('terminal','cursor')==='line'?'│':'_')+'</span></div></div><p class="inline-tip">终端外观预览 · 命令不会执行</p>';}
+case 'usage':{const factor=(val('usage','period')==='30'?4.2:1)*(val('usage','model')==='all'?1:val('usage','model')==='deepseek'?.65:.35);const tokens=(1.28*factor).toFixed(2);const requests=Math.round(186*factor);return '<div class="metric-grid"><div class="metric"><p class="metric-label">使用 Token</p><div class="metric-value">'+tokens+' <small>M</small></div><p class="metric-foot">输入与输出合计</p></div><div class="metric"><p class="metric-label">模型请求</p><div class="metric-value">'+requests+'</div><p class="metric-foot">范围内的请求次数</p></div><div class="metric"><p class="metric-label">活跃会话</p><div class="metric-value">'+Math.round(24*factor)+'</div><p class="metric-foot">有模型请求的会话</p></div></div><div class="section-heading"><h2>Token 使用趋势</h2><span class="data-label">示例数据</span></div><div class="chart" role="img" aria-label="七个时间段的用量示意柱状图">'+[32,56,40,82,62,45,69].map((h,i)=>'<div class="chart-column"><div class="bar" style="height:'+h+'%"></div><span>'+(val('usage','period')==='7'?['周一','周二','周三','周四','周五','周六','周日'][i]:['第 1 天','第 5 天','第 10 天','第 15 天','第 20 天','第 25 天','第 30 天'][i])+'</span></div>').join('')+'</div>';}
+default:return '';}}
+function renderPage(preserveScroll=false){const scroll=$('content-scroll').scrollTop;const page=PAGES[active];$('breadcrumb-group').textContent=groupFor(active).label;$('breadcrumb-page').textContent=page.label;document.title=page.title+' · Cinlan Harness';
+$('page').innerHTML='<div class="page-heading"><div><h1 tabindex="-1">'+page.title+'</h1><p class="page-subtitle">'+page.description+'</p></div><span class="page-context">'+icon(page.scope==='实验'?'flask':page.scope==='用户偏好'?'user':'sliders')+page.scope+'</span></div>'+(page.notice?'<div class="notice">'+icon('info')+'<p>'+page.notice+'</p></div>':'')+page.sections.map(s=>'<section class="section">'+(s.title?'<div class="section-heading"><div><h2>'+s.title+(s.tag?tag(s.tag):'')+'</h2>'+(s.description?'<p>'+s.description+'</p>':'')+'</div>'+(s.button?button(s.button,s.action,'plus'):'')+'</div>':'')+(s.custom?customHTML(s.custom):'')+s.rows.map(r=>rowHTML(active,r)).join('')+(s.customAfter?customHTML(s.customAfter):'')+'</section>').join('')+'<footer class="footer-note"><span class="left">'+icon('monitor')+'交互预览 · 更改仅保存在此浏览器</span><button type="button" data-action="reset">恢复本页默认值</button></footer>';
+$('content-scroll').scrollTop=preserveScroll?scroll:0;}
+function navigate(id,rowId){if(!PAGES[id])return;active=id;query='';$('search').value='';state.folded[groupFor(id).id]=false;history.replaceState(null,'','#'+id);renderNav();renderPage();$('shell').classList.remove('nav-open');if(rowId){requestAnimationFrame(()=>{const row=$('row-'+id+'.'+rowId);if(row){row.scrollIntoView({block:'center',behavior:'smooth'});row.classList.add('highlight');const focus=row.querySelector('input,select,button');focus?.focus({preventScroll:true});}});}else{$('page').querySelector('h1').focus({preventScroll:true});}}
+function searchResults(text){query=text.trim();if(!query){renderNav();renderPage();return;}const q=query.toLocaleLowerCase();const results=[];for(const [id,page]of Object.entries(PAGES)){const titleMatch=(page.label+' '+page.title).toLocaleLowerCase().includes(q);if(titleMatch)results.push({page:id,label:page.title,description:page.description,score:4});for(const s of page.sections)for(const r of s.rows){const title=r.label.toLocaleLowerCase().includes(q);if(title||r.description?.toLocaleLowerCase().includes(q)||r.id.toLowerCase().includes(q))results.push({page:id,row:r.id,label:r.label,description:r.description,score:title?3:1});}}
+results.sort((a,b)=>b.score-a.score);$('breadcrumb-group').textContent='设置';$('breadcrumb-page').textContent='搜索结果';renderNav();$('page').innerHTML='<div class="page-heading"><div><h1>搜索设置</h1><p class="page-subtitle">在全部 25 个页面中查找名称、说明与配置项。</p></div></div><p class="result-count">“'+esc(query)+'” · '+results.length+' 个结果</p>'+(results.length?results.map(r=>'<button class="search-result" data-result-page="'+r.page+'" data-result-row="'+(r.row||'')+'"><span><span class="result-context">'+groupFor(r.page).label+' / '+PAGES[r.page].label+'</span><span class="result-title" style="display:block">'+esc(r.label)+'</span><span class="result-description" style="display:block">'+esc(r.description||'')+'</span></span>'+icon('chevronRight')+'</button>').join(''):'<div class="empty">'+icon('search')+'<h3>没有找到相关设置</h3><p>试试“模型”“通知”“目录”或“快捷键”。</p>'+button('清除搜索','clear-search')+'</div>');$('content-scroll').scrollTop=0;}
+function openDialog(title,body,actions,submit=null,wide=false){if($('dialog').open)$('dialog').close();$('dialog-title').textContent=title;$('dialog-body').innerHTML=body;$('dialog-actions').innerHTML=actions||'<button type="button" class="button primary" data-close>知道了</button>';$('dialog').classList.toggle('wide',wide);dialogSubmit=submit;$('dialog').showModal();const input=$('dialog-body').querySelector('input:not([readonly]),textarea');if(input)requestAnimationFrame(()=>input.focus());}
+const cancelButton='<button type="button" class="button" data-close>取消</button>';
+const saveButton='<button type="submit" class="button primary">保存到预览</button>';
+function formField(name,label,value='',placeholder='',type='text'){return '<div class="form-row"><label for="form-'+name+'">'+label+'</label><input class="field" id="form-'+name+'" name="'+name+'" value="'+esc(value)+'" placeholder="'+esc(placeholder)+'" type="'+type+'" required></div>';}
+function formSelect(name,label,options,value){return '<div class="form-row"><label for="form-'+name+'">'+label+'</label><select class="field" id="form-'+name+'" name="'+name+'">'+options.map(o=>{const x=opt(o);return '<option value="'+esc(x.id)+'" '+(x.id===value?'selected':'')+'>'+esc(x.label)+'</option>';}).join('')+'</select></div>';}
+function formError(text){let e=$('form-error');if(!e){e=document.createElement('p');e.id='form-error';e.className='form-error';e.setAttribute('role','alert');$('dialog-body').appendChild(e);}e.textContent=text;}
+function addEntry(kind,copy){const defs={provider:['添加提供商','providers','服务名称','例如 DeepSeek','API 地址','https://api.example.com/v1'],preset:['新建 Agent 预设','presets','预设名称','例如 前端开发助手'],integration:['添加连接','integrations','服务名称','例如 GitHub 企业版','服务地址','https://github.example.com'],device:['添加演示设备','devices','设备名称','例如 Pixel 9','设备标识','emulator-5554'],mcp:['添加 MCP 服务','mcp','服务名称','例如 项目文档'],automation:['新建演示计划','automations','计划名称','例如 每日代码巡检'],host:['添加执行主机','hosts','主机名称','例如 开发服务器','主机地址','dev.example.com']};const d=defs[kind];if(!d)return;let body='<p class="form-help">仅保存演示配置，不连接外部服务、不执行命令。请勿输入真实密钥。</p>'+formField('name',d[2],copy?copy.name+' 副本':'',d[3]);if(d[4])body+=formField('endpoint',d[4],'',d[5]);
+if(kind==='provider')body+=formField('model','模型标识','','例如 deepseek-v4')+'<p class="inline-tip">API Key 在正式接入时由凭据服务单独管理，此处不采集。</p>';
+if(kind==='preset')body+=formSelect('base','复制自',state.lists.presets.map(p=>p.id+'|'+p.name),copy?.id||'coding')+'<p class="inline-tip">预设内容由独立的 agent.cordis.yml 管理，不写入用户偏好。</p>';
+if(kind==='mcp')body+=formSelect('transport','传输方式',['http|Streamable HTTP','stdio|stdio'],'http')+formField('endpoint','服务地址 / 启动命令','','https://mcp.example.com/tools')+'<p class="inline-tip">当前只桥接工具；资源与提示词不在接入范围内。</p>';
+if(kind==='automation')body+=formSelect('schedule','触发时间',['daily|每天 09:00','weekdays|工作日 09:00','weekly|每周一 09:00'],'weekdays')+formSelect('agent','Agent 预设',state.lists.presets.map(p=>p.id+'|'+p.name),'review')+'<div class="form-row"><label for="form-task">要完成的任务</label><textarea id="form-task" name="task" required placeholder="描述每次运行需要完成的工作"></textarea></div>';
+openDialog(copy?'复制 Agent 预设':d[0],body,cancelButton+saveButton,data=>{const name=String(data.get('name')).trim();if(!name)return formError('请输入名称。');if(state.lists[d[1]].some(p=>p.name===name))return formError('这个名称已存在，请使用不同名称。');const endpoint=String(data.get('endpoint')||'').trim();if((kind==='provider'||kind==='integration'||kind==='mcp'&&data.get('transport')==='http')&&!/^https?:\/\/[^\s]+$/i.test(endpoint))return formError('请输入以 http:// 或 https:// 开头的有效地址。');
+const id=kind+'-'+Date.now().toString(36);let record={id,name,endpoint,icon:kind==='provider'?'model':kind==='preset'?'bot':kind==='device'?'phone':kind==='automation'?'clock':kind==='host'?'server':kind==='mcp'?'mcp':'integration',detail:endpoint,status:'未连接'};
+if(kind==='provider')Object.assign(record,{detail:endpoint+' · '+data.get('model'),model:String(data.get('model')),endpoint,status:'待配置凭据'});
+if(kind==='preset')Object.assign(record,{detail:'自定义预设 · 复制自 '+(state.lists.presets.find(p=>p.id===data.get('base'))?.name||'编程助手'),status:'自定义',readonly:false,base:data.get('base')});
+if(kind==='mcp')Object.assign(record,{detail:(data.get('transport')==='http'?'Streamable HTTP':'stdio')+' · '+endpoint,transport:data.get('transport'),endpoint});
+if(kind==='device')record.status='未连接（示例）';
+if(kind==='automation')Object.assign(record,{detail:({daily:'每天 09:00',weekdays:'工作日 09:00',weekly:'每周一 09:00'}[data.get('schedule')])+' · '+(state.lists.presets.find(p=>p.id===data.get('agent'))?.name||'代码审查'),task:String(data.get('task')),enabled:false,status:'已暂停'});
+state.lists[d[1]].push(record);persist();$('dialog').close();renderPage(true);toast('已添加到本地预览');});}
+function detail(collection,id){const record=state.lists[collection]?.find(r=>r.id===id);if(!record)return;const removable=collection!=='presets'||!record.readonly;let body='<p>'+esc(record.detail)+'</p><p>'+tag(record.status||'示例')+'</p>';let actions='<button type="button" class="button" data-close>关闭</button>';
+if(collection==='presets'){body+='<div class="code-preview">'+esc('name: '+record.name+'\nsource: '+(record.readonly?'built-in':'custom')+'\ncomposition: '+(record.base||record.id)+'\n# 预设内容由独立 agent.cordis.yml 管理\n# 这里展示配置归属，不生成可执行组合文件')+'</div><p class="inline-tip">已开始的会话保留创建时的预设组合。</p>';actions=button('复制为新预设','copy-preset:'+id,'plus')+actions;}
+else if(collection==='automations'){body+='<p><strong>任务内容</strong></p><div class="code-preview">'+esc(record.task)+'</div>'+formField('name','计划名称',record.name)+formField('detail','计划说明',record.detail);actions=cancelButton+saveButton;}
+else{body+='<div class="notice">'+icon('info')+'<p>这是本地演示记录。模拟检查只更新预览状态，不会发送网络请求或操作真实设备。</p></div>';actions=button('模拟连接检查','test:'+collection+':'+id,'refresh')+actions;}
+if(removable&&collection!=='automations'&&!(collection==='hosts'&&id==='local'))actions=button('编辑','edit-entry:'+collection+':'+id,'edit')+actions;
+if(removable&&!(collection==='hosts'&&id==='local'))actions=button('移除','remove:'+collection+':'+id,'','danger')+actions;
+openDialog(record.name,body,actions,collection==='automations'?data=>{record.name=String(data.get('name')).trim();record.detail=String(data.get('detail')).trim();persist();$('dialog').close();renderPage(true);toast('演示计划已更新');}:null);}
+function editEntry(collection,id){const record=state.lists[collection]?.find(r=>r.id===id);if(!record||record.readonly)return;let body='<p class="form-help">只编辑此浏览器中的演示记录。</p>'+formField('name','名称',record.name);
+if(collection==='presets')body+=formField('description','用途说明',record.detail);
+else{if(collection==='mcp')body+=formSelect('transport','传输方式',['http|Streamable HTTP','stdio|stdio'],record.transport||'http');const known={deepseek:'https://api.deepseek.com',openai:'https://api.openai.com/v1',github:'https://github.com',linear:'https://api.linear.app',gitlab:'https://gitlab.com',pixel:'emulator-5554',remote:'dev.example.com'};body+=formField('endpoint',collection==='devices'?'设备标识':collection==='mcp'?'服务地址 / 启动命令':'服务地址',record.endpoint||known[id]||record.detail);if(collection==='providers')body+=formField('model','模型标识',record.model||(id==='deepseek'?'deepseek-v4':id==='openai'?'gpt-6-astra':''));}
+openDialog('编辑“'+record.name+'”',body,cancelButton+saveButton,data=>{const name=String(data.get('name')).trim();if(!name)return formError('请输入名称。');if(state.lists[collection].some(r=>r.id!==id&&r.name===name))return formError('此名称已存在。');const endpoint=String(data.get('endpoint')||'').trim();if((collection==='providers'||collection==='integrations'||collection==='mcp'&&data.get('transport')==='http')&&!/^https?:\/\/[^\s]+$/i.test(endpoint))return formError('请输入有效的 HTTP 或 HTTPS 地址。');record.name=name;
+if(collection==='presets')record.detail=String(data.get('description')).trim();else{record.endpoint=endpoint;record.detail=endpoint;record.status=collection==='devices'?'未连接（示例）':'配置已更新';if(collection==='providers'){record.model=String(data.get('model')).trim();record.detail=endpoint+' · '+record.model;record.status='待配置凭据';}if(collection==='mcp'){record.transport=data.get('transport');record.detail=(record.transport==='http'?'Streamable HTTP':'stdio')+' · '+endpoint;}}
+persist();$('dialog').close();renderPage(true);toast('演示记录已更新');});}
+function previewConfig(){const entries={};for(const [pageId,page]of Object.entries(PAGES))for(const s of page.sections)for(const r of s.rows)if(r.type!=='action'){entries[pageId]??={};entries[pageId][r.id]=val(pageId,r.id);}return {format:'cinlan-settings-preview',version:1,notice:'仅供交互评审；不是 Harness 可直接导入的配置。',preferences:entries,examples:state.lists};}
+function download(filename,text,type){const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function about(){openDialog('关于这份设置预览','<p>保留当前 Harness 通用设置的侧栏、单列行式布局、胶囊控件与外观选项。功能按六组、25 个页面组织。</p><table class="mapping"><tr><th>配置内容</th><th>实际归属</th></tr><tr><td>用户偏好</td><td>主机 settings.yaml，按插件命名空间管理；默认值 → 组合基础值 → 用户覆盖。</td></tr><tr><td>Agent 预设</td><td>独立 agent.cordis.yml；默认预设作用于新会话。</td></tr><tr><td>模型与凭据</td><td>提供商配置与密钥分别管理。会话模型选择也会保存为未来 Agent 的默认值。</td></tr><tr><td>工作区与主机</td><td>独立管理的记录与执行环境，不构成通用的偏好继承层级。</td></tr><tr><td>插件扩展</td><td>功能插件提供各自页面、设置项与校验；清单只读查看。</td></tr></table><p><strong>已核对的接入范围</strong></p><p>通知与本地语音已有能力；工单当前支持 GitHub / Linear；MCP 只桥接 Tools。浮动工作区与部分设备偏好已能保存，运行接入仍需补齐。计划管理、元素捕获和设计产物设置用于展示扩展方案。</p><p class="form-help">所有交互与示例数据保存在此浏览器，未连接 Harness 后端。未读取 -warm、v2–v4 实现；未使用 cinlan-design 技能。</p>',null,null,true);}
+function runAction(name){if(name.startsWith('goto:')){if($('dialog').open)$('dialog').close();return navigate(name.slice(5));}if(name.startsWith('add-'))return addEntry(name.slice(4));if(name.startsWith('detail:')){const [,collection,id]=name.split(':');return detail(collection,id);}if(name.startsWith('copy-preset:'))return addEntry('preset',state.lists.presets.find(p=>p.id===name.split(':')[1]));
+if(name.startsWith('edit-entry:')){const [,collection,id]=name.split(':');return editEntry(collection,id);}
+if(name.startsWith('test:')){const [,collection,id]=name.split(':');const r=state.lists[collection].find(x=>x.id===id);r.status='检查通过（模拟）';persist();detail(collection,id);renderPage(true);return toast('模拟检查完成；未连接外部服务');}
+if(name.startsWith('remove:')){const [,collection,id]=name.split(':');const r=state.lists[collection].find(x=>x.id===id);return openDialog('移除“'+r.name+'”？','<p>只移除这个 HTML 中的演示记录，不会删除真实配置或资源。</p>',cancelButton+'<button type="submit" class="button danger">移除演示记录</button>',()=>{state.lists[collection]=state.lists[collection].filter(x=>x.id!==id);if(collection==='presets'&&val('presets','default')===id)delete state.values['presets.default'];if(collection==='providers'&&r.model===val('models','default'))delete state.values['models.default'];persist();$('dialog').close();renderPage(true);toast('演示记录已移除');});}
+if(name.startsWith('detect-')){const device=name.slice(7);state.values['demo.'+(device==='voice'?'voiceReady':device)]=true;persist();renderPage(true);return toast('模拟检测完成，实际环境未被访问');}
+if(name.startsWith('coverage:'))return openDialog(name.endsWith('subagent')?'子智能体':'工作流','<p>由当前预设加载的插件提供协作能力。主智能体负责分派任务、收集结果与完成后的验证。</p><p>设置页展示支持范围与默认偏好；实际任务仍从会话发起。</p>');
+if(name.startsWith('task:'))return openDialog('任务工作树记录','<div class="code-preview">仓库：cinlan-harness\n分支：cinlan/'+esc(name.slice(5))+'\n基准：main\n状态：等待审查\n更改：3 个文件（示例）</div><p class="inline-tip">正式接入后，在任务页面审查差异、导出或合并。本预览不执行 Git 操作。</p>');
+switch(name){
+case 'about':return about();case 'back':return openDialog('独立设置预览','<p>你正在浏览本地 HTML，没有连接运行中的应用。可以关闭这个浏览器标签页，或继续查看设置。</p>','<button type="button" class="button primary" data-close>继续查看设置</button>');
+case 'clear-search':$('search').value='';return searchResults('');
+case 'config':return openDialog('预览配置','<p>下面是当前预览值与演示记录。正式接入时按各功能的配置归属写入；这份 JSON 不能直接导入 Harness。</p><pre class="code-preview">'+esc(JSON.stringify(previewConfig(),null,2))+'</pre>',button('导出预览 JSON','export-config','download')+'<button type="button" class="button" data-close>关闭</button>',null,true);
+case 'export-config':download('cinlan-settings-preview.json',JSON.stringify(previewConfig(),null,2)+'\n','application/json');return toast('预览配置已导出');
+case 'reset':return openDialog('恢复本页默认值？','<p>“'+PAGES[active].label+'”的选项将恢复为初始预览值，已添加的演示记录会保留。</p>',cancelButton+'<button type="submit" class="button primary">恢复默认值</button>',()=>{for(const key of Object.keys(state.values))if(key.startsWith(active+'.'))delete state.values[key];persist();applyTheme();$('dialog').close();renderPage(true);toast('本页已恢复默认值');});
+case 'test-notification':return openDialog('通知预览','<div class="resource-list"><div class="resource"><div class="resource-symbol">'+icon('bell')+'</div><div class="resource-copy"><div class="resource-title">Cinlan Harness</div><p class="resource-description">编程助手已完成“优化设置搜索”</p><p class="resource-description">刚刚 · 点击通知可回到对应会话</p></div></div></div><p class="inline-tip">这里仅预览通知样式，不申请浏览器通知权限。</p>');
+case 'version':return openDialog('版本信息','<p><strong>Cinlan Harness · 设置交互预览</strong></p><p>独立 HTML，无需安装或联网。应用更新检查在正式应用中由桌面版本管理。</p>');
+case 'credentials':return openDialog('凭据与普通设置分开保存','<p>提供商配置保留服务地址、模型与凭据引用。API Key 和访问令牌由主机凭据服务单独保存，不写入普通偏好文档。</p><p>此预览不采集任何真实密钥，导出的 JSON 也不包含密钥。</p>');
+case 'microphone':return openDialog('麦克风权限','<p>正式听写需要你为浏览器或桌面应用授权麦克风。本地识别模型在主机运行，识别文字进入会话草稿。</p><p>此预览不会启动录音或申请权限。</p>');
+case 'dictation':return openDialog('语音识别结果','<p>听写完成后，文字先进入草稿。</p><div class="form-row"><label for="voice-draft">草稿预览</label><textarea id="voice-draft">帮我检查当前工作区的改动，重点关注设置保存和错误处理。</textarea></div><p class="inline-tip">示例文字可编辑，不会发送给智能体。</p>');
+case 'issue-links':return openDialog('工单关联','<p><strong>#42 优化设置搜索体验</strong></p><table class="mapping"><tr><td>来源</td><td>GitHub · cinlan-harness</td></tr><tr><td>工作区</td><td>settings-search</td></tr><tr><td>会话</td><td>设置搜索实现与验证</td></tr></table><p>正式能力支持关联已存在的工作区和会话。写入外部工单前，先预览影响并单独确认。</p>');
+case 'leases':return openDialog('隔离工作区记录',resources([{name:'settings-search',detail:'Git Worktree · cinlan/settings-search',icon:'worktree',status:'活动'},{name:'docs-onboarding',detail:'Git Worktree · cinlan/docs-onboarding',icon:'worktree',status:'休眠'}],'',()=>'' )+'<p class="inline-tip">示例记录。真实工作区的合并、导出和回收由对应主机能力执行。</p>');
+case 'browser-data':return openDialog('浏览会话数据','<p>当前浏览配置：<strong>'+esc(val('browser','profile')==='work'?'工作':'临时会话')+'</strong></p><p>正式接入后，可按主机管理 Cookie、站点存储和登录状态。</p><p class="form-help">这份预览不读取或清除真实浏览器数据。</p>');
+case 'capture-preview':return openDialog('元素捕获预览','<div class="resource-list"><div class="resource"><div class="resource-symbol">'+icon('capture')+'</div><div class="resource-copy"><div class="resource-title">按钮 · 保存设置</div><p class="resource-description">来源：https://example.com/settings</p></div></div></div><pre class="code-preview">'+esc(JSON.stringify({role:'button',name:'保存设置',...(val('capture','selector')?{selector:'button[data-action="save"]'}:{}),...(val('capture','styles')?{style:{height:'36px',borderRadius:'18px'}}:{}),...(val('capture','dom')?{html:'<button data-action="save">保存设置</button>'}:{})},null,2))+'</pre><p class="form-help">示例按照当前选项生成，不会读取真实页面。</p>');
+case 'design-capabilities':return openDialog('设计能力分工','<table class="mapping"><tr><td>界面与原型</td><td>生成可编辑的页面与交互产物。</td></tr><tr><td>页面检查</td><td>通过浏览器与元素捕获检查实际布局。</td></tr><tr><td>资源生成</td><td>由独立的图像或媒体提供程序管理。</td></tr><tr><td>导出</td><td>保留源文件、预览和资源清单。</td></tr></table><p>这里只展示扩展方向，未安装或调用设计技能。</p>');
+case 'plugin-roadmap':return openDialog('插件扩展方案','<p>当前先保留清单与配置入口。未来安装流程可以独立提供来源选择、权限查看、版本与回滚。</p><p>插件启停涉及运行中的服务和会话，应由桌面或主机的插件事务管理，不能用一个偏好开关代替。</p>');
+case 'export-usage':{const f=(val('usage','period')==='30'?4.2:1)*(val('usage','model')==='all'?1:val('usage','model')==='deepseek'?.65:.35);download('cinlan-usage-example.csv','\uFEFF类型,周期,模型,Token,请求数,活跃会话\n示例数据,'+val('usage','period')+' 天,'+val('usage','model')+','+Math.round(1280000*f)+','+Math.round(186*f)+','+Math.round(24*f)+'\n','text/csv;charset=utf-8');return toast('示例统计已导出');}
+}}
+function editShortcut(id){const row=rowFor('shortcuts',id);shortcutDraft=val('shortcuts',id);openDialog('修改“'+row.label+'”快捷键','<p>点击下面的输入框，然后按下新的组合键。</p><div class="form-row"><label for="shortcut-record">组合键</label><input class="field" id="shortcut-record" readonly value="'+esc(shortcutDraft)+'" aria-describedby="shortcut-help"><span class="form-help" id="shortcut-help">支持 Ctrl、Alt、Shift 与普通按键。Esc 关闭对话框。</span></div>',cancelButton+saveButton,()=>{const conflict=PAGES.shortcuts.sections.flatMap(s=>s.rows).find(r=>r.id!==id&&val('shortcuts',r.id)===shortcutDraft);if(conflict)return formError('此组合键已用于“'+conflict.label+'”，请使用其他按键。');change('shortcuts',id,shortcutDraft);$('dialog').close();renderPage(true);toast('快捷键已保存到预览');});$('shortcut-record').focus();$('shortcut-record').addEventListener('keydown',e=>{if(['Control','Shift','Alt','Meta','Tab','Escape'].includes(e.key))return;e.preventDefault();e.stopPropagation();shortcutDraft=[e.ctrlKey||e.metaKey?'Ctrl':'',e.altKey?'Alt':'',e.shiftKey?'Shift':'',e.key===' '?'Space':e.key.length===1?e.key.toUpperCase():e.key].filter(Boolean).join(' + ');$('shortcut-record').value=shortcutDraft;$('form-error')?.remove();});}
+$('navigation').addEventListener('click',e=>{const p=e.target.closest('[data-page]');if(p)return navigate(p.dataset.page);const g=e.target.closest('[data-group]');if(g){state.folded[g.dataset.group]=!state.folded[g.dataset.group];renderNav();}});
+$('search').addEventListener('input',e=>searchResults(e.target.value));
+$('search').addEventListener('keydown',e=>{if(e.key==='Enter'&&query){$('shell').classList.remove('nav-open');$('page').querySelector('.search-result')?.focus();}});
+$('page').addEventListener('change',e=>{const control=e.target.closest('[data-setting]');if(!control)return;const [page,id]=control.dataset.setting.split('.');if(page==='issues'&&id==='defaultSource'&&!val('issues',control.value)){control.value=val(page,id);return toast('请先启用对应的工单来源');}change(page,id,control.value);if(page==='general'&&id==='language')toast('语言偏好已保存；此原型固定展示简体中文');if(['terminal','usage'].includes(page)||PAGES[page].sections.some(s=>s.rows.some(r=>r.dependsSelect?.[0]===id)))renderPage(true);});
+$('page').addEventListener('click',e=>{const theme=e.target.closest('[data-theme-choice]');if(theme){change('general','theme',theme.dataset.themeChoice);renderPage(true);return;}
+const sw=e.target.closest('.switch[data-setting]');if(sw&&!sw.disabled){const [p,id]=sw.dataset.setting.split('.');const next=!val(p,id);if(p==='issues'&&['github','linear'].includes(id)&&!next&&!val(p,id==='github'?'linear':'github'))return toast('请至少保留一个工单来源');change(p,id,next);if(p==='issues'&&!next&&val(p,'defaultSource')===id)change(p,'defaultSource',id==='github'?'linear':'github');renderPage(true);$('row-'+p+'.'+id)?.querySelector('button')?.focus({preventScroll:true});return;}
+const step=e.target.closest('[data-step]');if(step&&!step.disabled){const[p,id]=step.dataset.step.split('.');const row=rowFor(p,id);change(p,id,Math.max(row.min,Math.min(row.max,Number(val(p,id))+Number(step.dataset.delta))));renderPage(true);return;}
+const result=e.target.closest('[data-result-page]');if(result)return navigate(result.dataset.resultPage,result.dataset.resultRow);
+const shortcut=e.target.closest('[data-shortcut]');if(shortcut)return editShortcut(shortcut.dataset.shortcut);
+const tab=e.target.closest('[data-plugin-tab]');if(tab){state.pluginTab=tab.dataset.pluginTab;renderPage(true);return;}
+const plan=e.target.closest('[data-plan-toggle]');if(plan){const record=state.lists.automations.find(r=>r.id===plan.dataset.planToggle);record.enabled=!record.enabled;record.status=record.enabled?'已启用（模拟）':'已暂停';persist();renderPage(true);toast(record.enabled?'演示计划已启用，不会实际调度':'演示计划已暂停');}});
+document.addEventListener('click',e=>{const close=e.target.closest('[data-close]');if(close){$('dialog').close();return;}const actionElement=e.target.closest('[data-action]');if(actionElement){e.preventDefault();runAction(actionElement.dataset.action);}});
+$('dialog-form').addEventListener('submit',e=>{e.preventDefault();if(dialogSubmit)dialogSubmit(new FormData(e.currentTarget));});
+$('dialog-close').addEventListener('click',()=>$('dialog').close());
+$('dialog').addEventListener('click',e=>{if(e.target===$('dialog')){const b=$('dialog').getBoundingClientRect();if(e.clientX<b.left||e.clientX>b.right||e.clientY<b.top||e.clientY>b.bottom)$('dialog').close();}});
+$('mobile-menu').addEventListener('click',()=>$('shell').classList.add('nav-open'));
+$('scrim').addEventListener('click',()=>$('shell').classList.remove('nav-open'));
+document.addEventListener('keydown',e=>{if($('dialog').open)return;if((e.ctrlKey||e.metaKey)&&['k','f'].includes(e.key.toLowerCase())){e.preventDefault();if(innerWidth<=700)$('shell').classList.add('nav-open');$('search').focus();$('search').select();}if(e.key==='Escape'){if(query){$('search').value='';searchResults('');}else $('shell').classList.remove('nav-open');}});
+window.addEventListener('hashchange',()=>{const page=location.hash.slice(1);if(PAGES[page])navigate(page);});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(val('general','theme')==='system')applyTheme();});
+hydrateIcons();applyTheme();renderNav();renderPage();if(!storageAvailable)$('save-status').textContent='本地存储不可用 · 仅本次预览';
+
+</script>
+</body>
+</html>

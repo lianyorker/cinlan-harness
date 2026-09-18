@@ -1,18 +1,7 @@
-/** Host entry for the Keybindings settings contributor. */
+/** Host entry; the keyboard capability owns the durable preference schema. */
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-settings'
-import { KEYBINDINGS_NAMESPACE, KeybindingsSettingsSchema } from './types.ts'
 
-export {
-  KEYBINDINGS_NAMESPACE, KeybindingsSettingsSchema,
-  type KeyBinding, type KeybindingDefinition, type KeybindingOverride,
-  type KeybindingsSettings,
-  serializeBinding, parseKeyEvent, detectConflicts,
-} from './types.ts'
+export type { KeyBinding, KeybindingOverride, KeybindingsSettings } from './types.ts'
 
-/** Register durable settings namespace when a settings provider exists. */
-export function apply(ctx: Context): void {
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.register(KEYBINDINGS_NAMESPACE, KeybindingsSettingsSchema)
-  })
-}
+/** @param _ctx - Host context; this presentation plugin owns no Host service. */
+export function apply(_ctx: Context): void {}

@@ -1,99 +1,103 @@
-﻿/** Orchestration settings section locale dictionaries. */
+/** Locale-owned copy for Host settings and evaluated preset capabilities. */
 
-export interface OrchestrationDictionary {
-  nav: string
-  title: string
-  description: string
-  engineOverviewTitle: string
-  engineOverviewDescription: string
-  engineConcurrencyLabel: string
-  engineConcurrencyDescription: string
-  engineTotalAgentsLabel: string
-  engineTotalAgentsDescription: string
-  coverageTitle: string
-  coverageDescription: string
-  coverageReady: string
-  coverageMissing: string
-  coverageBroken: string
-  coverageRefresh: string
-  coverageLoading: string
-  coverageError: string
-  coverageSummaryReady: string
-  coverageSummaryTotal: string
-  examplesTitle: string
-  examplesDescription: string
-  exampleWorkflowTitle: string
-  exampleWorkflowDescription: string
-  exampleParallelTitle: string
-  exampleParallelDescription: string
-  examplePipelineTitle: string
-  examplePipelineDescription: string
-  docsLink: string
-  noPresets: string
-}
-
-export const en: OrchestrationDictionary = {
+/** English orchestration copy. */
+export const en = {
   nav: 'Orchestration',
   title: 'Orchestration',
-  description: 'Multi-agent coordination and workflow automation. The workflow engine runs model-authored scripts that fan out subagents at scale.',
-  engineOverviewTitle: 'Workflow Engine',
-  engineOverviewDescription: 'The DSH workflow engine executes JavaScript orchestration scripts in a sandboxed worker thread. Scripts use agent(), parallel(), and pipeline() hooks to coordinate subagents.',
-  engineConcurrencyLabel: 'Concurrency',
-  engineConcurrencyDescription: 'Up to 16 concurrent subagents per workflow run (auto-tuned from available parallelism).',
-  engineTotalAgentsLabel: 'Total Agent Cap',
-  engineTotalAgentsDescription: 'Each workflow run supports up to 1000 subagents (configurable).',
-  coverageTitle: 'Agent Preset Coverage',
-  coverageDescription: 'Each preset that includes the workflow tool can orchestrate subagents. Presets without it cannot run workflows.',
-  coverageReady: 'Ready',
-  coverageMissing: 'Missing',
-  coverageBroken: 'Broken',
+  description: 'Coordinate agents and manage execution limits. Host settings and preset capabilities are managed separately.',
+  executionTitle: 'Task execution',
+  parallelismLabel: 'Parallel tool calls',
+  parallelismHelp: 'Host setting for parallel-safe tool calls in each agent step. Changes apply to the next tool-call group; calls already running keep their limit. PTC subcalls have a separate composition limit.',
+  save: 'Save',
+  saving: 'Saving…',
+  reset: 'Restore inherited value',
+  invalidParallelism: 'Enter a whole number of at least 1.',
+  saveFailed: 'The setting was not saved. Your draft is preserved; review the current host settings and retry.',
+  loading: 'Loading host settings…',
+  unavailable: 'This host does not expose this setting to the current connection.',
+  readOnly: 'The current host settings are read-only.',
+  engineOverviewTitle: 'Workflow engine and limits',
+  engineOverviewDescription: 'Workflow scripts coordinate child agents with agent(), parallel(), and pipeline(). The owning composition provides the engine and tools. Web presets carry their own workflow engines.',
+  engineAvailability: 'Host-level engine entry',
+  presetEngine: 'Preset engine',
+  engineLimitsHelp: 'Workflow concurrency and total-agent limits belong to the workflow-worker-thread row in its preset or host profile. Copy a built-in preset before editing its files. These limits are not exposed as writable user settings here.',
+  coverageTitle: 'Agent preset capabilities',
+  coverageDescription: 'Evaluated plugin rows from the current host. Configured means enabled without a live plugin instance. Active describes the plugin lifecycle, not provider connectivity. Disabled or unresolved conditions do not imply availability.',
+  workflowTool: 'Workflows',
+  subagentTool: 'Delegation',
+  coverageActive: 'Active',
+  coverageConfigured: 'Configured',
+  coverageDisabled: 'Disabled',
+  coverageConditional: 'Conditional',
+  coveragePending: 'Not active',
+  coverageFailed: 'Failed',
+  coverageMissing: 'Not included',
+  coverageBroken: 'Unreadable preset',
   coverageRefresh: 'Check again',
-  coverageLoading: 'Checking preset coverage…',
-  coverageError: 'Failed to load preset coverage.',
-  coverageSummaryReady: '{count} of {total} presets support orchestration',
-  coverageSummaryTotal: '{total} presets total',
-  examplesTitle: 'Usage Examples',
-  examplesDescription: 'The model writes workflow scripts when you ask for large multi-agent orchestration. Here are common patterns:',
-  exampleWorkflowTitle: 'Basic workflow',
-  exampleWorkflowDescription: 'Ask the model to audit many files or research multiple topics — it writes a script that fans out subagents and returns structured results.',
+  coverageLoading: 'Checking capabilities…',
+  coverageError: 'Could not load capabilities.',
+  coverageSummaryReady: '{count} of {total} presets have an enabled workflow tool',
+  examplesTitle: 'Collaboration patterns',
+  examplesDescription: 'These patterns require the corresponding tools and providers in the selected composition.',
+  exampleWorkflowTitle: 'Workflow',
+  exampleWorkflowDescription: 'Ask the agent to audit files or research topics with a script that coordinates child agents and returns their results.',
   exampleParallelTitle: 'Parallel execution',
-  exampleParallelDescription: 'Use parallel() to run independent subagents concurrently with a barrier — all must complete before the next step.',
+  exampleParallelDescription: 'Run independent child agents together and wait for their results before continuing.',
   examplePipelineTitle: 'Pipeline stages',
-  examplePipelineDescription: 'Use pipeline() to run each item through stages independently with no barrier between stages — ideal for multi-stage processing.',
-  docsLink: 'Read the workflow tool documentation',
-  noPresets: 'No agent presets found. Create a preset that includes the workflow tool to enable orchestration.',
+  examplePipelineDescription: 'Process each item through several stages independently.',
+  noPresets: 'No preset compositions are exposed by this host.',
 }
 
+/** Typed keys shared by the dictionaries and metadata resolvers. */
+export type OrchestrationSettingsKey = keyof typeof en
+
+/** Complete orchestration dictionary. */
+export type OrchestrationDictionary = Record<OrchestrationSettingsKey, string>
+
+/** Simplified Chinese copy. */
 export const zh: OrchestrationDictionary = {
   nav: '编排',
   title: '编排',
-  description: '多 Agent 协调和工作流自动化。工作流引擎在沙箱中执行模型编写的脚本，批量调度子 Agent。',
-  engineOverviewTitle: '工作流引擎',
-  engineOverviewDescription: 'DSH 工作流引擎在隔离的 Worker 线程中执行 JavaScript 编排脚本。脚本通过 agent()、parallel() 和 pipeline() 钩子协调子 Agent。',
-  engineConcurrencyLabel: '并发数',
-  engineConcurrencyDescription: '每个工作流运行最多 16 个并发子 Agent（根据可用并行度自动调整）。',
-  engineTotalAgentsLabel: '总 Agent 上限',
-  engineTotalAgentsDescription: '每个工作流运行支持最多 1000 个子 Agent（可配置）。',
-  coverageTitle: 'Agent 预设编排覆盖',
-  coverageDescription: '包含 workflow 工具的预设可以编排子 Agent。不包含的预设无法运行工作流。',
-  coverageReady: '就绪',
-  coverageMissing: '缺失',
-  coverageBroken: '损坏',
+  description: '协调 Agent 并管理执行限制。主机设置与预设能力分别管理。',
+  executionTitle: '任务执行',
+  parallelismLabel: '并行工具调用上限',
+  parallelismHelp: '主机设置，限制每个 Agent 步骤中可安全并行的工具调用。更改用于下一组工具调用，已运行的调用保留原有限制。PTC 子调用由独立的组成配置限制。',
+  save: '保存',
+  saving: '正在保存…',
+  reset: '恢复继承值',
+  invalidParallelism: '请输入不小于 1 的整数。',
+  saveFailed: '设置未保存，输入草稿已保留。请检查主机当前设置后重试。',
+  loading: '正在加载主机设置…',
+  unavailable: '当前连接无法访问此主机设置。',
+  readOnly: '当前主机设置为只读。',
+  engineOverviewTitle: '工作流引擎与限制',
+  engineOverviewDescription: '工作流脚本通过 agent()、parallel() 和 pipeline() 协调子 Agent。所属的组成配置提供引擎与工具。Web 预设各自挂载工作流引擎。',
+  engineAvailability: '主机层引擎条目',
+  presetEngine: '预设引擎',
+  engineLimitsHelp: '工作流并发数和 Agent 总数上限属于所在预设或主机配置中的 workflow-worker-thread 条目。内置预设需要先复制，再编辑文件。这些上限未作为可写用户设置开放。',
+  coverageTitle: 'Agent 预设能力覆盖',
+  coverageDescription: '显示当前主机已求值的插件条目。「已配置」表示已启用但没有运行中的插件实例。「已激活」仅表示插件生命周期状态，不代表提供商已连接。禁用或条件未确定的条目不表示能力可用。',
+  workflowTool: '工作流',
+  subagentTool: '任务委派',
+  coverageActive: '已激活',
+  coverageConfigured: '已配置',
+  coverageDisabled: '已禁用',
+  coverageConditional: '条件未确定',
+  coveragePending: '未激活',
+  coverageFailed: '失败',
+  coverageMissing: '未包含',
+  coverageBroken: '预设无法读取',
   coverageRefresh: '重新检查',
-  coverageLoading: '正在检查预设编排覆盖…',
-  coverageError: '加载预设编排覆盖失败。',
-  coverageSummaryReady: '{count} / {total} 个预设支持编排',
-  coverageSummaryTotal: '共 {total} 个预设',
-  examplesTitle: '使用示例',
-  examplesDescription: '当你需要大规模多 Agent 编排时，模型会编写工作流脚本。以下是常见模式：',
-  exampleWorkflowTitle: '基本工作流',
-  exampleWorkflowDescription: '让模型审计多个文件或研究多个主题——它会编写脚本批量调度子 Agent 并返回结构化结果。',
+  coverageLoading: '正在检查能力…',
+  coverageError: '无法加载能力状态。',
+  coverageSummaryReady: '{count} / {total} 个预设包含已启用的工作流工具',
+  examplesTitle: '协作方式',
+  examplesDescription: '这些方式需要所选组成中对应的工具与提供商。',
+  exampleWorkflowTitle: '工作流',
+  exampleWorkflowDescription: '让 Agent 通过脚本协调子 Agent 审计文件或研究主题，并返回结果。',
   exampleParallelTitle: '并行执行',
-  exampleParallelDescription: '使用 parallel() 并发运行独立的子 Agent 并等待全部完成——适合需要所有结果汇总后再继续的场景。',
+  exampleParallelDescription: '同时运行独立的子 Agent，等待它们的结果后继续。',
   examplePipelineTitle: '流水线阶段',
-  examplePipelineDescription: '使用 pipeline() 让每个项目独立通过多个阶段，阶段间无屏障——适合多阶段处理。',
-  docsLink: '阅读工作流工具文档',
-  noPresets: '未找到 Agent 预设。创建一个包含 workflow 工具的预设以启用编排。',
+  examplePipelineDescription: '让每个项目独立通过多个处理阶段。',
+  noPresets: '当前主机未提供预设组成信息。',
 }
-
-export type OrchestrationSettingsKey = keyof OrchestrationDictionary

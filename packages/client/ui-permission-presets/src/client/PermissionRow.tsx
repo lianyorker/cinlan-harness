@@ -65,7 +65,7 @@ export function PermissionRow({ load, select, usePermission, t }: PermissionRowP
 
   return (
     <>
-      <div className={css.row}>
+      <div className={css.row} data-settings-anchor="permission">
         <div className={css.rowText}>
           <div className={css.title}>{t('title')}</div>
           <div className={css.desc} role={state.error === null ? undefined : 'alert'}>{description}</div>

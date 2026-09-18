@@ -1,221 +1,161 @@
-/** Git and source control settings section: branch prefix, keep local main, group order, upstream comparison, attribution. */
-import { useEffect, useState, type ReactNode } from 'react'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
+/** Native settings rows over the authoritative Git preferences snapshot. */
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Button, Input, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { GitSourceControlSettings, BranchPrefixMode, SourceControlGroupOrder } from '../types.ts'
+import { hasOverride, type GitSettingsOperations } from './settings-operations.ts'
 import type { GitSettingsKey } from './locales.ts'
 import css from './GitSettingsSection.module.css'
 
-/** Injected face for the Git settings section. */
-export interface GitSettingsSectionInjected {
-  readonly settings: SettingsScope<GitSourceControlSettings>
-  readonly t: (key: GitSettingsKey, params?: Record<string, string | number>) => string
+/** Registration-owned data and mutations; the renderer binds useSettings. */
+export interface GitSettingsSectionInjected extends GitSettingsOperations {
+  hooks: { settings: HostObservable<SettingsScopeSnapshot<GitSourceControlSettings>> }
 }
 
-/** Owner props from the settings shell. */
-export interface GitSettingsSectionProps extends GitSettingsSectionInjected {
-  close: () => void
-}
-
-type LoadState =
-  | { phase: 'loading' }
-  | { phase: 'ready'; value: GitSourceControlSettings; revision: number | undefined }
-  | { phase: 'error'; message: string }
+/** Git preferences receive the standard settings owner and locale shares. */
+export type GitSettingsSectionProps = PropsRuntime<'settings.section'>
+  & PropsLocale<'settings.gitSourceControl'> & InjectFace<GitSettingsSectionInjected>
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+type ToggleField = 'compareAgainstUpstream' | 'enableGitHubAttribution'
+const TOGGLES: readonly { field: ToggleField; titleKey: GitSettingsKey; descriptionKey: GitSettingsKey; anchor: string }[] = [
+  { field: 'compareAgainstUpstream', titleKey: 'compareUpstreamTitle', descriptionKey: 'compareUpstreamDescription', anchor: 'git-upstream' },
+  { field: 'enableGitHubAttribution', titleKey: 'attributionTitle', descriptionKey: 'attributionDescription', anchor: 'git-attribution' },
+]
 
-function useSettings(scope: SettingsScope<GitSourceControlSettings>): {
-  state: LoadState
-  update: (field: keyof GitSourceControlSettings, value: unknown) => Promise<void>
-  saveStatus: SaveStatus
-} {
-  const [state, setState] = useState<LoadState>({ phase: 'loading' })
+/** Render durable Git preferences, preserving custom-prefix drafts after a rejected save. */
+export function GitSettingsSection({ useSettings, save, reset, t }: GitSettingsSectionProps): ReactNode {
+  const snapshot = useSettings(value => value)
+  const value = snapshot.value
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
-
+  const [customDraft, setCustomDraft] = useState<{ value: string; revision: number | undefined }>()
+  const mounted = useRef(true)
   useEffect(() => {
-    const sync = () => {
-      const snapshot = scope.getSnapshot()
-      if (snapshot.status === 'ready' && snapshot.value !== undefined) {
-        setState({ phase: 'ready', value: snapshot.value, revision: snapshot.revision })
-      } else if (snapshot.status === 'unavailable') {
-        setState({ phase: 'error', message: 'unavailable' })
-      }
-    }
-    sync()
-    return scope.subscribe(() => { sync() })
-  }, [scope])
-
-  const update = async (field: keyof GitSourceControlSettings, value: unknown): Promise<void> => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+  const pending = saveStatus === 'saving'
+  const writable = snapshot.status === 'ready' && snapshot.writable && snapshot.mode === 'host'
+  const disabled = !writable || pending
+  const commit = async (operation: () => Promise<boolean>): Promise<boolean> => {
+    if (disabled) return false
     setSaveStatus('saving')
-    try {
-      await scope.set(field as string, value)
-      setSaveStatus('saved')
-      setTimeout(() => { setSaveStatus('idle') }, 2000)
-    } catch {
-      setSaveStatus('error')
-    }
+    const saved = await operation()
+    if (mounted.current) setSaveStatus(saved ? 'saved' : 'error')
+    return saved
   }
+  const resetButton = (field: keyof GitSourceControlSettings, titleKey: GitSettingsKey): ReactNode =>
+    hasOverride(snapshot.user, field) && <Button
+      disabled={disabled} onClick={() => {
+        void commit(() => reset(field)).then((saved) => {
+          if (saved && field === 'branchPrefixCustom' && mounted.current) setCustomDraft(undefined)
+        })
+      }}
+      aria-label={t('resetField', { field: t(titleKey) })}
+    >{t('reset')}</Button>
 
-  return { state, update, saveStatus }
-}
-
-function BranchPrefixCard(props: {
-  value: GitSourceControlSettings
-  t: GitSettingsSectionInjected['t']
-  update: (field: keyof GitSourceControlSettings, value: unknown) => Promise<void>
-}): ReactNode {
-  const { value, t, update } = props
-  const modes: { mode: BranchPrefixMode; labelKey: GitSettingsKey; descKey: GitSettingsKey }[] = [
-    { mode: 'git-username', labelKey: 'branchPrefixGitUsername', descKey: 'branchPrefixGitUsernameDesc' },
-    { mode: 'custom', labelKey: 'branchPrefixCustom', descKey: 'branchPrefixCustomDesc' },
-    { mode: 'none', labelKey: 'branchPrefixNone', descKey: 'branchPrefixNoneDesc' },
-  ]
-  const preview = value.branchPrefix === 'git-username'
-    ? '<git-username>/'
-    : value.branchPrefix === 'custom'
-      ? value.branchPrefixCustom || '(empty)'
-      : '(no prefix)'
-
-  return <div className={css.card}>
-    <h2 className={css.cardTitle}>{t('branchPrefixTitle')}</h2>
-    <p className={css.cardDescription}>{t('branchPrefixDescription')}</p>
-    <div className={css.optionGroup}>
-      {modes.map(({ mode, labelKey, descKey }) => (
-        <label
-          key={mode}
-          className={`${css.optionRow} ${value.branchPrefix === mode ? css.optionRowSelected : ''}`}
-        >
-          <input
-            type="radio"
-            name="branchPrefix"
-            className={css.optionRadio}
-            checked={value.branchPrefix === mode}
-            onChange={() => { void update('branchPrefix', mode) }}
-          />
-          <span className={css.optionContent}>
-            <span className={css.optionLabel}>{t(labelKey)}</span>
-            <span className={css.optionDesc}>{t(descKey)}</span>
-          </span>
-        </label>
-      ))}
-    </div>
-    {value.branchPrefix === 'custom' && (
-      <>
-        <input
-          type="text"
-          className={css.customInput}
-          placeholder={t('branchPrefixCustomPlaceholder')}
-          value={value.branchPrefixCustom}
-          onChange={(e) => { void update('branchPrefixCustom', e.target.value) }}
-          aria-label={t('branchPrefixCustomLabel')}
-        />
-      </>
-    )}
-    <p className={css.preview}>{t('branchPrefixPreview', { value: preview })}</p>
-  </div>
-}
-
-function ToggleCard(props: {
-  titleKey: GitSettingsKey
-  descKey: GitSettingsKey
-  checked: boolean
-  t: GitSettingsSectionInjected['t']
-  update: (field: keyof GitSourceControlSettings, value: unknown) => Promise<void>
-  field: keyof GitSourceControlSettings
-  hintKey?: GitSettingsKey
-}): ReactNode {
-  const { titleKey, descKey, checked, t, update, field, hintKey } = props
-  return <div className={css.card}>
-    <h2 className={css.cardTitle}>{t(titleKey)}</h2>
-    <p className={css.cardDescription}>{t(descKey)}</p>
-    <div className={css.toggleRow}>
-      <span className={css.optionDesc}>{checked ? 'On' : 'Off'}</span>
-      <button
-        type="button"
-        className={`${css.toggle} ${checked ? css.toggleChecked : ''}`}
-        onClick={() => { void update(field, !checked) }}
-        aria-pressed={checked}
-        aria-label={t(titleKey)}
-      >
-        <span className={css.toggleKnob} />
-      </button>
-    </div>
-    {hintKey && <p className={css.hint}>{t(hintKey)}</p>}
-  </div>
-}
-
-function GroupOrderCard(props: {
-  value: GitSourceControlSettings
-  t: GitSettingsSectionInjected['t']
-  update: (field: keyof GitSourceControlSettings, value: unknown) => Promise<void>
-}): ReactNode {
-  const { value, t, update } = props
-  const orders: { order: SourceControlGroupOrder; labelKey: GitSettingsKey }[] = [
-    { order: 'changes-first', labelKey: 'groupOrderChangesFirst' },
-    { order: 'staged-first', labelKey: 'groupOrderStagedFirst' },
-    { order: 'untracked-first', labelKey: 'groupOrderUntrackedFirst' },
-  ]
-  return <div className={css.card}>
-    <h2 className={css.cardTitle}>{t('groupOrderTitle')}</h2>
-    <p className={css.cardDescription}>{t('groupOrderDescription')}</p>
-    <div className={css.segmentGroup}>
-      {orders.map(({ order, labelKey }) => (
-        <button
-          key={order}
-          type="button"
-          className={`${css.segmentButton} ${value.sourceControlGroupOrder === order ? css.segmentButtonSelected : ''}`}
-          onClick={() => { void update('sourceControlGroupOrder', order) }}
-        >
-          {t(labelKey)}
-        </button>
-      ))}
-    </div>
-  </div>
-}
-
-/** The Git settings section component. */
-export function GitSettingsSection(props: GitSettingsSectionProps): ReactNode {
-  const { t, settings } = props
-  const { state, update, saveStatus } = useSettings(settings)
-
-  if (state.phase === 'loading') {
-    return <div className={css.section}><p className={css.loadingText}>{t('settingsLoading')}</p></div>
-  }
-  if (state.phase === 'error') {
-    return <div className={css.section}><p className={css.errorText}>{t('settingsError')}</p></div>
-  }
-
-  const { value } = state
-
-  return <div className={css.section}>
-    <BranchPrefixCard value={value} t={t} update={update} />
-    <ToggleCard
-      titleKey="keepLocalMainTitle"
-      descKey="keepLocalMainDescription"
-      checked={value.refreshLocalBaseRefOnWorktreeCreate}
-      t={t}
-      update={update}
-      field="refreshLocalBaseRefOnWorktreeCreate"
-    />
-    <GroupOrderCard value={value} t={t} update={update} />
-    <ToggleCard
-      titleKey="compareUpstreamTitle"
-      descKey="compareUpstreamDescription"
-      checked={value.compareAgainstUpstream}
-      t={t}
-      update={update}
-      field="compareAgainstUpstream"
-    />
-    <ToggleCard
-      titleKey="attributionTitle"
-      descKey="attributionDescription"
-      checked={value.enableGitHubAttribution}
-      t={t}
-      update={update}
-      field="enableGitHubAttribution"
-      hintKey="attributionKeywordHint"
-    />
-    <p className={`${css.saveStatus} ${saveStatus === 'error' ? css.saveStatusError : ''} ${saveStatus === 'saved' ? css.saveStatusOk : ''}`}>
-      {saveStatus === 'saving' ? '…' : saveStatus === 'error' ? t('settingsSaveFailed') : saveStatus === 'saved' ? t('settingsSaved') : ''}
-    </p>
-  </div>
+  return <section className={css.section}>
+    <header className={css.header}>
+      <h1 className={css.title}>{t('nav')}</h1>
+      <p className={css.description}>{t('description')}</p>
+    </header>
+    <p className={css.notice}>{t('runtimeNotice')}</p>
+    {snapshot.status !== 'ready' || value === undefined
+      ? <p className={css.message} role="status">{t(snapshot.mode === 'memory' ? 'readOnly'
+        : snapshot.status === 'unavailable' ? 'settingsError' : 'settingsLoading')}</p>
+      : <>
+        {!writable && <p className={css.notice} role="status">{t('readOnly')}</p>}
+        <div className={css.rows} aria-busy={pending}>
+          <div className={css.row} data-settings-anchor="git-branch-prefix">
+            <div className={css.copy}>
+              <label className={css.label} htmlFor="git-branch-prefix">{t('branchPrefixTitle')}</label>
+              <p className={css.help}>{t('branchPrefixDescription')}</p>
+              <p className={css.help}>{value.branchPrefix === 'git-username'
+                ? t('branchPrefixGitUsernameDesc')
+                : t('branchPrefixPreview', { value: value.branchPrefix === 'custom'
+                  ? value.branchPrefixCustom.length === 0 ? t('branchPrefixEmpty')
+                    : value.branchPrefixCustom + (value.branchPrefixCustom.endsWith('/') ? '' : '/') + 'dsh/task/<uuid>'
+                  : 'dsh/task/<uuid>' })}</p>
+            </div>
+            <div className={css.controls}>
+              <select id="git-branch-prefix" className={css.select} value={value.branchPrefix} disabled={disabled}
+                onChange={(event) => { void commit(() => save('branchPrefix', event.target.value as BranchPrefixMode)) }}>
+                <option value="git-username">{t('branchPrefixGitUsername')}</option>
+                <option value="custom">{t('branchPrefixCustom')}</option>
+                <option value="none">{t('branchPrefixNone')}</option>
+              </select>
+              {resetButton('branchPrefix', 'branchPrefixTitle')}
+            </div>
+          </div>
+          <div className={css.row} data-settings-anchor="git-custom-prefix">
+            <div className={css.copy}>
+              <label className={css.label} htmlFor="git-custom-prefix">{t('branchPrefixCustomLabel')}</label>
+              <p className={css.help}>{t(value.branchPrefix === 'custom' ? 'branchPrefixCustomDesc' : 'customInactive')}</p>
+            </div>
+            <div className={css.controls}>
+              <form className={css.prefixForm} onSubmit={(event) => {
+                event.preventDefault()
+                if (customDraft === undefined || value.branchPrefix !== 'custom') return
+                const draft = customDraft
+                void commit(() => save('branchPrefixCustom', draft.value, draft.revision)).then((saved) => {
+                  if (saved && mounted.current) setCustomDraft(undefined)
+                })
+              }}>
+                <Input id="git-custom-prefix" className={css.input ?? ''} value={customDraft?.value ?? value.branchPrefixCustom}
+                  placeholder={t('branchPrefixCustomPlaceholder')} disabled={disabled || value.branchPrefix !== 'custom'}
+                  onChange={(event) => {
+                    const text = event.target.value
+                    setCustomDraft(previous => ({ value: text, revision: previous?.revision ?? snapshot.revision }))
+                  }} />
+                {customDraft !== undefined && <>
+                  <Button type="submit" variant="outline" disabled={disabled || value.branchPrefix !== 'custom'}>{t('save')}</Button>
+                  <Button disabled={pending} onClick={() => { setCustomDraft(undefined) }}>{t('discard')}</Button>
+                </>}
+              </form>
+              {resetButton('branchPrefixCustom', 'branchPrefixCustomLabel')}
+            </div>
+          </div>
+          <div className={css.row} data-settings-anchor="git-update-base">
+            <div className={css.copy}>
+              <h2 className={css.label}>{t('keepLocalMainTitle')}</h2>
+              <p className={css.help}>{t('keepLocalMainDescription')}</p>
+            </div>
+            <div className={css.controls}>
+              <Switch checked={value.refreshLocalBaseRefOnWorktreeCreate} label={t('keepLocalMainTitle')}
+                title={t('keepLocalMainDescription')} disabled onChange={() => {}} />
+              {resetButton('refreshLocalBaseRefOnWorktreeCreate', 'keepLocalMainTitle')}
+            </div>
+          </div>
+          <div className={css.row} data-settings-anchor="git-group-order">
+            <div className={css.copy}>
+              <label className={css.label} htmlFor="git-group-order">{t('groupOrderTitle')}</label>
+              <p className={css.help}>{t('groupOrderDescription')}</p>
+            </div>
+            <div className={css.controls}>
+              <select id="git-group-order" className={css.select} value={value.sourceControlGroupOrder} disabled={disabled}
+                onChange={(event) => { void commit(() => save('sourceControlGroupOrder', event.target.value as SourceControlGroupOrder)) }}>
+                <option value="changes-first">{t('groupOrderChangesFirst')}</option>
+                <option value="staged-first">{t('groupOrderStagedFirst')}</option>
+                <option value="untracked-first">{t('groupOrderUntrackedFirst')}</option>
+              </select>
+              {resetButton('sourceControlGroupOrder', 'groupOrderTitle')}
+            </div>
+          </div>
+          {TOGGLES.map(({ field, titleKey, descriptionKey, anchor }) =>
+            <div key={field} className={css.row} data-settings-anchor={anchor}>
+              <div className={css.copy}><h2 className={css.label}>{t(titleKey)}</h2><p className={css.help}>{t(descriptionKey)}</p></div>
+              <div className={css.controls}>
+                <Switch checked={value[field]} label={t(titleKey)} disabled={disabled}
+                  onChange={(value) => { void commit(() => save(field, value)) }} />
+                {resetButton(field, titleKey)}
+              </div>
+            </div>)}
+        </div>
+        <p className={css.message} role="status" data-state={saveStatus}>
+          {saveStatus === 'saving' ? t('settingsSaving') : saveStatus === 'saved' ? t('settingsSaved')
+            : saveStatus === 'error' ? t('settingsSaveFailed') : ''}
+        </p>
+      </>}
+  </section>
 }

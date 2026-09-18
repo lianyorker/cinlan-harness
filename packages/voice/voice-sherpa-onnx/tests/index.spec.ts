@@ -1,4 +1,4 @@
-/* oxlint-disable typescript/no-extraneous-class, typescript/no-unsafe-assignment */
+/* oxlint-disable typescript/no-unsafe-assignment */
 /** Integration test for the /voice/api route mounted on a real WebServer. */
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -49,8 +49,8 @@ async function post(port: number, path: string, body: unknown): Promise<{ status
 }
 
 describe('voice-sherpa-onnx: /voice/api route', () => {
-  it('declares the two services it drives', () => {
-    expect(inject).toEqual(['voice', 'webServer', 'subprocess'])
+  it('requires the engine facade and managed subprocess without HTTP', () => {
+    expect(inject).toEqual(['voice', 'subprocess'])
   })
 
   it.each([

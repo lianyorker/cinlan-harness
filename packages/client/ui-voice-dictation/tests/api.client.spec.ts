@@ -1,64 +1,115 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { voiceApi, VoiceApiError } from '../src/client/api.ts'
+import { describe, expect, it } from 'vitest'
+import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
+import type {} from '@deepseek-ai/dsh-api-voice-controller'
+import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
+import { createVoiceApi, VoiceApiError, type VoiceApi, type VoiceEngineStatus } from '../src/client/api.ts'
+import { createVoiceRemote, modelRow } from './voice-fixtures.client.ts'
 
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
-}
+const operations: readonly { name: keyof VoiceApi; call: (api: VoiceApi) => Promise<unknown> }[] = [
+  { name: 'engineStatus', call: api => api.engineStatus() },
+  { name: 'modelsList', call: api => api.modelsList() },
+  { name: 'modelsDownload', call: api => api.modelsDownload('zh') },
+  { name: 'modelsRemove', call: api => api.modelsRemove('zh') },
+  { name: 'transcribe', call: api => api.transcribe('zh', 'YWJj') },
+]
 
-describe('voiceApi', () => {
-  afterEach(() => { vi.unstubAllGlobals() })
+describe('createVoiceApi', () => {
+  describe.each(['provided', 'omitted'] as const)('with a %s cancellation signal', (signalMode) => {
+    function signal(): AbortSignal | undefined {
+      return signalMode === 'provided' ? new AbortController().signal : undefined
+    }
 
-  it('engineStatus posts to /voice/api/engine.status and returns the value', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(200, { ok: true, value: { ok: true } }))
-    vi.stubGlobal('fetch', fetchMock)
-    await expect(voiceApi.engineStatus()).resolves.toEqual({ ok: true })
-    expect(fetchMock).toHaveBeenCalledWith('/voice/api/engine.status', expect.objectContaining({ method: 'POST' }))
+    it('unwraps engine availability and forwards the signal', async () => {
+      const remote = createVoiceRemote()
+      const value: VoiceEngineStatus = { ok: true }
+      remote.engineStatus.mockResolvedValue({ ok: true, value })
+      const requestSignal = signal()
+      await expect(createVoiceApi(remote).engineStatus(requestSignal)).resolves.toBe(value)
+      expect(remote.engineStatus).toHaveBeenCalledExactlyOnceWith(requestSignal)
+    })
+
+    it('unwraps the model roster and forwards the signal', async () => {
+      const remote = createVoiceRemote()
+      const value = { models: [modelRow('zh', { state: 'ready', cacheDir: '/cache/zh' })] }
+      remote.modelsList.mockResolvedValue({ ok: true, value })
+      const requestSignal = signal()
+      await expect(createVoiceApi(remote).modelsList(requestSignal)).resolves.toBe(value)
+      expect(remote.modelsList).toHaveBeenCalledExactlyOnceWith(requestSignal)
+    })
+
+    it('unwraps the downloaded cache and forwards the model request and signal', async () => {
+      const remote = createVoiceRemote()
+      const value = { cacheDir: '/cache/zh' }
+      remote.modelsDownload.mockResolvedValue({ ok: true, value })
+      const requestSignal = signal()
+      await expect(createVoiceApi(remote).modelsDownload('zh', requestSignal)).resolves.toBe(value)
+      expect(remote.modelsDownload).toHaveBeenCalledExactlyOnceWith({ modelId: 'zh' }, requestSignal)
+    })
+
+    it('unwraps removal and forwards the model request and signal', async () => {
+      const remote = createVoiceRemote()
+      const value = {}
+      remote.modelsRemove.mockResolvedValue({ ok: true, value })
+      const requestSignal = signal()
+      await expect(createVoiceApi(remote).modelsRemove('zh', requestSignal)).resolves.toBe(value)
+      expect(remote.modelsRemove).toHaveBeenCalledExactlyOnceWith({ modelId: 'zh' }, requestSignal)
+    })
+
+    it('unwraps transcription and forwards the model, PCM, and signal', async () => {
+      const remote = createVoiceRemote()
+      const value = { text: 'hello' }
+      remote.transcribe.mockResolvedValue({ ok: true, value })
+      const requestSignal = signal()
+      await expect(createVoiceApi(remote).transcribe('zh', 'YWJj', requestSignal)).resolves.toBe(value)
+      expect(remote.transcribe).toHaveBeenCalledExactlyOnceWith({ modelId: 'zh', pcm16kMonoBase64: 'YWJj' }, requestSignal)
+    })
   })
 
-  it('modelsList posts to /voice/api/models.list and returns the value', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(200, { ok: true, value: { models: [] } }))
-    vi.stubGlobal('fetch', fetchMock)
-    await expect(voiceApi.modelsList()).resolves.toEqual({ models: [] })
-    expect(fetchMock).toHaveBeenCalledWith('/voice/api/models.list', expect.objectContaining({ method: 'POST' }))
+  it('returns a degraded engine status as a successful value', async () => {
+    const remote = createVoiceRemote()
+    const value: VoiceEngineStatus = {
+      ok: false, cause: 'Native engine unavailable', command: 'dsh plugin --profile web install', profile: 'web', note: 'Repair the engine',
+    }
+    remote.engineStatus.mockResolvedValue({ ok: true, value })
+    await expect(createVoiceApi(remote).engineStatus()).resolves.toBe(value)
   })
 
-  it('modelsDownload posts the modelId payload', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(200, { ok: true, value: { cacheDir: '/cache/x' } }))
-    vi.stubGlobal('fetch', fetchMock)
-    await expect(voiceApi.modelsDownload('zh')).resolves.toEqual({ cacheDir: '/cache/x' })
-    const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
-    expect(JSON.parse(call[1].body as string)).toEqual({ modelId: 'zh' })
+  it.each(operations)('converts a typed $name refusal to VoiceApiError', async ({ name, call }) => {
+    const remote = createVoiceRemote()
+    const refusal: RemoteResult<never> = {
+      ok: false, error: new RemoteError('voice/model-unknown', 'Unknown voice model', { code: 'VOICE_MODEL_UNKNOWN' }),
+    }
+    remote[name].mockResolvedValue(refusal)
+    const result = call(createVoiceApi(remote))
+    await expect(result).rejects.toBeInstanceOf(VoiceApiError)
+    await expect(result).rejects.toMatchObject({ code: 'voice/model-unknown', message: 'Unknown voice model' })
   })
 
-  it('modelsRemove posts the modelId payload', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(200, { ok: true, value: {} }))
-    vi.stubGlobal('fetch', fetchMock)
-    await expect(voiceApi.modelsRemove('zh')).resolves.toEqual({})
-    const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
-    expect(call[0]).toBe('/voice/api/models.remove')
-    expect(JSON.parse(call[1].body as string)).toEqual({ modelId: 'zh' })
+  it.each(operations)('preserves the original $name transport rejection', async ({ name, call }) => {
+    const remote = createVoiceRemote()
+    const failure = new Error('Carrier disconnected')
+    remote[name].mockRejectedValue(failure)
+    await expect(call(createVoiceApi(remote))).rejects.toBe(failure)
   })
 
-  it('transcribe posts modelId and pcm payload and returns text', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(200, { ok: true, value: { text: 'hello' } }))
-    vi.stubGlobal('fetch', fetchMock)
-    await expect(voiceApi.transcribe('zh', 'YWJj')).resolves.toEqual({ text: 'hello' })
+  it.each(operations)('preserves the original $name cancellation rejection', async ({ name, call }) => {
+    const remote = createVoiceRemote()
+    const cancellation = new DOMException('Operation cancelled', 'AbortError')
+    remote[name].mockRejectedValue(cancellation)
+    await expect(call(createVoiceApi(remote))).rejects.toBe(cancellation)
   })
 
-  it('throws VoiceApiError with the wire code on a business failure', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(404, { ok: false, error: { code: 'not-found', message: 'unknown model' } }))
-    vi.stubGlobal('fetch', fetchMock)
-    await expect(voiceApi.modelsDownload('missing')).rejects.toMatchObject({ code: 'not-found', message: 'unknown model' })
-  })
-
-  it('throws a network VoiceApiError when fetch itself rejects', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline') }))
-    await expect(voiceApi.modelsList()).rejects.toBeInstanceOf(VoiceApiError)
-    await expect(voiceApi.modelsList()).rejects.toMatchObject({ code: 'network', message: 'offline' })
-  })
-
-  it('throws an http-coded error when the response is not valid JSON', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('not json', { status: 500 })))
-    await expect(voiceApi.modelsList()).rejects.toMatchObject({ code: 'http', message: 'HTTP 500' })
+  it('passes in-flight cancellation to transcription and retains the abort reason', async () => {
+    const remote = createVoiceRemote()
+    const controller = new AbortController()
+    const cancellation = new DOMException('Stop transcription', 'AbortError')
+    remote.transcribe.mockImplementation((_request, requestSignal) => new Promise((_resolve, reject) => {
+      requestSignal!.addEventListener('abort', () => { reject(cancellation) }, { once: true })
+    }))
+    const result = createVoiceApi(remote).transcribe('zh', 'YWJj', controller.signal)
+    const rejected = expect(result).rejects.toBe(cancellation)
+    controller.abort(cancellation)
+    await rejected
+    expect(remote.transcribe).toHaveBeenCalledExactlyOnceWith({ modelId: 'zh', pcm16kMonoBase64: 'YWJj' }, controller.signal)
   })
 })

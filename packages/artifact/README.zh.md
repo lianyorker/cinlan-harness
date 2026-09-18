@@ -33,6 +33,6 @@ kind: "package-group"
 <details>
 <summary>供维护者展开的工作上下文</summary>
 
-该包组没有独立的 subsystem 页面；artifact 约定由组 README 与包 README 负责。
+[Artifact 子系统参考](../../docs/subsystems/artifact.zh.md)列出生成的 Cordis API；不可变引用、授权与存储约定仍由各包 README 负责。
 
 </details>

@@ -10,6 +10,12 @@ Exactly one engine may register (`registerEngine`); a deployment does not choose
 
 `engineOrUndefined` lets a Consumer distinguish "no engine mounted" (composition gap — the settings page should show the missing-capability guidance) from "engine mounted but this model is not downloaded yet" (the model's own `VoiceModelStatus`).
 
+## Shared operations
+
+Exactly one provider registers `VoiceOperations` through `registerOperations`. The facade offers engine status, model listing/download/removal, and transcription independently of HTTP. Removing the provider withdraws its operations before awaiting their cancellation and cleanup. Callers supply an `AbortSignal`; missing operations reject with `VOICE_UNAVAILABLE`.
+
+The pure `/types` entry serves browser type consumers. The Node `/transport` entry validates model requests and canonical base64 little-endian float32 PCM, enforcing the 16 MiB decoded limit and finite samples before dispatch. The [Voice Controller](../../api/voice-controller/README.md) and optional provider HTTP adapter use the same validation.
+
 ## Model Experience
 
 ### Consumer-owned results
@@ -28,6 +34,8 @@ None; engine registration, model registration, and download/cache state never en
 
 ## Known Limitations and Deferred Work
 
+No invariant companion is published because the Voice service validates engine, model, and operation registrations, and consumers read those same registries without a separately maintained copy.
+
 - **Six shipped models** — the slice registers two streaming Zipformer archive models from GitHub releases and four file-download models from HuggingFace (English Zipformer, bilingual Paraformer, Sense Voice, Whisper tiny) via the `hf-mirror.com` mirror.
-- **No durable model-preference record** — the last-selected model is not persisted; each session starts from the settings page's default selection.
+- **Model preference belongs to the client** — the dictation UI persists its selection per browser origin; this service does not synchronize that preference across devices.
 - **No streaming partial-result API** — `VoiceRecognizer.transcribe` returns one final transcript per submitted clip; incremental partial hypotheses during an in-progress utterance are not exposed.

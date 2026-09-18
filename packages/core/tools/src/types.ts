@@ -6,6 +6,48 @@
 
 import type { ToolCallId } from '@deepseek-ai/dsh-llm/brand'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm/types'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
+
+/** Scalar JSON values supported by `enum` and `const`. */
+export type JsonSchemaScalar = string | number | boolean | null
+
+/** Single-type keywords accepted by the enforced subset. */
+export type JsonSchemaType = 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null'
+
+/**
+ * One raw JSON Schema node in the enforced subset. The optional fields express
+ * the external wire schema; the runtime schema parser rejects invalid
+ * combinations before a caller treats the node as trusted.
+ */
+export interface JsonSchemaNode {
+  /** Omit with no constraints for any JSON value, or use `oneOf`. */
+  type?: JsonSchemaType
+  /** Exactly one branch must validate; at least two branches are required. */
+  oneOf?: JsonSchemaNode[]
+  /** Nested property schemas (`type: 'object'` only). */
+  properties?: Record<string, JsonSchemaNode>
+  /** Required property names; each must appear in `properties`. */
+  required?: string[]
+  /** `false` rejects undeclared keys; absent/`true` follows JSON Schema's open default. */
+  additionalProperties?: boolean
+  /** Item schema (`type: 'array'` only); absent accepts any JSON item. */
+  items?: JsonSchemaNode
+  /** Allowed values for a scalar node. */
+  enum?: JsonSchemaScalar[]
+  /** The single allowed value for a scalar node. */
+  const?: JsonSchemaScalar
+  /** Annotation, ignored for validation. */
+  description?: string
+  /** Annotation, ignored for validation. */
+  title?: string
+  /** Annotation, ignored for validation but required to be lossless JSON. */
+  default?: JsonValue
+  /** Annotation, ignored for validation but required to be lossless JSON. */
+  examples?: JsonValue
+}
+
+/** A consumer-constrained object-rooted schema. */
+export type ObjectJsonSchema = JsonSchemaNode & { type: 'object' }
 
 /** Payload recorded when one nested PTC mode Tool dispatch starts. */
 export interface PtcDispatchStartEventData {

@@ -1,6 +1,4 @@
-<!-- 英文源文件由 scripts/gen-persistence-catalog.ts 生成；本中文文件是通过双语配对维护的经评审对侧。
-     更新时先运行 `pnpm run gen-persistence-catalog` 更新英文，再更新本文件并运行 `pnpm run verify-translation-pairing --write docs/persistence-catalog.md` 重新记录配对。 -->
-
+<!-- 英文源文件由 scripts/gen-persistence-catalog.ts 生成；本中文文件是通过双语配对维护的经评审对侧。更新时先运行 `pnpm run gen-persistence-catalog` 更新英文，再更新本文件并运行 `pnpm run verify-translation-pairing --write docs/persistence-catalog.md` 重新记录配对。 -->
 # 会话持久化事件目录
 
 [English](persistence-catalog.md) | 中文
@@ -196,6 +194,30 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 ```
 
 来源：[`packages/interaction/user-approval/src/index.ts:33`](../packages/interaction/user-approval/src/index.ts)
+
+### `assessment/*`
+
+<a id="assessmentoperation-decided--log-only"></a>
+
+#### `assessment/operation-decided` — log-only
+
+```ts persistence-catalog
+/** Required, log-only authorization decision committed before its proposed effect. */
+'assessment/operation-decided': AssessmentOperationDecidedEvent
+```
+
+来源：[`packages/security/assessment-scope/src/types.ts:258`](../packages/security/assessment-scope/src/types.ts)
+
+<a id="assessmentscope-bound--log-only"></a>
+
+#### `assessment/scope-bound` — log-only
+
+```ts persistence-catalog
+/** Required, log-only whole grant bound before this Session's first model or tool effect. */
+'assessment/scope-bound': AssessmentScopeBoundEvent
+```
+
+来源：[`packages/security/assessment-scope/src/types.ts:256`](../packages/security/assessment-scope/src/types.ts)
 
 ### `assistant/*`
 
@@ -436,6 +458,19 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 
 来源：[`packages/feedback/command-feedback/src/index.ts:25`](../packages/feedback/command-feedback/src/index.ts)
 
+### `finding/*`
+
+<a id="findingchange--log-only"></a>
+
+#### `finding/change` — log-only
+
+```ts persistence-catalog
+/** Complete post-mutation state for one durable security finding. */
+'finding/change': FindingChange
+```
+
+来源：[`packages/security/finding/src/types.ts:249`](../packages/security/finding/src/types.ts)
+
 ### `goal/*`
 
 <a id="goalchange--log-only"></a>
@@ -539,7 +574,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'model/selection': ModelSelection
 ```
 
-来源：[`packages/api/session-controller/src/types.ts:40`](../packages/api/session-controller/src/types.ts)
+来源：[`packages/api/session-controller/src/types.ts:41`](../packages/api/session-controller/src/types.ts)
 
 ### `permission/*`
 
@@ -939,7 +974,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'tool/ptc-dispatch': PtcDispatchEventData
 ```
 
-来源：[`packages/core/tools/src/types.ts:56`](../packages/core/tools/src/types.ts)
+来源：[`packages/core/tools/src/types.ts:98`](../packages/core/tools/src/types.ts)
 
 <a id="toolptc-dispatch-start--log-only"></a>
 
@@ -962,7 +997,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'tool/ptc-dispatch-start': PtcDispatchStartEventData
 ```
 
-来源：[`packages/core/tools/src/types.ts:40`](../packages/core/tools/src/types.ts)
+来源：[`packages/core/tools/src/types.ts:82`](../packages/core/tools/src/types.ts)
 
 <a id="toolresult--surface"></a>
 

@@ -1,17 +1,7 @@
-/** Durable notification preferences shared by the Host settings provider and browser UI. */
-
-import s from '@deepseek-ai/schemastery'
-
-/** Settings namespace owned by the notification plugin. */
-export const NOTIFICATIONS_SETTINGS_NAMESPACE = 'notifications'
-
-/** Built-in notification sounds. */
-export const NOTIFICATION_SOUNDS = [
-  'system', 'two-tone', 'ding', 'pop', 'spark', 'flame', 't', 'click', 'custom',
-] as const
+/** Pure notification preference data shared with browser consumers. */
 
 /** Persisted sound selection. */
-export type NotificationSound = typeof NOTIFICATION_SOUNDS[number]
+export type NotificationSound = 'system' | 'two-tone' | 'ding' | 'pop' | 'spark' | 'flame' | 't' | 'click' | 'custom'
 
 /** User-controlled notification preferences. */
 export interface NotificationSettings {
@@ -27,14 +17,10 @@ export interface NotificationSettings {
   suppressWhenFocused: boolean
   /** Browser-local display name for a selected custom sound file. */
   customSoundName: string
+  /** Suppress automatic alerts during the daily browser-local quiet window. */
+  quietHoursEnabled: boolean
+  /** Inclusive local start time in HH:mm form. */
+  quietHoursStart: string
+  /** Exclusive local end time; equal times suppress automatic alerts all day. */
+  quietHoursEnd: string
 }
-
-/** Schema used by Host registration and Client settings decoding. */
-export const NotificationSettingsSchema: s<NotificationSettings> = s.object({
-  enabled: s.boolean().default(false),
-  agentCompletion: s.boolean().default(false),
-  terminalBell: s.boolean().default(false),
-  sound: s.union([...NOTIFICATION_SOUNDS]).default('system'),
-  suppressWhenFocused: s.boolean().default(false),
-  customSoundName: s.string().default(''),
-})

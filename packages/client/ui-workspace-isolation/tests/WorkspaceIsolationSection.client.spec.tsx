@@ -303,6 +303,41 @@ describe('WorkspaceIsolationSection', () => {
     expect(screen.getByText('session-lease-1')).not.toBeNull()
   })
 
+  it('opens provider policy for search without operating on a lease', async () => {
+    const p = props({ target: { itemId: 'policy', anchorId: 'workspace-isolation-policy' } })
+    render(<WorkspaceIsolationSection {...p} />)
+    expect(screen.getByRole('heading', { level: 1, name: en.title })).toBeTruthy()
+    expect(screen.getByText(en.policyTitle).closest('details')).toHaveProperty('open', true)
+    expect(document.querySelector('[data-settings-anchor="workspace-isolation-policy"]')).not.toBeNull()
+    await screen.findByText(en.empty)
+    expect(p.inspect).not.toHaveBeenCalled()
+    expect(p.merge).not.toHaveBeenCalled()
+    expect(p.prune).not.toHaveBeenCalled()
+  })
+
+  it('offers an inspection retry instead of indefinite loading after failure', async () => {
+    const current = lease('retry', 'active', '2026-09-03T00:01:00.000Z')
+    const inspect = vi.fn().mockRejectedValueOnce(new Error('inspection unavailable')).mockResolvedValue({
+      lease: current, checkoutState: 'clean', branchHead: current.head, workingTreeChanges: [], hasUntrackedFiles: false,
+    })
+    render(<WorkspaceIsolationSection {...props({ list: vi.fn(async () => [current]), inspect })} />)
+    fireEvent.click(await screen.findByRole('button', { name: en.details }))
+    expect((await screen.findByRole('alert')).textContent).toBe('inspection unavailable')
+    expect(screen.getByText(en.detailsUnavailable)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: en.retry }))
+    await screen.findByText(en.checkoutClean)
+    expect(inspect).toHaveBeenCalledTimes(2)
+    expect(inspect).toHaveBeenLastCalledWith(current.leaseId, expect.any(AbortSignal))
+  })
+
+  it('disables orphan pruning when the host cannot provide lease state', async () => {
+    const p = props({ list: vi.fn(async () => { throw new Error(en.errorUnavailable) }) })
+    render(<WorkspaceIsolationSection {...p} />)
+    await screen.findByRole('alert')
+    expect(screen.getByRole('button', { name: en.prune })).toHaveProperty('disabled', true)
+    expect(p.prune).not.toHaveBeenCalled()
+  })
+
   it('uses only shared semantic tokens and responsive card layouts', () => {
     expect(css).toContain('var(--dsw-alias-label-primary)')
     expect(css).toContain('var(--dsw-alias-state-error-primary)')

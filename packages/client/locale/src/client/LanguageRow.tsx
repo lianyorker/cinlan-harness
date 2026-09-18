@@ -34,7 +34,7 @@ export function LanguageRow({ t, setLocale, useStore }: LanguageRowComponentProp
   const activeLabel = options.find(o => o.id === active)?.label ?? active
 
   return (
-    <div className={css.row}>
+    <div className={css.row} data-settings-anchor="language">
       <div className={css.rowText}>
         <div className={css.title}>{t('language.title')}</div>
       </div>

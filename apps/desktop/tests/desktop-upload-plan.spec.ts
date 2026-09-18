@@ -63,14 +63,16 @@ async function fixture(
   else {
     const executable = 'signed NSIS executable fixture'
     await writeFile(join(artifactsRoot, `${base}.exe`), executable)
+    await writeFile(join(artifactsRoot, `${base}.exe.blockmap`), 'blockmap')
     await writeFile(join(artifactsRoot, desktopUpdateMetadataFilename(version, 'win32')), `${JSON.stringify({
       version,
       files: [{
         url: `${base}.exe`,
         size: Buffer.byteLength(executable),
         sha512: digest(executable),
-        blockMapSize: 128,
       }],
+      path: `${base}.exe`,
+      sha512: digest(executable),
     })}\n`)
   }
   return {
@@ -130,31 +132,42 @@ describe('desktop upload plan', () => {
     ])
   })
 
-  it('validates the Windows installer with its embedded blockmap and production destination', async () => {
+  it('uploads the Windows installer and external blockmap before production channel metadata', async () => {
     const paths = await fixture('win-x64', '2.0.0', 'production')
     const plan = await createDesktopUploadPlan('win-x64', paths)
     expect(plan.artifacts.map(artifact => artifact.filename)).toEqual([
       'deepseek-harness-2.0.0-win-x64.exe',
+      'deepseek-harness-2.0.0-win-x64.exe.blockmap',
       'latest.yml',
     ])
+    expect(plan.artifacts[1]).toMatchObject({
+      key: '_/harness/desktop/stable/win-x64/deepseek-harness-2.0.0-win-x64.exe.blockmap',
+      contentType: 'application/octet-stream',
+      cacheControl: 'public, max-age=31536000, immutable',
+      channelMetadata: false,
+    })
+    expect(plan.artifacts.at(-1)).toMatchObject({
+      channelMetadata: true,
+      cacheControl: 'no-cache',
+    })
     expect(plan).toMatchObject({
       publicUrl: 'https://download.deepseek.com/_/harness/desktop/stable/win-x64/',
       bucket: PRODUCTION_BUCKET,
     })
   })
 
-  it('rejects Windows metadata without an embedded blockmap size', async () => {
+  it.each(['missing', 'empty'] as const)('rejects Windows artifacts with a %s blockmap companion', async (state) => {
     const paths = await fixture('win-x64')
-    const executable = 'signed NSIS executable fixture'
-    await writeFile(join(paths.artifactsRoot, 'latest.yml'), `${JSON.stringify({
-      version: '1.2.3',
-      files: [{
-        url: 'deepseek-harness-1.2.3-win-x64.exe',
-        size: Buffer.byteLength(executable),
-        sha512: digest(executable),
-      }],
-    })}\n`)
-    await expect(createDesktopUploadPlan('win-x64', paths)).rejects.toThrow(/blockMapSize/u)
+    const blockmapPath = join(paths.artifactsRoot, 'deepseek-harness-1.2.3-win-x64.exe.blockmap')
+    if (state === 'missing') await rm(blockmapPath)
+    else await writeFile(blockmapPath, '')
+    await expect(createDesktopUploadPlan('win-x64', paths)).rejects.toThrow(/missing or empty artifact.*\.exe\.blockmap/u)
+  })
+
+  it('rejects Windows installer bytes with the same size and a different digest', async () => {
+    const paths = await fixture('win-x64')
+    await writeFile(join(paths.artifactsRoot, 'deepseek-harness-1.2.3-win-x64.exe'), 'signed NSIS executable FIXTURE')
+    await expect(createDesktopUploadPlan('win-x64', paths)).rejects.toThrow(/SHA-512.*metadata/u)
   })
 
   it('rejects a completed build from another dsh version or deployment', async () => {

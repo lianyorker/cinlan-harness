@@ -1,32 +1,25 @@
-/**
- * The source-control panel: status list (staged vs unstaged), stage/unstage,
- * commit with a message box, branch switch, and a VSCode-like history — rows
- * carry branch decorations, author and relative time. Clicking a changed
- * file or a history row opens a dedicated diff TAB (see {@link DiffTab}),
- * placed below the git pane on first use. File rows and history rows open a
- * right-click context menu with advanced operations (open in editor, discard,
- * revert, cherry-pick, copy paths/hashes). Refresh is manual + on mount/
- * focus (no file watcher — KISS).
- */
-import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } from 'react'
+/** Source-control groups, pinned branch comparison, and explicitly reviewed repository mutations. */
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import clsx from 'clsx'
 import {
   Button, IconBranchOutline16, IconCodeOutline16, IconCopyOutline16, IconRefreshOutline16,
-  IconTrashOutline16, Input, Menu, Modal, writeClipboard,
+  IconTrashOutline16, Menu, Modal, writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { GitLogEntry, GitStatusEntry, GitStatusResult, SessionScope } from './api.ts'
-import { api } from './api.ts'
+import type {
+  GitCommitPreview, GitCompareResult, GitLogEntry, GitRepositoryState, GitStatusEntry, GitStatusResult,
+  SessionScope, SidebarGitClient,
+} from './api.ts'
+import { DiffView } from './DiffView.tsx'
 import { relativeTo } from './paths.ts'
 import { relativeTime, t } from './locales.ts'
 import type { SidebarTab } from './state.ts'
 import css from './sidebar.module.css'
+import gitCss from './git-view.module.css'
 
-/** The XY status letters a row badge shows (X = index, Y = worktree). */
-function badgeOf(entry: GitStatusEntry): string {
-  const index = entry.xy[0]
-  const worktree = entry.xy[1]
-  if (index !== undefined && index !== ' ' && index !== '?') return index
-  if (worktree !== undefined && worktree !== ' ' && worktree !== '?') return worktree
-  return '?'
+/** The status letter for the row's selected index or worktree side. */
+function badgeOf(entry: GitStatusEntry, staged: boolean): string {
+  const letter = entry.xy[staged ? 0 : 1]
+  return letter === undefined || letter === ' ' ? '?' : letter
 }
 
 /** Whether the entry carries STAGED (index) changes — the X letter is set. */
@@ -35,18 +28,15 @@ function isStagedEntry(entry: GitStatusEntry): boolean {
   return index !== undefined && index !== ' ' && index !== '?'
 }
 
-/** Whether the entry carries UNSTAGED (worktree) changes — the Y letter is set
- *  (untracked `??` counts as unstaged: it is a worktree-only change). A file
- *  with both letters set ('MM') lands in BOTH sections. */
+/** Tracked worktree changes; an MM entry appears on both index and worktree sides. */
 function isUnstagedEntry(entry: GitStatusEntry): boolean {
-  if (entry.xy === '??') return true
   const worktree = entry.xy[1]
   return worktree !== undefined && worktree !== ' ' && worktree !== '?'
 }
 
 /** Whether the entry is untracked (`??`): git diff never includes it. */
 function isUntracked(entry: GitStatusEntry): boolean {
-  return badgeOf(entry) === '?'
+  return entry.xy === '??'
 }
 
 /** The last path segment (tab title for a file's diff). */
@@ -72,6 +62,7 @@ interface ConfirmState {
   title: string
   description: string
   confirmLabel: string
+  repository: GitRepositoryState
   onConfirm: () => Promise<unknown>
 }
 
@@ -79,13 +70,40 @@ interface ConfirmState {
  *  floods the panel at once (the end of the log is reached by paging). */
 const LOG_BATCH = 20
 
-export function GitView(props: {
+type CommitReview = { status: 'preparing' } | { status: 'ready'; preview: GitCommitPreview }
+type Comparison = { status: 'loading' } | { status: 'loaded'; result: GitCompareResult } | { status: 'error'; message: string }
+type Group = 'unstaged' | 'staged' | 'untracked'
+const GROUP_ORDER: Record<GitStatusResult['groupOrder'], readonly Group[]> = {
+  'changes-first': ['unstaged', 'staged', 'untracked'],
+  'staged-first': ['staged', 'unstaged', 'untracked'],
+  'untracked-first': ['untracked', 'unstaged', 'staged'],
+}
+const COMPARE_REASON = {
+  unborn: 'gitCompareUnborn',
+  detached: 'gitCompareDetached',
+  'no-default-branch': 'gitCompareNoDefault',
+  'no-merge-base': 'gitCompareNoMergeBase',
+} as const
+
+interface GitViewProps {
   scope: SessionScope
+  git: SidebarGitClient
   onOpenFile: (path: string) => void
   /** Open a diff tab (the shell places it below the git pane on first use). */
   onOpenDiff: (tab: SidebarTab) => void
-}) {
-  const { scope, onOpenFile, onOpenDiff } = props
+}
+
+/**
+ * Render Git operations for one Session; switching scope discards pending reviews.
+ * @param props - Session scope, plain Git callbacks, and file/tab navigation.
+ * @returns the source-control panel.
+ */
+export function GitView(props: GitViewProps) {
+  return <GitPanel key={JSON.stringify([props.scope.sessionId, props.scope.cwd])} {...props} />
+}
+
+function GitPanel(props: GitViewProps) {
+  const { scope, git, onOpenFile, onOpenDiff } = props
   const [status, setStatus] = useState<GitStatusResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -104,27 +122,67 @@ export function GitView(props: {
   const [historyMenu, setHistoryMenu] = useState<{ entry: GitLogEntry; x: number; y: number } | null>(null)
   /** The pending destructive action awaiting confirmation. */
   const [confirm, setConfirm] = useState<ConfirmState | null>(null)
+  const [review, setReview] = useState<CommitReview | null>(null)
+  const [comparison, setComparison] = useState<Comparison | null>(null)
+  const mounted = useRef(false)
+  const mutationPending = useRef(false)
+  const refreshRequest = useRef<AbortController | null>(null)
+  const prepareRequest = useRef<AbortController | null>(null)
+  const compareRequest = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      refreshRequest.current?.abort()
+      prepareRequest.current?.abort()
+      compareRequest.current?.abort()
+    }
+  }, [git])
+
+  const cancelReview = (): void => {
+    prepareRequest.current?.abort()
+    prepareRequest.current = null
+    setReview(null)
+  }
+
+  const closeComparison = (): void => {
+    compareRequest.current?.abort()
+    compareRequest.current = null
+    setComparison(null)
+  }
 
   const refresh = useCallback(async (): Promise<void> => {
+    refreshRequest.current?.abort()
+    const controller = new AbortController()
+    refreshRequest.current = controller
+    const cancelled = (): boolean => controller.signal.aborted
     setLoading(true)
     setError(null)
     try {
-      const [statusResult, branchResult, logResult] = await Promise.all([
-        api.gitStatus(scope),
-        api.gitBranch(scope).catch(() => ({ current: '', names: [] as string[] })),
-        // The first history page only; the rest arrives via "load more".
-        api.gitLog(scope, LOG_BATCH, 0).catch(() => [] as GitLogEntry[]),
-      ])
+      const statusResult = await git.gitStatus(scope, controller.signal)
+      if (cancelled()) return
       setStatus(statusResult)
+      if (!statusResult.isRepo) {
+        setBranchNames([])
+        setLogEntries([])
+        setLogEnded(true)
+        return
+      }
+      const [branchResult, logResult] = await Promise.all([
+        git.gitBranch(scope, controller.signal),
+        git.gitLog(scope, LOG_BATCH, 0, controller.signal),
+      ])
+      if (cancelled()) return
       setBranchNames(branchResult.names)
       setLogEntries(logResult)
       setLogEnded(logResult.length < LOG_BATCH)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason))
+      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) setLoading(false)
     }
-  }, [scope.sessionId, scope.cwd])
+  }, [git, scope.sessionId, scope.cwd])
 
   useEffect(() => { void refresh() }, [refresh])
 
@@ -132,14 +190,16 @@ export function GitView(props: {
   const loadMoreLog = async (): Promise<void> => {
     if (logLoadingMore || logEnded) return
     setLogLoadingMore(true)
+    const signal = refreshRequest.current?.signal
     try {
-      const next = await api.gitLog(scope, LOG_BATCH, logEntries.length)
+      const next = await git.gitLog(scope, LOG_BATCH, logEntries.length, signal)
+      if (!mounted.current || signal?.aborted) return
       setLogEntries(entries => [...entries, ...next])
       if (next.length < LOG_BATCH) setLogEnded(true)
     } catch (reason) {
-      setCommitError(`${t('historyLoadError')}: ${reason instanceof Error ? reason.message : String(reason)}`)
+      if (mounted.current && !signal?.aborted) setCommitError(`${t('historyLoadError')}: ${reason instanceof Error ? reason.message : String(reason)}`)
     } finally {
-      setLogLoadingMore(false)
+      if (mounted.current) setLogLoadingMore(false)
     }
   }
 
@@ -163,72 +223,84 @@ export function GitView(props: {
     })
   }
 
-  const stageEntry = async (entry: GitStatusEntry, staged: boolean): Promise<void> => {
+  const runMutation = async (operation: () => Promise<unknown>, onSuccess?: () => void): Promise<void> => {
+    if (mutationPending.current) return
+    mutationPending.current = true
+    cancelReview()
     setBusy(true)
+    setCommitError(null)
     try {
-      if (staged) await api.gitUnstage(scope, entry.path)
-      else await api.gitStage(scope, entry.path)
+      await operation()
+      if (!mounted.current) return
+      onSuccess?.()
       await refresh()
+    } catch (reason) {
+      if (mounted.current) setCommitError(reason instanceof Error ? reason.message : String(reason))
     } finally {
-      setBusy(false)
+      mutationPending.current = false
+      if (mounted.current) setBusy(false)
     }
   }
 
-  const stageAll = async (staged: boolean): Promise<void> => {
-    setBusy(true)
+  const stageEntries = async (entries: GitStatusEntry[], staged: boolean): Promise<void> => {
+    const repository = status?.repository
+    if (repository === undefined) return
+    await runMutation(async () => {
+      for (const entry of entries) {
+        if (!mounted.current) return
+        if (staged) await git.gitUnstage(scope, repository.root, entry.path)
+        else await git.gitStage(scope, repository.root, entry.path)
+      }
+    })
+  }
+
+  const prepareCommit = async (): Promise<void> => {
+    const repository = status?.repository
+    if (commitMsg.trim() === '' || busy || repository === undefined || stagedEntries.length === 0) return
+    cancelReview()
+    const controller = new AbortController()
+    prepareRequest.current = controller
+    setReview({ status: 'preparing' })
+    setCommitError(null)
     try {
-      if (staged) await api.gitUnstage(scope)
-      else await api.gitStage(scope)
-      await refresh()
-    } finally {
-      setBusy(false)
+      const preview = await git.gitPrepareCommit(scope, repository.root, commitMsg, controller.signal)
+      if (!controller.signal.aborted) setReview({ status: 'ready', preview })
+    } catch (reason) {
+      if (controller.signal.aborted) return
+      setReview(null)
+      setCommitError(reason instanceof Error ? reason.message : String(reason))
     }
   }
 
   const commit = async (): Promise<void> => {
-    const message = commitMsg.trim()
-    if (message === '' || busy) return
-    setBusy(true)
-    setCommitError(null)
+    if (review?.status !== 'ready' || prepareRequest.current === null || prepareRequest.current.signal.aborted || busy) return
+    const preview = review.preview
+    await runMutation(() => git.gitCommit(preview), () => { setCommitMsg('') })
+  }
+
+  const compare = async (): Promise<void> => {
+    closeComparison()
+    const controller = new AbortController()
+    compareRequest.current = controller
+    setComparison({ status: 'loading' })
     try {
-      await api.gitCommit(scope, message)
-      setCommitMsg('')
-      await refresh()
+      const result = await git.gitCompare(scope, controller.signal)
+      if (!controller.signal.aborted) setComparison({ status: 'loaded', result })
     } catch (reason) {
-      setCommitError(reason instanceof Error ? reason.message : String(reason))
-    } finally {
-      setBusy(false)
+      if (!controller.signal.aborted) setComparison({ status: 'error', message: reason instanceof Error ? reason.message : String(reason) })
     }
   }
 
   const checkout = async (branch: string): Promise<void> => {
-    if (branch === status?.branch || busy) return
-    setBusy(true)
-    setCommitError(null)
-    try {
-      await api.gitCheckout(scope, branch)
-      await refresh()
-    } catch (reason) {
-      setCommitError(`${t('checkoutError')}: ${reason instanceof Error ? reason.message : String(reason)}`)
-    } finally {
-      setBusy(false)
-    }
+    const repository = status?.repository
+    if (branch === status?.branch || repository === undefined) return
+    await runMutation(() => git.gitCheckout(scope, repository.root, branch))
   }
 
-  /** Run one destructive operation after the confirm modal, then refresh. */
   const runConfirmed = (confirmState: ConfirmState): void => {
-    setConfirm({ ...confirmState, onConfirm: async () => {
-      setBusy(true)
-      setCommitError(null)
-      try {
-        await confirmState.onConfirm()
-        await refresh()
-      } catch (reason) {
-        setCommitError(reason instanceof Error ? reason.message : String(reason))
-      } finally {
-        setBusy(false)
-      }
-    } })
+    if (busy) return
+    cancelReview()
+    setConfirm(confirmState)
   }
 
   /** Copy `text` to the clipboard (best-effort; no visual feedback needed — the menu closes). */
@@ -250,6 +322,18 @@ export function GitView(props: {
 
   const stagedEntries = (status?.entries ?? []).filter(isStagedEntry)
   const unstagedEntries = (status?.entries ?? []).filter(isUnstagedEntry)
+  const untrackedEntries = (status?.entries ?? []).filter(isUntracked)
+  const groups = { staged: stagedEntries, unstaged: unstagedEntries, untracked: untrackedEntries }
+  const repository = status?.repository
+  const mutationDisabled = busy || repository === undefined
+
+  const provenance = (facts: Pick<GitRepositoryState, 'root' | 'head' | 'branch'>): ReactNode => (
+    <div className={gitCss.provenance}>
+      <div>{t('gitRepository', { root: facts.root })}</div>
+      <div>{t('gitBranch', { branch: facts.branch ?? t('gitDetached') })}</div>
+      <div>{t('gitHead', { head: facts.head ?? t('gitNoHead') })}</div>
+    </div>
+  )
 
   const renderEntry = (entry: GitStatusEntry, staged: boolean): ReactNode => {
     return (
@@ -257,20 +341,20 @@ export function GitView(props: {
         <button
           type="button"
           className={css.gitRowMain}
-          title={entry.path}
+          title={entry.previousPath === undefined ? entry.path : `${entry.previousPath} → ${entry.path}`}
           onClick={() => { openWorktreeDiff(entry, staged) }}
           onContextMenu={(event) => { openFileMenu(event, entry, staged) }}
         >
-          <span className={css.gitBadge}>{badgeOf(entry)}</span>
-          <span className={css.gitName}>{entry.path}</span>
+          <span className={css.gitBadge}>{badgeOf(entry, staged)}</span>
+          <span className={css.gitName}>{entry.previousPath === undefined ? entry.path : `${entry.previousPath} → ${entry.path}`}</span>
         </button>
         <button
           type="button"
           className={css.iconButton}
           aria-label={staged ? t('unstage') : t('stage')}
           title={staged ? t('unstage') : t('stage')}
-          disabled={busy}
-          onClick={() => { void stageEntry(entry, staged) }}
+          disabled={mutationDisabled}
+          onClick={() => { void stageEntries([entry], staged) }}
         >
           {staged ? <IconTrashOutline16 /> : <IconBranchOutline16 />}
         </button>
@@ -285,11 +369,20 @@ export function GitView(props: {
           className={css.gitBranchSelect}
           value={status?.branch ?? ''}
           onChange={(event) => { void checkout(event.target.value) }}
-          disabled={busy || (status !== null && !status.isRepo)}
+          aria-label={t('branch')}
+          disabled={mutationDisabled || (status !== null && !status.isRepo)}
         >
-          {(status?.branch ?? '') !== '' && <option value={status!.branch}>{status!.branch}</option>}
+          {status?.branch !== undefined && status.branch !== '' && <option value={status.branch}>{status.branch}</option>}
           {branchNames.filter(name => name !== status?.branch).map(name => <option key={name} value={name}>{name}</option>)}
         </select>
+        <button
+          type="button"
+          className={css.gitLink}
+          disabled={status === null || !status.isRepo}
+          onClick={() => { void compare() }}
+        >
+          {t('gitCompare')}
+        </button>
         <button
           type="button"
           className={css.iconButton}
@@ -309,47 +402,47 @@ export function GitView(props: {
 
       {status !== null && status.isRepo && (
         <>
-          <div className={css.gitSection}>
-            <div className={css.gitSectionHeader}>
-              <span>{t('staged')} ({stagedEntries.length})</span>
-              {stagedEntries.length > 0 && (
-                <button type="button" className={css.gitLink} disabled={busy} onClick={() => { void stageAll(true) }}>
-                  {t('unstageAll')}
-                </button>
-              )}
-            </div>
-            {stagedEntries.length === 0 && <div className={css.gitEmpty}>{t('noChanges')}</div>}
-            {stagedEntries.map(entry => renderEntry(entry, true))}
-          </div>
-          <div className={css.gitSection}>
-            <div className={css.gitSectionHeader}>
-              <span>{t('unstaged')} ({unstagedEntries.length})</span>
-              {unstagedEntries.length > 0 && (
-                <button type="button" className={css.gitLink} disabled={busy} onClick={() => { void stageAll(false) }}>
-                  {t('stageAll')}
-                </button>
-              )}
-            </div>
-            {unstagedEntries.length === 0 && <div className={css.gitEmpty}>{t('noChanges')}</div>}
-            {unstagedEntries.map(entry => renderEntry(entry, false))}
-          </div>
+          {GROUP_ORDER[status.groupOrder].map(group => (
+            <section key={group} className={css.gitSection} aria-label={t(group)}>
+              <div className={css.gitSectionHeader}>
+                <span>{t(group)} ({groups[group].length})</span>
+                {groups[group].length > 0 && (
+                  <button
+                    type="button"
+                    className={css.gitLink}
+                    disabled={mutationDisabled}
+                    onClick={() => { void stageEntries(groups[group], group === 'staged') }}
+                  >
+                    {group === 'staged' ? t('unstageAll') : t('stageAll')}
+                  </button>
+                )}
+              </div>
+              {groups[group].length === 0 && <div className={css.gitEmpty}>{t('noChanges')}</div>}
+              {groups[group].map(entry => renderEntry(entry, group === 'staged'))}
+            </section>
+          ))}
 
           <div className={css.gitCommit}>
-            <Input
-              className={css.gitCommitInput}
+            <textarea
+              className={clsx(css.gitCommitInput, gitCss.messageInput)}
               placeholder={t('commitPlaceholder')}
+              aria-label={t('commitPlaceholder')}
+              rows={3}
               value={commitMsg}
               disabled={busy}
-              onChange={(event) => { setCommitMsg(event.target.value); setCommitError(null) }}
+              onChange={(event) => { cancelReview(); setCommitMsg(event.target.value); setCommitError(null) }}
               onKeyDown={(event) => {
-                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') void commit()
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                  event.preventDefault()
+                  void prepareCommit()
+                }
               }}
             />
             <button
               type="button"
               className={css.gitCommitButton}
-              disabled={busy || commitMsg.trim() === '' || stagedEntries.length === 0}
-              onClick={() => { void commit() }}
+              disabled={mutationDisabled || review?.status === 'preparing' || commitMsg.trim() === '' || stagedEntries.length === 0}
+              onClick={() => { void prepareCommit() }}
             >
               {t('commit')}
             </button>
@@ -426,15 +519,16 @@ export function GitView(props: {
                 return
               }
               if (id === 'stage') {
-                void stageEntry(target.entry, target.staged)
+                void stageEntries([target.entry], target.staged)
                 return
               }
-              if (id === 'discard') {
+              if (id === 'discard' && repository !== undefined) {
                 runConfirmed({
                   title: t('discardTitle'),
                   description: t('discardDesc', { path: target.entry.path }),
                   confirmLabel: t('discard'),
-                  onConfirm: () => api.gitDiscard(scope, target.entry.path),
+                  repository,
+                  onConfirm: () => git.gitDiscard(scope, repository.root, repository.head, target.entry.path),
                 })
                 return
               }
@@ -483,21 +577,23 @@ export function GitView(props: {
                 copy(target.entry.subject)
                 return
               }
-              if (id === 'revert') {
+              if (id === 'revert' && repository !== undefined) {
                 runConfirmed({
                   title: t('revertTitle'),
                   description: t('revertDesc', { subject: target.entry.subject }),
                   confirmLabel: t('revertCommit'),
-                  onConfirm: () => api.gitRevert(scope, target.entry.hashFull),
+                  repository,
+                  onConfirm: () => git.gitRevert(scope, repository.root, repository.head, target.entry.hashFull),
                 })
                 return
               }
-              if (id === 'cherryPick') {
+              if (id === 'cherryPick' && repository !== undefined) {
                 runConfirmed({
                   title: t('cherryPickTitle'),
                   description: t('cherryPickDesc', { subject: target.entry.subject }),
                   confirmLabel: t('cherryPickCommit'),
-                  onConfirm: () => api.gitCherryPick(scope, target.entry.hashFull),
+                  repository,
+                  onConfirm: () => git.gitCherryPick(scope, repository.root, repository.head, target.entry.hashFull),
                 })
               }
             }}
@@ -523,7 +619,7 @@ export function GitView(props: {
                     const pending = confirm
                     if (pending === null) return
                     setConfirm(null)
-                    void pending.onConfirm()
+                    void runMutation(pending.onConfirm)
                   }}
                 >
                   {confirm?.confirmLabel ?? ''}
@@ -532,9 +628,60 @@ export function GitView(props: {
             )}
           >
             <p className={css.gitConfirmDesc}>{confirm?.description}</p>
+            {confirm !== null && provenance(confirm.repository)}
           </Modal>
         </>
       )}
+      <Modal
+        open={review !== null}
+        onClose={cancelReview}
+        title={t('gitCommitReview')}
+        closeLabel={t('cancel')}
+        footer={(
+          <>
+            <Button variant="outline" onClick={cancelReview}>{t('cancel')}</Button>
+            <Button variant="primary" disabled={review?.status !== 'ready' || busy} onClick={() => { void commit() }}>
+              {t('gitCommitConfirm')}
+            </Button>
+          </>
+        )}
+      >
+        {review?.status === 'preparing' && <div className={css.gitPlaceholder}>{t('loading')}</div>}
+        {review?.status === 'ready' && (
+          <>
+            {provenance(review.preview)}
+            <pre className={gitCss.reviewMessage} aria-label={t('gitCommitMessage')}>{review.preview.message}</pre>
+          </>
+        )}
+      </Modal>
+      <Modal
+        open={comparison !== null}
+        onClose={closeComparison}
+        title={t('gitCompare')}
+        closeLabel={t('close')}
+        className={clsx(gitCss.compareDialog)}
+      >
+        {comparison?.status === 'loading' && <div className={css.gitPlaceholder}>{t('loading')}</div>}
+        {comparison?.status === 'error' && <div role="alert" className={css.gitError}>{comparison.message}</div>}
+        {comparison?.status === 'loaded' && (
+          comparison.result.status === 'unavailable'
+            ? <div className={css.gitPlaceholder}>{t(COMPARE_REASON[comparison.result.reason])}</div>
+            : (
+              <>
+                <div className={gitCss.provenance}>
+                  <div>{t('gitRepository', { root: comparison.result.repositoryRoot })}</div>
+                  <div>{t('gitCompareBase', { ref: comparison.result.baseRef, head: comparison.result.baseHead })}</div>
+                  <div>{t('gitHead', { head: comparison.result.head })}</div>
+                </div>
+                {comparison.result.usedFallback && (
+                  <p role="status" className={css.gitConfirmDesc}>{t('gitCompareFallback', { ref: comparison.result.baseRef })}</p>
+                )}
+                <DiffView diff={comparison.result.diff} />
+                {comparison.result.diff === '' && <div className={css.gitEmpty}>{t('diffEmpty')}</div>}
+              </>
+            )
+        )}
+      </Modal>
     </div>
   )
 }

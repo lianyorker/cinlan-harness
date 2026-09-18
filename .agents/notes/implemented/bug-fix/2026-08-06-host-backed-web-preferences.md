@@ -18,7 +18,11 @@ The owning Host halves register three schemas: optional `locale.preference` (`zh
 
 User changes update the live service synchronously and queue a `settings.mutate` path operation through `scope.set`. The scope serializes gestures, sends the latest known namespace revision as `expectedRevision`, records every successful revision, and lets only the latest write settlement republish live state. A rejected or failed latest write reloads Host state. Disposal rejects new work, skips queued operations, suppresses publication by the in-flight operation, and waits for that operation to settle before the plugin reaches quiescence.
 
+Forms that report successful persistence use `scope.mutate`, whose boolean result records the Host response: refusal or skipped dispatch is false, acceptance is true even when a newer write or disposal suppresses its publication. Transport throws recover the latest state and remain rejected. Matching values after recovery cannot establish that a dispatched write succeeded. `set` and `unset` remain void convenience methods; staged forms also check raw override presence and retain their draft on refusal.
+
 The Client keeps Host persistence disabled on non-loopback pages, so their preferences remain process-local even though Connection authenticates the complete API. Dynamic third-party theme ids remain in-process extensions outside the built-in Host schema; removing one resets the live registry without replacing the last durable built-in preference.
+
+The [floating workspace and command ownership decision](../architecture/2026-09-17-floating-workspace-command-ownership.md) applies these namespace scopes to live shortcuts and window preferences while retaining execution and focus arbitration with each consuming feature.
 
 ## Alternatives considered
 

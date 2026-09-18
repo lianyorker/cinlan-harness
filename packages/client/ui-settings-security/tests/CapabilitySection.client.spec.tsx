@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
+import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
+import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { SIDEBAR_PREFS_DEFAULTS } from '@deepseek-ai/dsh-client-ui-better-sidebar/src/prefs-shared.ts'
 import type { PluginEntryId } from '@deepseek-ai/dsh-host-plugin-inventory/types'
 import type { DeviceCapabilitySnapshot, PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 import { CAPABILITIES, CapabilitySection, type CapabilitySectionProps } from '../src/client/CapabilitySection.tsx'
 import { en, zh } from '../src/client/locales.ts'
+import { BrowserTransfersPanel } from '../src/client/BrowserTransfersPanel.tsx'
+import type { BrowserControlsCallbacks } from '../src/client/BrowserControls.tsx'
+import type { BrowserPageId } from '@deepseek-ai/dsh-api-browser-controller/types'
 
 const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
 afterEach(() => {
@@ -38,28 +46,32 @@ function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', la
     ios: null,
   }))
   const listMobileDevices = vi.fn<CapabilitySectionProps['listMobileDevices']>(async () => ({ devices: [], available: false }))
-  const mobileSettings = {
-    getSnapshot: () => ({ status: 'ready', value: { enabled: false, defaultDeviceId: '', androidSdkPath: '' }, base: undefined, user: undefined, revision: 1, writable: true, mode: 'host' }),
-    subscribe: () => () => {},
-    set: vi.fn(async () => {}),
-    unset: vi.fn(async () => {}),
-    mutate: vi.fn(async () => {}),
+  const unavailable: SettingsScopeSnapshot<never> = {
+    status: 'unavailable', mode: 'host', writable: false, value: undefined, base: undefined, user: undefined, revision: undefined,
   }
-  const props = {
+  const unusedHook = (): never => { throw new Error('This section does not read the standard hook') }
+  const props: CapabilitySectionProps = {
     definition,
+    close: vi.fn(),
+    useSessions: unusedHook, useWorkspaces: unusedHook, useSessionPendingInteraction: unusedHook, useResource: unusedHook,
     list: vi.fn(async () => inventory),
     checkDevice,
     checkSdk,
     listMobileDevices,
     describeSecurity,
-    mobileSettings,
-    useBrowserPreferences: (selector: (value: unknown) => unknown) => selector({ status: 'unavailable', mode: 'host', writable: false }),
-    useSecurityScope: (select: (value: unknown) => unknown) => select({ status: 'unavailable', mode: 'host', writable: false }),
+    useMobileSettings: selector => selector({ status: 'ready', mode: 'host', writable: true, revision: 1,
+      value: { enabled: false, defaultDeviceId: '', androidSdkPath: '' }, base: undefined, user: undefined }),
+    saveMobileSettings: vi.fn(), resetMobileSettings: vi.fn(), resetBrowserPreferences: vi.fn(),
+    useBrowserPreferences: selector => selector(unavailable),
+    useBrowserRouting: selector => selector(unavailable),
+    saveBrowserRouting: vi.fn<CapabilitySectionProps['saveBrowserRouting']>(async () => {}),
+    resetBrowserRouting: vi.fn<CapabilitySectionProps['resetBrowserRouting']>(async () => {}),
+    useSecurityScope: selector => selector(unavailable),
     saveSecurityScope: vi.fn(),
     saveBrowserPreferences: vi.fn(),
     browserControls: undefined,
-    t: key => ((language === 'en' ? en : zh) as Record<string, string>)[key] ?? key,
-  } as CapabilitySectionProps
+    t: language === 'en' ? makeTranslate(en, commonEn) : makeTranslate(zh, commonZh),
+  }
   return { ...render(<CapabilitySection {...props} />), checkDevice, describeSecurity, props }
 }
 
@@ -70,8 +82,12 @@ describe('Device Settings readiness', () => {
     expect(screen.queryByText('Installed')).toBeNull()
     expect(screen.getByText('dsh --profile device-control')).toBeTruthy()
     expect(screen.queryByText(/capabilities install/)).toBeNull()
+    expect(screen.getByText(en.computerObservationUnavailable)).toBeTruthy()
+    expect(screen.getByText(en.computerPermissionsUnknown)).toBeTruthy()
+    expect(screen.queryByText(`${en.computerScreenshot}: ${en.computerSupported}`)).toBeNull()
     expect(screen.getAllByRole('heading').map(item => item.textContent)).toEqual([
-      'Computer use', 'Computer use capability', 'How to use', 'Observe applications and windows', 'Perform desktop actions', 'Verify operation results',
+      en.computerTitle, en.computerHeroTitle, en.computerMachine, en.computerPermissions,
+      en.computerHowToUse, en.computerObserveTitle, en.computerOperateTitle, en.computerVerifyTitle,
     ])
   })
 
@@ -82,6 +98,40 @@ describe('Device Settings readiness', () => {
     fireEvent.click(screen.getByRole('button', { name: en.computerRecheck }))
     expect(await screen.findByText(en.deviceAvailable)).toBeTruthy()
     expect(view.checkDevice).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['en', 'zh'] as const)('renders %s Provider observations without treating support as permission', async (language) => {
+    const view = mount('available', language)
+    const copy = language === 'en' ? en : zh
+    await screen.findByText(copy.deviceAvailable)
+    expect(screen.getByText(copy.computerObservationUnavailable)).toBeTruthy()
+    view.checkDevice.mockResolvedValueOnce({
+      capability: 'computer', status: 'available', reason: null,
+      computer: {
+        platform: 'win32', provider: 'fixture-provider', providerVersion: '1.2.3', protocolVersion: 1, permissions: 'unknown',
+        supports: {
+          apps: { list: true, bundleIds: false, pids: true },
+          windows: { list: true, targetById: true, targetByIndex: false, focus: true, moveResize: false },
+          observation: { screenshot: true, annotatedScreenshot: false, elementFrames: true, ocr: false },
+          actions: { click: true, typeText: true, pressKey: true, hotkey: true, pasteText: false, scroll: true,
+            drag: false, setValue: false, performAction: false },
+          surfaces: { menus: false, dialogs: true, dock: false, menubar: false },
+        },
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: copy.computerRecheck }))
+    expect(await screen.findByText('fixture-provider')).toBeTruthy()
+    expect(screen.getByText('win32')).toBeTruthy()
+    expect(screen.getByText('1.2.3')).toBeTruthy()
+    expect(screen.getByText(`${copy.computerScreenshot}: ${copy.computerSupported}`)).toBeTruthy()
+    expect(screen.getByText(`${copy.computerOcr}: ${copy.computerUnsupported}`)).toBeTruthy()
+    expect(screen.getByText(copy.computerPermissionsUnknown)).toBeTruthy()
+    expect(screen.getByText(copy.computerPermissionsHelp)).toBeTruthy()
+    view.checkDevice.mockRejectedValueOnce(new Error('offline'))
+    fireEvent.click(screen.getByRole('button', { name: copy.computerRecheck }))
+    await screen.findByRole('alert')
+    expect(screen.queryByText('fixture-provider')).toBeNull()
+    expect(screen.getByText(copy.computerObservationUnavailable)).toBeTruthy()
   })
 
   it('localizes readiness and preserves the command as a code token', async () => {
@@ -132,21 +182,43 @@ describe('capability reference pages', () => {
     expect(screen.getAllByRole('article')).toHaveLength(3)
   })
 
-  it('shows browser setup steps but never offers a fake Cookie importer or enable switch', async () => {
+  it('keeps browser preferences searchable and actions unavailable without a configured Provider', async () => {
     mount('not-configured', 'en', 'browser')
     await screen.findByText(en.statusMissing)
     expect(screen.getByText(en.browserCookieDescription)).toBeTruthy()
     expect(screen.queryByRole('switch')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Import' })).toBeNull()
-    expect(screen.getByRole('list').children).toHaveLength(3)
+    expect(screen.getByText(en.browserActionsUnavailable)).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: en.browserTitle })).toBeTruthy()
   })
 
-  it('shows the enable toggle and hides SDK/device sections when disabled', async () => {
+  it('edits sidebar link routing when Browser Provider preferences are unavailable', async () => {
+    const view = mount('not-configured', 'en', 'browser')
+    await screen.findByText(en.statusMissing)
+    view.rerender(<CapabilitySection {...view.props} useBrowserRouting={selector => selector({
+      status: 'ready', mode: 'host', writable: true, revision: 12, base: undefined, user: undefined,
+      value: { ...SIDEBAR_PREFS_DEFAULTS, browserInterceptLinks: true, browserInterceptHttp: true, browserInterceptHttps: false },
+    })} />)
+    const routing = within(screen.getByRole('form', { name: en.browserRoutingTitle }))
+    fireEvent.click(routing.getByRole('switch', { name: en.browserRouteHttps }))
+    fireEvent.click(routing.getByRole('button', { name: en.browserRoutingSave }))
+    expect(await routing.findByText(en.browserRoutingSaved)).toBeTruthy()
+    expect(view.props.saveBrowserRouting).toHaveBeenCalledWith({ browserInterceptHttps: true }, 12)
+    fireEvent.click(routing.getByRole('button', { name: en.preferencesReset }))
+    expect(await routing.findByText(en.browserRoutingReset)).toBeTruthy()
+    expect(view.props.resetBrowserRouting).toHaveBeenCalledWith(12)
+    expect(view.props.saveBrowserPreferences).not.toHaveBeenCalled()
+    expect(view.checkDevice).not.toHaveBeenCalled()
+    expect(screen.getByText(en.browserActionsUnavailable)).toBeTruthy()
+  })
+
+  it('keeps stored mobile preferences visible without claiming SDK checks have run', async () => {
     mount('available', 'zh', 'mobile')
     await screen.findByText(zh.deviceAvailable)
     expect(screen.getByText(zh.mobileEnable)).toBeTruthy()
-    expect(screen.queryByText(zh.mobileSdkAndroid)).toBeNull()
-    expect(screen.queryByText(zh.mobileDefaultDevice)).toBeNull()
+    expect(screen.getByText(zh.mobileSdkAndroid)).toBeTruthy()
+    expect(screen.getByText(zh.mobileDefaultDevice)).toBeTruthy()
+    expect(screen.getAllByText(zh.mobileNotChecked)).toHaveLength(2)
   })
 
   it.each([
@@ -206,7 +278,7 @@ describe('Security Research status details', () => {
     fireEvent.click(screen.getByRole('button', { name: en.computerRecheck }))
     expect(await screen.findByText(en.securityInstallTitle)).toBeTruthy()
     expect(screen.getByText(en.securityCommand)).toBeTruthy()
-    expect(screen.queryByText(en.securityScopeUnavailable)).toBeNull()
+    expect(screen.getByText(en.securityScopeUnavailable)).toBeTruthy()
   })
 
   it('shows the broken preset card and hides the scope editor when the preset is broken', async () => {
@@ -216,7 +288,7 @@ describe('Security Research status details', () => {
     view.describeSecurity.mockResolvedValue({ ...snapshot, preset: { present: true, trust: 'system', broken: 'preset-invalid' }, status: 'attention' })
     fireEvent.click(screen.getByRole('button', { name: en.computerRecheck }))
     expect(await screen.findByText(en.securityPresetBrokenTitle)).toBeTruthy()
-    expect(screen.queryByText(en.securityScopeUnavailable)).toBeNull()
+    expect(screen.getByText(en.securityScopeUnavailable)).toBeTruthy()
     expect(screen.queryByText(en.securityInstallTitle)).toBeNull()
   })
 
@@ -227,4 +299,30 @@ describe('Security Research status details', () => {
     expect(screen.queryByText(en.securityInstallTitle)).toBeNull()
     expect(screen.queryByText(en.securityPresetBrokenTitle)).toBeNull()
   })
+  it('reveals targeted component diagnostics without rechecking capability status', async () => {
+    const b = mount()
+    await screen.findByText(en.deviceNotConfigured)
+    const details = b.container.querySelector('details')
+    expect(details?.open).toBe(false)
+    b.rerender(<CapabilitySection {...b.props} target={{ itemId: 'components', anchorId: 'computer-components' }} />)
+    expect(details?.open).toBe(true)
+    expect(b.checkDevice).toHaveBeenCalledOnce()
+  })
+
+  it('reveals targeted browser transfers without observing or transferring files', () => {
+    const unexpected = vi.fn(async () => { throw new Error('navigation must not perform a browser action') })
+    const callbacks: BrowserControlsCallbacks = {
+      pages: unexpected, open: unexpected, importCookies: unexpected, history: unexpected, network: unexpected,
+      snapshot: unexpected, upload: unexpected, downloads: unexpected, download: unexpected,
+    }
+    const props = { pageId: 'page-id' as BrowserPageId, maxFileBytes: 1024, callbacks,
+      t: makeTranslate(en, commonEn) } satisfies Parameters<typeof BrowserTransfersPanel>[0]
+    const view = render(<BrowserTransfersPanel {...props} />)
+    expect(view.container.querySelector('details')?.open).toBe(false)
+    view.rerender(<BrowserTransfersPanel {...props} target={{ itemId: 'browserTransfers', anchorId: 'browser-transfers' }} />)
+    expect(view.container.querySelector('details')?.open).toBe(true)
+    expect(screen.getByRole('button', { name: en.browserObserveInputs })).toBeTruthy()
+    expect(unexpected).not.toHaveBeenCalled()
+  })
+
 })

@@ -1,41 +1,33 @@
-import { EventEmitter } from 'node:events'
-import { PassThrough } from 'node:stream'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type { SidebarGit } from '@deepseek-ai/dsh-sidebar-git'
+import { SidebarGitError } from '@deepseek-ai/dsh-sidebar-git'
+import { buildGitApi } from '../src/git.ts'
 
-const { spawnMock } = vi.hoisted(() => ({ spawnMock: vi.fn() }))
+/** The HTTP carrier passes no client cwd or unreviewed message to the executor. */
+describe('sidebar Git HTTP forwarding', () => {
+  it('decodes only Session and operation fields and omits caller cwd', async () => {
+    const stage = vi.fn<SidebarGit['stage']>().mockResolvedValue({ ok: true })
+    const owner = { stage } as Pick<SidebarGit, 'stage'> as SidebarGit
+    const routes = buildGitApi(() => owner)
+    await routes['git.stage']?.({ sessionId: 'test', cwd: '/wrong', repositoryRoot: '/repo', path: 'file.txt' })
+    expect(stage).toHaveBeenCalledWith({ sessionId: 'test', repositoryRoot: '/repo', path: 'file.txt' })
+  })
 
-vi.mock('node:child_process', () => ({ spawn: spawnMock }))
+  it('refuses missing owners, missing provenance, and old commit-with-message requests', async () => {
+    await expect(buildGitApi(() => undefined)['git.status']?.({ sessionId: 'test', cwd: '/wrong' }))
+      .rejects.toMatchObject({ code: 'unavailable', status: 503 })
+    const commit = vi.fn<SidebarGit['commit']>()
+    const owner = { commit } as Pick<SidebarGit, 'commit'> as SidebarGit
+    const routes = buildGitApi(() => owner)
+    await expect(routes['git.commit']?.({ sessionId: 'test', message: 'unreviewed', cwd: '/wrong' }))
+      .rejects.toMatchObject({ code: 'bad-request' })
+    expect(commit).not.toHaveBeenCalled()
+  })
 
-import { isGitRepo } from '../src/git.ts'
-
-afterEach(() => {
-  spawnMock.mockReset()
-})
-
-describe('git subprocess spawning', () => {
-  it('hides spawned git windows', async () => {
-    spawnMock.mockImplementation(() => {
-      const child = new EventEmitter()
-      const stdout = new PassThrough()
-      const stderr = new PassThrough()
-      Object.assign(child, { stdout, stderr, kill: vi.fn() })
-
-      queueMicrotask(() => {
-        stdout.end('true\n')
-        stderr.end()
-        child.emit('close', 0)
-      })
-
-      return child
-    })
-
-    await expect(isGitRepo('C:\\repo')).resolves.toBe(true)
-
-    expect(spawnMock).toHaveBeenCalledTimes(1)
-    expect(spawnMock).toHaveBeenCalledWith(
-      'git',
-      ['-C', 'C:\\repo', '--no-pager', '-c', 'color.ui=false', 'rev-parse', '--is-inside-work-tree'],
-      expect.objectContaining({ windowsHide: true }),
-    )
+  it('preserves a stable executor failure without starting another Git implementation', async () => {
+    const status = vi.fn<SidebarGit['status']>().mockRejectedValue(new SidebarGitError('stale', 'Refresh the repository'))
+    const owner = { status } as Pick<SidebarGit, 'status'> as SidebarGit
+    await expect(buildGitApi(() => owner)['git.status']?.({ sessionId: 'test' }))
+      .rejects.toMatchObject({ code: 'stale', message: 'Refresh the repository', status: 409 })
   })
 })

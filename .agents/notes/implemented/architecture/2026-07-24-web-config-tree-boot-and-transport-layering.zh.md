@@ -18,7 +18,7 @@ Status: implemented
 
 **每个配置源有唯一声明位置。** 组合包 yml 值是工程默认，Settings 分节是可写的用户偏好，CLI（命令行界面）flags 面向其归属的启动器配置行，env 值则通过 yml `!!js` 表达式进入。patch 会整体替换一行的 config。解析后的前端 `distIndex` 通过同一条 patch 通道作为组装事实传递。与传输无关的提供方／模型默认值归 `ctx.agentDefaultModel` 所有；[直接 headless 入口](../../archived/architecture/2026-08-09-headless-direct-core-entry-point.md)与 Session Controller 消费同一份状态。
 
-**传输职责各有明确 owner。** `dsh-client-connection` 持有 `/api` 路由、请求与响应 envelope、浏览器认证、Host/Origin 检查、精确 Fetch 路由注册以及共享 Typert interceptor 席位。`dsh-api-gateway` 持有类型化 Remote 分发和多路复用 WebSocket。`dsh-host-webserver` 是朴素的路由注册插件：`WebServer` provide `ctx.webServer`（`register(route) → disposer`、重复 pattern 即抛、`renderIndex` 渲染——先结构化 `webserver/index-inject` 行、后原始 `tapIndex` 按注册序应用——与 `port`），激活即 listen，单请求失败时答 400 并记日志，且不认识任何 harness 概念。其基于 socket 的 Node HTTP 入口可以通过受维护的中间件应用已配置的 gzip，无需新增响应写出服务方法或改变 route owner；Web Worker 隧道传递 identity 字节。modules node 半（`ClientModuleRegistry`，provide `ctx.clientModules`）持有单包增量扫描、bundle 路由、启动注入行与 `onRebuilt`/`onGraphChanged` 通知。HMR（热模块替换）node 半通过 `fs.watchFile` membership 与 `/plugins/events` SSE 路由持有开发期重载。
+**传输职责各有明确 owner。** `dsh-client-connection` 持有 `/api` 路由、请求与响应 envelope、浏览器认证、Host/Origin 检查、Fetch 路由注册以及共享 Typert interceptor 席位。[带作用域的 Fetch 资源](2026-09-17-scoped-fetch-resources.zh.md)规定显式前缀匹配。`dsh-api-gateway` 持有类型化 Remote 分发和多路复用 WebSocket。`dsh-host-webserver` 是朴素的路由注册插件：`WebServer` provide `ctx.webServer`（`register(route) → disposer`、重复 pattern 即抛、`renderIndex` 渲染——先结构化 `webserver/index-inject` 行、后原始 `tapIndex` 按注册序应用——与 `port`），激活即 listen，单请求失败时答 400 并记日志，且不认识任何 harness 概念。其基于 socket 的 Node HTTP 入口可以通过受维护的中间件应用已配置的 gzip，无需新增响应写出服务方法或改变 route owner；Web Worker 隧道传递 identity 字节。modules node 半（`ClientModuleRegistry`，provide `ctx.clientModules`）持有单包增量扫描、bundle 路由、启动注入行与 `onRebuilt`/`onGraphChanged` 通知。HMR（热模块替换）node 半通过 `fs.watchFile` membership 与 `/plugins/events` SSE 路由持有开发期重载。
 
 **包出口纪律。** modules 包只暴露 `.`（node 半）与 `./client`（完整浏览器半：`ClientModuleSystem`、`parseBootManifest`、收编插件面）——不设专用子路径；wire 类型经根出口 re-export 给 host 侧消费方。收编握手：内核在 cordis 之前把建好的实例写入 `window.__DSH_MODULES__`；`./client` 的 apply 读取该槽位（缺少时显式抛错）并 provide `ctx.modules`。
 
@@ -33,7 +33,7 @@ Status: implemented
 | 弃案 | 一行理由 |
 |---|---|
 | 专门的 `dsh-host-profile` 受体包 | 用户模型状态归 Settings 支撑的 `ctx.agentDefaultModel` 所有；额外的 Host 受体会重复归属，并排除直接入口 |
-| 运行时里的 `assembly` 垫层插件（provide `apiHandler`） | Connection 已在传输边缘把 Remote interception 与功能自有的精确 Fetch 路由组合成一个 handler |
+| 运行时里的 `assembly` 垫层插件（provide `apiHandler`） | Connection 已在传输边缘把 Remote interception 与功能自有的 Fetch 路由组合成一个 handler |
 | 全量重扫与增量扫描并存 | 两条实现两份语义；单包路径足以覆盖激活初扫 |
 | modules 包特设 `./impl` 出口 | 出口不统一；标准 `./client` 承载完整浏览器半 |
 | dev overlay / `cordis.dev.yml` | 一套 yml；`!!js` 无法条件化行存在性，`--dev` 追加一行就是全部差异 |

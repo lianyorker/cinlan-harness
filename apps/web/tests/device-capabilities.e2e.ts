@@ -44,6 +44,8 @@ describe('Web device readiness', () => {
       capability: 'computer', status: 'not-configured', reason: 'not-configured',
     } } })
     await section.getByText('未启用', { exact: true }).waitFor()
+    await section.getByText('本次检查未提供计算机观察信息。', { exact: true }).waitFor()
+    await section.getByText('权限尚未检查', { exact: true }).waitFor()
     const aria = await captureStableAria(page, '[data-capability="computer"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(expected, aria, webSnapshotMode())
     const artifactDir = fileURLToPath(new URL('../../../.artifacts/device-control', import.meta.url))
@@ -55,7 +57,11 @@ describe('Web device readiness', () => {
   })
 
   it('presents supported setup steps without fake installation or Cookie actions', async () => {
-    expect(await page.getByRole('button', { name: '安全研究', exact: true }).count()).toBe(0)
+    await page.getByRole('button', { name: '安全研究', exact: true }).click()
+    const security = page.locator('[data-capability="security"]')
+    await expect.poll(() => security.getAttribute('aria-busy')).toBe('false')
+    expect(await security.getByRole('button', { name: /^(安装|启用)$/u }).count()).toBe(0)
+    await security.getByText('本页仅检查组合与配置，不证明外部工具可运行，也不保证范围策略已覆盖所有工具执行路径。', { exact: true }).waitFor()
     for (const [id, name] of [['design', '设计'], ['browser', '浏览器'], ['mobile', '手机模拟器']] as const) {
       await page.getByRole('button', { name, exact: true }).click()
       const section = page.locator(`[data-capability="${id}"]`)

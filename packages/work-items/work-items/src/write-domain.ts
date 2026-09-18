@@ -4,7 +4,7 @@ import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
 import type { WorkItemId, WorkItemWriteId, WorkItemWriteOperation } from './types.ts'
 
 const id = z.string().min(1).max(500).transform(value => value as WorkItemId)
-const source = z.enum(['github', 'linear'])
+const source = z.enum(['github', 'gitlab', 'linear'])
 const text = z.string().max(20_000)
 /** Validated mutation payload shared by preview admission and stored-record parsing. */
 export const mutationSchema = z.discriminatedUnion('kind', [

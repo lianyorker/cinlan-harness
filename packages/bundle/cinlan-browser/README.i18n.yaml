@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/cinlan-browser/README.md
-README.md: 21685d2c31135f20624886c5704111bc8e43fc76
-README.zh.md: 8b5ff9b56022a695690625000e5b33a7df3c09c6
+README.md: 62ee0c604f8f603288a64c8829d16f4137806d67
+README.zh.md: 87ebb8ca3700261197b06e4612a68af9190c12a8

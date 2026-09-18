@@ -27,6 +27,7 @@ import { conversationPhase } from '../src/client/contract/snapshot.ts'
 import { HeroShell } from '../src/client/skeleton/EmptyHero.tsx'
 import type { HeroShellProps } from '../src/client/skeleton/EmptyHero.tsx'
 import { InputBar } from '../src/client/skeleton/InputBar.tsx'
+import { createKeyboardFixture } from './keyboard-fixture.client.ts'
 import type { InputBarProps } from '../src/client/skeleton/InputBar.tsx'
 import type {
   ComposerBarOwnerProps, ConversationHeaderLineageOwnerProps,
@@ -257,6 +258,7 @@ function mount(
           useInput={useInput}
           inputActions={inputActions}
           keyboard={wiring}
+          {...createKeyboardFixture().props}
           addFiles={() => null}
           useFileUploads={bindSnapshotSelector(createSnapshotStore({}))}
           retryFileUpload={undefined}

@@ -9,9 +9,6 @@
     - id: invariants
       name: '@deepseek-ai/dsh-invariants'
 
-    - id: execution-host-local
-      name: '@deepseek-ai/dsh-execution-host-local'
-
     - id: artifact-local
       name: '@deepseek-ai/dsh-artifact-local'
 

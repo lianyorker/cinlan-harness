@@ -34,6 +34,8 @@ kind: "package-reference"
 | `typeText` | `emulator type --text-stdin --device <deviceId> --observation-id <observationId> --json`，字面文本通过 stdin 传递 |
 | `pressButton` | `emulator button <button> --device <deviceId> --observation-id <observationId> --json` |
 
+Provider 只接受已解析的 `MobileObserveSpec` 目标。mobile-device 服务会在调用 Provider 前解析 Consumer 省略的 id；CLI 始终接收显式 `--device`。
+
 ## Protocol 与 freshness
 
 Devices result 是由 canonical `{backend,id,name,state,isAvailable,detail?}` record 组成的直接 array，并且 device id 唯一。Observation 要求 `protocolVersion: 1`、opaque `deviceGeneration`、opaque `observationId`、`coordinateSpace: normalized`、有界 tree text、显式 screenshot status，以及可选的有界 PNG；其尺寸必须与 IHDR header 一致。Tap、gesture、type 和 button result 必须恰好是 `{ok:true}`。
@@ -61,6 +63,7 @@ CLI 执行和 observation state 不会改变模型 request prefix。
 
 - Provider 不安装或启动应用，不管理设备生命周期，不授予运行时权限，不读取日志，不传输文件，不执行 raw command，不暴露相机或传感器，不使用剪贴板，也不配对远程设备。
 - 真实 Android 与 iOS 行为取决于已安装的 Cinlan CLI，不属于 keyless unit coverage。
+- 保存的 `androidSdkPath` 不会配置这个外部 CLI 后端；Provider 不提供 SDK 覆盖参数，也不猜测应转发的环境变量。
 
 不发布 runtime invariant companion：Provider 注册、协议校验和 observation 新鲜度由各自操作执行，并由包级测试覆盖。
 

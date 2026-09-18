@@ -52,12 +52,14 @@ Open a dual workbench for files, previews, terminals, Git, background tasks, emb
 - [🧠 Model Experience](#model-experience)
 - [Dev Note](#dev-note)
 
+<a id="-features"></a>
+
 ## ✨ Features
 
 - **🗂️ File Workbench**: file explorer (lazy-loading tree; symlinks show their target kind — directory links expand, dangling links flagged) + CodeMirror editor; inline preview for images / Markdown (incl. Mermaid diagrams, strict-mode safe rendering + click-to-zoom) / HTML / PDF
 - **🌐 Embedded Browser**: multiple web tabs with back / forward / refresh; content runs in a sandboxed iframe; external links are routed by protocol by default — HTTP opens in the sidebar, HTTPS goes to the system browser (both adjustable in settings)
 - **💻 Real Terminal**: xterm.js + node-pty real shell, reconnect with transcript replay; optionally injects `terminal_*` tools for the model
-- **🌿 Git Panel**: real diff + VSCode-style diff tabs, history, right-click to stage / commit / revert
+- **🌿 Git Panel**: ordered change groups, staged and committed diffs, branch comparisons, history, and reviewed commits
 - **🧩 Background Tasks**: agent topology + background tasks (exit codes / live output / force-kill)
 - **💬 Side Chat (beta)**: Codex-style side threads — the child inherits the parent's FULL context (completed turns + the pending question + the in-progress turn's assistant output and tool activity, honestly frozen as "interrupted") and runs independently without entering the main conversation; threads support continuous follow-ups (auto-resumed after a DSH restart) and one-click "Save as new session" promotion to a top-level session
 - **🪟 Dual Workbench**: right sidebar + bottom panel; drag tabs to split / merge panes (cross-panel), mobile auto-merges into a full-width drawer
@@ -66,14 +68,23 @@ Open a dual workbench for files, previews, terminals, Git, background tasks, emb
 - **⚡ On-demand Loading**: only ~325KB core at startup; heavy deps (terminal / editor / mermaid diagrams) load on demand ([design](docs/plans/2026-08-12-lazy-chunks-design.md))
 - **🌏 i18n**: UI text follows DSH's language (zh / en) with live switching
 
+[Git preferences](../ui-git-settings/README.md) control group order on refresh, the default base for **Compare branch**, and optional commit attribution. Commit opens a review of the exact message before confirmation; changing the Session, repository, HEAD, or staged files invalidates that review. Web and desktop Git calls use the same [Session-owned Git service](../../git/sidebar-git/README.md). The client declares `remote.sidebarGit` as an activation dependency, so its Git callbacks belong to the mounted namespace lifetime.
+
+When the [native Terminal settings page](../ui-settings-terminal/README.md) is mounted, it edits the existing `dsh-better-sidebar` preferences. Shell executable and whitespace-separated arguments affect new integrated sidebar terminals; existing processes keep their shell and session working directory. Font family and size (9–32 px), scrollback (0–100,000 lines; default 4,000), cursor style (default block), and cursor blinking (default on) update open xterm views. Confirmed reset removes only these terminal overrides.
+
+Integrated terminal views use the authenticated `sidebarTerminals` Remote on Web and Desktop. Reconnecting keeps a live process and its captured directory. Floating Workspace tabs capture an existing directory inside the session workspace and store their layout under the window UUID; invalid directories retain saved input and show a correction message. Closing a tab targets its observed native process generation, including when its view is absent. Capability checks create no process. Host restart cannot restore running commands, and these preferences do not configure the core execution tools.
+
+The Host mounts the terminal provider without requiring a Web server. Complete serialized output frames default to 16 KiB, retained output to 8 MiB, acknowledgment timeout to 30 seconds, and native shutdown timeout to 10 seconds; configure `terminalFrameBytes`, `terminalBufferBytes`, `terminalAckTimeoutMs`, and `terminalShutdownTimeoutMs` in the plugin config. The buffer must be at least one frame and includes JSON escaping and frame metadata. Native shutdown waits for every owned process, including unattached and already-closing terminals.
+
 > 🔌 **Core principle**: service-first — the 7 built-in tabs + 6 viewers register through the same `ctx.betterSidebar` API as third-party plugins, with fully equal capabilities; anything the ecosystem can provide better is delegated to ecosystem plugins (**28+ ecosystem plugins** already — see "🌐 Plugin Ecosystem" below). See "🔌 Service API" and the [external plugin guide](./docs/external-plugin-guide.md).
+
+<a id="-installation"></a>
 
 ## 🚀 Installation
 
 **Prerequisites**: DSH installed (`dsh web` boots), Node.js ≥ 20, pnpm ≥ 10.
 
-**Supported DSH versions**:
-<a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions: 0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a>
+**Supported DSH versions**: <a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions: 0.1.0-rc.8 · 0.1.1-rc.1 · 0.1.1-rc.2" src="https://img.shields.io/badge/DSH-0.1.0--rc.8_%C2%B7_0.1.1--rc.1_%C2%B7_0.1.1--rc.2-4d6bfe" /></a>
 
 ```sh
 dsh plugin --profile web add dsh-better-sidebar@latest   # first run fails: pnpm 11 blocks node-pty build scripts (the dependency is still written)
@@ -163,6 +174,8 @@ Update: `git pull && pnpm install && pnpm build` → `node scripts/package-regis
 
 </details>
 
+<a id="-feature-tour"></a>
+
 ## 🖼️ Feature Tour
 
 > Below are real UI screenshots (two per row; click to zoom).
@@ -176,11 +189,13 @@ Update: `git pull && pnpm install && pnpm build` → `node scripts/package-regis
 | **💬 Side Chat (beta)**<br/><sub>Codex-style side threads: **one independent tab per conversation**; the thread inherits the parent's full context (including the in-progress turn, honestly frozen as "interrupted") and runs independently without polluting the main session; follow-ups survive restarts; one click promotes the thread to a top-level session.</sub><br/><div align="center"><img width="420" alt="Side Chat (beta)" src="https://github.com/user-attachments/assets/3a338c36-f5de-4000-95f3-4b1cd04f60fc" /></div> | **🪟 Dual Workbench: Sidebar + Bottom Panel + Split Panes**<br/><sub>The right sidebar and the bottom panel can stay open together; drag a tab to a pane edge to **split**, to the middle to **merge** (works across panels); panel width/height drag from the left/top edge; on mobile everything merges into a full-width drawer.</sub><br/><div align="center"><img width="420" alt="Dual workbench (right sidebar + bottom panel)" src="https://github.com/user-attachments/assets/dfdb875e-a1a8-4d4b-8340-353736b1708f" /></div> |
 | **⚙️ Declarative Settings**<br/><sub>The "Side card" section in DSH settings: one small card per tab / viewer with an independent toggle (highlighted enabled state + brand switch); secondary settings open from the "Feature settings" strip at the card bottom (switch / text / number / select rows); plugin-owned settings persist under `pluginSettings`.</sub><br/><div align="center"><img width="420" alt="Declarative settings: side cards" src="https://github.com/user-attachments/assets/0800ca64-621e-48da-b7df-aecfddc3ec29" /></div> | **📱 Mobile**<br/><sub>On narrow screens (<768px) the panels become a full-width drawer: bottom-panel tabs merge into the sidebar once, with touch-friendly dragging.</sub><br/><div align="center"><img width="360" alt="Mobile full-width drawer" src="https://github.com/user-attachments/assets/a82ba78a-f4cf-4d85-80e8-050a05beb144" /></div> |
 
+<a id="-plugin-ecosystem"></a>
+
 ## 🌐 Plugin Ecosystem
 
 The `ctx.betterSidebar` service opens two extension points to every plugin: **`registerTab` (sidebar pages)** and **`registerFileViewer` (file previewers)**. The 7 built-in tabs + 6 viewers register through the exact same API — fully equal capabilities.
 
-```ts
+```tsx
 import type {} from 'dsh-better-sidebar'  // triggers the ctx.betterSidebar type merge
 export const inject = ['betterSidebar']
 export function apply(ctx: Context) {
@@ -221,7 +236,7 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
 | [Melody-max114/dsh-excel-panel](https://github.com/Melody-max114/dsh-excel-panel) | <img alt="stars" src="https://img.shields.io/github/stars/Melody-max114/dsh-excel-panel?style=flat&color=4d6bfe" /> | Excel editing: xlsx preview/edit, live formula evaluation, merged cells, save back to the original file |
 | [v587d/dsh-anysearch-refs](https://github.com/v587d/dsh-anysearch-refs) | <img alt="stars" src="https://img.shields.io/github/stars/v587d/dsh-anysearch-refs?style=flat&color=4d6bfe" /> | AnySearch results as sidebar cards: query, source snippets, highlighted keywords |
 | [mlosun/dsh-docs-panel](https://github.com/mlosun/dsh-docs-panel) | <img alt="stars" src="https://img.shields.io/github/stars/mlosun/dsh-docs-panel?style=flat&color=4d6bfe" /> | Global docs panel: portable Markdown notes, readable from any workspace |
-| [lnyuqian/dsh-skill-sidebar](https://github.com/lnyuqian/dsh-skill-sidebar) | <img alt="stars" src="https://img.shields.io/github/stars/lnyuqian/dsh-skill-sidebar?style=flat&color=4d6bfe" /> | Skills panel: scans local skill directories, one-click invocation copy, pinning |
+| [lnyuqian/dsh-skill-sidebar](https://github.com/lnyuqian/dsh-skill-sidebar) | <img alt="stars" src="https://img.shields.io/github/stars/lnyuqian/dsh-skill-sidebar?style=flat&color=4d6bfe" /> | Skills panel: scans local skill directories, shows 4–6-character capability phrases, one-click invocation copy, pinning |
 | [g-yixuan/dsh-sidechat](https://github.com/g-yixuan/dsh-sidechat) | <img alt="stars" src="https://img.shields.io/github/stars/g-yixuan/dsh-sidechat?style=flat&color=4d6bfe" /> | Codex-style side chat + selection annotations (a thin consumer plugin) |
 | [thirsty5034/dsh-ssh-tunnel](https://github.com/thirsty5034/dsh-ssh-tunnel) | <img alt="stars" src="https://img.shields.io/github/stars/thirsty5034/dsh-ssh-tunnel?style=flat&color=4d6bfe" /> | Multi-host SSH tunnels + SSH manager tab |
 | [thirsty5034/dsh-git-forge](https://github.com/thirsty5034/dsh-git-forge) | <img alt="stars" src="https://img.shields.io/github/stars/thirsty5034/dsh-git-forge?style=flat&color=4d6bfe" /> | GitHub / Gitea accounts, project grants and push policy |
@@ -261,6 +276,8 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
 </details>
 
 > 📣 **List your plugin**: tag your repo with the `dsh-better-sidebar` topic to appear on the [topic page](https://github.com/topics/dsh-better-sidebar); then PR one `PluginEntry` into [`src/client/plugins-tabs.ts`](./src/client/plugins-tabs.ts) / [`src/client/plugins-viewers.ts`](./src/client/plugins-viewers.ts) to join the built-in recommended catalog (data integrity is guarded by `tests/plugin-list.spec.ts`).
+
+<a id="-recent-updates"></a>
 
 ## 🆕 Recent Updates
 
@@ -385,11 +402,15 @@ All changes since v0.14.0:
 
 </details>
 
+<a id="-keyboard-shortcuts"></a>
+
 ## ⌨️ Keyboard Shortcuts
 
 | Action | Keys |
 |---|---|
 | Save edits | `Ctrl/Cmd + S` |
+| Find in the focused file | `Ctrl/Cmd + F` |
+| Focus replacement in the file search panel | `Ctrl/Cmd + Alt + F` |
 | Git commit | `Ctrl + Enter` |
 | Close tab | Middle mouse button |
 | Tab context menu (right-click) | Close / Close Other Tabs / Close Tabs to the Left / Close Tabs to the Right (current pane) |
@@ -397,7 +418,13 @@ All changes since v0.14.0:
 | Reference file to input | Hover the `@file` button at end of line |
 | Copy file path | Right-click row → copy relative/absolute path |
 
+File save, find, and replace register as `editor.save`, `editor.find`, and `editor.replace` with [keyboard](../keyboard/README.md). CodeMirror reads the current binding for each focused key event and uses its maintained search panel for find/replace. Remapping or unbinding replaces the corresponding default shortcut immediately; ordinary undo/history keys remain under CodeMirror unless explicitly remapped. Editor handlers release with the view, and command registrations release with the plugin.
+
+<a id="-service-api"></a>
+
 ## 🔌 Service API
+
+The `TerminalCapability` result of `getTerminalCapability()` is documented in the [Sidebar service guide](docs/external-plugin-guide.md#terminal-capability).
 
 Since v0.4.0 the plugin exposes the `ctx.betterSidebar` service — other plugins can register sidebar pages and file viewers (the 7 built-in tabs + 6 viewers register through the same service). v0.12.1 completed the base capabilities (complete type exports, capability detection, state subscription, tab badges, lifecycle callbacks, targeted open, plugin-owned settings, etc.).
 
@@ -411,6 +438,8 @@ The dashed cards at the end of the "Sidebar content" / "File viewers" grids in t
 
 **Curating a new plugin**: append a `PluginEntry` to [`src/client/plugins-tabs.ts`](./src/client/plugins-tabs.ts) (tab registrations) or [`src/client/plugins-viewers.ts`](./src/client/plugins-viewers.ts) (file-previewer registrations) and tag your repo with the `dsh-better-sidebar` topic; data integrity is guarded by `tests/plugin-list.spec.ts`.
 
+<a id="-development--build"></a>
+
 ## 🛠️ Development & Build
 
 ```sh
@@ -421,32 +450,36 @@ pnpm test         # vitest (includes manifest consistency guard; build first)
 pnpm watch        # tsdown --watch
 ```
 
-**Architecture**: a single npm package with host/client halves — host (`src/index.ts`): `/sidebar/api/*` JSON API, `/sidebar/file` media route, `/sidebar/html` preview route, `/sidebar/ws/terminal` WebSocket (fs / git / pty / preview, all session-scoped with a trust fence); client (`src/client/index.tsx`): portal sidebar + views + interception; state persisted per session in localStorage. Organized per DSH official conventions (no default export, dual client bundles); no dependency on npm / checkout at runtime (`@deepseek-ai/*` provided by the web profile).
+**Architecture**: the Host and Client share one npm package. The Client calls the Host’s existing sidebar dispatcher through authenticated Connection Fetch: `/api/sidebar.api`, `/api/sidebar.upload`, and `/api/sidebar.file`; `/api/sidebar.bundle` serves only editor and Mermaid chunks. The path-encoded `/api/sidebar/html/` prefix preserves Session scope for relative HTML assets. These routes work in Web and Desktop without a Web listener; optional `/sidebar/*` Web aliases reuse the same operations and retain their Host/Origin fence. Terminal operations use the [Sidebar terminal capability](../../terminal/sidebar-terminals/README.md). The Client owns the views and per-Session localStorage state.
+
+<a id="-security"></a>
 
 ## 🔐 Security
 
-- Routes protected by a Host-header trust fence (same as `/api`); `fs.write` is atomic; media/preview routes only serve files inside the session cwd; git only shells out to the CLI and never sets identity
-- HTML preview and browser tab content render in **opaque-origin sandboxed iframes** (no `allow-same-origin`/`allow-top-navigation`, `no-referrer`, all permission policies disabled); the `/sidebar/html` route carries a CSP `sandbox` + size/path bounds; the address bar rejects `javascript:`/`data:`/`file:` and local addresses like localhost
+- Canonical routes use Connection authentication; Web aliases retain the live Host/Origin trust fence. JSON bodies keep the 1 MiB bound. Uploads stream under `uploadLimit`; aborts before rename remove the temporary file and preserve the target, while a started rename may commit. Media and HTML reads stay within the Session cwd and `mediaLimit`.
+- HTML preview and browser tab content render in **opaque-origin sandboxed iframes** (no `allow-same-origin`/`allow-top-navigation`, `no-referrer`, all permission policies disabled); the `/api/sidebar/html/` route carries a CSP `sandbox` + size/path bounds; the address bar rejects `javascript:`/`data:`/`file:` and local addresses like localhost
 - The UI shows the sandbox status live (red warning when off) and can temporarily unlock the current page; the settings page can disable the sandbox per feature (disabled by default, with a warning) — when off, content shares the origin with the UI; only recommended for fully trusted content
 
 
+
+<a id="-platform-support"></a>
 
 ## 🖥️ Platform Support
 
 Windows / Linux / macOS (macOS validated daily; the rest covered by unit tests); `node-pty` prefers prebuilt binaries, otherwise a build toolchain is required (Windows VS Build Tools / Linux make+g+++python3 / macOS Xcode CLT).
 
+<a id="-community"></a>
+
 ## 💬 Community
 
-WeChat / QQ group QR codes will live here. After uploading the QR images (drag them into any issue/comment to get a `user-attachments` link), replace `src` below and uncomment:
+Join the QQ group (577011007).
 
 <div align="center">
-  <!-- WeChat group QR code
-  <img width="220" alt="WeChat group QR code" src="https://github.com/user-attachments/assets/REPLACE_ME" />
-  -->
-  <!-- QQ group QR code
-  <img width="220" alt="QQ group QR code" src="https://github.com/user-attachments/assets/REPLACE_ME" />
-  -->
+  <img width="220" alt="WeChat group QR code" src="https://github.com/user-attachments/assets/39caafc7-9629-4b13-bb2b-eac17eab5b6a" />
+  <img width="220" alt="QQ group QR code" src="https://github.com/user-attachments/assets/9be34629-26ef-4537-aad4-1393c147f81c" />
 </div>
+
+<a id="-contributing"></a>
 
 ## 🤝 Contributing
 
@@ -454,6 +487,8 @@ WeChat / QQ group QR codes will live here. After uploading the QR images (drag t
 - **Curate an ecosystem plugin**: tag your repo with `dsh-better-sidebar` + PR a `PluginEntry` into [`src/client/plugins-tabs.ts`](./src/client/plugins-tabs.ts) / [`plugins-viewers.ts`](./src/client/plugins-viewers.ts)
 - **Before submitting**: `pnpm typecheck && pnpm build && pnpm test` (CI additionally gates on npm-pack → real-mount → headless-render via `pnpm test:mount`)
 - See [`AGENTS.md`](./AGENTS.md) for the repository rules (hard constraints, CI lanes, release flow)
+
+<a id="-star-history"></a>
 
 ## ⭐ Star History
 
@@ -471,6 +506,8 @@ Thanks to everyone who contributed:
 <a href="https://github.com/omdsh-dev/DSH-better-sidebar/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=omdsh-dev/DSH-better-sidebar" alt="Contributors" />
 </a>
+
+<a id="-friends"></a>
 
 ## 🔗 Friends
 
@@ -503,9 +540,10 @@ The eight definitions add a fixed schema cost to each request while the package 
 The tool-definition prefix remains reusable while plugin configuration and registered schemas are unchanged. New calls and results append to the Session suffix, while a composition or schema change invalidates reuse from the changed definition.
 
 ## Known Limitations and Deferred Work
+<a id="known-limitations-and-deferred-work"></a>
 
 - Git has no push/pull/fetch; no file watcher (manual refresh); tool inline file-open buttons cannot be intercepted
-- Dragging a terminal tab to another pane remounts it (shell restarts)
+- Host restarts cannot restore running terminal commands.
 - Office-suite preview (.docx/.xlsx/.pptx) is provided by the recommended office plugin; without it these files fall through to the code/download fallbacks
 - Browser sandbox has no login state; some sites need popup login, and sites that refuse embedding show a reason panel
 - HTML preview renders the saved file, not unsaved drafts
@@ -515,5 +553,4 @@ The tool-definition prefix remains reusable while plugin configuration and regis
 <a id="dev-note"></a>
 ### Dev Note
 
-The Web composition owns this package's active terminal surface; the minimal preset retains its separate persistent terminal stack.
-
+Web and Desktop use the same sidebar terminal service; the minimal preset retains its separate persistent terminal stack.

@@ -6,16 +6,8 @@
 .section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 720px;
-  color: var(--dsw-alias-label-primary);
-}
-
-.title {
-  margin: 0;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 500;
+  gap: 16px;
+  min-width: 0;
   color: var(--dsw-alias-label-primary);
 }
 

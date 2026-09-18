@@ -15,6 +15,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { createConversationStore } from '../src/client/stores.ts'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
+import { createKeyboardFixture } from './keyboard-fixture.client.ts'
 
 usePinnedBrowserLanguages('zh-CN')
 
@@ -33,6 +34,7 @@ function sessionFakeFor() {
 
 async function bench() {
   const runtime = await SlotTestRuntime.create()
+  runtime.ctx.provide('keyboard', createKeyboardFixture(false).keyboard)
   const rootUpload = vi.fn(() => Promise.resolve({
     ok: true as const,
     value: {

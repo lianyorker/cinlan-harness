@@ -70,7 +70,8 @@ export async function readMicrophonePermission(): Promise<MicrophonePermissionSt
       storePermission('denied')
       return 'denied'
     }
-    return readStoredPermission()
+    storePermission('unknown')
+    return 'unknown'
   } catch {
     return readStoredPermission()
   }

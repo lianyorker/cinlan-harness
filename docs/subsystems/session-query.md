@@ -362,6 +362,12 @@ type SessionQueryErrorCode =
   | 'SESSION_QUERY_SOURCE_CONFLICT'
 ```
 
+## Usage reports
+
+[Usage Query](../../packages/session-query/usage-query/src/types.ts) aggregates each Session's recorded Turns without exposing conversation content or credential values. `UsageQueryRequest` names an inclusive `from` and exclusive `to` Turn-start interval in Unix milliseconds, with optional exact Provider/model filters.
+
+`UsageQueryResult` returns the applied request, `generatedAt`, exact known totals, deterministic route rows, available Provider/model filters, scanned/skipped Session counts, examined-event count, and unattributed Turn count. `partial` and `reasons` identify source limits, read errors, unknown accounting, unattributed filters, or inherited boundaries. `tokens: null` means no exact accounting is known; zero is a measured value. Optional cache-read, cache-write, and reasoning buckets remain absent unless fully known, and reasoning is an output subset rather than an additional total.
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -506,4 +512,26 @@ async readEvent(request: SessionEventReadRequest, signal?: AbortSignal): Promise
 Types: [SessionId](core.md) · [SessionTitleSnapshot](session-title.md)
 
 Source: [`packages/session-query/session-query/src/index.ts`](../../packages/session-query/session-query/src/index.ts)
+
+<a id="ctxusagequery--usagequeryservice"></a>
+
+### `ctx.usageQuery` — `UsageQueryService`
+
+Concrete local Host aggregator; Session JSONL remains the only source of accounting.
+
+```ts cordis-catalog
+/**
+ * Read each Session's own Turns without activating or mutating any Session.
+ * A source that fails or exceeds aggregation bounds is reported as partial.
+ * Cold decoding uses the sessionQuery owner's cancellable observation API;
+ * its preparation may read a complete log before its event count is known.
+ * @param request - exclusive-end UTC interval and exact route filters.
+ * @param signal - caller cancellation, propagated through listing and cold reads.
+ * @returns known exact subtotals, route groups, and explicit coverage limitations.
+ * @throws on cancellation, service disposal, deadline, invalid range, or unsafe totals.
+ */
+async query(request: UsageQueryRequest, signal: AbortSignal): Promise<UsageQueryResult>
+```
+
+Source: [`packages/session-query/usage-query/src/index.ts`](../../packages/session-query/usage-query/src/index.ts)
 <!-- END GENERATED cordis-surface -->

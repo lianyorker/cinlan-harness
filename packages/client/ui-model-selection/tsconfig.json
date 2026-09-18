@@ -9,6 +9,12 @@
   ],
   "references": [
     {
+      "path": "../ui-settings"
+    },
+    {
+      "path": "../ui-settings-models"
+    },
+    {
       "path": "../../api/remotes/tsconfig.client.json"
     },
     {

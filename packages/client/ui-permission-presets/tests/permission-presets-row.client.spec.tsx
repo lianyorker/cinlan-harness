@@ -87,6 +87,7 @@ describe('PermissionRow', () => {
     })
     mount(controller)
     const button = await screen.findByRole('button', { name: '仅可查看' })
+    expect(button.closest('[data-settings-anchor]')?.getAttribute('data-settings-anchor')).toBe('permission')
     expect(button.getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(button)
     expect(button.getAttribute('aria-expanded')).toBe('true')

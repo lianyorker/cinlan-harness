@@ -413,11 +413,11 @@ function dynamicToken(name: string): ThemeTokenInspection {
 }
 
 /**
- * Required services: settings transport plus slots/locale for the Appearance
- * row. `remote` carries the forwarded settings invalidation that
+ * Required services for theme state and searchable General preference rows.
+ * `remote` carries the forwarded settings invalidation that
  * `ctx.settingsScope.bind(spec)` subscribes to on this context.
  */
-export const inject = ['slots', 'locale', 'remote', 'settingsScope']
+export const inject = ['slots', 'locale', 'remote', 'settingsScope', 'settingsMetadata']
 
 /**
  * Client plugin body: provide the theme service and register the
@@ -432,6 +432,7 @@ export function apply(ctx: ClientContext): void {
   ctx.provide('theme', theme)
 
   ctx.effect(() => ctx.locale.register(SETTINGS_NS, { zh, en }), 'ui-theme: settings row dictionaries')
+  const t = ctx.locale.bind(SETTINGS_NS)
 
   const store = createAppearanceRowStore()
   let bound: BoundActions<typeof store> | undefined
@@ -451,14 +452,22 @@ export function apply(ctx: ClientContext): void {
       setTheme: (id) => { theme.setTheme(id) },
     }
   }
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
-    id: 'appearance',
-    order: 10,
-    store,
-    locale: SETTINGS_NS,
-    inject: injected,
-  }, AppearanceRow))
+  ctx.slots.inject('settings.general.item', function* () {
+    yield ctx.slots.register({
+      name: 'settings.general.item',
+      id: 'appearance',
+      order: 10,
+      store,
+      locale: SETTINGS_NS,
+      inject: injected,
+    }, AppearanceRow)
+    yield ctx.settingsMetadata.registerItems('general', [{
+      id: 'appearance',
+      anchorId: 'appearance',
+      title: () => t('appearance.title'),
+      keywords: () => ['theme', 'light', 'dark', 'system'],
+    }])
+  })
 
   const fontSizeInjected = (actions: BoundActions<typeof fontSizeStore>): FontSizeRowInjected => {
     fontSizeBound = actions
@@ -467,12 +476,21 @@ export function apply(ctx: ClientContext): void {
       setFontSize: (px) => { theme.setFontSize(px) },
     }
   }
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
-    id: 'font-size',
-    order: 11,
-    store: fontSizeStore,
-    locale: SETTINGS_NS,
-    inject: fontSizeInjected,
-  }, FontSizeRow))
+  ctx.slots.inject('settings.general.item', function* () {
+    yield ctx.slots.register({
+      name: 'settings.general.item',
+      id: 'font-size',
+      order: 11,
+      store: fontSizeStore,
+      locale: SETTINGS_NS,
+      inject: fontSizeInjected,
+    }, FontSizeRow)
+    yield ctx.settingsMetadata.registerItems('general', [{
+      id: 'font-size',
+      anchorId: 'font-size',
+      title: () => t('fontSize.title'),
+      description: () => t('fontSize.description'),
+      keywords: () => ['font', 'size', 'text', 'px'],
+    }])
+  })
 }

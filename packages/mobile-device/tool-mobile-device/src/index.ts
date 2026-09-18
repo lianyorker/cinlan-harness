@@ -27,7 +27,7 @@ export const name = 'tool-mobile-device'
 export const inject = ['attachments', 'mobileDevice', 'systemPrompt', 'tools']
 
 /** Stable model guidance for Mobile Device tools. */
-export const MOBILE_DEVICE_SYSTEM_PROMPT = 'Use mobile_* tools for local Android emulators and iOS simulators. Run mobile_list_devices, select one exact device_id, and run mobile_observe before every mutation. Use only the latest observation_id for that device; every observation token is one-use and every mutation requires a fresh observe afterward. Touch coordinates are normalized from 0 to 1. Typed text is never echoed in result summaries.'
+export const MOBILE_DEVICE_SYSTEM_PROMPT = 'Use mobile_* tools for local Android emulators and iOS simulators. Run mobile_observe before every mutation. You may omit device_id only for mobile_observe to use the saved default device, which must be currently available; there is no fallback. To choose another device, run mobile_list_devices and pass its exact device_id. For every mutation, pass the exact device_id and latest observation_id returned by mobile_observe; every observation token is one-use and every mutation requires a fresh observe afterward. Touch coordinates are normalized from 0 to 1. Typed text is never echoed in result summaries.'
 
 const DEFAULT_TIMEOUT_MS = 60_000
 const DEFAULT_MAX_TEXT_CHARS = 100_000
@@ -226,10 +226,15 @@ async function observationValue(
   return value
 }
 
+const observeDeviceIdParameter = {
+  type: 'string' as const,
+  description: 'Exact device id returned by mobile_list_devices. Omit to use the saved default device; it must be currently available and there is no fallback.',
+} as const
+
 const deviceIdParameter = {
   type: 'string' as const,
   required: true,
-  description: 'Exact device id returned by mobile_list_devices.',
+  description: 'Exact device id returned by the latest mobile_observe.',
 } as const
 
 const observationIdParameter = {
@@ -354,18 +359,28 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.tools.register(defineTool({
     name: 'mobile_observe',
     description: 'Read one fresh mobile-device tree and optional native PNG image.',
-    parameters: { device_id: deviceIdParameter },
-    output: { schema: observationOutputSchema, render: (_args, value) => observationContent(value) },
+    parameters: { device_id: observeDeviceIdParameter },
+    output: {
+      schema: observationOutputSchema,
+      render: (_args, value) => observationContent(value),
+      presentationMeta: (_args, value) => ({ device_id: value.device.device_id }),
+    },
     timeoutMs: resolved.timeoutMs,
     async execute(args, exec) {
       const observation = await ctx.mobileDevice.observe({
-        deviceId: MobileDeviceId(nonEmpty('device_id', args.device_id)),
+        ...(args.device_id === undefined ? {} : { deviceId: MobileDeviceId(nonEmpty('device_id', args.device_id)) }),
         captureScreenshot: await wantsScreenshot(ctx, exec),
       }, exec.signal)
       return observationValue(ctx, observation, exec)
     },
     presentCall(args): GenericCallView {
-      return { card: 'generic', title: `Observe ${args.device_id}`, kind: 'read' }
+      return { card: 'generic', title: args.device_id === undefined ? 'Observe saved default device' : `Observe ${args.device_id}`, kind: 'read' }
+    },
+    presentResult(_args, result) {
+      const meta = result.meta
+      if (result.isError || typeof meta !== 'object' || meta === null || Array.isArray(meta)
+        || typeof meta.device_id !== 'string' || meta.device_id.length === 0) return undefined
+      return { card: 'generic', title: `Observe ${meta.device_id}` }
     },
   }))
 
