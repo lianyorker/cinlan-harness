@@ -2,7 +2,8 @@
  * Opt-in settings check through start:desktop or --packaged <executable>; requires a desktop session.
  * Add --existing-profile <absolute detached profile snapshot> to prove replacement of stale same-version packages.
  * Add --close-during-startup with --packaged to exercise Exit during installation and verify transaction cleanup.
- * The fixture must contain only the default managed profile, with no symlinks, junctions, patches, or extra bundles;
+ * Add --fail-profile with --packaged to verify a persistent error and diagnostic from isolated invalid metadata.
+ * The existing-profile fixture must contain only the default managed profile, with no symlinks, junctions, patches, or extra bundles;
  * only its runtime is copied into the isolated test home, and its source is never launched or modified.
  */
 import assert from 'node:assert/strict'
@@ -351,7 +352,15 @@ async function startDesktop(logPath) {
   async function observeStartup() {
     if (page.url() !== 'dsh-app://shell/startup.html') return undefined
     try {
-      return await page.evaluate(async () => (await window.dshStartup?.read())?.state)
+      const requestedAt = performance.now()
+      const state = await page.evaluate(async () => (await window.dshStartup?.read())?.state)
+      if (state?.phase === 'starting') {
+        startup.mainResponses ??= {}
+        const measurement = startup.mainResponses[state.stage] ??= { count: 0, maxObservedMs: 0 }
+        measurement.count++
+        measurement.maxObservedMs = Math.max(measurement.maxObservedMs, Math.round(performance.now() - requestedAt))
+      }
+      return state
     } catch (error) {
       if (page.url() === 'dsh-app://app/index.html'
         || (error instanceof Error && error.message.includes('Execution context was destroyed'))) return undefined
