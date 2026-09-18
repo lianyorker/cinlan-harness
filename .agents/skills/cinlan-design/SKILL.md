@@ -1,60 +1,50 @@
 ---
 name: cinlan-design
-description: Use when turning visual references, websites, screenshots, or a design direction into a reusable design contract, measured brand evidence, a working artifact, or a verified export. Triggers include Cinlan Design, DESIGN.md, design contract, reference-to-design, brand extraction, design handoff, design review, export fidelity, UI style, and any task that must produce interfaces in the Cinlan visual language distilled from gpt-6-astra.
-metadata:
-  distilled_from: gpt-6-astra (api.cinlan.online)
-  method: model-behavioral-distillation
+description: Use when turning visual references, websites, screenshots, or a design direction into measured design decisions, reusable tokens, a working artifact, or a verified export. Triggers include Cinlan Design, DESIGN.md, design contract, reference-to-design, brand extraction, design handoff, design review, export fidelity, and UI style.
 ---
 
 # Cinlan Design
 
-Turn design evidence into explicit decisions, a working artifact, and reproducible verification. The visual language is distilled from `gpt-6-astra`: **functional editorial minimalism** — quiet, legible, precise, trustworthy interfaces with neutral surfaces, strong typography, restrained accents, subtle borders, compact controls, and deliberate whitespace. Sampled artifacts (`.artifacts/distill-astra/sample-login-card.md`, `sample-settings-panel.md`, `sample-dashboard-card.md`) show the palette adapts to context (coral+near-black login card, full green settings panel, cool-blue dashboard card) while the **craft stays constant** — intermediate font weights (550/650), 5–6px radii, a focus ring that pairs a border-color change with a soft outline/glow, one shadow max on the outer frame, and full a11y/semantic markup plus working JS (persistence, validation) emitted unprompted. See `references/design-tokens.md` → Observed signature for the fingerprint.
+Turn design evidence into a working artifact and reproducible verification. Favor clear hierarchy, legible typography, restrained emphasis, and useful density. This is design guidance, not a claim to reproduce a model's aesthetic judgment. The initial material came from prompted descriptions and three small component samples from gpt-6-astra; those observations do not establish full-page or cross-model quality.
 
-## When to use
+## Choose the task mode
 
-- A task asks for a UI, page, component, dashboard, or design direction
-- A visual reference (screenshot, site, mock) must be converted into decisions or code
-- A design review, design contract (`DESIGN.md`), or export-fidelity check is requested
-- Any generated interface must match the Cinlan visual language
+Select the mode before choosing tokens or exploring concepts. [Task modes](references/task-modes.md) gives concrete cases.
 
-## Design priorities (in order)
+| Mode | Starting evidence | Work to do |
+|---|---|---|
+| Extend an existing product | Current implementation, theme, components, accepted pages | Preserve the shell, density, type roles, and interaction conventions; implement the requested change |
+| Follow a reference | User-designated image, page, or artifact | Measure its geometry, hierarchy, and styling; identify missing states and responsive behavior |
+| Create a new design | Brief and available content/assets | Explore composition using [art direction](references/art-direction.md), then choose one direction |
 
-1. **Clarity** — hierarchy and state immediately understandable
-2. **Efficiency** — frequent actions need minimal movement and interpretation
-3. **Consistency** — same visual language, same behavior everywhere
-4. **Feedback** — every meaningful action produces a visible response
-5. **Restraint** — emphasis reserved for what matters
-6. **Accessibility** — contrast, keyboard, focus, touch targets, reduced motion are foundational
+A product task can include a reference for one region. Apply that reference within its stated scope and inherit the rest. Do not restart concept exploration after the direction is accepted.
+
+## Decision order
+
+Resolve each design decision in this order: **explicit user requirements and approved reference → current product tokens and components → applicable page-type example → generic defaults**. A reference controls only what it shows or specifies; record uncertain measurements and use the next source for gaps. Reference examples in this skill are starting points, not approved visual baselines.
+
+Accessibility and functional requirements apply in every mode. If a reference has a measured accessibility failure, preserve its intent while correcting the failing color pair, target, or interaction; record that specific deviation.
 
 ## Workflow
 
-1. **Design the whole first** — apply `references/art-direction.md`: turn the brief into a meaning statement + central tension + governing metaphor, write a visual thesis, choose a compositional model, set explicit hierarchy. A designed artifact has one governing idea; an assembled one has competent parts answering different questions. Do this before touching tokens.
-2. **Extract evidence** — from the reference or brief, record measured facts: palette, type scale, spacing rhythm, radius, elevation, motion. Never guess tokens; measure or default to `references/design-tokens.md`.
-3. **Write the contract** — produce or update `DESIGN.md` in the target project: tokens, component rules, anti-patterns. The contract is the source of truth for the artifact.
-4. **Decide the behavior layer** — for anything interactive, apply `references/interactive-artifacts.md`: JS vs CSS decision rule, single-file app architecture, animation driver choice, control wiring, lifecycle, state correctness. An artifact that moves or responds is a small application, not a styled page.
-5. **Build the artifact** — implement against the contract. Semantic tokens only; no hardcoded colors in components; real controls and working logic, not static mockups.
-6. **Verify** — run `references/quality-checklist.md`: contrast ratios, focus states, touch targets, reduced motion, anti-pattern sweep — plus the interactive-artifacts functional/lifecycle/a11y/performance tests. Report measured results, not impressions.
+1. **Record evidence.** Identify the task mode, source for each decision, viewport, content, and required states. Measure layout and type before styling individual components.
+2. **Resolve shared values once.** Reuse the product's token owner. For a new system, use [design tokens](references/design-tokens.md) and its canonical [CSS defaults](references/tokens.css). Record mappings and deliberate deviations in the project's existing design document, or a concise `DESIGN.md` if none exists; do not duplicate raw values there.
+3. **Build the requested artifact.** Reuse the host architecture and [component patterns](references/component-patterns.md). For standalone interactive artifacts, consult [interactive artifacts](references/interactive-artifacts.md). Implement actual actions and relevant loading, empty, error, and focus states.
+4. **Verify the rendering.** Run the applicable [quality checks](references/quality-checklist.md) and [visual comparison procedure](references/verification.md): fixed viewport and fixture, measured geometry, saved screenshots, and actual side-by-side inspection against the designated baseline. A screenshot capture or DOM check alone is not visual verification.
+5. **Report evidence and gaps.** Name the changed files, measured results, visual differences, and checks not run. Without a supplied or approved baseline, report the design as provisional; do not claim reference fidelity or cross-model quality.
 
-## Reference documents
+## Load references by need
 
-- `references/art-direction.md` — the overall-design layer: brief→concept, visual thesis, composition before components, one art direction, explicit hierarchy, designed-vs-assembled, 12-step process
-- `references/design-tokens.md` — full token system: color (light/dark), typography scale, spacing, breakpoints, radius, elevation, motion
-- `references/component-patterns.md` — buttons, cards, inputs, navigation, tables, modals, toasts with concrete styling rules
-- `references/interactive-artifacts.md` — JS-vs-CSS decision rule, single-file app architecture, animation drivers (keyframes/WAAPI/rAF), kinematics, control wiring, lifecycle, time correctness, performance, testing
-- `references/quality-checklist.md` — deliberate anti-patterns and the verification checklist for every artifact
-- `references/surfaces-dashboard.md` — data-dense dashboard spec: layout, KPI cards, filters, charts, detail table, density, real-time and empty states
-- `references/surfaces-landing-dataviz.md` — marketing landing page spec + data-visualization spec (chart selection, color encoding, axes, tooltips, states, a11y)
-- `references/svg-illustration.md` — hand-crafted SVG scene craft: layering, defs/use/clipPath, organic paths, texture/depth, character life, viewBox discipline
-- `references/motion-design.md` — easing curves, duration scale, choreography, secondary/ambient motion, anti-patterns
-- `references/copy-editorial.md` — voice by artifact type, hierarchy, microcopy, bilingual mixing, editorial techniques, anti-patterns
+- [Art direction](references/art-direction.md): composition and concept exploration for new designs.
+- [Dashboard example](references/surfaces-dashboard.md): operational metrics, filters, tables, and live states.
+- [Landing and data visualization examples](references/surfaces-landing-dataviz.md): marketing structure and chart decisions.
+- [Copy](references/copy-editorial.md): task-specific voice and factual interface text.
+- [Motion](references/motion-design.md) and [SVG illustration](references/svg-illustration.md): use when the requested artifact needs them.
 
-## Hard rules
+## Required checks
 
-- Semantic tokens in components; raw hex only inside the token layer
-- One primary accent per product; red reserved for destructive/error/blocking states
-- Never color-only status — pair with icon, label, or shape
-- Body text ≥ 4.5:1 contrast; large text ≥ 3:1
-- Touch targets ≥ 40px; focus outline 2px visible with ≥ 2px offset
-- Dark mode uses dark neutrals, never pure black; text softened, never pure white
-- Exit animations faster than entry; animate opacity/transform before layout
-- Respect `prefers-reduced-motion`
+- Components reference semantic tokens; shared UI colors and radii have one owner.
+- Status and selection include a text, icon, or shape cue beyond color.
+- Normal text reaches 4.5:1 contrast; large text reaches 3:1; essential control boundaries and focus indicators reach 3:1 against adjacent colors.
+- Measure visible control size separately from its hit area using the [target policy](references/design-tokens.md#control-size-and-hit-area). Keep focus visible and targets non-overlapping.
+- Preserve keyboard operation, entered data on failure, and reduced-motion behavior.

@@ -1,6 +1,6 @@
 # Copy & Editorial Voice — Cinlan Design
 
-Copy methodology for web artifacts, distilled from gpt-6-astra (reasoning=max). Copy first clarifies what the interface is *for*, then establishes how it should *feel*. Don't use one voice system for every surface — and never invent product behavior (features, limits, prices, recovery actions) to support a better-sounding sentence.
+Copy guidance for web artifacts. Copy first clarifies what the interface is *for*, then establishes how it should *feel*. Don't use one voice system for every surface — and never invent product behavior (features, limits, prices, recovery actions) to support a better-sounding sentence.
 
 Before writing, define: **artifact type** (illustration/tool/dashboard/editorial/onboarding/utility state), **primary user action** (look/understand/make/decide/monitor/recover), **emotional temperature**, **information density**, **language priority** (EN-first/ZH-first/bilingual).
 

@@ -1,6 +1,6 @@
 # SVG Illustration Craft — Cinlan Design
 
-Hand-crafted SVG illustration methodology, distilled from gpt-6-astra (reasoning=max). Worked example throughout: a rabbit coasting on a bicycle, authored in a `960 × 640` coordinate system. Goal: a readable illustration with controlled depth, expressive motion, reusable geometry, coherent visual language — not merely recognizable objects.
+SVG illustration guidance. The literal colors below belong to the worked illustration's asset palette, not to the application's UI token system. Worked example throughout: a rabbit coasting on a bicycle, authored in a `960 × 640` coordinate system. Goal: a readable illustration with controlled depth, expressive motion, reusable geometry, coherent visual language — not merely recognizable objects.
 
 ## 1. Scene layers
 
@@ -98,7 +98,7 @@ Establish concrete anchor points before drawing: torso bounding box, head/muzzle
 @media (prefers-reduced-motion: reduce) { .ride-wheel-turn, .ride-ear, .ride-eye { animation: none; transform: none; } }
 ```
 
-Animate an inner element and leave placement translation on an outer group — a CSS `animation` targeting `transform` replaces any static `transform` already on that same element, so translation and rotation/scale must live on different nodes in the hierarchy. Choose a pivot that is exactly the element's local `(0,0)` (e.g. an ear's bottom-center) so rotation leaves its attachment point fixed — no extra `transform-origin` offset needed. Secondary elements (scarf, flowers, clouds) drift on their own slower phase, driven from the same clock but different frequencies (see `interactive-artifacts.md` for the JS-driven version of this pattern).
+Animate an inner element and leave placement translation on an outer group — a CSS `animation` targeting `transform` replaces any static `transform` already on that same element, so translation and rotation/scale must live on different nodes in the hierarchy. Choose a pivot that is exactly the element's local `(0,0)` (e.g. an ear's bottom-center) so rotation leaves its attachment point fixed — no extra `transform-origin` offset needed. Secondary elements (scarf, flowers, clouds) drift on their own slower phase, driven from the same clock but different frequencies (see [interactive artifacts](interactive-artifacts.md) for the JS-driven version of this pattern).
 
 ## 6. Coordinates and viewBox discipline
 

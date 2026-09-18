@@ -1,6 +1,6 @@
 # Motion Design — Cinlan Design
 
-Motion design methodology for web interfaces, distilled from gpt-6-astra (reasoning=max). Motion communicates **what changed, why, where it came from, and what the user can do next** — it's part of the information architecture, not decoration added after.
+Motion guidance for web interfaces. Reuse existing product motion; generic duration and easing values live in [tokens.css](tokens.css). Motion communicates **what changed, why, where it came from, and what the user can do next** — it's part of the information architecture, not decoration added after.
 
 ## 0. Governing rules
 
@@ -17,17 +17,7 @@ Motion design methodology for web interfaces, distilled from gpt-6-astra (reason
 
 ## 1. Easing curve selection
 
-```css
-:root {
-  --ease-linear: linear;
-  --ease-in: cubic-bezier(0.70, 0.00, 0.84, 0.00);
-  --ease-out: cubic-bezier(0.16, 1.00, 0.30, 1.00);
-  --ease-in-out: cubic-bezier(0.65, 0.00, 0.35, 1.00);
-  --ease-standard: cubic-bezier(0.20, 0.80, 0.20, 1.00);
-  --ease-emphasized: cubic-bezier(0.05, 0.70, 0.10, 1.00);
-  --ease-pressed: cubic-bezier(0.40, 0.00, 0.20, 1.00);
-}
-```
+Use the `--ease-*` variables from [tokens.css](tokens.css); do not redeclare an independent easing set in components.
 
 | Curve | Use | Avoid for |
 |---|---|---|
@@ -47,7 +37,7 @@ Use only for physical/directly-manipulable relationships: drag release, sheets, 
 
 | Preset | Stiffness | Damping | Use | Max settle |
 |---|---:|---:|---|---:|
-| `spring-snappy` | 500 | 30 | Button-scale recovery, small drags, `0–24px` | `320ms` |
+| `spring-snappy` | 500 | 30 | Small drag recovery, `0–24px` | `320ms` |
 | `spring-standard` | 300 | 24 | Cards, sheets, menus, `25–240px` | `480ms` |
 | `spring-soft` | 220 | 26 | Large panels/objects, `>240px` | `600ms` |
 | `spring-bouncy` | 400 | 20 | One-off celebratory confirmation only | `520ms` |
@@ -60,21 +50,14 @@ Limit overshoot to `2–6%` of travel; stop when velocity < `0.01`/frame or at t
 
 ## 2. Duration scale
 
-```css
-:root {
-  --duration-instant: 0ms; --duration-press: 80ms; --duration-micro: 120ms;
-  --duration-fast: 160ms; --duration-control: 180ms; --duration-standard: 240ms;
-  --duration-entrance: 280ms; --duration-large-entrance: 320ms; --duration-emphasized: 400ms;
-  --duration-exit: 160ms; --duration-large-exit: 200ms; --duration-crossfade: 240ms;
-}
-```
+Use the `--duration-*` variables from [tokens.css](tokens.css). Interaction-specific timings below are examples to resolve once in the project motion settings.
 
-Approved values only: `80/100/120/140/160/180/200/240/280/320/400ms` — never an arbitrary number.
+Choose shared duration roles for routine UI. Record a separate measured timing when direct manipulation, media, or a supplied reference needs one; do not impose a second approved-value list.
 
 | Interaction | Duration | Curve |
 |---|---:|---|
 | Pointer-down acknowledgement | `0–50ms`, target `16ms` | pressed |
-| Button compression / recovery | `80ms` / `120ms` | pressed / ease-out |
+| Button color/border feedback | `--duration-micro`; no default compression | standard |
 | Hover color/border | `120ms` | ease-out |
 | Focus ring | `100ms` | ease-out |
 | Toggle thumb / tab indicator | `180ms` | ease-in-out |
@@ -149,7 +132,7 @@ Loading motion: spinner for indeterminate <10s; progress bar when percentage is 
 
 Replace, don't just shorten: parallax → `0px` travel + `100ms` opacity; large page translation → `100ms` crossfade; rotation → `100ms` opacity or static change; spring bounce → `100ms` ease-out with zero overshoot; ambient loops → stopped entirely; auto-advancing carousels → stopped, manual controls retained; error shake → `100ms` border/focus-color transition. Never remove focus indication, loading status, progress updates, drag feedback, or motion necessary to understand cause and effect.
 
-## 7. Anti-patterns (representative — full list distilled)
+## 7. Anti-patterns
 
 **Timing/easing**: one duration everywhere; arbitrary non-token durations; feedback slower than `200ms`; an ordinary transition `>500ms`; undefined `ease`; linear entrances/exits; ease-in on entrances or ease-out on exits; ease-in-out on immediate feedback; a spring on every animation; uncontrolled bounce `>6%`; multiple bounces; restarting a looping ease-out at its boundary; delaying direct feedback or an exit; stacking nested transition delays; waiting for serial completion instead of `40–80ms` overlap; animating to an unmeasured endpoint.
 
@@ -169,15 +152,13 @@ Replace, don't just shorten: parallax → `0px` travel + `100ms` opacity; large 
 .surface {
   opacity: 0;
   transform: translateY(8px) scale(0.98);
-  transition: opacity 240ms cubic-bezier(0.16, 1, 0.30, 1),
-              transform 280ms cubic-bezier(0.16, 1, 0.30, 1);
+  transition: opacity var(--duration-standard) var(--ease-out),
+              transform var(--duration-entrance) var(--ease-out);
 }
 .surface[data-state="open"] { opacity: 1; transform: translateY(0) scale(1); }
 
-.button { transition: transform 80ms cubic-bezier(0.40, 0, 0.20, 1),
-                      background-color 120ms cubic-bezier(0.16, 1, 0.30, 1),
-                      border-color 120ms cubic-bezier(0.16, 1, 0.30, 1); }
-.button:active { transform: scale(0.98); }
+.button { transition: background-color var(--duration-micro) var(--ease-standard),
+                      border-color var(--duration-micro) var(--ease-standard); }
 ```
 
 `0ms` delay on the surface itself, `40ms` on its first supporting child, `32ms` sibling stagger for a list, `160–200ms` for the corresponding exit. Swap the transition for `spring-standard` when the surface is directly dragged or released.

@@ -1,6 +1,6 @@
 # Interactive Artifacts — Cinlan Design
 
-Engineering methodology for self-contained interactive HTML artifacts, distilled from gpt-6-astra (reasoning=max). This is the layer that separates a real artifact from a static mockup — **treat the file as a small application, not a page with a script appended**.
+Engineering guidance for standalone interactive HTML artifacts. Use the single-file architecture only when that delivery format is requested. Product changes reuse the host framework, state, components, and lifecycle; apply the relevant interaction and accessibility checks without replacing that architecture.
 
 Responsibilities stay explicit even in one file: **HTML = document + accessibility surface, CSS = rendering + styling, JS = state + behavior**.
 

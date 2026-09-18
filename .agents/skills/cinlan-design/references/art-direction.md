@@ -1,6 +1,6 @@
 # Art Direction & Composition — Cinlan Design
 
-The overall-design layer, distilled from gpt-6-astra (reasoning=max). This decides **what the artifact makes the viewer feel, understand, and do before any component is drawn**. Tokens and components implement that decision — they don't make it. Numerical values below are concrete starting specifications, not universal laws — change one when content, usability, accessibility, or the central idea gives a named reason.
+Use this reference for new composition work after choosing a [task mode](task-modes.md). For product extensions and reference matching, inspect the established hierarchy and geometry, then work within them; concept exploration is unnecessary unless the task asks to reconsider the direction. Numerical composition examples are starting points for new designs. Shared UI values come from [design tokens](design-tokens.md).
 
 A **designed** artifact has a governing idea: content, composition, type, palette, imagery, and motion come from one point of view. An **assembled** artifact has individually competent parts each answering a different question.
 
@@ -8,7 +8,7 @@ A **designed** artifact has a governing idea: content, composition, type, palett
 
 - **Extract a design contract from the brief.** Six fields: artifact type, audience, viewing situation, primary action, necessary evidence, delivery constraints. Mark inferred requirements as assumptions; ask only when different answers would materially change content, interaction, or composition.
 - **Separate the subject from the proposition.** The subject is the topic; the proposition explains why *this* presentation belongs to *this* material — complete the sentence "This artifact is about ___, presented as ___, so the viewer can ___." Reject propositions like "modern, beautiful, engaging" — they eliminate no design choices.
-- **Generate three concepts with genuinely different organizing logic**, not three palettes on one idea. Give each a sentence about meaning, a composition rule, and an interaction consequence.
+- **When a new direction is needed, compare distinct organizing ideas.** For an open brief, three concepts can expose useful differences in meaning, composition, and interaction. Keep an already selected direction.
 - **Choose by elimination, in this order: truth, task, assets, distinctiveness.** Reject a concept if its premise is false, if it fights the actual task, if it needs assets you can't obtain, or if — among survivors — it doesn't uniquely fit this material with the fewest unrelated decorations.
 - **Translate mood into observable decisions.** Limit direction to three adjectives, each paired with a consequence and an exclusion (e.g. "tactile means visible texture in authentic imagery, not a paper-texture overlay"). A mood word that can't change a layout, asset, sentence, or transition isn't useful yet.
 - **Write the narrative as a change in the viewer's understanding**, not a cinematic story. For a tool this is a task sequence: recognize → narrow → inspect → retain. Write the one-sentence tie-breaker (e.g. "The posters provide expression; the catalog provides order") and use it throughout production.
@@ -42,7 +42,7 @@ A **designed** artifact has a governing idea: content, composition, type, palett
 - **Create secondary/tertiary levels without making them unreadable.** Reduce weight, area, and prominence before reducing contrast; necessary information doesn't become optional because it's visually third.
 - **Control competition at the task level.** One command gets the highest emphasis per active task group; never make every filter look primary. Selection needs a shape/mark/text cue in addition to color and must not change the element's dimensions.
 - **Keep visual, reading, and interaction order compatible.** A visually right-hand panel must not unexpectedly come first for keyboard/screen-reader users. Preserve focus across opening/closing detail views.
-- **Test hierarchy with three views**: the normal page, an 8px-blurred screenshot (dominant masses), and a grayscale screenshot (color dependence). Then give three people five seconds with the normal view — this is a directional check, not statistical validation. Safety-critical/destructive confirmations override normal aesthetic ranking and must be unmistakable regardless of test results.
+- **Test hierarchy with three views**: the normal page, an 8px-blurred screenshot (dominant masses), and a grayscale screenshot (color dependence). If independent reviewers are available, a five-second recognition check can supplement the comparison; record who reviewed it and do not invent review results. Safety-critical/destructive confirmations override normal aesthetic ranking and must be unmistakable regardless of test results.
 
 ## 5. Designed vs. assembled
 
@@ -63,16 +63,16 @@ Know when to stop: remove anything that repeats info without new understanding, 
 
 1. **Write the six-field brief contract** + one success sentence. Separate supplied facts from assumptions.
 2. **Inventory the real material** — content types, images, metadata, interactions, states, including the longest actual title, an empty collection, a failed operation, a large result set. Never design only for perfect short copy.
-3. **Write three concept candidates**; eliminate in order truth → task → assets → distinctiveness. Record the winning sentence and prohibited treatments.
+3. **Resolve the direction** from the reference or product evidence. For open new-design work, compare concepts using truth → task → assets → distinctiveness; record the selected direction.
 4. **Rank content before drawing** — first/second/third for the main view and each materially different state; remove blocks that answer no user question.
-5. **Draw three composition alternatives in grayscale** with real text lengths and image proportions; judge task order, comparison, balance, mobile continuity.
+5. **Check composition with real content lengths and image proportions.** Compare grayscale alternatives when composition is still open; otherwise measure against the designated reference.
 6. **Build the decisive first view with real content** at desktop and mobile widths; don't polish the footer first; reject a composition needing explanatory prose to be recognizable.
 7. **Specify the art-direction grammar** — governing idea, image treatment, palette roles, type roles, recurring device, motion behavior, copy register — and test them together on one main view and one secondary view.
 8. **Lay out the whole artifact before polishing individual parts.** Verify a deliberate beginning, working middle, appropriate endpoint.
-9. **Implement responsively** — named breakpoints, shared alignments, image aspect ratios, content order; icon controls ≥44×44px; no viewport-scaled fonts or fixed-height clipping containers.
-10. **Make the file genuinely self-contained** — embed CSS/JS/images/fonts/data, no runtime dependence on remote assets; measure the finished file, not source sizes; raise the budget explicitly rather than silently destroying evidence through compression.
+9. **Implement responsively** — named breakpoints, shared alignments, image aspect ratios, content order; icon controls follow the [target policy](design-tokens.md#control-size-and-hit-area); no viewport-scaled fonts or fixed-height clipping containers.
+10. **Use the requested delivery format.** For a self-contained file, embed required CSS/JS/assets and measure the finished size. For a product change, reuse its modules, assets, and build; do not turn it into a separate single-file application.
 11. **Complete interactions and state transitions** — search, filter, select, open/close, empty, reset, loading, failure recovery — using established conventions and an existing icon library.
 12. **Run structural and accessibility checks** — reading order, keyboard access, visible focus, icon names, contrast, reduced motion, 200% text, reflow at 320px. Fix clipping/overlap via layout or content grouping, never by hiding required information.
-13. **Capture and inspect the actual rendering** at multiple breakpoints; check hierarchy, rhythm, wrapping, image integrity, control positions, state changes; for canvas/3D, confirm nonblank pixels and an expected visible change after interaction.
-14. **Test under real delivery conditions** — open offline, verify assets render, exercise the primary task, check for runtime errors and attempted external dependencies. When a failure appears, identify its layer: wrong meaning → concept; wrong priority → composition; illegibility → type/contrast; broken behavior → implementation.
-15. **Perform a subtraction pass and freeze.** Remove each decorative element temporarily; keep it only if removal weakens identity, meaning, orientation, or feedback. Finish only when content, the complete interaction path, responsive compositions, and the offline file all pass.
+13. **Capture and compare the actual rendering** using the [fixed viewport and fixture procedure](verification.md); inspect hierarchy, density, wrapping, images, and control positions against the designated reference. For canvas/3D, also confirm nonblank pixels and visible changes after interaction.
+14. **Test under the required delivery conditions** — verify assets, exercise the primary task, check runtime errors, and test offline only when offline delivery is required. When a failure appears, identify its layer: wrong meaning → concept; wrong priority → composition; illegibility → type/contrast; broken behavior → implementation.
+15. **Perform a subtraction pass and freeze.** Remove each decorative element temporarily; keep it only if removal weakens identity, meaning, orientation, or feedback. Finish when content, the required interaction path, responsive compositions, and the requested delivery format pass; report any verification gap.

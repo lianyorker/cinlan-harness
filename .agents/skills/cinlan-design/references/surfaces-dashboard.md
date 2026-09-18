@@ -1,18 +1,18 @@
 # Surface: Data-Dense Dashboard — Cinlan Design
 
-Distilled from gpt-6-astra (reasoning=max). Tokens reference `design-tokens.md`. Reference surface: an operational dashboard with four KPIs, two charts, one event table.
+Worked example for an operational dashboard with four KPIs, two charts, and an event table. The counts, schema, layout, and refresh policy illustrate this case; adopt them only when they fit the brief. Inherit the host shell and behavior first. Shared colors, radii, and controls use [design tokens](design-tokens.md); record any chosen page geometry in the project token owner.
 
 ## Foundations
 
-Colors: page `#F5F6F7`; nav/controls/charts/table surface `#FFFFFF`; primary text `#202428`; secondary `#646B73`; separators `#DDE1E4`; interactive borders `#737B84`; primary action + focus `#175CD3`; positive `#137333`; negative `#B42318`; warning `#8A5A00`. Every semantic color pairs with a label/icon/line pattern — never color alone.
+Colors: page `--canvas`; nav/controls/charts/table `--surface`; text `--text-primary`/`--text-secondary`; separators `--border-decorative`; interactive boundaries `--border-control`; primary action `--accent-base`; focus `--focus-ring`; status `--success`/`--danger`/`--warning`. Every semantic color pairs with a label, icon, or line pattern.
 
-Typography: `Inter, Arial, sans-serif`. Page title `24px/32px` w600; section titles `16px/24px` w600; KPI values `24px/32px` w600; body/controls/cells `13px/20px` w400; headers/control labels `13px/20px` w600; metadata `12px/16px`. `letter-spacing:0`; numeric content `font-variant-numeric: tabular-nums`. Sizes never change with viewport width or density.
+Typography uses the resolved `--font-sans`, `--font-page-title`, `--font-section-title`, `--font-ui`, `--font-label`, and `--font-caption` roles. KPI values use the page-title role; numeric content uses tabular numbers. Keep text size stable across density modes and viewport widths; adjust layout before shrinking type.
 
-Surface: `4px` base spacing scale, `1px` separators and `2px` focus rings as explicit exceptions. KPI cards `6px` corners, `1px` inset border consuming no layout space. Menus/dialogs `8px` corners. Charts and the table are unframed, full-width regions — never inside floating cards, never nested.
+KPI cards use `--radius-card`, `--border-width`, and `--border-decorative`. Menus/dialogs use `--radius-overlay`. This layout keeps charts and the table as unframed full-width regions; it does not require every dashboard to use cards or prohibit a meaningful chart frame.
 
-Controls: compact `32px`, comfortable `40px` high; text buttons `12px` horizontal padding; icon buttons square with `16px` Lucide icons; `(pointer:coarse)` → all targets `≥44×44px` regardless of density. Segmented controls for density, checkboxes for selection, a switch for Live, menus for option sets.
+Visible controls use compact or standard control-height roles; icons use `--icon-size`. A dense fine-pointer target policy must be explicit under the [target rules](design-tokens.md#control-size-and-hit-area); coarse-pointer targets remain at least 44×44px. Reserve full hit bounds in the row layout. Use segmented controls for density, checkboxes for selection, a switch for Live, and menus for option sets.
 
-Interaction tokens: hover `#F0F2F4`; pressed `#E5E8EB`; selected-row `#EAF2FF`; disabled `#646B73` on `#F0F2F4`; focus `2px #175CD3` + `2px` white offset; color transitions `100ms`. Layer order: table headers `10` → sticky filters `20` → nav `30` → app header `40` → menus `50` → drawers/dialogs `60` → tooltips `70`.
+Interactions use `--surface-hover`, `--surface-active`, selected and disabled token families, and the shared focus width/offset. Color transitions use `--duration-micro`. Layering uses the shared sticky/popup/overlay/tooltip roles; table headers stay below the sticky filters.
 
 ## Responsive layout
 
@@ -32,7 +32,7 @@ Scrolling: the document owns section-to-section scroll; the filter bar sticks be
 
 ## KPI cards
 
-Exactly 4 primary metrics; extras go in the table. Compact `112px` high/`12px` padding; comfortable `128px`/`16px`; row heights `20/32/20px` with `8px`/`12px` gaps respectively. Content slots: label (`13px/20px`, truncates with full text on hover/focus) → value (left-aligned, never truncates — abbreviate `K/M/B/T` at ≥1000, ≤3 significant digits, scientific notation above `10^15`) → comparison (`12px/20px`).
+This example has four primary metrics; select the actual count from the task. Cards start at `128px` minimum height with `--card-padding`, independent of table density; allow growth for wrapped labels. Content slots: label (`--font-label`, wraps) → value (`--font-page-title`, left-aligned, with full-precision access when abbreviated) → comparison (`--font-caption`). Abbreviate large values consistently and retain the exact value in an accessible detail or tooltip.
 
 Comparisons: against the immediately preceding interval of identical duration and filters. Relative change to 1 decimal; success-rate uses percentage-point change + `pp` suffix. Zero→positive shows `New`; zero→zero shows `0.0%`; missing baseline shows `No baseline`. Higher success / lower latency-errors is positive; volume changes are neutral. `12px` directional icon + `4px` text gap.
 
@@ -44,21 +44,21 @@ Desktop row (`8px` gaps, `40px`/`48px` row height): time range `160px` → servi
 
 Ranges: `Last 1h/24h/7d/30d/Custom`; custom range includes its start, excludes its end, min duration `1 minute`, max `30 days`, no future end. Service/region are searchable multiselects (`250ms` debounce, `No options` on zero matches); status is a checkbox group (`Success`/`Failed`/`Pending`).
 
-Commit: edits stay draft until Apply; Reset restores draft defaults and still needs Apply; Apply disabled while unchanged/invalid; invalid feedback appears `12px/16px` below its field with reserved `32px` space. Apply commits all fields atomically, cancels obsolete requests, resets table pagination/scroll/selection. Cancel/Escape/backdrop discards drawer changes. Persist applied filters+search+sort+page-size in the URL; persist density+column visibility locally; never persist selection, pause state, or draft filters.
+Commit: edits stay draft until Apply; Reset restores draft defaults and still needs Apply; Apply disabled while unchanged/invalid; invalid feedback uses `--font-ui` below its field with enough reserved space for the complete message. Apply commits all fields atomically, cancels obsolete requests, resets table pagination/scroll/selection. Cancel/Escape/backdrop discards drawer changes. Persist applied filters+search+sort+page-size in the URL; persist density+column visibility locally; never persist selection, pause state, or draft filters.
 
 ## Charts
 
-`Event volume` (line) first, `Status distribution` (bar) second. Section height `280px` desktop/tablet compact (`320px` comfortable), `248/280px` mobile. Header `40/48px`; plot fills the remainder; no rounded container or shadow on chart sections.
+`Event volume` (line) first, `Status distribution` (bar) second. Example section height is `280px` desktop/tablet and `248px` mobile, independent of table density. Header `40/48px`; plot fills the remainder; no rounded container or shadow on chart sections.
 
 Plot margins: volume `16/16/32/48px` (T/R/B/L); distribution `16/16/32/80px`. `2px` line strokes, no persistent point markers, `20px` bars with `12px` minimum gaps. Time buckets: `1min` up to 1h, `15min` through 24h, `1hr` through 7d, `3hr` through 30d — max 240 buckets, anchored to the range start, partial final bucket allowed.
 
-Colors: volume `#175CD3`; status bars `#00796B`/`#B42318`/`#8A5A00` (Success/Failed/Pending) with matching labels; gridlines `#E5E7EB` `1px`. A confirmed-empty bucket is zero; an unknown bucket is a gap — never interpolated. Axes start at `0` (domain `0–1` if all-zero); otherwise max `= max(1, ceil(1.1×highest value))`. `5` Y ticks; `6` X ticks if plot ≥480px wide else `3`. Tooltip `8px` from the point, exact UTC interval + unrounded counts.
+Colors: volume `--accent-base`; status bars `--success`/`--danger`/`--warning` (Success/Failed/Pending) with matching labels and patterns; gridlines `--border-decorative`. Measure meaningful marks against the plot background. A confirmed-empty bucket is zero; an unknown bucket is a gap — never interpolated. Axes start at `0` (domain `0–1` if all-zero); otherwise max `= max(1, ceil(1.1×highest value))`. `5` Y ticks; `6` X ticks if plot ≥480px wide else `3`. Tooltip `8px` from the point, exact UTC interval + unrounded counts.
 
-Each chart header has a title + one overflow button (`View data` / `Download CSV`). Arrow keys move a focused chart cursor by one bucket; Home/End jump to first/last; Escape closes the tooltip. Plot changes animate `0ms`; controls may use the shared `100ms` color transition.
+Each chart header has a title + one overflow button (`View data` / `Download CSV`). Arrow keys move a focused chart cursor by one bucket; Home/End jump to first/last; Escape closes the tooltip. Plot changes animate `0ms`; controls may use the shared `--duration-micro` color transition.
 
 ## Data table
 
-Vertical geometry (toolbar/header/rows/footer): compact `40/32/32/40px`, comfortable `48/40/40/48px`, coarse-pointer override `56/48/48/56px`. Desktop/tablet viewport height = exactly `12 × row height`; mobile = `6 × row height` with a separate two-row toolbar.
+Example vertical geometry (toolbar/header/rows/footer): compact `40/32/32/40px`, comfortable `48/40/40/48px`, coarse-pointer override `56/48/48/56px`. Fine-pointer 32px rows use 24px action/selection targets with 4px reserved above and below; a 32px control needs a row at least 40px high. Without the compact target policy, use rows large enough for the default target. Desktop/tablet viewport height = exactly `12 × row height`; mobile = `6 × row height` with a separate two-row toolbar.
 
 Columns (compact): Selection `40px`, Event ID `184px`, Timestamp `176px`, Service `160px`, Region `112px`, Status `104px`, Latency `104px`, Actions `40px` — total `920px` (comfortable/coarse widen Selection+Actions to `48/56px`). Extra available width goes entirely to Service. Pin Selection+Event ID left, Actions right, header sticky (desktop/tablet); mobile disables pinning, keeps only the sticky header. Users may hide Service/Region/Latency.
 
@@ -73,10 +73,10 @@ Toolbar: `240px` search + row count left, column-visibility + export icons right
 | Table row | `32px` | `40px` |
 | Cell h-padding | `8px` | `12px` |
 | Control height | `32px` | `40px` |
-| Body text | `13px/20px` | `14px/20px` |
+| Body text | `--font-ui` | `--font-ui` |
 | Icon size | `16px` | `18px` |
 
-Density affects controls/table only, never chart/KPI dimensions. Touch targets always `≥44×44`, mobile rows `44px` regardless of density. Never shrink typography with viewport or resize on hover.
+Density affects controls/table only, never chart/KPI dimensions. Coarse-pointer targets are at least 44×44px and table rows at least 48px; fine-pointer compact targets follow the documented target policy. Never shrink typography with viewport or resize on hover.
 
 ## Real-time states
 
@@ -86,13 +86,13 @@ Health precedence (highest first): `Offline` (browser event) → `Reconnecting` 
 
 Pausing Live freezes rendered values and the committed timestamp while the connection may keep receiving (coalesce up to 1000 buffered updates; exceeding that invalidates the buffer, requiring a fresh snapshot on resume). Hidden documents stop visual commits — apply the buffer on return within 60s, otherwise fetch a fresh snapshot.
 
-Table stability: auto-prepend new records only on page 1, timestamp-descending, `scrollTop=0`, no selection, no focus in the table — otherwise buffer and show `N new` (`999+ new` above 999) in the reserved toolbar slot; activating it clears selection, returns to page 1, scrolls to top. Preserve the first visible Event ID + pixel offset during in-place updates. Updated numeric cells get a `#EAF7EF` background for `800ms` (static tint under reduced motion); connection-state transitions and user-triggered refresh completions are announced via one polite live region — never per streamed event.
+Table stability: auto-prepend new records only on page 1, timestamp-descending, `scrollTop=0`, no selection, no focus in the table — otherwise buffer and show `N new` (`999+ new` above 999) in the reserved toolbar slot; activating it clears selection, returns to page 1, scrolls to top. Preserve the first visible Event ID + pixel offset during in-place updates. Updated numeric cells get a `--success-soft` background for `800ms` (static tint under reduced motion); connection-state transitions and user-triggered refresh completions are announced via one polite live region — never per streamed event.
 
 ## Loading and empty
 
 Initial load: reserve the complete final layout immediately; blank for the first `150ms`, then skeletons; export/selection disabled until data exists but filters/nav stay usable; `Loading data` in the freshness slot at `5s`; an unresolved request at `15s` becomes a scoped timeout error + Retry.
 
-Skeleton geometry: KPI label `80×12px`, value `88×28px`, comparison `72×12px`; chart skeletons keep the header + one flat plot rectangle (no fake data); table skeletons fill every visible row at `60%` of each cell's content width. Color `#E5E7EB`, opacity pulse `0.55↔1` over `1200ms` (static under reduced motion).
+Skeleton geometry: KPI label `80×12px`, value `88×28px`, comparison `72×12px`; chart skeletons keep the header + one flat plot rectangle (no fake data); table skeletons fill every visible row at `60%` of each cell's content width. Color `--border-decorative`, opacity pulse `0.55↔1` over `--duration-skeleton` (static under reduced motion).
 
 Background refresh retains existing data/selection/scroll/cursor and shows a `2px` progress line on the affected section (`aria-busy="true"`) without consuming layout; a changed query immediately masks old values so stale data is never shown under new filters, and discards responses whose query id no longer matches.
 
