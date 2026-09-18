@@ -40,12 +40,14 @@ The packaged seed is an installation kit, not a ready-to-run `node_modules` tree
 
 Startup installs or reconciles the seed as one serialized transaction:
 
-1. Recover an interrupted activation journal, verify the complete seed inventory and local package set, and require the seed version to equal Electron's application version.
-2. If the active profile already contains that release plus the matching dsh and Desktop Host versions, verify its local package set and reuse it without reinstalling.
+1. Under the transaction lock, recover an interrupted activation journal, remove only UUID-named orphan staging roots, verify the complete seed inventory and local package set, and require the seed version to equal Electron's application version.
+2. Reuse the active profile only when its parsed release metadata, installed dsh and Desktop Host versions, and verified local package descriptor all match the seed, including every tarball's name, version, filename, size, and SHA-512 integrity. Different content under the same version requires reconciliation.
 3. Otherwise validate every archive entry, extract all store shards into a temporary Desktop-owned staging directory, merge the package files and SQLite package-index records into the private store, create a staging profile, and run `pnpm install --offline --frozen-lockfile --trust-lockfile` through the bundled Node.js and pnpm. Seed records replace matching index keys while plugin-only records remain available.
-4. During an Electron upgrade, read every plugin name and exact version from the old active profile and add those versions to staging with `--offline` from existing Desktop pnpm state. A first installation has no plugin-restore step.
+4. Whenever an existing profile requires reconciliation, read every plugin name and exact version from the old active profile and add those versions to staging with `--offline` from existing Desktop pnpm state. A first installation has no plugin-restore step.
 5. Stop the active backend, boot and stop the complete staged backend as a health check, then restart the active backend before activation. This serialization prevents two desktop backends from sharing `$DSH_HOME`; installation or plugin incompatibility before activation deletes staging and leaves the active profile unchanged.
-6. Persist each next activation phase before its directory move, move the active profile to `$DSH_HOME/desktop/rollback/profile`, and move staging into `$DSH_HOME/profiles/desktop`. Recovery combines the journal with the actual profile, rollback, and staging directories, so interruption in either write-to-move gap restores or retains a complete profile.
+6. Atomically persist each next activation phase before its directory move, move the active profile to `$DSH_HOME/desktop/rollback/profile`, and move staging into `$DSH_HOME/profiles/desktop`. Windows directory moves and cleanup use bounded retries for transient file-handle errors. Recovery restores rollback for interrupted activation, retains the journal when restoration is incomplete, and retains an active profile whose journal reached `committed`; UUID transaction-root cleanup that remains after commit is retried under the lock on the next operation.
+
+Startup failures write the stack trace to `$DSH_HOME/desktop/startup-error.log` unless `DSH_DESKTOP_DIAGNOSTIC_FILE` supplies an override.
 
 GUI plugin mutations use the same staging, health-check, activation, and rollback path after installing registry packages into the shared Desktop pnpm store.
 

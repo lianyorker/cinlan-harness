@@ -40,12 +40,14 @@ Electron 根据应用 locale 选择类型化的中英文字典，并以英文作
 
 启动过程把 seed 安装或校准为一个串行事务：
 
-1. 恢复中断的激活事务日志，验证完整 seed 清单与本地包集，并要求 seed 版本等于 Electron 应用版本。
-2. 如果活跃 profile 已包含该发布及匹配的 dsh 与 Desktop Host 版本，则验证其中的本地包集并直接复用，不重新安装。
+1. 在事务锁内恢复中断的激活日志，只删除 UUID 命名的孤儿 staging 目录，验证完整 seed 清单与本地包集，并要求 seed 版本等于 Electron 应用版本。
+2. 只有活跃 profile 解析后的发布元数据、已安装的 dsh 与 Desktop Host 版本，以及经过验证的本地包描述文件均与 seed 一致时才复用，包括每个 tarball 的名称、版本、文件名、大小和 SHA-512 完整性值。同一版本号下的内容变化也必须重新校准。
 3. 否则验证每个归档条目，把全部 store 分片解包到 Desktop 拥有的临时 staging 目录，将包文件与 SQLite 包索引记录合并进私有 store，再创建 staging profile，并通过内置 Node.js 与 pnpm 执行 `pnpm install --offline --frozen-lockfile --trust-lockfile`。Seed 记录替换匹配的索引键，插件专属记录继续保留。
-4. Electron 升级时，从旧活跃 profile 读取每个插件的名称和精确版本，再通过现有 Desktop pnpm 状态以 `--offline` 把这些版本加入 staging。首次安装不执行插件恢复。
+4. 只要现有 profile 需要重新校准，就从旧活跃 profile 读取每个插件的名称和精确版本，再通过现有 Desktop pnpm 状态以 `--offline` 把这些版本加入 staging。首次安装不执行插件恢复。
 5. 停止活跃后端，启动并停止完整的 staging 后端执行健康检查，再在激活前重新启动活跃后端。这种串行方式避免两个桌面后端共享 `$DSH_HOME`；安装错误或插件不兼容会删除 staging，并保持活跃 profile 不变。
-6. 在每次目录移动前先持久化下一个激活阶段，把活跃 profile 移到 `$DSH_HOME/desktop/rollback/profile`，再把 staging 移到 `$DSH_HOME/profiles/desktop`。恢复过程同时检查日志与真实的 profile、rollback 和 staging 目录，因此在任一个写入与移动间隙中断后仍会恢复或保留一个完整 profile。
+6. 在每次目录移动前以原子替换方式持久化下一个激活阶段，把活跃 profile 移到 `$DSH_HOME/desktop/rollback/profile`，再把 staging 移到 `$DSH_HOME/profiles/desktop`。Windows 目录移动与清理会对暂时性的文件占用错误执行有界重试。恢复过程会为中断的激活恢复 rollback，在恢复不完整时保留日志，并保留日志已经到达 `committed` 的活跃 profile；提交后仍残留的 UUID 事务目录会在下一次操作取得锁后重试清理。
+
+启动失败时会把堆栈写入 `$DSH_HOME/desktop/startup-error.log`；设置 `DSH_DESKTOP_DIAGNOSTIC_FILE` 后使用该路径覆盖默认位置。
 
 GUI 插件修改会在把 registry 包安装到共享 Desktop pnpm store 后，使用相同的 staging、健康检查、激活与 rollback 路径。
 

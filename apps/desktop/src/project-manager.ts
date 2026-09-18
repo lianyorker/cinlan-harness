@@ -21,7 +21,9 @@ import {
   writeFileSync,
   writeSync,
 } from 'node:fs'
-import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { basename, delimiter, dirname, join, resolve, sep } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
+import { isDeepStrictEqual } from 'node:util'
 import {
   DESKTOP_PACKAGES_DIR,
   DESKTOP_PACKAGE_SET_FILE,
@@ -68,7 +70,7 @@ interface DesktopPendingTransaction {
   readonly schemaVersion: 1
   readonly id: string
   readonly stagingProfile: string
-  readonly step: 'prepared' | 'active-moved' | 'staging-activated'
+  readonly step: 'prepared' | 'active-moved' | 'staging-activated' | 'committed'
 }
 
 /** Exact executables the desktop shell bundles. */
@@ -108,6 +110,9 @@ const PACKAGE_NAME_PATTERN = /^(?:@[a-z0-9][a-z0-9._~-]*\/[a-z0-9][a-z0-9._~-]*|
 const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/u
 const MAX_PNPM_DIAGNOSTIC_BYTES = 64 * 1024
 const DESKTOP_REGISTRY = 'https://registry.npmjs.org/'
+const WINDOWS_FILESYSTEM_RETRY_ATTEMPTS = 20
+const WINDOWS_FILESYSTEM_RETRY_DELAY_MS = 100
+const TRANSACTION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 
 function errorOf(reason: unknown, fallback: string): Error {
   return reason instanceof Error ? reason : new Error(fallback)
@@ -139,11 +144,6 @@ function releaseFile(projectDir: string): DesktopRelease {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
-}
-
-function isDescendant(root: string, target: string): boolean {
-  const child = relative(root, target)
-  return child !== '' && child !== '..' && !child.startsWith(`..${sep}`) && !isAbsolute(child)
 }
 
 function assertPackageName(name: string): void {
@@ -188,6 +188,88 @@ function removeOwnedDirectory(path: string): void {
   }
   if (!stat.isDirectory()) throw new Error(`desktop project: owned directory path is not a directory: ${path}`)
   rmSync(path, { recursive: true })
+}
+
+function isRetryableFilesystemError(reason: unknown): boolean {
+  if (process.platform !== 'win32' || typeof reason !== 'object' || reason === null) return false
+  const code = (reason as NodeJS.ErrnoException).code
+  return code === 'EACCES' || code === 'EBUSY' || code === 'ENOTEMPTY' || code === 'EPERM'
+}
+
+async function retryFilesystem(operation: () => void, description: string): Promise<void> {
+  const attempts = process.platform === 'win32' ? WINDOWS_FILESYSTEM_RETRY_ATTEMPTS : 1
+  let lastError: unknown
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      operation()
+      return
+    } catch (error) {
+      lastError = error
+      if (!isRetryableFilesystemError(error) || attempt + 1 >= attempts) throw error
+      await sleep(WINDOWS_FILESYSTEM_RETRY_DELAY_MS)
+    }
+  }
+  throw errorOf(lastError, `desktop project: failed to ${description}`)
+}
+
+async function removeOwnedDirectoryEventually(path: string): Promise<void> {
+  await retryFilesystem(() => { removeOwnedDirectory(path) }, `remove ${path}`)
+}
+
+async function renameOwnedDirectory(source: string, target: string): Promise<void> {
+  await retryFilesystem(() => { renameSync(source, target) }, `move ${source} to ${target}`)
+}
+
+function unlinkIfPresent(path: string): void {
+  try {
+    unlinkSync(path)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+}
+
+function atomicJsonTemporary(path: string): string {
+  return `${path}.next`
+}
+
+async function writeJsonAtomically(path: string, value: unknown): Promise<void> {
+  const temporary = atomicJsonTemporary(path)
+  await retryFilesystem(() => { unlinkIfPresent(temporary) }, `remove ${temporary}`)
+  let descriptor: number | undefined
+  let operationFailed = false
+  let operationError: unknown
+  try {
+    descriptor = openSync(temporary, 'wx', 0o600)
+    writeFileSync(descriptor, `${JSON.stringify(value, undefined, 2)}\n`)
+    fsyncSync(descriptor)
+    closeSync(descriptor)
+    descriptor = undefined
+    await retryFilesystem(() => { renameSync(temporary, path) }, `replace ${path}`)
+  } catch (error) {
+    operationFailed = true
+    operationError = error
+    throw error
+  } finally {
+    const cleanupErrors: unknown[] = []
+    if (descriptor !== undefined) {
+      try {
+        closeSync(descriptor)
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError)
+      }
+    }
+    try {
+      await retryFilesystem(() => { unlinkIfPresent(temporary) }, `remove ${temporary}`)
+    } catch (cleanupError) {
+      cleanupErrors.push(cleanupError)
+    }
+    if (cleanupErrors.length > 0) {
+      if (operationFailed) {
+        throw new AggregateError([operationError, ...cleanupErrors], `desktop project: failed to replace ${path}`)
+      }
+      throw new AggregateError(cleanupErrors, `desktop project: replacement cleanup failed for ${path}`)
+    }
+  }
 }
 
 function copyMetadata(source: string, target: string): void {
@@ -338,28 +420,55 @@ export class DesktopProjectManager {
     readonly runtime: DesktopRuntimeExecutables,
   ) {}
 
-  /** Recover an interrupted directory replacement before reading the active project. */
-  recover(): void {
-    if (!existsSync(this.paths.pending)) return
-    const value = readJson(this.paths.pending)
-    if (!isRecord(value) || value.schemaVersion !== 1
-      || typeof value.id !== 'string' || typeof value.stagingProfile !== 'string'
-      || !isDescendant(this.paths.staging, value.stagingProfile)
-      || (value.step !== 'prepared' && value.step !== 'active-moved' && value.step !== 'staging-activated')) {
-      throw new Error(`desktop project: invalid activation journal ${this.paths.pending}`)
+  /** Recover an interrupted directory replacement while the package transaction lock is held. */
+  private async recover(): Promise<void> {
+    await retryFilesystem(
+      () => { unlinkIfPresent(atomicJsonTemporary(this.paths.pending)) },
+      `remove ${atomicJsonTemporary(this.paths.pending)}`,
+    )
+    if (existsSync(this.paths.pending)) {
+      const value = readJson(this.paths.pending)
+      const expectedStagingProfile = isRecord(value) && typeof value.id === 'string'
+        ? join(this.paths.staging, value.id, 'profile')
+        : undefined
+      if (!isRecord(value) || value.schemaVersion !== 1
+        || typeof value.id !== 'string' || !TRANSACTION_ID_PATTERN.test(value.id)
+        || typeof value.stagingProfile !== 'string' || value.stagingProfile !== expectedStagingProfile
+        || (value.step !== 'prepared' && value.step !== 'active-moved'
+          && value.step !== 'staging-activated' && value.step !== 'committed')) {
+        throw new Error(`desktop project: invalid activation journal ${this.paths.pending}`)
+      }
+      const pending: DesktopPendingTransaction = {
+        schemaVersion: 1,
+        id: value.id,
+        stagingProfile: join(this.paths.staging, value.id, 'profile'),
+        step: value.step,
+      }
+      if (pending.step === 'prepared' || pending.step === 'committed') {
+        if (!existsSync(this.paths.profile) && existsSync(this.paths.rollback)) {
+          mkdirSync(dirname(this.paths.profile), { recursive: true, mode: 0o700 })
+          await renameOwnedDirectory(this.paths.rollback, this.paths.profile)
+        }
+      } else if (existsSync(this.paths.rollback)) {
+        await removeOwnedDirectoryEventually(this.paths.profile)
+        mkdirSync(dirname(this.paths.profile), { recursive: true, mode: 0o700 })
+        await renameOwnedDirectory(this.paths.rollback, this.paths.profile)
+      }
+      // Removing the direct transaction root never traverses a replaced root junction.
+      await removeOwnedDirectoryEventually(join(this.paths.staging, pending.id))
+      await retryFilesystem(() => { unlinkIfPresent(this.paths.pending) }, `remove ${this.paths.pending}`)
     }
-    const pending: DesktopPendingTransaction = {
-      schemaVersion: 1,
-      id: value.id,
-      stagingProfile: value.stagingProfile,
-      step: value.step,
+    await this.removeOrphanedStaging()
+  }
+
+  private async removeOrphanedStaging(): Promise<void> {
+    if (!existsSync(this.paths.staging)) return
+    for (const entry of readdirSync(this.paths.staging, { withFileTypes: true })) {
+      if (!TRANSACTION_ID_PATTERN.test(entry.name)) {
+        throw new Error(`desktop project: unexpected staging entry ${JSON.stringify(entry.name)}`)
+      }
+      await removeOwnedDirectoryEventually(join(this.paths.staging, entry.name))
     }
-    if (!existsSync(this.paths.profile) && existsSync(this.paths.rollback)) {
-      mkdirSync(dirname(this.paths.profile), { recursive: true })
-      renameSync(this.paths.rollback, this.paths.profile)
-    }
-    removeOwnedDirectory(pending.stagingProfile)
-    unlinkSync(this.paths.pending)
   }
 
   /** Read the active desktop plugin inventory. */
@@ -390,23 +499,31 @@ export class DesktopProjectManager {
     return releaseFile(this.paths.profile).version
   }
 
-  /** Install or reconcile the active project to the Electron package's exact release. */
+  /**
+   * Reconcile the active project's release metadata and verified core packages with the bundled seed.
+   * @param seedDir - Packaged offline seed containing release metadata, tarballs, and store archives.
+   * @param electronVersion - Exact application version that the seed must match.
+   * @param hooks - Backend health and lifecycle operations for staged activation.
+   * @returns Whether a staged profile was activated; equal versions with different content still reconcile.
+   */
   async applyRelease(seedDir: string, electronVersion: string, hooks: DesktopProjectHooks): Promise<boolean> {
     return this.withLock(async () => {
-      this.recover()
+      await this.recover()
       verifySeedIntegrity(seedDir)
       const target = releaseFile(seedDir)
-      verifyDesktopCorePackageSet(seedDir, target.version)
+      const targetPackages = verifyDesktopCorePackageSet(seedDir, target.version)
       if (target.version !== electronVersion) {
         throw new Error(`desktop project: seed ${target.version} does not match Electron ${electronVersion}`)
       }
-      if (existsSync(this.paths.profile) && this.releaseVersion() === target.version
+      const activeRelease = existsSync(this.paths.profile) ? releaseFile(this.paths.profile) : undefined
+      if (activeRelease?.version === target.version
         && this.dshVersion() === target.version
         && this.installedPackageVersion(DESKTOP_HOST_PACKAGE) === target.version) {
-        verifyDesktopCorePackageSet(this.paths.profile, target.version)
-        return false
+        const activePackages = verifyDesktopCorePackageSet(this.paths.profile, target.version)
+        if (isDeepStrictEqual(activeRelease, target)
+          && isDeepStrictEqual(activePackages, targetPackages)) return false
       }
-      this.mergeSeedPnpmState(seedDir)
+      await this.mergeSeedPnpmState(seedDir)
       const stagingProfile = this.newStagingProfile()
       try {
         if (existsSync(this.paths.profile)) {
@@ -430,7 +547,15 @@ export class DesktopProjectManager {
         await this.activate(stagingProfile, hooks)
         return true
       } catch (error) {
-        removeOwnedDirectory(stagingProfile)
+        const cleanupErrors: unknown[] = []
+        try {
+          await removeOwnedDirectoryEventually(dirname(stagingProfile))
+        } catch (cleanupError) {
+          cleanupErrors.push(cleanupError)
+        }
+        if (cleanupErrors.length > 0) {
+          throw new AggregateError([error, ...cleanupErrors], 'desktop project: release failed and staging cleanup was incomplete')
+        }
         throw error
       }
     })
@@ -439,7 +564,7 @@ export class DesktopProjectManager {
   /** Apply one exact dependency mutation through a staging project. */
   async mutate(mutation: DesktopProjectMutation, hooks: DesktopProjectHooks): Promise<void> {
     await this.withLock(async () => {
-      this.recover()
+      await this.recover()
       if (!existsSync(this.paths.profile)) throw new Error('desktop project: active profile is not installed')
       verifyDesktopCorePackageSet(this.paths.profile, this.releaseVersion())
       const stagingProfile = this.newStagingProfile()
@@ -449,7 +574,15 @@ export class DesktopProjectManager {
         await hooks.healthCheck(stagingProfile)
         await this.activate(stagingProfile, hooks)
       } catch (error) {
-        removeOwnedDirectory(stagingProfile)
+        const cleanupErrors: unknown[] = []
+        try {
+          await removeOwnedDirectoryEventually(dirname(stagingProfile))
+        } catch (cleanupError) {
+          cleanupErrors.push(cleanupError)
+        }
+        if (cleanupErrors.length > 0) {
+          throw new AggregateError([error, ...cleanupErrors], 'desktop project: mutation failed and staging cleanup was incomplete')
+        }
         throw error
       }
     })
@@ -505,14 +638,30 @@ export class DesktopProjectManager {
     }
   }
 
-  private mergeSeedPnpmState(seedDir: string): void {
+  private async mergeSeedPnpmState(seedDir: string): Promise<void> {
     const transactionRoot = join(this.paths.staging, randomUUID())
     const extractedStore = join(transactionRoot, 'store')
+    let operationFailed = false
+    let operationError: unknown
     try {
       extractPnpmStoreArchives(seedDir, extractedStore)
       mergePnpmStore(extractedStore, this.paths.pnpm.store)
+    } catch (error) {
+      operationFailed = true
+      operationError = error
+      throw error
     } finally {
-      removeOwnedDirectory(transactionRoot)
+      try {
+        await removeOwnedDirectoryEventually(transactionRoot)
+      } catch (cleanupError) {
+        if (operationFailed) {
+          throw new AggregateError(
+            [operationError, cleanupError],
+            'desktop project: pnpm state merge failed and staging cleanup was incomplete',
+          )
+        }
+        console.warn('desktop project: deferred merged-store staging cleanup', cleanupError)
+      }
     }
   }
 
@@ -523,27 +672,107 @@ export class DesktopProjectManager {
       stagingProfile,
       step: 'prepared',
     }
-    writeJson(this.paths.pending, pending)
-    await hooks.beforeActivate()
+    await writeJsonAtomically(this.paths.pending, pending)
+    let beforeActivateCompleted = false
     let activeMoved = false
+    let stagingActivated = false
+    let afterActivateCompleted = false
+    const hadActiveProfile = existsSync(this.paths.profile)
     try {
-      removeOwnedDirectory(this.paths.rollback)
+      await hooks.beforeActivate()
+      beforeActivateCompleted = true
+      await removeOwnedDirectoryEventually(this.paths.rollback)
       mkdirSync(dirname(this.paths.rollback), { recursive: true, mode: 0o700 })
-      writeJson(this.paths.pending, { ...pending, step: 'active-moved' } satisfies DesktopPendingTransaction)
+      await writeJsonAtomically(
+        this.paths.pending,
+        { ...pending, step: 'active-moved' } satisfies DesktopPendingTransaction,
+      )
       if (existsSync(this.paths.profile)) {
-        renameSync(this.paths.profile, this.paths.rollback)
+        await renameOwnedDirectory(this.paths.profile, this.paths.rollback)
         activeMoved = true
       }
       mkdirSync(dirname(this.paths.profile), { recursive: true, mode: 0o700 })
-      writeJson(this.paths.pending, { ...pending, step: 'staging-activated' } satisfies DesktopPendingTransaction)
-      renameSync(stagingProfile, this.paths.profile)
+      await writeJsonAtomically(
+        this.paths.pending,
+        { ...pending, step: 'staging-activated' } satisfies DesktopPendingTransaction,
+      )
+      await renameOwnedDirectory(stagingProfile, this.paths.profile)
+      stagingActivated = true
       await hooks.afterActivate()
-      unlinkSync(this.paths.pending)
+      afterActivateCompleted = true
+      await writeJsonAtomically(
+        this.paths.pending,
+        { ...pending, step: 'committed' } satisfies DesktopPendingTransaction,
+      )
+      const cleanupErrors: unknown[] = []
+      try {
+        await removeOwnedDirectoryEventually(dirname(stagingProfile))
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError)
+      }
+      try {
+        await retryFilesystem(() => { unlinkIfPresent(this.paths.pending) }, `remove ${this.paths.pending}`)
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError)
+      }
+      if (cleanupErrors.length > 0) {
+        console.warn(
+          'desktop project: activation committed with deferred transaction cleanup',
+          new AggregateError(cleanupErrors),
+        )
+      }
     } catch (error) {
-      if (existsSync(this.paths.profile)) removeOwnedDirectory(this.paths.profile)
-      if (activeMoved && existsSync(this.paths.rollback)) renameSync(this.paths.rollback, this.paths.profile)
-      if (existsSync(this.paths.pending)) unlinkSync(this.paths.pending)
-      await hooks.afterActivate().catch(() => undefined)
+      const cleanupErrors: unknown[] = []
+      let backendStopped = !afterActivateCompleted
+      if (afterActivateCompleted) {
+        try {
+          await hooks.beforeActivate()
+          backendStopped = true
+        } catch (cleanupError) {
+          cleanupErrors.push(cleanupError)
+        }
+      }
+      if (backendStopped && stagingActivated) {
+        try {
+          await removeOwnedDirectoryEventually(this.paths.profile)
+        } catch (cleanupError) {
+          cleanupErrors.push(cleanupError)
+        }
+      }
+      if (backendStopped && activeMoved && existsSync(this.paths.rollback)) {
+        try {
+          await renameOwnedDirectory(this.paths.rollback, this.paths.profile)
+        } catch (cleanupError) {
+          cleanupErrors.push(cleanupError)
+        }
+      }
+      const restored = backendStopped && (
+        !hadActiveProfile
+        || (!activeMoved && existsSync(this.paths.profile))
+        || (activeMoved && existsSync(this.paths.profile) && !existsSync(this.paths.rollback))
+      )
+      try {
+        await removeOwnedDirectoryEventually(dirname(stagingProfile))
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError)
+      }
+      if (restored && cleanupErrors.length === 0 && existsSync(this.paths.pending)) {
+        try {
+          await retryFilesystem(() => { unlinkIfPresent(this.paths.pending) }, `remove ${this.paths.pending}`)
+        } catch (cleanupError) {
+          cleanupErrors.push(cleanupError)
+        }
+      }
+      if (restored && beforeActivateCompleted && hadActiveProfile) {
+        try {
+          await hooks.afterActivate()
+        } catch (cleanupError) {
+          cleanupErrors.push(cleanupError)
+        }
+      }
+      if (cleanupErrors.length > 0) {
+        throw new AggregateError([error, ...cleanupErrors], 'desktop project: activation failed and cleanup was incomplete')
+      }
       throw error
     }
   }
@@ -664,20 +893,41 @@ export class DesktopProjectManager {
           }
         }
         if (active) throw new Error('desktop project: another package transaction is active')
-        unlinkSync(this.paths.lock)
+        await retryFilesystem(() => { unlinkIfPresent(this.paths.lock) }, `remove ${this.paths.lock}`)
         descriptor = openSync(this.paths.lock, 'wx', 0o600)
       } else {
         throw error
       }
     }
+    let operationFailed = false
+    let operationError: unknown
     try {
       this.lockDescriptor = descriptor
       this.writeLockOwner(process.pid)
       return await operation()
+    } catch (error) {
+      operationFailed = true
+      operationError = error
+      throw error
     } finally {
       this.lockDescriptor = undefined
-      closeSync(descriptor)
-      unlinkSync(this.paths.lock)
+      const cleanupErrors: unknown[] = []
+      try {
+        closeSync(descriptor)
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError)
+      }
+      try {
+        await retryFilesystem(() => { unlinkIfPresent(this.paths.lock) }, `remove ${this.paths.lock}`)
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError)
+      }
+      if (cleanupErrors.length > 0) {
+        if (operationFailed) {
+          throw new AggregateError([operationError, ...cleanupErrors], 'desktop project: transaction failed and lock cleanup was incomplete')
+        }
+        throw new AggregateError(cleanupErrors, 'desktop project: lock cleanup was incomplete')
+      }
     }
   }
 }

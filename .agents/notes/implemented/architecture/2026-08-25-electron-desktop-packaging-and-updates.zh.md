@@ -77,7 +77,9 @@ Electron 拥有保留 profile `.dsh/profiles/desktop`。其中精确的 `@deepse
 
 种子根据规范化 store 路径，把 pnpm 内容放入 16 个确定性的未压缩 tar 分片。Apple 公证会检查这些归档内的 Mach-O 代码，因此 macOS seed 会 staging 每个被引用的内容寻址 Mach-O 对象，最多并发四个独立的 Developer ID 签名进程，并带上安全时间戳与 hardened runtime。任一签名失败后，准备过程会等待已启动的签名进程全部退出，原始 CAS 对象与包索引保持不变。所有签名成功后，准备过程把每个对象写到新的 SHA-512 路径，并以事务方式重写 pnpm MessagePack SQLite 索引内全部基础文件和 side-effects 文件引用。第二次离线安装证明 pnpm 可以解析重写后的 store；准备过程随后完成分片、解包最终归档并验证每个内嵌签名。包路径和非原生字节保持不变；种子保留包内附带的架构变体，因为删除文件会创建 Desktop 专属的包文件集。种子完整性覆盖分片 manifest 和解包前的每个归档。启动时验证归档路径、条目类型、唯一性和数量，把所有分片解包到唯一且由 Desktop 拥有的 staging 目录，替换匹配的不可变 store 文件，并以事务方式把各 pnpm store 版本的 SQLite `package_index` 合并进 `.dsh/desktop/pnpm/store`。Seed 记录替换匹配的键，为 Desktop 插件下载的记录继续保留。中断的文件合并可能留下有效的不可变缓存内容，但每次 SQLite 合并都是原子的，profile 安装与激活仍必须通过 pnpm 完整性与完整健康检查。
 
-启动过程先要求安装包内的发布身份等于 Electron 应用版本，再在启动后端前比较 `.dsh/profiles/desktop/desktop-release.json`、已安装 dsh 包、已安装 Desktop Host 包与该发布版本。它在 staging 中通过 `pnpm install --offline --frozen-lockfile --trust-lockfile` 安装新的 seed manifest 与 lockfile。Electron 替换后，启动过程再通过一次离线 pnpm add，从桌面端现有 store 与元数据缓存恢复活跃 profile 记录的每个插件 bundle 精确版本。完整依赖图必须通过同一套健康检查才能激活。
+启动过程要求安装包内的发布版本等于 Electron 应用版本。复用 `.dsh/profiles/desktop` 前，它验证活跃目录中的本地 tarball，并将规范化的发布元数据、已安装的 dsh 与 Desktop Host 版本以及完整核心包描述文件与 seed 比较。仅版本号相同不足以证明内容一致：每个 tarball 的名称、版本、文件名、大小和 SHA-512 完整性值都必须匹配，内置 Node.js 与 pnpm 版本也必须相同。任何差异都会进入现有 staging 事务，通过 `pnpm install --offline --frozen-lockfile --trust-lockfile` 安装 seed manifest 与 lockfile，再从现有桌面 store 与元数据缓存通过一次离线 pnpm add 恢复每个已注册插件 bundle 的精确版本。完整依赖图必须通过同一套健康检查才能激活，共享设置与 Session 数据则位于被替换的 profile 之外。
+
+恢复过程只在取得事务锁后运行。激活日志以原子替换方式分别持久化准备、活跃 profile 移动、staging 激活和提交记录。恢复过程会为中断的激活恢复 rollback，在恢复不完整时保留日志；已经提交的日志会保留活跃 profile，并在锁内重试清理剩余的 UUID 事务目录。Windows profile 移动和 Desktop 自有 staging 清理会在有界时间内重试暂时性的文件占用错误。孤儿 staging 清理只删除直接位于 staging 下且名称为 UUID 的事务目录。启动失败会把堆栈写入 `$DSH_HOME/desktop/startup-error.log`，除非显式配置诊断路径。
 
 插件 GUI 执行等价于 `pnpm add <package> --save-exact`、`pnpm remove <package>` 和精确版本更新的 registry npm 包操作。每次修改都保留本地核心包描述文件、tarball、dsh 与 Desktop Host 依赖和完整 override 映射。Electron 验证已安装包 manifest，并更新 profile 的依赖与有序 bundle 条目；任何渲染进程请求都不能选择 registry、安装目录、生命周期策略或任意 pnpm flag。
 

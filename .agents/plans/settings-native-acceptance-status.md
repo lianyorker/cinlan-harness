@@ -1,6 +1,6 @@
 # 设置整包验收状态
 
-状态：**2026-09-18 最终 Windows x64 正式打包成功，实际打包应用的启动、设置操作和完整进程重启验证通过。捕获 bundle/Session 草稿交接修正已纳入最终包；元素捕获、Git、Worktree 与通知等设置的最终 Web 回放通过。全仓文档检查仍有失败，安装、升级和部分交互验收未完成，本分支按草稿 PR 提交审查。** 本记录对应[实施方案](settings-native-implementation.md)和[字段账本](settings-native-field-ledger.md)，区分源码、开发版、打包产物及未完成的发布检查。
+状态：**2026-09-18 已完成同版本 Desktop profile 校准、事务恢复加固、默认启动诊断、定向回归、类型检查、Oxlint、双语配对、Windows x64 打包及 detached 旧 profile 隔离验收。源码提交与远端检查状态以草稿 PR #14 为准。** 本记录区分修复前已发布产物、修复后本地安装包及仍未完成的发布检查，对用户运行目录不执行破坏性操作。本记录对应[实施方案](settings-native-implementation.md)和[字段账本](settings-native-field-ledger.md)。
 
 ## 范围与保留项
 
@@ -11,34 +11,32 @@
 
 ## 最终安装产物
 
-正式命令 `pnpm run package:desktop:win:x64` 于 `2026-09-18T03:44:08Z` 开始、`03:56:23Z` 以 0 退出。配置 schema 与生产依赖预检、Host/Client/Web/native 构建、运行时准备、seed 离线安装验证、ASAR、NSIS 与 MSI 阶段均完成。完整记录在忽略目录 `.artifacts/windows-package.log`、`.artifacts/windows-package-console.log` 和 `.artifacts/windows-package-result.json`。
+正式命令 `pnpm run package:desktop:win:x64` 本轮最终构建于 `2026-09-18T09:28:41Z` 写出发布记录并以 0 退出。配置 schema 与生产依赖预检、Host/Client/Web/native 构建、运行时准备、seed 离线安装验证、ASAR、NSIS 与 MSI 阶段均完成。完整记录在忽略目录 `.artifacts/desktop-transaction-package-final2.log`。
 
 | 产物 | 字节数 | SHA-256 |
 |---|---:|---|
-| `deepseek-harness-0.1.5-alpha.1-win-x64.exe` | 265,429,994 | `fd5766d520a7235faf50accd90064e00883d0cb991bd849d383d87ca6da3163d` |
-| `deepseek-harness-0.1.5-alpha.1-win-x64.msi` | 287,008,664 | `434456af621ca354bdaf796d6e8436748dc4f92370ff749c6819f95b89ad1559` |
-| `.exe.blockmap` | 277,866 | `c9f1416bd0eed69cc5ac9e85fccb54ea16f0bef5b40aeaf3c4af2ee375a959f2` |
-| `win-unpacked/resources/app.asar` | 实际启动路径已验证 | `9dba494dc5ea306deefaff4a13f016a9bf71893d378592649aa65d2321aa9420` |
+| `deepseek-harness-0.1.5-alpha.1-win-x64.exe` | 265,367,687 | `43e7dfb13f66a1c94500534de418ea309e33d6b4e6ccfb9a90e9b3472df301c3` |
+| `deepseek-harness-0.1.5-alpha.1-win-x64.msi` | 287,029,144 | `6a6f637b6cf5d933185520bcec11b1e78b8133eb1b6700099d66bc0807cda4ea` |
+| `.exe.blockmap` | 277,410 | `41d66eac4741a22b405442df62d7b2894835cdb459ec63eb7ff2257bfa639025` |
+| `win-unpacked/resources/app.asar` | 2,464,646 | `1aec4fe609e8ba4e4f8ccb035c3dc7f372642a76de11dffb3980f4a20088575a` |
 
-产物位于 `apps/desktop/.desktop-build/targets/win-x64/artifacts/`。Electron 44.0.0 使用随包 Node `24.17.0`、pnpm `11.7.0` 和版本 `0.1.5-alpha.1` 的离线 seed。上传计划要求非空外部 `.exe.blockmap`，按 EXE → blockmap → 频道元数据排序；8 项上传计划测试通过。先前的 `.artifacts/windows-package-inspection.json` 只对应 `02:20:16Z` 完成的旧包及修复前的上传校验，不能作为本表最终文件的证据。
+产物位于 `apps/desktop/.desktop-build/targets/win-x64/artifacts/`。Electron 44.0.0 使用随包 Node `24.17.0`、pnpm `11.7.0` 和版本 `0.1.5-alpha.1` 的离线 seed。上传计划要求非空外部 `.exe.blockmap`，按 EXE → blockmap → 频道元数据排序；本轮打包日志完成 MSI、NSIS 与 blockmap 阶段。最终 EXE 和 MSI 的 Authenticode 状态均为 `NotSigned`。
 
-最终独立校验见 `.artifacts/windows-final-inspection.json`：`alpha.yml` 的 EXE 大小与 SHA-512 匹配，外部 gzip blockmap v2 的 12,693 个数据块覆盖完整 265,429,994 字节；ASAR 包与 6 个入口存在。使用完成记录中的 test origin 和明确的假 bucket 运行 `createDesktopUploadPlan('win-x64')` 成功，顺序为 EXE、blockmap、alpha.yml，没有网络上传。`Get-AuthenticodeSignature` 确认本表 EXE/MSI 均为 `NotSigned`，无签名者。这些是本地验收产物，不是签名发行包；未执行真实更新服务测试、安装器交互安装或跨版本升级，本地默认更新地址为占位地址。
+固定安装包的最终隔离验收见 `.artifacts/desktop-transaction-packaged-final2.log` 与 `.artifacts/desktop-settings-edjRk1/report.json`：旧同版本默认 profile 被复制到隔离 home，新的 seed 替换旧 UI，并保留 rollback、共享 settings 与 Session 目录 sentinel；相同内容重启复用校准后的 profile，完整进程重启后设置仍保留。插件精确版本保留由定向事务回归证明，因为打包 fixture 明确只包含默认 bundles。最终报告为 `passed=true`，两次应用进程退出码均为 0，调试端口已关闭，临时根目录已清理，fixture 源目录未改变。首轮冷启动在仍重建 profile 时达到 300 秒 CDP readiness 阈值；该进程随后由验收脚本正常停止并以 0 退出，没有生成 startup-error 日志。只针对 `--existing-profile` 的阈值提高到 600 秒后，最终首启从应用启动到交互为 274.131 秒，相同 profile 重启为 6.714 秒；这些时间包含验收开销，不是启动性能基准。该验收未安装到当前用户正在运行的 Desktop，也未执行真实更新服务上传。
 
 ## 真实 Electron 检查
 
-开发模式通过支持的 `pnpm run start:desktop` 入口启动，隔离 Harness home 和 Electron userData。六项设置检查通过：首次提示处理、中英文布局、搜索与焦点、语言持久化、Escape/返回与刷新。开发模式回执为 `.artifacts/desktop-settings-hMLXx1/report.json`，与最终打包证据分开保留。
+开发模式此前通过支持的 `pnpm run start:desktop` 入口启动，隔离 Harness home 和 Electron userData；本轮固定包验收没有修改当前用户运行目录。
 
-最终实际产物使用以下命令验证：
+固定包使用以下命令从 detached 旧同版本 profile 启动：
 
 ```powershell
-node apps/desktop/tests/settings.integration.mjs --packaged 'D:\Company\cinlan\cinlan-harness\apps\desktop\.desktop-build\targets\win-x64\artifacts\win-unpacked\DeepSeek Harness.exe'
+node apps/desktop/tests/settings.integration.mjs --packaged 'D:\Company\cinlan\cinlan-harness\apps\desktop\.desktop-build\targets\win-x64\artifacts\win-unpacked\DeepSeek Harness.exe' --existing-profile 'D:\Company\cinlan\cinlan-harness\.artifacts\desktop-old-runtime-7EZ0Ag\profile'
 ```
 
-`.artifacts/desktop-settings-7jkEDs/report.json` 记录 `passed=true`：`app.isPackaged=true`，应用路径是实际 `resources/app.asar`；随包 Node 启动独立 home 中已安装的 Desktop Host，应用、seed、dsh、Host 版本均为 `0.1.5-alpha.1`。Git 的 branchPrefix/groupOrder、终端字号 16 和英语偏好通过 UI 保存；退出进程并重新启动后仍保留，设置文件字节一致。两次应用均以 0 退出，调试端口关闭，临时根目录已清理。截图涵盖中文、英文、搜索、Git、Terminal 和重启结果。
+`.artifacts/desktop-settings-edjRk1/report.json` 记录 `passed=true`：实际 `resources/app.asar` 启动并在隔离 home 中安装同版本 seed；旧 profile 的 stale UI 被新 seed 替换，rollback、共享 settings 与 Session 目录 sentinel 保留；相同内容重启复用校准后的 profile；完整进程重启后语言、搜索、Git 偏好、终端偏好和完整 settings 文件仍保留。应用进程退出码为 0，调试端口已关闭，临时根目录已清理。
 
-隔离 home 的首次启动包含 seed 离线安装，准备预算为 300 秒；测试 startup-to-interaction 阶段间隔为 236.143 秒，重启为 6.544 秒，这是测试阶段计时，不是单独测量的应用启动性能。冷启动期间 Chromium NetworkService 发生一次崩溃或终止后自行重启，原因未查明；记录在该目录 `launch.log` 第 6 行，随后交互检查通过。终端设置的保存与重启持久化已验证；实际打包应用内执行终端命令为 `not-run`，因为隔离 home 没有 Workspace/Session，创建需要 renderer CDP 无法操作的原生目录选择器。
-
-关闭阶段的 `POST dsh-app://app/.dsh/remote-stream` 失败单独记录为生命周期事件；只有精确 URL/方法/请求起始时间/响应时间均对应关闭阶段且最终正常退出时才允许，其他 503 仍失败。13 项反例验证了此限定。早期打包启动探针的 Playwright 默认 30 秒 CDP 超时已改为显式、有界的 300 秒准备预算，未跳过 UI 检查。
+该验收包含中文/英文设置布局、搜索与焦点、Escape/返回、Git 与终端设置保存；关闭时 remote-stream 503/ERR_FAILED 只作为已知 shutdown 生命周期事件记录，不影响退出判定。没有执行真实更新服务上传、安装到当前用户目录或跨版本更新；当前运行中的 Desktop 和其 `$DSH_HOME` 未被本轮打包与隔离验收触碰。
 
 ## 功能验收
 
@@ -63,7 +61,7 @@ node apps/desktop/tests/settings.integration.mjs --packaged 'D:\Company\cinlan\c
 
 仍需处理的失败包括 doc-typecheck 示例、doc graph 缺少 36 个角色分类、config catalog 的 25 项源码/schema/JSDoc 违规、tool catalog 的移动设备描述、双语覆盖/记录、Markdown wrap、导出 JSDoc、README Summary/limitations、Agent Note 格式和文档标准测试。失败属于当前树，不能统一标为与本 PR 无关。缺失真实模型凭据也使 GUI 演示 GIF 未完成；没有以 fixture GIF 替代。
 
-`pnpm run typecheck` 通过。Cordis catalog 121 项产物、inspect catalog、tsconfig paths、159 个 Cordis 配置、82 个包的依赖检查、71 个 Client 包检查及 module graph 3 项产物检查通过；生成内容由官方工具写入。Typert 的映射导出优先 `.ts`、再选择存在的 `.tsx`，8 项文件系统回归和定向 lint 通过，Host/Client 编译面保持分离。暂存源码只读 lint 通过，另有未使用的 lint-disable 警告；完整 lint/doc-sync 不据此标为通过。
+本轮最终 `pnpm run typecheck` 通过；Desktop transaction、startup diagnostic、core package set 和 seed store 共 32 项定向测试通过；目标 TypeScript 文件的 Oxlint 为 0 warnings / 0 errors；两组 Desktop 双语记录定向验证一致。Cordis catalog 121 项产物、inspect catalog、tsconfig paths、159 个 Cordis 配置、82 个包的依赖检查、71 个 Client 包检查及 module graph 3 项产物检查通过；生成内容由官方工具写入。Typert 的映射导出优先 `.ts`、再选择存在的 `.tsx`，8 项文件系统回归和定向 lint 通过，Host/Client 编译面保持分离。完整 lint/doc-sync 不据此标为通过。
 
 锁文件审查覆盖 394 个 manifest/importer、4,510 项直接声明和 589 项 registry 范围，初始结果一致；22 个新 importer 和新增依赖闭包有对应源码。既有 express 的 proxy-addr 从 2.0.7 变为 2.0.8，其余直接 registry 版本没有变化。随后通过 `pnpm --filter @deepseek-ai/dsh-cinlan-browser install --offline --ignore-scripts` 加入捕获页 workspace 依赖，官方锁文件同时校正 http-proxy-agent/pi-ai 的 supports-color peer 后缀。
 
@@ -71,15 +69,23 @@ node apps/desktop/tests/settings.integration.mjs --packaged 'D:\Company\cinlan\c
 
 ## 环境恢复与打包故障记录
 
-早期执行器无法遍历依赖 junction，报告 Windows 448 / UNKNOWN，导致 tsx、TypeScript 和测试入口不可用；普通终端安装成功后，当前执行环境已能运行 pnpm、生成器、测试和正式打包。没有关闭系统安全策略。
+早期执行器无法遍历依赖 junction，报告 Windows 448 / UNKNOWN；普通终端安装成功后，前一轮执行环境能够运行生成器、测试和正式打包。本轮同版本升级修复开始时也曾遇到该限制；用户在独立 Windows PowerShell 中完成冻结锁文件安装后，后续应用内执行器能够解析依赖并完成定向测试、类型检查、lint 和正式打包。没有停止当前用户的 Desktop、运行旧 profile 修复脚本、修改系统安全策略或改写 `C:\Users\ASUS\.dsh`。
 
 打包故障曾涉及重复类型导出/精确可选属性、Client 引用和 fixture 缺项、缺失组件、MSI `runAfter` 无效字段；配置修正为 `runAfterFinish` 并加入早期 schema 预检。pnpm 11 默认列出全部工作区引发的 EMFILE 由 builder 专用 desktop filter 和单根完整生产树预检解决；源构建和 seed 保留各自的完整依赖图。最终包之前的 BrowserRoutingForm TS7053 已通过显式 `Partial<BrowserRoutingPreferences>` 修正，类型检查和 15 项回归通过后完成正式打包。
+
+## 同版本重装修复
+
+`DesktopProjectManager.applyRelease()` 只有在经过验证的完整核心包描述文件与发布元数据均一致时才复用运行目录；同版本但 SHA-512 不同的包进入既有 staging、精确插件恢复、健康检查和回滚流程。事务 journal 使用同目录临时文件、`fsync` 和原子 rename 提交每个阶段，只接受 UUID 拥有的规范 staging profile，并在新 Host 启动成功后记录 `committed`；提交后清理失败不会回滚正在运行的新 profile。恢复与 orphan 清理都在事务锁内，只删除直接 UUID 根；启动失败写入 `$DSH_HOME/desktop/startup-error.log`，也可由 `DSH_DESKTOP_DIAGNOSTIC_FILE` 覆盖。
+
+新增单元用例覆盖等长不同内容、Node/pnpm 元数据变化、相同内容不重复安装、健康检查失败保留旧目录、插件/共享数据保留、全部 journal 阶段恢复、路径 alias 拒绝、原子 journal 写失败以及提交后延迟清理。打包验收新增 `--existing-profile`，从脱离运行环境的旧 profile 副本初始化隔离 home，验证旧设置 UI 被目标 seed 替换、rollback 保留旧组件、共享设置与会话目录标记字节保留，以及第二次启动复用更新后的目录。会话目录标记不代表真实 Session 加载或迁移通过。旧运行目录的独立测试副本位于忽略目录 `.artifacts/desktop-old-runtime-7EZ0Ag/profile`：307 个 tarball 均通过源码完整性校验，复制过程检查了 37,509 个普通文件和 4,421 个目录，没有复制符号链接/junction；复制前后源目录的清单与设置 bundle 哈希一致。未复制共享设置、凭据或会话，也未启动副本。
+
+本轮 `node --experimental-transform-types --check` 对源码与单元测试通过，集成脚本语法、参数拒绝检查和 `git diff --check` 通过；最终独立复核未发现具体 transaction 阻断项。定向 Vitest 32 项、类型检查、目标 Oxlint、双语配对、正式打包和 packaged 隔离验收均通过。`test:docs` 和仓库级导出 JSDoc/Markdown wrap 检查仍受第 60–62 行记录的全仓问题影响，不宣称文档 aggregate 全绿。
 
 ## 剩余验收
 
 1. 处理上面的全仓文档失败，保持草稿 PR 状态，直到需要的审查与 CI 证据齐备。
 2. 补齐 1680×1000、1280×800、768×1024、390×844、320px 回流、200% 缩放、明暗主题及中英文组合矩阵；已有部分场景不代表完整矩阵完成。
-3. 在可操作原生目录选择器的环境中验证打包应用终端命令，并补充安装器安装、升级、签名和真实更新服务验收。
+3. 在可操作原生目录选择器的环境中验证打包应用终端命令，并补充安装器交互、跨版本升级、EV 签名和真实更新服务验收。
 4. 获得真实 API 凭据后录制提交对应的真实服务器/模型回合 GUI GIF。当前无 `DEEPSEEK_API_KEY` 或常规凭据文件，未生成此证据。
 
 已知实现限制：路径检查不能阻止另一个进程替换目录。创建结果未知时任务尚未发布，需按诊断检查分配；发布前硬崩溃没有持久化创建日志自动恢复。Cleanup 收据不证明创建过程具有相同恢复保证。[Worktree 生命周期提案](../notes/proposed/feature/2026-09-18-worktree-task-lifecycle-hooks.md)在完整验收确认前仍保留 proposed。

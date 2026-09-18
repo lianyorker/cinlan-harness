@@ -1,9 +1,14 @@
-/** Opt-in settings check through start:desktop or --packaged <executable>; requires a desktop session. */
+/**
+ * Opt-in settings check through start:desktop or --packaged <executable>; requires a desktop session.
+ * Add --existing-profile <absolute detached profile snapshot> to prove replacement of stale same-version packages.
+ * The fixture must contain only the default managed profile, with no symlinks, junctions, patches, or extra bundles;
+ * only its runtime is copied into the isolated test home, and its source is never launched or modified.
+ */
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
-import { mkdir, mkdtemp, open, readFile, readdir, rm, stat, unlink, writeFile } from 'node:fs/promises'
+import { cp, lstat, mkdir, mkdtemp, open, readFile, readdir, rm, stat, unlink, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { connect } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -12,14 +17,22 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 
 const root = resolve(import.meta.dirname, '../../..')
+const pnpm = join(root, 'apps/desktop/node_modules/pnpm/bin/pnpm.mjs')
+const { values } = parseArgs({ options: { packaged: { type: 'string' }, 'existing-profile': { type: 'string' } }, allowPositionals: false })
+const packaged = values.packaged
+const existingProfile = values['existing-profile']
+if (packaged !== undefined) assert.ok(isAbsolute(packaged), '--packaged requires an absolute executable path')
+if (existingProfile !== undefined) {
+  assert.ok(packaged !== undefined, '--existing-profile requires --packaged')
+  assert.ok(isAbsolute(existingProfile), '--existing-profile requires an absolute detached profile path')
+}
 // The Web test owner supplies the existing browser driver; this check starts no browser binary.
 const { chromium } = createRequire(new URL('../../web/package.json', import.meta.url))('playwright')
-const pnpm = join(root, 'apps/desktop/node_modules/pnpm/bin/pnpm.mjs')
-const { values } = parseArgs({ options: { packaged: { type: 'string' } }, allowPositionals: false })
-const packaged = values.packaged
-if (packaged !== undefined) assert.ok(isAbsolute(packaged), '--packaged requires an absolute executable path')
 // A packaged first launch unpacks the offline seed and installs its private profile before opening a window.
-const startupTimeout = packaged === undefined ? 120_000 : 300_000
+// A detached profile replacement also materializes the copied profile before rebuilding the target.
+const startupTimeout = packaged === undefined
+  ? 120_000
+  : existingProfile === undefined ? 300_000 : 600_000
 
 async function until(observe, label, timeout = 30_000) {
   const deadline = Date.now() + timeout
@@ -93,6 +106,121 @@ async function removeDevelopmentRoot(path) {
   }
   await unlinkDependencies(path)
   await rm(path, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 })
+}
+
+const settingsPackage = '@deepseek-ai/dsh-client-ui-settings-general'
+const settingsBundle = join('node_modules', '@deepseek-ai', 'dsh-client-ui-settings-general', 'lib', 'client.js')
+const managedProfileEntries = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'desktop-release.json', 'desktop-packages.json', 'desktop-packages', 'node_modules']
+const initialSettings = 'locale:\n  preference: zh\nui-onboarding:\n  welcomeNoticeVersion: "2026-08-13.1"\n'
+const sharedSessionSentinel = 'isolated desktop same-version upgrade: retain shared session-directory bytes\n'
+const profileReuseSentinel = 'isolated desktop same-version upgrade: retain the reconciled profile on restart\n'
+
+async function readJson(path) {
+  return JSON.parse(await readFile(path, 'utf8'))
+}
+
+async function fileFingerprint(path) {
+  const body = await readFile(path)
+  return { bytes: body.length, sha256: createHash('sha256').update(body).digest('hex') }
+}
+
+async function profileFingerprint(profile) {
+  return {
+    release: await readJson(join(profile, 'desktop-release.json')),
+    packageSet: await fileFingerprint(join(profile, 'desktop-packages.json')),
+    settingsBundle: await fileFingerprint(join(profile, settingsBundle)),
+    dshVersion: (await readJson(join(profile, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'))).version,
+    hostVersion: (await readJson(join(profile, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'package.json'))).version,
+  }
+}
+
+async function packagedSettingsFingerprint(directory, descriptor) {
+  const record = descriptor.packages.find(candidate => candidate.name === settingsPackage)
+  assert.ok(record, 'package set must include the settings UI')
+  assert.match(record.file, /^[a-zA-Z0-9][a-zA-Z0-9._-]*\.tgz$/, 'settings tarball must be a local filename')
+  const archive = join(directory, 'desktop-packages', record.file)
+  const tarball = await readFile(archive)
+  assert.equal(tarball.length, record.bytes)
+  assert.equal('sha512-' + createHash('sha512').update(tarball).digest('base64'), record.integrity)
+  const { list } = createRequire(new URL('../package.json', import.meta.url))('tar')
+  const entries = []
+  await list({ file: archive, strict: true, onReadEntry(entry) {
+    if (entry.path !== 'package/lib/client.js') return
+    const fingerprint = { type: entry.type, bytes: 0, sha256: undefined }
+    const hash = createHash('sha256')
+    entries.push(fingerprint)
+    entry.on('data', chunk => { fingerprint.bytes += chunk.length; hash.update(chunk) })
+    entry.on('end', () => { fingerprint.sha256 = hash.digest('hex') })
+  } })
+  assert.equal(entries.length, 1, 'settings tarball must contain one client bundle')
+  assert.ok(entries[0].type === 'File' || entries[0].type === 'OldFile')
+  assert.equal(typeof entries[0].sha256, 'string')
+  return { bytes: entries[0].bytes, sha256: entries[0].sha256 }
+}
+
+async function prepareExistingProfile() {
+  const details = await lstat(existingProfile)
+  assert.ok(details.isDirectory() && !details.isSymbolicLink(), 'existing profile must be an ordinary detached directory')
+  const manifest = await readJson(join(existingProfile, 'package.json'))
+  assert.equal(manifest.name, '@deepseek-ai/dsh-desktop-runtime')
+  assert.equal(manifest.private, true)
+  assert.deepEqual(manifest.dsh.profile.bundles, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'], 'fixture must have only default bundles')
+  for (const entry of await readdir(existingProfile)) {
+    assert.ok(managedProfileEntries.includes(entry) || entry === 'desktop.cordis.yml', 'unsupported existing-profile entry: ' + entry)
+  }
+  const before = await profileFingerprint(existingProfile)
+  const seed = process.platform === 'darwin'
+    ? join(dirname(packaged), '..', 'Resources', 'seed')
+    : join(dirname(packaged), 'resources', 'seed')
+  const targetRelease = await readJson(join(seed, 'desktop-release.json'))
+  const oldDescriptor = await readJson(join(existingProfile, 'desktop-packages.json'))
+  const targetDescriptor = await readJson(join(seed, 'desktop-packages.json'))
+  assert.equal(before.release.version, targetRelease.version, 'fixture and package must use the same version')
+  assert.equal(before.dshVersion, targetRelease.version)
+  assert.equal(before.hostVersion, targetRelease.version)
+  assert.notDeepEqual(oldDescriptor, targetDescriptor, 'fixture package content must differ from the new seed')
+  const targetSettings = await packagedSettingsFingerprint(seed, targetDescriptor)
+  assert.deepEqual(before.settingsBundle, await packagedSettingsFingerprint(existingProfile, oldDescriptor), 'old installed UI must match its old tarball')
+  assert.notDeepEqual(before.settingsBundle, targetSettings, 'fixture must exercise a changed settings UI bundle')
+  report.existingProfile = { source: existingProfile, before, targetRelease, targetPackageSet: await fileFingerprint(join(seed, 'desktop-packages.json')), targetSettings }
+  const destination = join(harnessHome, 'profiles', 'desktop')
+  await mkdir(destination, { recursive: true })
+  for (const entry of managedProfileEntries) {
+    await cp(join(existingProfile, entry), join(destination, entry), {
+      recursive: true, force: false, errorOnExist: true,
+      filter: async path => {
+        const entryDetails = await lstat(path)
+        assert.ok(!entryDetails.isSymbolicLink(), 'fixture symlinks or junctions must be materialized before copying: ' + path)
+        assert.ok(entryDetails.isFile() || entryDetails.isDirectory(), 'fixture contains an unsupported filesystem entry: ' + path)
+        return true
+      },
+    })
+  }
+  assert.deepEqual(await profileFingerprint(destination), before)
+  assert.deepEqual(await profileFingerprint(existingProfile), before, 'source fixture changed while being copied')
+  await mkdir(join(harnessHome, 'sessions'))
+  // A root-level marker is ignored by Session discovery and contains no user or credential data.
+  await writeFile(join(harnessHome, 'sessions', '.desktop-settings-upgrade-sentinel'), sharedSessionSentinel, { flag: 'wx' })
+  report.checks.push('detached old same-version profile copied without links into the isolated home')
+}
+
+async function verifyExistingProfileUpgrade() {
+  const evidence = report.existingProfile
+  const profile = join(harnessHome, 'profiles', 'desktop')
+  const after = await profileFingerprint(profile)
+  assert.deepEqual(after.release, evidence.targetRelease)
+  assert.deepEqual(after.packageSet, evidence.targetPackageSet, 'same-version startup must install the new package set')
+  assert.deepEqual(after.settingsBundle, evidence.targetSettings, 'installed settings UI must match the new packaged tarball')
+  assert.equal(after.dshVersion, evidence.before.dshVersion)
+  assert.equal(after.hostVersion, evidence.before.hostVersion)
+  assert.deepEqual(await profileFingerprint(join(harnessHome, 'desktop', 'rollback', 'profile')), evidence.before, 'rollback must preserve the old runtime')
+  assert.equal(await readFile(join(harnessHome, 'settings.yaml'), 'utf8'), initialSettings, 'upgrade must preserve the existing shared settings bytes')
+  assert.equal(await readFile(join(harnessHome, 'sessions', '.desktop-settings-upgrade-sentinel'), 'utf8'), sharedSessionSentinel)
+  evidence.after = after
+  evidence.sharedSettingsPreserved = true
+  evidence.sharedSessionDirectorySentinelPreserved = true
+  await writeFile(join(profile, '.desktop-settings-reuse-sentinel'), profileReuseSentinel, { flag: 'wx' })
+  report.checks.push('same-version upgrade replaces stale UI with seed content, retains rollback, and preserves shared settings and session-directory sentinel')
 }
 
 await mkdir(join(root, '.artifacts'), { recursive: true })
@@ -277,8 +405,10 @@ async function stopDesktop() {
 
 try {
   await mkdir(harnessHome)
-  await writeFile(join(harnessHome, 'settings.yaml'), 'locale:\n  preference: zh\nui-onboarding:\n  welcomeNoticeVersion: "2026-08-13.1"\n', { flag: 'wx' })
+  await writeFile(join(harnessHome, 'settings.yaml'), initialSettings, { flag: 'wx' })
+  if (existingProfile !== undefined) await prepareExistingProfile()
   await startDesktop(logPath)
+  if (existingProfile !== undefined) await verifyExistingProfileUpgrade()
   const credentialStep = page.getByRole('dialog', { name: '添加一个 API Key 开始使用', exact: true })
   await credentialStep.getByRole('button', { name: '稍后配置', exact: true }).click()
   await credentialStep.waitFor({ state: 'hidden' })
@@ -387,6 +517,14 @@ try {
     assert.deepEqual(report.pageErrors, [])
     assert.deepEqual(report.consoleErrors, [])
     await startDesktop(join(artifactDir, 'restart.log'))
+    if (existingProfile !== undefined) {
+      const profile = join(harnessHome, 'profiles', 'desktop')
+      assert.deepEqual(await profileFingerprint(profile), report.existingProfile.after)
+      assert.equal(await readFile(join(profile, '.desktop-settings-reuse-sentinel'), 'utf8'), profileReuseSentinel, 'identical restart must reuse the reconciled runtime')
+      assert.equal(await readFile(join(harnessHome, 'sessions', '.desktop-settings-upgrade-sentinel'), 'utf8'), sharedSessionSentinel)
+      report.existingProfile.identicalRestartReused = true
+      report.checks.push('identical packaged restart reuses the reconciled profile and retains the session-directory sentinel')
+    }
     assert.notEqual(report.main.pid, report.initialLaunch.main.pid)
     const restartedCredentialStep = page.getByRole('dialog', { name: 'Add an API key to get started', exact: true })
     await restartedCredentialStep.getByRole('button', { name: 'Configure later', exact: true }).click()
@@ -446,6 +584,16 @@ try {
   }
 } finally {
   await stopDesktop()
+  if (report.existingProfile !== undefined) {
+    try {
+      assert.deepEqual(await profileFingerprint(existingProfile), report.existingProfile.before, 'source fixture must remain unchanged')
+      report.existingProfile.sourceUnchanged = true
+    } catch (sourceError) {
+      report.existingProfile.sourceUnchanged = false
+      failure ??= sourceError
+      report.sourceError = String(sourceError)
+    }
+  }
   await removeDevelopmentRoot(developmentRoot)
   report.cleanup.developmentRootRemoved = true
   report.passed = report.passed === true && failure === undefined && exit?.code === 0 && exit?.signal === null
