@@ -196,6 +196,7 @@ function createRestrictedProcess(
 
 /**
  * Spawn a process with anonymous-pipe stdout/stderr and immediate stdin EOF.
+ * New console windows start hidden without changing console inheritance.
  * @param api - active binding table.
  * @param options - command, cwd, args, and restricted primary token.
  * @returns caller-owned process and pipe read handles.
@@ -223,7 +224,8 @@ export function spawnPipedProcess(
     startupInfo = allocStartupInfo()
     encodeStartupInfo(startupInfo, {
       cb: abi.STARTUPINFOW_SIZE,
-      dwFlags: abi.STARTF_USESTDHANDLES,
+      dwFlags: abi.STARTF_USESTDHANDLES | abi.STARTF_USESHOWWINDOW,
+      wShowWindow: abi.SW_HIDE,
       hStdInput: stdIn.read,
       hStdOutput: stdOut.write,
       hStdError: stdErr.write,
@@ -425,7 +427,9 @@ function spawnJobProcess(
     startupInfo = allocStartupInfo()
     encodeStartupInfo(startupInfo, {
       cb: abi.STARTUPINFOW_SIZE,
-      dwFlags: abi.STARTF_USESTDHANDLES,
+      // Preserve console inheritance: CREATE_NO_WINDOW can fail restricted-token DLL initialization.
+      dwFlags: abi.STARTF_USESTDHANDLES | abi.STARTF_USESHOWWINDOW,
+      wShowWindow: abi.SW_HIDE,
       hStdInput: stdio.stdin,
       hStdOutput: stdio.stdout,
       hStdError: stdio.stderr,
@@ -487,7 +491,7 @@ function spawnJobProcess(
 }
 
 /**
- * Spawn a restricted-token process suspended, assign its Job, then resume it.
+ * Spawn a restricted-token process suspended with hidden initial windows, assign its Job, then resume it.
  * @param api - active binding table.
  * @param options - command, cwd, args, and restricted primary token.
  * @returns caller-owned process and Job handles after successful resume.
@@ -513,7 +517,7 @@ export function spawnInheritedJobProcess(
 }
 
 /**
- * Spawn an ordinary process suspended, assign its Job, then resume it.
+ * Spawn an ordinary process suspended with hidden initial windows, assign its Job, then resume it.
  * @param api - active binding table.
  * @param options - command, cwd, argv, and target carrier descriptors.
  * @returns caller-owned process and Job handles after successful resume.

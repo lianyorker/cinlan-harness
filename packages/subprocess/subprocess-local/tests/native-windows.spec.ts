@@ -2,7 +2,9 @@ import { spawn, spawnSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
+import { resolveExampleLaunch } from '@deepseek-ai/dsh-loader-smoke'
 import type { SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { targetEnvironment } from '../src/runner-launch.ts'
 import { bindManagedProcess } from '../src/spawn.ts'
@@ -84,6 +86,30 @@ function directSpawnFailure(argv: readonly string[], cwd = scratch): Promise<Spa
 const windowsNative = process.platform === 'win32' && probeWindowsJob()
 
 describe.skipIf(!windowsNative)('Windows Job native containment', () => {
+  it('keeps ordinary descendants attached to a hidden console from a console-free host', { timeout: 45_000 }, () => {
+    // The private host detaches its own console; source mode exercises this checkout's ESM runner.
+    const launch = resolveExampleLaunch({
+      srcBin: fileURLToPath(new URL('./fixtures/console-host.ts', import.meta.url)),
+      configArgs: [fileURLToPath(new URL('../../win32-process/tests/fixtures/console-state.ts', import.meta.url))],
+      mode: 'src',
+      sourceImport: 'tsx/esm',
+      tsconfigPath: fileURLToPath(new URL('../../../../tsconfig.base.json', import.meta.url)),
+      env: { DSH_HOME: join(scratch, 'home'), DSH_AGENTS_HOME: join(scratch, 'agents') },
+    })
+    const result = spawnSync(launch.command, launch.args, {
+      cwd: scratch,
+      env: { ...process.env, ...launch.env },
+      windowsHide: true,
+      encoding: 'utf8',
+      timeout: 30_000,
+    })
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stderr).toBe('')
+    expect(JSON.parse(result.stdout)).toEqual({ attached: true, visible: false })
+  })
+
   it('keeps raw stdin writable while the runner starts the target', async () => {
     const output = join(scratch, `stdin-${Date.now()}.txt`)
     const script = `

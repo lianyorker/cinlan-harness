@@ -73,7 +73,7 @@ describe('spawnInheritedJobProcess allocation cleanup', () => {
 })
 
 describe('shared process allocation cleanup', () => {
-  it('frees pipe slots and process structs after a successful piped spawn', () => {
+  it('hides the piped child and frees pipe slots and process structs after spawn', () => {
     let nextHandle = 10n
     const api = {
       createPipe: vi.fn((readSlot: NativePtr, writeSlot: NativePtr) => {
@@ -83,6 +83,10 @@ describe('shared process allocation cleanup', () => {
       }),
       setHandleInformation: vi.fn(() => 1),
       createProcessAsUserW: vi.fn((_token, _app, _line, _pa, _ta, _inherit, _flags, _env, _cwd, _startup, info) => {
+        expect(_flags).toBe(0)
+        expect(koffi.decode(_startup, ffi.STARTUPINFOW)).toMatchObject({
+          dwFlags: 0x101, wShowWindow: 0, hStdInput: 10n, hStdOutput: 13n, hStdError: 15n,
+        })
         koffi.encode(info, PROCESS_INFORMATION, {
           hProcess: 60n,
           hThread: 61n,
