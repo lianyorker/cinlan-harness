@@ -45,11 +45,11 @@
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
     "@deepseek-ai/dsh-api-usage-controller": "workspace:^",
     "@deepseek-ai/dsh-client-test-runtime": "workspace:^",
-    "@types/react": "~18.3.1",
+    "@types/react": "~19.2.18",
     "@types/react-dom": "~18.3.0"
   },
   "dependencies": {
-    "react": "^18.2.0",
+    "react": "^19.2.8",
     "clsx": "^2.1.1"
   },
   "scripts": {
