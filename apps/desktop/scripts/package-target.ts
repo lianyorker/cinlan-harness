@@ -284,6 +284,7 @@ async function main(): Promise<void> {
       withoutWindowsSigningEnvironment(electronBuilderEnv))
   }
   await runPnpm(['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
+  await runPnpm(['run', 'build'], buildEnv)
   await runPnpm(['run', 'release:pack', '--family', 'dsh', '--out', buildPaths.packedDsh], buildEnv, REPOSITORY_ROOT)
   await runPnpm([
     '--dir',

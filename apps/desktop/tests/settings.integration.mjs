@@ -1,7 +1,7 @@
 /**
  * Opt-in settings check through start:desktop or --packaged <executable>; requires a desktop session.
  * Add --existing-profile <absolute detached profile snapshot> to prove replacement of stale same-version packages.
- * Add --close-during-startup with --packaged to exercise Exit during installation and verify transaction cleanup.
+ * Add --close-during-startup with --packaged to close the window during installation and verify safe transaction cancellation.
  * Add --fail-profile with --packaged to verify a persistent error and diagnostic from isolated invalid metadata.
  * The existing-profile fixture must contain only the default managed profile, with no symlinks, junctions, patches, or extra bundles;
  * only its runtime is copied into the isolated test home, and its source is never launched or modified.
@@ -388,12 +388,25 @@ async function startDesktop(logPath) {
             const style = element && getComputedStyle(element)
             return { text: element?.textContent.trim(), visible: Boolean(rect?.width && rect.height && style.visibility !== 'hidden' && style.display !== 'none') }
           }
-          return { url: location.href, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio }, heading: read('#startup-title'), status: read('#stage-label'), exit: read('#quit') }
+          return {
+            url: location.href, phase: document.body.dataset.phase,
+            viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+            loading: read('[data-dsh-boot]'), spinner: read('[data-dsh-boot-spinner]'),
+            heading: read('#startup-title'), exit: read('#quit'),
+            progressCardPresent: document.getElementById('stage-label') !== null,
+          }
         })
         if (startup.content.url === 'dsh-app://shell/startup.html') {
-          assert.ok(startup.content.heading.visible && startup.content.heading.text, 'loading heading must be visibly rendered')
-          assert.ok(startup.content.exit.visible && startup.content.exit.text, 'Exit must be visibly rendered')
-          if (!failProfile) assert.ok(startup.content.status.visible && startup.content.status.text, 'actual loading status must be visibly rendered')
+          assert.equal(startup.content.progressCardPresent, false, 'the separate startup progress card must be absent')
+          if (startup.content.phase === 'error') {
+            assert.ok(startup.content.heading.visible && startup.content.heading.text, 'failure heading must be visibly rendered')
+            assert.ok(startup.content.exit.visible && startup.content.exit.text, 'failure must provide Exit')
+          } else {
+            assert.ok(startup.content.loading.visible && startup.content.spinner.visible, 'the existing application loading view must be visible')
+            assert.ok(startup.content.loading.text.includes('HARNESS'), 'the shared application wordmark must be rendered')
+            assert.equal(startup.content.heading.visible, false, 'normal startup must not show the separate opening heading')
+            assert.equal(startup.content.exit.visible, false, 'normal startup must not show the separate action card')
+          }
           await page.screenshot({ path: join(artifactDir, `startup-${startup.launch}.png`), fullPage: true, scale: 'css' })
           await writeFile(join(artifactDir, `startup-${startup.launch}.aria.txt`), await page.locator('body').ariaSnapshot())
         }
@@ -404,9 +417,10 @@ async function startDesktop(logPath) {
     }
   }
   if (packaged !== undefined && startup.launch === 1) {
-    assert.ok(startup.loadingPageObserved && startup.window?.visible && startup.content?.heading.visible && startup.content.exit.visible
-      && (failProfile || startup.content.status.visible),
-      'a packaged fresh or replacement install must render its loading page before application readiness')
+    assert.ok(startup.loadingPageObserved && startup.window?.visible
+      && (startup.content?.loading.visible && startup.content.spinner.visible
+        || failProfile && startup.content?.heading.visible && startup.content.exit.visible),
+      'a packaged fresh or replacement install must render the shared loading view or its requested failure')
   }
   if (failProfile) {
     const error = await until(async () => {
@@ -428,7 +442,7 @@ async function startDesktop(logPath) {
     assert.deepEqual(exit, { code: 0, signal: null })
     return
   }
-  if (closeDuringStartup) {
+  if (closeDuringStartup && startup.launch === 1) {
     const installing = await until(async () => {
       assert.equal(exit, undefined, 'desktop exited before cancellation')
       const state = await observeStartup()
@@ -440,7 +454,7 @@ async function startDesktop(logPath) {
         ? { state, installerPid } : undefined
     }, 'live installation owner before closing', startupTimeout)
     startup.cancelledAt = { ...installing, observedAfterMs: Math.round(performance.now() - launchStarted) }
-    await page.locator('#quit').click()
+    await evaluateMain(mainUrl, '(() => { const {BrowserWindow} = process.getBuiltinModule("module").createRequire(process.cwd() + "/package.json")("electron"); BrowserWindow.getAllWindows().find(window => window.webContents.getURL() === "dsh-app://shell/startup.html").close(); return true })()')
     await until(() => exit, 'safe shutdown after startup cancellation', startupTimeout)
     startup.exitedAfterMs = Math.round(performance.now() - launchStarted)
     assert.deepEqual(exit, { code: 0, signal: null })
@@ -572,14 +586,22 @@ async function runScenario() {
   if (closeDuringStartup) {
     assert.equal(await readWhenPresent(join(harnessHome, 'desktop', 'lock')), undefined, 'cancellation releases the transaction lock')
     assert.equal(await readWhenPresent(join(harnessHome, 'desktop', 'pending.json')), undefined, 'cancellation before activation leaves no journal')
-    assert.deepEqual(await readdir(join(harnessHome, 'desktop', 'staging')), [], 'cancellation removes owned staging roots')
+    const orphaned = await readdir(join(harnessHome, 'desktop', 'staging'))
+    assert.ok(orphaned.length > 0, 'cancellation defers recursive staging deletion')
+    for (const name of orphaned) assert.match(name, /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu)
+    report.deferredStagingCount = orphaned.length
     assert.equal(await readFile(join(harnessHome, 'settings.yaml'), 'utf8'), initialSettings)
     if (existingProfile !== undefined) {
       assert.deepEqual(await profileFingerprint(join(harnessHome, 'profiles', 'desktop')), report.existingProfile.before)
     } else {
       assert.equal(await readWhenPresent(join(harnessHome, 'profiles', 'desktop', 'package.json')), undefined)
     }
-    report.checks.push('Exit during actual packaged installation waits for worker cleanup, releases the lock, removes staging, and leaves shared settings and the active profile unchanged')
+    report.checks.push('Native window close during actual packaged installation waits for worker exit, releases the lock, defers orphan cleanup, and leaves shared settings and the active profile unchanged')
+    await stopDesktop()
+    await startDesktop(join(artifactDir, 'reopen-after-cancel.log'))
+    await page.getByRole('dialog', { name: '添加一个 API Key 开始使用', exact: true }).waitFor({ timeout: 120_000 })
+    await page.screenshot({ path: join(artifactDir, 'reopened-after-cancel.png'), fullPage: true, scale: 'css' })
+    report.checks.push('reopening the same home with retained staging completes initialization and renders the application')
     report.passed = true
     return
   }

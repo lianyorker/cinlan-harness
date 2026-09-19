@@ -3,30 +3,25 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
     <title>{{startupTitle}}</title>
+    <link rel="stylesheet" href="loading.css">
     <link rel="stylesheet" href="startup-theme.css">
     <link rel="stylesheet" href="startup.css">
   </head>
   <body data-phase="starting" data-stage="opening">
-    <main aria-labelledby="startup-title">
-      <div class="mark" aria-hidden="true">D</div>
-      <h1 id="startup-title">{{startupTitle}}</h1>
-      <p id="startup-detail">{{startupDescription}}</p>
-      <div class="stage" role="status" aria-live="polite" aria-atomic="true">
-        <span class="activity" aria-hidden="true"></span>
-        <span id="stage-label">{{startupOpening}}</span>
-      </div>
-      <section id="failure" role="alert" hidden>
-        <p id="error-message"></p>
-        <p id="diagnostic-label">{{startupDiagnostic}}</p>
-        <code id="diagnostic-path"></code>
-      </section>
+    <div id="root"></div>
+    <main id="failure" role="alert" aria-labelledby="startup-title" hidden>
+      <h1 id="startup-title">{{startupFailed}}</h1>
+      <p id="startup-detail">{{startupFailureDetail}}</p>
+      <p id="error-message"></p>
+      <p id="diagnostic-label">{{startupDiagnostic}}</p>
+      <code id="diagnostic-path"></code>
       <div class="actions">
         <button id="restart" class="primary" type="button" hidden>{{startupRestart}}</button>
         <button id="quit" type="button">{{startupQuit}}</button>
       </div>
     </main>
-    <script src="startup.js"></script>
+    <script type="module" src="loading.js"></script>
   </body>
 </html>

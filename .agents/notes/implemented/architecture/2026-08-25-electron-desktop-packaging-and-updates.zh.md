@@ -75,11 +75,13 @@ Electron 拥有保留 profile `.dsh/profiles/desktop`。其中精确的 `@deepse
 
 打包 seed 是离线安装包，而不是可执行 dsh 目录。它包含发布身份、初始桌面项目 manifest、分别以 dsh 和私有 Desktop Host 为根的第一方包闭包之并集的描述文件及不可变 tarball、lockfile、完整性清单和所需 store 子集。每个 `mac-arm64`、`mac-x64` 和 `win-x64` 构建都在 `.desktop-build/targets/<target>` 下持有自己的打包输入、运行时、包集合、seed、pnpm 准备状态、未打包应用、更新元数据和最终产物；只有不可变且经过校验和验证的 Node.js 下载缓存会被共享。发布构建要求 Electron 包、根 dsh 包与私有 Host 包使用相同版本，从正式源码构建生成最终 npm tarball，在本地打包私有 Host，选择可达的 dsh、Host 与 vendored 包以及 Landlock 入口，并验证 Host tarball 中包含 `lib/index.js` 与 `config/desktop.cordis.patch.yml`。Host 的 `files` manifest 只包含该运行入口与 overlay，并且该包不会发布到 npm。公共包 tarball 仍是由各包发布 manifest 控制的正式 `pnpm pack` 结果；Desktop 不删除已发布的声明文件，也不建立第二套包内容策略。seed manifest 把每个选中的包列为本地直接依赖，关闭 peer dependency 自动安装，workspace 文件再把每个选中的第一方包 override 到对应本地 tarball。目标 Node.js 执行内置 pnpm，因此 pnpm 的操作系统和 CPU 选择会使物化的依赖图与 seed 成为目标专用内容。内置 pnpm 关闭全局 virtual store，在禁用生命周期脚本的情况下从 npm 物化外部生产依赖，删除 `node_modules` 以及所有临时 pnpm cache、config 和 state 目录，然后只使用最终 store 执行一次干净的离线安装，并检查私有 Host 的入口与 overlay。构建会拒绝任何通过 registry 版本解析本地第一方包名的 lockfile。生成清单前会删除第二次生成的 `node_modules` 和临时 pnpm 项目注册。在复制 package set 前与离线安装后都要求这两个 Host 文件，可防止进程入口能够加载、却无法组合所需 overlay 的发布进入应用签名阶段。
 
-种子根据规范化 store 路径，把 pnpm 内容放入 16 个确定性的未压缩 tar 分片。Apple 公证会检查这些归档内的 Mach-O 代码，因此 macOS seed 会 staging 每个被引用的内容寻址 Mach-O 对象，最多并发四个独立的 Developer ID 签名进程，并带上安全时间戳与 hardened runtime。任一签名失败后，准备过程会等待已启动的签名进程全部退出，原始 CAS 对象与包索引保持不变。所有签名成功后，准备过程把每个对象写到新的 SHA-512 路径，并以事务方式重写 pnpm MessagePack SQLite 索引内全部基础文件和 side-effects 文件引用。第二次离线安装证明 pnpm 可以解析重写后的 store；准备过程随后完成分片、解包最终归档并验证每个内嵌签名。包路径和非原生字节保持不变；种子保留包内附带的架构变体，因为删除文件会创建 Desktop 专属的包文件集。种子完整性覆盖分片 manifest 和解包前的每个归档。启动时验证归档路径、条目类型、唯一性和数量，把所有分片解包到唯一且由 Desktop 拥有的 staging 目录，替换匹配的不可变 store 文件，并以事务方式把各 pnpm store 版本的 SQLite `package_index` 合并进 `.dsh/desktop/pnpm/store`。Seed 记录替换匹配的键，为 Desktop 插件下载的记录继续保留。中断的文件合并可能留下有效的不可变缓存内容，但每次 SQLite 合并都是原子的，profile 安装与激活仍必须通过 pnpm 完整性与完整健康检查。
+种子根据规范化 store 路径，把 pnpm 内容放入 16 个确定性的未压缩 tar 分片。Apple 公证会检查这些归档内的 Mach-O 代码，因此 macOS seed 会 staging 每个被引用的内容寻址 Mach-O 对象，最多并发四个独立的 Developer ID 签名进程，并带上安全时间戳与 hardened runtime。任一签名失败后，准备过程会等待已启动的签名进程全部退出，原始 CAS 对象与包索引保持不变。所有签名成功后，准备过程把每个对象写到新的 SHA-512 路径，并以事务方式重写 pnpm MessagePack SQLite 索引内全部基础文件和 side-effects 文件引用。第二次离线安装证明 pnpm 可以解析重写后的 store；准备过程随后完成分片、解包最终归档并验证每个内嵌签名。包路径和非原生字节保持不变；种子保留包内附带的架构变体，因为删除文件会创建 Desktop 专属的包文件集。种子完整性覆盖分片 manifest 和解包前的每个归档。安装与校准时验证归档路径、条目类型、唯一性和数量，把所有分片解包到唯一且由 Desktop 拥有的 staging 目录，替换匹配的不可变 store 文件，并以事务方式把各 pnpm store 版本的 SQLite `package_index` 合并进 `.dsh/desktop/pnpm/store`。Seed 记录替换匹配的键，为 Desktop 插件下载的记录继续保留。中断的文件合并可能留下有效的不可变缓存内容，但每次 SQLite 合并都是原子的，profile 安装与激活仍必须通过 pnpm 完整性与完整健康检查。
 
-启动过程要求安装包内的发布版本等于 Electron 应用版本。复用 `.dsh/profiles/desktop` 前，它验证活跃目录中的本地 tarball，并将规范化的发布元数据、已安装的 dsh 与 Desktop Host 版本以及完整核心包描述文件与 seed 比较。仅版本号相同不足以证明内容一致：每个 tarball 的名称、版本、文件名、大小和 SHA-512 完整性值都必须匹配，内置 Node.js 与 pnpm 版本也必须相同。任何差异都会进入现有 staging 事务，通过 `pnpm install --offline --frozen-lockfile --trust-lockfile` 安装 seed manifest 与 lockfile，再从现有桌面 store 与元数据缓存通过一次离线 pnpm add 恢复每个已注册插件 bundle 的精确版本。完整依赖图必须通过同一套健康检查才能激活，共享设置与 Session 数据则位于被替换的 profile 之外。
+启动过程要求安装包内的发布版本等于 Electron 应用版本。每次复用 `.dsh/profiles/desktop` 都会验证 seed 与活跃 profile 两侧的核心 tarball，并比较规范化的发布元数据、已安装的 dsh 与 Desktop Host 版本以及完整核心包描述文件。仅版本号相同不足以证明内容一致：每个 tarball 的名称、版本、文件名、大小和 SHA-512 完整性值都必须匹配，内置 Node.js 与 pnpm 版本也必须相同。完全匹配时会直接复用已安装 profile，不读取完整 seed 完整性清单或 store 归档，因为这些安装输入并未被使用。损坏的核心 tarball 无法通过验证；合法的内容差异，包括同版本下的差异，都要求先完成整个 seed 的完整性验证，才能进入 staging 事务。该事务通过 `pnpm install --offline --frozen-lockfile --trust-lockfile` 安装 seed manifest 与 lockfile，再从现有桌面 store 与元数据缓存通过一次离线 pnpm add 恢复每个已注册插件 bundle 的精确版本。完整依赖图必须通过同一套健康检查才能激活，共享设置与 Session 数据则位于被替换的 profile 之外。
 
-恢复过程只在取得事务锁后运行。激活日志以原子替换方式分别持久化准备、活跃 profile 移动、staging 激活和提交记录。恢复过程会为中断的激活恢复 rollback，在恢复不完整时保留日志；已经提交的日志会保留活跃 profile，并在锁内重试清理剩余的 UUID 事务目录。Windows profile 移动和 Desktop 自有 staging 清理会在有界时间内重试暂时性的文件占用错误。孤儿 staging 清理只删除直接位于 staging 下且名称为 UUID 的事务目录。启动失败会把堆栈写入 `$DSH_HOME/desktop/startup-error.log`，除非显式配置诊断路径。
+恢复过程只在取得事务锁后运行，执行日志验证、必要的 profile 移动和日志文件移除。激活日志以原子替换方式分别持久化准备、活跃 profile 移动、staging 激活和提交记录。恢复过程会为中断的激活恢复 rollback，在恢复不完整时保留日志；已经提交的日志会保留活跃 profile。轮换 rollback 及替换失败时会把弃用的 profile 移入全新的 UUID staging 根目录，使激活与恢复无需等待递归删除。部分启动的替换后端必须先停止，才能恢复 rollback；停止失败时会保留日志与 profile 目录。Windows profile 移动和 Desktop 自有 staging 清理会在有界时间内重试暂时性的文件占用错误。启动失败会把堆栈写入 `$DSH_HOME/desktop/startup-error.log`，除非显式配置诊断路径。
+
+主应用加载后及插件修改结束后，Electron 会调用 `cleanupOrphanedStaging(signal?)`，在事务锁内进行异步维护。仍有 pending 日志或保留的非活跃 Host 时不会清理。维护只移除直接位于 staging 下的 UUID 根目录，根路径若为符号链接或 junction 则只解除链接而不遍历目标，rollback profile 保持不变。无效或非 Desktop 所有的 staging 路径以及删除失败只产生维护警告，残留内容留待后续处理。插件修改会等待当前维护完成，并在日志恢复前停止仍被保留的失败 Host；健康检查失败的 Host 必须先停止，才能重启活跃后端。退出会在各根目录之间取消维护，并等待正在进行的删除结束。启动取消后可以保留遗留 staging，直到之后一次成功启动再清理。
 
 插件 GUI 执行等价于 `pnpm add <package> --save-exact`、`pnpm remove <package>` 和精确版本更新的 registry npm 包操作。每次修改都保留本地核心包描述文件、tarball、dsh 与 Desktop Host 依赖和完整 override 映射。Electron 验证已安装包 manifest，并更新 profile 的依赖与有序 bundle 条目；任何渲染进程请求都不能选择 registry、安装目录、生命周期策略或任意 pnpm flag。
 
@@ -89,9 +91,11 @@ Electron-builder 的生产收集器通过仅供 builder 使用的 pnpm filter �
 
 Electron 更新只使用一个 `electron-updater` 发布流和签名 `electron-builder` 产物。该版本就是 Desktop 发布版本；不存在独立 dsh manifest、兼容范围或仅更新 dsh 的操作。前台安装会等待正在进行的后台检查，而不会把检查结果复用成安装结果。更新弹窗下载并安装 Electron 产物，然后重启进入新发布。
 
-主窗口先绘制壳拥有的启动页，再从安装包种子校准 dsh，同时保留已安装桌面插件。Profile 准备在 worker 中运行：归档提取与包校验可以执行同步操作，而不阻塞 Electron 的窗口事件循环。页面使用内置的产品主题 token 和 locale 拥有的阶段文案，应用 UI 仍绑定经过验证的已安装发布。健康检查覆盖依赖解析、原生模块、壳 API 兼容性、后端启停、Web 资源和客户端启动图。不兼容插件会阻止激活，并保留上一个项目用于回滚。同一窗口显示启动错误与诊断路径，或在后端就绪后导航到应用。
+主窗口先绘制应用共享的 `HARNESS` / `Loading plugins…` 视图，再从安装包种子校准 dsh，同时保留已安装桌面插件。Desktop 的 Vite 渲染 bundle 通过 Web 启动内核的公开 [`./boot-page` 入口](../../../../packages/client/web/README.zh.md#use-this-package)导入 `BootPage` 及其 CSS，使同一套持续维护的加载视图在 Host 启动前就可用。准备阶段仅在内部记录；正常加载时只显示共享视图，启动错误才会显示本地化诊断与安全的重启、退出操作。后端就绪后，同一窗口从壳文档导航到已安装应用的文档，后者以新的 DOM 和动画状态创建相同视图。只有精确匹配的壳启动文档获得生命周期 preload 桥接，应用只获得协议标记。
 
-准备期间关闭窗口会请求协作式取消。正在运行的 pnpm 操作先结束，随后在事务检查点观察取消；壳会等待事务清理、探测 Host 停止和 worker 退出后再关闭。探测进程未能停止时继续持有事务锁和 staging 文件，清理会重试，页面会报告该状态；取消操作也会等待同一清理完成。强制终止 worker 可能使包操作在 Electron 释放归属锁后继续写入。因此，重启操作只有在当前启动和后端工作都停止后才启动新应用。原生编辑及 macOS 窗口、应用操作始终保留在菜单中，不依赖后端是否可用。
+Profile 准备在 worker 中运行：归档提取与包校验可以执行同步操作，而不阻塞 Electron 的窗口事件循环。健康检查覆盖依赖解析、原生模块、壳 API 兼容性、后端启停、Web 资源和客户端启动图。不兼容插件会阻止激活，并保留上一个项目用于回滚；应用 UI 仍绑定经过验证的已安装发布。
+
+准备期间关闭原生窗口会请求协作式取消。正在运行的 pnpm 操作先结束，随后在事务检查点观察取消；壳会等待事务工作结束、探测 Host 停止和 worker 退出后再关闭。探测进程未能停止时继续持有事务锁和 staging 文件，并重试清理；取消操作也会等待同一清理完成。强制终止 worker 可能使包操作在 Electron 释放归属锁后继续写入。因此，重启操作只有在当前启动和后端工作都停止后才启动新应用。原生编辑及 macOS 窗口、应用操作始终保留在菜单中，不依赖后端是否可用。
 
 `DSH_DESKTOP_AUTO_UPDATE_ENV` 默认为测试部署，也可以选择生产部署，并同时决定目标专用的 generic-provider URL 与 COS 目标。发布自动化通过 `DOWNLOAD_TEST_ORIGIN` 提供测试 HTTPS origin，并通过 `DOWNLOAD_TEST_COS_BUCKET` 或 `DOWNLOAD_PROD_COS_BUCKET` 提供各部署的 bucket；可变的测试路由与 COS 存储身份不写入源码，部署基础设施变更时无需发布新代码，而公开的生产 origin 仍固定。打包只解析公开更新 URL、禁止 electron-builder 发布、从子进程环境中删除每个 COS 凭据字段，并且只有在 electron-builder 以及每个签名或公证 hook 成功后才写入完成记录。目标上传还必须提供所选 bucket，随后会先要求完成记录、根 dsh 版本、Desktop 版本、根据版本得出的频道元数据、产物名称、大小与 SHA-512 全部一致，再读取所选凭据或发送数据。它先上传不可变且带版本的更新载荷与所有独立 blockmap，最后替换 electron-builder 生成的频道元数据，并且不会删除历史对象。稳定版本使用 `latest` 元数据名称，预发布版本则使用语义化版本的第一个预发布标识符。NSIS 与 macOS ZIP 都使用独立 blockmap。Windows 上传计划要求实际生成且非空的 `.exe.blockmap`；独立 blockmap 的元数据不声明内嵌的 `blockMapSize`。两者都让 electron-updater 在平台支持时只下载变化的数据块，而应用替换与本地 pnpm staging 事务仍是两个独立操作。
 
@@ -118,6 +122,17 @@ Windows 发布打包通过 `/f` 向已配置且与 SafeNet 兼容的 SignTool �
 
 `dev:desktop` 会构建当前 workspace，把已构建 CLI 包、私有 Desktop Host 包及其依赖链接投影为一次性项目，使用隔离的 Harness home，打开 Main、Renderer 和 Host 调试器，并在不准备发布资源的情况下启动未打包 Electron。该模式的链接依赖图不是由 pnpm 安装的桌面项目，因此会禁用包修改。固定的 macOS arm64、macOS x64 与 Windows x64 打包命令会把同一目标传给运行时准备、seed 安装和 electron-builder；每条命令还提供未封装安装器的变体，用于在生成安装器前验证发布路径。
 
+### 启动复用测量
+
+执行 `pnpm run build:desktop` 后，[启动复用诊断](../../../../apps/desktop/tests/startup-reuse.perf.mjs)仅测量 `applyRelease()` 对内容相同的 profile 返回 `false` 所需的时间。Windows x64 上 Node.js v24.9.0 的五次采样使用 320 个各为 64 KiB 的合成核心 tarball 和 16 个各为 34 MiB 的合成归档，操作系统文件缓存已经预热，不使用应用缓存。fixture（测试前置数据）构建、模型调用、网络、后端启动和 UI 均不在测量区间内；未测量内存占用。
+
+| 复用路径 | 样本（ms） | 中位数（ms） |
+|---|---|---|
+| 验证完整 seed 的基线 | 943.79, 1101.51, 1131.78, 1156.35, 980.52 | 1101.51 |
+| 核心验证与延后维护 | 230.98, 229.61, 232.39, 219.09, 218.50 | 229.61 |
+
+该测量终点的中位耗时降低 79.2%，即速度提高至 4.80 倍。诊断中的已打包准备 worker 检查不计入测量区间。
+
 ## 考虑过的替代方案
 
 **使用 Electron 的 Node.js 执行 dsh。** 这可以减小包体积，但会让 dsh 耦合到 Electron 的 Node 补丁、fuse、原生 ABI、TLS 行为和进程生命周期。内置上游 Node.js 可以让 dsh 继续使用其受支持运行时。
@@ -131,6 +146,8 @@ Windows 发布打包通过 `/f` 向已配置且与 SafeNet 兼容的 SignTool �
 **让 desktop profile 使用 CLI 管理的包或插件。** 任一产品都可能改变另一方的依赖图、Cordis 版本、插件版本或原生模块。因此 desktop profile 持有完整 `node_modules`，并拒绝通过 CLI profile fallback 解析 bundle。
 
 **把 dsh 与插件安装到不同桌面项目。** 这会产生第二解析锚点和 peer dependency 回退。一个普通 npm 项目已经提供所需安装与解析模型。
+
+**复用 profile 前重新验证完整 seed 并递归清理所有遗留目录。** Store 归档是安装输入，遗留目录也不决定活跃发布能否运行。读取或删除这些内容会延迟后端启动。复用会验证两侧核心包集与发布元数据；安装仍要求完整 seed 验证，后续清理仍在事务锁内串行进行。
 
 **从 registry 包删除非目标 Mach-O 文件。** 架构裁剪可以节省少量 seed 空间，但包可能有意附带多个架构变体，调用方也可以观察安装后的文件集。签署每个实际携带的 Mach-O 对象，无需发明 Desktop 专属包布局就能满足公证要求。
 
@@ -149,7 +166,7 @@ Windows 发布打包通过 `/f` 向已配置且与 SafeNet 兼容的 SignTool �
 - Electron-only GUI 安装、删除和更新普通 npm 插件包，而不暴露原始 pnpm 参数。
 - 后端与浏览器应用不能修改桌面包。
 - npm/CLI dsh 与 Electron 绝不从对方的 `node_modules` 解析或安装插件。
-- 主窗口在 profile 准备前报告启动进度，只有活跃后端与 Web UI 报告相同 dsh 版本和兼容壳 API 后才加载应用。
+- 主窗口在 profile 准备前显示共享的应用加载视图，只有活跃后端与 Web UI 报告相同 dsh 版本和兼容壳 API 后才加载应用。
 - 安装、健康检查或更新失败后，当前 profile 仍然可用，或在重启后恢复 `rollback/profile`。
 - 一个 Desktop 版本绑定 Electron 与 dsh；每次 dsh 更新都通过一个 Electron 更新弹窗交付，并产生一次用户可见的重启。
 - 共享 `.dsh` 数据在迁移或修改前拒绝不兼容的读取方。

@@ -5,6 +5,7 @@
  */
 import type { LoaderEntryState } from './loader-status.ts'
 import css from './boot-page.module.css'
+import './base.css'
 
 /** Create a div with one module class and optional text. */
 function div(className: string | undefined, text?: string): HTMLDivElement {

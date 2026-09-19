@@ -1,0 +1,21 @@
+{
+  "document": "dsh-app://app/index.html",
+  "visible": true,
+  "states": [
+    {
+      "phase": "starting",
+      "stage": "verifying"
+    },
+    {
+      "phase": "starting",
+      "stage": "starting-host"
+    },
+    {
+      "phase": "starting",
+      "stage": "loading-app"
+    },
+    {
+      "phase": "ready"
+    }
+  ]
+}

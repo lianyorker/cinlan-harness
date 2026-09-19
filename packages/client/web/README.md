@@ -35,7 +35,9 @@ Boot runs in two stages: the module stage adopts the parser-loaded bootstrap bat
 
 ### The boot page
 
-The boot page uses plain DOM and local CSS, so bundle and plugin-activation failures remain visible: it shows one spinner node whose CSS arc grows as entries activate, and reports per-entry status. The spinner and its animation phase persist until the full UI replaces the boot page. A plugin that fails import or activation is reported by name with the reason (missing service, import error, or state) instead of a blank page.
+The boot page uses plain DOM and local CSS, so bundle and plugin-activation failures remain visible: it shows one spinner node whose CSS arc grows as entries activate, and reports per-entry status. Within the application document, the spinner and its animation phase persist until the full UI replaces the boot page. The spinner stops rotating when `prefers-reduced-motion: reduce` is active. A plugin that fails import or activation is reported by name with the reason (missing service, import error, or state) instead of a blank page.
+
+Browser shells can import `BootPage` from `@deepseek-ai/dsh-client-web/boot-page` to display the same `HARNESS` / `Loading plugins…` view before the Host is ready. This static browser entry includes its CSS without starting the module system or Cordis Loader. [Desktop](../../../apps/desktop/README.md) bundles it into its local loading document, then navigates to the application document; each document owns a separate instance. Call `dispose()` when releasing an instance: it removes only its boot DOM and leaves unrelated container content intact.
 
 ### The shared module table
 

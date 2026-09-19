@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import {
+  existsSync, lstatSync, mkdtempSync, mkdirSync, promises as filesystem, readFileSync, readdirSync,
+  renameSync, rmSync, statSync, symlinkSync, writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -210,6 +213,47 @@ describe('desktop project transactions', () => {
     expect(stages).toEqual(['recovering', 'verifying'])
   })
 
+  it('reuses verified packages without reading the unused installer archives', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(root)
+    const pnpm = writeFakePnpm(root)
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm })
+    await manager.applyRelease(seed, '1.0.0', hooks())
+    rmSync(join(seed, 'store-archives'), { recursive: true })
+    writeFileSync(pnpm, 'process.exit(73)\n')
+    const unexpected = async (): Promise<void> => { throw new Error('reused profile entered activation') }
+    await expect(manager.applyRelease(seed, '1.0.0', {
+      healthCheck: unexpected, beforeActivate: unexpected, afterActivate: unexpected,
+    })).resolves.toBe(false)
+    expect(existsSync(paths.pending)).toBe(false)
+    expect(existsSync(paths.lock)).toBe(false)
+
+    // A version difference requires the installer kit, including its complete inventory.
+    writeFileSync(join(paths.profile, 'desktop-release.json'), `${JSON.stringify(release('0.9.0'))}\n`)
+    await expect(manager.applyRelease(seed, '1.0.0', hooks())).rejects.toThrow(/integrity verification failed/u)
+    expect(manager.releaseVersion()).toBe('0.9.0')
+  })
+
+  it.each(['seed', 'active'] as const)('rejects corrupted %s core tarballs before reusing a matching version', async (location) => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(root)
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    await manager.applyRelease(seed, '1.0.0', hooks())
+    writeFileSync(join(location === 'seed' ? seed : paths.profile, DESKTOP_PACKAGES_DIR, 'deepseek-ai-dsh-1.0.0.tgz'), 'corrupted')
+    await expect(manager.applyRelease(seed, '1.0.0', hooks())).rejects.toThrow(/integrity/u)
+    expect(existsSync(paths.pending)).toBe(false)
+  })
+
   it('lets an in-flight installer exit before canceled startup releases its lock and staging', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')
@@ -240,6 +284,8 @@ describe('desktop project transactions', () => {
     expect(existsSync(paths.lock)).toBe(false)
     expect(existsSync(paths.pending)).toBe(false)
     expect(existsSync(paths.profile)).toBe(false)
+    expect(readdirSync(paths.staging).length).toBeGreaterThan(0)
+    await manager.cleanupOrphanedStaging()
     expect(readdirSync(paths.staging)).toEqual([])
   })
 
@@ -281,6 +327,8 @@ describe('desktop project transactions', () => {
     expect(await outcome).toMatchObject({ message: 'startup closed during cleanup' })
     expect(stop).toHaveBeenCalledTimes(2)
     expect(existsSync(paths.lock)).toBe(false)
+    expect(existsSync(staged)).toBe(true)
+    await manager.cleanupOrphanedStaging()
     expect(existsSync(staged)).toBe(false)
     expect(readdirSync(paths.staging)).toEqual([])
   })
@@ -444,6 +492,8 @@ describe('desktop project transactions', () => {
     expect(readFileSync(join(paths.profile, DESKTOP_PACKAGE_SET_FILE))).toEqual(original)
     expect(existsSync(paths.pending)).toBe(false)
     expect(existsSync(paths.rollback)).toBe(true)
+    expect(readdirSync(paths.staging).length).toBeGreaterThan(0)
+    await manager.cleanupOrphanedStaging()
     expect(readdirSync(paths.staging)).toEqual([])
   })
 
@@ -461,27 +511,26 @@ describe('desktop project transactions', () => {
     const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
     await manager.applyRelease(firstSeed, '1.0.0', hooks())
     const original = readFileSync(join(paths.profile, DESKTOP_PACKAGE_SET_FILE))
-    let transactionRoot: string | undefined
+    let stops = 0
     await expect(manager.applyRelease(nextSeed, '1.0.0', hooks({
       beforeActivate: async () => {
-        const pending = JSON.parse(readFileSync(paths.pending, 'utf8')) as { stagingProfile: string }
-        transactionRoot = dirname(pending.stagingProfile)
-        rmSync(transactionRoot, { recursive: true, force: true })
-        writeFileSync(transactionRoot, 'block transaction cleanup')
-        mkdirSync(`${paths.pending}.next`)
+        stops += 1
+        if (stops === 2) throw new Error('replacement still running')
       },
+      afterActivate: async () => { mkdirSync(`${paths.pending}.next`) },
     }))).rejects.toThrow(/cleanup was incomplete/u)
 
-    expect(JSON.parse(readFileSync(paths.pending, 'utf8'))).toMatchObject({ step: 'prepared' })
-    expect(readFileSync(join(paths.profile, DESKTOP_PACKAGE_SET_FILE))).toEqual(original)
-    expect(transactionRoot).not.toBeUndefined()
+    expect(JSON.parse(readFileSync(paths.pending, 'utf8'))).toMatchObject({ step: 'staging-activated' })
+    expect(readFileSync(join(paths.rollback, DESKTOP_PACKAGE_SET_FILE))).toEqual(original)
+    expect(readFileSync(join(paths.profile, DESKTOP_PACKAGE_SET_FILE)))
+      .toEqual(readFileSync(join(nextSeed, DESKTOP_PACKAGE_SET_FILE)))
     rmSync(`${paths.pending}.next`, { recursive: true, force: true })
-    if (transactionRoot !== undefined) rmSync(transactionRoot, { force: true })
-    await expect(manager.applyRelease(nextSeed, '1.0.0', hooks())).resolves.toBe(true)
+    await expect(manager.applyRelease(firstSeed, '1.0.0', hooks())).resolves.toBe(false)
+    expect(readFileSync(join(paths.profile, DESKTOP_PACKAGE_SET_FILE))).toEqual(original)
     expect(existsSync(paths.pending)).toBe(false)
   })
 
-  it('cleans owned orphan staging roots under the transaction lock', async () => {
+  it('defers orphan staging validation and deletion until explicit maintenance', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')
     createTestSeedMetadata(seed, release())
@@ -498,11 +547,198 @@ describe('desktop project transactions', () => {
     writeFileSync(join(withStore, 'residue'), 'orphan')
     const unknown = join(paths.staging, 'do-not-delete')
     mkdirSync(unknown, { recursive: true })
-    await expect(manager.applyRelease(seed, '1.0.0', hooks())).rejects.toThrow(/unexpected staging entry/u)
-    expect(existsSync(unknown)).toBe(true)
-    rmSync(unknown, { recursive: true, force: true })
     await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(false)
+    expect(existsSync(empty)).toBe(true)
+    expect(readFileSync(join(withStore, 'residue'), 'utf8')).toBe('orphan')
+    await expect(manager.cleanupOrphanedStaging()).rejects.toThrow(/unexpected staging entry/u)
+    expect(existsSync(unknown)).toBe(true)
+    expect(existsSync(paths.lock)).toBe(false)
+    rmSync(unknown, { recursive: true, force: true })
+    await manager.cleanupOrphanedStaging()
     expect(readdirSync(paths.staging)).toEqual([])
+  })
+
+  it('clears the journal when its staging root cannot be removed', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    await manager.applyRelease(seed, '1.0.0', hooks())
+    const transactionId = '5f8f4f3c-0f4f-4b6f-9a6e-2ccf8d70c8be'
+    const blocked = join(paths.staging, transactionId)
+    mkdirSync(paths.staging, { recursive: true })
+    writeFileSync(blocked, 'staging root is not a directory')
+    writeFileSync(paths.pending, `${JSON.stringify({
+      schemaVersion: 1,
+      id: transactionId,
+      stagingProfile: join(blocked, 'profile'),
+      step: 'prepared',
+    })}\n`)
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(false)
+      expect(warning).not.toHaveBeenCalled()
+      expect(existsSync(paths.pending)).toBe(false)
+      await manager.cleanupOrphanedStaging()
+      expect(warning).toHaveBeenCalledWith('desktop project: deferred orphan staging cleanup', expect.any(Error))
+    } finally {
+      warning.mockRestore()
+    }
+    expect(readFileSync(blocked, 'utf8')).toBe('staging root is not a directory')
+  })
+
+  it('defers an orphan staging root that cannot be removed', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    await manager.applyRelease(seed, '1.0.0', hooks())
+    const orphan = join(paths.staging, '2a6d8f4c-3b1e-47a9-b5c0-8e2f6a4d1b73')
+    writeFileSync(orphan, 'orphan is not a directory')
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(false)
+      expect(warning).not.toHaveBeenCalled()
+      await manager.cleanupOrphanedStaging()
+      expect(warning).toHaveBeenCalledWith('desktop project: deferred orphan staging cleanup', expect.any(Error))
+    } finally {
+      warning.mockRestore()
+    }
+    expect(readFileSync(orphan, 'utf8')).toBe('orphan is not a directory')
+  })
+
+  it('leaves a locked orphan for later maintenance and removes the other roots', async () => {
+    const paths = resolveDesktopPaths(temporaryRoot())
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: 'unused' })
+    const locked = join(paths.staging, '2a6d8f4c-3b1e-47a9-b5c0-8e2f6a4d1b73')
+    const removable = join(paths.staging, '5f8f4f3c-0f4f-4b6f-9a6e-2ccf8d70c8be')
+    mkdirSync(locked, { recursive: true })
+    mkdirSync(removable, { recursive: true })
+    writeFileSync(join(locked, 'retained'), 'locked file')
+    const denied = Object.assign(new Error('staging file is locked'), { code: 'EPERM' })
+    const remove = filesystem.rm
+    const removal = vi.spyOn(filesystem, 'rm').mockImplementation(async (path, options) => {
+      expect(readFileSync(paths.lock, 'utf8').trim()).toBe(String(process.pid))
+      if (path === locked) throw denied
+      await remove(path, options)
+    })
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      await expect(manager.cleanupOrphanedStaging()).resolves.toBeUndefined()
+      expect(readFileSync(join(locked, 'retained'), 'utf8')).toBe('locked file')
+      expect(existsSync(removable)).toBe(false)
+      expect(existsSync(paths.lock)).toBe(false)
+      expect(warning).toHaveBeenCalledExactlyOnceWith('desktop project: deferred orphan staging cleanup', denied)
+    } finally {
+      removal.mockRestore()
+      warning.mockRestore()
+    }
+    await manager.cleanupOrphanedStaging()
+    expect(readdirSync(paths.staging)).toEqual([])
+  })
+
+  it('joins an in-flight removal before canceled maintenance releases its lock', async () => {
+    const paths = resolveDesktopPaths(temporaryRoot())
+    const runtime = { node: process.execPath, pnpm: 'unused' }
+    const manager = new DesktopProjectManager(paths, runtime)
+    for (const id of ['2a6d8f4c-3b1e-47a9-b5c0-8e2f6a4d1b73', '5f8f4f3c-0f4f-4b6f-9a6e-2ccf8d70c8be']) {
+      mkdirSync(join(paths.staging, id), { recursive: true })
+    }
+    let beginRemoval!: () => void
+    let finishRemoval!: () => void
+    const removing = new Promise<void>((done) => { beginRemoval = done })
+    const released = new Promise<void>((done) => { finishRemoval = done })
+    const remove = filesystem.rm
+    const removal = vi.spyOn(filesystem, 'rm').mockImplementation(async (path, options) => {
+      beginRemoval()
+      await released
+      await remove(path, options)
+    })
+    const cancellation = new AbortController()
+    const reason = new Error('desktop is quitting')
+    const cleanup = manager.cleanupOrphanedStaging(cancellation.signal)
+    const outcome = cleanup.catch((error: unknown) => error)
+    releaseWorkers.push(async () => { finishRemoval(); await outcome })
+    try {
+      await removing
+      cancellation.abort(reason)
+      expect(readFileSync(paths.lock, 'utf8').trim()).toBe(String(process.pid))
+      expect(readdirSync(paths.staging)).toHaveLength(2)
+      const competing = new DesktopProjectManager(paths, runtime)
+      await expect(competing.cleanupOrphanedStaging()).rejects.toThrow(/another package transaction is active/u)
+      await expect(competing.mutate({ type: 'plugin-remove', name: 'unused' }, hooks()))
+        .rejects.toThrow(/another package transaction is active/u)
+      finishRemoval()
+      expect(await outcome).toBe(reason)
+      expect(removal).toHaveBeenCalledOnce()
+      expect(readdirSync(paths.staging)).toHaveLength(1)
+      expect(existsSync(paths.lock)).toBe(false)
+    } finally {
+      finishRemoval()
+      await outcome
+      removal.mockRestore()
+    }
+  })
+
+  it('unlinks orphan junctions without deleting their targets', async () => {
+    const root = temporaryRoot()
+    const paths = resolveDesktopPaths(root)
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: 'unused' })
+    const target = join(root, 'retained')
+    const nested = join(paths.staging, '2a6d8f4c-3b1e-47a9-b5c0-8e2f6a4d1b73')
+    const linked = join(paths.staging, '5f8f4f3c-0f4f-4b6f-9a6e-2ccf8d70c8be')
+    const dangling = join(paths.staging, '7d4e5c6b-1a2b-4c3d-8e9f-0123456789ab')
+    mkdirSync(target)
+    mkdirSync(nested, { recursive: true })
+    writeFileSync(join(target, 'marker'), 'retain target bytes')
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir'
+    symlinkSync(target, linked, linkType)
+    symlinkSync(target, join(nested, 'link'), linkType)
+    symlinkSync(join(root, 'missing-target'), dangling, linkType)
+    expect(lstatSync(dangling).isSymbolicLink()).toBe(true)
+    await manager.cleanupOrphanedStaging()
+    expect(readdirSync(paths.staging)).toEqual([])
+    expect(readFileSync(join(target, 'marker'), 'utf8')).toBe('retain target bytes')
+  })
+
+  it('refuses to traverse a replaced staging root', async () => {
+    const root = temporaryRoot()
+    const paths = resolveDesktopPaths(root)
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: 'unused' })
+    const target = join(root, 'retained')
+    const retained = join(target, '2a6d8f4c-3b1e-47a9-b5c0-8e2f6a4d1b73')
+    mkdirSync(retained, { recursive: true })
+    mkdirSync(paths.root, { recursive: true })
+    writeFileSync(join(retained, 'marker'), 'retain target bytes')
+    symlinkSync(target, paths.staging, process.platform === 'win32' ? 'junction' : 'dir')
+    await expect(manager.cleanupOrphanedStaging()).rejects.toThrow(/staging root is not a real directory/u)
+    expect(readFileSync(join(retained, 'marker'), 'utf8')).toBe('retain target bytes')
+    expect(existsSync(paths.lock)).toBe(false)
+  })
+
+  it('leaves unresolved journals and their profiles untouched during maintenance', async () => {
+    const paths = resolveDesktopPaths(temporaryRoot())
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: 'unused' })
+    const staged = join(paths.staging, '2a6d8f4c-3b1e-47a9-b5c0-8e2f6a4d1b73', 'profile')
+    for (const path of [paths.profile, paths.rollback, staged]) {
+      mkdirSync(path, { recursive: true })
+      writeFileSync(join(path, 'marker'), path)
+    }
+    writeFileSync(paths.pending, 'unresolved journal bytes')
+    await manager.cleanupOrphanedStaging()
+    for (const path of [paths.profile, paths.rollback, staged]) {
+      expect(readFileSync(join(path, 'marker'), 'utf8')).toBe(path)
+    }
+    expect(readFileSync(paths.pending, 'utf8')).toBe('unresolved journal bytes')
+    expect(existsSync(paths.lock)).toBe(false)
   })
 
   it('rejects a journal whose UUID does not own its exact staging profile', async () => {
@@ -570,15 +806,65 @@ describe('desktop project transactions', () => {
     const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
     await manager.applyRelease(seed, '1.0.0', hooks())
     let starts = 0
+    const order: string[] = []
     await expect(manager.mutate({ type: 'plugin-add', spec: '@scope/plugin@2.0.0' }, hooks({
+      beforeActivate: async () => {
+        order.push(starts === 0 ? 'stop-original' : 'stop-replacement')
+        if (starts === 1) {
+          expect(manager.listPlugins()).toEqual([{ name: '@scope/plugin', version: '2.0.0' }])
+          expect(existsSync(paths.rollback)).toBe(true)
+        }
+      },
       afterActivate: async () => {
         starts += 1
+        order.push(starts === 1 ? 'start-replacement' : 'start-original')
         if (starts === 1) throw new Error('backend rejected staged graph')
+        expect(manager.listPlugins()).toEqual([])
       },
     }))).rejects.toThrow(/backend rejected staged graph/u)
     expect(manager.listPlugins()).toEqual([])
     expect(manager.dshVersion()).toBe('1.0.0')
-    expect(starts).toBe(2)
+    expect(order).toEqual(['stop-original', 'start-replacement', 'stop-replacement', 'start-original'])
+    expect(existsSync(paths.pending)).toBe(false)
+    const retired = readdirSync(paths.staging)
+      .map(name => join(paths.staging, name, 'profile', 'node_modules', '@scope', 'plugin', 'package.json'))
+      .filter(path => existsSync(path))
+    expect(retired).toHaveLength(1)
+    expect(JSON.parse(readFileSync(retired[0]!, 'utf8'))).toMatchObject({ name: '@scope/plugin', version: '2.0.0' })
+    await manager.cleanupOrphanedStaging()
+    expect(readdirSync(paths.staging)).toEqual([])
+  })
+
+  it('preserves both profiles and the journal when a failed replacement start cannot be stopped', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(root)
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    await manager.applyRelease(seed, '1.0.0', hooks())
+    const original = readFileSync(join(paths.profile, 'package.json'))
+    const startFailure = new Error('replacement rejected startup')
+    const stopFailure = new Error('replacement did not exit')
+    const beforeActivate = vi.fn<() => Promise<void>>()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(stopFailure)
+    const afterActivate = vi.fn<() => Promise<void>>().mockRejectedValue(startFailure)
+    await expect(manager.mutate({ type: 'plugin-add', spec: '@scope/plugin@2.0.0' }, hooks({
+      beforeActivate, afterActivate,
+    }))).rejects.toMatchObject({ errors: [startFailure, stopFailure] })
+    expect(beforeActivate).toHaveBeenCalledTimes(2)
+    expect(afterActivate).toHaveBeenCalledOnce()
+    expect(manager.listPlugins()).toEqual([{ name: '@scope/plugin', version: '2.0.0' }])
+    expect(readFileSync(join(paths.rollback, 'package.json'))).toEqual(original)
+    expect(JSON.parse(readFileSync(paths.pending, 'utf8'))).toMatchObject({ step: 'staging-activated' })
+    expect(existsSync(paths.lock)).toBe(false)
+    const staged = readdirSync(paths.staging)
+    await manager.cleanupOrphanedStaging()
+    expect(readdirSync(paths.staging)).toEqual(staged)
+    expect(existsSync(paths.pending)).toBe(true)
   })
 
   it('keeps the committed profile when transaction-root cleanup is deferred', async () => {
@@ -605,10 +891,9 @@ describe('desktop project transactions', () => {
       expect(manager.listPlugins()).toEqual([{ name: '@scope/plugin', version: '2.0.0' }])
       expect(existsSync(paths.pending)).toBe(false)
       expect(existsSync(paths.rollback)).toBe(true)
-      expect(warning).toHaveBeenCalledWith(
-        'desktop project: activation committed with deferred transaction cleanup',
-        expect.any(AggregateError),
-      )
+      expect(warning).not.toHaveBeenCalled()
+      await manager.cleanupOrphanedStaging()
+      expect(warning).toHaveBeenCalledWith('desktop project: deferred orphan staging cleanup', expect.any(Error))
     } finally {
       warning.mockRestore()
       if (transactionRoot !== undefined) rmSync(transactionRoot, { force: true })
@@ -642,8 +927,10 @@ describe('desktop project transactions', () => {
     await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(false)
 
     expect(manager.listPlugins()).toEqual([{ name: '@scope/plugin', version: '2.0.0' }])
-    expect(existsSync(stagingProfile)).toBe(false)
+    expect(readFileSync(join(stagingProfile, 'marker'), 'utf8')).toBe('staging')
     expect(existsSync(paths.pending)).toBe(false)
+    await manager.cleanupOrphanedStaging()
+    expect(existsSync(stagingProfile)).toBe(false)
   })
 
   it('recovers an active-moved journal by restoring rollback', async () => {
@@ -676,6 +963,8 @@ describe('desktop project transactions', () => {
     expect(manager.listPlugins()).toEqual([{ name: '@scope/plugin', version: '2.0.0' }])
     expect(existsSync(paths.rollback)).toBe(false)
     expect(existsSync(paths.pending)).toBe(false)
+    expect(readFileSync(join(stagingProfile, 'staged'), 'utf8')).toBe('new')
+    await manager.cleanupOrphanedStaging()
     expect(readdirSync(paths.staging)).toEqual([])
   })
 
@@ -709,6 +998,13 @@ describe('desktop project transactions', () => {
     expect(readFileSync(join(paths.profile, DESKTOP_PACKAGE_SET_FILE))).toEqual(original)
     expect(existsSync(paths.rollback)).toBe(false)
     expect(existsSync(paths.pending)).toBe(false)
+    expect(readFileSync(join(stagingProfile, 'staged'), 'utf8')).toBe('new')
+    const retired = readdirSync(paths.staging)
+      .map(name => join(paths.staging, name, 'profile', 'unexpected-active'))
+      .filter(path => existsSync(path))
+    expect(retired).toHaveLength(1)
+    expect(readFileSync(retired[0]!, 'utf8')).toBe('new')
+    await manager.cleanupOrphanedStaging()
     expect(readdirSync(paths.staging)).toEqual([])
   })
 
@@ -739,6 +1035,8 @@ describe('desktop project transactions', () => {
     expect(manager.listPlugins()).toEqual([{ name: '@scope/plugin', version: '2.0.0' }])
     expect(existsSync(paths.rollback)).toBe(true)
     expect(existsSync(paths.pending)).toBe(false)
+    expect(existsSync(transactionRoot)).toBe(true)
+    await manager.cleanupOrphanedStaging()
     expect(readdirSync(paths.staging)).toEqual([])
   })
 

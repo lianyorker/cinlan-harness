@@ -1,8 +1,8 @@
 /**
  * Web shell library entry. The shell's product is {@link AppWebEntry} —
- * apps/web's Vite entry runs it against #root. The boot page and fiber-state
- * projection remain internal; the static module table and its platform words
- * form the package's build-time contract.
+ * apps/web's Vite entry runs it against #root. The separate ./boot-page entry
+ * shares the loading view with Desktop; fiber-state projection remains internal.
+ * The static module table defines the shared modules available to bundles.
  * @module @deepseek-ai/dsh-client-web
  */
 

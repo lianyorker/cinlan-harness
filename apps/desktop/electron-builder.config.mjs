@@ -57,6 +57,7 @@ export function createElectronBuilderConfig(
     files: [
       'lib/*.js',
       'lib/*.cjs',
+      'lib/renderer/**/*',
       'renderer/**/*',
       'package.json',
     ],

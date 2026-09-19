@@ -130,8 +130,10 @@ async function serveShellAsset(request: Request): Promise<Response> {
   } catch {
     return new Response(null, { status: 400 })
   }
-  const target = resolve(normalize(join(root, pathname)))
-  if (target !== root && !target.startsWith(root + sep)) return new Response(null, { status: 403 })
+  const assetRoot = pathname === '/loading.js' || pathname === '/loading.css'
+    ? resolve(app.getAppPath(), 'lib', 'renderer') : root
+  const target = resolve(normalize(join(assetRoot, pathname)))
+  if (target !== assetRoot && !target.startsWith(assetRoot + sep)) return new Response(null, { status: 403 })
   try {
     const bytes = request.method === 'HEAD' ? null : await readFile(target)
     const body = bytes !== null && pathname === '/startup.html'
@@ -160,6 +162,8 @@ async function main(): Promise<void> {
   let quitReady = false
   let quitTask: Promise<void> | undefined
   let mutationTask: Promise<void> | undefined
+  let cleanupTask: Promise<void> | undefined
+  const cleanupCancellation = new AbortController()
   let updateTimer: ReturnType<typeof setTimeout> | undefined
   const ownedHosts = new Set<DesktopHostProcess>()
   const startupUrl = `${SCHEME}://shell/startup.html`
@@ -205,8 +209,7 @@ async function main(): Promise<void> {
     healthCheck: async (projectDir) => {
       floatingWindows?.close()
       const active = host
-      host = undefined
-      await stopHost(active)
+      await stopHosts()
       let healthFailure: unknown
       let probe: DesktopHostProcess | undefined
       try {
@@ -214,7 +217,11 @@ async function main(): Promise<void> {
         await stopHost(probe)
       } catch (error) {
         healthFailure = error
-        await stopHost(probe).catch(() => undefined)
+        try {
+          await stopHosts()
+        } catch (cleanupError) {
+          throw new AggregateError([error, cleanupError], 'desktop project: staged health check and Host cleanup failed')
+        }
       }
       let restartFailure: unknown
       if (active !== undefined && !isQuitting()) {
@@ -235,9 +242,7 @@ async function main(): Promise<void> {
     },
     beforeActivate: async () => {
       floatingWindows?.close()
-      const active = host
-      host = undefined
-      await stopHost(active)
+      await stopHosts()
     },
     afterActivate: async () => {
       if (!isQuitting()) host = await startHost()
@@ -261,6 +266,16 @@ async function main(): Promise<void> {
     return active.fetch(request)
   })
 
+  const cleanupStaging = (): void => {
+    if (development !== undefined || isQuitting() || cleanupTask !== undefined) return
+    // A failed probe or replacement start can still hold files in a staged profile.
+    if ([...ownedHosts].some(owned => owned !== host)) return
+    cleanupTask = manager.cleanupOrphanedStaging(cleanupCancellation.signal)
+      .catch((error: unknown) => {
+        if (!cleanupCancellation.signal.aborted) console.warn('Desktop staging maintenance was deferred', error)
+      })
+      .finally(() => { cleanupTask = undefined })
+  }
   const mutate = async (event: IpcMainInvokeEvent, mutation: Parameters<DesktopProjectManager['mutate']>[0]): Promise<void> => {
     assertDesktopSender(event, ['shell'])
     if (development !== undefined) {
@@ -268,12 +283,18 @@ async function main(): Promise<void> {
     }
     if (isQuitting() || startup.state.phase !== 'ready') throw new Error('Desktop is not ready for package changes')
     if (mutationTask !== undefined) throw new Error('Desktop package changes are already in progress')
-    mutationTask = manager.mutate(mutation, hooks)
+    mutationTask = (async () => {
+      await cleanupTask
+      if (isQuitting()) throw new Error('Desktop is closing')
+      if ([...ownedHosts].some(owned => owned !== host)) await stopHosts()
+      await manager.mutate(mutation, hooks)
+    })()
     try {
       await mutationTask
       if (!isQuitting() && mainWindow !== undefined && !mainWindow.isDestroyed()) mainWindow.webContents.reload()
     } finally {
       mutationTask = undefined
+      cleanupStaging()
     }
   }
   ipcMain.handle(DESKTOP_IPC.localeGet, (event) => {
@@ -451,7 +472,8 @@ async function main(): Promise<void> {
       updateTimer = undefined
     }
     floatingWindows?.close()
-    const results = await Promise.allSettled([startup.close(), mutationTask])
+    cleanupCancellation.abort(new Error('Desktop staging maintenance canceled'))
+    const results = await Promise.allSettled([startup.close(), mutationTask, cleanupTask])
     // Mutations can finish rollback after the initial child stop; their hooks never launch while quitting.
     await stopHosts()
     const shutdown = results[0]
@@ -518,6 +540,7 @@ async function main(): Promise<void> {
 
   await startup.start()
   if (startup.state.phase !== 'ready' || isQuitting()) return
+  cleanupStaging()
   if (development !== undefined && process.env.DSH_DESKTOP_OPEN_DEVTOOLS !== '0') {
     mainWindow?.webContents.openDevTools({ mode: 'detach' })
   }
