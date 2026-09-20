@@ -176,6 +176,12 @@
     - id: execution-host-targets
       name: '@deepseek-ai/dsh-execution-host-targets'
 
+    - id: execution-binding
+      name: '@deepseek-ai/dsh-execution-binding'
+
+    - id: execution-runtime
+      name: '@deepseek-ai/dsh-execution-runtime'
+
     - id: execution-host-controller
       name: '@deepseek-ai/dsh-api-execution-host-controller'
 

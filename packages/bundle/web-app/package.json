@@ -112,6 +112,8 @@
     "@deepseek-ai/dsh-api-sidebar-git-controller": "workspace:^",
     "@deepseek-ai/dsh-execution-host-local": "workspace:^",
     "@deepseek-ai/dsh-execution-host-targets": "workspace:^",
+    "@deepseek-ai/dsh-execution-binding": "workspace:^",
+    "@deepseek-ai/dsh-execution-runtime": "workspace:^",
     "@deepseek-ai/dsh-api-execution-host-controller": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings-automation": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings-hosts": "workspace:^",

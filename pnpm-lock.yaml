@@ -3522,12 +3522,18 @@ importers:
       '@deepseek-ai/dsh-cordis-host-runner':
         specifier: workspace:^
         version: link:../../extensions/cordis-host-runner
+      '@deepseek-ai/dsh-execution-binding':
+        specifier: workspace:^
+        version: link:../../execution-host/execution-binding
       '@deepseek-ai/dsh-execution-host-local':
         specifier: workspace:^
         version: link:../../execution-host/execution-host-local
       '@deepseek-ai/dsh-execution-host-targets':
         specifier: workspace:^
         version: link:../../execution-host/execution-host-targets
+      '@deepseek-ai/dsh-execution-runtime':
+        specifier: workspace:^
+        version: link:../../execution-host/execution-runtime
       '@deepseek-ai/dsh-file-reference':
         specifier: workspace:^
         version: link:../../context/file-reference
