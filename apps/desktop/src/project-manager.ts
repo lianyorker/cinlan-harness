@@ -112,7 +112,14 @@ interface DesktopSeedIntegrityRecord {
 const PROJECT_NAME = '@deepseek-ai/dsh-desktop-runtime'
 const DSH_PACKAGE = '@deepseek-ai/dsh'
 const CORE_BUILD_PACKAGE = '@deepseek-ai/dsh-subprocess-local'
-const DESKTOP_PROFILE_BUNDLES = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] as const
+const DESKTOP_PROFILE_BUNDLES = [
+  '@deepseek-ai/dsh-base',
+  '@deepseek-ai/dsh-web-app',
+  '@deepseek-ai/dsh-cinlan-browser',
+  '@deepseek-ai/dsh-cinlan-computer-use',
+  '@deepseek-ai/dsh-web-capability-defaults',
+] as const
+const LEGACY_DESKTOP_PROFILE_BUNDLES = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] as const
 const WORKSPACE_SETTINGS = 'nodeLinker: hoisted\nautoInstallPeers: false\nstrictDepBuilds: true\n'
 const PACKAGE_NAME_PATTERN = /^(?:@[a-z0-9][a-z0-9._~-]*\/[a-z0-9][a-z0-9._~-]*|[a-z0-9][a-z0-9._~-]*)$/u
 const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/u
@@ -348,12 +355,17 @@ function projectManifest(projectDir: string): DesktopProjectManifest {
 
 function profilePluginNames(projectDir: string): readonly string[] {
   const bundles = projectManifest(projectDir).dsh.profile.bundles
-  if (!DESKTOP_PROFILE_BUNDLES.every((bundle, index) => bundles[index] === bundle)) {
+  const defaults = [DESKTOP_PROFILE_BUNDLES, LEGACY_DESKTOP_PROFILE_BUNDLES]
+    .find(prefix => prefix.every((bundle, index) => bundles[index] === bundle))
+  if (defaults === undefined) {
     throw new Error('desktop project: profile must begin with the built-in desktop bundle list')
   }
-  const plugins = bundles.slice(DESKTOP_PROFILE_BUNDLES.length)
+  const plugins = bundles.slice(defaults.length)
   if (new Set(bundles).size !== bundles.length) {
     throw new Error('desktop project: profile bundle list contains a duplicate package')
+  }
+  if (plugins.some(plugin => DESKTOP_PROFILE_BUNDLES.some(bundle => bundle === plugin))) {
+    throw new Error('desktop project: profile contains an incomplete or misplaced built-in desktop bundle list')
   }
   for (const plugin of plugins) assertPackageName(plugin)
   return plugins
@@ -549,7 +561,7 @@ export class DesktopProjectManager {
    * @param electronVersion - Exact application version that the seed must match.
    * @param hooks - Backend health and lifecycle operations for staged activation.
    * @param preparation - Optional operation reporting and cooperative cancellation outside activation.
-   * @returns Whether a staged profile was activated; equal versions with different content still reconcile.
+   * @returns Whether a staged profile was activated; equal versions with different content or defaults still reconcile.
    */
   async applyRelease(
     seedDir: string,
@@ -571,8 +583,11 @@ export class DesktopProjectManager {
         && this.dshVersion() === target.version
         && this.installedPackageVersion(DESKTOP_HOST_PACKAGE) === target.version) {
         const activePackages = verifyDesktopCorePackageSet(this.paths.profile, target.version)
+        const plugins = pluginRecords(this.paths.profile)
         if (isDeepStrictEqual(activeRelease, target)
-          && isDeepStrictEqual(activePackages, targetPackages)) return false
+          && isDeepStrictEqual(activePackages, targetPackages)
+          && isDeepStrictEqual(projectManifest(this.paths.profile).dsh.profile.bundles,
+            [...DESKTOP_PROFILE_BUNDLES, ...plugins.map(plugin => plugin.name)])) return false
       }
       // Store archives are installer inputs; profile reuse still verifies both core package sets.
       verifySeedIntegrity(seedDir)

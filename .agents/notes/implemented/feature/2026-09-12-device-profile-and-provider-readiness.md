@@ -10,9 +10,9 @@ Device settings must distinguish a loaded plugin from a reachable Provider and p
 
 ## Decision
 
-Computer Use and Mobile Device retain separate Service Definitions, CLI Providers, policy Consumers, tool Consumers, and opt-in bundles. The device-control profile composes them over the existing base and Web layers; generic web and headless profiles do not gain device input. Current ToolCallId, Attachment limits, subprocess handles, and compiler references remain authoritative. Empty invariant installers are not imported.
+Computer Use and Mobile Device retain separate Service Definitions, Providers, policy Consumers, and opt-in bundles. Native CUA owns desktop tool schemas; the mobile CLI Provider retains its tool Consumer. The device-control profile composes them over the existing base and Web layers; generic web and headless profiles do not gain device input. Current ToolCallId, Attachment limits, subprocess handles, and compiler references remain authoritative. Empty invariant installers are not imported.
 
-The deviceCapabilities/check Remote invokes only capabilities or device listing and returns redacted not-configured, available, or unavailable results. Loader status is not an installation probe, and successful readiness does not authorize input. Settings copy the supported dsh profile command and preserve the card layout from the [presentation decision](2026-09-12-computer-use-settings-presentation.md). The external Orca CLI and operating-system permissions remain prerequisites.
+The deviceCapabilities/check Remote invokes computer readiness or mobile device listing and returns redacted not-configured, available, or unavailable results. Loader status is not an installation probe, and successful readiness does not authorize input. Settings copy the supported dsh profile command and preserve the card layout from the [presentation decision](2026-09-12-computer-use-settings-presentation.md). The [native CUA decision](../architecture/2026-09-20-native-cua-readiness-and-policy.md) owns desktop composition, lifecycle readiness, and native policy. Desktop OS permissions remain unknown; the mobile CLI Provider retains its external runtime prerequisite.
 
 Only successful executable lookups are cached. Installation or PATH repair permits a new lookup; cancellation and disposal interrupt pending resolution before any process can be spawned.
 

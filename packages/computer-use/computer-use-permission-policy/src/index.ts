@@ -15,6 +15,8 @@ export type ComputerUsePermissionDecision = 'allow' | 'ask' | 'deny'
 
 /** Independent observation and action-class policy. */
 export interface Config {
+  /** All native CUA tools, including discovery and future catalog additions. Defaults to `ask`. */
+  readonly native?: ComputerUsePermissionDecision
   /** App/window/tree observation policy. Defaults to `ask`. */
   readonly observe?: ComputerUsePermissionDecision
   /** Click, scroll, and drag policy. Defaults to `ask`. */
@@ -26,6 +28,7 @@ export interface Config {
 }
 
 interface ResolvedConfig {
+  readonly native: ComputerUsePermissionDecision
   readonly observe: ComputerUsePermissionDecision
   readonly pointer: ComputerUsePermissionDecision
   readonly keyboard: ComputerUsePermissionDecision
@@ -34,7 +37,7 @@ interface ResolvedConfig {
 
 type PermissionClass = keyof ResolvedConfig
 
-const CONFIG_KEYS = new Set(['observe', 'pointer', 'keyboard', 'accessibilityAction'])
+const CONFIG_KEYS = new Set(['observe', 'pointer', 'keyboard', 'accessibilityAction', 'native'])
 const DECISIONS = new Set<ComputerUsePermissionDecision>(['allow', 'ask', 'deny'])
 
 /** Approval prompt for desktop observation. */
@@ -46,7 +49,11 @@ export const COMPUTER_KEYBOARD_APPROVAL_REASON = 'Allow this call to send keyboa
 /** Approval prompt for accessibility mutations. */
 export const COMPUTER_ACCESSIBILITY_APPROVAL_REASON = 'Allow this call to perform an accessibility action or set a desktop element value?'
 
+/** Approval prompt covering the SDK-owned native desktop tool catalog. */
+export const COMPUTER_NATIVE_APPROVAL_REASON = 'Allow this native computer-use call to observe or control the local desktop?'
+
 const ASK_REASONS: Readonly<Record<PermissionClass, string>> = {
+  native: COMPUTER_NATIVE_APPROVAL_REASON,
   observe: COMPUTER_OBSERVE_APPROVAL_REASON,
   pointer: COMPUTER_POINTER_APPROVAL_REASON,
   keyboard: COMPUTER_KEYBOARD_APPROVAL_REASON,
@@ -54,6 +61,7 @@ const ASK_REASONS: Readonly<Record<PermissionClass, string>> = {
 }
 
 const DENY_REASONS: Readonly<Record<PermissionClass, string>> = {
+  native: 'Native computer use is denied by policy.',
   observe: 'Desktop observation is denied by policy.',
   pointer: 'Desktop pointer input is denied by policy.',
   keyboard: 'Desktop keyboard or clipboard input is denied by policy.',
@@ -69,8 +77,9 @@ const CLASS_BY_TOOL: Readonly<Record<string, PermissionClass>> = {
   computer_accessibility: 'accessibilityAction',
 }
 
-/** Loader schema for the four independent permission classes. */
+/** Loader schema for facade action classes and the complete native catalog. */
 export const Config: z<Config> = z.object({
+  native: z.union(['allow', 'ask', 'deny'] as const).default('ask'),
   observe: z.union(['allow', 'ask', 'deny'] as const).default('ask'),
   pointer: z.union(['allow', 'ask', 'deny'] as const).default('ask'),
   keyboard: z.union(['allow', 'ask', 'deny'] as const).default('ask'),
@@ -87,12 +96,13 @@ export function resolveComputerUsePermissionConfig(config: Config = {}): Resolve
     if (!CONFIG_KEYS.has(key)) throw new Error(`computer-use-permission-policy: unsupported config key '${key}'`)
   }
   const resolved: ResolvedConfig = {
+    native: config.native ?? 'ask',
     observe: config.observe ?? 'ask',
     pointer: config.pointer ?? 'ask',
     keyboard: config.keyboard ?? 'ask',
     accessibilityAction: config.accessibilityAction ?? 'ask',
   }
-  for (const key of ['observe', 'pointer', 'keyboard', 'accessibilityAction'] as const) {
+  for (const key of ['observe', 'pointer', 'keyboard', 'accessibilityAction', 'native'] as const) {
     if (!DECISIONS.has(resolved[key])) {
       throw new Error(`computer-use-permission-policy: ${key} must be "allow", "ask", or "deny"`)
     }
@@ -105,7 +115,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   const resolved = resolveComputerUsePermissionConfig(config)
   const admitted = new WeakSet<ToolExecution>()
   ctx.on('tools/pre-execute', async (exec, next): Promise<PreToolDecision> => {
-    const permissionClass = CLASS_BY_TOOL[exec.name]
+    const permissionClass = exec.name.startsWith('cua_driver_native__') ? 'native' : CLASS_BY_TOOL[exec.name]
     if (permissionClass === undefined) return next()
     const decision = resolved[permissionClass]
     if (decision === 'deny') return { kind: 'deny', reason: DENY_REASONS[permissionClass] }
@@ -114,7 +124,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     return next()
   })
   ctx.tools.guard((exec) => {
-    const permissionClass = CLASS_BY_TOOL[exec.name]
+    const permissionClass = exec.name.startsWith('cua_driver_native__') ? 'native' : CLASS_BY_TOOL[exec.name]
     if (permissionClass === undefined) return undefined
     if (resolved[permissionClass] === 'allow') return undefined
     return admitted.delete(exec)

@@ -10,9 +10,9 @@ Status: implemented
 
 ## Decision
 
-Computer Use 和 Mobile Device 保留独立的 Service Definition、CLI Provider、策略 Consumer、工具 Consumer 和可选 bundle。device-control profile 在现有 base 和 Web 层之上组合它们；通用 web 和 headless profile 不获得设备输入能力。当前 ToolCallId、Attachment 限制、subprocess handle 和 compiler reference 仍是准则。不迁入空 invariant installer。
+Computer Use 和 Mobile Device 保留独立的 Service Definition、Provider、策略 Consumer 和可选 bundle。原生 CUA 拥有桌面工具 schema；移动设备 CLI Provider 保留其工具 Consumer。device-control profile 在现有 base 和 Web 层之上组合它们；通用 web 和 headless profile 不获得设备输入能力。当前 ToolCallId、Attachment 限制、subprocess handle 和 compiler reference 仍是准则。不迁入空 invariant installer。
 
-deviceCapabilities/check Remote 仅调用 capabilities 或设备列表，返回脱敏的 not-configured、available 或 unavailable 结果。Loader 状态不是安装探测，探测成功也不授权输入。Settings 复制受支持的 dsh profile 命令，并保留[呈现决策](2026-09-12-computer-use-settings-presentation.zh.md)中的卡片布局。外部 Orca CLI 和操作系统权限仍是前置条件。
+deviceCapabilities/check Remote 调用电脑就绪查询或移动设备列表，返回脱敏的 not-configured、available 或 unavailable 结果。Loader 状态不是安装探测，探测成功也不授权输入。Settings 复制受支持的 dsh profile 命令，并保留[呈现决策](2026-09-12-computer-use-settings-presentation.zh.md)中的卡片布局。[原生 CUA 决策](../architecture/2026-09-20-native-cua-readiness-and-policy.zh.md)负责桌面组合、生命周期就绪状态和原生策略。桌面操作系统权限保持 unknown；移动设备 CLI Provider 保留其外部运行时前置条件。
 
 仅缓存成功的 executable 查询。安装或修复 PATH 后允许重新查询；取消与卸载会在生成进程前中断正在进行的解析。
 

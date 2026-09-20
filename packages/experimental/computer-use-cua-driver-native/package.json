@@ -39,6 +39,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "js-yaml": "^4.2.0",
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",
@@ -48,6 +50,8 @@
     "@deepseek-ai/dsh-attachment": "workspace:^",
     "@deepseek-ai/dsh-attachment-local": "workspace:^",
     "@deepseek-ai/dsh-computer-use": "workspace:^",
+    "@deepseek-ai/dsh-computer-use-permission-policy": "workspace:^",
+    "@deepseek-ai/dsh-user-approval": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",
     "@deepseek-ai/dsh-session-projection": "workspace:^",

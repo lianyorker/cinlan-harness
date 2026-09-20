@@ -93,6 +93,7 @@ describe('ComputerUseRuntime', () => {
       await release()
       const local = provider('cinlan')
       ctx.computerUse.registerProvider(local)
+      await expect(ctx.computerUse.readiness()).resolves.toMatchObject({ kind: 'facade', permissions: 'unknown', capabilities: await local.capabilities() })
       await expect(ctx.computerUse.listApps()).resolves.toEqual([observation().app])
     } finally {
       await fiber.dispose()

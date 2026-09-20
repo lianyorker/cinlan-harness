@@ -209,7 +209,10 @@ describe('loadProfile', () => {
     // The web template auto-initializes on first load. Bundle resolution
     // cannot be asserted to fail here: the source-plane test runner resolves
     // @deepseek-ai/* through tsconfig paths regardless of the staged anchor.
-    expect(PROFILE_TEMPLATES.web?.bundles).toContain('@deepseek-ai/dsh-base')
+    expect(PROFILE_TEMPLATES.web?.bundles).toEqual([
+      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-cinlan-browser',
+      '@deepseek-ai/dsh-cinlan-computer-use', '@deepseek-ai/dsh-web-capability-defaults',
+    ])
     expect(PROFILE_TEMPLATES.web?.patchReload).toBe('live')
     expect(PROFILE_TEMPLATES.browser).toEqual({
       bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-cinlan-browser'],
@@ -251,6 +254,37 @@ describe('loadProfile', () => {
       .toBe('live')
   })
 
+  it('upgrades the exact installed Web tuple while preserving user patches and reload choices', () => {
+    const anchor = stageInstallation(Object.fromEntries(
+      [...(PROFILE_TEMPLATES.web?.bundles ?? []), 'custom-bundle'].map(name => [name, { patch: '[]\n' }]),
+    ))
+    const home = tmp()
+    const stock = resolveProfileDir('web', home)
+    initProfile(stock, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'], 'startup')
+    const patch = '# User provider choice\r\n- id: browser-playwright\r\n  disabled: false\r\n'
+    writeFileSync(join(stock, PROFILE_PATCH_FILENAME), patch)
+    loadProfile('t', 'web', anchor, home)
+    expect(readProfileManifest('t', stock).dsh?.profile).toEqual({
+      bundles: PROFILE_TEMPLATES.web?.bundles, patchReload: 'startup',
+    })
+    expect(readFileSync(join(stock, PROFILE_PATCH_FILENAME), 'utf8')).toBe(patch)
+    loadProfile('t', 'web', anchor, home)
+    expect(readProfileManifest('t', stock).dsh?.profile?.bundles).toEqual(PROFILE_TEMPLATES.web?.bundles)
+  })
+
+  it.each([
+    ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'custom-bundle'],
+    ['@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-base'],
+    ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-cinlan-browser'],
+  ])('preserves a custom Web bundle tuple %j', (...bundles) => {
+    const anchor = stageInstallation(Object.fromEntries(bundles.map(name => [name, { patch: '[]\n' }])))
+    const home = tmp()
+    const dir = resolveProfileDir('web', home)
+    initProfile(dir, bundles)
+    loadProfile('t', 'web', anchor, home)
+    expect(readProfileManifest('t', dir).dsh?.profile?.bundles).toEqual(bundles)
+  })
+
   it('normalizes only the exact installation-owned headless bundle tuple', () => {
     const anchor = stageInstallation({
       '@deepseek-ai/dsh-base': { patch: '[]\n' },
@@ -284,10 +318,9 @@ describe('loadProfile', () => {
   })
 
   it('adds a shipped reload default only to an exact stock tuple and preserves explicit choices', () => {
-    const anchor = stageInstallation({
-      '@deepseek-ai/dsh-base': { patch: '[]\n' },
-      '@deepseek-ai/dsh-web-app': { patch: '[]\n' },
-    })
+    const anchor = stageInstallation(Object.fromEntries(
+      (PROFILE_TEMPLATES.web?.bundles ?? []).map(name => [name, { patch: '[]\n' }]),
+    ))
     const stockHome = tmp()
     const stock = resolveProfileDir('web', stockHome)
     initProfile(stock, PROFILE_TEMPLATES.web?.bundles ?? [])

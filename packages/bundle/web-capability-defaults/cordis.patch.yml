@@ -1,0 +1,5 @@
+# Applied after the browser and Computer Use bundles, before user patches.
+- id: browser-playwright
+  disabled: true
+- id: computer-use-cua-driver-native
+  disabled: true

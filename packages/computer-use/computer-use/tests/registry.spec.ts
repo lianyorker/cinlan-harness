@@ -14,6 +14,7 @@ describe('computer-use provider registration', () => {
       expect(ctx.computerUse.providerName).toBeUndefined()
       const dispose = ctx.computerUse.register(MCP)
       expect(ctx.computerUse.providerName).toBe(MCP)
+      await expect(ctx.computerUse.readiness()).resolves.toMatchObject({ kind: 'tool-catalog', state: 'initializing', toolNames: [], permissions: 'unknown' })
       expect(() => ctx.computerUse.register(MCP)).toThrow('already registered')
       expect(() => ctx.computerUse.register(NATIVE)).toThrow('cua-driver-mcp')
       await dispose()
@@ -23,6 +24,18 @@ describe('computer-use provider registration', () => {
       expect(ctx.computerUse.providerName).toBe(NATIVE)
       await disposeNative()
       expect(ctx.computerUse.providerName).toBeUndefined()
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('rejects cancelled readiness without probing a provider', async () => {
+    const ctx = new Context()
+    try {
+      await ctx.plugin(ComputerUseRegistry)
+      const controller = new AbortController()
+      controller.abort(new Error('Readiness cancelled'))
+      await expect(ctx.computerUse.readiness(controller.signal)).rejects.toThrow('Readiness cancelled')
     } finally {
       await ctx.fiber.dispose()
     }

@@ -46,10 +46,15 @@ export class DeviceCapabilitiesController extends TypertRemoteService {
       if (capability === 'computer') {
         const service = this.ctx.get('computerUse')
         if (service === undefined) return { capability, status: 'not-configured', reason: 'not-configured' }
-        const descriptor = await service.capabilities(signal)
+        const readiness = await service.readiness(signal)
         signal.throwIfAborted()
+        if (readiness.kind === 'tool-catalog') {
+          return { capability, status: readiness.state === 'ready' ? 'available' : 'unavailable',
+            reason: readiness.state === 'ready' ? null : `provider-${readiness.state}`, computer: readiness }
+        }
+        const descriptor = readiness.capabilities
         return { capability, status: 'available', reason: null, computer: {
-          platform: descriptor.platform, provider: descriptor.provider,
+          kind: 'facade', platform: descriptor.platform, provider: descriptor.provider,
           providerVersion: descriptor.providerVersion, protocolVersion: descriptor.protocolVersion,
           supports: descriptor.supports, permissions: 'unknown',
         } }

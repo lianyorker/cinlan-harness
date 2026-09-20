@@ -27,12 +27,17 @@ kind: "package-reference"
 
 在已经提供工具注册表和系统提示词的组合中挂载此提供者。
 
-只挂载一个 Cua Driver 适配器，并先卸载任何已注册的 Cinlan Computer Use Provider。若组合包含 Cinlan 的 `tool-computer-use` 和权限策略，也应在选择 Cua Driver 时停用这些 Consumer；Cua Driver 暴露自身的参数与工具名称，Cinlan 专用权限策略不适用于它。本包不会自动启用，也不会修改 Cinlan 默认组合。
+只挂载一个 Cua Driver 适配器，并先卸载任何已注册的 Cinlan Computer Use Provider 和 `tool-computer-use`。保留[权限策略](../../computer-use/computer-use-permission-policy/README.zh.md)：其 `native` 决策覆盖所有 `cua_driver_native__*` 工具，默认值为 `ask`。可选的[电脑操作 bundle](../../bundle/cinlan-computer-use/README.zh.md)提供此组合。
 
 ### 最小配置
 
 ```yaml
 - name: '@deepseek-ai/dsh-computer-use'
+  config:
+    provider: cua-driver-native
+- name: '@deepseek-ai/dsh-computer-use-permission-policy'
+  config:
+    native: ask
 - name: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native'
 ```
 
@@ -45,6 +50,8 @@ kind: "package-reference"
 原生依赖通过 npm 可选依赖提供各平台二进制文件，因此必须保留可选依赖安装。请向启动 DSH 的应用授予桌面权限；此提供者既不安装独立持有权限的应用，也不更改操作系统授权。原生运行时与主机共享进程，因此原生崩溃可能终止该进程。如果需要由独立的 Cua Driver 应用持有权限并执行操作，请使用[已安装的 MCP 提供者](../computer-use-cua-driver-mcp/README.zh.md)。
 
 锁定的 [`@trycua/cua-driver@0.28.0` 清单](https://registry.npmjs.org/@trycua/cua-driver/0.28.0) 声明 macOS x64/arm64、Windows x64/arm64（MSVC）以及 Linux x64/arm64（glibc）的可选二进制包，不包含 musl 包。运行时需要已登录的图形会话。macOS 要求向启动 DSH 的应用授予辅助功能和屏幕录制权限；Windows 的 UIA/输入受进程完整性级别限制；Linux 的捕获和输入取决于 X11/Wayland、AT-SPI 及合成器能力。具体可用操作以[上游平台记录](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/docs/action-support.md)和运行时返回为准。
+
+JavaScript SDK wrapper 使用 MIT 许可；平台 payload 声明 `MIT AND MPL-2.0`。分发时必须保留许可材料和 UniFFI N-API runtime notice，并按 SDK 要求的相对路径保留 DLL/共享库与 Node addon。[公开实验包策略](../../../scripts/experimental-package-policy.ts)显式允许本包。它不添加 downloader 或独立服务。
 
 ### 模拟验证
 
@@ -62,14 +69,16 @@ node node_modules/vitest/vitest.mjs run packages/experimental/computer-use-cua-d
 <details>
 <summary>实现内部——点击展开</summary>
 
-此提供者在加载原生代码前占用共享电脑操作注册名额。子插件拥有目录发现、模型工具、指导文本和原生运行时。父插件保留注册名额，直到子插件卸载完成工具移除、中断原生调用和图像能力准入、等待调用结束及原生关闭。取消不会撤销已经传给应用的输入。
+此提供者在预留电脑操作能力并发现 SDK 目录时报告 `initializing`。仅在非空目录完成校验、所有工具与提示词指导文本完成注册后报告 `ready`。卸载立即清空对外工具名称并报告 `disposing`；初始化或关闭失败报告 `failed`。权限保持 `unknown`。初始化失败后的成功清理会释放注册；关闭失败则保持 failed 并保留占用。
+
+此提供者在加载原生代码前占用共享电脑操作注册名额。子插件拥有目录发现、模型工具和指导文本；外层 effect 拥有原生 driver 和关闭操作。父插件保留注册名额，直到子插件卸载完成工具移除、中断原生调用和图像能力准入、等待调用结束及原生关闭。取消不会撤销已经传给应用的输入。
 
 | 文件 | 职责 |
 |---|---|
 | [src/index.ts](src/index.ts) | 原生运行时所有权、目录校验、工具注册和提供者指导文本 |
 | — | 不发布运行时不变量伴随模块；资源所有权没有可独立观测并比较的状态。 |
 
-工具定义复用现有 MCP 结果适配器。Cua Driver 的 JSON 目录决定 schema，其原始结果提供规范文本、结构化输出和图像字节。本适配器只使用电脑操作服务的独占注册 API；Cinlan 的观察与动作 API 由原有 Provider 提供。
+工具定义复用现有 MCP 结果适配器。Cua Driver 的 JSON 目录决定 schema，其原始结果提供规范文本、结构化输出和图像字节。本适配器使用电脑操作服务的独占注册和就绪回调。工具保留上游请求和结果，不实现 facade 动作 DTO。
 
 </details>
 
@@ -131,7 +140,8 @@ On macOS, cursor-overlay operations may return facility_unavailable even when sc
 
 此软件包保留上游驱动的平台和应用限制。
 
-- **主机权限与图形会话**——npm 安装不会授予桌面访问权限或创建图形会话。
+- **主机权限与图形会话**——npm 安装与目录就绪不授予桌面访问权限，也不证明 GUI 动作成功。受控 GUI 验证与打包后的原生加载仍须分别取证。
+- **Windows 输入交付**——x64 和 arm64 包要求已登录的图形会话；UIA/输入仍受 UIPI 限制。`background_unavailable` 和 `background_occluded` 等上游后台拒绝保持为拒绝，不授权前台重试。
 - **原生光标覆盖层**——无界面的 macOS Node 主机可能对覆盖层操作返回 `facility_unavailable`，同时截图和后台输入仍可用。
 - **共享桌面**——此提供者不为某个 Session 预留窗口或完整工作流。其他调用方和应用可以在两次调用之间更改同一桌面。
 - **取消**——被取消的调用可能已经传入输入；重试前必须检查新状态。卸载时提供者等待 SDK 关闭，但不承诺回滚原生操作。

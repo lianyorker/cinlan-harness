@@ -9,7 +9,7 @@ import { ComputerUseProviderName } from '@deepseek-ai/dsh-computer-use/brand'
 import { createMcpToolDefinition } from '@deepseek-ai/dsh-mcp-client'
 import { z } from 'zod'
 import type { CuaDriver as NativeDriver } from '@trycua/cua-driver'
-import type {} from '@deepseek-ai/dsh-computer-use'
+import type { ComputerToolReadiness } from '@deepseek-ai/dsh-computer-use'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 
@@ -28,7 +28,7 @@ const ToolCatalog = z.object({
     description: z.string().optional(),
     inputSchema: z.record(z.string(), z.unknown()),
     outputSchema: z.unknown().optional(),
-  })),
+  })).min(1),
 })
 
 /** DeepSeek's function-name alphabet and maximum length are protocol constants. */
@@ -51,21 +51,37 @@ export async function apply(ctx: Context): Promise<void> {
   const lifetime = new AbortController()
   const pending = new Set<Promise<unknown>>()
   let driver: NativeDriver | undefined
+  let state: ComputerToolReadiness['state'] = 'initializing'
+  let toolNames: readonly string[] = []
   // Cordis announces disposal before it awaits asynchronous plugin startup.
   ctx.on('internal/plugin', (fiber) => {
-    if (fiber === ctx.fiber && fiber.uid === null) lifetime.abort()
+    if (fiber === ctx.fiber && fiber.uid === null) {
+      if (state !== 'failed') state = 'disposing'
+      toolNames = []
+      lifetime.abort()
+    }
   }, { global: true })
   let ready: Promise<void> = Promise.resolve()
   const dispose = ctx.effect(function* () {
-    yield ctx.computerUse.register(ComputerUseProviderName('cua-driver-native'))
+    yield ctx.computerUse.register(ComputerUseProviderName('cua-driver-native'), () => ({
+      kind: 'tool-catalog', provider: 'cua-driver-native', platform: process.platform,
+      state, toolNames, permissions: 'unknown',
+    }))
     yield async () => {
+      if (state !== 'failed') state = 'disposing'
+      toolNames = []
       lifetime.abort()
       // apply() reports startup failure; teardown still owns its native handle.
       await ready.catch(() => {})
       await Promise.allSettled(pending)
       if (driver !== undefined) {
-        await driver.shutdown()
-        driver.uniffiDestroy()
+        try {
+          await driver.shutdown()
+          driver.uniffiDestroy()
+        } catch (error) {
+          state = 'failed'
+          throw error
+        }
       }
     }
     const child = ctx.plugin({
@@ -79,6 +95,7 @@ export async function apply(ctx: Context): Promise<void> {
   try {
     await ready
   } catch (error) {
+    state = 'failed'
     await dispose()
     throw error
   }
@@ -134,5 +151,8 @@ export async function apply(ctx: Context): Promise<void> {
       order: inner.systemPrompt.getSectionOrder('TOOL_COMPUTER_USE'),
       text: GUIDANCE,
     })
+    lifetime.signal.throwIfAborted()
+    toolNames = Object.freeze([...names])
+    state = 'ready'
   }
 }

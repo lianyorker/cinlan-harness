@@ -15,6 +15,8 @@ import type {
   ComputerApp,
   ComputerAppId as ComputerAppIdValue,
   ComputerCapabilities,
+  ComputerReadiness,
+  ComputerToolReadiness,
   ComputerClickRequest,
   ComputerDragRequest,
   ComputerElementId as ComputerElementIdValue,
@@ -44,6 +46,8 @@ export type {
   ComputerActionVerification,
   ComputerApp,
   ComputerCapabilities,
+  ComputerReadiness,
+  ComputerToolReadiness,
   ComputerClickRequest,
   ComputerDragRequest,
   ComputerDragTarget,
@@ -146,6 +150,7 @@ export class ComputerUseRuntime extends Service {
   static Config: z<Config> = z.object({ provider: z.string() })
 
   private registration: ComputerUseProviderName | undefined
+  private catalogReadiness: (() => ComputerToolReadiness) | undefined
   private readonly providers = new Map<string, ComputerUseProvider>()
   private readonly providerId: string | undefined
 
@@ -165,9 +170,10 @@ export class ComputerUseRuntime extends Service {
    * Registered facade providers also occupy computer use, including unavailable ones.
    * The caller must remove its tools and await owned work before releasing this effect.
    * @param name Provider-owned name used in registration diagnostics.
+   * @param readiness Provider-owned lifecycle snapshot; omission reports initializing.
    * @returns Effect disposer for this exact exclusive registration.
    */
-  register(name: ComputerUseProviderName): () => Promise<void> {
+  register(name: ComputerUseProviderName, readiness?: () => ComputerToolReadiness): () => Promise<void> {
     if (this.registration !== undefined || this.providers.size > 0) {
       const current = this.registration ?? [...this.providers.keys()].join(', ')
       throw new ComputerUseError(
@@ -177,7 +183,11 @@ export class ComputerUseRuntime extends Service {
     }
     return this.ctx.effect(() => {
       this.registration = name
-      return () => { this.registration = undefined }
+      this.catalogReadiness = readiness
+      return () => {
+        this.catalogReadiness = undefined
+        this.registration = undefined
+      }
     }, 'computerUse.register()')
   }
 
@@ -227,6 +237,24 @@ export class ComputerUseRuntime extends Service {
       throw new ComputerUseError(`multiple usable computer-use providers are registered (${usable.map(provider => provider.id).join(', ')})`, 'COMPUTER_PROVIDER_AMBIGUOUS')
     }
     return single
+  }
+
+  /**
+   * Read provider initialization separately from desktop permission or action success.
+   * @param signal Cooperative cancellation signal for facade capability probes.
+   * @returns Current tool-catalog lifecycle or the selected facade descriptor.
+   */
+  async readiness(signal?: AbortSignal): Promise<ComputerReadiness> {
+    signal?.throwIfAborted()
+    if (this.registration !== undefined) {
+      return this.catalogReadiness?.() ?? {
+        kind: 'tool-catalog', provider: this.registration, platform: process.platform,
+        state: 'initializing', toolNames: [], permissions: 'unknown',
+      }
+    }
+    const capabilities = await this.capabilities(signal)
+    signal?.throwIfAborted()
+    return { kind: 'facade', capabilities, permissions: 'unknown' }
   }
 
   /**

@@ -9,11 +9,12 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Provider-neutral registry and desktop observation/action requests.
+Select one desktop provider and inspect its readiness before offering computer-use tools. Tool-catalog providers report their lifecycle and discovered tools; facade providers expose capability discovery and observation-scoped actions. Readiness does not grant desktop permissions or authorize input.
 
 ## Table of Contents
 
 - [Use this package](#use-this-package)
+- [Readiness](#readiness)
 - [Model Experience](#model-experience)
 
 <a id="use-this-package"></a>
@@ -37,9 +38,16 @@ Selection occurs for every call, so provider disposal and availability changes d
 
 ## Exclusive external tool adapters
 
-`register(ComputerUseProviderName)` reserves computer use for an adapter that publishes its own tools; `providerName` reports its name while it closes. This registration rejects every registered `ComputerUseProvider`, including unavailable ones, and `registerProvider()` rejects an occupied exclusive registration. Existing multi-provider configuration and per-call selection remain supported. `ComputerUseRegistry` is a class export alias for `ComputerUseRuntime`; the brand constructor is exported through `./brand` and the package root.
+`register(name, readiness?)` reserves computer use for an adapter that publishes its own tools; the optional callback returns `ComputerToolReadiness`. `providerName` reports its name while it closes. This registration rejects every registered `ComputerUseProvider`, including unavailable ones, and `registerProvider()` rejects an occupied exclusive registration. Existing multi-provider configuration and per-call selection remain supported. `ComputerUseRegistry` is a class export alias for `ComputerUseRuntime`; the brand constructor is exported through `./brand` and the package root.
 
-[Cua Driver MCP](../../experimental/computer-use-cua-driver-mcp/README.md) and [Cua Driver native](../../experimental/computer-use-cua-driver-native/README.md) are explicit opt-ins. They own their tools and do not implement Cinlan observation/action requests. Unload the Cinlan provider and its dedicated consumers when switching; each adapter must remove its tools and await owned work before releasing registration.
+[Cua Driver MCP](../../experimental/computer-use-cua-driver-mcp/README.md) and [Cua Driver native](../../experimental/computer-use-cua-driver-native/README.md) are explicit opt-ins. They own their tools and do not implement Cinlan observation/action requests. Unload the Cinlan provider and `tool-computer-use` when switching; mount the permission policy with `native` configured for native CUA tools. Each adapter must remove its tools and await owned work before releasing registration.
+
+<a id="readiness"></a>
+## Readiness
+
+`readiness(signal)` reports either `kind: tool-catalog` with provider, platform, lifecycle state, readonly tool names, and `permissions: unknown`, or `kind: facade` with `ComputerCapabilities` and `permissions: unknown`. Catalog states are `initializing`, `ready`, `disposing`, and `failed`. Without a readiness callback, an exclusive registration reports `initializing` with an empty catalog. Facade probes retain per-call provider selection and cancellation.
+
+A registered name alone does not establish readiness. The native provider owns catalog publication and teardown state; see the [readiness and policy decision](../../../.agents/notes/implemented/architecture/2026-09-20-native-cua-readiness-and-policy.md). The service does not convert CUA tools into facade action requests.
 
 ## Identity and observations
 
@@ -67,7 +75,7 @@ Provider registration, selection, capabilities, and observation state do not cha
 ## Known Limitations and Deferred Work
 
 - The service has no display identity, Execution Host binding, remote-host generation, or durable desktop-resource record; the current Provider uses its own runtime generation and short-lived observations.
-- Capability descriptors are advisory provider facts. The current model Consumer keeps six fixed schemas and unsupported actions fail through the selected Provider rather than disappearing from the tool catalog.
+- Capability descriptors are advisory provider facts. The optional facade tool Consumer keeps six fixed schemas and unsupported actions fail through the selected Provider rather than disappearing from the tool catalog.
 - The service does not cover persistent Browser pages, Mobile Device control, Android or iOS simulators, Speech/Audio, downloads, network inspection, or credential entry workflows.
 
 No runtime invariant companion is published: provider registration, protocol validation, and observation freshness are enforced by their owning operations and covered by the package tests.

@@ -8,6 +8,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import * as NativeProvider from '../src/index.ts'
+import * as Policy from '@deepseek-ai/dsh-computer-use-permission-policy'
 import { catalog, fixture, resetFixture } from './fixtures/cua-driver.ts'
 
 vi.mock('@trycua/cua-driver', async () => import('./fixtures/cua-driver.ts'))
@@ -40,6 +41,10 @@ describe('Cua Driver native provider', () => {
     const fiber = ctx.plugin(NativeProvider)
     await fiber
     expect(ctx.computerUse.providerName).toBe('cua-driver-native')
+    await expect(ctx.computerUse.readiness()).resolves.toEqual({
+      kind: 'tool-catalog', provider: 'cua-driver-native', platform: process.platform, state: 'ready',
+      toolNames: catalog.tools.map(tool => `cua_driver_native__${tool.name}`), permissions: 'unknown',
+    })
     expect(ctx.tools.schemas().map(tool => tool.name)).toEqual(catalog.tools.map(tool => `cua_driver_native__${tool.name}`))
     const result = await execute('click', { pid: 9, window_id: 7 })
     expect(result.isError).toBe(false)
@@ -49,6 +54,43 @@ describe('Cua Driver native provider', () => {
     expect(ctx.computerUse.providerName).toBeUndefined()
     expect(fixture.shutdowns).toBe(1)
     expect(fixture.destroys).toBe(1)
+  })
+
+  it.each(['ask', 'deny'] as const)('blocks an earlier allow listener from bypassing native %s policy', async (native) => {
+    await ctx.plugin(Policy, { native })
+    await ctx.plugin(NativeProvider)
+    ctx.on('tools/pre-execute', async () => ({ kind: 'allow' }), { prepend: true })
+    const result = await execute('click', { pid: 9, window_id: 7 })
+    expect(result.isError).toBe(true)
+    expect(fixture.calls).toEqual([])
+  })
+
+  it('cancels a caller without repeating or abandoning an in-flight native input', async () => {
+    const started = Promise.withResolvers<AbortSignal>()
+    const settled = Promise.withResolvers<unknown>()
+    fixture.call = async (_name, _args, signal) => {
+      if (signal === undefined) throw new Error('Native call requires cancellation')
+      started.resolve(signal)
+      return settled.promise
+    }
+    await ctx.plugin(NativeProvider)
+    const controller = new AbortController()
+    const operation = ctx.tools.execute({ name: 'cua_driver_native__click', arguments: { pid: 9, window_id: 7 }, callId: ToolCallId('native-cancel'), signal: controller.signal })
+    let completed = false
+    void operation.then(() => { completed = true })
+    try {
+      const signal = await started.promise
+      controller.abort()
+      expect(signal.aborted).toBe(true)
+      expect(completed).toBe(false)
+      expect(fixture.calls).toHaveLength(1)
+      expect(fixture.shutdowns).toBe(0)
+    } finally {
+      settled.resolve({ content: [{ type: 'text', text: 'Delivered before cancellation.' }] })
+      await operation
+    }
+    expect((await operation).isError).toBe(true)
+    expect(fixture.calls).toHaveLength(1)
   })
 
   it('rejects another provider before importing or creating a native runtime', async () => {
@@ -76,6 +118,7 @@ describe('Cua Driver native provider', () => {
   it.each([
     ['invalid JSON', '{'],
     ['missing catalog', '{}'],
+    ['empty catalog', '{"tools":[]}'],
     ['duplicate names', JSON.stringify({ tools: [catalog.tools[0], catalog.tools[0]] })],
     ['invalid function name', JSON.stringify({ tools: [{ ...catalog.tools[0], name: 'x'.repeat(70) }] })],
   ])('rolls back the native runtime after %s', async (_label, response) => {
@@ -151,6 +194,7 @@ describe('Cua Driver native provider', () => {
         expect(ctx.tools.schemas()).toEqual([])
       })
       expect(ctx.computerUse.providerName).toBe('cua-driver-native')
+      await expect(ctx.computerUse.readiness()).resolves.toMatchObject({ state: 'disposing', toolNames: [] })
       expect(() => ctx.computerUse.register(ComputerUseProviderName('replacement'))).toThrow('already registered')
       callSettled.resolve({ content: [{ type: 'text', text: 'late native completion' }] })
       await shutdownStarted.promise
@@ -205,6 +249,7 @@ describe('Cua Driver native provider', () => {
     const fiber = ctx.plugin(NativeProvider)
     const readiness = Promise.resolve(fiber).catch(() => undefined)
     await started.promise
+    await expect(ctx.computerUse.readiness()).resolves.toMatchObject({ state: 'initializing', toolNames: [], permissions: 'unknown' })
     await fiber.dispose()
     await readiness
     expect(ctx.computerUse.providerName).toBeUndefined()
@@ -221,6 +266,7 @@ describe('Cua Driver native provider', () => {
     expect(ctx.tools.schemas()).toEqual([])
     expect(ctx.computerUse.providerName).toBe('cua-driver-native')
     expect(fixture.destroys).toBe(0)
+    await expect(ctx.computerUse.readiness()).resolves.toMatchObject({ state: 'failed', toolNames: [] })
     expect(() => ctx.computerUse.register(ComputerUseProviderName('replacement'))).toThrow('already registered')
   })
 })

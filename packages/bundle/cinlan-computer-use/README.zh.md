@@ -1,5 +1,5 @@
 ---
-description: "默认请求审批的可选桌面控制 profile bundle。"
+description: "默认请求审批的可选原生 Cua Driver 桌面工具。"
 kind: "package-bundle"
 ---
 
@@ -9,49 +9,61 @@ kind: "package-bundle"
 
 ## 概述
 
-默认请求审批的可选桌面控制 profile bundle。
+向显式选择的 profile 添加原生 Cua Driver 桌面工具。每次原生调用默认请求审批。SDK 在 Harness 主机进程内运行，要求主机具备桌面权限并处于已登录的图形会话中。
 
 ## 目录
 
 - [使用本包](#use-this-package)
+- [理解实现](#understand-the-implementation)
 - [模型体验](#model-experience)
+- [已知限制与暂缓事项](#known-limitations-and-deferred-work)
 
 <a id="use-this-package"></a>
 ## 使用本包
 
-`@deepseek-ai/dsh-cinlan-computer-use` 是一个通过 Cinlan CLI 提供本地桌面 Computer Use 的可选 profile patch bundle。请在 [`@deepseek-ai/dsh-base`](../base/README.zh.md) 之后添加；它不会加入 base bundle，也不会进入未明确点名它的 profile。
+在 [dsh-base](../base/README.zh.md) 之后组合此可选 profile patch 层。未明确引用本 bundle 的 profile 不会获得桌面输入能力。Profile 安装和层顺序由 [app-boot](../../boot/app-boot/README.zh.md#profiles) 负责。
 
-[`cordis.patch.yml`](cordis.patch.yml) 挂载 [`@deepseek-ai/dsh-computer-use`](../../computer-use/computer-use/README.zh.md)，将 Provider 固定为 `cinlan`，挂载 [`@deepseek-ai/dsh-computer-use-cinlan`](../../computer-use/computer-use-cinlan/README.zh.md)，安装 [`@deepseek-ai/dsh-computer-use-permission-policy`](../../computer-use/computer-use-permission-policy/README.zh.md)，并通过 [`@deepseek-ai/dsh-tool-computer-use`](../../computer-use/tool-computer-use/README.zh.md) 暴露六个分组的 [`computer_*`](../../computer-use/tool-computer-use/README.zh.md) 工具。Provider 保留其包级默认值：`orca` executable（Linux 上为 `orca-ide`）、协议探测、有界 subprocess 输出、一个本地 session 命名空间和本地 runtime 环境 tombstone。
+[Patch](cordis.patch.yml) 在[电脑操作服务](../../computer-use/computer-use/README.zh.md)上选择 `cua-driver-native`，挂载[原生 Cua Driver Provider](../../experimental/computer-use-cua-driver-native/README.zh.md)，并为[权限策略](../../computer-use/computer-use-permission-policy/README.zh.md)配置 `native: ask`。本层只有这三个条目。CUA 发布发现的上游工具；本层既不包含 Orca Provider，也不包含 `tool-computer-use`。
 
-Bundle 的默认策略面向具备 approval 能力的 profile，并采用最小权限：观察、指针、键盘和无障碍变更全部为 `ask`。后续 profile patch 可以用部署特定决策替换完整的 `computer-use-permission-policy` row config。Provider override 应放在 `computer-use-cinlan` row；patch 会替换该 row 的完整 config，之后省略的字段使用 Provider 包默认值。
+后续 profile patch 可替换完整的 `computer-use-permission-policy` 条目配置，将 `native` 设为 `allow`、`ask` 或 `deny`。`computer-use-cua-driver-native` 条目没有 Provider 配置字段。切换 Provider 必须卸载当前 Provider，并等待其拥有的工作关闭。
+
+<a id="understand-the-implementation"></a>
+## 理解实现
+
+<details>
+<summary>实现内部——点击展开</summary>
+
+本 bundle 只负责组合。服务负责独占注册，Provider 负责 SDK 发现与生命周期就绪状态，策略检查每次 `cua_driver_native__*` 执行，包括未来的上游新增工具。[架构决策](../../../.agents/notes/implemented/architecture/2026-09-20-native-cua-readiness-and-policy.zh.md)说明为何就绪状态与授权保持独立。
+
+不发布 runtime invariant companion：本层声明配置条目，不保留可独立比较的运行时状态。
+
+</details>
 
 <a id="model-experience"></a>
 ## 模型体验
 
-### 本地桌面 Computer Use 工具
+### 原生桌面工具
 
 #### 模型看到的内容
 
-Bundle 存在时，模型会收到 `computer_list_apps`、`computer_list_windows`、`computer_observe`、`computer_pointer`、`computer_keyboard` 和 `computer_accessibility`，以及 [`@deepseek-ai/dsh-tool-computer-use`](../../computer-use/tool-computer-use/README.zh.md#model-experience) 拥有的稳定桌面 guidance。未获批准的调用会返回权限策略包拥有的 class-specific approval 文本。
+模型收到发现的 `cua_driver_native__*` 工具和[原生 Provider 指导文本](../../experimental/computer-use-cua-driver-native/README.zh.md#model-experience)。审批和拒绝文本归权限策略所有。本 bundle 不增加自身的模型文本。
 
 #### Token 影响
 
-工具 schema 和 Computer Use guidance 会增加固定的请求前缀贡献。应用、窗口、无障碍树、动作和可选截图结果取决于具体操作。
+发现的 schema 与原生指导文本贡献请求 token。文本、无障碍观察和获准接纳的截图附件增加随操作变化的结果 token。
 
 #### KV Cache 影响
 
-Bundle 与子包配置固定时，前缀保持稳定。添加或移除 bundle，或者修改会改变 schema 或 prompt 的工具配置，会从请求前缀中的对应位置起使复用失效。
+固定的目录和指导文本保持请求前缀。更换 Provider 或发现的目录可能减少前缀复用。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与暂缓事项
 
-- **需要 base 服务** - bundle 要求 profile 提供 subprocess、attachment、system-prompt 和 tool 服务，通常由 `dsh-base` 提供。可选的 LLM 路由元数据会为支持图片的模型启用截图采集；缺少该元数据时，观察仍保留无障碍树并跳过截图。
-- **每个操作默认都询问** - 没有 approval answerer 的界面会拒绝 Computer Use 调用，直到其 profile 提供不同的显式策略。
-- **Cinlan CLI 可用性属于外部条件** - 配置的 executable 必须已安装、已认证，并提供协议版本为 1 且支持应用与窗口列表的 `computer` 命令。
-- **Bundle 不是桌面应用** - 它向现有 CLI 或 Web profile 贡献由 CLI 支撑的能力，不交付 Windows、macOS 或 Linux 原生客户端外壳。
-- **其他设备家族保持独立** - 该组合不增加持久 Browser、Mobile Device、Android/iOS emulator 或 simulator、Speech/Audio、麦克风、扬声器、STT 或 TTS 能力。
-
-不发布 runtime invariant companion：Provider 注册、协议校验和 observation 新鲜度由各自操作执行，并由包级测试覆盖。
+- Profile 必须提供 tools、system-prompt 和 approval 服务。截图需要附件存储和声明图像输入的模型路由。
+- 没有 approval answerer 的 profile 无法批准默认的 `ask` 调用。
+- SDK 通过平台可选依赖随包分发。原生库位置、许可和主机要求由 Provider 负责；目录就绪不证明 GUI 动作或打包加载成功。
+- 桌面控制共享主机进程和桌面。本层不添加原生客户端外壳，不按 Session 预留窗口，也不提供移动设备能力。
 
 ### 开发备注
 
-无。
+Profile 安装与受控 GUI smoke 验证由集成任务负责；此次文档更新不宣称这两项结果。

@@ -87,6 +87,25 @@ export interface ComputerCapabilities {
   }
 }
 
+/** Catalog lifecycle reported by a provider that publishes its own tools. */
+export interface ComputerToolReadiness {
+  readonly kind: 'tool-catalog'
+  readonly provider: string
+  readonly platform: NodeJS.Platform
+  readonly state: 'initializing' | 'ready' | 'disposing' | 'failed'
+  /** Registered public tool names; an empty catalog does not establish readiness. */
+  readonly toolNames: readonly string[]
+  /** Catalog discovery does not test operating-system permissions or input delivery. */
+  readonly permissions: 'unknown'
+}
+
+/** Readiness without translating provider-owned tools into facade actions. */
+export type ComputerReadiness = ComputerToolReadiness | {
+  readonly kind: 'facade'
+  readonly capabilities: ComputerCapabilities
+  readonly permissions: 'unknown'
+}
+
 /** One element index published by an accessibility observation. */
 export interface ComputerElement {
   readonly elementId: ComputerElementId

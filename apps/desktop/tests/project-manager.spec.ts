@@ -9,6 +9,7 @@ import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import {
+  createDevelopmentProjectMetadata,
   createSeedMetadata,
   DesktopProjectManager,
   packageNameFromSpec,
@@ -21,6 +22,14 @@ import type { DesktopRelease } from '../src/release.ts'
 import { archivePnpmStore } from '../src/seed-store.ts'
 import { checkDesktopStartupHost } from '../src/startup-probe.ts'
 
+const desktopBundles = [
+  '@deepseek-ai/dsh-base',
+  '@deepseek-ai/dsh-web-app',
+  '@deepseek-ai/dsh-cinlan-browser',
+  '@deepseek-ai/dsh-cinlan-computer-use',
+  '@deepseek-ai/dsh-web-capability-defaults',
+]
+const legacyDesktopBundles = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app']
 const roots: string[] = []
 const releaseWorkers: Array<() => Promise<void>> = []
 
@@ -86,6 +95,20 @@ function createTestSeedMetadata(seed: string, desktopRelease: DesktopRelease, bu
   createSeedMetadata(seed, desktopRelease)
 }
 
+function setProfileBundles(project: string, bundles: readonly string[]): void {
+  const path = join(project, 'package.json')
+  const manifest = JSON.parse(readFileSync(path, 'utf8')) as { dsh: { profile: { bundles: readonly string[] } } }
+  manifest.dsh.profile.bundles = bundles
+  writeFileSync(path, `${JSON.stringify(manifest)}\n`)
+}
+
+function profileBundles(project: string): readonly string[] {
+  const manifest = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8')) as {
+    dsh: { profile: { bundles: string[] } }
+  }
+  return manifest.dsh.profile.bundles
+}
+
 function writeFakePnpm(root: string): string {
   const path = join(root, 'pnpm.mjs')
   writeFileSync(path, String.raw`
@@ -105,8 +128,10 @@ const packageVersion = spec => {
 }
 
 if (command === 'add') {
-  const spec = args[args.indexOf('add') + 1]
-  manifest.dependencies[packageName(spec)] = packageVersion(spec)
+  for (const spec of args.slice(args.indexOf('add') + 1)) {
+    if (spec.startsWith('--')) break
+    manifest.dependencies[packageName(spec)] = packageVersion(spec)
+  }
 }
 if (command === 'remove') delete manifest.dependencies[args[args.indexOf('remove') + 1]]
 writeFileSync(manifestPath, JSON.stringify(manifest))
@@ -177,6 +202,16 @@ afterEach(async () => {
 })
 
 describe('desktop package policy', () => {
+  it('writes all five default bundles into seed and development metadata', () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    const development = join(root, 'development')
+    createTestSeedMetadata(seed, release())
+    createDevelopmentProjectMetadata(development, release())
+    expect(profileBundles(seed)).toEqual(desktopBundles)
+    expect(profileBundles(development)).toEqual(desktopBundles)
+  })
+
   it('accepts registry package specs but rejects alternate sources and flags', () => {
     expect(packageNameFromSpec('@scope/plugin@1.2.3')).toBe('@scope/plugin')
     expect(packageNameFromSpec('plugin@next')).toBe('plugin')
@@ -197,6 +232,146 @@ describe('desktop package policy', () => {
 })
 
 describe('desktop project transactions', () => {
+  it.each([
+    { targetVersion: '1.0.0', withPlugins: false },
+    { targetVersion: '1.0.0', withPlugins: true },
+    { targetVersion: '1.1.0', withPlugins: false },
+    { targetVersion: '1.1.0', withPlugins: true },
+  ])('migrates legacy defaults to $targetVersion with plugins=$withPlugins through staging', async ({ targetVersion, withPlugins }) => {
+    const root = temporaryRoot()
+    const firstSeed = join(root, 'first-seed')
+    const nextSeed = join(root, 'next-seed')
+    for (const [seed, version] of [[firstSeed, '1.0.0'], [nextSeed, targetVersion]] as const) {
+      createTestSeedMetadata(seed, release(version))
+      writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+      writeFileSync(join(seed, 'cordis.patch.yml'), '[]\n')
+      archiveStore(seed)
+      writeIntegrity(seed)
+    }
+    const paths = resolveDesktopPaths(root)
+    const pnpm = writeFakePnpm(root)
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm })
+    await manager.applyRelease(firstSeed, '1.0.0', hooks())
+    const plugins = withPlugins
+      ? [{ name: '@scope/plugin', version: '2.3.4' }, { name: 'another-plugin', version: '7.8.9' }]
+      : []
+    for (const plugin of plugins) {
+      await manager.mutate({ type: 'plugin-add', spec: `${plugin.name}@${plugin.version}` }, hooks())
+    }
+    const legacyBundles = [...legacyDesktopBundles, ...plugins.map(plugin => plugin.name)]
+    setProfileBundles(paths.profile, legacyBundles)
+    const patch = Buffer.from('# Keep custom web selection\r\n- id: web-search\r\n  disabled: false\r\n')
+    writeFileSync(join(paths.profile, 'cordis.patch.yml'), patch)
+    const original = readFileSync(join(paths.profile, 'package.json'))
+    expect(manager.listPlugins()).toEqual(plugins)
+    const healthCheck = vi.fn(async (staged: string) => {
+      expect(staged).not.toBe(paths.profile)
+      expect(readFileSync(join(paths.profile, 'package.json'))).toEqual(original)
+      expect(profileBundles(staged)).toEqual([...desktopBundles, ...plugins.map(plugin => plugin.name)])
+      expect(readFileSync(join(staged, 'cordis.patch.yml'))).toEqual(patch)
+    })
+    await expect(manager.applyRelease(nextSeed, targetVersion, hooks({ healthCheck }))).resolves.toBe(true)
+    expect(healthCheck).toHaveBeenCalledOnce()
+    expect(manager.releaseVersion()).toBe(targetVersion)
+    expect(manager.listPlugins()).toEqual(plugins)
+    expect(profileBundles(paths.profile)).toEqual([...desktopBundles, ...plugins.map(plugin => plugin.name)])
+    expect(readFileSync(join(paths.rollback, 'package.json'))).toEqual(original)
+    expect(readFileSync(join(paths.profile, 'cordis.patch.yml'))).toEqual(patch)
+    expect(readFileSync(join(paths.rollback, 'cordis.patch.yml'))).toEqual(patch)
+    expect(existsSync(paths.pending)).toBe(false)
+    expect(existsSync(paths.lock)).toBe(false)
+
+    writeFileSync(pnpm, 'process.exit(73)\n')
+    const unexpected = async (): Promise<void> => { throw new Error('current defaults entered activation') }
+    await expect(manager.applyRelease(nextSeed, targetVersion, {
+      healthCheck: unexpected, beforeActivate: unexpected, afterActivate: unexpected,
+    })).resolves.toBe(false)
+    expect(readFileSync(join(paths.profile, 'cordis.patch.yml'))).toEqual(patch)
+  })
+
+  it.each(['health', 'activation'] as const)('preserves the legacy profile when same-version migration fails during %s', async (failure) => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(root)
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    await manager.applyRelease(seed, '1.0.0', hooks())
+    await manager.mutate({ type: 'plugin-add', spec: '@scope/plugin@2.0.0' }, hooks())
+    setProfileBundles(paths.profile, [...legacyDesktopBundles, '@scope/plugin'])
+    const patch = Buffer.from('# Saved patch\r\n- id: saved-row\r\n  disabled: true\r\n')
+    writeFileSync(join(paths.profile, 'cordis.patch.yml'), patch)
+    const original = readFileSync(join(paths.profile, 'package.json'))
+    const afterActivate = vi.fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('migration activation failed'))
+      .mockResolvedValueOnce(undefined)
+    await expect(manager.applyRelease(seed, '1.0.0', hooks(failure === 'health' ? {
+      healthCheck: async (staged) => {
+        expect(profileBundles(staged)).toEqual([...desktopBundles, '@scope/plugin'])
+        throw new Error('migration health failed')
+      },
+    } : { afterActivate }))).rejects.toThrow(`migration ${failure} failed`)
+    if (failure === 'activation') expect(afterActivate).toHaveBeenCalledTimes(2)
+    expect(readFileSync(join(paths.profile, 'package.json'))).toEqual(original)
+    expect(readFileSync(join(paths.profile, 'cordis.patch.yml'))).toEqual(patch)
+    expect(manager.listPlugins()).toEqual([{ name: '@scope/plugin', version: '2.0.0' }])
+    expect(existsSync(paths.pending)).toBe(false)
+    expect(existsSync(paths.lock)).toBe(false)
+  })
+
+  it.each([
+    { name: 'missing base', bundles: desktopBundles.slice(1) },
+    { name: 'reordered legacy prefix', bundles: [...legacyDesktopBundles].reverse() },
+    { name: 'incomplete current prefix', bundles: desktopBundles.slice(0, 4) },
+    { name: 'interleaved plugin', bundles: [...legacyDesktopBundles, '@scope/plugin', ...desktopBundles.slice(2)] },
+    { name: 'duplicate legacy default', bundles: [...legacyDesktopBundles, '@deepseek-ai/dsh-base'] },
+    { name: 'duplicate current default', bundles: [...desktopBundles, '@deepseek-ai/dsh-web-capability-defaults'] },
+    { name: 'duplicate plugin', bundles: [...legacyDesktopBundles, '@scope/plugin', '@scope/plugin'] },
+  ])('rejects $name instead of reusing or migrating the profile', async ({ bundles }) => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(root)
+    const pnpm = writeFakePnpm(root)
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm })
+    await manager.applyRelease(seed, '1.0.0', hooks())
+    setProfileBundles(paths.profile, bundles)
+    const original = readFileSync(join(paths.profile, 'package.json'))
+    writeFileSync(pnpm, 'process.exit(73)\n')
+    expect(() => manager.listPlugins()).toThrow(/profile.*(?:bundle|duplicate)/u)
+    await expect(manager.applyRelease(seed, '1.0.0', hooks())).rejects.toThrow(/profile.*(?:bundle|duplicate)/u)
+    expect(readFileSync(join(paths.profile, 'package.json'))).toEqual(original)
+    expect(existsSync(paths.pending)).toBe(false)
+    expect(existsSync(paths.lock)).toBe(false)
+  })
+
+  it.each(['missing package', 'non-bundle package'] as const)('rejects a legacy plugin tail with a %s', async (invalid) => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(root)
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    await manager.applyRelease(seed, '1.0.0', hooks())
+    setProfileBundles(paths.profile, [...legacyDesktopBundles, '@scope/plugin'])
+    if (invalid === 'non-bundle package') {
+      const plugin = join(paths.profile, 'node_modules', '@scope', 'plugin')
+      mkdirSync(plugin, { recursive: true })
+      writeFileSync(join(plugin, 'package.json'), JSON.stringify({ name: '@scope/plugin', version: '2.0.0' }))
+    }
+    await expect(manager.applyRelease(seed, '1.0.0', hooks()))
+      .rejects.toThrow(/has no manifest|does not declare dsh.bundle.patch/u)
+    expect(profileBundles(paths.profile)).toEqual([...legacyDesktopBundles, '@scope/plugin'])
+    expect(existsSync(paths.pending)).toBe(false)
+  })
+
   it('preserves saved row patches through plugin install, update, and removal', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')
@@ -1185,11 +1360,7 @@ describe('desktop project transactions', () => {
     const profile = JSON.parse(readFileSync(join(paths.profile, 'package.json'), 'utf8')) as {
       dsh: { profile: { bundles: string[] } }
     }
-    expect(profile.dsh.profile.bundles).toEqual([
-      '@deepseek-ai/dsh-base',
-      '@deepseek-ai/dsh-web-app',
-      '@scope/plugin',
-    ])
+    expect(profile.dsh.profile.bundles).toEqual([...desktopBundles, '@scope/plugin'])
     expect(readFileSync(join(paths.pnpm.store, 'release-1'), 'utf8')).toBe('one')
     expect(readFileSync(join(paths.pnpm.store, 'release-2'), 'utf8')).toBe('two')
     await expect(manager.applyRelease(nextSeed, '1.1.0', hooks())).resolves.toBe(false)
@@ -1209,7 +1380,7 @@ describe('native fatal profile repair', () => {
     expect(backup).toBeDefined()
     expect(readFileSync(backup!, 'utf8')).toBe(': invalid patch')
     expect(JSON.parse(readFileSync(join(paths.profile, 'package.json'), 'utf8'))).toEqual({ ...manifest,
-      dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'], patchReload: 'live' } } })
+      dsh: { profile: { bundles: desktopBundles, patchReload: 'live' } } })
     expect(existsSync(paths.lock)).toBe(false)
   })
 

@@ -18,8 +18,10 @@ import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import ApprovalService from '@deepseek-ai/dsh-user-approval'
+import * as Policy from '@deepseek-ai/dsh-computer-use-permission-policy'
 import * as NativeProvider from '../src/index.ts'
-import { resetFixture, screenshotBase64 } from './fixtures/cua-driver.ts'
+import { fixture, resetFixture, screenshotBase64 } from './fixtures/cua-driver.ts'
 
 vi.mock('@trycua/cua-driver', async () => import('./fixtures/cua-driver.ts'))
 
@@ -55,7 +57,7 @@ afterEach(async () => {
   root = undefined
 })
 
-it('loads from cordis.yml and logs the native screenshot before the next model request', async () => {
+it.each(['allowed-once', 'rejected'] as const)('logs native results after one %s approval through the Loader', async (outcome) => {
   resetFixture()
   root = await mkdtemp(join(tmpdir(), 'dsh-native-composition-'))
   const configPath = join(root, 'cordis.yml')
@@ -69,6 +71,8 @@ it('loads from cordis.yml and logs the native screenshot before the next model r
     ['@deepseek-ai/dsh-agent-loop', AgentLoop],
     ['@deepseek-ai/dsh-attachment-local', LocalAttachmentStore],
     ['@deepseek-ai/dsh-computer-use', ComputerUseRegistry],
+    ['@deepseek-ai/dsh-user-approval', ApprovalService],
+    ['@deepseek-ai/dsh-computer-use-permission-policy', Policy],
     ['@deepseek-ai/dsh-experimental-computer-use-cua-driver-native', NativeProvider],
   ])
   await writeFile(configPath, [...modules.keys()].flatMap(name => [
@@ -90,6 +94,8 @@ it('loads from cordis.yml and logs the native screenshot before the next model r
   await context.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await context.loader.await()
   for (const entry of context.loader.entries()) await entry.fiber?.await()
+  let approvals = 0
+  context.on('approval/request', async () => { approvals += 1; return outcome })
   const model = new VisualModel()
   context.llm.registerAdapter(['native-fixture'], model)
   const agent = await context.agentLoop.create(SessionId('native-loader'), { provider: 'native-fixture', model: 'vision' })
@@ -107,6 +113,16 @@ it('loads from cordis.yml and logs the native screenshot before the next model r
   const toolEvent = agent.session.snapshotEvents().find(event => event.type === 'tool/result')
   expect(toolEvent?.data.message.source.callId).toBe('native-window')
   const toolResult = agent.session.deriveMessages().flatMap(message => message.content).find(block => block.type === 'tool-result')
+  expect(approvals).toBe(1)
+  expect(agent.session.snapshotEvents().filter(event => event.type === 'approval/asked')).toHaveLength(1)
+  expect(agent.session.snapshotEvents().filter(event => event.type === 'approval/decided')).toHaveLength(1)
+  if (outcome === 'rejected') {
+    expect(fixture.calls).toEqual([])
+    expect(toolResult).toMatchObject({ type: 'tool-result', isError: true, content: [{ type: 'text', text: 'Error: the user rejected tool "cua_driver_native__get_window_state"' }] })
+    expect(JSON.stringify(model.requests[1]?.messages)).toContain('the user rejected tool')
+    return
+  }
+  expect(fixture.calls).toHaveLength(1)
   const image = toolResult?.type === 'tool-result' ? toolResult.content.find(block => block.type === 'image') : undefined
   expect(image?.type).toBe('image')
   if (image?.type !== 'image') throw new Error('Native screenshot was not admitted')
@@ -119,6 +135,6 @@ it('loads from cordis.yml and logs the native screenshot before the next model r
     agent, signal: new AbortController().signal, callId: ToolCallId('programmatic-window'),
     name: 'cua_driver_native__get_window_state', arguments: { pid: 9, window_id: 7 },
   })
-  if (direct.isError) throw new Error('Programmatic native screenshot failed')
-  expect(direct.value).toMatchObject({ structuredContent: { window_id: 7, clicked: false } })
+  expect(direct.isError).toBe(true)
+  expect(fixture.calls).toHaveLength(1)
 })

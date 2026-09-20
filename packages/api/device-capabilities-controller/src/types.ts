@@ -1,9 +1,10 @@
 /** Browser-safe results of read-only device Provider readiness checks. */
 
-import type { ComputerCapabilities } from '@deepseek-ai/dsh-computer-use'
+import type { ComputerCapabilities, ComputerToolReadiness } from '@deepseek-ai/dsh-computer-use'
 
 /** Read-only descriptor of the selected local Computer Use provider; permissions are not probed. */
-export interface ComputerCapabilityObservation {
+export type ComputerCapabilityObservation = ComputerToolReadiness | {
+  readonly kind: 'facade'
   readonly platform: string
   readonly provider: string
   readonly providerVersion: string
@@ -34,14 +35,14 @@ export interface DeviceCapabilityRequest {
 export type DeviceCapabilityStatus = 'not-configured' | 'available' | 'unavailable'
 
 /** Redacted reasons; command paths, device identities, and input content are never returned. */
-export type DeviceCapabilityReason = 'not-configured' | 'cli-missing' | 'provider-unavailable' | 'protocol-error' | 'probe-failed' | 'no-devices'
+export type DeviceCapabilityReason = 'not-configured' | 'cli-missing' | 'provider-unavailable' | 'protocol-error' | 'probe-failed' | 'no-devices' | 'provider-initializing' | 'provider-disposing' | 'provider-failed'
 
 /** Result of one explicit Provider probe; action permissions are not tested. */
 export interface DeviceCapabilitySnapshot {
   readonly capability: DeviceCapabilityKind
   readonly status: DeviceCapabilityStatus
   readonly reason: DeviceCapabilityReason | null
-  /** Present only after a successful computer capability observation. */
+  /** Provider catalog lifecycle or successful facade capability observation. */
   readonly computer?: ComputerCapabilityObservation
 }
 

@@ -1,24 +1,16 @@
-# The opt-in Cinlan desktop Computer Use layer. Profiles apply it after dsh-base;
-# platform transport remains outside the shared base composition.
+# The opt-in native desktop Computer Use layer follows dsh-base.
+# CUA owns its catalog; the policy guards every native tool invocation.
 
 - insert:
     - id: computer-use
       name: '@deepseek-ai/dsh-computer-use'
       config:
-        provider: cinlan
-
-    - id: computer-use-cinlan
-      name: '@deepseek-ai/dsh-computer-use-cinlan'
-      config:
-        providerId: cinlan
+        provider: cua-driver-native
 
     - id: computer-use-permission-policy
       name: '@deepseek-ai/dsh-computer-use-permission-policy'
       config:
-        observe: ask
-        pointer: ask
-        keyboard: ask
-        accessibilityAction: ask
+        native: ask
 
-    - id: tool-computer-use
-      name: '@deepseek-ai/dsh-tool-computer-use'
+    - id: computer-use-cua-driver-native
+      name: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native'

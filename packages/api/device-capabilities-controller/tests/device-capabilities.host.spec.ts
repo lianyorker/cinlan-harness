@@ -19,10 +19,22 @@ describe('Device Provider readiness', () => {
 
   it('reads Computer capabilities without listing applications or performing actions', async () => {
     const { ctx, controller, signal } = bench()
-    const capabilities = vi.fn(async () => ({ provider: 'fixture', protocolVersion: 1 }))
-    ctx.provide('computerUse', { capabilities } as never)
-    await expect(controller.check({ capability: 'computer' }, signal)).resolves.toEqual({ capability: 'computer', status: 'available', reason: null })
-    expect(capabilities).toHaveBeenCalledWith(signal)
+    const readiness = vi.fn(async () => ({ kind: 'facade', capabilities: { provider: 'fixture', protocolVersion: 1 } }))
+    ctx.provide('computerUse', { readiness } as never)
+    await expect(controller.check({ capability: 'computer' }, signal)).resolves.toMatchObject({ capability: 'computer', status: 'available', reason: null, computer: { kind: 'facade', provider: 'fixture', protocolVersion: 1, permissions: 'unknown' } })
+    expect(readiness).toHaveBeenCalledWith(signal)
+  })
+
+  it.each(['initializing', 'ready', 'disposing', 'failed'] as const)('reports catalog %s without probing desktop content', async (state) => {
+    const { ctx, controller, signal } = bench()
+    const computer = { kind: 'tool-catalog', platform: 'win32', provider: 'cua-driver-native', state, toolNames: state === 'ready' ? ['cua_driver_native__click'] : [], permissions: 'unknown' }
+    const readiness = vi.fn(async () => computer)
+    ctx.provide('computerUse', { readiness } as never)
+    await expect(controller.check({ capability: 'computer' }, signal)).resolves.toEqual({
+      capability: 'computer', status: state === 'ready' ? 'available' : 'unavailable',
+      reason: state === 'ready' ? null : `provider-${state}`, computer,
+    })
+    expect(readiness).toHaveBeenCalledWith(signal)
   })
 
   it.each([
@@ -34,7 +46,7 @@ describe('Device Provider readiness', () => {
     [undefined, 'probe-failed'],
   ])('redacts the %s failure', async (code, reason) => {
     const { ctx, controller, signal } = bench()
-    ctx.provide('computerUse', { capabilities: async () => { throw Object.assign(new Error('private executable path'), { code }) } } as never)
+    ctx.provide('computerUse', { readiness: async () => { throw Object.assign(new Error('private executable path'), { code }) } } as never)
     const result = await controller.check({ capability: 'computer' }, signal)
     expect(result).toEqual({ capability: 'computer', status: 'unavailable', reason })
     expect(JSON.stringify(result)).not.toContain('private')
@@ -52,10 +64,10 @@ describe('Device Provider readiness', () => {
     const { ctx, controller } = bench()
     const abort = new AbortController()
     const reason = new Error('cancelled by caller')
-    const capabilities = vi.fn(async () => { abort.abort(reason) })
-    ctx.provide('computerUse', { capabilities } as never)
+    const readiness = vi.fn(async () => { abort.abort(reason) })
+    ctx.provide('computerUse', { readiness } as never)
     await expect(controller.check({ capability: 'computer' }, abort.signal)).rejects.toBe(reason)
     await expect(controller.check({ capability: 'computer' }, abort.signal)).rejects.toBe(reason)
-    expect(capabilities).toHaveBeenCalledTimes(1)
+    expect(readiness).toHaveBeenCalledTimes(1)
   })
 })

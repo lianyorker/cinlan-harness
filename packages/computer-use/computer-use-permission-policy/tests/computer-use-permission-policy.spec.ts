@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as Policy from '../src/index.ts'
 import {
   COMPUTER_ACCESSIBILITY_APPROVAL_REASON,
+  COMPUTER_NATIVE_APPROVAL_REASON,
   COMPUTER_KEYBOARD_APPROVAL_REASON,
   COMPUTER_OBSERVE_APPROVAL_REASON,
   COMPUTER_POINTER_APPROVAL_REASON,
@@ -39,13 +40,13 @@ async function directHarness(config: Policy.Config) {
 describe('Computer Use permission config', () => {
   it('defaults and validates all independent classes', () => {
     expect(resolveComputerUsePermissionConfig()).toEqual({
-      observe: 'ask', pointer: 'ask', keyboard: 'ask', accessibilityAction: 'ask',
+      observe: 'ask', pointer: 'ask', keyboard: 'ask', accessibilityAction: 'ask', native: 'ask',
     })
     expect(resolveComputerUsePermissionConfig({
       observe: 'allow', pointer: 'deny', keyboard: 'ask', accessibilityAction: 'allow',
-    })).toEqual({ observe: 'allow', pointer: 'deny', keyboard: 'ask', accessibilityAction: 'allow' })
+    })).toEqual({ observe: 'allow', pointer: 'deny', keyboard: 'ask', accessibilityAction: 'allow', native: 'ask' })
     expect(() => resolveComputerUsePermissionConfig({ extra: true } as never)).toThrow(/unsupported config key/)
-    for (const key of ['observe', 'pointer', 'keyboard', 'accessibilityAction'] as const) {
+    for (const key of ['observe', 'pointer', 'keyboard', 'accessibilityAction', 'native'] as const) {
       expect(() => resolveComputerUsePermissionConfig({ [key]: 'sometimes' })).toThrow(new RegExp(key))
     }
   })
@@ -99,7 +100,7 @@ describe('Computer Use monotonic guard', () => {
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(Policy, config)
     const body = vi.fn(() => Promise.resolve('EXECUTED'))
-    for (const name of ['computer_observe', 'computer_pointer', 'computer_keyboard', 'computer_accessibility']) {
+    for (const name of ['computer_observe', 'computer_pointer', 'computer_keyboard', 'computer_accessibility', 'cua_driver_native__future_tool']) {
       ctx.tools.register(defineTool({
         name, description: name, parameters: {},
         output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
@@ -115,6 +116,7 @@ describe('Computer Use monotonic guard', () => {
     ['computer_pointer', COMPUTER_POINTER_APPROVAL_REASON],
     ['computer_keyboard', COMPUTER_KEYBOARD_APPROVAL_REASON],
     ['computer_accessibility', COMPUTER_ACCESSIBILITY_APPROVAL_REASON],
+    ['cua_driver_native__future_tool', COMPUTER_NATIVE_APPROVAL_REASON],
   ])('blocks prepended allow from bypassing ask policy for %s', async (name, reason) => {
     const { ctx, body } = await runtimeHarness({})
     const result = await ctx.tools.execute({

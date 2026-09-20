@@ -27,12 +27,17 @@ Use Cua Driver to inspect and operate desktop windows without installing its sep
 
 Mount the provider in a composition that already supplies the tool registry and system prompt.
 
-Mount one Cua Driver adapter and unload any registered Cinlan Computer Use provider first. If the composition includes Cinlan's `tool-computer-use` and permission policy, disable those consumers when selecting Cua Driver; Cua Driver publishes its own arguments and tool names, and the Cinlan-specific permission policy does not govern them. This package does not activate automatically or change the Cinlan default composition.
+Mount one Cua Driver adapter and unload any registered Cinlan Computer Use provider and `tool-computer-use` first. Keep the [permission policy](../../computer-use/computer-use-permission-policy/README.md) mounted: its `native` decision covers all `cua_driver_native__*` tools and defaults to `ask`. The opt-in [computer-use bundle](../../bundle/cinlan-computer-use/README.md) supplies this composition.
 
 ### Minimal configuration
 
 ```yaml
 - name: '@deepseek-ai/dsh-computer-use'
+  config:
+    provider: cua-driver-native
+- name: '@deepseek-ai/dsh-computer-use-permission-policy'
+  config:
+    native: ask
 - name: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native'
 ```
 
@@ -45,6 +50,8 @@ Use an attachment store and a model route that explicitly declares image input t
 The native dependency supplies platform binaries through npm optional dependencies. Keep optional dependencies enabled. Grant desktop permissions to the application that launches DSH; this provider neither installs a permission-owning app nor changes OS grants. The native runtime shares the host process, so native crashes can terminate that process. Use the [installed MCP provider](../computer-use-cua-driver-mcp/README.md) when the separate Cua Driver application should own permissions and execution.
 
 The pinned [`@trycua/cua-driver@0.28.0` manifest](https://registry.npmjs.org/@trycua/cua-driver/0.28.0) declares optional binaries for macOS x64/arm64, Windows x64/arm64 (MSVC), and Linux x64/arm64 (glibc); it includes no musl package. A logged-in graphical session is required. macOS requires Accessibility and Screen Recording grants for the application launching DSH; Windows UIA/input is subject to process integrity restrictions; Linux capture/input depends on X11/Wayland, AT-SPI, and compositor facilities. Consult the [upstream platform ledger](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/docs/action-support.md) and runtime results for supported operations.
+
+The JavaScript SDK wrapper is MIT licensed; its platform payloads declare `MIT AND MPL-2.0`. Distribution must retain their license material and the UniFFI N-API runtime notice, together with the DLL/shared library and Node addon at the relative paths expected by the SDK. The [public experimental package policy](../../../scripts/experimental-package-policy.ts) explicitly admits this package. It adds no downloader or standalone service.
 
 ### Mock verification
 
@@ -62,14 +69,16 @@ node node_modules/vitest/vitest.mjs run packages/experimental/computer-use-cua-d
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The provider reserves the shared computer-use registration before loading native code. A child plugin owns discovery, model tools, guidance, and the native runtime. The parent retains the registration until child teardown has removed tools, interrupted native calls and image-capability admission, awaited settlement, and completed native shutdown. Cancellation does not undo input already delivered to an application.
+The provider reports `initializing` while reserving computer use and discovering the SDK catalog. It reports `ready` only after a validated nonempty catalog, every tool, and prompt guidance are registered. Disposal immediately clears advertised tool names and reports `disposing`; initialization or shutdown failure reports `failed`. Permissions remain `unknown`. Successful cleanup after initialization failure releases registration; shutdown failure keeps it failed and reserved.
+
+The provider reserves the shared computer-use registration before loading native code. A child plugin owns discovery, model tools, and guidance; the outer effect owns the native driver and shutdown. The parent retains the registration until child teardown has removed tools, interrupted native calls and image-capability admission, awaited settlement, and completed native shutdown. Cancellation does not undo input already delivered to an application.
 
 | File | Role |
 |---|---|
 | [src/index.ts](src/index.ts) | Native runtime ownership, catalog validation, tool registration, and provider guidance |
 | — | No runtime invariant companion is published; resource ownership has no independently observed state to compare. |
 
-Tool definitions reuse the existing MCP result adapter. Cua Driver's JSON catalog determines the schemas; its raw result supplies canonical text, structured output, and image bytes. This adapter uses only the computer-use service's exclusive registration API; the existing provider supplies Cinlan observation and action APIs.
+Tool definitions reuse the existing MCP result adapter. Cua Driver's JSON catalog determines the schemas; its raw result supplies canonical text, structured output, and image bytes. This adapter uses the computer-use service's exclusive registration and readiness callback. Its tools keep upstream requests and results; it implements no facade action DTOs.
 
 </details>
 
@@ -131,7 +140,8 @@ An unchanged catalog preserves its tool-definition prefix. Tool results append t
 
 The package preserves the upstream driver's platform and application limits.
 
-- **Host permissions and graphics session** — npm installation does not grant desktop access or create a graphical session.
+- **Host permissions and graphics session** — npm installation and catalog readiness do not grant desktop access or prove GUI actions work. Controlled GUI verification and packaged native loading remain separate evidence.
+- **Windows delivery** — x64 and arm64 packages require a logged-on graphical session; UIA/input remains subject to UIPI. Upstream background refusals such as `background_unavailable` and `background_occluded` remain refusals and do not authorize foreground retries.
 - **Native cursor overlay** — a headless macOS Node host can receive `facility_unavailable` for overlay operations while screenshots and background input remain usable.
 - **Shared desktop** — the provider does not reserve windows or complete workflows for a Session. Other callers and applications can change the same desktop between calls.
 - **Cancellation** — an aborted call can have delivered input already; inspect fresh state before retrying. The provider waits for SDK shutdown during unload but does not promise native action rollback.
