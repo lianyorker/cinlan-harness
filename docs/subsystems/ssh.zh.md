@@ -2,7 +2,7 @@
 
 [English](ssh.md) | 中文
 
-[SSH 提供方家族](../../packages/ssh/README.zh.md) 通过部署方持有的 OpenSSH 连接提供一个远端文件系统／进程环境。Harness、模型传输及 Session 存储留在主机。该家族实现既有文件系统、子进程及沙箱 API，不引入 SSH 专用模型工具。
+[SSH 提供方家族](../../packages/ssh/README.zh.md) 通过部署方持有的 SSH 连接提供一个远端文件系统／进程环境。Harness、模型传输及 Session 存储留在主机。该家族实现既有文件系统、子进程及沙箱 API，不引入 SSH 专用模型工具。
 
 ## 执行坐标
 
@@ -24,17 +24,35 @@
 
 ## 组合范围
 
-headless 通过已挂载的文件系统提供方记录和检查 Session cwd。因此远端 FS、Bash、终端、LSP 及 PTC 消费方可以共享这些坐标。Windows 客户端会在传输启动前被拒绝。假定可访问主机文件系统的 Web 和 Desktop 工作区视图需要单独集成；仅替换提供方并不会使这些视图支持远端。已保存的 execution-host 目标及其检查连接不会挂载本提供方家族，也不建立 Session 执行权限。
+headless 通过已挂载的文件系统提供方记录和检查 Session cwd。因此远端 FS、Bash、终端、LSP 及 PTC 消费方可以共享这些坐标。Windows 客户端使用固定主机身份的显式端点；Linux/macOS 仍可使用 OpenSSH 主机别名。假定可访问主机文件系统的 Web 和 Desktop 工作区视图需要单独集成；仅替换提供方并不会使这些视图支持远端。已保存的 execution-host 目标及其检查连接不会挂载本提供方家族，也不建立 Session 执行权限。
 
 替代方案与验证责任见[决策记录](../../.agents/notes/implemented/architecture/2026-09-11-posix-ssh-runtime.zh.md)。
 
 ## 连接 API
 
 ```ts type-equiv
+/** Deployment-selected endpoint; credentials and host trust are never discovered implicitly. */
+interface SshEndpoint {
+  /** SSH server hostname or address. */
+  host: string
+  /** SSH server TCP port. */
+  port: number
+  /** Remote account name. */
+  username: string
+  /** Absolute local path to the unencrypted private key to use. */
+  privateKeyFile: string
+  /** Lowercase hexadecimal SHA-256 of the server's SSH public-key blob. */
+  hostKeySHA256: string
+}
+```
+
+```ts type-equiv
 /** Deployment-owned SSH identity and installed helper; no model argument selects these values. */
 interface Config {
   /** OpenSSH host alias, including its existing user, key and known-host configuration. */
-  host: string
+  host?: string
+  /** Explicit endpoint for Windows or deployments without OpenSSH alias resolution; excludes host. */
+  endpoint?: SshEndpoint
   /** Absolute remote Node executable. */
   node: string
   /** Absolute path to the installed, bundled helper entry. */

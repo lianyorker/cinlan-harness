@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-本家族将文件、普通进程、终端及沙箱执行放在同一台 POSIX SSH 主机上，Harness 保留在本地。共享 OpenSSH 连接与已安装辅助程序支持现有文件系统、子进程及沙箱接口。适用于消费方遵守提供方路径语义的 headless 或自定义配置组合。
+本家族将文件、普通进程、终端及沙箱执行放在同一台 POSIX SSH 主机上，Harness 保留在本地。共享 SSH 连接与已安装辅助程序支持现有文件系统、子进程及沙箱接口。适用于消费方遵守提供方路径语义的 headless 或自定义配置组合。
 
 ## 目录
 
@@ -39,6 +39,6 @@ kind: "package-group"
 <details>
 <summary>维护者工作上下文 — 点击展开</summary>
 
-远端能力实现保留共享异步终端及取消接口。客户端与辅助程序均要求 Linux/macOS；Windows Desktop 及已保存的 execution-host 目标元数据不提供此执行组合。绝不能从远端路径字符串推断本地路径访问能力。
+远端能力实现保留共享异步终端及取消接口。辅助程序要求 Linux/macOS；Windows 客户端使用显式 SSH 端点。已保存的 execution-host 目标元数据不提供此执行组合。绝不能从远端路径字符串推断本地路径访问能力。
 
 </details>

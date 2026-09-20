@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This family runs files, ordinary processes, terminals and sandbox enforcement on one POSIX SSH host while the Harness stays local. A shared OpenSSH connection and installed helper support the existing filesystem, subprocess and sandbox interfaces. Use it in headless or custom profiles whose consumers honor provider-owned paths.
+This family runs files, ordinary processes, terminals and sandbox enforcement on one POSIX SSH host while the Harness stays local. A shared SSH connection and installed helper support the existing filesystem, subprocess and sandbox interfaces. Use it in headless or custom profiles whose consumers honor provider-owned paths.
 
 ## Table of Contents
 
@@ -39,6 +39,6 @@ This family runs files, ordinary processes, terminals and sandbox enforcement on
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-Remote capability implementations retain the shared asynchronous terminal and cancellation interfaces. Linux/macOS clients and helpers are required; Windows Desktop and saved execution-host target metadata do not provide this execution composition. Local path access must never be inferred from a remote path string.
+Remote capability implementations retain the shared asynchronous terminal and cancellation interfaces. The helper requires Linux/macOS; Windows clients use an explicit SSH endpoint. Saved execution-host target metadata does not provide this execution composition. Local path access must never be inferred from a remote path string.
 
 </details>

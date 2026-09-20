@@ -2,7 +2,7 @@
 
 English | [中文](ssh.zh.md)
 
-The [SSH provider family](../../packages/ssh/README.md) supplies one remote filesystem/process world through a deployment-owned OpenSSH connection. The Harness, model transport and Session storage remain on the host. The family implements the existing filesystem, subprocess and sandbox APIs; it introduces no SSH-specific model tools.
+The [SSH provider family](../../packages/ssh/README.md) supplies one remote filesystem/process world through a deployment-owned SSH connection. The Harness, model transport and Session storage remain on the host. The family implements the existing filesystem, subprocess and sandbox APIs; it introduces no SSH-specific model tools.
 
 ## Execution coordinates
 
@@ -24,17 +24,35 @@ Administrative deadlines bound individual RPC observations; they do not replace 
 
 ## Composition scope
 
-Headless records and checks Session cwd through the mounted filesystem provider. Remote FS, Bash, terminal, LSP and PTC consumers can therefore share those coordinates. Windows clients are rejected before transport startup. Web and Desktop workspace views that assume host filesystem access need separate integration; replacing providers alone does not make those views remote-aware. Saved execution-host targets and their inspection connections do not mount this provider family or establish Session execution authority.
+Headless records and checks Session cwd through the mounted filesystem provider. Remote FS, Bash, terminal, LSP and PTC consumers can therefore share those coordinates. Windows clients use an explicit endpoint with pinned host identity; OpenSSH aliases remain available on Linux/macOS. Web and Desktop workspace views that assume host filesystem access need separate integration; replacing providers alone does not make those views remote-aware. Saved execution-host targets and their inspection connections do not mount this provider family or establish Session execution authority.
 
 See the [decision record](../../.agents/notes/implemented/architecture/2026-09-11-posix-ssh-runtime.md) for the alternatives and verification obligations.
 
 ## Connection API
 
 ```ts type-equiv
+/** Deployment-selected endpoint; credentials and host trust are never discovered implicitly. */
+interface SshEndpoint {
+  /** SSH server hostname or address. */
+  host: string
+  /** SSH server TCP port. */
+  port: number
+  /** Remote account name. */
+  username: string
+  /** Absolute local path to the unencrypted private key to use. */
+  privateKeyFile: string
+  /** Lowercase hexadecimal SHA-256 of the server's SSH public-key blob. */
+  hostKeySHA256: string
+}
+```
+
+```ts type-equiv
 /** Deployment-owned SSH identity and installed helper; no model argument selects these values. */
 interface Config {
   /** OpenSSH host alias, including its existing user, key and known-host configuration. */
-  host: string
+  host?: string
+  /** Explicit endpoint for Windows or deployments without OpenSSH alias resolution; excludes host. */
+  endpoint?: SshEndpoint
   /** Absolute remote Node executable. */
   node: string
   /** Absolute path to the installed, bundled helper entry. */

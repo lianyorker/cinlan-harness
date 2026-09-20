@@ -32,14 +32,14 @@ const windowsUnsupportedPackages = process.platform === 'win32'
       'packages/hooks/*',
       'packages/terminal/terminal-bash',
       'packages/experimental/code-runtime-python',
-      // SSH providers require POSIX clients and endpoints.
-      'packages/ssh/*',
     ]
   : []
 
 const windowsUnsupportedTests = process.platform === 'win32'
   ? [
       ...windowsUnsupportedPackages.map(path => `${path}/tests/**/*.spec.ts`),
+      // SSH endpoint fixtures require POSIX; native client admission and transport run on Windows.
+      'packages/ssh/*/tests/**/!(ssh2-client|platform).spec.ts',
       'packages/subprocess/subprocess/tests/egress.spec.ts',
       'packages/subprocess/subprocess/tests/service.spec.ts',
       'packages/sandbox/sandbox-local/tests/packed-workspace-closure.spec.ts',
@@ -74,7 +74,7 @@ const nonLinuxWebWorkerTests = process.platform === 'linux'
 const platformUnsupportedTests = [...windowsUnsupportedTests, ...nonLinuxWebWorkerTests]
 
 const windowsUnsupportedCoveragePackages = process.platform === 'win32'
-  ? [...windowsUnsupportedPackages, 'packages/subprocess/*']
+  ? [...windowsUnsupportedPackages, 'packages/subprocess/*', 'packages/ssh/*']
   : []
 
 // Windows-only packages: their sources execute exclusively on win32 (koffi

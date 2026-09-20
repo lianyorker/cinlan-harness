@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-ssh` connects a POSIX Harness host to an installed helper on a POSIX SSH host. One deployment-owned OpenSSH alias supplies authentication and host identity; the paired filesystem, subprocess and sandbox providers use that connection. The connection verifies installed artifact digests before readiness; the helper owns remote cleanup when the connection closes or its lease expires.
+`dsh-ssh` connects a Windows, Linux or macOS Harness host to an installed helper on a POSIX SSH host. A deployment-owned OpenSSH alias or explicit SSH endpoint supplies authentication and host identity; the paired filesystem, subprocess and sandbox providers use that connection. The connection verifies installed artifact digests before readiness; the helper owns remote cleanup when the connection closes or its lease expires.
 
 ## Table of Contents
 
@@ -29,13 +29,14 @@ Compose this service with [`fs-ssh`](../fs-ssh/README.md), [`subprocess-ssh`](..
 
 ### Deployment prerequisites
 
-Both endpoints require Linux or macOS. The local `ssh` command must support connection multiplexing and Unix-socket forwarding; the server must permit that forwarding. Configure the alias, credentials and known-host entry before startup: the service enables `BatchMode`, requires strict host-key checking, disables agent forwarding and adds no interactive authentication flow.
+The remote helper requires Linux or macOS and an SSH server that permits Unix-socket forwarding. Linux/macOS clients may use an existing OpenSSH alias with multiplexing, batch mode, strict known-host checking and no agent forwarding. Windows clients require an explicit `endpoint`; that transport uses SSH2 channels without a local Unix socket or OpenSSH control master.
 
 Install the built helper and its matching runtime dependencies on the remote host. Keep Node, helper, bootstrap and their dependencies outside the workspace and writable temporary roots. They must also remain outside a backend’s replaced temporary tree, such as bwrap’s private `/tmp`; the workspace may still be under `/tmp`. Digest verification detects an unexpected installed artifact after helper startup; it does not make writable deployment files safe to execute or authenticate a malicious SSH host.
 
 | Field | Default | Meaning |
 |---|---|---|
-| `host` | required | Existing OpenSSH host alias |
+| `host` | omitted | Existing OpenSSH host alias on Linux/macOS; supply exactly one of `host` or `endpoint` |
+| `endpoint` | omitted | Explicit `host`, `port`, `username`, `privateKeyFile` and `hostKeySHA256`; required on Windows |
 | `node`, `helper`, `workspace` | required | Absolute remote Node executable, bundled helper entry and default workspace |
 | `helperHash` | required | Lowercase SHA-256 of the installed helper entry |
 | `bootstrapPath`, `bootstrapHash` | omitted | Paired remote PTC entry and its lowercase SHA-256 |
@@ -43,6 +44,8 @@ Install the built helper and its matching runtime dependencies on the remote hos
 | `maxFrameBytes` | `67108864` | Per-message JSON payload ceiling, at most 64 MiB |
 | `maxPending` | `128` | Ordinary outstanding requests; heartbeat and bounded cleanup requests have reserved capacity |
 | `leaseMs` | `30000` | Helper heartbeat lease, from 3000 to 600000 ms |
+
+The explicit endpoint reads only the configured absolute `privateKeyFile`, which must hold an unencrypted private key. `hostKeySHA256` is the lowercase 64-digit hexadecimal SHA-256 of the server SSH public-key blob, obtained through a trusted deployment channel. SSH2 requires that exact host key and public-key authentication; it does not read user SSH configuration, known-host files, default keys or an agent. No interactive credential prompt is supplied.
 
 For PTC, configure both bootstrap fields and pass the verified `ctx.ssh.nodeExecutable` and `ctx.ssh.bootstrapPath` to [`NodePtcRuntime`](../../ptc-runtime/ptc-runtime-node/README.md). Basic filesystem and Bash use may omit the pair. The `bootstrapPath` getter refuses an unconfigured PTC deployment.
 
@@ -54,11 +57,11 @@ For PTC, configure both bootstrap fields and pass the verified `ctx.ssh.nodeExec
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The OpenSSH master carries private administrative RPC. Each program stream uses a separate forwarded Unix socket and an independent SSH channel. Program stdout cannot forge administrative replies or occupy the control stream’s channel window. SSH transport congestion still affects the shared connection.
+A dedicated SSH exec channel carries private administrative RPC. Each program stream uses an independent SSH channel to the remote Unix socket; the OpenSSH transport owns a local forwarding socket, while SSH2 opens the remote streamlocal channel directly. Program stdout cannot forge administrative replies or occupy the control stream’s channel window. SSH transport congestion still affects the shared connection.
 
 Each stream reservation has a random 256-bit TLS pre-shared key carried only by administrative RPC. TLS authenticates both endpoints and protects every stream byte; the key is never sent as a stream preface. Socket directories are private (`0700`) and sockets use `0600`. Replacing a writable socket path cannot impersonate an endpoint or reveal the stream key; an attacker can still interrupt service or relay opaque TLS records.
 
-Connection disposal joins forwarding and cancellation subprocesses and partially established streams before removing local resources. Transport loss rejects pending operations and invalidates the connection. The helper starts managed cleanup on SSH EOF, termination signals or heartbeat expiry. A disconnected client cannot confirm the remote outcome; operations are never reconnected or replayed automatically.
+Connection disposal joins transport closure, forwarding and cancellation subprocesses when present, and partially established streams before removing local resources. Transport loss rejects pending operations and invalidates the connection. The helper starts managed cleanup on SSH EOF, termination signals or heartbeat expiry. A disconnected client cannot confirm the remote outcome; operations are never reconnected or replayed automatically.
 
 Failed startup and process results release their reservations after native quiescence; the bounded completion cache preserves the original rejection for later result reads. Helper shutdown also joins endpoint and directory cleanup already in progress.
 
@@ -91,7 +94,7 @@ This provider contributes no request-prefix content. Its consumers own model-vis
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- No Windows endpoint, automatic provisioning, reconnect or replay is supplied. Windows mock tests verify protocol and provider behavior only; POSIX runtime acceptance requires Linux or macOS.
+- Windows remote helpers, encrypted private keys in explicit endpoints, automatic provisioning, reconnect and replay are unsupported. Local encrypted-network tests verify the Windows-capable client, control child and TLS channels; full remote filesystem, process and sandbox acceptance still requires an explicitly configured Linux or macOS deployment.
 - Web and Desktop workspace UI paths still assume host filesystem access; use headless or a custom composition whose consumers honor provider paths. The execution-host target list stores metadata and does not mount these providers or enable SSH execution.
 - TLS stream keys do not protect against remote OS process-memory inspection or debugging. File-effect policy retains the selected sandbox backend’s limits.
 

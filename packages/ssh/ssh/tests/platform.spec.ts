@@ -1,4 +1,4 @@
-/** A Windows host must refuse SSH before spawning a transport or reading credentials. */
+/** Windows alias admission refuses implicit OpenSSH configuration before I/O. */
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { SshConnection } from '../src/index.ts'
@@ -13,7 +13,7 @@ describe.skipIf(process.platform !== 'win32')('SSH client platform admission', (
       expect(() => new SshConnection(ctx, {
         host: 'mock-host', node: '/remote/node', helper: '/remote/helper.js',
         helperHash: 'a'.repeat(64), workspace: '/remote/workspace',
-      })).toThrow('SSH runtime requires a POSIX client')
+      })).toThrow('configure an explicit endpoint on Windows')
       expect(transport.spawn).not.toHaveBeenCalled()
       expect(transport.execFile).not.toHaveBeenCalled()
     } finally { await ctx.fiber.dispose() }

@@ -12,7 +12,7 @@ SSH supplies authenticated byte channels and per-channel flow control, but an or
 
 ## Decision
 
-A deployment-owned OpenSSH alias connects the local Harness to an installed POSIX helper. Filesystem, subprocess and sandbox providers share that helper; the Harness retains Cordis objects, model transport, permissions, callbacks and Session persistence. Terminal methods remain asynchronous. Provider paths describe the execution world without a separate local/remote flag.
+A deployment-owned OpenSSH alias or [explicit SSH endpoint](2026-09-17-explicit-ssh-client-transport.md) connects the local Harness to an installed POSIX helper. Filesystem, subprocess and sandbox providers share that helper; the Harness retains Cordis objects, model transport, permissions, callbacks and Session persistence. Terminal methods remain asynchronous. Provider paths describe the execution world without a separate local/remote flag.
 
 Confinement is asynchronous and cancellable: the running helper resolves each policy through its loaded sandbox provider before the subprocess provider receives literal argv. `ShellExecutor.start()` resolves a `Promise<ShellProcess>` after preparation. Generic job admission remains synchronous; tool-owned `JobHooks` begin asynchronous shell preparation after preflight, cancel pending preparation and join any late process handle.
 
@@ -42,7 +42,7 @@ A lost connection invalidates pending operations without reconnect or replay. He
 
 Remote providers add transport, reservation and disconnection responsibilities even though they reuse local file and process mechanisms. Raw streams, collected tails and remote spill files retain distinct lifetimes. Consumers must release their streams and handles; a helper’s cleanup result cannot be reconstructed after transport loss.
 
-The composition scope is Linux/macOS clients and helpers in headless or custom profiles. Windows Desktop does not supply this POSIX runtime; Web and Desktop workspace consumers with host-filesystem assumptions require their own integration. Network restrictions, process-visibility isolation, hostile-host attestation, persistent remote handles and automatic artifact provisioning are outside this provider family.
+The composition supports Windows/Linux/macOS clients and Linux/macOS helpers in headless or custom profiles. Web and Desktop workspace consumers with host-filesystem assumptions require their own integration. Network restrictions, process-visibility isolation, hostile-host attestation, persistent remote handles and automatic artifact provisioning are outside this provider family.
 
 The portable-consumer decision remains active for provider identity and the retained E2B integration. The [SSH inspection-authority decision](2026-09-17-ssh-inspection-authority.md) remains active for saved targets and inspection: selecting a target does not mount these execution providers. Neither decision is superseded.
 

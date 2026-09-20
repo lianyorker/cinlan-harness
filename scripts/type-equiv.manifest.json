@@ -2138,6 +2138,11 @@
     },
     {
       "doc": "docs/subsystems/ssh.md",
+      "symbol": "SshEndpoint",
+      "source": "packages/ssh/ssh/src/ssh2-transport.ts"
+    },
+    {
+      "doc": "docs/subsystems/ssh.md",
       "symbol": "Config",
       "source": "packages/ssh/ssh/src/index.ts"
     },
