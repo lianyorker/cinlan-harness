@@ -34,11 +34,12 @@ const start = (): Promise<Context> => boot('module-fixture', join(dir, 'cordis.y
   ctx.loader.builtins.manager = PluginManager
 })
 let ctx = await start()
+let disposeProfileWatch: (() => Promise<void>) | undefined
 try {
   assert.equal(ctx.get('moduleProbe'), 1)
   await ctx.plugin(Timer)
   await ctx.plugin(Hmr, { base: pathToFileURL(home).href + '/', root: [home], ignored: [], debounce: 5 })
-  await watchProfilePatches(ctx, profile)
+  disposeProfileWatch = await watchProfilePatches(ctx, profile)
   await writeFile(plugin, 'export function apply(ctx) { ctx.provide("moduleProbe", 2) }\n')
   const deadline = Date.now() + 10_000
   while (ctx.get('moduleProbe') !== 2) {
@@ -48,11 +49,14 @@ try {
   const row = (await ctx.pluginManager.listPlugins()).find(entry => entry.patchId === 'probe')!
   assert.equal((await ctx.pluginManager.setPluginEnabled(row.entryId, false)).application, 'applied')
   assert.equal(ctx.get('moduleProbe'), undefined)
+  await disposeProfileWatch()
+  disposeProfileWatch = undefined
   await ctx.fiber.dispose()
   ctx = await start()
   assert.equal(ctx.get('moduleProbe'), undefined)
   console.log('Actual module replacement, persistent management, and restart: passed')
 } finally {
+  await disposeProfileWatch?.()
   await ctx.fiber.dispose()
   await rm(home, { recursive: true, force: true })
 }

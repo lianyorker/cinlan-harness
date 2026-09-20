@@ -76,7 +76,15 @@ The public records live in [types.ts](src/types.ts). [operations.ts](src/operati
 <a id="model-experience"></a>
 ## Model Experience
 
-When the tools entry is enabled, the model receives one management tool and bounded JSON inventory or operation results. Managed plugins can contribute tools and prompt sections to later model requests.
+### Management tool schema and results
+
+#### What the model sees
+
+When the `./tools` entry is enabled, the model receives the `plugin_manager` tool described in the [generated catalog](../../../docs/tool-catalog.md#deepseek-aidsh-plugin-manager), plus JSON inventory pages with `entries`, `total`, and `nextOffset` or the selected operation's result. Managed plugins can contribute tools and prompt sections to later model requests.
+
+#### Token effect
+
+The management tool adds its schema when enabled and one text result per call. Inventory responses contain at most the requested `limit`, capped at 100 entries; other result lengths depend on the selected operation.
 
 #### KV Cache effect
 

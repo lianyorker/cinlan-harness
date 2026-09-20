@@ -76,7 +76,15 @@ pnpm 阻止依赖脚本时，结果列出待决定的包名。重试可通过 `a
 <a id="model-experience"></a>
 ## 模型体验
 
-启用工具入口后，模型获得一个管理工具以及大小受限的 JSON 清单或操作结果。受管理插件可向后续模型请求贡献工具和提示词分节。
+### 管理工具 schema 与结果
+
+#### 模型看到的内容
+
+启用 `./tools` 入口后，模型获得[生成目录](../../../docs/tool-catalog.zh.md#deepseek-aidsh-plugin-manager)中描述的 `plugin_manager` 工具，以及包含 `entries`、`total` 和 `nextOffset` 的 JSON 清单分页或所选操作的结果。受管理插件可向后续模型请求贡献工具和提示词分节。
+
+#### Token 影响
+
+管理工具启用时增加其 schema，每次调用增加一个文本结果。清单响应最多包含请求的 `limit` 条记录，上限为 100 条；其他结果的长度取决于所选操作。
 
 #### KV Cache 影响
 
