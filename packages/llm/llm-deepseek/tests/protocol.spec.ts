@@ -27,7 +27,7 @@ function adapter(connection: () => DeepSeekConnectionOptions) {
 }
 
 it('selects protocol-specific official roots only when no endpoint is configured', () => {
-  expect(resolveAdapterOptions({})).toMatchObject({ protocol: 'chat-completions', baseURL: 'https://api.deepseek.com' })
+  expect(resolveAdapterOptions({})).toMatchObject({ protocol: 'messages', baseURL: 'https://api.deepseek.com/anthropic' })
   expect(resolveAdapterOptions(Config({ protocol: 'messages' }))).toMatchObject({ protocol: 'messages', baseURL: 'https://api.deepseek.com/anthropic' })
   const models = [{ id: 'custom-model', name: 'My gateway' }]
   for (const protocol of ['chat-completions', 'messages'] as const) {
@@ -41,9 +41,9 @@ it('rejects an unknown protocol before resolving request credentials', () => {
   expect(() => resolveAdapterOptions({ protocol: 'unknown' } as never)).toThrow('protocol must be chat-completions or messages')
 })
 
-it.each([false, true])('preserves Chat Completions when protocol is omitted, schema=%s', async (schema) => {
+it.each([false, true])('selects Chat Completions when explicitly configured, schema=%s', async (schema) => {
   const http = await endpoint(response => response.end(chat))
-  const raw = { baseURL: http.url }
+  const raw = { protocol: 'chat-completions' as const, baseURL: http.url }
   const connection = resolveAdapterOptions(schema ? Config(raw) : raw)
   const response = await assemble(adapter(() => connection).stream(options()))
 

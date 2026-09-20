@@ -124,6 +124,7 @@ interface SdkAssertions {
 }
 
 const SDK_ASSERTIONS: Readonly<Record<string, SdkAssertions>> = {
+  'durable-image-offload': { expectedFinalResponse: 'DONE' },
   'ptc-turn': {
     patches: [fileURLToPath(new URL('./ptc-turn/runtime.cordis.yml', import.meta.url))],
     expectedFinalResponse: 'CODE_ONE+CODE_TWO',
@@ -900,6 +901,20 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
         )
           .toEqual(records(expectedNotifications))
         expect(normalizedResult).toBe(await readFile(resultExpectedPath, 'utf8'))
+      }
+
+      if (scenario.name === 'durable-image-offload') {
+        const events = notifications.flatMap(notification => {
+          const event = notificationEvent(notification)
+          return event === undefined ? [] : [event]
+        })
+        const offloads = events.filter(event => event.type === 'image/offload')
+        expect(offloads).toHaveLength(1)
+        expect(offloads[0]?.data).toEqual({ targets: [{ seq: 8, imageIndexes: [0, 1, 2] }] })
+        expect(offloads[0]?.surfaceOp).toBeUndefined()
+        const tools = assembledToolRequirements(ordered[0]!)
+        expect(tools).not.toHaveProperty('bash')
+        expect(tools).not.toHaveProperty('pwsh')
       }
 
       if (scenario.name === 'system-prompt-in-history') {

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Stream DeepSeek models through the `deepseek-official` route with configurable thinking, vision input, and an advisory model catalog. Chat Completions is the default; Messages is an explicit choice. Endpoint, credentials, catalog, and thinking policy resolve per request, so valid settings changes apply to the next request without restarting. Choose this package for DeepSeek's API or a compatible gateway; it can run beside pi-ai because they use different route names.
+Stream DeepSeek models through the `deepseek-official` route with configurable thinking, vision input, and an advisory model catalog. Messages is the default; Chat Completions is an explicit choice. Endpoint, credentials, catalog, and thinking policy resolve per request, so valid settings changes apply to the next request without restarting. Choose this package for DeepSeek's API or a compatible gateway; it can run beside pi-ai because they use different route names.
 
 ## Table of Contents
 
@@ -51,7 +51,7 @@ A request selects the route with `provider: deepseek-official`; the model id pas
 
 | Field | Default | Meaning |
 |---|---|---|
-| `protocol` | `chat-completions` | Wire protocol: `chat-completions` or `messages` |
+| `protocol` | `messages` | Choose `messages` or `chat-completions` in Cordis YAML; Web has no protocol selector |
 | `apiKeyEnv` | `DEEPSEEK_API_KEY` | Credential reference resolved per request through the credentials seam, then the environment |
 | `baseURL` | Protocol root | Explicit value wins, then `$DEEPSEEK_BASE_URL`; otherwise `https://api.deepseek.com` for Chat or `https://api.deepseek.com/anthropic` for Messages |
 | `thinking` | `enabled` | Deployment policy; `disabled` locks every request to `off` |
@@ -76,11 +76,11 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Streaming with thinking and images
 
-An image-capable route resolves each durable reference into a deterministic request version under its pixel and byte budgets. `imagePixelBudget` accepts a positive integer or `low`; omission uses 640,000 total pixels, `low` uses 512×512 total pixels, and `imageMaxBytes` defaults to 1 MiB. Alpha images use WebP effort 0 and opaque images use JPEG on the 85/75/60 quality ladder, keeping the smallest output when every candidate exceeds the target. Every retained image is preceded by text naming its complete attachment id and actual request dimensions. When the current filesystem maps the attachment provider's host object, that text also carries a read-only execution-world path and the extension for a writable copy. Text-only and unlisted routes receive stable attachment placeholders while durable history keeps the image references.
+An image-capable route chooses each durable reference's request target and resolves it into a deterministic request version. Omitting `imagePixelBudget` sizes the target on the published vision token grid of 14px patches, 3:1 downsampling, and at most 1024 tokens per image, so a square image keeps up to 1302×1302 pixels and a 16:9 image is sent as 1708×961 for the provider's 1708×966 grid; a positive integer replaces the grid with a total-pixel budget, and `low` uses 512×512 total pixels. Every request image is capped at 4096 pixels per side, the provider limit for requests carrying 15 or more images, and `imageMaxBytes` defaults to 2 MiB. Alpha images use WebP effort 0 and opaque images use JPEG on the 85/75/60 quality ladder, keeping the smallest output when every candidate exceeds the target. Every retained image is preceded by text naming its complete attachment id and actual request dimensions. When the current filesystem maps the attachment provider's host object, that text also carries a read-only execution-world path and the extension for a writable copy. Text-only and unlisted routes receive stable attachment placeholders while durable history keeps the image references.
 
 Both protocols upload exact request bytes through their DeepSeek Files endpoint and send file-id blocks. A failed or timed-out file resolution rebuilds the whole request with inline base64: data URLs for Chat Completions and native image-source blocks for Messages. Requests never mix file ids with inline images. Cached ids are scoped by the resolved Files root and API key, refreshed before expiry, and shared through waiter-local cancellation. A stale-file response permits one replacement attempt; quota failure deletes one configured batch of the oldest harness-owned files before one upload retry.
 
-Files mode bounds retained request versions by `maxRequestFilesBytes` and `maxImagesPerRequest`; inline fallback has its own base64 budget. Both remove an oldest prefix in configured byte or count quanta. Each omitted image gets its own model-visible placeholder with its display name or attachment id and, when available, normalized dimensions, media type, and current read-only path. The stepped high-watermark policy avoids rewriting an old request prefix after every new image.
+Files and inline requests enforce their exact byte and image-count budgets. Exceeding a budget reports `IMAGE_OFFLOAD_REQUIRED`; [durable image recovery](../../compaction/compaction-image-offload/README.md) records selected occurrences and retries. Each omitted occurrence is serialized as a placeholder.
 
 `reasoningEffort` selects `off`, `low`, `high`, or `max` when deployment policy permits thinking. Enabled efforts serialize as Chat Completions `reasoning_effort` or Messages `output_config.effort`; `off` sends `thinking.type: disabled`. Unsupported efforts fail with `UNSUPPORTED_REASONING_EFFORT` before network I/O, and `thinking: disabled` rejects non-`off` defaults at plugin load. Session-title requests force thinking off.
 
@@ -166,7 +166,7 @@ The selected DeepSeek model receives the harness system prompt, message history,
 
 #### Token effect
 
-Provider tokenization governs exact text and image-token input. The adapter declares per-route `imageRequestPricing`: it reproduces oldest-first image offload from durable byte lengths and prices each retained image at its projected dimensions with the published v4 vision accounting (14px patch grid, 3:1 downsampling, 384-token cap, worst-case alignment pad). This lets the token meter price image pressure before a request; reported usage remains authoritative. Reasoning passback carries every reasoned turn's chain of thought into later requests, while dropping over-budget images avoids paying those tokens again. Cache-read usage is reported when available. `totalTokens` is the exact `prompt_tokens + completion_tokens` aggregate and is omitted if a supplied `total_tokens` disagrees. Messages usage reports input, output, cache-read, and cache-write counters separately and sums them into `totalTokens`.
+Provider tokenization governs exact text and image-token input. The adapter declares per-route `imageRequestPricing`: it prices each occurrence selected by a logged image-offload decision as its placeholder text and each retained image at its projected dimensions with the published vision accounting (14px patch grid, 3:1 downsampling, 544×544 scale-up floor, 1024-token cap). This lets the token meter price image pressure before a request; reported usage remains authoritative. Reasoning passback carries every reasoned turn's chain of thought into later requests, while offloaded images stop costing visual tokens. A request whose retained occurrences exceed the file-mode or inline-fallback budget (`maxRequestFilesBytes`, `maxImagesPerRequest`, both quanta) at their exact request-version bytes fails with `IMAGE_OFFLOAD_REQUIRED` naming the additional oldest occurrences to offload, and `dsh-compaction-image-offload` records the selected occurrences in an `image/offload` event and retries. Cache-read usage is reported when available. Messages totals include uncached input, output, cache-read, and cache-write tokens. Chat Completions uses `prompt_tokens + completion_tokens` and omits `totalTokens` if a supplied `total_tokens` disagrees.
 
 #### KV Cache effect
 

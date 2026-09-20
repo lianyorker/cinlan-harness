@@ -100,6 +100,17 @@ export function dshHomePath(...segments: string[]): string {
 }
 
 /**
+ * Join path segments onto the resolved Harness home cache directory without creating it.
+ * @param optionsOrSegment - explicit home override, or the first path segment.
+ * @param segments - additional path segments.
+ * @returns the normalized absolute cache path.
+ */
+export function dshCachePath(optionsOrSegment: { dshHome?: string } | string = {}, ...segments: string[]): string {
+  if (typeof optionsOrSegment === 'string') return dshHomePath('cache', optionsOrSegment, ...segments)
+  return join(resolveDshHome(optionsOrSegment.dshHome), 'cache', ...segments)
+}
+
+/**
  * Describe a resolved harness home symbolically for user-facing display.
  *
  * It never returns an absolute machine path: the default home is labelled

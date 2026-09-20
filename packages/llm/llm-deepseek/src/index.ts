@@ -42,7 +42,6 @@ import {
   DEFAULT_MAX_IMAGES_PER_REQUEST,
   DEFAULT_MAX_REQUEST_FILES_BYTES,
   DEFAULT_REQUEST_IMAGE_MAX_BYTES,
-  DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET,
 } from './request-pricing.ts'
 
 export {
@@ -65,9 +64,8 @@ export {
   DEFAULT_MAX_IMAGES_PER_REQUEST,
   DEFAULT_MAX_REQUEST_FILES_BYTES,
   DEFAULT_REQUEST_IMAGE_MAX_BYTES,
-  DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET,
   deepSeekImageRequestPricing,
-  resolveRequestImagePolicy,
+  resolveRequestImageTarget,
 } from './request-pricing.ts'
 export { deepSeekImageTokens } from './image-tokens.ts'
 export { DeepSeekFileStore, MAX_CHAT_IMAGE_BYTES } from './file-store.ts'
@@ -116,7 +114,7 @@ const MODEL_MODALITIES = ['text', 'image'] as const satisfies readonly ModelModa
  * reasoning effort resolves to `high`.
  */
 export interface Config {
-  /** Explicit wire protocol; omission preserves Chat Completions. */
+  /** Explicit wire protocol; omission selects Messages. */
   protocol?: 'chat-completions' | 'messages'
   /** Credential reference (environment-variable name) resolved per request; defaults to `DEEPSEEK_API_KEY`. */
   apiKeyEnv?: string
@@ -171,7 +169,7 @@ const catalogModel: z<DeepSeekCatalogModel> = z.object({
 })
 
 export const Config: z<Config> = z.object({
-  protocol: z.union(['chat-completions', 'messages']).default('chat-completions'),
+  protocol: z.union(['chat-completions', 'messages']).default('messages'),
   apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV),
   baseURL: z.string(),
   thinking: z.union(['enabled', 'disabled']),
@@ -275,9 +273,11 @@ function resolveModels(models: readonly DeepSeekCatalogModel[] | undefined): Dee
       inputModalities: [...inputModalities],
       ...hasImage
         ? {
-          imagePixelBudget: model.imagePixelBudget === 'low'
-            ? DEFAULT_LOW_DETAIL_IMAGE_PIXEL_BUDGET
-            : model.imagePixelBudget ?? DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET,
+          ...model.imagePixelBudget === undefined ? {} : {
+            imagePixelBudget: model.imagePixelBudget === 'low'
+              ? DEFAULT_LOW_DETAIL_IMAGE_PIXEL_BUDGET
+              : model.imagePixelBudget,
+          },
           imageMaxBytes: model.imageMaxBytes ?? DEFAULT_REQUEST_IMAGE_MAX_BYTES,
         }
         : {},
@@ -299,7 +299,7 @@ function resolveModels(models: readonly DeepSeekCatalogModel[] | undefined): Dee
  */
 export function resolveAdapterOptions(config: Config, environment?: LaunchEnvironmentSnapshot): ResolvedDeepSeekOptions {
   // Dynamic settings updates can reach this resolver without schema validation.
-  const protocol: string = config.protocol ?? 'chat-completions'
+  const protocol: string = config.protocol ?? 'messages'
   if (protocol !== 'chat-completions' && protocol !== 'messages') {
     throw new Error('llm-deepseek: protocol must be chat-completions or messages')
   }

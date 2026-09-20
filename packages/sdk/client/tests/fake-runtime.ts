@@ -12,6 +12,7 @@
  * - `FAKE_REASON_KIND`: the `session.finished` reason kind (default `completed`; `none` omits the reason).
  * - `FAKE_ABORT_REASON_KIND`: nested cause for an `aborted` turn (default `user`).
  * - `FAKE_SUBAGENT`: also emit a child session (subagent.started + child event + subagent.finished).
+ * - `FAKE_SESSION_DECISIONS`: emit durable image-offload and child-catalog decisions.
  * - `FAKE_ECHO_CWD`: prefix the assistant text with the process cwd.
  * - `FAKE_ECHO_ENV`: comma-separated env names to echo as `name=value` lines in the assistant text.
  * - `FAKE_MALFORMED`: `initialize` returns `{}` (no serverInfo); `prompt` returns `{}` (no accepted).
@@ -120,6 +121,12 @@ function runTurn(sessionId: string): void {
     return
   }
   event(sessionId, 'turn/start', { turn: 0 })
+  if (env.FAKE_SESSION_DECISIONS !== undefined) {
+    event(sessionId, 'image/offload', { targets: [{ seq: 0, imageIndexes: [0, 2] }] })
+    event(sessionId, 'subagent/catalog', {
+      version: 0, childId: sessionId + '-child', childCreatedAt: 1234, mode: 'continuable', label: 'image reviewer',
+    })
+  }
   if (env.FAKE_MALFORMED_MESSAGE !== undefined) {
     event(sessionId, 'assistant/attempt', {
       turn: 0,

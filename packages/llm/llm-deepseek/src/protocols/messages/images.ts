@@ -1,10 +1,10 @@
 /** Deterministic Messages image preparation for Files references and bounded inline fallback. */
 
 import type { AttachmentStore, ImageAttachmentRef, RequestImageAttachment } from '@deepseek-ai/dsh-attachment'
-import { contentHasImage, LlmError, offloadedImageText, offloadRequestImagesWithPolicy } from '@deepseek-ai/dsh-llm'
+import { contentHasImage, IMAGE_OFFLOAD_REQUIRED_CODE, LlmError, offloadedImageText, projectOffloadedImages, requiredImageOffload } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, ImageAttachmentAccessResolver, Message } from '@deepseek-ai/dsh-llm'
 import type { DeepSeekConnectionOptions as Connection } from '../../adapter.ts'
-import { resolveRequestImagePolicy } from '../../request-pricing.ts'
+import { resolveRequestImageTarget } from '../../request-pricing.ts'
 import type { DeepSeekFileId } from '../../file-id.ts'
 import type { RequestFiles } from '../../request-files.ts'
 
@@ -41,53 +41,54 @@ export async function prepareImages(
   attachments: AttachmentStore | undefined, access: ImageAttachmentAccessResolver, signal: AbortSignal,
 ): Promise<{ messages: readonly Message[]; versions: Map<ImageAttachmentRef['attachmentId'], RequestImageAttachment> }> {
   const versions = new Map<ImageAttachmentRef['attachmentId'], RequestImageAttachment>()
-  if (!history.some(message => contentHasImage(message.content))) return { messages: history, versions }
+  const messages = projectOffloadedImages(history, ref => offloadedImageText(ref, access(ref)))
+  if (!messages.some(message => contentHasImage(message.content))) return { messages, versions }
   const model = connection.models.find(entry => entry.id === modelId)
   if (model?.inputModalities?.includes('image') !== true || attachments === undefined) {
     throw new LlmError('DeepSeek Messages image input requires a vision model and attachment service', 'UNSUPPORTED_CONTENT')
   }
-  if (history.some(message => message.role !== 'user' && contentHasImage(message.content))) {
+  if (messages.some(message => message.role !== 'user' && contentHasImage(message.content))) {
     throw new LlmError('DeepSeek Messages supports images only in user messages and tool results', 'UNSUPPORTED_CONTENT')
   }
-  const policy = resolveRequestImagePolicy(model)
-  const messages = offloadRequestImagesWithPolicy(history, {
-    ...bounds(connection, 'raw'),
-    byteLength: ref => Math.min(ref.bytes, policy.maxBytes),
-    placeholder: ref => offloadedImageText(ref, access(ref)),
-  })
   for (const message of messages) {
     for (const ref of imageRefs(message.content)) {
       if (!versions.has(ref.attachmentId)) {
-        versions.set(ref.attachmentId, await attachments.readImageRequest(ref, policy, signal))
+        versions.set(ref.attachmentId, await attachments.readImageRequest(ref, resolveRequestImageTarget(model, ref), signal))
       }
     }
   }
-  return { messages: projectImages(messages, versions, connection, 'raw', access), versions }
+  assertImagesFit(messages, versions, connection, 'raw')
+  return { messages, versions }
 }
 
-/** Project retained images into the tighter inline request budget after Files fails.
+/** Require logged offload before retrying images that exceed the inline budget.
  * @param messages - history already within the Files budget.
  * @param versions - normalized versions prepared for retained references.
  * @param connection - resolved inline bounds.
- * @param access - current execution-world path resolver.
- * @returns history with oldest excess image occurrences replaced by stable text.
+ * @returns unchanged history within both byte and image-count limits.
  */
 export function inlineImages(
   messages: readonly Message[], versions: ReadonlyMap<ImageAttachmentRef['attachmentId'], RequestImageAttachment>,
-  connection: Connection, access: ImageAttachmentAccessResolver,
+  connection: Connection,
 ): readonly Message[] {
-  return projectImages(messages, versions, connection, 'base64', access)
+  assertImagesFit(messages, versions, connection, 'base64')
+  return messages
 }
 
-function projectImages(
+/** Count additional oldest occurrences requiring durable offload at their exact represented bytes. */
+function assertImagesFit(
   messages: readonly Message[], versions: ReadonlyMap<ImageAttachmentRef['attachmentId'], RequestImageAttachment>,
-  connection: Connection, representation: 'raw' | 'base64', access: ImageAttachmentAccessResolver,
-): readonly Message[] {
-  return offloadRequestImagesWithPolicy(messages, {
-    ...bounds(connection, representation),
-    byteLength: ref => (versions.get(ref.attachmentId) as RequestImageAttachment).bytes,
-    placeholder: ref => offloadedImageText(ref, access(ref)),
-  })
+  connection: Connection, representation: 'raw' | 'base64',
+): void {
+  const offloadImages = requiredImageOffload(messages, bounds(connection, representation),
+    block => (versions.get(block.attachment.attachmentId) as RequestImageAttachment).bytes)
+  if (offloadImages > 0) {
+    throw new LlmError(
+      `DeepSeek Messages ${representation} request images exceed the route budget; ${offloadImages} more oldest occurrence(s) must be offloaded.`,
+      IMAGE_OFFLOAD_REQUIRED_CODE,
+      { offloadImages },
+    )
+  }
 }
 
 /** Resolve retained images to Files ids, recording every occurrence for failure diagnostics.

@@ -43,6 +43,11 @@ for line in sys.stdin:
         print(json.dumps({"jsonrpc": "2.0", "method": "session.event", "params": {"sessionId": params["sessionId"], "event": {"type": "agent/inbox/spliced", "data": {"target": "next-turn", "start": 0, "inserted": [{"id": "message-1"}]}}}}), flush=True)
         print(json.dumps({"jsonrpc": "2.0", "method": "session.status", "params": {"sessionId": params["sessionId"], "status": "running"}}), flush=True)
         print(json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": {"messageId": "message-1"}}), flush=True)
+        for decision in [
+            {"type": "image/offload", "seq": 2, "time": 0, "data": {"targets": [{"seq": 0, "imageIndexes": [0, 2]}]}},
+            {"type": "subagent/catalog", "seq": 3, "time": 0, "data": {"version": 0, "childId": "child", "childCreatedAt": 1234, "mode": "continuable", "label": "image reviewer"}},
+        ]:
+            print(json.dumps({"jsonrpc": "2.0", "method": "session.event", "params": {"sessionId": params["sessionId"], "event": decision}}), flush=True)
         print(json.dumps({
             "jsonrpc": "2.0",
             "method": "session.event",
@@ -108,6 +113,11 @@ for line in sys.stdin:
         result = harness.run("say hello", session_id="main")
 
     assert result.final_response == "hello from runtime"
+    decisions = [event for event in result.events if event["type"] in ("image/offload", "subagent/catalog")]
+    assert decisions == [
+        {"type": "image/offload", "seq": 2, "time": 0, "data": {"targets": [{"seq": 0, "imageIndexes": [0, 2]}]}},
+        {"type": "subagent/catalog", "seq": 3, "time": 0, "data": {"version": 0, "childId": "child", "childCreatedAt": 1234, "mode": "continuable", "label": "image reviewer"}},
+    ]
     assert result.finish_reason == "max-tokens"
     assert result.events[-1]["type"] == "turn/end"
     dumped_env = json.loads(env_dump.read_text())

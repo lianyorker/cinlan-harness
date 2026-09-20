@@ -146,6 +146,18 @@ describe('DeepSeekHarness', () => {
     await harness.close()
   })
 
+  it('preserves image-offload selections and parent-owned child catalog events', async () => {
+    const result = await harnessWith({ FAKE_SESSION_DECISIONS: '1' }).run('inspect images', { sessionId: 'images' })
+    const decisions = result.events.filter(event => ['image/offload', 'subagent/catalog'].includes(event.type))
+    expect(decisions).toEqual([
+      { type: 'image/offload', seq: 2, time: 0, data: { targets: [{ seq: 0, imageIndexes: [0, 2] }] } },
+      { type: 'subagent/catalog', seq: 3, time: 0, data: {
+        version: 0, childId: 'images-child', childCreatedAt: 1234, mode: 'continuable', label: 'image reviewer',
+      } },
+    ])
+    expect(result.finalResponse).toBe('hello from fake runtime')
+  })
+
   it('keeps events root-scoped while streaming notifications for the session tree', async () => {
     const harness = harnessWith({ FAKE_SUBAGENT: '1' })
     const seen: HarnessNotification[] = []

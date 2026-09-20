@@ -76,8 +76,10 @@ import { listChildren as listSubagentChildren, listDescendants as listSubagentDe
 import type { SubagentDescendantListEntry, SubagentListEntry } from './list-children.ts'
 import { snapshotSubagentDescriptor } from './descriptor.ts'
 import { subagentIdentityProjectionDefinition, subagentTimingProjectionDefinition } from './projection.ts'
+import { establishCatalogChild, subagentCatalogProjectionDefinition } from './catalog.ts'
 import { deliverSubagentPrompt } from './internal.ts'
 
+export type {} from './catalog.ts'
 export * from './out-of-process.ts'
 export { AssistantOutputFold, finalAssistantOutput } from './assistant-output.ts'
 export { SubagentRunId } from './types.ts'
@@ -188,14 +190,14 @@ interface BrowserPromptSource {
 export interface Config {
   /** Maximum live children sharing uninterrupted continuable parent links; defaults to 8. */
   maxActiveSubagents?: number
-  /** Default delegation depth for tools without an explicit limit; defaults to 3. */
+  /** Default delegation depth for tools without an explicit limit; defaults to 1. */
   maxDepth?: number
 }
 
 /** Named provider registry with one-shot runs, durable discovery, and continuable-child operations. */
 export class SubagentRuntime extends TypertRemoteService {
   static Config: z<Config> = z.object({
-    maxDepth: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(3),
+    maxDepth: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(1),
     maxActiveSubagents: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(8),
   })
   private settingsSource: () => Config
@@ -232,6 +234,7 @@ export class SubagentRuntime extends TypertRemoteService {
       }, 'subagents.continuationBinding()')
     })
     ctx.inject(['sessionProjections'], (projectionCtx) => {
+      projectionCtx.sessionProjections.register(subagentCatalogProjectionDefinition)
       projectionCtx.sessionProjections.register(subagentTimingProjectionDefinition)
       projectionCtx.sessionProjections.register(subagentIdentityProjectionDefinition)
     })
@@ -579,6 +582,8 @@ export class SubagentRuntime extends TypertRemoteService {
    * fulfills; a rejection therefore has no run for the caller to dispose and
    * emits no run lifecycle events. Post-publication turn and infrastructure
    * failures settle through the returned run.
+   * A catalog append failure disposes the run and handles its result rejection;
+   * the caller receives the catalog error even if disposal also fails.
    * @param name - the provider to use.
    * @param request - child label, prompt, parent, signal, and optional capabilities.
    * @returns the published holder-owned run.
@@ -594,7 +599,25 @@ export class SubagentRuntime extends TypertRemoteService {
       ...request.label !== undefined ? { label: request.label } : {},
     })
     const resolved: ResolvedSubagentStartRequest = { ...request, descriptor }
-    return observeRun(this.emitLifecycle, name, request.parent, await provider.start(resolved))
+    const run = await provider.start(resolved)
+    const child = run.localAgent?.session
+    if (child !== undefined) {
+      try {
+        establishCatalogChild(request.parent.session, child.header, descriptor)
+      } catch (error: unknown) {
+        // No caller receives this run; the catalog error owns the failed start.
+        void run.result.catch(() => undefined)
+        try {
+          await run.dispose()
+        } catch (cleanupError: unknown) {
+          this.ctx.logger.warn(
+            `subagent: disposal after catalog append failure also failed: ${String(cleanupError)}`,
+          )
+        }
+        throw error
+      }
+    }
+    return observeRun(this.emitLifecycle, name, request.parent, run)
   }
 
   /**

@@ -13,7 +13,7 @@ import AttachmentStore, { AttachmentId, ImageVariantId } from '@deepseek-ai/dsh-
 import type {
   ImageAttachmentLimits,
   ImageAttachmentRef,
-  ImageRequestPolicy,
+  ImageRequestTarget,
   RequestImageAttachment,
   SaveImageAttachment,
   StoredImageAttachment,
@@ -90,7 +90,7 @@ class E2eAttachmentStore extends AttachmentStore {
 
   override readImageRequest(
     _ref: ImageAttachmentRef,
-    _policy: ImageRequestPolicy,
+    _policy: ImageRequestTarget,
     _signal?: AbortSignal,
   ): Promise<RequestImageAttachment> {
     return Promise.resolve(this.version)

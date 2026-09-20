@@ -8,10 +8,11 @@ import type { DeepSeekFileStore } from '../../src/file-store.ts'
 import { resolveAdapterOptions } from '../../src/index.ts'
 import type { Config } from '../../src/index.ts'
 import { DeepSeekMessagesAdapter } from '../../src/protocols/messages/adapter.ts'
+import { prepareImages } from '../../src/protocols/messages/images.ts'
 import { providerErrorDetail } from '../../src/protocols/messages/transport.ts'
 import { chunks, options, prepareExtensions, sse, textEvents, user } from './helpers.ts'
 
-const model = 'deepseek-v4-flash-vision-exp'
+const model = 'deepseek-flash'
 const ref: ImageAttachmentRef = { attachmentId: AttachmentId(`sha256:${'a'.repeat(64)}`), width: 1, height: 1, mediaType: 'image/png', bytes: 3 }
 const second = { ...ref, attachmentId: AttachmentId(`sha256:${'c'.repeat(64)}`) }
 const version = (attachment: ImageAttachmentRef): RequestImageAttachment => ({
@@ -36,10 +37,7 @@ function harness(config: Config = {}) {
   const attachments = { readImageRequest } as unknown as AttachmentStore
   const prepare = vi.fn(prepareExtensions)
   const adapter = new DeepSeekMessagesAdapter({
-    connection: () => resolveAdapterOptions(Object.assign({
-      protocol: 'messages', baseURL: 'https://gateway.example/custom',
-      models: [{ id: model, inputModalities: ['text', 'image'] }],
-    }, config)),
+    connection: () => resolveAdapterOptions(Object.assign({ baseURL: 'https://gateway.example/custom' }, config)),
     apiKey: async () => 'test-key', userId: () => 'test-user', attachments: () => attachments,
     imageAccess: () => ({ readonlyPath: '/workspace/image.png' }), files: () => files, prepareExtensions: prepare,
   })
@@ -125,51 +123,62 @@ describe('Messages Files requests', () => {
     await chunks(h.adapter.stream(original))
     expect(body(fetchImpl.mock.calls[0]?.[1]).match(/"file_id"/gu)).toHaveLength(2)
     h.ensureUploaded.mockRejectedValueOnce(new Error('offline'))
-    await chunks(h.adapter.stream(original))
+    await expect(chunks(h.adapter.stream(original))).rejects.toMatchObject({ failure: { code: 'IMAGE_OFFLOAD_REQUIRED', offloadImages: 1 } })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    h.ensureUploaded.mockRejectedValueOnce(new Error('offline'))
+    await chunks(h.adapter.stream(options({ model, messages: [{ ...user(), content: [
+      { type: 'image', attachment: ref, offloaded: true }, { type: 'image', attachment: second },
+    ] }] })))
     const fallback = body(fetchImpl.mock.calls[1]?.[1])
     expect(fallback.match(/"type":"base64"/gu)).toHaveLength(1)
     expect(fallback).toContain('image omitted to fit request image limits')
-    expect(fallback).toContain('/workspace/image.png')
     expect(JSON.stringify(original.messages)).toBe(saved)
   })
 
-  it('reads and prices only retained occurrences under the Files byte budget', async () => {
+  it('reads and prices only the retained occurrences selected by the logged offload', async () => {
     vi.stubGlobal('fetch', async () => success())
     const h = harness({ maxRequestFilesBytes: 3, imageOffloadByteQuantum: 1, maxImagesPerRequest: 2, imageOffloadCountQuantum: 1 })
-    const original = request([ref, second])
-    const saved = JSON.stringify(original.messages)
-    await chunks(h.adapter.stream(original))
+    const images = [{ type: 'image' as const, attachment: ref, offloaded: true as const }, { type: 'image' as const, attachment: second }]
+    await chunks(h.adapter.stream(options({ model, messages: [{ ...user(), content: images }] })))
     expect(h.readImageRequest).toHaveBeenCalledExactlyOnceWith(second, expect.anything(), expect.any(AbortSignal))
-    expect(h.adapter.imageRequestPricing('deepseek-official', model).priceImages([ref, second]).map(image => image.visualTokens)).toEqual([0, expect.any(Number)])
-    expect(JSON.stringify(original.messages)).toBe(saved)
+    expect(h.adapter.imageRequestPricing('deepseek-official', model).priceImages(images).map(image => image.visualTokens)).toEqual([0, expect.any(Number)])
   })
 
   it.each([
     { maxRequestFilesBytes: 5, imageOffloadByteQuantum: 1, maxImagesPerRequest: 2, imageOffloadCountQuantum: 1 },
     { maxRequestFilesBytes: 100, imageOffloadByteQuantum: 1, maxImagesPerRequest: 1, imageOffloadCountQuantum: 1 },
-  ])('offloads repeated occurrences independently before upload for %j', async (config) => {
+  ])('requires durable offload of repeated occurrences before upload for %j', async (config) => {
     const fetchImpl = vi.fn<typeof fetch>(async () => success())
     vi.stubGlobal('fetch', fetchImpl)
     const h = harness(config)
     const original = request([ref, ref])
     const saved = JSON.stringify(original.messages)
-    await chunks(h.adapter.stream(original))
+    await expect(chunks(h.adapter.stream(original))).rejects.toMatchObject({ failure: { code: 'IMAGE_OFFLOAD_REQUIRED', offloadImages: 1 } })
     expect(h.readImageRequest).toHaveBeenCalledTimes(1)
-    expect(h.ensureUploaded).toHaveBeenCalledTimes(1)
-    const payload = body(fetchImpl.mock.calls[0]?.[1])
-    expect(payload.match(/"file_id"/gu)).toHaveLength(1)
-    expect(payload).toContain('image omitted to fit request image limits')
+    expect(h.ensureUploaded).not.toHaveBeenCalled()
+    expect(fetchImpl).not.toHaveBeenCalled()
     expect(JSON.stringify(original.messages)).toBe(saved)
   })
 
-  it('applies the Files budget to exact prepared bytes when normalized output grows', async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async () => success())
-    vi.stubGlobal('fetch', fetchImpl)
+  it('uses exact prepared bytes when the durable reference fits the Files budget', async () => {
     const h = harness({ maxRequestFilesBytes: 3, imageOffloadByteQuantum: 1, imageOffloadCountQuantum: 1 })
     h.readImageRequest.mockResolvedValue({ ...version(ref), bytes: 4, data: Uint8Array.of(1, 2, 3, 4) })
-    await chunks(h.adapter.stream(request()))
+    await expect(chunks(h.adapter.stream(request()))).rejects.toMatchObject({ failure: { code: 'IMAGE_OFFLOAD_REQUIRED', offloadImages: 1 } })
     expect(h.ensureUploaded).not.toHaveBeenCalled()
-    expect(body(fetchImpl.mock.calls[0]?.[1])).toContain('image omitted to fit request image limits')
+  })
+
+  it('projects nested logged offloads without an attachment service or a vision model', async () => {
+    const messages = [createToolResultMessage({ callId: ToolCallId('offloaded'), isError: false, content: [
+      { type: 'image', attachment: ref, offloaded: true },
+    ] })]
+    const prepared = await prepareImages(messages, resolveAdapterOptions({ protocol: 'messages' }), 'text-model', undefined,
+      () => ({ readonlyPath: '/workspace/image.png' }), new AbortController().signal)
+    expect(prepared.versions.size).toBe(0)
+    expect(prepared.messages[0]?.content).toMatchObject([{ type: 'tool-result', content: [
+      { type: 'text', text: expect.stringContaining('image omitted to fit request image limits') as string },
+    ] }])
+    expect(JSON.stringify(prepared.messages)).toContain('/workspace/image.png')
+    expect(messages[0]?.content).toMatchObject([{ type: 'tool-result', content: [{ type: 'image', offloaded: true }] }])
   })
 
   it('falls back when the Files deadline expires but never converts caller cancellation into another request', async () => {

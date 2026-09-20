@@ -8,7 +8,7 @@
  * @module dsh-llm-deepseek/adapter
  */
 
-import { attributionHeaders, contentHasImage, CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, isQuotaExceededError, LlmAdapter, LlmError, offloadedImageText, offloadRequestImagesWithPolicy, ProviderRequestId, QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
+import { attributionHeaders, contentHasImage, CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, isQuotaExceededError, LlmAdapter, LlmError, offloadedImageText, projectOffloadedImages, ProviderRequestId, QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
 import type {
   ContentBlock,
   GenerateOptions,
@@ -41,7 +41,7 @@ import { catalogModelInfo, modelInfo } from './model-info.ts'
 import { FileResolutionFailure, RequestFiles } from './request-files.ts'
 import { prepareRequestExtensions } from './request-extensions.ts'
 import { DeepSeekMessagesAdapter } from './protocols/messages/adapter.ts'
-import { deepSeekImageRequestPricing, resolveRequestImagePolicy } from './request-pricing.ts'
+import { deepSeekImageRequestPricing, resolveRequestImageTarget } from './request-pricing.ts'
 import { DeepSeekFileStore } from './file-store.ts'
 import type { DeepSeekFilePolicy } from './file-store.ts'
 import { parseSse } from './sse.ts'
@@ -191,10 +191,9 @@ async function prepareRequestImages(
 ): Promise<Map<AttachmentId, RequestImageAttachment>> {
   const refs = new Map<AttachmentId, ImageAttachmentRef>()
   for (const message of options.messages) collectImageRefs(message.content, refs)
-  const policy = resolveRequestImagePolicy(model)
   const orderedRefs = [...refs.values()]
   const projected = await Promise.all(orderedRefs.map(
-    ref => attachments.readImageRequest(ref, policy, signal),
+    ref => attachments.readImageRequest(ref, resolveRequestImageTarget(model, ref), signal),
   ))
   return new Map(orderedRefs.map((ref, index) => (
     [ref.attachmentId, projected[index] as RequestImageAttachment]
@@ -414,20 +413,11 @@ export class DeepSeekAdapter extends LlmAdapter {
 
     const fileConnection = { baseURL: connection.baseURL, apiKey }
     const model = connection.models.find(entry => entry.id === options.model)
-    const policy = model === undefined ? undefined : resolveRequestImagePolicy(model)
     const resolveImageAccess = attachments === undefined
       ? undefined
       : (ref: ImageAttachmentRef): ImageAttachmentAccess | undefined => this.config.resolveImageAccess?.(attachments, ref)
     const imageAccessOptions = resolveImageAccess === undefined ? {} : { resolveImageAccess }
-    const requestMessages = policy === undefined ? options.messages : offloadRequestImagesWithPolicy(options.messages, {
-      representation: 'raw',
-      maxBytes: connection.maxRequestFilesBytes,
-      maxImages: connection.maxImagesPerRequest,
-      byteQuantum: connection.imageOffloadByteQuantum,
-      countQuantum: connection.imageOffloadCountQuantum,
-      byteLength: ref => Math.min(ref.bytes, policy.maxBytes),
-      placeholder: ref => offloadedImageText(ref, resolveImageAccess?.(ref)),
-    })
+    const requestMessages = projectOffloadedImages(options.messages, ref => offloadedImageText(ref, resolveImageAccess?.(ref)))
     const requestOptions = requestMessages === options.messages ? options : { ...options, messages: [...requestMessages] }
     const requestImages = attachments === undefined || model === undefined
       ? new Map<AttachmentId, RequestImageAttachment>()

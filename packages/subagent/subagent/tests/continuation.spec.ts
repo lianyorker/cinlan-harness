@@ -269,12 +269,12 @@ describe('continuable activation capacity', () => {
     }
   })
 
-  it('layers editable depth over composition and removes the section on disposal', async () => {
+  it.each([undefined, 4])('layers editable depth over composition (%s) and removes the section on disposal', async (maxDepth) => {
     const ctx = new Context()
     try {
       await ctx.plugin(MemorySettings)
-      const fiber = await ctx.plugin(SubagentRuntime, { maxDepth: 4 })
-      expect(ctx.subagents.resolveMaxDepth()).toBe(4)
+      const fiber = await ctx.plugin(SubagentRuntime, maxDepth === undefined ? {} : { maxDepth })
+      expect(ctx.subagents.resolveMaxDepth()).toBe(maxDepth ?? 1)
       await ctx.settings.update('subagent', { maxDepth: 0 })
       expect(ctx.subagents.resolveMaxDepth()).toBe(0)
       expect(ctx.subagents.resolveMaxDepth(2)).toBe(2)
@@ -285,7 +285,7 @@ describe('continuable activation capacity', () => {
       await expect(ctx.settings.update('subagent', { maxActiveSubagents: 0 })).rejects.toThrow()
       expect(ctx.subagents.resolveMaxDepth()).toBe(0)
       await ctx.settings.replace('subagent', {})
-      expect(ctx.subagents.resolveMaxDepth()).toBe(4)
+      expect(ctx.subagents.resolveMaxDepth()).toBe(maxDepth ?? 1)
       await fiber.dispose()
       expect(ctx.settings.describe().some(section => section.ns === 'subagent')).toBe(false)
     } finally {

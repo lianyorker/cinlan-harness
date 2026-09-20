@@ -94,6 +94,7 @@ async function loadComposition(
     '- id: llm-deepseek',
     "  name: '@deepseek-ai/dsh-llm-deepseek'",
     '  config:',
+    '    protocol: chat-completions',
     `    baseURL: ${JSON.stringify(options.baseURL)}`,
     '',
   ].join('\n'))

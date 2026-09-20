@@ -75,6 +75,9 @@
       "path": "../../util/time"
     },
     {
+      "path": "../../util/chunked-list"
+    },
+    {
       "path": "../../runtime-diagnostics/invariants"
     }
   ]

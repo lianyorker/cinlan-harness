@@ -60,7 +60,7 @@ Under `one-shot` policy, an omitted `run_in_background` waits in the foreground 
 
 Under `continuable` policy, an omitted or `true` `run_in_background` starts a durable child and returns `started subagent <childId>` without waiting for a result; the runtime delivers one settlement notice when the child's Activation ends, and the optional `send_message` tool sends it more work. Set `run_in_background: false` to wait for the result in the foreground.
 
-An omitted `maxDepth` reads the live Host `subagent.maxDepth` setting at each delegation (default `3`; set `1` for direct children only or `0` to forbid delegation). An explicit tool limit takes precedence and requires the provider's `depthLimit` capability; `'provider-managed'` leaves the budget to an out-of-process provider. `persona` and `toolFilter` configure every child when the provider supports them, and the tool stays visible at the cap — each attempted start checks the calling agent's current depth and rejects with an errored result.
+An omitted `maxDepth` reads the live Host `subagent.maxDepth` setting at each delegation (default `1` for direct children only; set `0` to forbid delegation). An explicit tool limit takes precedence and requires the provider's `depthLimit` capability; `'provider-managed'` leaves the budget to an out-of-process provider. `persona` and `toolFilter` configure every child when the provider supports them, and the tool stays visible at the cap — each attempted start checks the calling agent's current depth and rejects with an errored result.
 
 ### Selecting a child LLM
 

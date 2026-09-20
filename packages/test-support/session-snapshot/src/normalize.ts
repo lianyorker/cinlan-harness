@@ -358,6 +358,10 @@ export function normalizeSessionLog(
     } else if ('time' in record) {
       record.time = 0
     }
+    if (record.type === 'subagent/catalog' && record.data !== null && typeof record.data === 'object') {
+      const catalog = record.data as { childCreatedAt?: unknown }
+      if (typeof catalog.childCreatedAt === 'number') catalog.childCreatedAt = 0
+    }
     if ((record.type === 'assistant/message' || record.type === 'assistant/attempt')
       && record.data !== null && typeof record.data === 'object') {
       const stream = (record.data as { stream?: unknown }).stream

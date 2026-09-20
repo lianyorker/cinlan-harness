@@ -223,6 +223,32 @@ def test_mcp_smoke_accepts_the_external_server_result() -> None:
     )
 
 
+@pytest.mark.parametrize("call_id", ["windows-acl-probe", "windows-acl-write-probe"])
+def test_windows_acl_smoke_rejects_a_failed_worker_result(call_id: str) -> None:
+    with pytest.raises(AssertionError, match="ACL"):
+        SMOKE["completion_chunks"]({"messages": [
+            {"role": "assistant", "tool_calls": [{
+                "id": call_id, "type": "function",
+                "function": {"name": "pwsh", "arguments": "{}"},
+            }]},
+            {"role": "tool", "tool_call_id": call_id, "content": "CLI parsing failed"},
+        ]})
+
+
+def test_advanced_profile_uses_the_shipped_ptc_runtime(tmp_path: Path) -> None:
+    patch = SMOKE["write_advanced_profile_patch"](tmp_path, "advanced.patch.yml", tmp_path / "sessions")
+    entries = json.loads(patch.read_text(encoding="utf-8"))
+    assert {"id": "ptc-runtime", "name": "@deepseek-ai/dsh-ptc-runtime-node"} in entries
+    assert "worker-thread" not in patch.read_text(encoding="utf-8")
+
+
+def test_windows_acl_smoke_requires_the_advertised_platform_tool() -> None:
+    with pytest.raises(AssertionError, match="pwsh"):
+        SMOKE["completion_chunks"]({"messages": [
+            {"role": "user", "content": "verify packaged Windows ACL worker"},
+        ], "tools": []})
+
+
 def test_snapshot_comparison_preserves_opaque_generation_provenance() -> None:
     normalize = SMOKE["normalize_session_format_comparison"]
     expected = {

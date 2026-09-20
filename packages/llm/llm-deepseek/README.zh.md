@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-通过 `deepseek-official` 路由流式调用 DeepSeek 模型，并配置 thinking、视觉输入与建议性模型目录。默认协议为 Chat Completions；Messages 需要显式选择。端点、凭据、目录与 thinking 策略按请求解析，有效设置会在下一次请求生效，无需重启。本包适合 DeepSeek API 或兼容网关；由于路由名不同，可与 pi-ai 并用。
+通过 `deepseek-official` 路由流式调用 DeepSeek 模型，并配置 thinking、视觉输入与建议性模型目录。默认协议为 Messages；Chat Completions 需要显式选择。端点、凭据、目录与 thinking 策略按请求解析，有效设置会在下一次请求生效，无需重启。本包适合 DeepSeek API 或兼容网关；由于路由名不同，可与 pi-ai 并用。
 
 ## 目录
 
@@ -51,7 +51,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `protocol` | `chat-completions` | 请求协议：`chat-completions` 或 `messages` |
+| `protocol` | `messages` | Cordis YAML 中选择 `messages` 或 `chat-completions`；Web 不提供选择器 |
 | `apiKeyEnv` | `DEEPSEEK_API_KEY` | 按请求解析的凭据引用：先经凭据 seam，再到环境变量 |
 | `baseURL` | 协议根地址 | 优先使用显式配置，再使用 `$DEEPSEEK_BASE_URL`；Chat 默认 `https://api.deepseek.com`，Messages 默认 `https://api.deepseek.com/anthropic` |
 | `thinking` | `enabled` | 部署策略；`disabled` 把所有请求锁定为 `off` |
@@ -76,11 +76,11 @@ kind: "package-reference"
 
 ### 带 thinking 与图片的流式调用
 
-支持图片的路由会在自身像素与字节预算内把每个持久引用解析为确定性请求版本。`imagePixelBudget` 接受正整数或 `low`；省略时使用总计 640,000 像素，`low` 使用总计 512×512 像素，`imageMaxBytes` 默认为 1 MiB。带 alpha 的图片使用 effort 0 的 WebP，不透明图片使用 JPEG，并采用 85/75/60 质量阶梯；全部候选都超过目标时保留最小输出。每张保留图片前都有文本，注明完整附件 id 与实际请求尺寸。当前文件系统可以映射附件提供方的宿主对象时，该文本还携带只读执行世界路径与可写副本使用的扩展名。纯文本与未列出路由接收稳定附件占位符，而持久历史继续保留图片引用。
+支持图片的路由为每个持久引用选定请求目标，再把它解析为确定性请求版本。省略 `imagePixelBudget` 时按官方公布的视觉 token 网格定目标，即 14 px patch、3:1 降采样、单图最多 1024 token，因此正方形图片最多保留 1302×1302 像素，16:9 图片以 1708×961 发送、对应提供方 1708×966 的网格；正整数会用总像素预算取代网格，`low` 使用总计 512×512 像素。每张请求图片单边最多 4096 像素，这是提供方对包含 15 张及以上图片的请求的限制；`imageMaxBytes` 默认为 2 MiB。带 alpha 的图片使用 effort 0 的 WebP，不透明图片使用 JPEG，并采用 85/75/60 质量阶梯；全部候选都超过目标时保留最小输出。每张保留图片前都有文本，注明完整附件 id 与实际请求尺寸。当前文件系统可以映射附件提供方的宿主对象时，该文本还携带只读执行世界路径与可写副本使用的扩展名。纯文本与未列出路由接收稳定附件占位符，而持久历史继续保留图片引用。
 
 两种协议都向各自的 DeepSeek Files 端点上传准确的请求字节，并发送 file-id 块。文件解析失败或超时会将整次请求改为内联 base64：Chat Completions 使用 data URL，Messages 使用原生图片 source 块。同一请求不会混用 file id 与内联图片。缓存 id 按解析后的 Files 根地址和 API key 隔离，在到期前刷新，并通过等待者独立取消的共享上传复用。文件过期响应允许一次替换重试；配额失败会删除一批配置数量的最旧 harness 自有文件，再重试一次上传。
 
-Files 模式通过 `maxRequestFilesBytes` 与 `maxImagesPerRequest` 限制保留请求版本；内联回退有独立 base64 预算。两种模式都按配置的字节或数量量子移除最旧前缀。每张省略图片都有自己的模型可见占位符，包含显示名或附件 id，以及可用时的规范化尺寸、媒体类型与当前只读路径。分阶高水位策略避免每新增一张图片都改写旧请求前缀。
+Files 和内联请求执行精确字节预算及图片数量预算。超过预算时报告 `IMAGE_OFFLOAD_REQUIRED`；[持久图片恢复](../../compaction/compaction-image-offload/README.zh.md)记录选中的出现位置并重试。每个省略位置都序列化为占位文本。
 
 部署策略允许 thinking 时，`reasoningEffort` 可选择 `off`、`low`、`high` 或 `max`。启用的强度写入 Chat Completions 的 `reasoning_effort` 或 Messages 的 `output_config.effort`；`off` 发送 `thinking.type: disabled`。不支持的强度在网络 I/O 前以 `UNSUPPORTED_REASONING_EFFORT` 失败，`thinking: disabled` 会在插件加载时拒绝非 `off` 默认值。会话标题请求强制关闭 thinking。
 
@@ -166,7 +166,7 @@ Messages Files 元数据不包含远端到期时间；上传创建时间加 `fil
 
 #### Token 影响
 
-提供方分词决定精确的文本与图片 token 输入。适配器声明按路由的 `imageRequestPricing`：它根据持久字节长度复现最旧优先的图片 offload，并按投影后的尺寸使用官方公布的 v4 视觉计量（14px patch 网格、3:1 降采样、单图 384 token 上限、最坏对齐 pad）为每张保留图片计价。这使 token 计量服务可以在请求发出前为图片压力定价；上报的 usage 仍是权威值。推理回传会把每个推理轮次的思维链带进后续请求，而丢弃超预算图片会避免再次为它们付费。可用时报告缓存读取用量。`totalTokens` 是精确的 `prompt_tokens + completion_tokens` 汇总值；提供方给出的 `total_tokens` 不一致时省略该值。 Messages 用量分别报告输入、输出、缓存读取与缓存写入计数，并将四者相加得到 `totalTokens`。
+提供方分词决定精确的文本与图片 token 输入。适配器声明按路由的 `imageRequestPricing`：把日志中的图片省略决策选中的每个出现位置按其占位文本计价，并按投影后的尺寸使用公开的视觉计量规则（14 px patch 网格、3:1 降采样、544×544 放大下限、单图 1024 token 上限）为每张保留图片计价。这使 token 计量服务可以在请求发出前为图片压力定价；上报的 usage 仍是权威值。推理回传会把每个推理轮次的思维链带进后续请求，而已省略的图片不再消耗视觉 token。保留的出现位置按精确请求版本字节超过 file 模式或内联回退预算（`maxRequestFilesBytes`、`maxImagesPerRequest` 与两个量子）的请求，以 `IMAGE_OFFLOAD_REQUIRED` 失败并说明还需省略多少最老的出现位置，由 `dsh-compaction-image-offload` 用 `image/offload` 事件记录所选位置并重试。可用时报告缓存读取用量。Messages 的 token 总数包含未缓存输入、输出、缓存读取与缓存写入 token。Chat Completions 使用 `prompt_tokens + completion_tokens`，提供方给出的 `total_tokens` 不一致时省略 `totalTokens`。
 
 #### KV Cache 影响
 
