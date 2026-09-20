@@ -3,12 +3,15 @@ import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type {} from '@deepseek-ai/dsh-api-voice-controller'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import { createVoiceApi, VoiceApiError, type VoiceApi, type VoiceEngineStatus } from '../src/client/api.ts'
-import { createVoiceRemote, modelRow } from './voice-fixtures.client.ts'
+import { createVoiceRemote, modelRow, modelTask } from './voice-fixtures.client.ts'
 
 const operations: readonly { name: keyof VoiceApi; call: (api: VoiceApi) => Promise<unknown> }[] = [
   { name: 'engineStatus', call: api => api.engineStatus() },
   { name: 'modelsList', call: api => api.modelsList() },
   { name: 'modelsDownload', call: api => api.modelsDownload('zh') },
+  { name: 'modelsReinstall', call: api => api.modelsReinstall('zh') },
+  { name: 'modelsUpdate', call: api => api.modelsUpdate('zh') },
+  { name: 'modelsCancel', call: api => api.modelsCancel('zh', modelTask().taskId) },
   { name: 'modelsRemove', call: api => api.modelsRemove('zh') },
   { name: 'transcribe', call: api => api.transcribe('zh', 'YWJj') },
 ]
@@ -37,13 +40,32 @@ describe('createVoiceApi', () => {
       expect(remote.modelsList).toHaveBeenCalledExactlyOnceWith(requestSignal)
     })
 
-    it('unwraps the downloaded cache and forwards the model request and signal', async () => {
+    it('unwraps the admitted task and forwards the model request and signal', async () => {
       const remote = createVoiceRemote()
-      const value = { cacheDir: '/cache/zh' }
+      const value = modelTask()
       remote.modelsDownload.mockResolvedValue({ ok: true, value })
       const requestSignal = signal()
       await expect(createVoiceApi(remote).modelsDownload('zh', requestSignal)).resolves.toBe(value)
       expect(remote.modelsDownload).toHaveBeenCalledExactlyOnceWith({ modelId: 'zh' }, requestSignal)
+    })
+
+    it.each(['modelsReinstall', 'modelsUpdate'] as const)('forwards %s task admission and signal', async (name) => {
+      const remote = createVoiceRemote()
+      const value = modelTask()
+      remote[name].mockResolvedValue({ ok: true, value })
+      const requestSignal = signal()
+      await expect(createVoiceApi(remote)[name]('zh', requestSignal)).resolves.toBe(value)
+      expect(remote[name]).toHaveBeenCalledExactlyOnceWith({ modelId: 'zh' }, requestSignal)
+    })
+
+    it('forwards the exact branded task identity for cancellation', async () => {
+      const remote = createVoiceRemote()
+      const value = { cancelled: false }
+      remote.modelsCancel.mockResolvedValue({ ok: true, value })
+      const requestSignal = signal()
+      const taskId = modelTask().taskId
+      await expect(createVoiceApi(remote).modelsCancel('zh', taskId, requestSignal)).resolves.toBe(value)
+      expect(remote.modelsCancel).toHaveBeenCalledExactlyOnceWith({ modelId: 'zh', taskId }, requestSignal)
     })
 
     it('unwraps removal and forwards the model request and signal', async () => {

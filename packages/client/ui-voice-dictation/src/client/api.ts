@@ -2,6 +2,7 @@
 import type { ClientRemote, RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type {
   VoiceEngineStatus, VoiceModelsDownloadValue, VoiceModelsListValue, VoiceModelsRemoveValue, VoiceTranscribeResult,
+  VoiceModelTask, VoiceModelTaskId, VoiceModelsCancelValue,
 } from '@deepseek-ai/dsh-api-voice-controller/types'
 
 export type { VoiceEngineStatus, VoiceModelRow } from '@deepseek-ai/dsh-api-voice-controller/types'
@@ -28,6 +29,12 @@ export function createVoiceApi(remote: ClientRemote['voice']) {
     modelsList: (signal?: AbortSignal) => unwrap<VoiceModelsListValue>(remote.modelsList(signal)),
     modelsDownload: (modelId: string, signal?: AbortSignal) =>
       unwrap<VoiceModelsDownloadValue>(remote.modelsDownload({ modelId }, signal)),
+    modelsReinstall: (modelId: string, signal?: AbortSignal) =>
+      unwrap<VoiceModelTask>(remote.modelsReinstall({ modelId }, signal)),
+    modelsUpdate: (modelId: string, signal?: AbortSignal) =>
+      unwrap<VoiceModelTask>(remote.modelsUpdate({ modelId }, signal)),
+    modelsCancel: (modelId: string, taskId: VoiceModelTaskId, signal?: AbortSignal) =>
+      unwrap<VoiceModelsCancelValue>(remote.modelsCancel({ modelId, taskId }, signal)),
     modelsRemove: (modelId: string, signal?: AbortSignal) =>
       unwrap<VoiceModelsRemoveValue>(remote.modelsRemove({ modelId }, signal)),
     transcribe: (modelId: string, pcm16kMonoBase64: string, signal?: AbortSignal) =>

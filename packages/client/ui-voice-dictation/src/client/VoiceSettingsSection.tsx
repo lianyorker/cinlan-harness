@@ -1,15 +1,16 @@
 /** Native voice settings for browser preferences, microphone access, and host model resources. */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { IconCopyOutline16, Switch, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCopyOutline16, Modal, Switch, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { VoiceApi, VoiceEngineStatus, VoiceModelRow } from './api.ts'
 import { readMicrophonePermission, requestMicrophonePermission, type MicrophonePermissionState } from './microphone.ts'
 import type { DictationMode, VoiceSettings } from './voice-settings.ts'
 import css from './VoiceSettingsSection.module.css'
+import { VoiceTestSection } from './VoiceTestSection.tsx'
 
 /** Browser preferences and plain host-operation callbacks provided by the plugin lifetime. */
-export interface VoiceSettingsInjected extends Pick<VoiceApi, 'engineStatus' | 'modelsList' | 'modelsDownload' | 'modelsRemove'> {
+export interface VoiceSettingsInjected extends Pick<VoiceApi, 'engineStatus' | 'modelsList' | 'modelsDownload' | 'modelsRemove' | 'modelsReinstall' | 'modelsUpdate' | 'modelsCancel' | 'transcribe'> {
   hooks: { settings: SnapshotStore<VoiceSettings> }
   updateSettings: (patch: Partial<VoiceSettings>) => void
 }
@@ -33,20 +34,12 @@ function formatBytes(bytes: number, t: VoiceSettingsSectionProps['t']): string {
 }
 
 /** The Engine sub-section: native-addon load state, with a copyable repair command when degraded. */
-function EngineSection({ t, engineStatus }: Pick<VoiceSettingsSectionProps, 't' | 'engineStatus'>): ReactNode {
-  const [state, setState] = useState<EngineViewState>({ phase: 'loading' })
+function EngineSection({ t, state, refresh }: {
+  t: VoiceSettingsSectionProps['t']
+  state: EngineViewState
+  refresh: () => void
+}): ReactNode {
   const [copied, setCopied] = useState(false)
-  const [revision, setRevision] = useState(0)
-
-  useEffect(() => {
-    let current = true
-    setState({ phase: 'loading' })
-    void engineStatus().then(
-      (status) => { if (current) setState({ phase: 'ready', status }) },
-      () => { if (current) setState({ phase: 'error' }) },
-    )
-    return () => { current = false }
-  }, [engineStatus, revision])
 
   useEffect(() => {
     if (!copied) return
@@ -76,7 +69,7 @@ function EngineSection({ t, engineStatus }: Pick<VoiceSettingsSectionProps, 't' 
               {t('engineDegraded')}
             </span>
           )}
-          <button type="button" className={css.actionButton} disabled={state.phase === 'loading'} onClick={() => { setRevision(value => value + 1) }}>
+          <button type="button" className={css.actionButton} disabled={state.phase === 'loading'} onClick={refresh}>
             {t('refreshStatus')}
           </button>
         </div>
@@ -105,20 +98,24 @@ function EngineSection({ t, engineStatus }: Pick<VoiceSettingsSectionProps, 't' 
 }
 
 /** Host model resources and the browser-local preferred model. */
-function SpeechModelSection({ settings, updateSettings, t, modelsList, modelsDownload, modelsRemove }: {
+function SpeechModelSection({
+  settings, updateSettings, t, modelsList, modelsDownload, modelsRemove,
+  modelsReinstall, modelsUpdate, modelsCancel, transcribe, engineReady,
+}: {
   settings: VoiceSettings
-} & Pick<VoiceSettingsSectionProps, 'updateSettings' | 't' | 'modelsList' | 'modelsDownload' | 'modelsRemove'>): ReactNode {
+  engineReady: boolean
+} & Pick<VoiceSettingsSectionProps, 'updateSettings' | 't' | 'modelsList' | 'modelsDownload' | 'modelsRemove' | 'modelsReinstall' | 'modelsUpdate' | 'modelsCancel' | 'transcribe'>): ReactNode {
   const [state, setState] = useState<ModelsViewState>({ phase: 'loading' })
-  const [pendingDownload, setPendingDownload] = useState<string | null>(null)
-  const [pendingRemove, setPendingRemove] = useState<string | null>(null)
-  const [errors, setErrors] = useState<Record<string, string | undefined>>({})
+  const [pending, setPending] = useState<string | null>(null)
+  const [removeTarget, setRemoveTarget] = useState<VoiceModelRow | null>(null)
+  const [failedModel, setFailedModel] = useState<string | null>(null)
   const mounted = useRef(true)
   const refreshGeneration = useRef(0)
 
   const refresh = useCallback((showLoading = false) => {
     const generation = ++refreshGeneration.current
     if (showLoading) setState({ phase: 'loading' })
-    void modelsList().then(
+    return modelsList().then(
       ({ models }) => {
         if (mounted.current && generation === refreshGeneration.current) setState({ phase: 'ready', models })
       },
@@ -131,57 +128,40 @@ function SpeechModelSection({ settings, updateSettings, t, modelsList, modelsDow
 
   useEffect(() => {
     mounted.current = true
-    refresh(true)
-    return () => {
-      mounted.current = false
-      refreshGeneration.current += 1
-    }
+    void refresh(true)
+    return () => { mounted.current = false; refreshGeneration.current += 1 }
   }, [refresh])
 
+  const taskRunning = state.phase === 'ready' && state.models.some(model => model.task?.state === 'running')
   useEffect(() => {
-    const active = pendingDownload !== null || (state.phase === 'ready' && state.models.some(model =>
-      model.status.state === 'downloading' || model.status.state === 'extracting'))
-    if (!active) return
-    const timer = setInterval(() => { refresh() }, 1000)
-    return () => { clearInterval(timer) }
-  }, [state, pendingDownload, refresh])
+    if (!taskRunning && pending === null) return
+    let current = true
+    let timer: ReturnType<typeof setTimeout>
+    const poll = (): void => {
+      void refresh().finally(() => {
+        if (current) timer = setTimeout(poll, 1000)
+      })
+    }
+    timer = setTimeout(poll, 1000)
+    return () => { current = false; clearTimeout(timer) }
+  }, [taskRunning, pending, refresh])
 
-  const setModelFailure = (modelId: string, error: unknown): (void) => {
-    if (!mounted.current) return
-    const message = error instanceof Error ? error.message : String(error)
-    setErrors(current => ({ ...current, [modelId]: message }))
-  }
-
-  const clearModelFailure = (modelId: string): (void) => {
-    setErrors(current => ({ ...current, [modelId]: undefined }))
-  }
-
-  const onDownload = (modelId: string): (void) => {
-    clearModelFailure(modelId)
-    setPendingDownload(modelId)
-    void modelsDownload(modelId).catch((error: unknown) => {
-      setModelFailure(modelId, error)
+  const perform = (modelId: string, operation: () => Promise<unknown>): void => {
+    setFailedModel(null)
+    setPending(modelId)
+    void operation().catch(() => {
+      if (mounted.current) setFailedModel(modelId)
     }).finally(() => {
       if (!mounted.current) return
-      setPendingDownload(null)
-      refresh()
-    })
-  }
-
-  const onRemove = (modelId: string): (void) => {
-    if (!window.confirm(t('removeConfirm'))) return
-    clearModelFailure(modelId)
-    setPendingRemove(modelId)
-    void modelsRemove(modelId).then(
-      () => { if (mounted.current) refresh() },
-      (error: unknown) => { setModelFailure(modelId, error) },
-    ).finally(() => {
-      if (mounted.current) setPendingRemove(null)
+      setPending(null)
+      void refresh()
     })
   }
 
   const models = state.phase === 'ready' ? state.models : []
   const selectedMissing = settings.sttModel !== null && !models.some(model => model.definition.id === settings.sttModel)
+  const readyModel = models.find(model => model.definition.id === settings.sttModel && model.status.state === 'ready')
+    ?? models.find(model => model.status.state === 'ready')
 
   return (
     <section className={css.settingSection} data-voice-subsection="speech-model" data-settings-anchor="voice-model">
@@ -191,78 +171,73 @@ function SpeechModelSection({ settings, updateSettings, t, modelsList, modelsDow
           <p className={css.settingDescription} id="voice-model-description">{t('selectModelDescription')}</p>
         </div>
         <div className={css.settingControl}>
-          <select
-            id="voice-model"
-            className={css.modelSelect}
-            value={settings.sttModel ?? ''}
-            disabled={!settings.enabled || state.phase !== 'ready'}
-            aria-describedby="voice-model-description"
-            onChange={(event) => { updateSettings({ sttModel: event.target.value || null }) }}
-          >
+          <select id="voice-model" className={css.modelSelect} value={settings.sttModel ?? ''}
+            disabled={!settings.enabled || state.phase !== 'ready'} aria-describedby="voice-model-description"
+            onChange={(event) => { updateSettings({ sttModel: event.target.value || null }) }}>
             <option value="">{t('automaticModel')}</option>
             {selectedMissing && <option value={settings.sttModel} disabled>{t('selectedModelUnavailable')}</option>}
-            {models.map(model => (
-              <option key={model.definition.id} value={model.definition.id} disabled={model.status.state !== 'ready'}>
-                {model.definition.name}
-              </option>
-            ))}
+            {models.map(model => <option key={model.definition.id} value={model.definition.id} disabled={model.status.state !== 'ready'}>{model.definition.name}</option>)}
           </select>
+          <button type="button" className={css.actionButton} onClick={() => { void refresh() }}>{t('checkVersions')}</button>
         </div>
       </div>
       {state.phase === 'loading' && <p className={css.stateRow} role="status">{t('loading')}</p>}
-      {state.phase === 'error' && (
-        <div className={css.resourceNotice}>
-          <span className={css.statusFailed} role="alert">{t('loadFailed')}</span>
-          <button type="button" className={css.actionButton} onClick={() => { refresh(true) }}>{t('retry')}</button>
-        </div>
-      )}
+      {state.phase === 'error' && <div className={css.resourceNotice}>
+        <span className={css.statusFailed} role="alert">{t('loadFailed')}</span>
+        <button type="button" className={css.actionButton} onClick={() => { void refresh(true) }}>{t('retry')}</button>
+      </div>}
       {state.phase === 'ready' && models.length === 0 && <p className={css.stateRow}>{t('noModelReady')}</p>}
-      {models.length > 0 && (
-        <ul className={css.modelList} aria-label={t('modelsSectionTitle')}>
-          {models.map((model) => {
-            const isReady = model.status.state === 'ready'
-            const isDownloading = model.status.state === 'downloading' || model.status.state === 'extracting'
-            return (
-              <li key={model.definition.id} className={css.modelRow}>
-                <div className={css.modelInfo}>
-                  <div className={css.modelTitle}>
-                    {model.definition.name}
-                    {model.definition.recommended && <span className={css.recommendedTag}>{t('recommended')}</span>}
-                  </div>
-                  <p className={css.settingDescription}>{model.definition.description}</p>
-                  <p className={css.modelMeta} role="status">
-                    {formatBytes(model.definition.approximateBytes, t)}
-                    {model.status.state === 'downloading' && ' · ' + t('downloading') + ' ' + formatBytes(model.status.receivedBytes, t) + ' / ' + formatBytes(model.status.totalBytes, t)}
-                    {model.status.state === 'extracting' && ' · ' + t('installing') + ' ' + formatBytes(model.status.receivedBytes, t) + ' / ' + formatBytes(model.status.totalBytes, t)}
-                    {isReady && ' · ' + t('modelReady')}
-                    {model.status.state === 'not-downloaded' && ' · ' + t('modelNotDownloaded')}
-                    {model.status.state === 'failed' && ' · ' + t('statusFailed') + ': ' + model.status.message}
-                  </p>
-                  {errors[model.definition.id] !== undefined && <p className={css.statusFailed} role="alert">{errors[model.definition.id]}</p>}
-                </div>
-                <div className={css.modelActions}>
-                  {!isReady && !isDownloading && (
-                    <button type="button" className={css.actionButton}
-                      disabled={!settings.enabled || pendingDownload !== null || pendingRemove === model.definition.id}
-                      onClick={() => { onDownload(model.definition.id) }}
-                    >
-                      {pendingDownload === model.definition.id ? t('downloading') : t('modelDownload')}
-                    </button>
-                  )}
-                  {(isDownloading || isReady || model.status.state === 'failed') && (
-                    <button type="button" className={css.actionButton}
-                      disabled={!settings.enabled || pendingRemove !== null}
-                      onClick={() => { onRemove(model.definition.id) }}
-                    >
-                      {pendingRemove === model.definition.id ? t('removing') : isDownloading ? t('modelCancel') : t('modelRemove')}
-                    </button>
-                  )}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+      {models.length > 0 && <ul className={css.modelList} aria-label={t('modelsSectionTitle')}>
+        {models.map((model) => {
+          const task = model.task
+          const running = task?.state === 'running'
+          const ready = model.status.state === 'ready'
+          const hasInstallation = model.resource.installedVersion !== null || model.resource.integrity !== 'missing'
+          const blocked = !settings.enabled || pending !== null || running
+          const progress = task?.state === 'running' ? task.progress : undefined
+          return <li key={model.definition.id} className={css.modelRow}>
+            <div className={css.modelInfo}>
+              <div className={css.modelTitle}>{model.definition.name}
+                {model.definition.recommended && <span className={css.recommendedTag}>{t('recommended')}</span>}
+              </div>
+              <p className={css.settingDescription}>{model.definition.description}</p>
+              <p className={css.modelMeta} role="status">
+                {formatBytes(model.definition.approximateBytes, t)}{' · '}
+                {ready ? t('modelReady') : model.status.state === 'failed' ? t('statusFailed') : t('modelNotDownloaded')}
+                {progress !== undefined && ' · ' + t(progress.state === 'downloading' ? 'downloading' : 'installing') + ' ' + formatBytes(progress.receivedBytes, t) + ' / ' + formatBytes(progress.totalBytes, t)}
+                {running && ' · ' + t(task.operation === 'download' ? 'taskDownload' : task.operation === 'reinstall' ? 'taskReinstall' : 'taskUpdate')}
+                {task?.state === 'cancelled' && ' · ' + t('taskCancelled')}
+                {task?.state === 'failed' && ' · ' + t('operationFailed')}
+              </p>
+              <p className={css.modelMeta}>{t('installedVersion')}: {model.resource.installedVersion ?? t('notInstalled')}</p>
+              <p className={css.modelMeta}>{t('availableVersion')}: {model.resource.availableVersion}</p>
+              <p className={css.modelMeta}>{t('versionDescription')}</p>
+              <p className={css.modelMeta}>{t('source')}: {model.resource.source.join(', ')}</p>
+              <p className={css.modelMeta}>{t(model.resource.integrity === 'verified' ? 'integrityVerified' : model.resource.integrity === 'unverified' ? 'integrityUnverified' : model.resource.integrity === 'corrupt' ? 'integrityCorrupt' : 'integrityMissing')}</p>
+              {failedModel === model.definition.id && <p className={css.statusFailed} role="alert">{t('operationFailed')}</p>}
+            </div>
+            <div className={css.modelActions}>
+              {!ready && !hasInstallation && <button type="button" className={css.actionButton} disabled={blocked} onClick={() => { perform(model.definition.id, () => modelsDownload(model.definition.id)) }}>{t('modelDownload')}</button>}
+              {hasInstallation && <button type="button" className={css.actionButton} disabled={blocked} onClick={() => { perform(model.definition.id, () => modelsReinstall(model.definition.id)) }}>{t('modelReinstall')}</button>}
+              {model.resource.installedVersion !== null && <button type="button" className={css.actionButton} disabled={blocked || !model.resource.updateAvailable} onClick={() => { perform(model.definition.id, () => modelsUpdate(model.definition.id)) }}>{t('modelUpdate')}</button>}
+              {running && <button type="button" className={css.actionButton} disabled={!settings.enabled || pending !== null} onClick={() => { perform(model.definition.id, () => modelsCancel(model.definition.id, task.taskId)) }}>{t('modelCancel')}</button>}
+              {(ready || hasInstallation || model.status.state === 'failed') && <button type="button" className={css.actionButton} disabled={blocked} onClick={() => { setRemoveTarget(model) }}>{t('modelRemove')}</button>}
+            </div>
+          </li>
+        })}
+      </ul>}
+      <Modal open={removeTarget !== null} title={t('removeTitle')} closeLabel={t('closeDialog')} onClose={() => { setRemoveTarget(null) }}
+        description={t('removeConfirm')} footer={<>
+          <button type="button" className={css.actionButton} onClick={() => { setRemoveTarget(null) }}>{t('modelCancel')}</button>
+          <button type="button" className={css.actionButton} onClick={() => {
+            if (removeTarget === null) return
+            const modelId = removeTarget.definition.id
+            setRemoveTarget(null)
+            perform(modelId, () => modelsRemove(modelId))
+          }}>{t('confirmRemove')}</button>
+        </>} />
+      <VoiceTestSection settings={settings} t={t} transcribe={transcribe}
+        modelId={engineReady ? readyModel?.definition.id ?? null : null} />
     </section>
   )
 }
@@ -403,8 +378,20 @@ function MicrophoneDeviceSection({ settings, updateSettings, permissionRevision,
  */
 export function VoiceSettingsSection({
   t, useSettings, updateSettings, engineStatus, modelsList, modelsDownload, modelsRemove,
+  modelsReinstall, modelsUpdate, modelsCancel, transcribe,
 }: VoiceSettingsSectionProps): ReactNode {
   const settings = useSettings(value => value)
+  const [engine, setEngine] = useState<EngineViewState>({ phase: 'loading' })
+  const [engineRevision, setEngineRevision] = useState(0)
+  useEffect(() => {
+    let current = true
+    setEngine({ phase: 'loading' })
+    void engineStatus().then(
+      (status) => { if (current) setEngine({ phase: 'ready', status }) },
+      () => { if (current) setEngine({ phase: 'error' }) },
+    )
+    return () => { current = false }
+  }, [engineStatus, engineRevision])
   const [mic, setMic] = useState<MicrophonePermissionState>('unknown')
   const [requestingMic, setRequestingMic] = useState(false)
   const [permissionRevision, setPermissionRevision] = useState(0)
@@ -460,9 +447,11 @@ export function VoiceSettingsSection({
           </div>
         </div>
         <MicrophoneDeviceSection settings={settings} updateSettings={updateSettings} permissionRevision={permissionRevision} t={t} />
-        <EngineSection t={t} engineStatus={engineStatus} />
+        <EngineSection t={t} state={engine} refresh={() => { setEngineRevision(value => value + 1) }} />
         <SpeechModelSection settings={settings} updateSettings={updateSettings} t={t}
-          modelsList={modelsList} modelsDownload={modelsDownload} modelsRemove={modelsRemove}
+          modelsList={modelsList} modelsDownload={modelsDownload} modelsRemove={modelsRemove} transcribe={transcribe}
+          modelsReinstall={modelsReinstall} modelsUpdate={modelsUpdate} modelsCancel={modelsCancel}
+          engineReady={engine.phase === 'ready' && engine.status.ok}
         />
       </div>
     </div>

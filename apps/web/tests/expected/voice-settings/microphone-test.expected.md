@@ -1,0 +1,6 @@
+- heading "Microphone and transcription test" [level=2]
+- paragraph: Click Start to record up to 10 seconds and transcribe on the host. Audio is not saved; the result stays on this page.
+- status: Transcription complete.
+- meter "Microphone input level"
+- paragraph: Captured microphone fixture.
+- button "Start microphone test"

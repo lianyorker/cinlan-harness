@@ -6,11 +6,11 @@ import { en, type VoiceSettingsKey } from '../src/client/locales.ts'
 import { VoiceSettingsSection, type VoiceSettingsSectionProps } from '../src/client/VoiceSettingsSection.tsx'
 import type { VoiceSettings } from '../src/client/voice-settings.ts'
 import type { VoiceApi, VoiceModelRow } from '../src/client/api.ts'
-import { createVoiceCallbacks, modelRow } from './voice-fixtures.client.ts'
+import { createVoiceCallbacks, modelRow, modelTask } from './voice-fixtures.client.ts'
 
 afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers() })
 
-type SettingsCallbacks = Pick<VoiceApi, 'engineStatus' | 'modelsList' | 'modelsDownload' | 'modelsRemove'>
+type SettingsCallbacks = VoiceApi
 
 const DEFAULT_SETTINGS: VoiceSettings = { enabled: true, dictationMode: 'toggle', sttModel: null, microphoneDeviceId: null }
 
@@ -56,15 +56,15 @@ describe('VoiceSettingsSection', () => {
     callbacks.modelsList.mockImplementation(async () => ({ models: [
       modelRow('zh', removed ? { state: 'not-downloaded' } : { state: 'ready', cacheDir: '/cache/zh' }),
     ] }))
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     render(<Harness callbacks={callbacks} />)
     await screen.findByText(en.engineOk)
 
     fireEvent.click(await screen.findByRole('button', { name: en.modelRemove }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: en.confirmRemove }))
 
     await waitFor(() => { expect(callbacks.modelsRemove).toHaveBeenCalledExactlyOnceWith('zh') })
     await screen.findByRole('button', { name: en.modelDownload })
-    expect(window.confirm).toHaveBeenCalledWith(en.removeConfirm)
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('shows the load-failed message when models.list rejects', async () => {
@@ -96,7 +96,7 @@ describe('VoiceSettingsSection', () => {
     render(<Harness callbacks={callbacks} />)
     await screen.findByText(en.engineOk)
     fireEvent.click(await screen.findByRole('button', { name: en.modelDownload }))
-    await screen.findByText(text => text.includes('archive corrupt'))
+    await screen.findByText(en.operationFailed)
     expect(screen.queryByText(en.loadFailed)).toBeNull()
     expect(within(screen.getByRole('list', { name: en.modelsSectionTitle })).getByText('zh-model')).not.toBeNull()
   })
@@ -119,7 +119,7 @@ describe('VoiceSettingsSection', () => {
     let modelPhase: 'not-downloaded' | 'downloading' | 'extracting' | 'ready' = 'not-downloaded'
     vi.useFakeTimers()
     const callbacks = createVoiceCallbacks()
-    callbacks.modelsDownload.mockImplementation(async () => { modelPhase = 'downloading'; return { cacheDir: '/cache/zh' } })
+    callbacks.modelsDownload.mockImplementation(async () => { modelPhase = 'downloading'; return modelTask('zh') })
     callbacks.modelsList.mockImplementation(async () => {
       const status: VoiceModelRow['status'] = modelPhase === 'not-downloaded'
         ? { state: 'not-downloaded' }
@@ -176,7 +176,7 @@ describe('VoiceSettingsSection', () => {
     await screen.findByText(en.engineOk)
     expect(screen.getByRole('heading', { level: 1, name: en.title })).not.toBeNull()
     expect([...container.querySelectorAll('[data-settings-anchor]')].map(row => row.getAttribute('data-settings-anchor'))).toEqual([
-      'voice-enabled', 'voice-mode', 'voice-permission', 'voice-device', 'voice-engine', 'voice-model',
+      'voice-enabled', 'voice-mode', 'voice-permission', 'voice-device', 'voice-engine', 'voice-model', 'voice-test',
     ])
     expect((screen.getByRole<HTMLSelectElement>('combobox', { name: en.microphoneDevice })).disabled).toBe(true)
     expect((screen.getByRole<HTMLInputElement>('radio', { name: en.modeHold })).disabled).toBe(true)
@@ -250,7 +250,7 @@ describe('VoiceSettingsSection', () => {
     vi.stubGlobal('navigator', {})
     render(<Harness callbacks={callbacks} onSettingsChange={onSettingsChange} />)
     expect((screen.getByRole<HTMLButtonElement>('button', { name: en.micRequest })).disabled).toBe(true)
-    expect(screen.getByText(en.microphoneUnavailable)).not.toBeNull()
+    expect(screen.getAllByText(en.microphoneUnavailable).length).toBeGreaterThan(0)
     expect(onSettingsChange).not.toHaveBeenCalled()
   })
 
@@ -267,23 +267,72 @@ describe('VoiceSettingsSection', () => {
     await screen.findByText(en.engineOk)
     await screen.findByText(en.noModelReady)
   })
-  it.each(['ready', 'downloading'] as const)('retains real %s status when a confirmed removal fails', async (state) => {
+  it('retains verified readiness when confirmed removal fails', async () => {
     const callbacks = createVoiceCallbacks()
     callbacks.modelsRemove.mockRejectedValue(new Error('Model is busy'))
-    callbacks.modelsList.mockResolvedValue({ models: [modelRow(
-      'zh',
-      state === 'ready' ? { state, cacheDir: '/cache/zh' } : { state, receivedBytes: 10, totalBytes: 100 },
-      { name: 'Local model' },
-    )] })
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    callbacks.modelsList.mockResolvedValue({ models: [modelRow('zh', { state: 'ready', cacheDir: '/cache/zh' })] })
     render(<Harness callbacks={callbacks} />)
-    const label = state === 'ready' ? en.modelRemove : en.modelCancel
-    fireEvent.click(await screen.findByRole('button', { name: label }))
+    fireEvent.click(await screen.findByRole('button', { name: en.modelRemove }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: en.modelCancel }))
     expect(callbacks.modelsRemove).not.toHaveBeenCalled()
-    confirm.mockReturnValue(true)
-    fireEvent.click(screen.getByRole('button', { name: label }))
-    await screen.findByText('Model is busy')
-    expect(screen.getByRole('button', { name: label })).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: en.modelRemove }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: en.confirmRemove }))
+    await screen.findByText(en.operationFailed)
+    expect(screen.getByRole('button', { name: en.modelRemove })).not.toBeNull()
     expect(screen.queryByRole('button', { name: en.modelDownload })).toBeNull()
   })
+
+  it('shows authoritative version/source and admits reinstall and update only from Host availability', async () => {
+    const callbacks = createVoiceCallbacks()
+    const row = modelRow('zh', { state: 'ready', cacheDir: '/cache/zh' })
+    let changed = false
+    callbacks.modelsList.mockImplementation(async () => ({ models: [{ ...row, resource: { ...row.resource,
+      installedVersion: 'sha256:installed', availableVersion: changed ? 'sha256:new' : 'sha256:installed', updateAvailable: changed,
+    } }] }))
+    render(<Harness callbacks={callbacks} />)
+    const update = await screen.findByRole<HTMLButtonElement>('button', { name: en.modelUpdate })
+    expect(update.disabled).toBe(true)
+    expect(screen.getByText(en.installedVersion + ': sha256:installed')).not.toBeNull()
+    expect(screen.getByText(en.source + ': ' + row.resource.source.join(', '))).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: en.modelReinstall }))
+    await waitFor(() => { expect(callbacks.modelsReinstall).toHaveBeenCalledExactlyOnceWith('zh') })
+    changed = true
+    fireEvent.click(screen.getByRole('button', { name: en.checkVersions }))
+    await waitFor(() => { expect(update.disabled).toBe(false) })
+    fireEvent.click(update)
+    await waitFor(() => { expect(callbacks.modelsUpdate).toHaveBeenCalledExactlyOnceWith('zh') })
+  })
+
+  it('cancels the displayed task without removing the ready installation and converges after a stale receipt', async () => {
+    const callbacks = createVoiceCallbacks()
+    const row = modelRow('zh', { state: 'ready', cacheDir: '/cache/zh' })
+    const first = modelTask('zh', 'reinstall')
+    const next = { ...first, taskId: 'task-next' as typeof first.taskId }
+    let task = first
+    callbacks.modelsList.mockImplementation(async () => ({ models: [{ ...row, task }] }))
+    callbacks.modelsCancel.mockImplementation(async () => { task = next; return { cancelled: false } })
+    render(<Harness callbacks={callbacks} />)
+    fireEvent.click(await screen.findByRole('button', { name: en.modelCancel }))
+    await waitFor(() => { expect(callbacks.modelsCancel).toHaveBeenCalledWith('zh', first.taskId) })
+    await waitFor(() => { expect(screen.getByRole<HTMLButtonElement>('button', { name: en.modelCancel }).disabled).toBe(false) })
+    fireEvent.click(screen.getByRole('button', { name: en.modelCancel }))
+    await waitFor(() => { expect(callbacks.modelsCancel).toHaveBeenLastCalledWith('zh', next.taskId) })
+    expect(callbacks.modelsRemove).not.toHaveBeenCalled()
+    expect(screen.getByText(text => text.includes(en.modelReady))).not.toBeNull()
+  })
+
+  it('keeps microphone testing disabled while the Host engine status is pending or degraded', async () => {
+    const callbacks = createVoiceCallbacks()
+    callbacks.modelsList.mockResolvedValue({ models: [modelRow('zh', { state: 'ready', cacheDir: '/cache/zh' })] })
+    let finish!: (value: Awaited<ReturnType<VoiceApi['engineStatus']>>) => void
+    callbacks.engineStatus.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn() } })
+    vi.stubGlobal('AudioContext', vi.fn())
+    render(<Harness callbacks={callbacks} />)
+    await screen.findByRole('list', { name: en.modelsSectionTitle })
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: en.testStart }).disabled).toBe(true)
+    await act(async () => { finish({ ok: false, cause: 'unsupported platform', command: '', profile: null, note: '' }) })
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: en.testStart }).disabled).toBe(true)
+  })
+
 })

@@ -98,6 +98,10 @@ export function apply(ctx: ClientContext): void {
     modelsList: voiceApi.modelsList,
     modelsDownload: voiceApi.modelsDownload,
     modelsRemove: voiceApi.modelsRemove,
+    modelsReinstall: voiceApi.modelsReinstall,
+    modelsUpdate: voiceApi.modelsUpdate,
+    modelsCancel: voiceApi.modelsCancel,
+    transcribe: voiceApi.transcribe,
   })
   ctx.slots.inject('settings.section', function* () {
     yield ctx.settingsMetadata.registerSection({ sectionId: 'voice', groupId: 'ai' })
@@ -108,6 +112,7 @@ export function apply(ctx: ClientContext): void {
       { id: 'device', anchorId: 'voice-device', title: () => t('microphoneDevice'), description: () => t('microphoneDeviceDescription'), keywords: () => [t('keywordMicrophone')] },
       { id: 'engine', anchorId: 'voice-engine', title: () => t('engineSectionTitle'), description: () => t('engineDescription'), keywords: () => [t('keywordLocal'), t('keywordRepair')] },
       { id: 'model', anchorId: 'voice-model', title: () => t('selectModel'), description: () => t('selectModelDescription'), keywords: () => [t('modelDownload'), t('modelRemove'), t('keywordOffline')] },
+      { id: 'test', anchorId: 'voice-test', title: () => t('testTitle'), description: () => t('testNeedsModel'), keywords: () => [t('keywordMicrophone'), t('keywordDictation')] },
     ])
     yield ctx.slots.register({
       name: 'settings.section',

@@ -277,7 +277,7 @@ describe('ui-voice-dictation apply', () => {
     const items = b.ctx.settingsMetadata.getSnapshot().items
     expect(items.map(item => [item.id, item.anchorId])).toEqual([
       ['enabled', 'voice-enabled'], ['mode', 'voice-mode'], ['permission', 'voice-permission'],
-      ['device', 'voice-device'], ['engine', 'voice-engine'], ['model', 'voice-model'],
+      ['device', 'voice-device'], ['engine', 'voice-engine'], ['model', 'voice-model'], ['test', 'voice-test'],
     ])
     expect(JSON.stringify(items)).not.toContain('private-')
     b.locale.setLocale('zh')
@@ -285,7 +285,7 @@ describe('ui-voice-dictation apply', () => {
     disposeDeclaration()
     await vi.waitFor(() => { expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] }) })
     declare(b.slots)
-    expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(6)
+    expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(7)
     await fiber.dispose()
     expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
   })

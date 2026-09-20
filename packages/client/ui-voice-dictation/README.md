@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use Voice settings to choose a microphone, dictation mode, and preferred speech model. Download and remove model resources on the connected host, inspect its engine status, and copy its repair command when needed. Dictation appends recognized text to the initiating session's current draft for review before sending. Preferences stay in the browser; audio processing and model resources belong to the host.
+Use Voice settings to choose a microphone, dictation mode, and preferred speech model. Install, reinstall, update, or remove model resources on the connected host, inspect its engine status, and test microphone capture and transcription. Dictation appends recognized text to the initiating session's current draft for review before sending. Preferences stay in the browser; audio processing and model resources belong to the host.
 
 ## Table of Contents
 
@@ -35,11 +35,14 @@ Open Voice under AI and models in Settings. The page keeps searchable fields vis
 | Input device | Browser `dsh.voice.settings.microphoneDeviceId` | The next recording passes the selected device to `getUserMedia`; System default clears the device preference. |
 | Microphone permission | Browser/OS; origin-local fallback | Request access releases its temporary tracks and refreshes device labels. An authoritative Permissions API prompt clears a stale grant; unsupported queries use the last permission decision. |
 | Speech model | Browser `dsh.voice.settings.sttModel` | Transcription uses the selected ready model, otherwise the first ready model; Automatic clears the preference. |
-| Engine and model resources | Connected host | Status, download, cancel, and delete use the generated `voice` Remote over Web and desktop carriers. Removal requires confirmation; a failed operation preserves the reported resource state and shows its error. |
+| Engine and model resources | Connected host | Installation, reinstall, update, exact-task cancellation, and removal use the generated `voice` Remote over Web and desktop carriers. Removal requires an in-page confirmation. Operation failures show localized recovery guidance. |
+| Microphone test | Page lifetime | An explicit click captures up to ten seconds from the selected device, displays input level, and sends bounded PCM to the selected ready model. The transcript stays on this page. |
 
 Browser preference writes apply immediately. An unavailable saved microphone remains selected until the user chooses another device; it is never silently replaced or copied into host settings. A denied permission does not clear preferences. Storage rejection leaves the live settings usable, but changes cannot survive a reload.
 
-The resource list shows download bytes, extraction, readiness, and failures independently of the native engine's status. A degraded engine supplies a copyable host repair command. Refresh status rechecks the engine; failed initial model queries offer Retry. Model operations retain their rows when a later status read fails.
+The resource list displays the Host's source URLs, installation integrity, installed and available manifest fingerprints, and current task progress. Versions identify pinned manifests, not upstream releases; Check model versions refreshes the Host catalog status. Update is enabled only when the Host reports an available update. A replacement can remain ready while its task runs; cancellation targets that exact task without removing the installed model. Leaving settings does not cancel Host installation tasks. A degraded engine supplies a copyable repair command. Failed initial queries offer Retry; later query failures retain the last reported rows.
+
+The microphone test remains disabled until the Host reports a ready engine and model. Stop releases microphone tracks before transcription; cancel, disabling dictation, and leaving the page release capture and suppress late results. A permission prompt that resolves after cancellation also releases its tracks. Audio is not saved, and the test never modifies or sends a Session draft. Empty transcripts and capture or Host failures show localized guidance.
 
 ### Dictation and drafts
 
