@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-The desktop application is an Electron shell around the dsh Web UI. It opens no listening port: a bundled upstream Node.js child boots the installed dsh project, versioned framed byte pipes carry Fetch requests and streaming responses without an outer Base64 envelope, Node IPC carries lifecycle control, and `dsh-app://` serves the matching client assets.
+The desktop application is an Electron shell around the dsh Web UI. Its ordinary local mode opens no listening port: a bundled upstream Node.js child boots the installed dsh project, versioned framed byte pipes carry Fetch requests and streaming responses without an outer Base64 envelope, Node IPC carries lifecycle control, and `dsh-app://` serves the matching client assets. The opt-in paired-device carrier is a separate HTTPS/WSS listener with its own origin, pairing cookie, protocol header, and admission path; it does not reuse the local pipe or unrestricted Web index.
 
 ## Key technical decisions
 
@@ -13,7 +13,7 @@ The desktop application is an Electron shell around the dsh Web UI. It opens no 
 | Package sources | The exact dsh source build must be packageable before npm publication and install offline; plugins must remain ordinary user-selected npm packages. | The signed application carries locally packed first-party dsh packages and an offline seed store. Desktop plugins remain ordinary npm dependencies resolved from the fixed Desktop registry. |
 | Seed transport | Apple notarization inspects code inside archives; shipping every pnpm store file separately would also make the application signature inventory tens of thousands of cache entries, while one compressed archive would amplify small package changes. | macOS packaging signs every Mach-O CAS object, rewrites its pnpm hashes, and proves another offline install before assigning store files to 16 deterministic uncompressed tar shards. The outer installer compresses them, and differential updates can reuse unchanged shards. |
 | State ownership | Sharing executable dependency graphs would let CLI and Desktop change each other's dsh, Cordis, plugin, or native-module versions, while two desktop processes could race on the same profile. | Electron acquires its process-lifetime single-instance lock before any profile access and exclusively owns `$DSH_HOME/profiles/desktop` plus its package-manager state. CLI and Desktop share supported product data under `$DSH_HOME`, but never executable packages, plugin activation, lockfiles, or `node_modules`. |
-| Transport | A listening Web service adds port ownership, authentication, CORS, and exposure concerns; Electron and upstream Node.js also need an explicit cross-process protocol. | The application opens no Web port. `dsh-app://` carries Web assets and Fetch traffic; framed byte pipes carry bounded request and response chunks with backpressure, while Node IPC carries child lifecycle and update-admission control. |
+| Transport | A listening Web service adds port ownership, authentication, CORS, and exposure concerns; Electron and upstream Node.js also need an explicit cross-process protocol. | The ordinary local carrier opens no Web port. `dsh-app://` carries Web assets and Fetch traffic; framed byte pipes carry bounded request and response chunks with backpressure, while Node IPC carries child lifecycle and update-admission control. |
 | Activation | Dependency resolution, lifecycle scripts, native modules, and plugin startup can fail, and a process can stop during directory replacement. | Release and plugin changes install in staging, boot a complete backend health check, and replace the active profile only after success; a journal and one rollback profile cover interrupted replacement. |
 | Updates | Independent shell and dsh updates would recreate version splits, while unchanged shell blocks should not require a complete transfer. | The Electron shell, matching dsh seed, Node.js, and pnpm form one signed update unit. Platform update artifacts may reuse unchanged blocks, but runtime version selection never splits from the Desktop release. |
 
@@ -34,6 +34,13 @@ Settings exposes installed plugin controls and each plugin's configuration forms
 The Host watches the profile patch with config-only HMR. Every reload retains the packaged Desktop overlay and resolves bundles inside the Desktop project. Native package changes stop the Host before copying metadata and retain the saved patch through installation, release reconciliation, and rollback. No Desktop configuration reload updates the CLI profile resolver or home patch.
 
 Open in app uses the existing native application catalog and validated launch service through the same custom-protocol Fetch carrier. HTTP proxy variables resolve from the layered launch environment before plugins boot; proxy resources close after Host teardown, including failed startup.
+
+<a id="paired-phone-access"></a>
+### Paired phone access
+
+The [Remote Access provider](../../packages/remote-access/remote-access/README.md) owns pairing, HTTPS/WSS authentication, Session permissions, and listener disposal. Desktop supplies the same task-admission controller used by local pipe requests, so an update lock drains both carriers and rejects new operations. Supplying this adapter does not enable a listener or grant local Host authority.
+
+The [paired shell](../../packages/client/ui-paired-shell/README.md) uses the ordinary Client module loader and conversation plugins with a fixed roster. It receives no local index injections, administration pages, or Desktop transport shim. Static runtime files come only from the Vite manifest’s index-entry dependency closure; plugin requests match individual selected revisioned URLs. Preview files, arbitrary paths, full-graph combined bundles, and source maps are not served.
 
 ### Office authoring
 
@@ -128,7 +135,7 @@ pnpm run package:desktop:mac:x64
 pnpm run package:desktop:win:x64
 ```
 
-The macOS arm64 command requires Apple Silicon. The macOS x64 command runs on Intel macOS or Apple Silicon with Rosetta. The Windows x64 command requires Windows x64. Linux is not a supported Desktop release target.
+The macOS arm64 command requires Apple Silicon. The macOS x64 command runs on Intel macOS or Apple Silicon with Rosetta. The Windows x64 command requires Windows x64. Linux is not a supported Desktop release target. From the repository root, `node --import tsx apps/desktop/scripts/package-target.ts win-x64` runs the same pipeline with the installed pnpm entry. Configuration checks, electron-builder, and the renderer bundlers run through Node directly; package scripts, packing, and isolated seed installation retain pnpm.
 
 Each target owns its packed package inputs, prepared runtime, package set, seed, pnpm preparation state, unpacked application, update metadata, and final artifacts under `apps/desktop/.desktop-build/targets/<target>/`. The Node.js archive cache remains shared under `.desktop-build/downloads` because every archive name includes its version, platform, and architecture and is verified before extraction. A target build never consumes another target's mutable preparation state.
 

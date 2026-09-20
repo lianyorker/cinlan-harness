@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-桌面应用是包裹 dsh Web UI 的 Electron 壳。它不打开监听端口：内置的上游 Node.js 子进程启动已安装的 dsh 项目，带版本的分帧字节管道在没有外层 Base64 信封的情况下承载 Fetch 请求与流式响应，Node IPC 承载生命周期控制，`dsh-app://` 则提供与后端版本匹配的客户端资源。
+桌面应用是包裹 dsh Web UI 的 Electron 壳。普通本地模式不会打开监听端口：内置的上游 Node.js 子进程启动已安装的 dsh 项目，带版本的分帧字节管道在没有外层 Base64 信封的情况下承载 Fetch 请求与流式响应，Node IPC 承载生命周期控制，`dsh-app://` 则提供与后端版本匹配的客户端资源。可选的配对设备载体是独立的 HTTPS/WSS 监听器，使用自己的 origin、配对 cookie、协议 header 和准入路径；它不复用本地管道或无限制的 Web index。
 
 ## 关键技术决策
 
@@ -13,7 +13,7 @@
 | 包来源 | 必须能在发布到 npm 之前从同一次源码构建打包精确的 dsh，并支持离线安装；插件则需要保留为用户选择的普通 npm 包。 | 已签名应用携带本地打包的第一方 dsh 包与离线 seed store。桌面插件仍是从固定 Desktop registry 解析的普通 npm 依赖。 |
 | Seed 传输 | Apple 公证会检查归档内的代码；把 pnpm store 的每个文件分别放入应用，还会让应用签名记录数万个缓存条目，而单个压缩归档会放大小幅包变更。 | macOS 打包先签署每个 Mach-O CAS 对象、重写其 pnpm 哈希并再次证明离线安装，再把 store 文件分配到 16 个确定性的未压缩 tar 分片。外层安装包负责压缩，差分更新可以复用未变化的分片。 |
 | 状态归属 | 共享可执行依赖图会让 CLI 与 Desktop 相互改变 dsh、Cordis、插件或原生模块版本，而两个桌面进程还可能争用同一个 profile。 | Electron 在访问任何 profile 前获取进程生命周期单实例锁，并独占 `$DSH_HOME/profiles/desktop` 及其包管理器状态。CLI 与 Desktop 共享 `$DSH_HOME` 下受支持的产品数据，但绝不共享可执行包、插件激活、锁文件或 `node_modules`。 |
-| 通信 | 监听 Web 服务会引入端口归属、认证、CORS 与暴露风险；Electron 与上游 Node.js 之间也需要明确的跨进程协议。 | 应用不打开 Web 端口。`dsh-app://` 承载 Web 资源和 Fetch 流量；分帧字节管道以背压传输有界请求与响应分块，Node IPC 承载子进程生命周期与更新准入控制。 |
+| 通信 | 监听 Web 服务会引入端口归属、认证、CORS 与暴露风险；Electron 与上游 Node.js 之间也需要明确的跨进程协议。 | 普通本地载体不打开 Web 端口。`dsh-app://` 承载 Web 资源和 Fetch 流量；分帧字节管道以背压传输有界请求与响应分块，Node IPC 承载子进程生命周期与更新准入控制。 |
 | 激活 | 依赖解析、生命周期脚本、原生模块与插件启动都可能失败，目录替换期间进程也可能中断。 | 发布与插件变更先安装到 staging，并启动完整后端执行健康检查；只有成功后才替换活跃 profile，中断替换由事务日志和一个 rollback profile 恢复。 |
 | 更新 | 桌面壳与 dsh 独立更新会重新产生版本分裂，而桌面壳未变化的数据块不应强制完整传输。 | Electron 壳、匹配的 dsh seed、Node.js 与 pnpm 组成一个已签名更新单元。平台更新产物可以复用未变化的数据块，但运行时版本选择绝不脱离 Desktop 发布。 |
 
@@ -34,6 +34,13 @@ Electron 根据应用 locale 选择类型化的中英文字典，并以英文作
 Host 使用仅配置 HMR（热模块替换）监视 profile patch。每次重载保留随包提供的 Desktop overlay，并在 Desktop 项目内解析 bundle。原生包变更在复制元数据前停止 Host，并在安装、发布校准和回滚过程中保留已保存的 patch。Desktop 配置重载不会更新 CLI profile 解析器或 home patch。
 
 在应用中打开通过同一自定义协议 Fetch 通道使用现有原生应用目录与经过校验的启动服务。HTTP 代理变量在插件启动前从分层启动环境解析；代理资源在 Host 清理结束后关闭，启动失败也不例外。
+
+<a id="paired-phone-access"></a>
+### 配对手机访问
+
+[Remote Access Provider](../../packages/remote-access/remote-access/README.zh.md)负责配对、HTTPS/WSS 认证、Session 权限与监听器释放。Desktop 提供与本地管道请求相同的任务准入控制器，因此更新锁会等待两个载体上的操作结束并拒绝新操作。提供此适配器不会启用监听器，也不会授予本地 Host 权限。
+
+[配对外壳](../../packages/client/ui-paired-shell/README.zh.md)使用标准 Client 模块加载器和固定 roster 中的会话插件。它不接收本地 index 注入、管理页面或 Desktop transport shim。静态运行时文件仅来自 Vite manifest 的 index 入口依赖闭包；插件请求须匹配所选单个模块的带版本 URL。不提供 preview 文件、任意路径、完整图的组合 bundle 或 source map。
 
 ### Office 文档创作
 
@@ -128,7 +135,7 @@ pnpm run package:desktop:mac:x64
 pnpm run package:desktop:win:x64
 ```
 
-macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。Windows x64 命令要求 Windows x64。Desktop 尚不支持 Linux 发布目标。
+macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。Windows x64 命令要求 Windows x64。Desktop 尚不支持 Linux 发布目标。从仓库根目录执行 `node --import tsx apps/desktop/scripts/package-target.ts win-x64`，会使用已安装的 pnpm 入口运行相同流水线。配置检查、electron-builder 和渲染器打包器由 Node 直接运行；包脚本、打包和隔离的 seed 安装仍使用 pnpm。
 
 每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、seed、pnpm 准备状态、未打包应用、更新元数据和最终产物。Node.js 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。
 

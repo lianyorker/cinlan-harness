@@ -3,13 +3,15 @@
 import { spawn } from 'node:child_process'
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
-import { join, resolve } from 'node:path'
+import { createRequire } from 'node:module'
+import { dirname, join, resolve } from 'node:path'
 import {
   desktopBuildRecordFilename,
   resolveDesktopAutoUpdateConfig,
 } from './desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
 
+const require = createRequire(import.meta.url)
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
 const WINDOWS_SIGNING_ENV_PREFIX = 'DSH_DESKTOP_WINDOWS_'
@@ -224,8 +226,8 @@ export function desktopElectronBuilderArguments(
   directory: boolean,
 ): readonly string[] {
   return [
-    'exec',
-    'electron-builder',
+    'node',
+    require.resolve('electron-builder/out/cli/cli.js'),
     '--config',
     'electron-builder.config.mjs',
     target.builderPlatform,
@@ -236,17 +238,16 @@ export function desktopElectronBuilderArguments(
   ]
 }
 
-function runPnpm(
+function runPackageCommand(
   args: readonly string[],
   env: NodeJS.ProcessEnv = process.env,
   cwd: string = APP_ROOT,
 ): Promise<void> {
-  const pnpmEntry = process.env.npm_execpath
-  if (pnpmEntry === undefined || pnpmEntry === '') {
-    throw new Error('desktop package: invoke this script through a pnpm package command')
-  }
+  const nodeArgs = args[0] === 'node'
+    ? args.slice(1)
+    : [env.npm_execpath ?? join(dirname(require.resolve('pnpm')), 'bin/pnpm.mjs'), ...args]
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(process.execPath, [pnpmEntry, ...args], {
+    const child = spawn(process.execPath, nodeArgs, {
       cwd,
       env,
       stdio: 'inherit',
@@ -254,7 +255,7 @@ function runPnpm(
     child.once('error', reject)
     child.once('close', (code, signal) => {
       if (code === 0) resolvePromise()
-      else reject(new Error(`desktop package: pnpm ${args.join(' ')} exited with ${String(code ?? signal)}`))
+      else reject(new Error(`desktop package: ${args.join(' ')} exited with ${String(code ?? signal)}`))
     })
   })
 }
@@ -269,7 +270,7 @@ function runPnpm(
 export async function packageTarget(
   invocation: DesktopPackageInvocation,
   environment: NodeJS.ProcessEnv = process.env,
-  execute: typeof runPnpm = runPnpm,
+  execute: typeof runPackageCommand = runPackageCommand,
 ): Promise<void> {
   const { target } = invocation
   const buildPaths = desktopTargetBuildPaths(target.name)
@@ -278,7 +279,10 @@ export async function packageTarget(
     rmSync(releaseRecordPath, { force: true })
     rmSync(`${releaseRecordPath}.tmp`, { force: true })
   }
-  const buildEnv = withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(environment))
+  const buildEnv = {
+    ...withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(environment)),
+    npm_execpath: environment.npm_execpath ?? join(dirname(require.resolve('pnpm')), 'bin/pnpm.mjs'),
+  }
   const targetEnv: NodeJS.ProcessEnv = {
     ...buildEnv,
     DSH_DESKTOP_TARGET_PLATFORM: target.platform,
@@ -289,8 +293,8 @@ export async function packageTarget(
     if (environment[name] !== undefined) electronBuilderEnv[name] = environment[name]
   }
   if (!invocation.prepareOnly) {
-    await execute(['exec', 'node', 'scripts/validate-electron-builder-config.mjs'], electronBuilderEnv)
-    await execute(['exec', 'node', 'scripts/validate-electron-builder-dependencies.mjs'],
+    await execute(['node', 'scripts/validate-electron-builder-config.mjs'], electronBuilderEnv)
+    await execute(['node', 'scripts/validate-electron-builder-dependencies.mjs'],
       withoutWindowsSigningEnvironment(electronBuilderEnv))
   }
   await execute(['run', 'build:official'], buildEnv, REPOSITORY_ROOT)

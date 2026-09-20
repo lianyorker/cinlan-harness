@@ -14,7 +14,7 @@ DeepSeek Harness 需要一个复用 Web UI 的 Electron 桌面应用。该应用
 
 ## 决策
 
-交付一个小型 Electron 壳，其中内置上游 Node.js 可执行文件和固定版本的 pnpm。Electron 把私有 Desktop Host 包作为隔离子进程启动；该包组合已安装的 dsh 后端与匹配的客户端图。Fetch 元数据及有界的原始请求与响应分块通过两条带版本的分帧字节管道传递，Node IPC 承载就绪、致命失败、关闭确认和更新任务控制，Electron 通过 `dsh-app://` 提供经过验证的资源；它不会打开监听端口。每个帧都包含固定标记、类型、单调 stream id、负载长度和经过验证的负载。串行 writer 遵守 pipe drain，请求或响应 stream 施加背压时 reader 会全局暂停，取消会关闭匹配的 stream，已退役 stream 的迟到响应帧保持无效。Connection 插件无需 `webServer` 即可提供与载体无关的 RPC 与 Fetch 注册表，Client Modules 则向 shell-owned carrier 提供与广告内容完全一致的组合 bundle 响应；Web 组合为两者挂载可选 HTTP route。渲染进程保留相同的 Fetch、RPC 与 Remote-stream 格式，子进程载体则避免 Base64 膨胀，也不依赖 Electron 与内置上游 Node.js 之间的 V8 序列化兼容性。发送 shutdown 后，Electron 会关闭自己持有的请求管道写端，以便在等待子进程退出前释放 Windows 上仍在进行的管道读取。该设计沿用 [GUI 分层与 RPC 协议 Agent Note](../../archived/architecture/2026-07-19-gui-layering-and-rpc-protocol.md)中的 Electron 预留。
+交付一个小型 Electron 壳，其中内置上游 Node.js 可执行文件和固定版本的 pnpm。Electron 把私有 Desktop Host 包作为隔离子进程启动；该包组合已安装的 dsh 后端与匹配的客户端图。Fetch 元数据及有界的原始请求与响应分块通过两条带版本的分帧字节管道传递，Node IPC 承载就绪、致命失败、关闭确认和更新任务控制，Electron 通过 `dsh-app://` 提供经过验证的资源；它不会打开监听端口。每个帧都包含固定标记、类型、单调 stream id、负载长度和经过验证的负载。串行 writer 遵守 pipe drain，请求或响应 stream 施加背压时 reader 会全局暂停，取消会关闭匹配的 stream，已退役 stream 的迟到响应帧保持无效。Connection 插件无需 `webServer` 即可提供与载体无关的 RPC 与 Fetch 注册表，Client Modules 则向 shell-owned carrier 提供与广告内容完全一致的组合 bundle 响应；Web 组合为两者挂载可选 HTTP route。Remote Access 是独立的可选载体：其 HTTPS/WSS 监听器使用精确 origin、配对 cookie、协议版本和共享的 Desktop 更新准入控制器。配对手机资源使用封闭的模块 roster 和显式运行时资源 manifest；它不调用本地 index 注入表，也不暴露完整 Web graph。渲染进程保留相同的 Fetch、RPC 与 Remote-stream 格式，子进程载体则避免 Base64 膨胀，也不依赖 Electron 与内置上游 Node.js 之间的 V8 序列化兼容性。发送 shutdown 后，Electron 会关闭自己持有的请求管道写端，以便在等待子进程退出前释放 Windows 上仍在进行的管道读取。该设计沿用 [GUI 分层与 RPC 协议 Agent Note](../../archived/architecture/2026-07-19-gui-layering-and-rpc-protocol.md)中的 Electron 预留。
 
 Electron 拥有保留 profile `.dsh/profiles/desktop`。其中精确的 `@deepseek-ai/dsh` 依赖提供后端与匹配的 Web UI，匹配的私有 `@deepseek-ai/dsh-desktop-host` 依赖则只提供 Electron 子进程入口与组合 overlay。dsh 发布、私有 Host 及其第一方依赖闭包使用同一次源码构建生成的本地 npm tarball；profile manifest 把每个核心包列为本地 `file:` 依赖，`pnpm-workspace.yaml` 再通过 overrides 重复该映射。Host 不进入公共 CLI 包，也不会发布到 npm。桌面插件既是同一 profile 中来自 registry 的其他 npm 依赖，也是有序的 `dsh.profile.bundles` 条目，并从该 profile 唯一的 `node_modules` 解析。
 
@@ -68,6 +68,8 @@ Electron 拥有保留 profile `.dsh/profiles/desktop`。其中精确的 `@deepse
 `.dsh/profiles/desktop` 是唯一活跃的 desktop profile。其 package manifest 记录内置与已安装插件 bundle 的顺序；只有 Electron 可以修改它的依赖、lockfile 和 `node_modules`。生产启动会拒绝解析到该 profile 之外的 bundle，包括 CLI 维护的 `.dsh/profiles/node_modules` fallback。desktop profile 安装的所有包内容都使用 `.dsh/desktop/pnpm/store`。
 
 ## 安装与解析
+
+[目标打包脚本](../../../../apps/desktop/scripts/package-target.ts)通过当前 Node 可执行文件调用已安装的验证、打包与 electron-builder 入口。直接解析这些工具，避免包管理器的执行包装器在构建期间同步工作区依赖。显式 pnpm 构建脚本、打包和 seed 安装保留原有归属与验证。
 
 安装器绝不原地修改活跃 profile。它把包括已保存 `cordis.patch.yml` 在内的 profile 元数据复制到事务暂存目录，并使用内置 pnpm 应用精确依赖变更。Electron 在复制元数据前停止并等待活跃 Host 完成清理，然后单独启动并停止 staging 后端。活跃后端保持停止直到激活或安全的失败恢复，因此配置写入不会与快照竞争，两个 Desktop 后端也绝不会并发共享 `.dsh` 状态。发布校准保留同一份已保存 patch。激活过程在对应目录移动前先持久化 `pending.json` 的每个下一阶段，把活跃 profile 移到 `rollback/profile`，把暂存 profile 移到 `.dsh/profiles/desktop`，然后重启。恢复过程会结合预写阶段与真实的 active、rollback 和 staging 目录，因此任一个写入与移动间隙中断后仍会保留或恢复一个完整 profile。
 
@@ -174,7 +176,7 @@ Windows 发布打包通过 `/f` 向已配置且与 SafeNet 兼容的 SignTool �
 - 安装、健康检查或更新失败后，当前 profile 仍然可用，或在重启后恢复 `rollback/profile`。
 - 一个 Desktop 版本绑定 Electron 与 dsh；每次 dsh 更新都通过一个 Electron 更新弹窗交付，并产生一次用户可见的重启。
 - 共享 `.dsh` 数据在迁移或修改前拒绝不兼容的读取方。
-- 不打开回环监听端口，沙箱渲染进程不能访问任意文件系统或 Electron API。
+- 本地管道载体不打开回环监听端口，沙箱渲染进程不能访问任意文件系统或 Electron API。配对 HTTPS 监听器需要显式 Remote Access 配置。
 - Workspace 开发无需下载发布资源即可运行当前已构建代码，未封装安装器的应用验证仍保留生产安装路径。
 - Windows 发布打包要求已验证的 SignTool、EV Token、匹配的公开叶证书、Token Password 和明确的密钥容器，绝不会回退到未签名产物或可导出的密钥文件。
 - 目标更新只有在已完成签名的构建及其引用的每个产物通过发布校验后才能暴露新频道元数据；保留的历史产物继续供差分更新使用。

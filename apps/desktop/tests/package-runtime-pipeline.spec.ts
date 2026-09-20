@@ -1,10 +1,12 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { packageTarget, resolveDesktopPackageTarget } from '../scripts/package-target.ts'
 
 const fixture = vi.hoisted(() => ({ root: '' }))
+const builderEntry = createRequire(import.meta.url).resolve('electron-builder/out/cli/cli.js')
 vi.mock('../scripts/desktop-build-paths.mjs', () => ({ desktopTargetBuildPaths: () => ({
   artifacts: join(fixture.root, 'artifacts'), packedDsh: join(fixture.root, 'packed', 'dsh'),
   packedVendor: join(fixture.root, 'packed', 'vendor'), packedLandlock: join(fixture.root, 'packed', 'landlock'),
@@ -39,10 +41,10 @@ it.each([
   ])
   expect(commands.some(command => command.includes('prepare:dsh'))).toBe(false)
   expect(commands.at(-1)).toBe(prepareOnly ? 'run prepare:seed'
-    : 'exec electron-builder --config electron-builder.config.mjs --win --x64 --publish never --dir')
+    : `node ${builderEntry} --config electron-builder.config.mjs --win --x64 --publish never --dir`)
   for (const [args, environment] of execute.mock.calls) {
     expect(environment?.DOWNLOAD_TEST_COS_SECRET_KEY).toBeUndefined()
-    const receivesSigning = args.includes('sign:primary-runtime') || args.includes('electron-builder')
+    const receivesSigning = args.includes('sign:primary-runtime') || args.includes(builderEntry)
       || args.includes('scripts/validate-electron-builder-config.mjs')
     expect(environment?.DSH_DESKTOP_WINDOWS_TOKEN_PIN).toBe(signed && receivesSigning ? 'fixture-pin' : undefined)
     if (args.some(arg => arg.startsWith('prepare:')) || args.includes('sign:primary-runtime')) {
@@ -60,7 +62,7 @@ it.each(['prepare:runtime', 'sign:primary-runtime', 'prepare:packages', 'prepare
   await expect(packageTarget({ target: resolveDesktopPackageTarget('win-x64', 'win32', 'x64'), directory: true, prepareOnly: false },
     signingEnvironment, execute)).rejects.toThrow('fixture preparation failed')
   expect(commands.at(-1)).toContain(failed)
-  expect(commands.some(command => command.startsWith('exec electron-builder'))).toBe(false)
+  expect(commands.some(command => command.startsWith(`node ${builderEntry}`))).toBe(false)
 })
 
 it('keeps macOS runtime preparation and seed signing on the existing chain', async () => {
@@ -69,6 +71,6 @@ it('keeps macOS runtime preparation and seed signing on the existing chain', asy
     {}, async (args) => { commands.push(args.join(' ')) })
   expect(commands.slice(-4)).toEqual([
     'run prepare:runtime', 'run prepare:packages', 'run prepare:seed',
-    'exec electron-builder --config electron-builder.config.mjs --mac --arm64 --publish never --dir',
+    `node ${builderEntry} --config electron-builder.config.mjs --mac --arm64 --publish never --dir`,
   ])
 })

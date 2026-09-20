@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { createRequire } from 'node:module'
 import { describe, expect, it } from 'vitest'
 import {
   desktopElectronBuilderArguments,
@@ -63,8 +64,8 @@ describe('desktop package target', () => {
   it('keeps electron-builder publishing disabled for the separate validated upload', () => {
     const target = resolveDesktopPackageTarget('mac-arm64', 'darwin', 'arm64')
     expect(desktopElectronBuilderArguments(target, false)).toEqual([
-      'exec',
-      'electron-builder',
+      'node',
+      createRequire(import.meta.url).resolve('electron-builder/out/cli/cli.js'),
       '--config',
       'electron-builder.config.mjs',
       '--mac',
@@ -88,7 +89,7 @@ describe('desktop package target', () => {
   it('accepts the Desktop production tree without removing transitive dependencies', () => {
     const root = desktopDependencyRoot()
     const before = structuredClone(root)
-    expect(() => assertDesktopDependencySelection([root])).not.toThrow()
+    expect(() => { assertDesktopDependencySelection([root]) }).not.toThrow()
     expect(root).toEqual(before)
   })
 
@@ -100,14 +101,14 @@ describe('desktop package target', () => {
       [{ ...root, name: '@deepseek-ai/other-app' }],
       [{ ...root, path: resolve(import.meta.dirname, '../../web') }],
     ]) {
-      expect(() => assertDesktopDependencySelection(tree)).toThrow(/must select only/u)
+      expect(() => { assertDesktopDependencySelection(tree) }).toThrow(/must select only/u)
     }
   })
 
   it.each(['@deepseek-ai/dsh-app-boot', 'electron-updater', 'semver'])('rejects a listing missing %s', (dependency) => {
     const root = desktopDependencyRoot()
     const dependencies = Object.fromEntries(Object.entries(root.dependencies).filter(([name]) => name !== dependency))
-    expect(() => assertDesktopDependencySelection([{ ...root, dependencies }])).toThrow(`missing ${dependency}`)
+    expect(() => { assertDesktopDependencySelection([{ ...root, dependencies }]) }).toThrow(`missing ${dependency}`)
   })
 
   it('overrides inherited collector filters without changing the preparation environment', () => {

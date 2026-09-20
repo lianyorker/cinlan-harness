@@ -8,7 +8,7 @@
   "main": "lib/main.js",
   "scripts": {
     "build": "tsc -b && tsdown && pnpm run build:renderer",
-    "build:renderer": "pnpm --filter @deepseek-ai/dsh-client-web exec tsdown && vite build",
+    "build:renderer": "node scripts/build-renderer.mjs",
     "dev": "tsx scripts/dev.ts",
     "start": "tsx scripts/dev.ts --skip-build",
     "prepare:runtime": "tsx scripts/prepare-runtime.ts",
