@@ -8,6 +8,7 @@ import { hostDiagnostic } from './diagnostics.ts'
 import { HostErrorNotice, ProcessDetails } from './HostDetails.tsx'
 import { DirectoryInspector } from './DirectoryInspector.tsx'
 import css from './HostsSection.module.css'
+import { RuntimeSettings } from './RuntimeSettings.tsx'
 
 type Editor = HostDraft & { target: TargetRevision | undefined; missing?: boolean }
 const UNAVAILABLE_ROWS = [
@@ -62,7 +63,8 @@ export function HostsSection(props: HostsProps): ReactNode {
           setEditor((draft) => {
             if (draft?.target === undefined) return draft
             const target = current.targets.find(value => value.id === draft.target?.id)
-            return target === undefined ? { ...draft, missing: true } : { ...draft, target: { id: target.id, revision: target.revision } }
+            return target === undefined ? { ...draft, missing: true }
+              : { ...draft, execution: target.execution, target: { id: target.id, revision: target.revision } }
           })
           setDeleting(previous => previous === undefined ? undefined : current.targets.find(target => target.id === previous.id))
         } catch (_refreshFailure) {
@@ -76,7 +78,8 @@ export function HostsSection(props: HostsProps): ReactNode {
   const edit = (target?: TargetView): void => {
     setFailure(undefined)
     setNotice(undefined)
-    setEditor({ label: target?.label ?? '', sshAlias: target?.sshAlias ?? '', target: target === undefined ? undefined : { id: target.id, revision: target.revision } })
+    setEditor({ label: target?.label ?? '', sshAlias: target?.sshAlias ?? '', execution: target?.execution,
+      target: target === undefined ? undefined : { id: target.id, revision: target.revision } })
   }
   return <section className={css.section}>
     <header className={css.heading}><span className={css.scope}>{t('scope')}</span><h2>{t('title')}</h2><p>{t('description')}</p></header>
@@ -100,7 +103,8 @@ export function HostsSection(props: HostsProps): ReactNode {
       {notice !== undefined && <p role="status">{t(notice)}</p>}
       {editor !== undefined && <form className={css.editor} onSubmit={(event) => {
         event.preventDefault()
-        const request = { label: editor.label, sshAlias: editor.sshAlias }
+        const request = { label: editor.label, sshAlias: editor.sshAlias,
+          ...(editor.execution === undefined ? {} : { execution: editor.execution }) }
         void perform('save', signal => editor.target === undefined ? props.create(request, signal) : props.update({ ...request, ...editor.target }, signal), () => { setEditor(undefined) }, 'saved')
       }}>
         <h4>{t(editor.target === undefined ? 'createTitle' : 'editTitle')}</h4>
@@ -148,6 +152,7 @@ export function HostsSection(props: HostsProps): ReactNode {
         </article>)}
       </div>
     </div>
+    <RuntimeSettings {...props} />
     <p className={css.note} data-settings-anchor="inspection" tabIndex={-1}>{t('inspectionDescription')}</p>
     <div className={css.group}>
       <h3>{t('defaults')}</h3>

@@ -1,5 +1,6 @@
 /** Native experimental execution-host settings registration. */
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-api-execution-host-controller/remote'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -7,6 +8,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { IconCodeOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { createHostsCallbacks } from './callbacks.ts'
 import { observeHosts } from './observation.ts'
+import { observeRuntimes } from './runtime-observation.ts'
 import { HostsSection } from './HostsSection.tsx'
 import { en, zh, type HostsKey } from './locales.ts'
 import type { HostsInjected } from './types.ts'
@@ -26,6 +28,7 @@ const ITEMS = [
   ['hosts', 'hosts', 'hostsDescription'],
   ['ssh-alias', 'sshAlias', 'sshDescription'],
   ['inspection', 'inspection', 'inspectionDescription'],
+  ['runtime', 'runtime.title', 'runtime.description'],
   ['default', 'defaultHost', 'defaultDescription'],
   ['confirmSwitch', 'confirmSwitch', 'confirmDescription'],
   ['isolation', 'taskIsolation', 'isolationDescription'],
@@ -40,6 +43,8 @@ export function apply(ctx: Context): void {
   const t = ctx.locale.bind('settings.hosts')
   const callbacks = createHostsCallbacks(ctx.remote.executionHosts)
   const observation = observeHosts(callbacks)
+  const runtimes = observeRuntimes(callbacks)
+  ctx.effect(() => runtimes.dispose)
   ctx.effect(() => observation.dispose)
   ctx.slots.inject('settings.section', function* () {
     yield ctx.settingsMetadata.registerSection({ sectionId: 'hosts', groupId: 'experimental' })
@@ -49,7 +54,9 @@ export function apply(ctx: Context): void {
     yield ctx.slots.register({
       name: 'settings.section', id: 'hosts', order: 140, label: () => t('title'), locale: 'settings.hosts',
       inject: (): HostsInjected => ({
-        hooks: { hosts: observation.source }, refresh: observation.refresh,
+        hooks: { hosts: observation.source, runtimes: runtimes.source }, refresh: observation.refresh,
+        refreshRuntimes: runtimes.refresh, detectRuntime: callbacks.detectRuntime,
+        startRuntime: runtimes.start, cancelRuntimeTask: runtimes.cancel,
         create: callbacks.create, update: callbacks.update, removeTarget: callbacks.removeTarget,
         connect: callbacks.connect, disconnect: callbacks.disconnect, inspectDirectory: callbacks.inspectDirectory,
       }),

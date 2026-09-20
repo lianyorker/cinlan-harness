@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Manage saved SSH targets from Settings → Experimental → Execution hosts. Add a label and an existing OpenSSH alias, then explicitly connect to inspect exported directories. The current local Host remains a read-only process record. Connections do not change the execution authority of Workspaces or Sessions.
+Manage saved SSH targets from Settings → Experimental → Execution hosts. Add a label and an existing OpenSSH alias, then explicitly connect to inspect exported directories. Configure an explicit pinned SSH endpoint to detect, install or update an execution runtime. The current local Host remains a read-only process record. Existing Workspaces and Sessions retain their captured execution binding.
 
 ## Table of Contents
 
@@ -26,6 +26,8 @@ Manage saved SSH targets from Settings → Experimental → Execution hosts. Add
 ## Use this package
 
 Mount this browser contribution alongside Settings, Locale, and the execution-host Remote controller. It has no configuration fields. The page accepts a display label and an SSH alias that references the Host's existing OpenSSH configuration and authentication; it does not collect secrets, raw URLs, or remote commands.
+
+Runtime setup accepts hostname, port, username, server-key SHA256 fingerprint, a private-key file reference on the managing Host, and absolute remote Node, installation-root and Workspace paths. Credential contents stay on the Host. The existing private installation root must be owned by the SSH account and outside the Workspace. The deployment chooses the release artifact; the browser cannot choose executable payloads. An accepted installation belongs to the Host and continues after leaving Settings or disconnecting. Refresh recovers retained receipts, and explicit Cancel addresses one exact task id. Receipts are retained for the Host service lifetime, not across Host process restarts.
 
 Saving, deleting, and connecting use the target revision. A conflict refreshes the target list while retaining the editor's label and alias for review and explicit retry. Connection readiness requires the worker handshake and a successful initial inspection of an exported root. The directory inspector accepts one exported root and a relative path, displays returned entries, and identifies truncated results.
 
@@ -67,7 +69,7 @@ None; target management and directory inspection do not enter provider requests.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- Default Session host, switch confirmation, and task isolation remain unavailable because remote Workspace/Session authority routing isn't implemented. The page stores no preferences for these rows.
+- Choose execution location when creating a Workspace. Global Session defaults, live Host switching and task-isolation preferences are unavailable; the page stores no preferences for these rows.
 - SSH authentication and host-key trust must already be configured on the managing Host. An execution-host worker must export at least one configured root; no current-directory fallback is used.
 - Inspection is read-only and confined by the worker's exported roots. A saved target id identifies configuration, while the current Host and worker Host ids identify process provenance.
 

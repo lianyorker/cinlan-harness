@@ -58,7 +58,7 @@ describe('native hosts registration', () => {
     expect(entry.options).toMatchObject({ id: 'hosts', order: 140 })
     expect(resolveSlotLabel(entry.options.label)).toBe('Execution hosts')
     expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'hosts', groupId: 'experimental' }])
-    expect(b.ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual(['current', 'hosts', 'ssh-alias', 'inspection', 'default', 'confirmSwitch', 'isolation'])
+    expect(b.ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual(['current', 'hosts', 'ssh-alias', 'inspection', 'runtime', 'default', 'confirmSwitch', 'isolation'])
     expect(b.slots.entries('settings.section.icon')).toHaveLength(1)
     b.locale.setLocale('zh')
     expect(resolveSlotLabel(entry.options.label)).toBe('执行主机')

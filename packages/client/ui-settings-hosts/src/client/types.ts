@@ -2,6 +2,7 @@
 import type {
   CreateTargetRequest, InspectDirectoryRequest, InspectionValue, ListTargetsValue,
   TargetRequest, TargetRevisionRequest, TargetValue, UpdateTargetRequest,
+  RuntimeInspection, RuntimeLocation, RuntimeStartRequest, RuntimeTaskRequest, RuntimeTasksValue, RuntimeTaskValue, RuntimeTask,
 } from '@deepseek-ai/dsh-api-execution-host-controller/types'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -11,7 +12,22 @@ export type HostDraft = CreateTargetRequest
 /** Revision fence captured before an operation on saved configuration. */
 export type TargetRevision = TargetRevisionRequest
 /** Remote operations, with their successful result unwrapped and errors preserved. */
-export interface HostsCallbacks {
+export interface RuntimeCallbacks {
+  detectRuntime: (request: RuntimeLocation, signal?: AbortSignal) => Promise<RuntimeInspection>
+  startRuntime: (request: RuntimeStartRequest, signal?: AbortSignal) => Promise<RuntimeTaskValue>
+  getRuntimeTask: (request: RuntimeTaskRequest, signal?: AbortSignal) => Promise<RuntimeTaskValue>
+  listRuntimeTasks: (signal?: AbortSignal) => Promise<RuntimeTasksValue>
+  followRuntimeTask: (request: RuntimeTaskRequest, signal?: AbortSignal) => AsyncIterable<RuntimeTaskValue>
+  cancelRuntimeTask: (request: RuntimeTaskRequest, signal?: AbortSignal) => Promise<RuntimeTaskValue>
+}
+/** Observed task inventory; installation lifetime belongs to the Host. */
+export interface RuntimesSnapshot {
+  readonly status: 'loading' | 'ready' | 'error'
+  readonly tasks: readonly RuntimeTask[]
+  readonly error: HostDiagnostic | undefined
+}
+/** Saved target CRUD and observation callbacks. */
+export interface HostsCallbacks extends RuntimeCallbacks {
   list: (signal?: AbortSignal) => Promise<ListTargetsValue>
   follow: (signal?: AbortSignal) => AsyncIterable<ListTargetsValue>
   create: (request: CreateTargetRequest, signal?: AbortSignal) => Promise<TargetValue>
@@ -30,8 +46,9 @@ export interface HostsSnapshot {
   readonly error: HostDiagnostic | undefined
 }
 /** Entry-private source; the renderer provides useHosts to the component. */
-export interface HostsInjected extends Omit<HostsCallbacks, 'list' | 'follow'> {
-  hooks: { hosts: ObservableSnapshot<HostsSnapshot> }
+export interface HostsInjected extends Omit<HostsCallbacks, 'list' | 'follow' | 'getRuntimeTask' | 'listRuntimeTasks' | 'followRuntimeTask'> {
+  hooks: { hosts: ObservableSnapshot<HostsSnapshot>; runtimes: ObservableSnapshot<RuntimesSnapshot> }
+  refreshRuntimes: () => Promise<void>
   refresh: (signal?: AbortSignal) => Promise<ListTargetsValue>
 }
 /** Framework-derived settings inputs. */

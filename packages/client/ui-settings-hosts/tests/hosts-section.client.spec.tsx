@@ -8,7 +8,7 @@ import type { ListTargetsValue } from '@deepseek-ai/dsh-api-execution-host-contr
 import { HostsSection } from '../src/client/HostsSection.tsx'
 import type { HostsProps, HostsSnapshot } from '../src/client/types.ts'
 import { en, zh } from '../src/client/locales.ts'
-import { baseline, deferred, failure, inspection, readyTarget, target } from './fixtures.client.ts'
+import { baseline, deferred, failure, inspection, readyTarget, target, runtimeInspection, runtimeTask } from './fixtures.client.ts'
 import type {} from '../src/client/index.ts'
 
 afterEach(cleanup)
@@ -16,6 +16,10 @@ function bench(language: 'en' | 'zh' = 'en', value: ListTargetsValue = baseline)
   const copy = language === 'en' ? en : zh
   const source = createSnapshotStore<HostsSnapshot>({ status: 'ready', value, error: undefined })
   const callbacks = {
+    refreshRuntimes: vi.fn<HostsProps['refreshRuntimes']>(async () => {}),
+    detectRuntime: vi.fn<HostsProps['detectRuntime']>(async () => runtimeInspection),
+    startRuntime: vi.fn<HostsProps['startRuntime']>(async () => ({ task: runtimeTask })),
+    cancelRuntimeTask: vi.fn<HostsProps['cancelRuntimeTask']>(async () => ({ task: { ...runtimeTask, state: 'cancelled' } })),
     refresh: vi.fn<HostsProps['refresh']>(async () => value),
     create: vi.fn<HostsProps['create']>(async () => ({ target })),
     update: vi.fn<HostsProps['update']>(async () => ({ target })),
@@ -25,7 +29,7 @@ function bench(language: 'en' | 'zh' = 'en', value: ListTargetsValue = baseline)
     inspectDirectory: vi.fn<HostsProps['inspectDirectory']>(async () => ({ target: readyTarget, inspection })),
   }
   // This section consumes no session or workspace standard seats.
-  const props = { ...callbacks, useHosts: bindSnapshotSelector(source), t: makeTranslate(copy) } as HostsProps
+  const props = { ...callbacks, useRuntimes: selector => selector({ status: 'ready', tasks: [], error: undefined }), useHosts: bindSnapshotSelector(source), t: makeTranslate(copy) } as HostsProps
   const view = render(<HostsSection {...props} />)
   return { ...view, ...callbacks, props, copy, source }
 }
@@ -35,6 +39,21 @@ function fill(label: string, alias: string, copy: typeof en | typeof zh = en): v
 }
 
 describe('native execution host settings', () => {
+  it('explains unavailable release payloads without submitting installation or exposing credentials', async () => {
+    const b = bench()
+    fireEvent.change(screen.getByRole('combobox', { name: en['runtime.target'] }), { target: { value: target.id } })
+    for (const [key, value] of Object.entries({ host: 'remote.example', username: 'operator', privateKeyFile: 'C:/keys/reference',
+      hostKeySHA256: 'a'.repeat(64), node: '/usr/bin/node', installRoot: '/opt/runtime', workspace: '/srv/work' })) {
+      fireEvent.change(screen.getByRole('textbox', { name: en[('runtime.' + key) as keyof typeof en] }), { target: { value } })
+    }
+    b.detectRuntime.mockRejectedValueOnce({ code: 'execution-runtime/release-unavailable', message: 'Verified release unavailable' })
+    fireEvent.click(screen.getByRole('button', { name: en['runtime.detect'] }))
+    await screen.findByText(en['runtime.errorRelease'])
+    expect(b.startRuntime).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: en['runtime.privateKeyFile'] }).getAttribute('value')).toBe('C:/keys/reference')
+    expect(b.container.textContent).not.toContain('PRIVATE KEY')
+  })
+
   it.each(['en', 'zh'] as const)('adds a saved alias without connecting in %s', async (language) => {
     const b = bench(language)
     fireEvent.click(screen.getByRole('button', { name: b.copy.add }))
@@ -181,7 +200,7 @@ describe('native execution host settings', () => {
     act(() => { b.source.set({ status: 'error', value: { ...baseline, targets: [readyTarget] }, error: { code: 'execution-host/connection-lost', message: '' } }) })
     expect(screen.getByText(en.errorConnectionLost)).toBeTruthy()
     expect(screen.queryByText(en.ready)).toBeNull()
-    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.queryByRole('combobox', { name: en.root })).toBeNull()
     expect(screen.getByRole<HTMLButtonElement>('button', { name: en.disconnect }).disabled).toBe(true)
     expect(screen.getByRole<HTMLButtonElement>('button', { name: en.refresh }).disabled).toBe(false)
   })
@@ -205,8 +224,8 @@ describe('native execution host settings', () => {
       anchors: [...b.container.querySelectorAll('[data-settings-anchor]')].map(element => element.getAttribute('data-settings-anchor')),
       reason: [...b.container.querySelectorAll('[data-settings-anchor="default"] p')].map(element => element.textContent),
     }).toEqual({
-      title: '执行主机', anchors: ['current', 'hosts', 'ssh-alias', 'inspection', 'default', 'confirmSwitch', 'isolation'],
-      reason: ['选择新会话的执行位置。', '尚未实现远程 Workspace/Session 权限路由。'],
+      title: '执行主机', anchors: ['current', 'hosts', 'ssh-alias', 'runtime', 'inspection', 'default', 'confirmSwitch', 'isolation'],
+      reason: ['选择新会话的执行位置。', '创建工作区时选择执行 Host。会话保留此绑定；全局默认设置和运行中切换不可用。'],
     })
   })
 })
