@@ -56,8 +56,9 @@ kind: "package-bundle"
 
 固定的目录和指导文本保持请求前缀。更换 Provider 或发现的目录可能减少前缀复用。
 
-<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与暂缓事项
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - Profile 必须提供 tools、system-prompt 和 approval 服务。截图需要附件存储和声明图像输入的模型路由。
 - 没有 approval answerer 的 profile 无法批准默认的 `ask` 调用。

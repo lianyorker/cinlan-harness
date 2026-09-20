@@ -56,8 +56,9 @@ The discovered schemas and native guidance contribute request tokens. Text, acce
 
 A fixed catalog and guidance preserve the request prefix. Changing the provider or discovered catalog can reduce prefix reuse.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - The profile must supply tools, system-prompt, and approval services. Screenshots require an attachment store and a model route that declares image input.
 - A profile without an approval answerer cannot approve the default `ask` calls.
