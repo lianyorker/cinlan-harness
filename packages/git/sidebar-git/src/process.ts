@@ -16,18 +16,25 @@ export interface GitProcessOptions {
 
 interface CommandResult { stdout: string; stderr: string; exitCode: number | null }
 
-/** Preserve user identity/configuration while removing ambient repository redirection. */
-function gitEnvironment(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_COUNT: '0' }
-  const redirects = new Set([
-    'GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_NAMESPACE',
-    'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_CONFIG_PARAMETERS',
-    'GIT_SHALLOW_FILE', 'GIT_GRAFT_FILE', 'GIT_REPLACE_REF_BASE', 'GIT_CEILING_DIRECTORIES',
-  ])
-  for (const name of Object.keys(process.env)) {
+/** Git environment entries that can redirect repository or configuration selection. */
+const GIT_ENVIRONMENT_TOMBSTONES = [
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_CEILING_DIRECTORIES', 'GIT_COMMON_DIR',
+  'GIT_CONFIG', 'GIT_CONFIG_COUNT', 'GIT_CONFIG_GLOBAL', 'GIT_CONFIG_NOSYSTEM',
+  'GIT_CONFIG_PARAMETERS', 'GIT_CONFIG_SYSTEM', 'GIT_DIR', 'GIT_DISCOVERY_ACROSS_FILESYSTEM',
+  'GIT_GRAFT_FILE', 'GIT_INDEX_FILE', 'GIT_NAMESPACE', 'GIT_OBJECT_DIRECTORY',
+  'GIT_REPLACE_REF_BASE', 'GIT_SHALLOW_FILE', 'GIT_WORK_TREE',
+] as const
+
+/** Preserve normal user configuration while removing ambient repository redirection. */
+function gitEnvironment(local: boolean): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {}
+  const redirects = new Set<string>(GIT_ENVIRONMENT_TOMBSTONES)
+  for (const name of GIT_ENVIRONMENT_TOMBSTONES) env[name] = undefined
+  for (const name of Object.keys(local ? process.env : {})) {
     if (redirects.has(name.toUpperCase()) || /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/i.test(name)) env[name] = undefined
   }
-  for (const name of redirects) env[name] = undefined
+  env.GIT_OPTIONAL_LOCKS = '0'
+  env.GIT_TERMINAL_PROMPT = '0'
   return env
 }
 
@@ -36,7 +43,8 @@ export class GitProcess {
   private readonly lifetime = new AbortController()
   private readonly active = new Set<Promise<CommandResult>>()
 
-  constructor(private readonly subprocess: SubprocessRuntime, private readonly options: GitProcessOptions) {}
+  constructor(private readonly subprocess: SubprocessRuntime, private readonly options: GitProcessOptions,
+    private readonly local = true, private readonly executionSignal?: AbortSignal) {}
 
   /** Refuse new work after the owning service leaves. */
   assertActive(): void {
@@ -62,7 +70,8 @@ export class GitProcess {
     signal?.throwIfAborted()
     const deadline = new AbortController()
     const timer = setTimeout(() => { deadline.abort() }, this.options.timeoutMs)
-    const operationSignal = AbortSignal.any([this.lifetime.signal, deadline.signal, ...(signal === undefined ? [] : [signal])])
+    const operationSignal = AbortSignal.any([this.lifetime.signal, deadline.signal,
+      ...(this.executionSignal === undefined ? [] : [this.executionSignal]), ...(signal === undefined ? [] : [signal])])
     const operation = (async (): Promise<CommandResult> => {
       try {
         const executable = await this.subprocess.resolveExecutable(this.options.executable, undefined, operationSignal)
@@ -70,7 +79,7 @@ export class GitProcess {
         const handle = this.subprocess.spawn({
           argv: [executable, '-C', cwd, '--no-pager', '--literal-pathspecs', '-c', 'color.ui=false', '-c', 'core.fsmonitor=false', ...args],
           cwd,
-          env: gitEnvironment(),
+          env: gitEnvironment(this.local),
           stdio: { stdin: input === undefined ? 'ignore' : { data: input },
             stdout: { maxBytes: this.options.maxOutputBytes }, stderr: { maxBytes: this.options.maxOutputBytes } },
           graceMs: this.options.graceMs,
@@ -89,6 +98,13 @@ export class GitProcess {
       } catch (error) {
         if (error instanceof SidebarGitError) throw error
         if (deadline.signal.aborted) throw new SidebarGitError('git-error', 'Git operation timed out', { cause: error })
+        if (this.executionSignal?.aborted) {
+          const reason: unknown = this.executionSignal.reason
+          const message = reason instanceof Error && reason.message.length > 0
+            ? reason.message : 'The captured execution environment disconnected'
+          throw new SidebarGitError('unavailable', message, { cause: error })
+        }
+        if (this.lifetime.signal.aborted) throw new SidebarGitError('unavailable', 'The Git process owner was disposed', { cause: error })
         if (operationSignal.aborted) throw new SidebarGitError('cancelled', 'Git operation was cancelled', { cause: error })
         throw new SidebarGitError('git-error', error instanceof Error ? error.message : String(error), { cause: error })
       }

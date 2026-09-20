@@ -1,8 +1,9 @@
 import { chmod, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
+import { SidebarGitError } from '@deepseek-ai/dsh-sidebar-git'
 import SidebarGitController from '../src/index.ts'
 import { cleanup, fixtureGit, harness } from '../../../git/sidebar-git/tests/fixture.ts'
 
@@ -52,6 +53,24 @@ describe('sidebar Git controller through real Loader composition', { timeout: 90
     const abort = new AbortController()
     abort.abort()
     await expect(controller.status(h.request, abort.signal)).rejects.toMatchObject({
+      code: 'sidebar-git/cancelled', details: { operation: 'status' },
+    })
+  })
+
+  it('carries normalized owner failures and gives explicit caller cancellation precedence', async () => {
+    const h = await harness({}, { extra })
+    const controller = h.ctx.sidebarGitController
+    vi.spyOn(h.service, 'status').mockRejectedValueOnce(new SidebarGitError('output-limit', 'provider limit'))
+    await expect(controller.status(h.request, new AbortController().signal)).rejects.toMatchObject({
+      code: 'sidebar-git/output-limit', message: 'provider limit', details: { operation: 'status' },
+    })
+
+    const caller = new AbortController()
+    vi.spyOn(h.service, 'status').mockImplementationOnce(async () => {
+      caller.abort(new Error('client cancelled'))
+      throw new SidebarGitError('unavailable', 'execution disconnected')
+    })
+    await expect(controller.status(h.request, caller.signal)).rejects.toMatchObject({
       code: 'sidebar-git/cancelled', details: { operation: 'status' },
     })
   })

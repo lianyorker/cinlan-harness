@@ -16,13 +16,13 @@ The sidebar client declares the generated `remote.sidebarGit` namespace as a Cor
 
 ### Session and repository authority
 
-Git action requests identify an attached Session. The executor obtains that actual Session from the Session store, captures its cwd, and discovers the canonical repository root and Git directory through Git. A caller's cwd does not select the target. Mutations carry the observed repository root; queued work rechecks the attached Session, its cwd, and the repository before execution. Repository-relative paths are literal, including paths from Sessions opened in a subdirectory.
+Git action requests identify an attached Session. The executor obtains that actual Session from the Session store, retains one execution lease, and discovers the canonical repository root and Git directory through the same GitProcess and subprocess provider used by later operations. The lease supplies cwd and platform path syntax and remains retained until every command and output stream settles. A caller's cwd does not select the target. Mutations carry the observed repository root; queued work rechecks the attached Session, its cwd, and the repository before execution. Repository-relative paths are literal, including paths from Sessions opened in a subdirectory.
 
-Mutations are serialized per canonical root. Destructive operations also carry their observed HEAD. These checks bind a request to the repository the caller inspected and prevent a detached or rebound Session from falling back to the server's process directory.
+Mutations are serialized per immutable execution binding and canonical root. Destructive operations also carry their observed HEAD. These checks bind a request to the repository the caller inspected and prevent a detached or rebound Session from falling back to the server's process directory.
 
 ### Commit preparation and confirmation
 
-Preparation requires staged changes on a local branch and refuses unresolved index conflicts. It records the Session id, cwd, canonical root, Git directory, branch, HEAD, and a fingerprint of staged entries. It computes the complete intended message and checks the final message limit after attribution and the trailing newline. The returned preview is the message presented for confirmation.
+Preparation requires staged changes on a local branch and refuses unresolved index conflicts. It records the Session id, cwd, canonical root, Git directory, branch, HEAD, and a fingerprint of the execution binding and staged entries. It computes the complete intended message and checks the final message limit after attribution and the trailing newline. The returned preview is the message presented for confirmation.
 
 Optional attribution uses Git's trailer formatter and preserves existing trailers, including sign-offs. An existing canonical co-author trailer is retained without duplication. When insertion is needed, preparation refuses configured trailer commands and formatting that cannot produce the canonical trailer, so preview construction does not execute a user-defined trailer command. [Shared Git settings](../../../../packages/git/git-settings/README.md) own the preference; the UI Host does not register a second schema.
 

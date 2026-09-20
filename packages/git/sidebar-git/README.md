@@ -25,7 +25,7 @@ Inspect repository changes and history, stage or unstage files, switch local bra
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the service beside Session, Subprocess, Settings, and the [Git settings namespace](../git-settings/README.md). The [Remote controller](../../api/sidebar-git-controller/README.md) and sidebar Fetch routes call the same operations. Callers provide an attached Session id; a client-supplied directory cannot replace a missing Session working directory.
+Mount the service beside Session, ExecutionBindings, Settings, and the [Git settings namespace](../git-settings/README.md). The [Remote controller](../../api/sidebar-git-controller/README.md) and sidebar Fetch routes call the same operations. Callers provide an attached Session id; a client-supplied directory cannot replace a missing Session working directory.
 
 | Field | Default | Meaning |
 | --- | --- | --- |
@@ -37,7 +37,9 @@ Mount the service beside Session, Subprocess, Settings, and the [Git settings na
 | `defaultLogEntries` | `30` | Default history page size. |
 | `maxLogEntries` | `500` | Maximum history page size. |
 
-Limits must be positive safe integers, and the default history page cannot exceed its maximum. Output overflow rejects the operation rather than returning truncated Git data. Cancellation and service disposal terminate and await owned subprocesses.
+Every operation captures one Session execution lease and uses that lease’s subprocess provider for repository discovery and commands. Discovery and subsequent commands resolve the same configured `executable`; a remote lease never reaches the Host subprocess or repository. The lease is released after command streams and processes settle. Mutation queues include the immutable execution binding and repository path; commit fingerprints include that binding, so switching execution targets requires fresh review. A reconnect to the same binding can reuse a preview only when fresh repository state still matches.
+
+Limits must be positive safe integers, and the default history page cannot exceed its maximum. Output overflow rejects the operation rather than returning truncated Git data. Caller cancellation reports `cancelled`; execution-lease loss and service disposal report `unavailable`. Each terminates and awaits owned subprocesses.
 
 ### Review a commit
 
@@ -59,7 +61,7 @@ With upstream comparison enabled, the service first selects the configured upstr
 
 [The service](src/index.ts) derives repository authority from Session state, validates literal paths and revisions, serializes its own mutations per repository, and repeats admission checks after waiting in the queue. Stage, unstage, checkout, and commit require the displayed repository; discard and history mutations also pin the displayed HEAD. Discard restores one tracked worktree path from the index and leaves the index intact. Git conflict outcomes remain repository state for the user to resolve.
 
-[The subprocess owner](src/process.ts) uses argument arrays with `--literal-pathspecs`, disables pagers, color, filesystem-monitor integration, and optional read locks, and removes ambient repository redirection. It retains user hooks and signing policy. [Shared request types](src/types.ts) carry the same facts through Fetch and Remote without adding a client-selected working directory.
+[The subprocess owner](src/process.ts) uses argument arrays with `--literal-pathspecs`, disables pagers, color, filesystem-monitor integration, and optional read locks, and removes ambient repository and configuration routing variables, including `GIT_CONFIG*`. It retains normal user configuration, hooks, identity, and signing policy. [Shared request types](src/types.ts) carry the same facts through Fetch and Remote without adding a client-selected working directory.
 
 No invariant companion is published because the service owns no persisted cache independent of Git and Session state. The operation executor enforces process lifecycle and preflight validation.
 

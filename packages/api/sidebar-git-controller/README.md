@@ -29,7 +29,7 @@ Mount the controller with Typert and the [sidebar Git service](../../git/sidebar
 
 Each request identifies an attached Session. Mutations carry the repository displayed to the user; commit carries the exact preview returned by preparation. The controller forwards these facts without accepting a client working-directory fallback or running its own Git subprocesses. The service owns path validation, comparison selection, commit preflight, hooks, signing, and process bounds.
 
-Failures use stable `sidebar-git/*` codes and include the operation name. An absent service returns `sidebar-git/unavailable`; cancellation returns `sidebar-git/cancelled`. Service refusals retain their corresponding code and message. Unexpected failures become `sidebar-git/git-error`. Clients must refresh stale repository facts or prepare a fresh commit preview before retrying a refused intent.
+Failures use stable `sidebar-git/*` codes and include the operation name. An absent service or lost execution lease returns `sidebar-git/unavailable`; explicit caller cancellation returns `sidebar-git/cancelled` even when another failure settles concurrently. Service refusals retain their corresponding code and message. Unexpected failures become `sidebar-git/git-error`. Clients must refresh stale repository facts or prepare a fresh commit preview before retrying a refused intent.
 
 -----
 

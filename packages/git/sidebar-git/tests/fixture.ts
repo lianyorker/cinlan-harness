@@ -9,6 +9,9 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import SessionQuery from '@deepseek-ai/dsh-session-query-sqlite'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import ExecutionBindings from '@deepseek-ai/dsh-execution-binding'
 import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
 import * as gitSettings from '@deepseek-ai/dsh-git-settings'
 import { GIT_SETTINGS_NAMESPACE } from '@deepseek-ai/dsh-git-settings/settings-schema'
@@ -19,14 +22,28 @@ import SidebarGit from '../src/index.ts'
 import type { Config } from '../src/index.ts'
 
 const exec = promisify(execFile)
+/** Real local leases do not require SSH target management in this fixture. */
+class LocalBindings extends ExecutionBindings { static override inject = ['sessionQuery', 'sessionProjections'] }
+
 const contexts: Context[] = []
 const roots: string[] = []
+export const TEST_GIT_EXECUTABLE = 'sidebar-fixture-git'
 
 class HermeticSubprocess extends LocalSubprocessRuntime {
+  readonly resolutions: string[] = []
+  readonly specs: SubprocessSpawnSpec[] = []
+
   constructor(ctx: Context, private readonly config: { globalConfig: string }) { super(ctx) }
+
+  override resolveExecutable(command: string, env?: Readonly<Record<string, string>>, signal?: AbortSignal): Promise<string> {
+    this.resolutions.push(command)
+    return super.resolveExecutable(command === TEST_GIT_EXECUTABLE ? 'git' : command, env, signal)
+  }
+
   override spawn(spec: SubprocessSpawnSpec) {
-    const tombstones = Object.fromEntries(Object.keys(process.env).filter(key => key.toUpperCase().startsWith('GIT_')).map(key => [key, undefined]))
-    return super.spawn({ ...spec, env: { ...tombstones, ...spec.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: this.config.globalConfig } })
+    const isolated = { ...spec, env: { ...spec.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: this.config.globalConfig } }
+    this.specs.push(isolated)
+    return super.spawn(isolated)
   }
 }
 
@@ -71,6 +88,9 @@ export async function harness(
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, JSON.stringify([
     { id: 'sessions', name: '@deepseek-ai/dsh-session' },
+    { id: 'query', name: 'session-query', config: { path: ':memory:', openAt: 'never' } },
+    { id: 'projections', name: 'session-projections' },
+    { id: 'bindings', name: 'execution-bindings' },
     { id: 'settings', name: '@deepseek-ai/dsh-settings-file', config: { path: settingsPath, watch: false } },
     { id: 'git-settings', name: '@deepseek-ai/dsh-git-settings' },
     { id: 'subprocess', name: 'test-subprocess', config: { globalConfig } },
@@ -78,6 +98,8 @@ export async function harness(
     ...(options.extra ?? []).map(entry => ({ name: entry.name })),
   ]))
   const modules = new Map<string, unknown>([
+    ['session-query', SessionQuery], ['session-projections', SessionProjectionRegistry],
+    ['execution-bindings', LocalBindings],
     ['@deepseek-ai/dsh-session', SessionStore], ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
     ['@deepseek-ai/dsh-git-settings', gitSettings], ['test-subprocess', HermeticSubprocess], ['@deepseek-ai/dsh-sidebar-git', SidebarGit],
   ])
@@ -103,8 +125,8 @@ export async function harness(
   const service = ctx.sidebarGit
   const initial = await service.status(request)
   if (initial.repository === undefined) throw new Error('Fixture repository was not discovered')
-  return { ctx, root, repository, session, detach, request, service, initial: initial.repository,
-    mutation: { ...request, repositoryRoot: initial.repository.root } }
+  return { ctx, root, repository, session, detach, request, service, subprocess: ctx.subprocess as HermeticSubprocess,
+    initial: initial.repository, mutation: { ...request, repositoryRoot: initial.repository.root } }
 }
 
 /** Drain owned processes before removing any test paths. */

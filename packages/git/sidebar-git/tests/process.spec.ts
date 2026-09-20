@@ -48,7 +48,8 @@ function observe<T>(promise: Promise<T>) {
   return { promise, settled, drained }
 }
 
-function fixture(options: { missing?: 'stdout' | 'stderr'; lossy?: 'stdout' | 'stderr'; stderr?: string } = {}) {
+function fixture(options: { missing?: 'stdout' | 'stderr'; lossy?: 'stdout' | 'stderr'; stderr?: string } = {},
+  execution: { local?: boolean; signal?: AbortSignal } = {}) {
   const done = Promise.withResolvers<SubprocessOutcome>()
   const exited = Promise.withResolvers<boolean>()
   const readStdout = vi.fn<SubprocessOutputReader['readFrom']>(() => ({
@@ -71,7 +72,7 @@ function fixture(options: { missing?: 'stdout' | 'stderr'; lossy?: 'stdout' | 's
   const ctx = new Context()
   const runtime = new ScriptedSubprocessRuntime(ctx, handle)
   const config = { executable: 'configured-git', timeoutMs: 30_000, graceMs: 123, maxOutputBytes: 456 }
-  const git = new GitProcess(runtime, config)
+  const git = new GitProcess(runtime, config, execution.local ?? true, execution.signal)
   onTestFinished(async () => {
     done.resolve({ exitCode: 0, signal: null })
     exited.resolve(true)
@@ -82,8 +83,8 @@ function fixture(options: { missing?: 'stdout' | 'stderr'; lossy?: 'stdout' | 's
 }
 
 describe('GitProcess managed commands', () => {
-  it('uses the resolved executable, literal argv, closed stdin, and bounded collection without overriding identity or signing', async () => {
-    const h = fixture()
+  it.each([true, false])('uses bounded literal commands and static routing tombstones (local: %s)', async (local) => {
+    const h = fixture({}, { local })
     const capture = observe(h.git.capture('/repo with spaces', ['commit', '--cleanup=verbatim', '-F', '-'], undefined, 'Reviewed message\n'))
     const spec = await h.runtime.spawned.promise
     expect(h.runtime.lookups).toEqual([{ command: 'configured-git', env: undefined, signal: spec.signal }])
@@ -94,20 +95,21 @@ describe('GitProcess managed commands', () => {
     expect(spec).toMatchObject({
       cwd: '/repo with spaces', graceMs: 123,
       stdio: { stdin: { data: 'Reviewed message\n' }, stdout: { maxBytes: 456 }, stderr: { maxBytes: 456 } },
-      env: { GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_COUNT: '0' },
+      env: { GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' },
     })
     const env = spec.env!
     for (const key of [
-      'GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_NAMESPACE',
-      'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_CONFIG_PARAMETERS',
-      'GIT_SHALLOW_FILE', 'GIT_GRAFT_FILE', 'GIT_REPLACE_REF_BASE', 'GIT_CEILING_DIRECTORIES',
+      'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_CEILING_DIRECTORIES', 'GIT_COMMON_DIR', 'GIT_CONFIG',
+      'GIT_CONFIG_COUNT', 'GIT_CONFIG_GLOBAL', 'GIT_CONFIG_NOSYSTEM', 'GIT_CONFIG_PARAMETERS', 'GIT_CONFIG_SYSTEM',
+      'GIT_DIR', 'GIT_DISCOVERY_ACROSS_FILESYSTEM', 'GIT_GRAFT_FILE', 'GIT_INDEX_FILE', 'GIT_NAMESPACE',
+      'GIT_OBJECT_DIRECTORY', 'GIT_REPLACE_REF_BASE', 'GIT_SHALLOW_FILE', 'GIT_WORK_TREE',
     ]) {
       expect(Object.hasOwn(env, key)).toBe(true)
       expect(env[key]).toBeUndefined()
     }
     for (const key of [
       'GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL',
-      'GIT_CONFIG_GLOBAL', 'GIT_CONFIG_SYSTEM', 'GIT_CONFIG_NOSYSTEM', 'HOME', 'XDG_CONFIG_HOME',
+      'HOME', 'XDG_CONFIG_HOME',
     ]) expect(Object.hasOwn(env, key)).toBe(false)
     expect(spec.signal?.aborted).toBe(false)
     h.done.resolve({ exitCode: 0, signal: null })
@@ -117,9 +119,10 @@ describe('GitProcess managed commands', () => {
     expect(h.readStderr).toHaveBeenCalledWith(0)
   })
 
-  for (const cause of ['caller', 'timeout', 'dispose'] as const) {
-    it.each(['done', 'range'] as const)(cause + ' cancellation drains both barriers when %s settles first', async (first) => {
-      const h = fixture()
+  for (const cause of ['caller', 'timeout', 'dispose', 'disconnect'] as const) {
+    it.each(['done', 'range'] as const)(cause + ' abort drains both barriers when %s settles first', async (first) => {
+      const execution = new AbortController()
+      const h = fixture({}, { signal: execution.signal })
       const caller = new AbortController()
       if (cause === 'timeout') vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
       try {
@@ -129,6 +132,7 @@ describe('GitProcess managed commands', () => {
         const disposal = cause === 'dispose' ? observe(h.git.dispose()) : undefined
         if (cause === 'caller') caller.abort()
         if (cause === 'timeout') await vi.advanceTimersByTimeAsync(h.config.timeoutMs)
+        if (cause === 'disconnect') execution.abort(new Error('SSH connection lost'))
         await h.runtime.terminating.promise
         expect(spec.signal?.aborted).toBe(true)
         if (first === 'done') h.done.resolve({ exitCode: null, signal: 'SIGTERM' })
@@ -143,7 +147,10 @@ describe('GitProcess managed commands', () => {
         else h.done.resolve({ exitCode: null, signal: 'SIGTERM' })
         await expect(capture.promise).rejects.toMatchObject(cause === 'timeout'
           ? { code: 'git-error', message: 'Git operation timed out' }
-          : { code: 'cancelled', message: 'Git operation was cancelled' })
+          : cause === 'caller' ? { code: 'cancelled', message: 'Git operation was cancelled' }
+            : cause === 'disconnect'
+              ? { code: 'unavailable', message: 'SSH connection lost' }
+              : { code: 'unavailable', message: 'The Git process owner was disposed' })
         if (disposal !== undefined) {
           await disposal.promise
           await expect(h.git.capture('/repo', ['status'])).rejects.toMatchObject({ code: 'unavailable' })
@@ -168,7 +175,7 @@ describe('GitProcess managed commands', () => {
     expect(h.readStdout).not.toHaveBeenCalled()
     h.exited.resolve(true)
     await expect(capture.promise).rejects.toMatchObject(disposeDuringDrain
-      ? { code: 'cancelled' }
+      ? { code: 'unavailable' }
       : { code: 'git-error', message: 'provider could not collect the command outcome' })
     if (disposal !== undefined) await disposal.promise
   })

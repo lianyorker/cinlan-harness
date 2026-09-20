@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-将本服务与 Session、Subprocess、Settings 和 [Git settings 命名空间](../git-settings/README.zh.md)一起挂载。[Remote 控制器](../../api/sidebar-git-controller/README.zh.md)与侧边栏 Fetch 路由调用相同操作。调用方提供已附加的 Session id；客户端提供的目录不能替代缺失的 Session 工作目录。
+将本服务与 Session、ExecutionBindings、Settings 和 [Git settings 命名空间](../git-settings/README.zh.md)一起挂载。[Remote 控制器](../../api/sidebar-git-controller/README.zh.md)与侧边栏 Fetch 路由调用相同操作。调用方提供已附加的 Session id；客户端提供的目录不能替代缺失的 Session 工作目录。
 
 | 字段 | 默认值 | 含义 |
 | --- | --- | --- |
@@ -37,7 +37,9 @@ kind: "package-reference"
 | `defaultLogEntries` | `30` | 默认历史分页大小。 |
 | `maxLogEntries` | `500` | 历史分页大小上限。 |
 
-限制值必须为正的安全整数，默认历史分页不能超过上限。输出超限会拒绝操作，不会返回截断的 Git 数据。取消操作和释放服务都会终止并等待其拥有的子进程退出。
+每次操作捕获一个 Session 执行租约，并使用该租约的 subprocess 提供方发现仓库和运行命令。发现与后续命令解析同一个已配置的 `executable`；远端租约绝不访问 Host 的 subprocess 或仓库。命令流与进程结束后释放租约。变更队列同时使用不可变执行绑定与仓库路径；提交指纹包含该绑定，因此切换执行目标后必须重新审阅。重连到同一绑定时，只有重新读取的仓库状态仍一致，才能复用预览。
+
+限制值必须为正的安全整数，默认历史分页不能超过上限。输出超限会拒绝操作，不会返回截断的 Git 数据。调用方取消报告 `cancelled`；执行租约丢失和服务释放报告 `unavailable`。这些情况都会终止并等待其拥有的子进程退出。
 
 ### 审阅提交
 
@@ -59,7 +61,7 @@ Git 通过 stdin 接收已审阅的消息，并使用 `--cleanup=verbatim`。用
 
 [服务](src/index.ts)从 Session 状态取得仓库权限来源，验证字面路径和版本，按仓库串行化自身的变更操作，并在队列等待结束后再次执行准入检查。暂存、取消暂存、切换分支和提交要求匹配显示的仓库；丢弃和历史变更还要求匹配显示的 HEAD。丢弃从索引恢复单个受跟踪工作树路径，保持索引不变。Git 冲突结果保留为仓库状态，由用户解决。
 
-[子进程拥有者](src/process.ts)使用带 `--literal-pathspecs` 的参数数组，禁用分页器、颜色、文件系统监视器集成和可选读取锁，并移除环境中的仓库重定向。它保留用户钩子和签名策略。[共享请求类型](src/types.ts)在 Fetch 与 Remote 中携带相同事实，不引入客户端选择的工作目录。
+[子进程拥有者](src/process.ts)使用带 `--literal-pathspecs` 的参数数组，禁用分页器、颜色、文件系统监视器集成和可选读取锁，并移除环境中的仓库与配置路由变量，包括 `GIT_CONFIG*`。它保留正常用户配置、钩子、身份和签名策略。[共享请求类型](src/types.ts)在 Fetch 与 Remote 中携带相同事实，不引入客户端选择的工作目录。
 
 不发布不变量伴随插件，因为服务没有独立于 Git 和 Session 状态的持久化缓存。操作执行器负责落实进程生命周期和预检验证。
 

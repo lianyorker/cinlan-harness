@@ -29,7 +29,7 @@ kind: "package-reference"
 
 每个请求标识一个已附加的 Session。变更请求携带向用户显示的仓库；提交请求携带准备操作返回的完整预览。控制器转发这些事实，不接受客户端工作目录回退，也不运行自己的 Git 子进程。服务拥有路径验证、比较选择、提交预检、钩子、签名和进程限制。
 
-错误使用稳定的 `sidebar-git/*` 代码，并包含操作名。服务缺失时返回 `sidebar-git/unavailable`；取消时返回 `sidebar-git/cancelled`。服务拒绝保留对应的错误码和消息。意外错误转换为 `sidebar-git/git-error`。重试已被拒绝的意图前，客户端必须刷新过时的仓库事实或准备新的提交预览。
+错误使用稳定的 `sidebar-git/*` 代码，并包含操作名。服务缺失或执行租约丢失时返回 `sidebar-git/unavailable`；即使另一个失败同时结束，显式调用方取消仍返回 `sidebar-git/cancelled`。服务拒绝保留对应的错误码和消息。意外错误转换为 `sidebar-git/git-error`。重试已被拒绝的意图前，客户端必须刷新过时的仓库事实或准备新的提交预览。
 
 -----
 

@@ -8,6 +8,8 @@
     "src"
   ],
   "references": [
+    { "path": "../git" },
+    { "path": "../../execution-host/execution-binding" },
     {
       "path": "../../../vendor/cordis"
     },

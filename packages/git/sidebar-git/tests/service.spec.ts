@@ -1,9 +1,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { GitError } from '@deepseek-ai/dsh-git'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { GIT_SETTINGS_NAMESPACE } from '@deepseek-ai/dsh-git-settings/settings-schema'
-import { cleanup, fixtureGit, harness } from './fixture.ts'
+import { cleanup, fixtureGit, harness, TEST_GIT_EXECUTABLE } from './fixture.ts'
 
 afterEach(cleanup, 90_000)
 
@@ -12,6 +13,86 @@ describe('sidebar Git through real Loader composition', { timeout: 90_000 }, () 
     await expect(harness({}, { config: { maxOutputBytes: 200 } })).rejects.toMatchObject({
       code: 'output-limit', message: 'Git response exceeded the configured byte limit',
     })
+  })
+
+  it('discovers a cold local Session without a Git provider through the configured executable', async () => {
+    const h = await harness({}, { subdirectory: true, config: { executable: TEST_GIT_EXECUTABLE } })
+    expect(h.ctx.get('git')).toBeUndefined()
+    expect(h.initial.root.replaceAll('\\', '/')).toBe(h.repository.replaceAll('\\', '/'))
+    expect(h.subprocess.specs.some(spec => spec.argv.includes('--show-toplevel'))).toBe(true)
+    expect(h.subprocess.specs.some(spec => spec.argv.includes('status'))).toBe(true)
+    expect(new Set(h.subprocess.resolutions)).toEqual(new Set([TEST_GIT_EXECUTABLE]))
+  })
+
+  it.each([
+    ['NOT_REPOSITORY', 'not-repository'], ['INVALID_REQUEST', 'invalid-request'],
+    ['OUTPUT_TOO_LARGE', 'output-limit'], ['COMMAND_FAILED', 'git-error'],
+  ] as const)('normalizes a raw Git %s failure before transport dispatch', async (providerCode, sidebarCode) => {
+    const h = await harness()
+    vi.spyOn(h.ctx.executionBindings, 'forSession').mockRejectedValueOnce(new GitError(providerCode, 'provider failure'))
+    await expect(h.service.status(h.request)).rejects.toMatchObject({
+      name: 'SidebarGitError', code: sidebarCode, message: 'provider failure',
+    })
+  })
+
+  it('maps cold execution admission loss to unavailable', async () => {
+    const h = await harness()
+    vi.spyOn(h.ctx.executionBindings, 'forSession').mockRejectedValueOnce(new Error('SSH connection lost'))
+    await expect(h.service.status(h.request)).rejects.toMatchObject({
+      name: 'SidebarGitError', code: 'unavailable', message: 'SSH connection lost',
+    })
+  })
+
+  it('maps a lost execution lease separately from caller cancellation', async () => {
+    const h = await harness()
+    const retained = await h.ctx.executionBindings.forSession(h.session.id)
+    const lost = new AbortController()
+    lost.abort(new Error('SSH connection lost'))
+    const cleanupFailure = new Error('SSH cleanup failed')
+    const release = vi.fn(async () => { await retained.release(); throw cleanupFailure })
+    vi.spyOn(h.ctx.executionBindings, 'forSession').mockResolvedValueOnce({
+      ...retained, signal: lost.signal, assertCurrent: () => { lost.signal.throwIfAborted() }, release,
+    })
+    await expect(h.service.status(h.request)).rejects.toMatchObject({
+      code: 'unavailable', message: 'SSH connection lost',
+      cause: { errors: [expect.anything(), cleanupFailure] },
+    })
+    expect(release).toHaveBeenCalledOnce()
+
+    const cancelled = new AbortController()
+    cancelled.abort(new Error('caller cancelled'))
+    await expect(h.service.status(h.request, cancelled.signal)).rejects.toMatchObject({
+      code: 'cancelled', message: 'Git operation was cancelled',
+    })
+  })
+
+  it('reports lease cleanup failures without publishing a successful result', async () => {
+    const h = await harness()
+    const retained = await h.ctx.executionBindings.forSession(h.session.id)
+    const cleanupFailure = new Error('lease cleanup failed')
+    vi.spyOn(h.ctx.executionBindings, 'forSession').mockResolvedValueOnce({
+      ...retained, release: async () => { await retained.release(); throw cleanupFailure },
+    })
+    await expect(h.service.status(h.request)).rejects.toMatchObject({
+      code: 'unavailable', message: 'The captured execution environment could not be released',
+      cause: { errors: [cleanupFailure] },
+    })
+  })
+
+  it('preserves unknown operation and cleanup failures together', async () => {
+    const h = await harness()
+    const retained = await h.ctx.executionBindings.forSession(h.session.id)
+    const operationFailure = new Error('lease assertion failed')
+    const cleanupFailure = new Error('lease cleanup failed')
+    vi.spyOn(h.ctx.executionBindings, 'forSession').mockResolvedValueOnce({
+      ...retained,
+      assertCurrent: () => { throw operationFailure },
+      release: async () => { await retained.release(); throw cleanupFailure },
+    })
+    let observed: unknown
+    try { await h.service.status(h.request) } catch (error) { observed = error }
+    expect(observed).toBeInstanceOf(AggregateError)
+    expect((observed as AggregateError).errors).toEqual([operationFailure, cleanupFailure])
   })
 
   it('keeps a nested Session in its canonical repository and reports every untracked file', async () => {

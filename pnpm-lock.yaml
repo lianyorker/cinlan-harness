@@ -10150,9 +10150,24 @@ importers:
       '@deepseek-ai/cordis-plugin-loader':
         specifier: workspace:^
         version: link:../../../vendor/loader
+      '@deepseek-ai/dsh-execution-binding':
+        specifier: workspace:^
+        version: link:../../execution-host/execution-binding
+      '@deepseek-ai/dsh-git':
+        specifier: workspace:^
+        version: link:../git
       '@deepseek-ai/dsh-session':
         specifier: workspace:^
         version: link:../../core/session
+      '@deepseek-ai/dsh-session-projection':
+        specifier: workspace:^
+        version: link:../../session/session-projection
+      '@deepseek-ai/dsh-session-query':
+        specifier: workspace:^
+        version: link:../../session-query/session-query
+      '@deepseek-ai/dsh-session-query-sqlite':
+        specifier: workspace:^
+        version: link:../../session-query/session-query-sqlite
       '@deepseek-ai/dsh-settings':
         specifier: workspace:^
         version: link:../../settings/settings

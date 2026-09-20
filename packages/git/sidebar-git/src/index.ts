@@ -1,6 +1,9 @@
 /** Concrete Git owner for explicit sidebar actions over HTTP and desktop Remote. */
 import { createHash } from 'node:crypto'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { posix, win32 } from 'node:path'
+import { GitError } from '@deepseek-ai/dsh-git'
+import type {} from '@deepseek-ai/dsh-execution-binding'
+import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
 import { Context, Service } from '@deepseek-ai/cordis'
 import s from '@deepseek-ai/schemastery'
 import type { Session } from '@deepseek-ai/dsh-session'
@@ -18,7 +21,7 @@ import type {
   GitCompareResult, GitDiffRequest, GitDiffResult, GitDiscardRequest, GitLogEntry, GitLogRequest,
   GitMutationRequest, GitMutationResult, GitPathMutationRequest, GitPrepareCommitRequest,
   GitRepositoryState, GitRevisionMutationRequest, GitRevisionRequest, GitSessionRequest, GitShowRequest,
-  GitShowResult, GitStatusResult,
+  GitShowResult, GitStatusResult, SidebarGitErrorCode,
 } from './types.ts'
 
 export { SidebarGitError } from './errors.ts'
@@ -46,14 +49,25 @@ const ATTRIBUTION = 'Co-authored-by: Cinlan IDE <noreply@cinlan.online>'
 const stripLineEnding = (text: string): string => text.replace(/\r?\n$/, '')
 
 /** Normalize a literal path without allowing it to escape the selected repository. */
-function repositoryPath(root: string, path: string): string {
+function repositoryPath(root: string, path: string, platform: NodeJS.Platform): string {
+  const paths = platform === 'win32' ? win32 : posix
   if (path.length === 0 || path.includes('\0')) throw new SidebarGitError('invalid-request', 'A file path must be non-empty')
-  const absolute = isAbsolute(path) ? resolve(path) : resolve(root, path)
-  const child = relative(root, absolute)
-  if (isAbsolute(child) || child === '..' || child.startsWith('..' + sep)) {
+  const absolute = paths.isAbsolute(path) ? paths.resolve(path) : paths.resolve(root, path)
+  const child = paths.relative(root, absolute)
+  if (paths.isAbsolute(child) || child === '..' || child.startsWith('..' + paths.sep)) {
     throw new SidebarGitError('invalid-request', 'The file path is outside the selected repository')
   }
-  return child.length === 0 ? '.' : child.split(sep).join('/')
+  return child.length === 0 ? '.' : child.split(paths.sep).join('/')
+}
+
+/** Parse a repository probe without trimming valid root characters. */
+function repositoryProbe(output: string): string | undefined {
+  const record = stripLineEnding(output)
+  const separator = record.lastIndexOf('\n')
+  if (separator < 0) throw new SidebarGitError('git-error', 'Git returned an invalid repository record')
+  const root = record.slice(0, separator).replace(/\r$/, '')
+  const insideWorkTree = record.slice(separator + 1)
+  return insideWorkTree === 'true' && root.length > 0 ? root : undefined
 }
 
 /** Keep user-selected revisions out of Git's option parser. */
@@ -63,13 +77,30 @@ function requireRevision(ref: string): void {
   }
 }
 
+const PROVIDER_ERROR_CODES = {
+  NOT_REPOSITORY: 'not-repository',
+  INVALID_REQUEST: 'invalid-request',
+  OUTPUT_TOO_LARGE: 'output-limit',
+  COMMAND_FAILED: 'git-error',
+} satisfies Record<GitError['code'], SidebarGitErrorCode>
+
+/** Translate provider failures before either sidebar transport observes them. */
+function providerFailure(error: GitError): SidebarGitError {
+  return new SidebarGitError(PROVIDER_ERROR_CODES[error.code], error.message, { cause: error })
+}
+
+/** Retain a controlled provider diagnostic without exposing non-Error abort values. */
+function failureMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message.length > 0 ? error.message : fallback
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context { sidebarGit: SidebarGit }
 }
 
-/** Execute repository-bound user actions; core model-facing Git tools remain independent. */
+/** Execute repository-bound user actions in the Session's retained execution world. */
 export class SidebarGit extends Service {
-  static inject = ['subprocess', 'sessions', 'settings']
+  static inject = ['executionBindings', 'sessions', 'settings']
   static Config: s<Config> = s.object({
     executable: s.string().default('git'),
     timeoutMs: s.number().min(1).default(30_000),
@@ -80,7 +111,8 @@ export class SidebarGit extends Service {
     maxLogEntries: s.number().min(1).default(500),
   })
 
-  private readonly process: GitProcess
+  private readonly lifetime = new AbortController()
+  private readonly active = new Set<Promise<unknown>>()
   private readonly mutations = new Map<string, Promise<void>>()
 
   constructor(ctx: Context, private readonly config: Config) {
@@ -91,9 +123,208 @@ export class SidebarGit extends Service {
       if (!Number.isSafeInteger(value) || value < 1) throw new Error('sidebar Git limits must be positive safe integers')
     }
     if (config.defaultLogEntries > config.maxLogEntries) throw new Error('default Git history page exceeds its maximum')
-    this.process = new GitProcess(ctx.subprocess, config)
-    ctx.effect(() => () => this.process.dispose())
+    ctx.effect(() => async () => { this.lifetime.abort(); await Promise.allSettled([...this.active]) })
   }
+
+  /** Execute status in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async status(request: GitSessionRequest, signal?: AbortSignal): Promise<GitStatusResult> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.status(request, bound))
+  }
+
+  /** Execute diff in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async diff(request: GitDiffRequest, signal?: AbortSignal): Promise<GitDiffResult> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.diff(request, bound))
+  }
+
+  /** Execute stage in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async stage(request: GitPathMutationRequest, signal?: AbortSignal): Promise<GitMutationResult> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.stage(request, bound))
+  }
+
+  /** Execute unstage in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async unstage(request: GitPathMutationRequest, signal?: AbortSignal): Promise<GitMutationResult> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.unstage(request, bound))
+  }
+
+  /** Execute branches in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async branches(request: GitSessionRequest, signal?: AbortSignal): Promise<GitBranchesResult> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.branches(request, bound))
+  }
+
+  /** Execute checkout in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async checkout(request: GitCheckoutRequest, signal?: AbortSignal): Promise<GitMutationResult> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.checkout(request, bound))
+  }
+
+  /** Execute prepareCommit in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async prepareCommit(request: GitPrepareCommitRequest, signal?: AbortSignal): Promise<GitCommitPreview> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.prepareCommit(request, bound))
+  }
+
+  /** Execute commit in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async commit(request: GitCommitRequest, signal?: AbortSignal): Promise<GitCommitResult> {
+    return this.run(request.preview.sessionId, signal, (operation, bound) => operation.commit(request, bound))
+  }
+
+  /** Execute compare in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async compare(request: GitSessionRequest, signal?: AbortSignal): Promise<GitCompareResult> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.compare(request, bound))
+  }
+
+  /** Execute log in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async log(request: GitLogRequest, signal?: AbortSignal): Promise<GitLogEntry[]> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.log(request, bound))
+  }
+
+  /** Execute show in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async show(request: GitShowRequest, signal?: AbortSignal): Promise<GitShowResult> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.show(request, bound))
+  }
+
+  /** Execute commitDiff in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async commitDiff(request: GitRevisionRequest, signal?: AbortSignal): Promise<GitDiffResult> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.commitDiff(request, bound))
+  }
+
+  /** Execute discard in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async discard(request: GitDiscardRequest, signal?: AbortSignal): Promise<GitMutationResult> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.discard(request, bound))
+  }
+
+  /** Execute revert in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async revert(request: GitRevisionMutationRequest, signal?: AbortSignal): Promise<GitMutationResult> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.revert(request, bound))
+  }
+
+  /** Execute cherryPick in the Session's captured world.
+   * @param request - Session-owned Git request.
+   * @param signal - caller cancellation.
+   * @returns the operation result after managed subprocess settlement.
+   */
+  async cherryPick(request: GitRevisionMutationRequest, signal?: AbortSignal): Promise<GitMutationResult> {
+    return this.run(request.sessionId, signal, (operation, bound) => operation.cherryPick(request, bound))
+  }
+
+  private run<T>(sessionId: SessionId, signal: AbortSignal | undefined,
+    invoke: (operation: GitOperation, bound: AbortSignal) => Promise<T>): Promise<T> {
+    const caller = AbortSignal.any([this.lifetime.signal, ...(signal === undefined ? [] : [signal])])
+    const result = (async () => {
+      let lease: ExecutionLease | undefined
+      let operation: GitOperation | undefined
+      let failed = false
+      let failure: unknown
+      try {
+        caller.throwIfAborted()
+        const session = this.ctx.sessions.get(sessionId)
+        if (session?.header.cwd === undefined || session.header.cwd.length === 0) {
+          throw new SidebarGitError('unavailable', 'Attach the Session with its authoritative working directory before using Git')
+        }
+        lease = await this.ctx.executionBindings.forSession(sessionId, caller)
+        lease.assertCurrent()
+        if (this.ctx.sessions.get(sessionId) !== session) throw new SidebarGitError('stale', 'The Session changed during execution admission')
+        const bound = AbortSignal.any([caller, lease.signal])
+        operation = new GitOperation(this.ctx, this.config, lease, this.mutations, sessionId)
+        const value = await invoke(operation, bound)
+        bound.throwIfAborted()
+        lease.assertCurrent()
+        return value
+      } catch (error) {
+        failed = true
+        failure = signal?.aborted ? new SidebarGitError('cancelled', 'Git operation was cancelled', { cause: error })
+          : lease?.signal.aborted ? new SidebarGitError('unavailable',
+            failureMessage(lease.signal.reason as unknown, 'The captured execution environment disconnected'), { cause: error })
+            : this.lifetime.signal.aborted ? new SidebarGitError('unavailable', 'The sidebar Git service was disposed', { cause: error })
+              : error instanceof SidebarGitError ? error : error instanceof GitError ? providerFailure(error)
+                : lease === undefined ? new SidebarGitError('unavailable',
+                  failureMessage(error, 'The captured execution environment is unavailable'), { cause: error }) : error
+        throw failure
+      } finally {
+        const cleanup: unknown[] = []
+        try { await operation?.dispose() } catch (error) { cleanup.push(error) }
+        try { await lease?.release() } catch (error) { cleanup.push(error) }
+        if (cleanup.length > 0) {
+          const cause = new AggregateError(failed ? [failure, ...cleanup] : cleanup, 'Sidebar Git operation cleanup failed')
+          if (failure instanceof SidebarGitError) throw new SidebarGitError(failure.code, failure.message, { cause })
+          if (failed) throw cause
+          throw new SidebarGitError('unavailable', 'The captured execution environment could not be released', { cause })
+        }
+      }
+    })()
+    this.active.add(result)
+    void result.then(() => this.active.delete(result), () => this.active.delete(result))
+    return result
+  }
+}
+
+/** One operation captures its provider, platform and lifetime; nested probes retain that capture. */
+class GitOperation {
+  private readonly process: GitProcess
+  private readonly originalCwd: string | undefined
+  constructor(private readonly ctx: Context, private readonly config: Config, private readonly lease: ExecutionLease,
+    private readonly mutations: Map<string, Promise<void>>, sessionId: SessionId) {
+    this.originalCwd = ctx.sessions.get(sessionId)?.header.cwd
+    const subprocess = lease.ctx.get('subprocess')
+    if (subprocess === undefined) throw new SidebarGitError('unavailable', 'Captured subprocess provider is unavailable')
+    this.process = new GitProcess(subprocess, config, lease.binding.kind === 'local', lease.signal)
+  }
+
+  async dispose(): Promise<void> { await this.process.dispose() }
 
   /**
    * Resolve a directory for the existing sidebar filesystem-root display.
@@ -102,10 +333,11 @@ export class SidebarGit extends Service {
    * @returns canonical repository root, or undefined outside a repository.
    */
   async discover(cwd: string, signal?: AbortSignal): Promise<string | undefined> {
-    const result = await this.process.capture(cwd, ['rev-parse', '--show-toplevel'], signal)
+    this.lease.assertCurrent()
+    const result = await this.process.capture(cwd, ['rev-parse', '--show-toplevel', '--is-inside-work-tree'], signal)
     if (result.exitCode === 128) return undefined
     if (result.exitCode !== 0) throw new SidebarGitError('git-error', result.stderr.trim() || 'Cannot inspect Git repository')
-    return stripLineEnding(result.stdout)
+    return repositoryProbe(result.stdout)
   }
 
   /**
@@ -138,7 +370,7 @@ export class SidebarGit extends Service {
   async diff(request: GitDiffRequest, signal?: AbortSignal): Promise<GitDiffResult> {
     const context = await this.repository(request, signal)
     const args = ['diff', '--no-ext-diff', '--no-color', '-U3', ...(request.staged ? ['--cached'] : [])]
-    if (request.path !== undefined) args.push('--', repositoryPath(context.root, request.path))
+    if (request.path !== undefined) args.push('--', repositoryPath(context.root, request.path, this.lease.platform))
     return this.bounded({ diff: await this.process.run(context.root, args, signal) })
   }
 
@@ -165,7 +397,7 @@ export class SidebarGit extends Service {
     return this.mutate(request, signal, async (context) => {
       let paths = this.pathArgs(context, request.path)
       if (request.path !== undefined) {
-        const path = repositoryPath(context.root, request.path)
+        const path = repositoryPath(context.root, request.path, this.lease.platform)
         const raw = await this.process.run(context.root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'], signal)
         const entry = parsePorcelainZ(raw).find(row => row.path === path)
         if (entry?.xy[0] === 'R' && entry.previousPath !== undefined) paths = ['--', entry.previousPath, path]
@@ -335,7 +567,7 @@ export class SidebarGit extends Service {
     const context = await this.repository(request, signal)
     const ref = await this.resolveCommit(context.root, request.ref, signal)
     if (ref === undefined) return { content: null }
-    const path = repositoryPath(context.root, request.path)
+    const path = repositoryPath(context.root, request.path, this.lease.platform)
     const result = await this.process.capture(context.root, ['show', ref + ':' + path], signal)
     return this.bounded({ content: result.exitCode === 0 ? result.stdout : null })
   }
@@ -364,7 +596,7 @@ export class SidebarGit extends Service {
     return this.mutate(request, signal, async (context) => {
       if (request.path === undefined) throw new SidebarGitError('invalid-request', 'Discard requires one file path')
       await this.requireHead(context, request.head, signal)
-      await this.process.run(context.root, ['checkout', '--', repositoryPath(context.root, request.path)], signal)
+      await this.process.run(context.root, ['checkout', '--', repositoryPath(context.root, request.path, this.lease.platform)], signal)
       return { ok: true }
     })
   }
@@ -401,12 +633,14 @@ export class SidebarGit extends Service {
     if (session === undefined || cwd === undefined || cwd.length === 0) {
       throw new SidebarGitError('unavailable', 'Attach the Session with its authoritative working directory before using Git')
     }
-    return { session, cwd }
+    this.lease.assertCurrent()
+    return { session, cwd: this.lease.cwd }
   }
 
   private assertSession(session: Session, cwd: string): void {
     this.process.assertActive()
-    if (this.ctx.sessions.get(session.id) !== session || session.header.cwd !== cwd) {
+    this.lease.assertCurrent()
+    if (this.ctx.sessions.get(session.id) !== session || session.header.cwd !== this.originalCwd || this.lease.cwd !== cwd) {
       throw new SidebarGitError('stale', 'The Session working directory changed; refresh Git before continuing')
     }
   }
@@ -429,7 +663,7 @@ export class SidebarGit extends Service {
     this.assertSession(context.session, context.sessionCwd)
     return { root: context.root, gitDirectory: context.gitDirectory, sessionCwd: context.sessionCwd,
       head: head ?? null, branch: branch.exitCode === 0 ? stripLineEnding(branch.stdout) : null,
-      indexFingerprint: createHash('sha256').update(index).digest('hex') }
+      indexFingerprint: createHash('sha256').update(JSON.stringify(this.lease.binding)).update(String.fromCharCode(0)).update(index).digest('hex') }
   }
 
   private async resolveCommit(root: string, ref: string, signal?: AbortSignal): Promise<string | undefined> {
@@ -439,7 +673,7 @@ export class SidebarGit extends Service {
   }
 
   private pathArgs(context: RepositoryContext, path: string | undefined): string[] {
-    return path === undefined ? [] : ['--', repositoryPath(context.root, path)]
+    return path === undefined ? [] : ['--', repositoryPath(context.root, path, this.lease.platform)]
   }
 
   private requireMessage(message: string): void {
@@ -478,7 +712,8 @@ export class SidebarGit extends Service {
   ): Promise<T> {
     const captured = await this.repository(request, signal)
     if (captured.root !== request.repositoryRoot) throw new SidebarGitError('stale', 'The displayed repository changed; refresh Git')
-    const previous = this.mutations.get(captured.root) ?? Promise.resolve()
+    const key = JSON.stringify(this.lease.binding) + String.fromCharCode(0) + captured.root
+    const previous = this.mutations.get(key) ?? Promise.resolve()
     const result = previous.then(async () => {
       signal?.throwIfAborted()
       this.assertSession(captured.session, captured.sessionCwd)
@@ -489,8 +724,8 @@ export class SidebarGit extends Service {
       return this.bounded(await operation(current))
     })
     const tail = result.then(() => {}, () => {})
-    this.mutations.set(captured.root, tail)
-    void tail.then(() => { if (this.mutations.get(captured.root) === tail) this.mutations.delete(captured.root) })
+    this.mutations.set(key, tail)
+    void tail.then(() => { if (this.mutations.get(key) === tail) this.mutations.delete(key) })
     return result
   }
 

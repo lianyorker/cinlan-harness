@@ -226,8 +226,8 @@ export class SidebarGitController extends TypertRemoteService {
     try {
       return await invoke(owner)
     } catch (error) {
-      if (error instanceof SidebarGitError) throw new RemoteError(REMOTE_ERROR_CODES[error.code], error.message, { operation })
       if (isAborted()) throw new RemoteError('sidebar-git/cancelled', 'Git operation was cancelled', { operation })
+      if (error instanceof SidebarGitError) throw new RemoteError(REMOTE_ERROR_CODES[error.code], error.message, { operation })
       throw new RemoteError('sidebar-git/git-error', error instanceof Error ? error.message : String(error), { operation })
     }
   }
