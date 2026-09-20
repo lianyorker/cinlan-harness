@@ -26,6 +26,16 @@ import { en, zh } from '../src/client/locales.ts'
 import type { PairingInjected } from '../src/client/types.ts'
 import { device, externalRpc } from './external-rpc.client.ts'
 
+function button(element: HTMLElement): HTMLButtonElement {
+  if (!(element instanceof HTMLButtonElement)) throw new Error('Expected a button element')
+  return element
+}
+
+function checkbox(element: HTMLElement): HTMLInputElement {
+  if (!(element instanceof HTMLInputElement)) throw new Error('Expected an input element')
+  return element
+}
+
 const contexts: Context[] = []
 const roots: string[] = []
 afterEach(async () => {
@@ -46,22 +56,12 @@ async function boot(state: RemoteAccessStatus['state'] = 'disabled', paired = fa
   vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en-US'])
   const rpc = externalRpc(state, paired)
   vi.stubGlobal('__DSH_TRANSPORT__', rpc.transport)
-  const roster = new Map<string, unknown>([
-    ['@deepseek-ai/dsh-client-connection', connection], ['@deepseek-ai/dsh-typert-registry', registry],
-    ['@deepseek-ai/dsh-api-gateway', gateway], ['@deepseek-ai/dsh-api-remotes', remotes],
-    ['@deepseek-ai/dsh-api-session-controller', sessions], ['@deepseek-ai/dsh-client-file-upload', fileUpload],
-    ['@deepseek-ai/dsh-client-ui-settings', settings], ['@deepseek-ai/dsh-client-locale', locale],
-    ['@deepseek-ai/dsh-client-ui-renderer', renderer], ['@deepseek-ai/dsh-client-ui-session', uiSession],
-    ['@deepseek-ai/dsh-client-ui-settings-pairing', pairing], ['test:settings-owner', owner],
-  ])
+  const roster = { connection, registry, gateway, remotes, sessions, fileUpload, settings, locale, renderer, uiSession, pairing, owner }
   const ctx = new Context()
   contexts.push(ctx)
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
-  ctx.loader.internal = { version: 'v2', async import(name: string) {
-    if (!roster.has(name)) throw new Error('Unknown Loader fixture module: ' + name)
-    return roster.get(name)
-  } } as NonNullable<typeof ctx.loader.internal>
+  Object.assign(ctx.loader.builtins, roster)
   // Loader persists explicit entry disposal, so each case owns a writable copy.
   const root = await mkdtemp(join(tmpdir(), 'dsh-pairing-ui-'))
   roots.push(root)
@@ -69,8 +69,9 @@ async function boot(state: RemoteAccessStatus['state'] = 'disabled', paired = fa
   await writeFile(config, await readFile(resolve('packages/client/ui-settings-pairing/tests/fixtures/cordis.yml'), 'utf8'))
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(config).href } })
   await ctx.loader.await()
-  expect([...ctx.loader.entries()].filter(row => roster.has(row.options.name)).map(row => [row.options.name, row.fiber?.state]))
-    .toEqual(expect.arrayContaining([...roster.keys()].map(name => [name, FiberState.ACTIVE])))
+  const names = Object.keys(roster).map(name => 'cordis:' + name)
+  expect([...ctx.loader.entries()].filter(row => names.includes(row.options.name)).map(row => [row.options.name, row.fiber?.state]))
+    .toEqual(expect.arrayContaining(names.map(name => [name, FiberState.ACTIVE])))
   await waitFor(() => { expect(ctx.sessions.list.getSnapshot().phase).toBe('ready') })
   const view = render(<>{ctx.slots.renderSlot('root', {})}</>)
   return { ctx, view, rpc }
@@ -79,15 +80,15 @@ async function boot(state: RemoteAccessStatus['state'] = 'disabled', paired = fa
 it('requires explicit Session and scope grants, displays and cancels an invitation, revokes a device', async () => {
   const b = await boot()
   await b.view.findByText(en.disabled)
-  expect(b.view.getByRole<HTMLButtonElement>('button', { name: en.create }).disabled).toBe(true)
+  expect(button(b.view.getByRole('button', { name: en.create })).disabled).toBe(true)
   expect(b.rpc.calls.filter(call => call.method === 'pairing/createInvitation')).toEqual([])
   fireEvent.click(b.view.getByRole('button', { name: en.enable }))
   await b.view.findByText(en.ready)
   const sessionLabel = b.ctx.sessions.list.getSnapshot().byId['fx-alpha' as keyof ReturnType<typeof b.ctx.sessions.list.getSnapshot>['byId']]!.displayTitle + ' fx-alpha'
   fireEvent.click(b.view.getByRole('checkbox', { name: sessionLabel }))
-  expect(b.view.getByRole<HTMLInputElement>('checkbox', { name: en['scope.session:read'] }).checked).toBe(true)
+  expect(checkbox(b.view.getByRole('checkbox', { name: en['scope.session:read'] })).checked).toBe(true)
   for (const key of ['scope.session:send', 'scope.session:stop', 'scope.questions:answer', 'scope.approvals:decide'] as const) {
-    expect(b.view.getByRole<HTMLInputElement>('checkbox', { name: en[key] }).checked).toBe(false)
+    expect(checkbox(b.view.getByRole('checkbox', { name: en[key] })).checked).toBe(false)
   }
   fireEvent.click(b.view.getByRole('checkbox', { name: en['scope.questions:answer'] }))
   fireEvent.click(b.view.getByRole('button', { name: en.create }))
@@ -120,7 +121,7 @@ it('shows actual missing configuration, keeps invitation disabled, and localizes
   expect(b.view.container.textContent).toMatchSnapshot('not-configured English')
   for (const key of ['missing.advertisedOrigin', 'missing.tlsCertificatePath', 'missing.tlsPrivateKeyPath'] as const) expect(b.view.getByText(en[key])).toBeTruthy()
   expect(b.view.queryByText(en['missing.hostAdapter'])).toBeNull()
-  expect(b.view.getByRole<HTMLButtonElement>('button', { name: en.create }).disabled).toBe(true)
+  expect(button(b.view.getByRole('button', { name: en.create })).disabled).toBe(true)
   const entry = b.ctx.slots.entries('settings.section')[0]!
   const injected = (entry.inject as unknown as () => PairingInjected)()
   expect(injected.hooks.pairingSessions).toBe(b.ctx.sessions.list)

@@ -1,5 +1,6 @@
 /** Pairing expiry, rejected operations, and disposal are owned by the apply observer. */
 import { afterEach, expect, it, vi } from 'vitest'
+import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import type { PairingGrant, PairingInvitation, RemoteAccessStatus } from '@deepseek-ai/dsh-remote-access/types'
 import { observePairing } from '../src/client/observation.ts'
 import type { PairingRemote } from '../src/client/types.ts'
@@ -54,7 +55,7 @@ it('waits for in-flight operations before disposal and never republishes a late 
   const b = fixture()
   await b.observer.refresh()
   let resolve!: (value: Awaited<ReturnType<PairingRemote['createInvitation']>>) => void
-  b.remote.createInvitation = vi.fn(() => new Promise((accept) => { resolve = accept }))
+  b.remote.createInvitation = vi.fn(() => new Promise<Awaited<ReturnType<PairingRemote['createInvitation']>>>((accept) => { resolve = accept }))
   const creating = b.observer.createInvitation(grant)
   await Promise.resolve()
   await Promise.resolve()
@@ -72,7 +73,7 @@ it('preserves a confirmed invitation after refused cancellation and clears it on
   const b = fixture()
   await b.observer.refresh()
   await b.observer.createInvitation(grant)
-  b.remote.cancelInvitation = async () => ({ ok: false, error: { code: 'gateway/internal', message: 'private diagnostic', details: {} } })
+  b.remote.cancelInvitation = async () => ({ ok: false, error: new RemoteError('gateway/internal', 'private diagnostic', {}) })
   await b.observer.cancelInvitation()
   expect(b.observer.source.getSnapshot().failed).toBe(true)
   expect(b.observer.source.getSnapshot().invitation).toBeDefined()
