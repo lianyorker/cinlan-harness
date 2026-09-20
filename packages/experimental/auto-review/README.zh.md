@@ -28,7 +28,7 @@ AutoReview 是需要外部安装并显式启用的 bundle。参考发行版的�
 
 ### 安装与配置
 
-使用已构建或打包的 0.1.6-alpha.2 版公开软件包以及兼容的 dsh profile。安装或移除外部层之前先停止 profile，完成后重新启动。在仓库根目录，CLI 安装形式如下：
+使用已构建或打包的 0.1.6-alpha.2 版公开实验软件包以及兼容的 dsh profile。安装或移除外部层之前先停止 profile，完成后重新启动。在仓库根目录，CLI 安装形式如下：
 
 ```sh
 dsh plugin --profile web add ./packages/experimental/auto-review
@@ -97,7 +97,7 @@ dsh plugin --profile web remove @deepseek-ai/dsh-experimental-auto-review
 <a id="known-limitations-and-deferred-work"></a>
 
 - Auto 使用完全权限，不是确定性的安全屏障。外层 `run_code` 中直接执行的 JavaScript 操作会绕过内层工具审查。
-- 本地权限投影保留目录与当前值合并的设计；外部安装和移除需要重新启动 profile，才能可靠更新选择器可用项。
+- 权限目录可用性随集成注册和卸载更新。仅启动时应用的 profile 仍在重启后应用已安装包的变化。
 - 原始原因保留为持久化的结构化元数据；继续使用普通工具错误呈现，不提供专用拒绝卡片。
 - 审查器同步读取保留的 Session 历史。压缩检查点可以保留事实，但不会继承被删除指令的授权能力。
 - 源码 Loader 和 mock 测试不认证真实模型决策、registry 发布或外部 profile 安装。

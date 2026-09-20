@@ -29,6 +29,8 @@ export interface AgentPresetRoster {
   readonly presets: readonly AgentPresetRow[]
   /** Whether this deployment has a root locally authored presets go to. */
   readonly authorable: boolean
+  /** Whether new-session surfaces expose preset selection and use the saved user default. */
+  readonly modeSelectionEnabled: boolean
 }
 
 declare module '@deepseek-ai/dsh-typert-protocol' {

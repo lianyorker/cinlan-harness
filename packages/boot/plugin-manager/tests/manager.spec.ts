@@ -18,8 +18,14 @@ import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { Group } from '@deepseek-ai/cordis-plugin-loader'
 import * as operations from '../src/operations.ts'
 import { parse, parseDocument } from 'yaml'
+import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import ToolRuntime from '@deepseek-ai/dsh-tools'
+import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
+import SessionProjections from '@deepseek-ai/dsh-session-projection'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import * as managerTools from '../src/tools.ts'
 
-async function fixture(reload: 'live' | 'startup' = 'live', overlay = false, prepare?: (ctx: Context) => void, config: Config = {}, packageManager?: ProfileContext['packageManager'], profileName = 'test') {
+async function fixture(reload: 'live' | 'startup' = 'live', overlay = false, prepare?: (ctx: Context) => void, config: Config = {}, packageManager?: ProfileContext['packageManager'], profileName = 'test', withTools = false) {
   // pnpm resolves workspace roots through native realpath, including Windows 8.3 aliases.
   const home = await realpath(mkdtempSync(join(tmpdir(), 'plugin-manager-')))
   const dir = join(home, 'profiles', 'test')
@@ -33,7 +39,15 @@ async function fixture(reload: 'live' | 'startup' = 'live', overlay = false, pre
     writeFileSync(join(path, 'cordis.patch.yml'), JSON.stringify([{ insert: rows }]))
     writeFileSync(join(path, 'plugin.mjs'), 'export function apply(ctx, config) { if (config?.fail) throw new Error("test activation failed"); ctx.provide(config?.service ?? "managedProbe", true) }\n')
   }
-  bundle('core', [{ id: 'manager', name: 'cordis:manager', config }])
+  bundle('core', [{ id: 'manager', name: 'cordis:manager', config },
+    ...withTools ? [
+      { id: 'prompt', name: 'cordis:prompt' },
+      { id: 'tools', name: 'cordis:tools' },
+      { id: 'projections', name: 'cordis:projections' },
+      { id: 'sandbox-policy', name: 'cordis:policy', config: { mode: 'danger-full-access' } },
+      { id: 'manager-tools', name: 'cordis:managerTools' },
+    ] : [],
+  ])
   bundle('extra', [{ id: 'managed', name: './plugin.mjs' }])
   const manifest = readProfileManifest('test', dir)
   manifest.dependencies = { extra: '1.0.0' }
@@ -52,6 +66,9 @@ async function fixture(reload: 'live' | 'startup' = 'live', overlay = false, pre
     prepare?.(ctx)
     ctx.provide('profileContext', profile)
     ctx.loader.builtins.manager = PluginManager
+    Object.assign(ctx.loader.builtins, {
+      prompt: SystemPrompt, tools: ToolRuntime, projections: SessionProjections, policy: SandboxPolicy, managerTools,
+    })
   })
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(home, { recursive: true, force: true }) })
   let stopHmr = async () => {}
@@ -65,6 +82,24 @@ async function fixture(reload: 'live' | 'startup' = 'live', overlay = false, pre
   }
   return { ctx, dir, manager: ctx.pluginManager, bundle, profile, stopHmr, overlays }
 }
+
+it('persists a tool-requested profile change through the Loader composition', async () => {
+  const { ctx, dir } = await fixture('startup', false, undefined, {}, undefined, 'test', true)
+  const invoke = (arguments_: Record<string, unknown>) => ctx.tools.execute({
+    name: 'plugin_manager', arguments: arguments_, callId: ToolCallId('profile-tool'), signal: new AbortController().signal,
+  })
+  const inventory = await invoke({ action: 'list_plugins' })
+  expect(inventory.isError).toBe(false)
+  if (typeof inventory.value !== 'string') throw new Error('Expected plugin inventory JSON')
+  const listed = JSON.parse(inventory.value) as { entries: { patchId: string; entryId: string }[] }
+  const managed = listed.entries.find(row => row.patchId === 'managed')
+  expect(managed).toBeDefined()
+  const result = await invoke({ action: 'set_plugin', target: managed!.entryId, enabled: false })
+  expect(result.isError).toBe(false)
+  expect(result.value).toContain('restart-required')
+  expect(parse(readFileSync(join(dir, 'cordis.patch.yml'), 'utf8'))).toContainEqual({ id: 'managed', disabled: true })
+  expect(ctx.get('managedProbe')).toBe(true)
+})
 
 it.each(['profile', 'launcher'])('refuses Desktop mutations at the executor using %s identity before touching profile files', async (identity) => {
   const { manager, dir } = await fixture('startup', false,

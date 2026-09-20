@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to choose the agent preset for a new Web GUI session, see the active preset in the session header, and manage available presets in Settings. A preset is fixed when a session is created, so changing the selection or default affects only later sessions. If the deployment provides no presets, the session pickers stay hidden and Settings explains that sessions use the host composition.
+Use this package to choose the agent preset for a new Web GUI session, see the active preset in the session header, and manage available presets in Settings. Started sessions keep their preset; settings changes can also update the current blank session. If the deployment provides no presets, the session pickers stay hidden and Settings explains that sessions use the host composition.
 
 ## Table of Contents
 
@@ -25,19 +25,21 @@ Use this package to choose the agent preset for a new Web GUI session, see the a
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside the settings and conversation packages; the preset surfaces then appear where their slots render. The new-session chip opens on the deployment default and stages a pick that lands on the next blank session; the stage is spent on first use, so the following new session opens on the default again.
+Mount this plugin alongside the settings and conversation packages; the preset surfaces then appear where their slots render. When mode selection is enabled, the new-session chip opens on the Host-effective default and stages a pick that lands on the next blank session; the stage is spent on first use, so the following new session opens on the default again.
 
 ### Managing the roster
+
+The mode-selection switch writes only `agent-presets.modeSelectionEnabled`. Turning it off hides the new-session picker, discards pending picks and refusal banners, and uses the deployment default without replacing the saved default. Turning it on restores the saved default. Settings reads back the effective default and synchronizes only the blank session captured before the save, if it is still current and blank; started sessions and their header labels remain unchanged. Default selection and Creator mode are disabled while mode selection is off; viewing, copying, opening, and deleting presets remain available.
 
 Settings provides a default selector for future sessions and separate built-in and custom resource lists. Built-in presets open in a read-only viewer; duplication copies an existing preset with an identifier and optional display name. Custom presets keep their open-folder or reveal-path action and confirmed deletion. Broken presets cannot become the default or be copied, but custom files remain reachable for repair or deletion. The browser accepts no arbitrary composition text. Host failures remain visible, and failed copies retain their draft.
 
 System-trusted `security-research` rows use localized Security Research names and descriptions. This plugin never adds that preset to the roster; the optional bundle owns its availability. User-authored metadata remains untranslated.
 
-Settings search indexes localized labels and help for the default, built-in, and custom sections. Search never includes preset metadata, composition text, or revealed paths. Entries leave with the page registration; empty custom lists retain an anchor and creation guidance. The page uses the settings shell’s content width and responsive native rows.
+Settings search indexes localized labels and help for the mode-selection, default, built-in, and custom sections. Search never includes preset metadata, composition text, or revealed paths. Entries leave with the page registration; empty custom lists retain an anchor and creation guidance. The page uses the settings shell’s content width and responsive native rows.
 
 ### The conversational entry
 
-When the roster carries the self-referential `cordis` preset, a dashed add-card stages it and starts a new session — the section closes the settings panel and the new-session chip's own applier composes the blank session the workspace flow produces.
+When mode selection is enabled and the roster carries the self-referential `cordis` preset, a dashed add-card stages it and starts a new session — the section closes the settings panel and the new-session chip's own applier composes the blank session the workspace flow produces.
 
 -----
 

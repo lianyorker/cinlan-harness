@@ -27,12 +27,11 @@ Status: implemented
 
 挂载默认按会话进行。实测一份十二行组装每会话约 3ms、约 600KB，因此隔离比任何共享方案都更划算；而由用户或 agent 写出的 preset 也因此拥有尽可能小的影响面。确实自带昂贵单例的 preset，可以用 Cordis 自身的 `isolate` 词汇显式选择共享：命名 realm 的 label 是进程级全局的，因此两棵子树只要写同一个 label 就解析到同一个实例。
 
-未指名 preset 的会话拿到哪一个，是一项用户设置（`agent-presets.default`），叠在组装自身的 `default` 之上——后者成为 `base`。两层都需要：组装里的值是部署交付的东西，在完全没有 settings 提供方时也必须照常工作；而设置是让人不必去改一份可能并不属于自己的 `cordis.yml` 就能调整的东西。
+未指名 preset 的会话由 Host 的 `agent-presets` 设置决定，其 base 是 `{ default: config.default, modeSelectionEnabled: true }`。组装默认值保证部署在没有 settings 提供方时仍可工作；选择器开启时，用户无需编辑可能不属于自己的 `cordis.yml` 就能覆盖它。关闭选择会保留已保存的默认值，但将未指名的会话解析为 `config.default`，避免隐藏的选择器悄然沿用旧的非标准选择。重新开启会恢复已保存的选择。名单从同一份设置快照发布可见性和有效默认值；显式 preset 请求与已有会话保留各自的组装。这是选择策略，不限制显式 preset 请求的访问。
 
 ## 后果
 
 **有效默认值在每次解析时读取，绝不保存快照。** 缓存下来就需要一个 `watch` 订阅和一条重载路径才能保持诚实，而解析后的 scope 本来就会重读热重载过的文档。读穿也不只是省事，它让边界本身是对的：新值作用于**下一个新建的会话**，每个运行中的会话保持它被构建时的那份组装。这条不变量正是 session 日志从另一侧执行的同一条——header 记录会话**创建时**的 id，此后空白期的任何切换由 `agent-preset/selected` 事件记录，因此读取方解析的是两者之和（`resolveSessionPreset`）、绝不单看 header：恢复重建的是其历史所产出的那份组装而不是恢复时的部署默认值，冷读记录的 presenter 在那份组装的层里解析，网关也会拒绝把一个活着的会话收编到它当前运行的 preset 以外的 preset 之下。快照会让两者恰好在设置改变的那一刻各说各话。
-
 
 **直接挂载的子树对启动审计不可见。** 它不会把自己关联到 `Entry`，因此不在 `ctx.loader.entries()` 中，`assertEntriesActivated` 也看不到它。改由挂载过程自行校验各行，通过一个会公开自身 tree 的 `Include` 子类读取。
 

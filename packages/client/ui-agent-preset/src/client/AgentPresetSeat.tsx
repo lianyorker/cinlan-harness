@@ -80,7 +80,7 @@ export type AgentPresetSeatProps =
 /**
  * Render the new-session agent-preset chip.
  * @param props - composed slot props.
- * @returns the chip, or null when the deployment composes no presets.
+ * @returns the chip, or null when selection is disabled or no presets are available.
  */
 export function AgentPresetSeat({ load, select, introduced, useAgentPresetSeat, t }: AgentPresetSeatProps) {
   const state = useAgentPresetSeat(snapshot => snapshot)
@@ -90,9 +90,19 @@ export function AgentPresetSeat({ load, select, introduced, useAgentPresetSeat, 
   const toastSeq = useRef(0)
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
 
+  const pickerVisible = useRef(state.showPicker)
+  pickerVisible.current = state.showPicker
+
   useEffect(() => {
     void load()
   }, [load])
+
+  // Hiding the registered picker also discards its local menu and refusal.
+  useEffect(() => {
+    if (state.showPicker) return
+    setOpen(false)
+    setToast(null)
+  }, [state.showPicker])
 
   const chosen = state.options.find(option => option.id === state.current)
   const chosenText = chosen === undefined ? undefined : presetDisplayText(chosen, t)
@@ -119,9 +129,8 @@ export function AgentPresetSeat({ load, select, introduced, useAgentPresetSeat, 
     return () => { window.clearTimeout(done) }
   }, [state.introduce, ready, label, introduced])
 
-  // Nothing to choose between: the deployment composes no presets and every
-  // session shares the host composition.
-  if (!ready) return null
+  // Hidden selection and empty rosters leave the new-session surface without a chip.
+  if (!state.showPicker || !ready) return null
 
   // One wrapper span: the chip is a flex row with a gap, so loose character
   // spans would each pick up the gap between them.
@@ -174,7 +183,7 @@ export function AgentPresetSeat({ load, select, introduced, useAgentPresetSeat, 
             // Announced only for a pick a person just made: `apply()` also runs
             // when a session becomes current, and a banner over that would
             // report a refusal nobody asked for.
-            if (refusal === undefined) return
+            if (refusal === undefined || !pickerVisible.current) return
             toastSeq.current += 1
             setToast({ seq: toastSeq.current, text: t('switchRefused', { name, reason: refusal }) })
           })

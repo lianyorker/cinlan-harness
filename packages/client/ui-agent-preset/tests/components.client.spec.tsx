@@ -27,6 +27,7 @@ const ROSTER_READY: AgentPresetSettingsState = {
 }
 
 const SEAT_READY: AgentPresetSeatState = {
+  showPicker: true,
   current: 'standard',
   options: [
     { id: 'standard', trust: 'system', name: '标准模式', description: '完整的编码 agent。' },
@@ -56,7 +57,7 @@ function renderSeat(
     useAgentPresetSeat: bindSnapshotSelector(store),
     t: translate,
   } as unknown as AgentPresetSeatProps)} />)
-  return actions
+  return { ...actions, store }
 }
 
 function renderLabel(
@@ -80,6 +81,26 @@ function renderLabel(
 }
 
 describe('the new-session chip', () => {
+  it('renders nothing while the picker is disabled', () => {
+    renderSeat({ showPicker: false })
+
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('discards the open menu across a policy off/on change', () => {
+    const { store } = renderSeat()
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByRole('menuitem', { name: /mine/ })).toBeTruthy()
+
+    act(() => { store.set({ ...store.getSnapshot(), showPicker: false }) })
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.queryByRole('menuitem')).toBeNull()
+    act(() => { store.set({ ...store.getSnapshot(), showPicker: true }) })
+
+    expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('menuitem')).toBeNull()
+  })
+
   it('reads the roster once and shows the staged preset by name', async () => {
     const actions = renderSeat()
 
@@ -157,6 +178,30 @@ describe('the new-session chip', () => {
 })
 
 describe('a refused switch', () => {
+  it('discards an existing banner and a late refusal while selection is hidden', async () => {
+    const pending = Promise.withResolvers<string | undefined>()
+    const first = vi.fn<() => Promise<string | undefined>>()
+      .mockResolvedValueOnce('first refusal')
+      .mockReturnValueOnce(pending.promise)
+    const { store } = renderSeat({}, first)
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByRole('menuitem', { name: /mine/ }))
+    expect((await screen.findByRole('alert')).textContent).toContain('first refusal')
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByRole('menuitem', { name: /mine/ }))
+
+    act(() => { store.set({ ...store.getSnapshot(), showPicker: false }) })
+    await act(async () => {
+      pending.resolve('late refusal')
+      await pending.promise
+    })
+    expect(screen.queryByRole('alert')).toBeNull()
+    act(() => { store.set({ ...store.getSnapshot(), showPicker: true }) })
+
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('announces the reason instead of letting the label snap back in silence', async () => {
     // The banner's own timer has to be a fake one from the start, or the
     // lifetime assertion below would wait out its real nine seconds.

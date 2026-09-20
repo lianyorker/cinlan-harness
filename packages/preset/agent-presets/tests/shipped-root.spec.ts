@@ -144,7 +144,7 @@ describe('the shipped preset root', () => {
   it('omits the general workflow tool only from PTC while retaining Ralph infrastructure', async () => {
     const ptc = await shippedEntries('ptc')
     expect(findEntry(ptc, 'tool-workflow')?.disabled).toBe(true)
-    expect(findEntry(ptc, 'workflow-worker-thread')?.disabled).not.toBe(true)
+    expect(findEntry(ptc, 'workflow-ptc')?.disabled).not.toBe(true)
     expect(findEntry(ptc, 'tool-ralph')?.disabled).not.toBe(true)
 
     for (const id of ['standard', 'cordis']) {

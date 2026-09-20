@@ -13,7 +13,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  Button, IconBrowseOutline16, IconCopyOutline16, IconFolderOpenOutline16, IconPlusOutline16, IconTrashOutline16, Modal, Tag, Tooltip,
+  Button, IconBrowseOutline16, IconCopyOutline16, IconFolderOpenOutline16,
+  IconPlusOutline16, IconTrashOutline16, Modal, Switch, Tag, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -57,6 +58,8 @@ export interface AgentPresetSectionInjected {
   remove: () => Promise<void>
   /** Make one preset the default for sessions created later. */
   makeDefault: (id: string) => Promise<void>
+  /** Show or hide preset selection on new-session surfaces. */
+  setPickerVisible: (showPicker: boolean) => Promise<void>
 }
 
 /** Full component props. */
@@ -212,8 +215,8 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
       <button
         type="button"
         className={css.creatorButton}
-        disabled={!state.authorable}
-        title={state.authorable ? undefined : t('duplicateUnavailable')}
+        disabled={!state.authorable || !state.showPicker || state.policySaving}
+        title={!state.authorable ? t('duplicateUnavailable') : !state.showPicker ? t('enablePickerToCreate') : undefined}
         onClick={() => {
           props.startCreatorDraft?.()
           props.close()
@@ -231,6 +234,21 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
       <p className={css.intro}>{t('sectionIntro')}</p>
       {state.status === 'unavailable' ? <p className={css.help} role="status">{t('unavailable')}</p> : null}
 
+      <div className={css.defaultRow} data-settings-anchor="agent-presets-mode-selection">
+        <div className={css.defaultCopy}>
+          <span className={css.pickerTitle}>
+            <span className={css.defaultLabel}>{t('showPicker')}</span>
+            <Tag>{t('showPickerBeta')}</Tag>
+          </span>
+          <p className={css.help}>{t('showPickerDescription')}</p>
+        </div>
+        <Switch
+          checked={state.showPicker}
+          label={t('showPicker')}
+          disabled={state.status !== 'ready' || state.policySaving}
+          onChange={(next) => { void props.setPickerVisible(next) }}
+        />
+      </div>
       <div className={css.defaultRow} data-settings-anchor="agent-presets-default">
         <div className={css.defaultCopy}>
           <label className={css.defaultLabel} htmlFor="agent-presets-default-select">{t('defaultLabel')}</label>
@@ -241,7 +259,8 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
           aria-describedby="agent-presets-default-help"
           className={css.select}
           value={state.rows.find(row => row.isDefault)?.id ?? ''}
-          disabled={state.status !== 'ready'}
+          disabled={state.status !== 'ready' || !state.showPicker || state.policySaving}
+          title={state.showPicker ? undefined : t('enablePickerToSetDefault')}
           onChange={(event) => { void props.makeDefault(event.target.value) }}
         >
           {state.rows.length === 0 ? <option value="">{t(state.status === 'unavailable' ? 'unavailable' : 'loading')}</option> : null}
@@ -254,7 +273,15 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
       {([['system', t('builtInGroup')], ['user', t('customGroup')]] as const).map(([trust, heading]) => {
         const group = state.rows
           .filter(row => row.trust === trust)
-          .map(row => ({ row, text: presetDisplayText(row, t) }))
+          .map(row => ({
+            row,
+            text: presetDisplayText(row, t),
+            selectionAction: row.broken !== undefined
+              ? t('brokenBadge')
+              : row.isDefault
+                ? t(state.showPicker ? 'inUse' : 'selectionOffDefault')
+                : t(state.showPicker ? 'setDefault' : 'enablePickerToSetDefault'),
+          }))
         const tail = trust === 'user' ? creatorButton : null
         return (
           <section key={trust} className={css.group} data-settings-anchor={trust === 'system' ? 'agent-presets-built-in' : 'agent-presets-custom'}>
@@ -263,12 +290,17 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
             {group.length === 0 && trust === 'user' ? <p className={css.help}>{t('emptyCustom')}</p> : null}
             {group.length === 0 ? null : (
               <ul className={css.cards}>
-                {group.map(({ row, text }) => (
+                {group.map(({ row, text, selectionAction }) => (
                   <li
                     key={row.id}
-                    className={row.broken !== undefined
-                      ? `${css.card} ${css.cardBroken}`
-                      : row.isDefault ? `${css.card} ${css.cardActive}` : css.card}
+                    className={[
+                      css.card,
+                      row.broken !== undefined ? css.cardBroken : undefined,
+                      row.isDefault ? css.cardActive : undefined,
+                      !state.showPicker && row.broken === undefined && !row.isDefault
+                        ? css.cardSelectionDisabled
+                        : undefined,
+                    ].filter(Boolean).join(' ')}
                   >
                     {/* The card body IS the control: picking a preset is the
                       common act, so it should not hide behind a small button.
@@ -286,15 +318,16 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
                       // `disabled`, which would take the card out of the tab
                       // order. With the reason moved onto the badge, that is
                       // the only way anyone without a pointer reaches it.
-                      disabled={row.isDefault}
+                      disabled={row.isDefault
+                        || (row.broken === undefined && (!state.showPicker || state.policySaving))}
                       aria-disabled={row.broken !== undefined}
                       // Without this the name is the whole card read aloud —
                       // title, badge, description, id.
-                      aria-label={`${row.broken !== undefined ? t('brokenBadge') : row.isDefault ? t('inUse') : t('setDefault')}: ${text.name}`}
+                      aria-label={`${selectionAction}: ${text.name}`}
                       // The reason rides the badge, not the whole card: two
                       // tooltips over one target would race, and the card's
                       // own label answers what clicking it would do.
-                      title={row.broken !== undefined ? t('brokenBadge') : row.isDefault ? t('inUse') : t('setDefault')}
+                      title={selectionAction}
                       onClick={() => {
                         if (row.broken !== undefined) return
                         void props.makeDefault(row.id)
@@ -317,7 +350,7 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
                         <Tag>
                           {row.trust === 'user' ? t('userTrust') : t('builtIn')}
                         </Tag>
-                        {row.isDefault ? <Tag tone="solid" className={css.inUse}>{t('inUse')}</Tag> : null}
+                        {row.isDefault ? <Tag tone="solid" className={css.inUse}>{t(state.showPicker ? 'inUse' : 'selectionOffDefault')}</Tag> : null}
                       </span>
                       <CardDescription text={text.description ?? t('noDescription')} />
                       {/* Visually hidden, deliberately: the pointer path is the

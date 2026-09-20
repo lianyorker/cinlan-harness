@@ -28,7 +28,7 @@ AutoReview is an external opt-in bundle. The reference release's optional bundle
 
 ### Install and configure
 
-Use a built or packed copy of this public package at version 0.1.6-alpha.2 with a compatible dsh profile. Stop the profile before installing or removing its external layer, then restart it. From the repository root, the CLI installation form is:
+Use a built or packed copy of this public experimental package at version 0.1.6-alpha.2 with a compatible dsh profile. Stop the profile before installing or removing its external layer, then restart it. From the repository root, the CLI installation form is:
 
 ```sh
 dsh plugin --profile web add ./packages/experimental/auto-review
@@ -97,7 +97,7 @@ The main-agent prompt and tool prefix are unchanged. Each reviewer request inclu
 <a id="known-limitations-and-deferred-work"></a>
 
 - Auto uses Full access and is not a deterministic security barrier. Direct JavaScript effects in outer `run_code` bypass inner-tool review.
-- The local permission projection retains its combined catalog/current-value design; external installation and removal require profile restart for reliable picker availability.
+- Permission catalog availability follows integration registration and disposal. Startup-only profiles still apply installed package changes on restart.
 - Raw reasons remain durable structured metadata; ordinary tool error presentation is retained rather than a specialized denial card.
 - A reviewer reads retained Session history synchronously. Compaction checkpoints preserve facts, not the authority of removed instructions.
 - Source Loader and mock tests do not certify real-model decisions, registry publication, or installation into an external profile.

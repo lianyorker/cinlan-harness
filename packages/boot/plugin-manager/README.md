@@ -25,7 +25,9 @@ Manage the current Web profile's installed bundles and individually addressable 
 <a id="use-this-package"></a>
 ## Use this package
 
-The Web composition mounts this service beside the Host plugin inventory. The launcher provides the current profile through `profileContext`. The service's Remote methods expose bundle inspection, installation, removal, enablement, and cancellation to trusted clients. Plugin configuration forms remain owned by their settings namespaces and client plugins.
+The profile composition mounts this service beside the Host plugin inventory. The launcher provides the current profile through `profileContext`. The service's Remote methods expose bundle inspection, installation, removal, enablement, and cancellation to trusted clients. Plugin configuration forms remain owned by their settings namespaces and client plugins.
+
+The optional `@deepseek-ai/dsh-plugin-manager/tools` entry registers `plugin_manager` for the Cordis preset. Every action, including inspection, requires Full access or approval for that call; approval leaves the Session permission mode unchanged. Installation build-script permissions require explicit human approval and remain separate from the tool-call decision.
 
 ### Configuration
 
@@ -74,11 +76,11 @@ The public records live in [types.ts](src/types.ts). [operations.ts](src/operati
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the managed plugins whose own tools and prompt contributions enter later model requests.
+When the tools entry is enabled, the model receives one management tool and bounded JSON inventory or operation results. Managed plugins can contribute tools and prompt sections to later model requests.
 
 #### KV Cache effect
 
-Management adds no model request content. Enabling or disabling a plugin can change later tool declarations or prompt contributions and their cache reuse.
+Enabling the management tool adds its schema and execution results to model requests. Enabling or disabling a plugin can change later tool declarations or prompt contributions and their cache reuse.
 
 ## Known Limitations and Deferred Work
 
@@ -89,7 +91,7 @@ Management adds no model request content. Enabling or disabling a plugin can cha
 - Startup-only profiles cannot remove packages that the running process still uses.
 - Management is profile-wide; agent-preset composition remains read-only.
 - A failed removal may leave partially changed dependencies. Installation restoration does not remove downloaded files or diagnostic logs.
-- This integration exposes no agent tool and declares no optional-bundle catalog; inventory records report `optional: false`.
+- This integration declares no optional-bundle catalog; inventory records report `optional: false`.
 
 <a id="dev-note"></a>
 ### Dev Note

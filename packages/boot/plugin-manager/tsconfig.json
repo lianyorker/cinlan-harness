@@ -40,6 +40,11 @@
     },
     {
       "path": "../../util/brand"
-    }
+    },
+    { "path": "../../core/tools" },
+    { "path": "../../sandbox/sandbox-policy" },
+    { "path": "../../sandbox/sandbox" },
+    { "path": "../../interaction/user-approval" },
+    { "path": "../../util/values" }
   ]
 }

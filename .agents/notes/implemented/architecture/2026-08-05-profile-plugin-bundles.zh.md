@@ -18,6 +18,8 @@ Status: implemented
 
 两项配套重构：webserver 内置的静态 dist 服务改为单一所有者的**回退席位**（`registerFallback`／`applyIndexTaps`），SPA 服务器提取到 `@deepseek-ai/dsh-host-frontend-static`，使 web 组合包以组合的方式持有自己的 dist，而不是靠启动器代码；[dsh CLI 个人配置决策](../../archived/feature/2026-07-20-dsh-cli-personal-config.md)的个人 overlay 机制（`loadPersonalPatches`、`$DSH_HOME/config.yaml`）改为面向逐 profile 与 home 级的 `cordis.patch.yml` 层（`loadOptionalPatches`、接受文件名的 `watchUserPatches`），取代该笔记的各入口模式与文件位置，同时保留其 Harness home 根目录、patch 语义与响亮失败的解析。
 
+Cordis 预设通过既有管理服务上的可选 `plugin_manager` 工具提供持久 profile 管理。每次调用（包括清单读取）均要求完全权限或单次审批，因为安装的 Host 代码在工作区限制之外运行。工具分别报告保存状态与激活结果；仅启动时应用的 profile 要求重启。同一管理器继续强制执行 Desktop 所有权和受保护条目规则。真实 Loader fixture 验证工具请求可持久化 patch，且不会将仅启动时应用的 profile 谎报为已激活。
+
 ## Alternatives considered
 
 - **依赖扫描加部分 `patchOrder`**（最初的草案）：扫描 `dependencies` 找出组合包、未列出者按字母序排列，会产生两个真源和一条隐式决胜规则；一份显式有序的 `dsh.profile.bundles` 列表更小、完全确定。在 profile 内直接 `pnpm add` 只会安装一个库，不激活任何 patch——行为显式，没有暗中扫描。

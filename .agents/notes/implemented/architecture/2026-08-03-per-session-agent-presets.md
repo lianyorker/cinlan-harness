@@ -27,7 +27,7 @@ The presets the deployment ships are the directories under `packages/preset/agen
 
 Mounting is per-session by default. Measured cost for a twelve-row composition is ~3ms and ~600KB per session, so isolation is the cheaper default than any sharing scheme, and a preset authored by a user or by an agent then has the smallest possible blast radius. A preset that genuinely owns an expensive singleton opts into sharing with Cordis's own `isolate` vocabulary: a named realm label is process-global, so two subtrees naming the same label resolve one instance.
 
-Which preset an unnamed session gets is a user setting (`agent-presets.default`) layered over the composition's own `default`, which becomes the `base`. Both layers are needed: the composition value is what a deployment ships and must keep working with no settings provider at all, and the setting is what a person changes without editing a `cordis.yml` they may not own.
+Which preset an unnamed session gets is governed by the Host's `agent-presets` settings, whose base is `{ default: config.default, modeSelectionEnabled: true }`. The composition default keeps deployments working without a settings provider; an enabled picker lets a person override it without editing a `cordis.yml` they may not own. Turning selection off preserves the saved default but resolves unnamed sessions to `config.default`, so a hidden picker cannot silently retain an old nonstandard choice. Re-enabling restores the saved choice. The roster publishes visibility and the effective default from one settings snapshot; explicit preset requests and existing sessions keep their own composition. This is selection policy, not an access restriction on explicit preset requests.
 
 ## Consequences
 

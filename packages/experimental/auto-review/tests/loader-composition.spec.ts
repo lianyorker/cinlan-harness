@@ -67,7 +67,15 @@ async function load(decision: string | Error) {
     ['@deepseek-ai/dsh-user-approval', ApprovalService],
     ['@deepseek-ai/dsh-permission-presets', PermissionPresetService],
     ['@deepseek-ai/dsh-experimental-auto-review', AutoReview],
-    ['@fixture/external', { inject: ['llm', 'tools'], apply(ctx: Context) {
+  ])
+  const ctx = new Context()
+  contexts.push(ctx)
+  ctx.baseUrl = new URL('./', import.meta.url).href
+  await ctx.plugin(Loader)
+  ctx.loader.builtins.include = Include
+  ctx.loader.builtins['auto-review-external'] = {
+    inject: ['llm', 'tools'],
+    apply(ctx: Context) {
       ctx.provide('shell', {
         sandboxMode: 'workspace-write',
         resolve() { throw new Error('No shell effects in Auto composition') },
@@ -79,13 +87,8 @@ async function load(decision: string | Error) {
         name: 'probe', description: 'Perform one project action.', parameters: {},
         async execute() { bodies += 1; return [{ type: 'text', text: 'Executed.' }] },
       })))
-    } }],
-  ])
-  const ctx = new Context()
-  contexts.push(ctx)
-  ctx.baseUrl = new URL('./', import.meta.url).href
-  await ctx.plugin(Loader)
-  ctx.loader.builtins.include = Include
+    },
+  }
   ctx.loader.internal = { version: 'v2', async import(specifier: string) {
     if (!modules.has(specifier)) throw new Error('Unexpected AutoReview Loader import: ' + specifier)
     return modules.get(specifier)

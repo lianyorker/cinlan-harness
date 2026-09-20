@@ -8,7 +8,7 @@
   config:
     agents: []
 - name: '@deepseek-ai/dsh-user-approval'
-- name: '@fixture/external'
+- name: 'cordis:auto-review-external'
 - name: '@deepseek-ai/dsh-permission-presets'
 - id: auto-review
   name: '@deepseek-ai/dsh-experimental-auto-review'

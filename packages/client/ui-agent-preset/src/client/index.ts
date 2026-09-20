@@ -82,6 +82,7 @@ export function apply(ctx: ClientContext): void {
       // The section reads the same roster and marks the same default, so a
       // change made from either surface converges both.
       if (section.store.getSnapshot().status !== 'idle') void section.load()
+      for (const read of rosterReaders) read()
     }
     const disposers = [
       ctx.remote.$on('settings/document-updated', (ns) => {
@@ -99,6 +100,7 @@ export function apply(ctx: ClientContext): void {
   // unbound with it, so the section's face reads the current binding per
   // render and simply hides the button while no flow exists.
   let creatorDraft: (() => void) | undefined
+  let currentSeat: AgentPresetSeatController | undefined
 
   // The new-session chip and the header label: one controller, because the
   // staged choice belongs to the flow rather than to any one session.
@@ -107,6 +109,8 @@ export function apply(ctx: ClientContext): void {
       const state = scope.sessions.list.getSnapshot()
       return state.current === undefined ? undefined : state.byId[state.current]
     })
+
+    currentSeat = seat
 
     const seatInjected = (): AgentPresetSeatInjected => ({
       hooks: { agentPresetSeat: seat.store },
@@ -125,15 +129,6 @@ export function apply(ctx: ClientContext): void {
       // and either way the chip's pick predates it — so the stage is applied
       // when the session arrives, not when it was made.
       const stop = scope.sessions.list.subscribe(() => { void seat.apply() })
-      // The chip opens on the deployment default, so a default changed from
-      // the settings surface moves it too — otherwise the screen that starts
-      // the next session keeps offering the previous default until a reload,
-      // which is exactly the session the setting claims to govern. A staged
-      // pick survives: `load()` prefers it over the refreshed fallback.
-      const settingsMoved = scope.remote.$on('settings/document-updated', (ns) => {
-        if (ns !== AGENT_PRESET_SETTINGS_NS) return
-        void seat.load()
-      })
       // Authoring writes a FILE, not a setting, so nothing on the wire
       // announces it — without this the screen that starts the next session
       // keeps offering the roster as it stood when the chip first loaded, and
@@ -145,6 +140,7 @@ export function apply(ctx: ClientContext): void {
       // on: the chip's list-change applier composes the blank session the
       // workspace connect produces or reuses.
       creatorDraft = () => {
+        if (!section.store.getSnapshot().showPicker) return
         // The introduce cue makes the chip announce the pick the user never
         // made on this screen — the stage happened back in settings.
         seat.stage('cordis', true)
@@ -165,7 +161,7 @@ export function apply(ctx: ClientContext): void {
       }, AgentPresetLabel)
       return () => {
         stop()
-        settingsMoved()
+        currentSeat = undefined
         rosterReaders.delete(readRoster)
         creatorDraft = undefined
         chip()
@@ -173,6 +169,16 @@ export function apply(ctx: ClientContext): void {
       }
     }, 'ui-agent-preset: new-session chip and header label')
   })
+
+  /** Capture the exact blank Session one Settings action may update. */
+  const captureBlankSessionSync = (): ((id: string) => Promise<string | undefined>) => {
+    const seat = currentSeat
+    const sessionId = seat?.blankSessionId()
+    return async (id: string) => {
+      if (seat === undefined || sessionId === undefined || currentSeat !== seat) return undefined
+      return await seat.syncBlankSession(sessionId, id)
+    }
+  }
 
   const sectionInjected = (): AgentPresetSectionInjected => ({
     hooks: { agentPresetSection: section.store },
@@ -188,7 +194,8 @@ export function apply(ctx: ClientContext): void {
     ...creatorDraft === undefined ? {} : { startCreatorDraft: creatorDraft },
     confirmDelete: (id: string | null) => { section.confirmDelete(id) },
     remove: () => section.remove(),
-    makeDefault: (id: string) => section.makeDefault(id),
+    makeDefault: (id: string) => section.makeDefault(id, captureBlankSessionSync()),
+    setPickerVisible: (showPicker: boolean) => section.setPickerVisible(showPicker, captureBlankSessionSync()),
   })
 
   // Ordered after Models: choosing a model is routine, and composing an
@@ -197,6 +204,11 @@ export function apply(ctx: ClientContext): void {
     yield ctx.settingsMetadata.registerSection({ sectionId: 'agent-presets', groupId: 'ai' })
     const t = ctx.locale.bind('settings.agentPreset')
     yield ctx.settingsMetadata.registerItems('agent-presets', [
+      {
+        id: 'mode-selection', anchorId: 'agent-presets-mode-selection',
+        title: () => t('showPicker'), description: () => t('showPickerDescription'),
+        keywords: () => [t('enablePickerToSetDefault'), t('nav')],
+      },
       {
         id: 'default', anchorId: 'agent-presets-default',
         title: () => t('defaultLabel'), description: () => t('defaultHelp'),

@@ -61,7 +61,7 @@
 }
 
 
-.card:hover:not(.cardActive) {
+.card:hover:not(.cardActive):not(.cardSelectionDisabled) {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
@@ -467,6 +467,21 @@
   margin-top: 12px;
   padding: 18px 0;
   border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.cardSelectionDisabled {
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.cardSelectionDisabled .cardMain {
+  opacity: 0.48;
+}
+
+.pickerTitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .defaultCopy {

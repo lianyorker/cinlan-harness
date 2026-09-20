@@ -25,7 +25,9 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-Web 组合在 Host 插件清单旁挂载本服务。launcher 通过 `profileContext` 提供当前 profile。服务的 Remote 方法向可信客户端提供 bundle 检查、安装、移除、启停和取消功能。插件配置表单仍由对应的 settings namespace 和客户端插件持有。
+profile 组合在 Host 插件清单旁挂载本服务。launcher 通过 `profileContext` 提供当前 profile。服务的 Remote 方法向可信客户端提供 bundle 检查、安装、移除、启停和取消功能。插件配置表单仍由对应的 settings namespace 和客户端插件持有。
+
+可选的 `@deepseek-ai/dsh-plugin-manager/tools` 入口为 Cordis 预设注册 `plugin_manager`。每项操作（包括查询）均要求完全权限或仅针对本次调用的审批；审批不改变 Session 权限模式。安装脚本权限要求人类显式批准，与工具调用审批分别处理。
 
 ### 配置
 
@@ -74,11 +76,11 @@ pnpm 阻止依赖脚本时，结果列出待决定的包名。重试可通过 `a
 <a id="model-experience"></a>
 ## 模型体验
 
-间接影响模型体验：受管理插件自身的工具与提示词贡献会进入后续模型请求。
+启用工具入口后，模型获得一个管理工具以及大小受限的 JSON 清单或操作结果。受管理插件可向后续模型请求贡献工具和提示词分节。
 
 #### KV Cache 影响
 
-管理操作不添加模型请求内容。启用或停用插件可能改变之后的工具声明、提示内容及其缓存复用。
+启用管理工具会将其 schema 和执行结果加入模型请求。启用或停用插件可能改变之后的工具声明、提示内容及其缓存复用。
 
 ## 已知限制与延期工作
 
@@ -89,7 +91,7 @@ pnpm 阻止依赖脚本时，结果列出待决定的包名。重试可通过 `a
 - 仅启动时应用的 profile 不能移除运行进程仍在使用的包。
 - 管理影响整个 profile；Agent 预设组合仍为只读。
 - 移除失败可能留下部分改变的依赖。安装恢复不会删除已下载文件或诊断日志。
-- 本集成不暴露 Agent 工具，也不声明可选 bundle 目录；清单记录报告 `optional: false`。
+- 本集成不声明可选 bundle 目录；清单记录报告 `optional: false`。
 
 <a id="dev-note"></a>
 ### 开发备注
