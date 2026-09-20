@@ -25,6 +25,8 @@ export default defineConfig({
     execArgv: vitestExecArgv,
     include: [
       'apps/web/tests/**/*.e2e.ts',
+      'apps/desktop/tests/phone-pairing.e2e.ts',
+      'apps/desktop/tests/phone-interactions.e2e.ts',
       'apps/web/tests/**/*.snapshot.ts',
       'packages/experimental/inspector/tests/client-browser.e2e.ts',
       'packages/client/ui-better-sidebar/tests/terminal-renderer.browser.e2e.ts',
