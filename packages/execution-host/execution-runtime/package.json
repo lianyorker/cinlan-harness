@@ -1,0 +1,59 @@
+{
+  "name": "@deepseek-ai/dsh-execution-runtime",
+  "version": "0.1.6-alpha.2",
+  "description": "Pinned SSH runtime provisioning with immutable generations and target activation",
+  "type": "module",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/execution-host/execution-runtime"
+  },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./artifact": {
+      "types": "./lib/types/artifact.d.ts",
+      "default": "./lib/artifact.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/artifact.js",
+    "lib/*.js",
+    "lib/types/**/*.d.ts",
+    "lib/types/types.js",
+    "assets"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-execution-host-targets": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
+    "ssh2": "^1.17.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-execution-host-targets": "workspace:^",
+    "@deepseek-ai/dsh-brand": "workspace:^",
+    "@deepseek-ai/dsh-ssh": "workspace:^",
+    "@types/ssh2": "^1.15.6",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
+    "@deepseek-ai/dsh-ptc-runtime-node": "workspace:^"
+  }
+}
