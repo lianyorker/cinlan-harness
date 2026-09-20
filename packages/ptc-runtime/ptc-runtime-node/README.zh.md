@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在提供 `fs`、`subprocess`、`sandbox` 与 `sandboxPolicy` 的组合中挂载此可选提供方。直接消费方在执行前调用 `ctx.ptcRuntime.resolve(request)`。现有 `dsh-tools` 消费方使用下述独立 CodeRuntime 适配器。
+在提供 `fs`、`subprocess`、`sandbox` 与 `sandboxPolicy` 的组合中挂载本提供方。`dsh-tools` 的 PTC 模式传入调用 Session 的目录和常设策略；直接运行时消费方在执行前解析这些选项。
 
 ### 配置
 
@@ -60,11 +60,9 @@ kind: "package-reference"
 <a id="optional-coderuntime-adapter"></a>
 ### 可选 CodeRuntime 适配器
 
-使用现有 `ctx.codeRuntime` API 的自定义 profile 可在本提供方与 `sandboxPolicy` 旁挂载 `@deepseek-ai/dsh-ptc-runtime-node/code-runtime`，替换该 profile 的 CodeRuntime 提供方。包主入口只注册 `ptcRuntime`；适配器注册 `codeRuntime` 并委托执行，不创建另一份 worker。随附的 worker-thread 提供方仍为默认值。
+使用 `ctx.codeRuntime` 的自定义 profile 可在本提供方和 `sandboxPolicy` 旁挂载 `@deepseek-ai/dsh-ptc-runtime-node/code-runtime`。适配器注册 `codeRuntime` 并委托 `ptcRuntime` 执行，不创建另一份 worker。tools 和 workflow 消费方直接使用 `ptcRuntime`。
 
-适配器通过可选 `agents` 服务取得发起调用的 Session，并解析其工作区和常设沙箱策略；无 agent 的调用使用部署策略。它传递绑定、取消、日志和 JSON 值。单独释放适配器会取消它的调用并等待 PTC 清理，不卸载提供方。现有 CodeRuntime API 没有逐次超时或沙箱选项，也没有沙箱结果元数据；`protocol` 与 `sandbox-unavailable` 转换为 `worker-exit`，保留诊断文本。直接 PTC 消费方保留完整 API。
-
-SSH 部署需配置远程执行世界中的 `nodeExecutable`，以及兼容且预先安装的构建后 `process.js` 的绝对 `bootstrapPath`。bootstrap 安装由部署负责；本提供方不上传宿主文件。[SSH 包](../../ssh/ssh/README.zh.md)说明支持的宿主和远程平台。
+适配器通过可选 `agents` 服务取得发起调用的 Session 并解析其常设策略；无 agent 调用使用部署策略。它转发绑定、取消、日志和 JSON 值，释放时仅取消并等待自身调用。CodeRuntime API 没有逐次执行控制或沙箱结果元数据；`protocol` 和 `sandbox-unavailable` 转为 `worker-exit`，保留诊断文本。
 
 ### 执行与结果
 
@@ -74,9 +72,9 @@ SSH 部署需配置远程执行世界中的 `nodeExecutable`，以及兼容且�
 
 ### 截止时间与取消
 
-直接 PTC 消费方可读取只读 `timeout` 描述符，获取有效默认值与上限。`executionInstructions` 说明全新 Node 状态、直接 Node API、空程序环境和文件策略。可选 CodeRuntime 适配器使用配置的默认值，保持现有工具 schema 不变。
+PTC 消费方按 [dsh-tools](../../core/tools/README.zh.md#ptc-mode) 的说明公开逐次超时与经审批的沙箱选择。运行时只读 `timeout` 描述符向该消费方报告有效默认值与上限。 其 `executionInstructions` 在面向模型的 schema 中说明全新 Node 状态、直接 Node API、空程序环境和文件策略。
 
-省略 `timeoutMs` 使用配置的经过时间默认值；数值请求经过验证并封顶。直接服务调用方可以显式传入 `timeoutMs: null` 来省略经过时间定时器。启用的截止覆盖运行时准备和执行，包括等待嵌套工具或审批的时间。它不是 CPU 计量器。超时或取消通过 Host 的受管进程所有者停止同步循环；成功完成也会清理该受管范围。选择结果后、清理前停止计时器，因此调用可能要在执行截止之后等待清理结算才返回。
+省略 `timeoutMs` 使用配置的经过时间默认值；数值请求经过验证并封顶。服务调用方可以显式传入 `timeoutMs: null` 来省略经过时间定时器，工作流适配器即如此；`run_code` 仍只接受正数覆盖值。启用的截止覆盖运行时准备和执行，包括等待嵌套工具或审批的时间。它不是 CPU 计量器。超时或取消通过 Host 的受管进程所有者停止同步循环；成功完成也会清理该受管范围。选择结果后、清理前停止计时器，因此调用可能要在执行截止之后等待清理结算才返回。
 
 ### 失败
 
@@ -108,7 +106,6 @@ Host 擦除可擦除类型，在配置的执行世界中解析可执行文件与
 |---|---|
 | [`src/index.ts`](src/index.ts) | 配置、解析、策略、绑定与受管执行 |
 | [`src/launch.ts`](src/launch.ts) | 可执行文件／bootstrap 参数与执行世界资源映射 |
-| [`src/code-runtime.ts`](src/code-runtime.ts) | 面向现有 CodeRuntime 消费方的可选适配器 |
 | [`src/process.ts`](src/process.ts) | 子进程握手、环境清空与程序生命周期 |
 | [`src/bootstrap.ts`](src/bootstrap.ts) | 程序求值、绑定代理与输出捕获 |
 | [`src/channel.ts`](src/channel.ts) | 分帧、有界写入与协议失败 |
@@ -125,7 +122,7 @@ Host 擦除可擦除类型，在配置的执行世界中解析可执行文件与
 直接使用提供方前先读服务约定；决策记录解释策略与消费方职责。
 
 - [PTC 运行时服务](../ptc-runtime/README.zh.md)——请求、已解析 spec 与结果。
-- [沙箱服务](../../sandbox/sandbox/README.zh.md)——文件策略与强制执行保证。
+- [沙箱 Node 决策](../../../.agents/notes/implemented/architecture/2026-09-11-sandboxed-node-ptc-runtime.zh.md)——安全、生命周期与 timeout 取舍。
 - [PTC 基础](../../../.agents/notes/implemented/feature/2026-06-15-ptc.zh.md)——注册表呈现与嵌套工具分派。
 - [子进程提供方](../../subprocess/subprocess-local/README.zh.md)——受管进程范围与平台限制。
 
@@ -134,7 +131,7 @@ Host 擦除可擦除类型，在配置的执行世界中解析可执行文件与
 <a id="model-experience"></a>
 ## 模型体验
 
-挂载可选 CodeRuntime 适配器时，通过 `dsh-tools` 的 PTC 模式间接提供。该消费方通过其工具结果呈现程序结果。中间绑定通信不进入模型历史；外层结果遵循普通工具溢出策略。
+通过 `dsh-tools` 的 PTC 模式与 `dsh-workflow-ptc` 间接提供；它们通过各自的工具结果呈现程序结果。中间绑定通信不进入模型历史；外层结果遵循普通工具溢出策略。
 
 #### KV Cache effect
 
@@ -160,6 +157,6 @@ Host 擦除可擦除类型，在配置的执行世界中解析可执行文件与
 <details>
 <summary>维护者工作上下文——点击展开</summary>
 
-无。
+[timeout 讨论](../../../.agents/notes/implemented/architecture/2026-09-11-sandboxed-node-ptc-runtime.zh.md#deferred-timeout-design)记录 yield、总生命周期、审批等待计时和进程树 CPU/RSS 上限的开放选择。这些选择不改变数值截止的默认值或显式的不设截止服务选项。
 
 </details>

@@ -1,6 +1,5 @@
 /** Typed Win32 process operations over the shared binding table. */
 
-import koffi from 'koffi'
 import * as abi from './abi.ts'
 import { inheritedControlStdio } from './control-stdio.ts'
 import {
@@ -17,6 +16,7 @@ import {
   throwWin32,
 } from './ffi.ts'
 import type { CurrentTokenProcessBindings, NativePtr, Win32ProcessBindings } from './ffi.ts'
+import { requireKoffi } from './koffi.ts'
 
 /**
  * Quote one argument according to CommandLineToArgvW parsing.
@@ -84,7 +84,7 @@ export interface CurrentTokenProcessSpawnOptions extends ProcessSpawnOptions {
   applicationName: string
   /** Complete target environment passed without mutating the runner. */
   env: Readonly<Record<string, string>>
-  /** Runner CRT descriptors carrying target stdio and an optional control pipe. */
+  /** Runner CRT descriptors carrying target stdin, stdout, and stderr. */
   stdio: CurrentTokenStdioFileDescriptors
 }
 
@@ -133,7 +133,7 @@ interface PipePair {
 }
 
 function freeNative(pointer: NativePtr | undefined): void {
-  if (pointer !== undefined) koffi.free(pointer)
+  if (pointer !== undefined) requireKoffi().free(pointer)
 }
 
 function closeBestEffort(api: Win32ProcessBindings, handle: NativePtr | null | undefined): void {
@@ -158,7 +158,7 @@ function createPipe(api: Win32ProcessBindings, owned: Set<NativePtr>): PipePair 
     return { read, write }
   } finally {
     freeNative(writeSlot)
-    koffi.free(readSlot)
+    requireKoffi().free(readSlot)
   }
 }
 
@@ -389,8 +389,8 @@ function descriptorHandle(api: Win32ProcessBindings, fileDescriptor: number, lab
   const handle = api.uvGetOsfhandle(fileDescriptor)
   if (
     isNullPtr(handle)
-    || handle === UV_INVALID_OS_FILE_HANDLE
-    || handle === UV_INVALID_FILE_DESCRIPTOR
+      || handle === UV_INVALID_OS_FILE_HANDLE
+      || handle === UV_INVALID_FILE_DESCRIPTOR
   ) {
     throw new Error(`uv_get_osfhandle returned an invalid handle for target ${label} fd ${String(fileDescriptor)}`)
   }
@@ -444,6 +444,7 @@ function spawnJobProcess(
       ? undefined
       : inheritedControlStdio(api, { ...stdio, control: stdio.control })
     if (controlBytes !== undefined) {
+      const koffi = requireKoffi()
       controlDescriptorBlock = { pointer: koffi.alloc('uint8', controlBytes.length) as NativePtr, length: controlBytes.length }
       koffi.encode(controlDescriptorBlock.pointer, 'uint8', controlBytes, controlBytes.length)
     }
@@ -595,7 +596,7 @@ export function pollProcessExit(api: Win32ProcessBindings, process: NativePtr): 
     if (api.getExitCodeProcess(process, exitCodeSlot) === 0) throwLastError(api, 'GetExitCodeProcess')
     return decodeUint32(exitCodeSlot)
   } finally {
-    koffi.free(exitCodeSlot)
+    requireKoffi().free(exitCodeSlot)
   }
 }
 

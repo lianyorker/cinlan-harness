@@ -298,15 +298,15 @@ Worker and child-process bridges need more state than same-process registries be
 
 The workflow host keeps pending provider-start promises and published child records. A child moves from pending to published only when async `SubagentRuntime.start()` fulfills; rejected starts clean their partial provider work and produce no child lifecycle pair.
 
-One host-owned AbortController supplies the required signal to pending and live children. Closing workflow admission aborts that signal, so there is no duplicate `ChildCancel` worker RPC or explicit host-side `run.cancel()` fanout. Quiescence waits for both pending starts and published child disposal.
+One host-owned AbortController supplies the required signal to pending and live children. Closing workflow admission aborts that signal; quiescence waits for both pending starts and published child disposal. [Workflow sandbox reuse](2026-09-13-workflow-ptc-sandbox-reuse.md) owns PTC process cancellation and the absence of a separate workflow cleanup timer.
 
-The worker boundary still serializes requests and outcomes. The host retains first-terminal-outcome arbitration, exact child accounting, worker-death handling, grace termination, late/duplicate message rejection, and bounded cleanup because result receipt, worker exit, and child quiescence are genuinely independent facts.
+PTC serializes requests and outcomes and owns process termination. The workflow adapter retains terminal-outcome arbitration and child ownership because program settlement, process exit and child quiescence remain independent facts.
 
 ### Terminal result and physical cleanup remain separate
 
-The workflow result records the first accepted terminal outcome according to the public precedence rules. Cleanup can continue after that result is chosen: live children still need disposal, a worker still needs termination, and a slow external backend may outlive the configured grace bound.
+The workflow result records the first accepted terminal outcome according to the public precedence rules. Choosing that outcome does not release resources: the PTC process and live children still need cleanup, and child disposal must fulfill its provider contract.
 
-Public disposal claims its memoized promise before invoking callbacks. Worker death closes admission before processing any queued late child request, synthesizes missing lifecycle ends, and starts child/process cleanup without rewriting an outcome already claimed.
+Public disposal joins one cleanup operation. Run settlement closes child admission, synthesizes missing lifecycle ends and cleans up children without rewriting an outcome already claimed.
 
 ### ACP prompt settlement does not depend on update delivery
 

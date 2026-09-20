@@ -33,7 +33,7 @@ import {
 } from '@deepseek-ai/node-addon-system/landlock-run'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { SandboxProvider, SandboxUnavailableError } from '@deepseek-ai/dsh-sandbox'
+import { SandboxProvider, SandboxUnavailableError, canonicalPath } from '@deepseek-ai/dsh-sandbox'
 import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnforcement, SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import { AclWriteGrant, assertTempRootOutsideWorkspace, tempWriteSid, workspaceWriteSid } from '@deepseek-ai/dsh-sandbox-windows-acl'
@@ -207,8 +207,8 @@ const DENIAL_SIGNATURES = {
   landlock: ['permission denied'],
   seatbelt: ['operation not permitted'],
   // pwsh/.NET: "Access to the path '...' is denied."; cmd: "Access is denied.";
-  // node EACCES: "permission denied".
-  'windows-acl': ['access is denied', 'access to the path', 'permission denied'],
+  // Node EACCES: "permission denied"; EPERM: "operation not permitted".
+  'windows-acl': ['access is denied', 'access to the path', 'permission denied', 'operation not permitted'],
   runnerCommand: ['read-only file system', 'permission denied'],
 } as const satisfies Record<SelectedRunner['runner'] | 'runnerCommand', readonly string[]>
 
@@ -317,6 +317,7 @@ export class LocalSandboxProvider extends SandboxProvider {
   // oxlint-disable-next-line typescript/require-await -- Local setup failures must reject through the provider promise.
   async confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv> {
     signal?.throwIfAborted()
+    policy = { ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot) }
     if (this.runnerCommand !== undefined) {
       return {
         argv: [...this.runnerCommand, ...bwrapProfileArgs(policy), '--', ...argv],
@@ -554,6 +555,8 @@ export class LocalSandboxProvider extends SandboxProvider {
   /**
    * The windows-acl runner argv prefix: the built lib/runner.js entry when
    * present (production), else the package source through tsx (development).
+   * Pin the source loader and TypeScript paths to this installation, independently
+   * of target cwd or environment overrides.
    * The prefix stays `[node, runner, ...]` — a future native-exe runner keeps
    * the same argv contract and only swaps these entries.
    */
@@ -563,7 +566,9 @@ export class LocalSandboxProvider extends SandboxProvider {
     const builtEntry = this.internals.windowsAclRunnerEntry ?? fileURLToPath(import.meta.resolve('@deepseek-ai/dsh-sandbox-windows-acl/runner'))
     if (existsSync(builtEntry)) return [process.execPath, builtEntry]
     const sourceEntry = fileURLToPath(import.meta.resolve('@deepseek-ai/dsh-sandbox-windows-acl/src/runner.ts'))
-    return [process.execPath, '--import', 'tsx/esm', sourceEntry]
+    const sourceConfig = fileURLToPath(new URL('../../../../tsconfig.base.json', import.meta.url))
+    const registration = `import { register } from ${JSON.stringify(import.meta.resolve('tsx/esm/api'))}; register({ tsconfig: ${JSON.stringify(sourceConfig)} });`
+    return [process.execPath, '--import', `data:text/javascript,${encodeURIComponent(registration)}`, sourceEntry]
   }
 }
 

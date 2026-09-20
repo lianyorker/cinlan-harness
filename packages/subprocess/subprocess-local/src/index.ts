@@ -14,7 +14,8 @@ import { userInfo } from 'node:os'
 import type { Duplex } from 'node:stream'
 import { delimiter, extname, isAbsolute, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import * as nodePty from 'node-pty'
+import type * as NodePty from 'node-pty'
+import { createLazyRequire } from '@deepseek-ai/dsh-lazy-require'
 import type { IPtyForkOptions } from 'node-pty'
 import { SubprocessRuntime, SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import type {
@@ -44,6 +45,8 @@ import type { ProcessInspector } from './process-inspector.ts'
 import { LocalTerminalHandle } from './terminal.ts'
 import { prepareManagedProcessBinding } from './output.ts'
 import { prepareShellActivity } from './shell-activity.ts'
+
+const requireNodePty = createLazyRequire<typeof NodePty>('node-pty', import.meta.url)
 
 /**
  * Local subprocess service: platform-selected managed ranges, Node-shaped stdio
@@ -272,13 +275,13 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
       env: { ...activity?.env ?? env, TERM: spec.terminalType },
     }
     let scope: ReturnType<typeof prepareLinuxTerminalScope> | undefined
-    let terminal: nodePty.IPty
+    let terminal: NodePty.IPty
     try {
       scope = containmentMode === 'linux-scope'
         ? prepareLinuxTerminalScope(launch, { ...activity?.env ?? env, PWD: spec.cwd, TERM: spec.terminalType })
         : undefined
       if (scope !== undefined) { options.cwd = scope.cwd; options.env = scope.env }
-      terminal = nodePty.spawn(
+      terminal = requireNodePty().spawn(
         scope?.command ?? file,
         scope?.args ?? [...launch.argv.slice(1)],
         options,

@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { resolvePwshPath } from '@deepseek-ai/dsh-pwsh-local'
+import { ENCODING_PREAMBLE, resolvePwshPath } from '@deepseek-ai/dsh-pwsh-local'
 import { AclWriteGrant, tempWriteSid, workspaceWriteSid } from '../src/index.ts'
 
 const isWin32 = process.platform === 'win32'
@@ -137,6 +137,43 @@ describe.skipIf(!isWin32 || !pwshAvailable())('windows-acl runner', () => {
     expect(result.stdout).toContain('SECRET-READ: OK')
     expect(result.stdout).toContain('CIM: DENIED')
     expect(existsSync(join(writableDir, 'readonly-child-wrote.txt'))).toBe(false)
+  }, 30_000)
+
+  it.each([
+    ['read-only', resolvePwshPath()],
+    ['workspace-write', resolvePwshPath()],
+    ['read-only', join(process.env.SystemRoot ?? 'C:/Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe')],
+    ['workspace-write', join(process.env.SystemRoot ?? 'C:/Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe')],
+  ] as const)('preserves Unicode output without encoding errors under %s with %s', (mode, executable) => {
+    const command = `${ENCODING_PREAMBLE}Write-Output '你好 café'; Write-Output $ExecutionContext.SessionState.LanguageMode`
+    const result = runRunner([
+      '--workspace', writableDir, '--temp', isolatedTemp, '--mode', mode,
+      '--', executable, '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', command,
+    ])
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stderr).toBe('')
+    expect(result.stdout).toContain('你好 café')
+    expect(result.stdout).toContain(mode === 'read-only' ? 'ConstrainedLanguage' : 'FullLanguage')
+  }, 30_000)
+
+  it('does not override an owner-rights-only workspace DACL', () => {
+    const privateDir = join(scratchRoot, 'owner-rights-only')
+    mkdirSync(privateDir)
+    const acl = spawnSync('icacls', [
+      privateDir, '/inheritance:r', '/grant:r',
+      '*S-1-5-18:(OI)(CI)(F)', '*S-1-5-32-544:(OI)(CI)(F)', '*S-1-3-4:(OI)(CI)(F)',
+    ], { encoding: 'utf8' })
+    expect(acl.status, acl.stderr).toBe(0)
+    const target = join(privateDir, 'probe.txt')
+    const probe = `try { require('node:fs').writeFileSync(${JSON.stringify(target)}, 'forbidden'); process.exit(17) }`
+      + ' catch (error) { console.log(error.code) }'
+    const result = runRunner([
+      '--workspace', privateDir, '--temp', isolatedTemp, '--mode', 'workspace-write',
+      '--', process.execPath, '-e', probe,
+    ])
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toMatch(/EACCES|EPERM/)
+    expect(existsSync(target)).toBe(false)
   }, 30_000)
 
   it('workspace-write: Remove-Item and Rename-Item succeed in the granted workspace (DELETE + FILE_DELETE_CHILD)', () => {

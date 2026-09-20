@@ -41,12 +41,16 @@ export const ENV_OVERRIDES = {
  * UTF-8 output pinning prepended to every command. The subprocess collector
  * decodes output bytes as UTF-8, but Windows PowerShell 5.1 (the last-resort
  * executable fallback) writes the console/OEM code page by default, which
- * garbles non-ASCII output; pwsh 7 defaults to UTF-8 and is unaffected. The
- * statements ride on line 1 after `; ` separators so PowerShell error line
- * numbers stay accurate.
+ * garbles non-ASCII output; pwsh 7 defaults to UTF-8. FullLanguage pins both
+ * console and pipeline encoding; constrained modes retain console encoding
+ * and set pipeline encoding without forbidden constructors or setters. The
+ * statements stay on line 1 so command error line numbers remain accurate.
  */
 export const ENCODING_PREAMBLE =
-  '[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $OutputEncoding = [System.Text.UTF8Encoding]::new($false); '
+  "if ($ExecutionContext.SessionState.LanguageMode -eq 'FullLanguage') { "
+  + '[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); '
+  + '$OutputEncoding = [System.Text.UTF8Encoding]::new($false) '
+  + '} else { $OutputEncoding = [System.Text.Encoding]::UTF8 }; '
 
 /** Default SIGTERM→SIGKILL grace period (the `graceMs` config). */
 const DEFAULT_GRACE_MS = 3_000

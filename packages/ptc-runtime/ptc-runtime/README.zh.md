@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当你要组合一个执行模型程序的部署、直接消费 `ctx.ptcRuntime`，或构建运行程序的后端时，选择本包。现有 `dsh-tools` PTC mode 使用 `ctx.codeRuntime`；[可选 Node 适配器](../ptc-runtime-node/README.zh.md#optional-coderuntime-adapter)将它接入此运行时。每个消费方负责返回给模型的内容。
+当你要组合一个执行模型程序的部署、直接消费 `ctx.ptcRuntime`，或构建运行程序的后端时，选择本包。`dsh-tools` PTC mode 和 `dsh-workflow-ptc` 直接消费此运行时；[可选 Node 适配器](../ptc-runtime-node/README.zh.md#optional-coderuntime-adapter)支持自定义 CodeRuntime 消费方。每个消费方负责返回给模型的内容。
 
 ### 运行一个程序
 
@@ -64,7 +64,7 @@ binding-global 与 error-class 名称是语言可移植的：必须匹配 `[A-Za
 
 ### 设计理念
 
-本包是 PTC 执行能力 seam 的 Service Definition 角色（[能力 seam](../../../.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md)）：一个注册为 `ctx.ptcRuntime` 的抽象 `PtcRuntime extends Service`，加上提供方与消费方共享的词汇。提供方继承 `PtcRuntime`、实现 `resolve` 和 `run` 并注册服务。`dsh-tools` 中的 PTC mode 负责工具绑定，并通过可选 CodeRuntime 适配器调用此服务。按约定，运行时不了解工具与会话：它接收程序、具名异步绑定和已解析执行选项，然后返回捕获输出、执行结果与适用的沙箱事实。
+本包是 PTC 执行能力 seam 的 Service Definition 角色（[能力 seam](../../../.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md)）：一个注册为 `ctx.ptcRuntime` 的抽象 `PtcRuntime extends Service`，加上提供方与消费方共享的词汇。提供方继承 `PtcRuntime`、实现 `resolve` 和 `run` 并注册服务。`dsh-tools` 中的 PTC mode 负责工具绑定并直接调用此服务。按约定，运行时不了解工具与会话：它接收程序、具名异步绑定和已解析执行选项，然后返回捕获输出、执行结果与适用的沙箱事实。
 
 ### 服务 API
 
@@ -112,7 +112,7 @@ binding-global 与 error-class 名称是语言可移植的：必须匹配标识�
 <a id="model-experience"></a>
 ## 模型体验
 
-挂载可选 CodeRuntime 适配器时，通过 `dsh-tools` 中的 PTC mode 间接提供。消费方通过其工具结果呈现程序结果。
+通过 `dsh-tools` 中的 PTC mode 和 `dsh-workflow-ptc` 的工作流执行间接提供。消费方通过其工具结果呈现程序结果。
 
 #### KV Cache 影响
 

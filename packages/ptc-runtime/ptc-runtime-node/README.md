@@ -25,7 +25,7 @@ Execute model-written TypeScript under the same platform sandbox policy as Bash,
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this optional provider in a composition that supplies `fs`, `subprocess`, `sandbox` and `sandboxPolicy`. Direct consumers call `ctx.ptcRuntime.resolve(request)` before execution. Existing `dsh-tools` consumers use the separate CodeRuntime adapter described below.
+Mount this provider in a composition that supplies `fs`, `subprocess`, `sandbox` and `sandboxPolicy`. PTC mode in `dsh-tools` supplies the calling Session's directory and standing policy; direct runtime consumers resolve those options before execution.
 
 ### Configuration
 
@@ -60,11 +60,9 @@ The [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-ptc-r
 <a id="optional-coderuntime-adapter"></a>
 ### Optional CodeRuntime adapter
 
-Custom profiles using the existing `ctx.codeRuntime` API can mount `@deepseek-ai/dsh-ptc-runtime-node/code-runtime` alongside this provider and `sandboxPolicy`, in place of their CodeRuntime provider. The package main entry registers only `ptcRuntime`; the adapter registers `codeRuntime` and delegates execution without another worker. The shipped worker-thread provider remains the default.
+Custom profiles using `ctx.codeRuntime` can mount `@deepseek-ai/dsh-ptc-runtime-node/code-runtime` alongside this provider and `sandboxPolicy`. The adapter registers `codeRuntime` and delegates to `ptcRuntime` without another worker. The tools and workflow consumers use `ptcRuntime` directly.
 
-The adapter resolves the initiating Session's workspace and standing sandbox policy through the optional `agents` service; agentless calls use deployment policy. It forwards bindings, cancellation, logs and JSON values. Its own disposal aborts its calls and waits for PTC cleanup without unloading the provider. The existing CodeRuntime API has no per-call timeout or sandbox options and no sandbox result metadata; `protocol` and `sandbox-unavailable` become `worker-exit` with their diagnostic text preserved. Direct PTC consumers retain the full API.
-
-For SSH, configure `nodeExecutable` and the absolute `bootstrapPath` of a compatible preinstalled built `process.js` in the remote execution world. Bootstrap installation belongs to the deployment; this provider does not upload host files. The [SSH package](../../ssh/ssh/README.md) owns supported host and remote platforms.
+The adapter derives the initiating Session through the optional `agents` service and resolves its standing policy; agentless calls use deployment policy. It forwards bindings, cancellation, logs and JSON values, and its disposal aborts and drains only its own calls. The CodeRuntime API has no per-call execution controls or sandbox result metadata; `protocol` and `sandbox-unavailable` become `worker-exit` with diagnostic text preserved.
 
 ### Execution and results
 
@@ -74,9 +72,9 @@ Direct filesystem, network and subprocess operations remain Node operations, sub
 
 ### Deadlines and cancellation
 
-Direct PTC consumers can read the readonly `timeout` descriptor for the effective default and maximum. `executionInstructions` describes fresh Node state, direct Node APIs, the empty program environment and file policy. The optional CodeRuntime adapter uses configured defaults and leaves the existing tool schema unchanged.
+The PTC consumer exposes per-call timeout and approved sandbox choices as described in [dsh-tools](../../core/tools/README.md#ptc-mode). The runtime's readonly `timeout` descriptor reports its effective default and maximum to that consumer. Its `executionInstructions` describes fresh Node state, direct Node APIs, the empty program environment and file policy in the model-visible schema.
 
-Omitting `timeoutMs` uses the configured elapsed default; numeric requests are validated and capped. Direct service callers can explicitly pass `timeoutMs: null` to omit the elapsed timer. An enabled deadline covers runtime setup and execution, including time awaiting nested tools or approval. It is not a CPU meter. Timeout or cancellation stops a synchronous loop through the host's managed process owner; successful completion also cleans that managed range. The timer stops when an outcome is selected, before cleanup, so the returned call can take longer than its execution deadline while cleanup settles.
+Omitting `timeoutMs` uses the configured elapsed default; numeric requests are validated and capped. Service callers can explicitly pass `timeoutMs: null` to omit the elapsed timer, as the workflow adapter does; `run_code` continues to accept only positive numeric overrides. An enabled deadline covers runtime setup and execution, including time awaiting nested tools or approval. It is not a CPU meter. Timeout or cancellation stops a synchronous loop through the host's managed process owner; successful completion also cleans that managed range. The timer stops when an outcome is selected, before cleanup, so the returned call can take longer than its execution deadline while cleanup settles.
 
 ### Failures
 
@@ -108,7 +106,6 @@ Source execution loads an erasable-only bootstrap closure without relying on sib
 |---|---|
 | [`src/index.ts`](src/index.ts) | Configuration, resolution, policy, bindings and managed execution |
 | [`src/launch.ts`](src/launch.ts) | Executable/bootstrap arguments and execution-world asset mapping |
-| [`src/code-runtime.ts`](src/code-runtime.ts) | Optional adapter for existing CodeRuntime consumers |
 | [`src/process.ts`](src/process.ts) | Child handshake, environment clearing and program lifecycle |
 | [`src/bootstrap.ts`](src/bootstrap.ts) | Program evaluation, binding proxies and output capture |
 | [`src/channel.ts`](src/channel.ts) | Framing, bounded writes and protocol failures |
@@ -125,7 +122,7 @@ Source execution loads an erasable-only bootstrap closure without relying on sib
 Read the service contract before using the provider directly; the decisions explain policy and consumer ownership.
 
 - [PTC runtime service](../ptc-runtime/README.md) — requests, resolved specs and results.
-- [Sandbox service](../../sandbox/sandbox/README.md) — file policy and enforcement guarantees.
+- [Sandboxed Node decision](../../../.agents/notes/implemented/architecture/2026-09-11-sandboxed-node-ptc-runtime.md) — security, lifecycle and timeout tradeoffs.
 - [PTC foundation](../../../.agents/notes/implemented/feature/2026-06-15-ptc.md) — registry presentation and nested tool dispatch.
 - [Subprocess provider](../../subprocess/subprocess-local/README.md) — managed process ranges and platform limitations.
 
@@ -134,7 +131,7 @@ Read the service contract before using the provider directly; the decisions expl
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through PTC mode in `dsh-tools` when the optional CodeRuntime adapter is mounted. That consumer presents program outcomes through its tool results. Intermediate binding traffic stays outside model history; the outer result follows the ordinary tool spill policy.
+Indirectly, through PTC mode in `dsh-tools` and `dsh-workflow-ptc`, which present program outcomes through their own tool results. Intermediate binding traffic stays outside model history; the outer result follows the ordinary tool spill policy.
 
 #### KV Cache effect
 
@@ -160,6 +157,6 @@ These limits qualify the execution guarantees and retained output.
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-None.
+The [timeout discussion](../../../.agents/notes/implemented/architecture/2026-09-11-sandboxed-node-ptc-runtime.md#deferred-timeout-design) records open choices about yielding, total lifetime, approval wait accounting and process-tree CPU/RSS limits. Those choices do not alter numeric deadline defaults or the explicit no-deadline service option.
 
 </details>

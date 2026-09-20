@@ -57,7 +57,7 @@ kind: "package-reference"
 
 ### 运行命令
 
-用 `run` 运行命令并从结果读取输出；非零退出、超时和调用方中止终止会返回描述性结果；基础设施故障以及准备期间的调用方取消会 reject。命令字符串作为单个参数传给 `-Command`：由 PowerShell 自己解析文本，不存在中间 shell，因此没有需要转义的 shell 引号层，原生 Win32 路径也原样通过。每条命令都先固定 UTF-8 输出，因此即使在 Windows PowerShell 5.1 兜底上，非 ASCII 输出也不会乱码。环境默认面向模型：`NO_COLOR=1 PAGER=cat GIT_PAGER=cat`（没有 `TERM=dumb`——那是 POSIX 概念），调用方显式提供的条目仍然优先。
+用 `run` 运行命令并从结果读取输出；非零退出、超时和调用方中止终止会返回描述性结果；基础设施故障以及准备期间的调用方取消会 reject。命令字符串作为单个参数传给 `-Command`：由 PowerShell 自己解析文本，不存在中间 shell，因此没有需要转义的 shell 引号层，原生 Win32 路径也原样通过。FullLanguage 会将控制台与管道输出固定为 UTF-8，包括 Windows PowerShell 5.1 兜底。ConstrainedLanguage 保留控制台编码，并选择 UTF-8 管道编码，不调用被禁止的构造函数或控制台 setter；PowerShell 7 的控制台输出默认为 UTF-8。环境默认面向模型：`NO_COLOR=1 PAGER=cat GIT_PAGER=cat`（没有 `TERM=dumb`——那是 POSIX 概念），调用方显式提供的条目仍然优先。
 
 ```text
 const result = await ctx.shell.run(ctx.shell.resolve({ command: 'Get-ChildItem' }))

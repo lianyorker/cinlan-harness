@@ -27,7 +27,7 @@ describe('control pipe launch plumbing', () => {
     expect(spawn).toHaveBeenCalledExactlyOnceWith('mocked-node', [], expect.objectContaining({
       windowsHide: true, detached: false,
       env: expect.objectContaining({ [SUBPROCESS_CONTROL_ENV]: 'pipe' }),
-      stdio: ['ignore', 'inherit', 'inherit', 'ignore', 'ignore', 'ignore', 'ignore', 'pipe'],
+      stdio: ['ignore', 'inherit', 'inherit', 'ignore', 'ignore', 'ignore', 'ignore', 'overlapped'],
     }))
     expect(handle.control).toBe(control)
     expect(handle.stdout).toBeUndefined()

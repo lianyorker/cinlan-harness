@@ -1,15 +1,15 @@
 ---
-description: "Package map for optional PTC execution through managed Node processes and the existing CodeRuntime consumer API."
+description: "Package map for PTC execution through managed Node processes and optional CodeRuntime compatibility."
 kind: "package-group"
 ---
 
-# ptc-runtime/ — Optional Node program execution
+# ptc-runtime/ — Node program execution
 
 English | [中文](README.zh.md)
 
 ## Summary
 
-This group supplies the PTC service and a Node process provider for custom execution compositions, including POSIX SSH. Programs call host bindings and return captured logs and JSON values. A separate adapter connects existing CodeRuntime consumers to this provider; the shipped worker-thread runtime remains the default.
+This group supplies the PTC service and the Node process provider consumed by tools and workflows. Programs call host bindings and return captured logs and JSON values. Custom CodeRuntime consumers can use the optional compatibility adapter.
 
 ## Table of Contents
 
@@ -34,7 +34,8 @@ Choose the service interface for direct consumers and the provider for a compose
 <a id="related-documentation"></a>
 ## Related documentation
 
-- [Existing code runtimes](../code-runtime/README.md) — the default worker-thread execution family.
+- [PTC runtime subsystem](../../docs/subsystems/ptc-runtime.md) — execution requests, results and provider lifecycle.
+- [Existing code runtimes](../code-runtime/README.md) — the compatibility API for custom consumers.
 - [SSH providers](../ssh/README.md) — shared remote filesystem, process and sandbox coordinates.
 - [Capability seams](../../docs/capability-seams.md) — service definitions, providers and consumers.
 

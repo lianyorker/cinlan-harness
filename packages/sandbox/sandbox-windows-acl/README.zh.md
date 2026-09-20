@@ -107,11 +107,13 @@ node runner.js --workspace <dir> --temp <dir> --mode <read-only|workspace-write>
 
 seam 先把确定性工作区 SID 的 ACE 常驻物化（每个工作区每服务器生命周期一次——复用缓存），再为每个活跃的会话/工作区对创建随机私有临时目录和不同的可回收 SID，把两种身份作为必须成对出现的 `--write-sid`/`--temp-write-sid` 传入；runner 对照各自所属路径验证二者，既不授权也不撤销（`manageDacls: false`）。fork 获得不同的临时能力；即使恢复的是同一会话，新的提供方也会给出新的路径和 SID，因此崩溃残留只是失效垃圾。如果不带这一对标志，`--temp` 指定的是根目录：无 agent（智能体）/独立的 workspace-write runner 会创建随机私有子目录，自行管理其临时 SID，重写 TMP/TEMP，并在退出时移除该子目录。重启后重新授权常驻工作区 ACE 是幂等的：`grantWrite` 读取当前 DACL，当完全相同的 ACE 已存在时跳过重新传播。工作区若等于或包含临时根目录，会在任何授权前被拒绝。
 
+启动时若带有 subprocess 控制标记，runner 会通过受限子进程的 CRT 启动表转发 fd 7，并在 spawn 后立即关闭自身副本。可选的 `controlFileDescriptor: 7` 输入要求 `stdio: 'inherit'`；在管道 stdio 下请求它会在进程创建前失败。
+
 ### 已验证边界
 
 - **Everyone 授权仍是环境中的写权限来源。** Everyone 必须保留在两种 restricting 列表中（移除它会破坏早期 DLL 初始化与 CNG）；外部 NTFS 对象若其 DACL 向 Everyone 授予所请求的写权限，就会同时通过两次检查，并在两种模式下保持可写。
 - **硬链接是文件对象别名，而非路径别名。** 传播到已有硬链接上的可继承工作区 ACE 会修改底层同一文件的安全描述符，因此同一对象也可通过外部别名写入；拒绝工作区中的所有多链接文件不具可行性，因为普通 pnpm 安装会使用硬链接。
-- **写入受限；读取、网络与进程可见性不受限。** `WRITE_RESTRICTED` 只交叉检查写访问，因此受限子进程可以读取调用者可读的任何文件并打开套接字；`read-only` 因而需要读侧策略才能表达。
+- **不提供读取隔离策略。** `WRITE_RESTRICTED` 对写访问取交集，LUA token 仍执行常规访问检查。仅向 SYSTEM、Administrators 和 OWNER RIGHTS 授权的私有 DACL（例如 Python 在 Windows 上创建的临时目录）可能拒绝对工作区内部的访问；PowerShell 随后可能回退到安装目录。工作区授权不会覆盖这些检查。网络和进程可见性仍然可用。
 - **控制台隔离不可用。** 以 `CREATE_NO_WINDOW` / `CREATE_NEW_CONSOLE` 创建的子进程在 DLL 初始化期间以 `STATUS_DLL_INIT_FAILED`（`0xC0000142`）死亡；子进程共享宿主控制台，基于管道的 stdio 重定向不受影响。
 - **ACL 授权是对真实目录的驻留改动。** 工作区 ACE 按设计常驻（复用缓存，绝不撤销）；临时 ACE 由 `dispose()` 撤销；手工 `icacls` 清理无法在本平台回收它们（`ERROR_NONE_MAPPED` 1332），请通过本模块回收。
 - **被授权目录必须由调用者拥有。** 所有者的隐式 `WRITE_DAC` 是沙箱无需提权即可编辑 DACL 的原因。
