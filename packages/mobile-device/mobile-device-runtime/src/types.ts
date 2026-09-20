@@ -82,14 +82,24 @@ export interface MobileExecutableLease {
 }
 /** Deployment choices for private storage, network, and subprocess bounds. */
 export interface Config {
+  /** Host directory containing verified Android component generations and resource receipts. */
   readonly storageDir?: string
+  /** Maximum milliseconds allowed for one component version or device probe. */
   readonly commandTimeoutMs?: number
+  /** Maximum milliseconds allowed for one owned installation task. */
   readonly installTimeoutMs?: number
+  /** Milliseconds allowed for a process to settle after termination is requested. */
   readonly processGraceMs?: number
+  /** Maximum bytes retained from one native subprocess output. */
   readonly maxOutputBytes?: number
+  /** Maximum total bytes accepted from one extracted resource archive. */
   readonly maxExpandedBytes?: number
+  /** Maximum file entries accepted from one resource archive. */
   readonly maxArchiveFiles?: number
+  /** Maximum milliseconds spent waiting for the resource publication lock. */
   readonly lockWaitMs?: number
+  /** Milliseconds between checks of an owned mirror process and device identity. */
   readonly mirrorPollMs?: number
+  /** Explicit HTTP or HTTPS proxy URL used only for managed resource downloads. */
   readonly downloadProxyUrl?: string
 }

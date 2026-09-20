@@ -7,13 +7,13 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { deadline } from '@deepseek-ai/dsh-timeout'
 import type {} from '@deepseek-ai/dsh-mobile-device'
 import type { SubprocessHandle } from '@deepseek-ai/dsh-subprocess'
-import { Config, resolveConfig } from './config.ts'
+import { Config as ConfigSchema, resolveConfig } from './config.ts'
 import { catalog } from './catalog.ts'
 import { downloadArchive } from './download.ts'
 import { extractArchive } from './archive.ts'
 import { MobileResourceStore } from './store.ts'
 import { probe } from './process.ts'
-import type { Config as Options, MobileConnectedDevice, MobileExecutableLease, MobileMirrorId, MobileMirrorStatus, MobileResourceRequest, MobileResourceTask, MobileResourceTaskId, MobileRuntimeStatus } from './types.ts'
+import type { Config, MobileConnectedDevice, MobileExecutableLease, MobileMirrorId, MobileMirrorStatus, MobileResourceRequest, MobileResourceTask, MobileResourceTaskId, MobileRuntimeStatus } from './types.ts'
 export type * from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -25,8 +25,8 @@ interface Mirror { value: MobileMirrorStatus; abort: AbortController; done: Prom
 /** Own private installed tools separately from Provider activation and custom SDK installations. */
 export default class MobileRuntimeManager extends Service {
   static inject = ['subprocess']
-  static Config = Config
-  private readonly config: Required<Options>
+  static Config = ConfigSchema
+  private readonly config: Required<Config>
   private readonly store: MobileResourceStore
   private readonly lifetime = new AbortController()
   private readonly pending = new Set<Promise<unknown>>()
@@ -36,7 +36,7 @@ export default class MobileRuntimeManager extends Service {
   /** @param ctx - Host subprocess owner; settings and model Provider are optional.
    * @param config - Private storage, explicit proxy, and lifecycle bounds.
    */
-  constructor(ctx: Context, config: Options = {}) {
+  constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'mobileRuntime')
     this.config = resolveConfig(config)
     this.store = new MobileResourceStore(this.config.storageDir, this.config.lockWaitMs)
