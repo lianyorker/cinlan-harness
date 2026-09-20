@@ -164,11 +164,18 @@ export default class ExecutionBindings extends Service {
 
   private publishedExecution(sessionId: SessionId): AgentExecution | undefined {
     const admission = this.admissions.get(sessionId)
-    if (admission === undefined) return undefined
+    const execution = this.agents.get(sessionId)
+    if (admission === undefined) {
+      if (execution === undefined) return undefined
+      if (this.owner.ctx.get('agents')?.get(sessionId) !== execution.agent) {
+        throw new Error('Session execution provider lease is not published')
+      }
+      execution.lease.assertCurrent()
+      return execution
+    }
     if (this.owner.ctx.get('agents')?.get(sessionId) !== admission) {
       throw new Error('Session execution admission is not published')
     }
-    const execution = this.agents.get(sessionId)
     if (execution === undefined || execution.agent !== admission) {
       throw new Error('Published Session execution admission has no provider lease')
     }
