@@ -27,7 +27,7 @@ kind: "package-reference"
 
 已完成回合的改动卡片列出 [workspace-changes](../../deliverables/workspace-changes/README.zh.md) 记录的文件。点击标题打开第一个比较；点击文件行使用该文件在摘要中的原始索引。超过三个文件时折叠。审阅支持文件切换、统一或并排显示、换行，以及通过侧栏现有导航打开完整文件。
 
-交付卡片直接重放 `deliverables/presented`，无需文件修改调用。卡片主体通过 better-sidebar 预览，并携带当前查看的 Session ID 与已知 cwd；菜单使用默认应用打开，或在 Host 文件管理器中定位源文件。`GET /api/present.host` 提供 Host 能力。`POST /api/present.open` 只接受 Session、事件、文件索引及动作；它解析持久声明，通过 SessionFS 拒绝非普通文件和末级符号链接，并在原生启动前确认提供方与 Host 指向同一文件。读取声明不会激活 Agent。编辑会改变打开的内容，移动或删除源文件会使其不可用；不保存独立副本。
+交付卡片直接重放 `deliverables/presented`，无需文件修改调用。卡片主体通过 better-sidebar 预览，并携带当前查看的 Session ID 与已知 cwd；菜单使用默认应用打开，或在 Host 文件管理器中定位源文件。`GET /api/present.host` 提供 Host 能力。`POST /api/present.open` 只接受 Session、事件、文件索引及动作；它解析持久声明，并在验证与原生启动期间持有同一个执行租约。远端租约在访问 Host 文件之前返回不支持。本地租约通过其文件系统拒绝非普通文件和末级符号链接，并在启动前确认提供方与 Host 指向同一文件。读取声明不会激活 Agent。编辑会改变打开的内容，移动或删除源文件会使其不可用；不保存独立副本。
 
 同时挂载 workspace-changes 和本插件。Host 通过 Connection Fetch 注册经过身份验证的 `GET /api/changes.summary` 和 `GET /api/changes.diff` 路由。请求仅指定 Session、通知事件序号和原始文件索引，不指定 Host 文件路径；摘要不包含 cwd 和私有快照 id。
 

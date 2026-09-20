@@ -20,8 +20,7 @@ describe('ui-deliverables node plugin', () => {
     ctx.provide('workspaceChanges', { summary: () => undefined, diff: async () => undefined })
     ctx.provide('sessionQuery', {} as never)
     ctx.provide('sessionController', {} as never)
-    ctx.provide('fs', {} as never)
-    ctx.provide('sandboxPolicy', {} as never)
+    ctx.provide('executionBindings', {} as never)
     const mounted = ctx.plugin({ apply, inject })
     await mounted.await()
 

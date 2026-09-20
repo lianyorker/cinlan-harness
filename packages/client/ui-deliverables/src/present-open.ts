@@ -2,7 +2,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-session-controller'
 import { FsError } from '@deepseek-ai/dsh-fs'
-import type {} from '@deepseek-ai/dsh-sandbox-policy'
+import type {} from '@deepseek-ai/dsh-execution-binding'
+import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
 import { remoteErrorOf } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-session-query'
@@ -77,14 +78,16 @@ async function readTarget(ctx: Context, request: Request, id: string, seq: numbe
  * filesystem; a directory is verified by the Host filesystem mapping alone.
  * @returns the HTTP status to answer with.
  */
-async function openVerified(ctx: Context, request: Request, path: string, action: 'open' | 'reveal'): Promise<Response> {
-  const { fs } = ctx
+async function openVerified(ctx: Context, request: Request, lease: ExecutionLease, path: string, action: 'open' | 'reveal'): Promise<Response> {
+  const fs = lease.ctx.get('fs')
+  if (fs === undefined) return new Response('Execution filesystem unavailable.', { status: 503 })
+  const signal = AbortSignal.any([request.signal, lease.signal])
   const mapped = fs.processPathFromHostPath(path)
-  if (mapped === undefined || fs.processPath(await fs.resolve(mapped, { signal: request.signal })) !== path) {
+  if (mapped === undefined || fs.processPath(await fs.resolve(mapped, { signal })) !== path) {
     return new Response('Path has no verified Host path.', { status: 422 })
   }
   request.signal.throwIfAborted()
-  await ctx.sessionController.openWorkspacePath({ path, ...(action === 'reveal' ? { action } : {}) }, request.signal)
+  await ctx.sessionController.openExecutionPath(lease, path, action, request.signal)
   return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } })
 }
 
@@ -99,18 +102,24 @@ async function handlePresentOpen(ctx: Context, request: Request): Promise<Respon
   try {
     const read = await readTarget(ctx, request, id, seq)
     if (read instanceof Response) return read
-    const { target: event, session } = read
+    const { target: event } = read
     const file = event.type === 'deliverables/presented' && isPresentedData(event.data) ? event.data.files[index] : undefined
     if (!isPresentedFile(file)) return new Response('Presented file not found in this Session result.', { status: 404 })
     request.signal.throwIfAborted()
-    const cwd = session.cwd ?? ctx.sandboxPolicy.workspaceRoot
-    const entry = await ctx.fs.lstat(file.path, { cwd }, request.signal)
-    if (entry === undefined || entry.type !== 'file') return new Response('Presented file unavailable.', { status: 404 })
-    const target = await ctx.fs.resolve(file.path, { cwd, signal: request.signal })
-    const info = await ctx.fs.stat(target, request.signal)
-    if (info === undefined || info.type !== 'file') return new Response('Presented file unavailable.', { status: 404 })
-    const path = ctx.fs.processPath(target)
-    return await openVerified(ctx, request, path, action)
+    const lease = await ctx.executionBindings.forSession(id as SessionId, request.signal)
+    try {
+      lease.assertCurrent()
+      if (lease.binding.kind !== 'local') return new Response('Native opening is unavailable for remote files.', { status: 501 })
+      const fs = lease.ctx.get('fs')
+      if (fs === undefined) return new Response('Execution filesystem unavailable.', { status: 503 })
+      const signal = AbortSignal.any([request.signal, lease.signal])
+      const entry = await fs.lstat(file.path, { cwd: lease.cwd }, signal)
+      if (entry === undefined || entry.type !== 'file') return new Response('Presented file unavailable.', { status: 404 })
+      const target = await fs.resolve(file.path, { cwd: lease.cwd, signal })
+      const info = await fs.stat(target, signal)
+      if (info === undefined || info.type !== 'file') return new Response('Presented file unavailable.', { status: 404 })
+      return await openVerified(ctx, request, lease, fs.processPath(target), action)
+    } finally { await lease.release() }
   } catch (error: unknown) {
     request.signal.throwIfAborted()
     return new Response('Presented file unavailable.', { status: failureStatus(error) })

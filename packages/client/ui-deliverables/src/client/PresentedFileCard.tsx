@@ -40,7 +40,7 @@ export function PresentedFileCard({ file, cwd, phase, host, onPreview, onAction,
   const previewRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLButtonElement>(null)
   const pending = phase === 'opening' || phase === 'revealing'
-  const menuDisabled = pending || host === null || !host.available
+  const menuDisabled = pending || phase === 'nativeUnavailable' || host === null || !host.available
   if (menuDisabled && menuOpen) setMenuOpen(false)
   const reveal = host?.fileManager ?? 'directory'
   const act = (action: PresentedAction) => {

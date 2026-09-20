@@ -6,7 +6,7 @@ import { registerChangesRoutes } from './changes-routes.ts'
 import { registerPresentOpen } from './present-open.ts'
 
 /** Services required for the model guidance paired with the browser renderer. */
-export const inject = ['systemPrompt', 'connection', 'workspaceChanges', 'sessionQuery', 'sessionController', 'fs', 'sandboxPolicy']
+export const inject = ['systemPrompt', 'connection', 'workspaceChanges', 'sessionQuery', 'sessionController', 'executionBindings']
 
 /** Stable final-response guidance owned by the matching renderer. */
 const FILE_REFERENCE_PROMPT = 'When you successfully create or modify files, mention the primary outputs in your final response. '

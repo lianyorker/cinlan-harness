@@ -12,6 +12,7 @@
     "src/present-open.ts"
   ],
   "references": [
+    { "path": "../../execution-host/execution-binding" },
     {
       "path": "../../../vendor/cordis"
     },

@@ -67,13 +67,17 @@ it.each(['opening', 'revealing'] as const)('keeps sidebar previews available whi
   expect(p.onAction).not.toHaveBeenCalled()
 })
 
-it('keeps the native menu disabled until a desktop is available', () => {
+it('keeps native actions disabled without a desktop and after permanent file unavailability', () => {
   const p = props()
   const view = render(<PresentedFileCard {...p} host={null} />)
-  expect((view.getByRole('button', { name: 'More file actions for out/report.pdf' }) as HTMLButtonElement).disabled).toBe(true)
+  const nativeMenu = () => view.getByRole('button', { name: 'More file actions for out/report.pdf' }) as HTMLButtonElement
+  expect(nativeMenu().disabled).toBe(true)
   expect((view.getByRole('button', { name: 'Open out/report.pdf in sidebar' }) as HTMLButtonElement).disabled).toBe(false)
   view.rerender(<PresentedFileCard {...p} host={{ ...p.host, available: false, fileManager: null }} />)
-  expect((view.getByRole('button', { name: 'More file actions for out/report.pdf' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(nativeMenu().disabled).toBe(true)
+  view.rerender(<PresentedFileCard {...p} phase="nativeUnavailable" />)
+  expect(nativeMenu().disabled).toBe(true)
+  expect(view.getByText(en['presented.nativeUnavailable'])).toBeTruthy()
 })
 
 it('opens the right sidebar from either the card or its primary button', () => {

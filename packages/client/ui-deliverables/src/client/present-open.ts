@@ -19,7 +19,7 @@ export class PresentedOpenController {
 
   /**
    * Open a declared file once while a request for the same coordinates is pending.
-   * Failures remain visible on the card and a later gesture retries them.
+   * Retryable failures remain visible on the card; native unavailability is terminal for the file.
    * @param sessionId - viewed Session, including a fork's own identity.
    * @param seq - durable delivery event sequence.
    * @param index - original file index within that event.
@@ -96,7 +96,7 @@ export class PresentedOpenController {
     let phase: PresentedOpenPhase = action === 'open' ? 'opened' : 'revealed'
     try {
       const response = await fetch(action === 'open' ? url : `${url}&action=reveal`, { method: 'POST', signal: this.lifetime.signal })
-      if (!response.ok) phase = response.status === 422 ? 'nativeUnavailable' : failure
+      if (!response.ok) phase = response.status === 422 || response.status === 501 ? 'nativeUnavailable' : failure
     } catch {
       // Transport failures share the retryable card state with Host open failures.
       phase = failure

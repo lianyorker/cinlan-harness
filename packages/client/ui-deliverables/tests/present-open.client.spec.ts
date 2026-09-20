@@ -154,8 +154,10 @@ it('discards a replaced Host response and keeps the new metadata request coalesc
 })
 
 
-it.each(['open', 'reveal'] as const)('reports an unavailable Host path for %s while retaining the declaration', async (action) => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 422 })))
+it.each([
+  [422, 'open'], [422, 'reveal'], [501, 'open'], [501, 'reveal'],
+] as const)('reports status %s as native unavailability for %s while retaining the declaration', async (status, action) => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status })))
   const controller = new PresentedOpenController()
   await controller.open(id, 2, 1, action)
   expect(controller.state.getSnapshot()[url]).toBe('nativeUnavailable')
