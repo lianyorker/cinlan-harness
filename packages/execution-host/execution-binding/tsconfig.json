@@ -1,0 +1,73 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    { "path": "../../runtime-diagnostics/invariants" },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../util/brand"
+    },
+    {
+      "path": "../execution-host-targets"
+    },
+    {
+      "path": "../../fs/fs"
+    },
+    {
+      "path": "../../ssh/fs-ssh"
+    },
+    {
+      "path": "../../subprocess/subprocess"
+    },
+    {
+      "path": "../../ssh/subprocess-ssh"
+    },
+    {
+      "path": "../../ssh/ssh"
+    },
+    {
+      "path": "../../sandbox/sandbox"
+    },
+    {
+      "path": "../../sandbox/sandbox-policy"
+    },
+    {
+      "path": "../../ssh/sandbox-ssh"
+    },
+    {
+      "path": "../../core/scope"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../session/session-projection"
+    },
+    {
+      "path": "../../session-query/session-query"
+    },
+    {
+      "path": "../../ptc-runtime/ptc-runtime-node"
+    },
+    {
+      "path": "../../shell/bash-sandbox"
+    },
+    {
+      "path": "../../git/git-local"
+    },
+    {
+      "path": "../../terminal/terminal"
+    },
+    {
+      "path": "../../terminal/terminal-bash"
+    }
+  ]
+}

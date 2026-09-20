@@ -113,6 +113,9 @@ export class SshConnection extends Service {
   /** Hold plugin readiness until the remote identity and helper digest are verified. */
   async [Service.init](): Promise<void> { await this.ready }
 
+  /** Aborts when this exact connection fails or begins disposal; it never reconnects. */
+  get signal(): AbortSignal { return this.lifetime.signal }
+
   /** Verified remote Node executable for the paired PTC runtime. */
   get nodeExecutable(): string {
     if (this.remote === undefined) throw new Error('SSH helper is not ready')
