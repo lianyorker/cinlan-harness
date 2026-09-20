@@ -11,6 +11,7 @@ import {
   type Sandbox,
 } from '@deepseek-ai/dsh-e2b'
 import type E2BRuntime from '@deepseek-ai/dsh-e2b'
+import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import type { SubprocessTerminalSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import E2BSubprocessRuntime from '@deepseek-ai/dsh-subprocess-e2b'
 import { spawnE2BTerminal } from '../src/terminal.ts'
@@ -240,6 +241,7 @@ function spec(overrides: Partial<SubprocessTerminalSpawnSpec> = {}): SubprocessT
     cwd: '/workspace',
     rows: 24,
     cols: 80,
+    terminalType: 'dumb',
     graceMs: 5,
     env: { TERM: 'dumb', DSH_SESSION_ID: 'owner', TOKEN_EXPLICIT: 'kept' },
     ...overrides,
@@ -798,6 +800,29 @@ describe('E2B subprocess terminal service', () => {
     expect(commandOptions?.envs?.HOME).toMatch(/^\/\.dsh-e2b-control-/)
     expect(commandOptions?.envs).toEqual({ HOME: commandOptions?.envs?.HOME })
     expect((ctx.e2b)).toBeDefined()
+  })
+
+  it('classifies only a remote PATH lookup exit-one failure as a missing executable', async () => {
+    const { ctx, fake, fiber } = await service()
+    try {
+      const missing = commandError(1)
+      fake.commandFailure = missing
+      await expect(ctx.subprocess.resolveExecutable('missing-tool')).rejects.toMatchObject({
+        name: 'SubprocessExecutableNotFoundError', cause: missing,
+      })
+      fake.commandFailure = missing
+      await expect(ctx.subprocess.resolveExecutable('missing-tool')).rejects.toBeInstanceOf(SubprocessExecutableNotFoundError)
+      for (const failure of [commandError(2), new Error('transport unavailable'), new DOMException('cancelled', 'AbortError')]) {
+        fake.commandFailure = failure
+        await expect(ctx.subprocess.resolveExecutable('node')).rejects.toBe(failure)
+      }
+      fake.commandFailure = missing
+      await expect(ctx.subprocess.resolveExecutable('/missing/tool')).rejects.toBe(missing)
+      const aborted = new Error('caller stopped lookup')
+      await expect(ctx.subprocess.resolveExecutable('node', undefined, AbortSignal.abort(aborted))).rejects.toBe(aborted)
+    } finally {
+      await fiber.dispose()
+    }
   })
 
   it('rejects invalid executable lookup inputs and results', async () => {

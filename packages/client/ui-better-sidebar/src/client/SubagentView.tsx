@@ -15,9 +15,9 @@
  * Each node card carries live status (state dot, durable label, mode and
  * activity); while a child RUNS, its card additionally shows the LAST text
  * output and LAST tool call pulled from its history tail, auto-refreshing
- * every few seconds while the page is visible. Clicking a card jumps
- * straight into the child transcript (`openSubagent`); the page stays open
- * and the topology remains rooted at the main session.
+ * every few seconds while the page is visible. Clicking a child card opens
+ * its conversation in a separate sidebar tab while the main session remains
+ * selected; the topology stays rooted at the main session.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useSyncExternalStore } from 'react'
@@ -629,20 +629,17 @@ function JobsSection(props: {
 
 /**
  * The sidebar's Subagent topology page.
- * @param props - current session id, whether the page is actually visible
- *   (active tab + open panel), the client context, and an optional
- *   jump-notify hook fired right before `openSubagent` (lets the sidebar
- *   shell re-open the Subagent page after the conversation switch lands on
- *   the child session).
+ * @param props - Current session, tab visibility, and sidebar services.
  * @returns the main agent's topology tree, or the empty/error/loading states.
  */
 export function SubagentView(props: {
   sessionId: string
   active: boolean
   ctx: Context
+  /** @deprecated Child tabs do not switch the main session or emit this navigation callback. */
   onOpenChild?: (address: SidebarSubagentAddress) => void
 }) {
-  const { sessionId, active, ctx, onOpenChild } = props
+  const { sessionId, active, ctx } = props
   const sessions = ctx.sessions
 
   // The same list feed the official catalog consumes (byId lineage + the
@@ -708,17 +705,8 @@ export function SubagentView(props: {
   }, [sessions])
 
   const openChild = useCallback((address: SidebarSubagentAddress): void => {
-    // Notify the shell first: the jump switches the sidebar to the child
-    // session's own layout, and the shell re-opens the Subagent page on top
-    // of it (the topology stays rooted at the main agent with the child
-    // highlighted) — the README "page stays open" contract.
-    onOpenChild?.(address)
-    try {
-      sessions.openSubagent?.(address)
-    } catch (error) {
-      console.warn('[dsh-better-sidebar] openSubagent failed:', error)
-    }
-  }, [sessions, onOpenChild])
+    ctx.betterSidebar.openSubagentChat(address, { sessionId })
+  }, [ctx, sessionId])
 
   /** Jump back to the main agent (the topology root) from its node. */
   const openMain = useCallback((): void => {

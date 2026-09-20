@@ -255,36 +255,68 @@ export class PwshLocalExecutor extends ShellExecutor {
   }
 
   async run(spec: ShellExecSpec): Promise<ShellRunResult> {
-    return this.runArgv(spec, this.argv(spec))
+    return (await this.runArgv(spec, this.argv(spec))).result
   }
 
   /** Foreground run of an exact argv (the confining subclass re-wraps it). */
-  protected async runArgv(spec: ShellExecSpec, argv: readonly string[]): Promise<ShellRunResult> {
-    // One deadline combines timeout and upstream cancellation; disposal clears its timer.
+  protected async runArgv(
+    spec: ShellExecSpec,
+    argvOrPrepare: readonly string[] | ((signal: AbortSignal) => Promise<readonly string[]>),
+  ): Promise<{ result: ShellRunResult; spawnRequested: boolean }> {
     using d = deadline(spec.signal, spec.timeoutMs, 'BASH_TIMEOUT')
+    let argv: readonly string[]
+    if (typeof argvOrPrepare === 'function') {
+      const cancelled = Promise.withResolvers<never>()
+      const abort = (): void => { cancelled.reject(d.signal.reason) }
+      d.signal.addEventListener('abort', abort, { once: true })
+      try {
+        argv = await Promise.race([
+          Promise.resolve().then(() => { d.signal.throwIfAborted(); return argvOrPrepare(d.signal) }),
+          cancelled.promise,
+        ])
+        d.signal.throwIfAborted()
+      } catch (error) {
+        if (timeoutOf(d.signal, 'BASH_TIMEOUT') === undefined) throw error
+        return {
+          spawnRequested: false,
+          result: {
+            exitCode: null, signal: null, timedOut: true, aborted: false, timeoutMs: spec.timeoutMs,
+            stdout: { text: '', truncated: false }, stderr: { text: '', truncated: false },
+          },
+        }
+      } finally { d.signal.removeEventListener('abort', abort) }
+    } else { argv = argvOrPrepare }
     const handle = this.ctx.subprocess.spawn(this.spawnSpec(spec, spec.stdoutMaxBytes, d.signal, argv))
-    const outcome = await handle.done
+    const outcome = await handle.done.catch(async (error: unknown) => {
+      if (!d.signal.aborted || error !== d.signal.reason) throw error
+      await handle.waitForExit()
+      return { exitCode: null, signal: null }
+    })
     const collected = PwshLocalExecutor.collected(handle)
     // Only this executor's timeout reason counts as timedOut; outer deadlines count as aborts.
     const timedOut = timeoutOf(d.signal, 'BASH_TIMEOUT') !== undefined
     const aborted = d.signal.aborted && !timedOut
     return {
-      ...outcome,
-      timedOut,
-      aborted,
-      timeoutMs: spec.timeoutMs,
-      stdout: finalOutput(collected.stdout),
-      stderr: finalOutput(collected.stderr),
+      spawnRequested: true,
+      result: {
+        ...outcome,
+        timedOut,
+        aborted,
+        timeoutMs: spec.timeoutMs,
+        stdout: finalOutput(collected.stdout),
+        stderr: finalOutput(collected.stderr),
+      },
     }
   }
 
-  start(spec: ShellExecSpec): ShellProcess {
-    return this.startArgv(spec, this.argv(spec))
+  async start(spec: ShellExecSpec): Promise<ShellProcess> {
+    return Promise.resolve(this.startArgv(spec, this.argv(spec)))
   }
 
   /** Background start of an exact argv (the confining subclass re-wraps it). */
   protected startArgv(spec: ShellExecSpec, argv: readonly string[]): ShellProcess {
     // Background runs ignore timeoutMs; callers stop them through kill() or spec.signal.
+    spec.signal?.throwIfAborted()
     const running = this.ctx.subprocess.spawn(this.spawnSpec(spec, this.config.maxOutputBytes, spec.signal, argv))
     const collected = PwshLocalExecutor.collected(running)
 
@@ -311,7 +343,7 @@ export class PwshLocalExecutor extends ShellExecutor {
         proc.exitCode = outcome.exitCode
         proc.signal = outcome.signal
         this.onProcessDone(proc, collected.stderr.readFrom(0).text, false)
-      }, (error: unknown) => {
+      }, async (error: unknown) => {
         // Background provider failures settle as killed and surface through the read path.
         proc.status = 'killed'
         let detail = 'unprintable provider failure'
@@ -322,6 +354,7 @@ export class PwshLocalExecutor extends ShellExecutor {
         }
         providerFailureNote = `subprocess failed before reporting an outcome: ${detail}`
         this.onProcessDone(proc, providerFailureNote, true, error)
+        await running.waitForExit()
       }),
       readOutput: (): ShellProcessRead => {
         const out = collected.stdout.readFrom(stdoutOffset)

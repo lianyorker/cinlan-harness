@@ -147,7 +147,10 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('llm-deepseek e2e (real API)', ()
     const key = process.env.DEEPSEEK_API_KEY
     if (key === undefined) throw new Error('e2e ran without DEEPSEEK_API_KEY')
     const baseURL = process.env.DEEPSEEK_BASE_URL ?? LlmDeepSeek.PUBLIC_BASE_URL
-    const ctx = await harness(VISION, { baseURL })
+    const ctx = await harness(VISION, {
+      baseURL,
+      models: [{ id: VISION, inputModalities: ['text', 'image'] }],
+    })
     await ctx.plugin(E2eAttachmentStore)
     const attachments = ctx.attachments as E2eAttachmentStore
     let uploadedFile: LlmDeepSeek.DeepSeekFileIdType | undefined

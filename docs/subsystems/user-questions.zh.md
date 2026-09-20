@@ -35,6 +35,8 @@ interface AskUserQuestionOption {
 type AskUserQuestionIntent = {
   /** A plan submitted for review: `detail` is the plan markdown `ask()` requires, and the decision approves or declines it. */
   kind: 'plan-review'
+  /** Logged exit_plan_mode call whose plan this question reviews; absent for a caller without a tool call. */
+  callId?: ToolCallId
   /**
    * The option label that approves the plan; every other option declines it.
    * Named rather than positional so no UI infers the verdict from option order.

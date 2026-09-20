@@ -113,6 +113,8 @@ kind: "package-reference"
 
 -----
 
+可选的 [AutoReview bundle](../../experimental/auto-review/README.zh.md) 可以为当前会话注册保留的 `auto` 预设。它共享完全权限的取值，在选择与恢复时执行同步准入检查，并且不会进入默认设置选项；没有审查器时，存储的 Auto 标识会拒绝恢复。合并投影继续保留目录与当前值的既有语义。
+
 <a id="model-experience"></a>
 ## 模型体验
 

@@ -17,6 +17,8 @@
     "src/client/css-modules.d.ts"
   ],
   "references": [
+    { "path": "../../document/office-to-pdf" },
+    { "path": "../../api/session-controller/tsconfig.client.json" },
     {
       "path": "../../../vendor/cordis"
     },
@@ -79,9 +81,6 @@
     },
     {
       "path": "../connection/tsconfig.client.json"
-    },
-    {
-      "path": "../connection/tsconfig.host.json"
     },
     {
       "path": "../../util/crypto"

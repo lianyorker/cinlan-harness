@@ -9,9 +9,11 @@
 | [artifact.md](artifact.zh.md) | Artifact Cordis API，以及不可变引用、字节存储与授权约定的链接 |
 | [browser.md](browser.zh.md) | Browser Cordis API，以及持久页面、观测、导航与传输约定的链接 |
 | [coordination.md](coordination.zh.md) | Run／Task 协调 API、依赖、消息、审批与执行器归属 |
+| [deliverables.md](deliverables.zh.md) | 每个 turn 的 workspace 变更、摘要及存续 Session 的文件比较 |
 | [execution-host.md](execution-host.zh.md) | Host 身份、保存的执行目标、worker 检查与已提交变更事件 |
 | [git.md](git.zh.md) | Git Provider 与 Session 绑定的审查／变更 API，请求与结果类型由各包负责 |
 | [mcp.md](mcp.zh.md) | MCP 连接观测、当前 profile 管理修订号与运行时注册表 |
+| [profile-management.md](profile-management.zh.md) | 运行中 profile 的 Plugin 和 bundle、组合修改及包安装状态 |
 | [security-research.md](security-research.zh.md) | 评估授权、授权决策、持久 Finding 与漏洞查询 |
 | [voice.md](voice.zh.md) | 本地转写引擎、模型定义／缓存状态与共享操作结果 |
 | [work-items.md](work-items.zh.md) | Provider 工单、持久化写入和 Workspace 关联 |

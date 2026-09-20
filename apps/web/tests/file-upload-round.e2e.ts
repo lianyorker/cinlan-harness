@@ -15,7 +15,7 @@ import { chromium } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import {
-  assertFixtureInventory, captureStableAria, compareOrRefreshGolden, fixtureUserPrompts,
+  acknowledgeReloadConnectionLoss, assertFixtureInventory, captureStableAria, compareOrRefreshGolden, fixtureUserPrompts,
   launchWebScaffold, recordFixture, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
 import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './support.ts'
@@ -96,6 +96,93 @@ describe('web e2e: generic file upload through the real assembly', () => {
   let page: Page
   let tripwire: ReturnType<typeof watchConsole>
   const sessionEvents: SessionEvent[] = []
+  let liveTrajectory: string | undefined
+
+  /** Inspect one durable mixed message through the real image slot and all message tabs. */
+  async function inspectTrajectoryAttachments(): Promise<string> {
+    const userMessage = sessionEvents.find(event => event.type === 'user/message' && event.data.source.kind === 'user')
+    if (userMessage?.type !== 'user/message') throw new Error('the replayed turn recorded no user message')
+    const content = userMessage.data.content
+    const imageName = IMAGE_NAMES[0]!
+    await page.getByRole('tab', { name: 'Chat', exact: true }).click()
+    const chatImage = page.getByRole('img', { name: imageName, exact: true })
+    await expect.poll(() => chatImage.getAttribute('src'), { timeout: 10_000 }).toMatch(/^blob:/)
+    const chatImageUrl = await chatImage.getAttribute('src')
+
+    await page.getByRole('tab', { name: 'Trajectory', exact: true }).click()
+    await page.getByLabel('Trajectory timeline').waitFor({ timeout: 30_000 })
+    const row = page.getByRole('row', { name: /USER, Files ×1/ })
+    await row.waitFor({ timeout: 10_000 })
+    const ledger = await captureStableAria(page, '[data-trajectory-row-key][aria-label*="Files ×1"]', scaffold.workspaceCwd)
+    await row.click()
+
+    const panel = page.getByRole('tabpanel')
+    const list = panel.getByRole('list', { name: 'Attachments', exact: true })
+    let summaryAttachments: string | undefined
+    let preview: string | undefined
+    for (const tab of ['Summary', 'Preview']) {
+      await page.getByRole('tab', { name: tab, exact: true }).click()
+      await list.waitFor()
+      expect(await panel.getByText(PROMPT, { exact: true }).count()).toBe(1)
+      const rows = list.getByRole('listitem')
+      expect(await rows.count()).toBe(2)
+      expect(await rows.nth(0).getByTitle(FILE_NAME, { exact: true }).count()).toBe(1)
+      expect(await rows.nth(1).getByTitle(imageName, { exact: true }).count()).toBe(1)
+      expect(await rows.nth(0).textContent()).toContain('TXT · 16B')
+      expect(await rows.nth(1).textContent()).toContain('image/png · 69B · 1 × 1')
+      const thumbnail = list.getByRole('img', { name: imageName, exact: true })
+      await expect.poll(() => thumbnail.getAttribute('src'), { timeout: 10_000 }).toBe(chatImageUrl)
+      expect(await thumbnail.evaluate(element => getComputedStyle(element).objectFit)).toBe('contain')
+
+      const attachments = await captureStableAria(page, '[role="tabpanel"] [aria-label="Attachments"]', scaffold.workspaceCwd)
+      if (tab === 'Summary') summaryAttachments = attachments
+      else {
+        expect(attachments).toBe(summaryAttachments)
+        preview = await captureStableAria(page, '[role="tabpanel"]', scaffold.workspaceCwd)
+      }
+      const opener = list.getByRole('button', { name: `${imageName}, click to view original`, exact: true })
+      await opener.focus()
+      await opener.press('Enter')
+      const dialog = page.getByRole('dialog', { name: 'Original image preview', exact: true })
+      await dialog.waitFor()
+      expect(await dialog.getByRole('img', { name: imageName }).getAttribute('src')).toBe(chatImageUrl)
+      await page.keyboard.press('Escape')
+      await dialog.waitFor({ state: 'hidden' })
+      expect(await opener.evaluate(element => element === document.activeElement)).toBe(true)
+    }
+
+    await page.getByRole('tab', { name: 'Raw', exact: true }).click()
+    const disclosures = panel.locator('details')
+    expect(await disclosures.count()).toBe(2)
+    expect(await panel.getByRole('img').count()).toBe(0)
+    for (const disclosure of await disclosures.all()) {
+      expect(await disclosure.getAttribute('open')).toBeNull()
+      expect(await disclosure.locator('pre').isVisible()).toBe(false)
+    }
+    const rawCollapsed = await captureStableAria(page, '[role="tabpanel"]', scaffold.workspaceCwd)
+    const blocks = panel.locator('details, section')
+    expect(await blocks.count()).toBe(content.length)
+    for (const [index, block] of content.entries()) {
+      const renderedBlock = blocks.nth(index)
+      if (block.type === 'text') {
+        expect(await renderedBlock.locator('pre').textContent()).toBe(block.text)
+      } else {
+        expect(['image', 'file']).toContain(block.type)
+        await renderedBlock.locator('summary').click()
+        expect(await renderedBlock.locator('pre').isVisible()).toBe(true)
+        const raw: unknown = JSON.parse((await renderedBlock.locator('pre').textContent())!)
+        expect(raw).toEqual(block)
+      }
+    }
+    const rawExpanded = await captureStableAria(page, '[role="tabpanel"]', scaffold.workspaceCwd)
+    return [
+      '# Ledger', ledger,
+      '# Summary attachments', summaryAttachments,
+      '# Preview', preview,
+      '# Raw (collapsed)', rawCollapsed,
+      '# Raw (expanded)', rawExpanded,
+    ].join('\n\n')
+  }
 
   beforeAll(async () => {
     scaffold = await launchWebScaffold({
@@ -126,9 +213,10 @@ describe('web e2e: generic file upload through the real assembly', () => {
       // Drift guard: the committed fixture must carry exactly the drive prompt.
       expect(fixtureUserPrompts(await readFile(FIXTURE, 'utf8'))).toEqual([PROMPT])
     }
-    const input = page.locator('[data-composer-input]').first()
+    const composer = page.locator('#root [data-conversation-scroll] > [data-composer-seat] [data-composer-card]')
+    const input = composer.locator('[data-composer-input]')
     await input.waitFor({ timeout: 10_000 })
-    const modelTrigger = page.getByRole('button', { name: /^Select model, current/ })
+    const modelTrigger = composer.getByRole('button', { name: /^Select model, current/ })
     await modelTrigger.click()
     await page.getByRole('menuitem', { name: /^Model\b/ }).click()
     await page.getByRole('menuitemradio', { name: 'DeepSeek-V4-Flash-Vision-Exp' }).click()
@@ -137,12 +225,12 @@ describe('web e2e: generic file upload through the real assembly', () => {
     const imageBytes = await readFile(IMAGE_FIXTURE)
     // Pick through the composer's hidden file input: the upload RPC runs
     // immediately and the pending card appears before any prompt is typed.
-    await page.locator('input[type="file"]').setInputFiles([
+    await composer.locator('input[type="file"]').setInputFiles([
       { name: FILE_NAME, mimeType: 'text/plain', buffer: Buffer.from(FILE_TEXT) },
       ...IMAGE_NAMES.map(name => ({ name, mimeType: 'image/png', buffer: imageBytes })),
     ])
-    await page.getByTitle(FILE_NAME).waitFor({ timeout: 10_000 })
-    const rail = page.getByRole('group', { name: 'Pending attachments' })
+    await composer.getByTitle(FILE_NAME).waitFor({ timeout: 10_000 })
+    const rail = composer.getByRole('group', { name: 'Pending attachments' })
     await expect.poll(() => rail.locator(':scope > *').count(), { timeout: 10_000 })
       .toBe(IMAGE_NAMES.length + 1)
     const geometry = await rail.evaluate((element): DraftRailGeometry => {
@@ -163,12 +251,12 @@ describe('web e2e: generic file upload through the real assembly', () => {
     })
     await compareOrRefreshGolden(DRAFT_EXPECTED, renderDraftRailGeometry(geometry), MODE)
     for (const name of IMAGE_NAMES.slice(1)) {
-      await page.getByRole('button', { name: `Remove image ${name}` }).click({ force: true })
+      await composer.getByRole('button', { name: `Remove image ${name}` }).click({ force: true })
     }
     await expect.poll(() => rail.locator(':scope > *').count(), { timeout: 10_000 }).toBe(2)
     await input.fill(PROMPT)
     // Send unlocks only after the upload receipt lands (the staged file gate).
-    const send = page.getByRole('button', { name: 'Send message' })
+    const send = composer.getByRole('button', { name: 'Send message' })
     await send.waitFor({ state: 'visible', timeout: 15_000 })
     await expect.poll(() => send.isEnabled(), { timeout: 15_000 }).toBe(true)
     const settled = scaffold.whenTurnSettled()
@@ -261,7 +349,7 @@ describe('web e2e: generic file upload through the real assembly', () => {
     await compareOrRefreshGolden(HISTORY_EXPECTED, renderHistoryAttachmentGeometry(geometry), MODE)
   })
 
-  it.skipIf(MODE === 'record')('marks the durable file in Trajectory without copying the Chat card', async () => {
+  it.skipIf(MODE === 'record')('marks the durable file in the Trajectory ledger', async () => {
     await page.getByRole('tab', { name: 'Trajectory', exact: true }).click()
     await page.getByLabel('Trajectory timeline').waitFor({ timeout: 30_000 })
     await page.getByRole('row', { name: /Files ×1/ }).waitFor({ timeout: 10_000 })
@@ -271,6 +359,20 @@ describe('web e2e: generic file upload through the real assembly', () => {
       scaffold.workspaceCwd,
     )
     await compareOrRefreshGolden(TRAJECTORY_EXPECTED, snapshot, MODE)
+  })
+
+  it.skipIf(MODE === 'record')('shows both attachment kinds throughout the Trajectory inspector', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-file-upload-trajectory'))
+    liveTrajectory = await inspectTrajectoryAttachments()
+  })
+
+  it.skipIf(MODE === 'record')('restores the same Trajectory attachments from persisted history after reload', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-file-upload-trajectory-reload'))
+    expect(liveTrajectory).toBeDefined()
+    const warningStart = tripwire.warnings.length
+    await page.reload({ waitUntil: 'load' })
+    acknowledgeReloadConnectionLoss(tripwire, warningStart)
+    expect(await inspectTrajectoryAttachments()).toBe(liveTrajectory)
   })
 
   it.skipIf(MODE === 'record')('stayed clean and kept the exact fixture inventory', async () => {

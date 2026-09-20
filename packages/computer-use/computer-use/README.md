@@ -35,12 +35,19 @@ The optional `provider` config pins one provider id. Without it, every call sele
 
 Selection occurs for every call, so provider disposal and availability changes do not leave a cached backend selection.
 
+## Exclusive external tool adapters
+
+`register(ComputerUseProviderName)` reserves computer use for an adapter that publishes its own tools; `providerName` reports its name while it closes. This registration rejects every registered `ComputerUseProvider`, including unavailable ones, and `registerProvider()` rejects an occupied exclusive registration. Existing multi-provider configuration and per-call selection remain supported. `ComputerUseRegistry` is a class export alias for `ComputerUseRuntime`; the brand constructor is exported through `./brand` and the package root.
+
+[Cua Driver MCP](../../experimental/computer-use-cua-driver-mcp/README.md) and [Cua Driver native](../../experimental/computer-use-cua-driver-native/README.md) are explicit opt-ins. They own their tools and do not implement Cinlan observation/action requests. Unload the Cinlan provider and its dedicated consumers when switching; each adapter must remove its tools and await owned work before releasing registration.
+
 ## Identity and observations
 
 `ComputerAppId` and `ComputerWindowId` are opaque provider-issued selectors. `ComputerObservationId` identifies one short-lived accessibility observation, and each `ComputerElementId` is valid only inside that exact observation. Every mutation requires the application, window, and observation ids; a successful action returns a fresh observation that replaces the prior element scope.
 
 The service exposes capability discovery, application and window listing, observation, click, secondary accessibility action, scroll, drag, literal typing, key press, hotkey, paste, and value setting. `ComputerUseProvider` returns structured values and optional validated PNG bytes; it does not decide tool schemas, approval text, model visibility, or attachment retention.
 
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Consumer-owned desktop results

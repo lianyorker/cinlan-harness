@@ -20,20 +20,23 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import { contributeConnection } from './registry-internal.ts'
 import type {} from './registry.ts'
 import { McpConnectionFailure } from './failure.ts'
-import type { Config as McpConfig, StdioConfig, StreamableHttpConfig, ConnectionHandle, McpConnectionId, McpLaunchOptions, McpOwner } from './types.ts'
+import type { StdioConfig, StreamableHttpConfig, McpConnectionId, McpLaunchOptions, McpOwner } from './types.ts'
+import type { ConnectionHandle } from './host-types.ts'
 import z from '@deepseek-ai/schemastery'
 import { scopeOf } from '@deepseek-ai/dsh-scope'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
-import { RECONNECT_DEFAULTS, resolveReconnectPolicy, startConnection } from './connection.ts'
+import { DEFAULT_MAX_INSTRUCTION_BYTES, RECONNECT_DEFAULTS, resolveReconnectPolicy, startConnection } from './connection.ts'
 import type { ReconnectConfig } from './connection.ts'
 // Side-effect type import: declaration-merges `ctx.tools` onto Context.
 import type {} from '@deepseek-ai/dsh-tools'
 
-export type { McpResult } from './tools.ts'
+export { createMcpToolDefinition } from './tools.ts'
+export type { McpResult, McpToolDefinitionOptions } from './tools.ts'
 export type { ReconnectConfig, ResolvedReconnectPolicy } from './connection.ts'
 export { resolveReconnectPolicy } from './connection.ts'
 export { McpConnectionFailure } from './failure.ts'
-export type { ConnectionHandle, ConnectionOutcome, McpConnectionError, McpConnectionId, McpConnectionSnapshot, McpConnectionState, McpLaunchOptions, McpOwner, McpServerId, McpToolDescriptor } from './types.ts'
+export type { ConnectionOutcome, McpConnectionError, McpConnectionId, McpConnectionSnapshot, McpConnectionState, McpLaunchOptions, McpOwner, McpServerId, McpToolDescriptor } from './types.ts'
+export type { ConnectionHandle } from './host-types.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'mcp-client'
@@ -41,7 +44,7 @@ export const name = 'mcp-client'
 /** Services required by this plugin. */
 export const inject = ['tools']
 
-/** Default timeout for individual MCP tool calls (ms). */
+/** Default timeout for individual MCP tool calls and resource requests (ms). */
 const DEFAULT_TOOL_CALL_TIMEOUT_MS = 60_000
 
 /** Valid `serverName`, kept below the public tool-name budget. */
@@ -57,7 +60,7 @@ const activeServerNames = new WeakMap<object, Set<string>>()
 // ---- Config ----
 
 /** Configuration for one MCP transport. */
-export type Config = McpConfig
+export type Config = StdioConfig | StreamableHttpConfig
 export type { StdioConfig, StreamableHttpConfig } from './types.ts'
 
 type StdioConfigInput = Omit<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError'>
@@ -82,6 +85,7 @@ export const Config = z.union([
     env: z.dict(String).default({}),
     cwd: z.string().default(''),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
+    maxInstructionBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_INSTRUCTION_BYTES),
     failOnStartupError: z.boolean().default(false),
     reconnect: Reconnect,
   }),
@@ -91,6 +95,7 @@ export const Config = z.union([
     url: z.string().required(),
     headers: z.dict(String).default({}),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
+    maxInstructionBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_INSTRUCTION_BYTES),
     failOnStartupError: z.boolean().default(false),
     reconnect: Reconnect,
   }),
@@ -105,6 +110,10 @@ export const Config = z.union([
  */
 export function launchMcpClient(ctx: Context, config: Config, options: McpLaunchOptions = {}): ConnectionHandle {
   const reconnect = resolveReconnectPolicy(config.reconnect, 'mcp-client(' + config.serverName + '): reconnect')
+  const maxInstructionBytes = config.maxInstructionBytes ?? DEFAULT_MAX_INSTRUCTION_BYTES
+  if (!Number.isSafeInteger(maxInstructionBytes) || maxInstructionBytes < 1) {
+    throw new Error('mcp-client(' + config.serverName + '): maxInstructionBytes must be a positive safe integer')
+  }
   let handle!: ConnectionHandle
   ctx.effect(() => {
     const scope = scopeOf(ctx) ?? ctx.root
@@ -128,6 +137,12 @@ export function launchMcpClient(ctx: Context, config: Config, options: McpLaunch
     }
     return () => handle.dispose()
   }, 'mcp-client.connection')
+  // Cordis announces unload before awaiting apply; cancellation must release pending startup requests.
+  // oxlint-disable-next-line typescript/no-misused-promises -- Cordis contains observer failures; the effect awaits this same disposal.
+  ctx.on('internal/plugin', (fiber) => {
+    if (fiber !== ctx.fiber || fiber.uid !== null) return
+    return handle.dispose()
+  }, { global: true })
   const registry = ctx.get('mcpRegistry')
   if (scopeOf(ctx) === undefined && registry !== undefined) {
     const owner: McpOwner = options.owner === undefined
@@ -140,6 +155,9 @@ export function launchMcpClient(ctx: Context, config: Config, options: McpLaunch
       owner: Object.freeze(owner),
     }, handle)
   }
+  ctx.inject(['mcpResources'], (inner) => {
+    inner.mcpResources.register(config.serverName, handle.resources)
+  })
   return handle
 }
 

@@ -244,18 +244,21 @@ declare module './types.ts' {
 
 declare module '@deepseek-ai/cordis' {
   interface Events {
-    // ---- lifecycle (emit) ----
+    // ---- lifecycle ----
     /**
-     * A fully configured agent and live session were published. Setup is
-     * composition-only; `agent/session-start` is the first startup-driving extension point.
-     * Synchronous listener failure vetoes publication, while returned-promise
-     * rejection is reported. Detach requested during dispatch waits until every
-     * creation listener has observed the stable entry.
+     * An entered agent is ready for per-agent initialization after factory setup.
+     * Listeners run in order and are awaited before creation resolves. AgentLoop
+     * holds queued input until all listeners finish. A throw or rejection fails
+     * creation and skips later listeners. Disposal retains the scope and session
+     * until dispatch settles; listeners must not await agent.whenIdle() or their
+     * own owner's disposal.
      * @param payload.agent - the newly registered agent with its live session and completed setup.
+     * @param payload.source - fresh creation, resume, clear, or compaction source.
+     * @param payload.signal - factory initialization cancellation signal, when provided.
      * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent.
-     * @mode emit
+     * @mode serial
      */
-    'agent/created'(this: Scoped<Agent>, payload: { agent: Agent }): void
+    'agent/created'(this: Scoped<Agent>, payload: { agent: Agent; source: SessionStartSource; signal?: AbortSignal }): undefined | Promise<undefined>
     /**
      * An agent left the registry; AgentLoop emits this after driver quiescence
      * and scoped-registration unwind, but before session detachment. Custom

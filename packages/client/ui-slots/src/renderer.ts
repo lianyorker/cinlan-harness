@@ -207,12 +207,31 @@ export interface SlotRendererHost {
 /** The installation contract between the `ui-renderer` SlotRegistry and its React renderer. */
 export interface SlotRenderer {
   /**
-   * Render the root slot tree over the host API (the only ctx-level entry).
+   * Render the shell root slot tree over the host API.
    * @param host - the installing service's host API.
    * @param ownerProps - owner props from the shell's renderSlot('root', ...) call.
    * @returns the rendered tree.
    */
   renderRoot(host: SlotRendererHost, ownerProps: object): ReactNode
+  /**
+   * Render a reusable entry under one explicit Session binding. Registration
+   * changes must reauthorize the winner; failures must stay local to the
+   * occurrence without retiring registrations shared by other views.
+   * @param host - the installing service's host API.
+   * @param key - single Session or optional-Session slot key.
+   * @param ownerProps - owner share for this occurrence.
+   * @param sessionId - Session identity resolved independently of selection.
+   * @param resolveEntry - registry authorization for the current winning entry;
+   * throws while the declaration or eligible registration is absent.
+   * @returns the explicitly scoped tree.
+   */
+  renderSessionView?(
+    host: SlotRendererHost,
+    key: string,
+    ownerProps: object,
+    sessionId: string,
+    resolveEntry: () => StoredEntry,
+  ): ReactNode
 }
 
 /** Thrown when a retained renderSlot binding is invoked after its declaring entry was disposed. */

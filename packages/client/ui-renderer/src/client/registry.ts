@@ -16,6 +16,7 @@
  * redundancy. */
 import { Service } from '@deepseek-ai/cordis'
 import type { Context } from '@deepseek-ai/cordis'
+import type { ReactNode } from 'react'
 import { SlotCore, standardHookPropName } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
   HostObservable, LiveSlotNode, LocaleFace, OwnerOf, SlotEntryDef, SlotMap, SlotRenderer, SlotRendererHost,
@@ -69,6 +70,7 @@ interface StoreAxisRecord {
 /** Type-erased options view the implementation works with (the typed overloads proved the shares). */
 interface ErasedRegisterOptions {
   name: string
+  reusable?: true
   children?: Record<string, SlotSpec<SlotEntryDef>>
   store?: StoreDecl
   inject?: (...args: never[]) => Record<string, unknown>
@@ -356,6 +358,43 @@ export class SlotRegistry extends Service {
       throw new Error("'root' has no registration — a layout entry must register into 'root' before the shell renders it")
     }
     return this._renderer.renderRoot(this.hostFace(), owner)
+  }
+
+  /**
+   * Render the active reusable single entry for one explicit Session. The
+   * occurrence reauthorizes the active winner on registration changes and
+   * retains each entry's own child permissions. Session reference lifetime
+   * belongs to the caller. Errors stay local to the reused occurrence.
+   * @param key - single Session or optional-Session slot to reuse.
+   * @param owner - owner props for this occurrence.
+   * @param sessionId - materialized Session identity, independent of selection.
+   * @returns an explicitly scoped view of the authorized registration.
+   * @throws when the renderer lacks support or the active entry is absent,
+   * not reusable, or has an unsupported kind or scope.
+   */
+  renderSessionView<K extends keyof SlotMap & string>(key: K, owner: OwnerOf<K>, sessionId: string): ReactNode {
+    const renderer = this._renderer
+    if (renderer?.renderSessionView === undefined) {
+      throw new Error('slot renderer does not support renderSessionView (install a Session-view renderer before rendering)')
+    }
+    const resolveEntry = () => this.reusableSessionEntry(key)
+    resolveEntry()
+    return renderer.renderSessionView(this.hostFace(), key, owner, sessionId, resolveEntry)
+  }
+
+  /** Authorize only the active winner; shadowed opt-ins grant no permission. */
+  private reusableSessionEntry(key: string): StoredEntry {
+    const spec = this._core.specDynamic(key)
+    if (spec === undefined) throw new Error(`renderSessionView('${key}'): slot is not declared`)
+    if (spec.kind !== 'single' || spec.scope === 'root') {
+      throw new Error(`renderSessionView('${key}') requires kind 'single' and scope 'session' or 'session-maybe'`)
+    }
+    const entry = this._core.entriesOfSlot(key)[0]
+    if (entry === undefined) throw new Error(`renderSessionView('${key}'): slot has no active registration`)
+    if (entry.options.reusable !== true) {
+      throw new Error(`renderSessionView('${key}'): active registration must opt in with reusable: true`)
+    }
+    return entry
   }
 
   /**

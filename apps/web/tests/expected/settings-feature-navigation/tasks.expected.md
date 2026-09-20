@@ -1,0 +1,64 @@
+- region "设置":
+  - text: 设置
+  - navigation "设置导航":
+    - button "返回应用":
+      - img
+      - text: 返回应用
+    - img
+    - searchbox "搜索设置..."
+    - text: Ctrl / ⌘ K
+    - button "个人偏好" [expanded]:
+      - text: 个人偏好
+      - img
+    - button "通用设置"
+    - button "工作区布局"
+    - button "通知"
+    - button "已归档会话"
+    - button "快捷键"
+    - button "浮动工作区"
+    - button "AI 与模型" [expanded]:
+      - text: AI 与模型
+      - img
+    - button "模型"
+    - button "Agent 预设"
+    - button "编排"
+    - button "任务管理"
+    - button "侧边对话(beta)"
+    - button "语音"
+    - button "开发工作流" [expanded]:
+      - text: 开发工作流
+      - img
+    - button "Git 与源代码控制"
+    - button "集成"
+    - button "工具与设备" [expanded]:
+      - text: 工具与设备
+      - img
+    - button "安全研究"
+    - button "浏览器"
+    - button "文件"
+    - button "计算机控制"
+    - button "手机模拟器"
+    - button "扩展管理" [expanded]:
+      - text: 扩展管理
+      - img
+    - button "插件"
+    - button "实验" [expanded]:
+      - text: 实验
+      - img
+    - button "MCP"
+    - button "自动化"
+    - button "执行主机"
+    - button "终端"
+    - button "使用统计"
+  - text: AI 与模型
+  - img
+  - strong: 任务管理
+  - button "打开配置文件"
+  - heading "任务管理" [level=1]
+  - paragraph: 设置「任务管理」在工作区中的行为。
+  - text: 启用此功能 在工作区显示「任务管理」入口；已有页面和后台工具不受此开关影响。
+  - checkbox "启用此功能"
+  - text: 检测到子代理时自动展开任务管理页 当前会话产生新的子代理时，自动展开侧边栏并打开任务管理页；关闭后需手动打开
+  - checkbox "检测到子代理时自动展开任务管理页" [checked]
+  - text: 有新后台任务时自动展开后台任务页 当前会话出现新的后台任务时，自动展开侧边栏并打开后台任务页（每个新任务都会触发）；关闭后需手动打开
+  - checkbox "有新后台任务时自动展开后台任务页" [checked]

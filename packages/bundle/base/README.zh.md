@@ -65,7 +65,7 @@ kind: "package-bundle"
 
 ### 更改默认值
 
-要改变基于本核心构建的 profile 提供的内容——不同的默认模型、更严格的权限模式、更多或更少的工具——请编辑 profile 的 `cordis.patch.yml` 或添加后面的组合包。每个 patch 条目会替换目标的整个配置，因此请重述每个想保留的设置。保持沙箱化文件系统提供方作为唯一的文件写入路径：在其之上再添加普通文件系统提供方会导致 profile 加载失败。
+基础模型选择为 `deepseek-official/deepseek-flash`；后续 patch 可替换 `agent-default-model` 行。要改变基于本核心构建的 profile 提供的内容——不同的默认模型、更严格的权限模式、更多或更少的工具——请编辑 profile 的 `cordis.patch.yml` 或添加后面的组合包。每个 patch 条目会替换目标的整个配置，因此请重述每个想保留的设置。保持沙箱化文件系统提供方作为唯一的文件写入路径：在其之上再添加普通文件系统提供方会导致 profile 加载失败。
 
 -----
 

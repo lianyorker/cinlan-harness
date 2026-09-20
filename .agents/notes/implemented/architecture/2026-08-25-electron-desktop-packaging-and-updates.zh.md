@@ -20,7 +20,7 @@ Electron 拥有保留 profile `.dsh/profiles/desktop`。其中精确的 `@deepse
 
 一个 Desktop 发布号同时标识 Electron 产物及其精确的 `@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-desktop-host` 依赖。发布不能在构建或运行时选择不同的核心版本。因此，即使壳代码没有变化，更新 dsh 也必须产生新的 Electron 发布。
 
-浏览器 Web UI、dsh 后端、现有 `dsh plugin` CLI、用户 npm 和用户 pnpm 都不能修改该 profile。CLI 保留 `desktop` 名称的所有大小写变体，并拒绝针对它的启动、配置 dump 和插件管理请求。Electron 在项目恢复或 Host 启动前获取进程生命周期单实例锁；后续启动只会聚焦或重建主窗口，不会接触 profile 状态。Electron-only GUI 通过 preload 发送结构化安装、删除和更新请求；Electron 只调用其内置 pnpm。
+浏览器 Web UI、dsh 后端、现有 `dsh plugin` CLI、用户 npm 和用户 pnpm 都不能修改该 profile 的包依赖图。Desktop Host 通过 launcher 自有的配置能力接受单个插件启停；其 patch 读取器保留必需的 Desktop overlay，绝不修复共享 CLI 解析器链接。CLI 保留 `desktop` 名称的所有大小写变体，并拒绝针对它的启动、配置 dump 和插件管理请求。Electron 在项目恢复或 Host 启动前获取进程生命周期单实例锁；后续启动只会聚焦或重建主窗口，不会接触 profile 状态。Electron-only GUI 通过 preload 发送结构化安装、删除和更新请求；Electron 只调用其内置 pnpm。
 
 ## 归属
 
@@ -69,7 +69,7 @@ Electron 拥有保留 profile `.dsh/profiles/desktop`。其中精确的 `@deepse
 
 ## 安装与解析
 
-安装器绝不原地修改活跃 profile。它把 profile 元数据复制到事务暂存目录，并使用内置 pnpm 应用精确依赖变更。Electron 单独启动并停止 staging 后端。如果已有后端运行，插件修改会在检查前停止它，并在激活前恢复它，因此两个 Desktop 后端绝不会并发共享 `.dsh` 状态。激活过程再次停止后端，在对应目录移动前先持久化 `pending.json` 的每个下一阶段，把活跃 profile 移到 `rollback/profile`，把暂存 profile 移到 `.dsh/profiles/desktop`，然后重启。恢复过程会结合预写阶段与真实的 active、rollback 和 staging 目录，因此任一个写入与移动间隙中断后仍会保留或恢复一个完整 profile。
+安装器绝不原地修改活跃 profile。它把包括已保存 `cordis.patch.yml` 在内的 profile 元数据复制到事务暂存目录，并使用内置 pnpm 应用精确依赖变更。Electron 在复制元数据前停止并等待活跃 Host 完成清理，然后单独启动并停止 staging 后端。活跃后端保持停止直到激活或安全的失败恢复，因此配置写入不会与快照竞争，两个 Desktop 后端也绝不会并发共享 `.dsh` 状态。发布校准保留同一份已保存 patch。激活过程在对应目录移动前先持久化 `pending.json` 的每个下一阶段，把活跃 profile 移到 `rollback/profile`，把暂存 profile 移到 `.dsh/profiles/desktop`，然后重启。恢复过程会结合预写阶段与真实的 active、rollback 和 staging 目录，因此任一个写入与移动间隙中断后仍会保留或恢复一个完整 profile。
 
 进程生命周期 Electron 锁是 Desktop 的权威 owner。包事务锁用于纵深防御，并记录仍能修改包状态的进程：包操作之间记录 Electron，pnpm 运行期间记录已生成的 pnpm PID。Owner 变更通过已经打开的排他锁文件完成截断、写入与同步。如果 Electron 在 pnpm 执行期间终止，后续进程会发现仍存活的 worker，并拒绝启动并发的 store 或 staging 事务；该 worker 退出后，陈旧 PID 才可以恢复。
 
@@ -91,7 +91,7 @@ Electron-builder 的生产收集器通过仅供 builder 使用的 pnpm filter �
 
 Electron 更新只使用一个 `electron-updater` 发布流和签名 `electron-builder` 产物。该版本就是 Desktop 发布版本；不存在独立 dsh manifest、兼容范围或仅更新 dsh 的操作。前台安装会等待正在进行的后台检查，而不会把检查结果复用成安装结果。更新弹窗下载并安装 Electron 产物，然后重启进入新发布。
 
-主窗口先绘制应用共享的 `HARNESS` / `Loading plugins…` 视图，再从安装包种子校准 dsh，同时保留已安装桌面插件。Desktop 的 Vite 渲染 bundle 通过 Web 启动内核的公开 [`./boot-page` 入口](../../../../packages/client/web/README.zh.md#use-this-package)导入 `BootPage` 及其 CSS，使同一套持续维护的加载视图在 Host 启动前就可用。准备阶段仅在内部记录；正常加载时只显示共享视图，启动错误才会显示本地化诊断与安全的重启、退出操作。后端就绪后，同一窗口从壳文档导航到已安装应用的文档，后者以新的 DOM 和动画状态创建相同视图。只有精确匹配的壳启动文档获得生命周期 preload 桥接，应用只获得协议标记。
+主窗口先绘制应用共享的 `HARNESS` / `Loading plugins…` 视图，再从安装包种子校准 dsh，同时保留已安装桌面插件。Desktop 的 Vite 渲染 bundle 通过 Web 启动内核的公开 [`./boot-page` 入口](../../../../packages/client/web/README.zh.md#use-this-package)导入 `BootPage` 及其 CSS，使同一套持续维护的加载视图在 Host 启动前就可用。准备阶段仅在内部记录；正常加载时只显示共享视图，启动错误才会显示本地化诊断与安全的重启、退出操作。后端就绪后，同一窗口从壳文档导航到已安装应用的文档，后者以新的 DOM 和动画状态创建相同视图。只有精确匹配的壳启动文档获得生命周期 preload 桥接，应用获得协议标记和打开原生插件窗口的操作。该操作只接受不带端口的 `dsh-app://app`；包操作仍仅允许壳渲染进程调用。插件开关应用成功且清单刷新后，应用渲染进程刷新一次以应用客户端插件贡献，Host 保持运行。
 
 Profile 准备在 worker 中运行：归档提取与包校验可以执行同步操作，而不阻塞 Electron 的窗口事件循环。健康检查覆盖依赖解析、原生模块、壳 API 兼容性、后端启停、Web 资源和客户端启动图。不兼容插件会阻止激活，并保留上一个项目用于回滚；应用 UI 仍绑定经过验证的已安装发布。
 

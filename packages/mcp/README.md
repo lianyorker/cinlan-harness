@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `mcp/` group connects the harness to the Model Context Protocol (MCP) ecosystem of tool servers. The one package in this group attaches an external server — a filesystem, GitHub, database, or memory server — so its tools are available to the model as native tools under stable server-qualified names. Each server is one configuration entry; nothing ships enabled, so you opt in per server. Only the Tools capability is bridged: MCP resources and prompts are not supported. This page maps the group; the package README owns the per-package contract.
+The `mcp/` group connects the harness to the Model Context Protocol (MCP) ecosystem of tool servers. Its client attaches external servers so their tools are available under stable server-qualified names, and its resource service lets the model discover and read server content on demand. Each server is one configuration entry; nothing ships enabled, so you opt in per server. MCP prompt templates are not supported. This page maps the group; the package README owns the per-package contract.
 
 ## Table of Contents
 
@@ -27,6 +27,7 @@ This group contains the MCP transport bridge and current-profile management; the
 | Package | What it provides |
 |---|---|
 | [`mcp-client/`](mcp-client/README.md) | Attach one external MCP server so the model can call its tools as native tools |
+| [`mcp-resources/`](mcp-resources/README.md) | Discover resource pages and URI templates, then read content through shared tools |
 | [`mcp-management/`](mcp-management/README.md) | Persists current-profile server definitions and owns their connection lifetimes |
 
 -----

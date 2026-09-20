@@ -49,6 +49,8 @@ Provider 仅缓存成功的 executable 解析。CLI 缺失时，安装 CLI 或�
 
 [桌面类型声明](../../packages/computer-use/computer-use/src/types.ts)定义精确的应用／窗口目标和受 observation 限定的输入。数据字段均为只读；表中的 `?` 表示可选字段。[运行时](../../packages/computer-use/computer-use/src/index.ts)声明 `ComputerUseRuntime` 和 `ComputerUseError`。
 
+`ComputerUseProviderName` 是通过 `./brand` 导出的品牌字符串，用于发布自身工具的独占适配器。`register(name)` 返回异步 effect disposer，`providerName` 报告占用者，`ComputerUseRegistry` 是同一运行时类的别名。独占适配器与任何已注册的 `ComputerUseProvider` 互斥，包括不可用 Provider；Cinlan 的多 Provider 选择与观察 API 仍由原来的执行入口负责。具体启用与权限要求见 [Cua Driver MCP](../../packages/experimental/computer-use-cua-driver-mcp/README.zh.md) 和 [Cua Driver native](../../packages/experimental/computer-use-cua-driver-native/README.zh.md)。
+
 ### 身份与观察
 
 | 类型 | 字段与含义 |
@@ -132,6 +134,15 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 Registry and execution facade for desktop Computer Use providers.
 
 ```ts cordis-catalog
+/**
+ * Reserve computer use for a provider that publishes its own tools.
+ * Registered facade providers also occupy computer use, including unavailable ones.
+ * The caller must remove its tools and await owned work before releasing this effect.
+ * @param name Provider-owned name used in registration diagnostics.
+ * @returns Effect disposer for this exact exclusive registration.
+ */
+register(name: ComputerUseProviderName): () => Promise<void>
+
 /**
  * Register one provider for the calling plugin lifetime.
  * @param provider Provider implementation with a unique stable id.
@@ -242,6 +253,8 @@ pasteText(request: ComputerPasteTextRequest, signal?: AbortSignal): Promise<Comp
  */
 setValue(request: ComputerSetValueRequest, signal?: AbortSignal): Promise<ComputerActionResult>
 ```
+
+Types: [ComputerUseProviderName](device-control.zh.md#desktop-types)
 
 Source: [`packages/computer-use/computer-use/src/index.ts`](../../packages/computer-use/computer-use/src/index.ts)
 

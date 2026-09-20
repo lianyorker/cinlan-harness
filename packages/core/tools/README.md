@@ -149,6 +149,8 @@ The package-level contract is enough for most consumers; read these when you nee
 
 -----
 
+A pre-execute listener can return `cancel` for canonical pre-dispatch cancellation or attach `info` to a denial. Structured error metadata may contain a raw user-facing `reason`; native and PTC results persist it separately from model content. Every PTC execution carries its own deeply frozen binding schema in transient `exec.schema`; schemas are not serialized in PTC start or settle events.
+
 <a id="model-experience"></a>
 ## Model Experience
 

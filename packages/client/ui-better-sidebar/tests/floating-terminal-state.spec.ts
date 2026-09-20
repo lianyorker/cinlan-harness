@@ -109,7 +109,7 @@ describe('floating terminal state isolation', () => {
 
     const mainTab = openTerminal(main)!
     expect(mainTab.id).toMatch(/^terminal:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
-    expect(mainTab).not.toHaveProperty('meta')
+    expect(mainTab?.meta).toEqual({ terminalLaunch: { pending: true } })
     expect(openTerminal(a, ready(windowA, '/a'))!.id).toBe(`terminal:${windowA}:1`)
     expect(openTerminal(a, ready(windowA, '/a'))!.id).toBe(`terminal:${windowA}:2`)
     expect(openTerminal(b, ready(windowB, '/b'))!.id).toBe(`terminal:${windowB}:1`)
@@ -155,7 +155,7 @@ describe('floating terminal state isolation', () => {
     const restored = createSidebarStore({ floatingWindowId: windowA })
     restored.setSession('other-session')
     expect(tabs(stateOf(restored)).find(tab => tab.type === 'terminal')).toMatchObject({
-      id: `terminal:${windowA}:1`, meta: { terminalFloating: { windowId: windowA, directory: '/other' } },
+      id: `terminal:${windowA}:1`, meta: { terminalLaunch: { pending: true }, terminalFloating: { windowId: windowA, directory: '/other' } },
     })
   })
 
@@ -167,8 +167,8 @@ describe('floating terminal state isolation', () => {
     context.directory = '/second'
     store.setPrefs({ ...store.getPrefs(), terminalShell: 'other-shell', terminalFontSize: 20 })
     const second = openTerminal(store, context)!
-    expect(first.meta).toEqual({ terminalFloating: { windowId: windowA, directory: '/first' } })
-    expect(second.meta).toEqual({ terminalFloating: { windowId: windowA, directory: '/second' } })
+    expect(first.meta).toEqual({ terminalLaunch: { pending: true }, terminalFloating: { windowId: windowA, directory: '/first' } })
+    expect(second.meta).toEqual({ terminalLaunch: { pending: true }, terminalFloating: { windowId: windowA, directory: '/second' } })
     vi.runAllTimers()
 
     const restored = createSidebarStore({ floatingWindowId: windowA })
@@ -180,7 +180,7 @@ describe('floating terminal state isolation', () => {
     expect(restored.getSnapshot()).toBe(before)
     expect(tabs(stateOf(restored)).filter(tab => tab.type === 'terminal')).toEqual([first, second])
     expect(openTerminal(restored, ready(windowA, '/third'))!.meta)
-      .toEqual({ terminalFloating: { windowId: windowA, directory: '/third' } })
+      .toEqual({ terminalLaunch: { pending: true }, terminalFloating: { windowId: windowA, directory: '/third' } })
   })
 
   it.each(['loading', 'unavailable'] as const)('cannot create an unqualified automatic terminal while context is %s', (status) => {
@@ -200,7 +200,7 @@ describe('floating terminal state isolation', () => {
 
     expect(openTerminal(store, ready(windowA, '/ready'))).toEqual({
       id: `terminal:${windowA}:1`, type: 'terminal', title: 'Terminal',
-      meta: { terminalFloating: { windowId: windowA, directory: '/ready' } },
+      meta: { terminalLaunch: { pending: true }, terminalFloating: { windowId: windowA, directory: '/ready' } },
     })
     expect(firstLeaf(stateOf(store).bottomSplits).tabs.map(tab => tab.id)).toEqual([`terminal:${windowA}:1`])
   })
@@ -235,7 +235,7 @@ describe('floating terminal state isolation', () => {
     const state = makeDefaultState()
     const created = createTerminalTab(state, 'Terminal')!
     expect(created.tab.id).toMatch(/^terminal:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
-    expect(created.tab).not.toHaveProperty('meta')
+    expect(created.tab.meta).toEqual({ terminalLaunch: { pending: true } })
     expect(created.patch).toEqual({ nextTerminal: 2 })
     expect(state.nextTerminal).toBe(1)
   })

@@ -5,13 +5,13 @@
  */
 
 /** GET route serving the probed application ids. */
-export const OPEN_IN_APP_APPS_ROUTE = '/open-in-app/apps'
+export const OPEN_IN_APP_APPS_ROUTE = '/api/open-in-app/apps'
 
 /** GET prefix serving one PNG bundle icon per application id. */
-export const OPEN_IN_APP_ICON_PREFIX = '/open-in-app/icon'
+export const OPEN_IN_APP_ICON_PREFIX = '/api/open-in-app/icon'
 
 /** POST route launching one application on one workspace directory. */
-export const OPEN_IN_APP_OPEN_ROUTE = '/open-in-app/open'
+export const OPEN_IN_APP_OPEN_ROUTE = '/api/open-in-app/open'
 
 /** Apps-route response: catalog ids probed as installed, in menu order. */
 export interface OpenInAppAppsPayload {

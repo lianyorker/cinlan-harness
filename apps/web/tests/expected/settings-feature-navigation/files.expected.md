@@ -1,0 +1,115 @@
+- region "设置":
+  - text: 设置
+  - navigation "设置导航":
+    - button "返回应用":
+      - img
+      - text: 返回应用
+    - img
+    - searchbox "搜索设置..."
+    - text: Ctrl / ⌘ K
+    - button "个人偏好" [expanded]:
+      - text: 个人偏好
+      - img
+    - button "通用设置"
+    - button "工作区布局"
+    - button "通知"
+    - button "已归档会话"
+    - button "快捷键"
+    - button "浮动工作区"
+    - button "AI 与模型" [expanded]:
+      - text: AI 与模型
+      - img
+    - button "模型"
+    - button "Agent 预设"
+    - button "编排"
+    - button "任务管理"
+    - button "侧边对话(beta)"
+    - button "语音"
+    - button "开发工作流" [expanded]:
+      - text: 开发工作流
+      - img
+    - button "Git 与源代码控制"
+    - button "集成"
+    - button "工具与设备" [expanded]:
+      - text: 工具与设备
+      - img
+    - button "安全研究"
+    - button "浏览器"
+    - button "文件"
+    - button "计算机控制"
+    - button "手机模拟器"
+    - button "扩展管理" [expanded]:
+      - text: 扩展管理
+      - img
+    - button "插件"
+    - button "实验" [expanded]:
+      - text: 实验
+      - img
+    - button "MCP"
+    - button "自动化"
+    - button "执行主机"
+    - button "终端"
+    - button "使用统计"
+  - text: 工具与设备
+  - img
+  - strong: 文件
+  - button "打开配置文件"
+  - heading "文件" [level=1]
+  - paragraph: 设置「文件」在工作区中的行为。
+  - text: 启用此功能 在工作区显示「文件」入口；已有页面和后台工具不受此开关影响。
+  - checkbox "启用此功能" [checked]
+  - text: 聊天区文件在侧边栏打开 在聊天里点击文件链接（工具行、产物列表、文件提及）时，在侧边栏编辑器中打开，不再调用系统默认应用
+  - checkbox "聊天区文件在侧边栏打开" [checked]
+  - text: 文件打开方式 控制文件打开方式
+  - button "文件打开方式":
+    - img
+    - text: 独立
+    - img
+  - text: SSH 远端主机 留空为本地工作区；填入 user@host 或 SSH 别名后，VSCode 系打开方式将改用 vscode-remote/ssh-remote 协议，资源管理器 / Zed / 非 VSCode 系自定义编辑器将从菜单隐藏
+  - textbox "user@host 或 SSH 别名"
+  - text: "自定义编辑器 名称 + URL 模板（{path} 占位符）+ 是否 VSCode 系；SSH 模式下仅 VSCode 系可打开远端"
+  - button "添加"
+  - heading "文件预览" [level=3]
+  - heading "图片" [level=4]
+  - paragraph: png · jpg · jpeg · gif · webp · svg · bmp · ico · avif
+  - text: 启用此功能 在工作区显示「图片」入口；已有页面和后台工具不受此开关影响。
+  - checkbox "启用此功能" [checked]
+  - heading "PDF" [level=4]
+  - paragraph: pdf
+  - text: 启用此功能 在工作区显示「PDF」入口；已有页面和后台工具不受此开关影响。
+  - checkbox "启用此功能" [checked]
+  - heading "Word 文档" [level=4]
+  - paragraph: doc · docx
+  - text: 启用此功能 在工作区显示「Word 文档」入口；已有页面和后台工具不受此开关影响。
+  - checkbox "启用此功能" [checked]
+  - heading "Excel 工作簿" [level=4]
+  - paragraph: xls · xlsx
+  - text: 启用此功能 在工作区显示「Excel 工作簿」入口；已有页面和后台工具不受此开关影响。
+  - checkbox "启用此功能" [checked]
+  - heading "PowerPoint 演示文稿" [level=4]
+  - paragraph: ppt · pptx
+  - text: 启用此功能 在工作区显示「PowerPoint 演示文稿」入口；已有页面和后台工具不受此开关影响。
+  - checkbox "启用此功能" [checked]
+  - heading "Markdown" [level=4]
+  - paragraph: md · markdown
+  - text: 启用此功能 在工作区显示「Markdown」入口；已有页面和后台工具不受此开关影响。
+  - checkbox "启用此功能" [checked]
+  - heading "HTML" [level=4]
+  - paragraph: html · htm
+  - text: 启用此功能 在工作区显示「HTML」入口；已有页面和后台工具不受此开关影响。
+  - checkbox "启用此功能" [checked]
+  - text: 关闭 HTML 预览沙箱（不安全） 关闭后，预览的 HTML 将与界面同源运行，可读取会话文件、本地存储并调用内部接口。仅对完全可信的文件开启
+  - checkbox "关闭 HTML 预览沙箱（不安全）"
+  - text: HTML 预览默认以非沙箱模式打开（不安全） 开启后，每次打开 HTML 文件时预览默认处于非沙箱状态（与界面同源，可读取会话文件与内部接口）；可在状态行临时恢复沙箱
+  - checkbox "HTML 预览默认以非沙箱模式打开（不安全）"
+  - heading "二进制下载" [level=4]
+  - paragraph: doc · docx · xls · xlsx · ppt · pptx
+  - text: 启用此功能 在工作区显示「二进制下载」入口；已有页面和后台工具不受此开关影响。
+  - checkbox "启用此功能" [checked]
+  - heading "代码" [level=4]
+  - paragraph: 兜底：任意文件
+  - text: 启用此功能 在工作区显示「代码」入口；已有页面和后台工具不受此开关影响。
+  - checkbox "启用此功能" [checked]
+  - button "添加预览插件":
+    - img
+    - text: 添加预览插件

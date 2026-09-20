@@ -1,5 +1,5 @@
 ---
-description: "Host half of open-in-app: resolving installed editors, Git GUIs, terminals, and file managers to verified launchers on macOS, Windows, and Linux, and serving the catalog, icons, and launch endpoint as three webServer routes."
+description: "Host half of open-in-app: resolving installed editors, Git GUIs, terminals, and file managers to verified launchers on macOS, Windows, and Linux, and serving the catalog, icons, and launch endpoint as authenticated Connection Fetch routes."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use `dsh-host-open-in-app` with its [browser companion](../../client/ui-open-in-app/README.md) to let users open a workspace directory in an installed editor, Git GUI, terminal, or file manager. It offers a fixed application catalog and shows only entries that the host can verify; newly installed applications appear after restart, while missing launchers are removed when detected. Requests require the deployment's browser authentication and host-origin trust checks. Detection and launch commands use configurable deadlines and do not pass inherited credentials to launched applications.
+Use `dsh-host-open-in-app` with its [browser companion](../../client/ui-open-in-app/README.md) to let users open a workspace directory in an installed editor, Git GUI, terminal, or file manager. It offers a fixed application catalog and shows only entries that the host can verify; newly installed applications appear after restart, while missing launchers are removed when detected. Web requests require browser authentication and host-origin trust checks; Desktop uses its trusted custom-protocol carrier. Detection and launch commands use configurable deadlines and do not pass inherited credentials to launched applications.
 
 ## Table of Contents
 
@@ -25,11 +25,11 @@ Use `dsh-host-open-in-app` with its [browser companion](../../client/ui-open-in-
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the package in a composition that carries `webServer`, `connection`, and `subprocess`, normally beside its browser surface [`dsh-client-ui-open-in-app`](../../client/ui-open-in-app/README.md); the pair puts an "Open In..." split button in the Web Session header whenever the host resolved at least one installed catalog application.
+Mount the package in a Web or Desktop composition that carries `connection` and `subprocess`, beside its browser surface [`dsh-client-ui-open-in-app`](../../client/ui-open-in-app/README.md); the pair puts an "Open In..." split button in the Session header whenever the host resolved at least one installed catalog application.
 
 ### When to choose it
 
-Choose it for a Web deployment whose users work beside a local editor, Git GUI, terminal, or file manager and want the workspace directory opened there in one click. Avoid it for opening one path with the OS-default application from host code — that is `dsh-apiproxy`'s `openPath`; this package's subject is *which* application, with per-application resolution and launchers.
+Choose it for a Web or Desktop deployment whose users work beside a local editor, Git GUI, terminal, or file manager and want the workspace directory opened there in one click. Avoid it for opening one path with the OS-default application from host code — that is `dsh-apiproxy`'s `openPath`; this package's subject is *which* application, with per-application resolution and launchers.
 
 ### Minimal configuration
 
@@ -77,7 +77,7 @@ The route paths and wire payload types are published as the browser-safe `./shar
 
 The package splits into a data table and three roles. [`src/catalog.ts`](src/catalog.ts) is the compile-time table: each entry's per-platform locator chain (`fixed`, `app`, `xcode`, `cli`, `file`, `scan`, `app-paths`, `install-record`, `github-desktop`, `desktop`) plus, on Linux, the desktop-entry id owning its icon. [`src/resolver.ts`](src/resolver.ts) resolves the table against this host: one pass yields a map of catalog id to verified launch (primary and optional fallback argv plus the icon source), sharing one batched Windows-registry read; argv launches spawn detached with a credential-scrubbed environment (`scrubbedParentEnv`) plus explicit adapter entries, and keep Windows GUI processes visible unless the adapter hides a CLI process that launches the GUI separately. `shell-open` launches (the file managers) run the OS shell's open verb through `dsh-native-command`'s path opener under the same watch window, and a spawn `ENOENT` is classified as `missing` so the routes can refresh a stale entry. [`src/icons.ts`](src/icons.ts) extracts icons per platform: `plutil`/`sips` over the resolved bundle on macOS, a generated PowerShell `ExtractAssociatedIcon` script over the resolved executable on Windows (positional `-File` args keep paths out of command-line parsing), and desktop-entry/hicolor/pixmaps filesystem lookup on Linux.
 
-[`src/index.ts`](src/index.ts) registers the three routes on `ctx.webServer`: `GET /open-in-app/apps` (the resolution map's keys), `GET /open-in-app/icon/<id>` (the extracted icon, cached in memory per process), and `POST /open-in-app/open` (launches the map's verified launcher directly — never a re-detection). Every route asks the composition's `connection` service for a rejection first; the complete trust story — the Host/Origin fence and browser authentication — has one home in the [`src/index.ts`](src/index.ts) module comment. On top of that fence the open route validates its body at the wire: an `application/json` media type, a 64 KiB ceiling, a resolved-available catalog id, and an absolute path naming an existing directory. Resolution and icon commands run through [`@deepseek-ai/dsh-native-command`](../../util/native-command/README.md) (argv, never a shell) under their respective deadlines; PATH names go through `ctx.subprocess.resolveExecutable()` in-process.
+[`src/index.ts`](src/index.ts) registers catalog, icon, and launch handlers through `ctx.connection.fetch.register()` at `/api/open-in-app/apps`, `/api/open-in-app/icon/<id>`, and `/api/open-in-app/open`. Connection owns registration disposal and rejects unsupported methods with 404. Its Web carrier applies Host/Origin checks and browser authentication before dispatch; Desktop dispatches the same Fetch handlers through its trusted `dsh-app://` carrier without a Web server. The launch handler validates every carrier's body: an `application/json` media type, a 64 KiB byte ceiling, string app/path fields, a resolved-available catalog id, and an absolute path naming an existing directory. Resolution and icon commands run through [`@deepseek-ai/dsh-native-command`](../../util/native-command/README.md) (argv, never a shell) under their respective deadlines; PATH names go through `ctx.subprocess.resolveExecutable()` in-process.
 
 </details>
 
@@ -89,7 +89,7 @@ The package splits into a data table and three roles. [`src/catalog.ts`](src/cat
 - [dsh-client-ui-open-in-app](../../client/ui-open-in-app/README.md) — the browser split button consuming these routes.
 - [dsh-subprocess](../../subprocess/subprocess/README.md) — the capability providing in-process PATH resolution and the scrubbed child environment.
 - [dsh-native-command](../../util/native-command/README.md) — the no-shell host command runner for resolution and icon commands.
-- [dsh-host-webserver](../webserver/README.md) — the route registry carrying the three HTTP endpoints.
+- [dsh-client-connection](../../client/connection/README.md) — the Fetch registry and authenticated Web carrier.
 - [Host package map](../README.md) — the GUI-host family this package belongs to.
 
 -----
@@ -118,7 +118,7 @@ None; the package never assembles or sends provider requests.
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The promotion decisions — the host/`ui-` package split, why raw webServer routes instead of a Typert Remote, why the catalog stays compile-time fixed, the resolver redesign (verified launchers, one resolution pass, no per-click re-detection), the three-deadline configuration, and the per-platform icon strategies with their rejected alternatives — are recorded in the [promotion Agent Note](../../../.agents/notes/implemented/feature/2026-08-25-promote-open-anywhere-plugin.md).
+The promotion decisions — the host/`ui-` package split, why application routes instead of a Typert Remote, why the catalog stays compile-time fixed, the resolver redesign (verified launchers, one resolution pass, no per-click re-detection), the three-deadline configuration, and the per-platform icon strategies with their rejected alternatives — are recorded in the [promotion Agent Note](../../../.agents/notes/implemented/feature/2026-08-25-promote-open-anywhere-plugin.md).
 
 </details>
 

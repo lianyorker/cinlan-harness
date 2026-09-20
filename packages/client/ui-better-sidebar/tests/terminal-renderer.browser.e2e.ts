@@ -60,7 +60,7 @@ describe('TerminalView in real Chromium', { timeout: 180_000 }, () => {
     }
   }, 120_000)
 
-  async function withRenderer(name: string, locale: string, run: (page: Page) => Promise<void>): Promise<void> {
+  async function withRenderer(name: string, locale: string, run: (page: Page) => Promise<void>, chooser = false): Promise<void> {
     const context = await browser!.newContext({ viewport: { width: 1050, height: 680 }, locale, colorScheme: 'dark' })
     try {
       const page = await context.newPage()
@@ -71,9 +71,12 @@ describe('TerminalView in real Chromium', { timeout: 180_000 }, () => {
       page.on('pageerror', error => pageErrors.push(error.stack ?? error.message))
       let passed = false
       try {
-        await page.goto(origin, { waitUntil: 'load' })
-        await page.waitForFunction(() => window.terminalRenderer?.requests.length === 1)
-        await page.locator(terminalSelector + ' .xterm-rows').waitFor({ state: 'visible' })
+        await page.goto(origin + (chooser ? '?chooser=1' : ''), { waitUntil: 'load' })
+        if (chooser) await page.getByRole('combobox').waitFor({ state: 'visible' })
+        else {
+          await page.waitForFunction(() => window.terminalRenderer?.requests.length === 1)
+          await page.locator(terminalSelector + ' .xterm-rows').waitFor({ state: 'visible' })
+        }
         await run(page)
         expect(pageErrors).toEqual([])
         expect(consoleMessages.filter(message => message.type === 'error' || message.type === 'warning')).toEqual([])
@@ -89,6 +92,28 @@ describe('TerminalView in real Chromium', { timeout: 180_000 }, () => {
       await context.close()
     }
   }
+
+  it.each(['en-US', 'zh-CN'])('chooses and restores a tab shell in %s', async (locale) => {
+    await withRenderer('shell-chooser-' + locale, locale, async (page) => {
+      const select = page.getByRole('combobox')
+      await page.getByRole('option', { name: 'zsh', exact: true }).waitFor({ state: 'attached' })
+      expect(await page.evaluate(() => window.terminalRenderer.requests)).toEqual([])
+      await expect(await page.locator('#terminal-stage').ariaSnapshot()).toMatchFileSnapshot('./expected/terminal-shell-chooser/' + locale + '.expected.md')
+      await page.screenshot({ path: join(artifacts, 'terminal-shell-chooser-' + locale + '.png'), fullPage: true })
+      await select.selectOption('/bin/zsh')
+      await page.getByRole('button', { name: locale === 'zh-CN' ? '启动终端' : 'Start terminal' }).click()
+      await page.waitForFunction(() => window.terminalRenderer.requests.length === 1)
+      expect((await page.evaluate(() => window.terminalRenderer.requests[0]!)).target).toMatchObject({ shellPath: '/bin/zsh' })
+      await page.evaluate(() => window.terminalRenderer.ready())
+      await page.waitForFunction(() => Object.keys(localStorage).some(key => localStorage.getItem(key)?.includes('"shellPath":"/bin/zsh"')))
+      await page.reload({ waitUntil: 'load' })
+      await page.waitForFunction(() => window.terminalRenderer.requests.length === 1)
+      expect(await page.getByRole('combobox').count()).toBe(0)
+      expect((await page.evaluate(() => window.terminalRenderer.requests[0]!)).target).toMatchObject({ shellPath: '/bin/zsh' })
+      expect(await page.evaluate(() => window.terminalRenderer.capturedDirectory())).toBe('missing-folder/用户输入')
+      await page.evaluate(() => window.terminalRenderer.unmount('keep-tab'))
+    }, true)
+  })
 
   it('acknowledges parsed output, delivers keyboard input, resizes and closes the removed tab once', async () => {
     await withRenderer('output-input-resize-close', 'en-US', async (page) => {

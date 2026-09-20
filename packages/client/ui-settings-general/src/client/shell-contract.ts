@@ -62,6 +62,7 @@ export type SettingsRootComponentProps =
     | 'settings.action'
     | 'settings.close'
     | 'settings.section'
+    | 'settings.section.extension'
     | 'settings.section.icon'
     | 'settings.onboarding'
   >

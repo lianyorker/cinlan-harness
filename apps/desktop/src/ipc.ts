@@ -11,6 +11,7 @@ export const DESKTOP_IPC = {
   startupState: 'dsh-desktop:startup-state',
   startupQuit: 'dsh-desktop:startup-quit',
   startupRestart: 'dsh-desktop:startup-restart',
+  openPluginsWindow: 'dsh-desktop:open-plugins-window',
   pluginsList: 'dsh-desktop:plugins-list',
   pluginsAdd: 'dsh-desktop:plugins-add',
   pluginsRemove: 'dsh-desktop:plugins-remove',
@@ -35,7 +36,16 @@ export interface DesktopStartupApi {
   readonly subscribe: (listener: (state: DesktopStartupState) => void) => () => void
 }
 
-/** Narrow bridge exposed through context isolation. */
+/** App renderer bridge exposed only at dsh-app://app, without package operations. */
+export interface DesktopAppApi {
+  readonly protocolVersion: 1
+  /** Open or focus the shell-owned Plugins window.
+   * @returns Completion of the window request; does not report package installation.
+   */
+  openPlugins(): Promise<void>
+}
+
+/** Shell management bridge exposed through context isolation. */
 export interface DshDesktopApi {
   readonly protocolVersion: 1
   locale(): Promise<DesktopLocale>

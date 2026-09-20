@@ -99,6 +99,21 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'pluginManager', pkg: 'plugin-manager', title: 'Profile plugin and bundle management', mode: 'core',
+    consumers: ['client-ui-plugin-manager'],
+    note: 'Owns persisted composition changes, package operations, cancellation, and profile reload outcomes.',
+  },
+  {
+    key: 'profileContext', pkg: 'app-boot', title: 'Launcher-provided profile facts', mode: 'core',
+    consumers: ['plugin-manager'],
+    note: 'The launcher provides immutable profile paths, startup selections, and reload policy.',
+  },
+  {
+    key: 'workspaceChanges', pkg: 'workspace-changes', title: 'Per-turn workspace file changes', mode: 'core',
+    consumers: ['client-ui-deliverables'],
+    note: 'Records changed files and serves summaries and comparisons until the owning Session is disposed.',
+  },
+  {
     key: 'workItems', pkg: 'work-items', title: 'Work Items provider registry and write ledger', mode: 'seam',
     implementations: ['work-items-github', 'work-items-linear'], consumers: ['tool-work-items', 'api-work-items-controller'],
     note: 'Providers own fixed-origin requests; the service owns immutable write previews and durable receipts.',

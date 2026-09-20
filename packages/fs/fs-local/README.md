@@ -33,7 +33,7 @@ Choose `fs-local` for ordinary host-file access in a single process. Choose [`fs
 
 ### Minimal configuration
 
-Load the backend with a base directory; relative paths resolve against it, and absolute paths ignore it.
+Load the backend with a base directory; relative paths resolve against it, and absolute paths ignore it. A relative base is anchored to the provider process working directory, and display paths remain absolute. On POSIX, `symlink/..` reaches the parent of the link target, including when the final file does not exist yet; traversing `..` through a missing directory fails with `FS_NOT_FOUND`. Directory listings and `lstat` preserve the same physical traversal. Windows retains native drive-relative normalization.
 
 ```yaml
 - name: '@deepseek-ai/dsh-fs-local'

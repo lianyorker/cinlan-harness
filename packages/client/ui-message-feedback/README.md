@@ -1,5 +1,5 @@
 ---
-description: "Per-message feedback for the Web GUI: the Like/Dislike pair and optional note in the finalized assistant message's action row; for users and maintainers of the feedback experience."
+description: "Submit message ratings and conversation feedback through a dialog with categories, context disclosure, and retryable drafts."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package adds per-message feedback to the Web GUI: a Like/Dislike pair plus an optional note, contributed as the `feedback` entry of the finalized assistant message's action strip. It renders on the closing assistant message of each turn — earlier steps of a multi-step turn produce tool rows rather than a rateable body. One controller per Session backs every message control in that Session, so a single list read seeds the whole transcript. Ratings and notes are log-only Session events: they never enter model context. Deletion retracts the current item without erasing its earlier log entries.
+Submit feedback about a completed answer or the whole conversation. Like and Dislike open a dialog with seven optional categories and a detail field; a bare `/feedback` opens the same form for the Session. The dialog discloses that submission includes the current conversation log. Feedback stays outside model context, and failed submissions keep the draft available for correction.
 
 ## Table of Contents
 
@@ -25,11 +25,11 @@ This package adds per-message feedback to the Web GUI: a Like/Dislike pair plus 
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-conversation`; the Like/Dislike pair then appears in the action row of each turn's closing assistant message, between copy and branch. Clicking the recorded rating retracts the feedback; switching sides carries the existing note forward. The note editor is a dialog popover anchored under its trigger, so the row keeps its single line whether the editor is open or closed.
+Mount this plugin alongside `ui-conversation` and `ui-commands`. Either unrecorded rating opens the feedback dialog; Submit records the judgment with the optional category and description. Closing the dialog discards the draft without recording. Clicking an already recorded rating retracts it. The composer menu and bare `/feedback` open the Session form, while `/feedback <text>` retains the Host command and its acknowledgement row.
 
 ### Failures
 
-A rating or list-load failure shows inline in the row; a note-save failure shows inside the popover, which stays open so the draft can be corrected. Only finalized messages reach the slot — an interruption-frozen partial carries no `messageId` and therefore no feedback controls.
+A list-load or retraction failure appears beside the rating buttons. A submission failure shows a warning toast and keeps the dialog draft open. A conflict updates the recorded rating from the Host reply, while the draft remains available for retry. Only finalized messages receive feedback controls.
 
 -----
 
@@ -39,7 +39,7 @@ A rating or list-load failure shows inline in the row; a note-save failure shows
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The package contributes the `feedback` entry (order 10) of `conversation.chat.assistant-actions`, declared by ui-conversation and rendered inside the finalized assistant message's IconActions row. One `MessageFeedbackController` per Session backs every message control in that Session, so a single `messageFeedback.list` read seeds the whole transcript; the read is deferred to the first hover or focus rather than fired on mount. Mutations go through `ctx.remote.messageFeedback`; the Host owns per-item compare-and-set. Every `put` and `delete` carries the `version` this controller last observed, and a `version-conflict` reply carries the authoritative item, so a lost race reconciles from the reply itself instead of refetching. Mutations serialize per Session, so a queued operation always compares against the committed version.
+One message controller and one dialog controller serve each Session. The message controller defers its first read until interaction, serializes mutations, and uses Host versions for compare-and-set updates. The dialog routes a message judgment through `messageFeedback` and a Session remark through `sessionFeedback`. A late successful submission acknowledges the saved feedback without closing a newer draft; disposal prevents later notifications. Slot entries and the bare-command decoration share the plugin lifetime.
 
 </details>
 
@@ -72,7 +72,7 @@ None; feedback mutations leave the model-visible history unchanged.
 
 These limits define the current feedback surface. They are current package constraints, not a general rating comparison or a task backlog.
 
-- **Note size is a Host policy** — the deployment configures `maxNoteBytes` (8192 in the Web bundle) and the Host rejects an oversized note with `note-too-large`. The editor does not pre-check the limit, so an oversized note fails on save rather than while typing.
+- **Note size is a Host policy** — the deployment configures `maxNoteBytes` (8192 in the Web bundle) and the Host rejects an oversized note with `note-too-large`. The dialog does not pre-check the limit, so an oversized message description fails on submit while preserving the draft. Session remarks have no size bound.
 - **No cross-tab push** — a second tab's rating becomes visible on reconnect or on the next conflict reply, not immediately; the controller does not consume feedback log events.
 - **Chat view only** — the trajectory and waterfall views render no feedback controls even though their assistant nodes carry the same `messageId`.
 
@@ -86,4 +86,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No companion is published. The plugin owns one slot registration and one per-session controller map, both released by the same effect disposer. The lifecycle spec proves the registration is withdrawn and every controller is dropped when the owning fiber is disposed, so no second authority exists to check at runtime.
+**Runtime invariant:** No companion is published. Slot registrations, command decoration, and per-session controllers share the plugin lifetime; lifecycle tests observe their removal and reject late publication.

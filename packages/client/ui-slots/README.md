@@ -37,6 +37,8 @@ A register call may declare a store seat with `store: defineStore(...)`: `init` 
 
 ### Declaration discipline
 
+A single Session or optional-Session registration may opt into secondary occurrences with `reusable: true`. This preserves the same component, child-slot declarations, and scoped stores; it does not make undeclared children renderable. The renderer owns explicit Session binding and rejects reuse of any entry that has not opted in.
+
 Declaring a slot is claiming it: the registering entry becomes the only entry allowed to render that key, and registering into an undeclared slot, declaring an already-declared child, mounting one shared handle under two scopes, or registering a chain without `select` throws at load. An entry's disposer collapses its declared child slots recursively — ledger rows, contributions, and store mounts die on one lifecycle axis.
 
 -----

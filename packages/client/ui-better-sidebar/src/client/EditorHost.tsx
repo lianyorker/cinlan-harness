@@ -40,6 +40,7 @@ import { TreePanel } from './TreePanel.tsx'
 import { t } from './locales.ts'
 import { relativeTo } from './paths.ts'
 import { resolveSidebarPath } from './produced-files.ts'
+import { fileSourceScope } from './file-source.ts'
 import type { EditorToolbarControls, EditorToolbarState, FileViewerDescriptor } from './service.ts'
 import { firstLeaf, insertLeafAt, leafWithTab, mintTabId, treeOf, type SidebarStore, type SidebarTab } from './state.ts'
 import css from './sidebar.module.css'
@@ -102,7 +103,9 @@ export function EditorHost(props: {
   onToggleDir: (path: string) => void
   onReferenceFile: (path: string) => void
 }) {
-  const { ctx, store, scope, tab, expanded, onToggleDir, onReferenceFile } = props
+  const { ctx, store, tab, expanded, onToggleDir, onReferenceFile } = props
+  const sourceScope = fileSourceScope(tab)
+  const scope = sourceScope ?? props.scope
   const path = tab.path ?? ''
   const title = tab.title
   const [load, setLoad] = useState<EditorLoad>({ status: 'loading' })
@@ -134,18 +137,26 @@ export function EditorHost(props: {
    * merged mode switches this tab in place (stable id, meta survives);
    * split mode opens a per-path dedupe tab through openSidebarFile.
    */
+  const openFileTab = (absolute: string): void => {
+    if (sourceScope === undefined) {
+      openSidebarFile(ctx, store, scope.sessionId, absolute)
+      return
+    }
+    void ctx.betterSidebar?.openFile(scope, absolute).catch((error: unknown) => {
+      setLoad({ status: 'error', message: error instanceof Error ? error.message : String(error) })
+    })
+  }
+
   const openFile = (absolute: string): void => {
     if (inPlace) {
       ctx.betterSidebar?.updateTab(tab.id, { path: absolute, title: baseName(absolute) })
     } else {
-      openSidebarFile(ctx, store, scope.sessionId, absolute)
+      openFileTab(absolute)
     }
   }
 
   /** The context menu's explicit "new tab" escape (per-path dedupe). */
-  const openFileNewTab = (absolute: string): void => {
-    openSidebarFile(ctx, store, scope.sessionId, absolute)
-  }
+  const openFileNewTab = openFileTab
 
   /**
    * The context menu's "open to the side": a fresh editor tab (uid id — the
@@ -161,7 +172,7 @@ export function EditorHost(props: {
         type: 'editor',
         title: baseName(absolute),
         path: absolute,
-        meta: { treeOpen: false },
+        meta: { treeOpen: false, ...(sourceScope === undefined ? {} : { fileSource: sourceScope }) },
       }
       const { node, leafId } = insertLeafAt(state[key], pane.id, 'row', fresh, false)
       return { ...state, [key]: node, activePane: leafId }

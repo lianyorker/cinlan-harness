@@ -194,6 +194,7 @@ interface FixtureWorkspaceRequests {
     readonly beforeSessionId?: SessionId
   }
   archiveSession: { readonly sessionId: SessionId }
+  unarchiveSession: { readonly sessionId: SessionId }
 }
 
 interface FixtureWorkspaceValues {
@@ -203,6 +204,7 @@ interface FixtureWorkspaceValues {
   insertBefore: { readonly workspaceIds: readonly WorkspaceId[] }
   insertSessionBefore: { readonly workspace: FixtureWorkspaceView }
   archiveSession: { readonly archivedSessionIds: readonly SessionId[] }
+  unarchiveSession: { readonly archivedSessionIds: readonly SessionId[] }
 }
 
 type FixtureWorkspaceApi = {
@@ -471,6 +473,7 @@ function createWorkspaceApi(rpc: ClientConnectionRpc): FixtureWorkspaceApi {
     insertBefore: (request, signal) => call('insertBefore', request, signal),
     insertSessionBefore: (request, signal) => call('insertSessionBefore', request, signal),
     archiveSession: (request, signal) => call('archiveSession', request, signal),
+    unarchiveSession: (request, signal) => call('unarchiveSession', request, signal),
   }
 }
 
@@ -483,6 +486,7 @@ function createWorkspaceClient(rpc: ClientConnectionRpc): FixtureWorkspaceClient
     insertBefore: (request, signal) => api.insertBefore(req(request), signal),
     insertSessionBefore: (request, signal) => api.insertSessionBefore(req(request), signal),
     archiveSession: (request, signal) => api.archiveSession(req(request), signal),
+    unarchiveSession: (request, signal) => api.unarchiveSession(req(request), signal),
   }
 }
 
@@ -1353,6 +1357,29 @@ describe('createFixtureApi', () => {
         sessionIds: [id, 'fx-alpha', 'fx-beta', 'fx-gamma'],
       },
     })
+  })
+
+  it('restores archived Sessions through the preview Remote without changing membership', async () => {
+    const api = createFixtureApi()
+    const abort = new AbortController()
+    const stream = api.workspaceRemote.follow(abort.signal)[Symbol.asyncIterator]()
+    try {
+      const initial = await stream.next()
+      expect(initial.value).toMatchObject({ type: 'baseline', value: { archivedSessionIds: [] } })
+      const original = await readWorkspaceBaseline(api.workspaceRemote)
+      expect((await api.workspace.archiveSession(req({ sessionId: sid('fx-alpha') }))).result)
+        .toMatchObject({ ok: true, value: { archivedSessionIds: ['fx-alpha'] } })
+      expect((await stream.next()).value).toEqual({ type: 'archived', archivedSessionIds: ['fx-alpha'] })
+      expect((await api.workspace.unarchiveSession(req({ sessionId: sid('fx-alpha') }))).result)
+        .toMatchObject({ ok: true, value: { archivedSessionIds: [] } })
+      expect((await stream.next()).value).toEqual({ type: 'archived', archivedSessionIds: [] })
+      expect((await api.workspace.unarchiveSession(req({ sessionId: sid('gone') }))).result)
+        .toMatchObject({ ok: true, value: { archivedSessionIds: [] } })
+      expect(await readWorkspaceBaseline(api.workspaceRemote)).toEqual(original)
+    } finally {
+      abort.abort()
+      await stream.return?.()
+    }
   })
 
   it('supports an empty baseline, preallocated ids, independent streams, and idempotent retry', async () => {

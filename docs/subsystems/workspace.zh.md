@@ -4,6 +4,8 @@
 
 工作区（workspace）是用户工作目录的持久记录：一个建立在规范路径之上的稳定 id、一个显示标题，以及归属于它的会话的有序账本。注册表位于 [dsh-workspace](../../packages/workspace/workspace) 包（package）（`ctx.workspaceRegistry`）——一项宿主侧可选能力，不属于 agent loop（智能体循环）主干，并且对模型不可见（没有工具、没有提示词文本、没有会话事件）。它通过[存储领域数据形式](storage.zh.md)存储自己的记录，并对照 [`SessionHeader.cwd`](persistence.zh.md#sessionheader--metadata-beside-the-log) 校验会话成员资格，因此 `storageDomain` 与 `sessionPersistence` 是必需的启动依赖：持久化这一依赖不可用时，插件保持 pending，而不是把这种不可用误当作空历史。设计记录：[领域 KV 存储 Agent Note（agent 决策记录）](../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.zh.md)；引导与 GUI 顺序：[Workspace UI 产品流程 Agent Note](../../.agents/notes/archived/feature/2026-07-25-workspace-ui-product-flow.md)。
 
+工作区文件预览还使用 [Office 转换服务](../../packages/document/office-to-pdf/README.zh.md) `ctx.officeToPdf`，将已授权的 Office 源文件转换为有大小限制、可缓存的 PDF 结果，不修改源文件。[Workspace Files 服务](../../packages/api/workspace-files/README.zh.md)负责转换或访问缓存前的本地 Session 授权；转换器拥有排队任务、取消与结果字节。包 README 定义其 API、限制与原生引擎要求。
+
 源码：[`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
 
 ## 标识
@@ -276,6 +278,44 @@ Host service backing the generated `ctx.remote.directoryPicker` namespace. The s
 
 Source: [`packages/api/workspace-controller/src/directory-picker.ts`](../../packages/api/workspace-controller/src/directory-picker.ts)
 
+<a id="ctxofficetopdf--officetopdf"></a>
+
+### `ctx.officeToPdf` — `OfficeToPdf`
+
+A provider lifetime owns all converters, queued calls, and temporary files.
+
+```ts cordis-catalog
+/**
+ * Convert Office bytes without modifying the source or writing Session events.
+ * @param request - authorized metadata and deferred bounded source read.
+ * @param signal - caller cancellation; provider disposal also stops active work.
+ * @returns caller-owned PDF bytes after conversion and scratch cleanup settle; canceled readers reject independently.
+ * @throws {OfficeToPdfError} Invalid input, unusable output, or engine failure; cancellation rejects with its reason.
+ */
+convert(request: OfficeToPdfRequest, signal?: AbortSignal): Promise<OfficeToPdfResult>
+
+/**
+ * Read and convert one Office file using the Session's ordinary filesystem authorization.
+ * @param agent - target Agent resolved from the Session identity on the wire.
+ * @param path - absolute or workspace-relative Office path.
+ * @param priority - foreground preview or speculative background work.
+ * @param signal - Remote cancellation; disposal also cancels outstanding reads and conversions.
+ * @returns complete base64 PDF with original source identity and missing font families.
+ */
+@Remote async render( agent: Agent, path: string, priority: OfficeToPdfPriority, signal: AbortSignal, ): Promise<RenderedDocumentBytes>
+
+/**
+ * Read the current rendering generation before reusing a Client PDF.
+ * @param signal - Remote caller cancellation.
+ * @returns provider lifetime, replaced with rendering, font, or engine configuration.
+ */
+@Remote('generation') getGeneration(signal: AbortSignal): OfficeToPdfGeneration
+```
+
+Types: [Agent](core.zh.md) · [OfficeToPdfGeneration](../../packages/document/office-to-pdf/README.zh.md#use-this-package) · [OfficeToPdfPriority](../../packages/document/office-to-pdf/README.zh.md#use-this-package) · [OfficeToPdfRequest](../../packages/document/office-to-pdf/README.zh.md#use-this-package) · [OfficeToPdfResult](../../packages/document/office-to-pdf/README.zh.md#use-this-package) · [RenderedDocumentBytes](../../packages/document/office-to-pdf/README.zh.md#use-this-package)
+
+Source: [`packages/document/office-to-pdf/src/index.ts`](../../packages/document/office-to-pdf/src/index.ts)
+
 <a id="ctxworkspacecontroller--workspacecontroller"></a>
 
 ### `ctx.workspaceController` — `WorkspaceController`
@@ -326,12 +366,21 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 @Remote('archiveSession') archiveSession(request: WorkspaceArchiveSessionRequest): Promise<WorkspaceArchiveValue>
 
 /**
+ * Restore one archived Session to Workspace grouping surfaces.
+ * @param request - Session identity to unarchive.
+ * @returns the complete resulting archive set.
+ */
+@Remote('unarchiveSession') unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<WorkspaceArchiveValue>
+
+/**
  * Stream a complete Workspace baseline followed by ordered increments.
  * @param signal - generation cancellation.
  * @returns baseline followed by ordered Workspace increments.
  */
 @Remote({ mode: 'stream' }) follow(signal: AbortSignal): AsyncIterable<WorkspaceFollowFrame>
 ```
+
+Types: [WorkspaceUnarchiveSessionRequest](../../packages/api/workspace-controller/README.zh.md#use-this-package)
 
 Source: [`packages/api/workspace-controller/src/index.ts`](../../packages/api/workspace-controller/src/index.ts)
 
@@ -576,6 +625,18 @@ insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly Workspac
  * @returns resolution after durability.
  */
 archiveSession(sessionId: SessionId): Promise<void>
+
+/**
+ * Unarchive one session durably by dropping it from the registry-global
+ * archive set; the accounting slot was never touched, so the session
+ * returns to its recorded position. Unarchiving runs no session-existence
+ * check because removing an id cannot introduce an unknown one, so an
+ * entry whose session is gone still resolves. An id that is not archived
+ * resolves without writing.
+ * @param sessionId - The session to unarchive.
+ * @returns resolution after durability.
+ */
+unarchiveSession(sessionId: SessionId): Promise<void>
 
 /**
  * Resolve by canonical directory path without creating or mutating a

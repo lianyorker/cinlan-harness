@@ -192,6 +192,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
       readonly requestedCwd: string
       readonly existingCwd?: string
     }
+    'session/writer-held': { readonly sessionId: SessionId }
     'session/agent-busy': { readonly reason: string }
     'session/invalid-time-zone': { readonly value: string }
     'session/workspace-attach-failed': { readonly sessionId: SessionId; readonly workspaceId: string }
@@ -365,6 +366,8 @@ export interface SessionCancelValue {
 export interface SessionOpenWorkspacePathRequest {
   /** Path after best-effort Session workspace resolution, in Host filesystem syntax. */
   readonly path: string
+  /** File-manager reveal when requested; omission opens the registered application. */
+  readonly action?: 'open' | 'reveal'
 }
 
 /** Confirmation that the Host handed a workspace path to its native opener. */

@@ -33,7 +33,7 @@ A multi-select draft keeps its selected labels while the user opens or edits the
 
 ### The plan-review card
 
-A `plan-review` intent — set by `dsh-plan-mode` on the `exit_plan_mode` review — renders the waiting-approval card layout: a `Plan review` strip, the plan as the scrolling markdown body, and one decision row of `Chat about it` / `Refuse` / `Approve`. Approve and Refuse answer with the asker's own option labels; `Chat about it` rejects the wait as `ASK_CANCELLED`, returning the composer so the user can say what they want instead.
+A `plan-review` intent — set by `dsh-plan-mode` on the `exit_plan_mode` review — renders a `Plan review` strip, the plan title and first-paragraph summary, and one decision row of `Chat about it` / `Refuse` / `Approve`. The `conversation.plan-review.actions` list lets an optional preview consumer open the full document in a sidebar; opening it does not answer the request. Approve and Refuse answer with the asker's own option labels; `Chat about it` rejects the wait as `ASK_CANCELLED`, returning the composer so the user can say what they want instead.
 
 ### Failure and recovery
 
@@ -68,7 +68,7 @@ These pages cover the composer host, the tool seam, and the plan-mode consumer.
 
 - [ui-conversation](../ui-conversation/README.md) — the chat surface owning the `conversation.composer` chain.
 - [tool-ask-user](../../interaction/tool-ask-user/README.md) — the model-facing tool whose schema and answers this UI renders.
-- [ui-plan](../ui-plan/README.md) — the plan-mode surface that sets the `plan-review` intent.
+- [ui-plan](../ui-plan/README.md) — plan-mode controls and optional full-plan preview navigation.
 - [user-questions](../../interaction/user-questions/README.md) — the Host-side question seam and its answerer waterfall.
 
 -----

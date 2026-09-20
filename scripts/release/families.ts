@@ -16,6 +16,7 @@ import {
   readClientBuildRecord,
 } from '../client-build-environment.ts'
 import { validateTarballPayload } from '../publication-payload.ts'
+import { isPublicExperimentalPackage, PUBLIC_EXPERIMENTAL_PACKAGES } from '../experimental-package-policy.ts'
 
 /**
  * Dependency sections a consumer must publish after, because npm resolves them
@@ -321,8 +322,28 @@ export abstract class ReleaseFamily {
 /** Release packages and apps: one shared version across the whole family. */
 class DshFamily extends ReleaseFamily {
   readonly id = 'dsh'
-  readonly patterns = ['packages/!(experimental)/*/package.json', 'apps/*/package.json'] as const
+  readonly patterns = [
+    'packages/!(experimental)/*/package.json',
+    'apps/*/package.json',
+    ...Object.keys(PUBLIC_EXPERIMENTAL_PACKAGES).map(directory => `${directory}/package.json`),
+  ] as const
   readonly tagPrefix = 'dsh-v'
+
+  /**
+   * Discover release members and require exact names for the experimental imports.
+   * @param root - repository root.
+   * @returns Publishable members sorted by directory.
+   */
+  override members(root: string): ReleaseMember[] {
+    const members = super.members(root)
+    for (const member of members) {
+      if (member.directory.startsWith('packages/experimental/')
+        && !isPublicExperimentalPackage(member.directory, member.name)) {
+        throw new Error(`${member.directory}: package name is not in the public experimental allowlist: ${member.name}`)
+      }
+    }
+    return members
+  }
 
   /** Require current artifacts from a complete official client build. */
   override verifyBuildArtifacts(root: string): void {

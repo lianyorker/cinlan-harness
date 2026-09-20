@@ -833,6 +833,11 @@ Validated Remote calls over the sole sidebar terminal provider; owns no PTYs.
  */
 @Remote capability(): SidebarTerminalCapability
 
+/** Discover installed local shells for a new UI tab.
+ * @returns Verified executable paths and display names; does not create a process.
+ */
+@Remote shells(): readonly SidebarTerminalShell[]
+
 /**
  * Attach to a terminal and forward acknowledged output without buffering it.
  * @param request - Immutable target and integer geometry from 1 through 1024.
@@ -886,7 +891,7 @@ Validated Remote calls over the sole sidebar terminal provider; owns no PTYs.
 @Remote closeAgent(uuid: SidebarAgentTerminalId): void
 ```
 
-Types: [SidebarAgentTerminalId](terminal.zh.md) · [SidebarAgentTerminalSnapshot](terminal.zh.md) · [SidebarTerminalAckRequest](terminal.zh.md) · [SidebarTerminalCapability](terminal.zh.md) · [SidebarTerminalCloseUiRequest](terminal.zh.md) · [SidebarTerminalFrame](terminal.zh.md) · [SidebarTerminalInputRequest](terminal.zh.md) · [SidebarTerminalOpenRequest](terminal.zh.md) · [SidebarTerminalProcessId](terminal.zh.md) · [SidebarTerminalReleaseRequest](terminal.zh.md) · [SidebarTerminalResizeRequest](terminal.zh.md) · [SidebarTerminalSessionId](terminal.zh.md) · [SidebarTerminalUiTarget](terminal.zh.md)
+Types: [SidebarAgentTerminalId](terminal.zh.md) · [SidebarAgentTerminalSnapshot](terminal.zh.md) · [SidebarTerminalAckRequest](terminal.zh.md) · [SidebarTerminalCapability](terminal.zh.md) · [SidebarTerminalCloseUiRequest](terminal.zh.md) · [SidebarTerminalFrame](terminal.zh.md) · [SidebarTerminalInputRequest](terminal.zh.md) · [SidebarTerminalOpenRequest](terminal.zh.md) · [SidebarTerminalProcessId](terminal.zh.md) · [SidebarTerminalReleaseRequest](terminal.zh.md) · [SidebarTerminalResizeRequest](terminal.zh.md) · [SidebarTerminalSessionId](terminal.zh.md) · [SidebarTerminalShell](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime) · [SidebarTerminalUiTarget](terminal.zh.md)
 
 Source: [`packages/api/sidebar-terminal-controller/src/index.ts`](../../packages/api/sidebar-terminal-controller/src/index.ts)
 

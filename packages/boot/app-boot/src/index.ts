@@ -19,6 +19,10 @@ import { dshHomePath, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { createLaunchEnvironmentSnapshot, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
 import type {} from '@deepseek-ai/cordis-plugin-hmr'
 import type {} from '@deepseek-ai/dsh-system-prompt'
+import { runProfileConfiguration } from './profile-configuration.ts'
+
+export { readProfilePatches, resolveTelemetryPatch, type ProfileContext, type ProfilePnpmInvocation } from './profile-context.ts'
+export { prepareProfilePatches, runProfileConfiguration, watchProfilePatches } from './profile-configuration.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -219,6 +223,40 @@ export function loadLayeredEnv(
 
 const bootstrapIncludes = new WeakMap<Context, Entry>()
 
+/** Apply one complete patch generation and wait for Loader activation diagnostics.
+ * @param ctx Booted root context.
+ * @param patches Complete ordered patch list.
+ * @param binName Diagnostic prefix.
+ * @param requiredIds Explicit enablement targets whose existing failures also reject reconciliation.
+ * @returns Diagnostics for unchanged pre-existing inactive entries; new or changed failures reject.
+ */
+export async function reconcileProfilePatches(
+  ctx: Context, patches: PatchOptions[], binName: string, requiredIds: readonly string[] = [],
+): Promise<string[]> {
+  const entry = bootstrapIncludes.get(ctx)
+  if (entry === undefined) throw new Error(`${binName}: profile reload requires the root Include entry`)
+  const previousFailures = (await inactiveEntries(ctx)).map(failure => ({
+    ...failure, diagnostic: inactiveDiagnostic(failure), fiber: failure.entry.fiber, options: JSON.stringify(failure.entry.options),
+  }))
+  // Removed entries leave the Loader store before their async disposers finish.
+  const previousFibers = [...ctx.loader.entries()].flatMap(row => row.fiber === undefined ? [] : [{
+    fiber: row.fiber, failed: row.fiber.state === FIBER_FAILED || row.fiber.state === FIBER_DISPOSED,
+  }])
+  const { patches: _previous, ...includeConfig } = entry.options.config as Include.Config
+  await entry.update({ config: { ...includeConfig, patches } })
+  const results = await Promise.allSettled(previousFibers.map(({ fiber }) => fiber.await()))
+  await ctx.loader.await()
+  const failures = await inactiveEntries(ctx)
+  const introduced = failures.filter(failure => requiredIds.includes(failure.entry.options.id) || !previousFailures.some(previous =>
+    previous.entry === failure.entry && previous.fiber === failure.entry.fiber
+    && previous.options === JSON.stringify(failure.entry.options) && previous.diagnostic === inactiveDiagnostic(failure)))
+  if (introduced.length > 0) throw new Error(`${binName}: profile entries did not activate\n${introduced.map(inactiveDiagnostic).join('\n')}`)
+  for (const [index, result] of results.entries()) {
+    if (result.status === 'rejected' && !previousFibers[index]?.failed) throw result.reason
+  }
+  return failures.map(inactiveDiagnostic)
+}
+
 // The include's YAML dialect (`!!js` scalars become expression nodes the
 // Loader interpolates against each entry's injection-ready context), imported
 // from the include itself so patch parsing and config dumping can never drift
@@ -258,7 +296,7 @@ export async function watchUserPatches(
   if (hmr === undefined) throw new Error(`${binName}: user patch-layer watching requires the Cordis HMR service`)
   const entry = bootstrapIncludes.get(ctx)
   if (entry === undefined) throw new Error(`${binName}: user patch-layer watching requires the root Include entry`)
-  const register = hmr.registerConfig(filename, async () => {
+  const register = hmr.registerConfig(filename, () => runProfileConfiguration(ctx, async () => {
     // Re-read the include's non-patch options per refresh so a writer that
     // updates another option between refreshes is not silently reverted.
     const { patches: _previousPatches, ...includeConfig } = entry.options.config as Include.Config
@@ -270,7 +308,7 @@ export async function watchUserPatches(
         patches,
       },
     })
-  })
+  }))
   try {
     return await register
   } catch (error) {
@@ -703,6 +741,7 @@ export function assertEntriesLoaded(ctx: Context, binName: string): void {
 const FIBER_PENDING = 0 as FiberState.PENDING
 const FIBER_ACTIVE = 2 as FiberState.ACTIVE
 const FIBER_FAILED = 3 as FiberState.FAILED
+const FIBER_DISPOSED = 4 as FiberState.DISPOSED
 
 /** Render a thrown plugin value without discarding an Error's original stack. */
 function formatActivationError(error: unknown): string {
@@ -723,37 +762,56 @@ function formatActivationError(error: unknown): string {
  */
 export async function assertEntriesActivated(ctx: Context, binName: string): Promise<void> {
   assertEntriesLoaded(ctx, binName)
-  const failures: string[] = []
+  const failures = await inactiveEntries(ctx)
+  if (failures.length > 0) {
+    const noun = failures.length === 1 ? 'entry' : 'entries'
+    throw new Error(
+      `${binName}: ${String(failures.length)} ${noun} did not activate\n${failures.map(({ entry, diagnostic }) => `${entry.options.name}: ${diagnostic}`).join('\n')}`,
+    )
+  }
+}
+
+interface InactiveEntry {
+  entry: Entry
+  diagnostic: string
+}
+
+/** Collect enabled inactive entries while retaining their Loader identity for reload comparisons. */
+async function inactiveEntries(ctx: Context): Promise<InactiveEntry[]> {
+  const failures: InactiveEntry[] = []
   const rejectionReasons: unknown[] = []
+  const add = (entry: Entry, diagnostic: string): void => { failures.push({ entry, diagnostic }) }
   for (const entry of ctx.loader.entries()) {
+    try {
+      if (entry.disabled) continue
+    } catch (error) {
+      add(entry, 'disabled expression failed: ' + formatActivationError(error))
+      continue
+    }
     const fiber = entry.fiber
-    if (fiber === undefined || entry.disabled) continue
+    if (fiber === undefined) { add(entry, 'failed to import'); continue }
     const state = fiber.state
     if (state === FIBER_ACTIVE) continue
     if (state === FIBER_FAILED) {
-      try {
-        await fiber.await()
-      } catch (error) {
-        rejectionReasons.push(error)
-        failures.push(`${entry.options.name}: ${formatActivationError(error)}`)
-      }
+      try { await fiber.await() }
+      catch (error) { rejectionReasons.push(error); add(entry, formatActivationError(error)) }
       continue
     }
     if (state === FIBER_PENDING) {
       const missing = Object.keys(fiber.inject).filter(service => fiber.ctx.get(service) === undefined)
       const subject = missing.length === 1 ? 'service' : 'services'
-      failures.push(`${entry.options.name}: pending (waiting for ${subject}: ${missing.join(', ') || 'unknown'})`)
+      add(entry, 'pending (waiting for ' + subject + ': ' + (missing.join(', ') || 'unknown') + ')')
     } else {
-      failures.push(`${entry.options.name}: fiber state ${String(state)}`)
+      add(entry, 'fiber state ' + String(state))
     }
   }
-  if (failures.length > 0) {
-    if (rejectionReasons.length > 0) {
-      await observeLoaderRejectionCheckpoint(rejectionReasons)
-    }
-    const noun = failures.length === 1 ? 'entry' : 'entries'
-    throw new Error(`${binName}: ${String(failures.length)} ${noun} did not activate\n${failures.join('\n')}`)
-  }
+  if (rejectionReasons.length > 0) await observeLoaderRejectionCheckpoint(rejectionReasons)
+  return failures
+}
+
+/** Include the patch id in stable per-entry management diagnostics. */
+function inactiveDiagnostic({ entry, diagnostic }: InactiveEntry): string {
+  return entry.options.id + ' (' + entry.options.name + '): ' + diagnostic
 }
 
 /**

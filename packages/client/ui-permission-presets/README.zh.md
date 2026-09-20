@@ -63,6 +63,8 @@ kind: "package-reference"
 
 -----
 
+当可选的 [AutoReview bundle](../../experimental/auto-review/README.zh.md) 提供 `auto` 时，当前会话选择器会显示本地化的实验性标签和独立风险确认。Auto 不会出现在 General 设置的默认值行中；该 bundle 不增加设置分节。
+
 <a id="model-experience"></a>
 ## 模型体验
 

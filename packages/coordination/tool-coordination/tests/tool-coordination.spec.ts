@@ -38,8 +38,8 @@ async function setup(config: Partial<tool.Config> = {}, coordinationConfig: Coor
   const toolFiber = await ctx.plugin(tool, { defaultExecutor: 'test', waitTimeoutMs: 10, maxWaitTimeoutMs: 100, ...config })
   const owner = fakeAgent(ctx, 'owner')
   const other = fakeAgent(ctx, 'other')
-  const removeOwner = ctx.agents.register(owner)
-  ctx.agents.register(other)
+  const removeOwner = await ctx.agents.register(owner)
+  await ctx.agents.register(other)
   return { ctx, owner, other, removeOwner, toolFiber }
 }
 
@@ -280,7 +280,7 @@ describe('tool-coordination', () => {
     expect(foreign.isError).toBe(true)
     expect(foreign.content.map(block => block.type === 'text' ? block.text : '').join('')).toContain('unknown or inaccessible')
 
-    removeOwner()
+    await removeOwner()
     await vi.waitFor(() => { expect(ctx.coordination.getRun(RunId(runId))).toMatchObject({ status: 'cancelled' }) })
     const stale = await call(ctx, owner, 'coordination_status', { run_id: runId })
     expect(stale.isError).toBe(true)
@@ -524,7 +524,7 @@ describe('tool-coordination', () => {
     await ctx.plugin(subagentExecutor, { provider: 'stub' })
     await ctx.plugin(tool, {})
     const owner = fakeAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    await ctx.agents.register(owner)
 
     const started = value(await call(ctx, owner, 'coordination_start', { tasks: [
       { task_id: 'child-task', label: 'Child Task', prompt: 'do it' },

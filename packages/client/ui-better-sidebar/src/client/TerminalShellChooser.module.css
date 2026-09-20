@@ -1,0 +1,27 @@
+.chooser {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  padding: 20px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.select {
+  max-width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-border-primary);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-base);
+  color: inherit;
+  font: inherit;
+}

@@ -7,7 +7,7 @@ import {
 import type {
   AgentContext, ISessions, ProjectionsFace, SessionBinding, SessionFace, SessionListState,
   SessionEventLikeEntry, SessionLiveEventEntry, SessionSearchResultItem,
-  SessionSnapshot, SessionSummary, SubmissionHandle,
+  SessionReference, SessionSnapshot, SessionSummary, SubmissionHandle,
 } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionRequestId } from '@deepseek-ai/dsh-api-session-controller/types'
 import type { SubagentAddress } from '@deepseek-ai/dsh-subagent/client'
@@ -177,6 +177,7 @@ interface SessionRecord {
   scope: AgentContext | undefined
   scopeFiber: { dispose(): Promise<void> } | undefined
   binding: SessionBinding | undefined
+  readonly references: Set<(reason?: unknown) => void>
 }
 
 /**
@@ -197,7 +198,7 @@ export class TestSessions implements ISessions {
 
   /** Calls observed on the service-level face, newest last. */
   readonly calls: {
-    method: 'create' | 'open' | 'openSubagent' | 'setSubagentCatalogOpen' | 'refreshSubagents'
+    method: 'create' | 'open' | 'openSubagent' | 'retainSubagent' | 'setSubagentCatalogOpen' | 'refreshSubagents'
       | 'clear' | 'refresh' | 'search' | 'fork'
     args: unknown[]
   }[] = []
@@ -252,6 +253,7 @@ export class TestSessions implements ISessions {
       scope: undefined,
       scopeFiber: undefined,
       binding: undefined,
+      references: new Set(),
     })
     await this.stabilize(() => {
       this.list.update((draft) => {
@@ -372,6 +374,9 @@ export class TestSessions implements ISessions {
       const handle = createScope(this.rootCtx, id as SessionId)
       record.scope = handle.ctx
       record.scopeFiber = handle.fiber
+      handle.ctx.effect(() => () => {
+        for (const release of [...record.references]) release(new Error(`test session "${id}" scope is disposed`))
+      }, 'test-sessions.references')
     }
     return record.scope
   }
@@ -453,10 +458,49 @@ export class TestSessions implements ISessions {
     })
   }
 
-  /** Resolve the current fixture's retained catalog address. */
+  /**
+   * Retain an existing fixture without changing its current selection.
+   * @param address - exact healthy child address from the fixture catalog.
+   * @param options - optional cancellation of this reference throughout its lifetime.
+   * @returns an immediately addressable reference; fixture data supplies its ready history.
+   */
+  retainSubagent(address: SubagentAddress, options?: { signal?: AbortSignal }): SessionReference {
+    const signal = options?.signal
+    signal?.throwIfAborted()
+    const record = this.require(address.childSessionId)
+    const catalog = this.list.getSnapshot().subagentsByParent[address.parentSessionId]
+    const entry = catalog?.entries.find(candidate => candidate.id === address.childSessionId)
+    if (entry?.kind !== 'child' || entry.mode !== address.mode) {
+      throw new Error(`test session "${address.childSessionId}" is not a healthy catalog child`)
+    }
+    this.calls.push({ method: 'retainSubagent', args: [address, options] })
+    this.binding(address.childSessionId)
+    record.snapshot.update((draft) => {
+      draft.subagent = {
+        address,
+        ...(catalog?.parentAvailable === undefined ? {} : { parentAvailable: catalog.parentAvailable }),
+      }
+    })
+    const readiness = Promise.withResolvers<void>()
+    const release = (reason: unknown = new Error('test Session reference is released')): void => {
+      if (!record.references.delete(release)) return
+      signal?.removeEventListener('abort', onAbort)
+      readiness.reject(reason)
+    }
+    const onAbort = (): void => { release(signal?.reason) }
+    record.references.add(release)
+    signal?.addEventListener('abort', onAbort, { once: true })
+    // Fixture removal may release a reference whose consumer never awaits ready.
+    void readiness.promise.catch(() => {})
+    if (signal?.aborted) onAbort()
+    else queueMicrotask(() => { readiness.resolve() })
+    return { sessionId: address.childSessionId, ready: readiness.promise, release }
+  }
+
+  /** Resolve the current or retained fixture's catalog address. */
   subagentAddress(id: SessionId): SubagentAddress | undefined {
     const address = this.list.getSnapshot().currentAddress
-    return address?.childSessionId === id ? address : undefined
+    return address?.childSessionId === id ? address : this.records.get(id)?.snapshot.getSnapshot().subagent?.address
   }
 
   /** Record catalog consumption; fixture callers drive snapshots explicitly. */

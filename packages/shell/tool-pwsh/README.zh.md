@@ -74,6 +74,7 @@ kind: "package-reference"
 ### 设计理念
 
 - **`dsh-tool-bash` 的刻意孪生。** 前台与后台执行、受管环境、沙箱升权面以及标记／截断渲染都逐调用镜像 bash 工具，因此其中之一的消费方也能接受另一个的协议形状（[pwsh 工具与 bash 对齐 Agent Note](../../../.agents/notes/implemented/feature/2026-08-02-pwsh-tool-bash-parity.zh.md)）。
+- **后台准入保持同步。** 工具的 `processJob` 适配器在 shell 准备异步运行时返回 `JobHooks`。它负责取消准备，并在结算前等待任何延迟出现的进程句柄终止；`ctx.jobs` 负责 job id、所有权、完成通知与释放。
 - **PowerShell 方言约定。** 工具约定是 PowerShell：原生路径与 `$env:` 变量，经由 `pwsh -Command` 执行，没有中间 shell。
 - **Windows 沙箱事实写进描述。** ConstrainedLanguage 与命名管道约定是 Windows 受限令牌行为；教授它们的条件是「已挂载任意约束执行器」，之所以安全，是因为每个已发布的配对都是 win32-only。
 - **非零退出只报告、不失败。** 只有基础设施故障（spawn 错误、中止）才会作为工具错误暴露，与 bash 的故事一致。
@@ -83,7 +84,7 @@ kind: "package-reference"
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口：工具注册、提示词区段、参数校验、升权、请求组装 |
-| [`src/background.ts`](src/background.ts) | 把已结算的后台进程映射为通用任务结果词汇 |
+| [`src/background.ts`](src/background.ts) | 负责准备取消，并将进程输出与结算适配为通用任务 |
 | [`src/render.ts`](src/render.ts) | 模型侧结果文本：流、标记、截断通知（bash 孪生） |
 | — | 不发布运行时不变式伴生入口；执行关系归能力 seam 所有。 |
 

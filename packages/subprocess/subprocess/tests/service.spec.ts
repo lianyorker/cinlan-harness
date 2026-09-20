@@ -20,6 +20,10 @@ class StubSubprocessRuntime extends SubprocessRuntime {
     return `/bin/${command}`
   }
 
+  async terminalEnvironment() {
+    return { platform: 'posix' as const, defaultShell: '/bin/sh' }
+  }
+
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     const read: SubprocessOutputRead = { text: '', nextOffset: 0, lossy: false }
     const collected = spec.stdio.stdout !== 'pipe' && spec.stdio.stdout !== 'inherit'
@@ -29,6 +33,7 @@ class StubSubprocessRuntime extends SubprocessRuntime {
       stdin: undefined,
       stdout: undefined,
       stderr: undefined,
+      control: undefined,
       collected,
       done: Promise.resolve({ exitCode: 0, signal: null }),
       terminate: () => {},
@@ -42,6 +47,8 @@ class StubSubprocessRuntime extends SubprocessRuntime {
       output: new PassThrough(),
       done: Promise.resolve({ exitCode: 0, signal: null }),
       write: async () => {},
+      resize: async () => {},
+      inspectActivity: async () => ({ state: 'unknown' as const, revision: 0 }),
       inspectForeground: async () => ({ processGroupId: 1, inputWaiting: true }),
       signalForeground: async () => 1,
       terminate: async () => {},

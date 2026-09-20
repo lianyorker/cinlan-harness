@@ -196,6 +196,13 @@ matchFileViewer(path: string, head?: Uint8Array): FileViewerDescriptor | undefin
 openTab(seed: OpenTabSeed, scope?: SessionScope): void
 
 /**
+ * Open a child conversation alongside its parent without changing main selection.
+ * @param address - Durable direct-parent child address.
+ * @param scope - Sidebar layout owner; defaults to the current session.
+ */
+openSubagentChat(address: SidebarSubagentAddress, scope?: SessionScope): void
+
+/**
  * Close a tab by id (fires descriptor.onClose). An unknown tab id is a
  * strict no-op (no state churn, no callbacks). `scope` (v0.12.0+) rides
  * to the callback (its optional cwd included); absent, the callback gets
@@ -240,13 +247,17 @@ updateTab(tabId: string, patch: { title?: string; path?: string; meta?: unknown 
  */
 activateTab(tabId: string, scope?: SessionScope): void
 
-/** Open a file in the sidebar editor of `scope`'s session (title defaults to the file name).
- * @param scope - Target Session.
- * @param path - File path to open.
+/** Open a file in the visible sidebar layout, retaining its source Session for file access.
+ * Relative paths use the source cwd; without a visible Session, the source layout receives the tab.
+ * @param scope - Source Session, with its cwd when already known.
+ * @param path - Absolute path or path relative to the target Session's cwd.
  * @param title - Tab title; omitted uses the file name.
+ * @returns Resolves after opening; rejects when an unknown cwd cannot be resolved from the Host.
  */
-openFile(scope: SessionScope, path: string, title?: string): void
+openFile(scope: SessionScope, path: string, title?: string): Promise<void>
 ```
+
+Types: [SidebarSubagentAddress](../../packages/client/ui-better-sidebar/README.md#-features)
 
 Source: [`packages/client/ui-better-sidebar/src/client/service.ts`](../../packages/client/ui-better-sidebar/src/client/service.ts)
 <!-- END GENERATED cordis-surface -->

@@ -38,6 +38,8 @@ Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有�
 
 设置不可用或只读时，控件会停用。推理等级仅提供所选路由公布的选项。写入被拒时不会显示已保存；冲突会显示恢复后的 Host 值，重试保存会使用这些值的 revision 重新提交原先的选择。
 
+其他 DSH 实例占用 Session 写入权时，composer 选择器与 `/model` 都显示本地化提示，建议退出其他正在运行的实例后重试。其他选择失败保留诊断错误码与消息。
+
 ### 不可路由的会话
 
 当宿主报告没有适配器服务该会话的路由时，本插件注册一个 composer 阻塞块，输入随本插件自己的文案停用；恢复后无需重新加载即清除。首次加载之前或加载失败之后的 `null` 绝不阻断；目录成员关系同样不阻断——一条仍在服务、只是不公布该模型的路由不在分组里，却可用。
@@ -51,6 +53,8 @@ Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有�
 <summary>实现细节——点击展开</summary>
 
 `ModelDirectoryResolver`（`ctx.modelDirectories`）持有一份 Host 代次级 `ModelCatalogDirectory` 与按会话惰性创建的 `ModelDirectory` 投影。`/model` 弹窗与 composer 模型位经 `session.selectModel` 提交，并共享各会话的目录；已寻址 subagent 会话不公开任一选择器。转发的适配器、设置与凭据失效通知会刷新共享目录。
+
+`ModelDirectory.select()` 返回本次操作的 `RemoteResult<void>`，因此即使后续目录更新改变共享目录错误，每个选择器仍能呈现自身操作的失败。
 
 默认值贡献项经 SettingsScope 绑定 `agent-default-model`，并通过呈现器钩子公开该 scope 与同一份目录。原子变更使用 scope 的 revision 校验、队列与恢复读取。保存确认会比较三个原始用户层字段，包括取消覆盖操作后的字段自有存在性；仅 promise 结束或有效值相同均不能宣告成功。控件与本地化搜索条目共享可选 `settings.models.defaults` slot 的生命周期。
 

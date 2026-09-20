@@ -213,6 +213,7 @@ function fakeChild(options: FakeChildOptions = {}): FakeChild {
     stdin: toChild,
     stdout: fromChild,
     stderr,
+    control: undefined,
     collected: {},
     done,
     terminate,

@@ -14,6 +14,7 @@ import {
 import type { CommandHandle, CommandResult, Sandbox } from '@deepseek-ai/dsh-e2b'
 import type {
   SubprocessOutcome,
+  SubprocessTerminalActivity,
   SubprocessTerminalForeground,
   SubprocessTerminalHandle,
   SubprocessTerminalSignal,
@@ -311,6 +312,19 @@ export class E2BTerminalHandle implements SubprocessTerminalHandle {
   }
 
   /** @inheritdoc */
+  resize(cols: number, rows: number): Promise<void> {
+    return this.trackOperation(async (signal) => {
+      if (this.topLevelExited) throw new Error('terminal process has exited')
+      await this.sandbox.pty.resize(this.pid, { cols, rows }, { signal })
+    })
+  }
+
+  /** E2B does not expose positive shell lifecycle evidence for idle reclamation. */
+  inspectActivity(): Promise<SubprocessTerminalActivity> {
+    return Promise.resolve({ state: 'unknown', revision: 0 })
+  }
+
+  /** @inheritdoc */
   inspectForeground(): Promise<SubprocessTerminalForeground | undefined> {
     return this.trackOperation(signal => this.inspectForegroundOnce(signal))
   }
@@ -479,7 +493,7 @@ export async function spawnE2BTerminal(
   try {
     const ambient = await readRemoteEnvironment(sandbox, spec.signal)
     controlEnvs = bootstrapEnvironment(ambient)
-    const environment = serializeRemoteEnvironment(ambient, spec.env)
+    const environment = serializeRemoteEnvironment(ambient, { ...spec.env, TERM: spec.terminalType })
     const argv = serializeValues(spec.argv, 'argv')
     stateDirectoryCreated = true
     await sandbox.files.makeDir(stateDir, signalOpts(spec.signal))

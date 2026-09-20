@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-07-12-subagent-persona-tool-filter-and-depth.md
-2026-07-12-subagent-persona-tool-filter-and-depth.md: 511e340c81b811ebcaaea48946c377c99c53da54
-2026-07-12-subagent-persona-tool-filter-and-depth.zh.md: 8a213f33a9b70a9bdec6f23b5bec4db5d94f110f
+2026-07-12-subagent-persona-tool-filter-and-depth.md: 4e68ed9bfce981d4e787c02122941ca42926cc5c
+2026-07-12-subagent-persona-tool-filter-and-depth.zh.md: 8625f1e4476cf167fec14844f929c00ce59ba881

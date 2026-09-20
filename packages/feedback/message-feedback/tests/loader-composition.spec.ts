@@ -6,7 +6,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
-import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import SessionStore, { Session, SessionId } from '@deepseek-ai/dsh-session'
+import { recordFeedback } from '@deepseek-ai/dsh-command-feedback'
 import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import MessageFeedbackService from '../src/index.ts'
@@ -51,7 +52,7 @@ async function loadComposition(configPath: string): Promise<Context> {
 }
 
 describe('message feedback through a real Loader composition', () => {
-  it('persists canonical feedback across live and cold operations', async () => {
+  it.each([undefined, 'task-result'] as const)('reopens native v3 feedback with category %s across live and cold operations', async (category) => {
     root = await mkdtemp(join(tmpdir(), 'dsh-message-feedback-loader-'))
     const configPath = join(root, 'cordis.yml')
     await writeFile(configPath, [
@@ -91,11 +92,20 @@ describe('message feedback through a real Loader composition', () => {
     // batches and `session/flush` barriers into its active write handle.
     const writeHandle = await first.sessionPersistence.create(session.header)
     const fixture = appendMessageFixture(session)
+    const messages = session.deriveMessages()
+    const records = [
+      { text: 'text without a category' },
+      { text: 'categorized remark', category: 'product-interaction' as const },
+      { category: 'service-stability' as const },
+      {},
+    ]
+    for (const record of records) recordFeedback(session, record)
     const put = await first.messageFeedback.put({
       sessionId: session.id,
       messageId: fixture.assistantMessageIds[0],
       rating: 'positive',
       note: 'survives restart',
+      ...(category === undefined ? {} : { category }),
       ifVersion: null,
     })
     if (!put.ok) throw new Error(`expected put success, got ${put.error.code}`)
@@ -115,6 +125,23 @@ describe('message feedback through a real Loader composition', () => {
       ok: true,
       value: { items: [put.value] },
     })
+    const reopened = await second.sessionPersistence.open(session.id, 'read')
+    try {
+      const { events, eventState } = await reopened.read()
+      expect(reopened.header.version).toBe(3)
+      const restored = Session.fromRestore(
+        session.id, events, reopened.header, reopened.inheritedEventCount, eventState,
+      )
+      expect(restored.snapshotEvents().filter(event => event.type === 'feedback/record').map(event => event.data))
+        .toEqual(records)
+      const feedback = restored.snapshotEvents().find(event => event.type === 'feedback/message-put')
+      expect(feedback?.data.item).toEqual(put.value)
+      if (category === undefined) expect(feedback?.data.item).not.toHaveProperty('category')
+      else expect(feedback?.data.item.category).toBe(category)
+      expect(restored.deriveMessages()).toEqual(messages)
+    } finally {
+      await reopened.close()
+    }
     const edited = await second.messageFeedback.put({
       sessionId: session.id,
       messageId: fixture.assistantMessageIds[0],

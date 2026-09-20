@@ -45,7 +45,7 @@ describe('scoped-dispatch invariants', () => {
       source: { kind: 'user' },
     })
     const agentRows = {
-      'agent/created': [{ agent }],
+      'agent/created': [{ agent, source: 'startup', signal }],
       'agent/disposed': [{ agent }],
       'agent/status': [{ agent, status: 'idle' }],
       'agent/inbox/inserted': [{ agent, message }],
@@ -89,6 +89,11 @@ describe('scoped-dispatch invariants', () => {
     ]
 
     for (const [event, args] of rows) {
+      if (event === 'agent/created') {
+        await expect(ctx.serial(scopeTarget(agent, agent), event, agentRows[event][0])).resolves.toBeUndefined()
+        await expect(ctx.serial(scopeTarget(agent, other), event, agentRows[event][0])).rejects.toThrow(/DIFFERENT subject/)
+        continue
+      }
       expect(() => { emit(ctx, scopeTarget(agent, agent), event, args) }, `${event} matching`).not.toThrow()
       expect(() => { emit(ctx, scopeTarget(agent, other), event, args) }, `${event} mismatched`)
         .toThrow(/DIFFERENT subject/)

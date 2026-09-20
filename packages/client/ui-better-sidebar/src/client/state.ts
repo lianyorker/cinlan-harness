@@ -62,9 +62,10 @@ export function createTerminalTab(
         : `terminal:${context.windowId}:${state.nextTerminal}`,
       type: 'terminal',
       title,
-      ...(context === undefined ? {} : {
-        meta: { terminalFloating: { windowId: context.windowId, directory: context.directory } },
-      }),
+      meta: {
+        terminalLaunch: { pending: true },
+        ...(context === undefined ? {} : { terminalFloating: { windowId: context.windowId, directory: context.directory } }),
+      },
     },
     patch: { nextTerminal: state.nextTerminal + 1 },
   }

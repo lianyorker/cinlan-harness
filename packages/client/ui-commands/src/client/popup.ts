@@ -15,11 +15,11 @@ import type { TokenSpan } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type { SelectOption } from './contract.ts'
 
 /**
- * The command token segment snapshotted at shell-open time, replayed to the
- * injected {@link PopupSelectDeps.consume} callback after a successful
- * selection. The Input side guards it: a menu-path span consumes iff draftRev
- * is unchanged, an enter-path line iff the trimmed draft still equals the
- * bare token.
+ * The command token segment captured for a menu pick or bare Enter. Actions
+ * consume it before their callback; popup shells pass it to the injected
+ * {@link PopupSelectDeps.consume} callback after a successful selection.
+ * The Input side guards it: a menu-path span consumes iff draftRev is
+ * unchanged, an enter-path line iff the trimmed draft still equals the bare token.
  */
 export type TokenSegment =
   | { readonly via: 'menu'; readonly span: TokenSpan }

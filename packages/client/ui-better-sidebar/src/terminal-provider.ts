@@ -9,6 +9,7 @@ import { shellDisplayName, type PtyManager, type SidebarPty } from './pty-manage
 import type { ResolvedSidebarConfig } from './config.ts'
 import { floatingTerminalDirectory } from './terminal-directory.ts'
 import { TerminalOutput, encodedFrameBytes } from './terminal-output.ts'
+import { discoverTerminalShells } from './terminal-shells.ts'
 
 type Handle = SidebarPty | AgentTerminalHandle
 interface Attached {
@@ -54,6 +55,11 @@ export class SidebarTerminalProvider extends SidebarTerminals {
       : { status: 'available', shellName: shellDisplayName(this.options.shell().shell) }
   }
 
+  shells() {
+    if (this.options.ui === null) throw new SidebarTerminalError('unavailable', 'The native terminal dependency is unavailable.')
+    return discoverTerminalShells(this.options.shell(), this.options.config.shellCandidates).map(({ path, name }) => ({ path, name }))
+  }
+
   async *open(request: SidebarTerminalOpenRequest, signal: AbortSignal): AsyncIterable<SidebarTerminalFrame> {
     const lifetime = new AbortController()
     const joined = AbortSignal.any([signal, this.lifetime.signal, lifetime.signal])
@@ -76,11 +82,18 @@ export class SidebarTerminalProvider extends SidebarTerminals {
           ? existing.cwd
           : await floatingTerminalDirectory(this.options.sessionWorkspace(target.sessionId), target.floating.directory)
       joined.throwIfAborted()
-      const shell = this.options.shell()
+      const preferred = this.options.shell()
       const current = manager.get(target.sessionId + ':' + target.tabId)
       const spawnCwd = target.floating !== undefined && current !== undefined && !current.exited ? current.cwd : cwd
       created = current === undefined || current.exited || current.cwd !== spawnCwd
-      handle = manager.open(target.sessionId, target.tabId, spawnCwd, request.cols, request.rows, shell.shell, shell.shellArgs)
+      const selected = created && target.shellPath !== undefined
+        ? discoverTerminalShells(preferred, this.options.config.shellCandidates).find(shell => shell.path === target.shellPath)
+        : undefined
+      if (created && target.shellPath !== undefined && selected === undefined) {
+        throw new SidebarTerminalError('invalid-shell', 'The selected shell is no longer available. Choose a shell in a new terminal tab.')
+      }
+      handle = manager.open(target.sessionId, target.tabId, spawnCwd, request.cols, request.rows,
+        selected?.path ?? preferred.shell, selected?.args ?? preferred.shellArgs)
     }
     joined.throwIfAborted()
     const id = randomUUID() as SidebarTerminalAttachmentId
@@ -94,7 +107,7 @@ export class SidebarTerminalProvider extends SidebarTerminals {
       onPressure: (blocked) => { this.pressure(handle, id, blocked) },
     })
     const entry: Attached = { id, handle, target, lifetime, output, mode: 'disconnect', created, accepted: false }
-    const ready: SidebarTerminalFrame = { type: 'ready', attachmentId: id, processId: this.processIdOf(handle), pid: handle.pty.pid, cwd: handle.cwd, shellName: shellDisplayName(handle.pty.process) }
+    const ready: SidebarTerminalFrame = { type: 'ready', attachmentId: id, processId: this.processIdOf(handle), pid: handle.pty.pid, cwd: handle.cwd, shellName: shellDisplayName('shellPath' in handle ? handle.shellPath : handle.pty.process), ...('shellPath' in handle ? { shellPath: handle.shellPath } : {}) }
     if (encodedFrameBytes(ready) > this.options.config.terminalFrameBytes) {
       if (created && target.kind === 'ui') this.options.ui?.close(target.sessionId + ':' + target.tabId)
       throw new SidebarTerminalError('output-overflow', 'The terminal opening frame exceeds its configured byte limit.')

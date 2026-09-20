@@ -1,5 +1,7 @@
 /** Shared settingsScope-backed writer for every Better Sidebar preference surface. */
+import type { SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { t } from './locales.ts'
 import { parsePrefs, type SidebarPrefs } from './prefs.ts'
 import type { SidebarStore } from './state.ts'
 
@@ -27,9 +29,9 @@ export class SidebarPreferencesController {
   }
 
   /**
-   * Optimistically merge top-level fields and persist them in mutation order.
+   * Optimistically merge top-level fields and persist each patch atomically in order.
    * @param patch - preference fields selected by the user.
-   * @returns settlement after this patch reaches the settings scope.
+   * @returns settlement after acceptance or recovery; rejects on refusal or failure.
    */
   patch(patch: Partial<SidebarPrefs>): Promise<void> {
     if (this.disposed || Object.keys(patch).length === 0) return Promise.resolve()
@@ -38,10 +40,14 @@ export class SidebarPreferencesController {
     const generation = ++this.generation
     this.pending += 1
     const operation = this.tail.then(async () => {
-      for (const [field, value] of Object.entries(patch)) {
-        await this.scope.set(field, value)
-      }
+      const accepted = await this.scope.mutate(Object.entries(patch).map(([field, value]) => ({
+        op: 'set',
+        path: [field],
+        value: value as Extract<SettingsPathOpView, { op: 'set' }>['value'],
+      })))
+      if (!accepted) throw new Error(t('settingsWriteRejected'))
     })
+    // The caller receives write failures; later patches must still run.
     this.tail = operation.catch(() => {})
     return operation.finally(() => {
       this.pending -= 1
@@ -53,7 +59,7 @@ export class SidebarPreferencesController {
    * Merge one descriptor-owned settings blob without dropping sibling keys.
    * @param descriptorId - tab or viewer descriptor id.
    * @param updater - pure update over a shallow copy of the current blob.
-   * @returns settlement after the merged map reaches the settings scope.
+   * @returns settlement of {@link patch}, including rejection on refusal or failure.
    */
   updatePluginSettings(
     descriptorId: string,

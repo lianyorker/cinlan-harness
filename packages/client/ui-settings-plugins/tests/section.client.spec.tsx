@@ -21,6 +21,7 @@ import type { BashCardState } from '../src/client/bash-card-controller.ts'
 import type { CardFieldState, CardShell } from '../src/client/card-form.ts'
 import type { ConfigurablePluginsTabState } from '../src/client/tab-store.ts'
 import type { WebSearchCardState } from '../src/client/web-search-card-controller.ts'
+import type { SubagentLimitsCardState } from '../src/client/subagent-limits-card-controller.ts'
 import type { SubagentModelSelectionCardState } from '../src/client/subagent-model-selection-card-controller.ts'
 import { en } from '../src/client/locales.ts'
 
@@ -86,7 +87,10 @@ function renderBash(state: Partial<BashCardState> = {}) {
   return renderBashCard(state).actions
 }
 
-function renderSubagentModelSelection(state: Partial<SubagentModelSelectionCardState> = {}) {
+function renderSubagentModelSelection(
+  state: Partial<SubagentModelSelectionCardState> = {},
+  limits: Partial<SubagentLimitsCardState> = { available: false },
+) {
   const store = createSnapshotStore<SubagentModelSelectionCardState>({
     ...settled,
     enabled: false,
@@ -96,7 +100,12 @@ function renderSubagentModelSelection(state: Partial<SubagentModelSelectionCardS
     conflicted: false,
     ...state,
   })
+  const limitsStore = createSnapshotStore<SubagentLimitsCardState>({
+    ...settled, maxDepth: field('3'), maxActiveSubagents: field('8'), ...limits,
+  })
   const actions = {
+    editLimit: vi.fn(),
+    resetLimit: vi.fn(),
     toggleEnabled: vi.fn(),
     toggleModel: vi.fn(),
     retryCatalog: vi.fn(),
@@ -107,6 +116,7 @@ function renderSubagentModelSelection(state: Partial<SubagentModelSelectionCardS
     ...actions,
     t,
     useSubagentModelSelectionCard: bindSnapshotSelector(store),
+    useSubagentLimitsCard: bindSnapshotSelector(limitsStore),
   } as unknown as SubagentModelSelectionCardProps
   render(<SubagentModelSelectionCard {...props} />)
   return actions
@@ -401,6 +411,42 @@ describe('BashCard', () => {
 })
 
 describe('SubagentModelSelectionCard', () => {
+  it('edits both limits in the existing card while retaining model selection', () => {
+    const actions = renderSubagentModelSelection({}, {
+      dirty: true, maxDepth: field('3', { overridden: true }), maxActiveSubagents: field('8'),
+    })
+    fireEvent.click(screen.getByText(en.subagentModelSelectionTitle))
+    expect(screen.getAllByText(en.subagentModelSelectionTitle)).toHaveLength(1)
+    expect(screen.getByRole('switch', { name: en.subagentModelSelectionToggle })).toBeTruthy()
+    fireEvent.change(screen.getByLabelText(en.subagentMaxDepth), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText(en.subagentMaxActive), { target: { value: '12' } })
+    expect(actions.editLimit.mock.calls).toEqual([['maxDepth', '1'], ['maxActiveSubagents', '12']])
+    fireEvent.click(screen.getByRole('button', { name: en.reset }))
+    expect(actions.resetLimit).toHaveBeenCalledWith('maxDepth')
+    fireEvent.click(screen.getByRole('button', { name: en.save }))
+    expect(actions.save).toHaveBeenCalledOnce()
+  })
+
+  it('renders limits without model selection when only that namespace is served', () => {
+    renderSubagentModelSelection({ available: false }, {})
+    fireEvent.click(screen.getByText(en.subagentModelSelectionTitle))
+    expect(screen.getByLabelText(en.subagentMaxDepth)).toHaveProperty('value', '3')
+    expect(screen.getByLabelText(en.subagentMaxActive)).toHaveProperty('value', '8')
+    expect(screen.queryByRole('switch')).toBeNull()
+  })
+
+  it('blocks shared saving when a limit is invalid and keeps reset actions independent', () => {
+    const actions = renderSubagentModelSelection({}, {
+      dirty: true, invalid: true,
+      maxDepth: field('1.5', { invalid: true }), maxActiveSubagents: field('12', { overridden: true }),
+    })
+    fireEvent.click(screen.getByText(en.subagentModelSelectionTitle))
+    expect(screen.getByRole('button', { name: en.save })).toHaveProperty('disabled', true)
+    expect(screen.getByText(en.subagentInvalidDepth)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: en.reset }))
+    expect(actions.resetLimit).toHaveBeenCalledWith('maxActiveSubagents')
+  })
+
   it('renders the default-off preference in its staged plugin card', () => {
     const actions = renderSubagentModelSelection()
     fireEvent.click(screen.getByText(en.subagentModelSelectionTitle))

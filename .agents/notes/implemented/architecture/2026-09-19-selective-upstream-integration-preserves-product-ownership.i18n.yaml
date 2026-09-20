@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-19-selective-upstream-integration-preserves-product-ownership.md
+2026-09-19-selective-upstream-integration-preserves-product-ownership.md: 157840baa0c8a4868c5d8062f3959571e8f7f4c7
+2026-09-19-selective-upstream-integration-preserves-product-ownership.zh.md: 1ff2431af5b9d969e815086d06f015ec9e4b9e9f

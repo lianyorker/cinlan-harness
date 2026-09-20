@@ -94,7 +94,7 @@ async function setup(): Promise<{ ctx: Context; git: StubGitRuntime; agent: Agen
   await ctx.plugin(StubGitRuntime)
   await ctx.plugin(ToolGit)
   const agent = callingAgent()
-  ctx.agents.register(agent)
+  await ctx.agents.register(agent)
   return { ctx, git: ctx.git as StubGitRuntime, agent }
 }
 
@@ -166,7 +166,7 @@ describe('dsh-tool-git', () => {
     await unbornCtx.plugin(UnbornGitRuntime)
     await unbornCtx.plugin(ToolGit)
     const unbornAgent = callingAgent()
-    unbornCtx.agents.register(unbornAgent)
+    await unbornCtx.agents.register(unbornAgent)
     const unborn = await execute(unbornCtx, 'git_log', {}, unbornAgent)
     expect(unborn.isError).toBe(false)
     if (unborn.isError) throw new Error('expected unborn log success')
@@ -232,7 +232,7 @@ describe('dsh-tool-git', () => {
     expect(stale.isError).toBe(true)
     expect(text(stale)).toContain('exact live calling agent')
     const noWorkspaceAgent = callingAgent(null)
-    ctx.agents.register(noWorkspaceAgent)
+    await ctx.agents.register(noWorkspaceAgent)
     const noWorkspace = await execute(ctx, 'git_log', {}, noWorkspaceAgent)
     expect(noWorkspace.isError).toBe(true)
     expect(text(noWorkspace)).toContain('session to have a workspace cwd')

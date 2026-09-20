@@ -2,7 +2,7 @@
  * Tests for the BetterSidebar service registry: register/dispose lifecycle,
  * matchFileViewer priority/exts/detect algorithm, and openTab dedupe.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, onTestFinished, vi } from 'vitest'
 
 // Mock browser globals (SidebarStore.reduce → schedulePersist uses window.setTimeout)
 const g = globalThis as Record<string, unknown>
@@ -21,6 +21,8 @@ if (g.localStorage === undefined) {
 }
 
 import { createBetterSidebarService, matchUrlTarget, SIDEBAR_FEATURES, SIDEBAR_SERVICE_VERSION } from '../src/client/service.ts'
+import { api } from '../src/client/api.ts'
+import { editorFileKey } from '../src/client/file-source.ts'
 import { createSidebarStore, allLeaves, makeDefaultState, openDiffTab, openTabInActivePane, sanitizeState } from '../src/client/state.ts'
 
 describe('BetterSidebar service', () => {
@@ -329,7 +331,7 @@ describe('service.openTab dedupe', () => {
     service.registerTab({
       id: 'counter',
       title: 'Counter',
-      createTab: (state) => ({
+      createTab: state => ({
         tab: { id: `counter:${state.nextTerminal}`, type: 'counter', title: `C${state.nextTerminal}` },
         patch: { nextTerminal: state.nextTerminal + 1 },
       }),
@@ -364,7 +366,7 @@ describe('service.openTab dedupe', () => {
     service.registerTab({
       id: 'browser',
       title: () => 'Browser',
-      createTab: (state) => ({
+      createTab: state => ({
         tab: { id: `browser:${state.nextBrowser}`, type: 'browser', title: 'Browser' },
         patch: { nextBrowser: state.nextBrowser + 1 },
       }),
@@ -410,7 +412,7 @@ describe('service.openTab dedupe', () => {
       id: 'multi',
       title: 'Multi',
       single: true,
-      dedupeKey: (tab) => tab.id, // per-id, not per-type: two tabs coexist
+      dedupeKey: tab => tab.id, // per-id, not per-type: two tabs coexist
       component: () => null,
     })
     store.setSession('s1')
@@ -449,7 +451,7 @@ describe('service.openTab dedupe', () => {
     service.registerTab({
       id: 'diff',
       title: 'Diff',
-      dedupeKey: (tab) => tab.id,
+      dedupeKey: tab => tab.id,
       component: () => null,
     })
     store.setSession('s1')
@@ -778,6 +780,89 @@ describe('targeted openTab (v0.12.0)', () => {
 })
 
 describe('openFile (v0.12.0)', () => {
+  it.each(['report.pdf', 'image.png', 'report.html', 'notes.md', 'src/main.ts'])(
+    'resolves %s against the source Session cwd before opening', async (path) => {
+      const store = createSidebarStore()
+      const service = createBetterSidebarService(store)
+      service.registerTab({ id: 'editor', title: 'Editor', dedupeKey: tab => tab.path, component: () => null })
+      store.setSession('s1')
+      await service.openFile({ sessionId: 's1', cwd: '/repo/nested' }, path)
+      await service.openFile({ sessionId: 's1' }, `/repo/nested/${path}`)
+      const tabs = allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs)
+        .filter(tab => tab.path !== undefined)
+      expect(tabs).toHaveLength(1)
+      expect(tabs[0]?.path).toBe(`/repo/nested/${path}`)
+    },
+  )
+
+  it('opens visibly with the resolved source cwd while another Session stays active', async () => {
+    const cwd = vi.spyOn(api, 'sessionCwd').mockResolvedValue({
+      sessionId: 'source', cwd: '/repo/nested', root: '/repo', parent: '/repo',
+    })
+    onTestFinished(() => cwd.mockRestore())
+    const store = createSidebarStore()
+    const service = createBetterSidebarService(store)
+    service.registerTab({ id: 'editor', title: 'Editor', component: () => null })
+    store.setSession('active')
+    await service.openFile({ sessionId: 'source' }, 'report.pdf')
+    expect(cwd).toHaveBeenCalledWith({ sessionId: 'source' })
+    expect(store.getSnapshot().sessionId).toBe('active')
+    expect(store.getSnapshot().state!.panelOpen).toBe(true)
+    expect(allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs))
+      .toContainEqual(expect.objectContaining({
+        path: '/repo/nested/report.pdf',
+        meta: { fileSource: { sessionId: 'source', cwd: '/repo/nested' } },
+      }))
+    store.setSession('source')
+    expect(allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs)
+      .some(tab => tab.path !== undefined)).toBe(false)
+  })
+
+  it('keeps equal file paths separate for distinct source Sessions', async () => {
+    const store = createSidebarStore()
+    const service = createBetterSidebarService(store)
+    service.registerTab({ id: 'editor', title: 'Editor', dedupeKey: editorFileKey, component: () => null })
+    store.setSession('main')
+    const path = '/shared/report.pdf'
+    for (const sessionId of ['child-a', 'child-b', 'main', 'child-a']) {
+      await service.openFile({ sessionId }, path)
+    }
+    const tabs = allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs)
+      .filter(tab => tab.path === path)
+    expect(tabs).toHaveLength(3)
+    expect(new Set(tabs.map(tab => tab.id)).size).toBe(3)
+    expect(tabs.map(tab => tab.meta)).toEqual([
+      { fileSource: { sessionId: 'child-a' } },
+      { fileSource: { sessionId: 'child-b' } },
+      undefined,
+    ])
+    expect(store.getSnapshot().sessionId).toBe('main')
+  })
+
+  it('rejects a failed cwd lookup without creating a relative-path tab', async () => {
+    const cwd = vi.spyOn(api, 'sessionCwd').mockRejectedValue(new Error('Session unavailable'))
+    onTestFinished(() => cwd.mockRestore())
+    const store = createSidebarStore()
+    const service = createBetterSidebarService(store)
+    service.registerTab({ id: 'editor', title: 'Editor', component: () => null })
+    store.setSession('s1')
+    const before = store.getSnapshot().state
+    await expect(service.openFile({ sessionId: 's1' }, 'report.pdf')).rejects.toThrow('Session unavailable')
+    expect(store.getSnapshot().state).toBe(before)
+  })
+
+  it('preserves Windows drive and UNC paths and joins a relative file to a Windows cwd', async () => {
+    const store = createSidebarStore()
+    const service = createBetterSidebarService(store)
+    service.registerTab({ id: 'editor', title: 'Editor', component: () => null })
+    store.setSession('s1')
+    const scope = { sessionId: 's1', cwd: 'C:\\repo\\nested' }
+    const paths = ['report.pdf', 'D:\\files\\report.pdf', '\\\\server\\share\\image.png']
+    for (const path of paths) await service.openFile(scope, path)
+    expect(allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs).flatMap(tab => tab.path ?? []))
+      .toEqual(['C:\\repo\\nested\\report.pdf', ...paths.slice(1)])
+  })
+
   it('opens the file in the editor tab of the scope session with a basename title', () => {
     const store = createSidebarStore()
     const service = createBetterSidebarService(store)
@@ -913,7 +998,7 @@ describe('lifecycle classification vs dedupe (codex review fixes)', () => {
       title: 'Doc',
       // Dedupe by PATH like the editor builtin — the focused tab's id
       // differs from the newly requested id.
-      dedupeKey: (tab) => tab.path ?? '',
+      dedupeKey: tab => tab.path ?? '',
       onOpen: (tab) => { events.push({ kind: 'open', tabId: tab.id }) },
       onActivate: (tab) => { events.push({ kind: 'activate', tabId: tab.id }) },
       component: () => null,

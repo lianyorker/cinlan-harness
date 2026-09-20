@@ -15,6 +15,12 @@
       "path": "../../../vendor/cordis"
     },
     {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../settings/settings"
+    },
+    {
       "path": "../../attachment/attachment"
     },
     {
@@ -34,6 +40,9 @@
     },
     {
       "path": "../../interaction/user-approval"
+    },
+    {
+      "path": "../../interaction/permission-presets"
     },
     {
       "path": "../../preset/agent-presets"

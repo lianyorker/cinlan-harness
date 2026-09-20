@@ -4,6 +4,8 @@ English | [中文](code-runtime.zh.md)
 
 The code-execution seam — a [capability seam](../../.agents/notes/implemented/architecture/2026-06-13-capability-seams.md) whose Service Definition ([dsh-code-runtime](../../packages/code-runtime/code-runtime), `ctx.codeRuntime`) runs one model-written program against host-provided async bindings and reports what it printed and returned. Code execution is **one optional capability**, not part of the agent-loop spine — so its vocabulary lives here, not in [core.md](core.md). Backends differ by execution substrate and source language, both readonly descriptors on the service; the worker-thread Service Provider and tool-registry Consumer are specified by the [PTC mode foundation](../../.agents/notes/implemented/feature/2026-06-15-ptc.md) and [typed-return contract](../../.agents/notes/implemented/feature/2026-07-20-ptc-typed-tool-returns.md).
 
+The optional [PTC runtime service](../../packages/ptc-runtime/ptc-runtime/README.md), `ctx.ptcRuntime`, adds explicit request resolution and sandbox-aware Node-process execution through [ptc-runtime-node](../../packages/ptc-runtime/ptc-runtime-node/README.md). Existing `ctx.codeRuntime` consumers reach it only through the separately mounted [CodeRuntime adapter](../../packages/ptc-runtime/ptc-runtime-node/README.md#optional-coderuntime-adapter); the provider main entry registers only `ptcRuntime`, and the shipped worker-thread provider remains the default. The adapter retains the existing tool schema and request API, while direct PTC consumers use its complete execution options and sandbox result metadata.
+
 Source: [`packages/code-runtime/code-runtime/src/types.ts`](../../packages/code-runtime/code-runtime/src/types.ts)
 
 ## The run: request in, result out
@@ -192,4 +194,31 @@ abstract run(request: CodeRunRequest): Promise<CodeRunResult>
 ```
 
 Source: [`packages/code-runtime/code-runtime/src/index.ts`](../../packages/code-runtime/code-runtime/src/index.ts)
+
+<a id="ctxptcruntime--ptcruntime-abstract-seam"></a>
+
+### `ctx.ptcRuntime` — `PtcRuntime` (abstract seam)
+
+Registers one `ctx.ptcRuntime` implementation. Program, budget, abort, and substrate failures resolve in PtcRunResult; only Service Definition contract misuse rejects. Implementations bridge structured-cloneable bindings, materialize each declared namespace rejection class, treat programs as hostile peers, isolate runs from one another, and terminate and await in-flight runs during disposal.
+
+```ts cordis-catalog
+/**
+ * Resolve supported options and provider defaults before execution.
+ * @param request - Program, bindings, cancellation and optional execution choices.
+ * @returns Complete directory, deadline and supported authority for run.
+ * @throws When an explicit choice is invalid or unsupported by this provider.
+ */
+abstract resolve(request: PtcRunRequest): PtcRunSpec
+
+/**
+ * Execute resolved inputs; program outcomes resolve as result fields.
+ * @param spec - directory, deadline, program, bindings, cancellation and supported policy.
+ * @returns Captured output and the execution outcome.
+ */
+abstract run(spec: PtcRunSpec): Promise<PtcRunResult>
+```
+
+Types: [PtcRunRequest](../../packages/ptc-runtime/ptc-runtime/README.md#understand-the-implementation) · [PtcRunResult](../../packages/ptc-runtime/ptc-runtime/README.md#understand-the-implementation) · [PtcRunSpec](../../packages/ptc-runtime/ptc-runtime/README.md#understand-the-implementation)
+
+Source: [`packages/ptc-runtime/ptc-runtime/src/index.ts`](../../packages/ptc-runtime/ptc-runtime/src/index.ts)
 <!-- END GENERATED cordis-surface -->

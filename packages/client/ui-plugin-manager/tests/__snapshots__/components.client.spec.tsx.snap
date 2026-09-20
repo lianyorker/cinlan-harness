@@ -1,0 +1,13 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Settings management controls > localizes unavailable management and offers no mutators 1`] = `"This connection does not provide plugin management. Desktop plugins are managed by the desktop application; other plugin settings remain available in the Configurable tab."`;
+
+exports[`Settings management controls > localizes unavailable management and offers no mutators 2`] = `"当前连接不提供插件管理。桌面端插件由桌面应用管理；其他插件设置仍可在「可配置」标签页中修改。"`;
+
+exports[`Settings management controls > reports native window failures without starting Host installation 1`] = `"Could not open the desktop Plugins window: window unavailableClose"`;
+
+exports[`Settings management controls > reports native window failures without starting Host installation 2`] = `"无法打开桌面插件窗口：window unavailable关闭"`;
+
+exports[`Settings management controls > shows localized shell installation guidance when the opener is absent 1`] = `"Open Desktop Plugins… from the desktop application menu to install, update, or remove plugins.Close"`;
+
+exports[`Settings management controls > shows localized shell installation guidance when the opener is absent 2`] = `"请在桌面应用菜单中打开「桌面插件…」，以安装、更新或移除插件。关闭"`;

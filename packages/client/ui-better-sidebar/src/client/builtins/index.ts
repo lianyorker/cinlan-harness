@@ -10,6 +10,7 @@ import type { Context } from '../../context-types.ts'
 import type { BetterSidebarService } from '../service.ts'
 import { builtinTabs, type BuiltinTabOptions } from './tabs.tsx'
 import { builtinViewers } from './viewers.tsx'
+import type { ReadOfficePreview } from '../office/read-office.ts'
 
 /**
  * Register all built-in tabs and viewers with the service. Returns a
@@ -21,12 +22,13 @@ export function registerBuiltins(
   ctx: Context,
   service: BetterSidebarService,
   options: BuiltinTabOptions,
+  readOffice?: ReadOfficePreview,
 ): () => void {
   const disposers: (() => void)[] = []
   for (const tab of builtinTabs(ctx, options)) {
     disposers.push(service.registerTab(tab))
   }
-  for (const viewer of builtinViewers((id, facts) => ctx.keyboard.matches(id, facts))) {
+  for (const viewer of builtinViewers((id, facts) => ctx.keyboard.matches(id, facts), readOffice)) {
     disposers.push(service.registerFileViewer(viewer))
   }
   return () => {

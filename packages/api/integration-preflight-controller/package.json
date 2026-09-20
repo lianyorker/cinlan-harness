@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-api-integration-preflight-controller",
   "description": "Read-only integration readiness Remote for GitHub, GitLab, and Gitee",
-  "version": "0.1.5-alpha.1",
+  "version": "0.1.6-alpha.2",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/api/integration-preflight-controller" },
   "type": "module",

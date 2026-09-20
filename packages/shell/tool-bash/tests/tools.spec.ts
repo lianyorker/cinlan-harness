@@ -67,7 +67,7 @@ async function setupWithTasks() {
  * Build a fake {@link Agent} with the shared agent/session identity, give it a
  * dedicated lifecycle fiber for `Agent.ctx`, and register it in `ctx.agents`.
  */
-function registerFakeAgent(ctx: Context, sessionId: string, inject: (...args: unknown[]) => void = () => {}): Agent {
+async function registerFakeAgent(ctx: Context, sessionId: string, inject: (...args: unknown[]) => void = () => {}): Promise<Agent> {
   const scopeFiber = ctx.plugin(() => {})
   const id = SessionId(sessionId)
   const agent = {
@@ -76,7 +76,7 @@ function registerFakeAgent(ctx: Context, sessionId: string, inject: (...args: un
     inject,
     session: { id, header: { version: 0, id, createdAt: 0 } },
   } as unknown as Agent
-  ctx.agents.register(agent)
+  await ctx.agents.register(agent)
   return agent
 }
 let callCounter = 0
@@ -143,7 +143,7 @@ class RecordingSandboxExecutor extends ShellExecutor {
     })
   }
 
-  start(spec: ShellExecSpec): ShellProcess {
+  async start(spec: ShellExecSpec): Promise<ShellProcess> {
     this.modes.push(spec.sandboxPolicy?.mode)
     return {
       status: 'completed',
@@ -173,7 +173,7 @@ class CountingStartExecutor extends ShellExecutor {
 
   run(): Promise<ShellRunResult> { return Promise.reject(new Error('unused')) }
 
-  start(): ShellProcess {
+  async start(): Promise<ShellProcess> {
     this.starts += 1
     return {
       status: 'completed',
@@ -493,7 +493,7 @@ describe('background execution through the job runtime', () => {
   it('a background job started by an agent is registered with that agent as owner', async () => {
     // The producer must forward exec.agent as the job owner.
     const ctx = await setupWithTasks()
-    const agent = registerFakeAgent(ctx, 'sess-owner')
+    const agent = await registerFakeAgent(ctx, 'sess-owner')
     const started = await call(ctx, 'bash', { command: 'sleep 60', description: 'test command', run_in_background: true }, agent)
     expect(text(started)).toBe('started background job bash-1')
 
@@ -619,14 +619,14 @@ describe('sandbox escalation through the generic task producer', () => {
     }
   })
 
-  it('rejects injected escalation without a sandbox and non-widening escalation without prompting', async () => {
+  it('rejects injected escalation without a sandbox and narrower escalation without prompting', async () => {
     const plain = await setup()
     expect(text(await call(plain, 'bash', escalate))).toContain('not available in this composition')
 
     const { ctx } = await setupSandboxed(true)
     const prompted = vi.fn()
     ctx.on('approval/request', () => { prompted(); return Promise.resolve<ApprovalOutcome>('allowed-once') })
-    const result = await call(ctx, 'bash', { ...escalate, sandbox_permissions: 'workspace-write' }, sandboxAgent('workspace-write'))
+    const result = await call(ctx, 'bash', { ...escalate, sandbox_permissions: 'workspace-write' }, sandboxAgent('danger-full-access'))
     expect(text(result)).toContain('not strictly wider')
     expect(prompted).not.toHaveBeenCalled()
 
@@ -637,6 +637,17 @@ describe('sandbox escalation through the generic task producer', () => {
       seq: malformed.session.seq,
     })
     expect(text(await call(ctx, 'bash', escalate, malformed))).toContain('not strictly wider')
+  })
+
+  it.each(['workspace-write', 'danger-full-access'] as const)('runs a repeated %s request without approval', async (mode) => {
+    const { ctx, bash } = await setupSandboxed()
+    try {
+      const result = await call(ctx, 'bash', { ...escalate, sandbox_permissions: mode }, sandboxAgent(mode))
+      expect(result.isError).toBe(false)
+      expect(bash.modes).toEqual([mode])
+    } finally {
+      await ctx.fiber.dispose()
+    }
   })
 
   it('fails closed when approval cannot be routed', async () => {
@@ -663,7 +674,7 @@ describe('sandbox escalation through the generic task producer', () => {
     const { ctx, bash } = await setupSandboxed(true)
     ctx.on('approval/request', () => Promise.resolve<ApprovalOutcome>('allowed-once'))
     const agent = sandboxAgent(undefined, ctx)
-    ctx.agents.register(agent)
+    await ctx.agents.register(agent)
     const foreground = await ctx.tools.execute({
       callId: ToolCallId('sandbox-signal'),
       name: 'bash',
@@ -683,7 +694,7 @@ describe('sandbox escalation through the generic task producer', () => {
     const agent = sandboxAgent(undefined, ctx, (type) => {
       if (type === 'approval/decided') controller.abort()
     })
-    ctx.agents.register(agent)
+    await ctx.agents.register(agent)
     ctx.on('approval/request', () => Promise.resolve<ApprovalOutcome>('allowed-once'))
     const start = vi.spyOn(bash, 'start')
 
@@ -1107,7 +1118,7 @@ describe('the model-facing bash tool builds its request from named args only (no
         stdout: { text: 'ok', truncated: false }, stderr: { text: '', truncated: false },
       })
     }
-    start(): ShellProcess {
+    async start(): Promise<ShellProcess> {
       return {
         status: 'completed',
         exitCode: 0,
@@ -1140,7 +1151,7 @@ describe('the model-facing bash tool builds its request from named args only (no
 
   it('injects built-ins and the stable session id into a foreground request', async () => {
     const { ctx, bash } = await setupRecording()
-    const agent = registerFakeAgent(ctx, 'request-fg', () => undefined)
+    const agent = await registerFakeAgent(ctx, 'request-fg', () => undefined)
     const ambient = process.env.DSH_SESSION_ID
 
     await ctx.tools.execute({
@@ -1159,9 +1170,22 @@ describe('the model-facing bash tool builds its request from named args only (no
     expect(process.env.DSH_SESSION_ID).toBe(ambient)
   })
 
+  it('preserves a remote POSIX session cwd and relative parent components for the executor', async () => {
+    const { ctx, bash } = await setupRecording()
+    const agent = await registerFakeAgent(ctx, 'remote-workdir')
+    Object.assign(agent.session.header, { cwd: '/remote/workspace/link' })
+
+    const result = await call(ctx, 'bash', {
+      command: 'pwd', description: 'remote directory', workdir: '../project',
+    }, agent)
+
+    expect(result.isError).toBe(false)
+    expect(bash.requests[0]?.workdir).toBe('/remote/workspace/link/../project')
+  })
+
   it('injects the same trusted variables into a background request without forwarding model env', async () => {
     const { ctx, bash } = await setupRecording()
-    const agent = registerFakeAgent(ctx, 'request-bg', () => undefined)
+    const agent = await registerFakeAgent(ctx, 'request-bg', () => undefined)
 
     await ctx.tools.execute({
       signal: testToolSignal,
@@ -1186,8 +1210,8 @@ describe('the model-facing bash tool builds its request from named args only (no
 
   it('keeps parent and child agent session environments isolated', async () => {
     const { ctx, bash } = await setupRecording()
-    const parent = registerFakeAgent(ctx, 'request-parent', () => undefined)
-    const child = registerFakeAgent(ctx, 'request-child', () => undefined)
+    const parent = await registerFakeAgent(ctx, 'request-parent', () => undefined)
+    const child = await registerFakeAgent(ctx, 'request-child', () => undefined)
 
     for (const [callId, agent] of [['parent', parent], ['child', child]] as const) {
       await ctx.tools.execute({

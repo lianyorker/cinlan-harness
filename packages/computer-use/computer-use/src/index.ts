@@ -8,6 +8,8 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
+import type { ComputerUseProviderName } from './brand.ts'
+
 import type {
   ComputerActionResult,
   ComputerApp,
@@ -32,6 +34,8 @@ import type {
   ComputerWindowId as ComputerWindowIdValue,
   Config,
 } from './types.ts'
+
+export { ComputerUseProviderName } from './brand.ts'
 
 export type {
   ComputerActionMetadata,
@@ -141,6 +145,7 @@ function resolveConfig(config: Config): Config {
 export class ComputerUseRuntime extends Service {
   static Config: z<Config> = z.object({ provider: z.string() })
 
+  private registration: ComputerUseProviderName | undefined
   private readonly providers = new Map<string, ComputerUseProvider>()
   private readonly providerId: string | undefined
 
@@ -150,12 +155,44 @@ export class ComputerUseRuntime extends Service {
     this.providerId = resolveConfig(config).provider
   }
 
+  /** Name of the exclusive tool provider, retained until its resources finish closing. */
+  get providerName(): ComputerUseProviderName | undefined {
+    return this.registration
+  }
+
+  /**
+   * Reserve computer use for a provider that publishes its own tools.
+   * Registered facade providers also occupy computer use, including unavailable ones.
+   * The caller must remove its tools and await owned work before releasing this effect.
+   * @param name Provider-owned name used in registration diagnostics.
+   * @returns Effect disposer for this exact exclusive registration.
+   */
+  register(name: ComputerUseProviderName): () => Promise<void> {
+    if (this.registration !== undefined || this.providers.size > 0) {
+      const current = this.registration ?? [...this.providers.keys()].join(', ')
+      throw new ComputerUseError(
+        `computer use provider "${current}" is already registered`,
+        'COMPUTER_PROVIDER_EXCLUSIVE',
+      )
+    }
+    return this.ctx.effect(() => {
+      this.registration = name
+      return () => { this.registration = undefined }
+    }, 'computerUse.register()')
+  }
+
   /**
    * Register one provider for the calling plugin lifetime.
    * @param provider Provider implementation with a unique stable id.
    * @returns Disposer that removes the provider registration.
    */
   registerProvider(provider: ComputerUseProvider): () => void {
+    if (this.registration !== undefined) {
+      throw new ComputerUseError(
+        `computer use provider "${this.registration}" is already registered`,
+        'COMPUTER_PROVIDER_EXCLUSIVE',
+      )
+    }
     if (provider.id.length === 0 || provider.id.trim() !== provider.id) {
       throw new ComputerUseError('computer-use provider id must be non-empty without surrounding whitespace', 'COMPUTER_PROVIDER_ID_INVALID')
     }
@@ -166,7 +203,8 @@ export class ComputerUseRuntime extends Service {
       this.providers.set(provider.id, provider)
       yield () => { this.providers.delete(provider.id) }
     }.bind(this), 'computerUse.registerProvider()')
-    return () => { void dispose() }
+    // oxlint-disable-next-line typescript/no-misused-promises -- Preserve public callback type and Cordis disposer metadata.
+    return dispose
   }
 
   private provider(): ComputerUseProvider {
@@ -320,5 +358,7 @@ export class ComputerUseRuntime extends Service {
     return this.provider().setValue(request, signal)
   }
 }
+
+export { ComputerUseRuntime as ComputerUseRegistry }
 
 export default ComputerUseRuntime

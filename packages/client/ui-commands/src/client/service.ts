@@ -115,7 +115,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
   /**
    * Register one client command contribution; effect disposer (rides the
    * caller's fiber). Duplicate names throw.
-   * @param contribution - the contribution (descriptor + availability + popup spec).
+   * @param contribution - the contribution (descriptor + availability + UI spec).
    * @returns the disposer removing the registration.
    */
   register(contribution: CommandContribution): () => void {
@@ -133,7 +133,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
   /**
    * Hang a bare-invocation decoration on one host command; effect disposer
    * (rides the caller's fiber). Duplicate names throw.
-   * @param decoration - host command name + availability + popup spec.
+   * @param decoration - host command name + availability + UI spec.
    * @returns the disposer removing the registration.
    */
   decorate(decoration: CommandDecoration): () => void {
@@ -228,22 +228,22 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     return key !== undefined && command.description === en[key] ? this.t(key) : command.description
   }
 
-  /** Decision table, menu column: contribution/decorated-host → popup; host input → claim; host bare → detached execute. */
+  /** Menu dispatch: contribution/decorated-host → UI; host input → claim; host bare → detached execute. */
   private dispatch(pick: InputTriggerPick): PickOutcome {
     const name = pick.candidate.name
     const contribution = this.live.contributions.get(name)
     if (contribution !== undefined && contribution.available(pick.session)) {
-      this.openPopup(name, contribution.ui, pick.session, { via: 'menu', span: pick.span })
+      this.invoke(name, contribution.ui, pick.session, { via: 'menu', span: pick.span })
       return 'handled'
     }
     const desc = this.directory.resolve(pick.session.sessionId, name)
     if (desc === undefined) return undefined // snapshot swapped between menu and pick → miss
-    // A decoration replaces the HOST row's bare invocation with its popup;
+    // A decoration replaces the HOST row's bare invocation with its UI;
     // it decorates only a resolvable host command (checked above), never
     // manufactures one, and never touches the argument claim below.
     const decoration = this.live.decorations.get(name)
     if (decoration !== undefined && decoration.available(pick.session)) {
-      this.openPopup(name, decoration.ui, pick.session, { via: 'menu', span: pick.span })
+      this.invoke(name, decoration.ui, pick.session, { via: 'menu', span: pick.span })
       return 'handled'
     }
     if (desc.input !== undefined) return { claim: this.leadingClaim(desc, pick.session) }
@@ -258,7 +258,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
   private matchSpace(session: ClientSessionContext, token: string): PickOutcome {
     if (!token.startsWith('/')) return undefined
     const name = token.slice(1)
-    if (this.live.contributions.has(name)) return undefined // popup kinds never claim on space
+    if (this.live.contributions.has(name)) return undefined // client kinds never claim on space
     const desc = this.directory.resolve(session.sessionId, name)
     if (desc === undefined || desc.input === undefined) return undefined
     return { claim: this.leadingClaim(desc, session) }
@@ -270,11 +270,10 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
    * bare host commands act on the bare token only; leadingInput claims
    * args-tolerant.
    *
-   * Envelope policy: an enter submission carrying attachments resolves only
-   * through a command declaring attachment acceptance. Every other command route —
-   * popup, non-accepting claim, bare detached execute — throws the refusal
-   * so the machine surfaces one composer notice and the draft and attachments
-   * stay in place; nothing executes and nothing is dropped.
+   * Actions submit nothing and leave attachments in the composer. Other enter
+   * routes carrying attachments require a host command declaring acceptance.
+   * Popups, non-accepting claims, and bare detached execution throw a refusal
+   * so the machine surfaces one composer notice and preserves the draft.
    */
   private async matchEnter(
     session: ClientSessionContext,
@@ -295,20 +294,20 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     const contribution = this.live.contributions.get(name)
     if (contribution !== undefined && contribution.available(session)) {
       if (!bare) return undefined
-      if (envelope.attachments > 0) refuseAttachments()
-      this.openPopup(name, contribution.ui, session, { via: 'enter', token })
+      if (envelope.attachments > 0 && contribution.ui.kind !== 'action') refuseAttachments()
+      this.invoke(name, contribution.ui, session, { via: 'enter', token })
       return 'handled'
     }
     await this.directory.ensureReady(session.sessionId, signal)
     const desc = this.directory.resolve(session.sessionId, name)
     if (desc === undefined) return undefined
-    // Bare enter on a decorated host command opens its popup; an argued line
+    // Bare enter on a decorated host command invokes its UI; an argued line
     // never consults the decoration (the claim/detached paths below own it).
     if (bare) {
       const decoration = this.live.decorations.get(name)
       if (decoration !== undefined && decoration.available(session)) {
-        if (envelope.attachments > 0) refuseAttachments()
-        this.openPopup(name, decoration.ui, session, { via: 'enter', token })
+        if (envelope.attachments > 0 && decoration.ui.kind !== 'action') refuseAttachments()
+        this.invoke(name, decoration.ui, session, { via: 'enter', token })
         return 'handled'
       }
     }
@@ -323,13 +322,18 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     return 'handled'
   }
 
-  /** Open the session's popup for one contribution or decoration (menu pick / bare enter). */
-  private openPopup(
+  /** Open a popup or consume the token and run a client action (menu pick / bare enter). */
+  private invoke(
     name: string,
     ui: CommandContribution['ui'],
     session: ClientSessionContext,
     segment: TokenSegment,
   ): void {
+    if (ui.kind === 'action') {
+      this.consumeVia(session.sessionId, segment)
+      ui.run(session)
+      return
+    }
     const actx = this.scopeFor(session.sessionId)
     if (actx === undefined) return
     this.popupFor(actx).open(name, ui, session, segment)

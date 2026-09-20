@@ -46,20 +46,41 @@ describe('desktop package-set selection', () => {
     ])
   })
 
-  it('rejects a required internal package absent from the packed release inputs', () => {
+  it('leaves the independently published Office converter dependency to the registry', () => {
     const available = new Map<string, PackedDesktopPackage>([
       ['@deepseek-ai/dsh', packed('@deepseek-ai/dsh', {
-        dependencies: { '@deepseek-ai/dsh-base': '^1.0.0' },
+        dependencies: { '@deepseek-ai/dsh-office-to-pdf': '^1.0.0' },
       })],
       ['@deepseek-ai/dsh-desktop-host', packed('@deepseek-ai/dsh-desktop-host', {
         dependencies: { '@deepseek-ai/dsh': '^1.0.0' },
       })],
+      ['@deepseek-ai/dsh-office-to-pdf', packed('@deepseek-ai/dsh-office-to-pdf', {
+        dependencies: { '@deepseek-ai/libreoffice-kit': '0.0.1' },
+      })],
     ])
-    expect(() => selectDesktopPackageClosure(available)).toThrow(/unpacked internal package/u)
-    expect(() => selectDesktopPackageClosure(new Map([
-      ['@deepseek-ai/dsh', packed('@deepseek-ai/dsh')],
-    ]))).toThrow(/omit @deepseek-ai\/dsh-desktop-host/u)
+    expect(selectDesktopPackageClosure(available).map(entry => entry.manifest.name)).toEqual([
+      '@deepseek-ai/dsh',
+      '@deepseek-ai/dsh-desktop-host',
+      '@deepseek-ai/dsh-office-to-pdf',
+    ])
   })
+
+  it.each(['@deepseek-ai/dsh-base', '@deepseek-ai/cordis', '@deepseek-ai/libreoffice-kit-missing'])(
+    'rejects required unpacked internal package %s', (dependency) => {
+      const available = new Map<string, PackedDesktopPackage>([
+        ['@deepseek-ai/dsh', packed('@deepseek-ai/dsh', {
+          dependencies: { [dependency]: '^1.0.0' },
+        })],
+        ['@deepseek-ai/dsh-desktop-host', packed('@deepseek-ai/dsh-desktop-host', {
+          dependencies: { '@deepseek-ai/dsh': '^1.0.0' },
+        })],
+      ])
+      expect(() => selectDesktopPackageClosure(available)).toThrow(/unpacked internal package/u)
+      expect(() => selectDesktopPackageClosure(new Map([
+        ['@deepseek-ai/dsh', packed('@deepseek-ai/dsh')],
+      ]))).toThrow(/omit @deepseek-ai\/dsh-desktop-host/u)
+    },
+  )
 
   it('requires the Desktop Host entry and its packaged overlay', () => {
     const files = [

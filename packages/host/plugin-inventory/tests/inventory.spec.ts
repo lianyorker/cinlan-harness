@@ -32,6 +32,34 @@ async function harness(): Promise<{
 }
 
 describe('PluginInventoryGateway', () => {
+  it('advertises Web management only while its manager is available', async () => {
+    const { ctx, inventory } = await harness()
+    expect(await inventory.list()).toEqual({ entries: [] })
+    const contributor = await ctx.plugin((owner) => { owner.provide('pluginManager', {}) })
+    expect(await inventory.list()).toEqual({ entries: [], managementAvailable: true })
+    await contributor.dispose()
+    expect(await inventory.list()).toEqual({ entries: [] })
+  })
+
+  it.each([
+    { manager: false, host: false, available: undefined },
+    { manager: true, host: false, available: undefined },
+    { manager: false, host: true, available: undefined },
+    { manager: true, host: true, available: true },
+  ])('requires both Desktop services: $manager manager, $host launcher capability', async ({ manager, host, available }) => {
+    const { ctx, inventory } = await harness()
+    ctx.provide('dshProfileName', 'desktop')
+    const contributor = await ctx.plugin((owner) => {
+      if (manager) owner.provide('pluginManager', {})
+      if (host) owner.provide('pluginManagementHost', {})
+    })
+    expect(await inventory.list()).toEqual({
+      entries: [], packageManagement: 'desktop', ...available === undefined ? {} : { managementAvailable: true },
+    })
+    await contributor.dispose()
+    expect(await inventory.list()).toEqual({ entries: [], packageManagement: 'desktop' })
+  })
+
   it('publishes one direct list method under the pluginInventory namespace', async () => {
     const { inventory } = await harness()
     expect(inventory.typertRemote).toMatchObject({

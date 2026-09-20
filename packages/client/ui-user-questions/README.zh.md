@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### plan-review 卡片
 
-`plan-review` 意图——由 `dsh-plan-mode` 在 `exit_plan_mode` 审阅上设置——渲染等待审批卡片的布局：一条 `Plan review` 条带、计划作为可滚动的 markdown 主体，以及一行 `Chat about it` / `Refuse` / `Approve` 的决定操作。Approve 与 Refuse 用提问方自己的选项标签回答；`Chat about it` 以 `ASK_CANCELLED` 拒绝该等待，让编辑器归位，用户可以直接说出他想说的话。
+`plan-review` 意图——由 `dsh-plan-mode` 在 `exit_plan_mode` 审阅上设置——渲染一条 `Plan review` 条带、计划标题与首段摘要，以及一行 `Chat about it` / `Refuse` / `Approve` 的决定操作。`conversation.plan-review.actions` 列表让可选预览消费者在侧栏打开完整文档；打开文档不会回答请求。Approve 与 Refuse 用提问方自己的选项标签回答；`Chat about it` 以 `ASK_CANCELLED` 拒绝该等待，让编辑器归位，用户可以直接说出他想说的话。
 
 ### 失败与恢复
 
@@ -68,7 +68,7 @@ kind: "package-reference"
 
 - [ui-conversation](../ui-conversation/README.zh.md)——拥有 `conversation.composer` 链的聊天界面。
 - [tool-ask-user](../../interaction/tool-ask-user/README.zh.md)——本 UI 所渲染其 schema 与答案的面向模型工具。
-- [ui-plan](../ui-plan/README.zh.md)——设置 `plan-review` 意图的 plan-mode 界面。
+- [ui-plan](../ui-plan/README.zh.md)——plan 模式控件与可选完整计划预览导航。
 - [user-questions](../../interaction/user-questions/README.zh.md)——Host 侧提问 seam 及其 answerer waterfall。
 
 -----

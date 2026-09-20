@@ -63,7 +63,7 @@ async function setup(provider = new StubProvider(), config: Partial<executor.Con
   await ctx.plugin(LocalCoordinationService, { maxConcurrency: 4 })
   const removeProvider = ctx.subagents.registerProvider(provider)
   const parent = fakeAgent(ctx, 'parent')
-  const removeParent = ctx.agents.register(parent)
+  const removeParent = await ctx.agents.register(parent)
   const fiber = await ctx.plugin(executor, { provider: 'stub', ...config })
   return { ctx, provider, parent, removeParent, removeProvider, fiber }
 }
@@ -167,7 +167,7 @@ describe('coordination subagent executor', () => {
     await ctx.plugin(SubagentRuntime)
     await ctx.plugin(LocalCoordinationService, { maxConcurrency: 1 })
     const parent = fakeAgent(ctx, 'parent')
-    ctx.agents.register(parent)
+    await ctx.agents.register(parent)
     const fiber = await ctx.plugin(executor, { provider: 'stub' })
 
     expect(() => ctx.coordination.start({ tasks: [
@@ -223,7 +223,7 @@ describe('coordination subagent executor', () => {
       expect(ctx.coordination.getTask(TaskId(id)).error).toContain('parentAgentId')
     }
 
-    removeParent()
+    await removeParent()
     const missing = ctx.coordination.start({ tasks: [
       { id: TaskId('missing-parent'), label: 'Missing', executor: 'subagent', input: input('x') },
     ] })

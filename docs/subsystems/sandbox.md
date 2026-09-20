@@ -40,7 +40,7 @@ type SandboxEnforcement = 'full' | 'partial'
 
 ## Per-call policy
 
-The complete execution policy is resolved and carried per capability call. It includes `danger-full-access` so a consumer can resolve policy once before deciding whether to bypass confinement. Normal tool calls derive `workspaceRoot` from the calling session's immutable cwd; deployment configuration is the agentless fallback. The root is canonicalized with filesystem semantics before lexical normalization, so a cwd containing `symlink/..` identifies the directory where a spawned process actually runs.
+The complete execution policy is resolved and carried per capability call. It includes `danger-full-access` so a consumer can resolve policy once before deciding whether to bypass confinement. Normal tool calls derive `workspaceRoot` from the calling session's immutable cwd; deployment configuration is the agentless fallback. The policy resolver preserves the absolute execution-world root, including `symlink/..`, and rejects relative configured roots. Enforcing providers resolve filesystem identity where the files exist.
 
 ```ts type-equiv
 /**
@@ -153,7 +153,7 @@ The [local provider](../../packages/sandbox/sandbox-local/README.md) owns operat
 
 ## Provider and fail-closed errors
 
-`ctx.sandbox.confine(argv, policy)` returns a `ConfinedArgv` or throws `SandboxUnavailableError` with code `SANDBOX_UNAVAILABLE` when no usable backend exists. Consumers may also classify a failure while spawning or observing the returned argv; that attribution belongs to the consumer contract. Silent unconfined passthrough is never legal for a confined policy.
+`ctx.sandbox.confine(argv, policy, signal?)` returns `Promise<ConfinedArgv>`; consumers await preparation before spawning and pass cancellation through the optional signal. When no usable backend exists, the promise rejects with `SandboxUnavailableError` and code `SANDBOX_UNAVAILABLE`. Consumers may also classify a failure while spawning or observing the returned argv; that attribution belongs to the consumer contract. Silent unconfined passthrough is never legal for a confined policy.
 
 Provider selection, probing, caching, and backend-specific enforcement reports belong to the [local provider](../../packages/sandbox/sandbox-local/README.md).
 
@@ -180,10 +180,11 @@ Abstract process-sandbox service. confine must return enforcing argv or fail clo
  *   `['bash', '-c', command]`.
  * @param policy - the file-effect policy this execution runs under,
  *   carried per call (see {@link SandboxPolicy}).
+ * @param signal - cancellation while the provider resolves the policy and runner.
  * @returns the argv to spawn instead, plus the enforcement completeness
  *   the selected backend achieves for it.
  */
-abstract confine(argv: readonly string[], policy: SandboxPolicy): ConfinedArgv
+abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv>
 ```
 
 Source: [`packages/sandbox/sandbox/src/index.ts`](../../packages/sandbox/sandbox/src/index.ts)

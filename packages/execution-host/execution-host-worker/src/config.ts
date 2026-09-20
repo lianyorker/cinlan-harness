@@ -4,7 +4,7 @@ import type { Readable, Writable } from 'node:stream'
 import { posix, win32 } from 'node:path'
 import Schema from '@deepseek-ai/schemastery'
 import { z } from 'zod'
-import type { ExportedRoot } from './protocol.ts'
+import type { ExportedRoot } from './types.ts'
 
 /** Worker deployment bounds and runtime-only stream overrides for source Loader tests. */
 export interface WorkerConfig {

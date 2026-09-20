@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-tool-vuln-kb",
   "description": "Model-facing vulnerability knowledge base tools (vuln_query, vuln_read)",
-  "version": "0.1.5-alpha.1",
+  "version": "0.1.6-alpha.2",
   "publishConfig": {
     "access": "public"
   },

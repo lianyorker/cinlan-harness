@@ -1,5 +1,5 @@
 ---
-description: "Client command API for the Web GUI: the / command source, three dispatch kinds, the per-session command directory, and popupSelect registration for business packages; for users and maintainers of slash commands."
+description: "Slash commands for the Web GUI: client actions and popup selectors, host command inputs, and session-specific command discovery."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Typing a `/` command in the composer opens the matching surface — a registered popup, a host command's input, or a direct execution — and a command line is never silently downgraded to a plain prompt. Business packages contribute command surfaces through `ctx.commandUi`, registering a popupSelect spec (`/model`, `/permission`) or decorating an existing host command with a picker while the host keeps its catalog row and argument claim. Space and Enter resolve the line against the session's directory: a host descriptor with `input` is `leadingInput`, a registered `CommandUiSpec` is `popupSelect`, and everything else is `execute`.
+Typing a `/` command in the composer opens a picker, runs a client action, or submits a host command. Business packages can add client commands or decorate a host command’s bare invocation while its text arguments still reach the host. Command lookup uses the current session’s catalog, and lookup failures never silently turn a command into a plain prompt.
 
 ## Table of Contents
 
@@ -29,11 +29,11 @@ Mount this plugin alongside `ui-input-trigger` and `ui-conversation`; the `/` so
 
 ### Kinds and decorations
 
-A contribution is a client-owned command — a host-name collision fails loud. A decoration adds a bare-invocation popup to an EXISTING host command: the host command keeps its catalog row, its argument claim, and its lifecycle logging, and a decorated name with no host row in the session's directory never fires. Menu queries fuzzy-match ordered, case-insensitive subsequences of command names; prefixes rank first.
+A contribution is a client-owned command; a host-name collision fails loud. A decoration adds a bare-invocation popup or action to an existing host command. The host retains its catalog row, argument claim, and lifecycle logging for executed commands; a decoration with no host row never fires. Menu queries fuzzy-match ordered, case-insensitive subsequences of command names; prefixes rank first.
 
 ### Attachment-carrying submissions
 
-When the composer submits with images or generic files, only a host command declaring `input.attachments` proceeds. Every other command route throws the localized `attachmentsUnsupported` refusal, rendered as a transient toast while the draft and attachment cards stay in place. Handler errors preserve the same draft state for retry.
+An `action` requests guarded token consumption, then runs its synchronous callback with the invoking session. It submits nothing and leaves attachments in the composer, even when the token guard misses. Other attachment-carrying submissions require a host command declaring `input.attachments`; popup routes and non-accepting host commands throw the localized `attachmentsUnsupported` refusal, preserving the draft and attachment cards. Handler errors preserve the same draft state for retry.
 
 -----
 
@@ -43,7 +43,7 @@ When the composer submits with images or generic files, only a host command decl
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-`src/client/contract.ts` is the fixed business contract: `CommandUiContract.register(name, spec)` and `decorate(name, spec)` are everything a business package consumes. `CommandDirectory` is the one wire-derived cache, keyed by session: ordinary sessions fetch through `command.list({sessionId})`, entries are soft-invalidated by the forwarded `commands/change` owner event and hard-invalidated by `connection/reset`, and epoch-guarded so a superseded pull can never overwrite a newer one. `matchSpace` answers synchronously from this cache only; `matchEnter` strong-waits it on the SubmitAttempt signal and rejects on warmup failure. After `command.execute` returns a matched result, the browser emits a local `command/executed` acknowledgment; other clients receive the durable command nodes through the Host event stream but never this acknowledgment. `PopupSelectController` is the headless shell state; `PopupSelectView` self-registers into `conversation.input.overlay` with per-session resolution.
+[`src/client/contract.ts`](src/client/contract.ts) defines contribution and decoration registration through `ctx.commandUi`. A bare menu pick or Enter invokes the registered `popupSelect` or `action`; Space and Enter with arguments retain the host input claim. Actions request token consumption before running: menu picks use the captured span and draft revision, while bare Enter checks that the trimmed draft still equals the token. The input owner enforces both guards. `CommandDirectory` caches each session’s host catalog, invalidates it on host changes and connection resets, and rejects stale fetch results. After a matched host execution, the browser emits a local `command/executed` acknowledgment; other clients receive durable command nodes. `PopupSelectController` owns picker state, and `PopupSelectView` renders through `conversation.input.overlay`.
 
 </details>
 

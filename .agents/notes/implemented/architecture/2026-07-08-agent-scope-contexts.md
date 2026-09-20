@@ -110,13 +110,13 @@ A listener registered with `{ global: true }` deliberately bypasses contextual a
 
 ### Creation publishes last and disposal revokes last
 
-`ctx.agents.create()` and `resume()` build an unpublished session, scope, agent, and driver. They await `setup`, synchronously invoke its optional `AgentSetupCommit`, admit the final session and agent entries, announce them in order, start the loop, and only then return a handle. The commit lets mutable provisioning revalidate at the exact publication boundary after every setup await; a throw rolls the private transaction back before either identity is announced, while revocation after a successful commit is ordinary live teardown.
+`ctx.agents.create()` and `resume()` build an unpublished session, scope, agent, and driver. They await `setup`, synchronously invoke its optional `AgentSetupCommit`, admit the final session and agent entries, announce the session, await serial agent initialization, emit the startup notification, and only then release queued work and return a handle. The commit lets mutable provisioning revalidate at the exact publication boundary after every setup await; a throw rolls the private transaction back before either identity is announced, while revocation after a successful commit is ordinary live teardown.
 
 An optional creation signal cancels work only while create or resume is pending. After the promise resolves, the returned `AgentHandle` owns explicit disposal.
 
 If loading, setup, the optional setup commit, admission, or publication fails, the private transaction rolls back everything it prepared. Concurrent operations using the same caller-supplied live ID may both reach setup, but final registry entry admits only one; every loser rejects and cleans its private resources. Sequential reuse after awaited disposal remains valid.
 
-`AgentHandle.dispose()` reverses the boundary. It deactivates creation or driving, waits for synchronous publication to unwind, stops and drains the driver and final session flushes, detaches the agent and session, and finally disposes the scope. Repeated or racing disposal requests join one completion promise.
+`AgentHandle.dispose()` reverses the boundary. It cancels pending creation, awaits publication settlement, stops and drains the driver, disposes the scope, closes the session write path, then detaches the agent and session. Repeated or racing disposal requests join one completion promise. The [awaited initialization decision](2026-09-09-awaited-agent-creation.md) owns listener completion and cancellation timing.
 
 The calling Cordis context and the concrete AgentLoop factory are structural co-owners. Unloading either disposes the transaction or live agent.
 
@@ -136,8 +136,8 @@ flowchart TB
   publish -->|"listener failure or owner loss"| rollback
   live -->|"handle or owner disposal"| quiesce["Stop and drain work"]
   rollback --> quiesce
-  quiesce --> detach["Detach agent, then session"]
-  detach --> revoke["Dispose the agent scope"]
+  quiesce --> revoke["Dispose the agent scope and close storage"]
+  revoke --> detach["Detach agent, then session"]
 ```
 
 ## Security and authority are non-goals

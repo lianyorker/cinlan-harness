@@ -58,6 +58,8 @@ export interface ProfileTemplate {
 /** The slice of package.json both profiles and bundles use. */
 export interface ProfileManifest {
   name?: string
+  version?: string
+  description?: string
   dependencies?: Record<string, string>
   peerDependencies?: Record<string, string>
   dsh?: DshManifest

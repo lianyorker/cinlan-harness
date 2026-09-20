@@ -171,6 +171,25 @@ afterEach(() => {
 })
 
 describe('SubagentView live polling', () => {
+  it('opens topology children in sidebar tabs while preserving the main parent', () => {
+    const store = makeStore(runningSnapshot())
+    const ctx = makeCtx(store, vi.fn())
+    const openMain = vi.fn()
+    const openAside = vi.fn()
+    ctx.sessions.openSubagent = openMain
+    ctx.betterSidebar = { openSubagentChat: openAside } as Context['betterSidebar']
+    const view = mount(createElement(SubagentView, { sessionId: 'root', active: false, ctx }))
+    try {
+      const child = Array.from(view.container.querySelectorAll<HTMLElement>('[role="treeitem"]'))
+        .find(element => element.textContent?.includes('A'))!
+      expect(child).toBeDefined()
+      act(() => { child.click() })
+      expect(openAside).toHaveBeenCalledWith({ parentSessionId: 'root', childSessionId: 'a', mode: 'one-shot' }, { sessionId: 'root' })
+      expect(openMain).not.toHaveBeenCalled()
+      expect(store.getSnapshot().current).toBe('root')
+    } finally { view.unmount() }
+  })
+
   it('separates running children from resumable history in labels and totals', () => {
     const historySpy = vi.fn()
     const store = makeStore(mixedSnapshot())

@@ -25,6 +25,8 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
+使用子代理行上的**在侧边栏打开**可将父会话保留在主对话区，并在独立的 better-sidebar 标签页打开现有子代理。拓扑子节点使用相同操作。标签页保留独立 Session 上下文，跟随标准实时传输，并渲染普通 Conversation 的记录、工具卡片与编辑器。多个子代理标签页可共用当前分栏布局；关闭标签页会释放其保留的 Session。直接选择目录行仍会在主对话区打开子代理。
+
 会话页头保留当前会话 title 作为谱系面包屑，并在会话存在 subagent 后代时，于页头操作行之前追加 `/` 数量触发器；触发器打开后代目录，统计仅含 subagent 的完整谱系、在普通 fork 处停止，并在任一计入统计的后代处于 `running` 时显示活动仍在进行。选择任意深度，即可用该子会话的确切 `{parentSessionId, childSessionId, mode}` 地址打开其对话。
 
 ### 浏览目录

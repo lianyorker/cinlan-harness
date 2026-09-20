@@ -63,10 +63,10 @@ async function agentWithSession(
   // fold-only benches retain the direct lifecycle event used before it exists.
   const agents = ctx.get('agents')
   if (agents === undefined) {
-    ctx.emit('agent/created', { agent })
+    await ctx.serial('agent/created', { agent, source: 'startup' })
   } else {
     agents.enter(agent, owner)
-    agents.announce(agent)
+    await agents.announce(agent, 'startup')
   }
   return agent
 }
@@ -1066,7 +1066,9 @@ describe('exit_plan_mode', () => {
     const { ctx, agent, asked } = await setupWithReview({ selected: ['Approve'] })
     await callExit(ctx, agent)
     const question = asked[0]?.questions[0]
-    expect(question?.intent).toEqual({ kind: 'plan-review', approve: 'Approve' })
+    expect(question?.intent).toEqual({
+      kind: 'plan-review', approve: 'Approve', callId: ToolCallId(`call-exit-${callCounter}`),
+    })
     // The named label is one this same question offers, so a UI honouring the
     // intent answers a choice this tool accepts.
     expect(question?.options?.map(option => option.label)).toContain(question?.intent?.approve)

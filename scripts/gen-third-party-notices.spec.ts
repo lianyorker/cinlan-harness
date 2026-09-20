@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { describe, expect, it } from 'vitest'
 import {
   CLAUDE_AGENT_SDK_PACKAGE,
+  assertRuntimeLicenses,
   claudeDistributionFromManifest,
   collectPythonDependencies,
   isOwnerAuthorizedRuntime,
@@ -27,6 +28,8 @@ describe('THIRD_PARTY_NOTICES.md', () => {
   it('matches what the generator produces from the current manifests', () => {
     const generated = render()
     expect(generated).toContain('It depends on the third-party software listed below.')
+    expect(generated).toContain('| [`@deepseek-ai/libreoffice-kit`](https://github.com/deepseek-harness/libreoffice-kit) | MPL-2.0 |')
+    expect(generated).toContain('Recipients must have access to those corresponding sources and notices.')
     expect(generated).toContain('| [`ssh2`](http://github.com/mscdex/ssh2) | MIT |')
     expect(readFileSync(resolve(root, 'THIRD_PARTY_NOTICES.md'), 'utf8'), 'stale notices — run `pnpm run gen-third-party-notices`').toBe(generated)
   })
@@ -41,6 +44,29 @@ function workspace(entries: Record<string, Manifest>): { manifests: Map<string, 
   }
   return { manifests, names }
 }
+
+describe('assertRuntimeLicenses', () => {
+  it('limits the LibreOffice exception to its reviewed package identity and MPL terms', () => {
+    for (const name of [
+      '@deepseek-ai/libreoffice-kit', '@deepseek-ai/libreoffice-kit-wasm',
+      '@deepseek-ai/libreoffice-kit-darwin-arm64', '@deepseek-ai/libreoffice-kit-darwin-x64',
+      '@deepseek-ai/libreoffice-kit-win32-arm64', '@deepseek-ai/libreoffice-kit-win32-x64',
+    ]) {
+      expect(() => { assertRuntimeLicenses([{ name, license: 'MPL-2.0' }]) }).not.toThrow()
+      expect(() => { assertRuntimeLicenses([{ name, license: 'GPL-3.0-only' }]) }).toThrow(name)
+    }
+    for (const dependency of [
+      { name: 'unrelated-library', license: 'MPL-2.0' },
+      { name: '@deepseek-ai/dsh-libreoffice-kit', license: 'MPL-2.0' },
+      { name: '@deepseek-ai/libreoffice-kit-unreviewed', license: 'MPL-2.0' },
+      { name: '@deepseek-ai/libreoffice-kit', license: 'GPL-3.0-only' },
+      { name: '@deepseek-ai/libreoffice-kit', license: 'UNKNOWN' },
+    ]) {
+      expect(() => { assertRuntimeLicenses([dependency]) }).toThrow(`${dependency.name} (${dependency.license})`)
+    }
+    expect(isPermissive('MPL-2.0')).toBe(false)
+  })
+})
 
 describe('tierExternalDeps', () => {
   it('tiers by declaring area, not by the declaring section name', () => {

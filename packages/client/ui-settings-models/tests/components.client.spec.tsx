@@ -1493,6 +1493,25 @@ describe('ModelsSection', () => {
 
 })
 
+describe('provider diagnostics', () => {
+  it.each([false, true])('keeps the provider error visible with credential configured=%s', async (configured) => {
+    const scripted = scriptedFace()
+    scripted.face.llm.listProviders.mockResolvedValue(remoteOk([{ id: 'deepseek-official', name: 'DeepSeek' }]))
+    scripted.face.llm.listConfigurableProviders.mockResolvedValue(remoteOk([{
+      provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [],
+      error: 'Invalid model input configuration',
+    }]))
+    scripted.face.credentials.describe.mockResolvedValue(remoteOk({
+      DEEPSEEK_API_KEY: { configured, writable: true },
+    }))
+    const { controller } = await mountFace(scripted)
+    expect(controller.store.getSnapshot().rows[0]?.entry.error).toBe('Invalid model input configuration')
+    expect(screen.getByRole('alert').textContent).toBe('Invalid model input configuration')
+    if (configured) fireEvent.click(screen.getByRole('button', { name: deepSeekCopy(en.editProvider) }))
+    expect(screen.getByLabelText(en.baseUrl)).toBeTruthy()
+  })
+})
+
 describe('apiKeyFailure', () => {
   it('treats a blank field as no failure — it means keep the stored key', () => {
     expect(apiKeyFailure('')).toBeUndefined()

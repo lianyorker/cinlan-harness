@@ -1,0 +1,31 @@
+/* Management inherits the compact Settings typography and control colors. */
+.section { display: flex; flex-direction: column; gap: 14px; min-width: 0; color: var(--dsw-alias-label-primary); font-size: 13px; line-height: 22px; }
+.toolbar, .row, .notice { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.toolbar, .notice { justify-content: space-between; }
+.actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.hint, .packageName { margin: 0; color: var(--dsw-alias-label-tertiary); overflow-wrap: anywhere; }
+.packageName { font-size: 12px; }
+.control, .input { border-radius: 8px; background: var(--dsw-alias-settings-control-bg); color: var(--dsw-alias-label-secondary); }
+.control:hover:not(:disabled) { background: var(--dsw-alias-settings-control-bg-hover); color: var(--dsw-alias-label-primary); }
+.control:active:not(:disabled) { background: var(--dsw-alias-settings-control-bg-active); }
+.input { width: 100%; }
+.input input { background: transparent; }
+.cards, .rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.card { border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.disclosure { flex: 1; justify-content: flex-start; text-align: left; min-width: 0; height: auto; padding: 0; border-radius: 4px; white-space: normal; overflow-wrap: anywhere; }
+.disclosure strong { font-size: 13px; font-weight: 500; }
+.details { display: flex; flex-direction: column; align-items: stretch; gap: 12px; padding-top: 10px; }
+.details > .control { align-self: flex-start; }
+.heading { margin: 0; font-size: 13px; font-weight: 500; }
+.rows > li { border-top: 0.5px solid var(--dsw-alias-border-l2); padding: 10px 0 0; }
+.rowTitle { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.phase { display: inline-flex; align-items: center; gap: 5px; color: var(--dsw-alias-label-tertiary); font-size: 12px; }
+.failure { margin: 0; color: var(--dsw-alias-state-error-primary); overflow-wrap: anywhere; }
+.failure p { margin: 0; }
+.notice { padding: 10px 12px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; overflow-wrap: anywhere; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.config { margin-top: 8px; }
+.config summary, .card > summary { cursor: pointer; }
+.config summary:focus-visible, .card > summary:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 3px; border-radius: 4px; }
+.installDialog { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); overflow-y: auto; }
+@media (max-width: 560px) { .toolbar { align-items: flex-start; flex-direction: column; } .row { flex-wrap: wrap; } .rowTitle, .disclosure { flex-basis: 45%; } }

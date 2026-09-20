@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-git-settings",
   "description": "Git preferences for Worktree Task branch naming and source control, with base refresh unavailable",
-  "version": "0.1.5-alpha.1",
+  "version": "0.1.6-alpha.2",
   "publishConfig": { "access": "public" },
   "type": "module",
   "main": "lib/index.js",

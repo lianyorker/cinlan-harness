@@ -49,7 +49,7 @@ describe('TerminalController', () => {
       status: 'idle',
       session: { id: sessionId, header: { id: sessionId, version: 2, createdAt: 1, isSeeded: false }, events: [] },
     } as unknown as Agent
-    ctx.agents.register(agent)
+    await ctx.agents.register(agent)
   })
 
   it('rejects when terminal service is unavailable', async () => {
@@ -63,7 +63,7 @@ describe('TerminalController', () => {
       status: 'idle',
       session: { id: sessionId, header: { id: sessionId, version: 2, createdAt: 1, isSeeded: false }, events: [] },
     } as unknown as Agent
-    freshCtx.agents.register(freshAgent)
+    await freshCtx.agents.register(freshAgent)
 
     const request: TerminalListRequest = { sessionId }
     await expect(freshController.list(request, new AbortController().signal))
@@ -159,7 +159,9 @@ class FakeTerminalService extends TerminalSessionService {
     }
   }
 
-  override startSend(_owner: Agent, _sessionId: ReturnType<typeof TerminalServiceSessionId>, request: TerminalSendRequest): TerminalSendOperation {
+  override startSend(
+    _owner: Agent, _sessionId: ReturnType<typeof TerminalServiceSessionId>, request: TerminalSendRequest,
+  ): TerminalSendOperation {
     const result: TerminalSendResult = {
       viewport: request.text + '\noutput',
       waitReason: 'inferred_idle',
@@ -173,11 +175,15 @@ class FakeTerminalService extends TerminalSessionService {
     }
   }
 
-  override read(_owner: Agent, _sessionId: ReturnType<typeof TerminalServiceSessionId>, _request: TerminalReadRequest = {}): TerminalReadResult {
+  override read(
+    _owner: Agent, _sessionId: ReturnType<typeof TerminalServiceSessionId>, _request: TerminalReadRequest = {},
+  ): TerminalReadResult {
     return { text: 'scrollback content', totalLines: 100, lineBegin: 0, lineEnd: 50, truncated: false }
   }
 
-  override signal(_owner: Agent, _sessionId: ReturnType<typeof TerminalServiceSessionId>, _signal: TerminalSignal): Promise<TerminalSignalResult> {
+  override signal(
+    _owner: Agent, _sessionId: ReturnType<typeof TerminalServiceSessionId>, _signal: TerminalSignal,
+  ): Promise<TerminalSignalResult> {
     return Promise.resolve({ delivered: true, targetPgid: 1234 })
   }
 

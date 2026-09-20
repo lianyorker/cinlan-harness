@@ -37,6 +37,8 @@ register 调用可以用 `store: defineStore(...)` 声明 store 席位：`init` 
 
 ### 声明纪律
 
+单个 Session 或可选 Session 注册可通过 `reusable: true` 允许次级实例。实例使用同一个组件、子插槽声明与作用域 store；这不会授予渲染未声明子插槽的权限。renderer 负责显式 Session 绑定，并拒绝复用未选择启用的条目。
+
 声明即认领：注册条目成为唯一被允许渲染该键的条目；注册未声明 slot、声明已声明过的子项、在两个 scope 下挂载同一个共享 handle、或注册缺少 `select` 的 chain，都会在加载时抛出。条目的 disposer 会递归移除其声明的子 slot——账本行、贡献与 store 挂载都随同一生命周期结束而移除。
 
 -----

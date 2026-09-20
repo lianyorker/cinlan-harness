@@ -197,6 +197,34 @@ describe('desktop package policy', () => {
 })
 
 describe('desktop project transactions', () => {
+  it('preserves saved row patches through plugin install, update, and removal', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(root)
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    await manager.applyRelease(seed, '1.0.0', hooks())
+    const patch = Buffer.from('# Saved row overrides\r\n- id: saved-row\r\n  disabled: true\r\n')
+    writeFileSync(join(paths.profile, 'cordis.patch.yml'), patch)
+    const healthCheck = vi.fn(async (staged: string) => {
+      expect(readFileSync(join(staged, 'cordis.patch.yml'))).toEqual(patch)
+    })
+    for (const mutation of [
+      { type: 'plugin-add', spec: '@scope/plugin@2.0.0' },
+      { type: 'plugin-update', name: '@scope/plugin', version: '3.0.0' },
+      { type: 'plugin-remove', name: '@scope/plugin' },
+    ] as const) {
+      await manager.mutate(mutation, hooks({ healthCheck }))
+      expect(readFileSync(join(paths.profile, 'cordis.patch.yml'))).toEqual(patch)
+      expect(readFileSync(join(paths.rollback, 'cordis.patch.yml'))).toEqual(patch)
+    }
+    expect(healthCheck).toHaveBeenCalledTimes(3)
+    expect(manager.listPlugins()).toEqual([])
+  })
+
   it('reports performed startup stages and skips install stages for an identical verified release', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')
@@ -406,6 +434,8 @@ describe('desktop project transactions', () => {
     const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm })
     await manager.applyRelease(firstSeed, '1.0.0', hooks())
     await manager.mutate({ type: 'plugin-add', spec: '@scope/plugin@2.0.0' }, hooks())
+    const patch = Buffer.from('# Saved row overrides\n- id: saved-row\n  disabled: true\n')
+    writeFileSync(join(paths.profile, 'cordis.patch.yml'), patch)
     const previousDescriptor = readFileSync(join(paths.profile, DESKTOP_PACKAGE_SET_FILE))
     const previousRelease = readFileSync(join(paths.profile, 'desktop-release.json'))
     const previousManifest = readFileSync(join(paths.profile, 'package.json'))
@@ -421,6 +451,7 @@ describe('desktop project transactions', () => {
       healthCheck: async (staged) => {
         order.push('health')
         expect(readFileSync(join(paths.profile, 'package.json'))).toEqual(previousManifest)
+        expect(readFileSync(join(staged, 'cordis.patch.yml'))).toEqual(patch)
         expect(readFileSync(join(staged, DESKTOP_PACKAGE_SET_FILE)))
           .toEqual(readFileSync(join(nextSeed, DESKTOP_PACKAGE_SET_FILE)))
       },
@@ -434,6 +465,8 @@ describe('desktop project transactions', () => {
       .toEqual(readFileSync(join(nextSeed, 'desktop-release.json')))
     expect(readFileSync(join(paths.rollback, DESKTOP_PACKAGE_SET_FILE))).toEqual(previousDescriptor)
     expect(readFileSync(join(paths.rollback, 'desktop-release.json'))).toEqual(previousRelease)
+    expect(readFileSync(join(paths.profile, 'cordis.patch.yml'))).toEqual(patch)
+    expect(readFileSync(join(paths.rollback, 'cordis.patch.yml'))).toEqual(patch)
     expect(manager.releaseVersion()).toBe('1.0.0')
     expect(manager.listPlugins()).toEqual([{ name: '@scope/plugin', version: '2.0.0' }])
     expect(readFileSync(settingsPath)).toEqual(settingsBefore)
@@ -805,6 +838,8 @@ describe('desktop project transactions', () => {
     const paths = resolveDesktopPaths(join(root, '.dsh'))
     const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
     await manager.applyRelease(seed, '1.0.0', hooks())
+    const patch = Buffer.from('# Saved before mutation\n- id: saved-row\n  disabled: true\n')
+    writeFileSync(join(paths.profile, 'cordis.patch.yml'), patch)
     let starts = 0
     const order: string[] = []
     await expect(manager.mutate({ type: 'plugin-add', spec: '@scope/plugin@2.0.0' }, hooks({
@@ -818,6 +853,7 @@ describe('desktop project transactions', () => {
       afterActivate: async () => {
         starts += 1
         order.push(starts === 1 ? 'start-replacement' : 'start-original')
+        expect(readFileSync(join(paths.profile, 'cordis.patch.yml'))).toEqual(patch)
         if (starts === 1) throw new Error('backend rejected staged graph')
         expect(manager.listPlugins()).toEqual([])
       },
@@ -825,6 +861,7 @@ describe('desktop project transactions', () => {
     expect(manager.listPlugins()).toEqual([])
     expect(manager.dshVersion()).toBe('1.0.0')
     expect(order).toEqual(['stop-original', 'start-replacement', 'stop-replacement', 'start-original'])
+    expect(readFileSync(join(paths.profile, 'cordis.patch.yml'))).toEqual(patch)
     expect(existsSync(paths.pending)).toBe(false)
     const retired = readdirSync(paths.staging)
       .map(name => join(paths.staging, name, 'profile', 'node_modules', '@scope', 'plugin', 'package.json'))
@@ -1127,8 +1164,11 @@ describe('desktop project transactions', () => {
     await manager.applyRelease(firstSeed, '1.0.0', hooks())
     await manager.mutate({ type: 'plugin-add', spec: '@scope/plugin@2.0.0' }, hooks())
 
+    const patch = Buffer.from('# Saved row overrides\n- id: saved-row\n  disabled: true\n')
+    writeFileSync(join(paths.profile, 'cordis.patch.yml'), patch)
     const nextSeed = join(root, 'seed-2')
     createTestSeedMetadata(nextSeed, release('1.1.0'))
+    writeFileSync(join(nextSeed, 'cordis.patch.yml'), '[]\n')
     writeFileSync(join(nextSeed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
     mkdirSync(join(nextSeed, 'store'), { recursive: true })
     writeFileSync(join(nextSeed, 'store', 'release-2'), 'two')
@@ -1137,6 +1177,8 @@ describe('desktop project transactions', () => {
 
     await expect(manager.applyRelease(nextSeed, '1.1.0', hooks())).resolves.toBe(true)
     expect(manager.releaseVersion()).toBe('1.1.0')
+    expect(readFileSync(join(paths.profile, 'cordis.patch.yml'))).toEqual(patch)
+    expect(readFileSync(join(paths.rollback, 'cordis.patch.yml'))).toEqual(patch)
     expect(manager.dshVersion()).toBe('1.1.0')
     expect(manager.listPlugins()).toEqual([{ name: '@scope/plugin', version: '2.0.0' }])
     const profile = JSON.parse(readFileSync(join(paths.profile, 'package.json'), 'utf8')) as {

@@ -641,10 +641,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   const resolved = resolveCinlanComputerUseConfig(config)
   const provider = new CinlanComputerUseProvider(ctx, resolved)
   ctx.effect(function* () {
-    const unregister = ctx.computerUse.registerProvider(provider)
-    yield async () => {
-      unregister()
-      await provider.dispose()
-    }
+    yield ctx.computerUse.registerProvider(provider)
+    yield () => provider.dispose()
   }, 'computer-use-cinlan.lifecycle')
 }

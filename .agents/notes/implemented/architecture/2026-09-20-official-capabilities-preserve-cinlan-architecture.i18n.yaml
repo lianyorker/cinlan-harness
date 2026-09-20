@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-official-capabilities-preserve-cinlan-architecture.md
+2026-09-20-official-capabilities-preserve-cinlan-architecture.md: e4c145c68632f42a182fc6be8d5e213b1af23fa3
+2026-09-20-official-capabilities-preserve-cinlan-architecture.zh.md: 903f8b501c7fb0819f15cefa700522f846a438eb

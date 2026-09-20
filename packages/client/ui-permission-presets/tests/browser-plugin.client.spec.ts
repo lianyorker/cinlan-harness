@@ -99,12 +99,39 @@ async function bench(namespaces: readonly SettingsNamespaceView[] = [PERMISSION_
     ctx, fiber, locale, values, commands, remote, settingsRemote,
     setResult: (r: { ok: boolean; matched?: boolean }) => { commandResult = r },
     decoration: () => decoration,
+    popup: () => {
+      const ui = decoration?.ui
+      if (ui?.kind !== 'popupSelect') throw new Error('permission command must register a popup picker')
+      return ui
+    },
     permissionRow: () => ctx.slots.entries('settings.general.item')
       .find(entry => entry.component === PermissionRow),
   }
 }
 
 describe('ui-permission browser plugin', () => {
+  it('offers Auto only when advertised and requires experimental confirmation', async () => {
+    const b = await bench()
+    try {
+      const proj = { sessionId: sid('auto') }
+      b.values.set(sid('auto'), SELECT)
+      expect((await b.popup().options(proj, new AbortController().signal)).some(o => o.id === 'auto')).toBe(false)
+      b.values.set(sid('auto'), { ...SELECT, options: [...SELECT.options, { value: 'auto', name: 'auto' }] })
+      const auto = (await b.popup().options(proj, new AbortController().signal)).find(o => o.id === 'auto')!
+      expect(auto.label).toBe('Auto review (EXP)')
+      expect(auto.confirmation).toEqual({
+        title: accessEn['auto.confirm.title'], description: accessEn['auto.confirm.description'],
+        acknowledgeLabel: accessEn['auto.confirm.acknowledge'], cancelLabel: 'Cancel',
+        confirmLabel: accessEn['auto.confirm.enable'],
+      })
+      expect(b.commands).toEqual([])
+      await b.popup().onSelect(auto, proj)
+      expect(b.commands).toEqual(['/permission auto'])
+    } finally {
+      await b.ctx.fiber.dispose()
+    }
+  })
+
   it('hangs the /permission popup decoration on the host command', async () => {
     const b = await bench()
     const c = b.decoration()!
@@ -170,11 +197,11 @@ describe('ui-permission browser plugin', () => {
     expect(c.available(proj)).toBe(false)
     b.values.set(sid('s1'), { ...SELECT, options: [...SELECT.options, { value: 'custom', name: 'Custom' }], currentValue: 'custom' })
     expect(c.available(proj)).toBe(true)
-    const options = await c.ui.options(proj, new AbortController().signal)
+    const options = await b.popup().options(proj, new AbortController().signal)
     expect(options.map(option => option.id)).toEqual(['read-only', 'workspace-write', 'danger-full-access'])
     expect(options.every(option => option.active !== true)).toBe(true)
     b.values.set(sid('s1'), SELECT)
-    const again = await c.ui.options(proj, new AbortController().signal)
+    const again = await b.popup().options(proj, new AbortController().signal)
     expect(again.find(option => option.id === 'workspace-write')?.active).toBe(true)
     expect(again.find(option => option.id === 'read-only')?.detail).toBe('Reads only.')
     // English built-ins use product labels; other kebab-case names title-case.
@@ -187,7 +214,7 @@ describe('ui-permission browser plugin', () => {
       confirmLabel: 'Enable Full access',
     })
     b.locale.setLocale('zh')
-    const localized = await c.ui.options(proj, new AbortController().signal)
+    const localized = await b.popup().options(proj, new AbortController().signal)
     expect(localized.map(option => option.label)).toEqual(['仅可查看', '工作区内修改', '完全权限'])
     expect(localized.find(option => option.id === 'danger-full-access')?.confirmation).toEqual({
       title: '确认启用完全权限？',
@@ -203,28 +230,27 @@ describe('ui-permission browser plugin', () => {
       { value: '__proto__', name: '__proto__' },
       { value: 'plain', name: 'Ask Every Time' },
     ] })
-    const passthrough = await c.ui.options(proj, new AbortController().signal)
+    const passthrough = await b.popup().options(proj, new AbortController().signal)
     expect(passthrough.map(option => option.label)).toEqual([
       'Project Files', 'Operator Mode', 'Custom Mode', '__proto__', 'Ask Every Time',
     ])
     // A projection that vanished between availability and open throws.
-    expect(() => c.ui.options({ sessionId: sid('ghost') }, new AbortController().signal))
+    expect(() => b.popup().options({ sessionId: sid('ghost') }, new AbortController().signal))
       .toThrow(/not available on this host/)
   })
 
   it('a pick submits the /permission line; rejection and unmatched throw', async () => {
     const b = await bench()
-    const c = b.decoration()!
     const proj = { sessionId: sid('s1') }
     b.values.set(sid('s1'), SELECT)
-    await c.ui.onSelect({ id: 'danger-full-access', label: 'danger-full-access' }, proj)
+    await b.popup().onSelect({ id: 'danger-full-access', label: 'danger-full-access' }, proj)
     expect(b.commands).toEqual(['/permission danger-full-access'])
     b.setResult({ ok: false })
-    await expect(c.ui.onSelect({ id: 'read-only', label: 'read-only' }, proj)).rejects.toThrow(/permission switch failed/)
+    await expect(b.popup().onSelect({ id: 'read-only', label: 'read-only' }, proj)).rejects.toThrow(/permission switch failed/)
     b.setResult({ ok: true, matched: false })
-    await expect(c.ui.onSelect({ id: 'read-only', label: 'read-only' }, proj)).rejects.toThrow(/no \/permission command/)
+    await expect(b.popup().onSelect({ id: 'read-only', label: 'read-only' }, proj)).rejects.toThrow(/no \/permission command/)
     // An unmaterialized session throws before any submit.
-    await expect(c.ui.onSelect({ id: 'read-only', label: 'read-only' }, { sessionId: sid('ghost') }))
+    await expect(b.popup().onSelect({ id: 'read-only', label: 'read-only' }, { sessionId: sid('ghost') }))
       .rejects.toThrow(/not materialized/)
   })
 

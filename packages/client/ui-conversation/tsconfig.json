@@ -51,6 +51,9 @@
       "path": "../../core/session"
     },
     {
+      "path": "../../core/agent"
+    },
+    {
       "path": "../../interaction/commands"
     },
     {

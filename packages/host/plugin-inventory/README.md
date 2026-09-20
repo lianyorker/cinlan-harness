@@ -25,7 +25,7 @@ Clients can call `pluginInventory/list` to display the host’s current plugins 
 <a id="use-this-package"></a>
 ## Use this package
 
-Call `pluginInventory/list` when a client or settings page needs to show what is currently composed in the host — which plugins are loaded, enabled, and alive, and what each agent preset would give a session. The Remote is the only entry point: the service is Remote-only and deliberately declares no same-process Cordis `Context` merge.
+Call `pluginInventory/list` when a client or settings page needs to show what is currently composed in the host — which plugins are loaded, enabled, and alive, and what each agent preset would give a session. The service is Remote-only and declares no same-process Cordis `Context` merge. Host consumers can call the exported `readPluginInventory(ctx)` helper. `managementAvailable: true` requires a composed profile manager; Desktop also requires the launcher-provided `pluginManagementHost` capability. `packageManagement: "desktop"` directs package actions to the native shell while live row enablement remains available; Web omits this field.
 
 ### What a snapshot contains
 

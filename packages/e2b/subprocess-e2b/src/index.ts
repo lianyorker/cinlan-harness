@@ -9,15 +9,16 @@ import { posix } from 'node:path'
 import { inspect } from 'node:util'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
+import { SubprocessRuntime, SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import type {
   SubprocessHandle,
   SubprocessSpawnSpec,
   SubprocessTerminalHandle,
+  SubprocessTerminalEnvironment,
   SubprocessTerminalSpawnSpec,
 } from '@deepseek-ai/dsh-subprocess'
-import { e2bControlEnvs, quoteE2BShellArg } from '@deepseek-ai/dsh-e2b'
+import { CommandExitError, e2bControlEnvs, quoteE2BShellArg } from '@deepseek-ai/dsh-e2b'
 import { E2BSubprocessHandle } from './process.ts'
 import { asError, signalOpts } from './remote.ts'
 import { spawnE2BTerminal } from './terminal.ts'
@@ -134,7 +135,16 @@ export class E2BSubprocessRuntime extends SubprocessRuntime {
     const result = await sandbox.commands.run(
       `${prefix}command -v -- ${quoteE2BShellArg(command)}`,
       { cwd: this.ctx.e2b.cwd, envs: e2bControlEnvs(), ...signalOpts(signal) },
-    )
+    ).catch((error: unknown) => {
+      signal?.throwIfAborted()
+      if (error instanceof CommandExitError && error.exitCode === 1) {
+        throw new SubprocessExecutableNotFoundError(
+          `subprocess-e2b: command ${JSON.stringify(command)} was not found on PATH`,
+          { cause: error },
+        )
+      }
+      throw error
+    })
     signal?.throwIfAborted()
     const executable = result.stdout.trim()
     if (executable.includes('\n') || (!posix.isAbsolute(executable) && !executable.includes('/'))) {
@@ -145,7 +155,15 @@ export class E2BSubprocessRuntime extends SubprocessRuntime {
   }
 
   /** @inheritdoc */
+  // oxlint-disable-next-line typescript/require-await -- Preserve promise rejection semantics for cancellation.
+  async terminalEnvironment(signal?: AbortSignal): Promise<SubprocessTerminalEnvironment> {
+    signal?.throwIfAborted()
+    return { platform: 'posix' }
+  }
+
+  /** @inheritdoc */
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
+    if (spec.stdio.control !== undefined) throw new Error('subprocess-e2b: control channels are unsupported')
     if (this.disposing) throw new Error('subprocess-e2b: service is disposing')
     const program = spec.argv[0]
     if (program === undefined || program.length === 0) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { createUserMessage, ToolCallId  } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, ToolCallId, type ToolSchema } from '@deepseek-ai/dsh-llm'
 import { createScope } from '@deepseek-ai/dsh-scope'
 import type { Scope } from '@deepseek-ai/dsh-scope'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
@@ -115,6 +115,111 @@ async function runCode(
     ...extras.signal ? { signal: extras.signal } : {},
   })
 }
+
+describe('Auto review PTC metadata', () => {
+  it('keeps each concurrent run bound to its own immutable schema snapshot', async () => {
+    const { ctx, runtime } = await setup({ mode: 'ptc' })
+    let description = 'original description'
+    let parameters = { type: 'object', properties: { value: { type: 'string', description: 'original value' } } }
+    ctx.tools.register({
+      name: 'probe',
+      get description() { return description },
+      get parameters() { return parameters },
+      output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
+      execute: () => Promise.resolve('done'),
+    })
+    const seen: ToolSchema[] = []
+    ctx.on('tools/pre-execute', (exec, next) => {
+      if (exec.name === 'probe') {
+        expect(exec.schema).toBeDefined()
+        expect(Object.isFrozen(exec.schema)).toBe(true)
+        expect(Object.isFrozen(exec.schema!.parameters)).toBe(true)
+        seen.push(exec.schema!)
+      }
+      return next()
+    })
+    const firstBound = Promise.withResolvers<undefined>()
+    const releaseFirst = Promise.withResolvers<undefined>()
+    runtime.behavior = async (request) => {
+      if (request.program === 'first') {
+        firstBound.resolve(undefined)
+        await releaseFirst.promise
+      }
+      const value = await request.bindings[0]!.functions.probe!({ value: request.program })
+      return { logs: [], value: JSON.stringify(value) }
+    }
+    const first = runCode(ctx, 'first')
+    try {
+      await firstBound.promise
+      description = 'replacement description'
+      parameters = { type: 'object', properties: { value: { type: 'string', description: 'replacement value' } } }
+      expect((await runCode(ctx, 'second')).isError).toBe(false)
+    } finally {
+      releaseFirst.resolve(undefined)
+    }
+    expect((await first).isError).toBe(false)
+    expect(seen.map(schema => schema.description)).toEqual(['replacement description', 'original description'])
+    expect(seen[1]!.parameters).toEqual({
+      type: 'object', properties: { value: { type: 'string', description: 'original value' } },
+    })
+  })
+
+  it('a tools/pre-execute deny reaches the program as a binding rejection', async () => {
+    const { ctx, runtime } = await setup({ mode: 'ptc' })
+    registerEcho(ctx)
+    const schemas: unknown[] = []
+    ctx.on('tools/pre-execute', (exec, next) => {
+      if (exec.name === 'echo') {
+        schemas.push(exec.schema)
+        expect(Object.isFrozen(exec.schema)).toBe(true)
+        expect(Object.isFrozen(exec.schema?.parameters)).toBe(true)
+        return Promise.resolve({
+          kind: 'deny' as const,
+          reason: 'not on my watch',
+          info: { name: 'AutoReviewDeniedError', code: 'AUTO_REVIEW_DENIED', reason: ' raw\nreason ' },
+        })
+      }
+      return next()
+    })
+    const { agent, events } = fakeAgent()
+    runtime.behavior = async (request) => {
+      try {
+        await request.bindings[0]!.functions.echo!({ value: 'x' })
+        return { logs: [], value: 'unreachable' }
+      } catch (error: unknown) {
+        return { logs: [], value: `denied: ${error instanceof Error ? error.message : String(error)}` }
+      }
+    }
+    const result = await runCode(ctx, 'program', { agent })
+    expect(result.content[0]?.type).toBe('text')
+    expect((result.content[0] as { text: string }).text).toContain('not on my watch')
+    const start = events.find(event => event.type === 'tool/ptc-dispatch-start')
+    expect(start?.data).toMatchObject({
+      name: 'echo',
+      arguments: { value: 'x' },
+    })
+    expect(schemas).toEqual([{
+      name: 'echo',
+      description: 'Echo tool echo.',
+      parameters: {
+        type: 'object',
+        properties: { value: { type: 'string' } },
+        required: ['value'],
+      },
+    }])
+    const settle = events.find(event => event.type === 'tool/ptc-dispatch')
+    expect(settle?.data).toMatchObject({
+      name: 'echo',
+      isError: true,
+      error: { name: 'AutoReviewDeniedError', code: 'AUTO_REVIEW_DENIED', reason: ' raw\nreason ' },
+    })
+    for (const event of [start, settle]) {
+      expect(event?.data).not.toHaveProperty('description')
+      expect(event?.data).not.toHaveProperty('parameters')
+      expect(event?.data).not.toHaveProperty('schema')
+    }
+  })
+})
 
 describe('mode-aware wire contribution', () => {
   it("mode 'native' contributes every schema, no run_code, no SDK section — and needs no runtime", async () => {

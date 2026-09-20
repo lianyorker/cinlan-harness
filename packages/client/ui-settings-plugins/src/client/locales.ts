@@ -11,6 +11,8 @@ export type PluginsSettingsLocaleKey =
   | 'webSearchTitle' | 'webSearchDescription'
   | 'webSearchApiKey' | 'webSearchApiKeyHint' | 'webSearchApiKeySet' | 'webSearchApiKeyUnset'
   | 'webSearchBaseUrl' | 'webSearchBaseUrlHint' | 'webSearchMaxUses' | 'webSearchMaxUsesHint'
+  | 'subagentMaxDepth' | 'subagentMaxDepthHint' | 'subagentMaxActive' | 'subagentMaxActiveHint'
+  | 'subagentInvalidDepth' | 'subagentInvalidActive'
   | 'subagentModelSelectionTitle' | 'subagentModelSelectionDescription'
   | 'subagentModelSelectionToggle' | 'subagentModelSelectionChoose' | 'subagentModelSelectionAllowed'
   | 'subagentModelSelectionLoading' | 'subagentModelSelectionLoadFailed' | 'subagentModelSelectionRetry'
@@ -58,7 +60,13 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
   webSearchMaxUses: 'Max searches per request',
   webSearchMaxUsesHint: 'How many times one request may search before it must answer.',
   subagentModelSelectionTitle: 'Subagent',
-  subagentModelSelectionDescription: 'Control which models agents may choose for subagents.',
+  subagentModelSelectionDescription: 'Control subagent delegation limits and model choices.',
+  subagentMaxDepth: 'Maximum delegation depth',
+  subagentMaxDepthHint: 'Defaults to 3. Set 1 to allow direct children only, or 0 to disable delegation. Explicit tool limits take precedence.',
+  subagentMaxActive: 'Maximum active subagents',
+  subagentMaxActiveHint: 'Defaults to 8 across related continuable children. Changes apply to new starts and cold resumes; active children keep running.',
+  subagentInvalidDepth: 'Enter a whole number of 0 or greater, or leave blank to use the default.',
+  subagentInvalidActive: 'Enter a whole number of 1 or greater, or leave blank to use the default.',
   subagentModelSelectionToggle: 'Allow agents to choose models for subagents',
   subagentModelSelectionChoose: 'When enabled, agents can choose a provider, model, and reasoning effort for each subagent from the authorized models below. Applies only to new sessions.',
   subagentModelSelectionAllowed: 'Models agents may choose',
@@ -114,7 +122,13 @@ export const zh: Record<PluginsSettingsLocaleKey, string> = {
   webSearchMaxUses: '单次请求最多搜索次数',
   webSearchMaxUsesHint: '一次请求在必须作答前最多可以搜索多少次。',
   subagentModelSelectionTitle: 'Subagent',
-  subagentModelSelectionDescription: '控制 Agent 为 Subagent 选择模型的权限。',
+  subagentModelSelectionDescription: '控制 Subagent 的委派上限和模型选择权限。',
+  subagentMaxDepth: '最大委派深度',
+  subagentMaxDepthHint: '默认 3 层。设为 1 时只允许直接子代理，设为 0 时禁用委派。工具显式配置的上限优先。',
+  subagentMaxActive: '最大活动子代理数',
+  subagentMaxActiveHint: '相关可续接子代理默认共享 8 个名额。修改对新建和冷恢复生效，已活动的子代理继续运行。',
+  subagentInvalidDepth: '请输入不小于 0 的整数；留空表示使用默认值。',
+  subagentInvalidActive: '请输入不小于 1 的整数；留空表示使用默认值。',
   subagentModelSelectionToggle: '允许 Agent 为 Subagent 选择模型',
   subagentModelSelectionChoose: '开启后，Agent 可以从下方授权模型中，为每个 Subagent 选择提供方、模型和推理强度。仅影响新会话。',
   subagentModelSelectionAllowed: 'Agent 可选择的模型',

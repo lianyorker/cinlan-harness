@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-mcp-client` lets the model call tools from external Model Context Protocol (MCP) servers as native harness tools. Configure one server per entry, and its tools appear under stable names such as `mcp__github__create_issue`. Use it for filesystem, GitHub, database, memory, or other MCP tool servers; no server is enabled by default. Tool definitions add tokens to every model request, while a slow or crashed server can delay startup or make its tools fail until recovery. The package bridges tools only; MCP resources and prompts are unsupported.
+`dsh-mcp-client` lets the model call tools from external Model Context Protocol (MCP) servers as native harness tools. Configure one server per entry, and its tools appear under stable names such as `mcp__github__create_issue`. Use it for filesystem, GitHub, database, memory, or other MCP tool servers; no server is enabled by default. Tool definitions add tokens to every model request, while a slow or crashed server can delay startup or make its tools fail until recovery. Mount [MCP resources](../mcp-resources/README.md) to discover and read server resources on demand.
 
 ## Table of Contents
 
@@ -58,7 +58,7 @@ Add one entry per server; nothing else is required. After the harness starts, th
 | `serverName` | required | Namespace for the server's tool names; `[A-Za-z0-9_-]{1,32}`, unique inside one registration scope |
 | `command` / `args` / `env` / `cwd` | — | stdio: executable, arguments, extra env merged over scrubbed ambient env, working directory |
 | `url` / `headers` | — | streamable-http: endpoint URL and extra request headers |
-| `toolCallTimeoutMs` | `60,000` | Timeout per `tools/call` invocation |
+| `toolCallTimeoutMs` | `60,000` | Timeout per tool call or resource request |
 | `failOnStartupError` | `false` | Reject plugin activation when the initial connection or tool synchronization fails |
 | `reconnect.enabled` | `true` | Reconnect automatically after a lost connection |
 | `reconnect.initialDelayMs` | `500` | First reconnect delay; doubles per consecutive failed attempt |
@@ -76,6 +76,7 @@ The model sees each tool under a stable server-qualified name: `mcp__<serverName
 - Two servers publishing the same tool name (for example `search`) coexist under their own namespaces.
 - Two entries using the same server name: the later one fails to load with a clear error.
 - A server that lists the same tool twice gets its tool list rejected as invalid, and the previous tool set stays active.
+- A repeated non-empty `tools/list` continuation cursor rejects that update immediately, including cycles through empty pages; the previous tool set stays active and later updates can still succeed.
 - An update that conflicts with an already-registered tool name is rejected entirely — you never get a partial tool set from that server.
 
 ### Calling tools and reading results
@@ -83,6 +84,14 @@ The model sees each tool under a stable server-qualified name: `mcp__<serverName
 When the model calls an MCP tool, the call runs against the remote server with a per-call timeout (default 60 seconds) and can be cancelled like any other tool call. The result comes back as ordinary text in block order; resource links appear as text with their name and URI. If the server reports an error, the call fails visibly — the model does not see a fake success.
 
 Images are supported when the current model accepts image input and the harness attachment feature is enabled; they then appear in the conversation like other images. Otherwise — and for audio or embedded resources — the model sees a clear diagnostic message instead of nothing.
+
+### Resource access
+
+When [MCP resources](../mcp-resources/README.md) is mounted, the client registers its configured server name in the same agent scope. The three shared tools list resource pages, list URI templates, and read explicit URIs. Each list call returns one page and preserves its opaque continuation cursor. Requests use the initialized current connection, carry the caller cancellation and configured timeout, and abort when that connection closes. A server without the resources capability returns empty lists and rejects reads; a resource-only server connects without tool discovery.
+
+### Server instructions
+
+After initialization and tool discovery succeed, nonempty server instructions appear as a literal `mcp:<serverName>` prompt section headed `### MCP server: <serverName>`. Trailing whitespace is removed; template-like braces remain unchanged. `maxInstructionBytes` limits the complete attributed UTF-8 text to 32768 bytes by default; oversized instructions fail that connection attempt before tool discovery. Managed launchers redact known credentials before publication. Instructions disappear when the current connection closes or the client unloads, and reconnect publishes the new server text.
 
 ### Startup, updates, and reconnection
 
@@ -110,11 +119,11 @@ This section explains the design decisions behind the bridge and points at the c
 
 ### Management observations
 
-The package root, `./registry`, and `./invariant` entries are bundled together. Their shared runtime chunks are published beside the entry files under `lib/`.
+The package root, `./registry`, and `./invariant` entries are bundled together. Their shared runtime chunks are published beside the entry files under `lib/`. The `./types` entry exposes Client-safe configuration and observations without Host service declarations. Import the live `ConnectionHandle` from the package root; its resource requests require Host tool execution authority.
 
 Mount `@deepseek-ai/dsh-mcp-client/registry` before root MCP clients to read `ctx.mcpRegistry.getSnapshot()` and subscribe to changes. Agent-scoped clients remain outside this catalog. Each immutable row identifies the live instance, server namespace, transport kind, owner, lifecycle phase, retry attempt, and committed public tool descriptors. Rows contain no executable configuration, endpoint, environment, request headers, or raw upstream errors. Composition ownership uses the actual Loader entry id or plugin name; it does not grant profile-write authority or identify the originating patch layer.
 
-`launchMcpClient(ctx, config, options)` shares the plugin's namespace reservation, transport supervisor, and tool registrations. Its handle exposes initial settlement, observation, discovery-only `probe(signal)`, and quiescent `dispose()`. The launcher accepts managed ownership and fresh per-attempt configuration resolution privately; plugin `Config` cannot claim managed ownership. A managed launcher suppresses child stderr and raw transport diagnostics. Its redactor removes known credentials from public descriptions and schemas; a credential embedded in a public tool name rejects discovery.
+`launchMcpClient(ctx, config, options)` shares the plugin's namespace reservation, transport supervisor, and tool registrations. Its handle exposes initial settlement, observation, discovery-only `probe(signal)`, current-generation resource requests, and quiescent `dispose()`. The launcher accepts managed ownership and fresh per-attempt configuration resolution privately; plugin `Config` cannot claim managed ownership. A managed launcher suppresses child stderr and raw transport diagnostics. Its redactor removes known credentials from public descriptions and schemas; a credential embedded in a public tool name rejects discovery.
 
 `connecting` covers initialization and initial discovery; `ready` means the latest discovery committed with no later observed error; `backoff` includes the next retry time; `error` carries a fixed safe code; `stopped` follows cleanup. SDK HTTP errors mark the live connection as errored without adding another reconnect loop. A successful probe or list-change synchronization restores readiness. Probes serialize with ordinary discovery and never call a tool; cancellation preserves the previous generation. Disconnected tools remain listed until successful replacement, stop, or retry exhaustion. If transport shutdown times out, the stopped observation retains `close-timeout` and the launcher keeps that namespace reserved across HMR until Host restart; a replacement cannot overlap an unconfirmed old process.
 
@@ -131,13 +140,15 @@ Mount `@deepseek-ai/dsh-mcp-client/registry` before root MCP clients to read `ct
 
 ### Lifecycle and sync
 
-`apply` resolves the reconnect policy, reserves the `serverName` inside the current registration scope, starts the supervisor, and awaits the initial connection plus discovery. Independent Agent scopes may reuse the same namespace because their tools and transports are isolated; a duplicate inside one scope fails at load. The supervisor serializes every sync — initial, notification, and reconnect — through one queue so two syncs can never interleave their dispose-previous/register-next swap. Disposal cancels pending reconnects, closes the live client, waits for the in-flight attempt and queued syncs to quiesce, and unregisters the current generation.
+`apply` resolves the reconnect policy, reserves the `serverName` inside the current registration scope, starts the supervisor, and awaits the initial connection plus discovery. Independent Agent scopes may reuse the same namespace because their tools and transports are isolated; a duplicate inside one scope fails at load. The supervisor serializes every sync — initial, notification, and reconnect — through one queue so two syncs can never interleave their dispose-previous/register-next swap. Unload begins cancellation before Cordis waits for pending activation. Disposal cancels pending reconnects, closes the live client, waits for the in-flight attempt and queued syncs to quiesce, and unregisters the current generation.
 
 The supervisor listens for `notifications/tools/list_changed` and queues a re-sync; a fetch-phase failure keeps the previous generation registered, while a registration conflict rolls back the attempted generation. Each outage shares one attempt budget: after `maxAttempts` consecutive failures the tools are unregistered and reconnection stops, and a connection that stays up past `maxDelayMs` resets the budget.
 
 ### Tool execution internals
 
 A tool call sends an uncached `tools/call` request carrying the raw MCP name, the JSON arguments, the abort signal, and the configured timeout; the public name is never sent to the server and never parsed back. Canonical success is `{ content: JsonValue[], structuredContent? }`, preserving the complete MCP JSON blocks for programmatic and PTC mode callers. A supported advertised `outputSchema` validates `structuredContent`; unsupported schema vocabulary falls back to unconstrained `JsonValue`. An MCP `isError` result throws before any image persistence, so the registry produces a failed tool result. Image batches are decoded and validated as a whole before any member is saved; any refusal projects every image as diagnostic text.
+
+`createMcpToolDefinition(ctx, options)` lets a provider supply a raw MCP-result callback while sharing canonical output validation, durable image admission, and post-execution policy guards. The callback receives the exact tool execution and cancellation signal; its owner supplies registration, transport lifetime, and deadlines. Invalid callback results fail before projection.
 
 ### Environment scrubbing (stdio)
 
@@ -177,6 +188,20 @@ The tool descriptions and input schemas enter every request while the tools are 
 
 The tool-definition prefix stays stable while the discovered set and schemas are unchanged. A re-sync that adds, removes, renames, or changes a tool replaces definitions and may invalidate reuse from the first changed schema token onward; a reconnect that recovers an unchanged list reproduces identical definitions and stays prefix-stable.
 
+### Server instruction text
+
+#### What the model sees
+
+The attributed literal instruction section described above is included in subsequent prompt assemblies while its connection is live. It follows the client registration scope and is recorded with the assembled prompt.
+
+#### Token effect
+
+The admitted text adds prompt tokens up to its configured byte bound. Empty instructions contribute no text.
+
+#### KV Cache effect
+
+Disconnect withdraws the section; reconnect or instruction changes alter later prompt prefixes. Earlier logged assemblies retain their original text.
+
 ### Tool-call history and results
 
 #### What the model sees
@@ -198,7 +223,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 
 These limits describe what you cannot do with this plugin and when it needs operational attention. They are current package constraints, not a comparison with other MCP clients or a task backlog.
 
-- **Tools are the only bridged MCP capability** — Resources and Prompts have no harness consumer mechanism and are deferred.
+- **MCP prompt templates and resource subscriptions are unsupported** — resource access uses explicit list and read calls through [MCP resources](../mcp-resources/README.md).
 - **Startup and discovery timeouts are inherited from the MCP SDK** — the plugin exposes no connection or discovery timeout; each `initialize` and paginated `tools/list` request uses the SDK's 60-second request default, so an unresponsive server or cursor chain can delay activation. Disposal aborts requests and discovery checks cancellation before replacing registrations.
 - **Reconnect triggers on transport close** — a crashed stdio child fires it; Streamable HTTP failures surface per request through the SDK transport's own recovery, so an unreachable HTTP server is retried per call rather than respawned by the supervisor.
 - **Image is the only durable rich-result bridge** — PNG, JPEG, WebP, and GIF enter Native context after exact capability proof. Audio and embedded-resource payloads remain execution-local with explicit diagnostics, while resource links preserve only their name and URI as text.
@@ -216,7 +241,7 @@ This Dev Note is working context for maintainers: open design questions and dire
 - The public-name algorithm is a v1 contract pinned by tests; changing it after release would break session history and permission rules.
 - An explicit DSH-owned connection and discovery timeout is an open direction; each request currently uses the SDK's 60-second default.
 - Streamable HTTP stream recovery remains SDK-owned; explicit reconnect replaces the launcher instance.
-- Bridging MCP Resources needs a harness-side injection decision (system prompt, on demand, or model-triggered); bridging Prompts needs a prompt-template concept the harness lacks.
+- Bridging MCP Prompts needs a prompt-template concept the harness lacks.
 - The pinned MCP SDK is still evolving; a breaking upstream change requires updating the bridge.
 
 </details>

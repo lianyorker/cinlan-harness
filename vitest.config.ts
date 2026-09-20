@@ -33,6 +33,8 @@ const windowsUnsupportedPackages = process.platform === 'win32'
       'packages/terminal/terminal-bash',
       'packages/experimental/code-runtime-python',
       'packages/sandbox/sandbox-local',
+      // SSH providers require POSIX clients and endpoints.
+      'packages/ssh/*',
     ]
   : []
 

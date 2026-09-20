@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-git-settings",
   "description": "Shared Git and source control preferences for Worktree Tasks and source control",
-  "version": "0.1.5-alpha.1",
+  "version": "0.1.6-alpha.2",
   "publishConfig": {
     "access": "public"
   },

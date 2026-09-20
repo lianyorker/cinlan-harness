@@ -152,6 +152,11 @@ Sidebar PTY ownership; the provider reuses the UI and agent terminal managers.
  */
 abstract capability(): SidebarTerminalCapability
 
+/** Discover installed local shells without starting a process.
+ * @returns Verified choices for new UI tabs; existing processes retain their shell.
+ */
+abstract shells(): readonly SidebarTerminalShell[]
+
 /** Attach to a process and observe its output.
  * @param request - immutable target and initial geometry.
  * @param signal - attachment lifetime.
@@ -202,6 +207,8 @@ abstract watch(sessionId: SidebarTerminalSessionId, signal: AbortSignal): AsyncI
  */
 abstract closeAgent(uuid: SidebarAgentTerminalId): void
 ```
+
+Types: [SidebarTerminalShell](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime)
 
 Source: [`packages/terminal/sidebar-terminals/src/index.ts`](../../packages/terminal/sidebar-terminals/src/index.ts)
 

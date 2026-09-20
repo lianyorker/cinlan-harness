@@ -1,6 +1,6 @@
 import { join, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import type { SubprocessHandle, SubprocessOutcome, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
+import SubprocessRuntime, { type SubprocessHandle, type SubprocessOutcome, type SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import DeviceCapabilitiesController from '../src/index.ts'
 import type { Config } from '../src/types.ts'
@@ -19,24 +19,34 @@ afterEach(async () => {
 function handle(done = Promise.resolve<SubprocessOutcome>({ exitCode: 0, signal: null })) {
   const output = { readFrom: () => ({ text: '', nextOffset: 0, lossy: false }) }
   return {
-    stdin: undefined, stdout: undefined, stderr: undefined,
+    stdin: undefined, stdout: undefined, stderr: undefined, control: undefined,
     collected: { stdout: output, stderr: output }, done,
     terminate: vi.fn(), waitForExit: vi.fn(async () => true),
   } satisfies SubprocessHandle
+}
+
+class FixtureSubprocess extends SubprocessRuntime {
+  resolveExecutable = vi.fn(async (command: string, _env?: Readonly<Record<string, string>>, _signal?: AbortSignal) => (
+    command === 'xcrun' ? resolve('fixture-bin/xcrun') : command
+  ))
+
+  spawn = vi.fn((_spec: SubprocessSpawnSpec) => handle())
+
+  async terminalEnvironment(): Promise<never> {
+    throw new Error('SDK probes do not use terminal subprocesses')
+  }
+
+  async spawnTerminal(): Promise<never> {
+    throw new Error('SDK probes do not use terminal subprocesses')
+  }
 }
 
 function bench(config: Config = {}) {
   const ctx = new Context()
   roots.push(ctx)
   const preferences = { enabled: false, defaultDeviceId: '', androidSdkPath: resolve('fixture-sdk') }
-  const subprocess = {
-    resolveExecutable: vi.fn(async (command: string, _env?: Readonly<Record<string, string>>, _signal?: AbortSignal) => (
-      command === 'xcrun' ? resolve('fixture-bin/xcrun') : command
-    )),
-    spawn: vi.fn((_spec: SubprocessSpawnSpec) => handle()),
-  }
+  const subprocess = new FixtureSubprocess(ctx)
   ctx.provide('mobileDevice', { getPreferences: () => preferences } as never)
-  ctx.provide('subprocess', subprocess as never)
   return { ctx, preferences, subprocess, controller: new DeviceCapabilitiesController(ctx, config) }
 }
 

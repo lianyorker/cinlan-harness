@@ -60,13 +60,15 @@ const output = handle.collected.stdout?.readFrom(0)
 
 Reads are offset-based and non-consuming: a background reader and a final batch read can share one stream without stealing each other's bytes.
 
+An optional `stdio.control: 'pipe'` requests a separate duplex byte channel. Node children use `openInheritedControlChannel()` from `@deepseek-ai/dsh-subprocess/control` to consume the private launch marker and open fd 7 once, before executing application code. The caller owns channel framing and closure; process exit and managed-range quiescence do not require draining this channel.
+
 ### Managing process lifetime
 
 Termination and waiting use one provider-managed range. `terminate()` starts the provider's documented procedure, is idempotent, and becomes a no-op after that range is empty; the request's abort signal starts the same procedure. `waitForExit()` observes the same range and resolves only after the provider proves it quiescent, so direct command completion does not hide a surviving descendant. It rejects when the selected owner can no longer prove quiescence. Providers document their native owners and weaker fallbacks; callers own deadlines, teardown ladders, and cause classification.
 
 ### Running a terminal session
 
-For interactive programs, `spawnTerminal` allocates a real PTY: write text, read UTF-8 output, inspect and signal the current foreground process group, and await one `terminate()` that settles every session member the provider can still observe. Readiness, scrollback, and prompt policy stay with the PTY consumer.
+`terminalEnvironment()` reports the execution platform and any preferred shell before executable resolution. For interactive programs, `spawnTerminal` allocates a real PTY with explicit dimensions and `terminalType`: write text, read UTF-8 output, resize, inspect and signal the foreground process group, and await one `terminate()` that settles every session member the provider can still observe. Opt-in `shellActivity` supports lifecycle observations through `inspectActivity()`; unsupported shells and incomplete observations report `unknown`. Readiness, scrollback, and prompt policy stay with the PTY consumer.
 
 ### Environment every child starts from
 
@@ -74,7 +76,7 @@ Children never inherit the harness's ambient secrets: credential-shaped names an
 
 ### What can go wrong
 
-An executable that cannot be resolved fails loud with a stable error. A spawn that never starts rejects `done`; there is no buffered output for a process that never ran. `waitForExit()` also rejects when the provider cannot prove its selected range is empty, and a provider fallback may not own descendants that escape its process group or observed session. When a transport owns its own spawn (the SDK client, MCP), route around the service and import `scrubbedParentEnv` directly so environment policy stays single-sourced.
+Executable lookup that finds no executable file throws `SubprocessExecutableNotFoundError`; invalid requests and provider failures remain distinct errors. A spawn that never starts rejects `done`; there is no buffered output for a process that never ran. `waitForExit()` also rejects when the provider cannot prove its selected range is empty, and a provider fallback may not own descendants that escape its process group or observed session. When a transport owns its own spawn (the SDK client, MCP), route around the service and import `scrubbedParentEnv` directly so environment policy stays single-sourced.
 
 -----
 
@@ -96,6 +98,7 @@ The seam is built on one separation: the service owns process coordinates and li
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: abstract `SubprocessRuntime`, `ctx.subprocess` registration, the shared `scrubbedParentEnv` scrub |
 | [`src/types.ts`](src/types.ts) | Vocabulary: spawn spec, stdio modes, handles, readers, outcomes, `DSH_*` namespace |
+| [`src/control.ts`](src/control.ts) | Inherited control descriptor and child-side opening helper |
 | — | No runtime invariant companion is published; this stateless Service Definition owns spawn-spec/handle types, while Service Providers own observations. |
 
 ### Data model and flow

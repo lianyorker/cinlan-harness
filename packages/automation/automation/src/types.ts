@@ -96,7 +96,10 @@ export interface AutomationRunPage { readonly runs: readonly AutomationRun[]; re
 export type AutomationErrorCode = 'unavailable' | 'not-found' | 'conflict' | 'invalid' | 'busy' | 'resource' | 'storage'
 /** Validated deployment policy; no recurrence or ownership depends on process cwd. */
 export interface AutomationConfig {
+  /** Launcher profile identity owning this automation store and scheduler. */
   readonly profile: string
+  /** Maximum milliseconds between scheduler clock checks. */
   readonly clockCheckIntervalMs: number
+  /** Lateness in milliseconds at which a scheduled invocation is skipped. */
   readonly maxStartLatenessMs: number
 }

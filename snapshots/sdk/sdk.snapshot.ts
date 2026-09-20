@@ -10,7 +10,7 @@
  */
 
 import { existsSync } from 'node:fs'
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, delimiter, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -342,7 +342,7 @@ async function hydrateReplayFixtures(scenario: CorpusScenario, cwd: string): Pro
   await mkdir(root, { recursive: true })
   return Promise.all((await fixtureFiles(scenario)).map(async (source) => {
     const destination = join(root, basename(source))
-    await writeFile(destination, (await readFile(source, 'utf8')).replaceAll('{{cwd}}', cwd))
+    await writeFile(destination, (await readFile(source, 'utf8')).replaceAll('{{cwd}}', () => JSON.stringify(cwd).slice(1, -1)))
     return destination
   }))
 }
@@ -529,6 +529,12 @@ async function runScenario(scenario: CorpusScenario): Promise<{
 }> {
   const cwd = await mkdtemp(join(tmpdir(), `sdk-snapshot-${scenario.name}-`))
   const dshHome = join(cwd, '.dsh')
+  if (!recording) {
+    const replayScope = join(dshHome, 'profiles', 'sdk', 'node_modules', '@deepseek-ai')
+    await mkdir(replayScope, { recursive: true })
+    await symlink(fileURLToPath(new URL('../../packages/test-support/llm-replay', import.meta.url)),
+      join(replayScope, 'dsh-llm-replay'), process.platform === 'win32' ? 'junction' : 'dir')
+  }
   const sessionsRoot = join(dshHome, 'sessions')
   const replayFixtures = recording ? [] : await hydrateReplayFixtures(scenario, cwd)
   const fixtureContents = await Promise.all((await fixtureFiles(scenario)).map(file => readFile(file, 'utf8')))

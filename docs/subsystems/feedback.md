@@ -27,6 +27,8 @@ interface MessageFeedbackItem {
   readonly rating: MessageFeedbackRating
   /** Optional explanation, preserved verbatim after validation. */
   readonly note?: string
+  /** Category the human filed the judgment under. */
+  readonly category?: FeedbackCategory
   /** Equality-only token replaced by every material create or update. */
   readonly version: MessageFeedbackVersion
   /** Host-assigned creation time in Unix epoch milliseconds. */
@@ -83,6 +85,8 @@ interface MessageFeedbackPutRequest {
   readonly rating: MessageFeedbackRating
   /** Optional non-blank explanation. */
   readonly note?: string
+  /** Optional category; absent keeps the item uncategorized. */
+  readonly category?: FeedbackCategory
   /** Observed item version, or `null` to require that no item exists. */
   readonly ifVersion: MessageFeedbackVersion | null
 }
@@ -281,6 +285,26 @@ Session-log service; cold operations never construct a Session or Agent.
 ```
 
 Source: [`packages/feedback/message-feedback/src/index.ts`](../../packages/feedback/message-feedback/src/index.ts)
+
+<a id="ctxsessionfeedback--sessionfeedbackservice"></a>
+
+### `ctx.sessionFeedback` — `SessionFeedbackService`
+
+Host Remote through which a product surface records a Session-level remark.
+
+```ts cordis-catalog
+/**
+ * Record one remark on a live Session.
+ * @param request - target Session plus the optional text and category.
+ * @returns the recorded postcondition, or `session-not-found` when no live
+ * Session carries the id.
+ */
+@Remote('record') record(request: SessionFeedbackRecordRequest): Promise<SessionFeedbackRecordResult>
+```
+
+Types: [SessionFeedbackRecordRequest](../../packages/feedback/command-feedback/README.md#use-this-package) · [SessionFeedbackRecordResult](../../packages/feedback/command-feedback/README.md#use-this-package)
+
+Source: [`packages/feedback/command-feedback/src/index.ts`](../../packages/feedback/command-feedback/src/index.ts)
 
 <a id="feedback-events"></a>
 

@@ -33,6 +33,7 @@ class ExternalTerminals extends SidebarTerminals {
   readonly signals: AbortSignal[] = []
   readonly returned = vi.fn<() => void>()
   readonly capability = vi.fn(() => ({ status: 'available' as const, shellName: 'fixture-shell' }))
+  readonly shells = vi.fn(() => [{ path: '/bin/fixture-shell', name: 'fixture-shell' }])
   readonly input = vi.fn<(request: SidebarTerminalInputRequest) => void>()
   readonly resize = vi.fn<(request: SidebarTerminalResizeRequest) => void>()
   readonly ack = vi.fn<(request: SidebarTerminalAckRequest) => void>()

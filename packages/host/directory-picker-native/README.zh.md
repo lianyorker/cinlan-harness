@@ -53,7 +53,7 @@ kind: "package-reference"
 
 ### 平台机制
 
-平台工具不经 shell 调用：macOS 使用 `osascript`，Linux 使用 Zenity 并以 KDialog 回退；调用方的中止信号会终止原生进程。Windows 在 spawn 的子进程中打开现代 `IFileOpenDialog`——由 koffi 在子进程主线程上驱动的 COM 会话，采用宿主接受的最佳线程 DPI 感知（优先 per-monitor-v2），中止时向对话框线程投递 `WM_CLOSE`。
+平台工具不经 shell 调用：macOS 使用 `osascript`，Linux 使用 Zenity 并以 KDialog 回退；调用方的中止信号会终止原生进程。Windows 在 spawn 的子进程中打开现代 `IFileOpenDialog`——由 koffi 在子进程主线程上驱动的 COM 会话，采用宿主接受的最佳线程 DPI 感知（优先 per-monitor-v2），中止时向对话框线程投递 `WM_CLOSE`。紧接 `Show` 之前，子进程通过 `keybd_event` 发送一次 Alt 按键，帮助由后台宿主启动的对话框取得前台。
 
 ### 源码地图
 
@@ -98,6 +98,7 @@ kind: "package-reference"
 
 - **Linux 依赖桌面工具**——Zenity 与 KDialog 均未安装时，`pick` 以包含解决建议的错误拒绝；它不会回退为手输路径提示（组合层面的回退是浏览后端）。
 - **Windows 没有机制级回退**——通过打包依赖 koffi 运行的子进程选择器是唯一原生层级，因此 COM 拒绝或对话框崩溃会直接上报失败；组合层面的回退仍是浏览后端。
+- **Windows 前台激活仅尽力而为**——安全桌面、受限远程会话或提权窗口获得焦点时，合成输入可能被抑制，对话框仍可能在其他窗口后面打开。Alt 按键可能短暂高亮当前焦点窗口的菜单栏。
 
 <a id="dev-note"></a>
 ### 开发备注

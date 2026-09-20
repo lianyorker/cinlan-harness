@@ -60,6 +60,10 @@ class ScriptedSubprocess extends SubprocessRuntime {
     return this.resolveImpl(command, signal)
   }
 
+  async terminalEnvironment(): Promise<never> {
+    throw new Error('fixture does not provide terminal subprocesses')
+  }
+
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     this.specs.push(spec)
     const script = this.scripts.shift() ?? {
@@ -78,6 +82,7 @@ class ScriptedSubprocess extends SubprocessRuntime {
       stdin: undefined,
       stdout: undefined,
       stderr: undefined,
+      control: undefined,
       collected: {
         stdout: {
           readFrom: () => ({

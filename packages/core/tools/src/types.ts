@@ -61,6 +61,8 @@ export interface PtcDispatchStartEventData {
 /** Payload recorded when one nested PTC mode Tool dispatch settles. */
 export interface PtcDispatchEventData extends PtcDispatchStartEventData {
   isError: boolean
+  /** Structured failure detail for users; excluded from model context. */
+  error?: { name: string; code: string; reason?: string }
   content: ContentBlock[]
 }
 

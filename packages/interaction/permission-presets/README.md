@@ -113,6 +113,8 @@ Read these pages when the package-level contract is not enough. They move from t
 
 -----
 
+An optional [AutoReview bundle](../../experimental/auto-review/README.md) may register the reserved `auto` preset for current sessions. It shares Full access knobs, requires synchronous admission on selection/restoration, and never enters the settings default choices; a stored Auto identity refuses restoration without its reviewer. The combined projection retains existing catalog/current-value semantics.
+
 <a id="model-experience"></a>
 ## Model Experience
 

@@ -14,7 +14,7 @@ import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/
 import { ModelsSettingsStore, deriveKeyRef, protocolChoices } from '../src/client/store.ts'
 import { createModelsOperations } from '../src/client/operations.ts'
 import type { ModelsOperations } from '../src/client/operations.ts'
-import { en } from '../src/client/locales.ts'
+import { en, zh } from '../src/client/locales.ts'
 import { settingsSchema } from './settings-schema.client.ts'
 
 afterEach(cleanup)
@@ -179,9 +179,9 @@ interface MutateCall {
   ops: { op: string; path: string[]; value?: unknown }[]
 }
 
-/** The first interrogation payload; fails the case when nothing was asked. */
-function firstProbe(discover: ReturnType<typeof vi.fn>): unknown {
-  const call = (discover.mock.calls as unknown as [string, Record<string, unknown>][])[0]
+/** The latest interrogation payload; the editor may first read installed capabilities. */
+function lastProbe(discover: ReturnType<typeof vi.fn>): unknown {
+  const call = (discover.mock.calls as unknown as [string, Record<string, unknown>][]).at(-1)
   if (call === undefined) throw new Error('no interrogation was recorded')
   return { settingsNs: call[0], ...call[1] }
 }
@@ -498,7 +498,7 @@ describe('endpoint interrogation', () => {
     fireEvent.click(screen.getByText(en.fetchModels))
 
     await waitFor(() => { expect(discover).toHaveBeenCalled() })
-    expect(firstProbe(discover)).toEqual({
+    expect(lastProbe(discover)).toEqual({
       settingsNs: 'llm-pi-ai',
       // The route is named, so an adapter that already describes it answers
       // from its own registry rather than the endpoint.
@@ -519,7 +519,7 @@ describe('endpoint interrogation', () => {
     fireEvent.click(screen.getByText(en.fetchModels))
 
     await waitFor(() => { expect(discover).toHaveBeenCalled() })
-    expect(firstProbe(discover)).toEqual({
+    expect(lastProbe(discover)).toEqual({
       settingsNs: 'llm-pi-ai',
       provider: 'openai',
       baseURL: 'https://proxy.example/v1',
@@ -591,7 +591,7 @@ describe('endpoint interrogation', () => {
     fireEvent.click(screen.getByText(en.fetchModels))
 
     await waitFor(() => { expect(discover).toHaveBeenCalled() })
-    expect(firstProbe(discover)).toEqual({ settingsNs: 'llm-pi-ai', provider: 'openai' })
+    expect(lastProbe(discover)).toEqual({ settingsNs: 'llm-pi-ai', provider: 'openai' })
   })
 
   it('keeps the create card asking only once it has an endpoint', () => {
@@ -612,7 +612,7 @@ describe('endpoint interrogation', () => {
     fireEvent.click(screen.getByText(en.fetchModels))
 
     // A provider being declared names no route, so only the endpoint travels.
-    expect(firstProbe(scripted.discover)).toEqual({
+    expect(lastProbe(scripted.discover)).toEqual({
       settingsNs: 'llm-pi-ai',
       baseURL: 'https://acme.test/v1',
       api: 'openai-completions',
@@ -813,6 +813,85 @@ describe('hand-declared providers', () => {
       expectedRevision: 7,
     })
     expect(set).toHaveBeenCalledWith('ACME_GATEWAY_API_KEY', 'gw-key')
+  })
+
+  it.each(['   ', 'gateway.example/v1', 'localhost:11434', 'https://', 'ftp://gateway.example/v1'])(
+    'blocks create and discovery for invalid Base URL %j, then recovers when corrected',
+    (baseURL) => {
+      const { mutate, discover, set, onClose } = mountCard()
+      fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
+      fireEvent.click(screen.getByRole('button', { name: en.addModel }))
+      fireEvent.change(screen.getByLabelText(en.modelId + ' 1'), { target: { value: 'acme-large' } })
+      const input = screen.getByLabelText(en.baseUrl)
+      fireEvent.change(input, { target: { value: baseURL } })
+
+      expect(input.getAttribute('aria-invalid')).toBe('true')
+      expect(screen.getByText(en.customBaseUrlInvalid).className).toMatch(/error/)
+      expect(screen.queryByText(en.customNeedsModels)).toBeNull()
+      expect(buttonNamed(en.create).disabled).toBe(true)
+      expect(buttonNamed(en.fetchModels).disabled).toBe(true)
+      expect(buttonNamed(en.fetchModels).title).toBe(en.customBaseUrlInvalid)
+      fireEvent.click(buttonNamed(en.create))
+      fireEvent.click(buttonNamed(en.fetchModels))
+      expect(mutate).not.toHaveBeenCalled()
+      expect(set).not.toHaveBeenCalled()
+      expect(discover).not.toHaveBeenCalled()
+      expect(onClose).not.toHaveBeenCalled()
+
+      fireEvent.change(input, { target: { value: 'http://localhost:8080/v1' } })
+      expect(input.getAttribute('aria-invalid')).toBe('false')
+      expect(screen.queryByText(en.customBaseUrlInvalid)).toBeNull()
+      expect(buttonNamed(en.create).disabled).toBe(false)
+      expect(buttonNamed(en.fetchModels).disabled).toBe(false)
+    },
+  )
+
+  it.each([
+    'https://gateway.acme.example:8443/v1', 'http://localhost:8080/v1',
+    'http://127.0.0.1:8080/v1', 'http://[::1]:8080/v1',
+  ])(
+    'trims %s before both model discovery and provider creation',
+    async (baseURL) => {
+      const { mutate, discover, onClose } = mountCard()
+      fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
+      fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: '  ' + baseURL + '  ' } })
+      fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+      await waitFor(() => { expect(discover).toHaveBeenCalledTimes(1) })
+      expect(lastProbe(discover)).toEqual({ settingsNs: 'llm-pi-ai', baseURL, api: 'openai-completions' })
+      await screen.findByText(en.fetchEmpty)
+      fireEvent.click(screen.getByRole('button', { name: en.addModel }))
+      fireEvent.change(screen.getByLabelText(en.modelId + ' 1'), { target: { value: 'acme-large' } })
+      fireEvent.click(buttonNamed(en.create))
+      await waitFor(() => { expect(onClose).toHaveBeenCalledWith(true) })
+      expect(firstMutate(mutate).ops).toEqual([{
+        op: 'set', path: ['providers', 'acme'],
+        value: { api: 'openai-completions', baseURL, models: [{ id: 'acme-large' }] },
+      }])
+    },
+  )
+
+  it('keeps an unreachable valid endpoint separate from URL syntax errors', async () => {
+    const discover = vi.fn(() => Promise.resolve(fail('connection refused', 'gateway/internal')))
+    mountCard({}, { discover })
+    const input = screen.getByLabelText(en.baseUrl)
+    fireEvent.change(input, { target: { value: 'http://localhost:11434/v1' } })
+    fireEvent.click(buttonNamed(en.fetchModels))
+    await screen.findByText('connection refused')
+    expect(input.getAttribute('aria-invalid')).toBe('false')
+    expect(screen.queryByText(en.customBaseUrlInvalid)).toBeNull()
+  })
+
+  it('localizes a custom endpoint error and treats an empty field as required', () => {
+    mountCard({ t: key => zh[key] })
+    fireEvent.change(screen.getByLabelText(zh.customRoute), { target: { value: 'acme' } })
+    const input = screen.getByLabelText(zh.baseUrl)
+    expect(screen.getByText(zh.customNeedsBaseUrl)).toBeTruthy()
+    expect(input.getAttribute('aria-invalid')).toBe('false')
+    fireEvent.change(input, { target: { value: 'invalid' } })
+    expect(screen.getByText(zh.customBaseUrlInvalid)).toBeTruthy()
+    fireEvent.change(input, { target: { value: '' } })
+    expect(screen.queryByText(zh.customBaseUrlInvalid)).toBeNull()
+    expect(screen.getByText(zh.customNeedsBaseUrl)).toBeTruthy()
   })
 
   it('scopes each card to fields a provider can actually own', async () => {
@@ -1451,7 +1530,7 @@ describe('API key field', () => {
     // a round trip to be told what the field already says.
     expect(buttonNamed(en.fetchModels).disabled).toBe(true)
     expect(buttonNamed(en.fetchModels).title).toBe(en.keyIllegalCharacters)
-    expect(discover).not.toHaveBeenCalled()
+    expect(discover).toHaveBeenCalledExactlyOnceWith('llm-pi-ai', { provider: 'openai' })
   })
 
   it('carries the trimmed key into an interrogation, not the padded draft', async () => {
@@ -1462,7 +1541,7 @@ describe('API key field', () => {
     fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
 
     await waitFor(() => { expect(discover).toHaveBeenCalled() })
-    expect(firstProbe(discover)).toMatchObject({ apiKey: 'sk-abc' })
+    expect(lastProbe(discover)).toMatchObject({ apiKey: 'sk-abc' })
   })
 
   it('reloads the section after creating a hand-declared provider', async () => {

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { useEffect, useState, type ReactNode } from 'react'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SettingsRootComponentProps, SettingsSectionRow } from '../src/client/shell-contract.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
@@ -68,6 +68,9 @@ function mount({
       fallback?: ReactNode
     }) => {
       if (key === 'settings.section') return <div data-testid={`section-${opts?.only ?? 'all'}`}><div data-settings-anchor="appearance"><button type="button">Choose appearance</button></div><DraftControl /></div>
+      if (key === 'settings.section.extension') return <div data-testid={`extension-${opts?.entryKey ?? 'none'}`}>
+        <div data-settings-anchor="feature-preference"><button type="button">Feature preference</button></div>
+      </div>
       if (key === 'settings.section.icon') {
         return opts?.entryKey === 'missing'
           ? opts.fallback
@@ -138,6 +141,29 @@ describe('SettingsRoot trigger', () => {
 })
 
 describe('SettingsPage chrome seats', () => {
+  it('keeps contributed controls under their owning page and reveals search targets', async () => {
+    const { renderSlot } = mount({ rows: [
+      { id: 'git-source-control', order: 0, label: 'Git', groupId: 'development', items: [{
+        sectionId: 'git-source-control', id: 'feature-preference', anchorId: 'feature-preference',
+        title: 'Git panel preference', keywords: [],
+      }] },
+      { id: 'files', order: 1, label: 'Files', groupId: 'tools' },
+    ] })
+    openPage()
+    expect(screen.getByTestId('extension-git-source-control')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Files' }))
+    expect(screen.queryByTestId('extension-git-source-control')).toBeNull()
+    expect(screen.getByTestId('extension-files')).toBeTruthy()
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Git panel preference' } })
+    fireEvent.click(screen.getByRole('button', { name: /Git panel preference/ }))
+    expect(renderSlot).toHaveBeenCalledWith('settings.section.extension', {
+      close: expect.any(Function) as unknown, target: { itemId: 'feature-preference', anchorId: 'feature-preference' },
+    }, { entryKey: 'git-source-control' })
+    await waitFor(() => {
+      expect(document.activeElement?.closest('[data-settings-anchor]')?.getAttribute('data-settings-anchor')).toBe('feature-preference')
+    })
+  })
+
   it('aligns the back command with the content header and paints only interaction feedback', () => {
     expect(settingsCss).toMatch(/\.navHeader\s*\{[^}]*min-height:\s*64px;[^}]*align-items:\s*center;[^}]*border-bottom:/su)
     const backRule = new RegExp(

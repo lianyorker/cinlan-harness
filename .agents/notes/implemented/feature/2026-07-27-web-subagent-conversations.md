@@ -14,6 +14,8 @@ The UI must also preserve the membership, modes, and diagnostics of the [durable
 
 ## Decision
 
+[Parallel conversation tabs](2026-09-19-parallel-subagent-conversation-tabs.md) add a sidebar view of an addressed child while retaining the parent in the main conversation; the continuation authority rules below apply to both placements.
+
 The Web product exposes the selected session's direct session-backed subagents from the current-title lineage region in the header. Users can lazily expand descendant catalogs and open either mode in the existing conversation region. A one-shot child is permanently read-only. A continuable child accepts human follow-ups only while its exact direct-parent Agent is live; otherwise its persisted transcript remains readable with a recovery explanation.
 
 Every opened child carries a catalog-derived address `{ parentSessionId, childSessionId, mode }`. The mode-bearing address, not lineage or the coarse origin marker, selects dedicated history and prompt transports. History reads the persisted session without activation. A continuable prompt carries Queue or Steer delivery through `subagent.prompt` and succeeds at inbox acceptance with `{ messageId }`; it does not expose an Activation, wait for completion, or return an outcome. Adjacent-Agent model messages use the separately owned fixed-Steer operation.

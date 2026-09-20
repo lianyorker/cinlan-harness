@@ -111,6 +111,8 @@ const inputState: InputState = {
 const kitBase: Omit<QuestionComposerProps, 'matched' | 'useStore' | 'actions'> = {
   session: undefined,
   sessionId: SID,
+  renderSlot: () => null,
+  SessionProvider: ({ children }) => children,
   pendingInteraction: undefined,
   useSession: selector => selector(sessionState),
   useSessions: selector => selector(sessionList),

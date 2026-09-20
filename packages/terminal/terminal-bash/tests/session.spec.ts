@@ -5,6 +5,7 @@ import type { ResolvedConfig } from '@deepseek-ai/dsh-terminal-bash/src/config.t
 import type { TerminalSendOperation, TerminalSessionStatus, TerminalSignal } from '@deepseek-ai/dsh-terminal'
 import type {
   SubprocessOutcome,
+  SubprocessTerminalActivity,
   SubprocessTerminalHandle,
   SubprocessTerminalSignal,
 } from '@deepseek-ai/dsh-subprocess'
@@ -89,6 +90,12 @@ class FakeTerminal implements SubprocessTerminalHandle {
   async write(data: string): Promise<void> {
     if (this.throwWrite) throw new Error('write failed')
     this.writes.push(data)
+  }
+
+  async resize(_cols: number, _rows: number): Promise<void> {}
+
+  async inspectActivity(): Promise<SubprocessTerminalActivity> {
+    return { state: 'unknown', revision: 0 }
   }
 
   async inspectForeground() {

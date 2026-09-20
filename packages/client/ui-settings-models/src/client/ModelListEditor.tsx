@@ -14,12 +14,13 @@
  * rows the user can still fill in by hand.
  */
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel } from '@deepseek-ai/dsh-api-remotes/client'
 import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { formatCapacity, parseCapacity } from './DeepSeekModelsEditor.tsx'
-import type { ModelsOperations } from './operations.ts'
+import type { ModelDiscoveryOutcome, ModelsOperations } from './operations.ts'
+import { ModelInputTypes } from './ModelInputTypes.tsx'
 import type { DeepSeekModelDraft } from './DeepSeekModelsEditor.tsx'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
@@ -64,6 +65,10 @@ export interface ProbeTarget {
 export interface ModelListEditorProps {
   /** The rows as currently drafted. */
   models: readonly ModelDraft[]
+  /** Installed route whose catalog supplies inherited model capabilities. */
+  catalogProvider?: string | undefined
+  /** Provider capabilities for a model absent from the installed catalog. */
+  defaultInput?: readonly string[] | undefined
   /** Whether the user layer currently owns the whole array; absent on a create. */
   overridden?: boolean
   /** Replace the drafted rows. */
@@ -141,13 +146,14 @@ function capacitySpelling(value: number | undefined): string {
   return value === undefined ? '' : formatCapacity(value)
 }
 
-/** Adopt a candidate, keeping whatever capacities the provider disclosed. */
+/** Adopt a candidate, preserving disclosed capacities and input types. */
 function adopt(candidate: LlmDiscoveredModel): ModelDraft {
   return {
     id: candidate.id,
     ...candidate.name === undefined ? {} : { name: candidate.name },
     ...candidate.contextWindow === undefined ? {} : { contextWindow: candidate.contextWindow },
     ...candidate.maxTokens === undefined ? {} : { maxTokens: candidate.maxTokens },
+    ...candidate.inputModalities === undefined ? {} : { input: [...candidate.inputModalities] },
   }
 }
 
@@ -160,6 +166,26 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   const { models, onChange, probe, operations, t, disabled } = props
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | undefined>(undefined)
+  const { catalogProvider } = props
+  const [inheritedCatalog, setInheritedCatalog] = useState<{
+    settingsNs: string
+    provider: string
+    answer: ModelDiscoveryOutcome
+  } | undefined>(undefined)
+  useEffect(() => {
+    if (catalogProvider === undefined) return
+    let current = true
+    void operations.discoverModels(probe.settingsNs, { provider: catalogProvider }).then((answer) => {
+      if (current) setInheritedCatalog({ settingsNs: probe.settingsNs, provider: catalogProvider, answer })
+    })
+    return () => { current = false }
+  }, [catalogProvider, operations, probe.settingsNs])
+  const catalog = inheritedCatalog?.provider === catalogProvider && inheritedCatalog?.settingsNs === probe.settingsNs
+    ? inheritedCatalog.answer
+    : undefined
+  const inputDefaults = useMemo(() => new Map(
+    catalog?.kind === 'found' ? catalog.models.map(model => [model.id, model.inputModalities]) : [],
+  ), [catalog])
   const [candidates, setCandidates] = useState<readonly LlmDiscoveredModel[] | undefined>(undefined)
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
   const [candidateQuery, setCandidateQuery] = useState('')
@@ -309,6 +335,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   // A route the adapter already describes answers without an endpoint; only a
   // draft with neither has nothing to ask about.
   const askable = probe.provider !== undefined || (probe.baseURL !== undefined && probe.baseURL.length > 0)
+  const shownFailure = failure ?? (catalog?.kind === 'refused' ? catalog.message : undefined)
   return (
     <section className={styles['modelCatalog']} aria-label={t('models')}>
       <div className={styles['modelListHead']}>
@@ -433,6 +460,19 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                     onChange={(event) => { editCapacity(index, 'maxTokens', event.target.value) }}
                   />
                 </label>
+                {catalogProvider !== undefined && catalog === undefined
+                  ? <p className={styles['advancedHint']} role="status">{t('fetching')}</p>
+                  : (
+                    <ModelInputTypes
+                      model={model}
+                      field="input"
+                      position={index + 1}
+                      disabled={disabled}
+                      fallback={inputDefaults.get(textOf(model, 'id')) ?? props.defaultInput}
+                      t={t}
+                      onChange={(next) => { onChange(models.map((row, at) => at === index ? next : row)) }}
+                    />
+                  )}
               </div>
             )
             : null}
@@ -446,7 +486,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
       >
         {t('addModel')}
       </button>
-      {failure !== undefined ? <p className={styles['error']}>{failure}</p> : null}
+      {shownFailure !== undefined ? <p className={styles['error']}>{shownFailure}</p> : null}
       <Modal
         open={candidates !== undefined}
         onClose={closePicker}

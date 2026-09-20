@@ -56,6 +56,17 @@ describe('parseDshArgs', () => {
       .toEqual({ mode: 'profile', profile: 'web', patches: [], args: ['--from-default-profile', 'web'] })
   })
 
+  it('forwards headless run options and stdin markers to the profile app', () => {
+    for (const args of [
+      ['--json', '--session-id', 'session-exact', '-'],
+      ['--session-id=session-exact', '--json', 'continue'],
+      ['-'],
+    ]) {
+      expect(parse(['--profile', 'headless', ...args]))
+        .toEqual({ mode: 'profile', profile: 'headless', patches: [], args })
+    }
+  })
+
   it('routes the plugin pnpm forwarder', () => {
     expect(parse(['plugin', '--profile', 'tui', 'add', 'turtle-ui']))
       .toEqual({ mode: 'plugin', profile: 'tui', args: ['add', 'turtle-ui'] })

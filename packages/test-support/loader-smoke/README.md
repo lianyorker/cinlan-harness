@@ -49,7 +49,7 @@ Profile integration drivers use the repository-only `tests/fixtures/production-p
 
 ### Driving a fixture turn
 
-`runFixtureTurn(ctx, options)` drives one task through exactly one configured root agent: it waits for the task to reach the durable inbox, forwards canonical events to your observer, flushes the session, and returns the final assistant text plus accumulated usage. Example-local drivers keep configuration, rendering, and assertion ownership.
+`runFixtureTurn(ctx, options)` drives one task through exactly one configured root agent: it waits for the task to reach the durable inbox, forwards canonical events to your observer, flushes the session, and returns the final assistant text plus accumulated usage. Existing roots must have completed creation. When no root exists, the helper waits for successful `agent/session-start` and rejects if the pending root is disposed. Pass an owned `options.signal` to cancel this startup wait, then await the operation before disposing its context; every listener is removed before it settles. The signal does not interrupt `whenIdle()` or cancel a submitted task. Example-local drivers keep configuration, rendering, and assertion ownership.
 
 ### Source or built mode
 

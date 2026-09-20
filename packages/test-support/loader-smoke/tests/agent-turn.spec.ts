@@ -1,5 +1,6 @@
-import type { Context } from '@deepseek-ai/cordis'
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import { Context } from '@deepseek-ai/cordis'
+import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
+import SessionStore, { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import { describe, expect, it, vi } from 'vitest'
 import { runFixtureTurn } from '../src/agent-turn.ts'
 
@@ -59,26 +60,147 @@ describe('runFixtureTurn', () => {
       .rejects.toThrow(`fixture turn requires exactly one top-level agent, found ${count}`)
   })
 
-  it('waits for the configured agent to publish before requiring it', async () => {
-    // Configured agents publish asynchronously, so an initially empty registry
-    // waits for agent/created instead of rejecting.
+  it('rechecks the root count after successful startup', async () => {
     const roots: object[] = []
-    let created: (() => void) | undefined
+    let started: ((payload: { agent: object }) => void) | undefined
     const dispose = vi.fn()
     const ctx = {
       get: (name: string) => name === 'agents' ? { roots: () => [...roots] } : undefined,
-      on: (name: string, callback: () => void) => {
-        if (name === 'agent/created') created = callback
+      on: (name: string, callback: (payload: { agent: object }) => void) => {
+        if (name === 'agent/session-start') started = callback
         return dispose
       },
     } as unknown as Context
     const pending = runFixtureTurn(ctx, { task: 'ignored' })
-    // Publication with a second root still fails the exactly-one requirement,
-    // proving the count is re-checked after the wait.
     roots.push({}, {})
-    created?.()
+    started?.({ agent: roots[0]! })
     await expect(pending).rejects.toThrow('fixture turn requires exactly one top-level agent, found 2')
-    expect(dispose).toHaveBeenCalledOnce()
+    expect(dispose).toHaveBeenCalledTimes(3)
+  })
+
+  it('rejects an already-aborted publication wait without installing listeners', async () => {
+    const failure = new Error('fixture stopped')
+    const on = vi.fn()
+    const ctx = { on } as unknown as Context
+    await expect(runFixtureTurn(ctx, { task: 'ignored', signal: AbortSignal.abort(failure) }))
+      .rejects.toBe(failure)
+    expect(on).not.toHaveBeenCalled()
+  })
+
+  it('aborts an unpublished agent wait and awaits every listener teardown', async () => {
+    const controller = new AbortController()
+    const failure = new Error('fixture cancelled')
+    const cleanupEntered = Promise.withResolvers<undefined>()
+    const cleanupReleased = Promise.withResolvers<undefined>()
+    const dispose = vi.fn(async () => {
+      cleanupEntered.resolve(undefined)
+      await cleanupReleased.promise
+    })
+    const on = vi.fn(() => dispose)
+    const ctx = { get: () => ({ roots: () => [] }), on } as unknown as Context
+    const remove = vi.spyOn(controller.signal, 'removeEventListener')
+    const pending = runFixtureTurn(ctx, { task: 'ignored', signal: controller.signal })
+    let settled = false
+    const outcome = pending.then(
+      () => { settled = true; return undefined },
+      (error: unknown) => { settled = true; return error },
+    )
+    try {
+      controller.abort(failure)
+      await cleanupEntered.promise
+      expect(settled).toBe(false)
+      expect(dispose).toHaveBeenCalledTimes(3)
+      expect(remove).toHaveBeenCalledWith('abort', expect.any(Function))
+      cleanupReleased.resolve(undefined)
+      await expect(outcome).resolves.toBe(failure)
+    } finally {
+      cleanupReleased.resolve(undefined)
+      await outcome
+      remove.mockRestore()
+    }
+  })
+
+  it('reports listener teardown failures from a cancelled publication wait', async () => {
+    const controller = new AbortController()
+    const failure = new Error('waiter cleanup failed')
+    const entered = Promise.withResolvers<undefined>()
+    const released = Promise.withResolvers<undefined>()
+    const dispose = vi.fn(async (): Promise<void> => { throw failure })
+      .mockImplementationOnce(async () => {
+        entered.resolve(undefined)
+        await released.promise
+      })
+    const ctx = {
+      get: () => ({ roots: () => [] }),
+      on: () => dispose,
+    } as unknown as Context
+    const pending = runFixtureTurn(ctx, { task: 'ignored', signal: controller.signal })
+    let settled = false
+    const outcome = pending.then(
+      () => { settled = true; return undefined },
+      (error: unknown) => { settled = true; return error },
+    )
+    try {
+      controller.abort(new Error('fixture cancelled'))
+      await entered.promise
+      expect(settled).toBe(false)
+      expect(dispose).toHaveBeenCalledTimes(3)
+      released.resolve(undefined)
+      await expect(outcome).resolves.toMatchObject({
+        message: 'fixture startup listener cleanup failed', errors: [failure, failure],
+      })
+    } finally {
+      released.resolve(undefined)
+      await outcome
+    }
+  })
+
+  it.each([false, true])('waits for all creation listeners before submitting (failure=%s)', async (fails) => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(AgentRegistry)
+    const session = ctx.sessions.create(SessionId('waiter-agent'))
+    const followup = vi.fn()
+    const agent = {
+      id: session.id, session, ctx,
+      followup, whenIdle: () => Promise.resolve(),
+    } as unknown as Agent
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const controller = new AbortController()
+    const pending = runFixtureTurn(ctx, { task: 'fixture task', signal: controller.signal })
+    const outcome = pending.then(value => value, (error: unknown) => error)
+    const stopLater = ctx.on('agent/created', async () => {
+      entered.resolve(undefined)
+      await release.promise
+      if (fails) throw new Error('later creation failed')
+    })
+    const registration = ctx.agents.register(agent)
+    const registered = Promise.resolve(registration).then(value => value, (error: unknown) => error)
+    try {
+      await entered.promise
+      expect(followup).not.toHaveBeenCalled()
+      release.resolve(undefined)
+      if (fails) {
+        await expect(registered).resolves.toMatchObject({ message: 'later creation failed' })
+        await expect(outcome).resolves.toMatchObject({ message: 'fixture agent "waiter-agent" was disposed before startup completed' })
+        expect(followup).not.toHaveBeenCalled()
+      } else {
+        await registered
+        ctx.emit('agent/session-start', { agent, source: 'startup' })
+        await expect(outcome).resolves.toMatchObject({ type: 'result', sessionId: session.id })
+        expect(followup).toHaveBeenCalledOnce()
+      }
+    } finally {
+      release.resolve(undefined)
+      controller.abort(new Error('fixture teardown'))
+      await outcome
+      await registered
+      if (fails) await expect(Promise.resolve(registration())).rejects.toThrow('later creation failed')
+      else await registration()
+      stopLater()
+      await ctx.fiber.dispose()
+    }
   })
 
   it('observes only the owned interval and returns its final text and deduplicated usage', async () => {

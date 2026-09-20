@@ -78,6 +78,8 @@ export interface SidebarConfig {
    * the existing default behavior is kept.
    */
   shellArgs?: string[]
+  /** Executable names or paths checked for the per-tab shell chooser. */
+  shellCandidates?: string[]
 }
 
 /** Schemastery schema for the plugin configuration. */
@@ -94,6 +96,7 @@ export const Config: z<SidebarConfig> = z.object({
   terminalShutdownTimeoutMs: z.number().step(1).min(1).default(10_000),
   shell: z.string().default(''),
   shellArgs: z.array(z.string()).default([]),
+  shellCandidates: z.array(z.string().min(1)).default(['zsh', 'bash', 'fish', 'pwsh', 'powershell', 'cmd']),
 })
 
 /** Fully defaulted sidebar host settings. */
@@ -112,6 +115,8 @@ export interface ResolvedSidebarConfig {
   shell: string
   /** Explicit shell arguments; empty means use the platform defaults. */
   shellArgs: string[]
+  /** Executables offered when installed on the local Host. */
+  shellCandidates: string[]
 }
 
 /**
@@ -134,6 +139,7 @@ export function resolveSidebarConfig(config: SidebarConfig | undefined): Resolve
     terminalShutdownTimeoutMs: config?.terminalShutdownTimeoutMs ?? 10_000,
     shell: config?.shell?.trim() ?? '',
     shellArgs: config?.shellArgs ?? [],
+    shellCandidates: config?.shellCandidates ?? ['zsh', 'bash', 'fish', 'pwsh', 'powershell', 'cmd'],
   }
 }
 

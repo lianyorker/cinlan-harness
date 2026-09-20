@@ -2,6 +2,7 @@
 import { createRoot } from 'react-dom/client'
 import { TerminalView, type TerminalViewProps } from '../../src/client/TerminalView.tsx'
 import { allLeaves, closeTab, createSidebarStore, openTabInActivePane } from '../../src/client/state.ts'
+import { terminalLaunchOf } from '../../src/client/terminal-launch.ts'
 
 type Connect = TerminalViewProps['connectTerminal']
 type Frame = Parameters<Parameters<Connect>[1]>[0]
@@ -19,9 +20,11 @@ const floating: NonNullable<TerminalViewProps['floating']> = {
 const store = createSidebarStore({ floatingWindowId: floating.windowId })
 store.setSession(sessionId)
 store.setPrefs({ ...store.getPrefs(), terminalCursorBlink: false })
-store.reduce(state => openTabInActivePane(state, {
-  id: tabId, type: 'terminal', title: 'Terminal', meta: { terminalFloating: floating },
+const chooser = new URLSearchParams(location.search).has('chooser')
+if (!store.tabOpen(sessionId, tabId)) store.reduce(state => openTabInActivePane(state, {
+  id: tabId, type: 'terminal', title: 'Terminal', meta: { terminalFloating: floating, ...chooser ? { terminalLaunch: { pending: true } } : {} },
 }))
+const tab = allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs).find(tab => tab.id === tabId)!
 
 let receive: Parameters<Connect>[1]
 let reportError: Parameters<Connect>[2]
@@ -57,7 +60,7 @@ const fixture: TerminalRendererFixture = {
 }
 
 const props: TerminalViewProps = {
-  scope: { sessionId }, tabId, store, floating,
+  scope: { sessionId }, tabId, store, floating, launch: terminalLaunchOf(tab),
   connectTerminal(request, onFrame, onError) {
     fixture.requests.push(request)
     receive = onFrame
@@ -71,6 +74,7 @@ const props: TerminalViewProps = {
   },
   async terminalInput(...args) { fixture.inputs.push(args) },
   async terminalResize(...args) { fixture.resizes.push(args) },
+  async terminalShells() { return [{ path: '/bin/bash', name: 'bash' }, { path: '/bin/zsh', name: 'zsh' }] },
 }
 window.terminalRenderer = fixture
 root.render(<TerminalView {...props} />)

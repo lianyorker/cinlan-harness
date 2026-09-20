@@ -1,24 +1,22 @@
 /**
- * Host routes over a real WebServer booted through the vendored Loader
- * (the REAL-composition requirement), asserting the HTTP surface: the
- * connection trust fence, the one-pass catalog resolution the routes share,
- * icon serving with caching, the open route's wire validation, and the
- * stale-launcher (ENOENT) refresh. Host commands, launches, and PATH
- * resolution are faked through the package `internals` seam; the connection
- * service is a controllable stub (its real provider is the browser
- * composition); the filesystem is real.
+ * Loader compositions exercise Connection's authenticated Web carrier and
+ * its listener-free Desktop Fetch carrier. Host commands, launches, PATH
+ * resolution, and credential storage are faked; Connection's trust checks,
+ * route registry, and the filesystem are real.
  */
 
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { connect } from 'node:net'
+import { request as httpRequest } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import WebServer from '@deepseek-ai/dsh-host-webserver'
+import * as Connection from '@deepseek-ai/dsh-client-connection'
 import type { NativeCommandRunner } from '@deepseek-ai/dsh-native-command'
 import {
   createLaunchEnvironmentSnapshot, DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentLayerInput,
@@ -29,8 +27,17 @@ import type { OpenInAppLauncher } from '../src/resolver.ts'
 
 let root: string | undefined
 let context: Context | undefined
-/** Answer the connection stub gives every route until a test changes it. */
-const trust: { rejection: 401 | 403 | undefined } = { rejection: undefined }
+let carrier: 'web' | 'desktop'
+let cookie = ''
+
+async function fetch(input: string, init?: RequestInit): Promise<Response> {
+  if (carrier === 'desktop') {
+    return (context as Context).connection.createSharedFetchHandler('/api').fetch(new Request(input, init))
+  }
+  const headers = new Headers(init?.headers)
+  headers.set('cookie', cookie)
+  return globalThis.fetch(input, { ...init, headers })
+}
 
 afterEach(async () => {
   await context?.fiber.dispose()
@@ -38,7 +45,7 @@ afterEach(async () => {
   if (root !== undefined) await rm(root, { recursive: true, force: true })
   root = undefined
   internals.catalog = {}
-  trust.rejection = undefined
+  cookie = ''
   vi.unstubAllEnvs()
 })
 
@@ -47,16 +54,19 @@ function pathTable(entries: Record<string, string> = {}): (name: string) => Prom
   return name => Promise.resolve(entries[name] ?? null)
 }
 
-/** Boot webserver + open-in-app rows through the real Loader. */
+/** Boot the shared Fetch routes with an optional Web listener through the Loader. */
 async function boot(layers: readonly LaunchEnvironmentLayerInput[] = []): Promise<string> {
   internals.catalog = { env: {}, ...internals.catalog }
-  root = await mkdtemp(join(tmpdir(), 'dsh-open-in-app-loader-'))
+  root ??= await mkdtemp(join(tmpdir(), 'dsh-open-in-app-loader-'))
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
-    "- name: '@deepseek-ai/dsh-host-webserver'",
-    '  config:',
-    "    host: '127.0.0.1'",
-    '    port: 0',
+    ...(carrier === 'web' ? [
+      "- name: '@deepseek-ai/dsh-host-webserver'",
+      '  config:',
+      "    host: '127.0.0.1'",
+      '    port: 0',
+    ] : []),
+    "- name: '@deepseek-ai/dsh-client-connection'",
     "- name: '@deepseek-ai/dsh-host-open-in-app'",
     '  config:',
     '    probeTimeoutMs: 5000',
@@ -68,7 +78,10 @@ async function boot(layers: readonly LaunchEnvironmentLayerInput[] = []): Promis
   context = new Context()
   context.provide(DSH_LAUNCH_ENVIRONMENT_KEY, createLaunchEnvironmentSnapshot(layers))
   context.baseUrl = pathToFileURL(root).href + '/'
-  context.provide('connection', { requestRejection: () => trust.rejection } as never)
+  const credentials: Pick<Context['credentials'], 'modifyRecord'> = {
+    modifyRecord: (_key, mutate) => mutate(undefined),
+  }
+  context.provide('credentials', credentials as Context['credentials'])
   // The plugin resolves PATH names through the composition's subprocess
   // capability; the not-found rejection is the provider's real signal.
   context.provide('subprocess', {
@@ -78,6 +91,7 @@ async function boot(layers: readonly LaunchEnvironmentLayerInput[] = []): Promis
   context.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
     ['@deepseek-ai/dsh-host-webserver', WebServer],
+    ['@deepseek-ai/dsh-client-connection', Connection],
     ['@deepseek-ai/dsh-host-open-in-app', OpenInApp],
   ])
   context.loader.internal = {
@@ -93,7 +107,25 @@ async function boot(layers: readonly LaunchEnvironmentLayerInput[] = []): Promis
   })
   await context.loader.await()
   expect([...context.loader.entries()].filter(entry => entry.fiber === undefined && !entry.disabled)).toEqual([])
-  return `http://127.0.0.1:${String(context.webServer.port)}`
+  if (carrier === 'desktop') {
+    expect(context.get('webServer')).toBeUndefined()
+    return 'dsh-app://app'
+  }
+  const base = 'http://127.0.0.1:' + String(context.webServer.port)
+  const responseHeaders = new Headers()
+  expect(context.connection.authorizeIndex({
+    method: 'GET',
+    url: context.connection.authenticatedUrl(base),
+    headers: { host: new URL(base).host },
+  }, {
+    writeHead(_status, headers) {
+      for (const [name, value] of Object.entries(headers ?? {})) responseHeaders.set(name, value)
+    },
+    end() {},
+  })).toBe(false)
+  cookie = responseHeaders.get('set-cookie')?.split(';', 1)[0] ?? ''
+  expect(cookie).not.toBe('')
+  return base
 }
 
 /**
@@ -130,7 +162,8 @@ async function cursorBundle(home: string): Promise<void> {
   await writeFile(join(home, 'Applications', 'Cursor.app', 'Contents', 'Resources', 'AppIcon.icns'), 'icns')
 }
 
-describe('open-in-app host routes (real Loader composition)', () => {
+describe.each(['web', 'desktop'] as const)('open-in-app %s routes (real Loader composition)', (transport) => {
+  beforeEach(() => { carrier = transport })
   it.each(['project-env', 'user-env'] as const)('ignores materialized SSH markers from %s', async (source) => {
     vi.stubEnv('SSH_CONNECTION', 'stale-connection')
     vi.stubEnv('SSH_TTY', '/dev/pts/stale')
@@ -140,7 +173,7 @@ describe('open-in-app host routes (real Loader composition)', () => {
     }
     const base = await boot([{ source, values: { SSH_CONNECTION: 'stale-connection', SSH_TTY: '/dev/pts/stale' } }])
 
-    expect(await (await fetch(`${base}/open-in-app/apps`)).json()).toEqual({ apps: ['finder', 'terminal'] })
+    expect(await (await fetch(`${base}/api/open-in-app/apps`)).json()).toEqual({ apps: ['finder', 'terminal'] })
   })
 
   it.each([
@@ -153,11 +186,11 @@ describe('open-in-app host routes (real Loader composition)', () => {
     internals.catalog = { platform: 'darwin', env, run, launch, resolveExecutable }
     const base = await boot([{ source: 'process', values: env }])
 
-    const apps = await fetch(`${base}/open-in-app/apps`)
+    const apps = await fetch(`${base}/api/open-in-app/apps`)
     expect(apps.status).toBe(200)
     expect(await apps.json()).toEqual({ apps: [] })
-    expect((await fetch(`${base}/open-in-app/icon/finder`)).status).toBe(404)
-    const open = await fetch(`${base}/open-in-app/open`, {
+    expect((await fetch(`${base}/api/open-in-app/icon/finder`)).status).toBe(404)
+    const open = await fetch(`${base}/api/open-in-app/open`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ app: 'finder', path: root }),
@@ -172,20 +205,38 @@ describe('open-in-app host routes (real Loader composition)', () => {
     expect(Object.keys(OpenInApp).sort()).toEqual(['Config', 'apply', 'inject', 'name'])
   })
 
-  it('answers the connection rejection on every route, before any resolution runs', async () => {
+  it.skipIf(transport !== 'web')('rejects unauthenticated, cross-site, and untrusted-host requests before resolution', async () => {
     const run = vi.fn<NativeCommandRunner>()
-    internals.catalog = { platform: 'darwin', run, resolveExecutable: pathTable() }
+    const launch = vi.fn<OpenInAppLauncher>()
+    const resolveExecutable = vi.fn(pathTable())
+    internals.catalog = { platform: 'darwin', run, launch, resolveExecutable }
     const base = await boot()
-    trust.rejection = 403
-    expect((await fetch(`${base}/open-in-app/apps`)).status).toBe(403)
-    expect((await fetch(`${base}/open-in-app/icon/finder`)).status).toBe(403)
-    expect((await fetch(`${base}/open-in-app/open`, { method: 'POST' })).status).toBe(403)
-    // Rejected requests never reached the lazy catalog resolution.
+    for (const [path, method] of [
+      ['/api/open-in-app/apps', 'GET'],
+      ['/api/open-in-app/icon/finder', 'GET'],
+      ['/api/open-in-app/open', 'POST'],
+    ] as const) {
+      const url = base + path
+      expect((await globalThis.fetch(url, { method })).status).toBe(401)
+      expect((await globalThis.fetch(url, {
+        method, headers: { cookie, origin: 'https://untrusted.example' },
+      })).status).toBe(403)
+      // Fetch derives Host from the URL; node:http preserves this hostile wire header.
+      const status = await new Promise<number | undefined>((resolve, reject) => {
+        const request = httpRequest(url, { method, headers: { cookie, host: 'untrusted.example' } }, (response) => {
+          response.resume()
+          response.on('end', () => { resolve(response.statusCode) })
+          response.on('error', reject)
+        })
+        request.on('error', reject)
+        request.end()
+      })
+      expect(status).toBe(403)
+    }
     expect(run).not.toHaveBeenCalled()
-    trust.rejection = 401
-    expect((await fetch(`${base}/open-in-app/apps`)).status).toBe(401)
-    trust.rejection = undefined
-    expect((await fetch(`${base}/open-in-app/apps`)).status).toBe(200)
+    expect(launch).not.toHaveBeenCalled()
+    expect(resolveExecutable).not.toHaveBeenCalled()
+    expect((await fetch(base + '/api/open-in-app/apps')).status).toBe(200)
   })
 
   it('serves the resolved catalog, one cached icon, and launches from the same resolution', async () => {
@@ -197,21 +248,21 @@ describe('open-in-app host routes (real Loader composition)', () => {
     darwinFixture(home, launches)
     const base = await boot()
     try {
-      const apps = await fetch(`${base}/open-in-app/apps`)
+      const apps = await fetch(`${base}/api/open-in-app/apps`)
       expect(apps.status).toBe(200)
       expect(apps.headers.get('cache-control')).toBe('no-store')
       expect(await apps.json()).toEqual({ apps: ['finder', 'cursor', 'terminal'] })
 
-      const icon = await fetch(`${base}/open-in-app/icon/cursor`)
+      const icon = await fetch(`${base}/api/open-in-app/icon/cursor`)
       expect(icon.status).toBe(200)
       expect(icon.headers.get('content-type')).toBe('image/png')
       expect(await icon.text()).toBe('png-bytes')
       // Second read serves the per-process cache (same bytes, no re-extraction).
-      expect(await (await fetch(`${base}/open-in-app/icon/cursor`)).text()).toBe('png-bytes')
+      expect(await (await fetch(`${base}/api/open-in-app/icon/cursor`)).text()).toBe('png-bytes')
 
-      expect((await fetch(`${base}/open-in-app/icon/nonesuch`)).status).toBe(404)
+      expect((await fetch(`${base}/api/open-in-app/icon/nonesuch`)).status).toBe(404)
 
-      const open = await fetch(`${base}/open-in-app/open`, {
+      const open = await fetch(`${base}/api/open-in-app/open`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ app: 'cursor', path: workspace }),
@@ -239,9 +290,9 @@ describe('open-in-app host routes (real Loader composition)', () => {
       // Two list reads and a launch: detection ran once (macOS resolution
       // here is filesystem-only; the PATH resolver seat is the witness that
       // no second pass started).
-      await fetch(`${base}/open-in-app/apps`)
-      await fetch(`${base}/open-in-app/apps`)
-      const open = await fetch(`${base}/open-in-app/open`, {
+      await fetch(`${base}/api/open-in-app/apps`)
+      await fetch(`${base}/api/open-in-app/apps`)
+      const open = await fetch(`${base}/api/open-in-app/open`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ app: 'cursor', path: workspace }),
@@ -279,7 +330,7 @@ describe('open-in-app host routes (real Loader composition)', () => {
       resolveExecutable: pathTable(),
     }
     const base = await boot()
-    const openCursor = (): Promise<Response> => fetch(`${base}/open-in-app/open`, {
+    const openCursor = (): Promise<Response> => fetch(`${base}/api/open-in-app/open`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ app: 'cursor', path: workspace }),
@@ -294,10 +345,10 @@ describe('open-in-app host routes (real Loader composition)', () => {
       await rm(join(home, 'Applications', 'Cursor.app'), { recursive: true, force: true })
       launchOutcomes = [enoent]
       expect((await openCursor()).status).toBe(502)
-      expect(await (await fetch(`${base}/open-in-app/apps`)).json())
+      expect(await (await fetch(`${base}/api/open-in-app/apps`)).json())
         .toEqual({ apps: ['finder', 'terminal'] })
       // The unresolved entry also stops serving an icon.
-      expect((await fetch(`${base}/open-in-app/icon/cursor`)).status).toBe(404)
+      expect((await fetch(`${base}/api/open-in-app/icon/cursor`)).status).toBe(404)
       expect((await openCursor()).status).toBe(400)
     } finally {
       await rm(home, { recursive: true, force: true })
@@ -311,30 +362,28 @@ describe('open-in-app host routes (real Loader composition)', () => {
     darwinFixture(home, launches)
     const base = await boot()
     try {
-      const wrongMethodApps = await fetch(`${base}/open-in-app/apps`, { method: 'POST' })
-      expect(wrongMethodApps.status).toBe(405)
-      expect(wrongMethodApps.headers.get('allow')).toBe('GET')
-      expect((await fetch(`${base}/open-in-app/icon/cursor`, { method: 'POST' })).status).toBe(405)
-      const wrongMethodOpen = await fetch(`${base}/open-in-app/open`)
-      expect(wrongMethodOpen.status).toBe(405)
-      expect(wrongMethodOpen.headers.get('allow')).toBe('POST')
+      const wrongMethodApps = await fetch(`${base}/api/open-in-app/apps`, { method: 'POST' })
+      expect(wrongMethodApps.status).toBe(404)
+      expect((await fetch(`${base}/api/open-in-app/icon/cursor`, { method: 'POST' })).status).toBe(404)
+      const wrongMethodOpen = await fetch(`${base}/api/open-in-app/open`)
+      expect(wrongMethodOpen.status).toBe(404)
 
       // Body-format validation: only an application/json ESSENCE is accepted;
       // a parameter smuggling the token elsewhere does not count.
-      const form = await fetch(`${base}/open-in-app/open`, {
+      const form = await fetch(`${base}/api/open-in-app/open`, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
         body: 'app=cursor',
       })
       expect(form.status).toBe(415)
-      const smuggled = await fetch(`${base}/open-in-app/open`, {
+      const smuggled = await fetch(`${base}/api/open-in-app/open`, {
         method: 'POST',
         headers: { 'content-type': 'text/plain;x=application/json' },
         body: JSON.stringify({ app: 'cursor', path: home }),
       })
       expect(smuggled.status).toBe(415)
 
-      const post = (body: string): Promise<Response> => fetch(`${base}/open-in-app/open`, {
+      const post = (body: string): Promise<Response> => fetch(`${base}/api/open-in-app/open`, {
         method: 'POST',
         headers: { 'content-type': 'application/json; charset=utf-8' },
         body,
@@ -346,15 +395,66 @@ describe('open-in-app host routes (real Loader composition)', () => {
       expect((await post(JSON.stringify({ app: 7, path: '/tmp' }))).status).toBe(400)
       expect((await post(JSON.stringify({ app: 'vscode', path: home }))).status).toBe(400)
       expect((await post(JSON.stringify({ app: 'nonesuch', path: home }))).status).toBe(400)
+      expect((await post(JSON.stringify({ app: join(home, 'arbitrary.exe'), path: home }))).status).toBe(400)
       expect((await post(JSON.stringify({ app: 'cursor', path: 'relative/dir' }))).status).toBe(400)
       expect((await post(JSON.stringify({ app: 'cursor', path: '' }))).status).toBe(400)
       expect((await post(JSON.stringify({ app: 'cursor', path: join(home, 'missing') }))).status).toBe(404)
+      const file = join(home, 'ordinary-file')
+      await writeFile(file, '')
+      expect((await post(JSON.stringify({ app: 'cursor', path: file }))).status).toBe(404)
       const oversize = await post(JSON.stringify({ app: 'cursor', path: '/'.padEnd(70_000, 'x') }))
       expect(oversize.status).toBe(413)
       expect(launches).toEqual([])
     } finally {
       await rm(home, { recursive: true, force: true })
     }
+  })
+
+  it('accepts exactly 64 KiB and rejects oversized streamed UTF-8 bodies before launching', async () => {
+    const launches: string[][] = []
+    const base = await boot()
+    await cursorBundle(root as string)
+    darwinFixture(root as string, launches)
+    const body = JSON.stringify({ app: 'cursor', path: root })
+    const exact = body + ' '.repeat(64 * 1024 - Buffer.byteLength(body))
+    const post = (value: string): Promise<Response> => fetch(base + '/api/open-in-app/open', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: value,
+    })
+    expect((await post(exact)).status).toBe(200)
+    expect(launches).toHaveLength(1)
+    expect((await post(exact + ' ')).status).toBe(413)
+    const bytes = new TextEncoder().encode('界'.repeat(22_000))
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (let at = 0; at < bytes.byteLength; at += 4096) controller.enqueue(bytes.slice(at, at + 4096))
+        controller.close()
+      },
+    })
+    const init: RequestInit & { duplex: 'half' } = {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: stream, duplex: 'half',
+    }
+    const oversized = await fetch(base + '/api/open-in-app/open', init)
+    expect(oversized.status).toBe(413)
+    expect(await oversized.json()).toMatchObject({ code: 'payload-too-large' })
+    expect(launches).toHaveLength(1)
+  })
+
+  it.skipIf(transport !== 'desktop')('refuses empty or unreadable Fetch bodies', async () => {
+    const launch = vi.fn<OpenInAppLauncher>()
+    internals.catalog = { platform: 'darwin', applicationRoots: [], launch, resolveExecutable: pathTable() }
+    const base = await boot()
+    const empty = await fetch(base + '/api/open-in-app/open', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+    })
+    expect(empty.status).toBe(400)
+    const init: RequestInit & { duplex: 'half' } = {
+      method: 'POST', headers: { 'content-type': 'application/json' }, duplex: 'half',
+      body: new ReadableStream<Uint8Array>({ start(controller) { controller.error(new Error('body interrupted')) } }),
+    }
+    const unreadable = await fetch(base + '/api/open-in-app/open', init)
+    expect(unreadable.status).toBe(400)
+    expect(await unreadable.json()).toMatchObject({ message: 'request body unreadable' })
+    expect(launch).not.toHaveBeenCalled()
   })
 
   it('reports a failed launcher as 502 and an empty catalog on a platform without entries', async () => {
@@ -371,14 +471,14 @@ describe('open-in-app host routes (real Loader composition)', () => {
     const base = await boot()
     try {
       // finder/terminal resolve (fixed entries) but their launch fails.
-      const open = await fetch(`${base}/open-in-app/open`, {
+      const open = await fetch(`${base}/api/open-in-app/open`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ app: 'finder', path: workspace }),
       })
       expect(open.status).toBe(502)
       // An unresolved entry stays rejected as unavailable.
-      expect((await fetch(`${base}/open-in-app/icon/cursor`)).status).toBe(404)
+      expect((await fetch(`${base}/api/open-in-app/icon/cursor`)).status).toBe(404)
     } finally {
       await rm(home, { recursive: true, force: true })
     }
@@ -387,7 +487,7 @@ describe('open-in-app host routes (real Loader composition)', () => {
     context = undefined
     internals.catalog = { platform: 'aix', resolveExecutable: pathTable() }
     const emptyBase = await boot()
-    expect(await (await fetch(`${emptyBase}/open-in-app/apps`)).json()).toEqual({ apps: [] })
+    expect(await (await fetch(`${emptyBase}/api/open-in-app/apps`)).json()).toEqual({ apps: [] })
   })
 
   it('serves a Linux catalog resolved in-process and its desktop-entry SVG icon', async () => {
@@ -414,16 +514,16 @@ describe('open-in-app host routes (real Loader composition)', () => {
     }
     const base = await boot()
     try {
-      expect(await (await fetch(`${base}/open-in-app/apps`)).json())
+      expect(await (await fetch(`${base}/api/open-in-app/apps`)).json())
         .toEqual({ apps: ['filemanager', 'vscode'] })
       // The icon follows the desktop entry; xdg-open declares none.
-      const icon = await fetch(`${base}/open-in-app/icon/vscode`)
+      const icon = await fetch(`${base}/api/open-in-app/icon/vscode`)
       expect(icon.status).toBe(200)
       expect(icon.headers.get('content-type')).toBe('image/svg+xml')
       expect(await icon.text()).toBe('<svg/>')
-      expect((await fetch(`${base}/open-in-app/icon/filemanager`)).status).toBe(404)
+      expect((await fetch(`${base}/api/open-in-app/icon/filemanager`)).status).toBe(404)
 
-      const open = await fetch(`${base}/open-in-app/open`, {
+      const open = await fetch(`${base}/api/open-in-app/open`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ app: 'vscode', path: workspace }),
@@ -435,7 +535,7 @@ describe('open-in-app host routes (real Loader composition)', () => {
     }
   })
 
-  it('answers 400 when the connection dies mid-body', async () => {
+  it.skipIf(transport !== 'web')('survives a connection closing mid-body', async () => {
     internals.catalog = { platform: 'aix', resolveExecutable: pathTable() }
     const base = await boot()
     const port = Number(new URL(base).port)
@@ -444,8 +544,9 @@ describe('open-in-app host routes (real Loader composition)', () => {
     const status = await new Promise<string>((resolve, reject) => {
       const socket = connect(port, '127.0.0.1', () => {
         socket.write([
-          'POST /open-in-app/open HTTP/1.1',
-          'host: 127.0.0.1',
+          'POST /api/open-in-app/open HTTP/1.1',
+          `host: 127.0.0.1:${String(port)}`,
+          `cookie: ${cookie}`,
           'content-type: application/json',
           'content-length: 100',
           '',
@@ -461,7 +562,7 @@ describe('open-in-app host routes (real Loader composition)', () => {
     // The server sent its refusal before our destroy landed, or the exchange
     // simply died first — either way the handler must not crash the process.
     expect(status === '' || status.startsWith('HTTP/1.1 400')).toBe(true)
-    expect((await fetch(`${base}/open-in-app/apps`)).status).toBe(200)
+    expect((await fetch(`${base}/api/open-in-app/apps`)).status).toBe(200)
   })
 
   it('resolves PATH names through the composition subprocess capability when the seam does not override it', async () => {
@@ -474,19 +575,19 @@ describe('open-in-app host routes (real Loader composition)', () => {
     const base = await boot()
     // The spec host's subprocess stub rejects every lookup, which the plugin
     // reads as not-on-PATH: the catalog resolves empty instead of failing.
-    expect(await (await fetch(`${base}/open-in-app/apps`)).json()).toEqual({ apps: [] })
+    expect(await (await fetch(`${base}/api/open-in-app/apps`)).json()).toEqual({ apps: [] })
   })
 
   it('removes all three routes when the plugin row is disposed (HMR safety)', async () => {
     internals.catalog = { platform: 'aix', resolveExecutable: pathTable() }
     const base = await boot()
-    expect((await fetch(`${base}/open-in-app/apps`)).status).toBe(200)
+    expect((await fetch(`${base}/api/open-in-app/apps`)).status).toBe(200)
     const entry = [...(context as Context).loader.entries()]
       .find(candidate => candidate.options.name === '@deepseek-ai/dsh-host-open-in-app')
     await entry?.fiber?.dispose()
-    // The webserver survives; the routes are gone (its 404 fallback answers).
-    expect((await fetch(`${base}/open-in-app/apps`)).status).toBe(404)
-    expect((await fetch(`${base}/open-in-app/icon/cursor`)).status).toBe(404)
-    expect((await fetch(`${base}/open-in-app/open`, { method: 'POST' })).status).toBe(404)
+    // Connection survives the feature; its route registry no longer dispatches these paths.
+    expect((await fetch(`${base}/api/open-in-app/apps`)).status).toBe(404)
+    expect((await fetch(`${base}/api/open-in-app/icon/cursor`)).status).toBe(404)
+    expect((await fetch(`${base}/api/open-in-app/open`, { method: 'POST' })).status).toBe(404)
   })
 })

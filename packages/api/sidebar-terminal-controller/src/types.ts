@@ -3,7 +3,7 @@ import type {} from '@deepseek-ai/dsh-typert-protocol'
 import type {
   SidebarAgentTerminalId, SidebarAgentTerminalSnapshot, SidebarTerminalAttachmentId, SidebarTerminalCapability,
   SidebarTerminalFrame, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest, SidebarTerminalSessionId,
-  SidebarTerminalTabId,
+  SidebarTerminalTabId, SidebarTerminalShell,
 } from '@deepseek-ai/dsh-sidebar-terminals/types'
 export type * from '@deepseek-ai/dsh-sidebar-terminals/types'
 
@@ -11,6 +11,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     'sidebarTerminals/invalid-request': {}
     'sidebarTerminals/invalid-directory': {}
+    'sidebarTerminals/invalid-shell': {}
     'sidebarTerminals/unavailable': {}
     'sidebarTerminals/not-found': {}
     'sidebarTerminals/stale-attachment': {}
@@ -39,6 +40,8 @@ export interface TerminalCallbacks {
   terminalResize(id: SidebarTerminalAttachmentId, cols: number, rows: number): Promise<void>
   /** @returns nonspawning shell capability. */
   terminalCapability(): Promise<SidebarTerminalCapability>
+  /** @returns installed local shells for a new UI terminal without spawning. */
+  terminalShells(): Promise<readonly SidebarTerminalShell[]>
   /** @param sessionId - owning Session. @param onList - complete snapshot callback. @returns synchronous unsubscribe. */
   watchAgentTerminals(sessionId: SidebarTerminalSessionId, onList: (list: readonly SidebarAgentTerminalSnapshot[]) => void): () => void
   /** @param uuid - agent terminal identity. */

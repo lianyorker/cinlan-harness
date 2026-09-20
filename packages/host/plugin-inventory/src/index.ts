@@ -17,8 +17,11 @@ import type {
 
 export type * from './types.ts'
 
-/** Brand an existing Loader-tree entry id at the owning boundary. */
-function pluginEntryId(value: string): PluginEntryId {
+/** Brand a Loader-tree entry id.
+ * @param value Entry id assigned by the Loader.
+ * @returns The same id with its inventory type.
+ */
+export function pluginEntryId(value: string): PluginEntryId {
   return value as PluginEntryId
 }
 
@@ -64,29 +67,43 @@ export class PluginInventoryGateway extends TypertRemoteService {
    */
   @Remote('list')
   async list(): Promise<PluginInventorySnapshot> {
-    const entries: PluginInventoryEntry[] = []
-    for (const entry of this.ctx.loader.entries()) {
-      if (entry.options.group) continue
-      entries.push({
-        entryId: pluginEntryId(entry.id),
-        moduleName: entry.options.name,
-        enabled: !entry.disabled,
-        fiberPhase: entry.fiber === undefined ? null : FIBER_PHASE[entry.fiber.state],
-      })
-    }
-    const presets = this.ctx.get('agentPresets')
-    if (presets === undefined) return { entries }
-    const agentPresets: AgentPresetPluginGroup[] = (await presets.compositionInventory()).map(
-      composition => ({
-        ...composition,
-        rows: composition.rows.map(({ fiberState, ...row }) => ({
-          ...row,
-          fiberPhase: fiberState === undefined ? null : FIBER_PHASE[fiberState],
-        })),
-      }),
-    )
-    return { entries, agentPresets }
+    return readPluginInventory(this.ctx)
   }
 }
 
 export default PluginInventoryGateway
+
+/** Read the current Loader and optional preset compositions.
+ * @param ctx Context with the Loader service.
+ * @returns Current inventory, configuration management availability, and package ownership.
+ */
+export async function readPluginInventory(ctx: Context): Promise<PluginInventorySnapshot> {
+  const entries: PluginInventoryEntry[] = []
+  for (const entry of ctx.loader.entries()) {
+    if (entry.options.group) continue
+    entries.push({
+      entryId: pluginEntryId(entry.id),
+      moduleName: entry.options.name,
+      enabled: !entry.disabled,
+      fiberPhase: entry.fiber === undefined ? null : FIBER_PHASE[entry.fiber.state],
+    })
+  }
+  const presets = ctx.get('agentPresets')
+  const desktop = ctx.get('dshProfileName') === 'desktop'
+  const management = {
+    ...ctx.get('pluginManager') !== undefined && (!desktop || ctx.get('pluginManagementHost') !== undefined)
+      ? { managementAvailable: true } : {},
+    ...desktop ? { packageManagement: 'desktop' as const } : {},
+  }
+  if (presets === undefined) return { entries, ...management }
+  const agentPresets: AgentPresetPluginGroup[] = (await presets.compositionInventory()).map(
+    composition => ({
+      ...composition,
+      rows: composition.rows.map(({ fiberState, ...row }) => ({
+        ...row,
+        fiberPhase: fiberState === undefined ? null : FIBER_PHASE[fiberState],
+      })),
+    }),
+  )
+  return { entries, agentPresets, ...management }
+}

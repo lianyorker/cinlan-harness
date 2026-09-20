@@ -26,6 +26,8 @@ import { ConfigurablePluginsTab } from './ConfigurablePluginsTab.tsx'
 import { PluginsSettingsSection } from './PluginsSettingsSection.tsx'
 import type { PluginsSettingsSectionInjected, PluginsSettingsTabEntry } from './PluginsSettingsSection.tsx'
 import { SubagentModelSelectionCard } from './SubagentModelSelectionCard.tsx'
+import { subagentCardFace } from './subagent-card-controller.ts'
+import { SubagentLimitsCardController } from './subagent-limits-card-controller.ts'
 import { WebSearchCard } from './WebSearchCard.tsx'
 import { AGENT_LOOP_NS, AgentLoopCardController } from './agent-loop-card-controller.ts'
 import { SHELL_NS, BashCardController } from './bash-card-controller.ts'
@@ -69,10 +71,13 @@ export function apply(ctx: ClientContext): void {
   const agentLoop = new AgentLoopCardController(ctx.settingsScope.bind({ namespace: AGENT_LOOP_NS }))
   const webSearch = new WebSearchCardController(
     ctx.settingsScope.bind({ namespace: WEB_SEARCH_NS }), ctx)
+  const subagentLimits = new SubagentLimitsCardController(ctx.settingsScope.bind({ namespace: 'subagent' }))
   const subagentModelSelection = new SubagentModelSelectionCardController(
     ctx.settingsScope.bind({ namespace: SUBAGENT_MODEL_SELECTION_NS }),
     ctx,
   )
+
+  const subagent = subagentCardFace(subagentLimits.inject(), subagentModelSelection.inject())
 
   // The credential a card reports is not part of any settings section, so its
   // scope publishes nothing when one is written. This is the only signal that
@@ -186,12 +191,26 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: () => agentLoop.inject(),
     }, AgentLoopCard)
-    yield ctx.slots.register({
-      name: 'settings.plugin.item',
-      key: SUBAGENT_MODEL_SELECTION_NS,
-      locale: NS,
-      inject: () => subagentModelSelection.inject(),
-    }, SubagentModelSelectionCard)
+    yield ctx.effect(() => {
+      const describe = ctx.settingsScope.describe()
+      let registeredKey: string | undefined
+      let dispose = (): void => {}
+      const sync = (): void => {
+        const served = new Set(describe.getSnapshot().view?.namespaces.map(view => view.ns) ?? [])
+        const key = served.has('subagent') && !served.has(SUBAGENT_MODEL_SELECTION_NS)
+          ? 'subagent'
+          : SUBAGENT_MODEL_SELECTION_NS
+        if (key === registeredKey) return
+        dispose()
+        registeredKey = key
+        dispose = ctx.slots.register({
+          name: 'settings.plugin.item', key, locale: NS, inject: () => subagent,
+        }, SubagentModelSelectionCard)
+      }
+      sync()
+      const unsubscribe = describe.subscribe(sync)
+      return () => { unsubscribe(); dispose() }
+    }, 'ui-settings-plugins: shared subagent card')
     yield ctx.slots.register({
       name: 'settings.plugin.item',
       key: WEB_SEARCH_NS,
@@ -221,7 +240,10 @@ export function apply(ctx: ClientContext): void {
         item: {
           id: 'subagent-model-selection', anchorId: 'plugins-subagent-model-selection', tabId: 'configurable',
           title: () => t('subagentModelSelectionTitle'), description: () => t('subagentModelSelectionDescription'),
-          keywords: () => [t('subagentModelSelectionToggle'), t('subagentModelSelectionAllowed')],
+          keywords: () => [
+            t('subagentModelSelectionToggle'), t('subagentModelSelectionAllowed'),
+            t('subagentMaxDepth'), t('subagentMaxDepthHint'), t('subagentMaxActive'), t('subagentMaxActiveHint'),
+          ],
         },
       },
       {
@@ -239,7 +261,8 @@ export function apply(ctx: ClientContext): void {
         disposeItems()
         const { namespaces } = source.getSnapshot()
         disposeItems = ctx.settingsMetadata.registerItems('plugins', items
-          .filter(({ namespace }) => namespaces.includes(namespace))
+          .filter(({ namespace }) => namespaces.includes(namespace)
+            || (namespace === SUBAGENT_MODEL_SELECTION_NS && namespaces.includes('subagent')))
           .map(({ item }) => item))
       }
       refresh()

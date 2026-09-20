@@ -54,6 +54,7 @@ const CHILD_SPECS = {
   'settings.action': { kind: 'list', scope: 'root' },
   'settings.close': { kind: 'single', scope: 'root' },
   'settings.section': { kind: 'list', scope: 'root' },
+  'settings.section.extension': { kind: 'keyed', scope: 'root' },
   'settings.section.icon': { kind: 'keyed', scope: 'root' },
   'settings.onboarding': { kind: 'list', scope: 'root' },
 } as const

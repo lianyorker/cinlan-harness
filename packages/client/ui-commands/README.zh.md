@@ -1,5 +1,5 @@
 ---
-description: "Web GUI 的客户端命令 API：/ 命令 source、三类派发、会话级命令目录，以及面向业务包的 popupSelect 注册；供斜杠命令的用户与维护者阅读。"
+description: "Web GUI 的斜杠命令：客户端动作与弹窗选择器、宿主命令输入，以及按会话发现命令。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在 composer 中键入 `/` 命令会打开匹配的表面——已注册的弹窗、宿主命令的输入或直接执行——命令行绝不会被静默降级为普通提示词。业务包经 `ctx.commandUi` 贡献命令表面：注册 popupSelect 贡献项（`/model`、`/permission`），或用选择器装饰既有宿主命令，宿主保留其目录行与参数声明。空格与回车对照会话目录解析命令行：带 `input` 的宿主描述符是 `leadingInput`，注册了 `CommandUiSpec` 的是 `popupSelect`，其余全部是 `execute`。
+在 composer 中键入 `/` 命令会打开选择器、运行客户端动作或提交宿主命令。业务包可以添加客户端命令，或装饰宿主命令的裸调用，同时仍将文本参数交给宿主。命令查找使用当前会话的目录，查找失败绝不会将命令静默降级为普通提示词。
 
 ## 目录
 
@@ -29,11 +29,11 @@ kind: "package-reference"
 
 ### 种类与装饰
 
-贡献项是客户端自有命令——与宿主命令同名会明确报错。装饰为**已存在的**宿主命令添加裸调用弹窗：宿主命令保留其目录行、参数声明与生命周期记账，被装饰的名字在会话目录中无宿主行时永不触发。菜单查询按顺序且不区分大小写地模糊匹配命令名的子序列；前缀排名最高。
+贡献项是客户端自有命令；与宿主命令同名会明确报错。装饰为已存在的宿主命令添加裸调用弹窗或动作。宿主保留其目录行、参数声明以及已执行命令的生命周期记账；没有宿主目录行的装饰永不触发。菜单查询按顺序且不区分大小写地模糊匹配命令名的子序列；前缀排名最高。
 
 ### 带附件提交
 
-composer 携带图片或通用文件提交时，只有声明了 `input.attachments` 的宿主命令继续。其余命令路径都会抛出本地化的 `attachmentsUnsupported` 拒绝，以瞬态 toast 呈现，草稿与附件卡保持原位。处理器返回错误时保留相同草稿状态供用户重试。
+`action` 请求受守卫保护的 token 消费，然后以调用时的会话运行同步回调。它不提交内容，并将附件留在 composer 中，即使 token 守卫未命中也如此。其他带附件提交要求宿主命令声明 `input.attachments`；弹窗路径与不接受附件的宿主命令会抛出本地化的 `attachmentsUnsupported` 拒绝，保留草稿和附件卡。处理器返回错误时保留相同草稿状态供用户重试。
 
 -----
 
@@ -43,7 +43,7 @@ composer 携带图片或通用文件提交时，只有声明了 `input.attachmen
 <details>
 <summary>实现细节——点击展开</summary>
 
-`src/client/contract.ts` 是固定的业务约定：`CommandUiContract.register(name, spec)` 与 `decorate(name, spec)` 是业务包消费的全部内容。`CommandDirectory` 是唯一的 wire 派生缓存，以会话为 key：普通会话经 `command.list({sessionId})` 拉取；条目由转发的 `commands/change` owner 事件软失效、由 `connection/reset` 硬失效，并以 epoch 把关，被取代的旧拉取永远无法覆盖更新的结果。`matchSpace` 只凭该缓存同步应答；`matchEnter` 在 SubmitAttempt 信号上强等缓存，预热失败即拒绝。`command.execute` 返回匹配结果后，浏览器发布本地 `command/executed` 确认；其他客户端经宿主事件流收到持久命令节点，但收不到这条确认。`PopupSelectController` 是不含界面的外壳状态；`PopupSelectView` 自注册进 `conversation.input.overlay`，按会话解析。
+[`src/client/contract.ts`](src/client/contract.ts) 定义经 `ctx.commandUi` 注册贡献项与装饰的 API。裸菜单选择或回车调用已注册的 `popupSelect` 或 `action`；空格与带参数的回车保留宿主输入声明。动作在运行前请求消费 token：菜单选择使用捕获的范围与草稿修订号，裸回车则检查去除首尾空白后的草稿是否仍等于 token。输入归属方执行这两种守卫。`CommandDirectory` 缓存各会话的宿主目录，在宿主变化或连接重置时使其失效，并拒绝过期的获取结果。宿主执行返回匹配结果后，浏览器发布本地 `command/executed` 确认；其他客户端收到持久命令节点。`PopupSelectController` 拥有选择器状态，`PopupSelectView` 经 `conversation.input.overlay` 渲染。
 
 </details>
 

@@ -8,7 +8,8 @@ import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as yaml from 'js-yaml'
-import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
+import { applyEntryPatches, entryListSchema } from '@deepseek-ai/cordis-plugin-include'
+import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { evaluate } from '@deepseek-ai/cordis-plugin-loader'
 
 describe('dsh-base bundle', () => {
@@ -48,6 +49,21 @@ describe('dsh-base bundle', () => {
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-claude-code')
     expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-web-fetch-http')
+  })
+
+  it('selects Flash by default and lets a later profile choose another model', () => {
+    const patches = yaml.load(
+      readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8'),
+      { schema: entryListSchema },
+    ) as PatchOptions[]
+    const rows = applyEntryPatches([], patches, () => {})
+    expect(rows.find(row => row.id === 'agent-default-model')?.config).toEqual({
+      provider: 'deepseek-official', model: 'deepseek-flash',
+    })
+
+    const selection = { provider: 'custom-gateway', model: 'custom-model' }
+    const overridden = applyEntryPatches(rows, [{ id: 'agent-default-model', config: selection }], () => {})
+    expect(overridden.find(row => row.id === 'agent-default-model')?.config).toEqual(selection)
   })
 
   it('gates each shell stack by platform with a symmetric disabled expression', () => {

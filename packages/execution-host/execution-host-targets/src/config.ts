@@ -3,14 +3,23 @@ import z from '@deepseek-ai/schemastery'
 
 /** Host-owned SSH execution and resource limits. */
 export interface Config {
+  /** OpenSSH executable resolved by the managed subprocess provider. */
   readonly sshExecutable: string
+  /** Optional OpenSSH configuration file passed with -F. */
   readonly sshConfigFile?: string
+  /** Deadline in milliseconds for SSH connection and worker initialization. */
   readonly connectTimeoutMs: number
+  /** Deadline in milliseconds before cancelling a remote directory inspection. */
   readonly operationTimeoutMs: number
+  /** Milliseconds allowed for cancellation acknowledgment, shutdown, and process termination. */
   readonly shutdownTimeoutMs: number
+  /** UTF-8 byte cap for a complete worker JSON-RPC frame. */
   readonly maxFrameBytes: number
+  /** Maximum retained bytes from the SSH process's diagnostic stream. */
   readonly maxDiagnosticBytes: number
+  /** Maximum number of saved SSH targets. */
   readonly maxTargets: number
+  /** Maximum simultaneous inspections on one SSH target connection. */
   readonly maxConcurrentInspections: number
 }
 

@@ -82,6 +82,10 @@ export class FixtureCinlanSubprocess extends SubprocessRuntime {
     return Promise.resolve(FIXTURE_CINLAN_EXECUTABLE)
   }
 
+  async terminalEnvironment(): Promise<never> {
+    throw new Error('fixture does not provide terminal subprocesses')
+  }
+
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     this.specs.push(spec)
     if (spec.argv[0] !== FIXTURE_CINLAN_EXECUTABLE) {
@@ -92,6 +96,7 @@ export class FixtureCinlanSubprocess extends SubprocessRuntime {
       stdin: undefined,
       stdout: undefined,
       stderr: undefined,
+      control: undefined,
       collected: {
         stdout: {
           readFrom: () => ({

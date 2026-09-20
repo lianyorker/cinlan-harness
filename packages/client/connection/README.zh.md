@@ -25,6 +25,8 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
+从 `@deepseek-ai/dsh-client-connection/types` 导入与载体无关的 RPC 和 Fetch 接口。此入口公开共享传输类型，不引入任一侧的 Context 服务声明。Host 与浏览器插件继续使用现有包根入口和 `/client` 入口。
+
 浏览器通过 HTTP POST 执行 Remote 一元调用；API Gateway 自己拥有 `/api/remote.mux` WebSocket 及其逻辑流。由 shell 持有的组合通过 `connection.rpc.open` 提供等价的 Remote 流，不打开 WebSocket。Host half 始终提供与载体无关的 RPC 注册表和 `GET`/`HEAD`/`POST` Fetch 路由注册表。存在 Web 载体时，它还持有唯一 `/api` route、Fetch bridge、浏览器认证与 Host/Origin 校验；由 shell 持有的载体则直接分派共享 Fetch handler。每条路由会在 bridge 读取任何字节前声明缓冲或流式请求体处理方式。Typert Gateway 认领生成的 Remote endpoint，功能包注册 Session 日志下载、原始文件上传等非 JSON 响应，未认领的请求返回 404。Loopback hostname 判定只供浏览器侧当前页面状态使用，留在包内。浏览器原始请求体传输由 [`dsh-client-file-upload`](../file-upload/README.zh.md) 提供。浏览器断开时会中止请求；bridge 取消稍后返回且尚未读取的响应体，并停止向已关闭的响应写入。即使关闭先于监听器注册发生，背压等待也会结束。
 
 `ctx.connection.fetch.register()` 默认为 `match: 'exact'`。显式设置 `match: 'prefix'` 会按字面值认领 `/api` 下的 URL pathname 前缀，并要求以 `/` 结尾，例如 `/api/sidebar/html/`；匹配时保留后缀中的转义内容。每个注册路径必须唯一。
@@ -43,6 +45,9 @@ cookie 签名密钥是 `ctx.credentials` 中由 `client-connection/browser-sessi
 认证之前，每个请求仍经过 `src/api-request-trust.ts`。其 `Host` 必须是 loopback，或与 `trustedHosts` 条目匹配：带端口的 `host:port` 精确匹配，不带端口的条目匹配任意端口，两侧均经 WHATWG 归一化。若附带 `Origin`，它必须等于该 Host；`sec-fetch-site: cross-site` 一律拒绝。畸形配置 authority 会让插件加载失败。这些检查防御 DNS rebinding 与跨站浏览器请求，绝不建立身份。Host/Origin 校验失败返回 403；Host 可信但未认证的请求返回 401。`dsh web --host 0.0.0.0` 仍不受支持。决策记录：[浏览器请求信任](../../../.agents/notes/implemented/architecture/2026-07-28-api-browser-trust-boundary.zh.md)与[浏览器令牌认证](../../../.agents/notes/implemented/architecture/2026-08-24-browser-token-authentication.zh.md)。
 
 <a id="connection-generation"></a>
+
+私有预览 Workspace Remote 与 Host 归档集合保持一致：归档与恢复在发生变化后发出完整集合，并保留 Workspace 成员关系。恢复集合中不存在的 id 会成功，且不发出事件。
+
 ## Connection generation
 
 API Gateway Client 把内部 `$events` logical stream 注册为唯一 generation source，与有无 `$on` 订阅无关。Host 在 API Remotes source factory 同步挂好所有增量 listener 后，先发送唯一 `{ type: 'ready', clientId, host: { home } }` 项，再发送事件。`ConnectionController` 仅在收到该 ready 项后发布 generation 并调用 `onConnected`，因此 baseline 不会跑在增量 listener 前面。

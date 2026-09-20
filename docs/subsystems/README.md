@@ -9,9 +9,11 @@ One page per subsystem of the DeepSeek Harness: what it is, the data structures 
 | [artifact.md](artifact.md) | Artifact Cordis API and links to immutable-reference, byte-storage, and authorization contracts |
 | [browser.md](browser.md) | Browser Cordis API and links to persistent page, observation, navigation, and transfer contracts |
 | [coordination.md](coordination.md) | Run/Task coordination API, dependencies, messaging, approvals, and executor ownership |
+| [deliverables.md](deliverables.md) | Per-turn workspace changes, summaries, and file comparisons for live Sessions |
 | [execution-host.md](execution-host.md) | Host identity, saved execution targets, worker inspection, and committed change events |
 | [git.md](git.md) | Git Provider and Session-bound review/mutation APIs, with package-owned request and result types |
 | [mcp.md](mcp.md) | MCP connection observations, current-profile management revisions, and runtime registries |
+| [profile-management.md](profile-management.md) | Running-profile Plugins and bundles, composition changes, and package installation status |
 | [security-research.md](security-research.md) | Assessment grants, authorization decisions, durable Findings, and vulnerability queries |
 | [voice.md](voice.md) | Local transcription engines, model definitions/cache state, and shared operation results |
 | [work-items.md](work-items.md) | Provider-backed Work Items, durable writes, and Workspace associations |

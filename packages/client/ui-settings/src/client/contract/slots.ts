@@ -53,6 +53,11 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'settings.section': { kind: 'list'; scope: 'root'; owner: SettingsSectionOwnerProps }
     /**
+     * Feature-owned controls appended to an existing page. The entry key is
+     * the owning settings.section id; close and search targets follow that page.
+     */
+    'settings.section.extension': { kind: 'keyed'; scope: 'root'; owner: SettingsSectionOwnerProps }
+    /**
      * Decorative navigation glyph for one settings section. The keyed entry
      * uses the same key as its `settings.section` registration id, so each
      * feature owns its page and glyph without teaching the shell feature ids.

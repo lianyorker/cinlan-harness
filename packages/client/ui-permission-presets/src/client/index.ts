@@ -61,17 +61,17 @@ function optionsOf(value: PermissionSelect, t: (key: string) => string): SelectO
     .filter(option => option.value !== 'custom')
     .map(option => ({
       id: option.value,
-      label: displayPermissionPreset(option.value, option.name, t),
+      label: option.value === 'auto' ? `${t('auto.label')} (${t('auto.badge')})` : displayPermissionPreset(option.value, option.name, t),
       ...(option.description !== undefined ? { detail: option.description } : {}),
       ...(option.value === value.currentValue ? { active: true } : {}),
-      ...(option.value === FULL_ACCESS_PRESET
+      ...((option.value === FULL_ACCESS_PRESET || option.value === 'auto')
         ? {
           confirmation: {
-            title: t('confirm.title'),
-            description: t('confirm.description'),
-            acknowledgeLabel: t('confirm.acknowledge'),
+            title: t(option.value === 'auto' ? 'auto.confirm.title' : 'confirm.title'),
+            description: t(option.value === 'auto' ? 'auto.confirm.description' : 'confirm.description'),
+            acknowledgeLabel: t(option.value === 'auto' ? 'auto.confirm.acknowledge' : 'confirm.acknowledge'),
             cancelLabel: t('confirm.cancel'),
-            confirmLabel: t('confirm.enable'),
+            confirmLabel: t(option.value === 'auto' ? 'auto.confirm.enable' : 'confirm.enable'),
           },
         }
         : {}),
@@ -86,35 +86,13 @@ function optionsOf(value: PermissionSelect, t: (key: string) => string): SelectO
 export function apply(ctx: ClientContext): void {
   const command = ctx.get('commandUi') as CommandUiContract
   const sessions = ctx.sessions
-  // This optional bundle and ui-conversation can load independently, so each
-  // owns the same safety copy under its own locale namespace.
-  /* jscpd:ignore-start */
   ctx.effect(() => {
     const disposers = [
-      ctx.locale.register(ACCESS_NS, 'zh', {
-        'preset.readOnly': accessZh['preset.readOnly'],
-        'preset.workspaceWrite': accessZh['preset.workspaceWrite'],
-        'preset.fullAccess': accessZh['preset.fullAccess'],
-        'confirm.title': accessZh['confirm.title'],
-        'confirm.description': accessZh['confirm.description'],
-        'confirm.acknowledge': accessZh['confirm.acknowledge'],
-        'confirm.cancel': accessZh['confirm.cancel'],
-        'confirm.enable': accessZh['confirm.enable'],
-      }),
-      ctx.locale.register(ACCESS_NS, 'en', {
-        'preset.readOnly': accessEn['preset.readOnly'],
-        'preset.workspaceWrite': accessEn['preset.workspaceWrite'],
-        'preset.fullAccess': accessEn['preset.fullAccess'],
-        'confirm.title': accessEn['confirm.title'],
-        'confirm.description': accessEn['confirm.description'],
-        'confirm.acknowledge': accessEn['confirm.acknowledge'],
-        'confirm.cancel': accessEn['confirm.cancel'],
-        'confirm.enable': accessEn['confirm.enable'],
-      }),
+      ctx.locale.register(ACCESS_NS, 'zh', accessZh),
+      ctx.locale.register(ACCESS_NS, 'en', accessEn),
     ]
     return () => { for (const dispose of disposers) dispose() }
-  }, 'ui-permission: Full access confirmation dictionaries')
-  /* jscpd:ignore-end */
+  }, 'ui-permission: current-session confirmation dictionaries')
   const t = ctx.locale.bind(ACCESS_NS)
   const sessionFor = (session: ClientSessionContext): SessionFace | undefined =>
     sessions.binding(session.sessionId)?.session

@@ -48,7 +48,7 @@ describe.skipIf(MODE === 'record')('web e2e: Open In under SSH', () => {
   it('hides a remembered app after the real host returns an empty catalog', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-open-in-app-ssh'))
     const [response] = await Promise.all([
-      page.waitForResponse(response => new URL(response.url()).pathname === '/open-in-app/apps'),
+      page.waitForResponse(response => new URL(response.url()).pathname === '/api/open-in-app/apps'),
       (async () => {
         await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
         const group = page.getByRole('treeitem').first()

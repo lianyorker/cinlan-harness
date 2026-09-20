@@ -1,5 +1,5 @@
 ---
-description: "Produced-files and clickable file references for the Web GUI: the deliverables row a finished turn ends with, and inline-code links in the closing prose; for users and maintainers of the deliverables experience."
+description: "Turn-scoped changed-file cards, per-file comparisons, and clickable output references in the Web client."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package renders the deliverables row a finished turn ends with — the files the mutation tools created or modified — and links matching inline-code references in the closing prose, so a mentioned file opens in the Host. The vocabulary comes from the mutation tools' own `locations`, never from the closing prose — a produced file is listed whether or not the model remembered to name it. The shipped Web patch is the only composition that loads this package; removing its cordis.yml entry removes the guidance, row, and prose links together.
+Review the files a completed turn changed and inspect each file’s recorded before-and-after comparison. Cards show line counts and open a review tab in better-sidebar when installed, or in sidebar-right. Explicit `present` declarations add delivery cards for current source files, including shell-created files. Existing produced-file rows and inline-code links continue to open files. Binary files, oversized captures, and expired records display explicit states.
 
 ## Table of Contents
 
@@ -25,15 +25,19 @@ This package renders the deliverables row a finished turn ends with — the file
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-conversation`; a finished turn then ends with the produced-files row between the closing message's body and its action footer. Each chip opens the file through the owner's `openFile`, which the chat view routes to the right Sidebar as a text-preview tab, with relative paths resolved against the session cwd. The row offers no folder action: the Sidebar has no directory form, so an omitted-file remainder is a label only.
+The completed-turn changes card lists the files recorded by [workspace-changes](../../deliverables/workspace-changes/README.md). Its header opens the first comparison; a file row opens that file’s original summary index. Cards fold after three files. The review supports file selection, unified or split lines, wrapping, and opening the whole file through the sidebar’s existing navigation.
 
-### The row
+Delivery cards replay `deliverables/presented` without requiring mutation calls. The card body previews through better-sidebar with the viewed Session ID and known cwd; the menu opens the default application or reveals the source in the Host file manager. `GET /api/present.host` supplies Host capabilities. `POST /api/present.open` accepts only Session/event/file coordinates and an action; it resolves the persisted declaration, rejects non-files and final symbolic links through SessionFS, and verifies that the provider and Host refer to the same file before native launch. Reading a declaration never activates an Agent. Edits change what opens; moving or deleting the source makes it unavailable. No preserved copy is stored.
 
-The row uses CSS container-width bands to show a responsive prefix of up to six file chips. Flexbox shrinks and ellipsizes basename text, while CSS selects the matching localized `+ N files` label for omitted paths; the full path remains available as the title, and the row performs no JavaScript layout observation or horizontal scrolling.
+Mount workspace-changes with this plugin. The Host registers authenticated `GET /api/changes.summary` and `GET /api/changes.diff` routes through Connection Fetch. Requests identify a Session, announcing event sequence, and original file index; they never choose a Host path. Summaries omit cwd and private snapshot ids.
 
-### Inline-code links
+An installed better-sidebar receives review opens through its public tab and file-navigation API. The fallback registers a `sidebar.right.pane.tab` body and tab definition. New cards use the additive `conversation.chat.turnCards` list; the existing `conversation.chat.turnTail` chain and produced-file row retain their behavior. Settings styling and Desktop transport stay owned by their existing packages.
 
-The closing prose carries the same vocabulary: an inline-code token resolves by exact path, or by being exactly the basename of exactly one produced path — a basename two paths share stays inert rather than guessing, so a mention can never open the wrong file. A resolved mention keeps its code chip and takes the markdown sheet's link language, with the full path as its title.
+Comparison contents last until Host restart or Session disposal. Retained events alone cannot reconstruct an expired diff. Missing summaries hide their cards; an open review distinguishes missing records from retryable read errors. Binary or oversized captures have no text diff, and displays above 10,000 lines show a truncation message.
+
+### Existing produced-file row and mentions
+
+The produced-file row and closing-prose mentions keep their exact-path or unique-basename vocabulary. They use the original `conversation.chat.turnTail` chain and remain independent of the changed-files card.
 
 -----
 
@@ -43,7 +47,11 @@ The closing prose carries the same vocabulary: an inline-code token resolves by 
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The Node half registers the static `ui:deliverable-file-references` system-prompt section asking the model to mention primary files from successful creation or modification calls and to write those and any other changed-file references as Markdown inline code. The browser half registers `ProducedFiles` into the chat view's `conversation.chat.turnTail` hole. `deliverablesDefinition` folds each Turn's successful first-party mutation calls into `DeliverablesTurnData` from the validated raw arguments of `write`, `edit`, and mutating `str_replace_editor` commands. Reads, deletes, unsupported tools, malformed calls, and failed results contribute nothing. A new mutation tool needs an explicit Client contribution before it joins the list. The package also provides the `chatFileMentions` service the chat view consults per closing message; composing the plugin out removes both surfaces and leaves the view's empty chain at zero cost.
+The browser half correlates `workspace/changes` announcements by turn, including announcements appended after the closing message. Host routes serve only validated Session, event-sequence, and file-index coordinates; they do not accept a requested filesystem path, and summary responses omit cwd and private snapshot ids.
+
+The optional better-sidebar integration calls only its public tab and file-navigation methods. The fallback registers a `sidebar.right.pane.tab` body and tab definition. Selection changes cancel outstanding reads, plugin disposal waits for owned requests, and comparison rendering retains at most 10,000 lines.
+
+Runtime invariant: none. This package validates Host responses and derives cards from conversation data; it owns no independent runtime relationship that can diverge.
 
 </details>
 
@@ -52,12 +60,12 @@ The Node half registers the static `ui:deliverable-file-references` system-promp
 <a id="further-exploration"></a>
 ## Further Exploration
 
-Read these pages when the deliverables surface is not enough. They move from the row to the turn-tail hole and the decisions behind the vocabulary.
+Read these pages for the recorder, chat-card composition, and sidebar navigation.
 
-- [ui-conversation](../ui-conversation/README.md) — declares the `conversation.chat.turnTail` hole and renders the closing prose.
-- [Workspace file links](../../../.agents/notes/implemented/feature/2026-07-31-web-workspace-file-links.md) — the decision behind the produced-files row; its Host open path is superseded by the [right Sidebar](../../../.agents/notes/implemented/feature/2026-09-04-right-sidebar-docking-infrastructure.md).
-- [Inline file mentions](../../../.agents/notes/archived/feature/2026-08-07-web-inline-file-mentions.md) — the decision behind clickable mentions in the closing prose.
-- [Client package map](../README.md) — adjacent browser UI packages.
+- [Workspace changes](../../deliverables/workspace-changes/README.md) — capture limits, comparison service, and live-Session lifetime.
+- [ui-conversation](../ui-conversation/README.md) — chat turn-card and tail rendering.
+- [Right sidebar](../ui-sidebar-right/README.md) — fallback tab navigation.
+- [Better-sidebar extension API](../ui-better-sidebar/AGENTS.md) — optional tab registration.
 
 -----
 
@@ -72,22 +80,22 @@ One fixed paragraph instructs the model to name primary files from successful cr
 
 #### Token effect
 
-One fixed prompt paragraph whenever this package is loaded; no tool schema, tool result, or per-Turn context is added.
+One fixed prompt paragraph whenever this package is loaded; no tool schema, tool result, or per-turn context is added.
 
 #### KV Cache effect
 
-The section is static at first-party order 9000 for the lifetime of the package mount, so it remains in the reusable prompt prefix and does not change across Turns.
+The section is static at first-party order 9000 for the lifetime of the package mount, so it remains in the reusable prompt prefix and does not change across turns.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
+These limits define the current changed-files card and comparison service:
 
-These limits define the current deliverables vocabulary. They are current package constraints, not a general file-linking comparison or a task backlog.
-
-- **Mention matching is exact path or unique basename only** — a suffix mention stays inert; widening the matcher is deferred until a real closing-message shape needs it.
-- **Files created indirectly by terminal commands remain outside the matching vocabulary** — naming such a file in inline code does not make it clickable unless a successful mutation location also records that path.
-- **Directories have no destination** — chips open files in the right Sidebar's text preview, which shows files only; the former native folder handoff is gone rather than replaced.
+- **Comparison contents remain in the live Host Session** — a Host restart or Session disposal leaves the event but cannot reconstruct the diff.
+- **Missing data does not trigger path guesses** — an unavailable summary hides the card, while an open review distinguishes missing records from retryable read errors.
+- **Binary and oversized captures have no text comparison** — displays above 10,000 lines show a truncation message.
+- **Inline mentions use exact paths or unique basenames** — produced and explicitly delivered paths share the existing matching rules.
 
 <a id="dev-note"></a>
 ### Dev Note
@@ -95,8 +103,8 @@ These limits define the current deliverables vocabulary. They are current packag
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-None.
+This implementation selectively adapts official `b784e586ef` (turn changes) and `8225e18d70` (per-file review), while retaining recorder fixes `2440937459`, `974d0271c0`, and `4233590de6` for bounded captures, Windows behavior, and Git configuration isolation. It uses local sidebar APIs without importing Session references or replacing the slot system, and it does not change Settings styling.
 
 </details>
 
-**Runtime invariant:** No companion is published. The prompt section, slot, dictionary, event definition, and optional service registrations are effect-owned with disposal proven by their plugin specs; this package owns no mutable state.
+**Runtime invariant:** No runtime invariant companion is published because the UI derives cards from recorded events and source-file reads without independently owned durable state. Prompt, slot, dictionary, event-definition, and optional-service registrations are effect-owned and disposed by the plugin lifecycle.

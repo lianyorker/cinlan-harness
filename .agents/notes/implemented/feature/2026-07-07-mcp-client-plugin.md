@@ -22,7 +22,7 @@ Use the official [`@modelcontextprotocol/sdk`](https://github.com/modelcontextpr
 
 ### Scope
 
-MCP Client only (no server side — ACP already covers the "expose harness as an agent" role). Bridge **Tools** only — Resources and Prompts are deferred (they require harness-side consumption mechanisms that don't exist yet, and design space is large).
+MCP Client only (no server side — ACP already covers the "expose harness as an agent" role). The client bridges tools and supplies requests to the shared [resource service](../../../../packages/mcp/mcp-resources/README.md). The [capability integration decision](../architecture/2026-09-20-official-capabilities-preserve-cinlan-architecture.md) owns resource pagination and its adaptation to the retained supervisor. MCP Prompts remain unsupported.
 
 ### Plugin shape
 
@@ -171,7 +171,7 @@ Rejected by the connect-once design: it added a partial-availability state (tool
 
 ### Bridge Resources and Prompts
 
-Deferred. Resources need a harness-side mechanism to decide WHEN to inject content (system prompt? on demand? model-triggered?). Prompts need a "prompt template" concept the harness lacks. Both require their own design; Tools are the high-value, low-risk starting point.
+Resource access uses explicit, model-triggered list and read tools, resolving the content-admission choice without eagerly injecting server documents. The resource service owns those consumers independently of tool discovery. Prompts still need a "prompt template" concept the harness lacks and remain deferred.
 
 ### Raw model-facing tool names with an optional `toolPrefix`
 

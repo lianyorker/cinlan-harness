@@ -166,8 +166,9 @@ export interface ShellProcess {
   /** Terminating signal name, when signal-killed. */
   signal: NodeJS.Signals | null
   /**
-   * Resolves when the underlying process settles (never rejects — provider
-   * rejection settles as `killed` with a stage-neutral error on stderr).
+   * Settles when the direct command closes; subprocess provider rejection waits
+   * for managed-range exit and settles as `killed` with a stage-neutral stderr
+   * error. Rejects if the provider cannot observe managed-range exit.
    */
   readonly done: Promise<void>
   /** Sandbox facts, stamped once a confined process settles. */

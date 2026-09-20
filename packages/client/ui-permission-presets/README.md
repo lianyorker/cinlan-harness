@@ -63,6 +63,8 @@ Read these pages when the permission surface is not enough. They move from the b
 
 -----
 
+When the optional [AutoReview bundle](../../experimental/auto-review/README.md) advertises `auto`, the current-session picker displays its localized experimental label and a separate risk acknowledgement. Auto is excluded from the General-settings default row; the bundle adds no settings section.
+
 <a id="model-experience"></a>
 ## Model Experience
 

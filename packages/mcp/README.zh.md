@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-`mcp/` 组把 harness 连接到 Model Context Protocol（MCP）工具服务器生态。本组的唯一一个包挂载外部服务器——文件系统、GitHub、数据库或记忆服务器——让模型把它的工具当作原生工具、以稳定的服务器限定名称使用。每台服务器是一条配置项；默认不启用任何服务器，因此按需逐台开启。只桥接 Tools 能力：MCP resources 与 prompts 不受支持。本页映射该组；逐包约定由包 README 负责。
+`mcp/` 组把 harness 连接到 Model Context Protocol（MCP）工具服务器生态。客户端挂载外部服务器，让模型以稳定的服务器限定名称调用工具；资源服务让模型按需发现与读取服务器内容。每台服务器是一条配置项；默认不启用任何服务器，因此按需逐台开启。不支持 MCP 提示词模板。本页映射该组；逐包约定由包 README 负责。
 
 ## 目录
 
@@ -27,6 +27,7 @@ kind: "package-group"
 | 包 | 提供的能力 |
 |---|---|
 | [`mcp-client/`](mcp-client/README.zh.md) | 挂载一台外部 MCP 服务器，让模型可以把它的工具当作原生工具调用 |
+| [`mcp-resources/`](mcp-resources/README.zh.md) | 通过共享工具发现资源分页与 URI 模板并读取内容 |
 | [`mcp-management/`](mcp-management/README.zh.md) | 持久化当前 profile 的服务器定义，并拥有其连接生命周期 |
 
 -----

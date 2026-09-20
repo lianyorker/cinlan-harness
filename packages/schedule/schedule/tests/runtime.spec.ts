@@ -34,7 +34,7 @@ interface RuntimeHarness {
     onFollowup: (() => void) | undefined
     idle: PromiseWithResolvers<undefined>
   }
-  readonly disposeAgent: () => void
+  readonly disposeAgent: () => Promise<void>
 }
 
 async function harness(): Promise<RuntimeHarness> {
@@ -97,7 +97,7 @@ async function harness(): Promise<RuntimeHarness> {
     steer(_message: UserMessage) {},
     inject(_message: UserMessage) {},
   }
-  const disposeAgent = ctx.agents.register(agent)
+  const disposeAgent = await ctx.agents.register(agent)
   ctx.on('session/event', (_session, event) => {
     if (event.type === 'schedule/change' && event.data.operation === 'dispatch') order.push('dispatch')
   })
@@ -555,7 +555,7 @@ describe('Schedule runtime failure and teardown boundaries', () => {
     const departedRuntime = runtimeFor(departed)
     departedRuntime.start()
     await Promise.resolve()
-    departed.disposeAgent()
+    await departed.disposeAgent()
     rejected.reject(new Error('detached preflight'))
     await settle()
     expect(departed.followed).toEqual([])
@@ -580,7 +580,7 @@ describe('Schedule runtime failure and teardown boundaries', () => {
     const departedRuntime = runtimeFor(departed)
     departedRuntime.start()
     await settle()
-    departed.disposeAgent()
+    await departed.disposeAgent()
     departed.controls.idle.reject(new Error('runtime departed'))
     await settle()
     expect(departed.followed).toEqual([])
@@ -646,7 +646,7 @@ describe('Schedule runtime failure and teardown boundaries', () => {
     startSpy.mockRestore()
 
     const departedStartup = await harness()
-    departedStartup.disposeAgent()
+    await departedStartup.disposeAgent()
     const departedStartSpy = vi.spyOn(departedStartup.ctx.agents, 'withoutInitiator')
       .mockImplementation(() => { throw new Error('initiator disposed') })
     const departedStartupRuntime = runtimeFor(departedStartup)
@@ -769,7 +769,7 @@ describe('Schedule runtime failure and teardown boundaries', () => {
     runtime.start()
     await Promise.resolve()
 
-    test.disposeAgent()
+    await test.disposeAgent()
     pending.resolve(undefined)
     await settle()
     expect(test.followed).toEqual([])
@@ -778,7 +778,7 @@ describe('Schedule runtime failure and teardown boundaries', () => {
 
   it('does not start a preflight for an already non-live runtime', async () => {
     const test = await harness()
-    test.disposeAgent()
+    await test.disposeAgent()
     const runtime = runtimeFor(test)
     runtime.start()
     await settle()

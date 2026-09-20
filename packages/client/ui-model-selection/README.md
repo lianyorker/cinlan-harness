@@ -38,6 +38,8 @@ Settings → Models exposes Default model and Reasoning effort when the settings
 
 Unavailable or read-only settings disable the controls. Only the selected route’s advertised reasoning efforts are offered. Rejected writes remain unsaved; a conflict displays the recovered Host values, and Retry save reapplies the intended choice using their revision.
 
+When another DSH instance holds the Session writer, both the composer selector and `/model` show localized guidance to quit other running instances and retry. Other selection failures retain their diagnostic code and message.
+
 ### Unroutable sessions
 
 When the Host reports that no adapter serves the session's route, this plugin raises a composer block and the input goes inert with its own copy; recovering clears it without a reload. A `null` before the first load or after one failed never blocks, and catalog membership never blocks either — a route serving a model it does not advertise is missing from the groups yet usable.
@@ -51,6 +53,8 @@ When the Host reports that no adapter serves the session's route, this plugin ra
 <summary>Implementation internals — click to expand</summary>
 
 `ModelDirectoryResolver` (`ctx.modelDirectories`) owns one Host-generation `ModelCatalogDirectory` and lazy per-session `ModelDirectory` projections. The `/model` popup and composer seat submit through `session.selectModel` and share each Session’s directory; addressed subagent sessions expose neither selector. Forwarded adapter, settings, and credential invalidations refresh the shared catalog.
+
+`ModelDirectory.select()` returns the operation’s `RemoteResult<void>` so each selector can present its own failure even if a later catalog update changes the shared directory error.
 
 The defaults contribution binds `agent-default-model` through SettingsScope and exposes that scope and the same catalog through renderer hooks. Atomic mutations use the scope’s revision fencing, queue, and recovery reads. Save confirmation compares all three raw user-layer fields, including own-field presence for unset operations; a settled promise or matching effective value alone cannot announce success. The controls and localized search entries share the optional `settings.models.defaults` slot lifetime.
 

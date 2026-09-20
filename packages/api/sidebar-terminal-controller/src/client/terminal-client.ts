@@ -198,6 +198,10 @@ export function createTerminalTransport(
       requireOwner()
       return answer(remote.capability())
     },
+    async terminalShells() {
+      requireOwner()
+      return answer(remote.shells())
+    },
     async terminalCloseAgent(uuid) {
       requireOwner()
       await answer(remote.closeAgent(uuid))

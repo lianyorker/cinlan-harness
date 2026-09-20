@@ -26,8 +26,11 @@ export type * from './types.ts'
 
 /** Process, message, and history bounds for this concrete Git implementation. */
 export interface Config extends GitProcessOptions {
+  /** Maximum UTF-8 bytes in a commit message. */
   maxMessageBytes: number
+  /** History entry count when the caller omits count. */
   defaultLogEntries: number
+  /** Maximum history entry count accepted in one request. */
   maxLogEntries: number
 }
 

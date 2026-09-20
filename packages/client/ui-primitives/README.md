@@ -77,6 +77,8 @@ The atoms cannot read the application locale, so every piece of user-facing copy
 
 -----
 
+`FileTypeIcon` and `classifyFileType` share case-insensitive filename, prefix, suffix, optional project context, and extension rules. The embedded official artwork covers 48 code/configuration categories alongside office, image, Markdown, media, folder, and generic files. Filename rules distinguish package.json, Dockerfile, React and Angular sources; Dart becomes Flutter only when supplied project files identify flutter in pubspec.yaml. Traditional glyphs use theme colors; technology glyphs retain their supplied palettes. Artwork IDs are unique per rendered instance.
+
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 

@@ -1,5 +1,5 @@
 ---
-description: "Plan-mode status chip for the Web GUI: the composer control that shows plan mode is on and turns it off; for users and maintainers of plan mode."
+description: "Plan-mode controls, persistent submitted-plan cards, and optional sidebar previews for the Web GUI."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package renders the plan-mode status chip in the Web GUI: when the host-computed projection's effective target is plan mode, the composer shows a warn-colored "Plan ×" button that turns plan mode off; otherwise the seat stays empty. Plan mode itself — the `/plan` command, the committed `plan/mode` state, the projection unit, and the policy section — belongs to `dsh-plan-mode`; this package only renders the projection and sends what a user could equally type. The model exits plan mode through the stable `exit_plan_mode` tool; its plan review uses the composed Web question channel.
+Turn plan mode off from the composer, review a submitted plan in the sidebar, and reopen logged plans from completed turns. The status chip follows the Host projection; plan cards derive from logged `exit_plan_mode` invocations. Preview consumers attach to an available sidebar without changing its public API. `dsh-plan-mode` owns the command, committed state, policy, and review decision.
 
 ## Table of Contents
 
@@ -31,6 +31,10 @@ Mount this plugin alongside `ui-conversation` and `dsh-plan-mode`; the chip then
 
 While the effective target is plan mode, the seat renders the warn-colored "Plan ×" status button, which executes `/plan off`. Otherwise the seat stays empty: a host without plan mode, or a Draft with no session, shows nothing. While plan mode is the effective target, the composer textarea's placeholder switches to the plan-task hint — "describe your task to generate plan" — unless the owning surface supplies its own placeholder.
 
+### Submitted plans and review
+
+With a preview-capable sidebar, a pending review opens its full plan once and keeps a manual opener beside the approval controls. Opening a preview never answers the review. Completed turns retain one card per logged `exit_plan_mode` invocation, in invocation order; reopening a card resolves the exact Session and call, including delegated Sessions and paged history. A review without a logged call uses a temporary document.
+
 ### Failures
 
 Admission failures (`matched: false`, business errors, transport faults) surface as an inline error and the chip stays until the projection confirms the exit.
@@ -44,6 +48,8 @@ Admission failures (`matched: false`, business errors, transport faults) surface
 <summary>Implementation internals — click to expand</summary>
 
 The chip occupies the conversation-declared `conversation.input.plan` single seat; the node half is an empty apply (the roster row). Reads ride the generic projection pair through the standard-kit `useProjection`: the effective target is `pending ? !active : active` — a folded host value, not client optimism, so an arriving frame corrects the chip either way. The seat's injected face carries one verb, `exitPlanMode`, which executes `/plan off` through `ctx.remote.commands.execute` and maps admission failures to an inline error line. The placeholder and hint text live in ui-conversation's `conversation` locale namespace and are shared verbatim with the claimed `/plan` command hint. The accessible description is "Plan mode on, press to turn off".
+
+The conversation projection records submitted plans from tool invocations. Optional consumers use the existing `sidebarRight` or `betterSidebar` services; when both exist, the local better-sidebar opener takes precedence. Cards register in `conversation.chat.turnCards`, independently of the existing `conversation.chat.turnTail` chain. The `conversation.plan-review.actions` list contributes preview navigation without owning approval.
 
 </details>
 
@@ -75,11 +81,12 @@ Entering or leaving plan mode changes the active `plan:policy` system-prompt sec
 <a id="known-limitations-and-deferred-work"></a>
 
 
-These limits define the current plan chip. They are current package constraints, not a plan-mode comparison or a task backlog.
+The plan controls and previews have these limits:
 
 - **Plan mode is guidance, not an execution sandbox** — deployments that require enforced read-only planning must compose the independent sandbox and approval policies.
 - **The chip belongs to the default composer** — a pending whole-composer interaction such as plan review temporarily replaces the InputBar and its chip.
 - **No inactive plan control** — entry uses the shared Command source; a session with the capability but inactive mode shows no plan affordance in the tool row.
+- **Preview dependencies are optional** — without a supported sidebar and Session history services, the chip remains available but preview cards and openers do not register. Temporary review documents do not survive a page reload.
 
 <a id="dev-note"></a>
 ### Dev Note

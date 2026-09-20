@@ -25,6 +25,8 @@ Use this package to browse every subagent conversation beneath a parent session,
 <a id="use-this-package"></a>
 ## Use this package
 
+Use **Open in sidebar** on a child row to keep its parent in the main conversation and open that existing child in a separate better-sidebar tab. Topology child cards use the same action. Tabs retain independent Session contexts, follow the standard realtime transport, and render the ordinary Conversation transcript, tool cards, and composer. Multiple child tabs can share the current split layout; closing a tab releases its retained Session. Selecting the catalog row itself still opens the child in the main conversation.
+
 The session header keeps the current session title as the lineage breadcrumb and, when the session has subagent descendants, appends a `/` count trigger before the header's action row; the trigger opens the descendant catalog, counts the complete subagent-only lineage, stops at ordinary forks, and shows ongoing activity when any counted descendant is running. Select any depth to open that child's conversation with its exact `{parentSessionId, childSessionId, mode}` address.
 
 ### Browsing the tree

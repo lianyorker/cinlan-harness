@@ -1,5 +1,5 @@
 ---
-description: "Web GUI 的 plan 模式状态徽章：显示 plan 模式已开启并可将其关闭的 composer 控件；供 plan 模式的用户与维护者阅读。"
+description: "Web GUI 的 plan 模式控件、持久的已提交计划卡片与可选侧栏预览。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包在 Web GUI 中渲染 plan 模式状态徽章：当宿主计算的投影有效目标为 plan 模式时，composer 显示一个 warn 色「Plan ×」按钮，可关闭 plan 模式；否则该座位保持为空。plan 模式本身——`/plan` 命令、已提交的 `plan/mode` 状态、投影单元与 policy 段——归 `dsh-plan-mode` 所有；本包只渲染投影并发送用户同样可以手敲的内容。模型经稳定的 `exit_plan_mode` 工具退出 plan 模式；其 plan 评审走已组合的 Web question 通道。
+从 composer 关闭 plan 模式，在侧栏审阅已提交计划，并从已结束轮次重新打开日志中的计划。状态徽章跟随 Host 投影；计划卡片由已记录的 `exit_plan_mode` 调用派生。预览消费者接入可用侧栏，不改变其公开 API。命令、已提交状态、policy 与审阅决定由 `dsh-plan-mode` 拥有。
 
 ## 目录
 
@@ -31,6 +31,10 @@ kind: "package-reference"
 
 当有效目标为 plan 模式时，该座位渲染 warn 色「Plan ×」状态按钮，执行 `/plan off`。否则座位保持为空：未组合 plan-mode 的宿主，或尚无会话的 Draft，都不显示任何内容。plan 模式为有效目标期间，composer 文本框的 placeholder 切换为 plan 任务提示——「describe your task to generate plan」——除非持有表面提供自己的 placeholder。
 
+### 已提交计划与审阅
+
+侧栏支持预览时，待处理审阅会自动打开一次完整计划，并在批准控件旁保留手动打开入口。打开预览不会回答审阅。已结束轮次按调用顺序保留每个已记录 `exit_plan_mode` 调用的卡片；重新打开会解析准确的 Session 与调用，包括委派 Session 和分页历史。没有已记录调用的审阅使用临时文档。
+
 ### 失败
 
 准入失败（`matched: false`、业务错误、传输故障）以内联错误呈现，徽章保持显示直至投影确认退出。
@@ -44,6 +48,8 @@ kind: "package-reference"
 <summary>实现细节——点击展开</summary>
 
 徽章占据 conversation 声明的 `conversation.input.plan` 单实例座位；node 半部是空 apply（roster 行）。读取经标准工具包 `useProjection` 走通用投影对：有效目标是 `pending ? !active : active`——折叠的宿主值而非客户端乐观态，因此到达的帧无论哪个方向都会纠正徽章。座位注入面携带一个动词 `exitPlanMode`，经 `ctx.remote.commands.execute` 执行 `/plan off`，并把准入失败映射为一行内联错误。placeholder 与提示文案位于 ui-conversation 的 `conversation` locale 命名空间，与已认领 `/plan` 命令的提示逐字共用。无障碍描述是「Plan mode on, press to turn off」。
+
+对话投影从工具调用记录已提交计划。可选消费者使用既有 `sidebarRight` 或 `betterSidebar` 服务；两者同时存在时，本地 better-sidebar 打开入口优先。卡片注册于 `conversation.chat.turnCards`，独立于既有 `conversation.chat.turnTail` 链。`conversation.plan-review.actions` 列表贡献预览导航，不拥有批准操作。
 
 </details>
 
@@ -75,11 +81,12 @@ kind: "package-reference"
 <a id="known-limitations-and-deferred-work"></a>
 
 
-这些限制界定了当前 plan 徽章。它们是当前包约束，不是 plan 模式对比或任务积压。
+计划控件与预览存在以下限制：
 
 - **Plan 模式是引导而非执行沙箱**——需要强制只读规划的部署必须组合独立的沙箱与审批策略。
 - **徽章属于默认 composer**——待处理的整 composer 交互（如 plan 评审）会临时取代 InputBar 及其徽章。
 - **无未激活 plan 控件**——入口使用共享 Command source；有能力但模式未激活的会话在工具行不显示 plan 入口。
+- **预览依赖是可选的**——缺少受支持侧栏和 Session 历史服务时，徽章仍可用，但不注册预览卡片与打开入口。临时审阅文档不会跨页面刷新保留。
 
 <a id="dev-note"></a>
 ### 开发备注

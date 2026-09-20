@@ -4,8 +4,11 @@ import type { ExecutionHostId, ExecutionHostInfo } from '@deepseek-ai/dsh-execut
 
 /** An explicitly exported directory; paths belong to the worker execution world. */
 export interface ExportedRoot {
+  /** Unique root identifier within this worker, used by inspection requests. */
   readonly id: string
+  /** Human-readable directory name shown to the caller. */
   readonly label: string
+  /** Directory path resolved in the worker's execution world at startup. */
   readonly path: string
 }
 

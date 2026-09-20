@@ -1,7 +1,8 @@
 /** Launcher-owned registration protocol; registry consumers only read and subscribe. @module */
 import type { Context } from '@deepseek-ai/cordis'
 import type McpRegistry from './registry.ts'
-import type { ConnectionHandle, McpConnectionSnapshot } from './types.ts'
+import type { McpConnectionSnapshot } from './types.ts'
+import type { ConnectionHandle } from './host-types.ts'
 
 /** Shared across the separately bundled main and registry entrypoints. */
 export const connectionContribution = Symbol.for('dsh.mcp-client.registry.contribute')

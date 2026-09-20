@@ -49,6 +49,8 @@ Providers cache only successful executable resolution. A missing CLI can be inst
 
 The [desktop declarations](../../packages/computer-use/computer-use/src/types.ts) describe exact application/window targets and observation-scoped input. Data fields are readonly; `?` marks an optional field in these tables. The [runtime](../../packages/computer-use/computer-use/src/index.ts) declares `ComputerUseRuntime` and `ComputerUseError`.
 
+`ComputerUseProviderName` is a branded string exported through `./brand` for exclusive adapters that publish their own tools. `register(name)` returns an asynchronous effect disposer, `providerName` reports the reservation, and `ComputerUseRegistry` aliases the same runtime class. An exclusive adapter cannot coexist with any registered `ComputerUseProvider`, including an unavailable one; Cinlan multi-provider selection and observation APIs retain their existing facade. See [Cua Driver MCP](../../packages/experimental/computer-use-cua-driver-mcp/README.md) and [Cua Driver native](../../packages/experimental/computer-use-cua-driver-native/README.md) for opt-in composition and permissions.
+
 ### Identity and observations
 
 | Type | Fields and meaning |
@@ -132,6 +134,15 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 Registry and execution facade for desktop Computer Use providers.
 
 ```ts cordis-catalog
+/**
+ * Reserve computer use for a provider that publishes its own tools.
+ * Registered facade providers also occupy computer use, including unavailable ones.
+ * The caller must remove its tools and await owned work before releasing this effect.
+ * @param name Provider-owned name used in registration diagnostics.
+ * @returns Effect disposer for this exact exclusive registration.
+ */
+register(name: ComputerUseProviderName): () => Promise<void>
+
 /**
  * Register one provider for the calling plugin lifetime.
  * @param provider Provider implementation with a unique stable id.
@@ -242,6 +253,8 @@ pasteText(request: ComputerPasteTextRequest, signal?: AbortSignal): Promise<Comp
  */
 setValue(request: ComputerSetValueRequest, signal?: AbortSignal): Promise<ComputerActionResult>
 ```
+
+Types: [ComputerUseProviderName](device-control.md#desktop-types)
 
 Source: [`packages/computer-use/computer-use/src/index.ts`](../../packages/computer-use/computer-use/src/index.ts)
 

@@ -35,6 +35,12 @@ kind: "package-reference"
 
 选择在每次调用时执行，因此 Provider disposal 或可用性变化不会留下缓存的后端选择。
 
+## 独占的外部工具适配器
+
+`register(ComputerUseProviderName)` 为发布自身工具的适配器预留电脑操作能力，`providerName` 在其关闭期间仍报告注册名称。此注册拒绝任何已注册的 `ComputerUseProvider`，包括不可用者；`registerProvider()` 也会拒绝现有独占注册。原有多 Provider 配置与逐次调用选择保持有效。`ComputerUseRegistry` 是 `ComputerUseRuntime` 的类导出别名，品牌构造函数通过 `./brand` 和包主入口导出。
+
+[Cua Driver MCP](../../experimental/computer-use-cua-driver-mcp/README.zh.md) 和[Cua Driver native](../../experimental/computer-use-cua-driver-native/README.zh.md) 均为显式启用适配器。它们拥有自己的工具，不实现 Cinlan 的观察与动作请求。切换时应卸载 Cinlan Provider 及其专用 Consumer；适配器必须在工具移除且拥有的操作全部结束后才释放注册。
+
 ## 身份与观察
 
 `ComputerAppId` 和 `ComputerWindowId` 是 Provider 签发的不透明选择器。`ComputerObservationId` 标识一次短生命周期无障碍观察，每个 `ComputerElementId` 只在对应的精确观察内有效。每个变更操作都必须携带应用、窗口和观察 id；成功动作会返回一份新观察，并替换此前的 element 作用域。

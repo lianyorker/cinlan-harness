@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-feedback 组收集用户对 harness 工作成果的意见：用户可以提交一条关于整个会话的自由文本评价，也可以对单条 assistant 消息评分或加备注。两类反馈都不会到达模型——它们是关于输出的信号，绝不是输入。用户通过 `/feedback` 命令记录会话评价；产品界面通过 `messageFeedback` 服务读取和修改逐消息评分。两个包相互独立：会话评价与逐消息评分互不影响。本页是组的映射；包 README 与[反馈子系统页](../../docs/subsystems/feedback.zh.md)负责各自的包级约定。
+feedback 组记录用户对整个 Session 和单条 assistant 消息的意见，类别和评价均可省略。用户通过 `/feedback` 或产品集成提交 Session 反馈；产品集成通过 `messageFeedback` 读取和修改消息评分。两者使用相同的类别 id，均不进入模型历史。本页是组的映射；包 README 与[反馈子系统页](../../docs/subsystems/feedback.zh.md)负责各自的包级约定。
 
 ## 目录
 
@@ -22,18 +22,18 @@ feedback 组收集用户对 harness 工作成果的意见：用户可以提交�
 
 | 包 | 职责 |
 |---|---|
-| [`command-feedback`](command-feedback/README.zh.md) | 一条命令即可记录自由文本会话评价的 `/feedback` 命令，无需模型轮次 |
-| [`message-feedback`](message-feedback/README.zh.md) | 逐消息评分与备注，通过 `messageFeedback` 服务提供给产品界面 |
+| [`command-feedback`](command-feedback/README.zh.md) | 通过 `/feedback`、直接生产方或 `sessionFeedback` 记录 Session 反馈，并提供共享类别 id |
+| [`message-feedback`](message-feedback/README.zh.md) | 通过 `messageFeedback` 提供逐消息评分、类别与备注 |
 
 会话评价是单向信号：在对话的任何时刻记录它都是安全的，且绝不会改变模型看到的内容。在 feedback-gated 共享策略下，记录会话评价正是释放会话共享的动作。
 
-逐消息评分与备注与会话一起保存，重启后依然存在，并且绝不会出现在模型历史或遥测中。
+逐消息反馈保存在 Session 日志中，重启后依然存在，不进入模型历史。日志投递遵循配置的[遥测策略](../session/session-telemetry-otel/README.zh.md)。
 
 <a id="related-documentation"></a>
 ## 相关文档
 
 - [反馈子系统](../../docs/subsystems/feedback.zh.md)——message-feedback 的类型、服务契约与 Web 消费方。
-- [会话遥测子系统](../../docs/subsystems/session-telemetry.zh.md)——`/feedback` 确认文本披露的共享策略。
+- [会话遥测子系统](../../docs/subsystems/session-telemetry.zh.md)——共享已记录反馈与 Session 日志的策略。
 - [匿名用户身份](../identity/README.zh.md)——嵌入反馈确认文本的按 harness home 共享 id。
 
 <a id="dev-note"></a>

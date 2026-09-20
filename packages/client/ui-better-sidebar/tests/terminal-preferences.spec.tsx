@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** Live terminal preferences update renderer options without replacing the connected process. */
 import { act, cleanup, render, screen } from '@testing-library/react'
-import type { TerminalCallbacks } from '../src/client/terminal-transport.ts'
+import type { TerminalCallbacks } from '@deepseek-ai/dsh-api-sidebar-terminal-controller/types'
 import type { SidebarTerminalFrame, SidebarTerminalAttachmentId, SidebarTerminalProcessId } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ITerminalOptions } from '@xterm/xterm'
@@ -31,7 +31,8 @@ function transport() {
   const connectTerminal = vi.fn<TerminalCallbacks['connectTerminal']>(() => disconnect)
   const terminalInput = vi.fn<TerminalCallbacks['terminalInput']>(async () => {})
   const terminalResize = vi.fn<TerminalCallbacks['terminalResize']>(async () => {})
-  return { connectTerminal, terminalInput, terminalResize, disconnect }
+  const terminalShells = vi.fn<TerminalCallbacks['terminalShells']>(async () => [])
+  return { connectTerminal, terminalInput, terminalResize, terminalShells, disconnect }
 }
 
 beforeEach(() => {

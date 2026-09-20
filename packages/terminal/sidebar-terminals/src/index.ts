@@ -1,6 +1,6 @@
 /** Service definition for the existing integrated sidebar PTY provider. */
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalProcessId, SidebarTerminalAckRequest, SidebarTerminalCapability, SidebarTerminalErrorCode, SidebarTerminalFrame, SidebarTerminalInputRequest, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest, SidebarTerminalResizeRequest, SidebarAgentTerminalId, SidebarAgentTerminalSnapshot, SidebarTerminalSessionId } from './types.ts'
+import type { SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalProcessId, SidebarTerminalAckRequest, SidebarTerminalCapability, SidebarTerminalShell, SidebarTerminalErrorCode, SidebarTerminalFrame, SidebarTerminalInputRequest, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest, SidebarTerminalResizeRequest, SidebarAgentTerminalId, SidebarAgentTerminalSnapshot, SidebarTerminalSessionId } from './types.ts'
 export type * from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -29,6 +29,10 @@ export abstract class SidebarTerminals extends Service {
    * @returns Current availability.
    */
   abstract capability(): SidebarTerminalCapability
+  /** Discover installed local shells without starting a process.
+   * @returns Verified choices for new UI tabs; existing processes retain their shell.
+   */
+  abstract shells(): readonly SidebarTerminalShell[]
   /** Attach to a process and observe its output.
    * @param request - immutable target and initial geometry.
    * @param signal - attachment lifetime.

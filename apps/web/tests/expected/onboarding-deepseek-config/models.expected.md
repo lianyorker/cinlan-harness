@@ -11,6 +11,7 @@
       - text: 个人偏好
       - img
     - button "通用设置"
+    - button "工作区布局"
     - button "通知"
     - button "快捷键"
     - button "浮动工作区"
@@ -20,6 +21,8 @@
     - button "模型"
     - button "Agent 预设"
     - button "编排"
+    - button "任务管理"
+    - button "侧边对话(beta)"
     - button "语音"
     - button "开发工作流" [expanded]:
       - text: 开发工作流
@@ -31,13 +34,13 @@
       - img
     - button "安全研究"
     - button "浏览器"
+    - button "文件"
     - button "计算机控制"
     - button "手机模拟器"
     - button "扩展管理" [expanded]:
       - text: 扩展管理
       - img
     - button "插件"
-    - button "侧边卡片"
     - button "实验" [expanded]:
       - text: 实验
       - img
@@ -77,6 +80,10 @@
         - text: 自定义设置 API 地址
         - textbox "API 地址":
           - /placeholder: https://api.deepseek.com
+        - text: API 协议
+        - combobox "API 协议":
+          - option "chat-completions" [selected]
+          - option "messages"
         - region "模型目录":
           - text: 模型目录 已自定义模型目录
           - button "恢复默认模型"
@@ -118,6 +125,11 @@
           - textbox "最大输出 token 数 3":
             - /placeholder: 256K
             - text: 64K
+          - text: 输入类型
+          - combobox "输入类型 3":
+            - option "文本" [selected]
+            - option "文本与图像"
+            - option "图像"
           - button "添加模型":
             - img
             - text: 添加模型

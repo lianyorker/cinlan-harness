@@ -66,6 +66,7 @@ function permissionLabel(
   name: string,
   t: ComposerBarProps['t'],
 ): string {
+  if (value === 'auto') return `${t('access.auto.label')} (${t('access.auto.badge')})`
   const builtInName = BUILT_IN_PERMISSION_NAMES.get(value)
   if (builtInName !== undefined && (name === value || name === builtInName)) {
     if (value === 'read-only') return t('access.preset.readOnly')
@@ -126,7 +127,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
   const choose = (id: string): void => {
     setOpen(false)
     if (id === value.currentValue) return
-    if (id === FULL_ACCESS) {
+    if (id === FULL_ACCESS || id === 'auto') {
       setAcknowledged(false)
       setConfirmation(id)
       return
@@ -176,12 +177,12 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
       />
       <RiskConfirmation
         open={confirmation !== null}
-        title={t('access.confirm.title')}
-        description={t('access.confirm.description')}
-        acknowledgeLabel={t('access.confirm.acknowledge')}
+        title={t(confirmation === 'auto' ? 'access.auto.confirm.title' : 'access.confirm.title')}
+        description={t(confirmation === 'auto' ? 'access.auto.confirm.description' : 'access.confirm.description')}
+        acknowledgeLabel={t(confirmation === 'auto' ? 'access.auto.confirm.acknowledge' : 'access.confirm.acknowledge')}
         cancelLabel={t('access.confirm.cancel')}
         closeLabel={t('close')}
-        confirmLabel={t('access.confirm.enable')}
+        confirmLabel={t(confirmation === 'auto' ? 'access.auto.confirm.enable' : 'access.confirm.enable')}
         acknowledged={acknowledged}
         disabled={locked}
         onAcknowledgedChange={setAcknowledged}

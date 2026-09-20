@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import type { Agent, ModelSelection as AgentModelSelection } from '@deepseek-ai/dsh-agent'
+import type { Agent, InboxState, InboxWireState, ModelSelection as AgentModelSelection } from '@deepseek-ai/dsh-agent'
 import { AttachmentError } from '@deepseek-ai/dsh-attachment'
 import type {
   AttachmentAdmissionPart, FileAttachmentRef, ImageAttachmentRef,
@@ -14,14 +14,18 @@ import {
   ReasoningEffortId, assistantStreamChunks, createUserMessage, freezeMessage,
 } from '@deepseek-ai/dsh-llm'
 import type { MessageSource } from '@deepseek-ai/dsh-llm'
-import { SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
+import { interruptedTurnClosers, SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { SessionEvent, SessionHeader, SessionId, UserMessage } from '@deepseek-ai/dsh-session'
 import { SessionQueryError, type SessionObservation } from '@deepseek-ai/dsh-session-query'
+import {
+  SessionAlreadyOwnedError, SessionPersistenceNotFoundError, type SessionHandle,
+} from '@deepseek-ai/dsh-session-persistence'
 import { SessionTitleInvalidError } from '@deepseek-ai/dsh-session-title'
 import { canonicalClientTimeZone } from '@deepseek-ai/dsh-util-time'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import { RemoteError, remoteErrorOf } from '@deepseek-ai/dsh-typert-protocol'
 import type { Workspace } from '@deepseek-ai/dsh-workspace'
+import type {} from '@deepseek-ai/dsh-worktree-task'
 import {
   ApiSessionAgentController,
   ApiSessionCwdConflict,
@@ -77,16 +81,26 @@ function hasPromptContent(content: readonly PromptContentCandidate[]): boolean {
 
 /** Implements Session business commands delegated by the Session Controller Remote service. */
 export class SessionCommandController {
+  private readonly coldQueueWrites = new Set<Promise<SessionUpdateQueueValue>>()
+  private acceptingColdQueueWrites = true
+
   /**
    * @param ctx - Host context carrying Agent, model, attachment, title, and Workspace services.
    * @param agents - sole owner of create, resume, and Session-local model selection.
    * @param defaultCwd - project directory used when create names neither a Workspace nor a cwd.
+   * @param publishColdInbox - publish an inbox replacement after its cold write has flushed.
    */
   constructor(
     private readonly ctx: Context,
     private readonly agents: ApiSessionAgentController,
     private readonly defaultCwd: string,
-  ) {}
+    private readonly publishColdInbox: (sessionId: SessionId, inbox: InboxWireState, seq: SessionSeq) => void = () => {},
+  ) {
+    ctx.effect(() => async () => {
+      this.acceptingColdQueueWrites = false
+      await Promise.allSettled([...this.coldQueueWrites])
+    }, 'session-controller.cold-queue-writes')
+  }
 
   /**
    * Create or idempotently adopt one ordinary Session.
@@ -249,7 +263,7 @@ export class SessionCommandController {
   }
 
   /**
-   * Create a new ordinary Session from one completed-turn prefix.
+   * Create a new ordinary Session from history ending at the selected turn/end.
    * @param request - source Session and optional event anchor.
    * @returns the new Session identity.
    */
@@ -294,10 +308,7 @@ export class SessionCommandController {
         { sessionId: request.sessionId },
       )
     }
-    let cut = SessionLogOffset(boundary.seq + 1)
-    while (cut < source.events.length && source.events[cut]?.type !== 'turn/start') {
-      cut = SessionLogOffset(cut + 1)
-    }
+    const cut = SessionLogOffset(boundary.seq + 1)
     let workspace: Workspace | undefined
     try {
       workspace = await this.forkWorkspace(source.header)
@@ -475,7 +486,7 @@ export class SessionCommandController {
    * @param request - Session, queue item, and requested mutation.
    * @returns acknowledgement that the queue mutation was applied.
    */
-  updateQueue(request: SessionUpdateQueueRequest): SessionUpdateQueueValue {
+  updateQueue(request: SessionUpdateQueueRequest): SessionUpdateQueueValue | Promise<SessionUpdateQueueValue> {
     if (request.action.kind === 'edit') {
       if (request.action.content.some(block => block.type !== 'text')) {
         throw new RemoteError(
@@ -494,7 +505,10 @@ export class SessionCommandController {
     }
     const agent = this.ctx.agents.get(request.sessionId)
     if (agent === undefined) {
-      throw new RemoteError('session/queue-item-not-found', 'queued item is no longer pending', { itemId: request.itemId })
+      if (!this.acceptingColdQueueWrites) throw new Error('Session queue mutation service is disposing')
+      const pending = this.updateColdChildQueue(request)
+      this.coldQueueWrites.add(pending)
+      return pending.finally(() => { this.coldQueueWrites.delete(pending) })
     }
     if (hasApiSessionSubagentOwner(this.ctx, agent.session, agent)) {
       const identity = this.ctx.sessionProjections
@@ -541,6 +555,72 @@ export class SessionCommandController {
         assertNever(request.action, 'queue action')
     }
     return { accepted: true }
+  }
+
+  /** Hold the existing exclusive writer across a cold child's inbox read, mutation, and flush. */
+  private async updateColdChildQueue(request: SessionUpdateQueueRequest): Promise<SessionUpdateQueueValue> {
+    const stale = () => new RemoteError(
+      'session/queue-item-not-found', 'queued item is no longer pending', { itemId: request.itemId },
+    )
+    const persistence = this.ctx.get('sessionPersistence')
+    if (persistence === undefined) throw stale()
+    if ((await persistence.stat(request.sessionId))?.header.origin !== 'subagent') throw stale()
+    let handle: SessionHandle
+    try {
+      handle = await persistence.open(request.sessionId, 'write')
+    } catch (error) {
+      if (error instanceof SessionPersistenceNotFoundError) throw stale()
+      if (error instanceof SessionAlreadyOwnedError) {
+        const raced = this.ctx.agents.get(request.sessionId)
+        if (raced !== undefined) return this.updateQueue(request)
+        throw new RemoteError('session/writer-held', error.message, { sessionId: request.sessionId })
+      }
+      throw error
+    }
+    try {
+      if (this.ctx.sessions.get(request.sessionId) !== undefined) {
+        throw new RemoteError('session/writer-held', 'Session became live during queue mutation', { sessionId: request.sessionId })
+      }
+      if (handle.header.origin !== 'subagent') throw stale()
+      const { events } = await handle.read()
+      const before = this.ctx.sessionProjections.restore(
+        {}, events, SessionLogOffset(0), handle.header, handle.inheritedEventCount,
+      )
+      const identity = before.snapshot.values.subagent
+      if (identity?.mode !== 'continuable' || identity.seq < handle.inheritedEventCount
+        || identity.seq >= events.length) throw apiSessionSubagentOwnershipError(request.sessionId)
+      const inbox = before.checkpoint['inbox']?.val as InboxState | undefined
+      if (inbox === undefined) throw new Error('Session inbox projection is unavailable')
+      const turnIndex = inbox['next-turn'].findIndex(message => message.id === request.itemId)
+      const target = turnIndex >= 0 ? 'next-turn' : 'next-step'
+      const index = turnIndex >= 0 ? turnIndex : inbox['next-step'].findIndex(message => message.id === request.itemId)
+      const message = inbox[target][index]
+      if (message === undefined) throw stale()
+      if (request.action.kind === 'steer') {
+        throw new RemoteError('session/steer-unavailable', 'current turn no longer accepts steering', { itemId: request.itemId })
+      }
+      const closers = interruptedTurnClosers(events)
+      const event: SessionEvent<'agent/inbox/spliced'> = {
+        type: 'agent/inbox/spliced', seq: SessionSeq(events.length + closers.length), time: Date.now(),
+        data: {
+          target, start: index, removedCount: 1, outcome: 'canceled',
+          inserted: request.action.kind === 'remove' ? [] : [freezeMessage<UserMessage>({
+            ...message, content: [...request.action.content],
+          })],
+        },
+      }
+      const after = this.ctx.sessionProjections.restore(
+        before.checkpoint, [...closers, event], SessionLogOffset(events.length), handle.header, handle.inheritedEventCount,
+      )
+      const wireInbox = after.snapshot.values.inbox
+      if (wireInbox === undefined) throw new Error('Session inbox projection is unavailable')
+      await handle.append([...closers, event])
+      await handle.flush()
+      this.publishColdInbox(request.sessionId, wireInbox, event.seq)
+      return { accepted: true }
+    } finally {
+      await handle.close()
+    }
   }
 
   /**

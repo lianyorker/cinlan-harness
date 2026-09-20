@@ -113,6 +113,8 @@ function mount(
   workspaceRows: WorkspaceView[] = [{ ...workspace('one'), sessionIds: [SID] }],
   retargetWorkspace = vi.fn(async (_workspaceId: WorkspaceId) => {}),
   options: {
+    /** Render this Session as a compact secondary occurrence. */
+    embedded?: boolean
     /** When true, mimic overlay:true chain siblings (hidden fallback + takeover). */
     overlayTakeover?: boolean
     /** The session list summary's `blank` flag — independent of the snapshot's. */
@@ -297,6 +299,7 @@ function mount(
       : (opts?.fallback ?? null)
   )) as ConversationRootProps['renderSlotChain']
   const props: ConversationRootProps = {
+    ...(options.embedded === undefined ? {} : { embedded: options.embedded }),
     sessionId: SID,
     SessionProvider: ({ children }) => children,
     useSession,
@@ -449,6 +452,17 @@ describe('ConversationRoot resident composer', () => {
     expect(b.slotCalls).toContain('conversation.session.header.actions')
     expect(b.slotCalls).toContain('conversation.session.header.utilities')
     expect(b.slotCalls).toContain('conversation.session.header.corner')
+  })
+
+  it('embeds the ordinary transcript and composer without main navigation or width handles', () => {
+    const b = mount(sessionSnapshotOf(), undefined, undefined, { embedded: true })
+    const host = b.view.container.querySelector('[data-conversation-scroll]')
+    expect(b.view.container.querySelector('header')).toBeNull()
+    expect(b.view.queryByRole('separator')).toBeNull()
+    expect(host?.querySelector('[data-composer-input]')).not.toBeNull()
+    expect(b.slotCalls).toContain('conversation.session')
+    expect(b.slotCalls).toContain('conversation.composer.bar')
+    expect(b.slotCalls).not.toContain('conversation.session.header')
   })
 
   it('sticky composer seat wraps the whole overlay chain, not only the fallback stack', () => {

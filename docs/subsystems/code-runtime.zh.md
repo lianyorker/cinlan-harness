@@ -4,6 +4,8 @@
 
 代码执行 seam 是一个[能力 seam](../../.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md)：其 Service Definition（[dsh-code-runtime](../../packages/code-runtime/code-runtime)，`ctx.codeRuntime`）使用宿主提供的异步绑定运行一段模型编写的程序，并报告其打印内容与返回值。代码执行是**一项可选能力**，不属于 agent loop（智能体循环）主干，因此其词汇定义在此而非 [core.md](core.zh.md) 中。各后端的执行基底与源语言不同，这两项均为服务上的只读描述符；worker-thread Service Provider 与工具注册表 Consumer 的约定见 [PTC mode 基础设计](../../.agents/notes/implemented/feature/2026-06-15-ptc.zh.md) 和[类型化返回约定](../../.agents/notes/implemented/feature/2026-07-20-ptc-typed-tool-returns.zh.md)。
 
+可选的 [PTC 运行时服务](../../packages/ptc-runtime/ptc-runtime/README.zh.md) `ctx.ptcRuntime` 通过 [ptc-runtime-node](../../packages/ptc-runtime/ptc-runtime-node/README.zh.md)提供显式请求解析与按沙箱策略运行的 Node 进程执行。既有 `ctx.codeRuntime` 消费方仅通过单独挂载的 [CodeRuntime 适配器](../../packages/ptc-runtime/ptc-runtime-node/README.zh.md#optional-coderuntime-adapter)访问它；提供方主入口只注册 `ptcRuntime`，随产品发布的 worker-thread 提供方仍为默认。适配器保留既有工具 schema 与请求 API，直接 PTC 消费方则使用完整执行选项和沙箱结果元数据。
+
 源码：[`packages/code-runtime/code-runtime/src/types.ts`](../../packages/code-runtime/code-runtime/src/types.ts)
 
 ## 运行：请求进，结果出
@@ -192,4 +194,31 @@ abstract run(request: CodeRunRequest): Promise<CodeRunResult>
 ```
 
 Source: [`packages/code-runtime/code-runtime/src/index.ts`](../../packages/code-runtime/code-runtime/src/index.ts)
+
+<a id="ctxptcruntime--ptcruntime-abstract-seam"></a>
+
+### `ctx.ptcRuntime` — `PtcRuntime` (abstract seam)
+
+Registers one `ctx.ptcRuntime` implementation. Program, budget, abort, and substrate failures resolve in PtcRunResult; only Service Definition contract misuse rejects. Implementations bridge structured-cloneable bindings, materialize each declared namespace rejection class, treat programs as hostile peers, isolate runs from one another, and terminate and await in-flight runs during disposal.
+
+```ts cordis-catalog
+/**
+ * Resolve supported options and provider defaults before execution.
+ * @param request - Program, bindings, cancellation and optional execution choices.
+ * @returns Complete directory, deadline and supported authority for run.
+ * @throws When an explicit choice is invalid or unsupported by this provider.
+ */
+abstract resolve(request: PtcRunRequest): PtcRunSpec
+
+/**
+ * Execute resolved inputs; program outcomes resolve as result fields.
+ * @param spec - directory, deadline, program, bindings, cancellation and supported policy.
+ * @returns Captured output and the execution outcome.
+ */
+abstract run(spec: PtcRunSpec): Promise<PtcRunResult>
+```
+
+Types: [PtcRunRequest](../../packages/ptc-runtime/ptc-runtime/README.zh.md#understand-the-implementation) · [PtcRunResult](../../packages/ptc-runtime/ptc-runtime/README.zh.md#understand-the-implementation) · [PtcRunSpec](../../packages/ptc-runtime/ptc-runtime/README.zh.md#understand-the-implementation)
+
+Source: [`packages/ptc-runtime/ptc-runtime/src/index.ts`](../../packages/ptc-runtime/ptc-runtime/src/index.ts)
 <!-- END GENERATED cordis-surface -->

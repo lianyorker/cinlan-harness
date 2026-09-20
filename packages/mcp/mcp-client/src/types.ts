@@ -1,4 +1,4 @@
-/** Public, secret-free observations of MCP connections. @module */
+/** Client-safe MCP configuration and secret-free connection observations. @module */
 
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { JsonSchemaNode } from '@deepseek-ai/dsh-tools/types'
@@ -32,7 +32,9 @@ export interface StdioConfig {
   env: Record<string, string>
   /** Working directory for the child process. */
   cwd: string
-  /** Per-tool-call timeout in milliseconds. */
+  /** Maximum UTF-8 bytes of attributed server instructions; defaults to 32768. */
+  maxInstructionBytes?: number
+  /** Timeout per tool call or resource request in milliseconds. */
   toolCallTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
@@ -54,7 +56,9 @@ export interface StreamableHttpConfig {
   url: string
   /** Additional headers attached to MCP requests. */
   headers: Record<string, string>
-  /** Per-tool-call timeout in milliseconds. */
+  /** Maximum UTF-8 bytes of attributed server instructions; defaults to 32768. */
+  maxInstructionBytes?: number
+  /** Timeout per tool call or resource request in milliseconds. */
   toolCallTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
@@ -116,29 +120,6 @@ export interface McpConnectionSnapshot extends McpConnectionState {
 /** Initial-attempt settlement; a successful promise alone does not imply readiness. */
 export interface ConnectionOutcome {
   readonly error?: unknown
-}
-
-/** One supervised connection, including live observation and explicit discovery. */
-export interface ConnectionHandle {
-  readonly ready: Promise<ConnectionOutcome>
-  /**
-   * Stop and await cleanup; concurrent callers join the same completion.
-   * A close timeout remains observable as stopped with errorCode close-timeout.
-   * @returns cleanup settlement without reopening a timed-out namespace.
-   */
-  dispose(): Promise<void>
-  /** Read an immutable lifecycle observation. @returns the latest committed state. */
-  getSnapshot(): McpConnectionState
-  /** Observe committed changes until unsubscribed or stopped. @param listener - change callback. @returns unsubscribe. */
-  subscribe(listener: () => void): () => void
-  /**
-   * Refresh tools on an initialized live connection, including recovery from an observed error.
-   * Calls no tool. Cancellation leaves the previous tool generation untouched.
-   * @param signal - cancels queued or in-flight discovery.
-   * @returns the newly committed descriptors.
-   * @throws when stopped, disconnected, cancelled, or discovery fails.
-   */
-  probe(signal: AbortSignal): Promise<readonly McpToolDescriptor[]>
 }
 
 /** Private launch-time authority and credential resolution, never plugin configuration. */

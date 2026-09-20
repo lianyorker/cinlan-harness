@@ -56,6 +56,8 @@ Open a dual workbench for files, previews, terminals, Git, background tasks, emb
 
 ## ✨ Features
 
+Subagent catalog side-open actions and topology child cards open the existing child conversation in a `subagentchat` tab while keeping the main parent selected. These tabs use the standard Conversation renderer and Session transport, preserve split placement and per-session layout, and release their retained context on close. This is a parallel view of an existing child; Side Chat remains the separate feature that creates an independent side thread.
+
 - **🗂️ File Workbench**: file explorer (lazy-loading tree; symlinks show their target kind — directory links expand, dangling links flagged) + CodeMirror editor; inline preview for images / Markdown (incl. Mermaid diagrams, strict-mode safe rendering + click-to-zoom) / HTML / PDF
 - **🌐 Embedded Browser**: multiple web tabs with back / forward / refresh; content runs in a sandboxed iframe; external links are routed by protocol by default — HTTP opens in the sidebar, HTTPS goes to the system browser (both adjustable in settings)
 - **💻 Real Terminal**: xterm.js + node-pty real shell, reconnect with transcript replay; optionally injects `terminal_*` tools for the model
@@ -64,13 +66,19 @@ Open a dual workbench for files, previews, terminals, Git, background tasks, emb
 - **💬 Side Chat (beta)**: Codex-style side threads — the child inherits the parent's FULL context (completed turns + the pending question + the in-progress turn's assistant output and tool activity, honestly frozen as "interrupted") and runs independently without entering the main conversation; threads support continuous follow-ups (auto-resumed after a DSH restart) and one-click "Save as new session" promotion to a top-level session
 - **🪟 Dual Workbench**: right sidebar + bottom panel; drag tabs to split / merge panes (cross-panel), mobile auto-merges into a full-width drawer
 - **🔁 Session Isolation**: layout / tabs / panels persisted per session, stale state auto-purged
-- **⚙️ Declarative Settings**: per-item toggles in the "Side Cards" settings section, secondary settings via the gear dialog
+- **⚙️ Feature Settings**: a separate menu destination for each visible function, with file-viewer controls inside Files and shared layout preferences inside Workspace layout
 - **⚡ On-demand Loading**: only ~325KB core at startup; heavy deps (terminal / editor / mermaid diagrams) load on demand ([design](docs/plans/2026-08-12-lazy-chunks-design.md))
 - **🌏 i18n**: UI text follows DSH's language (zh / en) with live switching
+
+Settings places Files under Tools, and Tasks and Side Chat under AI. Git, Browser, and Terminal each use their existing native page with additional sidebar controls; native fields retain their forms and save/reset behavior. Workspace layout under Personal contains only layout preferences. The [feature navigation decision](../../../.agents/notes/implemented/architecture/2026-09-19-feature-settings-navigation.md) records the ownership rules.
+
+Office files open in Files through the built-in viewers for DOCX/XLSX/PPTX and their DOC/XLS/PPT extensions. The authorized [Office converter](../../document/office-to-pdf/README.md) renders a PDF for the browser viewer; the source remains unchanged. The preview offers retry, original-file download, and missing-font details. Closing or replacing it cancels conversion and releases its PDF URL. Files settings can disable these viewers, and higher-priority registered viewers can replace them. Rendering depends on the converter, installed fonts, and browser PDF support.
 
 [Git preferences](../ui-git-settings/README.md) control group order on refresh, the default base for **Compare branch**, and optional commit attribution. Commit opens a review of the exact message before confirmation; changing the Session, repository, HEAD, or staged files invalidates that review. Web and desktop Git calls use the same [Session-owned Git service](../../git/sidebar-git/README.md). The client declares `remote.sidebarGit` as an activation dependency, so its Git callbacks belong to the mounted namespace lifetime.
 
 When the [native Terminal settings page](../ui-settings-terminal/README.md) is mounted, it edits the existing `dsh-better-sidebar` preferences. Shell executable and whitespace-separated arguments affect new integrated sidebar terminals; existing processes keep their shell and session working directory. Font family and size (9–32 px), scrollback (0–100,000 lines; default 4,000), cursor style (default block), and cursor blinking (default on) update open xterm views. Confirmed reset removes only these terminal overrides.
+
+New terminal tabs offer the Settings default and installed local shells before launch. Each tab stores its accepted choice with the layout; selecting a shell does not change Settings. `shellCandidates` in the Host plugin config controls discovery (default: `zsh`, `bash`, `fish`, `pwsh`, `powershell`, `cmd`); the configured default is included when installed. Explicit choices are checked again before spawning, and unavailable choices fail without falling back.
 
 Integrated terminal views use the authenticated `sidebarTerminals` Remote on Web and Desktop. Reconnecting keeps a live process and its captured directory. Floating Workspace tabs capture an existing directory inside the session workspace and store their layout under the window UUID; invalid directories retain saved input and show a correction message. Closing a tab targets its observed native process generation, including when its view is absent. Capability checks create no process. Host restart cannot restore running commands, and these preferences do not configure the core execution tools.
 
@@ -178,7 +186,7 @@ Update: `git pull && pnpm install && pnpm build` → `node scripts/package-regis
 
 ## 🖼️ Feature Tour
 
-> Below are real UI screenshots (two per row; click to zoom).
+> Feature descriptions and runtime screenshots (click an image to zoom).
 
 | | |
 |---|---|
@@ -187,7 +195,7 @@ Update: `git pull && pnpm install && pnpm build` → `node scripts/package-regis
 | **💻 Real Terminal**<br/><sub>xterm.js + node-pty real shell (not an emulator): transcript replay on reconnect, configurable shell / shellArgs (settings page or `cordis.patch.yml`), and optional `terminal_*` model tools so the agent can open terminals and run commands itself.</sub><br/><div align="center"><img width="420" alt="Real terminal" src="https://github.com/user-attachments/assets/0dad6ad3-ff3f-4b5a-86d2-f832ce65323e" /></div> | **🌿 Git Panel**<br/><sub>Stage / unstage / commit (`Ctrl+Enter`) / revert, plus a history list; clicking a changed file opens a **VSCode-style diff tab** (line-level red/green).</sub><br/><div align="center"><img width="420" alt="Git panel" src="https://github.com/user-attachments/assets/e7fc1220-305f-4bca-8583-e77ab4f4fa78" /></div> |
 | **🌐 Embedded Browser**<br/><sub>Multiple web tabs with back / forward / reload / address bar; content runs in an **opaque-origin sandboxed iframe** (live sandbox status in the UI, per-page temporary unlock available); external-link clicks in the chat can be taken over into the sidebar (protocol-based routing, configurable).</sub><br/><div align="center"><img width="420" alt="Embedded browser" src="https://github.com/user-attachments/assets/9bc6b65a-64fc-4942-a685-76e391e55606" /></div> | **🧩 Tasks: Agent Topology + Background Jobs**<br/><sub>Live subagent-tree topology (run states, batched live previews) plus the background-jobs list (exit codes / live output / force-kill); new subagents / jobs can auto-expand the sidebar (configurable).</sub><br/><div align="center"><img width="420" alt="Tasks: subagent topology" src="https://github.com/user-attachments/assets/dcd8ed2f-59fa-405b-937b-2d250f5034dd" /></div> |
 | **💬 Side Chat (beta)**<br/><sub>Codex-style side threads: **one independent tab per conversation**; the thread inherits the parent's full context (including the in-progress turn, honestly frozen as "interrupted") and runs independently without polluting the main session; follow-ups survive restarts; one click promotes the thread to a top-level session.</sub><br/><div align="center"><img width="420" alt="Side Chat (beta)" src="https://github.com/user-attachments/assets/3a338c36-f5de-4000-95f3-4b1cd04f60fc" /></div> | **🪟 Dual Workbench: Sidebar + Bottom Panel + Split Panes**<br/><sub>The right sidebar and the bottom panel can stay open together; drag a tab to a pane edge to **split**, to the middle to **merge** (works across panels); panel width/height drag from the left/top edge; on mobile everything merges into a full-width drawer.</sub><br/><div align="center"><img width="420" alt="Dual workbench (right sidebar + bottom panel)" src="https://github.com/user-attachments/assets/dfdb875e-a1a8-4d4b-8340-353736b1708f" /></div> |
-| **⚙️ Declarative Settings**<br/><sub>The "Side card" section in DSH settings: one small card per tab / viewer with an independent toggle (highlighted enabled state + brand switch); secondary settings open from the "Feature settings" strip at the card bottom (switch / text / number / select rows); plugin-owned settings persist under `pluginSettings`.</sub><br/><div align="center"><img width="420" alt="Declarative settings: side cards" src="https://github.com/user-attachments/assets/0800ca64-621e-48da-b7df-aecfddc3ec29" /></div> | **📱 Mobile**<br/><sub>On narrow screens (<768px) the panels become a full-width drawer: bottom-panel tabs merge into the sidebar once, with touch-friendly dragging.</sub><br/><div align="center"><img width="360" alt="Mobile full-width drawer" src="https://github.com/user-attachments/assets/a82ba78a-f4cf-4d85-80e8-050a05beb144" /></div> |
+| **⚙️ Feature Settings**<br/><sub>Each visible function has its own Settings menu destination. Files contains viewer controls; Workspace layout contains shared layout preferences. Native forms keep their fields, and plugin-owned settings persist under `pluginSettings`.</sub> | **📱 Mobile**<br/><sub>On narrow screens (<768px) the panels become a full-width drawer: bottom-panel tabs merge into the sidebar once, with touch-friendly dragging.</sub><br/><div align="center"><img width="360" alt="Mobile full-width drawer" src="https://github.com/user-attachments/assets/a82ba78a-f4cf-4d85-80e8-050a05beb144" /></div> |
 
 <a id="-plugin-ecosystem"></a>
 
@@ -211,11 +219,6 @@ export function apply(ctx: Context) {
 ```
 
 The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar) already hosts **28+ ecosystem plugins** (and growing):
-
-<div align="center">
-  <a href="https://github.com/user-attachments/assets/d4385b7e-aab4-425d-a5c4-2da5da81a34e"><img width="66%" alt="The built-in Add Plugins modal: recommended catalog + one-click install command" src="https://github.com/user-attachments/assets/d4385b7e-aab4-425d-a5c4-2da5da81a34e" /></a><br />
-  <i>The built-in "Add plugins" modal in settings: recommended catalog + one-click install command + a direct link to the GitHub topic</i>
-</div>
 
 ### 📑 Tab Plugins (sidebar pages)
 
@@ -432,9 +435,9 @@ Full integration docs:
 - **[`AGENTS.md`](./AGENTS.md)** — the in-repo integration doc (full fields, matching algorithm, HMR pitfalls, declarative settings, version detection);
 - **[`docs/external-plugin-guide.md`](./docs/external-plugin-guide.md)** — the external-plugin guide (with a complete minimal example).
 
-### ➕ Add Plugins (recommended plugin catalog)
+### Plugin settings navigation
 
-The dashed cards at the end of the "Sidebar content" / "File viewers" grids in the "Side Cards" settings section open the **Add tab plugins** / **Add preview plugins** modals: each declares its open extension point, offers a "**Browse more plugins on GitHub**" button (the [GitHub topic `dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar)), and lists the recommended catalog (name / repo / description / install script) — "**Open**" jumps to the repo, "**Copy**" writes the install command to the clipboard.
+Each visible third-party tab descriptor receives a `feature:${id}` page in Extensions, using its existing enable control and declared settings. Hidden descriptors, including plan, diff, and review panels, add no menu entry. File-viewer controls remain inside Files. Sidebar preference keys, the `dsh-better-sidebar` namespace, serialization, and `pluginSettings[descriptorId]` remain under their existing owners. The [GitHub topic `dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar) lists ecosystem plugins.
 
 **Curating a new plugin**: append a `PluginEntry` to [`src/client/plugins-tabs.ts`](./src/client/plugins-tabs.ts) (tab registrations) or [`src/client/plugins-viewers.ts`](./src/client/plugins-viewers.ts) (file-previewer registrations) and tag your repo with the `dsh-better-sidebar` topic; data integrity is guarded by `tests/plugin-list.spec.ts`.
 

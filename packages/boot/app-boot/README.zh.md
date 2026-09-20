@@ -56,7 +56,7 @@ Loader 求值 profile 配置前，CLI 从已加载的 profile 提供 `dshProfile
 - **`.env`**——你的普通环境层：调用目录的文件优先于 harness home 的文件，两者都低于继承环境。决定进程如何启动的变量（`PATH`、`DSH_*`、`XDG_*` 等）会被文件拒绝：请改为导出。四个代理名（`HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、`NO_PROXY`）只从 harness home 的文件接受，绝不从调用目录的文件接受——后者随 clone 一起到来。对于只想加载某个目录 `.env` 的非产品 bin，文件缺失不影响启动，文件无法加载时输出一行带标签的警告。
 - **`cordis.patch.yml`**——你的 tweak 层，应用在所有组合包层之后（先应用逐 profile 的文件，再应用 home 级文件，因此后者优先级更高）：替换某个条目的整个 config（重述你要保留的字段）、插入新条目，或在启动时插值 `!!js` 表达式。patch 指定的条目不存在时输出 stderr 警告；空文件或仅含注释的文件会导致启动失败——如需禁用该层，请改用 `[]`。
 
-带 `patchReload: live` 的 profile 会监视两份用户 patch 文件：有效编辑无需重启即可重新组合，被拒绝的编辑则让最后一个可用应用继续运行。`startup` profile 既不安装这些监视器，也不安装 launcher 的仅监视 HMR 回退。
+带 `patchReload: live` 的 profile 会监视两份用户 patch 文件和 manifest 中选中的 bundle 列表。launcher 提供不可变的 `ProfileContext` 信息；配置监视器与管理写入共用一个队列，每个世代在应用各层前刷新本地解析器的包链接。被拒绝的编辑让最后一个可用应用继续运行。`startup` profile 既不安装这些监视器，也不安装 launcher 的仅监视 HMR 回退。
 
 插入条目的插件名可以是绝对文件系统路径、文件 URL 或包标识符。patch 加载会把 `insert` 条目及其嵌套分组中的绝对路径以及相对于 patch 文件的 `./` 或 `../` 路径转换为文件 URL；对已有条目名称的断言及替换用的 `config` 值保持原样。
 
@@ -102,6 +102,7 @@ Loader 求值 profile 配置前，CLI 从已加载的 profile 提供 `dshProfile
 |---|---|
 | [`src/index.ts`](src/index.ts) | 启动 helper：配置解析、环境加载、会明确报错的保护机制、激活审计、patch 解析、配置 dump、harness 源码段落 |
 | [`src/profile.ts`](src/profile.ts) | profile 发现、初始化、组合包解析、模块后备机制 |
+| [`src/profile-context.ts`](src/profile-context.ts)、[`src/profile-configuration.ts`](src/profile-configuration.ts) | launcher 信息、当前 patch 层、串行配置操作和文件监视 |
 | — | 不发布运行时不变式伴生入口；此启动库不拥有包内持久化事件流；边界与回放测试覆盖其协议映射。 |
 
 </details>

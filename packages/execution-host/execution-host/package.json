@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-execution-host",
   "description": "Execution Host service definition for authorized process identity",
-  "version": "0.1.5-alpha.1",
+  "version": "0.1.6-alpha.2",
   "publishConfig": {
     "access": "public"
   },
@@ -39,7 +39,7 @@
   "license": "MIT",
   "files": [
     "lib/index.js",
-    "lib/types/**/*.d.ts",
-    "lib/types/types.js"
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
   ]
 }

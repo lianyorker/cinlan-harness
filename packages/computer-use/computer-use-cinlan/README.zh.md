@@ -63,7 +63,7 @@ CLI `runtimeId` 是 generation 标记。generation 变化会清空全部观察�
 
 截图可以是规范 base64，也可以是绝对、未过期的临时 PNG 路径。Provider 只接受非符号链接的普通文件，检查配置字节上限和稳定文件大小，验证 PNG signature，将字节返回 Consumer，并且不会在模型结果中暴露临时路径。
 
-插件 disposal 会注销 Provider、停止接受调用、取消并等待全部在途 CLI 进程，然后清空观察状态。外部 Cinlan runtime 和桌面应用不属于 Provider 所有，仍会继续运行。
+插件 disposal 会停止接受调用、取消并等待全部在途 CLI 进程、清空观察状态，最后注销 Provider。注册在清理完成前仍阻止独占的 Cua Driver 适配器启动。外部 Cinlan runtime 和桌面应用不属于 Provider 所有，仍会继续运行。
 
 <a id="model-experience"></a>
 ## 模型体验

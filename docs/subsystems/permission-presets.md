@@ -83,6 +83,13 @@ Owns the deployment's permission presets and their write path. Requires a confin
 
 ```ts cordis-catalog
 /**
+ * Publish Auto for the review integration effect lifetime.
+ * @param admit - synchronous check before selection or restoration.
+ * @returns the disposer withdrawing Auto from future selection.
+ */
+registerAuto(admit: () => void): () => Promise<void>
+
+/**
  * Resolve the preset matching the effective knob values. A still-matching
  * last selection wins shared-bundle ties; otherwise the first table match
  * wins, or {@link CUSTOM_PRESET} when no entry matches.

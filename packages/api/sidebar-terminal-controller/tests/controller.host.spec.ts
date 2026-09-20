@@ -15,11 +15,12 @@ describe('sidebar terminal Remote composition', () => {
   it('exposes the stable namespace and preserves main, floating, and agent targets', async () => {
     const h = await createHarness()
     expect(remoteMethods(h.ctx.sidebarTerminalController).map(method => [method.method, method.mode]))
-      .toEqual([['capability', undefined], ['open', 'stream'], ['input', undefined], ['resize', undefined], ['ack', undefined], ['release', undefined], ['inspectUi', undefined], ['closeUi', undefined], ['watch', 'stream'], ['closeAgent', undefined]])
+      .toEqual([['capability', undefined], ['shells', undefined], ['open', 'stream'], ['input', undefined], ['resize', undefined], ['ack', undefined], ['release', undefined], ['inspectUi', undefined], ['closeUi', undefined], ['watch', 'stream'], ['closeAgent', undefined]])
     expect(await result(await h.rpc('capability'))).toEqual({ ok: true, value: { status: 'available', shellName: 'fixture-shell' } })
+    expect(await result(await h.rpc('shells'))).toEqual({ ok: true, value: [{ path: '/bin/fixture-shell', name: 'fixture-shell' }] })
     for (const target of [
       OPEN.target,
-      { ...OPEN.target, tabId: 'terminal:' + ATTACHMENT },
+      { ...OPEN.target, tabId: 'terminal:' + ATTACHMENT, shellPath: '/bin/zsh' },
       { ...OPEN.target, tabId: 'terminal:tlz0qabc123fallback' },
       { ...OPEN.target, tabId: 'terminal:' + WINDOW + ':0', floating: { windowId: WINDOW, directory: '.' } },
       { kind: 'agent', uuid: ATTACHMENT },
@@ -117,6 +118,8 @@ describe('sidebar terminal Remote composition', () => {
     ...['', 'x'.repeat(257), 'session\n', 'session\u0085'].map(sessionId => ({ ...OPEN, target: { ...OPEN.target, sessionId } })),
     ...['', 'terminal:', 'terminal:path/escape', 'terminal:' + 'x'.repeat(129), 'terminal:' + WINDOW + ':0'].map(tabId => ({ ...OPEN, target: { ...OPEN.target, tabId } })),
     { ...OPEN, target: { kind: 'unknown' } },
+    ...['', 42, 'x'.repeat(4097), 'shell\0path'].map(shellPath => ({ ...OPEN, target: { ...OPEN.target, shellPath } })),
+    { ...OPEN, target: { kind: 'agent', uuid: ATTACHMENT, shellPath: '/bin/sh' } },
     { ...OPEN, target: { kind: 'agent', uuid: ATTACHMENT.toUpperCase() } },
     { ...OPEN, target: { kind: 'agent', uuid: ATTACHMENT, floating: {} } },
     { ...OPEN, target: { ...OPEN.target, floating: { windowId: WINDOW, directory: '.' } } },
@@ -183,7 +186,7 @@ describe('sidebar terminal Remote composition', () => {
     expect(h.provider.closeAgent).not.toHaveBeenCalled()
   })
 
-  it.each(['invalid-request', 'invalid-directory', 'unavailable', 'not-found', 'stale-attachment', 'output-overflow', 'ack-timeout'] satisfies SidebarTerminalErrorCode[])
+  it.each(['invalid-request', 'invalid-directory', 'invalid-shell', 'unavailable', 'not-found', 'stale-attachment', 'output-overflow', 'ack-timeout'] satisfies SidebarTerminalErrorCode[])
   ('normalizes provider %s failures from unary and deferred stream execution', async (code) => {
     const h = await createHarness()
     h.provider.input.mockImplementation(() => { throw new SidebarTerminalError(code, 'private path and shell diagnostics') })

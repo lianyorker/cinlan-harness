@@ -41,7 +41,19 @@ describe('OpenInAppController availability', () => {
     const fetcher = vi.fn(async (input: string | URL) => { void input; return jsonResponse({ apps: [] }) })
     const controller = new OpenInAppController(fetcher)
     await controller.load()
-    expect(String(fetcher.mock.calls[0]?.[0])).toBe('http://dsh.example:8080/open-in-app/apps')
+    expect(String(fetcher.mock.calls[0]?.[0])).toBe('http://dsh.example:8080/api/open-in-app/apps')
+  })
+
+  it.each(['null', 'dsh-app://app'])('keeps Desktop catalog and launch requests on dsh-app with origin %s', async (origin) => {
+    vi.stubGlobal('location', { origin, href: 'dsh-app://app/session/example?view=chat' })
+    const fetcher = vi.fn(async (input: string | URL) => { void input; return jsonResponse({ apps: ['cursor'] }) })
+    const controller = new OpenInAppController(fetcher)
+    await controller.load()
+    await controller.launch('cursor', '/w/dir')
+    expect(fetcher.mock.calls.map(([input]) => String(input))).toEqual([
+      'dsh-app://app/api/open-in-app/apps',
+      'dsh-app://app/api/open-in-app/open',
+    ])
   })
 
   it('falls back to the internal host base under a null origin', async () => {
@@ -49,7 +61,7 @@ describe('OpenInAppController availability', () => {
     const fetcher = vi.fn(async (input: string | URL) => { void input; return jsonResponse({ apps: [] }) })
     const controller = new OpenInAppController(fetcher)
     await controller.load()
-    expect(String(fetcher.mock.calls[0]?.[0])).toBe('http://dsh.internal/open-in-app/apps')
+    expect(String(fetcher.mock.calls[0]?.[0])).toBe('http://dsh.internal/api/open-in-app/apps')
   })
 })
 

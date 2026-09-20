@@ -18,8 +18,15 @@ import {
   loadLayeredEnv,
   loadProfileDirectory,
   loadOverlayPatches,
+  reconcileProfilePatches,
+  runProfileConfiguration,
+  type ProfileContext,
 } from '@deepseek-ai/dsh-app-boot'
 import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
+import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { installProxyFromEnvironment } from '@deepseek-ai/dsh-http-proxy'
+import type { PluginManagementHost } from '@deepseek-ai/dsh-plugin-manager/types'
+import type {} from '@deepseek-ai/cordis-plugin-hmr'
 import { DSH_LAUNCH_ENVIRONMENT_KEY } from '@deepseek-ai/dsh-launch-environment'
 import type {} from '@deepseek-ai/dsh-api-gateway'
 import type { ConnectionFetchHandler } from '@deepseek-ai/dsh-client-connection'
@@ -149,7 +156,12 @@ function isProjectPath(projectDir: string, target: string): boolean {
   return path === root || path.startsWith(root + sep)
 }
 
-function desktopPatches(projectDir: string, allowLinkedPackages: boolean): PatchOptions[] {
+/** Compose installed Desktop bundles under the mandatory native transport overlay.
+ * @param projectDir Active or staged shell-owned project.
+ * @param allowLinkedPackages Permit workspace links only in an isolated development project.
+ * @returns Detached patches used by both initial boot and live configuration changes.
+ */
+export function desktopPatches(projectDir: string, allowLinkedPackages: boolean): PatchOptions[] {
   const dshRoot = dirname(packageManifestPath(projectDir, '@deepseek-ai/dsh'))
   const profile = loadProfileDirectory('dsh desktop', projectDir, join(dshRoot, 'package.json'))
   for (const layer of profile.layers) {
@@ -285,92 +297,126 @@ export async function runDesktopHost(
   const rootConfig = join(absoluteProject, ROOT_CONFIG_FILENAME)
   writeFileSync(rootConfig, ROOT_CONFIG)
   const environment = loadLayeredEnv('dsh desktop')
-  let current: Context | undefined
-  const ctx = await boot('dsh desktop', rootConfig, structuredClone(desktopPatches(
-    absoluteProject,
-    options.allowLinkedPackages === true,
-  )), (hostCtx) => {
-    current = hostCtx
-    hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, environment)
-    hostCtx.provide('dshProfileName', 'desktop')
-    provideCmdline(hostCtx, { args: [], exit: () => {} })
+  const disposeProxy = await installProxyFromEnvironment(environment, (message) => {
+    process.stderr.write(`dsh desktop: ${message}\n`)
   })
-  current = ctx
-  const connection = ctx.get('connection')
-  const clientModules = ctx.get('clientModules')
-  const gateway = ctx.get('typertGateway')
-  if (connection === undefined || clientModules === undefined || gateway === undefined) {
-    await ctx.fiber.dispose()
-    throw new Error('dsh desktop: composition did not provide connection, typertGateway, and clientModules')
-  }
-  const api = connection.createSharedFetchHandler('/api')
-  const assets = assetHandler(ctx, absoluteProject)
-  const streams = remoteStreamHandler(ctx)
+  let current: Context | undefined
   const requests = new Map<number, AbortController>()
   let disposing: Promise<void> | undefined
-
-  const dispose = async (): Promise<void> => {
-    disposing ??= (async () => {
-      for (const controller of requests.values()) controller.abort()
-      requests.clear()
+  const dispose = (): Promise<void> => disposing ??= (async () => {
+    for (const controller of requests.values()) controller.abort()
+    requests.clear()
+    try {
       await current?.fiber.dispose()
+    } finally {
       current = undefined
-    })()
-    await disposing
-  }
+      await disposeProxy()
+    }
+  })()
 
-  return {
-    dshVersion: dshVersion(absoluteProject),
-    cancel(streamId) {
-      requests.get(streamId)?.abort()
-    },
-    async fetch(command, body) {
-      if (disposing !== undefined) throw new Error('dsh desktop: host is disposing')
-      const controller = new AbortController()
-      requests.set(command.streamId, controller)
-      try {
-        const url = new URL(command.request.url)
-        const init: NodeRequestInit = {
-          method: command.request.method,
-          headers: new Headers(command.request.headers.map(([name, value]) => [name, value] as [string, string])),
-          ...(body === null ? {} : { body, duplex: 'half' }),
-          signal: controller.signal,
-        }
-        const request = new Request(url, init)
-        const response = url.pathname === DESKTOP_STREAM_PATH
-          ? await streams.fetch(request)
-          : url.pathname.startsWith('/api/')
-            ? await api.fetch(request)
-            : await assets.fetch(request)
-        await writeResponse(encodeDesktopResponseStart(command.streamId, {
-          status: response.status,
-          headers: [...response.headers.entries()],
-          hasBody: response.body !== null,
-        }))
-        if (response.body !== null) {
-          for await (const chunk of response.body) {
-            const bytes = Buffer.from(chunk)
-            for (let offset = 0; offset < bytes.byteLength; offset += DESKTOP_PIPE_CHUNK_BYTES) {
-              await writeResponse(encodeDesktopResponseData(
-                command.streamId,
-                bytes.subarray(offset, offset + DESKTOP_PIPE_CHUNK_BYTES),
-              ))
+  try {
+    const installAnchor = packageManifestPath(absoluteProject, '@deepseek-ai/dsh')
+    const profile = loadProfileDirectory('dsh desktop', absoluteProject, installAnchor)
+    const profileContext: ProfileContext = {
+      name: 'desktop', dir: absoluteProject, patchPath: profile.patchPath, patchReload: 'live',
+      installAnchor, cwd: absoluteProject, home: resolveDshHome(),
+      startedBundles: profile.layers.map(layer => layer.packageName),
+      overlays: loadOverlayPatches('dsh desktop', DESKTOP_PATCH),
+      telemetryDisabledEnv: environment.get('DSH_TELEMETRY_DISABLED')?.value,
+    }
+    const management: PluginManagementHost = {
+      protectedIds: ['timer', 'hmr', 'plugin-manager', 'ui-plugin-manager', 'web-startup', 'webserver',
+        'web-runtime', 'client-hmr', 'directory-picker', 'directory-picker-native', 'ui-directory-picker-native', 'connection'],
+      readPatches: () => desktopPatches(absoluteProject, options.allowLinkedPackages === true),
+    }
+    const ctx = await boot('dsh desktop', rootConfig, management.readPatches(), (hostCtx) => {
+      current = hostCtx
+      hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, environment)
+      hostCtx.provide('dshProfileName', 'desktop')
+      hostCtx.provide('profileContext', profileContext)
+      hostCtx.provide('pluginManagementHost', management)
+      provideCmdline(hostCtx, { args: [], exit: () => {} })
+    })
+    current = ctx
+    const connection = ctx.get('connection')
+    if (connection === undefined || ctx.get('clientModules') === undefined || ctx.get('typertGateway') === undefined) {
+      throw new Error('dsh desktop: composition did not provide connection, typertGateway, and clientModules')
+    }
+    const hmr = ctx.get('hmr')
+    if (hmr === undefined || hmr.config.root.length !== 0) {
+      throw new Error('dsh desktop: live configuration requires config-only HMR')
+    }
+    await hmr.registerConfig(profile.patchPath, () => runProfileConfiguration(ctx, async () => {
+      await reconcileProfilePatches(ctx, management.readPatches(), 'dsh desktop')
+    }))
+    // Close the gap between initial composition and the exact-path subscription.
+    await runProfileConfiguration(ctx, async () => {
+      await reconcileProfilePatches(ctx, management.readPatches(), 'dsh desktop')
+    })
+    const api = connection.createSharedFetchHandler('/api')
+    const assets = assetHandler(ctx, absoluteProject)
+    const streams = remoteStreamHandler(ctx)
+
+    return {
+      dshVersion: dshVersion(absoluteProject),
+      cancel(streamId) {
+        requests.get(streamId)?.abort()
+      },
+      async fetch(command, body) {
+        if (disposing !== undefined) throw new Error('dsh desktop: host is disposing')
+        const controller = new AbortController()
+        requests.set(command.streamId, controller)
+        try {
+          const url = new URL(command.request.url)
+          const init: NodeRequestInit = {
+            method: command.request.method,
+            headers: new Headers(command.request.headers.map(([name, value]) => [name, value] as [string, string])),
+            ...(body === null ? {} : { body, duplex: 'half' }),
+            signal: controller.signal,
+          }
+          const request = new Request(url, init)
+          const response = url.pathname === DESKTOP_STREAM_PATH
+            ? await streams.fetch(request)
+            : url.pathname.startsWith('/api/')
+              ? await api.fetch(request)
+              : await assets.fetch(request)
+          await writeResponse(encodeDesktopResponseStart(command.streamId, {
+            status: response.status,
+            headers: [...response.headers.entries()],
+            hasBody: response.body !== null,
+          }))
+          if (response.body !== null) {
+            for await (const chunk of response.body) {
+              const bytes = Buffer.from(chunk)
+              for (let offset = 0; offset < bytes.byteLength; offset += DESKTOP_PIPE_CHUNK_BYTES) {
+                await writeResponse(encodeDesktopResponseData(
+                  command.streamId,
+                  bytes.subarray(offset, offset + DESKTOP_PIPE_CHUNK_BYTES),
+                ))
+              }
             }
           }
+          await writeResponse(encodeDesktopResponseEnd(command.streamId))
+        } catch (error) {
+          if (!controller.signal.aborted) {
+            await writeResponse(encodeDesktopResponseError(
+              command.streamId,
+              error instanceof Error ? error.message : String(error),
+            ))
+          }
+        } finally {
+          requests.delete(command.streamId)
         }
-        await writeResponse(encodeDesktopResponseEnd(command.streamId))
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          await writeResponse(encodeDesktopResponseError(
-            command.streamId,
-            error instanceof Error ? error.message : String(error),
-          ))
-        }
-      } finally {
-        requests.delete(command.streamId)
-      }
-    },
-    dispose,
+      },
+      dispose,
+    }
+  } catch (error) {
+    try {
+      await dispose()
+    } catch (cleanupError) {
+      throw new AggregateError([error, cleanupError], 'dsh desktop: boot and cleanup failed')
+    }
+    throw error
   }
 }
 

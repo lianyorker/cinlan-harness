@@ -42,6 +42,19 @@ Mount the service with a provider and the delegation tool. The provider register
 
 An agent that calls the tool gets the child's final answer as the tool result. Mounting the service alone changes nothing: nothing can delegate until a provider and a tool are composed.
 
+<a id="delegation-limits"></a>
+
+### Delegation limits
+
+The service registers the live `subagent` settings namespace when a settings provider is present. User values override service configuration; clearing an override restores the configured value. The Settings Subagent card edits these fields without changing model authorization.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `maxDepth` | `3` | Absolute depth for delegation tools without an explicit limit; `1` allows direct children only and `0` disables delegation |
+| `maxActiveSubagents` | `8` | Live continuable children sharing one uninterrupted continuable parent chain |
+
+A tool's explicit numeric `maxDepth` takes precedence over the shared setting, and `provider-managed` leaves depth to that provider. Capacity counts children being created or resumed, running children, and idle children retained by unfinished work or descendants. New starts and cold resumes fail immediately at capacity; resident-child messages remain accepted. Capacity returns after handle disposal, including failed creation rollback. Lowering capacity leaves existing children running and limits subsequent admission. One-shot runs and independent root Agents have separate lifetimes and do not consume the same pool.
+
 ### One-shot and continuable children
 
 One-shot children run once and settle with a single result, plus an optional structured output and a safe diagnostic on failure. A start request may override the child Agent's provider, model, reasoning effort, and output-token limit through `agentOptions`; every requested option requires the provider's matching capability. Continuable children keep a durable session and accept later messages in order: the caller receives a stable child id, sends adjacent-Agent messages, and can interrupt the current turn without destroying the child. The tool row's `backgroundMode` picks the shape (`one-shot` by default, or `continuable` on providers that support it).
@@ -121,6 +134,8 @@ Read these pages when the package-level contract is not enough. They move from t
 
 -----
 
+In-process delegation captures an active `auto` or `danger-full-access` preset identity before its first await and appends it after the child seed and policy overrides. This prevents a stale fork selection from changing whether the child is reviewed; later parent switches do not change the child. Out-of-process providers retain their own authorization.
+
 <a id="model-experience"></a>
 ## Model Experience
 
@@ -128,7 +143,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 #### What the model sees
 
-One user-role parent message opening with the outcome — `Background subagent <child-id> finished and will do no further work unless you send it more.`, or the matching line for a child that was stopped, ran out of room, declined, or failed — followed by `Its closing message:` and the child's final assistant content, or `It left no closing message.` when it produced none. This runtime-owned notice is distinct from model-authored parent/child messages, which use `sendMessage()` and `AgentMessageSource`; delegation schemas and model controls belong to the Consumer packages.
+One user-role parent message opening with the outcome — `Background subagent <child-id> finished and will do no further work unless you send it more.`, or the matching line for a child that was stopped, ran out of room, declined, or failed — followed by `Its closing message:` and the child's nonempty final text blocks in their original order, or `It left no closing message.` when no nonempty text remains. Reasoning, tool calls, and images remain in the child's log and are not relayed; run-end events and foreground results retain the original output. This runtime-owned notice is distinct from model-authored parent/child messages, which use `sendMessage()` and `AgentMessageSource`; delegation schemas and model controls belong to the Consumer packages.
 
 #### Token effect
 

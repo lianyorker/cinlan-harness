@@ -33,6 +33,8 @@ const { mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotification
     throw new Error(`unexpected MCP request: ${request.method}`)
   })
   class MockClient {
+    getInstructions = () => undefined
+    getServerCapabilities = () => ({ tools: {} })
     onclose: (() => void) | undefined
     onerror: ((error: Error) => void) | undefined
     connect = mockConnect

@@ -1,3 +1,5 @@
+import { hostname } from 'node:os'
+import { nativeFileManager } from '@deepseek-ai/dsh-native-command'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import SessionStore from '@deepseek-ai/dsh-session'
@@ -15,6 +17,26 @@ async function context(): Promise<Context> {
 }
 
 describe('session/openWorkspacePath', () => {
+  it('describes the serving desktop and dispatches reveal without starting an Agent', async () => {
+    const ctx = await context()
+    try {
+      const openPath = vi.fn<(_path: string, _signal: AbortSignal) => Promise<void>>().mockResolvedValue()
+      const revealPath = vi.fn<(_path: string, _signal: AbortSignal) => Promise<void>>().mockResolvedValue()
+      const controller = createSessionTestController(ctx, {
+        defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/default',
+        openPath, revealPath, canOpenPath: () => true,
+      })
+      expect(controller.workspaceDesktop()).toEqual({
+        name: hostname(), available: nativeFileManager() !== null, fileManager: nativeFileManager(),
+      })
+      const signal = new AbortController().signal
+      await expect(controller.openWorkspacePath({ path: '/workspace/report.pdf', action: 'reveal' }, signal)).resolves.toEqual({ opened: true })
+      expect(revealPath).toHaveBeenCalledWith('/workspace/report.pdf', signal)
+      expect(openPath).not.toHaveBeenCalled()
+      expect(ctx.agents.list()).toEqual([])
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('reports the deployment opener capability independently of a Session', async () => {
     const ctx = await context()
     const remote = createSessionTestRemote(ctx, {

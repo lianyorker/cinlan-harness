@@ -1,9 +1,9 @@
 /**
- * Client half of dsh-better-sidebar: resolves the user's "Side card"
- * preferences through the standard settings scope, mounts the
+ * Client half of the workspace panels: resolves feature preferences
+ * through the standard settings scope, mounts the
  * right sidebar portal (inside an error boundary so a rendering failure
  * shows an error strip instead of a blank panel), registers the turn-tail
- * interception, and contributes the Side card settings section to the DSH
+ * interception, and contributes independent feature pages to the
  * Settings shell. Requires the runtime's slots and sessions services; the
  * bundle itself is a module-table consumer only (react + ui-primitives +
  * xterm, all provided or inlined).
@@ -18,8 +18,10 @@ import type { SidebarTerminalSessionId } from '@deepseek-ai/dsh-sidebar-terminal
 import { createBetterSidebarService, matchUrlTarget } from './service.ts'
 import { revalidateChunksOnReactivate, setChunkModuleSystem } from './chunk-loader.ts'
 import { registerBuiltins } from './builtins/index.ts'
+import { createOfficeReader } from './office/read-office.ts'
 import { registerEditorCommands } from './keyboard-commands.ts'
 import { Sidebar } from './Sidebar.tsx'
+import { registerSubagentChat } from './SubagentChatView.tsx'
 import { RenderBoundary } from './RenderBoundary.tsx'
 import { registerOpenPathInterception, registerTurnTailInterception } from './intercept.tsx'
 import { registerLinkInterception } from './link-intercept.ts'
@@ -29,18 +31,17 @@ import { parsePrefs } from './prefs.ts'
 import { SIDEBAR_PREFS_NS, type SidebarPrefs } from '../prefs-shared.ts'
 import { SidebarPreferencesController } from './preferences-controller.ts'
 
-import { SideCardSection } from './SideCardSection.tsx'
+import { registerFeatureSettings } from './settings-navigation.tsx'
 import { api, createSidebarGitClient } from './api.ts'
 import { LOCALE_NS, attachLocale, t, zh, en } from './locales.ts'
 import css from './sidebar.module.css'
 import './layout.css'
-import { IconPanelRightOutline16 } from './icons.tsx'
 
 /** Services required before mounting (provided by the client runtime; the
  *  locale service backs the sidebar's copy — see locales.ts). `modules`
  *  (rc.8+) is the client module system the chunk loader resolves its
  *  externals through — Cordis guards service access without inject. */
-export const inject = ['slots', 'sessions', 'connection', 'workspaces', 'locale', 'modules', 'settingsScope', 'keyboard', 'remote', 'remote.sidebarGit', 'sidebarTerminalClient']
+export const inject = ['slots', 'sessions', 'connection', 'workspaces', 'locale', 'modules', 'settingsScope', 'settingsMetadata', 'keyboard', 'remote', 'remote.sidebarGit', 'remote.officeToPdf', 'sidebarTerminalClient']
 
 /**
  * Error boundary over the sidebar tree (root scope): a render error in the
@@ -110,6 +111,7 @@ function applySidebar(ctx: Context): void {
   })
   ctx.effect(() => registerEditorCommands(ctx.keyboard, t), 'better-sidebar: editor shortcuts')
   ctx.provide('betterSidebar', service)
+  registerSubagentChat(ctx)
   // Terminal tab titles use the host's effective shell name (e.g. bash/zsh)
   // instead of "Terminal 1". Start with a safe fallback and replace it as
   // soon as the host shell info resolves. Tabs created before the response
@@ -136,7 +138,9 @@ function applySidebar(ctx: Context): void {
   // service (eating our own dogfood). The disposer unregisters them on
   // fiber disposal (HMR-safe).
   ctx.effect(
-    () => registerBuiltins(ctx, service, { terminalTitle: () => terminalTitle, terminal, floatingContext, git }),
+    () => registerBuiltins(
+      ctx, service, { terminalTitle: () => terminalTitle, terminal, floatingContext, git }, createOfficeReader(ctx.remote.officeToPdf),
+    ),
     'dsh-better-sidebar: register built-in tabs and viewers',
   )
   ctx.provide('floatingTerminalConsumer', true)
@@ -299,7 +303,7 @@ function applySidebar(ctx: Context): void {
         if (suspended) unmount()
         else mount()
       }
-      void sync()
+      sync()
       const offExternalPanel = externalPanel.subscribe(sync)
       return () => {
         disposed = true
@@ -403,22 +407,7 @@ function applySidebar(ctx: Context): void {
       'dsh-better-sidebar: IME composition guard',
     )
 
-    // The "Side card" settings section: appears in the DSH Settings shell
-    // once the shell's declaration is on the ledger (slots.inject waits for
-    // it); the section reads/writes the feature-owned standard settings scope
-    // and renders the declarative enable/disable inventory from the tab/viewer
-    // registry.
-    ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
-      name: 'settings.section.icon',
-      key: 'better-sidebar',
-    }, IconPanelRightOutline16))
-    ctx.slots.inject('settings.section', () => ctx.slots.register({
-      name: 'settings.section',
-      id: 'better-sidebar',
-      order: 100,
-      label: () => t('settingsNav'),
-      inject: () => ({ store: sidebarStore, service, preferences }),
-    }, SideCardSection))
+    registerFeatureSettings(ctx, { store: sidebarStore, service, preferences })
   } catch (error) {
     fail('load', error)
   }

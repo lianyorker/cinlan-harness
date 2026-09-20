@@ -17,7 +17,7 @@ import { stat, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Context, SidebarHttpRequest, SidebarHttpResponse } from './context-types.ts'
-import type { HostConnectionFetch } from '@deepseek-ai/dsh-client-connection'
+import type { HostConnectionFetch } from '@deepseek-ai/dsh-client-connection/types'
 
 /** The chunk names the client may request (mirror of src/client/chunk-loader.ts). */
 export const CHUNK_NAMES = ['terminal', 'editor', 'mermaid'] as const

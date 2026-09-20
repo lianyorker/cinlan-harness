@@ -30,6 +30,8 @@ export interface ProviderDirectoryEntry {
   readonly settingsPath: readonly string[]
   readonly active: boolean
   readonly declared?: boolean
+  /** Adapter diagnostic when this provider cannot serve requests. */
+  readonly error?: string
 }
 
 /**
@@ -51,6 +53,7 @@ export function joinProviderDirectory(
     settingsPath: [...entry.settingsPath],
     active: active.has(entry.provider),
     ...entry.declared === undefined ? {} : { declared: entry.declared },
+    ...entry.error === undefined ? {} : { error: entry.error },
   }))
   for (const provider of registered) {
     if (declared.has(provider.id)) continue
@@ -113,7 +116,7 @@ export function deriveKeyRef(provider: string): string {
 }
 
 /**
- * The wire protocols a hand-declared route may name, read out of the owning
+ * The wire protocols a DeepSeek or hand-declared pi-ai route may name, read from its
  * namespace's own schema. This stays a schema read rather than a wire field so
  * the choices the page offers cannot drift from the ones the adapter accepts:
  * both come from the same `Config`.
@@ -126,7 +129,8 @@ export function protocolChoices(
   schema: SettingsSchemaOperations,
 ): string[] {
   if (namespace === undefined) return []
-  const node = schema.nodeAtPath(schema.rehydrate(namespace.schema), ['providers', PROBE_ROUTE, 'api'])
+  const path = namespace.ns === 'llm-deepseek' ? ['protocol'] : ['providers', PROBE_ROUTE, 'api']
+  const node = schema.nodeAtPath(schema.rehydrate(namespace.schema), path)
   const list = (node as { type?: string; list?: readonly { value?: unknown }[] } | undefined)
   if (list?.type !== 'union' || list.list === undefined) return []
   return list.list.map(entry => entry.value).filter((value): value is string => typeof value === 'string')
@@ -252,7 +256,7 @@ export class ModelsSettingsStore {
 
 /**
  * Whether a joined row can serve model requests as it stands: the route is
- * registered with the adapter registry, and whatever credential its resolved
+ * registered without a provider error, and whatever credential its resolved
  * profile names is stored. A profile naming no reference authenticates through
  * the provider's own path (the Bedrock chain, Vertex ADC, a gateway that needs
  * nothing), as does a live route with no settings address at all, so neither
@@ -261,7 +265,7 @@ export class ModelsSettingsStore {
  * @returns whether the user already has this provider to talk to.
  */
 export function providerUsable(row: ProviderRow): boolean {
-  if (!row.entry.active) return false
+  if (!row.entry.active || row.entry.error !== undefined) return false
   if (row.apiKeyEnv === undefined) return true
   return row.credential?.configured === true
 }
@@ -308,7 +312,7 @@ export function onboardingReadiness(state: ModelsSettingsState): OnboardingReadi
     && candidate.entry.settingsNs === 'llm-deepseek'
     && candidate.entry.settingsPath.length === 0)
   if (row === undefined) return { kind: 'adapter-absent' }
-  if (!row.entry.active) {
+  if (!row.entry.active || row.entry.error !== undefined) {
     return {
       kind: 'unavailable',
       reason: 'provider-inactive',

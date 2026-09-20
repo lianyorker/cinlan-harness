@@ -2,7 +2,7 @@
 
 [English](mcp.md) | 中文
 
-MCP 将外部工具服务器接入 Harness，并提供可检查的连接状态。[客户端桥接](../../packages/mcp/mcp-client/README.zh.md) 拥有活动连接与已发现工具；[管理服务](../../packages/mcp/mcp-management/README.zh.md) 为单个启动 profile 保存服务器定义。本参考说明这两个包声明的类型。
+MCP 将外部工具服务器接入 Harness，并提供可检查的连接状态。[客户端桥接](../../packages/mcp/mcp-client/README.zh.md) 拥有活动连接与已发现工具；[管理服务](../../packages/mcp/mcp-management/README.zh.md) 为单个启动 profile 保存服务器定义。[资源服务](../../packages/mcp/mcp-resources/README.zh.md)提供调用方作用域内的发现与读取。本参考说明这些包声明的类型。
 
 ## 连接身份与观测
 
@@ -61,8 +61,19 @@ MCP 将外部工具服务器接入 Harness，并提供可检查的连接状态�
 | 类型 | 字段与含义 |
 |---|---|
 | `ConnectionOutcome` | 首次尝试产生的可选 `error`。单凭 `ready` promise 成功兑现不能确定连接已就绪。 |
-| `ConnectionHandle` | `ready` 报告首次结算；`getSnapshot()` 与 `subscribe()` 公开已提交状态；`probe(signal)` 刷新描述符；`dispose()` 等待清理完成。并发释放共享同一次完成。 |
+| `ConnectionHandle` | `ready` 报告首次结算；`getSnapshot()` 与 `subscribe()` 公开已提交状态；`probe(signal)` 刷新描述符；`resources` 将请求路由至已初始化的当前世代；`dispose()` 等待清理完成。并发释放共享同一次完成。 |
 | `McpLaunchOptions` | 可选 `owner`、在保持服务器身份不变的前提下为每次尝试解析新凭据的 `resolveConfig(signal)`，以及从公开元数据中移除已知秘密值的 `redact(text)`。 |
+
+## 作用域资源
+
+来源：[资源运行时](../../packages/mcp/mcp-resources/src/index.ts)。提供方以配置的服务器名称在 effect 所有者的作用域中注册。后代继承最近的提供方；无关作用域不能通过该提供方派发。首个本地提供方公开三个共享工具，最后一个移除时撤销这些工具。
+
+| 类型 | 字段与含义 |
+|---|---|
+| `McpResourceRequest` | `resources/list` 或 `resources/templates/list` 带可选不透明 `cursor`；`resources/read` 带显式 `uri`。 |
+| `McpResourceProvider` | `request(request, execution)` 接收调用方身份与取消信号，并返回无损 JSON。 |
+
+资源列表返回一页并保留 `nextCursor`。读取结果保留规范文本或二进制内容，模型文本则将 base64 `blob` 值替换为长度说明。配置的提供方名称在连接失败期间保持可见；协商、断开或释放期间调用会失败。托管请求使用与工具调用相同的安全错误分类。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -153,4 +164,22 @@ subscribe(listener: () => void): () => void
 ```
 
 Source: [`packages/mcp/mcp-client/src/registry.ts`](../../packages/mcp/mcp-client/src/registry.ts)
+
+<a id="ctxmcpresources--mcpresourceruntime"></a>
+
+### `ctx.mcpResources` — `McpResourceRuntime`
+
+Scoped resource access plus three tools shared by configured MCP servers.
+
+```ts cordis-catalog
+/**
+ * Register one server and expose resource tools while that scope has providers.
+ * @param server - configured server name, unique in this scope.
+ * @param provider - connection-owned resource operations.
+ * @returns the effect disposer for this exact registration.
+ */
+register(server: string, provider: McpResourceProvider): () => void
+```
+
+Source: [`packages/mcp/mcp-resources/src/index.ts`](../../packages/mcp/mcp-resources/src/index.ts)
 <!-- END GENERATED cordis-surface -->

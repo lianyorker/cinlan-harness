@@ -134,7 +134,13 @@ describe('terminal-design type chain', () => {
       }, Conv)
 
       // Pure reader: same handle, no inject.
-      core.register({ name: 'chain.conv', store: chat }, Details)
+      core.register({ name: 'chain.conv', store: chat, reusable: true }, Details)
+      // @ts-expect-error only single Session entries may opt into reuse
+      core.register({ name: 'chain.frame', reusable: true }, Blind)
+      // @ts-expect-error keyed entries cannot opt into reuse
+      core.register({ name: 'chain.tools', key: 'bash', reusable: true }, Tool)
+      // @ts-expect-error opting in requires the literal true
+      core.register({ name: 'chain.conv', store: chat, reusable: false }, Details)
 
       // Owner + store shares arrive typed on the component face. Standard-kit
       // member payloads are the owning adapters' property — not probed here

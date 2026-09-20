@@ -1,7 +1,8 @@
 /** Read-only root-scope MCP observations contributed by connection launchers. @module */
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { notifyObservers } from './observation.ts'
-import type { ConnectionHandle, McpConnectionId, McpConnectionSnapshot } from './types.ts'
+import type { McpConnectionId, McpConnectionSnapshot } from './types.ts'
+import type { ConnectionHandle } from './host-types.ts'
 
 export type { McpConnectionSnapshot } from './types.ts'
 

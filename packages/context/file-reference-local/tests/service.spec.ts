@@ -31,7 +31,7 @@ async function stubAgent(
   ctx: Context,
   id = 'file-reference-agent',
   includeCwd = true,
-): Promise<{ agent: Agent; dispose: () => void }> {
+): Promise<{ agent: Agent; dispose: () => Promise<void> }> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-file-reference-service-'))
   roots.push(root)
   await writeFile(join(root, 'README.md'), 'readme')
@@ -51,7 +51,7 @@ async function stubAgent(
     cancel() {},
     whenIdle: () => Promise.resolve(),
   } as unknown as Agent
-  return { agent, dispose: ctx.agents.register(agent) }
+  return { agent, dispose: await ctx.agents.register(agent) }
 }
 
 describe('LocalFileReferenceService', () => {
@@ -95,7 +95,7 @@ describe('LocalFileReferenceService', () => {
     ctx.emit('session/event', orphan, { type: 'tool/result' } as never)
     expect(invalidate).toHaveBeenCalledOnce()
 
-    dispose()
+    await dispose()
     expect(close).toHaveBeenCalledOnce()
     ctx.emit('agent/disposed', { agent })
   })
@@ -131,11 +131,75 @@ describe('LocalFileReferenceService', () => {
     const fiber = ctx.plugin(LocalFileReferenceService)
     await fiber
     const { agent } = await stubAgent(ctx, 'cwd-fallback', false)
-    ctx.emit('agent/created', { agent })
+    await ctx.serial('agent/created', { agent, source: 'startup' })
     const list = vi.spyOn(WorkspaceFileSearch.prototype, 'list').mockResolvedValue([])
     await expect(ctx.fileReferences.list(agent, '', new AbortController().signal)).resolves.toEqual([])
     await expect(ctx.fileReferences.list(agent, 'src', new AbortController().signal)).resolves.toEqual([])
     expect(list).toHaveBeenCalledTimes(2)
+  })
+
+  it('awaits prompt initialization before later creation listeners and registration', async () => {
+    const ctx = await harness()
+    await ctx.plugin(LocalFileReferenceService)
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const order: string[] = []
+    const prompt = ctx.plugin(async () => {
+      await release.promise
+      order.push('prompt-ready')
+    })
+    vi.spyOn(ctx, 'inject').mockImplementationOnce(() => {
+      entered.resolve(undefined)
+      return prompt
+    })
+    ctx.on('agent/created', () => { order.push('next-listener') })
+    const registration = stubAgent(ctx, 'prompt-readiness').then((handle) => {
+      order.push('registered')
+      return handle
+    })
+    try {
+      await entered.promise
+      expect(order).toEqual([])
+      release.resolve(undefined)
+      const handle = await registration
+      expect(order).toEqual(['prompt-ready', 'next-listener', 'registered'])
+      await handle.dispose()
+    } finally {
+      release.resolve(undefined)
+      await registration
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('rolls back registration when the prompt fiber fails', async () => {
+    const ctx = await harness()
+    await ctx.plugin(LocalFileReferenceService)
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const failure = new Error('prompt installation failed')
+    const prompt = ctx.plugin(async () => {
+      await release.promise
+      throw failure
+    })
+    vi.spyOn(ctx, 'inject').mockImplementationOnce(() => {
+      entered.resolve(undefined)
+      return prompt
+    })
+    const later = vi.fn()
+    ctx.on('agent/created', later)
+    const registration = stubAgent(ctx, 'prompt-failure')
+    const rejected = expect(registration).rejects.toThrow('prompt installation failed')
+    try {
+      await entered.promise
+      release.resolve(undefined)
+      await rejected
+      expect(later).not.toHaveBeenCalled()
+      expect(ctx.agents.roots()).toEqual([])
+    } finally {
+      release.resolve(undefined)
+      await rejected
+      await ctx.fiber.dispose()
+    }
   })
 
   it('logs rejected prompt cleanup without failing service teardown', async () => {
@@ -151,8 +215,8 @@ describe('LocalFileReferenceService', () => {
     const first = await stubAgent(ctx, 'cleanup-one')
     const second = await stubAgent(ctx, 'cleanup-two')
     expect(inject).toHaveBeenCalledTimes(2)
-    first.dispose()
-    second.dispose()
+    await first.dispose()
+    await second.dispose()
     await vi.waitFor(() => {
       expect(warn).toHaveBeenCalledWith('file-reference-local: prompt cleanup failed: error cleanup')
       expect(warn).toHaveBeenCalledWith('file-reference-local: prompt cleanup failed: string cleanup')

@@ -1,30 +1,10 @@
-/**
- * The 6 built-in file viewer descriptors: every preview surface is a
- * registered viewer (image / pdf / markdown / html / code /
- * binary-download), exactly like external plugins register theirs. Office
- * previews (.docx / .xlsx / .pptx) are NOT built in anymore — they moved to
- * the recommended office plugin (see plugins-viewers.ts), which registers
- * the same ids through this service.
- *
- * The `binary-download` viewer sniffs NUL bytes via `detect` for unknown
- * binaries and serves legacy doc/xls/ppt by extension; `code` is the
- * catch-all (`exts: []`, lowest priority) that claims any file no other
- * viewer did.
- *
- * The heavy viewers (the CodeMirror-backed markdown/html/code) render
- * through {@link lazyChunkComponent} wrappers — their libraries are fetched
- * only when such a file is first opened (see chunk-loader.ts). The
- * descriptor metadata (id/exts/priority/detect) is identical either way,
- * so matching semantics and external-plugin overrides are unaffected; the
- * `component` wrapper keeps the descriptor contract `(props) => ReactNode`.
- *
- * Every viewer carries the declarative settings-surface fields — `title`
- * and `icon` — so the Side card settings page can render the enable/disable
- * inventory without hardcoding (eating our own dogfood).
- */
+/** Built-in previews use the public file viewer registry and its Settings enablement. */
 import { IconCodeOutline16, IconDownloadOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { VscFileText, VscTable, VscPreview } from 'react-icons/vsc'
 import { lazyChunkComponent } from '../lazy-chunk.tsx'
 import { PdfView } from '../PdfView.tsx'
+import { OfficePreview } from '../office/OfficePreview.tsx'
+import type { ReadOfficePreview } from '../office/read-office.ts'
 import { BinaryDownload } from '../binary-download.tsx'
 import {
   IconImageOutline16,
@@ -46,8 +26,13 @@ import css from '../sidebar.module.css'
  */
 const LazyTextEditor = lazyChunkComponent<FileViewerProps>('editor', mod => mod.TextEditor as ComponentType<FileViewerProps> | undefined)
 
-/** The 6 built-in file viewer descriptors. */
-export function builtinViewers(matchShortcut?: MatchEditorShortcut): readonly FileViewerDescriptor[] {
+/**
+ * Declare previews with the same priority and enablement rules as external viewers.
+ * @param matchShortcut - Keyboard matcher shared by the lazy text editors.
+ * @param readOffice - Authorized Host conversion callback supplied by apply.
+ * @returns File viewer descriptors, including read-only Word, Excel, and PowerPoint.
+ */
+export function builtinViewers(matchShortcut?: MatchEditorShortcut, readOffice?: ReadOfficePreview): readonly FileViewerDescriptor[] {
   return [
     {
       id: 'image',
@@ -70,6 +55,30 @@ export function builtinViewers(matchShortcut?: MatchEditorShortcut): readonly Fi
       component: ({ scope, path, title }) => (
         <PdfView scope={scope} path={path} title={title} />
       ),
+    },
+    {
+      id: 'docx',
+      title: () => t('viewerWord'),
+      icon: (size: number) => <VscFileText size={size} />,
+      exts: ['doc', 'docx'],
+      fetchStrategy: 'none',
+      component: ({ scope, path, title }) => <OfficePreview read={readOffice} scope={scope} path={path} title={title} />,
+    },
+    {
+      id: 'xlsx',
+      title: () => t('viewerExcel'),
+      icon: (size: number) => <VscTable size={size} />,
+      exts: ['xls', 'xlsx'],
+      fetchStrategy: 'none',
+      component: ({ scope, path, title }) => <OfficePreview read={readOffice} scope={scope} path={path} title={title} />,
+    },
+    {
+      id: 'pptx',
+      title: () => t('viewerPowerPoint'),
+      icon: (size: number) => <VscPreview size={size} />,
+      exts: ['ppt', 'pptx'],
+      fetchStrategy: 'none',
+      component: ({ scope, path, title }) => <OfficePreview read={readOffice} scope={scope} path={path} title={title} />,
     },
     {
       id: 'markdown',
@@ -114,7 +123,7 @@ export function builtinViewers(matchShortcut?: MatchEditorShortcut): readonly Fi
       id: 'binary-download',
       title: () => t('viewerBinary'),
       icon: (size: number) => <IconDownloadOutline16 size={size} />,
-      exts: ['doc', 'xls', 'ppt'],
+      exts: ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'],
       priority: -50,
       fetchStrategy: 'binary-download',
       // NUL probe: a file whose head bytes contain a NUL is binary — claimed

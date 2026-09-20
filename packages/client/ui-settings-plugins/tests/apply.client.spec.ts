@@ -120,8 +120,7 @@ describe('ui-settings-plugins apply', () => {
     expect(Object.keys(tabFace.hooks)).toEqual(['configurablePlugins'])
     for (const entry of slots.entries('settings.plugin.item')) {
       const face = (entry as { inject?: () => unknown }).inject?.() as { hooks: Record<string, unknown> }
-      // Each card injects exactly one snapshot store plus its own actions.
-      expect(Object.keys(face.hooks)).toHaveLength(1)
+      expect(Object.keys(face.hooks)).toHaveLength(entry.options.key === 'subagent-model-selection' ? 2 : 1)
     }
   })
 
@@ -133,6 +132,32 @@ describe('ui-settings-plugins apply', () => {
 
     expect(slots.entries('settings.plugin.item').map(entry => entry.options.key))
       .toEqual(['shell', 'agent-loop', 'subagent-model-selection', 'web-search-deepseek'])
+  })
+
+  it('keeps one searchable Subagent card as either settings namespace comes and goes', async () => {
+    const served = ['subagent']
+    const { ctx, slots, remote } = await bench(served)
+    declareRoot(slots)
+    const fiber = await ctx.plugin({ inject: [...inject], apply })
+    try {
+      const tab = slots.entries('settings.plugins.tab')[0]!
+      const face = (tab.inject as unknown as () => ConfigurablePluginsTabFace)()
+      await vi.waitFor(() => { expect(face.hooks.configurablePlugins.getSnapshot().namespaces).toEqual(['subagent']) })
+      served.push('subagent-model-selection')
+      remote.emit('settings/document-updated', ['subagent', 1])
+      await vi.waitFor(() => {
+        expect(face.hooks.configurablePlugins.getSnapshot().namespaces).toEqual(['subagent-model-selection'])
+      })
+      expect(slots.entries('settings.plugin.item').filter(entry => entry.options.key?.startsWith('subagent'))).toHaveLength(1)
+      expect(ctx.settingsMetadata.getSnapshot().items.filter(item => item.id === 'subagent-model-selection')).toHaveLength(1)
+      served.splice(0)
+      remote.emit('settings/document-updated', ['subagent', 2])
+      await vi.waitFor(() => { expect(face.hooks.configurablePlugins.getSnapshot().namespaces).toEqual([]) })
+      await fiber.dispose()
+      expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
+    } finally {
+      await ctx.fiber.dispose()
+    }
   })
 
   it('dispatches the served namespaces its cards claim, and no others', async () => {

@@ -1,0 +1,16 @@
+{
+  "name": "@dsh-desktop-acceptance/probe",
+  "version": "0.0.0-desktop-acceptance",
+  "private": true,
+  "type": "module",
+  "description": "Isolated Desktop plugin lifecycle acceptance fixture",
+  "exports": {
+    ".": "./index.mjs",
+    "./observer": "./observer.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "cordis.patch.yml"
+    }
+  }
+}

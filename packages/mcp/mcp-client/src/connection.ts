@@ -1,6 +1,7 @@
 /** One MCP transport generation at a time, with bounded reconnection and serialized discovery. @module */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js'
+import { ListResourcesResultSchema, ListResourceTemplatesResultSchema, ReadResourceResultSchema, ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js'
+import { assertNever, type JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { Context } from '@deepseek-ai/cordis'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { createTransport } from './transport.ts'
@@ -9,8 +10,10 @@ import type { ToolBridgeOptions, ToolDisposers } from './tools.ts'
 import type { Config } from './index.ts'
 import { McpConnectionFailure, connectionErrorCode } from './failure.ts'
 import { notifyObservers } from './observation.ts'
-import type { ConnectionHandle, ConnectionOutcome, McpConnectionState, McpLaunchOptions, McpToolDescriptor } from './types.ts'
-export type { ConnectionHandle, ConnectionOutcome } from './types.ts'
+import type { ConnectionOutcome, McpConnectionState, McpLaunchOptions, McpToolDescriptor } from './types.ts'
+import type { ConnectionHandle } from './host-types.ts'
+export type { ConnectionOutcome } from './types.ts'
+export type { ConnectionHandle } from './host-types.ts'
 
 import type { ReconnectConfig } from './types.ts'
 export type { ReconnectConfig } from './types.ts'
@@ -19,6 +22,8 @@ export type { ReconnectConfig } from './types.ts'
 export const RECONNECT_DEFAULTS: Required<ReconnectConfig> = Object.freeze({
   enabled: true, initialDelayMs: 500, maxDelayMs: 30_000, maxAttempts: 10,
 })
+/** Default UTF-8 byte limit for attributed server instructions. */
+export const DEFAULT_MAX_INSTRUCTION_BYTES = 32_768
 // The SDK owns two two-second termination grace periods; the final second
 // accommodates the process-close event without allowing overlapping children.
 const GENERATION_CLOSE_TIMEOUT_MS = 5_000
@@ -58,6 +63,7 @@ interface Generation {
   closed: PromiseWithResolvers<void>
   initialized: boolean
   settled: boolean
+  instructions: string
   closeTask?: Promise<boolean>
 }
 
@@ -87,6 +93,7 @@ export function startConnection(
 ): ConnectionHandle {
   const label = 'mcp-client(' + config.serverName + ')'
   const safeDiagnostics = options.owner?.kind === 'managed' || options.resolveConfig !== undefined
+  const maxInstructionBytes = config.maxInstructionBytes ?? DEFAULT_MAX_INSTRUCTION_BYTES
   const lifecycle = new AbortController()
   const listeners = new Set<() => void>()
   let state: McpConnectionState = Object.freeze({ phase: 'connecting', attempt: 0, tools: Object.freeze([]) })
@@ -106,6 +113,16 @@ export function startConnection(
   const fail = (error: unknown, fallback: 'connection-failed' | 'tool-sync-failed'): void => {
     publish({ phase: 'error', attempt: failedAttempts, tools: state.tools, errorCode: connectionErrorCode(error, fallback) })
   }
+
+  ctx.inject(['systemPrompt'], (inner) => {
+    inner.systemPrompt.section({
+      name: 'mcp:' + config.serverName,
+      order: inner.systemPrompt.getSectionOrder('MCP_SERVERS'),
+      interpolate: false,
+      text: () => current !== undefined && isCurrent(current) && !isAborted(current.controller.signal)
+        ? current.instructions : '',
+    })
+  })
 
   function enqueueSync(generation: Generation, startup = false, probeSignal?: AbortSignal): Promise<void> {
     const signal = AbortSignal.any([lifecycle.signal, generation.controller.signal, ...probeSignal === undefined ? [] : [probeSignal]])
@@ -207,7 +224,7 @@ export function startConnection(
       const transport = createTransport(resolved, safeDiagnostics)
       generation = {
         client: new Client({ name: 'dsh-mcp-client', version: '0.0.1' }, { capabilities: {} }),
-        controller: new AbortController(), closed: Promise.withResolvers<void>(), initialized: false, settled: false,
+        controller: new AbortController(), closed: Promise.withResolvers<void>(), initialized: false, settled: false, instructions: '',
       }
       const active = generation
       current = active
@@ -233,10 +250,17 @@ export function startConnection(
       await cancellable(connecting, signal)
       if (!isCurrent(active) || isAborted(active.controller.signal)) throw new McpConnectionFailure('connection-failed')
       active.initialized = true
+      const serverText = active.client.getInstructions()?.trimEnd() ?? ''
+      const attributed = serverText ? '### MCP server: ' + config.serverName + '\n\n' + serverText : ''
+      const instructions = options.redact?.(attributed) ?? attributed
+      if (Buffer.byteLength(instructions) > maxInstructionBytes) {
+        throw new Error(label + ': server instructions exceed maxInstructionBytes (' + String(maxInstructionBytes) + ')')
+      }
       await enqueueSync(active, startup)
       active.settled = true
       if (isAborted(active.controller.signal)) { generationDown(active); return }
       if (!isCurrent(active)) return
+      active.instructions = instructions
       connectedAt = Date.now()
       if (startup && state.phase === 'error') firstAttemptError = new McpConnectionFailure(state.errorCode ?? 'tool-sync-failed')
       if (failedAttempts > 0) ctx.logger.info(label + ': reconnected and re-synced tools (attempt ' + String(failedAttempts) + '/' + String(policy.maxAttempts) + ')')
@@ -270,6 +294,41 @@ export function startConnection(
   })
   return {
     ready,
+    resources: {
+      async request(request, exec): Promise<JsonValue> {
+        const generation = current
+        if (generation === undefined || !generation.initialized || !isCurrent(generation)
+          || isAborted(generation.controller.signal)) throw new McpConnectionFailure('connection-failed')
+        const signal = AbortSignal.any([exec.signal, lifecycle.signal, generation.controller.signal])
+        const requestOptions = { signal, timeout: config.toolCallTimeoutMs }
+        try {
+          signal.throwIfAborted()
+          switch (request.method) {
+            case 'resources/list':
+              if (generation.client.getServerCapabilities()?.resources === undefined) return { resources: [] }
+              return await generation.client.request({
+                method: request.method, ...request.cursor === undefined ? {} : { params: { cursor: request.cursor } },
+              }, ListResourcesResultSchema, requestOptions) as JsonValue
+            case 'resources/templates/list':
+              if (generation.client.getServerCapabilities()?.resources === undefined) return { resourceTemplates: [] }
+              return await generation.client.request({
+                method: request.method, ...request.cursor === undefined ? {} : { params: { cursor: request.cursor } },
+              }, ListResourceTemplatesResultSchema, requestOptions) as JsonValue
+            case 'resources/read':
+              if (generation.client.getServerCapabilities()?.resources === undefined) throw new Error(label + ': server does not support resources')
+              return await generation.client.request({
+                method: request.method, params: { uri: request.uri },
+              }, ReadResourceResultSchema, requestOptions) as JsonValue
+            /* v8 ignore next 2 -- resource operations are a closed same-process union */
+            default:
+              return assertNever(request)
+          }
+        } catch (error) {
+          if (safeDiagnostics) throw new McpConnectionFailure(connectionErrorCode(error, 'connection-failed'))
+          throw error
+        }
+      },
+    },
     getSnapshot: () => state,
     subscribe(listener) {
       if (state.phase === 'stopped') return () => {}

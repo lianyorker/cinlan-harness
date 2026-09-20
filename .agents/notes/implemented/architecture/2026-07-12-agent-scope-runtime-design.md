@@ -117,48 +117,48 @@ Publication admits and announces resources in the order required by observers:
 1. Enter the session.
 2. Enter the agent.
 3. Announce `session/created`.
-4. Announce `agent/created`.
-5. Enable public driving.
-6. Emit `agent/session-start`.
-7. Start the driver.
+4. Await serial `agent/created` listeners.
+5. Emit `agent/session-start`.
+6. Release queued input to the driver.
 
-The agent never drives before both registries and creation notifications agree. A synchronous listener may veto or dispose an owner; the transaction records publication in progress and waits for that callback stack to unwind before teardown continues. Every creation announcement that begins has a matching disposal announcement during rollback.
+The agent never drives before both registries and creation notifications agree. A listener may reject creation or request owner disposal; the transaction records publication in progress and waits for dispatch to settle before teardown continues. Every creation announcement that begins has a matching disposal announcement during rollback. The [awaited initialization decision](2026-09-09-awaited-agent-creation.md) owns serial callback, cancellation, and queued-input semantics.
 
-The sequence diagram isolates the non-obvious race: a synchronous creation listener can request disposal while the publication call stack still owns both registry entries. Teardown must deactivate immediately but wait for that stack to unwind before stopping and detaching anything.
+The sequence diagram shows a creation listener requesting disposal while publication retains both registry entries. Teardown cancels immediately and waits for listener settlement before stopping work or detaching resources.
 
 ```mermaid
 sequenceDiagram
   participant Tx as AgentCreationTransaction
   participant Registries
-  participant Listener as Synchronous listener
+  participant Listener as Creation listener
   participant Driver
 
   Tx->>Tx: mark publication in progress
   Tx->>Registries: announce agent/created
-  Registries->>Listener: invoke inside the same call stack
+  Registries->>Listener: invoke and await
   Listener->>Tx: dispose reentrantly
   Tx->>Tx: deactivate, teardown waits for publication
   Tx-->>Listener: disposal request accepted
-  Listener-->>Registries: return
-  Registries-->>Tx: announcement unwound
+  Listener-->>Registries: settle
+  Registries-->>Tx: announcement settled
   Tx->>Tx: resolve publication settlement
   Tx->>Driver: stop and drain
+  Tx->>Tx: dispose scope and close storage
   Tx->>Registries: detach agent, then session
-  Tx->>Tx: dispose scope and resolve teardown
+  Tx->>Tx: resolve teardown
 ```
 
 ### Teardown preserves work before revoking registrations
 
 Every teardown request joins one memoized path. The order is:
 
-1. Deactivate creation or driving and let synchronous publication finish.
+1. Cancel creation and await publication settlement.
 2. Stop and drain the driver, discarding any injection that remains pending.
-3. Detach the agent.
-4. Detach the session.
-5. Dispose the agent scope.
+3. Dispose the agent scope.
+4. Close the session write path.
+5. Detach the agent, then the session.
 6. Retire transaction ownership tracking.
 
-This order lets final agent and session events use the matching scoped listeners and keeps persistence observers attached through the final flush. Scope disposal comes last because registration revocation is the externally visible lifetime boundary.
+This order retains scoped listeners until driving and initialization finish, and keeps persistence attached through the final close. Registry entries remain visible until private resource cleanup completes.
 
 ## Session append: materialize, validate, commit, notify
 

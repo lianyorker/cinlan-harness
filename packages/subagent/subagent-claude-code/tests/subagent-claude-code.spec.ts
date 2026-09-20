@@ -170,6 +170,7 @@ function fakeChild(options: FakeChildOptions = {}): FakeChild {
     stdin,
     stdout,
     stderr: undefined,
+    control: undefined,
     collected: {},
     done,
     terminate,

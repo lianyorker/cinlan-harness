@@ -62,6 +62,10 @@ export interface AgentPresetPluginGroup {
 /** Point-in-time inventory returned by the plugin inventory Remote. */
 export interface PluginInventorySnapshot {
   readonly entries: readonly PluginInventoryEntry[]
+  /** Whether profile configuration management is available; Desktop also requires its launcher capability. */
+  readonly managementAvailable?: boolean
+  /** Desktop owns package installation, removal, and bundle selection; absent for Host-managed packages. */
+  readonly packageManagement?: 'desktop'
   /**
    * Per-preset compositions, present only when an agent-preset roster is
    * composed in this deployment.

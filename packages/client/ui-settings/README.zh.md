@@ -35,6 +35,8 @@ kind: "package-reference"
 
 设置界面会注册进本包声明的 slot 类型。外壳（`sidebar.settings` 占位方、导航、界面框架）位于 ui-settings-general；功能页面注册 `settings.section` 贡献；「插件」分区承载 `settings.plugins.tab` 页面；首次使用引导步骤注册 `settings.onboarding`。跨命名空间的表面（schema 内省、已服务命名空间目录、`hasDocument`）通过 `ctx.settingsScope.describe()` 读同一面镜像。
 
+功能通过键控 `settings.section.extension` slot 向既有页面追加控件，以该页面的 `settings.section` id 作为键。扩展接收与页面相同的 `close` 回调和可选搜索 `target`。它通过 `ctx.settingsMetadata.registerItems(sectionId, items)` 贡献字段元数据；既有页面保留分区所有权，因此扩展不重复注册分区。外壳在既有布局与 CSS 内提供通用组合。
+
 ### 设置分组与搜索
 
 页面所有者调用 `ctx.settingsMetadata.registerSection({ sectionId, groupId })`；字段所有者调用 `registerItems(sectionId, items)`，传入稳定的条目 id、分区内唯一的锚点 id、本地化标题解析函数，以及可选的说明与关键词解析函数和标签页 id。省略关键词时解析结果为空数组。解析函数复用可见的 locale 文案，不得返回当前值、凭据、令牌或用户目录内容。服务只发布声明的元数据字段。[元数据类型](src/client/settings-metadata.ts) 定义了六个分组 id 与可接受字段。

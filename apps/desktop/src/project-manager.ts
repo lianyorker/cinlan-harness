@@ -42,6 +42,7 @@ const DESKTOP_PROJECT_FILES = [
   'package.json',
   'pnpm-lock.yaml',
   'pnpm-workspace.yaml',
+  'cordis.patch.yml',
   'desktop-release.json',
   DESKTOP_PACKAGE_SET_FILE,
 ] as const
@@ -527,7 +528,8 @@ export class DesktopProjectManager {
   }
 
   /**
-   * Reconcile release metadata and verified core packages; read the full seed inventory only before installation.
+   * Reconcile release metadata and verified core packages while preserving saved profile patches.
+   * The caller must stop the active Host before reconciliation and keep it stopped until activation.
    * Unused staging roots remain for explicit maintenance after startup or failure.
    * @param seedDir - Packaged offline seed containing release metadata, tarballs, and store archives.
    * @param electronVersion - Exact application version that the seed must match.
@@ -566,6 +568,8 @@ export class DesktopProjectManager {
       const stagingProfile = this.newStagingProfile()
       const plugins = existsSync(this.paths.profile) ? pluginRecords(this.paths.profile) : []
       copyMetadata(seedDir, stagingProfile)
+      const activePatch = join(this.paths.profile, 'cordis.patch.yml')
+      if (existsSync(activePatch)) copyFileSync(activePatch, join(stagingProfile, 'cordis.patch.yml'))
       await this.runPnpm(stagingProfile, ['install', '--offline', '--frozen-lockfile', '--trust-lockfile'])
       if (plugins.length > 0) {
         preparation?.checkpoint('installing')
@@ -586,7 +590,8 @@ export class DesktopProjectManager {
   }
 
   /**
-   * Apply one exact dependency mutation through a staging project.
+   * Apply one exact dependency mutation through a staging project, preserving saved profile patches.
+   * The caller must stop the active Host before the snapshot and keep it stopped until activation.
    * Unused transaction roots remain for explicit maintenance after completion or failure.
    */
   async mutate(mutation: DesktopProjectMutation, hooks: DesktopProjectHooks): Promise<void> {
@@ -650,7 +655,7 @@ export class DesktopProjectManager {
         if (!profilePluginNames(projectDir).includes(mutation.name)) {
           throw new Error(`desktop project: plugin ${JSON.stringify(mutation.name)} is not installed`)
         }
-        const remaining = pluginRecords(projectDir).filter(plugin => plugin.name !== mutation.name)
+        const remaining = pluginRecords(this.paths.profile).filter(plugin => plugin.name !== mutation.name)
         await this.runPnpm(projectDir, ['remove', mutation.name])
         writeProfilePlugins(projectDir, remaining)
         return

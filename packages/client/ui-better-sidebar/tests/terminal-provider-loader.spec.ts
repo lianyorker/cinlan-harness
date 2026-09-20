@@ -263,6 +263,44 @@ describe('Desktop sidebar terminals through source Loader', () => {
     expect(process.exitListeners.size).toBe(1)
   })
 
+  it('discovers shells without spawning, keeps choices per tab, and restores the same native process', async () => {
+    const h = await load({ shellCandidates: [process.execPath, process.execPath] })
+    const choices = h.terminals.shells()
+    expect(choices).toEqual([{ path: await realpath(process.execPath), name: 'node' }])
+    expect(native.spawn).not.toHaveBeenCalled()
+    const selected = choices[0]!.path
+    const request: SidebarTerminalOpenRequest = { ...uiRequest(), target: { kind: 'ui', sessionId,
+      tabId: 'terminal:0' as SidebarTerminalTabId, shellPath: selected } }
+    const first = await attach(h, request)
+    const nativeProcess = processes[0]!
+    expect(nativeProcess.file).toBe(selected)
+    expect(first.ready).toMatchObject({ shellName: 'node', shellPath: selected })
+    const defaultTab = await attach(h, uiRequest('terminal:1'))
+    expect(processes[1]!.file).toBe('desktop-test-shell')
+    expect(processes[1]!.args).toEqual(['--configured'])
+    nativeProcess.emitData('same shell output')
+    const output = await readFrame(first.iterator, 'data')
+    h.terminals.ack({ attachmentId: first.ready.attachmentId, sequence: output.sequence })
+    h.terminals.release({ attachmentId: first.ready.attachmentId, mode: 'disconnect' })
+    await first.iterator.next()
+    await vi.advanceTimersByTimeAsync(h.config.reconnectGraceMs - 1)
+    const restored = await attach(h, { ...request, target: { ...request.target, shellPath: '/no-longer-installed' } } as SidebarTerminalOpenRequest)
+    expect(restored.ready.processId).toBe(first.ready.processId)
+    expect(restored.ready.pid).toBe(first.ready.pid)
+    expect(restored.ready.shellPath).toBe(selected)
+    expect((await readFrame(restored.iterator, 'data')).data).toBe('same shell output')
+    expect(native.spawn).toHaveBeenCalledTimes(2)
+    expect(nativeProcess.kill).not.toHaveBeenCalled()
+    h.terminals.release({ attachmentId: restored.ready.attachmentId, mode: 'close' })
+    h.terminals.release({ attachmentId: defaultTab.ready.attachmentId, mode: 'close' })
+    expect(nativeProcess.kill).toHaveBeenCalledOnce()
+    const rejected = { ...uiRequest('terminal:2'), target: { kind: 'ui' as const, sessionId,
+      tabId: 'terminal:2' as SidebarTerminalTabId, shellPath: '/not-a-discovered-shell' } }
+    const failed = h.terminals.open(rejected, new AbortController().signal)[Symbol.asyncIterator]()
+    await expect(failed.next()).rejects.toMatchObject({ code: 'invalid-shell' })
+    expect(native.spawn).toHaveBeenCalledTimes(2)
+  })
+
   it('uses the agent tool registry for watch, attach, input, output, reconnect, and close', async () => {
     const h = await load()
     const watchLifetime = new AbortController()

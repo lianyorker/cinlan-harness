@@ -1,0 +1,7 @@
+- insert:
+    - id: desktop-acceptance-observer
+      name: "@dsh-desktop-acceptance/probe/observer"
+    - id: desktop-acceptance-probe
+      name: "@dsh-desktop-acceptance/probe"
+      config:
+        marker: bundle-default

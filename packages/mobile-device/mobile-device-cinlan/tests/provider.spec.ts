@@ -76,6 +76,10 @@ class FixtureSubprocess extends SubprocessRuntime {
     return this.resolveError === undefined ? Promise.resolve(`C:\\bin\\${command}.exe`) : Promise.reject(this.resolveError)
   }
 
+  async terminalEnvironment(): Promise<never> {
+    throw new Error('fixture does not provide terminal subprocesses')
+  }
+
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     this.specs.push(spec)
     const response = this.responses.shift()
@@ -94,6 +98,7 @@ class FixtureSubprocess extends SubprocessRuntime {
       stdin: undefined,
       stdout: undefined,
       stderr: undefined,
+      control: undefined,
       collected: {
         stdout: { readFrom: () => ({ text: response.text, nextOffset: response.text.length, lossy: response.lossy ?? false }) },
         stderr: { readFrom: () => ({ text: '', nextOffset: 0, lossy: false }) },

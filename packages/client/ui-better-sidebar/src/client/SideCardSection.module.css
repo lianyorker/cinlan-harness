@@ -1,27 +1,4 @@
-/**
- * Side card settings section chrome (DSH-native tokens throughout):
- * - the section is a column of GROUP CONTAINER cards (the PluginCard recipe:
- *   l2 hairline, 16px radius, layer-3 fill) with a heading + inventory count
- *   badge (the settings catalogHeading recipe), opening with a one-line
- *   intro (the DSH section heading+intro recipe);
- * - 常规 holds full-width settings rows (the DSH settings-row recipe:
- *   title/desc left + control right, hairline separators) whose toggles are
- *   custom switches — a real checkbox (native semantics and focus) driving
- *   a styled track/thumb;
- * - the feature inventories are responsive GRIDS of small toggle cards
- *   (auto-fill columns — several cards per row, wrapping): icon chip +
- *   title + type id, the card's on/off state IS its visual state
- *   (enabled = softened brand border + tinted fill + a compact brand
- *   switch knob at the far right — the card itself is the toggle;
- *   disabled = neutral hairline + dimmed, no knob); every card shares a
- *   uniform min-height so rows stay equal whether or not they carry a
- *   settings strip;
- * - features that declare related settings carry a labeled SETTINGS STRIP
- *   across the card's bottom edge (gear icon + text, hairline-separated)
- *   opening a native Modal (wider than the primitive default) whose rows
- *   follow the same row recipe with switch controls and a Done footer;
- * - the width input stays a native settings row (a value, not a switch).
- */
+/* Feature settings and workspace layout reuse the native Settings tokens. */
 
 .section {
   display: flex;
@@ -33,6 +10,61 @@
      this page a plain content column like Plugins → Plugin list so its
      scrollbar stays at the shell edge instead of being inset by the options
      area's right padding. */
+}
+
+.pageHeading {
+  margin: 0;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.embeddedHeading {
+  margin: 0;
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.embedded {
+  max-width: none;
+}
+
+.inlineSettings .popupRows {
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+}
+
+.viewerSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.addViewer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.addViewer:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.addViewer:focus-visible {
+  outline: 2px solid var(--dsw-alias-border-l4);
+  outline-offset: 2px;
 }
 
 /* One-line section intro (the DSH section heading+intro recipe). */
@@ -61,6 +93,7 @@
 /* Group heading: 13/600 + the inventory count badge (the settings
    catalogHeading recipe: count in tabular-nums, tertiary). */
 .groupHeading {
+  margin: 0;
   display: flex;
   align-items: baseline;
   gap: 7px;

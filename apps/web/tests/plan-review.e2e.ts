@@ -96,6 +96,10 @@ describe('web e2e: plan review takeover round trip', () => {
       await compareOrRefreshGolden(SIDEBAR_EXPECTED, sidebar, MODE)
     }
 
+    await card.getByRole('button', { name: 'Open plan in sidebar' }).click()
+    await page.getByRole('heading', { name: 'Add --greeting flag to CLI', level: 1 }).waitFor()
+    await expect.poll(() => page.getByText('Thread the parsed value', { exact: true }).count()).toBeGreaterThan(0)
+
     await card.getByRole('button', { name: 'Approve' }).click()
     // Park the pointer: the card unmounts and the ContextMeter ring lands
     // under the click position, whose 200ms hover delay would arm a tooltip

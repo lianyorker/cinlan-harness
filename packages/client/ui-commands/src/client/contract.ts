@@ -1,7 +1,7 @@
 /**
  * Frozen contract of the client command surface. Types only. The
  * CommandUiRuntime (`ctx.commandUi`) implements this face; business packages
- * consume `register` alone.
+ * consume its contribution and decoration registration methods.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ClientSessionContext } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
@@ -31,11 +31,27 @@ export interface SelectOption {
  * The shell component is owned by ui-commands; business never sees it. Both
  * callbacks receive the ClientSessionContext captured at popup open.
  */
-export type CommandUiSpec = {
+export interface PopupSelectSpec {
   readonly kind: 'popupSelect'
   options(session: ClientSessionContext, signal: AbortSignal): Promise<readonly SelectOption[]>
   onSelect(option: SelectOption, session: ClientSessionContext): void | Promise<void>
 }
+
+/**
+ * A bare invocation requests guarded token consumption, then runs one
+ * synchronous client callback. Actions do not submit or consume attachments.
+ */
+export interface ActionSpec {
+  readonly kind: 'action'
+  /**
+   * Run the action after the token-consumption request, even if its guard misses.
+   * @param session - the ClientSessionContext captured at invocation.
+   */
+  run(session: ClientSessionContext): void
+}
+
+/** The UI behavior of a contribution or decoration. */
+export type CommandUiSpec = PopupSelectSpec | ActionSpec
 
 /**
  * One client-owned command contribution: a slash-menu entry whose behavior
@@ -50,7 +66,7 @@ export interface CommandContribution {
   readonly description: () => string
   /** Capability filter, called with a fresh projection per candidate pass. */
   available(session: ClientSessionContext): boolean
-  /** The command's UI behavior (this phase: popupSelect only). */
+  /** The command's UI behavior. */
   readonly ui: CommandUiSpec
 }
 
@@ -58,8 +74,8 @@ export interface CommandContribution {
  * A UI decoration hung on one HOST command: what its BARE invocation does on
  * this client. Not a second command — the host command keeps its catalog
  * row, its argument claim (space / argued enter), and its lifecycle logging;
- * the decoration replaces only the bare menu-pick/enter with a popup whose
- * onSelect typically submits a completed line back through command.execute.
+ * the decoration replaces only the bare menu-pick/enter with a popup or
+ * client action. Popup selection may submit through command.execute.
  * A decoration never manufactures a row: a name with no host catalog entry
  * in the session's directory simply never reaches the decoration.
  */
@@ -68,7 +84,7 @@ export interface CommandDecoration {
   readonly name: string
   /** Capability filter, called with a fresh projection per bare invocation. */
   available(session: ClientSessionContext): boolean
-  /** The bare-invocation UI (this phase: popupSelect only). */
+  /** The bare-invocation UI. */
   readonly ui: CommandUiSpec
 }
 

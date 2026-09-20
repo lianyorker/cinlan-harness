@@ -61,6 +61,7 @@
           "messageId": "{{message:2}}",
           "rating": "positive",
           "note": "Useful answer",
+          "category": "task-result",
           "ifVersion": null
         }
       }
@@ -77,6 +78,7 @@
             "messageId": "{{message:2}}",
             "rating": "positive",
             "note": "Useful answer",
+            "category": "task-result",
             "version": "{{version}}",
             "createdAt": "{{timestamp}}",
             "updatedAt": "{{timestamp}}"
@@ -108,6 +110,7 @@
                 "messageId": "{{message:2}}",
                 "rating": "positive",
                 "note": "Useful answer",
+                "category": "task-result",
                 "version": "{{version}}",
                 "createdAt": "{{timestamp}}",
                 "updatedAt": "{{timestamp}}"
@@ -144,6 +147,7 @@
               "messageId": "{{message:2}}",
               "rating": "positive",
               "note": "Useful answer",
+              "category": "task-result",
               "version": "{{version}}",
               "createdAt": "{{timestamp}}",
               "updatedAt": "{{timestamp}}"

@@ -2,7 +2,7 @@
  * React renderer for declarative slots. Per-entry bindings enforce child
  * authorization, and entry boundaries contain registrant failures.
  */
-import { Component, useMemo, useState, useSyncExternalStore, type FC, type ReactNode } from 'react'
+import { Component, createContext, useContext, useMemo, useState, useSyncExternalStore, type FC, type ReactNode } from 'react'
 import {
   SlotOwnershipError, StaleAuthorizationError, standardHookPropName,
   type ChainRenderOpts, type HostObservable, type KeyedStandardSource, type LocaleFace, type RenderOpts,
@@ -17,6 +17,9 @@ import {
 } from './bindings.tsx'
 
 type InjectedProps = Record<string, unknown>
+
+/** Reused trees report failures without retiring globally shared registrations. */
+const ReusedOccurrenceContext = createContext(false)
 
 type SlotHookFactory = (standard: InjectedProps, hookContext: unknown) => unknown
 type SlotHookFactories = Readonly<Record<string, SlotHookFactory>>
@@ -337,6 +340,13 @@ class SlotErrorBoundary extends Component<
   override render(): ReactNode {
     if (this.state.failed) return <div data-slot-error={this.props.slotKey} />
     return this.props.children
+  }
+}
+
+/** An unavailable explicit scope is contained in its own occurrence. */
+class SessionViewErrorBoundary extends SlotErrorBoundary {
+  static override getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true }
   }
 }
 
@@ -706,6 +716,7 @@ function SlotOutlet({ slotKey, ownerProps, opts }: {
   // bodies re-derive their `t` seat at the new revision (fresh identity).
   useLocaleRevision(host.locale)
   const scopeBinding = useScopeBinding()
+  const reused = useContext(ReusedOccurrenceContext)
   // Anchor contract: every slot render site exposes a stable
   // `[data-slot="<key>"]` wrapper — the addressable seam dynamic styles
   // target — and `display:contents` keeps it layout-neutral. The wrapper
@@ -714,7 +725,7 @@ function SlotOutlet({ slotKey, ownerProps, opts }: {
   // never flickers with registration churn.
   return (
     <div data-slot={slotKey} style={ANCHOR_STYLE}>
-      {renderOutletContent(host, slotKey, ownerProps, opts, scopeBinding)}
+      {renderOutletContent(host, slotKey, ownerProps, opts, scopeBinding, reused)}
     </div>
   )
 }
@@ -726,6 +737,7 @@ function renderOutletContent(
   ownerProps: object,
   opts: (RenderOpts & ChainRenderOpts) | undefined,
   scopeBinding: StandardSourceBinding,
+  reused: boolean,
 ): ReactNode {
   const spec = host.specOf(slotKey)
   // Undeclared (or no-longer-declared) keys render empty: a declaring entry's
@@ -752,7 +764,7 @@ function renderOutletContent(
     // resolve at select time, and retiring a crashed elected entry would
     // change the static crash face.
     const onEntryError = (error: unknown) => {
-      host.reportEntryError(slotKey, entry, error, { abdicate: spec.kind !== 'chain' })
+      host.reportEntryError(slotKey, entry, error, { abdicate: !reused && spec.kind !== 'chain' })
     }
     return spec.scope === 'session'
       ? (
@@ -892,7 +904,48 @@ function renderChainResult(
   )
 }
 
-/** Root outlet: the shell's single ctx-level render entry — an unregistered 'root' is a boot-order failure, never a silent blank. */
+interface SessionViewProps {
+  slotKey: string
+  ownerProps: object
+  sessionId: string
+  resolveEntry: () => StoredEntry
+}
+
+function AuthorizedSessionView({ slotKey, ownerProps, sessionId, resolveEntry }: SessionViewProps) {
+  const entry = resolveEntry()
+  return (
+    <RootStandardProvider key={entryKeyOf(entry)}>
+      <ScopeProvider scope="session" sessionId={sessionId}>
+        <SlotOutlet slotKey={slotKey} ownerProps={ownerProps} />
+      </ScopeProvider>
+    </RootStandardProvider>
+  )
+}
+
+/** Registry changes reauthorize replacements and recover locally failed occurrences. */
+function SessionViewOutlet(props: SessionViewProps) {
+  const { slotKey, sessionId } = props
+  const host = useHost()
+  const version = useSyncExternalStore(
+    fn => host.subscribe(slotKey, fn),
+    () => host.getVersion(slotKey),
+  )
+  const scopeRevision = observableHook(host.scopeRevision)(value => value)
+  return (
+    <SessionViewErrorBoundary
+      slotKey={slotKey}
+      key={`${version}:${scopeRevision}:${sessionId}`}
+      onEntryError={(error) => {
+        const entry = host.entriesOfSlot(slotKey)[0]
+        if (entry !== undefined) host.reportEntryError(slotKey, entry, error, { abdicate: false })
+      }}
+    >
+      <AuthorizedSessionView {...props} />
+    </SessionViewErrorBoundary>
+  )
+}
+
+/** Root outlet: the shell's render entry — an unregistered 'root' is a boot-order failure, never a silent blank. */
 function RootOutlet({ ownerProps }: { ownerProps: object }) {
   const host = useHost()
   useSyncExternalStore(
@@ -938,6 +991,15 @@ function RootOutlet({ ownerProps }: { ownerProps: object }) {
  */
 export function createSlotRenderer(): SlotRenderer {
   return {
+    renderSessionView(host, slotKey, ownerProps, sessionId, resolveEntry) {
+      return (
+        <HostContext.Provider value={host}>
+          <ReusedOccurrenceContext.Provider value={true}>
+            <SessionViewOutlet slotKey={slotKey} ownerProps={ownerProps} sessionId={sessionId} resolveEntry={resolveEntry} />
+          </ReusedOccurrenceContext.Provider>
+        </HostContext.Provider>
+      )
+    },
     renderRoot(host, ownerProps) {
       return (
         <HostContext.Provider value={host}>

@@ -42,6 +42,19 @@ kind: "package-reference"
 
 调用该工具的 agent 会把子 agent 的最终答案作为工具结果收到。只挂载服务本身不会改变任何行为：在组合出提供方和工具之前，什么都不能委派。
 
+<a id="delegation-limits"></a>
+
+### 委派上限
+
+存在 settings 提供方时，服务注册实时生效的 `subagent` 设置命名空间。用户值覆盖服务配置；清除覆盖值会恢复配置值。设置中的 Subagent 卡片可编辑这些字段，不改变模型授权。
+
+| 字段 | 默认值 | 含义 |
+|---|---|---|
+| `maxDepth` | `3` | 工具未显式配置上限时采用的绝对深度；`1` 只允许直接子代理，`0` 禁用委派 |
+| `maxActiveSubagents` | `8` | 一条连续可继续父子链共享的活动子代理上限 |
+
+工具显式配置的数值 `maxDepth` 优先于共享设置，`provider-managed` 则由提供方管理深度。容量计算包括正在新建或恢复的子代理、运行中的子代理，以及因未完成工作或后代而驻留的空闲子代理。达到上限时，新建和冷恢复会立即失败；已驻留子代理仍接受消息。名额在 handle 完全释放后归还，包括创建失败的回滚。降低上限不会停止现有子代理，只影响后续准入。一次性运行与独立根 Agent 各自拥有生命周期，不占用同一个容量池。
+
 ### 一次性与可继续子级
 
 一次性子 agent 只运行一次，并以单个结果结算，可附带可选的结构化输出与失败时的安全诊断。启动请求可以通过 `agentOptions` 覆盖子 Agent 的提供方、模型、推理等级与输出 token 上限；每个请求的选项都要求提供方声明对应能力。可继续子 agent 保留持久会话并按顺序接受后续消息：调用方收到稳定的子 agent id、发送相邻 Agent 消息，并可中断当前轮次而不销毁子 agent。工具行的 `backgroundMode` 选择形态（默认 `one-shot`，或在支持的提供方上使用 `continuable`）。
@@ -121,6 +134,8 @@ kind: "package-reference"
 
 -----
 
+进程内委派在首次 await 之前捕获有效的 `auto` 或 `danger-full-access` 预设标识，并在子智能体 seed 与策略覆盖之后追加它。这可防止过时的 fork 选择改变子智能体是否接受审查；后续父智能体切换不会改变子智能体。进程外 provider 保留自己的授权体系。
+
 <a id="model-experience"></a>
 ## 模型体验
 
@@ -128,7 +143,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-一条用户角色的父级消息，开头是结果本身——`Background subagent <child-id> finished and will do no further work unless you send it more.`，或子级被停止、耗尽额度、拒绝任务或失败时的对应句子——随后是 `Its closing message:` 与子级的最终 assistant 内容；若子级没有产出内容，则是 `It left no closing message.`。这条由 runtime 生成的通知与模型编写的父子消息相互独立；后者使用 `sendMessage()` 与 `AgentMessageSource`。委派 schema 与模型控制工具归 Consumer 包所有。
+一条用户角色的父级消息，开头是结果本身——`Background subagent <child-id> finished and will do no further work unless you send it more.`，或子级被停止、耗尽额度、拒绝任务或失败时的对应句子——随后是 `Its closing message:` 与子级最终消息中按原顺序排列的非空文本块；若没有非空文本，则是 `It left no closing message.`。推理、工具调用与图片留在子级日志中，不转发给父级；运行结束事件与前台结果仍保留原始输出。这条由 runtime 生成的通知与模型编写的父子消息相互独立；后者使用 `sendMessage()` 与 `AgentMessageSource`。委派 schema 与模型控制工具归 Consumer 包所有。
 
 #### Token 影响
 

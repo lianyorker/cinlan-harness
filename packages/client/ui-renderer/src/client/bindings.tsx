@@ -129,15 +129,20 @@ export function RootStandardProvider({ children }: { children: ReactNode }) {
 /** Subscribe to the scope roster before resolving and binding its current adapter. */
 export function ScopeProvider({
   scope,
+  sessionId,
   children,
 }: {
   scope: 'session' | 'session-maybe'
+  sessionId?: string
   children: ReactNode
 }) {
   const host = useHost()
   observableHook(host.scopeRevision)(value => value)
   const adapter = host.scope(scope)
   if (adapter === undefined) throw new SlotAssemblyError(`scope '${scope}' rendered without an installed adapter`)
-  const binding = observableHook(adapter.current)(value => value)
+  // Contributions rebuild every binding and publish through the current source.
+  const current = observableHook(adapter.current)(value => value)
+  const binding = sessionId === undefined ? current : adapter.resolve(sessionId)
+  if (binding === undefined) throw new SlotAssemblyError(`Session scope '${sessionId}' is unavailable`)
   return <ScopeBindingContext.Provider value={binding}>{children}</ScopeBindingContext.Provider>
 }

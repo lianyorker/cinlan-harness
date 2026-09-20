@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { constants as bufferConstants } from 'node:buffer'
 import { mkdir, mkdtemp, readFile, realpath, rm, stat, symlink, unlink, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, parse, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import { LocalFileSystem } from '@deepseek-ai/dsh-fs-local'
@@ -167,6 +167,33 @@ describe('stat', () => {
 })
 
 describe('lstat', () => {
+  it.skipIf(process.platform !== 'win32')('uses the same native drive-relative paths as resolve', async () => {
+    await writeFile(join(dir, 'created.txt'), 'native')
+    const drive = parse(dir).root.slice(0, 2)
+    const driveCwd = `${drive}${relative(resolve(drive), dir)}`
+    for (const cwd of [dir, driveCwd]) {
+      for (const path of ['created.txt', `${drive}created.txt`]) {
+        const target = await fs.resolve(path, { cwd })
+        expect(await fs.lstat(path, { cwd })).toEqual(await fs.stat(target))
+      }
+    }
+  })
+
+  it.skipIf(process.platform === 'win32')('follows physical parent traversal before inspecting the final link', async () => {
+    const physical = join(dir, 'physical')
+    await mkdir(join(physical, 'nested'), { recursive: true })
+    await mkdir(join(dir, 'lexical'))
+    await symlink(join(physical, 'nested'), join(dir, 'lexical', 'link'))
+    await writeFile(join(physical, 'real.txt'), 'physical')
+    await symlink(join(physical, 'real.txt'), join(physical, 'alias.txt'))
+    await writeFile(join(dir, 'lexical', 'alias.txt'), 'lexical')
+
+    const cwd = `${join(dir, 'lexical', 'link')}/..`
+    expect((await fs.lstat('alias.txt', { cwd }))?.type).toBe('symlink')
+    expect((await fs.lstat('lexical/link/../alias.txt'))?.type).toBe('symlink')
+    expect(await fs.readText(await fs.resolve('alias.txt', { cwd }))).toBe('physical')
+  })
+
   it('reports path metadata without following the final symlink component', async () => {
     await writeFile(join(dir, 'real.txt'), 'hello')
     await symlink(join(dir, 'real.txt'), join(dir, 'link.txt'))

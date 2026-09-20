@@ -61,6 +61,15 @@ describe('providerUsable', () => {
     expect(providerUsable(otherRow({ credential: undefined }))).toBe(false)
   })
 
+  it('rejects a provider diagnostic even with a stored key or native authentication', () => {
+    const broken = otherRow({ entry: { ...otherRow().entry, error: 'Invalid model inputs' } })
+    expect(providerUsable(broken)).toBe(false)
+    expect(providerUsable({ ...broken, apiKeyEnv: undefined })).toBe(false)
+    expect(onboardingReadiness(state({
+      rows: [row({ entry: { ...row().entry, error: 'Invalid model inputs' } })],
+    }))).toEqual({ kind: 'unavailable', reason: 'provider-inactive' })
+  })
+
   it('treats a reference-free registered route as provider-native authentication', () => {
     expect(providerUsable(otherRow({ apiKeyEnv: undefined, credential: undefined }))).toBe(true)
   })

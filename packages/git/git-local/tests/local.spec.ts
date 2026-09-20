@@ -54,6 +54,10 @@ class ScriptedSubprocessRuntime extends SubprocessRuntime {
     return command
   }
 
+  async terminalEnvironment(): Promise<never> {
+    throw new Error('fixture does not provide terminal subprocesses')
+  }
+
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     this.specs.push(spec)
     let operationIndex = 1
@@ -75,6 +79,7 @@ class ScriptedSubprocessRuntime extends SubprocessRuntime {
       stdin: undefined,
       stdout: undefined,
       stderr: undefined,
+      control: undefined,
       collected: {
         ...(command.omitStdout === true ? {} : { stdout: reader(command.stdout ?? '', command.stdoutTruncated ?? false) }),
         ...(command.omitStderr === true ? {} : { stderr: reader(command.stderr ?? '', command.stderrTruncated ?? false) }),

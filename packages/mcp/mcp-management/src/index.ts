@@ -22,7 +22,10 @@ export type * from './types.ts'
 export { McpManagementError } from './error.ts'
 
 /** Explicit current-profile identity supplied by the application composition. */
-export interface Config { profile: string }
+export interface Config {
+  /** Launch profile owning the persisted server definitions and active connections. */
+  profile: string
+}
 
 interface OwnedServer {
   record: McpServerRecord

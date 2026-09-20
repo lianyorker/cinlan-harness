@@ -112,6 +112,73 @@ async function settleSubagent(
 }
 
 describe('HarnessSdkJsonRpcServer', () => {
+  it.each(['complete', 'reject'] as const)('awaits agent initialization before SDK prompt admission: %s', async (completion) => {
+    const ctx = new Context()
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const reason = new Error('agent initialization failed')
+    const transport = new FakeTransport()
+    let server: HarnessSdkJsonRpcServer | undefined
+    let prompting: Promise<unknown> | undefined
+    let initializedAgent: Agent | undefined
+    let requests = 0
+    class FixtureAdapter extends LlmAdapter {
+      override resolveModel(provider: string, model: string): Promise<LlmResolvedModelInfo> {
+        return Promise.resolve({ provider, id: model, name: model })
+      }
+
+      async * stream(_options: GenerateOptions): AsyncIterable<StreamChunk> {
+        requests += 1
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      }
+    }
+    try {
+      await mountAgentLoopTestDependencies(ctx)
+      await ctx.plugin(AgentLoop, { agents: [] })
+      ctx.llm.registerAdapter(['fixture'], new FixtureAdapter())
+      ctx.on('agent/created', async ({ agent, source, signal }) => {
+        initializedAgent = agent
+        expect(source).toBe('startup')
+        expect(signal?.aborted).toBe(false)
+        entered.resolve(undefined)
+        await release.promise
+        if (completion === 'reject') throw reason
+      })
+      server = new HarnessSdkJsonRpcServer(ctx, transport)
+      await server.initialize({ cwd: '.', provider: 'fixture', model: 'fixture' })
+      let settled = false
+      prompting = server.prompt({ sessionId: 'initialization', contentBlocks: [{ type: 'text', text: 'hello' }] })
+        .then((value) => { settled = true; return value }, (error: unknown) => { settled = true; return error })
+      await entered.promise
+      expect(settled).toBe(false)
+      expect(initializedAgent!.session.snapshotEvents()).toEqual([])
+      expect(transport.notifications).toEqual([])
+      expect(requests).toBe(0)
+      release.resolve(undefined)
+      const outcome = await prompting
+      if (completion === 'reject') {
+        expect(outcome).toBe(reason)
+        expect(ctx.agents.list()).toEqual([])
+        expect(ctx.sessions.list()).toEqual([])
+        expect(transport.notifications).toEqual([])
+        expect(requests).toBe(0)
+      } else {
+        expect(outcome).toHaveProperty('messageId', expect.any(String))
+        await initializedAgent!.whenIdle()
+        expect(requests).toBe(1)
+        const durableEvents = initializedAgent!.session.snapshotEvents()
+        expect(transport.notifications.filter(item => item.method === 'session.event').map(item => item.params?.event))
+          .toEqual(durableEvents)
+        expect(durableEvents.map(event => event.type)).not.toContain('agent/created')
+      }
+    } finally {
+      release.resolve(undefined)
+      await prompting
+      await server?.shutdown()
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('creates a harness agent and calls the configured OpenAI-compatible endpoint', { timeout: 15_000 }, async () => {
     const storageDir = await mkdtemp(join(tmpdir(), 'dsh-jsonrpc-'))
     const llmServer = await mockCompletionServer()

@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-打开设置中的「插件」分区并选择**插件配置**标签页，即可编辑本部署所组装的宿主平面插件。卡片依次为 shell 执行器（`bash`）、agent 循环的工具调用并行度（`agent-loop`）、subagent 模型选择（`subagent-model-selection`）以及 DeepSeek 搜索提供方（`web-search-deepseek`）。 此分区归入扩展管理设置组。设置搜索会选择匹配的标签页并展开可用的配置卡片，不会保存或丢弃其草稿。
+打开设置中的「插件」分区并选择**插件配置**标签页，即可编辑本部署所组装的宿主平面插件。卡片依次为 shell 执行器（`bash`）、agent 循环的工具调用并行度（`agent-loop`）、subagent 上限与模型选择（`subagent` 与 `subagent-model-selection`）以及 DeepSeek 搜索提供方（`web-search-deepseek`）。 此分区归入扩展管理设置组。设置搜索会选择匹配的标签页并展开可用的配置卡片，不会保存或丢弃其草稿。
 
 ### 这里会出现什么
 
@@ -35,7 +35,7 @@ kind: "package-reference"
 
 卡片暂存用户输入，只有用户保存时才写入。每个控件渲染的都是暂存文本，因此屏幕上所见即保存后所存；**放弃修改**丢弃这些草稿，持有未保存修改的卡片即使收起也会在标题上标明。保存成功后，卡片会在 Host 接受每次已发送写入且回读确认存储值后收起；保存失败时，卡片保持展开、报告失败并保留草稿供用户修改。重置暂存的是组装默认值而非立即写入；字段不接受的草稿会阻塞保存，而不是被丢弃。某个值是否被接受只有 Host 说了算。
 
-Subagent 卡会同时暂存其权限开关与精确模型复选框。启用时必须至少选择一条适配器路由。保存会在一次 mutation 中提交 `enabled` 与 `allowedModels`，并以草稿开始时的 revision 设栅；Host revision 更新后，草稿会标记为失败，而不会恢复已撤销的路由。关闭时会保留已选路由供以后重新使用。可用模型按提供方分组；当前目录中缺失的已存路由排在末尾，且仍可移除。适配器名称与模型描述仍属于实时目录元数据，不会存储；适配器变化、设置提交和重连后，卡片会刷新这些元数据。
+Subagent 卡还使用现有数值控件暂存最大委派深度与活动子代理容量。任一 subagent 命名空间可用时只显示一张卡片，每个字段可独立重置。上限遵循 [subagent 服务设置](../../subagent/subagent/README.zh.md#delegation-limits)，模型授权保留在独立命名空间中。一次保存只提交有修改的命名空间；每次写入都必须由 Host 接受，即使另一个命名空间保存成功，被拒绝的草稿仍会保留。卡片同时暂存其权限开关与精确模型复选框。启用时必须至少选择一条适配器路由。保存会在一次 mutation 中提交 `enabled` 与 `allowedModels`，并以草稿开始时的 revision 设栅；Host revision 更新后，草稿会标记为失败，而不会恢复已撤销的路由。关闭时会保留已选路由供以后重新使用。可用模型按提供方分组；当前目录中缺失的已存路由排在末尾，且仍可移除。适配器名称与模型描述仍属于实时目录元数据，不会存储；适配器变化、设置提交和重连后，卡片会刷新这些元数据。
 
 ### secret 角色字段
 
@@ -57,7 +57,7 @@ Subagent 卡会同时暂存其权限开关与精确模型复选框。启用时�
 
 ### 写入路径
 
-保存时，暂存字段通过客户端 settings scope 写入，scope 为每次排队写入携带最新已知的命名空间 revision。Subagent 卡会为原子 mutation 提供更早的草稿 revision 作为固定围栏。Host revision 冲突时会拒绝 mutation。字段是否被覆盖，取决于它是否出现在原始用户层中，而非取决于它的值；重置会清除该字段，使其重新继承组装层。secret 角色的字段绝不搭乘响应；卡片会在转发来的 `credentials/reference-updated` 事件报告它所关注的引用时重读。
+保存时，暂存字段通过客户端 settings scope 写入，scope 为每次排队写入携带最新已知的命名空间 revision。Subagent 模型授权表单会为原子 mutation 提供更早的草稿 revision 作为固定围栏。Host revision 冲突时会拒绝 mutation。字段是否被覆盖，取决于它是否出现在原始用户层中，而非取决于它的值；重置会清除该字段，使其重新继承组装层。secret 角色的字段绝不搭乘响应；卡片会在转发来的 `credentials/reference-updated` 事件报告它所关注的引用时重读。
 
 </details>
 

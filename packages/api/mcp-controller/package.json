@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-api-mcp-controller",
   "description": "Revisioned current-profile MCP management Remote and status stream",
-  "version": "0.1.5-alpha.1",
+  "version": "0.1.6-alpha.2",
   "publishConfig": {
     "access": "public"
   },
@@ -35,12 +35,12 @@
   },
   "files": [
     "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts",
     "lib/typert.host.js",
     "lib/typert.host.d.ts",
     "lib/typert.remote-client.js",
-    "lib/typert.remote-client.d.ts",
-    "lib/types/**/*.js",
-    "lib/types/**/*.d.ts"
+    "lib/typert.remote-client.d.ts"
   ],
   "license": "MIT",
   "peerDependencies": {

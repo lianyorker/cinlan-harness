@@ -190,6 +190,18 @@ export class SessionManager {
    * @param address - catalog-derived parent and child ids.
    */
   selectSubagent(address: SubagentAddress): void {
+    this.configureSubagent(address)
+    this.selected = address.childSessionId
+    this.completedNotifications.delete(address.childSessionId)
+    void this.refreshSubagents(address.childSessionId)
+    this.notifier.notifyNow()
+  }
+
+  /**
+   * Validate and install an addressed transport without changing selection.
+   * @param address - healthy catalog child under its exact direct parent.
+   */
+  configureSubagent(address: SubagentAddress): void {
     const catalog = this.catalogs.get(address.parentSessionId)
     const entry = catalog?.entries.find(candidate => candidate.id === address.childSessionId)
     if (entry === undefined || entry.kind !== 'child' || entry.mode !== address.mode) {
@@ -197,10 +209,6 @@ export class SessionManager {
     }
     this.addresses.set(address.childSessionId, address)
     this.sessions.get(address.childSessionId)?.configureSubagent(address, catalog?.parentAvailable)
-    this.selected = address.childSessionId
-    this.completedNotifications.delete(address.childSessionId)
-    void this.refreshSubagents(address.childSessionId)
-    this.notifier.notifyNow()
   }
 
   /** Clear the selection (the layout falls to the no-session view state). */
@@ -242,9 +250,11 @@ export class SessionManager {
    * and scope share one lifecycle). The host session log is the durable
    * truth — a later get() lazily rebuilds and open() backfills history.
    * @param sessionId - the session to drop.
+   * @param expected - optional instance whose lifetime is ending; a replacement is left intact.
    */
-  async drop(sessionId: SessionId): Promise<void> {
+  async drop(sessionId: SessionId, expected?: Session): Promise<void> {
     const session = this.sessions.get(sessionId)
+    if (expected !== undefined && session !== expected) return
     this.sessions.delete(sessionId)
     if (session !== undefined) await this.startSessionDisposal(session)
   }
@@ -743,8 +753,11 @@ export class SessionManager {
       ? { kind: 'status', sessionId, running: false }
       : { kind: 'remove', sessionId })
     this.updateCatalogActivity(sessionId, false)
-    if (durableSubagent) this.sessions.get(sessionId)?.handleRunning(false)
-    else this.sessions.get(sessionId)?.handleRemoved()
+    if (durableSubagent) {
+      const session = this.sessions.get(sessionId)
+      session?.handleRunning(false)
+      session?.replaceControl([])
+    } else this.sessions.get(sessionId)?.handleRemoved()
     this.queues.delete(sessionId)
     this.jobsBySession.delete(sessionId)
     if (!durableSubagent) this.projectionStores.delete(sessionId)

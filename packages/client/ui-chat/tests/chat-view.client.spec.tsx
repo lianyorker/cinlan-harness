@@ -228,6 +228,7 @@ function makeHarness(
   init: HarnessUpdate = {},
   sessionOverrides: Partial<SessionSnapshot> = {},
   chatSnapshot?: ChatSnapshot,
+  tailRenderers: Partial<Pick<React.ComponentProps<typeof TurnTailNodeView>, 'renderSlot' | 'renderSlotChain'>> = {},
 ) {
   const {
     chat: initialChat, nodes, partial, runningCalls, turnTimings, turnEnds, turnUsages,
@@ -327,8 +328,8 @@ function makeHarness(
         return (
           <TurnTailNodeView
             {...nodeProps<'turn-tail'>()}
-            renderSlot={renderTurnTailSlot}
-            renderSlotChain={renderTurnTail}
+            renderSlot={tailRenderers.renderSlot ?? renderTurnTailSlot}
+            renderSlotChain={tailRenderers.renderSlotChain ?? renderTurnTail}
             SessionProvider={props.SessionProvider}
           />
         )
@@ -1793,6 +1794,27 @@ describe('ChatView', () => {
     } finally {
       host.remove()
     }
+  })
+
+  it('shows plan and change cards alongside the existing file tail', () => {
+    const renderCards: React.ComponentProps<typeof TurnTailNodeView>['renderSlot'] = key =>
+      key === 'conversation.chat.turnCards'
+        ? <><div>Submitted plan</div><div>Changed files</div></>
+        : null
+    const h = makeHarness({
+      nodes: [user(1, 'question'), assistant(2, 'answer', 1)],
+      turnEnds: new Map([[1, 3]]),
+    }, {}, undefined, {
+      renderSlot: renderCards,
+      renderSlotChain: () => <button type="button">Open generated file</button>,
+    })
+    const view = render(<h.ChatView {...h.props} />)
+    const plan = view.getByText('Submitted plan')
+    const changes = view.getByText('Changed files')
+    const file = view.getByRole('button', { name: 'Open generated file' })
+    expect(plan.compareDocumentPosition(changes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(changes.compareDocumentPosition(file) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(view.getAllByRole('button', { name: '复制' })).toHaveLength(2)
   })
 
   it('withholds assistant IconActions while the turn is still running', () => {

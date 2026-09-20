@@ -77,6 +77,8 @@ kind: "package-library"
 
 -----
 
+`FileTypeIcon` 与 `classifyFileType` 共享不区分大小写的文件名、前缀、后缀、可选项目上下文及扩展名规则。内嵌官方图标覆盖 48 种代码和配置类型，以及 Office、图片、Markdown、媒体、文件夹和通用文件。文件名规则区分 package.json、Dockerfile、React 和 Angular 源文件；只有所传项目文件在 pubspec.yaml 中标明 flutter 时，Dart 才显示 Flutter 图标。传统图标使用主题颜色，技术图标保留其原有配色。每个渲染实例的图形 ID 保持唯一。
+
 <a id="understand-the-implementation"></a>
 ## 理解实现
 

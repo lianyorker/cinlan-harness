@@ -33,9 +33,12 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** UI terminals belong to a session/tab; agent terminals retain their registry identity. */
+/**
+ * UI terminals belong to a session/tab; shellPath selects a discovered executable only when spawning.
+ * Agent terminals retain their registry identity.
+ */
 export type SidebarTerminalTarget =
-  | { readonly kind: 'ui'; readonly sessionId: SidebarTerminalSessionId; readonly tabId: SidebarTerminalTabId; readonly floating?: SidebarFloatingTerminalDirectory }
+  | { readonly kind: 'ui'; readonly sessionId: SidebarTerminalSessionId; readonly tabId: SidebarTerminalTabId; readonly floating?: SidebarFloatingTerminalDirectory; readonly shellPath?: string }
   | { readonly kind: 'agent'; readonly uuid: SidebarAgentTerminalId }
 
 /** Initial display geometry and immutable target for a physical attachment. */
@@ -45,6 +48,12 @@ export interface SidebarTerminalOpenRequest {
   readonly rows: number
 }
 
+/** Installed local shell offered for a new UI terminal; paths are verified by the Host. */
+export interface SidebarTerminalShell {
+  readonly path: string
+  readonly name: string
+}
+
 /** Nonspawning availability check and current configured shell label. */
 export type SidebarTerminalCapability =
   | { readonly status: 'available'; readonly shellName: string }
@@ -52,7 +61,7 @@ export type SidebarTerminalCapability =
 
 /** One bounded frame; data credit is released only after the renderer acknowledges its sequence. */
 export type SidebarTerminalFrame =
-  | { readonly type: 'ready'; readonly attachmentId: SidebarTerminalAttachmentId; readonly processId: SidebarTerminalProcessId; readonly pid: number; readonly cwd: string; readonly shellName: string }
+  | { readonly type: 'ready'; readonly attachmentId: SidebarTerminalAttachmentId; readonly processId: SidebarTerminalProcessId; readonly pid: number; readonly cwd: string; readonly shellName: string; readonly shellPath?: string }
   | { readonly type: 'data'; readonly attachmentId: SidebarTerminalAttachmentId; readonly sequence: number; readonly data: string }
   | { readonly type: 'exit'; readonly attachmentId: SidebarTerminalAttachmentId; readonly exitCode: number }
 
@@ -97,4 +106,4 @@ export interface SidebarAgentTerminalSnapshot {
 }
 
 /** Stable failures understood by terminal carriers and localized by their UI. */
-export type SidebarTerminalErrorCode = 'invalid-request' | 'invalid-directory' | 'unavailable' | 'not-found' | 'stale-attachment' | 'output-overflow' | 'ack-timeout'
+export type SidebarTerminalErrorCode = 'invalid-request' | 'invalid-directory' | 'invalid-shell' | 'unavailable' | 'not-found' | 'stale-attachment' | 'output-overflow' | 'ack-timeout'

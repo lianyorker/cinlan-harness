@@ -2,7 +2,7 @@
 
 English | [中文](mcp.zh.md)
 
-MCP connects external tool servers to the Harness and exposes their connection state for inspection. The [client bridge](../../packages/mcp/mcp-client/README.md) owns live connections and discovered tools; [management](../../packages/mcp/mcp-management/README.md) saves server definitions for one launch profile. This reference covers the types declared by those packages.
+MCP connects external tool servers to the Harness and exposes their connection state for inspection. The [client bridge](../../packages/mcp/mcp-client/README.md) owns live connections and discovered tools; [management](../../packages/mcp/mcp-management/README.md) saves server definitions for one launch profile. [Resources](../../packages/mcp/mcp-resources/README.md) exposes caller-scoped discovery and reading. This reference covers the types declared by those packages.
 
 ## Connection identity and observation
 
@@ -61,8 +61,19 @@ The client’s programmatic launcher shares the same connection supervisor as it
 | Type | Fields and meaning |
 |---|---|
 | `ConnectionOutcome` | Optional `error` from the initial attempt. A fulfilled `ready` promise alone does not establish connection readiness. |
-| `ConnectionHandle` | `ready` reports initial settlement; `getSnapshot()` and `subscribe()` expose committed state; `probe(signal)` refreshes descriptors; `dispose()` joins cleanup. Concurrent disposals share one completion. |
+| `ConnectionHandle` | `ready` reports initial settlement; `getSnapshot()` and `subscribe()` expose committed state; `probe(signal)` refreshes descriptors; `resources` routes requests through the initialized current generation; `dispose()` joins cleanup. Concurrent disposals share one completion. |
 | `McpLaunchOptions` | Optional `owner`, `resolveConfig(signal)` for fresh credentials on each attempt with unchanged server identity, and `redact(text)` for removing known secrets from public metadata. |
+
+## Scoped resources
+
+Source: [resource runtime](../../packages/mcp/mcp-resources/src/index.ts). Providers register under a configured server name in their effect owner's scope. Descendants inherit the nearest provider; unrelated scopes cannot dispatch through it. The first local provider exposes three shared tools, and the last removal withdraws them.
+
+| Type | Fields and meaning |
+|---|---|
+| `McpResourceRequest` | `resources/list` or `resources/templates/list` with an optional opaque `cursor`; `resources/read` with an explicit `uri`. |
+| `McpResourceProvider` | `request(request, execution)` receives caller identity and cancellation and returns lossless JSON. |
+
+Resource listings return one page and preserve `nextCursor`. Read results retain canonical text or binary content, while model text replaces base64 `blob` values with length descriptions. Configured provider names remain visible across connection failures; calls fail during negotiation, disconnect, or disposal. Managed requests use the same safe error classifications as tool calls.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -153,4 +164,22 @@ subscribe(listener: () => void): () => void
 ```
 
 Source: [`packages/mcp/mcp-client/src/registry.ts`](../../packages/mcp/mcp-client/src/registry.ts)
+
+<a id="ctxmcpresources--mcpresourceruntime"></a>
+
+### `ctx.mcpResources` — `McpResourceRuntime`
+
+Scoped resource access plus three tools shared by configured MCP servers.
+
+```ts cordis-catalog
+/**
+ * Register one server and expose resource tools while that scope has providers.
+ * @param server - configured server name, unique in this scope.
+ * @param provider - connection-owned resource operations.
+ * @returns the effect disposer for this exact registration.
+ */
+register(server: string, provider: McpResourceProvider): () => void
+```
+
+Source: [`packages/mcp/mcp-resources/src/index.ts`](../../packages/mcp/mcp-resources/src/index.ts)
 <!-- END GENERATED cordis-surface -->

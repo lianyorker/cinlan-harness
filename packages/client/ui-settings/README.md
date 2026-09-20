@@ -35,6 +35,8 @@ A feature calls `ctx.settingsScope.bind(spec)` with a per-namespace spec and get
 
 A settings surface registers into the slot types this package declares. The shell (`sidebar.settings` occupant, navigation, chrome) lives in ui-settings-general; feature pages register `settings.section` contributions; the Plugins section hosts `settings.plugins.tab` pages; onboarding steps register `settings.onboarding`. Cross-namespace surfaces (schema introspection, the served-namespace directory, `hasDocument`) read the same mirror through `ctx.settingsScope.describe()`.
 
+A feature appends controls to an existing page through the keyed `settings.section.extension` slot, using that page's `settings.section` id as its key. The extension receives the same `close` callback and optional search `target` as the page. It contributes field metadata with `ctx.settingsMetadata.registerItems(sectionId, items)`; the existing page retains section ownership, so the extension does not register a duplicate section. The shell supplies generic composition within its existing layout and CSS.
+
 ### Grouping and searching settings
 
 Page owners call `ctx.settingsMetadata.registerSection({ sectionId, groupId })`; field owners call `registerItems(sectionId, items)` with stable item ids, section-wide anchor ids, localized title resolvers, and optional description and keyword resolvers and tab ids. Omitted keywords resolve to an empty array. Resolvers reuse visible locale copy and must never return current values, credentials, tokens, or user directory contents. The service publishes only its declared metadata fields. [The metadata types](src/client/settings-metadata.ts) define the six group ids and accepted fields.

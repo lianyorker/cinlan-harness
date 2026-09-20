@@ -833,6 +833,11 @@ Validated Remote calls over the sole sidebar terminal provider; owns no PTYs.
  */
 @Remote capability(): SidebarTerminalCapability
 
+/** Discover installed local shells for a new UI tab.
+ * @returns Verified executable paths and display names; does not create a process.
+ */
+@Remote shells(): readonly SidebarTerminalShell[]
+
 /**
  * Attach to a terminal and forward acknowledged output without buffering it.
  * @param request - Immutable target and integer geometry from 1 through 1024.
@@ -886,7 +891,7 @@ Validated Remote calls over the sole sidebar terminal provider; owns no PTYs.
 @Remote closeAgent(uuid: SidebarAgentTerminalId): void
 ```
 
-Types: [SidebarAgentTerminalId](terminal.md) · [SidebarAgentTerminalSnapshot](terminal.md) · [SidebarTerminalAckRequest](terminal.md) · [SidebarTerminalCapability](terminal.md) · [SidebarTerminalCloseUiRequest](terminal.md) · [SidebarTerminalFrame](terminal.md) · [SidebarTerminalInputRequest](terminal.md) · [SidebarTerminalOpenRequest](terminal.md) · [SidebarTerminalProcessId](terminal.md) · [SidebarTerminalReleaseRequest](terminal.md) · [SidebarTerminalResizeRequest](terminal.md) · [SidebarTerminalSessionId](terminal.md) · [SidebarTerminalUiTarget](terminal.md)
+Types: [SidebarAgentTerminalId](terminal.md) · [SidebarAgentTerminalSnapshot](terminal.md) · [SidebarTerminalAckRequest](terminal.md) · [SidebarTerminalCapability](terminal.md) · [SidebarTerminalCloseUiRequest](terminal.md) · [SidebarTerminalFrame](terminal.md) · [SidebarTerminalInputRequest](terminal.md) · [SidebarTerminalOpenRequest](terminal.md) · [SidebarTerminalProcessId](terminal.md) · [SidebarTerminalReleaseRequest](terminal.md) · [SidebarTerminalResizeRequest](terminal.md) · [SidebarTerminalSessionId](terminal.md) · [SidebarTerminalShell](../../packages/terminal/sidebar-terminals/README.md#ownership-and-lifetime) · [SidebarTerminalUiTarget](terminal.md)
 
 Source: [`packages/api/sidebar-terminal-controller/src/index.ts`](../../packages/api/sidebar-terminal-controller/src/index.ts)
 

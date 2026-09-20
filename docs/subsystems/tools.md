@@ -192,6 +192,8 @@ interface ToolExecutionInput {
    */
   readonly rootCallId?: ToolCallId
   readonly name: string
+  /** Binding-time schema for a PTC inner call; frozen by its producer and never logged. */
+  readonly schema?: ToolSchema
   /** Losslessly JSON-serializable parsed arguments (tools validate their own schema). */
   readonly arguments: unknown
   /** The agent on whose behalf the call runs (set by the agent loop). */
@@ -379,14 +381,16 @@ Each interception waterfall returns a typed **Decision** (the idiom shared with 
 
 ```ts type-equiv
 /**
- * Pre-dispatch decision. `allow` runs the call; `deny` materializes an error;
+ * Pre-dispatch decision. `allow` runs the call; `deny` materializes its model-facing
+ * reason and optional structured detail; `cancel` selects pre-dispatch cancellation;
  * `ask` runs only after an approval service returns `allowed-once` and otherwise
  * denies. Input rewriting is excluded because arguments are already logged and
  * presented.
  */
 type PreToolDecision =
   | { kind: 'allow' }
-  | { kind: 'deny'; reason: string }
+  | { kind: 'deny'; reason: string; info?: ToolErrorInfo }
+  | { kind: 'cancel' }
   | { kind: 'ask'; reason?: string }
 ```
 
@@ -661,11 +665,11 @@ Source: [`packages/core/tools/src/index.ts`](../../packages/core/tools/src/index
 
 #### `tools/pre-execute` — waterfall
 
-Allow, deny, or ask before dispatch. `next()` delegates to allow; missing approval support turns `ask` into denial. Async gates must observe `exec.signal`; the registry rechecks cancellation after they settle but never abandons their promise. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
+Allow, deny, cancel, or ask before dispatch. `next()` delegates to allow; missing approval support turns `ask` into denial. Async gates must observe `exec.signal`; the registry rechecks cancellation after they settle but never abandons their promise. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
 
 ```ts cordis-catalog
 /**
- * Allow, deny, or ask before dispatch. `next()` delegates to allow; missing
+ * Allow, deny, cancel, or ask before dispatch. `next()` delegates to allow; missing
  * approval support turns `ask` into denial. Async gates must observe
  * `exec.signal`; the registry rechecks cancellation after they settle but
  * never abandons their promise.

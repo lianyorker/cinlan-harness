@@ -14,7 +14,7 @@ import { createScope, scopeOf } from '@deepseek-ai/dsh-api-session-controller/cl
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { RemoteError, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import type { ClientSessionContext, ConsumeTokenRequest, InputTriggerPick, InputTriggerSource, SubmitAttachment } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
-import type { CommandContribution, CommandDecoration, CommandUiSpec, SelectOption } from '../src/client/contract.ts'
+import type { CommandContribution, CommandDecoration, PopupSelectSpec, SelectOption } from '../src/client/contract.ts'
 import type { CommandDescriptor } from '../src/client/directory.ts'
 import { CommandUiRuntime } from '../src/client/service.ts'
 
@@ -157,7 +157,7 @@ function menuPick(source: InputTriggerSource, name: string, session: ClientSessi
   return source.onPick(pick)
 }
 
-const themeUi = (over: Partial<CommandUiSpec> = {}): CommandUiSpec => ({
+const themeUi = (over: Partial<PopupSelectSpec> = {}): PopupSelectSpec => ({
   kind: 'popupSelect',
   options: () => Promise.resolve([{ id: 'dark', label: 'Dark' }]),
   onSelect: () => undefined,
@@ -348,6 +348,130 @@ describe('decorations (bare-invocation UI on host commands)', () => {
     const { command } = await bench()
     command.decorate(goalDecoration())
     expect(() => { command.decorate(goalDecoration()) }).toThrow('duplicate decoration for /goal')
+  })
+})
+
+describe('action commands', () => {
+  const feedback: CommandDescriptor = { name: 'feedback', description: 'Session feedback', input: { hint: '<text>' } }
+  const feedbackCommands = () => Promise.resolve({ commands: [feedback] })
+
+  it('a feedback menu pick requests the span guard before running the action', async () => {
+    const { command, source, mint, warm, executeCalls, executions } = await bench({ commands: feedbackCommands })
+    const scope = mint('s1')
+    const session = proj('s1')
+    const consumed = vi.fn(() => true as const)
+    scope.ctx.on('slash/input-consume-token', consumed)
+    const run = vi.fn(() => {
+      expect(consumed).toHaveBeenCalledExactlyOnceWith({
+        guard: { kind: 'span', span: { start: 0, end: 9, draftRev: 3 } },
+      })
+    })
+    command.decorate({ name: 'feedback', available: () => true, ui: { kind: 'action', run } })
+    await warm(session)
+    expect(menuPick(source, 'feedback', session)).toBe('handled')
+    expect(run).toHaveBeenCalledExactlyOnceWith(session)
+    expect(command.popupFor(scope.ctx).state.getSnapshot().open).toBe(false)
+    expect(executeCalls).toEqual([])
+    expect(executions).toEqual([])
+  })
+
+  it.each([0, 2])('bare feedback with %i attachments runs the action using the bare-token guard', async (attachments) => {
+    const { command, source, mint, executeCalls } = await bench({ commands: feedbackCommands })
+    const scope = mint('s1')
+    const consumed = vi.fn(() => true as const)
+    scope.ctx.on('slash/input-consume-token', consumed)
+    const run = vi.fn()
+    command.decorate({ name: 'feedback', available: () => true, ui: { kind: 'action', run } })
+    await expect(source.matchEnter!(proj('s1'), '  /feedback  ', new AbortController().signal, { attachments }))
+      .resolves.toBe('handled')
+    expect(consumed).toHaveBeenCalledExactlyOnceWith({ guard: { kind: 'bare-token', token: '/feedback' } })
+    expect(run).toHaveBeenCalledExactlyOnceWith(proj('s1'))
+    expect(command.popupFor(scope.ctx).state.getSnapshot().open).toBe(false)
+    expect(executeCalls).toEqual([])
+  })
+
+  it.each(['space', 'enter'] as const)('feedback text follows the host claim through %s', async (via) => {
+    const { command, source, mint, warm, executeCalls, executions } = await bench({ commands: feedbackCommands })
+    const scope = mint('s1')
+    const run = vi.fn()
+    const consumed = vi.fn(() => true as const)
+    scope.ctx.on('slash/input-consume-token', consumed)
+    command.decorate({ name: 'feedback', available: () => true, ui: { kind: 'action', run } })
+    await warm(proj('s1'))
+    const outcome = via === 'space'
+      ? source.matchSpace!(proj('s1'), '/feedback')
+      : await source.matchEnter!(proj('s1'), '/feedback useful answer', new AbortController().signal, { attachments: 0 })
+    if (outcome === undefined || outcome === 'handled' || !('claim' in outcome)) throw new Error('expected host claim')
+    expect(outcome.claim.token).toBe('/feedback ')
+    expect(outcome.claim.hint).toBe('<text>')
+    await expect(outcome.claim.submit('useful answer', scope.ctx, [])).resolves.toEqual({ kind: 'success' })
+    expect(executeCalls).toEqual([{ sessionId: sid('s1'), line: '/feedback useful answer', images: [] }])
+    expect(executions).toEqual([{ sessionId: sid('s1'), name: 'feedback', result: { kind: 'success' } }])
+    expect(run).not.toHaveBeenCalled()
+    expect(consumed).not.toHaveBeenCalled()
+  })
+
+  it('feedback text with attachments still follows the host refusal policy', async () => {
+    const { command, source, executeCalls } = await bench({ commands: feedbackCommands })
+    const run = vi.fn()
+    command.decorate({ name: 'feedback', available: () => true, ui: { kind: 'action', run } })
+    await expect(source.matchEnter!(proj('s1'), '/feedback useful answer', new AbortController().signal, { attachments: 1 }))
+      .rejects.toThrow('command:notice.attachmentsUnsupported{"command":"feedback"}')
+    expect(run).not.toHaveBeenCalled()
+    expect(executeCalls).toEqual([])
+  })
+
+  it('an action contribution runs on a menu pick or bare enter and never claims arguments', async () => {
+    const { command, source, mint, listCalls, executeCalls } = await bench()
+    const scope = mint('s1')
+    const consumed = vi.fn(() => true as const)
+    scope.ctx.on('slash/input-consume-token', consumed)
+    const run = vi.fn()
+    command.register({ name: 'local', description: () => 'Local action', available: () => true, ui: { kind: 'action', run } })
+    expect(menuPick(source, 'local', proj('s1'))).toBe('handled')
+    await expect(source.matchEnter!(proj('s1'), '/local', new AbortController().signal, { attachments: 1 }))
+      .resolves.toBe('handled')
+    expect(consumed.mock.calls).toEqual([
+      [{ guard: { kind: 'span', span: { start: 0, end: 6, draftRev: 3 } } }],
+      [{ guard: { kind: 'bare-token', token: '/local' } }],
+    ])
+    expect(run).toHaveBeenCalledTimes(2)
+    expect(run).toHaveBeenLastCalledWith(proj('s1'))
+    expect(source.matchSpace!(proj('s1'), '/local')).toBeUndefined()
+    await expect(source.matchEnter!(proj('s1'), '/local args', new AbortController().signal, { attachments: 0 }))
+      .resolves.toBeUndefined()
+    expect(run).toHaveBeenCalledTimes(2)
+    expect(listCalls).toEqual([])
+    expect(executeCalls).toEqual([])
+    expect(command.popupFor(scope.ctx).state.getSnapshot().open).toBe(false)
+  })
+
+  it.each(['menu', 'enter'] as const)('a %s token guard miss still runs the action without retrying consumption', async (via) => {
+    const { command, source, mint, warm, executeCalls } = await bench({ commands: feedbackCommands })
+    const scope = mint('s1')
+    const consumed = vi.fn(() => undefined)
+    scope.ctx.on('slash/input-consume-token', consumed)
+    const run = vi.fn()
+    command.decorate({ name: 'feedback', available: () => true, ui: { kind: 'action', run } })
+    await warm(proj('s1'))
+    const outcome = via === 'menu'
+      ? menuPick(source, 'feedback', proj('s1'))
+      : await source.matchEnter!(proj('s1'), '/feedback', new AbortController().signal, { attachments: 0 })
+    expect(outcome).toBe('handled')
+    expect(consumed).toHaveBeenCalledTimes(1)
+    expect(run).toHaveBeenCalledExactlyOnceWith(proj('s1'))
+    expect(executeCalls).toEqual([])
+  })
+
+  it('an action decoration cannot manufacture a missing host command', async () => {
+    const { command, source, warm } = await bench()
+    const run = vi.fn()
+    command.decorate({ name: 'feedback', available: () => true, ui: { kind: 'action', run } })
+    await warm(proj('s1'))
+    expect(menuPick(source, 'feedback', proj('s1'))).toBeUndefined()
+    await expect(source.matchEnter!(proj('s1'), '/feedback', new AbortController().signal, { attachments: 1 }))
+      .resolves.toBeUndefined()
+    expect(run).not.toHaveBeenCalled()
   })
 })
 

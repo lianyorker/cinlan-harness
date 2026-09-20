@@ -573,6 +573,8 @@ type BaseOptions<
 > = {
   /** Target slot key (the entry contributes INTO this slot). */
   name: K
+  /** Opt in to additional explicitly bound Session views of this single entry. */
+  reusable?: SlotMap[K] extends { kind: 'single'; scope: 'session' | 'session-maybe' } ? true : never
   /** Child-slot declaration + render authorization + runtime spec, in one table. */
   children?: D
   /** Store seat: a shared handle (apply-constructed) or an exclusive factory (framework-called per entry x scope). */
@@ -595,7 +597,7 @@ type BaseOptions<
  */
 export interface StoredEntry {
   component: unknown
-  options: { key?: string; id?: string; order?: number; label?: SlotLabel; priority?: number }
+  options: { key?: string; id?: string; order?: number; label?: SlotLabel; priority?: number; reusable?: true }
   /** Chain routing selector (type-erased like `inject`; present exactly on chain-slot entries). */
   select?: ((owner: never) => unknown) | undefined
   /** Registrant business face; positional params derive from the declaration (sessionId?, actions?). */
@@ -629,6 +631,7 @@ export function resolveSlotLabel(label: SlotLabel | undefined): string | undefin
  */
 interface ErasedOptions {
   name: string
+  reusable?: true | undefined
   key?: string | undefined
   id?: string | undefined
   order?: number | undefined
@@ -829,6 +832,10 @@ export class SlotCore {
       throw new Error(`slot "${options.name}" is not declared (a parent entry's children table must declare it)`)
     }
     const spec = rec.spec
+    if (options.reusable !== undefined && (spec.kind !== 'single' || spec.scope === 'root')) {
+      throw new Error(
+        `slot "${options.name}" supports reusable only with kind 'single' and scope 'session' or 'session-maybe'`)
+    }
     // Kind constraints stay runtime checks for dynamically-composed callers;
     // typed callers already satisfied KindOptions statically. Cell occupancy
     // clashes only at the exact priority: a different priority shadows.
@@ -889,6 +896,7 @@ export class SlotCore {
         ...(options.order !== undefined ? { order: options.order } : {}),
         ...(options.label !== undefined ? { label: options.label } : {}),
         ...(options.priority !== undefined ? { priority: options.priority } : {}),
+        ...(options.reusable === true ? { reusable: true } : {}),
       },
       ...(options.select !== undefined ? { select: options.select } : {}),
       ...(options.inject !== undefined ? { inject: options.inject } : {}),

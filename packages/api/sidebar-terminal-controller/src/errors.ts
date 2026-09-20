@@ -7,6 +7,7 @@ import type {} from './types.ts'
 const messages = {
   'invalid-request': 'Invalid terminal request; check the target, attachment, and display dimensions',
   'invalid-directory': 'Choose an existing directory inside the session workspace',
+  'invalid-shell': 'Selected shell is unavailable; choose a shell in a new terminal tab',
   unavailable: 'Terminal service is unavailable; check the configured shell and native dependencies',
   'not-found': 'Terminal or session was not found; refresh the sidebar terminal list',
   'stale-attachment': 'Terminal attachment is stale; reopen the terminal before sending commands',

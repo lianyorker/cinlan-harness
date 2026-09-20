@@ -1,11 +1,13 @@
-/** User control for model-selectable subagent delegation in new sessions. */
+/** User controls for subagent delegation limits and model selection. */
 
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
   SubagentModelCandidate,
-  SubagentModelSelectionCardFace,
 } from './subagent-model-selection-card-controller.ts'
+import type { SubagentCardFace } from './subagent-card-controller.ts'
+import { subagentCardShell } from './subagent-card-controller.ts'
+import { ValueField } from './fields.tsx'
 import type {} from './slot-contract.ts'
 import { PluginCard } from './PluginCard.tsx'
 import css from './SubagentModelSelectionCard.module.css'
@@ -14,16 +16,18 @@ import css from './SubagentModelSelectionCard.module.css'
 export type SubagentModelSelectionCardProps =
   PropsRuntime<'settings.plugin.item'>
   & PropsLocale<'settings.plugins'>
-  & InjectFace<SubagentModelSelectionCardFace>
+  & InjectFace<SubagentCardFace>
 
 /**
- * Render the default-off preference and its exact adapter-route choices.
+ * Render delegation limits with the default-off preference and exact route choices.
  * @param props - locale copy, the card snapshot, and its toggle action.
  * @returns the preference card, or nothing when the namespace is unavailable.
  */
 export function SubagentModelSelectionCard(props: SubagentModelSelectionCardProps) {
   const { t } = props
   const state = props.useSubagentModelSelectionCard(snapshot => snapshot)
+  const limits = props.useSubagentLimitsCard(snapshot => snapshot)
+  const shell = subagentCardShell(limits, state)
   const availableGroups = new Map<string, {
     providerName: string
     candidates: SubagentModelCandidate[]
@@ -68,72 +72,96 @@ export function SubagentModelSelectionCard(props: SubagentModelSelectionCardProp
       t={t}
       titleKey="subagentModelSelectionTitle"
       descriptionKey="subagentModelSelectionDescription"
-      state={state}
+      state={shell}
       onSave={props.save}
       onDiscard={props.discard}
     >
-      <div className={css.permission}>
-        <div className={css.toggleRow}>
-          <span className={css.toggleLabel}>{t('subagentModelSelectionToggle')}</span>
-          <Switch
-            checked={state.enabled}
-            label={t('subagentModelSelectionToggle')}
-            disabled={!state.writable || state.saving}
-            onChange={props.toggleEnabled}
+      {limits.available
+        ? (['maxDepth', 'maxActiveSubagents'] as const).map(field => (
+          <ValueField
+            key={field}
+            id={`subagent-${field}`}
+            label={t(field === 'maxDepth' ? 'subagentMaxDepth' : 'subagentMaxActive')}
+            hint={t(field === 'maxDepth' ? 'subagentMaxDepthHint' : 'subagentMaxActiveHint')}
+            {...limits[field]}
+            overriddenLabel={t('overridden')}
+            resetLabel={t('reset')}
+            invalidLabel={t(field === 'maxDepth' ? 'subagentInvalidDepth' : 'subagentInvalidActive')}
+            disabled={!limits.writable || shell.saving}
+            numeric
+            onEdit={(text) => { props.editLimit(field, text) }}
+            onReset={() => { props.resetLimit(field) }}
           />
-        </div>
-        <p className={css.hint}>
-          {t(state.enabled ? 'subagentModelSelectionChoose' : 'subagentModelSelectionOff')}
-        </p>
-      </div>
-      {state.enabled
+        ))
+        : null}
+      {state.available
         ? (
-          <div className={css.selection}>
-            {state.catalogStatus === 'loading'
-              ? <p className={css.notice} role="status">{t('subagentModelSelectionLoading')}</p>
-              : null}
-            {state.catalogStatus === 'error'
+          <>
+            <div className={css.permission}>
+              <div className={css.toggleRow}>
+                <span className={css.toggleLabel}>{t('subagentModelSelectionToggle')}</span>
+                <Switch
+                  checked={state.enabled}
+                  label={t('subagentModelSelectionToggle')}
+                  disabled={!state.writable || state.saving}
+                  onChange={props.toggleEnabled}
+                />
+              </div>
+              <p className={css.hint}>
+                {t(state.enabled ? 'subagentModelSelectionChoose' : 'subagentModelSelectionOff')}
+              </p>
+            </div>
+            {state.enabled
               ? (
-                <div className={css.catalogError} role="alert">
-                  <span>{t('subagentModelSelectionLoadFailed')}</span>
-                  <button type="button" disabled={state.saving} onClick={props.retryCatalog}>
-                    {t('subagentModelSelectionRetry')}
-                  </button>
-                </div>
-              )
-              : null}
-            {state.catalogPartial
-              ? <p className={css.notice}>{t('subagentModelSelectionPartial')}</p>
-              : null}
-            {state.candidates.length > 0
-              ? (
-                <fieldset className={css.models}>
-                  <legend>{t('subagentModelSelectionAllowed')}</legend>
-                  {[...availableGroups].map(([provider, group]) => (
-                    <div key={provider} className={css.modelGroup}>
-                      <div className={css.providerName}>{group.providerName}</div>
-                      {group.candidates.map(renderCandidate)}
-                    </div>
-                  ))}
-                  {unavailable.length > 0
+                <div className={css.selection}>
+                  {state.catalogStatus === 'loading'
+                    ? <p className={css.notice} role="status">{t('subagentModelSelectionLoading')}</p>
+                    : null}
+                  {state.catalogStatus === 'error'
                     ? (
-                      <div className={css.modelGroup}>
-                        <div className={css.providerName}>{t('subagentModelSelectionUnavailableGroup')}</div>
-                        {unavailable.map(renderCandidate)}
+                      <div className={css.catalogError} role="alert">
+                        <span>{t('subagentModelSelectionLoadFailed')}</span>
+                        <button type="button" disabled={state.saving} onClick={props.retryCatalog}>
+                          {t('subagentModelSelectionRetry')}
+                        </button>
                       </div>
                     )
                     : null}
-                </fieldset>
+                  {state.catalogPartial
+                    ? <p className={css.notice}>{t('subagentModelSelectionPartial')}</p>
+                    : null}
+                  {state.candidates.length > 0
+                    ? (
+                      <fieldset className={css.models}>
+                        <legend>{t('subagentModelSelectionAllowed')}</legend>
+                        {[...availableGroups].map(([provider, group]) => (
+                          <div key={provider} className={css.modelGroup}>
+                            <div className={css.providerName}>{group.providerName}</div>
+                            {group.candidates.map(renderCandidate)}
+                          </div>
+                        ))}
+                        {unavailable.length > 0
+                          ? (
+                            <div className={css.modelGroup}>
+                              <div className={css.providerName}>{t('subagentModelSelectionUnavailableGroup')}</div>
+                              {unavailable.map(renderCandidate)}
+                            </div>
+                          )
+                          : null}
+                      </fieldset>
+                    )
+                    : state.catalogStatus === 'ready'
+                      ? <p className={css.notice}>{t('subagentModelSelectionEmpty')}</p>
+                      : null}
+                  {state.invalid ? <p className={css.invalid}>{t('subagentModelSelectionRequired')}</p> : null}
+                </div>
               )
-              : state.catalogStatus === 'ready'
-                ? <p className={css.notice}>{t('subagentModelSelectionEmpty')}</p>
-                : null}
-            {state.invalid ? <p className={css.invalid}>{t('subagentModelSelectionRequired')}</p> : null}
-          </div>
+              : null}
+            {state.conflicted
+              ? <p className={css.conflict} role="status">{t('subagentModelSelectionConflict')}</p>
+              : null}
+          </>
         )
-        : null}
-      {state.conflicted
-        ? <p className={css.conflict} role="status">{t('subagentModelSelectionConflict')}</p>
         : null}
     </PluginCard>
   )

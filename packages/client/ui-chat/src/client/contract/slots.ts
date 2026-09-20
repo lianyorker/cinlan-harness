@@ -205,6 +205,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'conversation.chat.turnTail': { kind: 'chain'; scope: 'session'; owner: TurnTailOwnerProps }
     /**
+     * Ordered feature cards before the existing Turn tail. Each component
+     * receives the Turn, closing sequence, and file opener. A fresh id adds a
+     * card; reusing an id replaces it. With no entries, no cards render.
+     */
+    'conversation.chat.turnCards': { kind: 'list'; scope: 'session'; owner: TurnTailOwnerProps }
+    /**
      * Ordered actions for one finalized assistant message. Each entry receives
      * the durable message id; a fresh `id` adds an action and reusing one replaces
      * that entry. With no entries, the standard action row remains unchanged.

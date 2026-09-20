@@ -7,7 +7,9 @@ import '@xterm/xterm/css/xterm.css'
 import { t } from './locales.ts'
 import { openWhenSized } from './open-when-sized.ts'
 import type { SessionScope, TerminalDepsStatus } from './api.ts'
-import type { TerminalCallbacks } from '@deepseek-ai/dsh-api-sidebar-terminal-controller/types'
+import type { TerminalCallbacks, SidebarTerminalShell } from '@deepseek-ai/dsh-api-sidebar-terminal-controller/types'
+import { rememberTerminalLaunch, type TerminalLaunch } from './terminal-launch.ts'
+import chooserCss from './TerminalShellChooser.module.css'
 import type { SidebarTerminalAttachmentId, SidebarAgentTerminalId, SidebarTerminalSessionId, SidebarTerminalTabId, SidebarFloatingTerminalDirectory } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import { agentUuidOf, isAgentTabId, type SidebarStore } from './state.ts'
 import { isDarkScheme, subscribeColorScheme, effectiveTokenValue, tokenValue } from './theme.ts'
@@ -63,11 +65,66 @@ function xtermTheme(): ITheme {
 }
 
 /** Renderer input; transport behavior comes from the plugin's apply closure. */
-export type TerminalViewProps = { scope: SessionScope; tabId: string; store: SidebarStore; floating?: SidebarFloatingTerminalDirectory }
-  & Pick<TerminalCallbacks, 'connectTerminal' | 'terminalInput' | 'terminalResize'>
+export type TerminalViewProps = {
+  scope: SessionScope
+  tabId: string
+  store: SidebarStore
+  floating?: SidebarFloatingTerminalDirectory
+  launch?: TerminalLaunch
+}
+  & Pick<TerminalCallbacks, 'connectTerminal' | 'terminalInput' | 'terminalResize' | 'terminalShells'>
 
+/** @param props - persisted tab state and terminal callbacks. @returns a shell chooser or the attached renderer. */
 export function TerminalView(props: TerminalViewProps) {
-  const { scope, tabId, store, floating, connectTerminal, terminalInput, terminalResize } = props
+  return <TerminalTab key={JSON.stringify([props.scope.sessionId, props.tabId])} {...props} />
+}
+
+function TerminalTab(props: TerminalViewProps) {
+  const [launch, setLaunch] = useState<TerminalLaunch>(() => props.launch ?? { pending: false })
+  if (launch.pending && !isAgentTabId(props.tabId)) {
+    return <TerminalShellChooser load={props.terminalShells} onLaunch={(shellPath) => {
+      setLaunch({ pending: false, ...shellPath === undefined ? {} : { shellPath } })
+    }} />
+  }
+  return <ConnectedTerminal {...props} launch={launch} />
+}
+
+function TerminalShellChooser({ load, onLaunch }: {
+  load: TerminalCallbacks['terminalShells']
+  onLaunch: (path?: string) => void
+}) {
+  const [shells, setShells] = useState<readonly SidebarTerminalShell[]>([])
+  const [path, setPath] = useState('')
+  const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading')
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    let closed = false
+    setStatus('loading')
+    void load().then((value) => {
+      if (!closed) { setShells(value); setStatus('ready') }
+    }, () => { if (!closed) setStatus('failed') })
+    return () => { closed = true }
+  }, [load, attempt])
+  return <div className={chooserCss.chooser}>
+    <label className={chooserCss.label}>
+      {t('terminalShellLabel')}
+      <select className={chooserCss.select} value={path} onChange={(event) => { setPath(event.target.value) }}>
+        <option value="">{t('terminalShellDefault')}</option>
+        {shells.map(shell => <option key={shell.path} value={shell.path}>{shell.name}</option>)}
+      </select>
+    </label>
+    {status === 'loading' && <div role="status">{t('terminalShellLoading')}</div>}
+    {status === 'failed' && <div role="alert">
+      {t('terminalShellLoadFailed')}
+      <button type="button" className={css.terminalRetry} onClick={() => { setAttempt(value => value + 1) }}>{t('terminalRetry')}</button>
+    </div>}
+    <button type="button" className={css.terminalRetry} onClick={() => { onLaunch(path === '' ? undefined : path) }}>{t('terminalShellStart')}</button>
+  </div>
+}
+
+function ConnectedTerminal(props: TerminalViewProps & { launch: TerminalLaunch }) {
+  const { scope, tabId, store, floating, launch, connectTerminal, terminalInput, terminalResize } = props
+  const shellPath = launch.shellPath
   const floatingWindowId = floating?.windowId
   const floatingDirectory = floating?.directory
   const hostRef = useRef<HTMLDivElement>(null)
@@ -102,7 +159,8 @@ export function TerminalView(props: TerminalViewProps) {
       setConnected(false)
       const code = error !== null && typeof error === 'object' && 'code' in error ? error.code : undefined
       setFatal(code === 'sidebarTerminals/invalid-directory' ? t('terminalDirectoryError')
-        : code === 'sidebarTerminals/unavailable' ? t('terminalDepsFailed') : t('terminalConnectFailed'))
+        : code === 'sidebarTerminals/unavailable' ? t('terminalDepsFailed')
+          : code === 'sidebarTerminals/invalid-shell' ? t('terminalShellUnavailable') : t('terminalConnectFailed'))
     }
     const sendResize = (): void => {
       if (attachmentId !== undefined) void terminalResize(attachmentId, term.cols, term.rows).catch(report)
@@ -113,11 +171,13 @@ export function TerminalView(props: TerminalViewProps) {
       attachmentId = undefined
       const target = isAgentTabId(tabId)
         ? { kind: 'agent' as const, uuid: agentUuidOf(tabId) as SidebarAgentTerminalId }
-        : { kind: 'ui' as const, sessionId: scope.sessionId as SidebarTerminalSessionId, tabId: tabId as SidebarTerminalTabId, ...(floatingWindowId === undefined || floatingDirectory === undefined ? {} : { floating: { windowId: floatingWindowId, directory: floatingDirectory } }) }
+        : { kind: 'ui' as const, sessionId: scope.sessionId as SidebarTerminalSessionId, tabId: tabId as SidebarTerminalTabId, ...(shellPath === undefined ? {} : { shellPath }), ...(floatingWindowId === undefined || floatingDirectory === undefined ? {} : { floating: { windowId: floatingWindowId, directory: floatingDirectory } }) }
       disconnect = connectTerminal({ target, cols: term.cols, rows: term.rows }, async (frame) => {
         if (closed) return
         if (frame.type === 'ready') {
           attachmentId = frame.attachmentId
+          if (!isAgentTabId(tabId)) rememberTerminalLaunch(store, scope.sessionId, tabId,
+            { pending: false, ...shellPath === undefined ? {} : { shellPath } }, frame.shellName)
           term.reset()
           Object.assign(term.options, resolveTerminalOptions(store.getPrefs(), tokenValue('--ds-font-family-code')))
           setConnected(true)
@@ -204,7 +264,7 @@ export function TerminalView(props: TerminalViewProps) {
       term.dispose()
       connectRef.current = null
     }
-  }, [scope.sessionId, tabId, store, floatingWindowId, floatingDirectory, connectTerminal, terminalInput, terminalResize])
+  }, [scope.sessionId, tabId, store, floatingWindowId, floatingDirectory, shellPath, connectTerminal, terminalInput, terminalResize])
 
   return (
     <div className={css.terminalWrap} data-dsh-terminal-tab={tabId}>

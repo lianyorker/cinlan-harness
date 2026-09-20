@@ -17,6 +17,15 @@ import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 
 export type { AgentContext } from '../scope.ts'
 
+/** One independent owner of a Client subagent scope and its history follow. */
+export interface SessionReference {
+  readonly sessionId: SessionId
+  /** Initial open attempt settlement; business failures remain in the Session snapshot. Rejects if released first. */
+  readonly ready: Promise<void>
+  /** Release once; other references and listed or selected Sessions keep their scope. */
+  release(): void
+}
+
 /** The sessions-service face injected as `ctx.sessions`. */
 export interface ISessions {
   /** The useSessions standard feed (list rows + current selection; read face — writes stay inside the domain). */
@@ -48,6 +57,14 @@ export interface ISessions {
    * @param address - catalog-derived parent and child ids.
    */
   openSubagent(address: SubagentAddress): void
+  /**
+   * Retain and follow a healthy catalog child without changing the current selection.
+   * @param address - exact direct-parent address from a resolved subagent catalog.
+   * @param options - optional signal releasing only this reference throughout its lifetime.
+   * @returns an owned reference; its binding is immediately addressable, and ready awaits the initial open attempt.
+   * @throws when the signal is already aborted, the catalog address is invalid, or the service is disposed.
+   */
+  retainSubagent(address: SubagentAddress, options?: { signal?: AbortSignal }): SessionReference
   /**
    * Resolve an already discovered direct-parent address without opening it.
    * @param id - possible addressed child id.

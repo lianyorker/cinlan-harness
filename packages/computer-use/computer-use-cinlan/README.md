@@ -63,8 +63,9 @@ The CLI `runtimeId` is a generation marker. A changed generation clears all obse
 
 Screenshots may arrive as canonical base64 or an absolute, unexpired temporary PNG path. The provider accepts only regular non-symlink files, checks the configured byte cap and stable file size, validates the PNG signature, returns bytes to the Consumer, and never exposes the temporary path in a model result.
 
-Plugin disposal unregisters the Provider, stops accepting calls, aborts and joins in-flight CLI processes, and clears observation state. The external Cinlan runtime and desktop applications are not provider-owned and remain running.
+Plugin disposal stops accepting calls, aborts and joins in-flight CLI processes, clears observation state, then unregisters the Provider. Its registration excludes exclusive Cua Driver adapters until cleanup completes. The external Cinlan runtime and desktop applications are not provider-owned and remain running.
 
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Provider-backed desktop results

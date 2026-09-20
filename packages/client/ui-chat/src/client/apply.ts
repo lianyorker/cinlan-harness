@@ -142,10 +142,9 @@ export function apply(ctx: Context): void {
             const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
             const url = fileAddressFor(sessionId, cwd, path)
             const sidebar = ctx.get('sidebarRight') as { openResource(url: string, opts?: { params?: Record<string, unknown> }): void } | undefined
-            const betterSidebar = ctx.get('betterSidebar') as { openFile(scope: { sessionId: string; cwd?: string }, path: string): void } | undefined
+            const betterSidebar = ctx.get('betterSidebar') as { openFile(scope: { sessionId: string; cwd?: string }, path: string): Promise<void> } | undefined
             if (betterSidebar !== undefined) {
-              const cwd2 = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
-              betterSidebar.openFile({ sessionId, ...cwd2 === undefined ? {} : { cwd: cwd2 } }, path)
+              await betterSidebar.openFile({ sessionId, ...cwd === undefined ? {} : { cwd } }, path)
             } else if (sidebar !== undefined) {
               if (options?.line === undefined) sidebar.openResource(url)
               else sidebar.openResource(url, { params: { line: options.line } })

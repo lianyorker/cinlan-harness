@@ -149,6 +149,8 @@ ctx.tools.register(defineTool({
 
 -----
 
+执行前监听器可以返回 `cancel`，选择规范的派发前取消结果，也可以在拒绝中附加 `info`。结构化错误元数据可包含供用户阅读的原始 `reason`；原生与 PTC 结果将其与模型内容分开持久化。每次 PTC 执行都通过临时 `exec.schema` 携带深度冻结的绑定 schema；PTC 开始和结束事件不会序列化这些 schema。
+
 <a id="model-experience"></a>
 ## 模型体验
 

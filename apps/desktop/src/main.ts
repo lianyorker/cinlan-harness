@@ -1,5 +1,6 @@
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
+import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -108,13 +109,14 @@ function createWindow(preload: string): BrowserWindow {
   return window
 }
 
-function assertDesktopSender(event: IpcMainInvokeEvent, hostnames: readonly string[]): void {
+function assertDesktopSender(event: IpcMainInvokeEvent, hostnames: readonly string[]): URL {
   const senderFrame = event.senderFrame
   if (senderFrame === null) throw new Error('dsh desktop: rejected IPC without a sender frame')
   const url = new URL(senderFrame.url)
   if (url.protocol !== `${SCHEME}:` || !hostnames.includes(url.hostname)) {
     throw new Error('dsh desktop: rejected IPC from an unowned renderer')
   }
+  return url
 }
 
 async function serveShellAsset(request: Request): Promise<Response> {
@@ -207,38 +209,17 @@ async function main(): Promise<void> {
   }
   const hooks: DesktopProjectHooks = {
     healthCheck: async (projectDir) => {
-      floatingWindows?.close()
-      const active = host
-      await stopHosts()
-      let healthFailure: unknown
-      let probe: DesktopHostProcess | undefined
       try {
-        probe = await startHost(projectDir)
+        const probe = await startHost(projectDir)
         await stopHost(probe)
       } catch (error) {
-        healthFailure = error
         try {
           await stopHosts()
         } catch (cleanupError) {
           throw new AggregateError([error, cleanupError], 'desktop project: staged health check and Host cleanup failed')
         }
+        throw error
       }
-      let restartFailure: unknown
-      if (active !== undefined && !isQuitting()) {
-        try {
-          host = await startHost()
-        } catch (error) {
-          restartFailure = error
-        }
-      }
-      if (healthFailure !== undefined && restartFailure !== undefined) {
-        throw new AggregateError([
-          errorOf(healthFailure, 'desktop project: staged health check failed'),
-          errorOf(restartFailure, 'desktop project: active backend restart failed'),
-        ], 'desktop project: staged health check and active backend restart failed')
-      }
-      if (healthFailure !== undefined) throw errorOf(healthFailure, 'desktop project: staged health check failed')
-      if (restartFailure !== undefined) throw errorOf(restartFailure, 'desktop project: active backend restart failed')
     },
     beforeActivate: async () => {
       floatingWindows?.close()
@@ -286,8 +267,27 @@ async function main(): Promise<void> {
     mutationTask = (async () => {
       await cleanupTask
       if (isQuitting()) throw new Error('Desktop is closing')
-      if ([...ownedHosts].some(owned => owned !== host)) await stopHosts()
-      await manager.mutate(mutation, hooks)
+      await hooks.beforeActivate()
+      let activationStarted = false
+      try {
+        await manager.mutate(mutation, {
+          ...hooks,
+          beforeActivate: async () => {
+            activationStarted = true
+            await hooks.beforeActivate()
+          },
+        })
+      } catch (error) {
+        // Activation owns rollback and restart once directory replacement begins.
+        if (!activationStarted && ownedHosts.size === 0 && !existsSync(paths.pending) && !isQuitting()) {
+          try {
+            await hooks.afterActivate()
+          } catch (restartError) {
+            throw new AggregateError([error, restartError], 'desktop project: mutation and active backend restart failed')
+          }
+        }
+        throw error
+      }
     })()
     try {
       await mutationTask
@@ -386,6 +386,11 @@ async function main(): Promise<void> {
     pluginWindow.once('closed', () => { pluginWindow = undefined })
     void pluginWindow.loadURL(`${SCHEME}://shell/plugin-manager.html`)
   }
+  ipcMain.handle(DESKTOP_IPC.openPluginsWindow, (event) => {
+    const url = assertDesktopSender(event, ['app'])
+    if (url.host !== 'app') throw new Error('dsh desktop: rejected plugin window origin')
+    openPluginWindow()
+  })
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(desktopMenuTemplate({
     platform: process.platform,

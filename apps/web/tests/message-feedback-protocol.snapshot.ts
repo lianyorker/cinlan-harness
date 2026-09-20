@@ -92,7 +92,11 @@ describe('message feedback Host Remote protocol', () => {
       messageId: MESSAGE_ID,
       rating: 'positive',
       note: 'Useful answer',
+      category: 'task-result',
       ifVersion: null,
+    })
+    expect(created).toMatchObject({
+      result: { ok: true, value: { ok: true, value: { category: 'task-result' } } },
     })
     const version = createdVersion(created)
     expect(version).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)

@@ -25,6 +25,10 @@ class ScriptedSubprocessRuntime extends SubprocessRuntime {
     return '/managed/bin/git'
   }
 
+  async terminalEnvironment(): Promise<never> {
+    throw new Error('This fixture supports managed batch commands only')
+  }
+
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     spec.signal?.throwIfAborted()
     this.specs.push(spec)
@@ -61,7 +65,7 @@ function fixture(options: { missing?: 'stdout' | 'stderr'; lossy?: 'stdout' | 's
     ...(options.missing === 'stderr' ? {} : { stderr: { readFrom: readStderr } }),
   }
   const handle: SubprocessHandle = {
-    stdin: undefined, stdout: undefined, stderr: undefined, collected, done: done.promise,
+    stdin: undefined, stdout: undefined, stderr: undefined, control: undefined, collected, done: done.promise,
     terminate: () => {}, waitForExit: () => exited.promise,
   }
   const ctx = new Context()

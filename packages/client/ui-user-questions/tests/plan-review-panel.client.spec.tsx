@@ -111,6 +111,8 @@ const questionDraftStore = createQuestionDraftStore().create(SID)
 /** Framework standard-kit stubs: the panel consumes only the locale seat. */
 const kit: Omit<QuestionComposerProps, 'matched'> = {
   sessionId: SID,
+  renderSlot: () => null,
+  SessionProvider: ({ children }) => children,
   session: undefined,
   pendingInteraction: undefined,
   useSession: selector => selector(sessionState),
@@ -212,7 +214,7 @@ describe('PlanReviewPanel', () => {
     expect(screen.getByText(zh['plan.header'])).toBeTruthy()
     // The plan renders as markdown, so its heading is a heading.
     expect(screen.getByRole('heading', { name: 'Ship the picker' })).toBeTruthy()
-    expect(screen.getByText('render the rows')).toBeTruthy()
+    expect(screen.queryByText('render the rows')).toBeNull()
     // The question text stays as the card's accessible name rather than a title
     // that reads like a test item.
     expect(screen.getByLabelText('Approve this plan and leave plan mode?')).toBeTruthy()

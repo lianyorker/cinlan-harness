@@ -72,6 +72,12 @@ export interface PresetSpec {
  */
 export const CUSTOM_PRESET = 'custom'
 
+/** Canonical identity of the optional per-call authorization review preset. */
+export const AUTO_PRESET = 'auto'
+
+/** Auto retains the Full access execution knobs while its reviewer is mounted. */
+const AUTO_PRESET_SPEC: PresetSpec = { sandbox: 'danger-full-access', approval: 'never' }
+
 /** Settings namespace carrying the default for future sessions. */
 export const PERMISSION_SETTINGS_NAMESPACE = 'permission'
 
@@ -183,6 +189,7 @@ export class PermissionPresetService extends Service {
   static inject = ['shell', 'approval', 'sessions', 'sessionProjections']
 
   private readonly presets: Record<string, PresetSpec>
+  private autoAdmit: (() => void) | undefined
   private defaultSettings: () => PermissionSettings
 
   constructor(ctx: Context, config: Config) {
@@ -191,6 +198,9 @@ export class PermissionPresetService extends Service {
     this.presets = config.presets as Record<string, PresetSpec>
     if (CUSTOM_PRESET in this.presets) {
       throw new Error(`permission: "${CUSTOM_PRESET}" is reserved for the derived not-a-preset state and cannot name a table entry`)
+    }
+    if (AUTO_PRESET in this.presets) {
+      throw new Error(`permission: "${AUTO_PRESET}" is reserved and cannot name a configured preset`)
     }
     if (ctx.shell.sandboxMode === undefined) {
       throw new Error('permission: the mounted bash executor does not confine (no sandboxMode) — presets bundle a sandbox mode, so composing this plugin over an unconfined executor is a misconfiguration')
@@ -203,7 +213,7 @@ export class PermissionPresetService extends Service {
     this.resolve(defaultPreset)
     const baseSettings: PermissionSettings = { defaultPreset }
     this.defaultSettings = () => baseSettings
-    const presetChoices = this.names.map((name) => {
+    const presetChoices = Object.keys(this.presets).map((name) => {
       const choice = z.const(name)
       const label = this.presets[name]?.name
       return label === undefined ? choice : choice.description(label)
@@ -280,7 +290,20 @@ export class PermissionPresetService extends Service {
    * @returns every switchable preset name.
    */
   get names(): readonly string[] {
-    return Object.keys(this.presets)
+    return [...Object.keys(this.presets), ...(this.autoAdmit === undefined ? [] : [AUTO_PRESET])]
+  }
+
+  /**
+   * Publish Auto for the review integration effect lifetime.
+   * @param admit - synchronous check before selection or restoration.
+   * @returns the disposer withdrawing Auto from future selection.
+   */
+  registerAuto(admit: () => void): () => Promise<void> {
+    return this.ctx.effect(() => {
+      if (this.autoAdmit !== undefined) throw new Error('permission: preset "auto" is already registered')
+      this.autoAdmit = admit
+      return () => { this.autoAdmit = undefined }
+    }, 'permissionPresets.registerAuto()')
   }
 
   /**
@@ -315,7 +338,7 @@ export class PermissionPresetService extends Service {
     const approval = state.approval ?? this.ctx.approval.config.policy ?? 'ask'
     const matches = (spec: PresetSpec): boolean => spec.sandbox === sandbox && spec.approval === approval
     if (state.preset !== null) {
-      const spec = this.presets[state.preset]
+      const spec = this.specOf(state.preset)
       if (spec !== undefined && matches(spec)) return state.preset
     }
     for (const [name, spec] of Object.entries(this.presets)) {
@@ -348,7 +371,7 @@ export class PermissionPresetService extends Service {
    * @throws when `name` is not in the table.
    */
   resolve(name: string): PresetSpec {
-    const spec = this.presets[name]
+    const spec = this.specOf(name)
     if (spec === undefined) {
       throw new Error(`permission: unknown preset "${name}" (known: ${Object.keys(this.presets).join(', ')})`)
     }
@@ -383,6 +406,7 @@ export class PermissionPresetService extends Service {
   /** Apply one preset with the caller-selected live or initialization policy writer. */
   private apply(session: Session, name: string, setApproval: (policy: ApprovalPolicy) => void): void {
     const spec = this.resolve(name)
+    if (name === AUTO_PRESET) this.autoAdmit?.()
     if (this.current(session) !== name) {
       session.append('permission/preset', { preset: name })
     }
@@ -404,6 +428,12 @@ export class PermissionPresetService extends Service {
   private pinInitialPermission(session: Session): void {
     const state = this.permissionState(session)
     const selected = state.preset
+    if (selected === AUTO_PRESET) {
+      if (this.autoAdmit === undefined) {
+        throw new Error('permission: cannot restore preset "auto" without its active integration')
+      }
+      this.autoAdmit()
+    }
     const sandbox = state.sandbox
     const approval = state.approval
     const seeded = state.seeded
@@ -426,6 +456,11 @@ export class PermissionPresetService extends Service {
     if (approval === null) {
       setApprovalPolicy(session, this.ctx.approval.config.policy ?? 'ask')
     }
+  }
+  /** Resolve a configured preset or the currently mounted Auto integration. */
+  private specOf(name: string): PresetSpec | undefined {
+    return this.presets[name]
+      ?? (name === AUTO_PRESET && this.autoAdmit !== undefined ? AUTO_PRESET_SPEC : undefined)
   }
 }
 

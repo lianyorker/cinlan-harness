@@ -19,6 +19,9 @@ import {
 } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { SessionSeq, type SessionId } from '@deepseek-ai/dsh-session/types'
 import { createChatStore } from '../src/client/stores.ts'
+import { createBetterSidebarService } from '@deepseek-ai/dsh-client-ui-better-sidebar/src/client/service.ts'
+import { createSidebarStore, allLeaves } from '@deepseek-ai/dsh-client-ui-better-sidebar/src/client/state.ts'
+import { api as sidebarApi } from '@deepseek-ai/dsh-client-ui-better-sidebar/src/client/api.ts'
 
 usePinnedBrowserLanguages('zh-CN')
 
@@ -159,6 +162,55 @@ describe('Chat inject API', () => {
     // An absolute path outside every known root carries no Session in its address.
     await injected.openFile('/abs/a.ts')
     expect(b.sidebarRight.openResource).toHaveBeenLastCalledWith('dsh-resource://file/absolute/abs/a.ts')
+    await b.runtime.dispose()
+  })
+
+  it('opens relative preview files through betterSidebar using the source Session nested cwd', async () => {
+    const b = await bench()
+    const CHILD = 'child-preview' as SessionId
+    await b.runtime.sessions.add({
+      id: CHILD, summary: { title: 'Child', displayTitle: 'Child', cwd: '/repo/nested' },
+      session: sessionFakeFor(),
+    }, { current: false })
+    const store = createSidebarStore()
+    const sidebar = createBetterSidebarService(store)
+    sidebar.registerTab({ id: 'editor', title: 'Editor', component: () => null })
+    store.setSession(CHILD)
+    b.runtime.ctx.provide('betterSidebar', sidebar as never)
+    const { injected } = b.chatViewApi(CHILD)
+    for (const path of ['report.pdf', 'image.png', 'index.html', 'notes.md', 'src/main.ts']) {
+      await injected.openFile(path)
+    }
+    expect(allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs)
+      .flatMap(tab => tab.path ?? []))
+      .toEqual(['/repo/nested/report.pdf', '/repo/nested/image.png', '/repo/nested/index.html',
+        '/repo/nested/notes.md', '/repo/nested/src/main.ts'])
+    expect(b.sidebarRight.openResource).not.toHaveBeenCalled()
+    expect(b.openWorkspacePath).not.toHaveBeenCalled()
+    await b.runtime.dispose()
+  })
+
+  it('awaits authoritative cwd resolution and propagates preview failures', async () => {
+    const b = await bench()
+    const CHILD = 'child-without-cwd' as SessionId
+    await b.runtime.sessions.add({ id: CHILD, summary: { title: 'Child', displayTitle: 'Child' },
+      session: sessionFakeFor() }, { current: false })
+    const store = createSidebarStore()
+    const sidebar = createBetterSidebarService(store)
+    sidebar.registerTab({ id: 'editor', title: 'Editor', component: () => null })
+    store.setSession(CHILD)
+    b.runtime.ctx.provide('betterSidebar', sidebar as never)
+    const cwd = vi.spyOn(sidebarApi, 'sessionCwd').mockResolvedValue({
+      sessionId: CHILD, cwd: '/repo/nested', root: '/repo', parent: '/repo',
+    })
+    onTestFinished(() => cwd.mockRestore())
+    const { injected } = b.chatViewApi(CHILD)
+    await injected.openFile('report.pdf')
+    expect(cwd).toHaveBeenCalledWith({ sessionId: CHILD })
+    expect(allLeaves(store.getSnapshot().state!.splits).flatMap(leaf => leaf.tabs))
+      .toContainEqual(expect.objectContaining({ path: '/repo/nested/report.pdf' }))
+    cwd.mockRejectedValueOnce(new Error('Session unavailable'))
+    await expect(injected.openFile('missing.pdf')).rejects.toThrow('Session unavailable')
     await b.runtime.dispose()
   })
 

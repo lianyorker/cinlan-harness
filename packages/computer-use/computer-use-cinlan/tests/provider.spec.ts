@@ -3,6 +3,7 @@ import ComputerUseRuntime, {
   ComputerAppId,
   ComputerElementId,
   ComputerObservationId,
+  ComputerUseProviderName,
   ComputerWindowId,
 } from '@deepseek-ai/dsh-computer-use'
 import SubprocessRuntime from '@deepseek-ai/dsh-subprocess'
@@ -65,6 +66,7 @@ interface Response {
   readonly lossy?: boolean
   readonly reject?: Error
   readonly pending?: boolean
+  readonly settlement?: Promise<void>
   readonly onSpawn?: () => void
 }
 
@@ -89,6 +91,10 @@ class FixtureSubprocess extends SubprocessRuntime {
     return this.resolveError === undefined ? Promise.resolve(`C:\\bin\\${command}.exe`) : Promise.reject(this.resolveError)
   }
 
+  async terminalEnvironment(): Promise<never> {
+    throw new Error('fixture does not provide terminal subprocesses')
+  }
+
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     this.specs.push(spec)
     const response = this.responses.shift()
@@ -100,13 +106,14 @@ class FixtureSubprocess extends SubprocessRuntime {
         else spec.signal?.addEventListener('abort', abort, { once: true })
       })
       : response.reject === undefined
-        ? Promise.resolve({ exitCode: response.exitCode ?? 0, signal: null })
+        ? Promise.resolve(response.settlement).then(() => ({ exitCode: response.exitCode ?? 0, signal: null }))
         : Promise.reject(response.reject)
     response.onSpawn?.()
     return {
       stdin: undefined,
       stdout: undefined,
       stderr: undefined,
+      control: undefined,
       collected: {
         stdout: { readFrom: () => ({ text: response.text, nextOffset: response.text.length, lossy: response.lossy ?? false }) },
         stderr: { readFrom: () => ({ text: '', nextOffset: 0, lossy: false }) },
@@ -377,6 +384,33 @@ describe('CinlanComputerUseProvider operations', () => {
 })
 
 describe('computer-use-cinlan plugin apply', () => {
+  it('keeps other desktop drivers excluded until the final CLI operation settles', async () => {
+    const { ctx, subprocess } = await harness()
+    const settled: PromiseWithResolvers<void> = Promise.withResolvers()
+    const started: PromiseWithResolvers<void> = Promise.withResolvers()
+    const fiber = await ctx.plugin({ name: 'fixture-cinlan', inject: ['computerUse', 'subprocess'], apply }, {})
+    subprocess.responses.push({ text: envelope({ apps: [] }), settlement: settled.promise, onSpawn: () => started.resolve() })
+    const result = expect(ctx.computerUse.listApps()).rejects.toMatchObject({ code: 'COMPUTER_PROVIDER_DISPOSED' })
+    let closing: Promise<void> | undefined
+    try {
+      await started.promise
+      closing = fiber.dispose()
+      await vi.waitFor(() => { expect(subprocess.specs[0]?.signal?.aborted).toBe(true) })
+      expect(() => ctx.computerUse.register(ComputerUseProviderName('native'))).toThrow(expect.objectContaining({ code: 'COMPUTER_PROVIDER_EXCLUSIVE' }))
+      settled.resolve()
+      await closing
+      await result
+      const release = ctx.computerUse.register(ComputerUseProviderName('native'))
+      expect(ctx.computerUse.providerName).toBe('native')
+      await release()
+    } finally {
+      settled.resolve()
+      await closing
+      await result
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('registers immediately and resolves the executable lazily on first operation', async () => {
     const { ctx, subprocess } = await harness()
     apply(ctx, { command: 'cinlan', commandTimeoutMs: 1_000 })

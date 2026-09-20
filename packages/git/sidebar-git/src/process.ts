@@ -4,9 +4,13 @@ import { SidebarGitError } from './errors.ts'
 
 /** Deployment-controlled process limits. */
 export interface GitProcessOptions {
+  /** Git executable resolved by the managed subprocess provider. */
   executable: string
+  /** Milliseconds before aborting one Git command. */
   timeoutMs: number
+  /** Milliseconds allowed for managed process termination. */
   graceMs: number
+  /** Maximum retained bytes per stdout or stderr stream; truncation fails the command. */
   maxOutputBytes: number
 }
 

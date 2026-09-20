@@ -1,5 +1,6 @@
 /** Linux user-systemd scope launch and managed-range ownership. */
 
+import { controlPipe } from './control-spawn.ts'
 import { execFile, spawn, spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
@@ -177,6 +178,15 @@ class SystemdScopeOwner implements BoundProcessOwner {
     private readonly sleep: (delayMs: number, signal?: AbortSignal) => Promise<void>,
   ) {}
 
+  inspectTaskCount(): number | undefined {
+    const result = this.runSync(this.systemctl, [
+      '--user', 'show', '--property=LoadState', '--property=ActiveState', '--property=TasksCurrent', this.unit,
+    ], { encoding: 'utf8', env: managerEnvironment(), timeout: SYSTEMCTL_TIMEOUT_MS })
+    if (result.error !== undefined || result.status !== 0 || typeof result.stdout !== 'string') return undefined
+    const state = this.parseUnitState(result.stdout)
+    return state.loadState === 'loaded' && state.activeState === 'active' ? state.tasksCurrent : undefined
+  }
+
   signal(signal: 'SIGTERM' | 'SIGKILL'): void {
     if (this.stopped) return
     this.observeRequestConsumption()
@@ -239,7 +249,7 @@ class SystemdScopeOwner implements BoundProcessOwner {
     return true
   }
 
-  private parseUnitState(stdout: string): { loadState: string; activeState: string } {
+  private parseUnitState(stdout: string): { loadState: string; activeState: string; tasksCurrent: number | undefined } {
     const values = new Map<string, string>()
     for (const line of stdout.split(/\r?\n/u)) {
       if (line === '') continue
@@ -255,10 +265,21 @@ class SystemdScopeOwner implements BoundProcessOwner {
     }
     const loadState = values.get('LoadState')
     const activeState = values.get('ActiveState')
-    if (values.size !== 2 || loadState === undefined || activeState === undefined) {
+    // The manager prints this sentinel for a property the unit does not carry.
+    const reportedTasks = values.get('TasksCurrent')
+    const tasksCurrent = reportedTasks === '[not set]' ? undefined : reportedTasks
+    if (values.size !== (reportedTasks === undefined ? 2 : 3)
+      || loadState === undefined || activeState === undefined) {
       throw new Error(`systemctl returned incomplete state for ${this.unit}: ${JSON.stringify(stdout.trim())}`)
     }
-    return { loadState, activeState }
+    if (tasksCurrent !== undefined && !/^\d+$/u.test(tasksCurrent)) {
+      throw new Error(`systemctl returned a non-numeric TasksCurrent for ${this.unit}: ${JSON.stringify(tasksCurrent)}`)
+    }
+    return {
+      loadState,
+      activeState,
+      tasksCurrent: tasksCurrent === undefined ? undefined : Number(tasksCurrent),
+    }
   }
 
   private async rangeActive(): Promise<boolean> {
@@ -463,7 +484,10 @@ export function launchLinuxScope(
   internals: LinuxScopeInternals = {},
 ): ManagedProcessLaunch {
   const invocation = internals.runnerInvocation ?? spawnRunnerInvocation()
-  const files = createLinuxLaunchFiles({ cwd: spec.cwd, env: targetEnv })
+  const files = createLinuxLaunchFiles({
+    cwd: spec.cwd, env: targetEnv,
+    ...spec.stdio.control === undefined ? {} : { control: spec.stdio.control },
+  })
   const unitBase = unitStem('dsh-subprocess')
   let child: ReturnType<typeof spawn>
   try {
@@ -497,6 +521,7 @@ export function launchLinuxScope(
     stdin: child.stdin,
     stdout: child.stdout,
     stderr: child.stderr,
+    control: controlPipe(child, spec.stdio.control),
     direct: directOutcome(child, files),
     owner,
   }

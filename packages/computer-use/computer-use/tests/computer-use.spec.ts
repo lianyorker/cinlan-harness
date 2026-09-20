@@ -7,6 +7,8 @@ import ComputerUseRuntime, {
   ComputerElementId,
   ComputerObservationId,
   ComputerUseError,
+  ComputerUseProviderName,
+  ComputerUseRegistry,
   ComputerWindowId,
 } from '../src/index.ts'
 import type {
@@ -78,6 +80,25 @@ async function mount(config: ConstructorParameters<typeof ComputerUseRuntime>[1]
 }
 
 describe('ComputerUseRuntime', () => {
+  it('preserves the runtime class and prevents mixing exclusive tools with facade providers', async () => {
+    expect(ComputerUseRegistry).toBe(ComputerUseRuntime)
+    const { ctx, fiber } = await mount()
+    try {
+      const removeOffline = ctx.computerUse.registerProvider(provider('cinlan', false))
+      expect(() => ctx.computerUse.register(ComputerUseProviderName('native'))).toThrow(expect.objectContaining({ code: 'COMPUTER_PROVIDER_EXCLUSIVE' }))
+      removeOffline()
+      const release = ctx.computerUse.register(ComputerUseProviderName('native'))
+      expect(ctx.computerUse.providerName).toBe('native')
+      expect(() => ctx.computerUse.registerProvider(provider('cinlan'))).toThrow(expect.objectContaining({ code: 'COMPUTER_PROVIDER_EXCLUSIVE' }))
+      await release()
+      const local = provider('cinlan')
+      ctx.computerUse.registerProvider(local)
+      await expect(ctx.computerUse.listApps()).resolves.toEqual([observation().app])
+    } finally {
+      await fiber.dispose()
+    }
+  })
+
   it('brands opaque ids and exposes typed failures', () => {
     expect(ComputerAppId('app')).toBe('app')
     expect(ComputerWindowId('window')).toBe('window')

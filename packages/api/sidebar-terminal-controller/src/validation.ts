@@ -46,14 +46,16 @@ export function validateAgentId(value: unknown): void { uuid(value) }
 export function validateOpen(value: unknown): void {
   const request = record(value, ['target', 'cols', 'rows'])
   dimensions(request)
-  const target = record(request.target, ['kind', 'sessionId', 'tabId', 'floating', 'uuid'])
+  const target = record(request.target, ['kind', 'sessionId', 'tabId', 'floating', 'shellPath', 'uuid'])
   if (target.kind === 'agent') {
     record(target, ['kind', 'uuid'])
     uuid(target.uuid)
     return
   }
   if (target.kind !== 'ui') invalid()
-  record(target, ['kind', 'sessionId', 'tabId', 'floating'])
+  record(target, ['kind', 'sessionId', 'tabId', 'floating', 'shellPath'])
+  if (target.shellPath !== undefined && (typeof target.shellPath !== 'string' || target.shellPath.length === 0
+    || target.shellPath.length > 4096 || CONTROL.test(target.shellPath))) invalid()
   opaqueId(target.sessionId)
   opaqueId(target.tabId)
   if (target.floating !== undefined) {

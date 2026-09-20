@@ -107,7 +107,7 @@ describe('dsh-tool-git through a real cordis.yml Loader composition', () => {
       cwd: '/loader-workspace',
     })
     const agent = { id: agentId, session } as unknown as Agent
-    context.agents.register(agent)
+    await context.agents.register(agent)
     const result = await context.tools.execute({
       signal: new AbortController().signal,
       callId: ToolCallId('loader-status'),

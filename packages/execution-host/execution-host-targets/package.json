@@ -1,6 +1,16 @@
 {
   "name": "@deepseek-ai/dsh-execution-host-targets",
-  "version": "0.1.5-alpha.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/execution-host/execution-host-targets"
+  },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "version": "0.1.6-alpha.2",
   "description": "Durable SSH targets and scoped execution-host inspection connections",
   "type": "module",
   "license": "MIT",

@@ -1,11 +1,11 @@
 /** Live Session queue, jobs, and projection state with reconnect baselines. */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { Agent, InboxState } from '@deepseek-ai/dsh-agent'
+import type { Agent, InboxState, InboxWireState } from '@deepseek-ai/dsh-agent'
 import { Deque } from '@deepseek-ai/dsh-deque'
 import type { JobSnapshot } from '@deepseek-ai/dsh-jobs'
 import type {
-  Session, SessionId, UserMessage,
+  Session, SessionId, SessionSeq, UserMessage,
 } from '@deepseek-ai/dsh-session'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type {
@@ -69,6 +69,17 @@ export class SessionControlController {
       this.streams.delete(queue)
       queue.end()
     }
+  }
+
+  /**
+   * Publish one durable inbox replacement after a cold child mutation flushes.
+   * @param sessionId - Child whose existing log owns the pending messages.
+   * @param inbox - Host-folded pending messages at the committed sequence.
+   * @param seq - Sequence of the flushed inbox splice.
+   */
+  publishInbox(sessionId: SessionId, inbox: InboxWireState, seq: SessionSeq): void {
+    this.broadcast({ type: 'projection', sessionId, key: 'inbox',
+      value: { 'next-turn': [...inbox['next-turn']], 'next-step': [...inbox['next-step']] }, seq })
   }
 
   private baseline(): SessionControlBaseline {

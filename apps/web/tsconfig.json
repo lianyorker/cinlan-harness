@@ -23,6 +23,10 @@
   // this client-registered project must not also hold them (one program
   // cannot see both sides of the cordis Context merges).
   "exclude": [
+    "tests/session-unarchive.e2e.ts",
+    "tests/office-preview.e2e.ts",
+    "tests/subagent-sidebar-chat.e2e.ts",
+    "tests/present-deliverables.e2e.ts",
     "tests/scaffold.ts",
     "tests/scaffold-generation.spec.ts",
     "tests/scaffold-hermetic.e2e.ts",
@@ -42,9 +46,11 @@
     "tests/lifecycle-chrome.e2e.ts",
     "tests/details-session-lifecycle.e2e.ts",
     "tests/plugin-config.e2e.ts",
+    "tests/plugin-manager.e2e.ts",
     "tests/settings-chrome.e2e.ts",
     "tests/settings-element-capture.e2e.ts",
     "tests/settings-feature-pages.e2e.ts",
+    "tests/settings-feature-navigation.e2e.ts",
     "tests/settings-floating.e2e.ts",
     "tests/settings-sidebar-git.e2e.ts",
     "tests/settings-worktree-tasks.e2e.ts",

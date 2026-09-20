@@ -1,20 +1,10 @@
-/**
- * Side card settings section render tests: the section is DECLARATIVE —
- * every small card (icon, title, type id, extensions, on/off state) derives
- * from the sidebar service's tab/viewer registries instead of hardcoded
- * copy. The toggles are CARDS in a responsive grid: the card's main area is
- * the switch, the visual state IS the state (highlighted = enabled),
- * announced via `aria-pressed`, and the check badge sits at the far right.
- * The general rows follow the DSH settings-row recipe with custom SWITCHES
- * (real checkboxes driving a styled track). Features that declare related
- * settings carry a gear corner button whose popup rows (switch controls)
- * are tested through the extracted FeatureSettingsRows component (the Modal
- * portal renders only while open).
- *
- * Rendered with renderToString (mount effects — the settings RPC sync — do
- * not run in SSR; the initial store prefs are the render input).
- */
-import { beforeAll, describe, expect, it } from 'vitest'
+// @vitest-environment jsdom
+/** Feature pages preserve native preference writes and custom descriptor settings. */
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { SidebarPreferencesController } from '../src/client/preferences-controller.ts'
+import { stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
+import type { SidebarPrefs } from '../src/prefs-shared.ts'
 import { renderToString } from 'react-dom/server'
 import { createElement } from 'react'
 import { createSidebarStore, type SidebarStore } from '../src/client/state.ts'
@@ -68,126 +58,169 @@ function mount(): { store: SidebarStore; service: BetterSidebarService } {
   return { store, service }
 }
 
-function renderSection(store: SidebarStore, service: BetterSidebarService): string {
+function renderSection(store: SidebarStore, service: BetterSidebarService, featureId?: string, embedded = false): string {
   return renderToString(createElement(
     SideCardSection,
-    { store, service } as unknown as SideCardSectionProps,
+    { store, service, featureId, embedded, close: () => {} } as unknown as SideCardSectionProps,
   ))
 }
 
-/** Count `aria-pressed` occurrences of one value in the rendered HTML. */
-function pressedCount(html: string, value: string): number {
-  return html.match(new RegExp(`aria-pressed="${value}"`, 'g'))?.length ?? 0
+afterEach(cleanup)
+
+function renderLive(
+  store: SidebarStore, service: BetterSidebarService, featureId?: string,
+  patch = vi.fn(async () => {}), close = vi.fn(),
+) {
+  const preferences = { patch } as unknown as SidebarPreferencesController
+  const props = { store, service, preferences, featureId, close } as unknown as SideCardSectionProps
+  return { ...render(createElement(SideCardSection, props)), patch, close }
 }
 
-describe('SideCardSection declarative inventory', () => {
-  it('renders one small card per registered tab: icon + title + type id + pressed state', () => {
+describe('SideCardSection feature pages', () => {
+  it('keeps only layout defaults and compatibility on the workspace layout page', () => {
     const { store, service } = mount()
     const html = renderSection(store, service)
-    expect(html).toContain('data-icon="explorer"')
-    expect(html).toContain('>Explorer<')
-    // The type id is the card's desc (the declarative "type" surface).
-    expect(html).toContain('>explorer<')
-    expect(html).toContain('data-icon="subagent"')
-    expect(html).toContain('>Subagents<')
-    // Default prefs: only the interceptOpenPath switch is checked (openByDefault
-    // now defaults off), and both tabs + the image viewer cards pressed
-    // (3 aria-pressed cards).
-    // The nested auto-open toggle is NOT an inline card (it lives in the popup).
-    expect(pressedCount(html, 'true')).toBe(3)
-    expect(pressedCount(html, 'false')).toBe(0)
-    // The general toggles are custom switches (real checkboxes, one checked).
-    expect(html.match(/checked=""/g)?.length).toBe(1)
-    expect(html).not.toContain('Auto-open Subagents')
+    expect(html).toContain('>Workspace layout</h1>')
+    expect(html).toContain('Default width share')
+    expect(html).toContain('better-sidebar-open-by-default')
+    expect(html).not.toContain('>Explorer<')
+    expect(html).not.toContain('Subagents')
+    expect(html).not.toContain('File viewers')
+    expect(html).not.toContain('Open chat files in the sidebar')
+    expect(html).not.toContain('Add tab plugins')
+    expect(html).not.toContain(service.version)
   })
 
-  it('renders the section intro and group headings with inventory counts', () => {
+  it('renders a selected feature inline without catalog or settings modal', () => {
     const { store, service } = mount()
-    const html = renderSection(store, service)
-    expect(html).toContain('Manage what the side card shows and how it behaves')
-    // Group headings carry the inventory count badge (2 tabs, 1 viewer).
-    expect(html).toContain('>Sidebar content</span><span')
-    expect(html).toContain('>File viewers</span><span')
-    expect(html).toContain('>2</span>')
-    expect(html).toContain('>1</span>')
+    const html = renderSection(store, service, 'subagent')
+    expect(html).toContain('>Subagents</h1>')
+    expect(html).toContain('Auto-open Subagents')
+    expect(html).toContain('better-sidebar-subagent-enabled')
+    expect(html).toContain('better-sidebar-subagent-autoOpenSubagent')
+    expect(html).not.toContain('Default width share')
+    expect(html).not.toContain('>Explorer<')
+    expect(html).not.toContain('Subagents Feature settings')
+    expect(html).not.toContain('>subagent<')
+    expect(html).not.toContain('role="dialog"')
+    expect(renderSection(store, service, 'subagent', true)).toContain('>Subagents</h2>')
   })
 
-  it('renders one small card per registered viewer: icon + title + exts', () => {
-    const { store, service } = mount()
-    const html = renderSection(store, service)
-    expect(html).toContain('data-icon="image"')
-    expect(html).toContain('>Image<')
-    // The covered extensions are the card's desc.
-    expect(html).toContain('png · jpg')
-  })
-
-  it('renders the gear corner button on features that declare related settings', () => {
-    const { store, service } = mount()
-    const html = renderSection(store, service)
-    // Subagents declares a toggle → its card carries the settings gear
-    // (aria-label = "<title> Feature settings"); Explorer and Image declare
-    // none → no gear. The position-compat row is a DROPDOWN (no gear unless
-    // the custom scheme is active), so the total is 1.
-    expect(html.match(/aria-label="[^"]*Feature settings"/g)?.length).toBe(1)
-    expect(html).toContain('Subagents Feature settings')
-  })
-
-  it('renders the two dashed "add plugin" cards (tab grid + viewer grid)', () => {
-    const { store, service } = mount()
-    const html = renderSection(store, service)
-    // The tab grid's dashed card (tab registration).
-    expect(html).toContain('Add tab plugins')
-    expect(html).toContain('Register a new sidebar page')
-    // The viewer grid's dashed card (file-previewer registration).
-    expect(html).toContain('Add preview plugins')
-    expect(html).toContain('Register a file-type preview')
-    // The add cards are plain buttons (open the modals), never switches:
-    // they carry no aria-pressed, so the pressed-card counts stay untouched.
-    expect(pressedCount(html, 'true')).toBe(3)
-  })
-
-  it('a disabled feature renders pressed=false', () => {
-    const { store, service } = mount()
-    store.setPrefs({ ...store.getPrefs(), tabsEnabled: { subagent: false }, viewersEnabled: { image: false } })
-    const html = renderSection(store, service)
-    expect(html).toContain('>Subagents<')
-    expect(html).toContain('>Image<')
-    expect(pressedCount(html, 'false')).toBe(2)
-    // The explorer card stays pressed; the one default-on general switch stays checked.
-    expect(pressedCount(html, 'true')).toBe(1)
-    expect(html.match(/checked=""/g)?.length).toBe(1)
-  })
-
-  it('hides the gear of a disabled feature (its related settings are dormant)', () => {
+  it('keeps disabled feature settings available for configuration', () => {
     const { store, service } = mount()
     store.setPrefs({ ...store.getPrefs(), tabsEnabled: { subagent: false } })
-    const html = renderSection(store, service)
-    // The disabled Subagents card loses its gear; the position-compat row
-    // is a dropdown (default auto → no gear either).
-    expect(html).not.toContain('Feature settings')
+    renderLive(store, service, 'subagent')
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Enable feature' }).checked).toBe(false)
+    expect(screen.getByRole('checkbox', { name: 'Auto-open Subagents' })).not.toBeNull()
   })
 
-  it('renders the position-compat mode row as a scheme dropdown: auto default, custom keeps the gear', () => {
+  it('contains live unregistering as unavailable and restores the descriptor on registration', () => {
+    const { store, service } = mount()
+    renderLive(store, service, 'plugin:reports')
+    expect(screen.getByRole('status').textContent).toContain('This feature is unavailable')
+    let dispose: (() => void) | undefined
+    act(() => { dispose = service.registerTab({ id: 'plugin:reports', title: 'Reports', component: () => null }) })
+    expect(screen.getByRole('heading', { name: 'Reports', level: 1 })).not.toBeNull()
+    act(() => { dispose?.() })
+    expect(screen.getByRole('status').textContent).toContain('This feature is unavailable')
+  })
+
+  it('keeps editor controls, viewer toggles, plugin settings, and custom panels inline', async () => {
+    const { store, service } = mount()
+    service.registerTab({
+      id: 'editor', title: 'Files', component: () => null,
+      settings: { toggles: [{ key: 'editorExplorer', title: 'Show explorer' }], render: () => createElement('div', {}, 'Open with configuration') },
+    })
+    service.registerFileViewer({
+      id: 'plugin:pdf', title: 'PDF preview', exts: ['pdf'], component: () => null, fetchStrategy: 'mediaUrl',
+      settings: { pluginToggles: [{ key: 'annotations', title: 'Annotations' }], render: props => createElement('button', { onClick: () => { props.close() } }, 'Close preview settings') },
+    })
+    const { container, patch, close } = renderLive(store, service, 'editor')
+    expect(screen.getByRole('checkbox', { name: 'Open chat files in the sidebar' })).not.toBeNull()
+    expect(screen.getByRole('checkbox', { name: 'Show explorer' })).not.toBeNull()
+    expect(screen.getByText('Open with configuration')).not.toBeNull()
+    expect(screen.getByRole('heading', { name: 'File viewers' })).not.toBeNull()
+    expect(screen.getByText('png · jpg')).not.toBeNull()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Annotations' }))
+    expect(patch).toHaveBeenCalledWith({ pluginSettings: { 'plugin:pdf': { annotations: true } } })
+    const image = container.querySelector('[data-settings-anchor="better-sidebar-viewer-image-enabled"]') as HTMLElement
+    fireEvent.click(within(image).getByRole('checkbox'))
+    expect(patch).toHaveBeenCalledWith({ viewersEnabled: { image: false } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close preview settings' }))
+    expect(close).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await act(async () => {})
+  })
+
+  it('rolls back a rejected native write and surfaces its error inline', async () => {
+    const { store, service } = mount()
+    const patch = vi.fn(async () => { throw new Error('Settings could not be saved. Please try again.') })
+    renderLive(store, service, 'subagent', patch)
+    const enabled = screen.getByRole('checkbox', { name: 'Enable feature' }) as HTMLInputElement
+    fireEvent.click(enabled)
+    expect(enabled.checked).toBe(false)
+    expect(patch).toHaveBeenCalledWith({ tabsEnabled: { subagent: false } })
+    await waitFor(() => { expect(enabled.checked).toBe(true) })
+    expect(screen.getByRole('alert').textContent).toContain('Settings could not be saved')
+    expect(store.getPrefs().tabsEnabled.subagent).toBeUndefined()
+  })
+
+  it('shows authoritative recovery after a refused write even when it equals the requested value', async () => {
+    const { store, service } = mount()
+    const host = stubSettingsScope<SidebarPrefs>()
+    host.publish({ status: 'ready', value: { ...SIDEBAR_PREFS_DEFAULTS } })
+    host.scope.mutate = vi.fn(async () => {
+      host.publish({ status: 'ready', value: { ...SIDEBAR_PREFS_DEFAULTS, tabsEnabled: { subagent: false } } })
+      return false
+    })
+    const controller = new SidebarPreferencesController(host.scope, store)
+    try {
+      render(createElement(SideCardSection, { store, service, preferences: controller, featureId: 'subagent', close: () => {} } as SideCardSectionProps))
+      const enabled = screen.getByRole('checkbox', { name: 'Enable feature' }) as HTMLInputElement
+      fireEvent.click(enabled)
+      await waitFor(() => { expect(screen.getByRole('alert').textContent).toContain('Settings could not be saved') })
+      expect(store.getPrefs().tabsEnabled.subagent).toBe(false)
+      expect(enabled.checked).toBe(false)
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('does not duplicate native terminal or browser controls when embedded', () => {
+    const { store, service } = mount()
+    service.registerTab({ id: 'terminal', title: 'Terminal', component: () => null, settings: {
+      toggles: [{ key: 'terminalFontSize', type: 'number', title: 'Native font size' }, { key: 'agentTerminalTools', title: 'Agent terminal tools' }],
+      pluginToggles: [{ key: 'customFlag', title: 'Plugin flag' }],
+    } })
+    service.registerTab({ id: 'browser', title: 'Browser', component: () => null, settings: {
+      toggles: [{ key: 'browserInterceptLinks', title: 'Native routing' }, { key: 'browserNoSandbox', title: 'Disable browser sandbox' }],
+    } })
+    const terminal = renderSection(store, service, 'terminal', true)
+    expect(terminal).not.toContain('Native font size')
+    expect(terminal).toContain('Agent terminal tools')
+    expect(terminal).toContain('Plugin flag')
+    expect(renderSection(store, service, 'terminal')).toContain('Native font size')
+    const browser = renderSection(store, service, 'browser', true)
+    expect(browser).not.toContain('Native routing')
+    expect(browser).toContain('Disable browser sandbox')
+  })
+
+  it('does not expose hidden diff as a Git feature toggle', () => {
+    const { store, service } = mount()
+    service.registerTab({ id: 'git', title: 'Git', component: () => null })
+    service.registerTab({ id: 'diff', title: 'Diff', hidden: true, component: () => null })
+    const html = renderSection(store, service, 'git', true)
+    expect(html).toContain('better-sidebar-git-enabled')
+    expect(html).not.toContain('better-sidebar-diff-enabled')
+  })
+
+  it('retains the custom title-bar compatibility settings', () => {
     const { store, service } = mount()
     let html = renderSection(store, service)
-    // The general row renders its title and description; the scheme is the
-    // conservative auto by default and the row is the shared SelectMenu
-    // dropdown (the closed anchor shows the picked option — NOT a native
-    // <select>).
     expect(html).toContain('Position compatibility mode')
-    expect(html).toContain('Pick the title-bar compatibility scheme: auto-detect (default, conservative) / DSH official web / known desktop shells / custom (shift distance + custom CSS)')
-    expect(html).not.toContain('<select')
     expect(html).toContain('>Auto-detect<')
-    // Two general-row switches remain (openByDefault + interceptOpenPath),
-    // only interceptOpenPath checked by default — the scheme row is a
-    // dropdown, not a switch.
-    expect(html.match(/type="checkbox"/g)?.length).toBe(2)
-    expect(html.match(/checked=""/g)?.length).toBe(1)
-    // Auto (default) needs no further settings → no gear.
+    expect(html.match(/type="checkbox"/g)?.length).toBe(1)
     expect(html).not.toContain('Position compatibility mode Feature settings')
-
-    // The custom scheme keeps its settings button (the px + CSS popup);
-    // the anchor now shows the picked custom option.
     store.setPrefs({ ...store.getPrefs(), titleBarScheme: 'custom', titleBarCompat: true })
     html = renderSection(store, service)
     expect(html).toContain('>Custom<')

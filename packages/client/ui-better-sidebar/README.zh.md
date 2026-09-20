@@ -56,6 +56,8 @@ kind: "package-reference"
 
 ## ✨ 功能一览
 
+子代理目录的侧栏打开操作和拓扑子节点会在 `subagentchat` 标签页中打开现有子代理对话，同时保持主区域选中父会话。标签页使用标准 Conversation 渲染器与 Session 传输，保留分栏位置和逐会话布局，并在关闭时释放保留的上下文。这是现有子代理的并行视图；Side Chat 仍是创建独立侧支线程的另一项功能。
+
 - **🗂️ 文件工作台**：资源管理器（懒加载目录树；软链接按目标类型展示——目录软链接可展开、失效链接标红）+ CodeMirror 编辑器；图片 / Markdown（含 Mermaid 图表，strict 安全渲染 + 点击放大）/ HTML / PDF
 - **🌐 内嵌浏览器**：多开网页 tab，后退 / 前进 / 刷新；内容运行在沙箱 iframe；外链默认按协议分流——HTTP 在侧边栏打开、HTTPS 走系统浏览器（设置页可分别调整）
 - **💻 真实终端**：xterm.js + node-pty 真实 shell，断线重连回放；可选为模型注入 `terminal_*` 工具
@@ -64,13 +66,19 @@ kind: "package-reference"
 - **💬 侧边对话(beta)**：Codex 风格的侧边线程——继承主会话完整上下文（已完成回合、待回答问题、进行中回合的 assistant 输出与工具活动，以 interrupted 状态冻结）独立运行，不进入主会话；线程内可持续追问（DSH 重启后自动恢复），一键「保存为新会话」提升为顶层会话
 - **🪟 双工作台**：右侧栏 + 底部面板；拖 Tab 拆分 / 合并分栏（可跨面板），移动端自动合并全宽抽屉
 - **🔁 会话隔离**：布局 / Tab / 面板按会话持久化，陈旧状态自动净化
-- **⚙️ 声明式设置**：设置页「侧边卡片」逐项独立开关，二级设置经齿轮弹窗
+- **⚙️ 功能设置**：每个可见功能都有独立菜单入口，文件预览器控件位于文件页，共享布局偏好位于工作区布局页
 - **⚡ 按需加载**：启动只拉 ~325KB 核心，终端 / 编辑器 / Mermaid 图表等重依赖用到才按需拉取（[设计文档](docs/plans/2026-08-12-lazy-chunks-design.md)）
 - **🌏 多语言**：界面文案跟随 DSH 语言（zh / en）实时切换
+
+Settings 将文件放在工具分组，将任务与侧边对话放在 AI 分组。Git、浏览器和终端各自使用既有原生页面并加入侧栏控件；原生字段保留其表单与保存、重置行为。个人分组下的工作区布局仅包含布局偏好。[功能导航决策](../../../.agents/notes/implemented/architecture/2026-09-19-feature-settings-navigation.zh.md)记录所有权规则。
+
+Office 文件通过内置 DOCX/XLSX/PPTX 预览器及其 DOC/XLS/PPT 扩展名在文件页打开。已授权的 [Office 转换器](../../document/office-to-pdf/README.zh.md)生成 PDF 供浏览器预览，源文件保持不变。预览提供重试、原文件下载和缺失字体详情。关闭或替换预览会取消转换并释放其 PDF URL。文件设置可禁用这些预览器，更高优先级的已注册预览器可替换它们。渲染效果取决于转换器、已安装字体和浏览器 PDF 支持。
 
 [Git 偏好](../ui-git-settings/README.zh.md)控制刷新后的分组顺序、“比较分支”的默认基准和可选提交署名。提交会先展示完整消息供确认；Session、仓库、HEAD 或已暂存文件变化后，必须重新检查。Web 与桌面的 Git 调用共用同一个[基于 Session 的 Git 服务](../../git/sidebar-git/README.zh.md)。客户端将 `remote.sidebarGit` 声明为激活依赖，使 Git 回调归属于所挂载命名空间的生命周期。
 
 挂载[原生终端设置页](../ui-settings-terminal/README.zh.md)后，页面编辑现有的 `dsh-better-sidebar` 偏好。Shell 可执行文件与按空白拆分的参数对新建集成侧边栏终端生效；已有进程保留自身的 Shell 和会话工作目录。字体与字号（9–32 px）、回滚行数（0–100,000 行，默认 4,000 行）、光标样式（默认方块）及闪烁（默认开启）立即更新已打开的 xterm 视图。确认恢复时仅清除这些终端覆盖值。
+
+新终端标签在启动前提供设置默认值及本地主机已安装的 Shell。每个标签将已接受的选择随布局保存；选择 Shell 不会修改设置。主机插件配置的 `shellCandidates` 控制发现范围（默认：`zsh`、`bash`、`fish`、`pwsh`、`powershell`、`cmd`）；已安装的配置默认 Shell 也会加入列表。显式选择在创建进程前再次检查，不可用时直接失败，不会自动回退。
 
 集成终端视图在 Web 与 Desktop 上使用已认证的 `sidebarTerminals` Remote。重连接回存活进程并保留其已捕获的目录。悬浮工作区标签捕获会话工作区内已存在的目录，布局以窗口 UUID 隔离存储；目录无效时保留已保存的输入并显示修正提示。关闭标签会指向已观察到的原生进程代际，即使视图尚未打开也能关闭。能力查询不创建进程。主机重启不能恢复运行中的命令，这些偏好也不配置核心执行工具。
 
@@ -178,7 +186,7 @@ dsh registry enable dsh-external/dsh-better-sidebar
 
 ## 🖼️ 特性巡礼
 
-> 以下均为真实界面实拍（每行两张，点击可放大）。
+> 功能说明与运行时界面截图（点击图片可放大）。
 
 | | |
 |---|---|
@@ -187,7 +195,7 @@ dsh registry enable dsh-external/dsh-better-sidebar
 | **💻 真实终端**<br/><sub>xterm.js + node-pty 真实 shell（不是模拟器）：断线重连 transcript 回放、shell / shellArgs 可配置（设置页或 `cordis.patch.yml`）、可选为模型注入 `terminal_*` 工具（agent 可直接开终端跑命令）。</sub><br/><div align="center"><img width="420" alt="真实终端" src="https://github.com/user-attachments/assets/0dad6ad3-ff3f-4b5a-86d2-f832ce65323e" /></div> | **🌿 Git 面板**<br/><sub>暂存 / 取消暂存 / 提交（`Ctrl+Enter`）/ 还原，历史列表；点击改动文件打开 **VSCode 式 diff tab**（红绿行级对比）。</sub><br/><div align="center"><img width="420" alt="Git 面板" src="https://github.com/user-attachments/assets/e7fc1220-305f-4bca-8583-e77ab4f4fa78" /></div> |
 | **🌐 内嵌浏览器**<br/><sub>多开网页 tab：后退 / 前进 / 刷新 / 地址栏；内容运行在**不透明源沙箱 iframe**（界面实时显示沙箱状态，可按页面临时解锁）；聊天里的外链点击可被接管到侧边栏打开（按协议分流，可配）。</sub><br/><div align="center"><img width="420" alt="内嵌浏览器" src="https://github.com/user-attachments/assets/9bc6b65a-64fc-4942-a685-76e391e55606" /></div> | **🧩 任务页：子代理拓扑 + 后台任务**<br/><sub>子代理树实时拓扑（运行状态、批量实时预览）+ 后台任务清单（退出码 / 实时输出 / 强制终止）；新子代理 / 新任务可自动展开侧边栏（可关）。</sub><br/><div align="center"><img width="420" alt="任务页：子代理拓扑" src="https://github.com/user-attachments/assets/dcd8ed2f-59fa-405b-937b-2d250f5034dd" /></div> |
 | **💬 侧边对话(beta)**<br/><sub>Codex 风格侧边线程：**每个对话一个独立 Tab**；线程继承主会话完整上下文（含进行中回合，以 interrupted 诚实冻结）独立运行，不污染主会话；可持续追问、重启冷恢复；一键「保存为新会话」提升为顶层会话。</sub><br/><div align="center"><img width="420" alt="侧边对话(beta)" src="https://github.com/user-attachments/assets/3a338c36-f5de-4000-95f3-4b1cd04f60fc" /></div> | **🪟 双工作台：右侧栏 + 底部面板 + 分栏**<br/><sub>右侧栏与底部面板可同时展开；拖 Tab 到分栏边缘**拆分**、拖到中间**合并**（可跨面板）；面板宽高左缘/上缘拖拽调节；移动端自动合并为全宽抽屉。</sub><br/><div align="center"><img width="420" alt="双工作台（右侧栏 + 底部面板）" src="https://github.com/user-attachments/assets/dfdb875e-a1a8-4d4b-8340-353736b1708f" /></div> |
-| **⚙️ 声明式设置**<br/><sub>设置页「侧边卡片」分区：每个 tab / 预览器一张小卡片，独立开关（高亮启用态 + 品牌开关滑块）；二级设置经卡片底部「功能设置」条弹窗（开关 / 文本 / 数字 / 下拉）；插件自有设置持久化在 `pluginSettings`。</sub><br/><div align="center"><img width="420" alt="声明式设置：侧边卡片" src="https://github.com/user-attachments/assets/0800ca64-621e-48da-b7df-aecfddc3ec29" /></div> | **📱 移动端**<br/><sub>窄屏（<768px）自动切换为全宽抽屉：底栏 tab 一次性并入右侧栏，触屏拖拽可调。</sub><br/><div align="center"><img width="360" alt="移动端全宽抽屉" src="https://github.com/user-attachments/assets/a82ba78a-f4cf-4d85-80e8-050a05beb144" /></div> |
+| **⚙️ 功能设置**<br/><sub>每个可见功能都有独立的 Settings 菜单入口。文件页包含预览器控件，工作区布局页包含共享布局偏好。原生表单保留各自字段，插件自有设置持久化在 `pluginSettings`。</sub> | **📱 移动端**<br/><sub>窄屏（<768px）自动切换为全宽抽屉：底栏 tab 一次性并入右侧栏，触屏拖拽可调。</sub><br/><div align="center"><img width="360" alt="移动端全宽抽屉" src="https://github.com/user-attachments/assets/a82ba78a-f4cf-4d85-80e8-050a05beb144" /></div> |
 
 <a id="-plugin-ecosystem"></a>
 
@@ -211,11 +219,6 @@ export function apply(ctx: Context) {
 ```
 
 GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar) 下已有 **28+ 生态插件**（持续增长中）：
-
-<div align="center">
-  <a href="https://github.com/user-attachments/assets/d4385b7e-aab4-425d-a5c4-2da5da81a34e"><img width="66%" alt="设置页「添加插件」弹窗：推荐插件目录 + 一键复制安装命令" src="https://github.com/user-attachments/assets/d4385b7e-aab4-425d-a5c4-2da5da81a34e" /></a><br />
-  <i>设置页「侧边卡片」内置「添加插件」弹窗：推荐目录 + 一键复制安装命令 + 直达 GitHub topic</i>
-</div>
 
 ### 📑 Tab 插件（注册侧边栏页面）
 
@@ -432,9 +435,9 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 - **[`AGENTS.md`](./AGENTS.md)**——仓库内维护的接入文档（全字段、匹配算法、HMR 陷阱、声明式设置、版本探测）；
 - **[`docs/external-plugin-guide.md`](./docs/external-plugin-guide.md)**——面向外部插件开发者的接入指南（含完整最小示例）。
 
-### ➕ 添加插件（推荐插件目录）
+### 插件设置导航
 
-设置页「侧边卡片」两个网格末尾的**虚线卡片**分别打开 Tab / 预览插件弹窗：声明扩展点、「**在 GitHub 上浏览更多插件**」按钮（[GitHub topic `dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar)）、推荐插件目录（名字 / 仓库 / 简介 / 安装脚本），每个条目「**跳转**」直达仓库、「**复制**」把安装命令写入剪贴板。
+每个可见第三方页签描述符在扩展分组中获得一个 `feature:${id}` 页面，使用既有启用控件与所声明的设置。隐藏描述符，包括计划、差异和审阅面板，不增加菜单项。文件预览器控件留在文件页。侧栏偏好键、`dsh-better-sidebar` 命名空间、序列化方式与 `pluginSettings[descriptorId]` 继续由既有属主负责。[GitHub topic `dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar)列出生态插件。
 
 **收录新插件**：向 [`src/client/plugins-tabs.ts`](./src/client/plugins-tabs.ts)（Tab 注册）或 [`src/client/plugins-viewers.ts`](./src/client/plugins-viewers.ts)（文件预览注册）追加一条 `PluginEntry`，并把仓库打上 `dsh-better-sidebar` topic；数据完整性由 `tests/plugin-list.spec.ts` 守护。
 

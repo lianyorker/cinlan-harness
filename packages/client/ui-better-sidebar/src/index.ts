@@ -16,6 +16,7 @@
 import { mkdir, open, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, extname, isAbsolute, join } from 'node:path'
 import type { Context, SidebarHttpRequest } from './context-types.ts'
+import type { HostConnectionFetch } from '@deepseek-ai/dsh-client-connection/types'
 import {
   Config,
   PrefsSchema,
@@ -32,7 +33,6 @@ import { isTrustedApiRequest, isLoopbackHostname } from './trust-fence.ts'
 import { registerBundleRoute, registerSidebarBundleRoute, registerTerminalBundleRoute } from './bundle-route.ts'
 import { createSidebarOperations, registerSidebarFetch, registerSidebarWebAliases } from './sidebar-transport.ts'
 import { SidebarTerminalProvider } from './terminal-provider.ts'
-import type {} from '@deepseek-ai/dsh-client-connection'
 import { launchExternal } from './open-external.ts'
 import { buildGitApi } from './git.ts'
 import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
@@ -573,7 +573,9 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     await terminalProvider.shutdown()
   }, 'dsh-better-sidebar: native terminal lifetime')
   ctx.inject(['connection'], (transport) => {
-    transport.effect(() => registerTerminalBundleRoute(transport.connection.fetch), 'dsh-better-sidebar: authenticated terminal bundle')
+    // The injected Host connection shares its carrier types with the Client compiler face.
+    const { fetch } = (transport as Context & { connection: { fetch: HostConnectionFetch } }).connection
+    transport.effect(() => registerTerminalBundleRoute(fetch), 'dsh-better-sidebar: authenticated terminal bundle')
   })
   const operations = createSidebarOperations({
     api: buildApi(ctx, ptyManager, agentPtyRegistry, resolved, terminalShell, () => settingsFace),
@@ -582,8 +584,9 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     config: resolved,
   })
   ctx.inject(['connection'], (transport) => {
-    transport.effect(() => registerSidebarFetch(transport.connection.fetch, operations), 'dsh-better-sidebar: authenticated Fetch routes')
-    transport.effect(() => registerSidebarBundleRoute(transport.connection.fetch), 'dsh-better-sidebar: authenticated preview chunks')
+    const { fetch } = (transport as Context & { connection: { fetch: HostConnectionFetch } }).connection
+    transport.effect(() => registerSidebarFetch(fetch, operations), 'dsh-better-sidebar: authenticated Fetch routes')
+    transport.effect(() => registerSidebarBundleRoute(fetch), 'dsh-better-sidebar: authenticated preview chunks')
   })
   ctx.inject(['webServer', 'webRuntime'], (web) => {
     const ctx = web as Context

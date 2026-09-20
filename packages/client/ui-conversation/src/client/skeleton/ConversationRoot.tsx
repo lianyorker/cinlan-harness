@@ -131,7 +131,7 @@ function WidthHandle(props: {
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
   useWorkspaces, useConversation, useInput, useComposerBlock,
-  renderSlot, renderSlotChain, selectWorkspace, t,
+  renderSlot, renderSlotChain, embedded = false, selectWorkspace, t,
 }: ConversationRootProps) {
   const session = useSession(s => s)
   const pendingInteraction = useSessionPendingInteraction(snapshot =>
@@ -370,8 +370,8 @@ export function ConversationRoot({
   )
 
   return (
-    <div ref={rootResizeRef} className={css.root} data-phase={phase}>
-      {sessionId === undefined ? null : renderSlot('conversation.session.header', {})}
+    <div ref={rootResizeRef} className={clsx(css.root, embedded && css.embedded)} data-phase={phase}>
+      {sessionId === undefined || embedded ? null : renderSlot('conversation.session.header', {})}
       <div className={css.body}>
         <div className={css.scrollBody} data-conversation-scroll="">
           {sessionId === undefined ? null : renderSlot('conversation.session', {})}
@@ -379,7 +379,7 @@ export function ConversationRoot({
         </div>
         {/* Width handles only while a transcript is on screen; the hero has no
             content column to size. */}
-        {phase === 'active' && (['left', 'right'] as const).map(side => (
+        {!embedded && phase === 'active' && (['left', 'right'] as const).map(side => (
           <WidthHandle
             key={side}
             side={side}

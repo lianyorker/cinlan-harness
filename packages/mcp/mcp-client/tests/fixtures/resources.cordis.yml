@@ -1,0 +1,7 @@
+# Source-builtins Loader composition; the test owns the mocked MCP transport.
+- id: system-prompt
+  name: cordis:test-system-prompt
+- id: tools
+  name: cordis:test-tools
+- id: resources
+  name: cordis:test-resources

@@ -18,7 +18,7 @@
       "path": "../../../vendor/schemastery"
     },
     {
-      "path": "../webserver"
+      "path": "../../client/connection/tsconfig.host.json"
     },
     {
       "path": "../../subprocess/subprocess"

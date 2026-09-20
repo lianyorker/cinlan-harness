@@ -49,7 +49,7 @@ Profile 集成 driver 使用仅限仓库内部的 `tests/fixtures/production-pro
 
 ### 驱动 fixture 轮次
 
-`runFixtureTurn(ctx, options)` 让一项任务通过恰好一个已配置的根 agent：它等待任务进入持久收件箱，把规范事件转发给你的观察器，刷写会话，并返回最终 assistant 文本与累计用量。示例本地的 driver 继续负责配置、渲染与断言。
+`runFixtureTurn(ctx, options)` 让一项任务通过恰好一个已配置的根 agent：它等待任务进入持久收件箱，把规范事件转发给你的观察器，刷写会话，并返回最终 assistant 文本与累计用量。已有根 agent 必须已经完成创建。没有根 agent 时，helper 等待表示启动成功的 `agent/session-start`；若待启动的根 agent 被释放，则拒绝该操作。传入调用方持有的 `options.signal` 可以取消此启动等待，随后必须等待操作结束，再释放其上下文；操作结束前会移除全部监听器。该信号不会中断 `whenIdle()`，也不会取消已提交的任务。示例本地的 driver 继续负责配置、渲染与断言。
 
 ### 源模式或构建模式
 

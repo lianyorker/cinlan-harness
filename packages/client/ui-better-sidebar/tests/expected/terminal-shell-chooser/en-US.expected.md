@@ -1,0 +1,6 @@
+- text: Shell for this tab
+- combobox "Shell for this tab":
+  - option "Use Settings default" [selected]
+  - option "bash"
+  - option "zsh"
+- button "Start terminal"

@@ -1,10 +1,13 @@
-/** Minimal app carrier marker and origin-restricted bridge for the startup document. */
+/** App carrier marker and origin-restricted bridges for native Plugins and startup recovery. */
 
 import { contextBridge, ipcRenderer } from 'electron'
-import { DESKTOP_IPC, type DesktopStartupApi } from './ipc.ts'
+import { DESKTOP_IPC, type DesktopAppApi, type DesktopStartupApi } from './ipc.ts'
 import type { DesktopStartupState } from './startup.ts'
 
-contextBridge.exposeInMainWorld('dshDesktop', { protocolVersion: 1 })
+const desktop: DesktopAppApi | Pick<DesktopAppApi, 'protocolVersion'> = location.protocol === 'dsh-app:' && location.host === 'app'
+  ? { protocolVersion: 1, openPlugins: () => ipcRenderer.invoke(DESKTOP_IPC.openPluginsWindow) as Promise<void> }
+  : { protocolVersion: 1 }
+contextBridge.exposeInMainWorld('dshDesktop', desktop)
 
 if (location.protocol === 'dsh-app:' && location.hostname === 'shell' && location.pathname === '/startup.html') {
   const startup: DesktopStartupApi = {

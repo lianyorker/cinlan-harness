@@ -108,6 +108,7 @@ function fixture() {
   const watches: ExternalFeed<AgentList>[] = []
   const remote = {
     capability: vi.fn<TerminalRemote['capability']>(async () => ok(capability)),
+    shells: vi.fn<TerminalRemote['shells']>(async () => ok([{ path: '/bin/bash', name: 'bash' }])),
     input: vi.fn<TerminalRemote['input']>(async () => ok(undefined)),
     resize: vi.fn<TerminalRemote['resize']>(async () => ok(undefined)),
     ack: vi.fn<TerminalRemote['ack']>(async () => ok(undefined)),
@@ -397,6 +398,7 @@ describe('terminal Remote transport', () => {
   it('returns unary values and rejects input, resize, capability, and agent-close errors', async () => {
     const f = fixture()
     await expect(f.transport.terminalCapability()).resolves.toEqual(capability)
+    await expect(f.transport.terminalShells()).resolves.toEqual([{ path: '/bin/bash', name: 'bash' }])
     await f.transport.terminalInput(attachmentId, 'input')
     await f.transport.terminalResize(attachmentId, 120, 40)
     await f.transport.terminalCloseAgent(uuid)
@@ -407,10 +409,12 @@ describe('terminal Remote transport', () => {
     f.remote.input.mockResolvedValue({ ok: false, error })
     f.remote.resize.mockResolvedValue({ ok: false, error })
     f.remote.capability.mockResolvedValue({ ok: false, error })
+    f.remote.shells.mockResolvedValue({ ok: false, error })
     f.remote.closeAgent.mockResolvedValue({ ok: false, error })
     await expect(f.transport.terminalInput(attachmentId, 'input')).rejects.toBe(error)
     await expect(f.transport.terminalResize(attachmentId, 1, 1)).rejects.toBe(error)
     await expect(f.transport.terminalCapability()).rejects.toBe(error)
+    await expect(f.transport.terminalShells()).rejects.toBe(error)
     await expect(f.transport.terminalCloseAgent(uuid)).rejects.toBe(error)
   })
 

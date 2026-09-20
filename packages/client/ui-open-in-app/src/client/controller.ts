@@ -8,9 +8,11 @@ import {
 
 type Fetch = (input: string | URL, init?: RequestInit) => Promise<Response>
 
-/** Resolve the browser's Host base with the connection carrier's null-origin fallback. */
+/** Resolve routes against the page URL, including Desktop's custom protocol. */
 function hostBase(): string {
-  const origin = (globalThis as { location?: { origin?: string } }).location?.origin
+  const location = (globalThis as { location?: { href?: string; origin?: string } }).location
+  if (location?.href?.startsWith('dsh-app://') === true) return location.href
+  const origin = location?.origin
   return origin !== undefined && origin !== 'null' ? origin : 'http://dsh.internal'
 }
 

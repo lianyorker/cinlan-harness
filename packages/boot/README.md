@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The boot group provides what every dsh app bin needs to start: `app-boot` turns a `cordis.yml` plus your environment and patch layers into a running app with clear failure messages, and `cmdline` lets the app own its command-line flags and `--help`. With these packages you can run `dsh` or write a new application or test fixture that boots the same way. Both are libraries imported by `apps/cli` and test-only Loader fixtures, never plugins a composition loads. This page maps the group; each package README owns its per-package contract.
+The boot group starts dsh applications and manages running-profile composition. `app-boot` loads the environment and patch layers; `cmdline` provides app-owned flags and exit handling. These libraries are imported by `apps/cli` and test-only Loader fixtures. The `plugin-manager` runtime plugin lists profile Plugins and bundles and manages persisted changes and installations. Each package README owns its contract.
 
 ## Table of Contents
 
@@ -24,10 +24,12 @@ The boot group provides what every dsh app bin needs to start: `app-boot` turns 
 |---|---|---|
 | [`app-boot`](app-boot/README.md) | Boots a dsh app from a `cordis.yml`: loads `.env`, applies profile and patch layers, and reports startup failures clearly | (library for the bins) |
 | [`cmdline`](cmdline/README.md) | Lets the app own its flags, `--help`, and exit code; passes everything after the launcher's flags through verbatim | `cmdlineArgs`, `appExit` |
+| [`plugin-manager`](plugin-manager/README.md) | Lists running-profile Plugins and bundles and manages persisted composition and package installation | `pluginManager` |
 
 <a id="related-documentation"></a>
 ## Related documentation
 
+- [Profile management](../../docs/subsystems/profile-management.md) — generated service and event reference.
 - [dsh app](../../apps/cli/README.md) — the `dsh` bin that consumes these helpers for its boot sequence.
 - [Profile bundles](../bundle/README.md) — installable patch layers that `dsh --profile` compositions mount.
 - [dsh-home-paths](../util/home-paths/README.md) — the harness-home resolver both packages build on.

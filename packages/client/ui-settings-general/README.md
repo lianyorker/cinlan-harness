@@ -51,7 +51,7 @@ The shell owns the chrome and the projections; every piece of content and copy b
 
 ### Ledger projections
 
-The navigation joins live `settings.section` entries with [settings-domain metadata](../ui-settings/README.md). Slot entries own page labels, order, and icons; metadata owns group membership and localized field targets. Undeclared group membership resolves to Extensions. Stable row snapshots refresh on slot, metadata, and locale changes. Metadata without a mounted page never creates a navigation entry. The shell exposes General, Models, and Plugins page headings; other sections retain their feature-owned headings. The onboarding ledger projects in ascending order; the active registrant receives its id, `complete()`, and an `openSection(id)` callback, and completing or skipping transfers ownership to the next entry.
+The navigation joins live `settings.section` entries with [settings-domain metadata](../ui-settings/README.md). Slot entries own page labels, order, and icons; metadata owns group membership and localized field targets. Undeclared group membership resolves to Extensions. Stable row snapshots refresh on slot, metadata, and locale changes. Metadata without a mounted page never creates a navigation entry. The shell exposes General, Models, and Plugins page headings; other sections retain their feature-owned headings. The content pane renders the matching keyed `settings.section.extension` alongside the active page, sharing its visibility and search-target scope. The onboarding ledger projects in ascending order; the active registrant receives its id, `complete()`, and an `openSection(id)` callback, and completing or skipping transfers ownership to the next entry.
 
 ### Document availability
 

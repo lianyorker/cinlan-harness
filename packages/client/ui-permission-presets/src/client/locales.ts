@@ -37,6 +37,13 @@ export const en = {
 
 /** Simplified Chinese dictionary for the current-session popup gate. */
 export const accessZh = {
+  'auto.label': 'Auto review',
+  'auto.badge': 'EXP',
+  'auto.description': '无沙箱运行；每次原生工具调用和 PTC 内层调用前由同一模型进行实验性审查。',
+  'auto.confirm.title': '确认启用 Auto review（实验）？',
+  'auto.confirm.description': 'Auto review 不使用沙箱。每次原生工具调用和 PTC 内层调用前，都会由与当前 agent 相同的模型进行审查。此功能仍属实验性，可能误放行或误拒绝，并会消耗额外 token。',
+  'auto.confirm.acknowledge': '我已了解这些风险，并愿意继续',
+  'auto.confirm.enable': '启用 Auto review',
   'preset.readOnly': '仅可查看',
   'preset.workspaceWrite': '工作区内修改',
   'preset.fullAccess': '完全权限',
@@ -52,6 +59,13 @@ export type PermissionAccessKey = keyof typeof accessZh
 
 /** English dictionary for the current-session popup gate. */
 export const accessEn = {
+  'auto.label': 'Auto review',
+  'auto.badge': 'EXP',
+  'auto.description': 'Run without a sandbox after an experimental same-model review of every native tool call and PTC inner call.',
+  'auto.confirm.title': 'Enable Auto review (experimental)?',
+  'auto.confirm.description': 'Auto review runs without a sandbox. Before every native tool call and PTC inner call, the same model as the current agent reviews whether to allow it. This feature is experimental, can falsely allow or deny actions, and uses additional tokens.',
+  'auto.confirm.acknowledge': 'I understand these risks and want to continue',
+  'auto.confirm.enable': 'Enable Auto review',
   'preset.readOnly': 'Read Only',
   'preset.workspaceWrite': 'Workspace Write',
   'preset.fullAccess': 'Full access',

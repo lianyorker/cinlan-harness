@@ -5,16 +5,17 @@
  * Add --fail-profile with --packaged to verify a persistent error and diagnostic from isolated invalid metadata.
  * The existing-profile fixture must contain only the default managed profile, with no symlinks, junctions, patches, or extra bundles;
  * only its runtime is copied into the isolated test home, and its source is never launched or modified.
+ * Packaged runs require 0.1.6-alpha.2 and stage the local plugin-control fixture only after stopping the isolated Host.
  */
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
-import { cp, lstat, mkdir, mkdtemp, open, readFile, readdir, rm, stat, unlink, writeFile } from 'node:fs/promises'
+import { cp, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rm, stat, unlink, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { connect } from 'node:net'
 import { tmpdir } from 'node:os'
-import { dirname, isAbsolute, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 
@@ -25,6 +26,7 @@ const { values } = parseArgs({ options: {
   'fail-profile': { type: 'boolean', default: false },
 }, allowPositionals: false })
 const packaged = values.packaged
+const expectedPackagedVersion = '0.1.6-alpha.2'
 const existingProfile = values['existing-profile']
 const closeDuringStartup = values['close-during-startup']
 const failProfile = values['fail-profile']
@@ -120,6 +122,12 @@ async function removeDevelopmentRoot(path) {
   await rm(path, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 })
 }
 
+const pluginFixtureName = '@dsh-desktop-acceptance/probe'
+const pluginFixtureRow = 'desktop-acceptance-probe'
+const pluginFixtureMarker = 'profile-configuration-survives-restart'
+const nativePluginsUrl = 'dsh-app://shell/plugin-manager.html'
+const { load: parseYaml } = createRequire(new URL('../package.json', import.meta.url))('js-yaml')
+
 const settingsPackage = '@deepseek-ai/dsh-client-ui-settings-general'
 const settingsBundle = join('node_modules', '@deepseek-ai', 'dsh-client-ui-settings-general', 'lib', 'client.js')
 const managedProfileEntries = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'desktop-release.json', 'desktop-packages.json', 'desktop-packages', 'node_modules']
@@ -144,6 +152,65 @@ async function profileFingerprint(profile) {
     settingsBundle: await fileFingerprint(join(profile, settingsBundle)),
     dshVersion: (await readJson(join(profile, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'))).version,
     hostVersion: (await readJson(join(profile, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'package.json'))).version,
+  }
+}
+
+async function verifiedChildPath(directory, path) {
+  const parent = await realpath(directory)
+  const child = await realpath(path)
+  const offset = relative(parent, child)
+  assert.ok(offset !== '' && offset !== '..' && !offset.startsWith('..' + sep) && !isAbsolute(offset),
+    'installed Office asset must remain inside ' + parent + ': ' + child)
+  return child
+}
+
+async function verifyPackagedOfficePayload(profile) {
+  const modules = join(profile, 'node_modules')
+  const officeManifest = await verifiedChildPath(modules,
+    createRequire(join(profile, 'package.json')).resolve('@deepseek-ai/dsh-office-to-pdf/package.json'))
+  const kitManifest = await verifiedChildPath(modules,
+    createRequire(officeManifest).resolve('@deepseek-ai/libreoffice-kit/package.json'))
+  const nativeManifest = await verifiedChildPath(modules,
+    createRequire(kitManifest).resolve('@deepseek-ai/libreoffice-kit-win32-x64/package.json'))
+  const office = await readJson(officeManifest)
+  const kit = await readJson(kitManifest)
+  const native = await readJson(nativeManifest)
+  assert.equal(office.name, '@deepseek-ai/dsh-office-to-pdf')
+  assert.equal(office.version, expectedPackagedVersion)
+  assert.equal(kit.name, '@deepseek-ai/libreoffice-kit')
+  assert.equal(kit.version, '0.0.1')
+  assert.equal(office.dependencies[kit.name], kit.version)
+  assert.equal(native.name, '@deepseek-ai/libreoffice-kit-win32-x64')
+  assert.equal(native.version, kit.version)
+  assert.equal(kit.optionalDependencies[native.name], native.version)
+  assert.deepEqual(native.os, ['win32'])
+  assert.deepEqual(native.cpu, ['x64'])
+  const nativeRoot = dirname(nativeManifest)
+  const prebuildsPath = await verifiedChildPath(nativeRoot, join(nativeRoot, 'prebuilds.json'))
+  const prebuilds = await readJson(prebuildsPath)
+  assert.equal(prebuilds.schemaVersion, 1)
+  assert.equal(prebuilds.version, native.version)
+  assert.equal(prebuilds.platform, 'win32-x64')
+  assert.equal(prebuilds.status, 'built')
+  assert.equal(prebuilds.engine.kind, 'native')
+  assert.equal(typeof prebuilds.engine.executable, 'string')
+  assert.equal(typeof prebuilds.engine.programDirectory, 'string')
+  assert.equal(isAbsolute(prebuilds.engine.executable), false)
+  assert.equal(isAbsolute(prebuilds.engine.programDirectory), false)
+  const executable = await verifiedChildPath(nativeRoot, resolve(nativeRoot, prebuilds.engine.executable))
+  const programDirectory = await verifiedChildPath(nativeRoot, resolve(nativeRoot, prebuilds.engine.programDirectory))
+  assert.equal((await stat(executable)).isFile(), true)
+  assert.equal((await stat(programDirectory)).isDirectory(), true)
+  const fingerprint = await fileFingerprint(executable)
+  assert.ok(fingerprint.bytes > 0)
+  assert.equal(fingerprint.sha256, prebuilds.files[prebuilds.engine.executable], 'installed native executable matches prebuilds checksum')
+  const payload = { officeManifest, kitManifest, nativeManifest, versions: { office: office.version, kit: kit.version, native: native.version },
+    prebuildsPath, platform: prebuilds.platform, backend: prebuilds.engine.kind, executable, programDirectory, fingerprint }
+  report.packagedOffice ??= { payload, verifiedLaunches: 0 }
+  assert.deepEqual(report.packagedOffice.payload, payload, 'installed Office engine identity remains stable across restarts')
+  report.packagedOffice.verifiedLaunches += 1
+  if (report.packagedOffice.verifiedLaunches === 1) {
+    report.checks.push('installed Office and Windows x64 native engine resolve only inside the isolated profile; prebuilds and executable checksum verified')
   }
 }
 
@@ -481,6 +548,7 @@ async function startDesktop(logPath) {
     const profile = join(harnessHome, 'profiles', 'desktop')
     const json = async path => JSON.parse(await readFile(path, 'utf8'))
     assert.equal(report.main.isPackaged, true)
+    assert.equal(report.main.version, expectedPackagedVersion, 'acceptance requires the final 0.1.6-alpha.2 package')
     assert.equal(report.main.execPath, packaged)
     assert.equal(report.main.appPath, join(resources, 'app.asar'))
     assert.equal(report.main.resourcesPath, resources)
@@ -501,6 +569,7 @@ async function startDesktop(logPath) {
     assert.equal(report.packagedRuntime.dshVersion, report.main.version)
     assert.equal(report.packagedRuntime.hostVersion, report.main.version)
     assert.equal(report.packagedRuntime.seedRelease.version, report.main.version)
+    await verifyPackagedOfficePayload(profile)
     report.checks.push('packaged app.asar uses bundled Node and installed same-release dsh/Host profile from the offline seed')
   }
   report.rendererUrl = page.url()
@@ -566,6 +635,274 @@ async function verifyDesignRemoved(settings, language) {
   report.checks.push(`${language} Settings retains four supported capabilities and omits Design from navigation and search`)
 }
 
+async function preparePluginFixture() {
+  assert.ok(packaged !== undefined && exit?.code === 0 && exit.signal === null, 'fixture edits require a stopped packaged app')
+  const profile = join(harnessHome, 'profiles', 'desktop')
+  assert.equal(await readWhenPresent(join(harnessHome, 'desktop', 'pending.json')), undefined)
+  assert.equal(await readWhenPresent(join(harnessHome, 'desktop', 'lock')), undefined)
+  assert.equal((await lstat(profile)).isSymbolicLink(), false)
+  assert.equal((await lstat(join(profile, 'node_modules'))).isSymbolicLink(), false)
+  const before = await profileFingerprint(profile)
+  const directory = join(profile, 'node_modules', ...pluginFixtureName.split('/'))
+  await mkdir(dirname(directory))
+  await mkdir(directory)
+  for (const name of ['package.json', 'cordis.patch.yml', 'index.mjs', 'observer.mjs', 'sample.docx.base64']) {
+    await cp(join(import.meta.dirname, 'fixtures', 'plugin-control', name), join(directory, name), { errorOnExist: true, force: false })
+  }
+  const fixture = await readJson(join(directory, 'package.json'))
+  assert.equal(fixture.name, pluginFixtureName)
+  assert.equal(fixture.scripts, undefined)
+  assert.equal(fixture.dependencies, undefined)
+  const manifest = await readJson(join(profile, 'package.json'))
+  assert.ok(!manifest.dsh.profile.bundles.includes(pluginFixtureName))
+  manifest.dependencies ??= {}
+  assert.equal(manifest.dependencies[pluginFixtureName], undefined)
+  manifest.dependencies[pluginFixtureName] = fixture.version
+  manifest.dsh.profile.bundles.push(pluginFixtureName)
+  await writeFile(join(profile, 'package.json'), JSON.stringify(manifest, null, 2) + '\n')
+  const patchPath = join(profile, 'cordis.patch.yml')
+  const previous = await readWhenPresent(patchPath)
+  const patches = previous === undefined ? [] : parseYaml(previous)
+  assert.ok(Array.isArray(patches), 'isolated profile patch must be a list')
+  patches.push({ id: pluginFixtureRow, config: { marker: pluginFixtureMarker } })
+  await writeFile(patchPath, JSON.stringify(patches, null, 2) + '\n')
+  assert.deepEqual(await profileFingerprint(profile), before, 'fixture preparation cannot change packaged core files')
+  report.pluginAcceptance = {
+    package: pluginFixtureName, row: pluginFixtureRow, directory, patchPath,
+    fixtureVersion: fixture.version, marker: pluginFixtureMarker, lifecycle: [], toggles: [],
+    manifest: await fileFingerprint(join(profile, 'package.json')),
+    lockfile: await fileFingerprint(join(profile, 'pnpm-lock.yaml')),
+  }
+  report.checks.push('dependency-free plugin fixture copied only into stopped isolated profile; packaged core and pnpm lock unchanged')
+}
+
+async function hostProcess() {
+  const entry = join(harnessHome, 'profiles', 'desktop', 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'lib', 'index.js')
+  const children = await evaluateMain(mainUrl, 'process._getActiveHandles().filter(handle => handle.constructor?.name === "ChildProcess"'
+    + ' && handle.spawnargs?.[1] === ' + JSON.stringify(entry) + ').map(handle => ({pid:handle.pid, args:handle.spawnargs}))')
+  assert.equal(children.length, 1, 'exactly one packaged Desktop Host must be running')
+  assert.ok(Number.isInteger(children[0].pid))
+  return children[0]
+}
+
+async function fixtureState() {
+  return page.evaluate(async () => {
+    const response = await fetch('/api/desktop-acceptance/probe')
+    if (!response.ok) throw new Error('Desktop lifecycle observer returned ' + response.status)
+    return response.json()
+  })
+}
+
+async function openPluginSettings() {
+  await dismissKeylessCredentialDialog('en')
+  const settings = page.getByRole('region', { name: 'Settings', exact: true })
+  if (!await settings.isVisible()) await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await settings.getByRole('navigation', { name: 'Settings navigation', exact: true }).getByRole('button', { name: 'Plugins', exact: true }).click()
+  await settings.getByRole('tab', { name: 'Management', exact: true }).click()
+  const card = settings.locator('[data-plugin-package="' + pluginFixtureName + '"]')
+  await card.waitFor()
+  const disclosure = card.getByRole('button', { name: 'View probe', exact: true })
+  if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click()
+  const toggle = card.getByRole('switch', { name: 'Enable component ' + pluginFixtureRow, exact: true })
+  await until(async () => await toggle.isVisible() && !await toggle.isDisabled(), 'enabled fixture component control')
+  return { settings, card, toggle }
+}
+
+const credentialDismissals = new WeakMap()
+
+async function dismissKeylessCredentialDialog(language) {
+  assert.ok(language === 'zh' || language === 'en')
+  await page.waitForLoadState('domcontentloaded')
+  const documentId = await page.evaluate(() => performance.timeOrigin)
+  const credential = page.getByRole('dialog', {
+    name: language === 'zh' ? '添加一个 API Key 开始使用' : 'Add an API key to get started', exact: true,
+  })
+  if (credentialDismissals.get(page) === documentId && !await credential.isVisible()) return
+  // The credential join resolves after the Settings trigger appears on a new document.
+  await credential.waitFor({ state: 'visible', timeout: 120_000 })
+  await credential.getByRole('button', { name: language === 'zh' ? '稍后配置' : 'Configure later', exact: true }).click()
+  await credential.waitFor({ state: 'hidden' })
+  assert.equal(await page.evaluate(() => performance.timeOrigin), documentId)
+  credentialDismissals.set(page, documentId)
+  report.credentialDismissals ??= []
+  report.credentialDismissals.push({ documentId, language })
+}
+
+async function afterPluginRendererRefresh() {
+  await dismissKeylessCredentialDialog('en')
+  await page.getByRole('button', { name: 'Settings', exact: true }).waitFor({ state: 'visible', timeout: 120_000 })
+  setPhase('interaction')
+}
+
+async function switchFixture(enabled) {
+  const before = await hostProcess()
+  const { settings, toggle } = await openPluginSettings()
+  assert.equal(await toggle.getAttribute('aria-checked'), String(!enabled))
+  const url = page.url()
+  const state = await page.evaluate(() => ({ navigation: performance.timeOrigin, historyLength: history.length }))
+  setPhase('reload')
+  await Promise.all([
+    page.waitForEvent('framenavigated', { predicate: frame => frame === page.mainFrame(), timeout: 30_000 }),
+    toggle.click(),
+  ])
+  await page.waitForLoadState('load')
+  await afterPluginRendererRefresh()
+  assert.equal(page.url(), url)
+  const refreshed = await page.evaluate(() => ({ navigation: performance.timeOrigin, historyLength: history.length }))
+  assert.notEqual(refreshed.navigation, state.navigation, 'a successful row mutation refreshes the renderer')
+  assert.equal(refreshed.historyLength, state.historyLength, 'renderer refresh cannot add navigation history')
+  const after = await hostProcess()
+  assert.equal(after.pid, before.pid, 'plugin enablement must not replace the Desktop Host')
+  const probe = await fixtureState()
+  assert.deepEqual(probe, { hostPid: before.pid, active: enabled, marker: enabled ? pluginFixtureMarker : null })
+  const rows = parseYaml(await readFile(report.pluginAcceptance.patchPath, 'utf8'))
+  const overrides = rows.filter(row => row.id === pluginFixtureRow)
+  assert.equal(overrides.length, 1, 'a row toggle updates its existing configuration override')
+  assert.deepEqual(overrides[0].config, { marker: pluginFixtureMarker })
+  assert.equal(overrides[0].disabled, !enabled)
+  const reloaded = await openPluginSettings()
+  assert.equal(await reloaded.toggle.getAttribute('aria-checked'), String(enabled))
+  await page.screenshot({ path: join(artifactDir, 'plugin-' + report.pluginAcceptance.toggles.length + '-' + enabled + '.png'), fullPage: true, scale: 'css' })
+  await writeFile(join(artifactDir, 'plugins-' + report.pluginAcceptance.toggles.length + '.aria.txt'), await settings.ariaSnapshot())
+  report.pluginAcceptance.toggles.push({ enabled, hostPid: after.pid, rendererRefreshed: true, probe })
+}
+
+async function verifyNativePluginsBridge(settings) {
+  const before = await hostProcess()
+  const snapshot = async () => evaluateMain(mainUrl, '(() => { const {BrowserWindow} = process.getBuiltinModule("module")'
+    + '.createRequire(process.cwd() + "/package.json")("electron"); return BrowserWindow.getAllWindows()'
+    + '.filter(window => !window.isDestroyed() && !window.webContents.isDestroyed() && window.webContents.getURL() === ' + JSON.stringify(nativePluginsUrl)
+    + ').map(window => ({id:window.id, visible:window.isVisible(), url:window.webContents.getURL()})) })()')
+  assert.deepEqual(await snapshot(), [])
+  assert.deepEqual(await page.evaluate(() => Object.keys(window.dshDesktop).sort()), ['openPlugins', 'protocolVersion'])
+  await settings.getByRole('button', { name: 'Add plugin', exact: true }).click()
+  const opened = await until(async () => {
+    const windows = await snapshot()
+    return windows.length === 1 && windows[0].visible ? windows[0] : undefined
+  }, 'native Plugins window from Settings Add')
+  const nativePage = await until(() => browser.contexts().flatMap(context => context.pages()).find(candidate => candidate.url() === nativePluginsUrl), 'native Plugins renderer')
+  const nativeRow = nativePage.locator('#plugins li').filter({ hasText: pluginFixtureName })
+  await nativeRow.waitFor()
+  assert.equal(await nativeRow.count(), 1)
+  await nativePage.screenshot({ path: join(artifactDir, 'native-plugins-window.png'), fullPage: true, scale: 'css' })
+  await page.bringToFront()
+  await settings.getByRole('button', { name: 'Add plugin', exact: true }).click()
+  const reused = await snapshot()
+  assert.equal(reused.length, 1, 'repeated Add cannot create another native Plugins window')
+  assert.equal(reused[0].id, opened.id, 'repeated Add reuses the existing native Plugins window')
+  await evaluateMain(mainUrl, '(() => { const {BrowserWindow} = process.getBuiltinModule("module")'
+    + '.createRequire(process.cwd() + "/package.json")("electron"); BrowserWindow.fromId(' + opened.id + ').close() })()')
+  await until(async () => {
+    const destroyed = await evaluateMain(mainUrl, '(() => { const {BrowserWindow} = process.getBuiltinModule("module")'
+      + '.createRequire(process.cwd() + "/package.json")("electron"); const window = BrowserWindow.fromId(' + opened.id
+      + '); return window === null || window.isDestroyed() })()')
+    return destroyed && (await snapshot()).length === 0
+  }, 'native Plugins window destroyed and removed')
+  assert.equal((await hostProcess()).pid, before.pid)
+  const profile = join(harnessHome, 'profiles', 'desktop')
+  assert.deepEqual(await fileFingerprint(join(profile, 'package.json')), report.pluginAcceptance.manifest)
+  assert.deepEqual(await fileFingerprint(join(profile, 'pnpm-lock.yaml')), report.pluginAcceptance.lockfile)
+  assert.equal(await readWhenPresent(join(harnessHome, 'desktop', 'pending.json')), undefined)
+  report.pluginAcceptance.nativeWindow = { ...opened, reused: true, installedPackages: false }
+  report.checks.push('Settings Add opens and reuses native Plugins window through restricted preload without package mutation or Host replacement')
+}
+
+async function verifyPackagedOfficeConversion() {
+  assert.equal(report.packagedOffice.conversion, undefined, 'native conversion runs once per acceptance')
+  const before = await hostProcess()
+  const response = await page.evaluate(async () => {
+    const result = await fetch('/api/desktop-acceptance/office', { signal: AbortSignal.timeout(95_000) })
+    if (!result.ok) throw new Error('Packaged Office conversion failed: ' + result.status + ' ' + (await result.text()).slice(0, 2_048))
+    const limit = 1_048_576
+    const declared = Number(result.headers.get('content-length'))
+    if (!Number.isInteger(declared) || declared <= 0 || declared > limit) throw new Error('Packaged Office PDF has invalid length')
+    if (result.body === null) throw new Error('Packaged Office PDF has no response body')
+    const reader = result.body.getReader()
+    const chunks = []
+    let size = 0
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        size += value.byteLength
+        if (size > limit) {
+          await reader.cancel('Office acceptance PDF exceeds limit')
+          throw new Error('Packaged Office PDF exceeds one MiB')
+        }
+        chunks.push(value)
+      }
+    } finally { reader.releaseLock() }
+    const pdf = new Uint8Array(size)
+    let offset = 0
+    for (const chunk of chunks) { pdf.set(chunk, offset); offset += chunk.byteLength }
+    let binary = ''
+    for (let index = 0; index < pdf.length; index += 8_192) binary += String.fromCharCode(...pdf.subarray(index, index + 8_192))
+    return { base64: btoa(binary), declared, contentType: result.headers.get('content-type'),
+      hostPid: Number(result.headers.get('x-desktop-host-pid')),
+      sourceSha256: result.headers.get('x-desktop-office-source-sha256'), pdfSha256: result.headers.get('x-desktop-office-pdf-sha256') }
+  })
+  assert.equal(response.contentType, 'application/pdf')
+  const pdf = Buffer.from(response.base64, 'base64')
+  assert.ok(pdf.length > 512 && pdf.length <= 1_048_576, 'native Office conversion yields a bounded nonempty PDF')
+  assert.equal(pdf.length, response.declared)
+  assert.equal(pdf.subarray(0, 5).toString('ascii'), '%PDF-')
+  assert.match(pdf.subarray(-1_024).toString('latin1'), /%%EOF\s*$/u)
+  const pdfSha256 = createHash('sha256').update(pdf).digest('hex')
+  assert.equal(pdfSha256, response.pdfSha256)
+  const document = Buffer.from((await readFile(join(report.pluginAcceptance.directory, 'sample.docx.base64'), 'utf8')).trim(), 'base64')
+  const sourceSha256 = createHash('sha256').update(document).digest('hex')
+  assert.equal(sourceSha256, response.sourceSha256)
+  const after = await hostProcess()
+  assert.equal(after.pid, before.pid, 'Office conversion preserves the running Desktop Host')
+  assert.equal(response.hostPid, before.pid, 'production provider responds from the observed Host')
+  const output = join(artifactDir, 'packaged-office-fixture.pdf')
+  await writeFile(output, pdf, { flag: 'wx' })
+  report.packagedOffice.conversion = { hostPid: before.pid, sourceBytes: document.length, sourceSha256,
+    pdfBytes: pdf.length, pdfSha256, output, header: '%PDF-', eof: true, deadlineMs: 90_000 }
+  report.packagedOffice.providerCleanup = 'owned by the existing Host teardown'
+  report.checks.push('fixed DOCX converts through installed production Office provider to a complete native PDF with matching fingerprints and unchanged Host PID')
+}
+
+async function verifyPackagedPluginControls(persistedSettings) {
+  const initialHost = await hostProcess()
+  assert.deepEqual(await fixtureState(), { hostPid: initialHost.pid, active: true, marker: pluginFixtureMarker })
+  const { settings } = await openPluginSettings()
+  await verifyNativePluginsBridge(settings)
+  await switchFixture(false)
+  await switchFixture(true)
+  await switchFixture(false)
+  const disabledPatch = await readFile(report.pluginAcceptance.patchPath, 'utf8')
+  await writeFile(join(artifactDir, 'plugin-patch-before-restart.yml'), disabledPatch)
+  await stopDesktop()
+  assert.equal(failure, undefined)
+  assert.deepEqual(exit, { code: 0, signal: null })
+  await startDesktop(join(artifactDir, 'plugin-restart.log'))
+  await afterPluginRendererRefresh()
+  const restartedHost = await hostProcess()
+  assert.notEqual(restartedHost.pid, initialHost.pid)
+  assert.equal(await readFile(report.pluginAcceptance.patchPath, 'utf8'), disabledPatch, 'disabled configuration persists byte-for-byte across process restart')
+  assert.deepEqual(await fixtureState(), { hostPid: restartedHost.pid, active: false, marker: null })
+  const beforeReenable = (await readFile(join(report.pluginAcceptance.directory, 'lifecycle.jsonl'), 'utf8')).trim().split('\n').map(line => JSON.parse(line))
+  assert.ok(beforeReenable.every(event => event.hostPid === initialHost.pid), 'a disabled row cannot mount during restart')
+  const restarted = await openPluginSettings()
+  assert.equal(await restarted.toggle.getAttribute('aria-checked'), 'false')
+  await switchFixture(true)
+  assert.equal(await readFile(join(harnessHome, 'settings.yaml'), 'utf8'), persistedSettings)
+  const lifecycle = (await readFile(join(report.pluginAcceptance.directory, 'lifecycle.jsonl'), 'utf8')).trim().split('\n').map(line => JSON.parse(line))
+  assert.deepEqual(lifecycle.map(event => ({ phase: event.phase, hostPid: event.hostPid, marker: event.marker })), [
+    { phase: 'mounted', hostPid: initialHost.pid, marker: pluginFixtureMarker },
+    { phase: 'disposed', hostPid: initialHost.pid, marker: pluginFixtureMarker },
+    { phase: 'mounted', hostPid: initialHost.pid, marker: pluginFixtureMarker },
+    { phase: 'disposed', hostPid: initialHost.pid, marker: pluginFixtureMarker },
+    { phase: 'mounted', hostPid: restartedHost.pid, marker: pluginFixtureMarker },
+  ])
+  report.pluginAcceptance.lifecycle = lifecycle
+  report.pluginAcceptance.persistedAcrossRestart = true
+  await verifyPackagedOfficeConversion()
+  await (await openPluginSettings()).settings.getByRole('button', { name: 'Back to app', exact: true }).click()
+  report.checks.push('packaged Settings toggles apply real fixture lifecycle while Host PID survives renderer refresh; disabled state and configured marker survive a full restart')
+}
+
 async function runScenario() {
   await mkdir(harnessHome)
   await writeFile(join(harnessHome, 'settings.yaml'), initialSettings, { flag: 'wx' })
@@ -606,9 +943,7 @@ async function runScenario() {
     return
   }
   if (existingProfile !== undefined) await verifyExistingProfileUpgrade()
-  const credentialStep = page.getByRole('dialog', { name: '添加一个 API Key 开始使用', exact: true })
-  await credentialStep.getByRole('button', { name: '稍后配置', exact: true }).click()
-  await credentialStep.waitFor({ state: 'hidden' })
+  await dismissKeylessCredentialDialog('zh')
   report.checks.push('keyless first-run credential dialog dismissed through Configure later')
   const trigger = page.getByRole('button', { name: '设置', exact: true })
   await trigger.waitFor({ timeout: 120_000 })
@@ -668,9 +1003,7 @@ async function runScenario() {
   assert.equal(await englishTrigger.evaluate(element => element === document.activeElement), true)
   setPhase('reload')
   await page.reload({ waitUntil: 'load' })
-  const englishCredentialStep = page.getByRole('dialog', { name: 'Add an API key to get started', exact: true })
-  await englishCredentialStep.getByRole('button', { name: 'Configure later', exact: true }).click()
-  await englishCredentialStep.waitFor({ state: 'hidden' })
+  await dismissKeylessCredentialDialog('en')
   await englishTrigger.waitFor({ timeout: 30_000 })
   await englishTrigger.click()
   await english.getByRole('button', { name: 'English', exact: true }).waitFor()
@@ -705,6 +1038,21 @@ async function runScenario() {
     }
     await page.screenshot({ path: join(artifactDir, 'settings-terminal.png'), fullPage: true, scale: 'css' })
     await writeFile(join(artifactDir, 'settings-terminal.aria.txt'), await english.ariaSnapshot())
+    const featureNav = english.getByRole('navigation', { name: 'Settings navigation' })
+    assert.equal(await featureNav.getByRole('button', { name: 'Side card', exact: true }).count(), 0)
+    for (const label of ['Workspace layout', 'Files', 'Tasks', 'Side Chat (beta)', 'Git & Source Control', 'Browser', 'Terminal']) {
+      assert.equal(await featureNav.getByRole('button', { name: label, exact: true }).count(), 1, label + ' has one settings entry')
+    }
+    await featureNav.getByRole('button', { name: 'Tasks', exact: true }).click()
+    const tasksEnabled = english.locator('[data-settings-anchor="better-sidebar-subagent-enabled"] input')
+    await tasksEnabled.uncheck()
+    await until(async () => /subagent: false/.test(await readFile(join(harnessHome, 'settings.yaml'), 'utf8')), 'persisted Tasks panel preference')
+    await page.screenshot({ path: join(artifactDir, 'settings-tasks.png'), fullPage: true, scale: 'css' })
+    await featureNav.getByRole('button', { name: 'Files', exact: true }).click()
+    await english.locator('[data-settings-anchor="better-sidebar-editor-enabled"]').waitFor()
+    await english.locator('[data-settings-anchor="better-sidebar-editor-intercept-open-path"]').waitFor()
+    await page.screenshot({ path: join(artifactDir, 'settings-files.png'), fullPage: true, scale: 'css' })
+    report.checks.push('independent feature menus have no Side card catalog; Files owns preview controls and Tasks preference saves')
     const persisted = await readFile(join(harnessHome, 'settings.yaml'), 'utf8')
     await writeFile(join(artifactDir, 'settings-before-restart.yaml'), persisted)
     report.initialLaunch = { main: report.main, rendererPort, mainPort: report.mainPort, packagedRuntime: report.packagedRuntime }
@@ -715,6 +1063,7 @@ async function runScenario() {
     assert.equal(exit?.signal, null)
     assert.deepEqual(report.pageErrors, [])
     assert.deepEqual(report.consoleErrors, [])
+    await preparePluginFixture()
     await startDesktop(join(artifactDir, 'restart.log'))
     if (existingProfile !== undefined) {
       const profile = join(harnessHome, 'profiles', 'desktop')
@@ -725,9 +1074,7 @@ async function runScenario() {
       report.checks.push('identical packaged restart reuses the reconciled profile and retains the session-directory sentinel')
     }
     assert.notEqual(report.main.pid, report.initialLaunch.main.pid)
-    const restartedCredentialStep = page.getByRole('dialog', { name: 'Add an API key to get started', exact: true })
-    await restartedCredentialStep.getByRole('button', { name: 'Configure later', exact: true }).click()
-    await restartedCredentialStep.waitFor({ state: 'hidden' })
+    await dismissKeylessCredentialDialog('en')
     await page.getByRole('button', { name: 'Settings', exact: true }).click()
     const restartedSettings = page.getByRole('region', { name: 'Settings', exact: true })
     await restartedSettings.getByRole('button', { name: 'English', exact: true }).waitFor()
@@ -744,12 +1091,15 @@ async function runScenario() {
       assert.equal(await restartedSettings.getByRole('spinbutton', { name: 'Font size', exact: true }).inputValue(), '16')
     }
     assert.equal(await readFile(join(harnessHome, 'settings.yaml'), 'utf8'), persisted)
-    report.checks.push('full packaged process restart preserves English, settings search, Git preferences, and the complete settings file')
+    await restartedSettings.getByRole('navigation', { name: 'Settings navigation' }).getByRole('button', { name: 'Tasks', exact: true }).click()
+    assert.equal(await restartedSettings.locator('[data-settings-anchor="better-sidebar-subagent-enabled"] input').isChecked(), false)
+    report.checks.push('full packaged process restart preserves English, settings search, Git and Tasks preferences, and the complete settings file')
     await restartedSettings.getByRole('button', { name: 'Back to app', exact: true }).click()
     await restartedSettings.waitFor({ state: 'hidden' })
     const disabledPanels = page.getByRole('button', { name: 'Select a conversation to use the sidebar', exact: true })
     assert.equal(await disabledPanels.count(), 2)
     for (const control of await disabledPanels.all()) assert.equal(await control.isDisabled(), true)
+    await verifyPackagedPluginControls(persisted)
     report.terminal.execution = {
       status: 'not-run',
       reason: 'The isolated home has no Workspace or Session. Creating one requires the native Windows directory chooser, which renderer CDP input cannot operate.',

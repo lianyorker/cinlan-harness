@@ -19,10 +19,12 @@
 
 | 工具包 | 模型可见名称 | 依赖 | 写入／影响 | 随产品发布的别名 | 部署说明 |
 | --- | --- | --- | --- | --- | --- |
+| `@deepseek-ai/dsh-mcp-resources` | `list_mcp_resource_templates`、`list_mcp_resources`、`read_mcp_resource` | `ctx.tools`、`ctx.mcpResources` | `tool/call`、`tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-ask-user` | `ask_user_question` | `ctx.tools`、`ctx.userQuestions` | `tool/call`、`tool/result after a UI/provider answers the question` | - | ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类答案。 |
 | `@deepseek-ai/dsh-tools` | `run_code` | `ctx.tools`、`ctx.codeRuntime (execution time)`、`ctx.systemPrompt` | `tool/call`、`one tool/ptc-dispatch-start + tool/ptc-dispatch pair per bridged sub-call`、`tool/result` | - | 在 `mode: ptc`／`mode: both` 下，它由工具注册表所有，作为可过滤能力层之外的保留传输机制（参见 PTC mode Agent Note）。在 `ptc` 下，它是注册表对协议格式（wire format）的唯一贡献；其他可见能力在使用已加载运行时语言生成的 SDK 章节中声明。程序通过 binding 调用这些能力，调用按照原生并发约定调度：启动顺序和策略遵循提交顺序，并发安全的函数体最多重叠执行 `maxParallelSubCalls` 个。调用会重新进入完整且受守卫保护的工具流水线，并将每个嵌套执行关联到此外层结果。 |
 | `@deepseek-ai/dsh-plan-mode` | `exit_plan_mode` | `ctx.tools`、`ctx.systemPrompt`、`ctx.userQuestions (execution time, opportunistic)` | `tool/call`、`plan/mode inactive on an approved review`、`tool/result` | - | 规划未激活时，exit_plan_mode 仍保留在面向模型的 schema 中，这样状态转换不会在规划策略变更之外额外造成工具目录变动。其执行路径会拒绝规划模式之外的调用；在规划模式下，它通过用户交互 seam 提交计划（批准／根据反馈继续规划），批准后会在步骤边界记录规划模式已停用。 |
 | `@deepseek-ai/dsh-tool-bash` | `bash` | `ctx.tools`、`ctx.shell`、`ctx.systemPrompt`、`ctx.shellEnv`、`ctx.jobs at call time for run_in_background` | `tool/call`、`tool/result` | - | bash 工具是 bash 执行器 seam 面向模型的消费方。使用 `run_in_background` 的运行会注册到通用 `ctx.jobs` 运行时，并通过 `job_*` 工具（来自 `@deepseek-ai/dsh-tool-jobs`）收集／停止；禁用 `enableRunInBackground` 配置（默认为 true）后，该参数会被完全移除。 |
+| `@deepseek-ai/dsh-tool-present` | `present` | `ctx.tools`、`ctx.fs`、`ctx.sessionProjections` | `tool/call`、`deliverables/presented after a successful final result`、`tool/result` | - | 交付物归调用方 Session 所有；Web ui-deliverables 提供源文件打开入口和卡片。 |
 | `@deepseek-ai/dsh-tool-pwsh` | `pwsh` | `ctx.tools`、`ctx.shell`、`ctx.systemPrompt`、`ctx.shellEnv`、`ctx.jobs at call time for run_in_background` | `tool/call`、`tool/result` | - | pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费方（由 `@deepseek-ai/dsh-pwsh-local` 等 PowerShell 执行器为 `ctx.shell` 提供后端）；除沙箱接口外，它逐项对应 bash 工具调用。使用 `run_in_background` 的运行会注册到通用 `ctx.jobs` 运行时，并通过 `job_*` 工具收集／停止；托管的 `DSH_*` 环境来自 `@deepseek-ai/dsh-shell-env`。每次调用都在新进程中运行，不使用持久 PTY 会话。路径采用原生 `C:\...` 形式，变量采用 `$env:NAME`。 |
 | `@deepseek-ai/dsh-tool-cordis` | `cordis_define`、`cordis_inspect_list`、`cordis_inspect_query`、`cordis_inspect_self`、`cordis_run`、`cordis_stop`、`cordis_undefine` | `ctx.tools`、`ctx.dynamicCordisRunner` | `tool/call`、`tool/result`、`process-local dynamic package lifecycle` | - | 不在任何随产品发布的树中，需要显式选择启用；动态 Package 代码可以访问真实运行时，见 .agents/notes/implemented/feature/2026-07-08-self-referential-cordis-toolset.md。该工具集注入 `@deepseek-ai/dsh-cordis-host-runner` 提供的 `ctx.dynamicCordisRunner`，后者拥有定义注册表和 vm 沙箱；组合缺少它时这些工具不会激活。运行中的 Package 在停止、undefine 或 DSH 重启前可以注册**额外的**模型可见工具；发生这类工具集变化时，系统会记录完整且有变动的请求头。 |
 | `@deepseek-ai/dsh-tool-bash-persistent` | `bash` | `ctx.tools`、`ctx.terminals`、`an owning Agent at execution time` | `tool/call`、`PTY shell state`、`tool/result` | - | 一个按所有者隔离的持久 bash 工具；部署组合提供 PTY 后端，并可覆盖面向模型的环境描述。 |
@@ -53,6 +55,86 @@
 | `@deepseek-ai/dsh-tool-vuln-kb` | `vuln_query`、`vuln_read` | `ctx.tools`、`ctx.vulnKb`、执行时配置的漏洞知识库提供方 | `tool/call`、`tool/result` | - | vuln_query 和 vuln_read 暴露提供方结果，不判断可利用性，也不授予评估权限；目录启动使用 NVD+OSV 适配器且不会发起网络请求。 |
 | `@deepseek-ai/dsh-tool-work-items` | `work_items_cancel_write`, `work_items_confirm_write`, `work_items_get`, `work_items_list`, `work_items_list_writes`, `work_items_prepare_write` | `ctx.tools`, `ctx.workItems`, `ctx.systemPrompt`, `ctx.storageDomain 用于写入预览和回执` | `tool/call`, `持久化写入预览和回执`, `tool/result` | - | Provider 写入默认关闭。启用后仍需持久化预览和独立确认；不确定结果绝不自动重发。 |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
+
+<a id="deepseek-aidsh-mcp-resources"></a>
+
+## `@deepseek-ai/dsh-mcp-resources`
+
+### `list_mcp_resource_templates`
+
+列出 MCP 服务器的一页参数化资源 URI 模板。将返回的 nextCursor 作为 cursor 传入，以继续获取下一页。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "server": {
+      "type": "string",
+      "description": "Configured MCP server name."
+    },
+    "cursor": {
+      "type": "string",
+      "description": "Continuation cursor returned by this server."
+    }
+  },
+  "required": [
+    "server"
+  ]
+}
+```
+
+来源：[`packages/mcp/mcp-resources/src/tools.ts`](../packages/mcp/mcp-resources/src/tools.ts)
+
+### `list_mcp_resources`
+
+列出 MCP 服务器的一页可用资源。将返回的 nextCursor 作为 cursor 传入，以继续获取下一页。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "server": {
+      "type": "string",
+      "description": "Configured MCP server name."
+    },
+    "cursor": {
+      "type": "string",
+      "description": "Continuation cursor returned by this server."
+    }
+  },
+  "required": [
+    "server"
+  ]
+}
+```
+
+来源：[`packages/mcp/mcp-resources/src/tools.ts`](../packages/mcp/mcp-resources/src/tools.ts)
+
+### `read_mcp_resource`
+
+按 URI 从指定服务器读取 MCP 资源。使用列表返回的 URI 或展开后的资源模板。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "server": {
+      "type": "string",
+      "description": "Configured MCP server name."
+    },
+    "uri": {
+      "type": "string",
+      "description": "Resource URI to read."
+    }
+  },
+  "required": [
+    "server",
+    "uri"
+  ]
+}
+```
+
+来源：[`packages/mcp/mcp-resources/src/tools.ts`](../packages/mcp/mcp-resources/src/tools.ts)
 
 <a id="deepseek-aidsh-tool-ask-user"></a>
 
@@ -230,6 +312,49 @@ ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类�
 来源：[`packages/shell/tool-bash/src/index.ts`](../packages/shell/tool-bash/src/index.ts)
 
 bash 工具是 bash 执行器 seam 面向模型的消费方。使用 `run_in_background` 的运行会注册到通用 `ctx.jobs` 运行时，并通过 `job_*` 工具（来自 `@deepseek-ai/dsh-tool-jobs`）收集／停止；禁用 `enableRunInBackground` 配置（默认为 true）后，该参数会被完全移除。
+
+<a id="deepseek-aidsh-tool-present"></a>
+
+## `@deepseek-ai/dsh-tool-present`
+
+### `present`
+
+将已存在且可通过 Session 文件系统访问的文件声明为最终交付物。当你创建或更新的文件是用户要求接收的输出时，必须在写入后、最终回复前调用 present，包括通过 Bash 或代码执行创建的文件。在回复中提及路径不能代替此调用。文件必须已经存在。用户打开的是当前源文件；其内容不会被复制或保留。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path of an existing regular file. Relative paths use the Session working directory."
+          },
+          "description": {
+            "type": "string",
+            "description": "Brief description for the user."
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    }
+  },
+  "required": [
+    "files"
+  ]
+}
+```
+
+来源：[`packages/deliverables/tool-present/src/index.ts`](../packages/deliverables/tool-present/src/index.ts)
+
+交付物归调用方 Session 所有；Web ui-deliverables 提供源文件打开入口和卡片。
 
 <a id="deepseek-aidsh-tool-pwsh"></a>
 
@@ -1732,7 +1857,7 @@ Press one provider-supported device navigation button using an exact observation
   "properties": {
     "device_id": {
       "type": "string",
-      "description": "Exact device id returned by mobile_list_devices."
+      "description": "Exact device id returned by the latest mobile_observe."
     },
     "observation_id": {
       "type": "string",
@@ -1775,12 +1900,9 @@ Read one fresh mobile-device tree and optional native PNG image.
   "properties": {
     "device_id": {
       "type": "string",
-      "description": "Exact device id returned by mobile_list_devices."
+      "description": "Exact device id returned by mobile_list_devices. Omit to use the saved default device; it must be currently available and there is no fallback."
     }
-  },
-  "required": [
-    "device_id"
-  ]
+  }
 }
 ```
 
@@ -1796,7 +1918,7 @@ Tap or swipe with normalized coordinates using one exact observation.
   "properties": {
     "device_id": {
       "type": "string",
-      "description": "Exact device id returned by mobile_list_devices."
+      "description": "Exact device id returned by the latest mobile_observe."
     },
     "observation_id": {
       "type": "string",
@@ -1854,7 +1976,7 @@ Type literal text through stdin using one exact mobile observation.
   "properties": {
     "device_id": {
       "type": "string",
-      "description": "Exact device id returned by mobile_list_devices."
+      "description": "Exact device id returned by the latest mobile_observe."
     },
     "observation_id": {
       "type": "string",
@@ -4221,7 +4343,7 @@ vuln_query 和 vuln_read 暴露提供方结果，但不判断可利用性，也�
 
 ### `work_items_list`
 
-从已配置的 GitHub 或 Linear Provider 列出标准化 Work Items。
+从已配置的 GitHub、GitLab 或 Linear Provider 列出标准化 Work Items。
 
 ```json
 {
@@ -4232,7 +4354,8 @@ vuln_query 和 vuln_read 暴露提供方结果，但不判断可利用性，也�
       "description": "Optional provider family; omit only when exactly one provider is usable.",
       "enum": [
         "github",
-        "linear"
+        "linear",
+        "gitlab"
       ]
     },
     "scope": {
@@ -4280,9 +4403,32 @@ vuln_query 和 vuln_read 暴露提供方结果，但不判断可利用性，也�
           "required": [
             "source"
           ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "gitlab"
+            },
+            "owner": {
+              "type": "string",
+              "description": "Configured GitLab namespace."
+            },
+            "repository": {
+              "type": "string",
+              "description": "Configured GitLab project path."
+            }
+          },
+          "required": [
+            "source",
+            "owner",
+            "repository"
+          ]
         }
       ],
-      "description": "Optional configured provider scope. GitHub requires owner and repository; Linear requires team or project."
+      "description": "Optional configured provider scope. GitHub requires owner and repository; Linear requires team or project; GitLab requires owner and repository."
     },
     "query": {
       "type": "string",
@@ -4323,7 +4469,8 @@ vuln_query 和 vuln_read 暴露提供方结果，但不判断可利用性，也�
       "type": "string",
       "enum": [
         "github",
-        "linear"
+        "linear",
+        "gitlab"
       ]
     },
     "limit": {
@@ -4362,7 +4509,8 @@ vuln_query 和 vuln_read 暴露提供方结果，但不判断可利用性，也�
               "type": "string",
               "enum": [
                 "github",
-                "linear"
+                "linear",
+                "gitlab"
               ]
             },
             "title": {

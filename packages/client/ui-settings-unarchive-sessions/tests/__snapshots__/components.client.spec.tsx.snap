@@ -1,0 +1,171 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ArchivedSessionsSection > renders the Chinese list, search, and restore controls 1`] = `
+<div
+  class="section"
+>
+  <span
+    class="wrap search"
+  >
+    <span
+      class="icon"
+    >
+      <svg
+        data-content="4ca56c6d"
+        fill="none"
+        height="16"
+        viewBox="0 0 16 16"
+        width="16"
+        xmlns="http://www.w3.org/2000/svg"
+      />
+    </span>
+    <input
+      aria-label="搜索已归档会话"
+      class="input"
+      data-settings-anchor="archived-sessions-search"
+      placeholder="搜索已归档会话"
+      type="search"
+      value=""
+    />
+  </span>
+  <ul
+    class="list"
+  >
+    <li
+      class="row"
+    >
+      <span
+        class="identity"
+      >
+        <span
+          class="title"
+        >
+          Newer session
+        </span>
+        <span
+          class="meta"
+        >
+          Project · 刚刚
+        </span>
+      </span>
+      <button
+        aria-label="取消归档 Newer session"
+        class="button outline sm"
+        type="button"
+      >
+        取消归档
+      </button>
+    </li>
+    <li
+      class="row"
+    >
+      <span
+        class="identity"
+      >
+        <span
+          class="title"
+        >
+          Older session
+        </span>
+        <span
+          class="meta"
+        >
+          Project · 2天
+        </span>
+      </span>
+      <button
+        aria-label="取消归档 Older session"
+        class="button outline sm"
+        type="button"
+      >
+        取消归档
+      </button>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`ArchivedSessionsSection > renders the English list, search, and restore controls 1`] = `
+<div
+  class="section"
+>
+  <span
+    class="wrap search"
+  >
+    <span
+      class="icon"
+    >
+      <svg
+        data-content="4ca56c6d"
+        fill="none"
+        height="16"
+        viewBox="0 0 16 16"
+        width="16"
+        xmlns="http://www.w3.org/2000/svg"
+      />
+    </span>
+    <input
+      aria-label="Search archived sessions"
+      class="input"
+      data-settings-anchor="archived-sessions-search"
+      placeholder="Search archived sessions"
+      type="search"
+      value=""
+    />
+  </span>
+  <ul
+    class="list"
+  >
+    <li
+      class="row"
+    >
+      <span
+        class="identity"
+      >
+        <span
+          class="title"
+        >
+          Newer session
+        </span>
+        <span
+          class="meta"
+        >
+          Project · now
+        </span>
+      </span>
+      <button
+        aria-label="Unarchive Newer session"
+        class="button outline sm"
+        type="button"
+      >
+        Unarchive
+      </button>
+    </li>
+    <li
+      class="row"
+    >
+      <span
+        class="identity"
+      >
+        <span
+          class="title"
+        >
+          Older session
+        </span>
+        <span
+          class="meta"
+        >
+          Project · 2d
+        </span>
+      </span>
+      <button
+        aria-label="Unarchive Older session"
+        class="button outline sm"
+        type="button"
+      >
+        Unarchive
+      </button>
+    </li>
+  </ul>
+</div>
+`;

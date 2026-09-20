@@ -125,6 +125,13 @@ class FakeSessions {
 class FakeWorkspaces implements IWorkspaces {
   readonly list: MutableSource<WorkspaceSnapshot>
   readonly archiveCalls: SessionId[] = []
+  readonly unarchiveCalls: SessionId[] = []
+  onUnarchive: IWorkspaces['unarchiveSession'] = async (sessionId) => {
+    this.list.update(state => ({
+      ...state,
+      archivedSessionIds: state.archivedSessionIds.filter(id => id !== sessionId),
+    }))
+  }
   onArchive: IWorkspaces['archiveSession'] = async (sessionId) => {
     this.list.update(state => ({
       ...state,
@@ -140,6 +147,11 @@ class FakeWorkspaces implements IWorkspaces {
 
   constructor(initial: WorkspaceSnapshot) {
     this.list = new MutableSource(initial)
+  }
+
+  unarchiveSession(sessionId: SessionId): Promise<void> {
+    this.unarchiveCalls.push(sessionId)
+    return this.onUnarchive(sessionId)
   }
 
   archiveSession(sessionId: SessionId): Promise<void> {
@@ -420,6 +432,23 @@ describe('UiWorkspaceService', () => {
     b.workspaces.onArchive = () => Promise.reject(new Error('archive rejected'))
     await expect(b.uiWorkspace.archiveSession(idle)).rejects.toThrow('archive rejected')
     expect(b.workspaces.archiveCalls).toEqual([idle, idle])
+  })
+
+  it('restores archived Sessions without opening them and preserves failures', async () => {
+    const current = summary('current')
+    const archived = summary('archived')
+    const b = bench({
+      sessions: sessionState([current, archived], current.id),
+      workspaces: workspaceState([workspace('one', [current.id, archived.id])], [archived.id]),
+    })
+
+    await b.uiWorkspace.unarchiveSession(archived.id)
+    expect(b.workspaces.unarchiveCalls).toEqual([archived.id])
+    expect(b.workspaces.list.getSnapshot().archivedSessionIds).toEqual([])
+    expect(b.sessions.list.getSnapshot().current).toBe(current.id)
+    expect(b.sessions.open).not.toHaveBeenCalled()
+    b.workspaces.onUnarchive = () => Promise.reject(new Error('unarchive rejected'))
+    await expect(b.uiWorkspace.unarchiveSession(archived.id)).rejects.toThrow('unarchive rejected')
   })
 
   it('passes directory operations to the Host and preserves structured browse failures', async () => {

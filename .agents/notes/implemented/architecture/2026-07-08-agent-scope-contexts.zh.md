@@ -110,13 +110,13 @@ setup 接收完整的受信 Cordis 上下文和未发布的 Agent，因此既可
 
 ### 创建最后发布，dispose 最后撤销
 
-`ctx.agents.create()` 和 `resume()` 构建未发布的会话、作用域、agent 和驱动器。它们等待 `setup`，同步调用其可选的 `AgentSetupCommit`，准入最终的会话和 agent 条目，按序公告，启动循环，然后才返回 handle。该提交操作让可变的配置状态在所有 setup 的 await 均结算后，于确切的发布边界重新校验；若其抛出异常，则会在公告任何一个身份前回滚私有事务，而成功提交后的撤销属于普通的存活期拆除。
+`ctx.agents.create()` 和 `resume()` 构建未发布的会话、作用域、agent 和驱动器。它们等待 `setup`，同步调用其可选的 `AgentSetupCommit`，准入最终的会话和 agent 条目，公告会话，等待串行 agent 初始化，发出启动通知，然后才释放排队工作并返回 handle。该提交操作让可变的配置状态在所有 setup 的 await 均结算后，于确切的发布边界重新校验；若其抛出异常，则会在公告任何一个身份前回滚私有事务，而成功提交后的撤销属于普通的存活期拆除。
 
 可选的创建信号仅在创建或恢复挂起期间取消工作。promise resolve 后，返回的 `AgentHandle` 拥有显式 dispose 权。
 
 如果加载、setup、可选的 setup 提交、准入或发布失败，私有事务回滚其准备的一切。使用同一个调用方提供的存活 ID 的并发操作可能都到达 setup，但最终注册表条目只准入一个；每个失败者拒绝并清理其私有资源。在等待 dispose 完成后的顺序复用仍然有效。
 
-`AgentHandle.dispose()` 反转边界。它停用创建或驱动，等待同步发布完成退栈，停止并排空驱动器和最终会话刷写，分离 agent 和会话，最后 dispose 作用域。重复或竞争的 dispose 请求合并为一个完成 promise。
+`AgentHandle.dispose()` 反转边界。它取消待完成创建，等待发布结算，停止并排空驱动器，dispose 作用域，关闭会话写路径，然后分离 agent 和会话。重复或竞争的 dispose 请求合并为一个完成 promise。[等待初始化决策](2026-09-09-awaited-agent-creation.zh.md)拥有监听器完成与取消时序。
 
 调用方的 Cordis 上下文和具体的 AgentLoop 工厂是结构性共同所有者。卸载任一方都会 dispose 事务或存活 agent。
 
@@ -136,8 +136,8 @@ flowchart TB
   publish -->|"listener failure or owner loss"| rollback
   live -->|"handle or owner disposal"| quiesce["Stop and drain work"]
   rollback --> quiesce
-  quiesce --> detach["Detach agent, then session"]
-  detach --> revoke["Dispose the agent scope"]
+  quiesce --> revoke["Dispose the agent scope and close storage"]
+  revoke --> detach["Detach agent, then session"]
 ```
 
 <a id="security-and-authority-are-non-goals"></a>

@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当客户端或设置页需要展示宿主当前组合了什么——哪些插件已加载、已启用、是否存活，以及每个 Agent 预设会给会话什么——时调用 `pluginInventory/list`。Remote 是唯一入口：该服务仅供 Remote 使用，刻意不声明同进程 Cordis `Context` merge。
+当客户端或设置页需要展示宿主当前组合了什么——哪些插件已加载、已启用、是否存活，以及每个 Agent 预设会给会话什么——时调用 `pluginInventory/list`。该服务仅供 Remote 使用，不声明同进程 Cordis `Context` merge。Host 消费方可调用导出的 `readPluginInventory(ctx)` helper。`managementAvailable: true` 要求组合了 profile 管理器；Desktop 还要求启动器提供 `pluginManagementHost` 能力。`packageManagement: "desktop"` 将包操作交给原生 shell，同时仍允许实时切换插件行的启用状态；Web 省略此字段。
 
 ### 快照包含什么
 

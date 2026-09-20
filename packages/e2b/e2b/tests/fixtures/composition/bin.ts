@@ -42,7 +42,7 @@ const owner: Agent = {
   runMaintenance: task => task(new AbortController().signal),
   whenIdle: () => Promise.resolve(),
 }
-const unregisterOwner = ctx.agents.register(owner)
+const unregisterOwner = await ctx.agents.register(owner)
 let terminalId: Awaited<ReturnType<typeof ctx.terminals.spawn>>['sessionId'] | undefined
 try {
   const sandbox = await ctx.e2b.getSandbox()
@@ -207,7 +207,7 @@ try {
   })}\n`)
 } finally {
   if (terminalId !== undefined) await ctx.terminals.kill(owner, terminalId, 'fixture cleanup').catch(() => false)
-  unregisterOwner()
+  await unregisterOwner()
   await ownerFiber.dispose()
   await ctx.fiber.dispose()
 }

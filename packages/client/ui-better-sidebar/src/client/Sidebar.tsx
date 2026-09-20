@@ -31,7 +31,7 @@
 import { createElement, memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useSyncExternalStore } from 'react'
 import clsx from 'clsx'
-import { IconCloseFill14, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseFill14, IconFullscreenOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context, SidebarSessionList } from '../context-types.ts'
 import { appendToDraft } from './conversation-draft.ts'
 import {
@@ -259,6 +259,16 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
 
   const state = snapshot.state
   const sessionId = snapshot.sessionId
+  const [fullscreen, setFullscreen] = useState(false)
+  useEffect(() => { setFullscreen(false) }, [sessionId, narrow, state?.panelOpen])
+  useEffect(() => {
+    if (!fullscreen) return
+    const restore = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape' && !event.defaultPrevented) setFullscreen(false)
+    }
+    window.addEventListener('keydown', restore)
+    return () => { window.removeEventListener('keydown', restore) }
+  }, [fullscreen])
   const summaryCwd = sessionId === undefined
     ? undefined
     : sessionList.byId[sessionId as keyof typeof sessionList.byId]?.cwd
@@ -830,14 +840,14 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
   // On NARROW viewports the drawer FLOATS over the app shell — no push, the
   // conversation keeps the full width behind the drawer.
   useEffect(() => {
-    const width = !narrow && snapshot.state?.panelOpen === true
+    const width = !narrow && !fullscreen && snapshot.state?.panelOpen === true
       ? Math.min(snapshot.state.width, window.innerWidth)
       : 0
-    const height = !narrow && snapshot.state?.bottomOpen === true
+    const height = !narrow && !fullscreen && snapshot.state?.bottomOpen === true
       ? Math.min(snapshot.state.bottomHeight, window.innerHeight)
       : 0
     writeGeometry(width, height)
-  }, [narrow, snapshot.state?.panelOpen, snapshot.state?.width, snapshot.state?.bottomOpen, snapshot.state?.bottomHeight])
+  }, [narrow, fullscreen, snapshot.state?.panelOpen, snapshot.state?.width, snapshot.state?.bottomOpen, snapshot.state?.bottomHeight])
   // Unmount must release the push (issue #31): when the boundary swaps the
   // whole sidebar after a render crash (or the plugin fiber is disposed /
   // HMR), the CSS variables would otherwise stay on <html> and layout.css
@@ -991,7 +1001,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
       ctx={ctx}
       store={store}
       preferences={preferences}
-      visible={bottom ? state.bottomOpen && active : state.panelOpen && active}
+      visible={bottom ? !fullscreen && state.bottomOpen && active : state.panelOpen && active}
       onSubagentJump={(childSessionId) => { subagentJumpRef.current = childSessionId }}
       onOpenDiff={(diffTab) => { store.reduce(s => openDiffTab(s, paneId, diffTab)) }}
       localeRevision={localeRevision}
@@ -1018,7 +1028,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
           Narrow viewports merge the two workbenches into the one drawer —
           there is no bottom panel, so its toggle button is not offered.
         */}
-        {!narrow && (
+        {!narrow && !fullscreen && (
           <Tooltip label={state.bottomOpen ? t('collapseBottomPanel') : t('expandBottomPanel')} side="bottom" delayMs={500}>
             <button
               type="button"
@@ -1027,6 +1037,20 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
               onClick={() => { store.reduce(toggleBottomPanel) }}
             >
               <IconPanelBottomOutline16 />
+            </button>
+          </Tooltip>
+        )}
+        {!narrow && state.panelOpen && (
+          <Tooltip label={fullscreen ? t('restoreSidebar') : t('fullscreenSidebar')} side="bottom" delayMs={500}>
+            <button
+              type="button"
+              className={css.toggleButton}
+              aria-label={fullscreen ? t('restoreSidebar') : t('fullscreenSidebar')}
+              aria-pressed={fullscreen}
+              disabled={anyDragging}
+              onClick={() => { setFullscreen(value => !value) }}
+            >
+              <IconFullscreenOutline16 />
             </button>
           </Tooltip>
         )}
@@ -1054,8 +1078,9 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
         ref={panelRef}
         className={clsx(css.panel, !state.panelOpen && css.panelHidden)}
         data-dsh-panel
+        data-fullscreen={fullscreen || undefined}
         style={{
-          width: narrow ? '100vw' : Math.min(state.width, window.innerWidth),
+          width: narrow || fullscreen ? '100vw' : Math.min(state.width, window.innerWidth),
           // Narrow drawer: keep the bottom-anchored sheet above the on-screen
           // keyboard (visualViewport inset); desktop panels are full-height
           // and unaffected.
@@ -1064,7 +1089,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
 
         data-dragging={anyDragging || undefined}
       >
-        {!narrow && (
+        {!narrow && !fullscreen && (
           <div
             className={clsx(css.panelResize, draggingWidth && css.panelResizeActive)}
 
@@ -1123,7 +1148,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
           coordinates to keep in sync. (Never on narrow viewports: the
           bottom panel does not exist there.)
         */}
-        {!narrow && state.panelOpen && state.bottomOpen && (
+        {!narrow && !fullscreen && state.panelOpen && state.bottomOpen && (
           <div
             className={css.cornerHandle}
             data-dragging={draggingCorner || undefined}
@@ -1204,7 +1229,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
             borderRight: state.panelOpen ? '1px solid var(--dsw-alias-border-l2)' : undefined,
             // Unmeasured center column → keep the panel invisible (zero-size
             // geometry would flash full-width overflow instead).
-            visibility: centerMeasured ? undefined : 'hidden',
+            visibility: centerMeasured && !fullscreen ? undefined : 'hidden',
           }}
 
           data-dragging={(draggingBottom || draggingCorner) || undefined}

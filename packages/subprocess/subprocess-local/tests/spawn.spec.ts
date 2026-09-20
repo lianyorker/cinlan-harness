@@ -1,3 +1,4 @@
+import { OutputCollector } from '../src/output.ts'
 import { spawn as nodeSpawn, spawnSync as nodeSpawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, statSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -7,7 +8,6 @@ import {
   bindManagedProcess,
   childEnv,
   killGroup,
-  OutputCollector,
   spawnSubprocess,
   taskkillProcessTree,
   validateSubprocessSpec,
@@ -514,6 +514,20 @@ describe('output truncation and spill', () => {
 })
 
 describe('OutputCollector', () => {
+  it('snapshots independent raw tail bytes with the full byte count across truncation', () => {
+    const collector = new OutputCollector(4, undefined, 'snapshot', spillDir)
+    const first = Buffer.from([0, 255, 128, 1])
+    collector.push(first)
+    const snapshot = collector.snapshot()
+    expect(snapshot).toEqual({ bytes: first, totalBytes: 4 })
+    snapshot.bytes.fill(9)
+    expect(collector.snapshot().bytes).toEqual(first)
+    collector.push(Buffer.from([2, 3]))
+    expect(collector.snapshot()).toEqual({ bytes: Buffer.from([128, 1, 2, 3]), totalBytes: 6 })
+    collector.seal()
+    expect(collector.snapshot().totalBytes).toBe(6)
+  })
+
   it('keeps the tail of a single oversized chunk', () => {
     const collector = new OutputCollector(10, 100, 'test', spillDir)
     collector.push(Buffer.from('0123456789abcdef'))

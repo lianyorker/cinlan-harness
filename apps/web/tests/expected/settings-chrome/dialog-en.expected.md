@@ -11,6 +11,7 @@
       - text: Personal preferences
       - img
     - button "General"
+    - button "Workspace layout"
     - button "Notifications"
     - button "Keybindings"
     - button "Floating Workspace"
@@ -20,6 +21,8 @@
     - button "Models"
     - button "Agent presets"
     - button "Orchestration"
+    - button "Tasks"
+    - button "Side Chat (beta)"
     - button "Voice"
     - button "Development workflow" [expanded]:
       - text: Development workflow
@@ -31,13 +34,13 @@
       - img
     - button "Security Research"
     - button "Browser"
+    - button "Files"
     - button "Computer use"
     - button "Mobile emulator"
     - button "Extensions" [expanded]:
       - text: Extensions
       - img
     - button "Plugins"
-    - button "Side card"
     - button "Experimental" [expanded]:
       - text: Experimental
       - img

@@ -72,6 +72,7 @@ function props(
     sessionId: PARENT,
     useSessions,
     openChild: vi.fn(),
+    openChildAside: vi.fn(),
     refresh: vi.fn(),
     setCatalogOpen: vi.fn(),
     lineageSessionId: PARENT,
@@ -99,6 +100,27 @@ function hoverCatalog(trigger: HTMLElement): void {
 }
 
 describe('SubagentHeaderLineage', () => {
+  it('opens a child beside its parent through the explicit sidebar action', () => {
+    const input = props(catalog())
+    render(<SubagentHeaderLineage {...input} />)
+    hoverCatalog(screen.getByRole('button', { name: '2 个子代理' }))
+    const button = screen.getByRole('button', { name: '在侧边栏打开 worker' })
+    expect(within(screen.getByRole('tree')).getAllByRole('button').map(item => item.getAttribute('aria-label')))
+      .toMatchInlineSnapshot(`
+        [
+          "展开 worker 的下级子代理",
+          "在侧边栏打开 worker",
+          "在侧边栏打开 reviewer",
+        ]
+      `)
+    fireEvent.keyDown(button, { key: 'Enter' })
+    expect(input.openChild).not.toHaveBeenCalled()
+    fireEvent.click(button)
+    expect(input.openChildAside).toHaveBeenCalledWith({ parentSessionId: PARENT, childSessionId: CHILD, mode: 'continuable' })
+    expect(input.openChild).not.toHaveBeenCalled()
+    expect(screen.queryByRole('tree')).toBeNull()
+  })
+
   it('aggregates live descendant activity onto the closed trigger', () => {
     const summaries: Record<SessionId, SessionSummary> = {
       [CHILD]: {

@@ -11,6 +11,7 @@ import type { Agent, AgentStatus } from '@deepseek-ai/dsh-agent'
 import CommandRuntime from '@deepseek-ai/dsh-commands'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import * as CommandFeedback from '@deepseek-ai/dsh-command-feedback'
+import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import { getOrCreateAnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import { unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
 
@@ -26,7 +27,7 @@ afterEach(async () => {
 })
 
 /** Register one idle agent over a store-owned session, as an app's spine does. */
-function agent(ctx: Context): Agent {
+async function agent(ctx: Context): Promise<Agent> {
   const scope = ctx.plugin(() => {})
   const id = SessionId('feedback-loader-agent')
   const session = ctx.sessions.create(id)
@@ -46,7 +47,7 @@ function agent(ctx: Context): Agent {
     runMaintenance: task => task(new AbortController().signal),
     whenIdle: () => Promise.resolve(),
   }
-  ctx.agents.register(value)
+  await ctx.agents.register(value)
   return value
 }
 
@@ -83,7 +84,7 @@ describe('/feedback real Loader composition through cordis.yml', () => {
     await context.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
     await context.loader.await()
 
-    const owner = agent(context)
+    const owner = await agent(context)
     const signal = new AbortController().signal
 
     // Discoverable through the composed registry, as a UI adapter finds it.
@@ -110,8 +111,22 @@ describe('/feedback real Loader composition through cordis.yml', () => {
     expect(feedback?.type === 'feedback/record' && feedback.data.text).toBe('the diff view is unreadable')
     expect(JSON.stringify(owner.session.snapshotEvents()).match(/the diff view is unreadable/gu)).toHaveLength(1)
 
-    // Nothing reached the model.
+    expect(context.sessionFeedback.typertRemote.namespace).toBe('sessionFeedback')
+    expect(remoteMethods(context.sessionFeedback)).toEqual([
+      { method: 'record', invocation: { kind: 'direct' } },
+    ])
+    await expect(context.sessionFeedback.record({ sessionId: owner.id, category: 'other' }))
+      .resolves.toEqual({ ok: true, value: { recorded: true } })
+    expect(owner.session.snapshotEvents().at(-1)).toMatchObject({ type: 'feedback/record', data: { category: 'other' } })
+
     expect(owner.session.deriveMessages()).toEqual([])
     expect(owner.session.surface.nodes).toEqual([])
+
+    const entry = [...context.loader.entries()]
+      .find(entry => entry.options.name === '@deepseek-ai/dsh-command-feedback')
+    expect(entry?.fiber).toBeDefined()
+    await entry!.fiber!.dispose()
+    expect(context.get('sessionFeedback')).toBeUndefined()
+    expect(context.commands.find(owner, 'feedback')).toBeUndefined()
   })
 })

@@ -25,7 +25,7 @@ Use the **Plugins** settings section to configure the plugins exposed by the cur
 <a id="use-this-package"></a>
 ## Use this package
 
-Open the Plugins section in Settings and select the **Plugin configuration** tab to edit the host-plane plugins this deployment composes. The cards appear in this order: the shell executor (`bash`), the agent loop's tool-call parallelism (`agent-loop`), subagent model selection (`subagent-model-selection`), and the DeepSeek search provider (`web-search-deepseek`). The section belongs to the Extensions settings group. Settings search selects the matching tab and expands an available configuration card without saving or discarding its draft.
+Open the Plugins section in Settings and select the **Plugin configuration** tab to edit the host-plane plugins this deployment composes. The cards appear in this order: the shell executor (`bash`), the agent loop's tool-call parallelism (`agent-loop`), subagent limits and model selection (`subagent` and `subagent-model-selection`), and the DeepSeek search provider (`web-search-deepseek`). The section belongs to the Extensions settings group. Settings search selects the matching tab and expands an available configuration card without saving or discarding its draft.
 
 ### What appears here
 
@@ -35,7 +35,7 @@ The tab reads which settings namespaces the Host serves and dispatches one slot 
 
 A card stages what the user types and writes it only when they save. Each control renders staged text, so what is on screen is exactly what a save would store; **Discard** drops the drafts, and a card holding unsaved edits says so on its header even while collapsed. A successful save collapses the card after the Host accepts every dispatched write and the read-back confirms the stored values; a failed save keeps the card open, reports the failure, and retains the drafts for correction. A reset stages the composed default rather than writing immediately, and a draft the field does not accept blocks the save instead of being dropped. The Host is the only authority on whether a value was accepted.
 
-The Subagent card stages its permission switch and exact model checkboxes together. Enabling requires at least one selected adapter route. Saving submits `enabled` and `allowedModels` in one mutation fenced by the revision where that draft began; a newer Host revision marks the draft failed instead of restoring a revoked route. Disabling retains the selected routes for later reuse. Available models are grouped by provider, while saved routes absent from the current catalog appear last and remain removable. Adapter names and model descriptions remain live directory metadata and are not stored, and the card refreshes them after adapter changes, settings commits, and reconnects.
+The Subagent card also stages maximum delegation depth and active-child capacity with the existing numeric controls. It appears once when either subagent namespace is served, and each field resets independently. The limits follow the [subagent service settings](../../subagent/subagent/README.md#delegation-limits); model authorization remains a separate namespace. One save submits only changed namespaces; each requires Host acceptance, and a refused draft remains available after another namespace succeeds. The card stages its permission switch and exact model checkboxes together. Enabling requires at least one selected adapter route. Saving submits `enabled` and `allowedModels` in one mutation fenced by the revision where that draft began; a newer Host revision marks the draft failed instead of restoring a revoked route. Disabling retains the selected routes for later reuse. Available models are grouped by provider, while saved routes absent from the current catalog appear last and remain removable. Adapter names and model descriptions remain live directory metadata and are not stored, and the card refreshes them after adapter changes, settings commits, and reconnects.
 
 ### Secret-role fields
 
@@ -57,7 +57,7 @@ The section declares `settings.plugins.tab`, a root list slot whose labels becom
 
 ### The write path
 
-Saving writes staged fields through the client settings scope, which fences each queued write with the latest known namespace revision. The Subagent card supplies its earlier draft revision as a fixed fence for its atomic mutation. A conflicting Host revision refuses the mutation. A field's presence in the raw user layer — not its value — is what marks it overridden; a reset clears that field so it re-inherits the composition layer. Secret-role fields never ride a response; the card re-reads on the forwarded `credentials/reference-updated` event for the reference it watches.
+Saving writes staged fields through the client settings scope, which fences each queued write with the latest known namespace revision. The Subagent model-authorization form supplies its earlier draft revision as a fixed fence for its atomic mutation. A conflicting Host revision refuses the mutation. A field's presence in the raw user layer — not its value — is what marks it overridden; a reset clears that field so it re-inherits the composition layer. Secret-role fields never ride a response; the card re-reads on the forwarded `credentials/reference-updated` event for the reference it watches.
 
 </details>
 

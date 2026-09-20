@@ -53,6 +53,8 @@ export interface SidebarPty {
    *  the page-load hydrate race can attach the real cwd after the first
    *  connect, and a shell in the wrong directory must not linger). */
   cwd: string
+  /** Executable captured at spawn; foreground commands cannot change the tab shell. */
+  shellPath: string
   pty: IPty
   /** Output accumulated since spawn (bounded; head dropped when over the limit). */
   transcript: string
@@ -155,6 +157,7 @@ export class PtyManager {
       sessionId,
       tabId,
       cwd,
+      shellPath: shell ?? this.shell,
       pty: this.nodePty.spawn(shell ?? this.shell, shellSpawnArgs(shellArgs ?? this.shellArgs), {
         name: 'xterm-256color',
         cols: Math.max(2, Math.floor(cols)),

@@ -1,6 +1,16 @@
 {
   "name": "@deepseek-ai/dsh-sidebar-terminals",
-  "version": "0.1.5-alpha.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/terminal/sidebar-terminals"
+  },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "version": "0.1.6-alpha.2",
   "description": "Integrated sidebar PTY attachment service and browser-safe terminal request types.",
   "type": "module",
   "license": "MIT",

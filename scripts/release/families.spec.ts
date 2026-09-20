@@ -6,6 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { officialClientBuildEnvironment, writeClientBuildRecord } from '../client-build-environment.ts'
 import { releaseFamily, type ReleaseMember } from './families.ts'
+import { PUBLIC_EXPERIMENTAL_PACKAGES } from '../experimental-package-policy.ts'
 import { compareVersions, nextVendorVersion, planShared, reachesPayload } from './bump.ts'
 
 /**
@@ -42,11 +43,67 @@ afterEach(() => {
 })
 
 describe('release families', () => {
-  it('excludes private experimental packages from the dsh release', () => {
-    const members = releaseFamily('dsh').members(resolve(import.meta.dirname, '../..'))
+  it('includes exactly the seven official experimental imports in the dsh release', () => {
+    const dsh = releaseFamily('dsh')
+    const members = dsh.members(resolve(import.meta.dirname, '../..'))
 
-    expect(members.some(member => member.directory.startsWith('packages/experimental/'))).toBe(false)
+    expect(members.filter(member => member.directory.startsWith('packages/experimental/'))
+      .map(member => member.name).sort()).toEqual([
+      '@deepseek-ai/dsh-experimental-auto-review',
+      '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp',
+      '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp',
+      '@deepseek-ai/dsh-experimental-browser-use-runtime',
+      '@deepseek-ai/dsh-experimental-browser-use-stagehand-native',
+      '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp',
+      '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native',
+    ])
     expect(members.map(member => member.name)).not.toContain('@deepseek-ai/dsh-experimental-agent-team')
+    expect(() => { dsh.verifyVersions(members) }).not.toThrow()
+  })
+
+  it('excludes unknown experimental packages even when they declare public metadata', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-release-experimental-'))
+    roots.push(root)
+    write(join(root, 'apps/cli/package.json'), '{"name":"@deepseek-ai/dsh","version":"0.0.1"}\n')
+    write(join(root, 'packages/experimental/prototype/package.json'), JSON.stringify({
+      name: '@deepseek-ai/dsh-experimental-prototype', version: '0.0.1', publishConfig: { access: 'public' },
+    }))
+
+    expect(releaseFamily('dsh').members(root).map(entry => entry.name)).toEqual(['@deepseek-ai/dsh'])
+  })
+
+  it('rejects a different package name in an allowed experimental directory', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-release-experimental-name-'))
+    roots.push(root)
+    write(join(root, 'packages/experimental/auto-review/package.json'), JSON.stringify({
+      name: '@deepseek-ai/dsh-experimental-prototype', version: '0.0.1',
+    }))
+
+    expect(() => releaseFamily('dsh').members(root)).toThrow(/public experimental allowlist/)
+  })
+
+  it('plans the official experimental imports under one shared version and tag', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-release-experimental-plan-'))
+    roots.push(root)
+    write(join(root, 'package.json'), '{"version":"0.0.1"}\n')
+    write(join(root, 'packages/experimental/prototype/package.json'), '{"version":"0.0.1","private":true}\n')
+    for (const [directory, name] of Object.entries(PUBLIC_EXPERIMENTAL_PACKAGES)) {
+      write(join(root, directory, 'package.json'), JSON.stringify({ name, version: '0.0.1' }))
+    }
+    const dsh = releaseFamily('dsh')
+    const members = dsh.members(root)
+    const plan = planShared(dsh, root, members, '0.1.6-alpha.2')
+
+    expect(members).toHaveLength(7)
+    expect(plan.planned.filter(entry => entry.tag !== undefined)).toHaveLength(7)
+    expect(new Set(plan.planned.map(entry => entry.to))).toEqual(new Set(['0.1.6-alpha.2']))
+    expect(new Set(plan.planned.filter(entry => entry.tag !== undefined).map(entry => entry.tag)))
+      .toEqual(new Set(['dsh-v0.1.6-alpha.2']))
+    expect(plan.planned.find(entry => entry.manifestPath === 'packages/experimental/prototype/package.json')?.tag)
+      .toBeUndefined()
+    expect(() => dsh.verifyVersions([
+      ...members.slice(1), { ...members[0]!, version: '0.0.2' },
+    ])).toThrow(/must share one version/)
   })
 
   it('excludes private applications from the publish set', () => {

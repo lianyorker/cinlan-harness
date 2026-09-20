@@ -1,0 +1,95 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`optional AutoReview Loader composition > settles 'allow' through the real loop without approval bypass 1`] = `
+{
+  "error": null,
+  "permission": "auto",
+  "result": [
+    {
+      "content": [
+        {
+          "text": "Executed.",
+          "type": "text",
+        },
+      ],
+      "isError": false,
+      "toolCallId": "pending",
+      "type": "tool-result",
+    },
+  ],
+  "runs": 1,
+}
+`;
+
+exports[`optional AutoReview Loader composition > settles 'explicit hard deny' through the real loop without approval bypass 1`] = `
+{
+  "error": {
+    "code": "AUTO_REVIEW_DENIED",
+    "name": "AutoReviewDeniedError",
+    "reason": "private detail",
+  },
+  "permission": "auto",
+  "result": [
+    {
+      "content": [
+        {
+          "text": "Error: Auto review rejected tool "probe"; its body was not executed",
+          "type": "text",
+        },
+      ],
+      "isError": true,
+      "toolCallId": "pending",
+      "type": "tool-result",
+    },
+  ],
+  "runs": 0,
+}
+`;
+
+exports[`optional AutoReview Loader composition > settles 'invalid high allow' through the real loop without approval bypass 1`] = `
+{
+  "error": {
+    "code": "AUTO_REVIEW_DENIED",
+    "name": "AutoReviewDeniedError",
+  },
+  "permission": "auto",
+  "result": [
+    {
+      "content": [
+        {
+          "text": "Error: Auto review rejected tool "probe"; its body was not executed",
+          "type": "text",
+        },
+      ],
+      "isError": true,
+      "toolCallId": "pending",
+      "type": "tool-result",
+    },
+  ],
+  "runs": 0,
+}
+`;
+
+exports[`optional AutoReview Loader composition > settles 'review service failure' through the real loop without approval bypass 1`] = `
+{
+  "error": {
+    "code": "AUTO_REVIEW_DENIED",
+    "name": "AutoReviewDeniedError",
+  },
+  "permission": "auto",
+  "result": [
+    {
+      "content": [
+        {
+          "text": "Error: Auto review rejected tool "probe"; its body was not executed",
+          "type": "text",
+        },
+      ],
+      "isError": true,
+      "toolCallId": "pending",
+      "type": "tool-result",
+    },
+  ],
+  "runs": 0,
+}
+`;

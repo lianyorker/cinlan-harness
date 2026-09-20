@@ -1,5 +1,5 @@
 ---
-description: "Canonical Session-log ratings and notes for finalized assistant messages."
+description: "Canonical Session-log ratings, categories, and notes for finalized assistant messages."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This service records positive or negative ratings and optional verbatim notes for finalized assistant messages. The canonical Session log owns every creation, edit, and deletion; `list`, `put`, and `delete` expose current feedback without constructing or waking an Agent. Feedback is log-only and does not enter model history.
+This service records positive or negative ratings, optional categories, and optional verbatim notes for finalized assistant messages. The canonical Session log owns every creation, edit, and deletion; `list`, `put`, and `delete` expose current feedback without constructing or waking an Agent. Feedback is log-only and does not enter model history.
 
 ## Table of Contents
 
@@ -30,17 +30,17 @@ Mount `dsh-message-feedback` alongside `sessions` and `sessionPersistence`. It n
 |---|---|---|
 | `maxNoteBytes` | required | Positive safe-integer maximum UTF-8 bytes in one optional note. |
 
-A supplied note must contain a non-whitespace character and fit the configured byte limit. Blank notes return `note-blank`; oversized notes return `note-too-large`. Accepted text is preserved exactly, including surrounding whitespace. Omitting a note clears it. Note validation precedes Session lookup.
+A supplied note must contain a non-whitespace character and fit the configured byte limit. Blank notes return `note-blank`; oversized notes return `note-too-large`. Accepted text is preserved exactly, including surrounding whitespace. Omitting a note clears it. Note validation precedes Session lookup. A category uses the [fixed feedback category ids](../command-feedback/README.md#feedback-categories); omitting it clears the category.
 
 ### Reading and changing feedback
 
 | Operation | Request | Success | Business failures |
 |---|---|---|---|
 | `list` | Session id | Current items in creation order | Session not found |
-| `put` | Session, message, rating, optional note, expected version | Current item | Session or target not found, version conflict, invalid note |
+| `put` | Session, message, rating, optional note, optional category, expected version | Current item | Session or target not found, version conflict, invalid note |
 | `delete` | Session, message, expected version | Item absent | Session not found, version conflict |
 
-Create with `ifVersion: null`; edit or delete with the returned version. Stale mutations return `version-conflict` and the current item. Each material put mints a fresh token and preserves the original creation time. A matching no-op put returns the same item without appending an event. Deleting an absent item succeeds regardless of the supplied version, without appending an event. Recreating a deleted item starts a new creation time and ordering position.
+Create with `ifVersion: null`; edit or delete with the returned version. Stale mutations return `version-conflict` and the current item. Each material put mints a fresh token and preserves the original creation time. A put matching the stored rating, note, and category returns the same item without appending an event. Changing or removing only the category is a material edit. Deleting an absent item succeeds regardless of the supplied version, without appending an event. Recreating a deleted item starts a new creation time and ordering position.
 
 Targets must be non-empty assistant messages produced by append-origin events. User messages, empty assistant placeholders, and replacement-origin messages return `target-not-found`. Feedback survives restart; a fork starts without owned feedback even when its inherited prefix contains parent feedback.
 
@@ -49,7 +49,7 @@ Targets must be non-empty assistant messages produced by append-origin events. U
 
 ### Canonical log and durability
 
-`feedback/message-put` stores the owning Session id and complete item, including its version and timestamps. `feedback/message-delete` stores the owner and message id. Current state is derived from these events, ignoring other Session owners. Durable payloads are validated before use. No second feedback store or cache exists.
+`feedback/message-put` stores the owning Session id and complete item, including its version and timestamps. `feedback/message-delete` stores the owner and message id. Current state is derived from these events, ignoring other Session owners. Durable payloads are validated before use, including any category; records without a category remain valid. No second feedback store or cache exists.
 
 Live operations append through `Session.append` and await `sessions.flush`, then verify the captured log endpoint and Session header through a persistence read handle before reporting success. Cold mutations hold a persistence write handle across read, validation, comparison, append, flush, and close. Cold reads use a read handle. Neither path constructs a Session or appends lifecycle events.
 
@@ -79,7 +79,7 @@ Nothing. `feedback/message-put` and `feedback/message-delete` carry no surface p
 
 #### Token effect
 
-Zero. Ratings, notes, and service results do not enter model requests.
+Zero. Ratings, categories, notes, and service results do not enter model requests.
 
 #### KV Cache effect
 
@@ -93,7 +93,7 @@ Independent. Feedback does not change the model request prefix.
 - **Deletion retains history:** delete removes current feedback, not earlier ratings or notes from the append-only log; it is not a privacy-erasure operation.
 - **Writer ownership:** another process holding a Session write handle causes cold mutations to reject. The service does not wake that owner or coordinate Remote calls across processes.
 - **Trusted callers:** requests contain no authenticated actor or audit identity. Deployments must protect the Host gateway.
-- **Telemetry export:** for all users and providers, including `deepseek-official`, the shipped OTel backend in `FEEDBACK_ONLY` releases the complete canonical prefix only after new explicit text feedback, rating/note edits, or withdrawal. The prefix includes context and verbatim notes; later records wait for the next feedback, and `DISABLED` prevents capture. Deployments own redaction; see the [OTel export policy](../../session/session-telemetry-otel/README.md).
+- **Telemetry export:** for all users and providers, including `deepseek-official`, the shipped OTel backend in `FEEDBACK_ONLY` releases the complete canonical prefix only after a new Session feedback record, rating, note, or category edit, or withdrawal. The prefix includes context and verbatim notes; later records wait for the next feedback, and `DISABLED` prevents capture. Deployments own redaction; see the [OTel export policy](../../session/session-telemetry-otel/README.md).
 - **Scan cost:** each `list`, `put`, or `delete` that reaches an existing Session scans its full event log to derive current feedback; cold operations also read the full log from persistence. Work grows with total Session history, not just the number of feedback items.
 - **Retention:** `maxNoteBytes` limits one note, not aggregate log size or mutation count.
 

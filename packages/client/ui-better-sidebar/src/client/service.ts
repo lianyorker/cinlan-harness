@@ -21,7 +21,8 @@
  */
 import type { ReactNode } from 'react'
 import { api } from './api.ts'
-import type { Context } from '../context-types.ts'
+import type { Context, SidebarSubagentAddress } from '../context-types.ts'
+import { subagentChatTab } from './subagent-chat.ts'
 import type { MatchEditorShortcut } from './keyboard-commands.ts'
 import {
   activateTab as activateTabReducer, allLeaves, closeTab as closeTabReducer, leafWithTab,
@@ -29,6 +30,9 @@ import {
   type SidebarSnapshot, type SidebarState, type SidebarStore, type SidebarTab,
 } from './state.ts'
 import { isNarrowWidth } from './breakpoints.ts'
+import { isAbsolutePath } from './paths.ts'
+import { resolveSidebarPath } from './produced-files.ts'
+import { editorFileKey } from './file-source.ts'
 import type { SessionScope } from './api.ts'
 import type { SidebarPrefs } from '../prefs-shared.ts'
 
@@ -429,6 +433,12 @@ export interface BetterSidebarService {
    */
   openTab(seed: OpenTabSeed, scope?: SessionScope): void
   /**
+   * Open a child conversation alongside its parent without changing main selection.
+   * @param address - Durable direct-parent child address.
+   * @param scope - Sidebar layout owner; defaults to the current session.
+   */
+  openSubagentChat(address: SidebarSubagentAddress, scope?: SessionScope): void
+  /**
    * Close a tab by id (fires descriptor.onClose). An unknown tab id is a
    * strict no-op (no state churn, no callbacks). `scope` (v0.12.0+) rides
    * to the callback (its optional cwd included); absent, the callback gets
@@ -476,12 +486,14 @@ export interface BetterSidebarService {
    * @param scope - Target Session scope; omitted selects the active Session.
    */
   activateTab(tabId: string, scope?: SessionScope): void
-  /** Open a file in the sidebar editor of `scope`'s session (title defaults to the file name).
-   * @param scope - Target Session.
-   * @param path - File path to open.
+  /** Open a file in the visible sidebar layout, retaining its source Session for file access.
+   * Relative paths use the source cwd; without a visible Session, the source layout receives the tab.
+   * @param scope - Source Session, with its cwd when already known.
+   * @param path - Absolute path or path relative to the target Session's cwd.
    * @param title - Tab title; omitted uses the file name.
+   * @returns Resolves after opening; rejects when an unknown cwd cannot be resolved from the Host.
    */
-  openFile(scope: SessionScope, path: string, title?: string): void
+  openFile(scope: SessionScope, path: string, title?: string): Promise<void>
 }
 
 /** Extract the lowercase extension without leading dot from a path. */
@@ -529,7 +541,7 @@ export function matchUrlTarget(tabs: readonly TabDescriptor[], url: URL): TabDes
  * The plugin version this service instance reports. Keep in lockstep with
  * `package.json`'s version — `tests/service.spec.ts` asserts the pair.
  */
-export const SIDEBAR_SERVICE_VERSION = '0.1.5-alpha.1'
+export const SIDEBAR_SERVICE_VERSION = '0.1.6-alpha.2'
 
 /**
  * Monotonic capability list consumers use to gate new API usage (features
@@ -846,11 +858,23 @@ export function createBetterSidebarService(
     }
   }
 
-  /** Open a file in the sidebar editor of `scope`'s session (title defaults
-   *  to the file name; the tab id is path-derived, like the internal
-   *  open-path interception, so distinct files open side by side). */
-  const openFile = (scope: SessionScope, path: string, title?: string): void => {
-    openTab({ type: 'editor', title: title ?? baseNameOf(path), path, id: `editor:${path}` }, scope)
+  const openFile = async (scope: SessionScope, path: string, title?: string): Promise<void> => {
+    const layoutSessionId = store.getSnapshot().sessionId ?? scope.sessionId
+    const cwd = !isAbsolutePath(path) && (scope.cwd === undefined || scope.cwd === '')
+      ? (await api.sessionCwd(scope)).cwd
+      : scope.cwd
+    const resolvedPath = resolveSidebarPath(cwd, path)
+    const file: SidebarTab = {
+      type: 'editor',
+      title: title ?? baseNameOf(path),
+      path: resolvedPath,
+      id: `editor:${resolvedPath}`,
+      ...(layoutSessionId === scope.sessionId ? {} : {
+        meta: { fileSource: { sessionId: scope.sessionId, ...(cwd === undefined ? {} : { cwd }) } },
+      }),
+    }
+    if (layoutSessionId !== scope.sessionId) file.id = `editor:${editorFileKey(file)}`
+    openTab(file, { sessionId: layoutSessionId, ...(layoutSessionId !== scope.sessionId || cwd === undefined ? {} : { cwd }) })
   }
 
   return {
@@ -875,6 +899,7 @@ export function createBetterSidebarService(
     isViewerEnabled,
     matchFileViewer,
     openTab,
+    openSubagentChat: (address, scope) => { openTab(subagentChatTab(address), scope) },
     closeTab,
     subscribe,
     version: SIDEBAR_SERVICE_VERSION,

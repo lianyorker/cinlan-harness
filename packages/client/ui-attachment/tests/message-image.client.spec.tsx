@@ -150,6 +150,33 @@ describe('MessageImage', () => {
     expect(retry.getAttribute('data-variant')).toBe('tile')
   })
 
+  it('keeps list thumbnails accessible while loading, retrying, and opening the original', async () => {
+    let rejectFirst: ((error: Error) => void) | undefined
+    const load = vi.fn()
+      .mockImplementationOnce(() => new Promise<string>((_resolve, reject) => { rejectFirst = reject }))
+      .mockResolvedValueOnce('blob:thumbnail')
+    const view = render(
+      <ImageGallery images={[{ attachment, label: 'Image 1' }]} load={load} align="start" thumbnail labels={labels} />,
+    )
+    const loading = view.getByRole('button', { name: labels.loading })
+    expect(loading.getAttribute('data-variant')).toBe('thumbnail')
+    expect(loading.getAttribute('aria-busy')).toBe('true')
+    expect(loading.textContent).toBe('')
+    fireEvent.click(loading)
+    expect(view.queryByRole('dialog')).toBeNull()
+    rejectFirst?.(new Error('offline'))
+    const retry = await view.findByRole('button', { name: labels.loadFailed })
+    expect(retry.getAttribute('data-variant')).toBe('thumbnail')
+    expect(retry.getAttribute('title')).toBe(labels.loadFailed)
+    expect(retry.textContent).toBe('')
+    fireEvent.click(retry)
+    const image = await view.findByAltText('Image 1')
+    expect(load).toHaveBeenLastCalledWith(attachment)
+    expect(image.getAttribute('src')).toBe('blob:thumbnail')
+    fireEvent.click(view.getByRole('button', { name: labels.openNamed('Image 1') }))
+    expect(view.getByRole('dialog', { name: labels.lightbox.dialog })).toBeTruthy()
+  })
+
   it('ignores a load settling after unmount', async () => {
     let resolve: ((url: string) => void) | undefined
     const load = vi.fn(() => new Promise<string>((r) => { resolve = r }))
@@ -296,5 +323,8 @@ describe('ImageGallery', () => {
     await waitFor(() => { expect(view.getByAltText('history.png')).toBeTruthy() })
     expect(view.getByRole('button', { name: 'history.png，点击查看原图' })).toBeTruthy()
     expect(view.container.querySelector('[data-align="end"]')).not.toBeNull()
+    view.rerender(<MessageImages {...props} images={[{ attachment, label: 'Image 1' }]} thumbnail />)
+    expect(view.getByRole('button', { name: 'Image 1，点击查看原图' }).getAttribute('data-variant')).toBe('thumbnail')
+    expect(loadImage).toHaveBeenLastCalledWith(attachment)
   })
 })

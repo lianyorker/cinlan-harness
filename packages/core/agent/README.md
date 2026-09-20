@@ -104,7 +104,7 @@ The package is built on one separation: the public `Agent` surface and registry 
 
 ### Registry and lifecycle
 
-`AgentRegistry` keeps one entry per live agent with its carrier and creator relation. `register()` records an already-constructed agent; the async factory uses the split `enter()`/`announce()` pair so setup and publication stay rollback-covered. A detach requested during a creation dispatch waits for that dispatch to unwind, and each detach is bound to the exact entry, so a stale disposer cannot remove a later same-id replacement. Teardown order is stop-and-drain the loop, unwind the scope, detach the agent, detach the session; the id becomes reusable after private cleanup.
+`AgentRegistry` keeps one entry per live agent with its carrier and creator relation. Await `register()` before using an already-constructed agent; it resolves to the registration disposer after serial `agent/created` listeners finish. The factory uses `enter()`/`announce()` so setup and publication remain rollback-covered. A listener throw or rejection stops creation and skips later listeners. Cancellation reaches listeners through the optional initialization signal; teardown retains both entries and the scope until dispatch settles. Listeners must not await `agent.whenIdle()` or their own owner’s disposal. Teardown stops and drains the loop, unwinds the scope, detaches the agent, then detaches the session; each detach owns its exact entry and the id becomes reusable after cleanup.
 
 ### Initiator scope
 
@@ -171,7 +171,7 @@ These limits define when this package needs special care. They are current packa
 
 - **Initiator scope is process-local** — workers, child processes, HTTP, durable queues, and restarts must materialize any required identity explicitly.
 - **Ambient identity may outlive liveness** — consumers still check `agent.status`, cancellation, and the owning capability contract before lifecycle-sensitive work.
-- **`agent/session-start` cannot gate startup** — it remains a synchronous, veto-less notification; async composition that must finish before publication belongs in the factory's `setup(agentCtx, agent)` transaction instead.
+- **`agent/session-start` cannot gate startup** — it remains a synchronous, veto-less notification. Unpublished composition belongs in `setup(agentCtx, agent)`; initialization that needs live registry entries belongs in serial `agent/created` listeners.
 - **`cancel()` clears the inbox by default** — it aborts the in-flight turn plus queued and steering work; `cancel(cause, { keepInbox: true })` aborts only the turn and preserves pending items, and there is no step-only abort that keeps the turn running.
 - **Each additional `UserMessage` carries exactly one `MessageSource`** — contributions from several plugins merged onto one message collapse under one source, so the message cannot name several producers.
 

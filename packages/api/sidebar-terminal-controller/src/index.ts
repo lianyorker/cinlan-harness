@@ -5,7 +5,7 @@ import type {} from '@deepseek-ai/dsh-sidebar-terminals'
 import { terminalFailure } from './errors.ts'
 import { validateInspectUi, validateCloseUi, validateAck, validateAgentId, validateInput, validateOpen, validateRelease, validateResize, validateSessionId } from './validation.ts'
 import type {
-  SidebarAgentTerminalId, SidebarAgentTerminalSnapshot, SidebarTerminalAckRequest, SidebarTerminalCapability,
+  SidebarAgentTerminalId, SidebarAgentTerminalSnapshot, SidebarTerminalAckRequest, SidebarTerminalCapability, SidebarTerminalShell,
   SidebarTerminalFrame, SidebarTerminalInputRequest, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest,
   SidebarTerminalResizeRequest, SidebarTerminalSessionId, SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalProcessId,
 } from './types.ts'
@@ -35,6 +35,14 @@ export class SidebarTerminalController extends TypertRemoteService {
   @Remote
   capability(): SidebarTerminalCapability {
     return this.invoke(() => this.ctx.sidebarTerminals.capability())
+  }
+
+  /** Discover installed local shells for a new UI tab.
+   * @returns Verified executable paths and display names; does not create a process.
+   */
+  @Remote
+  shells(): readonly SidebarTerminalShell[] {
+    return this.invoke(() => this.ctx.sidebarTerminals.shells())
   }
 
   /**

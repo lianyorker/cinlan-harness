@@ -34,6 +34,13 @@
   --dsh-composer-dock-inset: 8px;
 }
 
+.embedded {
+  width: 100%;
+  --dsh-chat-content-width: calc(100% - 48px);
+  --dsh-composer-card-max-width: calc(100% - 16px);
+  --dsh-composer-side-clearance: 8px;
+}
+
 .header {
   position: relative;
   flex: none;

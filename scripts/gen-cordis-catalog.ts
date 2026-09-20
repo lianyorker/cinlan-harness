@@ -54,6 +54,13 @@ export { REGION_BEGIN, REGION_END }
  * errors, so the partition can never silently drift from the service API.
  */
 export const SERVICE_PAGE: Record<string, string> = {
+  browserUse: 'browser-use.md',
+  mcpResources: 'mcp.md',
+  officeToPdf: 'workspace.md',
+  pluginManagementHost: 'profile-management.md',
+  ptcRuntime: 'code-runtime.md',
+  sessionFeedback: 'feedback.md',
+  ssh: 'ssh.md',
   artifacts: 'artifact.md',
   assessmentScope: 'security-research.md',
   assessmentScopeSessions: 'security-research.md',
@@ -123,6 +130,8 @@ export const SERVICE_PAGE: Record<string, string> = {
   messageFeedback: 'feedback.md',
   permissionPresets: 'permission-presets.md',
   planMode: 'plan.md',
+  pluginManager: 'profile-management.md',
+  profileContext: 'profile-management.md',
   terminals: 'terminal.md',
   sandbox: 'sandbox.md',
   sandboxPolicy: 'sandbox.md',
@@ -162,6 +171,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   workspaceRegistry: 'workspace.md',
   workspaceController: 'workspace.md',
   workspaceFiles: 'workspace.md',
+  workspaceChanges: 'deliverables.md',
   directoryPickerController: 'workspace.md',
 }
 
@@ -247,6 +257,7 @@ export const EVENT_SCOPE_PAGE: Record<string, string> = {
   'fs': 'filesystem.md',
   'goal': 'goal.md',
   'llm': 'llm-streaming.md',
+  'plugin-manager': 'profile-management.md',
   'session': 'session.md',
   'settings': 'settings.md',
   'skills': 'skills.md',
@@ -289,6 +300,24 @@ export const EVENT_WALK_EXEMPTIONS: Record<string, string> = {
  * appear on more than one page.
  */
 export const LINK_MAP: Readonly<Record<string, string>> = {
+  BrowserUseProviderName: 'browser-use.md',
+  ComputerUseProviderName: 'device-control.md#desktop-types',
+  McpResourceProvider: 'mcp.md',
+  OfficeToPdfGeneration: '../../packages/document/office-to-pdf/README.md#use-this-package',
+  OfficeToPdfPriority: '../../packages/document/office-to-pdf/README.md#use-this-package',
+  OfficeToPdfRequest: '../../packages/document/office-to-pdf/README.md#use-this-package',
+  OfficeToPdfResult: '../../packages/document/office-to-pdf/README.md#use-this-package',
+  PtcRunRequest: '../../packages/ptc-runtime/ptc-runtime/README.md#understand-the-implementation',
+  PtcRunResult: '../../packages/ptc-runtime/ptc-runtime/README.md#understand-the-implementation',
+  PtcRunSpec: '../../packages/ptc-runtime/ptc-runtime/README.md#understand-the-implementation',
+  RenderedDocumentBytes: '../../packages/document/office-to-pdf/README.md#use-this-package',
+  SessionFeedbackRecordRequest: '../../packages/feedback/command-feedback/README.md#use-this-package',
+  SessionFeedbackRecordResult: '../../packages/feedback/command-feedback/README.md#use-this-package',
+  SidebarSubagentAddress: '../../packages/client/ui-better-sidebar/README.md#-features',
+  SidebarTerminalShell: '../../packages/terminal/sidebar-terminals/README.md#ownership-and-lifetime',
+  SshStreamEndpoint: 'ssh.md',
+  SubprocessTerminalEnvironment: 'subprocess.md',
+  WorkspaceUnarchiveSessionRequest: '../../packages/api/workspace-controller/README.md#use-this-package',
   ActivateTaskRequest: 'workspace.md',
   ArchiveTaskRequest: 'workspace.md',
   AssessmentChildGrantRequest: 'security-research.md',
@@ -915,11 +944,28 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
   'ReadonlyMap',
   'Request',
   'Response',
+  'ReturnType',
   'Uint8Array',
 ])
 
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
+  PatchOptions: 'Include patch entries are owned by vendor/include/README.md#config (vendored upstream)',
+  'z.ZodType': 'Zod response validation API is owned by https://zod.dev/packages/zod',
+  Socket: 'Node.js byte stream API is owned by https://nodejs.org/api/net.html#class-netsocket',
+  WorkspaceChangesSummary: 'packages/deliverables/workspace-changes/README.md owns per-turn changed-file summaries; declarations live in packages/deliverables/workspace-changes/src/types.ts.',
+  WorkspaceFileDiff: 'packages/deliverables/workspace-changes/README.md owns per-file text, binary, and oversized comparisons; declarations live in packages/deliverables/workspace-changes/src/types.ts.',
+  BundleInfo: 'packages/boot/plugin-manager/README.md owns profile composition, package installation, cancellation, and status records; declarations live in packages/boot/plugin-manager/src/types.ts.',
+  ChangeResult: 'packages/boot/plugin-manager/README.md owns profile composition, package installation, cancellation, and status records; declarations live in packages/boot/plugin-manager/src/types.ts.',
+  InstallBundleOptions: 'packages/boot/plugin-manager/README.md owns profile composition, package installation, cancellation, and status records; declarations live in packages/boot/plugin-manager/src/types.ts.',
+  PluginChange: 'packages/boot/plugin-manager/README.md owns profile composition, package installation, cancellation, and status records; declarations live in packages/boot/plugin-manager/src/types.ts.',
+  PluginInfo: 'packages/boot/plugin-manager/README.md owns profile composition, package installation, cancellation, and status records; declarations live in packages/boot/plugin-manager/src/types.ts.',
+  PluginInstallCancellation: 'packages/boot/plugin-manager/README.md owns profile composition, package installation, cancellation, and status records; declarations live in packages/boot/plugin-manager/src/types.ts.',
+  PluginInstallLogChunk: 'packages/boot/plugin-manager/README.md owns profile composition, package installation, cancellation, and status records; declarations live in packages/boot/plugin-manager/src/types.ts.',
+  PluginInstallProgress: 'packages/boot/plugin-manager/README.md owns profile composition, package installation, cancellation, and status records; declarations live in packages/boot/plugin-manager/src/types.ts.',
+  PluginInstallRequestId: 'packages/boot/plugin-manager/README.md owns profile composition, package installation, cancellation, and status records; declarations live in packages/boot/plugin-manager/src/types.ts.',
+  PluginSpecInspection: 'packages/boot/plugin-manager/README.md owns profile composition, package installation, cancellation, and status records; declarations live in packages/boot/plugin-manager/src/types.ts.',
+  PluginEntryId: 'packages/host/plugin-inventory/README.md owns the Loader entry identity declared in packages/host/plugin-inventory/src/types.ts.',
   TerminalCapability: 'packages/client/ui-better-sidebar/docs/external-plugin-guide.md#terminal-capability owns the non-catalog getTerminalCapability availability probe and transport/dependency failure semantics.',
   ArtifactDescribeRequest: 'packages/artifact/artifact/README.md owns the non-catalog immutable ArtifactRef metadata, publication/description, and reference authorization API.',
   ArtifactPublishRequest: 'packages/artifact/artifact/README.md owns the non-catalog immutable ArtifactRef metadata, publication/description, and reference authorization API.',

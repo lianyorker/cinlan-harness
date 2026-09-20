@@ -10,6 +10,7 @@ import { join, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { hasTypertRemoteNavigation, isForbiddenPublicationFile } from './publication-payload.ts'
 import { collectProjectReferenceFaceViolations } from './project-reference-faces.ts'
+import { isPublicExperimentalPackage, PUBLIC_EXPERIMENTAL_PACKAGES } from './experimental-package-policy.ts'
 
 const root = resolve(import.meta.dirname, '..')
 // vendor/* is single-level; packages/<group>/<pkg> nests one level deeper
@@ -50,12 +51,12 @@ const repositoryUrl = 'git+https://github.com/deepseek-harness/deepseek-harness.
  * their trusted publishing against the repository that runs the workflow.
  */
 const publishedRepositoryUrl = 'git+https://github.com/deepseek-ai/deepseek-harness.git'
-/** Private packages that participate in workspace checks but not releases. */
+/** Packages subject to the experimental publication policy. */
 const experimentalPackageDirectory = /^packages\/experimental\/[^/]+$/
-/** npm namespace reserved for private experimental packages. */
+/** npm namespace reserved for experimental packages. */
 const experimentalPackageNamePrefix = '@deepseek-ai/dsh-experimental-'
 /** Directories whose packages this repository publishes: one release member each. */
-const releaseMemberDirectory = /^(?:packages\/(?!experimental\/)[^/]+\/[^/]+|apps\/(?!desktop(?:-host)?$)[^/]+|vendor\/[^/]+)$/
+const standardReleaseMemberDirectory = /^(?:packages\/(?!experimental\/)[^/]+\/[^/]+|apps\/(?!desktop(?:-host)?$)[^/]+|vendor\/[^/]+)$/
 /** Installable application assembled by electron-builder rather than published to npm. */
 const desktopApplicationDirectory = 'apps/desktop'
 const localArtifactDirs = new Set(['node_modules'])
@@ -156,7 +157,8 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // unpublished, as everywhere else in the repository.
   '@deepseek-ai/dsh-client-ui-primitives': ['lib/**/*.css'],
   '@deepseek-ai/dsh-client-ui-dockkit': ['lib/**/*.css'],
-  '@deepseek-ai/dsh-client-web': ['lib/**/*.css'],
+  '@deepseek-ai/dsh-client-web': ['lib/boot-page.js', 'lib/**/*.css'],
+  '@deepseek-ai/dsh-client-ui-git-settings': ['lib/types.js'],
   '@deepseek-ai/dsh-client-ui-theme': ['lib/styles'],
   // The CPython side ships as source .py files, published as-is rather than built.
   '@deepseek-ai/dsh-experimental-code-runtime-python': ['py/**/*.py'],
@@ -183,6 +185,7 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // Ordinary native containment ships a path-loaded runner and its shared
   // runner chunk beside the existing node-pty permission repair.
   '@deepseek-ai/dsh-subprocess-local': [
+    'lib/output.js',
     'lib/runner.js',
     'lib/runner-*.js',
     'scripts/ensure-spawn-helper.mjs',
@@ -192,6 +195,20 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // resolve at install time, before the build produces lib/bin.js.
   '@deepseek-ai/dsh-experimental-webworker-packer': ['bin.js', 'lib/repository-*.js'],
   '@deepseek-ai/dsh-finding': ['lib/fold-*.js'],
+  // The headless loader and startup entries share the JSON stream projector.
+  '@deepseek-ai/dsh-headless': ['lib/json-stream-*.js'],
+  '@deepseek-ai/dsh-computer-use': ['lib/brand.js'],
+  '@deepseek-ai/dsh-git-settings': ['lib/settings-schema.js', 'lib/types.js'],
+  // Worker and MCP public entries retain shared runtime identities through chunks.
+  '@deepseek-ai/dsh-execution-host-worker': ['lib/*.js', 'lib/chunks/**/*.js'],
+  '@deepseek-ai/dsh-mcp-client': ['lib/registry.js', 'lib/*.js'],
+  '@deepseek-ai/dsh-ptc-runtime-node': ['lib/code-runtime.js', 'lib/process.js'],
+  // The remote SSH helper shares its wire validation with the public entries.
+  '@deepseek-ai/dsh-ssh': [
+    'lib/helper.js', 'lib/protocol.js', 'lib/schemas.js',
+    'lib/protocol-*.js', 'lib/schemas-*.js', 'lib/stream-security-*.js',
+  ],
+  '@deepseek-ai/dsh-subprocess': ['lib/control.js'],
 }
 
 function sameStringList(actual: readonly string[] | undefined, expected: readonly string[]): boolean {
@@ -275,7 +292,12 @@ function usesEmittedTreeDefaults(manifest: PackageManifest): boolean {
     exportDefault(manifest, subpath)?.startsWith('./lib/types/') === true)
 }
 
-/** Experimental manifest requirements enforced independently from release metadata. */
+/**
+ * Require experimental names and keep packages outside the public allowlist private.
+ * Public entries also undergo the normal release-member metadata checks.
+ * @param workspace - package directory and parsed manifest.
+ * @returns Experimental naming and publication-policy violations.
+ */
 export function checkExperimentalManifest({ dir, manifest }: WorkspaceManifest): string[] {
   if (!experimentalPackageDirectory.test(dir)) return []
   const label = manifest.name ?? dir
@@ -283,9 +305,20 @@ export function checkExperimentalManifest({ dir, manifest }: WorkspaceManifest):
   if (manifest.name?.startsWith(experimentalPackageNamePrefix) !== true) {
     errors.push(`${label}: experimental package name must start with ${JSON.stringify(experimentalPackageNamePrefix)}`)
   }
-  if (manifest.private !== true) errors.push(`${label}: experimental package must set "private": true`)
-  if (manifest.publishConfig !== undefined) errors.push(`${label}: experimental package must omit publishConfig`)
+  const expectedName = PUBLIC_EXPERIMENTAL_PACKAGES[dir]
+  if (expectedName !== undefined) {
+    if (manifest.name !== expectedName) {
+      errors.push(`${label}: public experimental package name must be ${JSON.stringify(expectedName)}`)
+    }
+  } else {
+    if (manifest.private !== true) errors.push(`${label}: experimental package must set "private": true`)
+    if (manifest.publishConfig !== undefined) errors.push(`${label}: experimental package must omit publishConfig`)
+  }
   return errors
+}
+
+function isReleaseMember({ dir, manifest }: WorkspaceManifest): boolean {
+  return standardReleaseMemberDirectory.test(dir) || isPublicExperimentalPackage(dir, manifest.name)
 }
 
 /**
@@ -338,7 +371,7 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
       || manifest.repository.directory !== expectedDirectory) {
       errors.push(`${label}: published Landlock package repository must use ${repositoryUrl} with directory ${expectedDirectory} for trusted publishing`)
     }
-  } else if (releaseMemberDirectory.test(dir)) {
+  } else if (isReleaseMember({ dir, manifest })) {
     // Release members state that they are publishable: npm refuses a private
     // package, and the repository field is how a consumer finds the source of
     // the package it installed.
@@ -480,21 +513,22 @@ const runtimeDependencySections = ['dependencies', 'optionalDependencies', 'peer
 
 /**
  * Prevent an official runtime from requiring a package its release omits.
- * @param manifests - release, private experimental, and deployment-root manifests.
+ * @param manifests - public, private, and deployment-root workspace manifests.
  * @returns One error for each forbidden runtime dependency.
  */
 export function checkExperimentalDependencyIsolation(manifests: readonly WorkspaceManifest[]): string[] {
-  const experimentalNames = new Set(manifests
-    .filter(entry => experimentalPackageDirectory.test(entry.dir))
+  const unpublishedNames = new Set(manifests
+    .filter(({ dir, manifest }) => manifest.private === true
+      || (experimentalPackageDirectory.test(dir) && !isPublicExperimentalPackage(dir, manifest.name)))
     .map(entry => entry.manifest.name)
     .filter(name => name !== undefined))
   const errors: string[] = []
   for (const { dir, manifest } of manifests) {
-    if (!releaseMemberDirectory.test(dir) && dir !== 'python/sdk-runtime') continue
+    if (!isReleaseMember({ dir, manifest }) && dir !== 'python/sdk-runtime') continue
     for (const section of runtimeDependencySections) {
       for (const name of Object.keys(manifest[section] ?? {})) {
-        if (!experimentalNames.has(name)) continue
-        errors.push(`${manifest.name ?? dir}: ${section}.${name} must not reference an experimental package`)
+        if (!unpublishedNames.has(name)) continue
+        errors.push(`${manifest.name ?? dir}: ${section}.${name} must not reference a private or unpublished workspace package`)
       }
     }
   }
@@ -511,7 +545,7 @@ export function checkExperimentalDependencyIsolation(manifests: readonly Workspa
  * @param manifests - every workspace manifest.
  * @returns One error per reference that names a workspace member without the protocol.
  */
-function checkWorkspaceProtocol(manifests: readonly WorkspaceManifest[]): string[] {
+export function checkWorkspaceProtocol(manifests: readonly WorkspaceManifest[]): string[] {
   const members = new Set(manifests.map(entry => entry.manifest.name).filter(name => name !== undefined))
   const errors: string[] = []
   for (const { dir, manifest } of manifests) {

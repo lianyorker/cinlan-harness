@@ -226,6 +226,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
 
   const registerConversationRoot = () => slots.register({
     name: 'conversation',
+    reusable: true,
     locale: NS,
     children: {
       'conversation.session': { kind: 'single', scope: 'session' },

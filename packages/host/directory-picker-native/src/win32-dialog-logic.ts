@@ -79,6 +79,14 @@ export interface Win32DialogBindings {
    * @returns the calling thread's native id.
    */
   currentThreadId(): number
+  /**
+   * Synthesize one Alt press (down, then up) through `keybd_event` immediately
+   * before `Show` to help a background host's child take the foreground.
+   * Windows does not guarantee this foreground grant; restricted desktops or
+   * elevated foreground windows may suppress the input. The focused window
+   * may briefly highlight its menu bar before the dialog activates.
+   */
+  pressAltForForeground(): void
 }
 
 /**
@@ -117,6 +125,7 @@ export function runFolderDialog(
       check(dialog.setOptions(FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_NOCHANGEDIR), 'SetOptions')
       check(dialog.setTitle(title), 'SetTitle')
       onShowing(bindings.currentThreadId())
+      bindings.pressAltForForeground()
       const shown = dialog.show()
       if (shown === HRESULT_CANCELLED) return null
       check(shown, 'Show')

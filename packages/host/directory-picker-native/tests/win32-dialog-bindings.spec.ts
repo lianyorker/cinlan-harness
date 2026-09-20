@@ -38,6 +38,8 @@ interface ComWorld {
   registered: number
   unregistered: number
   uninitialized: number
+  keyEvents: { vk: number; scan: number; flags: number; extra: unknown }[]
+  nativeOrder: string[]
 }
 
 function comWorld(overrides: Partial<ComWorld> = {}): ComWorld {
@@ -47,7 +49,7 @@ function comWorld(overrides: Partial<ComWorld> = {}): ComWorld {
     path: 'C:\\选中\\directory',
     titles: [], options: [], dpiContexts: [], freed: [], released: [], posted: [],
     str16PointerSizes: [],
-    registered: 0, unregistered: 0, uninitialized: 0,
+    registered: 0, unregistered: 0, uninitialized: 0, keyEvents: [], nativeOrder: [],
     ...overrides,
   }
 }
@@ -77,7 +79,7 @@ function installFakeKoffi(world: ComWorld, options: {
       switch (slot) {
         case 9: world.options.push(args[0] as number); return 0
         case 17: world.titles.push(args[0] as string); return 0
-        case 3: return world.showHr
+        case 3: world.nativeOrder.push('show'); return world.showHr
         case 20: {
           if (world.getResultHr < 0) return world.getResultHr
           ;(args[0] as unknown[])[0] = itemPtr
@@ -116,6 +118,10 @@ function installFakeKoffi(world: ComWorld, options: {
             }
             case 'CoTaskMemFree': return (ptr: unknown) => { world.freed.push(ptr) }
             case 'GetCurrentThreadId': return () => 31337
+            case 'keybd_event': return (vk: number, scan: number, flags: number, extra: unknown) => {
+              world.keyEvents.push({ vk, scan, flags, extra })
+              world.nativeOrder.push(flags === 0 ? 'alt-down' : 'alt-up')
+            }
             case 'SetThreadDpiAwarenessContext': {
               if (!world.hasThreadDpi) throw new Error(`${dll}: SetThreadDpiAwarenessContext not found`)
               return (context: unknown) => {
@@ -188,6 +194,11 @@ describe('loadWin32DialogBindings over the fake COM world', () => {
     expect(world.titles).toEqual(['选择工作区目录'])
     expect(world.options).toHaveLength(1)
     expect(showing).toHaveBeenCalledWith(31337)
+    expect(world.keyEvents).toEqual([
+      { vk: 0x12, scan: 0, flags: 0, extra: 0 },
+      { vk: 0x12, scan: 0, flags: 2, extra: 0 },
+    ])
+    expect(world.nativeOrder).toEqual(['alt-down', 'alt-up', 'show'])
     expect(world.freed).toHaveLength(1)
     expect(world.str16PointerSizes).toEqual([FAKE_POINTER_SIZE])
     expect(world.released).toEqual(['item', 'dialog'])
@@ -357,6 +368,7 @@ describe('the worker entry over a mocked process boundary', () => {
         coInitializeSta: () => 0,
         coUninitialize: () => undefined,
         currentThreadId: () => 11,
+        pressAltForForeground: () => undefined,
         createFolderDialog: () => ({
           setOptions: () => 0,
           setTitle: () => 0,

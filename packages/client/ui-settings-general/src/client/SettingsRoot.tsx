@@ -244,7 +244,10 @@ function SettingsPage({ rows, narrow, renderSlot, activeId, onSelect, onClose, r
                 {active.id === 'general' && <p>{t('general.description')}</p>}
               </div>}
               <div className={css.sectionContent} ref={sectionContent} tabIndex={-1}>
-                {active !== undefined && renderSlot('settings.section', { close: onClose, ...(target === undefined ? {} : { target }) }, { only: active.id })}
+                {active !== undefined && <>
+                  {renderSlot('settings.section', { close: onClose, ...(target === undefined ? {} : { target }) }, { only: active.id })}
+                  {renderSlot('settings.section.extension', { close: onClose, ...(target === undefined ? {} : { target }) }, { entryKey: active.id })}
+                </>}
               </div>
             </div>
           </div>

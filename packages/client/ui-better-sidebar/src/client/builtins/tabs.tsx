@@ -16,6 +16,7 @@ import type { FloatingWorkspaceTerminalContext, SidebarFloatingTerminalDirectory
 import { t } from '../locales.ts'
 import { openSidebarFile } from '../intercept.tsx'
 import { EditorHost } from '../EditorHost.tsx'
+import { editorFileKey } from '../file-source.ts'
 import { OpenWithSettings } from '../open-with-settings.tsx'
 import { lazyChunkComponent } from '../lazy-chunk.tsx'
 import { GitView } from '../GitView.tsx'
@@ -28,6 +29,7 @@ import { IconTerminalOutline16, IconDiffOutline16, IconGlobeOutline16 } from '..
 import { TERMINAL_FONT_SIZE_MAX, TERMINAL_FONT_SIZE_MIN } from '../../prefs-shared.ts'
 import type { ComponentType } from 'react'
 import type { TerminalViewProps } from '../TerminalView.tsx'
+import { terminalLaunchOf } from '../terminal-launch.ts'
 import type { TabDescriptor } from '../service.ts'
 
 /**
@@ -56,7 +58,7 @@ export interface BuiltinTabOptions {
   git: SidebarGitClient
   /** Returns the display title for newly opened terminal tabs. */
   terminalTitle?: () => string
-  terminal?: Pick<TerminalCallbacks, 'connectTerminal' | 'terminalInput' | 'terminalResize' | 'terminalCloseUi' | 'terminalCloseAgent'>
+  terminal?: Pick<TerminalCallbacks, 'connectTerminal' | 'terminalInput' | 'terminalResize' | 'terminalCloseUi' | 'terminalCloseAgent' | 'terminalShells'>
   floatingContext?: () => FloatingWorkspaceTerminalContext | undefined
 }
 
@@ -88,7 +90,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions): readonly
       icon: (size: number) => <IconFolderOpen16 size={size} />,
       order: 10,
       hidden: false,
-      dedupeKey: tab => tab.path,
+      dedupeKey: editorFileKey,
       // Declarative settings: the file-open behavior picker (in-place switch
       // vs per-path windows) renders as an iconed select row under the
       // editor card's gear in the Side card settings page; the "open with"
@@ -283,7 +285,8 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions): readonly
       component: ({ tab, scope, store }) => options.terminal === undefined ? null : (
         <LazyTerminal scope={scope} store={store} tabId={tab.id} floating={floatingDirectoryOf(tab)}
           connectTerminal={options.terminal.connectTerminal} terminalInput={options.terminal.terminalInput}
-          terminalResize={options.terminal.terminalResize} />
+          terminalResize={options.terminal.terminalResize} terminalShells={options.terminal.terminalShells}
+          launch={terminalLaunchOf(tab)} />
       ),
     },
     {

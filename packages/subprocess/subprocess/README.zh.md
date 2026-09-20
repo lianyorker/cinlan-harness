@@ -60,13 +60,15 @@ const output = handle.collected.stdout?.readFrom(0)
 
 读取基于偏移量且从不消费：后台读取与最终批量读取可以共享同一条流，而不会抢走彼此的字节。
 
+可选的 `stdio.control: 'pipe'` 请求独立的双工字节通道。Node 子进程使用 `@deepseek-ai/dsh-subprocess/control` 的 `openInheritedControlChannel()`，在执行应用代码前消费私有启动标记并打开一次 fd 7。调用方负责通道分帧与关闭；进程退出与受管范围完全停稳都不要求先排空该通道。
+
 ### 管理进程生命周期
 
 终止与等待使用同一个由提供方管理的范围。`terminate()` 会启动提供方记录的流程，具有幂等性，并在该范围为空后成为空操作；请求的中止信号会启动同一流程。`waitForExit()` 观察同一范围，只在提供方证明它完全停稳后 resolve，因此直接命令结束不会掩盖仍存活的后代。所选 owner 无法再证明完全停稳时，它会 reject。提供方记录其 native owner 与较弱 fallback；时限、拆卸阶梯与原因分类归调用方所有。
 
 ### 运行终端会话
 
-对于交互式程序，`spawnTerminal` 分配真实 PTY：写入文本、读取 UTF-8 输出、检查当前前台进程组并向其发送信号，以及等待一次 `terminate()`，让提供方仍可观察到的每个会话成员完全停稳。就绪状态、scrollback 与提示符策略仍归 PTY 消费方所有。
+`terminalEnvironment()` 在可执行文件解析前报告执行平台与可用的首选 shell。对于交互式程序，`spawnTerminal` 按显式尺寸和 `terminalType` 分配真实 PTY：写入文本、读取 UTF-8 输出、调整尺寸、检查前台进程组并向其发送信号，以及等待一次 `terminate()`，让提供方仍可观察到的每个会话成员完全停稳。可选的 `shellActivity` 通过 `inspectActivity()` 提供生命周期观察；不支持的 shell 与不完整观察返回 `unknown`。就绪状态、scrollback 与提示符策略仍归 PTY 消费方所有。
 
 ### 每个子进程起步时的环境
 
@@ -74,7 +76,7 @@ const output = handle.collected.stdout?.readFrom(0)
 
 ### 可能出错的地方
 
-无法解析的可执行文件会以稳定的错误快速失败。从未启动成功的 spawn 会让 `done` reject；从未运行过的进程没有任何缓冲输出。提供方无法证明所选范围为空时，`waitForExit()` 也会 reject；提供方 fallback 可能无法拥有逃离其进程组或已观察 session 的后代。当传输拥有自己的 spawn（SDK 客户端、MCP）时，请绕开本服务并直接导入 `scrubbedParentEnv`，让环境策略保持单一来源。
+可执行文件查找未找到可执行文件时抛出 `SubprocessExecutableNotFoundError`；无效请求与提供方失败仍使用不同的错误。从未启动成功的 spawn 会让 `done` reject；从未运行过的进程没有任何缓冲输出。提供方无法证明所选范围为空时，`waitForExit()` 也会 reject；提供方 fallback 可能无法拥有逃离其进程组或已观察 session 的后代。当传输拥有自己的 spawn（SDK 客户端、MCP）时，请绕开本服务并直接导入 `scrubbedParentEnv`，让环境策略保持单一来源。
 
 -----
 
@@ -96,6 +98,7 @@ const output = handle.collected.stdout?.readFrom(0)
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口：抽象 `SubprocessRuntime`、`ctx.subprocess` 注册、共享的 `scrubbedParentEnv` 清除 |
 | [`src/types.ts`](src/types.ts) | 词汇：spawn spec、stdio 模式、句柄、读取器、结果、`DSH_*` 命名空间 |
+| [`src/control.ts`](src/control.ts) | 继承的控制描述符与子进程打开辅助函数 |
 | — | 不发布运行时不变式伴生入口；观察由提供方负责。 |
 
 ### 数据模型与流程

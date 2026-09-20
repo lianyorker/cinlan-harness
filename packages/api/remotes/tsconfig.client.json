@@ -11,6 +11,9 @@
     "src/types.ts"
   ],
   "references": [
+    { "path": "../../document/office-to-pdf" },
+    { "path": "../../feedback/command-feedback" },
+    { "path": "../../boot/plugin-manager" },
     {
       "path": "../../../vendor/cordis"
     },
@@ -114,10 +117,10 @@
       "path": "../mcp-controller"
     },
     {
-      "path": "../automation-controller/tsconfig.host.json"
+      "path": "../automation-controller/tsconfig.client.json"
     },
     {
-      "path": "../sidebar-terminal-controller/tsconfig.host.json"
+      "path": "../sidebar-terminal-controller/tsconfig.client.json"
     },
     {
       "path": "../execution-host-controller"

@@ -36,6 +36,8 @@ target package 通过 declaration merge 扩展 snapshot 与 Location data map，
 <a id="shell-and-standard-props"></a>
 ## Shell 与标准 props
 
+`conversation` 注册允许通过 `slots.renderSessionView` 创建显式指定 Session 的次级实例。可选 owner 属性 `embedded` 隐藏主导航与宽度拖柄，并让现有记录和编辑器适应所在面板。Session 操作、工具渲染器、交互接管与输入状态仍由普通 Conversation 实现提供。
+
 本包注册 optional-Session `conversation` shell、strict Session header/body、View list、composer chain 与 bar、输入区域、Hero 区域、queue dock、草稿持久化和 phase 计算。`ctx.uiSession.provide()` 从同一个 Session binding 物化 Conversation 与 input source，并将 `inputActions` 作为稳定标准 prop 提供。
 
 View 选择规则固定：有效且已注册的持久化选择优先，其次是已注册的 `chat`，否则不渲染 View；绝不选择第一个已注册 View。Shell phase 只组合 Session lifecycle 与 active-target set，不读取任何 target-specific snapshot。
@@ -46,11 +48,13 @@ Session 首次绑定或缓存的 Session 成为 current 时，shell 会在渲染
 
 通用设置偏好行以稳定的 `busy-send` 锚点提供本地化搜索元数据；元数据与该行的 slot 注册共享生命周期。
 
-[Keyboard](../keyboard/README.zh.md) 持有 `conversation.submit`（Enter）、`conversation.submitAccelerated`（Ctrl+Enter 和 Meta+Enter），以及同前缀弹层操作 `navigateUp`、`navigateDown`、`dismissPopup` 和 `complete`（ArrowUp、ArrowDown、Escape 与 Tab/Enter）的生效绑定。本地 Lexical 分发读取当前绑定，并在提交前优先让已打开的补全菜单处理。输入法组字、229 键码、Safari 组字结束保护窗口及重复提交按键都不能发送。Shift+Enter 和未改键的编辑器历史手势仍是原生编辑行为。空草稿的队列提示展示当前生效的加速快捷键。
+[Keyboard](../keyboard/README.zh.md) 持有 `conversation.submit`（Enter）、`conversation.submitAccelerated`（Ctrl+Enter 和 Meta+Enter），以及同前缀弹层操作 `navigateUp`、`navigateDown`、`dismissPopup` 和 `complete`（ArrowUp、ArrowDown、Escape 与 Tab/Enter）的生效绑定。本地 Lexical 分发读取当前绑定，并在提交前优先让已打开的补全菜单处理。输入法组字、229 键码、Safari 组字结束保护窗口及重复提交按键都不能发送。Shift+Enter 和未改键的编辑器历史手势仍是原生编辑行为。空草稿的队列提示展示当前生效的加速快捷键。占位提示仅在草稿为空且没有附件时显示；输入空白字符后提示隐藏，发送仍保持禁用。
 
 默认发送采用乐观提交：Enter 在同一事务里清空草稿、occurrence 表和撤销历史，composer 保持 `plain`，发送作为 detached attempt 运行，发送期间可以继续输入和提交。`sendSession` 在序列化之前用投递模式注册 Session 提交回显（`session.beginSubmission`），并在 `pendingSubmissions` 中保留图片与文件的选择顺序；Session 根据该模式与当前运行状态推导位置，因此空闲发送进入 transcript，繁忙时 Queue 进入 QueueDock，繁忙时 Steer 进入 pending-steering 区域。随后让出一帧，图片经浏览器原生 `FileReader` data-URL 路径编码，文件则引用已暂存凭证。命令提交也用同一凭证表示通用文件，因此发送 `/goal` 或 `/plan` 时不会再次读取这些浏览器文件。prompt 复用提交 `requestId`；queue 或历史以同一 `rpcId` 被观察后，回显只退休一次。多个并发发送失败时，在用户编辑还原内容之前按提交顺序合并还原；命令提交保持冻结的 `submitting` 阶段。Detached attempt 持有附件 id，直到 admission 完成或 Session scope 销毁。回显以 observed 退休时，durable 图片缓存立即公开每个预览 URL，读取 admitted 附件后用规范化 URL 替换预览，并在各 URL 停止使用后撤销，同时释放文件卡。选中的通用文件进入同一个先进先出的后台上传队列；`maxConcurrentFileUploads` 默认允许两个 Worker transport 同时运行，Conversation service 在切换 Session 时继续持有排队和运行中的传输操作及字节进度，移除草稿会跳过排队中的传输或中止正在运行的传输。continuable 子代理禁用附件入口，也不创建本地回显，因为其 transport 不保留浏览器 request id。
 
 排队提交的本地回显在禁用的编辑、删除、插话按钮旁显示“发送中…”；折叠后的队列在标题栏保留发送状态。匹配的 Host 队列行替换回显后，各操作按原有的纯文本内容和运行状态要求启用。仅收到 prompt 确认不会启用队列操作。提交失败会移除回显并显示错误；输入框为空或仍保留上一次自动恢复的内容时，composer 恢复失败草稿，保留用户随后输入的文字。
+
+prompt 因 `session/writer-held` 失败时，composer 显示本地化提示，建议退出其他正在运行的 DSH 实例后重试。草稿恢复沿用普通提交失败规则。
 
 Send 和 Stop 按钮禁用时不显示提示气泡，轮次结束后由 Stop 切换成禁用 Send 的按钮也遵循此规则。普通 composer 运行时，如果草稿为空或输入不可用，主指针操作保持为 Stop。可提交的文字或附件会把同一位置切换为 Send；清空或成功提交草稿后恢复 Stop。繁忙态 Enter 设置为普通 Session 与可继续 child 选择 Queue 或 Steer 投递，运行中的 Send 按钮按 plain Enter 解析出的同一模式投递；当它在普通消息草稿上可用（没有待上传文件）时，其标签以该模式命名（排队发送或插话发送），因此该设置同时约束 Enter 与按钮，而 Cmd/Ctrl+Enter 仍使用另一模式；空闲会话、空草稿与 `/` 命令行保留普通的 Send 标签（[决策](../../../.agents/notes/implemented/bug-fix/2026-09-04-busy-send-button-follows-enter-setting.zh.md)）。它们的 QueueDock 行共享 Edit、Remove 与 Steer，空草稿也共享 steer-all 组合键。One-shot child 继续只读。Plan Mode 与 active goal 不改变附件入口。可继续 child 保留独立的 Send 与 Stop 操作，但不提供回形针、粘贴或拖放入口；parent 离线时，Send 与 composer 手势锁定，但在线 inbox 的 QueueDock 控制仍可使用（[决策](../../../.agents/notes/archived/bug-fix/2026-08-20-running-draft-primary-send.md)、[inbox 控制](../../../.agents/notes/implemented/feature/2026-08-27-continuable-subagent-human-inbox-control.zh.md)）。
 
@@ -101,6 +105,8 @@ try {
 ```
 
 selector 必须是 owner currency 的纯函数。非 null 返回值作为 `matched` 传给组件；`PropsRuntime<'conversation.composer'>` 提供标准 Session 与 global props。Chain 顺序仍按 `priority` 升序，再按注册顺序；首个返回非 null 的 selector 获选。Shell 会在 takeover 下保持默认 composer 挂载。Request 状态、listener、response encoding 和任何 request-specific child slot 都属于业务 package，不进入 `SessionSnapshot`，也不由 core package 声明。
+
+当可选的 [AutoReview bundle](../../experimental/auto-review/README.zh.md) 可用时，编辑器权限选择器在发送 `/permission auto` 之前要求确认实验性风险。此操作仅更改当前会话，并使用已有弹出菜单与确认组件。
 
 <a id="model-experience"></a>
 ## 模型体验

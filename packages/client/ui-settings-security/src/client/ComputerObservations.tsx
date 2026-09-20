@@ -9,34 +9,34 @@ type Observation = NonNullable<DeviceCapabilitySnapshot['computer']>
 
 function ComputerSupportDetails({ observation, t }: { observation: Observation } & Pick<CapabilitySectionProps, 't'>): ReactNode {
   const { supports } = observation
-  const groups: readonly { title: CapabilitySettingsKey; fields: readonly (readonly [CapabilitySettingsKey, boolean])[] }[] = [
-    { title: 'computerApps', fields: [
+  const groups: readonly { titleKey: CapabilitySettingsKey; fields: readonly (readonly [CapabilitySettingsKey, boolean])[] }[] = [
+    { titleKey: 'computerApps', fields: [
       ['computerList', supports.apps.list], ['computerBundleIds', supports.apps.bundleIds], ['computerPids', supports.apps.pids],
     ] },
-    { title: 'computerWindows', fields: [
+    { titleKey: 'computerWindows', fields: [
       ['computerList', supports.windows.list], ['computerTargetById', supports.windows.targetById],
       ['computerTargetByIndex', supports.windows.targetByIndex], ['computerFocus', supports.windows.focus],
       ['computerMoveResize', supports.windows.moveResize],
     ] },
-    { title: 'computerObservation', fields: [
+    { titleKey: 'computerObservation', fields: [
       ['computerScreenshot', supports.observation.screenshot], ['computerAnnotatedScreenshot', supports.observation.annotatedScreenshot],
       ['computerElementFrames', supports.observation.elementFrames], ['computerOcr', supports.observation.ocr],
     ] },
-    { title: 'computerActions', fields: [
+    { titleKey: 'computerActions', fields: [
       ['computerClick', supports.actions.click], ['computerTypeText', supports.actions.typeText],
       ['computerPressKey', supports.actions.pressKey], ['computerHotkey', supports.actions.hotkey],
       ['computerPasteText', supports.actions.pasteText], ['computerScroll', supports.actions.scroll],
       ['computerDrag', supports.actions.drag], ['computerSetValue', supports.actions.setValue],
       ['computerPerformAction', supports.actions.performAction],
     ] },
-    { title: 'computerSurfaces', fields: [
+    { titleKey: 'computerSurfaces', fields: [
       ['computerMenus', supports.surfaces.menus], ['computerDialogs', supports.surfaces.dialogs],
       ['computerDock', supports.surfaces.dock], ['computerMenubar', supports.surfaces.menubar],
     ] },
   ]
   return <dl className={css.facts}>
-    {groups.map(group => <div key={group.title}>
-      <dt>{t(group.title)}</dt><dd><ul>{group.fields.map(([label, supported]) => <li key={label}>
+    {groups.map(group => <div key={group.titleKey}>
+      <dt>{t(group.titleKey)}</dt><dd><ul>{group.fields.map(([label, supported]) => <li key={label}>
         {t(label)}: {t(supported ? 'computerSupported' : 'computerUnsupported')}
       </li>)}</ul></dd>
     </div>)}

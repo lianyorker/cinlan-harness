@@ -328,6 +328,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
             // setup card IS its presence on the page, until the user closes it.
             return (
               <li key={row.entry.provider} className={styles['setupCard']}>
+                {row.entry.error === undefined ? null : <p className={styles['error']} role="alert">{row.entry.error}</p>}
                 {renderProviderEditor({
                   target,
                   namespace,
@@ -417,6 +418,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                     : null}
                 </span>
               </div>
+              {row.entry.error === undefined ? null : <p className={styles['error']} role="alert">{row.entry.error}</p>}
               {renderSlot(
                 'settings.models.provider-card',
                 { provider: row.entry, configured: row.configured, keyConfigured: keyConfiguredOf(row) },

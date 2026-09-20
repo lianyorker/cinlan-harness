@@ -135,7 +135,7 @@ declare module '@deepseek-ai/cordis' {
 
   interface Events {
     /**
-     * Allow, deny, or ask before dispatch. `next()` delegates to allow; missing
+     * Allow, deny, cancel, or ask before dispatch. `next()` delegates to allow; missing
      * approval support turns `ask` into denial. Async gates must observe
      * `exec.signal`; the registry rechecks cancellation after they settle but
      * never abandons their promise.
@@ -314,6 +314,8 @@ export interface ToolExecutionInput {
    */
   readonly rootCallId?: ToolCallId
   readonly name: string
+  /** Binding-time schema for a PTC inner call; frozen by its producer and never logged. */
+  readonly schema?: ToolSchema
   /** Losslessly JSON-serializable parsed arguments (tools validate their own schema). */
   readonly arguments: unknown
   /** The agent on whose behalf the call runs (set by the agent loop). */
@@ -470,6 +472,8 @@ export const TOOL_ABORTED_BEFORE_DISPATCH = 'ABORTED_BEFORE_DISPATCH'
 export interface ToolErrorInfo {
   name: string
   code: string
+  /** Raw user-facing detail, preserved durably but excluded from model-facing content. */
+  reason?: string
 }
 
 /** Canonical failure detail; internal routing information remains optional. */
@@ -575,14 +579,16 @@ export interface ToolExecutionFailure {
 export type ToolExecutionResult = ToolExecutionSuccess | ToolExecutionFailure
 
 /**
- * Pre-dispatch decision. `allow` runs the call; `deny` materializes an error;
+ * Pre-dispatch decision. `allow` runs the call; `deny` materializes its model-facing
+ * reason and optional structured detail; `cancel` selects pre-dispatch cancellation;
  * `ask` runs only after an approval service returns `allowed-once` and otherwise
  * denies. Input rewriting is excluded because arguments are already logged and
  * presented.
  */
 export type PreToolDecision =
   | { kind: 'allow' }
-  | { kind: 'deny'; reason: string }
+  | { kind: 'deny'; reason: string; info?: ToolErrorInfo }
+  | { kind: 'cancel' }
   | { kind: 'ask'; reason?: string }
 
 /**
@@ -1393,6 +1399,7 @@ export class ToolRuntime extends Service {
       signal,
       ...agent !== undefined ? { agent } : {},
       ...parent !== undefined ? { parent } : {},
+      ...exec.schema !== undefined ? { schema: exec.schema } : {},
       deferContext(context: UserMessage): void {
         deferredContexts.push(context)
       },
@@ -1481,16 +1488,18 @@ export class ToolRuntime extends Service {
         carrier, 'tools/pre-execute', exec,
         () => Promise.resolve<PreToolDecision>({ kind: 'allow' }),
       )
-      const askResolution: ToolAskResolution = gate.kind === 'ask'
+      const askResolution = gate.kind === 'ask'
         ? await this.serviceAsk(exec, gate)
         : { decision: gate, approvalCancelled: false }
       const { decision } = askResolution
       if (this.callerCancelled(exec) && askResolution.approvalCancelled) {
         return await next({ kind: 'post-result', exec, result: toolAbortedBeforeDispatchResult() })
       }
-      const denialReason = decision.kind === 'allow'
-        ? this.guardReason(exec)
-        : decision.reason
+      if (decision.kind === 'cancel') {
+        return await next({ kind: 'post-result', exec, result: toolAbortedBeforeDispatchResult() })
+      }
+      const denialReason = decision.kind === 'allow' ? this.guardReason(exec) : decision.reason
+      const denialInfo = decision.kind === 'deny' ? decision.info : undefined
       if (denialReason !== undefined) {
         return await next({
           kind: 'post-result',
@@ -1498,7 +1507,7 @@ export class ToolRuntime extends Service {
           result: this.materializeFinalResult({
             content: [{ type: 'text', text: `Error: ${denialReason}` }],
             isError: true,
-            error: { message: denialReason },
+            error: { message: denialReason, ...denialInfo === undefined ? {} : { info: denialInfo } },
           }),
         })
       }

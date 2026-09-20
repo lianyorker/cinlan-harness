@@ -120,9 +120,10 @@ async function load() {
         { op: 'set', path: ['terminalShellArgs'], value: args },
       ], current.revision)
     },
-    async attach() {
+    async attach(shellPath?: string, tabId = target.tabId) {
       const lifetime = new AbortController()
-      const request: SidebarTerminalOpenRequest = { target, cols: 120, rows: 24 }
+      const request: SidebarTerminalOpenRequest = { target: { ...target, tabId,
+        ...shellPath === undefined ? {} : { shellPath } }, cols: 120, rows: 24 }
       const source = await ctx.typertGateway.wireStream.open('sidebarTerminals/open', { args: { request } }, lifetime.signal)
       const iterator = (source as AsyncIterable<SidebarTerminalFrame>)[Symbol.asyncIterator]()
       const stream: typeof streams[number] = { lifetime, iterator }
@@ -216,6 +217,27 @@ describe('native sidebar terminals through Remote', () => {
     await reconnected.release('park')
     await h.ctx.fiber.dispose()
     expect(() => process.kill(pid, 0)).toThrowError(expect.objectContaining({ code: 'ESRCH' }))
+  })
+
+  it('discovers a native shell over dsh-app Remote and reattaches the selected process after disconnect', async () => {
+    const h = await load()
+    const choices = await h.call('shells') as { path: string; name: string }[]
+    expect(choices.length).toBeGreaterThan(0)
+    const chosen = choices[0].path
+    expect(await h.call('inspectUi', uiTarget)).toBeNull()
+    const first = await h.attach(chosen)
+    expect(first.ready.shellPath).toBe(chosen)
+    const pid = await observeShell(h, first, 'selected.txt')
+    await first.release('disconnect')
+    await h.updateShell(join(h.root, 'missing-default'))
+    const restored = await h.attach(chosen)
+    expect(restored.ready.processId).toBe(first.ready.processId)
+    expect(await observeShell(h, restored, 'selected-restored.txt')).toBe(pid)
+    await expect(h.attach(join(h.root, 'not-discovered'), 'terminal:invalid' as SidebarTerminalTabId))
+      .rejects.toMatchObject({ code: 'sidebarTerminals/invalid-shell' })
+    await restored.release('close')
+    await h.ctx.fiber.dispose()
+    expect(() => process.kill(pid, 0)).toThrow(expect.objectContaining({ code: 'ESRCH' }))
   })
 
   it('recovers the same tab after an invalid executable and accepts an absolute path with spaces', async () => {

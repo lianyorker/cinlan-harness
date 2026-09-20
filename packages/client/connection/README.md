@@ -25,6 +25,8 @@ The package carries browser-to-Host Remote calls, Fetch responses, and connectio
 <a id="use-this-package"></a>
 ## Use this package
 
+Import carrier-neutral RPC and Fetch interfaces from `@deepseek-ai/dsh-client-connection/types`. This entry exposes the shared transport types without activating either Context service declaration. Host and browser plugins keep their existing package-root and `/client` entries.
+
 The browser uses HTTP POST for Remote unary calls. API Gateway owns the `/api/remote.mux` WebSocket and its logical streams; shell-owned compositions provide equivalent Remote streams through `connection.rpc.open` without opening a WebSocket. The Host half always provides the carrier-neutral RPC and `GET`/`HEAD`/`POST` Fetch route registries. When a Web carrier is present it also owns the sole `/api` route, Fetch bridge, browser authentication, and Host/Origin checks; a shell-owned carrier dispatches the shared Fetch handler directly. Each route declares buffered or streaming request-body handling before the bridge reads any bytes. Typert Gateway claims generated Remote endpoints, feature packages register non-JSON responses such as Session-log downloads and raw file uploads, and unclaimed requests return 404. Loopback hostname classification remains package-internal to the browser-facing Client state. Browser raw-body transfer is provided by [`dsh-client-file-upload`](../file-upload/README.md). A disconnected browser aborts the request; the bridge cancels an unread late response body and stops writing to the closed response. Backpressure waits also settle when closure precedes listener installation.
 
 `ctx.connection.fetch.register()` defaults to `match: 'exact'`. An explicit `match: 'prefix'` owns a literal URL pathname prefix below `/api` and requires a trailing `/`, such as `/api/sidebar/html/`; matching leaves escaped suffixes unchanged. Each registered path is unique.
@@ -43,6 +45,9 @@ The cookie signing secret is the owner-scoped `client-connection/browser-session
 Before authentication, every request still passes `src/api-request-trust.ts`. Its `Host` must be loopback or match a `trustedHosts` entry: exact on `host:port`, any port on port-less entries, both sides WHATWG-normalized. An attached `Origin` must equal that Host and `sec-fetch-site: cross-site` is refused. Malformed configured authorities fail plugin load. These checks defend DNS rebinding and cross-site browser requests; they never establish identity. A failed Host/Origin check returns 403, while a trusted but unauthenticated request returns 401. `dsh web --host 0.0.0.0` remains unsupported. Decision records: [browser request trust](../../../.agents/notes/implemented/architecture/2026-07-28-api-browser-trust-boundary.md) and [browser token authentication](../../../.agents/notes/implemented/architecture/2026-08-24-browser-token-authentication.md).
 
 <a id="connection-generation"></a>
+
+The private preview Workspace Remote mirrors the Host archive set: archive and restore emit the complete set after a change and preserve Workspace membership. Restoring an id absent from the set succeeds without an event.
+
 ## Connection generation
 
 API Gateway Client registers the internal `$events` logical stream as the sole generation source, independently of whether any `$on` listener exists. The Host attaches all incremental listeners in the API Remotes source factory, then sends one `{ type: 'ready', clientId, host: { home } }` item before events. `ConnectionController` publishes that generation and calls `onConnected` only after the ready item arrives, so baseline acquisition cannot race ahead of incremental observation.
