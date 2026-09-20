@@ -86,7 +86,8 @@ it('composes each default provider once in the actual CLI and leaves opt-in prof
     'computer-use-cua-driver-native',
   ]) expect(web.filter(row => row.id === id)).toHaveLength(1)
   for (const id of targets) expect(web.find(row => row.id === id)?.disabled).toBe(true)
-  expect(web.some(row => row.id === 'mobile-device')).toBe(false)
+  expect(web.filter(row => row.id === 'mobile-device')).toHaveLength(1)
+  expect(web.find(row => row.id === 'mobile-device')?.disabled).not.toBe(true)
   const browser = await dump(home, 'browser')
   expect(browser.filter(row => row.id === targets[0])).toHaveLength(1)
   expect(browser.find(row => row.id === targets[0])?.disabled).not.toBe(true)

@@ -28,23 +28,18 @@ The explicit `browser` and `device-control` profiles omit this layer and retain 
 <a id="model-experience"></a>
 ## Model Experience
 
-#### What the model sees
-
-Only tools registered by active providers and consumers. This bundle contributes no model-visible text.
-
-#### Token effect
-
-No direct tokens; enabling a provider may expose its tools.
+Indirectly, through the active Browser and Computer Use consumers whose providers the Loader patches enable or disable.
 
 #### KV Cache effect
 
-No direct prefix changes; the active tool catalog determines downstream changes.
+The bundle adds no request text; changing the active tool catalog can change downstream request prefixes.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-Both target entries must already exist. This bundle supplies activation defaults only; provider installation, resource integrity, readiness, and action authorization remain with their owners. No runtime invariant companion is published because the package only applies two Loader patches and holds no runtime state.
+<a id="known-limitations-and-deferred-work"></a>
 
-## Dev Note
+- Both target entries must already exist. This bundle supplies activation defaults only; provider installation, resource integrity, readiness, and action authorization remain with their owners. No runtime invariant companion is published because the package only applies two Loader patches and holds no runtime state.
+
+### Dev Note
 
 The [native CUA decision](../../../.agents/notes/implemented/architecture/2026-09-20-native-cua-readiness-and-policy.md) records default composition and user activation ownership.

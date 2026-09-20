@@ -61,27 +61,20 @@ Native addon loading is lazy. A missing addon leaves model management available 
 <a id="model-experience"></a>
 ## Model Experience
 
-#### What the model sees
-
-None until the user submits the client draft containing the transcript.
-
-#### Token effect
-
-Model management and native recognition add no model tokens.
+None, as native transcription returns a human-editable Client draft and model-resource management registers no model tools or prompt content.
 
 #### KV Cache effect
 
-Resource operations do not change model request prefixes.
+Recognition and resource operations do not change model request prefixes; ordinary submission of the draft owns any added context and tokens.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-Integrity checks hash model files under the writer lock; size `resourceLockTimeoutMs` for the largest model’s verification time on the target storage.
+<a id="known-limitations-and-deferred-work"></a>
 
-A process killed while holding the exclusive writer lock can leave that lock behind. Contenders time out and never steal it; recovery requires confirming that the writer is gone before removing the lock. Interrupted task staging may remain after process loss. Retained legacy data and unknown leases intentionally trade disk space for safety.
+- Integrity checks hash model files under the writer lock; size `resourceLockTimeoutMs` for the largest model’s verification time on the target storage.
+- A process killed while holding the exclusive writer lock can leave that lock behind. Contenders time out and never steal it; recovery requires confirming that the writer is gone before removing the lock. Interrupted task staging may remain after process loss. Retained legacy data and unknown leases intentionally trade disk space for safety.
+- The pinned catalog uses GitHub release archives and commit-pinned `hf-mirror.com` files. Arbitrary user-provided model sources and upstream release discovery are not exposed. No invariant companion is published: storage mutations verify their owned revision and lease relationships directly, and consumers read the authoritative store.
 
-The pinned catalog uses GitHub release archives and commit-pinned `hf-mirror.com` files. Arbitrary user-provided model sources and upstream release discovery are not exposed. No invariant companion is published: storage mutations verify their owned revision and lease relationships directly, and consumers read the authoritative store.
-
-## Dev Note
+### Dev Note
 
 The [voice decision](../../../.agents/notes/implemented/feature/2026-09-14-voice-dictation-models-and-capture.md) records integrity, cancellation, and concurrent Host tradeoffs.
