@@ -40,7 +40,7 @@ describe('SSH filesystem provider', () => {
     const path = `/remote/work/${name}`
     const url = fs.fileUrl({ targetKey: FsTargetKey(path), displayPath: path })
     expect(url).toBe(`file:///remote/work/${encoded}`)
-    expect(fileURLToPath(url)).toBe(path)
+    expect(fileURLToPath(url, { windows: false })).toBe(path)
   })
 
   it('keeps remote canonical paths and sends relative spelling to the remote resolver', async () => {
