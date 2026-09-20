@@ -1,6 +1,8 @@
 /** Native Browser commands for authenticated Web clients; cookie values never enter model tools. */
 import { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-browser'
+import type {} from '@deepseek-ai/dsh-browser-playwright/runtime'
+import type { BrowserRuntimeStatus, BrowserRuntimeTask, BrowserRuntimeCancelRequest } from '@deepseek-ai/dsh-browser-playwright/types'
 import type {} from '@deepseek-ai/dsh-attachment'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { z } from 'zod'
@@ -42,11 +44,79 @@ export interface Config {
 
 /** Authenticated human-facing Browser operations, separate from model tool permissions. */
 export class BrowserController extends TypertRemoteService {
-  static inject = ['typert', 'browser', 'attachments']
+  static inject = ['typert']
   static Config: schema<Config> = schema.object({
     maxFileBytes: schema.number().step(1).min(1).max(100 * 1024 * 1024).default(4 * 1024 * 1024),
   })
   private readonly maxFileBytes: number
+  private get browser() {
+    const browser = this.ctx.get('browser')
+    if (!browser) throw new RemoteError('browser/operation-failed', 'Native Browser is not configured', {})
+    return browser
+  }
+  private get runtime() {
+    const runtime = this.ctx.get('browserRuntime')
+    if (!runtime) throw new RemoteError('browser/operation-failed', 'Native Browser runtime is not configured', {})
+    return runtime
+  }
+
+  /** Detect binary availability without launching a native browser.
+   * @param signal - Pre-admission cancellation.
+   * @returns File, provider, and context observations.
+   */
+  @Remote('runtimeStatus') runtimeStatus(signal: AbortSignal): BrowserRuntimeStatus {
+    signal.throwIfAborted()
+    return this.runtime.status()
+  }
+  /** Start pinned Chromium installation, independently of Remote lifetime.
+   * @param signal - Pre-admission cancellation only.
+   * @returns Host-owned task identity.
+   */
+  @Remote('installRuntime') installRuntime(signal: AbortSignal): BrowserRuntimeTask {
+    signal.throwIfAborted()
+    return this.runtime.start('install')
+  }
+  /** Replace the pin after a complete staged download; the browser must be closed.
+   * @param signal - Pre-admission cancellation only.
+   * @returns Host-owned task identity.
+   */
+  @Remote('reinstallRuntime') reinstallRuntime(signal: AbortSignal): BrowserRuntimeTask {
+    signal.throwIfAborted()
+    return this.runtime.start('reinstall')
+  }
+  /** Close the native context; provider activation and persistent profile remain available.
+   * @param signal - Pre-admission cancellation only.
+   * @returns Settlement after context and lease cleanup.
+   */
+  @Remote('closeRuntime') async closeRuntime(signal: AbortSignal): Promise<void> {
+    signal.throwIfAborted()
+    await this.runtime.closeBrowser()
+  }
+  /** Remove managed Chromium, preserving system browsers and profiles.
+   * @param signal - Pre-admission cancellation only.
+   * @returns Host-owned task identity.
+   */
+  @Remote('removeRuntime') removeRuntime(signal: AbortSignal): BrowserRuntimeTask {
+    signal.throwIfAborted()
+    return this.runtime.start('remove')
+  }
+  /** Observe the latest task after view or Remote reattachment.
+   * @param signal - Read cancellation.
+   * @returns Latest task or null.
+   */
+  @Remote('runtimeTask') runtimeTask(signal: AbortSignal): BrowserRuntimeTask | null {
+    signal.throwIfAborted()
+    return this.runtime.task()
+  }
+  /** Cancel only the named task and wait for owned process termination.
+   * @param request - Exact task identity.
+   * @param signal - Pre-admission cancellation only.
+   * @returns Terminal task snapshot.
+   */
+  @Remote('cancelRuntime') async cancelRuntime(request: BrowserRuntimeCancelRequest, signal: AbortSignal): Promise<BrowserRuntimeTask> {
+    signal.throwIfAborted()
+    return this.runtime.cancel(request.taskId)
+  }
   /** @param ctx - Host context carrying the selected Browser Provider.
    * @param config - Maximum Remote transfer bytes.
    */
@@ -62,7 +132,7 @@ export class BrowserController extends TypertRemoteService {
    */
   @Remote('profile') profile(signal: AbortSignal): BrowserProfileValue {
     signal.throwIfAborted()
-    return { profileName: this.ctx.browser.currentProfile() }
+    return { profileName: this.browser.currentProfile() }
   }
   /** Launch if needed and list native pages after an explicit UI action.
    * @param signal - Caller cancellation.
@@ -71,7 +141,7 @@ export class BrowserController extends TypertRemoteService {
   @Remote('pages') async pages(signal: AbortSignal): Promise<BrowserPagesValue> {
     signal.throwIfAborted()
     return {
-      profileName: this.ctx.browser.currentProfile(), pages: await this.ctx.browser.listPages(signal), maxFileBytes: this.maxFileBytes,
+      profileName: this.browser.currentProfile(), pages: await this.browser.listPages(signal), maxFileBytes: this.maxFileBytes,
     }
   }
   /** Wait for a human to choose an element; cancellation removes the Provider overlay.
@@ -80,7 +150,7 @@ export class BrowserController extends TypertRemoteService {
    * @returns One-use selection with element identity and visible bounds.
    */
   @Remote('selectElement') async selectElement(request: BrowserPageRequest, signal: AbortSignal): Promise<BrowserElementSelectionValue> {
-    return this.ctx.browser.selectElement(request, signal)
+    return this.browser.selectElement(request, signal)
   }
   /** Capture and persist a verified crop without sending a Session message.
    * @param request - Page and one-use selection from selectElement.
@@ -89,20 +159,22 @@ export class BrowserController extends TypertRemoteService {
    */
   @Remote('captureElement') async captureElement(request: BrowserElementCaptureCommand, signal: AbortSignal): Promise<BrowserElementCaptureValue> {
     signal.throwIfAborted()
-    const capture = await this.ctx.browser.captureElement({
+    const capture = await this.browser.captureElement({
       pageId: request.pageId,
       target: { kind: 'selection', selectionId: request.selectionId },
       format: 'png',
     }, signal)
     signal.throwIfAborted()
-    const image = await this.ctx.attachments.saveImage({
+    const attachments = this.ctx.get('attachments')
+    if (!attachments) throw new RemoteError('browser/operation-failed', 'Browser attachments are not configured', {})
+    const image = await attachments.saveImage({
       data: capture.data, mediaType: capture.mediaType, name: 'browser-element.png',
     })
     signal.throwIfAborted()
     if (image.bytes > this.maxFileBytes) {
       throw new RemoteError('browser/invalid-request', 'Captured image exceeds the Remote byte limit', {})
     }
-    const stored = await this.ctx.attachments.readImage(image, signal)
+    const stored = await attachments.readImage(image, signal)
     signal.throwIfAborted()
     return { ...request, verified: true, image: stored.ref, data: Buffer.from(stored.data).toString('base64') }
   }
@@ -113,7 +185,7 @@ export class BrowserController extends TypertRemoteService {
    */
   @Remote('open') async open(request: BrowserNavigationTarget, signal: AbortSignal): Promise<BrowserOpenValue> {
     signal.throwIfAborted()
-    return this.ctx.browser.openPage(this.ctx.browser.resolveNavigation(request), signal)
+    return this.browser.openPage(this.browser.resolveNavigation(request), signal)
   }
   /** Read page-local visits; nothing is loaded from another profile.
    * @param request - Open page identity.
@@ -121,7 +193,7 @@ export class BrowserController extends TypertRemoteService {
    * @returns At most 100 visits; credentials, queries, and fragments are excluded.
    */
   @Remote('history') async history(request: BrowserPageRequest, signal: AbortSignal): Promise<BrowserHistoryValue> {
-    return { entries: await this.ctx.browser.history(request.pageId, 100, signal) }
+    return { entries: await this.browser.history(request.pageId, 100, signal) }
   }
   /** Read request metadata retained since the page opened.
    * @param request - Open page identity.
@@ -129,7 +201,7 @@ export class BrowserController extends TypertRemoteService {
    * @returns At most 100 requests without headers, bodies, or URL query values.
    */
   @Remote('network') async network(request: BrowserPageRequest, signal: AbortSignal): Promise<BrowserNetworkValue> {
-    return { entries: await this.ctx.browser.network(request.pageId, 100, signal) }
+    return { entries: await this.browser.network(request.pageId, 100, signal) }
   }
   /** Observe a page so a human can select a file input.
    * @param request - Open page identity.
@@ -137,7 +209,7 @@ export class BrowserController extends TypertRemoteService {
    * @returns Fresh observation and element ids.
    */
   @Remote('snapshot') async snapshot(request: BrowserPageRequest, signal: AbortSignal): Promise<BrowserObservationValue> {
-    return { observation: await this.ctx.browser.snapshot(request, signal) }
+    return { observation: await this.browser.snapshot(request, signal) }
   }
   /** Supply explicit file bytes to an observed input, without submitting its form.
    * @param request - Fresh observation ids, basename, and base64 from the chosen file.
@@ -153,7 +225,7 @@ export class BrowserController extends TypertRemoteService {
     if (data.byteLength > this.maxFileBytes || data.toString('base64') !== request.base64) {
       throw new RemoteError('browser/invalid-request', 'File encoding or byte limit is invalid', {})
     }
-    await this.ctx.browser.upload({
+    await this.browser.upload({
       pageId: request.pageId, observationId: request.observationId, elementId: request.elementId, name: request.name, data,
     }, signal)
     return { bytes: data.byteLength }
@@ -164,7 +236,7 @@ export class BrowserController extends TypertRemoteService {
    * @returns Retained download ids and states.
    */
   @Remote('downloads') async downloads(request: BrowserPageRequest, signal: AbortSignal): Promise<BrowserDownloadsValue> {
-    return this.ctx.browser.downloads(request.pageId, signal)
+    return this.browser.downloads(request.pageId, signal)
   }
   /** Read one bounded completed download for a human save action.
    * @param request - Page and download ids obtained from downloads.
@@ -172,7 +244,7 @@ export class BrowserController extends TypertRemoteService {
    * @returns Inert filename and exact file bytes encoded for Remote transport.
    */
   @Remote('download') async download(request: BrowserDownloadRequest, signal: AbortSignal): Promise<BrowserDownloadValue> {
-    const file = await this.ctx.browser.readDownload(request.pageId, request.downloadId, this.maxFileBytes, signal)
+    const file = await this.browser.readDownload(request.pageId, request.downloadId, this.maxFileBytes, signal)
     return { name: file.name, base64: Buffer.from(file.data).toString('base64'), bytes: file.data.byteLength }
   }
 
@@ -199,7 +271,7 @@ export class BrowserController extends TypertRemoteService {
         ...(cookie.httpOnly === undefined ? {} : { httpOnly: cookie.httpOnly }),
         ...(cookie.sameSite === undefined ? {} : { sameSite: cookie.sameSite }),
       }))
-      const receipt = await this.ctx.browser.importCookies({ profileName: request.profileName, cookies }, signal)
+      const receipt = await this.browser.importCookies({ profileName: request.profileName, cookies }, signal)
       return { imported: receipt.imported, profileName: request.profileName }
     } catch (_cookieOperationFailure) {
       signal.throwIfAborted()

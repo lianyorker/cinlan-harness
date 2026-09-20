@@ -2,6 +2,9 @@
 # the browser capability remains outside the shared base composition.
 
 - insert:
+    - id: browser-runtime
+      name: '@deepseek-ai/dsh-browser-playwright/runtime'
+
     - id: browser
       name: '@deepseek-ai/dsh-browser'
       config:

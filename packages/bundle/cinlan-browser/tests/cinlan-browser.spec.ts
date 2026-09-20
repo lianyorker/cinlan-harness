@@ -1,5 +1,6 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { EventEmitter } from 'node:events'
 import { join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -21,6 +22,8 @@ import BrowserRuntime from '@deepseek-ai/dsh-browser'
 import BrowserController from '@deepseek-ai/dsh-api-browser-controller'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import * as LocalBrowser from '@deepseek-ai/dsh-browser-playwright'
+import BrowserRuntimeManager from '@deepseek-ai/dsh-browser-playwright/runtime'
+import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
 import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
 import { chromium, type BrowserContext } from 'playwright-core'
 import * as BrowserPermissionPolicy from '@deepseek-ai/dsh-browser-permission-policy'
@@ -101,6 +104,7 @@ describe('dsh-cinlan-browser bundle', () => {
 
     const rows = applyEntryPatches([], structuredClone(patches), () => {})
     expect(rows.map(row => row.id)).toEqual([
+      'browser-runtime',
       'browser',
       'browser-playwright',
       'browser-permission-policy',
@@ -123,6 +127,7 @@ describe('dsh-cinlan-browser bundle', () => {
     const configPath = join(fixtureRoot, 'cordis.yml')
     const fixtureLayer: PatchOptions[] = [{
       insert: [
+        { id: 'subprocess', name: '@deepseek-ai/dsh-subprocess-local' },
         { id: 'settings', name: '@deepseek-ai/dsh-settings-file', config: { path: join(fixtureRoot, 'settings.json'), watch: false } },
         { id: 'fixture-attachments', name: 'fixture-attachments' },
         { id: 'system-prompt', name: '@deepseek-ai/dsh-system-prompt', config: { persona: '' } },
@@ -134,6 +139,8 @@ describe('dsh-cinlan-browser bundle', () => {
       // Browser presentation is exercised by the assembled Web acceptance case.
       id: 'ui-browser-element-capture',
       disabled: true,
+    }, {
+      id: 'browser-runtime', config: { storageDir: join(fixtureRoot, 'runtime') },
     }, {
       id: 'browser-playwright',
       config: {
@@ -158,6 +165,8 @@ describe('dsh-cinlan-browser bundle', () => {
     await context.plugin(Loader)
     context.loader.builtins.include = Include
     const modules = new Map<string, unknown>([
+      ['@deepseek-ai/dsh-subprocess-local', LocalSubprocess],
+      ['@deepseek-ai/dsh-browser-playwright/runtime', BrowserRuntimeManager],
       ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
       ['fixture-attachments', FixtureAttachments],
       ['@deepseek-ai/dsh-system-prompt', SystemPrompt],
@@ -200,12 +209,15 @@ describe('dsh-cinlan-browser bundle', () => {
       'browser_save_download',
       'browser_close',
     ])
-    const closed = vi.fn(async () => {})
+    const events = new EventEmitter()
+    const closed = vi.fn(async () => { events.emit('close') })
     const launch = vi.spyOn(chromium, 'launchPersistentContext').mockResolvedValue({
-      pages: () => [], on: () => {}, close: closed,
+      pages: () => [], on: events.on.bind(events), close: closed,
       setDefaultTimeout: () => {}, setDefaultNavigationTimeout: () => {},
     } as unknown as BrowserContext)
-    expect(context.get('subprocess')).toBeUndefined()
+    const installerSpawn = vi.spyOn(context.subprocess, 'spawn')
+    expect(context.browserRuntime.status().browserState).toBe('stopped')
+    expect(installerSpawn).not.toHaveBeenCalled()
     expect(launch).not.toHaveBeenCalled()
     const denied = await context.tools.execute({
       callId: ToolCallId('bundle-browser-list'),

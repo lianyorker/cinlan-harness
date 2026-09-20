@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../browser/browser-playwright" },
     {
       "path": "../../../vendor/cordis"
     },

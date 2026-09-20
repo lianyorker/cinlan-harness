@@ -29,6 +29,8 @@ Cookie 导入接受最多 256 KiB 的 JSON 数组、预期的当前 profile 名�
 
 上传接受显式 base64 文件数据、文件名及新鲜 page/observation/element id，只设置输入框，不显式提交；页面事件可能发送数据。下载只接受页面所属 id，不接受文件系统路径。maxFileBytes 默认 4194304，限制解码后的传输字节；Provider 可能施加更小的上限。下载响应携带精确 base64 字节及经过清理的文件名，供 Client 作为普通文件保存。
 
+组件操作独立于网页文件下载。`runtimeStatus` 与 `runtimeTask` 检查文件和 Host 任务，不启动浏览器。`installRuntime`、`reinstallRuntime` 和 `removeRuntime` 返回 Host 持有的任务标识；调用方断开不会取消它们。`cancelRuntime` 接受精确任务 id，并等待进程清理。`closeRuntime` 关闭原生上下文，保留插件启用状态和 profile 数据。Browser 或 runtime 服务缺失时明确报错；controller 自身只需要 Typert。[运行时所有权与安装限制](../../browser/browser-playwright/README.zh.md#managed-chromium)由 Provider 包说明。
+
 <a id="model-experience"></a>
 ## 模型体验
 

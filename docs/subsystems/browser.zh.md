@@ -6,6 +6,8 @@
 
 本参考列出 `packages/browser` 包族声明的 Cordis API。[Browser Service Definition](../../packages/browser/browser/README.zh.md)负责持久页面与观测身份、Provider 选择、新鲜度、原生导航、捕获和传输请求。[API 自有的 Browser 记录](typert.zh.md#browser)为经过认证的人类请求投影这些能力。
 
+原生 [Playwright 运行时管理器](../../packages/browser/browser-playwright/README.zh.md#managed-chromium)负责固定版本 Chromium 文件和 Host 生命周期内的组件任务，独立于 Browser Provider 启用状态。`BrowserRuntimeStatus` 区分选定可执行文件存在、托管安装、Provider 启用及原生上下文状态；`BrowserRuntimeTask` 携带品牌化操作标识、状态、阶段、可选百分比与脱敏错误类别。检测不会启动浏览器。
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -172,4 +174,57 @@ async closePage(request: BrowserCloseRequest, signal?: AbortSignal): Promise<voi
 ```
 
 Source: [`packages/browser/browser/src/index.ts`](../../packages/browser/browser/src/index.ts)
+
+<a id="ctxbrowserruntime--browserruntimemanager"></a>
+
+### `ctx.browserRuntime` — `BrowserRuntimeManager`
+
+Own one installer task and provider selection per Host.
+
+```ts cordis-catalog
+/** Publish the active provider selection without adding an activation flag.
+ * @param selection - Provider-owned configuration and live context observation.
+ * @returns Disposer tied to the provider fiber.
+ */
+attach(selection: ProviderSelection): () => void
+
+/** Reserve shared runtime storage for a live browser before executable resolution.
+ * @returns Async release; caller holds it until the native context has closed.
+ */
+async acquireBrowserLease(): Promise<() => Promise<void>>
+
+/** Close the attached native context while keeping the provider active.
+ * @returns Settlement after native context and runtime lease cleanup.
+ */
+async closeBrowser(): Promise<void>
+
+/** Resolve the exact installed managed executable before launching.
+ * @returns Managed executable or a missing-component error; never starts a process.
+ */
+executablePath(): string
+
+/** Inspect binary files and provider state without browser launch or network requests.
+ * @returns Independent installation, selection, context, and latest-task facts.
+ */
+status(): BrowserRuntimeStatus
+
+/** Read the latest task without consuming installer output.
+ * @returns Latest task or null before the first operation.
+ */
+task(): BrowserRuntimeTask | null
+
+/** Admit an explicit component operation; caller detach does not abort it.
+ * @param operation - Install the pin, reinstall into a new generation, or remove managed binaries.
+ * @returns Exact task identity for observation and cancellation.
+ */
+start(operation: BrowserRuntimeTask['operation']): BrowserRuntimeTask
+
+/** Cancel only the named operation and await process-range and staging cleanup.
+ * @param taskId - Exact latest operation identity.
+ * @returns Its terminal snapshot; committing operations cannot be cancelled.
+ */
+async cancel(taskId: BrowserRuntimeTaskId): Promise<BrowserRuntimeTask>
+```
+
+Source: [`packages/browser/browser-playwright/src/runtime.ts`](../../packages/browser/browser-playwright/src/runtime.ts)
 <!-- END GENERATED cordis-surface -->

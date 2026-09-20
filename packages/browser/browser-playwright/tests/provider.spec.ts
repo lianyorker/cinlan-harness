@@ -18,6 +18,7 @@ import {
   resolvePlaywrightBrowserConfig,
 } from '../src/index.ts'
 import * as PlaywrightBrowser from '../src/index.ts'
+import BrowserRuntimeManager from '../src/runtime.ts'
 
 interface FakeItemValues {
   readonly role?: string
@@ -225,7 +226,8 @@ class FakeContext {
   readonly addCookies = vi.fn(async (_cookies: unknown) => {})
   readonly initial = new FakePage()
   readonly all = [this.initial]
-  readonly close = vi.fn(() => Promise.resolve())
+  private readonly closeListeners: (() => void)[] = []
+  readonly close = vi.fn(async () => { for (const listener of this.closeListeners) listener() })
   readonly setDefaultTimeout = vi.fn()
   readonly setDefaultNavigationTimeout = vi.fn()
   private readonly pageListeners: ((page: Page) => void)[] = []
@@ -239,6 +241,7 @@ class FakeContext {
   pages(): Page[] { return this.all as unknown as Page[] }
   on(event: string, listener: (page: Page) => void): this {
     if (event === 'page') this.pageListeners.push(listener)
+    if (event === 'close') this.closeListeners.push(listener as () => void)
     return this
   }
 }
@@ -840,6 +843,8 @@ describe('Playwright browser Cordis plugins', () => {
     try {
       await ctx.plugin(FileSettingsProvider, { path: join(root, 'settings.json'), watch: false })
       await ctx.plugin(BrowserRuntime)
+      ctx.provide('subprocess', { spawn: vi.fn(() => { throw new Error('Unexpected installer') }) } as never)
+      await ctx.plugin(BrowserRuntimeManager, { storageDir: join(root, 'runtime') })
       const fiber = await ctx.plugin(PlaywrightBrowser)
       const replacement = new PlaywrightBrowserProvider(resolvePlaywrightBrowserConfig(), () => Promise.reject(new Error('unused')))
       expect(() => ctx.browser.registerProvider(replacement)).toThrow(expect.objectContaining({
@@ -865,6 +870,8 @@ it('persists browser preferences, rejects invalid dimensions, and applies saved 
     const settingsPath = join(root, 'settings.json')
     await ctx.plugin(FileSettingsProvider, { path: settingsPath, watch: false })
     await ctx.plugin(BrowserRuntime)
+    ctx.provide('subprocess', { spawn: vi.fn(() => { throw new Error('Unexpected installer') }) } as never)
+    await ctx.plugin(BrowserRuntimeManager, { storageDir: join(root, 'runtime') })
     const config = { storageDir: join(root, 'profile'), browserChannel: 'chrome' as const, headless: true }
     const first = await ctx.plugin(PlaywrightBrowser, config)
     expect(ctx.settings.describe()[0]).toMatchObject({ ns: 'browser-playwright', applies: 'restart' })

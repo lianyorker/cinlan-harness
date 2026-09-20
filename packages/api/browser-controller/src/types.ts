@@ -1,4 +1,5 @@
 /** Browser-safe Remote commands; cookie JSON is accepted only by explicit human actions. */
+export type { BrowserRuntimeStatus, BrowserRuntimeTask, BrowserRuntimeTaskId, BrowserRuntimeCancelRequest } from '@deepseek-ai/dsh-browser-playwright/types'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { BrowserElementSelection, BrowserElementSelectionId } from '@deepseek-ai/dsh-browser/types'
 import type { BrowserDownload, BrowserDownloadId, BrowserObservation, BrowserObservationId, BrowserElementId, BrowserNavigationTarget, BrowserPage, BrowserPageId, BrowserHistoryEntry, BrowserNetworkEntry } from '@deepseek-ai/dsh-browser/types'

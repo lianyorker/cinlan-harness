@@ -18,6 +18,7 @@ The provider supports persistent page listing, HTTP(S) navigation, accessibility
 - [Lifecycle and identity](#lifecycle-and-identity)
 - [Verified element capture](#verified-element-capture)
 - [Configuration](#configuration)
+- [Managed Chromium](#managed-chromium)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 - [Dev Note](#dev-note)
@@ -39,7 +40,7 @@ Changed, detached, invisible, stale, or oversized elements fail without publishi
 <a id="configuration"></a>
 ## Configuration
 
-The plugin requires Browser and Settings services. Its browser-playwright Settings namespace persists browserChannel, headless, viewportWidth, viewportHeight, profileName, homePage, and searchEngine over the deployment defaults. Changes apply on Provider remount or profile restart, never during a live browser operation. Viewport preferences accept positive safe integers. Executable paths, storage directories, and provider identity remain deployment-only configuration.
+The plugin requires Browser, Settings, and the same-package `./runtime` service. Its browser-playwright Settings namespace persists browserChannel, headless, viewportWidth, viewportHeight, profileName, homePage, and searchEngine over the deployment defaults. Changes apply on Provider remount or profile restart, never during a live browser operation. Viewport preferences accept positive safe integers. Executable paths, storage directories, and provider identity remain deployment-only configuration.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -64,6 +65,21 @@ profileName accepts safe lowercase names. default preserves storageDir; other na
 
 Uploads set only the current observed input; page input/change handlers may submit data, and retry requires another observation. Download names are sanitized and reads enforce streaming byte limits; maxTransferBytes does not cap browser download network traffic or disk usage. Downloads beyond the per-page count limit are canceled and the list reports truncated.
 
+<a id="managed-chromium"></a>
+## Managed Chromium
+
+The `./runtime` service reads Playwright registry metadata and executable files without launching a browser or requesting the network. Installed files, provider activation, and stopped/starting/running context state are independent facts. System Chrome and Edge remain system-managed; custom executable paths remain deployment-owned. The pinned browser version describes managed Chromium, not a system browser.
+
+Explicit install and reinstall actions run the pinned Playwright package installer with `install chromium --no-shell` through Harness subprocess. The child receives a private `PLAYWRIGHT_BROWSERS_PATH`; the Host environment and shared Playwright cache remain unchanged. Playwright selects platform archives, upstream mirrors, extraction, completion markers, and auxiliary components. Managed launch passes the resulting Chromium executable explicitly, including headless launches. Remote diagnostics expose origins only, never URL credentials or paths. Installation inherits Playwright proxy environment variables; Windows system proxy settings are not imported automatically.
+
+Runtime configuration defaults to `storageDir: $DSH_HOME/browser/runtime`, `installTimeoutMs: 600000`, `processGraceMs: 3000`, and `maxOutputBytes: 16384`. Browser profiles occupy a separate directory and component operations never remove them.
+
+One Host-owned task survives Settings unmount and Remote disconnect. Cancellation requires its exact branded task id and waits for process-range termination plus staging cleanup. Progress may be unknown or reset for auxiliary archives; it is not an overall byte counter. Deadline or installer failures form recoverable failed tasks. A commit cannot be cancelled.
+
+Reinstall creates a fresh generation and atomically replaces the active-generation file only after the executable and completion marker exist. Failed or cancelled staging preserves the active generation. Completed older generations remain until explicit removal; removal deletes managed generations without touching profiles or system browsers. Close the native context before install, repair, or removal. A filesystem lease excludes other Hosts while a native context or installer uses the runtime directory. An unclean Host termination can leave the lease directory; verify all associated Hosts and browsers have stopped before removing that stale lock. Installation tasks and progress are not resumed after a Host restart.
+
+The native Browser window and Web sidebar iframe have separate pages, cookies, and login state. Plugin management is the sole activation owner; installing Chromium does not enable a plugin or launch a browser.
+
 <a id="model-experience"></a>
 ## Model Experience
 
@@ -84,7 +100,7 @@ Browser process state, profile contents, page ids, observations, and selections 
 ## Known Limitations and Deferred Work
 <a id="known-limitations-and-deferred-work"></a>
 
-- The configured Chrome, Edge, or Chromium executable must already exist on the Host; the provider does not download a browser at runtime.
+- File presence and installation markers do not prove launch readiness; operating-system dependencies and executable integrity still require a real launch.
 - Chromium receives the shared credential-scrubbed child environment.
 - The dedicated profile is separate from the user's daily browser profile to avoid profile locks and unrelated personal state.
 - Text/keyboard input, scrolling, trace, PDF, HAR, durable visit history, profile inventory/delete/rename, and per-tab profile selection remain unsupported.

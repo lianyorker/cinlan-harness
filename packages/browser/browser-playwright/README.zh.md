@@ -18,6 +18,7 @@ Provider 支持持久页面列表、HTTP(S) 导航、无障碍快照、绑定到
 - [生命周期与标识](#lifecycle-and-identity)
 - [已核验元素捕获](#verified-element-capture)
 - [配置](#configuration)
+- [托管 Chromium](#managed-chromium)
 - [模型体验](#model-experience)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
@@ -39,7 +40,7 @@ Snapshot element id 只在一个精确 observation 内有效。Selection id 持�
 <a id="configuration"></a>
 ## 配置
 
-本插件需要 Browser 与 Settings 服务。browser-playwright Settings 命名空间在部署默认值之上undefined。修改在 Provider 重新挂载或 profile 重启时生效，不会打断当前浏览器操作。视口偏好接受正安全整数。可执行路径、存储目录与 Provider 身份仍属于部署配置。
+本插件需要 Browser、Settings 及同包 `./runtime` 服务。browser-playwright Settings 命名空间在部署默认值之上持久化 browserChannel、headless、viewportWidth、viewportHeight、profileName、homePage 和 searchEngine。修改在 Provider 重新挂载或 profile 重启时生效，不会打断当前浏览器操作。视口偏好接受正安全整数。可执行路径、存储目录与 Provider 身份仍属于部署配置。
 
 | 键 | 默认值 | 含义 |
 |---|---|---|
@@ -64,6 +65,21 @@ profileName 只接受小写字母开头的安全名称。default 保留原 stora
 
 文件上传只设置当前观察对应的 input，页面 input/change 事件可能发送数据；失败后需要新观察。下载文件名经过清理，读取按流施加字节上限；maxTransferBytes 不限制浏览器网络传输过程的磁盘占用。达到每页下载数量上限后取消后续下载并报告 truncated。
 
+<a id="managed-chromium"></a>
+## 托管 Chromium
+
+`./runtime` 服务读取 Playwright 注册信息与可执行文件，不启动浏览器，也不请求网络。文件是否安装、Provider 是否启用及上下文 stopped/starting/running 状态是独立事实。系统 Chrome、Edge 仍由系统管理；自定义可执行路径仍由部署配置管理。固定浏览器版本描述托管 Chromium，不代表系统浏览器版本。
+
+显式安装和重新安装通过 Harness subprocess 运行固定 Playwright 包的安装器 `install chromium --no-shell`。子进程使用私有 `PLAYWRIGHT_BROWSERS_PATH`，不修改 Host 环境或共享 Playwright 缓存。Playwright 选择平台压缩包、上游镜像、解压、完成标记和辅助组件。托管启动显式传入安装后的 Chromium 可执行文件，包括无头启动。Remote 诊断只公开源站，不包含 URL 凭据或路径。安装继承 Playwright 代理环境变量，不自动导入 Windows 系统代理设置。
+
+运行时配置默认为 `storageDir: $DSH_HOME/browser/runtime`、`installTimeoutMs: 600000`、`processGraceMs: 3000` 和 `maxOutputBytes: 16384`。浏览器 profile 位于独立目录，组件操作不会删除它们。
+
+任务由 Host 持有，离开 Settings 或断开 Remote 不会取消。取消必须提供精确的品牌化任务 id，并等待进程范围退出及暂存目录清理。进度可能未知或因辅助压缩包重新计数，不代表总字节进度。超时或安装器错误形成可恢复失败任务。提交阶段不可取消。
+
+重新安装创建新 generation，仅在可执行文件和完成标记存在后原子替换当前 generation 文件。暂存失败或取消保留当前 generation。已完成旧 generation 保留到显式移除；移除删除托管 generation，不触碰 profile 或系统浏览器。安装、修复、移除前先关闭原生上下文。文件系统租约阻止其他 Host 在原生上下文或安装器使用运行时目录时操作它。Host 异常退出可能遗留租约目录；管理员必须确认相关 Host 和浏览器均停止后才能删除旧锁。Host 重启后不恢复安装任务与进度。
+
+原生 Browser 窗口与 Web 侧栏 iframe 拥有独立页面、Cookie 和登录状态。插件管理是唯一启用状态来源；安装 Chromium 不启用插件，也不启动浏览器。
+
 <a id="model-experience"></a>
 ## 模型体验
 
@@ -84,7 +100,7 @@ Provider 不贡献 prompt 或 tool definition。[`@deepseek-ai/dsh-tool-browser`
 ## 已知限制与后续工作
 <a id="known-limitations-and-deferred-work"></a>
 
-- Host 必须已经安装配置的 Chrome、Edge 或 Chromium executable；Provider 不会在运行时下载浏览器。
+- 文件存在与安装完成标记不证明浏览器能够启动；操作系统依赖和可执行文件完整性仍由实际启动验证。
 - Chromium 使用共享凭证清理后的子进程环境。
 - 专用 profile 与用户日常浏览器 profile 分离，以避免 profile lock 和无关个人状态。
 - 尚不支持文本/键盘输入、滚动、trace、PDF、HAR、持久化访问历史、profile 清单/删除/重命名或逐页 profile 切换。

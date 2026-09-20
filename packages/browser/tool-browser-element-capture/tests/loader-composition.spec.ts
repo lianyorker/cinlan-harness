@@ -11,6 +11,8 @@ import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import BrowserRuntime from '@deepseek-ai/dsh-browser'
 import * as BrowserPermissionPolicy from '@deepseek-ai/dsh-browser-permission-policy'
 import * as BrowserPlaywright from '@deepseek-ai/dsh-browser-playwright'
+import BrowserRuntimeManager from '@deepseek-ai/dsh-browser-playwright/runtime'
+import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
 import CoordinationLocal from '@deepseek-ai/dsh-coordination-local'
 import * as BrowserElementCaptureExecutor from '@deepseek-ai/dsh-coordination-browser-element-capture'
 import LlmRuntime, { ToolCallId } from '@deepseek-ai/dsh-llm'
@@ -126,7 +128,8 @@ class FixturePage {
 
 class FixtureBrowserContext {
   readonly page = new FixturePage()
-  readonly close = vi.fn(() => Promise.resolve())
+  private readonly closeListeners: (() => void)[] = []
+  readonly close = vi.fn(async () => { for (const listener of this.closeListeners) listener() })
   readonly setDefaultTimeout = vi.fn()
   readonly setDefaultNavigationTimeout = vi.fn()
 
@@ -134,7 +137,8 @@ class FixtureBrowserContext {
     return [this.page as unknown as Page]
   }
 
-  on(_event: string, _listener: (page: Page) => void): this {
+  on(event: string, listener: (page: Page) => void): this {
+    if (event === 'close') this.closeListeners.push(listener as () => void)
     return this
   }
 }
@@ -176,7 +180,10 @@ describe('browser element capture through a real cordis.yml Loader composition',
     fixtureRoot = await mkdtemp(join(tmpdir(), 'dsh-browser-capture-settings-'))
     const template = await readFile(new URL('./fixtures/cordis.yml', import.meta.url), 'utf8')
     const path = join(fixtureRoot, 'cordis.yml')
-    await writeFile(path, template.replace('FIXTURE_SETTINGS_PATH', JSON.stringify(join(fixtureRoot, 'settings.json'))))
+    await writeFile(path, template
+      .replace('FIXTURE_SETTINGS_PATH', JSON.stringify(join(fixtureRoot, 'settings.json')))
+      .replace('FIXTURE_RUNTIME_PATH', JSON.stringify(join(fixtureRoot, 'runtime')))
+      .replace('FIXTURE_PROFILE_PATH', JSON.stringify(join(fixtureRoot, 'profile'))))
     const configUrl = pathToFileURL(path)
 
     context = new Context()
@@ -187,6 +194,8 @@ describe('browser element capture through a real cordis.yml Loader composition',
       ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
       ['@deepseek-ai/dsh-browser', BrowserRuntime],
       ['@deepseek-ai/dsh-browser-playwright', BrowserPlaywright],
+      ['@deepseek-ai/dsh-browser-playwright/runtime', BrowserRuntimeManager],
+      ['@deepseek-ai/dsh-subprocess-local', LocalSubprocess],
       ['./attachment-store.ts', FixtureAttachmentStore],
       ['@deepseek-ai/dsh-llm', LlmRuntime],
       ['./vision-adapter.ts', FixtureVisionAdapter],

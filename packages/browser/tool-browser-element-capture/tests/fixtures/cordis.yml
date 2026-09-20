@@ -5,10 +5,14 @@
 - name: '@deepseek-ai/dsh-browser'
   config:
     provider: loader-playwright
+- name: '@deepseek-ai/dsh-subprocess-local'
+- name: '@deepseek-ai/dsh-browser-playwright/runtime'
+  config:
+    storageDir: FIXTURE_RUNTIME_PATH
 - name: '@deepseek-ai/dsh-browser-playwright'
   config:
     providerId: loader-playwright
-    storageDir: ./profile
+    storageDir: FIXTURE_PROFILE_PATH
     headless: true
     actionTimeoutMs: 1000
     navigationTimeoutMs: 1000

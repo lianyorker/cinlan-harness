@@ -29,6 +29,8 @@ Cookie import accepts a JSON array up to 256 KiB, an expected active profile nam
 
 Uploads take explicit base64 file data, a basename, and fresh page/observation/element ids. They set the input without an explicit submit call; page handlers may submit data. Downloads take page-owned ids, never a filesystem path. maxFileBytes defaults to 4194304 and limits decoded transfer bytes; the Provider may impose a smaller limit. Download replies carry exact base64 bytes and a sanitized filename for an inert client save.
 
+Component operations are separate from website downloads. `runtimeStatus` and `runtimeTask` inspect files and Host tasks without browser launch. `installRuntime`, `reinstallRuntime`, and `removeRuntime` return Host-owned task identities; caller detach does not cancel them. `cancelRuntime` accepts the exact task id and waits for process cleanup. `closeRuntime` closes the native context while retaining plugin activation and profile data. Missing Browser or runtime services fail explicitly; the controller itself requires only Typert. [Runtime ownership and installation limits](../../browser/browser-playwright/README.md#managed-chromium) belong to the provider package.
+
 <a id="model-experience"></a>
 ## Model Experience
 

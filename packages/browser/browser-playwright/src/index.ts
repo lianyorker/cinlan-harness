@@ -10,7 +10,8 @@ import { assertNever } from '@deepseek-ai/dsh-util-values'
 import { join } from 'node:path'
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
 import type {} from '@deepseek-ai/dsh-settings'
-import type { BrowserPreferences } from './types.ts'
+import type { BrowserPreferences, BrowserRuntimeStatus } from './types.ts'
+import type {} from './runtime.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import {
@@ -60,7 +61,7 @@ import type { BrowserContext, Download, ElementHandle, Page, Request as Playwrig
 export const name = 'browser-playwright'
 
 /** Browser Service Definition required by this Provider. */
-export const inject = ['browser', 'settings']
+export const inject = ['browser', 'settings', 'browserRuntime']
 
 const DEFAULT_ACTION_TIMEOUT_MS = 30_000
 const DEFAULT_NAVIGATION_TIMEOUT_MS = 60_000
@@ -534,6 +535,7 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
   private readonly closingPages = new Set<ReturnType<typeof BrowserPageId>>()
   private readonly lifecycle = new AbortController()
   private contextPromise: Promise<BrowserContext> | undefined
+  private activeContext: BrowserContext | undefined
   private disposed = false
 
   /**
@@ -545,6 +547,21 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
     private readonly launch: ContextLauncher = (userDataDir, options) => chromium.launchPersistentContext(userDataDir, options),
   ) {
     this.id = config.providerId
+  }
+
+  /** Observe context lifetime without launching.
+   * @returns Stopped, starting, or running for this provider's owned context.
+   */
+  browserState(): BrowserRuntimeStatus['browserState'] {
+    return this.activeContext ? 'running' : this.contextPromise ? 'starting' : 'stopped'
+  }
+
+  /** Close the owned context while allowing a subsequent explicit operation to reconnect.
+   * @returns Settlement after Playwright closes the persistent context.
+   */
+  async closeBrowser(): Promise<void> {
+    const context = await this.contextPromise
+    await context?.close()
   }
 
   /** @inheritdoc */
@@ -624,7 +641,11 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
       const storageDir = this.config.profileName === 'default'
         ? this.config.storageDir
         : join(this.config.storageDir, 'harness-profiles', 'profile-' + this.config.profileName)
-      this.contextPromise = this.launch(storageDir, launchOptions).then((context) => {
+      this.contextPromise = Promise.resolve().then(() => this.launch(storageDir, launchOptions)).then((context) => {
+        this.activeContext = context
+        context.on('close', () => {
+          if (this.activeContext === context) { this.activeContext = undefined; this.contextPromise = undefined }
+        })
         context.setDefaultTimeout(this.config.actionTimeoutMs)
         context.setDefaultNavigationTimeout(this.config.navigationTimeoutMs)
         for (const page of context.pages()) this.trackPage(page)
@@ -1209,17 +1230,46 @@ export function apply(ctx: Context, config: Config = {}): void {
     },
   })
   const saved = preferences.get()
+  const runtime = ctx.browserRuntime
+  let leaseRelease = Promise.resolve()
   const provider = new PlaywrightBrowserProvider({
     ...base, browserChannel: saved.browserChannel, headless: saved.headless,
     viewportWidth: saved.viewportWidth, viewportHeight: saved.viewportHeight,
     homePage: saved.homePage, searchEngine: saved.searchEngine,
     profileName: profileName(saved.profileName),
+  }, async (directory, options) => {
+    await leaseRelease
+    const release = await runtime.acquireBrowserLease()
+    try {
+      let context: BrowserContext
+      if (saved.browserChannel === 'chromium' && base.executablePath === undefined) {
+        const { channel: _channel, ...managedOptions } = options
+        context = await chromium.launchPersistentContext(directory, { ...managedOptions, executablePath: runtime.executablePath() })
+      } else {
+        context = await chromium.launchPersistentContext(directory, options)
+      }
+      context.on('close', () => {
+        leaseRelease = release()
+        // Preserve release failure for the next launch or disposal without an unhandled rejection.
+        void leaseRelease.catch(() => undefined)
+      })
+      return context
+    } catch (error) {
+      await release()
+      throw error
+    }
   })
   ctx.effect(function* () {
+    const detach = runtime.attach({
+      channel: saved.browserChannel, executablePath: base.executablePath, state: () => provider.browserState(),
+      close: async () => { await provider.closeBrowser(); await leaseRelease },
+    })
     const unregister = ctx.browser.registerProvider(provider)
     yield async () => {
       unregister()
       await provider.dispose()
+      await leaseRelease
+      detach()
     }
   }, 'browser-playwright.lifecycle')
 }
