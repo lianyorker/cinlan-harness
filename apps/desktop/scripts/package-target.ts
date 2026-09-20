@@ -259,8 +259,18 @@ function runPnpm(
   })
 }
 
-async function main(): Promise<void> {
-  const invocation = parseDesktopPackageInvocation(process.argv.slice(2))
+/**
+ * Assemble the existing runtime, package set and seed before creating a release artifact.
+ * @param invocation - Validated target and packaging mode.
+ * @param environment - Release environment, with credentials limited to signing stages.
+ * @param execute - Package command runner; failures stop all later stages.
+ * @returns Resolves after preparation or packaging completes.
+ */
+export async function packageTarget(
+  invocation: DesktopPackageInvocation,
+  environment: NodeJS.ProcessEnv = process.env,
+  execute: typeof runPnpm = runPnpm,
+): Promise<void> {
   const { target } = invocation
   const buildPaths = desktopTargetBuildPaths(target.name)
   const releaseRecordPath = join(buildPaths.artifacts, desktopBuildRecordFilename(target.name))
@@ -268,7 +278,7 @@ async function main(): Promise<void> {
     rmSync(releaseRecordPath, { force: true })
     rmSync(`${releaseRecordPath}.tmp`, { force: true })
   }
-  const buildEnv = withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(process.env))
+  const buildEnv = withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(environment))
   const targetEnv: NodeJS.ProcessEnv = {
     ...buildEnv,
     DSH_DESKTOP_TARGET_PLATFORM: target.platform,
@@ -276,40 +286,45 @@ async function main(): Promise<void> {
   }
   const electronBuilderEnv = desktopElectronBuilderEnvironment(targetEnv)
   for (const name of WINDOWS_SIGNING_ENV_NAMES) {
-    if (process.env[name] !== undefined) electronBuilderEnv[name] = process.env[name]
+    if (environment[name] !== undefined) electronBuilderEnv[name] = environment[name]
   }
   if (!invocation.prepareOnly) {
-    await runPnpm(['exec', 'node', 'scripts/validate-electron-builder-config.mjs'], electronBuilderEnv)
-    await runPnpm(['exec', 'node', 'scripts/validate-electron-builder-dependencies.mjs'],
+    await execute(['exec', 'node', 'scripts/validate-electron-builder-config.mjs'], electronBuilderEnv)
+    await execute(['exec', 'node', 'scripts/validate-electron-builder-dependencies.mjs'],
       withoutWindowsSigningEnvironment(electronBuilderEnv))
   }
-  await runPnpm(['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
-  await runPnpm(['run', 'build'], buildEnv)
-  await runPnpm(['run', 'release:pack', '--family', 'dsh', '--out', buildPaths.packedDsh], buildEnv, REPOSITORY_ROOT)
-  await runPnpm([
+  await execute(['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
+  await execute(['run', 'build'], buildEnv)
+  await execute(['run', 'release:pack', '--family', 'dsh', '--out', buildPaths.packedDsh], buildEnv, REPOSITORY_ROOT)
+  await execute([
     '--dir',
     'apps/desktop-host',
     'pack',
     '--pack-destination',
     buildPaths.packedDsh,
   ], buildEnv, REPOSITORY_ROOT)
-  await runPnpm(['run', 'release:pack', '--family', 'vendor', '--out', buildPaths.packedVendor], buildEnv, REPOSITORY_ROOT)
+  await execute(['run', 'release:pack', '--family', 'vendor', '--out', buildPaths.packedVendor], buildEnv, REPOSITORY_ROOT)
   rmSync(buildPaths.packedLandlock, { recursive: true, force: true })
   mkdirSync(buildPaths.packedLandlock, { recursive: true })
-  await runPnpm(['--dir', 'native/system', 'run', 'build:ts'], buildEnv, REPOSITORY_ROOT)
-  await runPnpm([
+  await execute(['--dir', 'native/system', 'run', 'build:ts'], buildEnv, REPOSITORY_ROOT)
+  await execute([
     '--dir',
     'native/system/packages/entry',
     'pack',
     '--pack-destination',
     buildPaths.packedLandlock,
   ], buildEnv, REPOSITORY_ROOT)
-  await runPnpm(['run', 'prepare:runtime'], targetEnv)
-  await runPnpm(['run', 'prepare:packages'], targetEnv)
-  await runPnpm(['run', 'prepare:seed'], targetEnv)
+  const signPrimaryRuntime = target.platform === 'win32' && !invocation.prepareOnly
+    && Boolean(environment.DSH_DESKTOP_WINDOWS_CER_FILE)
+  await execute(['run', 'prepare:runtime', ...(signPrimaryRuntime ? ['--defer-primary-runtime-smoke'] : [])], targetEnv)
+  if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime'], electronBuilderEnv)
+  await execute(['run', 'prepare:packages'], targetEnv)
+  await execute(['run', 'prepare:seed'], targetEnv)
   if (invocation.prepareOnly) return
-  await runPnpm(desktopElectronBuilderArguments(target, invocation.directory), electronBuilderEnv)
+  await execute(desktopElectronBuilderArguments(target, invocation.directory), electronBuilderEnv)
   if (!invocation.directory) writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)
 }
 
-if (process.argv[1] !== undefined && import.meta.filename === resolve(process.argv[1])) await main()
+if (process.argv[1] !== undefined && import.meta.filename === resolve(process.argv[1])) {
+  await packageTarget(parseDesktopPackageInvocation(process.argv.slice(2)))
+}

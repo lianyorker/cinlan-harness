@@ -1,0 +1,21 @@
+- insert:
+    - id: office-skills
+      name: '@deepseek-ai/dsh-skill-office'
+      config:
+        assetRoot: !!js process.cwd() + '/office-skills'
+
+# These skill-only Sessions retain the recorded shell catalog without invoking it.
+- id: tool-bash
+  disabled: false
+
+- id: tool-pwsh
+  disabled: true
+
+- id: llm-deepseek
+  config:
+    protocol: chat-completions
+    thinking: enabled
+    reasoningEffort: high
+    maxTokens: 8192
+    models:
+      - id: deepseek-v4-flash

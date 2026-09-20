@@ -5,11 +5,13 @@
  */
 
 import { createRequire } from 'node:module'
-import { closeSync, createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { once } from 'node:events'
 import { readFile } from 'node:fs/promises'
-import { dirname, extname, join, normalize, resolve, sep } from 'node:path'
+import { dirname, extname, isAbsolute, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseArgs } from 'node:util'
+import * as desktopOffice from './office.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import {
@@ -44,6 +46,7 @@ import {
   encodeDesktopResponseStart,
   type DesktopHostRequestFrame,
 } from './wire.ts'
+import { installDesktopUpdateTaskControl, type DesktopUpdateTaskAction } from './update-tasks.ts'
 
 export { DESKTOP_HOST_PROTOCOL_VERSION } from './wire.ts'
 
@@ -60,6 +63,10 @@ export interface DesktopHostFetchCommand {
 /** Commands accepted by the desktop child process. */
 export type DesktopHostCommand = {
   readonly type: 'shutdown'
+} | {
+  readonly type: 'update-tasks'
+  readonly requestId: number
+  readonly action: DesktopUpdateTaskAction
 }
 
 /** Events emitted by the desktop child process. */
@@ -70,6 +77,13 @@ export type DesktopHostEvent = {
 } | {
   readonly type: 'fatal'
   readonly message: string
+} | {
+  readonly type: 'shutdown-complete'
+} | {
+  readonly type: 'update-tasks'
+  readonly requestId: number
+  readonly active: boolean
+  readonly error?: string
 }
 
 /** Controller returned to tests and the self-executing process entry. */
@@ -80,6 +94,8 @@ export interface DesktopHostController {
   fetch(command: DesktopHostFetchCommand, body: ReadableStream<Uint8Array> | null): Promise<void>
   /** Abort one in-flight request. */
   cancel(streamId: number): void
+  /** Inspect tasks or change native API admission for installation. */
+  updateTasks(action: DesktopUpdateTaskAction): Promise<boolean>
   /** Stop accepting messages and await complete host teardown. */
   dispose(): Promise<void>
 }
@@ -89,8 +105,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isDesktopHostCommand(message: unknown): message is DesktopHostCommand {
-  return typeof message === 'object' && message !== null && 'type' in message
-    && (message as Record<string, unknown>).type === 'shutdown'
+  if (!isRecord(message)) return false
+  return message.type === 'shutdown' || (message.type === 'update-tasks'
+    && Number.isSafeInteger(message.requestId) && (message.requestId as number) > 0
+    && (message.action === 'inspect' || message.action === 'lock' || message.action === 'unlock'))
 }
 
 interface PackageManifest {
@@ -249,26 +267,22 @@ function remoteStreamHandler(ctx: Context): ConnectionFetchHandler {
         return new Response('invalid stream request', { status: 400 })
       }
       const abort = new AbortController()
-      const cancel = (): void => { abort.abort(request.signal.reason) }
-      request.signal.addEventListener('abort', cancel, { once: true })
+      const signal = AbortSignal.any([request.signal, abort.signal])
       const encoder = new TextEncoder()
+      const values = await gateway.wireStream.open(body.endpoint, body.payload, signal)
       const stream = new ReadableStream<Uint8Array>({
         async start(controller) {
           try {
-            const values = await gateway.wireStream.open(body.endpoint as string, body.payload, abort.signal)
             for await (const value of values) {
               controller.enqueue(encoder.encode(`${JSON.stringify(value)}\n`))
             }
             controller.close()
           } catch (error) {
             controller.error(error)
-          } finally {
-            request.signal.removeEventListener('abort', cancel)
           }
         },
         cancel(reason) {
           abort.abort(reason)
-          request.signal.removeEventListener('abort', cancel)
         },
       })
       return new Response(stream, { headers: { 'content-type': 'application/x-ndjson' } })
@@ -284,13 +298,13 @@ interface NodeRequestInit extends RequestInit {
  * Boot one installed desktop npm project.
  * @param projectDir - active or staged Electron-owned desktop profile.
  * @param writeResponse - serialized response-pipe writer that applies byte backpressure.
- * @param options - development-only allowance for workspace-linked bundle packages.
+ * @param options - Bundled Office payload and development-only allowance for workspace links.
  * @returns controller after every Host and client-manifest row is active.
  */
 export async function runDesktopHost(
   projectDir: string,
   writeResponse: (frame: Buffer) => Promise<void>,
-  options: { allowLinkedPackages?: boolean } = {},
+  options: { primaryRuntime: string; allowLinkedPackages?: boolean },
 ): Promise<DesktopHostController> {
   const absoluteProject = resolve(projectDir)
   mkdirSync(absoluteProject, { recursive: true })
@@ -302,8 +316,10 @@ export async function runDesktopHost(
   })
   let current: Context | undefined
   const requests = new Map<number, AbortController>()
+  let updateTasks: ReturnType<typeof installDesktopUpdateTaskControl> | undefined
   let disposing: Promise<void> | undefined
   const dispose = (): Promise<void> => disposing ??= (async () => {
+    updateTasks?.dispose()
     for (const controller of requests.values()) controller.abort()
     requests.clear()
     try {
@@ -353,12 +369,21 @@ export async function runDesktopHost(
     await runProfileConfiguration(ctx, async () => {
       await reconcileProfilePatches(ctx, management.readPatches(), 'dsh desktop')
     })
+    await ctx.plugin(desktopOffice, {
+      source: options.primaryRuntime,
+      root: join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'),
+    })
     const api = connection.createSharedFetchHandler('/api')
     const assets = assetHandler(ctx, absoluteProject)
     const streams = remoteStreamHandler(ctx)
+    const taskControl = installDesktopUpdateTaskControl(ctx)
+    updateTasks = taskControl
 
     return {
       dshVersion: dshVersion(absoluteProject),
+      updateTasks: action => disposing === undefined
+        ? taskControl.run(action)
+        : Promise.reject(new Error('desktop update: Host is stopping')),
       cancel(streamId) {
         requests.get(streamId)?.abort()
       },
@@ -376,9 +401,9 @@ export async function runDesktopHost(
           }
           const request = new Request(url, init)
           const response = url.pathname === DESKTOP_STREAM_PATH
-            ? await streams.fetch(request)
-            : url.pathname.startsWith('/api/')
-              ? await api.fetch(request)
+            ? await taskControl.dispatch(() => streams.fetch(request))
+            : url.pathname === '/api' || url.pathname.startsWith('/api/')
+              ? await taskControl.dispatch(() => api.fetch(request))
               : await assets.fetch(request)
           await writeResponse(encodeDesktopResponseStart(command.streamId, {
             status: response.status,
@@ -425,9 +450,13 @@ async function main(): Promise<void> {
   if (projectDir === undefined || process.send === undefined) {
     throw new Error('dsh desktop: expected project directory, byte pipes, and a Node IPC channel')
   }
-  const option = process.argv[3]
-  if (option !== undefined && option !== '--allow-linked-profile') {
-    throw new Error(`dsh desktop: unsupported internal option ${JSON.stringify(option)}`)
+  const { values } = parseArgs({
+    args: process.argv.slice(3),
+    options: { 'primary-runtime': { type: 'string' }, 'allow-linked-profile': { type: 'boolean' } },
+  })
+  const primaryRuntime = values['primary-runtime']
+  if (primaryRuntime === undefined || !isAbsolute(primaryRuntime)) {
+    throw new Error('dsh desktop: --primary-runtime requires an absolute bundled payload directory')
   }
   const requestPipe = createReadStream('', { fd: DESKTOP_REQUEST_PIPE_FD, autoClose: false })
   const responsePipe = createWriteStream('', { fd: DESKTOP_RESPONSE_PIPE_FD, autoClose: false })
@@ -450,7 +479,7 @@ async function main(): Promise<void> {
       if ((error as NodeJS.ErrnoException).code !== 'ERR_IPC_CHANNEL_CLOSED') throw error
     }
   }
-  const controller = await runDesktopHost(projectDir, writeResponse, { allowLinkedPackages: option !== undefined })
+  const controller = await runDesktopHost(projectDir, writeResponse, { primaryRuntime, allowLinkedPackages: values['allow-linked-profile'] === true })
   send({
     type: 'ready',
     protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION,
@@ -479,16 +508,26 @@ async function main(): Promise<void> {
       requestBodies.clear()
       blockedRequests.clear()
       discardedRequestBodies.clear()
+      const requestClosed = once(requestPipe, 'close')
       requestPipe.destroy()
-      closeSync(DESKTOP_REQUEST_PIPE_FD)
+      await requestClosed
       await controller.dispose()
       await Promise.allSettled([...runs])
       await responseWriteTail.catch(() => undefined)
       if (!responsePipe.destroyed) {
         await new Promise<void>((resolvePromise) => { responsePipe.end(resolvePromise) })
+        const responseClosed = once(responsePipe, 'close')
         responsePipe.destroy()
+        await responseClosed
       }
-      closeSync(DESKTOP_RESPONSE_PIPE_FD)
+      const sendShutdown = process.send?.bind(process)
+      if (requestedExitCode === 0 && process.connected && sendShutdown !== undefined) {
+        await new Promise<void>((resolveSend, reject) => {
+          sendShutdown( { type: 'shutdown-complete' } satisfies DesktopHostEvent, (error) => {
+            if (error === null) resolveSend(); else reject(error)
+          })
+        })
+      }
       if (process.connected) process.disconnect()
       process.exitCode = requestedExitCode
     })()
@@ -615,6 +654,14 @@ async function main(): Promise<void> {
     if (!isDesktopHostCommand(message)) {
       send({ type: 'fatal', message: 'dsh desktop: invalid Electron IPC command' })
       void stop(1)
+      return
+    }
+    if (message.type === 'update-tasks') {
+      void controller.updateTasks(message.action).then(
+        (active) =>{  send({ type: 'update-tasks', requestId: message.requestId, active }) },
+        (error: unknown) =>{  send({ type: 'update-tasks', requestId: message.requestId, active: true,
+          error: error instanceof Error ? error.message : String(error) }) },
+      ).catch(failTransport)
       return
     }
     void stop()

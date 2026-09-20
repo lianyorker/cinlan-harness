@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import { DESKTOP_IPC } from '../src/ipc.ts'
 import type { DesktopProjectManager } from '../src/project-manager.ts'
+import type { DesktopUpdateRuntimeOptions } from '../src/update-runtime.ts'
+import type { DesktopUpdateState } from '../src/ipc.ts'
 
 function barrier<T = void>() {
   let resolve!: (value: T) => void
@@ -29,6 +31,11 @@ async function boot(options: {
   holdHost?: boolean
   holdCleanup?: boolean
   failCleanup?: boolean
+  activeTasks?: boolean
+  lockActiveTasks?: boolean
+  holdConfirmation?: boolean
+  stopFailure?: 'unclean' | 'unconfirmed'
+  failReplacement?: boolean
 } = {}) {
   vi.resetModules()
   vi.stubEnv('DSH_DESKTOP_DEV_PROJECT_DIR', '')
@@ -36,6 +43,7 @@ async function boot(options: {
   vi.stubEnv('DSH_DESKTOP_NODE_BINARY', process.execPath)
   vi.stubEnv('DSH_DESKTOP_PNPM_ENTRY', join(root, 'pnpm.mjs'))
   vi.stubEnv('DSH_DESKTOP_SEED_DIR', join(root, 'seed'))
+  vi.stubEnv('DSH_DESKTOP_PRIMARY_RUNTIME', join(root, 'runtime', 'primary-runtime'))
   const prepared = barrier()
   const preparation = barrier()
   const painted = barrier()
@@ -48,6 +56,13 @@ async function boot(options: {
   const failed = barrier()
   const quit = barrier()
   const calls: string[] = []
+  const confirmation = barrier<boolean>()
+  let updateOptions!: DesktopUpdateRuntimeOptions
+  let updateState: DesktopUpdateState = { phase: 'ready', version: '2.0.0' }
+  const confirmUpdate = vi.fn(async (_version: string, _active: boolean) => options.holdConfirmation ? confirmation.promise : true)
+  const powerMonitor = new EventEmitter()
+  class UncleanExit extends Error {}
+  let stopFailed = false
   const handlers = new Map<string, (...args: unknown[]) => unknown>()
   const windows: Window[] = []
   const app = Object.assign(new EventEmitter(), {
@@ -128,10 +143,10 @@ async function boot(options: {
     if (options.failPreparation) throw new Error('fixture integrity failure')
   })
   vi.doMock('electron', () => ({
-    app, BrowserWindow: Window,
+    app, BrowserWindow: Window, powerMonitor,
     ipcMain: { handle: (channel: string, handler: (...args: unknown[]) => unknown) => { handlers.set(channel, handler) } },
     protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
-    dialog: { showErrorBox: vi.fn(), showMessageBox: vi.fn() },
+    dialog: { showErrorBox: vi.fn(), showMessageBox: vi.fn(async () => ({ response: 0, checkboxChecked: false })) },
     Menu: { buildFromTemplate: vi.fn((value: unknown) => value), setApplicationMenu: vi.fn() },
   }))
   vi.doMock('../src/paths.ts', () => ({ resolveDesktopPaths: () => resolveDesktopPaths(root) }))
@@ -149,28 +164,54 @@ async function boot(options: {
   vi.doMock('../src/project-manager.ts', () => ({ DesktopProjectManager: class {
     cleanupOrphanedStaging = maintenance
     mutate = mutate
+    disableThirdPartyPlugins = vi.fn(async () => {})
   } }))
   vi.doMock('../src/startup-preparation.ts', () => ({ prepareDesktopProfile: prepare }))
   class Host {
     running = false
-    constructor(_node: string, readonly projectDir: string) { hosts.push(this) }
+    constructor(_node: string, readonly projectDir: string, _inspectPort?: number, _allowLinkedProfile?: boolean,
+      _onFailure?: (error: Error) => void, readonly primaryRuntime?: string) { hosts.push(this) }
     async start() {
       this.running = true
       hostCounts.push(hosts.filter(host => host.running).length)
       await start()
+      if (options.failReplacement && hosts.length > 1) throw new Error('replacement failed')
     }
-    async stop() {
+    async updateTasks(action: 'inspect' | 'lock' | 'unlock') {
+      calls.push('tasks-' + action)
+      return action === 'inspect' ? options.activeTasks === true : action === 'lock' && options.lockActiveTasks === true
+    }
+    async stop(strict = false) {
       await stop()
+      if (strict && options.stopFailure !== undefined && !stopFailed) {
+        stopFailed = true
+        if (options.stopFailure === 'unconfirmed') throw new Error('exit was not confirmed')
+        this.running = false
+        throw new UncleanExit('unclean exit')
+      }
       this.running = false
     }
   }
-  vi.doMock('../src/host-process.ts', () => ({ DesktopHostProcess: Host }))
-  vi.doMock('../src/update-coordinator.ts', () => ({ DesktopUpdateCoordinator: vi.fn(function () {}) }))
+  vi.doMock('../src/host-process.ts', () => ({ DesktopHostProcess: Host, DesktopHostUncleanExitError: UncleanExit }))
+  vi.doMock('../src/update-runtime.ts', () => ({ DesktopUpdateRuntime: class {
+    constructor(value: DesktopUpdateRuntimeOptions) { updateOptions = value }
+    get state() { return updateState }
+    blocking = false
+    start = async () => {}
+    dispose = async () => {}
+    open = async () => {}
+    confirm = confirmUpdate
+    automaticCheck = () => {}
+    preparingRestart = () => {}
+    record = () => {}
+    focus = () => {}
+  } }))
   vi.doMock('../src/floating-window.ts', () => ({ installFloatingWindowPolicy: () => ({ close() {}, dispose() {} }) }))
   vi.doMock('../src/startup-diagnostic.ts', () => ({ writeStartupDiagnostic: async () => join(root, 'startup-error.log') }))
   vi.spyOn(console, 'error').mockImplementation(() => {})
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   cleanup.push(async () => {
+    confirmation.resolve(false)
     cleanupFinished.resolve()
     preparation.resolve()
     painted.resolve()
@@ -182,9 +223,122 @@ async function boot(options: {
   await import('../src/main.ts')
   return {
     root, windows, calls, app, prepare, stop, prepared, preparation, paintRequested, hostStarting, appLoaded, failed, quit, handlers,
-    maintenance, mutate, cleanupStarted, cleanupFinished, start, hosts, hostCounts,
+    maintenance, mutate, cleanupStarted, cleanupFinished, start, hosts, hostCounts, confirmUpdate, confirmation,
+    prepareUpdate: () => updateOptions.beforeRestart(),
+    publishUpdate: (state: DesktopUpdateState) => { updateState = state; updateOptions.publish(state) },
   }
 }
+
+function pluginSender(run: Awaited<ReturnType<typeof boot>>) {
+  const primary = run.windows[0]!
+  run.handlers.get(DESKTOP_IPC.openPluginsWindow)!({ sender: primary.webContents, senderFrame: primary.webContents.mainFrame })
+  const plugins = run.windows.find(window => !window.destroyed && window.url === 'dsh-app://shell/plugin-manager.html')!
+  return { sender: plugins.webContents, senderFrame: plugins.webContents.mainFrame }
+}
+
+describe('native update installation in the main entry', () => {
+  async function ready(options: Parameters<typeof boot>[0] = {}) {
+    const run = await boot(options)
+    await run.prepared.promise
+    run.preparation.resolve()
+    await run.cleanupStarted.promise
+    return run
+  }
+
+  it('passes the same Office payload to startup preparation and every replacement Host', async () => {
+    const run = await ready()
+    const primaryRuntime = join(run.root, 'runtime', 'primary-runtime')
+    expect(run.prepare.mock.calls[0]?.[0]).toMatchObject({ primaryRuntime, runtime: { primaryRuntime } })
+    const event = pluginSender(run)
+    await run.handlers.get(DESKTOP_IPC.pluginsAdd)!(event, '@fixture/plugin')
+    expect(run.hosts).toHaveLength(3)
+    expect(run.hosts.map(host => host.primaryRuntime)).toEqual([primaryRuntime, primaryRuntime, primaryRuntime])
+  })
+
+  it('keeps the Host available when the installation confirmation is cancelled', async () => {
+    const run = await ready({ holdConfirmation: true, activeTasks: true })
+    const preparation = run.prepareUpdate()
+    await vi.waitFor(() => { expect(run.confirmUpdate).toHaveBeenCalledWith('2.0.0', true) })
+    expect(run.stop).not.toHaveBeenCalled()
+    run.confirmation.resolve(false)
+    await expect(preparation).resolves.toBe(false)
+    expect(run.calls).toContain('tasks-inspect')
+    expect(run.calls).not.toContain('tasks-lock')
+    expect(run.hosts[0]!.running).toBe(true)
+  })
+
+  it('refuses installation and unlocks when work starts after inspection', async () => {
+    const run = await ready({ lockActiveTasks: true })
+    await expect(run.prepareUpdate()).rejects.toMatchObject({ kind: 'tasks-changed' })
+    expect(run.calls.slice(-3)).toEqual(['tasks-inspect', 'tasks-lock', 'tasks-unlock'])
+    expect(run.stop).not.toHaveBeenCalled()
+    expect(run.hosts[0]!.running).toBe(true)
+  })
+
+  it('excludes plugin mutation while task consent is pending', async () => {
+    const run = await ready({ holdConfirmation: true })
+    const event = pluginSender(run)
+    const preparation = run.prepareUpdate()
+    await vi.waitFor(() => { expect(run.confirmUpdate).toHaveBeenCalledOnce() })
+    await expect(run.handlers.get(DESKTOP_IPC.pluginsAdd)!(event, '@fixture/plugin')).rejects.toThrow('updates prevent')
+    expect(run.mutate).not.toHaveBeenCalled()
+    run.confirmation.resolve(false)
+    await preparation
+  })
+
+  it('waits for staging cleanup before locking and stopping the active Host', async () => {
+    const run = await ready({ holdCleanup: true, activeTasks: true, lockActiveTasks: true })
+    const preparation = run.prepareUpdate()
+    await Promise.resolve()
+    expect(run.calls).not.toContain('tasks-inspect')
+    run.cleanupFinished.resolve()
+    await expect(preparation).resolves.toBe(true)
+    expect(run.calls.indexOf('tasks-inspect')).toBeLessThan(run.calls.indexOf('tasks-lock'))
+    expect(run.calls.indexOf('tasks-lock')).toBeLessThan(run.calls.indexOf('host-stopped'))
+    expect(run.hosts[0]!.running).toBe(false)
+  })
+
+  it.each([undefined, 'unclean'] as const)('restores one native Host after failed installation with confirmed exit: %s', async (stopFailure) => {
+    const run = await ready(stopFailure === undefined ? {} : { stopFailure })
+    if (stopFailure === undefined) await expect(run.prepareUpdate()).resolves.toBe(true)
+    else await expect(run.prepareUpdate()).rejects.toMatchObject({ kind: 'stop-failed' })
+    expect(run.hosts[0]!.running).toBe(false)
+    run.publishUpdate({ phase: 'error', version: '2.0.0', failedOperation: 'install', message: 'installer failed' })
+    await vi.waitFor(() => { expect(run.start).toHaveBeenCalledTimes(2) })
+    expect(run.hostCounts).toEqual([1, 1])
+    expect(run.hosts.filter(host => host.running)).toEqual([run.hosts[1]])
+    await expect(run.prepareUpdate()).resolves.toBe(true)
+  })
+
+  it('retains an unconfirmed Host and refuses another install or package mutation', async () => {
+    const run = await ready({ stopFailure: 'unconfirmed' })
+    const event = pluginSender(run)
+    await expect(run.prepareUpdate()).rejects.toMatchObject({ kind: 'stop-failed' })
+    run.publishUpdate({ phase: 'error', version: '2.0.0', failedOperation: 'install' })
+    expect(run.start).toHaveBeenCalledOnce()
+    expect(run.hosts[0]!.running).toBe(true)
+    await expect(run.prepareUpdate()).rejects.toThrow('exit was not confirmed')
+    await expect(run.handlers.get(DESKTOP_IPC.pluginsAdd)!(event, '@fixture/plugin')).rejects.toThrow('updates prevent')
+  })
+
+  it('does not install or restart after quit cancels pending task consent', async () => {
+    const run = await ready({ holdConfirmation: true })
+    const preparation = run.prepareUpdate()
+    await vi.waitFor(() => { expect(run.confirmUpdate).toHaveBeenCalledOnce() })
+    run.app.quit()
+    run.confirmation.resolve(true)
+    await expect(preparation).resolves.toBe(false)
+    await run.quit.promise
+    expect(run.calls).not.toContain('tasks-lock')
+    expect(run.start).toHaveBeenCalledOnce()
+  })
+
+  it('rejects update requests from a same-origin frame outside the owned window', async () => {
+    const run = await ready()
+    const other = { mainFrame: { url: 'dsh-app://app/index.html' } }
+    await expect(run.handlers.get(DESKTOP_IPC.updatesOpen)!({ sender: other, senderFrame: other.mainFrame })).rejects.toThrow('owned application document')
+  })
+})
 
 describe('Electron startup entry', () => {
   it('loads, shows, and paints the local page before reconciliation or Host creation', async () => {
@@ -226,9 +380,7 @@ describe('Electron startup entry', () => {
     await run.prepared.promise
     run.preparation.resolve()
     await run.cleanupStarted.promise
-    const mutation = run.handlers.get(DESKTOP_IPC.pluginsAdd)!({
-      senderFrame: { url: 'dsh-app://shell/plugin-manager.html' },
-    }, '@fixture/plugin')
+    const mutation = run.handlers.get(DESKTOP_IPC.pluginsAdd)!(pluginSender(run), '@fixture/plugin')
     expect(run.mutate).not.toHaveBeenCalled()
     run.cleanupFinished.resolve()
     await mutation
@@ -304,9 +456,7 @@ describe('Electron startup entry', () => {
       snapshots.push(readFileSync(patchPath, 'utf8'))
       await normalMutation(mutation, hooks)
     })
-    const pending = Promise.resolve(run.handlers.get(DESKTOP_IPC.pluginsAdd)!({
-      senderFrame: { url: 'dsh-app://shell/plugin-manager.html' },
-    }, '@fixture/plugin'))
+    const pending = Promise.resolve(run.handlers.get(DESKTOP_IPC.pluginsAdd)!(pluginSender(run), '@fixture/plugin'))
     try {
       await Promise.race([stopStarted.promise, pending])
       expect(run.mutate).not.toHaveBeenCalled()
@@ -330,9 +480,7 @@ describe('Electron startup entry', () => {
     const error = new Error('fixture ' + failure + ' failure')
     if (failure === 'install') run.mutate.mockRejectedValueOnce(error)
     else run.start.mockRejectedValueOnce(error)
-    await expect(run.handlers.get(DESKTOP_IPC.pluginsAdd)!({
-      senderFrame: { url: 'dsh-app://shell/plugin-manager.html' },
-    }, '@fixture/plugin')).rejects.toBe(error)
+    await expect(run.handlers.get(DESKTOP_IPC.pluginsAdd)!(pluginSender(run), '@fixture/plugin')).rejects.toBe(error)
     expect(run.hosts.filter(host => host.running)).toEqual([run.hosts.at(-1)])
     expect(run.hosts.at(-1)!.projectDir).toBe(resolveDesktopPaths(run.root).profile)
     expect(run.start).toHaveBeenCalledTimes(failure === 'install' ? 2 : 3)
@@ -348,7 +496,7 @@ describe('Electron startup entry', () => {
     const normalStop = run.stop.getMockImplementation()!
     run.stop.mockResolvedValueOnce(undefined).mockRejectedValue(stopFailure)
     const add = run.handlers.get(DESKTOP_IPC.pluginsAdd)!
-    const event = { senderFrame: { url: 'dsh-app://shell/plugin-manager.html' } }
+    const event = pluginSender(run)
     try {
       await expect(add(event, '@fixture/plugin')).rejects.toThrow('staged health check and Host cleanup failed')
       expect(run.start).toHaveBeenCalledTimes(2)
@@ -378,9 +526,7 @@ describe('Electron startup entry', () => {
       await installed.promise
       throw failure
     })
-    const pending = expect(run.handlers.get(DESKTOP_IPC.pluginsAdd)!({
-      senderFrame: { url: 'dsh-app://shell/plugin-manager.html' },
-    }, '@fixture/plugin')).rejects.toBe(failure)
+    const pending = expect(run.handlers.get(DESKTOP_IPC.pluginsAdd)!(pluginSender(run), '@fixture/plugin')).rejects.toBe(failure)
     try {
       await installing.promise
       run.app.quit()
@@ -403,9 +549,7 @@ describe('Electron startup entry', () => {
     const restartFailure = new Error('fixture restart failure')
     run.mutate.mockRejectedValueOnce(installFailure)
     run.start.mockRejectedValueOnce(restartFailure)
-    await expect(run.handlers.get(DESKTOP_IPC.pluginsAdd)!({
-      senderFrame: { url: 'dsh-app://shell/plugin-manager.html' },
-    }, '@fixture/plugin')).rejects.toMatchObject({ errors: [installFailure, restartFailure] })
+    await expect(run.handlers.get(DESKTOP_IPC.pluginsAdd)!(pluginSender(run), '@fixture/plugin')).rejects.toMatchObject({ errors: [installFailure, restartFailure] })
     expect(run.start).toHaveBeenCalledTimes(2)
     expect(run.hosts.filter(host => host.running)).toEqual([])
     expect(run.hostCounts).toEqual([1, 1])
@@ -434,9 +578,7 @@ describe('Electron startup entry', () => {
         throw error
       }
     })
-    const pending = run.handlers.get(DESKTOP_IPC.pluginsAdd)!({
-      senderFrame: { url: 'dsh-app://shell/plugin-manager.html' },
-    }, '@fixture/plugin')
+    const pending = run.handlers.get(DESKTOP_IPC.pluginsAdd)!(pluginSender(run), '@fixture/plugin')
     if (failRollback) await expect(pending).rejects.toMatchObject({ errors: [replacementFailure, rollbackFailure] })
     else await expect(pending).rejects.toBe(replacementFailure)
     expect(run.start).toHaveBeenCalledTimes(3)
@@ -454,9 +596,7 @@ describe('Electron startup entry', () => {
     writeFileSync(paths.pending, '{}\n')
     const error = new Error('fixture journal recovery failure')
     run.mutate.mockRejectedValueOnce(error)
-    await expect(run.handlers.get(DESKTOP_IPC.pluginsAdd)!({
-      senderFrame: { url: 'dsh-app://shell/plugin-manager.html' },
-    }, '@fixture/plugin')).rejects.toBe(error)
+    await expect(run.handlers.get(DESKTOP_IPC.pluginsAdd)!(pluginSender(run), '@fixture/plugin')).rejects.toBe(error)
     expect(run.start).toHaveBeenCalledOnce()
     expect(run.hosts.filter(host => host.running)).toEqual([])
   })
@@ -467,7 +607,7 @@ describe('Electron startup entry', () => {
     run.preparation.resolve()
     await run.cleanupStarted.promise
     const normalStop = run.stop.getMockImplementation()!
-    const event = { senderFrame: { url: 'dsh-app://shell/plugin-manager.html' } }
+    const event = pluginSender(run)
     const add = run.handlers.get(DESKTOP_IPC.pluginsAdd)!
     run.stop.mockRejectedValue(new Error('Host still holds files'))
     try {

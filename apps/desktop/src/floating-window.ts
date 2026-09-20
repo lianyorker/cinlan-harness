@@ -61,12 +61,14 @@ function deny(): WindowOpenHandlerResponse {
  * @param owner - main app BrowserWindow, never the plugin manager or a child window.
  * @param preload - the same trusted app preload used by the main app window.
  * @param createWindow - native BrowserWindow constructor capability; must use the supplied options unchanged.
+ * @param allowed - Main-owned admission predicate, rechecked before native creation.
  * @returns idempotent child-close and policy-disposal controls; OS bounds may clamp requested dimensions.
  */
 export function installFloatingWindowPolicy(
   owner: BrowserWindow,
   preload: string,
   createWindow: (options: BrowserWindowConstructorOptions) => BrowserWindow,
+  allowed: () => boolean = () => true,
 ): FloatingWindowPolicy {
   policies.get(owner)?.dispose()
   const contents = owner.webContents
@@ -76,7 +78,7 @@ export function installFloatingWindowPolicy(
   let child: { window: BrowserWindow; detach(): void } | undefined
 
   const ownerAlive = () => !owner.isDestroyed() && !contents.isDestroyed()
-  const mayOpen = () => !disposed && !navigating && ownerAlive() && contents.getURL() === APP_URL
+  const mayOpen = () => !disposed && !navigating && allowed() && ownerAlive() && contents.getURL() === APP_URL
 
   function close(): void {
     pending = undefined

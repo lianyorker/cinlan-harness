@@ -1,7 +1,7 @@
 /** Versioned control messages and framed byte transport for the Desktop Host child. */
 
 /** Protocol version implemented by the Electron shell and installed dsh Host. */
-export const DESKTOP_HOST_PROTOCOL_VERSION = 3 as const
+export const DESKTOP_HOST_PROTOCOL_VERSION = 4 as const
 
 /** Child descriptor Electron writes request frames to. */
 export const DESKTOP_REQUEST_PIPE_FD = 3
@@ -42,6 +42,10 @@ export interface DesktopHostRequestStart {
 /** Commands retained on Node IPC because they do not carry Fetch payload bytes. */
 export type DesktopHostCommand = {
   readonly type: 'shutdown'
+} | {
+  readonly type: 'update-tasks'
+  readonly requestId: number
+  readonly action: 'inspect' | 'lock' | 'unlock'
 }
 
 /** Lifecycle events retained on Node IPC. */
@@ -52,6 +56,13 @@ export type DesktopHostEvent = {
 } | {
   readonly type: 'fatal'
   readonly message: string
+} | {
+  readonly type: 'shutdown-complete'
+} | {
+  readonly type: 'update-tasks'
+  readonly requestId: number
+  readonly active: boolean
+  readonly error?: string
 }
 
 /** One decoded response-pipe frame. */

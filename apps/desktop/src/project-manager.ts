@@ -23,6 +23,7 @@ import {
 } from 'node:fs'
 import { basename, delimiter, dirname, join, resolve, sep } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
+import { sanitizeProfile } from '@deepseek-ai/dsh-app-boot'
 import { isDeepStrictEqual } from 'node:util'
 import {
   DESKTOP_PACKAGES_DIR,
@@ -496,6 +497,19 @@ export class DesktopProjectManager {
         }
       }
       signal?.throwIfAborted()
+    })
+  }
+
+  /**
+   * Recover pending activation, back up the profile patch, and enable only the built-in bundles.
+   * The caller must stop all owned Hosts and exclude package mutations before invoking recovery.
+   * Installed dependencies and Harness-home settings are preserved.
+   * @returns The retained profile patch backup, when present.
+   */
+  async disableThirdPartyPlugins(): Promise<string | undefined> {
+    return this.withLock(async () => {
+      await this.recover()
+      return sanitizeProfile('dsh desktop', this.paths.profile, DESKTOP_PROFILE_BUNDLES)
     })
   }
 

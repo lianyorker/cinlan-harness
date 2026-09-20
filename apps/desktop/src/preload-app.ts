@@ -5,7 +5,19 @@ import { DESKTOP_IPC, type DesktopAppApi, type DesktopStartupApi } from './ipc.t
 import type { DesktopStartupState } from './startup.ts'
 
 const desktop: DesktopAppApi | Pick<DesktopAppApi, 'protocolVersion'> = location.protocol === 'dsh-app:' && location.host === 'app'
-  ? { protocolVersion: 1, openPlugins: () => ipcRenderer.invoke(DESKTOP_IPC.openPluginsWindow) as Promise<void> }
+  ? {
+    protocolVersion: 1,
+    openPlugins: () => ipcRenderer.invoke(DESKTOP_IPC.openPluginsWindow) as Promise<void>,
+    updates: {
+      status: () => ipcRenderer.invoke(DESKTOP_IPC.updatesStatus) as ReturnType<DesktopAppApi['updates']['status']>,
+      open: () => ipcRenderer.invoke(DESKTOP_IPC.updatesOpen) as Promise<void>,
+      subscribe(listener) {
+        const handle = (_event: Electron.IpcRendererEvent, state: Awaited<ReturnType<DesktopAppApi['updates']['status']>>): void => { listener(state) }
+        ipcRenderer.on(DESKTOP_IPC.updatesPresentation, handle)
+        return () => { ipcRenderer.off(DESKTOP_IPC.updatesPresentation, handle) }
+      },
+    },
+  }
   : { protocolVersion: 1 }
 contextBridge.exposeInMainWorld('dshDesktop', desktop)
 

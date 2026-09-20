@@ -6,6 +6,10 @@
   },
   "include": ["src"],
   "references": [
+    { "path": "../../packages/core/tools" },
+    { "path": "../../packages/skill/skill-office" },
+    { "path": "../../packages/core/agent" },
+    { "path": "../../packages/jobs/jobs" },
     { "path": "../../vendor/cordis" },
     { "path": "../../vendor/include" },
     { "path": "../../vendor/hmr" },

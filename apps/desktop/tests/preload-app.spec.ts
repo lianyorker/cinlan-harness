@@ -24,12 +24,27 @@ describe('app preload Plugins bridge', () => {
     const exposed = await preload(url)
     const api = exposed.get('dshDesktop') as DesktopAppApi
     expect([...exposed.keys()]).toEqual(['dshDesktop'])
-    expect(Object.keys(api).sort()).toEqual(['openPlugins', 'protocolVersion'])
+    expect(Object.keys(api).sort()).toEqual(['openPlugins', 'protocolVersion', 'updates'])
     expect(api.protocolVersion).toBe(1)
     await api.openPlugins()
     expect(electron.ipcRenderer.invoke).toHaveBeenCalledExactlyOnceWith(DESKTOP_IPC.openPluginsWindow)
     electron.ipcRenderer.invoke.mockRejectedValueOnce(new Error('window unavailable'))
     await expect(api.openPlugins()).rejects.toThrow('window unavailable')
+  })
+
+  it('exposes semantic update status and releases presentation subscriptions', async () => {
+    const api = (await preload('dsh-app://app/index.html')).get('dshDesktop') as DesktopAppApi
+    await api.updates.status()
+    await api.updates.open()
+    expect(electron.ipcRenderer.invoke.mock.calls).toEqual([[DESKTOP_IPC.updatesStatus], [DESKTOP_IPC.updatesOpen]])
+    const listener = vi.fn()
+    const unsubscribe = api.updates.subscribe(listener)
+    const [channel, handler] = electron.ipcRenderer.on.mock.calls[0]!
+    handler({}, { phase: 'ready', version: '2.0.0' })
+    expect(listener).toHaveBeenCalledWith({ phase: 'ready', version: '2.0.0' })
+    unsubscribe()
+    expect(electron.ipcRenderer.off).toHaveBeenCalledWith(channel, handler)
+    expect(api.updates).not.toHaveProperty('install')
   })
 
   it.each([

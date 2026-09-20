@@ -1,6 +1,10 @@
 /** Electron-builder fields asserted by the Desktop release tests. */
 export interface DesktopElectronBuilderConfig {
   readonly appId: string
+  readonly extraMetadata: {
+    readonly dshDesktopAppId: string
+    readonly dshMandatoryUpdatePolicy?: ReturnType<typeof import('./scripts/desktop-policy-environment.mjs').resolveDesktopPolicyEnvironment>
+  }
   readonly directories: {
     readonly output: string
   }
@@ -18,7 +22,7 @@ export interface DesktopElectronBuilderConfig {
     readonly writeUpdateInfo: boolean
   }
   readonly artifactBuildCompleted: (artifact: { readonly file: string }) => Promise<void> | undefined
-  readonly publish: readonly [{ readonly provider: 'generic', readonly url: string }]
+  readonly publish: readonly [{ readonly provider: 'generic', readonly url: string, readonly channel: 'nightly' }]
 }
 
 /**

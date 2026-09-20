@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DESKTOP_HOST_PROTOCOL_VERSION as HOST_VERSION,
   DesktopHostRequestDecoder,
   encodeDesktopResponseData,
   encodeDesktopResponseEnd,
@@ -7,6 +8,7 @@ import {
   encodeDesktopResponseStart,
 } from '../../desktop-host/src/wire.ts'
 import {
+  DESKTOP_HOST_PROTOCOL_VERSION as SHELL_VERSION,
   DesktopHostResponseDecoder,
   encodeDesktopRequestCancel,
   encodeDesktopRequestData,
@@ -23,6 +25,10 @@ function decodeInPieces<T>(bytes: Buffer, push: (chunk: Buffer) => readonly T[])
 }
 
 describe('desktop Host pipe protocol', () => {
+  it('requires update task control and shutdown acknowledgement on both peers', () => {
+    expect(HOST_VERSION).toBe(4)
+    expect(SHELL_VERSION).toBe(HOST_VERSION)
+  })
   it('keeps Electron request frames compatible with the installed Host decoder', () => {
     const decoder = new DesktopHostRequestDecoder()
     const bytes = Buffer.concat([

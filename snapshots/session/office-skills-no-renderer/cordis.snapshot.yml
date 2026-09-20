@@ -1,0 +1,32 @@
+- id: llm-deepseek
+  disabled: true
+
+- id: plugin-package-inventory-deepseek
+  disabled: true
+
+- insert:
+    - id: llm-replay
+      name: '@deepseek-ai/dsh-llm-replay'
+      config:
+        providers:
+          - id: deepseek-official
+            name: DeepSeek
+            models:
+              - id: deepseek-v4-flash
+                contextWindow: 1000000
+                defaultMaxTokens: 8192
+                reasoningEfforts: [off, low, high, max]
+                defaultReasoningEffort: high
+
+- insert:
+    - id: office-skills
+      name: '@deepseek-ai/dsh-skill-office'
+      config:
+        assetRoot: !!js process.cwd() + '/office-skills'
+
+# These skill-only Sessions retain the recorded shell catalog without invoking it.
+- id: tool-bash
+  disabled: false
+
+- id: tool-pwsh
+  disabled: true

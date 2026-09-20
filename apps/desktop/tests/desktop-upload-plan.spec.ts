@@ -113,7 +113,7 @@ describe('desktop upload plan', () => {
       'deepseek-harness-1.2.3-mac-arm64.dmg',
       'deepseek-harness-1.2.3-mac-arm64.zip',
       'deepseek-harness-1.2.3-mac-arm64.zip.blockmap',
-      'latest-mac.yml',
+      'nightly-mac.yml',
     ])
     expect(plan.artifacts.at(-1)).toMatchObject({
       channelMetadata: true,
@@ -128,7 +128,7 @@ describe('desktop upload plan', () => {
       'deepseek-harness-1.2.3-alpha.4-mac-arm64.dmg',
       'deepseek-harness-1.2.3-alpha.4-mac-arm64.zip',
       'deepseek-harness-1.2.3-alpha.4-mac-arm64.zip.blockmap',
-      'alpha-mac.yml',
+      'nightly-mac.yml',
     ])
   })
 
@@ -138,7 +138,7 @@ describe('desktop upload plan', () => {
     expect(plan.artifacts.map(artifact => artifact.filename)).toEqual([
       'deepseek-harness-2.0.0-win-x64.exe',
       'deepseek-harness-2.0.0-win-x64.exe.blockmap',
-      'latest.yml',
+      'nightly.yml',
     ])
     expect(plan.artifacts[1]).toMatchObject({
       key: '_/harness/desktop/stable/win-x64/deepseek-harness-2.0.0-win-x64.exe.blockmap',
@@ -189,7 +189,7 @@ describe('desktop upload plan', () => {
 
   it('rejects stale architecture metadata and modified updater bytes', async () => {
     const paths = await fixture('mac-arm64')
-    const metadataPath = join(paths.artifactsRoot, 'latest-mac.yml')
+    const metadataPath = join(paths.artifactsRoot, 'nightly-mac.yml')
     const zipPath = join(paths.artifactsRoot, 'deepseek-harness-1.2.3-mac-arm64.zip')
     await writeFile(zipPath, 'modified')
     await expect(createDesktopUploadPlan('mac-arm64', paths)).rejects.toThrow(/size.*metadata/u)

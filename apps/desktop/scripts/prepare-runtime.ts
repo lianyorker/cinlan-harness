@@ -1,15 +1,17 @@
-/** Download and verify the upstream Node.js runtime and copy the pinned pnpm CLI. */
+/** Prepare the Host Node.js runtime, pinned pnpm CLI, and primary interpreter payload. */
 
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { cpSync, createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { chmod, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { parseArgs } from 'node:util'
 import { pipeline } from 'node:stream/promises'
 import extractZip from 'extract-zip'
 import { extract } from 'tar'
 import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
+import { preparePrimaryRuntime } from './prepare-primary-runtime.ts'
 
 const NODE_VERSION = '24.17.0'
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
@@ -31,7 +33,7 @@ function target(): { platform: RuntimePlatform; arch: RuntimeArch } {
 }
 
 async function download(url: string, path: string): Promise<void> {
-  const response = await fetch(url)
+  const response = await fetch(url, { signal: AbortSignal.timeout(600_000) })
   if (!response.ok) throw new Error(`desktop runtime: ${url} returned HTTP ${String(response.status)}`)
   writeFileSync(path, new Uint8Array(await response.arrayBuffer()), { mode: 0o600 })
 }
@@ -91,7 +93,13 @@ function preparePnpm(): string {
   return manifest.version
 }
 
-async function main(): Promise<void> {
+/**
+ * Prepare the Host runtime before assembling the primary interpreter payload and Office assets.
+ * @param argv - Preparation arguments; signed Windows packages defer primary smoke until signing.
+ * @returns Resolves after all preparation stages complete.
+ */
+export async function prepareDesktopRuntime(argv: readonly string[]): Promise<void> {
+  const { values } = parseArgs({ args: [...argv], options: { 'defer-primary-runtime-smoke': { type: 'boolean', default: false } } })
   const { platform, arch } = target()
   mkdirSync(DOWNLOAD_ROOT, { recursive: true })
   mkdirSync(RUNTIME_ROOT, { recursive: true })
@@ -102,6 +110,9 @@ async function main(): Promise<void> {
     node: NODE_VERSION,
     pnpm: pnpmVersion,
   }, undefined, 2)}\n`)
+  await preparePrimaryRuntime({ deferSmoke: values['defer-primary-runtime-smoke'] })
 }
 
-await main()
+if (process.argv[1] !== undefined && import.meta.filename === resolve(process.argv[1])) {
+  await prepareDesktopRuntime(process.argv.slice(2))
+}

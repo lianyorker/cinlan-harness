@@ -339,7 +339,7 @@ describe('desktop project transactions', () => {
       healthCheck: async (projectDir) => {
         staged = projectDir
         await checkDesktopStartupHost({
-          start: async () => ({ protocolVersion: 3, dshVersion: 'fixture' }), stop,
+          start: async () => ({ protocolVersion: 4, dshVersion: 'fixture' }), stop,
         }, cancellation.signal, () => { retrying() })
       },
     }))
@@ -1018,6 +1018,7 @@ describe('desktop project transactions', () => {
     const original = readFileSync(join(paths.profile, DESKTOP_PACKAGE_SET_FILE))
     const transactionRoot = join(paths.staging, '9c4d7e2a-6f1b-4a8c-b3d5-0e2f7a9c1b6d')
     const stagingProfile = join(transactionRoot, 'profile')
+
     renameSync(paths.profile, paths.rollback)
     mkdirSync(paths.profile, { recursive: true })
     writeFileSync(join(paths.profile, 'unexpected-active'), 'new')
@@ -1192,5 +1193,35 @@ describe('desktop project transactions', () => {
     expect(readFileSync(join(paths.pnpm.store, 'release-1'), 'utf8')).toBe('one')
     expect(readFileSync(join(paths.pnpm.store, 'release-2'), 'utf8')).toBe('two')
     await expect(manager.applyRelease(nextSeed, '1.1.0', hooks())).resolves.toBe(false)
+  })
+})
+
+describe('native fatal profile repair', () => {
+  it('backs up the profile patch under the activation lock while preserving packages and reload settings', async () => {
+    const paths = resolveDesktopPaths(temporaryRoot())
+    mkdirSync(paths.profile, { recursive: true })
+    const manifest = { private: true, dependencies: { 'broken-plugin': '1.0.0' },
+      dsh: { profile: { bundles: ['broken-plugin'], patchReload: 'live' } }, custom: 'retained' }
+    writeFileSync(join(paths.profile, 'package.json'), JSON.stringify(manifest))
+    writeFileSync(join(paths.profile, 'cordis.patch.yml'), ': invalid patch')
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: 'unused' })
+    const backup = await manager.disableThirdPartyPlugins()
+    expect(backup).toBeDefined()
+    expect(readFileSync(backup!, 'utf8')).toBe(': invalid patch')
+    expect(JSON.parse(readFileSync(join(paths.profile, 'package.json'), 'utf8'))).toEqual({ ...manifest,
+      dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'], patchReload: 'live' } } })
+    expect(existsSync(paths.lock)).toBe(false)
+  })
+
+  it('refuses repair while activation recovery is unresolved', async () => {
+    const paths = resolveDesktopPaths(temporaryRoot())
+    mkdirSync(paths.profile, { recursive: true })
+    mkdirSync(paths.root, { recursive: true })
+    writeFileSync(join(paths.profile, 'cordis.patch.yml'), 'retained')
+    writeFileSync(paths.pending, '{}')
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: 'unused' })
+    await expect(manager.disableThirdPartyPlugins()).rejects.toThrow('invalid activation journal')
+    expect(readFileSync(join(paths.profile, 'cordis.patch.yml'), 'utf8')).toBe('retained')
+    expect(existsSync(paths.pending)).toBe(true)
   })
 })

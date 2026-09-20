@@ -10,6 +10,7 @@ import {
 } from './scripts/windows-sign.mjs'
 import { resolveDesktopAutoUpdateConfig } from './scripts/desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './scripts/desktop-build-paths.mjs'
+import { resolveDesktopPolicyEnvironment } from './scripts/desktop-policy-environment.mjs'
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -24,6 +25,11 @@ export function createElectronBuilderConfig(
   hostArch = process.arch,
 ) {
   const appId = env.DSH_DESKTOP_APP_ID?.trim() || 'com.cinlan.harness'
+  const policyConfigured = env.DSH_DESKTOP_AUTO_UPDATE_ENV === 'production'
+    || env.DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN !== undefined
+    || env.DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN !== undefined
+    || env.DSH_DESKTOP_MANDATORY_UPDATE_CONFIG !== undefined
+  const policy = policyConfigured ? resolveDesktopPolicyEnvironment(env) : undefined
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
@@ -50,6 +56,7 @@ export function createElectronBuilderConfig(
   const buildPaths = desktopTargetBuildPaths(update.target)
   return {
     appId,
+    extraMetadata: { dshDesktopAppId: appId, ...(policy === undefined ? {} : { dshMandatoryUpdatePolicy: policy }) },
     productName: 'DeepSeek Harness',
     artifactName: 'deepseek-harness-${version}-${os}-${arch}.${ext}',
     directories: { output: buildPaths.artifacts },
@@ -112,7 +119,7 @@ export function createElectronBuilderConfig(
       perMachine: false,
       runAfterFinish: true,
     },
-    publish: [{ provider: 'generic', url: update.publicUrl }],
+    publish: [{ provider: 'generic', url: update.publicUrl, channel: 'nightly' }],
   }
 }
 

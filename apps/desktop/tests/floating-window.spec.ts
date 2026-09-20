@@ -56,7 +56,7 @@ function navigation(url = APP, isMainFrame = true, isSameDocument = false) {
   return { url, isMainFrame, isSameDocument, frame: null, preventDefault: vi.fn() }
 }
 
-function harness(url = APP) {
+function harness(url = APP, allowed = () => true) {
   const owner = new Window()
   owner.webContents.url = url
   const windows: Window[] = []
@@ -66,7 +66,7 @@ function harness(url = APP) {
     windows.push(child)
     return child.native()
   })
-  const policy = installFloatingWindowPolicy(owner.native(), PRELOAD, factory)
+  const policy = installFloatingWindowPolicy(owner.native(), PRELOAD, factory, allowed)
   const admit = (overrides: Partial<HandlerDetails> = {}) => owner.webContents.handler(details(overrides))
   function create(response = admit(), guest = new Contents(), extra: NativeOptions = {}) {
     expect(response.action).toBe('allow')
@@ -82,6 +82,22 @@ function harness(url = APP) {
 }
 
 describe('floating native app admission', () => {
+  it('denies new windows and pending native creation while main-owned updates block admission', () => {
+    let allowed = false
+    const run = harness(APP, () => allowed)
+    expect(run.admit()).toEqual({ action: 'deny' })
+    allowed = true
+    const pending = run.admit()
+    allowed = false
+    const guest = new Contents()
+    expect(() => run.create(pending, guest)).toThrow('admission expired')
+    expect(guest.close).toHaveBeenCalledOnce()
+    expect(run.factory).not.toHaveBeenCalled()
+    allowed = true
+    run.create()
+    expect(run.factory).toHaveBeenCalledOnce()
+  })
+
   it.each([
     APP, '', 'about:blank', 'https://app/index.html', 'http://127.0.0.1/index.html', 'javascript:alert(1)',
     'dsh-app://shell/index.html', 'dsh-app://app/', 'dsh-app://app/other.html', 'dsh-app://app/./index.html',

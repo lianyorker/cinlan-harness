@@ -2,12 +2,12 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { DesktopHostProcess } from '../src/host-process.ts'
+import { DesktopHostProcess, DesktopHostUncleanExitError } from '../src/host-process.ts'
 
 const roots: string[] = []
 
 const HOST_WIRE = `
-import { closeSync, createReadStream, createWriteStream } from 'node:fs'
+import { createReadStream, createWriteStream } from 'node:fs'
 const requestPipe = createReadStream('', { fd: 3, autoClose: false })
 const responsePipe = createWriteStream('', { fd: 4, autoClose: false })
 const MAGIC = 0x44534833
@@ -49,12 +49,13 @@ requestPipe.on('data', chunk => {
 process.on('message', message => {
   if (message.type === 'shutdown') {
     requestPipe.destroy()
-    closeSync(3)
     responsePipe.end(() => {
+      responsePipe.once('close', () => {
+        process.exitCode = globalThis.shutdownExitCode ?? 0
+        if (globalThis.skipShutdownAck) process.disconnect()
+        else process.send({ type: 'shutdown-complete' }, error => { if (error !== null) process.exitCode = 1; process.disconnect() })
+      })
       responsePipe.destroy()
-      closeSync(4)
-      process.disconnect()
-      process.exitCode = 0
     })
   }
 })
@@ -75,6 +76,67 @@ afterEach(() => {
 })
 
 describe('desktop host process', () => {
+  it('correlates task controls and propagates service errors', async () => {
+    const host = new DesktopHostProcess(process.execPath, projectWithHost(`
+process.send({ type: 'ready', protocolVersion: 4, dshVersion: 'controls' })
+function onRequestFrame() {}
+let pending
+process.on('message', message => {
+  if (message.type !== 'update-tasks') return
+  if (message.action === 'inspect') pending = message
+  if (message.action === 'lock') {
+    process.send({ type: 'update-tasks', requestId: message.requestId, active: true })
+    process.send({ type: 'update-tasks', requestId: pending.requestId, active: false })
+  }
+  if (message.action === 'unlock') process.send({ type: 'update-tasks', requestId: message.requestId, active: true, error: 'services unavailable' })
+})
+`))
+    try {
+      await expect(host.updateTasks('inspect')).rejects.toThrow('unavailable')
+      await host.start()
+      await expect(Promise.all([host.updateTasks('inspect'), host.updateTasks('lock')])).resolves.toEqual([false, true])
+      await expect(host.updateTasks('unlock')).rejects.toThrow('services unavailable')
+      await expect(host.stop(true)).resolves.toBeUndefined()
+      await expect(host.updateTasks('inspect')).rejects.toThrow('unavailable')
+    } finally { await host.stop() }
+  })
+
+  it.each(['missing acknowledgement', 'nonzero exit'])('confirms an unclean %s even after ordinary stop', async (reason) => {
+    const host = new DesktopHostProcess(process.execPath, projectWithHost(`
+process.send({ type: 'ready', protocolVersion: 4, dshVersion: 'unclean' })
+function onRequestFrame() {}
+globalThis.skipShutdownAck = ${String(reason === 'missing acknowledgement')}
+globalThis.shutdownExitCode = ${reason === 'nonzero exit' ? '2' : '0'}
+`))
+    try {
+      await host.start()
+      const ordinary = host.stop()
+      await expect(host.stop(true)).rejects.toBeInstanceOf(DesktopHostUncleanExitError)
+      await ordinary
+      await expect(host.stop(true)).rejects.toBeInstanceOf(DesktopHostUncleanExitError)
+    } finally { await host.stop() }
+  })
+
+  it('reports runtime failure once and rejects pending inspection', async () => {
+    const failures: Error[] = []
+    const host = new DesktopHostProcess(process.execPath, projectWithHost(`
+process.send({ type: 'ready', protocolVersion: 4, dshVersion: 'failure' })
+function onRequestFrame() {}
+process.on('message', message => {
+  if (message.type === 'update-tasks') {
+    process.send({ type: 'fatal', message: 'runtime failed' })
+    process.send({ type: 'fatal', message: 'second failure' })
+  }
+})
+`), undefined, false, (error) => { failures.push(error) })
+    try {
+      await host.start()
+      await expect(host.updateTasks('inspect')).rejects.toThrow('runtime failed')
+      await host.stop()
+      expect(failures).toHaveLength(1)
+    } finally { await host.stop() }
+  })
+
   it('owns a starting Host until shutdown rejects readiness and the process exits', async () => {
     const project = projectWithHost(`
 import { writeFileSync } from 'node:fs'
@@ -116,7 +178,7 @@ function onRequestFrame() {}
     { inspectPort: 0, allowLinkedProfile: false },
   ])('keeps linked-profile permission independent of inspector $inspectPort ($allowLinkedProfile)', async ({ inspectPort, allowLinkedProfile }) => {
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 3, dshVersion: 'launch-options' })
+process.send({ type: 'ready', protocolVersion: 4, dshVersion: 'launch-options' })
 function onRequestFrame(frame) {
   if (frame.type !== 1) return
   responseStart(frame.streamId)
@@ -124,11 +186,12 @@ function onRequestFrame(frame) {
   responseEnd(frame.streamId)
 }
 `)
-    const host = new DesktopHostProcess(process.execPath, project, inspectPort, allowLinkedProfile)
+    const primaryRuntime = join(project, 'resources with spaces', 'primary-runtime')
+    const host = new DesktopHostProcess(process.execPath, project, inspectPort, allowLinkedProfile, undefined, primaryRuntime)
     try {
       const response = await host.fetch(new Request('dsh-app://app/launch-options'))
       expect(await response.json()).toEqual({
-        argv: allowLinkedProfile ? ['--allow-linked-profile'] : [],
+        argv: ['--primary-runtime', primaryRuntime, ...(allowLinkedProfile ? ['--allow-linked-profile'] : [])],
         execArgv: inspectPort === undefined ? [] : ['--inspect=127.0.0.1:0'],
       })
     } finally {
@@ -139,7 +202,7 @@ function onRequestFrame(frame) {
   it('carries raw request and response bytes and shuts the child down cleanly', async () => {
     const project = projectWithHost(`
 const bodies = new Map()
-process.send({ type: 'ready', protocolVersion: 3, dshVersion: process.env.NODE_OPTIONS ?? 'clean' })
+process.send({ type: 'ready', protocolVersion: 4, dshVersion: process.env.NODE_OPTIONS ?? 'clean' })
 function onRequestFrame(frame) {
   if (frame.type === 1) {
     const request = JSON.parse(frame.payload)
@@ -176,7 +239,7 @@ function answer(streamId) {
   it('streams a large binary response in bounded raw frames', async () => {
     const size = 2 * 1024 * 1024
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 3, dshVersion: 'large-response' })
+process.send({ type: 'ready', protocolVersion: 4, dshVersion: 'large-response' })
 function onRequestFrame(frame) {
   if (frame.type !== 1) return
   responseStart(frame.streamId)
@@ -199,7 +262,7 @@ function onRequestFrame(frame) {
 
   it('stops an unfinished upload when the Host completes its response early', async () => {
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 3, dshVersion: 'early-response' })
+process.send({ type: 'ready', protocolVersion: 4, dshVersion: 'early-response' })
 function onRequestFrame(frame) {
   if (frame.type !== 2) return
   responseStart(frame.streamId)
@@ -229,7 +292,7 @@ function onRequestFrame(frame) {
 
   it('ignores a response end that arrives after the renderer cancels its stream', async () => {
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 3, dshVersion: 'cancel-race' })
+process.send({ type: 'ready', protocolVersion: 4, dshVersion: 'cancel-race' })
 const urls = new Map()
 function onRequestFrame(frame) {
   if (frame.type === 1) {
@@ -259,7 +322,7 @@ function onRequestFrame(frame) {
 
   it('rejects invalid response framing and a clean exit before readiness', async () => {
     const invalid = new DesktopHostProcess(process.execPath, projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 3, dshVersion: 'invalid-frame' })
+process.send({ type: 'ready', protocolVersion: 4, dshVersion: 'invalid-frame' })
 function onRequestFrame(frame) {
   if (frame.type === 1) responsePipe.write(Buffer.alloc(13))
 }

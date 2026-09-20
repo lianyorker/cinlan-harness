@@ -15,7 +15,7 @@ function parseRequest(value: unknown): DesktopPreparationRequest & { cancellatio
   const pnpm = paths?.pnpm as Record<string, unknown> | undefined
   if (typeof data.version !== 'string' || !(data.cancellation instanceof SharedArrayBuffer)
     || data.cancellation.byteLength !== Int32Array.BYTES_PER_ELEMENT
-    || [data.seed, runtime?.node, runtime?.pnpm,
+    || [data.seed, data.primaryRuntime, runtime?.node, runtime?.pnpm,
       ...['root', 'profile', 'staging', 'rollback', 'pending', 'lock'].map(key => paths?.[key]),
       ...['root', 'store', 'cache', 'state', 'config', 'home'].map(key => pnpm?.[key]),
     ].some(path => typeof path !== 'string' || !isAbsolute(path))) {
@@ -41,7 +41,8 @@ async function prepare(): Promise<void> {
     await manager.applyRelease(request.seed, request.version, {
       healthCheck: async (projectDir) => {
         checkCancellation()
-        await checkDesktopStartupHost(new DesktopHostProcess(request.runtime.node, projectDir), controller.signal, (error) => {
+        const host = new DesktopHostProcess(request.runtime.node, projectDir, undefined, false, undefined, request.primaryRuntime)
+        await checkDesktopStartupHost(host, controller.signal, (error) => {
           console.error('Desktop preparation is waiting for its health-check Host to stop', error)
           port.postMessage({ type: 'stage', stage: 'cleaning' })
         })

@@ -12,6 +12,8 @@
     "dev": "tsx scripts/dev.ts",
     "start": "tsx scripts/dev.ts --skip-build",
     "prepare:runtime": "tsx scripts/prepare-runtime.ts",
+    "prepare:primary-runtime": "tsx scripts/prepare-primary-runtime.ts",
+    "sign:primary-runtime": "tsx scripts/sign-primary-runtime.ts",
     "prepare:packages": "tsx scripts/prepare-package-set.ts",
     "prepare:seed": "tsx scripts/prepare-seed.ts",
     "prepare:package": "tsx scripts/package-target.ts --prepare-only",
@@ -29,6 +31,7 @@
     "upload:win:x64": "tsx scripts/upload-target.ts win-x64"
   },
   "dependencies": {
+    "@deepseek-ai/dsh-app-boot": "workspace:^",
     "electron-updater": "^6.8.9",
     "semver": "^7.8.5"
   },
@@ -44,6 +47,7 @@
     "electron": "^44.0.0",
     "electron-builder": "^26.15.3",
     "extract-zip": "^2.0.1",
+    "fflate": "^0.8.2",
     "js-yaml": "^4.2.0",
     "msgpackr": "2.0.4",
     "pnpm": "11.7.0",

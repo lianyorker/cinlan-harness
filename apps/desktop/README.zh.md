@@ -13,7 +13,7 @@
 | 包来源 | 必须能在发布到 npm 之前从同一次源码构建打包精确的 dsh，并支持离线安装；插件则需要保留为用户选择的普通 npm 包。 | 已签名应用携带本地打包的第一方 dsh 包与离线 seed store。桌面插件仍是从固定 Desktop registry 解析的普通 npm 依赖。 |
 | Seed 传输 | Apple 公证会检查归档内的代码；把 pnpm store 的每个文件分别放入应用，还会让应用签名记录数万个缓存条目，而单个压缩归档会放大小幅包变更。 | macOS 打包先签署每个 Mach-O CAS 对象、重写其 pnpm 哈希并再次证明离线安装，再把 store 文件分配到 16 个确定性的未压缩 tar 分片。外层安装包负责压缩，差分更新可以复用未变化的分片。 |
 | 状态归属 | 共享可执行依赖图会让 CLI 与 Desktop 相互改变 dsh、Cordis、插件或原生模块版本，而两个桌面进程还可能争用同一个 profile。 | Electron 在访问任何 profile 前获取进程生命周期单实例锁，并独占 `$DSH_HOME/profiles/desktop` 及其包管理器状态。CLI 与 Desktop 共享 `$DSH_HOME` 下受支持的产品数据，但绝不共享可执行包、插件激活、锁文件或 `node_modules`。 |
-| 通信 | 监听 Web 服务会引入端口归属、认证、CORS 与暴露风险；Electron 与上游 Node.js 之间也需要明确的跨进程协议。 | 应用不打开 Web 端口。`dsh-app://` 承载 Web 资源和 Fetch 流量；分帧字节管道以背压传输有界请求与响应分块，Node IPC 只承载子进程生命周期控制。 |
+| 通信 | 监听 Web 服务会引入端口归属、认证、CORS 与暴露风险；Electron 与上游 Node.js 之间也需要明确的跨进程协议。 | 应用不打开 Web 端口。`dsh-app://` 承载 Web 资源和 Fetch 流量；分帧字节管道以背压传输有界请求与响应分块，Node IPC 承载子进程生命周期与更新准入控制。 |
 | 激活 | 依赖解析、生命周期脚本、原生模块与插件启动都可能失败，目录替换期间进程也可能中断。 | 发布与插件变更先安装到 staging，并启动完整后端执行健康检查；只有成功后才替换活跃 profile，中断替换由事务日志和一个 rollback profile 恢复。 |
 | 更新 | 桌面壳与 dsh 独立更新会重新产生版本分裂，而桌面壳未变化的数据块不应强制完整传输。 | Electron 壳、匹配的 dsh seed、Node.js 与 pnpm 组成一个已签名更新单元。平台更新产物可以复用未变化的数据块，但运行时版本选择绝不脱离 Desktop 发布。 |
 
@@ -35,11 +35,17 @@ Host 使用仅配置 HMR（热模块替换）监视 profile patch。每次重载
 
 在应用中打开通过同一自定义协议 Fetch 通道使用现有原生应用目录与经过校验的启动服务。HTTP 代理变量在插件启动前从分层启动环境解析；代理资源在 Host 清理结束后关闭，启动失败也不例外。
 
+### Office 文档创作
+
+Desktop Host 在报告就绪前挂载[内置 Office skills](../../packages/skill/skill-office/README.zh.md) 与 `load_workspace_dependencies`，暂存 profile 的健康检查也使用同一组合。三个 skill 使用 ASAR 外 `runtime/office-skills` 下的普通文件；资源缺失会导致 Host 启动失败。这些能力不依赖渲染服务。
+
+首次运行时查询把内置 `runtime/primary-runtime` 载荷安装到 `$DSH_HOME/dsh-runtimes/dsh-primary-runtime`，并返回 Python、Node.js、pnpm 与包目录的绝对路径。安装只复制本地载荷字节，不下载包或修改 PATH。元数据匹配时复用已安装发布；载荷标识改变时替换依赖树。文档创作载荷使用独立的[解释器与 wheel 锁定版本](scripts/primary-runtime-lock.json)，与运行 Host 的 Node.js 可执行文件分别管理。
+
 ### 可见的启动过程
 
 主窗口在 profile 校准开始前，于 `dsh-app://shell/startup.html` 显示共享的 `HARNESS` / `Loading plugins…` spinner。正常加载时只显示应用的[启动视图](../../packages/client/web/README.zh.md#use-this-package)，准备阶段仅在内部记录。Worker 执行 profile 准备，使同步归档和包处理不会阻塞 Electron 的窗口操作。后端就绪后，同一窗口导航到 `dsh-app://app/index.html`，应用在其中创建相同视图。该交接会替换文档，DOM 与 spinner 动画不会跨导航保留。
 
-准备期间关闭原生窗口会请求取消。壳会等待正在进行的包操作结束，等待事务工作结束和探测 Host 停止，并等待 worker 退出后再关闭；它不会中途终止文件系统事务。健康检查 Host 未能停止时，事务继续持锁并保留 staging 文件，同时重试清理。只有启动错误才会显示本地化失败面板，其中包含错误详情及可用的诊断路径。只有后端安全清理完成后才提供重启；退出操作可以重试失败的后端清理。启动 preload 仅向精确匹配的启动页暴露状态、locale 和这些生命周期操作；应用渲染进程获得协议标记和原生插件窗口打开操作。
+准备期间关闭原生窗口会请求取消。壳会等待正在进行的包操作结束，等待事务工作结束和探测 Host 停止，并等待 worker 退出后再关闭；它不会中途终止文件系统事务。健康检查 Host 未能停止时，事务继续持锁并保留 staging 文件，同时重试清理。只有启动错误才会显示本地化失败面板，其中包含错误详情及可用的诊断路径。只有后端安全清理完成后才提供重启；退出操作可以重试失败的后端清理。启动 preload 仅向精确匹配的启动页暴露状态、locale 和这些生命周期操作；应用渲染进程获得协议标记、原生插件窗口打开操作，以及语义化更新状态和打开操作。
 
 ### Seed 安装
 
@@ -71,7 +77,7 @@ GUI 插件修改会在把 registry 包安装到共享 Desktop pnpm store 后，�
 
 ## 开发
 
-`dev:desktop` 会构建当前 Host、客户端 bundle、Web 前端和 Electron 壳，把已构建的 CLI 包、私有 Desktop Host 包及其 workspace 依赖投影为一次性桌面 npm 项目，然后直接启动 Electron；这条路径不下载安装包内的 Node.js，也不从 npm 解析 dsh：
+`dev:desktop` 会构建当前 Host、客户端 bundle、Web 前端和 Electron 壳，把已构建的 CLI 包、私有 Desktop Host 包及其 workspace 依赖投影为一次性桌面 npm 项目，准备锁定的 Office 载荷与外置 skill 资源，再使用调用命令的 Node.js 启动 Electron，且不从 npm 解析 dsh：
 
 ```sh
 pnpm run dev:desktop
@@ -153,7 +159,7 @@ export DOWNLOAD_TEST_COS_SECRET_KEY='<test COS SecretKey>'
 pnpm run upload:mac:arm64
 ```
 
-生产发布需在打包前设置 `DSH_DESKTOP_AUTO_UPDATE_ENV=production`，再在执行 `upload:mac:arm64`、`upload:mac:x64` 或 `upload:win:x64` 前提供 `DOWNLOAD_PROD_COS_BUCKET` 与生产凭据对。打包不要求 COS bucket 或凭据。它会明确禁止 electron-builder 发布，从其子进程中删除全部四个 COS 凭据字段，并且只有在 electron-builder 以及全部签名或公证 hook 成功后才写入目标完成记录。上传会先要求该记录与所选环境、目标、公开 URL 和当前 dsh 版本一致，再要求根 dsh 版本、Desktop 版本、频道元数据版本、产物名称、大小与 SHA-512 全部一致，之后才读取所选 COS 凭据对。它只上传该目标不可变且带版本的产物，最后以 `no-cache` 上传根据版本得出的频道元数据，并且不会删除历史对象。稳定版本使用 `latest-mac.yml` 或 `latest.yml`；`alpha` 等预发布版本则使用 `alpha-mac.yml` 或 `alpha.yml`，与 electron-builder 生成的文件名一致。
+生产发布需在打包前设置 `DSH_DESKTOP_AUTO_UPDATE_ENV=production` 与 `DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN`，再在执行 `upload:mac:arm64`、`upload:mac:x64` 或 `upload:win:x64` 前提供 `DOWNLOAD_PROD_COS_BUCKET` 与生产凭据对。打包不要求 COS bucket 或凭据。它会明确禁止 electron-builder 发布，从其子进程中删除全部四个 COS 凭据字段，并且只有在 electron-builder 以及全部签名或公证 hook 成功后才写入目标完成记录。上传会先要求该记录与所选环境、目标、公开 URL 和当前 dsh 版本一致，再要求根 dsh 版本、Desktop 版本、频道元数据版本、产物名称、大小与 SHA-512 全部一致，之后才读取所选 COS 凭据对。它只上传该目标不可变且带版本的产物，最后以 `no-cache` 上传nightly 频道元数据，并且不会删除历史对象。稳定版本和预发布版本统一使用 `nightly-mac.yml` 或 `nightly.yml`，与 updater 和 electron-builder 的频道一致。发布此 feed 前，需要为仍消费其他频道的现有安装明确安排升级衔接。
 
 macOS 配置使用必填发布环境，不会接受钥匙串中最先发现的证书。空值、格式错误的 Team ID、包含 electron-builder 不支持的 `Developer ID Application:` 前缀的签名身份，以及不完整的公证凭据都会被拒绝。macOS 打包要求已配置的身份及其私钥可用。Seed 准备会把该身份、安全时间戳与 hardened runtime 应用到每个内嵌 Mach-O 文件；应用签名完成后，深度严格检查会拒绝其他叶证书 Authority 或 Team ID，验证通过才生成发布产物。Electron-builder 会在封装前公证应用并钉票，然后签署 DMG。DMG 的 artifact-completion hook 随后会公证它并钉票，再要求其身份、票据与 Gatekeeper 验证全部通过；只有 hook 成功，electron-builder 才能发布该文件。私钥可以来自登录钥匙串或 electron-builder 的标准 `CSC_LINK` 输入；环境中的 `CSC_NAME` 与证书发现顺序都不能选择发布所有者。公证凭据也可以使用 electron-builder 支持的完整 Apple ID 或钥匙串 profile 方式。手动执行 `pnpm --dir apps/desktop run verify:mac-signature -- <path-to-app>` 重复应用检查时，也必须提供两个 macOS 身份变量。
 
@@ -194,13 +200,17 @@ pnpm run prepare:desktop
 
 ## 更新
 
-打包应用会在主窗口打开十秒后检查目标专用的发布流；本地化的 **检查更新…** 菜单项会手动触发同一检查。发现可用版本时，应用打开一个原生确认弹窗。用户确认后，应用等待正在进行的检查完成，下载并验证已签名的 Desktop 发布、停止 dsh 子进程，并把安装与重启交给 electron-updater。下次启动会先校准版本绑定的 seed，再重新打开产品窗口。
+Electron 独占一个 updater 和强制策略客户端。元数据检查按完成时点安排重试，绝不自动下载。用户请求下载后，再对已经验证的精确版本确认安装。安装先检查运行中或排队中的 Agent 与 Job，再锁定原生 Host 的 API 准入、等待已准入请求完成、重新检查任务，只有收到关闭确认且子进程正常退出后才把控制权交给安装器。安装器失败后，只有确认旧进程已停止才恢复一个原生 Host；退出未确认时，后续安装和插件修改都会被阻止。下次启动会先校准版本绑定的 seed，再重新打开产品窗口。
+
+强制策略元数据包含原生应用 ID、所选 HTTPS origin、允许的页面 origin，以及生产匿名认证或隔离的测试登录认证。未配置的本地测试包禁用策略；生产包必须配置 origin。已知强制决定在临时检查失败时保留，直到有效决定将其清除。强制 UI 关闭浮窗和插件窗口并阻止新开窗口，但未经安装同意不会停止现有任务。产品 preload 只暴露语义状态和打开操作，安装同意由 shell 专属对话框持有。
+
+可选的绝对路径 DSH_DESKTOP_UPDATE_JOURNAL_DIR 保存独占且 flush 的 JSONL 证据，只记录固定动作和错误类别，不记录原始诊断、URL、凭据或转录内容。它不替代待激活事务日志，也不恢复策略状态。致命错误恢复先停止原生 Host，再在现有 Desktop 事务锁下备份 profile patch 并重置启用的 bundle；保留已安装包、Settings 和 Harness-home 数据。
 
 Electron-builder 始终为 `DSH_DESKTOP_AUTO_UPDATE_ENV` 选择的部署生成 generic-provider 频道元数据。NSIS 差分包与 macOS ZIP 目标让 electron-updater 可以复用未变化的数据块；供手动安装的 DMG 经过公证，但不生成 blockmap，因为它不是 macOS updater 的载荷。Seed 与桌面壳仍属于同一个签名 Desktop 发布。macOS 签名与公证凭据使用 electron-builder 的标准环境变量；Windows EV 签名使用上文所述的公开证书、已验证 SignTool、SafeNet 容器和 runner PIN。必填 Desktop 发布环境选择构建所验证的应用身份与平台签名身份。
 
 ## 底层开发覆盖项
 
-`DSH_DESKTOP_NODE_BINARY`、`DSH_DESKTOP_PNPM_ENTRY`、`DSH_DESKTOP_SEED_DIR` 和 `DSH_DESKTOP_DEV_PROJECT_DIR` 可以为未打包 Electron 进程选择明确的资源。打包应用会忽略这些变量，并从 `process.resourcesPath` 解析签名资源。
+`DSH_DESKTOP_NODE_BINARY`、`DSH_DESKTOP_PNPM_ENTRY`、`DSH_DESKTOP_SEED_DIR`、`DSH_DESKTOP_PRIMARY_RUNTIME` 和 `DSH_DESKTOP_DEV_PROJECT_DIR` 可以为未打包 Electron 进程选择明确的资源。打包应用会忽略这些变量，并从 `process.resourcesPath` 解析签名资源。
 
 ## 已知限制
 

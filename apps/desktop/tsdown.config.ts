@@ -30,7 +30,7 @@ export default defineConfig([
     deps: { alwaysBundle: [/.*/] },
   },
   // Sandboxed preloads cannot require relative chunks; compile each entry independently.
-  ...['preload', 'preload-app'].map(entry => ({
+  ...['preload', 'preload-app', 'preload-mandatory', 'preload-update-dialog'].map(entry => ({
     entry: { [entry]: `lib/types/${entry}.js` },
     outDir: 'lib',
     format: ['cjs' as const],

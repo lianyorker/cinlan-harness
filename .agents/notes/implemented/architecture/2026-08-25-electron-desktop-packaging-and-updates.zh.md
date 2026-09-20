@@ -14,7 +14,7 @@ DeepSeek Harness 需要一个复用 Web UI 的 Electron 桌面应用。该应用
 
 ## 决策
 
-交付一个小型 Electron 壳，其中内置上游 Node.js 可执行文件和固定版本的 pnpm。Electron 把私有 Desktop Host 包作为隔离子进程启动；该包组合已安装的 dsh 后端与匹配的客户端图。Fetch 元数据及有界的原始请求与响应分块通过两条带版本的分帧字节管道传递，Node IPC 只承载就绪、致命失败和关闭，Electron 通过 `dsh-app://` 提供经过验证的资源；它不会打开监听端口。每个帧都包含固定标记、类型、单调 stream id、负载长度和经过验证的负载。串行 writer 遵守 pipe drain，请求或响应 stream 施加背压时 reader 会全局暂停，取消会关闭匹配的 stream，已退役 stream 的迟到响应帧保持无效。Connection 插件无需 `webServer` 即可提供与载体无关的 RPC 与 Fetch 注册表，Client Modules 则向 shell-owned carrier 提供与广告内容完全一致的组合 bundle 响应；Web 组合为两者挂载可选 HTTP route。渲染进程保留相同的 Fetch、RPC 与 Remote-stream 格式，子进程载体则避免 Base64 膨胀，也不依赖 Electron 与内置上游 Node.js 之间的 V8 序列化兼容性。发送 shutdown 后，Electron 会关闭自己持有的请求管道写端，以便在等待子进程退出前释放 Windows 上仍在进行的管道读取。该设计沿用 [GUI 分层与 RPC 协议 Agent Note](../../archived/architecture/2026-07-19-gui-layering-and-rpc-protocol.md)中的 Electron 预留。
+交付一个小型 Electron 壳，其中内置上游 Node.js 可执行文件和固定版本的 pnpm。Electron 把私有 Desktop Host 包作为隔离子进程启动；该包组合已安装的 dsh 后端与匹配的客户端图。Fetch 元数据及有界的原始请求与响应分块通过两条带版本的分帧字节管道传递，Node IPC 承载就绪、致命失败、关闭确认和更新任务控制，Electron 通过 `dsh-app://` 提供经过验证的资源；它不会打开监听端口。每个帧都包含固定标记、类型、单调 stream id、负载长度和经过验证的负载。串行 writer 遵守 pipe drain，请求或响应 stream 施加背压时 reader 会全局暂停，取消会关闭匹配的 stream，已退役 stream 的迟到响应帧保持无效。Connection 插件无需 `webServer` 即可提供与载体无关的 RPC 与 Fetch 注册表，Client Modules 则向 shell-owned carrier 提供与广告内容完全一致的组合 bundle 响应；Web 组合为两者挂载可选 HTTP route。渲染进程保留相同的 Fetch、RPC 与 Remote-stream 格式，子进程载体则避免 Base64 膨胀，也不依赖 Electron 与内置上游 Node.js 之间的 V8 序列化兼容性。发送 shutdown 后，Electron 会关闭自己持有的请求管道写端，以便在等待子进程退出前释放 Windows 上仍在进行的管道读取。该设计沿用 [GUI 分层与 RPC 协议 Agent Note](../../archived/architecture/2026-07-19-gui-layering-and-rpc-protocol.md)中的 Electron 预留。
 
 Electron 拥有保留 profile `.dsh/profiles/desktop`。其中精确的 `@deepseek-ai/dsh` 依赖提供后端与匹配的 Web UI，匹配的私有 `@deepseek-ai/dsh-desktop-host` 依赖则只提供 Electron 子进程入口与组合 overlay。dsh 发布、私有 Host 及其第一方依赖闭包使用同一次源码构建生成的本地 npm tarball；profile manifest 把每个核心包列为本地 `file:` 依赖，`pnpm-workspace.yaml` 再通过 overrides 重复该映射。Host 不进入公共 CLI 包，也不会发布到 npm。桌面插件既是同一 profile 中来自 registry 的其他 npm 依赖，也是有序的 `dsh.profile.bundles` 条目，并从该 profile 唯一的 `node_modules` 解析。
 
@@ -89,7 +89,11 @@ Electron-builder 的生产收集器通过仅供 builder 使用的 pnpm filter �
 
 ## 更新与恢复
 
-Electron 更新只使用一个 `electron-updater` 发布流和签名 `electron-builder` 产物。该版本就是 Desktop 发布版本；不存在独立 dsh manifest、兼容范围或仅更新 dsh 的操作。前台安装会等待正在进行的后台检查，而不会把检查结果复用成安装结果。更新弹窗下载并安装 Electron 产物，然后重启进入新发布。
+Electron 为壳与 seed 使用同一个签名 Desktop 发布流。元数据检查绝不自动下载。下载与精确版本的安装同意分开；原生 Host 关闭 API 准入、等待已准入请求结束，并重新检查运行中或排队中的 Agent 与 Job，然后正常关闭。只有关闭确认与退出码零共同授权安装器接管。已确认但不正常的退出会拒绝安装，并允许一个替代 Host；未确认退出时禁止启动替代 Host。永久取消 startup 属于应用最终退出，不属于可恢复的更新准备。
+
+强制决定由主进程持有，可以取消普通确认而不取消现有任务。原生载体直接分派 Fetch 与 remote stream，不经过 Web connection/request 事件，因此由它执行准入。远程开启操作在 wireStream.open 完成前保持已准入状态；响应或 SSE 的存活时间不算未完成写入。世代变化会取消等待中的锁。Profile 修复先在现有 Desktop 事务锁下恢复激活事务，再以纯文件操作禁用 bundle；第二个 backend 或 profile 锁会允许竞争写入。
+
+可选更新 journal 只记录固定且脱敏的生命周期证据，既不恢复强制状态，也不替代激活事务日志。产品窗口只接收语义状态和打开操作，安装同意由 main 持有的 shell 文档负责。浮窗与插件窗口不能绕过强制阻塞。
 
 主窗口先绘制应用共享的 `HARNESS` / `Loading plugins…` 视图，再从安装包种子校准 dsh，同时保留已安装桌面插件。Desktop 的 Vite 渲染 bundle 通过 Web 启动内核的公开 [`./boot-page` 入口](../../../../packages/client/web/README.zh.md#use-this-package)导入 `BootPage` 及其 CSS，使同一套持续维护的加载视图在 Host 启动前就可用。准备阶段仅在内部记录；正常加载时只显示共享视图，启动错误才会显示本地化诊断与安全的重启、退出操作。后端就绪后，同一窗口从壳文档导航到已安装应用的文档，后者以新的 DOM 和动画状态创建相同视图。只有精确匹配的壳启动文档获得生命周期 preload 桥接，应用获得协议标记和打开原生插件窗口的操作。该操作只接受不带端口的 `dsh-app://app`；包操作仍仅允许壳渲染进程调用。插件开关应用成功且清单刷新后，应用渲染进程刷新一次以应用客户端插件贡献，Host 保持运行。
 
@@ -97,7 +101,7 @@ Profile 准备在 worker 中运行：归档提取与包校验可以执行同步�
 
 准备期间关闭原生窗口会请求协作式取消。正在运行的 pnpm 操作先结束，随后在事务检查点观察取消；壳会等待事务工作结束、探测 Host 停止和 worker 退出后再关闭。探测进程未能停止时继续持有事务锁和 staging 文件，并重试清理；取消操作也会等待同一清理完成。强制终止 worker 可能使包操作在 Electron 释放归属锁后继续写入。因此，重启操作只有在当前启动和后端工作都停止后才启动新应用。原生编辑及 macOS 窗口、应用操作始终保留在菜单中，不依赖后端是否可用。
 
-`DSH_DESKTOP_AUTO_UPDATE_ENV` 默认为测试部署，也可以选择生产部署，并同时决定目标专用的 generic-provider URL 与 COS 目标。发布自动化通过 `DOWNLOAD_TEST_ORIGIN` 提供测试 HTTPS origin，并通过 `DOWNLOAD_TEST_COS_BUCKET` 或 `DOWNLOAD_PROD_COS_BUCKET` 提供各部署的 bucket；可变的测试路由与 COS 存储身份不写入源码，部署基础设施变更时无需发布新代码，而公开的生产 origin 仍固定。打包只解析公开更新 URL、禁止 electron-builder 发布、从子进程环境中删除每个 COS 凭据字段，并且只有在 electron-builder 以及每个签名或公证 hook 成功后才写入完成记录。目标上传还必须提供所选 bucket，随后会先要求完成记录、根 dsh 版本、Desktop 版本、根据版本得出的频道元数据、产物名称、大小与 SHA-512 全部一致，再读取所选凭据或发送数据。它先上传不可变且带版本的更新载荷与所有独立 blockmap，最后替换 electron-builder 生成的频道元数据，并且不会删除历史对象。稳定版本使用 `latest` 元数据名称，预发布版本则使用语义化版本的第一个预发布标识符。NSIS 与 macOS ZIP 都使用独立 blockmap。Windows 上传计划要求实际生成且非空的 `.exe.blockmap`；独立 blockmap 的元数据不声明内嵌的 `blockMapSize`。两者都让 electron-updater 在平台支持时只下载变化的数据块，而应用替换与本地 pnpm staging 事务仍是两个独立操作。
+`DSH_DESKTOP_AUTO_UPDATE_ENV` 默认为测试部署，也可以选择生产部署，并同时决定目标专用的 generic-provider URL 与 COS 目标。发布自动化通过 `DOWNLOAD_TEST_ORIGIN` 提供测试 HTTPS origin，并通过 `DOWNLOAD_TEST_COS_BUCKET` 或 `DOWNLOAD_PROD_COS_BUCKET` 提供各部署的 bucket；可变的测试路由与 COS 存储身份不写入源码，部署基础设施变更时无需发布新代码，而公开的生产 origin 仍固定。打包只解析公开更新 URL、禁止 electron-builder 发布、从子进程环境中删除每个 COS 凭据字段，并且只有在 electron-builder 以及每个签名或公证 hook 成功后才写入完成记录。目标上传还必须提供所选 bucket，随后会先要求完成记录、根 dsh 版本、Desktop 版本、nightly 频道元数据、产物名称、大小与 SHA-512 全部一致，再读取所选凭据或发送数据。它先上传不可变且带版本的更新载荷与所有独立 blockmap，最后替换 electron-builder 生成的频道元数据，并且不会删除历史对象。稳定版本与预发布版本共用 nightly 元数据；发布此 feed 前，发行 owner 必须为仍消费其他频道名称的已安装客户端安排升级衔接。NSIS 与 macOS ZIP 都使用独立 blockmap。Windows 上传计划要求实际生成且非空的 `.exe.blockmap`；独立 blockmap 的元数据不声明内嵌的 `blockMapSize`。两者都让 electron-updater 在平台支持时只下载变化的数据块，而应用替换与本地 pnpm staging 事务仍是两个独立操作。
 
 ## 安全与发布策略
 

@@ -17,7 +17,7 @@ describe('staged startup Host ownership', () => {
     const signal = new AbortController()
     vi.useFakeTimers()
     const check = checkDesktopStartupHost({
-      start: async () => ({ protocolVersion: 3, dshVersion: 'fixture' }), stop,
+      start: async () => ({ protocolVersion: 4, dshVersion: 'fixture' }), stop,
     }, signal.signal, report)
     let settled = false
     const completion = check.then(() => { settled = true }, () => { settled = true })

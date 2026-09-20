@@ -8,11 +8,12 @@ import { parseArgs } from 'node:util'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import type { DesktopRelease } from '../src/release.ts'
 import { prepareDevelopmentProject } from './development-project.ts'
+import { preparePrimaryRuntime } from './prepare-primary-runtime.ts'
+import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { resolveDevelopmentOptions, type DevelopmentOptions } from './development-options.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
-const DEVELOPMENT = resolveDevelopmentOptions(APP_ROOT, process.env)
 
 interface PackageManifest {
   readonly version?: string
@@ -28,7 +29,7 @@ async function run(command: string, args: readonly string[], cwd: string, enviro
   await new Promise<void>((resolvePromise, reject) => {
     const child = spawn(command, args, { cwd, env: environment, stdio: 'inherit' })
     child.once('error', reject)
-    child.once('exit', (code, signal) => {
+    child.once('close', (code, signal) => {
       if (code === 0) resolvePromise()
       else reject(new Error(`desktop development: ${args.join(' ')} exited with ${String(code ?? signal)}`))
     })
@@ -43,7 +44,7 @@ async function runPackageScript(script: string, cwd: string): Promise<void> {
   await run(process.execPath, [packageManager, 'run', script], cwd)
 }
 
-async function launchElectron(options: DevelopmentOptions): Promise<void> {
+async function launchElectron(options: DevelopmentOptions, primaryRuntime: string): Promise<void> {
   const require = createRequire(import.meta.url)
   const electron: unknown = require('electron')
   if (typeof electron !== 'string') throw new Error('desktop development: electron executable is unavailable')
@@ -54,6 +55,7 @@ async function launchElectron(options: DevelopmentOptions): Promise<void> {
     DSH_DESKTOP_DEV_PROJECT_DIR: projectDir,
     DSH_DESKTOP_HOST_INSPECT_PORT: hostPort === undefined ? undefined : String(hostPort),
     DSH_DESKTOP_NODE_BINARY: process.execPath,
+    DSH_DESKTOP_PRIMARY_RUNTIME: primaryRuntime,
     DSH_DESKTOP_OPEN_DEVTOOLS: process.env.DSH_DESKTOP_OPEN_DEVTOOLS ?? '1',
     ELECTRON_ENABLE_LOGGING: process.env.ELECTRON_ENABLE_LOGGING ?? '1',
   }
@@ -67,8 +69,14 @@ async function launchElectron(options: DevelopmentOptions): Promise<void> {
   ], APP_ROOT, environment)
 }
 
-async function main(): Promise<void> {
-  const { values } = parseArgs({ options: { 'skip-build': { type: 'boolean', default: false } } })
+/**
+ * Prepare the workspace project and primary payload before launching Electron.
+ * @param argv - Launcher arguments; --skip-build still prepares the primary runtime.
+ * @returns Resolves when Electron closes; preparation failures prevent launch.
+ */
+export async function runDesktopDevelopment(argv: readonly string[]): Promise<void> {
+  const development = resolveDevelopmentOptions(APP_ROOT, process.env)
+  const { values } = parseArgs({ args: [...argv], options: { 'skip-build': { type: 'boolean', default: false } } })
   if (!values['skip-build']) {
     await runPackageScript('build', REPOSITORY_ROOT)
     await runPackageScript('build', APP_ROOT)
@@ -89,16 +97,19 @@ async function main(): Promise<void> {
     pnpmVersion,
   }
   prepareDevelopmentProject({
-    projectDir: DEVELOPMENT.projectDir,
+    projectDir: development.projectDir,
     cliDir: join(REPOSITORY_ROOT, 'apps', 'cli'),
     hostDir: join(REPOSITORY_ROOT, 'apps', 'desktop-host'),
     dependencyDir: join(REPOSITORY_ROOT, 'node_modules', '.pnpm', 'node_modules'),
     release,
   })
-  await launchElectron(DEVELOPMENT)
+  await preparePrimaryRuntime()
+  await launchElectron(development, join(resolveDesktopTargetBuildPaths().runtime, 'primary-runtime'))
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error)
-  process.exitCode = 1
-})
+if (process.argv[1] !== undefined && import.meta.filename === resolve(process.argv[1])) {
+  await runDesktopDevelopment(process.argv.slice(2)).catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : error)
+    process.exitCode = 1
+  })
+}

@@ -16,6 +16,7 @@ function desktopDependencyRoot() {
     name: '@deepseek-ai/dsh-desktop',
     path: appPath,
     dependencies: {
+      '@deepseek-ai/dsh-app-boot': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/dsh-app-boot') },
       'electron-updater': {
         version: '6.8.9', path: resolve(appPath, 'node_modules/electron-updater'),
         dependencies: { semver: { version: '7.7.4', path: resolve(appPath, 'node_modules/electron-updater/node_modules/semver') } },
@@ -103,7 +104,7 @@ describe('desktop package target', () => {
     }
   })
 
-  it.each(['electron-updater', 'semver'])('rejects a listing missing %s', (dependency) => {
+  it.each(['@deepseek-ai/dsh-app-boot', 'electron-updater', 'semver'])('rejects a listing missing %s', (dependency) => {
     const root = desktopDependencyRoot()
     const dependencies = Object.fromEntries(Object.entries(root.dependencies).filter(([name]) => name !== dependency))
     expect(() => assertDesktopDependencySelection([{ ...root, dependencies }])).toThrow(`missing ${dependency}`)

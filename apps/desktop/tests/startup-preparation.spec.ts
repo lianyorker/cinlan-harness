@@ -11,7 +11,7 @@ const workers: Array<{ cancel: AbortController; done: Promise<unknown> }> = []
 function request(): DesktopPreparationRequest {
   const root = mkdtempSync(join(tmpdir(), 'dsh-startup-worker-'))
   roots.push(root)
-  return { paths: resolveDesktopPaths(root), runtime: { node: process.execPath, pnpm: join(root, 'pnpm.mjs') }, seed: root, version: '1.0.0' }
+  return { paths: resolveDesktopPaths(root), runtime: { node: process.execPath, pnpm: join(root, 'pnpm.mjs') }, seed: root, primaryRuntime: join(root, 'runtime', 'primary-runtime'), version: '1.0.0' }
 }
 
 function run(source: string, input: DesktopPreparationRequest, report: (stage: string) => void) {

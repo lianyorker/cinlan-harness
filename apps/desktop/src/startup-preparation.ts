@@ -10,6 +10,7 @@ import type { DesktopStartupStage } from './startup.ts'
 export interface DesktopPreparationRequest {
   readonly paths: DesktopPaths
   readonly runtime: DesktopRuntimeExecutables
+  readonly primaryRuntime: string
   readonly seed: string
   readonly version: string
 }

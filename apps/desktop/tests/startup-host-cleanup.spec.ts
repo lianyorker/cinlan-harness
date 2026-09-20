@@ -22,7 +22,7 @@ describe('startup Host cleanup retry', () => {
     const host = new DesktopHostProcess('fixture-node', '/private-fixture')
     try {
       const ready = host.start()
-      child.emit('message', { type: 'ready', protocolVersion: 3, dshVersion: 'fixture' })
+      child.emit('message', { type: 'ready', protocolVersion: 4, dshVersion: 'fixture' })
       await ready
       const stopping = host.stop()
       expect(host.stop()).toBe(stopping)

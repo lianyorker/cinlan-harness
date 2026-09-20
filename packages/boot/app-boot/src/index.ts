@@ -23,6 +23,7 @@ import { runProfileConfiguration } from './profile-configuration.ts'
 
 export { readProfilePatches, resolveTelemetryPatch, type ProfileContext, type ProfilePnpmInvocation } from './profile-context.ts'
 export { prepareProfilePatches, runProfileConfiguration, watchProfilePatches } from './profile-configuration.ts'
+export { sanitizeProfile } from './profile-sanitize.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {

@@ -2,7 +2,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 import {
   DESKTOP_HOST_PROTOCOL_VERSION,
@@ -37,6 +37,12 @@ function isDesktopHostEvent(message: unknown): message is DesktopHostEvent {
       return candidate.protocolVersion === DESKTOP_HOST_PROTOCOL_VERSION && typeof candidate.dshVersion === 'string'
     case 'fatal':
       return typeof candidate.message === 'string'
+    case 'shutdown-complete':
+      return true
+    case 'update-tasks':
+      return Number.isSafeInteger(candidate.requestId) && (candidate.requestId as number) > 0
+        && typeof candidate.active === 'boolean'
+        && (candidate.error === undefined || typeof candidate.error === 'string')
     default:
       return false
   }
@@ -65,6 +71,9 @@ export interface DesktopHostReady {
   readonly dshVersion: string
 }
 
+/** Confirmed child exit whose teardown cannot authorize installation. */
+export class DesktopHostUncleanExitError extends Error {}
+
 /** One dsh backend running under the bundled upstream Node.js executable. */
 export class DesktopHostProcess {
   private child: ChildProcess | undefined
@@ -84,6 +93,11 @@ export class DesktopHostProcess {
   private exitPromise: Promise<void> | undefined
   private stopTask: Promise<void> | undefined
   private stopping = false
+  private failureReported = false
+  private shutdownCompleted = false
+  private uncleanExit: DesktopHostUncleanExitError | undefined
+  private nextControlId = 1
+  private readonly taskQueries = new Map<number, { resolve: (active: boolean) => void; reject: (error: Error) => void }>()
   private started = false
   private stderr = ''
 
@@ -92,17 +106,22 @@ export class DesktopHostProcess {
    * @param projectDir - active or staged desktop npm project.
    * @param inspectPort - optional loopback inspector port for workspace development.
    * @param allowLinkedProfile - permit external workspace package links only for development projects.
+   * @param onFailure - Receives the first unexpected failure, including after readiness.
+   * @param primaryRuntime - Bundled Office payload; defaults to the sibling of the bundled Node directory.
    */
   constructor(
     private readonly node: string,
     private readonly projectDir: string,
     private readonly inspectPort?: number,
     private readonly allowLinkedProfile = false,
+    private readonly onFailure?: (error: Error) => void,
+    private readonly primaryRuntime: string = join(dirname(node), '..', 'primary-runtime'),
   ) {}
 
   /** Start the child once and resolve only after its complete composition is active. */
   async start(): Promise<DesktopHostReady> {
     if (this.stopping) throw new Error('dsh desktop host is stopping')
+    if (this.failureReported) throw new Error('dsh desktop host is unavailable')
     if (this.started) return this.readyPromise
     this.started = true
     const entry = join(this.projectDir, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'lib', 'index.js')
@@ -110,6 +129,7 @@ export class DesktopHostProcess {
       ...(this.inspectPort === undefined ? [] : [`--inspect=127.0.0.1:${String(this.inspectPort)}`]),
       entry,
       this.projectDir,
+      '--primary-runtime', this.primaryRuntime,
       ...(this.allowLinkedProfile ? ['--allow-linked-profile'] : []),
     ], {
       cwd: this.projectDir,
@@ -140,7 +160,7 @@ export class DesktopHostProcess {
     this.requestPipe = requestPipe
     this.responsePipe = responsePipe
     child.stderr?.setEncoding('utf8')
-    child.stderr?.on('data', (chunk: string) => { this.stderr += chunk })
+    child.stderr?.on('data', (chunk: string) => { this.stderr = (this.stderr + chunk).slice(-64 * 1024) })
     child.stdout?.pipe(process.stdout)
     responsePipe.on('data', (chunk: Buffer) => { this.acceptResponseBytes(chunk) })
     responsePipe.once('end', () => {
@@ -207,14 +227,45 @@ export class DesktopHostProcess {
     })
   }
 
-  /** Reject pending readiness and requests, then await child and pipe closure; concurrent callers share teardown. */
-  stop(): Promise<void> {
+  /**
+   * Inspect live tasks, drain and lock API admission, or unlock after cancellation.
+   * @param action - Requested admission operation.
+   * @returns whether active work remains; missing services, transport failure and timeouts reject.
+   */
+  async updateTasks(action: 'inspect' | 'lock' | 'unlock'): Promise<boolean> {
+    const child = this.child
+    if (child === undefined || !child.connected || this.failureReported || this.stopping) {
+      throw new Error('desktop update: Host is unavailable')
+    }
+    const requestId = this.nextControlId++
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      return await new Promise<boolean>((resolve, reject) => {
+        this.taskQueries.set(requestId, { resolve, reject })
+        timer = setTimeout(() => { reject(new Error('desktop update: task inspection timed out')) }, 10_000)
+        child.send({ type: 'update-tasks', requestId, action } satisfies DesktopHostCommand,
+          (error) => { if (error !== null) reject(error) })
+      })
+    } finally {
+      clearTimeout(timer)
+      this.taskQueries.delete(requestId)
+    }
+  }
+
+  /**
+   * Await child and pipe closure; concurrent callers share process teardown.
+   * @param requireGraceful - Require acknowledgement, zero exit and the graceful deadline for installation.
+   * @returns teardown completion. DesktopHostUncleanExitError confirms exit; other errors do not.
+   */
+  stop(requireGraceful = false): Promise<void> {
     this.stopping = true
     this.stopTask ??= this.stopChild().catch((error: unknown) => {
       this.stopTask = undefined
       throw error
     })
-    return this.stopTask
+    return requireGraceful ? this.stopTask.then(() => {
+      if (this.uncleanExit !== undefined) throw this.uncleanExit
+    }) : this.stopTask
   }
 
   private async stopChild(): Promise<void> {
@@ -229,12 +280,18 @@ export class DesktopHostProcess {
     // Closing the parent-owned write end releases the Host's pending Windows pipe read.
     this.requestPipe?.destroy()
     const exited = this.exitPromise ?? Promise.resolve()
-    if (!await exitsWithin(exited, 10_000)) child.kill('SIGTERM')
+    const graceful = await exitsWithin(exited, 10_000)
+    if (!graceful) child.kill('SIGTERM')
     if (!await exitsWithin(exited, 5_000)) {
       child.kill('SIGKILL')
       if (!await exitsWithin(exited, 5_000)) {
         throw new Error('dsh desktop host did not exit after SIGKILL')
       }
+    }
+    if (!graceful || child.exitCode !== 0 || !this.shutdownCompleted) {
+      this.uncleanExit = new DesktopHostUncleanExitError(
+        `desktop update: Host did not complete graceful task teardown (exit ${String(child.exitCode)}, signal ${String(child.signalCode)}, shutdown acknowledged ${String(this.shutdownCompleted)}, graceful deadline exceeded ${String(!graceful)})`,
+      )
     }
     this.child = undefined
     this.requestPipe = undefined
@@ -409,6 +466,16 @@ export class DesktopHostProcess {
       case 'fatal':
         this.fail(new Error(message.message))
         return
+      case 'shutdown-complete':
+        if (this.stopping) this.shutdownCompleted = true
+        else this.fail(new Error('dsh desktop host acknowledged an unrequested shutdown'))
+        return
+      case 'update-tasks': {
+        const query = this.taskQueries.get(message.requestId)
+        if (message.error === undefined) query?.resolve(message.active)
+        else query?.reject(new Error(message.error))
+        return
+      }
       default:
         message satisfies never
     }
@@ -416,6 +483,14 @@ export class DesktopHostProcess {
 
   private fail(error: Error): void {
     this.readyReject(error)
+    for (const query of this.taskQueries.values()) query.reject(error)
+    this.taskQueries.clear()
+    if (!this.failureReported && !this.stopping) {
+      this.failureReported = true
+      try { this.onFailure?.(error) } catch (listenerError) {
+        console.error('desktop host failure listener failed', listenerError)
+      }
+    }
     for (const pending of this.pending.values()) {
       void pending.requestReader?.cancel(error).catch(() => undefined)
       if (pending.controller === undefined) pending.reject(error)
