@@ -217,7 +217,18 @@ function sameStringList(actual: readonly string[] | undefined, expected: readonl
   return !!actual && actual.length === expected.length && actual.every((value, index) => value === expected[index])
 }
 
+function isConfigurationOnlyBundle(manifest: PackageManifest): manifest is PackageManifest & { dsh: { bundle: { patch: string } } } {
+  const patch = manifest.dsh?.bundle?.patch
+  return typeof patch === 'string' && patch.startsWith('./') && patch.endsWith('.yml')
+    && !patch.slice(2).split('/').some(part => part === '..' || part === '')
+    && manifest.main === undefined && manifest.types === undefined && manifest.bin === undefined
+    && manifest.exports?.['.'] === undefined
+    && manifest.exports?.[patch] === patch && manifest.exports['./package.json'] === './package.json'
+    && Object.keys(manifest.exports).every(key => key === patch || key === './package.json')
+}
+
 export function expectedDshPackageFiles(manifest: PackageManifest): readonly string[] {
+  if (isConfigurationOnlyBundle(manifest)) return [manifest.dsh.bundle.patch.slice(2)]
   const declaredPatch = manifest.dsh?.bundle?.patch
   const bundleFiles = declaredPatch === undefined ? [] : [declaredPatch.replace(/^\.\//, '')]
   const extras = [
@@ -441,18 +452,19 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
     if (manifest.type !== 'module') {
       errors.push(`${label}: package.json must set "type": "module"`)
     }
-    if (manifest.main !== 'lib/index.js') {
+    const configurationOnly = dir.startsWith('packages/bundle/') && isConfigurationOnlyBundle(manifest)
+    if (!configurationOnly && manifest.main !== 'lib/index.js') {
       errors.push(`${label}: package.json must set "main": "lib/index.js"`)
     }
-    if (manifest.types !== 'lib/types/index.d.ts') {
+    if (!configurationOnly && manifest.types !== 'lib/types/index.d.ts') {
       errors.push(`${label}: package.json must set "types": "lib/types/index.d.ts"`)
     }
     const rootExport = manifest.exports?.['.']
     const rootEntry = typeof rootExport === 'object' && rootExport !== null ? rootExport : undefined
-    if (rootEntry?.types !== './lib/types/index.d.ts') {
+    if (!configurationOnly && rootEntry?.types !== './lib/types/index.d.ts') {
       errors.push(`${label}: package.json exports["."].types must be "./lib/types/index.d.ts"`)
     }
-    if (rootEntry?.default !== './lib/index.js') {
+    if (!configurationOnly && rootEntry?.default !== './lib/index.js') {
       errors.push(`${label}: package.json exports["."].default must be "./lib/index.js"`)
     }
     const invariantRaw = manifest.exports?.['./invariant']

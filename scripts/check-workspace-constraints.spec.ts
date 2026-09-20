@@ -124,7 +124,7 @@ describe('experimental workspace constraints', () => {
         expect(checkExperimentalDependencyIsolation([{ ...target, dir: experimental.dir }, importer])).toHaveLength(1)
         expect(checkExperimentalDependencyIsolation([experimental, {
           ...consumer,
-          manifest: { ...consumer.manifest, [section]: { [experimental.manifest.name!]: 'workspace:^' } },
+          manifest: { ...consumer.manifest, [section]: { [experimental.manifest.name]: 'workspace:^' } },
         }])).toHaveLength(1)
       }
       expect(checkExperimentalDependencyIsolation([
@@ -220,6 +220,24 @@ describe('dsh family version coherence', () => {
 })
 
 describe('package payload constraints', () => {
+  it('publishes only the declared patch for a configuration-only bundle', () => {
+    const dir = 'packages/bundle/web-capability-defaults'
+    const manifest = JSON.parse(readFileSync(resolve(root, dir, 'package.json'), 'utf8')) as PackageManifest
+    expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
+    expect(expectedDshPackageFiles(manifest)).toEqual(['cordis.patch.yml'])
+    expect(checkWorkspaceManifest({ dir: 'packages/host/not-a-bundle', manifest }).join(String.fromCharCode(10)))
+      .toContain('package.json must set "main"')
+    for (const changed of [
+      { ...manifest, files: ['cordis.patch.yml', 'lib/hidden.js'] },
+      { ...manifest, main: 'lib/index.js' },
+      { ...manifest, types: 'lib/types/index.d.ts' },
+      { ...manifest, bin: 'hidden.js' },
+      { ...manifest, exports: { ...manifest.exports, './hidden': './lib/hidden.js' } },
+      { ...manifest, exports: { './package.json': './package.json' } },
+      { ...manifest, dsh: { bundle: { patch: './../outside.yml' } } },
+    ]) expect(checkWorkspaceManifest({ dir, manifest: changed })).not.toEqual([])
+  })
+
   it.each([
     ['bundle/headless', ['lib/json-stream-*.js']],
     ['client/ui-git-settings', ['lib/types.js']],
@@ -270,10 +288,10 @@ describe('runtime-loaded security and sidebar payloads', () => {
     ['client/ui-better-sidebar', 'lib/client-editor.js'],
     ['client/ui-better-sidebar', 'lib/client-mermaid.js'],
   ])('requires %s to publish %s', (directory, asset) => {
-    const manifest = JSON.parse(readFileSync('packages/' + directory + '/package.json', 'utf8'))
+    const manifest = JSON.parse(readFileSync('packages/' + directory + '/package.json', 'utf8')) as PackageManifest
     const expected = expectedDshPackageFiles(manifest)
     expect(expected).toContain(asset)
     expect(manifest.files).toEqual(expected)
-    expect(manifest.files.filter((file: string) => file !== asset)).not.toEqual(expected)
+    expect(manifest.files?.filter(file => file !== asset)).not.toEqual(expected)
   })
 })
