@@ -12,6 +12,7 @@ import { chmod, copyFile, cp, lstat, mkdir, readFile, readdir, realpath, rm, wri
 import { basename, dirname, extname, join, resolve, sep } from 'node:path'
 import { parseArgs } from 'node:util'
 import { resolveLinuxNodePtyAddon, resolveWindowsNodePtyAddons } from './build-exe-for-python-sdk-native-pty.ts'
+import { copyOfficeSidecar, OFFICE_ASSET_IGNORES } from './build-exe-for-python-sdk-office.ts'
 
 const root = resolve(import.meta.dirname, '..')
 
@@ -267,7 +268,9 @@ class SingleExeBuild {
 
   /** Verify the closure before compiling or packaging. */
   async verifyClosure(): Promise<void> {
-    await this.runPnpm('runtime dependency closure', ['run', 'verify-runtime-closure'])
+    await this.run('runtime dependency closure', process.execPath, [
+      '--import', 'tsx/esm', resolve(root, 'scripts/verify-runtime-closure.ts'),
+    ])
   }
 
   /** Build all package artifacts unless `--skip-build` was passed. */
@@ -276,7 +279,7 @@ class SingleExeBuild {
       console.log('build-exe-for-python-sdk: skipping pnpm run build (--skip-build)')
       return
     }
-    await this.runPnpm('build', ['run', 'build'])
+    await this.run('build', process.execPath, ['--import', 'tsx/esm', resolve(root, 'scripts/build.ts')])
   }
 
   /** Clear and deploy the runtime closure into the node carrier. */
@@ -292,6 +295,8 @@ class SingleExeBuild {
       'deploy',
       '--legacy',
       '--prod',
+      // Production deployment omits workspace tooling such as Electron's patched signer.
+      '--config.allow-unused-patches=true',
       '--config.node-linker=hoisted',
       '--config.auto-install-peers=false',
       '--config.link-workspace-packages=true',
@@ -396,7 +401,7 @@ class SingleExeBuild {
 
   /** Add the executable entry and pkg assets to the staged manifest. */
   async injectPkgConfig(): Promise<void> {
-    const patch = { bin: ENTRY_BIN, pkg: { assets: ASSET_GLOBS } }
+    const patch = { bin: ENTRY_BIN, pkg: { assets: ASSET_GLOBS, ignore: OFFICE_ASSET_IGNORES } }
     const manifestPath = join(this.staging, 'package.json')
     if (this.cli.dryRun) {
       console.log(`build-exe-for-python-sdk: [dry-run] patch ${manifestPath} with ${JSON.stringify(patch)}`)
@@ -416,16 +421,15 @@ class SingleExeBuild {
   /**
    * Package one target; SEA mode accepts one target per invocation.
    * @param target - the pkg target triple to build.
-   * @returns the executable and ripgrep sidecar paths, plus the macOS spawn helper path when required.
+   * @returns the executable, Office directory, ripgrep, and required macOS spawn helper paths.
    */
   async pack(target: Target): Promise<string[]> {
     const productBase = join(this.outDir, `${OUTPUT_BASENAME}-${target.platform}-${target.arch}`)
     const product = target.platform === 'win' ? `${productBase}.exe` : productBase
     await this.prepareNativePty(target)
     if (!this.cli.dryRun) await mkdir(this.outDir, { recursive: true })
-    await this.runPnpm(`pkg ${target.spec}`, [
-      'exec',
-      'pkg',
+    await this.run(`pkg ${target.spec}`, process.execPath, [
+      resolve(root, 'node_modules/@yao-pkg/pkg/lib-es5/bin.js'),
       this.staging,
       '--sea',
       '--targets',
@@ -436,8 +440,16 @@ class SingleExeBuild {
     if (!this.cli.dryRun && !existsSync(product)) {
       throw new Error(`build-exe-for-python-sdk: product ${product} is missing after the pkg run; inspect ${this.outDir}.`)
     }
+    const office = `${productBase}-office`
+    if (this.cli.dryRun) {
+      console.log(`build-exe-for-python-sdk: [dry-run] copy Office dependency closure from ${this.staging} to ${office}`)
+    } else {
+      const platform = target.platform === 'macos' ? 'darwin' : target.platform === 'win' ? 'win32' : target.platform
+      const packages = await copyOfficeSidecar(this.staging, office, { platform, arch: target.arch })
+      console.log(`build-exe-for-python-sdk: copied ${packages.length} Office packages to ${office}`)
+    }
     const ripgrep = await this.copyRipgrepSidecar(target, product)
-    if (target.platform !== 'macos') return [product, ripgrep]
+    if (target.platform !== 'macos') return [product, ripgrep, office]
     const spawnHelper = `${product}-spawn-helper`
     const source = join(this.staging, 'node_modules', 'node-pty', 'prebuilds', `darwin-${target.arch}`, 'spawn-helper')
     if (this.cli.dryRun) {
@@ -446,7 +458,7 @@ class SingleExeBuild {
       await copyFile(source, spawnHelper)
       await chmod(spawnHelper, 0o755)
     }
-    return [product, ripgrep, spawnHelper]
+    return [product, ripgrep, spawnHelper, office]
   }
 
   /** Copy the target ripgrep binary beside the executable so Node can spawn it outside pkg's virtual filesystem. */
@@ -504,7 +516,9 @@ class SingleExeBuild {
           + `target ${target.platform}-${target.arch} does not match host ${host.platform}-${host.arch}.`,
         )
       }
-      resolveWindowsNodePtyAddons(join(this.staging, 'node_modules', 'node-pty'), target.arch)
+      const stagedPty = join(this.staging, 'node_modules', 'node-pty')
+      if (this.cli.dryRun) console.log(`build-exe-for-python-sdk: [dry-run] validate Windows node-pty addons in ${stagedPty}`)
+      else resolveWindowsNodePtyAddons(stagedPty, target.arch)
       return
     }
     if (target.platform !== 'linux') return
@@ -536,6 +550,10 @@ class SingleExeBuild {
         console.log(`  ${path}`)
         continue
       }
+      if (statSync(path).isDirectory()) {
+        console.log(`  ${path}  (Office dependency directory)`)
+        continue
+      }
       const megabytes = statSync(path).size / (1024 * 1024)
       console.log(`  ${path}  (${megabytes.toFixed(1)} MB)`)
     }
@@ -557,7 +575,10 @@ class SingleExeBuild {
     await mkdir(destDir, { recursive: true })
     for (const path of products) {
       const destination = join(destDir, basename(path))
-      await copyFile(path, destination)
+      if (statSync(path).isDirectory()) {
+        await rm(destination, { recursive: true, force: true })
+        await cp(path, destination, { recursive: true })
+      } else await copyFile(path, destination)
       await chmod(destination, statSync(path).mode & 0o777)
       console.log(`build-exe-for-python-sdk: synced ${destination}`)
     }
@@ -582,7 +603,7 @@ class SingleExeBuild {
         cwd: root,
         stdio: 'inherit',
         // Artifact builds must not mutate or validate a developer's Git hooks.
-        env: { ...process.env, CI: 'true' },
+        env: { ...process.env, CI: 'true', pnpm_config_verify_deps_before_run: 'error' },
       })
       child.once('error', (error) => {
         reject(new Error(`build-exe-for-python-sdk: ${label} failed to spawn: ${error.message} (${printable})`))

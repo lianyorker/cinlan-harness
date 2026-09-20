@@ -245,6 +245,8 @@ def write_profile_patch(
 def write_advanced_profile_patch(root: Path, name: str, sessions: Path) -> Path:
     """Write the shared custom, snapshot, and restart profile patch."""
     return write_profile_patch(root, name, sessions, [
+        {"id": "llm-deepseek", "config": {"protocol": "chat-completions"}},
+        {"id": "ptc-runtime", "name": "@deepseek-ai/dsh-ptc-runtime-node"},
         {"id": "tools", "config": {"mode": "both"}},
         {
             "id": "system-prompt",
@@ -265,7 +267,6 @@ def write_advanced_profile_patch(root: Path, name: str, sessions: Path) -> Path:
             },
         },
         {"insert": [
-            {"id": "code-runtime", "name": "@deepseek-ai/dsh-code-runtime-worker-thread"},
             {"id": "cordis-host-runner", "name": "@deepseek-ai/dsh-cordis-host-runner"},
             {"id": "cordis-tool", "name": "@deepseek-ai/dsh-tool-cordis"},
         ]},
@@ -318,6 +319,8 @@ def completion_chunks(body: dict[str, object]) -> list[dict[str, object]]:
     messages = body.get("messages")
     if not isinstance(messages, list) or not messages:
         raise AssertionError(f"model request has no messages: {body}")
+    if any("image omitted to fit request image limits" in message_text(message.get("content")) for message in messages):
+        return text_chunks("image recovery complete")
     # A system prompt update may follow the tool result without replacing it.
     latest = next(message for message in reversed(messages) if message.get("role") != "system")
     if not isinstance(latest, dict):
@@ -326,6 +329,14 @@ def completion_chunks(body: dict[str, object]) -> list[dict[str, object]]:
     if latest.get("role") == "tool":
         call_id, tool_name = latest_tool_call(messages)
         tool_text = message_text(latest.get("content"))
+        if call_id == "windows-acl-write-probe":
+            if tool_name != "pwsh" or "ACL_WRITE_OK" not in tool_text or "FullLanguage" not in tool_text or "ACL_OUTSIDE_DENIED" not in tool_text:
+                raise AssertionError(f"ACL workspace write failed: {tool_text}")
+            return text_chunks("ACL_ENTRY_OK")
+        if call_id == "windows-acl-probe":
+            if tool_name != "pwsh" or not all(marker in tool_text for marker in ("ACL_WORKER_OK", "ACL_WRITE_DENIED", "ConstrainedLanguage")):
+                raise AssertionError(f"ACL runner did not execute the command: {tool_text}")
+            return text_chunks("ACL_ENTRY_OK")
         mcp = mcp_tool_followup(call_id, tool_name, tool_text)
         if mcp is not None:
             return mcp
@@ -354,6 +365,21 @@ def completion_chunks(body: dict[str, object]) -> list[dict[str, object]]:
         for message in reversed(messages)
         if isinstance(message, dict) and message.get("role") == "user"
     ]
+    acl_prompt = next((prompt for prompt in user_prompts if prompt.startswith("verify packaged Windows ACL")), None)
+    if acl_prompt is not None:
+        assert_advertised_tool(body, "pwsh")
+        probe = json.loads(acl_prompt.split("\n", 1)[1])
+        command = "Write-Output ACL_WORKER_OK; Write-Output ACL_UNICODE_中文; Write-Output $ExecutionContext.SessionState.LanguageMode; "
+        if probe["mode"] == "read-only":
+            command += "try { Set-Content -LiteralPath acl-probe.txt -Value forbidden -ErrorAction Stop; exit 17 } catch { Write-Output ACL_WRITE_DENIED }; "
+        else:
+            command += "Set-Content -LiteralPath acl-probe.txt -Value ACL_WRITE_OK -ErrorAction Stop; Get-Content -LiteralPath acl-probe.txt; "
+        outside = probe["outside"].replace("'", "''")
+        command += f"try {{ Set-Content -LiteralPath '{outside}' -Value forbidden -ErrorAction Stop; exit 18 }} catch {{ Write-Output ACL_OUTSIDE_DENIED }}"
+        arguments = {"command": command, "description": "Verify confined executable worker"}
+        if probe.get("workdir") is not None:
+            arguments["workdir"] = probe["workdir"]
+        return tool_call_chunks("windows-acl-probe" if probe["mode"] == "read-only" else "windows-acl-write-probe", "pwsh", arguments)
     minimal_prompt = next(
         (
             prompt
@@ -775,7 +801,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--scenario",
-        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-restart", "sdk-profile-plugin", "sdk-live", "runner", "direct"),
+        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-windows-acl", "sdk-image-offload", "sdk-snapshot", "sdk-restart", "sdk-profile-plugin", "sdk-live", "runner", "direct"),
         default="all",
     )
     parser.add_argument("--exe", type=Path)
@@ -794,7 +820,7 @@ def main() -> None:
         parser.error("--scenario sdk-profile-plugin requires --installed-wheel")
     if args.installed_wheel:
         args.exe = assert_installed_wheel_environment()
-    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-restart", "runner", "direct"} and args.exe is None:
+    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-fs-search", "sdk-spawn-node", "sdk-windows-acl", "sdk-image-offload", "sdk-snapshot", "sdk-restart", "runner", "direct"} and args.exe is None:
         parser.error("--exe is required for custom, minimal, fs-search, spawn-node, snapshot, restart, runner, and direct scenarios")
     if args.update_snapshots and args.scenario not in {"all", "sdk-minimal", "sdk-minimal-in-history", "sdk-snapshot", "sdk-restart"}:
         parser.error("--update-snapshots requires --scenario sdk-minimal, sdk-minimal-in-history, sdk-snapshot, sdk-restart, or all")
@@ -833,6 +859,12 @@ def main() -> None:
             smoke_sdk_spawn_node(model.url, args.exe.resolve())
         if args.scenario in {"all", "sdk-mcp"}:
             smoke_sdk_mcp(model.url, None if args.exe is None else args.exe.resolve())
+        if args.scenario in {"all", "sdk-windows-acl"} and os.name == "nt":
+            assert args.exe is not None
+            smoke_sdk_windows_acl(model.url, args.exe.resolve())
+        if args.scenario in {"all", "sdk-image-offload"}:
+            assert args.exe is not None
+            smoke_sdk_image_offload(model.url, args.exe.resolve())
         if args.scenario in {"all", "sdk-snapshot"}:
             assert args.exe is not None
             smoke_sdk_snapshot(model.url, args.exe.resolve(), args.update_snapshots)
@@ -1320,6 +1352,92 @@ def smoke_sdk_profile_plugin(base_url: str) -> None:
         assert_zstd_session_log(dsh_home / "sessions")
 
 
+def smoke_sdk_windows_acl(base_url: str, executable: Path) -> None:
+    """Verify confined modes, default cwd, and an explicit child workdir in the exe."""
+    from deepseek_harness import DeepSeekHarness
+
+    # tempfile's Windows mode 0700 omits the ordinary user ACE required by LUA tokens.
+    root = Path(tempfile.gettempdir()) / f"dsh-sdk-acl-{secrets.token_hex(16)}"
+    os.mkdir(root)
+    print(f"smoke-python-runtime: ACL evidence root {root}")
+    try:
+        for label, mode, relative in (("read-only", "read-only", None), ("workspace-write", "workspace-write", None), ("subdirectory", "workspace-write", "child")):
+            workspace = root / label
+            workspace.mkdir()
+            target = workspace if relative is None else workspace / relative
+            if relative is not None:
+                target.mkdir()
+            outside = root / f"outside-{label}.txt"
+            patch = write_profile_patch(root, f"{label}.patch.yml", root / f"sessions-{label}", [
+                {"id": "llm-deepseek", "config": {"protocol": "chat-completions"}},
+                {"id": "tools", "config": {"mode": "both"}},
+            ])
+            probe = {"mode": mode, "outside": str(outside), "workdir": relative}
+            prompt = "verify packaged Windows ACL worker\n" + json.dumps(probe)
+            with DeepSeekHarness(
+                provider="deepseek-official", model="smoke-model", cwd=str(workspace),
+                dsh_bin=str(executable), dsh_home=str(root / f"home-{label}"), patches=(str(patch),),
+                env={"DSH_PERMISSION_MODE": mode, "DSH_TELEMETRY_DISABLED": "1"},
+                api_key="sk-keyless-smoke", base_url=base_url, request_timeout_seconds=60,
+            ) as harness:
+                result = harness.run(prompt, session_id=f"python-acl-{label}")
+            assert result.final_response == "ACL_ENTRY_OK", result.final_response
+            assert not outside.exists(), "confined worker wrote outside its workspace"
+            if mode == "read-only":
+                assert not (target / "acl-probe.txt").exists(), "read-only worker wrote into the workspace"
+            else:
+                assert (target / "acl-probe.txt").read_text(encoding="utf-8-sig").strip() == "ACL_WRITE_OK"
+            records = [json.loads(line) for path in (root / f"sessions-{label}").rglob("session.v3.jsonl") for line in path.read_text(encoding="utf-8").splitlines()]
+            header = next(record for record in records if record["type"] == "session")
+            assert header["cwd"] == str(workspace), header
+            call = next(event["data"] for event in result.events if event.get("type") == "tool/call")
+            arguments = json.loads(call["arguments"])
+            assert arguments.get("workdir") == relative, arguments
+            modes = [event["data"]["mode"] for event in records if event.get("type") == "sandbox/mode"]
+            assert modes == [mode], modes
+            results = [event["data"] for event in result.events if event.get("type") == "tool/result"]
+            assert results and all("error" not in value for value in results), results
+            blocks = [block for value in results for block in value["message"]["content"]]
+            assert all(not block.get("isError", False) for block in blocks), results
+            rendered = "".join(content["text"] for block in blocks for content in block["content"] if content["type"] == "text")
+            assert "ACL_UNICODE_中文" in rendered and "ACL_OUTSIDE_DENIED" in rendered, rendered
+            assert "[stderr]" not in rendered and "[exit code:" not in rendered, rendered
+            print(json.dumps({"scenario": label, "headerCwd": header["cwd"], "mode": mode, "workdir": arguments.get("workdir"), "target": str(target), "outsideDenied": True, "result": results}, ensure_ascii=True))
+    except Exception:
+        print(f"smoke-python-runtime: retained ACL failure evidence at {root}")
+        raise
+    else:
+        shutil.rmtree(root)
+
+
+def smoke_sdk_image_offload(base_url: str, executable: Path) -> None:
+    """Verify durable image omission through the packaged SDK profile without rewriting snapshots."""
+    from deepseek_harness import DeepSeekHarness
+
+    session_id = "python-sdk-image-offload"
+    with tempfile.TemporaryDirectory(prefix="dsh-sdk-image-offload-") as temporary:
+        root = Path(temporary).resolve()
+        patch = write_profile_patch(root, "image-offload.patch.yml", root / "sessions", [
+            {"id": "llm-deepseek", "config": {"protocol": "chat-completions", "models": [
+                {"id": "smoke-model", "inputModalities": ["text", "image"]},
+            ]}},
+            {"insert": [{"id": "snapshot-image-offload", "name": (
+                Path(__file__).resolve().parent / "fixtures/python-snapshot-image-offload.mjs"
+            ).as_uri(), "config": {"parentSessionId": session_id}}]},
+        ])
+        with DeepSeekHarness(
+            cwd=str(root), dsh_bin=str(executable), dsh_home=str(root / "home"),
+            patches=(str(patch),), env={"DSH_TELEMETRY_DISABLED": "1"},
+            api_key="sk-keyless-smoke", base_url=base_url, model="smoke-model",
+            request_timeout_seconds=60,
+        ) as harness:
+            result = harness.run("verify image recovery", session_id=session_id)
+        offloads = [event for event in result.events if event.get("type") == "image/offload"]
+        assert len(offloads) == 1 and "surfaceOp" not in offloads[0], offloads
+        assert offloads[0]["data"]["targets"][0]["imageIndexes"] == [0], offloads
+        assert result.final_response == "image recovery complete", result.final_response
+
+
 def smoke_sdk_snapshot(base_url: str, executable: Path, update_snapshots: bool) -> None:
     """Drive and compare the advanced SDK/executable behavioral snapshot."""
     from deepseek_harness import DeepSeekHarness
@@ -1789,7 +1907,7 @@ def assert_session_log(sessions: Path, cwd: Path, *expected_texts: str) -> None:
     logs = latest_persisted_session_paths(sessions)
     if len(logs) != 1:
         raise AssertionError(f"expected one JSONL session log under {sessions}, found {logs}")
-    content = logs[0].read_text()
+    content = logs[0].read_text(encoding="utf-8")
     assert_persisted_session_version(logs[0], content)
     lines = content.splitlines()
     header = json.loads(lines[0])
@@ -2158,6 +2276,10 @@ def normalize_snapshot_value(
     }
     if normalized.get("type") == "session" and "createdAt" in normalized:
         normalized["createdAt"] = 0
+    if normalized.get("type") == "subagent/catalog":
+        data = normalized.get("data")
+        if isinstance(data, dict) and "childCreatedAt" in data:
+            data["childCreatedAt"] = 0
     if "seq" in normalized and "time" in normalized:
         normalized["time"] = 0
     if normalized.get("type") in ("assistant/message", "assistant/attempt"):

@@ -58,12 +58,24 @@ describe('Python runtime executable builder CLI', () => {
     )
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain(`${process.execPath} C:\\tools\\pnpm.cjs run verify-runtime-closure`)
+    expect(result.stdout).toContain(`${process.execPath} --import tsx/esm ${resolve(root, 'scripts/verify-runtime-closure.ts')}`)
     expect(result.stdout).toContain(`${process.execPath} C:\\tools\\pnpm.cjs --filter dsh-python-runtime-closure deploy`)
+    const deploy = result.stdout.split('\n').find(line => line.includes(' --filter dsh-python-runtime-closure deploy'))
+    expect(deploy).toContain('--prod --config.allow-unused-patches=true')
+    expect(result.stdout.split('--config.allow-unused-patches=true')).toHaveLength(2)
     expect(result.stdout).not.toContain(resolve(root, 'python/sdk-runtime/runtime-bootstrap.mjs'))
     expect(result.stdout).toContain('"bin":"runtime-bootstrap.mjs"')
-    expect(result.stdout).toContain(`${process.execPath} C:\\tools\\pnpm.cjs exec pkg`)
+    expect(result.stdout).toContain(`${process.execPath} ${resolve(root, 'node_modules/@yao-pkg/pkg/lib-es5/bin.js')}`)
+    expect(result.stdout).not.toContain(' exec pkg')
     expect(result.stdout).not.toMatch(/pnpm\.cmd/i)
+  })
+
+  it.runIf(process.platform === 'win32' && process.arch === 'x64')('plans Windows packaging without requiring a staged deployment', () => {
+    const result = run({ npm_execpath: 'C:/tools/pnpm.cjs' }, '--skip-build', '--dry-run', '--targets=node24-win-x64')
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toContain('[dry-run] validate Windows node-pty addons')
+    expect(result.stdout).toContain('deepseek-harness-sdk-runtime-win-x64-office')
+    expect(result.stdout).toContain('deepseek-harness-sdk-runtime-win-x64.exe')
   })
 
   it('resolves the pnpm package behind a Windows command shim', () => {
@@ -83,7 +95,7 @@ describe('Python runtime executable builder CLI', () => {
     )
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain(`${process.execPath} ${entrypoint} run verify-runtime-closure`)
+    expect(result.stdout).toContain(`${process.execPath} ${entrypoint} --filter dsh-python-runtime-closure deploy`)
     expect(result.stdout).not.toMatch(/pnpm\.cmd/i)
   })
 
@@ -96,7 +108,7 @@ describe('Python runtime executable builder CLI', () => {
     )
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('exec pkg')
+    expect(result.stdout).toContain(resolve(root, 'node_modules/@yao-pkg/pkg/lib-es5/bin.js'))
     expect(result.stdout).toContain('--sea --targets node24-macos-x64')
   })
 
