@@ -54,9 +54,9 @@ pnpm 阻止依赖脚本时，结果列出待决定的包名。重试可通过 `a
 <details>
 <summary>实现细节——点击展开</summary>
 
-管理器在共享 manifest 文件锁下写入 profile 文件。Pnpm 在配置队列外执行；bundle 选择与 Loader 协调在队列内执行。既有的仅配置 Cordis HMR 监视器通过同一队列处理 profile 与 home patch 及 manifest 选择变化。每次重载保留本地模块解析器并刷新 profile 链接，再等待移除的资源与结果 Loader 树。未改变的非活动条目产生警告；新失败条目以及显式启用却仍未激活的目标使变化失败。
+管理器在共享 manifest 文件锁下写入 profile 文件。Pnpm 在配置队列外执行；bundle 选择与 Loader 协调在队列内执行。Cordis 模块重载与配置监视器通过同一队列处理 profile 与 home patch 及 manifest 选择变化。每次重载保留本地模块解析器并刷新 profile 链接，再等待移除的资源与结果 Loader 树。未改变的非活动条目产生警告；新失败条目以及显式启用却仍未激活的目标使变化失败。
 
-每个写入 Remote 在取得锁或修改文件前检查 launcher 与 profile 标识。launcher 提供的 `pluginManagementHost` 通过受保护的条目 id 和应用自有的 patch 读取器，允许单独启停条目。Desktop 拒绝 bundle 选择和包括注册表查询在内的包操作；这些事务由原生壳持有。其 patch 读取器保留必需 overlay，不修改共享的 CLI 解析器链接。管理包时，模块代码 HMR 必须使用空 roots，因为 vendored 模块重载器有自己的调度器。不发布不变式伴生入口：管理器直接读取文件与 Loader 状态，没有独立投影。
+每个写入 Remote 在取得锁或修改文件前检查 launcher 与 profile 标识。launcher 提供的 `pluginManagementHost` 通过受保护的条目 id 和应用自有的 patch 读取器，允许单独启停条目。Desktop 拒绝 bundle 选择和包括注册表查询在内的包操作；这些事务由原生壳持有。其 patch 读取器保留必需 overlay，不修改共享的 CLI 解析器链接。模块代码 HMR 与 profile 管理共用一个生命周期队列。嵌套 profile 配置会被拒绝；已处于 HMR 代次中的 watcher 回调会直接完成，不会排在自身后面等待。销毁会先关闭新任务接纳和 watcher，再等待队列。不发布不变式伴生入口：管理器直接读取文件与 Loader 状态，没有独立投影。
 
 公共记录位于 [types.ts](src/types.ts)。[operations.ts](src/operations.ts) 持有子进程输出、环境清理与包协调；[patch.ts](src/patch.ts) 保留 YAML 注释和无关字段；[build-approval.ts](src/build-approval.ts) 持有显式脚本权限。
 

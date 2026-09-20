@@ -25,7 +25,7 @@ import SessionProjections from '@deepseek-ai/dsh-session-projection'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import * as managerTools from '../src/tools.ts'
 
-async function fixture(reload: 'live' | 'startup' = 'live', overlay = false, prepare?: (ctx: Context) => void, config: Config = {}, packageManager?: ProfileContext['packageManager'], profileName = 'test', withTools = false) {
+async function fixture(reload: 'live' | 'startup' = 'live', overlay = false, prepare?: (ctx: Context) => void, config: Config = {}, packageManager?: ProfileContext['packageManager'], profileName = 'test', withTools = false, moduleRoots = false) {
   // pnpm resolves workspace roots through native realpath, including Windows 8.3 aliases.
   const home = await realpath(mkdtempSync(join(tmpdir(), 'plugin-manager-')))
   const dir = join(home, 'profiles', 'test')
@@ -74,7 +74,7 @@ async function fixture(reload: 'live' | 'startup' = 'live', overlay = false, pre
   let stopHmr = async () => {}
   if (reload === 'live') {
     await ctx.plugin(Timer)
-    const owner = await ctx.plugin(Hmr, { root: [], ignored: [], debounce: 0 })
+    const owner = await ctx.plugin(Hmr, { root: moduleRoots ? [dir] : [], ignored: [], debounce: 0 })
     const stopWatching = ctx.get('pluginManagementHost') === undefined
       ? await watchProfilePatches(ctx, profile, 'test') : async () => {}
     stopHmr = async () => { await stopWatching(); await owner.dispose() }
@@ -163,15 +163,34 @@ it('refuses a launcher-protected Desktop row before persisting a patch', async (
   expect(readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')).toBe(patch)
 })
 
-it('refuses management writes while module HMR is enabled', async () => {
-  const { manager, dir, ctx } = await fixture()
-  const before = readFileSync(join(dir, 'package.json'), 'utf8')
-  ctx.hmr.config.root.push('.')
-  expect(await manager.setBundleEnabled('extra', false)).toMatchObject({
-    changed: false, application: 'failed', error: { diagnostic: 'Plugin management requires config-only HMR (root: []).' },
+it('persists management with real module roots and reloads the saved selection after restart', async () => {
+  const { manager, dir, ctx, profile } = await fixture('live', false, undefined, {}, undefined, 'test', false, true)
+  expect(ctx.hmr.config.root).toEqual([dir])
+  const entered = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const held = ctx.hmr.runExclusive(async () => { entered.resolve(undefined); await release.promise })
+  const writes = vi.spyOn(operations, 'saveManifest')
+  onTestFinished(async () => { release.resolve(undefined); await held; writes.mockRestore() })
+  await entered.promise
+  const change = manager.setBundleEnabled('extra', false)
+  expect(writes).not.toHaveBeenCalled()
+  release.resolve(undefined)
+  expect(await change).toMatchObject({ changed: true, application: 'applied' })
+  expect(ctx.get('managedProbe')).toBeUndefined()
+  expect(readProfileManifest('test', dir).dsh?.profile?.bundles).toEqual(['core'])
+  writeFileSync(profile.patchPath, '- id: manager\n  config: { outputBytes: 8192 }\n')
+  await vi.waitFor(() => {
+    expect([...ctx.loader.entries()].find(entry => entry.options.id === 'manager')?.options.config).toMatchObject({ outputBytes: 8192 })
   })
-  expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(before)
-})
+  await ctx.fiber.dispose()
+  const restarted = await boot('test', join(dir, 'cordis.yml'), readProfilePatches('test', profile), (root) => {
+    root.provide('profileContext', profile)
+    root.loader.builtins.manager = PluginManager
+  })
+  onTestFinished(async () => { await restarted.fiber.dispose() })
+  expect(restarted.get('managedProbe')).toBeUndefined()
+  expect(await restarted.pluginManager.setBundleEnabled('extra', true)).toMatchObject({ changed: true, application: 'restart-required' })
+}, 20_000)
 
 it('lists bundle versions and current-profile plugin targets', async () => {
   const { manager, dir } = await fixture()

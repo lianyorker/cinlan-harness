@@ -577,12 +577,6 @@ export class PluginManager extends TypertRemoteService {
         code: 'management-required', diagnostic: 'Desktop package and composition changes are owned by the Desktop shell.',
       } }
     }
-    const hmr = this.ownerContext.get('hmr')
-    if (this.profile.patchReload === 'live' && hmr !== undefined && hmr.config.root.length > 0) {
-      return { ...request, changed: false, application: 'failed', error: {
-        code: 'operation-error', diagnostic: 'Plugin management requires config-only HMR (root: []).',
-      } }
-    }
     return withFileLock(join(this.profile.dir, 'package.json'), async () => {
       this.abort.signal.throwIfAborted()
       const before = this.diskState()

@@ -79,6 +79,71 @@ async function fixture(initialPatch = '[]\n') {
   return { ctx, profile }
 }
 
+it('joins HMR configuration work, rejects nested profile edits, and queues detached descendants', async () => {
+  const { ctx } = await fixture()
+  const hmr = ctx.hmr
+  const order: string[] = []
+  await hmr.runExclusive(async () => {
+    order.push('hmr')
+    await runProfileConfiguration(ctx, async () => {
+      order.push('profile')
+      await expect(runProfileConfiguration(ctx, async () => {})).rejects.toThrow('cannot be nested')
+    })
+  })
+  const trigger = Promise.withResolvers<undefined>()
+  let descendant: Promise<unknown> | undefined
+  await hmr.runExclusive(async () => {
+    descendant = trigger.promise.then(() => runProfileConfiguration(ctx, async () => { order.push('descendant') }))
+  })
+  const entered = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const held = hmr.runExclusive(async () => { entered.resolve(undefined); await release.promise; order.push('held') })
+  onTestFinished(async () => { trigger.resolve(undefined); release.resolve(undefined); await Promise.allSettled([held, descendant]) })
+  await entered.promise
+  trigger.resolve(undefined)
+  await Promise.resolve()
+  expect(order).toEqual(['hmr', 'profile'])
+  release.resolve(undefined)
+  await held
+  await descendant
+  expect(order).toEqual(['hmr', 'profile', 'held', 'descendant'])
+})
+
+it('disposes HMR from its own profile mutation without waiting for itself and refuses queued work', async () => {
+  const { ctx } = await fixture()
+  const hmr = ctx.hmr
+  const entered = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const active = runProfileConfiguration(ctx, async () => {
+    entered.resolve(undefined)
+    await release.promise
+    await ctx.fiber.dispose()
+  })
+  await entered.promise
+  const queued = hmr.runExclusive(async () => { throw new Error('must not run') })
+  const rejected = expect(queued).rejects.toThrow('disposed')
+  release.resolve(undefined)
+  await active
+  await rejected
+  await expect(hmr.runExclusive(async () => {})).rejects.toThrow('disposed')
+})
+
+it('joins active HMR configuration during external root disposal', async () => {
+  const { ctx } = await fixture()
+  const entered = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const active = runProfileConfiguration(ctx, async () => { entered.resolve(undefined); await release.promise })
+  onTestFinished(async () => { release.resolve(undefined); await active })
+  await entered.promise
+  let finished = false
+  const disposal = ctx.fiber.dispose().then(() => { finished = true })
+  await Promise.resolve()
+  expect(finished).toBe(false)
+  release.resolve(undefined)
+  await disposal
+  expect(finished).toBe(true)
+})
+
 it('watches bundle selection and both user layers, preserving higher-priority home overrides', async () => {
   const { ctx, profile } = await fixture()
   const dispose = await watchProfilePatches(ctx, profile, 'test')

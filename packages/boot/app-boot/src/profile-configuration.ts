@@ -11,7 +11,7 @@ import { healProfilesModuleFallback, loadProfileDirectory, PROFILE_PATCH_FILENAM
 
 interface ConfigurationQueue {
   operations: Promise<unknown>
-  readonly executing: AsyncLocalStorage<boolean>
+  readonly executing: AsyncLocalStorage<{ active: boolean }>
   closing: boolean
 }
 
@@ -26,22 +26,28 @@ export function runProfileConfiguration<T>(ctx: Context, operation: () => Promis
   const root = ctx.root
   let queue = queues.get(root)
   if (queue === undefined) {
-    const created: ConfigurationQueue = { operations: Promise.resolve(), executing: new AsyncLocalStorage<boolean>(), closing: false }
+    const created: ConfigurationQueue = {
+      operations: Promise.resolve(), executing: new AsyncLocalStorage<{ active: boolean }>(), closing: false,
+    }
     root.effect(() => async () => {
       created.closing = true
-      if (!created.executing.getStore()) await created.operations
+      if (!created.executing.getStore()?.active) await created.operations
     }, 'app-boot: profile configuration queue')
     queues.set(root, created)
     queue = created
   }
   const owner = queue
-  if (owner.executing.getStore()) return Promise.reject(new Error('Profile configuration operations cannot be nested'))
-  const task = owner.operations.then(async () => {
+  if (owner.executing.getStore()?.active) return Promise.reject(new Error('Profile configuration operations cannot be nested'))
+  const apply = async (): Promise<T> => {
     if (owner.closing) throw new Error('Profile configuration is disposed')
-    return owner.executing.run(true, operation)
-  })
+    const token = { active: true }
+    try { return await owner.executing.run(token, operation) }
+    finally { token.active = false }
+  }
+  const hmr = root.get('hmr')
+  const task = hmr === undefined ? owner.operations.then(apply) : hmr.runExclusive(apply)
   // The caller receives the rejection; the queue must still admit the next independent operation.
-  owner.operations = task.catch(() => {})
+  if (hmr === undefined) owner.operations = task.catch(() => {})
   return task
 }
 

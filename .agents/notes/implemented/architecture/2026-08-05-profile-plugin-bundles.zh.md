@@ -20,6 +20,8 @@ Status: implemented
 
 Cordis 预设通过既有管理服务上的可选 `plugin_manager` 工具提供持久 profile 管理。每次调用（包括清单读取）均要求完全权限或单次审批，因为安装的 Host 代码在工作区限制之外运行。工具分别报告保存状态与激活结果；仅启动时应用的 profile 要求重启。同一管理器继续强制执行 Desktop 所有权和受保护条目规则。真实 Loader fixture 验证工具请求可持久化 patch，且不会将仅启动时应用的 profile 谎报为已激活。
 
+模块替换、配置监听和在线 PluginManager 协调共用 HMR 生命周期队列。精确 watcher 回调可以在其活动代次内调用 profile 协调，不会排在自身后面等待；嵌套 profile 编辑被拒绝，脱离原操作的异步后代重新获取队列。销毁会关闭新任务接纳并等待工作，当前操作销毁自身的情况除外。包管理器子进程仍在该队列外运行，Desktop 包事务仍由 shell 拥有。独立 Node 验收覆盖真实模块替换、持久禁用和重启；Loader 回归覆盖活动 roots、文件监听、重入和销毁。
+
 ## Alternatives considered
 
 - **依赖扫描加部分 `patchOrder`**（最初的草案）：扫描 `dependencies` 找出组合包、未列出者按字母序排列，会产生两个真源和一条隐式决胜规则；一份显式有序的 `dsh.profile.bundles` 列表更小、完全确定。在 profile 内直接 `pnpm add` 只会安装一个库，不激活任何 patch——行为显式，没有暗中扫描。

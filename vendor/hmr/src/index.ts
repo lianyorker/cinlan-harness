@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { Context, Service, type Plugin } from '@deepseek-ai/cordis'
 import type { Dict } from '@deepseek-ai/cosmokit'
 import { ModuleLoader, type ModuleJob, type ResolveResult } from '@deepseek-ai/cordis-plugin-loader'
@@ -93,6 +94,26 @@ class Hmr extends Service {
   private readonly configs = new Map<string, ConfigRegistration>()
   private readonly configRefreshes = new WeakMap<object, ConfigRefresh>()
   private readonly refreshTasks = new Set<Promise<void>>()
+  private operations: Promise<unknown> = Promise.resolve()
+  private readonly executing = new AsyncLocalStorage<{ active: boolean }>()
+  private closing = false
+
+  /** Serialize caller mutations with module replacement and configuration refreshes.
+   * @param operation Work whose completion releases the current lifecycle generation.
+   * @returns The operation result; a callback already in this generation executes without queuing behind itself.
+   */
+  runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.closing) return Promise.reject(new Error('HMR is disposed'))
+    if (this.executing.getStore()?.active) return operation()
+    const task = this.operations.then(async () => {
+      if (this.closing) throw new Error('HMR is disposed')
+      const token = { active: true }
+      try { return await this.executing.run(token, operation) }
+      finally { token.active = false }
+    })
+    this.operations = task.catch(() => { /* The submitting caller owns failure; later independent work remains admissible. */ })
+    return task
+  }
 
   /**
    * Changes from externals will always trigger a full reload.
@@ -151,7 +172,7 @@ class Hmr extends Service {
     const onChange = (path: string) => {
       const observed = resolve(path)
       if (observed !== filename && observed !== watchFilename) return
-      this.refreshConfig(registration, filename, refresh)
+      this.executing.exit(() => this.refreshConfig(registration, filename, refresh))
     }
     watcher.on('add', onChange)
     watcher.on('change', onChange)
@@ -177,7 +198,7 @@ class Hmr extends Service {
       return this.ctx.effect(() => async () => {
         if (this.configs.get(watchFilename) === registration) this.configs.delete(watchFilename)
         await watcher.close()
-        await this.configRefreshes.get(registration)?.running
+        if (!this.executing.getStore()?.active) await this.configRefreshes.get(registration)?.running
       }, 'hmr.registerConfig()')
     } catch (error) {
       this.configs.delete(watchFilename)
@@ -198,10 +219,14 @@ class Hmr extends Service {
 
   async* [Service.init]() {
     yield async () => {
+      this.closing = true
       await this.watcher?.close()
       await Promise.allSettled([...this.configs.values()].map(registration => registration.watcher.close()))
       this.configs.clear()
-      await Promise.allSettled([...this.refreshTasks])
+      if (!this.executing.getStore()?.active) {
+        await this.operations
+        await Promise.allSettled([...this.refreshTasks])
+      }
     }
 
     const { loader } = this.ctx
@@ -239,7 +264,12 @@ class Hmr extends Service {
       ignoreInitial: true,
     })
 
-    const partialReload = this.ctx.debounce(() => this.partialReload(), this.config.debounce)
+    const submit = (operation: () => Promise<void>): void => {
+      void this.executing.exit(() => this.runExclusive(operation)).catch(error => {
+        if (!this.closing) this.ctx.logger.warn(error)
+      })
+    }
+    const partialReload = this.ctx.debounce(() => submit(() => this.partialReload()), this.config.debounce)
 
     const onChange = (kind: 'add' | 'change' | 'unlink', path: string) => {
       this.ctx.logger.debug('%s detected at %C', kind, path)
@@ -249,8 +279,7 @@ class Hmr extends Service {
       for (const entry of loader.entries()) {
         const include = entry.subtree as Include | undefined
         if (include?.filename !== filename && include?.filename !== configuredFilename) continue
-        this.refreshConfig(include, include.filename, () => include.refresh())
-        return
+        return this.refreshConfig(include, include.filename, () => include.refresh())
       }
 
       if (kind !== 'change') return
@@ -269,9 +298,9 @@ class Hmr extends Service {
 
       this.ctx.emit('hmr/change', url)
     }
-    this.watcher.on('add', path => onChange('add', path))
-    this.watcher.on('change', path => onChange('change', path))
-    this.watcher.on('unlink', path => onChange('unlink', path))
+    this.watcher.on('add', path => submit(async () => { await onChange('add', path) }))
+    this.watcher.on('change', path => submit(async () => { await onChange('change', path) }))
+    this.watcher.on('unlink', path => submit(async () => { await onChange('unlink', path) }))
 
     const ready = Promise.withResolvers<void>()
     let readyState: 'pending' | 'resolved' | 'rejected' = root.length === 0 ? 'resolved' : 'pending'
@@ -298,12 +327,12 @@ class Hmr extends Service {
     const state = this.configRefreshes.get(key) ?? { dirty: false }
     this.configRefreshes.set(key, state)
     state.dirty = true
-    if (state.running) return
+    if (state.running) return state.running
     const task = (async () => {
       do {
         state.dirty = false
         try {
-          await refresh()
+          await this.runExclusive(async () => { await refresh() })
         } catch (reason) {
           const error = reason instanceof Error ? reason : new Error(String(reason), { cause: reason })
           this.ctx.logger.warn('config reload at %C failed', filename)
@@ -314,13 +343,14 @@ class Hmr extends Service {
             this.ctx.logger.warn(rejection)
           }
         }
-      } while (state.dirty)
+      } while (state.dirty && !this.closing)
     })().finally(() => {
       state.running = undefined
       this.refreshTasks.delete(task)
     })
     state.running = task
     this.refreshTasks.add(task)
+    return task
   }
 
   // hide stack trace from HMR
