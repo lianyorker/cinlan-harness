@@ -33,7 +33,12 @@
   config:
     enabled: true
 
+- id: sdk-jsonrpc-server
+  inject: [sdkAppStartup, loader, executionBindings]
+
 - insert:
+    - id: snapshot-execution-binding
+      name: './execution-binding-fixture.mjs'
     - id: snapshot-message-feedback
       name: '@deepseek-ai/dsh-message-feedback'
       disabled: !!js "process.env.DSH_SNAPSHOT_FEEDBACK !== '1'"
