@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod'
+import { executionSnapshotSchema } from '@deepseek-ai/dsh-execution-host-targets'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
@@ -14,13 +15,20 @@ import type { WorkspaceId } from './types.ts'
 /** Workspace id schema at the durable boundary; branding has no runtime representation. */
 const workspaceId = z.string().transform(value => value as WorkspaceId)
 
+/** Durable local-or-SSH execution selection stored by Workspace records and Session events. */
+export const workspaceExecutionBinding = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('local') }),
+  executionSnapshotSchema,
+])
+
 /**
- * Durable shape of one workspace record. `path` is the `fs.realpath` canon
- * stamped at create; `sessionIds` is the ordered ownership account (array
+ * Durable Workspace record. `path` is canonical in `execution`'s filesystem;
+ * absent execution metadata means local. `sessionIds` is the ownership account (array
  * order is display order); timestamps are ISO-8601 strings.
  */
 export const workspaceRecord = z.object({
   path: z.string(),
+  execution: workspaceExecutionBinding.default({ kind: 'local' }),
   title: z.string(),
   sessionIds: z.array(z.string().transform(value => brandString<SessionId>(value))),
   createdAt: z.string(),
@@ -67,7 +75,8 @@ export type WorkspaceDomainState = z.infer<typeof workspaceDomainState>
  */
 export const workspaceDomainSpec = defineDomain({
   name: 'workspace',
-  version: 2,
+  version: 3,
+  compatibleVersions: [2],
   global: {
     schema: workspaceDomainState,
     initial: { initialized: false, workspaceIds: [], archivedSessionIds: [] },

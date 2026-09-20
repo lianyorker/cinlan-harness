@@ -6,6 +6,7 @@
  */
 
 import type { Branded } from '@deepseek-ai/dsh-brand'
+import type { ExecutionBinding } from '@deepseek-ai/dsh-execution-host-targets/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-typert-protocol'
 
@@ -33,11 +34,14 @@ export interface Workspace {
   readonly id: WorkspaceId
 
   /**
-   * Canonical directory path: the `fs.realpath` of the path given at create
-   * time (trailing slashes, `..`, and symlinks all resolved). Never rewritten
+   * Canonical directory path in the captured execution filesystem; local
+   * realpath or the remote lease resolves symlinks at creation. Never rewritten
    * afterwards, even when the directory disappears (see {@link status}).
    */
   readonly path: string
+
+  /** Captured execution selection; configured SSH root remains distinct from the canonical path. */
+  readonly execution: ExecutionBinding
 
   /** Display title. Defaults to the final path segment, or a filesystem root's own spelling; duplicates are allowed. */
   readonly title: string
@@ -53,7 +57,7 @@ export interface Workspace {
    * prepended at attach, explicit reordering goes through
    * `insertSessionBefore`, and activity never reorders. The durable candidate
    * account is filtered synchronously: missing headers, invalid cwd values,
-   * and canonical cwd mismatches are never returned. A subsequent workspace
+   * execution binding differences, and canonical cwd mismatches are never returned. A subsequent workspace
    * mutation prunes those filtered candidates durably.
    */
   readonly sessionIds: readonly SessionId[]
@@ -69,10 +73,10 @@ export interface Workspace {
    * Prepend a session to this workspace's candidate account. An already
    * accounted id resolves without writing, aside from the durable
    * filtered-candidate prune every accepted mutation performs. A new id's
-   * live or persisted
-   * header cwd must resolve to an existing directory equal to {@link path};
-   * unknown ids, missing or invalid cwd values, and mismatches reject without
-   * writing.
+   * published execution lease (or durable local fallback when the optional
+   * service is absent) must match, and its provider must verify a cwd equal to
+   * {@link path}; unknown ids, missing or invalid cwd values, and mismatches
+   * reject without writing. The lease is released after validation.
    * @param sessionId - The session to record.
    * @returns resolution after durability.
    */
@@ -106,7 +110,11 @@ export interface Workspace {
    * Live directory check, uncached: whether {@link path} currently exists and
    * is a directory. A missing directory never mutates the record — the
    * directory may only be temporarily moved.
-   * @returns `'ok'` when the directory exists, `'missing-dir'` otherwise.
+   * Remote checks acquire and release the captured execution binding; attachment
+   * instead retains the published Session lease through provider verification.
+   * An unavailable service, target, or connection rejects without a local fallback.
+   * @returns `'ok'` for a directory, `'missing-dir'` when a successful lease's
+   * filesystem reports absence/non-directory or a local stat fails. Lease admission failures reject.
    */
   status(): Promise<'ok' | 'missing-dir'>
 }

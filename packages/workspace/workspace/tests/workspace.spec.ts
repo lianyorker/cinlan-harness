@@ -4,12 +4,15 @@ import { mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
+import type { ExecutionBinding } from '@deepseek-ai/dsh-execution-host-targets/types'
+import { remoteBinding, remoteBindings } from './remote-fixture.ts'
+import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
 import Storage from '@deepseek-ai/dsh-storage'
 import type { StorageBackend } from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import type { DomainChanged } from '@deepseek-ai/dsh-storage-domain'
-import SessionStore, { SESSION_FORMAT_VERSION, SessionId } from '@deepseek-ai/dsh-session'
-import type { SessionHeader } from '@deepseek-ai/dsh-session'
+import SessionStore, { SESSION_FORMAT_VERSION, SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
+import type { SessionEvent, SessionHeader } from '@deepseek-ai/dsh-session'
 import { SessionPersistenceRevision } from '@deepseek-ai/dsh-session-persistence'
 import type { SessionPersistenceSnapshot } from '@deepseek-ai/dsh-session-persistence'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
@@ -20,8 +23,9 @@ import WorkspaceRegistry, {
 } from '../src/index.ts'
 import type { WorkspaceDomainState, WorkspaceRecord } from '../src/index.ts'
 import { defaultWorkspaceTitle, fullyQualifiedWorkspacePath } from '../src/paths.ts'
+import { workspaceRecord } from '../src/spec.ts'
 
-const DOMAIN_VERSION = 2
+const DOMAIN_VERSION = 3
 
 const header = (id: string, cwd?: string, createdAt = 0): SessionHeader => ({
   version: SESSION_FORMAT_VERSION,
@@ -31,15 +35,25 @@ const header = (id: string, cwd?: string, createdAt = 0): SessionHeader => ({
   ...(cwd === undefined ? {} : { cwd }),
 })
 
+const executionBound = (binding: ExecutionBinding): SessionEvent<'execution/bound'> => ({
+  type: 'execution/bound', seq: SessionSeq(0), time: 0, data: { binding },
+})
+
 interface HarnessOptions {
   pool?: MemoryMediaPool
   sessions?: SessionHeader[]
+  sessionEvents?: ReadonlyMap<SessionId, readonly SessionEvent[]>
   liveSessions?: SessionHeader[]
   sessionStore?: boolean
   backend?: StorageBackend
+  executionBindings?: {
+    acquire(binding: ExecutionBinding, cwd: string): Promise<ExecutionLease>
+    bindingForSession(id: SessionId): Promise<ExecutionBinding>
+    forSession(id: SessionId): Promise<ExecutionLease>
+  }
 }
 
-/** Boot the real storage/domain/registry composition over controllable header-only peers. */
+/** Boot the real storage/domain/registry composition over controllable Session persistence peers. */
 async function harness(options: HarnessOptions = {}) {
   const pool = options.pool ?? new MemoryMediaPool()
   const ctx = new Context()
@@ -50,21 +64,37 @@ async function harness(options: HarnessOptions = {}) {
   ctx.provide('storageDomain', facility)
 
   let listed = options.sessions ?? []
+  let eventLogs = options.sessionEvents ?? new Map<SessionId, readonly SessionEvent[]>()
   const list = vi.fn(async (): Promise<SessionPersistenceSnapshot[]> =>
-    listed.map(header => ({ header, revision: SessionPersistenceRevision(`rev-${header.id}`) })))
-  const open = vi.fn(() => { throw new Error('event bodies must not be opened') })
+    listed.map(header => ({
+      header, revision: SessionPersistenceRevision(`rev-${header.id}`),
+      eventCount: eventLogs.get(header.id)?.length ?? 0,
+    })))
+  const open = vi.fn(async (id: SessionId) => {
+    const meta = listed.find(candidate => candidate.id === id)
+    if (meta === undefined) throw new Error(`missing Session persistence fixture '${id}'`)
+    return {
+      header: meta, inheritedEventCount: 0, access: 'read' as const, id,
+      read: async () => ({ eventState: 'shared-frozen' as const, events: eventLogs.get(id) ?? [] }),
+      close: async () => {},
+    }
+  })
   const stat = vi.fn(() => { throw new Error('per-session stat must not be needed') })
   ctx.provide('sessionPersistence', { list, open, stat } as never)
 
   if (options.sessionStore === true) {
     await ctx.plugin(SessionStore)
   } else if (options.liveSessions !== undefined) {
-    const live = new Map(options.liveSessions.map(meta => [meta.id, { header: meta }]))
+    const live = new Map(options.liveSessions.map(meta => [meta.id, {
+      header: meta, snapshotEvents: () => eventLogs.get(meta.id) ?? [],
+    }]))
     ctx.provide('sessions', {
       get: (id: SessionId) => live.get(id),
       list: () => [...live.values()],
     } as never)
   }
+
+  if (options.executionBindings !== undefined) ctx.provide('executionBindings', options.executionBindings as never)
 
   const changes: DomainChanged[] = []
   ctx.on('domain/changed', (change) => { changes.push(change) })
@@ -82,6 +112,7 @@ async function harness(options: HarnessOptions = {}) {
     open,
     stat,
     setSessions: (headers: SessionHeader[]) => { listed = headers },
+    setSessionEvents: (events: ReadonlyMap<SessionId, readonly SessionEvent[]>) => { eventLogs = events },
   }
 }
 
@@ -138,6 +169,7 @@ function selectiveFailureBackend(
 function record(path: string, sessionIds: string[], createdAt = '2026-07-24T00:00:00.000Z'): WorkspaceRecord {
   return {
     path,
+    execution: { kind: 'local' },
     title: basename(path),
     sessionIds: sessionIds.map(SessionId),
     createdAt,
@@ -226,7 +258,7 @@ describe('WorkspaceRegistry lifecycle and bootstrap', () => {
     expect(storedState(pool)).toEqual({ initialized: true, workspaceIds: [], archivedSessionIds: [] })
   })
 
-  it.skipIf(!canFollowDirectoryJunction)('bootstraps once from list headers only, in workspace/session createdAt order', async () => {
+  it.skipIf(!canFollowDirectoryJunction)('bootstraps once from durable Session logs, in workspace/session createdAt order', async () => {
     const older = await makeDir('older')
     const newer = await makeDir('newer')
     const alias = join(base, 'older-link')
@@ -1089,5 +1121,210 @@ describe('registry-global session unarchive', () => {
 
     const second = await harness({ pool, sessions })
     expect(second.registry.archivedSessionIds).toEqual(['kept'])
+  })
+})
+
+describe('captured execution selection', () => {
+  it('creates through the remote lease, retains the configured snapshot, and keys reuse by binding and canonical cwd', async () => {
+    const executionBindings = remoteBindings()
+    const result = await harness({ executionBindings })
+    try {
+      const execution = remoteBinding()
+      const workspace = await result.registry.create('/configured-link', undefined, execution)
+      expect(workspace.path).toBe('/canonical/project')
+      expect(workspace.title).toBe('project')
+      expect(workspace.execution).toEqual(execution)
+      expect(workspace.execution).toMatchObject({ workspace: '/configured-link' })
+      expect(executionBindings.resolve).toHaveBeenCalledWith('/canonical/project', expect.objectContaining({ cwd: '/canonical/project' }))
+      expect(executionBindings.stat).toHaveBeenCalledOnce()
+      expect(executionBindings.release).toHaveBeenCalledOnce()
+      expect(await result.registry.create('/canonical/project', 'ignored', remoteBinding())).toBe(workspace)
+      const other = await result.registry.create('/canonical/project', undefined, remoteBinding(2))
+      expect(other.id).not.toBe(workspace.id)
+      expect(result.registry.list()).toHaveLength(2)
+      expect(storedRecord(result.pool, workspace.id).execution).toEqual(execution)
+      expect(await workspace.status()).toBe('ok')
+      expect(await result.registry.resolveByPath('/configured-link', execution)).toBe(workspace)
+      expect(await result.registry.resolveByPath('/canonical/project', remoteBinding(2))).toBe(other)
+      expect(await result.registry.resolveByPath('/canonical/project', remoteBinding(3))).toBeUndefined()
+    } finally { await result.ctx.fiber.dispose() }
+  })
+
+  it('passes remote path resolution to the lease and rejects invalid remote path spellings before acquisition', async () => {
+    const executionBindings = remoteBindings()
+    const result = await harness({ executionBindings })
+    try {
+      for (const path of ['relative', 'C:\\workspace', '/invalid\0path']) {
+        await expect(result.registry.create(path, undefined, remoteBinding())).rejects.toThrow('absolute remote path')
+      }
+      expect(executionBindings.acquire).not.toHaveBeenCalled()
+      const acquire = executionBindings.acquire.getMockImplementation()!
+      executionBindings.acquire.mockImplementationOnce(async (binding, cwd) => ({
+        ...await acquire(binding, cwd), cwd: '/canonical/project',
+      }))
+      await result.registry.create('/configured-link/../project', undefined, remoteBinding())
+      expect(executionBindings.acquire).toHaveBeenCalledWith(remoteBinding(), '/configured-link/../project')
+      expect(result.registry.list()[0]!.path).toBe('/canonical/project')
+    } finally { await result.ctx.fiber.dispose() }
+  })
+
+  it('rejects missing remote directories and reports remote status without masking connection failures', async () => {
+    const executionBindings = remoteBindings()
+    const result = await harness({ executionBindings })
+    try {
+      executionBindings.stat.mockResolvedValueOnce(undefined)
+      await expect(result.registry.create('/absent', undefined, remoteBinding())).rejects.toThrow('not a directory')
+      expect(result.registry.list()).toEqual([])
+      const workspace = await result.registry.create('/configured-link', undefined, remoteBinding())
+      executionBindings.stat.mockResolvedValueOnce(undefined)
+      await expect(workspace.status()).resolves.toBe('missing-dir')
+      executionBindings.acquire.mockRejectedValueOnce(new Error('target offline'))
+      await expect(workspace.status()).rejects.toThrow('target offline')
+      expect(workspace.path).toBe('/canonical/project')
+      expect(executionBindings.release).toHaveBeenCalledTimes(3)
+    } finally { await result.ctx.fiber.dispose() }
+  })
+
+  it('never probes the Host filesystem for a remote path, and releases on rejected stat or lease loss', async () => {
+    const executionBindings = remoteBindings()
+    const result = await harness({ executionBindings })
+    try {
+      executionBindings.stat.mockRejectedValueOnce(new Error('remote stat failed'))
+      await expect(result.registry.create('/not-on-host', undefined, remoteBinding())).rejects.toThrow('remote stat failed')
+      expect(executionBindings.release).toHaveBeenCalledOnce()
+      executionBindings.assertCurrent.mockImplementationOnce(() => { throw new Error('lease lost') })
+      await expect(result.registry.create('/not-on-host', undefined, remoteBinding())).rejects.toThrow('lease lost')
+      expect(executionBindings.release).toHaveBeenCalledTimes(2)
+      expect(result.registry.list()).toEqual([])
+      expect(result.changes).toEqual([])
+    } finally { await result.ctx.fiber.dispose() }
+  })
+
+  it('rejects remote creation without the binding service even for an existing Host directory', async () => {
+    const result = await harness()
+    try {
+      const local = await makeDir('remote-no-fallback')
+      await expect(result.registry.create(local, undefined, remoteBinding())).rejects.toThrow('requires executionBindings')
+      await expect(result.registry.resolveByPath(local, remoteBinding())).rejects.toThrow('requires executionBindings')
+      expect(result.registry.list()).toEqual([])
+    } finally { await result.ctx.fiber.dispose() }
+  })
+
+  it('bootstraps remote history offline and keeps same-path revisions and local history separate', async () => {
+    const local = await makeDir('history-local')
+    const sessions = [header('remote-one', '/canonical/project', 3), header('remote-two', '/canonical/project/', 2), header('local', local, 1)]
+    const executionBindings = remoteBindings(new Map([
+      [SessionId('remote-one'), remoteBinding()], [SessionId('remote-two'), remoteBinding(2)],
+      [SessionId('local'), { kind: 'local' } as ExecutionBinding],
+    ]))
+    const result = await harness({ sessions, executionBindings })
+    try {
+      expect(result.registry.list().map(item => [item.path, item.execution.kind, item.sessionIds])).toEqual([
+        ['/canonical/project', 'ssh', ['remote-one']], ['/canonical/project', 'ssh', ['remote-two']], [local, 'local', ['local']],
+      ])
+      expect(executionBindings.acquire).not.toHaveBeenCalled()
+      expect(executionBindings.bindingForSession).toHaveBeenCalledTimes(3)
+      expect(result.open).not.toHaveBeenCalled()
+    } finally { await result.ctx.fiber.dispose() }
+  })
+
+  it('filters durable candidates with a different binding and prunes them on mutation without reconnecting', async () => {
+    const id = WorkspaceId('remote-workspace')
+    const execution = remoteBinding()
+    const pool = storedPool([[id, { ...record('/canonical/project', ['right', 'wrong']), execution }]], {
+      initialized: true, workspaceIds: [id],
+    })
+    const executionBindings = remoteBindings(new Map([
+      [SessionId('right'), execution], [SessionId('wrong'), remoteBinding(2)],
+    ]))
+    const sessionEvents = new Map<SessionId, readonly SessionEvent[]>([
+      [SessionId('right'), [executionBound(execution)]],
+      [SessionId('wrong'), [executionBound(remoteBinding(2))]],
+    ])
+    const result = await harness({
+      pool, sessions: [header('right', '/canonical/project'), header('wrong', '/canonical/project')],
+      sessionEvents, executionBindings,
+    })
+    try {
+      const workspace = result.registry.get(id)!
+      expect(workspace.sessionIds).toEqual(['right'])
+      await workspace.setTitle('remote')
+      expect(storedRecord(pool, id).sessionIds).toEqual(['right'])
+      expect(executionBindings.acquire).not.toHaveBeenCalled()
+      await expect(workspace.attachSession(SessionId('wrong'))).rejects.toThrow('execution binding differs')
+    } finally { await result.ctx.fiber.dispose() }
+  })
+
+  it('attaches through the retained Session lease after a target edit invalidates fresh admission', async () => {
+    const bindings = new Map<SessionId, ExecutionBinding>([
+      [SessionId('right'), remoteBinding()], [SessionId('wrong'), remoteBinding(2)],
+      [SessionId('local'), { kind: 'local' }], [SessionId('elsewhere'), remoteBinding()],
+    ])
+    const executionBindings = remoteBindings(bindings, new Map([[SessionId('elsewhere'), '/other']]))
+    const result = await harness({ executionBindings })
+    try {
+      const workspace = await result.registry.create('/configured-link', undefined, remoteBinding())
+      result.setSessions([header('right', '/configured-link'), header('wrong', '/canonical/project'),
+        header('local', '/canonical/project'), header('elsewhere', '/other')])
+      result.setSessionEvents(new Map([...bindings].map(([id, binding]) => [id, [executionBound(binding)]])))
+      executionBindings.acquire.mockRejectedValue(new Error('target revision is no longer admitted'))
+      executionBindings.bindingForSession.mockRejectedValue(new Error('target revision is no longer admitted'))
+
+      await workspace.attachSession(SessionId('right'))
+      expect(workspace.sessionIds).toEqual(['right'])
+      await expect(workspace.attachSession(SessionId('wrong'))).rejects.toThrow('execution binding differs')
+      await expect(workspace.attachSession(SessionId('local'))).rejects.toThrow('execution binding differs')
+      await expect(workspace.attachSession(SessionId('elsewhere'))).rejects.toThrow("resolves to '/other'")
+      expect(workspace.sessionIds).toEqual(['right'])
+      expect(executionBindings.forSession).toHaveBeenCalledTimes(4)
+      expect(executionBindings.bindingForSession).not.toHaveBeenCalled()
+      expect(executionBindings.acquire).toHaveBeenCalledOnce()
+      expect(executionBindings.release).toHaveBeenCalledTimes(5)
+    } finally { await result.ctx.fiber.dispose() }
+  })
+
+  it('fails startup closed without bindings for a stored remote workspace', async () => {
+    const id = WorkspaceId('remote-offline')
+    const pool = storedPool([[id, { ...record('/canonical/project', []), execution: remoteBinding() }]], {
+      initialized: true, workspaceIds: [id],
+    })
+    await expect(harness({ pool })).rejects.toThrow('requires executionBindings')
+  })
+
+  it('rejects duplicate remote identities while accepting the same path under another revision', async () => {
+    const first = WorkspaceId('first')
+    const second = WorkspaceId('second')
+    const remote = { ...record('/canonical/project', []), execution: remoteBinding() }
+    const pool = storedPool([[first, remote], [second, remote]], { initialized: true, workspaceIds: [first, second] })
+    await expect(harness({ pool, executionBindings: remoteBindings() })).rejects.toThrow('claimed')
+    pool.media.get('workspace')!.tables.get('workspaces')!.set(second, { ...remote, execution: remoteBinding(2) })
+    const result = await harness({ pool, executionBindings: remoteBindings() })
+    try { expect(result.registry.list()).toHaveLength(2) } finally { await result.ctx.fiber.dispose() }
+  })
+
+  it('fails on a durable SSH binding before probing a colliding Host directory when the service is absent', async () => {
+    const collision = await makeDir('remote-host-collision')
+    const id = SessionId('remote-without-service')
+    await expect(harness({
+      sessions: [header(id, collision)],
+      sessionEvents: new Map([[id, [executionBound(remoteBinding())]]]),
+    })).rejects.toThrow("remote session 'remote-without-service' requires executionBindings")
+  })
+
+  it('does not infer local execution from malformed durable binding metadata', async () => {
+    const id = SessionId('malformed-binding')
+    const malformed = { ...executionBound({ kind: 'local' }), data: { binding: { kind: 'ssh' } } } as unknown as SessionEvent
+    await expect(harness({
+      sessions: [header(id, '/canonical/project')],
+      sessionEvents: new Map([[id, [malformed]]]),
+    })).rejects.toThrow()
+  })
+
+  it('parses records without execution as local and rejects malformed or credential-bearing snapshots', () => {
+    const { execution: _, ...legacy } = record('/legacy', [])
+    expect(workspaceRecord.parse(legacy).execution).toEqual({ kind: 'local' })
+    expect(workspaceRecord.safeParse({ ...legacy, execution: { kind: 'ssh' } }).success).toBe(false)
+    const remote = remoteBinding()
+    expect(workspaceRecord.safeParse({ ...legacy, execution: { ...remote, endpoint: { ...remote.endpoint, privateKeyFile: '/secret' } } }).success).toBe(false)
   })
 })

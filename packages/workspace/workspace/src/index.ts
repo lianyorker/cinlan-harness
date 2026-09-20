@@ -7,11 +7,15 @@
 
 import { randomUUID } from 'node:crypto'
 import { stat } from 'node:fs/promises'
+import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
+import type { ExecutionBinding } from '@deepseek-ai/dsh-execution-host-targets/types'
+import type {} from '@deepseek-ai/dsh-execution-binding'
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
+import type { SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
 import type { DomainGlobal, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { WorkspaceEntity } from './entity.ts'
+import { foldDurableExecutionBinding, remoteWorkspacePath, verifyWorkspaceDirectory, verifyWorkspaceLeaseDirectory, workspaceIdentity } from './execution.ts'
 import type { WorkspaceEntityHost } from './entity.ts'
 
 export { WorkspaceMoveInvalidError } from './entity.ts'
@@ -75,6 +79,7 @@ interface WorkspaceIsolationSource {
 
 interface BootstrapGroup {
   readonly path: string
+  readonly execution: ExecutionBinding
   readonly headers: SessionHeader[]
   readonly newestAt: number
 }
@@ -86,11 +91,12 @@ const compareHeaders = (left: SessionHeader, right: SessionHeader): number =>
   right.createdAt - left.createdAt || String(left.id).localeCompare(String(right.id))
 
 /**
- * Durable workspace registry. Startup waits for `sessionPersistence`, builds
- * one canonical-cwd header index, and completes the one-time history
+ * Durable workspace registry. Startup waits for `sessionPersistence`, folds each
+ * durable Session's execution event when the optional execution service is absent,
+ * builds one canonical-cwd header index, and completes the one-time history
  * bootstrap before the service becomes active. The persistence dependency is
- * mandatory so an unavailable peer can never be mistaken for an empty
- * history and commit the initialized marker.
+ * mandatory so an unavailable peer can never be mistaken for an empty history
+ * and commit the initialized marker.
  */
 export class WorkspaceRegistry extends Service {
   static inject = ['storageDomain', 'sessionPersistence']
@@ -101,12 +107,20 @@ export class WorkspaceRegistry extends Service {
   private readonly entities = new Map<WorkspaceId, WorkspaceEntity>()
   private readonly headers = new Map<SessionId, SessionHeader>()
   private readonly sessionPaths = new Map<SessionId, string>()
+  private readonly sessionExecutions = new Map<SessionId, ExecutionBinding>()
+  private readonly sessionEventCounts = new Map<SessionId, number>()
   private readonly invalidSessionPaths = new Map<SessionId, string>()
   private operationTail: Promise<void> = Promise.resolve()
 
   private readonly host: WorkspaceEntityHost = {
     table: () => this.requireTable(),
     sessionPath: id => this.sessionPaths.get(id),
+    sessionExecution: id => this.sessionExecutions.get(id),
+    readSessionExecution: id => this.readSessionExecution(id),
+    sessionLease: id => this.sessionLease(id),
+    verifyDirectory: (path, execution) => verifyWorkspaceDirectory(this.ctx, path, execution),
+    verifyLeaseDirectory: (lease, path) => verifyWorkspaceLeaseDirectory(lease, path),
+    rememberSessionExecution: (id, execution) => { this.sessionExecutions.set(id, execution) },
     sourcePath: (id, cwd) => (this.ctx.get('workspaceIsolation') as WorkspaceIsolationSource | undefined)?.sourceFor(id, cwd),
     readSessionHeader: id => this.readSessionHeader(id),
     rememberSessionPath: (id, path) => {
@@ -119,7 +133,10 @@ export class WorkspaceRegistry extends Service {
     super(ctx, 'workspaceRegistry')
   }
 
-  /** Open the domain, finish bootstrap when required, and rebuild the ordered cache. */
+  /**
+   * Open the domain, reject durable SSH metadata before Host path resolution
+   * when executionBindings is absent, finish bootstrap, and rebuild the cache.
+   */
   protected async [Service.init](): Promise<void> {
     const domain = await this.ctx.storageDomain.open(workspaceDomainSpec)
     this.ctx.effect(() => () => domain.close(), 'workspace.domainClose')
@@ -145,26 +162,19 @@ export class WorkspaceRegistry extends Service {
 
   /**
    * Create or reuse a workspace for an existing directory. The fully qualified
-   * path is canonicalized through `fs.realpath`; a relative, nonexistent, or
-   * non-directory path rejects. Repeated calls for the same canonical path
+   * path is canonicalized in its execution filesystem; a relative, nonexistent, or
+   * non-directory path rejects. Repeated calls for the same binding and canonical path
    * return the existing entity without changing its title.
    * A newly created workspace is prepended to the durable registry order.
    * Different canonical paths may share a display title.
    * @param path - Existing directory to own, in a fully qualified path spelling.
    * @param title - Display title used only when a new record is created.
+   * @param execution - Captured execution selection; omitted means local. SSH requires executionBindings.
    * @returns the existing or newly durable workspace.
    */
-  // TODO: `title` lost its last production caller when the gateway's
-  // create-by-name branch was deleted
-  // (.agents/notes/archived/simplification/2026-07-31-one-route-to-add-a-workspace.md);
-  // drop the parameter with its @param clause and the `create(path, title?)`
-  // lines in this package's README pair.
-  async create(path: string, title?: string): Promise<Workspace> {
-    const canonical = await realpathNormalize(path)
-    if (!(await stat(canonical)).isDirectory()) {
-      throw new Error(`cannot create a workspace at '${canonical}': path is not a directory`)
-    }
-    return await this.enqueueOperation(() => this.createCanonical(canonical, title))
+  async create(path: string, title?: string, execution: ExecutionBinding = { kind: 'local' }): Promise<Workspace> {
+    const canonical = await verifyWorkspaceDirectory(this.ctx, path, execution)
+    return await this.enqueueOperation(() => this.createCanonical(canonical, execution, title))
   }
 
   /**
@@ -295,32 +305,37 @@ export class WorkspaceRegistry extends Service {
   }
 
   /**
-   * Resolve by canonical directory path without creating or mutating a
-   * workspace. A missing path rejects during `realpath`; an existing unowned
-   * directory returns `undefined`.
+   * Resolve a Workspace by execution binding and canonical directory without
+   * creating or mutating it. Local paths use realpath; remote paths require
+   * a verified directory lease. Missing paths or unavailable execution reject;
+   * an existing unowned directory returns `undefined`.
    * @param path - Existing directory path in a fully qualified spelling.
-   * @returns the workspace owning the canonical path, when one exists.
+   * @param execution - Captured execution selection; omitted means local.
+   * @returns the workspace owning that binding and canonical path, when one exists.
    */
-  async resolveByPath(path: string): Promise<Workspace | undefined> {
-    const canonical = await realpathNormalize(path)
+  async resolveByPath(path: string, execution: ExecutionBinding = { kind: 'local' }): Promise<Workspace | undefined> {
+    const canonical = execution.kind === 'local'
+      ? await realpathNormalize(path)
+      : await verifyWorkspaceDirectory(this.ctx, path, execution)
     for (const entity of this.entities.values()) {
-      if (entity.path === canonical) return entity
+      if (workspaceIdentity(entity.path, entity.execution) === workspaceIdentity(canonical, execution)) return entity
     }
     return undefined
   }
 
-  private async createCanonical(canonical: string, title?: string): Promise<WorkspaceEntity> {
+  private async createCanonical(canonical: string, execution: ExecutionBinding, title?: string): Promise<WorkspaceEntity> {
     for (const entity of this.entities.values()) {
-      if (entity.path === canonical) return entity
+      if (workspaceIdentity(entity.path, entity.execution) === workspaceIdentity(canonical, execution)) return entity
     }
 
-    const workspaceName = title ?? defaultWorkspaceTitle(canonical)
+    const workspaceName = title ?? defaultWorkspaceTitle(canonical, execution.kind === 'local' ? process.platform : 'linux')
     const table = this.requireTable()
     const state = this.requireState()
     const id = WorkspaceId(randomUUID())
     const now = new Date().toISOString()
     const record: WorkspaceRecord = {
       path: canonical,
+      execution,
       title: workspaceName,
       sessionIds: [],
       createdAt: now,
@@ -453,30 +468,33 @@ export class WorkspaceRegistry extends Service {
   private async bootstrap(headers: readonly SessionHeader[]): Promise<void> {
     const table = this.requireTable()
     const state = this.requireState()
-    const groupsByPath = new Map<string, SessionHeader[]>()
+    const groupsByPath = new Map<string, { path: string; execution: ExecutionBinding; headers: SessionHeader[] }>()
     for (const header of headers) {
       const path = this.sessionPaths.get(header.id)
-      if (path === undefined) continue
-      const group = groupsByPath.get(path)
-      if (group === undefined) groupsByPath.set(path, [header])
-      else group.push(header)
+      const execution = this.sessionExecutions.get(header.id)
+      if (path === undefined || execution === undefined) continue
+      const key = workspaceIdentity(path, execution)
+      const group = groupsByPath.get(key)
+      if (group === undefined) groupsByPath.set(key, { path, execution, headers: [header] })
+      else group.headers.push(header)
     }
-    const groups: BootstrapGroup[] = [...groupsByPath].map(([path, groupHeaders]) => {
-      groupHeaders.sort(compareHeaders)
-      const newest = groupHeaders[0] as SessionHeader
-      return { path, headers: groupHeaders, newestAt: newest.createdAt }
+    const groups: BootstrapGroup[] = [...groupsByPath.values()].map((group) => {
+      group.headers.sort(compareHeaders)
+      const newest = group.headers[0] as SessionHeader
+      return { ...group, newestAt: newest.createdAt }
     }).sort((left, right) =>
-      right.newestAt - left.newestAt || left.path.localeCompare(right.path))
+      right.newestAt - left.newestAt
+      || workspaceIdentity(left.path, left.execution).localeCompare(workspaceIdentity(right.path, right.execution)))
 
     const byPath = new Map<string, WorkspaceId>()
     const accounted = new Map<SessionId, WorkspaceId>()
     for (const [id, record] of table.entries()) {
-      byPath.set(record.path, id)
+      byPath.set(workspaceIdentity(record.path, record.execution), id)
       for (const sessionId of record.sessionIds) accounted.set(sessionId, id)
     }
 
     for (const group of groups) {
-      let id = byPath.get(group.path)
+      let id = byPath.get(workspaceIdentity(group.path, group.execution))
       if (id === undefined) {
         const sessionIds = group.headers
           .map(header => header.id)
@@ -486,13 +504,14 @@ export class WorkspaceRegistry extends Service {
         const createdAt = new Date(group.newestAt).toISOString()
         const record: WorkspaceRecord = {
           path: group.path,
-          title: defaultWorkspaceTitle(group.path),
+          execution: group.execution,
+          title: defaultWorkspaceTitle(group.path, group.execution.kind === 'local' ? process.platform : 'linux'),
           sessionIds,
           createdAt,
           updatedAt: createdAt,
         }
         await table.put(id, record)
-        byPath.set(group.path, id)
+        byPath.set(workspaceIdentity(group.path, group.execution), id)
         for (const sessionId of sessionIds) accounted.set(sessionId, id)
         continue
       }
@@ -515,12 +534,12 @@ export class WorkspaceRegistry extends Service {
       for (const sessionId of historical) accounted.set(sessionId, id)
     }
 
-    const groupRank = new Map(groups.map(group => [group.path, group.newestAt]))
+    const groupRank = new Map(groups.map(group => [workspaceIdentity(group.path, group.execution), group.newestAt]))
     const priorRank = new Map(state.workspaceIds.map((id, index) => [id, index]))
     const workspaceIds = [...table.entries()]
       .sort(([leftId, left], [rightId, right]) => {
-        const leftTime = groupRank.get(left.path) ?? Date.parse(left.createdAt)
-        const rightTime = groupRank.get(right.path) ?? Date.parse(right.createdAt)
+        const leftTime = groupRank.get(workspaceIdentity(left.path, left.execution)) ?? Date.parse(left.createdAt)
+        const rightTime = groupRank.get(workspaceIdentity(right.path, right.execution)) ?? Date.parse(right.createdAt)
         return rightTime - leftTime
           || (priorRank.get(leftId) ?? Number.MAX_SAFE_INTEGER)
             - (priorRank.get(rightId) ?? Number.MAX_SAFE_INTEGER)
@@ -556,14 +575,18 @@ export class WorkspaceRegistry extends Service {
     const paths = new Map<string, WorkspaceId>()
     const accounted = new Map<SessionId, WorkspaceId>()
     for (const [id, record] of table.entries()) {
-      const pathHolder = paths.get(record.path)
+      if (record.execution.kind !== 'local' && this.ctx.get('executionBindings') === undefined) {
+        throw new Error(`remote workspace '${id}' requires executionBindings`)
+      }
+      const key = workspaceIdentity(record.path, record.execution)
+      const pathHolder = paths.get(key)
       if (pathHolder !== undefined) {
         throw new Error(
           `workspace domain is inconsistent: path '${record.path}' is claimed `
           + `by both workspace '${pathHolder}' and workspace '${id}'`,
         )
       }
-      paths.set(record.path, id)
+      paths.set(key, id)
       for (const sessionId of record.sessionIds) {
         const holder = accounted.get(sessionId)
         if (holder !== undefined) {
@@ -588,6 +611,7 @@ export class WorkspaceRegistry extends Service {
   private async replaceHeaderIndex(headers: readonly SessionHeader[]): Promise<void> {
     this.headers.clear()
     this.sessionPaths.clear()
+    this.sessionExecutions.clear()
     this.invalidSessionPaths.clear()
     await this.indexHeaders(headers)
   }
@@ -599,8 +623,19 @@ export class WorkspaceRegistry extends Service {
   private async indexHeader(header: SessionHeader): Promise<void> {
     this.headers.set(header.id, header)
     this.sessionPaths.delete(header.id)
+    const execution = await this.readSessionExecution(header.id)
     if (header.cwd === undefined) {
       this.invalidSessionPaths.set(header.id, 'header has no cwd')
+      return
+    }
+    if (execution.kind !== 'local') {
+      try {
+        this.sessionPaths.set(header.id, remoteWorkspacePath(header.cwd))
+        this.invalidSessionPaths.delete(header.id)
+      } catch {
+        // Invalid durable POSIX paths cannot identify a remote Workspace.
+        this.invalidSessionPaths.set(header.id, `cwd '${header.cwd}' is not an absolute remote path`)
+      }
       return
     }
     try {
@@ -617,9 +652,13 @@ export class WorkspaceRegistry extends Service {
     }
   }
 
-  /** Every stored session's header, projected from the persistence snapshot listing. */
+  /** Every stored Session header, retaining cheap event-count hints for binding reads. */
   private async listStoredHeaders(): Promise<SessionHeader[]> {
     const snapshots = await this.ctx.sessionPersistence.list()
+    this.sessionEventCounts.clear()
+    for (const snapshot of snapshots) {
+      if (snapshot.eventCount !== undefined) this.sessionEventCounts.set(snapshot.header.id, snapshot.eventCount)
+    }
     return snapshots.map(snapshot => snapshot.header)
   }
 
@@ -634,16 +673,59 @@ export class WorkspaceRegistry extends Service {
       const record = this.requireTable().get(entity.id) as WorkspaceRecord
       for (const sessionId of record.sessionIds) {
         const path = this.sessionPaths.get(sessionId)
-        if (path === record.path) continue
+        const execution = this.sessionExecutions.get(sessionId)
+        if (path !== undefined && execution !== undefined
+          && workspaceIdentity(path, execution) === workspaceIdentity(record.path, record.execution)) continue
         const reason = this.invalidSessionPaths.get(sessionId)
           ?? (this.headers.has(sessionId)
-            ? `canonical cwd '${path}' differs from workspace path '${record.path}'`
+            ? `execution binding or canonical cwd '${path}' differs from workspace path '${record.path}'`
             : 'session header is missing')
         this.ctx.logger.warn(
           `workspace '${entity.id}' filtered session '${sessionId}' from membership: ${reason}`,
         )
       }
     }
+  }
+
+  private async readSessionExecution(id: SessionId): Promise<ExecutionBinding> {
+    const bindings = this.ctx.get('executionBindings')
+    let execution: ExecutionBinding
+    if (bindings !== undefined) {
+      execution = await bindings.bindingForSession(id)
+    } else {
+      const live = this.ctx.get('sessions')?.get(id)
+      const events = live !== undefined
+        ? live.snapshotEvents()
+        : this.sessionEventCounts.get(id) === 0 ? [] : await this.readStoredSessionEvents(id)
+      execution = foldDurableExecutionBinding(events) ?? { kind: 'local' as const }
+      if (execution.kind === 'ssh') {
+        throw new Error(`remote session '${id}' requires executionBindings`)
+      }
+    }
+    this.sessionExecutions.set(id, execution)
+    return execution
+  }
+
+  private async readStoredSessionEvents(id: SessionId): Promise<readonly SessionEvent[]> {
+    const handle = await this.ctx.sessionPersistence.open(id, 'read')
+    let read
+    try {
+      read = await handle.read()
+    } catch (error) {
+      try {
+        await handle.close()
+      } catch (cleanupError) {
+        throw new AggregateError([error, cleanupError], `session '${id}' log read and handle cleanup both failed`)
+      }
+      throw error
+    }
+    await handle.close()
+    return read.events
+  }
+
+  private sessionLease(id: SessionId): Promise<ExecutionLease | undefined> {
+    const bindings = this.ctx.get('executionBindings')
+    return bindings === undefined ? Promise.resolve(undefined) : bindings.forSession(id)
   }
 
   private async readSessionHeader(id: SessionId): Promise<SessionHeader> {
@@ -655,12 +737,11 @@ export class WorkspaceRegistry extends Service {
     const cached = this.headers.get(id)
     if (cached !== undefined) return cached
 
-    const headers = await this.listStoredHeaders()
-    await this.indexHeaders(headers)
-    const header = this.headers.get(id)
+    const header = (await this.listStoredHeaders()).find(candidate => candidate.id === id)
     if (header === undefined) {
       throw new Error(`cannot validate session '${id}': session persistence holds no such session`)
     }
+    this.headers.set(id, header)
     return header
   }
 

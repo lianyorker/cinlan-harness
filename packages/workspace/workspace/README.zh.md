@@ -50,7 +50,7 @@ kind: "package-reference"
 
 ### 创建与排序项目
 
-从任何存在且完整限定的目录创建项目：`C:\` 等文件系统根目录和普通目录都有效。相对路径、`C:work` 等 Windows 盘符相对路径、不存在的路径和文件都会被拒绝，且不会创建项目；为已有项目的目录再次创建会原样返回现有项目。你可以随时重命名项目，并把它移动到列表中的任意位置：
+从任何存在且完整限定的目录创建本地项目：`C:\` 等文件系统根目录和普通目录都有效。相对路径、`C:work` 等 Windows 盘符相对路径、不存在的路径和文件都会被拒绝，且不会创建项目；为已有项目的目录再次创建会原样返回现有项目。你可以随时重命名项目，并把它移动到列表中的任意位置：
 
 ```text
 // Host consumer code, after the composition above is loaded:
@@ -59,9 +59,11 @@ await project.setTitle('Renamed')
 ctx.workspaceRegistry.list() // shows the project, newest first
 ```
 
+将捕获的 SSH 绑定作为 `create(path, title?, execution?)` 的第三个参数传入，即可创建远程项目。远程创建通过 `executionBindings` 校验目录，并同时保存规范远程路径与配置根目录快照。不同目标或修订上的同一路径标识不同项目。省略绑定时选择本地执行。`resolveByPath(path, execution?)` 使用相同的绑定与路径身份进行查找，不创建记录。
+
 ### 将会话归入项目
 
-会话加入它运行目录所在的项目：在项目目录中创建会话，它就会出现在该项目下，新到旧排列。一个会话只能属于一个项目。目录无法校验的会话——没有记录目录，或目录被移动、删除——无法加入，保持 Ungrouped。
+会话只有在执行绑定与规范目录均匹配时才能加入项目。新附加的会话排在前面，每个会话最多属于一个项目。附加操作通过已发布 Session 保留的执行租约进行校验，因此之后编辑目标既不会重新定位该活动 Agent，也不会使其失效；目录不存在或绑定不匹配仍会拒绝附加。启动时，远程历史根据记录的 POSIX 路径与持久执行元数据分组，无需重新连接；本地历史仍要求本地目录存在。
 
 ### 隐藏会话与移除项目
 
@@ -79,9 +81,9 @@ ctx.workspaceRegistry.list() // shows the project, newest first
 
 ### 设计理念
 
-- **每个规范路径一条记录。** `fs.realpath` 是唯一的一套唯一性规范：路径以规范化形式存储，因此指向已被拥有目录的符号链接会与之冲突，唯一性即规范路径的字符串相等。
-- **成员资格是所有权加实时 cwd 事实。** 记录的 `sessionIds` 顺序是所有权真源；启动时的头部索引校验它，`sessionIds` 在读取时过滤，下一次变更持久剪除。
-- **仅读取头部。** 引导与 attach 校验只读取 `SessionHeader` 字段；事件正文绝不加载。
+- **每个执行绑定与规范路径组合一条记录。** 本地路径使用宿主 `fs.realpath`；远程创建使用租约的规范 cwd。绑定身份包含捕获的目标、修订、端点与部署坐标。
+- **成员资格是所有权加实时 cwd 事实。** 记录的 `sessionIds` 顺序是所有权真源；附加时会比较保留的 Session 租约，并通过该租约的文件系统校验 cwd；之后，启动索引与 `sessionIds` 过滤会排除过期候选项，下一次变更再持久剪除它们。
+- **按执行环境读取历史。** 存在 `executionBindings` 时，头部 cwd 与该服务从实时或持久 Session 读取的元数据配对。缺少该服务时，启动会直接从每个非空持久日志折叠 `execution/bound`，只有事件缺失时才默认本地；遇到 SSH 事件会在执行宿主 `realpath` 前拒绝启动。远程索引绝不建立连接。
 - **两次写入的变更带显式标记。** 创建与删除在记录/顺序对可能分叉之前先持久化 `pendingMutation` 标记，因此启动只补全被中断的操作，未标记的分叉作为损坏明确报错。
 - **串行化写入。** 注册表操作跑在同一条操作链上；实体变更通过领域写链上的 `table.update` 执行，盖上 `updatedAt` 并在其链槽决定成员资格。
 
@@ -97,16 +99,17 @@ ctx.workspaceRegistry.list() // shows the project, newest first
 | [`src/entity.ts`](src/entity.ts) | 包私有 `Workspace` 实现及其唯一的 `mutate` 写入路径 |
 | [`src/spec.ts`](src/spec.ts) | 领域声明：记录 schema、注册表状态、`defineDomain` 规范 |
 | [`src/types.ts`](src/types.ts) | 公开 `Workspace` 接口与 `WorkspaceId` 品牌 |
-| [`src/paths.ts`](src/paths.ts) | `realpath` 唯一性规范 |
+| [`src/paths.ts`](src/paths.ts) | 本地规范路径与平台相关标题 |
+| [`src/execution.ts`](src/execution.ts) | 持久绑定折叠、执行/路径身份与租约目录校验 |
 | [`src/invariant.ts`](src/invariant.ts) | 不变式伴生插件：实体缓存镜像持久表 |
 
 ### 持久形态
 
-注册表打开 `workspace` 领域（版本 2）：一张以 `WorkspaceId` 为键的 `workspaces` 表，加上一个持有 `workspaceIds`（权威显示顺序）、`archivedSessionIds` 与可选 `pendingMutation` 标记的全局状态。在 `archivedSessionIds` 存在之前写入的记录会通过 schema 默认值解析为空集合。
+注册表打开 `workspace` 领域（版本 3，接受版本 2 记录）：一张以 `WorkspaceId` 为键的 `workspaces` 表，加上一个持有 `workspaceIds`（权威显示顺序）、`archivedSessionIds` 与可选 `pendingMutation` 标记的全局状态。缺失 `archivedSessionIds` 时解析为空集合；记录缺失 `execution` 时解析为本地。SSH 记录保留不含凭据的公开快照。
 
 ### 生命周期
 
-启动时，注册表打开领域、若存在标记则补全被标记的变更、校验已存状态——重复路径、重复会话账本与顺序漂移都会明确报错——并在尚未初始化时先凭持久化头部引导历史、最后写入已初始化标记，因此被中断的引导可以安全恢复。全新空注册表一旦初始化即为真，绝不会再次引导。
+启动时，注册表打开领域、若存在标记则补全被标记的变更、校验已存状态——重复绑定/路径身份、重复会话账本与顺序漂移都会明确报错——并在尚未初始化时先凭持久 Session 引导历史、最后写入已初始化标记，因此被中断的引导可以安全恢复。执行服务缺失时，注册表会读取非空日志，以区分显式绑定与无事件的本地 Session。全新空注册表一旦初始化即为真，绝不会再次引导。
 
 ### 失败与恢复
 
@@ -114,7 +117,7 @@ ctx.workspaceRegistry.list() // shows the project, newest first
 
 ### 不变式
 
-`workspace-invariant` 伴生插件注册归属关系：`workspaces` 表的每个持久 `domain/changed` 都必须指向实体缓存已持有的记录——只有在注册表从缓存移除实体之后删除才有效，因此绕过注册表的写入路径会触发不变式失败。
+`workspace-invariant` 伴生插件注册归属关系：`workspaces` 表的每个持久 `domain/changed` 都必须指向实体缓存已持有的记录——记录还必须保持缓存中的执行绑定与规范路径。只有从缓存移除实体后，删除才有效。
 
 </details>
 
@@ -159,7 +162,8 @@ ctx.workspaceRegistry.list() // shows the project, newest first
 
 - **移除绝不删除数据**——移除项目会保留其文件夹、文件与会话历史；这些会话变成 Ungrouped，而会话删除与文件夹移除是彼此独立且尚未提供的功能（参见[决策记录](../../../.agents/notes/implemented/feature/2026-07-27-workspace-registration-deletion.zh.md)）。
 - **只有带记录目录的会话才能加入**——只有记录中带有可解析为项目路径的目录的会话才属于项目；没有目录的会话保持 Ungrouped，来自其他目录的会话无法移入。
-- **外部变更延迟可见**——如果另一进程删除或损坏目录，项目只能在下次刷新或重启后反映出来。
+- **远程访问要求捕获的绑定**——远程创建与状态检查要求当前准入；附加使用活动 Agent 保留的租约，因此之后编辑目标仍可附加，但租约或提供方不可用时会拒绝。远程操作绝不使用本地提供方；缺少 `executionBindings` 时，启动会拒绝持久 SSH 历史。
+- **外部变更延迟可见**——本地目录变化会在刷新或重启后体现；远程历史索引不会探测目录。
 - **归档仅改变可见性**——归档与取消归档更新持久的显示过滤器，不删除 Session 历史，也不改变 Workspace 成员关系。取消归档不在集合中的 id 会直接成功，不执行写入。
 - **重新添加目录从空开始**——移除后再次添加同一目录会创建空会话列表的新项目；旧会话不会自动回来。
 
@@ -171,8 +175,6 @@ ctx.workspaceRegistry.list() // shows the project, newest first
 
 本开发备注是维护者的工作上下文：开放问题与尚未决定的探索方向。它明确不具权威性——已交付的行为、限制与既定理由以上文、包代码和相关 Agent Note 为准。
 
-#### 开放：`create(path, title?)` 的 title 参数
-
-网关的按名称创建分支移除后，`title` 参数已无生产调用方；代码中的 TODO 提议把该参数与其 `@param` 子句一并移除（参见[笔记](../../../.agents/notes/archived/simplification/2026-07-31-one-route-to-add-a-workspace.md)）。
+Session 日志拥有捕获的执行事件，执行服务拥有准入与保留的提供方租约；此包仅拥有 Workspace 身份与成员关系。
 
 </details>

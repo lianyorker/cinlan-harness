@@ -50,7 +50,7 @@ With these rows mounted, creating a project shows up in the list immediately and
 
 ### Creating and ordering projects
 
-Create a project from any fully qualified directory that exists: filesystem roots such as `C:\` and ordinary directories are valid. Relative paths, Windows drive-relative paths such as `C:work`, missing paths, and files are rejected without creating a project; creating a project for a directory that already has one returns the existing project unchanged. Rename a project at any time, and move it to any position in the list:
+Create a local project from any fully qualified directory that exists: filesystem roots such as `C:\` and ordinary directories are valid. Relative paths, Windows drive-relative paths such as `C:work`, missing paths, and files are rejected without creating a project; creating a project for a directory that already has one returns the existing project unchanged. Rename a project at any time, and move it to any position in the list:
 
 ```text
 // Host consumer code, after the composition above is loaded:
@@ -59,9 +59,11 @@ await project.setTitle('Renamed')
 ctx.workspaceRegistry.list() // shows the project, newest first
 ```
 
+Pass a captured SSH binding as the third argument to `create(path, title?, execution?)` to create a remote project. Remote creation verifies the directory through `executionBindings` and saves the canonical remote path alongside the configured-root snapshot. The same path on another target or revision identifies a different project. Omitting the binding selects local execution. `resolveByPath(path, execution?)` applies the same binding and path identity without creating a record.
+
 ### Grouping sessions under a project
 
-A session joins the project of the directory it runs in: create a session in a project's directory and it appears under that project, newest first. A session can only belong to one project. A session whose directory cannot be validated — no recorded directory, or a moved or deleted folder — cannot join and stays ungrouped.
+A session joins a project only when its execution binding and canonical directory match. Newly attached sessions appear first, and each session belongs to at most one project. Attachment validates the published Session through its retained execution lease, so a later target edit does not retarget or invalidate that live Agent; missing directories and binding mismatches still reject. Startup groups remote history from recorded POSIX paths and durable execution metadata without reconnecting, while local history still requires an existing local directory.
 
 ### Hiding sessions and removing projects
 
@@ -79,9 +81,9 @@ This section explains the design decisions behind the feature and points at the 
 
 ### Design philosophy
 
-- **One record per canonical path.** `fs.realpath` is the single uniqueness canon: paths are stored canonicalized, so a symlink to an owned directory collides, and uniqueness is string equality of canonical paths.
-- **Membership is ownership plus a live cwd fact.** The record's ordered `sessionIds` is the ownership truth; the startup header index validates it, and `sessionIds` filters on read while the next mutation prunes durably.
-- **Header-only reads.** Bootstrap and attach validation read `SessionHeader` fields only; event bodies are never loaded.
+- **One record per execution binding and canonical path.** Local paths use Host `fs.realpath`; remote creation uses the lease canonical cwd. Binding identity includes the captured target, revision, endpoint, and deployment coordinates.
+- **Membership is ownership plus a live cwd fact.** The record's ordered `sessionIds` is the ownership truth; attachment compares the retained Session lease and verifies its cwd through that lease's filesystem, then startup indexing and `sessionIds` filtering keep stale candidates out until the next mutation prunes them durably.
+- **Execution-aware history reads.** With `executionBindings`, header cwd values pair with the service's live-or-durable Session metadata. Without it, startup folds `execution/bound` directly from each non-empty durable log and defaults to local only when the event is absent; an SSH event fails startup before Host `realpath`. Remote indexing never opens a connection.
 - **Two-write mutations with an explicit marker.** Create and delete persist a `pendingMutation` marker before the record/order pair can diverge, so startup completes exactly the interrupted operation and unmarked divergence fails loud as corruption.
 - **Serialized writes.** Registry operations run on one operation chain; entity mutations go through `table.update` on the domain write chain, stamping `updatedAt` and deciding membership at their chain slot.
 
@@ -97,16 +99,17 @@ The API is one small family with two owners: `WorkspaceRegistry` creates, orders
 | [`src/entity.ts`](src/entity.ts) | Package-private `Workspace` implementation and its single `mutate` write path |
 | [`src/spec.ts`](src/spec.ts) | Domain declaration: record schema, registry state, `defineDomain` spec |
 | [`src/types.ts`](src/types.ts) | Public `Workspace` interface and `WorkspaceId` brand |
-| [`src/paths.ts`](src/paths.ts) | The `realpath` uniqueness canon |
+| [`src/paths.ts`](src/paths.ts) | Local canonical paths and platform-specific titles |
+| [`src/execution.ts`](src/execution.ts) | Durable binding folding, execution/path identity, and leased directory verification |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion: the entity cache mirrors the durable table |
 
 ### Durable shape
 
-The registry opens the `workspace` domain (version 2): a `workspaces` table keyed by `WorkspaceId` plus one global state holding `workspaceIds` (the authoritative display order), `archivedSessionIds`, and the optional `pendingMutation` marker. Records written before `archivedSessionIds` existed parse with an empty set through the schema default.
+The registry opens the `workspace` domain (version 3, accepting version 2 records): a `workspaces` table keyed by `WorkspaceId` plus one global state holding `workspaceIds` (the authoritative display order), `archivedSessionIds`, and the optional `pendingMutation` marker. Absent `archivedSessionIds` parses as an empty set; absent record `execution` parses as local. SSH records retain their public snapshot without credentials.
 
 ### Lifecycle
 
-On start, the registry opens the domain, completes a marked mutation if one is pending, validates stored state — duplicate paths, duplicate session accounts, and order drift all fail loud — and, when not yet initialized, bootstraps history from persisted headers before writing the initialized marker last, so an interrupted bootstrap resumes safely. A fresh empty registry is real once initialized; it never re-bootstraps.
+On start, the registry opens the domain, completes a marked mutation if one is pending, validates stored state — duplicate binding/path identities, duplicate session accounts, and order drift all fail loud — and, when not yet initialized, bootstraps history from persisted Sessions before writing the initialized marker last, so an interrupted bootstrap resumes safely. When the execution service is absent, non-empty logs are read to distinguish an explicit binding from an event-free local Session. A fresh empty registry is real once initialized; it never re-bootstraps.
 
 ### Failure and recovery
 
@@ -114,7 +117,7 @@ A create or delete whose second write fails rolls the cache and the prior order 
 
 ### Invariant
 
-The `workspace-invariant` companion registers the owned relationship: every durable `domain/changed` for the `workspaces` table must name a record the entity cache already holds — a delete is valid only after the registry removed the entity from its cache, so a bypassing write path fails the invariant.
+The `workspace-invariant` companion registers the owned relationship: every durable `domain/changed` for the `workspaces` table must name a record the entity cache already holds — the record must also retain the cached execution binding and canonical path. A delete is valid only after removal from the cache.
 
 </details>
 
@@ -159,7 +162,8 @@ These limits define when the project list is a poor fit or needs special operati
 
 - **Removal never deletes data** — removing a project leaves its folder, files, and session histories in place; those sessions become ungrouped, and session deletion or folder removal are separate, absent capabilities ([decision](../../../.agents/notes/implemented/feature/2026-07-27-workspace-registration-deletion.md)).
 - **A session joins only with a recorded directory** — a session belongs to a project only when its record carries a directory that resolves to the project's path; sessions without one stay ungrouped, and a session from another directory cannot be moved in.
-- **External changes are seen late** — if another process deletes or damages a directory, the project reflects it only at the next refresh or restart.
+- **Remote access requires its captured binding** — remote creation and status checks require current admission; attachment uses the live Agent's retained lease and therefore survives later target edits, but rejects when that lease or provider is unavailable. Remote operations never use local providers, and startup refuses durable SSH history without `executionBindings`.
+- **External changes are seen late** — local directory changes appear at refresh or restart; remote history indexing does not probe the directory.
 - **Archiving only changes visibility** — archive and unarchive update the durable display filter without deleting Session history or changing Workspace membership. Unarchiving an absent id succeeds without a write.
 - **Re-adding a directory starts fresh** — after removal, adding the same directory again creates a new project with an empty session list; the old sessions do not come back automatically.
 
@@ -171,8 +175,6 @@ These limits define when the project list is a poor fit or needs special operati
 
 This Dev Note is working context for maintainers: open questions and directions that are not decided. It is explicitly non-authoritative — shipped behavior, limits, and accepted rationale live in the sections above, the package code, and the linked Agent Notes.
 
-#### Open: the `create(path, title?)` title parameter
-
-The `title` parameter has no production caller since the gateway's create-by-name branch was removed; a code TODO proposes dropping the parameter and its `@param` clause together ([note](../../../.agents/notes/archived/simplification/2026-07-31-one-route-to-add-a-workspace.md)).
+The Session log owns the captured execution event, the execution service owns admission and retained provider leases, and this package owns Workspace identity and membership.
 
 </details>

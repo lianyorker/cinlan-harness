@@ -9,11 +9,13 @@
  */
 
 import { stat } from 'node:fs/promises'
+import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
+import type { ExecutionBinding } from '@deepseek-ai/dsh-execution-host-targets/types'
 import type { SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
 import type { KvTable } from '@deepseek-ai/dsh-storage-domain'
 import type { WorkspaceRecord } from './spec.ts'
 import type { Workspace, WorkspaceId } from './types.ts'
-import { realpathNormalize } from './paths.ts'
+import { WorkspaceDirectoryMissingError, workspaceIdentity } from './execution.ts'
 
 /** An insertSessionBefore request named a session or anchor not on the account (storage failures stay plain errors). */
 export class WorkspaceMoveInvalidError extends Error {
@@ -45,6 +47,50 @@ export interface WorkspaceEntityHost {
    * missing or its cwd cannot identify an existing directory.
    */
   sessionPath(id: SessionId): string | undefined
+
+  /**
+   * Read the execution selection indexed alongside a Session path.
+   * @param id - Indexed Session.
+   * @returns Its captured selection, or undefined when it is not indexed.
+   */
+  sessionExecution(id: SessionId): ExecutionBinding | undefined
+
+  /**
+   * Read live or durable Session execution metadata; lookup failures reject.
+   * @param id - Known Session whose execution selection is required.
+   * @returns The captured selection, with legacy Sessions interpreted as local.
+   */
+  readSessionExecution(id: SessionId): Promise<ExecutionBinding>
+
+  /**
+   * Retain the execution incarnation admitted for one Session.
+   * @param id - Session whose published execution world is required.
+   * @returns a caller-owned lease, or `undefined` when the optional service is absent.
+   */
+  sessionLease(id: SessionId): Promise<ExecutionLease | undefined>
+
+  /**
+   * Verify an existing directory in the selected filesystem.
+   * @param path - Directory to verify.
+   * @param execution - Captured execution selection.
+   * @returns Its canonical path; rejects on missing directories or unavailable execution.
+   */
+  verifyDirectory(path: string, execution: ExecutionBinding): Promise<string>
+
+  /**
+   * Verify the cwd through a retained execution lease.
+   * @param lease - Caller-owned Session execution lease.
+   * @param path - Session cwd or its managed source Workspace path.
+   * @returns the provider-canonical directory.
+   */
+  verifyLeaseDirectory(lease: ExecutionLease, path?: string): Promise<string>
+
+  /**
+   * Cache the binding published by a successful Session lease.
+   * @param id - Validated Session id.
+   * @param execution - Binding carried by the retained lease.
+   */
+  rememberSessionExecution(id: SessionId, execution: ExecutionBinding): void
 
   /**
    * Resolve an exact managed checkout to its source Workspace.
@@ -94,6 +140,10 @@ export class WorkspaceEntity implements Workspace {
     return this.record.path
   }
 
+  get execution(): ExecutionBinding {
+    return this.record.execution
+  }
+
   get title(): string {
     return this.record.title
   }
@@ -107,7 +157,7 @@ export class WorkspaceEntity implements Workspace {
   }
 
   get sessionIds(): readonly SessionId[] {
-    return this.record.sessionIds.filter(id => this.host.sessionPath(id) === this.record.path)
+    return this.record.sessionIds.filter(id => this.matchesSession(id, this.record))
   }
 
   async setTitle(title: string): Promise<void> {
@@ -115,10 +165,7 @@ export class WorkspaceEntity implements Workspace {
   }
 
   async attachSession(sessionId: SessionId): Promise<void> {
-    // Validation is skipped when the settled snapshot already accounts the
-    // id: the cwd fact was checked when it first attached and both inputs
-    // (stored header cwd, workspace path) are immutable. Membership itself is
-    // decided on the write chain inside `mutate`, never on this snapshot.
+    // Validate new membership through the published Session incarnation.
     if (!this.record.sessionIds.includes(sessionId)) {
       const header = await this.host.readSessionHeader(sessionId)
       if (header.cwd === undefined) {
@@ -127,29 +174,41 @@ export class WorkspaceEntity implements Workspace {
           + 'its stored header carries no cwd to validate against',
         )
       }
-      let cwd: string
+      const lease = await this.host.sessionLease(sessionId)
       try {
-        cwd = await realpathNormalize(this.host.sourcePath(sessionId, header.cwd) ?? header.cwd)
-      } catch (error) {
-        throw new Error(
-          `cannot attach session '${sessionId}' to workspace '${this.record.path}': `
-          + `its cwd '${header.cwd}' does not resolve, so it cannot be validated`,
-          { cause: error },
-        )
+        const execution = lease?.binding
+          ?? this.host.sessionExecution(sessionId)
+          ?? await this.host.readSessionExecution(sessionId)
+        if (workspaceIdentity('', execution) !== workspaceIdentity('', this.execution)) {
+          throw new Error(`cannot attach session '${sessionId}': execution binding differs from workspace '${this.id}'`)
+        }
+        let cwd: string
+        try {
+          if (lease !== undefined) {
+            const source = lease.binding.kind === 'local' ? this.host.sourcePath(sessionId, header.cwd) : undefined
+            cwd = await this.host.verifyLeaseDirectory(lease, source ?? lease.cwd)
+          } else {
+            const source = execution.kind === 'local' ? this.host.sourcePath(sessionId, header.cwd) : undefined
+            cwd = await this.host.verifyDirectory(source ?? header.cwd, execution)
+          }
+        } catch (error) {
+          throw new Error(
+            `cannot attach session '${sessionId}' to workspace '${this.record.path}': `
+            + `its cwd '${header.cwd}' does not resolve, so it cannot be validated: ${String(error)}`,
+            { cause: error },
+          )
+        }
+        if (cwd !== this.record.path) {
+          throw new Error(
+            `cannot attach session '${sessionId}' to workspace '${this.record.path}': `
+            + `its cwd resolves to '${cwd}'`,
+          )
+        }
+        this.host.rememberSessionExecution(sessionId, execution)
+        this.host.rememberSessionPath(sessionId, cwd)
+      } finally {
+        await lease?.release()
       }
-      if (!(await stat(cwd)).isDirectory()) {
-        throw new Error(
-          `cannot attach session '${sessionId}' to workspace '${this.record.path}': `
-          + `its cwd '${header.cwd}' is not a directory`,
-        )
-      }
-      if (cwd !== this.record.path) {
-        throw new Error(
-          `cannot attach session '${sessionId}' to workspace '${this.record.path}': `
-          + `its cwd resolves to '${cwd}'`,
-        )
-      }
-      this.host.rememberSessionPath(sessionId, cwd)
     }
     await this.mutate(record => record.sessionIds.includes(sessionId)
       ? record
@@ -186,6 +245,15 @@ export class WorkspaceEntity implements Workspace {
   }
 
   async status(): Promise<'ok' | 'missing-dir'> {
+    if (this.execution.kind !== 'local') {
+      try {
+        await this.host.verifyDirectory(this.path, this.execution)
+        return 'ok'
+      } catch (error) {
+        if (error instanceof WorkspaceDirectoryMissingError) return 'missing-dir'
+        throw error
+      }
+    }
     try {
       return (await stat(this.record.path)).isDirectory() ? 'ok' : 'missing-dir'
     } catch {
@@ -193,6 +261,13 @@ export class WorkspaceEntity implements Workspace {
       // directory is not usable right now; the record itself never mutates.
       return 'missing-dir'
     }
+  }
+
+  private matchesSession(id: SessionId, record: WorkspaceRecord): boolean {
+    const execution = this.host.sessionExecution(id)
+    const path = this.host.sessionPath(id)
+    return execution !== undefined && path !== undefined
+      && workspaceIdentity(path, execution) === workspaceIdentity(record.path, record.execution)
   }
 
   /**
@@ -213,7 +288,7 @@ export class WorkspaceEntity implements Workspace {
       next = await this.host.table().update(this.id, (current) => {
         const changed = fn(current)
         const sessionIds = changed.sessionIds.filter(
-          id => this.host.sessionPath(id) === changed.path,
+          id => this.matchesSession(id, changed),
         )
         if (changed === current && sessionIds.length === current.sessionIds.length) {
           throw unchangedSentinel
