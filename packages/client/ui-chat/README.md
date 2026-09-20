@@ -13,6 +13,7 @@ Use this package to render a browser chat from recorded Session conversations, i
 ## Table of Contents
 
 - [System prompt row](#system-prompt-row)
+- [Markdown path images](#markdown-path-images)
 - [Turn token usage](#turn-token-usage)
 - [Turn Process Folding](#turn-process-folding)
 - [Scroll ownership](#scroll-ownership)
@@ -26,6 +27,15 @@ Use this package to render a browser chat from recorded Session conversations, i
 ## System prompt row
 
 Each nonempty appended `system/message` owns a collapsed prompt row, including a complete prompt at the start of a headerless window; the same-step header does not duplicate it. Chat also shows a collapsed `System prompt` row for a non-empty initial request, explicit message-series start, or `system/message` surface node replacement whose text differs, reading the last nonempty surviving system node in surface order at the `request/header`; a non-initial request whose preceding header is outside the loaded history window also shows one. A resume repeats the row even when its system text is unchanged, including after pagination supplies the preceding header and system node; same-series config-only or tool-only changes, tool steps, and retries create no repetition, and a `system/message` event is never rendered as a transcript message. The row appears before that request's user messages, matching the provider envelope, and expands to the exact model-visible text with its original line breaks. A request whose system node is empty or outside the loaded window creates no row until the page holding the node arrives.
+
+-----
+
+<a id="markdown-path-images"></a>
+## Markdown path images
+
+Non-streaming Assistant Markdown, including interrupted output, rewrites absolute POSIX image paths only when the renderer has the owning Session ID and the page uses HTTP(S). The generated `/api/file` URL carries the encoded `sessionId` and path. [Session Controller](../../api/session-controller/README.md#session-media-references) owns authenticated execution-lease acquisition, request cancellation, size limits, and response headers. During streaming, or without ownership, the path remains alt text. Relative, protocol-relative, and Windows-style paths remain inert, while remote HTTP(S) images keep their authored destination, alt text, and link behavior.
+
+-----
 
 <a id="turn-token-usage"></a>
 ## Turn token usage

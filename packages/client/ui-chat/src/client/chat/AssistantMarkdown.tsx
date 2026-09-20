@@ -10,22 +10,26 @@ import { useSearchableHidden } from './searchable-hidden.ts'
 import css from './AssistantMarkdown.module.css'
 
 /**
- * Map one authored media destination to the same-origin workspace-file URL.
+ * Map one authored media destination to the same-origin Session file URL.
  * @param protocol - `window.location.protocol` at render time.
  * @param origin - `window.location.origin` at render time.
  * @param value - The authored markdown destination, exactly as written.
+ * @param sessionId - Session whose execution environment owns the path.
  * @returns The API URL for an absolute POSIX path on an HTTP(S) page, or
- * undefined when the destination cannot be a Host-served local file
+ * undefined when the owner is absent or the destination cannot be served
  * (non-HTTP transport such as Electron `file://`, protocol-relative or
  * relative destinations).
  */
-export function localPathMediaUrl(protocol: string, origin: string, value: string): string | undefined {
+export function localPathMediaUrl(protocol: string, origin: string, value: string, sessionId?: string): string | undefined {
+  if (sessionId === undefined || sessionId.length === 0) return undefined
   if (protocol !== 'http:' && protocol !== 'https:') return undefined
   if (value.length === 0 || !value.startsWith('/') || value.startsWith('//')) return undefined
-  return `${origin}/api/file?path=${encodeURIComponent(value)}`
+  return `${origin}/api/file?sessionId=${encodeURIComponent(sessionId)}&path=${encodeURIComponent(value)}`
 }
 
 export interface AssistantMarkdownProps {
+  /** Owning Session for file media; absent ownership leaves path images inert. */
+  sessionId?: string | undefined
   blocks: readonly AssistantBlock[]
   streaming: boolean
   /** Frozen partial of an aborted turn: rendered with a stopped marker. */
@@ -44,19 +48,18 @@ export interface AssistantMarkdownProps {
 
 /** Reasoning block as the Think variant summary row (figma 39:28304). */
 export const AssistantMarkdown = memo(function AssistantMarkdown({
-  blocks, streaming, interrupted, renderMessageImages,
+  blocks, streaming, interrupted, renderMessageImages, sessionId,
   reasoningHidden = false, revealProcess, mentions, t,
 }: AssistantMarkdownProps) {
   // Stable per locale revision (t identity changes on switch): a fresh object
   // per render would rebuild MarkdownText's component table every chunk.
   const labels = useMemo(() => markdownLabels(t), [t])
-  // Local media paths in the closing prose rewrite to the same-origin file
-  // API (policy re-validation lives host-side). The vocabulary identity is
-  // stable per page load because MarkdownText memoizes on it.
+  // MarkdownText invokes path resolvers only after streaming ends; the Host
+  // resolves the path through the encoded Session owner's execution lease.
   const pathImages = useMemo<MarkdownPathImages>(() => {
     const { protocol, origin } = window.location
-    return { resolve: value => localPathMediaUrl(protocol, origin, value) }
-  }, [])
+    return { resolve: value => localPathMediaUrl(protocol, origin, value, sessionId) }
+  }, [sessionId])
   const last = blocks.length - 1
   // Tool-call heads render as tool rows in the chat view's grouping pass, so
   // a node that is only those heads (or empty) would paint an empty root

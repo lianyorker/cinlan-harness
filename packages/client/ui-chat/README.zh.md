@@ -13,6 +13,7 @@ kind: "package-reference"
 ## 目录
 
 - [系统提示词行](#system-prompt-row)
+- [Markdown 图片路径](#markdown-path-images)
 - [轮次 token 用量](#turn-token-usage)
 - [轮次过程折叠](#turn-process-folding)
 - [滚动归属](#scroll-ownership)
@@ -26,6 +27,13 @@ kind: "package-reference"
 ## 系统提示词行
 
 每个非空追加的 `system/message` 都拥有一行折叠提示词，包括无 header 窗口起点的完整提示词；同一步骤的 header 不会重复它。Chat 也会为非空的初始请求、显式消息序列起点、文本发生变化的 `system/message` surface 节点替换（文本读取自 `request/header` 处 surface 顺序中最后一个非空存活系统节点），或前序 header 尚未进入已加载历史窗口的非初始请求显示一行默认折叠的`系统提示词`。即使系统文本未变，resume 也会重复该行，包括分页补齐前序 header 和系统节点后；同一序列内仅配置或仅工具变化、工具步骤与重试不会重复，且 `system/message` 事件绝不会渲染为对话消息。该行位于请求的用户消息之前，与提供方 envelope 顺序一致；展开后显示保留原始换行的精确模型可见文本。系统节点为空或位于已加载窗口之外的请求不创建该行，直到包含该节点的分页到达。
+
+-----
+
+<a id="markdown-path-images"></a>
+## Markdown 图片路径
+
+非流式 Assistant Markdown（包括已中断输出）仅在渲染器拥有所属 Session ID 且页面使用 HTTP(S) 时，才会重写绝对 POSIX 图片路径。生成的 `/api/file` URL 携带经过编码的 `sessionId` 与路径。[Session Controller](../../api/session-controller/README.zh.md#session-media-references) 负责经过认证的执行租约获取、请求取消、大小限制与响应头。流式渲染或缺少所属会话时，路径保留为 alt 文本。相对路径、协议相对路径和 Windows 风格路径保持不可用；远程 HTTP(S) 图片保留其原始目标、alt 文本和链接行为。
 
 -----
 
