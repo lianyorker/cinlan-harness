@@ -56,7 +56,7 @@ Provider registration, selection, and observation state do not alter the model r
 ## Known Limitations and Deferred Work
 
 - The service has no durable device record, remote pairing, Execution Host binding, or emulator lifecycle ownership.
-- `androidSdkPath` is a saved local SDK probe preference, not a supported SDK override for the external Cinlan device backend.
+- `androidSdkPath` configures native ADB discovery and SDK detection; alternative Providers own their executable selection.
 - The initial API excludes application management, runtime permissions, logcat, file transfer, raw execution, camera, sensors, clipboard, and device boot or shutdown.
 
 No runtime invariant companion is published: provider registration, protocol validation, and observation freshness are enforced by their owning operations and covered by the package tests.

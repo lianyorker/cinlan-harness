@@ -52,7 +52,7 @@ export interface MobileDeviceSettings {
   enabled: boolean
   /** Exact default observation target; an empty string requires an explicit id. */
   defaultDeviceId: string
-  /** Local SDK probe preference; does not configure an external device backend. */
+  /** Existing Android SDK root, platform-tools directory, or adb path used by native discovery and SDK checks. */
   androidSdkPath: string
 }
 

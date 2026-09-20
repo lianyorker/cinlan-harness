@@ -5,12 +5,12 @@
     - id: mobile-device
       name: '@deepseek-ai/dsh-mobile-device'
       config:
-        provider: cinlan
+        provider: adb
 
-    - id: mobile-device-cinlan
-      name: '@deepseek-ai/dsh-mobile-device-cinlan'
+    - id: mobile-device-adb
+      name: '@deepseek-ai/dsh-mobile-device-adb'
       config:
-        providerId: cinlan
+        providerId: adb
 
     - id: mobile-device-permission-policy
       name: '@deepseek-ai/dsh-mobile-device-permission-policy'

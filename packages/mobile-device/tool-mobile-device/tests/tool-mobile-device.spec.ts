@@ -153,6 +153,7 @@ describe('Mobile Device tool registration', () => {
       name: 'tool:mobile-device', text: MOBILE_DEVICE_SYSTEM_PROMPT,
     })
     expect(MOBILE_DEVICE_SYSTEM_PROMPT).toContain('one-use')
+    expect(MOBILE_DEVICE_SYSTEM_PROMPT).toContain('connected Android phones and emulators')
     expect(ctx.tools.get('mobile_list_devices')?.presentCall?.({})).toMatchObject({ title: 'List mobile devices' })
     expect(ctx.tools.get('mobile_observe')?.presentCall?.({ device_id: 'device-1' })).toMatchObject({ title: 'Observe device-1' })
     expect(ctx.tools.get('mobile_touch')?.presentCall?.({

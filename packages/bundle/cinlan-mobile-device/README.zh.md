@@ -21,7 +21,7 @@ kind: "package-bundle"
 
 该 bundle 为完整 Cinlan Mobile Device capability family 导出 `cordis.patch.yml`。Profile 在 `dsh-base` 之后应用它；随附的 `device-control` 模板包含该层，普通 `web` 与 `headless` 则不包含。
 
-Patch 挂载 provider-neutral Service Definition、公开 Cinlan CLI Provider、权限策略 Consumer 和五个模型工具。它固定 Provider id `cinlan`，并把 `observe`、`touch`、`textInput` 和 `deviceNavigation` 配置为 `ask`。
+Patch 挂载 provider-neutral Service Definition、原生 Android ADB Provider、权限策略 Consumer 和五个模型工具。它固定 Provider id `adb`，并把 `observe`、`touch`、`textInput` 和 `deviceNavigation` 配置为 `ask`。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -42,7 +42,7 @@ Patch 挂载 provider-neutral Service Definition、公开 Cinlan CLI Provider、
 
 ## 已知限制与延后工作
 
-- Bundle 假定存在兼容的本地 `orca` executable（Linux 上为 `orca-ide`），不增加远程 pairing、Execution Host 绑定或 emulator 生命周期管理。
+- Bundle 需要已有 Android ADB 安装与经过授权的设备；支持物理 Android 手机和模拟器，不支持 iOS。Provider 配置、SDK 路径、输入与清理限制见[原生 ADB Provider](../../mobile-device/mobile-device-adb/README.zh.md)。
 
 不发布 runtime invariant companion：Provider 注册、协议校验和 observation 新鲜度由各自操作执行，并由包级测试覆盖。
 

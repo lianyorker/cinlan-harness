@@ -57,7 +57,7 @@ Provider 注册、选择和 observation state 不会改变模型 request prefix�
 ## 已知限制与延后工作
 
 - 服务没有持久设备记录、远程 pairing、Execution Host 绑定或 emulator 生命周期所有权。
-- `androidSdkPath` 是保存的本地 SDK 探测偏好，不是外部 Cinlan 设备后端支持的 SDK 覆盖参数。
+- `androidSdkPath` 配置原生 ADB 发现与 SDK 检测；其他 Provider 自行持有可执行文件选择。
 - 初始 API 不包含应用管理、运行时权限、logcat、文件传输、raw execution、相机、传感器、剪贴板以及设备 boot 或 shutdown。
 
 不发布 runtime invariant companion：Provider 注册、协议校验和 observation 新鲜度由各自操作执行，并由包级测试覆盖。

@@ -1,6 +1,6 @@
-/** Managed, bounded SDK checks; these never configure the external Cinlan runtime. */
+/** Managed, bounded SDK checks for existing local platform tools; detection does not install SDKs. */
 import { homedir, platform } from 'node:os'
-import { dirname, isAbsolute, join } from 'node:path'
+import { basename, dirname, isAbsolute, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { SubprocessHandle, SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
@@ -113,7 +113,9 @@ export class SdkProbes {
     for (const root of androidRoots(configured)) {
       if (signal.aborted) break
       if (!isAbsolute(root) || root.trim() !== root) continue
-      const executable = join(root, 'platform-tools', osPlatform === 'win32' ? 'adb.exe' : 'adb')
+      const adb = osPlatform === 'win32' ? 'adb.exe' : 'adb'
+      const leaf = basename(root).toLowerCase()
+      const executable = leaf === adb ? root : leaf === 'platform-tools' ? join(root, adb) : join(root, 'platform-tools', adb)
       if (await this.execute(subprocess, executable, ['version'], signal)) {
         return { found: true, sdkPath: root, message: 'Android SDK adb version check succeeded.' }
       }

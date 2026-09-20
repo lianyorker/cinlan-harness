@@ -21,7 +21,7 @@ Opt-in profile bundle for Mobile Device control with approval required by defaul
 
 This bundle exports `cordis.patch.yml` for the complete Cinlan Mobile Device capability family. A profile applies it after `dsh-base`; the shipped `device-control` template includes it, while generic `web` and `headless` do not.
 
-The patch mounts the provider-neutral Service Definition, the public Cinlan CLI Provider, the permission-policy Consumer, and the five model tools. It pins Provider id `cinlan` and configures `observe`, `touch`, `textInput`, and `deviceNavigation` as `ask`.
+The patch mounts the provider-neutral Service Definition, the native Android ADB Provider, the permission-policy Consumer, and the five model tools. It pins Provider id `adb` and configures `observe`, `touch`, `textInput`, and `deviceNavigation` as `ask`.
 
 ## Model Experience
 
@@ -41,7 +41,7 @@ The bundle changes the request prefix for profiles that select it; its fixed pat
 
 ## Known Limitations and Deferred Work
 
-- The bundle assumes a compatible local `orca` executable (`orca-ide` on Linux) and does not add remote pairing, Execution Host binding, or emulator lifecycle management.
+- The bundle requires an existing Android ADB installation and authorized devices; it supports physical Android phones and emulators, not iOS. See the [native ADB Provider](../../mobile-device/mobile-device-adb/README.md) for SDK selection, input, and cleanup limits.
 
 No runtime invariant companion is published: provider registration, protocol validation, and observation freshness are enforced by their owning operations and covered by the package tests.
 

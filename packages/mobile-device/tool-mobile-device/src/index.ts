@@ -27,7 +27,7 @@ export const name = 'tool-mobile-device'
 export const inject = ['attachments', 'mobileDevice', 'systemPrompt', 'tools']
 
 /** Stable model guidance for Mobile Device tools. */
-export const MOBILE_DEVICE_SYSTEM_PROMPT = 'Use mobile_* tools for local Android emulators and iOS simulators. Run mobile_observe before every mutation. You may omit device_id only for mobile_observe to use the saved default device, which must be currently available; there is no fallback. To choose another device, run mobile_list_devices and pass its exact device_id. For every mutation, pass the exact device_id and latest observation_id returned by mobile_observe; every observation token is one-use and every mutation requires a fresh observe afterward. Touch coordinates are normalized from 0 to 1. Typed text is never echoed in result summaries.'
+export const MOBILE_DEVICE_SYSTEM_PROMPT = 'Use mobile_* tools for devices exposed by the configured provider, including connected Android phones and emulators. Provider support determines which platforms and input operations are available. Run mobile_observe before every mutation. You may omit device_id only for mobile_observe to use the saved default device, which must be currently available; there is no fallback. To choose another device, run mobile_list_devices and pass its exact device_id. For every mutation, pass the exact device_id and latest observation_id returned by mobile_observe; every observation token is one-use and every mutation requires a fresh observe afterward. Touch coordinates are normalized from 0 to 1. Typed text is never echoed in result summaries.'
 
 const DEFAULT_TIMEOUT_MS = 60_000
 const DEFAULT_MAX_TEXT_CHARS = 100_000
@@ -327,7 +327,7 @@ export function apply(ctx: Context, config: Config = {}): void {
 
   ctx.tools.register(defineTool({
     name: 'mobile_list_devices',
-    description: 'List exact local Android emulator and iOS simulator device ids.',
+    description: 'List exact device ids and availability from the configured mobile provider.',
     parameters: {},
     output: {
       schema: {

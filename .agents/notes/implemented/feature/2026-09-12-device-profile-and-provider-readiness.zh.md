@@ -10,11 +10,11 @@ Status: implemented
 
 ## Decision
 
-Computer Use 和 Mobile Device 保留独立的 Service Definition、Provider、策略 Consumer 和可选 bundle。原生 CUA 拥有桌面工具 schema；移动设备 CLI Provider 保留其工具 Consumer。device-control profile 在现有 base 和 Web 层之上组合它们；通用 web 和 headless profile 不获得设备输入能力。当前 ToolCallId、Attachment 限制、subprocess handle 和 compiler reference 仍是准则。不迁入空 invariant installer。
+Computer Use 和 Mobile Device 保留独立的 Service Definition、Provider、策略 Consumer 和可选 bundle。原生 CUA 拥有桌面工具 schema；原生 Android ADB Provider 保留官方移动工具 Consumer。device-control profile 在现有 base 和 Web 层之上组合它们；每个部署中的设备输入都需要显式 Provider 激活与权限。当前 ToolCallId、Attachment 限制、subprocess handle 和 compiler reference 仍是准则。不迁入空 invariant installer。
 
-deviceCapabilities/check Remote 调用电脑就绪查询或移动设备列表，返回脱敏的 not-configured、available 或 unavailable 结果。Loader 状态不是安装探测，探测成功也不授权输入。Settings 复制受支持的 dsh profile 命令，并保留[呈现决策](2026-09-12-computer-use-settings-presentation.zh.md)中的卡片布局。[原生 CUA 决策](../architecture/2026-09-20-native-cua-readiness-and-policy.zh.md)负责桌面组合、生命周期就绪状态和原生策略。桌面操作系统权限保持 unknown；移动设备 CLI Provider 保留其外部运行时前置条件。
+deviceCapabilities/check Remote 调用电脑就绪查询或移动设备列表，返回脱敏的 not-configured、available 或 unavailable 结果。Loader 状态不是安装探测，探测成功也不授权输入。Settings 复制受支持的 dsh profile 命令，并保留[呈现决策](2026-09-12-computer-use-settings-presentation.zh.md)中的卡片布局。[原生 CUA 决策](../architecture/2026-09-20-native-cua-readiness-and-policy.zh.md)负责桌面组合、生命周期就绪状态和原生策略。桌面操作系统权限保持 unknown；移动 Provider 需要已有 ADB 可执行文件和已授权的 Android 手机或模拟器。[原生 Android ADB 决策](../architecture/2026-09-20-native-android-adb-provider.zh.md)负责精确 transport 定位、一次性观察、取消与清理；本记录继续负责能力分离与就绪状态。
 
-仅缓存成功的 executable 查询。安装或修复 PATH 后允许重新查询；取消与卸载会在生成进程前中断正在进行的解析。
+原生 ADB 优先选择部署 `command`，然后使用保存的 Android SDK 根目录、platform-tools 目录或 adb 可执行文件，最后使用 PATH 上的 `adb`。缺少可执行文件与设备不可用属于不同失败。空清单不证明设备控制可用，且不支持 iOS。SDK 安装、模拟器启动和 scrcpy 管理不属于此 Provider。
 
 顶层构建直接调用 native、Host、Client 和 Web 构建步骤，全部成功后才记录 Client 产物 hash。任一阶段失败都会停止后续步骤，避免把嵌套 package-script 外壳返回成功误当作子构建已执行的证据。
 
@@ -34,4 +34,4 @@ deviceCapabilities/check Remote 调用电脑就绪查询或移动设备列表，
 
 ## Verification
 
-Provider、parser、工具、策略和 Loader 组合测试覆盖允许与拒绝观察、过期标识、截图、取消、卸载以及 CLI 修复后重试。源码 CLI profile 测试验证两组 bundle 及默认 ask 策略。组件测试和真实 Web Host/Chromium 场景验证本地化状态、命令复制、经生成 Remote 刷新以及不再显示安装声明。这些 fixture 未执行真实桌面输入或真实模拟器控制。
+Provider、parser、工具、策略和 Loader 组合测试覆盖允许与拒绝观察、过期标识、截图、取消、卸载以及 可执行文件修复后重试。源码 CLI profile 测试验证两组 bundle 及默认 ask 策略。组件测试和真实 Web Host/Chromium 场景验证本地化状态、命令复制、经生成 Remote 刷新以及不再显示安装声明。这些 fixture 不证明真实设备输入。原生 Android 验收包含 199 项通过的定向测试，以及单独运行的真实 ADB 37.0.0 版本／清单检查，设备数为零；硬件层级、截图和输入仍未验证。

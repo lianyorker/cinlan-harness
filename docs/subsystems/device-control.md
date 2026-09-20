@@ -19,37 +19,37 @@ Desktop and mobile control let agents inspect a device before acting on it. This
 
 ## Composition
 
-The opt-in `device-control` profile layers the [Computer Use bundle](../../packages/bundle/cinlan-computer-use/README.md) and [Mobile Device bundle](../../packages/bundle/cinlan-mobile-device/README.md) over the ordinary base and Web bundles. Generic `web` and `headless` profiles do not acquire device input capabilities. The [user guide](../user/develop/practice/device-control.md) owns launch and configuration instructions.
+The opt-in `device-control` profile layers the [native CUA bundle](../../packages/bundle/cinlan-computer-use/README.md) and [native Android ADB bundle](../../packages/bundle/cinlan-mobile-device/README.md) over the base and Web bundles. Provider activation and tool approval remain explicit choices. The [user guide](../user/develop/practice/device-control.md) owns launch and configuration instructions.
 
 ## Observations and permission
 
-[Computer Use](../../packages/computer-use/computer-use/README.md) names applications, windows, and observation-scoped elements. Actions consume a fresh observation and return the resulting observation. [Mobile Device](../../packages/mobile-device/mobile-device/README.md) uses exact device ids, normalized coordinates, runtime generations, and one-use observation tokens; mutation is followed by an explicit new observation.
+The [native CUA provider](../../packages/experimental/computer-use-cua-driver-native/README.md) exposes the SDK tool catalog and upstream window snapshots, element tokens, requests, and results. The separate [Computer Use facade](../../packages/computer-use/computer-use/README.md) supplies the legacy observation/action types documented below for explicitly composed facade providers. [Mobile Device](../../packages/mobile-device/mobile-device/README.md) uses exact device ids, normalized coordinates, runtime generations, and one-use observation tokens; mutation requires a subsequent explicit observation.
 
-The tool Consumers register their schemas and stable model guidance through existing tools and system-prompt services. All observation and action classes default to ask. Execution guards prevent an earlier tool listener from silently bypassing the configured policy. Screenshots use the existing Attachment service; typed input is not echoed in result summaries.
+Native CUA registers SDK schemas through the existing tool registry; the mobile tool Consumer registers provider-neutral schemas and guidance. Native desktop tools and all mobile observation/input classes default to ask. Execution guards prevent an earlier tool listener from bypassing policy. Screenshots use the existing Attachment service; typed input is not echoed in result summaries.
 
 ## Runtime readiness
 
-The [readiness controller](../../packages/api/device-capabilities-controller/README.md) owns `deviceCapabilities/check`. It calls the selected desktop Provider's capabilities method or the mobile Provider's device listing; it never sends device input or returns device identities.
+The [readiness controller](../../packages/api/device-capabilities-controller/README.md) owns `deviceCapabilities/check`. It reads native desktop catalog lifecycle or selected facade capabilities, and lists mobile devices. It neither sends input nor returns device identities.
 
 | Status | Meaning |
 |---|---|
 | `not-configured` | The selected service is absent from the active Host |
-| `available` | The read-only Provider probe succeeded; mobile also reported an available device |
+| `available` | Native desktop catalog is ready or the facade probe succeeded; mobile reported an available device |
 | `unavailable` | The Provider could not be selected, resolved, or probed, or no mobile device is available |
 
 `reason` is a redacted category, not raw Provider stderr. Loader activation, installation, Provider readiness, and permission to act are distinct facts. The [Settings plugin](../../packages/client/ui-settings-security/README.md) preserves that distinction and shows a usable profile launch command rather than an unsupported installation command.
 
 ## Lifecycle
 
-Providers cache only successful executable resolution. A missing CLI can be installed or its PATH repaired, then checked again without restarting the Host. Caller cancellation and plugin disposal interrupt pending executable lookup and command work. CLI failures do not prevent the Settings shell from loading. A missing external CLI is an explicit prerequisite failure, not a stubbed success.
+Native CUA retains its exclusive registration until tools, calls, and SDK shutdown settle; failed shutdown keeps it reserved. The [native ADB provider](../../packages/mobile-device/mobile-device-adb/README.md) uses Harness subprocess cancellation, bounded cleanup, and disposal quiescence. Missing ADB is a prerequisite failure, and Settings remains usable.
 
 <a id="desktop-types"></a>
 
 ## Desktop types
 
-The [desktop declarations](../../packages/computer-use/computer-use/src/types.ts) describe exact application/window targets and observation-scoped input. Data fields are readonly; `?` marks an optional field in these tables. The [runtime](../../packages/computer-use/computer-use/src/index.ts) declares `ComputerUseRuntime` and `ComputerUseError`.
+The [desktop declarations](../../packages/computer-use/computer-use/src/types.ts) define the facade types below; native CUA keeps its SDK-owned schemas instead of translating them into these types. Data fields are readonly; `?` marks an optional field. The [runtime](../../packages/computer-use/computer-use/src/index.ts) declares `ComputerUseRuntime` and `ComputerUseError`.
 
-`ComputerUseProviderName` is a branded string exported through `./brand` for exclusive adapters that publish their own tools. `register(name)` returns an asynchronous effect disposer, `providerName` reports the reservation, and `ComputerUseRegistry` aliases the same runtime class. An exclusive adapter cannot coexist with any registered `ComputerUseProvider`, including an unavailable one; Cinlan multi-provider selection and observation APIs retain their existing facade. See [Cua Driver MCP](../../packages/experimental/computer-use-cua-driver-mcp/README.md) and [Cua Driver native](../../packages/experimental/computer-use-cua-driver-native/README.md) for opt-in composition and permissions.
+`ComputerUseProviderName` is a branded string exported through `./brand` for exclusive adapters. `register(name, readiness?)` returns an asynchronous effect disposer, `providerName` reports the reservation, and `ComputerUseRegistry` aliases the runtime class. `readiness()` distinguishes `tool-catalog` lifecycle from `facade` capabilities; permissions remain `unknown`. Exclusive adapters cannot coexist with registered facade providers, including unavailable ones. See [native CUA](../../packages/experimental/computer-use-cua-driver-native/README.md) and the separately installed [MCP adapter](../../packages/experimental/computer-use-cua-driver-mcp/README.md) for their composition and permissions.
 
 ### Identity and observations
 
@@ -95,7 +95,7 @@ The [desktop declarations](../../packages/computer-use/computer-use/src/types.ts
 
 ## Mobile types
 
-The [mobile declarations](../../packages/mobile-device/mobile-device/src/types.ts) separate a requested device from a resolved Provider target. [MobileDeviceRuntime](../../packages/mobile-device/mobile-device/src/index.ts) resolves an omitted `deviceId` only through the saved exact default; a missing, ambiguous, or unavailable default does not select another device.
+The [mobile declarations](../../packages/mobile-device/mobile-device/src/types.ts) distinguish requested devices from resolved Provider targets. [MobileDeviceRuntime](../../packages/mobile-device/mobile-device/src/index.ts) resolves an omitted `deviceId` only through the exact saved default; missing, ambiguous, or unavailable defaults never select another device. The native ADB provider supports Android phones and emulators through exact `android:<serial>` ids and verified transports; offline and unauthorized entries remain unavailable. It does not support iOS.
 
 | Type | Fields and meaning |
 |---|---|
@@ -104,7 +104,7 @@ The [mobile declarations](../../packages/mobile-device/mobile-device/src/types.t
 | `MobileScreenshot` | `mediaType: 'image/png'`, `data: Uint8Array`, `width`, `height` before Attachment persistence. |
 | `MobileScreenshotStatus` | `state: 'captured'`, `state: 'skipped'`, or `state: 'failed'` with string `code` and `message`. |
 | `MobileObservation` | `device`, `deviceGeneration`, `observationId`, `coordinateSpace: 'normalized'`, `tree`, `screenshot?`, `screenshotStatus`. |
-| `MobileDeviceSettings` | Mutable preferences: `enabled: boolean`, `defaultDeviceId: string`, `androidSdkPath: string`. They neither authorize an operation nor activate/configure an external Provider. |
+| `MobileDeviceSettings` | Mutable preferences: `enabled: boolean`, `defaultDeviceId: string`, `androidSdkPath: string`. They do not authorize input or activate a Provider; native ADB uses `androidSdkPath` when no deployment command overrides it. |
 | `MobileObserveRequest`, `MobileObserveSpec` | Request: `deviceId?`, `captureScreenshot?`. Spec extends the request with required `deviceId` for the selected Provider. |
 | `MobileMutationRequest` | Required `deviceId` and one-use `observationId`; all mutation requests below include both. |
 | `MobileTouchRequest` | Mutation fields plus `kind: 'tap'` with `x`, `y`, or `kind: 'swipe'` with `fromX`, `fromY`, `toX`, `toY`; coordinates are normalized to `0..1`. |
@@ -117,7 +117,7 @@ The [mobile declarations](../../packages/mobile-device/mobile-device/src/types.t
 
 ## Permission decisions
 
-`ComputerUsePermissionDecision` in the [desktop policy](../../packages/computer-use/computer-use-permission-policy/src/index.ts) and `MobileDevicePermissionDecision` in the [mobile policy](../../packages/mobile-device/mobile-device-permission-policy/src/index.ts) both admit `allow`, `ask`, and `deny`. Desktop classes are `observe`, `pointer`, `keyboard`, and `accessibilityAction`; mobile classes are `observe`, `touch`, `textInput`, and `deviceNavigation`.
+`ComputerUsePermissionDecision` in the [desktop policy](../../packages/computer-use/computer-use-permission-policy/src/index.ts) and `MobileDevicePermissionDecision` in the [mobile policy](../../packages/mobile-device/mobile-device-permission-policy/src/index.ts) both admit `allow`, `ask`, and `deny`. The native desktop class is `native`; facade classes are `observe`, `pointer`, `keyboard`, and `accessibilityAction`; mobile classes are `observe`, `touch`, `textInput`, and `deviceNavigation`.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -139,9 +139,10 @@ Registry and execution facade for desktop Computer Use providers.
  * Registered facade providers also occupy computer use, including unavailable ones.
  * The caller must remove its tools and await owned work before releasing this effect.
  * @param name Provider-owned name used in registration diagnostics.
+ * @param readiness Provider-owned lifecycle snapshot; omission reports initializing.
  * @returns Effect disposer for this exact exclusive registration.
  */
-register(name: ComputerUseProviderName): () => Promise<void>
+register(name: ComputerUseProviderName, readiness?: () => ComputerToolReadiness): () => Promise<void>
 
 /**
  * Register one provider for the calling plugin lifetime.
@@ -149,6 +150,13 @@ register(name: ComputerUseProviderName): () => Promise<void>
  * @returns Disposer that removes the provider registration.
  */
 registerProvider(provider: ComputerUseProvider): () => void
+
+/**
+ * Read provider initialization separately from desktop permission or action success.
+ * @param signal Cooperative cancellation signal for facade capability probes.
+ * @returns Current tool-catalog lifecycle or the selected facade descriptor.
+ */
+async readiness(signal?: AbortSignal): Promise<ComputerReadiness>
 
 /**
  * Read selected-provider capabilities.

@@ -29,11 +29,11 @@ it('initializes device-control with both capability families and ask-by-default 
       /^(computer-use|mobile-device|tool-computer-use|tool-mobile-device|device-capabilities-controller)/.test(row.id))
     expect(selected.map(row => row.id)).toEqual([
       'device-capabilities-controller',
-      'computer-use', 'computer-use-cinlan', 'computer-use-permission-policy', 'tool-computer-use',
-      'mobile-device', 'mobile-device-cinlan', 'mobile-device-permission-policy', 'tool-mobile-device',
+      'computer-use', 'computer-use-permission-policy', 'computer-use-cua-driver-native',
+      'mobile-device', 'mobile-device-adb', 'mobile-device-permission-policy', 'tool-mobile-device',
     ])
     expect(selected.find(row => row.id === 'computer-use-permission-policy')?.config).toEqual({
-      observe: 'ask', pointer: 'ask', keyboard: 'ask', accessibilityAction: 'ask',
+      native: 'ask',
     })
     expect(selected.find(row => row.id === 'mobile-device-permission-policy')?.config).toEqual({
       observe: 'ask', touch: 'ask', textInput: 'ask', deviceNavigation: 'ask',

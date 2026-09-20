@@ -19,7 +19,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-这个 Consumer 在 [`ctx.mobileDevice`](../mobile-device/README.zh.md) 之上注册五个面向模型的工具。它拥有严格 model-input validation、简洁 result 呈现、可选 PNG 持久化和稳定 system guidance。
+本 Consumer 为已连接 Android 手机、模拟器及所选 Provider 支持的其他设备提供 Provider 无关指引。它在 [`ctx.mobileDevice`](../mobile-device/README.zh.md) 之上注册五个面向模型的工具。它拥有严格 model-input validation、简洁 result 呈现、可选 PNG 持久化和稳定 system guidance。
 
 | 工具 | 行为 |
 |---|---|

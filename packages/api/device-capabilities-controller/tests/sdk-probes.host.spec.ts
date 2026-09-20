@@ -53,6 +53,14 @@ function bench(config: Config = {}) {
 const signal = () => new AbortController().signal
 
 describe('SDK process readiness', () => {
+  it.each(['platform-tools', 'adb'])('probes a configured %s selection without appending another platform-tools directory', async (kind) => {
+    const { controller, subprocess, preferences } = bench()
+    preferences.androidSdkPath = kind === 'adb' ? resolve('custom-platform-tools/adb') : resolve('custom-sdk/platform-tools')
+    const executable = kind === 'adb' ? preferences.androidSdkPath : join(preferences.androidSdkPath, 'adb')
+    expect((await controller.checkSdk(signal())).android.found).toBe(true)
+    expect(subprocess.resolveExecutable).toHaveBeenCalledWith(executable, {}, expect.any(AbortSignal))
+  })
+
   it('does not report simctl ready when its command exits unsuccessfully', async () => {
     host.platform = 'darwin'
     const { controller, subprocess } = bench()

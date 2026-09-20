@@ -19,7 +19,7 @@ Model-facing device tools with normalized coordinates and optional screenshots.
 <a id="use-this-package"></a>
 ## Use this package
 
-This Consumer registers five model-facing tools over [`ctx.mobileDevice`](../mobile-device/README.md). It owns strict model-input validation, concise result rendering, optional PNG persistence, and stable system guidance.
+This Consumer uses provider-neutral guidance for connected Android phones, emulators, and other devices a selected Provider supports. It registers five model-facing tools over [`ctx.mobileDevice`](../mobile-device/README.md). It owns strict model-input validation, concise result rendering, optional PNG persistence, and stable system guidance.
 
 | Tool | Behavior |
 |---|---|

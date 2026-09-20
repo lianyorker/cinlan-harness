@@ -16,7 +16,8 @@ kind: "package-group"
 | Package | Role |
 |---|---|
 | [mobile-device](mobile-device/README.zh.md) | Service Definition |
-| [mobile-device-cinlan](mobile-device-cinlan/README.zh.md) | Provider |
+| [mobile-device-adb](mobile-device-adb/README.zh.md) | 原生 Android Provider |
+| [mobile-device-cinlan](mobile-device-cinlan/README.zh.md) | 可选旧 CLI Provider |
 | [mobile-device-permission-policy](mobile-device-permission-policy/README.zh.md) | Permission Consumer |
 | [tool-mobile-device](tool-mobile-device/README.zh.md) | Tool Consumer |
 
@@ -26,4 +27,4 @@ kind: "package-group"
 
 ## Dev Note
 
-平台执行、认证和设备可用性由外部 CLI 提供；包存在不代表设备已就绪。
+原生 Provider 通过已有 Android platform tools 发现与控制设备；包存在、ADB 可执行和设备已授权是不同事实。

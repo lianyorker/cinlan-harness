@@ -19,37 +19,37 @@
 
 ## Composition
 
-可选的 `device-control` profile 在普通 base 与 Web bundle 之上叠加 [Computer Use bundle](../../packages/bundle/cinlan-computer-use/README.zh.md) 和 [Mobile Device bundle](../../packages/bundle/cinlan-mobile-device/README.zh.md)。通用 `web` 和 `headless` profile 不会获得设备输入能力。[用户指南](../user/develop/practice/device-control.zh.md) 负责启动和配置说明。
+可选的 `device-control` profile 在 base 与 Web bundle 之上叠加[原生 CUA bundle](../../packages/bundle/cinlan-computer-use/README.zh.md) 和[原生 Android ADB bundle](../../packages/bundle/cinlan-mobile-device/README.zh.md)。Provider 激活与工具审批仍须显式选择。[用户指南](../user/develop/practice/device-control.zh.md)负责启动和配置说明。
 
 ## Observations and permission
 
-[Computer Use](../../packages/computer-use/computer-use/README.zh.md) 使用应用、窗口和 observation 范围内的元素标识。操作消耗新鲜 observation 并返回操作后的 observation。[Mobile Device](../../packages/mobile-device/mobile-device/README.zh.md) 使用精确设备 id、归一化坐标、runtime generation 和一次性 observation token；修改后必须显式重新观察。
+[原生 CUA Provider](../../packages/experimental/computer-use-cua-driver-native/README.zh.md)暴露 SDK 工具目录及上游窗口快照、元素 token、请求与结果。独立的 [Computer Use facade](../../packages/computer-use/computer-use/README.zh.md) 为显式组合的 facade Provider 提供下文记录的旧式观察与操作类型。[Mobile Device](../../packages/mobile-device/mobile-device/README.zh.md) 使用精确设备 id、归一化坐标、runtime generation 和一次性 observation token；修改后须显式重新观察。
 
-工具 Consumer 通过既有 tools 和 system-prompt 服务注册 schema 与稳定模型指引。所有观察和操作类别默认 ask。执行 guard 防止先执行的工具 listener 静默绕过配置策略。截图使用既有 Attachment 服务；输入文本不会在结果摘要中回显。
+原生 CUA 通过既有工具注册表注册 SDK schema；移动工具 Consumer 注册与 Provider 无关的 schema 和指引。原生桌面工具及所有移动观察／输入类别默认 ask。执行 guard 防止先执行的工具 listener 绕过策略。截图使用既有 Attachment 服务；输入文本不会在结果摘要中回显。
 
 ## Runtime readiness
 
-[就绪控制器](../../packages/api/device-capabilities-controller/README.zh.md) 拥有 `deviceCapabilities/check`。它调用桌面 Provider 的 capabilities 方法或移动设备 Provider 的设备列表方法；既不发送设备输入，也不返回设备身份。
+[就绪控制器](../../packages/api/device-capabilities-controller/README.zh.md)拥有 `deviceCapabilities/check`。它读取原生桌面目录生命周期或所选 facade 的能力，并列出移动设备；既不发送输入，也不返回设备身份。
 
 | Status | Meaning |
 |---|---|
 | `not-configured` | 当前 Host 未挂载所选服务 |
-| `available` | 只读 Provider 探测成功；移动设备还须报告至少一个可用设备 |
+| `available` | 原生桌面目录已就绪或 facade 探测成功；移动设备报告了可用设备 |
 | `unavailable` | Provider 无法选择、解析或探测，或者没有可用的移动设备 |
 
 `reason` 是脱敏类别，不是 Provider 原始 stderr。Loader 激活、软件安装、Provider 就绪与操作权限是不同事实。[Settings 插件](../../packages/client/ui-settings-security/README.zh.md) 保留这些区别，并显示有效的 profile 启动命令，而不是没有实现的安装命令。
 
 ## Lifecycle
 
-Provider 仅缓存成功的 executable 解析。CLI 缺失时，安装 CLI 或修复 PATH 后可直接重新检查，不需要重启 Host。调用方取消和插件卸载都会中断正在进行的 executable 查询及命令。CLI 失败不会阻止 Settings 外壳加载。外部 CLI 缺失属于明确的前置条件失败，不会返回占位成功。
+原生 CUA 在工具、调用与 SDK 关闭完成前保留独占注册；关闭失败会继续占用注册。[原生 ADB Provider](../../packages/mobile-device/mobile-device-adb/README.zh.md)使用 Harness subprocess 取消、有界清理和等待工作结束的释放机制。缺少 ADB 属于前置条件失败，Settings 仍可使用。
 
 <a id="desktop-types"></a>
 
 ## 桌面类型
 
-[桌面类型声明](../../packages/computer-use/computer-use/src/types.ts)定义精确的应用／窗口目标和受 observation 限定的输入。数据字段均为只读；表中的 `?` 表示可选字段。[运行时](../../packages/computer-use/computer-use/src/index.ts)声明 `ComputerUseRuntime` 和 `ComputerUseError`。
+[桌面类型声明](../../packages/computer-use/computer-use/src/types.ts)定义下文 facade 类型；原生 CUA 保留 SDK 拥有的 schema，不将它们转换为这些类型。数据字段均为只读；`?` 表示可选字段。[运行时](../../packages/computer-use/computer-use/src/index.ts)声明 `ComputerUseRuntime` 和 `ComputerUseError`。
 
-`ComputerUseProviderName` 是通过 `./brand` 导出的品牌字符串，用于发布自身工具的独占适配器。`register(name)` 返回异步 effect disposer，`providerName` 报告占用者，`ComputerUseRegistry` 是同一运行时类的别名。独占适配器与任何已注册的 `ComputerUseProvider` 互斥，包括不可用 Provider；Cinlan 的多 Provider 选择与观察 API 仍由原来的执行入口负责。具体启用与权限要求见 [Cua Driver MCP](../../packages/experimental/computer-use-cua-driver-mcp/README.zh.md) 和 [Cua Driver native](../../packages/experimental/computer-use-cua-driver-native/README.zh.md)。
+`ComputerUseProviderName` 是通过 `./brand` 导出的品牌字符串，用于独占适配器。`register(name, readiness?)` 返回异步 effect disposer，`providerName` 报告占用者，`ComputerUseRegistry` 是运行时类的别名。`readiness()` 区分 `tool-catalog` 生命周期与 `facade` 能力；权限保持 `unknown`。独占适配器与已注册 facade Provider 互斥，包括不可用 Provider。组合与权限要求见[原生 CUA](../../packages/experimental/computer-use-cua-driver-native/README.zh.md) 和另行安装的 [MCP 适配器](../../packages/experimental/computer-use-cua-driver-mcp/README.zh.md)。
 
 ### 身份与观察
 
@@ -95,7 +95,7 @@ Provider 仅缓存成功的 executable 解析。CLI 缺失时，安装 CLI 或�
 
 ## 移动设备类型
 
-[移动设备类型声明](../../packages/mobile-device/mobile-device/src/types.ts)区分请求中的设备与已解析的 Provider 目标。[MobileDeviceRuntime](../../packages/mobile-device/mobile-device/src/index.ts) 仅通过保存的精确默认值解析省略的 `deviceId`；默认设备缺失、歧义或不可用时，不会选择另一台设备。
+[移动设备类型声明](../../packages/mobile-device/mobile-device/src/types.ts)区分请求设备与已解析的 Provider 目标。[MobileDeviceRuntime](../../packages/mobile-device/mobile-device/src/index.ts) 仅通过精确保存的默认值解析省略的 `deviceId`；默认设备缺失、歧义或不可用时，绝不选择其他设备。原生 ADB Provider 通过精确 `android:<serial>` id 和已验证 transport 支持 Android 手机与模拟器；离线和未授权项保持不可用。它不支持 iOS。
 
 | 类型 | 字段与含义 |
 |---|---|
@@ -104,7 +104,7 @@ Provider 仅缓存成功的 executable 解析。CLI 缺失时，安装 CLI 或�
 | `MobileScreenshot` | Attachment 持久化前的 `mediaType: 'image/png'`、`data: Uint8Array`、`width`、`height`。 |
 | `MobileScreenshotStatus` | `state: 'captured'`、`state: 'skipped'`，或 `state: 'failed'` 加字符串 `code` 与 `message`。 |
 | `MobileObservation` | `device`、`deviceGeneration`、`observationId`、`coordinateSpace: 'normalized'`、`tree`、`screenshot?`、`screenshotStatus`。 |
-| `MobileDeviceSettings` | 可变偏好：`enabled: boolean`、`defaultDeviceId: string`、`androidSdkPath: string`。它们既不授权操作，也不激活或配置外部 Provider。 |
+| `MobileDeviceSettings` | 可变偏好：`enabled: boolean`、`defaultDeviceId: string`、`androidSdkPath: string`。它们不授权输入，也不激活 Provider；没有部署命令覆盖时，原生 ADB 使用 `androidSdkPath`。 |
 | `MobileObserveRequest`, `MobileObserveSpec` | Request：`deviceId?`、`captureScreenshot?`。Spec 扩展该请求，为所选 Provider 提供必填的 `deviceId`。 |
 | `MobileMutationRequest` | 必填的 `deviceId` 与一次性 `observationId`；下列修改请求均包含两者。 |
 | `MobileTouchRequest` | 修改字段加 `kind: 'tap'` 与 `x`、`y`，或 `kind: 'swipe'` 与 `fromX`、`fromY`、`toX`、`toY`；坐标归一化到 `0..1`。 |
@@ -117,7 +117,7 @@ Provider 仅缓存成功的 executable 解析。CLI 缺失时，安装 CLI 或�
 
 ## 权限判定
 
-[桌面策略](../../packages/computer-use/computer-use-permission-policy/src/index.ts)中的 `ComputerUsePermissionDecision` 与[移动设备策略](../../packages/mobile-device/mobile-device-permission-policy/src/index.ts)中的 `MobileDevicePermissionDecision` 均允许 `allow`、`ask`、`deny`。桌面类别为 `observe`、`pointer`、`keyboard`、`accessibilityAction`；移动设备类别为 `observe`、`touch`、`textInput`、`deviceNavigation`。
+[桌面策略](../../packages/computer-use/computer-use-permission-policy/src/index.ts)中的 `ComputerUsePermissionDecision` 与[移动设备策略](../../packages/mobile-device/mobile-device-permission-policy/src/index.ts)中的 `MobileDevicePermissionDecision` 均允许 `allow`、`ask`、`deny`。原生桌面类别为 `native`；facade 类别为 `observe`、`pointer`、`keyboard`、`accessibilityAction`；移动设备类别为 `observe`、`touch`、`textInput`、`deviceNavigation`。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -139,9 +139,10 @@ Registry and execution facade for desktop Computer Use providers.
  * Registered facade providers also occupy computer use, including unavailable ones.
  * The caller must remove its tools and await owned work before releasing this effect.
  * @param name Provider-owned name used in registration diagnostics.
+ * @param readiness Provider-owned lifecycle snapshot; omission reports initializing.
  * @returns Effect disposer for this exact exclusive registration.
  */
-register(name: ComputerUseProviderName): () => Promise<void>
+register(name: ComputerUseProviderName, readiness?: () => ComputerToolReadiness): () => Promise<void>
 
 /**
  * Register one provider for the calling plugin lifetime.
@@ -149,6 +150,13 @@ register(name: ComputerUseProviderName): () => Promise<void>
  * @returns Disposer that removes the provider registration.
  */
 registerProvider(provider: ComputerUseProvider): () => void
+
+/**
+ * Read provider initialization separately from desktop permission or action success.
+ * @param signal Cooperative cancellation signal for facade capability probes.
+ * @returns Current tool-catalog lifecycle or the selected facade descriptor.
+ */
+async readiness(signal?: AbortSignal): Promise<ComputerReadiness>
 
 /**
  * Read selected-provider capabilities.

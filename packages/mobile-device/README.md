@@ -16,7 +16,8 @@ Local device capabilities compose through the separate device-control profile; o
 | Package | Role |
 |---|---|
 | [mobile-device](mobile-device/README.md) | Service Definition |
-| [mobile-device-cinlan](mobile-device-cinlan/README.md) | Provider |
+| [mobile-device-adb](mobile-device-adb/README.md) | Native Android Provider |
+| [mobile-device-cinlan](mobile-device-cinlan/README.md) | Optional legacy CLI Provider |
 | [mobile-device-permission-policy](mobile-device-permission-policy/README.md) | Permission Consumer |
 | [tool-mobile-device](tool-mobile-device/README.md) | Tool Consumer |
 
@@ -26,4 +27,4 @@ Local device capabilities compose through the separate device-control profile; o
 
 ## Dev Note
 
-Platform execution, authentication, and device availability belong to the external CLI; package presence does not imply device readiness.
+The native Provider discovers and controls devices through existing Android platform tools; package presence, executable availability, and device authorization are separate facts.
