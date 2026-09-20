@@ -204,19 +204,26 @@ describe('HarnessSdkJsonRpcServer', () => {
       })
       expect((receipt as { messageId?: unknown }).messageId).toBeTypeOf('string')
 
-      await vi.waitFor(() => { expect(llmServer.requests).toHaveLength(1) })
-      const body = llmServer.requests[0] as {
+      type AgentRequest = {
         model: string
         messages: { role: string }[]
-        reasoning_effort?: string
         max_tokens?: number
+        thinking?: { type?: string }
+        output_config?: { effort?: string }
+        system?: string
       }
+      const agentRequests = () => llmServer.requests
+        .filter((request): request is AgentRequest => (request as AgentRequest).max_tokens === 321)
+      await vi.waitFor(() => { expect(agentRequests()).toHaveLength(1) })
+      const body = agentRequests()[0]!
       expect(body.model).toBe('dsagent-model')
-      expect(body.reasoning_effort).toBe('max')
+      expect(body.thinking).toEqual({ type: 'enabled' })
+      expect(body.output_config).toEqual({ effort: 'max' })
       expect(body.max_tokens).toBe(321)
-      expect(body.messages[0]?.role).toBe('system')
+      expect(body.system).toContain('DeepSeek Harness')
       expect(body.messages.at(-1)?.role).toBe('user')
-      expect(llmServer.headers[0]?.authorization).toBe('Bearer test-key')
+      const bodyIndex = llmServer.requests.indexOf(body)
+      expect(llmServer.headers[bodyIndex]?.['x-api-key']).toBe('test-key')
       expect(transport.notifications.some(n => n.method === 'session.event')).toBe(true)
       await vi.waitFor(() => {
         expect(transport.notifications.findLast(n => n.method === 'session.status')).toEqual({
@@ -229,7 +236,7 @@ describe('HarnessSdkJsonRpcServer', () => {
         sessionId: 'main',
         contentBlocks: [{ type: 'text', text: 'again' }],
       })
-      await vi.waitFor(() => { expect(llmServer.requests).toHaveLength(2) })
+      await vi.waitFor(() => { expect(agentRequests()).toHaveLength(2) })
 
       const orphanHandle = await ctx.agents.create({
         sessionId: SessionId('orphan-session'),
@@ -239,7 +246,7 @@ describe('HarnessSdkJsonRpcServer', () => {
       orphanHandle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'outside the sdk session map' }], source: { kind: 'user' } }))
       await orphanHandle.agent.whenIdle()
       await orphanHandle.dispose()
-      expect(llmServer.requests).toHaveLength(3)
+      expect(llmServer.requests.some(request => JSON.stringify(request).includes('outside the sdk session map'))).toBe(true)
 
       await server.handleRequest('shutdown', undefined)
     } finally {
