@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import Bindings from '@deepseek-ai/dsh-execution-binding'
 import type { ExecutionBinding } from '@deepseek-ai/dsh-execution-binding/types'
+import type { ExecutionTargetId } from '@deepseek-ai/dsh-execution-host-targets/types'
 import Query from '@deepseek-ai/dsh-session-query-sqlite'
 import { readColdSessionLog } from '@deepseek-ai/dsh-session-query'
 import type { AutomationRequestId } from '../src/types.ts'
@@ -40,7 +41,7 @@ async function boot() {
 }
 const requestId = (value: string) => brandString<AutomationRequestId>(value)
 const remote: ExecutionBinding = {
-  kind: 'ssh', targetId: brandString('00000000-0000-4000-8000-000000000001'), revision: 1,
+  kind: 'ssh', targetId: brandString<ExecutionTargetId>('00000000-0000-4000-8000-000000000001'), revision: 1,
   endpoint: { host: 'remote.invalid', port: 22, username: 'runner', hostKeySHA256: 'a'.repeat(64) },
   node: '/runtime/node', helper: '/runtime/helper', helperHash: 'b'.repeat(64), workspace: '/project',
   bootstrapPath: '/runtime/bootstrap', bootstrapHash: 'c'.repeat(64),

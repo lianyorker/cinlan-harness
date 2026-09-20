@@ -70,7 +70,15 @@ export function remoteWorkspacePath(path: string): string {
  */
 export async function verifyWorkspaceLeaseDirectory(lease: ExecutionLease, path: string = lease.cwd): Promise<string> {
   lease.assertCurrent()
-  if (lease.binding.kind === 'ssh') remoteWorkspacePath(path)
+  if (lease.binding.kind === 'local') {
+    const canonical = await realpathNormalize(path)
+    if (!(await stat(canonical)).isDirectory()) {
+      throw new WorkspaceDirectoryMissingError(`path '${path}' is not a directory`)
+    }
+    lease.assertCurrent()
+    return canonical
+  }
+  remoteWorkspacePath(path)
   const fs = lease.ctx.get('fs')
   if (fs === undefined) throw new Error('workspace execution lease has no filesystem')
   const target = await fs.resolve(path, { cwd: lease.cwd, signal: lease.signal })
@@ -78,8 +86,7 @@ export async function verifyWorkspaceLeaseDirectory(lease: ExecutionLease, path:
     throw new WorkspaceDirectoryMissingError(`path '${path}' is not a directory`)
   }
   lease.assertCurrent()
-  const canonical = fs.processPath(target)
-  return lease.binding.kind === 'ssh' ? remoteWorkspacePath(canonical) : canonical
+  return remoteWorkspacePath(fs.processPath(target))
 }
 
 /**
