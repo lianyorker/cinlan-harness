@@ -2,6 +2,7 @@
 
 import { hostname } from 'node:os'
 import { Context } from '@deepseek-ai/cordis'
+import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
 import z from '@deepseek-ai/schemastery'
 import { errorChain } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-client-file-upload'
@@ -286,7 +287,7 @@ export class SessionController extends TypertRemoteService {
 
   /**
    * Open one path prepared by a Session-aware caller on the Host desktop.
-   * @param request - path after best-effort Session workspace resolution.
+   * @param request - owning Session and path in its execution environment.
    * @param signal - caller lifetime; abort terminates the native command.
    * @returns confirmation after the native opener accepts the path.
    * @throws RemoteError when the request is invalid, cancelled, or the opener fails.
@@ -304,17 +305,37 @@ export class SessionController extends TypertRemoteService {
       )
     }
     signal.throwIfAborted()
+    const bindings = this.ctx.get('executionBindings')
+    if (bindings === undefined) throw new RemoteError('session/path-open-unavailable', 'Execution bindings are unavailable', {})
+    const lease = await bindings.forSession(request.sessionId, signal)
+    try { return await this.openExecutionPath(lease, request.path, request.action ?? 'open', signal) }
+    finally { await lease.release() }
+  }
+
+  /** Open a path using a caller-retained local lease; remote leases never invoke Host applications.
+   * @param lease - execution ownership retained by the complete caller operation.
+   * @param path - path to resolve inside that execution environment.
+   * @param action - registered application or file-manager reveal.
+   * @param signal - caller cancellation, combined with lease lifetime.
+   * @returns confirmation after the native opener accepts the resolved local path.
+   */
+  async openExecutionPath(lease: ExecutionLease, path: string, action: 'open' | 'reveal', signal: AbortSignal): Promise<SessionOpenWorkspacePathValue> {
+    lease.assertCurrent()
+    if (lease.binding.kind !== 'local') throw new RemoteError('session/path-open-unavailable', 'Host applications cannot open remote execution paths', {})
+    const fs = lease.ctx.get('fs')
+    if (fs === undefined) throw new RemoteError('session/path-open-unavailable', 'Execution filesystem is unavailable', {})
+    const bound = AbortSignal.any([signal, lease.signal])
+    bound.throwIfAborted()
     try {
-      if (request.action === 'reveal') await this.revealPath(request.path, signal)
-      else await this.openPath(request.path, signal)
+      const target = await fs.resolve(path, { cwd: lease.cwd, signal: bound })
+      const localPath = fs.processPath(target)
+      if (action === 'reveal') await this.revealPath(localPath, bound)
+      else await this.openPath(localPath, bound)
+      lease.assertCurrent()
       return { opened: true }
     } catch (error: unknown) {
-      if (signal.aborted) throw new RemoteError('gateway/cancelled', 'path open was aborted', {})
-      throw new RemoteError(
-        'gateway/internal',
-        `path open failed: ${error instanceof Error ? error.message : String(error)}`,
-        {},
-      )
+      if (bound.aborted) throw new RemoteError('gateway/cancelled', 'path open was aborted', {})
+      throw new RemoteError('gateway/internal', 'path open failed: ' + (error instanceof Error ? error.message : String(error)), {})
     }
   }
 

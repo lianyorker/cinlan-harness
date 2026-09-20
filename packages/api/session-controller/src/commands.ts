@@ -1,6 +1,7 @@
 /** Session commands whose activation policy is explicit at each Remote method. */
 
 import { randomUUID } from 'node:crypto'
+import { foldExecutionBinding } from '@deepseek-ai/dsh-execution-binding/session'
 import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { Agent, InboxState, InboxWireState, ModelSelection as AgentModelSelection } from '@deepseek-ai/dsh-agent'
@@ -121,6 +122,20 @@ export class SessionCommandController {
         })
       }
     }
+    const execution = workspace?.execution ?? { kind: 'local' as const }
+    let existingExecution = execution
+    if (request.sessionId !== undefined && (request.isolate === true || request.taskId !== undefined)) {
+      try {
+        const inspected = await inspectApiSession(this.ctx, sessionId)
+        existingExecution = foldExecutionBinding(inspected.events) ?? { kind: 'local' }
+      } catch (error) {
+        if (!(error instanceof ApiSessionNotFound)) throw error
+      }
+    }
+    if ((execution.kind === 'ssh' || existingExecution.kind === 'ssh')
+      && (request.isolate === true || request.taskId !== undefined)) {
+      throw new RemoteError('gateway/bad-request', 'remote Session isolation and Worktree Task binding are unsupported', {})
+    }
     const sourceCwd = workspace?.path ?? request.cwd ?? this.defaultCwd
     const isolation = request.isolate
       ? this.ctx.get('workspaceIsolation') as WorkspaceIsolationProvider | undefined
@@ -165,6 +180,7 @@ export class SessionCommandController {
         cwd,
         request.sessionId !== undefined,
         request.agentPreset,
+        execution,
       )
     } catch (error) {
       if (lease !== undefined) {
@@ -320,7 +336,9 @@ export class SessionCommandController {
       )
     }
     const childId = brandString<SessionId>(`session-${randomUUID()}`)
-    const composition = await this.agents.composeAgent(this.agents.presetForObservation(source))
+    const binding = await this.ctx.get('executionBindings')?.bindingForSession(request.sessionId)
+      ?? foldExecutionBinding(source.events) ?? { kind: 'local' as const }
+    const composition = await this.agents.composeAgent(this.agents.presetForObservation(source), binding)
     try {
       const { provider, model } = this.ctx.agentDefaultModel.currentSelection()
       await this.ctx.agents.create({

@@ -9,7 +9,10 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { Agent, AgentOptions, CreateAgentOptions } from '@deepseek-ai/dsh-agent'
+import { isDeepStrictEqual } from 'node:util'
+import type { Agent, AgentOptions, AgentSetupCommit, CreateAgentOptions } from '@deepseek-ai/dsh-agent'
+import type {} from '@deepseek-ai/dsh-execution-binding'
+import { foldExecutionBinding } from '@deepseek-ai/dsh-execution-binding/session'
 import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import type { Session, SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-system-prompt'
@@ -196,13 +199,35 @@ export const SUBAGENT_DELEGATION_CONTEXT
  * @param childCtx - the child agent's scoped creation context.
  * @param parent - the delegating parent whose composition the child joins.
  * @param composition - the per-child persona and tool filter to install.
+ * @param child - unpublished child whose execution lease is admitted before composition.
+ * @param resume - whether execution identity must be read from the durable child log.
+ * @returns the execution publication commit when execution bindings are composed.
  */
-export function applyChildComposition(
+export async function applyChildComposition(
   childCtx: Context,
   parent: Agent,
   composition: ChildComposition,
-): void {
-  childCtx.get('agentPresets')?.composeFrom(childCtx, parent.ctx)
+  child: Agent,
+  resume = false,
+): Promise<AgentSetupCommit | undefined> {
+  const bindings = childCtx.get('executionBindings')
+  let commit: AgentSetupCommit | undefined
+  if (bindings === undefined && (foldExecutionBinding(parent.session.snapshotEvents())?.kind === 'ssh'
+    || foldExecutionBinding(child.session.snapshotEvents())?.kind === 'ssh')) {
+    throw new Error('remote subagent execution requires the execution binding service')
+  }
+  if (bindings !== undefined) {
+    const parentBinding = await bindings.bindingForSession(parent.id)
+    const childBinding = foldExecutionBinding(child.session.snapshotEvents()) ?? { kind: 'local' }
+    if (resume && !isDeepStrictEqual(childBinding, parentBinding)) {
+      throw new Error('subagent: resumed child execution binding differs from its parent')
+    }
+    commit = await bindings.setup(childCtx, child, resume ? undefined : parentBinding)
+  }
+  const joinedPreset = childCtx.get('agentPresets')?.composeFrom(childCtx, parent.ctx)
+  if (joinedPreset !== child.session.header.agentPreset) {
+    throw new Error('subagent: child preset differs from its parent composition')
+  }
   childCtx.systemPrompt.context({
     name: 'subagent:delegation',
     order: childCtx.systemPrompt.getContextOrder('SUBAGENT_DELEGATION'),
@@ -216,6 +241,7 @@ export function applyChildComposition(
     })
   }
   if (composition.toolFilter !== undefined) childCtx.tools.restrict(composition.toolFilter)
+  return commit
 }
 
 /** Policy seeded onto a child session's log at the delegation boundary. */

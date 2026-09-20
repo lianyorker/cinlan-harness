@@ -96,7 +96,8 @@ function attachDescriptorAppend(childCtx: Context, descriptor: SubagentDescripto
  * and disposal work through the returned run. Rejection means the agent
  * factory's unpublished creation transaction reached quiescence without
  * publishing a child. Every start appends its resolved descriptor inside the
- * child's initial turn.
+ * child's initial turn. Execution admission completes before child consumers
+ * compose, and its finalizer validates the lease at publication.
  * @param request - the trusted typed start request, including its required signal.
  * @param options - the optional fork seed.
  * @returns a published holder-owned run.
@@ -119,16 +120,17 @@ export async function startInProcessRun(
   const inherited = captureDelegatedPolicyOverrides(parent)
 
   let structured: StructuredAttachment | undefined
-  const setup = (childCtx: Context, child: Agent): void => {
+  const setup = async (childCtx: Context, child: Agent) => {
     appendDelegatedPolicyOverrides(child.session, inherited)
-    applyChildComposition(childCtx, parent, {
+    const commit = await applyChildComposition(childCtx, parent, {
       persona: request.persona,
       toolFilter: request.toolFilter,
-    })
+    }, child)
     if (request.outputSchema !== undefined) {
       structured = attachStructuredRuntime(childCtx, request.outputSchema)
     }
     attachDescriptorAppend(childCtx, request.descriptor)
+    return commit
   }
 
   const handle = await parent.ctx.agents.create({

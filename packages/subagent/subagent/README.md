@@ -69,6 +69,8 @@ Requests that need a capability the chosen provider lacks fail loudly at start r
 
 -----
 
+In-process children admit an execution lease before joining the parent preset. New children copy the parent’s durable execution binding; cold children resume their own binding and reject a different parent binding. The joined parent preset must equal the child’s durable header before publication. The returned execution commit runs at Agent publication, and setup rollback releases the child lease. A remote parent or child requires the execution binding service.
+
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 

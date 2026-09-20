@@ -38,14 +38,16 @@ Client 消费方可在 `refreshSubagents(parentSessionId)` 完成后调用 `ctx.
 
 恢复由其他 DSH 实例占用写入权的 Session 时，返回带有 `sessionId` 的 `session/writer-held`。其他恢复失败保留原有错误码。
 
-`workspaceDesktop()` 为经过身份验证的文件动作路由提供 Host 名称、配置可用性和文件管理器行为，不激活 Agent。`openWorkspacePath` 接受可选的 `action: 'open' | 'reveal'`；省略时保留默认应用打开行为。调用方在传递 Host 路径前负责授权并解析源文件。[交付消费方](../../client/ui-deliverables/README.zh.md) 解析所记录的 Session、事件及文件索引，并在调用本服务前校验文件。
+`workspaceDesktop()` 为经过身份验证的文件动作路由提供 Host 名称、配置可用性和文件管理器行为，不激活 Agent。`openWorkspacePath` 要求所属 `sessionId`，并接受可选的 `action: 'open' | 'reveal'`；省略时使用默认应用打开。它捕获一个执行租约，在访问 Host 文件之前以 `session/path-open-unavailable` 拒绝远端路径。仅供 Host 使用的 `openExecutionPath` 辅助方法让文件验证调用者在原生分发期间保留同一租约。[交付消费方](../../client/ui-deliverables/README.zh.md) 解析所记录的 Session、事件及文件索引，并在调用本服务前校验文件。
 
 分叉复制截至选中已结束轮次的历史，并包含其 `turn/end`。该位置之后的事件均被排除，包括排队输入和模型设置变更。省略锚点或锚点超出日志末尾时，选择最后一个已结束轮次；位于未结束轮次内的锚点会被拒绝。
+
+Workspace 会话创建保留 Workspace 的执行绑定。准入在 preset 消费方之前准备执行上下文，并返回发布提交；SSH 路径不会触发 Host 目录创建。恢复读取持久绑定，fork 保留源绑定。用其他绑定复用 Session id 会失败。本地部署可不挂载执行绑定服务；持久远程 Session 缺少该服务时不能恢复。远程准入也要求提供执行上下文专用的 agent preset。
 
 <a id="session-media-references"></a>
 ## 会话媒体引用
 
-当 `connection`、`fs` 与 `attachments` 均被组合时，`SessionMediaReferences` 在鉴权 `connection.fetch` 通道上挂载 `GET|HEAD /api/file?path=<绝对路径>`。它通过 `ctx.fs` 读取普通文件，包括已注册工作区之外的临时路径与远程提供方中的文件。目录包含关系与 MIME 类别均不限制访问；`mime-types` 提供响应类型，未知扩展名使用 `application/octet-stream`。GET 复用 `readBytes` 执行读取前及读取中的字节限制；HEAD 只读取元数据。所有文件均使用 `ctx.attachments.imageLimits.maxImageBytes`（通常为 20 MiB）；超过此上限返回 413。响应包含完整文件，忽略 Range，并携带 `private, no-store`、`nosniff` 与 sandbox CSP，使直接打开的 HTML/SVG 无法以 API 源身份执行脚本。客户端重写位于 `ui-chat`（`AssistantMarkdown`）；音视频文件响应已可用，Markdown 音视频播放器节点仍是独立工作。
+当 `connection`、`executionBindings` 与 `attachments` 均被组合时，`SessionMediaReferences` 在鉴权 `connection.fetch` 通道上挂载 `GET|HEAD /api/file?sessionId=<所属会话>&path=<绝对路径>`。请求必须指定所属 Session。每次请求持有执行租约直到有界读取完成，并使用该租约的文件系统与平台；远端执行环境缺失或失败时绝不回退到 Host 文件。它通过捕获的文件系统读取普通文件，包括已注册工作区之外的临时路径与远程提供方中的文件。目录包含关系与 MIME 类别均不限制访问；`mime-types` 提供响应类型，未知扩展名使用 `application/octet-stream`。GET 复用 `readBytes` 执行读取前及读取中的字节限制；HEAD 只读取元数据。所有文件均使用 `ctx.attachments.imageLimits.maxImageBytes`（通常为 20 MiB）；超过此上限返回 413。响应包含完整文件，忽略 Range，并携带 `private, no-store`、`nosniff` 与 sandbox CSP，使直接打开的 HTML/SVG 无法以 API 源身份执行脚本。客户端重写位于 `ui-chat`（`AssistantMarkdown`）；音视频文件响应已可用，Markdown 音视频播放器节点仍是独立工作。
 
 -----
 
@@ -72,6 +74,10 @@ Client 消费方可在 `refreshSubagents(parentSessionId)` 完成后调用 `ctx.
 ## 已知限制与延期工作
 
 <a id="known-limitations-and-deferred-work"></a>
+
+- 远程 skill 目录发现尚不受支持；它会在挂载 Host preset 或查询 Host skill 提供方之前拒绝。
+
+- 远程 Session 的隔离与 Worktree Task 绑定尚不受支持，会在调用本地提供方之前拒绝。
 
 - 图片字节上限不校验解码后的尺寸或像素数。
 - Control baseline 表示进程本地状态，因此 Host 重启后无法重建 jobs。

@@ -186,6 +186,8 @@ export const SESSION_SEARCH_SNIPPET_MAX_CODE_POINTS = 240
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
+    /** Native opening is unavailable in the captured execution environment. */
+    'session/path-open-unavailable': Record<string, never>
     'session/model-unavailable': { readonly provider: string; readonly model: string }
     'session/conflict': {
       readonly sessionId: SessionId
@@ -364,7 +366,9 @@ export interface SessionCancelValue {
 
 /** Request to open one path prepared by a Session-aware caller on the Host desktop. */
 export interface SessionOpenWorkspacePathRequest {
-  /** Path after best-effort Session workspace resolution, in Host filesystem syntax. */
+  /** Session whose execution world owns the path. */
+  readonly sessionId: SessionId
+  /** Absolute or relative path in the owning execution environment. */
   readonly path: string
   /** File-manager reveal when requested; omission opens the registered application. */
   readonly action?: 'open' | 'reveal'

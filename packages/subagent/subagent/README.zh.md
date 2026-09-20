@@ -69,6 +69,8 @@ kind: "package-reference"
 
 -----
 
+进程内子级在加入父级 preset 之前准入执行租约。新子级复制父级的持久执行绑定；冷子级恢复自身绑定，并拒绝与父级不同的绑定。加入的父级 preset 必须在发布前与子级持久 header 一致。返回的执行提交在 Agent 发布时运行，设置回滚会释放子级租约。远程父级或子级要求挂载执行绑定服务。
+
 <a id="understand-the-implementation"></a>
 ## 理解实现
 

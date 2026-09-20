@@ -5,7 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { FsError, FsTargetKey, FsVersion } from '@deepseek-ai/dsh-fs'
 import { LocalFileSystem } from '@deepseek-ai/dsh-fs-local'
+import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import SessionQuery from '@deepseek-ai/dsh-session-query-sqlite'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import ExecutionBindings from '@deepseek-ai/dsh-execution-binding'
 import { SessionMediaReferences } from '../src/media-references.ts'
+
+class LocalBindings extends ExecutionBindings { static override inject = ['sessionQuery', 'sessionProjections'] }
 
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4])
 const DEFAULT_LIMIT = 20 * 1024 * 1024
@@ -41,15 +47,27 @@ describe('SessionMediaReferences /api/file', () => {
       },
     } as never)
     ctx.provide('attachments', { imageLimits: { maxImageBytes: maxBytes } } as never)
+    await ctx.plugin(SessionStore).await()
+    await ctx.plugin(SessionQuery, { path: ':memory:', openAt: 'never' }).await()
+    await ctx.plugin(SessionProjectionRegistry).await()
+    await ctx.plugin(LocalBindings, LocalBindings.Config()).await()
+    const session = ctx.sessions.prepare(SessionId('media-fixture'), { meta: { cwd: root } })
+    ctx.effect(() => ctx.sessions.enter(session))
     await ctx.plugin(LocalFileSystem, { cwd: root }).await()
     await ctx.plugin(SessionMediaReferences).await()
     const raw = (url: string, init?: RequestInit) => {
       if (handler === undefined) throw new Error('route not registered')
-      return handler(new Request(url, init))
+      const owned = new URL(url)
+      owned.searchParams.set('sessionId', 'media-fixture')
+      return handler(new Request(owned, init))
     }
     return {
       call: (path: string, init?: RequestInit) => raw(`http://127.0.0.1/api/file?path=${encodeURIComponent(path)}`, init),
       raw,
+      unowned: (url: string) => {
+        if (handler === undefined) throw new Error('route not registered')
+        return handler(new Request(url))
+      },
       fs: ctx.fs as LocalFileSystem,
       unregister,
       dispose: () => ctx.fiber.dispose(),
@@ -171,9 +189,9 @@ describe('SessionMediaReferences /api/file', () => {
       const path = join(outside, 'image.png')
       await writeFile(path, PNG_BYTES)
       expect(await responseBytes(await route.call(path))).toEqual(PNG_BYTES)
-      const link = join(root, 'linked.png')
-      await symlink(path, link)
-      expect(await responseBytes(await route.call(link))).toEqual(PNG_BYTES)
+      const link = join(root, 'linked-directory')
+      await symlink(outside, link, process.platform === 'win32' ? 'junction' : 'dir')
+      expect(await responseBytes(await route.call(join(link, 'image.png')))).toEqual(PNG_BYTES)
     } finally {
       await rm(outside, { recursive: true, force: true })
     }
@@ -204,6 +222,13 @@ describe('SessionMediaReferences /api/file', () => {
     }
     read.mockRejectedValueOnce(new Error('provider bug'))
     await expect(route.call('/remote/photo.png')).rejects.toThrow('provider bug')
+  })
+
+  it('requires an owning Session before touching the filesystem', async () => {
+    const route = await mount()
+    const resolve = vi.spyOn(route.fs, 'resolve')
+    expect((await route.unowned('http://localhost/api/file?path=' + encodeURIComponent(join(root, 'secret.txt')))).status).toBe(400)
+    expect(resolve).not.toHaveBeenCalled()
   })
 
   it('serves an empty file and respects an aborted request', async () => {

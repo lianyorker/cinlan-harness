@@ -1,6 +1,7 @@
 /** Session-addressed, cold-readable skill catalog Remote. */
 
 import type { Context } from '@deepseek-ai/cordis'
+import { foldExecutionBinding } from '@deepseek-ai/dsh-execution-binding/session'
 import type {} from '@deepseek-ai/dsh-agent-presets/types'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import { SessionQueryError } from '@deepseek-ai/dsh-session-query'
@@ -30,7 +31,7 @@ export class SessionSkillCatalog extends TypertRemoteService {
    * @param request - Session identity whose cwd and preset select the catalog view.
    * @param signal - caller lifetime carried by the Remote transport; admitted catalog reads retain their existing completion semantics.
    * @returns user-invocable skill metadata without loading skill bodies.
-   * @throws RemoteError when the Session cannot be inspected or no registry can serve it.
+   * @throws RemoteError for remote execution Sessions, failed inspection, or an absent registry.
    */
   @Remote
   async list(request: SkillListRequest, signal: AbortSignal): Promise<SkillListValue> {
@@ -38,11 +39,13 @@ export class SessionSkillCatalog extends TypertRemoteService {
     const { sessionId } = request
     let cwd: string | undefined
     let agentPreset: string | undefined
+    let remote = false
     try {
       using observation = await this.ctx.sessionQuery.observeSession(sessionId)
       if (observation.projections === undefined) {
         throw new Error('skill catalog requires a projected Session observation')
       }
+      remote = foldExecutionBinding(observation.events)?.kind === 'ssh'
       cwd = observation.header.cwd
       agentPreset = observation.projections.values.agentPreset ?? undefined
     } catch (error: unknown) {
@@ -55,6 +58,9 @@ export class SessionSkillCatalog extends TypertRemoteService {
         `session "${sessionId}" could not be inspected: ${String(error)}`,
         {},
       )
+    }
+    if (remote) {
+      throw new RemoteError('gateway/bad-request', 'skill catalog discovery for remote execution Sessions is unsupported', {})
     }
     if (cwd === undefined) {
       throw new RemoteError('gateway/internal', `session "${sessionId}" has no project cwd`, {})

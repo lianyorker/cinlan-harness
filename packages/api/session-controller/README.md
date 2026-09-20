@@ -38,14 +38,16 @@ Client consumers can keep a catalog child open beside the selected Session with 
 
 Resuming a Session whose writer is held by another DSH instance returns `session/writer-held` with its `sessionId`. Other resume failures retain their existing error codes.
 
-`workspaceDesktop()` supplies Host name, configured availability, and file-manager behavior to authenticated file-action routes without activating an Agent. `openWorkspacePath` accepts an optional `action: 'open' | 'reveal'`; omission retains default-application opening. Callers authorize and resolve the source before handing over its Host path. The [deliverables consumer](../../client/ui-deliverables/README.md) resolves recorded Session/event/file coordinates and validates the file before calling this service.
+`workspaceDesktop()` supplies Host name, configured availability, and file-manager behavior to authenticated file-action routes without activating an Agent. `openWorkspacePath` requires the owning `sessionId` and accepts an optional `action: 'open' | 'reveal'`; omission retains default-application opening. It captures one execution lease and rejects remote paths with `session/path-open-unavailable` before Host file access. The Host-only `openExecutionPath` helper lets a file-validation caller retain the same lease through native dispatch. The [deliverables consumer](../../client/ui-deliverables/README.md) resolves recorded Session/event/file coordinates and validates the file before calling this service.
 
 Fork copies history through the selected completed turn, including its `turn/end`. Events after that point, including queued input and model-setting changes, are excluded. An omitted or past-end anchor selects the last completed turn; an anchor inside an unfinished turn is rejected.
+
+Workspace Session creation preserves the Workspace execution binding. Admission prepares execution before preset consumers and returns its publication commit; SSH paths never trigger Host directory creation. Resume reads the durable binding, and fork carries the source binding. Reusing a Session id with another binding fails. Local deployments may omit the execution binding service; a durable remote Session cannot resume without it. Remote admission also requires an execution-specific agent preset.
 
 <a id="session-media-references"></a>
 ## Session media references
 
-`SessionMediaReferences` mounts `GET|HEAD /api/file?path=<absolute path>` on the authenticated `connection.fetch` channel when `connection`, `fs`, and `attachments` are composed. It reads ordinary files through `ctx.fs`, including temporary paths outside registered workspaces and files in remote providers. Neither directory containment nor MIME categories restrict access; `mime-types` supplies the response type, with `application/octet-stream` for unknown extensions. GET reuses `readBytes` for preflight and ongoing byte limits; HEAD reads metadata only. All files use `ctx.attachments.imageLimits.maxImageBytes` (normally 20 MiB); exceeding this limit returns 413. Responses contain the complete file, ignore Range, and carry `private, no-store`, `nosniff`, and a sandbox CSP so directly opened HTML/SVG cannot execute with the API origin. The Client rewrite lives in `ui-chat` (`AssistantMarkdown`); audio/video responses are available, while Markdown audio/video player nodes remain separate work.
+`SessionMediaReferences` mounts `GET|HEAD /api/file?sessionId=<owner>&path=<absolute path>` on the authenticated `connection.fetch` channel when `connection`, `executionBindings`, and `attachments` are composed. The owning Session is required. Each request retains its execution lease through the complete bounded read and uses that lease’s filesystem and platform; a missing or failed remote world never falls back to Host files. It reads ordinary files through the captured filesystem, including temporary paths outside registered workspaces and files in remote providers. Neither directory containment nor MIME categories restrict access; `mime-types` supplies the response type, with `application/octet-stream` for unknown extensions. GET reuses `readBytes` for preflight and ongoing byte limits; HEAD reads metadata only. All files use `ctx.attachments.imageLimits.maxImageBytes` (normally 20 MiB); exceeding this limit returns 413. Responses contain the complete file, ignore Range, and carry `private, no-store`, `nosniff`, and a sandbox CSP so directly opened HTML/SVG cannot execute with the API origin. The Client rewrite lives in `ui-chat` (`AssistantMarkdown`); audio/video responses are available, while Markdown audio/video player nodes remain separate work.
 
 -----
 
@@ -72,6 +74,10 @@ No direct effect; model requests remain owned by the Agent and LLM packages.
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
+- Remote skill catalog discovery is unsupported; it rejects before mounting a Host preset or querying Host skill providers.
+
+- Remote Session isolation and Worktree Task binding are unsupported and reject before invoking local providers.
 
 - The image byte cap does not validate decoded dimensions or pixel count.
 - Control baselines represent process-local state and therefore cannot reconstruct jobs after a Host restart.

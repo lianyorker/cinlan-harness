@@ -55,7 +55,7 @@ The driver follows this sequence:
 
 1. Validate the parent depth and optional absolute `maxDepth`, then derive child depth as parent depth plus one and persist it in the child session header.
 2. Create the child through the host agent factory with the caller's required signal threaded into the creation transaction.
-3. During that transaction's unpublished setup window, install the requested persona, tool restriction, and structured-output runtime.
+3. During that transaction's unpublished setup window, complete [child execution admission](../subagent/README.md#understand-the-implementation), then install the requested persona, tool restriction, and structured-output runtime.
 4. Publish the child, retain the returned handle, and drive one task.
 5. Read the child's own output — its last non-empty assistant message, or its accumulated assistant text when none exists — and the final durable turn reason from the complete owned run, excluding any fork seed.
 

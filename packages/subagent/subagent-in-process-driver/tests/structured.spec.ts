@@ -60,9 +60,10 @@ async function setup(script: Script, options: SetupOptions = {}) {
     tools: { mode: options.toolMode ?? 'native' },
   })
   if (options.toolMode === 'ptc' || options.toolMode === 'both') {
-    ctx.provide('codeRuntime', {
+    ctx.provide('ptcRuntime', {
       language: 'typescript',
       isolation: 'test',
+      resolve: (request: Record<string, unknown>) => ({ ...request, cwd: process.cwd(), timeoutMs: 120_000 }),
       run: options.codeRun ?? (() => Promise.resolve({ logs: [] })),
     } as never)
   }
@@ -405,7 +406,7 @@ describe('in-process structured output', () => {
     const run = await ctx.subagents.start('spawn', structuredRequest(parent))
 
     const result = await run.result
-    expect(result.structured).toEqual({ answer: 12 })
+    expect(result.structured, JSON.stringify(result)).toEqual({ answer: 12 })
     const request = adapter.requests[0]!
     expect(toolNames(request)).toEqual([RUN_CODE_NAME])
     const system = requestSystem(request)
@@ -438,7 +439,7 @@ describe('in-process structured output', () => {
     const result = await run.result
     expect(result.structured).toBeUndefined()
     expect(result.stopReason).toBe('error')
-    expect(adapter.requests).toHaveLength(2)
+    expect(adapter.requests, JSON.stringify(result)).toHaveLength(2)
     const child = ctx.agents.get(run.id)!
     const outer = child.session.snapshotEvents().find(event =>
       event.type === 'tool/result' && event.data.message.source.callId === ToolCallId('c1'))
@@ -467,7 +468,7 @@ describe('in-process structured output', () => {
     const result = await run.result
     expect(result.structured).toBeUndefined()
     expect(result.stopReason).toBe('error')
-    expect(adapter.requests).toHaveLength(2)
+    expect(adapter.requests, JSON.stringify(result)).toHaveLength(2)
     await run.dispose()
   })
 

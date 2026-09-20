@@ -1,6 +1,10 @@
 /** Agent activation, composition, and model-selection policy owned by API Session. */
 
 import { mkdir } from 'node:fs/promises'
+import { isDeepStrictEqual } from 'node:util'
+import type {} from '@deepseek-ai/dsh-execution-binding'
+import type { ExecutionBinding } from '@deepseek-ai/dsh-execution-binding/types'
+import { foldExecutionBinding } from '@deepseek-ai/dsh-execution-binding/session'
 import type { Context } from '@deepseek-ai/cordis'
 import { installModelSelection } from '@deepseek-ai/dsh-agent'
 import type {
@@ -230,6 +234,7 @@ export class ApiSessionAgentController {
    * @param cwd - directory the Session must own.
    * @param checkPersistedIdentity - whether to inspect a cold identity before creation.
    * @param presetId - optional Agent preset the Session must own.
+   * @param execution - execution identity required by the requesting Workspace.
    * @returns the matching live ordinary Agent.
    */
   async ensureSession(
@@ -237,10 +242,11 @@ export class ApiSessionAgentController {
     cwd: string,
     checkPersistedIdentity: boolean,
     presetId?: string,
+    execution: ExecutionBinding = { kind: 'local' },
   ): Promise<Agent> {
     let creation = this.creations.get(sessionId)
     if (creation === undefined) {
-      creation = this.createOrAdopt(sessionId, cwd, checkPersistedIdentity, presetId)
+      creation = this.createOrAdopt(sessionId, cwd, checkPersistedIdentity, presetId, execution)
         .catch((error: unknown) => {
           const live = this.ctx.agents.get(sessionId)
           if (live !== undefined) {
@@ -268,6 +274,7 @@ export class ApiSessionAgentController {
     if (agent.session.header.cwd !== cwd) {
       throw new ApiSessionCwdConflict(sessionId, cwd, agent.session.header.cwd)
     }
+    await this.assertExecutionUnchanged(sessionId, execution)
     return agent
   }
 
@@ -372,22 +379,37 @@ export class ApiSessionAgentController {
   /**
    * Resolve the preset id and pre-publication Agent setup for a create or resume.
    * @param presetId - requested preset or the configured default when omitted.
+   * @param binding - new Session execution identity; omitted on durable resume.
    * @returns the resolved preset identity and Agent setup callback.
    */
-  async composeAgent(presetId: string | undefined): Promise<{
+  async composeAgent(presetId: string | undefined, binding?: ExecutionBinding): Promise<{
     readonly agentPreset?: string
     readonly setup: AgentSetup
   }> {
     const presets = this.ctx.get('agentPresets')
-    if (presets === undefined) {
-      return { setup: (_agentCtx, agent) => { this.installSelection(agent) } }
-    }
-    const resolvedId = (await presets.resolve(presetId)).id
+    const resolvedId = presets === undefined ? undefined : (await presets.resolve(presetId)).id
     return {
-      agentPreset: resolvedId,
+      ...(resolvedId === undefined ? {} : { agentPreset: resolvedId }),
       setup: async (agentCtx, agent) => {
+        const bindings = this.ctx.get('executionBindings')
+        const selected = binding ?? foldExecutionBinding(agent.session.snapshotEvents()) ?? { kind: 'local' }
+        if (bindings === undefined && selected.kind === 'ssh') {
+          throw new Error('remote Session execution requires the execution binding service')
+        }
+        if (selected.kind === 'ssh' && presets === undefined) {
+          throw new Error('remote Session execution requires an execution-specific agent preset')
+        }
+        const commit = await bindings?.setup(agentCtx, agent, binding)
         this.installSelection(agent)
-        await presets.mount(agentCtx, resolvedId)
+        if (presets !== undefined && resolvedId !== undefined) {
+          const execution = bindings?.executionForAgent(agent)
+          if (execution?.binding.kind === 'ssh') {
+            await presets.mountInExecution(agentCtx, resolvedId, execution.ctx, execution.platform)
+          } else {
+            await presets.mount(agentCtx, resolvedId)
+          }
+        }
+        return commit
       },
     }
   }
@@ -442,6 +464,7 @@ export class ApiSessionAgentController {
     cwd: string,
     checkPersistedIdentity: boolean,
     presetId: string | undefined,
+    execution: ExecutionBinding,
   ): Promise<Agent> {
     const attached = this.ctx.sessions.get(sessionId)
     const live = this.ctx.agents.get(sessionId)
@@ -459,6 +482,7 @@ export class ApiSessionAgentController {
         if (observation.header.cwd !== cwd) {
           throw new ApiSessionCwdConflict(sessionId, cwd, observation.header.cwd)
         }
+        await this.assertExecutionUnchanged(sessionId, execution)
         const storedPreset = this.presetForObservation(observation)
         this.assertPresetUnchanged(sessionId, presetId, storedPreset)
         const composition = await this.composeAgent(storedPreset)
@@ -474,11 +498,11 @@ export class ApiSessionAgentController {
     }
 
     try {
-      await mkdir(cwd, { recursive: true })
+      if (execution.kind === 'local') await mkdir(cwd, { recursive: true })
     } catch (error: unknown) {
       throw new Error(`failed to ensure project directory "${cwd}": ${String(error)}`, { cause: error })
     }
-    const composition = await this.composeAgent(presetId)
+    const composition = await this.composeAgent(presetId, execution)
     return (await this.ctx.agents.create({
       sessionId,
       agentOptions: this.agentOptions(),
@@ -488,6 +512,21 @@ export class ApiSessionAgentController {
       },
       setup: composition.setup,
     })).agent
+  }
+
+  private async assertExecutionUnchanged(sessionId: SessionId, requested: ExecutionBinding): Promise<void> {
+    const bindings = this.ctx.get('executionBindings')
+    let existing: ExecutionBinding
+    if (bindings !== undefined) {
+      existing = await bindings.bindingForSession(sessionId)
+    } else {
+      using observation = await this.ctx.sessionQuery.observeSession(sessionId)
+      existing = foldExecutionBinding(observation.events) ?? { kind: 'local' }
+      if (existing.kind === 'ssh') throw new Error('remote Session execution requires the execution binding service')
+    }
+    if (!isDeepStrictEqual(existing, requested)) {
+      throw new RemoteError('gateway/bad-request', `session "${sessionId}" belongs to another execution binding`, {})
+    }
   }
 
   private agentOptions(): AgentOptions {

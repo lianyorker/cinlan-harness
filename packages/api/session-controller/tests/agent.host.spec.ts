@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import type { SshExecutionSnapshot } from '@deepseek-ai/dsh-execution-binding/types'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -20,6 +21,13 @@ import {
 } from '../src/agent.ts'
 import { installModelSelectionProjection } from '../src/model-selection-projection.ts'
 import { installSessionReadTestServices, testSessionPersistence } from './test-remote.ts'
+
+const remoteBinding: SshExecutionSnapshot = {
+  kind: 'ssh', targetId: '11111111-1111-4111-8111-111111111111' as SshExecutionSnapshot['targetId'], revision: 1,
+  endpoint: { host: 'execution.example', port: 22, username: 'worker', hostKeySHA256: 'a'.repeat(64) },
+  node: '/usr/bin/node', helper: '/opt/dsh/helper.mjs', helperHash: 'b'.repeat(64),
+  workspace: '/workspace', bootstrapPath: '/opt/dsh/bootstrap.mjs', bootstrapHash: 'c'.repeat(64),
+}
 
 const roots: Context[] = []
 
@@ -340,6 +348,7 @@ describe('ApiSession create or adoption', () => {
     const gate = new Promise<void>((resolve) => { release = resolve })
     const create = vi.spyOn(ctx.agents, 'create').mockImplementation(async () => {
       await gate
+      ctx.sessions.create(meta.id, { meta })
       return { agent: created, dispose: () => Promise.resolve() }
     })
 
@@ -483,5 +492,63 @@ describe('ApiSession create or adoption', () => {
     writeFileSync(file, 'not a directory')
     await expect(agents.ensureSession(SessionId('mkdir-failure'), join(file, 'child'), false))
       .rejects.toThrow('failed to ensure project directory')
+  })
+})
+
+describe('execution admission', () => {
+  it('admits execution before remote consumers and preserves its publication commit', async () => {
+    const { ctx, agents } = await harness()
+    const admitted = agent(ctx, header('remote-admission'))
+    const order: string[] = []
+    const commit = { commit: () => { order.push('commit') } }
+    const setup = vi.fn(async () => { order.push('execution'); return commit })
+    ctx.provide('executionBindings', {
+      setup,
+      executionForAgent: () => ({ binding: remoteBinding, ctx: admitted.ctx, platform: 'linux' }),
+    } as never)
+    const mountInExecution = vi.fn(async () => { order.push('preset') })
+    const mount = vi.fn()
+    ctx.provide('agentPresets', { resolve: async () => ({ id: 'coding' }), mountInExecution, mount } as never)
+    const composition = await agents.composeAgent('coding', remoteBinding)
+    const prepared = await composition.setup(admitted.ctx, admitted)
+    expect(setup).toHaveBeenCalledWith(admitted.ctx, admitted, remoteBinding)
+    expect(mountInExecution).toHaveBeenCalledWith(admitted.ctx, 'coding', admitted.ctx, 'linux')
+    expect(mount).not.toHaveBeenCalled()
+    expect(order).toEqual(['execution', 'preset'])
+    prepared?.commit()
+    expect(order).toEqual(['execution', 'preset', 'commit'])
+  })
+
+  it('passes no replacement binding on resume and rejects remote logs without the service', async () => {
+    const { ctx, agents } = await harness()
+    const resumed = agent(ctx, header('durable-remote'))
+    resumed.session.append('execution/bound', { binding: remoteBinding })
+    const composition = await agents.composeAgent(undefined)
+    await expect(composition.setup(resumed.ctx, resumed)).rejects.toThrow('requires the execution binding service')
+    const setup = vi.fn(async () => ({ commit: () => {} }))
+    ctx.provide('executionBindings', { setup, executionForAgent: () => ({ binding: remoteBinding, ctx, platform: 'linux' }) } as never)
+    await expect(composition.setup(resumed.ctx, resumed)).rejects.toThrow('requires an execution-specific agent preset')
+    ctx.provide('agentPresets', { resolve: async () => ({ id: 'coding' }), mountInExecution: async () => {} } as never)
+    const admittedComposition = await agents.composeAgent(undefined)
+    await admittedComposition.setup(resumed.ctx, resumed)
+    expect(setup).toHaveBeenCalledWith(resumed.ctx, resumed, undefined)
+  })
+
+  it('does not create Host directories for SSH and rejects adoption under another binding', async () => {
+    const { ctx, agents } = await harness()
+    const root = mkdtempSync(join(tmpdir(), 'dsh-no-local-remote-directory-'))
+    tempDirs.push(root)
+    const cwd = join(root, 'remote-only')
+    const id = SessionId('remote-no-mkdir')
+    const created = vi.spyOn(ctx.agents, 'create').mockRejectedValue(new Error('admission stopped'))
+    await expect(agents.ensureSession(id, cwd, false, undefined, remoteBinding)).rejects.toThrow('admission stopped')
+    expect(existsSync(cwd)).toBe(false)
+    expect(created).toHaveBeenCalledOnce()
+    const existing = agent(ctx, header('bound-elsewhere'))
+    existing.session.append('execution/bound', { binding: remoteBinding })
+    await ctx.agents.register(existing)
+    ctx.provide('executionBindings', { bindingForSession: async () => remoteBinding } as never)
+    await expect(agents.ensureSession(existing.id, '/workspace', true, undefined, { kind: 'local' }))
+      .rejects.toThrow('belongs to another execution binding')
   })
 })

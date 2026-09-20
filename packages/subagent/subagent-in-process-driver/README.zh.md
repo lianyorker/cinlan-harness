@@ -55,7 +55,7 @@ kind: "package-library"
 
 1. 校验父级深度与可选的绝对 `maxDepth`，然后把子级深度推导为父级深度加一，并持久化到子级会话 header。
 2. 通过宿主 agent 工厂创建子 agent，并把调用方必需的信号传入创建事务。
-3. 在该事务未发布的设置窗口内，安装请求的 persona、工具限制与结构化输出运行时。
+3. 在该事务未发布的设置窗口内，完成[子级执行准入](../subagent/README.zh.md#understand-the-implementation)，再安装请求的 persona、工具限制与结构化输出运行时。
 4. 发布子 agent，保留返回的句柄，并驱动一项任务。
 5. 从完整的自有运行中读取子 agent 自身的输出——最后一条非空 assistant 消息，若无则取其累积的 assistant 文本——以及最终持久化的轮次原因，并排除任何 fork 初始内容。
 

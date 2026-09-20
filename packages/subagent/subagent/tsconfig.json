@@ -9,6 +9,9 @@
   ],
   "references": [
     {
+      "path": "../../execution-host/execution-binding"
+    },
+    {
       "path": "../../../vendor/cosmokit"
     },
     {
