@@ -29,7 +29,7 @@ Mount this package in a composition that should give each agent session its own 
 
 ### What a preset gives a session
 
-A session composed from a preset runs the plugins that preset's `agent.cordis.yml` names: its tools, prompt sections, and skills. Sessions joined to the same preset share one installed composition, and each session's state stays separate. A child agent (subagent) joins its parent's composition, so it sees the same tools and prompt sections as the agent that spawned it.
+A session composed from a preset runs the plugins that preset's `agent.cordis.yml` names: its tools, prompt sections, and skills. Local sessions joined to the same preset share one installed composition, and each session's state stays separate. Remote sessions mount the preset under their admitted execution providers for the Agent lifetime. A child agent (subagent) joins its parent's composition, so it sees the same tools and prompt sections as the agent that spawned it.
 
 Presets come from this package's `presets/`, configured directories, installed plugin contributions, and your own `<dshHome>/.agent-presets` directory. The picker shows each preset's display name and description; a preset whose composition cannot load is listed with the reason rather than hidden, so you can see what to fix or delete.
 
@@ -79,7 +79,7 @@ A copy is refused when the id is not `[a-z0-9][a-z0-9-]*` (the id becomes a dire
 
 ### Switching a session's preset
 
-A session can switch to a different preset only while it has produced nothing — no messages or tool calls. After that, the composition is fixed for the session's life, because swapping tools mid-conversation would leave logged tool calls the new composition cannot make. A committed switch emits `tools/change` because the resolved tool set changed without a registry edit. The switch is also recorded in the session log, so a resumed or forked session rebuilds under the composition it ran.
+A local session can switch to a different preset only while it has produced nothing — no messages or tool calls. After that, the composition is fixed for the session's life, because swapping tools mid-conversation would leave logged tool calls the new composition cannot make. A committed switch emits `tools/change` because the resolved tool set changed without a registry edit. The switch is also recorded in the session log, so a resumed or forked session rebuilds under the composition it ran.
 
 ### Failures and recovery
 
@@ -97,7 +97,7 @@ This section explains the design behind the roster and the standing mount; obser
 
 ### Design philosophy
 
-- **One standing composition per preset.** A preset is mounted once per process under a standing scope; agents join by parenting their scope key to the mount, so the mount's registrations and listeners cover every joined agent and no sibling preset's.
+- **Local standing compositions.** A local preset is mounted once per process under a standing scope; agents join by parenting their scope key to the mount, so the mount's registrations and listeners cover every joined agent and no sibling preset's.
 - **Generations keyed on the composition file.** The mount records the composition file's stamp (mtime and size); a session that finds the stamp stale starts the next generation, while sessions already joined keep the generation they run on — a running session outlives its file changing or disappearing.
 - **The preset file is an input, never a persistence target.** The mounted subtree overrides `write()` as a no-op, so a loader-initiated write-back never rewrites a shared preset file.
 - **Discovery owns health.** A directory whose composition is missing or unloadable is a broken roster row with a reason, not a skip — a skipped directory would still occupy its id while no surface shows anything to delete.
@@ -120,6 +120,8 @@ This section explains the design behind the roster and the standing mount; obser
 ### The standing mount
 
 `ensureStanding` keeps one pending promise per preset id, single-flight, so two agents racing the first use of a preset share one composition. A settled failure is removed so a later session retries a preset whose file has been fixed. The mount runs in the roster service's own untraced context — a subtree minted from a traced context would resolve services through the caller's shadow fiber — so it survives every agent and unwinds only with whole-tree teardown. `serviceForAgent` reads an agent's instance of a service its preset mounted behind an `isolate` realm, which is otherwise invisible outside the group.
+
+Remote admission calls `mountInExecution` after the execution binding setup. It owns a separate scope under the admitted provider context, selects shipped shell rows using the execution platform, and releases the scope on Agent rollback or disposal. Child composition keeps the parent mount. Remote preset changes are rejected, including before the first message. Shipped remote presets omit instruction-file and filesystem-skill discovery until those consumers support execution-specific path rules and watchers.
 
 ### The composition inventory
 
@@ -167,6 +169,8 @@ Prefix-stable for the life of an agent: a composition is installed once, before 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
+- Remote Sessions cannot change presets. Their shipped compositions omit instruction-file and filesystem-skill discovery because those consumers use Host path rules and watchers.
 
 
 These limits define when the roster is a poor fit or needs special operational care. They are current package constraints, not a general composition comparison or a task backlog.

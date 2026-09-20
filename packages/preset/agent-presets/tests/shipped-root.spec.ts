@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
-import Loader from '@deepseek-ai/cordis-plugin-loader'
+import Loader, { evaluate, isJsExpr } from '@deepseek-ai/cordis-plugin-loader'
 import Include, { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import * as yaml from 'js-yaml'
@@ -85,6 +85,29 @@ async function shippedEntries(id: string): Promise<unknown[]> {
 }
 
 describe('the shipped preset root', () => {
+  it('selects shipped shell tools using the execution platform with safe local evaluation', async () => {
+    const ctx = new Context()
+    try {
+      for (const id of ['standard', 'ptc', 'cordis']) {
+        const entries = await shippedEntries(id)
+        const disabled = (rowId: string, context: Context): boolean => {
+          const row = findEntry(entries, rowId)
+          if (row === undefined) throw new Error('missing shipped row: ' + rowId)
+          return isJsExpr(row.disabled) ? Boolean(evaluate(context, row.disabled.__jsExpr)) : Boolean(row.disabled)
+        }
+        expect(disabled('tool-bash', ctx)).toBe(process.platform === 'win32')
+        expect(disabled('tool-pwsh', ctx)).toBe(process.platform !== 'win32')
+        const remote = ctx.extend({ executionPlatform: 'linux' })
+        expect(disabled('tool-bash', remote)).toBe(false)
+        expect(disabled('tool-pwsh', remote)).toBe(true)
+        expect(disabled('agent-instructions', remote)).toBe(true)
+        expect(disabled('skill-filesystem', remote)).toBe(true)
+      }
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('supplies the built-in presets from a bare roster, healthy and system-trusted', async () => {
     const ctx = await roster({ includeUserRoot: false })
 

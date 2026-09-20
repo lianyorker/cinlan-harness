@@ -1,23 +1,8 @@
 /**
- * Agent presets: each session composes its model-facing plugin set from one
- * preset `cordis.yml`, mounted ONCE per preset under a standing scope and
- * joined by every agent that names it.
- *
- * The standing mount is what makes a preset one composition rather than one
- * per session: its plugin instances, tool registrations, prompt sections, and
- * projection units exist exactly once, keyed per session inside the plugins
- * themselves (they predate presets and were written for a shared world). An
- * agent joins by having its scope key parented to the mount's
- * ({@link bindScopeParent}), which makes the mount's registrations visible to
- * that agent's views and the mount's listeners receive that agent's events —
- * and a host reader with no agent at all (a cold transcript read) resolves
- * the same standing registrations by preset id.
- *
- * This package owns the preset vocabulary, filesystem discovery, and the
- * guarded standing mount. It does not decide when an agent is created — the
- * agent factory's `setup(agentCtx)` hook is the one supported call site,
- * because only there is the join installed while the agent is still
- * unpublished, so a rejected composition rolls the whole creation back.
+ * Discover and mount model-facing preset compositions before Agent publication.
+ * Local Agents share a standing mount by preset generation. Remote Agents own
+ * a mount under their admitted execution context; children join the parent's
+ * exact composition. Rejected mounts unwind with the unpublished Agent.
  * @module @deepseek-ai/dsh-agent-presets
  */
 
@@ -90,6 +75,8 @@ export type { AgentPreset, Config, PresetRoot, PresetTrust } from './preset.ts'
 declare module '@deepseek-ai/cordis' {
   interface Context {
     agentPresets: AgentPresets
+    /** Platform selected by an execution-specific preset mount. */
+    executionPlatform?: NodeJS.Platform
   }
 }
 
@@ -463,6 +450,35 @@ export class AgentPresets extends TypertRemoteService {
     return preset
   }
 
+  /** Agents whose composition captures execution providers cannot join Host standing mounts. */
+  private readonly executionAgents = new WeakSet<ScopeKey>()
+
+  /**
+   * Mount a preset with the selected execution providers for one Agent lifetime.
+   * @param agentCtx - unpublished Agent scope owning teardown.
+   * @param id - preset identity to mount.
+   * @param executionCtx - admitted context carrying the execution provider isolation map.
+   * @param platform - platform reported by the admitted execution runtime.
+   * @returns the mounted preset; failures leave no mounted consumers.
+   */
+  async mountInExecution(agentCtx: Context, id: string, executionCtx: Context, platform: NodeJS.Platform): Promise<AgentPreset> {
+    const agentKey = scopeOf(agentCtx)
+    if (agentKey === undefined) throw new Error('agent-presets: refusing to compose an unscoped context')
+    const preset = await this.resolveMountable(id)
+    const key: ScopeKey = { agentPreset: preset.id }
+    const scope = createScope(executionCtx.extend({ executionPlatform: platform }), key)
+    agentCtx.effect(() => () => scope.dispose())
+    try {
+      await mountPreset(scope.ctx, preset)
+      this.bindings.set(agentKey, bindScopeParent(agentKey, key))
+      this.executionAgents.add(agentKey)
+      return preset
+    } catch (error) {
+      await scope.dispose()
+      throw error
+    }
+  }
+
   /**
    * Join one agent to the SAME standing composition another already runs on.
    *
@@ -475,11 +491,9 @@ export class AgentPresets extends TypertRemoteService {
    * parent's history was produced under (and a preset deleted since would fail
    * the child outright while its parent keeps running).
    *
-   * Synchronous, and with no composition failure mode of its own — it reads no
-   * roster, mounts nothing, and touches no file — which is what lets a child
-   * creation window use it: the two in-process subagent drivers compose their
-   * children inside a synchronous `setup`. It still rejects a caller error, as
-   * the `@throws` below record.
+   * The child must complete execution admission before joining a remote parent.
+   * Joining is synchronous and reads no files; the parent owns the mounted
+   * consumers until its children settle.
    *
    * A parent that joined no preset — a rosterless deployment — yields no join
    * and no error: there, the model-facing rows sit in the host composition and
@@ -497,6 +511,8 @@ export class AgentPresets extends TypertRemoteService {
     const standing = standingMountFor(parentCtx)
     if (standing === undefined) return undefined
     this.bindings.set(agentKey, bindScopeParent(agentKey, standing.key))
+    const parentKey = scopeOf(parentCtx)
+    if (parentKey !== undefined && this.executionAgents.has(parentKey)) this.executionAgents.add(agentKey)
     return standing.presetId
   }
 
@@ -691,6 +707,11 @@ export class AgentPresets extends TypertRemoteService {
     const agentKey = scopeOf(agentCtx)
     if (agentKey === undefined) {
       throw new Error('agent-presets: refusing to recompose an unscoped context')
+    }
+    if (this.executionAgents.has(agentKey)) {
+      throw new RemoteError('agent-preset/invalid', 'changing presets for a remote execution Session is unsupported', {
+        agentPreset: id, reason: 'remote execution composition is fixed for the Agent lifetime',
+      })
     }
     const preset = await this.resolveMountable(id)
     const standing = await this.ensureStanding(preset)

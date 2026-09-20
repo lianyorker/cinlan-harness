@@ -30,6 +30,8 @@
 
 - id: agent-instructions
   name: '@deepseek-ai/dsh-agent-instructions'
+  disabled: !!js >-
+    'executionPlatform' in ctx
   config:
     maxBytes: 65536
 
@@ -44,11 +46,13 @@
 # host-plane too.
 - id: tool-bash
   name: '@deepseek-ai/dsh-tool-bash'
-  disabled: !!js process.platform === 'win32'
+  disabled: !!js >-
+    ('executionPlatform' in ctx ? ctx.executionPlatform : process.platform) === 'win32'
 
 - id: tool-pwsh
   name: '@deepseek-ai/dsh-tool-pwsh'
-  disabled: !!js process.platform !== 'win32'
+  disabled: !!js >-
+    ('executionPlatform' in ctx ? ctx.executionPlatform : process.platform) !== 'win32'
 
 # ── filesystem ──────────────────────────────────────────────────────────────
 
@@ -83,6 +87,8 @@
 # carries whatever the deployment registered globally (repository plugins).
 - id: skill-filesystem
   name: '@deepseek-ai/dsh-skill-filesystem'
+  disabled: !!js >-
+    'executionPlatform' in ctx
 
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'
