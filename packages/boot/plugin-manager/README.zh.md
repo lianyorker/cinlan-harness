@@ -40,7 +40,7 @@ profile 组合在 Host 插件清单旁挂载本服务。launcher 通过 `profile
 
 插件开关只改变 profile patch 中最后一个匹配 override 的 `disabled` 字段，或追加 override。bundle 开关改变有序的 `dsh.profile.bundles` 列表并保留依赖。启用会追加 bundle，因此可能改变优先级。home 和调用 overlay 保持更高优先级。
 
-安装默认启用有效 bundle。调用方生成的请求 id 将进度、日志块和取消操作关联到一次安装。只有 pnpm 退出且 manifest 与 lockfile 恢复后，取消才报告成功。开始激活后，取消返回 `too-late`。安装失败会恢复这两个文件；已下载文件和诊断日志可能保留。
+安装默认启用有效 bundle。调用方生成的请求 id 将进度、日志块和取消操作关联到一次安装。已被进行中安装持有的请求 id 会在 pnpm 启动前被拒绝。只有 pnpm 退出且 manifest 与 lockfile 恢复后，取消才报告成功。开始激活后，取消返回 `too-late`。安装失败会恢复这两个文件；已下载文件和诊断日志可能保留。
 
 pnpm 阻止依赖脚本时，结果列出待决定的包名。重试可通过 `approvedBuilds` 显式允许这些名称。允许记录按包名保存在 profile 的 pnpm workspace 设置中，之后安装失败也会保留。已有拒绝、通配符规则、别名和锚点不能通过该操作覆盖。已允许的脚本以宿主用户权限执行。
 

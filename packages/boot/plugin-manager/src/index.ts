@@ -334,13 +334,20 @@ export class PluginManager extends TypertRemoteService {
    * that fails, is cancelled, or adds a package without a bundle patch restores
    * `package.json` and `pnpm-lock.yaml` as they were; downloaded files can stay.
    * @param spec One package spec, including local paths relative to the invocation directory.
-   * @param options Whether to activate the installed bundle (defaults to true), the request id a cancellation names, and
+   * @param options Whether to activate the installed bundle (defaults to true), a request id unique among live installations, and
    * the pending build scripts to allow for this profile before pnpm runs.
    * @returns Package-manager diagnostics and observed activation outcome.
    */
   @Remote
   installBundle(spec: string, options?: InstallBundleOptions): Promise<ChangeResult> {
     const requestId = options?.requestId
+    const request = { stage: 'install' as const, target: spec, enabled: options?.enabled !== false }
+    if (this.shellOwned()) return this.change(() => Promise.resolve(), request, 'install')
+    if (requestId !== undefined && this.installs.has(requestId)) {
+      return Promise.resolve({ ...request, changed: false, application: 'failed' as const, error: {
+        code: 'operation-error' as const, diagnostic: 'Install request id is already running.',
+      } })
+    }
     const control: InstallControl = { abort: new AbortController(), phase: 'installing', settled: Promise.resolve() }
     const stopped = (): boolean => control.abort.signal.aborted
     if (requestId !== undefined) this.installs.set(requestId, control)
@@ -395,10 +402,12 @@ export class PluginManager extends TypertRemoteService {
         if (Object.hasOwn(before, name)) return 'restart-required'
         if (options?.enabled !== false) result.warnings = await this.reload()
       })
-    }, { stage: 'install', target: spec, enabled: options?.enabled !== false }, 'install')
+    }, request, 'install')
     /* v8 ignore next -- change() folds every failure into its result; only a lock or disposal error rejects */
     control.settled = result.then(() => undefined, () => undefined)
-    return result.finally(() => { if (requestId !== undefined) this.installs.delete(requestId) })
+    return result.finally(() => {
+      if (requestId !== undefined && this.installs.get(requestId) === control) this.installs.delete(requestId)
+    })
   }
 
   /** Stop an installation this manager owns and wait until its files are back.

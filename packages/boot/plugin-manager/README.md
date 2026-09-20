@@ -40,7 +40,7 @@ The optional `@deepseek-ai/dsh-plugin-manager/tools` entry registers `plugin_man
 
 A plugin toggle changes only the last matching override's `disabled` field in the profile patch, or appends an override. A bundle toggle changes the ordered `dsh.profile.bundles` list while retaining dependencies. Enabling appends a bundle, so it can change precedence. Home and invocation patches keep their higher priority.
 
-Installation enables a valid bundle by default. A caller-generated request id connects progress, log chunks, and cancellation to one installation. Cancellation reports success only after pnpm exits and the manifest and lockfile have been restored. Once activation starts, cancellation returns `too-late`. Failed installation restores those two files; downloaded files and diagnostic logs may remain.
+Installation enables a valid bundle by default. A caller-generated request id connects progress, log chunks, and cancellation to one installation. A request id already owned by a live installation is rejected before pnpm starts. Cancellation reports success only after pnpm exits and the manifest and lockfile have been restored. Once activation starts, cancellation returns `too-late`. Failed installation restores those two files; downloaded files and diagnostic logs may remain.
 
 When pnpm blocks dependency scripts, the result lists pending package names. A retry can explicitly approve those names through `approvedBuilds`. Approval persists by package name in the profile's pnpm workspace settings and survives a later installation failure. Existing denials, wildcard rules, aliases, and anchors cannot be overridden through this action. Approved scripts execute with the host user's permissions.
 

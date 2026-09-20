@@ -691,6 +691,10 @@ it('stops a run on request, restores the files, and answers not-running or too-l
   const before = readFileSync(join(dir, 'package.json'), 'utf8')
   const run = manager.installBundle('slow', { requestId })
   await started.promise
+  expect(await manager.installBundle('duplicate', { requestId })).toMatchObject({
+    changed: false, application: 'failed', error: { code: 'operation-error', diagnostic: 'Install request id is already running.' },
+  })
+  expect(install).toHaveBeenCalledTimes(1)
   expect(await manager.cancelInstall('00000000-0000-4000-8000-000000000000' as PluginInstallRequestId)).toEqual({ status: 'not-running' })
   expect(await manager.cancelInstall(requestId)).toEqual({ status: 'cancelled' })
   expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(before)
