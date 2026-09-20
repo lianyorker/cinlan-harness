@@ -23,6 +23,8 @@
   // this client-registered project must not also hold them (one program
   // cannot see both sides of the cordis Context merges).
   "exclude": [
+    "tests/execution-hosts.e2e.ts",
+    "tests/windows-linux-ssh.acceptance.e2e.ts",
     "tests/mobile-resources.e2e.ts",
     "tests/terminal-rename-recovery.e2e.ts",
     "tests/session-unarchive.e2e.ts",
