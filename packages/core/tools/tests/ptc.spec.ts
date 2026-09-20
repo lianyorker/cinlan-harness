@@ -72,6 +72,7 @@ async function mintAgentScope(ctx: Context, name = 'scoped'): Promise<{ scope: S
   let scope!: Scope
   await ctx.plugin(Object.assign((inner: Context) => { scope = createScope(inner, agent) },
     { inject: ['tools', 'systemPrompt'] }))
+  Object.assign(agent, { ctx: scope.ctx })
   return { scope, agent }
 }
 
@@ -356,7 +357,9 @@ describe('mode-aware wire contribution', () => {
     expect(transports[0]?.description).toContain('Execute a TypeScript program')
     expect(assembly.sections.find(section => section.name === 'scoped-note')?.text).toBe('safe note')
     expect(assembly.sections.find(section => section.name === 'tools:sdk')?.text).toContain('scoped_safe:')
-    expect(ctx.tools.get(RUN_CODE_NAME, agent)).toBe(ctx.tools.get(RUN_CODE_NAME))
+    const scopedTransport = ctx.tools.get(RUN_CODE_NAME, agent)
+    expect(scopedTransport).toBe(ctx.tools.get(RUN_CODE_NAME, agent))
+    expect(scopedTransport).not.toBe(ctx.tools.get(RUN_CODE_NAME))
     const result = await runCode(ctx, 'return 1', { agent })
     expect(result.content).toEqual([{ type: 'text', text: '(run_code completed with no output)' }])
   })
@@ -426,6 +429,50 @@ describe('mode-aware wire contribution', () => {
     expect(sdk?.text).toContain('class Tools(Protocol):')
     expect(sdk?.text).toContain('async def echo(self, args:')
     expect(sdk?.text).toContain('top-level `await`')
+  })
+
+  it('binds schema and execution to the Agent private PTC runtime', async () => {
+    const { ctx, systemPrompt, runtime: hostRuntime } = await setup({ mode: 'native' })
+    try {
+      registerEcho(ctx)
+      const { scope, agent } = await mintAgentScope(ctx, 'remote-ptc')
+      const agentCtx = scope.ctx.isolate('ptcRuntime')
+      await agentCtx.plugin(FakeRuntime, { language: 'python' })
+      Object.assign(agent, { ctx: agentCtx })
+      agentCtx.tools.presentAs('ptc')
+      const agentRuntime = agentCtx.get('ptcRuntime') as FakeRuntime
+      agentRuntime.behavior = () => Promise.resolve({ logs: ['agent-runtime'], value: 'remote-only' })
+      hostRuntime.behavior = () => Promise.reject(new Error('Host PTC runtime must not execute'))
+
+      const assembly = await systemPrompt.assemble({ scope: agent })
+      const runCodeSchema = assembly.tools.find(tool => tool.name === RUN_CODE_NAME)
+      expect(runCodeSchema?.description).toContain('Execute a Python program')
+      expect(assembly.sections.find(section => section.name === 'tools:sdk')?.text).toContain('class Tools(Protocol):')
+
+      const result = await runCode(ctx, 'return \"remote-only\"', { agent })
+      expect(result.isError).not.toBe(true)
+      expect(result.value).toEqual({ logs: ['agent-runtime'], result: 'remote-only' })
+      expect(agentRuntime.lastRequest?.program).toBe('return \"remote-only\"')
+      expect(hostRuntime.lastRequest).toBeUndefined()
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('refuses Host PTC fallback when an Agent provider world has no runtime', async () => {
+    const { ctx, systemPrompt, runtime: hostRuntime } = await setup({ mode: 'native' })
+    try {
+      const { scope, agent } = await mintAgentScope(ctx, 'missing-remote-ptc')
+      const agentCtx = scope.ctx.isolate('ptcRuntime')
+      Object.assign(agent, { ctx: agentCtx })
+      agentCtx.tools.presentAs('ptc')
+
+      await expect(systemPrompt.assemble({ scope: agent }))
+        .rejects.toThrow('mode \"ptc\" requires a PTC runtime')
+      expect(hostRuntime.lastRequest).toBeUndefined()
+    } finally {
+      await ctx.fiber.dispose()
+    }
   })
 
   it("assembles under a python runtime in mode 'both' as well, SDK and schema together", async () => {

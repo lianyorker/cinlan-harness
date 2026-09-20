@@ -293,12 +293,12 @@ type RunCodeOutput = { logs: string[]; result?: JsonValue; sandbox?: PtcRunSandb
  * off its public service API and flow here as closures instead.
  */
 export interface RunCodeBridgeOptions {
-  /** Reads the approval channel when a program requests a wider sandbox mode. */
-  peekApprover: () => ApprovalService | undefined
+  /** Reads the executing Agent's approval channel when a program requests a wider sandbox mode. */
+  peekApprover: (exec: ToolRunContext) => ApprovalService | undefined
   /** Resolves standing Session authority only for a runtime that enforces file policy. */
   resolveSandboxPolicy: (exec: ToolRunContext) => SandboxExecutionPolicy
-  /** Resolves `ctx.ptcRuntime` or throws the loud misconfiguration error (shared with the registry's assembly-time checks). */
-  requireRuntime: () => PtcRuntime
+  /** Resolves the executing Agent's `ctx.ptcRuntime` or throws the loud misconfiguration error. */
+  requireRuntime: (exec: ToolRunContext) => PtcRuntime
   /**
    * Reads `ctx.ptcRuntime` without throwing: `undefined` when none is mounted.
    * Lets schema emission tell "no runtime" (degrade to TS; the readers that
@@ -373,7 +373,7 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
       if (args.description.trim().length === 0) {
         throw new Error('invalid description: expected a non-empty string')
       }
-      const runtime = requireRuntime()
+      const runtime = requireRuntime(exec)
       validateEscalationArgs(args.sandbox_permissions, args.justification)
       if (args.timeoutMs !== undefined && runtime.timeout === undefined) {
         throw new Error('timeoutMs is not available for this PTC runtime')
@@ -391,7 +391,7 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
           effectiveMode: standingPolicy.mode,
           subject: 'program',
         }, {
-          approver: options.peekApprover(), agent: exec.agent, callId: exec.callId,
+          approver: options.peekApprover(exec), agent: exec.agent, callId: exec.callId,
           toolName: RUN_CODE_NAME, signal: exec.signal,
         })
         policy = { ...standingPolicy, mode: approvedMode }
