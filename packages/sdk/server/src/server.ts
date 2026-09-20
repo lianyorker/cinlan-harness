@@ -8,7 +8,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { resolve } from 'node:path'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
+import type { Agent, AgentHandle, AgentSetup, AgentSetupCommit } from '@deepseek-ai/dsh-agent'
 import { admitEncodedImages, type EncodedImageAttachment, type ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { createUserMessage, ReasoningEffortId, type ContentBlock, type LlmRuntime } from '@deepseek-ai/dsh-llm'
 import { carrierKeyOf, type Scoped } from '@deepseek-ai/dsh-scope'
@@ -30,6 +30,20 @@ import type {
 
 interface SessionRecord {
   handle: AgentHandle
+}
+
+interface OptionalExecutionBindings {
+  setup(ctx: Context, agent: Agent): Promise<AgentSetupCommit | void>
+}
+
+/** Resolve the optional execution-aware Agent setup without making SDK-only profiles depend on its provider. */
+function executionSetup(ctx: Context): AgentSetup | undefined {
+  const services = ctx as unknown as {
+    get(name: 'executionBindings'): OptionalExecutionBindings | undefined
+  }
+  const bindings = services.get('executionBindings')
+  if (bindings === undefined) return undefined
+  return (agentCtx, agent) => bindings.setup(agentCtx, agent)
 }
 
 function encodedImage(block: SessionPromptParams['contentBlocks'][number]): block is SdkEncodedImageBlock {
@@ -276,9 +290,11 @@ export class HarnessSdkJsonRpcServer {
     // rows in the host plane, so this agent reads them from the global layer. A
     // deployment that configures a roster has to join one here first
     // (@deepseek-ai/dsh-agent-presets README, "Composing a child agent").
+    const setup = executionSetup(this.ctx)
     const handle = await this.ctx.agents.create({
       sessionId: brandString<SessionId>(sessionId),
       meta: { cwd: this.cwd },
+      ...(setup === undefined ? {} : { setup }),
       agentOptions: {
         provider: this.provider,
         model: this.model,

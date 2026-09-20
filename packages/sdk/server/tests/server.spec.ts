@@ -1194,6 +1194,35 @@ describe('HarnessSdkJsonRpcServer', () => {
     await expect(server.getOrCreateSession('after-shutdown')).rejects.toThrow('SDK server is shutting down')
   })
 
+  it('passes optional execution admission through the Agent publication transaction', async () => {
+    const setup = vi.fn(async () => ({ commit: vi.fn() }))
+    const create = vi.fn<(options: unknown) => Promise<AgentHandle>>()
+      .mockResolvedValue({ agent: {} as Agent, dispose: () => Promise.resolve() })
+    const ctx = {
+      on: vi.fn(() => () => undefined),
+      agents: { create, get: () => undefined },
+      get: (name: string) => name === 'executionBindings' ? { setup } : undefined,
+    } as unknown as Context
+    const server = new HarnessSdkJsonRpcServer(ctx, new FakeTransport()) as unknown as {
+      getOrCreateSession(sessionId: string): Promise<unknown>
+      shutdown(): Promise<Record<string, never>>
+    }
+
+    await server.getOrCreateSession('bound')
+    const options = create.mock.calls[0]?.[0] as { setup?: (agentCtx: Context, agent: Agent) => Promise<unknown> }
+    expect(options.setup).toBeTypeOf('function')
+    const agentCtx = new Context()
+    const agent = {} as Agent
+    const commit = await options.setup?.(agentCtx, agent)
+    expect(setup).toHaveBeenCalledWith(agentCtx, agent)
+    expect(commit).toBeTypeOf('object')
+    expect(commit !== null && typeof commit === 'object' && 'commit' in commit
+      ? typeof commit.commit
+      : undefined).toBe('function')
+    await agentCtx.fiber.dispose()
+    await server.shutdown()
+  })
+
   it('resolves a relative cwd before creating the session', async () => {
     const create = vi.fn<(options: unknown) => Promise<AgentHandle>>()
       .mockResolvedValue({ agent: {} as Agent, dispose: () => Promise.resolve() })
