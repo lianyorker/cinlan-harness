@@ -692,7 +692,16 @@ export function collectConfigCatalog(scanRoot: string = root): CatalogEntry[] {
   const manifests: { dir: string; pkg: string }[] = []
   for (const manifestRel of globSync('packages/*/*/package.json', { cwd: scanRoot }).map(path => path.split(sep).join('/')).sort()) {
     const dir = manifestRel.slice(0, -'/package.json'.length)
-    const manifest = JSON.parse(readFileSync(resolve(scanRoot, manifestRel), 'utf8')) as { name?: string; os?: string[]; cpu?: string[]; exports?: unknown }
+    const manifest = JSON.parse(readFileSync(resolve(scanRoot, manifestRel), 'utf8')) as {
+      name?: string
+      os?: string[]
+      cpu?: string[]
+      main?: string
+      types?: string
+      bin?: unknown
+      exports?: Record<string, unknown>
+      dsh?: { bundle?: { patch?: string } }
+    }
     const pkg = manifest.name
     if (!pkg) {
       violations.push(`${manifestRel} has no "name".`)
@@ -702,6 +711,15 @@ export function collectConfigCatalog(scanRoot: string = root): CatalogEntry[] {
       // A per-platform native-binary package (npm os/cpu selection) ships no
       // JavaScript at all — nothing to classify, no Config to catalog.
       continue
+    }
+    const patch = manifest.dsh?.bundle?.patch
+    if (dir.startsWith('packages/bundle/') && typeof patch === 'string'
+      && patch.startsWith('./') && patch.endsWith('.yml')
+      && !patch.slice(2).split('/').some(part => part === '..' || part === '')
+      && manifest.main === undefined && manifest.types === undefined && manifest.bin === undefined
+      && manifest.exports?.[patch] === patch && manifest.exports['./package.json'] === './package.json'
+      && Object.keys(manifest.exports).every(key => key === patch || key === './package.json')) {
+      continue // Configuration-only bundles export a Loader patch and have no plugin Config.
     }
     pkgDirByName.set(pkg, dir)
     pkgExportsByName.set(pkg, manifest.exports)

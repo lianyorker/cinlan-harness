@@ -60,6 +60,19 @@ afterEach(() => {
 })
 
 describe('shared config schema catalog', () => {
+  it('omits a configuration-only Bundle while preserving source requirements for executable packages', () => {
+    const { root, write } = fixture()
+    const manifest = {
+      name: '@test/defaults', dsh: { bundle: { patch: './cordis.patch.yml' } },
+      exports: { './cordis.patch.yml': './cordis.patch.yml', './package.json': './package.json' },
+    }
+    write('packages/bundle/defaults/package.json', JSON.stringify(manifest))
+    write('packages/bundle/defaults/cordis.patch.yml', '[]\n')
+    expect(collectConfigCatalog(root).map(entry => entry.pkg)).toEqual(['@test/provider', '@test/runtime'])
+    write('packages/bundle/defaults/package.json', JSON.stringify({ ...manifest, main: 'lib/index.js' }))
+    expect(() => collectConfigCatalog(root)).toThrow('@test/defaults: entry packages/bundle/defaults/src/index.ts is missing')
+  })
+
   it('collects every branch through a renamed named import from a public source subpath', () => {
     const { root } = fixture()
     const provider = collectConfigCatalog(root).find(entry => entry.pkg === '@test/provider')
