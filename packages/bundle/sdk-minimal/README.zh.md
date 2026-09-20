@@ -36,7 +36,7 @@ dsh --profile sdk-minimal
 
 使用 `dsh plugin --profile sdk-minimal` 管理持久外部依赖。Profile、home 与有序 `--patch` 文件可以在完整默认配置树上替换配置项或插入 bundle。随附模板只在启动时应用 patch。
 
-该 profile 只挂载一套持久 shell：Linux 和 macOS 使用 Bash，Windows 使用 PowerShell。两套配置都使用 300 秒超时与一个 agent 自有终端；另一平台的配置项保持禁用。
+该 profile 只挂载一套持久 shell：Linux 和 macOS 使用 Bash，Windows 使用 PowerShell。两套配置都使用 300 秒超时与一个 agent 自有终端；另一平台的配置项保持禁用。网络访问与软件包仓库取决于宿主配置；本组合包不禁用网络，也不提供软件包镜像。
 
 -----
 

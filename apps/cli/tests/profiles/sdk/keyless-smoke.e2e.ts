@@ -265,8 +265,15 @@ describe('Python SDK dsh profile keyless smoke', () => {
         patchReload: 'startup',
       })
       expect(modelRequests[0]?.tools).toEqual(expect.any(Array))
-      const tools = modelRequests[0]?.tools as { function?: { name?: string } }[]
-      expect(tools.map(tool => tool.function?.name).sort()).toEqual(
+      const tools = modelRequests[0]?.tools as { name?: string; description?: string }[]
+      const shell = tools.find(tool => tool.name === (process.platform === 'win32' ? 'pwsh' : 'bash'))
+      expect(shell, JSON.stringify(tools)).toBeDefined()
+      expect(shell?.description).toContain(
+        'Network access and package repositories depend on the host environment; check their availability before relying on them.',
+      )
+      expect(shell?.description).not.toContain('access to the internet via this tool')
+      expect(shell?.description).not.toContain('mirror of common linux')
+      expect(tools.map(tool => tool.name).sort()).toEqual(
         [process.platform === 'win32' ? 'pwsh' : 'bash', 'str_replace_editor'].sort(),
       )
 
