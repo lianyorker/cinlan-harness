@@ -1,5 +1,7 @@
 # Orca Settings 功能审查与原生迁移对账
 
+> 2026-09-20 三方源码复核见[官方、本地 main 与 Orca 差异报告](official-local-orca-differences-2026-09-20.md)。本页保留原范围和验收历史；当前能力缺口、默认装配及旧结论纠偏以新报告为准，版本相同不代表官方源码或会话语义完整同步。
+
 审查日期：2026-09-13。参考目录：D:\Company\cinlan\orca；目标目录：D:\Company\cinlan\cinlan-harness。Orca 只读，不作为运行依赖，也不从其用户目录导入账户、Cookie 或私有配置。
 
 ## 审查范围与证据等级

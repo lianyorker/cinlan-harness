@@ -1,0 +1,84 @@
+{
+  "generatedAt": "2026-09-20T02:19:38.142Z",
+  "officialRoot": "D:/Company/cinlan/deepseek-harness-reference-016",
+  "localRoot": "D:/Company/cinlan/cinlan-harness-upstream-016",
+  "officialHead": "ddefc45fbc7f8e46dd73185e68295696d1297887",
+  "localHead": "1c88551e2d0c27bbc8a208b91ee82e064c27d3ea",
+  "tag": "ddefc45fbc7f8e46dd73185e68295696d1297887",
+  "cachedUpstreamMaster": "ddefc45fbc7f8e46dd73185e68295696d1297887",
+  "main": "1c88551e2d0c27bbc8a208b91ee82e064c27d3ea",
+  "method": {
+    "inventory": "existing Git tracked plus nonignored untracked; byte-preserving Latin1 roundtrip with CRLF normalized to LF; worktree not HEAD; repository physical line totals include assets and must not be used as source counts",
+    "excludedPathComponents": [
+      ".git",
+      "node_modules",
+      "lib",
+      "dist",
+      "build",
+      "out",
+      "coverage",
+      ".dsh-build",
+      ".artifacts",
+      ".next",
+      ".vite",
+      ".cache",
+      "target",
+      "__pycache__",
+      "vendor"
+    ],
+    "excludedSuffixes": [
+      ".tsbuildinfo",
+      ".map",
+      ".node",
+      ".dll",
+      ".exe",
+      ".pyc"
+    ],
+    "versionOnly": "package.json differs only in top-level version; dependency differences remain modified",
+    "productionSrc": "packages/<group>/<package>/src/** and apps/<app>/src/**; source assets and generated source included; physical lines include comments and blanks, not SLOC",
+    "codeSubset": "src extensions ts/tsx/js/jsx/mjs/cjs/css/scss/vue/svelte/html",
+    "vendor": "excluded from counts"
+  },
+  "repositoryFiles": {
+    "statuses": {
+      "identical": 6738,
+      "modified": 3443,
+      "official-only": 1817,
+      "local-only": 2539
+    },
+    "officialFiles": 11998,
+    "localFiles": 12720,
+    "officialPhysicalLines": 2101948,
+    "localPhysicalLines": 1800738
+  },
+  "packageAppSrc": {
+    "statuses": {
+      "modified": 636,
+      "identical": 1299,
+      "official-only": 269,
+      "local-only": 606
+    },
+    "officialFiles": 2204,
+    "localFiles": 2541,
+    "officialPhysicalLines": 385653,
+    "localPhysicalLines": 461778
+  },
+  "packageAppCode": {
+    "statuses": {
+      "modified": 636,
+      "identical": 1297,
+      "official-only": 269,
+      "local-only": 606
+    },
+    "officialFiles": 2202,
+    "localFiles": 2539,
+    "officialPhysicalLines": 385577,
+    "localPhysicalLines": 461702
+  },
+  "packagePresence": {
+    "shared": 284,
+    "official-only": 11,
+    "local-only": 112
+  },
+  "sharedPackagesWithSrcChanges": 181
+}
