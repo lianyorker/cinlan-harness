@@ -73,6 +73,8 @@ TypeScript 会按小写字母、数字与连字符文法检查字面量 namespac
 
 ### 事件与失败
 
+`settings/namespaces-updated (ns)` 在 `describe()` 已反映注册表变更后通知命名空间注册成功与移除。注册在通知之前安装释放 effect。校验失败与重复注册不发通知。命名空间生命周期不写入原始文档，也不推进 revision；配置读取方通过这一独立信号重新读取描述信息。
+
 `settings/updated (ns, next, prev, source)` 在每次已提交变更后触发——进程内写入（`source: 'update'`）或外部观察到的编辑（`source: 'provider'`）——解析值深相等时绝不触发。`settings/document-updated (ns, revision)` 在原始用户分节发生变化时触发，即使解析值没有变——已打开的编辑器正需要它来得知字段从继承变为覆盖。schema 拒绝的存量分节在重载时保留该 namespace 的最后可用值并告警；注册时同样的失败会直接拒绝注册。
 
 -----
@@ -108,7 +110,7 @@ TypeScript 会按小写字母、数字与连字符文法检查字面量 namespac
 
 ### 变更检测与事件
 
-`commit` 用 seam 的 `deepEqualJson` 谓词比较解析值，并逐监听器扇出 `settings/updated`。`bumpRevision` 比较原始分节并携带新 revision 发出 `settings/document-updated`；它与解析值检查相互独立。两个扇出以相同方式隔离监听器异常。
+`commit` 用 seam 的 `deepEqualJson` 谓词比较解析值，并逐监听器扇出 `settings/updated`。`bumpRevision` 比较原始分节并携带新 revision 发出 `settings/document-updated`；它与解析值检查相互独立。注册表提交通过与文档提交相同的隔离失效通知机制发出 `settings/namespaces-updated`。所有事件通知都以相同方式隔离监听器异常。
 
 ### 客户端安全类型
 

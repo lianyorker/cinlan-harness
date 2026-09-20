@@ -441,8 +441,12 @@ export abstract class SettingsProvider extends Service {
       this.registrations.set(parsedNs, registration)
       // TODO(settings-registration-quiescence): Deactivate every watcher and await
       // its tail on disposal so callbacks cannot outlive the registrant fiber.
-      return () => this.registrations.delete(parsedNs)
+      return () => {
+        this.registrations.delete(parsedNs)
+        this.emitInvalidation('settings/namespaces-updated', parsedNs)
+      }
     }, `settings.register(${JSON.stringify(String(parsedNs))})`)
+    this.emitInvalidation('settings/namespaces-updated', parsedNs)
     return {
       get: () => registration.resolved as T,
       watch: (callback) => {
@@ -762,16 +766,20 @@ export abstract class SettingsProvider extends Service {
   private bumpRevision(registration: SettingsRegistration, before: unknown, after: unknown): void {
     if (deepEqualJson(before, after)) return
     registration.revision += 1
-    this.emitDocumentUpdated(registration.ns, registration.revision)
+    this.emitInvalidation('settings/document-updated', registration.ns, registration.revision)
   }
 
-  /** Contained fan-out of `settings/document-updated`, mirroring {@link commit}'s. */
-  private emitDocumentUpdated(ns: SettingsNamespace, revision: number): void {
+  /** Contained notification after registry or raw-document commits. */
+  private emitInvalidation(
+    event: 'settings/document-updated' | 'settings/namespaces-updated',
+    ns: SettingsNamespace,
+    ...payload: [] | [revision: number]
+  ): void {
     let invariantFailure: unknown
-    const args = ['settings/document-updated', ns, revision]
+    const args = [event, ns, ...payload]
     for (const listener of this.ctx.events.dispatch('emit', args) as Array<(...listenerArgs: unknown[]) => unknown>) {
       try {
-        const returned = listener(ns, revision)
+        const returned = listener(ns, ...payload)
         if (returned != null && typeof (returned as PromiseLike<unknown>).then === 'function') {
           void Promise.resolve(returned as PromiseLike<unknown>).then(undefined, (error: unknown) => {
             this.warnListenerFailure(ns, error)
@@ -849,7 +857,7 @@ export abstract class SettingsProvider extends Service {
 
   /** Contained-listener diagnostic shared by the sync and async failure paths. */
   private warnListenerFailure(ns: SettingsNamespace, error: unknown): void {
-    this.ctx.logger.warn('settings: a settings/updated listener for "%s" failed', ns)
+    this.ctx.logger.warn('settings: an event listener for "%s" failed', ns)
     this.ctx.logger.warn(error)
   }
 }

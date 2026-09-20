@@ -75,6 +75,16 @@ export interface SettingsDescribeValue {
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /**
+     * A namespace registration was added or removed. Emitted after the registry
+     * commit, when describe() reflects the change; the raw document and its
+     * revisions remain unchanged. Listener failures follow settings/updated
+     * containment, including synchronous invariant failure propagation.
+     * @param ns - the namespace whose registration changed.
+     * @mode emit
+     */
+    'settings/namespaces-updated'(ns: SettingsNamespace): void
+
+    /**
      * Committed change to one registered namespace's resolved value. Emitted
      * after the provider persisted (for `update`) or published (`provider`)
      * the change; never emitted when the resolved value is deep-equal.

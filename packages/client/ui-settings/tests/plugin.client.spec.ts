@@ -1,3 +1,4 @@
+import Schema from '@deepseek-ai/schemastery'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
@@ -40,6 +41,33 @@ describe('settings domain base plugin', () => {
     await vi.waitFor(() => { expect(describeCall).toHaveBeenCalledTimes(2) })
     ctx.emit('connection/reset')
     await vi.waitFor(() => { expect(describeCall).toHaveBeenCalledTimes(3) })
+  })
+
+  it('refreshes an already-bound namespace after activation, disposal, and remount', async () => {
+    const { ctx, describeCall, remote, fiber } = bench()
+    const row = { ns: 'browser-playwright', schema: Schema.object({ headed: Schema.boolean().default(false) }).toJSON(),
+      value: { headed: false }, applies: 'live', secrets: [], revision: 0 }
+    try {
+      await fiber.await()
+      await ctx.settingsScope.describe().ensure()
+      const bound = ctx.settingsScope.bind<{ headed: boolean }>({ namespace: 'browser-playwright' })
+      expect(bound.getSnapshot()).toMatchObject({ status: 'unavailable' })
+      describeCall.mockResolvedValue({ ok: true, value: { writable: true, hasDocument: true, namespaces: [row] } })
+      remote.emit('settings/namespaces-updated', ['browser-playwright'])
+      await vi.waitFor(() => { expect(bound.getSnapshot()).toMatchObject({ status: 'ready', value: { headed: false } }) })
+      describeCall.mockResolvedValue({ ok: true, value: { writable: true, hasDocument: true, namespaces: [] } })
+      remote.emit('settings/namespaces-updated', ['browser-playwright'])
+      await vi.waitFor(() => { expect(bound.getSnapshot()).toMatchObject({ status: 'unavailable' }) })
+      describeCall.mockResolvedValue({ ok: true, value: {
+        writable: true, hasDocument: true, namespaces: [{ ...row, value: { headed: true } }],
+      } })
+      remote.emit('settings/namespaces-updated', ['browser-playwright'])
+      await vi.waitFor(() => { expect(bound.getSnapshot()).toMatchObject({ status: 'ready', value: { headed: true } }) })
+      await fiber.dispose()
+      const count = describeCall.mock.calls.length
+      remote.emit('settings/namespaces-updated', ['browser-playwright'])
+      expect(describeCall).toHaveBeenCalledTimes(count)
+    } finally { await ctx.fiber.dispose() }
   })
 
   it('fiber disposal retires the service and its invalidation subscriptions', async () => {

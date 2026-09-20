@@ -50,8 +50,8 @@ export const inject = ['remote', 'remote.settings']
 
 /**
  * Provide the settings-namespace scope service over one shared describe
- * mirror, and keep that mirror fresh on the two signals that can move the
- * settings document: a document commit and a (re)connect.
+ * mirror, refreshing after document commits, namespace registration changes,
+ * and connection resets.
  *
  * Constructing the service in this plugin's fiber keeps its traced methods
  * bound to each consuming plugin's context.
@@ -67,6 +67,7 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     const disposers = [
       ctx.remote.$on('settings/document-updated', () => { void mirror.load() }),
+      ctx.remote.$on('settings/namespaces-updated', () => { void mirror.load() }),
       ctx.on('connection/reset', () => { void mirror.load() }),
     ]
     // The first connection also emits connection/reset, so startup normally

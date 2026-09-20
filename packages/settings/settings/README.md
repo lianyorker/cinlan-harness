@@ -73,6 +73,8 @@ Every write rejects non-JSON-compatible data (a `Date`, `Map`, `BigInt`, non-fin
 
 ### Events and failures
 
+`settings/namespaces-updated (ns)` announces successful namespace registration and removal after `describe()` reflects the registry change. Registration installs its disposal effect before notification. Failed validation and duplicate registration do not notify. Namespace lifecycle does not write the raw document or advance its revision; configuration readers re-read descriptors through this separate signal.
+
 `settings/updated (ns, next, prev, source)` fires after each committed change — an in-process write (`source: 'update'`) or an externally observed edit (`source: 'provider'`) — and never when the resolved value is deep-equal. `settings/document-updated (ns, revision)` fires whenever the raw user section changed, even when the resolved value did not, which is what an open editor needs to learn that a field went from inherited to overridden. A stored section the schema rejects keeps the namespace's last good value and warns on reload; at registration the same failure rejects the registration itself.
 
 -----
@@ -108,7 +110,7 @@ Each write snapshots its input at call time (detaching and validating JSON-shape
 
 ### Change detection and events
 
-`commit` compares resolved values with the seam's `deepEqualJson` predicate and fans `settings/updated` out one listener at a time. `bumpRevision` compares raw sections and emits `settings/document-updated` with the new revision; it runs independently of the resolved-value check. Both fan-outs contain listener failures the same way.
+`commit` compares resolved values with the seam's `deepEqualJson` predicate and fans `settings/updated` out one listener at a time. `bumpRevision` compares raw sections and emits `settings/document-updated` with the new revision; it runs independently of the resolved-value check. Registry commits emit `settings/namespaces-updated` through the same contained invalidation fan-out as document commits. All event notifications isolate listener failures the same way.
 
 ### Client-safe types
 

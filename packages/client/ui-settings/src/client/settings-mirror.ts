@@ -108,12 +108,13 @@ export class SettingsDescribeMirror implements SettingsDescribeFace {
 
   /**
    * Refresh from the Host. A call during an in-flight read marks one rerun
-   * after it settles instead of racing a second wire read.
+   * after it settles and discards its stale answer without racing a second read.
    * @returns settlement after this call's freshness is reflected.
    */
   load(): Promise<void> {
     if (this.persistence === 'memory') return Promise.resolve()
     if (this.inFlight !== undefined) {
+      this.generation += 1
       this.rerun = true
       return this.inFlight
     }
@@ -187,7 +188,7 @@ export class SettingsDescribeMirror implements SettingsDescribeFace {
         } catch (error) {
           outcome = { failure: error instanceof Error ? error.message : String(error) }
         }
-        // A write answer invalidates a document read before that write committed.
+        // A write answer or invalidation supersedes an older document read.
         if (generation !== this.generation) continue
         if ('view' in outcome) {
           this.store.set({ status: 'ready', view: outcome.view, error: null })
