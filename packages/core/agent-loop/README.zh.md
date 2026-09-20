@@ -58,7 +58,7 @@ kind: "package-reference"
 
 ### 以编程方式创建或恢复 agent
 
-插件与宿主通过 `ctx.agents.create()` 创建 agent，通过 `ctx.agents.resume()` 恢复持久化会话；两者都返回 `AgentHandle`，其 `dispose()` 拥有确切的 teardown 能力。循环会把每个创建的 agent 运行到完成——只有调用方需要自行拆除 agent 时才需要句柄。
+插件与宿主通过 `ctx.agents.create()` 创建 agent，通过 `ctx.agents.resume()` 恢复持久化会话；两者都返回 `AgentHandle`，其 `dispose()` 拥有确切的 teardown 能力。循环会把每个创建的 agent 运行到完成——只有调用方需要自行拆除 agent 时才需要句柄。创建和恢复在调用 [setup commit](../agent/README.zh.md#create-or-resume-an-agent) 之前写完 setup 事件；其同步验证与注册表插入属于同一个发布步骤。
 
 ```text
 const handle = await ctx.agents.create({

@@ -17,6 +17,7 @@ import type {
   AgentHandle,
   AgentOptions,
   AgentSetup,
+  AgentSetupCommit,
   CreateAgentOptions,
   ResumeAgentOptions,
   SessionStartSource,
@@ -216,7 +217,7 @@ interface PreparedAgent {
   /** Aborts when the factory unloads, the caller cancels, or teardown begins — ends any setup await. */
   signal: AbortSignal
   /** Enter registries, await creation listeners, and notify session-start. */
-  publish(source: SessionStartSource): Promise<AgentHandle>
+  publish(source: SessionStartSource, setupCommit?: AgentSetupCommit | void): Promise<AgentHandle>
   /** Reverse teardown: stop the machine, unregister, unwind the scope. Memoized. */
   dispose(): Promise<void>
 }
@@ -668,9 +669,11 @@ export class AgentLoop extends Service implements AgentFactory {
       return {
         agent,
         signal: abort.signal,
-        publish: async (source) => {
+        publish: async (source, setupCommit) => {
           publication = Promise.withResolvers<void>()
           try {
+            assertLive()
+            setupCommit?.commit()
             assertLive()
             detachSession = agent.ctx.sessions.enter(session)
             // The mounted backend routes announced live events into the active
@@ -831,9 +834,8 @@ export class AgentLoop extends Service implements AgentFactory {
     }
     return await this.initializeAgent(prepared, async () => {
       const setupCommit = await raceAbort(setup?.(prepared.agent.ctx, prepared.agent), prepared.signal, id)
-      setupCommit?.commit()
       await this.appendUnstoredSuffix(stored, session)
-      return await prepared.publish(source)
+      return await prepared.publish(source, setupCommit)
     })
   }
 

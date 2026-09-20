@@ -35,7 +35,9 @@ declare module '@deepseek-ai/cordis' {
  */
 export interface AgentSetupCommit {
   /**
-   * Validate and commit the prepared setup immediately before publication.
+   * Validate and commit once after setup events are persisted, immediately before
+   * registry insertion with no intervening await. Record Session events in setup,
+   * not here: this finalizer must not append to the already-flushed log.
    * @throws when publication must roll the unpublished Agent back.
    */
   commit(): void
@@ -102,8 +104,8 @@ export interface CreateAgentOptions {
    * setup after minting `agentCtx` but BEFORE inserting or announcing either
    * the session or agent, so observers can never see a partially configured
    * world. Setup may return an {@link AgentSetupCommit}; the factory invokes its
-   * synchronous `commit()` after every setup await settles and immediately
-   * before registry publication. This lets mutable provisioning revalidate at
+   * synchronous `commit()` once after setup and persistence awaits settle,
+   * immediately before registry publication. This lets mutable provisioning revalidate at
    * the exact publication boundary. Everything registered through `agentCtx`
    * (scoped tools, prompt sections/variables, `restrict()`, listeners, awaited
    * child plugins) exists before `session/created`, `agent/created`,
