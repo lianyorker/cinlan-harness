@@ -14,8 +14,6 @@ import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop, { DEFAULT_MAX_PARALLEL_TOOL_CALLS } from '@deepseek-ai/dsh-agent-loop'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { MockAdapter, textResponse } from './mock-adapter.ts'
-import { CodeRuntime } from '@deepseek-ai/dsh-code-runtime'
-import type { CodeRunRequest, CodeRunResult } from '@deepseek-ai/dsh-code-runtime'
 
 async function harness(adapter: MockAdapter, maxParallelToolCalls?: number) {
   const ctx = new Context()
@@ -697,15 +695,6 @@ describe('tool-call scheduler: failure quiescence', () => {
 })
 
 describe('PTC mode native-tool denial through the agent loop', () => {
-  /** A minimal in-process code runtime for test purposes — never actually runs. */
-  class FakeCodeRuntime extends CodeRuntime {
-    readonly language = 'typescript'
-    readonly isolation = 'fake' as const
-    async run(_request: CodeRunRequest): Promise<CodeRunResult> {
-      return { logs: [] }
-    }
-  }
-
   async function ptcModeHarness(adapter: MockAdapter) {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
@@ -713,8 +702,11 @@ describe('PTC mode native-tool denial through the agent loop', () => {
     await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SystemPrompt, { personaPrefix: '' })
     await ctx.plugin(ToolRuntime, { mode: 'ptc' })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FakeCodeRuntime is an internal test helper with an opaque type shape
-    await ctx.plugin(FakeCodeRuntime as any)
+    ctx.provide('ptcRuntime', {
+      language: 'typescript', isolation: 'fake',
+      resolve: (request: Record<string, unknown>) => ({ ...request, cwd: process.cwd(), timeoutMs: 120_000 }),
+      run: async () => ({ logs: [] }),
+    } as never)
     await ctx.plugin(AgentRegistry)
     await ctx.plugin(AgentLoop, { agents: [] })
     ctx.llm.registerAdapter(['mock'], adapter)
