@@ -128,6 +128,13 @@ describe('maybeRecordPair', () => {
 })
 
 describe('spliceRegion', () => {
+  it('normalizes Windows source and rendered lines to stable LF output', () => {
+    const doc = ['# T', '', REGION_BEGIN, 'old', REGION_END, 'tail', ''].join('\r\n')
+    const region = [REGION_BEGIN, 'new', REGION_END].join('\r\n')
+    const expected = ['# T', '', REGION_BEGIN, 'new', REGION_END, 'tail', ''].join('\n')
+    expect(spliceRegion(doc, region)).toBe(expected)
+    expect(spliceRegion(expected, region)).toBe(expected)
+  })
   it('replaces exactly the cordis-surface region', () => {
     const doc = `# T\n\nprose\n\n${REGION_BEGIN}\nold\n${REGION_END}\ntail\n`
     expect(spliceRegion(doc, `${REGION_BEGIN}\nnew\n${REGION_END}`))

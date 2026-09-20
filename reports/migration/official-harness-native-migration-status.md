@@ -17,9 +17,9 @@
 | 阶段 | 状态 | 证据／剩余工作 |
 |---|---|---|
 | 0 工作树与基线 | 已完成 | 3,346 个非受控文件已逐文件 SHA-256 校验并归档；旧集成工作树与临时分支已正常移除；main 离线 frozen-lockfile install 通过；官方只读参考树保留用于迁移 |
-| 1 官方核心 | 实现与集成回归中 | Session／图像投影、附件预算、Node PTC／workflow、Desktop 更新与原生任务锁、Office Skills 已落代码；多数定向回归通过；Host／Client／Web 构建通过，Office 真实托管载荷和 Headless 源码／built 回放通过；最终 SDK exe 的 ACL／图像恢复／PTC 与 workflow 真执行通过，七批本地提交正在收尾；浏览器预设 6/7 通过，余项为基线已移除侧栏按钮对应的旧 ARIA 期望；权限切换 3 项行为通过，历史持久化回放差异仍在核对，尚未宣称阶段完成 |
-| 2 菜单／资源下载 | 未开始 | 以安全研究下载页形成完整资源管理 |
-| 3 Orca bridge 替换 | 未开始 | Computer Use 与 Mobile 原生实现 |
+| 1 官方核心 | 已完成本轮范围 | 七批本地提交止于 `88f1b251b2`；Host／Client／Web 构建、真实 Office 托管载荷、Headless 源码／built 回放、最终 SDK exe 的 ACL／图像恢复／PTC 与 workflow 验证通过。浏览器预设 6/7 通过，余项为旧侧栏 ARIA 期望；权限切换 3 项行为通过，afterAll 差异是基线已有模型路由与 workspace/changes 录制债。全局文档和 Windows 符号链接权限的既有失败仍保留，未宣称全部检查通过。 |
+| 2 菜单／资源下载 | 安全资源批次完成；语音／浏览器／CUA 配置待补 | 独立安全资源页与普通会话 Skill provider 已接通；资源包 22 个技能／503 个文件可复现。资源与真实 Session 回归 109 项通过，旧授权浏览器 8 项与资源流程 1 项分别通过；Host／Client／Web 构建通过。文档检查修复后 24 项通过、10 项既有失败。公开下载源未配置；语音重下／任务生命周期、浏览器组件管理、官方 CUA 就绪与权限接线继续实施。 |
+| 3 Orca bridge 替换 | 已完成只读预查，尚未实现 | Windows UIA／Win32 与 Koffi 可加载；ADB 37.0.0 可运行但设备列表为空。尚无真实设备操作验收；不以接口模拟代替原生行为。 |
 | 4 SSH／手机配对 | 未开始 | 实际远程执行和手机端协议 |
 | 5 剩余功能／安装包 | 未开始 | 最终 main 重建、干净环境与原生验收 |
 
@@ -33,4 +33,18 @@ Windows 受限 PTC 的控制管道源码回归已通过；初次失败来自源�
 
 锁文件由主协调工作统一生成并备份。一个并行子任务误还原共享 lock 后，已按当前 manifests 重新离线安装恢复。Host、Client 和 Web 构建已通过；公开类型等价检查 428 个主块及双语对应通过。权限 live catalog、稳定命令身份、预设切换策略和 Plugin Manager 工具已补齐。新 SDK 图像卸载场景已通过真实 profile 回放，未修改既有 JSONL。
 
-Python SEA 构建脚本内部的 `pnpm exec pkg` 触发 pnpm 11 生产依赖同步，移除了工作区开发依赖链接；正在修正为直接 Node 入口并恢复依赖。受影响的文档检查与 Office 回放保留失败记录，恢复后重跑。Office Windows 载荷已通过真实下载、SHA 校验、生产安装器复制和载荷内 Python 的 DOCX／PPTX／XLSX 生成重开检查；共 8,104 个文件、294,431,271 字节。Headless 源码与 built smoke 均通过，持久化场景显式等待 backend 就绪。Python 实际 exe 的图像卸载通过；Windows read-only ACL 通过，workspace-write 首轮失败已定位到 Python 临时目录的私有 OWNER RIGHTS ACL，源码与 exe 在同目录均失败；用正常继承 ACL 的隔离工作区复验后，read-only 拒写、workspace-write 写入、显式子目录和越界拒写全部通过，未放宽产品沙箱权限。PowerShell 5.1／7 的受限语言 UTF-8 前缀已修复并实测；最终 exe 三组 smoke 全部通过，SHA-256 为 `cd6a521bfdb8ba662186add60534aa191b708b6ebe8e6b2525421de3a2c3454d`，与 Python carrier 一致。本记录不把上述单项验证当作最终安装包验收。
+Python SEA 构建脚本内部的 `pnpm exec pkg` 曾触发 pnpm 11 生产依赖同步并移除开发依赖链接；构建器已改用直接 Node 入口，依赖已恢复，受影响的 Office 回放与定向检查已重跑通过。根 `.npmrc` 将隐式依赖同步设为失败退出，依赖变更由显式安装统一处理。Office Windows 载荷已通过真实下载、SHA 校验、生产安装器复制和载荷内 Python 的 DOCX／PPTX／XLSX 生成重开检查；共 8,104 个文件、294,431,271 字节。Headless 源码与 built smoke 均通过，持久化场景显式等待 backend 就绪。Python 实际 exe 的图像卸载通过；Windows read-only ACL 通过，workspace-write 首轮失败已定位到 Python 临时目录的私有 OWNER RIGHTS ACL，源码与 exe 在同目录均失败；用正常继承 ACL 的隔离工作区复验后，read-only 拒写、workspace-write 写入、显式子目录和越界拒写全部通过，未放宽产品沙箱权限。PowerShell 5.1／7 的受限语言 UTF-8 前缀已修复并实测；最终 exe 三组 smoke 全部通过，SHA-256 为 `cd6a521bfdb8ba662186add60534aa191b708b6ebe8e6b2525421de3a2c3454d`，与 Python carrier 一致。本记录不把上述单项验证当作最终安装包验收。
+
+## 安全资源验收
+
+资源管理器在 Web Host 根挂载一次，全局 provider 使普通 standard／PTC／Cordis 会话能够发现已安装技能；安全研究预设保留作用域覆盖。下载、重新下载、更新、移除和显式内置安装由 Host 持有，离开设置页不会取消任务。空安装记录也保存递增 revision，拒绝跨 Host 的过期提交；原子指针替换开始后以提交结果为准。已加载文件保留至所属 realm 释放，全局消费保留至 Host 关闭。
+
+真实浏览器测试验证受控 HTTP 下载进度、切页持续、取消、503 后重试、重新下载、更新、复用同一 home 的两次 Host 启动、移除，以及四个普通 Agent 的目录与技能正文读取。最终移除指针为 `schemaVersion: 1, revision: 4, installed: null`。另有真实 Agent Loop 使用官方技能工具加载根路由与 JavaScript 逆向技能，模型请求正文与重新打开 Session 后的持久化正文逐字一致；外部模型用脚本适配器替代，未调用外部模型服务。历史 Session JSONL 未改写。
+
+本地资源包为 `security-skills-1-0217f0389395d297.zip`，7,912,213 字节，SHA-256 `ef6ee244cef4d409dd9762046e655a6b00504556a51a9d2114294f12347c72c8`。正式模块入口重新构建得到相同哈希。清单没有公开下载 URL；发行内容保留来源与许可不完整的声明，安装不会执行附带脚本或配置外部 Agent／MCP。
+
+写锁持有者崩溃后仍需确认进程停止再人工恢复锁文件，该限制保留在包 README。全库 lint 实际执行得到 14 个警告和 2,544 个错误，诊断路径与本批修改文件没有交集；依赖检查仍因既有 `ui-deliverables` 的 `FsError` 身份分类缺失失败。未放宽检查规则，也未将这些检查写成通过。
+
+本批前两笔本地提交为 `491f5e9707`（资源管理、Provider、打包及回归）和 `5f0c900fea`（独立资源设置页、Remote 与普通会话装配）。生成目录收口修复了显式子入口被自动别名区域覆盖、全局事件误用作用域扫描注解，以及 Windows CRLF 导致重复生成漂移的问题；生成目录新鲜度和 13 项配对／区域回归通过。没有远端推送。
+
+文档全量 34 个检查叶子通过直接 Node 入口执行，包含 quick 子集且不重复运行；本批问题修复后 24 项通过，余 10 项是基线既有文档／格式问题，原始失败与逐项分类保存在本地验收日志。生产文档站构建及 3,054 个内部片段解析通过。完整阶段 2 仍需完成语音、浏览器与 CUA 资源配置，安全资源完成不代表全部菜单已经交付。

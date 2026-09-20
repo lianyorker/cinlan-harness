@@ -34,11 +34,11 @@ dsh plugin --profile <name> add @deepseek-ai/dsh-security-research
 dsh plugin --profile <name> remove @deepseek-ai/dsh-security-research
 ```
 
-The shipped `security-research` profile includes this bundle after `dsh-base` and `dsh-web-app`. A custom profile must include a base layer and an Execution Host provider before this patch; the Web layer supplies the local provider.
+The shipped `security-research` profile includes this bundle after `dsh-base` and `dsh-web-app`. A custom profile must supply a base layer, an Execution Host provider, and one Host-root `@deepseek-ai/dsh-security-skills/resources` manager before this patch. The Web layer supplies the local Execution Host and resource manager. Install packaged or configured network resources through Security Research settings before discovering their skills.
 
 ### What you get
 
-The layer mounts local persistent Artifact storage under $DSH_HOME/artifacts/v1, assessment scope and Session binding, durable Finding tools, NVD/OSV vulnerability queries, the bundled Security Skills provider, and the security workflow prompt. The bundle contributes its packaged `security-research` Agent preset through the preset registry, when present. The preset adds a research persona and scoped Security Skills to the coding composition. The profile-global security providers and tools remain shared. Settings shows Security Research only while that preset is on the roster; generic Web profiles do not acquire it from a CLI dependency alone.
+The layer mounts local persistent Artifact storage under $DSH_HOME/artifacts/v1, assessment scope and Session binding, durable Finding tools, NVD/OSV vulnerability queries, and the security workflow prompt. The Web layer supplies the global Security Skills provider for normal sessions. The bundle contributes its packaged `security-research` Agent preset through the preset registry, when present. The preset adds a research persona and scoped Security Skills to the coding composition. The profile-global security providers and tools remain shared. The independent Security Research settings page manages resources through the shared manager. Its visibility does not depend on the optional research preset; installing resources does not add assessment grants or start an Agent.
 
 -----
 

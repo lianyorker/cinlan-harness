@@ -30,8 +30,7 @@ declare module '@deepseek-ai/cordis' {
      * Detached resource state after an operation transition or installation commit.
      * @mode parallel
      * @param snapshot - Complete published resource and Host operation state, detached from manager storage.
-     * @dshScopeScan unsupported Host-owned resource state is shared across Agent scopes.
-     */
+       */
     'security-skill-resources/changed'(snapshot: SecuritySkillResourceStatus): void | Promise<void>
   }
 }

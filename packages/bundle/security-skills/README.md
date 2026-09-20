@@ -7,7 +7,7 @@ kind: "package-bundle"
 English | [中文](README.zh.md)
 
 ## Summary
-This bundle loads the security skill provider and its immutable reference assets into the Harness skill registry. It gives a profile reusable guidance for common application, infrastructure, mobile, binary, and supply-chain research workflows.
+This bundle loads the security skill provider into the Harness skill registry; the provider discovers the resource manager’s active installation. It gives a profile reusable guidance for common application, infrastructure, mobile, binary, and supply-chain research workflows.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ This bundle loads the security skill provider and its immutable reference assets
 
 <a id="use-this-package"></a>
 ## Use this package
-Load the bundle through a dsh profile with the skill registry. Skill content does not grant assessment targets or bypass the assessment-scope service.
+Load the bundle through a dsh profile with the skill registry and the [resource manager](../../security/security-skills/README.md). The Web bundle supplies the manager; other compositions explicitly mount `@deepseek-ai/dsh-security-skills/resources` once at the Host root. Install resources through Security Research settings before loading their skills. Skill content does not grant assessment targets or bypass the assessment-scope service.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -32,10 +32,10 @@ Only selected skill content affects model requests; the bundle itself contribute
 ## Known Limitations and Deferred Work
 <a id="known-limitations-and-deferred-work"></a>
 
-- Skill assets are shipped with the bundle and are not edited through Web Settings.
+- Packaged assets are an explicit installation source. Network download requires a configured release manifest URL; the bundle does not infer a public endpoint.
 - Guidance remains advisory; authorization and evidence requirements are enforced by other packages.
 
-No runtime invariant companion is published because the bundle only composes an immutable skill contribution.
+No runtime invariant companion is published because the bundle only composes the provider; installation state and retention belong to the resource manager.
 
 <a id="dev-note"></a>
 ### Dev Note

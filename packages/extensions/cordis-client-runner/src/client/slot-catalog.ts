@@ -2188,6 +2188,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-settings-mcp McpSettingsSection id \'mcp\'',
       'client-ui-settings-models ModelsSection id \'models\'',
       'client-ui-settings-plugins PluginsSettingsSection id \'plugins\'',
+      'client-ui-settings-security SecurityResourcesSection id \'cinlan-security\'',
       'client-ui-settings-security CapabilitySection',
       'client-ui-settings-terminal TerminalSettingsSection id \'terminal\'',
       'client-ui-settings-unarchive-sessions ArchivedSessionsSection id \'archived-sessions\'',

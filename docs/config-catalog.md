@@ -251,7 +251,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/security-research-controller/src/index.ts:44`](../packages/api/security-research-controller/src/index.ts)
+Source: [`packages/api/security-research-controller/src/index.ts:48`](../packages/api/security-research-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-session-controller"></a>
 
@@ -2706,7 +2706,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/pwsh-local/src/index.ts:58`](../packages/shell/pwsh-local/src/index.ts)
+Source: [`packages/shell/pwsh-local/src/index.ts:62`](../packages/shell/pwsh-local/src/index.ts)
 
 <a id="deepseek-aidsh-pwsh-sandbox"></a>
 
@@ -5087,7 +5087,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-sandbox-ssh` — requires `ssh` ([`packages/ssh/sandbox-ssh/src/index.ts`](../packages/ssh/sandbox-ssh/src/index.ts))
 - `@deepseek-ai/dsh-schedule` — requires `agents` · `sessions` · `tools` · `sessionPersistence` ([`packages/schedule/schedule/src/index.ts`](../packages/schedule/schedule/src/index.ts))
 - `@deepseek-ai/dsh-security-research` ([`packages/bundle/security-research/src/index.ts`](../packages/bundle/security-research/src/index.ts))
-- `@deepseek-ai/dsh-security-skills` — requires `skills` ([`packages/security/security-skills/src/index.ts`](../packages/security/security-skills/src/index.ts))
+- `@deepseek-ai/dsh-security-skills` — requires `skills` · `securitySkillResources` ([`packages/security/security-skills/src/index.ts`](../packages/security/security-skills/src/index.ts))
 - `@deepseek-ai/dsh-security-workflow-prompt` — requires `systemPrompt` ([`packages/security/security-workflow-prompt/src/index.ts`](../packages/security/security-workflow-prompt/src/index.ts))
 - `@deepseek-ai/dsh-session` ([`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts))
 - `@deepseek-ai/dsh-session-checkpoint-policy` — requires `llm` · `sessionPersistence` · `sessions` · `tools` ([`packages/session/session-checkpoint-policy/src/index.ts`](../packages/session/session-checkpoint-policy/src/index.ts))

@@ -54,7 +54,7 @@ maxFindings 默认 2000，maxReportBytes 默认 4194304。超过限制、Session
 
 #### 模型看到的内容
 
-控制器不注册模型工具或提示词。资源响应保留在 Settings 中；安装后的目录变化由[技能提供方](../../security/security-skills/README.zh.md)持有。报告下载审计事件只记录日志。
+控制器不注册模型工具或提示词。`describeResources` 和 `observeResources` 响应保留在 Settings 中；安装后的目录变化由[技能提供方](../../security/security-skills/README.zh.md)持有。报告下载审计事件只记录日志。
 
 #### Token 影响
 

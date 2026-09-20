@@ -2732,8 +2732,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'securityResearchController',
-    summary: 'Host owner of Security Research status and explicit local report downloads.',
-    description: 'Host owner of Security Research status and explicit local report downloads.',
+    summary: 'Host Remote for resource management, assessment status, and authorized report downloads.',
+    description: 'Host Remote for resource management, assessment status, and authorized report downloads.',
     methods: [
       {
         signature: '@Remote(\'describe\') async describe(signal: AbortSignal): Promise<SecurityResearchSnapshot>',
@@ -2746,6 +2746,121 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Export a complete same-Session report after every contained target passes report-download authorization.',
         parameters: [{ name: 'request', description: 'Live Session and report format; free-text Finding metadata is exported verbatim.' }, { name: 'signal', description: 'Caller cancellation, checked again after every asynchronous operation.' }],
         returns: 'Bounded deterministic bytes after the authorization decisions reach Session storage.',
+      },
+      {
+        signature: '@Remote(\'describeResources\') async describeResources(signal: AbortSignal): Promise<SecurityResourceAvailability>',
+        description: 'Read resource status without starting an installation or checking the network.',
+        parameters: [{ name: 'signal', description: 'Caller cancellation for this observation.' }],
+        returns: 'The manager snapshot or explicit component absence.',
+      },
+      {
+        signature: '@Remote({ mode: \'stream\' }) async *observeResources(signal: AbortSignal): AsyncIterable<SecurityResourceAvailability>',
+        description: 'Observe replacement snapshots; slow consumers retain only a pending refresh.',
+        parameters: [{ name: 'signal', description: 'Observer lifetime; cancellation never stops a resource operation.' }],
+        returns: 'Initial state and manager changes until cancellation or controller disposal.',
+      },
+      {
+        signature: '@Remote(\'checkResourceUpdate\') checkResourceUpdate(signal: AbortSignal): Promise<SecuritySkillResourceStatus>',
+        description: 'Start a Host-owned release lookup.',
+        parameters: [{ name: 'signal', description: 'Caller cancellation before admission, independent of admitted work.' }],
+        returns: 'The admitted operation and current installation.',
+      },
+      {
+        signature: '@Remote(\'installResource\') installResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus>',
+        description: 'Start a Host-owned download and installation.',
+        parameters: [{ name: 'signal', description: 'Caller cancellation before admission, independent of admitted work.' }],
+        returns: 'The admitted operation and current installation.',
+      },
+      {
+        signature: '@Remote(\'reinstallResource\') reinstallResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus>',
+        description: 'Replace installed resources using the configured release source.',
+        parameters: [{ name: 'signal', description: 'Caller cancellation before admission, independent of admitted work.' }],
+        returns: 'The admitted operation while the committed installation remains available.',
+      },
+      {
+        signature: '@Remote(\'updateResource\') updateResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus>',
+        description: 'Start installation of an available resource update.',
+        parameters: [{ name: 'signal', description: 'Caller cancellation before admission, independent of admitted work.' }],
+        returns: 'The admitted operation and current installation.',
+      },
+      {
+        signature: '@Remote(\'installBundledResource\') installBundledResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus>',
+        description: 'Explicitly install the package\'s bundled resources without a download source.',
+        parameters: [{ name: 'signal', description: 'Caller cancellation before admission, independent of admitted work.' }],
+        returns: 'The admitted operation and bundled provenance after commit.',
+      },
+      {
+        signature: '@Remote(\'cancelResource\') cancelResource(request: SecurityResearchResourceCancelRequest, signal: AbortSignal): Promise<SecuritySkillResourceStatus>',
+        description: 'Cancel only the exact operation the caller observed.',
+        parameters: [{ name: 'request', description: 'Manager-issued operation identity.' }, { name: 'signal', description: 'Caller cancellation before admission.' }],
+        returns: 'Manager state after the explicit cancellation request.',
+      },
+      {
+        signature: '@Remote(\'removeResource\') removeResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus>',
+        description: 'Remove the managed installation through its generation owner.',
+        parameters: [{ name: 'signal', description: 'Caller cancellation before admission, independent of admitted work.' }],
+        returns: 'The manager\'s removal state.',
+      },
+    ],
+  },
+  {
+    key: 'securitySkillResources',
+    summary: 'Shared Host service; Agent providers only borrow committed generations.',
+    description: 'Shared Host service; Agent providers only borrow committed generations.',
+    methods: [
+      {
+        signature: 'async status(): Promise<SecuritySkillResourceStatus>',
+        description: 'Inspect committed state and current Host operation.',
+        parameters: [],
+        returns: 'A detached snapshot, including an explicit unavailable download reason.',
+      },
+      {
+        signature: 'async checkUpdate(): Promise<SecuritySkillResourceStatus>',
+        description: 'Check only the configured release manifest.',
+        parameters: [],
+        returns: 'Snapshot of the newly started Host operation.',
+      },
+      {
+        signature: 'async install(): Promise<SecuritySkillResourceStatus>',
+        description: 'Download and install into an empty resource state.',
+        parameters: [],
+        returns: 'Snapshot of the newly started Host operation.',
+      },
+      {
+        signature: 'async reinstall(): Promise<SecuritySkillResourceStatus>',
+        description: 'Fetch and validate the release again while preserving the active generation.',
+        parameters: [],
+        returns: 'Snapshot of the newly started Host operation.',
+      },
+      {
+        signature: 'async update(): Promise<SecuritySkillResourceStatus>',
+        description: 'Install a different published version after validating its entire inventory.',
+        parameters: [],
+        returns: 'Snapshot of the newly started Host operation.',
+      },
+      {
+        signature: 'async installBundled(): Promise<SecuritySkillResourceStatus>',
+        description: 'Copy the audited package seed; this operation performs no download.',
+        parameters: [],
+        returns: 'Snapshot of the newly started Host operation, marked bundled.',
+      },
+      {
+        signature: 'async remove(): Promise<SecuritySkillResourceStatus>',
+        description: 'Atomically unpublish resources; leased generations remain readable.',
+        parameters: [],
+        returns: 'Snapshot of the newly started Host operation.',
+      },
+      {
+        signature: 'async cancel(expectedOperationId?: SecuritySkillOperationId): Promise<SecuritySkillResourceStatus>',
+        description: 'Cancel only the specified Host operation and await its cleanup.',
+        parameters: [{ name: 'expectedOperationId', description: 'Optional identity protecting against a stale cancel action.' }],
+        returns: 'State after settlement. Cancellation before publication preserves the prior generation; an atomic replacement already in progress may commit and is never rolled back.',
+      },
+      {
+        signature: 'async acquire(): Promise<SecuritySkillGenerationLease | undefined>',
+        description: 'Borrow the current generation until the owning realm releases it.',
+        parameters: [],
+        returns: 'A lease or undefined when no generation is installed.',
       },
     ],
   },
@@ -5731,6 +5846,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'An installation moved between its Host phases.',
     description: 'An installation moved between its Host phases.',
     parameters: [{ name: 'progress', description: 'the installation\'s request id and phase.' }],
+  },
+  {
+    name: 'security-skill-resources/changed',
+    mode: 'parallel',
+    signature: '\'security-skill-resources/changed\'(snapshot: SecuritySkillResourceStatus): void | Promise<void>',
+    summary: 'Detached resource state after an operation transition or installation commit.',
+    description: 'Detached resource state after an operation transition or installation commit.',
+    parameters: [{ name: 'snapshot', description: 'Complete published resource and Host operation state, detached from manager storage.' }],
   },
   {
     name: 'session-telemetry/record',
@@ -8793,12 +8916,48 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SecurityResearchReportValue {\n    readonly fileName: string;\n    readonly mediaType: \'application/json\' | \'text/markdown\' | \'application/sarif+json\';\n    readonly bytes: number;\n    readonly base64: string;\n    readonly findingCount: number;\n}',
   },
   {
+    name: 'SecurityResearchResourceCancelRequest',
+    declaration: 'export interface SecurityResearchResourceCancelRequest {\n    readonly operationId: SecuritySkillResourceOperation[\'id\'];\n}',
+  },
+  {
     name: 'SecurityResearchScopeStatus',
     declaration: 'export interface SecurityResearchScopeStatus {\n    readonly present: boolean;\n    readonly state: \'missing\' | \'empty\' | \'configured\' | \'not-yet-valid\' | \'expired\';\n    readonly targetCount: number;\n    readonly actionCount: number;\n    readonly executionHostCount: number;\n    readonly egressCount: number;\n    readonly credentialCount: number;\n    readonly minimumRedaction?: \'none\' | \'secrets\' | \'sensitive\';\n    readonly externalReporting?: \'deny\' | \'approval-required\' | \'allow\';\n}',
   },
   {
     name: 'SecurityResearchSnapshot',
     declaration: 'export interface SecurityResearchSnapshot {\n    readonly status: \'configured\' | \'not-configured\' | \'attention\';\n    readonly preset: SecurityResearchPresetStatus;\n    readonly scope: SecurityResearchScopeStatus;\n    readonly components: SecurityResearchComponents;\n    readonly skillCount: number;\n    readonly skillsComplete: boolean;\n}',
+  },
+  {
+    name: 'SecurityResourceAvailability',
+    declaration: 'export type SecurityResourceAvailability = SecuritySkillResourceStatus | {\n    readonly state: \'unavailable\';\n    readonly reason: \'component-missing\';\n};',
+  },
+  {
+    name: 'SecuritySkillGenerationId',
+    declaration: 'export type SecuritySkillGenerationId = Branded<\'SecuritySkillGenerationId\'>;',
+  },
+  {
+    name: 'SecuritySkillGenerationLease',
+    declaration: 'export interface SecuritySkillGenerationLease {\n    directory: string;\n    installation: SecuritySkillResourceInstallation;\n    release(): Promise<void>;\n}',
+  },
+  {
+    name: 'SecuritySkillOperationId',
+    declaration: 'export type SecuritySkillOperationId = Branded<\'SecuritySkillOperationId\'>;',
+  },
+  {
+    name: 'SecuritySkillResourceInstallation',
+    declaration: 'export interface SecuritySkillResourceInstallation {\n    version: string;\n    generation: SecuritySkillGenerationId;\n    source: SecuritySkillResourceSource;\n    installedAt: number;\n    skillCount: number;\n}',
+  },
+  {
+    name: 'SecuritySkillResourceOperation',
+    declaration: 'export interface SecuritySkillResourceOperation {\n    id: SecuritySkillOperationId;\n    kind: \'check-update\' | \'install\' | \'reinstall\' | \'update\' | \'install-bundled\' | \'remove\';\n    phase: \'fetching-manifest\' | \'downloading\' | \'extracting\' | \'validating\' | \'committing\' | \'cancelling\';\n    bytesReceived: number;\n    totalBytes?: number;\n}',
+  },
+  {
+    name: 'SecuritySkillResourceSource',
+    declaration: 'export interface SecuritySkillResourceSource {\n    kind: \'bundled\' | \'download\';\n    url?: string;\n}',
+  },
+  {
+    name: 'SecuritySkillResourceStatus',
+    declaration: 'export interface SecuritySkillResourceStatus {\n    resourceId: \'security-skills\';\n    state: \'not-installed\' | \'installed\' | \'error\';\n    installed?: SecuritySkillResourceInstallation;\n    available?: {\n        version: string;\n        bytes: number;\n        sha256: string;\n    };\n    download: {\n        available: boolean;\n        reason?: string;\n    };\n    operation?: SecuritySkillResourceOperation;\n    lastError?: string;\n}',
   },
   {
     name: 'SendTeamMessageRequest',

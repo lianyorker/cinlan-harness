@@ -166,7 +166,8 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@deepseek-ai/dsh-agent-presets': ['presets'],
   // Optional research presets and skill bodies are runtime-loaded assets.
   '@deepseek-ai/dsh-security-research': ['presets'],
-  '@deepseek-ai/dsh-security-skills': ['assets'],
+  // The provider, resource manager and shared inventory publish separate runtime entries and shared chunks.
+  '@deepseek-ai/dsh-security-skills': ['assets', 'lib/*.js'],
   // The sidebar requests these browser chunks when a viewer first opens.
   '@deepseek-ai/dsh-client-ui-better-sidebar': [
     'lib/client-registry.js', 'lib/client-terminal.js', 'lib/client-editor.js', 'lib/client-mermaid.js',

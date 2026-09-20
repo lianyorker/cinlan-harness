@@ -242,7 +242,12 @@ const SERVICE_ROLES: ServiceRole[] = [
   {
     key: 'securityResearchController', pkg: 'api-security-research-controller', title: 'Security research Remote controller', mode: 'core',
     consumers: ['client-ui-settings-security'],
-    note: 'Exposes assessment scope, findings, evidence artifacts, and vulnerability knowledge through their owning services.',
+    note: 'Exposes resource management, assessment scope, findings, evidence artifacts, and vulnerability knowledge through their owning services.',
+  },
+  {
+    key: 'securitySkillResources', pkg: 'security-skills', title: 'Security skill resources', mode: 'core',
+    consumers: ['security-skills', 'api-security-research-controller'],
+    note: 'Installs verified resource generations and retains loaded paths until their Agent realms release them.',
   },
   {
     key: 'sessionFeedback', pkg: 'command-feedback', title: 'Human Session feedback', mode: 'core',

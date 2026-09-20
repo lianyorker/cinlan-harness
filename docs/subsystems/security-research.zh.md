@@ -12,6 +12,7 @@
 - [Session 评估状态](#session-assessment-state)
 - [持久化发现记录](#durable-findings)
 - [漏洞知识库](#vulnerability-knowledge-base)
+- [技能资源](#skill-resources)
 - [开发备注](#dev-note)
 
 <a id="assessment-grants"></a>
@@ -118,6 +119,23 @@
 | `VulnQueryResult` | `entries: readonly VulnEntry[]`、`total: number`、`truncated: boolean`；匹配总数可能超过返回的条目数。 |
 | `VulnKbProvider` | 只读的 `id: VulnKbProviderId`；`query(request, signal?)` 返回 `VulnQueryResult`；`read(cveId, signal?)` 返回 `VulnEntry`；可选的 `dispose()` 返回 void 或 Promise。signal 类型为 `AbortSignal`。 |
 | `VulnKbErrorCode`, `VulnKbError` | 错误码：`not_found`、`invalid_query`、`query_failed`、`unavailable`。该 Error 携带只读的 `code`、名称 `VulnKbError`、消息和可选的 `ErrorOptions`。 |
+
+<a id="skill-resources"></a>
+
+## 技能资源
+
+[资源类型声明](../../packages/security/security-skills/src/types.ts)将安装状态与评估授权分开。[资源管理器](../../packages/security/security-skills/README.zh.md)负责下载、验证、原子激活和版本保留；官方 Skill 注册表只发现当前激活版本。安装资源不授予评估权限，也不执行资源脚本。
+
+| 类型 | 字段与含义 |
+|---|---|
+| `SecuritySkillGenerationId`、`SecuritySkillOperationId` | 带品牌的版本与操作标识；均不是调用者提供的文件系统路径。 |
+| `SecuritySkillResourceSource` | `kind: bundled` / `download` 和可选的已脱敏 `url` 区分随包资源与网络交付。 |
+| `SecuritySkillResourceInstallation` | `version`、`generation`、`source`、毫秒时间戳 `installedAt` 和 `skillCount` 标识已提交安装。 |
+| `SecuritySkillResourceOperation` | `id`、`kind`、`phase`、`bytesReceived` 和可选的 `totalBytes` 描述当前由 Host 持有的操作。 |
+| `SecuritySkillResourceStatus` | 固定的 `resourceId: security-skills`；`state: not-installed` / `installed` / `error`；可选的 `installed`、`available`、`operation` 和安全的 `lastError`；`download` 报告来源可用性。 |
+| `SecuritySkillGenerationLease` | `directory` 和 `installation` 标识保留内容。等待 `release()` 完成后才结束该使用方的保留。 |
+
+已启动操作归 Host 持有。关闭观察流不会取消操作；取消请求指定准确的当前操作标识。下载失败保留已提交安装。移除版本会撤下目录发现，租约则保留已经返回给 Agent realm 的路径。资源管理器在 Session 日志之外持久化当前版本和单调递增的修订号。移除资源会以新修订号提交空安装，延迟写入者因此不能重新激活之前的空状态。版本准备与激活使用同一写锁。加载后的技能内容遵循既有的带日志 Skill 加载机制。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -245,6 +263,63 @@ Types: [Agent](core.zh.md)
 
 Source: [`packages/security/finding/src/index.ts`](../../packages/security/finding/src/index.ts)
 
+<a id="ctxsecurityskillresources--securityskillresources"></a>
+
+### `ctx.securitySkillResources` — `SecuritySkillResources`
+
+Shared Host service; Agent providers only borrow committed generations.
+
+```ts cordis-catalog
+/** Inspect committed state and current Host operation.
+ * @returns A detached snapshot, including an explicit unavailable download reason.
+ */
+async status(): Promise<SecuritySkillResourceStatus>
+
+/** Check only the configured release manifest.
+ * @returns Snapshot of the newly started Host operation.
+ */
+async checkUpdate(): Promise<SecuritySkillResourceStatus>
+
+/** Download and install into an empty resource state.
+ * @returns Snapshot of the newly started Host operation.
+ */
+async install(): Promise<SecuritySkillResourceStatus>
+
+/** Fetch and validate the release again while preserving the active generation.
+ * @returns Snapshot of the newly started Host operation.
+ */
+async reinstall(): Promise<SecuritySkillResourceStatus>
+
+/** Install a different published version after validating its entire inventory.
+ * @returns Snapshot of the newly started Host operation.
+ */
+async update(): Promise<SecuritySkillResourceStatus>
+
+/** Copy the audited package seed; this operation performs no download.
+ * @returns Snapshot of the newly started Host operation, marked bundled.
+ */
+async installBundled(): Promise<SecuritySkillResourceStatus>
+
+/** Atomically unpublish resources; leased generations remain readable.
+ * @returns Snapshot of the newly started Host operation.
+ */
+async remove(): Promise<SecuritySkillResourceStatus>
+
+/** Cancel only the specified Host operation and await its cleanup.
+ * @param expectedOperationId - Optional identity protecting against a stale cancel action.
+ * @returns State after settlement. Cancellation before publication preserves the prior generation;
+ * an atomic replacement already in progress may commit and is never rolled back.
+ */
+async cancel(expectedOperationId?: SecuritySkillOperationId): Promise<SecuritySkillResourceStatus>
+
+/** Borrow the current generation until the owning realm releases it.
+ * @returns A lease or undefined when no generation is installed.
+ */
+async acquire(): Promise<SecuritySkillGenerationLease | undefined>
+```
+
+Source: [`packages/security/security-skills/src/resources.ts`](../../packages/security/security-skills/src/resources.ts)
+
 <a id="ctxvulnkb--vulnkbruntime"></a>
 
 ### `ctx.vulnKb` — `VulnKbRuntime`
@@ -277,6 +352,27 @@ read(cveId: CveId, signal?: AbortSignal): Promise<VulnEntry>
 ```
 
 Source: [`packages/security/vuln-kb-service/src/index.ts`](../../packages/security/vuln-kb-service/src/index.ts)
+
+<a id="security-skill-resources-events"></a>
+
+### `security-skill-resources/*` events
+
+<a id="security-skill-resourceschanged--parallel"></a>
+
+#### `security-skill-resources/changed` — parallel
+
+Detached resource state after an operation transition or installation commit.
+
+```ts cordis-catalog
+/**
+ * Detached resource state after an operation transition or installation commit.
+ * @mode parallel
+ * @param snapshot - Complete published resource and Host operation state, detached from manager storage.
+   */
+'security-skill-resources/changed'(snapshot: SecuritySkillResourceStatus): void | Promise<void>
+```
+
+Source: [`packages/security/security-skills/src/resources.ts`](../../packages/security/security-skills/src/resources.ts)
 <!-- END GENERATED cordis-surface -->
 
 <a id="dev-note"></a>

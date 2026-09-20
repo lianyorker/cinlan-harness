@@ -145,7 +145,7 @@ function SecurityResearchBody(props: BodyProps): ReactNode {
 参考 Orca 的 `AgentSkillSetupPanel`，创建 DSH 版本的安装卡片：
 
 ```typescript
-// packages/client/ui-settings-security/src/client/SkillInstallCard.tsx
+// 当前资源页实现：packages/client/ui-settings-security/src/client/SecurityResourcesSection.tsx；以下 SkillInstallCard 为历史方案。
 
 function SkillInstallCard({ title, description, installCommand, t }: Props): ReactNode {
   return <div className={css.installCard}>

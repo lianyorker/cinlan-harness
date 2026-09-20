@@ -101,6 +101,8 @@ flowchart LR
   pkg_tools["tools"]
   pkg_workflow_ptc["workflow-ptc"]
   svc_securityResearchController["ctx.securityResearchController<br/>Security research Remote controller"]
+  pkg_security_skills["security-skills"]
+  svc_securitySkillResources["ctx.securitySkillResources<br/>Security skill resources"]
   pkg_command_feedback["command-feedback"]
   svc_sessionFeedback["ctx.sessionFeedback<br/>Human Session feedback"]
   pkg_client_ui_message_feedback["client-ui-message-feedback"]
@@ -494,6 +496,7 @@ flowchart LR
   pkg_sandbox --> svc_sandbox
   pkg_sandbox_local --> svc_sandbox
   pkg_sandbox_policy --> svc_sandboxPolicy
+  pkg_security_skills --> svc_securitySkillResources
   pkg_session --> svc_sessions
   pkg_session_log_deepseek --> svc_deepseekLlmApiExtensions
   pkg_session_persistence --> svc_sessionPersistence
@@ -665,6 +668,8 @@ flowchart LR
   svc_sandboxPolicy --> pkg_fs_sandbox
   svc_sandboxPolicy --> pkg_terminal_bash
   svc_securityResearchController --> pkg_client_ui_settings_security
+  svc_securitySkillResources --> pkg_api_security_research_controller
+  svc_securitySkillResources --> pkg_security_skills
   svc_sessionFeedback --> pkg_client_ui_message_feedback
   svc_sessionPersistence --> pkg_agent_loop
   svc_sessionPersistence --> pkg_hooks_claude_code
@@ -804,7 +809,8 @@ flowchart LR
 | `ctx.officeToPdf` | `core` | [`office-to-pdf`](../packages/document/office-to-pdf) | - | [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | Owns reusable converters, bounded conversion queues, cached outputs, and authorized workspace previews. |
 | `ctx.pluginManagementHost` | `seam` | [`plugin-manager`](../packages/boot/plugin-manager) | - | [`plugin-manager`](../packages/boot/plugin-manager), [`host-plugin-inventory`](../packages/host/plugin-inventory) | - | The Desktop launcher supplies protected entry ids and complete application patches; package transactions remain launcher-owned. |
 | `ctx.ptcRuntime` | `seam` | [`ptc-runtime`](../packages/ptc-runtime/ptc-runtime) | [`ptc-runtime-node`](../packages/ptc-runtime/ptc-runtime-node) | [`tools`](../packages/core/tools), [`workflow-ptc`](../packages/workflow/workflow-ptc), [`ptc-runtime-node`](../packages/ptc-runtime/ptc-runtime-node) | - | Resolves and runs programs with typed tool bindings; the Node provider also exposes the local code-runtime compatibility adapter. |
-| `ctx.securityResearchController` | `core` | [`api-security-research-controller`](../packages/api/security-research-controller) | - | [`client-ui-settings-security`](../packages/client/ui-settings-security) | - | Exposes assessment scope, findings, evidence artifacts, and vulnerability knowledge through their owning services. |
+| `ctx.securityResearchController` | `core` | [`api-security-research-controller`](../packages/api/security-research-controller) | - | [`client-ui-settings-security`](../packages/client/ui-settings-security) | - | Exposes resource management, assessment scope, findings, evidence artifacts, and vulnerability knowledge through their owning services. |
+| `ctx.securitySkillResources` | `core` | [`security-skills`](../packages/security/security-skills) | - | [`security-skills`](../packages/security/security-skills), [`api-security-research-controller`](../packages/api/security-research-controller) | - | Installs verified resource generations and retains loaded paths until their Agent realms release them. |
 | `ctx.sessionFeedback` | `core` | [`command-feedback`](../packages/feedback/command-feedback) | - | [`client-ui-message-feedback`](../packages/client/ui-message-feedback) | - | Records human feedback in the Session without starting model work. |
 | `ctx.sidebarGit` | `core` | [`sidebar-git`](../packages/git/sidebar-git) | - | [`api-sidebar-git-controller`](../packages/api/sidebar-git-controller), [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | Serializes repository mutations and supplies commit previews for the sidebar. |
 | `ctx.sidebarGitController` | `core` | [`api-sidebar-git-controller`](../packages/api/sidebar-git-controller) | - | [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | Exposes sidebar repository state and operations through the shared Git owner. |

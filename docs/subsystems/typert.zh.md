@@ -669,7 +669,7 @@ Source: [`packages/api/mcp-controller/src/index.ts`](../../packages/api/mcp-cont
 
 ### `ctx.securityResearchController` — `SecurityResearchController`
 
-Host owner of Security Research status and explicit local report downloads.
+Host Remote for resource management, assessment status, and authorized report downloads.
 
 ```ts cordis-catalog
 /**
@@ -687,7 +687,73 @@ Host owner of Security Research status and explicit local report downloads.
  * @returns Bounded deterministic bytes after the authorization decisions reach Session storage.
  */
 @Remote('exportReport') async exportReport(request: SecurityResearchReportRequest, signal: AbortSignal): Promise<SecurityResearchReportValue>
+
+/**
+ * Read resource status without starting an installation or checking the network.
+ * @param signal - Caller cancellation for this observation.
+ * @returns The manager snapshot or explicit component absence.
+ */
+@Remote('describeResources') async describeResources(signal: AbortSignal): Promise<SecurityResourceAvailability>
+
+/**
+ * Observe replacement snapshots; slow consumers retain only a pending refresh.
+ * @param signal - Observer lifetime; cancellation never stops a resource operation.
+ * @returns Initial state and manager changes until cancellation or controller disposal.
+ */
+@Remote({ mode: 'stream' }) async *observeResources(signal: AbortSignal): AsyncIterable<SecurityResourceAvailability>
+
+/**
+ * Start a Host-owned release lookup.
+ * @param signal - Caller cancellation before admission, independent of admitted work.
+ * @returns The admitted operation and current installation.
+ */
+@Remote('checkResourceUpdate') checkResourceUpdate(signal: AbortSignal): Promise<SecuritySkillResourceStatus>
+
+/**
+ * Start a Host-owned download and installation.
+ * @param signal - Caller cancellation before admission, independent of admitted work.
+ * @returns The admitted operation and current installation.
+ */
+@Remote('installResource') installResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus>
+
+/**
+ * Replace installed resources using the configured release source.
+ * @param signal - Caller cancellation before admission, independent of admitted work.
+ * @returns The admitted operation while the committed installation remains available.
+ */
+@Remote('reinstallResource') reinstallResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus>
+
+/**
+ * Start installation of an available resource update.
+ * @param signal - Caller cancellation before admission, independent of admitted work.
+ * @returns The admitted operation and current installation.
+ */
+@Remote('updateResource') updateResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus>
+
+/**
+ * Explicitly install the package's bundled resources without a download source.
+ * @param signal - Caller cancellation before admission, independent of admitted work.
+ * @returns The admitted operation and bundled provenance after commit.
+ */
+@Remote('installBundledResource') installBundledResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus>
+
+/**
+ * Cancel only the exact operation the caller observed.
+ * @param request - Manager-issued operation identity.
+ * @param signal - Caller cancellation before admission.
+ * @returns Manager state after the explicit cancellation request.
+ */
+@Remote('cancelResource') cancelResource(request: SecurityResearchResourceCancelRequest, signal: AbortSignal): Promise<SecuritySkillResourceStatus>
+
+/**
+ * Remove the managed installation through its generation owner.
+ * @param signal - Caller cancellation before admission, independent of admitted work.
+ * @returns The manager's removal state.
+ */
+@Remote('removeResource') removeResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus>
 ```
+
+Types: [SecuritySkillResourceStatus](security-research.zh.md)
 
 Source: [`packages/api/security-research-controller/src/index.ts`](../../packages/api/security-research-controller/src/index.ts)
 

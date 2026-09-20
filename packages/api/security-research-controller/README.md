@@ -54,7 +54,7 @@ maxFindings defaults to 2000; maxReportBytes defaults to 4194304. Limit violatio
 
 #### What the model sees
 
-The controller registers no model tool or prompt. Resource responses stay in Settings; the [skill provider](../../security/security-skills/README.md) owns catalog changes after installation. Report download audit events are log-only.
+The controller registers no model tool or prompt. `describeResources` and `observeResources` responses stay in Settings; the [skill provider](../../security/security-skills/README.md) owns catalog changes after installation. Report download audit events are log-only.
 
 #### Token effect
 

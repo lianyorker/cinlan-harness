@@ -62,7 +62,7 @@ The Python client launches the packaged `dsh` command with the selected profile 
 
 The Office adapter and selected native engine (or WASM when the adapter declares no engine for the target) live in the matching `-office/` sidecar directory. SEA resolution redirects only the Office adapter and its package manifest to this real dependency tree so URL workers and executable helpers retain ordinary filesystem paths. Wheel staging, payload verification, and the Python launcher require the directory. The private bootstrap dispatches Windows ACL confinement before the PTC worker selector, then ordinary CLI or subprocess-runner requests.
 
-Packaging invokes the closure verifier and pkg directly through Node. Its child environment makes pnpm dependency-state mismatches fail instead of installing automatically: a production deploy can update pnpm workspace state, which must not cause the next packaging command to remove developer dependencies.
+Packaging invokes the closure verifier and pkg directly through Node. Its child environment and the repository-root [`.npmrc`](../../../../.npmrc) set `verify-deps-before-run=error`, so dependency-state mismatches fail instead of installing automatically. The root setting applies to commands throughout the workspace: a production deploy can update pnpm workspace state, which must not cause a later packaging, test or generator command to remove developer dependencies. Dependency installation remains an explicit operation.
 
 ## PTC process distribution
 

@@ -17,7 +17,12 @@ type ResourceReader = Pick<Context['remote']['securityResearch'], 'observeResour
  * @param remote - Generated resource observations.
  * @returns The snapshot source and observation-only lifetime controls.
  */
-export function createSecurityResourceObserver(remote: ResourceReader) {
+export function createSecurityResourceObserver(remote: ResourceReader): {
+  store: ReturnType<typeof createSnapshotStore<SecurityResourceRead>>
+  watch: () => () => void
+  refresh: () => void
+  dispose: () => void
+} {
   const store = createSnapshotStore<SecurityResourceRead>({ status: 'loading' })
   let observation: AbortController | undefined
   let subscribers = 0

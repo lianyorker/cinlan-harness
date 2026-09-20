@@ -7,7 +7,7 @@ kind: "package-bundle"
 [English](README.md) | 中文
 
 ## 概述
-本组合包将安全技能提供方及其不可变参考资源加载到 Harness skill registry。它为 profile 提供应用、基础设施、移动端、二进制和供应链研发工作流的可复用指导。
+本组合包将安全技能提供方加载到 Harness skill registry；提供方发现资源管理器当前激活的安装。它为 profile 提供应用、基础设施、移动端、二进制和供应链研发工作流的可复用指导。
 
 ## 目录
 
@@ -18,7 +18,7 @@ kind: "package-bundle"
 
 <a id="use-this-package"></a>
 ## 使用本包
-通过带有 skill registry 的 dsh profile 加载组合包。技能内容不会授予评估目标，也不会绕过 assessment-scope 服务。
+通过带有 skill registry 和[资源管理器](../../security/security-skills/README.zh.md)的 dsh profile 加载组合包。Web 组合包提供管理器；其他组合需在 Host 根部显式挂载一次 `@deepseek-ai/dsh-security-skills/resources`。通过安全研究设置安装资源后才能加载相应技能。技能内容不会授予评估目标，也不会绕过 assessment-scope 服务。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -32,10 +32,10 @@ kind: "package-bundle"
 ## 已知限制与延期工作
 <a id="known-limitations-and-deferred-work"></a>
 
-- 技能资源随组合包发布，不通过 Web Settings 编辑。
+- 随包资源是需要显式选择的安装来源。网络下载要求配置发行清单 URL；组合包不会推断公共端点。
 - 指导是建议性的；授权和证据要求由其他包执行。
 
-不发布 runtime invariant companion，因为组合包只组合不可变的技能贡献。
+不发布 runtime invariant companion，因为组合包只组合提供方；安装状态与保留职责归资源管理器。
 
 <a id="dev-note"></a>
 ### 开发备注

@@ -12,6 +12,7 @@ Security research uses explicit assessment grants to authorize operations, durab
 - [Session assessment state](#session-assessment-state)
 - [Durable findings](#durable-findings)
 - [Vulnerability knowledge base](#vulnerability-knowledge-base)
+- [Skill resources](#skill-resources)
 - [Dev Note](#dev-note)
 
 <a id="assessment-grants"></a>
@@ -118,6 +119,23 @@ The [knowledge-base declarations](../../packages/security/vuln-kb-service/src/ty
 | `VulnQueryResult` | `entries: readonly VulnEntry[]`, `total: number`, `truncated: boolean`; total matches may exceed the returned entries. |
 | `VulnKbProvider` | Readonly `id: VulnKbProviderId`; `query(request, signal?)` resolves `VulnQueryResult`; `read(cveId, signal?)` resolves `VulnEntry`; optional `dispose()` returns void or a Promise. Signals are `AbortSignal`. |
 | `VulnKbErrorCode`, `VulnKbError` | Codes: `not_found`, `invalid_query`, `query_failed`, `unavailable`. The Error carries readonly `code`, name `VulnKbError`, a message, and optional `ErrorOptions`. |
+
+<a id="skill-resources"></a>
+
+## Skill resources
+
+The [resource declarations](../../packages/security/security-skills/src/types.ts) describe installation state separately from assessment authority. The [resource manager](../../packages/security/security-skills/README.md) owns download, validation, atomic activation, and retained generations; the official Skill registry discovers only the active generation. Installing resources does not authorize assessment actions or execute their scripts.
+
+| Type | Fields and meaning |
+|---|---|
+| `SecuritySkillGenerationId`, `SecuritySkillOperationId` | Branded generation and operation identities; neither is a filesystem path supplied by the caller. |
+| `SecuritySkillResourceSource` | `kind: bundled` / `download` and optional sanitized `url` distinguish packaged resources from network delivery. |
+| `SecuritySkillResourceInstallation` | `version`, `generation`, `source`, epoch-millisecond `installedAt`, and `skillCount` identify the committed installation. |
+| `SecuritySkillResourceOperation` | `id`, `kind`, `phase`, `bytesReceived`, and optional `totalBytes` describe the current Host-owned operation. |
+| `SecuritySkillResourceStatus` | Fixed `resourceId: security-skills`; `state: not-installed` / `installed` / `error`; optional `installed`, `available`, `operation`, and safe `lastError`; `download` reports source availability. |
+| `SecuritySkillGenerationLease` | `directory` and `installation` identify retained content. Awaiting `release()` settles that consumer's retention. |
+
+A started operation belongs to the Host. Closing an observation stream does not cancel it; cancellation names the exact current operation. Failed downloads retain the committed installation. Removing a generation withdraws discovery while leases preserve paths already returned to an Agent realm. The resource manager persists the active generation and a monotonically increasing revision outside Session logs. Removing resources commits an empty installation with a new revision, so a delayed writer cannot reactivate an earlier empty state. Generation preparation and activation share the writer lock. Loaded skill content follows the existing logged Skill-loading mechanism.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -245,6 +263,63 @@ Types: [Agent](core.md)
 
 Source: [`packages/security/finding/src/index.ts`](../../packages/security/finding/src/index.ts)
 
+<a id="ctxsecurityskillresources--securityskillresources"></a>
+
+### `ctx.securitySkillResources` — `SecuritySkillResources`
+
+Shared Host service; Agent providers only borrow committed generations.
+
+```ts cordis-catalog
+/** Inspect committed state and current Host operation.
+ * @returns A detached snapshot, including an explicit unavailable download reason.
+ */
+async status(): Promise<SecuritySkillResourceStatus>
+
+/** Check only the configured release manifest.
+ * @returns Snapshot of the newly started Host operation.
+ */
+async checkUpdate(): Promise<SecuritySkillResourceStatus>
+
+/** Download and install into an empty resource state.
+ * @returns Snapshot of the newly started Host operation.
+ */
+async install(): Promise<SecuritySkillResourceStatus>
+
+/** Fetch and validate the release again while preserving the active generation.
+ * @returns Snapshot of the newly started Host operation.
+ */
+async reinstall(): Promise<SecuritySkillResourceStatus>
+
+/** Install a different published version after validating its entire inventory.
+ * @returns Snapshot of the newly started Host operation.
+ */
+async update(): Promise<SecuritySkillResourceStatus>
+
+/** Copy the audited package seed; this operation performs no download.
+ * @returns Snapshot of the newly started Host operation, marked bundled.
+ */
+async installBundled(): Promise<SecuritySkillResourceStatus>
+
+/** Atomically unpublish resources; leased generations remain readable.
+ * @returns Snapshot of the newly started Host operation.
+ */
+async remove(): Promise<SecuritySkillResourceStatus>
+
+/** Cancel only the specified Host operation and await its cleanup.
+ * @param expectedOperationId - Optional identity protecting against a stale cancel action.
+ * @returns State after settlement. Cancellation before publication preserves the prior generation;
+ * an atomic replacement already in progress may commit and is never rolled back.
+ */
+async cancel(expectedOperationId?: SecuritySkillOperationId): Promise<SecuritySkillResourceStatus>
+
+/** Borrow the current generation until the owning realm releases it.
+ * @returns A lease or undefined when no generation is installed.
+ */
+async acquire(): Promise<SecuritySkillGenerationLease | undefined>
+```
+
+Source: [`packages/security/security-skills/src/resources.ts`](../../packages/security/security-skills/src/resources.ts)
+
 <a id="ctxvulnkb--vulnkbruntime"></a>
 
 ### `ctx.vulnKb` — `VulnKbRuntime`
@@ -277,6 +352,27 @@ read(cveId: CveId, signal?: AbortSignal): Promise<VulnEntry>
 ```
 
 Source: [`packages/security/vuln-kb-service/src/index.ts`](../../packages/security/vuln-kb-service/src/index.ts)
+
+<a id="security-skill-resources-events"></a>
+
+### `security-skill-resources/*` events
+
+<a id="security-skill-resourceschanged--parallel"></a>
+
+#### `security-skill-resources/changed` — parallel
+
+Detached resource state after an operation transition or installation commit.
+
+```ts cordis-catalog
+/**
+ * Detached resource state after an operation transition or installation commit.
+ * @mode parallel
+ * @param snapshot - Complete published resource and Host operation state, detached from manager storage.
+   */
+'security-skill-resources/changed'(snapshot: SecuritySkillResourceStatus): void | Promise<void>
+```
+
+Source: [`packages/security/security-skills/src/resources.ts`](../../packages/security/security-skills/src/resources.ts)
 <!-- END GENERATED cordis-surface -->
 
 <a id="dev-note"></a>

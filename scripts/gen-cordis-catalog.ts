@@ -83,6 +83,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   mcpRegistry: 'mcp.md',
   mobileDevice: 'device-control.md',
   securityResearchController: 'typert.md',
+  securitySkillResources: 'security-research.md',
   sidebarGit: 'git.md',
   sidebarGitController: 'typert.md',
   sidebarTerminalController: 'typert.md',
@@ -244,6 +245,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
  */
 export const EVENT_SCOPE_PAGE: Record<string, string> = {
   'permission-presets': 'permission-presets.md',
+  'security-skill-resources': 'security-research.md',
   compaction: 'compaction.md',
   'execution-host-targets': 'execution-host.md',
   'agent': 'core.md',
@@ -421,6 +423,13 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   SecurityResearchReportRequest: 'typert.md',
   SecurityResearchReportValue: 'typert.md',
   SecurityResearchSnapshot: 'typert.md',
+  SecurityResourceAvailability: 'typert.md',
+  SecurityResearchResourceCancelRequest: 'typert.md',
+  SecuritySkillResourceStatus: 'security-research.md',
+  SecuritySkillResourceOperation: 'security-research.md',
+  SecuritySkillResourceInstallation: 'security-research.md',
+  SecuritySkillGenerationLease: 'security-research.md',
+  SecuritySkillOperationId: 'security-research.md',
   SidebarAgentTerminalId: 'terminal.md',
   SidebarAgentTerminalSnapshot: 'terminal.md',
   SidebarTerminalAckRequest: 'terminal.md',
@@ -1224,7 +1233,7 @@ export const CORDIS_CATALOG_POLICY: CordisCatalogPolicy = {
  * @returns the page text with the region replaced.
  */
 export function spliceRegion(content: string, region: string): string {
-  const lines = content.split('\n')
+  const lines = content.replaceAll('\r\n', '\n').split('\n')
   const begins = lines.flatMap((line, index) => (line === REGION_BEGIN ? [index] : []))
   const ends = lines.flatMap((line, index) => (line === REGION_END ? [index] : []))
   if (begins.length !== 1 || ends.length !== 1) {
@@ -1233,7 +1242,7 @@ export function spliceRegion(content: string, region: string): string {
   const begin = begins[0] ?? -1
   const end = ends[0] ?? -1
   if (end < begin) throw new Error('cordis-surface END marker precedes its BEGIN')
-  return [...lines.slice(0, begin), ...region.split('\n'), ...lines.slice(end + 1)].join('\n')
+  return [...lines.slice(0, begin), ...region.replaceAll('\r\n', '\n').split('\n'), ...lines.slice(end + 1)].join('\n')
 }
 
 /** The declared-vs-rendered inputs {@link walkPartitionProblems} judges. */

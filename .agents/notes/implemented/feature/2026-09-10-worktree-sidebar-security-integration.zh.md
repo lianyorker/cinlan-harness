@@ -16,7 +16,7 @@ Worktree Task 的 setup 与 cleanup 和 Git 操作共用受管子进程执行器
 
 默认 Web bundle 仅挂载 `ui-better-sidebar` 作为右侧 shell。该插件拥有原生 PTY 操作、终端展示、文件界面与可选 agent terminal 工具。[终端生命周期决策](../architecture/2026-09-17-sidebar-terminal-lifetimes.zh.md) 将终端传输交由共享 Remote Controller 与 Client 工厂；被替代的 `ui-sidebar-right`、`ui-right-sidebar`、`dsh-terminal`、`dsh-terminal-bash` 和 terminal-controller row 保持未挂载。它的工具 Consumer 通过注入的 `ctx.tools.define` 编译定义并注册返回值，在不增加未分类 Host runtime import 的情况下保留 Tools Service Definition 的 schema 校验。
 
-`security-research` profile 组合本地 Execution Host identity、本地持久化 Artifact 存储、assessment scope、Session finding 持久化、漏洞提供方与工具、Security Skills 和 workflow prompt 指引。其默认 assessment grant 不包含 execution host、target、action、egress rule 或 credential；操作者必须提供独立、明确的授权 patch。可选组合包通过 `AgentPresets.registerSystemRoot` 贡献只读 Agent 预设。未挂载该组合包时，通用 Web 名单保持不变。Settings 仅在 `agentPresets/list` 报告该 id 后注册安全研究，不通过通用 Skill 模块或 Settings 包自身名称推断。
+`security-research` profile 组合本地 Execution Host identity、本地持久化 Artifact 存储、assessment scope、Session finding 持久化、漏洞提供方与工具、Security Skills 和 workflow prompt 指引。其默认 assessment grant 不包含 execution host、target、action、egress rule 或 credential；操作者必须提供独立、明确的授权 patch。可选组合包通过 `AgentPresets.registerSystemRoot` 贡献只读 Agent 预设。未挂载该组合包时，通用 Web 名单保持不变。Settings 独立于预设名单注册安全研究资源页。其安装状态、操作与不可用原因来自 Host 资源管理器，具体由[受管资源决策](2026-09-20-managed-security-skill-resources.zh.md)定义；菜单可见不代表技能包已安装，也不代表具备评估授权。
 
 ## 结果
 

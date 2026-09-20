@@ -62,7 +62,7 @@ Python 客户端使用所选 profile（默认 `sdk`）、有序 patch 文件和�
 
 Office 适配器与所选原生引擎（适配器未声明目标平台引擎时为 WASM）位于对应的 `-office/` 伴随目录。SEA 解析只把 Office 适配器及其包清单定向到此真实依赖树，URL worker 和可执行 helper 因而保留普通文件系统路径。Wheel 暂存、载荷校验与 Python 启动器均要求此目录。私有 bootstrap 先分派 Windows ACL 约束，再检查 PTC worker 选择器，最后处理普通 CLI 或子进程 runner 请求。
 
-打包通过 Node 直接调用闭包校验器与 pkg。其子进程环境使 pnpm 依赖状态不一致时明确失败，而不是自动安装：production 部署可以更新 pnpm 工作区状态，但这不应导致下一条打包命令删除开发依赖。
+打包通过 Node 直接调用闭包校验器与 pkg。其子进程环境和仓库根 [`.npmrc`](../../../../.npmrc) 设置 `verify-deps-before-run=error`，使依赖状态不一致时明确失败，而不是自动安装。根设置适用于整个工作区的命令：production 部署可以更新 pnpm 工作区状态，但这不应导致后续打包、测试或生成器命令删除开发依赖。依赖安装仍是显式操作。
 
 ## PTC 进程分发
 

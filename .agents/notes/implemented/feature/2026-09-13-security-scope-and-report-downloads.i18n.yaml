@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-security-scope-and-report-downloads.md
-2026-09-13-security-scope-and-report-downloads.md: b2c21599fe2dc41261c427e44ffa5fc2f311e655
-2026-09-13-security-scope-and-report-downloads.zh.md: a0516d6e42d9754d79d1e9eae577b0ede455447a
+2026-09-13-security-scope-and-report-downloads.md: 0d7c1ec38b0836946bfed533b5cb805208c82725
+2026-09-13-security-scope-and-report-downloads.zh.md: c32cbe2151deab765f222dfd4fb56589154877ed

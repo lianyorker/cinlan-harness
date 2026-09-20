@@ -103,6 +103,8 @@ flowchart LR
   pkg_tools["tools"]
   pkg_workflow_ptc["workflow-ptc"]
   svc_securityResearchController["ctx.securityResearchController<br/>Security research Remote controller"]
+  pkg_security_skills["security-skills"]
+  svc_securitySkillResources["ctx.securitySkillResources<br/>Security skill resources"]
   pkg_command_feedback["command-feedback"]
   svc_sessionFeedback["ctx.sessionFeedback<br/>Human Session feedback"]
   pkg_client_ui_message_feedback["client-ui-message-feedback"]
@@ -496,6 +498,7 @@ flowchart LR
   pkg_sandbox --> svc_sandbox
   pkg_sandbox_local --> svc_sandbox
   pkg_sandbox_policy --> svc_sandboxPolicy
+  pkg_security_skills --> svc_securitySkillResources
   pkg_session --> svc_sessions
   pkg_session_log_deepseek --> svc_deepseekLlmApiExtensions
   pkg_session_persistence --> svc_sessionPersistence
@@ -667,6 +670,8 @@ flowchart LR
   svc_sandboxPolicy --> pkg_fs_sandbox
   svc_sandboxPolicy --> pkg_terminal_bash
   svc_securityResearchController --> pkg_client_ui_settings_security
+  svc_securitySkillResources --> pkg_api_security_research_controller
+  svc_securitySkillResources --> pkg_security_skills
   svc_sessionFeedback --> pkg_client_ui_message_feedback
   svc_sessionPersistence --> pkg_agent_loop
   svc_sessionPersistence --> pkg_hooks_claude_code
@@ -806,7 +811,8 @@ flowchart LR
 | `ctx.officeToPdf` | `core` | [`office-to-pdf`](../packages/document/office-to-pdf) | - | [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | 拥有可复用转换器、有界转换队列、输出缓存及经授权的工作区预览。 |
 | `ctx.pluginManagementHost` | `seam` | [`plugin-manager`](../packages/boot/plugin-manager) | - | [`plugin-manager`](../packages/boot/plugin-manager), [`host-plugin-inventory`](../packages/host/plugin-inventory) | - | Desktop 启动器提供受保护条目 id 与完整应用补丁；包事务仍由启动器拥有。 |
 | `ctx.ptcRuntime` | `seam` | [`ptc-runtime`](../packages/ptc-runtime/ptc-runtime) | [`ptc-runtime-node`](../packages/ptc-runtime/ptc-runtime-node) | [`tools`](../packages/core/tools), [`workflow-ptc`](../packages/workflow/workflow-ptc), [`ptc-runtime-node`](../packages/ptc-runtime/ptc-runtime-node) | - | 解析并运行带类型化工具绑定的程序；Node 提供方还公开本地 code-runtime 兼容适配器。 |
-| `ctx.securityResearchController` | `core` | [`api-security-research-controller`](../packages/api/security-research-controller) | - | [`client-ui-settings-security`](../packages/client/ui-settings-security) | - | 通过各自所属服务提供评估范围、发现、证据产物与漏洞知识。 |
+| `ctx.securityResearchController` | `core` | [`api-security-research-controller`](../packages/api/security-research-controller) | - | [`client-ui-settings-security`](../packages/client/ui-settings-security) | - | 通过各自所属服务提供资源管理、评估范围、发现、证据产物与漏洞知识。 |
+| `ctx.securitySkillResources` | `core` | [`security-skills`](../packages/security/security-skills) | - | [`security-skills`](../packages/security/security-skills)、[`api-security-research-controller`](../packages/api/security-research-controller) | - | 安装已验证的资源 generation，并在所属 Agent realm 释放前保留已加载路径。 |
 | `ctx.sessionFeedback` | `core` | [`command-feedback`](../packages/feedback/command-feedback) | - | [`client-ui-message-feedback`](../packages/client/ui-message-feedback) | - | 在 Session 中记录人工反馈，不启动模型工作。 |
 | `ctx.sidebarGit` | `core` | [`sidebar-git`](../packages/git/sidebar-git) | - | [`api-sidebar-git-controller`](../packages/api/sidebar-git-controller), [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | 串行执行仓库修改，并为侧栏提供提交预览。 |
 | `ctx.sidebarGitController` | `core` | [`api-sidebar-git-controller`](../packages/api/sidebar-git-controller) | - | [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | 通过共享的 Git 所有者提供侧栏仓库状态与操作。 |

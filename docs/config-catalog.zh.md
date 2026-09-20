@@ -253,7 +253,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/security-research-controller/src/index.ts:44`](../packages/api/security-research-controller/src/index.ts)
+来源：[`packages/api/security-research-controller/src/index.ts:48`](../packages/api/security-research-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-session-controller"></a>
 
@@ -2708,7 +2708,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/shell/pwsh-local/src/index.ts:58`](../packages/shell/pwsh-local/src/index.ts)
+来源：[`packages/shell/pwsh-local/src/index.ts:62`](../packages/shell/pwsh-local/src/index.ts)
 
 <a id="deepseek-aidsh-pwsh-sandbox"></a>
 
@@ -5089,7 +5089,7 @@ export interface Config {
 - `@deepseek-ai/dsh-sandbox-ssh` — 需要 `ssh` ([`packages/ssh/sandbox-ssh/src/index.ts`](../packages/ssh/sandbox-ssh/src/index.ts))
 - `@deepseek-ai/dsh-schedule` — 需要 `agents` · `sessions` · `tools` · `sessionPersistence` ([`packages/schedule/schedule/src/index.ts`](../packages/schedule/schedule/src/index.ts))
 - `@deepseek-ai/dsh-security-research` ([`packages/bundle/security-research/src/index.ts`](../packages/bundle/security-research/src/index.ts))
-- `@deepseek-ai/dsh-security-skills` — 需要 `skills` ([`packages/security/security-skills/src/index.ts`](../packages/security/security-skills/src/index.ts))
+- `@deepseek-ai/dsh-security-skills` — 需要 `skills` · `securitySkillResources` ([`packages/security/security-skills/src/index.ts`](../packages/security/security-skills/src/index.ts))
 - `@deepseek-ai/dsh-security-workflow-prompt` — 需要 `systemPrompt` ([`packages/security/security-workflow-prompt/src/index.ts`](../packages/security/security-workflow-prompt/src/index.ts))
 - `@deepseek-ai/dsh-session` ([`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts))
 - `@deepseek-ai/dsh-session-checkpoint-policy` — 需要 `llm` · `sessionPersistence` · `sessions` · `tools` ([`packages/session/session-checkpoint-policy/src/index.ts`](../packages/session/session-checkpoint-policy/src/index.ts))
