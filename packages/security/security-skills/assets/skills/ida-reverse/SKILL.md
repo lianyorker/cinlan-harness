@@ -29,9 +29,9 @@ description: |
    - **解决办法**：使用 `scripts/start.ps1`（`-WindowStyle Hidden` 后台静默启动）
    - 脚本会等待服务就绪后自动退出，不阻塞对话
 
-4. **MCP 服务器名不能用横线**
-   - 之前用 `ida-pro-mcp` 作为服务器名，可能引起工具注册问题
-   - **当前配置**：服务器名 `idapro`，工具前缀 `idapro_*`
+4. **Harness MCP 服务器名称与工具前缀**
+   - 服务器名称允许 `[A-Za-z0-9_-]{1,32}`；以当前 profile 的 MCP 配置为准
+   - 若服务器名为 `idapro`，工具前缀为 `mcp__idapro__`；下文简写名称均须先与当前工具目录核对
 
 5. **Remote HTTP vs Local Stdio**
    - `type:"local"`（stdio）模式：`idalib_open` 同样有 schema 校验问题

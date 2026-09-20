@@ -1,0 +1,25 @@
+Security skills resource provenance and notices
+
+This resource is built from the reviewed repository directory
+packages/security/security-skills/assets/skills. Its baseline import is commit
+77b906b3a6847aa8272e0a2be5d61149494eba67. The emitted manifest records the exact
+normalized file inventory and content-derived version of the delivered resource.
+The baseline commit is not a claim that all working-tree changes are committed.
+
+The repository declares MIT, Copyright (c) 2026 DeepSeek. See LICENSE.
+The nested src-hunter material retains its MIT license, Copyright (c) 2026
+MyuriKanao, at skills/pentest-tools/src-hunter/LICENSE. Its README cites
+https://github.com/MyuriKanao/src-hunter-skill; the precise upstream revision
+is unknown. Imported references do not have a complete per-item provenance
+and license inventory. No additional third-party permission is asserted.
+
+External programs, MCP servers, model runtimes and referenced downloads are
+not included as installed dependencies and retain their own licenses and
+platform requirements. Packaging and installation do not execute resource
+scripts or register MCP servers. The imported ToolDiscovery.ps1 helper is
+absent; scripts depending on it are reference material, not a working installer.
+
+This pack contains 22 skill entries: the root router, 20 direct modules and
+one nested src-hunter entry. The imported claim of 24 entries did not match
+the imported tree. Git placeholders and external-client marketplace metadata
+are excluded. Text line endings are normalized to LF before hashing.

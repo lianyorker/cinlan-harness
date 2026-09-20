@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "source": "repository",
+  "path": "packages/security/security-skills/assets/skills",
+  "baselineCommit": "77b906b3a6847aa8272e0a2be5d61149494eba67",
+  "baselineTree": "512319a96ff6f8ffa23a28a5438995f828a42434",
+  "revisionPolicy": "Version derives from the normalized archive file inventory; baseline identifies the imported input, not the audited output.",
+  "platformScope": "UTF-8 skill resources can be unpacked on win32, darwin and linux; referenced tools and optional scripts retain independent platform requirements.",
+  "license": {
+    "declared": "MIT",
+    "notices": ["LICENSE", "NOTICE", "skills/pentest-tools/src-hunter/LICENSE"],
+    "scope": "Repository distribution and retained nested notices; external tools are not installed or licensed by this resource pack.",
+    "thirdPartyReview": "Referenced documentation and external tools have no complete per-item license inventory; unknown upstream revisions and permissions are not inferred from the repository license."
+  },
+  "sources": [
+    {"path": "skills/", "origin": "repository input", "revision": "77b906b3a6847aa8272e0a2be5d61149494eba67", "license": "MIT repository declaration; per-item third-party provenance incomplete"},
+    {"path": "skills/pentest-tools/src-hunter/", "origin": "https://github.com/MyuriKanao/src-hunter-skill", "revision": null, "license": "MIT", "notice": "skills/pentest-tools/src-hunter/LICENSE"},
+    {"path": "skills/pentest-tools/src-hunter/references/", "origin": "Nested README claims HackerOne public reports, WooYun historical aggregate references and 3516634930/Payloader", "revision": null, "license": "Not independently established for each referenced upstream item; nested MIT notice retained", "evidence": "skills/pentest-tools/src-hunter/README.en.md#sources"},
+    {"path": "skills/scripts/bootstrap-manifest.json", "origin": "repository reference catalog for optional external tools", "revision": null, "license": "External tool licenses are not asserted; no tool downloads or installation run during packaging."}
+  ],
+  "audit": {
+    "skillCount": 22,
+    "countReason": "The imported root text said 24, but its imported tree already contained only the root router, 20 direct modules and one nested src-hunter entry. No two missing entries were removed by this packaging change.",
+    "omittedEntries": [".gitkeep", ".gitignore", ".claude-plugin"],
+    "omissionReason": "Repository placeholders and external-client marketplace metadata are not runtime skill resources.",
+    "bootstrapStatus": "ToolDiscovery.ps1 is absent from the imported resource tree; dependent bootstrap and discovery scripts are retained reference material, not a working Harness installer.",
+    "executionPolicy": "Packaging and resource installation read files only; no postinstall, script execution, network fetch, Orca runtime, external Agent setup or credential configuration.",
+    "textPolicy": "Normalize CRLF to LF; preserve UTF-8 content otherwise. Generic usernames and public payload examples are retained; private credential containers and discovered personal paths must not be packaged."
+  }
+}

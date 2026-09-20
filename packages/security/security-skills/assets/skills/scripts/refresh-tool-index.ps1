@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [string]$OutputMarkdown,
     [string]$OutputJson
@@ -55,7 +55,7 @@ $markdownLines = @(
     "- 扫描时间: $generatedAt",
     '- 路由入口: `SKILL.md` → `routing.md` → 对应子 skill',
     '- 说明: 本表由 `scripts/refresh-tool-index.ps1` 自动生成，供支持本 skill 的客户端确认工具路径。',
-    '- 注意: 对于 jshookmcp 这类 MCP server，`yes` 只表示本机具备通过 node/npx 拉起它的条件，不表示它已经在 Claude MCP 配置里注册并启用。',
+    '- 注意: 对于 jshookmcp 这类 MCP server，`yes` 只表示本机具备通过 node/npx 拉起它的条件，不表示它已经在当前 Harness 的 Settings → MCP 中配置、连接并提供工具。',
     '',
     '| 工具 | 归属 skill | 作用 | 可用 | 路径 | 版本 | 来源 | 脚本引用 |',
     '|---|---|---|---|---|---|---|---|'

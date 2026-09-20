@@ -18,23 +18,53 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./resources": {
+      "types": "./lib/types/resources.d.ts",
+      "default": "./lib/resources.js"
+    },
+    "./resource-inventory": {
+      "types": "./lib/types/resource-inventory.d.ts",
+      "default": "./lib/resource-inventory.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "lib/index.js",
     "assets",
+    "lib/*.js",
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
   "dependencies": {
-    "yaml": "^2.4.2"
+    "yaml": "^2.4.2",
+    "@deepseek-ai/schemastery": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh-skill": "workspace:^",
+    "@deepseek-ai/dsh-home-paths": "workspace:^",
+    "@deepseek-ai/dsh-brand": "workspace:^",
+    "@deepseek-ai/dsh-scope": "workspace:^",
+    "@deepseek-ai/dsh-atomic-write": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "fflate": "^0.8.2",
+    "@deepseek-ai/dsh-app-boot": "workspace:^",
+    "@deepseek-ai/dsh-agent-loop": "workspace:^",
+    "@deepseek-ai/dsh-agent-loop-testkit": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-session": "workspace:^",
+    "@deepseek-ai/dsh-session-persistence-jsonl": "workspace:^",
+    "@deepseek-ai/dsh-tool-skill": "workspace:^",
     "@deepseek-ai/dsh-skill": "workspace:^",
+    "@deepseek-ai/dsh-home-paths": "workspace:^",
+    "@deepseek-ai/dsh-brand": "workspace:^",
+    "@deepseek-ai/dsh-scope": "workspace:^",
+    "@deepseek-ai/dsh-atomic-write": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

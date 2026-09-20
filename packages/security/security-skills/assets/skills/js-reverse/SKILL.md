@@ -19,30 +19,30 @@ description: 在使用 js-reverse-mcp 做前端 JavaScript 逆向时使用，适
 
 ## 当前环境默认工具映射
 
-本 skill 不假设存在裸工具名，而是默认绑定当前客户端环境里可用的 `js-reverse_*` 工具。
+以当前 Harness 工具目录中实际暴露的名称和参数为准。MCP 工具名为 `mcp__<serverName>__<rawName>`；仅在对应工具已注册时调用，缺失时报告所需能力，不根据历史前缀猜测。
 
 如果当前任务明确提到 `jshookmcp`、`JS hook`、`CDP`、浏览器断点、网络拦截、SourceMap 或 AST 去混淆，也仍然走本 skill；只是把底层 MCP 面切到 `jshookmcp`，而不是把它当成一个新的总入口。
 
-前提条件：`jshookmcp` 不是本地裸命令工具，而是一个要先下载/注册/启用的 MCP server。只有在 Claude MCP 配置里接入并启用后，相关工具面才真的可调用。
+前提条件：`jshookmcp` 不是本地裸命令工具，而是一个要先下载/注册/启用的 MCP server。在当前 Harness 的 Settings → MCP 中配置并启用服务器，确认连接就绪和实际工具列表后，才能调用其工具；不要写入其他 Agent 客户端的配置。
 
-常用映射：
+以下为服务器注册名明确配置为 `js-reverse` 时的映射示例；实际注册名不同则以当前工具目录为准：
 
-- `list_scripts` -> `js-reverse_list_scripts`
-- `get_script_source` -> `js-reverse_get_script_source`
-- `search_in_sources` -> `js-reverse_search_in_sources`
-- `break_on_xhr` -> `js-reverse_break_on_xhr`
-- `evaluate_script` -> `js-reverse_evaluate_script`
-- `get_paused_info` -> `js-reverse_get_paused_info`
-- `set_breakpoint_on_text` -> `js-reverse_set_breakpoint_on_text`
-- `list_network_requests` -> `js-reverse_list_network_requests`
-- `get_request_initiator` -> `js-reverse_get_request_initiator`
-- `get_websocket_messages` -> `js-reverse_get_websocket_messages`
-- `take_screenshot` -> `js-reverse_take_screenshot`
-- `new_page` -> `js-reverse_new_page`
-- `navigate_page` -> `js-reverse_navigate_page`
-- `select_page` -> `js-reverse_select_page`
-- `select_frame` -> `js-reverse_select_frame`
-- `pause/resume` -> `js-reverse_pause_or_resume`
+- `list_scripts` -> `mcp__js-reverse__list_scripts`
+- `get_script_source` -> `mcp__js-reverse__get_script_source`
+- `search_in_sources` -> `mcp__js-reverse__search_in_sources`
+- `break_on_xhr` -> `mcp__js-reverse__break_on_xhr`
+- `evaluate_script` -> `mcp__js-reverse__evaluate_script`
+- `get_paused_info` -> `mcp__js-reverse__get_paused_info`
+- `set_breakpoint_on_text` -> `mcp__js-reverse__set_breakpoint_on_text`
+- `list_network_requests` -> `mcp__js-reverse__list_network_requests`
+- `get_request_initiator` -> `mcp__js-reverse__get_request_initiator`
+- `get_websocket_messages` -> `mcp__js-reverse__get_websocket_messages`
+- `take_screenshot` -> `mcp__js-reverse__take_screenshot`
+- `new_page` -> `mcp__js-reverse__new_page`
+- `navigate_page` -> `mcp__js-reverse__navigate_page`
+- `select_page` -> `mcp__js-reverse__select_page`
+- `select_frame` -> `mcp__js-reverse__select_frame`
+- `pause/resume` -> `mcp__js-reverse__pause_or_resume`
 
 如果未来工具名前缀变化，先更新本节，不要在执行时临时猜测。
 
@@ -72,10 +72,10 @@ description: 在使用 js-reverse-mcp 做前端 JavaScript 逆向时使用，适
 
 默认动作：
 
-- 用 `js-reverse_new_page` 或 `js-reverse_navigate_page` 打开目标页面
-- 用 `js-reverse_list_network_requests` 找目标请求
-- 用 `js-reverse_get_request_initiator` 回溯调用来源
-- 用 `js-reverse_list_scripts`、`js-reverse_search_in_sources` 缩小脚本范围
+- 用 `mcp__js-reverse__new_page` 或 `mcp__js-reverse__navigate_page` 打开目标页面
+- 用 `mcp__js-reverse__list_network_requests` 找目标请求
+- 用 `mcp__js-reverse__get_request_initiator` 回溯调用来源
+- 用 `mcp__js-reverse__list_scripts`、`mcp__js-reverse__search_in_sources` 缩小脚本范围
 
 必须产出：
 
@@ -90,10 +90,10 @@ description: 在使用 js-reverse-mcp 做前端 JavaScript 逆向时使用，适
 
 规则：
 
-- 优先 `js-reverse_break_on_xhr`
-- 优先 `js-reverse_evaluate_script` 做轻量运行时观察
-- 命中后先看 `js-reverse_get_paused_info`
-- 必要时再用 `js-reverse_set_breakpoint_on_text`
+- 优先 `mcp__js-reverse__break_on_xhr`
+- 优先 `mcp__js-reverse__evaluate_script` 做轻量运行时观察
+- 命中后先看 `mcp__js-reverse__get_paused_info`
+- 必要时再用 `mcp__js-reverse__set_breakpoint_on_text`
 
 ### 3. Rebuild
 
@@ -129,7 +129,7 @@ description: 在使用 js-reverse-mcp 做前端 JavaScript 逆向时使用，适
 
 - 所有重要步骤都要写入本地 task artifact
 - 如果无法解释为什么调用某个工具，就不要调用
-- 优先使用 `js-reverse_*` 或 jshookmcp 的现成 MCP 能力直接取证，不要先写脚本重造能力
+- 优先使用 `mcp__js-reverse__*` 或 jshookmcp 的现成 MCP 能力直接取证，不要先写脚本重造能力
 - 失败时按 `references/fallbacks.md` 回退
 - 输出遵循 `references/output-contract.md`
 
@@ -170,30 +170,8 @@ description: 在使用 js-reverse-mcp 做前端 JavaScript 逆向时使用，适
 
 ---
 
-## 按需自举（On-Demand Bootstrap）
+## Harness MCP 配置
 
-取得明确授权后，可通过统一 bootstrap 注册 MCP 或启动服务。
+资源包不安装 Node.js、MCP server 或第三方分析工具。缺失运行组件时，先报告真实缺失项；组件安装与资源安装分别处理。附带 bootstrap 所需的 `scripts/lib/ToolDiscovery.ps1` 不在本资源中，不能将该脚本当作可用安装入口。
 
-### 自动化能力边界
-
-| 能力              | 可自动注册 | 方式                | 说明                      |
-| ----------------- | ---------- | ------------------- | ------------------------- |
-| jshookmcp         | ✓          | npm-mcp（npx 启动） | 自动写入 Claude MCP 配置  |
-| anything-analyzer | ✓          | local-http-mcp      | 自动注册 + 可自动启动服务 |
-| Node.js           | ✓          | winget 安装         | 运行时依赖                |
-
-### 自举方式
-
-```powershell
-# 注册 jshookmcp 到 MCP 配置
-powershell -File "<skill-root>\scripts\bootstrap-reverse.ps1" -Capability @('jshookmcp') -Install
-
-# 注册并启动 anything-analyzer
-powershell -File "<skill-root>\scripts\bootstrap-reverse.ps1" -Capability @('anything-analyzer') -Install -StartServices
-```
-
-### 注意事项
-
-- `jshookmcp` 注册后仍需在 AI 客户端中**启用**该 MCP server 才能调用
-- `anything-analyzer` 的安装模式会 clone 源码并安装依赖
-- Node.js 缺失时，安装模式会通过 winget 安装 Node.js 22
+在当前 profile 的 Settings → MCP 中添加已安装服务器的 stdio 命令和参数，或已启动服务的 Streamable HTTP 地址。启用后检查实际连接状态并刷新工具列表。保存配置不等于服务就绪；工具前缀与可调用方法以 Harness 当前发现结果为准。凭据使用设置页支持的变量引用，不在技能文件中存储。

@@ -434,11 +434,7 @@ skills/ghidra-headless/
 
 ### 10.3 编写 MCP 注册逻辑
 
-bootstrap 脚本已经内置了通用的 MCP 配置合并能力。对于标准类型，只需在 manifest 中声明即可，bootstrap 会自动：
-
-1. 读取用户的 MCP 配置文件（如 `~/.claude/mcp.json`）
-2. 合并新的 server 条目（不覆盖已有配置）
-3. 保存回去
+Harness 的 MCP 注册由当前 profile 的 Settings → MCP 管理；bootstrap 不写其他 Agent 客户端配置。配置并启用服务器后，检查真实连接状态和当前工具列表。资源打包和安装不执行 MCP 注册或附带脚本。
 
 如果新 MCP 有特殊的注册需求（如需要 auth token、自定义 header），在 manifest 中添加：
 
@@ -521,7 +517,7 @@ MCP 配置示例：
 
 ### 10.6 处理多客户端 MCP 配置
 
-不同 AI 客户端的 MCP 配置文件位置不同：
+以下是保留的第三方客户端配置参考，不是 Harness 的配置位置：
 
 | 客户端      | 配置文件位置                                                                 |
 | ----------- | ---------------------------------------------------------------------------- |
@@ -530,7 +526,7 @@ MCP 配置示例：
 | Cursor      | Cursor Settings → MCP                                                        |
 | Cline       | Cline 设置面板                                                               |
 
-当前 bootstrap 脚本默认写入 Claude Code 的配置路径。如果用户使用其他客户端，AI 应在引导中说明对应的配置位置。
+Harness 使用当前 profile 的 MCP 管理存储，不读取或改写上表客户端配置。通过 Settings → MCP 配置所需服务器；缺失工具或连接失败时报告实际状态，不自动切换外部 Agent。
 
 ### 10.7 完整示例：新增一个假设的 "sqlmap-mcp" skill
 

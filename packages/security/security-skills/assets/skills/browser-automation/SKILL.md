@@ -139,8 +139,8 @@ cd openreverse
 # 2. 安装依赖
 npm install
 
-# 3. 接入 Agent 宿主（Claude Code / Codex / Zed）
-npm run init:agents -- --target=all /path/to/project
+# 3. Harness 使用自身的 Browser / Computer Use Provider；不运行其他 Agent 宿主初始化脚本。
+# 外部 MCP 服务如需接入，通过当前 profile 的 Settings → MCP 配置并检查实际工具列表。
 
 # 4. 安装 CUA runtime（如果需要视觉驱动模式）
 npm run install:cua-runtime

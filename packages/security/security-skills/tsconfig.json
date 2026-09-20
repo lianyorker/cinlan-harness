@@ -8,6 +8,11 @@
   "references": [
     { "path": "../../../vendor/cosmokit" },
     { "path": "../../../vendor/cordis" },
-    { "path": "../../skill/skill" }
+    { "path": "../../skill/skill" },
+    { "path": "../../util/home-paths" },
+    { "path": "../../util/brand" },
+    { "path": "../../core/scope" },
+    { "path": "../../util/atomic-write" },
+    { "path": "../../../vendor/schemastery" }
   ]
 }

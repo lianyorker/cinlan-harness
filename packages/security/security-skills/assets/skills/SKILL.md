@@ -58,12 +58,12 @@ CTF 按证据面分流到上述现有模块，不依赖外部 `CTF-Sandbox-Orche
 - `tool-index.template.md` 是索引模板，不是本机事实。
 - 在执行意图允许写文件时，可运行 `scripts/refresh-tool-index.ps1` 生成 `tool-index.md` 和 `tool-index.json`。
 - 缺工具时先报告缺失项、用途和安装命令。
-- `scripts/bootstrap-reverse.ps1` 只有显式传入 `-Install` 才允许安装、注册 MCP 或启动服务；它优先复用可用的 Python 3（Windows 包括 `py -3`）和满足声明版本或 commit 的 pip 包，网络来源未 pin 或无 checksum 时还必须显式传入 `-AllowUnverifiedDownloads`。
+- 资源安装不执行附带脚本。`scripts/bootstrap-reverse.ps1`、`scripts/refresh-tool-index.ps1` 和 `browser-automation/scripts/setup.ps1` 引用的 `scripts/lib/ToolDiscovery.ps1` 尚未随资源提供，不能作为可用安装入口。MCP 连接通过当前 Harness 的 Settings → MCP 配置，并以连接状态和实际工具列表确认可用性。
 - 不根据文档中的历史版本号或示例路径推断本机状态。
 
 ## 知识库
 
-- 本 bundle 发布 24 个 skill 入口及其本地 references、scripts、`kb/` 和 `templates/`，不依赖项目级 Skill 镜像或远程内容仓库。
+- 本 bundle 包含 22 个 skill 入口：本路由入口、20 个直属子模块和嵌套的 `pentest-tools/src-hunter`；同时保留本地 references、scripts、`kb/` 和 `templates/`。
 - 路由后只读取 `kb/` 中与当前证据信号匹配的文件；实际创建 case、notes、reports 或检测规则时才读取 `templates/` 中的对应模板。
 - 发布资产只读。产品内容的修订发生在本 package 源目录并通过重新构建发布，不在已安装包中回写。
 - 当前 workspace 的 `.agents/field-journal/cyber-security/` 是待审学习队列，不是 Skill discovery root 或产品 KB。记录使用 `templates/knowledge-candidate.md`；用户手工复制或归档该目录，经维护者复核后才可合入产品源码。

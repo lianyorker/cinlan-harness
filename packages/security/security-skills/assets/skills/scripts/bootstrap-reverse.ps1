@@ -338,16 +338,7 @@ if expected_commit:
 }
 
 function Get-McpConfig {
-    $path = Get-ClaudeMcpConfigPath
-    if (-not (Test-Path -LiteralPath $path)) {
-        return @{ path = $path; json = @{ mcpServers = @{} } }
-    }
-
-    $json = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable
-    if (-not $json.ContainsKey('mcpServers')) {
-        $json['mcpServers'] = @{}
-    }
-    return @{ path = $path; json = $json }
+    throw 'MCP registration is managed by Harness Settings -> MCP. Configure and enable the server there, then verify its discovered tools; this resource script does not write another Agent client configuration.'
 }
 
 function Save-McpConfig {

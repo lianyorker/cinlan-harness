@@ -1,9 +1,9 @@
 /**
- * Bundled Cinlan skill provider.
+ * Installed security skill provider.
  *
- * Registers a {@link SkillProvider} on `ctx.skills` that exposes the packaged
- * Cinlan cyber-security, design, and browser-evidence skills. Discovery is
- * lazy and only complete observations are cached.
+ * Registers the shared resource manager’s active generation on `ctx.skills`.
+ * Discovery caches only complete observations. Loaded directory resources
+ * retain their generation until the enclosing realm is disposed.
  *
  * @module @deepseek-ai/dsh-security-skills
  */
@@ -11,7 +11,9 @@
 import type { Dirent, Stats } from 'node:fs'
 import { readFile, readdir, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { scopeOf } from '@deepseek-ai/dsh-scope'
+import type { SecuritySkillGenerationId, SecuritySkillGenerationLease } from './types.ts'
+import type {} from './resources.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import {
   BUNDLED_SKILL_RANK,
@@ -27,7 +29,6 @@ import {
 import { parse as parseYaml } from 'yaml'
 
 const PROVIDER_NAME = 'security-skills'
-const SKILLS_DIR = fileURLToPath(new URL('../assets/skills/', import.meta.url))
 
 interface ParsedSkillFile {
   name: string
@@ -170,14 +171,14 @@ async function discoverSkillFiles(rootDir: string, ctx: Context, signal?: AbortS
   return { parsed, complete }
 }
 
-function toCandidate(parsed: ParsedSkillFile): SkillCandidate {
+function toCandidate(parsed: ParsedSkillFile, source: 'bundled' | 'download'): SkillCandidate {
   return {
     name: parsed.name,
     description: parsed.description,
     ...(parsed.whenToUse !== undefined ? { whenToUse: parsed.whenToUse } : {}),
     invocation: parsed.invocation,
     provider: PROVIDER_NAME,
-    source: 'bundled',
+    source,
     rank: BUNDLED_SKILL_RANK,
     locator: { path: parsed.path, directory: parsed.directory },
     resourceBase: { kind: 'directory', path: parsed.directory },
@@ -186,14 +187,16 @@ function toCandidate(parsed: ParsedSkillFile): SkillCandidate {
   }
 }
 
-function createProvider(ctx: Context, control: SkillProviderControl): SkillProvider {
+function createProvider(ctx: Context, control: SkillProviderControl,
+  lease: SecuritySkillGenerationLease, retain: () => void): SkillProvider {
+  const source = lease.installation.source.kind
   let cachedCandidates: SkillCandidate[] | undefined
   let cachedParsed: ParsedSkillFile[] | undefined
 
   async function ensureDiscovered(signal?: AbortSignal): Promise<DiscoveryResult> {
     signal?.throwIfAborted()
     if (cachedParsed !== undefined) return { parsed: cachedParsed, complete: true }
-    const result = await discoverSkillFiles(SKILLS_DIR, ctx, signal)
+    const result = await discoverSkillFiles(lease.directory, ctx, signal)
     if (result.complete) cachedParsed = result.parsed
     return result
   }
@@ -202,7 +205,7 @@ function createProvider(ctx: Context, control: SkillProviderControl): SkillProvi
     signal?.throwIfAborted()
     if (cachedCandidates !== undefined) return { candidates: cachedCandidates, complete: true }
     const result = await ensureDiscovered(signal)
-    const candidates = result.parsed.map(toCandidate)
+    const candidates = result.parsed.map(parsed => toCandidate(parsed, source))
     if (result.complete) cachedCandidates = candidates
     return { candidates, complete: result.complete }
   }
@@ -218,13 +221,15 @@ function createProvider(ctx: Context, control: SkillProviderControl): SkillProvi
       signal.throwIfAborted()
       const parsed = await parseSkillFile(locator.path, signal)
       if (parsed === undefined) return undefined
+      signal.throwIfAborted()
+      retain()
       return {
         name: parsed.name,
         description: parsed.description,
         ...(parsed.whenToUse !== undefined ? { whenToUse: parsed.whenToUse } : {}),
         invocation: parsed.invocation,
         provider: PROVIDER_NAME,
-        source: 'bundled',
+        source,
         resourceBase: { kind: 'directory', path: locator.directory },
         path: locator.path,
         ...(parsed.metadata !== undefined ? { metadata: parsed.metadata } : {}),
@@ -236,12 +241,67 @@ function createProvider(ctx: Context, control: SkillProviderControl): SkillProvi
 
 /** Cordis plugin name. */
 export const name = 'security-skills'
-/** Service required by the bundled provider. */
-export const inject = ['skills']
+/** Shared manager and official skill registry required by the provider. */
+export const inject = ['skills', 'securitySkillResources']
 
-/** Register the bundled Cinlan skill provider on `ctx.skills`. */
-export function apply(ctx: Context): void {
-  ctx.skills.registerProvider(control => createProvider(ctx, control))
+/** Register only the committed resource generation and retain loaded paths for the realm.
+ * @param ctx - Agent or application provider lifetime.
+ */
+export async function apply(ctx: Context): Promise<void> {
+  const key = scopeOf(ctx)
+  let owner = ctx
+  while (owner.fiber !== owner.fiber.parent.fiber && scopeOf(owner.fiber.parent) === key) owner = owner.fiber.parent
+  const retained = new Set<SecuritySkillGenerationLease>()
+  owner.effect(() => async () => { await Promise.all([...retained].map(lease => lease.release())); retained.clear() })
+  let registration: { id: SecuritySkillGenerationId; dispose: () => void; release: () => Promise<void> } | undefined
+  let disposed = false
+  let revision = 0
+  let refreshing = Promise.resolve()
+  const revoke = (): Promise<void> => {
+    const previous = registration
+    registration = undefined
+    previous?.dispose()
+    return previous?.release() ?? Promise.resolve()
+  }
+  const refresh = (): Promise<void> => {
+    const current = ++revision
+    const revoked = revoke().catch((error: unknown) => {
+      ctx.logger.warn('Security skill provider lease release failed', error)
+    })
+    refreshing = refreshing.catch((error: unknown) => {
+      ctx.logger.warn('Security skill provider refresh failed; retrying current resources', error)
+    }).then(async () => {
+      await revoked
+      if (disposed || current !== revision) return
+      const lease = await ctx.securitySkillResources.acquire()
+      if (current !== revision) { await lease?.release(); return }
+      if (lease === undefined) return
+      let loaded = false
+      const retain = (): void => {
+        if (loaded) return
+        loaded = true
+        retained.add(lease)
+      }
+      try {
+        const dispose = ctx.skills.registerProvider(control => createProvider(ctx, control, lease, retain))
+        registration = { id: lease.installation.generation, dispose, release: async () => { if (!loaded) await lease.release() } }
+      } catch (error) { await lease.release(); throw error }
+    })
+    return refreshing
+  }
+  ctx.on('security-skill-resources/changed', (snapshot) => {
+    if (snapshot.installed?.generation !== registration?.id) return refresh()
+  })
+  ctx.effect(() => async () => {
+    disposed = true
+    revision++
+    try { await revoke() } finally {
+      await refreshing.catch((error: unknown) => {
+        ctx.logger.warn('Security skill provider refresh failed during disposal', error)
+      })
+    }
+  })
+  await refresh()
 }
 
 /** Combine a provider registration's lifetime with one caller's lookup lifetime. */
