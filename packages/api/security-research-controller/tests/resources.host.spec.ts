@@ -1,4 +1,5 @@
 /** Resource Remote behavior through actual Loader and Gateway services. */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -24,8 +25,9 @@ async function missingManagerFixture() {
       'security-resource-fixture-controller': SecurityResearchController,
     })
   })
+  const access = createTrustedConnectionAccess()
   const call = (method: string, request?: unknown) => ctx.typertGateway.invoke({
-    namespace: 'securityResearch', method, args: request === undefined ? {} : { request },
+    access, namespace: 'securityResearch', method, args: request === undefined ? {} : { request },
   })
   return { ctx, call }
 }
@@ -73,7 +75,9 @@ describe('Security resource Remotes without an optional manager', () => {
     const { ctx } = await missingManagerFixture()
     const abort = new AbortController()
     onTestFinished(() => { abort.abort() })
-    const stream = await ctx.typertGateway.wireStream.open('securityResearch/observeResources', { args: {} }, abort.signal)
+    const stream = await ctx.typertGateway.wireStream.open(
+      'securityResearch/observeResources', { args: {} }, abort.signal, createTrustedConnectionAccess(),
+    )
     const iterator = stream[Symbol.asyncIterator]()
     expect((await iterator.next()).value).toEqual({ state: 'unavailable', reason: 'component-missing' })
     const pending = iterator.next()

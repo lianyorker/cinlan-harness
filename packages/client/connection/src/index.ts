@@ -6,6 +6,8 @@ import type {} from '@deepseek-ai/dsh-credentials'
 // Activates the webServer Context merge used below.
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { API_PATH } from './api-path.ts'
+export { createTrustedConnectionAccess } from './rpc.ts'
+export { bridge as bridgeConnectionRequest } from './http-bridge.ts'
 import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
 import { assertTrustedAuthority } from './api-request-trust.ts'
 import { BrowserAuth } from './browser-auth.ts'
@@ -13,6 +15,7 @@ import { HostConnectionService } from './rpc-host.ts'
 import { ConnectionRecoveryConfigSchema, resolveConnectionConfig, type ConnectionRecoveryConfig } from './recovery-config.ts'
 
 export type {
+  HostConnectionAccess,
   ConnectionFetchMethod,
   ConnectionFetchHandler,
   ConnectionFetchRoute,
@@ -121,7 +124,7 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
     webCtx.on('webserver/index-inject', (table) => {
       table.push({ kind: 'global', name: '__DSH_CONNECTION_RECOVERY__', value: recovery })
     })
-    const fetchHandler = connection.createSharedFetchHandler(API_PATH)
+    const fetchHandler = connection.createSharedFetchHandler(API_PATH, connection.trustedAccess)
     const route: WebRoute = {
       kind: 'prefix',
       path: API_PATH,

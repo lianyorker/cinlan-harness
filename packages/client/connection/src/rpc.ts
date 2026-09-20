@@ -96,11 +96,32 @@ export interface ConnectionIndexResponse {
   end(body?: string): unknown
 }
 
+/** Host-carrier authority; identity is an in-process policy key and never a serialized principal. */
+export type HostConnectionAccess =
+  | { readonly kind: 'trusted-local'; readonly identity: object; readonly signal: AbortSignal }
+  | {
+    readonly kind: 'delegated'
+    readonly identity: object
+    readonly signal: AbortSignal
+    /** Authorize a raw Fetch route before its handler reads request bytes. RPC policy belongs to the Gateway. */
+    readonly authorizeFetch: (request: Request) => void | Promise<void>
+  }
+
+/**
+ * Explicitly mark a trusted local carrier; reuse its returned identity for that carrier lifetime.
+ * @param signal - Optional carrier lifetime; abort revokes its outstanding requests and streams.
+ * @returns A new local access handle whose identity remains stable until the carrier discards it.
+ */
+export function createTrustedConnectionAccess(signal?: AbortSignal): HostConnectionAccess {
+  return { kind: 'trusted-local', identity: {}, signal: signal ?? new AbortController().signal }
+}
+
 /** Handler invoked after Connection has decoded the transport envelope. */
 export type ConnectionRpcHandler = (
   endpoint: string,
   payload: unknown,
   signal: AbortSignal,
+  access: HostConnectionAccess,
 ) => Promise<ConnectionRpcResult<unknown>>
 
 /** Synchronous ownership test for one endpoint on a shared RPC channel. */
@@ -123,7 +144,7 @@ export interface ConnectionFetchRoute {
   /** Buffered requests obey the configured JSON cap; streaming requests arrive with backpressure and no aggregate cap. */
   readonly requestBody: ConnectionRequestBodyMode
   /** Handle one request after the physical carrier has applied its trust and authentication policy. */
-  readonly fetch: (request: Request) => Promise<Response>
+  readonly fetch: (request: Request, access: HostConnectionAccess) => Promise<Response>
 }
 
 /** Host registry for Fetch routes that cannot use JSON Remote invocation. */
@@ -166,6 +187,8 @@ export interface HostConnectionRpc {
 
 /** Host `ctx.connection` shape consumed by transport-independent adapters. */
 export interface HostConnectionHandle {
+  /** Explicit local browser authority shared by authenticated HTTP and WebSocket carriers on this Host instance. */
+  readonly trustedAccess: HostConnectionAccess
   /** Generic RPC channel registry. */
   readonly rpc: HostConnectionRpc
   /** Fetch routes for streaming or browser-native responses. */
@@ -174,9 +197,10 @@ export interface HostConnectionHandle {
   /**
    * Compose Fetch routes and the shared-channel RPC interceptor.
    * @param channel - shared channel mounted by Connection.
+   * @param access - Explicit carrier authority and revocation lifetime.
    * @returns Fetch handler for trusted, authenticated requests.
    */
-  createSharedFetchHandler(channel: '/api'): ConnectionFetchHandler
+  createSharedFetchHandler(channel: '/api', access: HostConnectionAccess): ConnectionFetchHandler
 
   /**
    * Apply Connection's Host/Origin checks and browser authentication to

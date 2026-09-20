@@ -5,6 +5,7 @@
  * route registry, and the filesystem are real.
  */
 
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { connect } from 'node:net'
 import { request as httpRequest } from 'node:http'
@@ -32,7 +33,7 @@ let cookie = ''
 
 async function fetch(input: string, init?: RequestInit): Promise<Response> {
   if (carrier === 'desktop') {
-    return (context as Context).connection.createSharedFetchHandler('/api').fetch(new Request(input, init))
+    return (context as Context).connection.createSharedFetchHandler('/api', createTrustedConnectionAccess()).fetch(new Request(input, init))
   }
   const headers = new Headers(init?.headers)
   headers.set('cookie', cookie)

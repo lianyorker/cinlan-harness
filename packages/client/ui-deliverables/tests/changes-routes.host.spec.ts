@@ -1,4 +1,5 @@
 /** Summary and comparison routes remain coordinate-only and honor request and plugin lifetimes. */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { Context } from '@deepseek-ai/cordis'
 import { HostConnectionService } from '@deepseek-ai/dsh-client-connection'
 import type { BrowserAuth } from '@deepseek-ai/dsh-client-connection/src/browser-auth.ts'
@@ -25,7 +26,7 @@ async function fixture() {
   const connection = new HostConnectionService(ctx, [], {} as BrowserAuth)
   const fiber = ctx.plugin({ inject: ['connection', 'workspaceChanges'], apply: registerChangesRoutes })
   await fiber.await()
-  const handler = connection.createSharedFetchHandler('/api')
+  const handler = connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
   const request = (path: string, query = '?sessionId=owner&seq=9&index=0', signal?: AbortSignal) =>
     handler.fetch(new Request('http://localhost' + path + query, signal === undefined ? {} : { signal }))
   return { request, diff, comparison, fiber, record }

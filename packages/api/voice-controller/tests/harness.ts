@@ -1,4 +1,5 @@
 /** Real Loader composition for desktop Fetch and optional authenticated HTTP voice calls. */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { createServer } from 'node:http'
@@ -173,7 +174,7 @@ export async function createHarness(web = false, options: { cacheRoot?: string; 
   } as unknown as NonNullable<typeof ctx.loader.internal>
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
-  const shared = ctx.connection.createSharedFetchHandler('/api')
+  const shared = ctx.connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
   const requestFetch = fetch
   const origin = web ? 'http://127.0.0.1:' + String(ctx.webServer.port) : undefined
   let nextRpc = 0

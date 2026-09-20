@@ -1,4 +1,5 @@
 /** Fetch route registration through Loader, browser authentication, and the real HTTP bridge. */
+import { createTrustedConnectionAccess } from '../src/rpc.ts'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,12 +10,12 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import WebServer from '@deepseek-ai/dsh-host-webserver'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as Connection from '../src/index.ts'
-import type { ConnectionFetchRoute } from '../src/rpc.ts'
+import type { ConnectionFetchRoute, HostConnectionAccess } from '../src/rpc.ts'
 import { provideBrowserCredentials } from './browser-credentials.ts'
 
 const routePluginName = 'test-fetch-routes'
 
-async function loadFixture(routes: readonly ConnectionFetchRoute[]) {
+async function loadFixture(routes: readonly ConnectionFetchRoute[], maxRequestBodyBytes = 4) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-connection-fetch-'))
   const ctx = new Context()
   onTestFinished(async () => {
@@ -38,7 +39,7 @@ async function loadFixture(routes: readonly ConnectionFetchRoute[]) {
   const rows = [
     { name: '@deepseek-ai/dsh-host-webserver', config: { host: '127.0.0.1', port: 0 } },
     { name: 'test-browser-credentials' },
-    { name: '@deepseek-ai/dsh-client-connection', config: { maxRequestBodyBytes: 4 } },
+    { name: '@deepseek-ai/dsh-client-connection', config: { maxRequestBodyBytes } },
     { name: routePluginName },
   ]
   const configPath = join(root, 'cordis.yml')
@@ -59,7 +60,7 @@ async function loadFixture(routes: readonly ConnectionFetchRoute[]) {
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
   const origin = 'http://127.0.0.1:' + String(ctx.webServer.port)
-  const shared = ctx.connection.createSharedFetchHandler('/api')
+  const shared = ctx.connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
   return {
     ctx, origin, shared,
     async cookie(): Promise<string> {
@@ -81,6 +82,136 @@ async function loadFixture(routes: readonly ConnectionFetchRoute[]) {
 }
 
 describe('Connection Fetch Loader composition', () => {
+  it('shares local browser identity within one Host and revokes it on disposal without affecting another Host', async () => {
+    const first = await loadFixture([], 1024)
+    const second = await loadFixture([])
+    const access = first.ctx.connection.trustedAccess
+    expect(first.ctx.connection.trustedAccess).toBe(access)
+    expect(second.ctx.connection.trustedAccess.identity).not.toBe(access.identity)
+    const received: HostConnectionAccess[] = []
+    first.ctx.connection.rpc.intercept('/api', () => true, async (_endpoint, _payload, _signal, authority) => {
+      received.push(authority)
+      return { ok: true, value: 'same Host' }
+    })
+    const cookie = await first.cookie()
+    const response = await fetch(first.origin + '/api/local/read', {
+      method: 'POST', headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-request', rpcId: 'local-access', method: 'local/read', payload: {} }),
+    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ result: { ok: true } })
+    expect(received).toEqual([access])
+    await first.ctx.fiber.dispose()
+    expect(access.signal.aborted).toBe(true)
+    expect(second.ctx.connection.trustedAccess.signal.aborted).toBe(false)
+  })
+
+  it('denies delegated raw requests before dispatch and passes their exact identity to RPC', async () => {
+    const route = vi.fn(async () => new Response('private'))
+    const h = await loadFixture([{ path: '/api/private', methods: ['POST'], requestBody: 'streaming', fetch: route }])
+    const revoked = new AbortController()
+    const denied = new Error('raw route not granted')
+    const authorizeFetch = vi.fn((_request: Request) => { throw denied })
+    const access: HostConnectionAccess = { kind: 'delegated', identity: {}, signal: revoked.signal, authorizeFetch }
+    const shared = h.ctx.connection.createSharedFetchHandler('/api', access)
+    const request = new Request(h.origin + '/api/private', { method: 'POST', body: 'unread' })
+    await expect(shared.fetch(request)).rejects.toBe(denied)
+    expect(route).not.toHaveBeenCalled()
+    expect(authorizeFetch.mock.calls[0]?.[0]?.bodyUsed).toBe(false)
+    const received: HostConnectionAccess[] = []
+    h.ctx.connection.rpc.intercept('/api', endpoint => endpoint === 'granted/read', async (_endpoint, _payload, _signal, authority) => {
+      received.push(authority)
+      return { ok: true, value: 'allowed by Gateway owner' }
+    })
+    const rpc = () => shared.fetch(new Request(h.origin + '/api/granted/read', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-request', rpcId: 'access-test', method: 'granted/read', payload: {} }),
+    }))
+    expect(await (await rpc()).json()).toMatchObject({ result: { ok: true } })
+    expect(received).toEqual([access])
+    expect(authorizeFetch).toHaveBeenCalledOnce()
+    revoked.abort(new Error('delegation revoked'))
+    await expect(rpc()).rejects.toBe(revoked.signal.reason)
+    expect(received).toHaveLength(1)
+  })
+
+  it.each(['carrier', 'request'] as const)('cancels an admitted response producer when %s revokes access', async (source) => {
+    const lifetime = new AbortController()
+    const caller = new AbortController()
+    const cancelled = Promise.withResolvers<unknown>()
+    let delivered: Request | undefined
+    let authority: HostConnectionAccess | undefined
+    const h = await loadFixture([{ path: '/api/stream', methods: ['GET'], requestBody: 'streaming',
+      fetch: async (request, access) => {
+        delivered = request
+        authority = access
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) { controller.enqueue(new Uint8Array([1, 2, 3])) },
+          cancel(reason) { cancelled.resolve(reason) },
+        }))
+      },
+    }])
+    const access: HostConnectionAccess = {
+      kind: 'delegated', identity: {}, signal: lifetime.signal, authorizeFetch: () => {},
+    }
+    const shared = h.ctx.connection.createSharedFetchHandler('/api', access)
+    const response = await shared.fetch(new Request(h.origin + '/api/stream', { signal: caller.signal }))
+    const reader = response.body!.getReader()
+    expect((await reader.read()).value).toEqual(new Uint8Array([1, 2, 3]))
+    expect(authority).toBe(access)
+    const pending = reader.read()
+    const reason = new Error('explicit revocation')
+    const rejected = expect(pending).rejects.toBe(reason)
+    ;(source === 'carrier' ? lifetime : caller).abort(reason)
+    await rejected
+    expect(await cancelled.promise).toBe(reason)
+    expect(delivered?.signal.aborted).toBe(true)
+  })
+
+  it('revokes an incomplete RPC upload before it can dispatch', async () => {
+    const h = await loadFixture([])
+    const lifetime = new AbortController()
+    const access: HostConnectionAccess = { kind: 'delegated', identity: {}, signal: lifetime.signal, authorizeFetch: () => {} }
+    const handler = vi.fn(async () => ({ ok: true as const, value: 'private' }))
+    h.ctx.connection.rpc.intercept('/api', () => true, handler)
+    const shared = h.ctx.connection.createSharedFetchHandler('/api', access)
+    const reading = Promise.withResolvers<undefined>()
+    const cancelled = Promise.withResolvers<unknown>()
+    const body = new ReadableStream<Uint8Array>({
+      pull() { reading.resolve(undefined) },
+      cancel(reason) { cancelled.resolve(reason) },
+    }, { highWaterMark: 0 })
+    const init: RequestInit & { duplex: 'half' } = {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body, duplex: 'half',
+    }
+    const pending = shared.fetch(new Request(h.origin + '/api/granted/read', init))
+    await reading.promise
+    const reason = new Error('revoked during upload')
+    const rejected = expect(pending).rejects.toBe(reason)
+    lifetime.abort(reason)
+    await rejected
+    expect(await cancelled.promise).toBe(reason)
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('refuses dispatch after revocation races an asynchronous raw-route authorizer', async () => {
+    const admitted = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const lifetime = new AbortController()
+    const route = vi.fn(async () => new Response('private'))
+    const h = await loadFixture([{ path: '/api/private', methods: ['GET'], requestBody: 'streaming', fetch: route }])
+    const access: HostConnectionAccess = { kind: 'delegated', identity: {}, signal: lifetime.signal,
+      authorizeFetch: async () => { admitted.resolve(undefined); await release.promise },
+    }
+    const shared = h.ctx.connection.createSharedFetchHandler('/api', access)
+    const pending = shared.fetch(new Request(h.origin + '/api/private'))
+    await admitted.promise
+    lifetime.abort(new Error('revoked during authorization'))
+    release.resolve(undefined)
+    await expect(pending).rejects.toBe(lifetime.signal.reason)
+    expect(route).not.toHaveBeenCalled()
+  })
+
   it('authenticates prefix requests and preserves the Session path for relative resources', async () => {
     const basePath = '/api/sidebar/html/session-1//workspace/site/'
     const html = '<link href="styles/site.css"><img src="images/logo.svg"><script src="main.js"></script>'

@@ -6,6 +6,7 @@
  * 404, missing descendant → errored stream).
  */
 
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { SESSION_FORMAT_VERSION, SessionSeq } from '@deepseek-ai/dsh-session'
 import { randomBytes } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
@@ -172,7 +173,7 @@ async function buildApi(
       : { compressionLevel: services.compressionLevel },
   })
   await fiber.await()
-  const handler = connection.createSharedFetchHandler('/api')
+  const handler = connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
   return {
     fetch: handler,
     downloads: {

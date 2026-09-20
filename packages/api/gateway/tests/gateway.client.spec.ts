@@ -8,6 +8,7 @@ import {
   type ConnectionGeneration,
   type ConnectionGenerationSource,
   type ConnectionHandle,
+  type ClientTransportHooks,
 } from '@deepseek-ai/dsh-client-connection/client'
 import type {
   InvocationDescriptor,
@@ -2247,6 +2248,27 @@ describe('Client Typert API', () => {
         await client.dispose()
       }
     }
+  })
+
+  it.each([1, undefined] as const)('uses the same-origin stream URL with explicit pairing protocol %s', async (version) => {
+    await withFakeWebSocket('https://localhost:7443', async () => {
+      const descriptor = Object.getOwnPropertyDescriptor(globalThis, '__DSH_TRANSPORT__')
+      const hooks: ClientTransportHooks = {
+        fetch: vi.fn<ClientTransportHooks['fetch']>(), authority: 'paired', ownsHost: false,
+        ...(version === undefined ? {} : { pairingProtocolVersion: version }),
+      }
+      Object.defineProperty(globalThis, '__DSH_TRANSPORT__', { configurable: true, value: hooks })
+      const client = new RemoteStreamMuxClient()
+      try {
+        client.start()
+        const suffix = version === 1 ? '?pairingVersion=1' : ''
+        expect(FakeWebSocket.sockets[0]?.url).toBe('wss://localhost:7443/api/remote.mux' + suffix)
+      } finally {
+        await client.close()
+        if (descriptor === undefined) Reflect.deleteProperty(globalThis, '__DSH_TRANSPORT__')
+        else Object.defineProperty(globalThis, '__DSH_TRANSPORT__', descriptor)
+      }
+    })
   })
 
   it('multiplexes Remote streams without using the Connection RPC caller', async () => {

@@ -30,6 +30,8 @@ kind: "package-reference"
 
 Connection 可用时，Host 入口会在 Connection 共享的 `/api` FetchHandler 上注册 trusted-host interceptor。Connection 把这个复合 handler 交给 HTTP bridge；handler 将已认领 endpoint 分发给 Gateway，未认领且没有精确 Fetch 路由负责的请求返回 404。直接调用 `invoke()` 会保留业务错误；`TypertGatewayError` 是 `RemoteError` 的子类，其 `gateway/*` 码命名了分发、绑定、提供方、查找、Context、参数和编解码器各自负责的故障。因策略而拒绝的 resolver——冷恢复失败或 ownership fence——抛出自己的 `RemoteError`，它选定的码原样到达调用方。
 
+每个 Host 调用和流打开操作都携带显式已认证的 `HostConnectionAccess`。本地 HTTP 与 WebSocket 传输共享其 Connection 实例的可信身份。委托身份必须注册 `TypertGatewayAccessPolicy`；未知身份在 lookup 前被拒绝，撤销会取消所保留流的生命周期。策略裁剪汇总结果及流项，在排队前过滤事件投递，限制委托事件队列，并把交互回答绑定到已认证事件客户端。`currentAccess()` 仅在已认证的一元分发期间为仅限本地的管理执行者提供调用者。
+
 支持取消的 Remote 方法会把 `signal: AbortSignal` 声明为最后一个 Host 参数。signal 是 descriptor 元数据，而不是 wire 参数：Connection 将它提供给 Gateway，Gateway 则在已解码的业务参数之后注入它。SRC 识别这个保留的末位参数名，严格生成还要求它具有全局 `AbortSignal` 类型。
 
 流式 Remote 使用 `@Remote({ mode: 'stream' })` 并返回 `Iterable` 或 `AsyncIterable`。`ctx.typertGateway.stream()` 执行与一元调用相同的 endpoint、参数、lookup 和取消校验，再用生成的 result codec 校验每个产出项。Client 插件激活时打开 Gateway 自有的 `/api/remote.mux` WebSocket，并让它在空闲时保持连接。Connection 拥有重试调度；每次 retry 前，它要求 mux 取消候选或活动 socket，并且只做一次全新的物理连接尝试。Host 按配置的 `websocketHeartbeatIntervalMs` 间隔（默认 2 秒）发送 Ping 控制帧，浏览器在 WebSocket 协议层自动回复 Pong，使空闲网络中间层持续看到流量，而不新增 Remote stream frame。若 socket 尚未回复上一次 Ping，Host 会在下一间隔终止它。可独立取消的逻辑流共享这条连接；进程内 Connection 载体直接提供等价的流，不打开该 WebSocket。
@@ -73,7 +75,7 @@ Host 组合可通过 `registerRemoteEvents()` 注册唯一的应用事件 source
 - Client 侧只能挂载严格模式生成的贡献项。SRC 标记不具备 Client 编解码器或类型投影。
 - `$stream()` 监督载体替换，但不推断回放语义；各领域自行拥有恢复 cursor 或替换 baseline 的校验，以及正常结束的分类。Connection generation 会重开内部 `$events`；单向通知不会重放，仍处于 pending 的 scoped waterfall 则沿用同一个 event id 重放。
 - lookup resolver 按 key 配置；当前无法让单个 Remote 参数或 endpoint 在同一 `agent`/`session` key 下选择 live-only 策略。
-- 被转发的事件到达 `$on` 时不做业务载荷投影或脱敏。普通通知在重连后不重放；Agent-scoped waterfall 只投影选择 Client Context 所需的顶层 Agent 身份，并自行携带 pending 生命周期。
+- 可信本地转发事件到达 `$on` 时不做业务载荷投影或脱敏；委托传输应用其注册的可见性与流项策略。普通通知在重连后不重放；Agent-scoped waterfall 只投影选择 Client Context 所需的顶层 Agent 身份，并自行携带 pending 生命周期。
 - `websocketHeartbeatIntervalMs` 同时是 Ping 周期和 Pong 截止时间。对端未在下一周期前回复时，Host 会终止连接；如果部署的事件循环或网络可能停顿超过该间隔，必须调大此配置。
 
 

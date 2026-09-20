@@ -21,6 +21,7 @@
  * are supplied from here.
  * @module @deepseek-ai/dsh-experimental-webworker-runtime/src/worker-host
  */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection/types'
 import { setActiveModuleLoader, WorkerModuleLoader, type StaticModuleFactory } from './module-system/module-loader.ts'
 import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway'
 import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
@@ -179,6 +180,7 @@ export function createWorkerHost(options: WorkerHostOptions): WorkerHost {
   let vfs: MemoryVfs | undefined
   let modules: WorkerModuleLoader | undefined
   let context: HostContext | undefined
+  const accessLifetime = new AbortController()
 
   const start = async (): Promise<void> => {
     try {
@@ -249,14 +251,15 @@ export function createWorkerHost(options: WorkerHostOptions): WorkerHost {
       if (typertGateway === undefined) {
         throw new Error('webworker host: the tree activated without a typertGateway service')
       }
-      const handler = connection.createSharedFetchHandler('/api')
+      const access = createTrustedConnectionAccess(accessLifetime.signal)
+      const handler = connection.createSharedFetchHandler('/api', access)
       const usage = loader.usage()
       console.info(`webworker host: tree active (modules=${String(usage.modules)}, data overlays=${String(overlays.length)}, preset root overlay=${presetOverlay ? 'applied' : 'already in roster'}, direct lane=connection.createSharedFetchHandler, als causality=${options.alsCausality === undefined ? 'inert' : 'snapshot/restore'}, image lowering=${LOWERING_VERSION})`)
 
       tunnel.serve({
         directFetch: (request: Request) => handler.fetch(request),
         bootPayload: () => readBootPayload(ctx),
-        openStream: typertGateway.wireStream.open,
+        openStream: (endpoint, payload, signal) => typertGateway.wireStream.open(endpoint, payload, signal, access),
         streamFailure: typertGateway.wireStream.failure,
       })
     } catch (reason) {
@@ -269,7 +272,8 @@ export function createWorkerHost(options: WorkerHostOptions): WorkerHost {
     handleMessage: (data: unknown): void => { tunnel.handleMessage(data) },
     start,
     stop: async (): Promise<void> => {
-      tunnel.fail(new Error('webworker host: the tree was disposed'))
+      accessLifetime.abort(new Error('webworker host: the tree was disposed'))
+      tunnel.fail(accessLifetime.signal.reason)
       await context?.fiber.dispose()
     },
     get vfs(): MemoryVfs | undefined {

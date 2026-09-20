@@ -27,11 +27,15 @@ kind: "package-reference"
 
 从 `@deepseek-ai/dsh-client-connection/types` 导入与载体无关的 RPC 和 Fetch 接口。此入口公开共享传输类型，不引入任一侧的 Context 服务声明。Host 与浏览器插件继续使用现有包根入口和 `/client` 入口。
 
-浏览器通过 HTTP POST 执行 Remote 一元调用；API Gateway 自己拥有 `/api/remote.mux` WebSocket 及其逻辑流。由 shell 持有的组合通过 `connection.rpc.open` 提供等价的 Remote 流，不打开 WebSocket。Host half 始终提供与载体无关的 RPC 注册表和 `GET`/`HEAD`/`POST` Fetch 路由注册表。存在 Web 载体时，它还持有唯一 `/api` route、Fetch bridge、浏览器认证与 Host/Origin 校验；由 shell 持有的载体则直接分派共享 Fetch handler。每条路由会在 bridge 读取任何字节前声明缓冲或流式请求体处理方式。Typert Gateway 认领生成的 Remote endpoint，功能包注册 Session 日志下载、原始文件上传等非 JSON 响应，未认领的请求返回 404。Loopback hostname 判定只供浏览器侧当前页面状态使用，留在包内。浏览器原始请求体传输由 [`dsh-client-file-upload`](../file-upload/README.zh.md) 提供。浏览器断开时会中止请求；bridge 取消稍后返回且尚未读取的响应体，并停止向已关闭的响应写入。即使关闭先于监听器注册发生，背压等待也会结束。
+浏览器通过 HTTP POST 执行 Remote 一元调用；API Gateway 自己拥有 `/api/remote.mux` WebSocket 及其逻辑流。由 shell 持有的组合通过 `connection.rpc.open` 提供等价的 Remote 流，不打开 WebSocket。Host half 始终提供与载体无关的 RPC 注册表和 `GET`/`HEAD`/`POST` Fetch 路由注册表。存在 Web 载体时，它还持有唯一 `/api` route、Fetch bridge、浏览器认证与 Host/Origin 校验；由 shell 持有的载体则直接分派共享 Fetch handler。每条路由会在 bridge 读取任何字节前声明缓冲或流式请求体处理方式。Typert Gateway 认领生成的 Remote endpoint，功能包注册 Session 日志下载、原始文件上传等非 JSON 响应，未认领的请求返回 404。Loopback hostname 判定只供浏览器侧当前页面状态使用，留在包内。配对 shell 设置 `ClientTransportHooks.authority: 'paired'`、`ownsHost: false` 与 `pairingProtocolVersion: 1`；配对 authority 即使位于 localhost 也会使 `ctx.connection.isLoopback` 为 false，而 Host 授权仍由服务器负责。Gateway 仅在明确的流协议版本下加入固定的 `pairingVersion=1` query。浏览器原始请求体传输由 [`dsh-client-file-upload`](../file-upload/README.zh.md) 提供。浏览器断开时会中止请求；bridge 取消稍后返回且尚未读取的响应体，并停止向已关闭的响应写入。即使关闭先于监听器注册发生，背压等待也会结束。
 
 `ctx.connection.fetch.register()` 默认为 `match: 'exact'`。显式设置 `match: 'prefix'` 会按字面值认领 `/api` 下的 URL pathname 前缀，并要求以 `/` 结尾，例如 `/api/sidebar/html/`；匹配时保留后缀中的转义内容。每个注册路径必须唯一。
 
 精确路由优先于前缀路由；否则选择最长的匹配前缀。若选中的路由不允许请求方法，则返回 404，不尝试其他路由或 RPC 拦截器。前缀注册与精确注册共用请求体处理方式，并随调用方 fiber 撤回；载体与处理函数仍负责活动请求的取消与结束。
+
+`createSharedFetchHandler('/api', access)` 必须显式传入 `HostConnectionAccess`。每个句柄包含进程内 `identity` 和撤销 `signal`；委托句柄还会在原始 Fetch 处理函数读取请求体前执行授权。RPC 处理函数通过第四个参数接收 access，原始 Fetch 处理函数通过第二个参数接收。Gateway 以该身份为键管理 RPC、事件和 Session 策略。认证后的浏览器 HTTP 与 WebSocket 载体复用 `connection.trustedAccess`；该值在每个 Connection 实例内唯一，实例销毁时撤销。其他本地载体显式创建并在生命周期内保留同一个 `createTrustedConnectionAccess(signal)` 句柄。缺失 access 不会授予本地信任。
+
+请求取消与 access 撤销通过 `AbortSignal.any` 合并。撤销会取消挂起的上传和响应体读取，包括尚未完整接收的 RPC 信封；请求体转发保留背压。原始路由授权若在撤销之后才完成，不会继续分发。Host 导出 `bridgeConnectionRequest(req, res, handler, maxRequestBodyBytes)`，使其他认证载体复用现有 node:http bridge 和缓冲请求体上限；调用方必须先拥有外部 authority、认证和委托 access。
 
 -----
 

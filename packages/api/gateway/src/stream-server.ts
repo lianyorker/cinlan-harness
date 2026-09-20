@@ -23,7 +23,7 @@ const MAX_MISSED_HEARTBEATS = 2
 
 /** Own the no-server WebSocket acceptor and every active logical stream. */
 export class RemoteStreamMuxServer {
-  private readonly server = new WebSocketServer({ noServer: true })
+  private readonly server: WebSocketServer
   private readonly connections = new Set<Promise<void>>()
   private readonly missedHeartbeats = new WeakMap<WebSocket, number>()
   private heartbeatTimer: NodeJS.Timeout | undefined
@@ -32,25 +32,38 @@ export class RemoteStreamMuxServer {
    * @param open - Gateway stream dispatcher.
    * @param failure - Gateway error-to-wire mapper.
    * @param heartbeatIntervalMs - interval between WebSocket Ping control frames.
+   * @param limits - optional stricter carrier budget for one complete incoming WebSocket message.
    */
   constructor(
     private readonly open: RemoteStreamOpener,
     private readonly failure: RemoteStreamFailureMapper,
     private readonly heartbeatIntervalMs: number,
-  ) {}
+    limits?: { readonly maxPayloadBytes: number },
+  ) {
+    this.server = new WebSocketServer({ noServer: true, ...(limits === undefined ? {} : { maxPayload: limits.maxPayloadBytes }) })
+  }
 
   /**
    * Upgrade one trusted request and begin serving its logical streams.
    * @param req - authenticated HTTP upgrade request.
    * @param socket - carrier socket transferred to the WebSocket server.
    * @param head - bytes already read after the HTTP upgrade headers.
+   * @param binding - optional authenticated per-socket opener and revocation lifetime.
    */
-  handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void {
+  handleUpgrade(
+    req: IncomingMessage, socket: Duplex, head: Buffer,
+    binding?: { readonly open: RemoteStreamOpener; readonly signal: AbortSignal },
+  ): void {
+    if (binding?.signal.aborted === true) { socket.destroy(); return }
     this.server.handleUpgrade(req, socket, head, (websocket) => {
       this.missedHeartbeats.set(websocket, 0)
       websocket.on('pong', () => { this.missedHeartbeats.set(websocket, 0) })
       this.startHeartbeat()
-      const connection = new RemoteStreamMuxConnection(websocket, this.open, this.failure)
+      const revoke = (): void => { websocket.terminate() }
+      binding?.signal.addEventListener('abort', revoke, { once: true })
+      websocket.once('close', () => { binding?.signal.removeEventListener('abort', revoke) })
+      if (binding?.signal.aborted === true) revoke()
+      const connection = new RemoteStreamMuxConnection(websocket, binding?.open ?? this.open, this.failure)
       const done = connection.run()
       this.connections.add(done)
       void done.then(() => { this.connections.delete(done) })

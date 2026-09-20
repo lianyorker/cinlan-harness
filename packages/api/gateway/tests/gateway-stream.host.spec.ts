@@ -3,7 +3,7 @@ import { once } from 'node:events'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import WebSocket, { type RawData } from 'ws'
 import { Context, Service, symbols } from '@deepseek-ai/cordis'
-import { apply as applyConnection, inject as connectionInject } from '@deepseek-ai/dsh-client-connection'
+import { createTrustedConnectionAccess, type HostConnectionAccess, apply as applyConnection, inject as connectionInject } from '@deepseek-ai/dsh-client-connection'
 import WebServer from '@deepseek-ai/dsh-host-webserver'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import {
@@ -218,6 +218,70 @@ afterEach(async () => {
 })
 
 describe('Typert Remote streams', () => {
+  it('rejects unregistered devices before invocation and closes a revoked stream', async () => {
+    const { ctx, service } = await setup(false)
+    const abort = new AbortController()
+    const access: HostConnectionAccess = { kind: 'delegated', identity: {}, signal: abort.signal, authorizeFetch() { throw new Error('denied') } }
+    await expect(ctx.typertGateway.stream({ access, namespace: 'feed', method: 'follow', args: { label: 'denied' } })).rejects.toThrow('authority is unavailable')
+    expect(service.signals).toEqual([])
+    const release = ctx.typertGateway.registerAccess(access, {
+      maxQueuedEvents: 8, maxQueuedEventBytes: 8192,
+      authorizeInvocation(endpoint) { if (endpoint !== 'feed/follow') throw new Error('denied endpoint') },
+      projectResult(_endpoint, _payload, value) { return value },
+      projectStreamItem(_endpoint, _payload, value) { return value },
+      permitsEvent() { return false },
+    })
+    await expect(ctx.typertGateway.invoke({ access, namespace: 'feed', method: 'unary', args: { label: 'blocked' } })).rejects.toThrow('denied endpoint')
+    const source = await ctx.typertGateway.stream({ access, namespace: 'feed', method: 'follow', args: { label: 'paired' } })
+    const iterator = source[Symbol.asyncIterator]()
+    await expect(iterator.next()).resolves.toMatchObject({ done: false })
+    const next = iterator.next()
+    abort.abort(new Error('revoked'))
+    await expect(next).rejects.toThrow('aborted')
+    expect(service.signals[0]?.aborted).toBe(true)
+    expect(service.returns).toBe(1)
+    release()
+  })
+
+  it('filters pending interaction replay and rejects another device result before settling the owner', async () => {
+    const { ctx } = await setup(true)
+    const source = new RemoteEventSourceProbe()
+    const unregister = ctx.typertGateway.registerRemoteEvents(source.source, REMOTE_HOST)
+    const makeAccess = (): HostConnectionAccess => ({ kind: 'delegated', identity: {}, signal: new AbortController().signal, authorizeFetch() { throw new Error('denied') } })
+    const allowed = makeAccess()
+    const foreign = makeAccess()
+    const policy = (visible: boolean) => ({
+      maxQueuedEvents: 8, maxQueuedEventBytes: 8192,
+      authorizeInvocation() {}, projectResult(_endpoint: string, _payload: unknown, value: unknown) { return value },
+      projectStreamItem(_endpoint: string, _payload: unknown, value: unknown) { return value },
+      permitsEvent() { return visible },
+    })
+    ctx.typertGateway.registerAccess(allowed, policy(true))
+    ctx.typertGateway.registerAccess(foreign, policy(false))
+    const pending = pendingInvocation(ctx)
+    source.push(pending.dispatch)
+    const deniedStream = await ctx.typertGateway.wireStream.open('$events', { args: {} }, new AbortController().signal, foreign)
+    const deniedIterator = deniedStream[Symbol.asyncIterator]()
+    await deniedIterator.next()
+    const stream = await ctx.typertGateway.wireStream.open('$events', { args: {} }, new AbortController().signal, allowed)
+    const iterator = stream[Symbol.asyncIterator]()
+    const ready = (await iterator.next()).value as { clientId: string }
+    const event = (await iterator.next()).value as { eventId: string }
+    const result = { args: { clientId: ready.clientId, eventId: event.eventId, outcome: { kind: 'result', value: 'allowed-once' } } }
+    const request = () => new Request('http://local/api/$events/result', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'device-result', method: '$events/result', payload: result }) })
+    const wrong = await ctx.connection.createSharedFetchHandler('/api', foreign).fetch(request())
+    expect((await wrong.json()) as { result?: unknown }).toMatchObject({ result: { ok: false } })
+    expect(pending.resolve).not.toHaveBeenCalled()
+    const accepted = await ctx.connection.createSharedFetchHandler('/api', allowed).fetch(request())
+    expect(await accepted.json()).toMatchObject({ result: { ok: true } })
+    await expect(pending.outcome).resolves.toEqual({ kind: 'result', value: 'allowed-once' })
+    expect(pending.resolve).toHaveBeenCalledTimes(1)
+    await iterator.return?.()
+    await deniedIterator.return?.()
+    await unregister()
+    await ctx.fiber.dispose()
+  })
+
   it('validates the WebSocket heartbeat timer range', () => {
     expect(TypertGatewayService.Config({})).toEqual({ websocketHeartbeatIntervalMs: 2_000 })
     expect(TypertGatewayService.Config({ websocketHeartbeatIntervalMs: MAX_TIMER_DELAY_MS }))
@@ -233,6 +297,7 @@ describe('Typert Remote streams', () => {
       'feed/sync',
       { args: { label: 'wire' } },
       new AbortController().signal,
+      createTrustedConnectionAccess(),
     )
 
     await expect(collect(source)).resolves.toEqual(['wire:one', 'wire:two'])
@@ -241,7 +306,7 @@ describe('Typert Remote streams', () => {
   it('passes Iterable and AsyncIterable items through and returns the iterator on cancellation', async () => {
     const { ctx, service } = await setup(false)
     const abort = new AbortController()
-    const source = await ctx.typertGateway.stream({
+    const source = await ctx.typertGateway.stream({ access: createTrustedConnectionAccess(),
       namespace: 'feed',
       method: 'follow',
       args: { label: 'a' },
@@ -252,35 +317,37 @@ describe('Typert Remote streams', () => {
     const pending = iterator.next()
     abort.abort(new Error('fixture cancellation'))
     await expect(pending).rejects.toThrow('Remote invocation "feed/follow" was aborted')
-    expect(service.signals).toEqual([abort.signal])
+    expect(service.signals).toHaveLength(1)
+    expect(service.signals[0]?.aborted).toBe(true)
+    expect(service.signals[0]?.reason).toBe(abort.signal.reason)
     expect(service.returns).toBe(1)
 
-    await expect(collect(await ctx.typertGateway.stream({
+    await expect(collect(await ctx.typertGateway.stream({ access: createTrustedConnectionAccess(),
       namespace: 'feed', method: 'sync', args: { label: 'b' },
     }))).resolves.toEqual(['b:one', 'b:two'])
-    await expect(collect(await ctx.typertGateway.stream({
+    await expect(collect(await ctx.typertGateway.stream({ access: createTrustedConnectionAccess(),
       namespace: 'feed', method: 'invalid', args: {},
     }))).resolves.toEqual([42])
-    await expect(collect(await ctx.typertGateway.stream({
+    await expect(collect(await ctx.typertGateway.stream({ access: createTrustedConnectionAccess(),
       namespace: 'feed', method: 'nonJson', args: {},
     }))).resolves.toEqual([1n])
-    await expect(ctx.typertGateway.stream({
+    await expect(ctx.typertGateway.stream({ access: createTrustedConnectionAccess(),
       namespace: 'feed', method: 'missing', args: {},
     })).rejects.toMatchObject({ code: 'gateway/result-invalid' })
 
-    await expect(collect(await ctx.typertGateway.stream({
+    await expect(collect(await ctx.typertGateway.stream({ access: createTrustedConnectionAccess(),
       namespace: 'feed', method: 'src', args: { label: 'c' },
     }))).resolves.toEqual(['c:src'])
 
     const abortedBeforeOpen = new AbortController()
     abortedBeforeOpen.abort(new Error('cancelled before open'))
-    await expect(ctx.typertGateway.stream({
+    await expect(ctx.typertGateway.stream({ access: createTrustedConnectionAccess(),
       namespace: 'feed', method: 'abortBeforeOpen', args: {}, signal: abortedBeforeOpen.signal,
     })).rejects.toThrow('Remote invocation "feed/abortBeforeOpen" was aborted')
 
     const abortedBeforeIteration = new AbortController()
     abortedBeforeIteration.abort(new Error('cancelled before iteration'))
-    const preCancelled = await ctx.typertGateway.stream({
+    const preCancelled = await ctx.typertGateway.stream({ access: createTrustedConnectionAccess(),
       namespace: 'feed', method: 'sync', args: { label: 'ignored' }, signal: abortedBeforeIteration.signal,
     })
     await expect(collect(preCancelled)).rejects.toThrow('Remote invocation "feed/sync" was aborted')
@@ -288,10 +355,10 @@ describe('Typert Remote streams', () => {
 
   it('keeps unary and stream invocation modes distinct', async () => {
     const { ctx } = await setup(false)
-    await expect(ctx.typertGateway.invoke({
+    await expect(ctx.typertGateway.invoke({ access: createTrustedConnectionAccess(),
       namespace: 'feed', method: 'sync', args: { label: 'a' },
     })).rejects.toMatchObject({ code: 'gateway/signature-invalid' } satisfies Partial<TypertGatewayError>)
-    await expect(ctx.typertGateway.stream({
+    await expect(ctx.typertGateway.stream({ access: createTrustedConnectionAccess(),
       namespace: 'feed', method: 'unary', args: { label: 'a' },
     })).rejects.toMatchObject({ code: 'gateway/signature-invalid' } satisfies Partial<TypertGatewayError>)
   })

@@ -75,13 +75,17 @@ export const inject: string[] = []
  * Carrier override installed on the page global before plugin boot. The served
  * web app leaves it unset and gets HTTP + WebSocket; a shell that owns a
  * different physical transport (the worker preview's postMessage tunnel)
- * provides both halves here instead of forking this plugin.
+ * provides both halves here. A paired shell supplies its Fetch carrier and explicit authority.
  */
 export interface ClientTransportHooks {
   /** Transport for generic unary RPC channels (the Typert gateway). */
   fetch: RpcFetch
   /** Worker-local Gateway stream carrier; absent when the page uses the Gateway WebSocket. */
   openStream?: RpcStreamOpen
+  /** Paired pages suppress local-owner UI even on loopback; Host authorization remains server-owned. */
+  authority?: 'paired'
+  /** Explicit paired WebSocket protocol; Gateway appends only the fixed pairingVersion=1 query. */
+  pairingProtocolVersion?: 1
   /**
    * Bundle transport for the module system, present when the carrier also owns
    * bundle bytes (the worker tunnel). Absent in the served web app, whose
@@ -94,7 +98,7 @@ export interface ClientTransportHooks {
    * the loopback stand-in for "the operator's own machine" is vacuous.
    * `ctx.connection.isLoopback` then reports the privileged surface reachable
    * regardless of the page authority. Only a shell that assembles its own
-   * transport can set this; served pages never carry the global at all.
+   * transport can set this; ordinary served pages leave it unset. Paired authority always takes precedence.
    */
   ownsHost?: boolean
 }
@@ -114,6 +118,7 @@ export interface ConnectionHandle {
    * Whether the privileged surface is reachable: the page authority is
    * loopback, the transport declares the page owns the Host
    * ({@link ClientTransportHooks.ownsHost}), or the context is not a browser.
+   * Paired authority always reports false. This UI fact cannot authorize a Host request.
    */
   readonly isLoopback: boolean
   /** Current Remote event generation and the Host facts carried by its opening frame. */
@@ -224,7 +229,8 @@ export function apply(ctx: Context): void {
     publishState(undefined)
   }
   const handle: ConnectionHandle = {
-    isLoopback: transport?.ownsHost === true || pageLocation === undefined || isLoopbackHostname(pageLocation.hostname),
+    isLoopback: transport?.authority !== 'paired'
+      && (transport?.ownsHost === true || pageLocation === undefined || isLoopbackHostname(pageLocation.hostname)),
     generation: {
       getSnapshot: () => generation,
       subscribe: (listener) => {

@@ -4,10 +4,13 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type { HostConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import type { RemoteEventHostInfo } from './stream-protocol.ts'
 
 /** One Remote method request after a carrier has decoded its envelope. */
 export interface InvokeRemoteRequest {
+  /** Authority constructed by the authenticated Host carrier, never a wire argument. */
+  readonly access: HostConnectionAccess
   /** Remote namespace selected by the generated descriptor. */
   readonly namespace: string
   /** Exported Service method name. */
@@ -85,6 +88,7 @@ export interface TypertGatewayWireStream {
     endpoint: string,
     payload: unknown,
     signal: AbortSignal,
+    access: HostConnectionAccess,
   ) => Promise<AsyncIterable<unknown>>
 
   /**
@@ -119,8 +123,33 @@ export type TypertGatewayErrorCode =
   | 'gateway/service-unavailable'
   | 'gateway/signature-invalid'
 
+/** Delegated grant policy; unknown endpoints and unrecognized values must fail closed. */
+export interface TypertGatewayAccessPolicy {
+  /** Maximum retained event frames before disconnecting a stalled delegated subscriber. */
+  readonly maxQueuedEvents: number
+  /** Maximum complete serialized event bytes retained per delegated subscriber. */
+  readonly maxQueuedEventBytes: number
+  /** Reject a disallowed endpoint or Session reference before any provider lookup. */
+  authorizeInvocation(endpoint: string, payload: unknown): void | Promise<void>
+  /** Project a unary result to the grant's Session references. */
+  projectResult(endpoint: string, payload: unknown, value: unknown): unknown
+  /** Project one stream item; undefined suppresses an unauthorized aggregate item. */
+  projectStreamItem(endpoint: string, payload: unknown, value: unknown): unknown
+  /** Decide notification or waterfall visibility before it is queued or registered as delivered. */
+  permitsEvent(event: TypertRemoteEventFrame | TypertRemoteEventInvocation): boolean
+}
+
 /** Host dispatcher consumed by Connection adapters. */
 export interface TypertGateway {
+  /**
+   * Register the policy for one authenticated delegated identity.
+   * @param access - immutable capability issued by the carrier owner.
+   * @param policy - the matching grant policy.
+   * @returns effect disposer that invalidates the registration.
+   */
+  registerAccess(access: HostConnectionAccess, policy: TypertGatewayAccessPolicy): () => void
+  /** @returns the current authenticated unary caller, absent outside Gateway dispatch. */
+  currentAccess(): HostConnectionAccess | undefined
   /** Carrier adapter shared by WebSocket and in-process transports. */
   readonly wireStream: TypertGatewayWireStream
 

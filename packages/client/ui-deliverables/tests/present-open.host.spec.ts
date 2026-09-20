@@ -1,4 +1,5 @@
 /** Native delivery actions resolve the viewed Session's current workspace files. */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdtemp, rm, readFile, writeFile, mkdir, realpath, unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -46,7 +47,7 @@ async function fixture() {
   const connection = new HostConnectionService(ctx, [], {} as BrowserAuth)
   const fiber = ctx.plugin({ inject: ['connection', 'sessionQuery', 'sessionController', 'fs', 'sandboxPolicy'], apply: registerPresentOpen })
   await fiber
-  const handler = connection.createSharedFetchHandler('/api')
+  const handler = connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
   const open = (query = '?sessionId=owner&seq=7&index=0', signal?: AbortSignal) => handler.fetch(new Request(
     `http://localhost${PRESENT_OPEN_PATH}${query}`, { method: 'POST', signal: signal ?? null },
   ))

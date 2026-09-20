@@ -7,12 +7,14 @@
 
 import { randomUUID } from 'node:crypto'
 import { Context, Service, symbols } from '@deepseek-ai/cordis'
-import type { ConnectionRpcHandler } from '@deepseek-ai/dsh-client-connection'
+import { type ConnectionRpcHandler, type HostConnectionAccess } from '@deepseek-ai/dsh-client-connection'
+import { GatewayAccess } from './access.ts'
 import { Deque } from '@deepseek-ai/dsh-deque'
 import type { WebUpgradeRoute } from '@deepseek-ai/dsh-host-webserver'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import z from '@deepseek-ai/schemastery'
 export type { TypertGatewayFaultDetails } from './remote-error-codes.ts'
+export { RemoteStreamMuxServer, rejectRemoteStreamUpgrade } from './stream-server.ts'
 import {
   RemoteError,
   remoteErrorOf,
@@ -27,6 +29,7 @@ import type {
   TypertGateway,
   TypertGatewayErrorCode,
   TypertGatewayWireStream,
+  TypertGatewayAccessPolicy,
   TypertRemoteEventDispatch,
   TypertRemoteEventFrame,
   TypertRemoteEventInvocation,
@@ -62,6 +65,7 @@ export type {
   TypertGateway,
   TypertGatewayErrorCode,
   TypertGatewayWireStream,
+  TypertGatewayAccessPolicy,
   TypertRemoteEventContext,
   TypertRemoteEventDispatch,
   TypertRemoteEventFrame,
@@ -96,6 +100,7 @@ interface RegisteredRemoteEventSource {
 }
 
 interface RemoteEventClient {
+  readonly access: HostConnectionAccess
   readonly id: RemoteEventClientId
   readonly queue: RemoteEventQueue
   readonly deliveries: Map<RemoteEventId, PendingRemoteEvent>
@@ -174,8 +179,10 @@ export class TypertGatewayService extends Service implements TypertGateway {
   })
 
   /** Carrier adapter shared by the WebSocket mux and local Host transports. */
+  private readonly access = new GatewayAccess()
+
   readonly wireStream: TypertGatewayWireStream = {
-    open: (endpoint, payload, signal) => this.openWireStream(endpoint, payload, signal),
+    open: (endpoint, payload, signal, access) => this.openWireStream(endpoint, payload, signal, access),
     failure: error => rpcError(error),
   }
 
@@ -199,12 +206,12 @@ export class TypertGatewayService extends Service implements TypertGateway {
       connectionCtx.connection.rpc.intercept(
         '/api',
         endpoint => this.claimsEndpoint(endpoint),
-        (endpoint, payload, signal) => this.dispatchRpc(endpoint, payload, signal),
+        (endpoint, payload, signal, access) => this.dispatchRpc(endpoint, payload, signal, access),
       )
     })
     ctx.inject(['connection', 'webServer'], (webCtx) => {
       const mux = new RemoteStreamMuxServer(
-        (endpoint, payload, signal) => this.openWireStream(endpoint, payload, signal),
+        (endpoint, payload, signal) => this.openWireStream(endpoint, payload, signal, webCtx.connection.trustedAccess),
         this.wireStream.failure,
         resolved.websocketHeartbeatIntervalMs,
       )
@@ -290,12 +297,30 @@ export class TypertGatewayService extends Service implements TypertGateway {
   }
 
   /**
+   * Register authorization for one authenticated delegated identity.
+   * @param access - same-process authenticated capability.
+   * @param policy - grant owner policy.
+   * @returns disposer removing this exact policy.
+   */
+  registerAccess(access: HostConnectionAccess, policy: TypertGatewayAccessPolicy): () => void {
+    return this.access.register(access, policy)
+  }
+
+  /**
+   * Read the authenticated caller during a unary invocation.
+   * @returns the current caller; local-only methods reject an absent caller.
+   */
+  currentAccess(): HostConnectionAccess | undefined { return this.access.getCurrent() }
+
+  /**
    * Invoke one live Remote method through strict generated reflection or SRC markers.
    * @param request - decoded endpoint and exact named wire arguments.
    * @returns the business result without output decoding.
    * @throws {@link TypertGatewayError} for dispatch, provider, or boundary failures; lookup-policy and business errors retain identity.
    */
   async invoke(request: InvokeRemoteRequest): Promise<unknown> {
+    await this.access.authorize(request.access, endpointOf(request.namespace, request.method), { args: request.args })
+    request = { ...request, signal: AbortSignal.any([request.signal ?? NEVER_ABORTED_SIGNAL, request.access.signal]) }
     const prepared = await this.prepareInvocation(request)
     if (prepared.descriptor.mode === 'stream') {
       throw new TypertGatewayError(
@@ -306,7 +331,8 @@ export class TypertGatewayService extends Service implements TypertGateway {
     }
 
     try {
-      return await Reflect.apply(prepared.method, prepared.receiver, prepared.args) as unknown
+      const value = await this.access.run(request.access, () => Reflect.apply(prepared.method, prepared.receiver, prepared.args) as unknown)
+      return await this.access.result(request.access, prepared.endpoint, { args: request.args }, value)
     } catch (error) {
       if (request.signal?.aborted === true) throw remoteCancelled(prepared.endpoint, error)
       throw error
@@ -319,6 +345,8 @@ export class TypertGatewayService extends Service implements TypertGateway {
    * @returns a cancellation-aware iterable over the business results.
    */
   async stream(request: InvokeRemoteRequest): Promise<AsyncIterable<unknown>> {
+    await this.access.authorize(request.access, endpointOf(request.namespace, request.method), { args: request.args })
+    request = { ...request, signal: AbortSignal.any([request.signal ?? NEVER_ABORTED_SIGNAL, request.access.signal]) }
     const prepared = await this.prepareInvocation(request)
     if (prepared.descriptor.mode !== 'stream') {
       throw new TypertGatewayError(
@@ -329,7 +357,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
     }
     let source: unknown
     try {
-      source = Reflect.apply(prepared.method, prepared.receiver, prepared.args) as unknown
+      source = this.access.run(request.access, () => Reflect.apply(prepared.method, prepared.receiver, prepared.args) as unknown)
     } catch (error) {
       if (request.signal?.aborted === true) throw remoteCancelled(prepared.endpoint, error)
       throw error
@@ -342,24 +370,30 @@ export class TypertGatewayService extends Service implements TypertGateway {
         { field: 'result' },
       )
     }
-    return cancellableStream(
+    return this.access.stream(request.access, prepared.endpoint, { args: request.args }, cancellableStream(
       source,
       prepared.endpoint,
       request.signal ?? NEVER_ABORTED_SIGNAL,
-    )
+    ))
   }
 
   private async dispatchRpc(
     endpoint: string,
     payload: unknown,
     signal: AbortSignal,
+    access: HostConnectionAccess,
   ): Promise<ConnectionRpcResult> {
     if (endpoint === REMOTE_EVENT_RESULT_ENDPOINT) {
       try {
+        await this.access.authorize(access, endpoint, payload)
         const result = parseRemoteEventResultPayload(payload)
         const client = this.remoteEventClients.get(result.clientId)
-        if (client === undefined) {
+        if (client === undefined || client.access.identity !== access.identity) {
           throw new Error('typert gateway: Remote event result identifies no active event stream')
+        }
+        const pending = this.pendingRemoteEvents.get(result.eventId)
+        if (pending !== undefined && !this.access.permitsEvent(access, pending.source)) {
+          throw new Error('Gateway event response is not authorized')
         }
         this.receiveRemoteEventResult(client, result)
         return { ok: true, value: undefined }
@@ -367,23 +401,27 @@ export class TypertGatewayService extends Service implements TypertGateway {
         return rpcFailure(error)
       }
     }
-    return this.invokeRpc(endpoint, payload, signal)
+    return this.invokeRpc(endpoint, payload, signal, access)
   }
 
   private async openWireStream(
     endpoint: string,
     payload: unknown,
     signal: AbortSignal,
+    access: HostConnectionAccess,
   ): Promise<AsyncIterable<unknown>> {
+    signal = AbortSignal.any([signal, access.signal])
     if (endpoint === REMOTE_EVENT_STREAM_ENDPOINT) {
-      return this.openRemoteEvents(payload, signal)
+      await this.access.authorize(access, endpoint, payload)
+      return this.access.stream(access, endpoint, payload, this.openRemoteEvents(payload, signal, access))
     }
-    return this.stream(remoteRequest(endpoint, payload, signal))
+    return this.stream({ ...remoteRequest(endpoint, payload, signal), access })
   }
 
   private async *openRemoteEvents(
     payload: unknown,
     signal: AbortSignal,
+    access: HostConnectionAccess,
   ): AsyncGenerator<
     RemoteEventEmitFrame | RemoteEventInvocationFrame | RemoteEventCancellationFrame
     | RemoteEventReadyFrame
@@ -413,8 +451,9 @@ export class TypertGatewayService extends Service implements TypertGateway {
     let clientId = randomUUID() as RemoteEventClientId
     while (this.remoteEventClients.has(clientId)) clientId = randomUUID() as RemoteEventClientId
     const client: RemoteEventClient = {
+      access,
       id: clientId,
-      queue: new RemoteEventQueue(),
+      queue: new RemoteEventQueue(this.access.policy(access)),
       deliveries: new Map(),
     }
     this.remoteEventClients.set(clientId, client)
@@ -451,7 +490,9 @@ export class TypertGatewayService extends Service implements TypertGateway {
       event: frame.event,
       args: frame.args,
     }
-    for (const client of this.remoteEventClients.values()) client.queue.push(wire)
+    for (const client of this.remoteEventClients.values()) {
+      if (this.access.permitsEvent(client.access, frame)) client.queue.push(wire)
+    }
   }
 
   private startRemoteEvent(source: TypertRemoteEventInvocation): void {
@@ -514,6 +555,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
   }
 
   private deliverRemoteEvent(pending: PendingRemoteEvent, client: RemoteEventClient): void {
+    if (!this.access.permitsEvent(client.access, pending.source)) return
     pending.deliveries.add(client)
     client.deliveries.set(pending.id, pending)
     client.queue.push(pending.frame)
@@ -582,9 +624,11 @@ export class TypertGatewayService extends Service implements TypertGateway {
     for (const client of [...this.remoteEventClients.values()]) client.queue.end()
   }
 
-  private async invokeRpc(endpoint: string, payload: unknown, signal: AbortSignal): Promise<ConnectionRpcResult> {
+  private async invokeRpc(
+    endpoint: string, payload: unknown, signal: AbortSignal, access: HostConnectionAccess,
+  ): Promise<ConnectionRpcResult> {
     try {
-      const value = await this.invoke(remoteRequest(endpoint, payload, signal))
+      const value = await this.invoke({ ...remoteRequest(endpoint, payload, signal), access })
       // A void or explicitly absent business result carries no `value` field;
       // JSON has no `undefined`, and the envelope's optional slot is the one
       // representation of absence that both args and results already use.
@@ -881,9 +925,21 @@ class RemoteEventQueue {
   private readonly frames = new Deque<RemoteEventWireFrame>()
   private waiter: (() => void) | undefined
   private closed = false
+  private bytes = 0
+  private overflow = false
+
+  constructor(private readonly limits?: Pick<TypertGatewayAccessPolicy, 'maxQueuedEvents' | 'maxQueuedEventBytes'>) {}
 
   push(frame: RemoteEventWireFrame): void {
     if (this.closed) return
+    const bytes = this.limits === undefined ? 0 : Buffer.byteLength(JSON.stringify(frame))
+    if (this.limits !== undefined
+      && (this.frames.size >= this.limits.maxQueuedEvents || this.bytes + bytes > this.limits.maxQueuedEventBytes)) {
+      this.overflow = true
+      this.end()
+      return
+    }
+    this.bytes += bytes
     this.frames.pushBack(frame)
     this.waiter?.()
   }
@@ -899,7 +955,13 @@ class RemoteEventQueue {
     signal.addEventListener('abort', abort, { once: true })
     try {
       while (true) {
-        while (this.frames.size > 0) yield this.frames.popFront() as RemoteEventWireFrame
+        while (this.frames.size > 0) {
+          if (this.overflow) throw new Error('Remote event subscriber exceeded its queue budget')
+          const frame = this.frames.popFront() as RemoteEventWireFrame
+          if (this.limits !== undefined) this.bytes -= Buffer.byteLength(JSON.stringify(frame))
+          yield frame
+        }
+        if (this.overflow) throw new Error('Remote event subscriber exceeded its queue budget')
         if (this.closed || signal.aborted) return
         await new Promise<void>((resolve) => { this.waiter = resolve })
         this.waiter = undefined
@@ -933,7 +995,7 @@ function parseRemoteEventResultPayload(payload: unknown): ReturnType<typeof pars
   return parseRemoteEventResult(payload.args)
 }
 
-function remoteRequest(endpoint: string, payload: unknown, signal: AbortSignal): InvokeRemoteRequest {
+function remoteRequest(endpoint: string, payload: unknown, signal: AbortSignal): Omit<InvokeRemoteRequest, 'access'> {
   const segments = endpoint.split('/')
   if (segments.length !== 2 || segments[0] === '' || segments[1] === '') {
     throw new Error(`invalid Remote endpoint ${JSON.stringify(endpoint)}`)

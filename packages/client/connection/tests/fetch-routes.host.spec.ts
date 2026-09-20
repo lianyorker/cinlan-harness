@@ -1,3 +1,4 @@
+import { createTrustedConnectionAccess } from '../src/rpc.ts'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { ConnectionFetchRoute } from '../src/rpc.ts'
@@ -33,7 +34,7 @@ describe('Connection Fetch routes', () => {
       requestBody: 'streaming',
       fetch: route,
     })
-    const shared = connection.createSharedFetchHandler('/api')
+    const shared = connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
 
     const response = await shared.fetch(new Request(
       'http://host/api/session.export?sessionId=session-1',
@@ -74,7 +75,7 @@ describe('Connection Fetch routes', () => {
     for (const route of order === 'broad-first' ? routes : routes.toReversed()) connection.fetch.register(route)
     const rpc = vi.fn(async () => ({ ok: true as const, value: 'rpc' }))
     connection.rpc.intercept('/api', () => true, rpc)
-    const shared = connection.createSharedFetchHandler('/api')
+    const shared = connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
     for (const [path, method, bodyMode, status, body] of [
       ['/api/assets/', 'GET', 'streaming', 200, 'broad'],
       ['/api/assets/site.css', 'GET', 'streaming', 200, 'broad'],
@@ -106,7 +107,7 @@ describe('Connection Fetch routes', () => {
     connection.fetch.register({
       path: '/api/sidebar/html/', match: 'prefix', methods: ['GET'], requestBody: 'buffered', fetch: route,
     })
-    const shared = connection.createSharedFetchHandler('/api')
+    const shared = connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
     const literal = 'dsh-app://app/api/sidebar/html/session-1/C:/site/a%252Fb%20c.html?raw=%252F'
     const response = await shared.fetch(new Request(literal))
     expect(await response.text()).toBe(literal)
@@ -152,7 +153,7 @@ describe('Connection Fetch routes', () => {
     expect(() => connection.fetch.register({ ...route, path: '/api/assets/' })).not.toThrow()
   })
 
-  it('withdraws a prefix and leaves an active request signal and response with their owners', async () => {
+  it('withdraws a prefix and preserves request cancellation for its active response', async () => {
     const { ctx, connection } = await mounted()
     const entered = Promise.withResolvers<Request>()
     const finish = Promise.withResolvers<Response>()
@@ -162,15 +163,16 @@ describe('Connection Fetch routes', () => {
       path: '/api/assets/', match: 'prefix', methods: ['GET'], requestBody: 'streaming',
       fetch(request) { entered.resolve(request); return finish.promise },
     })
-    const shared = connection.createSharedFetchHandler('/api')
+    const shared = connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
     const request = new Request('http://host/api/assets/file', { signal: controller.signal })
     const pending = shared.fetch(request)
     onTestFinished(async () => {
       controller.abort()
       finish.resolve(new Response())
-      await (await pending).body?.cancel()
+      await pending.then(response => response.body?.cancel()).catch(() => { /* This fixture deliberately aborts its pending request. */ })
     })
-    expect(await entered.promise).toBe(request)
+    const delivered = await entered.promise
+    expect(delivered.url).toBe(request.url)
     await unregister()
     expect((await shared.fetch(new Request(request.url))).status).toBe(404)
     expect(shared.requestBodyMode({ method: 'GET', url: new URL(request.url) })).toBe('buffered')
@@ -178,8 +180,8 @@ describe('Connection Fetch routes', () => {
     expect(request.signal.aborted).toBe(true)
     const response = new Response(new ReadableStream({ cancel: responseCancelled }))
     finish.resolve(response)
-    expect(await pending).toBe(response)
-    await response.body!.cancel()
+    expect(delivered.signal.aborted).toBe(true)
+    await expect(pending).rejects.toBe(controller.signal.reason)
     expect(responseCancelled).toHaveBeenCalledOnce()
     const contributor = ctx.plugin({
       inject: ['connection'],

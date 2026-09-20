@@ -1,4 +1,5 @@
 /** Real Gateway dispatch over a Loader-composed durable MCP manager. */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import TypertGateway from '@deepseek-ai/dsh-api-gateway'
@@ -18,8 +19,9 @@ async function fixture() {
       'mcp-fixture-typert': TypertRegistry, 'mcp-fixture-gateway': TypertGateway, 'mcp-fixture-controller': McpController,
     })
   } })
+  const access = createTrustedConnectionAccess()
   const call = (method: string, request?: unknown) => ctx.typertGateway.invoke({
-    namespace: 'mcp', method, args: request === undefined ? {} : { request },
+    access, namespace: 'mcp', method, args: request === undefined ? {} : { request },
   })
   return { ctx, call }
 }
@@ -46,7 +48,7 @@ describe('MCP Remote management', () => {
     const { ctx, call } = await fixture()
     const abort = new AbortController()
     onTestFinished(() => { abort.abort() })
-    const source = await ctx.typertGateway.wireStream.open('mcp/watch', { args: {} }, abort.signal)
+    const source = await ctx.typertGateway.wireStream.open('mcp/watch', { args: {} }, abort.signal, createTrustedConnectionAccess())
     const iterator = source[Symbol.asyncIterator]()
     expect((await iterator.next()).value).toMatchObject({ revision: 0, servers: [] })
     await call('save', { record, expectedRevision: 0 })

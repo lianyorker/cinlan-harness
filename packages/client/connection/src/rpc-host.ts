@@ -4,6 +4,8 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import {
   RpcId,
+  createTrustedConnectionAccess,
+  type HostConnectionAccess,
   type ClientRequest,
   type RpcId as RpcIdType,
 } from './rpc.ts'
@@ -34,7 +36,7 @@ const ENDPOINT_SEGMENT_PATTERN = /^[A-Za-z0-9_$.-]+$/
 
 interface ConnectionRpcInterceptor {
   readonly matches: ConnectionRpcEndpointMatcher
-  readonly fetchHandler: ConnectionFetchHandler
+  readonly handler: ConnectionRpcHandler
 }
 
 interface RegisteredFetchRoute {
@@ -59,6 +61,9 @@ declare module '@deepseek-ai/cordis' {
 
 /** Host Connection service whose channel registrations belong to the caller fiber. */
 export class HostConnectionService extends Service implements HostConnectionHandle {
+  private readonly lifetime = new AbortController()
+  /** Local authenticated carriers reuse this instance identity; disposing Connection revokes it. */
+  readonly trustedAccess = createTrustedConnectionAccess(this.lifetime.signal)
   private readonly interceptors = new Map<string, ConnectionRpcInterceptor>()
   private readonly fetchRoutes = new Map<string, RegisteredFetchRoute>()
 
@@ -74,6 +79,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
     private readonly browserAuth: BrowserAuth,
   ) {
     super(ctx, 'connection')
+    ctx.effect(() => () => { this.lifetime.abort(new Error('Connection disposed')) })
   }
 
   /** Generic channel registry scoped to the Context reading this service. */
@@ -113,30 +119,37 @@ export class HostConnectionService extends Service implements HostConnectionHand
   /**
    * Compose one shared-channel Fetch handler from Fetch routes and its interceptor.
    * @param channel - shared channel mounted by Connection.
+   * @param access - Explicit carrier authority and revocation lifetime.
    * @returns Fetch handler that selects one owner or returns 404.
    */
   createSharedFetchHandler(
     channel: '/api',
+    access: HostConnectionAccess,
   ): ConnectionFetchHandler {
     return {
       requestBodyMode: ({ method, url }) => {
         const route = this.matchFetchRoute(url.pathname)
         return route?.methods.has(method) === true ? route.requestBody : 'buffered'
       },
-      fetch: (request) => {
+      fetch: async (incoming) => {
+        const signal = AbortSignal.any([incoming.signal, access.signal])
+        signal.throwIfAborted()
+        const request = new Request(incoming, { signal })
         const pathname = new URL(request.url).pathname
         const route = this.matchFetchRoute(pathname)
         if (route !== undefined) {
-          return route.methods.has(request.method)
-            ? route.fetch(request)
-            : Promise.resolve(new Response('not found', { status: 404 }))
+          if (!route.methods.has(request.method)) return new Response('not found', { status: 404 })
+          if (access.kind === 'delegated') await access.authorizeFetch(request)
+          signal.throwIfAborted()
+          const response = await route.fetch(revocableRequest(request, signal), access)
+          return revocableResponse(response, signal)
         }
         const endpoint = endpointFromPath(channel, pathname)
         const interceptor = this.interceptors.get(channel)
         if (endpoint === undefined || interceptor === undefined || !interceptor.matches(endpoint)) {
           return Promise.resolve(new Response('not found', { status: 404 }))
         }
-        return interceptor.fetchHandler.fetch(request)
+        return rpcFetchHandler(channel, interceptor.handler, access).fetch(request)
       },
     }
   }
@@ -182,7 +195,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
     handler: ConnectionRpcHandler,
   ): () => Promise<void> {
     assertChannel(channel)
-    const fetchHandler = rpcFetchHandler(channel, handler)
+    const fetchHandler = rpcFetchHandler(channel, handler, this.trustedAccess)
     const route: WebRoute = {
       kind: 'prefix',
       path: channel,
@@ -213,7 +226,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
     }
     const interceptor: ConnectionRpcInterceptor = {
       matches,
-      fetchHandler: rpcFetchHandler(channel, handler),
+      handler,
     }
     return owner.effect(() => {
       if (this.interceptors.has(channel)) {
@@ -230,10 +243,14 @@ export class HostConnectionService extends Service implements HostConnectionHand
 function rpcFetchHandler(
   channel: string,
   handler: ConnectionRpcHandler,
+  access: HostConnectionAccess,
 ): ConnectionFetchHandler {
   return {
     requestBodyMode: () => 'buffered',
-    async fetch(request: Request): Promise<Response> {
+    async fetch(incoming: Request): Promise<Response> {
+      const signal = AbortSignal.any([incoming.signal, access.signal])
+      signal.throwIfAborted()
+      const request = revocableRequest(incoming, signal)
       const endpoint = endpointFromPath(channel, new URL(request.url).pathname)
       if (request.method !== 'POST' || endpoint === undefined) {
         return new Response('not found', { status: 404 })
@@ -248,6 +265,7 @@ function rpcFetchHandler(
       try {
         body = await request.json()
       } catch {
+        signal.throwIfAborted()
         return new Response('body is not JSON', { status: 400 })
       }
 
@@ -265,13 +283,67 @@ function rpcFetchHandler(
       }
 
       try {
-        const result = await handler(endpoint, message.payload, request.signal)
+        signal.throwIfAborted()
+        const result = await handler(endpoint, message.payload, signal, access)
+        signal.throwIfAborted()
         return fullResponse(message.rpcId, result)
       } catch (error) {
+        signal.throwIfAborted()
         return new Response(`handler failure: ${String(error)}`, { status: 500 })
       }
     },
   }
+}
+
+function revocableRequest(request: Request, signal: AbortSignal): Request {
+  const init: RequestInit & { duplex?: 'half' } = { signal }
+  if (request.body !== null) { init.body = revocableBody(request.body, signal); init.duplex = 'half' }
+  return new Request(request, init)
+}
+
+function revocableResponse(response: Response, signal: AbortSignal): Response {
+  if (signal.aborted) {
+    void response.body?.cancel(signal.reason).catch(() => { /* Cancellation releases an already-failed producer. */ })
+    signal.throwIfAborted()
+  }
+  if (response.body === null) return response
+  return new Response(revocableBody(response.body, signal), {
+    status: response.status, statusText: response.statusText, headers: response.headers,
+  })
+}
+
+function revocableBody(source: ReadableStream<Uint8Array>, signal: AbortSignal): ReadableStream<Uint8Array> {
+  const reader = source.getReader()
+  let aborted: (() => void) | undefined
+  const finish = (): void => {
+    if (aborted !== undefined) signal.removeEventListener('abort', aborted)
+  }
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      aborted = () => {
+        finish()
+        controller.error(signal.reason)
+        void reader.cancel(signal.reason).catch(() => { /* Revocation already errors the consumer stream. */ })
+      }
+      signal.addEventListener('abort', aborted, { once: true })
+      if (signal.aborted) aborted()
+    },
+    async pull(controller) {
+      try {
+        const item = await reader.read()
+        if (signal.aborted) return
+        if (item.done) { finish(); controller.close() }
+        else controller.enqueue(item.value)
+      } catch (error) {
+        finish()
+        controller.error(error)
+      }
+    },
+    async cancel(reason) {
+      finish()
+      await reader.cancel(reason)
+    },
+  }, { highWaterMark: 0 })
 }
 
 function invalidEnvelopeResponse(body: unknown, issues: readonly object[]): Response {

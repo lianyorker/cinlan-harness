@@ -1,4 +1,5 @@
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
+import type { ClientTransportHooks } from '@deepseek-ai/dsh-client-connection/client'
 /** Browser owner for the Gateway multiplexed Remote stream socket. */
 
 import {
@@ -306,5 +307,7 @@ function remoteStreamUrl(): string {
   const base = location?.origin !== undefined && location.origin !== 'null' ? location.origin : INTERNAL_BASE
   const url = new URL(REMOTE_STREAM_MUX_PATH, base)
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  const transport = (globalThis as { __DSH_TRANSPORT__?: ClientTransportHooks }).__DSH_TRANSPORT__
+  if (transport?.pairingProtocolVersion === 1) url.searchParams.set('pairingVersion', '1')
   return url.href
 }

@@ -1,4 +1,5 @@
 /** Isolated HTTP releases and Loader-composed real resource management. */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { once } from 'node:events'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { createServer, type ServerResponse } from 'node:http'
@@ -110,8 +111,9 @@ export async function resourceHarness(configured = true) {
     })
   })
   const host = ctx
+  const access = createTrustedConnectionAccess()
   const call = (method: string, request?: unknown, signal?: AbortSignal) => host.typertGateway.invoke({
-    namespace: 'securityResearch', method, args: request === undefined ? {} : { request },
+    access, namespace: 'securityResearch', method, args: request === undefined ? {} : { request },
     ...(signal === undefined ? {} : { signal }),
   }) as Promise<SecuritySkillResourceStatus>
   return {
