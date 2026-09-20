@@ -1,0 +1,10 @@
+- listitem:
+  - text: sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23
+  - paragraph: 中文识别 · 超轻量 14M 参数，适合低资源设备
+  - status: 71 MB · 未下载
+  - paragraph: "已安装版本: 未安装"
+  - paragraph: "可用版本: sha256:c0aa54e2373dba844bdd7ba85c525d4bff6524b6340f70bb820b776080435778"
+  - paragraph: 版本为所固定模型清单的 SHA-256 指纹，不代表上游最新发行版。
+  - paragraph: "下载来源: https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23.tar.bz2"
+  - paragraph: 模型文件缺失。
+  - button "下载" [disabled]

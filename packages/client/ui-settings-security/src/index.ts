@@ -2,3 +2,5 @@
 
 /** Presentation and registration live in the Client entry. */
 export function apply(): void {}
+
+export { Config } from './config.ts'

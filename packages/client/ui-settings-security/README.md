@@ -24,7 +24,7 @@ Configure browser launch preferences and link routing, and inspect desktop and m
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount with Settings, Locale, and the pluginInventory, deviceCapabilities, securityResearch, browser, and settings Remotes. The Security Research, Browser, Computer Use, and Mobile navigation sections remain available when a capability is missing. Security Research reports a missing resource manager explicitly and does not read or switch agent presets. Plugin loading, Provider readiness, and action authorization are separate facts.
+Mount with Settings, Locale, and the pluginInventory, deviceCapabilities, securityResearch, browser, and settings Remotes. The optional pluginManager Remote supplies entry activation controls. The Security Research, Browser, Computer Use, and Mobile navigation sections remain available when a capability is missing. Security Research reports a missing resource manager explicitly and does not read or switch agent presets. Plugin loading, Provider readiness, and action authorization are separate facts.
 
 The Computer Use and Mobile pages copy the supported `dsh --profile device-control` command. It launches a separate profile without installing external software. Clipboard denial displays a failure message.
 
@@ -37,7 +37,11 @@ The Computer Use and Mobile pages copy the supported `dsh --profile device-contr
 | Browser link routing | The sidebar owns `browserInterceptLinks`, `browserInterceptHttp`, and `browserInterceptHttps` in `dsh-better-sidebar`. GUI and terminal hyperlinks consume these settings independently of the Browser Provider. Save sends only changed routing fields; reset removes only their overrides, preserving other sidebar preferences. |
 | Mobile | The [mobile capability](../../mobile-device/mobile-device/README.md) owns the `mobile-device` namespace. `enabled` controls automatic page checks, `androidSdkPath` supplies the Host SDK probe, and `defaultDeviceId` supplies only an omitted `mobile_observe.device_id`. |
 | Security Research | The [security skills resource manager](../../security/security-skills/README.md) owns installations and background operations. The page displays its snapshot and progress through the securityResearch Remote. Skills run in ordinary sessions; the page has no scope editor, scan console, or report export. |
-| Computer Use | The read-only Provider check reports platform, Provider/version, protocol, and declared support flags. Missing observations remain unavailable, and action permissions remain unprobed even after a successful check. No screen, cursor, or scaling preferences are supplied. |
+| Computer Use | Native CUA reports catalog lifecycle, registered tools, and platform; facade providers report versions and declared support flags. Catalog readiness does not prove screenshot access, input delivery, or OS permissions. No screen, cursor, or scaling preferences are supplied. |
+
+Browser and Computer Use activation lists exact configured Playwright or native CUA Loader entries, including disabled rows. The official Plugin Manager owns persistence, read-only restrictions, and application outcomes. Pending requests disable duplicate submissions; rejected, failed, overridden, cancelled, and restart-required outcomes remain visible. The page re-reads Host state after each request without inferring activation from the requested value. Enabling does not launch a browser or approve desktop actions.
+
+Browser runtime resources remain alongside launch preferences and explicit controls. The page observes the Host only while mounted; runtimePollIntervalMs defaults to 1000 ms and accepts 100–60000 ms. Leaving the page stops observation without cancelling a Host task. [Native CUA readiness and policy](../../../.agents/notes/implemented/architecture/2026-09-20-native-cua-readiness-and-policy.md) defines the separate catalog and permission facts.
 
 Browser and Mobile forms read framework-bound SettingsScope snapshots. Drafts retain the first-edit revision; one atomic mutation saves each form. Reset removes user overrides to recover composition defaults. Only successful Host responses update the shared mirror and show success; rejected writes retain the draft. Read-only or unavailable settings cannot be saved or reset.
 
@@ -71,7 +75,7 @@ None; preferences and readiness reads do not enter the model request prefix.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- A loaded plugin does not prove readiness, and a successful Provider probe does not grant action authorization. The device-control profile uses external CLI adapters; native Browser does not depend on them.
+- A loaded plugin does not prove readiness, and a successful Provider probe does not grant action authorization. The device-control profile mounts native CUA for desktop control; its Mobile adapter retains its external runtime requirement.
 - The SDK path configures only the Host probe, not the external Cinlan device runtime. A successful SDK check does not prove that a device session can launch.
 - Capture content, browser zoom, and computer-control preferences require their own runtime owners; this package does not add preview-only fields.
 - Network downloads require a real release source configured by the Host. Installing skills does not grant network, file, or tool permissions; scope and findings remain backend-owned data.

@@ -1,0 +1,21 @@
+- region "Browser runtime":
+  - img
+  - heading "Browser runtime" [level=2]
+  - text: Runtime files installed
+  - paragraph: Manage the Harness native browser runtime. Installing or repairing does not enable plugins or launch a browser.
+  - paragraph: Enable or disable Browser in Plugin Management; runtime resources and plugin activation are separate.
+  - term: Resource source
+  - definition: Custom executable
+  - term: Browser engine
+  - definition: Playwright Chromium
+  - term: Runtime version
+  - definition: 1.61.1
+  - term: Managed Chromium version
+  - definition: 149.0.7827.55
+  - term: Resource revision
+  - definition: "1228"
+  - term: Managed runtime resources
+  - definition: Not installed
+  - paragraph: Installation manages Chromium resources only; it does not replace the selected system browser or custom executable.
+  - button "Install runtime"
+  - button "Refresh status"

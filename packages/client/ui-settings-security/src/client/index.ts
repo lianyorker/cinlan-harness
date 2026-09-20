@@ -14,6 +14,10 @@ import {
 import { CAPABILITIES, CapabilitySection, type CapabilitySectionInjected } from './CapabilitySection.tsx'
 import { SecurityResourcesSection, type SecurityResourcesInjected, type SecurityResourceAction } from './SecurityResourcesSection.tsx'
 import { createSecurityResourceObserver } from './resource-observer.ts'
+import { createBrowserResourceObserver } from './browser-resources.ts'
+import type { Config } from '../config.ts'
+import type { ProviderActivationCallbacks } from './ProviderActivation.tsx'
+export { Config } from '../config.ts'
 import { en, zh, type CapabilitySettingsKey } from './locales.ts'
 import type { BrowserPreferences } from '@deepseek-ai/dsh-browser-playwright/types'
 import type { MobileDeviceSettings } from '@deepseek-ai/dsh-mobile-device/types'
@@ -45,12 +49,19 @@ const ICONS = {
 } as const
 
 /** Register each capability as an independent Settings section. */
-export function apply(ctx: ClientContext): void {
+export function apply(ctx: ClientContext, config: Config): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-security: dictionaries')
   const t = ctx.locale.bind(NS)
   const browserPreferences = ctx.settingsScope.bind<BrowserPreferences>({ namespace: 'browser-playwright' })
   const browserRouting = ctx.settingsScope.bind<SidebarPrefs>({ namespace: 'dsh-better-sidebar' })
   const mobileSettings = ctx.settingsScope.bind<MobileDeviceSettings>({ namespace: 'mobile-device' })
+  const browserResources = createBrowserResourceObserver(async (signal) => {
+    const result = await ctx.remote.browser.runtimeStatus(signal)
+    if (!result.ok) throw new Error(t('browserOperationFailed'))
+    return result.value
+  }, config.runtimePollIntervalMs)
+  ctx.effect(() => browserResources.dispose)
+  ctx.on('connection/reset', () => { browserResources.refresh() })
   const mutatePreferences = async (
     namespace: string,
     scope: SettingsScope<unknown>,
@@ -68,6 +79,25 @@ export function apply(ctx: ClientContext): void {
     const result = await ctx.remote.pluginInventory.list()
     if (!result.ok) throw new Error(`pluginInventory.list failed: ${result.error.code}: ${result.error.message}`)
     return result.value
+  }
+
+  const providerActivation: ProviderActivationCallbacks = {
+    listProviderEntries: async () => {
+      const manager = ctx.get('remote.pluginManager') as ClientContext['remote']['pluginManager'] | undefined
+      if (manager === undefined) return { kind: 'unavailable' }
+      try {
+        const result = await manager.listPlugins()
+        return result.ok ? { kind: 'ready', entries: result.value } : { kind: 'rejected' }
+      } catch (_managementTransportRejected) { return { kind: 'rejected' } }
+    },
+    setProviderEnabled: async (entryId, enabled) => {
+      const manager = ctx.get('remote.pluginManager') as ClientContext['remote']['pluginManager'] | undefined
+      if (manager === undefined) return { kind: 'unavailable' }
+      try {
+        const result = await manager.setPluginEnabled(entryId, enabled)
+        return result.ok ? { kind: 'result', result: result.value } : { kind: 'rejected' }
+      } catch (_managementTransportRejected) { return { kind: 'rejected' } }
+    },
   }
 
   const checkDevice: CapabilitySectionInjected['checkDevice'] = async (capability, signal) => {
@@ -142,8 +172,26 @@ export function apply(ctx: ClientContext): void {
         label: () => t(definition.navKey),
         locale: NS,
         inject: (): CapabilitySectionInjected => ({
-          list, definition: capabilityDefinition, checkDevice, checkSdk, listMobileDevices,
-          hooks: { browserPreferences, browserRouting, mobileSettings },
+          ...providerActivation, list, definition: capabilityDefinition, checkDevice, checkSdk, listMobileDevices,
+          hooks: { browserPreferences, browserRouting, mobileSettings, browserResources: browserResources.store },
+          watchBrowserResources: browserResources.watch,
+          refreshBrowserResources: browserResources.refresh,
+          runBrowserResource: async (operation) => {
+            const result = await (operation === 'install' ? ctx.remote.browser.installRuntime()
+              : operation === 'reinstall' ? ctx.remote.browser.reinstallRuntime() : ctx.remote.browser.removeRuntime())
+            if (!result.ok) throw new Error(t('browserOperationFailed'))
+            browserResources.refresh()
+          },
+          cancelBrowserResource: async (taskId) => {
+            const result = await ctx.remote.browser.cancelRuntime({ taskId })
+            if (!result.ok) throw new Error(t('browserOperationFailed'))
+            browserResources.refresh()
+          },
+          closeBrowserRuntime: async () => {
+            const result = await ctx.remote.browser.closeRuntime()
+            if (!result.ok) throw new Error(t('browserOperationFailed'))
+            browserResources.refresh()
+          },
           saveBrowserRouting: async (changes, revision) => {
             const ops = BROWSER_ROUTING_FIELDS.flatMap(({ key }) => changes[key] === undefined
               ? [] : [{ op: 'set' as const, path: [key], value: changes[key] }])

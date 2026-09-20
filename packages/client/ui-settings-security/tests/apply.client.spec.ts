@@ -11,6 +11,7 @@ import type {
 import { describe, expect, it, vi } from 'vitest'
 import type { SecuritySkillOperationId } from '@deepseek-ai/dsh-security-skills/types'
 import { SecurityResourcesSection, type SecurityResourcesInjected } from '../src/client/SecurityResourcesSection.tsx'
+import { Config } from '../src/config.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as hostApply } from '../src/index.ts'
 import { CAPABILITIES, CapabilitySection, type CapabilitySectionInjected } from '../src/client/CapabilitySection.tsx'
@@ -86,7 +87,7 @@ describe('ui-settings-security registration', () => {
   it('registers one localized section and icon per product capability, without eager reads', async () => {
     const b = await bench(async () => ({ ok: true as const, value: snapshot([]) } as never))
     declare(b.slots)
-    const fiber = b.ctx.plugin({ inject: [...inject], apply })
+    const fiber = b.ctx.plugin({ inject: [...inject], apply, Config })
     await fiber.await()
 
     await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toHaveLength(CAPABILITIES.length) })
@@ -126,7 +127,7 @@ describe('ui-settings-security registration', () => {
     const b = await bench(async () => ({ ok: true, value: snapshot([]) }))
     try {
       declare(b.slots)
-      await b.ctx.plugin({ inject, apply }).await()
+      await b.ctx.plugin({ inject, apply, Config }).await()
       const section = b.slots.entries('settings.section').find(entry => entry.options.id === 'cinlan-security')!
       const injected = (section.inject as unknown as () => SecurityResourcesInjected)()
       expect(b.bindSettings).not.toHaveBeenCalledWith({ namespace: 'assessment-scope' })
@@ -151,7 +152,7 @@ describe('ui-settings-security registration', () => {
     const active = snapshot(['@deepseek-ai/dsh-security-skills'])
     const b = await bench(async () => ({ ok: true as const, value: active } as never))
     declare(b.slots)
-    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    await b.ctx.plugin({ inject: [...inject], apply, Config }).await()
     const sections = b.slots.entries('settings.section').filter(entry => entry.options.id !== 'cinlan-security')
 
     for (const section of sections) {
@@ -165,17 +166,42 @@ describe('ui-settings-security registration', () => {
   it('surfaces a Remote failure message from the shared list callback', async () => {
     const b = await bench(async () => ({ ok: false as const, error: { code: 'gateway/internal', message: 'inventory offline', details: {} } } as never))
     declare(b.slots)
-    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    await b.ctx.plugin({ inject: [...inject], apply, Config }).await()
     const section = b.slots.entries('settings.section').find(entry => entry.options.id === 'cinlan-computer')!
     const injected = (section.inject as unknown as () => CapabilitySectionInjected)()
     await expect(injected.list()).rejects.toThrow('inventory offline')
     await b.ctx.fiber.dispose()
   })
 
+  it('uses the official Plugin Manager exact entry id and preserves application outcomes', async () => {
+    const b = await bench(async () => ({ ok: true, value: snapshot([]) }))
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply, Config }).await()
+    const section = b.slots.entries('settings.section').find(entry => entry.options.id === 'cinlan-computer')!
+    const callbacks = (section.inject as unknown as () => CapabilitySectionInjected)()
+    await expect(callbacks.listProviderEntries()).resolves.toEqual({ kind: 'unavailable' })
+    const id = 'include/exact-native-row' as PluginEntryId
+    const rows = [{ ...entry('@deepseek-ai/dsh-experimental-computer-use-cua-driver-native', false), entryId: id, patchId: 'native' }]
+    const result = { changed: false, application: 'overridden' as const, stage: 'enable' as const, target: id }
+    const manager = {
+      listPlugins: vi.fn(async () => ({ ok: true, value: rows })),
+      setPluginEnabled: vi.fn(async () => ({ ok: true, value: result })),
+    }
+    b.ctx.provide('remote.pluginManager', manager as never)
+    await expect(callbacks.listProviderEntries()).resolves.toEqual({ kind: 'ready', entries: rows })
+    await expect(callbacks.setProviderEnabled(id, true)).resolves.toEqual({ kind: 'result', result })
+    expect(manager.setPluginEnabled).toHaveBeenCalledExactlyOnceWith(id, true)
+    manager.setPluginEnabled.mockResolvedValueOnce({ ok: false } as never)
+    await expect(callbacks.setProviderEnabled(id, false)).resolves.toEqual({ kind: 'rejected' })
+    manager.listPlugins.mockRejectedValueOnce(new Error('transport'))
+    await expect(callbacks.listProviderEntries()).resolves.toEqual({ kind: 'rejected' })
+    await b.ctx.fiber.dispose()
+  })
+
   it('forwards readiness requests and cancellation through the generated namespace', async () => {
     const b = await bench(async () => ({ ok: true, value: snapshot([]) }))
     declare(b.slots)
-    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    await b.ctx.plugin({ inject: [...inject], apply, Config }).await()
     const entry = b.slots.entries('settings.section').find(entry => entry.options.id === 'cinlan-computer')!
     const injected = (entry.inject as unknown as () => CapabilitySectionInjected)()
     const signal = new AbortController().signal
@@ -189,7 +215,7 @@ describe('ui-settings-security registration', () => {
   it('registers all capabilities unconditionally without reading agent presets', async () => {
     const b = await bench(async () => ({ ok: true, value: snapshot(['@deepseek-ai/dsh-skill', '@deepseek-ai/dsh-client-ui-settings-security']) }), [])
     declare(b.slots)
-    await b.ctx.plugin({ inject, apply }).await()
+    await b.ctx.plugin({ inject, apply, Config }).await()
     expect(b.agentPresets.list).not.toHaveBeenCalled()
     expect(b.slots.entries('settings.section')).toHaveLength(CAPABILITIES.length)
     expect(b.slots.entries('settings.section').map(e => e.options.id)).toContain('cinlan-security')
@@ -199,7 +225,7 @@ describe('ui-settings-security registration', () => {
 
   it('waits for the settings declaration and follows its lifetime', async () => {
     const b = await bench(async () => ({ ok: true as const, value: snapshot([]) } as never))
-    const fiber = b.ctx.plugin({ inject: [...inject], apply })
+    const fiber = b.ctx.plugin({ inject: [...inject], apply, Config })
     await fiber.await()
     expect(b.slots.entries('settings.section')).toEqual([])
 
@@ -213,7 +239,7 @@ describe('ui-settings-security registration', () => {
   it('indexes localized public fields and removes them with the section', async () => {
     const b = await bench(async () => ({ ok: true as const, value: snapshot([]) } as never))
     const release = declare(b.slots)
-    const fiber = b.ctx.plugin({ inject: [...inject], apply })
+    const fiber = b.ctx.plugin({ inject: [...inject], apply, Config })
     await fiber.await()
     const metadata = b.ctx.settingsMetadata.getSnapshot().items
     expect(metadata.some(item => item.anchorId === 'browser-homepage' && item.title === zh.browserHomePage)).toBe(true)
@@ -250,7 +276,7 @@ describe('ui-settings-security registration', () => {
   it('writes mobile fields and removes preference overrides only after successful Host mutations', async () => {
     const b = await bench(async () => ({ ok: true as const, value: snapshot([]) } as never))
     declare(b.slots)
-    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    await b.ctx.plugin({ inject: [...inject], apply, Config }).await()
     Object.assign(b.settingsState, { status: 'ready', writable: true })
     const mobile = b.slots.entries('settings.section').find(section => section.options.id === 'cinlan-mobile')!
     const injected = (mobile.inject as unknown as () => CapabilitySectionInjected)()

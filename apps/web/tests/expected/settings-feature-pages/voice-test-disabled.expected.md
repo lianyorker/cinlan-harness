@@ -1,0 +1,6 @@
+- heading "麦克风与转写测试" [level=2]
+- paragraph: 点击开始后录制最多 10 秒，并在主机上转写。音频不会保存，结果只显示在此页。
+- paragraph: 主机引擎和语音模型就绪后即可测试。
+- status: 尚未录音。
+- meter "麦克风输入音量"
+- button "开始麦克风测试" [disabled]

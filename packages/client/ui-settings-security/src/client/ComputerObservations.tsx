@@ -7,7 +7,7 @@ import css from './CapabilitySection.module.css'
 
 type Observation = NonNullable<DeviceCapabilitySnapshot['computer']>
 
-function ComputerSupportDetails({ observation, t }: { observation: Observation } & Pick<CapabilitySectionProps, 't'>): ReactNode {
+function ComputerSupportDetails({ observation, t }: { observation: Extract<Observation, { kind: 'facade' }> } & Pick<CapabilitySectionProps, 't'>): ReactNode {
   const { supports } = observation
   const groups: readonly { titleKey: CapabilitySettingsKey; fields: readonly (readonly [CapabilitySettingsKey, boolean])[] }[] = [
     { titleKey: 'computerApps', fields: [
@@ -60,10 +60,19 @@ export function ComputerObservations({ observation, loading, t }: {
         <dl className={css.facts}>
           <div><dt>{t('computerPlatform')}</dt><dd>{observation.platform}</dd></div>
           <div><dt>{t('computerProvider')}</dt><dd>{observation.provider}</dd></div>
-          <div><dt>{t('computerProviderVersion')}</dt><dd>{observation.providerVersion}</dd></div>
-          <div><dt>{t('computerProtocolVersion')}</dt><dd>{observation.protocolVersion}</dd></div>
+          {observation.kind === 'facade' && <>
+            <div><dt>{t('computerProviderVersion')}</dt><dd>{observation.providerVersion}</dd></div>
+            <div><dt>{t('computerProtocolVersion')}</dt><dd>{observation.protocolVersion}</dd></div>
+          </>}
         </dl>
-        <ComputerSupportDetails observation={observation} t={t} />
+        {observation.kind === 'facade' ? <ComputerSupportDetails observation={observation} t={t} /> : <>
+          <p role="status">{t(({ initializing: 'computerInitializing', ready: 'computerCatalogReady',
+            disposing: 'computerDisposing', failed: 'computerFailed' } as const)[observation.state])}</p>
+          <p>{t('computerCatalogLimit')}</p>
+          {observation.toolNames.length > 0 && <details><summary>{t('computerToolCatalog')}</summary>
+            <ul>{observation.toolNames.map(name => <li key={name}><code>{name}</code></li>)}</ul>
+          </details>}
+        </>}
       </>}
     </section>
     <section className={css.computerHowTo} data-settings-anchor="computer-permissions">

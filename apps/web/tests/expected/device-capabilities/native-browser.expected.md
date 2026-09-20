@@ -1,5 +1,8 @@
 - heading "浏览器" [level=1]
 - paragraph: 连接浏览器、配置 Agent 工具与管理会话登录状态。
+- heading "启用服务提供者" [level=3]
+- paragraph: 启用或停用已配置的服务提供者。启用不会启动浏览器、授予桌面权限或批准操作。
+- status: 插件管理拒绝了请求，或当前无法连接。
 - heading "智能体浏览器使用" [level=3]
 - status: 已加载
 - paragraph: 配置持久浏览器 Provider 后，Agent 可以在审批策略允许时观察和操作页面。
@@ -7,6 +10,27 @@
 - button "重新检查":
   - img
   - text: 重新检查
+- region "浏览器运行时":
+  - img
+  - heading "浏览器运行时" [level=2]
+  - text: 运行时文件已安装
+  - paragraph: 管理 Harness 原生浏览器运行时。安装和修复不会启用插件或启动浏览器。
+  - paragraph: 请在插件管理中启用或停用 Browser；运行时资源与插件启用状态独立。
+  - term: 资源来源
+  - definition: 自定义可执行文件
+  - term: 浏览器引擎
+  - definition: Playwright Chromium
+  - term: 运行时版本
+  - definition: 1.61.1
+  - term: 托管 Chromium 版本
+  - definition: 149.0.7827.55
+  - term: 资源修订号
+  - definition: "1228"
+  - term: 托管运行时资源
+  - definition: 未安装
+  - paragraph: 安装仅管理 Chromium 资源；不会替换当前选择的本机浏览器或自定义可执行文件。
+  - button "安装运行时"
+  - button "刷新状态"
 - form "链接路由":
   - heading "链接路由" [level=2]
   - group:

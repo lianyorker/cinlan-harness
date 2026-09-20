@@ -59,9 +59,14 @@ function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', la
     resetBrowserRouting: vi.fn<CapabilitySectionProps['resetBrowserRouting']>(async () => {}),
     saveBrowserPreferences: vi.fn(),
     browserControls: undefined,
+    listProviderEntries: vi.fn(async () => ({ kind: 'unavailable' as const })),
+    setProviderEnabled: vi.fn(async () => ({ kind: 'unavailable' as const })),
+    useBrowserResources: selector => selector({ status: 'loading' }),
+    watchBrowserResources: vi.fn(() => () => {}), refreshBrowserResources: vi.fn(), runBrowserResource: vi.fn(),
+    cancelBrowserResource: vi.fn(), closeBrowserRuntime: vi.fn(),
     t: language === 'en' ? makeTranslate(en, commonEn) : makeTranslate(zh, commonZh),
   }
-  return { ...render(<CapabilitySection {...props} />), checkDevice, props }
+  return { ...render(<CapabilitySection {...props} />), checkDevice, props, inventory }
 }
 
 describe('Device Settings readiness', () => {
@@ -75,7 +80,7 @@ describe('Device Settings readiness', () => {
     expect(screen.getByText(en.computerPermissionsUnknown)).toBeTruthy()
     expect(screen.queryByText(`${en.computerScreenshot}: ${en.computerSupported}`)).toBeNull()
     expect(screen.getAllByRole('heading').map(item => item.textContent)).toEqual([
-      en.computerTitle, en.computerHeroTitle, en.computerMachine, en.computerPermissions,
+      en.computerTitle, en.providerActivation, en.computerHeroTitle, en.computerMachine, en.computerPermissions,
       en.computerHowToUse, en.computerObserveTitle, en.computerOperateTitle, en.computerVerifyTitle,
     ])
   })
@@ -97,7 +102,7 @@ describe('Device Settings readiness', () => {
     view.checkDevice.mockResolvedValueOnce({
       capability: 'computer', status: 'available', reason: null,
       computer: {
-        platform: 'win32', provider: 'fixture-provider', providerVersion: '1.2.3', protocolVersion: 1, permissions: 'unknown',
+        kind: 'facade', platform: 'win32', provider: 'fixture-provider', providerVersion: '1.2.3', protocolVersion: 1, permissions: 'unknown',
         supports: {
           apps: { list: true, bundleIds: false, pids: true },
           windows: { list: true, targetById: true, targetByIndex: false, focus: true, moveResize: false },
@@ -121,6 +126,33 @@ describe('Device Settings readiness', () => {
     await screen.findByRole('alert')
     expect(screen.queryByText('fixture-provider')).toBeNull()
     expect(screen.getByText(copy.computerObservationUnavailable)).toBeTruthy()
+  })
+
+  it.each(['en', 'zh'] as const)('shows %s native tool readiness without inventing facade support or permissions', async (language) => {
+    const view = mount('available', language)
+    const copy = language === 'en' ? en : zh
+    await screen.findByText(copy.deviceAvailable)
+    view.checkDevice.mockResolvedValueOnce({
+      capability: 'computer', status: 'available', reason: null,
+      computer: { kind: 'tool-catalog', platform: 'win32', provider: 'cua-driver-native', state: 'ready',
+        toolNames: ['cua_driver_native__list_apps'], permissions: 'unknown' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: copy.computerRecheck }))
+    expect(await screen.findByText(copy.computerCatalogReady)).toBeTruthy()
+    expect(screen.getByText('cua_driver_native__list_apps')).toBeTruthy()
+    expect(screen.getByText(copy.computerCatalogLimit)).toBeTruthy()
+    expect(screen.getByText(copy.computerPermissionsUnknown)).toBeTruthy()
+    expect(screen.queryByText(copy.computerProtocolVersion)).toBeNull()
+    expect(screen.queryByText(copy.computerScreenshot)).toBeNull()
+    view.checkDevice.mockResolvedValueOnce({
+      capability: 'computer', status: 'unavailable', reason: 'provider-disposing',
+      computer: { kind: 'tool-catalog', platform: 'win32', provider: 'cua-driver-native', state: 'disposing',
+        toolNames: [], permissions: 'unknown' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: copy.computerRecheck }))
+    await screen.findByText(copy.deviceUnavailable)
+    expect(screen.queryByText('cua_driver_native__list_apps')).toBeNull()
+    expect(screen.getAllByText(copy.computerDisposing).length).toBeGreaterThan(0)
   })
 
   it('localizes readiness and preserves the command as a code token', async () => {
@@ -160,6 +192,64 @@ describe('Device Settings readiness', () => {
   })
 })
 
+
+describe('provider activation through exact Loader entries', () => {
+  it.each(['computer', 'browser'] as const)('enables and disables configured %s without implicit input or launch', async (capability) => {
+    const b = mount('not-configured', 'en', capability)
+    const entry = { entryId: 'include/profile/provider-7' as PluginEntryId,
+      moduleName: capability === 'computer' ? '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native' : '@deepseek-ai/dsh-browser-playwright',
+      enabled: false, fiberPhase: null, patchId: 'provider-7' }
+    const listProviderEntries = vi.fn<CapabilitySectionProps['listProviderEntries']>(async () => ({ kind: 'ready', entries: [entry] }))
+    const setProviderEnabled = vi.fn<CapabilitySectionProps['setProviderEnabled']>(async () => ({ kind: 'result', result: { changed: true, application: 'applied', stage: 'enable', target: entry.entryId } }))
+    b.rerender(<CapabilitySection {...b.props} listProviderEntries={listProviderEntries} setProviderEnabled={setProviderEnabled} />)
+    fireEvent.click(await screen.findByRole('button', { name: en.providerEnable }))
+    await waitFor(() => { expect(setProviderEnabled).toHaveBeenCalledWith(entry.entryId, true) })
+    await screen.findByText(en.providerApplied)
+    expect(screen.getByText(en.providerDisabled)).toBeTruthy()
+    expect(b.props.runBrowserResource).not.toHaveBeenCalled()
+    listProviderEntries.mockResolvedValue({ kind: 'ready', entries: [{ ...entry, enabled: true, fiberPhase: 'active' }] })
+    fireEvent.click(screen.getByRole('button', { name: en.computerRecheck }))
+    fireEvent.click(await screen.findByRole('button', { name: en.providerDisable }))
+    await waitFor(() => { expect(setProviderEnabled).toHaveBeenLastCalledWith(entry.entryId, false) })
+  })
+
+  it.each(['en', 'zh'] as const)('renders %s pending and typed outcomes without fabricating enablement', async (language) => {
+    const b = mount('not-configured', language)
+    const copy = language === 'en' ? en : zh
+    const entry = { entryId: 'native-row' as PluginEntryId, moduleName: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native', enabled: false, fiberPhase: null, patchId: 'native-row' }
+    const release = Promise.withResolvers<Awaited<ReturnType<CapabilitySectionProps['setProviderEnabled']>>>()
+    const setProviderEnabled = vi.fn<CapabilitySectionProps['setProviderEnabled']>(() => release.promise)
+    const listProviderEntries = vi.fn<CapabilitySectionProps['listProviderEntries']>(async () => ({ kind: 'ready', entries: [entry] }))
+    b.rerender(<CapabilitySection {...b.props} listProviderEntries={listProviderEntries} setProviderEnabled={setProviderEnabled} />)
+    fireEvent.click(await screen.findByRole('button', { name: copy.providerEnable }))
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: copy.providerChanging }).disabled).toBe(true)
+    release.resolve({ kind: 'result', result: { changed: true, application: 'restart-required', stage: 'enable', target: entry.entryId } })
+    expect(await screen.findByText(copy.providerRestartRequired)).toBeTruthy()
+    expect(screen.getByText(copy.providerDisabled)).toBeTruthy()
+    setProviderEnabled.mockResolvedValue({ kind: 'result', result: { changed: false, application: 'failed', stage: 'enable', target: entry.entryId, error: { code: 'operation-error' } } })
+    fireEvent.click(screen.getByRole('button', { name: copy.providerEnable }))
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', copy.providerFailed)
+    setProviderEnabled.mockResolvedValue({ kind: 'rejected' })
+    fireEvent.click(screen.getByRole('button', { name: copy.providerEnable }))
+    await waitFor(() => { expect(screen.getByRole('alert').textContent).toBe(copy.providerRejected) })
+  })
+
+  it('keeps unavailable management and read-only entries non-actionable', async () => {
+    const b = mount()
+    await screen.findByText(en.providerManagementUnavailable)
+    expect(screen.queryByRole('button', { name: en.providerEnable })).toBeNull()
+    const listProviderEntries = vi.fn<CapabilitySectionProps['listProviderEntries']>(async () => ({ kind: 'ready', entries: [{
+      entryId: 'protected-row' as PluginEntryId, moduleName: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native',
+      enabled: true, fiberPhase: 'active', readOnlyReason: 'management-required',
+    }] }))
+    b.rerender(<CapabilitySection {...b.props} listProviderEntries={listProviderEntries} />)
+    expect((await screen.findByRole<HTMLButtonElement>('button', { name: en.providerDisable })).disabled).toBe(true)
+    expect(screen.getByText(en.providerReadOnly)).toBeTruthy()
+    expect(b.props.setProviderEnabled).not.toHaveBeenCalled()
+    expect(screen.getByText(en.computerNativePrerequisite)).toBeTruthy()
+    expect(screen.queryByText(en.devicePrerequisite)).toBeNull()
+  })
+})
 
 describe('capability reference pages', () => {
   it('keeps browser preferences searchable and actions unavailable without a configured Provider', async () => {

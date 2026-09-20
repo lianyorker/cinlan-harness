@@ -26,7 +26,9 @@ import type { MobileDeviceSettings } from '@deepseek-ai/dsh-mobile-device/types'
 import { BrowserPreferencesForm } from './BrowserPreferencesForm.tsx'
 import { BrowserRoutingForm, type BrowserRoutingPreferences } from './BrowserRoutingForm.tsx'
 import type { SidebarPrefs } from '@deepseek-ai/dsh-client-ui-better-sidebar/client/service'
+import { ProviderActivation, type ProviderActivationCallbacks } from './ProviderActivation.tsx'
 import { ComputerObservations } from './ComputerObservations.tsx'
+import { BrowserResourcesSection, type BrowserResourcesInjected, type BrowserResourcesProps } from './BrowserResourcesSection.tsx'
 import { MobilePreferences } from './MobilePreferences.tsx'
 import { BrowserControls, type BrowserControlsCallbacks } from './BrowserControls.tsx'
 
@@ -52,16 +54,17 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
 
 const CAPABILITY_MATCHERS = {
   browser: /^@deepseek-ai\/dsh-(?:browser(?:-cinlan|-playwright|-permission-policy)?|tool-browser)$/i,
-  computer: /^@deepseek-ai\/dsh-(?:computer-use(?:-cinlan|-permission-policy)?|tool-computer-use)$/i,
-  mobile: /^@deepseek-ai\/dsh-(?:mobile-device(?:-cinlan|-permission-policy)?|tool-mobile-device)$/i,
+  computer:
+    /^@deepseek-ai\/dsh-(?:experimental-computer-use-cua-driver-native|computer-use(?:-cinlan|-permission-policy)?|tool-computer-use)$/i,
+  mobile: /^@deepseek-ai\/dsh-(?:mobile-device(?:-adb|-cinlan|-permission-policy)?|tool-mobile-device)$/i,
 } as const satisfies Record<Exclude<CapabilityId, 'security'>, RegExp>
 
 /** Injected Remote face shared by Browser, Computer, and Mobile pages. */
-export interface CapabilitySectionInjected {
+export interface CapabilitySectionInjected extends Omit<BrowserResourcesInjected, 'hooks'>, ProviderActivationCallbacks {
   /** Explicit human Browser commands through the generated Remote. */
   browserControls: BrowserControlsCallbacks | undefined
   /** Settings-owned source bound by the renderer, including unavailable/read-only states. */
-  hooks: {
+  hooks: BrowserResourcesInjected['hooks'] & {
     browserPreferences: SettingsScope<BrowserPreferences>
     browserRouting: SettingsScope<SidebarPrefs>
     mobileSettings: SettingsScope<MobileDeviceSettings>
@@ -131,6 +134,9 @@ function deviceReason(state: ViewState, t: CapabilitySectionProps['t']): string 
     'protocol-error': 'deviceProtocolError',
     'probe-failed': 'deviceCheckFailed',
     'no-devices': 'deviceNoDevices',
+    'provider-initializing': 'computerInitializing',
+    'provider-disposing': 'computerDisposing',
+    'provider-failed': 'computerFailed',
   } as const
   return t(reason === undefined ? 'deviceNotConfiguredDescription' : keys[reason])
 }
@@ -225,7 +231,7 @@ function ComputerCapabilityBody(props: BodyProps): ReactNode {
         badge={<Badge status={status}>{t(DEVICE_STATUS_KEYS[status])}</Badge>} />
       <p>{deviceReason(state, t)}</p>
       <CopyText text={t('computerInstallCommand')} t={t} />
-      <p className={css.capabilityFact}>{t('devicePrerequisite')}</p>
+      <p className={css.capabilityFact}>{t('computerNativePrerequisite')}</p>
       <RefreshButton {...props} />
     </div>
     <ComputerObservations observation={state.phase === 'ready' ? state.device?.computer : undefined}
@@ -237,7 +243,7 @@ function ComputerCapabilityBody(props: BodyProps): ReactNode {
   </>
 }
 
-function BrowserCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps,
+function BrowserCapabilityBody(props: BodyProps & BrowserResourcesProps & Pick<CapabilitySectionProps,
   'useBrowserPreferences' | 'saveBrowserPreferences' | 'resetBrowserPreferences' | 'browserControls' | 'target'
   | 'useBrowserRouting' | 'saveBrowserRouting' | 'resetBrowserRouting'>): ReactNode {
   const { state, t } = props
@@ -250,6 +256,7 @@ function BrowserCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps,
       <p>{t('browserProviderLimit')}</p>
       <RefreshButton {...props} />
     </section>
+    <BrowserResourcesSection {...props} />
     <BrowserRoutingForm useBrowserRouting={props.useBrowserRouting} saveBrowserRouting={props.saveBrowserRouting}
       resetBrowserRouting={props.resetBrowserRouting} t={t} />
     <BrowserPreferencesForm useBrowserPreferences={props.useBrowserPreferences}
@@ -299,6 +306,8 @@ function MobileCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps,
 export function CapabilitySection({
   list, definition, checkDevice, checkSdk, listMobileDevices, useBrowserPreferences, saveBrowserPreferences,
   browserControls, useMobileSettings, saveMobileSettings, resetMobileSettings,
+  useBrowserResources, watchBrowserResources, refreshBrowserResources, runBrowserResource, cancelBrowserResource, closeBrowserRuntime,
+  listProviderEntries, setProviderEnabled,
   resetBrowserPreferences, useBrowserRouting, saveBrowserRouting, resetBrowserRouting, target, t,
 }: CapabilitySectionProps): ReactNode {
   const diagnostics = useRef<HTMLDetailsElement>(null)
@@ -327,6 +336,8 @@ export function CapabilitySection({
   return <section className={css.section} data-capability={definition.id} aria-busy={state.phase === 'loading'}>
     <header className={css.heading}><h1>{t(definition.titleKey)}</h1><p>{t(definition.descriptionKey)}</p></header>
     {state.phase === 'error' && <p className={css.failure} role="alert">{t('loadFailed')}</p>}
+    {definition.id !== 'mobile' && <ProviderActivation capability={definition.id} listProviderEntries={listProviderEntries}
+      setProviderEnabled={setProviderEnabled} onChanged={body.onRefresh} revision={request} t={t} />}
     {definition.id === 'computer' ? <ComputerCapabilityBody {...body} />
       : definition.id === 'browser' ? <BrowserCapabilityBody
         {...body}
@@ -337,6 +348,9 @@ export function CapabilitySection({
         saveBrowserRouting={saveBrowserRouting}
         resetBrowserRouting={resetBrowserRouting}
         browserControls={browserControls}
+        useBrowserResources={useBrowserResources} watchBrowserResources={watchBrowserResources}
+        refreshBrowserResources={refreshBrowserResources}
+        runBrowserResource={runBrowserResource} cancelBrowserResource={cancelBrowserResource} closeBrowserRuntime={closeBrowserRuntime}
         {...target === undefined ? {} : { target }}
       />
         : <MobileCapabilityBody {...body} checkSdk={checkSdk} listMobileDevices={listMobileDevices}

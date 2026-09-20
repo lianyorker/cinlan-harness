@@ -167,12 +167,38 @@ describe('web e2e: native preference pages use real settings', () => {
     const enabled = restored.getByRole('switch', { name: '启用语音听写', exact: true })
     await enabled.click()
     await expect.poll(() => restored.getByRole('radio', { name: /按住模式/ }).isDisabled()).toBe(true)
-    await restored.getByRole('searchbox', { name: '搜索设置...', exact: true }).fill('麦克风权限')
-    await restored.getByRole('button', { name: /AI 与模型.*麦克风权限/ }).click()
-    await restored.locator('[data-settings-anchor="voice-permission"]').waitFor()
-    expect(await restored.getByRole('switch', { name: '启用语音听写', exact: true }).getAttribute('aria-checked')).toBe('false')
+    for (const [title, anchor] of [
+      ['麦克风权限', 'voice-permission'],
+      ['语音模型', 'voice-model'],
+      ['麦克风与转写测试', 'voice-test'],
+    ] as const) {
+      await restored.getByRole('searchbox', { name: '搜索设置...', exact: true }).fill(title)
+      await restored.getByRole('button', { name: new RegExp('^AI 与模型 / 语音 ' + title + ' ') }).click()
+      const target = restored.locator('[data-settings-anchor="' + anchor + '"]')
+      await expect.poll(() => target.evaluate(
+        element => element === document.activeElement || element.contains(document.activeElement),
+      )).toBe(true)
+      expect(await enabled.getAttribute('aria-checked')).toBe('false')
+    }
+    expect(await restored.getByRole('combobox', { name: '语音模型', exact: true }).isDisabled()).toBe(true)
+    const model = restored.getByRole('list', { name: '模型', exact: true }).getByRole('listitem').first()
+    await model.getByText('模型文件缺失。', { exact: true }).waitFor()
+    expect(await model.getByRole('button', { name: '下载', exact: true }).isDisabled()).toBe(true)
+    const microphoneTest = restored.locator('[data-settings-anchor="voice-test"]')
+    expect(await microphoneTest.getByRole('button', { name: '开始麦克风测试', exact: true }).isDisabled()).toBe(true)
+    expect(await microphoneTest.getByRole('meter', { name: '麦克风输入音量', exact: true }).getAttribute('value')).toBe('0')
     await compareOrRefreshGolden(join(EXPECTED, 'voice-preferences.expected.md'),
       await captureStableAria(page, '[data-settings-anchor="voice-enabled"]', scaffold.workspaceCwd), MODE)
+    await compareOrRefreshGolden(join(EXPECTED, 'voice-model-resource.expected.md'),
+      await captureStableAria(page, '[data-settings-anchor="voice-model"] li:first-child', scaffold.workspaceCwd), MODE)
+    await compareOrRefreshGolden(join(EXPECTED, 'voice-test-disabled.expected.md'),
+      await captureStableAria(page, '[data-settings-anchor="voice-test"]', scaffold.workspaceCwd), MODE)
+    if (MODE === 'refresh') await page.screenshot({ path: join(ARTIFACTS, 'voice-test-disabled-desktop.png') })
+    await reload()
+    const disabled = await open('语音')
+    expect(await disabled.getByRole('switch', { name: '启用语音听写', exact: true }).getAttribute('aria-checked')).toBe('false')
+    expect(await disabled.getByRole('radio', { name: /按住模式/ }).isChecked()).toBe(true)
+    expect(await disabled.getByRole('button', { name: '开始麦克风测试', exact: true }).isDisabled()).toBe(true)
     expect(await overrides('voice')).toEqual({})
     expectClean()
   })

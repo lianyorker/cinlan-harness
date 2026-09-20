@@ -38,7 +38,8 @@ describe('Harness native browser settings and tools', () => {
     })
     overlay = join(root, 'browser.patch.yml')
     await writeFile(overlay, await readFile(bundle, 'utf8') + yaml.dump([
-      { id: 'browser-playwright', config: { storageDir: join(root, 'browser-profile'), browserChannel: 'chromium', headless: true } },
+      { id: 'browser-runtime', config: { storageDir: join(root, 'browser-runtime') } },
+      { id: 'browser-playwright', config: { storageDir: join(root, 'browser-profile'), browserChannel: 'chromium', executablePath: chromium.executablePath(), headless: true } },
       { id: 'browser-permission-policy', config: { observe: 'allow', navigate: 'allow', interact: 'allow' } },
     ]))
     server = createServer((request, response) => {

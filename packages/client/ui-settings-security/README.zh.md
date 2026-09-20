@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 Settings、Locale 以及 pluginInventory、deviceCapabilities、securityResearch、browser 和 settings Remote 一起挂载。能力缺失时，安全研究、浏览器、计算机控制和手机模拟器导航分区仍然可见。安全研究明确显示资源管理组件缺失，不读取或切换 Agent 预设。插件加载、Provider 就绪和动作授权是不同事实。
+与 Settings、Locale 以及 pluginInventory、deviceCapabilities、securityResearch、browser 和 settings Remote 一起挂载。可选 pluginManager Remote 提供条目启停控制。能力缺失时，安全研究、浏览器、计算机控制和手机模拟器导航分区仍然可见。安全研究明确显示资源管理组件缺失，不读取或切换 Agent 预设。插件加载、Provider 就绪和动作授权是不同事实。
 
 计算机控制与移动设备页面复制受支持的 `dsh --profile device-control` 命令。它启动独立 profile，不会安装外部软件。剪贴板拒绝写入时显示失败提示。
 
@@ -37,7 +37,11 @@ kind: "package-reference"
 | 浏览器链接路由 | 侧边栏在 `dsh-better-sidebar` 中拥有 `browserInterceptLinks`、`browserInterceptHttp` 和 `browserInterceptHttps`。GUI 与终端超链接独立于 Browser Provider 使用这些设置。保存只发送更改的路由字段；重置只移除它们的覆盖，保留其他侧边栏偏好。 |
 | 移动设备 | [移动设备能力](../../mobile-device/mobile-device/README.zh.md) 拥有 `mobile-device` 命名空间。`enabled` 控制本页自动检查，`androidSdkPath` 提供给 Host SDK 探测，`defaultDeviceId` 仅在 `mobile_observe.device_id` 未指定时使用。 |
 | 安全研究 | [安全技能资源管理器](../../security/security-skills/README.zh.md) 拥有安装与后台任务。本页通过 securityResearch Remote 显示其快照和进度。技能在正常会话中使用；页面不提供范围编辑器、扫描控制台或报告导出。 |
-| 计算机控制 | 只读 Provider 检查报告平台、Provider/版本、协议和声明的支持标志。缺失的观察信息保持不可用，检查成功也不代表已探测操作权限。不提供屏幕、指针或缩放偏好。 |
+| 计算机控制 | 原生 CUA 报告工具目录生命周期、已注册工具和平台；facade 服务提供者报告版本和声明的支持标志。目录就绪不证明截图访问、输入送达或系统权限。不提供屏幕、指针或缩放偏好。 |
+
+浏览器与计算机控制启停区域列出精确配置的 Playwright 或原生 CUA Loader 条目，包括停用的条目。官方插件管理器拥有持久化、只读限制和应用结果。请求等待期间禁止重复提交；拒绝、失败、覆盖、取消和需要重启的结果保持可见。每次请求后重新读取 Host 状态，不根据请求值推断启用成功。启用不会启动浏览器或批准桌面动作。
+
+浏览器运行资源与启动偏好及显式控制并列保留。页面仅在挂载期间观察 Host；runtimePollIntervalMs 默认为 1000 毫秒，允许 100–60000 毫秒。离页停止观察，不取消 Host 任务。[原生 CUA 就绪状态与权限策略](../../../.agents/notes/implemented/architecture/2026-09-20-native-cua-readiness-and-policy.zh.md) 定义独立的工具目录与权限事实。
 
 浏览器与移动设备表单读取框架绑定的 SettingsScope 快照。草稿保留首次编辑修订号，每个表单通过一次原子修改保存。重置移除用户覆盖，恢复组合默认值。仅成功的 Host 响应更新共享镜像并显示成功；写入拒绝时保留草稿。只读或不可用设置不能保存或重置。
 
@@ -71,7 +75,7 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 插件加载不证明就绪，Provider 探测成功也不授予操作权限。device-control profile 使用外部 CLI 适配器，原生 Browser 不依赖它们。
+- 插件加载不证明就绪，Provider 探测成功也不授予操作权限。device-control profile 为桌面控制挂载原生 CUA；其中的移动设备适配器保留外部运行时要求。
 - SDK 路径仅配置 Host 探测，不配置外部 Cinlan 设备运行时。SDK 检查成功不证明设备会话能够启动。
 - 捕获内容、浏览器缩放和计算机控制偏好需要各自的运行 owner；本包不添加仅供预览的字段。
 - 网络下载要求 Host 配置真实发行源。安装技能不授予网络、文件或工具权限；范围和发现记录仍由后端拥有。

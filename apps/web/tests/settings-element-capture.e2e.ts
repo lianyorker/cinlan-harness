@@ -60,7 +60,8 @@ it('cancels selection, previews a real crop, and attaches without sending or cha
   const bundleUrl = new URL('../../../packages/bundle/cinlan-browser/cordis.patch.yml', import.meta.url)
   const overlayPath = join(root, 'capture.patch.yml')
   await writeFile(overlayPath, await readFile(bundleUrl, 'utf8') + yaml.dump([
-    { id: 'browser-playwright', config: { storageDir: join(root, 'browser-profile'), browserChannel: 'chromium', headless: true } },
+    { id: 'browser-runtime', config: { storageDir: join(root, 'browser-runtime') } },
+    { id: 'browser-playwright', config: { storageDir: join(root, 'browser-profile'), browserChannel: 'chromium', executablePath: chromium.executablePath(), headless: true } },
   ]))
   const scaffold = await launchWebScaffold({
     extraOverlayPath: overlayPath,
@@ -99,10 +100,14 @@ it('cancels selection, previews a real crop, and attaches without sending or cha
   await overlay.waitFor({ state: 'attached' })
   await targetPage.getByRole('button', { name: 'Capture this element', exact: true }).click()
   const preview = section.getByRole('img', { name: 'Screenshot preview of the selected element' })
-  await preview.waitFor()
+  try { await preview.waitFor() } catch (error) {
+    await saveFailureShot(page, 'web-e2e-element-capture')
+    throw new Error('Element capture preview unavailable: ' + await section.innerText(), { cause: error })
+  }
   await expect.poll(() => preview.evaluate(image => image instanceof HTMLImageElement
     && image.complete && image.naturalWidth > 0)).toBe(true)
   expect(await targetPage.title()).toBe('Capture target')
+  await saveFailureShot(page, 'web-e2e-element-capture-preview')
   await section.getByRole('button', { name: 'Attach to Session draft', exact: true }).click()
   await expect.poll(() => section.innerText(), { timeout: 15_000 }).toContain('It has not been sent.')
   const attachedAria = (await captureStableAria(page, '[data-browser-element-capture]', scaffold.workspaceCwd))
