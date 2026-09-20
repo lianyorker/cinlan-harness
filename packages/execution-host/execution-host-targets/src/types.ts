@@ -8,10 +8,65 @@ export type { DirectoryInspection, WorkerInfo, ExecutionHostInfo }
 /** Durable connection record identity; distinct from a worker process hostId. */
 export type ExecutionTargetId = Branded<'ExecutionTargetId'>
 
-/** Editable connection data; authentication remains owned by OpenSSH configuration. */
+/** Saved deployment configuration for the official SSH provider; key contents remain on the Host. */
+export interface SshExecutionConfiguration {
+  readonly endpoint: {
+    readonly host: string
+    readonly port: number
+    readonly username: string
+    readonly privateKeyFile: string
+    readonly hostKeySHA256: string
+  }
+  readonly node: string
+  readonly helper: string
+  readonly helperHash: string
+  readonly workspace: string
+  /** Both bootstrap fields are required when capturing a full execution snapshot. */
+  readonly bootstrapPath?: string | undefined
+  readonly bootstrapHash?: string | undefined
+}
+
+/** Durable configuration and deployment identity, independent of a running worker's hostId. */
+export interface SshExecutionSnapshot {
+  readonly kind: 'ssh'
+  readonly targetId: ExecutionTargetId
+  readonly revision: number
+  readonly endpoint: {
+    readonly host: string
+    readonly port: number
+    readonly username: string
+    readonly hostKeySHA256: string
+  }
+  readonly node: string
+  readonly helper: string
+  readonly helperHash: string
+  readonly workspace: string
+  readonly bootstrapPath: string
+  readonly bootstrapHash: string
+}
+
+/** Captured execution selection; SSH resolves only its exact current or explicitly retained activation revision. */
+export type ExecutionBinding = { readonly kind: 'local' } | SshExecutionSnapshot
+
+/** Synchronous authorization held while one Agent admission persists and publishes a captured deployment. */
+export interface ExecutionAuthorization {
+  /**
+   * Reject after release or when the registry can no longer authorize the captured deployment.
+   * @returns nothing when authorization remains current.
+   */
+  assertCurrent(): void
+  /**
+   * Release mutation exclusion; repeated calls have no effect.
+   * @returns nothing.
+   */
+  release(): void
+}
+
+/** Editable inspection alias and optional explicit execution deployment. */
 export interface CreateTargetRequest {
   readonly label: string
   readonly sshAlias: string
+  readonly execution?: SshExecutionConfiguration | undefined
 }
 
 /** Optimistic mutation of one saved record. */

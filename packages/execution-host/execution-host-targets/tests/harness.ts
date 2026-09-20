@@ -1,9 +1,9 @@
 /** Real OpenSSH client, isolated ssh2 server and production Loader rows for target tests. */
-import { chmod, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir, userInfo } from 'node:os'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { PassThrough } from 'node:stream'
 import { Server, utils, type Connection } from 'ssh2'
 import { onTestFinished } from 'vitest'
@@ -81,6 +81,7 @@ export async function createHarness() {
 
   return {
     root,
+    configPath,
     /** Mount one real persisted target registry, optionally reusing the private storage directory. */
     async registry(overrides: Partial<Config> = {}) {
       const ctx = new Context()
@@ -104,12 +105,32 @@ export async function createHarness() {
       return { ctx, targets: ctx.executionHostTargets, fiber }
     },
     /** Start a real authenticated SSH server; only the supported fixed worker command is accepted. */
-    async worker(alias: string, options: { roots?: boolean; wrongHostKey?: boolean; denyAuthentication?: boolean } = {}) {
+    async worker(
+      alias: string, options: { roots?: boolean; wrongHostKey?: boolean; denyAuthentication?: boolean; process?: boolean } = {},
+    ) {
       const serverKey = utils.generateKeyPairSync('ecdsa', { bits: 256 })
       const wrongKey = utils.generateKeyPairSync('ecdsa', { bits: 256 })
       const directory = join(root, alias, 'export')
       await mkdir(directory, { recursive: true })
       await writeFile(join(directory, alias + '.txt'), alias)
+      const workspace = fileURLToPath(new URL('../../../..', import.meta.url))
+      const processHome = join(root, alias, 'process-home')
+      if (options.process) {
+        const profile = join(processHome, 'profiles', 'execution-host')
+        const modules = join(profile, 'node_modules', '@deepseek-ai')
+        await mkdir(modules, { recursive: true })
+        await symlink(join(workspace, 'packages', 'bundle', 'execution-host-app'), join(modules, 'dsh-execution-host-app'),
+          process.platform === 'win32' ? 'junction' : 'dir')
+        await writeFile(join(profile, 'package.json'), JSON.stringify({
+          name: 'ssh-worker-fixture', private: true, type: 'module',
+          dsh: { profile: { bundles: ['@deepseek-ai/dsh-execution-host-app'], patchReload: 'startup' } },
+        }))
+        await writeFile(join(profile, 'cordis.patch.yml'), JSON.stringify([{ id: 'execution-host-worker', config: {
+          roots: [{ id: 'project', label: 'Project', path: directory }],
+        } }]))
+      }
+      const childRuns: Promise<void>[] = []
+      const childPids: number[] = []
       const clients = new Set<Connection>()
       const workers: Context[] = []
       const failures: unknown[] = []
@@ -175,6 +196,34 @@ export async function createHarness() {
                 heldText = ''
                 if (chunks !== undefined) input.write(Buffer.concat(chunks))
               }
+              if (options.process) {
+                const child = spawn(process.execPath, [
+                  '--import', pathToFileURL(join(workspace, 'node_modules', 'tsx', 'dist', 'esm', 'index.mjs')).href,
+                  join(workspace, 'apps', 'cli', 'src', 'bin.ts'), '--profile', 'execution-host',
+                ], {
+                  cwd: directory, stdio: ['pipe', 'pipe', 'pipe'],
+                  env: { ...process.env, DSH_HOME: processHome, TSX_TSCONFIG_PATH: join(workspace, 'tsconfig.json') },
+                })
+                if (child.pid !== undefined) childPids.push(child.pid)
+                input.pipe(child.stdin)
+                child.stdout.pipe(output)
+                child.stderr.pipe(channel.stderr)
+                const completed = new Promise<void>((resolve) => {
+                  child.once('error', (error) => { failures.push(error) })
+                  child.once('close', (code) => {
+                    channel.exit(code ?? 1)
+                    channel.end()
+                    exited.resolve(undefined)
+                    resolve()
+                  })
+                })
+                childRuns.push(completed)
+                cleanups.push(async () => {
+                  if (child.exitCode === null && child.signalCode === null) child.kill()
+                  await completed
+                })
+                return
+              }
               const ctx = new Context()
               workers.push(ctx)
               const ready = createAppReady()
@@ -208,6 +257,7 @@ export async function createHarness() {
         releaseInput?.()
         for (const client of clients) client.end()
         for (const ctx of workers) await ctx.fiber.dispose()
+        await Promise.all(childRuns)
         await new Promise<void>((resolve) => { server.close(() => { resolve() }) })
         if (failures.length > 0) throw new AggregateError(failures, 'SSH worker fixture failed')
       })
@@ -220,7 +270,7 @@ export async function createHarness() {
       await writeFile(configPath, configuration)
       await writeFile(knownHosts, trust)
       return {
-        alias, directory, commands, frames, workers, authentication, exited: exited.promise,
+        alias, directory, commands, frames, workers, authentication, childPids, exited: exited.promise,
         writeProtocol(frame: string) { protocolOutput?.write(frame) },
         replaceNextResult(value: unknown) { replacement = { value } },
         hold() {

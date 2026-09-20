@@ -37,6 +37,7 @@
     "@deepseek-ai/dsh-storage-domain": "workspace:^",
     "@deepseek-ai/dsh-subprocess": "workspace:^",
     "@deepseek-ai/dsh-execution-host": "workspace:^",
+    "@deepseek-ai/dsh-ssh": "workspace:^",
     "@deepseek-ai/dsh-execution-host-worker": "workspace:^"
   },
   "dependencies": {
@@ -49,6 +50,7 @@
     "@deepseek-ai/dsh-storage-domain": "workspace:^",
     "@deepseek-ai/dsh-subprocess": "workspace:^",
     "@deepseek-ai/dsh-execution-host": "workspace:^",
+    "@deepseek-ai/dsh-ssh": "workspace:^",
     "@deepseek-ai/dsh-execution-host-worker": "workspace:^",
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",
     "@deepseek-ai/dsh-cmdline": "workspace:^",
@@ -58,6 +60,7 @@
     "@deepseek-ai/dsh-fs-local": "workspace:^",
     "@deepseek-ai/dsh-storage": "workspace:^",
     "@deepseek-ai/dsh-storage-json": "workspace:^",
+    "playwright": "^1.49.0",
     "ssh2": "^1.17.0",
     "@types/ssh2": "^1.15.5"
   }

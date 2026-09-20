@@ -28,6 +28,9 @@
     },
     {
       "path": "../execution-host-worker"
+    },
+    {
+      "path": "../../ssh/ssh"
     }
   ]
 }

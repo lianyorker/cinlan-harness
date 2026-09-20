@@ -1,7 +1,7 @@
 /** Saved target behavior through actual SSH, source Loader, storage and filesystem providers. */
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createHarness } from './harness.ts'
 import type { TargetView } from '../src/types.ts'
 
@@ -66,6 +66,77 @@ describe('saved execution targets through OpenSSH and real Loader composition', 
     await expect(restored.targets.remove({ id: saved.id, revision: 1 })).rejects.toMatchObject({ code: 'conflict' })
     await restored.targets.remove({ id: saved.id, revision: 2 })
     expect(restored.targets.list().targets).toEqual([])
+  })
+
+  it('contains throwing change subscribers after durable create, update and delete commits', async () => {
+    const h = await createHarness()
+    const delivered: string[] = []
+    const warnings: string[] = []
+    const subscribe = (registry: Awaited<ReturnType<typeof h.registry>>, stage: string): void => {
+      registry.ctx.logger.warn = ((message: unknown) => { warnings.push(String(message)) }) as typeof registry.ctx.logger.warn
+      registry.ctx.on('execution-host-targets/changed', () => { throw new Error(stage + ' observer') })
+      // oxlint-disable-next-line typescript/no-misused-promises -- exercises rejected-listener containment
+      registry.ctx.on('execution-host-targets/changed', () => Promise.reject(new Error(stage + ' rejection')))
+      if (stage === 'delete') {
+        registry.ctx.on('execution-host-targets/changed', () => { throw { toString: () => { throw new Error('render failure') } } })
+      }
+      registry.ctx.on('execution-host-targets/changed', () => { delivered.push(stage) })
+    }
+
+    const first = await h.registry()
+    subscribe(first, 'create')
+    const created = (await first.targets.create({ label: 'Created', sshAlias: 'target' })).target
+    expect(delivered).toContain('create')
+    await first.ctx.fiber.dispose()
+
+    const second = await h.registry()
+    expect(second.targets.list().targets).toEqual([{ ...created, state: { phase: 'disconnected' } }])
+    subscribe(second, 'update')
+    const updated = (await second.targets.update({
+      id: created.id, revision: created.revision, label: 'Updated', sshAlias: 'target',
+    })).target
+    expect(delivered).toContain('update')
+    await second.ctx.fiber.dispose()
+
+    const third = await h.registry()
+    expect(third.targets.list().targets).toEqual([{ ...updated, state: { phase: 'disconnected' } }])
+    subscribe(third, 'delete')
+    await expect(third.targets.remove({ id: updated.id, revision: updated.revision })).resolves.toEqual({})
+    expect(delivered).toContain('delete')
+    await third.ctx.fiber.dispose()
+
+    const fourth = await h.registry()
+    expect(fourth.targets.list().targets).toEqual([])
+    await vi.waitFor(() => {
+      for (const stage of ['create', 'update', 'delete']) {
+        expect(warnings).toContain(`execution-host-targets/changed listener threw: Error: ${stage} observer`)
+        expect(warnings).toContain(`execution-host-targets/changed listener rejected: Error: ${stage} rejection`)
+      }
+      expect(warnings).toContain('execution-host-targets/changed listener threw: [unrenderable thrown value]')
+    })
+  })
+
+  it('keeps a ready connection when its change subscriber throws and still notifies later subscribers', async () => {
+    const h = await createHarness()
+    const worker = await h.worker('contained-connect')
+    const { ctx, targets } = await h.registry()
+    const saved = (await targets.create({ label: 'Contained', sshAlias: 'contained-connect' })).target
+    const phases: string[] = []
+    const warnings: string[] = []
+    ctx.logger.warn = ((message: unknown) => { warnings.push(String(message)) }) as typeof ctx.logger.warn
+    ctx.on('execution-host-targets/changed', () => {
+      if (targets.list().targets[0]?.state.phase === 'ready') throw new Error('ready observer')
+    })
+    ctx.on('execution-host-targets/changed', () => {
+      phases.push(targets.list().targets[0]?.state.phase ?? 'missing')
+    })
+
+    const connected = (await targets.connect({ id: saved.id, revision: saved.revision })).target
+    expect(connected.state.phase).toBe('ready')
+    expect(targets.list().targets[0]?.state.phase).toBe('ready')
+    expect(phases).toContain('ready')
+    expect(warnings).toContain('execution-host-targets/changed listener threw: Error: ready observer')
+    expect(worker.commands).toEqual(['dsh --profile execution-host'])
   })
 
   it('rejects flags, shell fragments and unknown fields before persisting any target', async () => {
