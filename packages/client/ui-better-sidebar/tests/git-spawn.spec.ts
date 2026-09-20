@@ -5,12 +5,13 @@ import { buildGitApi } from '../src/git.ts'
 
 /** The HTTP carrier passes no client cwd or unreviewed message to the executor. */
 describe('sidebar Git HTTP forwarding', () => {
-  it('decodes only Session and operation fields and omits caller cwd', async () => {
+  it('decodes only Session and operation fields, omits caller cwd, and forwards cancellation', async () => {
     const stage = vi.fn<SidebarGit['stage']>().mockResolvedValue({ ok: true })
     const owner = { stage } as Pick<SidebarGit, 'stage'> as SidebarGit
     const routes = buildGitApi(() => owner)
-    await routes['git.stage']?.({ sessionId: 'test', cwd: '/wrong', repositoryRoot: '/repo', path: 'file.txt' })
-    expect(stage).toHaveBeenCalledWith({ sessionId: 'test', repositoryRoot: '/repo', path: 'file.txt' })
+    const signal = new AbortController().signal
+    await routes['git.stage']?.({ sessionId: 'test', cwd: '/wrong', repositoryRoot: '/repo', path: 'file.txt' }, signal)
+    expect(stage).toHaveBeenCalledWith({ sessionId: 'test', repositoryRoot: '/repo', path: 'file.txt' }, signal)
   })
 
   it('refuses missing owners, missing provenance, and old commit-with-message requests', async () => {

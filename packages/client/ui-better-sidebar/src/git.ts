@@ -51,9 +51,11 @@ function page(payload: unknown, key: 'count' | 'skip'): { count?: number; skip?:
 /**
  * Decode the legacy HTTP carrier without accepting caller-supplied working directories.
  * @param getOwner - current concrete Git service; missing deployments report unavailable.
- * @returns route callbacks sharing the same executor as the sidebarGit Remote namespace.
+ * @returns route callbacks accepting decoded payloads and request cancellation signals while sharing the sidebarGit Remote executor.
  */
-export function buildGitApi(getOwner: () => SidebarGit | undefined): Record<string, (payload: unknown) => Promise<unknown>> {
+export function buildGitApi(
+  getOwner: () => SidebarGit | undefined,
+): Record<string, (payload: unknown, signal?: AbortSignal) => Promise<unknown>> {
   const invoke = async (operation: (owner: SidebarGit) => Promise<unknown>): Promise<unknown> => {
     const owner = getOwner()
     if (owner === undefined) throw new SidebarError('unavailable', 'The sidebar Git capability is unavailable', 503)
@@ -68,20 +70,20 @@ export function buildGitApi(getOwner: () => SidebarGit | undefined): Record<stri
     }
   }
   return {
-    'git.status': payload => invoke(owner => owner.status(session(payload))),
-    'git.diff': payload => invoke(owner => owner.diff({ ...session(payload), ...optionalPath(payload), staged: boolean(payload, 'staged') })),
-    'git.stage': payload => invoke(owner => owner.stage({ ...mutation(payload), ...optionalPath(payload) })),
-    'git.unstage': payload => invoke(owner => owner.unstage({ ...mutation(payload), ...optionalPath(payload) })),
-    'git.branch': payload => invoke(owner => owner.branches(session(payload))),
-    'git.checkout': payload => invoke(owner => owner.checkout({ ...mutation(payload), branch: requireString(payload, 'branch') })),
-    'git.prepareCommit': payload => invoke(owner => owner.prepareCommit({ ...mutation(payload), message: requireString(payload, 'message') })),
-    'git.commit': payload => invoke(owner => owner.commit({ preview: previewOf(payload) })),
-    'git.compare': payload => invoke(owner => owner.compare(session(payload))),
-    'git.log': payload => invoke(owner => owner.log({ ...session(payload), ...page(payload, 'count'), ...page(payload, 'skip') })),
-    'git.show': payload => invoke(owner => owner.show({ ...session(payload), ref: requireString(payload, 'rev'), path: requireString(payload, 'path') })),
-    'git.commit-diff': payload => invoke(owner => owner.commitDiff({ ...session(payload), hash: requireString(payload, 'hash') })),
-    'git.discard': payload => invoke(owner => owner.discard({ ...mutation(payload), path: requireString(payload, 'path'), head: nullableString(payload, 'head') })),
-    'git.revert': payload => invoke(owner => owner.revert({ ...mutation(payload), hash: requireString(payload, 'hash'), head: nullableString(payload, 'head') })),
-    'git.cherry-pick': payload => invoke(owner => owner.cherryPick({ ...mutation(payload), hash: requireString(payload, 'hash'), head: nullableString(payload, 'head') })),
+    'git.status': (payload, signal) => invoke(owner => owner.status(session(payload), signal)),
+    'git.diff': (payload, signal) => invoke(owner => owner.diff({ ...session(payload), ...optionalPath(payload), staged: boolean(payload, 'staged') }, signal)),
+    'git.stage': (payload, signal) => invoke(owner => owner.stage({ ...mutation(payload), ...optionalPath(payload) }, signal)),
+    'git.unstage': (payload, signal) => invoke(owner => owner.unstage({ ...mutation(payload), ...optionalPath(payload) }, signal)),
+    'git.branch': (payload, signal) => invoke(owner => owner.branches(session(payload), signal)),
+    'git.checkout': (payload, signal) => invoke(owner => owner.checkout({ ...mutation(payload), branch: requireString(payload, 'branch') }, signal)),
+    'git.prepareCommit': (payload, signal) => invoke(owner => owner.prepareCommit({ ...mutation(payload), message: requireString(payload, 'message') }, signal)),
+    'git.commit': (payload, signal) => invoke(owner => owner.commit({ preview: previewOf(payload) }, signal)),
+    'git.compare': (payload, signal) => invoke(owner => owner.compare(session(payload), signal)),
+    'git.log': (payload, signal) => invoke(owner => owner.log({ ...session(payload), ...page(payload, 'count'), ...page(payload, 'skip') }, signal)),
+    'git.show': (payload, signal) => invoke(owner => owner.show({ ...session(payload), ref: requireString(payload, 'rev'), path: requireString(payload, 'path') }, signal)),
+    'git.commit-diff': (payload, signal) => invoke(owner => owner.commitDiff({ ...session(payload), hash: requireString(payload, 'hash') }, signal)),
+    'git.discard': (payload, signal) => invoke(owner => owner.discard({ ...mutation(payload), path: requireString(payload, 'path'), head: nullableString(payload, 'head') }, signal)),
+    'git.revert': (payload, signal) => invoke(owner => owner.revert({ ...mutation(payload), hash: requireString(payload, 'hash'), head: nullableString(payload, 'head') }, signal)),
+    'git.cherry-pick': (payload, signal) => invoke(owner => owner.cherryPick({ ...mutation(payload), hash: requireString(payload, 'hash'), head: nullableString(payload, 'head') }, signal)),
   }
 }
