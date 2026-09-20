@@ -14,7 +14,9 @@ Mobile Device 需要不依赖其他应用运行时、云账号或用户目录的
 
 所有执行使用 Harness subprocess 参数数组，具备每命令期限、完整 stdout 上限、有界 stderr、取消及进程范围等待。观察拥有唯一命名设备 hierarchy 文件，并以独立期限尝试清理。每个操作固定可执行文件选择，避免并发设置变化重定向清理。输入文本与原始 ADB 失败内容不会出现在错误摘要中。
 
-Provider 通过部署 command 配置或保存的 SDK 路径使用已有官方 Android platform-tools 安装，不分发二进制，也不编造安装源。Windows 只提供 Android；iOS、模拟器启动、SDK 生命周期及 scrcpy 镜像仍是独立未实现能力。Web 设置与模型指引区分可执行文件存在和设备已授权。
+Provider 通过部署 command 配置或保存的 SDK 路径使用已有官方 Android platform-tools 安装，不分发二进制，也不编造安装源。Windows 只提供 Android；iOS 与模拟器启动仍不支持。独立移动运行时管理器拥有固定官方 SDK/helper 安装及显式人工 scrcpy 镜像。Web 设置与模型指引区分可执行文件存在和设备已授权。
+
+原生资源管理器采用不可变 generation、完整文件 SHA-256 清单、原子 revision 比较及跨 Host 可执行文件 lease。Provider 观察/输入和 SDK/镜像操作在包含清理的完整生命周期内固定所选可执行文件。安装/移除/取消及精确镜像回执归通过认证的本地人工请求；delegated 或缺失 Gateway authority 被拒绝。托管存储不包含用户自定义 SDK 路径。scrcpy 明确接收选定的 ADB 与 server 路径，禁用设备控制和音频。
 
 ## Alternatives considered
 

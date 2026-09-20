@@ -24,7 +24,12 @@ import { afterEach, expect, it, vi } from 'vitest'
 const roots: { ctx: Context; path: string }[] = []
 const timeoutMs = 30_000
 class FixtureAttachments extends AttachmentStore {
-  readonly imageLimits: ImageAttachmentLimits = { maxImageBytes: 1024 * 1024, maxImagesPerMessage: 1, maxMessageImageBytes: 1024 * 1024 }
+  readonly imageLimits: ImageAttachmentLimits = {
+    maxImageBytes: 1024 * 1024, maxImagesPerMessage: 1, maxMessageImageBytes: 1024 * 1024,
+    maxImagePixels: 1024 * 1024, maxImageDimension: 1024, mediaTypes: ['image/png'],
+  }
+  async validateImage(_request: SaveImageAttachment): Promise<void> { throw new Error('Screenshots disabled in tool fixture') }
+  async readImage(_ref: ImageAttachmentRef): Promise<StoredImageAttachment> { throw new Error('Screenshots disabled in tool fixture') }
   async saveImage(_request: SaveImageAttachment): Promise<ImageAttachmentRef> { throw new Error('Screenshots disabled in tool fixture') }
   async getImage(_id: ImageAttachmentRef['attachmentId']): Promise<StoredImageAttachment | undefined> { return undefined }
 }
@@ -42,8 +47,9 @@ async function boot(policy = 'allow') {
   await writeFile(join(path, 'settings.json'), JSON.stringify({ 'mobile-device': { enabled: true, defaultDeviceId: 'android:fixture-serial' } }))
   const patches = yaml.load(await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8'), { schema: entryListSchema }) as PatchOptions[]
   const fixture: PatchOptions[] = [{ insert: [
-    { name: 'local-subprocess' }, { name: 'settings', config: { path: join(path, 'settings.json'), watch: false } },
-    { name: 'attachments' }, { name: 'prompt' }, { name: 'tools' },
+    { id: 'fixture-local-subprocess', name: 'local-subprocess' },
+    { id: 'fixture-settings', name: 'settings', config: { path: join(path, 'settings.json'), watch: false } },
+    { id: 'fixture-attachments', name: 'attachments' }, { id: 'fixture-prompt', name: 'prompt' }, { id: 'fixture-tools', name: 'tools' },
   ] }]
   const entries = applyEntryPatches([], [...fixture, ...patches,
     { id: 'mobile-device-adb', config: { providerId: 'adb', command: process.execPath, cwd: path } },

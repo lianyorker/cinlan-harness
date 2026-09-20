@@ -14,7 +14,9 @@ The native ADB provider implements the existing Mobile Device service and keeps 
 
 All execution uses Harness subprocess argument arrays with per-command deadlines, complete stdout limits, bounded stderr, cancellation, and process-range joining. Observation owns a uniquely named device-side hierarchy file and a separately bounded cleanup attempt. An operation captures its executable selection so a concurrent settings change cannot redirect cleanup. Typed text and raw ADB failures do not appear in error summaries.
 
-The provider accepts an existing official Android platform-tools installation through deployment command configuration or the saved SDK path. It neither distributes binaries nor invents an installer source. Windows exposes Android only; iOS, emulator boot, SDK lifecycle, and scrcpy mirroring remain separate unimplemented capabilities. The Web settings and model guidance distinguish executable availability from authorized device availability.
+The provider accepts an existing official Android platform-tools installation through deployment command configuration or the saved SDK path. It neither distributes binaries nor invents an installer source. Windows exposes Android only; iOS and emulator boot remain unsupported. The separate mobile runtime manager owns fixed official SDK/helper installations and explicit human scrcpy mirrors. The Web settings and model guidance distinguish executable availability from authorized device availability.
+
+The native resource manager uses immutable generations, a full-file SHA-256 inventory, atomic revision comparison, and cross-Host executable leases. Provider observation/input and SDK/mirror operations capture their selected executable for their complete lifetime, including cleanup. Local authenticated human requests own install/remove/cancel and exact mirror receipts; delegated or absent Gateway authority is rejected. Managed storage never includes user-configured SDK paths. scrcpy receives the selected ADB and server paths explicitly and runs without device control or audio.
 
 ## Alternatives considered
 

@@ -64,6 +64,13 @@ function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', la
     useBrowserResources: selector => selector({ status: 'loading' }),
     watchBrowserResources: vi.fn(() => () => {}), refreshBrowserResources: vi.fn(), runBrowserResource: vi.fn(),
     cancelBrowserResource: vi.fn(), closeBrowserRuntime: vi.fn(),
+    useMobileResources: selector => selector({ status: 'loading' }),
+    watchMobileResources: vi.fn<CapabilitySectionProps['watchMobileResources']>(() => () => {}),
+    refreshMobileResources: vi.fn<CapabilitySectionProps['refreshMobileResources']>(),
+    runMobileResource: vi.fn<CapabilitySectionProps['runMobileResource']>(async () => {}),
+    cancelMobileResource: vi.fn<CapabilitySectionProps['cancelMobileResource']>(async () => {}),
+    startMobileMirror: vi.fn<CapabilitySectionProps['startMobileMirror']>(async () => {}),
+    closeMobileMirror: vi.fn<CapabilitySectionProps['closeMobileMirror']>(async () => {}),
     t: language === 'en' ? makeTranslate(en, commonEn) : makeTranslate(zh, commonZh),
   }
   return { ...render(<CapabilitySection {...props} />), checkDevice, props, inventory }

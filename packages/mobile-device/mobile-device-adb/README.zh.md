@@ -72,13 +72,14 @@ Mobile Device 服务选择 Provider id `adb`。`command` 可配置已有 adb 绝
 
 Provider 注册与运行时观察不独立修改请求前缀。工具 Consumer 持有稳定的 Provider 无关指引。
 
-<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与后续工作
 
-- 不提供 iOS、模拟器安装/启动、Wi-Fi 配对、应用管理、Unicode 输入、SDK 安装器或 scrcpy 镜像。可通过独立显式人工操作集成已有 scrcpy；观察不会启动它。
+<a id="known-limitations-and-deferred-work"></a>
+
+- 不提供 iOS、模拟器安装/启动、Wi-Fi 配对、应用管理或 Unicode 输入。[移动运行时管理](../mobile-device-runtime/README.zh.md)拥有托管 SDK/helper 安装与显式人工镜像；观察不会启动 scrcpy。
 - UI hierarchy 可用性取决于 Android UI Automator 与应用可访问性；受保护画面可能无法截图。截图不证明 hierarchy 完整或可交互。
 - 真实硬件截图与输入验收需要连接并授权设备。无设备清单检查成功不证明这些操作可用。
 
-## 开发备注
+### 开发备注
 
 不发布 invariant 配套入口：精确目标、generation、token 消费、字节限制及进程静默退出由各自操作执行。实现使用维护中的 ADB、fast-xml-parser 与 Sharp；本包未复制 donor 源码或第三方二进制。

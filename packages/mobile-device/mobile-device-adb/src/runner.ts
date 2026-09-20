@@ -1,5 +1,6 @@
 /** Bounded native ADB subprocess ownership, including raw PNG output and cleanup. */
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-mobile-device-runtime'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { SubprocessHandle } from '@deepseek-ai/dsh-subprocess'
 import { MobileDeviceError } from '@deepseek-ai/dsh-mobile-device'
@@ -10,7 +11,7 @@ import type { ResolvedConfig } from './config.ts'
 /** Own every command until its process range has exited. */
 export class AdbRunner {
   private readonly lifetime = new AbortController()
-  private readonly commandScope = new AsyncLocalStorage<string>()
+  private readonly commandScope = new AsyncLocalStorage<{ executable: string; requested: string }>()
   private readonly pending = new Set<Promise<Buffer>>()
   private disposed = false
   /** @param ctx - Harness subprocess owner.
@@ -21,13 +22,23 @@ export class AdbRunner {
   /** Resolve the configured selector without running ADB.
    * @returns Current executable choice for generation checks.
    */
-  selection(): string { return adbCommand(this.config.command, this.sdkPath()) }
+  selection(): string {
+    const requested = adbCommand(this.config.command, this.sdkPath())
+    const scope = this.commandScope.getStore()
+    return scope?.requested === requested ? scope.executable : requested
+  }
   /** Pin executable selection for one operation and its asynchronous device-file cleanup.
    * @param operation - Complete provider operation.
    * @returns Its result using one captured SDK selection.
    */
   scoped<T>(operation: () => Promise<T>): Promise<T> {
-    return this.commandScope.run(this.selection(), operation)
+    const requested = adbCommand(this.config.command, this.sdkPath())
+    const runtime = this.ctx.get('mobileRuntime')
+    if (!runtime) return this.commandScope.run({ executable: requested, requested }, operation)
+    return (async () => {
+      const lease = await runtime.acquireAdb({ command: this.config.command, sdkPath: this.sdkPath() }, this.lifetime.signal)
+      try { return await this.commandScope.run({ executable: lease.executable, requested }, operation) } finally { await lease.release() }
+    })()
   }
   /** Execute fixed ADB arguments without a local shell and with bounded binary output.
    * @param args - Complete ADB argv after the executable.
@@ -54,7 +65,7 @@ export class AdbRunner {
       signal.throwIfAborted()
       let executable: string
       try {
-        executable = await this.ctx.subprocess.resolveExecutable(this.commandScope.getStore() ?? this.selection(), {}, signal)
+        executable = await this.ctx.subprocess.resolveExecutable(this.commandScope.getStore()?.executable ?? this.selection(), {}, signal)
       } catch (error) {
         if (signal.aborted) throw error
         throw new MobileDeviceError('Android ADB executable is unavailable; configure an existing platform-tools installation', 'MOBILE_ADB_UNAVAILABLE')

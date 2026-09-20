@@ -15,6 +15,7 @@ import { CAPABILITIES, CapabilitySection, type CapabilitySectionInjected } from 
 import { SecurityResourcesSection, type SecurityResourcesInjected, type SecurityResourceAction } from './SecurityResourcesSection.tsx'
 import { createSecurityResourceObserver } from './resource-observer.ts'
 import { createBrowserResourceObserver } from './browser-resources.ts'
+import { createMobileResourceObserver } from './mobile-resources.ts'
 import type { Config } from '../config.ts'
 import type { ProviderActivationCallbacks } from './ProviderActivation.tsx'
 export { Config } from '../config.ts'
@@ -62,6 +63,13 @@ export function apply(ctx: ClientContext, config: Config): void {
   }, config.runtimePollIntervalMs)
   ctx.effect(() => browserResources.dispose)
   ctx.on('connection/reset', () => { browserResources.refresh() })
+  const mobileResources = createMobileResourceObserver(async (signal) => {
+    const result = await ctx.remote.deviceCapabilities.mobileRuntimeStatus(signal)
+    if (!result.ok) throw new Error(t('mobileResourcesReadFailed'))
+    return result.value
+  }, config.runtimePollIntervalMs)
+  ctx.effect(() => mobileResources.dispose)
+  ctx.on('connection/reset', () => { mobileResources.refresh() })
   const mutatePreferences = async (
     namespace: string,
     scope: SettingsScope<unknown>,
@@ -173,7 +181,30 @@ export function apply(ctx: ClientContext, config: Config): void {
         locale: NS,
         inject: (): CapabilitySectionInjected => ({
           ...providerActivation, list, definition: capabilityDefinition, checkDevice, checkSdk, listMobileDevices,
-          hooks: { browserPreferences, browserRouting, mobileSettings, browserResources: browserResources.store },
+          hooks: { browserPreferences, browserRouting, mobileSettings, browserResources: browserResources.store,
+            mobileResources: mobileResources.store },
+          watchMobileResources: mobileResources.watch,
+          refreshMobileResources: mobileResources.refresh,
+          runMobileResource: async (request) => {
+            const result = await ctx.remote.deviceCapabilities.startMobileResource(request)
+            if (!result.ok) throw new Error(t('mobileResourcesActionFailed'))
+            mobileResources.refresh()
+          },
+          cancelMobileResource: async (taskId) => {
+            const result = await ctx.remote.deviceCapabilities.cancelMobileResource({ taskId })
+            if (!result.ok) throw new Error(t('mobileResourcesActionFailed'))
+            mobileResources.refresh()
+          },
+          startMobileMirror: async (deviceId) => {
+            const result = await ctx.remote.deviceCapabilities.startMobileMirror({ deviceId })
+            if (!result.ok) throw new Error(t('mobileResourcesActionFailed'))
+            mobileResources.refresh()
+          },
+          closeMobileMirror: async (mirrorId) => {
+            const result = await ctx.remote.deviceCapabilities.closeMobileMirror({ mirrorId })
+            if (!result.ok) throw new Error(t('mobileResourcesActionFailed'))
+            mobileResources.refresh()
+          },
           watchBrowserResources: browserResources.watch,
           refreshBrowserResources: browserResources.refresh,
           runBrowserResource: async (operation) => {

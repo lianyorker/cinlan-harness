@@ -1,0 +1,12 @@
+- article "scrcpy":
+  - heading "scrcpy" [level=3]
+  - paragraph: Not installed
+  - term: Available version
+  - definition: "4.1"
+  - term: Installed version
+  - definition: Not installed
+  - 'link "Read license: Apache-2.0 and bundled component licenses"':
+    - /url: https://github.com/Genymobile/scrcpy/blob/v4.1/LICENSE
+  - checkbox "I have read and accept this resource’s license"
+  - text: I have read and accept this resource’s license
+  - button "Install" [disabled]

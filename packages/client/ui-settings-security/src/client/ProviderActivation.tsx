@@ -18,6 +18,7 @@ export interface ProviderActivationCallbacks {
 const MODULES = {
   computer: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native',
   browser: '@deepseek-ai/dsh-browser-playwright',
+  mobile: '@deepseek-ai/dsh-mobile-device-adb',
 } as const
 const OUTCOMES = {
   applied: 'providerApplied', 'restart-required': 'providerRestartRequired', overridden: 'providerOverridden',

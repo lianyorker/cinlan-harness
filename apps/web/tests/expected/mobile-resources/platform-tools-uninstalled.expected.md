@@ -1,0 +1,12 @@
+- article "platform-tools":
+  - heading "platform-tools" [level=3]
+  - paragraph: Not installed
+  - term: Available version
+  - definition: 37.0.1
+  - term: Installed version
+  - definition: Not installed
+  - 'link "Read license: Android SDK License Agreement and bundled notices"':
+    - /url: https://developer.android.com/studio/terms
+  - checkbox "I have read and accept this resource’s license"
+  - text: I have read and accept this resource’s license
+  - button "Install" [disabled]

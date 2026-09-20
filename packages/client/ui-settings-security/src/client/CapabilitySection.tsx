@@ -30,6 +30,7 @@ import { ProviderActivation, type ProviderActivationCallbacks } from './Provider
 import { ComputerObservations } from './ComputerObservations.tsx'
 import { BrowserResourcesSection, type BrowserResourcesInjected, type BrowserResourcesProps } from './BrowserResourcesSection.tsx'
 import { MobilePreferences } from './MobilePreferences.tsx'
+import { MobileResourcesSection, type MobileResourcesInjected, type MobileResourcesProps } from './MobileResourcesSection.tsx'
 import { BrowserControls, type BrowserControlsCallbacks } from './BrowserControls.tsx'
 
 /** Capability pages contributed by this product plugin. */
@@ -60,11 +61,12 @@ const CAPABILITY_MATCHERS = {
 } as const satisfies Record<Exclude<CapabilityId, 'security'>, RegExp>
 
 /** Injected Remote face shared by Browser, Computer, and Mobile pages. */
-export interface CapabilitySectionInjected extends Omit<BrowserResourcesInjected, 'hooks'>, ProviderActivationCallbacks {
+export interface CapabilitySectionInjected extends Omit<BrowserResourcesInjected, 'hooks'>,
+  Omit<MobileResourcesInjected, 'hooks'>, ProviderActivationCallbacks {
   /** Explicit human Browser commands through the generated Remote. */
   browserControls: BrowserControlsCallbacks | undefined
   /** Settings-owned source bound by the renderer, including unavailable/read-only states. */
-  hooks: BrowserResourcesInjected['hooks'] & {
+  hooks: BrowserResourcesInjected['hooks'] & MobileResourcesInjected['hooks'] & {
     browserPreferences: SettingsScope<BrowserPreferences>
     browserRouting: SettingsScope<SidebarPrefs>
     mobileSettings: SettingsScope<MobileDeviceSettings>
@@ -277,7 +279,7 @@ function BrowserCapabilityBody(props: BodyProps & BrowserResourcesProps & Pick<C
 }
 
 function MobileCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps,
-  'checkSdk' | 'listMobileDevices' | 'useMobileSettings' | 'saveMobileSettings' | 'resetMobileSettings'>): ReactNode {
+  'checkSdk' | 'listMobileDevices' | 'useMobileSettings' | 'saveMobileSettings' | 'resetMobileSettings'> & MobileResourcesProps): ReactNode {
   const { state, t } = props
   const status = deviceStatus(state)
   return <div className={css.setupCard}>
@@ -287,6 +289,7 @@ function MobileCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps,
       <p>{deviceReason(state, t)}</p>
       <RefreshButton {...props} />
     </section>
+    <MobileResourcesSection {...props} />
     <MobilePreferences useMobileSettings={props.useMobileSettings} saveMobileSettings={props.saveMobileSettings}
       resetMobileSettings={props.resetMobileSettings} checkSdk={props.checkSdk} listMobileDevices={props.listMobileDevices} t={t} />
     <section className={css.agentSetup} data-settings-anchor="mobile-usage">
@@ -308,6 +311,8 @@ export function CapabilitySection({
   browserControls, useMobileSettings, saveMobileSettings, resetMobileSettings,
   useBrowserResources, watchBrowserResources, refreshBrowserResources, runBrowserResource, cancelBrowserResource, closeBrowserRuntime,
   listProviderEntries, setProviderEnabled,
+  useMobileResources, watchMobileResources, refreshMobileResources, runMobileResource, cancelMobileResource,
+  startMobileMirror, closeMobileMirror,
   resetBrowserPreferences, useBrowserRouting, saveBrowserRouting, resetBrowserRouting, target, t,
 }: CapabilitySectionProps): ReactNode {
   const diagnostics = useRef<HTMLDetailsElement>(null)
@@ -336,8 +341,8 @@ export function CapabilitySection({
   return <section className={css.section} data-capability={definition.id} aria-busy={state.phase === 'loading'}>
     <header className={css.heading}><h1>{t(definition.titleKey)}</h1><p>{t(definition.descriptionKey)}</p></header>
     {state.phase === 'error' && <p className={css.failure} role="alert">{t('loadFailed')}</p>}
-    {definition.id !== 'mobile' && <ProviderActivation capability={definition.id} listProviderEntries={listProviderEntries}
-      setProviderEnabled={setProviderEnabled} onChanged={body.onRefresh} revision={request} t={t} />}
+    <ProviderActivation capability={definition.id} listProviderEntries={listProviderEntries}
+      setProviderEnabled={setProviderEnabled} onChanged={body.onRefresh} revision={request} t={t} />
     {definition.id === 'computer' ? <ComputerCapabilityBody {...body} />
       : definition.id === 'browser' ? <BrowserCapabilityBody
         {...body}
@@ -354,6 +359,9 @@ export function CapabilitySection({
         {...target === undefined ? {} : { target }}
       />
         : <MobileCapabilityBody {...body} checkSdk={checkSdk} listMobileDevices={listMobileDevices}
+          useMobileResources={useMobileResources} watchMobileResources={watchMobileResources}
+          refreshMobileResources={refreshMobileResources} runMobileResource={runMobileResource}
+          cancelMobileResource={cancelMobileResource} startMobileMirror={startMobileMirror} closeMobileMirror={closeMobileMirror}
           useMobileSettings={useMobileSettings} saveMobileSettings={saveMobileSettings} resetMobileSettings={resetMobileSettings} />}
     <details ref={diagnostics} className={css.diagnostics} data-settings-anchor={definition.id + '-components'}>
       <summary>{t('hostFact')}{state.phase === 'ready' ? ` · ${state.components.length}` : ''}</summary>

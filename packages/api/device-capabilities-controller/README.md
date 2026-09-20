@@ -43,8 +43,9 @@ None, as this controller registers no model tools, prompts, or Session events.
 
 None; readiness does not enter model requests.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - Readiness reports catalog lifecycle or a facade probe at one point in time; it does not authorize actions or verify OS grants. Native CUA permissions stay unknown, and its packaged SDK does not require an external CLI. Facade transports retain their own prerequisites. Caller cancellation propagates to the Provider.
 - The saved SDK path controls local SDK checks only. The external Cinlan device runtime has no supported SDK override in the public CLI used by the Mobile Device Provider; SDK checks do not configure that runtime.

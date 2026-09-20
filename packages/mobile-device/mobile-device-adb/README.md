@@ -72,13 +72,14 @@ Observation XML and activity text are bounded by `maxOutputBytes`; screenshots a
 
 Provider registration and runtime observations do not independently modify the request prefix. The tool consumer owns stable provider-neutral guidance.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-- iOS support, emulator installation/boot, Wi-Fi pairing, app management, Unicode injection, SDK installers, and scrcpy mirroring are not provided. Existing scrcpy can be integrated through a separate explicit human action; it is not launched by observation.
+<a id="known-limitations-and-deferred-work"></a>
+
+- iOS support, emulator installation/boot, Wi-Fi pairing, app management, and Unicode injection are not provided. [Mobile runtime management](../mobile-device-runtime/README.md) owns managed SDK/helper installation and explicit human mirroring; observation never starts scrcpy.
 - UI hierarchy availability depends on Android UI Automator and app accessibility; screenshot capture can fail on protected surfaces. Screenshots do not imply a complete or interactive hierarchy.
 - Real hardware screenshot and input acceptance requires an authorized connected device. A successful no-device inventory check does not establish those operations.
 
-## Dev Note
+### Dev Note
 
 No invariant companion is published: exact target, generation, token consumption, byte limits, and process quiescence are enforced by their owning operations. The implementation uses maintained ADB, fast-xml-parser, and Sharp; no donor source or third-party binary is copied into this package.

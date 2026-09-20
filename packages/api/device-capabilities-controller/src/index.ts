@@ -5,6 +5,8 @@ import type {} from '@deepseek-ai/dsh-mobile-device'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from 'zod'
 import { SdkProbeConfig, SdkProbes } from './sdk-probes.ts'
+import { localMobileRuntime } from './mobile-resources.ts'
+import type { MobileResourceRequest, MobileResourceTask, MobileResourceTaskId, MobileMirrorId, MobileMirrorStatus, MobileRuntimeStatus } from '@deepseek-ai/dsh-mobile-device-runtime'
 import type { Config, DeviceCapabilityRequest, DeviceCapabilityReason, DeviceCapabilitySnapshot, MobileSdkSnapshot, MobileDeviceListSnapshot, MobileDeviceSummary } from './types.ts'
 
 export type * from './types.ts'
@@ -20,6 +22,51 @@ declare module '@deepseek-ai/cordis' {
 export class DeviceCapabilitiesController extends TypertRemoteService {
   static inject = ['typert']
   static Config = SdkProbeConfig
+
+  /** Read native Android resources and connections from the local Host.
+   * @param signal - Cancels only this observation.
+   * @returns Resource and connection facts, independent from Provider activation.
+   */
+  @Remote('mobileRuntimeStatus')
+  async mobileRuntimeStatus(signal: AbortSignal): Promise<MobileRuntimeStatus> {
+    return localMobileRuntime(this.ctx).status(signal)
+  }
+  /** Start an explicit local component transaction.
+   * @param request - Reviewed resource, operation, revision, and license acceptance.
+   * @param signal - Admission cancellation.
+   * @returns Host-owned task receipt.
+   */
+  @Remote('startMobileResource')
+  async startMobileResource(request: MobileResourceRequest, signal: AbortSignal): Promise<MobileResourceTask> {
+    return await Promise.resolve(localMobileRuntime(this.ctx).start(request, signal))
+  }
+  /** Cancel and join the exact displayed resource task.
+   * @param request - Task receipt identity.
+   * @param signal - Admission cancellation.
+   * @returns Settled task after cleanup.
+   */
+  @Remote('cancelMobileResource')
+  async cancelMobileResource(request: { taskId: MobileResourceTaskId }, signal: AbortSignal): Promise<MobileResourceTask> {
+    signal.throwIfAborted(); return localMobileRuntime(this.ctx).cancel(request.taskId)
+  }
+  /** Open an owned native mirror window for one exact device.
+   * @param request - Android identity from the connection inventory.
+   * @param signal - Admission cancellation.
+   * @returns Mirror process receipt, without claiming visible hardware acceptance.
+   */
+  @Remote('startMobileMirror')
+  async startMobileMirror(request: { deviceId: string }, signal: AbortSignal): Promise<MobileMirrorStatus> {
+    return await Promise.resolve(localMobileRuntime(this.ctx).startMirror(request.deviceId, signal))
+  }
+  /** Close only the native mirror owned by this receipt.
+   * @param request - Exact mirror identity.
+   * @param signal - Admission cancellation.
+   * @returns Closed mirror facts after process-range settlement.
+   */
+  @Remote('closeMobileMirror')
+  async closeMobileMirror(request: { mirrorId: MobileMirrorId }, signal: AbortSignal): Promise<MobileMirrorStatus> {
+    signal.throwIfAborted(); return localMobileRuntime(this.ctx).closeMirror(request.mirrorId)
+  }
 
   private readonly sdk: SdkProbes
 

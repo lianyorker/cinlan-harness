@@ -64,6 +64,25 @@ function bench(config: Config = {}) {
 }
 
 describe('Native ADB command ownership', () => {
+  it('holds the managed executable lease through all scoped work and cleanup', async () => {
+    const b = bench()
+    const release = vi.fn(async () => {})
+    const acquireAdb = vi.fn(async () => ({ executable: resolve('managed/adb.exe'), release }))
+    b.ctx.provide('mobileRuntime', { acquireAdb } as unknown as Context['mobileRuntime'])
+    const work = deferred<undefined>()
+    const task = b.runner.scoped(async () => {
+      expect(b.runner.selection()).toBe(resolve('managed/adb.exe'))
+      await work.promise
+      expect(release).not.toHaveBeenCalled()
+      b.setSdk(resolve('custom-sdk'))
+      expect(b.runner.selection()).toBe(adbCommand('', resolve('custom-sdk')))
+    })
+    await vi.waitFor(() => { expect(acquireAdb).toHaveBeenCalledOnce() })
+    expect(release).not.toHaveBeenCalled()
+    work.resolve(undefined); await task
+    expect(release).toHaveBeenCalledOnce()
+  })
+
   it('retains raw PNG bytes at the complete output bound and waits for range exit', async () => {
     const b = bench()
     const pngBytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 255, 128])

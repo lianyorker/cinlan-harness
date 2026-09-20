@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-native-android-adb-provider.md
-2026-09-20-native-android-adb-provider.md: 2d055bfc9db75db629c7dd5b080ede9c722f3ba6
-2026-09-20-native-android-adb-provider.zh.md: b93ce8dfbc2a792d6f7af3482f65d53115a99f35
+2026-09-20-native-android-adb-provider.md: 3bc98d93beedc9c85a2c400476152c80c66bc8c4
+2026-09-20-native-android-adb-provider.zh.md: e014350ccee3f367315c8bee27c674ac33210306

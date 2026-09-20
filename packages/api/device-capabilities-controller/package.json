@@ -63,6 +63,8 @@
     "@deepseek-ai/dsh-typert-registry": "workspace:^",
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",
-    "@deepseek-ai/dsh-timeout": "workspace:^"
+    "@deepseek-ai/dsh-timeout": "workspace:^",
+    "@deepseek-ai/dsh-mobile-device-runtime": "workspace:^",
+    "@deepseek-ai/dsh-api-gateway": "workspace:^"
   }
 }

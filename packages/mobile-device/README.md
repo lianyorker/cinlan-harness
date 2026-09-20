@@ -17,6 +17,7 @@ Local device capabilities compose through the separate device-control profile; o
 |---|---|
 | [mobile-device](mobile-device/README.md) | Service Definition |
 | [mobile-device-adb](mobile-device-adb/README.md) | Native Android Provider |
+| [mobile-device-runtime](mobile-device-runtime/README.md) | Human SDK/helper installation and mirror management |
 | [mobile-device-cinlan](mobile-device-cinlan/README.md) | Optional legacy CLI Provider |
 | [mobile-device-permission-policy](mobile-device-permission-policy/README.md) | Permission Consumer |
 | [tool-mobile-device](tool-mobile-device/README.md) | Tool Consumer |

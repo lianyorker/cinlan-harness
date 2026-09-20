@@ -110,6 +110,14 @@ export class SdkProbes {
     signal: AbortSignal,
   ): Promise<AndroidSdkAvailability> {
     if (subprocess === undefined) return { found: false, sdkPath: null, message: 'Subprocess provider unavailable.' }
+    const runtime = this.ctx.get('mobileRuntime')
+    if (runtime) {
+      const lease = await runtime.acquireAdb({ sdkPath: configured }, signal)
+      try {
+        const found = await this.execute(subprocess, lease.executable, ['version'], signal)
+        return { found, sdkPath: found ? lease.executable : null, message: found ? 'Android ADB version check succeeded.' : 'Android ADB version check failed.' }
+      } finally { await lease.release() }
+    }
     for (const root of androidRoots(configured)) {
       if (signal.aborted) break
       if (!isAbsolute(root) || root.trim() !== root) continue

@@ -28,6 +28,12 @@
     },
     {
       "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../mobile-device/mobile-device-runtime"
+    },
+    {
+      "path": "../gateway/tsconfig.host.json"
     }
   ]
 }
