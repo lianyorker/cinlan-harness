@@ -29,7 +29,7 @@ Compose this service when an interactive UI should let users drive agent-side be
 
 ### Registering a command
 
-A plugin registers a command with `ctx.commands.register()`: a lowercase name, a description shown in discovery, an optional `input` hint, and a handler that runs against the receiving agent.
+A plugin registers a command with `ctx.commands.register()`: a lowercase name, a description shown in discovery, an optional `input` hint, and a handler that runs against the receiving agent. An optional plugin-owned `definitionId` remains stable across copy and name changes. Discovery preserves the identity of the winning scoped definition, so specialized UI can distinguish it from a same-name replacement.
 
 ```text
 ctx.commands.register({

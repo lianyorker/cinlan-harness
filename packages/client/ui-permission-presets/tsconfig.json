@@ -8,6 +8,8 @@
     "src"
   ],
   "references": [
+    { "path": "../connection/tsconfig.client.json" },
+    { "path": "../ui-conversation" },
     {
       "path": "../locale"
     },

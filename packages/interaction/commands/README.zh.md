@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 注册命令
 
-插件用 `ctx.commands.register()` 注册命令：小写名称、在发现界面中展示的描述、可选的 `input` 提示，以及针对接收 agent 运行的处理器。
+插件用 `ctx.commands.register()` 注册命令：小写名称、在发现界面中展示的描述、可选的 `input` 提示，以及针对接收 agent 运行的处理器。可选的插件自有 `definitionId` 在文案和名称变化时保持稳定。发现结果保留最终生效的作用域定义标识，使专用 UI 能将其与同名替代命令区分开。
 
 ```text
 ctx.commands.register({

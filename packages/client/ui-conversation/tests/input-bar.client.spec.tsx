@@ -8,12 +8,12 @@
 // root listener routes them through the keymap commands); draft writes drive
 // the shell (jsdom's beforeinput lacks the ranges Lexical needs).
 
-import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
+import type { GlobalStandardProps, SessionStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { $getRoot, $isTextNode } from 'lexical'
 import {
-  bindSnapshotSelector, conversationSnapshot as conversationFixture, makeTranslate, RemoteError,
+  bindSnapshotSelector, chatSnapshot, conversationSnapshot as conversationFixture, makeTranslate, RemoteError,
   sessionSnapshot as sessionFixture,
 } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -29,6 +29,8 @@ import type {
 } from '../src/client/contract/slots.ts'
 import type { DraftAttachmentId } from '../src/client/contract/input.ts'
 import { InputBar } from '../src/client/skeleton/InputBar.tsx'
+import { PermissionSelect } from '../../ui-permission-presets/src/client/PermissionSelect.tsx'
+import { EMPTY_TRAJECTORY_SNAPSHOT } from '../../ui-trajectory/src/client/trajectory-snapshot-builder.ts'
 import { createKeyboardFixture } from './keyboard-fixture.client.ts'
 import type { InputBarProps } from '../src/client/skeleton/InputBar.tsx'
 import { en, zh } from '../src/client/locales.ts'
@@ -155,6 +157,8 @@ function bench(over?: BenchOptions) {
   const removeAttachment = vi.fn((id: DraftAttachmentId) => { shell.removeAttachment(id) })
   const menuLauncher = createSnapshotStore<string | null>(over?.commandMenuOpen === true ? 'command' : null)
   const busyEnter = createSnapshotStore<'queue' | 'steer'>(over?.busyEnter ?? 'queue')
+  const useChat = bindSnapshotSelector(createSnapshotStore(chatSnapshot()))
+  const useTrajectory = bindSnapshotSelector(createSnapshotStore(EMPTY_TRAJECTORY_SNAPSHOT))
   const slotCalls: { key: string; owner: unknown }[] = []
   const renderSlot = ((key: string, owner: object) => {
     slotCalls.push({ key, owner })
@@ -164,6 +168,15 @@ function bench(over?: BenchOptions) {
     if (key === 'conversation.composer.dock') return over?.footer ?? null
     if (key === 'conversation.input.plan') return over?.planEntry ?? null
     if (key === 'conversation.input.model') return over?.modelEntry ?? null
+    if (key === 'conversation.input.permission') return <PermissionSelect
+      key={props.sessionId}
+      {...props}
+      {...sessionProps}
+      locked={(owner as { locked: boolean }).locked}
+      usePermissionCatalog={selector => selector({ value: over?.permissions === undefined ? null : { options: over.permissions.options } })}
+      select={preset => props.command!(`/permission ${preset}`)}
+      t={(key, params) => props.t(key === 'mode' ? 'input.accessMode' : key === 'close' ? 'close' : `access.${key}` as never, params)}
+    />
     return null
   }) as never
   const props: InputBarProps = {
@@ -182,7 +195,7 @@ function bench(over?: BenchOptions) {
     })),
     useProjection: ((key: string, selector?: (v: unknown) => unknown) =>
       (selector ?? (v => v))(key === 'permissions'
-        ? over?.permissions
+        ? over?.permissions === undefined ? undefined : { currentValue: over.permissions.currentValue }
         : key === 'plan' ? over?.plan
           : key === 'goal' ? over?.goal
             : key === 'imageLimits' ? over?.imageLimits : undefined)),
@@ -216,6 +229,16 @@ function bench(over?: BenchOptions) {
     ...(over?.placeholder !== undefined ? { placeholder: over.placeholder } : {}),
     ...(over?.accessory !== undefined ? { accessory: over.accessory } : {}),
   }
+  const sessionProps = {
+    sessionId: SID,
+    useSession: bindSnapshotSelector(session),
+    useConversation: bindSnapshotSelector(createSnapshotStore(conversationFixture())),
+    useInput: bindSnapshotSelector(shell.state),
+    inputActions: shell.actions,
+    useProjection: props.useProjection,
+    useChat,
+    useTrajectory,
+  } satisfies SessionStandardProps
   const view = render(<InputBar {...props} />)
   const textarea = view.container.querySelector<HTMLDivElement>('[data-composer-input]')!
   const sendableDraft = (over?.draft?.trim() ?? '') !== '' || (over?.attachments?.length ?? 0) > 0
@@ -1498,7 +1521,7 @@ describe('command launcher chrome and control seats', () => {
     // Every seat dispatched, nothing rendered (render passes may repeat; the
     // seat set is the contract).
     expect([...new Set(slotCalls.map(c => c.key))]).toEqual([
-      'conversation.input.overlay', 'conversation.input.attachments',
+      'conversation.input.permission', 'conversation.input.overlay', 'conversation.input.attachments',
       'conversation.input.plan', 'conversation.input.left',
       'conversation.input.right', 'conversation.input.model',
       'conversation.composer.dock',
@@ -1653,7 +1676,8 @@ describe('command launcher chrome and control seats', () => {
     fireEvent.click(view.getByLabelText(/^访问模式/))
     fireEvent.click(view.getByRole('menuitem', { name: '完全权限' }))
     fireEvent.click(view.getByRole('checkbox'))
-    view.rerender(<InputBar {...props} sessionId={'s2' as SessionId} />)
+    props.sessionId = 's2' as SessionId
+    view.rerender(<InputBar {...props} />)
     expect(view.queryByRole('dialog')).toBeNull()
     expect(command).not.toHaveBeenCalled()
   })

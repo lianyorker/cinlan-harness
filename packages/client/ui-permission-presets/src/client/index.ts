@@ -4,8 +4,8 @@
  * marked active, a pick executes the switch. The decoration owns only the
  * bare invocation; the host command keeps its catalog row, the argued path
  * (`/permission <preset>` still switches directly), and the lifecycle
- * logging. Options and the active mark read the session's `permissions`
- * projection (the same host-computed select the composer chip renders); a
+ * logging. Options read the live process catalog; the active mark reads the
+ * Session's current-value-only `permissions` projection. A
  * pick submits the `/permission <preset>` command line, so both surfaces
  * write through one path and the pushed projection frame is the one
  * confirmation. The Full access row carries the same explicit risk gate as
@@ -26,7 +26,13 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { CommandUiContract, SelectOption } from '@deepseek-ai/dsh-client-ui-commands/client'
 import type { ClientSessionContext } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
-import type { PermissionSelect } from '@deepseek-ai/dsh-permission-presets/client'
+import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PermissionCatalog, PermissionSelection } from '@deepseek-ai/dsh-permission-presets/client'
+import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-client-connection/client'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { PermissionCatalogDirectory } from './catalog.ts'
+import { PermissionSelect, type PermissionSelectInjected } from './PermissionSelect.tsx'
 import { PermissionRow } from './PermissionRow.tsx'
 import type { PermissionRowInjected } from './PermissionRow.tsx'
 import {
@@ -38,32 +44,41 @@ import {
 import { PERMISSION_SETTINGS_NS, PermissionPresetSettingsController } from './settings-store.ts'
 
 export type { PermissionRowInjected, PermissionRowProps } from './PermissionRow.tsx'
+export type { PermissionCatalogState } from './catalog.ts'
+export type { PermissionSelectInjected, PermissionSelectProps } from './PermissionSelect.tsx'
 export type {
   PermissionDefaultOption, PermissionSettingsState,
 } from './settings-store.ts'
 
 /** Required services (cordis fiber inject). */
 export const inject = [
-  'commandUi', 'sessions', 'slots', 'locale', 'remote', 'remote.settings',
+  'commandUi', 'connection', 'sessions', 'slots', 'locale', 'remote', 'remote.permissionPresets', 'remote.settings',
   'settingsScope', 'settingsSchema', 'settingsMetadata',
 ]
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap {
+    /** Current-session permission picker and confirmation copy. */
+    'permission.access': keyof typeof accessEn
+  }
+}
 
 const ACCESS_NS = 'permission.access'
 
 /** Read one session's current permissions projection value (undefined = capability absent). */
-function selectOf(session: SessionFace | undefined): PermissionSelect | undefined {
-  return session?.projections.faceOf('permissions').getSnapshot() as PermissionSelect | undefined
+function selectOf(session: SessionFace | undefined): PermissionSelection | undefined {
+  return session?.projections.faceOf('permissions').getSnapshot() as PermissionSelection | undefined
 }
 
-/** Flatten the projection select into popup rows; `custom` is display state, never a target. */
-function optionsOf(value: PermissionSelect, t: (key: string) => string): SelectOption[] {
-  return value.options
+/** Join the live catalog with the current Session selection. */
+function optionsOf(catalog: PermissionCatalog, currentValue: string, t: TranslateNS<'permission.access'>): SelectOption[] {
+  return catalog.options
     .filter(option => option.value !== 'custom')
     .map(option => ({
       id: option.value,
       label: option.value === 'auto' ? `${t('auto.label')} (${t('auto.badge')})` : displayPermissionPreset(option.value, option.name, t),
       ...(option.description !== undefined ? { detail: option.description } : {}),
-      ...(option.value === value.currentValue ? { active: true } : {}),
+      ...(option.value === currentValue ? { active: true } : {}),
       ...((option.value === FULL_ACCESS_PRESET || option.value === 'auto')
         ? {
           confirmation: {
@@ -80,7 +95,7 @@ function optionsOf(value: PermissionSelect, t: (key: string) => string): SelectO
 
 /**
  * Client plugin body: register the /permission popup picker over the
- * permissions projection.
+ * live catalog and current Session selection.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
@@ -96,6 +111,29 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(ACCESS_NS)
   const sessionFor = (session: ClientSessionContext): SessionFace | undefined =>
     sessions.binding(session.sessionId)?.session
+
+  const submit = async (sessionId: SessionId, preset: string): Promise<boolean> => {
+    const live = sessions.binding(sessionId)?.session
+    if (live === undefined) throw new Error('this session is not materialized yet')
+    const result = await live.command(`/permission ${preset}`)
+    if (!result.ok) throw new Error(`permission switch failed: ${result.error.code}: ${result.error.message}`)
+    if (!result.value.matched) throw new Error('the host offers no /permission command')
+    return true
+  }
+  const catalog = new PermissionCatalogDirectory(ctx)
+  ctx.effect(() => () => { catalog.dispose() }, 'ui-permission: process catalog directory')
+  ctx.effect(
+    () => catalog.invalidations.subscribe(() => { command.dismiss('permission') }),
+    'ui-permission: dismiss stale slash choices',
+  )
+  ctx.slots.inject('conversation.input.permission', () => ctx.slots.register({
+    name: 'conversation.input.permission',
+    locale: ACCESS_NS,
+    inject: (sessionId: SessionId): PermissionSelectInjected => ({
+      hooks: { permissionCatalog: catalog.store },
+      select: preset => submit(sessionId, preset),
+    }),
+  }, PermissionSelect))
 
   ctx.effect(() => ctx.locale.register('settings.permission', { zh, en }), 'ui-permission: settings row dictionaries')
   const settingsT = ctx.locale.bind('settings.permission')
@@ -149,24 +187,16 @@ export function apply(ctx: ClientContext): void {
 
   ctx.effect(() => command.decorate({
     name: 'permission',
-    // The picker exists exactly while the projection does: a permission-less
-    // host serves no key and the bare invocation falls through to the host
-    // command (which is absent too — the line simply misses).
+    // Failed catalog reads keep the command available so the popup can retry.
     available: session => selectOf(sessionFor(session)) !== undefined,
     ui: {
       kind: 'popupSelect',
-      options: (session) => {
+      options: async (session) => {
         const value = selectOf(sessionFor(session))
         if (value === undefined) throw new Error('permission presets are not available on this host')
-        return Promise.resolve(optionsOf(value, t))
+        return optionsOf(await catalog.load(), value.currentValue, t)
       },
-      onSelect: async (option, session) => {
-        const live = sessionFor(session)
-        if (live === undefined) throw new Error('this session is not materialized yet')
-        const result = await live.command(`/permission ${option.id}`)
-        if (!result.ok) throw new Error(`permission switch failed: ${result.error.code}: ${result.error.message}`)
-        if (!result.value.matched) throw new Error('the host offers no /permission command')
-      },
+      onSelect: (option, session) => submit(session.sessionId, option.id).then(() => undefined),
     },
   }), 'ui-permission: /permission decoration')
 }

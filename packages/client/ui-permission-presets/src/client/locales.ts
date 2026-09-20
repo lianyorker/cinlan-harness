@@ -37,6 +37,7 @@ export const en = {
 
 /** Simplified Chinese dictionary for the current-session popup gate. */
 export const accessZh = {
+  'mode': '访问模式，当前：{name}',
   'auto.label': 'Auto review',
   'auto.badge': 'EXP',
   'auto.description': '无沙箱运行；每次原生工具调用和 PTC 内层调用前由同一模型进行实验性审查。',
@@ -59,6 +60,7 @@ export type PermissionAccessKey = keyof typeof accessZh
 
 /** English dictionary for the current-session popup gate. */
 export const accessEn = {
+  'mode': 'Access mode, current: {name}',
   'auto.label': 'Auto review',
   'auto.badge': 'EXP',
   'auto.description': 'Run without a sandbox after an experimental same-model review of every native tool call and PTC inner call.',

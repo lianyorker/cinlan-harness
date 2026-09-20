@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
-import type { PermissionSelect as PermissionSelectValue } from '@deepseek-ai/dsh-permission-presets/client'
+import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { PermissionCatalogState } from './catalog.ts'
 import { IconChevronDownOutline14, Menu, RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ComposerBarProps } from '../contract/slots.ts'
-import { en } from '../locales.ts'
+import { accessEn as en } from './locales.ts'
 import css from './PermissionSelect.module.css'
 
 const FULL_ACCESS = 'danger-full-access'
@@ -56,57 +57,69 @@ function displayName(name: string): string {
 }
 
 const BUILT_IN_PERMISSION_NAMES = new Map<string, string>([
-  ['read-only', en['access.preset.readOnly']],
-  ['workspace-write', en['access.preset.workspaceWrite']],
-  [FULL_ACCESS, en['access.preset.fullAccess']],
+  ['read-only', en['preset.readOnly']],
+  ['workspace-write', en['preset.workspaceWrite']],
+  [FULL_ACCESS, en['preset.fullAccess']],
 ])
 
 function permissionLabel(
   value: string,
   name: string,
-  t: ComposerBarProps['t'],
+  t: PermissionSelectProps['t'],
 ): string {
-  if (value === 'auto') return `${t('access.auto.label')} (${t('access.auto.badge')})`
+  if (value === 'auto') return `${t('auto.label')} (${t('auto.badge')})`
   const builtInName = BUILT_IN_PERMISSION_NAMES.get(value)
   if (builtInName !== undefined && (name === value || name === builtInName)) {
-    if (value === 'read-only') return t('access.preset.readOnly')
-    if (value === 'workspace-write') return t('access.preset.workspaceWrite')
-    if (value === FULL_ACCESS) return t('access.preset.fullAccess')
+    if (value === 'read-only') return t('preset.readOnly')
+    if (value === 'workspace-write') return t('preset.workspaceWrite')
+    if (value === FULL_ACCESS) return t('preset.fullAccess')
   }
   return displayName(name)
 }
 
-export interface PermissionSelectProps {
-  value: PermissionSelectValue | undefined
-  locked: boolean
-  command: (line: string) => Promise<boolean>
-  /** The owning bar's locale seat, passed down as a plain prop. */
-  t: ComposerBarProps['t']
+/** Catalog source and current-session command writer supplied by the plugin. */
+export interface PermissionSelectInjected {
+  hooks: { permissionCatalog: HostObservable<PermissionCatalogState> }
+  select: (preset: string) => Promise<boolean>
 }
 
-export function PermissionSelect({ value, locked, command, t }: PermissionSelectProps) {
+/** Composer permission slot with renderer-bound catalog and Session selection. */
+export type PermissionSelectProps = PropsRuntime<'conversation.input.permission'>
+  & InjectFace<PermissionSelectInjected>
+  & PropsLocale<'permission.access'>
+
+/**
+ * Render the current Session selection against the live process catalog.
+ * @param props - composer slot props with renderer-bound observable hooks.
+ * @returns The selector, or null while either source is absent.
+ */
+export function PermissionSelect({ useProjection, usePermissionCatalog, locked, select, t }: PermissionSelectProps) {
+  const value = useProjection('permissions')
+  const catalog = usePermissionCatalog(state => state.value)
   const [pick, setPick] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [confirmation, setConfirmation] = useState<string | null>(null)
   const [acknowledged, setAcknowledged] = useState(false)
 
   useEffect(() => {
-    if (!locked && value !== undefined) return
+    if (!locked && value !== undefined && catalog !== null
+      && (confirmation === null || catalog.options.some(option => option.value === confirmation))) return
     setOpen(false)
     setAcknowledged(false)
     setConfirmation(null)
-  }, [locked, value])
+  }, [catalog, confirmation, locked, value])
 
-  if (value === undefined) return null
+  if (value === undefined || catalog === null) return null
 
-  const currentValue = pick ?? value.currentValue
-  const current = value.options.find(option => option.value === currentValue)
+  const currentValue = pick !== null && catalog.options.some(option => option.value === pick)
+    ? pick : value.currentValue
+  const current = catalog.options.find(option => option.value === currentValue)
   const currentLabel = current === undefined
     ? permissionLabel(currentValue, currentValue, t)
     : permissionLabel(current.value, current.name, t)
   const busy = pick !== null || confirmation !== null
 
-  const items: MenuEntry[] = value.options
+  const items: MenuEntry[] = catalog.options
     .filter(o => o.value !== 'custom')
     .map((option) => {
       const icon = permissionGlyph(option.value)
@@ -119,7 +132,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
 
   const submit = (id: string): void => {
     setPick(id)
-    void command(`/permission ${id}`)
+    void select(id)
       .catch(() => false)
       .then(() => { setPick(null) })
   }
@@ -160,7 +173,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
           <button
             type="button"
             className={css.trigger}
-            aria-label={t('input.accessMode', { name: currentLabel })}
+            aria-label={t('mode', { name: currentLabel })}
             title={current?.description}
             disabled={locked || busy}
             onClick={() => { setOpen(!open) }}
@@ -177,12 +190,12 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
       />
       <RiskConfirmation
         open={confirmation !== null}
-        title={t(confirmation === 'auto' ? 'access.auto.confirm.title' : 'access.confirm.title')}
-        description={t(confirmation === 'auto' ? 'access.auto.confirm.description' : 'access.confirm.description')}
-        acknowledgeLabel={t(confirmation === 'auto' ? 'access.auto.confirm.acknowledge' : 'access.confirm.acknowledge')}
-        cancelLabel={t('access.confirm.cancel')}
+        title={t(confirmation === 'auto' ? 'auto.confirm.title' : 'confirm.title')}
+        description={t(confirmation === 'auto' ? 'auto.confirm.description' : 'confirm.description')}
+        acknowledgeLabel={t(confirmation === 'auto' ? 'auto.confirm.acknowledge' : 'confirm.acknowledge')}
+        cancelLabel={t('confirm.cancel')}
         closeLabel={t('close')}
-        confirmLabel={t(confirmation === 'auto' ? 'access.auto.confirm.enable' : 'access.confirm.enable')}
+        confirmLabel={t(confirmation === 'auto' ? 'auto.confirm.enable' : 'confirm.enable')}
         acknowledged={acknowledged}
         disabled={locked}
         onAcknowledgedChange={setAcknowledged}

@@ -2,8 +2,8 @@
 /** The composer requires explicit current-session Auto risk acknowledgement. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '@testing-library/react'
-import { PermissionSelect } from '../src/client/skeleton/PermissionSelect.tsx'
-import { en } from '../src/client/locales.ts'
+import { PermissionSelect, type PermissionSelectProps } from '../src/client/PermissionSelect.tsx'
+import { accessEn as en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
@@ -12,13 +12,16 @@ describe('Auto permission confirmation', () => {
     const command = vi.fn().mockResolvedValue(true)
     const messages = new Map(Object.entries(en))
     const view = render(<PermissionSelect
-      value={{ options: [
+      {...{} as PermissionSelectProps}
+      useProjection={(() => ({ currentValue: 'workspace-write' })) as PermissionSelectProps['useProjection']}
+      usePermissionCatalog={selector => selector({ value: { options: [
         { value: 'workspace-write', name: 'workspace-write' },
         { value: 'auto', name: 'auto' },
-      ], currentValue: 'workspace-write' }}
+      ] } })}
       locked={false}
-      command={command}
+      select={preset => command(`/permission ${preset}`)}
       t={(key) => {
+        if (key === 'close') return 'Close'
         const message = messages.get(key)
         if (message === undefined) throw new Error(`Unregistered test locale key: ${key}`)
         return message
@@ -26,9 +29,9 @@ describe('Auto permission confirmation', () => {
     />)
     fireEvent.click(view.getByRole('button', { name: /Access mode/ }))
     fireEvent.click(view.getByRole('menuitem', { name: 'Auto review (EXP)' }))
-    expect(view.getByRole('dialog').textContent).toContain(en['access.auto.confirm.description'])
+    expect(view.getByRole('dialog').textContent).toContain(en['auto.confirm.description'])
     expect(command).not.toHaveBeenCalled()
-    const enable = view.getByRole('button', { name: en['access.auto.confirm.enable'] })
+    const enable = view.getByRole('button', { name: en['auto.confirm.enable'] })
     expect((enable as HTMLButtonElement).disabled).toBe(true)
     fireEvent.click(view.getByRole('checkbox'))
     fireEvent.click(enable)

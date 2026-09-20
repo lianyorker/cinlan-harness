@@ -45,7 +45,7 @@ kind: "package-reference"
 
 当共享 Settings 镜像暴露对应的 Host 命名空间时，通用设置行以稳定的 `permission` 锚点提供本地化搜索元数据。即使控件尚未挂载，可用性也会跟随描述符更新；订阅与元数据随 slot 注册一同释放。搜索元数据仅使用行文案与固定关键词，不包含宿主预设标签和值。
 
-通用行经 `ctx.settingsScope` 读取显式暴露的 `permission` Settings 描述符，并携带描述符 revision 写入一条 `settings.mutate` 路径操作；其 observable 经槽位系统的 `hooks` 格传递，因此 React 钩子绑定归渲染器，推送失效通知会重新获取描述符。该值只在之后创建会话时读取。当前会话表面是挂在宿主 `/permission` 命令上的 popupSelect 装饰（`ctx.commandUi.decorate`）：宿主命令保留斜杠菜单行、带参路径与持久生命周期记账，装饰只把裸调用替换为选择器。选项与 active 标记读取会话的 `permissions` 投影——与 composer chip 渲染的同一份宿主计算 select。完全权限选项携带 `confirmation` 载荷，由共享弹窗外壳渲染为页内风险门。
+通用行经 `ctx.settingsScope` 读取显式暴露的 `permission` Settings 描述符，并携带描述符 revision 写入一条 `settings.mutate` 路径操作；其 observable 经槽位系统的 `hooks` 格传递，因此 React 钩子绑定归渲染器，推送失效通知会重新获取描述符。该值只在之后创建会话时读取。当前会话表面是挂在宿主 `/permission` 命令上的 popupSelect 装饰（`ctx.commandUi.decorate`）：宿主命令保留斜杠菜单行、带参路径与持久生命周期记账，装饰只把裸调用替换为选择器。斜杠选择器与 `conversation.input.permission` 输入区槽位共享一个实时进程目录。`permission-presets/catalog-changed` 刷新选项，无须改变仅包含当前值的 Session 投影。连接代际改变时会清空目录并隔离迟到的读取结果；选项撤回时会关闭其已打开的输入区确认对话框。完全权限选项携带 `confirmation` 载荷，由共享弹窗外壳渲染为页内风险门。
 
 </details>
 
@@ -58,7 +58,7 @@ kind: "package-reference"
 
 - [dsh-permission-presets](../../interaction/permission-presets/README.zh.md)——这些表面写入的宿主侧权限预设策略。
 - [ui-commands](../ui-commands/README.zh.md)——`/permission` 装饰注册进的 popupSelect 外壳。
-- [ui-conversation](../ui-conversation/README.zh.md)——渲染同一份权限投影的 composer chip。
+- [ui-conversation](../ui-conversation/README.zh.md)——声明权限控件槽位的输入区。
 - [客户端包映射](../README.zh.md)——相邻的浏览器 UI 包。
 
 -----

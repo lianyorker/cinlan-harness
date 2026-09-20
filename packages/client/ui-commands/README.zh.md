@@ -43,7 +43,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-[`src/client/contract.ts`](src/client/contract.ts) 定义经 `ctx.commandUi` 注册贡献项与装饰的 API。裸菜单选择或回车调用已注册的 `popupSelect` 或 `action`；空格与带参数的回车保留宿主输入声明。动作在运行前请求消费 token：菜单选择使用捕获的范围与草稿修订号，裸回车则检查去除首尾空白后的草稿是否仍等于 token。输入归属方执行这两种守卫。`CommandDirectory` 缓存各会话的宿主目录，在宿主变化或连接重置时使其失效，并拒绝过期的获取结果。宿主执行返回匹配结果后，浏览器发布本地 `command/executed` 确认；其他客户端收到持久命令节点。`PopupSelectController` 拥有选择器状态，`PopupSelectView` 经 `conversation.input.overlay` 渲染。
+[`src/client/contract.ts`](src/client/contract.ts) 定义经 `ctx.commandUi` 注册贡献项与装饰的 API。裸菜单选择或回车调用已注册的 `popupSelect` 或 `action`；空格与带参数的回车保留宿主输入声明。动作在运行前请求消费 token：菜单选择使用捕获的范围与草稿修订号，裸回车则检查去除首尾空白后的草稿是否仍等于 token。输入归属方执行这两种守卫。`CommandDirectory` 缓存各会话的宿主目录，在宿主变化或连接重置时使其失效，并拒绝过期的获取结果。宿主执行返回匹配结果后，浏览器发布本地 `command/executed` 确认；其他客户端收到持久命令节点。`PopupSelectController` 拥有选择器状态，`PopupSelectView` 经 `conversation.input.overlay` 渲染。`ctx.commandUi.dismiss(name)` 关闭匹配的弹窗和确认对话框，取消待完成的选项加载，并在不消费草稿的情况下恢复输入区焦点。
 
 </details>
 

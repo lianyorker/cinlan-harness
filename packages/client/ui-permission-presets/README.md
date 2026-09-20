@@ -45,7 +45,7 @@ The row derives its options from the host's dynamic `defaultPreset` enum, uses t
 
 The General row contributes localized search metadata with the stable `permission` anchor while the shared Settings mirror exposes its Host namespace. Availability follows descriptor updates even before the control mounts; the subscription and metadata leave with the slot registration. Search metadata uses row copy and fixed keywords, excluding host preset labels and values.
 
-The General row reads the explicitly exposed `permission` Settings descriptor through `ctx.settingsScope` and writes one `settings.mutate` path operation with the descriptor revision; its observable rides the slot system's `hooks` compartment, so the renderer owns React hook binding, and a push invalidation refetches the descriptor. The value is read only when a later session is created. The current-session surface is a popupSelect decoration hung on the host `/permission` command (`ctx.commandUi.decorate`): the host command keeps its slash-menu row, argued path, and durable lifecycle logging, while the decoration replaces only the bare invocation with the picker. Options and the active mark read the session's `permissions` projection — the same host-computed select the composer chip renders. The full-access option carries a `confirmation` payload the shared popup shell renders as the in-page risk gate.
+The General row reads the explicitly exposed `permission` Settings descriptor through `ctx.settingsScope` and writes one `settings.mutate` path operation with the descriptor revision; its observable rides the slot system's `hooks` compartment, so the renderer owns React hook binding, and a push invalidation refetches the descriptor. The value is read only when a later session is created. The current-session surface is a popupSelect decoration hung on the host `/permission` command (`ctx.commandUi.decorate`): the host command keeps its slash-menu row, argued path, and durable lifecycle logging, while the decoration replaces only the bare invocation with the picker. The slash picker and the `conversation.input.permission` composer slot share one live process catalog. `permission-presets/catalog-changed` refreshes options without changing the Session projection, which carries only the current value. Connection generation changes clear the catalog and fence late reads; withdrawing an option revokes its open composer confirmation. The full-access option carries a `confirmation` payload the shared popup shell renders as the in-page risk gate.
 
 </details>
 
@@ -58,7 +58,7 @@ Read these pages when the permission surface is not enough. They move from the b
 
 - [dsh-permission-presets](../../interaction/permission-presets/README.md) — the host-side permission preset policy these surfaces write.
 - [ui-commands](../ui-commands/README.md) — the popupSelect shell the `/permission` decoration registers into.
-- [ui-conversation](../ui-conversation/README.md) — the composer chip that renders the same permissions projection.
+- [ui-conversation](../ui-conversation/README.md) — the composer that declares the permission control slot.
 - [Client package map](../README.md) — adjacent browser UI packages.
 
 -----

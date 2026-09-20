@@ -24,11 +24,11 @@ Each PTC binding owns its frozen schema; this transient metadata is never added 
 
 **A separate approval service.** It would create conflicting authority and an implicit bypass path. The reviewer instead participates in the existing tool pipeline and permission preset lifecycle.
 
-**Porting the remote permission catalog.** The local combined projection already supplies session selection. Replacing its API would broaden this optional capability into unrelated remote-service and client changes; the port retains that API and requires profile restart for external layer changes.
+**Keeping the combined permission projection.** This limited the optional port to its existing Session API but required profile restart after external layer changes. The [live catalog decision](../architecture/2026-09-20-live-permission-catalog.md) partially supersedes that choice; Auto authorization and durability remain owned here.
 
 ## Consequences
 
-Model authorization can misclassify actions and uses extra tokens. Outer run_code and direct JavaScript effects are outside inner-tool review, so Auto is not a deterministic security barrier. The local combined permission projection is retained; install or remove external layers while the profile is stopped, then restart for picker availability. No separate settings section or specialized denial card is introduced.
+Model authorization can misclassify actions and uses extra tokens. Outer run_code and direct JavaScript effects are outside inner-tool review, so Auto is not a deterministic security barrier. The process permission catalog updates picker availability when the Auto integration registers or leaves; the Session projection records only current selection. No separate settings section or specialized denial card is introduced.
 
 Mock tests cover sourced authority, malformed and failed reviews, downstream vetoes, no-body denials, binding schema identity, cancellation, removal, reinstall, delegated policy capture, and localized risk confirmation. A source Loader composition exercises the real agent loop without model/API access. This verifies integration, not real-model risk classification or external package publication.
 

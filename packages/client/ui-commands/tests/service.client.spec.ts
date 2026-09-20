@@ -8,7 +8,7 @@
  * lifecycle, and the directory invalidation event subscriptions.
  */
 import { Context } from '@deepseek-ai/cordis'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { CommandResult } from '@deepseek-ai/dsh-commands/types'
 import { createScope, scopeOf } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -835,6 +835,65 @@ describe('popupFor', () => {
     expect(command.popupFor(a.ctx)).toBe(first)
     expect(command.popupFor(mint('s2').ctx)).not.toBe(first)
     expect(() => command.popupFor(ctx)).toThrow('requires a session scope')
+  })
+
+  it('dismisses matching popups and confirmations while preserving other commands and drafts', async () => {
+    const { ctx, command, source, mint } = await bench()
+    onTestFinished(() => ctx.fiber.dispose())
+    const focuses: SessionId[] = []
+    command.bindComposerFocus(sid('s1'), () => { focuses.push(sid('s1')) })
+    command.bindComposerFocus(sid('s2'), () => { focuses.push(sid('s2')) })
+    const pending = Promise.withResolvers<readonly SelectOption[]>()
+    let pendingSignal: AbortSignal | undefined
+    const onSelect = vi.fn()
+    command.register(themeContribution({ ui: themeUi({
+      options: (session, signal) => {
+        if (session.sessionId === sid('s2')) {
+          pendingSignal = signal
+          return pending.promise
+        }
+        return Promise.resolve([{
+          id: 'dark',
+          label: 'Dark',
+          confirmation: {
+            title: 'Confirm theme', description: 'Change theme', acknowledgeLabel: 'Acknowledge',
+            cancelLabel: 'Cancel', confirmLabel: 'Confirm',
+          },
+        }])
+      },
+      onSelect,
+    }) }))
+    command.register(themeContribution({ name: 'other' }))
+    const scope = mint('s1')
+    const first = command.popupFor(scope.ctx)
+    const second = command.popupFor(mint('s2').ctx)
+    const other = command.popupFor(mint('other').ctx)
+    let draft = '/theme retained draft'
+    const consume = vi.fn(() => { draft = ''; return true as const })
+    scope.ctx.on('slash/input-consume-token', consume)
+    menuPick(source, 'theme', proj('s1'))
+    menuPick(source, 'theme', proj('s2'))
+    menuPick(source, 'other', proj('other'))
+    await Promise.resolve()
+    await first.select(0)
+    first.acknowledge(true)
+    expect(first.state.getSnapshot().confirming?.id).toBe('dark')
+    expect(second.state.getSnapshot().status).toBe('pending')
+
+    command.dismiss('theme')
+
+    expect(first.state.getSnapshot()).toMatchObject({ open: false, options: [], confirming: null })
+    expect(second.state.getSnapshot()).toMatchObject({ open: false, options: [] })
+    expect(pendingSignal?.aborted).toBe(true)
+    expect(other.state.getSnapshot().open).toBe(true)
+    pending.resolve([{ id: 'late', label: 'Late' }])
+    await Promise.resolve()
+    await first.confirm()
+    expect(second.state.getSnapshot()).toMatchObject({ open: false, options: [] })
+    expect(onSelect).not.toHaveBeenCalled()
+    expect(consume).not.toHaveBeenCalled()
+    expect(draft).toBe('/theme retained draft')
+    expect(focuses).toEqual([sid('s1'), sid('s2')])
   })
 
   it('a successful select dispatches the scoped consume-token and fires the bound composer focus', async () => {
