@@ -57,6 +57,10 @@ dsh --profile web --no-open --port 8080
 
 通过 SSH 启动 `dsh --profile web` 时，URL 行仍会打印，但不会为你打开浏览器：本地转发地址由 SSH 客户端或编辑器持有。请在自己的机器上打开转发后的 URL；打印出的 URL 指向远端宿主机 loopback 端点。
 
+### 资源与配对设备设置
+
+设置页提供 [Android 组件](../../mobile-device/mobile-device-runtime/README.zh.md)和[设备配对](../../remote-access/remote-access/README.zh.md)。Android 偏好与资源管理独立于默认停用的 ADB 输入提供者加载。配对监听器默认关闭，需要显式配置 HTTPS 地址、证书、私钥与应用适配器；Desktop 向现有 Host 提供该适配器。配对不会扩大普通 Web 认证 Cookie 的权限。
+
 ### 按会话的 agent 设置
 
 每个浏览器会话都从随发行版交付的 preset（默认 `standard`）组合自己的 agent（智能体），而不是共享一套进程级工具集。你可以更改默认 preset，或在 `$DSH_HOME/.agent-presets` 下添加自己的 preset。

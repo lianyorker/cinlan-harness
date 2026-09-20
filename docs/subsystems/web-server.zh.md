@@ -2,7 +2,9 @@
 
 [English](web-server.md) | 中文
 
-[dsh-host-webserver](../../packages/host/webserver) 是 GUI Host 的浏览器 HTTP 载体：它是一个提供 `ctx.webServer` 的 `node:http` 插件，包含具名路由注册表、可选的 gzip 响应压缩、index.html 转换回调，以及一个可由插件认领的回退处理器。它不属于 agent loop（智能体循环），也不是能力 seam；它不了解任何 harness 概念。其他插件负责注册所有功能路由，包括 `/api` 桥接、插件 bundle 和 HMR（热模块替换）事件流（[分层说明](../../.agents/notes/implemented/architecture/2026-07-24-web-config-tree-boot-and-transport-layering.zh.md)）。该服务器只服务浏览器：Electron 通过 `file://` 加载已构建文件，并经 IPC 桥接发送 fetch 请求，不使用本服务器。
+[dsh-host-webserver](../../packages/host/webserver) 是 GUI Host 的浏览器 HTTP 载体：它是一个提供 `ctx.webServer` 的 `node:http` 插件，包含具名路由注册表、可选的 gzip 响应压缩、index.html 转换回调，以及一个可由插件认领的回退处理器。它不属于 agent loop（智能体循环），也不是能力 seam；它不了解任何 harness 概念。其他插件负责注册所有功能路由，包括 `/api` 桥接、插件 bundle 和 HMR（热模块替换）事件流（[分层说明](../../.agents/notes/implemented/architecture/2026-07-24-web-config-tree-boot-and-transport-layering.zh.md)）。常规本地[桌面传输载体](../../apps/desktop/README.zh.md)使用 `dsh-app://` 和分帧字节管道传输资源、Fetch 请求及流式响应；Node IPC 承载生命周期控制，此模式不开放 Web 监听端口。
+
+[Remote Access](../../packages/remote-access/remote-access/README.zh.md)为同一个 Desktop Host 和现有 Session 提供显式启用的独立 HTTPS/WSS 载体。它单独拥有配对设备监听器，不由 `ctx.webServer` 承载；部署、配对和设备授权详情由其包参考文档负责。
 
 源码：[`packages/host/webserver/src/index.ts`](../../packages/host/webserver/src/index.ts)
 
@@ -59,6 +61,76 @@ interface Config {
 ## Cordis API
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxremoteaccess--remoteaccess"></a>
+
+### `ctx.remoteAccess` — `RemoteAccess`
+
+Listener and paired-device lifecycle; management methods require a trusted local Gateway invocation.
+
+```ts cordis-catalog
+/**
+ * Read local listener readiness and safe device metadata.
+ * @returns listener readiness, verified certificate fingerprint and safe paired-device metadata.
+ */
+async describe(): Promise<RemoteAccessStatus>
+
+/**
+ * Enable the explicitly configured HTTPS listener.
+ * @returns readiness after explicitly enabling the configured HTTPS listener.
+ */
+async enable(): Promise<RemoteAccessStatus>
+
+/**
+ * Disable the listener and settle its active carriers.
+ * @returns disabled state after every network request and stream has settled.
+ */
+async disable(): Promise<RemoteAccessStatus>
+
+/**
+ * Select exact Session references and scopes for one short-lived pairing code.
+ * @param grant - local UI-selected grant.
+ * @returns one-time invitation displayed only on the trusted Desktop.
+ */
+createInvitation(grant: PairingGrant): PairingInvitation
+
+/** Invalidate the current one-time invitation. */
+cancelInvitation(): void
+
+/**
+ * Persist revocation before terminating this device's active requests and streams.
+ * @param deviceId - paired device selected on the trusted Desktop.
+ */
+async revokeDevice(deviceId: PairedDeviceId): Promise<void>
+```
+
+Types: [PairedDeviceId](../../packages/remote-access/remote-access/README.zh.md) · [PairingGrant](../../packages/remote-access/remote-access/README.zh.md) · [PairingInvitation](../../packages/remote-access/remote-access/README.zh.md) · [RemoteAccessStatus](../../packages/remote-access/remote-access/README.zh.md)
+
+Source: [`packages/remote-access/remote-access/src/index.ts`](../../packages/remote-access/remote-access/src/index.ts)
+
+<a id="ctxremoteaccesshost--remoteaccesshost"></a>
+
+### `ctx.remoteAccessHost` — `RemoteAccessHost`
+
+Desktop lifecycle capability: dispatch shares the local update lock; assets use a phone bootstrap.
+
+```ts cordis-catalog
+/**
+ * Admit work through the same update lock as local API and stream requests.
+ * @param operation - operation to admit before execution.
+ * @returns the admitted operation's result.
+ */
+dispatch<T>(operation: () => T | Promise<T>): Promise<T>
+
+/**
+ * Serve matching runtime assets with a paired browser bootstrap, never ownsHost:true.
+ * @param request - authenticated asset request.
+ * @returns the runtime asset, or 404 for an unrecognized path.
+ */
+fetchAssets(request: Request): Response | Promise<Response>
+```
+
+Source: [`packages/remote-access/remote-access/src/types.ts`](../../packages/remote-access/remote-access/src/types.ts)
 
 <a id="ctxwebserver--webserver"></a>
 

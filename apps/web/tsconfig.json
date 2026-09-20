@@ -23,6 +23,8 @@
   // this client-registered project must not also hold them (one program
   // cannot see both sides of the cordis Context merges).
   "exclude": [
+    "tests/mobile-resources.e2e.ts",
+    "tests/terminal-rename-recovery.e2e.ts",
     "tests/session-unarchive.e2e.ts",
     "tests/office-preview.e2e.ts",
     "tests/subagent-sidebar-chat.e2e.ts",
@@ -58,6 +60,8 @@
     "tests/security-capabilities.e2e.ts",
     "tests/security-resources.e2e.ts",
     "tests/native-browser-settings.e2e.ts",
+    "tests/voice-settings.e2e.ts",
+    "tests/browser-resources.e2e.ts",
     "tests/work-items.e2e.ts",
     "tests/models-settings.e2e.ts",
     "tests/default-model.e2e.ts",

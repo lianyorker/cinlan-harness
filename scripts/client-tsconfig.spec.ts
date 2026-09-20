@@ -22,6 +22,31 @@ function clientCssDeclarations(): string[] {
 }
 
 describe('client TypeScript aggregate', () => {
+  it('assigns terminal recovery and the external pairing fixture to the Client program', () => {
+    const files = (name: string): Set<string> => {
+      const config = ts.getParsedCommandLineOfConfigFile(resolve(root, name), {}, {
+        ...ts.sys,
+        onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
+          throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '))
+        },
+      })
+      if (config === undefined) throw new Error('Compiler aggregate could not be read')
+      return new Set(config.fileNames.map(file => file.replaceAll(sep, '/')))
+    }
+    const client = files('tsconfig.client.json')
+    const host = files('tsconfig.host.json')
+    for (const relative of [
+      'packages/client/ui-better-sidebar/tests/terminal-recovery.spec.tsx',
+      'packages/client/ui-better-sidebar/tests/terminal-title-editor.spec.tsx',
+      'packages/client/ui-settings-pairing/tests/external-rpc.client.ts',
+    ]) {
+      const absolute = resolve(root, relative).replaceAll(sep, '/')
+      expect(client.has(absolute)).toBe(true)
+      expect(host.has(absolute)).toBe(false)
+    }
+    expect(host.has(resolve(root, 'apps/web/tests/mobile-resources.e2e.ts').replaceAll(sep, '/'))).toBe(true)
+  })
+
   it('loads package CSS declarations without relying on workspace-link realpaths', () => {
     const configPath = resolve(root, 'tsconfig.client.json')
     const read = ts.readConfigFile(configPath, file => ts.sys.readFile(file))

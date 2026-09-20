@@ -21,6 +21,8 @@
 
 可选的 `device-control` profile 在 base 与 Web bundle 之上叠加[原生 CUA bundle](../../packages/bundle/cinlan-computer-use/README.zh.md) 和[原生 Android ADB bundle](../../packages/bundle/cinlan-mobile-device/README.zh.md)。Provider 激活与工具审批仍须显式选择。[用户指南](../user/develop/practice/device-control.zh.md)负责启动和配置说明。
 
+[移动运行时管理器](../../packages/mobile-device/mobile-device-runtime/README.zh.md)负责人工操作的 Android 资源安装与镜像；其[资源、任务和镜像类型声明](../../packages/mobile-device/mobile-device-runtime/src/types.ts)与 Provider 观察和动作授权分开。
+
 ## Observations and permission
 
 [原生 CUA Provider](../../packages/experimental/computer-use-cua-driver-native/README.zh.md)暴露 SDK 工具目录及上游窗口快照、元素 token、请求与结果。独立的 [Computer Use facade](../../packages/computer-use/computer-use/README.zh.md) 为显式组合的 facade Provider 提供下文记录的旧式观察与操作类型。[Mobile Device](../../packages/mobile-device/mobile-device/README.zh.md) 使用精确设备 id、归一化坐标、runtime generation 和一次性 observation token；修改后须显式重新观察。
@@ -328,6 +330,57 @@ pressButton(request: MobileButtonRequest, signal?: AbortSignal): Promise<MobileM
 ```
 
 Source: [`packages/mobile-device/mobile-device/src/index.ts`](../../packages/mobile-device/mobile-device/src/index.ts)
+
+<a id="ctxmobileruntime--mobileruntimemanager"></a>
+
+### `ctx.mobileRuntime` — `MobileRuntimeManager`
+
+Own private installed tools separately from Provider activation and custom SDK installations.
+
+```ts cordis-catalog
+/** Pin the selected executable and immutable managed bytes for a complete operation.
+ * @param selection - Explicit deployment command and saved SDK path; custom choices take precedence.
+ * @param signal - Cancellation while acquiring the selection.
+ * @returns Executable and release callback held through subprocess and device-file cleanup.
+ */
+async acquireAdb(selection: { command?: string; sdkPath?: string }, signal: AbortSignal): Promise<MobileExecutableLease>
+
+/** Observe resource provenance and independently probe Android executable and connections.
+ * @param signal - Read cancellation; never cancels an installation or mirror.
+ * @returns Managed component, process, and connection facts.
+ */
+status(signal: AbortSignal): Promise<MobileRuntimeStatus>
+
+/** Admit a Host-owned resource transaction against the displayed durable revision.
+ * @param request - Fixed resource operation and explicit license acceptance.
+ * @param signal - Admission cancellation; receipt ownership remains with the Host.
+ * @returns Exact task receipt for observation and cancellation.
+ */
+start(request: MobileResourceRequest, signal: AbortSignal): MobileResourceTask
+
+/** Cancel only the exact observed task before its publication phase.
+ * @param taskId - Current task identity.
+ * @returns Settled task after all download, extraction, and cleanup work stops.
+ */
+async cancel(taskId: MobileResourceTaskId): Promise<MobileResourceTask>
+
+/** Start a human-requested mirror for one currently authorized exact Android device.
+ * @param deviceId - Exact identity from this manager's latest connection inventory.
+ * @param signal - Admission cancellation.
+ * @returns Host-owned mirror receipt; process state does not claim visual acceptance.
+ */
+startMirror(deviceId: string, signal: AbortSignal): MobileMirrorStatus
+
+/** Close the exact owned mirror and await native process exit before releasing resources.
+ * @param mirrorId - Current mirror receipt identity.
+ * @returns Settled mirror facts.
+ */
+async closeMirror(mirrorId: MobileMirrorId): Promise<MobileMirrorStatus>
+```
+
+Types: [MobileExecutableLease](../../packages/mobile-device/mobile-device-runtime/README.zh.md) · [MobileMirrorId](../../packages/mobile-device/mobile-device-runtime/README.zh.md) · [MobileMirrorStatus](../../packages/mobile-device/mobile-device-runtime/README.zh.md) · [MobileResourceRequest](../../packages/mobile-device/mobile-device-runtime/README.zh.md) · [MobileResourceTask](../../packages/mobile-device/mobile-device-runtime/README.zh.md) · [MobileResourceTaskId](../../packages/mobile-device/mobile-device-runtime/README.zh.md) · [MobileRuntimeStatus](../../packages/mobile-device/mobile-device-runtime/README.zh.md)
+
+Source: [`packages/mobile-device/mobile-device-runtime/src/index.ts`](../../packages/mobile-device/mobile-device-runtime/src/index.ts)
 <!-- END GENERATED cordis-surface -->
 
 <a id="dev-note"></a>

@@ -57,6 +57,10 @@ By default the GUI accepts connections from this machine only. A deployment that
 
 When you launch `dsh --profile web` over SSH, the URL line still prints but the browser is not opened for you: the SSH client or editor owns the local forwarding address. Open the forwarded URL on your machine yourself; the printed URL names the remote host's loopback endpoint.
 
+### Resource and paired-device settings
+
+The Settings pages include [Android components](../../mobile-device/mobile-device-runtime/README.md) and [device pairing](../../remote-access/remote-access/README.md). Android preferences and resource management load independently of the disabled ADB input provider. The pairing listener defaults to disabled and needs an explicit HTTPS address, certificate, private key, and application adapter; Desktop supplies that adapter to its existing Host. Pairing does not expand the ordinary Web authentication cookie.
+
 ### Per-session agent setup
 
 Each browser session composes its own agent from the shipped presets (the `standard` preset by default), instead of sharing one process-wide tool set. You can change the default preset or add your own presets under `$DSH_HOME/.agent-presets`.

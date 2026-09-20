@@ -21,6 +21,8 @@ Desktop and mobile control let agents inspect a device before acting on it. This
 
 The opt-in `device-control` profile layers the [native CUA bundle](../../packages/bundle/cinlan-computer-use/README.md) and [native Android ADB bundle](../../packages/bundle/cinlan-mobile-device/README.md) over the base and Web bundles. Provider activation and tool approval remain explicit choices. The [user guide](../user/develop/practice/device-control.md) owns launch and configuration instructions.
 
+The [Mobile runtime manager](../../packages/mobile-device/mobile-device-runtime/README.md) owns human-operated Android resource installation and mirroring; its [resource, task, and mirror declarations](../../packages/mobile-device/mobile-device-runtime/src/types.ts) remain separate from Provider observations and action authorization.
+
 ## Observations and permission
 
 The [native CUA provider](../../packages/experimental/computer-use-cua-driver-native/README.md) exposes the SDK tool catalog and upstream window snapshots, element tokens, requests, and results. The separate [Computer Use facade](../../packages/computer-use/computer-use/README.md) supplies the legacy observation/action types documented below for explicitly composed facade providers. [Mobile Device](../../packages/mobile-device/mobile-device/README.md) uses exact device ids, normalized coordinates, runtime generations, and one-use observation tokens; mutation requires a subsequent explicit observation.
@@ -328,6 +330,57 @@ pressButton(request: MobileButtonRequest, signal?: AbortSignal): Promise<MobileM
 ```
 
 Source: [`packages/mobile-device/mobile-device/src/index.ts`](../../packages/mobile-device/mobile-device/src/index.ts)
+
+<a id="ctxmobileruntime--mobileruntimemanager"></a>
+
+### `ctx.mobileRuntime` — `MobileRuntimeManager`
+
+Own private installed tools separately from Provider activation and custom SDK installations.
+
+```ts cordis-catalog
+/** Pin the selected executable and immutable managed bytes for a complete operation.
+ * @param selection - Explicit deployment command and saved SDK path; custom choices take precedence.
+ * @param signal - Cancellation while acquiring the selection.
+ * @returns Executable and release callback held through subprocess and device-file cleanup.
+ */
+async acquireAdb(selection: { command?: string; sdkPath?: string }, signal: AbortSignal): Promise<MobileExecutableLease>
+
+/** Observe resource provenance and independently probe Android executable and connections.
+ * @param signal - Read cancellation; never cancels an installation or mirror.
+ * @returns Managed component, process, and connection facts.
+ */
+status(signal: AbortSignal): Promise<MobileRuntimeStatus>
+
+/** Admit a Host-owned resource transaction against the displayed durable revision.
+ * @param request - Fixed resource operation and explicit license acceptance.
+ * @param signal - Admission cancellation; receipt ownership remains with the Host.
+ * @returns Exact task receipt for observation and cancellation.
+ */
+start(request: MobileResourceRequest, signal: AbortSignal): MobileResourceTask
+
+/** Cancel only the exact observed task before its publication phase.
+ * @param taskId - Current task identity.
+ * @returns Settled task after all download, extraction, and cleanup work stops.
+ */
+async cancel(taskId: MobileResourceTaskId): Promise<MobileResourceTask>
+
+/** Start a human-requested mirror for one currently authorized exact Android device.
+ * @param deviceId - Exact identity from this manager's latest connection inventory.
+ * @param signal - Admission cancellation.
+ * @returns Host-owned mirror receipt; process state does not claim visual acceptance.
+ */
+startMirror(deviceId: string, signal: AbortSignal): MobileMirrorStatus
+
+/** Close the exact owned mirror and await native process exit before releasing resources.
+ * @param mirrorId - Current mirror receipt identity.
+ * @returns Settled mirror facts.
+ */
+async closeMirror(mirrorId: MobileMirrorId): Promise<MobileMirrorStatus>
+```
+
+Types: [MobileExecutableLease](../../packages/mobile-device/mobile-device-runtime/README.md) · [MobileMirrorId](../../packages/mobile-device/mobile-device-runtime/README.md) · [MobileMirrorStatus](../../packages/mobile-device/mobile-device-runtime/README.md) · [MobileResourceRequest](../../packages/mobile-device/mobile-device-runtime/README.md) · [MobileResourceTask](../../packages/mobile-device/mobile-device-runtime/README.md) · [MobileResourceTaskId](../../packages/mobile-device/mobile-device-runtime/README.md) · [MobileRuntimeStatus](../../packages/mobile-device/mobile-device-runtime/README.md)
+
+Source: [`packages/mobile-device/mobile-device-runtime/src/index.ts`](../../packages/mobile-device/mobile-device-runtime/src/index.ts)
 <!-- END GENERATED cordis-surface -->
 
 <a id="dev-note"></a>

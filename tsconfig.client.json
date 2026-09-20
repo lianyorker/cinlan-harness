@@ -13,6 +13,10 @@
     // scripts/client-bundle-purity.spec.ts.
     "types": ["node"]
   },
+  "files": [
+    "packages/client/ui-better-sidebar/tests/terminal-recovery.spec.tsx",
+    "packages/client/ui-better-sidebar/tests/terminal-title-editor.spec.tsx"
+  ],
   "include": [
     // Source-subpath test imports can arrive through workspace links whose
     // realpath semantics vary by host. Load package CSS declarations directly.
@@ -42,6 +46,8 @@
     "packages/client/ui-better-sidebar/tests/**"
   ],
   "references": [
+    { "path": "./packages/client/ui-paired-shell" },
+    { "path": "./packages/client/ui-settings-pairing" },
     { "path": "./packages/client/ui-settings-unarchive-sessions" },
     // Producer-to-UI spill tests execute the real nested dispatch worker.
     { "path": "./packages/code-runtime/code-runtime-worker-thread" },

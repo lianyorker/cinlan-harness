@@ -144,6 +144,8 @@ Connection 会先解码 carrier envelope，再调用 `ctx.typertGateway`。请�
 ```ts type-equiv
 /** One Remote method request after a carrier has decoded its envelope. */
 interface InvokeRemoteRequest {
+  /** Authority constructed by the authenticated Host carrier, never a wire argument. */
+  readonly access: HostConnectionAccess
   /** Remote namespace selected by the generated descriptor. */
   readonly namespace: string
   /** Exported Service method name. */
@@ -180,8 +182,18 @@ type TypertGatewayErrorCode =
 ```ts type-equiv
 /** Host dispatcher consumed by Connection adapters. */
 interface TypertGateway {
+  /**
+   * Register the policy for one authenticated delegated identity.
+   * @param access - immutable capability issued by the carrier owner.
+   * @param policy - the matching grant policy.
+   * @returns effect disposer that invalidates the registration.
+   */
+  registerAccess(access: HostConnectionAccess, policy: TypertGatewayAccessPolicy): () => void
+  /** @returns the current authenticated unary caller, absent outside Gateway dispatch. */
+  currentAccess(): HostConnectionAccess | undefined
   /** Carrier adapter shared by WebSocket and in-process transports. */
   readonly wireStream: TypertGatewayWireStream
+
   /**
    * Register the application-selected forwarded-event source.
    * @param source - stream factory installed by the Remote assembly.
@@ -192,6 +204,7 @@ interface TypertGateway {
     source: TypertRemoteEventSource,
     host: RemoteEventHostInfo,
   ): () => Promise<void>
+
   /**
    * Invoke one live Remote method without assuming a carrier or response envelope.
    * @param request - decoded endpoint and named wire arguments.
@@ -199,6 +212,7 @@ interface TypertGateway {
    * @throws {@link TypertGatewayError} for dispatch, provider, or boundary failures; lookup-policy and business errors retain identity.
    */
   invoke(request: InvokeRemoteRequest): Promise<unknown>
+
   /**
    * Open one live stream Remote method without assuming a physical carrier.
    * @param request - decoded endpoint and named wire arguments.
@@ -397,6 +411,49 @@ Source: [`packages/api/automation-controller/src/index.ts`](../../packages/api/a
 Authenticated human-facing Browser operations, separate from model tool permissions.
 
 ```ts cordis-catalog
+/** Detect binary availability without launching a native browser.
+ * @param signal - Pre-admission cancellation.
+ * @returns File, provider, and context observations.
+ */
+@Remote('runtimeStatus') runtimeStatus(signal: AbortSignal): BrowserRuntimeStatus
+
+/** Start pinned Chromium installation, independently of Remote lifetime.
+ * @param signal - Pre-admission cancellation only.
+ * @returns Host-owned task identity.
+ */
+@Remote('installRuntime') installRuntime(signal: AbortSignal): BrowserRuntimeTask
+
+/** Replace the pin after a complete staged download; the browser must be closed.
+ * @param signal - Pre-admission cancellation only.
+ * @returns Host-owned task identity.
+ */
+@Remote('reinstallRuntime') reinstallRuntime(signal: AbortSignal): BrowserRuntimeTask
+
+/** Close the native context; provider activation and persistent profile remain available.
+ * @param signal - Pre-admission cancellation only.
+ * @returns Settlement after context and lease cleanup.
+ */
+@Remote('closeRuntime') async closeRuntime(signal: AbortSignal): Promise<void>
+
+/** Remove managed Chromium, preserving system browsers and profiles.
+ * @param signal - Pre-admission cancellation only.
+ * @returns Host-owned task identity.
+ */
+@Remote('removeRuntime') removeRuntime(signal: AbortSignal): BrowserRuntimeTask
+
+/** Observe the latest task after view or Remote reattachment.
+ * @param signal - Read cancellation.
+ * @returns Latest task or null.
+ */
+@Remote('runtimeTask') runtimeTask(signal: AbortSignal): BrowserRuntimeTask | null
+
+/** Cancel only the named task and wait for owned process termination.
+ * @param request - Exact task identity.
+ * @param signal - Pre-admission cancellation only.
+ * @returns Terminal task snapshot.
+ */
+@Remote('cancelRuntime') async cancelRuntime(request: BrowserRuntimeCancelRequest, signal: AbortSignal): Promise<BrowserRuntimeTask>
+
 /** Read the active profile without launching a browser.
  * @param signal - Caller cancellation.
  * @returns Active profile name.
@@ -480,6 +537,8 @@ Authenticated human-facing Browser operations, separate from model tool permissi
 @Remote('importCookies') async importCookies(request: BrowserImportCookiesRequest, signal: AbortSignal): Promise<BrowserImportCookiesValue>
 ```
 
+Types: [BrowserRuntimeCancelRequest](browser.zh.md) · [BrowserRuntimeStatus](browser.zh.md) · [BrowserRuntimeTask](browser.zh.md)
+
 Source: [`packages/api/browser-controller/src/index.ts`](../../packages/api/browser-controller/src/index.ts)
 
 <a id="ctxdevicecapabilitiescontroller--devicecapabilitiescontroller"></a>
@@ -489,6 +548,40 @@ Source: [`packages/api/browser-controller/src/index.ts`](../../packages/api/brow
 Probe the selected Provider without exposing desktop content or device identities.
 
 ```ts cordis-catalog
+/** Read native Android resources and connections from the local Host.
+ * @param signal - Cancels only this observation.
+ * @returns Resource and connection facts, independent from Provider activation.
+ */
+@Remote('mobileRuntimeStatus') async mobileRuntimeStatus(signal: AbortSignal): Promise<MobileRuntimeStatus>
+
+/** Start an explicit local component transaction.
+ * @param request - Reviewed resource, operation, revision, and license acceptance.
+ * @param signal - Admission cancellation.
+ * @returns Host-owned task receipt.
+ */
+@Remote('startMobileResource') async startMobileResource(request: MobileResourceRequest, signal: AbortSignal): Promise<MobileResourceTask>
+
+/** Cancel and join the exact displayed resource task.
+ * @param request - Task receipt identity.
+ * @param signal - Admission cancellation.
+ * @returns Settled task after cleanup.
+ */
+@Remote('cancelMobileResource') async cancelMobileResource(request: { taskId: MobileResourceTaskId }, signal: AbortSignal): Promise<MobileResourceTask>
+
+/** Open an owned native mirror window for one exact device.
+ * @param request - Android identity from the connection inventory.
+ * @param signal - Admission cancellation.
+ * @returns Mirror process receipt, without claiming visible hardware acceptance.
+ */
+@Remote('startMobileMirror') async startMobileMirror(request: { deviceId: string }, signal: AbortSignal): Promise<MobileMirrorStatus>
+
+/** Close only the native mirror owned by this receipt.
+ * @param request - Exact mirror identity.
+ * @param signal - Admission cancellation.
+ * @returns Closed mirror facts after process-range settlement.
+ */
+@Remote('closeMobileMirror') async closeMobileMirror(request: { mirrorId: MobileMirrorId }, signal: AbortSignal): Promise<MobileMirrorStatus>
+
 /**
  * Check Provider reachability independently from plugin activation.
  * @param request - Device family to check.
@@ -511,6 +604,8 @@ Probe the selected Provider without exposing desktop content or device identitie
  */
 @Remote('listMobileDevices') async listMobileDevices(signal: AbortSignal): Promise<MobileDeviceListSnapshot>
 ```
+
+Types: [MobileMirrorId](../../packages/mobile-device/mobile-device-runtime/README.zh.md) · [MobileMirrorStatus](../../packages/mobile-device/mobile-device-runtime/README.zh.md) · [MobileResourceRequest](../../packages/mobile-device/mobile-device-runtime/README.zh.md) · [MobileResourceTask](../../packages/mobile-device/mobile-device-runtime/README.zh.md) · [MobileResourceTaskId](../../packages/mobile-device/mobile-device-runtime/README.zh.md) · [MobileRuntimeStatus](../../packages/mobile-device/mobile-device-runtime/README.zh.md)
 
 Source: [`packages/api/device-capabilities-controller/src/index.ts`](../../packages/api/device-capabilities-controller/src/index.ts)
 
@@ -664,6 +759,52 @@ Current-profile MCP management without composition rewrites or tool execution.
 Types: [McpManagementSnapshot](mcp.zh.md) · [McpRemoveRequest](mcp.zh.md) · [McpSaveRequest](mcp.zh.md) · [McpSaveResult](mcp.zh.md) · [McpServerRequest](mcp.zh.md) · [McpSetEnabledRequest](mcp.zh.md)
 
 Source: [`packages/api/mcp-controller/src/index.ts`](../../packages/api/mcp-controller/src/index.ts)
+
+<a id="ctxpairingcontroller--pairingcontroller"></a>
+
+### `ctx.pairingController` — `PairingController`
+
+Trusted-local management only; the remoteAccess executor verifies current carrier authority.
+
+```ts cordis-catalog
+/**
+ * Read local listener readiness and safe device metadata.
+ * @returns listener readiness and paired device metadata without credentials.
+ */
+@Remote('describe') describe(): Promise<RemoteAccessStatus>
+
+/**
+ * Enable the explicitly configured HTTPS listener.
+ * @returns readiness after explicitly enabling the configured HTTPS carrier.
+ */
+@Remote('enable') enable(): Promise<RemoteAccessStatus>
+
+/**
+ * Disable the listener and settle its active carriers.
+ * @returns readiness after disabling and draining the carrier.
+ */
+@Remote('disable') disable(): Promise<RemoteAccessStatus>
+
+/**
+ * Create a bounded one-time invitation from explicitly selected Session references and scopes.
+ * @param request - local human's selected grant.
+ * @returns the invitation, shown only on the trusted Desktop.
+ */
+@Remote('createInvitation') createInvitation(request: PairingGrant): PairingInvitation
+
+/** Cancel the outstanding pairing invitation. */
+@Remote('cancelInvitation') cancelInvitation(): void
+
+/**
+ * Revoke a device durably and terminate its current carrier operations.
+ * @param request - paired device selected by the local human.
+ */
+@Remote('revokeDevice') revokeDevice(request: { readonly deviceId: PairedDeviceId }): Promise<void>
+```
+
+Types: [PairedDeviceId](../../packages/remote-access/remote-access/README.zh.md) · [PairingGrant](../../packages/remote-access/remote-access/README.zh.md) · [PairingInvitation](../../packages/remote-access/remote-access/README.zh.md) · [RemoteAccessStatus](../../packages/remote-access/remote-access/README.zh.md)
+
+Source: [`packages/api/pairing-controller/src/index.ts`](../../packages/api/pairing-controller/src/index.ts)
 
 <a id="ctxsecurityresearchcontroller--securityresearchcontroller"></a>
 
@@ -943,6 +1084,18 @@ Validated Remote calls over the sole sidebar terminal provider; owns no PTYs.
  */
 @Remote closeUi(request: SidebarTerminalCloseUiRequest): void
 
+/** Enumerate retained UI terminals without spawning or activating a Session.
+ * @param sessionId - owning Session identity.
+ * @returns live terminal facts retained by this Host.
+ */
+@Remote listUi(sessionId: SidebarTerminalSessionId): readonly SidebarUiTerminalSnapshot[]
+
+/** Rename exactly the observed native process.
+ * @param request - terminal generation and nonempty human title up to 120 characters.
+ * @returns canonical terminal facts after a successful rename.
+ */
+@Remote renameUi(request: SidebarTerminalRenameUiRequest): SidebarUiTerminalSnapshot
+
 /**
  * Observe the agent terminals owned by one Session.
  * @param sessionId - Nonempty opaque Session identity.
@@ -957,7 +1110,7 @@ Validated Remote calls over the sole sidebar terminal provider; owns no PTYs.
 @Remote closeAgent(uuid: SidebarAgentTerminalId): void
 ```
 
-Types: [SidebarAgentTerminalId](terminal.zh.md) · [SidebarAgentTerminalSnapshot](terminal.zh.md) · [SidebarTerminalAckRequest](terminal.zh.md) · [SidebarTerminalCapability](terminal.zh.md) · [SidebarTerminalCloseUiRequest](terminal.zh.md) · [SidebarTerminalFrame](terminal.zh.md) · [SidebarTerminalInputRequest](terminal.zh.md) · [SidebarTerminalOpenRequest](terminal.zh.md) · [SidebarTerminalProcessId](terminal.zh.md) · [SidebarTerminalReleaseRequest](terminal.zh.md) · [SidebarTerminalResizeRequest](terminal.zh.md) · [SidebarTerminalSessionId](terminal.zh.md) · [SidebarTerminalShell](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime) · [SidebarTerminalUiTarget](terminal.zh.md)
+Types: [SidebarAgentTerminalId](terminal.zh.md) · [SidebarAgentTerminalSnapshot](terminal.zh.md) · [SidebarTerminalAckRequest](terminal.zh.md) · [SidebarTerminalCapability](terminal.zh.md) · [SidebarTerminalCloseUiRequest](terminal.zh.md) · [SidebarTerminalFrame](terminal.zh.md) · [SidebarTerminalInputRequest](terminal.zh.md) · [SidebarTerminalOpenRequest](terminal.zh.md) · [SidebarTerminalProcessId](terminal.zh.md) · [SidebarTerminalReleaseRequest](terminal.zh.md) · [SidebarTerminalRenameUiRequest](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime) · [SidebarTerminalResizeRequest](terminal.zh.md) · [SidebarTerminalSessionId](terminal.zh.md) · [SidebarTerminalShell](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime) · [SidebarTerminalUiTarget](terminal.zh.md) · [SidebarUiTerminalSnapshot](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime)
 
 Source: [`packages/api/sidebar-terminal-controller/src/index.ts`](../../packages/api/sidebar-terminal-controller/src/index.ts)
 
@@ -1103,6 +1256,20 @@ Resolve strict generated definitions or conservative SRC markers against current
 registerRemoteEvents( source: TypertRemoteEventSource, host: RemoteEventHostInfo, ): () => Promise<void>
 
 /**
+ * Register authorization for one authenticated delegated identity.
+ * @param access - same-process authenticated capability.
+ * @param policy - grant owner policy.
+ * @returns disposer removing this exact policy.
+ */
+registerAccess(access: HostConnectionAccess, policy: TypertGatewayAccessPolicy): () => void
+
+/**
+ * Read the authenticated caller during a unary invocation.
+ * @returns the current caller; local-only methods reject an absent caller.
+ */
+currentAccess(): HostConnectionAccess | undefined
+
+/**
  * Invoke one live Remote method through strict generated reflection or SRC markers.
  * @param request - decoded endpoint and exact named wire arguments.
  * @returns the business result without output decoding.
@@ -1117,6 +1284,8 @@ async invoke(request: InvokeRemoteRequest): Promise<unknown>
  */
 async stream(request: InvokeRemoteRequest): Promise<AsyncIterable<unknown>>
 ```
+
+Types: [HostConnectionAccess](../../packages/client/connection/README.zh.md)
 
 Source: [`packages/api/gateway/src/index.ts`](../../packages/api/gateway/src/index.ts)
 
@@ -1163,12 +1332,36 @@ Transport adapter over the provider-neutral voice operations.
 @Remote modelsList(signal: AbortSignal): Promise<VoiceModelsListValue>
 
 /**
- * Download or await a model installation.
+ * Admit a Host-owned model installation.
  * @param request - Exact model selector from modelsList.
- * @param signal - Cancels the shared model installation and awaits its cleanup.
- * @returns Ready cache directory.
+ * @param signal - Admission cancellation only; disconnect does not cancel admitted work.
+ * @returns Task receipt; modelsList reports progress and settlement.
  */
 @Remote modelsDownload(request: VoiceModelRequest, signal: AbortSignal): Promise<VoiceModelsDownloadValue>
+
+/**
+ * Replace a model using its pinned manifest, preserving the old installation on failure.
+ * @param request - Exact model selector.
+ * @param signal - Admission cancellation only.
+ * @returns Host-owned task receipt.
+ */
+@Remote modelsReinstall(request: VoiceModelRequest, signal: AbortSignal): Promise<VoiceModelTask>
+
+/**
+ * Install a changed pinned manifest; no upstream release discovery occurs.
+ * @param request - Exact model selector.
+ * @param signal - Admission cancellation only.
+ * @returns Host-owned task receipt.
+ */
+@Remote modelsUpdate(request: VoiceModelRequest, signal: AbortSignal): Promise<VoiceModelTask>
+
+/**
+ * Cancel one matching task without removing installed model files.
+ * @param request - Model and task identity returned by this Host.
+ * @param signal - Cancellation before admission.
+ * @returns Whether the matching running task was cancelled and joined.
+ */
+@Remote modelsCancel(request: VoiceCancelRequest, signal: AbortSignal): Promise<VoiceModelsCancelValue>
 
 /**
  * Cancel model work and remove the downloaded files.
@@ -1187,7 +1380,7 @@ Transport adapter over the provider-neutral voice operations.
 @Remote transcribe(request: VoiceTranscribeRequest, signal: AbortSignal): Promise<VoiceTranscribeResult>
 ```
 
-Types: [VoiceEngineStatus](voice.zh.md) · [VoiceModelsDownloadValue](voice.zh.md) · [VoiceModelsListValue](voice.zh.md) · [VoiceTranscribeRequest](voice.zh.md) · [VoiceTranscribeResult](voice.zh.md)
+Types: [VoiceCancelRequest](voice.zh.md) · [VoiceEngineStatus](voice.zh.md) · [VoiceModelTask](voice.zh.md) · [VoiceModelsCancelValue](voice.zh.md) · [VoiceModelsDownloadValue](voice.zh.md) · [VoiceModelsListValue](voice.zh.md) · [VoiceTranscribeRequest](voice.zh.md) · [VoiceTranscribeResult](voice.zh.md)
 
 Source: [`packages/api/voice-controller/src/index.ts`](../../packages/api/voice-controller/src/index.ts)
 

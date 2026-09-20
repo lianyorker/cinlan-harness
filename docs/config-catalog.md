@@ -187,7 +187,7 @@ Source: [`packages/core/agent-tool-presentation/src/index.ts:38`](../packages/co
 
 ## `@deepseek-ai/dsh-api-browser-controller`
 
-Requires: `typert` · `browser` · `attachments`
+Requires: `typert`
 
 ```ts config-catalog
 /** Remote transfer byte budget; Provider limits may be stricter. */
@@ -197,7 +197,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/browser-controller/src/index.ts:38`](../packages/api/browser-controller/src/index.ts)
+Source: [`packages/api/browser-controller/src/index.ts:40`](../packages/api/browser-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-device-capabilities-controller"></a>
 
@@ -217,7 +217,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/device-capabilities-controller/src/types.ts:16`](../packages/api/device-capabilities-controller/src/types.ts)
+Source: [`packages/api/device-capabilities-controller/src/types.ts:17`](../packages/api/device-capabilities-controller/src/types.ts)
 
 <a id="deepseek-aidsh-api-gateway"></a>
 
@@ -636,7 +636,7 @@ Source: [`packages/browser/browser-permission-policy/src/index.ts:22`](../packag
 
 ## `@deepseek-ai/dsh-browser-playwright`
 
-Requires: `browser` · `settings`
+Requires: `browser` · `settings` · `browserRuntime`
 
 ```ts config-catalog
 /** Playwright browser deployment settings. */
@@ -706,7 +706,7 @@ export interface BrowserPreferences {
 }
 ```
 
-Source: [`packages/browser/browser-playwright/src/index.ts:83`](../packages/browser/browser-playwright/src/index.ts)
+Source: [`packages/browser/browser-playwright/src/index.ts:84`](../packages/browser/browser-playwright/src/index.ts)
 
 <a id="deepseek-aidsh-client-connection"></a>
 
@@ -937,7 +937,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/computer-use/computer-use/src/types.ts:266`](../packages/computer-use/computer-use/src/types.ts)
+Source: [`packages/computer-use/computer-use/src/types.ts:285`](../packages/computer-use/computer-use/src/types.ts)
 
 <a id="deepseek-aidsh-computer-use-cinlan"></a>
 
@@ -979,6 +979,8 @@ Requires: `tools`
 ```ts config-catalog
 /** Independent observation and action-class policy. */
 export interface Config {
+  /** All native CUA tools, including discovery and future catalog additions. Defaults to `ask`. */
+  readonly native?: ComputerUsePermissionDecision
   /** App/window/tree observation policy. Defaults to `ask`. */
   readonly observe?: ComputerUsePermissionDecision
   /** Click, scroll, and drag policy. Defaults to `ask`. */
@@ -4509,6 +4511,16 @@ Requires: `voice` · `subprocess`
 ```ts config-catalog
 /** Voice model download settings. */
 export interface Config {
+  /** Absolute model storage root; defaults to DSH_HOME/models/voice and is captured at provider mount. */
+  cacheRoot?: string
+  /** Maximum wait for a cross-Host filesystem writer lock. Defaults to ten seconds. */
+  resourceLockTimeoutMs?: number
+  /** Delay between lock acquisition attempts. Defaults to 25 milliseconds. */
+  resourceLockRetryMs?: number
+  /** Grace period for managed archive extraction termination. Defaults to five seconds. */
+  extractionGraceMs?: number
+  /** Maximum retained extractor stderr bytes. Defaults to 64 KiB. */
+  extractionStderrBytes?: number
   /** Maximum bytes requested by one HTTP range. Defaults to 8 MiB. */
   downloadSegmentBytes?: number
   /** Maximum concurrent HTTP range requests. Defaults to four. */
@@ -4522,7 +4534,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/voice/voice-sherpa-onnx/src/index.ts:14`](../packages/voice/voice-sherpa-onnx/src/index.ts)
+Source: [`packages/voice/voice-sherpa-onnx/src/index.ts:16`](../packages/voice/voice-sherpa-onnx/src/index.ts)
 
 <a id="deepseek-aidsh-vuln-kb-nvd"></a>
 

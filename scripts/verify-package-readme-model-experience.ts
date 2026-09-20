@@ -44,6 +44,17 @@ const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
  * blocks. A package moves on or off this list with its context behavior.
  */
 const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
+  'packages/api/pairing-controller': { kind: 'none', reason: 'Trusted-local pairing Remote methods delegate listener and grant management; no tool, prompt or Session content is registered.' },
+  'packages/client/ui-settings-pairing': { kind: 'none', reason: 'Local human Settings contributes pairing controls and calls Remote management methods without constructing model content.' },
+  'packages/remote-access/remote-access': { kind: 'indirect', reason: 'The HTTPS carrier authorizes and forwards existing Session commands; Session and interaction owners construct model content.' },
+  'packages/skill/skill-office': { kind: 'indirect', reason: 'The bundled Office provider supplies catalog entries and skill bodies rendered by dsh-tool-skill, matching other skill providers.' },
+  'packages/util/chunked-list': { kind: 'none', reason: 'Persistent collection and checkpoint validation utilities retain caller-owned values and register no model-facing behavior.' },
+  'packages/util/lazy-require': { kind: 'none', reason: 'Caller-relative module loading caches successful require results and registers no model-facing behavior.' },
+  'packages/bundle/web-capability-defaults': { kind: 'indirect', reason: 'Loader patches select provider activation defaults; active consumers own model tools and guidance.' },
+  'packages/mobile-device/mobile-device-runtime': { kind: 'indirect', reason: 'Human resource and mirror management selects ADB for the existing Provider; Mobile Device tools own model-visible observations.' },
+  'packages/voice/voice': { kind: 'none', reason: 'The registry and transcription facade return draft text to human Client controls; only ordinary user submission creates model context.' },
+  'packages/voice/voice-sherpa-onnx': { kind: 'none', reason: 'The native transcription and model-resource provider returns Client draft text and registers no model tools or prompt sections.' },
+  'packages/client/ui-paired-shell': { kind: 'none', reason: 'Restricted browser shell; existing Session owners construct model content.' },
   'packages/ssh/ssh': { kind: 'none', reason: 'The connection owner transports private provider operations; consumers own all model-facing content.' },
   'packages/ssh/fs-ssh': { kind: 'indirect', reason: 'The remote filesystem delegates model rendering to the existing filesystem consumers.' },
   'packages/ssh/subprocess-ssh': { kind: 'indirect', reason: 'The remote process provider delegates model rendering to Bash, terminal, LSP and ptc-runtime consumers.' },
@@ -223,7 +234,6 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/jobs/jobs': { kind: 'indirect', reason: 'Producer and controller plugins own all model rendering over the job registry.' },
   'packages/jobs/jobs-local': { kind: 'indirect', reason: 'The registry backend delegates model rendering to producer plugins and dsh-tool-jobs.' },
   'packages/boot/app-boot': { kind: 'indirect', reason: 'Only the loaded plugin tree contributes model context.' },
-  'packages/boot/plugin-manager': { kind: 'indirect', reason: 'Profile mutations change the loaded plugins; this service registers no model-facing tool or prompt.' },
   'packages/client/ui-plugin-manager': { kind: 'indirect', reason: 'The Settings tab delegates profile mutations to the Host; managed plugins own any model-facing tools and prompts.' },
   'packages/deliverables/workspace-changes': { kind: 'none', reason: 'The recorder publishes log-only workspace/changes events for clients and registers no model-facing content.' },
   'packages/boot/cmdline': { kind: 'none', reason: 'Resolves the process command line before any session exists; configured rows own every model-visible consequence.' },

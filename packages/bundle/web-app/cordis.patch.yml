@@ -108,6 +108,31 @@
     - id: plugin-inventory
       name: '@deepseek-ai/dsh-host-plugin-inventory'
 
+    - id: mobile-device
+      name: '@deepseek-ai/dsh-mobile-device'
+      config:
+        provider: adb
+
+    - id: mobile-device-adb
+      name: '@deepseek-ai/dsh-mobile-device-adb'
+      disabled: true
+      config:
+        providerId: adb
+
+    - id: mobile-device-runtime
+      name: '@deepseek-ai/dsh-mobile-device-runtime'
+
+    - id: remote-access
+      name: '@deepseek-ai/dsh-remote-access'
+      config:
+        enabled: false
+
+    - id: pairing-controller
+      name: '@deepseek-ai/dsh-api-pairing-controller'
+
+    - id: ui-settings-pairing
+      name: '@deepseek-ai/dsh-client-ui-settings-pairing'
+
     - id: device-capabilities-controller
       name: '@deepseek-ai/dsh-api-device-capabilities-controller'
 

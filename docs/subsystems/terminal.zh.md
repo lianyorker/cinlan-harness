@@ -195,6 +195,18 @@ abstract inspectUi(request: SidebarTerminalUiTarget): SidebarTerminalProcessId |
  */
 abstract closeUi(request: SidebarTerminalCloseUiRequest): void
 
+/** List retained live UI terminals without creating a process or extending retention.
+ * @param sessionId - owning Session.
+ * @returns current Host-lifetime terminal facts.
+ */
+abstract listUi(sessionId: SidebarTerminalSessionId): readonly SidebarUiTerminalSnapshot[]
+
+/** Rename the observed native process; missing or replacement generations are rejected.
+ * @param request - observed process identity and human title.
+ * @returns canonical title and current process facts after the rename commits.
+ */
+abstract renameUi(request: SidebarTerminalRenameUiRequest): SidebarUiTerminalSnapshot
+
 /** Observe the agent terminals owned by a Session.
  * @param sessionId - owning Session.
  * @param signal - consumer lifetime.
@@ -208,7 +220,7 @@ abstract watch(sessionId: SidebarTerminalSessionId, signal: AbortSignal): AsyncI
 abstract closeAgent(uuid: SidebarAgentTerminalId): void
 ```
 
-Types: [SidebarTerminalShell](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime)
+Types: [SidebarTerminalRenameUiRequest](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime) · [SidebarTerminalShell](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime) · [SidebarUiTerminalSnapshot](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime)
 
 Source: [`packages/terminal/sidebar-terminals/src/index.ts`](../../packages/terminal/sidebar-terminals/src/index.ts)
 

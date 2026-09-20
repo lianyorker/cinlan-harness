@@ -382,6 +382,26 @@ One registered namespace's RAW user section changed, whether or not the resolved
 
 Source: [`packages/settings/settings/src/types.ts`](../../packages/settings/settings/src/types.ts)
 
+<a id="settingsnamespaces-updated--emit"></a>
+
+#### `settings/namespaces-updated` — emit
+
+A namespace registration was added or removed. Emitted after the registry commit, when describe() reflects the change; the raw document and its revisions remain unchanged. Listener failures follow settings/updated containment, including synchronous invariant failure propagation.
+
+```ts cordis-catalog
+/**
+ * A namespace registration was added or removed. Emitted after the registry
+ * commit, when describe() reflects the change; the raw document and its
+ * revisions remain unchanged. Listener failures follow settings/updated
+ * containment, including synchronous invariant failure propagation.
+ * @param ns - the namespace whose registration changed.
+ * @mode emit
+ */
+'settings/namespaces-updated'(ns: SettingsNamespace): void
+```
+
+Source: [`packages/settings/settings/src/types.ts`](../../packages/settings/settings/src/types.ts)
+
 <a id="settingsupdated--emit"></a>
 
 #### `settings/updated` — emit

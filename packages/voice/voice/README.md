@@ -34,25 +34,18 @@ Resource versions are SHA-256 fingerprints of pinned manifests, with sanitized s
 <a id="model-experience"></a>
 ## Model Experience
 
-### Consumer-owned results
-
-#### What the model sees
-
-None. Transcription returns text for a client draft; only ordinary submission makes it model-visible.
-
-#### Token effect
-
-None until the client submits the draft.
+None, as the transcription service returns text for a human-editable Client draft and only ordinary submission makes that text model-visible.
 
 #### KV Cache effect
 
-Registration, model tasks, and resource status never enter model requests.
+Registration, model tasks, and resource status never enter model requests; submitted draft text uses the existing conversation path.
+
+## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
-## Known Limitations and Deferred Work
 
 The service exposes one final transcript per clip, without incremental hypotheses. Model and microphone preferences belong to the client. No invariant companion is published: consumers read the same registries that enforce registration ownership.
 
-## Dev Note
+### Dev Note
 
 The [voice decision](../../../.agents/notes/implemented/feature/2026-09-14-voice-dictation-models-and-capture.md) records model integrity and Host task ownership.

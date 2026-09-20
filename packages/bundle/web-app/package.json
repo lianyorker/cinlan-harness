@@ -39,6 +39,12 @@
     }
   },
   "dependencies": {
+    "@deepseek-ai/dsh-mobile-device-runtime": "workspace:^",
+    "@deepseek-ai/dsh-mobile-device": "workspace:^",
+    "@deepseek-ai/dsh-mobile-device-adb": "workspace:^",
+    "@deepseek-ai/dsh-remote-access": "workspace:^",
+    "@deepseek-ai/dsh-api-pairing-controller": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-settings-pairing": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings-unarchive-sessions": "workspace:^",
     "@deepseek-ai/dsh-office-to-pdf": "workspace:^",
     "@deepseek-ai/dsh-agent-presets": "workspace:^",

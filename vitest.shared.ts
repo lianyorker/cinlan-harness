@@ -24,7 +24,7 @@ export function standardDecoratorPlugin() {
         compilerOptions: {
           target: ts.ScriptTarget.ES2024,
           module: ts.ModuleKind.ESNext,
-          jsx: file.endsWith('x') ? ts.JsxEmit.ReactJSX : undefined,
+          ...(file.endsWith('x') ? { jsx: ts.JsxEmit.ReactJSX } : {}),
           sourceMap: true,
         },
       })

@@ -109,12 +109,37 @@ engineStatus(signal: AbortSignal): Promise<VoiceEngineStatus>
 modelsList(signal: AbortSignal): Promise<VoiceModelsListValue>
 
 /**
- * Download or await one model's shared installation.
+ * Admit a Host-owned download independent of transport lifetime.
  * @param modelId - Registered model identity.
- * @param signal - Cancellation of the shared installation.
- * @returns Ready cache directory after all installation work settles.
+ * @param signal - Admission cancellation; disconnect after admission does not cancel the task.
+ * @returns Task receipt; poll modelsList for progress and terminal state.
  */
 modelsDownload(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelsDownloadValue>
+
+/**
+ * Reinstall the current pinned manifest while retaining the usable installation.
+ * @param modelId - Registered model identity.
+ * @param signal - Admission cancellation only.
+ * @returns Host task receipt.
+ */
+modelsReinstall(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelTask>
+
+/**
+ * Update to the pinned manifest when its fingerprint differs.
+ * @param modelId - Registered model identity.
+ * @param signal - Admission cancellation only.
+ * @returns Host task receipt, including immediate success when already current.
+ */
+modelsUpdate(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelTask>
+
+/**
+ * Cancel exactly one running Host task and await its cleanup.
+ * @param modelId - Registered model identity.
+ * @param taskId - Identity returned by task admission or modelsList.
+ * @param signal - Cancellation before admission; accepted cancellation joins the task.
+ * @returns Whether this call cancelled the matching running task.
+ */
+modelsCancel(modelId: VoiceModelId, taskId: VoiceModelTaskId, signal: AbortSignal): Promise<VoiceModelsCancelValue>
 
 /**
  * Cancel model work and remove its cache after resources settle.

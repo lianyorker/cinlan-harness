@@ -2,7 +2,9 @@
 
 English | [中文](web-server.zh.md)
 
-[dsh-host-webserver](../../packages/host/webserver) is the browser HTTP carrier for the GUI host: a single `node:http` plugin providing `ctx.webServer`, a named-route registry, optional gzip response compression, index.html transform callbacks, and one fallback handler that a plugin may claim. It is not part of the agent loop and not a capability seam; it knows no harness concepts, and another plugin registers every feature route, including the `/api` bridge, plugin bundles, and the HMR event stream ([layering note](../../.agents/notes/implemented/architecture/2026-07-24-web-config-tree-boot-and-transport-layering.md)). It serves browsers only: Electron loads the built files over `file://` and sends fetch requests through an IPC bridge instead of this server.
+[dsh-host-webserver](../../packages/host/webserver) is the browser HTTP carrier for the GUI host: a single `node:http` plugin providing `ctx.webServer`, a named-route registry, optional gzip response compression, index.html transform callbacks, and one fallback handler that a plugin may claim. It is not part of the agent loop and not a capability seam; it knows no harness concepts, and another plugin registers every feature route, including the `/api` bridge, plugin bundles, and the HMR event stream ([layering note](../../.agents/notes/implemented/architecture/2026-07-24-web-config-tree-boot-and-transport-layering.md)). The ordinary local [Desktop carrier](../../apps/desktop/README.md) uses `dsh-app://` and framed byte pipes for assets, Fetch requests, and streaming responses; Node IPC carries lifecycle control, and this mode opens no Web listening port.
+
+[Remote Access](../../packages/remote-access/remote-access/README.md) adds an opt-in, independent HTTPS/WSS carrier to the same Desktop Host and existing Sessions. It owns the paired-device listener separately from `ctx.webServer`; its package reference owns deployment, pairing, and device-grant details.
 
 Source: [`packages/host/webserver/src/index.ts`](../../packages/host/webserver/src/index.ts)
 
@@ -59,6 +61,76 @@ A request whose handling throws (a malformed %-escape hitting `decodeURIComponen
 ## Cordis API
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxremoteaccess--remoteaccess"></a>
+
+### `ctx.remoteAccess` — `RemoteAccess`
+
+Listener and paired-device lifecycle; management methods require a trusted local Gateway invocation.
+
+```ts cordis-catalog
+/**
+ * Read local listener readiness and safe device metadata.
+ * @returns listener readiness, verified certificate fingerprint and safe paired-device metadata.
+ */
+async describe(): Promise<RemoteAccessStatus>
+
+/**
+ * Enable the explicitly configured HTTPS listener.
+ * @returns readiness after explicitly enabling the configured HTTPS listener.
+ */
+async enable(): Promise<RemoteAccessStatus>
+
+/**
+ * Disable the listener and settle its active carriers.
+ * @returns disabled state after every network request and stream has settled.
+ */
+async disable(): Promise<RemoteAccessStatus>
+
+/**
+ * Select exact Session references and scopes for one short-lived pairing code.
+ * @param grant - local UI-selected grant.
+ * @returns one-time invitation displayed only on the trusted Desktop.
+ */
+createInvitation(grant: PairingGrant): PairingInvitation
+
+/** Invalidate the current one-time invitation. */
+cancelInvitation(): void
+
+/**
+ * Persist revocation before terminating this device's active requests and streams.
+ * @param deviceId - paired device selected on the trusted Desktop.
+ */
+async revokeDevice(deviceId: PairedDeviceId): Promise<void>
+```
+
+Types: [PairedDeviceId](../../packages/remote-access/remote-access/README.md) · [PairingGrant](../../packages/remote-access/remote-access/README.md) · [PairingInvitation](../../packages/remote-access/remote-access/README.md) · [RemoteAccessStatus](../../packages/remote-access/remote-access/README.md)
+
+Source: [`packages/remote-access/remote-access/src/index.ts`](../../packages/remote-access/remote-access/src/index.ts)
+
+<a id="ctxremoteaccesshost--remoteaccesshost"></a>
+
+### `ctx.remoteAccessHost` — `RemoteAccessHost`
+
+Desktop lifecycle capability: dispatch shares the local update lock; assets use a phone bootstrap.
+
+```ts cordis-catalog
+/**
+ * Admit work through the same update lock as local API and stream requests.
+ * @param operation - operation to admit before execution.
+ * @returns the admitted operation's result.
+ */
+dispatch<T>(operation: () => T | Promise<T>): Promise<T>
+
+/**
+ * Serve matching runtime assets with a paired browser bootstrap, never ownsHost:true.
+ * @param request - authenticated asset request.
+ * @returns the runtime asset, or 404 for an unrecognized path.
+ */
+fetchAssets(request: Request): Response | Promise<Response>
+```
+
+Source: [`packages/remote-access/remote-access/src/types.ts`](../../packages/remote-access/remote-access/src/types.ts)
 
 <a id="ctxwebserver--webserver"></a>
 
