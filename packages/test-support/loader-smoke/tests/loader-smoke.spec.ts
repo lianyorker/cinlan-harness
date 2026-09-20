@@ -67,6 +67,27 @@ describe('runLoaderSmoke', () => {
     expect(existsSync(inspected)).toBe(false)
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)
 
+  it('preserves child diagnostics and the inspection cause while cleaning up', async () => {
+    const cause = new Error('missing persisted turn')
+    let inspected = ''
+    const result = runLoaderSmoke({
+      label: 'inspection fixture',
+      tempDirPrefix: 'loader-smoke-inspect-',
+      binScript: fixture('success'),
+      libBinScript: fixture('success'),
+      configPath,
+      tsconfigPath,
+      inspect: (cwd) => { inspected = cwd; throw cause },
+    })
+    await expect(result).rejects.toMatchObject({
+      cause,
+      message: expect.stringContaining('inspection fixture inspection failed after exit 0. stdout:'),
+    })
+    await expect(result).rejects.toThrow('fixture stderr')
+    expect(inspected).not.toBe('')
+    expect(existsSync(inspected)).toBe(false)
+  })
+
   it('rejects a non-zero exit with captured diagnostics', async () => {
     await expect(runLoaderSmoke({
       label: 'failure fixture',

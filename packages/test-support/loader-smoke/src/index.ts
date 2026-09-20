@@ -219,7 +219,13 @@ export async function runLoaderSmoke(options: LoaderSmokeOptions): Promise<Loade
     if (result.exitCode !== expectedExitCode) {
       throw new Error(`${options.label} exited ${String(result.exitCode)} (expected ${expectedExitCode}). stdout:\n${result.stdout}\nstderr:\n${result.stderr}`)
     }
-    await options.inspect?.(cwd)
+    try {
+      await options.inspect?.(cwd)
+    } catch (cause) {
+      const message = `${options.label} inspection failed after exit ${String(result.exitCode)}.`
+        + ` stdout:\n${result.stdout}\nstderr:\n${result.stderr}`
+      throw new Error(message, { cause })
+    }
     return { stdout: result.stdout, stderr: result.stderr }
   } finally {
     await rm(cwd, { recursive: true, force: true })

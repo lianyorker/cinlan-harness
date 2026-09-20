@@ -192,7 +192,7 @@ interface ToolExecutionInput {
    */
   readonly rootCallId?: ToolCallId
   readonly name: string
-  /** Binding-time schema for a PTC inner call; frozen by its producer and never logged. */
+  /** Binding-time tool schema for a PTC inner call; frozen by its producer and never logged. */
   readonly schema?: ToolSchema
   /** Losslessly JSON-serializable parsed arguments (tools validate their own schema). */
   readonly arguments: unknown
@@ -381,9 +381,10 @@ type ToolExecutionResult = ToolExecutionSuccess | ToolExecutionFailure
 
 ```ts type-equiv
 /**
- * Pre-dispatch decision. `allow` runs the call; `deny` materializes its model-facing
- * reason and optional structured detail; `cancel` selects pre-dispatch cancellation;
- * `ask` runs only after an approval service returns `allowed-once` and otherwise
+ * Pre-dispatch decision. `allow` runs the call; `deny` materializes its
+ * model-facing reason and optional structured error identity; `cancel` selects
+ * the canonical cancellation result without presenting a policy denial; `ask`
+ * runs only after an approval service returns `allowed-once` and otherwise
  * denies. Input rewriting is excluded because arguments are already logged and
  * presented.
  */
@@ -502,10 +503,9 @@ Tool registry and execution pipeline. Scoped registrations shadow globals; one v
 presentAs(mode: ToolPresentationMode): () => void
 
 /**
- * Compile typed author schemas into a registry-ready tool through the
- * injected service, so Consumers need no runtime module identity.
- * @param options - typed definition and optional finalizer and presenters.
- * @returns a registry-ready definition.
+ * Compile typed author schemas through the injected registry service.
+ * @param options - Typed definition and optional finalizer and presenters.
+ * @returns A registry-ready definition.
  */
 define<const S extends ParameterSchemaSpec, const O extends ValueSchemaSpec>( options: DefineToolOptions<S, O>, ): ToolDefinition
 
@@ -665,11 +665,12 @@ Source: [`packages/core/tools/src/index.ts`](../../packages/core/tools/src/index
 
 #### `tools/pre-execute` — waterfall
 
-Allow, deny, cancel, or ask before dispatch. `next()` delegates to allow; missing approval support turns `ask` into denial. Async gates must observe `exec.signal`; the registry rechecks cancellation after they settle but never abandons their promise. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
+Allow, deny, cancel, or ask before dispatch. `next()` delegates to allow; `cancel` selects the canonical pre-dispatch cancellation result, and missing approval support turns `ask` into denial. Async gates must observe `exec.signal`; the registry rechecks cancellation after they settle but never abandons their promise. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
 
 ```ts cordis-catalog
 /**
- * Allow, deny, cancel, or ask before dispatch. `next()` delegates to allow; missing
+ * Allow, deny, cancel, or ask before dispatch. `next()` delegates to allow;
+ * `cancel` selects the canonical pre-dispatch cancellation result, and missing
  * approval support turns `ask` into denial. Async gates must observe
  * `exec.signal`; the registry rechecks cancellation after they settle but
  * never abandons their promise.

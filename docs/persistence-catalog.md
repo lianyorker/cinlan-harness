@@ -7,7 +7,7 @@ Every event type that can appear in a session's durable event log: the complete 
 
 This file is GENERATED from source (`scripts/gen-persistence-catalog.ts`) and verified fresh by `pnpm run verify-persistence-catalog` (part of `doc-sync`) — do not edit it by hand. Declaration blocks retain the source declaration and nested property JSDoc, removing only the indentation imposed by a containing interface/module, and use a `ts persistence-catalog` fence (skipped by doc-typecheck because declarations reference types from their owning modules). Type names in a payload link to the page that documents them. The archived [persistence-log-catalog record](../.agents/notes/archived/process/2026-07-04-persistence-log-catalog.md) documents the original catalog decision.
 
-The envelope declarations below compose each event's `type`, monotonic `seq`, epoch-ms `time`, `data`, the optional `ignorable` unknown-type skip marker, and the conditional `surfaceOp`/`sourceEventSeqs` fields. **surface** marks a `SurfaceEventType` member: it produces an LLM message and declares how it joins the surface list. **log-only** marks everything else: a durable, replayable record with no derived-history contribution. Every payload is JSON-serializable (enforced at `Session.append`). Current writers stamp `SESSION_FORMAT_VERSION`; supported historical artifacts reach this current vocabulary through the build-static adjacent migration catalog ([the version lifecycle](subsystems/persistence.md)). Scope: the packages in this repo; a downstream plugin can merge further current-version event types, which are outside this catalog by construction and require an explicit disposition at a later format edge.
+The envelope declarations below compose each event's `type`, monotonic `seq`, epoch-ms `time`, `data`, the optional `ignorable` unknown-type skip marker, and the conditional `surfaceOp`/`sourceEventSeqs` fields. **surface** marks a `SurfaceEventType` member: it produces an LLM message and declares how it joins the surface list. **message-projection** marks an event whose pure interpreter changes existing message content without adding a surface node. **log-only** marks durable records without a derived-history contribution. Every payload is JSON-serializable (enforced at `Session.append`). Current writers stamp `SESSION_FORMAT_VERSION`; supported historical artifacts reach this current vocabulary through the build-static adjacent migration catalog ([the version lifecycle](subsystems/persistence.md)). Scope: the packages in this repo; a downstream plugin can merge further current-version event types, which are outside this catalog by construction and require an explicit disposition at a later format edge.
 
 ## Event envelope
 
@@ -287,7 +287,7 @@ Source: [`packages/core/session/src/types.ts:321`](../packages/core/session/src/
 }
 ```
 
-Source: [`packages/interaction/commands/src/types.ts:110`](../packages/interaction/commands/src/types.ts)
+Source: [`packages/interaction/commands/src/types.ts:112`](../packages/interaction/commands/src/types.ts)
 
 <a id="commandrun--log-only"></a>
 
@@ -307,7 +307,7 @@ Source: [`packages/interaction/commands/src/types.ts:110`](../packages/interacti
 'command/run': { commandId: CommandId; name: string; args?: string; source: CommandSource }
 ```
 
-Source: [`packages/interaction/commands/src/types.ts:103`](../packages/interaction/commands/src/types.ts)
+Source: [`packages/interaction/commands/src/types.ts:105`](../packages/interaction/commands/src/types.ts)
 
 ### `compaction/*`
 
@@ -551,6 +551,25 @@ Source: [`packages/hooks/hook-protocol/src/types.ts:19`](../packages/hooks/hook-
 
 Source: [`packages/hooks/hook-protocol/src/types.ts:31`](../packages/hooks/hook-protocol/src/types.ts)
 
+### `image/*`
+
+<a id="imageoffload--message-projection"></a>
+
+#### `image/offload` — message-projection
+
+```ts persistence-catalog
+/**
+ * Permanently omit selected input-image occurrences from subsequent model requests.
+ * Targets name unique current user/message or tool/result nodes. Nonempty, strictly
+ * increasing indexes count all images in depth-first order, including nested tool
+ * results and already omitted images. Message nodes and identities remain unchanged.
+ * @messageProjection
+ */
+'image/offload': { targets: ImageOffloadTarget[] }
+```
+
+Source: [`packages/compaction/compaction-image-offload/src/projection.ts:25`](../packages/compaction/compaction-image-offload/src/projection.ts)
+
 ### `llm/*`
 
 <a id="llmretry--log-only"></a>
@@ -607,7 +626,7 @@ Source: [`packages/api/session-controller/src/types.ts:41`](../packages/api/sess
 'permission/preset': { preset: string }
 ```
 
-Source: [`packages/interaction/permission-presets/src/index.ts:53`](../packages/interaction/permission-presets/src/index.ts)
+Source: [`packages/interaction/permission-presets/src/index.ts:57`](../packages/interaction/permission-presets/src/index.ts)
 
 ### `plan/*`
 
@@ -812,6 +831,20 @@ Source: [`packages/core/session/src/types.ts:289`](../packages/core/session/src/
 Source: [`packages/core/session/src/types.ts:287`](../packages/core/session/src/types.ts)
 
 ### `subagent/*`
+
+<a id="subagentcatalog--log-only"></a>
+
+#### `subagent/catalog` — log-only
+
+```ts persistence-catalog
+/**
+ * A direct child's complete discovery fact.
+ * @param data - versioned parent-owned catalog entry.
+ */
+'subagent/catalog': SubagentCatalogEvent
+```
+
+Source: [`packages/subagent/subagent/src/catalog.ts:40`](../packages/subagent/subagent/src/catalog.ts)
 
 <a id="subagentdescriptor--log-only"></a>
 

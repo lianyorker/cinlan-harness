@@ -1,5 +1,7 @@
 # 浏览器设置迁移计划：参考 orca 独立浏览器设置栏
 
+> 本文保留早期迁移计划的目标、阶段与风险，不代表当前实现清单。当前能力以[浏览器设置说明](../../../packages/client/ui-settings-security/README.zh.md)为准；下文“拟新建（尚不存在）”只记录目录与拟议文件名，不是现有文件链接。
+
 > 参考 orca 的 `BrowserPane.tsx` 独立设置页，将 DSH 的浏览器功能从侧边卡片（ui-better-sidebar）和 ui-settings-security 两处半实现状态，整合提升为 DSH Settings 的独立 section，并迁移 orca 已有但 DSH 缺失的浏览器功能。
 
 ## 现状对比
@@ -8,8 +10,7 @@
 
 #### 1. 侧边卡片浏览器标签页（ui-better-sidebar）
 
-**位置**：`@/packages/client/ui-better-sidebar/src/client/BrowserView.tsx`
-**入口**：`@/packages/client/ui-better-sidebar/src/client/builtins/tabs.tsx:286-323`
+**位置**：`@/packages/client/ui-better-sidebar/src/client/BrowserView.tsx` **入口**：`@/packages/client/ui-better-sidebar/src/client/builtins/tabs.tsx:286-323`
 
 **现有功能**：
 
@@ -81,8 +82,7 @@
 
 #### 3. 链接拦截注册（ui-better-sidebar index.tsx）
 
-**位置**：`@/packages/client/ui-better-sidebar/src/client/index.tsx:290-340`
-**逻辑**：`registerLinkInterception` 在 document 级别捕获 click 事件，根据 `browserInterceptLinks` 总开关和 `browserInterceptHttp`/`browserInterceptHttps` 协议开关决定是否将外部链接路由到侧边栏浏览器标签页。
+**位置**：`@/packages/client/ui-better-sidebar/src/client/index.tsx:290-340` **逻辑**：`registerLinkInterception` 在 document 级别捕获 click 事件，根据 `browserInterceptLinks` 总开关和 `browserInterceptHttp`/`browserInterceptHttps` 协议开关决定是否将外部链接路由到侧边栏浏览器标签页。
 
 ### orca 浏览器设置实现（参考目标）
 
@@ -152,7 +152,7 @@ orca 的 `BrowserPane` 是一个完整的独立设置页，包含以下模块：
 
 **文件变更**：
 
-1. **新建** `@/packages/client/ui-settings-security/src/client/BrowserSettingsSection.tsx`
+1. **拟新建（尚不存在）**：在 [ui-settings-security/src/client](../../../packages/client/ui-settings-security/src/client/) 下创建 `BrowserSettingsSection.tsx`。当前页面由 [CapabilitySection.tsx](../../../packages/client/ui-settings-security/src/client/CapabilitySection.tsx) 中的 `BrowserCapabilityBody` 组合，未拆为此拟议文件。
    - 合并 `BrowserCapabilityBody` 的 Provider 检查 + `BrowserPreferencesForm` + 侧边卡片的 sandbox/链接拦截 toggle
    - 结构：Provider 状态卡 → 浏览器偏好表单 → 链接路由设置 → sandbox 设置 → Cookie 管理
 
@@ -220,7 +220,7 @@ orca 的三步引导：
 
 **文件变更**：
 
-1. **新建** `@/packages/client/ui-settings-security/src/client/BrowserUseSetupSection.tsx`
+1. **拟新建（尚不存在）**：在 [ui-settings-security/src/client](../../../packages/client/ui-settings-security/src/client/) 下创建 `BrowserUseSetupSection.tsx`
    - 简化版三步引导：检查 Provider → 显示安装命令 → Cookie 导入
 2. **修改** `BrowserSettingsSection.tsx`：在顶部嵌入 `BrowserUseSetupSection`
 
@@ -244,7 +244,7 @@ orca 支持：
 **文件变更**：
 
 1. **修改** `@/packages/dsh-browser-playwright/types.ts`：扩展 `BrowserPreferences` 支持多 Profile
-2. **新建** `@/packages/client/ui-settings-security/src/client/BrowserSessionCookiesSection.tsx`
+2. **拟新建（尚不存在）**：在 [ui-settings-security/src/client](../../../packages/client/ui-settings-security/src/client/) 下创建 `BrowserSessionCookiesSection.tsx`。当前 Cookie 导入见 [BrowserControls.tsx](../../../packages/client/ui-settings-security/src/client/BrowserControls.tsx)，不代表此处规划的多 Profile 管理已实现。
 3. **修改** `BrowserSettingsSection.tsx`：嵌入 Cookie 管理区
 
 ## 风险

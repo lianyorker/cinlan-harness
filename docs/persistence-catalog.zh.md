@@ -7,7 +7,7 @@
 
 英文源文件根据源码生成（`scripts/gen-persistence-catalog.ts`），并由 `pnpm run verify-persistence-catalog`（`doc-sync`（文档同步门禁）的一部分）验证新鲜度；本中文文件作为经评审对侧通过双语配对维护。声明块保留源码声明和嵌套属性的 JSDoc，只移除其所在接口／模块带来的缩进，并使用 `ts persistence-catalog` 围栏（doc-typecheck 会跳过这些围栏，因为声明引用了其所属模块中的类型）。payload 中的类型名称会链接到记录该类型的页面。已归档的 [persistence-log-catalog 记录](../.agents/notes/archived/process/2026-07-04-persistence-log-catalog.md)记载了最初的目录决策。
 
-以下信封声明组合了每个事件的 `type`、单调递增的 `seq`、以 epoch 毫秒表示的 `time`、`data`、可选的未知类型跳过标记 `ignorable`，以及条件字段 `surfaceOp`／`sourceEventSeqs`。**surface** 表示 `SurfaceEventType` 成员：它会生成一条 LLM（大语言模型）消息，并声明该事件如何加入 surface 列表。**log-only** 表示其他所有事件：这类记录可持久化、可回放，但不参与派生历史。每个 payload 均可进行 JSON 序列化（在 `Session.append` 处强制执行）。当前 writer 会写入 `SESSION_FORMAT_VERSION`；受支持的历史产物通过构建期静态相邻迁移目录进入这套当前词汇（参见[版本生命周期](subsystems/persistence.zh.md)）。范围仅限本仓库中的包；下游插件可以继续合并其他当前版本事件类型，这些类型按设计不属于本目录，并且在后续格式迁移边中需要显式 disposition。
+以下信封声明组合了每个事件的 `type`、单调递增的 `seq`、以 epoch 毫秒表示的 `time`、`data`、可选的未知类型跳过标记 `ignorable`，以及条件字段 `surfaceOp`／`sourceEventSeqs`。**surface** 表示 `SurfaceEventType` 成员：它会生成一条 LLM（大语言模型）消息，并声明该事件如何加入 surface 列表。**message-projection** 表示其纯解释器会修改既有消息内容、但不添加 surface 节点的事件。**log-only** 表示不参与派生历史的持久记录。每个 payload 均可进行 JSON 序列化（在 `Session.append` 处强制执行）。当前 writer 会写入 `SESSION_FORMAT_VERSION`；受支持的历史产物通过构建期静态相邻迁移目录进入这套当前词汇（参见[版本生命周期](subsystems/persistence.zh.md)）。范围仅限本仓库中的包；下游插件可以继续合并其他当前版本事件类型，这些类型按设计不属于本目录，并且在后续格式迁移边中需要显式 disposition。
 
 ## 事件信封
 
@@ -287,7 +287,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 }
 ```
 
-来源：[`packages/interaction/commands/src/types.ts:110`](../packages/interaction/commands/src/types.ts)
+来源：[`packages/interaction/commands/src/types.ts:112`](../packages/interaction/commands/src/types.ts)
 
 <a id="commandrun--log-only"></a>
 
@@ -307,7 +307,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'command/run': { commandId: CommandId; name: string; args?: string; source: CommandSource }
 ```
 
-来源：[`packages/interaction/commands/src/types.ts:103`](../packages/interaction/commands/src/types.ts)
+来源：[`packages/interaction/commands/src/types.ts:105`](../packages/interaction/commands/src/types.ts)
 
 ### `compaction/*`
 
@@ -551,6 +551,25 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 
 来源：[`packages/hooks/hook-protocol/src/types.ts:31`](../packages/hooks/hook-protocol/src/types.ts)
 
+### `image/*`
+
+<a id="imageoffload--message-projection"></a>
+
+#### `image/offload` — message-projection
+
+```ts persistence-catalog
+/**
+ * Permanently omit selected input-image occurrences from subsequent model requests.
+ * Targets name unique current user/message or tool/result nodes. Nonempty, strictly
+ * increasing indexes count all images in depth-first order, including nested tool
+ * results and already omitted images. Message nodes and identities remain unchanged.
+ * @messageProjection
+ */
+'image/offload': { targets: ImageOffloadTarget[] }
+```
+
+来源：[`packages/compaction/compaction-image-offload/src/projection.ts:25`](../packages/compaction/compaction-image-offload/src/projection.ts)
+
 ### `llm/*`
 
 <a id="llmretry--log-only"></a>
@@ -607,7 +626,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'permission/preset': { preset: string }
 ```
 
-来源：[`packages/interaction/permission-presets/src/index.ts:53`](../packages/interaction/permission-presets/src/index.ts)
+来源：[`packages/interaction/permission-presets/src/index.ts:57`](../packages/interaction/permission-presets/src/index.ts)
 
 ### `plan/*`
 
@@ -812,6 +831,20 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 来源：[`packages/core/session/src/types.ts:287`](../packages/core/session/src/types.ts)
 
 ### `subagent/*`
+
+<a id="subagentcatalog--log-only"></a>
+
+#### `subagent/catalog` — log-only
+
+```ts persistence-catalog
+/**
+ * A direct child's complete discovery fact.
+ * @param data - versioned parent-owned catalog entry.
+ */
+'subagent/catalog': SubagentCatalogEvent
+```
+
+来源：[`packages/subagent/subagent/src/catalog.ts:40`](../packages/subagent/subagent/src/catalog.ts)
 
 <a id="subagentdescriptor--log-only"></a>
 

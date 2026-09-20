@@ -344,6 +344,42 @@ type SurfaceIntent<T extends SurfaceEventType = SurfaceEventType> = {
 
 `assistant/message` 不能携带 `sourceEventSeqs`；它的 `stream` 拥有精确 provider 证据。其他 surface event 不引用较早 event 时省略该字段，需要引用时使用完整非空 list。
 
+<a id="plugin-owned-message-projections"></a>
+### 插件拥有的消息投影
+
+修改内容的插件用 `@messageProjection` 标记事件声明，并通过 `ctx.sessions.registerMessageProjection()` 注册纯处理器。Session 在提交前通过处理器校验完整决策，应用其不可变消息更新，并推进 `contentGeneration`。缺少处理器时拒绝操作，包括恢复和独立折叠，卸载已经使用的处理器后也会拒绝读取缓存。独立读取器将处理器显式传给 `foldSurface(events, projections)`，并通过 `deriveEventMessage()` 应用 `projectedMessages`。当前格式目录为离线读取器装配第一方处理器。[图片省略插件](compaction.zh.md#image-offload)拥有图片专用的事件及解释逻辑。
+
+```ts type-equiv
+/** Readonly history immediately before a message-projection event. */
+interface SessionMessageProjectionContext {
+  /** Current message-producing event sequences in model-visible order. */
+  nodes: readonly SessionSeq[]
+  /** Contiguous event window; entries at or beyond the candidate seq are not committed inputs. */
+  events: readonly SessionEvent[]
+  /** Absolute sequence of the window's first event. */
+  baseSeq: SessionLogOffset
+  /** Previously projected messages keyed by their original event sequences. */
+  messages: ReadonlyMap<SessionSeq, Message>
+}
+```
+
+```ts type-equiv
+/** Pure interpretation of one plugin-owned event that changes existing message content. */
+interface SessionMessageProjection<T extends SessionEventType = SessionEventType> {
+  /** Event interpreted by this definition; declare it with `@messageProjection` in SessionEventMap. */
+  type: T
+  /**
+   * Validate the complete durable decision before returning any updates. Preserve
+   * message identities and publish immutable copies without mutating the input.
+   * @param event - candidate event, not yet applied to the supplied history.
+   * @param context - history preceding this decision.
+   * @returns changed current messages keyed by their original sequences.
+   * @throws when the durable decision cannot be applied to this history.
+   */
+  project(event: SessionEvent<T>, context: SessionMessageProjectionContext): ReadonlyMap<SessionSeq, Message>
+}
+```
+
 ### `SessionSurface`：实时只读 surface 投影
 
 `Session.surface` 返回会话稳定的 `SessionSurface` 视图。同一个增量管理器在提交前校验追加候选事件，并根据已提交事件推进该投影；调用方可以观察成员关系和替换代次，但不能调用校验。
@@ -357,6 +393,8 @@ interface SessionSurface {
   readonly nodes: readonly SessionSeq[]
   /** Monotonic count of committed positional replacements. */
   readonly replaceGeneration: number
+  /** Monotonic count of committed replacements and plugin-owned message changes. */
+  readonly contentGeneration: number
 }
 ```
 
@@ -385,6 +423,8 @@ interface SurfaceFoldResult {
   nodes: SessionSeq[]
   /** Replacement operations in event order. */
   replacements: SurfaceFoldReplacement[]
+  /** Immutable projected messages, keyed by their original event sequences. */
+  projectedMessages: ReadonlyMap<SessionSeq, Message>
 }
 ```
 
@@ -439,7 +479,7 @@ declare class Session {
    * When this lifecycle appends the marker, it occupies this seq before the
    * store attaches and therefore does not publish either. Otherwise this seq
    * holds an ordinary published write.
-  */
+   */
   readonly firstLiveSeq: SessionLogOffset;
   /**
    * Create a detached session by validating and snapshotting borrowed seed
@@ -448,14 +488,17 @@ declare class Session {
    * @param seed - optional borrowed replay or fork events.
    * @param header - optional borrowed storage metadata.
    * @param inheritedEventCount - exact fork-inherited prefix length for a seeded header.
+   * @param projections - pure interpreters for plugin-owned message changes.
    * @returns a detached session.
+   * @throws when a seed event requires a missing message interpreter or fails validation.
    */
   static create(
     id: SessionId,
     seed?: readonly SessionEvent[],
     header?: SessionHeader,
     inheritedEventCount?: SessionLogOffset,
-  ): Session;
+    projections?: readonly SessionMessageProjection[],
+    ): Session;
   /**
    * Restore a detached session by adopting an independently owned or deeply frozen seed.
    * Runtime-required event fields, event envelopes, sequence continuity, surface
@@ -467,7 +510,9 @@ declare class Session {
    * @param header - independently owned storage metadata.
    * @param inheritedEventCount - exact fork-inherited prefix length decoded from storage.
    * @param eventState - aliasing state carried from the operation that produced the seed.
+   * @param projections - pure interpreters for plugin-owned message changes.
    * @returns a restored detached session.
+   * @throws when a seed event requires a missing message interpreter or fails validation.
    */
   static fromRestore(
     id: SessionId,
@@ -475,7 +520,8 @@ declare class Session {
     header: SessionHeader,
     inheritedEventCount: SessionLogOffset,
     eventState: SessionSeedEventState,
-  ): Session;
+    projections?: readonly SessionMessageProjection[],
+    ): Session;
   /**
    * Return the immutable event stored at one exact sequence number.
    * @param seq - event sequence number.
@@ -493,7 +539,7 @@ declare class Session {
   snapshotEvents(
     fromSeq: SessionLogOffset = SessionLogOffset(0),
     toSeqExclusive: SessionLogOffset = this.seq,
-  ): readonly SessionEvent[];
+    ): readonly SessionEvent[];
   /**
    * Return this Session's events after its fork-inherited prefix.
    * @returns a fresh array containing child-owned events in log order.
@@ -548,7 +594,7 @@ declare class Session {
     type: T,
     data: SessionEventMap[T],
     ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : []
-  ): SessionEvent<T>;
+    ): SessionEvent<T>;
   /**
    * The {@link EpochHeader} in force after the log's last header event — the
    * header the NEXT request will be compared against — or undefined before
@@ -571,21 +617,21 @@ declare class Session {
    * append records its `surfaceOp`, so a raw event with no marker (a chunk, a
    * turn boundary) is correctly absent, and a compaction `replace` deletes the
    * shadowed nodes from the derivation. The projection rules are
-   * {@link deriveEventMessage}, folded per node.
+   * {@link deriveEventMessage}, with logged message projections applied
+   * without changing node membership or message identity.
    *
-   * CACHED: each surface node is projected exactly once, when first seen — a
-   * call costs O(new nodes), and a surface rewrite (a `replace`;
-   * {@link SessionSurface.replaceGeneration}) rebuilds. The returned array is
+   * CACHED: pure tail growth costs O(new nodes); a replacement or message projection
+   * ({@link SessionSurface.contentGeneration}) rebuilds. The returned array is
    * a fresh snapshot per call (later appends never grow an array a caller
    * already holds); the `Message` objects in it are SHARED and **deep-frozen**.
-   * Their content reuses the already frozen durable event data, so the cache
-   * needs no second deep clone and consumers still cannot mutate the log.
+   * Unchanged content reuses frozen event data; projected blocks are frozen
+   * derived copies. Consumers cannot mutate the log through either form.
    * @returns a fresh array of the shared, frozen derived history.
    */
   deriveMessages(): Message[];
   /**
-   * Instance face of the pure per-node `deriveEventMessage` export from
-   * `surface.ts`.
+   * Project one event with all committed message projections applied.
+   * The original durable event remains unchanged.
    * @param event - the event to project.
    * @returns the derived message, or null when the event produces none.
    */
@@ -857,6 +903,15 @@ In-memory session store (`ctx.sessions`).
 Persistence is intentionally not implemented here — the agent lifecycle attaches a session-log writer to each published session's write handle; a session published outside that lifecycle persists nothing.
 
 ```ts cordis-catalog
+/**
+ * Register one event interpreter for live creation, restore, and fork.
+ * Disposing the contribution makes sessions that used it refuse further derivation.
+ * @param projection - pure definition owned by the event's plugin.
+ * @returns the fiber-owned disposer.
+ * @throws when another definition already owns this event type.
+ */
+registerMessageProjection(projection: SessionMessageProjection): () => Promise<void>
+
 /**
  * Create a session owned by the calling fiber: disposing that fiber stops
  * event notification and removes the session from the store. `options.seed`

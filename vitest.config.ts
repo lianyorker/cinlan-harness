@@ -32,7 +32,6 @@ const windowsUnsupportedPackages = process.platform === 'win32'
       'packages/hooks/*',
       'packages/terminal/terminal-bash',
       'packages/experimental/code-runtime-python',
-      'packages/sandbox/sandbox-local',
       // SSH providers require POSIX clients and endpoints.
       'packages/ssh/*',
     ]
@@ -41,7 +40,10 @@ const windowsUnsupportedPackages = process.platform === 'win32'
 const windowsUnsupportedTests = process.platform === 'win32'
   ? [
       ...windowsUnsupportedPackages.map(path => `${path}/tests/**/*.spec.ts`),
-      'packages/subprocess/subprocess/tests/**/*.spec.ts',
+      'packages/subprocess/subprocess/tests/egress.spec.ts',
+      'packages/subprocess/subprocess/tests/service.spec.ts',
+      'packages/sandbox/sandbox-local/tests/packed-workspace-closure.spec.ts',
+      'packages/sandbox/sandbox-local/tests/local.spec.ts',
       'packages/subprocess/subprocess-local/tests/local.spec.ts',
       'packages/subprocess/subprocess-local/tests/process-inspector.spec.ts',
       'packages/subprocess/subprocess-local/tests/spawn.spec.ts',
@@ -155,6 +157,7 @@ const processBoundTests = [
   'packages/llm/llm-pi-ai/tests/adapter.spec.ts',
   'packages/boot/app-boot/tests/app-boot.spec.ts',
   'packages/workflow/workflow-worker-thread/tests/session.spec.ts',
+  'packages/workflow/workflow-ptc/tests/workflow-ptc.spec.ts',
 ]
 
 export default defineConfig({

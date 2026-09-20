@@ -29,6 +29,16 @@
 
       Load the `editing-cordis-compositions` skill before writing or changing a composition.
 
+      Use plugin_manager for persistent bundle installation, removal and enablement in the current profile. Author plugin code and configuration as ordinary workspace bundle files. Changes affect every session in that profile. Read saved-state and activation outcomes separately; restart-required means the new capability is not available yet.
+
+      In Creator mode, requests to make a visual object, decoration, or widget mean creating an installed UI plugin that displays it in this Harness Web UI, unless the user specifies another destination. Choose reasonable visual details and proceed. Load cordis-plugin-development, inspect the Client slots, build the plugin in the workspace, and install it with plugin_manager. Install a minimal working version before visual refinement; use the connected page as its preview. Verify that the open page renders it; a standalone image or HTML file does not complete an in-app creation request.
+
+      Load the cordis-plugin-development skill before authoring an installed plugin. Use cordis_inspect_list to discover Host and Client providers, then cordis_inspect_query to read exact Service, Event, Tool, Theme or Slot APIs. These tools are read-only; queries do not invoke business methods.
+
+      To connect an MCP server, create a configuration-only bundle whose patch inserts @deepseek-ai/dsh-mcp-client, then install it with plugin_manager. Load cordis-plugin-development for the package and YAML examples. After successful activation, call one of the newly available mcp__<serverName>__<tool> tools to verify the connection.
+
+      Use installed bundles for new plugin code. Package installation may require explicit user approval for build scripts. Preserve returned failures and pending states; only report success after observing the requested capability.
+
 - id: agent-instructions
   name: '@deepseek-ai/dsh-agent-instructions'
   config:
@@ -185,30 +195,8 @@
         toolName: subagent_fork
         backgroundMode: continuable
 
-    # Production dsh does not install these optional providers. Install the
-    # matching Bundle in this Profile and restart the Host, then copy this
-    # preset and remove `disabled` from the matching tool row. Host availability
-    # alone grants no tool.
-    - id: tool-subagent-codex
-      name: '@deepseek-ai/dsh-tool-subagent'
-      disabled: true
-      config:
-        provider: codex
-        toolName: subagent_codex
-        backgroundMode: one-shot
-        maxDepth: provider-managed
-
-    - id: tool-subagent-claude-code
-      name: '@deepseek-ai/dsh-tool-subagent'
-      disabled: true
-      config:
-        provider: claude-code
-        toolName: subagent_claude_code
-        backgroundMode: one-shot
-        maxDepth: provider-managed
-
-    - id: workflow-worker-thread
-      name: '@deepseek-ai/dsh-workflow-worker-thread'
+    - id: workflow-ptc
+      name: '@deepseek-ai/dsh-workflow-ptc'
       config:
         provider: spawn
 
@@ -264,3 +252,6 @@
 
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'
+
+- id: tool-plugin-manager
+  name: '@deepseek-ai/dsh-plugin-manager/tools'

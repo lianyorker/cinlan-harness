@@ -1,5 +1,7 @@
 # 语音听写设置迁移计划：参考 orca 完整语音设置栏
 
+> 本文保留早期迁移计划的目标、阶段与风险，不代表当前实现清单。当前能力以[语音听写包说明](../../../packages/client/ui-voice-dictation/README.zh.md)为准；下文“拟新建（尚不存在）”只记录目录与拟议文件名，不是现有文件链接。
+
 > 参考 orca 的 `VoicePane.tsx` 完整设置页，将 DSH 的语音听写功能从当前的基础实现提升为完整的语音设置 section，并迁移 orca 已有但 DSH 缺失的功能。
 
 ## 现状对比
@@ -314,7 +316,7 @@ DSH 的语音架构与 orca 差异较大（整段转写 vs 流式、主进程 vs
 
 **文件变更**：
 
-1. **新建** `@/packages/client/ui-voice-dictation/src/client/microphone-devices.ts`
+1. **拟新建（尚不存在）**：在 [ui-voice-dictation/src/client](../../../packages/client/ui-voice-dictation/src/client/) 下创建 `microphone-devices.ts`。当前设备枚举与选择见 [VoiceSettingsSection.tsx](../../../packages/client/ui-voice-dictation/src/client/VoiceSettingsSection.tsx)，指定设备录音见 [dictation-controller.ts](../../../packages/client/ui-voice-dictation/src/client/dictation-controller.ts)；此文件名只保留原拆分设想。
    - `listVoiceMicrophoneDevices()` — 枚举音频输入设备
    - `buildVoiceMicrophoneSelectOptions()` — 构建下拉选项
    - `openMicrophoneCaptureStream()` — 指定设备 ID 打开流
@@ -382,7 +384,7 @@ DSH 的语音架构与 orca 差异较大（整段转写 vs 流式、主进程 vs
 
 **文件变更**：
 
-1. **新建** `@/packages/voice/voice-sherpa-onnx/src/streaming.ts`
+1. **拟新建（尚不存在）**：在 [voice-sherpa-onnx/src](../../../packages/voice/voice-sherpa-onnx/src/) 下创建 `streaming.ts`
    - WebSocket 端点 `/voice/api/stream`
    - 接收 base64 PCM 块 → 喂入 sherpa-onnx OnlineRecognizer → 发送 partial/final transcript
    - 会话管理：start / feed / stop
@@ -391,7 +393,7 @@ DSH 的语音架构与 orca 差异较大（整段转写 vs 流式、主进程 vs
    - `VoiceRecognizer` 扩展：新增 `feed(samples: Float32Array): Promise<void>` 和事件回调
    - `VoiceEngine` 扩展：`loadModel()` 返回支持流式的 recognizer
 
-3. **新建** `@/packages/client/ui-voice-dictation/src/client/streaming-dictation.ts`
+3. **拟新建（尚不存在）**：在 [ui-voice-dictation/src/client](../../../packages/client/ui-voice-dictation/src/client/) 下创建 `streaming-dictation.ts`
    - 替换 `dictation.ts` 的整段录音逻辑
    - AudioContext + AudioWorkletNode 持续捕获 16kHz mono PCM
    - WebSocket 发送 PCM 块
@@ -403,7 +405,7 @@ DSH 的语音架构与 orca 差异较大（整段转写 vs 流式、主进程 vs
    - partial transcript 更新 UI 状态
    - final transcript 插入文本
 
-5. **新建** `@/packages/client/ui-voice-dictation/src/client/DictationIndicator.tsx`
+5. **拟新建（尚不存在）**：在 [ui-voice-dictation/src/client](../../../packages/client/ui-voice-dictation/src/client/) 下创建 `DictationIndicator.tsx`
    - 浮动状态条：录音中显示 partial transcript
    - 停止按钮
    - 快捷键提示
@@ -418,7 +420,7 @@ DSH 的语音架构与 orca 差异较大（整段转写 vs 流式、主进程 vs
 
 **文件变更**：
 
-1. **新建** `@/packages/client/ui-voice-dictation/src/client/insertion-target.ts`
+1. **拟新建（尚不存在）**：在 [ui-voice-dictation/src/client](../../../packages/client/ui-voice-dictation/src/client/) 下创建 `insertion-target.ts`
    - `captureInsertionTarget()` — 捕获当前聚焦元素
    - 支持：HTMLInputElement / HTMLTextAreaElement / contentEditable / 终端
    - `insertText(text, target)` — 向目标插入文本
@@ -427,7 +429,7 @@ DSH 的语音架构与 orca 差异较大（整段转写 vs 流式、主进程 vs
    - `start()` 时捕获插入目标
    - `stop()` 时向捕获的目标插入文本（而非仅 composer draft）
 
-3. **新建** `@/packages/client/ui-voice-dictation/src/client/final-segments.ts`
+3. **拟新建（尚不存在）**：在 [ui-voice-dictation/src/client](../../../packages/client/ui-voice-dictation/src/client/) 下创建 `final-segments.ts`
    - `formatFinalTranscriptSegment()` — CJK/拉丁文边界空格处理
    - 参考 orca 的 `dictation-final-segments.ts`
 

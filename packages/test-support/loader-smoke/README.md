@@ -29,7 +29,7 @@ This package boots an application fixture the way an installed consumer would an
 
 ### Booting an application fixture
 
-`runLoaderSmoke` takes bin and config paths, optional complete bin arguments, environment overrides, stdin, pre-run setup, and pre-cleanup inspection. It owns the isolated cwd, DSH homes, diagnostics, deadline, termination, EOF, and cleanup, and returns both streams after a zero exit or rejects with both streams on failure:
+`runLoaderSmoke` takes bin and config paths, optional complete bin arguments, environment overrides, stdin, pre-run setup, and pre-cleanup inspection. It owns the isolated cwd, DSH homes, diagnostics, deadline, termination, EOF, and cleanup, and returns both streams after the expected exit. Process and inspection failures include both streams; inspection failures retain the original error as their cause:
 
 ```text
 const result = await runLoaderSmoke({

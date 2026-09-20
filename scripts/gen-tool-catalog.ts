@@ -63,6 +63,9 @@ import LocalCoordinationService from '@deepseek-ai/dsh-coordination-local'
 import * as ToolCoordination from '@deepseek-ai/dsh-tool-coordination'
 import LocalGitRuntime from '@deepseek-ai/dsh-git-local'
 import * as ToolGit from '@deepseek-ai/dsh-tool-git'
+import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
+import type PluginManager from '@deepseek-ai/dsh-plugin-manager'
+import * as PluginManagerTools from '@deepseek-ai/dsh-plugin-manager/tools'
 import * as ToolGoal from '@deepseek-ai/dsh-tool-goal'
 import * as ToolSchedule from '@deepseek-ai/dsh-schedule'
 import Lsp from '@deepseek-ai/dsh-lsp'
@@ -86,7 +89,8 @@ import * as ToolFinding from '@deepseek-ai/dsh-tool-finding'
 import VulnKbRuntime from '@deepseek-ai/dsh-vuln-kb-service'
 import * as VulnKbNvd from '@deepseek-ai/dsh-vuln-kb-nvd'
 import * as ToolVulnKb from '@deepseek-ai/dsh-tool-vuln-kb'
-import VmWorkflowEngine from '@deepseek-ai/dsh-workflow-worker-thread'
+import WorkflowEngine from '@deepseek-ai/dsh-workflow'
+import type { WorkflowRun, WorkflowStartRequest } from '@deepseek-ai/dsh-workflow'
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
 import * as ToolWorkflow from '@deepseek-ai/dsh-tool-workflow'
 import { githubSlug } from './verify-md-links.ts'
@@ -117,6 +121,13 @@ class CatalogAttachmentStore extends AttachmentStore {
 
 const root = resolve(import.meta.dirname, '..')
 const OUT = 'docs/tool-catalog.md'
+
+/** Workflow tools expose their schemas without executing a program. */
+class CatalogWorkflowEngine extends WorkflowEngine {
+  start(_request: WorkflowStartRequest): WorkflowRun {
+    throw new Error('gen-tool-catalog: workflow execution is unavailable during schema harvest')
+  }
+}
 
 /**
  * Register the descriptor needed to mount schema-producing consumers. Declares
@@ -210,6 +221,19 @@ export interface ToolPackage {
  */
 const TOOL_PACKAGES: ToolPackage[] = [
   {
+    pkg: '@deepseek-ai/dsh-plugin-manager',
+    dir: 'plugin-manager',
+    source: 'packages/boot/plugin-manager/src/tools.ts',
+    requires: ['ctx.tools', 'ctx.pluginManager', 'ctx.sandboxPolicy'],
+    writes: ['tool/call', 'tool/result', 'user/message'],
+    async mount(ctx) {
+      // Schema harvest never executes a management method or opens a profile.
+      ctx.provide('pluginManager', {} as PluginManager)
+      await ctx.plugin(SandboxPolicy)
+      await ctx.plugin(PluginManagerTools)
+    },
+  },
+  {
     pkg: '@deepseek-ai/dsh-mcp-resources',
     dir: 'mcp-resources',
     source: 'packages/mcp/mcp-resources/src/tools.ts',
@@ -239,10 +263,10 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tools',
     dir: 'tools',
     source: 'packages/core/tools/src/ptc.ts',
-    requires: ['ctx.tools', 'ctx.codeRuntime (execution time)', 'ctx.systemPrompt'],
+    requires: ['ctx.tools', 'ctx.ptcRuntime (execution time)', 'ctx.systemPrompt'],
     writes: ['tool/call', 'one tool/ptc-dispatch-start + tool/ptc-dispatch pair per bridged sub-call', 'tool/result'],
     // The registry's OWN tool: run_code exists only under a non-native mode
-    // (the registry registers it in its constructor; the code runtime is read
+    // (the registry registers it in its constructor; the PTC runtime is read
     // at assembly/execution time, so the schema harvest needs none mounted).
     toolsConfig: { mode: 'ptc' },
     async mount() {},
@@ -547,7 +571,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     async mount(ctx) {
       await ctx.plugin(SubagentRuntime)
       registerCatalogSubagentProvider(ctx, 'mock')
-      await ctx.plugin(VmWorkflowEngine, { provider: 'mock' })
+      await ctx.plugin(CatalogWorkflowEngine)
       await ctx.plugin(ToolRalph, { subagentProvider: 'mock' })
     },
     note:
@@ -694,12 +718,10 @@ const TOOL_PACKAGES: ToolPackage[] = [
     requires: ['ctx.tools', 'ctx.workflowEngine', 'ctx.systemPrompt', 'a calling Agent (exec.agent parents the script children)'],
     writes: ['tool/call', 'tool/result'],
     async mount(ctx) {
-      // The tool injects `workflows`; boot the vm engine over a scripted
-      // subagent provider to satisfy it. The schema does not depend on which
-      // provider backs the engine.
+      // Schema collection needs the workflow service without executing a program.
       await ctx.plugin(SubagentRuntime)
       registerCatalogSubagentProvider(ctx, 'mock')
-      await ctx.plugin(VmWorkflowEngine, { provider: 'mock' })
+      await ctx.plugin(CatalogWorkflowEngine)
       await ctx.plugin(ToolWorkflow)
     },
   },

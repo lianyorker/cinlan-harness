@@ -9,10 +9,165 @@
 
 ```mermaid
 flowchart LR
+  pkg_artifact["artifact"]
+  svc_artifacts["ctx.artifacts<br/>Artifact storage"]
+  pkg_artifact_local["artifact-local"]
+  pkg_artifact_memory["artifact-memory"]
+  pkg_finding_session["finding-session"]
+  pkg_tool_finding["tool-finding"]
+  pkg_api_security_research_controller["api-security-research-controller"]
+  pkg_assessment_scope["assessment-scope"]
+  svc_assessmentScope["ctx.assessmentScope<br/>Assessment scope policy"]
+  pkg_assessment_scope_static["assessment-scope-static"]
+  pkg_assessment_scope_session["assessment-scope-session"]
+  svc_assessmentScopeSessions["ctx.assessmentScopeSessions<br/>Session assessment grants"]
+  pkg_assessment_scope_tool_policy["assessment-scope-tool-policy"]
+  pkg_api_automation_controller["api-automation-controller"]
+  svc_automationController["ctx.automationController<br/>Automation Remote controller"]
+  pkg_client_ui_settings_automation["client-ui-settings-automation"]
+  pkg_automation["automation"]
+  svc_automationRuntime["ctx.automationRuntime<br/>Durable automation scheduling"]
+  pkg_client_ui_better_sidebar["client-ui-better-sidebar"]
+  svc_betterSidebar["ctx.betterSidebar<br/>Sidebar tab and viewer registry"]
+  pkg_client_ui_plan["client-ui-plan"]
+  pkg_client_ui_settings_terminal["client-ui-settings-terminal"]
+  pkg_browser["browser"]
+  svc_browser["ctx.browser<br/>Browser automation seam"]
+  pkg_browser_cinlan["browser-cinlan"]
+  pkg_browser_playwright["browser-playwright"]
+  pkg_tool_browser["tool-browser"]
+  pkg_tool_browser_element_capture["tool-browser-element-capture"]
+  pkg_api_browser_controller["api-browser-controller"]
+  pkg_coordination_browser_element_capture["coordination-browser-element-capture"]
+  svc_browserController["ctx.browserController<br/>Browser Remote controller"]
+  pkg_client_ui_settings_security["client-ui-settings-security"]
+  pkg_client_ui_browser_element_capture["client-ui-browser-element-capture"]
+  pkg_browser_use["browser-use"]
+  svc_browserUse["ctx.browserUse<br/>Exclusive browser-use registration"]
+  pkg_experimental_browser_use_stagehand_native["experimental-browser-use-stagehand-native"]
+  pkg_experimental_browser_use_playwright_mcp["experimental-browser-use-playwright-mcp"]
+  pkg_experimental_browser_use_chrome_devtools_mcp["experimental-browser-use-chrome-devtools-mcp"]
+  pkg_computer_use["computer-use"]
+  svc_computerUse["ctx.computerUse<br/>Computer interaction seam"]
+  pkg_computer_use_cinlan["computer-use-cinlan"]
+  pkg_experimental_computer_use_cua_driver_native["experimental-computer-use-cua-driver-native"]
+  pkg_experimental_computer_use_cua_driver_mcp["experimental-computer-use-cua-driver-mcp"]
+  pkg_tool_computer_use["tool-computer-use"]
+  pkg_api_device_capabilities_controller["api-device-capabilities-controller"]
+  pkg_coordination["coordination"]
+  svc_coordination["ctx.coordination<br/>Coordinated task execution"]
+  pkg_coordination_local["coordination-local"]
+  pkg_tool_coordination["tool-coordination"]
+  pkg_coordination_subagent_executor["coordination-subagent-executor"]
+  svc_deviceCapabilitiesController["ctx.deviceCapabilitiesController<br/>Device capability Remote controller"]
+  pkg_execution_host["execution-host"]
+  svc_executionHost["ctx.executionHost<br/>Execution-host seam"]
+  pkg_execution_host_local["execution-host-local"]
+  pkg_execution_host_worker["execution-host-worker"]
+  pkg_execution_host_targets["execution-host-targets"]
+  pkg_api_execution_host_controller["api-execution-host-controller"]
+  svc_executionHostController["ctx.executionHostController<br/>Execution-host Remote controller"]
+  pkg_client_ui_settings_hosts["client-ui-settings-hosts"]
+  svc_executionHostTargets["ctx.executionHostTargets<br/>Saved execution targets"]
+  pkg_finding["finding"]
+  svc_findings["ctx.findings<br/>Assessment findings seam"]
+  pkg_git["git"]
+  svc_git["ctx.git<br/>Read-only Git inspection"]
+  pkg_git_local["git-local"]
+  pkg_tool_git["tool-git"]
+  pkg_api_integration_preflight_controller["api-integration-preflight-controller"]
+  svc_integrationPreflightController["ctx.integrationPreflightController<br/>Integration preflight Remote controller"]
+  pkg_client_ui_integrations["client-ui-integrations"]
+  pkg_client_ui_work_items["client-ui-work-items"]
+  pkg_api_mcp_controller["api-mcp-controller"]
+  svc_mcpController["ctx.mcpController<br/>MCP management Remote controller"]
+  pkg_client_ui_settings_mcp["client-ui-settings-mcp"]
+  pkg_mcp_management["mcp-management"]
+  svc_mcpManagement["ctx.mcpManagement<br/>Persistent MCP management"]
+  pkg_mcp_client["mcp-client"]
+  svc_mcpRegistry["ctx.mcpRegistry<br/>Profile MCP observations"]
+  pkg_mcp_resources["mcp-resources"]
+  svc_mcpResources["ctx.mcpResources<br/>MCP resource registry"]
+  pkg_mobile_device["mobile-device"]
+  svc_mobileDevice["ctx.mobileDevice<br/>Mobile device seam"]
+  pkg_mobile_device_cinlan["mobile-device-cinlan"]
+  pkg_tool_mobile_device["tool-mobile-device"]
+  pkg_office_to_pdf["office-to-pdf"]
+  svc_officeToPdf["ctx.officeToPdf<br/>Workspace document previews"]
+  pkg_plugin_manager["plugin-manager"]
+  svc_pluginManagementHost["ctx.pluginManagementHost<br/>Launcher-owned plugin management facts"]
+  pkg_host_plugin_inventory["host-plugin-inventory"]
+  pkg_ptc_runtime["ptc-runtime"]
+  svc_ptcRuntime["ctx.ptcRuntime<br/>Programmatic tool runtime"]
+  pkg_ptc_runtime_node["ptc-runtime-node"]
+  pkg_tools["tools"]
+  pkg_workflow_ptc["workflow-ptc"]
+  svc_securityResearchController["ctx.securityResearchController<br/>Security research Remote controller"]
+  pkg_command_feedback["command-feedback"]
+  svc_sessionFeedback["ctx.sessionFeedback<br/>Human Session feedback"]
+  pkg_client_ui_message_feedback["client-ui-message-feedback"]
+  pkg_sidebar_git["sidebar-git"]
+  svc_sidebarGit["ctx.sidebarGit<br/>Sidebar Git operations"]
+  pkg_api_sidebar_git_controller["api-sidebar-git-controller"]
+  svc_sidebarGitController["ctx.sidebarGitController<br/>Sidebar Git Remote controller"]
+  pkg_api_sidebar_terminal_controller["api-sidebar-terminal-controller"]
+  svc_sidebarTerminalController["ctx.sidebarTerminalController<br/>Sidebar terminal Remote controller"]
+  pkg_sidebar_terminals["sidebar-terminals"]
+  svc_sidebarTerminals["ctx.sidebarTerminals<br/>Sidebar terminal seam"]
+  pkg_ssh["ssh"]
+  svc_ssh["ctx.ssh<br/>SSH connection lifecycle"]
+  pkg_fs_ssh["fs-ssh"]
+  pkg_subprocess_ssh["subprocess-ssh"]
+  pkg_sandbox_ssh["sandbox-ssh"]
+  pkg_api_terminal_controller["api-terminal-controller"]
+  svc_terminalController["ctx.terminalController<br/>Agent terminal Remote controller"]
+  pkg_client_ui_right_sidebar["client-ui-right-sidebar"]
+  pkg_api_usage_controller["api-usage-controller"]
+  svc_usageController["ctx.usageController<br/>Usage Remote controller"]
+  pkg_client_ui_settings_usage["client-ui-settings-usage"]
+  pkg_usage_query["usage-query"]
+  svc_usageQuery["ctx.usageQuery<br/>Session usage aggregation"]
+  pkg_voice["voice"]
+  svc_voice["ctx.voice<br/>Voice transcription seam"]
+  pkg_voice_sherpa_onnx["voice-sherpa-onnx"]
+  pkg_api_voice_controller["api-voice-controller"]
+  svc_voiceController["ctx.voiceController<br/>Voice Remote controller"]
+  pkg_client_ui_voice_dictation["client-ui-voice-dictation"]
+  pkg_vuln_kb_service["vuln-kb-service"]
+  svc_vulnKb["ctx.vulnKb<br/>Vulnerability knowledge seam"]
+  pkg_vuln_kb_nvd["vuln-kb-nvd"]
+  pkg_tool_vuln_kb["tool-vuln-kb"]
+  pkg_workspace_isolation["workspace-isolation"]
+  svc_workspaceIsolation["ctx.workspaceIsolation<br/>Workspace isolation seam"]
+  pkg_workspace_isolation_git["workspace-isolation-git"]
+  pkg_api_session_controller["api-session-controller"]
+  pkg_api_workspace_isolation_controller["api-workspace-isolation-controller"]
+  pkg_api_work_items_controller["api-work-items-controller"]
+  pkg_workspace["workspace"]
+  svc_workspaceIsolationController["ctx.workspaceIsolationController<br/>Workspace isolation Remote controller"]
+  pkg_client_ui_workspace_isolation["client-ui-workspace-isolation"]
+  pkg_worktree_task["worktree-task"]
+  svc_worktreeTask["ctx.worktreeTask<br/>Worktree task seam"]
+  pkg_worktree_task_git["worktree-task-git"]
+  pkg_api_worktree_task_controller["api-worktree-task-controller"]
+  svc_worktreeTaskController["ctx.worktreeTaskController<br/>Worktree task Remote controller"]
+  pkg_client_ui_worktree_task["client-ui-worktree-task"]
+  svc_pluginManager["ctx.pluginManager<br/>Profile plugin and bundle management"]
+  pkg_client_ui_plugin_manager["client-ui-plugin-manager"]
+  pkg_app_boot["app-boot"]
+  svc_profileContext["ctx.profileContext<br/>Launcher-provided profile facts"]
+  pkg_workspace_changes["workspace-changes"]
+  svc_workspaceChanges["ctx.workspaceChanges<br/>Per-turn workspace file changes"]
+  pkg_client_ui_deliverables["client-ui-deliverables"]
+  pkg_work_items["work-items"]
+  svc_workItems["ctx.workItems<br/>Work Items provider registry and write ledger"]
+  pkg_work_items_github["work-items-github"]
+  pkg_work_items_linear["work-items-linear"]
+  pkg_tool_work_items["tool-work-items"]
+  svc_workItemsController["ctx.workItemsController<br/>Work Items Remote controller"]
   pkg_attachment["attachment"]
   svc_attachments["ctx.attachments<br/>Durable binary attachment storage"]
   pkg_attachment_local["attachment-local"]
-  pkg_api_session_controller["api-session-controller"]
   pkg_tool_fs["tool-fs"]
   pkg_llm_pi_ai["llm-pi-ai"]
   pkg_llm_deepseek["llm-deepseek"]
@@ -82,7 +237,6 @@ flowchart LR
   pkg_storage_sqlite["storage-sqlite"]
   pkg_storage_domain["storage-domain"]
   svc_storageDomain["ctx.storageDomain<br/>Domain data facility"]
-  pkg_workspace["workspace"]
   svc_messageFeedback["ctx.messageFeedback<br/>Lifecycle-bound message feedback"]
   svc_workspaceRegistry["ctx.workspaceRegistry<br/>Workspace entity registry"]
   svc_sessionQuery["ctx.sessionQuery<br/>Session reads, traces, filters, and search"]
@@ -98,7 +252,6 @@ flowchart LR
   pkg_session_title_all_prompts_llm["session-title-all-prompts-llm"]
   pkg_system_prompt["system-prompt"]
   svc_systemPrompt["ctx.systemPrompt<br/>System prompt assembly registry"]
-  pkg_tools["tools"]
   pkg_tool_terminal["tool-terminal"]
   pkg_tool_web["tool-web"]
   svc_tools["ctx.tools<br/>Tool registry and guarded execution pipeline"]
@@ -213,7 +366,6 @@ flowchart LR
   svc_clientModules["ctx.clientModules<br/>Client plugin graph host"]
   pkg_workflow["workflow"]
   svc_workflowEngine["ctx.workflowEngine<br/>Workflow script engine"]
-  pkg_workflow_worker_thread["workflow-worker-thread"]
   pkg_tool_workflow["tool-workflow"]
   pkg_webhook["webhook"]
   svc_webhookRuntime["ctx.webhookRuntime<br/>Webhook rule runtime"]
@@ -228,42 +380,88 @@ flowchart LR
   pkg_agent_default_model --> svc_agentDefaultModel
   pkg_agent_loop --> svc_agentLoop
   pkg_agent_presets --> svc_agentPresets
+  pkg_api_automation_controller --> svc_automationController
+  pkg_api_browser_controller --> svc_browserController
+  pkg_api_device_capabilities_controller --> svc_deviceCapabilitiesController
+  pkg_api_execution_host_controller --> svc_executionHostController
   pkg_api_gateway --> svc_typertGateway
+  pkg_api_integration_preflight_controller --> svc_integrationPreflightController
+  pkg_api_mcp_controller --> svc_mcpController
+  pkg_api_security_research_controller --> svc_securityResearchController
   pkg_api_session_controller --> svc_sessionController
   pkg_api_session_controller --> svc_sessionFileReferences
   pkg_api_session_controller --> svc_sessionSkillCatalog
   pkg_api_settings_controller --> svc_credentialsController
   pkg_api_settings_controller --> svc_settingsController
+  pkg_api_sidebar_git_controller --> svc_sidebarGitController
+  pkg_api_sidebar_terminal_controller --> svc_sidebarTerminalController
+  pkg_api_terminal_controller --> svc_terminalController
+  pkg_api_usage_controller --> svc_usageController
+  pkg_api_voice_controller --> svc_voiceController
+  pkg_api_work_items_controller --> svc_workItemsController
   pkg_api_workspace_controller --> svc_directoryPickerController
   pkg_api_workspace_controller --> svc_workspaceController
   pkg_api_workspace_files --> svc_workspaceFiles
+  pkg_api_workspace_isolation_controller --> svc_workspaceIsolationController
+  pkg_api_worktree_task_controller --> svc_worktreeTaskController
+  pkg_app_boot --> svc_profileContext
+  pkg_artifact --> svc_artifacts
+  pkg_artifact_local --> svc_artifacts
+  pkg_artifact_memory --> svc_artifacts
+  pkg_assessment_scope --> svc_assessmentScope
+  pkg_assessment_scope_session --> svc_assessmentScopeSessions
+  pkg_assessment_scope_static --> svc_assessmentScope
   pkg_attachment --> svc_attachments
   pkg_attachment_local --> svc_attachments
   pkg_authorization --> svc_authorization
+  pkg_automation --> svc_automationRuntime
   pkg_bash_local --> svc_shell
   pkg_bash_sandbox --> svc_shell
+  pkg_browser --> svc_browser
+  pkg_browser_cinlan --> svc_browser
+  pkg_browser_playwright --> svc_browser
+  pkg_browser_use --> svc_browserUse
   pkg_client_file_upload --> svc_fileUploads
   pkg_client_modules --> svc_clientModules
+  pkg_client_ui_better_sidebar --> svc_betterSidebar
+  pkg_client_ui_better_sidebar --> svc_sidebarTerminals
   pkg_code_runtime --> svc_codeRuntime
   pkg_code_runtime_worker_thread --> svc_codeRuntime
+  pkg_command_feedback --> svc_sessionFeedback
   pkg_commands --> svc_commands
   pkg_compaction --> svc_compaction
   pkg_compaction_basic --> svc_compaction
   pkg_compaction_tool_result_pruner --> svc_toolResultPruner
+  pkg_computer_use --> svc_computerUse
+  pkg_computer_use_cinlan --> svc_computerUse
+  pkg_coordination --> svc_coordination
+  pkg_coordination_local --> svc_coordination
   pkg_cordis_host_runner --> svc_cordisInspect
   pkg_cordis_host_runner --> svc_dynamicCordisRunner
   pkg_credentials --> svc_credentials
   pkg_credentials_local --> svc_credentials
   pkg_deepseek_llm_api_extensions --> svc_deepseekLlmApiExtensions
   pkg_e2b --> svc_e2b
+  pkg_execution_host --> svc_executionHost
+  pkg_execution_host_local --> svc_executionHost
+  pkg_execution_host_targets --> svc_executionHostTargets
   pkg_experimental_agent_team --> svc_agentTeams
+  pkg_experimental_browser_use_chrome_devtools_mcp --> svc_browserUse
+  pkg_experimental_browser_use_playwright_mcp --> svc_browserUse
+  pkg_experimental_browser_use_stagehand_native --> svc_browserUse
   pkg_experimental_code_runtime_python --> svc_codeRuntime
+  pkg_experimental_computer_use_cua_driver_mcp --> svc_computerUse
+  pkg_experimental_computer_use_cua_driver_native --> svc_computerUse
   pkg_file_reference --> svc_fileReferences
   pkg_file_reference_local --> svc_fileReferences
+  pkg_finding --> svc_findings
+  pkg_finding_session --> svc_findings
   pkg_fs --> svc_fs
   pkg_fs_e2b --> svc_fs
   pkg_fs_local --> svc_fs
   pkg_fs_sandbox --> svc_fs
+  pkg_git --> svc_git
+  pkg_git_local --> svc_git
   pkg_goal --> svc_goals
   pkg_host_directory_picker --> svc_directoryPicker
   pkg_host_directory_picker_browse --> svc_directoryPicker
@@ -279,10 +477,21 @@ flowchart LR
   pkg_llm_replay --> svc_llm
   pkg_lsp --> svc_lsp
   pkg_lsp_stdio --> svc_lsp
+  pkg_mcp_client --> svc_mcpRegistry
+  pkg_mcp_client --> svc_mcpResources
+  pkg_mcp_management --> svc_mcpManagement
+  pkg_mcp_resources --> svc_mcpResources
   pkg_message_feedback --> svc_messageFeedback
+  pkg_mobile_device --> svc_mobileDevice
+  pkg_mobile_device_cinlan --> svc_mobileDevice
+  pkg_office_to_pdf --> svc_officeToPdf
   pkg_permission_presets --> svc_permissionPresets
   pkg_plan_mode --> svc_planMode
+  pkg_plugin_manager --> svc_pluginManagementHost
+  pkg_plugin_manager --> svc_pluginManager
   pkg_plugin_package_inventory_deepseek --> svc_deepseekLlmApiExtensions
+  pkg_ptc_runtime --> svc_ptcRuntime
+  pkg_ptc_runtime_node --> svc_ptcRuntime
   pkg_pwsh_local --> svc_shell
   pkg_sandbox --> svc_sandbox
   pkg_sandbox_local --> svc_sandbox
@@ -305,11 +514,14 @@ flowchart LR
   pkg_settings_file --> svc_settings
   pkg_shell --> svc_shell
   pkg_shell_env --> svc_shellEnv
+  pkg_sidebar_git --> svc_sidebarGit
+  pkg_sidebar_terminals --> svc_sidebarTerminals
   pkg_skill --> svc_skills
   pkg_skill_badge --> svc_skills
   pkg_skill_filesystem --> svc_skills
   pkg_spill --> svc_spillStore
   pkg_spill_local --> svc_spillStore
+  pkg_ssh --> svc_ssh
   pkg_storage --> svc_storage
   pkg_storage_domain --> svc_storageDomain
   pkg_storage_json --> svc_storage
@@ -331,17 +543,30 @@ flowchart LR
   pkg_tool_subagent --> svc_subagentModelSelection
   pkg_tools --> svc_tools
   pkg_typert_registry --> svc_typert
+  pkg_usage_query --> svc_usageQuery
   pkg_user_approval --> svc_approval
   pkg_user_questions --> svc_userQuestions
+  pkg_voice --> svc_voice
+  pkg_voice_sherpa_onnx --> svc_voice
+  pkg_vuln_kb_nvd --> svc_vulnKb
+  pkg_vuln_kb_service --> svc_vulnKb
   pkg_web --> svc_web
   pkg_web_fetch_http --> svc_web
   pkg_web_search_deepseek --> svc_web
   pkg_web_search_exa --> svc_web
   pkg_web_search_perplexity --> svc_web
   pkg_webhook --> svc_webhookRuntime
+  pkg_work_items --> svc_workItems
+  pkg_work_items_github --> svc_workItems
+  pkg_work_items_linear --> svc_workItems
   pkg_workflow --> svc_workflowEngine
-  pkg_workflow_worker_thread --> svc_workflowEngine
+  pkg_workflow_ptc --> svc_workflowEngine
   pkg_workspace --> svc_workspaceRegistry
+  pkg_workspace_changes --> svc_workspaceChanges
+  pkg_workspace_isolation --> svc_workspaceIsolation
+  pkg_workspace_isolation_git --> svc_workspaceIsolation
+  pkg_worktree_task --> svc_worktreeTask
+  pkg_worktree_task_git --> svc_worktreeTask
   svc_agentDefaultModel --> pkg_api_session_controller
   svc_agentDefaultModel --> pkg_headless
   svc_agentLoop --> pkg_base
@@ -354,26 +579,63 @@ flowchart LR
   svc_approval --> pkg_acp
   svc_approval --> pkg_tool_bash
   svc_approval --> pkg_tools
+  svc_artifacts --> pkg_api_security_research_controller
+  svc_artifacts --> pkg_finding_session
+  svc_artifacts --> pkg_tool_finding
+  svc_assessmentScope --> pkg_api_security_research_controller
+  svc_assessmentScope --> pkg_assessment_scope_session
+  svc_assessmentScopeSessions --> pkg_api_security_research_controller
+  svc_assessmentScopeSessions --> pkg_assessment_scope_tool_policy
+  svc_assessmentScopeSessions --> pkg_tool_finding
   svc_attachments --> pkg_api_session_controller
   svc_attachments --> pkg_llm_deepseek
   svc_attachments --> pkg_llm_pi_ai
   svc_attachments --> pkg_tool_fs
   svc_authorization --> pkg_llm_pi_ai
+  svc_automationController --> pkg_client_ui_settings_automation
+  svc_automationRuntime --> pkg_api_automation_controller
+  svc_betterSidebar --> pkg_client_ui_plan
+  svc_betterSidebar --> pkg_client_ui_settings_terminal
+  svc_browser --> pkg_api_browser_controller
+  svc_browser --> pkg_coordination_browser_element_capture
+  svc_browser --> pkg_tool_browser
+  svc_browser --> pkg_tool_browser_element_capture
+  svc_browserController --> pkg_client_ui_browser_element_capture
+  svc_browserController --> pkg_client_ui_settings_security
   svc_clientModules --> pkg_client_hmr
   svc_codeRuntime --> pkg_tools
   svc_compaction --> pkg_compaction_basic
+  svc_computerUse --> pkg_api_device_capabilities_controller
+  svc_computerUse --> pkg_tool_computer_use
+  svc_coordination --> pkg_coordination_browser_element_capture
+  svc_coordination --> pkg_coordination_subagent_executor
+  svc_coordination --> pkg_tool_browser_element_capture
+  svc_coordination --> pkg_tool_coordination
   svc_cordisInspect --> pkg_tool_cordis
   svc_credentials --> pkg_api_settings_controller
   svc_credentials --> pkg_llm_deepseek
   svc_credentials --> pkg_llm_pi_ai
   svc_deepseekLlmApiExtensions --> pkg_llm_deepseek
+  svc_deviceCapabilitiesController --> pkg_client_ui_settings_security
   svc_directoryPicker --> pkg_api_workspace_controller
   svc_dynamicCordisRunner --> pkg_tool_cordis
   svc_e2b --> pkg_fs_e2b
   svc_e2b --> pkg_subprocess_e2b
+  svc_executionHost --> pkg_artifact_local
+  svc_executionHost --> pkg_artifact_memory
+  svc_executionHost --> pkg_execution_host_targets
+  svc_executionHost --> pkg_execution_host_worker
+  svc_executionHost --> pkg_tool_finding
+  svc_executionHostController --> pkg_client_ui_settings_hosts
+  svc_executionHostTargets --> pkg_api_execution_host_controller
   svc_fileReferences --> pkg_api_session_controller
   svc_fileUploads --> pkg_api_session_controller
+  svc_findings --> pkg_api_security_research_controller
+  svc_findings --> pkg_tool_finding
   svc_fs --> pkg_tool_fs
+  svc_git --> pkg_tool_git
+  svc_integrationPreflightController --> pkg_client_ui_integrations
+  svc_integrationPreflightController --> pkg_client_ui_work_items
   svc_invariants --> pkg_agent
   svc_invariants --> pkg_agent_loop
   svc_invariants --> pkg_scope
@@ -385,11 +647,27 @@ flowchart LR
   svc_llm --> pkg_agent_loop
   svc_llm --> pkg_compaction_basic
   svc_lsp --> pkg_tool_lsp
+  svc_mcpController --> pkg_client_ui_settings_mcp
+  svc_mcpManagement --> pkg_api_mcp_controller
+  svc_mcpRegistry --> pkg_mcp_management
+  svc_mcpResources --> pkg_mcp_resources
+  svc_mobileDevice --> pkg_api_device_capabilities_controller
+  svc_mobileDevice --> pkg_tool_mobile_device
+  svc_officeToPdf --> pkg_client_ui_better_sidebar
+  svc_pluginManagementHost --> pkg_host_plugin_inventory
+  svc_pluginManagementHost --> pkg_plugin_manager
+  svc_pluginManager --> pkg_client_ui_plugin_manager
+  svc_profileContext --> pkg_plugin_manager
+  svc_ptcRuntime --> pkg_ptc_runtime_node
+  svc_ptcRuntime --> pkg_tools
+  svc_ptcRuntime --> pkg_workflow_ptc
   svc_sandbox --> pkg_bash_sandbox
   svc_sandbox --> pkg_terminal_bash
   svc_sandboxPolicy --> pkg_bash_sandbox
   svc_sandboxPolicy --> pkg_fs_sandbox
   svc_sandboxPolicy --> pkg_terminal_bash
+  svc_securityResearchController --> pkg_client_ui_settings_security
+  svc_sessionFeedback --> pkg_client_ui_message_feedback
   svc_sessionPersistence --> pkg_agent_loop
   svc_sessionPersistence --> pkg_hooks_claude_code
   svc_sessionPersistence --> pkg_hooks_codex
@@ -423,8 +701,16 @@ flowchart LR
   svc_shell --> pkg_tool_pwsh
   svc_shellEnv --> pkg_tool_bash
   svc_shellEnv --> pkg_tool_pwsh
+  svc_sidebarGit --> pkg_api_sidebar_git_controller
+  svc_sidebarGit --> pkg_client_ui_better_sidebar
+  svc_sidebarGitController --> pkg_client_ui_better_sidebar
+  svc_sidebarTerminalController --> pkg_client_ui_better_sidebar
+  svc_sidebarTerminals --> pkg_api_sidebar_terminal_controller
   svc_skills --> pkg_tool_skill
   svc_spillStore --> pkg_spill_policy
+  svc_ssh --> pkg_fs_ssh
+  svc_ssh --> pkg_sandbox_ssh
+  svc_ssh --> pkg_subprocess_ssh
   svc_storage --> pkg_storage_domain
   svc_storageDomain --> pkg_workspace
   svc_subagentModelSelection --> pkg_tool_subagent
@@ -443,6 +729,7 @@ flowchart LR
   svc_systemPrompt --> pkg_tool_terminal
   svc_systemPrompt --> pkg_tool_web
   svc_systemPrompt --> pkg_tools
+  svc_terminalController --> pkg_client_ui_right_sidebar
   svc_terminals --> pkg_tool_terminal
   svc_tokenMeter --> pkg_compaction_basic
   svc_toolResultPruner --> pkg_compaction_basic
@@ -458,21 +745,89 @@ flowchart LR
   svc_tools --> pkg_tool_web
   svc_typert --> pkg_api_gateway
   svc_typert --> pkg_typert_loader
+  svc_usageController --> pkg_client_ui_settings_usage
+  svc_usageQuery --> pkg_api_usage_controller
   svc_userQuestions --> pkg_tool_ask_user
+  svc_voice --> pkg_api_voice_controller
+  svc_voiceController --> pkg_client_ui_voice_dictation
+  svc_vulnKb --> pkg_api_security_research_controller
+  svc_vulnKb --> pkg_tool_vuln_kb
   svc_web --> pkg_tool_web
   svc_webServer --> pkg_client_connection
   svc_webServer --> pkg_client_hmr
   svc_webServer --> pkg_client_modules
   svc_webhookRuntime --> pkg_webhook_github
+  svc_workItems --> pkg_api_work_items_controller
+  svc_workItems --> pkg_tool_work_items
+  svc_workItemsController --> pkg_client_ui_work_items
   svc_workflowEngine --> pkg_tool_ralph
   svc_workflowEngine --> pkg_tool_workflow
+  svc_workspaceChanges --> pkg_client_ui_deliverables
+  svc_workspaceIsolation --> pkg_api_session_controller
+  svc_workspaceIsolation --> pkg_api_work_items_controller
+  svc_workspaceIsolation --> pkg_api_workspace_isolation_controller
+  svc_workspaceIsolation --> pkg_workspace
+  svc_workspaceIsolationController --> pkg_client_ui_right_sidebar
+  svc_workspaceIsolationController --> pkg_client_ui_workspace_isolation
   svc_workspaceRegistry --> pkg_api_session_controller
   svc_workspaceRegistry --> pkg_api_workspace_controller
+  svc_worktreeTask --> pkg_api_session_controller
+  svc_worktreeTask --> pkg_api_worktree_task_controller
+  svc_worktreeTaskController --> pkg_client_ui_right_sidebar
+  svc_worktreeTaskController --> pkg_client_ui_worktree_task
   svc_fs -. event gate .-> pkg_fs_observation_policy
 ```
 
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.artifacts` | `seam` | [`artifact`](../packages/artifact/artifact) | [`artifact-local`](../packages/artifact/artifact-local), [`artifact-memory`](../packages/artifact/artifact-memory) | [`finding-session`](../packages/security/finding-session), [`tool-finding`](../packages/security/tool-finding), [`api-security-research-controller`](../packages/api/security-research-controller) | - | 存储执行主机上的证据产物，并解析其元数据与字节访问。 |
+| `ctx.assessmentScope` | `seam` | [`assessment-scope`](../packages/security/assessment-scope) | [`assessment-scope-static`](../packages/security/assessment-scope-static) | [`assessment-scope-session`](../packages/security/assessment-scope-session), [`api-security-research-controller`](../packages/api/security-research-controller) | - | 校验安全评估的根授权、范围收窄、目标准入与有效期。 |
+| `ctx.assessmentScopeSessions` | `core` | [`assessment-scope-session`](../packages/security/assessment-scope-session) | - | [`assessment-scope-tool-policy`](../packages/security/assessment-scope-tool-policy), [`tool-finding`](../packages/security/tool-finding), [`api-security-research-controller`](../packages/api/security-research-controller) | - | 拥有评估工具策略使用的持久 Session 授权与审计记录。 |
+| `ctx.automationController` | `core` | [`api-automation-controller`](../packages/api/automation-controller) | - | [`client-ui-settings-automation`](../packages/client/ui-settings-automation) | - | 提供自动化定义、运行控制、计划预览与可用配置选项。 |
+| `ctx.automationRuntime` | `core` | [`automation`](../packages/automation/automation) | - | [`api-automation-controller`](../packages/api/automation-controller) | - | 通过普通 Agent 调度持久 UTC 自动化运行，并记录其生命周期。 |
+| `ctx.betterSidebar` | `core` | [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | [`client-ui-plan`](../packages/client/ui-plan), [`client-ui-settings-terminal`](../packages/client/ui-settings-terminal) | - | 拥有本地浏览器界面共享的侧栏页签与查看器贡献。 |
+| `ctx.browser` | `seam` | [`browser`](../packages/browser/browser) | [`browser-cinlan`](../packages/browser/browser-cinlan), [`browser-playwright`](../packages/browser/browser-playwright) | [`tool-browser`](../packages/browser/tool-browser), [`tool-browser-element-capture`](../packages/browser/tool-browser-element-capture), [`api-browser-controller`](../packages/api/browser-controller), [`coordination-browser-element-capture`](../packages/coordination/coordination-browser-element-capture) | - | 将浏览器观测与交互路由到选定的提供方。 |
+| `ctx.browserController` | `core` | [`api-browser-controller`](../packages/api/browser-controller) | - | [`client-ui-settings-security`](../packages/client/ui-settings-security), [`client-ui-browser-element-capture`](../packages/client/ui-browser-element-capture) | - | 向浏览器客户端提供浏览器能力配置与元素捕获操作。 |
+| `ctx.browserUse` | `seam` | [`browser-use`](../packages/browser-use/browser-use) | [`experimental-browser-use-stagehand-native`](../packages/experimental/browser-use-stagehand-native), [`experimental-browser-use-playwright-mcp`](../packages/experimental/browser-use-playwright-mcp), [`experimental-browser-use-chrome-devtools-mcp`](../packages/experimental/browser-use-chrome-devtools-mcp) | - | - | 保留唯一的具名提供方，直到其工具与所属工作完成关闭；执行方法由提供方拥有。 |
+| `ctx.computerUse` | `seam` | [`computer-use`](../packages/computer-use/computer-use) | [`computer-use-cinlan`](../packages/computer-use/computer-use-cinlan), [`experimental-computer-use-cua-driver-native`](../packages/experimental/computer-use-cua-driver-native), [`experimental-computer-use-cua-driver-mcp`](../packages/experimental/computer-use-cua-driver-mcp) | [`tool-computer-use`](../packages/computer-use/tool-computer-use), [`api-device-capabilities-controller`](../packages/api/device-capabilities-controller) | - | 通过可替换的设备提供方提供桌面观测与输入。 |
+| `ctx.coordination` | `seam` | [`coordination`](../packages/coordination/coordination) | [`coordination-local`](../packages/coordination/coordination-local) | [`tool-coordination`](../packages/coordination/tool-coordination), [`coordination-subagent-executor`](../packages/coordination/coordination-subagent-executor), [`coordination-browser-element-capture`](../packages/coordination/coordination-browser-element-capture), [`tool-browser-element-capture`](../packages/browser/tool-browser-element-capture) | - | 拥有执行适配器共享的任务图、取消与审批状态。 |
+| `ctx.deviceCapabilitiesController` | `core` | [`api-device-capabilities-controller`](../packages/api/device-capabilities-controller) | - | [`client-ui-settings-security`](../packages/client/ui-settings-security) | - | 报告桌面与移动设备能力的可用性、SDK 检测结果及设备选项。 |
+| `ctx.executionHost` | `seam` | [`execution-host`](../packages/execution-host/execution-host) | [`execution-host-local`](../packages/execution-host/execution-host-local) | [`artifact-local`](../packages/artifact/artifact-local), [`artifact-memory`](../packages/artifact/artifact-memory), [`execution-host-worker`](../packages/execution-host/execution-host-worker), [`execution-host-targets`](../packages/execution-host/execution-host-targets), [`tool-finding`](../packages/security/tool-finding) | - | 定义工作进程与产物提供方消费的执行主机身份与操作。 |
+| `ctx.executionHostController` | `core` | [`api-execution-host-controller`](../packages/api/execution-host-controller) | - | [`client-ui-settings-hosts`](../packages/client/ui-settings-hosts) | - | 提供已保存的执行目标、修订版本与连接检查。 |
+| `ctx.executionHostTargets` | `core` | [`execution-host-targets`](../packages/execution-host/execution-host-targets) | - | [`api-execution-host-controller`](../packages/api/execution-host-controller) | - | 拥有已保存的 SSH 目标配置及关联配置代际的检查结果。 |
+| `ctx.findings` | `seam` | [`finding`](../packages/security/finding) | [`finding-session`](../packages/security/finding-session) | [`tool-finding`](../packages/security/tool-finding), [`api-security-research-controller`](../packages/api/security-research-controller) | - | 提供由所属 Session 支撑的发现与证据快照。 |
+| `ctx.git` | `seam` | [`git`](../packages/git/git) | [`git-local`](../packages/git/git-local) | [`tool-git`](../packages/git/tool-git) | - | 提供标准化的仓库状态、差异与历史，不包含修改命令。 |
+| `ctx.integrationPreflightController` | `core` | [`api-integration-preflight-controller`](../packages/api/integration-preflight-controller) | - | [`client-ui-integrations`](../packages/client/ui-integrations), [`client-ui-work-items`](../packages/client/ui-work-items) | - | 在客户端配置或使用远程能力前报告集成就绪状态。 |
+| `ctx.mcpController` | `core` | [`api-mcp-controller`](../packages/api/mcp-controller) | - | [`client-ui-settings-mcp`](../packages/client/ui-settings-mcp) | - | 向设置客户端提供已配置的 MCP 服务器及预期生命周期变更。 |
+| `ctx.mcpManagement` | `core` | [`mcp-management`](../packages/mcp/mcp-management) | - | [`api-mcp-controller`](../packages/api/mcp-controller) | - | 拥有持久的 MCP 预期条目，并协调其运行生命周期。 |
+| `ctx.mcpRegistry` | `core` | [`mcp-client`](../packages/mcp/mcp-client) | - | [`mcp-management`](../packages/mcp/mcp-management) | - | 发布根 profile 中 MCP 客户端的只读观测结果。 |
+| `ctx.mcpResources` | `seam` | [`mcp-resources`](../packages/mcp/mcp-resources) | [`mcp-client`](../packages/mcp/mcp-client) | [`mcp-resources`](../packages/mcp/mcp-resources) | - | 收集提供方资源与模板，供同包注册的资源工具使用。 |
+| `ctx.mobileDevice` | `seam` | [`mobile-device`](../packages/mobile-device/mobile-device) | [`mobile-device-cinlan`](../packages/mobile-device/mobile-device-cinlan) | [`tool-mobile-device`](../packages/mobile-device/tool-mobile-device), [`api-device-capabilities-controller`](../packages/api/device-capabilities-controller) | - | 为移动自动化提供设备发现、观测与输入。 |
+| `ctx.officeToPdf` | `core` | [`office-to-pdf`](../packages/document/office-to-pdf) | - | [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | 拥有可复用转换器、有界转换队列、输出缓存及经授权的工作区预览。 |
+| `ctx.pluginManagementHost` | `seam` | [`plugin-manager`](../packages/boot/plugin-manager) | - | [`plugin-manager`](../packages/boot/plugin-manager), [`host-plugin-inventory`](../packages/host/plugin-inventory) | - | Desktop 启动器提供受保护条目 id 与完整应用补丁；包事务仍由启动器拥有。 |
+| `ctx.ptcRuntime` | `seam` | [`ptc-runtime`](../packages/ptc-runtime/ptc-runtime) | [`ptc-runtime-node`](../packages/ptc-runtime/ptc-runtime-node) | [`tools`](../packages/core/tools), [`workflow-ptc`](../packages/workflow/workflow-ptc), [`ptc-runtime-node`](../packages/ptc-runtime/ptc-runtime-node) | - | 解析并运行带类型化工具绑定的程序；Node 提供方还公开本地 code-runtime 兼容适配器。 |
+| `ctx.securityResearchController` | `core` | [`api-security-research-controller`](../packages/api/security-research-controller) | - | [`client-ui-settings-security`](../packages/client/ui-settings-security) | - | 通过各自所属服务提供评估范围、发现、证据产物与漏洞知识。 |
+| `ctx.sessionFeedback` | `core` | [`command-feedback`](../packages/feedback/command-feedback) | - | [`client-ui-message-feedback`](../packages/client/ui-message-feedback) | - | 在 Session 中记录人工反馈，不启动模型工作。 |
+| `ctx.sidebarGit` | `core` | [`sidebar-git`](../packages/git/sidebar-git) | - | [`api-sidebar-git-controller`](../packages/api/sidebar-git-controller), [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | 串行执行仓库修改，并为侧栏提供提交预览。 |
+| `ctx.sidebarGitController` | `core` | [`api-sidebar-git-controller`](../packages/api/sidebar-git-controller) | - | [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | 通过共享的 Git 所有者提供侧栏仓库状态与操作。 |
+| `ctx.sidebarTerminalController` | `core` | [`api-sidebar-terminal-controller`](../packages/api/sidebar-terminal-controller) | - | [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | 提供关联终端附着的输出、输入、尺寸调整、确认与释放。 |
+| `ctx.sidebarTerminals` | `seam` | [`sidebar-terminals`](../packages/terminal/sidebar-terminals) | [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | [`api-sidebar-terminal-controller`](../packages/api/sidebar-terminal-controller) | - | 为提供方管理的终端会话拥有附着身份与已确认输出。 |
+| `ctx.ssh` | `core` | [`ssh`](../packages/ssh/ssh) | - | [`fs-ssh`](../packages/ssh/fs-ssh), [`subprocess-ssh`](../packages/ssh/subprocess-ssh), [`sandbox-ssh`](../packages/ssh/sandbox-ssh) | - | 拥有经验证的辅助程序设置、RPC 传输、认证流与连接释放。 |
+| `ctx.terminalController` | `core` | [`api-terminal-controller`](../packages/api/terminal-controller) | - | [`client-ui-right-sidebar`](../packages/client/ui-right-sidebar) | - | 通过所属 Agent 与 Session 寻址并提供终端会话。 |
+| `ctx.usageController` | `core` | [`api-usage-controller`](../packages/api/usage-controller) | - | [`client-ui-settings-usage`](../packages/client/ui-settings-usage) | - | 向设置客户端提供有界用量查询。 |
+| `ctx.usageQuery` | `core` | [`usage-query`](../packages/session-query/usage-query) | - | [`api-usage-controller`](../packages/api/usage-controller) | - | 聚合实时与冷 Session 用量，支持取消并限制结果规模。 |
+| `ctx.voice` | `seam` | [`voice`](../packages/voice/voice) | [`voice-sherpa-onnx`](../packages/voice/voice-sherpa-onnx) | [`api-voice-controller`](../packages/api/voice-controller) | - | 通过已配置的本地语音提供方路由音频转写。 |
+| `ctx.voiceController` | `core` | [`api-voice-controller`](../packages/api/voice-controller) | - | [`client-ui-voice-dictation`](../packages/client/ui-voice-dictation) | - | 向听写客户端提供语音设置与转写请求。 |
+| `ctx.vulnKb` | `seam` | [`vuln-kb-service`](../packages/security/vuln-kb-service) | [`vuln-kb-nvd`](../packages/security/vuln-kb-nvd) | [`tool-vuln-kb`](../packages/security/tool-vuln-kb), [`api-security-research-controller`](../packages/api/security-research-controller) | - | 通过知识库提供方提供标准化漏洞查询。 |
+| `ctx.workspaceIsolation` | `seam` | [`workspace-isolation`](../packages/workspace/workspace-isolation) | [`workspace-isolation-git`](../packages/workspace/workspace-isolation-git) | [`api-session-controller`](../packages/api/session-controller), [`api-workspace-isolation-controller`](../packages/api/workspace-isolation-controller), [`api-work-items-controller`](../packages/api/work-items-controller), [`workspace`](../packages/workspace/workspace) | - | 管理隔离工作区租约及其比较、集成与休眠。 |
+| `ctx.workspaceIsolationController` | `core` | [`api-workspace-isolation-controller`](../packages/api/workspace-isolation-controller) | - | [`client-ui-workspace-isolation`](../packages/client/ui-workspace-isolation), [`client-ui-right-sidebar`](../packages/client/ui-right-sidebar) | - | 提供隔离工作区租约状态与集成控制。 |
+| `ctx.worktreeTask` | `seam` | [`worktree-task`](../packages/workspace/worktree-task) | [`worktree-task-git`](../packages/workspace/worktree-task-git) | [`api-worktree-task-controller`](../packages/api/worktree-task-controller), [`api-session-controller`](../packages/api/session-controller) | - | 拥有任务分支、worktree、Session 绑定与评审操作。 |
+| `ctx.worktreeTaskController` | `core` | [`api-worktree-task-controller`](../packages/api/worktree-task-controller) | - | [`client-ui-worktree-task`](../packages/client/ui-worktree-task), [`client-ui-right-sidebar`](../packages/client/ui-right-sidebar) | - | 向浏览器客户端提供任务 worktree 及其评审生命周期。 |
+| `ctx.pluginManager` | `core` | [`plugin-manager`](../packages/boot/plugin-manager) | - | [`client-ui-plugin-manager`](../packages/client/ui-plugin-manager) | - | 拥有持久组合变更、包操作、取消与 profile 重载结果。 |
+| `ctx.profileContext` | `core` | [`app-boot`](../packages/boot/app-boot) | - | [`plugin-manager`](../packages/boot/plugin-manager) | - | 启动器提供不可变的 profile 路径、启动选择与重载策略。 |
+| `ctx.workspaceChanges` | `core` | [`workspace-changes`](../packages/deliverables/workspace-changes) | - | [`client-ui-deliverables`](../packages/client/ui-deliverables) | - | 记录变更文件并提供摘要与比较，直到所属 Session 释放。 |
+| `ctx.workItems` | `seam` | [`work-items`](../packages/work-items/work-items) | [`work-items-github`](../packages/work-items/work-items-github), [`work-items-linear`](../packages/work-items/work-items-linear) | [`tool-work-items`](../packages/work-items/tool-work-items), [`api-work-items-controller`](../packages/api/work-items-controller) | - | 提供方拥有固定来源的请求；服务拥有不可变写入预览与持久回执。 |
+| `ctx.workItemsController` | `core` | [`api-work-items-controller`](../packages/api/work-items-controller) | - | [`client-ui-work-items`](../packages/client/ui-work-items) | - | 投影标准化议题，并独立于外部修改持久保存显式 Workspace 与 Session 关联。 |
 | `ctx.attachments` | `seam` | [`attachment`](../packages/attachment/attachment) | [`attachment-local`](../packages/attachment/attachment-local) | [`api-session-controller`](../packages/api/session-controller), [`tool-fs`](../packages/fs/tool-fs), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-deepseek`](../packages/llm/llm-deepseek) | - | 宿主会在会话事件之前提交已接受的图片；提供方适配器将已授权的持久引用解析为提供方原生内容。 |
 | `ctx.fileUploads` | `core` | [`client-file-upload`](../packages/client/file-upload) | - | [`api-session-controller`](../packages/api/session-controller) | - | 负责流式接收、持久存储和暂存回执生命周期；Session Controller 将回执绑定到已接受的提交。 |
 | `ctx.llm` | `seam` | [`llm`](../packages/llm/llm) | [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-replay`](../packages/test-support/llm-replay) | [`agent-loop`](../packages/core/agent-loop), [`compaction-basic`](../packages/compaction/compaction-basic) | - | 适配器注册提供方实现；agent loop（智能体循环）与压缩功能调用提供方无关的流服务。 |
@@ -539,7 +894,7 @@ flowchart LR
 | `ctx.directoryPicker` | `seam` | [`host-directory-picker`](../packages/host/directory-picker) | [`host-directory-picker-native`](../packages/host/directory-picker-native), [`host-directory-picker-browse`](../packages/host/directory-picker-browse) | [`api-workspace-controller`](../packages/api/workspace-controller) | - | 带判别标记的交互能力：原生后端在 Host 显示设备上打开一个操作系统选择器，浏览后端为应用内浏览器提供列表与创建原语；双端后端通过其浏览器侧填充 ui-workspace 目录流程的 slot（不通过协议发布）。 |
 | `ctx.webServer` | `core` | [`host-webserver`](../packages/host/webserver) | - | [`client-connection`](../packages/client/connection), [`client-modules`](../packages/client/modules), [`client-hmr`](../packages/client/hmr) | - | 普通的 node:http 载体：具名路由注册表、索引转换 tap，以及静态 dist 回退；Web 传输插件注册自己的路由。 |
 | `ctx.clientModules` | `core` | [`client-modules`](../packages/client/modules) | - | [`client-hmr`](../packages/client/hmr) | - | 通过增量 `dsh.client` 扫描组合 __DSH_BOOT__ 入口图，提供插件组合包，并通知重建／图变更订阅方。 |
-| `ctx.workflowEngine` | `seam` | [`workflow`](../packages/workflow/workflow) | [`workflow-worker-thread`](../packages/workflow/workflow-worker-thread) | [`tool-workflow`](../packages/workflow/tool-workflow), [`tool-ralph`](../packages/workflow/tool-ralph) | - | 每个上下文使用一个引擎，与 bash 相同，且没有具名提供方注册表；通用工作流与固定 Ralph 消费方启动运行，其中的 agent() 调用通过 ctx.subagents 扇出。 |
+| `ctx.workflowEngine` | `seam` | [`workflow`](../packages/workflow/workflow) | [`workflow-ptc`](../packages/workflow/workflow-ptc) | [`tool-workflow`](../packages/workflow/tool-workflow), [`tool-ralph`](../packages/workflow/tool-ralph) | - | 每个上下文使用一个引擎，与 bash 相同，且没有具名提供方注册表；通用工作流与固定 Ralph 消费方启动运行，其中的 agent() 调用通过 ctx.subagents 扇出。 |
 | `ctx.webhookRuntime` | `core` | [`webhook`](../packages/webhook/webhook) | - | [`webhook-github`](../packages/webhook/webhook-github) | - | 提供方适配器分派已认证交付；可信插件注册独立的进程本地规则，runtime 把非 null 结果转换为普通的 Workspace-backed Session，不保留交付或完成状态。 |
 | `ctx.lsp` | `seam` | [`lsp`](../packages/lsp/lsp) | [`lsp-stdio`](../packages/lsp/lsp-stdio) | [`tool-lsp`](../packages/lsp/tool-lsp) | - | 提供方注册与选择，加上恰好四种操作的标准化查询执行；该 seam 不提供协议逃生口，后端必须转换为标准化请求和结果。 |
 | `ctx.dynamicCordisRunner` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | 拥有内存定义注册表、Host 半的 vm 沙箱和 request-run 往返流程；浏览器页面通过其 Remote 命名空间在线访问同一服务。 |

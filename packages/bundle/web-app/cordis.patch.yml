@@ -45,10 +45,6 @@
     - id: workspace-changes
       name: '@deepseek-ai/dsh-workspace-changes'
 
-    - id: plugin-manager
-      name: '@deepseek-ai/dsh-plugin-manager'
-      disabled: !!js "!ctx.get('profileContext')"
-
     - id: ui-plugin-manager
       name: '@deepseek-ai/dsh-client-ui-plugin-manager'
 
@@ -56,9 +52,6 @@
     # delegation tools. The Plugins page edits this settings namespace.
     - id: subagent-model-selection-settings
       name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings'
-
-    - id: code-runtime
-      name: '@deepseek-ai/dsh-code-runtime-worker-thread'
 
     - id: message-feedback
       name: '@deepseek-ai/dsh-message-feedback'
@@ -484,6 +477,9 @@
 # exists, so there is no agent to key by. Behind a preset realm those variables
 # would never reach the model's shell at all.
 
+- id: tool-plugin-manager
+  disabled: true
+
 - id: tool-bash
   disabled: true
 
@@ -571,7 +567,7 @@
 - id: tool-subagent-fork
   disabled: true
 
-- id: workflow-worker-thread
+- id: workflow-ptc
   disabled: true
 
 - id: tool-workflow

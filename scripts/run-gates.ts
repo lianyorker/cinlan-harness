@@ -297,6 +297,7 @@ export function gatesForMode(selected: Mode): Gate[] {
 
 function ciSharedStaticGates(): Gate[] {
   return [
+    pnpmScript('workflow-guest', 'verify-workflow-guest', { label: 'workflow guest source' }),
     pnpmScript('runtime-closure', 'verify-runtime-closure', { label: 'runtime closure' }),
     pnpmScript('application-entrypoints', 'verify-application-entrypoints', { label: 'application entrypoints' }),
     pnpmScript('constraints', 'constraints'),
@@ -369,7 +370,7 @@ function nodeCompatSmokeGates(options: { cliSmoke?: boolean } = {}): Gate[] {
     pnpmExec('source-worker-smoke', [
       'vitest',
       'run',
-      'packages/workflow/workflow-worker-thread/tests/source-worker.compat.spec.ts',
+      'packages/workflow/workflow-ptc/tests/source-runtime.compat.spec.ts',
     ], { label: 'source worker smoke' }),
     pnpmExec('jsonl-zstd-smoke', [
       'vitest',
@@ -795,7 +796,7 @@ function builtBinSmokeGate(needs: string[] = ['build']): Gate {
     // Built execution consumers: the only automated proof that package-name
     // imports reach their lib/ entrypoints under plain Node. The e2e lane runs
     // unbuilt, so these files self-skip there.
-    'packages/workflow/workflow-worker-thread/tests/built-worker.e2e.ts',
+    'packages/workflow/workflow-ptc/tests/built-runtime.e2e.ts',
     'packages/code-runtime/code-runtime-worker-thread/tests/built-lib.e2e.ts',
     'packages/session/session-persistence-jsonl/tests/built-migration-worker.e2e.ts',
     'packages/lsp/lsp-stdio/tests/built-lib.e2e.ts',

@@ -22,6 +22,21 @@
 
 这些变体在 `declare module '@deepseek-ai/dsh-session/types'` 块内合并，因此——与其他子系统页面上的顶层类型不同——它们不以漂移检查的 ` ```ts type-equiv ` 块粘贴（`verify-type-equiv` 提取器只按名称匹配顶层声明）。上方的载荷表即为目录条目；权威字段请循源码链接查看。
 
+<a id="image-offload"></a>
+## 图片省略
+
+`compaction-image-offload` 拥有 `image/offload` 声明及其纯消息投影。每个目标指定当前输入节点和按深度优先计数的确切图片位置。事件保留节点和消息身份，不携带 `surfaceOp`。[包 README](../../packages/compaction/compaction-image-offload/README.zh.md)负责恢复策略、注册和独立回放说明。
+
+```ts type-equiv
+/** Exact input-image occurrences selected by one durable offload decision. */
+interface ImageOffloadTarget {
+  /** Current message-producing event containing these occurrences. */
+  seq: SessionSeq
+  /** Zero-based depth-first image indexes within the immutable message. */
+  imageIndexes: number[]
+}
+```
+
 ## `CompactionResult`
 
 成功压缩向调用方返回：记账事件 seq、安全摘要投影、被遮蔽的范围与 seq，以及估算 token 数。
@@ -235,4 +250,35 @@ pruneSession(session: Session): PruneResult
 Types: [ContentBlock](llm-streaming.zh.md) · [Session](session.zh.md)
 
 Source: [`packages/compaction/compaction-tool-result-pruner/src/index.ts`](../../packages/compaction/compaction-tool-result-pruner/src/index.ts)
+
+<a id="compaction-events"></a>
+
+### `compaction/*` events
+
+<a id="compactionsummary-error--waterfall"></a>
+
+#### `compaction/summary-error` — waterfall
+
+Recover a failed summary request by synchronously recording a durable change to its selected input. Return true only after making progress; the provider re-derives and re-prices the selection before retrying. Call next() when the failure cannot be recovered. Decisions survive a later summary failure or cancellation.
+
+```ts cordis-catalog
+/**
+ * Recover a failed summary request by synchronously recording a durable
+ * change to its selected input. Return true only after making progress;
+ * the provider re-derives and re-prices the selection before retrying.
+ * Call next() when the failure cannot be recovered. Decisions survive a
+ * later summary failure or cancellation.
+ * @param payload.session - session containing the selected input.
+ * @param payload.sourceEventSeqs - selected message events in request order.
+ * @param payload.error - failure thrown by the summarizer.
+ * @param payload.signal - optional compaction cancellation signal.
+ * @param next - delegate to the next recovery listener.
+ * @mode waterfall
+ */
+'compaction/summary-error'(payload: { session: Session; sourceEventSeqs: readonly SessionSeq[]; error: unknown; signal?: AbortSignal }, next: () => boolean): boolean
+```
+
+Types: [Session](session.zh.md) · [SessionSeq](session.zh.md)
+
+Source: [`packages/compaction/compaction/src/index.ts`](../../packages/compaction/compaction/src/index.ts)
 <!-- END GENERATED cordis-surface -->

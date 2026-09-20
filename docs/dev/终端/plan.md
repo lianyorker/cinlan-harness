@@ -1,14 +1,14 @@
 # 终端设置迁移计划：参考 orca 独立终端设置栏
 
+> 本文保留早期迁移计划的目标、阶段与风险，不代表当前实现清单。当前能力以[终端设置包说明](../../../packages/client/ui-settings-terminal/README.zh.md)为准；下文“拟新建（尚不存在）”只记录目录与拟议文件名，不是现有文件链接。
+
 > 参考 orca 的 `TerminalPane.tsx` 独立设置页，将 DSH-better-sidebar 的终端设置从侧边卡片 Modal 弹窗提升为 DSH Settings 的独立 section，并迁移 orca 已有但 DSH 缺失的终端功能。
 
 ## 现状对比
 
 ### DSH-better-sidebar 当前终端设置
 
-**位置**：嵌在侧边卡片设置页的 terminal tab 齿轮 Modal 弹窗里
-**入口**：`@/packages/client/ui-better-sidebar/src/client/builtins/tabs.tsx:233-268` 的 `settings.toggles`
-**渲染**：`@/packages/client/ui-better-sidebar/src/client/SideCardSection.tsx` 的 `SettingsBody` Modal
+**位置**：嵌在侧边卡片设置页的 terminal tab 齿轮 Modal 弹窗里 **入口**：`@/packages/client/ui-better-sidebar/src/client/builtins/tabs.tsx:233-268` 的 `settings.toggles` **渲染**：`@/packages/client/ui-better-sidebar/src/client/SideCardSection.tsx` 的 `SettingsBody` Modal
 
 **现有 6 项设置**：
 
@@ -41,8 +41,7 @@
 
 ### orca 终端设置（独立设置页）
 
-**位置**：DSH Settings 独立 section，标题"终端"
-**入口**：`@/orca/src/renderer/src/components/settings/TerminalPane.tsx`
+**位置**：DSH Settings 独立 section，标题"终端" **入口**：`@/orca/src/renderer/src/components/settings/TerminalPane.tsx`
 
 **6 个分区**：
 
@@ -196,7 +195,7 @@ terminalScrollbackRows: 10000,
 
 - `packages/client/ui-better-sidebar/src/prefs-shared.ts` — 新增偏好字段 + 默认值
 - `packages/client/ui-better-sidebar/src/client/builtins/tabs.tsx` — 从 terminal tab descriptor 的 `settings.toggles` 中移除 shell/font/tools/bottom 相关 toggles（它们移到独立 section）
-- `packages/client/ui-better-sidebar/src/client/TerminalSettingsSection.tsx` — **新建**，独立的终端设置 section 组件，注册到 DSH settings shell
+- [TerminalSettingsSection.tsx](../../../packages/client/ui-settings-terminal/src/client/TerminalSettingsSection.tsx) — **已有独立包实现**；本计划原拟在侧边卡片包中新增此组件，当前由 `ui-settings-terminal` 注册到 DSH settings shell
 - `packages/client/ui-better-sidebar/src/client/index.tsx` — 注册 `settings.section` id=`terminal`，order=110
 - `packages/client/ui-better-sidebar/src/client/locales.ts` — 新增终端设置 section 的 i18n 字符串
 
@@ -217,7 +216,7 @@ terminalScrollbackRows: 10000,
   - `on`：强制加载 WebGL，失败则报错
   - `off`：不加载 WebGL
   - 偏好变更时需要重新创建终端（WebGL addon 不能热切换），通过 store subscribe 检测 `terminalGpuAcceleration` 变化
-- `packages/client/ui-better-sidebar/src/client/TerminalSettingsSection.tsx` — 新增"渲染器"分区，Auto/On/Off 分段控件
+- [TerminalSettingsSection.tsx](../../../packages/client/ui-settings-terminal/src/client/TerminalSettingsSection.tsx) — 新增"渲染器"分区，Auto/On/Off 分段控件
 
 **参考**：orca `@/orca/src/renderer/src/components/settings/TerminalRenderingSection.tsx`
 
@@ -232,7 +231,7 @@ terminalScrollbackRows: 10000,
 **改动文件**：
 
 - `packages/client/ui-better-sidebar/src/client/TerminalView.tsx:127` — `scrollback: 4000` 改为 `scrollback: prefs.terminalScrollbackRows`
-- `packages/client/ui-better-sidebar/src/client/TerminalSettingsSection.tsx` — 新增"高级"分区，preset toggle（1k/5k/10k/50k）+ custom number input
+- [TerminalSettingsSection.tsx](../../../packages/client/ui-settings-terminal/src/client/TerminalSettingsSection.tsx) — 新增"高级"分区，preset toggle（1k/5k/10k/50k）+ custom number input
 - `packages/client/ui-better-sidebar/src/prefs-shared.ts` — 新增 `terminalScrollbackRows` 字段 + clamp 函数
 
 **参考**：orca `@/orca/src/renderer/src/components/settings/TerminalAdvancedSection.tsx:86-174`
@@ -316,7 +315,7 @@ terminalScrollbackRows: 10000,
 - `packages/client/ui-better-sidebar/src/pty-manager.ts` — 暴露 `listSessions()` API，返回活跃 `SidebarPty[]`（sessionId、tabId、shell、cwd、exited）
 - `packages/client/ui-better-sidebar/src/index.ts` — 在 `buildApi` 中新增 `terminal.sessions` 和 `terminal.kill` HTTP API 方法
 - `packages/client/ui-better-sidebar/src/client/api.ts` — 新增 `api.terminalSessions()` 和 `api.terminalKill(sessionId, tabId)` 客户端调用
-- `packages/client/ui-better-sidebar/src/client/TerminalSettingsSection.tsx` — 新增"会话管理"分区：
+- [TerminalSettingsSection.tsx](../../../packages/client/ui-settings-terminal/src/client/TerminalSettingsSection.tsx) — 新增"会话管理"分区：
   - 活跃会话表格（shell 名称、session ID、tab ID、cwd）
   - 每行一个 Kill 按钮
   - 全部 Kill 按钮
@@ -349,7 +348,7 @@ terminalScrollbackRows: 10000,
 
 | 文件 | 说明 |
 |---|---|
-| `packages/client/ui-better-sidebar/src/client/TerminalSettingsSection.tsx` | 独立终端设置 section 组件 |
+| [TerminalSettingsSection.tsx](../../../packages/client/ui-settings-terminal/src/client/TerminalSettingsSection.tsx) | 独立终端设置 section 组件 |
 
 ### 修改文件
 

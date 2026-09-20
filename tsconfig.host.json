@@ -146,6 +146,11 @@
     "packages/client/ui-better-sidebar/tests/**"
   ],
   "references": [
+    { "path": "./packages/util/lazy-require" },
+    { "path": "./packages/skill/skill-office" },
+    { "path": "./packages/workflow/workflow-ptc" },
+    { "path": "./packages/compaction/compaction-image-offload" },
+    { "path": "./packages/util/chunked-list" },
     { "path": "./packages/deliverables/tool-present" },
     { "path": "./packages/document/office-to-pdf" },
     { "path": "./packages/mcp/mcp-resources" },

@@ -123,6 +123,14 @@ describe('Remote event Host source', () => {
       },
     })
 
+    emitRaw(ctx, 'permission-presets/catalog-changed', [])
+    for (const stream of [first, second]) {
+      await expect(stream.next()).resolves.toEqual({
+        done: false,
+        value: { event: 'permission-presets/catalog-changed', args: [] },
+      })
+    }
+
     const firstDone = first.next()
     firstAbort.abort(new Error('first Client disconnected'))
     emitRaw(ctx, 'commands/change', [])

@@ -1,5 +1,7 @@
 # 计算机控制设置迁移计划：参考 orca 独立计算机控制设置栏
 
+> 本文保留早期迁移计划的目标、阶段与风险，不代表当前实现清单。当前能力以[计算机控制设置说明](../../../packages/client/ui-settings-security/README.zh.md)为准；下文“拟新建（尚不存在）”只记录目录与拟议文件名，不是现有文件链接。
+
 > 参考 orca 的 `ComputerUsePane.tsx` 独立设置页，将 DSH 的计算机控制功能从 `ui-settings-security` 的半实现状态提升为完整的 DSH Settings section，并迁移 orca 已有的权限管理 UI 和技能安装引导。
 
 ## 现状对比
@@ -150,7 +152,7 @@ orca 的 `ComputerUsePane` 包含两大模块：
 
 **文件变更**：
 
-1. **新建** `@/packages/client/ui-settings-security/src/client/ComputerSettingsSection.tsx`
+1. **拟新建（尚不存在）**：在 [ui-settings-security/src/client](../../../packages/client/ui-settings-security/src/client/) 下创建 `ComputerSettingsSection.tsx`。当前页面由 [CapabilitySection.tsx](../../../packages/client/ui-settings-security/src/client/CapabilitySection.tsx) 中的 `ComputerCapabilityBody` 实现，未拆为此拟议文件。
    - 从 `CapabilitySection.tsx:231-248` 提取 `ComputerCapabilityBody`
    - 添加独立的 section header 和注册逻辑
    - 结构：Provider 状态卡 → 安装命令 → 功能说明卡片
@@ -177,7 +179,7 @@ orca 的 `ComputerUsePane` 包含两大模块：
 
 **文件变更**：
 
-1. **新建** `@/packages/client/ui-settings-security/src/client/ComputerPermissionPolicySection.tsx`
+1. **拟新建（尚不存在）**：在 [ui-settings-security/src/client](../../../packages/client/ui-settings-security/src/client/) 下创建 `ComputerPermissionPolicySection.tsx`
    - 四行 select 控件，每行：图标 + 标签 + 描述 + allow/ask/deny 下拉
    - 通过 `settingsScope` 绑定 `computer-use-permission-policy` namespace
    - 保存时调用 `ctx.remote.settings.mutate`
@@ -208,7 +210,7 @@ orca 的 `ComputerUsePane` 包含两大模块：
 
 **文件变更**：
 
-1. **新建** `@/packages/client/ui-settings-security/src/client/ComputerOSPermissionsSection.tsx`
+1. **拟新建（尚不存在）**：在 [ui-settings-security/src/client](../../../packages/client/ui-settings-security/src/client/) 下创建 `ComputerOSPermissionsSection.tsx`。当前只读能力与未探测权限说明见 [ComputerObservations.tsx](../../../packages/client/ui-settings-security/src/client/ComputerObservations.tsx)，不等同于本阶段拟议的 OS 权限操作。
    - 平台检测：仅 `platform === 'darwin'` 显示
    - 顶部摘要卡：ShieldCheck + 状态标题 + Ready 徽章 + 刷新按钮
    - 权限行列表：Accessibility + Screenshots，每行图标 + 标签 + 状态徽章 + Open 按钮
@@ -237,7 +239,7 @@ orca 的 `ComputerUsePane` 包含两大模块：
 
 **文件变更**：
 
-1. **新建** `@/packages/client/ui-settings-security/src/client/ComputerUseSetupGuide.tsx`
+1. **拟新建（尚不存在）**：在 [ui-settings-security/src/client](../../../packages/client/ui-settings-security/src/client/) 下创建 `ComputerUseSetupGuide.tsx`。当前启动命令与就绪检查见 [CapabilitySection.tsx](../../../packages/client/ui-settings-security/src/client/CapabilitySection.tsx) 中的 `ComputerCapabilityBody`。
    - 简化版：显示 `dsh --profile device-control` 命令 + 复制按钮
    - Provider 就绪状态徽章（复用现有 `checkDevice`）
    - 无需终端内安装（DSH 的 profile 启动方式不同）
@@ -252,7 +254,7 @@ orca 的 `ComputerUsePane` 包含两大模块：
 
 **文件变更**：
 
-1. **新建** `@/packages/client/ui-settings-security/src/client/ComputerPreviewSection.tsx`
+1. **拟新建（尚不存在）**：在 [ui-settings-security/src/client](../../../packages/client/ui-settings-security/src/client/) 下创建 `ComputerPreviewSection.tsx`
    - "测试观察" 按钮：调用 `ctx.remote.computerUse.observe()` 获取截图 + 无障碍树
    - 截图显示区：`<img src="data:image/png;base64,...">`
    - 无障碍树折叠树：JSON 折叠展示

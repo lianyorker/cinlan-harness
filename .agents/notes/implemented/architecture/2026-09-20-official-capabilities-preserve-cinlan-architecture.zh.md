@@ -32,7 +32,7 @@ Desktop 保留私有 npm 项目、分阶段包事务、恢复机制、私有 pnp
 
 [present 工具](../../../../packages/deliverables/tool-present/src/index.ts)只在工具成功结算后记录已声明且存在的文件。其 `deliverables/presented` 事件要求读取方识别：不认识该事件的读取方拒绝日志。文件预览、默认应用打开及定位操作通过授权解析已记录的 Session、事件和文件坐标。交付引用打开当前源文件，不是不可变副本。新增事件支持遵循[已发布会话规则](2026-08-31-released-session-format-migrations.zh.md)，不改写已提交的 JSONL 代际。
 
-反馈分类仍是反馈领域拥有的可选元数据。提交才追加记录，草稿编辑和关闭对话框不追加记录。分类变化参与 compare-and-swap，不改写历史，也不放宽历史读取校验。现有原生 v3 元数据支持承载这些记录，模型消息保持原语义。[反馈证据](../../../../.artifacts/official-016-audit/feedback-implementation.md)记录真实 JSONL 重开测试，以及浏览器、SDK 和 Win32 mock 验证各自的限制。
+反馈分类仍是反馈领域拥有的可选元数据。提交才追加记录，草稿编辑和关闭对话框不追加记录。分类变化参与 compare-and-swap，不改写历史，也不放宽历史读取校验。现有原生 v3 元数据支持承载这些记录，模型消息保持原语义。[持久化测试](../../../../packages/session/session-log-deepseek/tests/feedback-composition.spec.ts)覆盖真实 JSONL 重开；浏览器、SDK 和 Win32 行为需要各自验证。
 
 ### 可选提供方
 

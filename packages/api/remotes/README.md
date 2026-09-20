@@ -44,6 +44,8 @@ The listener signature is not restated here. Each allowlisted event's Cordis `Ev
 
 The Host entry registers an independent allowlist listener set and queue for each Client stream. It rejects non-JSON ordinary-event arguments before enqueueing. For a waterfall, it projects only the top-level Agent identity and JSON request fields; a Client result must also be lossless JSON, while `next()` delegates to the following Host listener. Each scoped waterfall request must carry its routed Agent directly as `request.agent`; the Host rejects a missing or mismatched identity before forwarding. The source attaches all listeners synchronously before `ctx.typertGateway.registerRemoteEvents()` exposes Gateway's internal `$events` logical stream, so its first `ready` item proves that incremental delivery is active and carries the Host home for Client path display. Withdrawing the registration aborts active streams.
 
+The assembly forwards [permission catalog](../../interaction/permission-presets/README.md) changes to connected Clients. Clients query the catalog when they connect and after a change notification; the catalog owner supplies the current options independently of Session history.
+
 <a id="build-boundary"></a>
 ## Build boundary
 

@@ -44,6 +44,8 @@ Client 组合挂载 Commands、凭据、settings、Goal、动态 Cordis、文件
 
 Host entry 为每条 Client stream 独立注册 allowlist listener 和队列，并在普通事件入队前拒绝非 JSON 参数。对于 waterfall，它只投影顶层 Agent 身份与 JSON 请求字段；Client 结果也必须能无损表示为 JSON，而 `next()` 会委托给后续 Host listener。每个作用域 waterfall 请求都必须以 `request.agent` 直接携带路由所用的 Agent；Host 会在转发前拒绝缺失或不匹配的身份。该 source 在 `ctx.typertGateway.registerRemoteEvents()` 暴露 Gateway 内部的 `$events` logical stream 前同步挂好所有 listener，因此首个 `ready` 项既能证明增量投递已就绪，也会携带供 Client 显示路径的 Host home。撤回注册会中止活动 stream。
 
+本装配向已连接的 Client 转发[权限目录](../../interaction/permission-presets/README.zh.md)变化。Client 在连接时和收到变化通知后查询目录；目录 owner 独立于 Session 历史提供当前选项。
+
 <a id="build-boundary"></a>
 ## 构建边界
 

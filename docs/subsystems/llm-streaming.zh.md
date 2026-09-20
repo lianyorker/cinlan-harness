@@ -246,6 +246,13 @@ interface LlmFailure {
   readonly providerRetryAfterMs?: number
   /** Opaque provider-issued request identifier for diagnostics. */
   readonly requestId?: ProviderRequestId
+  /**
+   * With code `IMAGE_OFFLOAD_REQUIRED`: how many more of the oldest retained
+   * image occurrences the route needs offloaded before the same request fits
+   * its exact byte accounting. `dsh-compaction-image-offload` records the
+   * selected occurrences in an `image/offload` event and retries the step.
+   */
+  readonly offloadImages?: number
 }
 ```
 
@@ -280,10 +287,11 @@ interface LlmImageRequestPrice {
 interface LlmImageRequestPricing {
   /**
    * Price every image occurrence of one request projection.
-   * @param images - durable image references in request order, one entry per occurrence.
+   * @param images - surface image blocks in request order, one entry per occurrence; an `offloaded` block
+   *   is priced as its placeholder text.
    * @returns one price per occurrence, aligned by index with `images`.
    */
-  priceImages(images: readonly ImageAttachmentRef[]): readonly LlmImageRequestPrice[]
+  priceImages(images: readonly ImageBlock[]): readonly LlmImageRequestPrice[]
 }
 ```
 

@@ -73,6 +73,8 @@ export interface LogEventEntry {
   doc: string
   /** Source pointer `packages/…/file.ts:line` of the declaration. */
   source: string
+  /** Whether interpretation requires a plugin-owned message projection. */
+  messageProjection?: true
 }
 
 /** A {@link LogEventEntry} plus its surface-eligibility badge. */
@@ -234,7 +236,8 @@ export function collectLogEvents(scanRoot: string = root): LogEventEntry[] {
           violations.push(`${where} has no description prose. Say what the event records and what its payload means — the JSDoc becomes the catalog entry.`)
         }
         const declaration = declarationText(text, sf, member)
-        entries.push({ name, scope: name.split('/')[0] ?? name, payload, declaration, doc, source: src })
+        const messageProjection = ts.getJSDocTags(member).some(tag => tag.tagName.text === 'messageProjection')
+        entries.push({ name, scope: name.split('/')[0] ?? name, payload, declaration, doc, source: src, ...messageProjection ? { messageProjection: true as const } : {} })
       }
     }
   }
@@ -331,6 +334,11 @@ export function annotateSurface(events: LogEventEntry[], surfaceTypes: string[])
     throw new Error(`gen-persistence-catalog: SurfaceEventType member(s) ${stale.map(t => `'${t}'`).join(', ')} name no declared log event (stale union member?).`)
   }
   const surface = new Set(surfaceTypes)
+  for (const event of events) {
+    if (event.messageProjection && surface.has(event.name)) {
+      throw new Error(`gen-persistence-catalog: '${event.name}' cannot declare both a message projection and surface operations.`)
+    }
+  }
   return events.map(e => ({ ...e, surface: surface.has(e.name) }))
 }
 
@@ -347,8 +355,9 @@ function typeLinks(payload: string): string {
 
 /** Render one log event entry. */
 function renderEvent(e: AnnotatedLogEventEntry): string[] {
-  const heading = `${e.name} — ${e.surface ? 'surface' : 'log-only'}`
-  const out = [`<a id="${githubSlug(heading)}"></a>`, '', `#### \`${e.name}\` — ${e.surface ? 'surface' : 'log-only'}`, '']
+  const badge = e.surface ? 'surface' : e.messageProjection ? 'message-projection' : 'log-only'
+  const heading = e.name + ' — ' + badge
+  const out = ['<a id="' + githubSlug(heading) + '"></a>', '', '#### `' + e.name + '` — ' + badge, '']
   out.push('```' + FENCE, e.declaration, '```', '')
   const links = typeLinks(e.payload)
   if (links) out.push(links, '')
@@ -368,7 +377,7 @@ export function render(events: AnnotatedLogEventEntry[], envelopeTypes: EventEnv
     '',
     'This file is GENERATED from source (`scripts/gen-persistence-catalog.ts`) and verified fresh by `pnpm run verify-persistence-catalog` (part of `doc-sync`) — do not edit it by hand. Declaration blocks retain the source declaration and nested property JSDoc, removing only the indentation imposed by a containing interface/module, and use a `ts persistence-catalog` fence (skipped by doc-typecheck because declarations reference types from their owning modules). Type names in a payload link to the page that documents them. The archived [persistence-log-catalog record](../.agents/notes/archived/process/2026-07-04-persistence-log-catalog.md) documents the original catalog decision.',
     '',
-    'The envelope declarations below compose each event\'s `type`, monotonic `seq`, epoch-ms `time`, `data`, the optional `ignorable` unknown-type skip marker, and the conditional `surfaceOp`/`sourceEventSeqs` fields. **surface** marks a `SurfaceEventType` member: it produces an LLM message and declares how it joins the surface list. **log-only** marks everything else: a durable, replayable record with no derived-history contribution. Every payload is JSON-serializable (enforced at `Session.append`). Current writers stamp `SESSION_FORMAT_VERSION`; supported historical artifacts reach this current vocabulary through the build-static adjacent migration catalog ([the version lifecycle](subsystems/persistence.md)). Scope: the packages in this repo; a downstream plugin can merge further current-version event types, which are outside this catalog by construction and require an explicit disposition at a later format edge.',
+    'The envelope declarations below compose each event\'s `type`, monotonic `seq`, epoch-ms `time`, `data`, the optional `ignorable` unknown-type skip marker, and the conditional `surfaceOp`/`sourceEventSeqs` fields. **surface** marks a `SurfaceEventType` member: it produces an LLM message and declares how it joins the surface list. **message-projection** marks an event whose pure interpreter changes existing message content without adding a surface node. **log-only** marks durable records without a derived-history contribution. Every payload is JSON-serializable (enforced at `Session.append`). Current writers stamp `SESSION_FORMAT_VERSION`; supported historical artifacts reach this current vocabulary through the build-static adjacent migration catalog ([the version lifecycle](subsystems/persistence.md)). Scope: the packages in this repo; a downstream plugin can merge further current-version event types, which are outside this catalog by construction and require an explicit disposition at a later format edge.',
     '',
     '## Event envelope',
     '',
@@ -422,6 +431,11 @@ export function renderKnownEventTypes(events: AnnotatedLogEventEntry[]): string 
     ' */',
     'export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([',
     ...names.map(name => `  '${name}',`),
+    '])',
+    '',
+    '/** Event types whose model-visible effects require an explicit pure interpreter. */',
+    'export const MESSAGE_PROJECTION_EVENT_TYPES: ReadonlySet<string> = new Set([',
+    ...events.filter(event => event.messageProjection).map(event => `  '${event.name}',`).sort(),
     '])',
     '',
   ].join('\n')
