@@ -33,7 +33,7 @@ v4→v5 的唯一实质差异是 identity 新增两个 lineage 字段；v6 只�
 声明式读兼容——读容忍 owner 背书过的旧版本，写恒戳当前版本：
 
 1. **`DomainSpec.compatibleVersions`（新增，可选）**：域 owner 声明"这些旧版本的存量记录在当前记录 schema 下也可读"（典型手段：新增字段标 optional）。`defineDomain` 校验各项为小于当前 version 的非负整数；`descriptorOf` 透传到后端 `KvUnitDescriptor`。
-2. **json 后端 per-record 读**：接受"当前版本 ∪ compatibleVersions"内的版本戳，集合外照旧视为 foreign 丢弃；**写路径永远戳当前版本**（读到旧记录后的下一次 checkpoint 自然把它推进到当前版本）。single 布局维持 exact-version 不变。
+2. **json 后端 per-record 读**：接受"当前版本 ∪ compatibleVersions"内的版本戳，集合外照旧视为 foreign 丢弃；**写路径永远戳当前版本**（读到旧记录后的下一次 checkpoint 自然把它推进到当前版本）。整单元 JSON 与 SQLite 兼容性遵循独立的[兼容单元升级决策](2026-09-20-compatible-storage-unit-upgrades.zh.md)。
 3. **legacy bootstrap 版本把关（bug 修复本体）**：旧单文件的 `unit.version` 必须落在接受集合内才迁移，否则视为空 unit 留在原地——为 owner 未背书的记录打当前版本戳，会把"可丢弃的过期缓存"变成 domain 层的 schema 硬失败。
 4. **projcache 域声明 `version: 7, compatibleVersions: [3, 4, 5, 6]`**；存储 schema 中的格式与 lineage identity 字段均为 optional，使 owner 背书的前代记录可以打开。当前写入始终包含这三个字段。
 5. **identity 匹配比结构准入更严格**：缺失 `formatVersion` 的记录绝不匹配当前 Session，因此前代行不能播种投影，而会从权威日志重新折叠。格式匹配后，`identityMatches` 才把缺失 lineage 归一化为 unseeded（`?? false` / `?? 0`）：对 unseeded 会话精确，对 seeded 期望则匹配失败。v5 投毒 home 因而可以安全启动，但其未绑定行不会作为当前值暴露。
@@ -64,7 +64,7 @@ v4→v5 的唯一实质差异是 identity 新增两个 lineage 字段；v6 只�
 
 ## 影响
 
-- 部署方若把本域路由到 sqlite 后端，得不到任何容忍能力：sqlite 既未实现 `compatibleVersions` 也没有 `backupRecord`，行为退化为原有的严格版本语义（整 unit 版本不匹配仍 `version-mismatch` 拒开；不放松、不出错值）。shipped 组合固定路由 json，此风险仅存在于部署配置层面。
+- SQLite 接受明确兼容的旧单元版本，但没有 `backupRecord`；schema 无效的记录仍使整个领域拒绝打开，而不执行 JSON 逐记录的 backup-and-skip。发布组合将本领域路由到 JSON。
 - optional 格式字段允许前代记录通过结构校验，但缺失格式始终无法通过当前 identity 匹配。只有格式匹配后才归一化 optional lineage；seeded 调用方仍拒绝缺 lineage 的记录。逐行 `ver` 守卫继续筛查每个实际服务的值。
 - `backupRecord` 对同一键的同一分钟内重复备份会覆盖前一份（新字节胜出）；不同分钟、不同键永不冲突。
 

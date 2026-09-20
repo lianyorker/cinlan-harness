@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-storage-sqlite` is a storage backend that hosts every routed unit in one SQLite database file, storing each record as one JSON document per row, registered as backend `sqlite`. A single record update touches exactly one row, which is what makes this the right medium for high-frequency, point-sized writes. Choose it when a domain's data changes often or the deployment prefers one queryable database; choose the JSON backend when the data should be readable as plain files. The backend is host-side only: it contributes no prompt, tool, or schema, so the model and the agent loop never see it.
+`dsh-storage-sqlite` is a storage backend that hosts every routed unit in one SQLite database file, storing each record as one JSON document per row, registered as backend `sqlite`. A single record update touches one data row and its unit stamp, which is what makes this the right medium for high-frequency, point-sized writes. Choose it when a domain's data changes often or the deployment prefers one queryable database; choose the JSON backend when the data should be readable as plain files. The backend is host-side only: it contributes no prompt, tool, or schema, so the model and the agent loop never see it.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Use this package when a composition keeps frequently updated domain data in one 
 
 ### When to choose it
 
-Choose it when writes are frequent and point-sized — each key maps to exactly one row, so updating one record touches one row instead of rewriting a whole file. Choose the JSON backend when humans inspect or edit the stored data as plain files. The synchronous `node:sqlite` driver blocks the JavaScript thread for the duration of each single-statement call, which is fine at domain-data scale but worth accounting for at high write rates.
+Choose it when writes are frequent and point-sized — each key maps to exactly one row, so updating one record touches its data row and unit stamp instead of rewriting a whole file. Choose the JSON backend when humans inspect or edit the stored data as plain files. The synchronous `node:sqlite` driver blocks the JavaScript thread for the duration of each mutation transaction, which is fine at domain-data scale but worth accounting for at high write rates.
 
 ### Configuration
 
@@ -54,7 +54,7 @@ Two fields: the database path and the journal mode. `:memory:` opens an in-proce
 
 ### Observable behavior
 
-Missing directories and database files are created owner-only (`0o700`/`0o600`); an existing database keeps its modes. A unit whose stored format version differs from its descriptor rejects `version-mismatch`, and a database stamped with a physical layout version other than the current one rejects outright — no migration, pre-release stance. Failures carry stable `StorageError` codes, and writes are durable once resolved.
+Missing directories and database files are created owner-only (`0o700`/`0o600`); an existing database keeps its modes. A unit accepts its current version or an explicitly listed older `compatibleVersions` entry; every other stamp rejects `version-mismatch`. Opening and `loadAll()` do not upgrade an accepted stamp or rewrite stored values. The first successful mutation commits the record or global change and current unit stamp together. Physical database layout remains exact-version: any other `PRAGMA user_version` rejects. Failures carry stable `StorageError` codes, and writes are durable once resolved.
 
 -----
 
@@ -64,14 +64,14 @@ Missing directories and database files are created owner-only (`0o700`/`0o600`);
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The backend is a document-per-row layout over one `node:sqlite` connection, designed so a per-key update is a single prepared statement.
+The backend uses a document-per-row layout over one `node:sqlite` connection; each mutation commits its prepared data statement and unit version stamp in one transaction.
 
 ### Design concept
 
-- **Document per row.** Each unit table becomes a physical STRICT table `u_<unit>_<table> (key TEXT PRIMARY KEY, value TEXT)` whose `value` column holds the record's JSON text; the global singleton lives in a shared `unit_globals` table. One key update touches exactly one row — the reason to route a high-churn domain here.
-- **Single-statement atomicity.** Every write primitive is one prepared statement, so SQLite's per-statement atomicity satisfies the KV contract without explicit transactions; write ordering stays the caller's responsibility (the domain layer's write chain).
+- **Document per row.** Each unit table becomes a physical STRICT table `u_<unit>_<table> (key TEXT PRIMARY KEY, value TEXT)` whose `value` column holds the record's JSON text; the global singleton lives in a shared `unit_globals` table. One key update touches one data row plus unit metadata — the reason to route a high-churn domain here.
+- **Data and version commit together.** `putRecord`, `deleteRecord`, and `setGlobal` use `BEGIN IMMEDIATE`, recheck the stored current or accepted older stamp, perform the mutation, update `units.version`, and commit. A failure rolls back both changes. An older open handle rejects writes after another handle commits a newer stamp; write ordering within a domain remains the caller's responsibility.
 - **Names validated before DDL.** Unit and table names must match `UNIT_NAME_RE` before they reach DDL, so no external input is ever interpolated into SQL identifiers.
-- **Versions fail loud.** The physical layout version lives in `PRAGMA user_version` (fresh databases stamp it last); unit format versions live in the `units` table. Any other stamped value rejects — no migrations.
+- **Versions fail loud.** The physical layout version lives in `PRAGMA user_version` (fresh databases stamp it last); unit format versions live in the `units` table. `compatibleVersions` applies only to the latter. No physical DDL changes accompany compatible unit upgrades, so `STORAGE_SQLITE_SCHEMA_VERSION` is unchanged.
 
 ### Open sequence
 
@@ -84,7 +84,7 @@ Opening the database creates the parent as `0o700`, exclusively creates a missin
 | [`src/index.ts`](src/index.ts) | Plugin entry: backend registration, `path`/`journalMode` config, unit table |
 | [`src/schema.ts`](src/schema.ts) | Open sequence, physical layout version, metadata tables, record table naming |
 | [`src/unit.ts`](src/unit.ts) | One opened unit: prepared statements, JSON value parse, close |
-| — | No runtime invariant companion is published; schema-version and unit-version consistency are open-time checks that reject before a unit exists, and durability needs the backend round-trip tests in the shared KV conformance suite; this package exposes no continuously observable in-process relation. |
+| — | No runtime invariant companion is published; physical layout validation runs at open and unit-stamp validation runs at open and each mutation; durability requires backend round-trip and rollback tests; this package exposes no continuously observable in-process relation. |
 
 </details>
 
@@ -126,7 +126,7 @@ None — the backend never touches live request prefixes.
 
 These limits define when this backend is a poor fit or needs special operational care. They are current package constraints, not a task backlog.
 
-- **Synchronous driver blocks the event loop** — each write is a synchronous `DatabaseSync` call; the block lasts a single statement, which is acceptable at domain-data scale.
+- **Synchronous driver blocks the event loop** — each write is a synchronous `DatabaseSync` transaction; the block includes stamp validation, the data statement, and the stamp update, which is acceptable at domain-data scale.
 - **No busy-wait or retry policy** — a competing connection holding a write lock rejects the operation immediately instead of waiting; the domain layer's write chain serializes writes within one process, and cross-process coordination is out of scope.
 - **Only the current physical layout version opens** — any other stamped `user_version` is rejected rather than migrated (pre-release stance).
 - **Open sequence duplicated with the query provider** — `openDatabase` and `session-query-sqlite` both enforce SQLite file ownership, but each package owns a distinct application identity and schema; no shared medium helper couples them.

@@ -150,7 +150,7 @@ domain.table('workspaces').update(id, (r) => ({ ...r, path: newPath }))
 
 - **变更只在单进程内可见**——`domain/changed` 是进程内事件；在跨进程修订模式落地前，第二个主机进程或重新连接的 GUI 无法观察变更（[Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.zh.md)）。
 - **没有跨表事务、二级索引或多段键**——每次写入只触碰一条记录；这些扩展列在 Agent Note 的范围外清单中。
-- **没有数据迁移**——已存版本与 spec 不同的领域会在打开时拒绝（`version-mismatch`）；修改 schema 需要手工迁移已存数据。
+- **不转换记录**——`compatibleVersions` 只接纳明确列出且当前记录和全局值 schema 已能接受的旧版本。整单元 JSON 与 SQLite 在首次成功写入前保留存储版本戳；不兼容数据仍需所有者定义的迁移。这不改变 Session JSONL 代次。
 
 <a id="dev-note"></a>
 ### 开发备注

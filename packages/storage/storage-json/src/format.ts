@@ -63,7 +63,7 @@ export function parse(text: string, descriptor: KvUnitDescriptor): UnitState {
     throw new StorageError('malformed-medium', `unit '${descriptor.name}': missing or foreign unit header`)
   }
   const version = (unit as Record<string, unknown>)['version'] as number
-  if (version !== descriptor.version) {
+  if (version !== descriptor.version && !(version < descriptor.version && descriptor.compatibleVersions?.includes(version))) {
     throw new StorageError(
       'version-mismatch',
       `unit '${descriptor.name}': stored version ${version} != expected ${descriptor.version}`,
@@ -72,7 +72,7 @@ export function parse(text: string, descriptor: KvUnitDescriptor): UnitState {
   if (typeof tables !== 'object' || tables === null) {
     throw new StorageError('malformed-medium', `unit '${descriptor.name}': tables is not an object`)
   }
-  const state: UnitState = { version, global: globalValue ?? null, tables: new Map() }
+  const state: UnitState = { version: descriptor.version, global: globalValue ?? null, tables: new Map() }
   for (const table of descriptor.tables) {
     const records = (tables as Record<string, unknown>)[table]
     if (records === undefined) {

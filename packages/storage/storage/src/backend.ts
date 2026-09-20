@@ -31,9 +31,12 @@ export interface KvFacet {
   /**
    * Open one unit, creating it when the medium holds no trace of it yet
    * (materialization may defer to the first write, but {@link KvUnit.loadAll}
-   * must immediately serve the empty shape). A version already stamped on the
-   * medium that differs from `descriptor.version` rejects with
-   * `version-mismatch`; a medium that cannot be parsed as this unit rejects
+   * must immediately serve the empty shape). An existing unit accepts the
+   * current version or an explicitly listed older compatible version; any
+   * other unit stamp rejects with `version-mismatch`. Compatible whole-unit
+   * reads preserve stored values and the version stamp; the first successful
+   * write publishes its change and the current stamp atomically. Per-record
+   * admission follows the descriptor layout. A medium that cannot be parsed as this unit rejects
    * with `malformed-medium`. Opening the same unit name twice without closing
    * is a caller bug and rejects.
    * @param descriptor - Static identity and shape of the unit to open.
@@ -63,12 +66,13 @@ export interface KvUnitDescriptor {
   readonly layout?: 'single' | 'per-record'
   /**
    * Older unit versions whose stored records are also readable under the
-   * declaring owner's current record schemas (the owner vouches for that —
-   * typically by declaring the fields old records lack as optional). Reads of
-   * a `per-record` unit accept documents stamped with any listed version, and
-   * the legacy whole-unit bootstrap accepts a legacy file stamped with one;
-   * writes always stamp {@link version}. `single`-layout reads stay
-   * exact-version.
+   * declaring owner's current record and global schemas. Each entry must be
+   * a non-negative integer below {@link version}; compatibility is explicit,
+   * never inferred from a lower stamp. Whole-unit JSON and SQLite reads accept
+   * these versions without upgrading stored data or the stamp; the first
+   * successful write publishes the current stamp with its data change.
+   * Per-record reads and legacy whole-unit bootstrap accept listed stamps;
+   * each published record always carries the current version.
    */
   readonly compatibleVersions?: readonly number[]
 }

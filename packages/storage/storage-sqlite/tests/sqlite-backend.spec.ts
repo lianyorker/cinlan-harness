@@ -42,6 +42,30 @@ const DESCRIPTOR: KvUnitDescriptor = {
 }
 
 describe('sqlite backend specifics', () => {
+  it('rolls back a version advance with a failed write and rejects a stale open writer', async () => {
+    const path = await freshDbPath()
+    const oldBackend = backendAt(path)
+    const nextBackend = backendAt(path)
+    const inspect = new DatabaseSync(path)
+    try {
+      const oldUnit = await oldBackend.kv.open(DESCRIPTOR)
+      await oldUnit.putRecord('records', 'legacy', { n: 1 })
+      const nextUnit = await nextBackend.kv.open({ ...DESCRIPTOR, version: 2, compatibleVersions: [1] })
+      inspect.exec("CREATE TRIGGER reject_record BEFORE INSERT ON u_specimen_records WHEN NEW.key = 'bad' BEGIN SELECT RAISE(ABORT, 'test rejects write'); END")
+      await expect(nextUnit.putRecord('records', 'bad', { execution: { kind: 'ssh' } })).rejects.toThrow('test rejects write')
+      expect(inspect.prepare('SELECT version FROM units WHERE name = ?').get(DESCRIPTOR.name)).toMatchObject({ version: 1 })
+      expect((await nextUnit.loadAll()).tables['records']).toEqual({ legacy: { n: 1 } })
+      await nextUnit.setGlobal({ execution: { kind: 'local' } })
+      expect(inspect.prepare('SELECT version FROM units WHERE name = ?').get(DESCRIPTOR.name)).toMatchObject({ version: 2 })
+      await expect(oldUnit.putRecord('records', 'stale', {})).rejects.toMatchObject({ code: 'version-mismatch' })
+      expect((await nextUnit.loadAll()).tables['records']).toEqual({ legacy: { n: 1 } })
+    } finally {
+      inspect.close()
+      await nextBackend.close()
+      await oldBackend.close()
+    }
+  })
+
   it('opens an in-memory database', async () => {
     const backend = backendAt(':memory:')
     const unit = await backend.kv.open(DESCRIPTOR)
