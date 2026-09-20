@@ -46,6 +46,7 @@
     "apps/web/tests/settings-floating.e2e.ts",
     "apps/web/tests/device-capabilities.e2e.ts",
     "apps/web/tests/security-capabilities.e2e.ts",
+    "apps/web/tests/security-resources.e2e.ts",
     "apps/web/tests/native-browser-settings.e2e.ts",
     "apps/web/tests/work-items.e2e.ts",
     "apps/web/tests/models-settings.e2e.ts",

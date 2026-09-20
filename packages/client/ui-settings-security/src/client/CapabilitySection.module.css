@@ -64,9 +64,8 @@
 .cardTitle { min-width: 0; overflow-wrap: anywhere; }
 .card > span:last-child { flex: none; }
 
-.browserPreferences, .securityEditor, .securityReport { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.securityEditor, .securityReport { padding-top: 20px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
-.settingRow, .securityEditor label, .securityReport label {
+.browserPreferences { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.settingRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
   align-items: center;
@@ -77,7 +76,7 @@
   font-size: 14px;
   line-height: 20px;
 }
-.settingRow > span, .securityEditor label > span, .securityReport label > span { min-width: 0; overflow-wrap: anywhere; }
+.settingRow > span { min-width: 0; overflow-wrap: anywhere; }
 .settingRow > button { justify-self: end; }
 .settingControl { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .section input:not([type='checkbox']), .section select, .section textarea {
@@ -99,10 +98,6 @@
 .section input[type='checkbox'] { justify-self: end; width: 18px; height: 18px; accent-color: var(--dsw-alias-state-business-primary); }
 .section textarea { resize: vertical; border-radius: 12px; font-family: var(--dsw-font-mono); font-size: 12px; }
 .section input[type='file'] { border-radius: 12px; font-size: 12px; }
-.securityEditor fieldset fieldset { margin-top: 16px; padding: 12px 0; border-top: 0.5px solid var(--dsw-alias-border-l2); }
-.securityEditor legend { padding: 0; font-size: 14px; font-weight: 500; line-height: 20px; }
-.securityEditor fieldset.accessRow { padding: 14px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 12px; }
-.securityEditor fieldset.accessRow label { grid-template-columns: minmax(0, 1fr) minmax(0, 280px); }
 .browserActions, .installActions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; padding-top: 12px; }
 .browserActions input { flex: 1 1 180px; }
 .browserControls { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
@@ -113,8 +108,7 @@
 
 @media (max-width: 640px) {
   .section { gap: 20px; }
-  .settingRow, .securityEditor label, .securityReport label, .securityEditor fieldset.accessRow label,
-  .securitySummary > div, .facts > div { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .settingRow, .facts > div { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .section input[type='checkbox'], .settingRow > button { justify-self: start; }
   .browserActions { align-items: stretch; }
   .commandRow { align-items: flex-start; }

@@ -1,18 +1,16 @@
-/** Host-backed settings section for one Cinlan capability family. */
+/** Host-backed settings section for Browser, Computer, or Mobile. */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   IconBrowseOutline16,
   IconCheckOutline16,
   IconCopyOutline16,
-  IconDownloadOutline16,
   IconGlobeOutline14,
   IconListPenOutline16,
   IconPanelLeftOutline16,
   IconRefreshOutline16,
-  IconSkillOutline16,
   writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { DeviceCapabilityKind, DeviceCapabilitySnapshot, MobileSdkSnapshot, MobileDeviceListSnapshot, PluginInventorySnapshot, SecurityResearchSnapshot } from '@deepseek-ai/dsh-api-remotes/client'
+import type { DeviceCapabilityKind, DeviceCapabilitySnapshot, MobileSdkSnapshot, MobileDeviceListSnapshot, PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { CapabilitySettingsKey } from './locales.ts'
 import {
@@ -24,11 +22,7 @@ import {
 import css from './CapabilitySection.module.css'
 import type { BrowserPreferences } from '@deepseek-ai/dsh-browser-playwright/types'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { SecurityResearchScopeSettings, SecurityResearchReportRequest, SecurityResearchReportValue } from '@deepseek-ai/dsh-api-remotes/client'
 import type { MobileDeviceSettings } from '@deepseek-ai/dsh-mobile-device/types'
-import { SecurityScopeEditor } from './SecurityScopeEditor.tsx'
-import { SecurityReportExport } from './SecurityReportExport.tsx'
-import { SkillInstallCard } from './SkillInstallCard.tsx'
 import { BrowserPreferencesForm } from './BrowserPreferencesForm.tsx'
 import { BrowserRoutingForm, type BrowserRoutingPreferences } from './BrowserRoutingForm.tsx'
 import type { SidebarPrefs } from '@deepseek-ai/dsh-client-ui-better-sidebar/client/service'
@@ -57,14 +51,12 @@ export const CAPABILITIES: readonly CapabilityDefinition[] = [
 ] as const
 
 const CAPABILITY_MATCHERS = {
-  security: new RegExp('^@deepseek-ai/dsh-(?:security-(?:skills|workflow-prompt)|assessment-scope(?:-static|-session|-settings)?'
-    + '|finding(?:-session)?|vuln-kb(?:-service|-nvd)?|tool-(?:finding|vuln-kb))$', 'i'),
   browser: /^@deepseek-ai\/dsh-(?:browser(?:-cinlan|-playwright|-permission-policy)?|tool-browser)$/i,
   computer: /^@deepseek-ai\/dsh-(?:computer-use(?:-cinlan|-permission-policy)?|tool-computer-use)$/i,
   mobile: /^@deepseek-ai\/dsh-(?:mobile-device(?:-cinlan|-permission-policy)?|tool-mobile-device)$/i,
-} as const satisfies Record<CapabilityId, RegExp>
+} as const satisfies Record<Exclude<CapabilityId, 'security'>, RegExp>
 
-/** Injected Remote face shared by every page. */
+/** Injected Remote face shared by Browser, Computer, and Mobile pages. */
 export interface CapabilitySectionInjected {
   /** Explicit human Browser commands through the generated Remote. */
   browserControls: BrowserControlsCallbacks | undefined
@@ -72,7 +64,6 @@ export interface CapabilitySectionInjected {
   hooks: {
     browserPreferences: SettingsScope<BrowserPreferences>
     browserRouting: SettingsScope<SidebarPrefs>
-    securityScope: SettingsScope<SecurityResearchScopeSettings>
     mobileSettings: SettingsScope<MobileDeviceSettings>
   }
   /** Save only changed sidebar-owned link routing fields with the opening revision. */
@@ -85,24 +76,18 @@ export interface CapabilitySectionInjected {
   resetMobileSettings: (revision: number) => Promise<void>
   /** Remove browser preference overrides so composition defaults apply. */
   resetBrowserPreferences: (revision: number) => Promise<void>
-  /** Persist the security scope draft with its opening revision. */
-  saveSecurityScope: (value: SecurityResearchScopeSettings['root'], revision: number) => Promise<void>
   /** Persist an explicit draft using the revision at which it was opened. */
   saveBrowserPreferences: (value: BrowserPreferences, revision: number) => Promise<void>
-  /** Export a live Session's Findings as deterministic report bytes. */
-  exportReport?: (request: SecurityResearchReportRequest, signal: AbortSignal) => Promise<SecurityResearchReportValue>
   /** Read the current Host Loader projection. */
   list: () => Promise<PluginInventorySnapshot>
   /** Page registration metadata. */
-  definition: CapabilityDefinition
+  definition: CapabilityDefinition & { id: Exclude<CapabilityId, 'security'> }
   /** Probe actual device Provider readiness; never infer it from Loader activation. */
   checkDevice: (capability: DeviceCapabilityKind, signal: AbortSignal) => Promise<DeviceCapabilitySnapshot>
   /** Detect Android SDK and iOS Simulator availability. */
   checkSdk: (signal: AbortSignal) => Promise<MobileSdkSnapshot>
   /** List mobile devices for the default-device selector. */
   listMobileDevices: (signal: AbortSignal) => Promise<MobileDeviceListSnapshot>
-  /** Read redacted Harness-native Security Research status. */
-  describeSecurity: (signal: AbortSignal) => Promise<SecurityResearchSnapshot>
 }
 
 /** Props assembled by the Settings renderer. */
@@ -113,7 +98,7 @@ export type CapabilitySectionProps = PropsRuntime<'settings.section'>
 type ViewState =
   | { readonly phase: 'loading' }
   | { readonly phase: 'error' }
-  | { readonly phase: 'ready'; readonly components: readonly CapabilityComponent[]; readonly device: DeviceCapabilitySnapshot | undefined; readonly security: SecurityResearchSnapshot | undefined }
+  | { readonly phase: 'ready'; readonly components: readonly CapabilityComponent[]; readonly device: DeviceCapabilitySnapshot | undefined }
 
 const STATUS_KEYS = {
   ready: 'statusReady',
@@ -165,12 +150,6 @@ interface FeatureCardDefinition {
   readonly descriptionKey: CapabilitySettingsKey
 }
 
-const SECURITY_CARDS = [
-  { id: 'scope', icon: IconSkillOutline16, titleKey: 'securityScopeTitle', descriptionKey: 'securityScopeDescription' },
-  { id: 'findings', icon: IconListPenOutline16, titleKey: 'securityFindingsTitle', descriptionKey: 'securityFindingsDescription' },
-  { id: 'report', icon: IconDownloadOutline16, titleKey: 'securityReportTitle', descriptionKey: 'securityReportDescription' },
-] as const satisfies readonly FeatureCardDefinition[]
-
 interface BodyProps {
   state: ViewState
   t: CapabilitySectionProps['t']
@@ -209,13 +188,6 @@ function FeatureCards({ cards, t }: { cards: readonly FeatureCardDefinition[]; t
       <div><h4>{t(titleKey)}</h4><p>{t(descriptionKey)}</p></div>
     </article>)}
   </div>
-}
-
-function securityStatus(state: ViewState): CapabilityStatus {
-  if (state.phase !== 'ready' || state.security === undefined) return state.phase === 'loading' ? 'loading' : 'attention'
-  if (state.security.status === 'configured') return 'ready'
-  if (state.security.status === 'not-configured') return 'missing'
-  return 'attention'
 }
 
 function inventoryStatus(state: ViewState): CapabilityStatus {
@@ -261,78 +233,6 @@ function ComputerCapabilityBody(props: BodyProps): ReactNode {
     <div className={css.computerHowTo} data-settings-anchor="computer-usage">
       <h3>{t('computerHowToUse')}</h3><p>{t('computerHowToUseDescription')}</p>
       <FeatureCards cards={COMPUTER_CARDS} t={t} />
-    </div>
-  </>
-}
-
-function SecurityResearchBody(props: BodyProps & Pick<CapabilitySectionProps, 'useSecurityScope' | 'saveSecurityScope' | 'exportReport'>): ReactNode {
-  const { state, t } = props
-  const status = securityStatus(state)
-  const security = state.phase === 'ready' ? state.security : undefined
-  const unread = state.phase === 'loading' ? 'securityStatusLoading' : 'securityReadFailed'
-  const presetMissing = security !== undefined && !security.preset.present && security.preset.broken === undefined
-  const presetBroken = security !== undefined && security.preset.broken !== undefined
-  const presetReady = security !== undefined && security.preset.present && security.preset.broken === undefined
-  const scopeStatusText = {
-    configured: t('securityScopeConfigured'), expired: t('securityScopeExpired'),
-    'not-yet-valid': t('securityScopeFuture'), empty: t('securityScopeEmpty'), missing: t('securityScopeMissing'),
-  } satisfies Record<SecurityResearchSnapshot['scope']['state'], string>
-  const scopeLabel = security === undefined ? t(unread) : scopeStatusText[security.scope.state]
-  const skillLabel = security === undefined
-    ? t(unread)
-    : t(security.skillsComplete ? 'securitySkillsCount' : 'securitySkillsPartial', { count: security.skillCount })
-  return <>
-    <div className={css.computerCard} data-settings-anchor="security-readiness">
-      <HeroHeader icon={IconSkillOutline16} title={t('securityHeroTitle')} description={t('securityHeroDescription')}
-        badge={<Badge status={status}>{t(status === 'ready' ? 'securityConfigured'
-          : status === 'missing' ? 'securityNotConfigured' : status === 'loading' ? 'securityStatusLoading' : 'securityAttention')}</Badge>} />
-      <p>{t('securityPresetGuidance')}</p>
-      <p className={css.capabilityFact}>{t('securityExecutionCaveat')}</p>
-      <div className={css.securitySummary}>
-        <div><strong>{t('securityPresetLabel')}</strong><span>{security === undefined ? t(unread) : security.preset.broken !== undefined ? t('securityPresetBroken')
-          : t(security.preset.present ? 'securityPresetPresent' : 'securityPresetMissing')}</span></div>
-        <div><strong>{t('securityScopeLabel')}</strong><span>{scopeLabel}</span></div>
-        <div><strong>{t('securitySkillLabel')}</strong><span>{skillLabel}</span></div>
-      </div>
-      <RefreshButton {...props} />
-    </div>
-    {presetMissing && <SkillInstallCard
-      icon={<IconSkillOutline16 size={22} />}
-      title={t('securityInstallTitle')}
-      description={t('securityInstallDescription')}
-      command={t('securityCommand')}
-      status="not-installed"
-      statusLabel={t('securityPresetMissing')}
-      hint={t('securityInstallHint')}
-      onRecheck={props.onRefresh}
-      t={t} />}
-    {presetBroken && <SkillInstallCard
-      icon={<IconSkillOutline16 size={22} />}
-      title={t('securityPresetBrokenTitle')}
-      description={t('securityPresetBrokenDescription')}
-      command={undefined}
-      status="failed"
-      statusLabel={t('securityPresetBroken')}
-      hint={t('securityPresetBrokenHint')}
-      onRecheck={props.onRefresh}
-      t={t} />}
-    <div className={css.computerHowTo} data-settings-anchor="security-usage">
-      <h3>{t('securityHowToUse')}</h3><p>{t('securityHowToUseDescription')}</p>
-      <FeatureCards cards={SECURITY_CARDS} t={t} />
-      <section data-settings-anchor="security-scope">
-        {presetReady ? <SecurityScopeEditor useSecurityScope={props.useSecurityScope} saveSecurityScope={async (value, revision) => {
-          await props.saveSecurityScope(value, revision)
-          props.onRefresh()
-        }} t={t} /> : <div>
-          <p role="status">{t(state.phase === 'loading' ? 'securityScopeLoading' : 'securityScopeUnavailable')}</p>
-          <p data-settings-anchor="security-egress">{t('securityEgress')}: {t('securityScopeUnavailable')}</p>
-          <p data-settings-anchor="security-credentials">{t('securityCredentials')}: {t('securityScopeUnavailable')}</p>
-        </div>}
-      </section>
-      <section data-settings-anchor="security-report">
-        {presetReady && props.exportReport !== undefined ? <SecurityReportExport exportReport={props.exportReport} t={t} />
-          : <p role="status">{t('securityReportUnavailable')}</p>}
-      </section>
     </div>
   </>
 }
@@ -397,8 +297,8 @@ function MobileCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps,
  * @returns The localized capability page and collapsed component diagnostics.
  */
 export function CapabilitySection({
-  list, definition, checkDevice, checkSdk, listMobileDevices, describeSecurity, useBrowserPreferences, saveBrowserPreferences,
-  browserControls, useSecurityScope, saveSecurityScope, exportReport, useMobileSettings, saveMobileSettings, resetMobileSettings,
+  list, definition, checkDevice, checkSdk, listMobileDevices, useBrowserPreferences, saveBrowserPreferences,
+  browserControls, useMobileSettings, saveMobileSettings, resetMobileSettings,
   resetBrowserPreferences, useBrowserRouting, saveBrowserRouting, resetBrowserRouting, target, t,
 }: CapabilitySectionProps): ReactNode {
   const diagnostics = useRef<HTMLDetailsElement>(null)
@@ -411,39 +311,36 @@ export function CapabilitySection({
     let current = true
     const abort = new AbortController()
     const device = definition.id === 'computer' || definition.id === 'mobile' ? definition.id : undefined
-    const security = definition.id === 'security'
     setState({ phase: 'loading' })
     void Promise.resolve().then(() => Promise.all([
       list(),
       device === undefined ? undefined : checkDevice(device, abort.signal),
-      security ? describeSecurity(abort.signal) : undefined,
     ])).then(
-      ([snapshot, readiness, securityStatus]) => {
-        if (current) setState({ phase: 'ready', components: capabilityComponents(snapshot.entries, CAPABILITY_MATCHERS[definition.id]), device: readiness, security: securityStatus })
+      ([snapshot, readiness]) => {
+        if (current) setState({ phase: 'ready', components: capabilityComponents(snapshot.entries, CAPABILITY_MATCHERS[definition.id]), device: readiness })
       },
       () => { if (current) setState({ phase: 'error' }) },
     )
     return () => { current = false; abort.abort() }
-  }, [definition, list, checkDevice, describeSecurity, request])
+  }, [definition, list, checkDevice, request])
   const body = { state, t, onRefresh: () => { setRequest(value => value + 1) } }
   return <section className={css.section} data-capability={definition.id} aria-busy={state.phase === 'loading'}>
     <header className={css.heading}><h1>{t(definition.titleKey)}</h1><p>{t(definition.descriptionKey)}</p></header>
     {state.phase === 'error' && <p className={css.failure} role="alert">{t('loadFailed')}</p>}
-    {definition.id === 'security' ? <SecurityResearchBody {...body} useSecurityScope={useSecurityScope} saveSecurityScope={saveSecurityScope} {...exportReport === undefined ? {} : { exportReport }} />
-      : definition.id === 'computer' ? <ComputerCapabilityBody {...body} />
-        : definition.id === 'browser' ? <BrowserCapabilityBody
-          {...body}
-          useBrowserPreferences={useBrowserPreferences}
-          saveBrowserPreferences={saveBrowserPreferences}
-          resetBrowserPreferences={resetBrowserPreferences}
-          useBrowserRouting={useBrowserRouting}
-          saveBrowserRouting={saveBrowserRouting}
-          resetBrowserRouting={resetBrowserRouting}
-          browserControls={browserControls}
-          {...target === undefined ? {} : { target }}
-        />
-          : <MobileCapabilityBody {...body} checkSdk={checkSdk} listMobileDevices={listMobileDevices}
-            useMobileSettings={useMobileSettings} saveMobileSettings={saveMobileSettings} resetMobileSettings={resetMobileSettings} />}
+    {definition.id === 'computer' ? <ComputerCapabilityBody {...body} />
+      : definition.id === 'browser' ? <BrowserCapabilityBody
+        {...body}
+        useBrowserPreferences={useBrowserPreferences}
+        saveBrowserPreferences={saveBrowserPreferences}
+        resetBrowserPreferences={resetBrowserPreferences}
+        useBrowserRouting={useBrowserRouting}
+        saveBrowserRouting={saveBrowserRouting}
+        resetBrowserRouting={resetBrowserRouting}
+        browserControls={browserControls}
+        {...target === undefined ? {} : { target }}
+      />
+        : <MobileCapabilityBody {...body} checkSdk={checkSdk} listMobileDevices={listMobileDevices}
+          useMobileSettings={useMobileSettings} saveMobileSettings={saveMobileSettings} resetMobileSettings={resetMobileSettings} />}
     <details ref={diagnostics} className={css.diagnostics} data-settings-anchor={definition.id + '-components'}>
       <summary>{t('hostFact')}{state.phase === 'ready' ? ` · ${state.components.length}` : ''}</summary>
       <p>{t('inventoryCaveat')}</p>

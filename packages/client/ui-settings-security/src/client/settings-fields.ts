@@ -52,10 +52,7 @@ export const CAPABILITY_FIELDS: Readonly<Record<CapabilityId, readonly Field[]>>
     { anchorId: 'mobile-usage', title: 'mobileAgentControl', description: 'mobileHowToUseDescription' },
   ],
   security: [
-    { anchorId: 'security-readiness', title: 'securityHeroTitle', description: 'securityHeroDescription' },
-    { anchorId: 'security-scope', title: 'securityScopeTitle', description: 'securityScopeEditorDescription' },
-    { anchorId: 'security-egress', title: 'securityEgress', description: 'securityEgressHelp' },
-    { anchorId: 'security-credentials', title: 'securityCredentials', description: 'securityCredentialsHelp' },
-    { anchorId: 'security-report', title: 'securityReportTitle', description: 'securityReportDescription' },
+    { anchorId: 'security-resources', title: 'resourceTitle', description: 'resourceDescription' },
+    { anchorId: 'security-resource-usage', title: 'resourceUseTitle', description: 'resourceUseDescription' },
   ],
 }

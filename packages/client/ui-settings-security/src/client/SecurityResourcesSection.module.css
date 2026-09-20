@@ -1,0 +1,17 @@
+.section { display: flex; flex-direction: column; gap: 24px; min-width: 0; color: var(--dsw-alias-label-primary); }
+.heading h1 { margin: 0; font-size: 26px; font-weight: 600; line-height: 34px; }
+.section p { margin: 6px 0 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
+.section h2 { margin: 0; font-size: 14px; font-weight: 500; line-height: 20px; }
+.resource { display: flex; flex-direction: column; gap: 16px; min-width: 0; padding-bottom: 24px; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
+.title, .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.title > svg { color: var(--dsw-alias-label-secondary); flex: none; }
+.badge { padding: 3px 9px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 999px; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); }
+.facts { margin: 0; display: grid; gap: 12px; }
+.facts > div { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr); gap: 16px; }
+.facts dt, .facts dd { margin: 0; font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }
+.facts dt { color: var(--dsw-alias-label-secondary); }
+.facts dd > span { display: block; }
+.progress { display: flex; flex-direction: column; gap: 8px; }
+.progress progress { width: 100%; height: 6px; accent-color: var(--dsw-alias-state-business-primary); }
+.section .error { color: var(--dsw-alias-state-error-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .facts > div { grid-template-columns: minmax(0, 1fr); gap: 4px; } }

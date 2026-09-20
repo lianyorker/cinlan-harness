@@ -53,8 +53,6 @@
     - id: tool-vuln-kb
       name: '@deepseek-ai/dsh-tool-vuln-kb'
 
-    - id: security-skills
-      name: '@deepseek-ai/dsh-security-skills'
     - id: security-workflow-prompt
       name: '@deepseek-ai/dsh-security-workflow-prompt'
 

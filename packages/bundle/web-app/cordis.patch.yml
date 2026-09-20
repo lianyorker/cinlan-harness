@@ -111,6 +111,11 @@
     - id: device-capabilities-controller
       name: '@deepseek-ai/dsh-api-device-capabilities-controller'
 
+    - id: security-skill-resources
+      name: '@deepseek-ai/dsh-security-skills/resources'
+    - id: security-skills
+      name: '@deepseek-ai/dsh-security-skills'
+
     # Settings status for the Harness-native Security Research composition.
     - id: security-research-controller
       name: '@deepseek-ai/dsh-api-security-research-controller'

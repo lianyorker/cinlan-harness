@@ -49,6 +49,9 @@ importers:
       '@deepseek-ai/dsh-package-manifest':
         specifier: workspace:^
         version: link:packages/util/package-manifest
+      '@deepseek-ai/dsh-security-skills':
+        specifier: workspace:^
+        version: link:packages/security/security-skills
       '@deepseek-ai/dsh-tool-session-query':
         specifier: workspace:^
         version: link:packages/session-query/tool-session-query
@@ -97,6 +100,9 @@ importers:
       fast-check:
         specifier: ^4.8.0
         version: 4.8.0
+      fflate:
+        specifier: ^0.8.2
+        version: 0.8.3
       istanbul-lib-report:
         specifier: ^3.0.1
         version: 3.0.1
@@ -1369,12 +1375,21 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-include':
+        specifier: workspace:^
+        version: link:../../../vendor/include
       '@deepseek-ai/cordis-plugin-loader':
         specifier: workspace:^
         version: link:../../../vendor/loader
       '@deepseek-ai/dsh-agent-presets':
         specifier: workspace:^
         version: link:../../preset/agent-presets
+      '@deepseek-ai/dsh-api-gateway':
+        specifier: workspace:^
+        version: link:../gateway
+      '@deepseek-ai/dsh-app-boot':
+        specifier: workspace:^
+        version: link:../../boot/app-boot
       '@deepseek-ai/dsh-artifact':
         specifier: workspace:^
         version: link:../../artifact/artifact
@@ -1390,6 +1405,9 @@ importers:
       '@deepseek-ai/dsh-finding':
         specifier: workspace:^
         version: link:../../security/finding
+      '@deepseek-ai/dsh-security-skills':
+        specifier: workspace:^
+        version: link:../../security/security-skills
       '@deepseek-ai/dsh-session':
         specifier: workspace:^
         version: link:../../core/session
@@ -1399,6 +1417,9 @@ importers:
       '@deepseek-ai/dsh-typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
+      '@deepseek-ai/dsh-typert-registry':
+        specifier: workspace:^
+        version: link:../../typert/registry
       '@deepseek-ai/dsh-vuln-kb-service':
         specifier: workspace:^
         version: link:../../security/vuln-kb-service
@@ -3558,6 +3579,9 @@ importers:
       '@deepseek-ai/dsh-plugin-manager':
         specifier: workspace:^
         version: link:../../boot/plugin-manager
+      '@deepseek-ai/dsh-security-skills':
+        specifier: workspace:^
+        version: link:../../security/security-skills
       '@deepseek-ai/dsh-session-log-export':
         specifier: workspace:^
         version: link:../../session-query/session-log-export
@@ -6285,6 +6309,9 @@ importers:
       '@deepseek-ai/dsh-client-locale':
         specifier: workspace:^
         version: link:../locale
+      '@deepseek-ai/dsh-client-store':
+        specifier: workspace:^
+        version: link:../store
       '@deepseek-ai/dsh-client-test-runtime':
         specifier: workspace:^
         version: link:../../test-support/client-runtime
@@ -6306,6 +6333,9 @@ importers:
       '@deepseek-ai/dsh-mobile-device':
         specifier: workspace:^
         version: link:../../mobile-device/mobile-device
+      '@deepseek-ai/dsh-security-skills':
+        specifier: workspace:^
+        version: link:../../security/security-skills
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
@@ -12181,6 +12211,9 @@ importers:
 
   packages/security/security-skills:
     dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
       yaml:
         specifier: ^2.4.2
         version: 2.9.0
@@ -12188,9 +12221,45 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-agent-loop':
+        specifier: workspace:^
+        version: link:../../core/agent-loop
+      '@deepseek-ai/dsh-agent-loop-testkit':
+        specifier: workspace:^
+        version: link:../../test-support/agent-loop-testkit
+      '@deepseek-ai/dsh-app-boot':
+        specifier: workspace:^
+        version: link:../../boot/app-boot
+      '@deepseek-ai/dsh-atomic-write':
+        specifier: workspace:^
+        version: link:../../util/atomic-write
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@deepseek-ai/dsh-home-paths':
+        specifier: workspace:^
+        version: link:../../util/home-paths
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@deepseek-ai/dsh-scope':
+        specifier: workspace:^
+        version: link:../../core/scope
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/dsh-session-persistence-jsonl':
+        specifier: workspace:^
+        version: link:../../session/session-persistence-jsonl
       '@deepseek-ai/dsh-skill':
         specifier: workspace:^
         version: link:../../skill/skill
+      '@deepseek-ai/dsh-tool-skill':
+        specifier: workspace:^
+        version: link:../../skill/tool-skill
+      fflate:
+        specifier: ^0.8.2
+        version: 0.8.3
 
   packages/security/security-workflow-prompt:
     devDependencies:

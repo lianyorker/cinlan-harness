@@ -5,7 +5,6 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { SecurityResearchReportValue, SecurityResearchScopeSettings } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   IconBrowseOutline16,
   IconGlobeOutline14,
@@ -13,6 +12,8 @@ import {
   IconSkillOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { CAPABILITIES, CapabilitySection, type CapabilitySectionInjected } from './CapabilitySection.tsx'
+import { SecurityResourcesSection, type SecurityResourcesInjected, type SecurityResourceAction } from './SecurityResourcesSection.tsx'
+import { createSecurityResourceObserver } from './resource-observer.ts'
 import { en, zh, type CapabilitySettingsKey } from './locales.ts'
 import type { BrowserPreferences } from '@deepseek-ai/dsh-browser-playwright/types'
 import type { MobileDeviceSettings } from '@deepseek-ai/dsh-mobile-device/types'
@@ -49,7 +50,6 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
   const browserPreferences = ctx.settingsScope.bind<BrowserPreferences>({ namespace: 'browser-playwright' })
   const browserRouting = ctx.settingsScope.bind<SidebarPrefs>({ namespace: 'dsh-better-sidebar' })
-  const securityScope = ctx.settingsScope.bind<SecurityResearchScopeSettings>({ namespace: 'assessment-scope' })
   const mobileSettings = ctx.settingsScope.bind<MobileDeviceSettings>({ namespace: 'mobile-device' })
   const mutatePreferences = async (
     namespace: string,
@@ -85,23 +85,48 @@ export function apply(ctx: ClientContext): void {
     if (!result.ok) throw new Error(t('mobileDevicesFailed'))
     return result.value
   }
-  const describeSecurity: CapabilitySectionInjected['describeSecurity'] = async (signal) => {
-    const result = await ctx.remote.securityResearch.describe(signal)
-    if (!result.ok) throw new Error(`securityResearch.describe failed: ${result.error.code}: ${result.error.message}`)
-    return result.value
-  }
-  const exportReport = async (
-    request: Parameters<typeof ctx.remote.securityResearch.exportReport>[0],
-    signal: AbortSignal,
-  ): Promise<SecurityResearchReportValue> => {
-    const result = await ctx.remote.securityResearch.exportReport(request, signal)
-    if (!result.ok) throw new Error(t('securityReportFailed'))
-    return result.value
-  }
+  const resources = createSecurityResourceObserver(ctx.remote.securityResearch)
+  ctx.effect(() => () => { resources.dispose() }, 'ui-settings-security: resource observations')
+  ctx.on('connection/reset', () => { resources.refresh() })
+  const operations = {
+    'check-update': () => ctx.remote.securityResearch.checkResourceUpdate(),
+    install: () => ctx.remote.securityResearch.installResource(),
+    reinstall: () => ctx.remote.securityResearch.reinstallResource(),
+    update: () => ctx.remote.securityResearch.updateResource(),
+    'install-bundled': () => ctx.remote.securityResearch.installBundledResource(),
+    remove: () => ctx.remote.securityResearch.removeResource(),
+  } satisfies Record<SecurityResourceAction, () => Promise<unknown>>
+  const resourceInjected = (): SecurityResourcesInjected => ({
+    hooks: { securityResources: resources.store }, watch: resources.watch, refresh: resources.refresh,
+    run: async (action) => {
+      const result = await operations[action]()
+      resources.refresh()
+      if (!result.ok) throw new Error(t('resourceActionFailed'))
+    },
+    cancel: async (operationId) => {
+      const result = await ctx.remote.securityResearch.cancelResource({ operationId })
+      resources.refresh()
+      if (!result.ok) throw new Error(t('resourceActionFailed'))
+    },
+  })
 
   const register = (definition: (typeof CAPABILITIES)[number]): (() => void) => {
     const section = ctx.slots.inject('settings.section', function* () {
       yield ctx.settingsMetadata.registerSection({ sectionId: `cinlan-${definition.id}`, groupId: 'tools' })
+      if (definition.id === 'security') {
+        yield ctx.settingsMetadata.registerItems('cinlan-security', [
+          ...CAPABILITY_FIELDS.security.map(field => ({
+            id: field.title, anchorId: field.anchorId, title: () => t(field.title),
+            description: () => t(field.description), keywords: () => [t('securityNav')],
+          })),
+        ])
+        yield ctx.slots.register({
+          name: 'settings.section', id: 'cinlan-security', order: definition.order,
+          label: () => t(definition.navKey), locale: NS, inject: resourceInjected,
+        }, SecurityResourcesSection)
+        return
+      }
+      const capabilityDefinition: CapabilitySectionInjected['definition'] = { ...definition, id: definition.id }
       yield ctx.settingsMetadata.registerItems(`cinlan-${definition.id}`, [
         ...CAPABILITY_FIELDS[definition.id].map(field => ({
           id: field.title, anchorId: field.anchorId, title: () => t(field.title), description: () => t(field.description),
@@ -117,8 +142,8 @@ export function apply(ctx: ClientContext): void {
         label: () => t(definition.navKey),
         locale: NS,
         inject: (): CapabilitySectionInjected => ({
-          list, definition, checkDevice, checkSdk, listMobileDevices, describeSecurity,
-          hooks: { browserPreferences, browserRouting, securityScope, mobileSettings },
+          list, definition: capabilityDefinition, checkDevice, checkSdk, listMobileDevices,
+          hooks: { browserPreferences, browserRouting, mobileSettings },
           saveBrowserRouting: async (changes, revision) => {
             const ops = BROWSER_ROUTING_FIELDS.flatMap(({ key }) => changes[key] === undefined
               ? [] : [{ op: 'set' as const, path: [key], value: changes[key] }])
@@ -143,28 +168,6 @@ export function apply(ctx: ClientContext): void {
           resetBrowserPreferences: async (revision) => {
             await mutatePreferences('browser-playwright', browserPreferences,
               BROWSER_FIELDS.map(field => ({ op: 'unset', path: [field.key] })), revision, 'browserSettingsFailed')
-          },
-          exportReport,
-          saveSecurityScope: async (value, revision) => {
-            const current = securityScope.getSnapshot()
-            if (current.status !== 'ready' || !current.writable || current.mode !== 'host') throw new Error(t('securityScopeReadOnly'))
-            const result = await ctx.remote.settings.mutate('assessment-scope', [
-              { op: 'set', path: ['root', 'engagementId'], value: value.engagementId },
-              { op: 'set', path: ['root', 'grantId'], value: value.grantId },
-              { op: 'set', path: ['root', 'authorizationRef'], value: value.authorizationRef },
-              { op: 'set', path: ['root', 'notBefore'], value: value.notBefore },
-              { op: 'set', path: ['root', 'expiresAt'], value: value.expiresAt },
-              { op: 'set', path: ['root', 'executionHostIds'], value: [...value.executionHostIds] },
-              { op: 'set', path: ['root', 'targets'], value: value.targets.map(target => ({ ...target })) },
-              { op: 'set', path: ['root', 'excludedTargetIds'], value: [...value.excludedTargetIds] },
-              { op: 'set', path: ['root', 'egress'], value: value.egress.map(entry => ({ ...entry })) },
-              { op: 'set', path: ['root', 'credentials'], value: value.credentials.map(entry => ({ ...entry })) },
-              { op: 'set', path: ['root', 'actions'], value: [...value.actions] },
-              { op: 'set', path: ['root', 'approvalRequiredActions'], value: [...value.approvalRequiredActions] },
-              { op: 'set', path: ['root', 'evidence'], value: { ...value.evidence } },
-            ], revision)
-            if (!result.ok) throw new Error(t('securityScopeSaveFailed'))
-            ctx.settingsScope.describe().acceptView(result.value)
           },
           browserControls: {
             snapshot: async (pageId, signal) => { const r = await ctx.remote.browser.snapshot({ pageId }, signal); if (!r.ok) throw new Error(t('browserOperationFailed')); return r.value },

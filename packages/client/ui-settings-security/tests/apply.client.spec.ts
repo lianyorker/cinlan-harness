@@ -9,7 +9,8 @@ import type {
   PluginEntryId, PluginInventorySnapshot,
 } from '@deepseek-ai/dsh-host-plugin-inventory/types'
 import { describe, expect, it, vi } from 'vitest'
-import type { SecurityResearchScopeSettings } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SecuritySkillOperationId } from '@deepseek-ai/dsh-security-skills/types'
+import { SecurityResourcesSection, type SecurityResourcesInjected } from '../src/client/SecurityResourcesSection.tsx'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as hostApply } from '../src/index.ts'
 import { CAPABILITIES, CapabilitySection, type CapabilitySectionInjected } from '../src/client/CapabilitySection.tsx'
@@ -37,7 +38,11 @@ async function bench(list: () => Promise<{ ok: boolean }>, presetIds = ['securit
   const agentPresets = { list: vi.fn(async () => ({ ok: true as const, value: { presets: presetIds.map(id => ({ id, trust: 'system' as const, isDefault: false })), authorable: true } })) }
   const inventory = { list: vi.fn(list) }
   const deviceCapabilities = { check: vi.fn(async (request: { capability: string }) => ({ ok: true, value: { capability: request.capability, status: 'not-configured', reason: 'not-configured' } })) }
-  const securityResearch = { describe: vi.fn(async () => ({ ok: true, value: { status: 'not-configured', preset: { present: true, trust: 'system' }, scope: { present: true, state: 'empty', targetCount: 0, actionCount: 0, executionHostCount: 0, egressCount: 0, credentialCount: 0 }, components: { assessmentScope: true, findings: true, artifacts: true, vulnerabilityKnowledgeBase: true, securitySkills: true, workflowPrompt: true, findingTools: true }, skillCount: 24, skillsComplete: true } })) }
+  const mutation = () => vi.fn(async () => ({ ok: true, value: {} }))
+  const securityResearch = {
+    checkResourceUpdate: mutation(), installResource: mutation(), reinstallResource: mutation(), updateResource: mutation(),
+    installBundledResource: mutation(), removeResource: mutation(), cancelResource: mutation(),
+  }
   const settings = { mutate: vi.fn(async () => ({ ok: true, value: {} })) }
   const settingsState = { status: 'unavailable', mode: 'host', writable: false }
   const acceptView = vi.fn()
@@ -95,7 +100,7 @@ describe('ui-settings-security registration', () => {
 
     for (const [index, definition] of CAPABILITIES.entries()) {
       const section = sections[index]!
-      expect(section.component).toBe(CapabilitySection)
+      expect(section.component).toBe(definition.id === 'security' ? SecurityResourcesSection : CapabilitySection)
       expect(section.options).toMatchObject({ id: `cinlan-${definition.id}`, order: definition.order })
       expect(section.locale).toBe('settings.cinlanCapabilities')
       expect(resolveSlotLabel(section.options.label)).toBe(zh[definition.navKey])
@@ -117,38 +122,28 @@ describe('ui-settings-security registration', () => {
     await b.ctx.fiber.dispose()
   })
 
-  it('writes advanced scope rows atomically, accepts only successful views, and refuses read-only writes', async () => {
+  it('routes resource operations without binding scan settings or reading presets', async () => {
     const b = await bench(async () => ({ ok: true, value: snapshot([]) }))
     try {
       declare(b.slots)
       await b.ctx.plugin({ inject, apply }).await()
-      const section = b.slots.entries('settings.section')[0]!
-      const injected = (section.inject as unknown as () => CapabilitySectionInjected)()
-      const root: SecurityResearchScopeSettings['root'] = {
-        engagementId: 'engagement', grantId: 'grant', authorizationRef: 'auth', notBefore: 0, expiresAt: 100,
-        executionHostIds: ['host'], targets: [{ id: 'target', kind: 'hostname', value: 'example.test' }], excludedTargetIds: [],
-        actions: ['reconnaissance'], approvalRequiredActions: [],
-        egress: [{ protocol: 'https', host: 'example.test', port: 443, purpose: 'target-access', targetId: 'target' }],
-        credentials: [{ ref: 'FIXTURE_REFERENCE', purpose: 'target-authentication', targetId: 'target' }],
-        evidence: { retainUntil: 100, minimumRedaction: 'sensitive', externalReporting: 'deny' },
+      const section = b.slots.entries('settings.section').find(entry => entry.options.id === 'cinlan-security')!
+      const injected = (section.inject as unknown as () => SecurityResourcesInjected)()
+      expect(b.bindSettings).not.toHaveBeenCalledWith({ namespace: 'assessment-scope' })
+      for (const [action, method] of [
+        ['check-update', 'checkResourceUpdate'], ['install', 'installResource'], ['reinstall', 'reinstallResource'],
+        ['update', 'updateResource'], ['install-bundled', 'installBundledResource'], ['remove', 'removeResource'],
+      ] as const) {
+        await injected.run(action)
+        expect(b.securityResearch[method]).toHaveBeenCalledExactlyOnceWith()
       }
-      await expect(injected.saveSecurityScope(root, 4)).rejects.toThrow(zh.securityScopeReadOnly)
+      const operationId = 'operation-1' as SecuritySkillOperationId
+      await injected.cancel(operationId)
+      expect(b.securityResearch.cancelResource).toHaveBeenCalledExactlyOnceWith({ operationId })
+      b.securityResearch.installResource.mockResolvedValueOnce({ ok: false, value: {} })
+      await expect(injected.run('install')).rejects.toThrow(zh.resourceActionFailed)
+      expect(b.agentPresets.list).not.toHaveBeenCalled()
       expect(b.settings.mutate).not.toHaveBeenCalled()
-      b.settingsState.status = 'ready'
-      b.settingsState.writable = true
-      await injected.saveSecurityScope(root, 4)
-      expect(b.settings.mutate).toHaveBeenCalledExactlyOnceWith('assessment-scope', expect.arrayContaining([
-        { op: 'set', path: ['root', 'egress'], value: root.egress },
-        { op: 'set', path: ['root', 'credentials'], value: root.credentials },
-      ]), 4)
-      expect(b.acceptView).toHaveBeenCalledExactlyOnceWith({})
-      b.settings.mutate.mockResolvedValueOnce({ ok: false, error: { message: 'private-diagnostic' } } as never)
-      await expect(injected.saveSecurityScope(root, 4)).rejects.toThrow(zh.securityScopeSaveFailed)
-      expect(b.acceptView).toHaveBeenCalledTimes(1)
-      await injected.saveSecurityScope({ ...root, egress: [], credentials: [] }, 5)
-      expect(b.settings.mutate).toHaveBeenLastCalledWith('assessment-scope', expect.arrayContaining([
-        { op: 'set', path: ['root', 'egress'], value: [] }, { op: 'set', path: ['root', 'credentials'], value: [] },
-      ]), 5)
     } finally { await b.ctx.fiber.dispose() }
   })
 
@@ -157,7 +152,7 @@ describe('ui-settings-security registration', () => {
     const b = await bench(async () => ({ ok: true as const, value: active } as never))
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
-    const sections = b.slots.entries('settings.section')
+    const sections = b.slots.entries('settings.section').filter(entry => entry.options.id !== 'cinlan-security')
 
     for (const section of sections) {
       const injected = (section.inject as unknown as () => CapabilitySectionInjected)()
@@ -171,7 +166,7 @@ describe('ui-settings-security registration', () => {
     const b = await bench(async () => ({ ok: false as const, error: { code: 'gateway/internal', message: 'inventory offline', details: {} } } as never))
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
-    const section = b.slots.entries('settings.section')[0]!
+    const section = b.slots.entries('settings.section').find(entry => entry.options.id === 'cinlan-computer')!
     const injected = (section.inject as unknown as () => CapabilitySectionInjected)()
     await expect(injected.list()).rejects.toThrow('inventory offline')
     await b.ctx.fiber.dispose()
@@ -181,7 +176,7 @@ describe('ui-settings-security registration', () => {
     const b = await bench(async () => ({ ok: true, value: snapshot([]) }))
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
-    const entry = b.slots.entries('settings.section')[0]!
+    const entry = b.slots.entries('settings.section').find(entry => entry.options.id === 'cinlan-computer')!
     const injected = (entry.inject as unknown as () => CapabilitySectionInjected)()
     const signal = new AbortController().signal
     await expect(injected.checkDevice('computer', signal)).resolves.toMatchObject({ status: 'not-configured' })
@@ -232,7 +227,8 @@ describe('ui-settings-security registration', () => {
       .toMatchObject({ title: zh.mobileSdkCustomPath, description: zh.mobileSdkPathHelp })
     expect(metadata.find(item => item.anchorId === 'mobile-device'))
       .toMatchObject({ description: zh.mobileDefaultDeviceDescription })
-    expect(metadata.some(item => item.anchorId === 'security-credentials')).toBe(true)
+    expect(metadata.find(item => item.anchorId === 'security-resources')).toMatchObject({ title: zh.resourceTitle })
+    expect(metadata.some(item => ['security-credentials', 'security-scope', 'security-report'].includes(item.anchorId))).toBe(false)
     b.locale.setLocale('en')
     await vi.waitFor(() => {
       expect(b.ctx.settingsMetadata.getSnapshot().items.some(item => item.title === en.browserHomePage)).toBe(true)

@@ -1,5 +1,5 @@
 ---
-description: "供 Settings 使用的脱敏安全研究配置与技能发现状态。"
+description: "通过经过认证的 Remote 管理安全技能资源，并读取 Session 评估状态。"
 kind: "package-reference"
 ---
 
@@ -9,11 +9,12 @@ kind: "package-reference"
 
 ## 概述
 
-通过 securityResearch/describe Remote 读取安全研究预设可用性、范围配置、活动插件贡献和内置技能发现结果。
+在 Settings 中安装、更新、取消和移除安全技能资源。Session 消费者还可以读取安全研究配置，并导出已授权的 Finding 报告。
 
 ## 目录
 
 - [使用本包](#use-this-package)
+- [资源管理](#resource-management)
 - [报告下载](#report-downloads)
 - [模型体验](#model-experience)
 - [已知限制与延期工作](#known-limitations-and-deferred-work)
@@ -22,11 +23,20 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-Web 组合包随 Typert 注册表挂载本控制器。安全服务为可选项。控制器读取现有服务，不挂载预设、不修改授权、不查询漏洞 API，也不启动外部工具。
+Web 组合包随 Typert 注册表挂载本控制器。安全服务为可选项。`securityResearch/describe` 读取现有服务，不挂载预设、不修改评估授权、不查询漏洞 API，也不启动外部工具。
 
 响应区分 configured、not-configured 和 attention。缺少目标、操作或执行主机时仍为待配置。尚未生效与过期授权保留独立状态。预设损坏、贡献未激活、技能目录为空或发现不完整时不能返回 configured。技能数量排除无关提供方，反映当前全局 security-skills 目录。
 
 响应不包含目标值、主机标识、凭据引用、授权引用、路径、技能正文和原始预设错误。取消请求阻止迟到的成功响应。
+
+<a id="resource-management"></a>
+## 资源管理
+
+经过认证的 `securityResearch` Remote 将资源操作交给 [`security-skills/resources`](../../security/security-skills/README.zh.md)。`describeResources` 读取当前状态；`observeResources` 推送完整替换快照，并在消费者暂停时合并进度。manager 缺失时返回 `state: unavailable` 和 `reason: component-missing`；变更操作返回明确的 resources-unavailable 错误。
+
+安装、重装、更新、检查版本、安装内置资源和移除操作返回 manager 已受理的任务状态。受理后由 Host 持有任务：关闭 Settings、断开客户端或卸载本控制器只结束观察，不取消任务。`cancelResource` 要求提供观察到的任务 id，因此迟到的取消不会终止替代任务。manager 卸载负责关闭任务。
+
+manager 拥有已安装资源代次、版本配置、进度、失败和技能注册表可见性，控制器不独立存储这些状态。安装包内资源要求显式选择内置安装；未配置下载来源时下载仍不可用。资源管理不执行已安装的脚本，也不要求评估授权。
 
 <a id="report-downloads"></a>
 ## 报告下载
@@ -44,7 +54,7 @@ maxFindings 默认 2000，maxReportBytes 默认 4194304。超过限制、Session
 
 #### 模型看到的内容
 
-无；`securityResearch/describe` 服务于浏览器配置，不注册模型工具或提示词。下载审计事件只记录日志。
+控制器不注册模型工具或提示词。资源响应保留在 Settings 中；安装后的目录变化由[技能提供方](../../security/security-skills/README.zh.md)持有。报告下载审计事件只记录日志。
 
 #### Token 影响
 
@@ -60,7 +70,7 @@ maxFindings 默认 2000，maxReportBytes 默认 4194304。超过限制、Session
 
 - 配置完整不等于运行就绪或动作授权。控制器不验证外部工具、网络连通性、Finding 持久化或所有工具执行路径的策略覆盖。范围编辑使用 Settings 命名空间；插件安装、Finding 浏览及全部 shell/browser/network 强制授权仍需单独实现。
 
-不发布运行时 invariant companion：控制器返回即时观察，不保留独立的安全状态。
+不发布运行时 invariant companion：控制器投影服务持有的状态，仅保留观察者生命周期。
 
 
 <a id="dev-note"></a>

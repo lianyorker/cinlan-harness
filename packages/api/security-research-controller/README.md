@@ -1,5 +1,5 @@
 ---
-description: "Redacted Security Research configuration and skill-discovery status for Settings."
+description: "Manage security skill resources and read Session assessment status through authenticated Remotes."
 kind: "package-reference"
 ---
 
@@ -9,11 +9,12 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Read Security Research preset availability, scope configuration, active plugin contributions, and bundled skill discovery through the securityResearch/describe Remote.
+Install, update, cancel, and remove security skill resources from Settings. Session consumers can also read Security Research configuration and export authorized Findings reports.
 
 ## Table of Contents
 
 - [Use this package](#use-this-package)
+- [Resource management](#resource-management)
 - [Report downloads](#report-downloads)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
@@ -22,11 +23,20 @@ Read Security Research preset availability, scope configuration, active plugin c
 <a id="use-this-package"></a>
 ## Use this package
 
-The Web bundle mounts this controller with the Typert registry. Security services are optional. The controller reads existing services without mounting a preset, changing authorization, querying vulnerability APIs, or starting external tools.
+The Web bundle mounts this controller with the Typert registry. Security services are optional. `securityResearch/describe` reads existing services without mounting a preset, changing assessment authorization, querying vulnerability APIs, or starting external tools.
 
 The response distinguishes configured, not-configured, and attention. Missing targets, actions, or execution hosts remain unconfigured. Future and expired grants retain distinct scope states. A broken preset, inactive contribution, empty skill catalog, or incomplete discovery cannot produce configured. Counts exclude unrelated skill providers and reflect the current global security-skills catalog.
 
 The response omits target values, host identifiers, credential references, authorization references, paths, skill bodies, and raw preset errors. Cancellation prevents a late successful response.
+
+<a id="resource-management"></a>
+## Resource management
+
+The authenticated `securityResearch` Remotes delegate resource operations to [`security-skills/resources`](../../security/security-skills/README.md). `describeResources` reads current state; `observeResources` streams complete replacement snapshots and coalesces progress while a consumer is paused. Missing managers produce `state: unavailable` with `reason: component-missing`; mutations return an explicit resources-unavailable error.
+
+Installation, reinstallation, update, release checks, bundled installation, and removal return the manager’s admitted operation state. The Host owns that operation after admission: closing Settings, disconnecting a client, or unloading this controller ends observations without cancelling the work. `cancelResource` requires the observed operation id, so a late cancellation cannot stop its replacement. Manager disposal owns task shutdown.
+
+The manager owns installed generations, release configuration, progress, failures, and skill registry visibility. The controller stores none of these independently. Installing packaged resources requires the explicit bundled action; a missing download source remains unavailable. Resource management executes no installed scripts and does not require an assessment grant.
 
 <a id="report-downloads"></a>
 ## Report downloads
@@ -44,7 +54,7 @@ maxFindings defaults to 2000; maxReportBytes defaults to 4194304. Limit violatio
 
 #### What the model sees
 
-None; `securityResearch/describe` serves browser configuration and registers no model tool or prompt. Download audit events are log-only.
+The controller registers no model tool or prompt. Resource responses stay in Settings; the [skill provider](../../security/security-skills/README.md) owns catalog changes after installation. Report download audit events are log-only.
 
 #### Token effect
 
@@ -60,7 +70,7 @@ None; status reads do not alter model requests.
 
 - Configuration completeness is not operational readiness or authorization for an effect. The controller does not verify external tools, network connectivity, finding persistence, or complete enforcement across tool execution paths. Scope editing uses the Settings namespace; plugin installation, Finding browsing, and complete shell/browser/network enforcement remain separate.
 
-No runtime invariant companion is published: the controller returns immediate observations and retains no independent security state.
+No runtime invariant companion is published: the controller projects service-owned state and retains only observer lifetimes.
 
 
 <a id="dev-note"></a>

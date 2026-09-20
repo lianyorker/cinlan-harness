@@ -12,6 +12,8 @@ import type {} from '@deepseek-ai/dsh-artifact'
 import type {} from '@deepseek-ai/dsh-finding'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-skill'
+import { SecuritySkillResourceError } from '@deepseek-ai/dsh-security-skills/resources'
+import type { SecurityResearchResourceCancelRequest, SecurityResourceAvailability, SecuritySkillResourceStatus } from './types.ts'
 import type {} from 'zod'
 import type {} from '@deepseek-ai/dsh-vuln-kb-service'
 import type {} from '@deepseek-ai/dsh-agent'
@@ -28,10 +30,12 @@ const { version: packageVersion } = createRequire(import.meta.url)('../package.j
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    /** Read-only security composition summary for Settings. */
+    /** Security resource management and Session assessment observations. */
     securityResearchController: SecurityResearchController
   }
 }
+
+function isAborted(signal: AbortSignal): boolean { return signal.aborted }
 
 /** Module names that make up the Security Research Host layer. */
 const SECURITY_MODULES = {
@@ -48,19 +52,21 @@ export interface Config {
   readonly maxReportBytes?: number
 }
 
-/** Host owner of Security Research status and explicit local report downloads. */
+/** Host Remote for resource management, assessment status, and authorized report downloads. */
 export class SecurityResearchController extends TypertRemoteService {
   static inject = ['typert']
   static Config: Schema<Config> = Schema.object({
     maxFindings: Schema.number().step(1).min(1).max(100_000).default(2_000),
     maxReportBytes: Schema.number().step(1).min(1).max(100 * 1024 * 1024).default(4 * 1024 * 1024),
   })
+  private readonly resourceObservers = new AbortController()
   private readonly maxFindings: number
   private readonly maxReportBytes: number
 
   /** @param ctx - Host context with optional security services. @param config - Complete-report limits. */
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'securityResearchController', { namespace: 'securityResearch' })
+    ctx.effect(() => () => { this.resourceObservers.abort() }, 'security resource observers')
     if (Object.keys(config).some(key => key !== 'maxFindings' && key !== 'maxReportBytes')) throw new TypeError('Unknown report limit')
     this.maxFindings = config.maxFindings ?? 2_000
     this.maxReportBytes = config.maxReportBytes ?? 4 * 1024 * 1024
@@ -176,6 +182,160 @@ export class SecurityResearchController extends TypertRemoteService {
     const mediaType = request.format === 'json' ? 'application/json' : request.format === 'markdown' ? 'text/markdown' : 'application/sarif+json'
     const fileName = request.format === 'sarif' ? 'security-findings.sarif.json' : request.format === 'markdown' ? 'security-findings.md' : 'security-findings.json'
     return { fileName, mediaType, bytes: data.byteLength, base64: Buffer.from(data).toString('base64'), findingCount: findings.length }
+  }
+
+  /**
+   * Read resource status without starting an installation or checking the network.
+   * @param signal - Caller cancellation for this observation.
+   * @returns The manager snapshot or explicit component absence.
+   */
+  @Remote('describeResources')
+  async describeResources(signal: AbortSignal): Promise<SecurityResourceAvailability> {
+    signal.throwIfAborted()
+    const manager = this.ctx.get('securitySkillResources')
+    if (manager === undefined) return { state: 'unavailable', reason: 'component-missing' }
+    const snapshot = await manager.status()
+    signal.throwIfAborted()
+    return snapshot
+  }
+
+  /**
+   * Observe replacement snapshots; slow consumers retain only a pending refresh.
+   * @param signal - Observer lifetime; cancellation never stops a resource operation.
+   * @returns Initial state and manager changes until cancellation or controller disposal.
+   */
+  @Remote({ mode: 'stream' })
+  async *observeResources(signal: AbortSignal): AsyncIterable<SecurityResourceAvailability> {
+    const lifetime = AbortSignal.any([signal, this.resourceObservers.signal])
+    lifetime.throwIfAborted()
+    let changed = true
+    let wake: (() => void) | undefined
+    const refresh = (): void => { changed = true; wake?.() }
+    const offChanged = this.ctx.on('security-skill-resources/changed', refresh)
+    const offService = this.ctx.on('internal/service', (name) => {
+      if (name === 'securitySkillResources') refresh()
+    })
+    const cleanup = (): void => { offChanged(); offService(); wake?.() }
+    lifetime.addEventListener('abort', cleanup, { once: true })
+    try {
+      while (!lifetime.aborted) {
+        if (changed) {
+          changed = false
+          let snapshot: SecurityResourceAvailability
+          try { snapshot = await this.describeResources(lifetime) } catch (error) {
+            if (isAborted(lifetime)) return
+            throw error
+          }
+          if (isAborted(lifetime)) break
+          yield snapshot
+          continue
+        }
+        await new Promise<void>((resolve) => {
+          const done = (): void => { wake = undefined; resolve() }
+          wake = done
+          if (lifetime.aborted || changed) done()
+        })
+      }
+    } finally {
+      lifetime.removeEventListener('abort', cleanup)
+      cleanup()
+    }
+  }
+
+  /**
+   * Start a Host-owned release lookup.
+   * @param signal - Caller cancellation before admission, independent of admitted work.
+   * @returns The admitted operation and current installation.
+   */
+  @Remote('checkResourceUpdate')
+  checkResourceUpdate(signal: AbortSignal): Promise<SecuritySkillResourceStatus> {
+    const manager = this.resourceManager(signal)
+    return this.resourceRequest(() => manager.checkUpdate())
+  }
+
+  /**
+   * Start a Host-owned download and installation.
+   * @param signal - Caller cancellation before admission, independent of admitted work.
+   * @returns The admitted operation and current installation.
+   */
+  @Remote('installResource')
+  installResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus> {
+    const manager = this.resourceManager(signal)
+    return this.resourceRequest(() => manager.install())
+  }
+
+  /**
+   * Replace installed resources using the configured release source.
+   * @param signal - Caller cancellation before admission, independent of admitted work.
+   * @returns The admitted operation while the committed installation remains available.
+   */
+  @Remote('reinstallResource')
+  reinstallResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus> {
+    const manager = this.resourceManager(signal)
+    return this.resourceRequest(() => manager.reinstall())
+  }
+
+  /**
+   * Start installation of an available resource update.
+   * @param signal - Caller cancellation before admission, independent of admitted work.
+   * @returns The admitted operation and current installation.
+   */
+  @Remote('updateResource')
+  updateResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus> {
+    const manager = this.resourceManager(signal)
+    return this.resourceRequest(() => manager.update())
+  }
+
+  /**
+   * Explicitly install the package's bundled resources without a download source.
+   * @param signal - Caller cancellation before admission, independent of admitted work.
+   * @returns The admitted operation and bundled provenance after commit.
+   */
+  @Remote('installBundledResource')
+  installBundledResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus> {
+    const manager = this.resourceManager(signal)
+    return this.resourceRequest(() => manager.installBundled())
+  }
+
+  /**
+   * Cancel only the exact operation the caller observed.
+   * @param request - Manager-issued operation identity.
+   * @param signal - Caller cancellation before admission.
+   * @returns Manager state after the explicit cancellation request.
+   */
+  @Remote('cancelResource')
+  cancelResource(request: SecurityResearchResourceCancelRequest, signal: AbortSignal): Promise<SecuritySkillResourceStatus> {
+    const manager = this.resourceManager(signal)
+    return this.resourceRequest(() => manager.cancel(request.operationId))
+  }
+
+  /**
+   * Remove the managed installation through its generation owner.
+   * @param signal - Caller cancellation before admission, independent of admitted work.
+   * @returns The manager's removal state.
+   */
+  @Remote('removeResource')
+  removeResource(signal: AbortSignal): Promise<SecuritySkillResourceStatus> {
+    const manager = this.resourceManager(signal)
+    return this.resourceRequest(() => manager.remove())
+  }
+
+  private async resourceRequest(operation: () => Promise<SecuritySkillResourceStatus>): Promise<SecuritySkillResourceStatus> {
+    try { return await operation() } catch (error) {
+      if (error instanceof SecuritySkillResourceError) {
+        throw new RemoteError('security-research/resource-request-failed',
+          'Security skill resource request was refused', { code: error.code })
+      }
+      throw new RemoteError('gateway/internal', 'Security skill resource request failed', {})
+    }
+  }
+
+  private resourceManager(signal: AbortSignal) {
+    signal.throwIfAborted()
+    const manager = this.ctx.get('securitySkillResources')
+    if (manager === undefined) throw new RemoteError('security-research/resources-unavailable',
+      'Security skill resource manager is not mounted', { reason: 'component-missing' })
+    return manager
   }
 
   private async presetStatus(signal: AbortSignal): Promise<SecurityResearchSnapshot['preset']> {

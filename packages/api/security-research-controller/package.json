@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-api-security-research-controller",
-  "description": "Read-only Security Research status Remote for Harness Settings",
+  "description": "Security skill resource management and Session assessment Remotes",
   "version": "0.1.6-alpha.2",
   "publishConfig": {
     "access": "public"
@@ -44,10 +44,16 @@
   ],
   "license": "MIT",
   "peerDependencies": {
+    "@deepseek-ai/dsh-security-skills": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-security-skills": "workspace:^",
+    "@deepseek-ai/dsh-app-boot": "workspace:^",
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@deepseek-ai/dsh-api-gateway": "workspace:^",
+    "@deepseek-ai/dsh-typert-registry": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
     "@deepseek-ai/dsh-agent-presets": "workspace:^",

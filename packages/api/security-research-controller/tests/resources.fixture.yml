@@ -1,0 +1,6 @@
+- id: typert
+  name: cordis:security-resource-fixture-typert
+- id: gateway
+  name: cordis:security-resource-fixture-gateway
+- id: controller
+  name: cordis:security-resource-fixture-controller

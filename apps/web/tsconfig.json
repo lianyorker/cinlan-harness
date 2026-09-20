@@ -56,6 +56,7 @@
     "tests/settings-worktree-tasks.e2e.ts",
     "tests/device-capabilities.e2e.ts",
     "tests/security-capabilities.e2e.ts",
+    "tests/security-resources.e2e.ts",
     "tests/native-browser-settings.e2e.ts",
     "tests/work-items.e2e.ts",
     "tests/models-settings.e2e.ts",

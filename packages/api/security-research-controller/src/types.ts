@@ -1,6 +1,20 @@
 /** Browser-safe Security Research status returned by the Host Remote. */
 
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SecuritySkillResourceErrorCode, SecuritySkillResourceOperation, SecuritySkillResourceStatus } from '@deepseek-ai/dsh-security-skills/types'
+
+export type { SecuritySkillResourceStatus } from '@deepseek-ai/dsh-security-skills/types'
+
+/** Manager-owned resource state or an explicitly absent resource component. */
+export type SecurityResourceAvailability = SecuritySkillResourceStatus | {
+  readonly state: 'unavailable'
+  readonly reason: 'component-missing'
+}
+
+/** Exact observed operation identity; stale cancellation cannot stop a replacement operation. */
+export interface SecurityResearchResourceCancelRequest {
+  readonly operationId: SecuritySkillResourceOperation['id']
+}
 
 /** Security Research components that the current Host composition can provide. */
 export interface SecurityResearchComponents {
@@ -33,7 +47,7 @@ export interface SecurityResearchPresetStatus {
   readonly broken?: 'preset-invalid'
 }
 
-/** Point-in-time Security Research status used by Settings. */
+/** Point-in-time Security Research composition status for Session consumers. */
 export interface SecurityResearchSnapshot {
   readonly status: 'configured' | 'not-configured' | 'attention'
   readonly preset: SecurityResearchPresetStatus
@@ -84,6 +98,10 @@ export interface SecurityResearchScopeSettings {
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
+    /** Resource management requires its configured Host service. */
+    'security-research/resources-unavailable': { readonly reason: 'component-missing' }
+    /** Manager admission failure, with no local paths or raw provider diagnostic. */
+    'security-research/resource-request-failed': { readonly code: SecuritySkillResourceErrorCode }
     /** The complete report exceeded a configured limit. */
     'security-research/report-limit': Record<string, never>
     /** Concurrent Session mutation or non-advancing pagination prevented a complete snapshot. */

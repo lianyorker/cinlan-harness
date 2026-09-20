@@ -21,7 +21,7 @@ afterEach(() => {
   else Object.defineProperty(navigator, 'clipboard', clipboardDescriptor)
 })
 
-function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', language: 'en' | 'zh' = 'en', id = 'computer') {
+function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', language: 'en' | 'zh' = 'en', id: CapabilitySectionProps['definition']['id'] = 'computer') {
   const definition = CAPABILITIES.find(item => item.id === id)!
   const inventory: PluginInventorySnapshot = { entries: [{
     entryId: 'active-plugin' as PluginEntryId,
@@ -31,14 +31,6 @@ function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', la
   }] }
   const checkDevice = vi.fn<CapabilitySectionProps['checkDevice']>(async capability => ({
     capability, status, reason: status === 'not-configured' ? 'not-configured' : status === 'unavailable' ? 'cli-missing' : null,
-  }))
-  const describeSecurity = vi.fn<CapabilitySectionProps['describeSecurity']>(async () => ({
-    status: 'not-configured', preset: { present: true, trust: 'system' },
-    scope: { present: true, state: 'empty', targetCount: 0, actionCount: 0,
-      executionHostCount: 0, egressCount: 0, credentialCount: 0 },
-    components: { assessmentScope: true, findings: true, artifacts: true,
-      vulnerabilityKnowledgeBase: true, securitySkills: true, workflowPrompt: true, findingTools: true },
-    skillCount: 24, skillsComplete: true,
   }))
   const checkSdk = vi.fn<CapabilitySectionProps['checkSdk']>(async () => ({
     platform: 'linux',
@@ -51,14 +43,13 @@ function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', la
   }
   const unusedHook = (): never => { throw new Error('This section does not read the standard hook') }
   const props: CapabilitySectionProps = {
-    definition,
+    definition: { ...definition, id },
     close: vi.fn(),
     useSessions: unusedHook, useWorkspaces: unusedHook, useSessionPendingInteraction: unusedHook, useResource: unusedHook,
     list: vi.fn(async () => inventory),
     checkDevice,
     checkSdk,
     listMobileDevices,
-    describeSecurity,
     useMobileSettings: selector => selector({ status: 'ready', mode: 'host', writable: true, revision: 1,
       value: { enabled: false, defaultDeviceId: '', androidSdkPath: '' }, base: undefined, user: undefined }),
     saveMobileSettings: vi.fn(), resetMobileSettings: vi.fn(), resetBrowserPreferences: vi.fn(),
@@ -66,13 +57,11 @@ function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', la
     useBrowserRouting: selector => selector(unavailable),
     saveBrowserRouting: vi.fn<CapabilitySectionProps['saveBrowserRouting']>(async () => {}),
     resetBrowserRouting: vi.fn<CapabilitySectionProps['resetBrowserRouting']>(async () => {}),
-    useSecurityScope: selector => selector(unavailable),
-    saveSecurityScope: vi.fn(),
     saveBrowserPreferences: vi.fn(),
     browserControls: undefined,
     t: language === 'en' ? makeTranslate(en, commonEn) : makeTranslate(zh, commonZh),
   }
-  return { ...render(<CapabilitySection {...props} />), checkDevice, describeSecurity, props }
+  return { ...render(<CapabilitySection {...props} />), checkDevice, props }
 }
 
 describe('Device Settings readiness', () => {
@@ -161,14 +150,13 @@ describe('Device Settings readiness', () => {
     expect(signal.aborted).toBe(true)
   })
 
-  it('checks mobile readiness but does not probe devices for unrelated capability sections', async () => {
+  it('checks mobile readiness but does not probe devices for the browser section', async () => {
     const mobile = mount('unavailable', 'en', 'mobile')
     await waitFor(() => { expect(mobile.checkDevice).toHaveBeenCalledWith('mobile', expect.any(AbortSignal)) })
     mobile.unmount()
-    const security = mount('not-configured', 'en', 'security')
-    await screen.findByText(en.securityNotConfigured)
-    expect(security.describeSecurity).toHaveBeenCalledOnce()
-    expect(security.checkDevice).not.toHaveBeenCalled()
+    const browser = mount('not-configured', 'en', 'browser')
+    await screen.findByText(en.statusMissing)
+    expect(browser.checkDevice).not.toHaveBeenCalled()
   })
 })
 
@@ -237,60 +225,7 @@ describe('capability reference pages', () => {
   })
 })
 
-describe('Security Research status details', () => {
-  it.each([
-    ['configured', en.securityScopeConfigured], ['empty', en.securityScopeEmpty],
-    ['missing', en.securityScopeMissing], ['expired', en.securityScopeExpired],
-    ['not-yet-valid', en.securityScopeFuture],
-  ] as const)('renders the %s scope without treating it as installation evidence', async (state, label) => {
-    const view = mount('not-configured', 'en', 'security')
-    await screen.findByText(en.securityNotConfigured)
-    const snapshot = await view.describeSecurity(new AbortController().signal)
-    view.describeSecurity.mockResolvedValue({ ...snapshot, scope: { ...snapshot.scope, state } })
-    fireEvent.click(screen.getByRole('button', { name: en.computerRecheck }))
-    expect(await screen.findByText(label)).toBeTruthy()
-    expect(screen.getByText(en.securityExecutionCaveat)).toBeTruthy()
-  })
-
-  it('reports failed and incomplete security reads instead of successful configuration', async () => {
-    const view = mount('not-configured', 'en', 'security')
-    await screen.findByText(en.securityNotConfigured)
-    view.describeSecurity.mockRejectedValueOnce(new Error('offline'))
-    fireEvent.click(screen.getByRole('button', { name: en.computerRecheck }))
-    await screen.findByRole('alert')
-    expect(screen.queryByText(en.securityConfigured)).toBeNull()
-    expect(screen.getAllByText(en.securityReadFailed).length).toBeGreaterThan(0)
-  })
-
-  it('shows the install card and hides the scope editor when the preset is missing', async () => {
-    const view = mount('not-configured', 'en', 'security')
-    await screen.findByText(en.securityNotConfigured)
-    const snapshot = await view.describeSecurity(new AbortController().signal)
-    view.describeSecurity.mockResolvedValue({ ...snapshot, preset: { present: false }, status: 'not-configured' })
-    fireEvent.click(screen.getByRole('button', { name: en.computerRecheck }))
-    expect(await screen.findByText(en.securityInstallTitle)).toBeTruthy()
-    expect(screen.getByText(en.securityCommand)).toBeTruthy()
-    expect(screen.getByText(en.securityScopeUnavailable)).toBeTruthy()
-  })
-
-  it('shows the broken preset card and hides the scope editor when the preset is broken', async () => {
-    const view = mount('not-configured', 'en', 'security')
-    await screen.findByText(en.securityNotConfigured)
-    const snapshot = await view.describeSecurity(new AbortController().signal)
-    view.describeSecurity.mockResolvedValue({ ...snapshot, preset: { present: true, trust: 'system', broken: 'preset-invalid' }, status: 'attention' })
-    fireEvent.click(screen.getByRole('button', { name: en.computerRecheck }))
-    expect(await screen.findByText(en.securityPresetBrokenTitle)).toBeTruthy()
-    expect(screen.getByText(en.securityScopeUnavailable)).toBeTruthy()
-    expect(screen.queryByText(en.securityInstallTitle)).toBeNull()
-  })
-
-  it('shows the scope editor when the preset is present and not broken', async () => {
-    mount('not-configured', 'en', 'security')
-    await screen.findByText(en.securityNotConfigured)
-    expect(screen.getByText(en.securityScopeUnavailable)).toBeTruthy()
-    expect(screen.queryByText(en.securityInstallTitle)).toBeNull()
-    expect(screen.queryByText(en.securityPresetBrokenTitle)).toBeNull()
-  })
+describe('capability search targets', () => {
   it('reveals targeted component diagnostics without rechecking capability status', async () => {
     const b = mount()
     await screen.findByText(en.deviceNotConfigured)
