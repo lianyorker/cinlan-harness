@@ -12,10 +12,22 @@ const WINDOW = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
 function ready() { return { type: 'ready', attachmentId: ATTACHMENT, processId: PROCESS, pid: 123, cwd: '.', shellName: 'fixture-shell' } as const }
 
 describe('sidebar terminal Remote composition', () => {
+  it('validates canonical title requests and lists retained terminals without opening them', async () => {
+    const h = await createHarness()
+    expect(await h.call('listUi', { sessionId: 'session-opaque' })).toEqual([])
+    expect(h.provider.open).not.toHaveBeenCalled()
+    for (const title of ['', '   ', 'x'.repeat(121), 'bad\nname']) {
+      await expect(h.call('renameUi', { request: { sessionId: 'session-opaque', tabId: 'terminal:0', processId: PROCESS, title } }))
+        .rejects.toMatchObject({ code: 'sidebarTerminals/invalid-request' })
+    }
+    await expect(h.call('renameUi', { request: { sessionId: 'session-opaque', tabId: 'terminal:0', processId: 'stale', title: 'build' } }))
+      .rejects.toMatchObject({ code: 'sidebarTerminals/invalid-request' })
+    expect(h.provider.renameUi).not.toHaveBeenCalled()
+  })
   it('exposes the stable namespace and preserves main, floating, and agent targets', async () => {
     const h = await createHarness()
     expect(remoteMethods(h.ctx.sidebarTerminalController).map(method => [method.method, method.mode]))
-      .toEqual([['capability', undefined], ['shells', undefined], ['open', 'stream'], ['input', undefined], ['resize', undefined], ['ack', undefined], ['release', undefined], ['inspectUi', undefined], ['closeUi', undefined], ['watch', 'stream'], ['closeAgent', undefined]])
+      .toEqual([['capability', undefined], ['shells', undefined], ['open', 'stream'], ['input', undefined], ['resize', undefined], ['ack', undefined], ['release', undefined], ['inspectUi', undefined], ['closeUi', undefined], ['listUi', undefined], ['renameUi', undefined], ['watch', 'stream'], ['closeAgent', undefined]])
     expect(await result(await h.rpc('capability'))).toEqual({ ok: true, value: { status: 'available', shellName: 'fixture-shell' } })
     expect(await result(await h.rpc('shells'))).toEqual({ ok: true, value: [{ path: '/bin/fixture-shell', name: 'fixture-shell' }] })
     for (const target of [

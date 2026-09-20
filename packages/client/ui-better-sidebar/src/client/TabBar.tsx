@@ -10,9 +10,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconCloseFill14, IconPlusOutline16, Menu,
+  IconCloseFill14, IconPlusOutline16, Menu, Modal, Input, Button,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { SidebarTab } from './state.ts'
+import { isAgentTabId, type SidebarTab } from './state.ts'
 import { t } from './locales.ts'
 import css from './sidebar.module.css'
 
@@ -57,6 +57,8 @@ export function TabBar(props: {
   paneId: string
   tabs: SidebarTab[]
   active: string | null
+  /** Commit a human terminal title through its Host process owner. */
+  onRename?: (tab: SidebarTab, title: string) => Promise<void>
   onActivate: (tabId: string) => void
   onClose: (tabId: string) => void
   onNewTab: (optionId: string) => void
@@ -72,6 +74,16 @@ export function TabBar(props: {
   const {
     paneId, tabs, active, onActivate, onClose, onNewTab, newTabOptions, onDropTab, getTabIcon, getTabBadge,
   } = props
+  const [rename, setRename] = useState<{ tab: SidebarTab; title: string; pending: boolean; error: boolean }>()
+  const commitRename = async (): Promise<void> => {
+    if (rename === undefined || rename.pending || props.onRename === undefined) return
+    const current = rename
+    setRename({ ...current, pending: true, error: false })
+    try {
+      await props.onRename(current.tab, current.title)
+      setRename(undefined)
+    } catch { setRename({ ...current, pending: false, error: true }) }
+  }
   const [menuOpen, setMenuOpen] = useState(false)
   // The tab right-click context menu: the target tab plus the cursor
   // position (the portaled Menu anchors there, following GitView/FileTree).
@@ -168,12 +180,23 @@ export function TabBar(props: {
         if (payload !== null) onDropTab(payload, null)
       }}
     >
-      <div ref={listRef} className={css.tabList}>
+      <div ref={listRef} className={css.tabList} role="tablist">
         {tabs.map(tab => (
           <div
             key={tab.id}
             className={clsx(css.tab, active === tab.id && css.tabActive)}
             title={tab.title}
+            role="tab"
+            aria-label={tab.title}
+            aria-selected={active === tab.id}
+            tabIndex={active === tab.id ? 0 : -1}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onActivate(tab.id) }
+              if (event.key === 'F2' && props.onRename !== undefined && tab.type === 'terminal' && !isAgentTabId(tab.id)) {
+                event.preventDefault()
+                setRename({ tab, title: tab.title, pending: false, error: false })
+              }
+            }}
             draggable
             onDragStart={(event) => {
               setTabDragging(true)
@@ -189,6 +212,11 @@ export function TabBar(props: {
               const raw = event.dataTransfer.getData(TAB_DRAG_TYPE)
               const payload = parseDrag(raw)
               if (payload !== null) onDropTab(payload, tab.id)
+            }}
+            onDoubleClick={() => {
+              if (props.onRename !== undefined && tab.type === 'terminal' && !isAgentTabId(tab.id)) {
+                setRename({ tab, title: tab.title, pending: false, error: false })
+              }
             }}
             onClick={() => { onActivate(tab.id) }}
             onMouseDown={(event) => {
@@ -232,6 +260,18 @@ export function TabBar(props: {
           right edge of the scrollport when the tabs overflow, so it stays
           reachable no matter how many tabs are open).
         */}
+        {rename !== undefined && <Modal open title={t('terminalRename')} closeLabel={t('terminalRenameCancel')}
+          onClose={() => { if (!rename.pending) setRename(undefined) }}>
+          <form onSubmit={(event) => { event.preventDefault(); void commitRename() }}>
+            <Input aria-label={t('terminalRename')} value={rename.title} maxLength={120} autoFocus
+              disabled={rename.pending} onClick={(event) => { event.stopPropagation() }}
+              onKeyDown={(event) => { if (event.key === 'Escape' && !rename.pending) setRename(undefined) }}
+              onChange={(event) => { setRename({ ...rename, title: event.target.value, error: false }) }} />
+            <Button type="submit" disabled={rename.pending || rename.title.trim() === ''}>{t('terminalRenameSave')}</Button>
+            <Button type="button" disabled={rename.pending} onClick={() => { setRename(undefined) }}>{t('terminalRenameCancel')}</Button>
+            {rename.error && <span role="alert">{t('terminalRenameFailed')}</span>}
+          </form>
+        </Modal>}
         <Menu
           open={menuOpen}
           onClose={() => { setMenuOpen(false) }}
@@ -271,6 +311,8 @@ export function TabBar(props: {
           open={tabMenu !== null && tabMenuIndex >= 0}
           onClose={() => { setTabMenu(null) }}
           items={[
+            ...props.onRename !== undefined && tabs[tabMenuIndex]?.type === 'terminal' && !isAgentTabId(tabs[tabMenuIndex].id)
+              ? [{ id: 'rename', label: t('terminalRename') }] : [],
             { id: 'close', label: t('close') },
             { id: 'closeOthers', label: t('closeOtherTabs'), ...(tabs.length <= 1 ? { disabled: true } : {}) },
             { id: 'closeLeft', label: t('closeLeftTabs'), ...(tabMenuIndex <= 0 ? { disabled: true } : {}) },
@@ -282,7 +324,10 @@ export function TabBar(props: {
             setTabMenu(null)
             const index = tabs.findIndex(tab => tab.id === target.tabId)
             if (index < 0) return
-            if (id === 'close') {
+            if (id === 'rename') {
+              const tab = tabs[index]
+              if (tab !== undefined) setRename({ tab, title: tab.title, pending: false, error: false })
+            } else if (id === 'close') {
               onClose(target.tabId)
             } else if (id === 'closeOthers') {
               for (const tab of tabs) {

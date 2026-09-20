@@ -58,6 +58,9 @@ import { detectNewDirectSubagent } from './subagent-detect.ts'
 import { detectNewJob } from './subagent-jobs.ts'
 import { t } from './locales.ts'
 import { api, type SessionScope } from './api.ts'
+import { TerminalRecovery } from './TerminalRecovery.tsx'
+import { rememberTerminalTitle } from './terminal-launch.ts'
+import type { TerminalCallbacks, SidebarTerminalSessionId, SidebarTerminalTabId, SidebarTerminalProcessId } from '@deepseek-ai/dsh-api-sidebar-terminal-controller/types'
 import css from './sidebar.module.css'
 
 
@@ -178,8 +181,14 @@ function buildNewTabOptions(state: SidebarState, ctx: Context, scope: SessionSco
     }))
 }
 
-export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?: SidebarPreferencesController }) {
-  const { ctx, store, preferences } = props
+export function Sidebar(props: {
+  ctx: Context
+  store: SidebarStore
+  preferences?: SidebarPreferencesController
+  terminal?: TerminalCallbacks
+  terminalWindowId?: string
+}) {
+  const { ctx, store, preferences, terminal } = props
 
   // Copy freshness: re-render the whole tree when the DSH locale switches.
   // The module-level t() reads the active locale at call time, so a root
@@ -873,6 +882,17 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
 
 
   const actions: WorkbenchActions = useMemo(() => ({
+    ...terminal === undefined ? {} : { renameTerminal: async (tab: SidebarTab, title: string): Promise<void> => {
+      if (sessionId === undefined) throw new Error('Terminal Session is unavailable')
+      const meta = tab.meta
+      if (meta === null || typeof meta !== 'object' || !('terminalProcessId' in meta) || typeof meta.terminalProcessId !== 'string') {
+        throw new Error('Terminal has not connected')
+      }
+      const renamed = await terminal.terminalRenameUi({ sessionId: sessionId as SidebarTerminalSessionId,
+        tabId: tab.id as SidebarTerminalTabId,
+        processId: meta.terminalProcessId as SidebarTerminalProcessId, title })
+      rememberTerminalTitle(store, renamed)
+    } },
     closeTab: (paneId, tabId) => {
       // Route through the service: the tab-bar close is the canonical close
       // path (finds the pane itself, fires descriptor.onClose); the session
@@ -902,7 +922,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
     resizeSplit: (splitId, index, deltaFrac) => {
       store.reduce(s => resizeSplitIn(s, splitId, index, deltaFrac))
     },
-  }), [store, sessionId, cwd])
+  }), [store, sessionId, cwd, terminal])
 
   /**
    * The explorer's @-reference button: append `@<relative path>` to the
@@ -1011,6 +1031,9 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore; preferences?
 
   return (
     <div data-dsh-panel-host {...osFileDragShield}>
+      {terminal !== undefined && (
+        <TerminalRecovery terminal={terminal} store={store} sessionId={sessionId} windowId={props.terminalWindowId} />
+      )}
       {/*
         The persistent toggle cluster at the top-right corner: the bottom
         panel's button (bottom glyph) LEFT of the right panel's (side glyph).

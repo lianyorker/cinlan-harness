@@ -218,6 +218,14 @@ export function createTerminalTransport(
         await answer(remote.closeUi({ sessionId, tabId, processId }))
       })())
     },
+    async terminalListUi(sessionId) {
+      requireOwner()
+      return answer(remote.listUi(sessionId))
+    },
+    async terminalRenameUi(request) {
+      requireOwner()
+      return answer(remote.renameUi(request))
+    },
     dispose() {
       if (disposing !== undefined) return disposing
       disposed = true

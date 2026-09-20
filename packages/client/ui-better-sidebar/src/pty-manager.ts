@@ -55,6 +55,8 @@ export interface SidebarPty {
   cwd: string
   /** Executable captured at spawn; foreground commands cannot change the tab shell. */
   shellPath: string
+  /** Human title retained with this Host process; omission uses its shell name. */
+  title?: string
   pty: IPty
   /** Output accumulated since spawn (bounded; head dropped when over the limit). */
   transcript: string

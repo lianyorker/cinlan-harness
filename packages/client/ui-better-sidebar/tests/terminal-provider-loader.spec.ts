@@ -1,4 +1,5 @@
 /** Desktop terminal composition through real Loader, managers, tools, and optional Gateway. */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -472,6 +473,7 @@ describe('Desktop sidebar terminals through source Loader', () => {
     const second = await attach(h, floatingRequest('missing-now'))
     expect(second.ready.pid).toBe(process.pid)
     expect(second.ready.cwd).toBe(first.ready.cwd)
+    expect(h.terminals.listUi(sessionId)).toEqual([expect.objectContaining({ processId: first.ready.processId, floating: { windowId, directory: 'child' } })])
     h.terminals.release({ attachmentId: second.ready.attachmentId, mode: 'close' })
     await expect(second.iterator.next()).resolves.toMatchObject({ done: true })
     const lifetime = new AbortController()
@@ -630,7 +632,8 @@ describe('Desktop sidebar terminals through source Loader', () => {
     const h = await load({}, true)
     expect(h.ctx.get('webServer')).toBeUndefined()
     expect(h.ctx.get('webRuntime')).toBeUndefined()
-    const shared = h.ctx.connection.createSharedFetchHandler('/api')
+    const access = createTrustedConnectionAccess()
+    const shared = h.ctx.connection.createSharedFetchHandler('/api', access)
     const response = await shared.fetch(new Request('dsh-app://app/api/sidebarTerminals/capability', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ type: 'client-request', rpcId: 'terminal-capability', method: 'sidebarTerminals/capability', payload: { args: {} } }),
@@ -638,10 +641,14 @@ describe('Desktop sidebar terminals through source Loader', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ type: 'server-response', result: { ok: true, value: { status: 'available' } } })
     const lifetime = new AbortController()
-    const source = await h.ctx.typertGateway.wireStream.open('sidebarTerminals/open', { args: { request: uiRequest() } }, lifetime.signal)
+    const source = await h.ctx.typertGateway.wireStream.open(
+      'sidebarTerminals/open', { args: { request: uiRequest() } }, lifetime.signal, access,
+    )
     const iterator = ownStream(source as AsyncIterable<SidebarTerminalFrame>, lifetime)
     const ready = await readFrame(iterator, 'ready')
-    const call = (method: string, request: unknown) => h.ctx.typertGateway.invoke({ namespace: 'sidebarTerminals', method, args: { request } })
+    const call = (method: string, request: unknown) => h.ctx.typertGateway.invoke({
+      access, namespace: 'sidebarTerminals', method, args: { request },
+    })
     await call('ack', { attachmentId: ready.attachmentId, sequence: 0 })
     await call('input', { attachmentId: ready.attachmentId, data: 'from-gateway\r' })
     await call('resize', { attachmentId: ready.attachmentId, cols: 101, rows: 31 })

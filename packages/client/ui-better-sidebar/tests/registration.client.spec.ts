@@ -38,6 +38,8 @@ function terminalScope() {
       .mockResolvedValue({ status: 'available', shellName: 'fixture-shell' }),
     watchAgentTerminals: vi.fn<TerminalCallbacks['watchAgentTerminals']>(() => stopWatching),
     terminalCloseAgent: vi.fn<TerminalCallbacks['terminalCloseAgent']>(),
+    terminalListUi: vi.fn<TerminalCallbacks['terminalListUi']>().mockResolvedValue([]),
+    terminalRenameUi: vi.fn<TerminalCallbacks['terminalRenameUi']>(),
     terminalCloseUi: vi.fn<TerminalCallbacks['terminalCloseUi']>(),
     dispose: vi.fn<TerminalCallbacks['dispose']>(() => { startDisposal(); return drained }),
   } satisfies TerminalCallbacks
@@ -87,7 +89,7 @@ function registeredCallbacks(ctx: Context, slots: SlotRegistry) {
     }))
   }
   expect(face.service).toBe(ctx.get('betterSidebar'))
-  expect(face.service.getTabs()).toHaveLength(7)
+  expect(face.service.getTabs().map(tab => tab.id).sort()).toEqual(['browser', 'diff', 'editor', 'git', 'sidechat', 'subagent', 'subagentchat', 'terminal'])
   expect(face.service.getFileViewers()).toHaveLength(9)
   expect(slots.entries('settings.section.icon').map(entry => entry.options.key).sort())
     .toEqual(['files', 'sidechat', 'tasks', 'workspace-layout'])

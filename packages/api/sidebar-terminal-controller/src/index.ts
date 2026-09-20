@@ -3,9 +3,10 @@ import type { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from '@deepseek-ai/dsh-sidebar-terminals'
 import { terminalFailure } from './errors.ts'
-import { validateInspectUi, validateCloseUi, validateAck, validateAgentId, validateInput, validateOpen, validateRelease, validateResize, validateSessionId } from './validation.ts'
+import { validateInspectUi, validateRenameUi, validateCloseUi, validateAck, validateAgentId, validateInput, validateOpen, validateRelease, validateResize, validateSessionId } from './validation.ts'
 import type {
-  SidebarAgentTerminalId, SidebarAgentTerminalSnapshot, SidebarTerminalAckRequest, SidebarTerminalCapability, SidebarTerminalShell,
+  SidebarTerminalRenameUiRequest, SidebarUiTerminalSnapshot, SidebarAgentTerminalId, SidebarAgentTerminalSnapshot,
+  SidebarTerminalAckRequest, SidebarTerminalCapability, SidebarTerminalShell,
   SidebarTerminalFrame, SidebarTerminalInputRequest, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest,
   SidebarTerminalResizeRequest, SidebarTerminalSessionId, SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalProcessId,
 } from './types.ts'
@@ -106,6 +107,24 @@ export class SidebarTerminalController extends TypertRemoteService {
   @Remote
   closeUi(request: SidebarTerminalCloseUiRequest): void {
     this.invoke(() => { validateCloseUi(request); this.ctx.sidebarTerminals.closeUi(request) })
+  }
+
+  /** Enumerate retained UI terminals without spawning or activating a Session.
+   * @param sessionId - owning Session identity.
+   * @returns live terminal facts retained by this Host.
+   */
+  @Remote
+  listUi(sessionId: SidebarTerminalSessionId): readonly SidebarUiTerminalSnapshot[] {
+    return this.invoke(() => { validateSessionId(sessionId); return this.ctx.sidebarTerminals.listUi(sessionId) })
+  }
+
+  /** Rename exactly the observed native process.
+   * @param request - terminal generation and nonempty human title up to 120 characters.
+   * @returns canonical terminal facts after a successful rename.
+   */
+  @Remote
+  renameUi(request: SidebarTerminalRenameUiRequest): SidebarUiTerminalSnapshot {
+    return this.invoke(() => { validateRenameUi(request); return this.ctx.sidebarTerminals.renameUi(request) })
   }
 
   /**

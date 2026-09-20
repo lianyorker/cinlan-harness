@@ -93,6 +93,14 @@ export function validateCloseUi(value: unknown): void {
   uuid(request.processId)
 }
 
+/** @param value - Exact process generation and a human title from Remote JSON. */
+export function validateRenameUi(value: unknown): void {
+  const request = record(value, ['sessionId', 'tabId', 'processId', 'title'])
+  uiTarget(request)
+  uuid(request.processId)
+  if (typeof request.title !== 'string' || request.title.trim().length === 0 || request.title.length > 120 || CONTROL.test(request.title)) invalid()
+}
+
 /** @param value - Input request; its complete JSON request object, including metadata, is bounded to 64 KiB. */
 export function validateInput(value: unknown): void {
   const request = record(value, ['attachmentId', 'data'])

@@ -1,4 +1,5 @@
 /** Real Loader, Gateway, Connection, and authentication with an external terminal provider fixture. */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -41,6 +42,8 @@ class ExternalTerminals extends SidebarTerminals {
   readonly closeAgent = vi.fn<(uuid: SidebarAgentTerminalId) => void>()
   readonly inspectUi = vi.fn<(request: SidebarTerminalUiTarget) => SidebarTerminalProcessId | null>(() => PROCESS)
   readonly closeUi = vi.fn<(request: SidebarTerminalCloseUiRequest) => void>()
+  readonly listUi = vi.fn<SidebarTerminals['listUi']>(() => [])
+  readonly renameUi = vi.fn<SidebarTerminals['renameUi']>()
   readonly open = vi.fn((_request: SidebarTerminalOpenRequest, signal: AbortSignal): AsyncIterable<SidebarTerminalFrame> =>
     this.frames(signal))
   readonly watch = vi.fn((
@@ -111,17 +114,18 @@ export async function createHarness(web = false) {
   } as unknown as NonNullable<typeof ctx.loader.internal>
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(config).href } })
   await ctx.loader.await()
-  const shared = ctx.connection.createSharedFetchHandler('/api')
+  const access = createTrustedConnectionAccess()
+  const shared = ctx.connection.createSharedFetchHandler('/api', access)
   const origin = web ? 'http://127.0.0.1:' + String(ctx.webServer.port) : undefined
   let rpcId = 0
   return {
     ctx,
     provider: ctx.sidebarTerminals as ExternalTerminals,
     call(method: string, args: Record<string, unknown> = {}) {
-      return ctx.typertGateway.invoke({ namespace: 'sidebarTerminals', method, args })
+      return ctx.typertGateway.invoke({ access, namespace: 'sidebarTerminals', method, args })
     },
     async stream(method: string, args: Record<string, unknown>, signal = new AbortController().signal) {
-      const source = await ctx.typertGateway.wireStream.open('sidebarTerminals/' + method, { args }, signal)
+      const source = await ctx.typertGateway.wireStream.open('sidebarTerminals/' + method, { args }, signal, access)
       return source[Symbol.asyncIterator]()
     },
     async rpc(method: string, args: Record<string, unknown> = {}, cookie?: string) {

@@ -177,7 +177,7 @@ function ConnectedTerminal(props: TerminalViewProps & { launch: TerminalLaunch }
         if (frame.type === 'ready') {
           attachmentId = frame.attachmentId
           if (!isAgentTabId(tabId)) rememberTerminalLaunch(store, scope.sessionId, tabId,
-            { pending: false, ...shellPath === undefined ? {} : { shellPath } }, frame.shellName)
+            { pending: false, ...shellPath === undefined ? {} : { shellPath } }, frame.title ?? frame.shellName, frame.processId)
           term.reset()
           Object.assign(term.options, resolveTerminalOptions(store.getPrefs(), tokenValue('--ds-font-family-code')))
           setConnected(true)

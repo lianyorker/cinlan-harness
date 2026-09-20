@@ -20,6 +20,8 @@ import css from './sidebar.module.css'
 
 /** Actions the workbench needs (bound to the store by the sidebar shell). */
 export interface WorkbenchActions {
+  /** Rename a terminal only after its canonical Host process accepts the title. */
+  renameTerminal?: (tab: SidebarTab, title: string) => Promise<void>
   closeTab: (paneId: string, tabId: string) => void
   activateTab: (paneId: string, tabId: string) => void
   /** Make a pane the target of newly opened tabs (click focus). */
@@ -187,7 +189,7 @@ function LeafView(props: {
         if (payload !== null) actions.moveTabToEdge(payload, leaf.id, zone)
       }}
     >
-      {dropZone !== null && <div className={clsx(css.dropOverlay, css[`drop${dropZone[0]!.toUpperCase()}${dropZone.slice(1)}`])} />}
+      {dropZone !== null && <div className={clsx(css.dropOverlay, css[`drop${dropZone.charAt(0).toUpperCase()}${dropZone.slice(1)}`])} />}
       {/*
         The tab strip renders even for an empty pane: the + menu must stay
         reachable when the pane has no tabs (fresh split, or the last tab was
@@ -199,6 +201,7 @@ function LeafView(props: {
         active={leaf.active}
         onActivate={(tabId) => { actions.activateTab(leaf.id, tabId) }}
         onClose={(tabId) => { actions.closeTab(leaf.id, tabId) }}
+        onRename={actions.renameTerminal}
         onNewTab={onNewTab}
         newTabOptions={newTabOptions}
         getTabIcon={getTabIcon}

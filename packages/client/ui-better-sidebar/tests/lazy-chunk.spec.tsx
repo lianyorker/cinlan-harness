@@ -31,6 +31,8 @@ function callbacks(): BuiltinTabOptions {
       terminalInput: vi.fn<TerminalCallbacks['terminalInput']>().mockResolvedValue(undefined),
       terminalResize: vi.fn<TerminalCallbacks['terminalResize']>().mockResolvedValue(undefined),
       terminalShells: vi.fn<TerminalCallbacks['terminalShells']>().mockResolvedValue([]),
+      terminalListUi: vi.fn<TerminalCallbacks['terminalListUi']>().mockResolvedValue([]),
+      terminalRenameUi: vi.fn<TerminalCallbacks['terminalRenameUi']>(),
       terminalCloseUi: vi.fn<TerminalCallbacks['terminalCloseUi']>().mockResolvedValue(undefined),
       terminalCloseAgent: vi.fn<TerminalCallbacks['terminalCloseAgent']>().mockResolvedValue(undefined),
     },

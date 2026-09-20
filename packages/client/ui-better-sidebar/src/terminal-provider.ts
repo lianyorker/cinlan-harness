@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { SidebarTerminals, SidebarTerminalError } from '@deepseek-ai/dsh-sidebar-terminals'
-import type { SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalProcessId, SidebarTerminalAttachmentId, SidebarTerminalOpenRequest, SidebarTerminalFrame, SidebarTerminalInputRequest, SidebarTerminalResizeRequest, SidebarTerminalAckRequest, SidebarTerminalReleaseRequest, SidebarTerminalCapability, SidebarTerminalSessionId, SidebarAgentTerminalId, SidebarAgentTerminalSnapshot } from '@deepseek-ai/dsh-sidebar-terminals/types'
+import type { SidebarTerminalRenameUiRequest, SidebarUiTerminalSnapshot, SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalProcessId, SidebarTerminalAttachmentId, SidebarTerminalOpenRequest, SidebarTerminalFrame, SidebarTerminalInputRequest, SidebarTerminalResizeRequest, SidebarTerminalAckRequest, SidebarTerminalReleaseRequest, SidebarTerminalCapability, SidebarTerminalSessionId, SidebarAgentTerminalId, SidebarAgentTerminalSnapshot } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import type { IPty } from 'node-pty'
 import type { AgentPtyRegistry, AgentTerminalHandle } from './agent-pty.ts'
 import { shellDisplayName, type PtyManager, type SidebarPty } from './pty-manager.ts'
@@ -38,6 +38,7 @@ export class SidebarTerminalProvider extends SidebarTerminals {
   private readonly lifetime = new AbortController()
   private readonly attachments = new Map<SidebarTerminalAttachmentId, Attached>()
   private readonly processIds = new WeakMap<Handle, SidebarTerminalProcessId>()
+  private readonly uiTargets = new WeakMap<SidebarPty, Extract<SidebarTerminalOpenRequest['target'], { kind: 'ui' }>>()
   private readonly pauses = new Map<IPty, Set<SidebarTerminalAttachmentId>>()
   private closing: Promise<void> | undefined
 
@@ -94,6 +95,7 @@ export class SidebarTerminalProvider extends SidebarTerminals {
       }
       handle = manager.open(target.sessionId, target.tabId, spawnCwd, request.cols, request.rows,
         selected?.path ?? preferred.shell, selected?.args ?? preferred.shellArgs)
+      if (!this.uiTargets.has(handle)) this.uiTargets.set(handle, target)
     }
     joined.throwIfAborted()
     const id = randomUUID() as SidebarTerminalAttachmentId
@@ -107,7 +109,7 @@ export class SidebarTerminalProvider extends SidebarTerminals {
       onPressure: (blocked) => { this.pressure(handle, id, blocked) },
     })
     const entry: Attached = { id, handle, target, lifetime, output, mode: 'disconnect', created, accepted: false }
-    const ready: SidebarTerminalFrame = { type: 'ready', attachmentId: id, processId: this.processIdOf(handle), pid: handle.pty.pid, cwd: handle.cwd, shellName: shellDisplayName('shellPath' in handle ? handle.shellPath : handle.pty.process), ...('shellPath' in handle ? { shellPath: handle.shellPath } : {}) }
+    const ready: SidebarTerminalFrame = { type: 'ready', attachmentId: id, processId: this.processIdOf(handle), pid: handle.pty.pid, cwd: handle.cwd, shellName: shellDisplayName('shellPath' in handle ? handle.shellPath : handle.pty.process), ...('shellPath' in handle ? { shellPath: handle.shellPath, ...handle.title === undefined ? {} : { title: handle.title } } : {}) }
     if (encodedFrameBytes(ready) > this.options.config.terminalFrameBytes) {
       if (created && target.kind === 'ui') this.options.ui?.close(target.sessionId + ':' + target.tabId)
       throw new SidebarTerminalError('output-overflow', 'The terminal opening frame exceeds its configured byte limit.')
@@ -169,6 +171,36 @@ export class SidebarTerminalProvider extends SidebarTerminals {
       throw new SidebarTerminalError('stale-attachment', 'The terminal process was replaced. Its earlier close request was discarded.')
     }
     this.options.ui?.close(key)
+  }
+
+  listUi(sessionId: SidebarTerminalSessionId): readonly SidebarUiTerminalSnapshot[] {
+    const manager = this.options.ui
+    if (manager === null) throw new SidebarTerminalError('unavailable', 'The native terminal dependency is unavailable.')
+    const result = manager.keysOf(sessionId).flatMap((key) => {
+      const handle = manager.get(key)
+      return handle === undefined || handle.exited ? [] : [this.uiSnapshot(handle)]
+    })
+    if (Buffer.byteLength(JSON.stringify(result)) > this.options.config.terminalBufferBytes) {
+      throw new SidebarTerminalError('output-overflow', 'The terminal list exceeds its configured byte limit.')
+    }
+    return result
+  }
+
+  renameUi(request: SidebarTerminalRenameUiRequest): SidebarUiTerminalSnapshot {
+    const handle = this.options.ui?.get(request.sessionId + ':' + request.tabId)
+    if (handle === undefined || handle.exited) throw new SidebarTerminalError('not-found', 'The terminal is no longer available.')
+    if (this.processIds.get(handle) !== request.processId) {
+      throw new SidebarTerminalError('stale-attachment', 'The terminal process was replaced. Its earlier rename request was discarded.')
+    }
+    handle.title = request.title.trim()
+    return this.uiSnapshot(handle)
+  }
+
+  private uiSnapshot(handle: SidebarPty): SidebarUiTerminalSnapshot {
+    const floating = this.uiTargets.get(handle)?.floating
+    return { sessionId: handle.sessionId as SidebarTerminalSessionId, tabId: handle.tabId as SidebarUiTerminalSnapshot['tabId'],
+      processId: this.processIdOf(handle), title: handle.title ?? shellDisplayName(handle.shellPath),
+      shellPath: handle.shellPath, cwd: handle.cwd, pid: handle.pty.pid, ...floating === undefined ? {} : { floating } }
   }
 
   closeAgent(uuid: SidebarAgentTerminalId): void { this.options.agents?.close(uuid) }

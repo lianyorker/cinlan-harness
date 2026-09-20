@@ -3,7 +3,7 @@ import type {} from '@deepseek-ai/dsh-typert-protocol'
 import type {
   SidebarAgentTerminalId, SidebarAgentTerminalSnapshot, SidebarTerminalAttachmentId, SidebarTerminalCapability,
   SidebarTerminalFrame, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest, SidebarTerminalSessionId,
-  SidebarTerminalTabId, SidebarTerminalShell,
+  SidebarTerminalTabId, SidebarTerminalShell, SidebarTerminalRenameUiRequest, SidebarUiTerminalSnapshot,
 } from '@deepseek-ai/dsh-sidebar-terminals/types'
 export type * from '@deepseek-ai/dsh-sidebar-terminals/types'
 
@@ -48,6 +48,10 @@ export interface TerminalCallbacks {
   terminalCloseAgent(uuid: SidebarAgentTerminalId): Promise<void>
   /** @param sessionId - owning Session. @param tabId - UI tab identity. */
   terminalCloseUi(sessionId: SidebarTerminalSessionId, tabId: SidebarTerminalTabId): Promise<void>
+  /** @param sessionId - owning Session. @returns retained live UI processes without spawning. */
+  terminalListUi(sessionId: SidebarTerminalSessionId): Promise<readonly SidebarUiTerminalSnapshot[]>
+  /** @param request - exact observed native generation and title. @returns committed terminal facts. */
+  terminalRenameUi(request: SidebarTerminalRenameUiRequest): Promise<SidebarUiTerminalSnapshot>
   /** @returns after streams, pending requests, and releases settle. */
   dispose(): Promise<void>
 }

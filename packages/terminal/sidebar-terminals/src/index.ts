@@ -1,6 +1,6 @@
 /** Service definition for the existing integrated sidebar PTY provider. */
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalProcessId, SidebarTerminalAckRequest, SidebarTerminalCapability, SidebarTerminalShell, SidebarTerminalErrorCode, SidebarTerminalFrame, SidebarTerminalInputRequest, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest, SidebarTerminalResizeRequest, SidebarAgentTerminalId, SidebarAgentTerminalSnapshot, SidebarTerminalSessionId } from './types.ts'
+import type { SidebarTerminalRenameUiRequest, SidebarUiTerminalSnapshot, SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalProcessId, SidebarTerminalAckRequest, SidebarTerminalCapability, SidebarTerminalShell, SidebarTerminalErrorCode, SidebarTerminalFrame, SidebarTerminalInputRequest, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest, SidebarTerminalResizeRequest, SidebarAgentTerminalId, SidebarAgentTerminalSnapshot, SidebarTerminalSessionId } from './types.ts'
 export type * from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -64,6 +64,16 @@ export abstract class SidebarTerminals extends Service {
    * @param request - exact observed native generation; missing processes are already closed, replacements are rejected.
    */
   abstract closeUi(request: SidebarTerminalCloseUiRequest): void
+  /** List retained live UI terminals without creating a process or extending retention.
+   * @param sessionId - owning Session.
+   * @returns current Host-lifetime terminal facts.
+   */
+  abstract listUi(sessionId: SidebarTerminalSessionId): readonly SidebarUiTerminalSnapshot[]
+  /** Rename the observed native process; missing or replacement generations are rejected.
+   * @param request - observed process identity and human title.
+   * @returns canonical title and current process facts after the rename commits.
+   */
+  abstract renameUi(request: SidebarTerminalRenameUiRequest): SidebarUiTerminalSnapshot
   /** Observe the agent terminals owned by a Session.
    * @param sessionId - owning Session.
    * @param signal - consumer lifetime.

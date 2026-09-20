@@ -1,4 +1,5 @@
 /** Exact terminal artifact delivery through real Desktop and authenticated Web Connection routes. */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdir, mkdtemp, rm, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -73,7 +74,7 @@ async function loadFixture({ web = false, present = true } = {}) {
   } } as unknown as NonNullable<typeof ctx.loader.internal>
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
-  const shared = ctx.connection.createSharedFetchHandler('/api')
+  const shared = ctx.connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
   const origin = web ? 'http://127.0.0.1:' + String(ctx.webServer.port) : undefined
   return {
     ctx, terminalFile, origin,

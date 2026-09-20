@@ -1,4 +1,5 @@
 /** Real sidebar Loader composition over authenticated Connection Fetch and fenced Web aliases. */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -89,7 +90,7 @@ export async function load({ web = false, config = {} }: { web?: boolean; config
   await ctx.loader.await()
   const session = ctx.sessions.create(undefined, { meta: { cwd } })
   const scope = { sessionId: session.id, cwd }
-  const shared = ctx.connection.createSharedFetchHandler('/api')
+  const shared = ctx.connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
   const origin = web ? 'http://127.0.0.1:' + String(ctx.webServer.port) : 'http://localhost'
   let cookie = ''
   if (web) {

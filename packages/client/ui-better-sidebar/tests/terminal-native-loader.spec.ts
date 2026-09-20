@@ -1,4 +1,5 @@
 /** Native shells behind the same source Loader, settings, and Remote controller used by Desktop. */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdtemp, readFile, realpath, rm, symlink, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
@@ -91,13 +92,14 @@ async function load() {
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
   expect(ctx.get('webServer')).toBeUndefined()
-  const shared = ctx.connection.createSharedFetchHandler('/api')
+  const access = createTrustedConnectionAccess()
+  const shared = ctx.connection.createSharedFetchHandler('/api', access)
   let rpcId = 0
   const call = async (method: string, request?: unknown) => {
     const response = await shared.fetch(new Request('dsh-app://app/api/sidebarTerminals/' + method, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ type: 'client-request', rpcId: String(++rpcId), method: 'sidebarTerminals/' + method,
-        payload: { args: request === undefined ? {} : { request } } }),
+        payload: { args: request === undefined ? {} : method === 'listUi' ? { sessionId: request } : { request } } }),
     }))
     expect(response.status).toBe(200)
     const envelope = await response.json() as { result: { ok: boolean; value?: unknown } }
@@ -124,7 +126,9 @@ async function load() {
       const lifetime = new AbortController()
       const request: SidebarTerminalOpenRequest = { target: { ...target, tabId,
         ...shellPath === undefined ? {} : { shellPath } }, cols: 120, rows: 24 }
-      const source = await ctx.typertGateway.wireStream.open('sidebarTerminals/open', { args: { request } }, lifetime.signal)
+      const source = await ctx.typertGateway.wireStream.open(
+        'sidebarTerminals/open', { args: { request } }, lifetime.signal, access,
+      )
       const iterator = (source as AsyncIterable<SidebarTerminalFrame>)[Symbol.asyncIterator]()
       const stream: typeof streams[number] = { lifetime, iterator }
       streams.push(stream)
@@ -199,6 +203,27 @@ async function observeShell(h: Harness, attachment: Attachment, name: string): P
 }
 
 describe('native sidebar terminals through Remote', () => {
+  it('renames the retained native generation and rejects a delayed rename after replacement', async () => {
+    const h = await load()
+    expect(await h.call('listUi', target.sessionId)).toEqual([])
+    const first = await h.attach()
+    const pid = await observeShell(h, first, 'renamed-before.txt')
+    const rename = { ...uiTarget, processId: first.ready.processId, title: '  Native build 终端  ' }
+    expect(await h.call('renameUi', rename)).toMatchObject({ ...uiTarget, processId: first.ready.processId, pid, title: 'Native build 终端' })
+    await first.release('park')
+    expect(await h.call('listUi', target.sessionId)).toEqual([expect.objectContaining({ processId: first.ready.processId, pid, title: 'Native build 终端' })])
+    const recovered = await h.attach()
+    expect(recovered.ready).toMatchObject({ processId: first.ready.processId, pid, title: 'Native build 终端' })
+    expect(await observeShell(h, recovered, 'renamed-after.txt')).toBe(pid)
+    await recovered.release('close')
+    expect(await h.call('listUi', target.sessionId)).toEqual([])
+    const replacement = await h.attach()
+    expect(replacement.ready.processId).not.toBe(first.ready.processId)
+    expect(() => h.ctx.sidebarTerminalController.renameUi(rename)).toThrow(expect.objectContaining({ code: 'sidebarTerminals/stale-attachment' }))
+    expect(await h.call('listUi', target.sessionId)).toEqual([expect.objectContaining({ processId: replacement.ready.processId })])
+    expect((await h.call('listUi', target.sessionId) as { title: string }[])[0]?.title).not.toBe('Native build 终端')
+    await replacement.release('close')
+  })
   it('opens empty preferences, shares and parks a native process, and awaits exit on shutdown', async () => {
     const h = await load()
     expect(await h.call('capability')).toMatchObject({ status: 'available' })

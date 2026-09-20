@@ -1,4 +1,5 @@
 /** Browser-safe values shared by integrated sidebar terminals and their carriers. */
+export type {} from '@deepseek-ai/cordis'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 
 /** Session identity, shared with the Session service's brand. */
@@ -61,7 +62,7 @@ export type SidebarTerminalCapability =
 
 /** One bounded frame; data credit is released only after the renderer acknowledges its sequence. */
 export type SidebarTerminalFrame =
-  | { readonly type: 'ready'; readonly attachmentId: SidebarTerminalAttachmentId; readonly processId: SidebarTerminalProcessId; readonly pid: number; readonly cwd: string; readonly shellName: string; readonly shellPath?: string }
+  | { readonly type: 'ready'; readonly attachmentId: SidebarTerminalAttachmentId; readonly processId: SidebarTerminalProcessId; readonly pid: number; readonly cwd: string; readonly shellName: string; readonly shellPath?: string; readonly title?: string }
   | { readonly type: 'data'; readonly attachmentId: SidebarTerminalAttachmentId; readonly sequence: number; readonly data: string }
   | { readonly type: 'exit'; readonly attachmentId: SidebarTerminalAttachmentId; readonly exitCode: number }
 
@@ -95,6 +96,20 @@ export interface SidebarTerminalUiTarget {
 export interface SidebarTerminalCloseUiRequest extends SidebarTerminalUiTarget {
   readonly processId: SidebarTerminalProcessId
 }
+/** Rename only the previously observed UI process generation. */
+export interface SidebarTerminalRenameUiRequest extends SidebarTerminalCloseUiRequest {
+  /** At most 120 characters, without control characters; trimming must leave a nonempty title. */
+  readonly title: string
+}
+/** Retained native UI terminal facts; enumeration never starts or extends a process. */
+export interface SidebarUiTerminalSnapshot extends SidebarTerminalCloseUiRequest {
+  readonly title: string
+  readonly shellPath: string
+  readonly cwd: string
+  readonly pid: number
+  readonly floating?: SidebarFloatingTerminalDirectory
+}
+
 /** Existing agent terminal state visible to the session's sidebar. */
 export interface SidebarAgentTerminalSnapshot {
   readonly uuid: SidebarAgentTerminalId

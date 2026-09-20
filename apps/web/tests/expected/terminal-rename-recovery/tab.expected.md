@@ -1,0 +1,13 @@
+- tablist:
+  - tab "Files":
+    - img
+    - text: Files
+    - button "Close":
+      - img
+  - tab "Native build 终端" [selected]:
+    - img
+    - text: Native build 终端
+    - button "Close":
+      - img
+  - button "New tab":
+    - img

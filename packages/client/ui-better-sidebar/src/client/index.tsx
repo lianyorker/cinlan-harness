@@ -129,7 +129,8 @@ function applySidebar(ctx: Context): void {
       .concat(allLeaves(snapshot.state.bottomSplits))
       .flatMap(leaf => leaf.tabs)
     for (const tab of tabs) {
-      if (tab.type === 'terminal' && !isAgentTabId(tab.id) && tab.title === fallbackTitle) {
+      const hasNativeTitle = tab.meta !== null && typeof tab.meta === 'object' && 'terminalProcessId' in tab.meta
+      if (tab.type === 'terminal' && !isAgentTabId(tab.id) && !hasNativeTitle && tab.title === fallbackTitle) {
         service.updateTab(tab.id, { title: name })
       }
     }
@@ -279,6 +280,8 @@ function applySidebar(ctx: Context): void {
             ctx,
             store: sidebarStore,
             preferences,
+            terminal,
+            terminalWindowId: floatingContext()?.windowId,
           })))
           mounted = true
           guardAnchor()

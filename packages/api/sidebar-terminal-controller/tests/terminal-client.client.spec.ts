@@ -115,6 +115,8 @@ function fixture() {
     release: vi.fn<TerminalRemote['release']>(async () => ok(undefined)),
     closeAgent: vi.fn<TerminalRemote['closeAgent']>(async () => ok(undefined)),
     closeUi: vi.fn<TerminalRemote['closeUi']>(async () => ok(undefined)),
+    listUi: vi.fn<TerminalRemote['listUi']>(async () => ok([])),
+    renameUi: vi.fn<TerminalRemote['renameUi']>(),
     inspectUi: vi.fn<TerminalRemote['inspectUi']>(async () => ok(null)),
     open: vi.fn<TerminalRemote['open']>((_request, signal) => {
       const feed = new ExternalFeed<SidebarTerminalFrame>()
@@ -143,6 +145,22 @@ async function accepted(f: ReturnType<typeof fixture>, feed = f.terminals.at(0)!
 }
 
 describe('terminal Remote transport', () => {
+  it('waits for pending title writes and rejects retained-list requests after disposal', async () => {
+    const f = fixture()
+    const pending = deferred<RemoteResult<Awaited<ReturnType<TerminalCallbacks['terminalRenameUi']>>>>()
+    f.remote.renameUi.mockReturnValue(pending.promise)
+    const request = { sessionId, tabId, processId, title: 'build' }
+    const rename = f.transport.terminalRenameUi(request)
+    let disposed = false
+    const closing = f.transport.dispose().then(() => { disposed = true })
+    await Promise.resolve()
+    expect(disposed).toBe(false)
+    await expect(f.transport.terminalListUi(sessionId)).rejects.toThrow('disposed')
+    pending.resolve(ok({ ...request, shellPath: '/bin/bash', cwd: '/workspace', pid: 42 }))
+    expect(await rename).toMatchObject(request)
+    await closing
+    expect(f.remote.renameUi).toHaveBeenCalledExactlyOnceWith(request)
+  })
   it('acknowledges ready after reset and output only after the write callback resolves', async () => {
     const f = fixture()
     const reset = deferred<undefined>()
