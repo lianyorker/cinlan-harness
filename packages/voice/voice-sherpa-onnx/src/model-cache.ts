@@ -1,131 +1,55 @@
-/**
- * Model download and extraction cache under `$DSH_HOME/models/voice/<id>/`.
- * Archive download and extraction are separate lifecycle phases: bytes stream
- * to a temporary archive while status is `downloading`, then status moves to
- * `extracting` while an injected extractor installs the model. A ready
- * sentinel is written only after extraction settles, so a crashed or aborted
- * operation never looks ready on the next status read.
- */
-
+/** Verified model transfers into task-private staging; publication belongs to VoiceResourceStore. */
 import { createHash } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
-import { mkdir, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { mkdir, rename, rm, stat } from 'node:fs/promises'
+import { join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import unbzip2 from 'unbzip2-stream'
 import * as tar from 'tar'
-import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
-import { architectureFilePaths, type VoiceModelDefinition, type VoiceModelStatus } from '@deepseek-ai/dsh-voice'
+import type { VoiceModelDefinition, VoiceModelTask } from '@deepseek-ai/dsh-voice'
 
-/** Sentinel filename marking a fully extracted, ready model directory. */
-export const READY_MARKER = '.dsh-voice-ready'
-
-/** Fetch function, injectable for tests (defaults to the global fetch). */
+/** Fetch implementation for one transfer. */
 export type FetchLike = typeof fetch
-
-/** Extract one downloaded tar.bz2 archive into its prepared cache directory. */
+/** Extract a verified archive into a private task directory. */
 export type ExtractArchive = (archivePath: string, cacheDir: string, signal?: AbortSignal) => Promise<void>
-
-/** Download partition settings resolved by the Provider. */
+/** Download settings resolved from provider Config. */
 export interface DownloadOptions {
-  /** Maximum bytes requested by one HTTP range. */
   segmentBytes: number
-  /** Maximum concurrent HTTP range requests. */
   concurrency: number
-  /** Maximum attempts for one range after retryable failures. */
   maxAttempts: number
-  /** Initial exponential-backoff delay after a retryable failure. */
   retryDelayMs: number
-  /** Abort a range request after this duration without response bytes. */
   requestTimeoutMs: number
 }
 
-type InFlightState =
-  | { state: 'downloading'; receivedBytes: number; totalBytes: number }
-  | { state: 'extracting'; receivedBytes: number; totalBytes: number }
-
-/**
- * Resolve the absolute cache directory for one model under the Harness home.
- * @param modelId - opaque model identifier used as the cache directory name.
- * @returns absolute model cache directory.
- */
-export function modelCacheDir(modelId: string): string {
-  return dshHomePath('models', 'voice', modelId)
-}
-
-/** Temporary archive path kept outside the destination directory being extracted. */
-function modelArchivePath(modelId: string): string {
-  return dshHomePath('models', 'voice', `.${modelId}.download.tar.bz2`)
-}
-
-function modelPartsDir(modelId: string): string {
-  return dshHomePath('models', 'voice', `.${modelId}.download.parts`)
+type Progress = NonNullable<VoiceModelTask['progress']>
+class DownloadProgress {
+  current: { state: 'downloading' | 'extracting'; receivedBytes: number; totalBytes: number }
+  constructor(totalBytes: number, private readonly changed: (value: Progress) => void) {
+    this.current = { state: 'downloading', receivedBytes: 0, totalBytes }
+    changed(this.current)
+  }
+  add(bytes: number): void {
+    this.current.receivedBytes += bytes
+    this.changed({ ...this.current })
+  }
+  extracting(bytes: number): void {
+    this.current = { state: 'extracting', receivedBytes: bytes, totalBytes: bytes }
+    this.changed({ ...this.current })
+  }
 }
 
 function partPath(partsDir: string, index: number): string {
-  return join(partsDir, `${String(index).padStart(6, '0')}.part`)
+  return join(partsDir, String(index).padStart(6, '0') + '.part')
 }
-
-/** Per-model in-flight download/extraction state for concurrent status reads. */
-const inFlight = new Map<string, InFlightState>()
-interface Installation {
-  readonly controller: AbortController
-  readonly promise: Promise<string>
-}
-
-/** One operation owns each model from the initial cache check through terminal cleanup. */
-const installations = new Map<string, Installation>()
-/** Last settled failure, retained until the next explicit retry. */
-const failures = new Map<string, string>()
 
 /**
- * Pure-JavaScript tar.bz2 extractor used by focused tests and as an explicit
- * fallback. Production passes a native-tar extractor through the Provider to
- * avoid high CPU and long completion delays on large model archives.
- * @param archivePath - downloaded tar.bz2 archive.
- * @param cacheDir - prepared destination directory.
- * @param signal - optional installation cancellation signal.
+ * Extract a pinned tar.bz2 archive with the JavaScript streaming implementation.
+ * @param archivePath - Verified archive bytes.
+ * @param cacheDir - Empty destination owned by the task.
+ * @param signal - Host task cancellation.
  */
 export async function extractArchiveJs(archivePath: string, cacheDir: string, signal?: AbortSignal): Promise<void> {
   await pipeline(createReadStream(archivePath), unbzip2(), tar.extract({ cwd: cacheDir, strip: 1 }), { signal })
-}
-
-function resolvedFilePath(cacheDir: string, filePath: string): string {
-  const parts = filePath.split('/')
-  return parts.length > 1 ? join(cacheDir, ...parts.slice(1)) : join(cacheDir, filePath)
-}
-
-async function requiredModelFilesReady(definition: VoiceModelDefinition, cacheDir: string): Promise<boolean> {
-  return (await Promise.all(architectureFilePaths(definition.architecture).map(async (path) => {
-    const info = await stat(resolvedFilePath(cacheDir, path)).catch(() => undefined)
-    return info?.isFile() === true && info.size > 0
-  }))).every(Boolean)
-}
-
-async function readInstalledModelStatus(definition: VoiceModelDefinition): Promise<VoiceModelStatus> {
-  const cacheDir = modelCacheDir(definition.id)
-  const marked = await stat(join(cacheDir, READY_MARKER)).then(() => true, () => false)
-  if (marked) return { state: 'ready', cacheDir }
-  if (await requiredModelFilesReady(definition, cacheDir)) {
-    await writeFile(join(cacheDir, READY_MARKER), '')
-    return { state: 'ready', cacheDir }
-  }
-  return { state: 'not-downloaded' }
-}
-
-/**
- * Current cache status of one model. A complete pre-marker extraction from an
- * older Host is adopted by validating every required non-empty model file and
- * writing the ready sentinel, avoiding a full re-download after restart.
- * @param definition - model identity and required file set.
- * @returns live progress, retained failure, ready cache path, or not-downloaded state.
- */
-export async function readModelStatus(definition: VoiceModelDefinition): Promise<VoiceModelStatus> {
-  const progress = inFlight.get(definition.id)
-  if (progress !== undefined) return progress
-  const failure = failures.get(definition.id)
-  if (failure !== undefined) return { state: 'failed', message: failure }
-  return readInstalledModelStatus(definition)
 }
 
 class DownloadHttpError extends Error {
@@ -137,15 +61,6 @@ class DownloadHttpError extends Error {
 class DownloadProtocolError extends Error {}
 
 class ArchiveIntegrityError extends DownloadProtocolError {}
-
-/** Translate a raw fetch/transport error into a user-facing message with network troubleshooting hints. */
-function friendlyDownloadError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error)
-  if (/fetch failed|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|Connect Timeout|UND_ERR_CONNECT_TIMEOUT/i.test(message)) {
-    return `下载失败：无法连接到模型服务器 (${message})。请检查网络连接或开启代理后重试。`
-  }
-  return message
-}
 
 function retryableDownloadError(error: unknown): boolean {
   if (error instanceof DownloadProtocolError) return false
@@ -188,11 +103,6 @@ async function retryDownload<T>(
   }
 }
 
-function updateDownloadProgress(modelId: string, bytes: number): void {
-  const current = inFlight.get(modelId)
-  if (current?.state === 'downloading') current.receivedBytes += bytes
-}
-
 interface DownloadIdleTimeout {
   signal: AbortSignal
   touch: () => void
@@ -217,6 +127,7 @@ function downloadIdleTimeout(timeoutMs: number, operationSignal: AbortSignal): D
     signal: controller.signal,
     touch,
     dispose: () => {
+      controller.abort(new DOMException('download attempt settled', 'AbortError'))
       operationSignal.removeEventListener('abort', abortFromOperation)
       if (timer !== undefined) clearTimeout(timer)
       timer = undefined
@@ -224,8 +135,21 @@ function downloadIdleTimeout(timeoutMs: number, operationSignal: AbortSignal): D
   }
 }
 
+async function releaseDownloadResponse(response: Response | undefined, idle: DownloadIdleTimeout): Promise<void> {
+  try {
+    // A locked body belongs to the already-settled pipeline. Header rejection leaves it unlocked.
+    if (response?.body !== undefined && response.body !== null && !response.body.locked) {
+      try { await response.body.cancel() } catch (_responseAlreadyErrored) {
+        // Fetch may already have errored the body; abort below still releases this attempt.
+      }
+    }
+  } finally {
+    idle.dispose()
+  }
+}
+
 async function writeResponseBody(
-  modelId: string,
+  progress: DownloadProgress,
   response: Response,
   destination: string,
   signal: AbortSignal,
@@ -241,7 +165,8 @@ async function writeResponseBody(
     await pipeline(
       trackProgress(response.body, (bytes) => {
         receivedBytes += bytes
-        updateDownloadProgress(modelId, bytes)
+        progress.add(bytes)
+        if (expectedBytes !== undefined && receivedBytes > expectedBytes) throw new DownloadProtocolError('download exceeded pinned byte count')
         onProgress?.()
       }),
       createWriteStream(temporary),
@@ -254,8 +179,8 @@ async function writeResponseBody(
     committed = true
     return receivedBytes
   } finally {
-    if (!committed) updateDownloadProgress(modelId, -receivedBytes)
-    await rm(temporary, { force: true }).catch(() => {})
+    if (!committed) progress.add(-receivedBytes)
+    await rm(temporary, { force: true })
   }
 }
 
@@ -263,23 +188,30 @@ async function downloadArchive(
   definition: VoiceModelDefinition,
   fetchImpl: FetchLike,
   archivePath: string,
-  options: DownloadOptions | undefined,
+  progress: DownloadProgress,
+  options: DownloadOptions,
   signal: AbortSignal,
 ): Promise<number> {
   if (definition.download.type !== 'archive') throw new Error('downloadArchive called for a file-download model')
   const archiveUrl = definition.download.url
   const expectedTotal = definition.approximateBytes
   if (expectedTotal <= 0) {
-    const response = await fetchImpl(archiveUrl, { signal })
-    const header = response.headers.get('content-length')
-    const total = header === null || header === '' ? expectedTotal : Number(header)
-    const progress = inFlight.get(definition.id)
-    if (progress?.state === 'downloading') progress.totalBytes = total
-    return writeResponseBody(definition.id, response, archivePath, signal)
+    return retryDownload(options, signal, async () => {
+      const idle = downloadIdleTimeout(options.requestTimeoutMs, signal)
+      let response: Response | undefined
+      try {
+        response = await fetchImpl(archiveUrl, { signal: idle.signal })
+        const header = response.headers.get('content-length')
+        const total = header === null || header === '' ? 0 : Number(header)
+        progress.current.totalBytes = Number.isSafeInteger(total) && total > 0 ? total : 0
+        return await writeResponseBody(progress, response, archivePath, idle.signal, undefined, idle.touch)
+      } finally {
+        await releaseDownloadResponse(response, idle)
+      }
+    })
   }
 
-  if (options === undefined) throw new Error('segmented download options are required for a sized model archive')
-  const partsDir = modelPartsDir(definition.id)
+  const partsDir = `${archivePath}.parts`
   const segmentCount = Math.ceil(expectedTotal / options.segmentBytes)
   await mkdir(partsDir, { recursive: true })
   const segmentSize = (index: number): number => Math.min(options.segmentBytes, expectedTotal - index * options.segmentBytes)
@@ -287,18 +219,18 @@ async function downloadArchive(
     const info = await stat(partPath(partsDir, index)).catch(() => undefined)
     return info?.isFile() === true && info.size === segmentSize(index)
   }))
-  const progress = inFlight.get(definition.id)
-  if (progress?.state === 'downloading') {
-    progress.totalBytes = expectedTotal
-    progress.receivedBytes = complete.reduce((total, ready, index) => total + (ready ? segmentSize(index) : 0), 0)
+  if (progress.current.state === 'downloading') {
+    progress.current.totalBytes = expectedTotal
+    progress.current.receivedBytes = complete.reduce((total, ready, index) => total + (ready ? segmentSize(index) : 0), 0)
   }
 
   const downloadPart = async (index: number, allowWhole: boolean): Promise<'range' | 'whole'> => retryDownload(options, signal, async () => {
     const start = index * options.segmentBytes
     const end = start + segmentSize(index) - 1
     const idleTimeout = downloadIdleTimeout(options.requestTimeoutMs, signal)
+    let response: Response | undefined
     try {
-      const response = await fetchImpl(archiveUrl, {
+      response = await fetchImpl(archiveUrl, {
         headers: { range: `bytes=${start}-${end}` },
         signal: idleTimeout.signal,
       })
@@ -306,9 +238,9 @@ async function downloadArchive(
       if (response.status === 200) {
         if (!allowWhole) throw new DownloadProtocolError('download failed: server stopped honoring byte ranges')
         await rm(partsDir, { recursive: true, force: true })
-        const current = inFlight.get(definition.id)
-        if (current?.state === 'downloading') current.receivedBytes = 0
-        await writeResponseBody(definition.id, response, archivePath, idleTimeout.signal, expectedTotal, idleTimeout.touch)
+        const current = progress.current
+        if (current.state === 'downloading') current.receivedBytes = 0
+        await writeResponseBody(progress, response, archivePath, idleTimeout.signal, expectedTotal, idleTimeout.touch)
         return 'whole'
       }
       if (response.status !== 206) throw new DownloadHttpError(response.status)
@@ -318,12 +250,12 @@ async function downloadArchive(
         throw new DownloadProtocolError(`download failed: expected Content-Range ${expectedRange}, received ${receivedRange ?? 'none'}`)
       }
       await writeResponseBody(
-        definition.id, response, partPath(partsDir, index), idleTimeout.signal, segmentSize(index), idleTimeout.touch,
+        progress, response, partPath(partsDir, index), idleTimeout.signal, segmentSize(index), idleTimeout.touch,
       )
       complete[index] = true
       return 'range'
     } finally {
-      idleTimeout.dispose()
+      await releaseDownloadResponse(response, idleTimeout)
     }
   })
 
@@ -388,6 +320,8 @@ async function downloadFiles(
   definition: VoiceModelDefinition,
   fetchImpl: FetchLike,
   cacheDir: string,
+  progress: DownloadProgress,
+  options: DownloadOptions,
   signal: AbortSignal,
 ): Promise<void> {
   if (definition.download.type !== 'files') throw new Error('downloadFiles called for an archive-download model')
@@ -396,124 +330,26 @@ async function downloadFiles(
     signal.throwIfAborted()
     const dest = join(cacheDir, entry.name)
     const info = await stat(dest).catch(() => undefined)
-    if (info?.isFile() === true && info.size === entry.bytes) {
-      updateDownloadProgress(definition.id, entry.bytes)
+    if (info?.isFile() === true && info.size === entry.bytes && await sha256File(dest, signal) === entry.sha256) {
+      progress.add(entry.bytes)
       continue
     }
-    const response = await fetchImpl(entry.url, { signal })
-    if (!response.ok || response.body === null) throw new DownloadHttpError(response.status)
-    const temp = `${dest}.partial`
-    await rm(temp, { force: true })
-    let fileReceived = 0
-    let committed = false
-    try {
-      await pipeline(
-        trackProgress(response.body, (bytes) => {
-          fileReceived += bytes
-          updateDownloadProgress(definition.id, bytes)
-        }),
-        createWriteStream(temp),
-        { signal },
-      )
-      if (fileReceived !== entry.bytes) {
-        throw new Error(`download failed: expected ${entry.bytes} bytes for ${entry.name}, received ${fileReceived}`)
+    await retryDownload(options, signal, async () => {
+      const idle = downloadIdleTimeout(options.requestTimeoutMs, signal)
+      let response: Response | undefined
+      try {
+        response = await fetchImpl(entry.url, { signal: idle.signal })
+        idle.touch()
+        await writeResponseBody(progress, response, dest, idle.signal, entry.bytes, idle.touch)
+        const actualHash = await sha256File(dest, idle.signal)
+        if (actualHash !== entry.sha256) {
+          throw new ArchiveIntegrityError('download failed: pinned file SHA-256 mismatch')
+        }
+      } finally {
+        await releaseDownloadResponse(response, idle)
       }
-      await rename(temp, dest)
-      committed = true
-    } finally {
-      if (!committed) updateDownloadProgress(definition.id, -fileReceived)
-      await rm(temp, { force: true }).catch(() => {})
-    }
-    const actualHash = await sha256File(dest, signal)
-    if (actualHash !== entry.sha256) {
-      throw new ArchiveIntegrityError(
-        `download failed: ${entry.name} expected SHA-256 ${entry.sha256}, received ${actualHash}`,
-      )
-    }
+    })
   }
-}
-
-async function installModel(
-  definition: VoiceModelDefinition,
-  fetchImpl: FetchLike,
-  extractArchive: ExtractArchive,
-  downloadOptions: DownloadOptions | undefined,
-  signal: AbortSignal,
-): Promise<string> {
-  const cacheDir = modelCacheDir(definition.id)
-  const archivePath = modelArchivePath(definition.id)
-  failures.delete(definition.id)
-  inFlight.set(definition.id, { state: 'downloading', receivedBytes: 0, totalBytes: definition.approximateBytes })
-  try {
-    const status = await readInstalledModelStatus(definition)
-    if (status.state === 'ready') return status.cacheDir
-    await rm(cacheDir, { recursive: true, force: true })
-    await rm(archivePath, { force: true })
-    if (definition.download.type === 'archive') {
-      await mkdir(dirname(archivePath), { recursive: true })
-      const totalBytes = await downloadArchive(definition, fetchImpl, archivePath, downloadOptions, signal)
-      await verifyArchiveIntegrity(definition, archivePath, signal)
-
-      inFlight.set(definition.id, { state: 'extracting', receivedBytes: totalBytes, totalBytes })
-      await mkdir(cacheDir, { recursive: true })
-      await extractArchive(archivePath, cacheDir, signal)
-    } else {
-      await downloadFiles(definition, fetchImpl, cacheDir, signal)
-    }
-    signal.throwIfAborted()
-    await writeFile(join(cacheDir, READY_MARKER), '')
-    await rm(modelPartsDir(definition.id), { recursive: true, force: true })
-    return cacheDir
-  } catch (error) {
-    await rm(cacheDir, { recursive: true, force: true }).catch(() => {})
-    if (error instanceof ArchiveIntegrityError) {
-      await rm(modelPartsDir(definition.id), { recursive: true, force: true }).catch(() => {})
-    }
-    if (signal.aborted) failures.delete(definition.id)
-    else failures.set(definition.id, friendlyDownloadError(error))
-    throw error
-  } finally {
-    await rm(archivePath, { force: true }).catch(() => {})
-    inFlight.delete(definition.id)
-  }
-}
-
-/**
- * Download and install one model archive. Idempotent when already ready;
- * concurrent callers await the same operation through terminal cleanup.
- * @param definition - model download source and identity.
- * @param fetchImpl - injectable fetch.
- * @param extractArchive - extractor; production supplies native tar.
- * @param downloadOptions - required for sized archives; controls range size, concurrency, retry, and timeout behavior.
- * @param signal - Optional caller cancellation; any caller can cancel the shared installation.
- * @returns absolute ready cache directory after cancellation cleanup or successful installation settles.
- */
-export function ensureModelDownloaded(
-  definition: VoiceModelDefinition,
-  fetchImpl: FetchLike = fetch,
-  extractArchive: ExtractArchive = extractArchiveJs,
-  downloadOptions?: DownloadOptions,
-  signal?: AbortSignal,
-): Promise<string> {
-  signal?.throwIfAborted()
-  const active = installations.get(definition.id)
-  if (active !== undefined) return awaitInstallation(active, signal)
-  const controller = new AbortController()
-  const promise = installModel(definition, fetchImpl, extractArchive, downloadOptions, controller.signal)
-  const installation = { controller, promise }
-  installations.set(definition.id, installation)
-  void promise.then(
-    () => { if (installations.get(definition.id) === installation) installations.delete(definition.id) },
-    () => { if (installations.get(definition.id) === installation) installations.delete(definition.id) },
-  )
-  return awaitInstallation(installation, signal)
-}
-
-function awaitInstallation(installation: Installation, signal: AbortSignal | undefined): Promise<string> {
-  if (signal === undefined) return installation.promise
-  const onAbort = (): void => { installation.controller.abort(signal.reason) }
-  signal.addEventListener('abort', onAbort, { once: true })
-  return installation.promise.finally(() => { signal.removeEventListener('abort', onAbort) })
 }
 
 /** Wrap a web stream as an async iterable while tracking byte progress. */
@@ -538,31 +374,35 @@ function trackProgress(body: ReadableStream<Uint8Array>, onChunk: (bytes: number
 }
 
 /**
- * Abort active installations and wait until their download or extraction work settles.
- * Completed range parts remain available for a later resume.
- * @param modelIds - models owned by the disposing provider.
+ * Download and verify pinned bytes without publishing an installation.
+ * @param definition - Pinned model manifest.
+ * @param cacheDir - Task-private staging directory; never an active generation.
+ * @param fetchImpl - HTTP transport.
+ * @param extractArchive - Managed archive extractor.
+ * @param options - Resolved transfer configuration.
+ * @param signal - Host-owned task cancellation.
+ * @param changed - Task-local progress publisher.
  */
-export async function cancelModelInstallations(modelIds: Iterable<string>): Promise<void> {
-  const active = [...new Set(modelIds)].flatMap((modelId) => {
-    const installation = installations.get(modelId)
-    return installation === undefined ? [] : [installation]
-  })
-  for (const installation of active) {
-    installation.controller.abort(new DOMException('voice model installation cancelled', 'AbortError'))
+export async function downloadModelToStaging(
+  definition: VoiceModelDefinition, cacheDir: string, fetchImpl: FetchLike,
+  extractArchive: ExtractArchive, options: DownloadOptions, signal: AbortSignal,
+  changed: (value: Progress) => void,
+): Promise<void> {
+  const progress = new DownloadProgress(definition.approximateBytes, changed)
+  const archivePath = cacheDir + '.tar.bz2'
+  await mkdir(cacheDir, { recursive: true })
+  try {
+    if (definition.download.type === 'archive') {
+      const bytes = await downloadArchive(definition, fetchImpl, archivePath, progress, options, signal)
+      await verifyArchiveIntegrity(definition, archivePath, signal)
+      progress.extracting(bytes)
+      await extractArchive(archivePath, cacheDir, signal)
+    } else {
+      await downloadFiles(definition, fetchImpl, cacheDir, progress, options, signal)
+    }
+    signal.throwIfAborted()
+  } finally {
+    await rm(archivePath, { force: true })
+    await rm(archivePath + '.parts', { recursive: true, force: true })
   }
-  await Promise.allSettled(active.map(installation => installation.promise))
-}
-
-/**
- * Cancel an active installation, wait for quiescence, and remove its complete cache and resumable parts.
- * @param modelId - model whose archive, cache, retained parts, and failure are removed.
- */
-export async function forgetModel(modelId: string): Promise<void> {
-  await cancelModelInstallations([modelId])
-  installations.delete(modelId)
-  failures.delete(modelId)
-  inFlight.delete(modelId)
-  await rm(modelCacheDir(modelId), { recursive: true, force: true })
-  await rm(modelArchivePath(modelId), { force: true })
-  await rm(modelPartsDir(modelId), { recursive: true, force: true })
 }

@@ -1,6 +1,10 @@
 /** Serializable requests and results for authenticated voice Remote consumers. */
 export type {
   VoiceEngineStatus,
+  VoiceModelTask,
+  VoiceModelTaskId,
+  VoiceModelResource,
+  VoiceModelsCancelValue,
   VoiceModelStatus,
   VoiceModelRow,
   VoiceModelsListValue,
@@ -11,6 +15,11 @@ export type {
 /** Exact model selector from the model list. */
 export interface VoiceModelRequest {
   readonly modelId: string
+}
+
+/** Exact Host task identity; cancellation never targets a replacement task. */
+export interface VoiceCancelRequest extends VoiceModelRequest {
+  readonly taskId: string
 }
 
 /** Canonical base64 of little-endian 16kHz mono float32 PCM, bounded to 16 MiB decoded. */

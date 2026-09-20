@@ -1,421 +1,250 @@
-/** Model download/cache lifecycle tests against a real tiny .tar.bz2 fixture and a stubbed fetch. */
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+/** Task-private transfers against controlled loopback HTTP and a real tiny archive. */
+import { createHash } from 'node:crypto'
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Readable } from 'node:stream'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { VoiceModelId } from '@deepseek-ai/dsh-voice'
-import type { VoiceModelDefinition } from '@deepseek-ai/dsh-voice'
-import { ensureModelDownloaded, extractArchiveJs, forgetModel, modelCacheDir, readModelStatus } from '../src/model-cache.ts'
+import type { VoiceModelDefinition, VoiceModelTask } from '@deepseek-ai/dsh-voice'
+import { httpFixture, modelFixture } from '../../../api/voice-controller/tests/harness.ts'
+import { downloadModelToStaging, extractArchiveJs } from '../src/model-cache.ts'
 import type { DownloadOptions } from '../src/model-cache.ts'
 
 const FIXTURE_ARCHIVE = new URL('./fixtures/fixture-model.tar.bz2', import.meta.url)
+const OPTIONS: DownloadOptions = { segmentBytes: 64, concurrency: 3, maxAttempts: 1, retryDelayMs: 1, requestTimeoutMs: 10_000 }
 
-function downloadOptions(concurrency: number, maxAttempts = 2): DownloadOptions {
-  return { segmentBytes: 64, concurrency, maxAttempts, retryDelayMs: 1, requestTimeoutMs: 10_000 }
-}
-
-function rangeResponse(bytes: Uint8Array, start: number, end: number): Response {
-  return new Response(Buffer.from(bytes.subarray(start, end + 1)), {
-    status: 206,
-    headers: { 'content-range': `bytes ${start}-${end}/${bytes.byteLength}` },
+async function staging() {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-voice-transfer-'))
+  const controller = new AbortController()
+  const transfers = new Set<Promise<void>>()
+  onTestFinished(async () => {
+    controller.abort()
+    await Promise.allSettled(transfers)
+    await rm(root, { recursive: true, force: true })
   })
-}
-
-function definition(): VoiceModelDefinition {
+  const progress: NonNullable<VoiceModelTask['progress']>[] = []
+  const directory = join(root, 'task-private')
   return {
-    id: VoiceModelId('fixture-model'),
-    name: 'fixture-model',
-    description: 'test model',
-    recommended: false,
-    kind: 'streaming',
-    approximateBytes: 0,
-    download: { type: 'archive', url: 'https://example.invalid/fixture-model.tar.bz2', sha256: '4c60d3d6068e1f601433271f210feb2db99f548d0e83a038b29451d801dc91f7' },
-    architecture: {
-      type: 'transducer',
-      encoder: 'fixture-model/encoder.onnx',
-      decoder: 'fixture-model/decoder.onnx',
-      joiner: 'fixture-model/joiner.onnx',
-      tokens: 'fixture-model/tokens.txt',
+    root, directory, controller, progress,
+    download(definition: VoiceModelDefinition, options = OPTIONS) {
+      const transfer = downloadModelToStaging(definition, directory, fetch, extractArchiveJs, options, controller.signal,
+        value => progress.push({ ...value }))
+      transfers.add(transfer)
+      return transfer
     },
   }
 }
 
-/** A minimal fetch stub whose Response streams the real fixture archive bytes. */
-async function fixtureFetch(): Promise<Response> {
+async function archiveFixture(handler?: (request: IncomingMessage, response: ServerResponse, bytes: Buffer) => void) {
   const bytes = await readFile(FIXTURE_ARCHIVE)
-  const body = Readable.toWeb(Readable.from([bytes])) as ReadableStream<Uint8Array>
-  return new Response(body, { status: 200, headers: { 'content-length': String(bytes.byteLength) } })
+  const ranges: string[] = []
+  const server = await httpFixture((request, response) => {
+    ranges.push(request.headers.range ?? '')
+    if (handler !== undefined) handler(request, response, bytes)
+    else serveRange(request, response, bytes)
+  })
+  const definition: VoiceModelDefinition = {
+    id: VoiceModelId('fixture-archive'), name: 'Tiny archive', description: 'Pinned archive fixture', recommended: false,
+    kind: 'streaming', approximateBytes: bytes.byteLength,
+    download: { type: 'archive', url: server.origin + '/model.tar.bz2', sha256: createHash('sha256').update(bytes).digest('hex') },
+    architecture: { type: 'transducer', encoder: 'fixture-model/encoder.onnx', decoder: 'fixture-model/decoder.onnx', joiner: 'fixture-model/joiner.onnx', tokens: 'fixture-model/tokens.txt' },
+  }
+  return { definition, bytes, ranges }
 }
 
-describe('model-cache', () => {
-  let home: string
+function serveRange(request: IncomingMessage, response: ServerResponse, bytes: Buffer) {
+  const match = /^bytes=([0-9]+)-([0-9]+)$/.exec(request.headers.range ?? '')
+  if (match === null) { response.writeHead(400); response.end(); return }
+  const start = Number(match[1])
+  const end = Number(match[2])
+  response.writeHead(206, { 'content-range': 'bytes ' + String(start) + '-' + String(end) + '/' + String(bytes.byteLength) })
+  response.end(bytes.subarray(start, end + 1))
+}
 
-  beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), 'dsh-voice-cache-'))
-    vi.stubEnv('DSH_HOME', home)
+async function expectExtracted(directory: string) {
+  expect(await readFile(join(directory, 'tokens.txt'), 'utf8')).toBe('hello world token file')
+  expect(await readdir(directory)).toEqual(['tokens.txt'])
+}
+
+describe('voice task-private model transfers', () => {
+  it('downloads real ranges, verifies their assembled hash and extracts into the task directory', async () => {
+    const fixture = await archiveFixture()
+    const task = await staging()
+    await task.download(fixture.definition)
+    await expectExtracted(task.directory)
+    expect(fixture.ranges).toHaveLength(Math.ceil(fixture.bytes.byteLength / OPTIONS.segmentBytes))
+    expect(new Set(fixture.ranges).size).toBe(fixture.ranges.length)
+    expect(task.progress.at(-1)).toEqual({ state: 'extracting', receivedBytes: fixture.bytes.byteLength, totalBytes: fixture.bytes.byteLength })
+    expect(await readdir(task.root)).toEqual(['task-private'])
   })
 
-  afterEach(async () => {
-    await forgetModel('fixture-model')
-    vi.unstubAllEnvs()
-    await rm(home, { recursive: true, force: true })
-  })
-
-  it('reports not-downloaded before any download and resolves the model cache directory under $DSH_HOME', () => {
-    const model = definition()
-    expect(modelCacheDir(model.id)).toBe(join(home, 'models', 'voice', model.id))
-  })
-
-  it('downloads, decompresses, and extracts the archive, then reports ready', async () => {
-    const model = definition()
-    await expect(readModelStatus(model)).resolves.toEqual({ state: 'not-downloaded' })
-    const cacheDir = await ensureModelDownloaded(model, fixtureFetch)
-    expect(cacheDir).toBe(modelCacheDir(model.id))
-    const tokens = await readFile(join(cacheDir, 'tokens.txt'), 'utf8')
-    expect(tokens).toBe('hello world token file')
-    await expect(readModelStatus(model)).resolves.toEqual({ state: 'ready', cacheDir })
-  })
-
-  it('is idempotent: a second call resolves without re-fetching once ready', async () => {
-    const model = definition()
-    await ensureModelDownloaded(model, fixtureFetch)
-    const fetchSpy = vi.fn(fixtureFetch)
-    const cacheDir = await ensureModelDownloaded(model, fetchSpy)
-    expect(cacheDir).toBe(modelCacheDir(model.id))
-    expect(fetchSpy).not.toHaveBeenCalled()
-  })
-
-  it('retains a download failure after cleanup settles', async () => {
-    const model = definition()
-    const failingFetch = vi.fn(async (): Promise<Response> => new Response(null, { status: 404 }))
-    await expect(ensureModelDownloaded(model, failingFetch)).rejects.toThrow(/download failed: HTTP 404/)
-    await expect(readModelStatus(model)).resolves.toEqual({ state: 'failed', message: 'download failed: HTTP 404' })
-  })
-
-  it('reports downloading progress while the archive request is in flight', async () => {
-    const model = definition()
-    let resolveFetch!: (response: Response) => void
-    const gate = new Promise<Response>((resolve) => { resolveFetch = resolve })
-    const gatedFetch = vi.fn(() => gate)
-    const download = ensureModelDownloaded(model, gatedFetch)
-    await vi.waitFor(async () => {
-      await expect(readModelStatus(model)).resolves.toMatchObject({ state: 'downloading' })
+  it('bounds simultaneous HTTP ranges by configured concurrency', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const held: (() => void)[] = []
+    let active = 0
+    let peak = 0
+    let released = false
+    const fixture = await archiveFixture((request, response, bytes) => {
+      if (request.headers.range === 'bytes=0-31' || released) { serveRange(request, response, bytes); return }
+      active += 1
+      peak = Math.max(peak, active)
+      held.push(() => { active -= 1; serveRange(request, response, bytes) })
+      if (active === 2) entered.resolve(undefined)
     })
-    resolveFetch(await fixtureFetch())
-    await download
-    await expect(readModelStatus(model)).resolves.toMatchObject({ state: 'ready' })
+    const task = await staging()
+    const transfer = task.download(fixture.definition, { ...OPTIONS, segmentBytes: 32, concurrency: 2 })
+    await Promise.race([entered.promise, transfer.then(() => { throw new Error('transfer finished without overlapping requests') })])
+    released = true
+    for (const release of held) release()
+    await transfer
+    expect(peak).toBe(2)
+    await expectExtracted(task.directory)
   })
 
-  it('switches to extracting with complete byte counts and becomes ready only when extraction settles', async () => {
-    const model = definition()
-    const totalBytes = (await readFile(FIXTURE_ARCHIVE)).byteLength
-    let release!: () => void
-    const gate = new Promise<void>((resolve) => { release = resolve })
-    const extractor = vi.fn(async (archivePath: string, cacheDir: string) => {
-      await gate
-      await extractArchiveJs(archivePath, cacheDir)
+  it.each([429, 503])('retries HTTP %s within the owning task', async (status) => {
+    let first = true
+    const fixture = await archiveFixture((request, response, bytes) => {
+      if (first) { first = false; response.writeHead(status); response.end(); return }
+      serveRange(request, response, bytes)
     })
-    const download = ensureModelDownloaded(model, fixtureFetch, extractor)
-    await vi.waitFor(async () => {
-      await expect(readModelStatus(model)).resolves.toEqual({ state: 'extracting', receivedBytes: totalBytes, totalBytes })
-    })
-    release()
-    await download
-    await expect(readModelStatus(model)).resolves.toMatchObject({ state: 'ready' })
+    const task = await staging()
+    await task.download(fixture.definition, { ...OPTIONS, maxAttempts: 2 })
+    expect(fixture.ranges.filter(range => range === 'bytes=0-63')).toHaveLength(2)
+    await expectExtracted(task.directory)
   })
 
-  it('shares one installation through extraction failure and publishes failure only after cleanup', async () => {
-    const model = definition()
-    const cacheDir = modelCacheDir(model.id)
-    let release!: () => void
-    const gate = new Promise<void>((resolve) => { release = resolve })
-    const extractor = vi.fn(async (_archivePath: string, destination: string) => {
-      for (const path of ['encoder.onnx', 'decoder.onnx', 'joiner.onnx', 'tokens.txt']) {
-        await writeFile(join(destination, path), 'partial')
-      }
-      await gate
-      throw new Error('extract corrupt')
-    })
-    const fetchSpy = vi.fn(fixtureFetch)
-    const first = ensureModelDownloaded(model, fetchSpy, extractor)
-    await vi.waitFor(async () => {
-      await expect(readModelStatus(model)).resolves.toMatchObject({ state: 'extracting' })
-    })
-    const second = ensureModelDownloaded(model, fetchSpy, extractor)
-    expect(second).toBe(first)
-    await expect(readFile(join(cacheDir, 'encoder.onnx'), 'utf8')).resolves.toBe('partial')
-    release()
-    await expect(first).rejects.toThrow('extract corrupt')
-    await expect(second).rejects.toThrow('extract corrupt')
-    expect(fetchSpy).toHaveBeenCalledOnce()
-    await expect(readFile(join(cacheDir, 'encoder.onnx'))).rejects.toThrow()
-    await expect(readModelStatus(model)).resolves.toEqual({ state: 'failed', message: 'extract corrupt' })
+  it('does not retry permanent HTTP failures', async () => {
+    const fixture = await archiveFixture((_request, response) => { response.writeHead(404); response.end() })
+    const task = await staging()
+    await expect(task.download(fixture.definition, { ...OPTIONS, maxAttempts: 3 })).rejects.toThrow('HTTP 404')
+    expect(fixture.ranges).toHaveLength(1)
+    expect(await readdir(task.root)).toEqual(['task-private'])
   })
 
-
-  it('downloads sized archives as concurrent HTTP ranges', async () => {
-    const bytes = await readFile(FIXTURE_ARCHIVE)
-    const model = { ...definition(), approximateBytes: bytes.byteLength }
-    const ranges: string[] = []
-    const rangedFetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-      const range = new Headers(init?.headers).get('range')
-      if (range === null) throw new Error('missing range')
-      ranges.push(range)
-      const match = /^bytes=(\d+)-(\d+)$/.exec(range)
-      if (match === null) throw new Error('invalid range')
-      const start = Number(match[1])
-      const end = Number(match[2])
-      return rangeResponse(bytes, start, end)
-    }) as typeof fetch
-
-    await ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(3))
-
-    expect(ranges).toHaveLength(Math.ceil(bytes.byteLength / 64))
-    expect(ranges[0]).toBe('bytes=0-63')
-    await expect(readModelStatus(model)).resolves.toMatchObject({ state: 'ready' })
-  })
-
-  it('keeps an active range alive when its total transfer exceeds the idle timeout', async () => {
-    const bytes = await readFile(FIXTURE_ARCHIVE)
-    const model = { ...definition(), approximateBytes: bytes.byteLength }
-    const rangedFetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-      const signal = init?.signal
-      if (signal === null || signal === undefined) throw new Error('missing abort signal')
-      const chunkBytes = Math.ceil(bytes.byteLength / 4)
-      const chunks = Array.from({ length: 4 }, (_, index) => bytes.subarray(
-        index * chunkBytes,
-        Math.min((index + 1) * chunkBytes, bytes.byteLength),
-      )).filter(chunk => chunk.byteLength > 0)
-      const body = new ReadableStream<Uint8Array>({
-        async start(controller) {
-          const onAbort = (): void => { controller.error(signal.reason) }
-          signal.addEventListener('abort', onAbort, { once: true })
-          for (const chunk of chunks) {
-            controller.enqueue(chunk)
-            await new Promise((resolve) => { setTimeout(resolve, 40) })
-          }
-          signal.removeEventListener('abort', onAbort)
-          controller.close()
-        },
+  it.each(['later-whole', 'wrong-range', 'http-error', 'unknown-size', 'file-error'] as const)(
+    'closes the unconsumed %s response before releasing transfer ownership', async (mode) => {
+      let closed = false
+      const fixture = await archiveFixture((request, response, bytes) => {
+        if (mode === 'later-whole' && request.headers.range === 'bytes=0-63') {
+          serveRange(request, response, bytes)
+          return
+        }
+        response.once('close', () => { closed = true })
+        const status = mode === 'later-whole' ? 200 : mode === 'wrong-range' ? 206 : 404
+        response.writeHead(status, { 'content-length': '1024', 'content-range': 'bytes 1-64/' + String(bytes.length) })
+        response.write('x')
       })
-      return new Response(body, {
-        status: 206,
-        headers: { 'content-range': `bytes 0-${bytes.byteLength - 1}/${bytes.byteLength}` },
-      })
-    }) as typeof fetch
+      const task = await staging()
+      let definition = fixture.definition
+      if (mode === 'unknown-size') definition = { ...definition, approximateBytes: 0 }
+      if (mode === 'file-error') {
+        if (definition.download.type !== 'archive') throw new Error('expected archive fixture')
+        definition = { ...definition, download: { type: 'files', entries: [
+          { name: 'tokens.txt', url: definition.download.url, bytes: 4, sha256: '0'.repeat(64) },
+        ] } }
+      }
+      await expect(task.download(definition, { ...OPTIONS, concurrency: 1 })).rejects.toThrow()
+      await vi.waitFor(() => { expect(closed).toBe(true) }, { timeout: 2000 })
+      expect(task.controller.signal.aborted).toBe(false)
+      expect(await readdir(task.directory)).toEqual([])
+    },
+  )
 
-    await ensureModelDownloaded(model, rangedFetch, extractArchiveJs, {
-      segmentBytes: bytes.byteLength,
-      concurrency: 1,
-      maxAttempts: 1,
-      retryDelayMs: 1,
-      requestTimeoutMs: 70,
+  it('refuses a mismatched Content-Range before extraction', async () => {
+    const fixture = await archiveFixture((_request, response, bytes) => {
+      response.writeHead(206, { 'content-range': 'bytes 1-64/' + String(bytes.byteLength) })
+      response.end(bytes.subarray(0, 64))
     })
-
-    expect(rangedFetch).toHaveBeenCalledOnce()
-    await expect(readModelStatus(model)).resolves.toMatchObject({ state: 'ready' })
+    const task = await staging()
+    await expect(task.download(fixture.definition, { ...OPTIONS, maxAttempts: 3 })).rejects.toThrow('expected Content-Range bytes 0-63/')
+    expect(fixture.ranges).toHaveLength(1)
+    expect(await readdir(task.directory)).toEqual([])
   })
 
-  it('retries a transient range failure within one installation', async () => {
-    const bytes = await readFile(FIXTURE_ARCHIVE)
-    const model = { ...definition(), approximateBytes: bytes.byteLength }
-    let failSecond = true
-    const calls = new Map<string, number>()
-    const rangedFetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-      const range = new Headers(init?.headers).get('range') ?? ''
-      calls.set(range, (calls.get(range) ?? 0) + 1)
-      if (range === 'bytes=64-127' && failSecond) {
-        failSecond = false
-        throw new Error('connection reset')
-      }
-      const match = /^bytes=(\d+)-(\d+)$/.exec(range)
-      if (match === null) throw new Error('invalid range')
-      return rangeResponse(bytes, Number(match[1]), Number(match[2]))
-    }) as typeof fetch
-
-    await ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(1))
-
-    expect(calls.get('bytes=0-63')).toBe(1)
-    expect(calls.get('bytes=64-127')).toBe(2)
-    await expect(readModelStatus(model)).resolves.toMatchObject({ state: 'ready' })
+  it.each([63, 65])('refuses a range body with %s bytes when exactly 64 are pinned', async (size) => {
+    const fixture = await archiveFixture((_request, response, bytes) => {
+      response.writeHead(206, { 'content-range': 'bytes 0-63/' + String(bytes.byteLength) })
+      response.end(Buffer.alloc(size))
+    })
+    const task = await staging()
+    await expect(task.download(fixture.definition)).rejects.toThrow(size > 64
+      ? 'download exceeded pinned byte count' : 'expected 64 range bytes, received ' + String(size))
+    expect(await readdir(task.directory)).toEqual([])
+    expect(await readdir(task.root)).toEqual(['task-private'])
+    expect(task.progress.every(value => value.receivedBytes >= 0 && value.receivedBytes <= value.totalBytes)).toBe(true)
   })
 
-  it.each([429, 503])('retries retryable HTTP %s range responses', async (status) => {
-    const bytes = await readFile(FIXTURE_ARCHIVE)
-    const model = { ...definition(), approximateBytes: bytes.byteLength }
-    let failed = false
-    const rangedFetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-      const range = new Headers(init?.headers).get('range') ?? ''
-      if (!failed) {
-        failed = true
-        return new Response(null, { status })
-      }
-      const match = /^bytes=(\d+)-(\d+)$/.exec(range)
-      if (match === null) throw new Error('invalid range')
-      return rangeResponse(bytes, Number(match[1]), Number(match[2]))
-    }) as typeof fetch
-
-    await ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(1))
-
-    expect(rangedFetch).toHaveBeenCalledTimes(Math.ceil(bytes.byteLength / 64) + 1)
-    await expect(readModelStatus(model)).resolves.toMatchObject({ state: 'ready' })
+  it('accepts an exact whole response when the server ignores the initial range', async () => {
+    const fixture = await archiveFixture((_request, response, bytes) => { response.writeHead(200); response.end(bytes) })
+    const task = await staging()
+    await task.download(fixture.definition)
+    expect(fixture.ranges).toHaveLength(1)
+    await expectExtracted(task.directory)
   })
 
-  it('rejects a mismatched Content-Range without retrying', async () => {
-    const bytes = await readFile(FIXTURE_ARCHIVE)
-    const model = { ...definition(), approximateBytes: bytes.byteLength }
-    const rangedFetch = vi.fn(async (): Promise<Response> => new Response(bytes.subarray(0, 64), {
-      status: 206,
-      headers: { 'content-range': `bytes 1-64/${bytes.byteLength}` },
-    })) as typeof fetch
-
-    await expect(ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(1))).rejects.toThrow(
-      `download failed: expected Content-Range bytes 0-63/${bytes.byteLength}, received bytes 1-64/${bytes.byteLength}`,
-    )
-
-    expect(rangedFetch).toHaveBeenCalledOnce()
+  it('rejects same-sized archive corruption before extracting any model files', async () => {
+    const fixture = await archiveFixture((request, response, bytes) => {
+      serveRange(request, response, Buffer.alloc(bytes.byteLength, 0x5a))
+    })
+    const task = await staging()
+    await expect(task.download(fixture.definition)).rejects.toThrow('expected SHA-256')
+    expect(await readdir(task.directory)).toEqual([])
+    expect(await readdir(task.root)).toEqual(['task-private'])
   })
 
-  it('does not retry a non-retryable HTTP range response', async () => {
-    const bytes = await readFile(FIXTURE_ARCHIVE)
-    const model = { ...definition(), approximateBytes: bytes.byteLength }
-    const rangedFetch = vi.fn(async (): Promise<Response> => new Response(null, { status: 404 })) as typeof fetch
-
-    await expect(ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(1))).rejects.toThrow('download failed: HTTP 404')
-
-    expect(rangedFetch).toHaveBeenCalledOnce()
+  it('downloads each pinned file and verifies the bytes independently', async () => {
+    const fixture = await modelFixture()
+    const task = await staging()
+    await task.download(fixture.definition)
+    for (const [name, bytes] of fixture.files) expect(await readFile(join(task.directory, name))).toEqual(bytes)
+    expect(fixture.requests).toEqual([...fixture.files.keys()])
+    expect(task.progress.at(-1)?.receivedBytes).toBe(fixture.definition.approximateBytes)
   })
 
-  it('keeps completed ranges after failure and resumes without fetching them again', async () => {
-    const bytes = await readFile(FIXTURE_ARCHIVE)
-    const model = { ...definition(), approximateBytes: bytes.byteLength }
-    let failSecond = true
-    const calls = new Map<string, number>()
-    const rangedFetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-      const range = new Headers(init?.headers).get('range') ?? ''
-      calls.set(range, (calls.get(range) ?? 0) + 1)
-      if (range === 'bytes=64-127' && failSecond) throw new Error('connection reset')
-      const match = /^bytes=(\d+)-(\d+)$/.exec(range)
-      if (match === null) throw new Error('invalid range')
-      return rangeResponse(bytes, Number(match[1]), Number(match[2]))
-    }) as typeof fetch
-
-    await expect(ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(1, 1))).rejects.toThrow('connection reset')
-    failSecond = false
-    await ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(1, 1))
-
-    expect(calls.get('bytes=0-63')).toBe(1)
-    expect(calls.get('bytes=64-127')).toBe(2)
-    await expect(readModelStatus(model)).resolves.toMatchObject({ state: 'ready' })
+  it('rejects a pinned file hash mismatch', async () => {
+    const fixture = await modelFixture()
+    const task = await staging()
+    if (fixture.definition.download.type !== 'files') throw new Error('expected file fixture')
+    const definition = { ...fixture.definition, download: { type: 'files' as const, entries: fixture.definition.download.entries.map(entry => ({ ...entry, sha256: '0'.repeat(64) })) } }
+    await expect(task.download(definition)).rejects.toThrow('pinned file SHA-256 mismatch')
+    expect(fixture.requests).toHaveLength(1)
   })
 
-  it('rejects same-sized corrupted resumed parts, discards them, and redownloads clean bytes', async () => {
-    const bytes = await readFile(FIXTURE_ARCHIVE)
-    const model = { ...definition(), approximateBytes: bytes.byteLength }
-    let failSecond = true
-    const calls = new Map<string, number>()
-    const rangedFetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-      const range = new Headers(init?.headers).get('range') ?? ''
-      calls.set(range, (calls.get(range) ?? 0) + 1)
-      if (range === 'bytes=64-127' && failSecond) throw new Error('connection reset')
-      const match = /^bytes=(\d+)-(\d+)$/.exec(range)
-      if (match === null) throw new Error('invalid range')
-      return rangeResponse(bytes, Number(match[1]), Number(match[2]))
-    }) as typeof fetch
-
-    await expect(ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(1, 1))).rejects.toThrow('connection reset')
-    const partsDir = join(home, 'models', 'voice', '.fixture-model.download.parts')
-    await writeFile(join(partsDir, '000000.part'), Buffer.alloc(64, 0x5a))
-    failSecond = false
-
-    await expect(ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(1, 1))).rejects.toThrow(
-      `download failed: expected SHA-256 ${model.download.type === 'archive' ? model.download.sha256 : ''}`,
-    )
-    await expect(readFile(join(partsDir, '000000.part'))).rejects.toThrow()
-
-    await ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(1, 1))
-    expect(calls.get('bytes=0-63')).toBe(2)
-    await expect(readModelStatus(model)).resolves.toMatchObject({ state: 'ready' })
-  })
-
-  it('falls back to a whole response when a resumed server stops honoring ranges', async () => {
-    const bytes = await readFile(FIXTURE_ARCHIVE)
-    const model = { ...definition(), approximateBytes: bytes.byteLength }
-    let failSecond = true
-    const rangedFetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-      const range = new Headers(init?.headers).get('range') ?? ''
-      if (range === 'bytes=64-127' && failSecond) throw new Error('connection reset')
-      if (!failSecond) return new Response(bytes, { status: 200 })
-      const match = /^bytes=(\d+)-(\d+)$/.exec(range)
-      if (match === null) throw new Error('invalid range')
-      return rangeResponse(bytes, Number(match[1]), Number(match[2]))
-    }) as typeof fetch
-
-    await expect(ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(1, 1))).rejects.toThrow('connection reset')
-    failSecond = false
-    await ensureModelDownloaded(model, rangedFetch, extractArchiveJs, downloadOptions(1, 1))
-
-    await expect(readModelStatus(model)).resolves.toMatchObject({ state: 'ready' })
-  })
-
-  it('cancels an active download before deleting its cache', async () => {
-    const model = definition()
-    let aborted = false
-    const stalledFetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit): Promise<Response> => {
-      const signal = init?.signal
-      if (signal === null || signal === undefined) throw new Error('missing abort signal')
-      return new Promise<Response>((_resolve, reject) => {
-        signal.addEventListener('abort', () => {
-          aborted = true
-          reject(signal.reason instanceof Error ? signal.reason : new Error(String(signal.reason)))
-        }, { once: true })
-      })
-    }) as typeof fetch
-
-    const download = ensureModelDownloaded(model, stalledFetch)
-    const rejected = expect(download).rejects.toMatchObject({ name: 'AbortError' })
-    await vi.waitFor(() => { expect(stalledFetch).toHaveBeenCalledOnce() })
-    await forgetModel(model.id)
+  it('aborts an HTTP body, joins its closure and removes partial transfer artifacts', async () => {
+    const fixture = await modelFixture()
+    const task = await staging()
+    const held = fixture.hold()
+    const transfer = task.download(fixture.definition)
+    const rejected = expect(transfer).rejects.toMatchObject({ name: 'AbortError' })
+    await held.entered
+    task.controller.abort()
     await rejected
-
-    expect(aborted).toBe(true)
-    await expect(readModelStatus(model)).resolves.toEqual({ state: 'not-downloaded' })
+    await held.closed
+    expect(await readdir(task.directory)).toEqual([])
+    expect(await readdir(task.root)).toEqual(['task-private'])
   })
 
-  it('cancels active extraction and waits for it before deleting the cache', async () => {
-    const model = definition()
-    let extractionStarted!: () => void
-    const started = new Promise<void>((resolve) => { extractionStarted = resolve })
-    let aborted = false
-    const extractor = vi.fn(async (_archivePath: string, _cacheDir: string, signal?: AbortSignal) => {
-      if (signal === undefined) throw new Error('missing abort signal')
-      extractionStarted()
-      await new Promise<void>((_resolve, reject) => {
-        signal.addEventListener('abort', () => {
-          aborted = true
-          reject(signal.reason instanceof Error ? signal.reason : new Error(String(signal.reason)))
-        }, { once: true })
-      })
-    })
-
-    const download = ensureModelDownloaded(model, fixtureFetch, extractor)
-    const rejected = expect(download).rejects.toMatchObject({ name: 'AbortError' })
-    await started
-    await forgetModel(model.id)
+  it('times out a stalled HTTP body and joins its connection before settlement', async () => {
+    const fixture = await modelFixture()
+    const task = await staging()
+    const held = fixture.hold()
+    const transfer = task.download(fixture.definition, { ...OPTIONS, requestTimeoutMs: 500 })
+    const rejected = expect(transfer).rejects.toThrow(/abort|stall|timeout/i)
+    await Promise.race([held.entered, transfer])
     await rejected
-
-    expect(aborted).toBe(true)
-    await expect(readModelStatus(model)).resolves.toEqual({ state: 'not-downloaded' })
+    await held.closed
+    expect(task.controller.signal.aborted).toBe(false)
+    expect(await readdir(task.directory)).toEqual([])
   })
 
-  it('adopts a complete older extraction that lacks only the ready marker', async () => {
-    const model = definition()
-    const cacheDir = modelCacheDir(model.id)
-    await mkdir(cacheDir, { recursive: true })
-    for (const path of ['encoder.onnx', 'decoder.onnx', 'joiner.onnx', 'tokens.txt']) {
-      await writeFile(join(cacheDir, path), 'complete')
-    }
-    await expect(readModelStatus(model)).resolves.toEqual({ state: 'ready', cacheDir })
+  it('keeps simultaneous tasks in distinct private directories', async () => {
+    const fixture = await archiveFixture()
+    const first = await staging()
+    const second = await staging()
+    await Promise.all([first.download(fixture.definition), second.download(fixture.definition)])
+    expect(first.directory).not.toBe(second.directory)
+    await expectExtracted(first.directory)
+    await expectExtracted(second.directory)
   })
 })

@@ -1,6 +1,8 @@
 /** Local sherpa-onnx voice provider with transport-independent operations and an optional HTTP adapter. */
 
 import type { Context } from '@deepseek-ai/cordis'
+import { isAbsolute } from 'node:path'
+import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-subprocess'
@@ -12,6 +14,16 @@ import { SherpaVoiceOperations } from './operations.ts'
 
 /** Voice model download settings. */
 export interface Config {
+  /** Absolute model storage root; defaults to DSH_HOME/models/voice and is captured at provider mount. */
+  cacheRoot?: string
+  /** Maximum wait for a cross-Host filesystem writer lock. Defaults to ten seconds. */
+  resourceLockTimeoutMs?: number
+  /** Delay between lock acquisition attempts. Defaults to 25 milliseconds. */
+  resourceLockRetryMs?: number
+  /** Grace period for managed archive extraction termination. Defaults to five seconds. */
+  extractionGraceMs?: number
+  /** Maximum retained extractor stderr bytes. Defaults to 64 KiB. */
+  extractionStderrBytes?: number
   /** Maximum bytes requested by one HTTP range. Defaults to 8 MiB. */
   downloadSegmentBytes?: number
   /** Maximum concurrent HTTP range requests. Defaults to four. */
@@ -32,6 +44,11 @@ const DEFAULT_DOWNLOAD_REQUEST_TIMEOUT_MS = 120_000
 
 /** Loader schema for voice model download settings. */
 export const Config: z<Config> = z.object({
+  cacheRoot: z.string(),
+  resourceLockTimeoutMs: z.number().default(10_000),
+  resourceLockRetryMs: z.number().default(25),
+  extractionGraceMs: z.number().default(5000),
+  extractionStderrBytes: z.number().default(64 * 1024),
   downloadSegmentBytes: z.number().default(DEFAULT_DOWNLOAD_SEGMENT_BYTES),
   downloadConcurrency: z.number().default(DEFAULT_DOWNLOAD_CONCURRENCY),
   downloadMaxAttempts: z.number().default(DEFAULT_DOWNLOAD_MAX_ATTEMPTS),
@@ -72,19 +89,20 @@ export const inject = ['voice', 'subprocess']
  * The entire archive is already downloaded before this call, so stdout is
  * ignored and bounded stderr is retained only for a useful extraction error.
  * @param ctx - plugin context that owns the managed subprocess service.
+ * @param options - Resolved process termination and diagnostic bounds.
  * @returns archive extractor that rejects with bounded native-tar diagnostics.
  */
-export function nativeTarExtractor(ctx: Context): ExtractArchive {
+export function nativeTarExtractor(ctx: Context, options: { graceMs: number; stderrBytes: number }): ExtractArchive {
   return async (archivePath, cacheDir, signal) => {
     const handle = ctx.subprocess.spawn({
       argv: ['tar', '-xjf', archivePath, '-C', cacheDir, '--strip-components', '1'],
       cwd: cacheDir,
       stdio: {
         stdin: 'ignore',
-        stdout: { maxBytes: 4096 },
-        stderr: { maxBytes: 64 * 1024 },
+        stdout: { maxBytes: 0 },
+        stderr: { maxBytes: options.stderrBytes },
       },
-      graceMs: 5000,
+      graceMs: options.graceMs,
       signal,
     })
     const outcome = await handle.done
@@ -103,13 +121,24 @@ export function nativeTarExtractor(ctx: Context): ExtractArchive {
  */
 export function apply(ctx: Context, config: Config = {}): void {
   const downloadOptions = resolveDownloadOptions(config)
-  const extractArchive = nativeTarExtractor(ctx)
+  const cacheRoot = config.cacheRoot ?? dshHomePath('models', 'voice')
+  if (!isAbsolute(cacheRoot)) throw new Error('voice-sherpa-onnx: cacheRoot must be absolute')
+  const lockTimeoutMs = config.resourceLockTimeoutMs ?? 10_000
+  const lockRetryMs = config.resourceLockRetryMs ?? 25
+  const graceMs = config.extractionGraceMs ?? 5000
+  const stderrBytes = config.extractionStderrBytes ?? 64 * 1024
+  for (const [key, value] of Object.entries({ lockTimeoutMs, lockRetryMs, graceMs, stderrBytes })) {
+    if (!Number.isSafeInteger(value) || value < 1) throw new Error('voice-sherpa-onnx: ' + key + ' must be a positive safe integer')
+  }
+  const extractArchive = nativeTarExtractor(ctx, { graceMs, stderrBytes })
   ctx.effect(() => ctx.voice.registerEngine(sherpaOnnxEngine), 'voice-sherpa-onnx: engine')
   for (const definition of SHIPPED_MODELS) {
     ctx.effect(() => ctx.voice.registerModel(definition), 'voice-sherpa-onnx: model ' + definition.id)
   }
   ctx.effect(() => {
-    const operations = new SherpaVoiceOperations(ctx.voice, extractArchive, downloadOptions)
+    const operations = new SherpaVoiceOperations(ctx.voice, extractArchive, downloadOptions, cacheRoot, {
+      lockTimeoutMs, lockRetryMs, onCleanupError: (error) => { ctx.logger.warn('Voice generation cleanup failed', error) },
+    })
     const unregister = ctx.voice.registerOperations(operations)
     return async () => {
       unregister()

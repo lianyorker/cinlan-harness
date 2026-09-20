@@ -1,7 +1,7 @@
 /** Legacy loopback HTTP adapter over the same validated operations used by Remote. */
 import type { WebServer } from '@deepseek-ai/dsh-host-webserver'
 import type { VoiceRuntime } from '@deepseek-ai/dsh-voice'
-import { parseVoiceModelRequest, parseVoiceTranscribeRequest } from '@deepseek-ai/dsh-voice/transport'
+import { parseVoiceCancelRequest, parseVoiceModelRequest, parseVoiceTranscribeRequest } from '@deepseek-ai/dsh-voice/transport'
 import { isTrustedVoiceApiRequest } from './trust-fence.ts'
 import { readJsonBody, VoiceApiError, writeError, writeJson, writeOk } from './wire.ts'
 
@@ -38,6 +38,13 @@ export function mountHttpAdapter(webServer: WebServer, voice: VoiceRuntime): () 
           case 'engine.status': writeOk(res, await voice.engineStatus(signal)); return
           case 'models.list': writeOk(res, await voice.modelsList(signal)); return
           case 'models.download': writeOk(res, await voice.modelsDownload(parseVoiceModelRequest(payload), signal)); return
+          case 'models.reinstall': writeOk(res, await voice.modelsReinstall(parseVoiceModelRequest(payload), signal)); return
+          case 'models.update': writeOk(res, await voice.modelsUpdate(parseVoiceModelRequest(payload), signal)); return
+          case 'models.cancel': {
+            const { modelId, taskId } = parseVoiceCancelRequest(payload)
+            writeOk(res, await voice.modelsCancel(modelId, taskId, signal))
+            return
+          }
           case 'models.remove':
             await voice.modelsRemove(parseVoiceModelRequest(payload), signal)
             writeOk(res, {})

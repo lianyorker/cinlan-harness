@@ -35,13 +35,16 @@ kind: "package-reference"
 |---|---|---|
 | `engineStatus(signal?)` | 无 | 原生模块可用状态或降级修复指引 |
 | `modelsList(signal?)` | 无 | 含当前缓存状态的 `{ models }` |
-| `modelsDownload(request, signal?)` | `{ modelId }` | 安装完成后的 `{ cacheDir }` |
+| `modelsDownload(request, signal?)` | `{ modelId }` | Host 任务接纳回执 |
+| `modelsReinstall(request, signal?)` | `{ modelId }` | 强制替换任务回执 |
+| `modelsUpdate(request, signal?)` | `{ modelId }` | 固定清单更新任务回执 |
+| `modelsCancel(request, signal?)` | `{ modelId, taskId }` | 精确任务清理后的 `{ cancelled }` |
 | `modelsRemove(request, signal?)` | `{ modelId }` | 模型工作与删除结算后的 `{}` |
 | `transcribe(request, signal?)` | `{ modelId, pcm16kMonoBase64 }` | `{ text }` |
 
 PCM 为 16 kHz 单声道、有限 float32 采样的小端字节，使用规范 base64 编码，解码后最多 16 MiB。Controller 与可选旧 HTTP 适配器共用校验。模型标识必须来自可用清单，转写前模型必须就绪。
 
-无效请求、未知模型、缺少文件、模型正在删除、Provider 不可用及操作失败分别使用 `voice/invalid-request`、`voice/model-unknown`、`voice/model-not-ready`、`voice/model-busy`、`voice/unavailable` 和 `voice/operation-failed`。取消沿通道传播。Provider 的 `VoiceError` 代码保留在错误详情中；非预期异常使用固定公开消息。
+无效请求、未知模型、缺少文件、模型正在删除、Provider 不可用及操作失败分别使用 `voice/invalid-request`、`voice/model-unknown`、`voice/model-not-ready`、`voice/model-busy`、`voice/unavailable` 和 `voice/operation-failed`。列表与转写取消沿通道传播。安装类方法返回任务回执；接纳后断开不会取消 Host 工作。轮询 `modelsList` 读取 `task` 进度和终态，并通过 `resource` 获取源、指纹与完整性。显式取消必须携带该 Host 的精确任务 ID；过期或终态 ID 返回 false，不删除模型。Provider 的 `VoiceError` 代码保留在错误详情中；非预期异常使用固定公开消息。
 
 -----
 

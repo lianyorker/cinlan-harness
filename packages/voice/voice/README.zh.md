@@ -1,41 +1,58 @@
-# @deepseek-ai/dsh-voice
+---
+description: "与提供方无关的本地语音模型任务与转写。"
+kind: "package-reference"
+---
+# Voice runtime
 
 [English](README.md) | 中文
 
-该 Service Definition 拥有 provider-neutral 的 `ctx.voice` 注册表与本地听写执行面：模型注册、引擎状态、下载/缓存状态、模型移除与转写调度。引擎 Provider 无需 Web 服务器即可注册这些操作；HTTP 与 Typert Remote Consumer 调用同一组回调。Consumer 拥有权限策略、展示与把转写文本插入 composer。
+## 摘要
 
-## 引擎与模型注册
+`ctx.voice` 服务注册一个本地语音引擎、模型目录，以及提供方拥有的模型管理与转写操作。客户端负责麦克风权限、音频采集与草稿插入。
 
-只能注册一个引擎（`registerEngine`）：部署不会像在多个 mobile-device Provider 之间选择那样，在运行时于多个互相竞争的本地语音识别后端之间做选择，因此今天不需要可替换的多 provider seam。每个出厂模型各自独立注册（`registerModel`），各自携带自己的下载源、预期大小、编码归档 SHA-256，以及其 encoder/decoder/joiner/tokens 路径在解压后的归档内所遵循的 sherpa-onnx `OnlineRecognizer` 文件布局。
+## 目录
 
-`engineOrUndefined` 让 Consumer 能区分「没有挂载引擎」（组合缺口）与「引擎已挂载但该模型尚未下载」（模型自身的 `VoiceModelStatus`）。`VoiceRuntime` 还暴露 Provider 的管理与转写操作；每个操作接收 `AbortSignal`，Provider 不可用时会显式失败。
+- [使用本包](#use-this-package)
+- [任务语义](#task-semantics)
+- [模型体验](#model-experience)
+- [已知限制与暂缓事项](#known-limitations-and-deferred-work)
 
-## 共享操作
+<a id="use-this-package"></a>
+## 使用本包
 
-一个 Provider 通过 `registerOperations` 注册 `VoiceOperations`。执行面独立于 HTTP 提供引擎状态、模型列表、下载、删除与转写。移除 Provider 时，先撤销操作入口，再等待取消与清理结束。调用方提供 `AbortSignal`；缺少操作实现时以 `VOICE_UNAVAILABLE` 拒绝。
+将 `@deepseek-ai/dsh-voice` 与 [Sherpa 提供方](../voice-sherpa-onnx/README.zh.md) 及[身份验证控制器](../../api/voice-controller/README.zh.md) 一起挂载。本服务没有配置。每个引擎、模型与操作注册都返回释放函数；重复注册会显式失败。缺少提供方操作时以 `VOICE_UNAVAILABLE` 拒绝。
 
-纯类型 `/types` 入口供浏览器类型消费者使用。Node 的 `/transport` 入口校验模型请求及规范 base64 编码的小端 float32 PCM，在调度前限制解码后大小为 16 MiB 并校验采样值有限。[Voice Controller](../../api/voice-controller/README.zh.md) 与 Provider 的可选 HTTP 适配器共用此校验。
+纯类型 `/types` 入口提供浏览器声明。Node `/transport` 入口校验模型、精确任务请求及规范 base64 小端 float32 PCM，限制解码后大小为 16 MiB，且采样值必须有限。
 
+<a id="task-semantics"></a>
+## 任务语义
+
+下载、重新安装与更新在接纳时返回带品牌的 Host 任务标识。传输取消仅在接纳前生效；后续断开连接不会取消任务。`modelsList` 返回每个模型的持久资源身份和当前 Host 的最近任务。`modelsCancel` 仅取消并等待匹配的运行中任务。过期标识、其他 Host 的标识或已结束任务均返回 `cancelled: false`。提供方释放时取消并等待自身任务。
+
+资源版本是固定清单的 SHA-256 指纹，并包含脱敏源 URL 和明确的完整性状态。重新安装强制替换；更新比较已安装指纹与固定目录。替换进行中或失败时，已验证的旧代仍保持就绪。提供方负责持久修订检查与识别器租约；[存储语义](../voice-sherpa-onnx/README.zh.md#resource-lifecycle) 规定旧缓存验证与删除行为。
+
+<a id="model-experience"></a>
 ## 模型体验
 
-### Consumer 拥有的结果
+### 客户端拥有的结果
 
 #### 模型看到什么
 
-无。该包不贡献任何面向模型的文本；`VoiceRuntime.registerEngine`／`registerModel` 与转写调度在提示词发出之前就已经替换了 composer 键入内容，因此听写输出在模型边界上与打字输入无法区分。
+无。转写为客户端草稿返回文本；只有普通提交才会使其对模型可见。
 
 #### Token 影响
 
-无；该 Service Definition 不新增请求或结果 token。
+客户端提交草稿前没有影响。
 
 #### KV Cache 影响
 
-无；引擎注册、模型注册与下载/缓存状态从不进入模型请求前缀。
+注册、模型任务与资源状态从不进入模型请求。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与暂缓事项
 
-不发布 invariant companion：Voice 服务校验引擎、模型与操作的注册，Consumer 读取同一组 registry，不另行维护副本。
+服务为每段音频返回一个最终转写，不提供增量假设。模型与麦克风偏好属于客户端。不发布 invariant 伴随插件：消费者读取的正是执行注册所有权约束的注册表。
 
-- **六个出厂模型** —— 该切片注册了两个来自 GitHub releases 的流式 Zipformer 归档模型和四个来自 HuggingFace 的文件下载模型（英文 Zipformer、双语 Paraformer、Sense Voice、Whisper tiny），经 `hf-mirror.com` 镜像下载。
-- **模型偏好归客户端所有** —— 听写界面按浏览器 origin 保存选择；本服务不跨设备同步该偏好。
-- **没有流式部分结果 API** —— `VoiceRecognizer.transcribe` 对每段提交的音频只返回一条最终转写；正在进行的语句的增量部分假设不对外暴露。
+## 开发者说明
+
+[语音决策](../../../.agents/notes/implemented/feature/2026-09-14-voice-dictation-models-and-capture.zh.md) 记录模型完整性与 Host 任务所有权。

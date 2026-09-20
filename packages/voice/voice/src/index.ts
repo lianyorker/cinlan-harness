@@ -16,6 +16,9 @@ import type {
   VoiceEngineStatus,
   VoiceModelsListValue,
   VoiceModelsDownloadValue,
+  VoiceModelTask,
+  VoiceModelTaskId,
+  VoiceModelsCancelValue,
   VoiceTranscribeRequest,
   VoiceTranscribeResult,
 } from './types.ts'
@@ -96,13 +99,44 @@ export class VoiceRuntime extends Service {
   }
 
   /**
-   * Download or await one model's shared installation.
+   * Admit a Host-owned download independent of transport lifetime.
    * @param modelId - Registered model identity.
-   * @param signal - Cancellation of the shared installation.
-   * @returns Ready cache directory after all installation work settles.
+   * @param signal - Admission cancellation; disconnect after admission does not cancel the task.
+   * @returns Task receipt; poll modelsList for progress and terminal state.
    */
   modelsDownload(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelsDownloadValue> {
     return this.requireOperations(signal).modelsDownload(modelId, signal)
+  }
+
+  /**
+   * Reinstall the current pinned manifest while retaining the usable installation.
+   * @param modelId - Registered model identity.
+   * @param signal - Admission cancellation only.
+   * @returns Host task receipt.
+   */
+  modelsReinstall(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelTask> {
+    return this.requireOperations(signal).modelsReinstall(modelId, signal)
+  }
+
+  /**
+   * Update to the pinned manifest when its fingerprint differs.
+   * @param modelId - Registered model identity.
+   * @param signal - Admission cancellation only.
+   * @returns Host task receipt, including immediate success when already current.
+   */
+  modelsUpdate(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelTask> {
+    return this.requireOperations(signal).modelsUpdate(modelId, signal)
+  }
+
+  /**
+   * Cancel exactly one running Host task and await its cleanup.
+   * @param modelId - Registered model identity.
+   * @param taskId - Identity returned by task admission or modelsList.
+   * @param signal - Cancellation before admission; accepted cancellation joins the task.
+   * @returns Whether this call cancelled the matching running task.
+   */
+  modelsCancel(modelId: VoiceModelId, taskId: VoiceModelTaskId, signal: AbortSignal): Promise<VoiceModelsCancelValue> {
+    return this.requireOperations(signal).modelsCancel(modelId, taskId, signal)
   }
 
   /**

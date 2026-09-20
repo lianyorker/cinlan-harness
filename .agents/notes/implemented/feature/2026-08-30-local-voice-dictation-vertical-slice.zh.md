@@ -10,6 +10,8 @@ Cinlan Harness 没有任何离线语音转文本能力，而参考 Orca IDE 设�
 
 ## Decision
 
+[固定资源与 Host 任务](2026-09-14-voice-dictation-models-and-capture.zh.md) 取代本切片的标记收养、共享请求取消与缓存生命周期决策。本记录保留本地引擎与客户端所有权的理由。
+
 新的 `voice/` 包组交付一个 provider-neutral Service Definition 加一个 Provider，形态完全照搬 `mobile-device` 组（registry 类、`registerEngine`／`registerModel`、`HarnessError` 子类、不透明的 branded 模型 id）：
 
 - **`@deepseek-ai/dsh-voice`** —— `ctx.voice` registry：`registerEngine`／`registerModel`、`listDefinitions`／`requireDefinition`，以及区分「没有挂载引擎」组合缺口与「模型尚未下载」逐模型状态的 `engineOrUndefined`。

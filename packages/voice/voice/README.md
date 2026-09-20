@@ -1,41 +1,58 @@
-# @deepseek-ai/dsh-voice
+---
+description: "Provider-neutral local speech model tasks and transcription."
+kind: "package-reference"
+---
+# Voice runtime
 
 English | [中文](README.zh.md)
 
-This Service Definition owns the provider-neutral `ctx.voice` registry and execution facade for local voice dictation: model registration, download/cache status projection, and transcription dispatch. The engine Provider owns native-binding loading (degraded when the platform native addon is absent), model file loading, and inference; Consumers own microphone capture, permission prompts, the settings model list, and composer insertion of the transcript.
+## Summary
 
-## Engine and model registration
+The `ctx.voice` service registers one local speech engine, a model catalog, and provider-owned model management and transcription operations. Clients own microphone permission, audio capture, and draft insertion.
 
-Exactly one engine may register (`registerEngine`); a deployment does not choose between multiple competing local speech-to-text backends at runtime the way it might choose between several mobile-device Providers, so a swappable-multi-provider seam is not needed today. Each shipped model is registered independently (`registerModel`) and carries its own download source, expected size, encoded-archive SHA-256, and the sherpa-onnx `OnlineRecognizer` file layout its encoder/decoder/joiner/tokens paths resolve to inside the extracted archive.
+## Table of Contents
 
-`engineOrUndefined` lets a Consumer distinguish "no engine mounted" (composition gap — the settings page should show the missing-capability guidance) from "engine mounted but this model is not downloaded yet" (the model's own `VoiceModelStatus`).
+- [Use this package](#use-this-package)
+- [Task semantics](#task-semantics)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 
-## Shared operations
+<a id="use-this-package"></a>
+## Use this package
 
-Exactly one provider registers `VoiceOperations` through `registerOperations`. The facade offers engine status, model listing/download/removal, and transcription independently of HTTP. Removing the provider withdraws its operations before awaiting their cancellation and cleanup. Callers supply an `AbortSignal`; missing operations reject with `VOICE_UNAVAILABLE`.
+Mount `@deepseek-ai/dsh-voice` with the [Sherpa provider](../voice-sherpa-onnx/README.md) and the [authenticated controller](../../api/voice-controller/README.md). This service has no configuration. Every engine, model, and operations registration returns a disposer; duplicate registrations fail explicitly. Missing provider operations reject with `VOICE_UNAVAILABLE`.
 
-The pure `/types` entry serves browser type consumers. The Node `/transport` entry validates model requests and canonical base64 little-endian float32 PCM, enforcing the 16 MiB decoded limit and finite samples before dispatch. The [Voice Controller](../../api/voice-controller/README.md) and optional provider HTTP adapter use the same validation.
+The pure `/types` entry supplies browser declarations. The Node `/transport` entry validates model and exact-task requests plus canonical base64 little-endian float32 PCM, limited to 16 MiB decoded with finite samples.
 
+<a id="task-semantics"></a>
+## Task semantics
+
+Download, reinstall, and update return a branded Host task identity at admission. Transport cancellation applies before admission; later disconnection does not cancel the task. `modelsList` returns each model’s durable resource identity and this Host’s latest task. `modelsCancel` cancels and joins only a matching running task. A stale identity, another Host’s identity, or a terminal task returns `cancelled: false`. Provider disposal cancels and joins its own tasks.
+
+Resource versions are SHA-256 fingerprints of pinned manifests, with sanitized source URLs and explicit integrity state. Reinstall forces replacement; update compares the installed fingerprint with the pinned catalog. A verified old generation stays ready while replacement runs or fails. The provider owns durable revision checks and recognizer leases; [storage semantics](../voice-sherpa-onnx/README.md#resource-lifecycle) define legacy verification and deletion.
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Consumer-owned results
 
 #### What the model sees
 
-None. This package contributes no model-visible text; `VoiceRuntime.registerEngine`/`registerModel` and the transcription dispatch replace composer keystrokes before a prompt is ever sent, so dictated output is indistinguishable from typed text at the model boundary.
+None. Transcription returns text for a client draft; only ordinary submission makes it model-visible.
 
 #### Token effect
 
-None; the Service Definition adds no request or result tokens.
+None until the client submits the draft.
 
 #### KV Cache effect
 
-None; engine registration, model registration, and download/cache state never enter a model request prefix.
+Registration, model tasks, and resource status never enter model requests.
 
+<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-No invariant companion is published because the Voice service validates engine, model, and operation registrations, and consumers read those same registries without a separately maintained copy.
+The service exposes one final transcript per clip, without incremental hypotheses. Model and microphone preferences belong to the client. No invariant companion is published: consumers read the same registries that enforce registration ownership.
 
-- **Six shipped models** — the slice registers two streaming Zipformer archive models from GitHub releases and four file-download models from HuggingFace (English Zipformer, bilingual Paraformer, Sense Voice, Whisper tiny) via the `hf-mirror.com` mirror.
-- **Model preference belongs to the client** — the dictation UI persists its selection per browser origin; this service does not synchronize that preference across devices.
-- **No streaming partial-result API** — `VoiceRecognizer.transcribe` returns one final transcript per submitted clip; incremental partial hypotheses during an in-progress utterance are not exposed.
+## Dev Note
+
+The [voice decision](../../../.agents/notes/implemented/feature/2026-09-14-voice-dictation-models-and-capture.md) records model integrity and Host task ownership.

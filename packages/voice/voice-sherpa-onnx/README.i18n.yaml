@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/voice/voice-sherpa-onnx/README.md
-README.md: 808eece12f26d1c2e88704c366099a1c2a536da7
-README.zh.md: 568307c219badb6fed8a02c1f5c914ac2a309e3c
+README.md: 88071df94b47a5990797315fd62ffdf8e1b28652
+README.zh.md: 653faa74b86a0999bad507d4c7e6c07076bdab9e

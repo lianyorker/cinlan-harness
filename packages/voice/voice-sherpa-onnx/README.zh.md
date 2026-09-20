@@ -1,48 +1,87 @@
-# @deepseek-ai/dsh-voice-sherpa-onnx
+---
+description: "固定本地语音模型、Host 任务、已验证的模型代与原生识别。"
+kind: "package-reference"
+---
+# Sherpa voice provider
 
 [English](README.md) | 中文
 
-该 Service Provider 把 `sherpa-onnx-node` 挂载为 `ctx.voice` 上的本地语音转文本引擎，并注册由经过身份验证的 `voice` Remote 与可选回环 `/voice/api` 路由共享的 Provider 操作。Web 与 Desktop 听写使用 Remote；本 Provider 需要 `voice` 与托管的 `subprocess`，没有 `webServer` 时也会激活。六个出厂模型覆盖完整链路：两个流式 Zipformer 模型来自 [GitHub releases](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models)（纯中文约 74MB，中英双语约 511MB），四个额外模型来自 [HuggingFace](https://huggingface.co) 经 `hf-mirror.com` 镜像下载（英文 Zipformer 约 92MB，双语 Paraformer 约 237MB，Sense Voice 约 240MB，Whisper tiny 约 153MB）。
+## 摘要
 
-## 降级模式
+`@deepseek-ai/dsh-voice-sherpa-onnx` 在 `ctx.voice` 上挂载本地 `sherpa-onnx-node` 识别与模型管理。它需要 `voice` 和托管 `subprocess`；Web 服务器可选。[固定目录](src/model-registry.ts) 包含六个模型，使用归档或逐文件 SHA-256 校验和。
 
-`sherpa-onnx-node` 的原生插件（以及其按平台分发的 `optionalDependency` 二进制）从不在模块顶层导入——`sherpa-deps.ts` 只懒加载一次 `require` 并缓存结果，与 `@deepseek-ai/dsh-client-ui-better-sidebar` 的 `pty-deps.ts` 中 `node-pty` 的懒加载模式相同。原生绑定缺失或损坏不会导致该插件加载失败：`models.list` 与 `models.download` 仍能工作（缓存状态与下载是纯 Node/fetch 逻辑，不依赖原生模块），只有 `transcribe` 会失败，并带上指名加载原因的 `VOICE_ENGINE_DEGRADED` 诊断。
+## 目录
 
-`engine-repair.ts` 完全照搬 `pty-deps.ts` 的 `findProfileDir`／`buildRepairCommand` 一对：从这个插件模块向上走到最近的 DSH profile 根目录（回退到 `$DSH_HOME/profiles/web`），并构建一条可粘贴的 `dsh plugin --profile "<name>" install` 命令，附带 `allowBuilds: sherpa-onnx-node: true` 的 pnpm-workspace.yaml 提示。`engine.status` 路由方法把这条确切的修复提示提供给设置页的「引擎」子分区。
+- [配置](#configuration)
+- [资源生命周期](#resource-lifecycle)
+- [传输与原生识别](#transports-and-native-recognition)
+- [模型体验](#model-experience)
+- [已知限制与暂缓事项](#known-limitations-and-deferred-work)
 
-## 模型缓存
+<a id="configuration"></a>
+## 配置
 
-每个模型下载到 `$DSH_HOME/models/voice/<id>/`。已知大小的归档使用可配置的并发 HTTP Range（`downloadSegmentBytes` 默认为 8 MiB，`downloadConcurrency` 默认为 4），瞬时故障最多按 `downloadMaxAttempts`（默认 4）尝试，并从 `downloadRetryDelayMs`（默认 1,000 ms）开始指数退避，只有一个分段连续 `downloadRequestTimeoutMs`（默认 120,000 ms）未收到响应字节时才中止；中断后保留完整分段并只续传缺失分段；忽略 Range 的服务器会回退为整包响应。组装后的归档必须先匹配模型固定的上游 SHA-256，才能开始解压；校验失败会删除保留分段，避免下次重试再次使用损坏字节。归档字节先在 `downloading` 状态组装到临时文件；字节计数完成后切换为 `extracting`，生产环境通过托管的 `ctx.subprocess` 服务调用原生 `tar -xjf ... --strip-components 1`，不再用纯 JavaScript 解码器持续占满 Host CPU。测试仍保留可注入的纯 JavaScript 解包器，覆盖真实 bzip2+tar 流水线。每个模型由一个操作和一个 AbortController 统一拥有缓存检查、下载、解包与终态清理；并发调用方等待同一个操作。`models.remove` 会先取消并等待活跃工作结束，再清除缓存和保留分段；Provider dispose 同样取消并等待活跃工作，但保留完整分段供以后续传。只有在解包结算后才写入 `.dsh-voice-ready` 哨兵，失败也只在部分文件清理完成后才变为可见。旧 Host 已完整解压但只缺哨兵的缓存，会在重启时校验 encoder／decoder／joiner／tokens 四个必需文件均存在且非空后自动收养，不再重新下载。`models.list` 报告 `not-downloaded`、带字节进度的 `downloading`、`extracting`、`ready`，或保留到下次重试的 `failed` 原因。
+将本插件与 [Voice 运行时](../voice/README.zh.md) 一起挂载。以下字段在加载时校验；字节数、时长、并发数与尝试次数必须是正安全整数。
 
-## /voice/api 路由
+| 字段 | 默认值 | 用途 |
+|---|---|---|
+| `cacheRoot` | `$DSH_HOME/models/voice` | 挂载时固定的绝对存储根目录 |
+| `downloadSegmentBytes` | 8 MiB | 归档 Range 大小 |
+| `downloadConcurrency` | 4 | 并发归档 Range 请求数 |
+| `downloadMaxAttempts` | 4 | 每个 Range 或文件的尝试次数 |
+| `downloadRetryDelayMs` | 1,000 | 指数退避的初始间隔 |
+| `downloadRequestTimeoutMs` | 120,000 | 未收到响应字节的最长间隔 |
+| `resourceLockTimeoutMs` | 10,000 | 跨 Host 锁的最长等待时间 |
+| `resourceLockRetryMs` | 25 | 锁重试间隔 |
+| `extractionGraceMs` | 5,000 | 托管 tar 终止宽限时间 |
+| `extractionStderrBytes` | 65,536 | 保留的 tar 诊断字节数 |
 
-路由只在 `webServer` 可用时挂载，并随该注入生命周期撤销。两种通道调度同一组 Provider 操作。调用方取消会中止共享安装；删除先等待模型的活跃工作结束，Provider 拆除等待自身所有操作结束。即使取消阻止了转写返回，原生识别仍在结算后释放识别器。五个方法，全部 POST，全部仅限回环（与 `@deepseek-ai/dsh-client-ui-better-sidebar` 的 `/sidebar/api` 相同的 DNS-rebinding／跨站防护，因为该包未导出这个 helper，所以是复制而非引入）：
+<a id="resource-lifecycle"></a>
+## 资源生命周期
 
-- `engine.status` —— 原生插件的加载状态；`sherpa-onnx-node` 加载成功时为 `{ ok: true }`，否则为带可粘贴修复命令的 `{ ok: false, cause, command, profile, note }`。
-- `models.list` —— 带实时缓存状态的出厂清单。
-- `models.download` —— 启动（或若已在进行中则等待）一次可续传的分段模型下载。
-- `models.remove` —— 取消并等待活跃安装结束，再删除已安装模型、保留的失败状态、组装归档和可续传分段。
-- `transcribe` —— 解码一段 base64 编码的 16kHz 单声道 PCM float32 音频，返回其转写文本；要求目标模型已报告 `ready`。
+下载、重新安装与更新立即返回 Host 任务。该模型已有运行中任务时，重复接纳会返回同一标识。客户端断开不会取消它。精确取消等待匹配任务结束并保留已安装代；过期或其他 Host 的标识无法取消替换任务。提供方释放先撤销操作，再仅取消并等待自身任务和识别器。任务进度与最终错误属于已挂载 Host，提供方重载时重置。
 
+版本是固定下载清单与识别器配置的 `sha256:` 指纹。它不表示上游发布版本，也不发现上游版本。资源行包含已安装与可用指纹、脱敏源 URL、完整性状态及持久修订。替换期间、失败后或取消后，已就绪的旧代仍可使用。任务错误包含稳定代码与安全消息。
+
+传输使用任务私有暂存目录。已知大小的归档采用并发 Range、有界重试和空闲超时；忽略 Range 的服务器可返回完整归档。独立文件使用相同的重试与超时设置，且必须匹配固定大小和 SHA-256。归档在托管原生 tar 解包前验证哈希。任务结束后删除暂存目录与传输分段；不提供跨任务续传。
+
+存储在 `.resources/<modelId>` 下记录必需文件的哈希清单和不可变代。状态检查与识别器获取会验证这些字节。发布比较任务接纳时观察到的修订，在写锁内重命名已准备的暂存目录，并原子替换指针。即使已不存在，删除仍写入新的修订墓碑，防止旧任务在删除后重新发布。传输、校验或修订比较失败均保持活跃指针不变。
+
+识别器在与发布和回收相同的锁下获取持久代租约。替换与删除仅回收没有活跃或未知所有者的非活跃代；识别器在原生释放后解除租约。明确属于已死亡进程的租约可回收。未知所有者、其他机器租约及可能复用的进程 ID 均保守保留字节。清理失败不会撤销成功发布。
+
+保留旧 `<cacheRoot>/<modelId>` 目录。文件源缓存只有经过固定大小和校验和的精确验证，才能复制到受管存储。标记或非空归档解包结果无法证明来源，因此保持 `unverified`；显式下载或重新安装获取已验证的替代字节，但不删除旧目录。删除墓碑阻止后续自动重新收养。
+
+<a id="transports-and-native-recognition"></a>
+## 传输与原生识别
+
+[身份验证控制器](../../api/voice-controller/README.zh.md) 是 Web 与 Desktop API。可选回环 POST 方法包括 `engine.status`、`models.list`、`models.download`、`models.reinstall`、`models.update`、`models.cancel`、`models.remove` 和 `transcribe`。两个适配器都校验请求并调度相同操作。旧路由检查回环与浏览器来源元数据；它不是身份验证机制。
+
+原生插件按需加载。缺少插件不影响模型管理，并会提供引擎修复指引。转写要求已验证文件，并使用已安装代的识别器配置，即使目录指纹不同。原生推理是同步调用，无法中途打断；取消阻止结果返回，拆除等待其结算。
+
+<a id="model-experience"></a>
 ## 模型体验
-
-### 仅传输的 Provider
 
 #### 模型看到什么
 
-无。该 Provider 不贡献任何面向模型的文本；`/voice/api` 的 `transcribe` 方法结果在提示词发出之前就已经替换了 composer 键入内容。
+用户提交含转写文本的客户端草稿前，没有内容。
 
 #### Token 影响
 
-无；该 Provider 不新增请求或结果 token。
+模型管理与原生识别不增加模型 token。
 
 #### KV Cache 影响
 
-无；引擎加载、模型下载/缓存状态与转写从不进入模型请求前缀。
+资源操作不会改变模型请求前缀。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与暂缓事项
 
-不发布 invariant companion：注册与卸载操作在 Voice 和 web-server registry 中维护贡献项的所有权，Provider 不保留这些注册的独立副本。
+完整性检查在写锁内对模型文件计算哈希；`resourceLockTimeoutMs` 需要覆盖目标存储上最大模型的校验耗时。
 
-- **HuggingFace 模型使用 `hf-mirror.com`** —— 四个文件下载模型从 `hf-mirror.com` 而非 `huggingface.co` 下载，以在网络不可达地区提供可访问性；镜像 URL 硬编码在 `model-registry.ts` 中。
-- **网络错误显示友好提示** —— `fetch failed` 等传输错误会被翻译为用户可读的消息，提示用户检查网络或开启代理。
+进程在持有独占写锁时被终止，可能留下锁。竞争方超时且绝不抢占；恢复需要先确认写入方已退出，再删除锁。进程丢失后可能残留被中断任务的暂存目录。保留旧数据与未知租约有意以磁盘空间换取安全。
+
+固定目录使用 GitHub 发布归档与固定提交的 `hf-mirror.com` 文件。不提供任意用户模型源或上游发布发现。不发布 invariant 伴随插件：存储变更直接验证其拥有的修订和租约关系，消费者读取权威存储。
+
+## 开发者说明
+
+[语音决策](../../../.agents/notes/implemented/feature/2026-09-14-voice-dictation-models-and-capture.zh.md) 记录完整性、取消与并发 Host 的取舍。

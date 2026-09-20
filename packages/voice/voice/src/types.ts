@@ -5,6 +5,37 @@ import type { Branded } from '@deepseek-ai/dsh-brand'
 /** Opaque identifier for one shipped voice-dictation model definition. */
 export type VoiceModelId = Branded<'VoiceModelId'>
 
+/** Opaque identity of one task owned by a mounted Host provider. */
+export type VoiceModelTaskId = Branded<'VoiceModelTaskId'>
+
+/** Model operation; update installs only the currently pinned manifest. */
+export type VoiceModelOperation = 'download' | 'reinstall' | 'update'
+
+/** Last task for one model in this Host lifetime; terminal records survive until the next task. */
+export interface VoiceModelTask {
+  readonly taskId: VoiceModelTaskId
+  readonly modelId: VoiceModelId
+  readonly operation: VoiceModelOperation
+  readonly state: 'running' | 'succeeded' | 'failed' | 'cancelled'
+  readonly progress?: { readonly state: 'downloading' | 'extracting'; readonly receivedBytes: number; readonly totalBytes: number }
+  readonly error?: { readonly code: string; readonly message: string }
+}
+
+/** Durable installation identity; versions are pinned-manifest SHA-256 fingerprints, not upstream releases. */
+export interface VoiceModelResource {
+  readonly revision: string
+  readonly source: readonly string[]
+  readonly installedVersion: string | null
+  readonly availableVersion: string
+  readonly updateAvailable: boolean
+  readonly integrity: 'verified' | 'unverified' | 'missing' | 'corrupt'
+}
+
+/** Exact cancellation receipt; stale, foreign-Host, and settled task identities return false. */
+export interface VoiceModelsCancelValue {
+  readonly cancelled: boolean
+}
+
 /** Streaming (chunk-by-chunk) or non-streaming (whole-utterance) recognizer family. */
 export type VoiceModelKind = 'streaming' | 'non-streaming'
 
@@ -64,6 +95,8 @@ export type VoiceEngineStatus =
 
 /** Display metadata and live cache status, without native model configuration. */
 export interface VoiceModelRow {
+  readonly resource: VoiceModelResource
+  readonly task: VoiceModelTask | null
   readonly definition: Pick<VoiceModelDefinition, 'id' | 'name' | 'description' | 'recommended' | 'approximateBytes'>
   readonly status: VoiceModelStatus
 }
@@ -73,10 +106,8 @@ export interface VoiceModelsListValue {
   readonly models: readonly VoiceModelRow[]
 }
 
-/** Ready cache directory after a completed download. */
-export interface VoiceModelsDownloadValue {
-  readonly cacheDir: string
-}
+/** Admission receipt for a Host-owned installation; observe terminal state through modelsList. */
+export type VoiceModelsDownloadValue = VoiceModelTask
 
 /** Provider-owned operations; cancellation settles only after owned work is quiescent. */
 export interface VoiceOperations {
@@ -84,8 +115,14 @@ export interface VoiceOperations {
   engineStatus(signal: AbortSignal): Promise<VoiceEngineStatus>
   /** List models with their current installation state. */
   modelsList(signal: AbortSignal): Promise<VoiceModelsListValue>
-  /** Install one model; cancelling any waiter cancels its shared installation. */
+  /** Admit a Host-owned install; caller cancellation applies only before admission. */
   modelsDownload(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelsDownloadValue>
+  /** Replace with verified bytes from the pinned manifest, preserving the installed generation on failure. */
+  modelsReinstall(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelTask>
+  /** Install the pinned manifest only when its fingerprint differs from the verified installation. */
+  modelsUpdate(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelTask>
+  /** Cancel and join exactly the matching running task without removing installed files. */
+  modelsCancel(modelId: VoiceModelId, taskId: VoiceModelTaskId, signal: AbortSignal): Promise<VoiceModelsCancelValue>
   /** Cancel model work, await native resources, and remove the cache and resumable parts. */
   modelsRemove(modelId: VoiceModelId, signal: AbortSignal): Promise<void>
   /** Transcribe decoded samples and release the recognizer before settlement. */

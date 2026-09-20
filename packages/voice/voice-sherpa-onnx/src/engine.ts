@@ -3,7 +3,7 @@
  * streaming `OnlineRecognizer` or non-streaming `OfflineRecognizer` and exposes
  * the Service Definition's `VoiceRecognizer` contract over it. The engine itself
  * never touches the download cache — `loadModel` receives the already-extracted
- * `cacheDir` from `ensureModelDownloaded`.
+ * generation directory pinned by the provider’s recognizer lease.
  */
 
 import { join } from 'node:path'

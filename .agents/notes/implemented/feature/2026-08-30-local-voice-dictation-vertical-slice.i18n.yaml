@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-30-local-voice-dictation-vertical-slice.md
-2026-08-30-local-voice-dictation-vertical-slice.md: 116c1509b53c235fabd1881a611fed0e78d92414
-2026-08-30-local-voice-dictation-vertical-slice.zh.md: bce7ad1deea48182082704b5d121053951bbf575
+2026-08-30-local-voice-dictation-vertical-slice.md: 67efe731cc87adc9a18716084549799d5b1e4953
+2026-08-30-local-voice-dictation-vertical-slice.zh.md: ae408ae8988054153ce1e9963c7e12accea2ebf8

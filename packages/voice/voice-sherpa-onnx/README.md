@@ -1,48 +1,87 @@
-# @deepseek-ai/dsh-voice-sherpa-onnx
+---
+description: "Pinned local speech models with Host tasks, verified generations, and native recognition."
+kind: "package-reference"
+---
+# Sherpa voice provider
 
 English | [中文](README.zh.md)
 
-This Service Provider mounts `sherpa-onnx-node` as the local speech-to-text engine on `ctx.voice` and registers provider operations shared by the authenticated `voice` Remote and an optional loopback `/voice/api` route. Web and Desktop dictation use the Remote; this provider requires `voice` and managed `subprocess`, and activates without `webServer`. Six shipped models cover the full pipeline: two streaming Zipformer models from [GitHub releases](https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models) (Chinese-only ~74MB, bilingual ~511MB) and four additional models from [HuggingFace](https://huggingface.co) via the `hf-mirror.com` mirror (English Zipformer ~92MB, bilingual Paraformer ~237MB, Sense Voice ~240MB, Whisper tiny ~153MB).
+## Summary
 
-## Degraded mode
+`@deepseek-ai/dsh-voice-sherpa-onnx` mounts local `sherpa-onnx-node` recognition and model management on `ctx.voice`. It requires `voice` and managed `subprocess`; a Web server is optional. The [pinned catalog](src/model-registry.ts) contains six models with archive or per-file SHA-256 checksums.
 
-`sherpa-onnx-node`'s native addon (and its per-platform `optionalDependency` binary) is never imported at module top level — `sherpa-deps.ts` lazily `require`s it exactly once and caches the outcome, mirroring the `node-pty` lazy-load pattern in `@deepseek-ai/dsh-client-ui-better-sidebar`'s `pty-deps.ts`. A missing or broken native binding does not fail this plugin's load: `models.list` and `models.download` still work (cache status and download are pure Node/fetch logic with no native dependency), and only `transcribe` fails with a `VOICE_ENGINE_DEGRADED` diagnostic naming the load cause.
+## Table of Contents
 
-`engine-repair.ts` mirrors `pty-deps.ts`'s `findProfileDir`/`buildRepairCommand` pair exactly: it walks up from this plugin module to the nearest DSH profile root (falling back to `$DSH_HOME/profiles/web`) and builds a pasteable `dsh plugin --profile "<name>" install` command plus an `allowBuilds: sherpa-onnx-node: true` pnpm-workspace.yaml hint. The `engine.status` route method serves this exact repair hint to the settings page's Engine sub-section.
+- [Configuration](#configuration)
+- [Resource lifecycle](#resource-lifecycle)
+- [Transports and native recognition](#transports-and-native-recognition)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 
-## Model cache
+<a id="configuration"></a>
+## Configuration
 
-Each model downloads to `$DSH_HOME/models/voice/<id>/`. Sized archives use configurable concurrent HTTP ranges (`downloadSegmentBytes`, default 8 MiB; `downloadConcurrency`, default 4), retry transient failures up to `downloadMaxAttempts` (default 4) with exponential backoff starting at `downloadRetryDelayMs` (default 1,000 ms), abort a stalled range only after `downloadRequestTimeoutMs` (default 120,000 ms) without response bytes, retain complete ranges after an interruption, and resume only missing ranges; servers that ignore Range fall back to one whole-archive response. The assembled archive must match the model's pinned upstream SHA-256 before extraction begins; a mismatch deletes retained ranges so the next retry cannot reuse corrupted bytes. Archive bytes first assemble into a temporary file while the status is `downloading`; once the byte count completes, status changes to `extracting` and production delegates bzip2/tar extraction to the managed `ctx.subprocess` service (`tar -xjf ... --strip-components 1`) instead of burning Host CPU in the pure-JavaScript decoder. Tests retain an injectable pure-JavaScript extractor over the real bzip2/tar pipeline. One per-model operation and AbortController own cache inspection, download, extraction, and terminal cleanup; concurrent callers await that same operation. `models.remove` aborts and joins active work before clearing the cache and retained ranges, while Provider disposal aborts and joins active work but keeps completed ranges for a later resume. A `.dsh-voice-ready` sentinel is written only after extraction settles, and a failure becomes visible only after partial files are removed. A complete older extraction that lacks only that sentinel is adopted on restart after the Provider verifies every required encoder/decoder/joiner/tokens file is present and non-empty, so it does not download the archive again. `models.list` reports `not-downloaded`, byte-progress `downloading`, `extracting`, `ready`, or a retained `failed` reason that remains visible until the next retry.
+Mount this plugin alongside the [Voice runtime](../voice/README.md). The following fields are validated at load; byte counts, durations, concurrency, and attempts must be positive safe integers.
 
-## /voice/api route
+| Field | Default | Purpose |
+|---|---|---|
+| `cacheRoot` | `$DSH_HOME/models/voice` | Absolute storage root captured at mount |
+| `downloadSegmentBytes` | 8 MiB | Archive range size |
+| `downloadConcurrency` | 4 | Concurrent archive range requests |
+| `downloadMaxAttempts` | 4 | Attempts per range or file |
+| `downloadRetryDelayMs` | 1,000 | Initial exponential backoff |
+| `downloadRequestTimeoutMs` | 120,000 | Maximum interval without response bytes |
+| `resourceLockTimeoutMs` | 10,000 | Maximum cross-Host lock wait |
+| `resourceLockRetryMs` | 25 | Lock retry interval |
+| `extractionGraceMs` | 5,000 | Managed tar termination grace |
+| `extractionStderrBytes` | 65,536 | Retained tar diagnostics |
 
-The route mounts only while `webServer` is available and unregisters with that injection lifetime. Both transports dispatch the same provider-owned operations. Caller cancellation aborts the shared installation; removal joins active model work before deletion, and provider disposal joins every owned operation. Native recognition releases its recognizer after settlement even when cancellation prevents returning a transcript. Five methods, all POST, all loopback-only (the same DNS-rebinding / cross-site defense as `@deepseek-ai/dsh-client-ui-better-sidebar`'s `/sidebar/api`, copied rather than imported because that package does not export the helper):
+<a id="resource-lifecycle"></a>
+## Resource lifecycle
 
-- `engine.status` — the native-addon load state; `{ ok: true }` when `sherpa-onnx-node` loaded, otherwise `{ ok: false, cause, command, profile, note }` with the pasteable repair command.
-- `models.list` — the shipped roster with live cache status.
-- `models.download` — start (or await, if already in flight) a segmented, resumable model download.
-- `models.remove` — cancel and join an active installation, then remove the installed model, retained failure, assembled archive, and resumable ranges.
-- `transcribe` — decode a base64-encoded 16kHz mono PCM float32 clip and return its transcript; requires the target model to already report `ready`.
+Download, reinstall, and update return a Host task immediately. Repeated admission while that model has a running task returns the same identity. Disconnecting a client does not cancel it. Exact cancellation joins the matching task and retains the installed generation; stale and foreign-Host identities cannot cancel replacement work. Provider disposal withdraws operations, then cancels and joins only its own tasks and recognizers. Task progress and terminal errors belong to the mounted Host and reset on provider reload.
 
+Versions are `sha256:` fingerprints of the pinned download manifest and recognizer configuration. They do not claim an upstream release or perform upstream version discovery. Resource rows include installed and available fingerprints, sanitized source URLs, integrity state, and a durable revision. A ready old generation remains usable during replacement and after a failed or cancelled replacement. Task errors contain stable codes and safe messages.
+
+Transfers use task-private staging. Sized archives use concurrent ranges with bounded retry and idle timeout; servers that ignore ranges may return the whole archive. Individual files use the same retry and timeout settings and require their exact pinned size and SHA-256. The archive hash is checked before managed native tar extraction. Completed task staging and transfer parts are removed after settlement; cross-task resume is not provided.
+
+The store records a required-file hash inventory and an immutable generation under `.resources/<modelId>`. Inspection and recognizer acquisition verify those bytes. Publication compares the revision observed at task admission, renames prepared staging within the writer lock, and atomically replaces the pointer. Removal writes a fresh revision tombstone, including when already absent, so an older task cannot republish after removal. A failed transfer, validation, or revision comparison leaves the active pointer intact.
+
+Recognizers acquire persistent generation leases under the same lock as publication and collection. Replacement and removal collect only inactive generations without live or unknown owners; a recognizer releases its lease after native disposal. Definite dead-process leases may be reclaimed. Unknown owners, foreign-machine leases, and potentially reused process IDs retain bytes conservatively. Cleanup failure does not reverse a successful publication.
+
+Legacy `<cacheRoot>/<modelId>` directories are preserved. File-source caches may be copied into managed storage only after exact pinned size and checksum verification. A marker or nonempty archive extraction cannot prove provenance and remains `unverified`; explicit download or reinstall obtains verified replacement bytes without deleting the legacy directory. A removal tombstone prevents later automatic re-adoption.
+
+<a id="transports-and-native-recognition"></a>
+## Transports and native recognition
+
+The [authenticated controller](../../api/voice-controller/README.md) is the Web and Desktop API. Optional loopback POST methods are `engine.status`, `models.list`, `models.download`, `models.reinstall`, `models.update`, `models.cancel`, `models.remove`, and `transcribe`. Both adapters validate requests and dispatch the same operations. The legacy route checks loopback and browser origin metadata; it is not an authentication mechanism.
+
+Native addon loading is lazy. A missing addon leaves model management available and supplies engine repair guidance. Transcription requires verified files and uses the installed generation’s recognizer configuration, even when the catalog fingerprint differs. Native inference is synchronous and cannot be interrupted mid-call; cancellation suppresses the result and teardown waits for settlement.
+
+<a id="model-experience"></a>
 ## Model Experience
-
-### Transport-only Provider
 
 #### What the model sees
 
-None. This Provider contributes no model-visible text; the `/voice/api` `transcribe` method's result replaces composer keystrokes before a prompt is ever sent.
+None until the user submits the client draft containing the transcript.
 
 #### Token effect
 
-None; the Provider adds no request or result tokens.
+Model management and native recognition add no model tokens.
 
 #### KV Cache effect
 
-None; engine loading, model download/cache state, and transcription never enter a model request prefix.
+Resource operations do not change model request prefixes.
 
+<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-No invariant companion is published because registration and disposal enforce contribution ownership in the Voice and web-server registries; the Provider has no independent copy of those registrations.
+Integrity checks hash model files under the writer lock; size `resourceLockTimeoutMs` for the largest model’s verification time on the target storage.
 
-- **HuggingFace models use `hf-mirror.com`** — the four file-download models are sourced from `hf-mirror.com` instead of `huggingface.co` for network accessibility in regions where the latter is unreachable; the mirror URL is hardcoded in `model-registry.ts`.
-- **Network errors show a friendly hint** — `fetch failed` and similar transport errors are translated to a user-facing message prompting the user to check their network or enable a proxy.
+A process killed while holding the exclusive writer lock can leave that lock behind. Contenders time out and never steal it; recovery requires confirming that the writer is gone before removing the lock. Interrupted task staging may remain after process loss. Retained legacy data and unknown leases intentionally trade disk space for safety.
+
+The pinned catalog uses GitHub release archives and commit-pinned `hf-mirror.com` files. Arbitrary user-provided model sources and upstream release discovery are not exposed. No invariant companion is published: storage mutations verify their owned revision and lease relationships directly, and consumers read the authoritative store.
+
+## Dev Note
+
+The [voice decision](../../../.agents/notes/implemented/feature/2026-09-14-voice-dictation-models-and-capture.md) records integrity, cancellation, and concurrent Host tradeoffs.

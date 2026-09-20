@@ -10,6 +10,8 @@ Cinlan Harness had no offline speech-to-text capability, while the reference Orc
 
 ## Decision
 
+[Pinned resources and Host tasks](2026-09-14-voice-dictation-models-and-capture.md) supersedes this slice’s marker adoption, shared-request cancellation, and cache-lifetime decisions. This record retains the local-engine and client-ownership rationale.
+
 A new `voice/` package group ships a provider-neutral Service Definition plus one Provider, following the `mobile-device` group's exact shape (registry class, `registerEngine`/`registerModel`, `HarnessError` subclass, opaque branded model id):
 
 - **`@deepseek-ai/dsh-voice`** — `ctx.voice` registry: `registerEngine`/`registerModel`, `listDefinitions`/`requireDefinition`, and `engineOrUndefined` (distinguishing "no engine mounted" composition gaps from "model not downloaded yet" per-model state).

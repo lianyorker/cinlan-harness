@@ -35,13 +35,16 @@ Generated `ctx.remote.voice` methods return a `RemoteResult` envelope. Pass the 
 |---|---|---|
 | `engineStatus(signal?)` | None | Native availability or degraded repair guidance |
 | `modelsList(signal?)` | None | `{ models }` with current cache status |
-| `modelsDownload(request, signal?)` | `{ modelId }` | `{ cacheDir }` after installation |
+| `modelsDownload(request, signal?)` | `{ modelId }` | Host task admission receipt |
+| `modelsReinstall(request, signal?)` | `{ modelId }` | Forced replacement task receipt |
+| `modelsUpdate(request, signal?)` | `{ modelId }` | Pinned-manifest update task receipt |
+| `modelsCancel(request, signal?)` | `{ modelId, taskId }` | `{ cancelled }` after exact-task cleanup |
 | `modelsRemove(request, signal?)` | `{ modelId }` | `{}` after model work and removal settle |
 | `transcribe(request, signal?)` | `{ modelId, pcm16kMonoBase64 }` | `{ text }` |
 
 PCM is canonical base64 of little-endian, finite float32 samples at 16 kHz mono, limited to 16 MiB decoded. The controller and optional legacy HTTP adapter share validation. Model identifiers must come from the available roster. A model must be ready before transcription.
 
-Malformed requests, unknown models, missing files, concurrent model removal, unavailable providers, and operation failures use `voice/invalid-request`, `voice/model-unknown`, `voice/model-not-ready`, `voice/model-busy`, `voice/unavailable`, and `voice/operation-failed`. Cancellation follows the carrier. Provider-specific `VoiceError` codes remain in error details; unexpected exceptions use a fixed public message.
+Malformed requests, unknown models, missing files, concurrent model removal, unavailable providers, and operation failures use `voice/invalid-request`, `voice/model-unknown`, `voice/model-not-ready`, `voice/model-busy`, `voice/unavailable`, and `voice/operation-failed`. List and transcription cancellation follows the carrier. Installation methods return task receipts; disconnection after admission does not cancel Host work. Poll `modelsList` for `task` progress and terminal state, and `resource` source, fingerprints, and integrity. Explicit cancellation requires this Host’s exact task ID; stale or terminal IDs return false without deleting models. Provider-specific `VoiceError` codes remain in error details; unexpected exceptions use a fixed public message.
 
 -----
 

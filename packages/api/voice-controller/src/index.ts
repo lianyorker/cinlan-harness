@@ -2,10 +2,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { VoiceError } from '@deepseek-ai/dsh-voice'
-import { parseVoiceModelRequest, parseVoiceTranscribeRequest } from '@deepseek-ai/dsh-voice/transport'
+import { parseVoiceCancelRequest, parseVoiceModelRequest, parseVoiceTranscribeRequest } from '@deepseek-ai/dsh-voice/transport'
 import type {
   VoiceEngineStatus, VoiceModelRequest, VoiceModelsDownloadValue, VoiceModelsListValue,
   VoiceModelsRemoveValue, VoiceTranscribeRequest, VoiceTranscribeResult,
+  VoiceModelTask, VoiceCancelRequest, VoiceModelsCancelValue,
 } from './types.ts'
 export type * from './types.ts'
 
@@ -62,14 +63,50 @@ export class VoiceController extends TypertRemoteService {
   }
 
   /**
-   * Download or await a model installation.
+   * Admit a Host-owned model installation.
    * @param request - Exact model selector from modelsList.
-   * @param signal - Cancels the shared model installation and awaits its cleanup.
-   * @returns Ready cache directory.
+   * @param signal - Admission cancellation only; disconnect does not cancel admitted work.
+   * @returns Task receipt; modelsList reports progress and settlement.
    */
   @Remote
   modelsDownload(request: VoiceModelRequest, signal: AbortSignal): Promise<VoiceModelsDownloadValue> {
     return this.invoke(signal, () => this.ctx.voice.modelsDownload(parseVoiceModelRequest(request), signal))
+  }
+
+  /**
+   * Replace a model using its pinned manifest, preserving the old installation on failure.
+   * @param request - Exact model selector.
+   * @param signal - Admission cancellation only.
+   * @returns Host-owned task receipt.
+   */
+  @Remote
+  modelsReinstall(request: VoiceModelRequest, signal: AbortSignal): Promise<VoiceModelTask> {
+    return this.invoke(signal, () => this.ctx.voice.modelsReinstall(parseVoiceModelRequest(request), signal))
+  }
+
+  /**
+   * Install a changed pinned manifest; no upstream release discovery occurs.
+   * @param request - Exact model selector.
+   * @param signal - Admission cancellation only.
+   * @returns Host-owned task receipt.
+   */
+  @Remote
+  modelsUpdate(request: VoiceModelRequest, signal: AbortSignal): Promise<VoiceModelTask> {
+    return this.invoke(signal, () => this.ctx.voice.modelsUpdate(parseVoiceModelRequest(request), signal))
+  }
+
+  /**
+   * Cancel one matching task without removing installed model files.
+   * @param request - Model and task identity returned by this Host.
+   * @param signal - Cancellation before admission.
+   * @returns Whether the matching running task was cancelled and joined.
+   */
+  @Remote
+  modelsCancel(request: VoiceCancelRequest, signal: AbortSignal): Promise<VoiceModelsCancelValue> {
+    return this.invoke(signal, () => {
+      const { modelId, taskId } = parseVoiceCancelRequest(request)
+      return this.ctx.voice.modelsCancel(modelId, taskId, signal)
+    })
   }
 
   /**

@@ -1,7 +1,7 @@
 /** Shared JSON validation for HTTP and Remote voice consumers; providers receive decoded samples. */
 import { z } from 'zod'
 import { VoiceError, VoiceModelId } from './index.ts'
-import type { VoiceTranscribeRequest } from './types.ts'
+import type { VoiceModelTaskId, VoiceTranscribeRequest } from './types.ts'
 
 /** Maximum decoded PCM bytes accepted across voice transports. */
 export const MAX_VOICE_PCM_BYTES = 16 * 1024 * 1024
@@ -9,6 +9,7 @@ export const MAX_VOICE_PCM_BYTES = 16 * 1024 * 1024
 export const MAX_VOICE_BODY_BYTES = 32 * 1024 * 1024
 const modelId = z.string().min(1).max(256)
 const modelRequest = z.strictObject({ modelId })
+const cancelRequest = z.strictObject({ modelId, taskId: z.uuid() })
 const transcribeRequest = z.strictObject({ modelId, pcm16kMonoBase64: z.string().min(1).max(Math.ceil(MAX_VOICE_PCM_BYTES / 3) * 4) })
 
 /**
@@ -20,6 +21,17 @@ export function parseVoiceModelRequest(payload: unknown): VoiceModelId {
   const result = modelRequest.safeParse(payload)
   if (!result.success) throw new VoiceError('missing or invalid "modelId"', 'VOICE_INVALID_REQUEST')
   return VoiceModelId(result.data.modelId)
+}
+
+/**
+ * Validate an exact task cancellation request from either transport.
+ * @param payload - Untrusted JSON request.
+ * @returns Branded model and task selectors.
+ */
+export function parseVoiceCancelRequest(payload: unknown): { modelId: VoiceModelId; taskId: VoiceModelTaskId } {
+  const result = cancelRequest.safeParse(payload)
+  if (!result.success) throw new VoiceError('invalid voice cancellation request', 'VOICE_INVALID_REQUEST')
+  return { modelId: VoiceModelId(result.data.modelId), taskId: result.data.taskId as VoiceModelTaskId }
 }
 
 /**
