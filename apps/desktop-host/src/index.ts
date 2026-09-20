@@ -12,6 +12,8 @@ import { dirname, extname, isAbsolute, join, normalize, resolve, sep } from 'nod
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import * as desktopOffice from './office.ts'
+import { installDesktopRemoteAccessHost } from './remote-access.ts'
+import { createPairedAssetHandler } from './phone-assets.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import {
@@ -31,7 +33,7 @@ import type { PluginManagementHost } from '@deepseek-ai/dsh-plugin-manager/types
 import type {} from '@deepseek-ai/cordis-plugin-hmr'
 import { DSH_LAUNCH_ENVIRONMENT_KEY } from '@deepseek-ai/dsh-launch-environment'
 import type {} from '@deepseek-ai/dsh-api-gateway'
-import type { ConnectionFetchHandler } from '@deepseek-ai/dsh-client-connection'
+import { createTrustedConnectionAccess, type ConnectionFetchHandler, type HostConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-client-modules'
 import { renderIndexInjections, type IndexInjection } from '@deepseek-ai/dsh-host-webserver'
 import {
@@ -250,7 +252,7 @@ function assetHandler(ctx: Context, projectDir: string): ConnectionFetchHandler 
   }
 }
 
-function remoteStreamHandler(ctx: Context): ConnectionFetchHandler {
+function remoteStreamHandler(ctx: Context, access: HostConnectionAccess): ConnectionFetchHandler {
   return {
     requestBodyMode: () => 'buffered',
     async fetch(request): Promise<Response> {
@@ -267,9 +269,9 @@ function remoteStreamHandler(ctx: Context): ConnectionFetchHandler {
         return new Response('invalid stream request', { status: 400 })
       }
       const abort = new AbortController()
-      const signal = AbortSignal.any([request.signal, abort.signal])
+      const signal = AbortSignal.any([request.signal, abort.signal, access.signal])
       const encoder = new TextEncoder()
-      const values = await gateway.wireStream.open(body.endpoint, body.payload, signal)
+      const values = await gateway.wireStream.open(body.endpoint, body.payload, signal, access)
       const stream = new ReadableStream<Uint8Array>({
         async start(controller) {
           try {
@@ -316,10 +318,13 @@ export async function runDesktopHost(
   })
   let current: Context | undefined
   const requests = new Map<number, AbortController>()
+  const accessLifetime = new AbortController()
+  const localAccess = createTrustedConnectionAccess(accessLifetime.signal)
   let updateTasks: ReturnType<typeof installDesktopUpdateTaskControl> | undefined
   let disposing: Promise<void> | undefined
   const dispose = (): Promise<void> => disposing ??= (async () => {
     updateTasks?.dispose()
+    accessLifetime.abort(new Error('dsh desktop: Host is stopping'))
     for (const controller of requests.values()) controller.abort()
     requests.clear()
     try {
@@ -373,11 +378,12 @@ export async function runDesktopHost(
       source: options.primaryRuntime,
       root: join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'),
     })
-    const api = connection.createSharedFetchHandler('/api')
+    const api = connection.createSharedFetchHandler('/api', localAccess)
     const assets = assetHandler(ctx, absoluteProject)
-    const streams = remoteStreamHandler(ctx)
+    const streams = remoteStreamHandler(ctx, localAccess)
     const taskControl = installDesktopUpdateTaskControl(ctx)
     updateTasks = taskControl
+    installDesktopRemoteAccessHost(ctx, taskControl, createPairedAssetHandler(ctx.clientModules, absoluteProject))
 
     return {
       dshVersion: dshVersion(absoluteProject),

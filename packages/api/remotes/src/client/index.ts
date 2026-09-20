@@ -33,6 +33,7 @@ import mcpRemote from '@deepseek-ai/dsh-api-mcp-controller/remote'
 import automationRemote from '@deepseek-ai/dsh-api-automation-controller/remote'
 import sidebarTerminalsRemote from '@deepseek-ai/dsh-api-sidebar-terminal-controller/remote'
 import executionHostsRemote from '@deepseek-ai/dsh-api-execution-host-controller/remote'
+import pairingRemote from '@deepseek-ai/dsh-api-pairing-controller/remote'
 import sidebarGitRemote from '@deepseek-ai/dsh-api-sidebar-git-controller/remote'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-gateway/client'
 
@@ -90,6 +91,7 @@ export type * from '@deepseek-ai/dsh-api-automation-controller/types'
 export type {} from '@deepseek-ai/dsh-api-sidebar-terminal-controller/remote'
 export type * from '@deepseek-ai/dsh-api-sidebar-terminal-controller/types'
 export type {} from '@deepseek-ai/dsh-api-execution-host-controller/remote'
+export type {} from '@deepseek-ai/dsh-api-pairing-controller/remote'
 export type * from '@deepseek-ai/dsh-api-execution-host-controller/types'
 export type {} from '@deepseek-ai/dsh-api-sidebar-git-controller/remote'
 export type * from '@deepseek-ai/dsh-api-sidebar-git-controller/types'
@@ -213,7 +215,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       subagentsRemote, sessionRemote, workspaceRemote, workspaceFilesRemote, workspaceIsolationRemote,
       worktreeTaskRemote, terminalRemote, deviceCapabilitiesRemote, securityResearchRemote, workItemsRemote, browserRemote,
       integrationPreflightRemote, usageRemote, voiceRemote, mcpRemote,
-      automationRemote, sidebarTerminalsRemote, executionHostsRemote, sidebarGitRemote,
+      automationRemote, sidebarTerminalsRemote, executionHostsRemote, sidebarGitRemote, pairingRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

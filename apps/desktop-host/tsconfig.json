@@ -6,6 +6,7 @@
   },
   "include": ["src"],
   "references": [
+    { "path": "../../packages/remote-access/remote-access" },
     { "path": "../../packages/core/tools" },
     { "path": "../../packages/skill/skill-office" },
     { "path": "../../packages/core/agent" },

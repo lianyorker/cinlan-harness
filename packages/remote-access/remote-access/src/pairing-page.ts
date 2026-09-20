@@ -1,0 +1,13 @@
+/** Minimal pre-authentication pairing document with locale-owned product copy. */
+const copy = {
+  en: { title: 'Pair with Desktop', instructions: 'Use the invitation shown in Desktop settings. Verify the HTTPS certificate using the fingerprint on your Desktop before entering the code.', invitation: 'Invitation ID', code: 'One-time code', name: 'Device name', submit: 'Pair device', failed: 'Pairing failed. Check the invitation and try again.', working: 'Pairing…' },
+  zh: { title: '与桌面端配对', instructions: '使用桌面端设置中显示的邀请。在输入配对码前，请对照桌面端显示的指纹验证 HTTPS 证书。', invitation: '邀请 ID', code: '一次性配对码', name: '设备名称', submit: '配对设备', failed: '配对失败，请检查邀请后重试。', working: '正在配对…' },
+}
+
+/**
+ * Render the public invitation form without embedding credentials or invitation values.
+ * @returns a secret-free, self-contained page served only over the configured HTTPS origin.
+ */
+export function pairingPage(): string {
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title></head><body><main><h1 id="title"></h1><p id="instructions"></p><form id="pair"><p><label id="invitationLabel" for="invitation"></label><input id="invitation" required autocomplete="off" maxlength="36"></p><p><label id="codeLabel" for="code"></label><input id="code" required inputmode="numeric" pattern="[0-9]{9}" autocomplete="one-time-code" maxlength="9"></p><p><label id="nameLabel" for="name"></label><input id="name" required maxlength="80" autocomplete="off"></p><button id="submit"></button><p id="status" role="status"></p></form></main><script>const all=' + JSON.stringify(copy) + ';const text=all[navigator.language.startsWith(\'zh\')?\'zh\':\'en\'];for(const id of [\'title\',\'instructions\'])document.getElementById(id).textContent=text[id];document.title=text.title;for(const id of [\'invitation\',\'code\',\'name\'])document.getElementById(id+\'Label\').textContent=text[id];const submit=document.getElementById(\'submit\');submit.textContent=text.submit;document.getElementById(\'pair\').addEventListener(\'submit\',async event=>{event.preventDefault();submit.disabled=true;document.getElementById(\'status\').textContent=text.working;try{const response=await fetch(\'/pair/exchange\',{method:\'POST\',headers:{\'content-type\':\'application/json\'},body:JSON.stringify({invitationId:document.getElementById(\'invitation\').value,code:document.getElementById(\'code\').value,displayName:document.getElementById(\'name\').value,protocolVersion:1})});if(!response.ok)throw Error();document.getElementById(\'code\').value=\'\';location.replace(\'/\');}catch{document.getElementById(\'status\').textContent=text.failed;submit.disabled=false;}});</script></body></html>'
+}

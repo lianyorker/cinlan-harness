@@ -13,6 +13,24 @@ function fixture() {
 }
 
 describe('native Desktop task admission', () => {
+  it('drains delegated operations with local work and refuses invocation after locking', async () => {
+    const { control, ctx } = fixture()
+    const result = Promise.withResolvers<string>()
+    const admitted = control.admit(() => result.promise)
+    const locked = control.run('lock')
+    let invoked = false
+    await expect(control.admit(() => { invoked = true; return 'unexpected' })).rejects.toThrow('admission is closed')
+    expect(invoked).toBe(false)
+    result.resolve('delegated result')
+    await expect(admitted).resolves.toBe('delegated result')
+    await expect(locked).resolves.toBe(false)
+    await control.run('unlock')
+    await expect(control.admit(() => 'admitted again')).resolves.toBe('admitted again')
+    await ctx.fiber.dispose()
+    await expect(control.admit(() => { invoked = true })).rejects.toThrow('admission is closed')
+    expect(invoked).toBe(false)
+  })
+
   it.each(['running', 'nextTurn', 'nextStep', 'unowned job', 'owned job'])('detects %s work', async (kind) => {
     const { control, agents, jobs } = fixture()
     const agent = { status: 'idle', inbox: { nextTurn: [] as unknown[], nextStep: [] as unknown[] } }

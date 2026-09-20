@@ -143,6 +143,8 @@ export default defineConfig({
   base: './',
   plugins: [rejectStandaloneServe(), clientDocumentTitle(), react(), emitPreviewPage()],
   build: {
+    // Paired shells serve only the index entry's transitive runtime artifacts.
+    manifest: 'phone-runtime-manifest.json',
     // The worker bootstrap holds its page at top-level await; Vite's default
     // `modules` target (es2020-era) rejects that syntax.
     target: 'es2022',

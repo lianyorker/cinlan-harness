@@ -11,6 +11,7 @@
     "src/types.ts"
   ],
   "references": [
+    { "path": "../pairing-controller" },
     { "path": "../../interaction/permission-presets" },
     { "path": "../../document/office-to-pdf" },
     { "path": "../../feedback/command-feedback" },

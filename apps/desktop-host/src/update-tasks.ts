@@ -43,9 +43,19 @@ export class DesktopUpdateTaskControl {
    */
   async dispatch(dispatch: () => Promise<Response>): Promise<Response> {
     if (this.disposed || this.locked) return new Response(null, { status: 503 })
+    return this.admit(dispatch)
+  }
+
+  /**
+   * Admit local or delegated work through the same draining update lock.
+   * @param operation - operation to begin while admission is open.
+   * @returns its result; rejects before execution when locked or disposed.
+   */
+  async admit<T>(operation: () => T | Promise<T>): Promise<T> {
+    if (this.disposed || this.locked) throw new Error('desktop update: request admission is closed')
     const done = Promise.withResolvers<void>()
     this.admitted.add(done.promise)
-    try { return await dispatch() }
+    try { return await operation() }
     finally { this.admitted.delete(done.promise); done.resolve() }
   }
 

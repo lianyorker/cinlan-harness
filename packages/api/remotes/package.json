@@ -59,6 +59,7 @@
     "@deepseek-ai/dsh-scope": "workspace:^"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-api-pairing-controller": "workspace:^",
     "@deepseek-ai/dsh-office-to-pdf": "workspace:^",
     "@deepseek-ai/dsh-command-feedback": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
