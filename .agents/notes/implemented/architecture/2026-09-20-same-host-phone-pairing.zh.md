@@ -16,7 +16,7 @@ Gateway 将委托策略绑定到这些身份。它在 lookup 前授权参数，�
 
 邀请具有短有效期和有限尝试次数，成功兑换在串行所有权下只消费配对码一次。Credentials 保存摘要、权限范围、Session 引用、绝对到期时间和持久化撤销元数据。原始凭据仅通过 Secure、HttpOnly、SameSite=Strict cookie 发放。持久化提交后，撤销才取消活动请求与 socket；认证不能利用与撤销竞态的旧读取结果创建权限。
 
-传输检查精确的公开 HTTPS authority、Origin 和协议版本，不改变现有本地信任检查。它复用 Connection HTTP bridge，并将每个 WebSocket opener 绑定到已认证权限。TLS 要求配置对公开主机有效的证书。[浏览器信任决策](2026-07-28-api-browser-trust-boundary.zh.md)仍负责本地浏览器请求保护；[Typert 调用决策](2026-08-02-typert-remote-method-calls.zh.md)保留描述符与 lookup 所有权。
+传输检查精确的公开 HTTPS authority、Origin 和协议版本，不改变现有本地信任检查。它复用 Connection HTTP bridge，并将每个 WebSocket opener 绑定到已认证权限。Gateway mux 会在投递结算前计入待处理和失败 opening，并在分配超过上限的 opening 前关闭配对载体，因此配额拒绝不会增长排队错误路径。TLS 要求配置对公开主机有效的证书。[浏览器信任决策](2026-07-28-api-browser-trust-boundary.zh.md)仍负责本地浏览器请求保护；[Typert 调用决策](2026-08-02-typert-remote-method-calls.zh.md)保留描述符与 lookup 所有权。
 
 ## 考虑过的替代方案
 

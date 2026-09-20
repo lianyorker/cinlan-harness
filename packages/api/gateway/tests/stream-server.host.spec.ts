@@ -15,8 +15,11 @@ interface RunningMux {
 }
 
 const running = new Set<RunningMux>()
+const releaseBarriers = new Set<() => void>()
 
 afterEach(async () => {
+  for (const release of releaseBarriers) release()
+  releaseBarriers.clear()
   await Promise.all([...running].map(async (entry) => {
     running.delete(entry)
     await entry.mux.close().catch(() => undefined)
@@ -25,6 +28,83 @@ afterEach(async () => {
 })
 
 describe('Remote stream mux server carrier lifecycle', () => {
+  it('terminates excess opens before allocation while admitted openers remain pending', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    releaseBarriers.add(() => { release.resolve(undefined) })
+    const aborted = Promise.withResolvers<undefined>()
+    const signals: AbortSignal[] = []
+    const returned = vi.fn()
+    const open = vi.fn<RemoteStreamOpener>(async (_endpoint, _payload, signal) => {
+      signals.push(signal)
+      signal.addEventListener('abort', () => {
+        if (signals.every(value => value.aborted)) aborted.resolve(undefined)
+      }, { once: true })
+      if (signals.length === 2) entered.resolve(undefined)
+      await release.promise
+      return cleanlyCancelled(signal, returned)
+    })
+    const entry = await startMux(open, 2_000, { maxPayloadBytes: 1024, maxStreamsPerConnection: 2 })
+    try {
+      const client = await connect(entry.url)
+      const serverSocket = acceptedSocket(entry.mux)
+      const send = vi.spyOn(serverSocket, 'send')
+      client.send(openFrame('first'))
+      client.send(openFrame('second'))
+      await entered.promise
+      const closed = once(client, 'close')
+      const received = once(serverSocket, 'message')
+      client.send(openFrame('excess'))
+      await received
+      expect(serverSocket.readyState).not.toBe(WebSocket.OPEN)
+      expect((await closed)[0]).toBe(1006)
+      await aborted.promise
+      // Already-decoded messages can still be delivered while the physical carrier is closing.
+      for (let index = 0; index < 10; index++) serverSocket.emit('message', Buffer.from(openFrame('late-' + String(index))), false)
+      expect(open).toHaveBeenCalledTimes(2)
+      expect(send).not.toHaveBeenCalled()
+      release.resolve(undefined)
+      await entry.mux.close()
+      running.delete(entry)
+      await closeHttp(entry.http)
+      expect(returned).toHaveBeenCalledTimes(2)
+    } finally { release.resolve(undefined) }
+  })
+
+  it('retains a rejected opener slot until its error delivery settles', async () => {
+    const writing = Promise.withResolvers<undefined>()
+    const open = vi.fn<RemoteStreamOpener>(async () => { throw new Error('fixture refused open') })
+    const entry = await startMux(open, 2_000, { maxPayloadBytes: 1024, maxStreamsPerConnection: 1 })
+    const client = await connect(entry.url)
+    const serverSocket = acceptedSocket(entry.mux)
+    let finishWrite: ((error?: Error) => void) | undefined
+    releaseBarriers.add(() => { finishWrite?.(new Error('fixture cleanup')) })
+    const send = vi.spyOn(serverSocket, 'send').mockImplementation((_data, callback) => {
+      finishWrite = callback as (error?: Error) => void
+      writing.resolve(undefined)
+    })
+    try {
+      client.send(openFrame('rejected'))
+      await writing.promise
+      const closed = once(client, 'close')
+      const received = once(serverSocket, 'message')
+      client.send(openFrame('excess'))
+      await received
+      expect(serverSocket.readyState).not.toBe(WebSocket.OPEN)
+      expect((await closed)[0]).toBe(1006)
+      expect(open).toHaveBeenCalledOnce()
+      expect(send).toHaveBeenCalledOnce()
+      finishWrite?.(new Error('fixture carrier closed'))
+      finishWrite = undefined
+      await entry.mux.close()
+      running.delete(entry)
+      await closeHttp(entry.http)
+    } finally {
+      finishWrite?.(new Error('fixture cleanup'))
+      send.mockRestore()
+    }
+  })
+
   it('sends WebSocket Ping control frames without application messages', async () => {
     const entry = await startMux(async (_endpoint, _payload, signal) => waitForAbort(signal), 20)
     const client = await connect(entry.url)
@@ -234,8 +314,9 @@ const mapFailure: RemoteStreamFailureMapper = error => ({
   details: {},
 })
 
-async function startMux(open: RemoteStreamOpener, heartbeatIntervalMs = 2_000): Promise<RunningMux> {
-  const mux = new RemoteStreamMuxServer(open, mapFailure, heartbeatIntervalMs)
+async function startMux(open: RemoteStreamOpener, heartbeatIntervalMs = 2_000,
+  limits?: ConstructorParameters<typeof RemoteStreamMuxServer>[3]): Promise<RunningMux> {
+  const mux = new RemoteStreamMuxServer(open, mapFailure, heartbeatIntervalMs, limits)
   const http = createServer()
   http.on('upgrade', (request, socket, head) => { mux.handleUpgrade(request, socket, head) })
   await new Promise<void>((resolve, reject) => {

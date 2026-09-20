@@ -3,21 +3,37 @@ import z from '@deepseek-ai/schemastery'
 
 /** Configurable listener, TLS paths, invitation lifetime and per-carrier budgets. */
 export interface Config {
+  /** Start the HTTPS pairing listener when the Host loads this plugin. */
   readonly enabled?: boolean
+  /** Local address on which the pairing listener accepts connections. */
   readonly host?: string
+  /** TCP port used by the HTTPS pairing listener. */
   readonly port?: number
+  /** HTTPS origin embedded in invitations and required from paired clients. */
   readonly advertisedOrigin?: string
+  /** Host path to the PEM certificate presented by the HTTPS listener. */
   readonly tlsCertificatePath?: string
+  /** Host path to the PEM private key used by the HTTPS listener. */
   readonly tlsPrivateKeyPath?: string
+  /** Lifetime in milliseconds of an unused pairing invitation. */
   readonly invitationLifetimeMs?: number
+  /** Lifetime in milliseconds of an issued paired-device credential. */
   readonly credentialLifetimeMs?: number
+  /** Maximum failed attempts allowed for one pairing invitation. */
   readonly maxInvitationAttempts?: number
+  /** Maximum bytes accepted in one pairing HTTP request body or WebSocket message. */
   readonly maxRequestBodyBytes?: number
+  /** Maximum simultaneously admitted paired TCP connections and tracked requests. */
   readonly maxConnections?: number
+  /** Maximum queued outgoing events retained for one connection. */
   readonly maxQueuedEvents?: number
+  /** Maximum total bytes retained in one outgoing event queue. */
   readonly maxQueuedEventBytes?: number
+  /** Maximum retained logical streams, including pending opening and delivery; excess opens terminate the connection. */
   readonly maxStreamsPerConnection?: number
+  /** Interval in milliseconds between WebSocket heartbeat checks. */
   readonly websocketHeartbeatIntervalMs?: number
+  /** Maximum milliseconds allowed for an incoming pairing HTTP request. */
   readonly requestTimeoutMs?: number
 }
 

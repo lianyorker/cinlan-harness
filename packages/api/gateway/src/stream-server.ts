@@ -32,13 +32,13 @@ export class RemoteStreamMuxServer {
    * @param open - Gateway stream dispatcher.
    * @param failure - Gateway error-to-wire mapper.
    * @param heartbeatIntervalMs - interval between WebSocket Ping control frames.
-   * @param limits - optional stricter carrier budget for one complete incoming WebSocket message.
+   * @param limits - optional message and per-connection stream bounds; excess opens terminate the carrier before allocation.
    */
   constructor(
     private readonly open: RemoteStreamOpener,
     private readonly failure: RemoteStreamFailureMapper,
     private readonly heartbeatIntervalMs: number,
-    limits?: { readonly maxPayloadBytes: number },
+    private readonly limits?: { readonly maxPayloadBytes: number; readonly maxStreamsPerConnection: number },
   ) {
     this.server = new WebSocketServer({ noServer: true, ...(limits === undefined ? {} : { maxPayload: limits.maxPayloadBytes }) })
   }
@@ -63,7 +63,9 @@ export class RemoteStreamMuxServer {
       binding?.signal.addEventListener('abort', revoke, { once: true })
       websocket.once('close', () => { binding?.signal.removeEventListener('abort', revoke) })
       if (binding?.signal.aborted === true) revoke()
-      const connection = new RemoteStreamMuxConnection(websocket, binding?.open ?? this.open, this.failure)
+      const connection = new RemoteStreamMuxConnection(
+        websocket, binding?.open ?? this.open, this.failure, this.limits?.maxStreamsPerConnection,
+      )
       const done = connection.run()
       this.connections.add(done)
       void done.then(() => { this.connections.delete(done) })
@@ -120,6 +122,7 @@ class RemoteStreamMuxConnection {
     private readonly socket: WebSocket,
     private readonly open: RemoteStreamOpener,
     private readonly failure: RemoteStreamFailureMapper,
+    private readonly maxStreams: number | undefined,
   ) {}
 
   async run(): Promise<void> {
@@ -145,6 +148,7 @@ class RemoteStreamMuxConnection {
   }
 
   private receive(text: string): void {
+    if (this.socket.readyState !== WebSocket.OPEN) return
     const message = parseRemoteStreamClientMessage(text)
     if (message.type === 'cancel') {
       this.streams.get(message.streamId)?.abort.abort(new Error('Remote stream cancelled'))
@@ -152,6 +156,11 @@ class RemoteStreamMuxConnection {
     }
     if (this.streams.has(message.streamId)) {
       throw new Error(`api gateway: duplicate Remote stream id ${JSON.stringify(message.streamId)}`)
+    }
+    // Opening, draining and failed streams retain their slot until all delivery and cleanup settle.
+    if (this.maxStreams !== undefined && this.streams.size >= this.maxStreams) {
+      this.socket.terminate()
+      return
     }
     const abort = new AbortController()
     const active: ActiveStream = {

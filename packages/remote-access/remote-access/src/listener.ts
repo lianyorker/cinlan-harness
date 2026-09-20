@@ -51,7 +51,7 @@ export class PairingListener {
     const origin = new URL(config.advertisedOrigin)
     if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Pairing requires an exact HTTPS origin')
     this.origin = origin.origin
-    this.mux = new RemoteStreamMuxServer(() => Promise.reject(new Error('Authenticated stream binding is required')), gateway.wireStream.failure, config.websocketHeartbeatIntervalMs, { maxPayloadBytes: config.maxRequestBodyBytes })
+    this.mux = new RemoteStreamMuxServer(() => Promise.reject(new Error('Authenticated stream binding is required')), gateway.wireStream.failure, config.websocketHeartbeatIntervalMs, { maxPayloadBytes: config.maxRequestBodyBytes, maxStreamsPerConnection: config.maxStreamsPerConnection })
   }
 
   /** Start TLS after checking certificate dates and the advertised hostname. */
@@ -197,15 +197,10 @@ export class PairingListener {
     }
     const access = await this.authenticated(req)
     if (access === undefined) { socket.destroy(); return }
-    let streams = 0
     await this.host.dispatch(() => {
-      this.mux.handleUpgrade(req, socket, head, { signal: access.signal, open: async (endpoint, payload, signal) => {
-        if (++streams > this.config.maxStreamsPerConnection) { streams--; throw new Error('Paired stream limit reached') }
-        try {
-          const source = await this.host.dispatch(() => this.gateway.wireStream.open(endpoint, payload, signal, access))
-          return (async function* () { try { yield* source } finally { streams-- } })()
-        } catch (error) { streams--; throw error }
-      } })
+      this.mux.handleUpgrade(req, socket, head, { signal: access.signal,
+        open: (endpoint, payload, signal) => this.host.dispatch(() => this.gateway.wireStream.open(endpoint, payload, signal, access)),
+      })
     })
   }
 }

@@ -28,6 +28,12 @@ class ResponseProbe extends TypertRemoteService {
     void _request
     return { items: [{ sessionId: 'original-session', cwd: 'x'.repeat(16 * 1024 * 1024) }] }
   }
+  @Remote({ mode: 'stream' })
+  async *follow(request: object, signal: AbortSignal): AsyncIterable<unknown> {
+    void request
+    yield { kind: 'held' }
+    if (!signal.aborted) await new Promise<void>((resolve) => { signal.addEventListener('abort', () => { resolve() }, { once: true }) })
+  }
 }
 
 it('pairs over validated TLS through the Loader, denies foreign authority and persists revocation', async () => {
@@ -60,7 +66,7 @@ it('pairs over validated TLS through the Loader, denies foreign authority and pe
   const rows = [
     { name: 'credentials', config: { path: join(root, 'credentials.yaml'), watch: false } },
     { name: 'connection' }, { name: 'typert' }, { name: 'gateway' },
-    { name: 'remote-access', config: { enabled: false, host: '127.0.0.1', port: 0, advertisedOrigin: 'https://127.0.0.1:0', tlsCertificatePath: certificatePath, tlsPrivateKeyPath: keyPath } }, { name: 'pairing' }, { name: 'response-probe' },
+    { name: 'remote-access', config: { enabled: false, host: '127.0.0.1', port: 0, advertisedOrigin: 'https://127.0.0.1:0', tlsCertificatePath: certificatePath, tlsPrivateKeyPath: keyPath, maxStreamsPerConnection: 1 } }, { name: 'pairing' }, { name: 'response-probe' },
   ]
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, rows.map(row => '- ' + JSON.stringify(row)).join(String.fromCharCode(10)) + String.fromCharCode(10))
@@ -110,6 +116,17 @@ it('pairs over validated TLS through the Loader, denies foreign authority and pe
   oversized.send(JSON.stringify({ type: 'open', streamId: 'oversized', endpoint: '$events', payload: { args: { text: 'x'.repeat(262145) } } }))
   // The mux terminates on receiver errors, so oversized frames close without a WebSocket close handshake.
   expect((await oversizedClosed)[0]).toBe(1006)
+  const limited = new WebSocket(origin.replace('https:', 'wss:') + '/api/remote.mux?pairingVersion=1', { ca: certificate, headers: { cookie, origin } })
+  sockets.push(limited)
+  await once(limited, 'open')
+  const opening = once(limited, 'message')
+  const frame = { type: 'open', streamId: 'held', endpoint: 'session/follow', payload: { args: { request: { address: { kind: 'session', sessionId: 'original-session' } } } } }
+  limited.send(JSON.stringify(frame))
+  const opened = JSON.parse(String((await opening)[0])) as unknown
+  expect(opened, JSON.stringify(opened)).toMatchObject({ type: 'item', streamId: 'held', value: { kind: 'held' } })
+  const limitedClosed = once(limited, 'close')
+  limited.send(JSON.stringify({ ...frame, streamId: 'excess' }))
+  expect((await limitedClosed)[0]).toBe(1006)
   const socket = new WebSocket(origin.replace('https:', 'wss:') + '/api/remote.mux?pairingVersion=1', { ca: certificate, headers: { cookie, origin } })
   sockets.push(socket)
   await once(socket, 'open')
