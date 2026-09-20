@@ -8,6 +8,8 @@
     "src"
   ],
   "references": [
+    { "path": "../gateway/tsconfig.host.json" },
+    { "path": "../../execution-host/execution-runtime" },
     {
       "path": "../../../vendor/cordis"
     },

@@ -1,4 +1,5 @@
 /** Production Loader rows with isolated storage and authenticated Remote carriers. */
+import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -113,7 +114,7 @@ export async function createHarness(targetConfig: Partial<TargetsConfig> = {}, p
   await ctx.loader.await()
   const origin = 'http://127.0.0.1:' + String(ctx.webServer.port)
   const cookie = authenticatedCookie(ctx.connection, origin)
-  const shared = ctx.connection.createSharedFetchHandler('/api')
+  const shared = ctx.connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
   let rpcSequence = 0
   const request = (method: string, args: unknown) => ({
     method: 'POST', headers: { 'content-type': 'application/json' },
@@ -121,9 +122,11 @@ export async function createHarness(targetConfig: Partial<TargetsConfig> = {}, p
   })
   return {
     ctx, root, origin, cookie,
-    http(method: string, args: unknown = {}, authorized = true) {
+    http(method: string, args: unknown = {}, authorized = true, signal?: AbortSignal) {
       const init = request(method, args)
-      return fetch(origin + '/api/executionHosts/' + method, { ...init, headers: { ...init.headers, ...(authorized ? { cookie } : {}) } })
+      return fetch(origin + '/api/executionHosts/' + method, {
+        ...init, ...(signal === undefined ? {} : { signal }), headers: { ...init.headers, ...(authorized ? { cookie } : {}) },
+      })
     },
     desktop(method: string, args: unknown = {}) {
       return shared.fetch(new Request('dsh-app://app/api/executionHosts/' + method, request(method, args)))
@@ -192,7 +195,6 @@ export async function remoteResult(response: Response) {
  */
 export async function success<T>(response: Response): Promise<T> {
   const result = await remoteResult(response)
-  expect(result.ok).toBe(true)
   if (!result.ok) throw new Error(result.error.code + ': ' + result.error.message)
   return result.value as T
 }

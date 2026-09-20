@@ -46,10 +46,10 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-execution-host-targets": "workspace:^",
-    "@deepseek-ai/dsh-execution-host": "workspace:^",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:^"
+    "@deepseek-ai/dsh-execution-runtime": "workspace:^"
   },
   "dependencies": {
+    "@deepseek-ai/dsh-typert-protocol": "workspace:^",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -57,7 +57,6 @@
     "@deepseek-ai/dsh-app-boot": "workspace:^",
     "@deepseek-ai/dsh-execution-host-targets": "workspace:^",
     "@deepseek-ai/dsh-execution-host": "workspace:^",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:^",
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
     "@deepseek-ai/dsh-client-connection": "workspace:^",
@@ -71,6 +70,7 @@
     "@deepseek-ai/dsh-execution-host-local": "workspace:^",
     "@deepseek-ai/dsh-host-webserver": "workspace:^",
     "ws": "^8.21.0",
-    "@types/ws": "^8.18.1"
+    "@types/ws": "^8.18.1",
+    "@deepseek-ai/dsh-execution-runtime": "workspace:^"
   }
 }

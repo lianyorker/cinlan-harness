@@ -8,6 +8,17 @@ const TARGETS = '@deepseek-ai/dsh-execution-host-targets'
 const CONTROLLER = '@deepseek-ai/dsh-api-execution-host-controller'
 
 describe('executionHosts real Loader composition', () => {
+  it('reports the optional runtime installer as unavailable on the trusted desktop carrier', async () => {
+    const h = await createHarness()
+    expect(await remoteResult(await h.desktop('listRuntimeTasks'))).toMatchObject({
+      ok: false, error: { code: 'execution-host/runtime-unavailable' },
+    })
+    expect((await success<ListTargetsValue>(await h.desktop('list'))).targets).toEqual([])
+    const denied = await h.http('listRuntimeTasks', {}, false)
+    expect(denied.status).toBe(401)
+    await denied.text()
+  })
+
   it.each(['web', 'security-research'] as const)('persists management through HTTP and the desktop carrier from the %s profile', async (profile) => {
     const h = await createHarness({}, profile)
     expect([...h.ctx.loader.entries()].filter(entry => entry.options.name === '@deepseek-ai/dsh-execution-host-local')).toHaveLength(1)
