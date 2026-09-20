@@ -31,7 +31,7 @@ kind: "reference"
 | `clockCheckIntervalMs` | 检查实际时钟的最大毫秒间隔，须为正整数。 |
 | `maxStartLatenessMs` | 计划 UTC 时刻后的允许启动窗口，单位毫秒，须为正整数。 |
 
-保存内容包括已有 Workspace id 与规范路径、Agent preset id、模型提供方与 id、可选思考强度、权限 preset id 及解析后的沙箱与审批值、提示词和计划。编辑器将当前默认值复制为明确值，后续默认值变化不会改写任务。preset id 使用当前磁盘组合，不会冻结文件。
+保存输入必须包含已有本地 Workspace id 与规范 Host 路径。草稿解析及每次执行复核都会在访问路径前拒绝非本地绑定，即使该路径在 Host 上也存在。其他保存内容包括Agent preset id、模型提供方与 id、可选思考强度、权限 preset id 及解析后的沙箱与审批值、提示词和计划。编辑器将当前默认值复制为明确值，后续默认值变化不会改写任务。preset id 使用当前磁盘组合，不会冻结文件。
 
 <a id="scheduling"></a>
 ## 调度
@@ -47,7 +47,7 @@ kind: "reference"
 <a id="execution-and-recovery"></a>
 ## 执行与恢复
 
-在调用 `agents.create` 前，一个 SQLite 事务先提交不可变输入、预分配 Session 与消息 id、执行认领及后续游标。未发布阶段挂载公开 Agent preset，重新核对工作区及权限，并应用固定权限与模型选择。Workspace 服务关联 Session，`followup` 接收带插件来源的已记录提示词。审批、提问、工具和沙箱遵循普通 Agent 行为；自动任务不会标记工作区可信或授予额外权限。
+在调用 `agents.create` 前，一个 SQLite 事务先提交不可变输入、预分配 Session 与消息 id、执行认领及后续游标。组合了 `executionBindings` 时，未发布阶段先准备显式本地绑定，再挂载公开 Agent preset；绑定提交与最后的 Workspace 检查在 Agent 发布前同步执行。Session 记录 `kind: local` 的 `execution/bound`。未组合此可选服务的 profile 保留普通 Agent 设置流程。设置阶段重新核对工作区及权限，并应用固定权限与模型选择。Workspace 服务关联 Session，`followup` 接收带插件来源的已记录提示词。审批、提问、工具和沙箱遵循普通 Agent 行为；自动任务不会标记工作区可信或授予额外权限。
 
 | 状态 | 记录依据 |
 |---|---|

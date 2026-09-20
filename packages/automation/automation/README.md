@@ -31,7 +31,7 @@ The default export is `AutomationRuntime` at `ctx.automationRuntime`. All config
 | `clockCheckIntervalMs` | Positive integer maximum interval between wall-clock checks. |
 | `maxStartLatenessMs` | Positive integer admission window after a planned UTC instant. |
 
-Saved inputs include an existing Workspace id and canonical path, Agent preset id, model provider/id and optional reasoning effort, permission preset id with resolved sandbox/approval values, prompt, and schedule. The editor copies current defaults into explicit values. Future default changes do not rewrite tasks. A preset id uses its current on-disk composition, not a frozen file.
+Saved inputs require an existing local Workspace id and canonical Host path. Draft resolution and every execution recheck reject a non-local binding before probing paths, even when its path also exists on the Host. Other saved inputs include Agent preset id, model provider/id and optional reasoning effort, permission preset id with resolved sandbox/approval values, prompt, and schedule. The editor copies current defaults into explicit values. Future default changes do not rewrite tasks. A preset id uses its current on-disk composition, not a frozen file.
 
 <a id="scheduling"></a>
 ## Scheduling
@@ -47,7 +47,7 @@ Manual Run works while disabled without enabling or moving recurrence. Its reque
 <a id="execution-and-recovery"></a>
 ## Execution and recovery
 
-One SQLite transaction commits immutable inputs, preallocated Session/message ids, the occurrence claim, and the next cursor before `agents.create`. Unpublished setup mounts the public Agent preset, rechecks workspace/authority, and applies pinned permission/model choices. The Workspace service attaches the Session; `followup` admits a logged plugin-origin prompt. Ordinary Agent approvals, questions, tools and sandbox behavior apply. Automation does not mark workspaces trusted or grant additional authority.
+One SQLite transaction commits immutable inputs, preallocated Session/message ids, the occurrence claim, and the next cursor before `agents.create`. When `executionBindings` is composed, unpublished setup prepares an explicit local binding before mounting the public Agent preset; its commit runs with the final Workspace check immediately before Agent publication. The Session records `execution/bound` with `kind: local`. Profiles without this optional service retain ordinary Agent setup. Setup rechecks workspace/authority and applies pinned permission/model choices. The Workspace service attaches the Session; `followup` admits a logged plugin-origin prompt. Ordinary Agent approvals, questions, tools and sandbox behavior apply. Automation does not mark workspaces trusted or grant additional authority.
 
 | State | Recorded evidence |
 |---|---|

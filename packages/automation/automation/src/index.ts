@@ -19,6 +19,7 @@ import { AutomationError } from './error.ts'
 import { AutomationOwnership } from './ownership.ts'
 import { AutomationStore } from './store.ts'
 import { AutomationExecution } from './run.ts'
+import { localWorkspace } from './workspace.ts'
 import { draftSchema, scheduleSchema, updateSchema } from './schema.ts'
 import { nextOccurrences } from './recurrence.ts'
 import { runOutcome, outcomeStatus } from './outcome.ts'
@@ -117,7 +118,7 @@ export class AutomationRuntime extends Service {
     return () => { this.listeners.delete(listener) }
   }
 
-  /** Resolve and save a new disabled automation.
+  /** Resolve and save a disabled automation for a local Workspace; remote bindings reject before path access.
    * @param draft - explicit user choices; defaults are resolved by the editor.
    * @returns the committed definition.
    */
@@ -227,8 +228,8 @@ export class AutomationRuntime extends Service {
   private async resolveDraft(input: AutomationDraft): Promise<AutomationSpec> {
     const draft = this.parse(() => draftSchema.parse(input))
     try {
-      const workspace = this.ctx.workspaceRegistry.get(draft.workspaceId)
-      if (workspace === undefined || await workspace.status() !== 'ok') throw new Error('saved workspace is unavailable')
+      const workspace = localWorkspace(this.ctx, draft.workspaceId)
+      if (await workspace.status() !== 'ok') throw new Error('saved workspace is unavailable')
       const permission = this.ctx.permissionPresets.resolve(draft.permissionPresetId)
       const spec: AutomationSpec = { ...draft, workspacePath: workspace.path,
         permission: { sandbox: permission.sandbox, approval: permission.approval } }
@@ -241,9 +242,10 @@ export class AutomationRuntime extends Service {
 
   private async verifySpec(spec: AutomationSpec): Promise<Workspace> {
     try {
-      const workspace = this.ctx.workspaceRegistry.get(spec.workspaceId)
-      if (workspace === undefined || workspace.path !== spec.workspacePath || await workspace.status() !== 'ok'
-        || await realpath(spec.workspacePath) !== spec.workspacePath) throw new Error('saved workspace is unavailable or moved')
+      const workspace = localWorkspace(this.ctx, spec.workspaceId, spec.workspacePath)
+      if (await workspace.status() !== 'ok') throw new Error('saved workspace is unavailable')
+      localWorkspace(this.ctx, spec.workspaceId, spec.workspacePath)
+      if (await realpath(spec.workspacePath) !== spec.workspacePath) throw new Error('saved workspace moved')
       const permission = this.ctx.permissionPresets.resolve(spec.permissionPresetId)
       if (permission.sandbox !== spec.permission.sandbox || permission.approval !== spec.permission.approval) throw new Error('saved permission preset changed')
       const preset = await this.ctx.agentPresets.resolve(spec.agentPresetId)
@@ -251,7 +253,7 @@ export class AutomationRuntime extends Service {
       const model = await this.ctx.llm.resolveModelInfo(spec.model.provider, spec.model.model)
       const effort = spec.model.reasoningEffort
       if (effort !== undefined && (model.reasoning === undefined || !model.reasoning.efforts.some(choice => choice.id === effort))) throw new Error('saved reasoning effort is unavailable')
-      return workspace
+      return localWorkspace(this.ctx, spec.workspaceId, spec.workspacePath)
     } catch (error: unknown) {
       throw new AutomationError('resource', 'Saved workspace, preset, model, or permission is unavailable or changed.', { cause: error })
     }

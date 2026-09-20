@@ -1,5 +1,6 @@
 /** One admitted automation's ordinary Agent lifetime, including cancellation and teardown. */
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-execution-binding'
 import { realpath } from 'node:fs/promises'
 import { installModelSelection, type AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
@@ -8,6 +9,7 @@ import { readColdSessionLog } from '@deepseek-ai/dsh-session-query'
 import type { AutomationRun } from './types.ts'
 import { AutomationStore } from './store.ts'
 import { outcomeStatus, runOutcome } from './outcome.ts'
+import { localWorkspace } from './workspace.ts'
 
 /** Owns exactly one committed claim until the Agent and its owned work drain. */
 export class AutomationExecution {
@@ -44,27 +46,30 @@ export class AutomationExecution {
     this.handle?.agent.cancel({ kind: cause })
   }
 
-  /** Drive the committed invocation and publish its terminal evidence after teardown. */
+  /** Drive a revalidated local invocation, composing optional execution binding before Agent publication. */
   async execute(): Promise<void> {
     let terminal: Pick<AutomationRun, 'status' | 'reason'> = { status: 'ambiguous', reason: 'dispatch-unconfirmed' }
     try {
       this.abort.signal.throwIfAborted()
       if (this.run.sessionId === null) throw new Error('admitted run has no Session identity')
-      this.enteredCreation = true
       const spec = this.run.spec
+      localWorkspace(this.ctx, spec.workspaceId, spec.workspacePath)
+      this.enteredCreation = true
       this.handle = await this.ctx.agents.create({
         sessionId: this.run.sessionId,
         signal: this.abort.signal,
         meta: { cwd: spec.workspacePath, agentPreset: spec.agentPresetId },
         agentOptions: spec.model,
         setup: async (agentCtx, agent) => {
+          localWorkspace(this.ctx, spec.workspaceId, spec.workspacePath)
+          const bindingCommit = await this.ctx.get('executionBindings')?.setup(agentCtx, agent, { kind: 'local' })
           await this.ctx.agentPresets.mount(agentCtx, spec.agentPresetId)
           const permission = this.ctx.permissionPresets.resolve(spec.permissionPresetId)
           if (permission.sandbox !== spec.permission.sandbox || permission.approval !== spec.permission.approval) {
             throw new Error('saved permission preset changed during setup')
           }
-          if (this.ctx.workspaceRegistry.get(spec.workspaceId)?.path !== spec.workspacePath
-            || await realpath(spec.workspacePath) !== spec.workspacePath) throw new Error('saved workspace changed during setup')
+          localWorkspace(this.ctx, spec.workspaceId, spec.workspacePath)
+          if (await realpath(spec.workspacePath) !== spec.workspacePath) throw new Error('saved workspace changed during setup')
           this.ctx.permissionPresets.set(agent.session, spec.permissionPresetId)
           installModelSelection(agentCtx, { current: spec.model, assembled: undefined })
           agentCtx.on('agent/inbox/claimed', ({ message, turn }) => {
@@ -77,9 +82,14 @@ export class AutomationExecution {
               this.failStorage(error)
             }
           })
+          return { commit: () => {
+            localWorkspace(this.ctx, spec.workspaceId, spec.workspacePath)
+            bindingCommit?.commit()
+          } }
         },
       })
       this.abort.signal.throwIfAborted()
+      localWorkspace(this.ctx, spec.workspaceId, spec.workspacePath)
       await this.workspace.attachSession(this.handle.agent.id)
       this.ctx.sessionTitle.rename(this.handle.agent.session, spec.title)
       if (!await this.ctx.sessions.flush(this.handle.agent.session)) throw new Error('automation Session has no durability listener')
