@@ -8,9 +8,11 @@ Status: implemented
 
 Web 客户端需要从一个未必在 Host 机器上的浏览器查看会话工作区里的文件：agent 产出的文件、`read` 工具行点名的路径，之后还有文件树，以及既不小也不是文本的文件预览。唯一一个经线路读取工作区文件的端点以 `workspace-file.ts` 住在 Session Controller 上，与它毫无关系的会话生命周期为邻。它在一个总字节上限之下返回整个文件，因此大日志连一部分都看不了、二进制根本看不了；它没有 `stat`、没有列举、没有变更信号，预览不重读就无法得知 agent 已改写文件；其结果还以 Host 的 `url` 命名文件，而 Client 上没有任何东西把这种拼法当地址用。
 
-两个约束框定了任何答案。经 `ctx.fs` 的读取是有意不受限的——沙箱后端只围栏写与编辑，并明说了这一点——所以面向 web 的读端点必须自己拥有每一道围栏，而且围栏必须经得住一条离开工作区的符号链接，这是字符串前缀测试看不见的。另外 `dsh-fs` 只暴露一种原始字节读取 `readBytes(target, signal, maxBytes)`，它拒绝任何比上限更长的文件：对模型整体摄入的图片是正确的，对大文件的一个窗口则毫无用处。
+两个约束框定了任何答案。每项请求都从 Session execution lease 解析文件系统与沙箱策略；读取仍不受沙箱写策略限制，所以面向 web 的读端点必须自己拥有每一道围栏，而且围栏必须经得住一条离开工作区的符号链接，这是字符串前缀测试看不见的。另外 `dsh-fs` 只暴露一种原始字节读取 `readBytes(target, signal, maxBytes)`，它拒绝任何比上限更长的文件：对模型整体摄入的图片是正确的，对大文件的一个窗口则毫无用处。
 
 ## Decision
+
+文件请求捕获一个 Session 执行租约，并在整个有界读取或变更流周期内使用其文件系统与沙箱策略。连接丢失绝不改用 Host 文件。观察流先过滤发出事件的工具所属 Agent Session，再检查规范包含关系，因此不同执行环境中的相同路径不会跨流传播。取消操作关闭迭代器并释放保留的提供方。
 
 `packages/api/workspace-files`（`@deepseek-ai/dsh-api-workspace-files`）同时拥有 Host 服务 `ctx.workspaceFiles`、`workspaceFiles` Remote 命名空间，以及将 `stat` 与 `changes` 转成[资源模型](2026-09-05-client-resource-model.zh.md)实时元数据的 Client `file` 提供者；包组织方式由[双面包组织](2026-09-07-workspace-files-dual-face-package.zh.md)规定。每个方法都把自己限制在沙箱策略为被寻址会话解析出的工作区根内，以文件在文件系统执行环境中的绝对路径命名文件，并对内容分页或开窗，因此没有任何方法会缓冲整个文件。字节窗口依托 `dsh-fs` 新增的 seam `FileSystem.readByteRange`，由每个提供者实现。Session Controller 不再携带任何工作区文件代码。
 
@@ -20,7 +22,7 @@ Web 客户端需要从一个未必在 Host 机器上的浏览器查看会话工�
 
 | 面 | 包 | 文件 | 依赖 |
 |---|---|---|---|
-| Host | `api/workspace-files/tsconfig.host.json` | `src/index.ts`（`WorkspaceFiles`、`Config`、围栏、切页器）、`src/changes.ts`（`WorkspaceChangeFeed`）、`src/types.ts`（线路类型、错误码） | `dsh-fs`、`dsh-sandbox-policy`、`dsh-typert-protocol`、`dsh-agent`、`dsh-session` |
+| Host | `api/workspace-files/tsconfig.host.json` | `src/index.ts`（`WorkspaceFiles`、`Config`、围栏、切页器）、`src/changes.ts`（`WorkspaceChangeFeed`）、`src/types.ts`（线路类型、错误码） | `dsh-execution-binding`、`dsh-fs`、`dsh-sandbox-policy`、`dsh-typert-protocol`、`dsh-agent`、`dsh-session` |
 | Client | `api/workspace-files/tsconfig.client.json` | `src/client/index.ts`（插件体）、`provider.ts`、`change-feed.ts`、`remote.ts`、`types.ts`，以及共享的 `src/types.ts` | `dsh-api-gateway/client`、`dsh-api-session-controller/client`、`dsh-client-resources`、`dsh-util-workspace-path`、`dsh-typert-protocol`，以及本包生成的 `./remote` |
 
 `api/remotes` 和两个根聚合分别引用匹配的 Host/Client 叶子。包导出 `.`、`./client`、`./types`、`./typert` 和 `./remote`，web-app 中单个 `workspace-files` 条目供应两面。Client 插件注入 `['resources', 'remote', 'remote.workspaceFiles', 'sessions']`；资源模型直接从协议包取结果类型，Sidebar 参数声明归文本预览，因此 Client 编译图不再反向依赖 Remote 装配或右栏 UI。

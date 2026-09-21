@@ -142,7 +142,7 @@ describe('workspaceFiles.read — gate 1 and 2: authorization by containment', (
     await writeFile(join(outside, 'secret.txt'), 'no', 'utf8')
     // The path itself is inside the workspace and would pass any string
     // comparison; only lstat (before the follow) or realpath containment catches it.
-    await symlink(join(outside, 'secret.txt'), join(workspace, 'link.txt'))
+    await symlink(process.platform === 'win32' ? outside : join(outside, 'secret.txt'), join(workspace, 'link.txt'), process.platform === 'win32' ? 'junction' : 'file')
     const failure = await failureOf(endpoint().read(agent, 'link.txt', {}, signal()))
     expect(failure.code).toBe('workspace-file/not-regular-file')
     expect(failure.details).toMatchObject({ kind: 'symlink' })
@@ -150,7 +150,7 @@ describe('workspaceFiles.read — gate 1 and 2: authorization by containment', (
 
   it('rejects a symlink even when it points back inside the workspace', async () => {
     await writeFile(join(workspace, 'real.txt'), 'fine', 'utf8')
-    await symlink(join(workspace, 'real.txt'), join(workspace, 'alias.txt'))
+    await symlink(process.platform === 'win32' ? workspace : join(workspace, 'real.txt'), join(workspace, 'alias.txt'), process.platform === 'win32' ? 'junction' : 'file')
     const failure = await failureOf(endpoint().read(agent, 'alias.txt', {}, signal()))
     expect(failure.code).toBe('workspace-file/not-regular-file')
   })

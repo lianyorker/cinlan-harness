@@ -50,7 +50,9 @@ describe('workspaceFiles.stat', () => {
     const spy = vi.spyOn(fs, 'resolve').mockImplementation((path, opts) => original(path, opts))
     const controller = new AbortController()
     await harness.endpoint().stat(agent, 'notes.txt', controller.signal)
-    expect(spy.mock.calls.map(([, opts]) => opts?.signal)).toEqual([controller.signal, controller.signal])
+    expect(spy.mock.calls).toHaveLength(2)
+    expect(spy.mock.calls.every(([, opts]) => opts?.signal?.aborted)).toBe(true)
+    expect(controller.signal.aborted).toBe(false)
     spy.mockRestore()
   })
 
@@ -63,7 +65,7 @@ describe('workspaceFiles.stat', () => {
 
   it('applies the read gates: symlink, directory, outside, missing, empty', async () => {
     await writeFile(join(harness.outside, 'secret.txt'), 'no', 'utf8')
-    await symlink(join(harness.outside, 'secret.txt'), join(harness.workspace, 'link.txt'))
+    await symlink(process.platform === 'win32' ? harness.outside : join(harness.outside, 'secret.txt'), join(harness.workspace, 'link.txt'), process.platform === 'win32' ? 'junction' : 'file')
     await mkdir(join(harness.workspace, 'src'))
     const endpoint = harness.endpoint()
     expect(await failureOf(endpoint.stat(agent, 'link.txt', signal()))).toMatchObject({

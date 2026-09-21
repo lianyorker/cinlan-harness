@@ -49,7 +49,8 @@ describe('workspaceFiles.list — the happy path', () => {
     expect(listing.entries.map(entry => entry.name)).toEqual(['a.ts'])
   })
 
-  it('reports a symlink child as what it points to, and a dangling one as other', async () => {
+  // Windows file symlinks require an OS privilege; directory containment is covered with junctions below.
+  it.skipIf(process.platform === 'win32')('reports a symlink child as what it points to, and a dangling one as other', async () => {
     await writeFile(join(workspace, 'real.txt'), 'x', 'utf8')
     await mkdir(join(workspace, 'dir'))
     await symlink(join(workspace, 'real.txt'), join(workspace, 'to-file'))
@@ -94,7 +95,7 @@ describe('workspaceFiles.list — gates', () => {
   })
 
   it('rejects a symlinked directory before following it, wherever it points', async () => {
-    await symlink(outside, join(workspace, 'escape'))
+    await symlink(outside, join(workspace, 'escape'), process.platform === 'win32' ? 'junction' : 'dir')
     const failure = await failureOf(endpoint().list(agent, 'escape', signal()))
     expect(failure.code).toBe('workspace-file/not-directory')
     expect(failure.details).toMatchObject({ kind: 'symlink' })

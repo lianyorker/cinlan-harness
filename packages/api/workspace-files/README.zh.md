@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-把本包与 `dsh-fs`、`dsh-sandbox-policy` 和 Typert Gateway 一起挂载；bundle 把它紧随 Session Controller 之后挂载。每个方法都在线路上携带 Session 身份，Client 调用 `remote.workspaceFiles.read(agent, path, range, signal)`、`stat(agent, path, signal)`、`list(agent, path, signal)` 或 `changes(agent, signal)`，从不自己指定根。
+把本包与 `dsh-execution-binding` 和 Typert Gateway 一起挂载；bundle 把它紧随 Session Controller 之后挂载。每个方法都在线路上携带 Session 身份，Client 调用 `remote.workspaceFiles.read(agent, path, range, signal)`、`stat(agent, path, signal)`、`readBytes(agent, path, range, signal)`、`list(agent, path, signal)` 或 `changes(agent, signal)`，从不自己指定根。
 
 | 方法 | 返回 | 用途 |
 |---|---|---|
@@ -34,6 +34,8 @@ kind: "package-reference"
 | `readBytes(path, { offset?, length? })` | `WorkspaceFileBytes` = stat + `{ offset, data, eof }` | 任意普通文件的一个原始字节窗口，base64 编码 |
 | `list(path)` | `WorkspaceDirectoryListing { path, entries, truncated }` | 一个目录的直接子项 |
 | `changes()` | `WorkspaceFileWatchFrame` 流 | 订阅就绪确认，随后为工作区根内的 Agent 观察 |
+
+每次请求捕获一个 Session 执行租约，并从该租约读取文件系统与沙箱策略。单次调用在有界结果完成后释放租约；每代变更流保留租约直到取消或关闭。提供方断开会让操作失败，不会读取 Host 文件。
 
 ### 寻址与路径
 
@@ -49,11 +51,11 @@ kind: "package-reference"
 
 ### 四道关
 
-每次读取、stat 与列举依次过四道关。第一，`lstat` 在跟随任何东西之前检查路径本身：符号链接不论指向哪里，`read` 与 `stat` 都以 `not-regular-file`、`list` 都以 `not-directory` 拒绝，并带上条目的 `kind`。第二，包含判定：路径解析为目标后由 `ctx.fs.contains(root, target)` 裁决，所以 `..` 上溯或根外绝对路径都以 `outside-workspace` 失败——绝不做字符串前缀比较，那看不见离开根的 realpath。第三，上限：文本超过 `maxBytes` 的页以 `too-large` 失败而不是被截短送达——文件本身没有大小上限——`maxEntries` 则截断列举并置 `truncated`。第四，文本：到该页末尾为止非 UTF-8 的内容，或含 NUL 字节的页，以 `not-text` 失败；页之后的字节不检查。路径不存在以 `not-found` 失败；空路径是 `gateway/bad-request`。
+每次读取、stat 与列举依次过四道关。第一，`lstat` 在跟随任何东西之前检查路径本身：符号链接不论指向哪里，`read` 与 `stat` 都以 `not-regular-file`、`list` 都以 `not-directory` 拒绝，并带上条目的 `kind`。第二，包含判定：路径解析为目标后由 lease 的文件系统检查 `contains(root, target)`，所以 `..` 上溯或根外绝对路径都以 `outside-workspace` 失败——绝不做字符串前缀比较，那看不见离开根的 realpath。第三，上限：文本超过 `maxBytes` 的页以 `too-large` 失败而不是被截短送达——文件本身没有大小上限——`maxEntries` 则截断列举并置 `truncated`。第四，文本：到该页末尾为止非 UTF-8 的内容，或含 NUL 字节的页，以 `not-text` 失败；页之后的字节不检查。路径不存在以 `not-found` 失败；空路径是 `gateway/bad-request`。
 
 ### 变更流
 
-`changes` 是 `stream` 模式的 Remote。一代流注册观察队列并解析 Session 工作区根之后，才产出 `{ kind: 'ready' }`。随后产出 `{ kind: 'change', change }`，其中 `change` 对存在的文件为 `{ absolutePath, version }`，对被观察到已消失的文件为 `{ absolutePath, absent: true }`。来源是按该根内目标过滤的 `fs/observed`；操作系统并未被监视。一代流首次拉取后的观察都会排队，包括解析根期间的观察。流在取消或插件释放时结束。
+`changes` 是 `stream` 模式的 Remote。一代流注册观察队列并解析 Session 工作区根之后，才产出 `{ kind: 'ready' }`。随后产出 `{ kind: 'change', change }`，其中 `change` 对存在的文件为 `{ absolutePath, version }`，对被观察到已消失的文件为 `{ absolutePath, absent: true }`。来源是先按观察 Agent 的 Session 身份、再按该根内目标过滤的 `fs/observed`；操作系统并未被监视。执行准入后，观察会在解析工作区根期间及等待消费者拉取时排队。流在取消或插件释放时结束。
 
 ### 配置
 
@@ -89,7 +91,7 @@ kind: "package-reference"
 
 ### 设计概念
 
-经 `ctx.fs` 的读取是有意不加限制的——沙箱后端只围栏写与编辑——所以这里的每条约束都是服务自己的。页从 `streamText` 切出，后者逐块解码并拒绝非 UTF-8：切页器对窗口之前的行只计数不保留，对窗口内的每个片段先按字节上限验收再缓冲，并在窗口之后的第一个字符处返回，所以无论多大的文件或多长的单行都不会在内存里超过一页；随后在该页上做 NUL 扫描。流之前的一次 `stat` 给出页所报告的版本与大小。路径关有意先于包含判定：`lstat` 面向路径、看得见链接，而 `resolve` 会跟随它；代价是根外条目会先报告自己的类型再报告位置。
+每项操作都会取得一个 Session execution lease，并从该 lease 解析文件系统与沙箱策略。读取仍不受沙箱写策略限制，而包含关系、大小和类型检查由本服务负责。页从 `streamText` 切出，后者逐块解码并拒绝非 UTF-8：切页器对窗口之前的行只计数不保留，对窗口内的每个片段先按字节上限验收再缓冲，并在窗口之后的第一个字符处返回，所以无论多大的文件或多长的单行都不会在内存里超过一页；随后在该页上做 NUL 扫描。流之前的一次 `stat` 给出页所报告的版本与大小。路径关有意先于包含判定：`lstat` 面向路径、看得见链接，而 `resolve` 会跟随它；代价是根外条目会先报告自己的类型再报告位置。
 
 ### 源码地图
 
@@ -100,7 +102,7 @@ kind: "package-reference"
 | [`src/types.ts`](src/types.ts) | 线路类型与 `RemoteErrorDetailsMap` 错误码，以 `./types` 发布给 Client 包 |
 | [`src/client/index.ts`](src/client/index.ts)、[`provider.ts`](src/client/provider.ts)、[`change-feed.ts`](src/client/change-feed.ts) | 浏览器插件、文件元数据与每 Session 变更流 |
 | [`src/client/types.ts`](src/client/types.ts)、[`remote.ts`](src/client/remote.ts) | 资源值、参数、Client 错误码与生成的 Remote 类型 |
-| — | 不发布运行时 invariant 伴生件；每个 Host 答案都在调用时由 `ctx.fs` 与沙箱策略推导。 |
+| — | 不发布运行时 invariant 伴生件；每个 Host 答案都在调用时由 Session execution lease 推导。 |
 
 Typert 生成 `./typert` 与 `./remote` 暴露的 Host 与 Client Remote 产物。
 
@@ -111,7 +113,8 @@ Typert 生成 `./typert` 与 `./remote` 暴露的 Host 与 Client Remote 产物�
 <a id="further-exploration"></a>
 ## 进一步探索
 
-- [文件系统能力](../../fs/fs/README.zh.md)——本服务经由读取的 `ctx.fs` 契约，含 `fs/observed` 与 `readByteRange`。
+- [Execution binding](../../execution-host/execution-binding/README.zh.md)——每项请求提供文件系统与沙箱策略的 Session lease。
+- [文件系统能力](../../fs/fs/README.zh.md)——本服务经由读取的 `fs` 契约，含 `fs/observed` 与 `readByteRange`。
 - [沙箱策略](../../sandbox/sandbox-policy/README.zh.md)——Session 工作区根的来源。
 - [Remote 装配](../../api/remotes/README.zh.md)——Client 包如何触达 `workspaceFiles` 命名空间。
 - [Client 资源](../../client/resources/README.zh.md)——资源模型、`useResource`、pin 与提供者生命周期。
@@ -139,7 +142,7 @@ Typert 生成 `./typert` 与 `./remote` 暴露的 Host 与 Client Remote 产物�
 - **超长单行没有页**——超过 `maxBytes` 的单行在包含它的每个窗口都以 `too-large` 失败，因为页按行而非按字节切。
 - **版本先于内容**——页上的 `version` 来自流之前的 stat；两者之间落地的写入会让该页落后一个版本，下一帧 `changes` 会报告它。
 - **generation 队列无界**——一个 `changes` generation 会缓冲每一条被包含的观察直到消费方 pull；停滞的消费方会在流的生命期内持续增长 Host 内存。
-- **`maxEntries` 限制的是答案，不是列举**——`list` 让 `ctx.fs.listDir` 列出全部子项后再截断数组，远超上限的目录仍让 Host 付出整个列举的代价（`fs-local` 上每个子项一次 stat）；要限制这份工作，需要文件系统 seam 的 `listDir` 支持上限。
+- **`maxEntries` 限制的是答案，不是列举**——`list` 让 lease 的文件系统列出全部子项后再截断数组，远超上限的目录仍让 Host 付出整个列举的代价（`fs-local` 上每个子项一次 stat）；要限制这份工作，需要文件系统 seam 的 `listDir` 支持上限。
 - **失效流保留元数据**——Host 结束 `changes` 或流终态失败后，已打开的值保持最后已知状态，直到重新打开；刷新不会重开流。
 - **刷新按路径共享**——同一会话中，一次刷新会重新 stat 此绝对路径的全部跟随者并清除其 `changed` 标记，包括没有重读内容的其它读者。按记录投递刷新仍是延期工作。
 

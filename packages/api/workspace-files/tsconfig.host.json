@@ -11,6 +11,7 @@
     "src/changes.ts"
   ],
   "references": [
+    { "path": "../../execution-host/execution-binding" },
     {
       "path": "../../../vendor/cordis"
     },

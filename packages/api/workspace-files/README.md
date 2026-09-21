@@ -25,7 +25,7 @@ Use this package to browse and inspect files within a Session's workspace from t
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the package beside `dsh-fs`, `dsh-sandbox-policy`, and the Typert Gateway; the bundle does so right after the Session Controller. Every method takes the Session identity on the wire, so a Client calls `remote.workspaceFiles.read(agent, path, range, signal)`, `stat(agent, path, signal)`, `readBytes(agent, path, range, signal)`, `list(agent, path, signal)`, or `changes(agent, signal)` and never names a root itself.
+Mount the package beside `dsh-execution-binding`, and the Typert Gateway; the bundle does so right after the Session Controller. Every method takes the Session identity on the wire, so a Client calls `remote.workspaceFiles.read(agent, path, range, signal)`, `stat(agent, path, signal)`, `readBytes(agent, path, range, signal)`, `list(agent, path, signal)`, or `changes(agent, signal)` and never names a root itself.
 
 | Method | Returns | Purpose |
 |---|---|---|
@@ -34,6 +34,8 @@ Mount the package beside `dsh-fs`, `dsh-sandbox-policy`, and the Typert Gateway;
 | `readBytes(path, { offset?, length? })` | `WorkspaceFileBytes` = stat + `{ offset, data, eof }` | One window of raw bytes from any regular file, base64-encoded |
 | `list(path)` | `WorkspaceDirectoryListing { path, entries, truncated }` | Direct children of one directory |
 | `changes()` | stream of `WorkspaceFileWatchFrame` | Subscription readiness, then Agent observations inside the workspace root |
+
+Each request captures one Session execution lease and reads the filesystem and sandbox policy from that lease. Unary calls release it after the bounded result completes; each change-feed generation retains it until cancellation or closure. Provider loss fails the operation without consulting Host files.
 
 ### Addressing and paths
 
@@ -49,11 +51,11 @@ Mount the package beside `dsh-fs`, `dsh-sandbox-policy`, and the Typert Gateway;
 
 ### The four gates
 
-Every read, stat, and listing passes four gates in this order. First, `lstat` inspects the path itself before anything follows it: a symlink, wherever it points, fails `read` and `stat` with `not-regular-file` and `list` with `not-directory`, each carrying the entry's `kind`. Second, containment: the path resolves to a target and `ctx.fs.contains(root, target)` decides, so a `..` traversal or an absolute path outside the root fails with `outside-workspace` — never a string-prefix comparison, which cannot see a realpath that leaves the root. Third, the caps: a page whose text exceeds `maxBytes` fails with `too-large` instead of arriving shortened — the file itself has no size cap — while `maxEntries` cuts a listing and sets `truncated`. Fourth, text: content that is not UTF-8 up to the end of the page, or a page that carries a NUL byte, fails with `not-text`; bytes past the page are not inspected. A missing path fails with `not-found`; an empty path is a `gateway/bad-request`.
+Every read, stat, and listing passes four gates in this order. First, `lstat` inspects the path itself before anything follows it: a symlink, wherever it points, fails `read` and `stat` with `not-regular-file` and `list` with `not-directory`, each carrying the entry's `kind`. Second, containment: the path resolves to a target and the lease filesystem checks `contains(root, target)`, so a `..` traversal or an absolute path outside the root fails with `outside-workspace` — never a string-prefix comparison, which cannot see a realpath that leaves the root. Third, the caps: a page whose text exceeds `maxBytes` fails with `too-large` instead of arriving shortened — the file itself has no size cap — while `maxEntries` cuts a listing and sets `truncated`. Fourth, text: content that is not UTF-8 up to the end of the page, or a page that carries a NUL byte, fails with `not-text`; bytes past the page are not inspected. A missing path fails with `not-found`; an empty path is a `gateway/bad-request`.
 
 ### The change feed
 
-`changes` is a `stream` Remote. A generation registers its observation queue and resolves the Session workspace root before yielding `{ kind: 'ready' }`. It then yields `{ kind: 'change', change }`, where `change` is `{ absolutePath, version }` for a present file or `{ absolutePath, absent: true }` for one observed gone. The source is `fs/observed`, filtered to targets inside that root; the operating system is not watched. Observations after the generation's first pull are queued, including while the root resolves. The generation ends on cancellation or plugin disposal.
+`changes` is a `stream` Remote. A generation registers its observation queue and resolves the Session workspace root before yielding `{ kind: 'ready' }`. It then yields `{ kind: 'change', change }`, where `change` is `{ absolutePath, version }` for a present file or `{ absolutePath, absent: true }` for one observed gone. The source is `fs/observed`, filtered by the observing Agent’s Session identity and then by targets inside that root; the operating system is not watched. After execution admission, observations are queued while the workspace root resolves and until the consumer pulls them. The generation ends on cancellation or plugin disposal.
 
 ### Configuration
 
@@ -89,7 +91,7 @@ One supervised `changes` stream serves every followed file in a Session. Followe
 
 ### Design concept
 
-Reads through `ctx.fs` are deliberately unconfined — the sandboxing backend fences writes and edits only — so every constraint here is the service's own. A page is cut from `streamText`, which decodes and rejects non-UTF-8 chunk by chunk: the cutter counts lines before the window without keeping them, admits each in-window segment against the byte cap before buffering it, and returns at the first character past the window, so neither a huge file nor one giant line can hold more than a page in memory; the NUL scan then runs on the page. One `stat` before the stream names the version and size the page reports. The path gate runs before containment on purpose: `lstat` is path-shaped and sees the link, while `resolve` follows it; the price is that an entry outside the root reports its own kind before its position.
+Each operation acquires one Session execution lease and resolves the filesystem and sandbox policy from that lease. Reads remain unconfined by the sandbox write policy, while this service owns containment, size, and type checks. A page is cut from `streamText`, which decodes and rejects non-UTF-8 chunk by chunk: the cutter counts lines before the window without keeping them, admits each in-window segment against the byte cap before buffering it, and returns at the first character past the window, so neither a huge file nor one giant line can hold more than a page in memory; the NUL scan then runs on the page. One `stat` before the stream names the version and size the page reports. The path gate runs before containment on purpose: `lstat` is path-shaped and sees the link, while `resolve` follows it; the price is that an entry outside the root reports its own kind before its position.
 
 ### Source map
 
@@ -100,7 +102,7 @@ Reads through `ctx.fs` are deliberately unconfined — the sandboxing backend fe
 | [`src/types.ts`](src/types.ts) | Wire types and the `RemoteErrorDetailsMap` codes, published as `./types` for Client packages |
 | [`src/client/index.ts`](src/client/index.ts), [`provider.ts`](src/client/provider.ts), [`change-feed.ts`](src/client/change-feed.ts) | Browser plugin, file metadata, and per-Session change feed |
 | [`src/client/types.ts`](src/client/types.ts), [`remote.ts`](src/client/remote.ts) | Resource values, parameters, Client error codes, and generated Remote types |
-| — | No runtime invariant companion is published; every Host answer is derived from `ctx.fs` and the sandbox policy at call time. |
+| — | No runtime invariant companion is published; every Host answer is derived from the Session execution lease at call time. |
 
 Typert generates the Host and Client Remote artifacts exposed by `./typert` and `./remote`.
 
@@ -111,7 +113,8 @@ Typert generates the Host and Client Remote artifacts exposed by `./typert` and 
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [Filesystem capability](../../fs/fs/README.md) — the `ctx.fs` contract this service reads through, including `fs/observed` and `readByteRange`.
+- [Execution binding](../../execution-host/execution-binding/README.md) — the Session lease that supplies the filesystem and sandbox policy for each request.
+- [Filesystem capability](../../fs/fs/README.md) — the `fs` contract this service reads through, including `fs/observed` and `readByteRange`.
 - [Sandbox policy](../../sandbox/sandbox-policy/README.md) — where the Session's workspace root comes from.
 - [Remote assembly](../../api/remotes/README.md) — how Client packages reach the `workspaceFiles` namespace.
 - [Client resources](../../client/resources/README.md) — the resource model, `useResource`, pins, and provider lifetime.
@@ -139,7 +142,7 @@ None; this package neither assembles nor sends a provider request.
 - **One giant line has no page** — a single line above `maxBytes` fails `too-large` at every window that includes it, because pages are cut by lines, not bytes.
 - **Version precedes content** — the `version` on a page is the stat's, taken before the stream; a write landing between the two leaves the page one version behind, which the next `changes` frame reports.
 - **Unbounded generation queue** — a `changes` generation buffers every contained observation until its consumer pulls; a stalled consumer grows Host memory for the life of the stream.
-- **`maxEntries` bounds the answer, not the listing** — `list` asks `ctx.fs.listDir` for every child and cuts the array afterwards, so a directory far above the cap still costs the Host the whole listing (on `fs-local`, one stat per child); bounding that work needs a limit on the filesystem seam's `listDir`.
+- **`maxEntries` bounds the answer, not the listing** — `list` asks the lease filesystem for every child and cuts the array afterwards, so a directory far above the cap still costs the Host the whole listing (on `fs-local`, one stat per child); bounding that work needs a limit on the filesystem seam's `listDir`.
 - **Dead feeds retain metadata** — after the Host ends `changes` or the stream fails terminally, open values retain their last state until reopened; reload does not reopen the stream.
 - **Reload is shared by path** — a reload re-stats every follower of that absolute path in the Session and clears their `changed` flags, including readers that did not reload their content. Per-record reload delivery remains deferred.
 

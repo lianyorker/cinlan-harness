@@ -14,8 +14,14 @@ import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { LocalFileSystem } from '@deepseek-ai/dsh-fs-local'
+import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import SessionQuery from '@deepseek-ai/dsh-session-query-sqlite'
+import SessionProjections from '@deepseek-ai/dsh-session-projection'
+import ExecutionBindings from '@deepseek-ai/dsh-execution-binding'
 import { remoteErrorOf } from '@deepseek-ai/dsh-typert-protocol'
 import { WorkspaceFiles, type Config } from '../src/index.ts'
+
+class LocalBindings extends ExecutionBindings { static override inject = ['sessionQuery', 'sessionProjections'] }
 
 /** The Agent shape the service reads: only its session reaches the policy. */
 export const agent = { id: 'a-test', session: { id: 's-test' } } as unknown as Agent
@@ -48,7 +54,13 @@ export async function openWorkspace(prefix: string): Promise<Harness> {
   await mkdir(workspace, { recursive: true })
   await mkdir(outside, { recursive: true })
   const ctx = new Context()
-  const fiber = await ctx.plugin(LocalFileSystem, { cwd: workspace })
+  await ctx.plugin(SessionStore).await()
+  await ctx.plugin(SessionQuery, { path: ':memory:', openAt: 'never' }).await()
+  await ctx.plugin(SessionProjections).await()
+  await ctx.plugin(LocalBindings, LocalBindings.Config()).await()
+  const session = ctx.sessions.prepare(SessionId('s-test'), { meta: { cwd: workspace } })
+  ctx.effect(() => ctx.sessions.enter(session))
+  await ctx.plugin(LocalFileSystem, { cwd: workspace }).await()
   // The policy is the service's only source for the workspace root, so the
   // fake supplies exactly that and nothing else.
   ctx.provide('sandboxPolicy', { resolve: () => ({ mode: 'workspace-write', workspaceRoot: workspace }) } as never)
@@ -70,7 +82,7 @@ export async function openWorkspace(prefix: string): Promise<Harness> {
       return service
     },
     dispose: async () => {
-      await fiber.dispose()
+      await ctx.fiber.dispose()
       await rm(root, { recursive: true, force: true })
     },
   }

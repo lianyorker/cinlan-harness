@@ -3,9 +3,9 @@
  * listings, and the agent-write change feed inside one session's workspace
  * root, exposed as the `workspaceFiles` Remote namespace.
  *
- * Reads through `ctx.fs` are deliberately unconfined — the sandboxing backend
- * fences writes and edits only, and says so. Every constraint this service
- * needs is therefore its own, and there are four:
+ * Each operation acquires one Session execution lease and resolves its filesystem
+ * and sandbox policy from that lease. Reads remain unconfined by the sandbox
+ * write policy; the service owns the containment, size, and type constraints:
  *
  * 1. The path is authorized by containment in the session's workspace root.
  * 2. Containment is decided by {@link FileSystem.contains}, never by comparing
@@ -29,7 +29,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-fs'
-import type { FsDirEntry, FsInfo, FsPathInfo, FsTarget } from '@deepseek-ai/dsh-fs'
+import type {} from '@deepseek-ai/dsh-execution-binding'
+import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
+import type { FileSystem, FsDirEntry, FsInfo, FsPathInfo, FsTarget } from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { WorkspaceChangeFeed } from './changes.ts'
@@ -164,9 +166,11 @@ function directoryEntry(child: FsDirEntry): WorkspaceDirectoryEntry {
   }
 }
 
+interface FileWorld { readonly fs: FileSystem; readonly workspaceRoot: string }
+
 /** Host Remote service over the composed filesystem, confined to one workspace. */
 export class WorkspaceFiles extends TypertRemoteService {
-  static inject = ['fs', 'sandboxPolicy', 'typert']
+  static inject = ['executionBindings', 'typert']
 
   static Config: z<Config> = z.object({
     maxBytes: z.number().step(1).min(1).default(2 * 1024 * 1024),
@@ -174,15 +178,18 @@ export class WorkspaceFiles extends TypertRemoteService {
     maxEntries: z.number().step(1).min(1).default(2000),
   })
 
+  private readonly lifetime = new AbortController()
+  private readonly active = new Set<Promise<unknown>>()
   private readonly feed: WorkspaceChangeFeed
 
   /**
-   * @param ctx - Host context carrying the filesystem and the sandbox policy.
+   * @param ctx - Host context carrying the execution-binding provider.
    * @param config - deployment caps on one page or one listing.
    */
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'workspaceFiles')
     this.feed = new WorkspaceChangeFeed(ctx)
+    ctx.effect(() => async () => { this.lifetime.abort(); await Promise.allSettled([...this.active]) })
   }
 
   /**
@@ -195,13 +202,15 @@ export class WorkspaceFiles extends TypertRemoteService {
    */
   @Remote
   async read(agent: Agent, path: string, range: WorkspaceFileRange, signal: AbortSignal): Promise<WorkspaceFileText> {
-    const { offset, limit } = this.resolvePage(range)
-    const { target, info } = await this.locateFile(agent, path, signal)
-    const page = await this.cutPage(target, offset, limit, signal, path)
-    if (page.text.includes(NUL)) {
-      throw new RemoteError('workspace-file/not-text', `"${path}" contains NUL bytes`, { path })
-    }
-    return { ...this.statOf(target, info), offset, text: page.text, lines: page.lines, eof: page.eof }
+    return this.withFiles(agent, signal, async (world, bound) => {
+      const { offset, limit } = this.resolvePage(range)
+      const { target, info } = await this.locateFile(world, path, bound)
+      const page = await this.cutPage(world, target, offset, limit, bound, path)
+      if (page.text.includes(NUL)) {
+        throw new RemoteError('workspace-file/not-text', `"${path}" contains NUL bytes`, { path })
+      }
+      return { ...this.statOf(world, target, info), offset, text: page.text, lines: page.lines, eof: page.eof }
+    })
   }
 
   /**
@@ -215,11 +224,13 @@ export class WorkspaceFiles extends TypertRemoteService {
    */
   @Remote
   async readBytes(agent: Agent, path: string, range: WorkspaceByteRange, signal: AbortSignal): Promise<WorkspaceFileBytes> {
-    const { offset, length } = this.resolveWindow(range, path)
-    const { target, info } = await this.locateFile(agent, path, signal)
-    const data = await this.ctx.fs.readByteRange(target, { offset, length }, signal)
-    const eof = info.size === undefined ? data.length < length : offset + data.length >= info.size
-    return { ...this.statOf(target, info), offset, data: Buffer.from(data).toString('base64'), eof }
+    return this.withFiles(agent, signal, async (world, bound) => {
+      const { offset, length } = this.resolveWindow(range, path)
+      const { target, info } = await this.locateFile(world, path, bound)
+      const data = await world.fs.readByteRange(target, { offset, length }, bound)
+      const eof = info.size === undefined ? data.length < length : offset + data.length >= info.size
+      return { ...this.statOf(world, target, info), offset, data: Buffer.from(data).toString('base64'), eof }
+    })
   }
 
   /**
@@ -231,8 +242,10 @@ export class WorkspaceFiles extends TypertRemoteService {
    */
   @Remote
   async stat(agent: Agent, path: string, signal: AbortSignal): Promise<WorkspaceFileStat> {
-    const { target, info } = await this.locateFile(agent, path, signal)
-    return this.statOf(target, info)
+    return this.withFiles(agent, signal, async (world, bound) => {
+      const { target, info } = await this.locateFile(world, path, bound)
+      return this.statOf(world, target, info)
+    })
   }
 
   /**
@@ -244,21 +257,23 @@ export class WorkspaceFiles extends TypertRemoteService {
    */
   @Remote
   async list(agent: Agent, path: string, signal: AbortSignal): Promise<WorkspaceDirectoryListing> {
-    const { root, workspaceRoot, entry } = await this.inspect(agent, path, signal)
-    if (entry.type !== 'directory') {
-      throw new RemoteError(
-        'workspace-file/not-directory',
-        `"${path}" is a ${entry.type}`,
-        { path, kind: entry.type },
-      )
-    }
-    const target = await this.confine(root, workspaceRoot, path, signal)
-    const children = await this.ctx.fs.listDir(target, signal)
-    return {
-      path: workspacePathOf(this.ctx.fs.fileUrl(root), this.ctx.fs.fileUrl(target)),
-      entries: children.slice(0, this.config.maxEntries).map(directoryEntry),
-      truncated: children.length > this.config.maxEntries,
-    }
+    return this.withFiles(agent, signal, async (world, bound) => {
+      const { root, workspaceRoot, entry } = await this.inspect(world, path, bound)
+      if (entry.type !== 'directory') {
+        throw new RemoteError(
+          'workspace-file/not-directory',
+          `"${path}" is a ${entry.type}`,
+          { path, kind: entry.type },
+        )
+      }
+      const target = await this.confine(world, root, workspaceRoot, path, bound)
+      const children = await world.fs.listDir(target, bound)
+      return {
+        path: workspacePathOf(world.fs.fileUrl(root), world.fs.fileUrl(target)),
+        entries: children.slice(0, this.config.maxEntries).map(directoryEntry),
+        truncated: children.length > this.config.maxEntries,
+      }
+    })
   }
 
   /**
@@ -271,8 +286,41 @@ export class WorkspaceFiles extends TypertRemoteService {
    *   root is resolved, then queued and live observations in emission order.
    */
   @Remote({ mode: 'stream' })
-  changes(agent: Agent, signal: AbortSignal): AsyncIterable<WorkspaceFileWatchFrame> {
-    return this.feed.follow(this.workspaceRootOf(agent), signal)
+  async *changes(agent: Agent, signal: AbortSignal): AsyncIterable<WorkspaceFileWatchFrame> {
+    signal.throwIfAborted()
+    const caller = AbortSignal.any([signal, this.lifetime.signal])
+    let lease: ExecutionLease | undefined
+    const settled = Promise.withResolvers<void>()
+    this.active.add(settled.promise)
+    const finish = (): void => { this.active.delete(settled.promise); settled.resolve() }
+    try {
+      lease = await this.ctx.executionBindings.forSession(agent.session.id, caller)
+      const bound = AbortSignal.any([caller, lease.signal])
+      const world = this.filesOf(lease, agent)
+      const iterator = this.feed.follow(world.fs, world.workspaceRoot, agent.session.id, bound)[Symbol.asyncIterator]()
+      let closing: Promise<void> | undefined
+      const close = (): Promise<void> => {
+        closing ??= (async () => { try { await iterator.return?.() } finally { await lease?.release() } })()
+        return closing
+      }
+      const abort = (): void => {
+        const work = close()
+        this.active.add(work)
+        void work.then(() => { this.active.delete(work); finish() }, () => { this.active.delete(work); finish() })
+      }
+      bound.addEventListener('abort', abort, { once: true })
+      try {
+        bound.throwIfAborted()
+        while (true) {
+          const next = await iterator.next()
+          if (next.done || bound.aborted) break
+          lease.assertCurrent()
+          yield next.value
+        }
+      } finally { bound.removeEventListener('abort', abort); await close() }
+    } catch (error) {
+      if (!caller.aborted) throw error
+    } finally { try { await lease?.release() } finally { finish() } }
   }
 
   /** Apply the page defaults and caps here, so the request never carries them implicitly. */
@@ -303,14 +351,29 @@ export class WorkspaceFiles extends TypertRemoteService {
   }
 
 
-  /**
-   * The workspace root comes from the policy, not from the backend's own cwd
-   * default: the `minimal` preset shadows the host provider with a bare
-   * `fs-local` whose cwd differs, and resolving explicitly makes the answer
-   * the same whichever instance answers.
-   */
-  private workspaceRootOf(agent: Agent): string {
-    return this.ctx.sandboxPolicy.resolve({ session: agent.session }).workspaceRoot
+  private filesOf(lease: ExecutionLease, agent: Agent): FileWorld {
+    lease.assertCurrent()
+    const fs = lease.ctx.get('fs')
+    const policy = lease.ctx.get('sandboxPolicy')
+    if (fs === undefined || policy === undefined) throw new Error('Captured workspace filesystem or sandbox policy is unavailable')
+    return { fs, workspaceRoot: policy.resolve({ session: agent.session }).workspaceRoot }
+  }
+
+  private withFiles<T>(agent: Agent, signal: AbortSignal, operation: (world: FileWorld, bound: AbortSignal) => Promise<T>): Promise<T> {
+    const caller = AbortSignal.any([signal, this.lifetime.signal])
+    const result = (async () => {
+      const lease = await this.ctx.executionBindings.forSession(agent.session.id, caller)
+      try {
+        const bound = AbortSignal.any([caller, lease.signal])
+        const value = await operation(this.filesOf(lease, agent), bound)
+        bound.throwIfAborted()
+        lease.assertCurrent()
+        return value
+      } finally { await lease.release() }
+    })()
+    this.active.add(result)
+    void result.then(() => this.active.delete(result), () => this.active.delete(result))
+    return result
   }
 
   /**
@@ -322,15 +385,15 @@ export class WorkspaceFiles extends TypertRemoteService {
    * every method instead of two resolution orders.
    */
   private async inspect(
-    agent: Agent,
+    world: FileWorld,
     path: string,
     signal: AbortSignal,
   ): Promise<{ root: FsTarget; workspaceRoot: string; entry: FsPathInfo }> {
     if (path.length === 0) throw new RemoteError('gateway/bad-request', 'path is required', {})
-    const workspaceRoot = this.workspaceRootOf(agent)
-    const root = await this.ctx.fs.resolve(workspaceRoot, { signal })
+    const { workspaceRoot } = world
+    const root = await world.fs.resolve(workspaceRoot, { signal })
     // Gate on the path itself before anything follows it.
-    const entry = await this.ctx.fs.lstat(path, { cwd: workspaceRoot }, signal)
+    const entry = await world.fs.lstat(path, { cwd: workspaceRoot }, signal)
     if (entry === undefined) {
       throw new RemoteError('workspace-file/not-found', `no entry at "${path}"`, { path })
     }
@@ -338,9 +401,9 @@ export class WorkspaceFiles extends TypertRemoteService {
   }
 
   /** Resolve an inspected path and refuse it unless the workspace contains it. */
-  private async confine(root: FsTarget, workspaceRoot: string, path: string, signal: AbortSignal): Promise<FsTarget> {
-    const target = await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal })
-    if (!this.ctx.fs.contains(root, target)) {
+  private async confine(world: FileWorld, root: FsTarget, workspaceRoot: string, path: string, signal: AbortSignal): Promise<FsTarget> {
+    const target = await world.fs.resolve(path, { cwd: workspaceRoot, signal })
+    if (!world.fs.contains(root, target)) {
       throw new RemoteError('workspace-file/outside-workspace', `"${path}" is outside the workspace`, { path })
     }
     return target
@@ -351,13 +414,13 @@ export class WorkspaceFiles extends TypertRemoteService {
    * and size. The stat re-checks what `lstat` saw: the file may have gone or
    * changed kind in between.
    */
-  private async locateFile(agent: Agent, path: string, signal: AbortSignal): Promise<{ target: FsTarget; info: FsInfo }> {
-    const { root, workspaceRoot, entry } = await this.inspect(agent, path, signal)
+  private async locateFile(world: FileWorld, path: string, signal: AbortSignal): Promise<{ target: FsTarget; info: FsInfo }> {
+    const { root, workspaceRoot, entry } = await this.inspect(world, path, signal)
     if (entry.type !== 'file') {
       throw new RemoteError('workspace-file/not-regular-file', `"${path}" is a ${entry.type}`, { path, kind: entry.type })
     }
-    const target = await this.confine(root, workspaceRoot, path, signal)
-    const info = await this.ctx.fs.stat(target, signal)
+    const target = await this.confine(world, root, workspaceRoot, path, signal)
+    const info = await world.fs.stat(target, signal)
     if (info === undefined) {
       throw new RemoteError('workspace-file/not-found', `no entry at "${path}"`, { path })
     }
@@ -367,18 +430,20 @@ export class WorkspaceFiles extends TypertRemoteService {
     return { target, info }
   }
 
-  private statOf(target: FsTarget, info: FsInfo): WorkspaceFileStat {
+  private statOf(world: FileWorld, target: FsTarget, info: FsInfo): WorkspaceFileStat {
     return {
-      absolutePath: this.ctx.fs.processPath(target),
+      absolutePath: world.fs.processPath(target),
       version: info.version,
       ...info.size === undefined ? {} : { bytes: info.size },
     }
   }
 
   /** Stream the file as text and cut the page, classifying the backend's non-text refusal. */
-  private async cutPage(target: FsTarget, offset: number, limit: number, signal: AbortSignal, path: string): Promise<Page> {
+  private async cutPage(
+    world: FileWorld, target: FsTarget, offset: number, limit: number, signal: AbortSignal, path: string,
+  ): Promise<Page> {
     try {
-      return await cutPage(await this.ctx.fs.streamText(target, signal), offset, limit, this.config.maxBytes, path)
+      return await cutPage(await world.fs.streamText(target, signal), offset, limit, this.config.maxBytes, path)
     } catch (error: unknown) {
       if (isNotTextRefusal(error)) {
         throw new RemoteError('workspace-file/not-text', `"${path}" is not UTF-8 text`, { path }, { cause: error })

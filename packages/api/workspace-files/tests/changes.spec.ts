@@ -27,7 +27,7 @@ afterEach(async () => {
 /** Emit one observation for `path` the way a tool does after touching it. */
 async function observe(path: string, observation: FsObservation): Promise<string> {
   const target = await harness.ctx.fs.resolve(path)
-  harness.ctx.emit('fs/observed', target, observation, undefined)
+  harness.ctx.emit('fs/observed', target, observation, { agent })
   return harness.ctx.fs.processPath(target)
 }
 
@@ -66,7 +66,7 @@ describe('workspaceFiles.changes — frames', () => {
     let acknowledged = false
     void first.then(() => { acknowledged = true })
     try {
-      expect(await entered.promise).toBe(stream.controller.signal)
+      expect((await entered.promise)?.aborted).toBe(false)
       const a = await observe(join(harness.workspace, 'early-a.txt'), present('a1'))
       await observe(join(harness.outside, 'secret.txt'), present('outside'))
       const b = await observe(join(harness.workspace, 'early-b.txt'), { kind: 'absent' })
@@ -150,14 +150,15 @@ describe('workspaceFiles.changes — ending', () => {
     let service: WorkspaceFiles | undefined
     const fiber = await harness.ctx.plugin(Object.assign((ctx: Context) => {
       service = new WorkspaceFiles(ctx, { maxBytes: 1, maxLines: 1, maxEntries: 1 })
-    }, { inject: ['fs', 'sandboxPolicy'] }))
+    }, { inject: ['executionBindings'] }))
     try {
       if (service === undefined) throw new Error('plugin body did not run')
       const stream = open(service)
       const first = stream.next()
       await entered.promise
-      await fiber.dispose()
+      const disposing = fiber.dispose()
       release.resolve(undefined)
+      await disposing
       await expect(first).resolves.toEqual({ done: true, value: undefined })
     } finally {
       release.resolve(undefined)
@@ -206,17 +207,20 @@ describe('workspaceFiles.changes — ending', () => {
     let release: () => void = () => {}
     const gate = new Promise<void>((resolve) => { release = resolve })
     // A backend that checks the signal after its round-trip, as a remote one does.
+    const entered = Promise.withResolvers<undefined>()
     const spy = vi.spyOn(fs, 'resolve').mockImplementation(async (path, opts) => {
+      entered.resolve()
       await gate
       opts?.signal?.throwIfAborted()
       return original(path, opts)
     })
     const stream = open(harness.endpoint())
     const pending = stream.next()
+    await entered.promise
     stream.controller.abort()
     release()
     expect(await pending).toEqual({ done: true, value: undefined })
-    expect(spy).toHaveBeenCalledWith(expect.any(String), { signal: stream.controller.signal })
+    expect(spy.mock.calls.every(([, opts]) => opts?.signal?.aborted)).toBe(true)
     spy.mockRestore()
   })
 
@@ -268,7 +272,7 @@ describe('workspaceFiles.changes — ending', () => {
     let service: WorkspaceFiles | undefined
     const fiber = await harness.ctx.plugin(Object.assign((ctx: Context) => {
       service = new WorkspaceFiles(ctx, { maxBytes: 1, maxLines: 1, maxEntries: 1 })
-    }, { inject: ['fs', 'sandboxPolicy'] }))
+    }, { inject: ['executionBindings'] }))
     if (service === undefined) throw new Error('plugin body did not run')
     const stream = open(service)
     await expect(stream.next()).resolves.toEqual({ done: false, value: { kind: 'ready' } })
