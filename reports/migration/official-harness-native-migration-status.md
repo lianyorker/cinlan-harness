@@ -18,10 +18,10 @@
 |---|---|---|
 | 0 工作树与基线 | 已完成 | 3,346 个非受控文件已逐文件 SHA-256 校验并归档；旧集成工作树与临时分支已正常移除；main 离线 frozen-lockfile install 通过；官方只读参考树保留用于迁移 |
 | 1 官方核心 | 已完成本轮范围 | 七批本地提交止于 `88f1b251b2`；Host／Client／Web 构建、真实 Office 托管载荷、Headless 源码／built 回放、最终 SDK exe 的 ACL／图像恢复／PTC 与 workflow 验证通过。浏览器预设 6/7 通过，余项为旧侧栏 ARIA 期望；权限切换 3 项行为通过，afterAll 差异是基线已有模型路由与 workspace/changes 录制债。全局文档和 Windows 符号链接权限的既有失败仍保留，未宣称全部检查通过。 |
-| 2 菜单／资源下载 | 安全资源批次完成；语音／浏览器／CUA 配置待补 | 独立安全资源页与普通会话 Skill provider 已接通；资源包 22 个技能／503 个文件可复现。资源与真实 Session 回归 109 项通过，旧授权浏览器 8 项与资源流程 1 项分别通过；Host／Client／Web 构建通过。文档检查修复后 24 项通过、10 项既有失败。公开下载源未配置；语音重下／任务生命周期、浏览器组件管理、官方 CUA 就绪与权限接线继续实施。 |
-| 3 Orca bridge 替换 | 已完成只读预查，尚未实现 | Windows UIA／Win32 与 Koffi 可加载；ADB 37.0.0 可运行但设备列表为空。尚无真实设备操作验收；不以接口模拟代替原生行为。 |
-| 4 SSH／手机配对 | 未开始 | 实际远程执行和手机端协议 |
-| 5 剩余功能／安装包 | 未开始 | 最终 main 重建、干净环境与原生验收 |
+| 2 菜单／资源下载 | 安全资源已提交；语音／浏览器／CUA 收口中 | Voice Host 任务、原子模型替换、精确取消和独立录音测试页已实现；Browser 原生组件管理和官方插件启停已接入；CUA 工具目录就绪与权限状态独立展示。统一 Host／Client 类型检查及运行包／Web 构建通过；真实 Voice Loader 与托管 Chromium 验收通过。默认 profile 升级和最终浏览器场景／分批提交继续收口。 |
+| 3 Orca bridge 替换 | CUA 原生替换已实现；Mobile 进行中 | 官方 CUA 0.28 已替换默认 Computer Use bundle 的旧 CLI；实际 Windows 专用窗口的 UIA／截图／写值／点击验收通过，真实 Harness 权限执行链已通过 7 次请求／决定和清理验收。原生 Android ADB provider 已提交 `ac21ba2935`，199 项定向测试和官方 device-control profile 装配通过。ADB 37.0.0 实际可运行但设备列表为空；Mobile 托管 platform-tools 37.0.1／scrcpy 4.1 已通过官方资源下载、SHA 校验、真实版本执行、占用拒卸载与释放后卸载，246 项定向测试和 5 项下载验证通过，资源管理已提交 `9f2cf9af8e`。真实浏览器刷新与回放均通过资源许可选择、自定义 SDK 保存重载、精确 Provider 启用及空设备提示；私有 ADB 进程全部回收。原生镜像与输入仍缺真机验收。 |
+| 4 SSH／手机配对 | 进行中 | SSH 管理页已通过真实 OpenSSH、独立官方 worker 和 Chromium 验收；Windows SSH2 传输通过加密通道与 TLS-PSK 取消清理。手机配对已接入显式 Connection 身份、受限 Gateway 与 Desktop 更新准入，真实 HTTPS 和 Chromium 390×844 手机视口已通过配对、授权会话隔离、刷新、管理 RPC 拒绝、撤销关闭 WebSocket 与旧 Cookie 401；实际浏览器已完成发送、显示原 Agent 回复、停止生成、回答正式 ask_user_question 和一次性批准受限文件写入；逐项核对原 Session 的持久消息、工具结果和审批决定。问答按钮在 320／390／640 像素宽度内完整可见，并通过真实点击提交。连接权限基础 `25f9808232`、配对功能 `b351f0d5ce` 和窄屏触屏修复 `40315e4187` 已本地提交。完整 SSH 执行的 Workspace／Session 绑定、文件／Git／PTY 消费者与远程运行时部署正在实现；目录检查不能代替这些能力。没有实际 POSIX 远端或原生手机安装包验收证据。 |
+| 5 剩余功能／安装包 | 进行中；安装包未重建 | SDK 最小 profile 环境说明已修正并经真实进程请求验证；Plugin Manager 与 HMR 统一生命周期已通过 74 项回归和独立 Node 热替换／持久禁用／重启验收并提交；终端标题／恢复已通过真实 Chromium 刷新和最终回放：改名即时显示、重载和单会话布局丢失后恢复均保持原 PID／processId／标题／输出，关闭后进程退出。Windows 夹具等待 ConPTY 就绪后的真实 PID；当前会话标题通知缺陷已修复并补回归，提交 `0fc426e92d`。最终 committed main 重建、干净环境及原生安装验收仍待完成。 |
 
 ## 架构核验补充
 
@@ -47,4 +47,20 @@ Python SEA 构建脚本内部的 `pnpm exec pkg` 曾触发 pnpm 11 生产依赖�
 
 本批前两笔本地提交为 `491f5e9707`（资源管理、Provider、打包及回归）和 `5f0c900fea`（独立资源设置页、Remote 与普通会话装配）。生成目录收口修复了显式子入口被自动别名区域覆盖、全局事件误用作用域扫描注解，以及 Windows CRLF 导致重复生成漂移的问题；生成目录新鲜度和 13 项配对／区域回归通过。没有远端推送。
 
-文档全量 34 个检查叶子通过直接 Node 入口执行，包含 quick 子集且不重复运行；本批问题修复后 24 项通过，余 10 项是基线既有文档／格式问题，原始失败与逐项分类保存在本地验收日志。生产文档站构建及 3,054 个内部片段解析通过。完整阶段 2 仍需完成语音、浏览器与 CUA 资源配置，安全资源完成不代表全部菜单已经交付。
+文档全量 34 个检查叶子通过直接 Node 入口执行，包含 quick 子集且不重复运行；本批问题修复后 24 项通过，余 10 项是基线既有文档／格式问题，原始失败与逐项分类保存在本地验收日志。生产文档站构建及 3,054 个内部片段解析通过。完整阶段 2 的其余菜单证据见下节；安全资源完成不代表全部菜单或最终安装包已经交付。
+
+## 语音、浏览器与 CUA 验收
+
+语音模型管理由 Host 持有任务身份与取消，下载／重下／更新保持已验证旧代可用；持久 revision、跨进程 CAS 与 recognizer lease 防止过期下载复活已移除模型或删除仍在识别的文件。初始 104 个 Host／Remote／资源用例通过；独立审查随后发现响应头早拒绝时未消费 HTTP body 的清理缺陷。五个持续保持连接的 HTTP 回归在修复前四败一过，修复后完整传输文件 20 项通过，定向 lint 和 Provider 类型检查通过；独立审查确认该 P2 已关闭，随后完整语音定向回归 10 个文件、109 项通过。
+
+本机 EN20M 四个模型文件逐个 SHA-256 与固定清单匹配。直接 Sherpa 原生引擎和真实 Loader／VoiceRuntime／生产 Provider 两种验收均实际识别 6.415 秒的 Windows System.Speech 合成音频；Loader 验收使用隔离缓存副本，验证旧文件接管为已验证代、原生识别、持久移除及清理，没有改动用户模型目录。输出为“N FOX JUMPS OVER THE LAZY DOG THIS IS A LOCAL SPEECH RECOGNITION TEST”，首句开头有漏字，不宣称逐字准确率。设置页浏览器流程已通过下载、切页取消、重下、固定清单更新、录音测试、移除的首次验收及重复回放；录音硬件及外部识别模块为明确测试夹具，真实浏览器录音／PCM／Remote／Host 资源事务保持执行，另有上述真实原生识别证据。
+
+浏览器组件通过维护中的 Playwright 1.61.1 安装器安装 Chromium revision 1228／149.0.7827.55，安装器只使用任务私有目录。61 个 Host／Provider／Controller／bundle 用例及关联元素捕获 Loader 用例通过，资源组件与观察器 23 项通过。真实 Harness Loader 使用系统 Chrome 与托管 Chromium 的两条路径均通过隔离 profile 启动、回环页面导航、页面观察、运行中拒绝移除、关闭、组件移除及清理。首次无代理下载在 600 秒超时；使用机器已配置代理的官方安装器验收通过，未创建额外网络路径。运行时不自动导入 Windows 系统代理，此限制已记录。
+
+CUA 设置显示真实 SDK 工具目录状态，不虚构旧 facade 的协议版本或支持矩阵；系统权限保持 unknown。官方策略默认 ask，所有 cua_driver_native__ 工具均受执行器权限检查。111 个相关 Host／权限／消费者用例通过；共享设置新增启停与目录回归后整包 105 项通过。实际 CUA SDK 在专用 WinForms 窗口完成精确 PID／窗口定位、UIA 与截图观察、set_value、按钮 click，再通过新 UIA、应用输出文件和截图确认结果，窗口已正常关闭。随后真实 Loader／Tools.execute 验收通过：7 次调用均经过官方 ask 策略，1 次拒绝的原生分派计数为零，6 次批准完成读取、写值与点击；实际 Session 保存 7 个请求与 7 个决定。三张持久附件截图和应用输出逐项确认，父协调独立查看最终截图。Loader 关闭后 provider 释放、原生工具数归零、测试进程退出。上述工作区 built 验收不代替最终安装包验收。既有 CUA Session 在 Windows 回放于首个请求目录的 bash／pwsh 平台差异失败；没有改写历史 JSONL 或掩盖失败。
+
+本批构建日志、独立审查和原生报告保存在 .artifacts/native-migration。新增默认 Web／Desktop 装配通过末尾配置 bundle 关闭两个可选 Provider，设置页使用官方 Plugin Manager 修改真实 entry；模型资源管理器保持可读。默认 profile 的旧精确元组升级、用户覆盖保留与官方 Plugin Manager 持久启用已通过 101 项相关测试。真实 Web 元素截图验收发现 Controller 在可选服务模式下仍通过严格属性读取 attachments，已修正并实际复验通过。新资源页暴露的 Provider 启用后 Settings 名称空间通知缺失已沿官方服务事件、Remote 转发和 Client 唯一镜像修复并提交 `a1c7d98e48`，204 项定向检查通过。实际动态 Client 产物重新构建后，Browser 三文件七场景回放通过；通用 Voice 页面新增两份资源／禁用状态预期并刷新、回放通过。Provider 资源界面与这些浏览器回归已提交 `aceb074d25`。
+
+本批已有本地提交 7fd5c7353a（Voice Host 资源事务）、b3f69df797（Voice 模型与录音测试页）、1c065a7f6c（原生 CUA 与默认可选装配）、51d2f1124f（Browser 原生组件管理）。提交钩子的配对、空白与 lint 检查均通过；部分轻量 staged lint 对类型 lint 抑制注释报告未使用警告。没有远端推送，尚未生成本批 Windows 安装包。
+
+SDK 最小 profile 的 Bash／PowerShell 描述不再假定禁网或存在 apt／pip 镜像，明确由 Host 环境决定。实际官方 CLI profile、SDK initialize／prompt 和本地模型 HTTP 请求验证了描述；断言按当前 Messages 协议读取工具 name／description。提交 `9c8477d1a4` 的定向 lint、双语配对和真实 profile 验收通过。
