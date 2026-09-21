@@ -1,7 +1,7 @@
 /** Build one release target with matching Electron, Node.js, and seed architecture. */
 
 import { spawn } from 'node:child_process'
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
@@ -325,8 +325,31 @@ export async function packageTarget(
   await execute(['run', 'prepare:packages'], targetEnv)
   await execute(['run', 'prepare:seed'], targetEnv)
   if (invocation.prepareOnly) return
-  await execute(desktopElectronBuilderArguments(target, invocation.directory), electronBuilderEnv)
-  if (!invocation.directory) writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)
+  let builderOutput: string | undefined
+  try {
+    if (target.platform === 'win32') {
+      // WiX still resolves some MSI inputs through MAX_PATH-limited Win32 APIs.
+      builderOutput = mkdtempSync(join(REPOSITORY_ROOT, '..', 'dsh-electron-builder-'))
+      electronBuilderEnv.DSH_DESKTOP_BUILDER_OUTPUT = builderOutput
+    }
+    await execute(desktopElectronBuilderArguments(target, invocation.directory), electronBuilderEnv)
+    if (builderOutput !== undefined) {
+      const completedOutput = builderOutput
+      builderOutput = undefined
+      rmSync(buildPaths.artifacts, { recursive: true, force: true })
+      mkdirSync(dirname(buildPaths.artifacts), { recursive: true })
+      try {
+        renameSync(completedOutput, buildPaths.artifacts)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error
+        cpSync(completedOutput, buildPaths.artifacts, { recursive: true })
+        rmSync(completedOutput, { recursive: true, force: true })
+      }
+    }
+    if (!invocation.directory) writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)
+  } finally {
+    if (builderOutput !== undefined) rmSync(builderOutput, { recursive: true, force: true })
+  }
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === resolve(process.argv[1])) {

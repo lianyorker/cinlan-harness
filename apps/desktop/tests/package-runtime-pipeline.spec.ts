@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
@@ -26,7 +26,11 @@ it.each([
   { signed: false, prepareOnly: false },
   { signed: true, prepareOnly: true },
 ])('preserves build, package-set and seed ordering for %j', async ({ signed, prepareOnly }) => {
-  const execute = vi.fn(async (_args: readonly string[], _env?: NodeJS.ProcessEnv, _cwd?: string) => {})
+  const execute = vi.fn(async (args: readonly string[], environment?: NodeJS.ProcessEnv, _cwd?: string) => {
+    if (args.includes(builderEntry) && environment?.DSH_DESKTOP_BUILDER_OUTPUT !== undefined) {
+      await mkdir(environment.DSH_DESKTOP_BUILDER_OUTPUT, { recursive: true })
+    }
+  })
   await packageTarget({ target: resolveDesktopPackageTarget('win-x64', 'win32', 'x64'), directory: true, prepareOnly },
     signed ? signingEnvironment : {}, execute)
   const commands = execute.mock.calls.map(([args]) => args.join(' '))
@@ -44,6 +48,7 @@ it.each([
     : `node ${builderEntry} --config electron-builder.config.mjs --win --x64 --publish never --dir`)
   for (const [args, environment] of execute.mock.calls) {
     expect(environment?.DOWNLOAD_TEST_COS_SECRET_KEY).toBeUndefined()
+    if (args.includes(builderEntry)) expect(environment?.DSH_DESKTOP_BUILDER_OUTPUT).toMatch(/dsh-electron-builder-/u)
     const receivesSigning = args.includes('sign:primary-runtime') || args.includes(builderEntry)
       || args.includes('scripts/validate-electron-builder-config.mjs')
     expect(environment?.DSH_DESKTOP_WINDOWS_TOKEN_PIN).toBe(signed && receivesSigning ? 'fixture-pin' : undefined)

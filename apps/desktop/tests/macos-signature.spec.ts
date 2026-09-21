@@ -40,7 +40,7 @@ describe('desktop macOS release signature', () => {
   it('loads release identifiers from the environment and requires code signing', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig(RELEASE_ENVIRONMENT, 'darwin', 'arm64')
-    expect(() => validateDesktopElectronBuilderConfig(config)).not.toThrow()
+    expect(() => { validateDesktopElectronBuilderConfig(config) }).not.toThrow()
     expect(portablePath(config.directories.output)).toContain('/.desktop-build/targets/mac-arm64/artifacts')
     expect(config.extraResources).toHaveLength(2)
     expect(config.extraResources[0]?.to).toBe('runtime')
@@ -72,7 +72,19 @@ describe('desktop macOS release signature', () => {
       DSH_DESKTOP_TARGET_PLATFORM: 'win32',
     }, 'win32', 'x64')
     expect(config).toMatchObject({ win: { forceCodeSigning: false } })
-    expect(() => validateDesktopElectronBuilderConfig(config)).not.toThrow()
+    expect(() => { validateDesktopElectronBuilderConfig(config) }).not.toThrow()
+  })
+
+  it('honors a short Windows builder output while retaining the target resources', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_TARGET_ARCH: 'x64',
+      DSH_DESKTOP_BUILDER_OUTPUT: 'D:/dsh-eb-output',
+    }, 'win32', 'x64')
+    expect(config.directories.output).toBe('D:/dsh-eb-output')
+    expect(portablePath(config.extraResources[0]?.from ?? '')).toContain('/.desktop-build/targets/win-x64/runtime')
+    expect(portablePath(config.extraResources[1]?.from ?? '')).toContain('/.desktop-build/targets/win-x64/seed')
   })
 
   it('rejects unsupported MSI installer options', async () => {
@@ -80,9 +92,9 @@ describe('desktop macOS release signature', () => {
     const config = createElectronBuilderConfig({
       DSH_DESKTOP_TARGET_PLATFORM: 'win32',
     }, 'win32', 'x64')
-    expect(() => validateDesktopElectronBuilderConfig({
-      ...config, msi: { runAfter: true },
-    })).toThrow(/msi/u)
+    expect(() => {
+      validateDesktopElectronBuilderConfig({ ...config, msi: { runAfter: true } })
+    }).toThrow(/msi/u)
   })
 
   it('accepts the configured authority and team', () => {

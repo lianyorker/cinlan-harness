@@ -54,12 +54,13 @@ export function createElectronBuilderConfig(
     resolvedArch,
   )
   const buildPaths = desktopTargetBuildPaths(update.target)
+  const builderOutput = env.DSH_DESKTOP_BUILDER_OUTPUT?.trim()
   return {
     appId,
     extraMetadata: { dshDesktopAppId: appId, ...(policy === undefined ? {} : { dshMandatoryUpdatePolicy: policy }) },
     productName: 'DeepSeek Harness',
     artifactName: 'deepseek-harness-${version}-${os}-${arch}.${ext}',
-    directories: { output: buildPaths.artifacts },
+    directories: { output: builderOutput || buildPaths.artifacts },
     asar: true,
     files: [
       'lib/*.js',
