@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, stat, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -15,6 +15,10 @@ import { SETTINGS_NAMESPACE, SHIPPED_PRESET_ROOT } from '@deepseek-ai/dsh-agent-
 import { applyChildComposition, childSessionMeta } from '@deepseek-ai/dsh-subagent'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-compaction-basic'
+import type {} from '@deepseek-ai/dsh-execution-binding'
+import type {} from '@deepseek-ai/dsh-execution-host'
+import type {} from '@deepseek-ai/dsh-execution-host-targets'
+import type {} from '@deepseek-ai/dsh-execution-runtime'
 import type {} from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-tools'
 // Type-only: resolves `ctx.get('sessionProjections')` and `ctx.get('tokenMeter')`.
@@ -179,13 +183,45 @@ function enablePresetTool(composition: string, id: string): string {
 }
 
 let ctx: Context
+let ctxRoot: string | undefined
 beforeAll(async () => {
-  const settingsFile = join(await mkdtemp(join(tmpdir(), 'dsh-web-presets-')), 'settings.yaml')
+  ctxRoot = await mkdtemp(join(tmpdir(), 'dsh-web-presets-'))
+  const settingsFile = join(ctxRoot, 'settings.yaml')
   await writeFile(settingsFile, '{}\n')
   ctx = await bootWeb(settingsFile)
 }, 120_000)
 
+afterAll(async () => {
+  const failures: unknown[] = []
+  try { await ctx?.fiber.dispose() } catch (error) { failures.push(error) }
+  if (ctxRoot !== undefined) {
+    try { await rm(ctxRoot, { recursive: true, force: true }) } catch (error) { failures.push(error) }
+  }
+  if (failures.length === 1) throw failures[0]
+  if (failures.length > 1) throw new AggregateError(failures, 'Web composition teardown failed')
+})
+
 describe('the shipped Web composition', () => {
+  it('composes the execution host services on the Host plane', async () => {
+    expect(ctx.get('executionHost')).toBeDefined()
+    expect(ctx.get('executionBindings')).toBeDefined()
+    expect(ctx.get('executionRuntimes')).toBeDefined()
+    expect(ctx.executionHost.current().platform).toBe(process.platform)
+    expect(ctx.executionHostTargets.list().targets).toEqual([])
+    expect(ctx.executionRuntimes.listTasks().tasks).toEqual([])
+
+    const handle = await ctx.agents.create({
+      sessionId: SessionId('preset-execution-local'),
+      meta: { cwd: process.cwd() },
+      setup: (agentCtx, agent) => ctx.executionBindings.setup(agentCtx, agent),
+    })
+    try {
+      await expect(ctx.executionBindings.bindingForSession(handle.agent.id)).resolves.toEqual({ kind: 'local' })
+    } finally {
+      await handle.dispose()
+    }
+  })
+
   it('leaves the global tool layer empty', () => {
     // Every model-facing tool belongs to a preset, `ask_user_question`
     // included: a tool in the global layer reaches EVERY agent regardless of
@@ -698,9 +734,7 @@ describe('a delegated child', () => {
     const child = await parent.agent.ctx.agents.create({
       sessionId: SessionId('preset-child'),
       meta: childSessionMeta(parent.agent, 1, false),
-      setup: (agentCtx) => {
-        applyChildComposition(agentCtx, parent.agent, {})
-      },
+      setup: (agentCtx, child) => applyChildComposition(agentCtx, parent.agent, {}, child),
     })
     try {
       expect(toolNames(ctx, child.agent)).toEqual(toolNames(ctx, parent.agent))
@@ -724,9 +758,7 @@ describe('a delegated child', () => {
     const child = await parent.agent.ctx.agents.create({
       sessionId: SessionId('preset-child-switch'),
       meta: childSessionMeta(parent.agent, 1, false),
-      setup: (agentCtx) => {
-        applyChildComposition(agentCtx, parent.agent, {})
-      },
+      setup: (agentCtx, child) => applyChildComposition(agentCtx, parent.agent, {}, child),
     })
     try {
       // The live scope chain is the authority, not the parent's creation
