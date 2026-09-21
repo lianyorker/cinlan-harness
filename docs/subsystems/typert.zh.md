@@ -677,7 +677,56 @@ Remote operations consumed by native execution-host settings.
  * @returns the directory result with target provenance.
  */
 @Remote inspectDirectory(request: InspectDirectoryRequest, signal: AbortSignal): Promise<InspectionValue>
+
+/**
+ * Inspect an explicit endpoint without installing or changing target selection.
+ * @param request - Pinned endpoint and existing remote installation location.
+ * @param signal - Cancellation of this read-only inspection.
+ * @returns verified runtime observations.
+ */
+@Remote detectRuntime(request: RuntimeLocation, signal: AbortSignal): Promise<RuntimeInspection>
+
+/**
+ * Start a Host-owned install or update; carrier disconnect does not cancel the accepted task.
+ * @param request - Exact target revision and explicit remote location.
+ * @param signal - Admission cancellation only.
+ * @returns the task receipt immediately after admission.
+ */
+@Remote startRuntime(request: RuntimeStartRequest, signal: AbortSignal): Promise<RuntimeTaskValue>
+
+/**
+ * Read one installation receipt without changing its lifetime.
+ * @param request - Exact task identity.
+ * @param signal - Read admission cancellation.
+ * @returns the current task observation.
+ */
+@Remote getRuntimeTask(request: RuntimeTaskRequest, signal: AbortSignal): Promise<RuntimeTaskValue>
+
+/**
+ * Observe a task; ending this stream detaches only the observer.
+ * @param request - Exact task identity.
+ * @param signal - Observer lifetime; controller disposal ends observation normally without cancelling the task.
+ * @returns serializable complete task observations.
+ */
+@Remote({ mode: 'stream' }) followRuntimeTask(request: RuntimeTaskRequest, signal: AbortSignal): AsyncIterable<RuntimeTaskValue>
+
+/**
+ * Explicitly cancel one task and wait for its owned process cleanup.
+ * @param request - Exact receipt chosen by the operator.
+ * @param signal - Cancellation admission only.
+ * @returns the settled task observation.
+ */
+@Remote cancelRuntimeTask(request: RuntimeTaskRequest, signal: AbortSignal): Promise<RuntimeTaskValue>
+
+/**
+ * Recover task receipts after a renderer reload without creating new tasks.
+ * @param signal - Observation admission cancellation.
+ * @returns bounded redacted task observations retained by this Host.
+ */
+@Remote listRuntimeTasks(signal: AbortSignal): Promise<RuntimeTasksValue>
 ```
+
+Types: [RuntimeInspection](../../packages/execution-host/execution-runtime/README.zh.md) · [RuntimeLocation](../../packages/execution-host/execution-runtime/README.zh.md) · [RuntimeStartRequest](../../packages/execution-host/execution-runtime/README.zh.md) · [RuntimeTaskRequest](../../packages/execution-host/execution-runtime/README.zh.md) · [RuntimeTaskValue](../../packages/execution-host/execution-runtime/README.zh.md) · [RuntimeTasksValue](../../packages/execution-host/execution-runtime/README.zh.md)
 
 Source: [`packages/api/execution-host-controller/src/index.ts`](../../packages/api/execution-host-controller/src/index.ts)
 
@@ -1040,10 +1089,11 @@ Validated Remote calls over the sole sidebar terminal provider; owns no PTYs.
  */
 @Remote capability(): SidebarTerminalCapability
 
-/** Discover installed local shells for a new UI tab.
- * @returns Verified executable paths and display names; does not create a process.
+/** Discover installed shells in the owning Session execution world.
+ * @param sessionId - known Session execution binding.
+ * @returns Verified executable paths and display names; disposal rejects an unsettled request after its provider settles.
  */
-@Remote shells(): readonly SidebarTerminalShell[]
+@Remote shells(sessionId: SidebarTerminalSessionId): Promise<readonly SidebarTerminalShell[]>
 
 /**
  * Attach to a terminal and forward acknowledged output without buffering it.
@@ -1055,13 +1105,15 @@ Validated Remote calls over the sole sidebar terminal provider; owns no PTYs.
 
 /** Forward input to the attached native process.
  * @param request - Live attachment and at most 64 KiB of UTF-8 input.
+ * @returns After the provider accepts the input; disposal rejects an unsettled request after its provider settles.
  */
-@Remote input(request: SidebarTerminalInputRequest): void
+@Remote input(request: SidebarTerminalInputRequest): Promise<void>
 
 /** Resize the attached native process.
  * @param request - Live attachment and integer geometry from 1 through 1024.
+ * @returns After the provider applies the dimensions; disposal rejects an unsettled request after its provider settles.
  */
-@Remote resize(request: SidebarTerminalResizeRequest): void
+@Remote resize(request: SidebarTerminalResizeRequest): Promise<void>
 
 /** Acknowledge output consumed by the renderer.
  * @param request - Live attachment and highest rendered nonnegative safe sequence.
@@ -1104,13 +1156,13 @@ Validated Remote calls over the sole sidebar terminal provider; owns no PTYs.
  */
 @Remote({ mode: 'stream' }) watch(sessionId: SidebarTerminalSessionId, signal: AbortSignal): AsyncIterable<readonly SidebarAgentTerminalSnapshot[]>
 
-/** Close the identified agent terminal.
- * @param uuid - Lowercase UUID of an agent terminal explicitly closed by the user.
+/** Close the identified agent terminal owned by the requested Session.
+ * @param request - Session-scoped agent terminal identity explicitly closed by the user.
  */
-@Remote closeAgent(uuid: SidebarAgentTerminalId): void
+@Remote closeAgent(request: SidebarTerminalCloseAgentRequest): void
 ```
 
-Types: [SidebarAgentTerminalId](terminal.zh.md) · [SidebarAgentTerminalSnapshot](terminal.zh.md) · [SidebarTerminalAckRequest](terminal.zh.md) · [SidebarTerminalCapability](terminal.zh.md) · [SidebarTerminalCloseUiRequest](terminal.zh.md) · [SidebarTerminalFrame](terminal.zh.md) · [SidebarTerminalInputRequest](terminal.zh.md) · [SidebarTerminalOpenRequest](terminal.zh.md) · [SidebarTerminalProcessId](terminal.zh.md) · [SidebarTerminalReleaseRequest](terminal.zh.md) · [SidebarTerminalRenameUiRequest](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime) · [SidebarTerminalResizeRequest](terminal.zh.md) · [SidebarTerminalSessionId](terminal.zh.md) · [SidebarTerminalShell](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime) · [SidebarTerminalUiTarget](terminal.zh.md) · [SidebarUiTerminalSnapshot](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime)
+Types: [SidebarAgentTerminalSnapshot](terminal.zh.md) · [SidebarTerminalAckRequest](terminal.zh.md) · [SidebarTerminalCapability](terminal.zh.md) · [SidebarTerminalCloseAgentRequest](terminal.zh.md) · [SidebarTerminalCloseUiRequest](terminal.zh.md) · [SidebarTerminalFrame](terminal.zh.md) · [SidebarTerminalInputRequest](terminal.zh.md) · [SidebarTerminalOpenRequest](terminal.zh.md) · [SidebarTerminalProcessId](terminal.zh.md) · [SidebarTerminalReleaseRequest](terminal.zh.md) · [SidebarTerminalRenameUiRequest](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime) · [SidebarTerminalResizeRequest](terminal.zh.md) · [SidebarTerminalSessionId](terminal.zh.md) · [SidebarTerminalShell](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime) · [SidebarTerminalUiTarget](terminal.zh.md) · [SidebarUiTerminalSnapshot](../../packages/terminal/sidebar-terminals/README.zh.md#ownership-and-lifetime)
 
 Source: [`packages/api/sidebar-terminal-controller/src/index.ts`](../../packages/api/sidebar-terminal-controller/src/index.ts)
 

@@ -113,7 +113,7 @@ export interface Config {
 
 依赖：[`AgentOptions`](subsystems/core.zh.md) · [`SessionId`](subsystems/core.zh.md)
 
-来源：[`packages/core/agent-loop/src/index.ts:319`](../packages/core/agent-loop/src/index.ts)
+来源：[`packages/core/agent-loop/src/index.ts:320`](../packages/core/agent-loop/src/index.ts)
 
 <a id="deepseek-aidsh-agent-presets"></a>
 
@@ -189,7 +189,7 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-api-browser-controller`
 
-需要：`typert` · `browser` · `attachments`
+需要：`typert`
 
 ```ts config-catalog
 /** Remote transfer byte budget; Provider limits may be stricter. */
@@ -199,7 +199,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/browser-controller/src/index.ts:38`](../packages/api/browser-controller/src/index.ts)
+来源：[`packages/api/browser-controller/src/index.ts:40`](../packages/api/browser-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-device-capabilities-controller"></a>
 
@@ -219,7 +219,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/device-capabilities-controller/src/types.ts:16`](../packages/api/device-capabilities-controller/src/types.ts)
+来源：[`packages/api/device-capabilities-controller/src/types.ts:17`](../packages/api/device-capabilities-controller/src/types.ts)
 
 <a id="deepseek-aidsh-api-gateway"></a>
 
@@ -235,7 +235,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/gateway/src/index.ts:119`](../packages/api/gateway/src/index.ts)
+来源：[`packages/api/gateway/src/index.ts:124`](../packages/api/gateway/src/index.ts)
 
 <a id="deepseek-aidsh-api-security-research-controller"></a>
 
@@ -269,7 +269,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/session-controller/src/index.ts:71`](../packages/api/session-controller/src/index.ts)
+来源：[`packages/api/session-controller/src/index.ts:72`](../packages/api/session-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-settings-controller"></a>
 
@@ -289,7 +289,7 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-api-workspace-files`
 
-需要：`fs` · `sandboxPolicy` · `typert`
+需要：`executionBindings` · `typert`
 
 ```ts config-catalog
 /** Deployment caps on one page or one listing. */
@@ -309,7 +309,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/workspace-files/src/index.ts:57`](../packages/api/workspace-files/src/index.ts)
+来源：[`packages/api/workspace-files/src/index.ts:59`](../packages/api/workspace-files/src/index.ts)
 
 <a id="deepseek-aidsh-artifact-local"></a>
 
@@ -638,7 +638,7 @@ export type BrowserPermissionDecision = 'allow' | 'ask' | 'deny'
 
 ## `@deepseek-ai/dsh-browser-playwright`
 
-需要：`browser` · `settings`
+需要：`browser` · `settings` · `browserRuntime`
 
 ```ts config-catalog
 /** Playwright browser deployment settings. */
@@ -708,7 +708,7 @@ export interface BrowserPreferences {
 }
 ```
 
-来源：[`packages/browser/browser-playwright/src/index.ts:83`](../packages/browser/browser-playwright/src/index.ts)
+来源：[`packages/browser/browser-playwright/src/index.ts:84`](../packages/browser/browser-playwright/src/index.ts)
 
 <a id="deepseek-aidsh-client-connection"></a>
 
@@ -754,7 +754,7 @@ export interface ConnectionRecoveryConfig {
 }
 ```
 
-来源：[`packages/client/connection/src/index.ts:72`](../packages/client/connection/src/index.ts)
+来源：[`packages/client/connection/src/index.ts:75`](../packages/client/connection/src/index.ts)
 
 <a id="deepseek-aidsh-client-hmr"></a>
 
@@ -939,7 +939,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/computer-use/computer-use/src/types.ts:266`](../packages/computer-use/computer-use/src/types.ts)
+来源：[`packages/computer-use/computer-use/src/types.ts:285`](../packages/computer-use/computer-use/src/types.ts)
 
 <a id="deepseek-aidsh-computer-use-cinlan"></a>
 
@@ -981,6 +981,8 @@ export interface Config {
 ```ts config-catalog
 /** Independent observation and action-class policy. */
 export interface Config {
+  /** All native CUA tools, including discovery and future catalog additions. Defaults to `ask`. */
+  readonly native?: ComputerUsePermissionDecision
   /** App/window/tree observation policy. Defaults to `ask`. */
   readonly observe?: ComputerUsePermissionDecision
   /** Click, scroll, and drag policy. Defaults to `ask`. */
@@ -1108,6 +1110,42 @@ export interface Config {
 
 来源：[`packages/e2b/e2b/src/index.ts:45`](../packages/e2b/e2b/src/index.ts)
 
+<a id="deepseek-aidsh-execution-binding"></a>
+
+## `@deepseek-ai/dsh-execution-binding`
+
+需要：`executionHostTargets` · `sessionQuery` · `sessionProjections`
+
+```ts config-catalog
+/** Defaults apply only to newly acquired remote worlds. */
+export interface Config {
+  /** Default sandbox policy mode for newly acquired remote worlds. */
+  readonly sandboxMode: SandboxMode
+  /** SSH connection and request timeout in milliseconds. */
+  readonly connectionTimeoutMs: number
+  /** Default one-shot shell timeout in milliseconds. */
+  readonly shellTimeoutMs: number
+  /** Maximum allowed one-shot shell timeout in milliseconds. */
+  readonly shellMaxTimeoutMs: number
+  /** Per-stream shell output limit and Git command output bound, in bytes. */
+  readonly maxOutputBytes: number
+  /** Maximum spill-file bytes retained per shell stream. */
+  readonly maxSpillBytes: number
+  /** Shell and Git process termination grace period in milliseconds. */
+  readonly graceMs: number
+  /** Remote Git executable name or absolute path. */
+  readonly gitExecutable: string
+  /** Maximum Git history entries returned by one operation. */
+  readonly gitMaxLogEntries: number
+  /** Remote interactive shell executable path. */
+  readonly shellPath: string
+}
+```
+
+依赖：[`SandboxMode`](subsystems/sandbox.zh.md)
+
+来源：[`packages/execution-host/execution-binding/src/config.ts:6`](../packages/execution-host/execution-binding/src/config.ts)
+
 <a id="deepseek-aidsh-execution-host-targets"></a>
 
 ## `@deepseek-ai/dsh-execution-host-targets`
@@ -1183,6 +1221,44 @@ export interface ExportedRoot {
 依赖：`Readable` (`node:stream`) · `Writable` (`node:stream`)
 
 来源：[`packages/execution-host/execution-host-worker/src/config.ts:10`](../packages/execution-host/execution-host-worker/src/config.ts)
+
+<a id="deepseek-aidsh-execution-runtime"></a>
+
+## `@deepseek-ai/dsh-execution-runtime`
+
+需要：`executionHostTargets`
+
+```ts config-catalog
+/** Deployment-owned immutable artifact selection; browser requests cannot select Host files. */
+export interface Config extends RuntimeLimits {
+  /** Absolute deployment-owned artifact override; pair with manifestSHA256. */
+  readonly artifactDirectory?: string
+  /** SHA-256 pin for the override manifest; shipped release index otherwise selects it. */
+  readonly manifestSHA256?: string
+  /** Positive maximum of Host-lifetime task receipts; oldest settled receipts evict first. */
+  readonly maxRetainedTasks: number
+}
+
+/** Configurable time and transfer bounds shared by the SSH connection and remote supervisor. */
+export interface RuntimeLimits {
+  /** Positive total operation deadline in milliseconds, at most the Node timer maximum. */
+  readonly operationTimeoutMs: number
+  /** Positive grace in milliseconds before closing a cancelled SSH connection. */
+  readonly shutdownTimeoutMs: number
+  /** Positive maximum byte length of the pinned release manifest. */
+  readonly maxManifestBytes: number
+  /** Positive maximum bytes in any one uploaded runtime file. */
+  readonly maxFileBytes: number
+  /** Positive maximum sum of declared runtime file bytes. */
+  readonly maxTotalBytes: number
+  /** Positive maximum count of inventoried regular runtime files. */
+  readonly maxFiles: number
+  /** Positive maximum accumulated bytes from the remote installer control stream. */
+  readonly maxResponseBytes: number
+}
+```
+
+来源：[`packages/execution-host/execution-runtime/src/config.ts:6`](../packages/execution-host/execution-runtime/src/config.ts)
 
 <a id="deepseek-aidsh-experimental-agent-team"></a>
 
@@ -2408,6 +2484,44 @@ export interface Config {
 
 来源：[`packages/mobile-device/mobile-device/src/types.ts:123`](../packages/mobile-device/mobile-device/src/types.ts)
 
+<a id="deepseek-aidsh-mobile-device-adb"></a>
+
+## `@deepseek-ai/dsh-mobile-device-adb`
+
+需要：`mobileDevice` · `subprocess`
+
+```ts config-catalog
+/** Native Android execution bounds and existing executable selection. */
+export interface Config {
+  /** Provider id selected by the Mobile Device service. */
+  readonly providerId?: string
+  /** Existing adb executable or PATH name; an empty value uses the saved SDK path then PATH. */
+  readonly command?: string
+  /** Working directory for subprocesses. */
+  readonly cwd?: string
+  /** Per-command deadline including resolution. */
+  readonly commandTimeoutMs?: number
+  /** Process-range shutdown grace. */
+  readonly graceMs?: number
+  /** Independent deadline for removing an owned device-side XML file. */
+  readonly cleanupTimeoutMs?: number
+  /** Maximum stdout bytes for hierarchy, inventory, and diagnostic reads. */
+  readonly maxOutputBytes?: number
+  /** Maximum retained stderr bytes. */
+  readonly maxStderrBytes?: number
+  /** Maximum PNG screenshot bytes. */
+  readonly maxImageBytes?: number
+  /** Maximum decoded screenshot pixels. */
+  readonly maxImagePixels?: number
+  /** Maximum input text bytes. */
+  readonly maxTextBytes?: number
+  /** Swipe duration passed to Android input. */
+  readonly swipeDurationMs?: number
+}
+```
+
+来源：[`packages/mobile-device/mobile-device-adb/src/config.ts:7`](../packages/mobile-device/mobile-device-adb/src/config.ts)
+
 <a id="deepseek-aidsh-mobile-device-cinlan"></a>
 
 ## `@deepseek-ai/dsh-mobile-device-cinlan`
@@ -2467,6 +2581,40 @@ export type MobileDevicePermissionDecision = 'allow' | 'ask' | 'deny'
 ```
 
 来源：[`packages/mobile-device/mobile-device-permission-policy/src/index.ts:17`](../packages/mobile-device/mobile-device-permission-policy/src/index.ts)
+
+<a id="deepseek-aidsh-mobile-device-runtime"></a>
+
+## `@deepseek-ai/dsh-mobile-device-runtime`
+
+需要：`subprocess`
+
+```ts config-catalog
+/** Deployment choices for private storage, network, and subprocess bounds. */
+export interface Config {
+  /** Host directory containing verified Android component generations and resource receipts. */
+  readonly storageDir?: string
+  /** Maximum milliseconds allowed for one component version or device probe. */
+  readonly commandTimeoutMs?: number
+  /** Maximum milliseconds allowed for one owned installation task. */
+  readonly installTimeoutMs?: number
+  /** Milliseconds allowed for a process to settle after termination is requested. */
+  readonly processGraceMs?: number
+  /** Maximum bytes retained from one native subprocess output. */
+  readonly maxOutputBytes?: number
+  /** Maximum total bytes accepted from one extracted resource archive. */
+  readonly maxExpandedBytes?: number
+  /** Maximum file entries accepted from one resource archive. */
+  readonly maxArchiveFiles?: number
+  /** Maximum milliseconds spent waiting for the resource publication lock. */
+  readonly lockWaitMs?: number
+  /** Milliseconds between checks of an owned mirror process and device identity. */
+  readonly mirrorPollMs?: number
+  /** Explicit HTTP or HTTPS proxy URL used only for managed resource downloads. */
+  readonly downloadProxyUrl?: string
+}
+```
+
+来源：[`packages/mobile-device/mobile-device-runtime/src/types.ts:84`](../packages/mobile-device/mobile-device-runtime/src/types.ts)
 
 <a id="deepseek-aidsh-office-to-pdf"></a>
 
@@ -2731,6 +2879,52 @@ export type Config = LocalConfig
 依赖：[`LocalConfig`](#deepseek-aidsh-pwsh-local)
 
 来源：[`packages/shell/pwsh-sandbox/src/index.ts:40`](../packages/shell/pwsh-sandbox/src/index.ts)
+
+<a id="deepseek-aidsh-remote-access"></a>
+
+## `@deepseek-ai/dsh-remote-access`
+
+需要：`credentials` · `connection` · `typertGateway`
+
+```ts config-catalog
+/** Configurable listener, TLS paths, invitation lifetime and per-carrier budgets. */
+export interface Config {
+  /** Start the HTTPS pairing listener when the Host loads this plugin. */
+  readonly enabled?: boolean
+  /** Local address on which the pairing listener accepts connections. */
+  readonly host?: string
+  /** TCP port used by the HTTPS pairing listener. */
+  readonly port?: number
+  /** HTTPS origin embedded in invitations and required from paired clients. */
+  readonly advertisedOrigin?: string
+  /** Host path to the PEM certificate presented by the HTTPS listener. */
+  readonly tlsCertificatePath?: string
+  /** Host path to the PEM private key used by the HTTPS listener. */
+  readonly tlsPrivateKeyPath?: string
+  /** Lifetime in milliseconds of an unused pairing invitation. */
+  readonly invitationLifetimeMs?: number
+  /** Lifetime in milliseconds of an issued paired-device credential. */
+  readonly credentialLifetimeMs?: number
+  /** Maximum failed attempts allowed for one pairing invitation. */
+  readonly maxInvitationAttempts?: number
+  /** Maximum bytes accepted in one pairing HTTP request body or WebSocket message. */
+  readonly maxRequestBodyBytes?: number
+  /** Maximum simultaneously admitted paired TCP connections and tracked requests. */
+  readonly maxConnections?: number
+  /** Maximum queued outgoing events retained for one connection. */
+  readonly maxQueuedEvents?: number
+  /** Maximum total bytes retained in one outgoing event queue. */
+  readonly maxQueuedEventBytes?: number
+  /** Maximum retained logical streams, including pending opening and delivery; excess opens terminate the connection. */
+  readonly maxStreamsPerConnection?: number
+  /** Interval in milliseconds between WebSocket heartbeat checks. */
+  readonly websocketHeartbeatIntervalMs?: number
+  /** Maximum milliseconds allowed for an incoming pairing HTTP request. */
+  readonly requestTimeoutMs?: number
+}
+```
+
+来源：[`packages/remote-access/remote-access/src/config.ts:5`](../packages/remote-access/remote-access/src/config.ts)
 
 <a id="deepseek-aidsh-repeat-tool-reminder"></a>
 
@@ -3154,7 +3348,7 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-sidebar-git`
 
-需要：`subprocess` · `sessions` · `settings`
+需要：`executionBindings` · `sessions` · `settings`
 
 ```ts config-catalog
 /** Process, message, and history bounds for this concrete Git implementation. */
@@ -3180,7 +3374,7 @@ export interface GitProcessOptions {
 }
 ```
 
-来源：[`packages/git/sidebar-git/src/index.ts:28`](../packages/git/sidebar-git/src/index.ts)
+来源：[`packages/git/sidebar-git/src/index.ts:31`](../packages/git/sidebar-git/src/index.ts)
 
 <a id="deepseek-aidsh-skill"></a>
 
@@ -3307,7 +3501,9 @@ export interface Config {
 /** Deployment-owned SSH identity and installed helper; no model argument selects these values. */
 export interface Config {
   /** OpenSSH host alias, including its existing user, key and known-host configuration. */
-  host: string
+  host?: string
+  /** Explicit endpoint for Windows or deployments without OpenSSH alias resolution; excludes host. */
+  endpoint?: SshEndpoint
   /** Absolute remote Node executable. */
   node: string
   /** Absolute path to the installed, bundled helper entry. */
@@ -3329,9 +3525,23 @@ export interface Config {
   /** Remote helper lease; loss of heartbeats starts remote managed cleanup. */
   leaseMs?: number
 }
+
+/** Deployment-selected endpoint; credentials and host trust are never discovered implicitly. */
+export interface SshEndpoint {
+  /** SSH server hostname or address. */
+  host: string
+  /** SSH server TCP port. */
+  port: number
+  /** Remote account name. */
+  username: string
+  /** Absolute local path to the unencrypted private key to use. */
+  privateKeyFile: string
+  /** Lowercase hexadecimal SHA-256 of the server's SSH public-key blob. */
+  hostKeySHA256: string
+}
 ```
 
-来源：[`packages/ssh/ssh/src/index.ts:17`](../packages/ssh/ssh/src/index.ts)
+来源：[`packages/ssh/ssh/src/index.ts:19`](../packages/ssh/ssh/src/index.ts)
 
 <a id="deepseek-aidsh-storage-domain"></a>
 
@@ -4511,6 +4721,16 @@ export type ApprovalPolicy = 'ask' | 'never'
 ```ts config-catalog
 /** Voice model download settings. */
 export interface Config {
+  /** Absolute model storage root; defaults to DSH_HOME/models/voice and is captured at provider mount. */
+  cacheRoot?: string
+  /** Maximum wait for a cross-Host filesystem writer lock. Defaults to ten seconds. */
+  resourceLockTimeoutMs?: number
+  /** Delay between lock acquisition attempts. Defaults to 25 milliseconds. */
+  resourceLockRetryMs?: number
+  /** Grace period for managed archive extraction termination. Defaults to five seconds. */
+  extractionGraceMs?: number
+  /** Maximum retained extractor stderr bytes. Defaults to 64 KiB. */
+  extractionStderrBytes?: number
   /** Maximum bytes requested by one HTTP range. Defaults to 8 MiB. */
   downloadSegmentBytes?: number
   /** Maximum concurrent HTTP range requests. Defaults to four. */
@@ -4524,7 +4744,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/voice/voice-sherpa-onnx/src/index.ts:14`](../packages/voice/voice-sherpa-onnx/src/index.ts)
+来源：[`packages/voice/voice-sherpa-onnx/src/index.ts:16`](../packages/voice/voice-sherpa-onnx/src/index.ts)
 
 <a id="deepseek-aidsh-vuln-kb-nvd"></a>
 
@@ -4980,6 +5200,7 @@ export interface Config {
 - `@deepseek-ai/dsh-api-execution-host-controller` — 需要 `typert` · `executionHostTargets` ([`packages/api/execution-host-controller/src/index.ts`](../packages/api/execution-host-controller/src/index.ts))
 - `@deepseek-ai/dsh-api-integration-preflight-controller` — 需要 `typert` ([`packages/api/integration-preflight-controller/src/index.ts`](../packages/api/integration-preflight-controller/src/index.ts))
 - `@deepseek-ai/dsh-api-mcp-controller` — 需要 `typert` · `mcpManagement` ([`packages/api/mcp-controller/src/index.ts`](../packages/api/mcp-controller/src/index.ts))
+- `@deepseek-ai/dsh-api-pairing-controller` — 需要 `typert` · `remoteAccess` ([`packages/api/pairing-controller/src/index.ts`](../packages/api/pairing-controller/src/index.ts))
 - `@deepseek-ai/dsh-api-remotes` — 需要 `typertGateway` ([`packages/api/remotes/src/index.ts`](../packages/api/remotes/src/index.ts))
 - `@deepseek-ai/dsh-api-sidebar-git-controller` — 需要 `typert` ([`packages/api/sidebar-git-controller/src/index.ts`](../packages/api/sidebar-git-controller/src/index.ts))
 - `@deepseek-ai/dsh-api-sidebar-terminal-controller` — 需要 `typert` · `sidebarTerminals` ([`packages/api/sidebar-terminal-controller/src/index.ts`](../packages/api/sidebar-terminal-controller/src/index.ts))
@@ -5010,7 +5231,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-commands` ([`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-conversation` ([`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-cordis` ([`packages/extensions/ui-cordis/src/index.ts`](../packages/extensions/ui-cordis/src/index.ts))
-- `@deepseek-ai/dsh-client-ui-deliverables` — 需要 `systemPrompt` · `connection` · `workspaceChanges` · `sessionQuery` · `sessionController` · `fs` · `sandboxPolicy` ([`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-deliverables` — 需要 `systemPrompt` · `connection` · `workspaceChanges` · `sessionQuery` · `sessionController` · `executionBindings` ([`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-directory-picker-browse` ([`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-directory-picker-native` ([`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-floating-workspace` ([`packages/client/ui-floating-workspace/src/index.ts`](../packages/client/ui-floating-workspace/src/index.ts))
@@ -5026,6 +5247,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-notifications` ([`packages/client/ui-notifications/src/index.ts`](../packages/client/ui-notifications/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-open-in-app` ([`packages/client/ui-open-in-app/src/index.ts`](../packages/client/ui-open-in-app/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-orchestration` ([`packages/client/ui-orchestration/src/index.ts`](../packages/client/ui-orchestration/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-paired-shell` ([`packages/client/ui-paired-shell/src/index.ts`](../packages/client/ui-paired-shell/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-permission-presets` ([`packages/client/ui-permission-presets/src/index.ts`](../packages/client/ui-permission-presets/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-plan` ([`packages/client/ui-plan/src/index.ts`](../packages/client/ui-plan/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-plugin-manager` ([`packages/client/ui-plugin-manager/src/index.ts`](../packages/client/ui-plugin-manager/src/index.ts))
@@ -5040,6 +5262,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-settings-hosts` ([`packages/client/ui-settings-hosts/src/index.ts`](../packages/client/ui-settings-hosts/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-mcp` ([`packages/client/ui-settings-mcp/src/index.ts`](../packages/client/ui-settings-mcp/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-models` ([`packages/client/ui-settings-models/src/index.ts`](../packages/client/ui-settings-models/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-settings-pairing` ([`packages/client/ui-settings-pairing/src/index.ts`](../packages/client/ui-settings-pairing/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-plugin-inventory` ([`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-plugins` ([`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-security` ([`packages/client/ui-settings-security/src/index.ts`](../packages/client/ui-settings-security/src/index.ts))

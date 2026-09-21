@@ -435,6 +435,19 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 
 来源：[`packages/deliverables/tool-present/src/types.ts:15`](../packages/deliverables/tool-present/src/types.ts)
 
+### `execution/*`
+
+<a id="executionbound--log-only"></a>
+
+#### `execution/bound` — 仅日志
+
+```ts persistence-catalog
+/** Captured execution deployment; retained by resume and fork without changing Session ownership. */
+'execution/bound': { readonly binding: ExecutionBinding }
+```
+
+来源：[`packages/execution-host/execution-binding/src/session.ts:16`](../packages/execution-host/execution-binding/src/session.ts)
+
 ### `feedback/*`
 
 <a id="feedbackmessage-delete--log-only"></a>

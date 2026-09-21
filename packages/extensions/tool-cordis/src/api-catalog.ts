@@ -174,8 +174,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['when the preset is unknown or its composition is unusable.'],
       },
       {
+        signature: 'async mountInExecution(agentCtx: Context, id: string, executionCtx: Context, platform: NodeJS.Platform): Promise<AgentPreset>',
+        description: 'Mount a preset with the selected execution providers for one Agent lifetime.',
+        parameters: [{ name: 'agentCtx', description: 'unpublished Agent scope owning teardown.' }, { name: 'id', description: 'preset identity to mount.' }, { name: 'executionCtx', description: 'admitted context carrying the execution provider isolation map.' }, { name: 'platform', description: 'platform reported by the admitted execution runtime.' }],
+        returns: 'the mounted preset; failures leave no mounted consumers.',
+      },
+      {
         signature: 'composeFrom(agentCtx: Context, parentCtx: Context): string | undefined',
-        description: 'Join one agent to the SAME standing composition another already runs on.\n\nThis is how a child agent inherits its parent\'s capabilities. It is a bind, not a mount: the parent\'s generation is already composed, so the child gets that exact instance — the same plugin objects, the same tool registrations, the same prompt sections. Re-resolving the parent\'s preset by id instead would re-read the roster, and a composition file edited since the parent started would hand the child a DIFFERENT generation than the one its parent\'s history was produced under (and a preset deleted since would fail the child outright while its parent keeps running).\n\nSynchronous, and with no composition failure mode of its own — it reads no roster, mounts nothing, and touches no file — which is what lets a child creation window use it: the two in-process subagent drivers compose their children inside a synchronous `setup`. It still rejects a caller error, as the `@throws` below record.\n\nA parent that joined no preset — a rosterless deployment — yields no join and no error: there, the model-facing rows sit in the host composition and the child already sees them through the global layer.',
+        description: 'Join one agent to the SAME standing composition another already runs on.\n\nThis is how a child agent inherits its parent\'s capabilities. It is a bind, not a mount: the parent\'s generation is already composed, so the child gets that exact instance — the same plugin objects, the same tool registrations, the same prompt sections. Re-resolving the parent\'s preset by id instead would re-read the roster, and a composition file edited since the parent started would hand the child a DIFFERENT generation than the one its parent\'s history was produced under (and a preset deleted since would fail the child outright while its parent keeps running).\n\nThe child must complete execution admission before joining a remote parent. Joining is synchronous and reads no files; the parent owns the mounted consumers until its children settle.\n\nA parent that joined no preset — a rosterless deployment — yields no join and no error: there, the model-facing rows sit in the host composition and the child already sees them through the global layer.',
         parameters: [{ name: 'agentCtx', description: 'the joining agent\'s scope context.' }, { name: 'parentCtx', description: 'the scope context of the agent whose composition to join.' }],
         returns: 'the preset id joined, or undefined when the parent joined none.',
         throws: ['when `agentCtx` carries no scope, or has already joined a preset.'],
@@ -761,7 +767,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async create(draft: AutomationDraft): Promise<AutomationDefinition>',
-        description: 'Resolve and save a new disabled automation.',
+        description: 'Resolve and save a disabled automation for a local Workspace; remote bindings reject before path access.',
         parameters: [{ name: 'draft', description: 'explicit user choices; defaults are resolved by the editor.' }],
         returns: 'the committed definition.',
       },
@@ -1054,6 +1060,48 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Authenticated human-facing Browser operations, separate from model tool permissions.',
     methods: [
       {
+        signature: '@Remote(\'runtimeStatus\') runtimeStatus(signal: AbortSignal): BrowserRuntimeStatus',
+        description: 'Detect binary availability without launching a native browser.',
+        parameters: [{ name: 'signal', description: 'Pre-admission cancellation.' }],
+        returns: 'File, provider, and context observations.',
+      },
+      {
+        signature: '@Remote(\'installRuntime\') installRuntime(signal: AbortSignal): BrowserRuntimeTask',
+        description: 'Start pinned Chromium installation, independently of Remote lifetime.',
+        parameters: [{ name: 'signal', description: 'Pre-admission cancellation only.' }],
+        returns: 'Host-owned task identity.',
+      },
+      {
+        signature: '@Remote(\'reinstallRuntime\') reinstallRuntime(signal: AbortSignal): BrowserRuntimeTask',
+        description: 'Replace the pin after a complete staged download; the browser must be closed.',
+        parameters: [{ name: 'signal', description: 'Pre-admission cancellation only.' }],
+        returns: 'Host-owned task identity.',
+      },
+      {
+        signature: '@Remote(\'closeRuntime\') async closeRuntime(signal: AbortSignal): Promise<void>',
+        description: 'Close the native context; provider activation and persistent profile remain available.',
+        parameters: [{ name: 'signal', description: 'Pre-admission cancellation only.' }],
+        returns: 'Settlement after context and lease cleanup.',
+      },
+      {
+        signature: '@Remote(\'removeRuntime\') removeRuntime(signal: AbortSignal): BrowserRuntimeTask',
+        description: 'Remove managed Chromium, preserving system browsers and profiles.',
+        parameters: [{ name: 'signal', description: 'Pre-admission cancellation only.' }],
+        returns: 'Host-owned task identity.',
+      },
+      {
+        signature: '@Remote(\'runtimeTask\') runtimeTask(signal: AbortSignal): BrowserRuntimeTask | null',
+        description: 'Observe the latest task after view or Remote reattachment.',
+        parameters: [{ name: 'signal', description: 'Read cancellation.' }],
+        returns: 'Latest task or null.',
+      },
+      {
+        signature: '@Remote(\'cancelRuntime\') async cancelRuntime(request: BrowserRuntimeCancelRequest, signal: AbortSignal): Promise<BrowserRuntimeTask>',
+        description: 'Cancel only the named task and wait for owned process termination.',
+        parameters: [{ name: 'request', description: 'Exact task identity.' }, { name: 'signal', description: 'Pre-admission cancellation only.' }],
+        returns: 'Terminal task snapshot.',
+      },
+      {
         signature: '@Remote(\'profile\') profile(signal: AbortSignal): BrowserProfileValue',
         description: 'Read the active profile without launching a browser.',
         parameters: [{ name: 'signal', description: 'Caller cancellation.' }],
@@ -1124,6 +1172,61 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Import an explicit cookie JSON array into the expected active profile.',
         parameters: [{ name: 'request', description: 'Active profile name and user-selected file contents.' }, { name: 'signal', description: 'Caller cancellation.' }],
         returns: 'Accepted count without cookie values; failures also omit values.',
+      },
+    ],
+  },
+  {
+    key: 'browserRuntime',
+    summary: 'Own one installer task and provider selection per Host.',
+    description: 'Own one installer task and provider selection per Host.',
+    methods: [
+      {
+        signature: 'attach(selection: ProviderSelection): () => void',
+        description: 'Publish the active provider selection without adding an activation flag.',
+        parameters: [{ name: 'selection', description: 'Provider-owned configuration and live context observation.' }],
+        returns: 'Disposer tied to the provider fiber.',
+      },
+      {
+        signature: 'async acquireBrowserLease(): Promise<() => Promise<void>>',
+        description: 'Reserve shared runtime storage for a live browser before executable resolution.',
+        parameters: [],
+        returns: 'Async release; caller holds it until the native context has closed.',
+      },
+      {
+        signature: 'async closeBrowser(): Promise<void>',
+        description: 'Close the attached native context while keeping the provider active.',
+        parameters: [],
+        returns: 'Settlement after native context and runtime lease cleanup.',
+      },
+      {
+        signature: 'executablePath(): string',
+        description: 'Resolve the exact installed managed executable before launching.',
+        parameters: [],
+        returns: 'Managed executable or a missing-component error; never starts a process.',
+      },
+      {
+        signature: 'status(): BrowserRuntimeStatus',
+        description: 'Inspect binary files and provider state without browser launch or network requests.',
+        parameters: [],
+        returns: 'Independent installation, selection, context, and latest-task facts.',
+      },
+      {
+        signature: 'task(): BrowserRuntimeTask | null',
+        description: 'Read the latest task without consuming installer output.',
+        parameters: [],
+        returns: 'Latest task or null before the first operation.',
+      },
+      {
+        signature: 'start(operation: BrowserRuntimeTask[\'operation\']): BrowserRuntimeTask',
+        description: 'Admit an explicit component operation; caller detach does not abort it.',
+        parameters: [{ name: 'operation', description: 'Install the pin, reinstall into a new generation, or remove managed binaries.' }],
+        returns: 'Exact task identity for observation and cancellation.',
+      },
+      {
+        signature: 'async cancel(taskId: BrowserRuntimeTaskId): Promise<BrowserRuntimeTask>',
+        description: 'Cancel only the named operation and await process-range and staging cleanup.',
+        parameters: [{ name: 'taskId', description: 'Exact latest operation identity.' }],
+        returns: 'Its terminal snapshot; committing operations cannot be cancelled.',
       },
     ],
   },
@@ -1282,9 +1385,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Registry and execution facade for desktop Computer Use providers.',
     methods: [
       {
-        signature: 'register(name: ComputerUseProviderName): () => Promise<void>',
+        signature: 'register(name: ComputerUseProviderName, readiness?: () => ComputerToolReadiness): () => Promise<void>',
         description: 'Reserve computer use for a provider that publishes its own tools. Registered facade providers also occupy computer use, including unavailable ones. The caller must remove its tools and await owned work before releasing this effect.',
-        parameters: [{ name: 'name', description: 'Provider-owned name used in registration diagnostics.' }],
+        parameters: [{ name: 'name', description: 'Provider-owned name used in registration diagnostics.' }, { name: 'readiness', description: 'Provider-owned lifecycle snapshot; omission reports initializing.' }],
         returns: 'Effect disposer for this exact exclusive registration.',
       },
       {
@@ -1292,6 +1395,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Register one provider for the calling plugin lifetime.',
         parameters: [{ name: 'provider', description: 'Provider implementation with a unique stable id.' }],
         returns: 'Disposer that removes the provider registration.',
+      },
+      {
+        signature: 'async readiness(signal?: AbortSignal): Promise<ComputerReadiness>',
+        description: 'Read provider initialization separately from desktop permission or action success.',
+        parameters: [{ name: 'signal', description: 'Cooperative cancellation signal for facade capability probes.' }],
+        returns: 'Current tool-catalog lifecycle or the selected facade descriptor.',
       },
       {
         signature: 'capabilities(signal?: AbortSignal): Promise<ComputerCapabilities>',
@@ -1565,6 +1674,36 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Probe the selected Provider without exposing desktop content or device identities.',
     methods: [
       {
+        signature: '@Remote(\'mobileRuntimeStatus\') async mobileRuntimeStatus(signal: AbortSignal): Promise<MobileRuntimeStatus>',
+        description: 'Read native Android resources and connections from the local Host.',
+        parameters: [{ name: 'signal', description: 'Cancels only this observation.' }],
+        returns: 'Resource and connection facts, independent from Provider activation.',
+      },
+      {
+        signature: '@Remote(\'startMobileResource\') async startMobileResource(request: MobileResourceRequest, signal: AbortSignal): Promise<MobileResourceTask>',
+        description: 'Start an explicit local component transaction.',
+        parameters: [{ name: 'request', description: 'Reviewed resource, operation, revision, and license acceptance.' }, { name: 'signal', description: 'Admission cancellation.' }],
+        returns: 'Host-owned task receipt.',
+      },
+      {
+        signature: '@Remote(\'cancelMobileResource\') async cancelMobileResource(request: { taskId: MobileResourceTaskId }, signal: AbortSignal): Promise<MobileResourceTask>',
+        description: 'Cancel and join the exact displayed resource task.',
+        parameters: [{ name: 'request', description: 'Task receipt identity.' }, { name: 'signal', description: 'Admission cancellation.' }],
+        returns: 'Settled task after cleanup.',
+      },
+      {
+        signature: '@Remote(\'startMobileMirror\') async startMobileMirror(request: { deviceId: string }, signal: AbortSignal): Promise<MobileMirrorStatus>',
+        description: 'Open an owned native mirror window for one exact device.',
+        parameters: [{ name: 'request', description: 'Android identity from the connection inventory.' }, { name: 'signal', description: 'Admission cancellation.' }],
+        returns: 'Mirror process receipt, without claiming visible hardware acceptance.',
+      },
+      {
+        signature: '@Remote(\'closeMobileMirror\') async closeMobileMirror(request: { mirrorId: MobileMirrorId }, signal: AbortSignal): Promise<MobileMirrorStatus>',
+        description: 'Close only the native mirror owned by this receipt.',
+        parameters: [{ name: 'request', description: 'Exact mirror identity.' }, { name: 'signal', description: 'Admission cancellation.' }],
+        returns: 'Closed mirror facts after process-range settlement.',
+      },
+      {
         signature: '@Remote(\'check\') async check(request: DeviceCapabilityRequest, signal: AbortSignal): Promise<DeviceCapabilitySnapshot>',
         description: 'Check Provider reachability independently from plugin activation.',
         parameters: [{ name: 'request', description: 'Device family to check.' }, { name: 'signal', description: 'Caller cancellation forwarded to the read-only Provider operation.' }],
@@ -1647,6 +1786,43 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'executionBindings',
+    summary: 'One controller Host retains Session authority while project effects use captured providers.',
+    description: 'One controller Host retains Session authority while project effects use captured providers.',
+    methods: [
+      {
+        signature: 'async bindingForSession(sessionId: SessionId, signal?: AbortSignal): Promise<ExecutionBinding>',
+        description: 'Read a live or durable Session selection without activating an Agent. Admission changes invalidate an observation captured across an await; a published Agent is authoritative.',
+        parameters: [{ name: 'sessionId', description: 'known Session identity.' }, { name: 'signal', description: 'observation cancellation.' }],
+        returns: 'immutable location; legacy known Sessions are local only while no admission supersedes that observation.',
+      },
+      {
+        signature: 'async forSession(sessionId: SessionId, signal?: AbortSignal): Promise<ExecutionLease>',
+        description: 'Retain the same execution incarnation as the live Agent, or acquire its durable binding. Admission changes invalidate every awaited cold result before it can fall back to local execution.',
+        parameters: [{ name: 'sessionId', description: 'owning Session identity.' }, { name: 'signal', description: 'caller cancellation before lease delivery.' }],
+        returns: 'caller-owned lease; never creates or drives an Agent.',
+      },
+      {
+        signature: 'acquire(binding: ExecutionBinding, cwd: string, signal?: AbortSignal): Promise<ExecutionLease>',
+        description: 'Capture paired providers and canonicalize a directory in that execution world.',
+        parameters: [{ name: 'binding', description: 'selected immutable deployment.' }, { name: 'cwd', description: 'absolute directory in that deployment.' }, { name: 'signal', description: 'caller cancellation before lease delivery.' }],
+        returns: 'caller-owned lease retained through any spawned work.',
+      },
+      {
+        signature: 'async setup(agentCtx: Context, agent: Agent, binding?: ExecutionBinding): Promise<AgentSetupCommit>',
+        description: 'Bind an unpublished Agent before its consumers mount and reserve target authorization through publication.',
+        parameters: [{ name: 'agentCtx', description: 'creation-owned scoped context.' }, { name: 'agent', description: 'unpublished Agent and its durable Session.' }, { name: 'binding', description: 'explicit selection for a new Session; omitted reuses its log.' }],
+        returns: 'synchronous publication commit; scope rollback releases the authorization and provider lease.',
+      },
+      {
+        signature: 'executionForAgent(agent: Agent): Pick<ExecutionLease, \'ctx\' | \'platform\' | \'binding\'>',
+        description: 'Address the providers installed during this exact Agent admission.',
+        parameters: [{ name: 'agent', description: 'prepared or published Agent.' }],
+        returns: 'provider context, execution platform and immutable selection.',
+      },
+    ],
+  },
+  {
     key: 'executionHost',
     summary: 'Execution host identity service: provides stable host identity for artifact provenance and assessment authorization.',
     description: 'Execution host identity service: provides stable host identity for artifact provenance and assessment authorization.',
@@ -1712,6 +1888,42 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'request', description: 'Target, generation, root and relative path.' }, { name: 'signal', description: 'Carrier cancellation propagated through worker settlement.' }],
         returns: 'the directory result with target provenance.',
       },
+      {
+        signature: '@Remote detectRuntime(request: RuntimeLocation, signal: AbortSignal): Promise<RuntimeInspection>',
+        description: 'Inspect an explicit endpoint without installing or changing target selection.',
+        parameters: [{ name: 'request', description: 'Pinned endpoint and existing remote installation location.' }, { name: 'signal', description: 'Cancellation of this read-only inspection.' }],
+        returns: 'verified runtime observations.',
+      },
+      {
+        signature: '@Remote startRuntime(request: RuntimeStartRequest, signal: AbortSignal): Promise<RuntimeTaskValue>',
+        description: 'Start a Host-owned install or update; carrier disconnect does not cancel the accepted task.',
+        parameters: [{ name: 'request', description: 'Exact target revision and explicit remote location.' }, { name: 'signal', description: 'Admission cancellation only.' }],
+        returns: 'the task receipt immediately after admission.',
+      },
+      {
+        signature: '@Remote getRuntimeTask(request: RuntimeTaskRequest, signal: AbortSignal): Promise<RuntimeTaskValue>',
+        description: 'Read one installation receipt without changing its lifetime.',
+        parameters: [{ name: 'request', description: 'Exact task identity.' }, { name: 'signal', description: 'Read admission cancellation.' }],
+        returns: 'the current task observation.',
+      },
+      {
+        signature: '@Remote({ mode: \'stream\' }) followRuntimeTask(request: RuntimeTaskRequest, signal: AbortSignal): AsyncIterable<RuntimeTaskValue>',
+        description: 'Observe a task; ending this stream detaches only the observer.',
+        parameters: [{ name: 'request', description: 'Exact task identity.' }, { name: 'signal', description: 'Observer lifetime; controller disposal ends observation normally without cancelling the task.' }],
+        returns: 'serializable complete task observations.',
+      },
+      {
+        signature: '@Remote cancelRuntimeTask(request: RuntimeTaskRequest, signal: AbortSignal): Promise<RuntimeTaskValue>',
+        description: 'Explicitly cancel one task and wait for its owned process cleanup.',
+        parameters: [{ name: 'request', description: 'Exact receipt chosen by the operator.' }, { name: 'signal', description: 'Cancellation admission only.' }],
+        returns: 'the settled task observation.',
+      },
+      {
+        signature: '@Remote listRuntimeTasks(signal: AbortSignal): Promise<RuntimeTasksValue>',
+        description: 'Recover task receipts after a renderer reload without creating new tasks.',
+        parameters: [{ name: 'signal', description: 'Observation admission cancellation.' }],
+        returns: 'bounded redacted task observations retained by this Host.',
+      },
     ],
   },
   {
@@ -1727,21 +1939,48 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'create(request: CreateTargetRequest): Promise<TargetValue>',
-        description: 'Save an OpenSSH alias; credential values remain outside this domain.',
-        parameters: [{ name: 'request', description: 'User-provided label and concrete alias.' }],
+        description: 'Save an inspection alias and optional SSH execution deployment; private key contents stay outside this domain.',
+        parameters: [{ name: 'request', description: 'User-provided label, concrete alias and optional execution configuration.' }],
         returns: 'the durable target, initially disconnected.',
       },
       {
         signature: 'update(request: UpdateTargetRequest): Promise<TargetValue>',
-        description: 'Disconnect before atomically replacing editable metadata at its current revision.',
-        parameters: [{ name: 'request', description: 'Exact saved revision and replacement label/alias.' }],
+        description: 'Disconnect before atomically replacing editable metadata at its current revision. Every ordinary edit invalidates all retained execution revisions, including credential and trust rotations.',
+        parameters: [{ name: 'request', description: 'Exact saved revision and replacement metadata; omitting execution removes its configuration.' }],
         returns: 'the durable replacement record.',
+        throws: ['`conflict` while Agent admission reserves this target; retry after reservation release.'],
+      },
+      {
+        signature: 'activateExecution(request: TargetRevisionRequest, execution: SshExecutionConfiguration, signal?: AbortSignal): Promise<TargetValue>',
+        description: 'Activate a verified runtime deployment at an exact saved revision without disconnecting live operations. Preserve predecessor execution configurations for exact historical Session resume.',
+        parameters: [{ name: 'request', description: 'Current target revision used by the verified installation.' }, { name: 'execution', description: 'Complete verified deployment, including both bootstrap fields.' }, { name: 'signal', description: 'Installation lifetime; cancellation before queued persistence starts rejects activation.' }],
+        returns: 'the committed target at revision + 1; stale requests reject without changing selection or history.',
+      },
+      {
+        signature: 'snapshotExecution(request: TargetRevisionRequest): SshExecutionSnapshot',
+        description: 'Capture an immutable deployment identity without reading credentials or opening a connection.',
+        parameters: [{ name: 'request', description: 'Exact saved target revision to capture.' }],
+        returns: 'a deeply frozen snapshot without the private key path; incomplete deployments throw incompatible.',
+      },
+      {
+        signature: 'resolveExecution(snapshot: SshExecutionSnapshot): SshConfig',
+        description: 'Resolve a binding against its exact current or explicitly retained runtime activation revision. Ordinary target edits and removal invalidate all retained revisions.',
+        parameters: [{ name: 'snapshot', description: 'Captured SSH deployment identity, validated as durable input.' }],
+        returns: 'an independent SSH configuration with that revision\'s privateKeyFile; deleted, unretained or altered bindings throw conflict.',
+      },
+      {
+        signature: 'reserveExecution(snapshot: SshExecutionSnapshot): ExecutionAuthorization',
+        description: 'Reserve authorization for one captured deployment through a synchronous publication commit. Ordinary edits and removal reject while held; an already-started invalidating mutation rejects reservation. Runtime activation remains compatible because it explicitly retains the authorized predecessor revision.',
+        parameters: [{ name: 'snapshot', description: 'Captured SSH deployment identity, validated before reservation.' }],
+        returns: 'caller-owned synchronous authorization; release on publication commit or rollback.',
+        throws: ['`conflict` when an ordinary target edit or removal already owns mutation admission.'],
       },
       {
         signature: 'remove(request: TargetRevisionRequest): Promise<Record<string, never>>',
         description: 'Remove a saved target after its active operations have settled.',
         parameters: [{ name: 'request', description: 'Exact saved revision to remove.' }],
         returns: 'acknowledgement after durable deletion.',
+        throws: ['`conflict` while Agent admission reserves this target; retry after reservation release.'],
       },
       {
         signature: 'connect(request: TargetRevisionRequest, signal?: AbortSignal): Promise<TargetValue>',
@@ -1760,6 +1999,49 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Inspect only an advertised remote root on the supplied connection generation.',
         parameters: [{ name: 'request', description: 'Target, generation and worker-owned relative path.' }, { name: 'signal', description: 'Cancellation propagated to the remote operation.' }],
         returns: 'target provenance and the bounded remote directory result.',
+      },
+    ],
+  },
+  {
+    key: 'executionRuntimes',
+    summary: 'One controller Host owns provisioning; observers never own its cancellation.',
+    description: 'One controller Host owns provisioning; observers never own its cancellation.',
+    methods: [
+      {
+        signature: 'detect(request: RuntimeLocation, signal?: AbortSignal): Promise<RuntimeInspection>',
+        description: 'Check the shipped generation through a pinned SSH identity and explicit remote Node.',
+        parameters: [{ name: 'request', description: 'Deployment coordinates; no ambient credentials are used.' }, { name: 'signal', description: 'Cancels this read-only observation.' }],
+        returns: 'Missing or fully verified installed generation and actual Node information.',
+      },
+      {
+        signature: 'start(request: RuntimeStartRequest): RuntimeTaskValue',
+        description: 'Capture an explicit installation as a Host-owned task and return immediately.',
+        parameters: [{ name: 'request', description: 'Exact target revision and deployment coordinates.' }],
+        returns: 'Redacted task receipt; closing a Client does not cancel it.',
+      },
+      {
+        signature: 'get(request: RuntimeTaskRequest): RuntimeTaskValue',
+        description: 'Read a retained task without extending its execution authority.',
+        parameters: [{ name: 'request', description: 'Exact Host-issued task identity.' }],
+        returns: 'Redacted immutable snapshot.',
+      },
+      {
+        signature: 'listTasks(): RuntimeTasksValue',
+        description: 'Read the bounded task inventory retained by this Host process for reconnecting Clients.',
+        parameters: [],
+        returns: 'Redacted task snapshots.',
+      },
+      {
+        signature: 'async *follow(request: RuntimeTaskRequest, signal?: AbortSignal): AsyncGenerator<RuntimeTaskValue, void>',
+        description: 'Observe a task; observer cancellation only detaches this stream.',
+        parameters: [{ name: 'request', description: 'Exact Host-issued task identity.' }, { name: 'signal', description: 'Read-only subscription lifetime.' }],
+        returns: 'Initial and settled task observations.',
+      },
+      {
+        signature: 'async cancel(request: RuntimeTaskRequest): Promise<RuntimeTaskValue>',
+        description: 'Cancel only the specified Host task and await its publication/cleanup outcome.',
+        parameters: [{ name: 'request', description: 'Exact Host-issued task identity.' }],
+        returns: 'Settled outcome; an already committed activation remains succeeded.',
       },
     ],
   },
@@ -2460,6 +2742,49 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'mobileRuntime',
+    summary: 'Own private installed tools separately from Provider activation and custom SDK installations.',
+    description: 'Own private installed tools separately from Provider activation and custom SDK installations.',
+    methods: [
+      {
+        signature: 'async acquireAdb(selection: { command?: string; sdkPath?: string }, signal: AbortSignal): Promise<MobileExecutableLease>',
+        description: 'Pin the selected executable and immutable managed bytes for a complete operation.',
+        parameters: [{ name: 'selection', description: 'Explicit deployment command and saved SDK path; custom choices take precedence.' }, { name: 'signal', description: 'Cancellation while acquiring the selection.' }],
+        returns: 'Executable and release callback held through subprocess and device-file cleanup.',
+      },
+      {
+        signature: 'status(signal: AbortSignal): Promise<MobileRuntimeStatus>',
+        description: 'Observe resource provenance and independently probe Android executable and connections.',
+        parameters: [{ name: 'signal', description: 'Read cancellation; never cancels an installation or mirror.' }],
+        returns: 'Managed component, process, and connection facts.',
+      },
+      {
+        signature: 'start(request: MobileResourceRequest, signal: AbortSignal): MobileResourceTask',
+        description: 'Admit a Host-owned resource transaction against the displayed durable revision.',
+        parameters: [{ name: 'request', description: 'Fixed resource operation and explicit license acceptance.' }, { name: 'signal', description: 'Admission cancellation; receipt ownership remains with the Host.' }],
+        returns: 'Exact task receipt for observation and cancellation.',
+      },
+      {
+        signature: 'async cancel(taskId: MobileResourceTaskId): Promise<MobileResourceTask>',
+        description: 'Cancel only the exact observed task before its publication phase.',
+        parameters: [{ name: 'taskId', description: 'Current task identity.' }],
+        returns: 'Settled task after all download, extraction, and cleanup work stops.',
+      },
+      {
+        signature: 'startMirror(deviceId: string, signal: AbortSignal): MobileMirrorStatus',
+        description: 'Start a human-requested mirror for one currently authorized exact Android device.',
+        parameters: [{ name: 'deviceId', description: 'Exact identity from this manager\'s latest connection inventory.' }, { name: 'signal', description: 'Admission cancellation.' }],
+        returns: 'Host-owned mirror receipt; process state does not claim visual acceptance.',
+      },
+      {
+        signature: 'async closeMirror(mirrorId: MobileMirrorId): Promise<MobileMirrorStatus>',
+        description: 'Close the exact owned mirror and await native process exit before releasing resources.',
+        parameters: [{ name: 'mirrorId', description: 'Current mirror receipt identity.' }],
+        returns: 'Settled mirror facts.',
+      },
+    ],
+  },
+  {
     key: 'officeToPdf',
     summary: 'A provider lifetime owns all converters, queued calls, and temporary files.',
     description: 'A provider lifetime owns all converters, queued calls, and temporary files.',
@@ -2487,6 +2812,47 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read the current rendering generation before reusing a Client PDF.',
         parameters: [{ name: 'signal', description: 'Remote caller cancellation.' }],
         returns: 'provider lifetime, replaced with rendering, font, or engine configuration.',
+      },
+    ],
+  },
+  {
+    key: 'pairingController',
+    summary: 'Trusted-local management only; the remoteAccess executor verifies current carrier authority.',
+    description: 'Trusted-local management only; the remoteAccess executor verifies current carrier authority.',
+    methods: [
+      {
+        signature: '@Remote(\'describe\') describe(): Promise<RemoteAccessStatus>',
+        description: 'Read local listener readiness and safe device metadata.',
+        parameters: [],
+        returns: 'listener readiness and paired device metadata without credentials.',
+      },
+      {
+        signature: '@Remote(\'enable\') enable(): Promise<RemoteAccessStatus>',
+        description: 'Enable the explicitly configured HTTPS listener.',
+        parameters: [],
+        returns: 'readiness after explicitly enabling the configured HTTPS carrier.',
+      },
+      {
+        signature: '@Remote(\'disable\') disable(): Promise<RemoteAccessStatus>',
+        description: 'Disable the listener and settle its active carriers.',
+        parameters: [],
+        returns: 'readiness after disabling and draining the carrier.',
+      },
+      {
+        signature: '@Remote(\'createInvitation\') createInvitation(request: PairingGrant): PairingInvitation',
+        description: 'Create a bounded one-time invitation from explicitly selected Session references and scopes.',
+        parameters: [{ name: 'request', description: 'local human\'s selected grant.' }],
+        returns: 'the invitation, shown only on the trusted Desktop.',
+      },
+      {
+        signature: '@Remote(\'cancelInvitation\') cancelInvitation(): void',
+        description: 'Cancel the outstanding pairing invitation.',
+        parameters: [],
+      },
+      {
+        signature: '@Remote(\'revokeDevice\') revokeDevice(request: { readonly deviceId: PairedDeviceId }): Promise<void>',
+        description: 'Revoke a device durably and terminate its current carrier operations.',
+        parameters: [{ name: 'request', description: 'paired device selected by the local human.' }],
       },
     ],
   },
@@ -2609,7 +2975,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: '@Remote installBundle(spec: string, options?: InstallBundleOptions): Promise<ChangeResult>',
         description: 'Install a package using the same pnpm implementation as dsh plugin. A run that fails, is cancelled, or adds a package without a bundle patch restores `package.json` and `pnpm-lock.yaml` as they were; downloaded files can stay.',
-        parameters: [{ name: 'spec', description: 'One package spec, including local paths relative to the invocation directory.' }, { name: 'options', description: 'Whether to activate the installed bundle (defaults to true), the request id a cancellation names, and the pending build scripts to allow for this profile before pnpm runs.' }],
+        parameters: [{ name: 'spec', description: 'One package spec, including local paths relative to the invocation directory.' }, { name: 'options', description: 'Whether to activate the installed bundle (defaults to true), a request id unique among live installations, and the pending build scripts to allow for this profile before pnpm runs.' }],
         returns: 'Package-manager diagnostics and observed activation outcome.',
       },
       {
@@ -2685,6 +3051,66 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Execute resolved inputs; program outcomes resolve as result fields.',
         parameters: [{ name: 'spec', description: 'directory, deadline, program, bindings, cancellation and supported policy.' }],
         returns: 'Captured output and the execution outcome.',
+      },
+    ],
+  },
+  {
+    key: 'remoteAccess',
+    summary: 'Listener and paired-device lifecycle; management methods require a trusted local Gateway invocation.',
+    description: 'Listener and paired-device lifecycle; management methods require a trusted local Gateway invocation.',
+    methods: [
+      {
+        signature: 'async describe(): Promise<RemoteAccessStatus>',
+        description: 'Read local listener readiness and safe device metadata.',
+        parameters: [],
+        returns: 'listener readiness, verified certificate fingerprint and safe paired-device metadata.',
+      },
+      {
+        signature: 'async enable(): Promise<RemoteAccessStatus>',
+        description: 'Enable the explicitly configured HTTPS listener.',
+        parameters: [],
+        returns: 'readiness after explicitly enabling the configured HTTPS listener.',
+      },
+      {
+        signature: 'async disable(): Promise<RemoteAccessStatus>',
+        description: 'Disable the listener and settle its active carriers.',
+        parameters: [],
+        returns: 'disabled state after every network request and stream has settled.',
+      },
+      {
+        signature: 'createInvitation(grant: PairingGrant): PairingInvitation',
+        description: 'Select exact Session references and scopes for one short-lived pairing code.',
+        parameters: [{ name: 'grant', description: 'local UI-selected grant.' }],
+        returns: 'one-time invitation displayed only on the trusted Desktop.',
+      },
+      {
+        signature: 'cancelInvitation(): void',
+        description: 'Invalidate the current one-time invitation.',
+        parameters: [],
+      },
+      {
+        signature: 'async revokeDevice(deviceId: PairedDeviceId): Promise<void>',
+        description: 'Persist revocation before terminating this device\'s active requests and streams.',
+        parameters: [{ name: 'deviceId', description: 'paired device selected on the trusted Desktop.' }],
+      },
+    ],
+  },
+  {
+    key: 'remoteAccessHost',
+    summary: 'Desktop lifecycle capability: dispatch shares the local update lock; assets use a phone bootstrap.',
+    description: 'Desktop lifecycle capability: dispatch shares the local update lock; assets use a phone bootstrap.',
+    methods: [
+      {
+        signature: 'dispatch<T>(operation: () => T | Promise<T>): Promise<T>',
+        description: 'Admit work through the same update lock as local API and stream requests.',
+        parameters: [{ name: 'operation', description: 'operation to admit before execution.' }],
+        returns: 'the admitted operation\'s result.',
+      },
+      {
+        signature: 'fetchAssets(request: Request): Response | Promise<Response>',
+        description: 'Serve matching runtime assets with a paired browser bootstrap, never ownsHost:true.',
+        parameters: [{ name: 'request', description: 'authenticated asset request.' }],
+        returns: 'the runtime asset, or 404 for an unrecognized path.',
       },
     ],
   },
@@ -2926,9 +3352,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: '@Remote(\'openWorkspacePath\') async openWorkspacePath( request: SessionOpenWorkspacePathRequest, signal: AbortSignal, ): Promise<SessionOpenWorkspacePathValue>',
         description: 'Open one path prepared by a Session-aware caller on the Host desktop.',
-        parameters: [{ name: 'request', description: 'path after best-effort Session workspace resolution.' }, { name: 'signal', description: 'caller lifetime; abort terminates the native command.' }],
+        parameters: [{ name: 'request', description: 'owning Session and path in its execution environment.' }, { name: 'signal', description: 'caller lifetime; abort terminates the native command.' }],
         returns: 'confirmation after the native opener accepts the path.',
         throws: ['RemoteError when the request is invalid, cancelled, or the opener fails.'],
+      },
+      {
+        signature: 'async openExecutionPath(lease: ExecutionLease, path: string, action: \'open\' | \'reveal\', signal: AbortSignal): Promise<SessionOpenWorkspacePathValue>',
+        description: 'Open a path using a caller-retained local lease; remote leases never invoke Host applications.',
+        parameters: [{ name: 'lease', description: 'execution ownership retained by the complete caller operation.' }, { name: 'path', description: 'path to resolve inside that execution environment.' }, { name: 'action', description: 'registered application or file-manager reveal.' }, { name: 'signal', description: 'caller cancellation, combined with lease lifetime.' }],
+        returns: 'confirmation after the native opener accepts the resolved local path.',
       },
       {
         signature: '@Remote(\'rename\') rename(request: SessionRenameRequest): Promise<SessionRenameValue>',
@@ -3364,7 +3796,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List the user-invocable skills visible to one Session composition.',
         parameters: [{ name: 'request', description: 'Session identity whose cwd and preset select the catalog view.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport; admitted catalog reads retain their existing completion semantics.' }],
         returns: 'user-invocable skill metadata without loading skill bodies.',
-        throws: ['RemoteError when the Session cannot be inspected or no registry can serve it.'],
+        throws: ['RemoteError for remote execution Sessions, failed inspection, or an absent registry.'],
       },
     ],
   },
@@ -3598,104 +4030,98 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'sidebarGit',
-    summary: 'Execute repository-bound user actions; core model-facing Git tools remain independent.',
-    description: 'Execute repository-bound user actions; core model-facing Git tools remain independent.',
+    summary: 'Execute repository-bound user actions in the Session\'s retained execution world.',
+    description: 'Execute repository-bound user actions in the Session\'s retained execution world.',
     methods: [
       {
-        signature: 'async discover(cwd: string, signal?: AbortSignal): Promise<string | undefined>',
-        description: 'Resolve a directory for the existing sidebar filesystem-root display.',
-        parameters: [{ name: 'cwd', description: 'directory already selected by the calling Host filesystem route.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'canonical repository root, or undefined outside a repository.',
-      },
-      {
         signature: 'async status(request: GitSessionRequest, signal?: AbortSignal): Promise<GitStatusResult>',
-        description: 'Read working-tree entries, exact repository facts, and effective group order.',
-        parameters: [{ name: 'request', description: 'attached Session identity.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'current Git panel data; a non-repository has no mutation target.',
+        description: 'Execute status in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async diff(request: GitDiffRequest, signal?: AbortSignal): Promise<GitDiffResult>',
-        description: 'Read a worktree or staged diff for literal paths.',
-        parameters: [{ name: 'request', description: 'Session, optional path, and staged selection.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'complete unified diff text.',
+        description: 'Execute diff in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async stage(request: GitPathMutationRequest, signal?: AbortSignal): Promise<GitMutationResult>',
-        description: 'Stage selected files, or all files for an explicit all-files request.',
-        parameters: [{ name: 'request', description: 'displayed repository and optional literal path.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'successful completion.',
+        description: 'Execute stage in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async unstage(request: GitPathMutationRequest, signal?: AbortSignal): Promise<GitMutationResult>',
-        description: 'Unstage selected files without changing worktree contents.',
-        parameters: [{ name: 'request', description: 'displayed repository and optional literal path.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'successful completion.',
+        description: 'Execute unstage in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async branches(request: GitSessionRequest, signal?: AbortSignal): Promise<GitBranchesResult>',
-        description: 'List existing local branches.',
-        parameters: [{ name: 'request', description: 'attached Session identity.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'names and the checked-out branch, or HEAD when detached.',
+        description: 'Execute branches in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async checkout(request: GitCheckoutRequest, signal?: AbortSignal): Promise<GitMutationResult>',
-        description: 'Switch only to an existing local branch selected by the user.',
-        parameters: [{ name: 'request', description: 'displayed repository and branch.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'successful completion.',
+        description: 'Execute checkout in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async prepareCommit(request: GitPrepareCommitRequest, signal?: AbortSignal): Promise<GitCommitPreview>',
-        description: 'Prepare the exact attributed message and repository facts for confirmation.',
-        parameters: [{ name: 'request', description: 'repository displayed by the UI and the user\'s message.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'complete commit intent; preparation changes neither index nor refs.',
+        description: 'Execute prepareCommit in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async commit(request: GitCommitRequest, signal?: AbortSignal): Promise<GitCommitResult>',
-        description: 'Commit exactly a reviewed intent after rechecking Session, repository, HEAD, and index.',
-        parameters: [{ name: 'request', description: 'unchanged preview confirmed by the user.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'the new commit and the message recorded by Git, including user-hook edits.',
+        description: 'Execute commit in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async compare(request: GitSessionRequest, signal?: AbortSignal): Promise<GitCompareResult>',
-        description: 'Compare committed changes against the selected locally cached base.',
-        parameters: [{ name: 'request', description: 'attached Session identity.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'a pinned comparison, or the specific missing prerequisite.',
+        description: 'Execute compare in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async log(request: GitLogRequest, signal?: AbortSignal): Promise<GitLogEntry[]>',
-        description: 'Read one bounded history page.',
-        parameters: [{ name: 'request', description: 'Session, page size, and offset.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'existing sidebar history rows.',
+        description: 'Execute log in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async show(request: GitShowRequest, signal?: AbortSignal): Promise<GitShowResult>',
-        description: 'Read a file from a pinned revision.',
-        parameters: [{ name: 'request', description: 'Session, revision, and literal repository path.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'file contents, or null when no such file exists at that revision.',
+        description: 'Execute show in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async commitDiff(request: GitRevisionRequest, signal?: AbortSignal): Promise<GitDiffResult>',
-        description: 'Read the patch for an existing history commit.',
-        parameters: [{ name: 'request', description: 'Session and selected commit.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'the patch against the first parent for merge commits.',
+        description: 'Execute commitDiff in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async discard(request: GitDiscardRequest, signal?: AbortSignal): Promise<GitMutationResult>',
-        description: 'Discard one tracked worktree path after its explicit confirmation.',
-        parameters: [{ name: 'request', description: 'displayed repository, HEAD, and literal path.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'successful completion; the index remains unchanged.',
+        description: 'Execute discard in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async revert(request: GitRevisionMutationRequest, signal?: AbortSignal): Promise<GitMutationResult>',
-        description: 'Revert a selected commit after explicit confirmation.',
-        parameters: [{ name: 'request', description: 'displayed repository, HEAD, and selected history commit.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'successful completion.',
+        description: 'Execute revert in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
       {
         signature: 'async cherryPick(request: GitRevisionMutationRequest, signal?: AbortSignal): Promise<GitMutationResult>',
-        description: 'Cherry-pick a selected commit after explicit confirmation.',
-        parameters: [{ name: 'request', description: 'displayed repository, HEAD, and selected history commit.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'successful completion.',
+        description: 'Execute cherryPick in the Session\'s captured world.',
+        parameters: [{ name: 'request', description: 'Session-owned Git request.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the operation result after managed subprocess settlement.',
       },
     ],
   },
@@ -3808,10 +4234,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Availability without opening a terminal.',
       },
       {
-        signature: '@Remote shells(): readonly SidebarTerminalShell[]',
-        description: 'Discover installed local shells for a new UI tab.',
-        parameters: [],
-        returns: 'Verified executable paths and display names; does not create a process.',
+        signature: '@Remote shells(sessionId: SidebarTerminalSessionId): Promise<readonly SidebarTerminalShell[]>',
+        description: 'Discover installed shells in the owning Session execution world.',
+        parameters: [{ name: 'sessionId', description: 'known Session execution binding.' }],
+        returns: 'Verified executable paths and display names; disposal rejects an unsettled request after its provider settles.',
       },
       {
         signature: '@Remote({ mode: \'stream\' }) open(request: SidebarTerminalOpenRequest, signal: AbortSignal): AsyncIterable<SidebarTerminalFrame>',
@@ -3820,14 +4246,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Provider frames; operational failures use sidebarTerminals error codes.',
       },
       {
-        signature: '@Remote input(request: SidebarTerminalInputRequest): void',
+        signature: '@Remote input(request: SidebarTerminalInputRequest): Promise<void>',
         description: 'Forward input to the attached native process.',
         parameters: [{ name: 'request', description: 'Live attachment and at most 64 KiB of UTF-8 input.' }],
+        returns: 'After the provider accepts the input; disposal rejects an unsettled request after its provider settles.',
       },
       {
-        signature: '@Remote resize(request: SidebarTerminalResizeRequest): void',
+        signature: '@Remote resize(request: SidebarTerminalResizeRequest): Promise<void>',
         description: 'Resize the attached native process.',
         parameters: [{ name: 'request', description: 'Live attachment and integer geometry from 1 through 1024.' }],
+        returns: 'After the provider applies the dimensions; disposal rejects an unsettled request after its provider settles.',
       },
       {
         signature: '@Remote ack(request: SidebarTerminalAckRequest): void',
@@ -3851,15 +4279,27 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'request', description: 'Exact previously observed process; replacements cannot be closed by a stale request.' }],
       },
       {
+        signature: '@Remote listUi(sessionId: SidebarTerminalSessionId): readonly SidebarUiTerminalSnapshot[]',
+        description: 'Enumerate retained UI terminals without spawning or activating a Session.',
+        parameters: [{ name: 'sessionId', description: 'owning Session identity.' }],
+        returns: 'live terminal facts retained by this Host.',
+      },
+      {
+        signature: '@Remote renameUi(request: SidebarTerminalRenameUiRequest): SidebarUiTerminalSnapshot',
+        description: 'Rename exactly the observed native process.',
+        parameters: [{ name: 'request', description: 'terminal generation and nonempty human title up to 120 characters.' }],
+        returns: 'canonical terminal facts after a successful rename.',
+      },
+      {
         signature: '@Remote({ mode: \'stream\' }) watch(sessionId: SidebarTerminalSessionId, signal: AbortSignal): AsyncIterable<readonly SidebarAgentTerminalSnapshot[]>',
         description: 'Observe the agent terminals owned by one Session.',
         parameters: [{ name: 'sessionId', description: 'Nonempty opaque Session identity.' }, { name: 'signal', description: 'Consumer lifetime; disposal also cancels and closes the provider iterator.' }],
         returns: 'Complete current lists and subsequent provider snapshots.',
       },
       {
-        signature: '@Remote closeAgent(uuid: SidebarAgentTerminalId): void',
-        description: 'Close the identified agent terminal.',
-        parameters: [{ name: 'uuid', description: 'Lowercase UUID of an agent terminal explicitly closed by the user.' }],
+        signature: '@Remote closeAgent(request: SidebarTerminalCloseAgentRequest): void',
+        description: 'Close the identified agent terminal owned by the requested Session.',
+        parameters: [{ name: 'request', description: 'Session-scoped agent terminal identity explicitly closed by the user.' }],
       },
     ],
   },
@@ -3875,9 +4315,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Current availability.',
       },
       {
-        signature: 'abstract shells(): readonly SidebarTerminalShell[]',
-        description: 'Discover installed local shells without starting a process.',
-        parameters: [],
+        signature: 'abstract shells(sessionId: SidebarTerminalSessionId): Promise<readonly SidebarTerminalShell[]>',
+        description: 'Discover installed shells in the captured Session execution world without starting a process.',
+        parameters: [{ name: 'sessionId', description: 'known Session whose immutable execution binding selects the provider.' }],
         returns: 'Verified choices for new UI tabs; existing processes retain their shell.',
       },
       {
@@ -3887,14 +4327,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'bounded terminal frames until exit or release.',
       },
       {
-        signature: 'abstract input(request: SidebarTerminalInputRequest): void',
+        signature: 'abstract input(request: SidebarTerminalInputRequest): void | Promise<void>',
         description: 'Write input to the attached process.',
         parameters: [{ name: 'request', description: 'input for a live attachment.' }],
+        returns: 'after the captured provider accepts input; local native writes may complete synchronously.',
       },
       {
-        signature: 'abstract resize(request: SidebarTerminalResizeRequest): void',
+        signature: 'abstract resize(request: SidebarTerminalResizeRequest): void | Promise<void>',
         description: 'Resize the attached process display.',
         parameters: [{ name: 'request', description: 'updated display geometry.' }],
+        returns: 'after the captured provider applies the dimensions; local native resize may complete synchronously.',
       },
       {
         signature: 'abstract ack(request: SidebarTerminalAckRequest): void',
@@ -3918,15 +4360,27 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'request', description: 'exact observed native generation; missing processes are already closed, replacements are rejected.' }],
       },
       {
+        signature: 'abstract listUi(sessionId: SidebarTerminalSessionId): readonly SidebarUiTerminalSnapshot[]',
+        description: 'List retained live UI terminals without creating a process or extending retention.',
+        parameters: [{ name: 'sessionId', description: 'owning Session.' }],
+        returns: 'current Host-lifetime terminal facts.',
+      },
+      {
+        signature: 'abstract renameUi(request: SidebarTerminalRenameUiRequest): SidebarUiTerminalSnapshot',
+        description: 'Rename the observed native process; missing or replacement generations are rejected.',
+        parameters: [{ name: 'request', description: 'observed process identity and human title.' }],
+        returns: 'canonical title and current process facts after the rename commits.',
+      },
+      {
         signature: 'abstract watch(sessionId: SidebarTerminalSessionId, signal: AbortSignal): AsyncIterable<readonly SidebarAgentTerminalSnapshot[]>',
         description: 'Observe the agent terminals owned by a Session.',
         parameters: [{ name: 'sessionId', description: 'owning Session.' }, { name: 'signal', description: 'consumer lifetime.' }],
         returns: 'current agent terminal list and later updates.',
       },
       {
-        signature: 'abstract closeAgent(uuid: SidebarAgentTerminalId): void',
-        description: 'Request termination of an agent terminal.',
-        parameters: [{ name: 'uuid', description: 'agent-owned terminal explicitly closed by its user.' }],
+        signature: 'abstract closeAgent(request: SidebarTerminalCloseAgentRequest): void',
+        description: 'Request termination of an agent terminal owned by the caller\'s Session.',
+        parameters: [{ name: 'request', description: 'Session-scoped agent terminal identity explicitly closed by its user.' }],
       },
     ],
   },
@@ -4572,15 +5026,22 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Resolve strict generated definitions or conservative SRC markers against current Cordis Services and Typert providers.',
     methods: [
       {
-        signature: 'readonly wireStream: TypertGatewayWireStream = { open: (endpoint, payload, signal) => this.openWireStream(endpoint, payload, signal), failure: error => rpcError(error), }',
-        description: 'Carrier adapter shared by the WebSocket mux and local Host transports.',
-        parameters: [],
-      },
-      {
         signature: 'registerRemoteEvents( source: TypertRemoteEventSource, host: RemoteEventHostInfo, ): () => Promise<void>',
         description: 'Register the sole application-selected forwarded-event source.',
         parameters: [{ name: 'source', description: 'stream factory installed by the Remote assembly.' }, { name: 'host', description: 'stable Host facts included in each Client generation\'s opening frame.' }],
         returns: 'disposer removing this source and cancelling its active streams.',
+      },
+      {
+        signature: 'registerAccess(access: HostConnectionAccess, policy: TypertGatewayAccessPolicy): () => void',
+        description: 'Register authorization for one authenticated delegated identity.',
+        parameters: [{ name: 'access', description: 'same-process authenticated capability.' }, { name: 'policy', description: 'grant owner policy.' }],
+        returns: 'disposer removing this exact policy.',
+      },
+      {
+        signature: 'currentAccess(): HostConnectionAccess | undefined',
+        description: 'Read the authenticated caller during a unary invocation.',
+        parameters: [],
+        returns: 'the current caller; local-only methods reject an absent caller.',
       },
       {
         signature: 'async invoke(request: InvokeRemoteRequest): Promise<unknown>',
@@ -4664,9 +5125,27 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'modelsDownload(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelsDownloadValue>',
-        description: 'Download or await one model\'s shared installation.',
-        parameters: [{ name: 'modelId', description: 'Registered model identity.' }, { name: 'signal', description: 'Cancellation of the shared installation.' }],
-        returns: 'Ready cache directory after all installation work settles.',
+        description: 'Admit a Host-owned download independent of transport lifetime.',
+        parameters: [{ name: 'modelId', description: 'Registered model identity.' }, { name: 'signal', description: 'Admission cancellation; disconnect after admission does not cancel the task.' }],
+        returns: 'Task receipt; poll modelsList for progress and terminal state.',
+      },
+      {
+        signature: 'modelsReinstall(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelTask>',
+        description: 'Reinstall the current pinned manifest while retaining the usable installation.',
+        parameters: [{ name: 'modelId', description: 'Registered model identity.' }, { name: 'signal', description: 'Admission cancellation only.' }],
+        returns: 'Host task receipt.',
+      },
+      {
+        signature: 'modelsUpdate(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelTask>',
+        description: 'Update to the pinned manifest when its fingerprint differs.',
+        parameters: [{ name: 'modelId', description: 'Registered model identity.' }, { name: 'signal', description: 'Admission cancellation only.' }],
+        returns: 'Host task receipt, including immediate success when already current.',
+      },
+      {
+        signature: 'modelsCancel(modelId: VoiceModelId, taskId: VoiceModelTaskId, signal: AbortSignal): Promise<VoiceModelsCancelValue>',
+        description: 'Cancel exactly one running Host task and await its cleanup.',
+        parameters: [{ name: 'modelId', description: 'Registered model identity.' }, { name: 'taskId', description: 'Identity returned by task admission or modelsList.' }, { name: 'signal', description: 'Cancellation before admission; accepted cancellation joins the task.' }],
+        returns: 'Whether this call cancelled the matching running task.',
       },
       {
         signature: 'modelsRemove(modelId: VoiceModelId, signal: AbortSignal): Promise<void>',
@@ -4725,9 +5204,27 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote modelsDownload(request: VoiceModelRequest, signal: AbortSignal): Promise<VoiceModelsDownloadValue>',
-        description: 'Download or await a model installation.',
-        parameters: [{ name: 'request', description: 'Exact model selector from modelsList.' }, { name: 'signal', description: 'Cancels the shared model installation and awaits its cleanup.' }],
-        returns: 'Ready cache directory.',
+        description: 'Admit a Host-owned model installation.',
+        parameters: [{ name: 'request', description: 'Exact model selector from modelsList.' }, { name: 'signal', description: 'Admission cancellation only; disconnect does not cancel admitted work.' }],
+        returns: 'Task receipt; modelsList reports progress and settlement.',
+      },
+      {
+        signature: '@Remote modelsReinstall(request: VoiceModelRequest, signal: AbortSignal): Promise<VoiceModelTask>',
+        description: 'Replace a model using its pinned manifest, preserving the old installation on failure.',
+        parameters: [{ name: 'request', description: 'Exact model selector.' }, { name: 'signal', description: 'Admission cancellation only.' }],
+        returns: 'Host-owned task receipt.',
+      },
+      {
+        signature: '@Remote modelsUpdate(request: VoiceModelRequest, signal: AbortSignal): Promise<VoiceModelTask>',
+        description: 'Install a changed pinned manifest; no upstream release discovery occurs.',
+        parameters: [{ name: 'request', description: 'Exact model selector.' }, { name: 'signal', description: 'Admission cancellation only.' }],
+        returns: 'Host-owned task receipt.',
+      },
+      {
+        signature: '@Remote modelsCancel(request: VoiceCancelRequest, signal: AbortSignal): Promise<VoiceModelsCancelValue>',
+        description: 'Cancel one matching task without removing installed model files.',
+        parameters: [{ name: 'request', description: 'Model and task identity returned by this Host.' }, { name: 'signal', description: 'Cancellation before admission.' }],
+        returns: 'Whether the matching running task was cancelled and joined.',
       },
       {
         signature: '@Remote modelsRemove(request: VoiceModelRequest, signal: AbortSignal): Promise<VoiceModelsRemoveValue>',
@@ -5089,7 +5586,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the directory\'s children in the backend\'s stable name order, bounded by the entry cap.',
       },
       {
-        signature: '@Remote({ mode: \'stream\' }) changes(agent: Agent, signal: AbortSignal): AsyncIterable<WorkspaceFileWatchFrame>',
+        signature: '@Remote({ mode: \'stream\' }) async *changes(agent: Agent, signal: AbortSignal): AsyncIterable<WorkspaceFileWatchFrame>',
         description: 'Stream every `fs/observed` observation of a file inside the Agent\'s workspace. Only Agent filesystem operations report here; the OS is not watched.',
         parameters: [{ name: 'agent', description: 'target Agent resolved from the Session identity on the wire.' }, { name: 'signal', description: 'generation cancellation.' }],
         returns: '`ready` once the Host observation queue is active and the workspace root is resolved, then queued and live observations in emission order.',
@@ -5257,12 +5754,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'workspaceRegistry',
     summary: 'Durable workspace registry.',
-    description: 'Durable workspace registry. Startup waits for `sessionPersistence`, builds one canonical-cwd header index, and completes the one-time history bootstrap before the service becomes active. The persistence dependency is mandatory so an unavailable peer can never be mistaken for an empty history and commit the initialized marker.',
+    description: 'Durable workspace registry. Startup waits for `sessionPersistence`, folds each durable Session\'s execution event when the optional execution service is absent, builds one canonical-cwd header index, and completes the one-time history bootstrap before the service becomes active. The persistence dependency is mandatory so an unavailable peer can never be mistaken for an empty history and commit the initialized marker.',
     methods: [
       {
-        signature: 'async create(path: string, title?: string): Promise<Workspace>',
-        description: 'Create or reuse a workspace for an existing directory. The fully qualified path is canonicalized through `fs.realpath`; a relative, nonexistent, or non-directory path rejects. Repeated calls for the same canonical path return the existing entity without changing its title. A newly created workspace is prepended to the durable registry order. Different canonical paths may share a display title.',
-        parameters: [{ name: 'path', description: 'Existing directory to own, in a fully qualified path spelling.' }, { name: 'title', description: 'Display title used only when a new record is created.' }],
+        signature: 'async create(path: string, title?: string, execution: ExecutionBinding = { kind: \'local\' }): Promise<Workspace>',
+        description: 'Create or reuse a workspace for an existing directory. The fully qualified path is canonicalized in its execution filesystem; a relative, nonexistent, or non-directory path rejects. Repeated calls for the same binding and canonical path return the existing entity without changing its title. A newly created workspace is prepended to the durable registry order. Different canonical paths may share a display title.',
+        parameters: [{ name: 'path', description: 'Existing directory to own, in a fully qualified path spelling.' }, { name: 'title', description: 'Display title used only when a new record is created.' }, { name: 'execution', description: 'Captured execution selection; omitted means local. SSH requires executionBindings.' }],
         returns: 'the existing or newly durable workspace.',
       },
       {
@@ -5302,10 +5799,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'resolution after durability.',
       },
       {
-        signature: 'async resolveByPath(path: string): Promise<Workspace | undefined>',
-        description: 'Resolve by canonical directory path without creating or mutating a workspace. A missing path rejects during `realpath`; an existing unowned directory returns `undefined`.',
-        parameters: [{ name: 'path', description: 'Existing directory path in a fully qualified spelling.' }],
-        returns: 'the workspace owning the canonical path, when one exists.',
+        signature: 'async resolveByPath(path: string, execution: ExecutionBinding = { kind: \'local\' }): Promise<Workspace | undefined>',
+        description: 'Resolve a Workspace by execution binding and canonical directory without creating or mutating it. Local paths use realpath; remote paths require a verified directory lease. Missing paths or unavailable execution reject; an existing unowned directory returns `undefined`.',
+        parameters: [{ name: 'path', description: 'Existing directory path in a fully qualified spelling.' }, { name: 'execution', description: 'Captured execution selection; omitted means local.' }],
+        returns: 'the workspace owning that binding and canonical path, when one exists.',
       },
     ],
   },
@@ -5748,7 +6245,7 @@ export const EVENT_API: readonly EventApiEntry[] = [
     mode: 'emit',
     signature: '\'execution-host-targets/changed\'(): void',
     summary: 'Saved records or one live connection observation changed after its commit.',
-    description: 'Saved records or one live connection observation changed after its commit.',
+    description: 'Saved records or one live connection observation changed after its commit. Listener failures are logged and cannot alter the committed operation or starve later listeners.',
     parameters: [],
   },
   {
@@ -5902,6 +6399,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'One registered namespace\'s RAW user section changed, whether or not the resolved value did.',
     description: 'One registered namespace\'s RAW user section changed, whether or not the resolved value did. `settings/updated` is the consumer-facing event and stays deep-equal-gated; this one exists for configuration surfaces, which must learn that a field went from inherited to overridden (same resolved value, different meaning) and that their held revision is stale. Listener containment matches `settings/updated`.',
     parameters: [{ name: 'ns', description: 'the namespace whose stored section changed.' }, { name: 'revision', description: 'the namespace\'s new revision.' }],
+  },
+  {
+    name: 'settings/namespaces-updated',
+    mode: 'emit',
+    signature: '\'settings/namespaces-updated\'(ns: SettingsNamespace): void',
+    summary: 'A namespace registration was added or removed.',
+    description: 'A namespace registration was added or removed. Emitted after the registry commit, when describe() reflects the change; the raw document and its revisions remain unchanged. Listener failures follow settings/updated containment, including synchronous invariant failure propagation.',
+    parameters: [{ name: 'ns', description: 'the namespace whose registration changed.' }],
   },
   {
     name: 'settings/updated',
@@ -6780,6 +7285,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface BrowserPagesValue {\n    readonly profileName: string;\n    readonly pages: readonly BrowserPage[];\n    readonly maxFileBytes: number;\n}',
   },
   {
+    name: 'BrowserPreferences',
+    declaration: 'export interface BrowserPreferences {\n    readonly browserChannel: \'chrome\' | \'msedge\' | \'chromium\';\n    readonly headless: boolean;\n    readonly viewportWidth: number;\n    readonly viewportHeight: number;\n    readonly profileName: string;\n    readonly homePage: string;\n    readonly searchEngine: \'google\' | \'bing\' | \'duckduckgo\';\n}',
+  },
+  {
     name: 'BrowserProfileValue',
     declaration: 'export interface BrowserProfileValue {\n    readonly profileName: string;\n}',
   },
@@ -6790,6 +7299,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'BrowserRect',
     declaration: 'export interface BrowserRect {\n    readonly x: number;\n    readonly y: number;\n    readonly width: number;\n    readonly height: number;\n}',
+  },
+  {
+    name: 'BrowserRuntimeCancelRequest',
+    declaration: 'export interface BrowserRuntimeCancelRequest {\n    readonly taskId: BrowserRuntimeTaskId;\n}',
+  },
+  {
+    name: 'BrowserRuntimeStatus',
+    declaration: 'export interface BrowserRuntimeStatus {\n    readonly providerActive: boolean;\n    readonly source: \'system\' | \'managed\' | \'custom\';\n    readonly channel: BrowserPreferences[\'browserChannel\'];\n    readonly executablePath: string | null;\n    readonly installed: boolean;\n    readonly browserState: \'stopped\' | \'starting\' | \'running\';\n    readonly playwrightVersion: string;\n    readonly browserVersion: string;\n    readonly revision: string;\n    readonly managedInstalled: boolean;\n    readonly downloadOrigins: readonly string[];\n    readonly task: BrowserRuntimeTask | null;\n}',
+  },
+  {
+    name: 'BrowserRuntimeTask',
+    declaration: 'export interface BrowserRuntimeTask {\n    readonly taskId: BrowserRuntimeTaskId;\n    readonly operation: \'install\' | \'reinstall\' | \'remove\';\n    readonly state: \'running\' | \'succeeded\' | \'failed\' | \'cancelled\';\n    readonly phase: \'preparing\' | \'downloading\' | \'committing\' | \'complete\';\n    readonly progressPercent: number | null;\n    readonly errorCode: \'download-failed\' | \'filesystem-failed\' | null;\n}',
+  },
+  {
+    name: 'BrowserRuntimeTaskId',
+    declaration: 'export type BrowserRuntimeTaskId = Branded<\'BrowserRuntimeTaskId\'>;',
   },
   {
     name: 'BrowserScreenshot',
@@ -6949,7 +7474,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ComputerCapabilityObservation',
-    declaration: 'export interface ComputerCapabilityObservation {\n    readonly platform: string;\n    readonly provider: string;\n    readonly providerVersion: string;\n    readonly protocolVersion: number;\n    readonly supports: ComputerCapabilities[\'supports\'];\n    readonly permissions: \'unknown\';\n}',
+    declaration: 'export type ComputerCapabilityObservation = ComputerToolReadiness | {\n    readonly kind: \'facade\';\n    readonly platform: string;\n    readonly provider: string;\n    readonly providerVersion: string;\n    readonly protocolVersion: number;\n    readonly supports: ComputerCapabilities[\'supports\'];\n    readonly permissions: \'unknown\';\n};',
   },
   {
     name: 'ComputerClickRequest',
@@ -7004,6 +7529,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ComputerPressKeyRequest extends ComputerActionRequest {\n    readonly key: string;\n}',
   },
   {
+    name: 'ComputerReadiness',
+    declaration: 'export type ComputerReadiness = ComputerToolReadiness | {\n    readonly kind: \'facade\';\n    readonly capabilities: ComputerCapabilities;\n    readonly permissions: \'unknown\';\n};',
+  },
+  {
     name: 'ComputerScreenshot',
     declaration: 'export interface ComputerScreenshot {\n    readonly mediaType: \'image/png\';\n    readonly data: Uint8Array;\n    readonly width: number;\n    readonly height: number;\n    readonly scale: number;\n}',
   },
@@ -7026,6 +7555,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ComputerSetValueRequest',
     declaration: 'export interface ComputerSetValueRequest extends ComputerActionRequest {\n    readonly elementId: ComputerElementId;\n    readonly value: string;\n}',
+  },
+  {
+    name: 'ComputerToolReadiness',
+    declaration: 'export interface ComputerToolReadiness {\n    readonly kind: \'tool-catalog\';\n    readonly provider: string;\n    readonly platform: NodeJS.Platform;\n    readonly state: \'initializing\' | \'ready\' | \'disposing\' | \'failed\';\n    readonly toolNames: readonly string[];\n    readonly permissions: \'unknown\';\n}',
   },
   {
     name: 'ComputerTypeTextRequest',
@@ -7201,7 +7734,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'CreateTargetRequest',
-    declaration: 'export interface CreateTargetRequest {\n    readonly label: string;\n    readonly sshAlias: string;\n}',
+    declaration: 'export interface CreateTargetRequest {\n    readonly label: string;\n    readonly sshAlias: string;\n    readonly execution?: SshExecutionConfiguration | undefined;\n}',
   },
   {
     name: 'CreateTaskRequest',
@@ -7273,7 +7806,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'DeviceCapabilityReason',
-    declaration: 'export type DeviceCapabilityReason = \'not-configured\' | \'cli-missing\' | \'provider-unavailable\' | \'protocol-error\' | \'probe-failed\' | \'no-devices\';',
+    declaration: 'export type DeviceCapabilityReason = \'not-configured\' | \'cli-missing\' | \'provider-unavailable\' | \'protocol-error\' | \'probe-failed\' | \'no-devices\' | \'provider-initializing\' | \'provider-disposing\' | \'provider-failed\';',
   },
   {
     name: 'DeviceCapabilityRequest',
@@ -7432,8 +7965,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EpochHeader {\n    config: LlmCallConfig;\n    adapterDefaults?: LlmCallConfigAdapterDefaults;\n    tools?: ToolSchema[];\n}',
   },
   {
+    name: 'ExecutionAuthorization',
+    declaration: 'export interface ExecutionAuthorization {\n    assertCurrent(): void;\n    release(): void;\n}',
+  },
+  {
+    name: 'ExecutionBinding',
+    declaration: 'export type ExecutionBinding = {\n    readonly kind: \'local\';\n} | SshExecutionSnapshot;',
+  },
+  {
     name: 'ExecutionHostInfo',
     declaration: 'export interface ExecutionHostInfo {\n    readonly hostId: ExecutionHostId;\n    readonly hostname: string;\n    readonly pid: number;\n    readonly platform: string;\n    readonly createdAt: string;\n}',
+  },
+  {
+    name: 'ExecutionIncarnation',
+    declaration: 'export type ExecutionIncarnation = Branded<\'ExecutionIncarnation\'>;',
+  },
+  {
+    name: 'ExecutionLease',
+    declaration: 'export interface ExecutionLease {\n    readonly binding: ExecutionBinding;\n    readonly ctx: Context;\n    readonly cwd: string;\n    readonly platform: NodeJS.Platform;\n    readonly incarnation: ExecutionIncarnation;\n    readonly signal: AbortSignal;\n    assertCurrent(): void;\n    release(): Promise<void>;\n}',
   },
   {
     name: 'ExecutionTargetId',
@@ -7933,7 +8482,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'InvokeRemoteRequest',
-    declaration: 'export interface InvokeRemoteRequest {\n    readonly namespace: string;\n    readonly method: string;\n    readonly args: Readonly<Record<string, unknown>>;\n    readonly signal?: AbortSignal;\n}',
+    declaration: 'export interface InvokeRemoteRequest {\n    readonly access: HostConnectionAccess;\n    readonly namespace: string;\n    readonly method: string;\n    readonly args: Readonly<Record<string, unknown>>;\n    readonly signal?: AbortSignal;\n}',
   },
   {
     name: 'IosSimulatorAvailability',
@@ -8336,6 +8885,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MobileButtonRequest extends MobileMutationRequest {\n    readonly button: string;\n}',
   },
   {
+    name: 'MobileConnectedDevice',
+    declaration: 'export interface MobileConnectedDevice {\n    readonly id: string;\n    readonly serial: string;\n    readonly state: string;\n    readonly transportId: string | null;\n    readonly available: boolean;\n}',
+  },
+  {
     name: 'MobileDevice',
     declaration: 'export interface MobileDevice {\n    readonly backend: string;\n    readonly id: MobileDeviceId;\n    readonly name: string;\n    readonly state: string;\n    readonly isAvailable: boolean;\n    readonly detail?: string;\n}',
   },
@@ -8356,6 +8909,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MobileDeviceSummary {\n    readonly id: string;\n    readonly name: string;\n    readonly state: string;\n    readonly isAvailable: boolean;\n}',
   },
   {
+    name: 'MobileExecutableLease',
+    declaration: 'export interface MobileExecutableLease {\n    readonly executable: string;\n    readonly release: () => Promise<void>;\n}',
+  },
+  {
+    name: 'MobileMirrorId',
+    declaration: 'export type MobileMirrorId = Branded<\'MobileMirrorId\'>;',
+  },
+  {
+    name: 'MobileMirrorStatus',
+    declaration: 'export interface MobileMirrorStatus {\n    readonly id: MobileMirrorId;\n    readonly deviceId: string;\n    readonly state: \'starting\' | \'running\' | \'closed\' | \'failed\';\n    readonly error: string | null;\n}',
+  },
+  {
     name: 'MobileMutationRequest',
     declaration: 'export interface MobileMutationRequest {\n    readonly deviceId: MobileDeviceId;\n    readonly observationId: MobileObservationId;\n}',
   },
@@ -8374,6 +8939,38 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MobileObserveSpec',
     declaration: 'export interface MobileObserveSpec extends MobileObserveRequest {\n    readonly deviceId: MobileDeviceId;\n}',
+  },
+  {
+    name: 'MobileResourceDefinition',
+    declaration: 'export interface MobileResourceDefinition {\n    readonly id: MobileResourceId;\n    readonly version: string;\n    readonly platform: \'win32-x64\';\n    readonly url: string;\n    readonly sha256: string;\n    readonly bytes: number;\n    readonly archiveRoot: string;\n    readonly executable: string;\n    readonly licenseUrl: string;\n    readonly licenseName: string;\n}',
+  },
+  {
+    name: 'MobileResourceId',
+    declaration: 'export type MobileResourceId = \'platform-tools\' | \'scrcpy\';',
+  },
+  {
+    name: 'MobileResourceRequest',
+    declaration: 'export interface MobileResourceRequest {\n    readonly resourceId: MobileResourceId;\n    readonly operation: MobileResourceTask[\'operation\'];\n    readonly expectedRevision: MobileResourceRevision;\n    readonly acceptLicense: boolean;\n}',
+  },
+  {
+    name: 'MobileResourceRevision',
+    declaration: 'export type MobileResourceRevision = Branded<\'MobileResourceRevision\'>;',
+  },
+  {
+    name: 'MobileResourceStatus',
+    declaration: 'export interface MobileResourceStatus {\n    readonly definition: MobileResourceDefinition;\n    readonly supported: boolean;\n    readonly revision: MobileResourceRevision;\n    readonly installedVersion: string | null;\n    readonly installedPath: string | null;\n    readonly integrity: \'missing\' | \'verified\' | \'invalid\';\n    readonly leased: boolean;\n    readonly updateAvailable: boolean;\n}',
+  },
+  {
+    name: 'MobileResourceTask',
+    declaration: 'export interface MobileResourceTask {\n    readonly id: MobileResourceTaskId;\n    readonly resourceId: MobileResourceId;\n    readonly operation: \'install\' | \'reinstall\' | \'update\' | \'remove\';\n    readonly state: \'running\' | \'succeeded\' | \'failed\' | \'cancelled\';\n    readonly phase: \'preparing\' | \'downloading\' | \'verifying\' | \'extracting\' | \'committing\' | \'complete\';\n    readonly downloadedBytes: number;\n    readonly totalBytes: number;\n    readonly error: string | null;\n}',
+  },
+  {
+    name: 'MobileResourceTaskId',
+    declaration: 'export type MobileResourceTaskId = Branded<\'MobileResourceTaskId\'>;',
+  },
+  {
+    name: 'MobileRuntimeStatus',
+    declaration: 'export interface MobileRuntimeStatus {\n    readonly platform: string;\n    readonly resources: readonly MobileResourceStatus[];\n    readonly task: MobileResourceTask | null;\n    readonly adb: {\n        readonly source: \'custom\' | \'managed\' | \'path\';\n        readonly path: string;\n        readonly version: string | null;\n        readonly error: string | null;\n    };\n    readonly devices: readonly MobileConnectedDevice[];\n    readonly mirror: MobileMirrorStatus | null;\n    readonly iosSupported: false;\n}',
   },
   {
     name: 'MobileScreenshot',
@@ -8494,6 +9091,30 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PackageResult',
     declaration: 'export interface PackageResult {\n    exitCode: number;\n    output: string;\n    truncated: boolean;\n    logPath: string;\n    kind?: PluginInstallFailureKind;\n}',
+  },
+  {
+    name: 'PairedDevice',
+    declaration: 'export interface PairedDevice extends PairingGrant {\n    readonly deviceId: PairedDeviceId;\n    readonly displayName: string;\n    readonly createdAt: number;\n    readonly expiresAt: number;\n    readonly revokedAt: number | null;\n}',
+  },
+  {
+    name: 'PairedDeviceId',
+    declaration: 'export type PairedDeviceId = Branded<\'paired-device-id\'>;',
+  },
+  {
+    name: 'PairingGrant',
+    declaration: 'export interface PairingGrant {\n    readonly sessionIds: readonly SessionId[];\n    readonly scopes: readonly PairingScope[];\n}',
+  },
+  {
+    name: 'PairingInvitation',
+    declaration: 'export interface PairingInvitation extends PairingGrant {\n    readonly invitationId: PairingInvitationId;\n    readonly code: string;\n    readonly expiresAt: number;\n}',
+  },
+  {
+    name: 'PairingInvitationId',
+    declaration: 'export type PairingInvitationId = Branded<\'pairing-invitation-id\'>;',
+  },
+  {
+    name: 'PairingScope',
+    declaration: 'export type PairingScope = \'session:read\' | \'session:send\' | \'session:stop\' | \'questions:answer\' | \'approvals:decide\';',
   },
   {
     name: 'ParameterPropertySpec',
@@ -8732,6 +9353,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RedactedSecret {\n    path: string[];\n    set: boolean;\n}',
   },
   {
+    name: 'RemoteAccessStatus',
+    declaration: 'export interface RemoteAccessStatus {\n    readonly state: \'disabled\' | \'not-configured\' | \'ready\';\n    readonly missingConfiguration: readonly (\'hostAdapter\' | \'advertisedOrigin\' | \'tlsCertificatePath\' | \'tlsPrivateKeyPath\')[];\n    readonly origin: string | null;\n    readonly certificateFingerprint: string | null;\n    readonly devices: readonly PairedDevice[];\n}',
+  },
+  {
     name: 'RemoteError',
     declaration: 'export class RemoteError<Code extends RemoteErrorCode = RemoteErrorCode> extends Error {\n    readonly isDSHRemoteError: true;\n    constructor(readonly code: Code, message: string, readonly details: RemoteErrorDetailsMap[Code], options?: ErrorOptions);\n}',
   },
@@ -8822,6 +9447,54 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RunStatus',
     declaration: 'export type RunStatus = \'pending\' | \'running\' | \'succeeded\' | \'failed\' | \'cancelled\';',
+  },
+  {
+    name: 'RuntimeEndpoint',
+    declaration: 'export interface RuntimeEndpoint {\n    readonly host: string;\n    readonly port: number;\n    readonly username: string;\n    readonly privateKeyFile: string;\n    readonly hostKeySHA256: string;\n}',
+  },
+  {
+    name: 'RuntimeGeneration',
+    declaration: 'export type RuntimeGeneration = Branded<\'RuntimeGeneration\'>;',
+  },
+  {
+    name: 'RuntimeInspection',
+    declaration: 'export interface RuntimeInspection {\n    readonly state: \'missing\' | \'installed\';\n    readonly platform: string;\n    readonly arch: string;\n    readonly node: string;\n    readonly nodeVersion: string;\n    readonly installRoot: string;\n    readonly generation: RuntimeGeneration;\n    readonly directory?: string | undefined;\n    readonly version?: string | undefined;\n    readonly sourceCommit?: string | undefined;\n    readonly protocol?: number | undefined;\n    readonly helper?: string | undefined;\n    readonly helperHash?: string | undefined;\n    readonly bootstrapPath?: string | undefined;\n    readonly bootstrapHash?: string | undefined;\n}',
+  },
+  {
+    name: 'RuntimeInstallation',
+    declaration: 'export interface RuntimeInstallation {\n    readonly target: Omit<TargetValue[\'target\'], \'execution\'>;\n    readonly runtime: RuntimeInspection;\n}',
+  },
+  {
+    name: 'RuntimeInstallRequest',
+    declaration: 'export interface RuntimeInstallRequest extends RuntimeLocation {\n    readonly target: TargetRevisionRequest;\n}',
+  },
+  {
+    name: 'RuntimeLocation',
+    declaration: 'export interface RuntimeLocation {\n    readonly endpoint: RuntimeEndpoint;\n    readonly node: string;\n    readonly installRoot: string;\n    readonly workspace: string;\n}',
+  },
+  {
+    name: 'RuntimeStartRequest',
+    declaration: 'export interface RuntimeStartRequest extends RuntimeInstallRequest {\n    readonly operation: \'install\' | \'update\';\n}',
+  },
+  {
+    name: 'RuntimeTask',
+    declaration: 'export interface RuntimeTask {\n    readonly id: RuntimeTaskId;\n    readonly target: TargetRevisionRequest;\n    readonly operation: \'install\' | \'update\';\n    readonly state: \'running\' | \'succeeded\' | \'failed\' | \'cancelled\';\n    readonly startedAt: string;\n    readonly completedAt?: string;\n    readonly result?: RuntimeInstallation;\n    readonly error?: string;\n}',
+  },
+  {
+    name: 'RuntimeTaskId',
+    declaration: 'export type RuntimeTaskId = Branded<\'RuntimeTaskId\'>;',
+  },
+  {
+    name: 'RuntimeTaskRequest',
+    declaration: 'export interface RuntimeTaskRequest {\n    readonly id: RuntimeTaskId;\n}',
+  },
+  {
+    name: 'RuntimeTasksValue',
+    declaration: 'export interface RuntimeTasksValue {\n    readonly tasks: readonly RuntimeTask[];\n}',
+  },
+  {
+    name: 'RuntimeTaskValue',
+    declaration: 'export interface RuntimeTaskValue {\n    readonly task: RuntimeTask;\n}',
   },
   {
     name: 'SandboxEnforcement',
@@ -9213,7 +9886,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionOpenWorkspacePathRequest',
-    declaration: 'export interface SessionOpenWorkspacePathRequest {\n    readonly path: string;\n    readonly action?: \'open\' | \'reveal\';\n}',
+    declaration: 'export interface SessionOpenWorkspacePathRequest {\n    readonly sessionId: SessionId;\n    readonly path: string;\n    readonly action?: \'open\' | \'reveal\';\n}',
   },
   {
     name: 'SessionOpenWorkspacePathValue',
@@ -9764,12 +10437,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SidebarTerminalCapability = {\n    readonly status: \'available\';\n    readonly shellName: string;\n} | {\n    readonly status: \'unavailable\';\n    readonly reason: \'missing-dependencies\';\n};',
   },
   {
+    name: 'SidebarTerminalCloseAgentRequest',
+    declaration: 'export interface SidebarTerminalCloseAgentRequest {\n    readonly sessionId: SidebarTerminalSessionId;\n    readonly uuid: SidebarAgentTerminalId;\n}',
+  },
+  {
     name: 'SidebarTerminalCloseUiRequest',
     declaration: 'export interface SidebarTerminalCloseUiRequest extends SidebarTerminalUiTarget {\n    readonly processId: SidebarTerminalProcessId;\n}',
   },
   {
     name: 'SidebarTerminalFrame',
-    declaration: 'export type SidebarTerminalFrame = {\n    readonly type: \'ready\';\n    readonly attachmentId: SidebarTerminalAttachmentId;\n    readonly processId: SidebarTerminalProcessId;\n    readonly pid: number;\n    readonly cwd: string;\n    readonly shellName: string;\n    readonly shellPath?: string;\n} | {\n    readonly type: \'data\';\n    readonly attachmentId: SidebarTerminalAttachmentId;\n    readonly sequence: number;\n    readonly data: string;\n} | {\n    readonly type: \'exit\';\n    readonly attachmentId: SidebarTerminalAttachmentId;\n    readonly exitCode: number;\n};',
+    declaration: 'export type SidebarTerminalFrame = {\n    readonly type: \'ready\';\n    readonly attachmentId: SidebarTerminalAttachmentId;\n    readonly processId: SidebarTerminalProcessId;\n    readonly pid: number;\n    readonly cwd: string;\n    readonly shellName: string;\n    readonly shellPath?: string;\n    readonly title?: string;\n} | {\n    readonly type: \'data\';\n    readonly attachmentId: SidebarTerminalAttachmentId;\n    readonly sequence: number;\n    readonly data: string;\n} | {\n    readonly type: \'exit\';\n    readonly attachmentId: SidebarTerminalAttachmentId;\n    readonly exitCode: number;\n};',
   },
   {
     name: 'SidebarTerminalInputRequest',
@@ -9786,6 +10463,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SidebarTerminalReleaseRequest',
     declaration: 'export interface SidebarTerminalReleaseRequest {\n    readonly attachmentId: SidebarTerminalAttachmentId;\n    readonly mode: \'disconnect\' | \'park\' | \'close\';\n}',
+  },
+  {
+    name: 'SidebarTerminalRenameUiRequest',
+    declaration: 'export interface SidebarTerminalRenameUiRequest extends SidebarTerminalCloseUiRequest {\n    readonly title: string;\n}',
   },
   {
     name: 'SidebarTerminalResizeRequest',
@@ -9805,7 +10486,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SidebarTerminalTarget',
-    declaration: 'export type SidebarTerminalTarget = {\n    readonly kind: \'ui\';\n    readonly sessionId: SidebarTerminalSessionId;\n    readonly tabId: SidebarTerminalTabId;\n    readonly floating?: SidebarFloatingTerminalDirectory;\n    readonly shellPath?: string;\n} | {\n    readonly kind: \'agent\';\n    readonly uuid: SidebarAgentTerminalId;\n};',
+    declaration: 'export type SidebarTerminalTarget = {\n    readonly kind: \'ui\';\n    readonly sessionId: SidebarTerminalSessionId;\n    readonly tabId: SidebarTerminalTabId;\n    readonly floating?: SidebarFloatingTerminalDirectory;\n    readonly shellPath?: string;\n} | {\n    readonly kind: \'agent\';\n    readonly sessionId: SidebarTerminalSessionId;\n    readonly uuid: SidebarAgentTerminalId;\n};',
   },
   {
     name: 'SidebarTerminalUiTarget',
@@ -9814,6 +10495,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SidebarToolsService',
     declaration: 'export interface SidebarToolsService {\n    define: typeof import(\'@deepseek-ai/dsh-tools\').defineTool;\n    register(tool: import(\'@deepseek-ai/dsh-tools\').ToolDefinition): () => void;\n}',
+  },
+  {
+    name: 'SidebarUiTerminalSnapshot',
+    declaration: 'export interface SidebarUiTerminalSnapshot extends SidebarTerminalCloseUiRequest {\n    readonly title: string;\n    readonly shellPath: string;\n    readonly cwd: string;\n    readonly pid: number;\n    readonly floating?: SidebarFloatingTerminalDirectory;\n}',
   },
   {
     name: 'SidebarUpgradeHead',
@@ -9938,6 +10623,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SplitNode',
     declaration: 'export type SplitNode = SidebarLeaf | SidebarSplit;',
+  },
+  {
+    name: 'SshExecutionConfiguration',
+    declaration: 'export interface SshExecutionConfiguration {\n    readonly endpoint: {\n        readonly host: string;\n        readonly port: number;\n        readonly username: string;\n        readonly privateKeyFile: string;\n        readonly hostKeySHA256: string;\n    };\n    readonly node: string;\n    readonly helper: string;\n    readonly helperHash: string;\n    readonly workspace: string;\n    readonly bootstrapPath?: string | undefined;\n    readonly bootstrapHash?: string | undefined;\n}',
+  },
+  {
+    name: 'SshExecutionSnapshot',
+    declaration: 'export interface SshExecutionSnapshot {\n    readonly kind: \'ssh\';\n    readonly targetId: ExecutionTargetId;\n    readonly revision: number;\n    readonly endpoint: {\n        readonly host: string;\n        readonly port: number;\n        readonly username: string;\n        readonly hostKeySHA256: string;\n    };\n    readonly node: string;\n    readonly helper: string;\n    readonly helperHash: string;\n    readonly workspace: string;\n    readonly bootstrapPath: string;\n    readonly bootstrapHash: string;\n}',
   },
   {
     name: 'SshStreamEndpoint',
@@ -10536,12 +11229,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface TypertEventModel extends TypertDocumentation {\n    readonly name: string;\n    readonly mode?: string;\n    readonly signature: string;\n}',
   },
   {
-    name: 'TypertGatewayBinding',
-    declaration: 'export interface TypertGatewayBinding<Service extends object = object> {\n    readonly service: Service;\n    readonly serviceKey: string;\n    readonly namespace: string;\n}',
+    name: 'TypertGatewayAccessPolicy',
+    declaration: 'export interface TypertGatewayAccessPolicy {\n    readonly maxQueuedEvents: number;\n    readonly maxQueuedEventBytes: number;\n    authorizeInvocation(endpoint: string, payload: unknown): void | Promise<void>;\n    projectResult(endpoint: string, payload: unknown, value: unknown): unknown;\n    projectStreamItem(endpoint: string, payload: unknown, value: unknown): unknown;\n    permitsEvent(event: TypertRemoteEventFrame | TypertRemoteEventInvocation): boolean;\n}',
   },
   {
-    name: 'TypertGatewayWireStream',
-    declaration: 'export interface TypertGatewayWireStream {\n    readonly open: (endpoint: string, payload: unknown, signal: AbortSignal) => Promise<AsyncIterable<unknown>>;\n    readonly failure: (error: unknown) => {\n        readonly code: string;\n        readonly message: string;\n        readonly details: object;\n    };\n}',
+    name: 'TypertGatewayBinding',
+    declaration: 'export interface TypertGatewayBinding<Service extends object = object> {\n    readonly service: Service;\n    readonly serviceKey: string;\n    readonly namespace: string;\n}',
   },
   {
     name: 'TypertMemberModel',
@@ -10660,6 +11353,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface VerifiedWebhookDelivery<K extends string = string> {\n    readonly kind: K;\n    readonly source: WebhookSourceId;\n    readonly deliveryId: WebhookDeliveryId;\n    readonly event: WebhookEventOf<K>;\n    readonly receivedAt: number;\n}',
   },
   {
+    name: 'VoiceCancelRequest',
+    declaration: 'export interface VoiceCancelRequest extends VoiceModelRequest {\n    readonly taskId: string;\n}',
+  },
+  {
     name: 'VoiceEngine',
     declaration: 'export interface VoiceEngine {\n    readonly id: string;\n    loadModel(definition: VoiceModelDefinition, cacheDir: string): Promise<VoiceRecognizer>;\n}',
   },
@@ -10684,16 +11381,28 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type VoiceModelKind = \'streaming\' | \'non-streaming\';',
   },
   {
+    name: 'VoiceModelOperation',
+    declaration: 'export type VoiceModelOperation = \'download\' | \'reinstall\' | \'update\';',
+  },
+  {
     name: 'VoiceModelRequest',
     declaration: 'export interface VoiceModelRequest {\n    readonly modelId: string;\n}',
   },
   {
+    name: 'VoiceModelResource',
+    declaration: 'export interface VoiceModelResource {\n    readonly revision: string;\n    readonly source: readonly string[];\n    readonly installedVersion: string | null;\n    readonly availableVersion: string;\n    readonly updateAvailable: boolean;\n    readonly integrity: \'verified\' | \'unverified\' | \'missing\' | \'corrupt\';\n}',
+  },
+  {
     name: 'VoiceModelRow',
-    declaration: 'export interface VoiceModelRow {\n    readonly definition: Pick<VoiceModelDefinition, \'id\' | \'name\' | \'description\' | \'recommended\' | \'approximateBytes\'>;\n    readonly status: VoiceModelStatus;\n}',
+    declaration: 'export interface VoiceModelRow {\n    readonly resource: VoiceModelResource;\n    readonly task: VoiceModelTask | null;\n    readonly definition: Pick<VoiceModelDefinition, \'id\' | \'name\' | \'description\' | \'recommended\' | \'approximateBytes\'>;\n    readonly status: VoiceModelStatus;\n}',
+  },
+  {
+    name: 'VoiceModelsCancelValue',
+    declaration: 'export interface VoiceModelsCancelValue {\n    readonly cancelled: boolean;\n}',
   },
   {
     name: 'VoiceModelsDownloadValue',
-    declaration: 'export interface VoiceModelsDownloadValue {\n    readonly cacheDir: string;\n}',
+    declaration: 'export type VoiceModelsDownloadValue = VoiceModelTask;',
   },
   {
     name: 'VoiceModelsListValue',
@@ -10708,8 +11417,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type VoiceModelStatus = {\n    readonly state: \'not-downloaded\';\n} | {\n    readonly state: \'downloading\';\n    readonly receivedBytes: number;\n    readonly totalBytes: number;\n} | {\n    readonly state: \'extracting\';\n    readonly receivedBytes: number;\n    readonly totalBytes: number;\n} | {\n    readonly state: \'ready\';\n    readonly cacheDir: string;\n} | {\n    readonly state: \'failed\';\n    readonly message: string;\n};',
   },
   {
+    name: 'VoiceModelTask',
+    declaration: 'export interface VoiceModelTask {\n    readonly taskId: VoiceModelTaskId;\n    readonly modelId: VoiceModelId;\n    readonly operation: VoiceModelOperation;\n    readonly state: \'running\' | \'succeeded\' | \'failed\' | \'cancelled\';\n    readonly progress?: {\n        readonly state: \'downloading\' | \'extracting\';\n        readonly receivedBytes: number;\n        readonly totalBytes: number;\n    };\n    readonly error?: {\n        readonly code: string;\n        readonly message: string;\n    };\n}',
+  },
+  {
+    name: 'VoiceModelTaskId',
+    declaration: 'export type VoiceModelTaskId = Branded<\'VoiceModelTaskId\'>;',
+  },
+  {
     name: 'VoiceOperations',
-    declaration: 'export interface VoiceOperations {\n    engineStatus(signal: AbortSignal): Promise<VoiceEngineStatus>;\n    modelsList(signal: AbortSignal): Promise<VoiceModelsListValue>;\n    modelsDownload(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelsDownloadValue>;\n    modelsRemove(modelId: VoiceModelId, signal: AbortSignal): Promise<void>;\n    transcribe(request: VoiceTranscribeRequest, signal: AbortSignal): Promise<VoiceTranscribeResult>;\n}',
+    declaration: 'export interface VoiceOperations {\n    engineStatus(signal: AbortSignal): Promise<VoiceEngineStatus>;\n    modelsList(signal: AbortSignal): Promise<VoiceModelsListValue>;\n    modelsDownload(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelsDownloadValue>;\n    modelsReinstall(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelTask>;\n    modelsUpdate(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelTask>;\n    modelsCancel(modelId: VoiceModelId, taskId: VoiceModelTaskId, signal: AbortSignal): Promise<VoiceModelsCancelValue>;\n    modelsRemove(modelId: VoiceModelId, signal: AbortSignal): Promise<void>;\n    transcribe(request: VoiceTranscribeRequest, signal: AbortSignal): Promise<VoiceTranscribeResult>;\n}',
   },
   {
     name: 'VoiceRecognizer',
@@ -11025,7 +11742,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'Workspace',
-    declaration: 'export interface Workspace {\n    readonly id: WorkspaceId;\n    readonly path: string;\n    readonly title: string;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly sessionIds: readonly SessionId[];\n    setTitle(title: string): Promise<void>;\n    attachSession(sessionId: SessionId): Promise<void>;\n    insertSessionBefore(sessionId: SessionId, beforeSessionId?: SessionId): Promise<void>;\n    detachSession(sessionId: SessionId): Promise<void>;\n    status(): Promise<\'ok\' | \'missing-dir\'>;\n}',
+    declaration: 'export interface Workspace {\n    readonly id: WorkspaceId;\n    readonly path: string;\n    readonly execution: ExecutionBinding;\n    readonly title: string;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly sessionIds: readonly SessionId[];\n    setTitle(title: string): Promise<void>;\n    attachSession(sessionId: SessionId): Promise<void>;\n    insertSessionBefore(sessionId: SessionId, beforeSessionId?: SessionId): Promise<void>;\n    detachSession(sessionId: SessionId): Promise<void>;\n    status(): Promise<\'ok\' | \'missing-dir\'>;\n}',
   },
   {
     name: 'WorkspaceArchiveSessionRequest',
@@ -11053,7 +11770,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceCreateRequest',
-    declaration: 'export interface WorkspaceCreateRequest {\n    readonly path: string;\n}',
+    declaration: 'export interface WorkspaceCreateRequest {\n    readonly path: string;\n    readonly targetRevision?: TargetRevisionRequest;\n}',
   },
   {
     name: 'WorkspaceCreateValue',
@@ -11249,7 +11966,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceView',
-    declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly path: string;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+    declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly path: string;\n    readonly execution?: ExecutionBinding;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
   },
   {
     name: 'WorktreeTask',

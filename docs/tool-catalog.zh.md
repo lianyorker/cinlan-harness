@@ -1952,7 +1952,7 @@ Press one provider-supported device navigation button using an exact observation
 
 ### `mobile_list_devices`
 
-List exact local Android emulator and iOS simulator device ids.
+列出已配置移动设备提供方返回的确切设备 ID 与可用性。
 
 ```json
 {

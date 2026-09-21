@@ -811,12 +811,21 @@ workspaceDesktop(): { name: string; available: boolean; fileManager: 'finder' | 
 
 /**
  * Open one path prepared by a Session-aware caller on the Host desktop.
- * @param request - path after best-effort Session workspace resolution.
+ * @param request - owning Session and path in its execution environment.
  * @param signal - caller lifetime; abort terminates the native command.
  * @returns confirmation after the native opener accepts the path.
  * @throws RemoteError when the request is invalid, cancelled, or the opener fails.
  */
 @Remote('openWorkspacePath') async openWorkspacePath( request: SessionOpenWorkspacePathRequest, signal: AbortSignal, ): Promise<SessionOpenWorkspacePathValue>
+
+/** Open a path using a caller-retained local lease; remote leases never invoke Host applications.
+ * @param lease - execution ownership retained by the complete caller operation.
+ * @param path - path to resolve inside that execution environment.
+ * @param action - registered application or file-manager reveal.
+ * @param signal - caller cancellation, combined with lease lifetime.
+ * @returns confirmation after the native opener accepts the resolved local path.
+ */
+async openExecutionPath(lease: ExecutionLease, path: string, action: 'open' | 'reveal', signal: AbortSignal): Promise<SessionOpenWorkspacePathValue>
 
 /**
  * Rename one Session after explicitly resuming it.
@@ -886,7 +895,7 @@ workspaceDesktop(): { name: string; available: boolean; fileManager: 'finder' | 
 @Remote({ mode: 'stream' }) control(signal: AbortSignal): AsyncIterable<SessionControlFrame>
 ```
 
-Types: [SessionId](core.md) · [SessionInspection](persistence.md) · [SessionSearchRequest](session-query.md)
+Types: [ExecutionLease](../../packages/execution-host/execution-binding/README.md) · [SessionId](core.md) · [SessionInspection](persistence.md) · [SessionSearchRequest](session-query.md)
 
 Source: [`packages/api/session-controller/src/index.ts`](../../packages/api/session-controller/src/index.ts)
 

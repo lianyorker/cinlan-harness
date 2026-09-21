@@ -36,11 +36,14 @@ interface Workspace {
   readonly id: WorkspaceId
 
   /**
-   * Canonical directory path: the `fs.realpath` of the path given at create
-   * time (trailing slashes, `..`, and symlinks all resolved). Never rewritten
+   * Canonical directory path in the captured execution filesystem; local
+   * realpath or the remote lease resolves symlinks at creation. Never rewritten
    * afterwards, even when the directory disappears (see {@link status}).
    */
   readonly path: string
+
+  /** Captured execution selection; configured SSH root remains distinct from the canonical path. */
+  readonly execution: ExecutionBinding
 
   /** Display title. Defaults to the final path segment, or a filesystem root's own spelling; duplicates are allowed. */
   readonly title: string
@@ -56,7 +59,7 @@ interface Workspace {
    * prepended at attach, explicit reordering goes through
    * `insertSessionBefore`, and activity never reorders. The durable candidate
    * account is filtered synchronously: missing headers, invalid cwd values,
-   * and canonical cwd mismatches are never returned. A subsequent workspace
+   * execution binding differences, and canonical cwd mismatches are never returned. A subsequent workspace
    * mutation prunes those filtered candidates durably.
    */
   readonly sessionIds: readonly SessionId[]
@@ -72,10 +75,10 @@ interface Workspace {
    * Prepend a session to this workspace's candidate account. An already
    * accounted id resolves without writing, aside from the durable
    * filtered-candidate prune every accepted mutation performs. A new id's
-   * live or persisted
-   * header cwd must resolve to an existing directory equal to {@link path};
-   * unknown ids, missing or invalid cwd values, and mismatches reject without
-   * writing.
+   * published execution lease (or durable local fallback when the optional
+   * service is absent) must match, and its provider must verify a cwd equal to
+   * {@link path}; unknown ids, missing or invalid cwd values, and mismatches
+   * reject without writing. The lease is released after validation.
    * @param sessionId - The session to record.
    * @returns resolution after durability.
    */
@@ -109,7 +112,11 @@ interface Workspace {
    * Live directory check, uncached: whether {@link path} currently exists and
    * is a directory. A missing directory never mutates the record — the
    * directory may only be temporarily moved.
-   * @returns `'ok'` when the directory exists, `'missing-dir'` otherwise.
+   * Remote checks acquire and release the captured execution binding; attachment
+   * instead retains the published Session lease through provider verification.
+   * An unavailable service, target, or connection rejects without a local fallback.
+   * @returns `'ok'` for a directory, `'missing-dir'` when a successful lease's
+   * filesystem reports absence/non-directory or a local stat fails. Lease admission failures reject.
    */
   status(): Promise<'ok' | 'missing-dir'>
 }
@@ -439,7 +446,7 @@ Host Remote service over the composed filesystem, confined to one workspace.
  * @returns `ready` once the Host observation queue is active and the workspace
  *   root is resolved, then queued and live observations in emission order.
  */
-@Remote({ mode: 'stream' }) changes(agent: Agent, signal: AbortSignal): AsyncIterable<WorkspaceFileWatchFrame>
+@Remote({ mode: 'stream' }) async *changes(agent: Agent, signal: AbortSignal): AsyncIterable<WorkspaceFileWatchFrame>
 ```
 
 Types: [Agent](core.zh.md)
@@ -567,21 +574,22 @@ Source: [`packages/workspace/workspace-isolation/src/index.ts`](../../packages/w
 
 ### `ctx.workspaceRegistry` — `WorkspaceRegistry`
 
-Durable workspace registry. Startup waits for `sessionPersistence`, builds one canonical-cwd header index, and completes the one-time history bootstrap before the service becomes active. The persistence dependency is mandatory so an unavailable peer can never be mistaken for an empty history and commit the initialized marker.
+Durable workspace registry. Startup waits for `sessionPersistence`, folds each durable Session's execution event when the optional execution service is absent, builds one canonical-cwd header index, and completes the one-time history bootstrap before the service becomes active. The persistence dependency is mandatory so an unavailable peer can never be mistaken for an empty history and commit the initialized marker.
 
 ```ts cordis-catalog
 /**
  * Create or reuse a workspace for an existing directory. The fully qualified
- * path is canonicalized through `fs.realpath`; a relative, nonexistent, or
- * non-directory path rejects. Repeated calls for the same canonical path
+ * path is canonicalized in its execution filesystem; a relative, nonexistent, or
+ * non-directory path rejects. Repeated calls for the same binding and canonical path
  * return the existing entity without changing its title.
  * A newly created workspace is prepended to the durable registry order.
  * Different canonical paths may share a display title.
  * @param path - Existing directory to own, in a fully qualified path spelling.
  * @param title - Display title used only when a new record is created.
+ * @param execution - Captured execution selection; omitted means local. SSH requires executionBindings.
  * @returns the existing or newly durable workspace.
  */
-async create(path: string, title?: string): Promise<Workspace>
+async create(path: string, title?: string, execution: ExecutionBinding = { kind: 'local' }): Promise<Workspace>
 
 /**
  * Look up a workspace by id.
@@ -639,16 +647,18 @@ archiveSession(sessionId: SessionId): Promise<void>
 unarchiveSession(sessionId: SessionId): Promise<void>
 
 /**
- * Resolve by canonical directory path without creating or mutating a
- * workspace. A missing path rejects during `realpath`; an existing unowned
- * directory returns `undefined`.
+ * Resolve a Workspace by execution binding and canonical directory without
+ * creating or mutating it. Local paths use realpath; remote paths require
+ * a verified directory lease. Missing paths or unavailable execution reject;
+ * an existing unowned directory returns `undefined`.
  * @param path - Existing directory path in a fully qualified spelling.
- * @returns the workspace owning the canonical path, when one exists.
+ * @param execution - Captured execution selection; omitted means local.
+ * @returns the workspace owning that binding and canonical path, when one exists.
  */
-async resolveByPath(path: string): Promise<Workspace | undefined>
+async resolveByPath(path: string, execution: ExecutionBinding = { kind: 'local' }): Promise<Workspace | undefined>
 ```
 
-Types: [SessionId](core.zh.md)
+Types: [ExecutionBinding](../../packages/execution-host/execution-binding/README.zh.md) · [SessionId](core.zh.md)
 
 Source: [`packages/workspace/workspace/src/index.ts`](../../packages/workspace/workspace/src/index.ts)
 

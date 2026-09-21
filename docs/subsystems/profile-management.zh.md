@@ -72,7 +72,7 @@ Manage profile files and apply their declared reload lifecycle.
  * that fails, is cancelled, or adds a package without a bundle patch restores
  * `package.json` and `pnpm-lock.yaml` as they were; downloaded files can stay.
  * @param spec One package spec, including local paths relative to the invocation directory.
- * @param options Whether to activate the installed bundle (defaults to true), the request id a cancellation names, and
+ * @param options Whether to activate the installed bundle (defaults to true), a request id unique among live installations, and
  * the pending build scripts to allow for this profile before pnpm runs.
  * @returns Package-manager diagnostics and observed activation outcome.
  */

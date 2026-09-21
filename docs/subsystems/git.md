@@ -57,134 +57,111 @@ Source: [`packages/git/git/src/index.ts`](../../packages/git/git/src/index.ts)
 
 ### `ctx.sidebarGit` — `SidebarGit`
 
-Execute repository-bound user actions; core model-facing Git tools remain independent.
+Execute repository-bound user actions in the Session's retained execution world.
 
 ```ts cordis-catalog
-/**
- * Resolve a directory for the existing sidebar filesystem-root display.
- * @param cwd - directory already selected by the calling Host filesystem route.
+/** Execute status in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns canonical repository root, or undefined outside a repository.
- */
-async discover(cwd: string, signal?: AbortSignal): Promise<string | undefined>
-
-/**
- * Read working-tree entries, exact repository facts, and effective group order.
- * @param request - attached Session identity.
- * @param signal - caller cancellation.
- * @returns current Git panel data; a non-repository has no mutation target.
+ * @returns the operation result after managed subprocess settlement.
  */
 async status(request: GitSessionRequest, signal?: AbortSignal): Promise<GitStatusResult>
 
-/**
- * Read a worktree or staged diff for literal paths.
- * @param request - Session, optional path, and staged selection.
+/** Execute diff in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns complete unified diff text.
+ * @returns the operation result after managed subprocess settlement.
  */
 async diff(request: GitDiffRequest, signal?: AbortSignal): Promise<GitDiffResult>
 
-/**
- * Stage selected files, or all files for an explicit all-files request.
- * @param request - displayed repository and optional literal path.
+/** Execute stage in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns successful completion.
+ * @returns the operation result after managed subprocess settlement.
  */
 async stage(request: GitPathMutationRequest, signal?: AbortSignal): Promise<GitMutationResult>
 
-/**
- * Unstage selected files without changing worktree contents.
- * @param request - displayed repository and optional literal path.
+/** Execute unstage in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns successful completion.
+ * @returns the operation result after managed subprocess settlement.
  */
 async unstage(request: GitPathMutationRequest, signal?: AbortSignal): Promise<GitMutationResult>
 
-/**
- * List existing local branches.
- * @param request - attached Session identity.
+/** Execute branches in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns names and the checked-out branch, or HEAD when detached.
+ * @returns the operation result after managed subprocess settlement.
  */
 async branches(request: GitSessionRequest, signal?: AbortSignal): Promise<GitBranchesResult>
 
-/**
- * Switch only to an existing local branch selected by the user.
- * @param request - displayed repository and branch.
+/** Execute checkout in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns successful completion.
+ * @returns the operation result after managed subprocess settlement.
  */
 async checkout(request: GitCheckoutRequest, signal?: AbortSignal): Promise<GitMutationResult>
 
-/**
- * Prepare the exact attributed message and repository facts for confirmation.
- * @param request - repository displayed by the UI and the user's message.
+/** Execute prepareCommit in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns complete commit intent; preparation changes neither index nor refs.
+ * @returns the operation result after managed subprocess settlement.
  */
 async prepareCommit(request: GitPrepareCommitRequest, signal?: AbortSignal): Promise<GitCommitPreview>
 
-/**
- * Commit exactly a reviewed intent after rechecking Session, repository, HEAD, and index.
- * @param request - unchanged preview confirmed by the user.
+/** Execute commit in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns the new commit and the message recorded by Git, including user-hook edits.
+ * @returns the operation result after managed subprocess settlement.
  */
 async commit(request: GitCommitRequest, signal?: AbortSignal): Promise<GitCommitResult>
 
-/**
- * Compare committed changes against the selected locally cached base.
- * @param request - attached Session identity.
+/** Execute compare in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns a pinned comparison, or the specific missing prerequisite.
+ * @returns the operation result after managed subprocess settlement.
  */
 async compare(request: GitSessionRequest, signal?: AbortSignal): Promise<GitCompareResult>
 
-/**
- * Read one bounded history page.
- * @param request - Session, page size, and offset.
+/** Execute log in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns existing sidebar history rows.
+ * @returns the operation result after managed subprocess settlement.
  */
 async log(request: GitLogRequest, signal?: AbortSignal): Promise<GitLogEntry[]>
 
-/**
- * Read a file from a pinned revision.
- * @param request - Session, revision, and literal repository path.
+/** Execute show in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns file contents, or null when no such file exists at that revision.
+ * @returns the operation result after managed subprocess settlement.
  */
 async show(request: GitShowRequest, signal?: AbortSignal): Promise<GitShowResult>
 
-/**
- * Read the patch for an existing history commit.
- * @param request - Session and selected commit.
+/** Execute commitDiff in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns the patch against the first parent for merge commits.
+ * @returns the operation result after managed subprocess settlement.
  */
 async commitDiff(request: GitRevisionRequest, signal?: AbortSignal): Promise<GitDiffResult>
 
-/**
- * Discard one tracked worktree path after its explicit confirmation.
- * @param request - displayed repository, HEAD, and literal path.
+/** Execute discard in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns successful completion; the index remains unchanged.
+ * @returns the operation result after managed subprocess settlement.
  */
 async discard(request: GitDiscardRequest, signal?: AbortSignal): Promise<GitMutationResult>
 
-/**
- * Revert a selected commit after explicit confirmation.
- * @param request - displayed repository, HEAD, and selected history commit.
+/** Execute revert in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns successful completion.
+ * @returns the operation result after managed subprocess settlement.
  */
 async revert(request: GitRevisionMutationRequest, signal?: AbortSignal): Promise<GitMutationResult>
 
-/**
- * Cherry-pick a selected commit after explicit confirmation.
- * @param request - displayed repository, HEAD, and selected history commit.
+/** Execute cherryPick in the Session's captured world.
+ * @param request - Session-owned Git request.
  * @param signal - caller cancellation.
- * @returns successful completion.
+ * @returns the operation result after managed subprocess settlement.
  */
 async cherryPick(request: GitRevisionMutationRequest, signal?: AbortSignal): Promise<GitMutationResult>
 ```

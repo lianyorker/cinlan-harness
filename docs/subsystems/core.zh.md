@@ -48,7 +48,7 @@ interface AgentHandle {
 }
 ```
 
-`CreateAgentOptions` 携带共享标识以及新 agent 发布前所需的一切：可选的存活 `parentAgent`、会话元数据（`meta`——已校验的 `cwd`、fork 谱系、`isSeeded` 标记、来源分类、委派深度与 `agentPreset`）、同级字段 `inheritedEventCount` 所表示的精确 fork cut、可选的 `seed` 回放前缀、按 agent 的 `AgentOptions`、仅创建期有效的取消 `signal`，以及 `setup`。`ResumeAgentOptions` 是持久标识的对应项：`resumeSessionId`、`parentAgent`、`agentOptions`、`signal` 与 `setup`。`setup` 回调（`AgentSetup`）在两个 id 均未发布时接收 `(agentCtx, agent)`：上下文拥有作用域注册，显式 Agent 提供确切的子 Session，Context 无需反向属性。凡经 `agentCtx` 注册的内容都先于 `agent/created` 与第一次提示词组装存在。Setup 可以返回在发布前一刻调用的同步 commit；setup 拒绝、commit 抛出或所有者 dispose（资源释放）都会回滚事务，两个 id 均不发布。
+`CreateAgentOptions` 携带共享标识以及新 agent 发布前所需的一切：可选的存活 `parentAgent`、会话元数据（`meta`——已校验的 `cwd`、fork 谱系、`isSeeded` 标记、来源分类、委派深度与 `agentPreset`）、同级字段 `inheritedEventCount` 所表示的精确 fork cut、可选的 `seed` 回放前缀、按 agent 的 `AgentOptions`、仅创建期有效的取消 `signal`，以及 `setup`。`ResumeAgentOptions` 是持久标识的对应项：`resumeSessionId`、`parentAgent`、`agentOptions`、`signal` 与 `setup`。`setup` 回调（`AgentSetup`）在两个 id 均未发布时接收 `(agentCtx, agent)`：上下文拥有作用域注册，显式 Agent 提供确切的子 Session，Context 无需反向属性。凡经 `agentCtx` 注册的内容都先于 `agent/created` 与第一次提示词组装存在。Setup 可以返回在持久化之后、注册表插入之前调用一次的同步 commit；该 commit 不得追加 Session 事件；setup 拒绝、commit 抛出或所有者 dispose（资源释放）都会回滚事务，两个 id 均不发布。
 
 `AgentFactory` 是注册表背后的创建接口：循环经 `ctx.agents.setFactory()` 注册其工厂，因此消费方使用 `ctx.agents` 时无需依赖具体循环包。运行时子 Agent 的创建方设置 `options.parentAgent`；注册表把 options 与调用方 Context 传给工厂，不从其中一项推导另一项。确切的 `create`/`resume` 签名及回滚约定见下方[生成区块](#ctxagents--agentregistry)。
 
@@ -577,6 +577,16 @@ async resolve(id?: string): Promise<AgentPreset>
 async mount(agentCtx: Context, id?: string): Promise<AgentPreset>
 
 /**
+ * Mount a preset with the selected execution providers for one Agent lifetime.
+ * @param agentCtx - unpublished Agent scope owning teardown.
+ * @param id - preset identity to mount.
+ * @param executionCtx - admitted context carrying the execution provider isolation map.
+ * @param platform - platform reported by the admitted execution runtime.
+ * @returns the mounted preset; failures leave no mounted consumers.
+ */
+async mountInExecution(agentCtx: Context, id: string, executionCtx: Context, platform: NodeJS.Platform): Promise<AgentPreset>
+
+/**
  * Join one agent to the SAME standing composition another already runs on.
  *
  * This is how a child agent inherits its parent's capabilities. It is a bind,
@@ -588,11 +598,9 @@ async mount(agentCtx: Context, id?: string): Promise<AgentPreset>
  * parent's history was produced under (and a preset deleted since would fail
  * the child outright while its parent keeps running).
  *
- * Synchronous, and with no composition failure mode of its own — it reads no
- * roster, mounts nothing, and touches no file — which is what lets a child
- * creation window use it: the two in-process subagent drivers compose their
- * children inside a synchronous `setup`. It still rejects a caller error, as
- * the `@throws` below record.
+ * The child must complete execution admission before joining a remote parent.
+ * Joining is synchronous and reads no files; the parent owns the mounted
+ * consumers until its children settle.
  *
  * A parent that joined no preset — a rosterless deployment — yields no join
  * and no error: there, the model-facing rows sit in the host composition and

@@ -14,7 +14,7 @@ Status: implemented
 
 接受的执行时刻先提交唯一标识、冻结执行输入和游标，随后才通过公开 API 创建 Agent。提交失败会锁定为存储不可用，因此移除外部故障不会隐式恢复结果不确定的准入。显式手动令牌使准入保持幂等；计划与手动重叠分别产生可见结果。UTC 重复规则不在启动时补跑，已提交游标不会回退。
 
-每次调用使用显式 Workspace、模型、Agent 预设和权限输入创建普通 Agent Session。发布前完成设置，任务经正常的用户消息日志路径进入会话。默认值不会替代缺失的已保存引用。预设 id 仍选择当前文件组合。[Controller](../../../../packages/api/automation-controller/README.zh.md) 与 [页面](../../../../packages/client/ui-settings-automation/README.zh.md) 通过既有 Remote 和框架观察机制公开已提交状态。
+每次调用使用显式 Workspace、模型、Agent 预设和权限输入创建普通 Agent Session。访问 Host 路径前及发布时都会检查 Workspace 执行身份；SSH 路径恰好存在于本地并不授权 Host 执行。profile 提供执行绑定时，设置阶段记录显式本地选择，并将其最终提交纳入 Agent 发布事务。未提供该服务的 profile 保留普通本地设置流程。发布前完成设置，任务经正常的用户消息日志路径进入会话。默认值不会替代缺失的已保存引用。预设 id 仍选择当前文件组合。[Controller](../../../../packages/api/automation-controller/README.zh.md) 与 [页面](../../../../packages/client/ui-settings-automation/README.zh.md) 通过既有 Remote 和框架观察机制公开已提交状态。
 
 恢复不重放启动或结果不确定的工作。它记录 ambiguous 或 interrupted 证据，暂停定义供人工检查，并保留调用历史。整个 Host 关闭时，持久化可能在正常结束记录落盘前卸载；此状态记为中断，不虚构取消或成功。活动状态不明确时，运行时使用已确认的 flush 参与和持久 Session 证据。
 

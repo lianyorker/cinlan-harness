@@ -85,6 +85,8 @@ declare class SshConnection extends Service {
   constructor(ctx: Context, config: Config);
   /** Hold plugin readiness until the remote identity and helper digest are verified. */
   async [Service.init](): Promise<void>;
+  /** Aborts when this exact connection fails or begins disposal; it never reconnects. */
+  get signal(): AbortSignal;
   /** Verified remote Node executable for the paired PTC runtime. */
   get nodeExecutable(): string;
   /** Verified preinstalled PTC entry; unconfigured runtimes fail before program execution. */

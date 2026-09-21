@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-durable-automation-ownership.md
-2026-09-17-durable-automation-ownership.md: d097719c38567225b4428cdf5f99e682563a2120
-2026-09-17-durable-automation-ownership.zh.md: e2747063f4ca1cc1217ee4c1b905f25b28da712d
+2026-09-17-durable-automation-ownership.md: 85f0ba8cafcfe1e40e56dd6b01e6de2e35d6ecb0
+2026-09-17-durable-automation-ownership.zh.md: 63da6783f6b352b73790ea95b9fd7342e3e7269e

@@ -435,6 +435,19 @@ Types: [ToolCallId](subsystems/core.md)
 
 Source: [`packages/deliverables/tool-present/src/types.ts:15`](../packages/deliverables/tool-present/src/types.ts)
 
+### `execution/*`
+
+<a id="executionbound--log-only"></a>
+
+#### `execution/bound` — log-only
+
+```ts persistence-catalog
+/** Captured execution deployment; retained by resume and fork without changing Session ownership. */
+'execution/bound': { readonly binding: ExecutionBinding }
+```
+
+Source: [`packages/execution-host/execution-binding/src/session.ts:16`](../packages/execution-host/execution-binding/src/session.ts)
+
 ### `feedback/*`
 
 <a id="feedbackmessage-delete--log-only"></a>

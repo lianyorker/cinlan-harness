@@ -26,6 +26,7 @@ kind: "package-group"
 | [`execution-host/`](execution-host/README.zh.md) | provenance 与授权使用的 execution-host identity 约定 |
 | [`execution-host-local/`](execution-host-local/README.zh.md) | 提供不可变宿主 identity 事实的本地进程 provider |
 | [`execution-host-targets/`](execution-host-targets/README.zh.md) | 保存目标记录、严格 OpenSSH 连接与活动检查所有权 |
+| [`execution-binding/`](execution-binding/README.zh.md) | 持久 Workspace/Session 执行选择与具有租约的官方 SSH provider 组合 |
 | [`execution-host-worker/`](execution-host-worker/README.zh.md) | 采用显式导出根目录及版本化检查消息的 stdio worker |
 
 <a id="dev-note"></a>

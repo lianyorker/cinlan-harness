@@ -46,7 +46,7 @@ interface AgentHandle {
 }
 ```
 
-`CreateAgentOptions` carries the shared identity and everything a fresh agent needs before publication: an optional live `parentAgent`, session metadata (`meta` — validated `cwd`, fork lineage, the `isSeeded` marker, origin classification, delegation depth, and `agentPreset`), the exact fork cut in sibling field `inheritedEventCount`, an optional `seed` replay prefix, per-agent `AgentOptions`, a creation-only cancellation `signal`, and `setup`. `ResumeAgentOptions` is the persisted-identity counterpart: `resumeSessionId`, `parentAgent`, `agentOptions`, `signal`, and `setup`. The `setup` callback (`AgentSetup`) receives `(agentCtx, agent)` while both ids are still unpublished: the context owns scoped registrations, while the explicit Agent supplies the exact child Session without a reverse property on the Context. Everything registered through `agentCtx` exists before `agent/created` and the first prompt assembly. Setup may return a synchronous commit invoked immediately before publication; a setup rejection, commit throw, or owner disposal rolls the transaction back without publishing either id.
+`CreateAgentOptions` carries the shared identity and everything a fresh agent needs before publication: an optional live `parentAgent`, session metadata (`meta` — validated `cwd`, fork lineage, the `isSeeded` marker, origin classification, delegation depth, and `agentPreset`), the exact fork cut in sibling field `inheritedEventCount`, an optional `seed` replay prefix, per-agent `AgentOptions`, a creation-only cancellation `signal`, and `setup`. `ResumeAgentOptions` is the persisted-identity counterpart: `resumeSessionId`, `parentAgent`, `agentOptions`, `signal`, and `setup`. The `setup` callback (`AgentSetup`) receives `(agentCtx, agent)` while both ids are still unpublished: the context owns scoped registrations, while the explicit Agent supplies the exact child Session without a reverse property on the Context. Everything registered through `agentCtx` exists before `agent/created` and the first prompt assembly. Setup may return a synchronous commit invoked once after persistence and immediately before registry insertion; the commit cannot append Session events; a setup rejection, commit throw, or owner disposal rolls the transaction back without publishing either id.
 
 `AgentFactory` is the creation interface behind the registry: the loop registers its factory via `ctx.agents.setFactory()`, so consumers use `ctx.agents` without depending on the concrete loop package. A runtime child creator sets `options.parentAgent`; the registry passes the options and caller Context to the factory without deriving one from the other. The exact `create`/`resume` signatures and rollback contracts are in the [generated section](#ctxagents--agentregistry) below.
 
@@ -567,6 +567,16 @@ async resolve(id?: string): Promise<AgentPreset>
 async mount(agentCtx: Context, id?: string): Promise<AgentPreset>
 
 /**
+ * Mount a preset with the selected execution providers for one Agent lifetime.
+ * @param agentCtx - unpublished Agent scope owning teardown.
+ * @param id - preset identity to mount.
+ * @param executionCtx - admitted context carrying the execution provider isolation map.
+ * @param platform - platform reported by the admitted execution runtime.
+ * @returns the mounted preset; failures leave no mounted consumers.
+ */
+async mountInExecution(agentCtx: Context, id: string, executionCtx: Context, platform: NodeJS.Platform): Promise<AgentPreset>
+
+/**
  * Join one agent to the SAME standing composition another already runs on.
  *
  * This is how a child agent inherits its parent's capabilities. It is a bind,
@@ -578,11 +588,9 @@ async mount(agentCtx: Context, id?: string): Promise<AgentPreset>
  * parent's history was produced under (and a preset deleted since would fail
  * the child outright while its parent keeps running).
  *
- * Synchronous, and with no composition failure mode of its own — it reads no
- * roster, mounts nothing, and touches no file — which is what lets a child
- * creation window use it: the two in-process subagent drivers compose their
- * children inside a synchronous `setup`. It still rejects a caller error, as
- * the `@throws` below record.
+ * The child must complete execution admission before joining a remote parent.
+ * Joining is synchronous and reads no files; the parent owns the mounted
+ * consumers until its children settle.
  *
  * A parent that joined no preset — a rosterless deployment — yields no join
  * and no error: there, the model-facing rows sit in the host composition and

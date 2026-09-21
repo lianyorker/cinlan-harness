@@ -1946,7 +1946,7 @@ Source: [`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/m
 
 ### `mobile_list_devices`
 
-List exact local Android emulator and iOS simulator device ids.
+List exact device ids and availability from the configured mobile provider.
 
 ```json
 {

@@ -111,7 +111,7 @@ snapshot(): AutomationSnapshot
  */
 subscribe(listener: (snapshot: AutomationSnapshot) => void): () => void
 
-/** Resolve and save a new disabled automation.
+/** Resolve and save a disabled automation for a local Workspace; remote bindings reject before path access.
  * @param draft - explicit user choices; defaults are resolved by the editor.
  * @returns the committed definition.
  */
