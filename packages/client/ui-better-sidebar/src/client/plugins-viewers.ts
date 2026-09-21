@@ -14,6 +14,13 @@ import type { PluginEntry } from './plugins-shared.ts'
 /** File-previewer plugins (alphabetical order). */
 export const builtinViewerPlugins: readonly PluginEntry[] = [
   {
+    id: '@huanlin/dsh-plugin-better-sidebar-plugin-office',
+    name: 'Office 预览插件',
+    url: 'https://github.com/huanlin/dsh-plugin-better-sidebar-plugin-office',
+    description: () => t('pluginOfficeDesc'),
+    install: 'cd ~/.dsh && dsh plugin --profile web add @huanlin/dsh-plugin-better-sidebar-plugin-office',
+  },
+  {
     id: 'dsh-video-preview',
     name: '视频预览插件',
     url: 'https://github.com/zemul/dsh-video-preview',
