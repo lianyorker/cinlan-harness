@@ -12,13 +12,15 @@ Status: implemented
 
 侧栏原生 Provider 拥有 PTY 创建、保留输出、输入、尺寸调整、确认、停放与终止。[侧栏终端 Service Definition](../../../../packages/terminal/sidebar-terminals/README.zh.md) 独立于 Web 服务器公开这些操作。经过身份验证的 [Remote Controller 与 Client 工厂](../../../../packages/api/sidebar-terminal-controller/README.zh.md) 在 Web 和 Desktop 中使用已有 Connection 通道。UI 登记向终端视图注入普通回调；功能 UI 不导入 Gateway 运行值，也不拥有第二套传输。
 
-UI 终端具有 Session/标签目标、原生进程 id，以及独立的流 attachment id。重新附加到存活进程会更换 attachment，不会让旧 attachment 获得对替代进程的权限。输入、尺寸、额度和 release 操作指向已准入的 attachment。显式 UI 关闭必须提供精确的原生进程 id。Client 没有缓存进程 id 时，先执行只读检查；检查不能创建、取消停放、调整尺寸或延长保留时间。因此，过期或不存在的进程不会让关闭操作创建或终止另一进程。Agent 终端关闭保留其独立分配的终端 UUID。
+UI 终端具有 Session/标签目标、原生进程 id，以及独立的流 attachment id。重新附加到存活进程会更换 attachment，不会让旧 attachment 获得对替代进程的权限。输入、尺寸、额度和 release 操作指向已准入的 attachment。显式 UI 关闭必须提供精确的原生进程 id。Client 没有缓存进程 id 时，先执行只读检查；检查不能创建、取消停放、调整尺寸或延长保留时间。因此，过期或不存在的进程不会让关闭操作创建或终止另一进程。Agent 附加与关闭同时携带所属 Session 和独立分配的终端 UUID；其他 Session 只能观察到该 UUID 不存在。
+
+侧边栏界面进程在准入时捕获一个 Session 执行租约，并持有它直到原生进程退出和提供方终止操作结束。同一 Session/标签的并发打开会串行准入，避免创建相互竞争的 PTY。本地 Session 保留原生 node-pty owner，本地界面与 Agent Shell 使用共享子进程服务已经清除凭据的父进程环境。SSH Session 通过捕获的子进程提供方创建终端，在同一个 POSIX 环境中解析 Shell 和浮动目录，并在重新连接时保留该执行实例。租约失效会拒绝流并终止捕获的进程，不能静默选择本地提供方。关闭等待待完成的创建操作和已发布句柄，包括被渲染器背压暂停的输出。
 
 原生 PTY 同时拥有人工标题。重命名在修改前比较已观察到的进程 id；延迟的编辑器不能重命名同一标签下的替代进程。保留列表恢复仅把存活的 Host 进程投影到已有布局，按 Session 和浮动窗口隔离。枚举不能延长保留期限，延迟返回的结果不能覆盖更新的本地重命名或重新打开已在本地关闭的标签。持久化布局元数据不会让保存的进程身份在 Host 重启后获得权限。标题与原生进程事实不进入 Session JSONL。
 
 内置终端标签的关闭钩子即使在渲染器从未挂载时，也调用对应的 UI 或 Agent 操作。标签注册表的关闭通知是同步的，因此异步关闭被拒绝时记录诊断，不产生未处理拒绝，也不声称原生终止已经完成。关闭流会释放其 attachment；显式进程关闭和 Host 拆除各自保留原生所有权。
 
-每次侧栏 UI 激活从 Client 工厂取得一个传输 scope。scope 拆除保存同一 Promise，并持续被跟踪直到结束。Provider 撤回工厂时关闭准入并中止生命周期，然后等待所有活动或正在拆除的 scope；失败保留在聚合结果中。UI 拆除也等待自己的 scope。这样，并发 UI 拆除、Provider 卸载和重新初始化都保留清理责任。
+每次侧栏 UI 激活从 Client 工厂取得一个传输 scope。scope 拆除保存同一 Promise，并持续被跟踪直到结束。Provider 撤回工厂时关闭准入并中止生命周期，然后等待所有活动或正在拆除的 scope；失败保留在聚合结果中。UI 拆除也等待自己的 scope。Host Controller 在进入 Provider 之前登记异步 Shell 发现、输入和尺寸调整；拆除中止准入，并像等待 open/watch iterator 一样等待这些调用。这样，并发 UI 拆除、Provider 卸载和重新初始化都保留清理责任。
 
 终端输出采用带确认的有界帧。原生 owner、Controller 队列和通道分别限制自己保留或发送的完整值，包括各自的元数据。JSON 转义控制字符时，回放文本会显著膨胀；不能用未转义字符数推算容量。既有原生回放上限与默认传输限制允许完整保留记录通过真实身份验证的确认流程。取消和正常退出都会结束 iterator、Controller 操作及通道资源。
 

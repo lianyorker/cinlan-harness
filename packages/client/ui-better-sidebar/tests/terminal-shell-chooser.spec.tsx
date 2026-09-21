@@ -45,8 +45,13 @@ function callbacks() {
     ]),
   }
 }
+function connectCall(connection: ReturnType<typeof callbacks>, index: number) {
+  const call = connection.connectTerminal.mock.calls[index]
+  if (call === undefined) throw new Error(`Missing terminal connection call at index ${index}`)
+  return call
+}
 async function ready(connection: ReturnType<typeof callbacks>, index: number, name: string) {
-  await act(async () => { await connection.connectTerminal.mock.calls[index][1]({
+  await act(async () => { await connectCall(connection, index)[1]({
     type: 'ready', attachmentId: 'attachment', processId: 'process', pid: 1, cwd: '/workspace', shellName: name,
   } as SidebarTerminalFrame) })
 }
@@ -77,16 +82,17 @@ describe('terminal tab shell chooser', () => {
       launch={terminalLaunchOf(first)} {...connection} />)
     await act(async () => {})
     expect(connection.connectTerminal).not.toHaveBeenCalled()
-    expect(screen.getByRole('combobox').textContent).toBe('Use Settings defaultbashzsh')
+    expect(screen.getByRole('combobox').textContent).toBe('Use default shellbashzsh')
+    expect(connection.terminalShells).toHaveBeenCalledWith(sessionId)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: '/bin/zsh' } })
     fireEvent.click(screen.getByRole('button', { name: 'Start terminal' }))
-    expect(connection.connectTerminal.mock.calls[0][0].target).toMatchObject({ tabId: first.id, shellPath: '/bin/zsh' })
+    expect(connectCall(connection, 0)[0].target).toMatchObject({ tabId: first.id, shellPath: '/bin/zsh' })
     await ready(connection, 0, 'zsh')
     expect(tabs(store).find(tab => tab.id === first.id)).toMatchObject({ title: 'zsh', meta: { terminalLaunch: { pending: false, shellPath: '/bin/zsh' } } })
     view.rerender(<TerminalView scope={{ sessionId }} store={store} tabId={second.id} launch={terminalLaunchOf(second)} {...connection} />)
     await act(async () => {})
     fireEvent.click(screen.getByRole('button', { name: 'Start terminal' }))
-    expect(connection.connectTerminal.mock.calls[1][0].target).not.toHaveProperty('shellPath')
+    expect(connectCall(connection, 1)[0].target).not.toHaveProperty('shellPath')
     await ready(connection, 1, 'settings-shell')
     expect(store.getPrefs()).toMatchObject({ terminalShell: '/settings/shell', terminalShellArgs: '--settings' })
     await vi.runAllTimersAsync()
@@ -97,10 +103,10 @@ describe('terminal tab shell chooser', () => {
     render(<TerminalView scope={{ sessionId }} store={restored} tabId={saved.id} launch={terminalLaunchOf(saved)} {...connection} />)
     expect(screen.queryByRole('combobox')).toBeNull()
     expect(connection.terminalShells).toHaveBeenCalledTimes(2)
-    expect(connection.connectTerminal.mock.calls[2][0].target).toMatchObject({ tabId: first.id, shellPath: '/bin/zsh' })
+    expect(connectCall(connection, 2)[0].target).toMatchObject({ tabId: first.id, shellPath: '/bin/zsh' })
   })
 
-  it('reports discovery failures, retries, and can still launch the Settings default', async () => {
+  it('reports discovery failures, retries, and can still launch the default shell', async () => {
     const connection = callbacks()
     connection.terminalShells.mockRejectedValueOnce(new Error('provider unavailable'))
     render(<TerminalView scope={{ sessionId }} store={new SidebarStore()} tabId="terminal:retry" launch={{ pending: true }} {...connection} />)
@@ -110,7 +116,7 @@ describe('terminal tab shell chooser', () => {
     await act(async () => {})
     expect(screen.getByRole('combobox').textContent).toContain('zsh')
     fireEvent.click(screen.getByRole('button', { name: 'Start terminal' }))
-    expect(connection.connectTerminal.mock.calls[0][0].target).not.toHaveProperty('shellPath')
+    expect(connectCall(connection, 0)[0].target).not.toHaveProperty('shellPath')
   })
 
   it('keeps malformed saved shell values out of Remote requests and preserves old tabs', () => {

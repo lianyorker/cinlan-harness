@@ -1,0 +1,105 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "verbatimModuleSyntax": true,
+    "exactOptionalPropertyTypes": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitOverride": false,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src/client",
+    "src/context-types.ts",
+    "src/html-route.ts",
+    "src/prefs-shared.ts",
+    "src/sidechat-core.ts",
+    "src/subagent-activity.ts"
+  ],
+  "references": [
+    { "path": "../../subprocess/subprocess" },
+    { "path": "../../fs/fs" },
+    { "path": "../../execution-host/execution-binding" },
+    { "path": "../../document/office-to-pdf" },
+    { "path": "../../api/session-controller/tsconfig.client.json" },
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../ui-renderer"
+    },
+    {
+      "path": "../ui-settings"
+    },
+    {
+      "path": "../locale"
+    },
+    {
+      "path": "../modules"
+    },
+    {
+      "path": "../ui-slots"
+    },
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-settings"
+    },
+    {
+      "path": "../ui-conversation"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../../settings/settings"
+    },
+    {
+      "path": "../../subagent/subagent"
+    },
+    {
+      "path": "../../host/webserver"
+    },
+    {
+      "path": "../keyboard"
+    },
+    {
+      "path": "../../terminal/sidebar-terminals"
+    },
+    {
+      "path": "../../git/sidebar-git"
+    },
+    {
+      "path": "../connection/tsconfig.client.json"
+    },
+    {
+      "path": "../../util/crypto"
+    },
+    {
+      "path": "../../api/gateway/tsconfig.client.json"
+    },
+    {
+      "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../../api/sidebar-terminal-controller/tsconfig.client.json"
+    }
+  ]
+}

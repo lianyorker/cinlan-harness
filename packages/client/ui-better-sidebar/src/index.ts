@@ -36,6 +36,8 @@ import { SidebarTerminalProvider } from './terminal-provider.ts'
 import { launchExternal } from './open-external.ts'
 import { buildGitApi } from './git.ts'
 import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-execution-binding'
+import type { SessionId } from '@deepseek-ai/dsh-session'
 import { defaultShell, ensureSpawnHelper, PtyManager, shellDisplayName } from './pty-manager.ts'
 import { AgentPtyRegistry } from './agent-pty.ts'
 import {
@@ -126,9 +128,9 @@ function sessionCwdOf(ctx: Context, sessionId: string, clientCwd?: string): stri
  * paths pass through; relative ones join the repo root (falling back to the
  * cwd when the root cannot be resolved, e.g. a bare directory).
  */
-async function resolveGitPath(ctx: Context, cwd: string, raw: string): Promise<string> {
+async function resolveGitPath(ctx: Context, sessionId: SessionId, cwd: string, raw: string): Promise<string> {
   if (isAbsolute(raw)) return requireAbsolute(raw)
-  const root = await ctx.get('sidebarGit')?.discover(cwd)
+  const root = (await ctx.get('sidebarGit')?.status({ sessionId }))?.repository?.root
   return requireAbsolute(join(root ?? cwd, raw))
 }
 
@@ -274,10 +276,10 @@ function buildApi(
       return searchFiles(cwd, query)
     },
     'fs.read': async (payload) => {
-      const { cwd } = cwdOf(payload)
+      const { sessionId, cwd } = cwdOf(payload)
       // Relative paths are git-derived (status/diff report repo-root-relative
       // names; the untracked diff view reads the file through this route).
-      const path = await resolveGitPath(ctx, cwd, requireString(payload, 'path'))
+      const path = await resolveGitPath(ctx, sessionId as unknown as SessionId, cwd, requireString(payload, 'path'))
       const { content, truncated, binary, size, head } = await readText(path, resolved.readLimit)
       if (binary) return { kind: 'binary', size, truncated, head }
       return { kind: 'text', content, truncated }
@@ -561,12 +563,19 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
 
   const terminalProvider = new SidebarTerminalProvider(ctx, {
     ui: ptyManager, agents: agentPtyRegistry, config: resolved,
-    sessionCwd: id => sessionCwdOf(ctx, id),
-    sessionWorkspace: id => ctx.sessions.get(id)?.header.cwd,
+    execution: async (sessionId, signal) => {
+      const bindings = ctx.get('executionBindings')
+      if (bindings === undefined) throw new Error('Session execution bindings are unavailable.')
+      return bindings.forSession(sessionId as unknown as SessionId, signal)
+    },
     shell: () => {
       const overrides = shellOverridesOf(() => settingsFace)
-      return { shell: overrides.shell ?? terminalShell, shellArgs: overrides.shellArgs ?? resolved.shellArgs }
+      return {
+        shell: overrides.shell ?? terminalShell,
+        shellArgs: overrides.shellArgs ?? resolved.shellArgs,
+      }
     },
+    shellOverrides: () => shellOverridesOf(() => settingsFace),
   })
   ctx.effect(() => async () => {
     toolsDisposers?.()

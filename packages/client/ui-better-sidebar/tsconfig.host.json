@@ -1,0 +1,150 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "lib/types-host",
+    "verbatimModuleSyntax": true,
+    "exactOptionalPropertyTypes": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitOverride": false,
+    "types": [
+      "node",
+      "vitest/globals"
+    ]
+  },
+  "include": [
+    "src/*.ts",
+    "src/client/api.ts",
+    "src/client/breakpoints.ts",
+    "src/client/browser.ts",
+    "src/client/file-source.ts",
+    "src/client/keyboard-commands.ts",
+    "src/client/locales.ts",
+    "src/client/paths.ts",
+    "src/client/preferences-controller.ts",
+    "src/client/prefs.ts",
+    "src/client/produced-files.ts",
+    "src/client/service.ts",
+    "src/client/state.ts",
+    "src/client/subagent-chat.ts",
+    "tests/terminal-execution.host.spec.ts",
+    "tests/terminal-native-loader.spec.ts",
+    "tests/terminal-provider-loader.spec.ts",
+    "tests/terminal-settings-loader.spec.ts",
+    "tests/tools.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/loader"
+    },
+    {
+      "path": "../../../vendor/include"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../api/gateway/tsconfig.host.json"
+    },
+    {
+      "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../../api/session-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../api/sidebar-terminal-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../../api/sidebar-terminal-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../connection/tsconfig.host.json"
+    },
+    {
+      "path": "../connection/tsconfig.client.json"
+    },
+    {
+      "path": "../keyboard"
+    },
+    {
+      "path": "../locale"
+    },
+    {
+      "path": "../modules"
+    },
+    {
+      "path": "../ui-conversation"
+    },
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-renderer"
+    },
+    {
+      "path": "../ui-settings"
+    },
+    {
+      "path": "../ui-slots"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../core/system-prompt"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../credentials/credentials-local"
+    },
+    {
+      "path": "../../document/office-to-pdf"
+    },
+    {
+      "path": "../../execution-host/execution-binding"
+    },
+    {
+      "path": "../../fs/fs"
+    },
+    {
+      "path": "../../git/sidebar-git"
+    },
+    {
+      "path": "../../host/webserver"
+    },
+    {
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../../settings/settings"
+    },
+    {
+      "path": "../../settings/settings-file"
+    },
+    {
+      "path": "../../subagent/subagent"
+    },
+    {
+      "path": "../../subprocess/subprocess"
+    },
+    {
+      "path": "../../terminal/sidebar-terminals"
+    },
+    {
+      "path": "../../typert/registry"
+    },
+    {
+      "path": "../../util/crypto"
+    }
+  ]
+}

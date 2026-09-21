@@ -15,9 +15,10 @@ import LocalCredentials from '@deepseek-ai/dsh-credentials-local'
 import WebServer from '@deepseek-ai/dsh-host-webserver'
 import SidebarTerminals from '@deepseek-ai/dsh-sidebar-terminals'
 import type {
-  SidebarAgentTerminalId, SidebarAgentTerminalSnapshot, SidebarTerminalAckRequest, SidebarTerminalAttachmentId,
-  SidebarTerminalFrame, SidebarTerminalInputRequest, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest,
-  SidebarTerminalResizeRequest, SidebarTerminalSessionId, SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalProcessId,
+  SidebarAgentTerminalSnapshot, SidebarTerminalAckRequest, SidebarTerminalAttachmentId,
+  SidebarTerminalFrame, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest,
+  SidebarTerminalSessionId, SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalCloseAgentRequest,
+  SidebarTerminalProcessId,
 } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import { expect, onTestFinished, vi } from 'vitest'
 import WebSocket from 'ws'
@@ -34,12 +35,12 @@ class ExternalTerminals extends SidebarTerminals {
   readonly signals: AbortSignal[] = []
   readonly returned = vi.fn<() => void>()
   readonly capability = vi.fn(() => ({ status: 'available' as const, shellName: 'fixture-shell' }))
-  readonly shells = vi.fn(() => [{ path: '/bin/fixture-shell', name: 'fixture-shell' }])
-  readonly input = vi.fn<(request: SidebarTerminalInputRequest) => void>()
-  readonly resize = vi.fn<(request: SidebarTerminalResizeRequest) => void>()
+  readonly shells = vi.fn<SidebarTerminals['shells']>(async () => [{ path: '/bin/fixture-shell', name: 'fixture-shell' }])
+  readonly input = vi.fn<SidebarTerminals['input']>()
+  readonly resize = vi.fn<SidebarTerminals['resize']>()
   readonly ack = vi.fn<(request: SidebarTerminalAckRequest) => void>()
   readonly release = vi.fn<(request: SidebarTerminalReleaseRequest) => void>()
-  readonly closeAgent = vi.fn<(uuid: SidebarAgentTerminalId) => void>()
+  readonly closeAgent = vi.fn<(request: SidebarTerminalCloseAgentRequest) => void>()
   readonly inspectUi = vi.fn<(request: SidebarTerminalUiTarget) => SidebarTerminalProcessId | null>(() => PROCESS)
   readonly closeUi = vi.fn<(request: SidebarTerminalCloseUiRequest) => void>()
   readonly listUi = vi.fn<SidebarTerminals['listUi']>(() => [])

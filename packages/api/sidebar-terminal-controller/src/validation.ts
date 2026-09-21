@@ -39,8 +39,12 @@ function dimensions(value: Record<string, unknown>): void {
 /** @param value - Nonempty opaque Session id from Remote JSON. */
 export function validateSessionId(value: unknown): void { opaqueId(value) }
 
-/** @param value - Lowercase agent terminal UUID from Remote JSON. */
-export function validateAgentId(value: unknown): void { uuid(value) }
+/** @param value - Session-scoped agent terminal close request from Remote JSON. */
+export function validateCloseAgent(value: unknown): void {
+  const request = record(value, ['sessionId', 'uuid'])
+  opaqueId(request.sessionId)
+  uuid(request.uuid)
+}
 
 /** @param value - Open request from Remote JSON; floating tabs must identify their owning window. */
 export function validateOpen(value: unknown): void {
@@ -48,7 +52,8 @@ export function validateOpen(value: unknown): void {
   dimensions(request)
   const target = record(request.target, ['kind', 'sessionId', 'tabId', 'floating', 'shellPath', 'uuid'])
   if (target.kind === 'agent') {
-    record(target, ['kind', 'uuid'])
+    record(target, ['kind', 'sessionId', 'uuid'])
+    opaqueId(target.sessionId)
     uuid(target.uuid)
     return
   }

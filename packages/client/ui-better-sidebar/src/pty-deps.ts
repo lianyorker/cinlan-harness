@@ -29,7 +29,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type * as nodePtyNs from 'node-pty'
-import { SidebarError } from './wire.ts'
+import { SidebarError } from './sidebar-error.ts'
 
 /** The node-pty module surface the registries consume (spawn/kill/resize/…). */
 export type NodePtyModule = typeof nodePtyNs

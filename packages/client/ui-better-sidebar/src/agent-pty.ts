@@ -13,9 +13,10 @@
  */
 import { randomUUID } from 'node:crypto'
 import type { IPty } from 'node-pty'
+import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
 import { ensureSpawnHelper, shellSpawnArgs } from './pty-manager.ts'
 import { loadRequiredNodePty, type NodePtyModule } from './pty-deps.ts'
-import { SidebarError } from './wire.ts'
+import { SidebarError } from './sidebar-error.ts'
 
 /** Per-agent-terminal transcript bound (bytes kept for replay and reads). */
 const TRANSCRIPT_LIMIT = 1 << 20
@@ -230,7 +231,7 @@ export class AgentPtyRegistry {
       cols: dims.cols,
       rows: dims.rows,
       cwd,
-      env: { ...process.env },
+      env: scrubbedParentEnv(),
     })
     const handle: AgentTerminalHandle = {
       uuid,
@@ -297,9 +298,9 @@ export class AgentPtyRegistry {
 
   /**
    * Resolve a live handle that belongs to `sessionId`, or throw `not-found`.
-   * The model-facing tools call this before every uuid-keyed operation: a
-   * uuid from another session is indistinguishable from an unknown one, so a
-   * model can never reach (or probe) a terminal it does not own.
+   * Session-scoped callers use this before every uuid-keyed operation. A UUID
+   * from another Session is indistinguishable from an unknown one, so neither
+   * model tools nor sidebar terminal controls can reach a terminal they do not own.
    */
   assertOwned(uuid: string, sessionId: string): AgentTerminalHandle {
     const handle = this.expect(uuid)

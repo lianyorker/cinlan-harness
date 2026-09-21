@@ -14,7 +14,11 @@
     "types": ["node"]
   },
   "files": [
+    "packages/client/ui-better-sidebar/tests/browser-globals.ts",
+    "packages/client/ui-better-sidebar/tests/git-fixture.client.ts",
+    "packages/client/ui-better-sidebar/tests/terminal-close.client.spec.ts",
     "packages/client/ui-better-sidebar/tests/terminal-recovery.spec.tsx",
+    "packages/client/ui-better-sidebar/tests/terminal-shell-chooser.spec.tsx",
     "packages/client/ui-better-sidebar/tests/terminal-title-editor.spec.tsx"
   ],
   "include": [
@@ -147,7 +151,7 @@
     { "path": "./packages/context/file-reference" },
     { "path": "./apps/web" },
     { "path": "./packages/client/ui-right-sidebar" },
-    { "path": "./packages/client/ui-better-sidebar" },
+    { "path": "./packages/client/ui-better-sidebar/tsconfig.client.json" },
     { "path": "./packages/client/ui-browser-element-capture" },
     { "path": "./packages/client/ui-voice-dictation" },
     { "path": "./packages/voice/voice" },

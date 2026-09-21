@@ -6,7 +6,7 @@ import type { RemoteResult, TypertClientRemote } from '@deepseek-ai/dsh-typert-p
 import type {
   SidebarAgentTerminalSnapshot, SidebarTerminalAttachmentId,
   SidebarTerminalFrame,
-  SidebarTerminalProcessId, SidebarTerminalReleaseRequest, SidebarTerminalSessionId, SidebarTerminalTabId,
+  SidebarTerminalProcessId, SidebarTerminalReleaseRequest, SidebarTerminalSessionId, SidebarTerminalTabId, SidebarTerminalCloseAgentRequest,
 } from '@deepseek-ai/dsh-sidebar-terminals/types'
 
 type SidebarTerminalRemote = TypertClientRemote['sidebarTerminals']
@@ -198,13 +198,13 @@ export function createTerminalTransport(
       requireOwner()
       return answer(remote.capability())
     },
-    async terminalShells() {
+    async terminalShells(sessionId) {
       requireOwner()
-      return answer(remote.shells())
+      return answer(remote.shells(sessionId))
     },
-    async terminalCloseAgent(uuid) {
+    async terminalCloseAgent(request: SidebarTerminalCloseAgentRequest) {
       requireOwner()
-      await answer(remote.closeAgent(uuid))
+      await answer(remote.closeAgent(request))
     },
     async terminalCloseUi(sessionId, tabId) {
       requireOwner()

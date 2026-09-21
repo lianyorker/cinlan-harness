@@ -25,7 +25,7 @@ export function terminalLaunchOf(tab: SidebarTab): TerminalLaunch {
  * @param store - existing sidebar layout owner.
  * @param sessionId - Session that owns the tab.
  * @param tabId - tab receiving the choice.
- * @param launch - selected path; omission keeps the Settings default.
+ * @param launch - selected path; omission uses the execution world's default shell.
  * @param title - canonical title from the Host opening frame.
  * @param processId - observed native generation required by later rename requests.
  */

@@ -82,14 +82,15 @@ export function TerminalView(props: TerminalViewProps) {
 function TerminalTab(props: TerminalViewProps) {
   const [launch, setLaunch] = useState<TerminalLaunch>(() => props.launch ?? { pending: false })
   if (launch.pending && !isAgentTabId(props.tabId)) {
-    return <TerminalShellChooser load={props.terminalShells} onLaunch={(shellPath) => {
+    return <TerminalShellChooser sessionId={props.scope.sessionId} load={props.terminalShells} onLaunch={(shellPath) => {
       setLaunch({ pending: false, ...shellPath === undefined ? {} : { shellPath } })
     }} />
   }
   return <ConnectedTerminal {...props} launch={launch} />
 }
 
-function TerminalShellChooser({ load, onLaunch }: {
+function TerminalShellChooser({ load, onLaunch, sessionId }: {
+  sessionId: string
   load: TerminalCallbacks['terminalShells']
   onLaunch: (path?: string) => void
 }) {
@@ -100,11 +101,11 @@ function TerminalShellChooser({ load, onLaunch }: {
   useEffect(() => {
     let closed = false
     setStatus('loading')
-    void load().then((value) => {
+    void load(sessionId as SidebarTerminalSessionId).then((value) => {
       if (!closed) { setShells(value); setStatus('ready') }
     }, () => { if (!closed) setStatus('failed') })
     return () => { closed = true }
-  }, [load, attempt])
+  }, [load, attempt, sessionId])
   return <div className={chooserCss.chooser}>
     <label className={chooserCss.label}>
       {t('terminalShellLabel')}
@@ -170,7 +171,7 @@ function ConnectedTerminal(props: TerminalViewProps & { launch: TerminalLaunch }
       void disconnect?.('disconnect').catch(report)
       attachmentId = undefined
       const target = isAgentTabId(tabId)
-        ? { kind: 'agent' as const, uuid: agentUuidOf(tabId) as SidebarAgentTerminalId }
+        ? { kind: 'agent' as const, sessionId: scope.sessionId as SidebarTerminalSessionId, uuid: agentUuidOf(tabId) as SidebarAgentTerminalId }
         : { kind: 'ui' as const, sessionId: scope.sessionId as SidebarTerminalSessionId, tabId: tabId as SidebarTerminalTabId, ...(shellPath === undefined ? {} : { shellPath }), ...(floatingWindowId === undefined || floatingDirectory === undefined ? {} : { floating: { windowId: floatingWindowId, directory: floatingDirectory } }) }
       disconnect = connectTerminal({ target, cols: term.cols, rows: term.rows }, async (frame) => {
         if (closed) return

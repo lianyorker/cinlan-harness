@@ -1,9 +1,9 @@
 /** Serializable integrated sidebar terminal requests, stream frames, and closed Remote failures. */
 import type {} from '@deepseek-ai/dsh-typert-protocol'
 import type {
-  SidebarAgentTerminalId, SidebarAgentTerminalSnapshot, SidebarTerminalAttachmentId, SidebarTerminalCapability,
+  SidebarAgentTerminalSnapshot, SidebarTerminalAttachmentId, SidebarTerminalCapability,
   SidebarTerminalFrame, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest, SidebarTerminalSessionId,
-  SidebarTerminalTabId, SidebarTerminalShell, SidebarTerminalRenameUiRequest, SidebarUiTerminalSnapshot,
+  SidebarTerminalTabId, SidebarTerminalShell, SidebarTerminalRenameUiRequest, SidebarTerminalCloseAgentRequest, SidebarUiTerminalSnapshot,
 } from '@deepseek-ai/dsh-sidebar-terminals/types'
 export type * from '@deepseek-ai/dsh-sidebar-terminals/types'
 
@@ -41,11 +41,11 @@ export interface TerminalCallbacks {
   /** @returns nonspawning shell capability. */
   terminalCapability(): Promise<SidebarTerminalCapability>
   /** @returns installed local shells for a new UI terminal without spawning. */
-  terminalShells(): Promise<readonly SidebarTerminalShell[]>
+  terminalShells(sessionId: SidebarTerminalSessionId): Promise<readonly SidebarTerminalShell[]>
   /** @param sessionId - owning Session. @param onList - complete snapshot callback. @returns synchronous unsubscribe. */
   watchAgentTerminals(sessionId: SidebarTerminalSessionId, onList: (list: readonly SidebarAgentTerminalSnapshot[]) => void): () => void
-  /** @param uuid - agent terminal identity. */
-  terminalCloseAgent(uuid: SidebarAgentTerminalId): Promise<void>
+  /** @param request - Session-scoped agent terminal identity. */
+  terminalCloseAgent(request: SidebarTerminalCloseAgentRequest): Promise<void>
   /** @param sessionId - owning Session. @param tabId - UI tab identity. */
   terminalCloseUi(sessionId: SidebarTerminalSessionId, tabId: SidebarTerminalTabId): Promise<void>
   /** @param sessionId - owning Session. @returns retained live UI processes without spawning. */

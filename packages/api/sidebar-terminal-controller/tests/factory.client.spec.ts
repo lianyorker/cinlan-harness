@@ -143,7 +143,7 @@ async function expectDisposed(scope: TerminalCallbacks): Promise<void> {
   await expect(scope.terminalCapability()).rejects.toThrow(/disposed/)
   await expect(scope.terminalInput(attachmentId, 'late input')).rejects.toThrow(/disposed/)
   await expect(scope.terminalResize(attachmentId, 90, 30)).rejects.toThrow(/disposed/)
-  await expect(scope.terminalCloseAgent(agentId)).rejects.toThrow(/disposed/)
+  await expect(scope.terminalCloseAgent({ sessionId, uuid: agentId })).rejects.toThrow(/disposed/)
   await expect(scope.terminalCloseUi(sessionId, tabId)).rejects.toThrow(/disposed/)
   expect(delivered).not.toHaveBeenCalled()
 }

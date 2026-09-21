@@ -23,7 +23,7 @@ import type {
 import * as sidebar from '../src/index.ts'
 import { resolveSidebarConfig, type SidebarConfig } from '../src/config.ts'
 
-interface SpawnOptions { cwd: string; cols: number; rows: number }
+interface SpawnOptions { cwd: string; cols: number; rows: number; env: Record<string, string> }
 interface NativeExit { exitCode: number; signal?: number }
 
 const native = vi.hoisted(() => ({ spawn: vi.fn(), available: true }))
@@ -180,6 +180,16 @@ async function load(overrides: SidebarConfig = {}, gateway = false) {
   ctx.loader.builtins.include = Include
   const sessions = { apply(scope: Context) {
     scope.provide('sessions', { get: (id: string) => id === sessionId ? { header: { cwd } } : undefined } as never)
+    scope.provide('executionBindings', { async bindingForSession(id: string, signal?: AbortSignal) {
+      signal?.throwIfAborted()
+      if (id !== sessionId) throw new Error('Unknown Session')
+      return { kind: 'local' }
+    }, async forSession(id: string, signal?: AbortSignal) {
+      if (id !== sessionId) throw new Error('Unknown Session')
+      signal?.throwIfAborted()
+      return { binding: { kind: 'local' }, ctx: scope, cwd: cwd, platform: process.platform, incarnation: 'local-fixture',
+        signal: new AbortController().signal, assertCurrent() {}, async release() {} }
+    } } as never)
   } }
   const modules = new Map<string, unknown>([
     ['test-desktop-session', sessions], ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
@@ -226,13 +236,43 @@ async function createAgent(h: Harness) {
 }
 
 describe('Desktop sidebar terminals through source Loader', () => {
-  it('reports unavailable and completes teardown when no native managers can be created', async () => {
+  it('reports unavailable without local native dependencies and exposes no shells or spawn path', async () => {
     native.available = false
     const h = await load()
-    expect(h.terminals.capability()).toMatchObject({ status: 'unavailable' })
+    expect(h.terminals.capability()).toEqual({ status: 'unavailable', reason: 'missing-dependencies' })
+    await expect(h.terminals.shells(sessionId)).rejects.toMatchObject({ code: 'unavailable' })
+    await expect(h.terminals.open(uiRequest(), new AbortController().signal)[Symbol.asyncIterator]().next())
+      .rejects.toMatchObject({ code: 'unavailable' })
     expect(h.ctx.get('tools')?.get('terminal_create')).toBeUndefined()
+    const uuid = '00000000-0000-4000-8000-000000000001' as SidebarAgentTerminalId
+    expect(() => { h.terminals.closeAgent({ sessionId, uuid }) }).toThrow(expect.objectContaining({ code: 'not-found' }))
     expect(native.spawn).not.toHaveBeenCalled()
     await h.ctx.fiber.dispose()
+  })
+
+  it('scrubs ambient Harness and credential values from UI and agent PTY environments', async () => {
+    vi.stubEnv('SIDEBAR_VISIBLE_MARKER', 'visible')
+    vi.stubEnv('DEEPSEEK_SIDEBAR_SECRET', 'hidden')
+    vi.stubEnv('DSH_SIDEBAR_FACT', 'hidden')
+    vi.stubEnv('SIDEBAR_API_SECRET', 'hidden')
+    try {
+      const h = await load()
+      const ui = await attach(h)
+      const uuid = await createAgent(h)
+      expect(native.spawn).toHaveBeenCalledTimes(2)
+      for (const call of native.spawn.mock.calls) {
+        const env = (call[2] as SpawnOptions).env
+        expect(env.SIDEBAR_VISIBLE_MARKER).toBe('visible')
+        expect(env.DEEPSEEK_SIDEBAR_SECRET).toBeUndefined()
+        expect(env.DSH_SIDEBAR_FACT).toBeUndefined()
+        expect(env.SIDEBAR_API_SECRET).toBeUndefined()
+      }
+      h.terminals.release({ attachmentId: ui.ready.attachmentId, mode: 'close' })
+      await expect(ui.iterator.next()).resolves.toMatchObject({ done: true })
+      h.terminals.closeAgent({ sessionId, uuid })
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('mounts without Web services and forwards ready, data, input, resize, and the final ACK after exit', async () => {
@@ -245,8 +285,8 @@ describe('Desktop sidebar terminals through source Loader', () => {
     expect(processes).toHaveLength(1)
     expect(a.ready).toMatchObject({ pid: process.pid, cwd: h.cwd, shellName: 'desktop-test-shell' })
     h.terminals.ack({ attachmentId: a.ready.attachmentId, sequence: 0 })
-    h.terminals.input({ attachmentId: a.ready.attachmentId, data: 'echo desktop\r' })
-    h.terminals.resize({ attachmentId: a.ready.attachmentId, cols: 120, rows: 40 })
+    await h.terminals.input({ attachmentId: a.ready.attachmentId, data: 'echo desktop\r' })
+    await h.terminals.resize({ attachmentId: a.ready.attachmentId, cols: 120, rows: 40 })
     expect(process.write).toHaveBeenCalledWith('echo desktop\r')
     expect(process.resize).toHaveBeenCalledWith(120, 40)
     process.emitData('desktop 😀\r\n')
@@ -257,7 +297,7 @@ describe('Desktop sidebar terminals through source Loader', () => {
     const exit = a.iterator.next().then((value) => { delivered(value); return value })
     await vi.advanceTimersByTimeAsync(0)
     expect(delivered).not.toHaveBeenCalled()
-    expect(() => h.terminals.ack({ attachmentId: a.ready.attachmentId, sequence: data.sequence })).not.toThrow()
+    expect(() => { h.terminals.ack({ attachmentId: a.ready.attachmentId, sequence: data.sequence }) }).not.toThrow()
     expect(await exit).toEqual({ done: false, value: { type: 'exit', attachmentId: a.ready.attachmentId, exitCode: 17 } })
     await expect(a.iterator.next()).resolves.toMatchObject({ done: true })
     expect(process.dataListeners.size).toBe(1)
@@ -266,7 +306,7 @@ describe('Desktop sidebar terminals through source Loader', () => {
 
   it('discovers shells without spawning, keeps choices per tab, and restores the same native process', async () => {
     const h = await load({ shellCandidates: [process.execPath, process.execPath] })
-    const choices = h.terminals.shells()
+    const choices = await h.terminals.shells(sessionId)
     expect(choices).toEqual([{ path: await realpath(process.execPath), name: 'node' }])
     expect(native.spawn).not.toHaveBeenCalled()
     const selected = choices[0]!.path
@@ -302,6 +342,39 @@ describe('Desktop sidebar terminals through source Loader', () => {
     expect(native.spawn).toHaveBeenCalledTimes(2)
   })
 
+  it('rejects every legacy terminal tool for a remote initiating Session before touching local PTYs', async () => {
+    const h = await load()
+    const uuid = await createAgent(h)
+    const local = processes[0]!
+    local.emitData('private local transcript')
+    local.write.mockClear()
+    local.resize.mockClear()
+    local.kill.mockClear()
+    native.spawn.mockClear()
+    const bindings = h.ctx.get('executionBindings')!
+    const binding = vi.spyOn(bindings, 'bindingForSession').mockResolvedValue({ kind: 'ssh' } as never)
+    const calls = [
+      ['terminal_create', { title: 'remote', command: 'dangerous-on-local' }], ['terminal_list', {}],
+      ['terminal_send', { uuid, text: 'must-not-write', submit: true }], ['terminal_read', { uuid }],
+      ['terminal_wait_for', { uuid, needle: 'private' }], ['terminal_resize', { uuid, cols: 90, rows: 30 }],
+      ['terminal_signal', { uuid, signal: 'SIGINT' }], ['terminal_close', { uuid }],
+    ] as const
+    for (const [name, args] of calls) {
+      const result = await h.ctx.tools.execute({ name, arguments: args, callId: name as never,
+        agent: execution().agent, signal: new AbortController().signal })
+      expect(result.isError).toBe(true)
+      expect(JSON.stringify(result.content)).toContain('support local Sessions only')
+      expect(JSON.stringify(result.content)).not.toContain('private local transcript')
+    }
+    expect(binding).toHaveBeenCalledTimes(8)
+    expect(native.spawn).not.toHaveBeenCalled()
+    expect(local.write).not.toHaveBeenCalled()
+    expect(local.resize).not.toHaveBeenCalled()
+    expect(local.kill).not.toHaveBeenCalled()
+    binding.mockRestore()
+    expect(await h.ctx.tools.get('terminal_list')!.execute({}, execution())).toHaveLength(1)
+  })
+
   it('uses the agent tool registry for watch, attach, input, output, reconnect, and close', async () => {
     const h = await load()
     const watchLifetime = new AbortController()
@@ -311,12 +384,19 @@ describe('Desktop sidebar terminals through source Loader', () => {
     const process = processes[0]!
     expect(process.write).toHaveBeenCalledWith('echo agent\r')
     expect((await watch.next()).value).toEqual([{ uuid, title: 'agent shell', command: 'echo agent', exited: false }])
-    const request: SidebarTerminalOpenRequest = { target: { kind: 'agent', uuid }, cols: 100, rows: 30 }
+    const otherSession = 'other-session' as SidebarTerminalSessionId
+    const denied: SidebarTerminalOpenRequest = { target: { kind: 'agent', sessionId: otherSession, uuid }, cols: 100, rows: 30 }
+    await expect(h.terminals.open(denied, new AbortController().signal)[Symbol.asyncIterator]().next())
+      .rejects.toMatchObject({ code: 'not-found' })
+    expect(() => { h.terminals.closeAgent({ sessionId: otherSession, uuid }) })
+      .toThrow(expect.objectContaining({ code: 'not-found' }))
+    expect(process.kill).not.toHaveBeenCalled()
+    const request: SidebarTerminalOpenRequest = { target: { kind: 'agent', sessionId, uuid }, cols: 100, rows: 30 }
     const first = await attach(h, request)
     expect(first.ready.pid).toBe(process.pid)
     expect(process.resize).toHaveBeenCalledWith(100, 30)
     expect(processes).toHaveLength(1)
-    h.terminals.input({ attachmentId: first.ready.attachmentId, data: 'from-sidebar\r' })
+    await h.terminals.input({ attachmentId: first.ready.attachmentId, data: 'from-sidebar\r' })
     expect(process.write).toHaveBeenCalledWith('from-sidebar\r')
     process.emitData('shared transcript')
     const data = await readFrame(first.iterator, 'data')
@@ -336,7 +416,7 @@ describe('Desktop sidebar terminals through source Loader', () => {
     expect(await readFrame(second.iterator, 'exit')).toMatchObject({ exitCode: 7 })
     await expect(second.iterator.next()).resolves.toMatchObject({ done: true })
     expect((await watch.next()).value).toEqual([{ uuid, title: 'agent shell', command: 'echo agent', exited: true, exitCode: 7, exitSignal: null }])
-    h.terminals.closeAgent(uuid)
+    h.terminals.closeAgent({ sessionId, uuid })
     expect(process.kill).toHaveBeenCalledOnce()
     expect((await watch.next()).value).toEqual([])
     expect(await h.ctx.tools.get('terminal_list')!.execute({}, execution())).toEqual([])
@@ -347,7 +427,7 @@ describe('Desktop sidebar terminals through source Loader', () => {
     const uuid = await createAgent(h)
     const process = processes[0]!
     process.emitData('\u0000'.repeat(1 << 20))
-    const view = await attach(h, { target: { kind: 'agent', uuid }, cols: 80, rows: 24 })
+    const view = await attach(h, { target: { kind: 'agent', sessionId, uuid }, cols: 80, rows: 24 })
     const frame = await readFrame(view.iterator, 'data')
     expect(frame.data.length).toBeGreaterThan(0)
     expect(Buffer.byteLength(JSON.stringify(frame))).toBeLessThanOrEqual(h.config.terminalFrameBytes)
@@ -408,8 +488,8 @@ describe('Desktop sidebar terminals through source Loader', () => {
     h.terminals.closeUi({ ...target, processId: first.ready.processId })
     const replacement = await attach(h, request)
     expect(replacement.ready.processId).not.toBe(first.ready.processId)
-    expect(() => h.terminals.closeUi({ ...target, processId: first.ready.processId }))
-      .toThrowError(expect.objectContaining({ code: 'stale-attachment' }))
+    expect(() => { h.terminals.closeUi({ ...target, processId: first.ready.processId }) })
+      .toThrow(expect.objectContaining({ code: 'stale-attachment' }))
     expect(processes[1]!.kill).not.toHaveBeenCalled()
     h.terminals.closeUi({ ...target, processId: replacement.ready.processId })
     expect(processes[1]!.kill).toHaveBeenCalledOnce()
@@ -463,23 +543,26 @@ describe('Desktop sidebar terminals through source Loader', () => {
     expect(processes).toHaveLength(0)
   })
 
-  it('captures a canonical floating directory once and preserves a live process across preference changes', async () => {
+  it('captures canonical floating directories and replaces a live process when the authoritative directory changes', async () => {
     const h = await load()
     const first = await attach(h, floatingRequest('child'))
     expect(first.ready.cwd).toBe(await realpath(h.child))
     const process = processes[0]!
     h.terminals.release({ attachmentId: first.ready.attachmentId, mode: 'park' })
     await expect(first.iterator.next()).resolves.toMatchObject({ done: true })
-    const second = await attach(h, floatingRequest('missing-now'))
-    expect(second.ready.pid).toBe(process.pid)
-    expect(second.ready.cwd).toBe(first.ready.cwd)
-    expect(h.terminals.listUi(sessionId)).toEqual([expect.objectContaining({ processId: first.ready.processId, floating: { windowId, directory: 'child' } })])
+    const second = await attach(h, floatingRequest('.'))
+    expect(second.ready.pid).not.toBe(process.pid)
+    expect(second.ready.cwd).toBe(await realpath(h.cwd))
+    expect(process.kill).toHaveBeenCalledOnce()
+    expect(h.terminals.listUi(sessionId)).toEqual([expect.objectContaining({
+      processId: second.ready.processId, floating: { windowId, directory: '.' },
+    })])
     h.terminals.release({ attachmentId: second.ready.attachmentId, mode: 'close' })
     await expect(second.iterator.next()).resolves.toMatchObject({ done: true })
     const lifetime = new AbortController()
     const missing = ownStream(h.terminals.open(floatingRequest('missing-now'), lifetime.signal), lifetime)
     await expect(missing.next()).rejects.toMatchObject({ code: 'invalid-directory' })
-    expect(processes).toHaveLength(1)
+    expect(processes).toHaveLength(2)
   })
 
   it('prevents stale input, resize, or close from changing a replacement process', async () => {
@@ -488,14 +571,14 @@ describe('Desktop sidebar terminals through source Loader', () => {
     processes[0]!.emitExit(0)
     const replacement = await attach(h)
     const current = processes[1]!
-    expect(() => h.terminals.input({ attachmentId: stale.ready.attachmentId, data: 'wrong process' })).toThrowError(expect.objectContaining({ code: 'stale-attachment' }))
-    expect(() => h.terminals.resize({ attachmentId: stale.ready.attachmentId, cols: 10, rows: 10 })).toThrowError(expect.objectContaining({ code: 'stale-attachment' }))
+    expect(() => { void h.terminals.input({ attachmentId: stale.ready.attachmentId, data: 'wrong process' }) }).toThrow(expect.objectContaining({ code: 'stale-attachment' }))
+    expect(() => { void h.terminals.resize({ attachmentId: stale.ready.attachmentId, cols: 10, rows: 10 }) }).toThrow(expect.objectContaining({ code: 'stale-attachment' }))
     h.terminals.release({ attachmentId: stale.ready.attachmentId, mode: 'close' })
     await expect(stale.iterator.next()).resolves.toMatchObject({ done: true })
     expect(current.kill).not.toHaveBeenCalled()
     expect(current.write).not.toHaveBeenCalled()
     expect(current.resize).not.toHaveBeenCalled()
-    h.terminals.input({ attachmentId: replacement.ready.attachmentId, data: 'current process' })
+    await h.terminals.input({ attachmentId: replacement.ready.attachmentId, data: 'current process' })
     expect(current.write).toHaveBeenCalledWith('current process')
   })
 
@@ -530,7 +613,7 @@ describe('Desktop sidebar terminals through source Loader', () => {
     await readFrame(a.iterator, 'data')
     expect(process.pause).toHaveBeenCalledOnce()
     const failed = expect(a.iterator.next()).rejects.toMatchObject({ code: 'output-overflow' })
-    expect(() => process.emitData('y'.repeat(h.config.terminalBufferBytes + 1))).not.toThrow()
+    expect(() => { process.emitData('y'.repeat(h.config.terminalBufferBytes + 1)) }).not.toThrow()
     await failed
     expect(process.resume).toHaveBeenCalledOnce()
     expect(process.dataListeners.size).toBe(1)
@@ -551,7 +634,7 @@ describe('Desktop sidebar terminals through source Loader', () => {
     await vi.advanceTimersByTimeAsync(h.config.terminalAckTimeoutMs)
     await failed
     expect(process.dataListeners.size).toBe(1)
-    expect(() => h.terminals.ack({ attachmentId: a.ready.attachmentId, sequence: 1 })).toThrowError(expect.objectContaining({ code: 'stale-attachment' }))
+    expect(() => { h.terminals.ack({ attachmentId: a.ready.attachmentId, sequence: 1 }) }).toThrow(expect.objectContaining({ code: 'stale-attachment' }))
     await vi.advanceTimersByTimeAsync(h.config.reconnectGraceMs)
     expect(process.kill).toHaveBeenCalledOnce()
     expect(vi.getTimerCount()).toBe(0)
@@ -561,7 +644,7 @@ describe('Desktop sidebar terminals through source Loader', () => {
     const h = await load()
     const ui = await attach(h)
     const uuid = await createAgent(h)
-    const agent = await attach(h, { target: { kind: 'agent', uuid }, cols: 80, rows: 24 })
+    const agent = await attach(h, { target: { kind: 'agent', sessionId, uuid }, cols: 80, rows: 24 })
     for (const process of processes) { process.holdExit = true; process.emitData('pending output') }
     await readFrame(ui.iterator, 'data')
     await readFrame(agent.iterator, 'data')

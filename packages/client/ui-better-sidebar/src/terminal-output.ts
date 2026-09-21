@@ -164,6 +164,12 @@ export class TerminalOutput {
     return iterator
   }
 
+  /**
+   * Reject the stream when its captured execution world fails.
+   * @param error - terminal provider failure.
+   */
+  fail(error: unknown): void { this.stop({ kind: 'failed', error }) }
+
   /** Drop output, clear the ACK deadline and abort listener, and relinquish pressure. */
   dispose(): void {
     this.stop({ kind: 'closed' })

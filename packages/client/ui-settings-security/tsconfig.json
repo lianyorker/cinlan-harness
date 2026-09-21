@@ -25,7 +25,7 @@
       "path": "../locale"
     },
     {
-      "path": "../ui-better-sidebar"
+      "path": "../ui-better-sidebar/tsconfig.client.json"
     },
     {
       "path": "../ui-primitives"

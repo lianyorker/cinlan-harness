@@ -36,11 +36,11 @@ declare module '@deepseek-ai/cordis' {
 
 /**
  * UI terminals belong to a session/tab; shellPath selects a discovered executable only when spawning.
- * Agent terminals retain their registry identity.
+ * Agent terminals retain their registry identity and owning Session.
  */
 export type SidebarTerminalTarget =
   | { readonly kind: 'ui'; readonly sessionId: SidebarTerminalSessionId; readonly tabId: SidebarTerminalTabId; readonly floating?: SidebarFloatingTerminalDirectory; readonly shellPath?: string }
-  | { readonly kind: 'agent'; readonly uuid: SidebarAgentTerminalId }
+  | { readonly kind: 'agent'; readonly sessionId: SidebarTerminalSessionId; readonly uuid: SidebarAgentTerminalId }
 
 /** Initial display geometry and immutable target for a physical attachment. */
 export interface SidebarTerminalOpenRequest {
@@ -95,6 +95,11 @@ export interface SidebarTerminalUiTarget {
 /** Explicit close of a previously observed UI process, including while its view is disconnected. */
 export interface SidebarTerminalCloseUiRequest extends SidebarTerminalUiTarget {
   readonly processId: SidebarTerminalProcessId
+}
+/** Explicit close of an agent terminal scoped to its owning Session. */
+export interface SidebarTerminalCloseAgentRequest {
+  readonly sessionId: SidebarTerminalSessionId
+  readonly uuid: SidebarAgentTerminalId
 }
 /** Rename only the previously observed UI process generation. */
 export interface SidebarTerminalRenameUiRequest extends SidebarTerminalCloseUiRequest {

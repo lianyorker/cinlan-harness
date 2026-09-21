@@ -76,6 +76,12 @@ async function load() {
   const sessions = { apply(scope: Context) {
     // Session identity is an external input; native processes and all terminal services stay real.
     scope.provide('sessions', { get: (id: string) => id === target.sessionId ? { header: { cwd: root } } : undefined } as never)
+    scope.provide('executionBindings', { async forSession(id: string, signal?: AbortSignal) {
+      if (id !== target.sessionId) throw new Error('Unknown Session')
+      signal?.throwIfAborted()
+      return { binding: { kind: 'local' }, ctx: scope, cwd: root, platform: process.platform, incarnation: 'local-fixture',
+        signal: new AbortController().signal, assertCurrent() {}, async release() {} }
+    } } as never)
   } }
   const modules = new Map<string, unknown>([
     ['test-native-session', sessions], ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
@@ -99,7 +105,7 @@ async function load() {
     const response = await shared.fetch(new Request('dsh-app://app/api/sidebarTerminals/' + method, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ type: 'client-request', rpcId: String(++rpcId), method: 'sidebarTerminals/' + method,
-        payload: { args: request === undefined ? {} : method === 'listUi' ? { sessionId: request } : { request } } }),
+        payload: { args: request === undefined ? {} : method === 'listUi' || method === 'shells' ? { sessionId: request } : { request } } }),
     }))
     expect(response.status).toBe(200)
     const envelope = await response.json() as { result: { ok: boolean; value?: unknown } }
@@ -164,7 +170,8 @@ async function load() {
             const observe = (): void => {
               if (stream.failure !== undefined || finished) {
                 observers.delete(observe)
-                reject(stream.failure ?? new Error('Terminal exited before expected output: ' + text))
+                reject(stream.failure instanceof Error ? stream.failure
+                  : new Error('Terminal exited before expected output: ' + text, { cause: stream.failure }))
               } else if (output.join('').includes(text)) {
                 observers.delete(observe)
                 resolve()
@@ -241,14 +248,15 @@ describe('native sidebar terminals through Remote', () => {
     expect(await observeShell(h, reconnected, 'reconnected.txt')).toBe(pid)
     await reconnected.release('park')
     await h.ctx.fiber.dispose()
-    expect(() => process.kill(pid, 0)).toThrowError(expect.objectContaining({ code: 'ESRCH' }))
+    expect(() => process.kill(pid, 0)).toThrow(expect.objectContaining({ code: 'ESRCH' }))
   })
 
   it('discovers a native shell over dsh-app Remote and reattaches the selected process after disconnect', async () => {
     const h = await load()
-    const choices = await h.call('shells') as { path: string; name: string }[]
-    expect(choices.length).toBeGreaterThan(0)
-    const chosen = choices[0].path
+    const choices = await h.call('shells', target.sessionId) as { path: string; name: string }[]
+    const [choice] = choices
+    if (choice === undefined) throw new Error('Expected at least one native shell')
+    const chosen = choice.path
     expect(await h.call('inspectUi', uiTarget)).toBeNull()
     const first = await h.attach(chosen)
     expect(first.ready.shellPath).toBe(chosen)
@@ -285,7 +293,7 @@ describe('native sidebar terminals through Remote', () => {
     const defaultPid = await observeShell(h, defaulted, 'defaulted.txt')
     await defaulted.release('park')
     await h.ctx.fiber.dispose()
-    expect(() => process.kill(defaultPid, 0)).toThrowError(expect.objectContaining({ code: 'ESRCH' }))
-    expect(() => process.kill(pid, 0)).toThrowError(expect.objectContaining({ code: 'ESRCH' }))
+    expect(() => process.kill(defaultPid, 0)).toThrow(expect.objectContaining({ code: 'ESRCH' }))
+    expect(() => process.kill(pid, 0)).toThrow(expect.objectContaining({ code: 'ESRCH' }))
   })
 })

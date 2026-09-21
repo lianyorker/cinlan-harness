@@ -3,9 +3,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from '@deepseek-ai/dsh-sidebar-terminals'
 import { terminalFailure } from './errors.ts'
-import { validateInspectUi, validateRenameUi, validateCloseUi, validateAck, validateAgentId, validateInput, validateOpen, validateRelease, validateResize, validateSessionId } from './validation.ts'
+import { validateInspectUi, validateRenameUi, validateCloseUi, validateCloseAgent, validateAck, validateInput, validateOpen, validateRelease, validateResize, validateSessionId } from './validation.ts'
 import type {
-  SidebarTerminalRenameUiRequest, SidebarUiTerminalSnapshot, SidebarAgentTerminalId, SidebarAgentTerminalSnapshot,
+  SidebarTerminalRenameUiRequest, SidebarUiTerminalSnapshot, SidebarAgentTerminalSnapshot, SidebarTerminalCloseAgentRequest,
   SidebarTerminalAckRequest, SidebarTerminalCapability, SidebarTerminalShell,
   SidebarTerminalFrame, SidebarTerminalInputRequest, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest,
   SidebarTerminalResizeRequest, SidebarTerminalSessionId, SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalProcessId,
@@ -21,13 +21,16 @@ export class SidebarTerminalController extends TypertRemoteService {
   static inject = ['typert', 'sidebarTerminals']
   private readonly lifetime = new AbortController()
   private readonly streams = new Set<() => Promise<void>>()
+  private readonly pending = new Set<Promise<unknown>>()
 
   constructor(ctx: Context) {
     super(ctx, 'sidebarTerminalController', { namespace: 'sidebarTerminals' })
     ctx.effect(() => async () => {
       this.lifetime.abort()
-      await Promise.all([...this.streams].map(close => close()))
-    }, 'sidebar-terminal-controller.streams')
+      const closing = [...this.streams].map(close => close())
+      await Promise.allSettled([...closing, ...this.pending])
+      await Promise.all(closing)
+    }, 'sidebar-terminal-controller.operations')
   }
 
   /** Query native terminal availability.
@@ -38,12 +41,16 @@ export class SidebarTerminalController extends TypertRemoteService {
     return this.invoke(() => this.ctx.sidebarTerminals.capability())
   }
 
-  /** Discover installed local shells for a new UI tab.
-   * @returns Verified executable paths and display names; does not create a process.
+  /** Discover installed shells in the owning Session execution world.
+   * @param sessionId - known Session execution binding.
+   * @returns Verified executable paths and display names; disposal rejects an unsettled request after its provider settles.
    */
   @Remote
-  shells(): readonly SidebarTerminalShell[] {
-    return this.invoke(() => this.ctx.sidebarTerminals.shells())
+  shells(sessionId: SidebarTerminalSessionId): Promise<readonly SidebarTerminalShell[]> {
+    return this.invokeAsync(() => {
+      validateSessionId(sessionId)
+      return this.ctx.sidebarTerminals.shells(sessionId)
+    })
   }
 
   /**
@@ -62,18 +69,26 @@ export class SidebarTerminalController extends TypertRemoteService {
 
   /** Forward input to the attached native process.
    * @param request - Live attachment and at most 64 KiB of UTF-8 input.
+   * @returns After the provider accepts the input; disposal rejects an unsettled request after its provider settles.
    */
   @Remote
-  input(request: SidebarTerminalInputRequest): void {
-    this.invoke(() => { validateInput(request); this.ctx.sidebarTerminals.input(request) })
+  input(request: SidebarTerminalInputRequest): Promise<void> {
+    return this.invokeAsync(() => {
+      validateInput(request)
+      return this.ctx.sidebarTerminals.input(request)
+    })
   }
 
   /** Resize the attached native process.
    * @param request - Live attachment and integer geometry from 1 through 1024.
+   * @returns After the provider applies the dimensions; disposal rejects an unsettled request after its provider settles.
    */
   @Remote
-  resize(request: SidebarTerminalResizeRequest): void {
-    this.invoke(() => { validateResize(request); this.ctx.sidebarTerminals.resize(request) })
+  resize(request: SidebarTerminalResizeRequest): Promise<void> {
+    return this.invokeAsync(() => {
+      validateResize(request)
+      return this.ctx.sidebarTerminals.resize(request)
+    })
   }
 
   /** Acknowledge output consumed by the renderer.
@@ -141,17 +156,31 @@ export class SidebarTerminalController extends TypertRemoteService {
     })
   }
 
-  /** Close the identified agent terminal.
-   * @param uuid - Lowercase UUID of an agent terminal explicitly closed by the user.
+  /** Close the identified agent terminal owned by the requested Session.
+   * @param request - Session-scoped agent terminal identity explicitly closed by the user.
    */
   @Remote
-  closeAgent(uuid: SidebarAgentTerminalId): void {
-    this.invoke(() => { validateAgentId(uuid); this.ctx.sidebarTerminals.closeAgent(uuid) })
+  closeAgent(request: SidebarTerminalCloseAgentRequest): void {
+    this.invoke(() => { validateCloseAgent(request); this.ctx.sidebarTerminals.closeAgent(request) })
   }
 
   private invoke<T>(operation: () => T): T {
     this.lifetime.signal.throwIfAborted()
     try { return operation() } catch (error) { throw terminalFailure(error) }
+  }
+
+  private invokeAsync<T>(operation: () => T | PromiseLike<T>): Promise<T> {
+    const pending = Promise.resolve().then(() => {
+      this.lifetime.signal.throwIfAborted()
+      return operation()
+    }).then(
+      (value) => { this.lifetime.signal.throwIfAborted(); return value },
+      (error: unknown) => { this.lifetime.signal.throwIfAborted(); throw terminalFailure(error) },
+    )
+    this.pending.add(pending)
+    const untrack = (): void => { this.pending.delete(pending) }
+    void pending.then(untrack, untrack)
+    return pending
   }
 
   private async *stream<T>(signal: AbortSignal, operation: (signal: AbortSignal) => AsyncIterable<T>): AsyncIterable<T> {

@@ -24,7 +24,7 @@
       "path": "../ui-conversation"
     },
     {
-      "path": "../ui-better-sidebar"
+      "path": "../ui-better-sidebar/tsconfig.client.json"
     },
     {
       "path": "../ui-input-trigger"

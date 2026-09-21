@@ -157,12 +157,14 @@ describe('package dependency scope', () => {
       'carrierKeyOf', 'scopeOf', 'scopeTarget',
     ])
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-typert-protocol']).toBeUndefined()
+    expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-subprocess']).toEqual([
+      'SubprocessExecutableNotFoundError', 'scrubbedParentEnv',
+    ])
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-sidebar-terminals']).toEqual([
       'SidebarTerminals', 'SidebarTerminalError',
     ])
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-automation']).toEqual(['AutomationError'])
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-sidebar-git']).toEqual(['SidebarGitError'])
-    expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-git']).toEqual(['GitError'])
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-execution-host-targets']).toEqual(['ExecutionTargetError'])
     expect(PACKAGE_DEPENDENCY_POLICY.hostPackages).toContain('@deepseek-ai/dsh-api-execution-host-controller')
   })

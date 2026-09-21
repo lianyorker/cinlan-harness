@@ -1,6 +1,6 @@
 - text: 此标签页的 Shell
 - combobox "此标签页的 Shell":
-  - option "使用设置中的默认 Shell" [selected]
+  - option "使用默认 Shell" [selected]
   - option "bash"
   - option "zsh"
 - button "启动终端"

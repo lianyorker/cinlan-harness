@@ -35,6 +35,12 @@ type ProcessRecord = {
 }
 const processes: ProcessRecord[] = []
 const streams: { lifetime: AbortController; iterator: AsyncIterator<SidebarTerminalFrame> }[] = []
+
+function spawned(index: number): ProcessRecord {
+  const process = processes[index]
+  if (process === undefined) throw new Error(`Expected spawned process at index ${index}`)
+  return process
+}
 let root: string | undefined
 let context: Context | undefined
 
@@ -88,8 +94,19 @@ async function load() {
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
   const externalContext = { apply(scope: Context) {
-    // Session metadata is an external input to this terminal composition.
+    // Session metadata and its admitted local execution are external inputs to this terminal composition.
+    const executionLifetime = new AbortController()
+    scope.effect(() => () => { executionLifetime.abort(new Error('fixture execution disposed')) })
     scope.provide('sessions', { get: () => ({ header: { cwd } }) } as never)
+    scope.provide('executionBindings', {
+      bindingForSession: async () => ({ kind: 'local' }),
+      forSession: async (_sessionId: unknown, signal?: AbortSignal) => {
+        signal?.throwIfAborted()
+        return { binding: { kind: 'local' }, ctx: scope, cwd, platform: process.platform, incarnation: 'fixture-local',
+          signal: executionLifetime.signal,
+          assertCurrent() { executionLifetime.signal.throwIfAborted() }, async release() {} }
+      },
+    } as never)
   } }
   const modules = new Map<string, unknown>([
     ['test-terminal-context', externalContext],
@@ -100,7 +117,7 @@ async function load() {
   ctx.loader.internal = { version: 'v2', async import(specifier: string) {
     if (!modules.has(specifier)) throw new Error('unexpected Loader module: ' + specifier)
     return modules.get(specifier)
-  } } as NonNullable<typeof ctx.loader.internal>
+  } } as unknown as NonNullable<typeof ctx.loader.internal>
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
   await vi.waitFor(() => { expect(ctx.get('tools')?.get('terminal_create')).toBeDefined() })
@@ -143,33 +160,33 @@ describe('terminal preferences through source Loader composition', () => {
     const b = await load()
     const first = await b.connect('terminal:0')
     expect(processes).toHaveLength(1)
-    expect(processes[0]).toMatchObject({ file: 'shell-a', args: shellSpawnArgs(['--first', '-i']), cwd: b.cwd })
+    expect(spawned(0)).toMatchObject({ file: 'shell-a', args: shellSpawnArgs(['--first', '-i']), cwd: b.cwd })
     await b.updateShell('shell-b', '--second -l')
     expect(await readFile(b.settingsPath, 'utf8')).toContain('terminalShell: shell-b')
-    expect(processes[0].kill).not.toHaveBeenCalled()
+    expect(spawned(0).kill).not.toHaveBeenCalled()
     await first('disconnect')
     const reconnected = await b.connect('terminal:0')
     expect(processes).toHaveLength(1)
-    expect(processes[0].pid).toBe(1)
+    expect(spawned(0).pid).toBe(1)
     await reconnected('close')
-    expect(processes[0].kill).toHaveBeenCalledOnce()
+    expect(spawned(0).kill).toHaveBeenCalledOnce()
     await b.connect('terminal:0')
     expect(processes).toHaveLength(2)
-    expect(processes[1]).toMatchObject({ file: 'shell-b', args: shellSpawnArgs(['--second', '-l']), cwd: b.cwd, pid: 2 })
+    expect(spawned(1)).toMatchObject({ file: 'shell-b', args: shellSpawnArgs(['--second', '-l']), cwd: b.cwd, pid: 2 })
     const settings = b.ctx.get('settings')!
     const current = settings.describe().find(row => row.ns === SIDEBAR_PREFS_NS)!
     await settings.mutate(SIDEBAR_PREFS_NS as SettingsNamespace, [
       { op: 'unset', path: ['terminalShell'] }, { op: 'unset', path: ['terminalShellArgs'] },
     ], current.revision)
     await b.connect('terminal:1')
-    expect(processes[2]).toMatchObject({ file: 'deployment-shell', args: shellSpawnArgs(['--base']), cwd: b.cwd })
+    expect(spawned(2)).toMatchObject({ file: 'deployment-shell', args: shellSpawnArgs(['--base']), cwd: b.cwd })
     expect(await readFile(b.settingsPath, 'utf8')).not.toContain('terminalShell:')
     await b.ctx.fiber.dispose()
     expect(processes.map(process => process.kill.mock.calls.length)).toEqual([1, 1, 1])
     const restarted = await load()
     await restarted.connect('terminal:0')
     expect(processes).toHaveLength(4)
-    expect(processes[3]).toMatchObject({ file: 'deployment-shell', cwd: restarted.cwd, pid: 4 })
+    expect(spawned(3)).toMatchObject({ file: 'deployment-shell', cwd: restarted.cwd, pid: 4 })
   })
 
   it('applies the same durable startup preferences to agent terminals and refuses an aborted creation', async () => {
@@ -180,12 +197,12 @@ describe('terminal preferences through source Loader composition', () => {
     await expect(create.execute({ title: 'cancelled', command: '' }, execution(aborted.signal))).rejects.toThrow()
     expect(processes).toHaveLength(0)
     await create.execute({ title: 'first', command: 'echo first' }, execution())
-    expect(processes[0]).toMatchObject({ file: 'shell-a', cwd: b.cwd })
-    expect(processes[0].write).toHaveBeenCalledWith('echo first\r')
+    expect(spawned(0)).toMatchObject({ file: 'shell-a', cwd: b.cwd })
+    expect(spawned(0).write).toHaveBeenCalledWith('echo first\r')
     await b.updateShell('shell-b', '--second')
     await create.execute({ title: 'second', command: '' }, execution())
-    expect(processes[1]).toMatchObject({ file: 'shell-b', args: shellSpawnArgs(['--second']), cwd: b.cwd })
-    expect(processes[0].kill).not.toHaveBeenCalled()
+    expect(spawned(1)).toMatchObject({ file: 'shell-b', args: shellSpawnArgs(['--second']), cwd: b.cwd })
+    expect(spawned(0).kill).not.toHaveBeenCalled()
     await b.ctx.fiber.dispose()
     expect(processes.map(process => process.kill.mock.calls.length)).toEqual([1, 1])
   })

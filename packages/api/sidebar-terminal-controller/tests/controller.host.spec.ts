@@ -29,13 +29,13 @@ describe('sidebar terminal Remote composition', () => {
     expect(remoteMethods(h.ctx.sidebarTerminalController).map(method => [method.method, method.mode]))
       .toEqual([['capability', undefined], ['shells', undefined], ['open', 'stream'], ['input', undefined], ['resize', undefined], ['ack', undefined], ['release', undefined], ['inspectUi', undefined], ['closeUi', undefined], ['listUi', undefined], ['renameUi', undefined], ['watch', 'stream'], ['closeAgent', undefined]])
     expect(await result(await h.rpc('capability'))).toEqual({ ok: true, value: { status: 'available', shellName: 'fixture-shell' } })
-    expect(await result(await h.rpc('shells'))).toEqual({ ok: true, value: [{ path: '/bin/fixture-shell', name: 'fixture-shell' }] })
+    expect(await result(await h.rpc('shells', { sessionId: OPEN.target.sessionId }))).toEqual({ ok: true, value: [{ path: '/bin/fixture-shell', name: 'fixture-shell' }] })
     for (const target of [
       OPEN.target,
       { ...OPEN.target, tabId: 'terminal:' + ATTACHMENT, shellPath: '/bin/zsh' },
       { ...OPEN.target, tabId: 'terminal:tlz0qabc123fallback' },
       { ...OPEN.target, tabId: 'terminal:' + WINDOW + ':0', floating: { windowId: WINDOW, directory: '.' } },
-      { kind: 'agent', uuid: ATTACHMENT },
+      { kind: 'agent', sessionId: 'session-opaque', uuid: ATTACHMENT },
     ]) {
       const request = { ...OPEN, target, cols: 1, rows: 1024 }
       const stream = await h.stream('open', { request })
@@ -86,8 +86,9 @@ describe('sidebar terminal Remote composition', () => {
       expect(await result(await h.rpc(method, { request }))).toMatchObject({ ok: true })
       expect(h.provider[method]).toHaveBeenLastCalledWith(request)
     }
-    expect(await result(await h.rpc('closeAgent', { uuid: ATTACHMENT }))).toMatchObject({ ok: true })
-    expect(h.provider.closeAgent).toHaveBeenCalledWith(ATTACHMENT)
+    const request = { sessionId: 'session-opaque', uuid: ATTACHMENT }
+    expect(await result(await h.rpc('closeAgent', { request }))).toMatchObject({ ok: true })
+    expect(h.provider.closeAgent).toHaveBeenCalledWith(request)
   })
 
   it('looks up existing UI identity and closes the observed process through authenticated calls', async () => {
@@ -131,9 +132,11 @@ describe('sidebar terminal Remote composition', () => {
     ...['', 'terminal:', 'terminal:path/escape', 'terminal:' + 'x'.repeat(129), 'terminal:' + WINDOW + ':0'].map(tabId => ({ ...OPEN, target: { ...OPEN.target, tabId } })),
     { ...OPEN, target: { kind: 'unknown' } },
     ...['', 42, 'x'.repeat(4097), 'shell\0path'].map(shellPath => ({ ...OPEN, target: { ...OPEN.target, shellPath } })),
-    { ...OPEN, target: { kind: 'agent', uuid: ATTACHMENT, shellPath: '/bin/sh' } },
-    { ...OPEN, target: { kind: 'agent', uuid: ATTACHMENT.toUpperCase() } },
-    { ...OPEN, target: { kind: 'agent', uuid: ATTACHMENT, floating: {} } },
+    { ...OPEN, target: { kind: 'agent', sessionId: 'session-opaque', uuid: ATTACHMENT, shellPath: '/bin/sh' } },
+    { ...OPEN, target: { kind: 'agent', sessionId: 'session-opaque', uuid: ATTACHMENT.toUpperCase() } },
+    { ...OPEN, target: { kind: 'agent', sessionId: 'session-opaque', uuid: ATTACHMENT, floating: {} } },
+    { ...OPEN, target: { kind: 'agent', uuid: ATTACHMENT } },
+    { ...OPEN, target: { kind: 'agent', sessionId: '', uuid: ATTACHMENT } },
     { ...OPEN, target: { ...OPEN.target, floating: { windowId: WINDOW, directory: '.' } } },
     { ...OPEN, target: { ...OPEN.target, tabId: 'terminal:' + WINDOW + ':1', floating: { windowId: WINDOW.toUpperCase(), directory: '.' } } },
     ...['-1', '01', '9007199254740992'].map(counter => ({ ...OPEN, target: {
@@ -193,7 +196,13 @@ describe('sidebar terminal Remote composition', () => {
       const iterator = await h.stream('watch', { sessionId })
       await expect(iterator.next()).rejects.toMatchObject({ code: 'sidebarTerminals/invalid-request' })
     }
-    await expect(h.call('closeAgent', { uuid: 'invalid' })).rejects.toMatchObject({ code: 'sidebarTerminals/invalid-request' })
+    for (const request of [
+      { sessionId: 'session-opaque', uuid: 'invalid' },
+      { sessionId: '', uuid: ATTACHMENT },
+      { sessionId: 'session-opaque', uuid: ATTACHMENT, extra: true },
+    ]) {
+      await expect(h.call('closeAgent', { request })).rejects.toMatchObject({ code: 'sidebarTerminals/invalid-request' })
+    }
     expect(h.provider.watch).not.toHaveBeenCalled()
     expect(h.provider.closeAgent).not.toHaveBeenCalled()
   })
@@ -286,6 +295,67 @@ describe('sidebar terminal Remote composition', () => {
     await disposing
     await pending
     expect(disposed).toBe(true)
+  })
+
+  it.each([
+    ['shells', { sessionId: OPEN.target.sessionId }],
+    ['input', { request: { attachmentId: ATTACHMENT, data: 'held' } }],
+    ['resize', { request: { attachmentId: ATTACHMENT, cols: 80, rows: 24 } }],
+  ] as const)('cancels and awaits a held %s operation during controller disposal', async (method, args) => {
+    const h = await createHarness()
+    const controller = h.ctx.sidebarTerminalController
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    if (method === 'shells') {
+      h.provider.shells.mockImplementationOnce(async () => {
+        entered.resolve(undefined)
+        await release.promise
+        return [{ path: '/bin/fixture-shell', name: 'fixture-shell' }]
+      })
+    } else if (method === 'input') {
+      h.provider.input.mockImplementationOnce(() => {
+        entered.resolve(undefined)
+        return release.promise
+      })
+    } else {
+      h.provider.resize.mockImplementationOnce(() => {
+        entered.resolve(undefined)
+        return release.promise
+      })
+    }
+    const pending = method === 'shells'
+      ? controller.shells(args.sessionId as SidebarTerminalSessionId)
+      : method === 'input'
+        ? controller.input(args.request)
+        : controller.resize(args.request)
+    await entered.promise
+    let disposed = false
+    const disposing = h.setEnabled(false).then(() => { disposed = true })
+    const providerCallCount = (): number => {
+      if (method === 'shells') return h.provider.shells.mock.calls.length
+      if (method === 'input') return h.provider.input.mock.calls.length
+      return h.provider.resize.mock.calls.length
+    }
+    try {
+      await vi.waitFor(() => { expect(() => controller.capability()).toThrow() })
+      expect(disposed).toBe(false)
+      const calls = providerCallCount()
+      const after = method === 'shells'
+        ? controller.shells(args.sessionId as SidebarTerminalSessionId)
+        : method === 'input'
+          ? controller.input(args.request)
+          : controller.resize(args.request)
+      await expect(after).rejects.toMatchObject({ name: 'AbortError' })
+      expect(providerCallCount()).toBe(calls)
+      release.resolve(undefined)
+      await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+      await disposing
+      expect(disposed).toBe(true)
+      expect(h.ctx.get('sidebarTerminalController')).toBeUndefined()
+    } finally {
+      release.resolve(undefined)
+      await Promise.allSettled([pending, disposing])
+    }
   })
 
   it('rejects missing or tampered Web credentials before unary or stream provider entry', async () => {

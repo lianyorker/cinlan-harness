@@ -11,7 +11,7 @@ import { gitCallbacks } from './git-fixture.client.ts'
 function setup() {
   const terminal: NonNullable<BuiltinTabOptions['terminal']> = {
     connectTerminal: vi.fn(() => async () => {}), terminalInput: vi.fn(async () => {}), terminalResize: vi.fn(async () => {}),
-    terminalCloseUi: vi.fn(async () => {}), terminalCloseAgent: vi.fn(async () => {}),
+    terminalCloseUi: vi.fn(async () => {}), terminalCloseAgent: vi.fn(async () => {}), terminalShells: vi.fn(async () => []),
   }
   const store = createSidebarStore()
   store.setSession('close-without-renderer')
@@ -35,13 +35,13 @@ describe('terminal tab close through the sidebar service', () => {
     } finally { dispose() }
   })
 
-  it('closes the original agent identity without a window or session prefix', () => {
+  it('closes the original agent identity with its owning Session', () => {
     const { terminal, store, service, dispose } = setup()
     const uuid = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
     try {
       store.reduce(state => openTabInActivePane(state, { id: 'agent:' + uuid, type: 'terminal', title: 'Agent' }))
       service.closeTab('agent:' + uuid)
-      expect(terminal.terminalCloseAgent).toHaveBeenCalledExactlyOnceWith(uuid)
+      expect(terminal.terminalCloseAgent).toHaveBeenCalledExactlyOnceWith({ sessionId: 'close-without-renderer', uuid })
       expect(terminal.terminalCloseUi).not.toHaveBeenCalled()
       expect(terminal.connectTerminal).not.toHaveBeenCalled()
     } finally { dispose() }

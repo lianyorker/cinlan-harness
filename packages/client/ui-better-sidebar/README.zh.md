@@ -80,11 +80,15 @@ Office 文件通过内置 DOCX/XLSX/PPTX 预览器及其 DOC/XLS/PPT 扩展名�
 
 双击终端标签或在右键菜单选择**重命名终端**。只有 Host 接受后，标签标题才会更新。打开 Session 时恢复仍被保留的存活进程标签，包括标题与 Shell 选择，即使 Client 布局已丢失。恢复失败会显示**重试**。主窗口与浮动窗口仅恢复各自的终端；Host 重启不恢复进程，终端标题也不写入 Session JSONL。
 
-新终端标签在启动前提供设置默认值及本地主机已安装的 Shell。每个标签将已接受的选择随布局保存；选择 Shell 不会修改设置。主机插件配置的 `shellCandidates` 控制发现范围（默认：`zsh`、`bash`、`fish`、`pwsh`、`powershell`、`cmd`）；已安装的配置默认 Shell 也会加入列表。显式选择在创建进程前再次检查，不可用时直接失败，不会自动回退。
+新终端标签在启动前查询所属 Session 已捕获执行环境中安装的 Shell。本地 Session 使用设置默认值和 node-pty；SSH Session 使用远程默认 Shell 及租约中的子进程终端服务。每个标签将已接受的选择随布局保存；选择 Shell 不会修改设置。`shellCandidates` 控制发现范围（默认：`zsh`、`bash`、`fish`、`pwsh`、`powershell`、`cmd`）。显式选择在创建进程前再次检查，不可用时直接失败，不会自动回退。
+
+界面进程持有 `executionBindings.forSession` 返回的租约，直到原生进程退出且提供方清理结束。远程 PTY 只使用该租约的子进程服务；浮动目录使用其文件系统及 POSIX 范围规则。绑定缺失、租约失效或远程失败均不会选择本地进程。重连保留捕获的进程、标题、目录和执行实例；保留列表恢复会排除已失效的执行环境。Host 释放时取消待完成的创建操作，并等待其进程及租约结束。若无法确认进程终止，清理会报告失败并保留租约，不会将进程报告为已安全释放。
+
+可选的侧边栏 `terminal_*` 模型工具仅支持本地 Session。每个操作在访问本地代理终端注册表之前，都会检查发起方 Session 的执行绑定。SSH Session 使用官方执行终端或 Bash 能力；其交互式界面标签使用上述远程租约。
 
 集成终端视图在 Web 与 Desktop 上使用已认证的 `sidebarTerminals` Remote。重连接回存活进程并保留其已捕获的目录。悬浮工作区标签捕获会话工作区内已存在的目录，布局以窗口 UUID 隔离存储；目录无效时保留已保存的输入并显示修正提示。关闭标签会指向已观察到的原生进程代际，即使视图尚未打开也能关闭。能力查询不创建进程。主机重启不能恢复运行中的命令，这些偏好也不配置核心执行工具。
 
-主机无需 Web 服务器即可挂载终端提供方。完整序列化输出帧默认上限为 16 KiB，保留输出为 8 MiB，确认超时为 30 秒，原生退出超时为 10 秒；可在插件配置中修改 `terminalFrameBytes`、`terminalBufferBytes`、`terminalAckTimeoutMs` 和 `terminalShutdownTimeoutMs`。缓冲区至少容纳一帧，并计入 JSON 转义和帧元数据。原生卸载等待全部所属进程退出，包括未连接视图及已开始关闭的终端。
+主机无需 Web 服务器即可挂载终端提供方。本地界面 PTY 与代理 PTY 继承共享子进程服务已清除凭据的父进程环境；环境中的 `DEEPSEEK_*`、`DSH_*` 和凭据名称变量不会进入 Shell。完整序列化输出帧默认上限为 16 KiB，保留输出为 8 MiB，确认超时为 30 秒，原生退出超时为 10 秒；可在插件配置中修改 `terminalFrameBytes`、`terminalBufferBytes`、`terminalAckTimeoutMs` 和 `terminalShutdownTimeoutMs`。缓冲区至少容纳一帧，并计入 JSON 转义和帧元数据。原生卸载等待全部所属进程退出，包括未连接视图及已开始关闭的终端。
 
 > 🔌 **核心理念**：服务优先——内置的 7 tab + 6 viewer 与第三方插件通过同一套 `ctx.betterSidebar` API 注册，能力完全对等；官方不再内置、可由生态提供的功能，交由生态插件实现（已有 **28+ 生态插件**，见下方「🌐 插件生态」）。接入文档见「🔌 服务化扩展」与 [外部插件接入指南](./docs/external-plugin-guide.md)。
 

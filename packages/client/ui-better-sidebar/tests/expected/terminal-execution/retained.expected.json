@@ -1,0 +1,7 @@
+{
+  "cwd": "/srv/remote",
+  "pid": 7401,
+  "shellPath": "/bin/sh",
+  "title": "Remote build",
+  "output": "remote:命令"
+}

@@ -13,6 +13,7 @@
  *   C10 — no UI/transport vocabulary in the canonical value.
  */
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
+import type {} from '@deepseek-ai/dsh-execution-binding'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { Context } from './context-types.ts'
@@ -45,8 +46,8 @@ export function boundBytes(text: string, maxBytes: number): { text: string; trun
 }
 
 /** Pure text projection helper (the canonical value is already structured). */
-function textRender<T>(fn: (value: T) => string): (_args: unknown, value: unknown) => ContentBlock[] {
-  return (_args, value) => [{ type: 'text', text: fn(value as T) }]
+function textRender(fn: (value: unknown) => string): (_args: unknown, value: unknown) => ContentBlock[] {
+  return (_args, value) => [{ type: 'text', text: fn(value) }]
 }
 
 /** Extract the calling agent or throw the canonical "no agent" error. */
@@ -58,8 +59,17 @@ function requireAgent(agent: Agent | undefined): Agent {
 }
 
 /** Resolve the calling agent's session id (the registry scope + ownership key). */
-function sessionIdOf(exec: ToolRunContext): string {
-  return requireAgent(exec.agent).session.id
+async function sessionIdOf(ctx: Context, exec: ToolRunContext): Promise<string> {
+  const agent = requireAgent(exec.agent)
+  exec.signal.throwIfAborted()
+  const bindings = ctx.get('executionBindings')
+  if (bindings === undefined) throw new Error('Session execution binding is unavailable.')
+  const binding = await bindings.bindingForSession(agent.session.id, exec.signal)
+  exec.signal.throwIfAborted()
+  if (binding.kind !== 'local') {
+    throw new Error('These sidebar terminal tools support local Sessions only. Use Bash or the execution terminal tools for this remote Session.')
+  }
+  return agent.session.id
 }
 
 /**
@@ -73,6 +83,7 @@ function sessionIdOf(exec: ToolRunContext): string {
  * @param ctx - host plugin context (carries the tools service).
  * @param registry - the agent-owned terminal registry.
  * @param resolveCwd - live cwd resolver for one session id.
+ * @param readShellOverrides - current local shell and argument settings used for a new agent PTY.
  * @returns a disposer that unregisters all eight tools (the caller gates
  * registration on the side-card setting and calls this to turn them off).
  */
@@ -119,13 +130,14 @@ export function registerTools(
           title: { type: 'string', required: true, description: 'The title you provided (echoed for confirmation).' },
         },
       },
-      render: textRender((v: { uuid: string; title: string }) =>
-        `Opened terminal "${v.title}" (uuid: ${v.uuid}). The sidebar tab appears automatically; use terminal_read to see output and terminal_send (with submit=true) to run more commands.`,
-      ),
+      render: textRender((value) => {
+        const v = value as { uuid: string; title: string }
+        return `Opened terminal "${v.title}" (uuid: ${v.uuid}). The sidebar tab appears automatically; use terminal_read to see output and terminal_send (with submit=true) to run more commands.`
+      }),
     },
-    execute: (args: { title: string; command: string }, exec) => {
+    execute: async (args: { title: string; command: string }, exec) => {
       exec.signal.throwIfAborted()
-      const sessionId = sessionIdOf(exec)
+      const sessionId = await sessionIdOf(ctx, exec)
       const cwd = resolveCwd(sessionId)
       const { shell, shellArgs } = readShellOverrides()
       const uuid = registry.create(sessionId, args.title, args.command, cwd, 80, 24, shell, shellArgs)
@@ -168,8 +180,8 @@ export function registerTools(
         return [{ type: 'text', text: `Agent terminals in this session:\n${lines.join('\n')}` }]
       },
     },
-    execute: (_args, exec) => {
-      const sessionId = sessionIdOf(exec)
+    execute: async (_args, exec) => {
+      const sessionId = await sessionIdOf(ctx, exec)
       return Promise.resolve(registry.list(sessionId))
     },
   }))
@@ -209,13 +221,14 @@ export function registerTools(
           bytes: { type: 'integer', required: true, description: 'Number of UTF-8 bytes written (including the Enter key if submit was true).' },
         },
       },
-      render: textRender((v: { uuid: string; bytes: number }) =>
-        `Sent ${v.bytes} byte(s) to terminal ${v.uuid}.`,
-      ),
+      render: textRender((value) => {
+        const v = value as { uuid: string; bytes: number }
+        return `Sent ${v.bytes} byte(s) to terminal ${v.uuid}.`
+      }),
     },
-    execute: (args: { uuid: string; text: string; submit?: boolean }, exec) => {
+    execute: async (args: { uuid: string; text: string; submit?: boolean }, exec) => {
       exec.signal.throwIfAborted()
-      const sessionId = sessionIdOf(exec)
+      const sessionId = await sessionIdOf(ctx, exec)
       registry.assertOwned(args.uuid, sessionId)
       const payload = args.submit === true ? `${args.text}\r` : args.text
       registry.send(args.uuid, payload)
@@ -259,14 +272,14 @@ export function registerTools(
         },
       },
       render: (_args, value) => {
-        const v = value as { text: string; totalLines: number; lineBegin: number; lineEnd: number; truncated: boolean }
+        const v = value
         const head = `[lines ${v.lineBegin}..${v.lineEnd} of ${v.totalLines}${v.truncated ? '; truncated to 256KiB' : ''}]`
         return [{ type: 'text', text: `${head}\n${v.text}` }]
       },
     },
-    execute: (args: { uuid: string; offset?: number; count?: number }, exec) => {
+    execute: async (args: { uuid: string; offset?: number; count?: number }, exec) => {
       exec.signal.throwIfAborted()
-      const sessionId = sessionIdOf(exec)
+      const sessionId = await sessionIdOf(ctx, exec)
       registry.assertOwned(args.uuid, sessionId)
       const result = registry.read(args.uuid, args.offset, args.count)
       const bounded = boundBytes(result.text, READ_BYTE_LIMIT)
@@ -356,7 +369,7 @@ export function registerTools(
     },
     async execute(args: { uuid: string; needle: string; timeout_ms?: number }, exec) {
       exec.signal.throwIfAborted()
-      const sessionId = sessionIdOf(exec)
+      const sessionId = await sessionIdOf(ctx, exec)
       registry.assertOwned(args.uuid, sessionId)
       // The registry validates the needle (empty → bad-request) and returns
       // the camelCase result the schema above declares directly — no
@@ -387,13 +400,14 @@ export function registerTools(
           rows: { type: 'integer', required: true },
         },
       },
-      render: textRender((v: { uuid: string; cols: number; rows: number }) =>
-        `Resized terminal ${v.uuid} to ${v.cols}×${v.rows}.`,
-      ),
+      render: textRender((value) => {
+        const v = value as { uuid: string; cols: number; rows: number }
+        return `Resized terminal ${v.uuid} to ${v.cols}×${v.rows}.`
+      }),
     },
-    execute: (args: { uuid: string; cols: number; rows: number }, exec) => {
+    execute: async (args: { uuid: string; cols: number; rows: number }, exec) => {
       exec.signal.throwIfAborted()
-      const sessionId = sessionIdOf(exec)
+      const sessionId = await sessionIdOf(ctx, exec)
       registry.assertOwned(args.uuid, sessionId)
       const dims = registry.resize(args.uuid, args.cols, args.rows)
       return Promise.resolve({ uuid: args.uuid, ...dims })
@@ -414,7 +428,7 @@ export function registerTools(
       signal: {
         type: 'string',
         required: true,
-        enum: ALLOWED_SIGNALS as readonly string[],
+        enum: ALLOWED_SIGNALS,
         description: 'Signal to deliver: SIGINT (Ctrl+C) | SIGTERM | SIGKILL | SIGHUP | SIGTSTP (Ctrl+Z).',
       },
     },
@@ -427,13 +441,14 @@ export function registerTools(
           signal: { type: 'string', required: true },
         },
       },
-      render: textRender((v: { uuid: string; signal: AgentTerminalSignal }) =>
-        `Sent ${v.signal} to terminal ${v.uuid}.`,
-      ),
+      render: textRender((value) => {
+        const v = value as { uuid: string; signal: AgentTerminalSignal }
+        return `Sent ${v.signal} to terminal ${v.uuid}.`
+      }),
     },
-    execute: (args: { uuid: string; signal: AgentTerminalSignal }, exec) => {
+    execute: async (args: { uuid: string; signal: AgentTerminalSignal }, exec) => {
       exec.signal.throwIfAborted()
-      const sessionId = sessionIdOf(exec)
+      const sessionId = await sessionIdOf(ctx, exec)
       registry.assertOwned(args.uuid, sessionId)
       registry.signal(args.uuid, args.signal)
       return Promise.resolve({ uuid: args.uuid, signal: args.signal })
@@ -459,13 +474,14 @@ export function registerTools(
           closed: { type: 'boolean', required: true, description: 'Whether a live terminal was actually dropped (false if the uuid was already gone).' },
         },
       },
-      render: textRender((v: { uuid: string; closed: boolean }) =>
-        v.closed ? `Closed terminal ${v.uuid}.` : `Terminal ${v.uuid} was already closed.`,
-      ),
+      render: textRender((value) => {
+        const v = value as { uuid: string; closed: boolean }
+        return v.closed ? `Closed terminal ${v.uuid}.` : `Terminal ${v.uuid} was already closed.`
+      }),
     },
-    execute: (args: { uuid: string }, exec) => {
+    execute: async (args: { uuid: string }, exec) => {
       exec.signal.throwIfAborted()
-      const sessionId = sessionIdOf(exec)
+      const sessionId = await sessionIdOf(ctx, exec)
       registry.assertOwned(args.uuid, sessionId)
       const closed = registry.close(args.uuid)
       return Promise.resolve({ uuid: args.uuid, closed })

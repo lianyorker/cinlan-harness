@@ -27,7 +27,7 @@
       "path": "../ui-slots"
     },
     {
-      "path": "../ui-better-sidebar"
+      "path": "../ui-better-sidebar/tsconfig.client.json"
     }
   ]
 }

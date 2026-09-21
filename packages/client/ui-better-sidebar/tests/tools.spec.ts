@@ -79,6 +79,7 @@ function mount(): { captured: CapturedTool[]; registry: FakeRegistry; dispose: (
   const captured: CapturedTool[] = []
   let disposeCount = 0
   const ctx = {
+    get: () => ({ bindingForSession: async () => ({ kind: 'local' }) }),
     tools: {
       define: defineTool,
       register: (tool: unknown): (() => void) => {

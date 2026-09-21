@@ -1,6 +1,6 @@
 /** Service definition for the existing integrated sidebar PTY provider. */
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { SidebarTerminalRenameUiRequest, SidebarUiTerminalSnapshot, SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalProcessId, SidebarTerminalAckRequest, SidebarTerminalCapability, SidebarTerminalShell, SidebarTerminalErrorCode, SidebarTerminalFrame, SidebarTerminalInputRequest, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest, SidebarTerminalResizeRequest, SidebarAgentTerminalId, SidebarAgentTerminalSnapshot, SidebarTerminalSessionId } from './types.ts'
+import type { SidebarTerminalRenameUiRequest, SidebarUiTerminalSnapshot, SidebarTerminalUiTarget, SidebarTerminalCloseUiRequest, SidebarTerminalCloseAgentRequest, SidebarTerminalProcessId, SidebarTerminalAckRequest, SidebarTerminalCapability, SidebarTerminalShell, SidebarTerminalErrorCode, SidebarTerminalFrame, SidebarTerminalInputRequest, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest, SidebarTerminalResizeRequest, SidebarAgentTerminalSnapshot, SidebarTerminalSessionId } from './types.ts'
 export type * from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -29,10 +29,11 @@ export abstract class SidebarTerminals extends Service {
    * @returns Current availability.
    */
   abstract capability(): SidebarTerminalCapability
-  /** Discover installed local shells without starting a process.
+  /** Discover installed shells in the captured Session execution world without starting a process.
+   * @param sessionId - known Session whose immutable execution binding selects the provider.
    * @returns Verified choices for new UI tabs; existing processes retain their shell.
    */
-  abstract shells(): readonly SidebarTerminalShell[]
+  abstract shells(sessionId: SidebarTerminalSessionId): Promise<readonly SidebarTerminalShell[]>
   /** Attach to a process and observe its output.
    * @param request - immutable target and initial geometry.
    * @param signal - attachment lifetime.
@@ -41,12 +42,14 @@ export abstract class SidebarTerminals extends Service {
   abstract open(request: SidebarTerminalOpenRequest, signal: AbortSignal): AsyncIterable<SidebarTerminalFrame>
   /** Write input to the attached process.
    * @param request - input for a live attachment.
+   * @returns after the captured provider accepts input; local native writes may complete synchronously.
    */
-  abstract input(request: SidebarTerminalInputRequest): void
+  abstract input(request: SidebarTerminalInputRequest): void | Promise<void>
   /** Resize the attached process display.
    * @param request - updated display geometry.
+   * @returns after the captured provider applies the dimensions; local native resize may complete synchronously.
    */
-  abstract resize(request: SidebarTerminalResizeRequest): void
+  abstract resize(request: SidebarTerminalResizeRequest): void | Promise<void>
   /** Acknowledge output after the renderer consumes it.
    * @param request - highest data sequence rendered by xterm.
    */
@@ -80,10 +83,10 @@ export abstract class SidebarTerminals extends Service {
    * @returns current agent terminal list and later updates.
    */
   abstract watch(sessionId: SidebarTerminalSessionId, signal: AbortSignal): AsyncIterable<readonly SidebarAgentTerminalSnapshot[]>
-  /** Request termination of an agent terminal.
-   * @param uuid - agent-owned terminal explicitly closed by its user.
+  /** Request termination of an agent terminal owned by the caller's Session.
+   * @param request - Session-scoped agent terminal identity explicitly closed by its user.
    */
-  abstract closeAgent(uuid: SidebarAgentTerminalId): void
+  abstract closeAgent(request: SidebarTerminalCloseAgentRequest): void
 }
 
 export default SidebarTerminals

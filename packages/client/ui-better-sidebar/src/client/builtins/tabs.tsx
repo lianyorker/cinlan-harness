@@ -117,8 +117,9 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions): readonly
             },
           ],
         }],
-        render: ({ pluginSettings, updatePluginSetting }) => (
-          <OpenWithSettings pluginSettings={pluginSettings} updatePluginSetting={updatePluginSetting} />
+        render: settings => (
+          <OpenWithSettings pluginSettings={settings.pluginSettings}
+            updatePluginSetting={(key, value) => { settings.updatePluginSetting(key, value) }} />
         ),
       },
       component: ({ ctx, store, preferences, scope, tab, expanded, onToggleDir, onReferenceFile }) => (
@@ -168,13 +169,8 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions): readonly
           desc: () => t('settingsJobsDesc'),
         }],
       },
-      component: ({ ctx, scope, visible, onSubagentJump }) => (
-        <SubagentView
-          sessionId={scope.sessionId}
-          ctx={ctx}
-          active={visible}
-          onOpenChild={(address) => { onSubagentJump?.(address.childSessionId) }}
-        />
+      component: ({ ctx, scope, visible }) => (
+        <SubagentView sessionId={scope.sessionId} ctx={ctx} active={visible} />
       ),
     },
     {
@@ -278,7 +274,10 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions): readonly
       onClose: (tab, scope) => {
         if (options.terminal === undefined) return
         const closing = isAgentTabId(tab.id)
-          ? options.terminal.terminalCloseAgent(agentUuidOf(tab.id) as SidebarAgentTerminalId)
+          ? options.terminal.terminalCloseAgent({
+            sessionId: scope.sessionId as SidebarTerminalSessionId,
+            uuid: agentUuidOf(tab.id) as SidebarAgentTerminalId,
+          })
           : options.terminal.terminalCloseUi(scope.sessionId as SidebarTerminalSessionId, tab.id as SidebarTerminalTabId)
         void closing.catch((error: unknown) => { console.warn('dsh-better-sidebar: terminal close failed', error) })
       },

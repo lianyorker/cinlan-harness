@@ -11,8 +11,18 @@ import { dirname, join } from 'node:path'
 import { createRequire } from 'node:module'
 import { userInfo } from 'node:os'
 import type { IPty } from 'node-pty'
+import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
 import { loadRequiredNodePty, type NodePtyModule } from './pty-deps.ts'
-import { SidebarError } from './wire.ts'
+import { SidebarError } from './sidebar-error.ts'
+
+/** Native or execution-world terminal I/O consumed by the existing registry. */
+export interface SidebarTerminalProcess extends Pick<IPty, 'pid' | 'process' | 'onData' | 'onExit' | 'pause' | 'resume'> {
+  /** A failed asynchronous close keeps its registry entry available for retry until confirmed exit. */
+  readonly retainUntilExit?: boolean
+  write(data: string): void | Promise<void>
+  resize(cols: number, rows: number): void | Promise<void>
+  kill(): void
+}
 
 /** Per-terminal transcript bound (bytes kept for replay). */
 const TRANSCRIPT_LIMIT = 1 << 20
@@ -57,11 +67,19 @@ export interface SidebarPty {
   shellPath: string
   /** Human title retained with this Host process; omission uses its shell name. */
   title?: string
-  pty: IPty
+  pty: SidebarTerminalProcess
+  /** Retained execution incarnation; a reconnect cannot move this process. */
+  incarnation?: string
+  /** A failed execution world terminates streams without claiming a normal shell exit. */
+  failure?: unknown
+  /** Close requested; remote handles stay addressable until confirmed exit. */
+  closing?: boolean
   /** Output accumulated since spawn (bounded; head dropped when over the limit). */
   transcript: string
   /** Whether the top-level process exited (transcript stays replayable). */
   exited: boolean
+  /** Resolves at the actual native exit; shared by teardown and execution-lease retention. */
+  readonly done: Promise<void>
   exitCode?: number | null
 }
 
@@ -87,7 +105,7 @@ export interface SidebarPty {
  */
 export class PtyManager {
   private readonly sessions = new Map<string, SidebarPty>()
-  private readonly pendingExits = new Map<IPty, Promise<void>>()
+  private readonly pendingExits = new Map<SidebarTerminalProcess, Promise<void>>()
   private readonly attachedViews = new Map<SidebarPty, number>()
   private readonly pendingCloses = new Map<string, ReturnType<typeof setTimeout>>()
   /** Tabs whose view unmounted because the user switched conversations — the
@@ -102,8 +120,13 @@ export class PtyManager {
     private readonly maxPerSession: number,
     private readonly shellArgs: string[] = [],
     /** The loaded node-pty module (injected so a broken install degrades instead of crashing the plugin). */
-    private readonly nodePty: NodePtyModule = loadRequiredNodePty(),
+    private readonly nodePty: NodePtyModule | null = loadRequiredNodePty(),
   ) {}
+
+  private spawnLocal(shell: string, args: string[], options: Parameters<NodePtyModule['spawn']>[2]): IPty {
+    if (this.nodePty === null) throw new SidebarError('pty-error', 'The local native terminal dependency is unavailable.', 503)
+    return this.nodePty.spawn(shell, args, options)
+  }
 
   /** All live terminal keys of one session. */
   keysOf(sessionId: string): string[] {
@@ -140,6 +163,7 @@ export class PtyManager {
     rows: number,
     shell?: string,
     shellArgs?: string[],
+    processFactory?: () => SidebarTerminalProcess,
   ): SidebarPty {
     const key = `${sessionId}:${tabId}`
     this.cancelClose(key)
@@ -154,24 +178,25 @@ export class PtyManager {
     if (this.keysOf(sessionId).length >= this.maxPerSession) {
       throw new SidebarError('pty-error', `terminal limit reached (${this.maxPerSession}) for this session`, 400)
     }
+    const exit = Promise.withResolvers<undefined>()
     const handle: SidebarPty = {
       key,
       sessionId,
       tabId,
       cwd,
       shellPath: shell ?? this.shell,
-      pty: this.nodePty.spawn(shell ?? this.shell, shellSpawnArgs(shellArgs ?? this.shellArgs), {
+      pty: processFactory?.() ?? this.spawnLocal(shell ?? this.shell, shellSpawnArgs(shellArgs ?? this.shellArgs), {
         name: 'xterm-256color',
         cols: Math.max(2, Math.floor(cols)),
         rows: Math.max(2, Math.floor(rows)),
         cwd,
-        env: { ...process.env },
+        env: scrubbedParentEnv(),
       }),
       transcript: '',
       exited: false,
+      done: exit.promise,
     }
-    let settleExit!: () => void
-    this.pendingExits.set(handle.pty, new Promise<void>((resolve) => { settleExit = resolve }))
+    this.pendingExits.set(handle.pty, handle.done)
     handle.pty.onData((data) => {
       handle.transcript += data
       if (handle.transcript.length > TRANSCRIPT_LIMIT) {
@@ -181,8 +206,9 @@ export class PtyManager {
     handle.pty.onExit(({ exitCode }) => {
       handle.exited = true
       handle.exitCode = exitCode
+      if (handle.closing === true && this.sessions.get(key) === handle) this.sessions.delete(key)
       this.pendingExits.delete(handle.pty)
-      settleExit()
+      exit.resolve(undefined)
     })
     this.sessions.set(key, handle)
     return handle
@@ -260,7 +286,8 @@ export class PtyManager {
     this.cancelClose(key)
     const handle = this.sessions.get(key)
     if (handle === undefined) return
-    this.sessions.delete(key)
+    handle.closing = true
+    if (handle.pty.retainUntilExit !== true || handle.exited) this.sessions.delete(key)
     this.attachedViews.delete(handle)
     try {
       handle.pty.kill()
