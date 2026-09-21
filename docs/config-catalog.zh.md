@@ -2157,7 +2157,7 @@ export type PiAiThinkingTokenBudgetField = NonNullable<OpenAICompletionsCompat['
 
 依赖：`Api` (`@earendil-works/pi-ai`) · `CacheRetention` (`@earendil-works/pi-ai`) · `Model` (`@earendil-works/pi-ai`) · `ModelThinkingLevel` (`@earendil-works/pi-ai`) · `OpenAICompletionsCompat` (`@earendil-works/pi-ai`) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` (`@earendil-works/pi-ai`) · `Transport` (`@earendil-works/pi-ai`)
 
-来源：[`packages/llm/llm-pi-ai/src/config.ts:221`](../packages/llm/llm-pi-ai/src/config.ts)
+来源：[`packages/llm/llm-pi-ai/src/config.ts:222`](../packages/llm/llm-pi-ai/src/config.ts)
 
 <a id="deepseek-aidsh-llm-replay"></a>
 
@@ -3928,7 +3928,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/shell/tool-bash-persistent/src/index.ts:432`](../packages/shell/tool-bash-persistent/src/index.ts)
+来源：[`packages/shell/tool-bash-persistent/src/index.ts:433`](../packages/shell/tool-bash-persistent/src/index.ts)
 
 <a id="deepseek-aidsh-tool-browser"></a>
 
@@ -4236,7 +4236,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/shell/tool-pwsh-persistent/src/index.ts:455`](../packages/shell/tool-pwsh-persistent/src/index.ts)
+来源：[`packages/shell/tool-pwsh-persistent/src/index.ts:447`](../packages/shell/tool-pwsh-persistent/src/index.ts)
 
 <a id="deepseek-aidsh-tool-ralph"></a>
 
@@ -4310,7 +4310,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/fs/tool-str-replace-editor/src/index.ts:505`](../packages/fs/tool-str-replace-editor/src/index.ts)
+来源：[`packages/fs/tool-str-replace-editor/src/index.ts:506`](../packages/fs/tool-str-replace-editor/src/index.ts)
 
 <a id="deepseek-aidsh-tool-subagent"></a>
 
@@ -5092,6 +5092,7 @@ export interface Config {
 
 - `@deepseek-ai/dsh-acp-app` — 需要 `cmdlineArgs` ([`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts))
 - `@deepseek-ai/dsh-agent` ([`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts))
+- `@deepseek-ai/dsh-api-account-controller` — 需要 `typert` · `authorization` · `credentials` ([`packages/api/account-controller/src/index.ts`](../packages/api/account-controller/src/index.ts))
 - `@deepseek-ai/dsh-api-automation-controller` — 需要 `typert` · `automationRuntime` · `workspaceRegistry` · `agentPresets` · `agentDefaultModel` · `llm` · `permissionPresets` ([`packages/api/automation-controller/src/index.ts`](../packages/api/automation-controller/src/index.ts))
 - `@deepseek-ai/dsh-api-execution-host-controller` — 需要 `typert` · `executionHostTargets` ([`packages/api/execution-host-controller/src/index.ts`](../packages/api/execution-host-controller/src/index.ts))
 - `@deepseek-ai/dsh-api-integration-preflight-controller` — 需要 `typert` ([`packages/api/integration-preflight-controller/src/index.ts`](../packages/api/integration-preflight-controller/src/index.ts))
@@ -5153,6 +5154,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-schedule` ([`packages/client/ui-schedule/src/index.ts`](../packages/client/ui-schedule/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-session` ([`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings` ([`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-settings-account` ([`packages/client/ui-settings-account/src/index.ts`](../packages/client/ui-settings-account/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-automation` ([`packages/client/ui-settings-automation/src/index.ts`](../packages/client/ui-settings-automation/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-general` ([`packages/client/ui-settings-general/src/index.ts`](../packages/client/ui-settings-general/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-hosts` ([`packages/client/ui-settings-hosts/src/index.ts`](../packages/client/ui-settings-hosts/src/index.ts))
