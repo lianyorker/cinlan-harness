@@ -69,7 +69,7 @@ Electron 拥有保留 profile `.dsh/profiles/desktop`。其中精确的 `@deepse
 
 ## 安装与解析
 
-[目标打包脚本](../../../../apps/desktop/scripts/package-target.ts)通过当前 Node 可执行文件调用已安装的验证、打包与 electron-builder 入口。直接解析这些工具，避免包管理器的执行包装器在构建期间同步工作区依赖。显式 pnpm 构建脚本、打包和 seed 安装保留原有归属与验证。
+[目标打包脚本](../../../../apps/desktop/scripts/package-target.ts)通过当前 Node 可执行文件调用已安装的验证、打包与 electron-builder 入口。直接解析这些工具，避免包管理器的执行包装器在构建期间同步工作区依赖。显式 pnpm 构建脚本、打包和 seed 安装保留原有归属与验证。仓库 postinstall 会惰性加载仅供开发使用的 Lefthook；生产安装省略它时直接返回。
 
 安装器绝不原地修改活跃 profile。它把包括已保存 `cordis.patch.yml` 在内的 profile 元数据复制到事务暂存目录，并使用内置 pnpm 应用精确依赖变更。Electron 在复制元数据前停止并等待活跃 Host 完成清理，然后单独启动并停止 staging 后端。活跃后端保持停止直到激活或安全的失败恢复，因此配置写入不会与快照竞争，两个 Desktop 后端也绝不会并发共享 `.dsh` 状态。发布校准保留同一份已保存 patch。激活过程在对应目录移动前先持久化 `pending.json` 的每个下一阶段，把活跃 profile 移到 `rollback/profile`，把暂存 profile 移到 `.dsh/profiles/desktop`，然后重启。恢复过程会结合预写阶段与真实的 active、rollback 和 staging 目录，因此任一个写入与移动间隙中断后仍会保留或恢复一个完整 profile。
 
