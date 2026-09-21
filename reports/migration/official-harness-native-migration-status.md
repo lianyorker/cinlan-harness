@@ -43,7 +43,7 @@ Committed main 的 Windows packaging 命令 `node --import tsx/esm apps/desktop/
 
 基础 profile 已挂载官方 Node PTC 与 workflow-ptc；Headless/Web 不再重复挂载 worker runtime。产品预设移除外部 Codex／Claude CLI 工具模板，保留 Harness 原生子代理。Office 技能 provider 与检查器已迁入；托管解释器和依赖查询的实际 owner 是 Desktop Host 与 Desktop 载荷，正在补齐这条交付链。
 
-Windows 受限 PTC 的控制管道源码回归已通过；初次失败来自源码测试加载旧 built ACL runner，fixture 明确选择源码入口后恢复。阶段 1 Host build 后，PTC 与 workflow 两个 built smoke 均通过，验证实际 `lib` 入口与受限写入；最终 main 安装包仍需重新构建和验收。
+Windows 受限 PTC 的控制管道源码回归已通过；初次失败来自源码测试加载旧 built ACL runner，fixture 明确选择源码入口后恢复。阶段 1 Host build 后，PTC 与 workflow 两个 built smoke 均通过，验证实际 `lib` 入口与受限写入；committed main 安装包已重建；签名和安装后运行验收仍未宣称。
 
 锁文件由主协调工作统一生成并备份。一个并行子任务误还原共享 lock 后，已按当前 manifests 重新离线安装恢复。Host、Client 和 Web 构建已通过；公开类型等价检查 428 个主块及双语对应通过。权限 live catalog、稳定命令身份、预设切换策略和 Plugin Manager 工具已补齐。新 SDK 图像卸载场景已通过真实 profile 回放，未修改既有 JSONL。
 
@@ -61,7 +61,7 @@ Python SEA 构建脚本内部的 `pnpm exec pkg` 曾触发 pnpm 11 生产依赖�
 
 本批前两笔本地提交为 `491f5e9707`（资源管理、Provider、打包及回归）和 `5f0c900fea`（独立资源设置页、Remote 与普通会话装配）。生成目录收口修复了显式子入口被自动别名区域覆盖、全局事件误用作用域扫描注解，以及 Windows CRLF 导致重复生成漂移的问题；生成目录新鲜度和 13 项配对／区域回归通过。没有远端推送。
 
-文档全量 34 个检查叶子通过直接 Node 入口执行，包含 quick 子集且不重复运行；本批问题修复后 24 项通过，余 10 项是基线既有文档／格式问题，原始失败与逐项分类保存在本地验收日志。生产文档站构建及 3,054 个内部片段解析通过。完整阶段 2 的其余菜单证据见下节；安全资源完成不代表全部菜单或最终安装包已经交付。
+此前阶段曾记录 34 个文档检查叶子通过；本次最终 `doc-sync` 重新执行时仍有基线失败，包括旧 docs/dev 双语、Markdown wrap、README 结构、导出 JSDoc、doc graph/catalog 与站点索引；本轮文档定向检查结果见本节上方，不能将全库文档称为通过。完整阶段 2 的其余菜单证据见下节；安全资源完成不代表全部菜单或安装包的签名与安装运行验收已经交付。
 
 ## 语音、浏览器与 CUA 验收
 
@@ -75,6 +75,6 @@ CUA 设置显示真实 SDK 工具目录状态，不虚构旧 facade 的协议版
 
 本批构建日志、独立审查和原生报告保存在 .artifacts/native-migration。新增默认 Web／Desktop 装配通过末尾配置 bundle 关闭两个可选 Provider，设置页使用官方 Plugin Manager 修改真实 entry；模型资源管理器保持可读。默认 profile 的旧精确元组升级、用户覆盖保留与官方 Plugin Manager 持久启用已通过 101 项相关测试。真实 Web 元素截图验收发现 Controller 在可选服务模式下仍通过严格属性读取 attachments，已修正并实际复验通过。新资源页暴露的 Provider 启用后 Settings 名称空间通知缺失已沿官方服务事件、Remote 转发和 Client 唯一镜像修复并提交 `a1c7d98e48`，204 项定向检查通过。实际动态 Client 产物重新构建后，Browser 三文件七场景回放通过；通用 Voice 页面新增两份资源／禁用状态预期并刷新、回放通过。Provider 资源界面与这些浏览器回归已提交 `aceb074d25`。
 
-本批已有本地提交 7fd5c7353a（Voice Host 资源事务）、b3f69df797（Voice 模型与录音测试页）、1c065a7f6c（原生 CUA 与默认可选装配）、51d2f1124f（Browser 原生组件管理）。提交钩子的配对、空白与 lint 检查均通过；部分轻量 staged lint 对类型 lint 抑制注释报告未使用警告。没有远端推送，尚未生成本批 Windows 安装包。
+本批已有本地提交 7fd5c7353a（Voice Host 资源事务）、b3f69df797（Voice 模型与录音测试页）、1c065a7f6c（原生 CUA 与默认可选装配）、51d2f1124f（Browser 原生组件管理）。提交钩子的配对、空白与 lint 检查均通过；部分轻量 staged lint 对类型 lint 抑制注释报告未使用警告。没有远端推送；本轮 committed-main 安装包已生成，签名与安装运行验收未宣称。
 
 SDK 最小 profile 的 Bash／PowerShell 描述不再假定禁网或存在 apt／pip 镜像，明确由 Host 环境决定。实际官方 CLI profile、SDK initialize／prompt 和本地模型 HTTP 请求验证了描述；断言按当前 Messages 协议读取工具 name／description。提交 `9c8477d1a4` 的定向 lint、双语配对和真实 profile 验收通过。
