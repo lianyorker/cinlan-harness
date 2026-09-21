@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { createConnection, type Socket } from 'node:net'
 import { createServer as createTlsServer, type TLSSocket } from 'node:tls'
 import { Context } from '@deepseek-ai/cordis'
-import { Server, utils, type Connection } from 'ssh2'
+import { Server, utils, type Connection, type ServerChannel } from 'ssh2'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { z } from 'zod'
 import { SshConnection, type Config } from '../src/index.ts'
@@ -28,6 +28,9 @@ async function fixture(options: { holdStream?: boolean; hash?: string } = {}) {
   const tlsSockets = new Set<TLSSocket>()
   const proxies = new Set<Socket>()
   const clients = new Set<Connection>()
+  const channels = new Set<ServerChannel>()
+  const acceptedChannels: ServerChannel[] = []
+  const closedChannels: ServerChannel[] = []
   const children = new Map<ChildProcessWithoutNullStreams, Promise<unknown>>()
   const commands: string[] = []
   const paths: string[] = []
@@ -79,6 +82,9 @@ async function fixture(options: { holdStream?: boolean; hash?: string } = {}) {
       streamEntered.resolve(undefined)
       const connect = (): void => {
         const channel = accept()
+        channels.add(channel)
+        acceptedChannels.push(channel)
+        channel.once('close', () => { channels.delete(channel); closedChannels.push(channel) })
         channel.on('error', () => {})
         const address = secure.address()
         if (address === null || typeof address === 'string') throw new Error('Missing TLS fixture address')
@@ -101,6 +107,7 @@ async function fixture(options: { holdStream?: boolean; hash?: string } = {}) {
     for (const client of clients) client.end()
     for (const socket of tlsSockets) socket.destroy()
     for (const socket of proxies) socket.destroy()
+    for (const channel of channels) channel.destroy()
     const active = [...children]
     for (const [child] of active) child.kill()
     await Promise.all(active.map(([, closed]) => closed))
@@ -123,8 +130,11 @@ async function fixture(options: { holdStream?: boolean; hash?: string } = {}) {
     requestTimeoutMs: 3000, maxFrameBytes: 4096, maxPending: 8, leaseMs: 30_000,
   }
   service = new SshConnection(ctx, config)
-  return { service, config, commands, paths, children, clients, streamEntered: streamEntered.promise,
-    releaseStream: () => { releaseStream?.() }, endpoint: { path: '/tmp/ssh2-fixture/stream', capability } }
+  return {
+    service, config, commands, paths, children, clients, channels, proxies, acceptedChannels, closedChannels,
+    streamEntered: streamEntered.promise,
+    releaseStream: () => { releaseStream?.() }, endpoint: { path: '/tmp/ssh2-fixture/stream', capability },
+  }
 }
 
 describe('explicit SSH client over encrypted network channels', () => {
@@ -163,7 +173,7 @@ describe('explicit SSH client over encrypted network channels', () => {
     expect(await state.service.request('echo', 'still connected', z.string())).toBe('still connected')
   })
 
-  it('waits for a cancelled opening to return and closes the late channel', async () => {
+  it('rejects promptly and closes a late channel after cancellation', async () => {
     const state = await fixture({ holdStream: true })
     await state.service.ready
     const abort = new AbortController()
@@ -171,12 +181,15 @@ describe('explicit SSH client over encrypted network channels', () => {
     const rejected = expect(opening).rejects.toThrow(/cancel/i)
     await state.streamEntered
     abort.abort(new Error('cancel stream'))
-    let settled = false
-    void opening.then(() => { settled = true }, () => { settled = true })
-    await Promise.resolve()
-    expect(settled).toBe(false)
-    state.releaseStream()
     await rejected
+    expect(state.channels.size).toBe(0)
+    state.releaseStream()
+    await vi.waitFor(() => { expect(state.acceptedChannels).toHaveLength(1) })
+    await vi.waitFor(() => {
+      expect(state.channels.size).toBe(0)
+      expect(state.closedChannels).toHaveLength(1)
+      expect(state.proxies.size).toBe(0)
+    })
     expect(await state.service.request('echo', 'after cancel', z.string())).toBe('after cancel')
   })
 
@@ -184,7 +197,7 @@ describe('explicit SSH client over encrypted network channels', () => {
     const state = await fixture({ holdStream: true })
     await state.service.ready
     const opening = state.service.connectStream(state.endpoint)
-    const rejected = expect(opening).rejects.toThrow(/closed|lost/i)
+    const rejected = expect(opening).rejects.toThrow(/closed|lost|closing/i)
     await state.streamEntered
     await state.service.dispose()
     await rejected

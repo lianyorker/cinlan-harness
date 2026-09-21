@@ -1,6 +1,6 @@
 /** Explicit SSH identity and streamlocal channels for clients without OpenSSH multiplexing. */
 import { readFile } from 'node:fs/promises'
-import { Client, utils, type ClientChannel, type ClientCallback } from 'ssh2'
+import ssh2, { type ClientChannel, type ClientCallback } from 'ssh2'
 import type { SshControl, SshTransport } from './transport.ts'
 
 /** Deployment-selected endpoint; credentials and host trust are never discovered implicitly. */
@@ -19,7 +19,7 @@ export interface SshEndpoint {
 
 /** SSH2 carries the same helper protocol and TLS-PSK streams as the alias transport. */
 export class Ssh2Transport implements SshTransport {
-  private readonly client = new Client()
+  private readonly client = new ssh2.Client()
   private closed: Promise<void> | undefined
   private stopped = false
   constructor(private readonly endpoint: SshEndpoint, private readonly timeoutMs: number,
@@ -32,7 +32,7 @@ export class Ssh2Transport implements SshTransport {
     try {
       signal.throwIfAborted()
       if (this.stopped) throw new Error('SSH connection closed before startup')
-      const parsed = utils.parseKey(privateKey)
+      const parsed = ssh2.utils.parseKey(privateKey)
       if (parsed instanceof Error) throw new Error('Cannot parse configured SSH private key', { cause: parsed })
     } catch (error) { privateKey.fill(0); throw error }
     this.closed = new Promise((resolve) => { this.client.once('close', () => { resolve() }) })
@@ -87,12 +87,19 @@ export class Ssh2Transport implements SshTransport {
     signal.throwIfAborted()
     return new Promise((resolve, reject) => {
       let settled = false
-      const cleanup = (): void => { clearTimeout(timer); this.client.off('close', closed) }
+      const cleanup = (): void => {
+        clearTimeout(timer)
+        this.client.off('close', closed)
+        signal.removeEventListener('abort', aborted)
+      }
       const failed = (error: Error): void => {
         if (settled) return
         settled = true
         cleanup()
         reject(error)
+      }
+      const aborted = (): void => {
+        failed(signal.reason instanceof Error ? signal.reason : new Error('SSH channel open cancelled'))
       }
       const closed = (): void => { failed(new Error('SSH connection closed while opening a channel')) }
       const timer = setTimeout(() => {
@@ -102,14 +109,13 @@ export class Ssh2Transport implements SshTransport {
         failed(error)
       }, this.timeoutMs)
       this.client.once('close', closed)
+      signal.addEventListener('abort', aborted, { once: true })
+      if (signal.aborted) { aborted(); return }
       try {
         open((error, channel) => {
           if (error !== undefined) { failed(error); return }
           channel.on('error', () => { channel.destroy() })
           if (settled || signal.aborted) {
-            channel.once('close', () => {
-              failed(signal.reason instanceof Error ? signal.reason : new Error('SSH channel open cancelled'))
-            })
             channel.destroy()
             // SSH2 emits close after readable EOF; a cancelled unpublished channel has no consumer.
             channel.resume()
