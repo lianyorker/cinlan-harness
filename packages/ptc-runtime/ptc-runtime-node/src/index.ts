@@ -67,12 +67,15 @@ export class NodePtcRuntime extends PtcRuntime {
   override get executionInstructions(): string {
     return 'Each call runs in a fresh Node process. Node APIs are available through await import(...). Relative paths use the supplied working directory; process.env starts empty. Direct filesystem access follows this execution\'s sandbox policy.'
   }
+  // Traceable calls can rebind method receivers; execution providers stay in the construction Context.
+  private readonly executionContext: Context
   private readonly config: ResolvedConfig
   private readonly live = new Set<LiveRun>()
   private disposed = false
 
   constructor(ctx: Context, config: Config) {
     super(ctx)
+    this.executionContext = ctx
     this.config = { ...config, nodeExecutable: config.nodeExecutable ?? process.execPath } as ResolvedConfig
     for (const [key, value] of Object.entries(this.config)) {
       if (typeof value === 'number' && (!Number.isFinite(value) || value <= 0)) throw new Error(`ptc-runtime-node: ${key} must be positive and finite`)
@@ -94,7 +97,7 @@ export class NodePtcRuntime extends PtcRuntime {
     }, 'Node ptc-runtime cleanup')
   }
 
-  override get sandboxMode(): SandboxMode { return this.ctx.sandboxPolicy.defaultMode }
+  override get sandboxMode(): SandboxMode { return this.executionContext.sandboxPolicy.defaultMode }
 
   override get timeout(): { defaultMs: number; maxMs: number } {
     return { defaultMs: Math.min(this.config.timeoutMs, this.config.maxTimeoutMs), maxMs: this.config.maxTimeoutMs }
@@ -107,7 +110,7 @@ export class NodePtcRuntime extends PtcRuntime {
    */
   resolve(request: PtcRunRequest): PtcRunSpec {
     if (this.disposed) throw new Error('ptc-runtime-node: resolve after disposal')
-    const sandboxPolicy = request.sandboxPolicy ?? this.ctx.sandboxPolicy.resolve()
+    const sandboxPolicy = request.sandboxPolicy ?? this.executionContext.sandboxPolicy.resolve()
     const cwd = request.cwd ?? sandboxPolicy.workspaceRoot
     if (!isAbsolute(cwd)) throw new Error('ptc-runtime-node: cwd must be absolute')
     return {
@@ -214,14 +217,18 @@ export class NodePtcRuntime extends PtcRuntime {
         })),
         maxOutputBytes: this.config.maxOutputBytes,
       }
-      const executable = await this.ctx.subprocess.resolveExecutable(this.config.nodeExecutable, undefined, signal)
+      const executable = await this.executionContext.subprocess.resolveExecutable(this.config.nodeExecutable, undefined, signal)
       // Abort callbacks can settle execution before or during an awaited operation.
       // oxlint-disable-next-line typescript/no-unnecessary-condition
       if (settled) return await result.promise
       const packaged = 'pkg' in process && this.config.bootstrapPath === undefined
       const heapFlag = `--max-old-space-size=${this.config.maxOldGenerationSizeMb}`
-      const argv = [executable, ...packaged ? [] : [heapFlag], ...bootstrapArgs(this.ctx.fs, this.config, this.config.maxMessageBytes)]
-      confined = policy.mode === 'danger-full-access' ? undefined : await this.ctx.sandbox.confine(argv, { ...policy, mode: policy.mode }, signal)
+      const argv = [
+        executable,
+        ...packaged ? [] : [heapFlag],
+        ...bootstrapArgs(this.executionContext.fs, this.config, this.config.maxMessageBytes),
+      ]
+      confined = policy.mode === 'danger-full-access' ? undefined : await this.executionContext.sandbox.confine(argv, { ...policy, mode: policy.mode }, signal)
       // oxlint-disable-next-line typescript/no-unnecessary-condition -- Cancellation can settle during awaited confinement.
       if (settled) return await result.promise
       if (confined !== undefined) sandbox.enforcement = confined.enforcement
@@ -233,7 +240,7 @@ export class NodePtcRuntime extends PtcRuntime {
         env.DSH_PTC_RUNTIME_NODE = '1'
         env.NODE_OPTIONS = heapFlag
       }
-      handle = this.ctx.subprocess.spawn({ argv: confined?.argv ?? argv, cwd: spec.cwd, env, stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', control: 'pipe' }, graceMs: this.config.graceMs, signal })
+      handle = this.executionContext.subprocess.spawn({ argv: confined?.argv ?? argv, cwd: spec.cwd, env, stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', control: 'pipe' }, graceMs: this.config.graceMs, signal })
       const launched = handle
       if (launched.control === undefined || launched.stdout === undefined || launched.stderr === undefined) {
         throw new Error('subprocess provider did not supply the requested control and output pipes')

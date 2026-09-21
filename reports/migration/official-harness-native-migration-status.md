@@ -19,9 +19,21 @@
 | 0 工作树与基线 | 已完成 | 3,346 个非受控文件已逐文件 SHA-256 校验并归档；旧集成工作树与临时分支已正常移除；main 离线 frozen-lockfile install 通过；官方只读参考树保留用于迁移 |
 | 1 官方核心 | 已完成本轮范围 | 七批本地提交止于 `88f1b251b2`；Host／Client／Web 构建、真实 Office 托管载荷、Headless 源码／built 回放、最终 SDK exe 的 ACL／图像恢复／PTC 与 workflow 验证通过。浏览器预设 6/7 通过，余项为旧侧栏 ARIA 期望；权限切换 3 项行为通过，afterAll 差异是基线已有模型路由与 workspace/changes 录制债。全局文档和 Windows 符号链接权限的既有失败仍保留，未宣称全部检查通过。 |
 | 2 菜单／资源下载 | 安全资源已提交；语音／浏览器／CUA 收口中 | Voice Host 任务、原子模型替换、精确取消和独立录音测试页已实现；Browser 原生组件管理和官方插件启停已接入；CUA 工具目录就绪与权限状态独立展示。统一 Host／Client 类型检查及运行包／Web 构建通过；真实 Voice Loader 与托管 Chromium 验收通过。默认 profile 升级和最终浏览器场景／分批提交继续收口。 |
-| 3 Orca bridge 替换 | CUA 原生替换已实现；Mobile 进行中 | 官方 CUA 0.28 已替换默认 Computer Use bundle 的旧 CLI；实际 Windows 专用窗口的 UIA／截图／写值／点击验收通过，真实 Harness 权限执行链已通过 7 次请求／决定和清理验收。原生 Android ADB provider 已提交 `ac21ba2935`，199 项定向测试和官方 device-control profile 装配通过。ADB 37.0.0 实际可运行但设备列表为空；Mobile 托管 platform-tools 37.0.1／scrcpy 4.1 已通过官方资源下载、SHA 校验、真实版本执行、占用拒卸载与释放后卸载，246 项定向测试和 5 项下载验证通过，资源管理已提交 `9f2cf9af8e`。真实浏览器刷新与回放均通过资源许可选择、自定义 SDK 保存重载、精确 Provider 启用及空设备提示；私有 ADB 进程全部回收。原生镜像与输入仍缺真机验收。 |
-| 4 SSH／手机配对 | 进行中 | SSH 管理页已通过真实 OpenSSH、独立官方 worker 和 Chromium 验收；Windows SSH2 传输通过加密通道与 TLS-PSK 取消清理。手机配对已接入显式 Connection 身份、受限 Gateway 与 Desktop 更新准入，真实 HTTPS 和 Chromium 390×844 手机视口已通过配对、授权会话隔离、刷新、管理 RPC 拒绝、撤销关闭 WebSocket 与旧 Cookie 401；实际浏览器已完成发送、显示原 Agent 回复、停止生成、回答正式 ask_user_question 和一次性批准受限文件写入；逐项核对原 Session 的持久消息、工具结果和审批决定。问答按钮在 320／390／640 像素宽度内完整可见，并通过真实点击提交。连接权限基础 `25f9808232`、配对功能 `b351f0d5ce` 和窄屏触屏修复 `40315e4187` 已本地提交。完整 SSH 执行的 Workspace／Session 绑定、文件／Git／PTY 消费者与远程运行时部署正在实现；目录检查不能代替这些能力。没有实际 POSIX 远端或原生手机安装包验收证据。 |
-| 5 剩余功能／安装包 | 进行中；安装包未重建 | SDK 最小 profile 环境说明已修正并经真实进程请求验证；Plugin Manager 与 HMR 统一生命周期已通过 74 项回归和独立 Node 热替换／持久禁用／重启验收并提交；终端标题／恢复已通过真实 Chromium 刷新和最终回放：改名即时显示、重载和单会话布局丢失后恢复均保持原 PID／processId／标题／输出，关闭后进程退出。Windows 夹具等待 ConPTY 就绪后的真实 PID；当前会话标题通知缺陷已修复并补回归，提交 `0fc426e92d`。最终 committed main 重建、干净环境及原生安装验收仍待完成。 |
+| 3 Orca bridge 替换 | CUA 原生替换已实现；Mobile provider 已实现，真机仍未验收 | 官方 CUA 0.28 已替换默认 Computer Use bundle 的旧 CLI；实际 Windows 专用窗口的 UIA／截图／写值／点击验收通过，真实 Harness 权限执行链已通过 7 次请求／决定和清理验收。原生 Android ADB provider 与官方 device-control profile 已装配；本轮 Loader fixture 40 项通过，使用受控 ADB transport，未连接真实 Android／iOS 设备。ADB 设备发现仍为空，原生镜像、截图和输入没有物理设备证据。 |
+| 4 SSH／手机配对 | SSH 远端已完成实证；手机为浏览器配对完成，真机仍未验收 | Windows-to-Debian SSH acceptance 已通过真实外部 Debian 12 QEMU peer，覆盖运行时安装与 digest、目标 revision、Workspace／Session 绑定、远端文件／Subprocess／Bash／read-only Landlock／Git／Terminal／Agent PTC、取消、Session Controller 热重载后的冷恢复及清理。手机配对的真实 HTTPS/WSS Chromium 390×844 流程 2/2 通过，覆盖授权 Session 隔离、刷新、停止生成、正式 ask_user_question、一次性受限写入、持久化与撤销；原生 ADB Loader fixture 40 项通过，但没有物理设备或原生手机安装包证据。 |
+| 5 剩余功能／安装包 | 官方源码构建已通过；Windows 安装包仍待 committed-main 重建与验收 | SDK 最小 profile 环境说明已修正并经真实进程请求验证；Plugin Manager 与 HMR 统一生命周期已通过既有回归；终端标题／恢复已通过真实 Chromium 刷新和最终回放。`pnpm run build:official` 已从最终源代码成功生成官方 artifacts，并记录 287 个 Client artifacts；尚未从干净、已提交的 main 重建 EXE/MSI，未执行任何安装器。 |
+
+## 本轮可复核证据
+
+完整 SSH 命令：`$env:DSH_WINDOWS_LINUX_SSH_SCENARIO=(Resolve-Path .artifacts/native-migration/windows-linux-ssh-scenario.json).Path; $env:DSH_SNAPSHOT="replay"; node node_modules/vitest/vitest.mjs run --config vitest.web.config.ts apps/web/tests/windows-linux-ssh.acceptance.e2e.ts`。官方 Loader 组合在真实 Windows-to-Debian Debian 12 QEMU peer 上通过 1 个测试，最终运行时间约 76 秒；该验收不是目录检查，也没有执行 Windows 安装器。
+
+本轮源码与生命周期回归命令覆盖 FileUploads resolver、Node PTC Cordis shadow、ToolRuntime PTC、远程 runtime provisioning，6 个文件共 `165 passed, 3 skipped`；受影响编译面 `tsc -b` 通过，定向 Oxlint 为 0 warning／0 error。Session Controller 禁用再启用路径已在上述真实 SSH acceptance 中实际执行并通过。
+
+`pnpm run build:official` 已成功完成，官方构建记录 `287 client artifact(s)` 和 4 个 public values；构建输出有既有 Vite chunk-size warning，不是失败。构建后再次运行同一 SSH acceptance 仍通过。
+
+手机证据命令为 `node node_modules/vitest/vitest.mjs run --config vitest.web.config.ts apps/desktop/tests/phone-pairing.e2e.ts apps/desktop/tests/phone-interactions.e2e.ts`，2 个真实 HTTPS/WSS Chromium 手机视口测试通过；`packages/bundle/cinlan-mobile-device`、mobile-device runtime 和 tool suites 合计 40 项通过。前者是浏览器配对，后者是受控 ADB fixture，二者都不证明物理设备、原生 APK/IPA 或真机截图输入。
+
+文档 quick gate 仍被基线债务阻断：旧 docs/dev 双语缺失、既有 Markdown wrap、README Summary／Model Experience／Limitations 失败以及既有 doc-standard 失败；本轮新增和修改文档的 Agent Note format、classification、三组 bilingual pairing 定向检查均通过。完整全库 lint 的既有失败也未被改写为通过。
 
 ## 架构核验补充
 

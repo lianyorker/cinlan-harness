@@ -929,9 +929,10 @@ export class ToolRuntime extends Service {
   private requirePtcTransport(scope?: ScopeKey): ToolDefinition {
     const current = scope === undefined ? this.globalPtcTransport : this.scopedPtcTransports.get(scope)
     if (current !== undefined) return current
+    // Keep the Agent execution world captured when the transport is built; Cordis traceable calls can rebind receivers.
     const provider = this.providerContext(scope)
     const transport = createRunCodeTool(this, {
-      requireRuntime: exec => this.requirePtcRuntime(this.modeFor(exec.agent), exec.agent?.ctx ?? this.ctx),
+      requireRuntime: exec => this.requirePtcRuntime(this.modeFor(exec.agent), provider),
       peekApprover: exec => (exec.agent?.ctx ?? this.ctx).get('approval'),
       resolveSandboxPolicy: (exec) => {
         const executionProvider = exec.agent?.ctx ?? provider

@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在提供 `fs`、`subprocess`、`sandbox` 与 `sandboxPolicy` 的组合中挂载本提供方。`dsh-tools` 的 PTC 模式传入调用 Session 的目录和常设策略；直接运行时消费方在执行前解析这些选项。
+在提供 `fs`、`subprocess`、`sandbox` 与 `sandboxPolicy` 的组合中挂载本提供方。`dsh-tools` 的 PTC 模式传入调用 Session 的目录和常设策略；直接运行时消费方在执行前解析这些选项。运行时提供方查找使用构造时捕获的 Context，因此调用方绑定的 Cordis traceable receiver 不能把执行移动到 Host 服务。
 
 ### 配置
 

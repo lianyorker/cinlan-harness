@@ -1,5 +1,5 @@
 /** Real encrypted provisioning transport; Windows fixtures do not claim POSIX execution support. */
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -15,6 +15,8 @@ async function payload(functional = false, missingDependency = false) {
   onTestFinished(async () => { await rm(root, { recursive: true, force: true }) })
   await writeFile(join(root, 'package.json'), JSON.stringify({ type: 'module', name: 'fixture-runtime', version: '0.1.6-alpha.2',
     ...(missingDependency ? { dependencies: { 'absent-runtime-dependency': '1.0.0' } } : {}) }))
+  await mkdir(join(root, 'tools'))
+  await writeFile(join(root, 'tools', 'package.json'), JSON.stringify({ name: 'fixture-tools', version: '0.1.0', dependencies: { glob: '99.0.0' } }))
   await writeFile(join(root, 'helper.js'), functional
     ? await readFile(new URL('./fixture-helper.mjs', import.meta.url))
     : 'throw new Error("fixture helper is not a production runtime")\n')

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-cordis-safe-file-upload-resolver-disposal.md
+2026-09-22-cordis-safe-file-upload-resolver-disposal.md: 967436eefe0769c9e0c8cf493c4ed575acfdc31a
+2026-09-22-cordis-safe-file-upload-resolver-disposal.zh.md: fd1bb39008a63d9f611ccfca21ab2b3fb0965d24

@@ -408,7 +408,7 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
     host.ctx.effect(() => host.ctx.llm.registerAdapter(['windows-linux-ssh-acceptance'], adapter), 'Windows Debian acceptance model adapter')
     await host.ctx.agentDefaultModel.saveSelection({ provider: 'windows-linux-ssh-acceptance', model: 'hold-then-reply' })
 
-    const created = await remoteRpc<TargetValue>(host, 'executionHosts/create', targetRequest)
+    const created = await remoteRpc<TargetValue>(host, 'executionHosts/create', { request: targetRequest })
     target = created.target
     expect(target.state.phase).toBe('disconnected')
     const installRequest: RuntimeStartRequest = {
@@ -419,10 +419,10 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
       installRoot,
       workspace: workspacePath,
     }
-    const started = await remoteRpc<RuntimeTaskReceipt>(host, 'executionHosts/startRuntime', installRequest)
+    const started = await remoteRpc<RuntimeTaskReceipt>(host, 'executionHosts/startRuntime', { request: installRequest })
     const runtimeTaskId = started.task.id
     const installed = await waitFor(
-      () => remoteRpc<RuntimeTaskReceipt>(host, 'executionHosts/getRuntimeTask', { id: runtimeTaskId }),
+      () => remoteRpc<RuntimeTaskReceipt>(host, 'executionHosts/getRuntimeTask', { request: { id: runtimeTaskId } }),
       value => value.task.state !== 'running',
       'runtime installation',
       360_000,
@@ -432,9 +432,9 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
     }
     expect(installed.task.result?.runtime.generation).toBe(scenario.manifestSHA256)
     expect(installed.task.result?.runtime.platform).toBe('linux')
-    const detected = await remoteRpc<RuntimeInspection>(host, 'executionHosts/detectRuntime', {
+    const detected = await remoteRpc<RuntimeInspection>(host, 'executionHosts/detectRuntime', { request: {
       endpoint: remoteEndpoint, node: scenario.node, installRoot, workspace: workspacePath,
-    })
+    } })
     expect(detected.state).toBe('installed')
     expect(detected.generation).toBe(scenario.manifestSHA256)
     expect(detected.platform).toBe('linux')
@@ -446,10 +446,10 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
     expect(target.execution.endpoint).toEqual(remoteEndpoint)
     expect(target.execution.workspace).toBe(workspacePath)
 
-    const createdWorkspace = await remoteRpc<WorkspaceCreateValue>(host, 'workspace/create', {
+    const createdWorkspace = await remoteRpc<WorkspaceCreateValue>(host, 'workspace/create', { request: {
       path: workspacePath,
       targetRevision: { id: target.id, revision: target.revision } satisfies TargetRevisionRequest,
-    })
+    } })
     workspace = createdWorkspace.workspace
     expect(workspace.path).toBe(workspacePath)
     if (workspace.execution?.kind !== 'ssh') throw new Error('Workspace did not publish an SSH execution binding')
@@ -464,10 +464,10 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
       await reconnected.release()
     }
 
-    const createdSession = await remoteRpc<SessionCreateValue>(host, 'session/create', {
+    const createdSession = await remoteRpc<SessionCreateValue>(host, 'session/create', { request: {
       workspaceId: workspace.workspaceId,
       agentPreset: 'standard',
-    })
+    } })
     sessionId = createdSession.sessionId
     currentAgent = host.ctx.agents.get(SessionId(sessionId))
     if (currentAgent === undefined) throw new Error('Remote Session did not publish an Agent')
@@ -476,17 +476,24 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
     if (execution.binding.kind !== 'ssh') throw new Error('Remote Agent did not retain the SSH binding')
     expect(execution.binding.endpoint).toEqual(durableEndpoint)
     const remote = execution.ctx
+    const remoteFs = remote.get('fs')
+    const remoteSubprocess = remote.get('subprocess')
+    const remoteShell = remote.get('shell')
+    const remoteGit = remote.get('git')
+    const remoteTerminals = remote.get('terminals')
+    if (remoteFs === undefined || remoteSubprocess === undefined || remoteShell === undefined
+        || remoteGit === undefined || remoteTerminals === undefined) throw new Error('SSH execution world is missing a required provider')
     const file = posix.join(workspacePath, 'proof.txt')
-    const write = await remote.fs.writeText(await remote.fs.resolve(file), 'one\ntwo\n', { kind: 'createIfAbsent' })
-    const edit = await remote.fs.editText(await remote.fs.resolve(file), { oldString: 'two', newString: 'changed', replaceAll: false }, { version: write.version })
+    const write = await remoteFs.writeText(await remoteFs.resolve(file), 'one\ntwo\n', { kind: 'createIfAbsent' })
+    const edit = await remoteFs.editText(await remoteFs.resolve(file), { oldString: 'two', newString: 'changed', replaceAll: false }, { version: write.version })
     expect(edit.after).toContain('changed')
-    const streamed = await remote.fs.streamText(await remote.fs.resolve(file))
+    const streamed = await remoteFs.streamText(await remoteFs.resolve(file))
     let streamedText = ''
     for await (const chunk of streamed) streamedText += chunk
     expect(streamedText).toBe('one\nchanged\n')
-    expect(await remote.fs.readText(await remote.fs.resolve(file))).toBe(streamedText)
+    expect(await remoteFs.readText(await remoteFs.resolve(file))).toBe(streamedText)
 
-    const subprocess = remote.subprocess.spawn({
+    const subprocess = remoteSubprocess.spawn({
       argv: [scenario.node, '-e', "process.stdout.write('subprocess-ok')"],
       cwd: workspacePath,
       stdio: { stdin: 'ignore', stdout: { maxBytes: 4096, spill: { maxBytes: 4096 } }, stderr: { maxBytes: 4096 } },
@@ -502,24 +509,25 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
     const bash = requireToolSuccess(await host.ctx.tools.execute({
       callId: ToolCallId('windows-linux-ssh-bash'),
       name: 'bash',
-      arguments: { command: '. /etc/os-release; test "$ID" = debian; printf "bash-ok:%s" "$ID"', workdir: workspacePath },
+      arguments: { command: '. /etc/os-release; test "$ID" = debian; printf "bash-ok:%s" "$ID"', description: 'Verify the remote Debian shell', workdir: workspacePath },
       agent: currentAgent,
       signal: AbortSignal.timeout(30_000),
     }), 'remote Bash tool')
     expect(toolText(bash)).toContain('bash-ok:debian')
     const deniedPath = posix.join(workspacePath, 'sandbox-denied.txt')
-    const confined = await remote.shell.run(remote.shell.resolve({
+    const confined = await remoteShell.run(remoteShell.resolve({
       command: 'printf sandbox-probe > ' + shellQuote(deniedPath),
       workdir: workspacePath,
       timeoutMs: 30_000,
+      sandboxPolicy: { mode: 'read-only', workspaceRoot: workspacePath },
     }))
     expect(confined.exitCode).not.toBe(0)
     expect(confined.sandbox?.mode).toBe('read-only')
     expect(confined.sandbox?.enforcement).toBeDefined()
     expect(confined.sandbox?.denied).toBe(true)
-    expect(await remote.fs.lstat(deniedPath)).toBeUndefined()
+    expect(await remoteFs.lstat(deniedPath)).toBeUndefined()
 
-    const gitInit = await remote.shell.run(remote.shell.resolve({
+    const gitInit = await remoteShell.run(remoteShell.resolve({
       command: 'git init -q && git config user.email acceptance@example.invalid && git config user.name acceptance && git add proof.txt && git commit -q -m acceptance',
       workdir: workspacePath,
       timeoutMs: 60_000,
@@ -531,19 +539,19 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
       },
     }))
     expect(gitInit.exitCode).toBe(0)
-    const repository = await remote.git.resolveRepository({ path: workspacePath })
+    const repository = await remoteGit.resolveRepository({ path: workspacePath })
     expect(repository.root).toBe(workspacePath)
-    const gitStatus = await remote.git.status(repository)
+    const gitStatus = await remoteGit.status(repository)
     expect(gitStatus.clean).toBe(true)
-    const gitLog = await remote.git.log({ repository, limit: 1 })
+    const gitLog = await remoteGit.log({ repository, limit: 1 })
     expect(gitLog[0]?.subject).toBe('acceptance')
 
-    const terminal = await remote.terminals.spawn(currentAgent, { type: 'bash', name: 'windows-linux-ssh-acceptance', cwd: workspacePath })
+    const terminal = await remoteTerminals.spawn(currentAgent, { type: 'shell', name: 'windows-linux-ssh-acceptance', cwd: workspacePath })
     terminalId = terminal.sessionId
-    const terminalSend = remote.terminals.startSend(currentAgent, terminal.sessionId, { text: 'printf terminal-ok', submit: true })
+    const terminalSend = remoteTerminals.startSend(currentAgent, terminal.sessionId, { text: 'printf terminal-ok', submit: true })
     const terminalResult = await withTimeout(terminalSend.done, 45_000, 'remote terminal send')
     expect(terminalResult.viewport).toContain('terminal-ok')
-    expect(await remote.terminals.kill(currentAgent, terminal.sessionId, 'acceptance teardown')).toBe(true)
+    expect(await remoteTerminals.kill(currentAgent, terminal.sessionId, 'acceptance teardown')).toBe(true)
     terminalId = undefined
 
     const ptc = requireToolSuccess(await host.ctx.tools.execute({
@@ -561,7 +569,7 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
 
     const cancelledShellController = new AbortController()
     const cancellationMarker = posix.join(workspacePath, 'cancelled.txt')
-    const cancelledShell = remote.shell.run(remote.shell.resolve({
+    const cancelledShell = remoteShell.run(remoteShell.resolve({
       command: 'printf cancellation-ready > ' + shellQuote(cancellationMarker) + '; sleep 120',
       workdir: workspacePath,
       timeoutMs: 180_000,
@@ -569,7 +577,7 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
     }))
     const cancelledShellDone = withTimeout(cancelledShell, 60_000, 'remote cancelled shell settlement')
     try {
-      await waitFor(async () => remote.fs.lstat(cancellationMarker), value => value?.type === 'file', 'remote cancellation marker', 30_000)
+      await waitFor(async () => remoteFs.lstat(cancellationMarker), value => value?.type === 'file', 'remote cancellation marker', 30_000)
       cancelledShellController.abort(new Error('acceptance cancellation'))
       const cancelled = await cancelledShellDone
       expect(cancelled.aborted).toBe(true)
@@ -580,14 +588,14 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
     }
 
     const settleAfterCancel = host.whenTurnSettled(120_000)
-    await remoteRpc(host, 'session/prompt', {
+    await remoteRpc(host, 'session/prompt', { request: {
       requestId: randomUUID(),
       sessionId,
       mode: 'queue',
       content: [{ type: 'text', text: 'Hold this remote Agent turn until cancelled.' }],
-    })
+    } })
     await withTimeout(adapter.firstStarted.promise, MODEL_WAIT_TIMEOUT_MS, 'remote model start')
-    const cancelReceipt = await remoteRpc<{ accepted: true }>(host, 'session/cancel', { sessionId })
+    const cancelReceipt = await remoteRpc<{ accepted: true }>(host, 'session/cancel', { request: { sessionId } })
     expect(cancelReceipt.accepted).toBe(true)
     await withTimeout(adapter.firstCancelled.promise, MODEL_WAIT_TIMEOUT_MS, 'remote model cancellation')
     expect(await settleAfterCancel).toBe(sessionId)
@@ -605,7 +613,7 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
     await controllerEntry.update({ disabled: false })
     sessionControllerDisabled = false
     await host.ctx.loader.await()
-    const resumed = await remoteRpc<SessionCreateValue>(host, 'session/create', { workspaceId: workspace.workspaceId, sessionId })
+    const resumed = await remoteRpc<SessionCreateValue>(host, 'session/create', { request: { workspaceId: workspace.workspaceId, sessionId } })
     expect(resumed.sessionId).toBe(sessionId)
     const resumedAgent = host.ctx.agents.get(SessionId(sessionId))
     if (resumedAgent === undefined || resumedAgent === currentAgent) throw new Error('Session did not cold-resume a new Agent')
@@ -619,14 +627,16 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
     } finally {
       await postColdLease.release()
     }
-    expect(await resumedExecution.ctx.fs.readText(await resumedExecution.ctx.fs.resolve(file))).toBe('one\nchanged\n')
+    const resumedFs = resumedExecution.ctx.get('fs')
+    if (resumedFs === undefined) throw new Error('Resumed SSH execution world is missing filesystem')
+    expect(await resumedFs.readText(await resumedFs.resolve(file))).toBe('one\nchanged\n')
     const settleAfterResume = host.whenTurnSettled(120_000)
-    await remoteRpc(host, 'session/prompt', {
+    await remoteRpc(host, 'session/prompt', { request: {
       requestId: randomUUID(),
       sessionId,
       mode: 'queue',
       content: [{ type: 'text', text: 'Confirm the resumed remote Agent.' }],
-    })
+    } })
     expect(await settleAfterResume).toBe(sessionId)
     expect(adapter.requests.length).toBeGreaterThanOrEqual(2)
   } catch (error) {
@@ -637,14 +647,16 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
       if (terminalId !== undefined && currentAgent !== undefined) {
         try {
           const execution = scaffold.ctx.executionBindings.executionForAgent(currentAgent)
-          await execution.ctx.terminals.kill(currentAgent, terminalId, 'acceptance finalizer')
+          const terminals = execution.ctx.get('terminals')
+          if (terminals === undefined) throw new Error('SSH execution world is missing terminal service during cleanup')
+          await terminals.kill(currentAgent, terminalId, 'acceptance finalizer')
         } catch (error) { cleanupFailures.push(error) }
       }
       if (sessionId !== undefined) {
-        try { await remoteRpc(scaffold, 'workspace/archiveSession', { sessionId }) } catch (error) { cleanupFailures.push(error) }
+        try { await remoteRpc(scaffold, 'workspace/archiveSession', { request: { sessionId } }) } catch (error) { cleanupFailures.push(error) }
       }
       if (workspace !== undefined) {
-        try { await remoteRpc(scaffold, 'workspace/delete', { workspaceId: workspace.workspaceId }) } catch (error) { cleanupFailures.push(error) }
+        try { await remoteRpc(scaffold, 'workspace/delete', { request: { workspaceId: workspace.workspaceId } }) } catch (error) { cleanupFailures.push(error) }
       }
       try {
         const entry = [...scaffold.ctx.loader.entries()].find(candidate => candidate.options.name === '@deepseek-ai/dsh-api-session-controller')
@@ -658,7 +670,7 @@ runAcceptance('boots the product and exercises a real Windows-to-Debian SSH Agen
         try {
           const listed = await remoteRpc<ListTargetsValue>(scaffold, 'executionHosts/list', {})
           const current = listed.targets.find(candidate => candidate.id === target?.id)
-          if (current !== undefined) await remoteRpc(scaffold, 'executionHosts/removeTarget', { id: current.id, revision: current.revision })
+          if (current !== undefined) await remoteRpc(scaffold, 'executionHosts/removeTarget', { request: { id: current.id, revision: current.revision } })
         } catch (error) { cleanupFailures.push(error) }
       }
       try { await scaffold.close() } catch (error) { cleanupFailures.push(error) }

@@ -58,7 +58,7 @@ export class FileUploads extends TypertRemoteService {
   static inject = ['agents', 'attachments', 'commands', 'connection']
 
   private readonly stagedFiles = new WeakMap<Session, Map<FileUploadReceiptId, StagedFileUpload>>()
-  private agentResolver: AgentResolver | undefined
+  private agentResolver: { resolve: AgentResolver } | undefined
 
   /** @param ctx - Host context carrying Agent, attachment, command, and Connection services. */
   constructor(ctx: Context) {
@@ -85,13 +85,16 @@ export class FileUploads extends TypertRemoteService {
   /**
    * Register the ordinary-Session resolver used when a raw upload addresses a cold Session.
    * @param resolve - resolver that returns the exact live Agent or throws a Remote error.
+   * The disposer removes only its own registration and may be called more than once.
    * @returns disposer removing this resolver.
    */
   registerAgentResolver(resolve: AgentResolver): () => void {
     if (this.agentResolver !== undefined) throw new Error('file-upload: Agent resolver is already registered')
-    this.agentResolver = resolve
+    // Keep a non-callable identity because Cordis may wrap function-valued reads.
+    const registration = { resolve }
+    this.agentResolver = registration
     return () => {
-      if (this.agentResolver === resolve) this.agentResolver = undefined
+      if (this.agentResolver === registration) this.agentResolver = undefined
     }
   }
 
@@ -216,11 +219,11 @@ export class FileUploads extends TypertRemoteService {
   private async resolveAgent(sessionId: SessionId): Promise<Agent> {
     const live = this.ctx.agents.get(sessionId)
     if (live !== undefined) return live
-    const resolver = this.agentResolver
-    if (resolver === undefined) {
+    const registration = this.agentResolver
+    if (registration === undefined) {
       throw new RemoteError('session/not-found', `session "${sessionId}" is not attached`, { sessionId })
     }
-    return resolver(sessionId)
+    return registration.resolve(sessionId)
   }
 
   private assertAgentScope(agent: Agent): void {

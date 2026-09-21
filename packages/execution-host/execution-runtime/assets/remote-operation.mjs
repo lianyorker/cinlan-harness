@@ -27,6 +27,12 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, () => {
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 const output = value => process.stdout.write(JSON.stringify(value) + '\n')
 const inside = (root, path) => path === root || path.startsWith(root + sep)
+const isPackageManifest = path => {
+  if (path === 'package.json') return true
+  const parts = path.split('/')
+  return parts[0] === 'node_modules' && parts.at(-1) === 'package.json'
+    && (parts.length === 3 || (parts.length === 4 && parts[1].startsWith('@')))
+}
 async function nextLine() {
   lifetime.signal.throwIfAborted()
   if (lines.length) return lines.shift()
@@ -88,7 +94,7 @@ async function verifyTree(directory, input) {
   }
   // Every installed package's runtime edges must resolve inside the immutable generation.
   for (const path of expected.keys()) {
-    if (path !== 'package.json' && !path.endsWith('/package.json')) continue
+    if (!isPackageManifest(path)) continue
     const filename = join(directory, path)
     const pkg = JSON.parse(await readFile(filename, 'utf8'))
     const required = { ...pkg.dependencies, ...pkg.peerDependencies }

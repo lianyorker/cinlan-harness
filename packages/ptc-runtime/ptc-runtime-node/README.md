@@ -25,7 +25,7 @@ Execute model-written TypeScript under the same platform sandbox policy as Bash,
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this provider in a composition that supplies `fs`, `subprocess`, `sandbox` and `sandboxPolicy`. PTC mode in `dsh-tools` supplies the calling Session's directory and standing policy; direct runtime consumers resolve those options before execution.
+Mount this provider in a composition that supplies `fs`, `subprocess`, `sandbox` and `sandboxPolicy`. PTC mode in `dsh-tools` supplies the calling Session's directory and standing policy; direct runtime consumers resolve those options before execution. Runtime provider lookups use the Context captured at construction, so a caller-bound Cordis traceable receiver cannot move execution to Host services.
 
 ### Configuration
 
