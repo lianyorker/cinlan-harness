@@ -108,6 +108,7 @@
     "@deepseek-ai/dsh-api-automation-controller": "workspace:^",
     "@deepseek-ai/dsh-api-sidebar-terminal-controller": "workspace:^",
     "@deepseek-ai/dsh-git-settings": "workspace:^",
+    "@deepseek-ai/dsh-git-local": "workspace:^",
     "@deepseek-ai/dsh-sidebar-git": "workspace:^",
     "@deepseek-ai/dsh-api-sidebar-git-controller": "workspace:^",
     "@deepseek-ai/dsh-execution-host-local": "workspace:^",

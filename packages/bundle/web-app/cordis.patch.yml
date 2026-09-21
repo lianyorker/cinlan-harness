@@ -191,6 +191,15 @@
     - id: git-settings
       name: '@deepseek-ai/dsh-git-settings'
 
+    # Provider-neutral repository discovery for Session-owned file previews.
+    - id: git-local
+      name: '@deepseek-ai/dsh-git-local'
+      config:
+        executable: git
+        maxOutputBytes: 8388608
+        maxLogEntries: 500
+        graceMs: 2000
+
     - id: sidebar-git
       name: '@deepseek-ai/dsh-sidebar-git'
 

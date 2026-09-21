@@ -3543,6 +3543,9 @@ importers:
       '@deepseek-ai/dsh-git-settings':
         specifier: workspace:^
         version: link:../../git/git-settings
+      '@deepseek-ai/dsh-git-local':
+        specifier: workspace:^
+        version: link:../../git/git-local
       '@deepseek-ai/dsh-host-directory-picker-auto':
         specifier: workspace:^
         version: link:../../host/directory-picker-auto
