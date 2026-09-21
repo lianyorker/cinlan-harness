@@ -212,6 +212,15 @@ describe('desktop package policy', () => {
     expect(profileBundles(development)).toEqual(desktopBundles)
   })
 
+  it('carries explicit denials for optional native seed scripts', () => {
+    const seed = join(temporaryRoot(), 'seed')
+    createTestSeedMetadata(seed, release())
+    const workspace = readFileSync(join(seed, 'pnpm-workspace.yaml'), 'utf8')
+    for (const packageName of ['electron-winstaller', 'msgpackr-extract', 'cpu-features', 'ssh2']) {
+      expect(workspace).toContain('  ' + packageName + ': false')
+    }
+  })
+
   it('accepts registry package specs but rejects alternate sources and flags', () => {
     expect(packageNameFromSpec('@scope/plugin@1.2.3')).toBe('@scope/plugin')
     expect(packageNameFromSpec('plugin@next')).toBe('plugin')
