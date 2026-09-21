@@ -255,6 +255,7 @@ def write_advanced_profile_patch(root: Path, name: str, sessions: Path) -> Path:
             },
         },
         {"id": "session-log-deepseek", "config": {"enabled": True}},
+        {"id": "sdk-jsonrpc-server", "inject": ["sdkAppStartup", "loader", "executionBindings"]},
         *({"id": row_id, "disabled": True} for row_id in LEGACY_CUSTOM_DISABLED_ROWS),
         {"id": "tool-bash", "disabled": True},
         {"id": "tool-pwsh", "disabled": True},
@@ -267,6 +268,9 @@ def write_advanced_profile_patch(root: Path, name: str, sessions: Path) -> Path:
             },
         },
         {"insert": [
+            {"id": "snapshot-execution-binding", "name": (
+                Path(__file__).resolve().parent.parent / "snapshots/sdk/text-turn/execution-binding-fixture.mjs"
+            ).as_uri()},
             {"id": "cordis-host-runner", "name": "@deepseek-ai/dsh-cordis-host-runner"},
             {"id": "cordis-tool", "name": "@deepseek-ai/dsh-tool-cordis"},
         ]},
