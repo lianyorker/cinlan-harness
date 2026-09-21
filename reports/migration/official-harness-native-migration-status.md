@@ -21,7 +21,7 @@
 | 2 菜单／资源下载 | 安全资源已提交；语音／浏览器／CUA 收口中 | Voice Host 任务、原子模型替换、精确取消和独立录音测试页已实现；Browser 原生组件管理和官方插件启停已接入；CUA 工具目录就绪与权限状态独立展示。统一 Host／Client 类型检查及运行包／Web 构建通过；真实 Voice Loader 与托管 Chromium 验收通过。默认 profile 升级和最终浏览器场景／分批提交继续收口。 |
 | 3 Orca bridge 替换 | CUA 原生替换已实现；Mobile provider 已实现，真机仍未验收 | 官方 CUA 0.28 已替换默认 Computer Use bundle 的旧 CLI；实际 Windows 专用窗口的 UIA／截图／写值／点击验收通过，真实 Harness 权限执行链已通过 7 次请求／决定和清理验收。原生 Android ADB provider 与官方 device-control profile 已装配；本轮 Loader fixture 40 项通过，使用受控 ADB transport，未连接真实 Android／iOS 设备。ADB 设备发现仍为空，原生镜像、截图和输入没有物理设备证据。 |
 | 4 SSH／手机配对 | SSH 远端已完成实证；手机为浏览器配对完成，真机仍未验收 | Windows-to-Debian SSH acceptance 已通过真实外部 Debian 12 QEMU peer，覆盖运行时安装与 digest、目标 revision、Workspace／Session 绑定、远端文件／Subprocess／Bash／read-only Landlock／Git／Terminal／Agent PTC、取消、Session Controller 热重载后的冷恢复及清理。手机配对的真实 HTTPS/WSS Chromium 390×844 流程 2/2 通过，覆盖授权 Session 隔离、刷新、停止生成、正式 ask_user_question、一次性受限写入、持久化与撤销；原生 ADB Loader fixture 40 项通过，但没有物理设备或原生手机安装包证据。 |
-| 5 剩余功能／安装包 | 官方源码构建已通过；Windows 安装包仍待 committed-main 重建与验收 | SDK 最小 profile 环境说明已修正并经真实进程请求验证；Plugin Manager 与 HMR 统一生命周期已通过既有回归；终端标题／恢复已通过真实 Chromium 刷新和最终回放。`pnpm run build:official` 已从最终源代码成功生成官方 artifacts，并记录 287 个 Client artifacts；尚未从干净、已提交的 main 重建 EXE/MSI，未执行任何安装器。 |
+| 5 剩余功能／安装包 | committed-main EXE/MSI 构建已完成；签名与安装运行验收未宣称 | SDK 最小 profile 环境说明已修正并经真实进程请求验证；Plugin Manager 与 HMR 统一生命周期已通过既有回归；终端标题／恢复已通过真实 Chromium 刷新和最终回放。`pnpm run build:official` 和 `node --import tsx/esm apps/desktop/scripts/package-target.ts win-x64` 均从 committed main 完成；安装器未执行，签名状态为 NotSigned。 |
 
 ## 本轮可复核证据
 
@@ -30,6 +30,8 @@
 本轮源码与生命周期回归命令覆盖 FileUploads resolver、Node PTC Cordis shadow、ToolRuntime PTC、远程 runtime provisioning，6 个文件共 `165 passed, 3 skipped`；受影响编译面 `tsc -b` 通过，定向 Oxlint 为 0 warning／0 error。Session Controller 禁用再启用路径已在上述真实 SSH acceptance 中实际执行并通过。
 
 `pnpm run build:official` 已成功完成，官方构建记录 `287 client artifact(s)` 和 4 个 public values；构建输出有既有 Vite chunk-size warning，不是失败。构建后再次运行同一 SSH acceptance 仍通过。
+
+Committed main 的 Windows packaging 命令 `node --import tsx/esm apps/desktop/scripts/package-target.ts win-x64` 退出 0。EXE 为 447,596,531 字节，SHA-256 `b08362fb320896549205fb2c2f00e7f6dff2126e45e313e7012fa2488873e552`；MSI 为 474,886,884 字节，SHA-256 `b4d41fdcef4d32bed8f635d459bcaac3b16a36c5387a7c3b2e903dfbafe90575`；blockmap 为 464,424 字节，SHA-256 `52c91f131f02f11bdcfa758c5d4a5134af2b0ffcdbf2f9ddc098aa1a02609883`。`Get-AuthenticodeSignature` 报告 EXE 与 MSI 均为 `NotSigned`。没有执行 EXE/MSI，也没有宣称签名或安装后运行验收。
 
 手机证据命令为 `node node_modules/vitest/vitest.mjs run --config vitest.web.config.ts apps/desktop/tests/phone-pairing.e2e.ts apps/desktop/tests/phone-interactions.e2e.ts`，2 个真实 HTTPS/WSS Chromium 手机视口测试通过；`packages/bundle/cinlan-mobile-device`、mobile-device runtime 和 tool suites 合计 40 项通过。前者是浏览器配对，后者是受控 ADB fixture，二者都不证明物理设备、原生 APK/IPA 或真机截图输入。
 
