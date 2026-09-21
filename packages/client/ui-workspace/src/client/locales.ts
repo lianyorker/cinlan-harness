@@ -6,6 +6,16 @@
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
+  'execution.title': '选择工作区 Host',
+  'execution.host': '执行 Host',
+  'execution.local': '当前 Host（本地）',
+  'execution.choice': '{label}（版本 {revision}）',
+  'execution.path': '远程目录',
+  'execution.fixed': '新会话会固定绑定此 Host 和运行时版本。运行中的会话不能切换 Host。',
+  'execution.changed': '目标已更改或不可用。请重新选择可用版本。',
+  'execution.continue': '继续',
+  'execution.creating': '正在创建工作区…',
+  'execution.bound': '{title} — {host}（版本 {revision}）',
   'group.ungrouped': '未分组',
   'session.new': '新会话',
   'section.workspaces': '工作区',
@@ -76,13 +86,23 @@ export type WorkspaceKey = keyof typeof zh
 
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
+  'execution.title': 'Choose Workspace Host',
+  'execution.host': 'Execution Host',
+  'execution.local': 'This Host (local)',
+  'execution.choice': '{label} (revision {revision})',
+  'execution.path': 'Remote directory',
+  'execution.fixed': 'New Sessions remain bound to this Host and runtime revision. Running Sessions cannot switch Hosts.',
+  'execution.changed': 'This target changed or became unavailable. Select an available revision again.',
+  'execution.continue': 'Continue',
+  'execution.creating': 'Creating Workspace…',
+  'execution.bound': '{title} — {host} (revision {revision})',
   'group.ungrouped': 'Ungrouped',
   'session.new': 'New Session',
   'section.workspaces': 'Workspaces',
   'section.sessions': 'Sessions',
   'viewOptions.label': 'View options',
   'groupBy.label': 'Group by',
-  'groupBy.workspace': 'WorkSpace',
+  'groupBy.workspace': 'By workspace',
   'groupBy.flat': 'In one list',
   'orderBy.label': 'Order by',
   'orderBy.manual': 'Manual',

@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`withdraws a selected revision after an authoritative target change without local fallback > stale remote Workspace selection 1`] = `"Choose Workspace HostExecution HostThis Host (local)Remote LinuxRemote Linux (revision 5)operator@linux.example:22Remote directoryNew Sessions remain bound to this Host and runtime revision. Running Sessions cannot switch Hosts.This target changed or became unavailable. Select an available revision again.CancelContinue"`;

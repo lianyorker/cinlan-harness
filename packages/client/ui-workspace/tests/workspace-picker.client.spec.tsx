@@ -103,6 +103,7 @@ function mount(
       onPick={onPick}
       onClose={onClose}
       createWorkspace={createWorkspace}
+      useExecutionTargets={hook({ available: false, targets: [] })}
       useDirectoryFlow={occupancy.useDirectoryFlow}
       renderSlot={renderSlot}
       t={t}
@@ -222,6 +223,7 @@ describe('WorkspacePicker', () => {
         useSessionPendingInteraction={hook(noPendingInteraction)}
         useResource={useResource}
         onPick={vi.fn()} onClose={vi.fn()} createWorkspace={vi.fn()}
+        useExecutionTargets={hook({ available: false, targets: [] })}
         useDirectoryFlow={occupancySource().useDirectoryFlow} renderSlot={renderSlot} t={t}
       />,
     )
@@ -239,6 +241,7 @@ describe('WorkspacePicker', () => {
         useSessionPendingInteraction={hook(noPendingInteraction)}
         useResource={useResource}
         onPick={vi.fn()} onClose={vi.fn()} createWorkspace={vi.fn()}
+        useExecutionTargets={hook({ available: false, targets: [] })}
         useDirectoryFlow={occupancySource().useDirectoryFlow} renderSlot={renderSlot} t={t}
       />,
     )

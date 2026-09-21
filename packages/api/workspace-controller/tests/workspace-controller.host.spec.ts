@@ -9,6 +9,7 @@ import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import WorkspaceRegistry from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
+import type { ExecutionLease, SshExecutionSnapshot } from '@deepseek-ai/dsh-execution-binding/types'
 import WorkspaceController from '../src/index.ts'
 import { WorkspaceFeed } from '../src/feed.ts'
 import type { WorkspaceFollowFrame } from '../src/types.ts'
@@ -78,6 +79,58 @@ async function nextFrame(
 }
 
 describe('WorkspaceController commands', () => {
+  it('rejects remote selection when its authority provider is missing without creating locally', async () => {
+    const { controller, ctx, root } = await harness()
+    const create = vi.spyOn(ctx.workspaceRegistry, 'create')
+    await expect(controller.create({ path: stageDir(root, 'remote-intent'), targetRevision: {
+      id: 'missing-target' as NonNullable<Parameters<typeof controller.create>[0]['targetRevision']>['id'], revision: 1,
+    } })).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    expect(create).not.toHaveBeenCalled()
+    expect(ctx.workspaceRegistry.list()).toEqual([])
+  })
+
+  it('captures an exact remote target revision and reuses its canonical Workspace identity', async () => {
+    const { controller, ctx } = await harness()
+    const execution: SshExecutionSnapshot = {
+      kind: 'ssh', targetId: 'remote-target' as SshExecutionSnapshot['targetId'], revision: 7,
+      endpoint: { host: 'linux.example', port: 22, username: 'operator', hostKeySHA256: 'fixture-host-key' },
+      node: '/usr/bin/node', helper: '/opt/dsh/helper.mjs', helperHash: 'fixture-helper-hash',
+      workspace: '/srv/work', bootstrapPath: '/opt/dsh/bootstrap.json', bootstrapHash: 'fixture-bootstrap-hash',
+    }
+    const targetRevision = { id: execution.targetId, revision: execution.revision }
+    const snapshotExecution = vi.fn(() => execution)
+    ctx.provide('executionHostTargets', { snapshotExecution } as never)
+    const remote = new Context()
+    roots.push(remote)
+    const resolve = vi.fn(async (path: string) => ({
+      targetKey: 'remote-project' as never,
+      displayPath: path === '/remote/alias' ? '/canonical/project' : path,
+    }))
+    remote.provide('fs', {
+      resolve,
+      stat: vi.fn(async () => ({ type: 'directory', version: 'remote-v1' })),
+      processPath: (target: { displayPath: string }) => target.displayPath,
+    } as never)
+    const release = vi.fn(async () => {})
+    const acquire = vi.fn(async (binding: SshExecutionSnapshot, cwd: string): Promise<ExecutionLease> => ({
+      binding, ctx: remote, cwd, platform: 'linux',
+      incarnation: 'remote-workspace-incarnation' as ExecutionLease['incarnation'],
+      signal: new AbortController().signal, assertCurrent() {}, release,
+    }))
+    ctx.provide('executionBindings', { acquire } as never)
+
+    const first = await controller.create({ path: '/remote/alias', targetRevision })
+    const second = await controller.create({ path: '/remote/alias', targetRevision })
+
+    expect(first).toMatchObject({ created: true, workspace: { path: '/canonical/project', execution } })
+    expect(second).toMatchObject({ created: false, workspace: { workspaceId: first.workspace.workspaceId } })
+    expect(snapshotExecution).toHaveBeenCalledTimes(2)
+    expect(snapshotExecution).toHaveBeenNthCalledWith(1, targetRevision)
+    expect(acquire).toHaveBeenCalledTimes(2)
+    expect(acquire).toHaveBeenNthCalledWith(1, execution, '/remote/alias')
+    expect(release).toHaveBeenCalledTimes(2)
+  })
+
   it('serializes concurrent path adoption and preserves an existing title', async () => {
     const { controller, root } = await harness()
     const path = stageDir(root, 'alpha')
@@ -121,7 +174,7 @@ describe('WorkspaceController commands', () => {
   it('preserves Remote failures and propagates unexpected registry failures', async () => {
     const { controller, ctx, root } = await harness()
     const remoteFailure = new RemoteError('fixture/failure', 'already mapped', {})
-    const resolveByPath = vi.spyOn(ctx.workspaceRegistry, 'resolveByPath')
+    const resolveByPath = vi.spyOn(ctx.workspaceRegistry, 'create')
       .mockRejectedValueOnce(remoteFailure)
       .mockRejectedValueOnce('plain failure')
     await expect(controller.create({ path: stageDir(root, 'remote-failure') }))
@@ -163,11 +216,10 @@ describe('WorkspaceController commands', () => {
     const target = await controller.create({ path: stageDir(root, 'target') })
     const blockerPath = stageDir(root, 'blocker')
     const gate = deferred<undefined>()
-    const originalResolveByPath = ctx.workspaceRegistry.resolveByPath.bind(ctx.workspaceRegistry)
-    const resolveByPath = vi.spyOn(ctx.workspaceRegistry, 'resolveByPath')
-    resolveByPath.mockImplementationOnce(async (path) => {
+    const originalCreate = ctx.workspaceRegistry.create.bind(ctx.workspaceRegistry)
+    vi.spyOn(ctx.workspaceRegistry, 'create').mockImplementationOnce(async (...args) => {
       await gate.promise
-      return originalResolveByPath(path)
+      return originalCreate(...args)
     })
 
     const blocker = controller.create({ path: blockerPath })

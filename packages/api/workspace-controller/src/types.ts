@@ -7,6 +7,7 @@
 
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
+import type { ExecutionBinding, TargetRevisionRequest } from '@deepseek-ai/dsh-execution-host-targets/types'
 
 export type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 export type { DirectoryEntry, DirectoryListing } from '@deepseek-ai/dsh-host-directory-picker/types'
@@ -14,8 +15,10 @@ export type { DirectoryEntry, DirectoryListing } from '@deepseek-ai/dsh-host-dir
 /** One durable Workspace projected for browser consumers. */
 export interface WorkspaceView {
   readonly workspaceId: WorkspaceId
-  /** Canonical host directory path. */
+  /** Canonical directory path in the captured execution location. */
   readonly path: string
+  /** Captured execution location; legacy projections without it represent local execution. */
+  readonly execution?: ExecutionBinding
   /** User-visible title. */
   readonly title: string
   /** Sessions accounted to this Workspace in manual order. */
@@ -52,6 +55,8 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 /** Existing directory requested for Workspace adoption. */
 export interface WorkspaceCreateRequest {
   readonly path: string
+  /** Exact saved target selected by the operator; Host captures the authoritative snapshot. Omission selects local execution. */
+  readonly targetRevision?: TargetRevisionRequest
 }
 
 /** Created or previously registered Workspace. */

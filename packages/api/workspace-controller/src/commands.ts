@@ -2,6 +2,8 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { Workspace } from '@deepseek-ai/dsh-workspace'
+import type {} from '@deepseek-ai/dsh-execution-host-targets'
+import type { ExecutionBinding } from '@deepseek-ai/dsh-execution-host-targets/types'
 import {
   WorkspaceId,
   WorkspaceMoveInvalidError,
@@ -40,12 +42,15 @@ export class WorkspaceCommands {
   create(request: WorkspaceCreateRequest): Promise<WorkspaceCreateValue> {
     return this.enqueue(async () => {
       try {
-        const existing = await this.ctx.workspaceRegistry.resolveByPath(request.path)
-        if (existing !== undefined) {
-          return { workspace: workspaceView(existing), created: false }
+        let execution: ExecutionBinding = { kind: 'local' }
+        if (request.targetRevision !== undefined) {
+          const targets = this.ctx.get('executionHostTargets')
+          if (targets === undefined) throw new RemoteError('gateway/bad-request', 'Remote execution targets are unavailable', {})
+          execution = targets.snapshotExecution(request.targetRevision)
         }
-        const workspace = await this.ctx.workspaceRegistry.create(request.path)
-        return { workspace: workspaceView(workspace), created: true }
+        const known = new Set(this.ctx.workspaceRegistry.list().map(workspace => workspace.id))
+        const workspace = await this.ctx.workspaceRegistry.create(request.path, undefined, execution)
+        return { workspace: workspaceView(workspace), created: !known.has(workspace.id) }
       } catch (error) {
         if (remoteErrorOf(error) !== undefined) throw error
         throw new RemoteError(

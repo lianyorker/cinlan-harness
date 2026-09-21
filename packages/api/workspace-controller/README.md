@@ -24,6 +24,8 @@ English | [中文](README.zh.md)
 
 The Host controller serializes mutations whose correctness depends on current registry state and throws `RemoteError` with a stable `workspace/*` or `directory-picker/*` code for expected failures. Its `follow()` stream synchronously attaches to durable Workspace changes, emits one complete baseline first, then emits ordered `upsert`, `remove`, `order`, and `archived` increments. A reconnect starts another generation with a replacement baseline, so consumers do not depend on receiving every increment while disconnected.
 
+Creation accepts an optional exact saved target revision. Omission selects local execution; a remote request requires the target service, which captures the authoritative deployment snapshot before registry admission. Clients never supply execution snapshots. Directory verification and deduplication use the selected execution world. Projections include the captured binding; older projections without it mean local execution.
+
 The Client entry provides `ClientWorkspaceModel` and `createWorkspaceStateStream()`. The model owns Workspace rows, registry order, archived Session ids, unary mutation echoes, and stream/unary race resolution. A newer Host row wins by `updatedAt`; a committed stream order outranks an older unary response; a removed Workspace id cannot be resurrected by delayed data. Archive and restore share a request sequence: a later request, pushed archive set, or replacement baseline supersedes an older unary reply. The package exposes framework-neutral snapshots and subscriptions, leaving navigation policy and React hooks to the UI owner.
 
 -----

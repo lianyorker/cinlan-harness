@@ -123,7 +123,10 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
 }) {
   const row = group
   // The ungrouped bucket has no workspace title: its label is dictionary copy.
-  const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label
+  const label = row.workspaceId === undefined ? t('group.ungrouped')
+    : row.execution?.kind === 'ssh'
+      ? t('execution.bound', { title: row.label, host: row.execution.endpoint.username + '@' + row.execution.endpoint.host + ':' + String(row.execution.endpoint.port), revision: row.execution.revision })
+      : row.label
   const active = group.expanded && group.containsCurrent
   const [menuOpen, setMenuOpen] = useState(false)
   const workspaceMenuItems = [
@@ -202,7 +205,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
       anchor={ownRow}
       content={<WorkspaceHoverContent
         label={row.label}
-        cwd={row.cwd === undefined ? undefined : abbreviateHomePath(row.cwd, home)}
+        cwd={row.cwd === undefined ? undefined : abbreviateHomePath(row.cwd, row.execution?.kind === 'ssh' ? undefined : home)}
         createdAt={row.createdAt}
         t={t}
       />}

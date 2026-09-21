@@ -66,6 +66,7 @@ export interface GroupNode {
   key: string
   /** Backing Workspace id; absent only for the ungrouped bucket. */
   workspaceId: WorkspaceId | undefined
+  execution?: WorkspaceView['execution']
   cwd: string | undefined
   /** Workspace creation time (epoch ms); absent only for the ungrouped bucket. */
   createdAt: number | undefined
@@ -112,6 +113,7 @@ export interface TreeView {
 interface Group {
   key: string
   workspaceId: WorkspaceId | undefined
+  execution?: WorkspaceView['execution']
   cwd: string | undefined
   createdAt: number | undefined
   label: string
@@ -220,10 +222,10 @@ function groupByWorkspace(
       if (!sessionVisible(summary, list.current, archived)) continue
       members.push(summary)
     }
-    groups.push(buildGroup(
+    groups.push({ ...buildGroup(
       workspace.workspaceId, workspace.workspaceId, workspace.path,
       Date.parse(workspace.createdAt), workspace.title, members, 'account',
-    ))
+    ), execution: workspace.execution })
   }
   const stray = list.ids
     .map(id => list.byId[id])
@@ -308,6 +310,7 @@ export function deriveGroups(
     groups.push({
       key: g.key,
       workspaceId: g.workspaceId,
+      execution: g.execution,
       cwd: g.cwd,
       createdAt: g.createdAt,
       label: g.label,

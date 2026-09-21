@@ -1,24 +1,17 @@
-/**
- * Workspace pick/add flow. WorkspacePickFlow is the reusable core (menu +
- * path error dialog) consumed directly by WorkspaceBrowser (same package) and
- * wrapped by WorkspacePicker for the conversation empty-state slot
- * registration. Directory picking itself lives in the composed flow package's
- * slot occupant (see the contract module doc): this core only opens the flow,
- * adopts the picked path, and owns the error surface. Adding a workspace has
- * exactly one route — pick a host directory, new or existing — because the
- * occupant's own create-folder affordance already covers creating one.
- */
+/** Workspace selection and Host-validated local or remote directory adoption. */
 import type { ReactNode, RefObject } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import {
   Button, IconFolderClose16, IconPlusOutline16, Menu, Modal, type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
-  WorkspaceId, WorkspaceSnapshot, WorkspaceView,
+  WorkspaceCreateRequest, WorkspaceId, WorkspaceSnapshot, WorkspaceView,
 } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DirectoryFlowOwnerProps, WorkspacePickerProps } from './contract/slots.ts'
 import css from './WorkspacePicker.module.css'
+import { ExecutionWorkspaceDialog } from './ExecutionWorkspaceDialog.tsx'
+import type { ExecutionTargetsSnapshot } from './execution-targets.ts'
 
 const ADD_WORKSPACE = '::add-workspace'
 
@@ -33,9 +26,11 @@ export interface WorkspacePickFlowProps {
   /** Selector hook over the workspace list (framework standard hook). */
   useWorkspaces: <S>(selector: (state: WorkspaceSnapshot) => S) => S
   /** Adopt a picked host directory as a real Workspace. */
-  createWorkspace: (input: { path: string }) => Promise<WorkspaceView>
+  createWorkspace: (input: WorkspaceCreateRequest) => Promise<WorkspaceView>
   /** Bound occupancy selector hook for this surface's directory-flow hole (empty leaves the surface with no add action). */
   useDirectoryFlow: SnapshotSelectorHook<boolean>
+  /** Renderer-bound eligible SSH targets, withdrawn on disconnection. */
+  useExecutionTargets: SnapshotSelectorHook<ExecutionTargetsSnapshot>
   /** Render this surface's directory-flow hole with the owner conversation (the entry's narrowed renderSlot). */
   renderDirectoryFlow: (owner: DirectoryFlowOwnerProps) => ReactNode
   /** A real Workspace was picked or created. */
@@ -62,6 +57,7 @@ export function WorkspacePickFlow({
   useWorkspaces,
   createWorkspace,
   useDirectoryFlow,
+  useExecutionTargets,
   renderDirectoryFlow,
   onPick,
   onClose,
@@ -69,6 +65,8 @@ export function WorkspacePickFlow({
   side = 'bottom',
   selectedId,
 }: WorkspacePickFlowProps) {
+  const executionTargets = useExecutionTargets(state => state)
+  const [executionOpen, setExecutionOpen] = useState(false)
   const workspaceSnapshot = useWorkspaces(state => state)
   const workspaces = workspaceSnapshot.items
   const getAnchorRect = useCallback(
@@ -83,7 +81,7 @@ export function WorkspacePickFlow({
   // pending, browse dialog up) or its pick is being adopted, every other
   // menu action stays disabled — a late outcome must not race a concurrent
   // selection or adoption.
-  const flowBusy = flowOpen || pickingFolder
+  const flowBusy = flowOpen || pickingFolder || executionOpen
 
   // The occupied hole gates the picking affordance: with no composed flow the
   // entry simply is not there (the seam's documented no-flow default). The
@@ -98,7 +96,7 @@ export function WorkspacePickFlow({
   useEffect(() => {
     if (flowOpen && !flowAvailable) setFlowOpen(false)
   }, [flowOpen, flowAvailable])
-  const addEntries: MenuEntry[] = flowAvailable
+  const addEntries: MenuEntry[] = flowAvailable || executionTargets.targets.length > 0
     ? [{ id: ADD_WORKSPACE, label: t('menu.addWorkspace'), icon: <IconPlusOutline16 size={16} />, disabled: flowBusy }]
     : []
   // With workspaces listed, the add action pins below the scroll region
@@ -107,7 +105,9 @@ export function WorkspacePickFlow({
   const items: MenuEntry[] = pinAdd
     ? workspaces.map(workspace => ({
       id: workspace.workspaceId,
-      label: workspace.title,
+      label: workspace.execution?.kind === 'ssh'
+        ? t('execution.bound', { title: workspace.title, host: workspace.execution.endpoint.username + '@' + workspace.execution.endpoint.host + ':' + String(workspace.execution.endpoint.port), revision: workspace.execution.revision })
+        : workspace.title,
       icon: <IconFolderClose16 size={16} />,
       disabled: flowBusy,
     }))
@@ -137,8 +137,9 @@ export function WorkspacePickFlow({
     onClose()
     setErrorOpen(false)
     setModalError(null)
-    setFlowOpen(true)
-  }, [onClose])
+    if (executionTargets.targets.length > 0) setExecutionOpen(true)
+    else setFlowOpen(true)
+  }, [onClose, executionTargets.targets.length])
 
   // A menu exists to disambiguate between targets. With no workspaces listed
   // and the add action the only entry left, the anchor gesture IS that action:
@@ -196,6 +197,10 @@ export function WorkspacePickFlow({
       />
       {open && !addIsTheOnlyEntry && !menuIsEmpty && workspaceSnapshot.phase === 'pending' && <div className={css.menuStatus} role="status">{t('picker.loading')}</div>}
       {renderDirectoryFlow(flowOwner)}
+      <ExecutionWorkspaceDialog open={executionOpen} snapshot={executionTargets} localAvailable={flowAvailable}
+        createWorkspace={createWorkspace} onPick={onPick} t={t}
+        onClose={() => { setExecutionOpen(false) }}
+        onLocal={() => { setExecutionOpen(false); setFlowOpen(true) }} />
       <Modal
         open={errorOpen}
         onClose={closeModal}
@@ -231,6 +236,7 @@ export function WorkspacePicker({
   onClose,
   createWorkspace,
   useDirectoryFlow,
+  useExecutionTargets,
   renderSlot,
   t,
 }: WorkspacePickerProps) {
@@ -242,6 +248,7 @@ export function WorkspacePicker({
       useWorkspaces={useWorkspaces}
       createWorkspace={createWorkspace}
       useDirectoryFlow={useDirectoryFlow}
+      useExecutionTargets={useExecutionTargets}
       renderDirectoryFlow={owner => renderSlot('conversation.hero.workspace.directoryFlow', owner)}
       selectedId={selectedId}
       onPick={onPick}

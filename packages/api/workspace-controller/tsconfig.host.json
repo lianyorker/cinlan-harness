@@ -13,6 +13,7 @@
     "src/feed.ts"
   ],
   "references": [
+    { "path": "../../execution-host/execution-host-targets" },
     { "path": "../../../vendor/cordis" },
     { "path": "../../core/session" },
     { "path": "../../host/directory-picker" },

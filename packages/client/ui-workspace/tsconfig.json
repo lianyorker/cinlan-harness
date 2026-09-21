@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../api/execution-host-controller" },
     {
       "path": "../../api/session-controller/tsconfig.client.json"
     },

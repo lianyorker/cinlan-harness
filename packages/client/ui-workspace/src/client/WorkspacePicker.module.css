@@ -1,5 +1,18 @@
 /* The adoption error dialog's footer and message styles; the dialog itself is
  * the shared Modal (same figma dialog family as the browser's own dialogs). */
+.executionForm {
+  display: grid;
+  gap: 12px;
+}
+
+.executionForm select {
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  padding: 8px;
+}
+
 .modalAction {
   min-width: 72px;
 }

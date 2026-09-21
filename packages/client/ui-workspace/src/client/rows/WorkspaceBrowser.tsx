@@ -852,6 +852,7 @@ export function WorkspaceBrowser({
   searchSessions,
   searchResultLimit,
   useDirectoryFlow,
+  useExecutionTargets,
   useHostInfo,
   renderSlot,
   t,
@@ -863,7 +864,9 @@ export function WorkspaceBrowser({
   const archivedSessionIds = useWorkspaces(state => state.archivedSessionIds)
   // Live occupancy of this surface's directory-flow hole (the same source the
   // flow reads): a composition without a picking affordance can add nothing.
-  const directoryFlowAvailable = useDirectoryFlow(occupied => occupied)
+  const localDirectoryFlow = useDirectoryFlow(occupied => occupied)
+  const remoteTargetsAvailable = useExecutionTargets(state => state.targets.length > 0)
+  const directoryFlowAvailable = localDirectoryFlow || remoteTargetsAvailable
   const groupBy = useStore(s => s.groupBy)
   const orderBy = useStore(s => s.orderBy)
   const groupExpansion = useStore(s => s.groupExpansion)
@@ -1216,6 +1219,7 @@ export function WorkspaceBrowser({
           useWorkspaces={useWorkspaces}
           createWorkspace={createWorkspace}
           useDirectoryFlow={useDirectoryFlow}
+          useExecutionTargets={useExecutionTargets}
           renderDirectoryFlow={owner => renderSlot('sidebar.workspaces.directoryFlow', owner)}
           addOnly
           side="right"
