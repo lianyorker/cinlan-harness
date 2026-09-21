@@ -209,7 +209,7 @@ describe('workspaceFiles.changes — ending', () => {
     // A backend that checks the signal after its round-trip, as a remote one does.
     const entered = Promise.withResolvers<undefined>()
     const spy = vi.spyOn(fs, 'resolve').mockImplementation(async (path, opts) => {
-      entered.resolve()
+      entered.resolve(undefined)
       await gate
       opts?.signal?.throwIfAborted()
       return original(path, opts)
