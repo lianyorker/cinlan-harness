@@ -56,6 +56,7 @@ const roster = new Map<string, Record<string, unknown>>([
 ])
 const win = globalThis as DshWindow & { __DSH_TRANSPORT__?: ClientTransportHooks }
 let ctx: Context | undefined
+const clientSessions = (value: Context): sessions.ISessions => value.sessions as unknown as sessions.ISessions
 let unmount: (() => void) | undefined
 let fixtureDirectory: string | undefined
 
@@ -123,7 +124,7 @@ async function boot() {
   await ctx.loader.await()
   expect([...ctx.loader.entries()].map(entry => [entry.options.name, entry.fiber?.state]))
     .toEqual(expect.arrayContaining([...roster.keys()].map(name => [name, FiberState.ACTIVE])))
-  await waitFor(() => { expect(ctx!.sessions.list.getSnapshot().phase).toBe('ready') })
+  await waitFor(() => { expect(clientSessions(ctx!).list.getSnapshot().phase).toBe('ready') })
   const container = document.createElement('div')
   document.body.append(container)
   await act(async () => { unmount = ctx!.uiRenderer.mount(container) })
@@ -136,7 +137,7 @@ it('boots the restricted roster, selects an authorized conversation, and keeps s
   expect(b.view.getByRole('combobox', { name: 'Authorized sessions' })).toBeTruthy()
   fireEvent.change(b.view.getByRole('combobox'), { target: { value: 'fx-gamma' } })
   await waitFor(() => { expect(b.container.querySelector('[data-composer-input]')?.getAttribute('contenteditable')).toBe('true') })
-  const scoped = b.ctx.sessions.scope('fx-gamma' as SessionId)!
+  const scoped = clientSessions(b.ctx).scope('fx-gamma' as SessionId)!
   const sessionConversation = scoped.get('conversation')!
   await act(async () => { await sessionConversation.send('Message from paired phone') })
   await waitFor(() => { expect(b.view.getByText('Message from paired phone')).toBeTruthy() })

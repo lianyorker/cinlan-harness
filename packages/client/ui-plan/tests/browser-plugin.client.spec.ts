@@ -12,6 +12,7 @@ import type { BetterSidebarService, TabDescriptor } from '@deepseek-ai/dsh-clien
 import { BetterPlanPreview } from '../src/client/BetterPlanPreview.tsx'
 import { isValidElement } from 'react'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
@@ -30,7 +31,7 @@ function providePreview(ctx: Context) {
   const removeType = vi.fn()
   const registerType = vi.fn((_definition: Parameters<Context['sidebarRightTabs']['register']>[0]) => removeType)
   const openResourceIn = vi.fn<Context['sidebarRight']['openResourceIn']>()
-  const subagentAddress = vi.fn<Context['sessions']['subagentAddress']>(() => undefined)
+  const subagentAddress = vi.fn<ISessions['subagentAddress']>(() => undefined)
   ctx.provide('sessions', { subagentAddress })
   ctx.provide('resources', { register: vi.fn(() => removeResources) })
   ctx.provide('sidebarRightTabs', { register: registerType })

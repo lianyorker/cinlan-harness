@@ -38,6 +38,7 @@ function checkbox(element: HTMLElement): HTMLInputElement {
 
 const contexts: Context[] = []
 const roots: string[] = []
+const clientSessions = (value: Context): sessions.ISessions => value.sessions as unknown as sessions.ISessions
 afterEach(async () => {
   cleanup()
   await act(async () => { for (const ctx of contexts.splice(0)) await ctx.fiber.dispose() })
@@ -72,7 +73,7 @@ async function boot(state: RemoteAccessStatus['state'] = 'disabled', paired = fa
   const names = Object.keys(roster).map(name => 'cordis:' + name)
   expect([...ctx.loader.entries()].filter(row => names.includes(row.options.name)).map(row => [row.options.name, row.fiber?.state]))
     .toEqual(expect.arrayContaining(names.map(name => [name, FiberState.ACTIVE])))
-  await waitFor(() => { expect(ctx.sessions.list.getSnapshot().phase).toBe('ready') })
+  await waitFor(() => { expect(clientSessions(ctx).list.getSnapshot().phase).toBe('ready') })
   const view = render(<>{ctx.slots.renderSlot('root', {})}</>)
   return { ctx, view, rpc }
 }
@@ -84,7 +85,8 @@ it('requires explicit Session and scope grants, displays and cancels an invitati
   expect(b.rpc.calls.filter(call => call.method === 'pairing/createInvitation')).toEqual([])
   fireEvent.click(b.view.getByRole('button', { name: en.enable }))
   await b.view.findByText(en.ready)
-  const sessionLabel = b.ctx.sessions.list.getSnapshot().byId['fx-alpha' as keyof ReturnType<typeof b.ctx.sessions.list.getSnapshot>['byId']]!.displayTitle + ' fx-alpha'
+  const sessionList = clientSessions(b.ctx).list.getSnapshot()
+  const sessionLabel = sessionList.byId['fx-alpha' as keyof typeof sessionList.byId]!.displayTitle + ' fx-alpha'
   fireEvent.click(b.view.getByRole('checkbox', { name: sessionLabel }))
   expect(checkbox(b.view.getByRole('checkbox', { name: en['scope.session:read'] })).checked).toBe(true)
   for (const key of ['scope.session:send', 'scope.session:stop', 'scope.questions:answer', 'scope.approvals:decide'] as const) {
@@ -124,7 +126,7 @@ it('shows actual missing configuration, keeps invitation disabled, and localizes
   expect(button(b.view.getByRole('button', { name: en.create })).disabled).toBe(true)
   const entry = b.ctx.slots.entries('settings.section')[0]!
   const injected = (entry.inject as unknown as () => PairingInjected)()
-  expect(injected.hooks.pairingSessions).toBe(b.ctx.sessions.list)
+  expect(injected.hooks.pairingSessions).toBe(clientSessions(b.ctx).list)
   expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'phone-pairing', groupId: 'personal' }])
   expect(JSON.stringify(b.ctx.settingsMetadata.getSnapshot())).not.toContain('device-1')
   await act(async () => { b.ctx.locale.setLocale('zh') })

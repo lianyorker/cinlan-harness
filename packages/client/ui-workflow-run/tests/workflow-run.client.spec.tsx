@@ -14,7 +14,7 @@ import type { ChatConversationViewNode } from '@deepseek-ai/dsh-client-ui-chat/c
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
 import type {
-  SessionListState, SessionLiveEventEntry,
+  ISessions, SessionListState, SessionLiveEventEntry,
 } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session/types'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
@@ -889,7 +889,8 @@ describe('plugin lifecycle', () => {
     ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
     await ctx.plugin(SettingsMetadataService).await()
     await ctx.plugin(TestSessions).await()
-    const conversationEvents = new UiConversation(ctx, ctx.sessions).events
+    const testSessions = ctx.sessions as unknown as TestSessions
+    const conversationEvents = new UiConversation(ctx, testSessions as unknown as ISessions).events
     ctx.slots.register({
       name: 'root',
       children: { 'conversation.chat.node': { kind: 'keyed', scope: 'session' } },
@@ -902,7 +903,7 @@ describe('plugin lifecycle', () => {
     const entry = ctx.slots.entries('conversation.chat.node')[0]!
     const face = entry.inject?.() as unknown as WorkflowRunInjected
     face.openSession(CHILD_ID)
-    expect((ctx.sessions as unknown as TestSessions).opened).toEqual([CHILD_ID])
+    expect(testSessions.opened).toEqual([CHILD_ID])
     await fiber.dispose()
     expect(conversationEvents.entries()).toEqual([])
     expect(ctx.slots.entries('conversation.chat.node')).toEqual([])
