@@ -64,7 +64,7 @@ export async function harness(
     unborn?: boolean
     subdirectory?: boolean
     config?: Partial<Config>
-    extra?: readonly { name: string; module: unknown }[]
+    extra?: readonly { name: string; module: unknown; config?: unknown }[]
   } = {},
 ) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-sidebar-git-')))
@@ -95,7 +95,7 @@ export async function harness(
     { id: 'git-settings', name: '@deepseek-ai/dsh-git-settings' },
     { id: 'subprocess', name: 'test-subprocess', config: { globalConfig } },
     { id: 'sidebar-git', name: '@deepseek-ai/dsh-sidebar-git', config: options.config ?? {} },
-    ...(options.extra ?? []).map(entry => ({ name: entry.name })),
+    ...(options.extra ?? []).map(entry => ({ name: entry.name, config: entry.config })),
   ]))
   const modules = new Map<string, unknown>([
     ['session-query', SessionQuery], ['session-projections', SessionProjectionRegistry],

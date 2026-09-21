@@ -56,6 +56,7 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
 /** Runtime exports that require every consumer to resolve the provider's shared peer instance. */
 const PEER_REQUIRED_HOST_EXPORTS = {
   '@deepseek-ai/dsh-fs': ['FsError'],
+  '@deepseek-ai/dsh-git': ['GitError'],
   '@deepseek-ai/dsh-execution-runtime': ['RuntimeError'],
   '@deepseek-ai/dsh-execution-host-targets': ['ExecutionTargetError'],
   '@deepseek-ai/dsh-subprocess': ['SubprocessExecutableNotFoundError', 'scrubbedParentEnv'],

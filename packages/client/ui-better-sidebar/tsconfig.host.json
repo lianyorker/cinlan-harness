@@ -28,6 +28,9 @@
     "src/client/service.ts",
     "src/client/state.ts",
     "src/client/subagent-chat.ts",
+    "tests/execution-files.host.spec.ts",
+    "tests/execution-worlds-loader.spec.ts",
+    "tests/remote-file-peer.ts",
     "tests/terminal-execution.host.spec.ts",
     "tests/terminal-native-loader.spec.ts",
     "tests/terminal-provider-loader.spec.ts",
@@ -58,6 +61,9 @@
     },
     {
       "path": "../../api/sidebar-terminal-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../../api/workspace-files/tsconfig.host.json"
     },
     {
       "path": "../../api/sidebar-terminal-controller/tsconfig.client.json"
@@ -114,7 +120,19 @@
       "path": "../../execution-host/execution-binding"
     },
     {
+      "path": "../../execution-host/execution-host-local"
+    },
+    {
+      "path": "../../execution-host/execution-host-targets"
+    },
+    {
       "path": "../../fs/fs"
+    },
+    {
+      "path": "../../fs/fs-local"
+    },
+    {
+      "path": "../../git/git"
     },
     {
       "path": "../../git/sidebar-git"
@@ -132,10 +150,31 @@
       "path": "../../settings/settings-file"
     },
     {
+      "path": "../../session/session-projection"
+    },
+    {
+      "path": "../../session-query/session-query-sqlite"
+    },
+    {
+      "path": "../../storage/storage"
+    },
+    {
+      "path": "../../storage/storage-domain"
+    },
+    {
+      "path": "../../storage/storage-json"
+    },
+    {
       "path": "../../subagent/subagent"
     },
     {
       "path": "../../subprocess/subprocess"
+    },
+    {
+      "path": "../../subprocess/subprocess-local"
+    },
+    {
+      "path": "../../ssh/ssh"
     },
     {
       "path": "../../terminal/sidebar-terminals"

@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /** Real sidebar Loader composition over authenticated Connection Fetch and fenced Web aliases. */
 import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
@@ -9,6 +10,12 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import SessionStore from '@deepseek-ai/dsh-session'
+import SessionQuery from '@deepseek-ai/dsh-session-query-sqlite'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import ExecutionBindings from '@deepseek-ai/dsh-execution-binding'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
+import LocalGit from '@deepseek-ai/dsh-git-local'
 import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
@@ -26,6 +33,9 @@ vi.mock('../src/bundle-route.ts', async (importOriginal) => {
   return { ...actual, registerSidebarBundleRoute: (fetch: Connection.HostConnectionFetch) =>
     actual.registerSidebarBundleRoute(fetch, artifacts.directory) }
 })
+
+/** The local fixture retains real binding admission and provider ownership. */
+class LocalBindings extends ExecutionBindings { static override inject = ['sessionQuery', 'sessionProjections'] }
 
 const packageName = '@deepseek-ai/dsh-client-ui-better-sidebar'
 const apiPath = (method: string): string => '/api/sidebar.api?method=' + encodeURIComponent(method)
@@ -62,6 +72,8 @@ export async function load({ web = false, config = {} }: { web?: boolean; config
   } }
   const rows = [
     { name: '@deepseek-ai/dsh-session' },
+    { name: 'session-query', config: { path: ':memory:', openAt: 'never' } }, { name: 'session-projections' }, { name: 'execution-bindings' },
+    { name: 'fs-local' }, { name: 'subprocess-local' }, { name: 'git-local', config: { executable: 'git', maxOutputBytes: 1024 * 1024, maxLogEntries: 100, graceMs: 1000 } },
     { name: '@deepseek-ai/dsh-settings-file', config: { path: settingsPath } },
     { name: '@deepseek-ai/dsh-system-prompt' },
     { name: '@deepseek-ai/dsh-tools' },
@@ -77,6 +89,8 @@ export async function load({ web = false, config = {} }: { web?: boolean; config
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
+    ['session-query', SessionQuery], ['session-projections', SessionProjectionRegistry], ['execution-bindings', LocalBindings],
+    ['fs-local', LocalFileSystem], ['subprocess-local', LocalSubprocess], ['git-local', LocalGit],
     ['@deepseek-ai/dsh-session', SessionStore], ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
     ['@deepseek-ai/dsh-system-prompt', SystemPrompt], ['@deepseek-ai/dsh-tools', ToolRuntime],
     ['@deepseek-ai/dsh-credentials-local', LocalCredentials], ['@deepseek-ai/dsh-client-connection', Connection],

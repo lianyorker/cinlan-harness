@@ -461,11 +461,13 @@ pnpm watch        # tsdown --watch
 
 **架构**：Host 与 Client 位于同一 npm 包中。Client 通过经过认证的 Connection Fetch 调用 Host 现有的侧边栏分发器：`/api/sidebar.api`、`/api/sidebar.upload` 与 `/api/sidebar.file`；`/api/sidebar.bundle` 仅提供编辑器与 Mermaid 分块。路径编码的 `/api/sidebar/html/` 前缀为 HTML 相对资源保留 Session 作用域。这些路由在 Web 与 Desktop 中均可使用，且无需 Web 监听器；可选的 `/sidebar/*` Web 别名复用相同操作并保留 Host/Origin 信任围栏。终端操作使用[侧边栏终端能力](../../terminal/sidebar-terminals/README.zh.md)。Client 负责视图与按 Session 保存的 localStorage 状态。
 
+文件浏览、文本编辑、搜索、媒体与 HTML 预览捕获所属 Session 的执行租约。路径语法与文件系统操作来自该执行环境；租约断开或过期会失败，不会读取 Host 文件。SSH 文件树与文本编辑路径在规范解析后受 Session cwd 限制；所有执行环境中的媒体与 HTML 路径也受该目录限制。媒体读取在字节上限内完成后释放租约。本地上传持有租约直到流结束并完成提交。二进制上传与在 Host 应用中打开远端路径会返回明确的不支持结果，均不会改用本地路径。
+
 <a id="-security"></a>
 
 ## 🔐 安全
 
-- 规范路由使用 Connection 认证；Web 别名保留实时 Host/Origin 信任围栏。JSON 请求体保持 1 MiB 上限。上传按 `uploadLimit` 流式写入；重命名前取消会删除临时文件并保留目标文件，已开始的重命名则可能完成提交。媒体与 HTML 读取受 Session cwd 和 `mediaLimit` 限制。
+- 规范路由使用 Connection 认证；Web 别名保留实时 Host/Origin 信任围栏。JSON 请求体保持 1 MiB 上限。上传按 `uploadLimit` 流式写入；重命名前取消会删除临时文件并保留目标文件，已开始的重命名则可能完成提交。SSH 文件树、文本读取与文本写入路径受 Session cwd 限制；媒体与 HTML 读取也受该目录与 `mediaLimit` 限制。
 - HTML 预览与浏览器 tab 的内容在**不透明源沙箱 iframe** 中渲染（无 `allow-same-origin`/`allow-top-navigation`、`no-referrer`、权限策略全禁）；`/api/sidebar/html/` 路由带 CSP `sandbox` + 大小/路径边界；地址栏拒绝 `javascript:`/`data:`/`file:` 与 localhost 等本机地址
 - 界面实时显示沙箱状态（关闭时红色警示），可临时解锁当前页面；设置页可按功能关闭沙箱（默认关闭该设置，带警告文案）——关闭后内容与界面同源，仅建议对完全可信内容使用
 

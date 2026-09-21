@@ -1,20 +1,19 @@
 /** Shared sidebar operations for authenticated Fetch and the fenced Web aliases. */
-import { createReadStream } from 'node:fs'
 import { STATUS_CODES } from 'node:http'
-import { stat } from 'node:fs/promises'
-import { basename } from 'node:path'
+import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
+import { executionFileSystem, executionPaths, executionTarget } from './execution-files.ts'
 import type { HostConnectionFetch } from '@deepseek-ai/dsh-client-connection/types'
 import type { ResolvedSidebarConfig } from './config.ts'
 import type { SidebarHttpRequest, SidebarHttpResponse, SidebarWebServer } from './context-types.ts'
 import { writeWorkspaceUpload } from './fs-operations.ts'
-import { isWithin, requireAbsolute } from './fs-tree.ts'
 import { decodeHtmlUrl } from './html-route.ts'
 import { readJsonBody, SidebarError } from './wire.ts'
 
 /** Dependencies captured once by the Host plugin; the dispatcher remains the business owner. */
 export interface SidebarTransportOptions {
-  readonly api: Readonly<Record<string, (payload: unknown) => unknown>>
-  readonly sessionCwd: (sessionId: string, clientCwd?: string) => string
+  readonly api: Readonly<Record<string, (payload: unknown, signal?: AbortSignal) => unknown>>
+  readonly execution: <T>(sessionId: string, signal: AbortSignal | undefined,
+    operation: (lease: ExecutionLease, bound: AbortSignal) => Promise<T>) => Promise<T>
   readonly mediaType: (path: string) => string
   readonly config: ResolvedSidebarConfig
 }
@@ -75,29 +74,22 @@ async function* sidebarRequestChunks(request: Request): AsyncGenerator<Uint8Arra
  * @returns operations shared by both physical transports.
  */
 export function createSidebarOperations(options: SidebarTransportOptions) {
-  const { api, sessionCwd, mediaType, config } = options
-  async function file(path: string, cwd: string, html: boolean, signal?: AbortSignal): Promise<Response> {
-    const absolute = requireAbsolute(path)
-    if (!isWithin(cwd, absolute)) {
-      throw new SidebarError('fs-error', (html ? 'html' : 'media') + ' path outside the session working directory', 403)
+  const { api, execution, mediaType, config } = options
+  async function file(path: string, lease: ExecutionLease, html: boolean, signal: AbortSignal): Promise<Response> {
+    const fs = executionFileSystem(lease)
+    const target = await executionTarget(lease, path, signal, true)
+    const info = await fs.stat(target, signal)
+    if (info?.type !== 'file' || (info.size !== undefined && info.size > config.mediaLimit)) {
+      throw new SidebarError('fs-error', 'not a file or too large', 400)
     }
-    const info = await stat(absolute)
-    if (!info.isFile() || info.size > config.mediaLimit) throw new SidebarError('fs-error', 'not a file or too large', 400)
-    const chunks: Buffer[] = []
-    let size = 0
-    for await (const chunk of createReadStream(absolute, { signal })) {
-      const bytes = chunk as Buffer
-      size += bytes.byteLength
-      if (size > config.mediaLimit) throw new SidebarError('fs-error', 'not a file or too large', 400)
-      chunks.push(bytes)
-    }
-    const headers: Record<string, string> = { 'content-type': mediaType(absolute), 'cache-control': 'no-cache' }
+    const bytes = await fs.readBytes(target, signal, config.mediaLimit)
+    const headers: Record<string, string> = { 'content-type': mediaType(fs.processPath(target)), 'cache-control': 'no-cache' }
     if (html) {
       headers['x-content-type-options'] = 'nosniff'
       headers['referrer-policy'] = 'no-referrer'
       headers['content-security-policy'] = "sandbox allow-scripts allow-popups allow-downloads allow-modals; object-src 'none'"
     }
-    return new Response(new Uint8Array(Buffer.concat(chunks)), { headers })
+    return new Response(bytes.slice(), { headers })
   }
   return {
     json(method: string | undefined, chunks: AsyncIterable<string | Uint8Array>, signal?: AbortSignal): Promise<Response> {
@@ -106,7 +98,7 @@ export function createSidebarOperations(options: SidebarTransportOptions) {
         if (handler === undefined) throw new SidebarError('not-found', 'unknown sidebar API method', 404)
         const payload = await readJsonBody(chunks)
         signal?.throwIfAborted()
-        return json(200, { ok: true, value: await handler(payload) })
+        return json(200, { ok: true, value: await handler(payload, signal) })
       }, signal)
     },
     upload(url: URL, chunks: AsyncIterable<string | Uint8Array>, signal?: AbortSignal): Promise<Response> {
@@ -117,9 +109,14 @@ export function createSidebarOperations(options: SidebarTransportOptions) {
         if (sessionId === null || dir === null || relativePath === null || relativePath.trim() === '') {
           throw new SidebarError('bad-request', 'sessionId, dir, and relativePath are required')
         }
-        const cwd = sessionCwd(sessionId, url.searchParams.get('cwd') ?? undefined)
-        const value = await writeWorkspaceUpload({ cwd, dir, relativePath, chunks, limit: config.uploadLimit, signal })
-        return json(200, { ok: true, value })
+        return execution(sessionId, signal, async (lease, bound) => {
+          if (lease.binding.kind !== 'local') {
+            throw new SidebarError('unavailable', 'Binary upload is unavailable for this execution environment', 501)
+          }
+          await executionTarget(lease, dir, bound, true)
+          const value = await writeWorkspaceUpload({ cwd: lease.cwd, dir, relativePath, chunks, limit: config.uploadLimit, signal: bound })
+          return json(200, { ok: true, value })
+        })
       }, signal)
     },
     media(url: URL, signal?: AbortSignal): Promise<Response> {
@@ -127,11 +124,13 @@ export function createSidebarOperations(options: SidebarTransportOptions) {
         const sessionId = url.searchParams.get('sessionId')
         const path = url.searchParams.get('path')
         if (sessionId === null || path === null) throw new SidebarError('bad-request', 'sessionId and path are required')
-        const response = await file(path, sessionCwd(sessionId, url.searchParams.get('cwd') ?? undefined), false, signal)
-        if (url.searchParams.get('download') === '1') {
-          response.headers.set('content-disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(basename(path)))
-        }
-        return response
+        return execution(sessionId, signal, async (lease, bound) => {
+          const response = await file(path, lease, false, bound)
+          if (url.searchParams.get('download') === '1') {
+            response.headers.set('content-disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(executionPaths(lease).basename(path)))
+          }
+          return response
+        })
       }, signal)
     },
     html(url: URL, signal?: AbortSignal): Promise<Response> {
@@ -139,7 +138,7 @@ export function createSidebarOperations(options: SidebarTransportOptions) {
         const decoded = decodeHtmlUrl(url.pathname)
         if (!decoded.ok) throw new SidebarError('bad-request', decoded.message, decoded.status)
         const { sessionId, path } = decoded.ref
-        return file(path, sessionCwd(sessionId), true, signal)
+        return execution(sessionId, signal, (lease, bound) => file(path, lease, true, bound))
       }, signal)
     },
   }

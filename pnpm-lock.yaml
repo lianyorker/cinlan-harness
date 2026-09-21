@@ -4158,6 +4158,9 @@ importers:
       '@deepseek-ai/dsh-api-sidebar-terminal-controller':
         specifier: workspace:^
         version: link:../../api/sidebar-terminal-controller
+      '@deepseek-ai/dsh-api-workspace-files':
+        specifier: workspace:^
+        version: link:../../api/workspace-files
       '@deepseek-ai/dsh-client-connection':
         specifier: workspace:^
         version: link:../connection
@@ -4176,6 +4179,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-conversation':
         specifier: workspace:^
         version: link:../ui-conversation
+      '@deepseek-ai/dsh-client-ui-layout':
+        specifier: workspace:^
+        version: link:../ui-layout
       '@deepseek-ai/dsh-client-ui-primitives':
         specifier: workspace:^
         version: link:../ui-primitives
@@ -4194,9 +4200,24 @@ importers:
       '@deepseek-ai/dsh-execution-binding':
         specifier: workspace:^
         version: link:../../execution-host/execution-binding
+      '@deepseek-ai/dsh-execution-host-local':
+        specifier: workspace:^
+        version: link:../../execution-host/execution-host-local
+      '@deepseek-ai/dsh-execution-host-targets':
+        specifier: workspace:^
+        version: link:../../execution-host/execution-host-targets
       '@deepseek-ai/dsh-fs':
         specifier: workspace:^
         version: link:../../fs/fs
+      '@deepseek-ai/dsh-fs-local':
+        specifier: workspace:^
+        version: link:../../fs/fs-local
+      '@deepseek-ai/dsh-git':
+        specifier: workspace:^
+        version: link:../../git/git
+      '@deepseek-ai/dsh-git-local':
+        specifier: workspace:^
+        version: link:../../git/git-local
       '@deepseek-ai/dsh-host-webserver':
         specifier: workspace:^
         version: link:../../host/webserver
@@ -4209,6 +4230,15 @@ importers:
       '@deepseek-ai/dsh-session':
         specifier: workspace:^
         version: link:../../core/session
+      '@deepseek-ai/dsh-session-projection':
+        specifier: workspace:^
+        version: link:../../session/session-projection
+      '@deepseek-ai/dsh-session-query':
+        specifier: workspace:^
+        version: link:../../session-query/session-query
+      '@deepseek-ai/dsh-session-query-sqlite':
+        specifier: workspace:^
+        version: link:../../session-query/session-query-sqlite
       '@deepseek-ai/dsh-settings':
         specifier: workspace:^
         version: link:../../settings/settings
@@ -4221,12 +4251,27 @@ importers:
       '@deepseek-ai/dsh-sidebar-terminals':
         specifier: workspace:^
         version: link:../../terminal/sidebar-terminals
+      '@deepseek-ai/dsh-ssh':
+        specifier: workspace:^
+        version: link:../../ssh/ssh
+      '@deepseek-ai/dsh-storage':
+        specifier: workspace:^
+        version: link:../../storage/storage
+      '@deepseek-ai/dsh-storage-domain':
+        specifier: workspace:^
+        version: link:../../storage/storage-domain
+      '@deepseek-ai/dsh-storage-json':
+        specifier: workspace:^
+        version: link:../../storage/storage-json
       '@deepseek-ai/dsh-subagent':
         specifier: workspace:^
         version: link:../../subagent/subagent
       '@deepseek-ai/dsh-subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-subprocess-local':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess-local
       '@deepseek-ai/dsh-system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt
@@ -4269,6 +4314,9 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.3.1(react@18.3.1)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
 
   packages/client/ui-brand-official:
     devDependencies:

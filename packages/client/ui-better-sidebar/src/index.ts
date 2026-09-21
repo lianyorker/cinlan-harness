@@ -13,8 +13,8 @@
  * session's authoritative cwd comes from the session store, and terminal
  * processes are keyed by session.
  */
-import { mkdir, open, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { dirname, extname, isAbsolute, join } from 'node:path'
+import { extname } from 'node:path'
+import { executionFileSystem, executionListing, executionPaths, executionRead, executionSearch, executionTarget, withSessionFiles } from './execution-files.ts'
 import type { Context, SidebarHttpRequest } from './context-types.ts'
 import type { HostConnectionFetch } from '@deepseek-ai/dsh-client-connection/types'
 import {
@@ -26,8 +26,7 @@ import {
   type SidebarConfig,
   type SidebarPrefs,
 } from './config.ts'
-import { parentOf, requireAbsolute, listDirectory, rootLabel } from './fs-tree.ts'
-import { searchFiles } from './fs-search.ts'
+import { requireAbsolute } from './fs-tree.ts'
 import { extractFrameAncestors } from './browser-probe.ts'
 import { isTrustedApiRequest, isLoopbackHostname } from './trust-fence.ts'
 import { registerBundleRoute, registerSidebarBundleRoute, registerTerminalBundleRoute } from './bundle-route.ts'
@@ -121,59 +120,8 @@ function sessionCwdOf(ctx: Context, sessionId: string, clientCwd?: string): stri
   return process.cwd()
 }
 
-/**
- * Resolve a path that a git command reported — `git status`/`git diff`
- * print paths RELATIVE TO THE REPO TOP LEVEL, which may sit above the
- * session cwd (a session inside a subdirectory of a repository). Absolute
- * paths pass through; relative ones join the repo root (falling back to the
- * cwd when the root cannot be resolved, e.g. a bare directory).
- */
-async function resolveGitPath(ctx: Context, sessionId: SessionId, cwd: string, raw: string): Promise<string> {
-  if (isAbsolute(raw)) return requireAbsolute(raw)
-  const root = (await ctx.get('sidebarGit')?.status({ sessionId }))?.repository?.root
-  return requireAbsolute(join(root ?? cwd, raw))
-}
-
-/** How many leading bytes a binary read returns for client-side detect sniffing. */
-const READ_HEAD_LIMIT = 4096
-
-/** Text read of a file with the size cap; binary detection via NUL probe.
- *  Binary reads also return the first {@link READ_HEAD_LIMIT} bytes (base64)
- *  so the client can re-match viewers by content (`detect`). */
-async function readText(path: string, readLimit: number): Promise<{
-  content: string
-  truncated: boolean
-  binary: boolean
-  size: number
-  head?: string
-}> {
-  const info = await stat(path).catch((error: unknown) => {
-    throw new SidebarError('fs-error', `cannot read "${path}": ${error instanceof Error ? error.message : String(error)}`, 400)
-  })
-  if (info.isDirectory()) {
-    throw new SidebarError('fs-error', `"${path}" is a directory`, 400)
-  }
-  const size = info.size
-  const truncated = size > readLimit
-  const handle = await open(path, 'r').catch((error: unknown) => {
-    throw new SidebarError('fs-error', `cannot read "${path}": ${error instanceof Error ? error.message : String(error)}`, 400)
-  })
-  try {
-    const buffer = Buffer.alloc(Math.min(size, readLimit))
-    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0)
-    const slice = buffer.subarray(0, bytesRead)
-    const binary = slice.includes(0)
-    const head = binary
-      ? slice.subarray(0, Math.min(slice.length, READ_HEAD_LIMIT)).toString('base64')
-      : undefined
-    return { content: binary ? '' : slice.toString('utf8'), truncated, binary, size, head }
-  } finally {
-    await handle.close()
-  }
-}
-
 /** One API method dispatch table entry. */
-type ApiMethod = (payload: unknown) => Promise<unknown> | unknown
+type ApiMethod = (payload: unknown, signal?: AbortSignal) => Promise<unknown> | unknown
 
 /**
  * The live face of the side card settings namespace, bound to the settings
@@ -240,12 +188,6 @@ function buildApi(
   terminalShell: string,
   getSettings: () => SidebarSettingsFace | undefined,
 ): Record<string, ApiMethod> {
-  const cwdOf = (payload: unknown): { sessionId: string; cwd: string } => {
-    const sessionId = requireString(payload, 'sessionId')
-    const record = payload as { cwd?: unknown } | null
-    const clientCwd = typeof record?.cwd === 'string' && record.cwd !== '' ? record.cwd : undefined
-    return { sessionId, cwd: sessionCwdOf(ctx, sessionId, clientCwd) }
-  }
   // Background jobs: the LIST rides the harness's `session/jobs` push
   // mirror, so these routes only replay output the model has read (from the
   // session's own event log — no DSH source is touched, the model's
@@ -257,48 +199,25 @@ function buildApi(
   // subagent runtime is absent (the page has no topology to show anyway).
   const subagentLiveApi: SidebarSubagentLiveRoutes = buildSubagentLiveApi(ctx)
   return {
-    'session.cwd': (payload) => {
-      const { sessionId, cwd } = cwdOf(payload)
-      return { sessionId, cwd, root: rootLabel(cwd), parent: parentOf(cwd) ?? null }
-    },
-    'fs.tree': async (payload) => {
-      const { cwd } = cwdOf(payload)
+    'session.cwd': (payload, signal) => withSessionFiles(ctx, requireString(payload, 'sessionId'), signal, async (lease) => {
+      const paths = executionPaths(lease)
+      const parent = paths.dirname(lease.cwd)
+      return { sessionId: requireString(payload, 'sessionId'), cwd: lease.cwd,
+        root: paths.basename(lease.cwd) || lease.cwd, parent: parent === lease.cwd ? null : parent }
+    }),
+    'fs.tree': (payload, signal) => withSessionFiles(ctx, requireString(payload, 'sessionId'), signal, async (lease, bound) => {
       const record = payload as { path?: unknown }
-      const target = record.path === undefined ? cwd : requireAbsolute(requireString(payload, 'path'))
-      return listDirectory(target, resolved.listLimit)
-    },
-    'fs.search': async (payload) => {
-      // The editor side panel's global name search: rooted at the session
-      // cwd (not caller-targetable — the walk is unbounded by design and
-      // must never escape the workspace), budgeted inside searchFiles.
-      const { cwd } = cwdOf(payload)
-      const query = requireString(payload, 'query')
-      return searchFiles(cwd, query)
-    },
-    'fs.read': async (payload) => {
-      const { sessionId, cwd } = cwdOf(payload)
-      // Relative paths are git-derived (status/diff report repo-root-relative
-      // names; the untracked diff view reads the file through this route).
-      const path = await resolveGitPath(ctx, sessionId as unknown as SessionId, cwd, requireString(payload, 'path'))
-      const { content, truncated, binary, size, head } = await readText(path, resolved.readLimit)
-      if (binary) return { kind: 'binary', size, truncated, head }
-      return { kind: 'text', content, truncated }
-    },
-    'fs.write': async (payload) => {
-      cwdOf(payload)
-      const path = requireAbsolute(requireString(payload, 'path'))
-      const content = requireString(payload, 'content')
-      const tmp = `${path}.dsh-sidebar-tmp-${process.pid}`
-      try {
-        await mkdir(dirname(path), { recursive: true })
-        await writeFile(tmp, content, 'utf8')
-        await rename(tmp, path)
-      } catch (error) {
-        await rm(tmp, { force: true }).catch(() => {})
-        throw new SidebarError('fs-error', `cannot write "${path}": ${error instanceof Error ? error.message : String(error)}`, 400)
-      }
+      return executionListing(lease, record.path === undefined ? lease.cwd : requireString(payload, 'path'), resolved.listLimit, bound)
+    }),
+    'fs.search': (payload, signal) => withSessionFiles(ctx, requireString(payload, 'sessionId'), signal,
+      (lease, bound) => executionSearch(lease, requireString(payload, 'query'), bound)),
+    'fs.read': (payload, signal) => withSessionFiles(ctx, requireString(payload, 'sessionId'), signal,
+      (lease, bound) => executionRead(lease, requireString(payload, 'path'), resolved.readLimit, bound)),
+    'fs.write': (payload, signal) => withSessionFiles(ctx, requireString(payload, 'sessionId'), signal, async (lease, bound) => {
+      const target = await executionTarget(lease, requireString(payload, 'path'), bound)
+      await executionFileSystem(lease).writeText(target, requireString(payload, 'content'), undefined, bound)
       return { ok: true }
-    },
+    }),
     ...buildGitApi(() => ctx.get('sidebarGit')),
     // Release an agent terminal by uuid. The WS close frame already does
     // this while the socket is open; this route covers the tab-close that
@@ -416,11 +335,15 @@ function buildApi(
     // client is a browser renderer where raw scheme navigation is
     // unreliable, so the launch always goes through the host — the same
     // fence as every other route, argv-only (no shell interpolation).
-    'open.external': (payload) => {
+    'open.external': async (payload, signal) => {
       const record = payload as { action?: unknown } | null
       const action = record?.action
-      if (action === 'reveal') return launchExternal('reveal', requireString(payload, 'path'))
-      if (action === 'url') return launchExternal('url', requireString(payload, 'url'))
+      if (action === 'reveal' || action === 'url') {
+        return withSessionFiles(ctx, requireString(payload, 'sessionId'), signal, async (lease) => {
+          if (lease.binding.kind !== 'local') throw new SidebarError('unavailable', 'Host applications cannot open remote execution paths', 501)
+          return launchExternal(action, requireString(payload, action === 'reveal' ? 'path' : 'url'))
+        })
+      }
       // A session-transcript http(s) link opened in the OS browser: the
       // desktop webview only navigates to the packaged page and the loopback
       // origin, so an external page must hand off to the host opener.
@@ -473,9 +396,9 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
       : `${status.cause}. Repair: ${status.command}`
     ctx.logger?.warn(`[dsh-better-sidebar] node-pty (${DSH_NODE_PTY_RANGE}) failed to load: ${detail}`)
   }
-  const ptyManager = nodePty !== null
-    ? new PtyManager(terminalShell, resolved.terminalsPerSession, resolved.shellArgs, nodePty)
-    : null
+  const ptyManager = nodePty === null
+    ? null
+    : new PtyManager(terminalShell, resolved.terminalsPerSession, resolved.shellArgs, nodePty)
   // The agent-owned terminal registry: parallel to the UI-tab ptyManager,
   // keyed by uuid (the model's opaque handle) instead of `${sessionId}:${tabId}`,
   // uncapped, and torn down with the plugin. The model creates terminals here
@@ -588,7 +511,7 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   })
   const operations = createSidebarOperations({
     api: buildApi(ctx, ptyManager, agentPtyRegistry, resolved, terminalShell, () => settingsFace),
-    sessionCwd: (sessionId, clientCwd) => sessionCwdOf(ctx, sessionId, clientCwd),
+    execution: (sessionId, signal, operation) => withSessionFiles(ctx, sessionId, signal, operation),
     mediaType: mediaTypeForPath,
     config: resolved,
   })

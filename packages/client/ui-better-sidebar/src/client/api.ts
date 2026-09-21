@@ -279,7 +279,8 @@ export const api = {
    *  the OS file manager, or hand a custom-scheme URL (vscode://, cursor://,
    *  zed://, custom editors) to its registered handler. The host launches
    *  the platform opener (argv, no shell). */
-  openExternal: (payload: { action: 'reveal'; path: string } | { action: 'url'; url: string } | { action: 'browser'; url: string }) =>
+  openExternal: (payload: { action: 'reveal'; path: string; sessionId: string }
+    | { action: 'url'; url: string; sessionId: string } | { action: 'browser'; url: string }) =>
     call<{ started: boolean }>('open.external', payload),
 }
 

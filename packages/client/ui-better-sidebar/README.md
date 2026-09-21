@@ -461,11 +461,13 @@ pnpm watch        # tsdown --watch
 
 **Architecture**: the Host and Client share one npm package. The Client calls the Host’s existing sidebar dispatcher through authenticated Connection Fetch: `/api/sidebar.api`, `/api/sidebar.upload`, and `/api/sidebar.file`; `/api/sidebar.bundle` serves only editor and Mermaid chunks. The path-encoded `/api/sidebar/html/` prefix preserves Session scope for relative HTML assets. These routes work in Web and Desktop without a Web listener; optional `/sidebar/*` Web aliases reuse the same operations and retain their Host/Origin fence. Terminal operations use the [Sidebar terminal capability](../../terminal/sidebar-terminals/README.md). The Client owns the views and per-Session localStorage state.
 
+Files, text editing, searches, media and HTML previews capture the owning Session’s execution lease. Path syntax and filesystem operations come from that world; a disconnected or stale lease fails without consulting Host files. SSH file-tree and text-edit paths stay within the Session cwd after canonical resolution; media and HTML paths stay within it in every execution world. Media reads finish within their byte cap before the lease is released. Local uploads retain the lease through stream completion and commit. Binary upload and opening remote paths in Host applications return an explicit unsupported result; neither selects a local path.
+
 <a id="-security"></a>
 
 ## 🔐 Security
 
-- Canonical routes use Connection authentication; Web aliases retain the live Host/Origin trust fence. JSON bodies keep the 1 MiB bound. Uploads stream under `uploadLimit`; aborts before rename remove the temporary file and preserve the target, while a started rename may commit. Media and HTML reads stay within the Session cwd and `mediaLimit`.
+- Canonical routes use Connection authentication; Web aliases retain the live Host/Origin trust fence. JSON bodies keep the 1 MiB bound. Uploads stream under `uploadLimit`; aborts before rename remove the temporary file and preserve the target, while a started rename may commit. SSH file-tree, text-read and text-write paths stay within the Session cwd; media and HTML reads also stay within it and `mediaLimit`.
 - HTML preview and browser tab content render in **opaque-origin sandboxed iframes** (no `allow-same-origin`/`allow-top-navigation`, `no-referrer`, all permission policies disabled); the `/api/sidebar/html/` route carries a CSP `sandbox` + size/path bounds; the address bar rejects `javascript:`/`data:`/`file:` and local addresses like localhost
 - The UI shows the sandbox status live (red warning when off) and can temporarily unlock the current page; the settings page can disable the sandbox per feature (disabled by default, with a warning) — when off, content shares the origin with the UI; only recommended for fully trusted content
 

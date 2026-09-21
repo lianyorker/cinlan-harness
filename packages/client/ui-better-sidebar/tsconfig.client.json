@@ -22,6 +22,7 @@
   ],
   "references": [
     { "path": "../../subprocess/subprocess" },
+    { "path": "../../git/git" },
     { "path": "../../fs/fs" },
     { "path": "../../execution-host/execution-binding" },
     { "path": "../../document/office-to-pdf" },

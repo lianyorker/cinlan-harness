@@ -13,6 +13,8 @@ import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import { SettingsConflictError, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import LocalGitRuntime from '@deepseek-ai/dsh-git-local'
 import * as SidebarHost from '../src/index.ts'
 import { mediaTypeForPath } from '../src/index.ts'
 import type { GitDiffRequest, GitDiffResult } from '@deepseek-ai/dsh-sidebar-git/types'
@@ -325,6 +327,10 @@ describe('session cwd resolution over the API route', () => {
         })
         ctx.provide('webRuntime', { trustedHosts: [] })
       } } },
+      { name: '@deepseek-ai/dsh-fs-local', module: LocalFileSystem },
+      { name: '@deepseek-ai/dsh-git-local', module: LocalGitRuntime, config: {
+        executable: 'git', maxOutputBytes: 8 * 1024 * 1024, maxLogEntries: 500, graceMs: 2_000,
+      } },
       { name: '@deepseek-ai/dsh-client-ui-better-sidebar', module: SidebarHost },
     ] })
     const route = routes.find(candidate => candidate.path === '/sidebar/api')
@@ -387,38 +393,36 @@ describe('session cwd resolution over the API route', () => {
     return JSON.parse(out.body) as { ok: boolean; value?: { cwd: string }; error?: { message: string } }
   }
 
-  it('uses the client summary cwd while the session is detached', async () => {
+  it('refuses caller cwd when execution ownership is unavailable', async () => {
     const route = await mount()
     const result = await invoke(route, 'session.cwd', { sessionId: 's-detached', cwd: '/tmp/summary-cwd' })
-    expect(result.ok).toBe(true)
-    // The summary cwd passes through requireAbsolute (platform resolve), so
-    // the expectation follows the platform's own normalization.
-    expect(result.value?.cwd).toBe(resolvePath('/tmp/summary-cwd'))
+    expect(result.ok).toBe(false)
+    expect(result.error?.message).toMatch(/Execution bindings are not available/)
   })
 
-  it('falls back to the process cwd with no summary cwd', async () => {
+  it('never substitutes the Host process cwd for missing execution ownership', async () => {
     const route = await mount()
     const result = await invoke(route, 'session.cwd', { sessionId: 's-unknown' })
-    expect(result.ok).toBe(true)
-    expect(result.value?.cwd).toBe(process.cwd())
+    expect(result.ok).toBe(false)
+    expect(result.value).toBeUndefined()
   })
 
-  it('prefers the attached session header over the client summary', async () => {
+  it('does not admit an attached header without the execution binding service', async () => {
     const route = await mount({
       sessions: {
         get: id => id === 's-attached' ? { header: { cwd: '/attached-cwd' } } : undefined,
       },
     })
     const result = await invoke(route, 'session.cwd', { sessionId: 's-attached', cwd: '/tmp/summary-cwd' })
-    expect(result.ok).toBe(true)
-    expect(result.value?.cwd).toBe('/attached-cwd')
+    expect(result.ok).toBe(false)
+    expect(result.error?.message).toMatch(/Execution bindings are not available/)
   })
 
   it('rejects a non-absolute client cwd', async () => {
     const route = await mount()
     const result = await invoke(route, 'session.cwd', { sessionId: 's-detached', cwd: 'relative/path' })
     expect(result.ok).toBe(false)
-    expect(result.error?.message).toMatch(/invalid working directory/)
+    expect(result.error?.message).toMatch(/Execution bindings are not available/)
   })
 
   it('git.diff resolves repo-relative paths through the attached nested Session and ignores caller cwd', async () => {
@@ -439,7 +443,7 @@ describe('session cwd resolution over the API route', () => {
     const result = await invokeGit(h.route, 'fs.read', {
       ...h.request, path: 'tracked.txt', cwd: join(h.root, 'wrong-caller-cwd'),
     })
-    expect(result.ok).toBe(true)
+    expect(result.ok, JSON.stringify(result.error)).toBe(true)
     expect(result.value).toEqual({ kind: 'text', content: 'base\n', truncated: false })
   }, 90_000)
 })
