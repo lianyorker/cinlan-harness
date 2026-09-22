@@ -26,7 +26,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
  * @param ctx - trusted Desktop Client context with generated Remote assembly.
  */
 export function apply(ctx: Context): void {
-  if (!ctx.remote.$host.isLoopback) return
+  const isDesktopCarrier = typeof location !== 'undefined' && location.protocol === 'dsh-app:'
+  if (!isDesktopCarrier || !ctx.remote.$host.isLoopback) return
   ctx.effect(() => ctx.locale.register('settings.pairing', { en, zh }))
   const t = ctx.locale.bind('settings.pairing')
   const observation = observePairing(ctx.remote.pairing)

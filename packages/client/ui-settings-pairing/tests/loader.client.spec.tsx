@@ -52,8 +52,12 @@ const owner = { inject: ['slots'], apply(ctx: Context) {
     'settings.section': { kind: 'list', scope: 'root' }, 'settings.section.icon': { kind: 'keyed', scope: 'root' },
   } }, (props: PropsRenderSlots<'settings.section' | 'settings.section.icon'>) => <>{props.renderSlot('settings.section', { close() {} })}</>))
 } }
-async function boot(state: RemoteAccessStatus['state'] = 'disabled', paired = false) {
-  vi.stubGlobal('location', new URL('https://127.0.0.1/'))
+async function boot(
+  state: RemoteAccessStatus['state'] = 'disabled',
+  paired = false,
+  origin = 'dsh-app://app/index.html',
+) {
+  vi.stubGlobal('location', new URL(origin))
   vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en-US'])
   const rpc = externalRpc(state, paired)
   vi.stubGlobal('__DSH_TRANSPORT__', rpc.transport)
@@ -148,6 +152,15 @@ it('does not register or invoke management on a paired carrier even when loaded'
   const b = await boot('ready', true)
   expect(b.ctx.remote.$host.isLoopback).toBe(false)
   expect(b.ctx.slots.entries('settings.section')).toEqual([])
+  expect(b.rpc.calls.filter(call => call.method.startsWith('pairing/'))).toEqual([])
+})
+
+it('hides pairing management on the Web carrier', async () => {
+  const b = await boot('disabled', false, 'http://127.0.0.1:3080/')
+  expect(b.ctx.remote.$host.isLoopback).toBe(true)
+  expect(b.ctx.slots.entries('settings.section')).toEqual([])
+  expect(b.ctx.slots.entries('settings.section.icon')).toEqual([])
+  expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
   expect(b.rpc.calls.filter(call => call.method.startsWith('pairing/'))).toEqual([])
 })
 

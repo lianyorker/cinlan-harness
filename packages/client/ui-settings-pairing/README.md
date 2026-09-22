@@ -25,7 +25,7 @@ Pair a phone browser from Desktop Settings → Phone pairing. Select one or more
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this contribution in the trusted Desktop Client composition alongside Settings, Locale, the generated pairing Remote namespace, and the existing Session controller. This plugin has no configuration fields. The HTTPS provider must remain mounted with its Loader row enabled and listener configuration initially disabled so the Enable action can reach it. The phone composition must omit this page; a paired carrier also prevents registration if the plugin is loaded.
+Mount this contribution in the trusted Desktop Client composition alongside Settings, Locale, the generated pairing Remote namespace, and the existing Session controller. This plugin has no configuration fields. The HTTPS provider must remain mounted with its Loader row enabled and listener configuration initially disabled so the Enable action can reach it. The Web and phone compositions must omit this page; the plugin accepts only the `dsh-app:` Desktop carrier, and a paired carrier also prevents registration if it is loaded.
 
 Configure HTTPS in the Host's [remote-access provider](../../remote-access/remote-access/README.md). The page displays the provider's actual missing configuration fields and never creates a certificate, establishes trust, or changes CORS. An unavailable or disabled listener cannot create invitations. A failure displays localized recovery guidance and requires a status refresh before another invitation.
 
