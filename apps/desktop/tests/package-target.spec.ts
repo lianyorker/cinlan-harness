@@ -17,7 +17,14 @@ function desktopDependencyRoot() {
     name: '@deepseek-ai/dsh-desktop',
     path: appPath,
     dependencies: {
+      '@deepseek-ai/cordis': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/cordis') },
+      '@deepseek-ai/cordis-plugin-group': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/cordis-plugin-group') },
+      '@deepseek-ai/cordis-plugin-include': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/cordis-plugin-include') },
+      '@deepseek-ai/cordis-plugin-loader': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/cordis-plugin-loader') },
       '@deepseek-ai/dsh-app-boot': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/dsh-app-boot') },
+      '@deepseek-ai/dsh-home-paths': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/dsh-home-paths') },
+      '@deepseek-ai/dsh-launch-environment': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/dsh-launch-environment') },
+      '@deepseek-ai/dsh-system-prompt': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/dsh-system-prompt') },
       'electron-updater': {
         version: '6.8.9', path: resolve(appPath, 'node_modules/electron-updater'),
         dependencies: { semver: { version: '7.7.4', path: resolve(appPath, 'node_modules/electron-updater/node_modules/semver') } },
@@ -105,7 +112,18 @@ describe('desktop package target', () => {
     }
   })
 
-  it.each(['@deepseek-ai/dsh-app-boot', 'electron-updater', 'semver'])('rejects a listing missing %s', (dependency) => {
+  it.each([
+    '@deepseek-ai/cordis',
+    '@deepseek-ai/cordis-plugin-group',
+    '@deepseek-ai/cordis-plugin-include',
+    '@deepseek-ai/cordis-plugin-loader',
+    '@deepseek-ai/dsh-app-boot',
+    '@deepseek-ai/dsh-home-paths',
+    '@deepseek-ai/dsh-launch-environment',
+    '@deepseek-ai/dsh-system-prompt',
+    'electron-updater',
+    'semver',
+  ])('rejects a listing missing %s', (dependency) => {
     const root = desktopDependencyRoot()
     const dependencies = Object.fromEntries(Object.entries(root.dependencies).filter(([name]) => name !== dependency))
     expect(() => { assertDesktopDependencySelection([{ ...root, dependencies }]) }).toThrow(`missing ${dependency}`)

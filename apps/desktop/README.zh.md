@@ -139,7 +139,7 @@ macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS �
 
 每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、seed、pnpm 准备状态、未打包应用、更新元数据和最终产物。Node.js 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。
 
-安装器命令将 pnpm 依赖收集限定为 `@deepseek-ai/dsh-desktop` 及其完整生产依赖树。构建前的依赖检查会拒绝额外项目根或缺失的桌面壳直接依赖，并将 pnpm 输出保存在 `.desktop-build/targets/<target>/electron-builder-dependencies.json`，包括命令失败时的输出。源码构建和后端 seed 准备使用各自的依赖图。
+安装器命令将 pnpm 依赖收集限定为 `@deepseek-ai/dsh-desktop` 及其完整生产依赖树。桌面壳 manifest 直接拥有 `dsh-app-boot` 导入的每个非可选运行时 peer；workspace link 不属于打包输入。构建前的依赖检查会拒绝额外项目根或缺失的桌面壳直接依赖，并将 pnpm 输出保存在 `.desktop-build/targets/<target>/electron-builder-dependencies.json`，包括命令失败时的输出。源码构建和后端 seed 准备使用各自的依赖图。
 
 Windows 更新上传要求 NSIS `.exe` 及其非空的独立 `.exe.blockmap`；macOS 更新要求 ZIP 及其独立 `.zip.blockmap`，并一同上传 DMG。上传计划校验引用的安装产物摘要，先发送载荷与 blockmap，再发送频道元数据。
 
