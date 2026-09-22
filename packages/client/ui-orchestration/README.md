@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use Orchestration settings to save the host’s parallel tool-call limit and inspect workflow tools, delegation tools, and workflow engines in each agent preset. Capability status comes from evaluated plugin rows, including disabled, conditional, pending, and failed entries. Preset files and workflow engine limits remain owned by their compositions.
+Use Orchestration settings to save the host’s parallel tool-call limit and inspect workflow tools, delegation tools, and workflow engines in each agent preset. The page keeps the first view compact: the capability card shows the current status, parallelism control, and a short coverage summary, while detailed engine and preset rows stay in a collapsed disclosure. Capability status comes from evaluated plugin rows, including disabled, conditional, pending, and failed entries. Preset files and workflow engine limits remain owned by their compositions.
 
 ## Table of Contents
 
@@ -29,9 +29,9 @@ Mount this browser plugin with the settings, locale, slots, and Remote services.
 
 Parallel tool calls writes `agent-loop.maxParallelToolCalls` through the settings scope. Save accepts positive whole numbers; Restore inherited value removes the user override. The host scheduler samples the committed value for its next tool-call group. Existing groups retain their captured limit, and PTC subcalls use a separate composition setting. Read-only or unavailable host settings disable editing. A rejected save retains the draft for explicit retry, including after a settings refresh.
 
-Capability checks read the current host inventory. Configured means an enabled plugin without a live instance; Active describes its plugin lifecycle and does not verify provider connectivity. The page reports the host engine entry separately from each preset’s engine. The Web composition disables the host workflow engine and mounts engines inside its presets. Workflow concurrency and total-agent limits must be edited in the composition that owns the worker engine.
+Capability checks read the current host inventory. Configured means an enabled plugin without a live instance; Active describes its plugin lifecycle and does not verify provider connectivity. The page reports the host engine entry separately from each preset’s engine. The Web composition disables the host workflow engine and mounts engines inside its presets. Workflow concurrency and total-agent limits must be edited in the composition that owns the worker engine. Search navigation for workflow limits or preset coverage expands the disclosure before focusing its anchor.
 
-Search indexes localized field labels and explanations without current values or preset content. A workflow-limits search opens its disclosure before navigation locates the field.
+Search indexes localized field labels and explanations without current values or preset content. The page also presents short Workflow, Parallel, and Pipeline usage examples below the settings card.
 
 -----
 

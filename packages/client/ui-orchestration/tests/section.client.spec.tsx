@@ -26,6 +26,11 @@ describe('orchestration settings page', () => {
   it('saves a valid cap, restores inheritance, and keeps the ownership explanation visible', async () => {
     const b = await renderSection()
     expect(screen.getByRole('heading', { level: 1, name: en.title })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 2, name: en.capabilityTitle })).toBeTruthy()
+    expect(screen.getByText(en.capabilityDescription)).toBeTruthy()
+    expect(screen.getByRole('button', { name: en.coverageRefresh })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 2, name: en.examplesTitle })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 3, name: en.exampleWorkflowTitle })).toBeTruthy()
     const input = screen.getByRole('spinbutton', { name: en.parallelismLabel })
     fireEvent.change(input, { target: { value: '2' } })
     fireEvent.click(screen.getByRole('button', { name: en.save }))
@@ -78,11 +83,15 @@ describe('orchestration settings page', () => {
     expect(details.querySelector('[data-settings-anchor="orchestration-workflow-limits"]')).not.toBeNull()
     expect(screen.getByText(en.engineLimitsHelp)).toBeTruthy()
     expect(b.settings.mutate).not.toHaveBeenCalled()
+
+    b.rerender(<OrchestrationSection {...b.props} target={{ itemId: 'coverage', anchorId: 'orchestration-coverage' }} />)
+    expect(details.open).toBe(true)
+    expect(details.querySelector('[data-settings-anchor="orchestration-coverage"]')).not.toBeNull()
   })
 
   it('refreshes actual capabilities and exposes a recoverable inventory error', async () => {
     const b = await renderSection()
-    await waitFor(() => { expect(screen.getByText(en.noPresets)).toBeTruthy() })
+    await waitFor(() => { expect(screen.getAllByText(en.noPresets)).toHaveLength(2) })
     b.host.inventory = { entries: [], agentPresets: [{
       id: 'mine', name: 'My agent', trust: 'user', isDefault: true,
       rows: [{ entryId: null, moduleName: '@deepseek-ai/dsh-tool-workflow', enabled: false, fiberPhase: null }],
@@ -92,7 +101,7 @@ describe('orchestration settings page', () => {
     expect(screen.getAllByText(en.coverageMissing)).toHaveLength(3)
     b.pluginInventory.list.mockResolvedValueOnce({ ok: false, error: { message: 'connection unavailable' } } as never)
     fireEvent.click(screen.getByRole('button', { name: en.coverageRefresh }))
-    await waitFor(() => { expect(screen.getByRole('alert').textContent).toContain('connection unavailable') })
+    await waitFor(() => { expect(screen.getAllByRole('alert').some(alert => alert.textContent?.includes('connection unavailable'))).toBe(true) })
     fireEvent.click(screen.getByRole('button', { name: en.coverageRefresh }))
     await waitFor(() => { expect(screen.queryByRole('alert')).toBeNull() })
     expect(screen.getByText('My agent')).toBeTruthy()

@@ -1,11 +1,24 @@
-/** Host tool parallelism and evaluated preset capabilities in native settings rows. */
+/** Host tool parallelism and evaluated preset capabilities in a compact settings page. */
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { Button, IconRefreshOutline16, Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  Button,
+  IconBranchOutline16,
+  IconListChecksOutline16,
+  IconRefreshOutline16,
+  IconWorkflowOutline16,
+  Input,
+  Tag,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { OrchestrationSettingsKey } from './locales.ts'
-import { detectOrchestrationCoverage, coverageSummary, type OrchestrationCoverage, type OrchestrationCoverageStatus } from './view.ts'
+import {
+  detectOrchestrationCoverage,
+  coverageSummary,
+  type OrchestrationCoverage,
+  type OrchestrationCoverageStatus,
+} from './view.ts'
 import css from './OrchestrationSection.module.css'
 
 /** The Host setting sampled by the agent loop at the next tool-call group. */
@@ -40,41 +53,60 @@ const STATUS_KEYS = {
   missing: 'coverageMissing', broken: 'coverageBroken',
 } satisfies Record<OrchestrationCoverageStatus, OrchestrationSettingsKey>
 
+const EXAMPLES = [
+  { id: 'Workflow', icon: IconWorkflowOutline16 },
+  { id: 'Parallel', icon: IconBranchOutline16 },
+  { id: 'Pipeline', icon: IconListChecksOutline16 },
+] as const
+
 function Status({ status, t }: { status: OrchestrationCoverageStatus; t: Translate }): ReactNode {
-  return <Tag tone={status === 'failed' || status === 'broken' ? 'danger' : 'neutral'}>{t(STATUS_KEYS[status])}</Tag>
+  const tone = status === 'active' || status === 'configured' ? 'success'
+    : status === 'failed' || status === 'broken' ? 'danger'
+      : status === 'conditional' || status === 'pending' ? 'warning' : 'neutral'
+  return <Tag tone={tone}>{t(STATUS_KEYS[status])}</Tag>
 }
 
-function renderCoverage(state: LoadState, t: Translate): ReactNode {
+function CapabilityStatus({ state, t }: { state: LoadState; t: Translate }): ReactNode {
+  if (state.phase === 'loading') return <Tag tone="neutral">{t('capabilityChecking')}</Tag>
+  if (state.phase === 'error') return <Tag tone="danger">{t('coverageFailed')}</Tag>
+  const summary = coverageSummary(state.coverage)
+  if (summary.total === 0) return <Tag tone="neutral">{t('capabilityNoPresets')}</Tag>
+  if (summary.ready === 0) return <Tag tone="warning">{t('capabilityNeedsSetup')}</Tag>
+  return <Tag tone="success">{t('capabilityReady', { count: summary.ready })}</Tag>
+}
+
+function CoverageSummary({ state, t }: { state: LoadState; t: Translate }): ReactNode {
   if (state.phase === 'loading') return <p className={css.help} role="status">{t('coverageLoading')}</p>
   if (state.phase === 'error') return <p className={css.error} role="alert">{t('coverageError')} {state.message}</p>
-  const { coverage } = state
-  if (coverage.presets.length === 0) return <p className={css.help}>{t('noPresets')}</p>
-  const summary = coverageSummary(coverage)
-  return <>
-    <ul className={css.coverageList}>
-      {coverage.presets.map(entry => (
-        <li key={entry.preset.id} className={css.coverageRow}>
-          <div className={css.copy}>
-            <span className={css.label}>{entry.preset.name ?? entry.preset.id}</span>
-            <code className={css.presetId}>{entry.preset.id}</code>
-            {entry.preset.broken === undefined ? null : <p className={css.error}>{entry.preset.broken}</p>}
-          </div>
-          <dl className={css.capabilities}>
-            <div><dt>{t('workflowTool')}</dt><dd><Status status={entry.status} t={t} /></dd></div>
-            <div><dt>{t('subagentTool')}</dt><dd><Status status={entry.subagent} t={t} /></dd></div>
-            <div><dt>{t('presetEngine')}</dt><dd><Status status={entry.engine} t={t} /></dd></div>
-          </dl>
-        </li>
-      ))}
-    </ul>
-    <p className={css.help}>{t('coverageSummaryReady', { count: summary.ready, total: summary.total })}</p>
-  </>
+  const summary = coverageSummary(state.coverage)
+  return <p className={css.help}>{summary.total === 0
+    ? t('noPresets')
+    : t('coverageSummaryReady', { count: summary.ready, total: summary.total })}</p>
+}
+
+function CoverageDetails({ state, t }: { state: LoadState; t: Translate }): ReactNode {
+  if (state.phase !== 'ready') return <CoverageSummary state={state} t={t} />
+  if (state.coverage.presets.length === 0) return <p className={css.help}>{t('noPresets')}</p>
+  return <ul className={css.coverageList}>
+    {state.coverage.presets.map(entry => <li key={entry.preset.id} className={css.coverageRow}>
+      <div className={css.presetIdentity}>
+        <span className={css.label}>{entry.preset.name ?? entry.preset.id}</span>
+        <code className={css.presetId}>{entry.preset.id}</code>
+        {entry.preset.broken === undefined ? null : <p className={css.error}>{entry.preset.broken}</p>}
+      </div>
+      <dl className={css.capabilities}>
+        <div><dt>{t('workflowTool')}</dt><dd><Status status={entry.status} t={t} /></dd></div>
+        <div><dt>{t('subagentTool')}</dt><dd><Status status={entry.subagent} t={t} /></dd></div>
+        <div><dt>{t('presetEngine')}</dt><dd><Status status={entry.engine} t={t} /></dd></div>
+      </dl>
+    </li>)}
+  </ul>
 }
 
 /**
- * Render editable Host tool parallelism and read-only preset capability coverage.
+ * Render editable Host tool parallelism with progressively disclosed capability diagnostics.
  * @param props - framework-bound settings state and operations.
- * @returns the settings page with search anchors and explicit availability.
+ * @returns the compact settings page with searchable capability details.
  */
 export function OrchestrationSection(props: OrchestrationSectionProps): ReactNode {
   const { t, loadInventory, target } = props
@@ -84,8 +116,9 @@ export function OrchestrationSection(props: OrchestrationSectionProps): ReactNod
   const [draft, setDraft] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [failed, setFailed] = useState(false)
-  const limits = useRef<HTMLDetailsElement>(null)
+  const details = useRef<HTMLDetailsElement>(null)
   const inputId = useId()
+  const capabilityTitleId = useId()
   const text = draft ?? String(parallelism.value?.maxParallelToolCalls ?? '')
   const parsed = Number(text)
   const invalid = text.trim() === '' || !Number.isSafeInteger(parsed) || parsed < 1
@@ -105,7 +138,8 @@ export function OrchestrationSection(props: OrchestrationSectionProps): ReactNod
   }, [loadInventory, request])
 
   useLayoutEffect(() => {
-    if (target?.anchorId === 'orchestration-workflow-limits' && limits.current !== null) limits.current.open = true
+    if ((target?.anchorId === 'orchestration-workflow-limits' || target?.anchorId === 'orchestration-coverage')
+      && details.current !== null) details.current.open = true
   }, [target])
 
   async function save(value: number | null): Promise<void> {
@@ -125,13 +159,28 @@ export function OrchestrationSection(props: OrchestrationSectionProps): ReactNod
 
   return <div className={css.section}>
     <header className={css.heading}>
-      <h1 className={css.title}>{t('title')}</h1>
-      <p className={css.intro}>{t('description')}</p>
+      <h1>{t('title')}</h1>
+      <p>{t('description')}</p>
     </header>
-    <section>
-      <h2 className={css.sectionTitle}>{t('executionTitle')}</h2>
-      <div className={css.row} data-settings-anchor="orchestration-parallelism">
-        <div className={css.copy}>
+
+    <section className={css.capabilityCard} aria-labelledby={capabilityTitleId}>
+      <div className={css.heroHeader}>
+        <div className={css.heroIcon} aria-hidden="true"><IconWorkflowOutline16 size={20} /></div>
+        <div className={css.heroCopy}>
+          <div className={css.heroTitle}>
+            <h2 id={capabilityTitleId}>{t('capabilityTitle')}</h2>
+            <CapabilityStatus state={state} t={t} />
+          </div>
+          <p>{t('capabilityDescription')}</p>
+        </div>
+      </div>
+
+      <Button variant="outline" size="sm" icon={<IconRefreshOutline16 size={16} />}
+        className={css.recheckButton} disabled={state.phase === 'loading'}
+        onClick={() => { setRequest(value => value + 1) }}>{t('coverageRefresh')}</Button>
+
+      <div className={css.settingRow} data-settings-anchor="orchestration-parallelism">
+        <div className={css.settingCopy}>
           <label htmlFor={inputId} className={css.label}>{t('parallelismLabel')}</label>
           <p className={css.help} id={inputId + '-help'}>{t('parallelismHelp')}</p>
           {!available ? <p className={css.help} role="status">{t(parallelism.status === 'loading' ? 'loading' : 'unavailable')}</p>
@@ -150,38 +199,46 @@ export function OrchestrationSection(props: OrchestrationSectionProps): ReactNod
       </div>
       {draft !== null && invalid ? <p className={css.error} role="alert">{t('invalidParallelism')}</p> : null}
       {failed ? <p className={css.error} role="alert">{t('saveFailed')}</p> : null}
-      <details className={css.details} ref={limits}>
-        <summary>{t('engineOverviewTitle')}</summary>
-        <div data-settings-anchor="orchestration-workflow-limits" className={css.detailContent}>
-          <p className={css.help}>{t('engineOverviewDescription')}</p>
-          <div className={css.row}>
-            <span className={css.label}>{t('engineAvailability')}</span>
-            {state.phase === 'ready' ? <Status status={state.coverage.engine} t={t} /> : <span className={css.help}>{t(state.phase === 'loading' ? 'coverageLoading' : 'coverageError')}</span>}
-          </div>
-          <p className={css.help}>{t('engineLimitsHelp')}</p>
+
+      <div className={css.coverageSummary}>
+        <h3>{t('coverageTitle')}</h3>
+        <CoverageSummary state={state} t={t} />
+      </div>
+
+      <details className={css.details} ref={details}>
+        <summary>{t('capabilityDetails')}</summary>
+        <div className={css.detailsContent}>
+          <section data-settings-anchor="orchestration-workflow-limits">
+            <h3>{t('engineOverviewTitle')}</h3>
+            <p className={css.help}>{t('engineOverviewDescription')}</p>
+            <div className={css.engineStatus}>
+              <span className={css.label}>{t('engineAvailability')}</span>
+              {state.phase === 'ready' ? <Status status={state.coverage.engine} t={t} />
+                : <span className={css.help}>{t(state.phase === 'loading' ? 'coverageLoading' : 'coverageError')}</span>}
+            </div>
+            <p className={css.help}>{t('engineLimitsHelp')}</p>
+          </section>
+          <section className={css.detailsSection} data-settings-anchor="orchestration-coverage">
+            <h3>{t('coverageTitle')}</h3>
+            <p className={css.help}>{t('coverageDetailDescription')}</p>
+            <CoverageDetails state={state} t={t} />
+          </section>
         </div>
       </details>
     </section>
-    <section data-settings-anchor="orchestration-coverage">
-      <div className={css.sectionHeading}>
-        <h2 className={css.sectionTitle}>{t('coverageTitle')}</h2>
-        <Button variant="outline" icon={<IconRefreshOutline16 size={16} />} disabled={state.phase === 'loading'}
-          onClick={() => { setRequest(value => value + 1) }}>{t('coverageRefresh')}</Button>
-      </div>
-      <p className={css.help}>{t('coverageDescription')}</p>
-      {renderCoverage(state, t)}
-    </section>
-    <section data-settings-anchor="orchestration-examples">
-      <h2 className={css.sectionTitle}>{t('examplesTitle')}</h2>
-      <p className={css.help}>{t('examplesDescription')}</p>
-      {(['Workflow', 'Parallel', 'Pipeline'] as const).map(example => (
-        <div className={css.row} key={example}>
-          <div className={css.copy}>
-            <h3 className={css.label}>{t(`example${example}Title`)}</h3>
-            <p className={css.help}>{t(`example${example}Description`)}</p>
+
+    <section className={css.examples} data-settings-anchor="orchestration-examples">
+      <h2>{t('examplesTitle')}</h2>
+      <p>{t('examplesDescription')}</p>
+      <div className={css.exampleGrid}>
+        {EXAMPLES.map(({ id, icon: Icon }) => <article className={css.exampleCard} key={id}>
+          <div className={css.exampleIcon} aria-hidden="true"><Icon size={16} /></div>
+          <div>
+            <h3>{t(`example${id}Title`)}</h3>
+            <p>{t(`example${id}Description`)}</p>
           </div>
-        </div>
-      ))}
+        </article>)}
+      </div>
     </section>
   </div>
 }
