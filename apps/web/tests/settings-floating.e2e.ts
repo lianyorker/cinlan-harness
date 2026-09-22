@@ -173,18 +173,11 @@ describe('web e2e: floating workspace uses the real app window', () => {
   }
 
   async function setPosition(value: 'header' | 'sidebar' | 'floating'): Promise<void> {
-    const control = page.locator(SECTION).getByRole('combobox', { name: 'Entry position', exact: true })
-    await control.selectOption(value)
+    const label = { header: 'Conversation header', sidebar: 'Sidebar', floating: 'Floating button' }[value]
+    const control = page.locator(SECTION).getByRole('radio', { name: label, exact: true })
+    await control.click()
     await expect.poll(() => overrides('floating-workspace')).toMatchObject({ toggleButtonPosition: value })
-    await expect.poll(() => control.isEnabled()).toBe(true)
-  }
-
-  async function setDimension(label: 'Window width' | 'Window height', key: 'floatDefaultWidth' | 'floatDefaultHeight', value: number): Promise<void> {
-    const control = page.locator(SECTION).getByRole('spinbutton', { name: label, exact: true })
-    await control.fill(String(value))
-    await control.press('Enter')
-    await expect.poll(() => overrides('floating-workspace')).toMatchObject({ [key]: value })
-    await expect.poll(() => control.isEnabled()).toBe(true)
+    await expect.poll(() => control.isChecked()).toBe(true)
   }
 
   async function capture(name: string, selector: string, source = page): Promise<void> {
@@ -240,9 +233,9 @@ describe('web e2e: floating workspace uses the real app window', () => {
     await openSettings()
     const section = page.locator(SECTION)
     expect(await section.getByRole('switch', { name: 'Enable Floating Workspace', exact: true }).getAttribute('aria-checked')).toBe('false')
-    expect(await section.getByRole('spinbutton', { name: 'Window width', exact: true }).inputValue()).toBe('400')
-    expect(await section.getByRole('spinbutton', { name: 'Window height', exact: true }).inputValue()).toBe('300')
-    expect(await section.getByRole('combobox', { name: 'Entry position', exact: true }).inputValue()).toBe('header')
+    expect(await section.getByRole('radio', { name: 'Conversation header', exact: true }).isChecked()).toBe(true)
+    expect(await section.getByRole('spinbutton').count()).toBe(0)
+    expect(await section.getByRole('button', { name: 'Open workspace window', exact: true }).count()).toBe(0)
     await setEnabled(true)
     await nextPaint(page)
     expect(observedPages.size).toBe(1)
@@ -255,8 +248,6 @@ describe('web e2e: floating workspace uses the real app window', () => {
       expect(await page.locator('[data-floating-entry]').count()).toBe(1)
       await openSettings()
     }
-    await setDimension('Window width', 'floatDefaultWidth', 600)
-    await setDimension('Window height', 'floatDefaultHeight', 400)
     await capture('settings', SECTION)
     const observation = observedPages.get(page)
     if (observation === undefined) throw new Error('Main page console observer is missing')
@@ -267,12 +258,11 @@ describe('web e2e: floating workspace uses the real app window', () => {
     await openSeed(page)
     await openSettings()
     expect(await section.getByRole('switch', { name: 'Enable Floating Workspace', exact: true }).getAttribute('aria-checked')).toBe('true')
-    expect(await section.getByRole('spinbutton', { name: 'Window width', exact: true }).inputValue()).toBe('600')
-    expect(await section.getByRole('spinbutton', { name: 'Window height', exact: true }).inputValue()).toBe('400')
-    expect(await section.getByRole('combobox', { name: 'Entry position', exact: true }).inputValue()).toBe('header')
+    expect(await section.getByRole('radio', { name: 'Conversation header', exact: true }).isChecked()).toBe(true)
     expect(observedPages.size).toBe(1)
 
-    const open = section.getByRole('button', { name: 'Open workspace window', exact: true })
+    await closeSettings()
+    const open = page.locator('[data-floating-entry="header"]').getByRole('button', { name: 'Toggle Floating Workspace', exact: true })
     const child = await openChild(() => open.click())
     const sourceUrl = new URL(page.url())
     const childUrl = new URL(child.url())
@@ -289,7 +279,7 @@ describe('web e2e: floating workspace uses the real app window', () => {
     expect(owner).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u)
     expect(await child.evaluate(() => window.name)).toBe('dsh-floating-workspace-' + owner)
     expect(await child.opener()).toBe(page)
-    expect(await dimensions(child)).toEqual({ width: 600, height: 400 })
+    expect(await dimensions(child)).toEqual({ width: 400, height: 300 })
     expect(await child.locator('[data-floating-entry]').count()).toBe(0)
     await child.keyboard.press('Control+Shift+Space')
     await nextPaint(child)
@@ -300,20 +290,15 @@ describe('web e2e: floating workspace uses the real app window', () => {
     await nextPaint(child)
     await assertClearControls(child, child.locator('[data-floating-child-control]'), 'child-close-320')
     await child.screenshot({ path: join(artifactDir, 'popup-narrow.png') })
-    await child.setViewportSize({ width: 600, height: 400 })
+    await child.setViewportSize({ width: 400, height: 300 })
     await nextPaint(child)
 
-    await setDimension('Window width', 'floatDefaultWidth', 720)
-    await setDimension('Window height', 'floatDefaultHeight', 500)
-    expect(await dimensions(child)).toEqual({ width: 600, height: 400 })
-    const positionControl = section.getByRole('combobox', { name: 'Entry position', exact: true })
-    await positionControl.focus()
-    expect(await positionControl.evaluate(element => element === document.activeElement)).toBe(true)
     await closeChild(child)
     await expect.poll(() => open.evaluate(element => element === document.activeElement)).toBe(true)
 
     const reopened = await openChild(() => open.click())
-    expect(await dimensions(reopened)).toEqual({ width: 720, height: 500 })
+    expect(await dimensions(reopened)).toEqual({ width: 400, height: 300 })
+    await openSettings()
     await Promise.all([reopened.waitForEvent('close'), setEnabled(false)])
     await expect.poll(() => context.pages().length).toBe(1)
     await closeSettings()
@@ -331,8 +316,9 @@ describe('web e2e: floating workspace uses the real app window', () => {
       await page.setViewportSize({ width, height: 844 })
       const settings = page.locator('[data-dsh-settings-page]')
       await expect.poll(() => settings.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
-      await page.locator(SECTION).getByRole('spinbutton', { name: 'Window height', exact: true }).scrollIntoViewIfNeeded()
-      expect(await page.locator(SECTION).getByRole('spinbutton', { name: 'Window height', exact: true }).isVisible()).toBe(true)
+      const finalPosition = page.locator(SECTION).getByRole('radio', { name: 'Floating button', exact: true })
+      await finalPosition.scrollIntoViewIfNeeded()
+      expect(await finalPosition.isVisible()).toBe(true)
     }
     await capture('narrow', SECTION)
     await page.setViewportSize({ width: 1280, height: 900 })

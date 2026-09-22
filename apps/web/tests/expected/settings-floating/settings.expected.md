@@ -1,29 +1,20 @@
+- heading "Floating Workspace" [level=1]
 - paragraph: Open the app in a separate workspace window without leaving your main window.
-- heading "Workspace entry" [level=2]
 - text: Enable Floating Workspace
-- paragraph: Make the workspace window action available at the selected entry position. Enabling this preference does not open a window.
+- paragraph: Show the Floating Workspace control at the selected position.
 - switch "Enable Floating Workspace" [checked]
-- text: Entry position
+- text: Terminal directory
+- paragraph: New Floating Workspace terminals start here. Leave empty to use the Session working directory.
+- textbox "Terminal directory":
+  - /placeholder: ~
+- button "Choose terminal directory":
+  - img
+- text: Toggle button position
 - paragraph: Choose where the Floating Workspace button appears in the main window.
-- combobox "Entry position":
-  - option "Conversation header" [selected]
-  - option "Sidebar"
-  - option "Floating button"
-- text: Terminal starting directory
-- paragraph: For new terminals in floating windows. Leave empty to use the session’s working directory, or enter that directory or an existing folder inside it. Paths that resolve outside the session directory, including symbolic links, cannot be used.
-- textbox "Terminal starting directory":
-  - /placeholder: No saved directory
-- heading "Default window" [level=2]
-- paragraph: Dimensions apply only when opening a new window, not to a window already open. The browser or operating system may constrain its size.
-- text: Window width
-- paragraph: Initial width in pixels, from 200 to 800.
-- spinbutton "Window width": "600"
-- text: px Window height
-- paragraph: Initial height in pixels, from 150 to 600.
-- spinbutton "Window height": "400"
-- text: px Toggle shortcut
-- paragraph: Customize the Floating Workspace command on the Keyboard shortcuts page. The shortcut does not depend on the entry position.
-- text: App window
-- paragraph: Open or close this workspace window. The app keeps its normal session and workspace views.
-- status: Workspace window is closed.
-- button "Open workspace window"
+- group "Toggle button position":
+  - radio "Conversation header" [checked]
+  - text: Conversation header
+  - radio "Sidebar"
+  - text: Sidebar
+  - radio "Floating button"
+  - text: Floating button

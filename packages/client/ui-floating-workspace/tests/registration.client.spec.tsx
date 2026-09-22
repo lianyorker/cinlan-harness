@@ -71,6 +71,7 @@ async function bench(values: Partial<FloatingWorkspaceSettings> = {}) {
   const keybindings = stubSettingsScope<KeybindingsSettings>()
   keybindings.publish({ status: 'ready', writable: true, mode: 'host', revision: 1, value: { overrides: [] } })
   const keyboard = new KeyboardController(keybindings.scope, false)
+  const pickDirectory = vi.fn<() => Promise<string | null>>(async () => null)
   const locale = new LocaleRuntime(runtime.ctx)
   locale.setLocale('en')
   const bind = vi.fn((spec: { namespace: string }) => {
@@ -81,6 +82,7 @@ async function bench(values: Partial<FloatingWorkspaceSettings> = {}) {
     ctx.provide('locale', locale)
     ctx.slots.installLocale(locale)
     ctx.provide('keyboard', keyboard)
+    ctx.provide('uiWorkspace', { pickDirectory } as never)
     // The settings transport is the only service double; its snapshot and boolean mutation are driven explicitly.
     ctx.provide('settingsScope', { bind } as never)
     ctx.effect(() => () => { keyboard.dispose() }, 'test keyboard lifetime')
@@ -92,7 +94,7 @@ async function bench(values: Partial<FloatingWorkspaceSettings> = {}) {
     const current = floating.scope.getSnapshot()
     act(() => { floating.publish({ ...current, value: { ...current.value!, ...patch }, user: { ...current.user as object, ...patch } }) })
   }
-  return { runtime, floating, keybindings, keyboard, locale, bind, open, start, accept }
+  return { runtime, floating, keybindings, keyboard, locale, bind, open, pickDirectory, start, accept }
 }
 
 function windowHandle() {
@@ -116,7 +118,7 @@ describe('Floating Workspace client registration unit composition', () => {
     expect(h.runtime.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'floating-workspace', groupId: 'personal' }])
     const metadata = h.runtime.ctx.settingsMetadata.getSnapshot().items
     expect(metadata.map(item => item.anchorId)).toEqual([
-      'floating-enabled', 'floating-position', 'floating-directory', 'floating-width', 'floating-height', 'floating-shortcut', 'floating-open',
+      'floating-enabled', 'floating-directory', 'floating-position',
     ])
     expect(metadata.find(item => item.id === 'directory')?.description).toBe(en.terminalDirectoryDescription)
     for (const slot of ['shell.overlay', 'sidebar.footer.action', 'conversation.session.header.utilities'] as const) {
@@ -180,8 +182,8 @@ describe('Floating Workspace client registration unit composition', () => {
     if (targetOwner === null) throw new Error('Floating route has no owner id')
     expect(name).toBe('dsh-floating-workspace-' + targetOwner)
     expect(features).toBe('popup=yes,width=400,height=300')
-    expect(settings.view.getByText(en.opened)).toBeTruthy()
-    fireEvent.click(settings.view.getByRole('button', { name: en.close }))
+    expect(settings.view.queryByRole('button', { name: en.close })).toBeNull()
+    fireEvent.click(sidebar.view.getByRole('button', { name: en.toggle }))
     expect(handle.close).toHaveBeenCalledOnce()
   })
 
@@ -256,7 +258,7 @@ describe('Floating Workspace client registration unit composition', () => {
     expect(h.open).toHaveBeenCalledOnce()
     const next = await h.start()
     expect(h.runtime.slots.entries('settings.section')).toHaveLength(1)
-    expect(h.runtime.ctx.settingsMetadata.getSnapshot().items).toHaveLength(7)
+    expect(h.runtime.ctx.settingsMetadata.getSnapshot().items).toHaveLength(3)
     expect(h.keyboard.getSnapshot().commands).toHaveLength(1)
     expect(h.floating.listenerCount()).toBe(1)
     expect(overlay.view.getByRole('button', { name: en.toggle })).toBeTruthy()
@@ -311,9 +313,18 @@ describe('Floating Workspace client registration unit composition', () => {
     expect(h.floating.mutate).not.toHaveBeenCalled()
     await act(async () => { fireEvent.blur(directory) })
     expect(h.floating.mutate).toHaveBeenCalledOnce()
+    h.pickDirectory.mockResolvedValueOnce('/accepted/picked')
+    h.floating.mutate.mockImplementationOnce(async (ops) => {
+      expect(ops).toEqual([{ op: 'set', path: ['terminalDirectory'], value: '/accepted/picked' }])
+      h.accept({ terminalDirectory: '/accepted/picked' })
+      return true
+    })
+    fireEvent.click(settings.view.getByRole('button', { name: en.terminalDirectoryPick }))
+    await h.runtime.flush()
+    expect(directory.value).toBe('/accepted/picked')
     await consumer.dispose()
     expect(directory.disabled).toBe(true)
-    expect(directory.value).toBe('/accepted/nested')
+    expect(directory.value).toBe('/accepted/picked')
     expect(settings.view.getByText(en.terminalDirectoryUnavailable)).toBeTruthy()
     expect(h.runtime.ctx.floatingWorkspaceContext()).toBeUndefined()
   })

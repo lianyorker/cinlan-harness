@@ -18,6 +18,8 @@ The floating workspace opens the same application artifact through its existing 
 
 Each opener owns one exact child handle. Enabling the preference only makes opening available; an explicit user action creates the window. Accepted disable, owner disposal, page exit, and native Host shutdown close the owned child. An ordinary child close restores focus to the connected invoking control. Position changes move the opening entry, while width and height changes apply to the next open. The child exposes its close control and omits opening entries and the floating toggle command, preventing recursive windows.
 
+The Settings section exposes enablement, terminal directory, and entry position in one preference card. It does not expose window geometry or a second open/close action. Persisted width and height remain accepted runtime fields for the next child, while the shell entry and registered shortcut own window creation.
+
 Electron admits this child through the main window policy with the expected document, frame name, route fields, and bounded window features. It preserves the sandbox and returns the actual created child webContents to Electron. Navigation, redirects, and further window creation cannot turn the child into another native launcher. Plugin-manager and unrelated window policies retain their own restrictions. Browser refusal and missing platform support remain explicit blocked or unavailable states.
 
 ### Commands belong to their live consumers
@@ -40,8 +42,10 @@ Persistence follows the [Host preference decision](../bug-fix/2026-08-06-host-ba
 
 **Deriving window identity or terminal directories from the latest rendered settings.** Identity would arrive after sidebar state can be created, and a later preference could change an existing tab on reconnect. Early identity and creation-time directory capture preserve the association between a window, a tab, and its Session.
 
+**Launching and sizing the child from Settings.** A Settings-owned action duplicates the shell command and its focus restoration path, while editable dimensions imply precision that the browser or operating system may reject. The compact page edits preferences that place the command and initialize terminals; persisted geometry remains available to deployment configuration and the runtime.
+
 ## Consequences
 
-A plugin unload removes its commands, subscriptions, and window contributions together. Unavailable persisted commands remain inspectable without pretending to execute. Platform policies can refuse a window or adjust its requested geometry, so the UI must report the actual outcome. An additional view shares durable Session data while retaining its own view state and resource lifetime.
+A plugin unload removes its commands, subscriptions, and window contributions together. Unavailable persisted commands remain inspectable without pretending to execute. The Settings section has three searchable rows and no launch or geometry controls. Platform policies can refuse a window or adjust its requested geometry, so the opening entry must report the actual outcome. An additional view shares durable Session data while retaining its own view state and resource lifetime.
 
 Window and keyboard preference records add no model-facing prompts or Session events. Invoked composer, editor, and terminal operations retain the behavior and authority of their existing owners. Window UUIDs distinguish view and terminal ownership; access to a terminal remains associated with its Session.

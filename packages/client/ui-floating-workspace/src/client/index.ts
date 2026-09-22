@@ -6,6 +6,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type {} from '@deepseek-ai/dsh-client-keyboard/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { Config } from '../config.ts'
@@ -26,7 +27,7 @@ declare module '@deepseek-ai/dsh-client-keyboard/client' {
 }
 
 /** Dependencies keep registrations bound to the actual owners used by the feature. */
-export const inject = ['settingsMetadata', 'slots', 'locale', 'settingsScope', 'keyboard', 'sessions']
+export const inject = ['settingsMetadata', 'slots', 'locale', 'settingsScope', 'keyboard', 'sessions', 'uiWorkspace']
 
 /**
  * Own one app window, accepted preferences, command, and slot contributions.
@@ -75,18 +76,14 @@ export function apply(ctx: Context, config: Config): void {
     }), 'floating workspace: keyboard command')
   }
   const settingsFace: FloatingWorkspaceSectionInjected = {
-    hooks: { floating: runtime }, set: runtime.set, toggle: runtime.toggle, closeWindow: runtime.close,
+    hooks: { floating: runtime }, set: runtime.set, pickDirectory: () => ctx.uiWorkspace.pickDirectory(),
   }
   ctx.slots.inject('settings.section', function* () {
     yield ctx.settingsMetadata.registerSection({ sectionId: 'floating-workspace', groupId: 'personal' })
     yield ctx.settingsMetadata.registerItems('floating-workspace', [
       { id: 'enabled', anchorId: 'floating-enabled', title: () => t('enable'), description: () => t('enableDescription') },
-      { id: 'position', anchorId: 'floating-position', title: () => t('toggleButtonPosition'), description: () => t('toggleButtonPositionDescription') },
       { id: 'directory', anchorId: 'floating-directory', title: () => t('terminalDirectory'), description: () => t('terminalDirectoryDescription') },
-      { id: 'width', anchorId: 'floating-width', title: () => t('floatDefaultWidth'), description: () => t('widthDescription') },
-      { id: 'height', anchorId: 'floating-height', title: () => t('floatDefaultHeight'), description: () => t('heightDescription') },
-      { id: 'shortcut', anchorId: 'floating-shortcut', title: () => t('shortcut'), description: () => t('shortcutDescription') },
-      { id: 'open', anchorId: 'floating-open', title: () => t('windowAction'), description: () => t('windowActionDescription') },
+      { id: 'position', anchorId: 'floating-position', title: () => t('toggleButtonPosition'), description: () => t('toggleButtonPositionDescription') },
     ])
     yield ctx.slots.register({
       name: 'settings.section', id: 'floating-workspace', order: 100, label: () => t('navLabel'), locale: ns,
