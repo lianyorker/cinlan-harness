@@ -57,3 +57,6 @@ Loader 并发挂载各个条目，因此条目失败的顺序并不等于启动�
 这些基于假进程的测试无法观测到最关键的两种失败形态——真实事件循环下的进程退出码，以及退出之后的终端状态——因此回归用例放在 `apps/cli/tests/tui-keyless-smoke.e2e.ts`。它在真实 PTY 中以 `fixtures/tui-invalid-provider.cordis.yml`（`providers` 为列表形状，正是用户真实会犯的错误）启动出厂配置树，期望退出码为 1，并断言捕获到的字节流同时包含带标签的启动 rejection（`dsh: plugin tree failed to load:`）与 `ESC[?2004l`。同一用例端到端钉住了启动路径：正是它发现了以 13 静默退出、终端状态未被恢复的 [HMR（热模块替换）初始扫描启动死锁](../../archived/bug-fix/2026-08-03-hmr-initial-scan-boot-deadlock.md)。
 
 `/exit` 路径保留其原有断言，确认正常退出时同样会出现该重置序列。
+`dsh` 的 TUI 启动器传入的 release 会释放根上下文，从而执行 TUI 已有的 `shutdown()` 并把终端交还。
+
+该保护机制还监听 `uncaughtException`。两个进程事件共用第一个失败闩锁、有界 release 和退出路径；同步回调失败后不会回到失败操作继续执行。诊断使用有界的 `util.inspect` 输出（`depth: 4`、`maxArrayLength: 50`），因此文件系统属性和嵌套 cause 仍可见，同时不会让超大值淹没 stderr。Rejection 继续使用现有 fixture 依赖的 `fatal load failure` 标签；异常使用 `fatal uncaught exception` 标签。

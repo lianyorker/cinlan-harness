@@ -32,6 +32,8 @@ The `/exit` path was never affected, because it disposes the tree and reaches th
 
 `dsh`'s TUI launcher passes a release that disposes the root context, which runs the TUI's existing `shutdown()` and hands the terminal back.
 
+The guard also listens for `uncaughtException`. Both process events use the same first-failure latch, bounded release, and exit path; a synchronous callback failure is not allowed to return to the failed operation. Diagnostics use bounded `util.inspect` output (`depth: 4`, `maxArrayLength: 50`) so filesystem properties and nested causes remain visible without allowing an oversized value to flood stderr. Rejections keep the `fatal load failure` label used by existing fixtures; exceptions use `fatal uncaught exception`.
+
 The launcher captures the root context in `boot()`'s `prepare` hook rather than from its return value. The rejection arrives while `boot()` is still in flight, so `app.current` assigned after the `await` would still be `undefined` at exactly the moment the hook needs it. `prepare` runs after the Loader installs and before any config-tree entry mounts, which covers the whole window in which an entry can reject.
 
 ## Alternatives considered
