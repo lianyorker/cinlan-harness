@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import WebSocket, { type RawData } from 'ws'
 import { Context, Service, symbols } from '@deepseek-ai/cordis'
 import { createTrustedConnectionAccess, type HostConnectionAccess, apply as applyConnection, inject as connectionInject } from '@deepseek-ai/dsh-client-connection'
+import type { AppReady } from '@deepseek-ai/dsh-cmdline'
 import WebServer from '@deepseek-ai/dsh-host-webserver'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import {
@@ -140,6 +141,30 @@ class FeedService extends Service {
 
 const roots: Context[] = []
 
+class StartupProbe implements AppReady {
+  private ready = false
+  private readonly listeners = new Set<() => void>()
+  lastListener: (() => void) | undefined
+
+  get pending(): number { return this.listeners.size }
+
+  onReady(listener: () => void): () => void {
+    this.lastListener = listener
+    if (this.ready) {
+      listener()
+      return () => {}
+    }
+    this.listeners.add(listener)
+    return () => { this.listeners.delete(listener) }
+  }
+
+  commit(): void {
+    this.ready = true
+    for (const listener of this.listeners) listener()
+    this.listeners.clear()
+  }
+}
+
 class RemoteEventSourceProbe {
   readonly source = (signal: AbortSignal): AsyncIterable<TypertRemoteEventDispatch> => {
     this.signal = signal
@@ -218,6 +243,30 @@ afterEach(async () => {
 })
 
 describe('Typert Remote streams', () => {
+  it.each([false, true])('accepts WebSockets only after application readiness (already ready: %s)', async (alreadyReady) => {
+    const startup = new StartupProbe()
+    if (alreadyReady) startup.commit()
+    const { ctx } = await setup(true, {}, startup)
+    if (!alreadyReady) {
+      expect(startup.pending).toBe(1)
+      expect(await acceptsSocket(ctx)).toBe(false)
+      startup.commit()
+    }
+    expect(await acceptsSocket(ctx)).toBe(true)
+    expect(startup.pending).toBe(0)
+  })
+
+  it('withdraws a pending WebSocket startup subscription when the Gateway unloads', async () => {
+    const startup = new StartupProbe()
+    const { ctx } = await setup(true, {}, startup)
+    expect(startup.pending).toBe(1)
+    await ctx.fiber.dispose()
+    expect(startup.pending).toBe(0)
+    // A launcher commit can already hold a copy of the cancelled listener.
+    expect(() => { startup.lastListener?.() }).not.toThrow()
+    expect(() => { startup.commit() }).not.toThrow()
+  })
+
   it('rejects unregistered devices before invocation and closes a revoked stream', async () => {
     const { ctx, service } = await setup(false)
     const abort = new AbortController()
@@ -992,9 +1041,11 @@ describe('Typert Remote streams', () => {
 async function setup(
   transport: boolean,
   gatewayConfig: GatewayConfig = {},
+  ready?: AppReady,
 ): Promise<{ readonly ctx: Context; readonly service: FeedService }> {
   const ctx = new Context()
   roots.push(ctx)
+  if (ready !== undefined) ctx.provide('appReady', ready)
   if (transport) {
     await ctx.plugin(WebServer, { host: '127.0.0.1', port: 0 })
     provideBrowserCredentials(ctx)
@@ -1014,6 +1065,17 @@ async function setup(
   })
   const receiver = ctx.get('feed') as unknown as FeedService & { [symbols.original]?: FeedService }
   return { ctx, service: receiver[symbols.original] ?? receiver }
+}
+
+async function acceptsSocket(ctx: Context): Promise<boolean> {
+  const socket = new WebSocket(`ws://127.0.0.1:${String(ctx.webServer.port)}/api/remote.mux`, {
+    headers: { cookie: browserCookie(ctx) },
+  })
+  const closed = new Promise<void>((resolve) => { socket.once('close', () => { resolve() }) })
+  const opened = await once(socket, 'open').then(() => true, () => false)
+  if (opened) socket.close()
+  await closed
+  return opened
 }
 
 function descriptors(): InvocationDescriptor[] {
