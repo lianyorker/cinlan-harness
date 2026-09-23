@@ -5,13 +5,28 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { CollectedOutput } from '@deepseek-ai/dsh-subprocess'
 
+/** Receives one spill failure after the collector falls back to its tail. */
+export type SpillFailureReporter = (error: unknown, label: string) => void
+
+/** Spill storage for one collected stream; `undefined` means tail-only collection. */
+export interface SpillOptions {
+  /** Whole-stream byte cap beyond which an incomplete spill is discarded. */
+  maxBytes: number
+  /** Private directory receiving the spill file. */
+  dir: string
+  /** Owner-side report of a spill open or write failure. */
+  onFailure: SpillFailureReporter
+}
+
 let spillCounter = 0
 let defaultSpillDir: string | undefined
 
 /**
  * The default spill location: a private (0700) per-process directory under
  * the OS tmpdir, created lazily. Predictable world-readable paths would let
- * other local users read command output or pre-create symlinks. At a
+ * other local users read command output or pre-create symlinks. The directory
+ * is created once per process and never recreated after an external cleaner
+ * removes it; later spills degrade to the in-memory tail. At a
  * JavaScript-observable process exit the directory is removed only when it
  * holds no completed spill file (spill files are retained as full-output
  * recovery artifacts until an external cleanup).
@@ -32,24 +47,61 @@ process.once('exit', () => {
   try { rmdirSync(defaultSpillDir) } catch { /* best-effort: ENOENT/ENOTEMPTY/EBUSY/EPERM must not change the exit code. */ }
 })
 
+/** The stderr reporter used when no owner supplies a plugin logger. */
+function reportSpillFailureToStderr(error: unknown, label: string): void {
+  process.stderr.write(`dsh-subprocess-local: ${label} spill failed; only the in-memory tail is retained: ${String(error)}\n`)
+}
+
+/**
+ * Build the reporter an owner passes as {@link SpillOptions.onFailure}.
+ * @param logger - the owner's logger.
+ * @param owner - the component named in the diagnostic.
+ * @returns a spill failure reporter for that owner.
+ */
+export function logSpillFailure(logger: { error(message: string, ...detail: unknown[]): void }, owner: string): SpillFailureReporter {
+  return (error, label) => {
+    const removedDirectory = (error as NodeJS.ErrnoException).code === 'ENOENT'
+    logger.error(
+      `${owner} could not write the complete ${label} stream to its spill file; the result keeps only the in-memory tail and reports no full-output path.`
+      + (removedDirectory ? ' The spill directory no longer exists; a temporary-file cleaner removing it while empty is the usual cause.' : ''),
+      error,
+    )
+  }
+}
+
+/** Inputs a managed native process needs before its output streams are bound. */
+export interface ManagedProcessBinding {
+  /** Directory receiving spill files. */
+  spillDir: string
+  /** Receives a spill open or write failure. */
+  onSpillFailure: SpillFailureReporter
+}
+
 /**
  * Prepare fallible output storage before starting a managed native process.
- * @param internals - optional caller-owned spill directory.
- * @returns binding inputs whose spill directory is ready for use.
+ * @param internals - optional caller-owned spill directory and failure reporter.
+ * @returns binding inputs whose spill directory and reporter are resolved.
  */
 export function prepareManagedProcessBinding(
-  internals: { spillDir?: string } = {},
-): { spillDir: string } {
-  return { spillDir: internals.spillDir ?? privateSpillDir() }
+  internals: { spillDir?: string; onSpillFailure?: SpillFailureReporter } = {},
+): ManagedProcessBinding {
+  return {
+    spillDir: internals.spillDir ?? privateSpillDir(),
+    onSpillFailure: internals.onSpillFailure ?? reportSpillFailureToStderr,
+  }
 }
 
 
 /**
- * Collects one stream with a bounded in-memory tail. With a spill cap, on
+ * Collects one stream with a bounded in-memory tail. With spill options, on
  * first overflow a spill file is created and every chunk (including those
  * already collected) is appended there while the full stream remains within
- * the cap; without one, only the in-memory tail is ever retained (the
+ * the cap; without them, only the in-memory tail is ever retained (the
  * diagnostic-tail shape — a language server's stderr).
+ *
+ * Spilling is best-effort: a spill open or write failure discards the spill,
+ * reports once through `SpillOptions.onFailure`, and never interrupts
+ * in-memory collection because `push()` runs inside a stream `data` listener.
  *
  * Tail-keep rationale (pi/OpenCode): errors and final results cluster at the
  * end of command output; the spill file covers the head.
@@ -66,11 +118,10 @@ export class OutputCollector {
 
   constructor(
     private readonly maxBytes: number,
-    private readonly maxSpillBytes: number | undefined,
     private readonly label: string,
-    private readonly spillDir: string,
+    private readonly spill: SpillOptions | undefined,
   ) {
-    this.spillDisabled = maxSpillBytes === undefined
+    this.spillDisabled = spill === undefined
   }
 
   /**
@@ -84,7 +135,10 @@ export class OutputCollector {
   push(chunk: Buffer): void {
     this.total += chunk.length
     const overflows = this.bytes + chunk.length > this.maxBytes
-    if (!this.spillDisabled && (overflows || this.spillFd !== undefined)) this.spillAll(chunk)
+    const spill = this.spill
+    if (spill !== undefined && !this.spillDisabled && (overflows || this.spillFd !== undefined)) {
+      this.spillAll(spill, chunk)
+    }
     this.chunks.push(chunk)
     this.bytes += chunk.length
     while (this.bytes > this.maxBytes) {
@@ -105,24 +159,34 @@ export class OutputCollector {
     }
   }
 
-  /** Open the spill file lazily and append `chunk` (and any prior chunks once). */
-  private spillAll(chunk: Buffer): void {
-    if (this.maxSpillBytes !== undefined && this.total > this.maxSpillBytes) {
+  /** Open the spill file lazily and append `chunk`, containing filesystem failures. */
+  private spillAll(spill: SpillOptions, chunk: Buffer): void {
+    if (this.total > spill.maxBytes) {
       this.discardSpill()
       return
     }
-    if (this.spillFd === undefined) {
-      // Random suffix + O_EXCL + no-follow-equivalent ('wx' fails on any
-      // existing path, symlink or not) + owner-only mode: defeats spill-path
-      // prediction and symlink planting in shared tmp dirs.
-      this.spillFile = join(
-        this.spillDir,
-        `dsh-subprocess-${process.pid}-${++spillCounter}-${randomBytes(6).toString('hex')}-${this.label}.log`,
-      )
-      this.spillFd = openSync(this.spillFile, 'wx', 0o600)
-      for (const prior of this.chunks) writeSync(this.spillFd, prior)
+    try {
+      if (this.spillFd === undefined) {
+        // Random suffix + O_EXCL + owner-only mode defeats spill-path prediction
+        // and symlink planting in shared temp dirs.
+        const file = join(
+          spill.dir,
+          `dsh-subprocess-${process.pid}-${++spillCounter}-${randomBytes(6).toString('hex')}-${this.label}.log`,
+        )
+        const fd = openSync(file, 'wx', 0o600)
+        this.spillFile = file
+        this.spillFd = fd
+        for (const prior of this.chunks) writeSync(fd, prior)
+      }
+      writeSync(this.spillFd, chunk)
+    } catch (error) {
+      this.discardSpill()
+      try {
+        spill.onFailure(error, this.label)
+      } catch (reporterFailure) {
+        process.stderr.write(`dsh-subprocess-local: spill failure reporter threw: ${String(reporterFailure)}\n`)
+      }
     }
-    writeSync(this.spillFd, chunk)
   }
 
   /** Stop spilling and remove the file once it can no longer hold the complete stream. */
