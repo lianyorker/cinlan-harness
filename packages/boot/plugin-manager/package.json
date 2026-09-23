@@ -92,7 +92,7 @@
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
     "@deepseek-ai/dsh-brand": "workspace:^",
     "@deepseek-ai/cordis-plugin-timer": "workspace:^",
-    "pnpm": "11.7.0",
+    "pnpm": "11.23.0",
     "@deepseek-ai/dsh-tools": "workspace:^",
     "@deepseek-ai/dsh-system-prompt": "workspace:^",
     "@deepseek-ai/dsh-sandbox-policy": "workspace:^",
