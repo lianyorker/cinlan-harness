@@ -123,23 +123,49 @@ export class AppWebEntry {
     const rows = this.manifest.plugins.map(row => row.id)
     this.page.setTotal(rows.length)
     await prefetching
+    const creationFailures: Array<{ name: string; error: unknown }> = []
     await Promise.all(rows.map(async (name) => {
       this.page.setState(name, 'loading')
-      const id = await loader.create({ name })
-      if (loader.resolve(id).fiber === undefined) this.page.setState(name, 'failed')
+      try {
+        const id = await loader.create({ name })
+        if (loader.resolve(id).fiber === undefined) this.page.setState(name, 'failed')
+      } catch (error) {
+        creationFailures.push({ name, error })
+        this.page.setState(name, 'failed')
+      }
     }))
 
-    await loader.await()
-    this.assertEntriesActive(ctx)
+    let loaderFailure: unknown
+    try {
+      await loader.await()
+    } catch (error) {
+      // Loader versions differ on whether a failed entry rejects await(). Run
+      // the entry audit in both cases so the module-system diagnostic is not
+      // hidden behind the Loader wrapper.
+      loaderFailure = error
+    }
+    this.assertEntriesActive(ctx, creationFailures)
+    if (loaderFailure !== undefined) {
+      if (loaderFailure instanceof Error) throw loaderFailure
+      throw new Error(JSON.stringify(loaderFailure))
+    }
   }
 
   /** Reject entries that failed import/apply or still wait on missing services. */
-  private assertEntriesActive(ctx: Context): void {
+  private assertEntriesActive(
+    ctx: Context,
+    creationFailures: readonly { name: string; error: unknown }[] = [],
+  ): void {
     const failures: string[] = []
+    const reported = new Set<string>()
     for (const entry of ctx.loader.entries()) {
       const name = entry.options.name
+      reported.add(name)
       if (entry.fiber === undefined) {
-        failures.push(`${name}: import failed (see console for the import error)`)
+        const importError = this.modules.importError(name)
+        failures.push(importError === undefined
+          ? `${name}: import failed (see console for the import error)`
+          : `${name}: import failed: ${importError.message}`)
         continue
       }
       const state = STATE_LABELS[entry.fiber.state]
@@ -150,6 +176,13 @@ export class AppWebEntry {
       } else {
         failures.push(`${name}: ${state}`)
       }
+    }
+    for (const { name, error } of creationFailures) {
+      if (reported.has(name)) continue
+      const importError = this.modules.importError(name)
+      failures.push(importError === undefined
+        ? `${name}: ${error instanceof Error ? error.message : String(error)}`
+        : `${name}: import failed: ${importError.message}`)
     }
     if (failures.length > 0) {
       throw new Error(`web boot: ${String(failures.length)} entr${failures.length === 1 ? 'y' : 'ies'} did not activate\n${failures.join('\n')}`)

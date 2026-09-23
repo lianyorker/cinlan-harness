@@ -34,6 +34,11 @@ function atRevision(url: string, rev: string): string {
   return url.replace(/([?&]rev=)[^&#]*/, `$1${encodeURIComponent(rev)}`)
 }
 
+/** The message of a thrown value: an Error's message, anything else stringified. */
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 /**
  * Claim and inventory the <style> tags a factory injected during
  * materialization: preset-emitted tags arrive pre-tagged with data-plugin;
@@ -70,6 +75,12 @@ export class ClientModuleSystem implements ClientModuleLoader {
   private readonly pendingArrival = new Map<string, Promise<void>>()
   /** Single-resource combo URL selected by HMR after invalidating one row. */
   private readonly reloadUrls = new Map<string, string>()
+  /** Last import or prefetch failure per graph row, cleared by a later success or invalidation. */
+  private readonly importErrors = new Map<string, Error>()
+  /** Batch URLs whose transport or execution already failed; missing rows use their one-resource URL. */
+  private readonly failedBundleUrls = new Set<string>()
+  /** Every URL whose script has executed once; a batch is never requested again for another missing row. */
+  private readonly executedBundleUrls = new Set<string>()
   /** Materialization re-entrancy guard: factory-form CJS cannot deliver partial exports, so a cycle is fatal. */
   private readonly materializing = new Set<string>()
   private readonly graphRows = new Map<string, BootModuleRow>()
@@ -119,25 +130,80 @@ export class ClientModuleSystem implements ClientModuleLoader {
     this.factories.set(id, registration.factory)
   }
 
-  /** Load one graph row so its factory is registered (idempotent per in-flight arrival). */
-  private arrive(row: BootModuleRow): Promise<void> {
-    const { id } = row
-    if (this.loadCache.has(id) || this.factories.has(id)) return Promise.resolve()
-    const reloadUrl = this.reloadUrls.get(id)
-    const url = reloadUrl ?? row.initialUrl
+  /** Run one bundle transport per URL; every row waiting on the same URL shares the in-flight request. */
+  private loadShared(url: string): Promise<void> {
     let transport = this.pendingArrival.get(url)
     if (transport === undefined) {
-      transport = this.loadBundle(url).finally(() => { this.pendingArrival.delete(url) })
+      transport = this.loadBundle(url)
+        .then(() => { this.executedBundleUrls.add(url) })
+        .finally(() => { this.pendingArrival.delete(url) })
       this.pendingArrival.set(url, transport)
     }
-    return transport.then(() => {
-      if (!this.factories.has(id)) {
-        throw new Error(`client-modules: bundle ${url} loaded without registering "${id}" via __ModuleLoader__.load`)
+    return transport
+  }
+
+  /**
+   * Load one graph row so its factory is registered. A batch transport is
+   * retried once after a rejection, then each missing row falls back to its
+   * single-resource URL. A loaded batch is never replayed when it registered a
+   * different row, because replaying would duplicate that registration.
+   */
+  private async arrive(row: BootModuleRow): Promise<void> {
+    const { id } = row
+    if (this.loadCache.has(id) || this.factories.has(id)) return
+    const reloadUrl = this.reloadUrls.get(id)
+    const preferred = reloadUrl ?? row.initialUrl
+    const fallback = reloadUrl === undefined && row.url !== preferred ? row.url : undefined
+    const failures: string[] = []
+    const attempt = async (url: string): Promise<'registered' | 'transport-failed' | 'not-registered'> => {
+      try {
+        await this.loadShared(url)
+      } catch (error) {
+        failures.push(`${url}: ${describeError(error)}`)
+        return 'transport-failed'
       }
-      if (reloadUrl !== undefined && this.reloadUrls.get(id) === reloadUrl) {
-        this.reloadUrls.delete(id)
-      }
-    })
+      if (this.factories.has(id)) return 'registered'
+      failures.push(`${url}: loaded without registering "${id}" via __ModuleLoader__.load`)
+      return 'not-registered'
+    }
+
+    let outcome: Awaited<ReturnType<typeof attempt>> = 'transport-failed'
+    if (this.failedBundleUrls.has(preferred)) {
+      failures.push(`${preferred}: skipped after an earlier failure of this bundle`)
+    } else if (fallback !== undefined && this.executedBundleUrls.has(preferred)) {
+      failures.push(`${preferred}: already executed without registering "${id}"`)
+      outcome = 'not-registered'
+      this.failedBundleUrls.add(preferred)
+    } else {
+      outcome = await attempt(preferred)
+      if (outcome === 'transport-failed') outcome = await attempt(preferred)
+      // A single-resource URL has no fallback and remains retryable on a later import.
+      if (outcome !== 'registered' && fallback !== undefined) this.failedBundleUrls.add(preferred)
+    }
+    if (outcome !== 'registered' && fallback !== undefined) outcome = await attempt(fallback)
+    if (outcome !== 'registered') {
+      throw new Error(`client-modules: could not load "${id}": ${failures.join('; ')}`)
+    }
+    if (reloadUrl !== undefined && this.reloadUrls.get(id) === reloadUrl) {
+      this.reloadUrls.delete(id)
+    }
+  }
+
+  /** Register one dependency and name its consumer when arrival fails. */
+  private async arriveDependency(
+    consumerId: string,
+    dependency: BootModuleRow,
+    open: readonly string[],
+    visited: Set<string>,
+  ): Promise<void> {
+    try {
+      await this.arriveGraphRow(dependency, open, visited)
+    } catch (error) {
+      throw new Error(
+        `client-modules: "${consumerId}" not loaded because dependency "${dependency.id}" failed: ${describeError(error)}`,
+        { cause: error },
+      )
+    }
   }
 
   /** Register each injected package and unresolved dynamic request before its consumer. */
@@ -160,11 +226,11 @@ export class ClientModuleSystem implements ClientModuleLoader {
       const id = stripClientSuffix(request)
       if (this.seed.has(request) || this.loadCache.has(id)) continue
       const dependency = this.graphRows.get(id)
-      if (dependency !== undefined) await this.arriveGraphRow(dependency, next, visited)
+      if (dependency !== undefined) await this.arriveDependency(row.id, dependency, next, visited)
     }
     for (const packageName of row.inject) {
       const dependency = this.graphRows.get(packageName)
-      if (dependency !== undefined) await this.arriveGraphRow(dependency, [], visited)
+      if (dependency !== undefined) await this.arriveDependency(row.id, dependency, [], visited)
     }
     await this.arrive(row)
   }
@@ -218,15 +284,17 @@ export class ClientModuleSystem implements ClientModuleLoader {
     const existing = this.loadCache.get(id)
     if (existing !== undefined) return existing.exports
     const row = this.graphRows.get(id)
-    if (row !== undefined) {
-      await this.arriveGraphRow(row)
-    } else if (!this.factories.has(id)) {
+    if (row === undefined) {
+      if (this.factories.has(id)) return this.materialize(id).exports
       throw new Error(
         `client-modules: cannot resolve "${specifier}" — not a seed word, not a materialized module, `
         + 'and not a row in the boot graph (the runtime mirror of the bundle purity gate)',
       )
     }
-    return this.materialize(id).exports
+    return this.recordingImportError(id, async () => {
+      await this.arriveGraphRow(row)
+      return this.materialize(id).exports
+    })
   }
 
   async prefetch(id: string): Promise<void> {
@@ -234,12 +302,29 @@ export class ClientModuleSystem implements ClientModuleLoader {
     if (this.loadCache.has(normalized)) return
     const row = this.graphRows.get(normalized)
     if (row === undefined) throw new Error(`client-modules: prefetch("${id}") — not a graph entry`)
-    await this.arriveGraphRow(row)
+    await this.recordingImportError(normalized, () => this.arriveGraphRow(row))
+  }
+
+  importError(id: string): Error | undefined {
+    return this.importErrors.get(stripClientSuffix(id))
+  }
+
+  /** Record a graph-row failure and clear it after a later successful operation. */
+  private async recordingImportError<T>(id: string, operation: () => Promise<T>): Promise<T> {
+    try {
+      const result = await operation()
+      this.importErrors.delete(id)
+      return result
+    } catch (error) {
+      this.importErrors.set(id, error instanceof Error ? error : new Error(describeError(error)))
+      throw error
+    }
   }
 
   invalidate(id: string, rev?: string): void {
     const normalized = stripClientSuffix(id)
     if (this.bootstrapIds.has(normalized)) return
+    this.importErrors.delete(normalized)
     const row = this.graphRows.get(normalized)
     if (row !== undefined) this.reloadUrls.set(normalized, atRevision(row.url, rev ?? row.rev))
     else this.reloadUrls.delete(normalized)

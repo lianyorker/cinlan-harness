@@ -70,16 +70,25 @@ function bench(
     gated?: string[]
     pending?: ClientBundleRegistration[]
     defaultTransport?: boolean
+    /** Remaining transport rejections per URL. */
+    transportFailures?: Record<string, number>
+    /** URLs whose script loads but registers only the listed ids. */
+    registerOnly?: Record<string, string[]>
   } = {},
 ): Bench {
   const fetched: string[] = []
   const gates = new Map<string, () => void>()
   const target = registrationTarget(opts.pending)
   win.__ModuleLoader__ = target
+  const transportFailures = { ...opts.transportFailures }
   const loadBundle = async (url: string): Promise<void> => {
     fetched.push(url)
     if (opts.gated?.includes(url) === true) {
       await new Promise<void>((resolve) => { gates.set(url, resolve) })
+    }
+    if ((transportFailures[url] ?? 0) > 0) {
+      transportFailures[url] = (transportFailures[url] as number) - 1
+      throw new Error(`client-modules: bundle script ${url} failed to load`)
     }
     const batchIds = url === BOOTSTRAP_URL
       ? entries.filter(entry => entry.initialUrl === BOOTSTRAP_URL).map(entry => entry.id)
@@ -91,7 +100,9 @@ function bench(
     const singleId = combo?.split(',').length === 1 && combo.endsWith('/client.js')
       ? combo.slice(0, -'/client.js'.length)
       : undefined
+    const only = opts.registerOnly?.[url]
     for (const id of batchIds ?? (singleId === undefined ? [] : [singleId])) {
+      if (only !== undefined && !only.includes(id)) continue
       const factory = bundles[id]
       if (factory != null) win.__ModuleLoader__?.load({ id, factory })
     }
@@ -217,6 +228,117 @@ describe('lazy CJS arrival', () => {
     await b.loader.prefetch('a')
     await b.loader.prefetch('a')
     expect(b.fetched).toHaveLength(1)
+  })
+})
+
+describe('bundle arrival recovery', () => {
+  const single = (id: string): string => comboUrl([id], '0')
+
+  it('retries a batch once after a transport failure and shares the retry across its rows', async () => {
+    const b = bench([row('a'), row('b')], { a: () => ({ a: 1 }), b: () => ({ b: 2 }) }, {
+      transportFailures: { [APPLICATION_URL]: 1 },
+    })
+    const [a, c] = await Promise.all([b.loader.import('a'), b.loader.import('b')])
+    expect(a).toEqual({ a: 1 })
+    expect(c).toEqual({ b: 2 })
+    expect(b.fetched).toEqual([APPLICATION_URL, APPLICATION_URL])
+  })
+
+  it('falls back to each missing row\'s one-resource URL when the batch keeps failing', async () => {
+    const b = bench([row('a'), row('b')], { a: () => ({ a: 1 }), b: () => ({ b: 2 }) }, {
+      transportFailures: { [APPLICATION_URL]: 5 },
+    })
+    const [a, c] = await Promise.all([b.loader.import('a'), b.loader.import('b')])
+    expect(a).toEqual({ a: 1 })
+    expect(c).toEqual({ b: 2 })
+    expect(b.fetched.filter(url => url === APPLICATION_URL)).toHaveLength(2)
+    expect(b.fetched.slice(2).sort()).toEqual([single('a'), single('b')].sort())
+    expect(b.loader.importError('a')).toBeUndefined()
+  })
+
+  it('does not re-execute a batch that loaded without registering; the missing row loads alone', async () => {
+    const b = bench([row('a')], { a: () => ({ a: 1 }) }, { registerOnly: { [APPLICATION_URL]: [] } })
+    expect(await b.loader.import('a')).toEqual({ a: 1 })
+    expect(b.fetched).toEqual([APPLICATION_URL, single('a')])
+  })
+
+  it('after a partially registering batch, loads only the missing row', async () => {
+    const b = bench([row('a'), row('b')], { a: () => ({ a: 1 }), b: () => ({ b: 2 }) }, {
+      registerOnly: { [APPLICATION_URL]: ['a'] },
+    })
+    expect(await b.loader.import('b')).toEqual({ b: 2 })
+    expect(b.fetched).toEqual([APPLICATION_URL, single('b')])
+    expect(await b.loader.import('a')).toEqual({ a: 1 })
+    expect(b.fetched).toHaveLength(2)
+  })
+
+  it('reports every attempt when the one-resource fallback fails too', async () => {
+    const b = bench([row('a')], { a: () => ({ a: 1 }) }, {
+      transportFailures: { [APPLICATION_URL]: 2, [single('a')]: 1 },
+    })
+    const failure: unknown = await b.loader.import('a').then(() => undefined, (error: unknown) => error)
+    if (!(failure instanceof Error)) throw new Error('import resolved')
+    expect(failure.message).toContain('could not load "a"')
+    const batchAttempts = failure.message.split(`${APPLICATION_URL}: client-modules: bundle script`).length - 1
+    expect(batchAttempts).toBe(2)
+    expect(failure.message).toContain(`${single('a')}: client-modules: bundle script`)
+    expect(b.fetched).toEqual([APPLICATION_URL, APPLICATION_URL, single('a')])
+  })
+
+  it('a one-resource URL that fails stays retryable on the next import', async () => {
+    const reloadUrl = comboUrl(['a'], '1')
+    const b = bench([row('a')], { a: () => ({ a: 1 }) }, { transportFailures: { [reloadUrl]: 2 } })
+    expect(await b.loader.import('a')).toEqual({ a: 1 })
+    b.loader.invalidate('a', '1')
+    await expect(b.loader.import('a')).rejects.toThrow('could not load "a"')
+    expect(await b.loader.import('a')).toEqual({ a: 1 })
+    expect(b.fetched).toEqual([APPLICATION_URL, reloadUrl, reloadUrl, reloadUrl])
+  })
+})
+
+describe('import error record', () => {
+  it('records transport failure and clears it once the row imports', async () => {
+    const b = bench([row('a')], { a: () => ({ a: 1 }) }, {
+      transportFailures: { [APPLICATION_URL]: 2, [comboUrl(['a'], '0')]: 1 },
+    })
+    await expect(b.loader.import('a')).rejects.toThrow()
+    expect(b.loader.importError('a')?.message).toContain('could not load "a"')
+    expect(b.loader.importError('a/client')).toBe(b.loader.importError('a'))
+    expect(await b.loader.import('a')).toEqual({ a: 1 })
+    expect(b.loader.importError('a')).toBeUndefined()
+  })
+
+  it('records a factory that throws during materialization', async () => {
+    const b = bench([row('a')], { a: () => { throw new Error('factory exploded') } })
+    await expect(b.loader.import('a')).rejects.toThrow('factory exploded')
+    expect(b.loader.importError('a')?.message).toBe('factory exploded')
+  })
+
+  it('names the failed dependency in the consumer record', async () => {
+    const b = bench([row('dep'), row('consumer', { inject: ['dep'] })], { dep: () => ({}), consumer: () => ({}) }, {
+      registerOnly: { [APPLICATION_URL]: ['consumer'] },
+      transportFailures: { [comboUrl(['dep'], '0')]: 1 },
+    })
+    await expect(b.loader.import('consumer')).rejects.toThrow(
+      '"consumer" not loaded because dependency "dep" failed: client-modules: could not load "dep"',
+    )
+    expect(b.loader.importError('consumer')?.message).toContain('dependency "dep" failed')
+    expect(b.loader.importError('dep')).toBeUndefined()
+    expect(b.loader.importError('consumer')?.cause).toBeInstanceOf(Error)
+  })
+
+  it('records a prefetch failure and invalidate clears the record', async () => {
+    const b = bench([row('a')], { a: null })
+    await expect(b.loader.prefetch('a')).rejects.toThrow('without registering "a"')
+    expect(b.loader.importError('a')).toBeDefined()
+    b.loader.invalidate('a')
+    expect(b.loader.importError('a')).toBeUndefined()
+  })
+
+  it('has no record for a row that never failed or is unknown', () => {
+    const b = bench([row('a')], { a: () => ({}) })
+    expect(b.loader.importError('a')).toBeUndefined()
+    expect(b.loader.importError('nope')).toBeUndefined()
   })
 })
 

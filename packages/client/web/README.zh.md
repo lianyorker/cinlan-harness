@@ -35,7 +35,7 @@ kind: "package-library"
 
 ### 启动页
 
-启动页只使用原生 DOM 与本地 CSS，因此 bundle 与插件激活失败保持可见：它显示一个 spinner 节点，其 CSS 圆弧随 entry 激活而增长，并逐 entry 报告状态。在应用文档内，spinner 及其动画相位会一直保留，直到完整 UI 替换启动页。启用 `prefers-reduced-motion: reduce` 时，spinner 停止旋转。导入或激活失败的插件会按名称报告并给出原因（缺失服务、导入错误或状态），而不是白屏。
+启动页只使用原生 DOM 与本地 CSS，因此 bundle 与插件激活失败保持可见：它显示一个 spinner 节点，其 CSS 圆弧随 entry 激活而增长，并逐 entry 报告状态。在应用文档内，spinner 及其动画相位会一直保留，直到完整 UI 替换启动页。启用 `prefers-reduced-motion: reduce` 时，spinner 停止旋转。导入或激活失败的插件会按名称报告并给出原因（已记录的导入失败、缺失服务或状态），而不是白屏。
 
 浏览器壳可以从 `@deepseek-ai/dsh-client-web/boot-page` 导入 `BootPage`，在 Host 就绪前显示相同的 `HARNESS` / `Loading plugins…` 视图。该静态浏览器入口包含自身 CSS，不会启动模块系统或 Cordis Loader。[Desktop](../../../apps/desktop/README.zh.md) 将它打包进本地加载文档，随后导航到应用文档；每个文档各自拥有独立实例。释放实例时调用 `dispose()`：它只移除自身启动 DOM，保留容器中的其他内容。
 
@@ -63,7 +63,7 @@ kind: "package-library"
 
 ### 两阶段启动
 
-`run()` 调用 Host 安装的 `window.__ModuleLoader__.create({ boot, staticModules, ...seams })`；facade 接纳 parser 已加载的 bootstrap 批次后返回构造好的模块系统与已解析 manifest。模块阶段通过一个共享的 application 批次 URL 预取 `immediately` 层级。插件阶段挂载 Loader、把 `loader.internal` 赋为 `modules`、统一创建全部图 entry、等待完全停稳，然后审计激活：任何导入失败、因缺失服务而 pending，或落入其他非 active 状态的 entry，都会抛出一个聚合错误，点名每个失败 entry。
+`run()` 调用 Host 安装的 `window.__ModuleLoader__.create({ boot, staticModules, ...seams })`；facade 接纳 parser 已加载的 bootstrap 批次后返回构造好的模块系统与已解析 manifest。模块阶段通过一个共享的 application 批次 URL 预取 `immediately` 层级。插件阶段挂载 Loader、把 `loader.internal` 赋为 `modules`、统一创建全部图 entry、等待完全停稳，然后审计激活：任何导入失败、因缺失服务而 pending，或落入其他非 active 状态的 entry，都会抛出一个聚合错误，点名每个失败 entry，并在有记录时列出该 entry 的导入失败原因。
 
 ### 启动页机制
 

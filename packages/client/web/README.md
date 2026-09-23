@@ -35,7 +35,7 @@ Boot runs in two stages: the module stage adopts the parser-loaded bootstrap bat
 
 ### The boot page
 
-The boot page uses plain DOM and local CSS, so bundle and plugin-activation failures remain visible: it shows one spinner node whose CSS arc grows as entries activate, and reports per-entry status. Within the application document, the spinner and its animation phase persist until the full UI replaces the boot page. The spinner stops rotating when `prefers-reduced-motion: reduce` is active. A plugin that fails import or activation is reported by name with the reason (missing service, import error, or state) instead of a blank page.
+The boot page uses plain DOM and local CSS, so bundle and plugin-activation failures remain visible: it shows one spinner node whose CSS arc grows as entries activate, and reports per-entry status. Within the application document, the spinner and its animation phase persist until the full UI replaces the boot page. The spinner stops rotating when `prefers-reduced-motion: reduce` is active. A plugin that fails import or activation is reported by name with the reason (recorded import failure, missing service, or state) instead of a blank page.
 
 Browser shells can import `BootPage` from `@deepseek-ai/dsh-client-web/boot-page` to display the same `HARNESS` / `Loading plugins…` view before the Host is ready. This static browser entry includes its CSS without starting the module system or Cordis Loader. [Desktop](../../../apps/desktop/README.md) bundles it into its local loading document, then navigates to the application document; each document owns a separate instance. Call `dispose()` when releasing an instance: it removes only its boot DOM and leaves unrelated container content intact.
 
@@ -63,7 +63,7 @@ The kernel owns exactly three things: the module system, the Cordis Loader, and 
 
 ### Two-stage boot
 
-`run()` calls the Host-installed `window.__ModuleLoader__.create({ boot, staticModules, ...seams })`; the facade returns the constructed module system and parsed manifest after adopting the parser-loaded bootstrap batch. The module stage prefetches the `immediately` tier through the one shared application-batch URL. The plugin stage mounts the Loader, assigns `loader.internal = modules`, creates every graph entry uniformly, awaits quiescence, then audits activation: any entry that failed import, stayed pending on a missing service, or landed in another non-active state throws one aggregated error naming every failing entry.
+`run()` calls the Host-installed `window.__ModuleLoader__.create({ boot, staticModules, ...seams })`; the facade returns the constructed module system and parsed manifest after adopting the parser-loaded bootstrap batch. The module stage prefetches the `immediately` tier through the one shared application-batch URL. The plugin stage mounts the Loader, assigns `loader.internal = modules`, creates every graph entry uniformly, awaits quiescence, then audits activation: any entry that failed import, stayed pending on a missing service, or landed in another non-active state throws one aggregated error naming every failing entry and its recorded import failure when available.
 
 ### Boot page mechanics
 

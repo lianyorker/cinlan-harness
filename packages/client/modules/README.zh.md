@@ -35,7 +35,7 @@ kind: "package-reference"
 
 ### 浏览器加载什么
 
-application combo 脚本在启动时注册插件 factory；模块主体仍保持惰性，只在首次 import 或物化时运行。共享 combo URL 的 row 共用一个进行中的脚本任务。HMR 会让一条发生变化的 row 改用带 revision 的单资源 combo URL。`<id>/client` 与裸 id 解析到同一组导出，因为插件 bundle 就是其包的客户端半侧。
+application combo 脚本在启动时注册插件 factory；模块主体仍保持惰性，只在首次 import 或物化时运行。共享 combo URL 的 row 共用一个进行中的脚本任务。脚本传输失败的 combo 会重试一次；加载成功但没有注册某条 row 的 combo 不会再次执行，每条仍缺失的 row 会改用自己的单资源 combo URL。模块系统按 row 记录最近一次 import 或 prefetch 失败，包括依赖级联和 factory 失败；Web 启动审计按条目报告该文本。HMR 会让一条发生变化的 row 改用带 revision 的单资源 combo URL。`<id>/client` 与裸 id 解析到同一组导出，因为插件 bundle 就是其包的客户端半侧。
 
 ### 共享模块
 

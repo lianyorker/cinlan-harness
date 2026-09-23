@@ -95,7 +95,7 @@ export interface WebBootGraph {
 export interface BootModuleRow {
   /** Entry name == package name (module-table key). */
   id: string
-  /** Revisioned single-resource combo endpoint used after HMR invalidation. */
+  /** Revisioned single-resource combo endpoint: fallback after batch failure and reload target after HMR invalidation. */
   url: string
   /** Content-addressed combo endpoint used before the first HMR invalidation. */
   initialUrl: string
@@ -350,6 +350,14 @@ export interface ClientModuleLoader {
    * @param id - graph entry name.
    */
   prefetch(id: string): Promise<void>
+  /**
+   * The last failure of {@link import} or {@link prefetch} for one graph row:
+   * transport, registration, dependency cascade, or factory execution. Cleared
+   * by a later success and by {@link invalidate}.
+   * @param id - graph entry name.
+   * @returns the recorded failure, or `undefined` when no failure is recorded.
+   */
+  importError(id: string): Error | undefined
   /**
    * Full reset of one non-bootstrap module: drop its registered factory and
    * materialized record so the next prefetch/import loads its one-resource

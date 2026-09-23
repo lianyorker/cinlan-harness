@@ -87,6 +87,18 @@ describe('bootstrap failure rendering', () => {
       }
     }, 'duplicate graph entry "duplicate"')
   })
+
+  it('renders the recorded import failure for a fiberless entry', async () => {
+    await expectBootFailure(() => {
+      installFacade()
+      win.__DSH_BOOT__ = {
+        rev: 'graph',
+        entries: [{ id: 'broken', url: '/broken.js', rev: '1' }],
+        batches: [{ phase: 'application', url: '/application.js', rev: 'batch', entries: ['broken'] }],
+      }
+      transportGlobal.__DSH_TRANSPORT__ = { loadBundle: async () => {} }
+    }, 'broken: import failed: client-modules: could not load "broken"')
+  })
 })
 
 describe('plugin activation', () => {
