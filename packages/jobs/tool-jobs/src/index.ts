@@ -3,7 +3,8 @@
  * `ctx.jobs`. Loading the plugin attaches the controller required by
  * producers. It also delivers unreported completions to the owning agent:
  * injected into a busy owner's next step, or opening a turn on an idle one
- * under the default `wakeup` delivery, bounded per owner.
+ * under the default `wakeup` delivery, unbounded unless explicitly capped per
+ * owner.
  * @module @deepseek-ai/dsh-tool-jobs
  */
 
@@ -37,9 +38,10 @@ export interface Config {
   completionDelivery?: CompletionDelivery
   /**
    * Turns one owner may have opened by completion wakes before the next
-   * notice degrades to injection, reset by any user-authored input (default 3).
-   * Bounds the self-exciting chain where a woken turn starts the job whose
-   * completion wakes it again.
+   * notice degrades to injection, reset by any user-authored input. Absent by
+   * default: every idle completion wakes its owner. Set it to bound the
+   * self-exciting chain where a woken turn starts the job whose completion
+   * wakes it again.
    */
   maxConsecutiveWakes?: number
 }
@@ -48,7 +50,7 @@ export const Config: z<Config> = z.object({
   waitTimeoutMs: z.number().min(1).default(30_000),
   maxWaitTimeoutMs: z.number().min(1).default(600_000),
   completionDelivery: z.union(['quiet', 'wakeup'] as const).default('wakeup'),
-  maxConsecutiveWakes: z.number().min(1).default(3),
+  maxConsecutiveWakes: z.number().min(1),
 })
 
 /** Task state safe for model-authored programs; ownership/bookkeeping fields are omitted. */
@@ -205,7 +207,7 @@ export function apply(ctx: Context, config: Config): void {
   const waitDefault = config.waitTimeoutMs ?? 30_000
   const waitCap = config.maxWaitTimeoutMs ?? 600_000
   const delivery = config.completionDelivery ?? 'wakeup'
-  const wakeBudget = config.maxConsecutiveWakes ?? 3
+  const wakeBudget = config.maxConsecutiveWakes
 
   // Turns this plugin opened on each owner since that owner last consumed
   // human input. Keyed by the exact Agent, so a same-session replacement
@@ -214,13 +216,14 @@ export function apply(ctx: Context, config: Config): void {
   if (waitDefault > waitCap) {
     throw new Error(`tool-jobs: waitTimeoutMs (${waitDefault}) exceeds maxWaitTimeoutMs (${waitCap})`)
   }
-  // A budget is a count of turns. `Infinity` would leave the runaway chain this
-  // field exists to bound unbounded, and a fraction never names a turn at all.
-  if (!Number.isSafeInteger(wakeBudget)) {
+  // A budget is a count of turns. An omitted value means unbounded, while a
+  // fraction never names a turn.
+  if (wakeBudget !== undefined && !Number.isSafeInteger(wakeBudget)) {
     throw new Error(`tool-jobs: maxConsecutiveWakes (${wakeBudget}) must be a whole number of turns`)
   }
-  // Nothing spends the budget under quiet delivery, so nothing needs to refill it.
-  if (delivery === 'wakeup') {
+  // Nothing spends the budget under quiet delivery or without a cap, so
+  // nothing needs to refill it.
+  if (delivery === 'wakeup' && wakeBudget !== undefined) {
     ctx.on('agent/inbox/claimed', ({ agent, message }) => {
       // Claiming is the point the human's input actually enters a step; a notice
       // this plugin itself queued must not refill the budget it just spent.
@@ -289,11 +292,17 @@ export function apply(ctx: Context, config: Config): void {
         summary: completionSummary(snapshot),
       },
     })
-    const spent = spentWakes.get(owner) ?? 0
-    if (delivery === 'wakeup' && owner.status === 'idle' && spent < wakeBudget) {
-      spentWakes.set(owner, spent + 1)
-      owner.followup(message)
-      return
+    if (delivery === 'wakeup' && owner.status === 'idle') {
+      if (wakeBudget === undefined) {
+        owner.followup(message)
+        return
+      }
+      const spent = spentWakes.get(owner) ?? 0
+      if (spent < wakeBudget) {
+        spentWakes.set(owner, spent + 1)
+        owner.followup(message)
+        return
+      }
     }
     owner.inject(message)
   })

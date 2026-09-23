@@ -92,8 +92,6 @@ type StubMode =
   | 'torn-status'
   | 'finish-torn-status'
   | 'end-only'
-  | 'init-exit'
-  | 'init-timeout'
   | 'spawn-error'
   | 'send-error'
   | 'prompt-after-idle'
@@ -108,7 +106,7 @@ const START_PATTERN = /__DSH_PERSISTENT_PWSH_START_[^_]+(?:-[^_]+)*__/
 const END_PATTERN = /__DSH_PERSISTENT_PWSH_END_[^:]+:/
 
 class StubTerminalSession implements TerminalBackendSession {
-  readonly motd = '__DSH_PERSISTENT_PWSH_PROMPT__ '
+  readonly motd = 'stub> '
   readonly pid = 123
   statusValue: TerminalSessionStatus = { kind: 'running' }
   scrollback = this.motd
@@ -125,16 +123,6 @@ class StubTerminalSession implements TerminalBackendSession {
 
   startSend(request: TerminalSendRequest): TerminalSendOperation {
     this.sends += 1
-    if (request.text.startsWith('function prompt')) {
-      if (this.mode === 'init-exit') {
-        this.statusValue = { kind: 'exited', exitCode: 1, signal: null }
-        return this.operation(Promise.resolve(this.result('', 'session_exit')))
-      }
-      if (this.mode === 'init-timeout') {
-        return this.operation(Promise.resolve(this.result('', 'timeout')))
-      }
-      return this.operation(Promise.resolve(this.result(this.motd, 'stdin_read')))
-    }
     if (this.mode === 'send-error') throw new Error('stub send failed')
     if (this.throwOnSend) throw new Error('PTY session has exited')
     if (this.mode === 'wait-for-abort' || this.mode === 'end-on-abort') {
@@ -345,7 +333,7 @@ describe('tool-pwsh-persistent', () => {
     expect(text(await call(ctx, owner, 'Write-Output one'))).toBe('hello from stub')
     expect(text(await call(ctx, owner, 'Write-Output two'))).toBe('hello from stub')
     expect(stub.sessions).toHaveLength(1)
-    expect(stub.sessions[0]?.sends).toBe(3)
+    expect(stub.sessions[0]?.sends).toBe(2)
 
     const ownerWithoutCwd = await agent(ctx, undefined)
     expect(text(await call(ctx, ownerWithoutCwd, 'pwd'))).toBe('hello from stub')
@@ -391,7 +379,7 @@ describe('tool-pwsh-persistent', () => {
     expect(stub.sessions).toHaveLength(2)
   })
 
-  it('handles inferred idle, prompt fallback, shell exit, clipping, and cleanup', async () => {
+  it('handles inferred idle, stdin_read fallback, shell exit, clipping, and cleanup', async () => {
     const { ctx, owner, stub, fiber } = await setup({
       backendType: 'stub',
       maxOutputChars: 10,
@@ -404,18 +392,16 @@ describe('tool-pwsh-persistent', () => {
 
     session.mode = 'incremental-fallback'
     session.scrollback = ''
-    expect(text(await call(ctx, owner, 'incremental fallback'))).toBe('increment')
+    expect(text(await call(ctx, owner, 'incremental fallback'))).toContain('increment')
 
     session.mode = 'prompt-only'
     const promptFallback = text(await call(ctx, owner, 'bad {'))
     expect(promptFallback).toContain('pwsh: synt')
-    expect(promptFallback).not.toContain('DSH_PERSISTENT_PWSH_PROMPT')
 
     session.mode = 'prompt-crlf'
     session.scrollback = ''
     const crlfPromptFallback = text(await call(ctx, owner, 'bad {'))
     expect(crlfPromptFallback).toContain('pwsh: synt')
-    expect(crlfPromptFallback).not.toContain('DSH_PERSISTENT_PWSH_PROMPT')
 
     session.mode = 'end-only'
     session.scrollback = ''
@@ -501,7 +487,7 @@ describe('tool-pwsh-persistent', () => {
     expect(text(await call(ctx, owner, 'paged output'))).toBe('hello from stub')
   })
 
-  it('sanitizes a prompt fallback reached after multiple polling rounds', async () => {
+  it('returns a stdin_read fallback reached after multiple polling rounds', async () => {
     const { ctx, owner, stub } = await setup({ backendType: 'stub', maxOutputChars: 1_000 })
     await call(ctx, owner, 'warm up')
     const session = stub.sessions[0]!
@@ -510,7 +496,8 @@ describe('tool-pwsh-persistent', () => {
     const result = text(await call(ctx, owner, 'bad {'))
     expect(result).toContain('partial syntax output')
     expect(result).toContain('pwsh: syntax error')
-    expect(result).not.toContain('DSH_PERSISTENT_PWSH_PROMPT')
+    // The backend owns the prompt text, so the fallback retains it verbatim.
+    expect(result.endsWith('stub> ')).toBe(true)
     expect(result).not.toContain('DSH_PERSISTENT_PWSH_START')
   })
 
@@ -552,15 +539,6 @@ describe('tool-pwsh-persistent', () => {
       expect(text(await queued)).toBe('hello from stub')
       expect(stub.sessions[0]?.closed).toContain('persistent pwsh command aborted')
       expect(stub.sessions).toHaveLength(2)
-    },
-  )
-
-  it.each(['init-exit', 'init-timeout'] as const)(
-    'fails initialization and closes the unusable shell for %s',
-    async (mode) => {
-      const { ctx, owner, stub } = await setup({ backendType: 'stub' }, mode)
-      expect((await call(ctx, owner, 'pwd')).isError).toBe(true)
-      expect(stub.sessions[0]?.closed).toContain('persistent pwsh initialization failed')
     },
   )
 

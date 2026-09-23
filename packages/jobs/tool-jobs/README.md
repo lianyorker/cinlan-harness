@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use `dsh-tool-jobs` to inspect and control background commands, PTY work, and subagents through `job_output`, `job_list`, and `job_kill`. Reads can wait within a configured timeout, list results identify each job's kind and status, and cancellation settles only after the work stops. When owned work finishes, the agent receives an in-session notice: busy agents receive it in their next step, while idle agents may be woken by a bounded follow-up turn. Configuration controls wait limits, completion delivery, and consecutive wakeups. Stream output is consumed by one reader, and pending notices do not survive owner disposal.
+Use `dsh-tool-jobs` to inspect and control background commands, PTY work, and subagents through `job_output`, `job_list`, and `job_kill`. Reads can wait within a configured timeout, list results identify each job's kind and status, and cancellation settles only after the work stops. When owned work finishes, the agent receives an in-session notice: busy agents receive it in their next step, while idle agents are woken by a follow-up turn. Configuration controls wait limits, completion delivery, and an optional consecutive-wake cap. Stream output is consumed by one reader, and pending notices do not survive owner disposal.
 
 ## Table of Contents
 
@@ -39,7 +39,7 @@ The three tools return `{ text, job }`, `PublicJobSnapshot[]`, and `{ outcome: '
 
 When a job finishes, the owning agent receives `background job <id> (<kind>: <label>) finished [status: ...]. Read its output with job_output.` as an in-session message. A busy agent has the notice injected into its next step — the turn cannot close while the inbox holds it, so several jobs settling together cost one step rather than one turn each. An idle agent is instead woken with a follow-up turn, because an unclaimed notice is a completion the model never learns about. A kill or a terminal read/wait marks the completion reported and suppresses the redundant notice, as does the teardown cancel that drains an owner or the service.
 
-Waking is bounded: each owner may be woken `maxConsecutiveWakes` times before further notices degrade to injection, and claiming any user-authored message restores the budget. The bound exists because the chain is self-exciting — a woken turn may start the background job whose completion wakes it again. `completionDelivery: quiet` keeps even idle owners on the injection lane, which deterministic transcripts need.
+Waking is unbounded by default: an unattended agent can chain background commands and one-shot subagents, with every completion opening a follow-up turn. Set `maxConsecutiveWakes` to cap it: after the owner reaches the cap, notices degrade to injection and claiming any user-authored message restores the budget. The cap constrains the self-exciting chain — a woken turn may start the background job whose completion wakes it again — at the cost of notices past the cap waiting silently for the next user input. `completionDelivery: quiet` keeps even idle owners on the injection lane, which deterministic transcripts need.
 
 ### Minimal configuration
 
@@ -54,7 +54,7 @@ Loading the plugin with no config is the common path; a `waitTimeoutMs` above `m
 | `waitTimeoutMs` | `30,000` | Wait used when `wait: true` omits `timeout_ms` |
 | `maxWaitTimeoutMs` | `600,000` | Cap for model-supplied waits; larger values clamp down to it |
 | `completionDelivery` | `wakeup` | `wakeup` opens a turn on an idle owner; `quiet` leaves the notice pending |
-| `maxConsecutiveWakes` | `3` | Turns one owner may open by wake before notices degrade to injection |
+| `maxConsecutiveWakes` | unset | Turns one owner may open by wake before notices degrade to injection; unset means no cap |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-tool-jobs) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -91,7 +91,7 @@ This section explains the design decisions behind the tools and points at the co
 
 ### Notice delivery lanes
 
-`onJobDone` skips jobs already reported or unowned. A `wakeup` delivery opens a turn on an idle owner while the budget lasts, tracked per exact `Agent` in a `WeakMap`; claiming a user-authored message (`agent/inbox/claimed`) resets that owner's budget. A busy owner — or any notice past the budget, or `quiet` delivery — is injected into the next-step inbox instead. Teardown settlements arrive already `reported`, so disposal never spends a model request announcing a notice nobody can read.
+`onJobDone` skips jobs already reported or unowned. A `wakeup` delivery opens a turn on an idle owner; with `maxConsecutiveWakes` set, only while the budget lasts, tracked per exact `Agent` in a `WeakMap`; claiming a user-authored message (`agent/inbox/claimed`) resets that owner's budget. A busy owner — or any notice past a configured budget, or `quiet` delivery — is injected into the next-step inbox instead. Teardown settlements arrive already `reported`, so disposal never spends a model request announcing a notice nobody can read.
 
 </details>
 
@@ -157,7 +157,7 @@ Reads return output or `(no new output)` followed by `[status: <status>]` and op
 
 #### Token effect
 
-Results and notices remain in parent history until compaction. Stream reads do not repeat consumed output; a producer-supplied `outputLimitBytes` bounds each complete read or notice. Under `wakeup`, a notice reaching an idle owner also buys a model request the user did not ask for, capped per owner by `maxConsecutiveWakes`; a notice reaching a busy owner adds a step to the turn it is already paying for.
+Results and notices remain in parent history until compaction. Stream reads do not repeat consumed output; a producer-supplied `outputLimitBytes` bounds each complete read or notice. Under `wakeup`, a notice reaching an idle owner also buys a model request the user did not ask for, capped per owner only when `maxConsecutiveWakes` is set; a notice reaching a busy owner adds a step to the turn it is already paying for.
 
 #### KV Cache effect
 

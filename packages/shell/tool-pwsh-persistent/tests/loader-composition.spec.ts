@@ -95,7 +95,9 @@ describe.skipIf(!hasPwsh)('persistent pwsh through a real cordis.yml Loader comp
       '    shellDialect: pwsh',
       '    pollIntervalMs: 10',
       '    exactProbeAfterMs: 20',
-      '    idleSilenceMs: 300',
+      // Keep the silence tier above the send bound so each case proves the
+      // backend-controlled prompt fast path.
+      '    idleSilenceMs: 30000',
       '    handoffGraceMs: 300',
       '    scrollbackLines: 20000',
       // The first call pays the full pwsh cold-start latency (spawn + .NET +
