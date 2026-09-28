@@ -93,7 +93,12 @@ describe('writeFileAtomic', () => {
     const victim = join(dir, 'victim')
     await writeFile(victim, 'victim-content')
     const target = join(dir, 'doc.yaml')
-    await symlink(victim, target)
+    try {
+      await symlink(victim, target)
+    } catch (error) {
+      if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') return
+      throw error
+    }
     await writeFileAtomic(target, 'replaced', { mode: 0o600 })
     expect((await lstat(target)).isSymbolicLink()).toBe(false)
     expect(await readFile(target, 'utf8')).toBe('replaced')
