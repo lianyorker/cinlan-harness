@@ -1,6 +1,6 @@
 # Agent Note: Remove the packed-session fixture branch migrator
 
-Status: proposed
+Status: implemented
 
 English | [中文](2026-07-26-remove-packed-session-fixture-migrator.zh.md)
 
@@ -10,9 +10,9 @@ The repository's default writers and snapshot check keep session fixtures in the
 
 Once every such branch is merged, closed, or already canonical, the write command and its branch-convergence instructions have no continuing owner. Keeping a mutation command after its transition ends adds a second apparent maintenance path beside the permanent read-only snapshot check.
 
-## Proposal
+## Decision
 
-Remove the temporary `scripts/migrate-packed-session-fixtures.ts` CLI and the root `migrate:packed-session-fixtures` package command after a live inventory confirms that no open pull request still needs to convert session-format JSONL. Remove the transitional command links from the testing policy, the ACP snapshot README, and the implemented packed-row Agent Note in the same change; replace the command-specific remediation text in `scripts/session-fixture-layout.snapshot.ts` with command-independent canonical-layout guidance.
+Removed the temporary `scripts/migrate-packed-session-fixtures.ts` CLI and the root `migrate:packed-session-fixtures` package command after confirming that no open pull request still needs fixture conversion. Replaced the command-specific remediation text in `scripts/session-fixture-layout.spec.ts` with command-independent canonical-layout guidance. Removed the transitional command links from the session-snapshot README.
 
 Retain `scripts/session-fixture-layout.ts`, its unit tests, and `scripts/session-fixture-layout.snapshot.ts`. They define and enforce the permanent canonical layout; only the branch-facing writer is temporary.
 
@@ -26,13 +26,6 @@ Before removing the command, each affected branch merges the current `master`, r
 
 **Delete the command immediately when packed rows reach `master`.** Older open branches would then need ad hoc scripts or manual snapshot regeneration after retargeting, increasing conflict risk and making decoded-event preservation harder to review.
 
-## Acceptance criteria
+## Consequences
 
-- A live open-PR inventory finds no branch with session-format JSONL changes that still depends on the temporary migration command.
-- The temporary CLI, root package command, every branch-convergence link, and the command-specific gate diagnostic are absent; the permanent canonicalizer, unit tests, and snapshot check remain.
-- `pnpm run test:snapshot`, `pnpm run doc-sync`, lint, and whitespace validation pass without the temporary command.
-- Current documentation describes only the packed default and permanent canonical-layout enforcement.
-
-## Risks
-
-An incomplete open-branch inventory could strand a contributor with a large unpacked fixture conflict after the command disappears. The removal therefore depends on live pull-request evidence, not elapsed time. Retaining the command too long has a smaller operational cost but obscures which mechanism is permanent.
+The permanent canonical-layout check is the single mechanism for session-fixture format enforcement. Non-canonical fixtures must be re-recorded so the writer produces the current layout; no mechanical rewrite command exists. The canonicalizer module, unit tests, and snapshot check remain as durable infrastructure.

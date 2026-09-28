@@ -211,6 +211,6 @@ it('keeps every session-format JSONL fixture projected into canonical event layo
     .map(fixture => fixture.path)
   expect(
     nonCanonical,
-    'Run `pnpm run migrate:packed-session-fixtures` and commit the mechanical fixture rewrite.',
+    'Non-canonical session-format JSONL fixtures found. Re-record the affected scenarios so the writer produces the current canonical event layout.',
   ).toEqual([])
 })
