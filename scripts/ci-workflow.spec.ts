@@ -824,11 +824,15 @@ describe('Issue lifecycle workflow', () => {
 
     // The job has no job-level `if`, so it is listed on every pull_request /
     // pull_request_review event and reports success instead of a gray skip. The
-    // write-capable steps are gated at step level so approved/commented reviews
-    // never mint a Project/Issue App token nor touch the board.
+    // write-capable steps are gated at step level so approved/commented reviews,
+    // forks, and external pull requests never mint an App token or touch the board.
     expect(lifecycle.on).toHaveProperty('pull_request')
     expect(lifecycle.on).toHaveProperty('pull_request_review')
     expect(lifecycleJob.if).toBeUndefined()
+    expect(lifecycleJob.env).toEqual({
+      DSH_PROJECT_AUTOMATION:
+        "${{ github.repository == 'deepseek-harness/deepseek-harness' && (github.event_name == 'issues' || github.event.pull_request.head.repo.full_name == github.repository) }}",
+    })
     // Keep the subscription-type gates: issue-lifecycle does not re-subscribe
     // ready_for_review (issue-policy owns that) and only reacts to submitted
     // review events.
@@ -838,31 +842,50 @@ describe('Issue lifecycle workflow', () => {
     expect(lifecyclePullRequest.types).not.toContain('ready_for_review')
     expect(lifecyclePullRequest.types).toContain('review_requested')
     expect(lifecycleReview.types).toEqual(['submitted'])
-    const gated = "${{ github.event_name != 'pull_request_review' || github.event.review.state == 'changes_requested' }}"
+    const trustedEvent =
+      "${{ env.DSH_PROJECT_AUTOMATION == 'true' && (github.event_name != 'pull_request_review' || github.event.review.state == 'changes_requested') }}"
+    const unavailableEvent =
+      "${{ env.DSH_PROJECT_AUTOMATION != 'true' && (github.event_name != 'pull_request_review' || github.event.review.state == 'changes_requested') }}"
     const steps = lifecycleJob.steps.filter(isRecord)
+    const reportStep = steps.find(s => s.name === 'Report unavailable Project automation')
     const tokenStep = steps.find(s => s.name === 'Create project token')
     const handleStep = steps.find(s => s.name === 'Handle repository event')
-    expect(tokenStep).toMatchObject({ if: gated })
-    expect(handleStep).toMatchObject({ if: gated })
+    expect(reportStep).toMatchObject({
+      if: unavailableEvent,
+      run: 'echo "::notice::Issue Project automation runs only for trusted events in deepseek-harness/deepseek-harness."',
+    })
+    expect(tokenStep).toMatchObject({ if: trustedEvent })
+    expect(handleStep).toMatchObject({ if: trustedEvent })
 
     // issue-policy owns PR validation; it is read-only and a real gate.
     const policyPullRequest = workflowEvent(policy, 'pull_request')
     expect(policyPullRequest.types).toContain('ready_for_review')
   })
 
-  it('uses a read-only Project token only for human pull request policy metadata', () => {
+  it('uses a read-only Project token only for trusted human pull request metadata', () => {
     const policy = loadWorkflow('.github/workflows/issue-policy.yml')
     const policyJob = workflowJob(policy, 'policy')
     if (!Array.isArray(policyJob.steps)) throw new TypeError('Issue policy job must define steps')
+    expect(policyJob.env).toEqual({
+      DSH_PROJECT_AUTOMATION:
+        "${{ github.repository == 'deepseek-harness/deepseek-harness' && github.event.pull_request.head.repo.full_name == github.repository }}",
+    })
     const steps = policyJob.steps.filter(isRecord)
+    const reportStep = steps.find(step => step.name === 'Report unavailable Project policy')
     const tokenStep = steps.find(step => step.name === 'Create Project read token')
     const validateStep = steps.find(step => step.name === 'Validate pull request')
-    const humanPullRequest =
-      "${{ github.event.pull_request.user.type != 'Bot' && github.event.pull_request.user.type != 'App' }}"
+    const trustedHumanPullRequest =
+      "${{ env.DSH_PROJECT_AUTOMATION == 'true' && github.event.pull_request.user.type != 'Bot' && github.event.pull_request.user.type != 'App' }}"
+    const unavailableHumanPullRequest =
+      "${{ env.DSH_PROJECT_AUTOMATION != 'true' && github.event.pull_request.user.type != 'Bot' && github.event.pull_request.user.type != 'App' }}"
 
+    expect(reportStep).toMatchObject({
+      if: unavailableHumanPullRequest,
+      run: 'echo "::notice::Issue Project policy runs only for trusted events in deepseek-harness/deepseek-harness."',
+    })
     expect(tokenStep).toMatchObject({
       id: 'app-token',
-      if: humanPullRequest,
+      if: trustedHumanPullRequest,
       uses: 'actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1',
       with: {
         'client-id': '${{ vars.DSH_ISSUE_APP_CLIENT_ID }}',
@@ -874,7 +897,7 @@ describe('Issue lifecycle workflow', () => {
       },
     })
     expect(validateStep).toMatchObject({
-      if: humanPullRequest,
+      if: trustedHumanPullRequest,
       env: {
         GITHUB_TOKEN: '${{ github.token }}',
         PROJECT_TOKEN: '${{ steps.app-token.outputs.token }}',
