@@ -1,18 +1,18 @@
 # Agent Note: Required cancellation through tool-reachable capability seams
 
-Status: proposed
+Status: implemented
 
 English | [中文](2026-07-19-required-cancellation-through-tool-capability-seams.zh.md)
 
 ## Problem
 
-The implemented [tool registry cancellation contract](../../implemented/architecture/2026-07-19-cooperative-tool-cancellation.md) makes `exec.signal` required in every tool body, but many asynchronous capability interfaces reached from those bodies still accept an optional signal. A tool can therefore satisfy its own type while accidentally dropping cancellation at the next same-process call.
+The implemented [tool registry cancellation contract](2026-07-19-cooperative-tool-cancellation.md) makes `exec.signal` required in every tool body, but many asynchronous capability interfaces reached from those bodies still accept an optional signal. A tool can therefore satisfy its own type while accidentally dropping cancellation at the next same-process call.
 
 That gap is transitive. A filesystem tool may call path resolution and I/O, a web tool may call a provider, a bash tool may call an executor, and a composite tool may start or wait for tasks, subagents, or workflows. If any awaited operation controlling tool-owned work accepts omission, TypeScript cannot prove that cancellation remains available at the boundary that owns the side effect.
 
 Requiring signals on every asynchronous function in the repository would overreach. Some operations are not reachable from tools, some synchronous queries cannot wait or own ongoing work, and explicitly detached work has a new owner after a deliberate handoff.
 
-## Proposal
+## Decision
 
 Require an `AbortSignal` on every asynchronous same-process capability operation that is reachable from a tool body while the tool still owns or awaits the operation. The requirement may be a positional parameter or a required readonly request field according to the owning seam's existing shape, but omission must fail TypeScript compilation.
 
@@ -22,9 +22,9 @@ The migration begins with an inventory from every first-party `ToolDefinition.ex
 
 ### Scope boundary
 
-The proposal includes asynchronous capability operations whose completion or cancellation remains part of the invoking tool's lifetime, including start operations before ownership transfer, foreground execution, reads and writes, provider requests, waits, and cleanup or disposal that the tool awaits.
+The decision includes asynchronous capability operations whose completion or cancellation remains part of the invoking tool's lifetime, including start operations before ownership transfer, foreground execution, reads and writes, provider requests, waits, and cleanup or disposal that the tool awaits.
 
-The proposal excludes synchronous registry lookup, availability checks, schema rendering, argument classification, and other operations that cannot retain asynchronous work. It also excludes work after an explicit detached-ownership handoff: once a task, workflow, worker, or child agent has been successfully published to a new lifecycle owner, that owner's controller governs the detached lifetime. The initiating start operation still requires the caller signal until the handoff commits, and any later tool call that waits for detached work requires its own invocation signal.
+The decision excludes synchronous registry lookup, availability checks, schema rendering, argument classification, and other operations that cannot retain asynchronous work. It also excludes work after an explicit detached-ownership handoff: once a task, workflow, worker, or child agent has been successfully published to a new lifecycle owner, that owner's controller governs the detached lifetime. The initiating start operation still requires the caller signal until the handoff commits, and any later tool call that waits for detached work requires its own invocation signal.
 
 Optional cancellation may remain on parser, config, model/tool JSON, durable/file format, worker, process, or wire inputs when the external protocol makes it optional. The owning boundary must resolve that input into a required same-process signal before calling a migrated capability seam.
 
@@ -42,7 +42,7 @@ Optional cancellation may remain on parser, config, model/tool JSON, durable/fil
 
 **Migrate every capability in the implemented tool-registry change.** Rejected because the transitive interface changes span independent capability families. Keeping this proposal separate preserves the implemented registry decision and lets each deep seam migrate with focused tests.
 
-## Acceptance criteria
+## Verification
 
 - An inventory maps every first-party tool body to the asynchronous capability operations it can reach before ownership handoff.
 - Every in-scope capability interface requires `AbortSignal`, and compile-time contract tests prove omission fails.
@@ -52,7 +52,7 @@ Optional cancellation may remain on parser, config, model/tool JSON, durable/fil
 - Runtime validation is added only at an actual untyped boundary, not to repeat a required TypeScript field or parameter.
 - The top-level typecheck, coverage, snapshot, documentation, module-graph, build, hygiene, demo, and built-artifact gates pass after each coherent migration.
 
-## Risks
+## Consequences
 
 **Large transitive blast radius.** A required parameter can expose many direct callers at once. Migrate by coherent capability family and use typecheck failures as the complete caller inventory.
 
