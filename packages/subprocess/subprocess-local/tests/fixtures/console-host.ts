@@ -26,6 +26,7 @@ const request: SubprocessSpawnSpec = {
   cwd: process.cwd(),
   stdio: { stdin: 'ignore', stdout: { maxBytes: 4096 }, stderr: { maxBytes: 4096 } },
   graceMs: 100,
+  signal: new AbortController().signal,
 }
 const handle = bindManagedProcess(request, launchWindowsJob(request, targetEnvironment(request)))
 try {
@@ -35,5 +36,5 @@ try {
   process.exitCode = result.exitCode ?? 1
 } finally {
   handle.terminate()
-  await handle.waitForExit()
+  await handle.waitForExit(new AbortController().signal)
 }

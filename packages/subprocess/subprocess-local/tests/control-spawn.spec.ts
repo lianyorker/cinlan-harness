@@ -23,10 +23,11 @@ describe('control pipe launch plumbing', () => {
     const handle = spawnSubprocess({
       argv: ['mocked-node'], cwd: process.cwd(), graceMs: 100,
       stdio: { stdin: 'ignore', stdout: 'inherit', stderr: 'inherit', control: 'pipe' },
+      signal: new AbortController().signal,
     }, { platform: 'win32', spawn: spawn as never })
     expect(spawn).toHaveBeenCalledExactlyOnceWith('mocked-node', [], expect.objectContaining({
       windowsHide: true, detached: false,
-      env: expect.objectContaining({ [SUBPROCESS_CONTROL_ENV]: 'pipe' }),
+      env: expect.objectContaining({ [SUBPROCESS_CONTROL_ENV]: 'pipe' }) as unknown as NodeJS.ProcessEnv,
       stdio: ['ignore', 'inherit', 'inherit', 'ignore', 'ignore', 'ignore', 'ignore', 'overlapped'],
     }))
     expect(handle.control).toBe(control)
@@ -34,7 +35,7 @@ describe('control pipe launch plumbing', () => {
     expect(handle.stderr).toBeUndefined()
     child.emit('exit', 0, null)
     await expect(handle.done).resolves.toEqual({ exitCode: 0, signal: null })
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     expect(control.destroyed).toBe(false)
   })
 

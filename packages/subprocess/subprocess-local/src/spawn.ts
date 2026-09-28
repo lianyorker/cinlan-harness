@@ -165,7 +165,7 @@ export function validateSubprocessSpec(spec: SubprocessSpawnSpec): void {
   if (!Number.isFinite(spec.graceMs) || spec.graceMs <= 0 || spec.graceMs > MAX_TIMER_DELAY_MS) {
     throw new Error(`subprocess graceMs must be a positive finite number no greater than ${MAX_TIMER_DELAY_MS}`)
   }
-  if (spec.signal?.aborted) {
+  if (spec.signal.aborted) {
     let reason = 'aborted'
     try {
       reason = String(spec.signal.reason ?? reason)
@@ -340,7 +340,7 @@ export function bindManagedProcess(
       rangeExitObserved = true
       if (graceTimer !== undefined) clearTimeout(graceTimer)
       graceTimer = undefined
-      spec.signal?.removeEventListener('abort', onAbort)
+      spec.signal.removeEventListener('abort', onAbort)
       scheduleOwnerCleanup()
     })().catch((error: unknown) => {
       if (!settled || !scheduleOwnerCleanup()) rangeExitObservation = undefined
@@ -376,8 +376,8 @@ export function bindManagedProcess(
   }
 
   // The caller owns timeout classification; this layer only reacts to abort.
-  const onAbort = (): void => { terminateWithReason(spec.signal?.reason) }
-  spec.signal?.addEventListener('abort', onAbort, { once: true })
+  const onAbort = (): void => { terminateWithReason(spec.signal.reason) }
+  spec.signal.addEventListener('abort', onAbort, { once: true })
 
   // Batch stdin is written and closed up front; process exit and captured
   // output remain authoritative, so write errors (EPIPE) are best-effort.
@@ -421,7 +421,7 @@ export function bindManagedProcess(
     }
   })
 
-  const waitForExit = async (signal?: AbortSignal): Promise<boolean> => {
+  const waitForExit = async (signal: AbortSignal): Promise<boolean> => {
     if (rangeExitObserved) return true
     return waitWithAbort(observeRangeExit(), signal)
   }

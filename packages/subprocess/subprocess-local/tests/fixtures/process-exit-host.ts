@@ -41,6 +41,7 @@ if (kind === 'ordinary') {
       stderr: { maxBytes: 1024 },
     },
     graceMs: trigger === 'dispose' ? 100 : 30_000,
+    signal: new AbortController().signal,
   })
 } else {
   await ctx.subprocess.spawnTerminal({

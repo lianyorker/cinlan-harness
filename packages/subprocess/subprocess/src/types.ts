@@ -95,7 +95,7 @@ export interface SubprocessSpawnSpec {
    * it fires. The caller owns deadlines and cause classification; this seam
    * only reacts to the abort.
    */
-  signal?: AbortSignal | undefined
+  signal: AbortSignal
   /**
    * Explicit environment entries merged onto the implementation's scrubbed
    * parent base (see `scrubbedParentEnv`), with no namespace validation. A
@@ -192,7 +192,7 @@ export interface SubprocessHandle {
    * @returns `true` when the managed range is empty, `false` when the signal aborted first.
    * @throws when the selected provider can no longer observe its managed range.
    */
-  waitForExit(signal?: AbortSignal): Promise<boolean>
+  waitForExit(signal: AbortSignal): Promise<boolean>
 }
 
 /**
@@ -229,7 +229,7 @@ export interface SubprocessTerminalSpawnSpec {
   /** TERM-to-KILL cleanup grace for the complete terminal session. */
   graceMs: number
   /** Cancellation of terminal allocation; a published handle owns its later lifetime. */
-  signal?: AbortSignal | undefined
+  signal: AbortSignal
 }
 
 /** Current foreground process-group facts for one terminal. */

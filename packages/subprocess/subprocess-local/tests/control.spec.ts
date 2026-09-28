@@ -19,7 +19,7 @@ let handle: SubprocessHandle | undefined
 afterEach(async () => {
   handle?.control?.destroy()
   handle?.terminate()
-  await handle?.waitForExit()
+  await handle?.waitForExit(new AbortController().signal)
   await ctx?.fiber.dispose()
   if (root !== undefined) await rm(root, { recursive: true, force: true })
   ctx = undefined
@@ -37,6 +37,7 @@ describe('managed subprocess control pipe', () => {
       cwd: process.cwd(),
       stdio: { stdin: 'ignore', stdout: { maxBytes: 32 }, stderr: { maxBytes: 32 }, control: 'pipe' },
       graceMs: 1000,
+      signal: new AbortController().signal,
     })
     const channel = handle.control
     if (channel === undefined) throw new Error('requested control pipe is absent')
@@ -58,13 +59,14 @@ describe('managed subprocess control pipe', () => {
       cwd: process.cwd(),
       stdio: { stdin: 'ignore', stdout: { maxBytes: 32 }, stderr: { maxBytes: 32 }, control: 'pipe' },
       graceMs: 1000,
+      signal: new AbortController().signal,
     })
     const channel = handle.control
     if (channel === undefined) throw new Error('requested control pipe is absent')
     await once(channel, 'data')
     await ctx.fiber.dispose()
     expect(channel.destroyed).toBe(true)
-    expect(await handle.waitForExit()).toBe(true)
+    expect(await handle.waitForExit(new AbortController().signal)).toBe(true)
   })
 
   it('leaves the channel absent on an ordinary spawn', async () => {
@@ -75,11 +77,12 @@ describe('managed subprocess control pipe', () => {
       cwd: process.cwd(),
       stdio: { stdin: 'ignore', stdout: { maxBytes: 32 }, stderr: { maxBytes: 32 } },
       graceMs: 1000,
+      signal: new AbortController().signal,
     })
     expect(handle.control).toBeUndefined()
     expect(await handle.done).toEqual({ exitCode: 0, signal: null })
     expect(handle.collected.stdout?.readFrom(0).text).toBe('plain')
-    expect(await handle.waitForExit()).toBe(true)
+    expect(await handle.waitForExit(new AbortController().signal)).toBe(true)
   })
 
   it.each(['managed', 'fallback'] as const)('returns exact binary control bytes through %s independently of stdio', async (backend) => {
@@ -93,6 +96,7 @@ describe('managed subprocess control pipe', () => {
       cwd: root,
       stdio: { stdin: 'ignore', stdout: { maxBytes: 1024 }, stderr: { maxBytes: 1024 }, control: 'pipe' },
       graceMs: 1000,
+      signal: new AbortController().signal,
     }
     handle = backend === 'managed' ? ctx.subprocess.spawn(request) : spawnSubprocess(request)
     const channel = handle.control
@@ -107,7 +111,7 @@ describe('managed subprocess control pipe', () => {
     expect(await handle.done).toEqual({ exitCode: 0, signal: null })
     expect(handle.collected.stdout?.readFrom(0).text).toBe('ordinary stdout\n')
     expect(handle.collected.stderr?.readFrom(0).text).toBe('ordinary stderr\n')
-    expect(await handle.waitForExit()).toBe(true)
+    expect(await handle.waitForExit(new AbortController().signal)).toBe(true)
   })
 
   it('rejects a caller-authored control marker before starting a child', async () => {
@@ -119,6 +123,7 @@ describe('managed subprocess control pipe', () => {
       env: { [SUBPROCESS_CONTROL_ENV]: 'pipe' },
       stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' },
       graceMs: 1000,
+      signal: new AbortController().signal,
     })).toThrow('reserved')
   })
 })

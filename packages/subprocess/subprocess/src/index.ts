@@ -132,8 +132,8 @@ export abstract class SubprocessRuntime extends Service {
    */
   abstract resolveExecutable(
     command: string,
-    env?: Readonly<Record<string, string>>,
-    signal?: AbortSignal,
+    env: Readonly<Record<string, string>> | undefined,
+    signal: AbortSignal,
   ): Promise<string>
 
   /**
@@ -141,7 +141,7 @@ export abstract class SubprocessRuntime extends Service {
    * @param signal - cancellation of remote environment inspection.
    * @returns platform and preferred shell; executable lookup and allocation remain separate operations.
    */
-  abstract terminalEnvironment(signal?: AbortSignal): Promise<SubprocessTerminalEnvironment>
+  abstract terminalEnvironment(signal: AbortSignal): Promise<SubprocessTerminalEnvironment>
 
   /**
    * Start one managed child process from a fully-specified spec; this seam

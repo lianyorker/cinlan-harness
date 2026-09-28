@@ -115,7 +115,7 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
       // unreadable owner cannot hide behind a result that never settles.
       pending.push(Promise.all([
         handle.done.catch(() => {}),
-        handle.waitForExit(),
+        handle.waitForExit(new AbortController().signal),
       ]).then(() => { this.live.delete(handle) }))
     }
     for (const terminal of this.terminals) {
@@ -138,11 +138,11 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
 
   async resolveExecutable(
     command: string,
-    env?: Readonly<Record<string, string>>,
-    signal?: AbortSignal,
+    env: Readonly<Record<string, string>> | undefined,
+    signal: AbortSignal,
   ): Promise<string> {
     if (command.length === 0) throw new Error('subprocess-local: executable must be non-empty')
-    signal?.throwIfAborted()
+    signal.throwIfAborted()
     const environment = childEnv(env)
     const absolute = isAbsolute(command)
     if (!absolute && (command.includes('/') || (process.platform === 'win32' && command.includes('\\')))) {
@@ -152,18 +152,18 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     }
     const candidates = absolute ? [command] : this.executableCandidates(command, environment)
     for (const candidate of candidates) {
-      signal?.throwIfAborted()
+      signal.throwIfAborted()
       try {
         const info = await stat(candidate)
         if (!info.isFile()) continue
         await access(candidate, constants.X_OK)
-        signal?.throwIfAborted()
+        signal.throwIfAborted()
         return candidate
       } catch {
         // Try the next PATH candidate; the final miss receives one stable error.
       }
     }
-    signal?.throwIfAborted()
+    signal.throwIfAborted()
     throw new SubprocessExecutableNotFoundError(absolute
       ? `subprocess-local: command ${JSON.stringify(command)} is not an executable file`
       : `subprocess-local: command ${JSON.stringify(command)} was not found on PATH`)
@@ -204,7 +204,7 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     // owned so teardown can still escalate it. For the common no-survivor
     // case waitForExit resolves immediately after settlement.
     const release = (): Promise<void> =>
-      handle.waitForExit().then(() => { this.live.delete(handle) })
+      handle.waitForExit(new AbortController().signal).then(() => { this.live.delete(handle) })
     void handle.done.then(release, release).catch(() => {})
     return handle
   }
@@ -251,8 +251,8 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
 
   /** @inheritdoc */
   // oxlint-disable-next-line typescript/require-await -- Keep the provider promise rejection semantics for cancelled inspection.
-  async terminalEnvironment(signal?: AbortSignal): Promise<SubprocessTerminalEnvironment> {
-    signal?.throwIfAborted()
+  async terminalEnvironment(signal: AbortSignal): Promise<SubprocessTerminalEnvironment> {
+    signal.throwIfAborted()
     const platform = process.platform === 'win32' ? 'windows' : 'posix'
     const defaultShell = platform === 'windows' ? process.env.ComSpec || undefined : process.env.SHELL || userInfo().shell || undefined
     return { platform, ...defaultShell === undefined ? {} : { defaultShell } }
@@ -265,7 +265,7 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     if (file === undefined || file.length === 0) {
       throw new Error('subprocess-local: terminal argv must contain a program')
     }
-    spec.signal?.throwIfAborted()
+    spec.signal.throwIfAborted()
     const inspector = this.terminalInspector ?? createProcessInspector()
     const containmentMode = this.selectContainmentMode('terminal')
     const env = targetEnvironment(spec)

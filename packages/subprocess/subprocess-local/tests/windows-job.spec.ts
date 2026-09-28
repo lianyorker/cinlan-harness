@@ -61,6 +61,7 @@ const spec = {
   env: { TARGET: 'yes' },
   stdio: { stdin: 'pipe', stdout: 'pipe', stderr: 'inherit' },
   graceMs: 100,
+  signal: new AbortController().signal,
 } as const
 
 function launch(
@@ -249,7 +250,7 @@ describe('Windows parent runner contract', () => {
     child.targetStdout.end()
     child.targetStderr.end()
     await expect(handle.done).resolves.toEqual({ exitCode: 7, signal: null })
-    await expect(handle.waitForExit()).rejects.toThrow('exit code 127')
+    await expect(handle.waitForExit(new AbortController().signal)).rejects.toThrow('exit code 127')
   })
 
   it('maps errors and restores raw start-cancellation reasons from the parent latch', async () => {
@@ -443,7 +444,7 @@ describe('Windows parent runner contract', () => {
     expect(child.killed).toEqual([])
     child.connected = false
     child.exit( 0, null)
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('accepts clean range settlement when a target result races redundant termination delivery', async () => {
@@ -467,7 +468,7 @@ describe('Windows parent runner contract', () => {
     child.connected = false
     child.exit( 0, null)
     await expect(handle.done).resolves.toEqual({ exitCode: 7, signal: null })
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('uses synchronous runner termination for host exit and isolates repeated control', () => {

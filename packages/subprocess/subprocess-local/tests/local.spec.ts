@@ -51,6 +51,7 @@ function spec(command: string, overrides: Partial<SubprocessSpawnSpec> = {}): Su
       stderr: { maxBytes: 64_000, spill: { maxBytes: 64 * 1024 * 1024 } },
     },
     graceMs: 200,
+    signal: new AbortController().signal,
     ...overrides,
   }
 }
@@ -60,9 +61,9 @@ describe('LocalSubprocessRuntime', () => {
     const ctx = new Context()
     const fiber = await ctx.plugin(LocalSubprocessRuntime)
     try {
-      await expect(ctx.subprocess.resolveExecutable('dsh-missing-executable-016', { PATH: '' }))
+      await expect(ctx.subprocess.resolveExecutable('dsh-missing-executable-016', { PATH: '' }, new AbortController().signal))
         .rejects.toBeInstanceOf(SubprocessExecutableNotFoundError)
-      await expect(ctx.subprocess.resolveExecutable('./relative-tool'))
+      await expect(ctx.subprocess.resolveExecutable('./relative-tool', undefined, new AbortController().signal))
         .rejects.not.toBeInstanceOf(SubprocessExecutableNotFoundError)
     } finally {
       await fiber.dispose()
@@ -83,29 +84,29 @@ describe('LocalSubprocessRuntime', () => {
       const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
       restorePlatform = () => { platform.mockRestore() }
       vi.stubEnv('SHELL', '/environment/shell')
-      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({
+      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({
         platform: 'posix', defaultShell: '/environment/shell',
       })
       expect(userInfo).not.toHaveBeenCalled()
       vi.stubEnv('SHELL', undefined)
-      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({
+      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({
         platform: 'posix', defaultShell: '/account/shell',
       })
       vi.stubEnv('SHELL', '')
-      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({ platform: 'posix', defaultShell: '/account/shell' })
+      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({ platform: 'posix', defaultShell: '/account/shell' })
       loginShell = ''
-      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({ platform: 'posix' })
+      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({ platform: 'posix' })
       loginShell = null
-      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({ platform: 'posix' })
+      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({ platform: 'posix' })
       platform.mockReturnValue('win32')
       vi.stubEnv('ComSpec', 'C:\\Windows\\System32\\cmd.exe')
-      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({
+      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({
         platform: 'windows', defaultShell: 'C:\\Windows\\System32\\cmd.exe',
       })
       vi.stubEnv('ComSpec', undefined)
-      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({ platform: 'windows' })
+      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({ platform: 'windows' })
       vi.stubEnv('ComSpec', '')
-      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({ platform: 'windows' })
+      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({ platform: 'windows' })
       platform.mockReturnValue('linux')
       userInfo.mockClear()
       const reason = new Error('terminal inspection cancelled')
@@ -153,14 +154,14 @@ describe('LocalSubprocessRuntime', () => {
         done: Promise<{ exitCode: number; signal: null }>
         terminate(): void
         terminateForHostExit(): void
-        waitForExit(): Promise<boolean>
+        waitForExit(signal: AbortSignal): Promise<boolean>
       }>
     }).live
     live.add({
       done: Promise.resolve({ exitCode: 0, signal: null }),
       terminate,
       terminateForHostExit,
-      waitForExit: async () => { await exited; return true },
+      waitForExit: async (_signal: AbortSignal) => { await exited; return true },
     })
 
     let disposed = false
@@ -193,14 +194,14 @@ describe('LocalSubprocessRuntime', () => {
         done: Promise<never>
         terminate(): void
         terminateForHostExit(): void
-        waitForExit(): Promise<boolean>
+        waitForExit(signal: AbortSignal): Promise<boolean>
       }>
     }).live
     live.add({
       done: new Promise<never>(() => {}),
       terminate,
       terminateForHostExit,
-      waitForExit: async () => { throw rangeFailure },
+      waitForExit: async (_signal: AbortSignal) => { throw rangeFailure },
     })
 
     await expect(Promise.race([
@@ -250,23 +251,23 @@ describe('LocalSubprocessRuntime', () => {
   it('resolves absolute and PATH executables and honors lookup cancellation', async () => {
     const ctx = new Context()
     const fiber = await ctx.plugin(LocalSubprocessRuntime)
-    expect(await ctx.subprocess.resolveExecutable(process.execPath)).toBe(process.execPath)
+    expect(await ctx.subprocess.resolveExecutable(process.execPath, undefined, new AbortController().signal)).toBe(process.execPath)
     expect(await ctx.subprocess.resolveExecutable(basename(process.execPath), {
       PATH: dirname(process.execPath),
-    })).toBe(process.execPath)
+    }, new AbortController().signal)).toBe(process.execPath)
     expect(await ctx.subprocess.resolveExecutable(basename(process.execPath), {
       PATH: relative(process.cwd(), dirname(process.execPath)) || '.',
-    })).toBe(process.execPath)
-    await expect(ctx.subprocess.resolveExecutable('')).rejects.toThrow('must be non-empty')
-    await expect(ctx.subprocess.resolveExecutable('./bin/tsserver'))
+    }, new AbortController().signal)).toBe(process.execPath)
+    await expect(ctx.subprocess.resolveExecutable('', undefined, new AbortController().signal)).rejects.toThrow('must be non-empty')
+    await expect(ctx.subprocess.resolveExecutable('./bin/tsserver', undefined, new AbortController().signal))
       .rejects.toThrow('is a relative path')
-    await expect(ctx.subprocess.resolveExecutable('node_modules/.bin/server'))
+    await expect(ctx.subprocess.resolveExecutable('node_modules/.bin/server', undefined, new AbortController().signal))
       .rejects.toThrow('is a relative path')
-    await expect(ctx.subprocess.resolveExecutable('dsh-command-that-does-not-exist', { PATH: '' }))
+    await expect(ctx.subprocess.resolveExecutable('dsh-command-that-does-not-exist', { PATH: '' }, new AbortController().signal))
       .rejects.toThrow('was not found on PATH')
-    await expect(ctx.subprocess.resolveExecutable('/dsh-absolute-command-that-does-not-exist'))
+    await expect(ctx.subprocess.resolveExecutable('/dsh-absolute-command-that-does-not-exist', undefined, new AbortController().signal))
       .rejects.toThrow('is not an executable file')
-    await expect(ctx.subprocess.resolveExecutable(process.cwd()))
+    await expect(ctx.subprocess.resolveExecutable(process.cwd(), undefined, new AbortController().signal))
       .rejects.toThrow('is not an executable file')
     await expect(ctx.subprocess.resolveExecutable(process.execPath, {}, AbortSignal.abort('stop')))
       .rejects.toBe('stop')
@@ -291,7 +292,7 @@ describe('LocalSubprocessRuntime', () => {
         .toEqual([resolve('/explicit', 'tool.EXE')])
       expect(candidates('tool.exe', {})).toEqual([resolve(process.cwd(), 'tool.exe')])
       expect(candidates('tool', { PATH: '/bin' })).toHaveLength(4)
-      await expect(ctx.subprocess.resolveExecutable(String.raw`bin\server.exe`))
+      await expect(ctx.subprocess.resolveExecutable(String.raw`bin\server.exe`, undefined, new AbortController().signal))
         .rejects.toThrow('is a relative path')
     } finally {
       platform.mockRestore()

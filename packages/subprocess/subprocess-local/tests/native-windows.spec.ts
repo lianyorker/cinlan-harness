@@ -23,6 +23,7 @@ function spec(argv: string[], graceMs = 100, env?: NodeJS.ProcessEnv): Subproces
       stderr: { maxBytes: 64_000 },
     },
     graceMs,
+    signal: new AbortController().signal,
     env,
   }
 }
@@ -130,7 +131,7 @@ describe.skipIf(!windowsNative)('Windows Job native containment', () => {
       handle.stdin?.end('immediate-stdin', resolve)
     })
     await expect(handle.done).resolves.toEqual({ exitCode: 0, signal: null })
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     expect(readFileSync(output, 'utf8')).toBe('immediate-stdin')
   })
 
@@ -156,7 +157,7 @@ describe.skipIf(!windowsNative)('Windows Job native containment', () => {
     const request = spec([process.execPath, '-e', script])
     const handle = bindManagedProcess(request, launchWindowsJob(request, targetEnvironment(request)))
     await expect(handle.done).resolves.toEqual({ exitCode: 0, signal: null })
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     expect(handle.collected.stdout?.readFrom(0).text).toBe(direct.stdout)
   })
 
@@ -210,11 +211,11 @@ describe.skipIf(!windowsNative)('Windows Job native containment', () => {
       }))
       await expect(handle.waitForExit(AbortSignal.timeout(30))).resolves.toBe(false)
       handle.terminate()
-      await expect(handle.waitForExit()).resolves.toBe(true)
+      await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
       await waitGone(descendant)
     } finally {
       handle.terminate()
-      await Promise.allSettled([handle.done, handle.waitForExit()])
+      await Promise.allSettled([handle.done, handle.waitForExit(new AbortController().signal)])
       if (descendant !== undefined) cleanup(descendant)
       rmSync(targetCwd, { recursive: true, force: true })
     }

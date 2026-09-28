@@ -16,11 +16,13 @@ import type {
  * is all an implementation owes the abstract class.
  */
 class StubSubprocessRuntime extends SubprocessRuntime {
-  async resolveExecutable(command: string): Promise<string> {
+  async resolveExecutable(command: string, _env: Readonly<Record<string, string>> | undefined, signal: AbortSignal): Promise<string> {
+    signal.throwIfAborted()
     return `/bin/${command}`
   }
 
-  async terminalEnvironment() {
+  async terminalEnvironment(signal: AbortSignal) {
+    signal.throwIfAborted()
     return { platform: 'posix' as const, defaultShell: '/bin/sh' }
   }
 
@@ -37,7 +39,7 @@ class StubSubprocessRuntime extends SubprocessRuntime {
       collected,
       done: Promise.resolve({ exitCode: 0, signal: null }),
       terminate: () => {},
-      waitForExit: () => Promise.resolve(true),
+      waitForExit: (_signal: AbortSignal) => Promise.resolve(true),
     }
   }
 
@@ -65,11 +67,12 @@ describe('SubprocessRuntime seam', () => {
       cwd: '/stub',
       stdio: { stdin: 'ignore', stdout: { maxBytes: 1 }, stderr: 'inherit' },
       graceMs: 1,
+      signal: new AbortController().signal,
     })
     expect(Object.hasOwn(handle, 'pid')).toBe(false)
     expect(handle.collected.stdout!.readFrom(0)).toEqual({ text: '', nextOffset: 0, lossy: false })
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     const outcome = await handle.done
     expect(outcome.exitCode).toBe(0)
   })
