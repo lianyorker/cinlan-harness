@@ -61,7 +61,7 @@ async function provideSlotFaces(ctx: Context): Promise<void> {
     name: 'root',
     children: {
       'conversation.session.header.lineage': { kind: 'single', scope: 'session' },
-      'conversation.composer': { kind: 'chain', scope: 'session' },
+      'conversation.composer': { kind: 'chain', scope: 'session', phases: ['interaction', 'restriction'] as const },
     },
   } as never, () => null)
 }

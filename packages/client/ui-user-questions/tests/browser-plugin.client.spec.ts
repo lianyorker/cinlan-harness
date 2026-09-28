@@ -39,7 +39,7 @@ async function bench(declare = true) {
   const slots = ctx.get('slots') as SlotRegistry
   if (declare) {
     slots.register(
-      { name: 'root', children: { 'conversation.composer': { kind: 'chain', scope: 'session' } } } as never,
+      { name: 'root', children: { 'conversation.composer': { kind: 'chain', scope: 'session', phases: ['interaction', 'restriction'] as const } } } as never,
       () => null,
     )
   }

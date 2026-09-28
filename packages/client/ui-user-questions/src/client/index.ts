@@ -94,6 +94,7 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('conversation.composer', () => ctx.slots.register(
     {
       name: 'conversation.composer',
+      phase: 'interaction',
       select: ({ pendingInteraction }: ComposerChainProps): PendingQuestion | null =>
         pendingInteraction instanceof PendingQuestion ? pendingInteraction : null,
       locale: NS,

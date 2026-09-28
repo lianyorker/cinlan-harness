@@ -112,6 +112,12 @@ export interface SlotEntryDef {
   scope: SlotScope
   owner?: object
   /**
+   * Ordered tuple of domain-owned phases for a chain slot. When declared,
+   * every registration on this chain must name one of these phases, and entries
+   * sort by declared phase index, then priority, then registration sequence.
+   */
+  phases?: readonly string[]
+  /**
    * Optional keyed-entry prop table. A keyed registration contributes one
    * literal key and receives the corresponding prop share; ordinary owner
    * props remain common to every key.
@@ -140,11 +146,16 @@ export interface SlotEntryDef {
 export type SlotSpec<E extends SlotEntryDef> = {
   kind: E['kind']
   scope: E['scope']
-} & ('inject' extends keyof E
-  ? E extends { inject: infer Injected extends object }
-    ? { inject: Injected }
-    : { inject?: object }
-  : { inject?: never })
+} & ('phases' extends keyof E
+  ? E['phases'] extends readonly string[]
+    ? { phases: E['phases'] }
+    : { phases?: readonly string[] }
+  : { phases?: never })
+  & ('inject' extends keyof E
+    ? E extends { inject: infer Injected extends object }
+      ? { inject: Injected }
+      : { inject?: object }
+    : { inject?: never })
 
 /**
  * Child-slot declaration table for register(): keys are the declared (and
@@ -538,7 +549,17 @@ export type KindOptions<
         select: ChainSelect<SlotMap[K] extends { owner: infer O extends object } ? O : object, M>
         /** Explicit chain position (ascending, default 0, lower tries first); ties keep registration = assembly order. */
         priority?: number
-      }
+      } & (SlotMap[K] extends { phases: infer Phases extends readonly string[] }
+        ? {
+          /**
+           * Declared semantic phase. Required on phased chain slots; orders entries
+           * by declared phase index first, with priority ordering only within the phase.
+           */
+          phase: Phases[number]
+        }
+        : {
+          phase?: never
+        })
         : {
           /**
            * Cell shadowing rank (ascending, default 0, lowest renders; a
@@ -597,7 +618,7 @@ type BaseOptions<
  */
 export interface StoredEntry {
   component: unknown
-  options: { key?: string; id?: string; order?: number; label?: SlotLabel; priority?: number; reusable?: true }
+  options: { key?: string; id?: string; order?: number; label?: SlotLabel; priority?: number; phase?: string; reusable?: true }
   /** Chain routing selector (type-erased like `inject`; present exactly on chain-slot entries). */
   select?: ((owner: never) => unknown) | undefined
   /** Registrant business face; positional params derive from the declaration (sessionId?, actions?). */
@@ -638,6 +659,7 @@ interface ErasedOptions {
   label?: SlotLabel | undefined
   select?: ((owner: never) => unknown) | undefined
   priority?: number | undefined
+  phase?: string | undefined
   children?: Record<string, SlotSpec<SlotEntryDef>> | undefined
   store?: StoreDecl | undefined
   locale?: string | undefined
@@ -842,6 +864,9 @@ export class SlotCore {
     const priority = options.priority ?? 0
     const occupantHint = (occupant: StoredEntry) =>
       `at priority ${priority}${occupant.registrant !== undefined ? ` (registered by ${occupant.registrant})` : ''} — register at a different priority to shadow it (lowest renders)`
+    if (spec.kind !== 'chain' && options.phase !== undefined) {
+      throw new Error(`${spec.kind} slot "${options.name}" does not accept options.phase`)
+    }
     switch (spec.kind) {
       case 'single': {
         const occupant = rec.entries.find(e => (e.options.priority ?? 0) === priority)
@@ -866,6 +891,20 @@ export class SlotCore {
       }
       case 'chain':
         if (options.select === undefined) throw new Error(`chain slot "${options.name}" requires options.select`)
+        if (spec.phases !== undefined) {
+          if (options.phase === undefined) {
+            throw new Error(
+              `phased chain slot "${options.name}" requires options.phase (declared phases: ${spec.phases.join(', ')})`,
+            )
+          }
+          if (!spec.phases.includes(options.phase)) {
+            throw new Error(
+              `phased chain slot "${options.name}" received unknown phase "${options.phase}" (declared phases: ${spec.phases.join(', ')})`,
+            )
+          }
+        } else if (options.phase !== undefined) {
+          throw new Error(`unphased chain slot "${options.name}" does not accept options.phase`)
+        }
         break
     }
     if (options.children) {
@@ -896,6 +935,7 @@ export class SlotCore {
         ...(options.order !== undefined ? { order: options.order } : {}),
         ...(options.label !== undefined ? { label: options.label } : {}),
         ...(options.priority !== undefined ? { priority: options.priority } : {}),
+        ...(options.phase !== undefined ? { phase: options.phase } : {}),
         ...(options.reusable === true ? { reusable: true } : {}),
       },
       ...(options.select !== undefined ? { select: options.select } : {}),
@@ -906,13 +946,25 @@ export class SlotCore {
       ...(options.registrant !== undefined ? { registrant: options.registrant } : {}),
     }
     const next = [...rec.entries, entry]
-    // Stable sorts: priority ascending for every kind, ties keep registration
-    // sequence — a cell's winner is its first occurrence, chain tries lower
-    // priority first. List refines equal priorities by explicit `order` so the
-    // raw ledger keeps its display sequence for priority-less compositions.
-    next.sort(spec.kind === 'list'
-      ? (a, b) => ((a.options.priority ?? 0) - (b.options.priority ?? 0)) || ((a.options.order ?? 0) - (b.options.order ?? 0))
-      : (a, b) => (a.options.priority ?? 0) - (b.options.priority ?? 0))
+    // Stable sorts:
+    // - list: priority ascending, then explicit order, ties keep registration sequence
+    // - phased chain: declared phase index ascending, then local priority ascending, ties keep registration sequence
+    // - unphased chain / other kinds: priority ascending, ties keep registration sequence
+    if (spec.kind === 'list') {
+      next.sort((a, b) =>
+        ((a.options.priority ?? 0) - (b.options.priority ?? 0)) ||
+        ((a.options.order ?? 0) - (b.options.order ?? 0)),
+      )
+    } else if (spec.kind === 'chain' && spec.phases !== undefined) {
+      const phases = spec.phases
+      next.sort((a, b) => {
+        const phaseA = a.options.phase !== undefined ? phases.indexOf(a.options.phase) : -1
+        const phaseB = b.options.phase !== undefined ? phases.indexOf(b.options.phase) : -1
+        return (phaseA - phaseB) || ((a.options.priority ?? 0) - (b.options.priority ?? 0))
+      })
+    } else {
+      next.sort((a, b) => (a.options.priority ?? 0) - (b.options.priority ?? 0))
+    }
     rec.entries = next
     this.markDirty(options.name, rec)
     if (options.children) {

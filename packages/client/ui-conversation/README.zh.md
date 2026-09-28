@@ -104,7 +104,7 @@ try {
 }
 ```
 
-selector 必须是 owner currency 的纯函数。非 null 返回值作为 `matched` 传给组件；`PropsRuntime<'conversation.composer'>` 提供标准 Session 与 global props。Chain 顺序仍按 `priority` 升序，再按注册顺序；首个返回非 null 的 selector 获选。Shell 会在 takeover 下保持默认 composer 挂载。Request 状态、listener、response encoding 和任何 request-specific child slot 都属于业务 package，不进入 `SessionSnapshot`，也不由 core package 声明。
+selector 必须是 owner currency 的纯函数。非 null 返回值作为 `matched` 传给组件；`PropsRuntime<'conversation.composer'>` 提供标准 Session 与 global props。该 chain 声明了 `['interaction', 'restriction']` 阶段：`interaction` 中的活跃等待（问题、审批）优先于 `restriction` 中的接管（只读子智能体），并在各阶段内按 `priority` 排序。Shell 会在 takeover 下保持默认 composer 挂载。Request 状态、listener、response encoding 和任何 request-specific child slot 都属于业务 package，不进入 `SessionSnapshot`，也不由 core package 声明。
 
 当可选的 [AutoReview bundle](../../experimental/auto-review/README.zh.md) 可用时，编辑器权限选择器在发送 `/permission auto` 之前要求确认实验性风险。此操作仅更改当前会话，并使用已有弹出菜单与确认组件。
 

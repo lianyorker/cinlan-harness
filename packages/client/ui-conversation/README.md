@@ -104,7 +104,7 @@ try {
 }
 ```
 
-The selector must be a pure function of the owner currency. Its non-null return is delivered to the component as `matched`; `PropsRuntime<'conversation.composer'>` supplies the standard Session and global props. Chain order remains ascending `priority`, then registration order, and the first non-null selector wins. The shell keeps the default composer mounted beneath a takeover. Request state, listeners, response encoding, and any request-specific child slots belong to the business package; they are not carried by `SessionSnapshot` or declared by this core package.
+The selector must be a pure function of the owner currency. Its non-null return is delivered to the component as `matched`; `PropsRuntime<'conversation.composer'>` supplies the standard Session and global props. The chain declares `['interaction', 'restriction']` phases: live waits in `interaction` (question, approval) precede takeovers in `restriction` (read-only subagent), with `priority` ordering within each phase. The shell keeps the default composer mounted beneath a takeover. Request state, listeners, response encoding, and any request-specific child slots belong to the business package; they are not carried by `SessionSnapshot` or declared by this core package.
 
 The composer permission picker requires an experimental risk acknowledgement before sending `/permission auto` when the optional [AutoReview bundle](../../experimental/auto-review/README.md) is available. This changes only the current session and uses the existing popup and confirmation components.
 

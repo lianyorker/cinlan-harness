@@ -79,6 +79,7 @@ export function apply(ctx: ClientContext): void {
   )
   ctx.slots.inject('conversation.composer', () => ctx.slots.register({
     name: 'conversation.composer',
+    phase: 'interaction',
     priority: 1,
     select: ({ pendingInteraction }: ComposerChainProps): PendingApproval | null =>
       pendingInteraction instanceof PendingApproval ? pendingInteraction : null,

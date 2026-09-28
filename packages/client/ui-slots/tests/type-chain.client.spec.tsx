@@ -27,6 +27,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     }
     'chain.tools': { kind: 'keyed'; scope: 'session' }
     'chain.takeover': { kind: 'chain'; scope: 'session'; owner: { items: readonly Item[] } }
+    'chain.phased': {
+      kind: 'chain'
+      scope: 'session'
+      owner: { items: readonly Item[] }
+      phases: readonly ['interaction', 'restriction']
+    }
   }
 }
 
@@ -169,6 +175,13 @@ describe('terminal-design type chain', () => {
         select: ({ items }) => items.find(i => i.kind === 'q') ?? null,
       }, WideTakeover)
 
+      // Phased chain registers with required phase
+      core.register({
+        name: 'chain.phased',
+        phase: 'interaction',
+        select: ({ items }) => items.find(i => i.kind === 'q') ?? null,
+      }, WideTakeover)
+
       // renderSlotChain share: chain keys dispatch with the fallback bag;
       // non-chain keys stay on renderSlot.
       const chainSlots: PropsRenderSlots<'chain.takeover' | 'chain.conv'> = null as never
@@ -257,6 +270,29 @@ describe('terminal-design type chain', () => {
       core.register({
         name: 'chain.takeover',
         select: ({ items }: { items: readonly Item[] }) => items.find(i => i.kind === 'q'),
+      }, Takeover)
+
+      // Phased chain requires phase
+      // @ts-expect-error phased chain requires phase
+      core.register({
+        name: 'chain.phased',
+        select: ({ items }: { items: readonly Item[] }) => items.find(i => i.kind === 'q') ?? null,
+      }, Takeover)
+
+      // Phased chain rejects undeclared phase
+      core.register({
+        name: 'chain.phased',
+        // @ts-expect-error unknown phase on phased chain
+        phase: 'unknown',
+        select: ({ items }: { items: readonly Item[] }) => items.find(i => i.kind === 'q') ?? null,
+      }, Takeover)
+
+      // Unphased chain rejects phase
+      core.register({
+        name: 'chain.takeover',
+        // @ts-expect-error unphased chain rejects phase
+        phase: 'interaction',
+        select: ({ items }: { items: readonly Item[] }) => items.find(i => i.kind === 'q') ?? null,
       }, Takeover)
 
       // Chain keys are not renderSlot-dispatchable (and vice versa).
