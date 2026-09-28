@@ -13,8 +13,12 @@ import type { SecuritySkillOperationId } from '@deepseek-ai/dsh-security-skills/
 import { SecurityResourcesSection, type SecurityResourcesInjected } from '../src/client/SecurityResourcesSection.tsx'
 import { Config } from '../src/config.ts'
 import { apply, inject } from '../src/client/index.ts'
+import { inject as browserInject } from '../src/client/browser-registration.ts'
+import { inject as computerInject } from '../src/client/computer-registration.ts'
+import { inject as mobileInject } from '../src/client/mobile-registration.ts'
+import { inject as securityInject } from '../src/client/security-registration.ts'
 import { apply as hostApply } from '../src/index.ts'
-import { CAPABILITIES, CapabilitySection, type CapabilitySectionInjected } from '../src/client/CapabilitySection.tsx'
+import { CAPABILITIES, CapabilitySection, type CapabilitySectionInjected, type ComputerSectionInjected, type BrowserSectionInjected, type MobileSectionInjected } from '../src/client/CapabilitySection.tsx'
 import { en, zh } from '../src/client/locales.ts'
 
 function entry(moduleName: string, active: boolean) {
@@ -80,8 +84,14 @@ function declare(slots: SlotRegistry): () => void {
 }
 
 describe('ui-settings-security registration', () => {
-  it('declares the plugin inventory Remote it reads', () => {
-    expect(inject).toEqual(['settingsMetadata', 'slots', 'locale', 'remote', 'remote.pluginInventory', 'remote.deviceCapabilities', 'remote.securityResearch', 'remote.browser', 'remote.settings', 'settingsScope'])
+  it('keeps the assembly fiber independent from feature-owned Remote dependencies', () => {
+    expect(inject).toEqual(['locale'])
+    expect(browserInject).toEqual(expect.arrayContaining(['remote.browser', 'remote.settings', 'settingsScope']))
+    expect(mobileInject).toEqual(expect.arrayContaining(['remote.deviceCapabilities', 'remote.settings', 'settingsScope']))
+    expect(computerInject).toEqual(expect.arrayContaining(['remote.deviceCapabilities']))
+    expect(securityInject).toEqual(expect.arrayContaining(['remote.securityResearch']))
+    expect(browserInject).not.toContain('remote.securityResearch')
+    expect(securityInject).not.toContain('remote.browser')
   })
 
   it('registers one localized section and icon per product capability, without eager reads', async () => {
@@ -203,7 +213,7 @@ describe('ui-settings-security registration', () => {
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply, Config }).await()
     const entry = b.slots.entries('settings.section').find(entry => entry.options.id === 'cinlan-computer')!
-    const injected = (entry.inject as unknown as () => CapabilitySectionInjected)()
+    const injected = (entry.inject as unknown as () => ComputerSectionInjected)()
     const signal = new AbortController().signal
     await expect(injected.checkDevice('computer', signal)).resolves.toMatchObject({ status: 'not-configured' })
     expect(b.deviceCapabilities.check).toHaveBeenCalledWith({ capability: 'computer' }, signal)
@@ -279,7 +289,7 @@ describe('ui-settings-security registration', () => {
     await b.ctx.plugin({ inject: [...inject], apply, Config }).await()
     Object.assign(b.settingsState, { status: 'ready', writable: true })
     const mobile = b.slots.entries('settings.section').find(section => section.options.id === 'cinlan-mobile')!
-    const injected = (mobile.inject as unknown as () => CapabilitySectionInjected)()
+    const injected = (mobile.inject as unknown as () => MobileSectionInjected)()
     expect(b.bindSettings).toHaveBeenCalledWith({ namespace: 'mobile-device' })
     const value = { enabled: true, androidSdkPath: 'D:/sdk', defaultDeviceId: 'saved-device' }
     await injected.saveMobileSettings(value, 21)
@@ -296,24 +306,27 @@ describe('ui-settings-security registration', () => {
     expect(b.settings.mutate).toHaveBeenLastCalledWith('mobile-device', [
       { op: 'unset', path: ['enabled'] }, { op: 'unset', path: ['androidSdkPath'] }, { op: 'unset', path: ['defaultDeviceId'] },
     ], 23)
-    await injected.resetBrowserPreferences(24)
+    const browser = b.slots.entries('settings.section').find(section => section.options.id === 'cinlan-browser')!
+    const browserInjected = (browser.inject as unknown as () => BrowserSectionInjected)()
+    expect(injected).not.toHaveProperty('resetBrowserPreferences')
+    await browserInjected.resetBrowserPreferences(24)
     expect(b.settings.mutate).toHaveBeenLastCalledWith('browser-playwright', expect.arrayContaining([
       { op: 'unset', path: ['homePage'] }, { op: 'unset', path: ['profileName'] },
     ]), 24)
     expect(b.bindSettings).toHaveBeenCalledWith({ namespace: 'dsh-better-sidebar' })
-    const routingMutation = vi.spyOn(injected.hooks.browserRouting, 'mutate')
-    await injected.saveBrowserRouting({ browserInterceptHttps: true }, 26)
+    const routingMutation = vi.spyOn(browserInjected.hooks.browserRouting, 'mutate')
+    await browserInjected.saveBrowserRouting({ browserInterceptHttps: true }, 26)
     expect(routingMutation).toHaveBeenLastCalledWith([{ op: 'set', path: ['browserInterceptHttps'], value: true }], 26)
     routingMutation.mockResolvedValueOnce(false)
-    await expect(injected.resetBrowserRouting(27)).rejects.toThrow(zh.browserSettingsFailed)
-    await injected.resetBrowserRouting(28)
+    await expect(browserInjected.resetBrowserRouting(27)).rejects.toThrow(zh.browserSettingsFailed)
+    await browserInjected.resetBrowserRouting(28)
     expect(routingMutation).toHaveBeenLastCalledWith([
       { op: 'unset', path: ['browserInterceptLinks'] },
       { op: 'unset', path: ['browserInterceptHttp'] },
       { op: 'unset', path: ['browserInterceptHttps'] },
     ], 28)
     routingMutation.mockResolvedValueOnce(false)
-    await expect(injected.saveBrowserRouting({ browserInterceptHttp: false }, 29)).rejects.toThrow(zh.browserSettingsFailed)
+    await expect(browserInjected.saveBrowserRouting({ browserInterceptHttp: false }, 29)).rejects.toThrow(zh.browserSettingsFailed)
     const accepted = b.acceptView.mock.calls.length
     b.settingsState.writable = false
     await expect(injected.saveMobileSettings(value, 25)).rejects.toThrow(zh.preferencesReadOnly)

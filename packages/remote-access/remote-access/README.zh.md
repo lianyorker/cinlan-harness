@@ -13,11 +13,13 @@ kind: "package-reference"
 
 ## 配置与权限
 
-监听器默认关闭。本地启用前应设置 host、port、advertisedOrigin、tlsCertificatePath 和 tlsPrivateKeyPath。缺少 TLS 路径或 Host 能力时，状态为 not-configured，且不打开端口。配置证书的日期、主机名、密钥或地址无效会使启用失败。公开 origin 必须使用 HTTPS；转发请求头不会改变它。配置还限制邀请有效期和尝试次数、凭据有效期、请求字节数与超时、连接数、逻辑流数，以及排队事件的帧数与字节数。mux 会在超过逻辑流上限的 opening 分配状态前关闭配对物理载体。
+监听器默认关闭。本地启用前应设置 host、port、advertisedOrigin、tlsCertificatePath 和 tlsPrivateKeyPath。缺少 TLS 路径或 Host 能力时，状态为 not-configured，且不打开端口。配置证书的日期、主机名、密钥或地址无效会使启用失败。公开 origin 必须使用 HTTPS；转发请求头不会改变它。配置还限制邀请有效期和尝试次数、凭据有效期、入站请求字节数、每个完整出站一元响应和 WebSocket 帧的字节数、请求超时、连接数、逻辑流数，以及排队事件的帧数与字节数。mux 会在超过逻辑流或出站帧上限时，在分配或发送前关闭配对物理载体。
 
 本地 Gateway 调用创建邀请，明确指定 Session 引用和读取、发送、停止、问题回答及审批权限。兑换只消费一次配对码，并仅持久化随机设备凭据的摘要。凭据通过带 Secure、HttpOnly、SameSite=Strict 属性的主机 cookie 传送。到期和持久化撤销会终止活动请求与流。设备元数据不包含凭据值或摘要。
 
-委托策略在解析提供者前授权端点参数，裁剪 Session 汇总，在投递前过滤通知和待处理交互，并将事件回答绑定到已认证设备。原始 Fetch 资源及无关 Host 方法均被拒绝。原有审批和问题所有者保留策略、竞态结算和 Session 审计责任。
+公开的 HTTPS `/pair` 页面只从 URL 片段读取邀请 ID 和一次性配对码，预填表单后立即通过 `history.replaceState` 移除片段，再执行兑换。因此请求 URL 和引用来源不包含邀请秘密。二维码载荷省略授权范围和 Session ID；已认证兑换及其生成的 cookie 保持不变。
+
+委托策略在解析提供者前授权端点参数，仅允许安全的 Session 元数据且不传输 Host 的原始工作目录，在投递前过滤通知和待处理交互，并将事件回答绑定到已认证设备。完整的一元响应和流帧会在发送前受到字节限制。原始 Fetch 资源及无关 Host 方法均被拒绝。原有审批和问题所有者保留策略、竞态结算和 Session 审计责任。
 
 ## 模型体验
 

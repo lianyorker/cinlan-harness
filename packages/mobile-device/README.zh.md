@@ -1,5 +1,5 @@
 ---
-description: "Mobile Device 能力包：Service Definition、CLI Provider、权限策略和工具。"
+description: "Mobile Device 能力包：Service Definition、ADB Provider、运行时管理、权限策略和工具。"
 kind: "package-group"
 ---
 
@@ -18,7 +18,6 @@ kind: "package-group"
 | [mobile-device](mobile-device/README.zh.md) | Service Definition |
 | [mobile-device-adb](mobile-device-adb/README.zh.md) | 原生 Android Provider |
 | [mobile-device-runtime](mobile-device-runtime/README.zh.md) | 人工 SDK/helper 安装及镜像管理 |
-| [mobile-device-cinlan](mobile-device-cinlan/README.zh.md) | 可选旧 CLI Provider |
 | [mobile-device-permission-policy](mobile-device-permission-policy/README.zh.md) | Permission Consumer |
 | [tool-mobile-device](tool-mobile-device/README.zh.md) | Tool Consumer |
 

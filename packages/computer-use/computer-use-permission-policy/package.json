@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-computer-use-permission-policy",
   "description": "Permission policy for DeepSeek Harness desktop Computer Use tools",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "publishConfig": {
     "access": "public"
   },

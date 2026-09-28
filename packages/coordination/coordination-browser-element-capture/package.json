@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-coordination-browser-element-capture",
   "description": "Coordination executor for verified browser element image capture",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "publishConfig": {
     "access": "public"
   },

@@ -2,14 +2,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarPrefs } from '@deepseek-ai/dsh-client-ui-better-sidebar/client/service'
-import type { CapabilitySectionProps } from './CapabilitySection.tsx'
+import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
+import type { BrowserSectionInjected, CapabilitySectionProps } from './CapabilitySection.tsx'
 import { BROWSER_ROUTING_FIELDS } from './settings-fields.ts'
 import css from './CapabilitySection.module.css'
 
 /** The sidebar fields this form may save or reset. */
 export type BrowserRoutingPreferences = Pick<SidebarPrefs, (typeof BROWSER_ROUTING_FIELDS)[number]['key']>
 
-type Props = Pick<CapabilitySectionProps, 'useBrowserRouting' | 'saveBrowserRouting' | 'resetBrowserRouting' | 't'>
+type Props = Pick<InjectFace<BrowserSectionInjected>, 'useBrowserRouting' | 'saveBrowserRouting' | 'resetBrowserRouting'> & Pick<CapabilitySectionProps, 't'>
 interface Draft {
   base: BrowserRoutingPreferences
   changes: Partial<BrowserRoutingPreferences>

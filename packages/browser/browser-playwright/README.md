@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 This opt-in Service Provider implements [`ctx.browser`](../browser/README.md) with Playwright. It launches an installed browser channel on the first operation, keeps a dedicated persistent profile under `$DSH_HOME/browser/profile` by default, and owns its BrowserContext, page ids, observations, selections, and element handles.
 
-The provider supports persistent page listing, HTTP(S) navigation, accessibility snapshots, observation-bound clicks, PNG/JPEG viewport screenshots, temporary human element selection, verified element crops, and page closure. It does not call Orca or control operating-system windows.
+The provider supports persistent page listing, HTTP(S) navigation, accessibility snapshots, observation-bound clicks, PNG/JPEG viewport screenshots, temporary human element selection, verified element crops, and page closure. It does not call an external desktop runtime or control operating-system windows.
 
 ## Table of Contents
 

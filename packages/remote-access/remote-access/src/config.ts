@@ -23,6 +23,8 @@ export interface Config {
   readonly maxInvitationAttempts?: number
   /** Maximum bytes accepted in one pairing HTTP request body or WebSocket message. */
   readonly maxRequestBodyBytes?: number
+  /** Maximum complete JSON bytes emitted in one paired unary response or WebSocket frame. */
+  readonly maxResponseBodyBytes?: number
   /** Maximum simultaneously admitted paired TCP connections and tracked requests. */
   readonly maxConnections?: number
   /** Maximum queued outgoing events retained for one connection. */
@@ -48,6 +50,7 @@ export const Config: z<Config> = z.object({
   credentialLifetimeMs: z.number().step(1).min(1000).max(2147483647).default(604800000),
   maxInvitationAttempts: z.number().step(1).min(1).max(20).default(5),
   maxRequestBodyBytes: z.number().step(1).min(1024).max(1048576).default(262144),
+  maxResponseBodyBytes: z.number().step(1).min(1024).max(4194304).default(1048576),
   maxQueuedEvents: z.number().step(1).min(1).max(1024).default(64),
   maxQueuedEventBytes: z.number().step(1).min(1024).max(4194304).default(1048576),
   maxConnections: z.number().step(1).min(1).max(128).default(16),

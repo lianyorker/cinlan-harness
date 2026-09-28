@@ -3,7 +3,7 @@ import type { CredentialKey, CredentialRecord } from '@deepseek-ai/dsh-credentia
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { PairingGrants } from '../src/grants.ts'
 
-function setup() {
+function setup(maxInvitationAttempts = 2) {
   const records = new Map<CredentialKey, CredentialRecord>()
   const credentials = {
     async readRecord(key: CredentialKey) { return records.get(key) },
@@ -12,7 +12,7 @@ function setup() {
       const value = await mutate(records.get(key)); if (value === undefined) records.delete(key); else records.set(key, value); return value
     },
   }
-  const limits = { invitationLifetimeMs: 120000, credentialLifetimeMs: 600000, maxInvitationAttempts: 2 }
+  const limits = { invitationLifetimeMs: 120000, credentialLifetimeMs: 600000, maxInvitationAttempts }
   const grants = new PairingGrants(credentials, limits)
   return { grants, records, credentials, limits }
 }
@@ -59,6 +59,14 @@ describe('pairing invitation and device persistence', () => {
       clock.mockReturnValue(expired.expiresAt)
       await expect(grants.exchange({ invitationId: expired.invitationId, code: expired.code, displayName: 'Phone', protocolVersion: 1 })).rejects.toThrow('unavailable')
     } finally { clock.mockRestore() }
+  })
+
+  it('allows a valid exchange at the one-failed-attempt limit', async () => {
+    const { grants } = setup(1)
+    const invite = grants.createInvitation(grant)
+    await expect(grants.exchange({ invitationId: invite.invitationId, code: '000000000', displayName: 'Phone', protocolVersion: 1 })).rejects.toThrow('unavailable')
+    const replacement = grants.createInvitation(grant)
+    await expect(grants.exchange({ invitationId: replacement.invitationId, code: replacement.code, displayName: 'Phone', protocolVersion: 1 })).resolves.toMatchObject({ device: { displayName: 'Phone' } })
   })
 
   it('does not issue a credential when persistence fails and requires read scope', async () => {

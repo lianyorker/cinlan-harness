@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-paired-shell",
   "description": "Restricted phone shell for paired authorized conversations",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "publishConfig": {
     "access": "public"
   },

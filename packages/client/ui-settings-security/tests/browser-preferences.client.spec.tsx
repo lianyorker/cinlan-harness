@@ -7,7 +7,7 @@ import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { SIDEBAR_PREFS_DEFAULTS, type SidebarPrefs } from '@deepseek-ai/dsh-client-ui-better-sidebar/src/prefs-shared.ts'
-import type { CapabilitySectionProps } from '../src/client/CapabilitySection.tsx'
+import type { BrowserSectionInjected } from '../src/client/CapabilitySection.tsx'
 import { BrowserPreferencesForm } from '../src/client/BrowserPreferencesForm.tsx'
 import { BrowserRoutingForm } from '../src/client/BrowserRoutingForm.tsx'
 import { en, zh } from '../src/client/locales.ts'
@@ -18,11 +18,11 @@ function bench(language: 'en' | 'zh' = 'en', writable = true) {
     value: { browserChannel: 'chrome' as const, headless: true, viewportWidth: 800, viewportHeight: 600, profileName: 'default', homePage: 'about:blank', searchEngine: 'google' as const },
     base: undefined, user: undefined,
   }
-  const save = vi.fn<CapabilitySectionProps['saveBrowserPreferences']>(async () => {})
-  const reset = vi.fn<CapabilitySectionProps['resetBrowserPreferences']>(async () => {})
+  const save = vi.fn<BrowserSectionInjected['saveBrowserPreferences']>(async () => {})
+  const reset = vi.fn<BrowserSectionInjected['resetBrowserPreferences']>(async () => {})
   const props = { t: language === 'en' ? makeTranslate(en, commonEn) : makeTranslate(zh, commonZh),
     useBrowserPreferences: selector => selector(snapshot), saveBrowserPreferences: save, resetBrowserPreferences: reset,
-  } satisfies Pick<CapabilitySectionProps, 'useBrowserPreferences' | 'saveBrowserPreferences' | 'resetBrowserPreferences' | 't'>
+  } satisfies Parameters<typeof BrowserPreferencesForm>[0]
   const view = render(<BrowserPreferencesForm {...props} />)
   return { snapshot, save, reset, props, ...view }
 }
@@ -33,8 +33,8 @@ function routingBench(language: 'en' | 'zh' = 'en', initial: Partial<SettingsSco
     value: { ...SIDEBAR_PREFS_DEFAULTS, browserInterceptLinks: true, browserInterceptHttp: true, browserInterceptHttps: false },
     ...initial,
   }
-  const save = vi.fn<CapabilitySectionProps['saveBrowserRouting']>(async () => {})
-  const reset = vi.fn<CapabilitySectionProps['resetBrowserRouting']>(async () => {})
+  const save = vi.fn<BrowserSectionInjected['saveBrowserRouting']>(async () => {})
+  const reset = vi.fn<BrowserSectionInjected['resetBrowserRouting']>(async () => {})
   const props: Parameters<typeof BrowserRoutingForm>[0] = {
     t: language === 'en' ? makeTranslate(en, commonEn) : makeTranslate(zh, commonZh),
     useBrowserRouting: selector => selector(snapshot), saveBrowserRouting: save, resetBrowserRouting: reset,

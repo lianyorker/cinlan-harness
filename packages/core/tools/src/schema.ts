@@ -512,6 +512,13 @@ export interface DefineToolOptions<S extends ParameterSchemaSpec, O extends Valu
    */
   execute(args: InferArgs<S>, exec: ToolRunContext): Promise<InferValue<NoInfer<O>>>
   /**
+   * Install execution-prepared content before result policies.
+   * @param exec - immutable execution identity and arguments.
+   * @param result - normalized outcome entering post-execute.
+   * @returns replacement content, or undefined to preserve it.
+   */
+  projectContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined
+  /**
    * Optional last-mile content transform for every normalized outcome. Unlike
    * `execute`, arguments remain `unknown` because invalid-input failures also
    * reach this callback. See {@link ToolDefinition.finalizeContent}.
@@ -548,6 +555,8 @@ export function defineTool<const S extends ParameterSchemaSpec, const O extends 
   // Object-literal methods do not use `this`; retaining references is safe.
   // oxlint-disable-next-line typescript/unbound-method
   const userExecute = options.execute
+  // oxlint-disable-next-line typescript/unbound-method
+  const userProjectContent = options.projectContent
   // oxlint-disable-next-line typescript/unbound-method
   const userFinalizeContent = options.finalizeContent
   // oxlint-disable-next-line typescript/unbound-method
@@ -587,6 +596,9 @@ export function defineTool<const S extends ParameterSchemaSpec, const O extends 
       if (violations.length > 0) throw new ToolArgsError(violations)
       return userExecute(args as InferArgs<S>, exec) as Promise<JsonValue>
     },
+  }
+  if (userProjectContent) {
+    tool.projectContent = (exec, result) => userProjectContent(exec, result)
   }
   if (userFinalizeContent) {
     tool.finalizeContent = (exec, result) => userFinalizeContent(exec, result)

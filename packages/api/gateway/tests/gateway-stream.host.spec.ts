@@ -26,6 +26,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 import { provideBrowserCredentials } from './browser-credentials.ts'
 import TypertGatewayService, {
   TypertGatewayError,
+  RemoteStreamMuxServer,
   type Config as GatewayConfig,
   type TypertRemoteEventDispatch,
   type TypertRemoteEventInvocation,
@@ -265,6 +266,26 @@ describe('Typert Remote streams', () => {
     // A launcher commit can already hold a copy of the cancelled listener.
     expect(() => { startup.lastListener?.() }).not.toThrow()
     expect(() => { startup.commit() }).not.toThrow()
+  })
+
+  it('closes the mux when its upgrade route cannot be registered', async () => {
+    const startup = new StartupProbe()
+    const { ctx } = await setup(true, {}, startup)
+    const releaseCollision = ctx.webServer.registerUpgrade({
+      path: '/api/remote.mux',
+      handler: () => {},
+    })
+    const close = vi.spyOn(RemoteStreamMuxServer.prototype, 'close')
+
+    try {
+      expect(() => { startup.commit() }).toThrow('duplicate upgrade route')
+      expect(close).toHaveBeenCalledOnce()
+      const result = close.mock.results[0]
+      if (result?.type === 'return') await result.value
+    } finally {
+      close.mockRestore()
+      releaseCollision()
+    }
   })
 
   it('rejects unregistered devices before invocation and closes a revoked stream', async () => {

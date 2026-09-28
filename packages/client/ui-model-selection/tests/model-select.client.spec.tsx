@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -170,6 +170,53 @@ describe('ModelSelect reasoning effort', () => {
     })
   })
 
+  it('announces and blocks a pending selection until success settles', async () => {
+    const groups = [{
+      id: 'deepseek-official',
+      name: 'DeepSeek',
+      models: [
+        { id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', reasoning },
+        { id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro' },
+      ],
+    }]
+    const directory = createSnapshotStore<ModelDirectoryState>(state({ groups }))
+    const pending = Promise.withResolvers<undefined>()
+    const select = vi.fn(async (selection: ModelSelection) => {
+      directory.set(state({ groups, status: 'selecting' }))
+      await pending.promise
+      directory.set(state({ groups, current: selection }))
+      return { ok: true as const, value: undefined }
+    })
+    render(<ModelSelect locked={false} available directory={directory} load={vi.fn()} select={select} t={t} />)
+
+    const trigger = screen.getByRole('button', { name: /选择模型|当前/ })
+    const trailingSlot = trigger.lastElementChild
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
+    const target = screen.getByRole('menuitemradio', { name: /DeepSeek-V4-Pro/ }) as HTMLButtonElement
+    fireEvent.click(target)
+
+    expect(trigger.getAttribute('aria-busy')).toBe('true')
+    expect(trigger.querySelector('[data-state="ongoing"]')).not.toBeNull()
+    expect(trigger.lastElementChild).toBe(trailingSlot)
+    expect(screen.getByRole('status').textContent).toBe(zh['status.selecting'])
+    expect(screen.getAllByRole('menuitemradio')
+      .every(row => (row as HTMLButtonElement).disabled)).toBe(true)
+
+    await act(async () => {
+      pending.resolve(undefined)
+      await pending.promise
+    })
+    await waitFor(() => {
+      expect(trigger.getAttribute('aria-busy')).toBe('false')
+      expect(trigger.querySelector('[data-state="ongoing"]')).toBeNull()
+      expect(trigger.lastElementChild).toBe(trailingSlot)
+      expect(screen.getByRole('status').textContent).toBe('')
+      expect(screen.queryByRole('menu')).toBeNull()
+      expect(trigger.getAttribute('aria-label')).toBe('选择模型，当前 DeepSeek-V4-Pro')
+    })
+  })
+
   it.each([false, true])('announces rejected selections with ownership guidance only for held writers (%s)', async (sessionInUse) => {
     const groups = [{
       id: 'deepseek-official',
@@ -180,10 +227,13 @@ describe('ModelSelect reasoning effort', () => {
       ],
     }]
     const directory = createSnapshotStore<ModelDirectoryState>(state({ groups }))
+    const pending = Promise.withResolvers<undefined>()
+    const error = sessionInUse
+      ? new RemoteError('session/writer-held', 'writer held', { sessionId: SessionId('owned') })
+      : new RemoteError('session/model-unavailable', 'session already contains images', { provider: 'deepseek-official', model: 'deepseek-v4-pro' })
     const select = vi.fn(async () => {
-      const error = sessionInUse
-        ? new RemoteError('session/writer-held', 'writer held', { sessionId: SessionId('owned') })
-        : new RemoteError('session/model-unavailable', 'session already contains images', { provider: 'deepseek-official', model: 'deepseek-v4-pro' })
+      directory.set(state({ groups, status: 'selecting' }))
+      await pending.promise
       directory.set(state({ groups, status: 'error', error: 'unrelated catalog refresh' }))
       return { ok: false as const, error }
     })
@@ -196,13 +246,28 @@ describe('ModelSelect reasoning effort', () => {
       t={t}
     />)
 
-    fireEvent.click(screen.getByRole('button', { name: /选择模型|当前/ }))
+    const trigger = screen.getByRole('button', { name: /选择模型|当前/ })
+    fireEvent.click(trigger)
     fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /DeepSeek-V4-Pro/ }))
+    const target = screen.getByRole('menuitemradio', { name: /DeepSeek-V4-Pro/ }) as HTMLButtonElement
+    fireEvent.click(target)
+    expect(trigger.getAttribute('aria-busy')).toBe('true')
+    expect(trigger.querySelector('[data-state="ongoing"]')).not.toBeNull()
+    expect(screen.getByRole('status').textContent).toBe(zh['status.selecting'])
+    expect(target.disabled).toBe(true)
+
+    await act(async () => {
+      pending.resolve(undefined)
+      await pending.promise
+    })
     const toast = await screen.findByRole('alert')
     expect(toast.textContent).toBe(sessionInUse
       ? zh['error.sessionInUse']
       : '模型操作失败：session/model-unavailable: session already contains images')
+    expect(trigger.getAttribute('aria-busy')).toBe('false')
+    expect(trigger.querySelector('[data-state="ongoing"]')).toBeNull()
+    expect(screen.getByRole('status').textContent).toBe('')
+    expect(target.disabled).toBe(false)
     // The selection failure does not render the in-menu load strip (no Retry).
     expect(screen.queryByRole('button', { name: '重试' })).toBeNull()
   })

@@ -18,7 +18,6 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^@deepseek-ai\/dsh-browser$/, replacement: source('browser') },
-      { find: /^@deepseek-ai\/dsh-browser-cinlan$/, replacement: source('browser-cinlan') },
       { find: /^@deepseek-ai\/dsh-browser-playwright$/, replacement: source('browser-playwright') },
       { find: /^@deepseek-ai\/dsh-tool-browser-element-capture$/, replacement: source('tool-browser-element-capture') },
       { find: /^@deepseek-ai\/dsh-tool-browser$/, replacement: source('tool-browser') },

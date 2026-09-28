@@ -11,6 +11,10 @@
 .section code { display: block; font-family: var(--ds-font-family-code); font-size: 12px; overflow-wrap: anywhere; }
 .copyRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 14px 0; }
 .label { color: var(--dsw-alias-label-secondary); }
+.qrBlock { display: grid; place-items: center; width: 256px; max-width: 100%; aspect-ratio: 1; margin: 20px 0; border: 0.5px solid var(--dsw-alias-border-l2); }
+.qrBlock > p { margin: 0; padding: 16px; text-align: center; }
+.qrFigure { width: 100%; height: 100%; margin: 0; }
+.qrImage { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
 .invitation { margin-top: 20px; padding: 20px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 10px; }
 .device { padding: 16px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
 .device h4 { margin: 0; font-size: 14px; line-height: 1.5; }

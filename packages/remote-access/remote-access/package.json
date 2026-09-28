@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-remote-access",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "description": "Device grants and direct TLS access to authorized Sessions",
   "type": "module",
   "license": "MIT",
@@ -45,6 +45,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "ws": "8.21.0",
+    "@types/ws": "8.18.1",
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-brand": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",

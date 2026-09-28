@@ -85,6 +85,7 @@ export type {
   ResolvedPiAiProviderProfile,
 } from './config.ts'
 export { recordKeyFor } from './auth.ts'
+export { DEFAULT_SUB2API_CLEANUP_TIMEOUT_MS, SUB2API_LOGIN_METHOD, SUB2API_PROVIDER_ID } from './sub2api.ts'
 export { supportedProtocols } from './provider.ts'
 
 export const name = 'llm-pi-ai'
@@ -216,7 +217,15 @@ export function apply(ctx: Context, config: Config): void {
   // Scoped to the authorization seam rather than injected outright, because a
   // composition without it (headless, ACP) simply has no surface to sign in
   // from, while everything else this plugin does still works.
-  ctx.inject(['authorization'], (authorized) => { registerPiAiFlows(authorized, auth) })
+  ctx.inject(['authorization'], (authorized) => {
+    registerPiAiFlows(
+      authorized,
+      auth,
+      config.sub2ApiCleanupTimeoutMs === undefined
+        ? {}
+        : { cleanupTimeoutMs: config.sub2ApiCleanupTimeoutMs },
+    )
+  })
   // The full installed catalog is configurable from the moment the plugin
   // mounts — dormant or not — so configuration surfaces can offer every
   // pi-ai provider before any route exists. Hand-declared routes join it as

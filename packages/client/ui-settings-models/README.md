@@ -29,6 +29,8 @@ Open the Models page from the Settings navigation to see every configured provid
 
 ### API keys
 
+API-key fields start empty and use `autocomplete="new-password"`, `autocapitalize="none"`, and `spellcheck="false"`; these standard hints ask browsers and password managers not to reuse a saved account password or alter the opaque key as prose.
+
 The primary field on an editor card is a single **API key** input — the page never asks for an environment-variable name. A typed key stores write-only through `credentials.set` under the profile's reference, deriving `<ROUTE>_API_KEY` when the profile has none, and the pi-ai profile records that derivation as `apiKeyEnv`, so `settings.yaml` never carries a key value. Leaving a new pi-ai provider's key blank saves a reference-free profile and preserves provider-native authentication (for example the Bedrock credential chain or Vertex ADC). A row labels API-key state with a green solid dot only when a referenced credential is confirmed configured, and with a red solid dot only when a named reference is confirmed missing. A successful Apply emits a local accessible status message without echoing secret material.
 
 ### Editing a provider

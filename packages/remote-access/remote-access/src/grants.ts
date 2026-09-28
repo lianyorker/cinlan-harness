@@ -70,14 +70,14 @@ export class PairingGrants {
     return this.serial(async () => {
       const pending = this.invitation
       if (pending === undefined || pending.invitation.expiresAt <= Date.now()) { this.invitation = undefined; throw new Error('Pairing invitation is unavailable') }
-      pending.attempts++
-      if (pending.attempts >= this.limits.maxInvitationAttempts) this.invitation = undefined
       const request = z.object({
         invitationId: z.uuid(), code: z.string().regex(/^[0-9]{9}$/),
         displayName: z.string().trim().min(1).max(80), protocolVersion: z.literal(1),
       }).strict().safeParse(value)
       if (!request.success || request.data.invitationId !== pending.invitation.invitationId
         || !equal(request.data.code, pending.invitation.code)) {
+        pending.attempts++
+        if (pending.attempts >= this.limits.maxInvitationAttempts) this.invitation = undefined
         throw new Error('Pairing invitation is unavailable')
       }
       this.invitation = undefined

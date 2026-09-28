@@ -11,7 +11,7 @@ kind: "package-reference"
 
 这个可选 Service Provider 使用 Playwright 实现 [`ctx.browser`](../browser/README.zh.md)。它在首次操作时启动已安装的浏览器 channel，默认在 `$DSH_HOME/browser/profile` 保存专用持久 profile，并负责 BrowserContext、page id、observation、selection 和 element handle 的生命周期。
 
-Provider 支持持久页面列表、HTTP(S) 导航、无障碍快照、绑定到 observation 的点击、PNG/JPEG viewport screenshot、临时人工元素选择、已核验元素裁剪和页面关闭。它不使用 Cinlan CLI Browser Provider，也不提供 OS Computer Use。
+Provider 支持持久页面列表、HTTP(S) 导航、无障碍快照、绑定到 observation 的点击、PNG/JPEG viewport screenshot、临时人工元素选择、已核验元素裁剪和页面关闭。它不调用外部桌面运行时，也不控制操作系统窗口。
 
 ## 目录
 

@@ -33,13 +33,13 @@ Choose spill storage when a deployment needs to keep full text retrievable after
 
 ### Smallest working composition
 
-Mount a backend and the policy together; with `maxInlineBytes` set, any oversized plain-text tool result becomes a preview plus a locator automatically.
+Mount a backend and the policy together; with `maxInlineTokens` set, any oversized text/image tool result becomes an ordered preview plus a locator automatically. Images remain in attachment storage and the saved text records readable paths for later `read_image` recovery.
 
 ```yaml
 - name: '@deepseek-ai/dsh-spill-local'
 - name: '@deepseek-ai/dsh-spill-policy'
   config:
-    maxInlineBytes: 50000
+    maxInlineTokens: 12500
 ```
 
 ### Saving text

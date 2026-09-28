@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-settings-pairing",
   "description": "Trusted Desktop settings for explicit phone pairing and device grants",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "publishConfig": {
     "access": "public"
   },
@@ -36,6 +36,9 @@
     "watch": "tsdown --watch"
   },
   "license": "MIT",
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^"
   },
@@ -61,6 +64,7 @@
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
     "@deepseek-ai/dsh-typert-registry": "workspace:^",
     "@testing-library/react": "^16.1.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "~18.3.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

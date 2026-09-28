@@ -5,6 +5,8 @@ export interface DesktopElectronBuilderConfig {
     readonly dshDesktopAppId: string
     readonly dshMandatoryUpdatePolicy?: ReturnType<typeof import('./scripts/desktop-policy-environment.mjs').resolveDesktopPolicyEnvironment>
   }
+  readonly artifactName: string
+  readonly npmRebuild: false
   readonly directories: {
     readonly output: string
   }
@@ -22,6 +24,24 @@ export interface DesktopElectronBuilderConfig {
     readonly writeUpdateInfo: boolean
   }
   readonly artifactBuildCompleted: (artifact: { readonly file: string }) => Promise<void> | undefined
+  readonly win: {
+    readonly forceCodeSigning: boolean
+    readonly signtoolOptions: {
+      readonly sign: unknown
+      readonly signingHashAlgorithms: readonly ['sha256']
+    }
+    readonly target: readonly ['nsis'] | readonly ['msi']
+  }
+  readonly msi: {
+    readonly oneClick: false
+    readonly warningsAsErrors: true
+  }
+  readonly nsis: {
+    readonly oneClick: false
+    readonly allowToChangeInstallationDirectory: true
+    readonly differentialPackage: true
+    readonly include: string
+  }
   readonly publish: readonly [{ readonly provider: 'generic', readonly url: string, readonly channel: 'nightly' }]
 }
 

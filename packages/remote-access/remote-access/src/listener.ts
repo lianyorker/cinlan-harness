@@ -51,7 +51,7 @@ export class PairingListener {
     const origin = new URL(config.advertisedOrigin)
     if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Pairing requires an exact HTTPS origin')
     this.origin = origin.origin
-    this.mux = new RemoteStreamMuxServer(() => Promise.reject(new Error('Authenticated stream binding is required')), gateway.wireStream.failure, config.websocketHeartbeatIntervalMs, { maxPayloadBytes: config.maxRequestBodyBytes, maxStreamsPerConnection: config.maxStreamsPerConnection })
+    this.mux = new RemoteStreamMuxServer(() => Promise.reject(new Error('Authenticated stream binding is required')), gateway.wireStream.failure, config.websocketHeartbeatIntervalMs, { maxPayloadBytes: config.maxRequestBodyBytes, maxStreamsPerConnection: config.maxStreamsPerConnection, maxOutputBytes: config.maxResponseBodyBytes })
   }
 
   /** Start TLS after checking certificate dates and the advertised hostname. */
@@ -136,7 +136,7 @@ export class PairingListener {
       this.revoke(record.deviceId)
     }
     const abort = new AbortController()
-    const access: HostConnectionAccess = Object.freeze({ kind: 'delegated', identity: Object.freeze({}), signal: abort.signal, authorizeFetch: () => { throw new Error('Raw Fetch routes are unavailable to paired devices') } })
+    const access: HostConnectionAccess = Object.freeze({ kind: 'delegated', identity: Object.freeze({}), signal: abort.signal, maxResponseBytes: this.config.maxResponseBodyBytes, authorizeFetch: () => { throw new Error('Raw Fetch routes are unavailable to paired devices') } })
     const policy = new PairedSessionPolicy(record, this.config.maxQueuedEvents, this.config.maxQueuedEventBytes)
     const release = this.gateway.registerAccess(access, policy)
     const timer = setTimeout(() => { this.revoke(record.deviceId) }, Math.max(1, record.expiresAt - Date.now()))

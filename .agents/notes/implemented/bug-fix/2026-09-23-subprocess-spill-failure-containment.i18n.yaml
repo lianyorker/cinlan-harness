@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-23-subprocess-spill-failure-containment.md
-2026-09-23-subprocess-spill-failure-containment.md: cac6e0ce0ee15ca9fe83f15526346a3d62b56d51
-2026-09-23-subprocess-spill-failure-containment.zh.md: 8f666afea4a9bce69534d41bd3df55de23311d4f
+2026-09-23-subprocess-spill-failure-containment.md: 552fe59644d7145b81579225e246840dafff8604
+2026-09-23-subprocess-spill-failure-containment.zh.md: bf43e0b3140978b4c090d192b3ce5472462260bd

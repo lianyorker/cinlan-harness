@@ -31,12 +31,12 @@ flowchart LR
   pkg_client_ui_settings_terminal["client-ui-settings-terminal"]
   pkg_browser["browser"]
   svc_browser["ctx.browser<br/>Browser automation seam"]
-  pkg_browser_cinlan["browser-cinlan"]
   pkg_browser_playwright["browser-playwright"]
   pkg_tool_browser["tool-browser"]
   pkg_tool_browser_element_capture["tool-browser-element-capture"]
   pkg_api_browser_controller["api-browser-controller"]
   pkg_coordination_browser_element_capture["coordination-browser-element-capture"]
+  svc_browserRuntime["ctx.browserRuntime<br/>Native browser runtime resources"]
   svc_browserController["ctx.browserController<br/>Browser Remote controller"]
   pkg_client_ui_settings_security["client-ui-settings-security"]
   pkg_client_ui_browser_element_capture["client-ui-browser-element-capture"]
@@ -47,7 +47,6 @@ flowchart LR
   pkg_experimental_browser_use_chrome_devtools_mcp["experimental-browser-use-chrome-devtools-mcp"]
   pkg_computer_use["computer-use"]
   svc_computerUse["ctx.computerUse<br/>Computer interaction seam"]
-  pkg_computer_use_cinlan["computer-use-cinlan"]
   pkg_experimental_computer_use_cua_driver_native["experimental-computer-use-cua-driver-native"]
   pkg_experimental_computer_use_cua_driver_mcp["experimental-computer-use-cua-driver-mcp"]
   pkg_tool_computer_use["tool-computer-use"]
@@ -58,12 +57,21 @@ flowchart LR
   pkg_tool_coordination["tool-coordination"]
   pkg_coordination_subagent_executor["coordination-subagent-executor"]
   svc_deviceCapabilitiesController["ctx.deviceCapabilitiesController<br/>Device capability Remote controller"]
+  pkg_execution_binding["execution-binding"]
+  svc_executionBindings["ctx.executionBindings<br/>Session execution bindings"]
+  pkg_agent["agent"]
+  pkg_subagent["subagent"]
+  pkg_workspace["workspace"]
+  pkg_api_session_controller["api-session-controller"]
+  pkg_api_workspace_controller["api-workspace-controller"]
+  pkg_execution_runtime["execution-runtime"]
+  svc_executionRuntimes["ctx.executionRuntimes<br/>Remote execution runtime lifecycle"]
+  pkg_api_execution_host_controller["api-execution-host-controller"]
   pkg_execution_host["execution-host"]
   svc_executionHost["ctx.executionHost<br/>Execution-host seam"]
   pkg_execution_host_local["execution-host-local"]
   pkg_execution_host_worker["execution-host-worker"]
   pkg_execution_host_targets["execution-host-targets"]
-  pkg_api_execution_host_controller["api-execution-host-controller"]
   svc_executionHostController["ctx.executionHostController<br/>Execution-host Remote controller"]
   pkg_client_ui_settings_hosts["client-ui-settings-hosts"]
   svc_executionHostTargets["ctx.executionHostTargets<br/>Saved execution targets"]
@@ -88,10 +96,15 @@ flowchart LR
   svc_mcpResources["ctx.mcpResources<br/>MCP resource registry"]
   pkg_mobile_device["mobile-device"]
   svc_mobileDevice["ctx.mobileDevice<br/>Mobile device seam"]
-  pkg_mobile_device_cinlan["mobile-device-cinlan"]
+  pkg_mobile_device_adb["mobile-device-adb"]
   pkg_tool_mobile_device["tool-mobile-device"]
+  pkg_mobile_device_runtime["mobile-device-runtime"]
+  svc_mobileRuntime["ctx.mobileRuntime<br/>Native mobile runtime resources"]
   pkg_office_to_pdf["office-to-pdf"]
   svc_officeToPdf["ctx.officeToPdf<br/>Workspace document previews"]
+  pkg_api_pairing_controller["api-pairing-controller"]
+  svc_pairingController["ctx.pairingController<br/>Pairing Remote controller"]
+  pkg_client_ui_settings_pairing["client-ui-settings-pairing"]
   pkg_plugin_manager["plugin-manager"]
   svc_pluginManagementHost["ctx.pluginManagementHost<br/>Launcher-owned plugin management facts"]
   pkg_host_plugin_inventory["host-plugin-inventory"]
@@ -100,6 +113,9 @@ flowchart LR
   pkg_ptc_runtime_node["ptc-runtime-node"]
   pkg_tools["tools"]
   pkg_workflow_ptc["workflow-ptc"]
+  pkg_remote_access["remote-access"]
+  svc_remoteAccess["ctx.remoteAccess<br/>Paired-device remote access"]
+  svc_remoteAccessHost["ctx.remoteAccessHost<br/>Launcher-owned remote access adapter"]
   svc_securityResearchController["ctx.securityResearchController<br/>Security research Remote controller"]
   pkg_security_skills["security-skills"]
   svc_securitySkillResources["ctx.securitySkillResources<br/>Security skill resources"]
@@ -140,10 +156,8 @@ flowchart LR
   pkg_workspace_isolation["workspace-isolation"]
   svc_workspaceIsolation["ctx.workspaceIsolation<br/>Workspace isolation seam"]
   pkg_workspace_isolation_git["workspace-isolation-git"]
-  pkg_api_session_controller["api-session-controller"]
   pkg_api_workspace_isolation_controller["api-workspace-isolation-controller"]
   pkg_api_work_items_controller["api-work-items-controller"]
-  pkg_workspace["workspace"]
   svc_workspaceIsolationController["ctx.workspaceIsolationController<br/>Workspace isolation Remote controller"]
   pkg_client_ui_workspace_isolation["client-ui-workspace-isolation"]
   pkg_worktree_task["worktree-task"]
@@ -188,7 +202,6 @@ flowchart LR
   svc_toolResultPruner["ctx.toolResultPruner<br/>Model-free tool-result pruning"]
   pkg_session["session"]
   svc_sessions["ctx.sessions<br/>In-memory session store"]
-  pkg_agent["agent"]
   pkg_session_persistence["session-persistence"]
   pkg_session_query["session-query"]
   pkg_session_query_sqlite["session-query-sqlite"]
@@ -198,12 +211,14 @@ flowchart LR
   svc_sessionController["ctx.sessionController<br/>Host Session Remote controller"]
   svc_sessionFileReferences["ctx.sessionFileReferences<br/>Session-addressed file-reference Remote adapter"]
   svc_sessionSkillCatalog["ctx.sessionSkillCatalog<br/>Session-addressed skill Remote adapter"]
+  pkg_api_account_controller["api-account-controller"]
+  svc_accountController["ctx.accountController<br/>Host account authorization Remote controller"]
+  pkg_client_ui_settings_account["client-ui-settings-account"]
   pkg_api_settings_controller["api-settings-controller"]
   svc_credentialsController["ctx.credentialsController<br/>Host credential-surface Remote controller"]
   svc_settingsController["ctx.settingsController<br/>Host settings-surface Remote controller"]
   pkg_api_workspace_files["api-workspace-files"]
   svc_workspaceFiles["ctx.workspaceFiles<br/>Host workspace file Remote service"]
-  pkg_api_workspace_controller["api-workspace-controller"]
   svc_workspaceController["ctx.workspaceController<br/>Host Workspace Remote controller"]
   svc_directoryPickerController["ctx.directoryPickerController<br/>Host directory-picking Remote controller"]
   svc_invariants["ctx.invariants<br/>Package-owned invariant registry"]
@@ -271,7 +286,6 @@ flowchart LR
   svc_sessionProjections["ctx.sessionProjections<br/>Session projection units"]
   pkg_session_projection_cache["session-projection-cache"]
   svc_sessionProjectionCache["ctx.sessionProjectionCache<br/>Persisted projection cache"]
-  pkg_subagent["subagent"]
   pkg_skill["skill"]
   svc_skills["ctx.skills<br/>Skill provider registry"]
   pkg_skill_badge["skill-badge"]
@@ -380,6 +394,7 @@ flowchart LR
   pkg_agent_default_model --> svc_agentDefaultModel
   pkg_agent_loop --> svc_agentLoop
   pkg_agent_presets --> svc_agentPresets
+  pkg_api_account_controller --> svc_accountController
   pkg_api_automation_controller --> svc_automationController
   pkg_api_browser_controller --> svc_browserController
   pkg_api_device_capabilities_controller --> svc_deviceCapabilitiesController
@@ -387,6 +402,7 @@ flowchart LR
   pkg_api_gateway --> svc_typertGateway
   pkg_api_integration_preflight_controller --> svc_integrationPreflightController
   pkg_api_mcp_controller --> svc_mcpController
+  pkg_api_pairing_controller --> svc_pairingController
   pkg_api_security_research_controller --> svc_securityResearchController
   pkg_api_session_controller --> svc_sessionController
   pkg_api_session_controller --> svc_sessionFileReferences
@@ -418,8 +434,8 @@ flowchart LR
   pkg_bash_local --> svc_shell
   pkg_bash_sandbox --> svc_shell
   pkg_browser --> svc_browser
-  pkg_browser_cinlan --> svc_browser
   pkg_browser_playwright --> svc_browser
+  pkg_browser_playwright --> svc_browserRuntime
   pkg_browser_use --> svc_browserUse
   pkg_client_file_upload --> svc_fileUploads
   pkg_client_modules --> svc_clientModules
@@ -433,7 +449,6 @@ flowchart LR
   pkg_compaction_basic --> svc_compaction
   pkg_compaction_tool_result_pruner --> svc_toolResultPruner
   pkg_computer_use --> svc_computerUse
-  pkg_computer_use_cinlan --> svc_computerUse
   pkg_coordination --> svc_coordination
   pkg_coordination_local --> svc_coordination
   pkg_cordis_host_runner --> svc_cordisInspect
@@ -442,9 +457,11 @@ flowchart LR
   pkg_credentials_local --> svc_credentials
   pkg_deepseek_llm_api_extensions --> svc_deepseekLlmApiExtensions
   pkg_e2b --> svc_e2b
+  pkg_execution_binding --> svc_executionBindings
   pkg_execution_host --> svc_executionHost
   pkg_execution_host_local --> svc_executionHost
   pkg_execution_host_targets --> svc_executionHostTargets
+  pkg_execution_runtime --> svc_executionRuntimes
   pkg_experimental_agent_team --> svc_agentTeams
   pkg_experimental_browser_use_chrome_devtools_mcp --> svc_browserUse
   pkg_experimental_browser_use_playwright_mcp --> svc_browserUse
@@ -483,7 +500,8 @@ flowchart LR
   pkg_mcp_resources --> svc_mcpResources
   pkg_message_feedback --> svc_messageFeedback
   pkg_mobile_device --> svc_mobileDevice
-  pkg_mobile_device_cinlan --> svc_mobileDevice
+  pkg_mobile_device_adb --> svc_mobileDevice
+  pkg_mobile_device_runtime --> svc_mobileRuntime
   pkg_office_to_pdf --> svc_officeToPdf
   pkg_permission_presets --> svc_permissionPresets
   pkg_plan_mode --> svc_planMode
@@ -493,6 +511,8 @@ flowchart LR
   pkg_ptc_runtime --> svc_ptcRuntime
   pkg_ptc_runtime_node --> svc_ptcRuntime
   pkg_pwsh_local --> svc_shell
+  pkg_remote_access --> svc_remoteAccess
+  pkg_remote_access --> svc_remoteAccessHost
   pkg_sandbox --> svc_sandbox
   pkg_sandbox_local --> svc_sandbox
   pkg_sandbox_policy --> svc_sandboxPolicy
@@ -568,6 +588,7 @@ flowchart LR
   pkg_workspace_isolation_git --> svc_workspaceIsolation
   pkg_worktree_task --> svc_worktreeTask
   pkg_worktree_task_git --> svc_worktreeTask
+  svc_accountController --> pkg_client_ui_settings_account
   svc_agentDefaultModel --> pkg_api_session_controller
   svc_agentDefaultModel --> pkg_headless
   svc_agentLoop --> pkg_base
@@ -603,6 +624,8 @@ flowchart LR
   svc_browser --> pkg_tool_browser_element_capture
   svc_browserController --> pkg_client_ui_browser_element_capture
   svc_browserController --> pkg_client_ui_settings_security
+  svc_browserRuntime --> pkg_api_browser_controller
+  svc_browserRuntime --> pkg_browser_playwright
   svc_clientModules --> pkg_client_hmr
   svc_codeRuntime --> pkg_tools
   svc_compaction --> pkg_compaction_basic
@@ -622,6 +645,12 @@ flowchart LR
   svc_dynamicCordisRunner --> pkg_tool_cordis
   svc_e2b --> pkg_fs_e2b
   svc_e2b --> pkg_subprocess_e2b
+  svc_executionBindings --> pkg_agent
+  svc_executionBindings --> pkg_api_session_controller
+  svc_executionBindings --> pkg_api_workspace_controller
+  svc_executionBindings --> pkg_automation
+  svc_executionBindings --> pkg_subagent
+  svc_executionBindings --> pkg_workspace
   svc_executionHost --> pkg_artifact_local
   svc_executionHost --> pkg_artifact_memory
   svc_executionHost --> pkg_execution_host_targets
@@ -629,6 +658,7 @@ flowchart LR
   svc_executionHost --> pkg_tool_finding
   svc_executionHostController --> pkg_client_ui_settings_hosts
   svc_executionHostTargets --> pkg_api_execution_host_controller
+  svc_executionRuntimes --> pkg_api_execution_host_controller
   svc_fileReferences --> pkg_api_session_controller
   svc_fileUploads --> pkg_api_session_controller
   svc_findings --> pkg_api_security_research_controller
@@ -654,7 +684,10 @@ flowchart LR
   svc_mcpResources --> pkg_mcp_resources
   svc_mobileDevice --> pkg_api_device_capabilities_controller
   svc_mobileDevice --> pkg_tool_mobile_device
+  svc_mobileRuntime --> pkg_api_device_capabilities_controller
+  svc_mobileRuntime --> pkg_mobile_device_adb
   svc_officeToPdf --> pkg_client_ui_better_sidebar
+  svc_pairingController --> pkg_client_ui_settings_pairing
   svc_pluginManagementHost --> pkg_host_plugin_inventory
   svc_pluginManagementHost --> pkg_plugin_manager
   svc_pluginManager --> pkg_client_ui_plugin_manager
@@ -662,6 +695,8 @@ flowchart LR
   svc_ptcRuntime --> pkg_ptc_runtime_node
   svc_ptcRuntime --> pkg_tools
   svc_ptcRuntime --> pkg_workflow_ptc
+  svc_remoteAccess --> pkg_api_pairing_controller
+  svc_remoteAccessHost --> pkg_remote_access
   svc_sandbox --> pkg_bash_sandbox
   svc_sandbox --> pkg_terminal_bash
   svc_sandboxPolicy --> pkg_bash_sandbox
@@ -789,12 +824,15 @@ flowchart LR
 | `ctx.automationController` | `core` | [`api-automation-controller`](../packages/api/automation-controller) | - | [`client-ui-settings-automation`](../packages/client/ui-settings-automation) | - | Exposes automation definitions, run controls, schedule previews, and available configuration choices. |
 | `ctx.automationRuntime` | `core` | [`automation`](../packages/automation/automation) | - | [`api-automation-controller`](../packages/api/automation-controller) | - | Schedules durable UTC automation runs through ordinary Agents and records their lifecycle. |
 | `ctx.betterSidebar` | `core` | [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | [`client-ui-plan`](../packages/client/ui-plan), [`client-ui-settings-terminal`](../packages/client/ui-settings-terminal) | - | Owns sidebar tab and viewer contributions shared by the local browser interface. |
-| `ctx.browser` | `seam` | [`browser`](../packages/browser/browser) | [`browser-cinlan`](../packages/browser/browser-cinlan), [`browser-playwright`](../packages/browser/browser-playwright) | [`tool-browser`](../packages/browser/tool-browser), [`tool-browser-element-capture`](../packages/browser/tool-browser-element-capture), [`api-browser-controller`](../packages/api/browser-controller), [`coordination-browser-element-capture`](../packages/coordination/coordination-browser-element-capture) | - | Routes browser observation and interaction to a selected provider. |
+| `ctx.browser` | `seam` | [`browser`](../packages/browser/browser) | [`browser-playwright`](../packages/browser/browser-playwright) | [`tool-browser`](../packages/browser/tool-browser), [`tool-browser-element-capture`](../packages/browser/tool-browser-element-capture), [`api-browser-controller`](../packages/api/browser-controller), [`coordination-browser-element-capture`](../packages/coordination/coordination-browser-element-capture) | - | Routes browser observation and interaction to a selected provider. |
+| `ctx.browserRuntime` | `core` | [`browser-playwright`](../packages/browser/browser-playwright) | - | [`browser-playwright`](../packages/browser/browser-playwright), [`api-browser-controller`](../packages/api/browser-controller) | - | Owns the managed browser installation, provider selection, executable leases, and one Host task independently from plugin activation. |
 | `ctx.browserController` | `core` | [`api-browser-controller`](../packages/api/browser-controller) | - | [`client-ui-settings-security`](../packages/client/ui-settings-security), [`client-ui-browser-element-capture`](../packages/client/ui-browser-element-capture) | - | Exposes browser capability configuration and element-capture operations to the browser client. |
 | `ctx.browserUse` | `seam` | [`browser-use`](../packages/browser-use/browser-use) | [`experimental-browser-use-stagehand-native`](../packages/experimental/browser-use-stagehand-native), [`experimental-browser-use-playwright-mcp`](../packages/experimental/browser-use-playwright-mcp), [`experimental-browser-use-chrome-devtools-mcp`](../packages/experimental/browser-use-chrome-devtools-mcp) | - | - | Reserves one named provider until its tools and owned work have closed; providers own execution methods. |
-| `ctx.computerUse` | `seam` | [`computer-use`](../packages/computer-use/computer-use) | [`computer-use-cinlan`](../packages/computer-use/computer-use-cinlan), [`experimental-computer-use-cua-driver-native`](../packages/experimental/computer-use-cua-driver-native), [`experimental-computer-use-cua-driver-mcp`](../packages/experimental/computer-use-cua-driver-mcp) | [`tool-computer-use`](../packages/computer-use/tool-computer-use), [`api-device-capabilities-controller`](../packages/api/device-capabilities-controller) | - | Provides desktop observation and input through interchangeable device providers. |
+| `ctx.computerUse` | `seam` | [`computer-use`](../packages/computer-use/computer-use) | [`experimental-computer-use-cua-driver-native`](../packages/experimental/computer-use-cua-driver-native), [`experimental-computer-use-cua-driver-mcp`](../packages/experimental/computer-use-cua-driver-mcp) | [`tool-computer-use`](../packages/computer-use/tool-computer-use), [`api-device-capabilities-controller`](../packages/api/device-capabilities-controller) | - | Provides desktop observation and input through interchangeable device providers. |
 | `ctx.coordination` | `seam` | [`coordination`](../packages/coordination/coordination) | [`coordination-local`](../packages/coordination/coordination-local) | [`tool-coordination`](../packages/coordination/tool-coordination), [`coordination-subagent-executor`](../packages/coordination/coordination-subagent-executor), [`coordination-browser-element-capture`](../packages/coordination/coordination-browser-element-capture), [`tool-browser-element-capture`](../packages/browser/tool-browser-element-capture) | - | Owns task graphs, cancellation, and approval state shared by execution adapters. |
 | `ctx.deviceCapabilitiesController` | `core` | [`api-device-capabilities-controller`](../packages/api/device-capabilities-controller) | - | [`client-ui-settings-security`](../packages/client/ui-settings-security) | - | Reports desktop and mobile capability availability, SDK detection, and device choices. |
+| `ctx.executionBindings` | `core` | [`execution-binding`](../packages/execution-host/execution-binding) | - | [`agent`](../packages/core/agent), [`automation`](../packages/automation/automation), [`subagent`](../packages/subagent/subagent), [`workspace`](../packages/workspace/workspace), [`api-session-controller`](../packages/api/session-controller), [`api-workspace-controller`](../packages/api/workspace-controller) | - | Retains the local or SSH execution incarnation selected for a Session and lends the captured provider world to each operation. |
+| `ctx.executionRuntimes` | `core` | [`execution-runtime`](../packages/execution-host/execution-runtime) | - | [`api-execution-host-controller`](../packages/api/execution-host-controller) | - | Owns remote runtime inspection, installation tasks, cancellation, and atomic saved-target activation. |
 | `ctx.executionHost` | `seam` | [`execution-host`](../packages/execution-host/execution-host) | [`execution-host-local`](../packages/execution-host/execution-host-local) | [`artifact-local`](../packages/artifact/artifact-local), [`artifact-memory`](../packages/artifact/artifact-memory), [`execution-host-worker`](../packages/execution-host/execution-host-worker), [`execution-host-targets`](../packages/execution-host/execution-host-targets), [`tool-finding`](../packages/security/tool-finding) | - | Defines execution-host identity and operations consumed by workers and artifact providers. |
 | `ctx.executionHostController` | `core` | [`api-execution-host-controller`](../packages/api/execution-host-controller) | - | [`client-ui-settings-hosts`](../packages/client/ui-settings-hosts) | - | Exposes saved execution targets, revisions, and connection inspection. |
 | `ctx.executionHostTargets` | `core` | [`execution-host-targets`](../packages/execution-host/execution-host-targets) | - | [`api-execution-host-controller`](../packages/api/execution-host-controller) | - | Owns saved SSH target configuration and generation-aware inspection results. |
@@ -805,10 +843,14 @@ flowchart LR
 | `ctx.mcpManagement` | `core` | [`mcp-management`](../packages/mcp/mcp-management) | - | [`api-mcp-controller`](../packages/api/mcp-controller) | - | Owns durable desired MCP entries and reconciles their running lifecycle. |
 | `ctx.mcpRegistry` | `core` | [`mcp-client`](../packages/mcp/mcp-client) | - | [`mcp-management`](../packages/mcp/mcp-management) | - | Publishes read-only observations of the root profile MCP clients. |
 | `ctx.mcpResources` | `seam` | [`mcp-resources`](../packages/mcp/mcp-resources) | [`mcp-client`](../packages/mcp/mcp-client) | [`mcp-resources`](../packages/mcp/mcp-resources) | - | Collects provider resources and templates for the resource tools registered by the same package. |
-| `ctx.mobileDevice` | `seam` | [`mobile-device`](../packages/mobile-device/mobile-device) | [`mobile-device-cinlan`](../packages/mobile-device/mobile-device-cinlan) | [`tool-mobile-device`](../packages/mobile-device/tool-mobile-device), [`api-device-capabilities-controller`](../packages/api/device-capabilities-controller) | - | Provides device discovery, observation, and input for mobile automation. |
+| `ctx.mobileDevice` | `seam` | [`mobile-device`](../packages/mobile-device/mobile-device) | [`mobile-device-adb`](../packages/mobile-device/mobile-device-adb) | [`tool-mobile-device`](../packages/mobile-device/tool-mobile-device), [`api-device-capabilities-controller`](../packages/api/device-capabilities-controller) | - | Provides device discovery, observation, and input for mobile automation. |
+| `ctx.mobileRuntime` | `core` | [`mobile-device-runtime`](../packages/mobile-device/mobile-device-runtime) | - | [`mobile-device-adb`](../packages/mobile-device/mobile-device-adb), [`api-device-capabilities-controller`](../packages/api/device-capabilities-controller) | - | Owns managed Android tools, executable leases, one resource task, and explicit human mirror sessions independently from provider activation. |
 | `ctx.officeToPdf` | `core` | [`office-to-pdf`](../packages/document/office-to-pdf) | - | [`client-ui-better-sidebar`](../packages/client/ui-better-sidebar) | - | Owns reusable converters, bounded conversion queues, cached outputs, and authorized workspace previews. |
+| `ctx.pairingController` | `core` | [`api-pairing-controller`](../packages/api/pairing-controller) | - | [`client-ui-settings-pairing`](../packages/client/ui-settings-pairing) | - | Exposes trusted-local listener management, invitations, and durable device revocation through the remote-access owner. |
 | `ctx.pluginManagementHost` | `seam` | [`plugin-manager`](../packages/boot/plugin-manager) | - | [`plugin-manager`](../packages/boot/plugin-manager), [`host-plugin-inventory`](../packages/host/plugin-inventory) | - | The Desktop launcher supplies protected entry ids and complete application patches; package transactions remain launcher-owned. |
 | `ctx.ptcRuntime` | `seam` | [`ptc-runtime`](../packages/ptc-runtime/ptc-runtime) | [`ptc-runtime-node`](../packages/ptc-runtime/ptc-runtime-node) | [`tools`](../packages/core/tools), [`workflow-ptc`](../packages/workflow/workflow-ptc), [`ptc-runtime-node`](../packages/ptc-runtime/ptc-runtime-node) | - | Resolves and runs programs with typed tool bindings; the Node provider also exposes the local code-runtime compatibility adapter. |
+| `ctx.remoteAccess` | `core` | [`remote-access`](../packages/remote-access/remote-access) | - | [`api-pairing-controller`](../packages/api/pairing-controller) | - | Owns opt-in HTTPS listener state, one-time pairing grants, durable device credentials, revocation, and carrier settlement. |
+| `ctx.remoteAccessHost` | `seam` | [`remote-access`](../packages/remote-access/remote-access) | - | [`remote-access`](../packages/remote-access/remote-access) | - | The Desktop launcher supplies authenticated dispatch and runtime assets without transferring Host ownership to the paired carrier. |
 | `ctx.securityResearchController` | `core` | [`api-security-research-controller`](../packages/api/security-research-controller) | - | [`client-ui-settings-security`](../packages/client/ui-settings-security) | - | Exposes resource management, assessment scope, findings, evidence artifacts, and vulnerability knowledge through their owning services. |
 | `ctx.securitySkillResources` | `core` | [`security-skills`](../packages/security/security-skills) | - | [`security-skills`](../packages/security/security-skills), [`api-security-research-controller`](../packages/api/security-research-controller) | - | Installs verified resource generations and retains loaded paths until their Agent realms release them. |
 | `ctx.sessionFeedback` | `core` | [`command-feedback`](../packages/feedback/command-feedback) | - | [`client-ui-message-feedback`](../packages/client/ui-message-feedback) | - | Records human feedback in the Session without starting model work. |
@@ -842,6 +884,7 @@ flowchart LR
 | `ctx.sessionController` | `core` | [`api-session-controller`](../packages/api/session-controller) | - | - | - | Owns Session commands, cold reads, durable-event following, live control state, model catalogs, workspace opening, and Agent activation policy. |
 | `ctx.sessionFileReferences` | `core` | [`api-session-controller`](../packages/api/session-controller) | - | - | - | Delegates file-reference discovery through the Session Controller's established Agent lookup policy. |
 | `ctx.sessionSkillCatalog` | `core` | [`api-session-controller`](../packages/api/session-controller) | - | - | - | Lists the Session composition's user-invocable skills without activating a cold Agent. |
+| `ctx.accountController` | `core` | [`api-account-controller`](../packages/api/account-controller) | - | [`client-ui-settings-account`](../packages/client/ui-settings-account) | - | Projects secret-free authorization state, caller-owned prompts, and local-only credential deletion to Account Settings. |
 | `ctx.credentialsController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | Projects the credential-reference seam onto the generated Remote namespace: batch fan-out, view projection, and refusal mapping live here, not on the seam Definition. |
 | `ctx.settingsController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | Projects the user-settings seam onto the generated Remote namespace: the read is always redacted and every refusal is classified here, not on the seam Definition. |
 | `ctx.workspaceFiles` | `core` | [`api-workspace-files`](../packages/api/workspace-files) | - | - | - | Serves stat, paged text, byte windows, directory listings, and the change feed for files inside a Session's workspace root, confined by lstat, containment, and a stat re-check. |

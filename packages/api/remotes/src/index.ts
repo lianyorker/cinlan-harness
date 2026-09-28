@@ -39,6 +39,7 @@ export type {} from '@deepseek-ai/dsh-api-integration-preflight-controller/types
 export type {} from '@deepseek-ai/dsh-api-usage-controller/types'
 export type {} from '@deepseek-ai/dsh-api-voice-controller/types'
 export type {} from '@deepseek-ai/dsh-api-mcp-controller/types'
+export type {} from '@deepseek-ai/dsh-api-account-controller/types'
 export type {} from '@deepseek-ai/dsh-api-automation-controller/types'
 export type {} from '@deepseek-ai/dsh-api-sidebar-terminal-controller/types'
 export type {} from '@deepseek-ai/dsh-api-execution-host-controller/types'

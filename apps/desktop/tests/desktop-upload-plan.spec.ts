@@ -43,7 +43,8 @@ async function fixture(
     ? TEST_ORIGIN
     : 'https://download.deepseek.com'
   await writeFile(join(artifactsRoot, `${target}-release.json`), `${JSON.stringify({
-    schemaVersion: 1,
+    schemaVersion: 2,
+    signingMode: 'signed',
     target,
     version,
     environment,
@@ -154,6 +155,20 @@ describe('desktop upload plan', () => {
       publicUrl: 'https://download.deepseek.com/_/harness/desktop/stable/win-x64/',
       bucket: PRODUCTION_BUCKET,
     })
+  })
+
+  it('rejects an unsigned completion record before reading update metadata', async () => {
+    const paths = await fixture('win-x64')
+    await writeFile(join(paths.artifactsRoot, 'win-x64-release.json'), `${JSON.stringify({
+      schemaVersion: 2,
+      signingMode: 'unsigned',
+      target: 'win-x64',
+      version: '1.2.3',
+      environment: 'test',
+      publicUrl: `${TEST_ORIGIN}/_/harness/desktop/stable/win-x64/`,
+    })}\n`)
+    await rm(join(paths.artifactsRoot, 'nightly.yml'))
+    await expect(createDesktopUploadPlan('win-x64', paths)).rejects.toThrow(/unsigned artifacts are local-only/u)
   })
 
   it.each(['missing', 'empty'] as const)('rejects Windows artifacts with a %s blockmap companion', async (state) => {

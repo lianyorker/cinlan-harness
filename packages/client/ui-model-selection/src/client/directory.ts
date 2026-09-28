@@ -29,7 +29,7 @@ export interface ModelDirectoryState {
   groups: readonly ModelProviderGroup[]
   /** Provider-local failures from the last load; usable groups stay usable. */
   failures: readonly ModelCatalogFailure[]
-  /** Lifecycle of the in-flight operation. */
+  /** Shared lifecycle; `selecting` lasts until the latest selection settles. */
   status: 'idle' | 'loading' | 'ready' | 'selecting' | 'error'
   /** Whole-request or selection failure text; null when none. */
   error: string | null

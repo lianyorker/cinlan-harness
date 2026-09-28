@@ -82,6 +82,50 @@ export interface TypeApiEntry {
 /** Every harness `ctx.<key>` service, sorted by key. */
 export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
+    key: 'accountController',
+    summary: 'Account Settings controller over generic authorization flows and local credential records.',
+    description: 'Account Settings controller over generic authorization flows and local credential records.',
+    methods: [
+      {
+        signature: '@Remote async snapshot(): Promise<AccountAuthorizationSnapshot>',
+        description: 'Read registered authorization flows and local credential presence.',
+        parameters: [],
+        returns: 'complete secret-free Account Settings state, limited to 256 KiB as serialized UTF-8 JSON.',
+        throws: ['RemoteError when the complete snapshot exceeds its wire limit.'],
+      },
+      {
+        signature: '@Remote({ mode: \'stream\' }) async *watch(signal: AbortSignal): AsyncIterable<AccountAuthorizationSnapshot>',
+        description: 'Observe complete replacement snapshots, coalescing changes for a paused client.',
+        parameters: [{ name: 'signal', description: 'caller and transport cancellation.' }],
+        returns: 'initial state followed by flow, attempt, and credential changes.',
+      },
+      {
+        signature: '@Remote({ mode: \'stream\' }) async *authorize( keyValue: CredentialKey, methodValue: AccountAuthorizationMethodId, signal: AbortSignal, ): AsyncIterable<AccountAuthorizationFrame>',
+        description: 'Run one authorization through a stream owned by the caller that started it.',
+        parameters: [{ name: 'keyValue', description: 'registered credential record key.' }, { name: 'methodValue', description: 'method advertised for that flow.' }, { name: 'signal', description: 'closes this caller\'s stream and cancels its attempt.' }],
+        returns: 'notices, prompt metadata, and settlement; every serialized frame is at most 64 KiB.',
+        throws: ['RemoteError when control-frame volume or one control frame exceeds its output limit.'],
+      },
+      {
+        signature: '@Remote answer( attemptValue: AccountAuthorizationAttemptId, promptValue: AccountAuthorizationPromptId, answerValue: string, ): void',
+        description: 'Submit one prompt answer. The answer is resolved directly to the flow and is never retained or returned.',
+        parameters: [{ name: 'attemptValue', description: 'caller-owned attempt identity.' }, { name: 'promptValue', description: 'current prompt identity.' }, { name: 'answerValue', description: 'text, secret, or selected option value.' }],
+      },
+      {
+        signature: '@Remote cancel(attemptValue: AccountAuthorizationAttemptId): boolean',
+        description: 'Cancel only the attempt named by the caller-owned identity.',
+        parameters: [{ name: 'attemptValue', description: 'active attempt identity.' }],
+        returns: 'true when the attempt was still active.',
+      },
+      {
+        signature: '@Remote async deleteCredential(keyValue: CredentialKey): Promise<AccountCredentialDeletionResult>',
+        description: 'Delete one flow\'s local credential record without claiming issuer revocation.',
+        parameters: [{ name: 'keyValue', description: 'registered flow key.' }],
+        returns: 'local deletion result with issuerRevoked fixed to false.',
+      },
+    ],
+  },
+  {
     key: 'agentDefaultModel',
     summary: 'Owns the default model selection independently of any Host or transport.',
     description: 'Owns the default model selection independently of any Host or transport. The composition entry remains usable without a settings provider; when one is mounted, its user layer is read live.',
@@ -658,6 +702,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['{AuthorizationError} code `DUPLICATE_FLOW` when the key is already claimed.'],
       },
       {
+        signature: 'subscribe(subscriber: () => unknown): () => void',
+        description: 'Observe flow registration and in-flight changes. Credential commits are reported by the flow\'s attempt-owned AuthorizationSession.commit receipt; subscriber failures are contained.',
+        parameters: [{ name: 'subscriber', description: 'callback that re-reads {@link list} or {@link describe}.' }],
+        returns: 'disposer that removes the callback.',
+      },
+      {
         signature: 'list(): readonly AuthorizationEntry[]',
         description: 'Every registered flow, for a surface listing what can be authorized.',
         parameters: [],
@@ -670,6 +720,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the entry, or undefined when no flow claims that key.',
       },
       {
+        signature: 'async withExclusiveKey<T>(key: CredentialKey, operation: () => Promise<T>): Promise<T>',
+        description: 'Run one local credential operation without allowing authorization for the same key to start. The reservation is released after the callback settles, including rejection.',
+        parameters: [{ name: 'key', description: 'the credential record to reserve.' }, { name: 'operation', description: 'the local operation protected by the reservation.' }],
+        returns: 'the callback result.',
+        throws: ['{AuthorizationError} code `ALREADY_IN_FLIGHT` when authorization or another operation owns the key.'],
+      },
+      {
         signature: 'cancel(key: CredentialKey): void',
         description: 'Withdraw the attempt running for a key, if any. Separate from the request\'s own signal because a request/response transport answers a Cancel button on a second call, with no handle on the first one\'s signal.',
         parameters: [{ name: 'key', description: 'the credential record whose attempt should stop.' }],
@@ -678,8 +735,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'async begin(request: AuthorizationRequest): Promise<AuthorizationOutcome>',
         description: 'Run one attempt to authorize a key, and report how it ended.\n\nOne attempt per key at a time. A second caller is refused rather than joined: the two would be prompting different humans through the same flow, and the second would answer questions the first was asked.',
         parameters: [{ name: 'request', description: 'the key, the method, the surface, and the cancel signal.' }],
-        returns: '`authorized` once the flow\'s record is committed during this attempt and observed, or `cancelled` when the human declined or the caller withdrew.',
-        throws: ['{AuthorizationError} code `NO_FLOW` when nothing claims the key, `UNKNOWN_METHOD` when the named method is not one the flow offers, `ALREADY_IN_FLIGHT` when an attempt is already running for the key, or `NOT_COMMITTED` when the flow resolved without committing a record during the attempt.'],
+        returns: '`authorized` once the flow\'s target-key write and commit receipt are confirmed and the record remains present, or `cancelled` when the human declined or the caller withdrew. Withdrawal returns promptly for flows without {@link AuthorizationFlow.awaitCancellation}, which keep the key in flight until their runner settles; a flow declaring `awaitCancellation` keeps this call pending until its bounded remote compensation settles, and a compensation failure reaches the caller as a thrown error.',
+        throws: ['{AuthorizationError} code `NO_FLOW` when nothing claims the key, `UNKNOWN_METHOD` when the named method is not one the flow offers, `ALREADY_IN_FLIGHT` when an attempt is already running for the key, or `NOT_COMMITTED` when the flow did not produce an observed target-key write, commit receipt, or present record during the attempt.'],
       },
     ],
   },
@@ -2066,7 +2123,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'registerAgentResolver(resolve: AgentResolver): () => void',
         description: 'Register the ordinary-Session resolver used when a raw upload addresses a cold Session.',
-        parameters: [{ name: 'resolve', description: 'resolver that returns the exact live Agent or throws a Remote error.' }],
+        parameters: [{ name: 'resolve', description: 'resolver that returns the exact live Agent or throws a Remote error. The disposer removes only its own registration and may be called more than once.' }],
         returns: 'disposer removing this resolver.',
       },
       {
@@ -6147,10 +6204,10 @@ export const EVENT_API: readonly EventApiEntry[] = [
   {
     name: 'authorization/settled',
     mode: 'emit',
-    signature: '\'authorization/settled\'(key: CredentialKey, settlement: AuthorizationSettlement): void',
+    signature: '\'authorization/settled\'( key: CredentialKey, settlement: AuthorizationSettlement, attemptId: AuthorizationAttemptId): void',
     summary: 'One authorization attempt has finished and released its key.',
     description: 'One authorization attempt has finished and released its key. Fires for every terminal outcome, failures included, so a surface watching a key it did not start (a second browser tab) learns the attempt is over.',
-    parameters: [{ name: 'key', description: 'the credential record the finished attempt was authorizing.' }, { name: 'settlement', description: 'how it ended, including the `failed` case its caller sees as a thrown error.' }],
+    parameters: [{ name: 'key', description: 'the credential record the finished attempt was authorizing.' }, { name: 'settlement', description: 'how it ended, including the `failed` case its caller sees as a thrown error.' }, { name: 'attemptId', description: 'the identity of the attempt that released the key.' }],
   },
   {
     name: 'commands/change',
@@ -6589,6 +6646,58 @@ export const EVENT_API: readonly EventApiEntry[] = [
 /** Shapes of every exported type the Service and Event signatures reference (transitively), sorted by name. */
 export const TYPE_API: readonly TypeApiEntry[] = [
   {
+    name: 'AccountAuthorizationAttemptId',
+    declaration: 'export type AccountAuthorizationAttemptId = Branded<\'AccountAuthorizationAttemptId\'>;',
+  },
+  {
+    name: 'AccountAuthorizationFailureCode',
+    declaration: 'export type AccountAuthorizationFailureCode = \'busy\' | \'invalid-input\' | \'network\' | \'rejected\' | \'invalid-response\' | \'cleanup-failed\' | \'not-committed\' | \'unavailable\';',
+  },
+  {
+    name: 'AccountAuthorizationFlowView',
+    declaration: 'export interface AccountAuthorizationFlowView {\n    readonly key: CredentialKey;\n    readonly label: string;\n    readonly methods: readonly AccountAuthorizationMethodView[];\n    readonly inFlight: boolean;\n    readonly credential: AccountCredentialState;\n}',
+  },
+  {
+    name: 'AccountAuthorizationFrame',
+    declaration: 'export type AccountAuthorizationFrame = {\n    readonly type: \'started\';\n    readonly attemptId: AccountAuthorizationAttemptId;\n    readonly key: CredentialKey;\n    readonly method: AccountAuthorizationMethodId;\n} | {\n    readonly type: \'notice\';\n    readonly attemptId: AccountAuthorizationAttemptId;\n    readonly notice: AccountAuthorizationNoticeView;\n} | {\n    readonly type: \'prompt\';\n    readonly attemptId: AccountAuthorizationAttemptId;\n    readonly prompt: AccountAuthorizationPromptView;\n} | {\n    readonly type: \'prompt-withdrawn\';\n    readonly attemptId: AccountAuthorizationAttemptId;\n    readonly promptId: AccountAuthorizationPromptId;\n} | ({\n    readonly type: \'settled\';\n    readonly attemptId: AccountAuthorizationAttemptId;\n} & ({\n    readonly status: \'authorized\' | \'cancelled\';\n} | {\n    readonly status: \'failed\';\n    readonly failure: AccountAuthorizationFailureCode;\n}));',
+  },
+  {
+    name: 'AccountAuthorizationMethodId',
+    declaration: 'export type AccountAuthorizationMethodId = Branded<\'AccountAuthorizationMethodId\'>;',
+  },
+  {
+    name: 'AccountAuthorizationMethodView',
+    declaration: 'export interface AccountAuthorizationMethodView {\n    readonly id: AccountAuthorizationMethodId;\n    readonly label: string;\n}',
+  },
+  {
+    name: 'AccountAuthorizationNoticeView',
+    declaration: 'export interface AccountAuthorizationNoticeView {\n    readonly message: string;\n    readonly url?: string;\n    readonly code?: string;\n}',
+  },
+  {
+    name: 'AccountAuthorizationPromptId',
+    declaration: 'export type AccountAuthorizationPromptId = Branded<\'AccountAuthorizationPromptId\'>;',
+  },
+  {
+    name: 'AccountAuthorizationPromptOptionView',
+    declaration: 'export interface AccountAuthorizationPromptOptionView {\n    readonly id: string;\n    readonly label: string;\n    readonly description?: string;\n}',
+  },
+  {
+    name: 'AccountAuthorizationPromptView',
+    declaration: 'export type AccountAuthorizationPromptView = {\n    readonly id: AccountAuthorizationPromptId;\n    readonly message: string;\n    readonly placeholder?: string;\n    readonly autocomplete?: AuthorizationPromptAutocomplete;\n} & ({\n    readonly kind: \'text\';\n} | {\n    readonly kind: \'secret\';\n} | {\n    readonly kind: \'select\';\n    readonly options: readonly AccountAuthorizationPromptOptionView[];\n});',
+  },
+  {
+    name: 'AccountAuthorizationSnapshot',
+    declaration: 'export interface AccountAuthorizationSnapshot {\n    readonly flows: readonly AccountAuthorizationFlowView[];\n}',
+  },
+  {
+    name: 'AccountCredentialDeletionResult',
+    declaration: 'export interface AccountCredentialDeletionResult {\n    readonly localDeleted: boolean;\n    readonly issuerRevoked: false;\n}',
+  },
+  {
+    name: 'AccountCredentialState',
+    declaration: 'export interface AccountCredentialState {\n    readonly configured: boolean;\n    readonly kind?: CredentialRecord[\'kind\'];\n    readonly writable: boolean;\n}',
+  },
+  {
     name: 'ActivateTaskRequest',
     declaration: 'export interface ActivateTaskRequest {\n    readonly taskId: WorktreeTaskId;\n}',
   },
@@ -6937,12 +7046,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AttachmentId = Branded<\'AttachmentId\'>;',
   },
   {
+    name: 'AuthorizationAttemptId',
+    declaration: 'export type AuthorizationAttemptId = Branded<\'AuthorizationAttemptId\'>;',
+  },
+  {
     name: 'AuthorizationEntry',
-    declaration: 'export interface AuthorizationEntry {\n    key: CredentialKey;\n    label: string;\n    methods: readonly AuthorizationMethod[];\n    inFlight: boolean;\n}',
+    declaration: 'export interface AuthorizationEntry {\n    key: CredentialKey;\n    label: string;\n    methods: readonly AuthorizationMethod[];\n    inFlight: boolean;\n    attemptId?: AuthorizationAttemptId;\n}',
   },
   {
     name: 'AuthorizationFlow',
-    declaration: 'export interface AuthorizationFlow {\n    readonly key: CredentialKey;\n    readonly label: string;\n    readonly methods: readonly [\n        AuthorizationMethod,\n        ...AuthorizationMethod[]\n    ];\n    run(session: AuthorizationSession): Promise<void>;\n}',
+    declaration: 'export interface AuthorizationFlow {\n    readonly key: CredentialKey;\n    readonly label: string;\n    readonly methods: readonly [\n        AuthorizationMethod,\n        ...AuthorizationMethod[]\n    ];\n    readonly awaitCancellation?: boolean;\n    run(session: AuthorizationSession): Promise<void>;\n}',
   },
   {
     name: 'AuthorizationInteraction',
@@ -6962,7 +7075,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AuthorizationPrompt',
-    declaration: 'export type AuthorizationPrompt = {\n    signal?: AbortSignal;\n} & ({\n    kind: \'text\';\n    message: string;\n    placeholder?: string;\n} | {\n    kind: \'secret\';\n    message: string;\n    placeholder?: string;\n} | {\n    kind: \'select\';\n    message: string;\n    options: readonly AuthorizationPromptOption[];\n});',
+    declaration: 'export type AuthorizationPrompt = {\n    signal?: AbortSignal;\n    autocomplete?: AuthorizationPromptAutocomplete;\n} & ({\n    kind: \'text\';\n    message: string;\n    placeholder?: string;\n} | {\n    kind: \'secret\';\n    message: string;\n    placeholder?: string;\n} | {\n    kind: \'select\';\n    message: string;\n    options: readonly AuthorizationPromptOption[];\n});',
+  },
+  {
+    name: 'AuthorizationPromptAutocomplete',
+    declaration: 'export type AuthorizationPromptAutocomplete = \'username\' | \'current-password\' | \'one-time-code\';',
   },
   {
     name: 'AuthorizationPromptOption',
@@ -6974,7 +7091,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AuthorizationSession',
-    declaration: 'export interface AuthorizationSession {\n    readonly method: string;\n    readonly signal: AbortSignal;\n    notify(notice: AuthorizationNotice): void;\n    prompt(prompt: AuthorizationPrompt): Promise<string>;\n}',
+    declaration: 'export interface AuthorizationSession {\n    readonly method: string;\n    readonly signal: AbortSignal;\n    notify(notice: AuthorizationNotice): void;\n    prompt(prompt: AuthorizationPrompt): Promise<string>;\n    commit(): void;\n}',
   },
   {
     name: 'AuthorizationSettlement',
@@ -7790,7 +7907,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'DefineToolOptions',
-    declaration: 'export interface DefineToolOptions<S extends ParameterSchemaSpec, O extends ValueSchemaSpec> {\n    readonly name: string;\n    readonly description: string;\n    readonly parameters: S;\n    readonly output: {\n        readonly schema: O;\n        render(args: InferArgs<S>, value: InferValue<NoInfer<O>>): ContentBlock[];\n        presentationMeta?(args: InferArgs<S>, value: InferValue<NoInfer<O>>): JsonValue;\n    };\n    readonly timeoutMs?: number;\n    isConcurrencySafe?(args: InferArgs<S>): boolean;\n    execute(args: InferArgs<S>, exec: ToolRunContext): Promise<InferValue<NoInfer<O>>>;\n    finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    presentCall?(args: InferArgs<S>): ToolCallView | undefined;\n    presentResult?(args: InferArgs<S>, result: ToolResult): ToolResultView | undefined;\n}',
+    declaration: 'export interface DefineToolOptions<S extends ParameterSchemaSpec, O extends ValueSchemaSpec> {\n    readonly name: string;\n    readonly description: string;\n    readonly parameters: S;\n    readonly output: {\n        readonly schema: O;\n        render(args: InferArgs<S>, value: InferValue<NoInfer<O>>): ContentBlock[];\n        presentationMeta?(args: InferArgs<S>, value: InferValue<NoInfer<O>>): JsonValue;\n    };\n    readonly timeoutMs?: number;\n    isConcurrencySafe?(args: InferArgs<S>): boolean;\n    execute(args: InferArgs<S>, exec: ToolRunContext): Promise<InferValue<NoInfer<O>>>;\n    projectContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    presentCall?(args: InferArgs<S>): ToolCallView | undefined;\n    presentResult?(args: InferArgs<S>, result: ToolResult): ToolResultView | undefined;\n}',
   },
   {
     name: 'DeleteTaskRequest',
@@ -11094,7 +11211,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ToolDefinition',
-    declaration: 'export interface ToolDefinition extends ToolSchema {\n    readonly output: ToolOutputDefinition;\n    execute(args: unknown, exec: ToolRunContext): Promise<unknown>;\n    finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    timeoutMs?: number;\n    isConcurrencySafe?(args: unknown): boolean;\n    presentCall?(args: unknown): ToolCallView | undefined;\n    presentResult?(args: unknown, result: ToolResult): ToolResultView | undefined;\n}',
+    declaration: 'export interface ToolDefinition extends ToolSchema {\n    readonly output: ToolOutputDefinition;\n    execute(args: unknown, exec: ToolRunContext): Promise<unknown>;\n    projectContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    timeoutMs?: number;\n    isConcurrencySafe?(args: unknown): boolean;\n    presentCall?(args: unknown): ToolCallView | undefined;\n    presentResult?(args: unknown, result: ToolResult): ToolResultView | undefined;\n}',
   },
   {
     name: 'ToolDispatchExecution',

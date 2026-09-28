@@ -5,7 +5,7 @@
  * Add --fail-profile with --packaged to verify a persistent error and diagnostic from isolated invalid metadata.
  * The existing-profile fixture must contain only the default managed profile, with no symlinks, junctions, patches, or extra bundles;
  * only its runtime is copied into the isolated test home, and its source is never launched or modified.
- * Packaged runs require 0.1.6-alpha.2 and stage the local plugin-control fixture only after stopping the isolated Host.
+ * Packaged runs require 0.1.7-rc.2 and stage the local plugin-control fixture only after stopping the isolated Host.
  */
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
@@ -26,7 +26,7 @@ const { values } = parseArgs({ options: {
   'fail-profile': { type: 'boolean', default: false },
 }, allowPositionals: false })
 const packaged = values.packaged
-const expectedPackagedVersion = '0.1.6-alpha.2'
+const expectedPackagedVersion = '0.1.7-rc.2'
 const existingProfile = values['existing-profile']
 const closeDuringStartup = values['close-during-startup']
 const failProfile = values['fail-profile']

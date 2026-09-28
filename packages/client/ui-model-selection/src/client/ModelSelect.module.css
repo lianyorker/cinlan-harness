@@ -85,14 +85,30 @@
   }
 }
 
-.chevron {
-  flex: 0 0 auto;
+.triggerStatus {
+  display: grid;
+  place-items: center;
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
   color: var(--dsw-alias-label-caption);
+}
+
+.chevron {
   transition: transform 120ms ease;
 }
 
 .chevronOpen {
   transform: rotate(180deg);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 /* Portaled to body and placed from the trigger rect by the component (the

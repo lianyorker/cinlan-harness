@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-cinlan-cua-driver-compatibility.md
-2026-09-20-cinlan-cua-driver-compatibility.md: 0eaa5528b8ed5ea5e15634ba34dd342d881a67fc
-2026-09-20-cinlan-cua-driver-compatibility.zh.md: f205d53bc428d85d5ad49e65cb0218930e17b7e2
+2026-09-20-cinlan-cua-driver-compatibility.md: 038616f72d867d941813090d2800399013266d96
+2026-09-20-cinlan-cua-driver-compatibility.zh.md: b4e86b9c0deea737e161fc9ae0ed547671ff8990

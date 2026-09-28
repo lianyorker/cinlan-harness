@@ -8,7 +8,9 @@
  * and the settings address does not exist until it is. One `settings.mutate`
  * sets the whole profile at `providers.<route>`; the key travels separately
  * through `credentials/set` under the reference the profile records, exactly as
- * an existing provider's key does.
+ * an existing provider's key does. Its key control requests new-password
+ * autofill semantics and disables capitalization and spelling correction so
+ * browsers do not reuse a saved account password or alter the opaque key.
  *
  * The three fields a hand-declared route cannot default — endpoint, protocol,
  * and at least one model — are required here rather than at load, so the
@@ -263,7 +265,9 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
         <input
           className={styles['input']}
           type="password"
-          autoComplete="off"
+          autoComplete="new-password"
+          autoCapitalize="none"
+          spellCheck={false}
           value={keyDraft}
           placeholder={t('keyPlaceholder')}
           aria-label={t('keyInput')}

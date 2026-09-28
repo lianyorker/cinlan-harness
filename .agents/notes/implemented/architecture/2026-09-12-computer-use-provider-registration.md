@@ -10,7 +10,7 @@ Desktop providers expose different operations, observation formats, and platform
 
 ## Decision
 
-The DSH capability is named **computer use**. [`dsh-computer-use`](../../../../packages/computer-use/computer-use/README.md) owns `ctx.computerUse.register()`, which reserves one provider-owned name and returns its effect disposer. A second exclusive registration fails regardless of its name. This API carries no Cua Driver operation type, dispatch method, Session lock, or runtime selector. The same service retains Cinlan's provider facade under the [Cinlan compatibility decision](2026-09-20-cinlan-cua-driver-compatibility.md); its registered providers also exclude these adapters.
+The DSH capability is named **computer use**. [`dsh-computer-use`](../../../../packages/computer-use/computer-use/README.md) owns `ctx.computerUse.register()`, which reserves one provider-owned name and returns its effect disposer. A second exclusive registration fails regardless of its name. This API carries no Cua Driver operation type, dispatch method, Session lock, or runtime selector. The same service retains its provider facade under the [Computer Use compatibility decision](2026-09-20-cinlan-cua-driver-compatibility.md); facade providers also exclude these adapters.
 
 **Cua Driver** names the upstream implementation. The [MCP provider](../../../../packages/experimental/computer-use-cua-driver-mcp/README.md) connects an installed executable. The [native provider](../../../../packages/experimental/computer-use-cua-driver-native/README.md) installs the upstream native npm dependency. Both remain experimental and join the explicit public-release allowlist; neither is enabled by default.
 
@@ -20,7 +20,7 @@ Provider teardown retains the registration until tool admission stops and owned 
 
 ## Alternatives considered
 
-**Unified action API for Cua Driver.** Mapping Cua Driver screenshot, input, and window operations to Cinlan requests would require translating provider-specific semantics without a current consumer that needs that portability. Provider-owned tools preserve those semantics.
+**Unified action API for Cua Driver.** Mapping Cua Driver screenshot, input, and window operations to facade requests would require translating provider-specific semantics without a current consumer that needs that portability. Provider-owned tools preserve those semantics.
 
 **Only external MCP.** This reuses an installed driver and its process identity but leaves a separate installation prerequisite. The native provider supplies a one-package runtime installation.
 

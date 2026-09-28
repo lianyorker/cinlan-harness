@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当组合需要通过 pi-ai 的提供方目录、或通过 pi-ai 已安装目录未描述的网关路由模型请求时挂载本插件。`providers` 字典就是整个配置面：每个键都是请求用 `GenerateOptions.provider` 选择的提供方路由名。
+当组合需要通过 pi-ai 的提供方目录、或通过 pi-ai 已安装目录未描述的网关路由模型请求时挂载本插件。`providers` 字典是模型路由配置面：每个键都是请求用 `GenerateOptions.provider` 选择的提供方路由名；`sub2ApiCleanupTimeoutMs` 单独限制 Cinlan 账户流程的清理请求。
 
 ### 何时选择
 
@@ -70,6 +70,8 @@ kind: "package-reference"
               high: high
 ```
 
+对于 OpenAI Responses 网关，将 `api: openai-responses` 与以 `/v1` 结尾的 `baseURL` 一起设置；pi-ai 随后会把请求发送到 `/v1/responses`。该路由不会回退到 `/v1/chat/completions`。账户认证不会创建或选择模型路由；模型路由仍需在 LLM 设置中显式配置。
+
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `apiKeyEnv` | 无 | 按请求解析的凭据引用；省略时交由 pi-ai 环境发现 |
@@ -85,12 +87,15 @@ kind: "package-reference"
 | `requestImageMaxBytes` | `1 MiB` | 每张请求图片在 base64 扩展前的编码字节目标 |
 | `maxRequestImageBytes` | `20 MiB` | 带最旧优先卸载的 base64 图片载荷总上限 |
 | `retryPolicy` | normal，5 次重试 | 由 `dsh-llm-retry` 执行的提供方自有重试策略 |
+| `sub2ApiCleanupTimeoutMs` | `10,000` 毫秒 | 每次 Sub2API 补偿核对密钥、删除密钥或退出请求的截止时间 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-llm-pi-ai)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### 登录提供方
 
 pi-ai 提供登录的提供方可以通过 harness 授权 seam 登录：流程提供 OAuth 或交互式密钥提示（密钥键入 pi-ai 自己的登录提示，而非设置表单），得到的凭据存储在 harness 凭据存储的 `llm-pi-ai/<provider id>` 记录中。存储的登录在其路由的 `apiKeyEnv` 覆盖之下完成认证，并在存储的跨进程锁下自行刷新；退出登录即删除存储记录。落在记录文法之外——小写连字符标识符——的手工声明路由键无法登录，因为对它的记录写入会以 `LlmError('UNSTORABLE_PROVIDER_ID')` 拒绝；这类路由改用 `apiKeyEnv` 或提供方 ambient 设置认证。
+
+Cinlan 是账户流程，不是 pi-ai 提供方登录。挂载 `dsh-authorization` 后，账户设置卡片只请求 Cinlan 邮箱和密码；仅当服务要求时才请求 TOTP。Host 始终使用 `https://api.cinlan.online/api/v1`，调用 `/auth/login`，列出 `/keys`，复用活动的 `Cinlan Harness` 密钥或创建它，只把 `{ kind: 'api-key', key }` 写入 `llm-pi-ai/sub2api`，并在服务返回刷新令牌时调用 `/auth/logout`。账户卡片不配置提供方或模型。远程密钥仍由签发方管理：删除本地记录不能撤销它。提交失败或取消时会尝试删除新创建的密钥。只缺少 id 的响应可以通过返回的 key 值核对；无法读取或没有安全 id/key 的响应不会按名称删除，并抛出 `SUB2API_CLEANUP_FAILED` 表示远程可能残留。本地提交状态不确定时也会报告相同错误，但不会进行不安全的远程删除；删除失败、刷新令牌退出失败和清理截止时间同样使用该错误。`sub2ApiCleanupTimeoutMs` 分别限制每次核对、删除和退出请求。
 
 ### 解析模型目录
 

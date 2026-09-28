@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `spill/` group stores full text outside the model's context and returns a locator with retrieval guidance. The family splits into the storage service in `spill/`, the local filesystem backend in `spill-local/`, and the tool-result policy in `spill-policy/`. Tool-result spilling is opt-in through `maxInlineBytes` and keeps the original result on storage failure. [Session references](../context/session-reference/README.md) also consume storage directly for truncated captured transcripts, with their own preview and failure notices; they do not require the tool-result policy.
+The `spill/` group stores full text outside the model's context and returns a locator with retrieval guidance. The family splits into the storage service in `spill/`, the local filesystem backend in `spill-local/`, and the tool-result policy in `spill-policy/`. Tool-result spilling is opt-in through `maxInlineTokens` and keeps the original result on storage failure. [Session references](../context/session-reference/README.md) also consume storage directly for truncated captured transcripts, with their own preview and failure notices; they do not require the tool-result policy.
 
 ## Table of Contents
 
@@ -28,7 +28,7 @@ Three packages play the spill roles; the subsystem reference owns the exhaustive
 |---|---|---|
 | [`spill/`](spill/README.md) | Storage service: saves oversized text and returns a locator plus retrieval guidance | `ctx.spillStore` |
 | [`spill-local/`](spill-local/README.md) | Saves spilled text to private session-scoped files on this machine | registers on `ctx.spillStore` |
-| [`spill-policy/`](spill-policy/README.md) | Replaces oversized plain-text tool results with a preview and locator | listens on `ctx.tools` |
+| [`spill-policy/`](spill-policy/README.md) | Retains oversized text/image tool results within a token budget and provides recovery paths | listens on `ctx.tools` |
 
 -----
 

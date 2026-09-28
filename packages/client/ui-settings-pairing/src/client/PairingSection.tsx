@@ -1,12 +1,15 @@
 /** Native pairing page: explicit Session grants and transient invitation display. */
-import { useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import * as QRCode from 'qrcode'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PairingScope } from '@deepseek-ai/dsh-remote-access/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PairingProps } from './types.ts'
+import { buildPairingUrl } from './pairing-url.ts'
 import css from './PairingSection.module.css'
 
 const scopes: readonly PairingScope[] = ['session:read', 'session:send', 'session:stop', 'questions:answer', 'approvals:decide']
+const qrOptions = { width: 256, margin: 2, errorCorrectionLevel: 'M' as const }
 
 /**
  * Render readiness, explicit grants, one-time invitation and revocable device metadata.
@@ -20,8 +23,26 @@ export function PairingSection(props: PairingProps): ReactNode {
   const [selected, setSelected] = useState<SessionId[]>([])
   const [allowed, setAllowed] = useState<readonly PairingScope[]>(['session:read'])
   const [copyState, setCopyState] = useState<'copied' | 'copyFailed'>()
+  const [qrState, setQrState] = useState<{ readonly url: string; readonly dataUrl?: string; readonly failed?: boolean }>()
   const { status, invitation, pending, failed } = snapshot
   const sessionIds = selected.filter(id => sessions.ids.includes(id))
+  const pairingUrl = useMemo(() => status?.origin !== null && status?.origin !== undefined && invitation !== undefined
+    ? buildPairingUrl(status.origin, invitation)
+    : undefined, [invitation?.code, invitation?.invitationId, status?.origin])
+  useEffect(() => {
+    let cancelled = false
+    if (pairingUrl === undefined) {
+      setQrState(undefined)
+      return () => { cancelled = true }
+    }
+    setQrState({ url: pairingUrl })
+    void Promise.resolve().then(() => QRCode.toDataURL(pairingUrl, qrOptions)).then((dataUrl: string) => {
+      if (!cancelled) setQrState({ url: pairingUrl, dataUrl })
+    }, () => {
+      if (!cancelled) setQrState({ url: pairingUrl, failed: true })
+    })
+    return () => { cancelled = true }
+  }, [pairingUrl])
   const ready = !failed && status?.state === 'ready'
   const copy = async (value: string): Promise<void> => {
     try {
@@ -46,7 +67,10 @@ export function PairingSection(props: PairingProps): ReactNode {
         {status.missingConfiguration.map(reason => <li key={reason}>{t(`missing.${reason}`)}</li>)}
       </ul>}
       {status?.origin !== null && status?.origin !== undefined && <p>{t('origin')}<code>{status.origin}</code></p>}
-      {status?.certificateFingerprint !== null && status?.certificateFingerprint !== undefined && <p>{t('fingerprint')}<code>{status.certificateFingerprint}</code></p>}
+      {status?.certificateFingerprint !== null && status?.certificateFingerprint !== undefined && <>
+        <p>{t('fingerprint')}<code>{status.certificateFingerprint}</code></p>
+        <p>{t('fingerprintHelp')}</p>
+      </>}
       <div className={css.actions}>
         <Button variant="outline" disabled={pending} onClick={() => { void props.refresh() }}>{t('refresh')}</Button>
         <Button variant="primary" disabled={pending || status === undefined || ready} onClick={() => { void props.enable() }}>{t('enable')}</Button>
@@ -80,7 +104,14 @@ export function PairingSection(props: PairingProps): ReactNode {
         onClick={() => { void props.createInvitation({ sessionIds, scopes: allowed }) }}>{t('create')}</Button>
       {invitation !== undefined && ready && <div className={css.invitation}>
         <p>{t('invitationHelp')}</p>
-        {status.origin !== null && copyValue(t('link'), new URL('/pair', status.origin).href)}
+        {pairingUrl !== undefined && copyValue(t('link'), pairingUrl)}
+        {pairingUrl !== undefined && <div className={css.qrBlock} aria-live="polite">
+          {qrState?.url === pairingUrl && qrState.dataUrl !== undefined
+            ? <figure className={css.qrFigure}><img className={css.qrImage} src={qrState.dataUrl} width={256} height={256} alt={t('qrAlt')} /></figure>
+            : qrState?.url === pairingUrl && qrState.failed
+              ? <p role="alert">{t('qrUnavailable')}</p>
+              : <p role="status">{t('qrLoading')}</p>}
+        </div>}
         {copyValue(t('invitationId'), invitation.invitationId)}
         {copyValue(t('code'), invitation.code)}
         <p>{t('expires')}<time dateTime={new Date(invitation.expiresAt).toISOString()}>{new Date(invitation.expiresAt).toISOString()}</time></p>

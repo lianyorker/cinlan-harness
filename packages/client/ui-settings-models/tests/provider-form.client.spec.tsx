@@ -237,6 +237,13 @@ function buttonNamed(label: string): HTMLButtonElement {
   return found
 }
 
+function expectOpaqueKeyField(field: HTMLInputElement): void {
+  expect(field.type).toBe('password')
+  expect(field.getAttribute('autocomplete')).toBe('new-password')
+  expect(field.getAttribute('autocapitalize')).toBe('none')
+  expect(field.getAttribute('spellcheck')).toBe('false')
+}
+
 /** Click the button with `label` inside `scope`. */
 function within_(scope: HTMLElement, label: string): HTMLElement {
   const found = [...scope.querySelectorAll('button')].find(button => button.textContent === label)
@@ -780,6 +787,11 @@ describe('hand-declared providers', () => {
     )
     return { ...scripted, onClose }
   }
+
+  it('marks the custom-provider key as a new opaque credential', () => {
+    mountCard()
+    expectOpaqueKeyField(screen.getByLabelText<HTMLInputElement>(en.keyInput))
+  })
 
   it('writes the whole profile and the key under the derived reference', async () => {
     const { mutate, set, onClose } = mountCard()
@@ -1446,6 +1458,12 @@ describe('hand-declared providers', () => {
 })
 
 describe('API key field', () => {
+  it('marks the provider key as a new opaque credential', async () => {
+    await mountSection()
+    openEditor('openai')
+    expectOpaqueKeyField(screen.getByLabelText<HTMLInputElement>(en.keyInput))
+  })
+
   it('submits with a blank key field without writing a credential', async () => {
     const { mutate, set } = await mountSection()
     openEditor('openai')

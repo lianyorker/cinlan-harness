@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Pair a phone browser from Desktop Settings → Phone pairing. Select one or more Sessions and grant each additional action explicitly; reading is selected by default. Copy the pairing URL, invitation ID, and one-time code to the intended device. Review device permissions and expiry, revoke a device, or disable HTTPS access from the same page.
+Pair a phone browser from Desktop Settings → Phone pairing. Select one or more Sessions and grant each additional action explicitly; reading is selected by default. Scan the generated QR image or copy the HTTPS pairing URL, invitation ID, and one-time code to the intended device. Review device permissions and expiry, revoke a device, or disable HTTPS access from the same page.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount this contribution in the trusted Desktop Client composition alongside Sett
 
 Configure HTTPS in the Host's [remote-access provider](../../remote-access/remote-access/README.md). The page displays the provider's actual missing configuration fields and never creates a certificate, establishes trust, or changes CORS. An unavailable or disabled listener cannot create invitations. A failure displays localized recovery guidance and requires a status refresh before another invitation.
 
-Select exact Session rows before creating an invitation. Sending messages, stopping work, answering questions, and deciding approvals are separate grants. The pairing URL contains no code; the invitation ID and code are separately copyable and remain selectable if clipboard access fails. Cancelling or local expiry removes the displayed invitation. Refresh after pairing to load the new device; revoking refreshes the device list automatically.
+Select exact Session rows before creating an invitation. Sending messages, stopping work, answering questions, and deciding approvals are separate grants. The page builds an HTTPS `/pair` URL with only the invitation ID and one-time code in its fragment, then encodes that URL in the QR image; query parameters never carry those secrets, and device grants and Session IDs are excluded. The same values remain separately copyable if clipboard access fails. Verify the displayed certificate fingerprint before pairing. Cancelling or local expiry removes the displayed invitation. Refresh after pairing to load the new device; revoking refreshes the device list automatically.
 
 -----
 
@@ -43,7 +43,7 @@ The apply closure owns an identity-stable observation source and serialized mana
 
 The independent section uses the stable id `phone-pairing` and locale namespace `settings.pairing`. Settings metadata contains only public localized labels. Slot declarations, dictionaries, observation timers, and pending requests follow plugin disposal. No invariant companion is published because the UI has no independent durable record to compare with the authoritative provider.
 
-The [Loader suite](tests/loader.client.spec.tsx) uses real Remote codecs, ClientSessions, Settings, Locale, and the production slot renderer. Its external RPC provider is explicitly a fixture; it does not prove real HTTPS, browser trust, or mobile platform behavior. [Observer tests](tests/observation.client.spec.ts) cover expiry, duplicate requests, rejected cancellation, and late settlement during disposal.
+The [Loader suite](tests/loader.client.spec.tsx) uses real Remote codecs, ClientSessions, Settings, Locale, and the production slot renderer. Its external RPC provider is explicitly a fixture; it does not prove real HTTPS, browser trust, or mobile platform behavior. [PairingSection tests](tests/PairingSection.client.spec.tsx) cover fragment-only QR payloads, fixed accessible output, and late encoder settlement. [Observer tests](tests/observation.client.spec.ts) cover expiry, duplicate requests, rejected cancellation, and late settlement during disposal.
 
 </details>
 
@@ -73,7 +73,7 @@ None; pairing management does not enter provider requests or automatically send 
 
 - HTTPS certificates, private keys, advertised origin, and phone trust remain deployment-owned. Enable does not repair missing configuration.
 - Device changes are loaded on refresh or after revocation; the API supplies no device subscription or invitation-consumed notification.
-- QR generation is not included. This browser page does not provide a signed Android or iOS application or installer.
+- QR generation is browser-side and carries only the invitation fragment fields. This browser page does not provide a signed Android or iOS application or installer.
 
 <a id="dev-note"></a>
 ### Dev Note

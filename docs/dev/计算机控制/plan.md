@@ -56,7 +56,7 @@
 | `keyboard` | keyboard | ask |
 | `accessibilityAction` | accessibility | ask |
 
-**Provider 实现**：`@/packages/computer-use/computer-use-cinlan/src/index.ts`
+**Provider 实现**：`@/packages/experimental/computer-use-cua-driver-native/src/index.ts`
 - 桌面应用/窗口枚举
 - 无障碍树解析
 - 截图捕获
@@ -221,7 +221,7 @@ orca 的 `ComputerUsePane` 包含两大模块：
 
 3. **新建** Remote API 定义（packages/computer-use 或 packages/api）
    - `computerUse.getPermissionStatus` / `openPermissionSetup` / `resetPermissions`
-   - macOS 实现：调用 `computer-use-cinlan` 的 OS 权限检查
+   - macOS 实现：调用 native CUA driver 的 OS 权限检查
    - Windows/Linux 实现：返回 `unsupported` 状态
 
 4. **修改** `@/packages/client/ui-settings-security/src/client/locales.ts`：添加 OS 权限的 i18n 键

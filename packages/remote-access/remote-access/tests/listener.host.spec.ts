@@ -26,7 +26,10 @@ class ResponseProbe extends TypertRemoteService {
   @Remote('list')
   list(_request: object): unknown {
     void _request
-    return { items: [{ sessionId: 'original-session', cwd: 'x'.repeat(16 * 1024 * 1024) }] }
+    return { items: [
+      { sessionId: 'original-session', cwd: 'x'.repeat(16 * 1024 * 1024) },
+      ...Array.from({ length: 1024 }, () => ({ sessionId: 'original-session' })),
+    ] }
   }
   @Remote({ mode: 'stream' })
   async *follow(request: object, signal: AbortSignal): AsyncIterable<unknown> {
@@ -149,7 +152,7 @@ it('pairs over validated TLS through the Loader, denies foreign authority and pe
   })
   expect(first.toString()).toContain('"ok":true')
   expect(first.toString()).toContain('original-session')
-  expect(first.toString()).toContain('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+  expect(first.toString()).not.toContain('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
   expect(stalled.complete).toBe(false)
   expect(admitted).toBe(0)
   expect(lastAdmissionResult).toBeInstanceOf(Response)

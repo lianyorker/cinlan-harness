@@ -14,7 +14,7 @@ Status: implemented
 
 本地 subprocess 提供方通过自身的插件 logger 报告失败。SSH helper 进程使用自身 logger；没有提供 reporter 的直接 `OutputCollector` 调用方收到一条 stderr 诊断。关闭与清理失败继续沿用已有的仅尾部行为。
 
-本适配遵循官方 DeepSeek Harness 提交 [`cfa84ed4e3`](https://github.com/deepseek-ai/deepseek-harness/commit/cfa84ed4e373a2cd8f0068c5169cffeb24e17789)、[`cafb9b93b4`](https://github.com/deepseek-ai/deepseek-harness/commit/cafb9b93b4b3cfe4560dbeb3f616134b19f06751) 与 [`c22b226b18`](https://github.com/deepseek-ai/deepseek-harness/commit/c22b226b18dad7fe2ea7b8f33c1ddab6f8d3bcfd)，同时保留 Cinlan 本地 provider、SSH 与产品组合。后续 review 修正确保独占打开失败后不会删除未由本进程创建的路径，包含 reporter 抛错，并只在 `ENOENT` 时添加临时清理提示。
+本地 subprocess 提供方与 SSH helper 进程保留这项失败隔离。修复确保独占打开失败后不会删除未由本进程创建的路径，包含 reporter 抛错，并只在 `ENOENT` 时添加临时清理提示。
 
 ## 考虑过的替代方案
 

@@ -28,11 +28,13 @@ describe('dsh-base bundle', () => {
     )
     expect(Array.isArray(parsed)).toBe(true)
     // The base layer is one insert list over the empty profile root.
-    const rows = (parsed as { insert?: { id?: string; config?: Record<string, unknown>; disabled?: boolean }[] }[]).flatMap(
+    const rows = (parsed as { insert?: { id?: string; name?: string; config?: Record<string, unknown>; disabled?: boolean }[] }[]).flatMap(
       patch => patch.insert ?? [],
     )
     expect(rows.length).toBeGreaterThan(50)
     expect(rows.some(row => row.id === 'agent-loop')).toBe(true)
+    expect(rows.find(row => row.id === 'authorization')?.name).toBe('@deepseek-ai/dsh-authorization')
+    expect(rows.find(row => row.id === 'account-controller')?.name).toBe('@deepseek-ai/dsh-api-account-controller')
     expect(rows.find(row => row.id === 'session-telemetry-otel')?.disabled).toBeUndefined()
     expect(rows.find(row => row.id === 'session-telemetry-otel')?.config?.['mode']).toEqual({
       __jsExpr: "process.env.DSH_TELEMETRY_MODE || 'FEEDBACK_ONLY'",
@@ -49,6 +51,7 @@ describe('dsh-base bundle', () => {
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-claude-code')
     expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-web-fetch-http')
+    expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-api-account-controller')
   })
 
   it('selects Flash by default and lets a later profile choose another model', () => {

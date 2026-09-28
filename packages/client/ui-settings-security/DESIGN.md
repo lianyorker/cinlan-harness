@@ -31,4 +31,4 @@ Security scope and report controls use native labels, 40px controls, the same se
 
 ## Verification
 
-The [Web scenario](../../../apps/web/tests/device-capabilities.e2e.ts) owns ARIA expectations, narrow-column overflow checks, and sidebar geometry. [Security Research coverage](../../../apps/web/tests/security-capabilities.e2e.ts) loads the actual optional bundle and withdraws its preset contribution. Native Orca inputs and third-party installers are outside this visual verification.
+The [Web scenario](../../../apps/web/tests/device-capabilities.e2e.ts) owns ARIA expectations, narrow-column overflow checks, and sidebar geometry. [Security Research coverage](../../../apps/web/tests/security-capabilities.e2e.ts) loads the actual optional bundle and withdraws its preset contribution. Native CUA and ADB input execution, and third-party installers, are outside this visual verification.

@@ -27,7 +27,7 @@ kind: "package-reference"
 
 在已经提供工具注册表和系统提示词的组合中挂载此提供者。
 
-只挂载一个 Cua Driver 适配器，并先卸载任何已注册的 Cinlan Computer Use Provider 和 `tool-computer-use`。保留[权限策略](../../computer-use/computer-use-permission-policy/README.zh.md)：其 `native` 决策覆盖所有 `cua_driver_native__*` 工具，默认值为 `ask`。可选的[电脑操作 bundle](../../bundle/cinlan-computer-use/README.zh.md)提供此组合。
+只挂载一个 Cua Driver 适配器，并先卸载任何已注册的 facade Provider 及已挂载的 `tool-computer-use` Consumer。保留[权限策略](../../computer-use/computer-use-permission-policy/README.zh.md)：其 `native` 决策覆盖所有 `cua_driver_native__*` 工具，默认值为 `ask`。可选的[电脑操作 bundle](../../bundle/cinlan-computer-use/README.zh.md)提供此组合。
 
 ### 最小配置
 

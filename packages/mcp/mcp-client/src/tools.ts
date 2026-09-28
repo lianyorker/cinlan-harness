@@ -353,7 +353,7 @@ function createResultDefinition(
     parameters: inputSchema,
     output: createOutput(rawName, supportedOutputSchema(options.outputSchema)),
     execute: createExecutor(ctx, rawName, taskRequired, call, redact, projections),
-    finalizeContent(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>) {
+    projectContent(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>) {
       const projection = projections.get(exec)
       if (projection === undefined) return undefined
       projections.delete(exec)

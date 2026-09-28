@@ -135,6 +135,68 @@ describe('Connection Fetch Loader composition', () => {
     expect(received).toHaveLength(1)
   })
 
+  it('rejects an oversized complete delegated RPC response before emitting it', async () => {
+    const h = await loadFixture([])
+    h.ctx.connection.rpc.intercept('/api', endpoint => endpoint === 'granted/read', async () => ({
+      ok: true, value: '汉'.repeat(200),
+    }))
+    const lifetime = new AbortController()
+    const access: HostConnectionAccess = {
+      kind: 'delegated', identity: {}, signal: lifetime.signal, maxResponseBytes: 128, authorizeFetch: () => {},
+    }
+    const shared = h.ctx.connection.createSharedFetchHandler('/api', access)
+    const response = await shared.fetch(new Request(h.origin + '/api/granted/read', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-request', rpcId: 'oversized', method: 'granted/read', payload: {} }),
+    }))
+    expect(response.status).toBe(413)
+    expect(await response.text()).toContain('output limit')
+  })
+
+  it('emits a complete RPC envelope whose UTF-8 size exactly reaches the output limit', async () => {
+    const rpcId = 'exact'
+    const result: { readonly ok: true; readonly value: string } = { ok: true, value: '汉' }
+    const envelope = { type: 'server-response', rpcId, result }
+    const h = await loadFixture([])
+    h.ctx.connection.rpc.intercept('/api', endpoint => endpoint === 'granted/read', async () => result)
+    const lifetime = new AbortController()
+    const access: HostConnectionAccess = {
+      kind: 'delegated', identity: {}, signal: lifetime.signal,
+      maxResponseBytes: Buffer.byteLength(JSON.stringify(envelope), 'utf8'), authorizeFetch: () => {},
+    }
+    const shared = h.ctx.connection.createSharedFetchHandler('/api', access)
+    const response = await shared.fetch(new Request(h.origin + '/api/granted/read', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-request', rpcId, method: 'granted/read', payload: {} }),
+    }))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual(envelope)
+  })
+
+  it('limits complete delegated error responses before emitting them', async () => {
+    const h = await loadFixture([])
+    h.ctx.connection.rpc.intercept('/api', endpoint => endpoint === 'granted/read', async () => {
+      throw new Error('汉'.repeat(800))
+    })
+    const lifetime = new AbortController()
+    const access: HostConnectionAccess = {
+      kind: 'delegated', identity: {}, signal: lifetime.signal, maxResponseBytes: 1_024, authorizeFetch: () => {},
+    }
+    const shared = h.ctx.connection.createSharedFetchHandler('/api', access)
+    const mismatch = await shared.fetch(new Request(h.origin + '/api/granted/read', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-request', rpcId: 'mismatch', method: '汉'.repeat(800), payload: {} }),
+    }))
+    expect(mismatch.status).toBe(413)
+    expect(await mismatch.text()).toContain('output limit')
+    const failure = await shared.fetch(new Request(h.origin + '/api/granted/read', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-request', rpcId: 'failure', method: 'granted/read', payload: {} }),
+    }))
+    expect(failure.status).toBe(413)
+    expect(await failure.text()).toContain('output limit')
+  })
+
   it.each(['carrier', 'request'] as const)('cancels an admitted response producer when %s revokes access', async (source) => {
     const lifetime = new AbortController()
     const caller = new AbortController()

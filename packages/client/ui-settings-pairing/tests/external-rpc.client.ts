@@ -35,7 +35,7 @@ export function externalRpc(initial: RemoteAccessStatus['state'] = 'disabled', p
             break
           case 'pairing/disable': status = { ...status, state: 'disabled' }; value = status; break
           case 'pairing/createInvitation': value = {
-            ...(args.request as PairingGrant), invitationId: 'invite-1', code: '482915', expiresAt: Date.now() + 60000,
+            ...(args.request as PairingGrant), invitationId: 'invite-1', code: '482915000', expiresAt: Date.now() + 60000,
           } satisfies Omit<PairingInvitation, 'invitationId'> & { invitationId: string }; break
           case 'pairing/cancelInvitation': value = undefined; break
           case 'pairing/revokeDevice':

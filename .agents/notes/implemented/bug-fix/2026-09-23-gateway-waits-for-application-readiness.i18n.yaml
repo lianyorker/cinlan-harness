@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-23-gateway-waits-for-application-readiness.md
-2026-09-23-gateway-waits-for-application-readiness.md: 8b758ce1c23c51ff28b17fd69b85fb7e243a02f4
-2026-09-23-gateway-waits-for-application-readiness.zh.md: 0716c03e64bb716c1daafcccce2a188686a1284d
+2026-09-23-gateway-waits-for-application-readiness.md: c702ff09dcf86c55f40e7f31dcdaa51c6996b4b2
+2026-09-23-gateway-waits-for-application-readiness.zh.md: 04bc87d9e0c626e83518bf46fee4a75bb292bb3a

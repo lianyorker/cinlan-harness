@@ -309,6 +309,7 @@ Host service owning upload storage and Agent-scoped staged receipts.
 /**
  * Register the ordinary-Session resolver used when a raw upload addresses a cold Session.
  * @param resolve - resolver that returns the exact live Agent or throws a Remote error.
+ * The disposer removes only its own registration and may be called more than once.
  * @returns disposer removing this resolver.
  */
 registerAgentResolver(resolve: AgentResolver): () => void

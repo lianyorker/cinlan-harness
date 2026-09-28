@@ -28,7 +28,7 @@ AutoReview 是需要外部安装并显式启用的 bundle。参考发行版的�
 
 ### 安装与配置
 
-使用已构建或打包的 0.1.6-alpha.2 版公开实验软件包以及兼容的 dsh profile。安装或移除外部层之前先停止 profile，完成后重新启动。在仓库根目录，CLI 安装形式如下：
+使用与兼容 dsh profile 版本相同的已构建或打包公开实验软件包。安装或移除外部层之前先停止 profile，完成后重新启动。在仓库根目录，CLI 安装形式如下：
 
 ```sh
 dsh plugin --profile web add ./packages/experimental/auto-review

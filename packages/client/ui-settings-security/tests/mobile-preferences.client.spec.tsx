@@ -5,7 +5,7 @@ import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
 import { MobilePreferences } from '../src/client/MobilePreferences.tsx'
 import { en } from '../src/client/locales.ts'
-import type { CapabilitySectionProps } from '../src/client/CapabilitySection.tsx'
+import type { MobileSectionInjected } from '../src/client/CapabilitySection.tsx'
 import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { MobileDeviceSettings } from '@deepseek-ai/dsh-mobile-device/types'
 
@@ -14,12 +14,12 @@ afterEach(cleanup)
 function bench(writable = true) {
   const snapshot: SettingsScopeSnapshot<MobileDeviceSettings> = { status: 'ready', mode: 'host', writable, revision: 7,
     value: { enabled: false, androidSdkPath: 'stored-path', defaultDeviceId: 'missing-device' }, base: {}, user: {} }
-  const save = vi.fn<CapabilitySectionProps['saveMobileSettings']>(async (value) => { snapshot.value = value; snapshot.revision = 8 })
-  const reset = vi.fn<CapabilitySectionProps['resetMobileSettings']>(async () => {
+  const save = vi.fn<MobileSectionInjected['saveMobileSettings']>(async (value) => { snapshot.value = value; snapshot.revision = 8 })
+  const reset = vi.fn<MobileSectionInjected['resetMobileSettings']>(async () => {
     snapshot.value = { enabled: false, androidSdkPath: '', defaultDeviceId: '' }; snapshot.revision = 9
   })
-  const checkSdk = vi.fn<CapabilitySectionProps['checkSdk']>(async () => ({ platform: 'linux', android: { found: false, sdkPath: null, message: '' }, ios: null }))
-  const listMobileDevices = vi.fn<CapabilitySectionProps['listMobileDevices']>(async () => ({ available: false, devices: [] }))
+  const checkSdk = vi.fn<MobileSectionInjected['checkSdk']>(async () => ({ platform: 'linux', android: { found: false, sdkPath: null, message: '' }, ios: null }))
+  const listMobileDevices = vi.fn<MobileSectionInjected['listMobileDevices']>(async () => ({ available: false, devices: [] }))
   const props = { useMobileSettings: selector => selector(snapshot), saveMobileSettings: save, resetMobileSettings: reset,
     checkSdk, listMobileDevices, t: makeTranslate(en, commonEn) } satisfies Parameters<typeof MobilePreferences>[0]
   const view = render(<MobilePreferences {...props} />)

@@ -9,7 +9,7 @@ const webRoot = dirname(require.resolve('@deepseek-ai/dsh-client-web/package.jso
 const vite = join(dirname(require.resolve('vite/package.json')), 'bin/vite.js')
 
 for (const [cwd, args] of [
-  [webRoot, [require.resolve('tsdown/run')]],
+  [webRoot, [require.resolve('tsdown/run'), '--config-loader', 'tsx']],
   [appRoot, [vite, 'build']],
 ]) {
   const result = spawnSync(process.execPath, args, { cwd, env: process.env, stdio: 'inherit' })

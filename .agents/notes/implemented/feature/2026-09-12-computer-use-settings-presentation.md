@@ -16,7 +16,7 @@ Computer observations come from the device readiness response: platform, Provide
 
 ## Alternatives considered
 
-A separate Computer Use settings package would isolate the feature but would duplicate the capability roster and split the existing Settings integration. Reusing the current `ui-settings-security` package keeps registration, inventory reads, and localization in one owner.
+A separate Computer Use settings package would isolate the feature but would duplicate the capability roster and split the existing Settings integration. Reusing the current `ui-settings-security` package keeps the shared locale, renderer contract and product roster together; the [feature-owned settings registration decision](../architecture/2026-09-24-feature-owned-capability-settings.md) assigns Remote dependencies, inventory reads, and registration lifetimes to child feature plugins.
 
 Adding installation or permission mutations to the browser page would make the UI a second policy owner. The page therefore keeps the command informational and leaves execution to Host/CLI services.
 

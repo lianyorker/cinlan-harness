@@ -40,7 +40,7 @@ kind: "package-reference"
 
 `register(name, readiness?)` 为发布自身工具的适配器预留电脑操作能力；可选回调返回 `ComputerToolReadiness`。`providerName` 在关闭期间仍报告注册名称。此注册拒绝任何已注册的 `ComputerUseProvider`，包括不可用者；`registerProvider()` 也会拒绝现有独占注册。原有多 Provider 配置与逐次调用选择保持有效。`ComputerUseRegistry` 是 `ComputerUseRuntime` 的类导出别名，品牌构造函数通过 `./brand` 和包主入口导出。
 
-[Cua Driver MCP](../../experimental/computer-use-cua-driver-mcp/README.zh.md) 和[Cua Driver native](../../experimental/computer-use-cua-driver-native/README.zh.md) 均为显式启用适配器。它们拥有自己的工具，不实现 Cinlan 的观察与动作请求。切换时应卸载 Cinlan Provider 和 `tool-computer-use`；为原生 CUA 工具挂载配置了 `native` 的权限策略。适配器必须在工具移除且拥有的操作全部结束后才释放注册。
+[Cua Driver MCP](../../experimental/computer-use-cua-driver-mcp/README.zh.md) 和[Cua Driver native](../../experimental/computer-use-cua-driver-native/README.zh.md) 均为显式启用适配器。它们拥有自己的工具，不实现 facade 的观察与动作请求。从 facade 组合切换时，先卸载其 Provider 及已挂载的 `tool-computer-use` Consumer；为原生 CUA 工具挂载配置了 `native` 的权限策略。适配器必须在移除工具且拥有的操作全部结束后才释放注册。
 
 <a id="readiness"></a>
 ## 就绪状态

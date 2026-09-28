@@ -24,7 +24,7 @@ Gateway 只有在 launcher 提供的 `ctx.appReady` 信号提交成功启动后�
 
 ## 后果
 
-重启中的浏览器客户端在启动提交前可能看到 Remote 载体关闭或不可用，之后通过现有 Connection backoff 重新连接。任何 Remote 流都不会进入半初始化 Host。不提供 launcher readiness 服务的 Host 保留原行为，进程内传输在整个期间仍可用。
+重启中的浏览器客户端在启动提交前可能看到 Remote 载体关闭或不可用，之后通过现有 Connection backoff 重新连接。任何 Remote 流都不会进入半初始化 Host。不提供 launcher readiness 服务的 Host 保留原行为，进程内传输在整个期间仍可用。完整输出超限后的载体清理由 [Gateway 输出上限 note](2026-09-25-gateway-complete-output-limit-teardown.zh.md) 单独规定。
 
 ## 测试
 

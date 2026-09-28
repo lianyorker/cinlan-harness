@@ -24,7 +24,7 @@ The readiness listener is an effect-owned subscription. Disposing Gateway cancel
 
 ## Consequences
 
-Restarting browser clients may observe a closed or unavailable Remote carrier until startup commits, then reconnect through the existing Connection backoff. No Remote stream enters a partially initialized Host. Hosts without a launcher readiness service retain the prior behavior, and the in-process transport remains available throughout.
+Restarting browser clients may observe a closed or unavailable Remote carrier until startup commits, then reconnect through the existing Connection backoff. No Remote stream enters a partially initialized Host. Hosts without a launcher readiness service retain the prior behavior, and the in-process transport remains available throughout. Complete-output overflow teardown is specified separately in the [Gateway output-limit note](2026-09-25-gateway-complete-output-limit-teardown.md).
 
 ## Testing
 

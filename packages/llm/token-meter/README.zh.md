@@ -40,6 +40,8 @@ const { totalTokens, surfaceTokens, nodes } = ctx.tokenMeter.measure(session)
 const price = ctx.tokenMeter.estimateMessage(message)
 ```
 
+只需要固定启发式规则的消费方可以导入 `@deepseek-ai/dsh-token-meter/estimate`。这个子路径不依赖 Cordis、Session 或提供方服务，适合无需挂载插件而为文本或内容块计价的包。
+
 每次测量都会通过可选的 `llm` 服务解析生效 envelope 的提供方／模型。适配器声明图片定价时，图片出现处使用路由请求的视觉 token 价格加模型可见文本，`image/offload` 事件选中的出现位置则按路由的占位文本计价，与表层实际发送的一致；其他路由保持固定启发式规则。文件出现处使用同一个 `llm` 服务为适配器分发解析的确切、与路由无关的 句柄文本，其中包含当前执行世界路径或明确的无路径说明。每个节点还携带与路由无关的 `heuristicTokens`，供替换影子价使用。只有当最新成功调用的规范请求 envelope 与已测量 envelope 匹配、且其总量不低于该调用完整路由定价锚点时，才复用提供方用量；否则会对完整当前 envelope 与表面做估算。表面变更保持相对于按同一路由重新定价的匹配锚点的带符号值，包括缩减替换后的负 delta。
 
 测量锚点包含成功的 `assistant/message` 之前的已计价表面，包括 `step/start` 之后接纳的系统与用户消息，以及重试之前执行的替换。持久输出未变时，完成调用的表面增量为零：其提示词已包含在提供方用量中。后续表面变更仍是相对于该锚点的带符号增量。

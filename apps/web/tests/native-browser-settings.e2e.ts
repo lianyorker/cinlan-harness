@@ -134,7 +134,7 @@ describe('Harness native browser settings and tools', () => {
   it('uses real Chromium through the model-facing tools and preserves screenshot dimensions from Settings', async () => {
     const modules = [...scaffold.ctx.loader.entries()].filter(row => !row.disabled).map(row => row.options.name)
     expect(modules).toContain('@deepseek-ai/dsh-browser-playwright')
-    expect(modules).not.toContain('@deepseek-ai/dsh-browser-cinlan')
+    expect(modules.some(module => /orca|cinlan/iu.test(module))).toBe(false)
     const opened = await tool('browser_open', { url })
     const pageId = (opened.value as { page_id: string }).page_id
     const observed = await tool('browser_snapshot', { page_id: pageId })

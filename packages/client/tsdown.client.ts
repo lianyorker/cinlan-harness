@@ -457,6 +457,10 @@ function clientConfig(id: string, entry: string): UserConfig {
     // NODE_ENV the defines below bake in.
     inputOptions: {
       resolve: {
+        // Honor npm's browser alias map so browser-only replacements (for
+        // example qrcode's canvas entry and its fs stub) never pull Node code
+        // into a module-table factory.
+        aliasFields: [['browser']],
         conditionNames: [
           (process.env.NODE_ENV ?? 'production') === 'development' ? 'development' : 'production',
           'browser', 'import', 'module', 'default',

@@ -27,6 +27,8 @@ The Web GUI lets users switch the model and reasoning effort for an existing ses
 
 Mount this plugin alongside `ui-conversation` and the commands package; the composer then shows the model seat next to the pending indicator, and `/model` opens the same directory as a popup. Both surfaces show the host-reported current selection when the exact provider/model pair remains in the advertised groups; a missing catalog row leaves the routable selection intact while the trigger prompts `Select model`.
 
+While a selection from either entry is pending, the composer's fixed trailing status slot shows an animated state dot and announces localized waiting text to assistive technology. Model and effort choices stay disabled until success or failure settles; success closes the menu, while failure leaves it open with enabled choices and the localized error toast.
+
 ### Model and effort
 
 Models stay grouped by provider. The menu shows model and effort names only; catalog descriptions remain available to other consumers. The `/model` popup applies the selected model's default effort; the composer can then choose any advertised effort. An adapter without reasoning metadata leaves the Effort row absent; there is no arbitrary effort input.
@@ -52,7 +54,7 @@ When the Host reports that no adapter serves the session's route, this plugin ra
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-`ModelDirectoryResolver` (`ctx.modelDirectories`) owns one Host-generation `ModelCatalogDirectory` and lazy per-session `ModelDirectory` projections. The `/model` popup and composer seat submit through `session.selectModel` and share each Session’s directory; addressed subagent sessions expose neither selector. Forwarded adapter, settings, and credential invalidations refresh the shared catalog.
+`ModelDirectoryResolver` (`ctx.modelDirectories`) owns one Host-generation `ModelCatalogDirectory` and lazy per-session `ModelDirectory` projections. The `/model` popup and composer seat submit through `session.selectModel` and share each Session’s directory, including its client-local `selecting` status; addressed subagent sessions expose neither selector. Settlement clears the waiting presentation on both success and failure, while forwarded adapter, settings, and credential invalidations refresh the shared catalog.
 
 `ModelDirectory.select()` returns the operation’s `RemoteResult<void>` so each selector can present its own failure even if a later catalog update changes the shared directory error.
 

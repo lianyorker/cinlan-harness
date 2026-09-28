@@ -266,6 +266,65 @@ describe('Remote stream mux server carrier lifecycle', () => {
     expect(String(closeEvent[1])).toBe('Remote stream failure could not be delivered')
   })
 
+  it('terminates before emitting an oversized multibyte output frame', async () => {
+    const entry = await startMux(async () => (async function *(): AsyncIterable<string> { yield '汉'.repeat(200) })(), 2_000, {
+      maxPayloadBytes: 1024, maxStreamsPerConnection: 1, maxOutputBytes: 128,
+    })
+    const client = await connect(entry.url)
+    const frames: unknown[] = []
+    client.on('message', (data) => { frames.push(JSON.parse(data.toString('utf8')) as unknown) })
+    const closed = once(client, 'close')
+    client.send(openFrame('oversized'))
+    const closeEvent = await closed
+    expect(closeEvent[0]).toBe(1006)
+    expect(frames).toEqual([])
+  })
+
+  it('terminates an unresponsive peer and aborts every active stream on output overflow', async () => {
+    let blockedReturned = false
+    const entry = await startMux(async (_endpoint, payload, signal) => {
+      const kind = (payload as { readonly kind?: unknown }).kind
+      if (kind === 'oversized') {
+        return (async function *(): AsyncIterable<string> {
+          yield '汉'.repeat(200)
+          await waitForAbort(signal)
+        })()
+      }
+      return cleanlyCancelled(signal, () => { blockedReturned = true })
+    }, 2_000, { maxPayloadBytes: 1024, maxStreamsPerConnection: 2, maxOutputBytes: 128 })
+    const client = await connect(entry.url)
+    const serverSocket = acceptedSocket(entry.mux)
+    const terminate = vi.spyOn(serverSocket, 'terminate')
+    client.pause()
+    try {
+      client.send(JSON.stringify({ type: 'open', streamId: 'oversized', endpoint: 'fixture/follow', payload: { kind: 'oversized' } }))
+      client.send(JSON.stringify({ type: 'open', streamId: 'blocked', endpoint: 'fixture/follow', payload: { kind: 'blocked' } }))
+      await vi.waitFor(() => { expect(terminate).toHaveBeenCalledOnce() })
+      await vi.waitFor(() => { expect(blockedReturned).toBe(true) })
+    } finally {
+      client.resume()
+      if (client.readyState !== WebSocket.CLOSED) {
+        const closed = once(client, 'close')
+        client.terminate()
+        await closed
+      }
+    }
+  })
+
+  it('emits a frame whose complete UTF-8 envelope exactly reaches the output limit', async () => {
+    const streamId = 'exact'
+    const item = { type: 'item', streamId, value: '汉' }
+    const entry = await startMux(async () => (async function *(): AsyncIterable<string> { yield '汉' })(), 2_000, {
+      maxPayloadBytes: 1024, maxStreamsPerConnection: 1, maxOutputBytes: Buffer.byteLength(JSON.stringify(item), 'utf8'),
+    })
+    const client = await connect(entry.url)
+    const received = once(client, 'message')
+    client.send(openFrame(streamId))
+    expect(JSON.parse((await received)[0].toString('utf8'))).toEqual(item)
+    client.close()
+    await once(client, 'close')
+  })
+
   it('contains an item produced after its socket closes', async () => {
     let release!: () => void
     const released = new Promise<void>((resolve) => { release = resolve })

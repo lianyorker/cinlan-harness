@@ -28,7 +28,7 @@ AutoReview is an external opt-in bundle. The reference release's optional bundle
 
 ### Install and configure
 
-Use a built or packed copy of this public experimental package at version 0.1.6-alpha.2 with a compatible dsh profile. Stop the profile before installing or removing its external layer, then restart it. From the repository root, the CLI installation form is:
+Use a built or packed copy of this public experimental package at the same version as its compatible dsh profile. Stop the profile before installing or removing its external layer, then restart it. From the repository root, the CLI installation form is:
 
 ```sh
 dsh plugin --profile web add ./packages/experimental/auto-review

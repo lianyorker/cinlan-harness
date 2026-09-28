@@ -14,7 +14,7 @@ Output collection writes spill files from stream `data` listeners. A removed tem
 
 The local subprocess provider reports through its plugin logger. SSH helper processes use their own logger, and direct `OutputCollector` callers receive a stderr diagnostic when they do not provide a reporter. Close and cleanup failures retain their existing tail-only behavior.
 
-The adaptation follows official DeepSeek Harness commits [`cfa84ed4e3`](https://github.com/deepseek-ai/deepseek-harness/commit/cfa84ed4e373a2cd8f0068c5169cffeb24e17789), [`cafb9b93b4`](https://github.com/deepseek-ai/deepseek-harness/commit/cafb9b93b4b3cfe4560dbeb3f616134b19f06751), and [`c22b226b18`](https://github.com/deepseek-ai/deepseek-harness/commit/c22b226b18dad7fe2ea7b8f33c1ddab6f8d3bcfd) while retaining Cinlan's local provider, SSH, and product composition. The review fixes keep an unpublished path from being unlinked after a failed exclusive open, contain a throwing reporter, and reserve the temporary-cleaner hint for `ENOENT`.
+Local subprocess providers and SSH helper processes retain this failure containment. The fixes keep an unpublished path from being unlinked after a failed exclusive open, contain a throwing reporter, and reserve the temporary-cleaner hint for `ENOENT`.
 
 ## Alternatives considered
 

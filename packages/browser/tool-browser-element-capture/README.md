@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 This Consumer adds `browser_select_element` and `browser_capture_element` to the persistent [`ctx.browser`](../browser/README.md) capability. Selection calls the Browser Provider directly; capture submits a JSON-safe task to the process-local Coordination service so the Host executor owns Browser I/O and attachment persistence.
 
-The default Cinlan Web composition mounts these tools and the capture executor with the Cinlan CLI Provider. Other compositions can mount them with the independent Playwright Provider.
+The default Cinlan Web composition mounts these tools and the capture executor with the Playwright Provider.
 
 ## Table of Contents
 
@@ -103,7 +103,7 @@ Tool results append after the reusable request prefix. A new selection or captur
 ## Known Limitations and Deferred Work
 <a id="known-limitations-and-deferred-work"></a>
 
-- The Cinlan CLI Provider supports human selection and selection-bound capture; observation refs return `BROWSER_FEATURE_UNSUPPORTED`. See [Provider capture semantics](../browser-cinlan/README.md#element-selection-and-capture).
+- The Playwright Provider supports observation-bound and human selection capture. See [Provider capture semantics](../browser-playwright/README.md#verified-element-capture).
 - Selection ids are process-local, temporary, and consumed by capture; they are not durable Session entities.
 - The current capture has no padding, annotation, full-page mode, script evaluation, or independent element-text extraction.
 - Human selection requires a visible Browser Provider UI.

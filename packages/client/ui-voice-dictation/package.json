@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-voice-dictation",
   "description": "Local voice-dictation settings page and Ctrl+Shift+E dictation trigger for Cinlan Web",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "publishConfig": {
     "access": "public"
   },

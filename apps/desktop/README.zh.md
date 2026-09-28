@@ -110,7 +110,7 @@ Workspace 开发使用调用命令的 Node.js 运行当前 CLI 与私有 Desktop
 
 ## 打包
 
-正常打包只需执行一条完整命令。生成安装包或未封装应用的命令会在构建或准备发布资源前，按已安装版本的 schema 校验全部 electron-builder 选项；仅准备资源的命令不加载安装器配置。本地 Windows 包默认使用 `com.cinlan.harness`；发布时通过 `DSH_DESKTOP_APP_ID` 设置自己的应用身份。macOS 目标还要求通过 `DSH_DESKTOP_MACOS_SIGNING_IDENTITY` 提供 electron-builder 证书限定名，通过 `DSH_DESKTOP_MACOS_TEAM_ID` 提供对应的 10 字符 Apple Team ID，并提供一套完整的 notarytool 凭据。App Store Connect API Key 方式使用以下变量：
+正常打包只需执行一条完整命令。生成安装包或未封装应用的命令会在构建或准备发布资源前，按已安装版本的 schema 校验全部 electron-builder 选项；仅准备资源的命令不加载安装器配置。Windows 默认生成 NSIS 安装包；`package:desktop:win:x64:msi:unsigned` 选择仅供本地使用的未签名 MSI。`npmRebuild: false` 让 electron-builder 不会重新构建已经通过 `extraResources` 准备好的 `runtime` 与 `seed`。本地 Windows 包默认使用 `com.cinlan.harness`；发布时通过 `DSH_DESKTOP_APP_ID` 设置自己的应用身份。Windows 环境模板见 [`.env.windows.example`](.env.windows.example)。macOS 目标还要求通过 `DSH_DESKTOP_MACOS_SIGNING_IDENTITY` 提供 electron-builder 证书限定名，通过 `DSH_DESKTOP_MACOS_TEAM_ID` 提供对应的 10 字符 Apple Team ID，并提供一套完整的 notarytool 凭据。App Store Connect API Key 方式使用以下变量：
 
 ```sh
 export DSH_DESKTOP_APP_ID='<reverse-DNS application ID>'
@@ -133,9 +133,11 @@ pnpm run package:desktop
 pnpm run package:desktop:mac:arm64
 pnpm run package:desktop:mac:x64
 pnpm run package:desktop:win:x64
+pnpm run package:desktop:win:x64:unsigned
+pnpm run package:desktop:win:x64:msi:unsigned
 ```
 
-macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。Windows x64 命令要求 Windows x64。Desktop 尚不支持 Linux 发布目标。从仓库根目录执行 `node --import tsx apps/desktop/scripts/package-target.ts win-x64`，会使用已安装的 pnpm 入口运行相同流水线。配置检查、electron-builder 和渲染器打包器由 Node 直接运行；包脚本、打包和隔离的 seed 安装仍使用 pnpm。
+macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。Windows x64 命令要求 Windows x64。普通 Windows 安装包命令是签名打包，四个签名输入不完整时会在准备资源前失败；`package:desktop:win:x64:unsigned` 是明确的未签名安装包命令。Windows `:dir` 命令供开发使用，会采用未签名的 builder 配置，不写入发布记录，也不要求签名凭据。Desktop 尚不支持 Linux 发布目标。从仓库根目录执行 `node --import tsx apps/desktop/scripts/package-target.ts win-x64`，会使用已安装的 pnpm 入口运行相同流水线。配置检查、electron-builder 和渲染器打包器由 Node 直接运行；包脚本、打包和隔离的 seed 安装仍使用 pnpm。
 
 每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、seed、pnpm 准备状态、未打包应用、更新元数据和最终产物。Node.js 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。
 
@@ -166,13 +168,13 @@ export DOWNLOAD_TEST_COS_SECRET_KEY='<test COS SecretKey>'
 pnpm run upload:mac:arm64
 ```
 
-生产发布需在打包前设置 `DSH_DESKTOP_AUTO_UPDATE_ENV=production` 与 `DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN`，再在执行 `upload:mac:arm64`、`upload:mac:x64` 或 `upload:win:x64` 前提供 `DOWNLOAD_PROD_COS_BUCKET` 与生产凭据对。打包不要求 COS bucket 或凭据。它会明确禁止 electron-builder 发布，从其子进程中删除全部四个 COS 凭据字段，并且只有在 electron-builder 以及全部签名或公证 hook 成功后才写入目标完成记录。上传会先要求该记录与所选环境、目标、公开 URL 和当前 dsh 版本一致，再要求根 dsh 版本、Desktop 版本、频道元数据版本、产物名称、大小与 SHA-512 全部一致，之后才读取所选 COS 凭据对。它只上传该目标不可变且带版本的产物，最后以 `no-cache` 上传nightly 频道元数据，并且不会删除历史对象。稳定版本和预发布版本统一使用 `nightly-mac.yml` 或 `nightly.yml`，与 updater 和 electron-builder 的频道一致。发布此 feed 前，需要为仍消费其他频道的现有安装明确安排升级衔接。
+生产发布需在打包前设置 `DSH_DESKTOP_AUTO_UPDATE_ENV=production` 与 `DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN`，再在执行 `upload:mac:arm64`、`upload:mac:x64` 或 `upload:win:x64` 前提供 `DOWNLOAD_PROD_COS_BUCKET` 与生产凭据对。打包不要求 COS bucket 或凭据。它会明确禁止 electron-builder 发布，从其子进程中删除全部四个 COS 凭据字段，并且只有在 electron-builder 以及全部签名或公证 hook 成功后才写入带版本的目标完成记录。记录必须声明 `signingMode: signed`；上传会在读取更新元数据前拒绝未签名或旧版本记录。上传还会要求该记录与所选环境、目标、公开 URL 和当前 dsh 版本一致，再要求根 dsh 版本、Desktop 版本、频道元数据版本、产物名称、大小与 SHA-512 全部一致，之后才读取所选 COS 凭据对。它只上传该目标不可变且带版本的产物，最后以 `no-cache` 上传nightly 频道元数据，并且不会删除历史对象。稳定版本和预发布版本统一使用 `nightly-mac.yml` 或 `nightly.yml`，与 updater 和 electron-builder 的频道一致。发布此 feed 前，需要为仍消费其他频道的现有安装明确安排升级衔接。
 
 macOS 配置使用必填发布环境，不会接受钥匙串中最先发现的证书。空值、格式错误的 Team ID、包含 electron-builder 不支持的 `Developer ID Application:` 前缀的签名身份，以及不完整的公证凭据都会被拒绝。macOS 打包要求已配置的身份及其私钥可用。Seed 准备会把该身份、安全时间戳与 hardened runtime 应用到每个内嵌 Mach-O 文件；应用签名完成后，深度严格检查会拒绝其他叶证书 Authority 或 Team ID，验证通过才生成发布产物。Electron-builder 会在封装前公证应用并钉票，然后签署 DMG。DMG 的 artifact-completion hook 随后会公证它并钉票，再要求其身份、票据与 Gatekeeper 验证全部通过；只有 hook 成功，electron-builder 才能发布该文件。私钥可以来自登录钥匙串或 electron-builder 的标准 `CSC_LINK` 输入；环境中的 `CSC_NAME` 与证书发现顺序都不能选择发布所有者。公证凭据也可以使用 electron-builder 支持的完整 Apple ID 或钥匙串 profile 方式。手动执行 `pnpm --dir apps/desktop run verify:mac-signature -- <path-to-app>` 重复应用检查时，也必须提供两个 macOS 身份变量。
 
 ### Windows EV 签名
 
-本地 Windows 构建在未配置 EV 签名时允许生成未签名包。需要 EV 签名的发布打包要求 `DSH_DESKTOP_WINDOWS_CER_FILE` 标识公开的 GlobalSign EV 叶证书，要求 `DSH_DESKTOP_WINDOWS_SIGNTOOL` 标识与 SafeNet 兼容的 SignTool 可执行文件，要求 `DSH_DESKTOP_WINDOWS_KEY_CONTAINER` 标识匹配的私钥容器，并要求 `DSH_DESKTOP_WINDOWS_TOKEN_PIN` 包含 SafeNet Token Password。证书文件保留在源码仓库之外，匹配的私钥仍位于 USB Token。运行固定 Windows 目标前设置这四个输入：
+普通 Windows 打包要求签名。当 `DSH_DESKTOP_WINDOWS_CER_FILE`、`DSH_DESKTOP_WINDOWS_SIGNTOOL`、`DSH_DESKTOP_WINDOWS_KEY_CONTAINER` 或 `DSH_DESKTOP_WINDOWS_TOKEN_PIN` 缺失时，会在准备资源前失败。证书文件保留在源码仓库之外，匹配的私钥仍位于 USB Token。运行固定 Windows 目标前设置这四个输入，或使用明确的未签名命令进行本地验证：
 
 ```powershell
 $env:DSH_DESKTOP_WINDOWS_CER_FILE = 'C:\path\to\server.cer'
@@ -180,17 +182,23 @@ $env:DSH_DESKTOP_WINDOWS_SIGNTOOL = 'C:\path\to\the\validated\signtool.exe'
 $env:DSH_DESKTOP_WINDOWS_KEY_CONTAINER = '<SafeNet private-key container name>'
 $env:DSH_DESKTOP_WINDOWS_TOKEN_PIN = '<SafeNet Token Password>'
 pnpm run package:desktop:win:x64
+
+# Deliberate local unsigned output; no Windows signing fields are required.
+pnpm run package:desktop:win:x64:unsigned
 ```
 
-打包前插入并解锁 Token。electron-builder hook 把每个产物交给采用 CRLF 的 `scripts/windows-sign.cmd`；该 CMD 只调用一次已配置的 SignTool，并指定 `/f`、SafeNet `/kc "[{{PIN}}]=容器"`、`/csp "eToken Base Cryptographic Provider"`、SHA-256 文件摘要和 DigiCert SHA-256 RFC 3161 时间戳。hook 不会改用 electron-builder 内置的 SignTool，也不会重试失败的签名请求。SignTool、证书、容器、PIN、Token 或签名不可用时，Windows 打包会失败，不会生成未签名产物。
+签名打包前插入并解锁 Token。electron-builder hook 把每个产物交给采用 CRLF 的 `scripts/windows-sign.cmd`；该 CMD 只调用一次已配置的 SignTool，并指定 `/f`、SafeNet `/kc "[{{PIN}}]=容器"`、`/csp "eToken Base Cryptographic Provider"`、SHA-256 文件摘要和 DigiCert SHA-256 RFC 3161 时间戳。hook 不会改用 electron-builder 内置的 SignTool，也不会重试失败的签名请求。普通 Windows 命令在 SignTool、证书、容器、PIN、Token 或签名不可用时失败，不会生成未签名产物。明确的未签名命令会将 NSIS 安装包命名为 `deepseek-harness-<version>-win-x64-unsigned.exe`，避免被误认为发布产物。
 
 PIN 不能包含 `]`、引号或换行，因为这些字符用于分隔 SafeNet `/kc` 值或对应的 CMD 参数。CMD 会禁用延迟展开，因此包含 `!` 的 PIN 可以原样到达 SafeNet。打包流程不会把任何 `DSH_DESKTOP_WINDOWS_*` 字段传给构建与 seed 准备子进程；它只向 electron-builder 提供四个配置输入，在其他字段已经清理的环境中只向签名 CMD 提供经过校验的签名字段，在 SignTool 启动前清除这些字段，并遮盖 SignTool 诊断。SafeNet 仍要求 PIN 出现在 SignTool 进程命令行中。只能在连接了物理 Token 的受控 self-hosted Windows runner 上把它注入为临时 secret；绝不能提交该值、把它写进 `.env`，或持久保存为 Windows 用户或系统环境变量。
+
+NSIS 安装器会在解压前检查 DeepSeek Harness 是否仍在运行，并以安装器错误码 2 停止；请关闭已安装应用后重新运行安装器。Windows 产物发布在可能时原子替换目标目录；如果已有空目录被其他进程占用，则复制到该目录，非空或残留的旧产物目录仍会失败。
 
 使用对应的 `:dir` 命令可以生成可直接运行的应用目录，而不是安装包，例如：
 
 ```sh
 pnpm run package:desktop:dir
 pnpm run package:desktop:mac:arm64:dir
+pnpm run package:desktop:win:x64:dir
 ```
 
 需要检查或诊断为宿主目标准备的资源而不调用 electron-builder 时，可以让同一流水线在准备完成后停止：

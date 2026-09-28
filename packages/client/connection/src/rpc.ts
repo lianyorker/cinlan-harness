@@ -103,6 +103,8 @@ export type HostConnectionAccess =
     readonly kind: 'delegated'
     readonly identity: object
     readonly signal: AbortSignal
+    /** Maximum complete JSON response bytes emitted by this delegated carrier. */
+    readonly maxResponseBytes?: number
     /** Authorize a raw Fetch route before its handler reads request bytes. RPC policy belongs to the Gateway. */
     readonly authorizeFetch: (request: Request) => void | Promise<void>
   }

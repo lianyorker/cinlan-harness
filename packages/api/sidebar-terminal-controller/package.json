@@ -10,7 +10,7 @@
   },
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "description": "Authenticated Remote operations and acknowledged output streams for integrated sidebar terminals.",
   "type": "module",
   "license": "MIT",

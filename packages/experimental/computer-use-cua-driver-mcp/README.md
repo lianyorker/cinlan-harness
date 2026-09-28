@@ -29,7 +29,7 @@ Choose this provider when Cua Driver is already installed and configured on the 
 
 This plugin does not download a driver. Supply an executable `cua-driver` (upstream compatibility reference: `0.28.0`) and access to a logged-in graphical session. On macOS, the usual installation uses a `CuaDriver.app` daemon with Accessibility and Screen Recording grants; `args: [mcp, --direct]` uses the launching host's permissions instead. Windows needs the driver for its architecture and remains subject to UIA/process integrity limits. Linux needs the corresponding X11 or supported Wayland/AT-SPI/compositor setup; see the [upstream platform ledger](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/docs/action-support.md) for operation support. Installation does not grant desktop access.
 
-Mount one Cua Driver adapter and unload any registered Cinlan Computer Use provider first. If the composition includes Cinlan's `tool-computer-use` and permission policy, disable those consumers when selecting Cua Driver; Cua Driver publishes its own arguments and tool names, and the Cinlan-specific permission policy does not govern them. This package does not activate automatically or change the Cinlan default composition.
+Mount one Cua Driver adapter and first unload any registered facade provider. If the composition includes `tool-computer-use` or a facade-specific permission policy, disable the tool consumer and policy when selecting Cua Driver; Cua Driver publishes its own arguments and tool names, and that policy does not govern them. This package does not activate automatically or change profile defaults.
 
 ### Minimal configuration
 

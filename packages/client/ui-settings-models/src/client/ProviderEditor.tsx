@@ -5,7 +5,9 @@
  * under the profile's reference, deriving `<ROUTE>_API_KEY` when the profile
  * has none. The pi-ai profile records that derivation as `apiKeyEnv` only when
  * a key is entered; a blank key materializes a reference-free profile for
- * provider-native authentication);
+ * provider-native authentication). The key control requests new-password
+ * autofill semantics and disables capitalization and spelling correction so
+ * browsers do not reuse a saved account password or alter the opaque key;
  * the collapsed 自定义设置 area carries the per-family extras (`baseURL` for
  * both families, DeepSeek's protocol and model catalog, model input types, and
  * the display name and wire protocol of a pi-ai route the adapter does not ship —
@@ -359,7 +361,9 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
           <input
             className={styles['input']}
             type="password"
-            autoComplete="off"
+            autoComplete="new-password"
+            autoCapitalize="none"
+            spellCheck={false}
             value={keyDraft}
             placeholder={keyPlaceholder}
             aria-label={t('keyInput')}

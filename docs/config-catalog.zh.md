@@ -572,45 +572,6 @@ export interface Config {
 
 来源：[`packages/browser/browser/src/types.ts:313`](../packages/browser/browser/src/types.ts)
 
-<a id="deepseek-aidsh-browser-cinlan"></a>
-
-## `@deepseek-ai/dsh-browser-cinlan`
-
-需要：`browser` · `subprocess`
-
-```ts config-catalog
-/** Cinlan CLI provider configuration. */
-export interface Config {
-  /** Provider id registered on `ctx.browser`. Defaults to `cinlan`. */
-  readonly providerId?: string
-  /** Cinlan IDE CLI executable name or absolute path. Defaults to `orca-ide` on
-   * Linux and `orca` elsewhere. */
-  readonly command?: string
-  /** Child-process working directory. Defaults to `process.cwd()`. */
-  readonly cwd?: string
-  /** Cinlan browser worktree selector. Defaults to `active`. */
-  readonly worktree?: string
-  /** Per-command deadline, including executable resolution. Defaults to 65000 ms. */
-  readonly commandTimeoutMs?: number
-  /** Per-command deadline for overlay, marker, and owned-tab cleanup. Defaults to 15000 ms. */
-  readonly cleanupTimeoutMs?: number
-  /** Subprocess TERM-to-KILL grace. Defaults to 3000 ms. */
-  readonly graceMs?: number
-  /** Complete stdout JSON byte cap. Defaults to 16 MiB. */
-  readonly maxJsonBytes?: number
-  /** Captured stderr byte cap. Defaults to 64 KiB. */
-  readonly maxStderrBytes?: number
-  /** Image-file byte cap after base64 decoding and crop encoding. Defaults to 10 MiB. */
-  readonly maxImageBytes?: number
-  /** Maximum time waiting for a human element selection. Defaults to 60000 ms. */
-  readonly selectionTimeoutMs?: number
-  /** Maximum visible CSS-pixel area (width × height) captured by one element operation. Defaults to 4,000,000. */
-  readonly maxCapturePixels?: number
-}
-```
-
-来源：[`packages/browser/browser-cinlan/src/index.ts:88`](../packages/browser/browser-cinlan/src/index.ts)
-
 <a id="deepseek-aidsh-browser-permission-policy"></a>
 
 ## `@deepseek-ai/dsh-browser-permission-policy`
@@ -940,37 +901,6 @@ export interface Config {
 ```
 
 来源：[`packages/computer-use/computer-use/src/types.ts:285`](../packages/computer-use/computer-use/src/types.ts)
-
-<a id="deepseek-aidsh-computer-use-cinlan"></a>
-
-## `@deepseek-ai/dsh-computer-use-cinlan`
-
-需要：`computerUse` · `subprocess`
-
-```ts config-catalog
-/** Cinlan CLI provider configuration. */
-export interface Config {
-  /** Provider id registered on `ctx.computerUse`. Defaults to `cinlan`. */
-  readonly providerId?: string
-  /** Cinlan IDE CLI executable name or absolute path. Defaults to `orca-ide` on
-   * Linux and `orca` elsewhere. */
-  readonly command?: string
-  /** Child-process working directory. Defaults to `process.cwd()`. */
-  readonly cwd?: string
-  /** Per-command deadline, including executable resolution. Defaults to 65000 ms. */
-  readonly commandTimeoutMs?: number
-  /** Subprocess TERM-to-KILL grace. Defaults to 3000 ms. */
-  readonly graceMs?: number
-  /** Complete stdout JSON byte cap. Defaults to 16 MiB. */
-  readonly maxJsonBytes?: number
-  /** Captured stderr byte cap. Defaults to 64 KiB. */
-  readonly maxStderrBytes?: number
-  /** Screenshot byte cap before attachment persistence. Defaults to 16 MiB. */
-  readonly maxImageBytes?: number
-}
-```
-
-来源：[`packages/computer-use/computer-use-cinlan/src/index.ts:84`](../packages/computer-use/computer-use-cinlan/src/index.ts)
 
 <a id="deepseek-aidsh-computer-use-permission-policy"></a>
 
@@ -1967,6 +1897,8 @@ export interface Config {
    * and registers them the moment a settings section supplies profiles.
    */
   providers?: Record<string, PiAiProviderProfile>
+  /** Maximum time spent on each compensating Sub2API key reconciliation, deletion, or logout request. */
+  sub2ApiCleanupTimeoutMs?: number
 }
 
 /** Configuration for one pi-ai provider route; the `providers` dict key IS the route. */
@@ -2522,41 +2454,6 @@ export interface Config {
 
 来源：[`packages/mobile-device/mobile-device-adb/src/config.ts:7`](../packages/mobile-device/mobile-device-adb/src/config.ts)
 
-<a id="deepseek-aidsh-mobile-device-cinlan"></a>
-
-## `@deepseek-ai/dsh-mobile-device-cinlan`
-
-需要：`mobileDevice` · `subprocess`
-
-```ts config-catalog
-/** Cinlan CLI Provider configuration. */
-export interface Config {
-  /** Provider id registered on `ctx.mobileDevice`. Defaults to `cinlan`. */
-  readonly providerId?: string
-  /** Cinlan IDE CLI executable name or absolute path. Defaults to `orca-ide` on
-   * Linux and `orca` elsewhere. */
-  readonly command?: string
-  /** Child-process working directory. Defaults to `process.cwd()`. */
-  readonly cwd?: string
-  /** Per-command deadline, including executable resolution. Defaults to 65000 ms. */
-  readonly commandTimeoutMs?: number
-  /** Subprocess TERM-to-KILL grace. Defaults to 3000 ms. */
-  readonly graceMs?: number
-  /** Complete stdout JSON byte cap. Defaults to 24 MiB. */
-  readonly maxJsonBytes?: number
-  /** Captured stderr byte cap. Defaults to 64 KiB. */
-  readonly maxStderrBytes?: number
-  /** Observation tree UTF-8 byte cap. Defaults to 1 MiB. */
-  readonly maxTreeBytes?: number
-  /** Decoded screenshot byte cap. Defaults to 16 MiB. */
-  readonly maxImageBytes?: number
-  /** Typed-text UTF-8 byte cap. Defaults to 256 KiB. */
-  readonly maxTextBytes?: number
-}
-```
-
-来源：[`packages/mobile-device/mobile-device-cinlan/src/index.ts:67`](../packages/mobile-device/mobile-device-cinlan/src/index.ts)
-
 <a id="deepseek-aidsh-mobile-device-permission-policy"></a>
 
 ## `@deepseek-ai/dsh-mobile-device-permission-policy`
@@ -2909,6 +2806,8 @@ export interface Config {
   readonly maxInvitationAttempts?: number
   /** Maximum bytes accepted in one pairing HTTP request body or WebSocket message. */
   readonly maxRequestBodyBytes?: number
+  /** Maximum complete JSON bytes emitted in one paired unary response or WebSocket frame. */
+  readonly maxResponseBodyBytes?: number
   /** Maximum simultaneously admitted paired TCP connections and tracked requests. */
   readonly maxConnections?: number
   /** Maximum queued outgoing events retained for one connection. */
@@ -3480,18 +3379,14 @@ export interface Config {
 需要：`tools`
 
 ```ts config-catalog
-/** Plugin config. */
+/** Optional result-retention budget. */
 export interface Config {
-  /**
-   * The model-facing context cap for a plain-text tool result, in UTF-8 bytes.
-   * Omitted disables the policy entirely (no-op). When set, a result larger than
-   * this is spilled and replaced with a preview derived from this same budget.
-   */
-  maxInlineBytes?: number
+  /** Maximum estimated tokens in a retained result, including image descriptors and omission notices. Omitted disables retention. */
+  maxInlineTokens?: number
 }
 ```
 
-来源：[`packages/spill/spill-policy/src/index.ts:61`](../packages/spill/spill-policy/src/index.ts)
+来源：[`packages/spill/spill-policy/src/index.ts:25`](../packages/spill/spill-policy/src/index.ts)
 
 <a id="deepseek-aidsh-ssh"></a>
 

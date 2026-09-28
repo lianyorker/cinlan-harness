@@ -18,8 +18,7 @@ describe.each(['chat-completions', 'messages'] as const)('%s default model capab
     expect(connection.models).toEqual([
       {
         id: 'deepseek-flash', name: 'DeepSeek-V41-Flash', contextWindow: 1_000_000,
-        inputModalities: ['text', 'image'], systemPromptUpdate: 'in-history',
-        imagePixelBudget: 640_000, imageMaxBytes: 1_048_576,
+        inputModalities: ['text', 'image'], systemPromptUpdate: 'in-history', imageMaxBytes: 2_097_152,
       },
       {
         id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro', contextWindow: 1_000_000,

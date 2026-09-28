@@ -2,6 +2,7 @@
 import { browserEn, browserZh } from './browser-locales.ts'
 import { mobileEn, mobileZh } from './mobile-locales.ts'
 
+/** Simplified Chinese capability settings dictionary. */
 export const zh = {
   providerActivation: '启用服务提供者',
   providerActivationHelp: '启用或停用已配置的服务提供者。启用不会启动浏览器、授予桌面权限或批准操作。',

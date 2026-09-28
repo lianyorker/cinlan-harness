@@ -72,6 +72,7 @@ Six packages split Host and Client tsconfigs: `api/remotes`, `api/gateway`, `api
 The root build follows the generated dependency order:
 
 ```sh
+tsx scripts/build-remote-contracts.ts
 tsc -b tsconfig.host.json
 tsdown --env.DSH_BUILD_FACE host
 tsc -b tsconfig.client.json
@@ -81,7 +82,7 @@ pnpm run build:web
 
 Both tsdown passes use the same complete workspace match. They neither scan build artifacts to discover Client packages nor maintain a Host/Client package filter list. Package-local tsdown configs select entries for the current phase through `DSH_BUILD_FACE`: an ordinary Client plugin produces both its Node loader and browser bundle during the Client phase; `api-remotes` uses `hostPhase: true` to produce its Host entry early and only its browser bundle during the Client phase. Tsdown consumes only the JavaScript emitted to `lib/types` by the preceding tsc phase.
 
-Typert runs only during Host tsdown, seeded by `tsconfig.host.json`. It analyzes Host types and generates both Host reflection artifacts and the Host-for-Client Remote projection; Client tsdown does not start Typert. Consequently, `pnpm run typecheck` runs the complete Host lib phase before Client tsc, while `pnpm run build` continues through Client tsdown and the Web build.
+Before Host tsc, `build:lib:host` generates Host Remote projections from source with TypeScript diagnostics enabled, so generated declarations exist for Client consumers reached by the Host graph. Host tsdown then generates reflection artifacts and Remote projections from the checked Host types; Client tsdown does not start Typert. `pnpm run typecheck` runs the complete Host lib phase before Client tsc, while `pnpm run build` continues through Client tsdown and the Web build.
 
 `pnpm run build` embeds the root package version, the seven-character source commit, and a dirty marker when Git reports local changes; it also inherits other caller-supplied `DSH_CLIENT_*` values. `pnpm run build:official` is the cross-platform local equivalent of the CI and release artifact build and omits the local dirty marker. Each successful complete build writes a gitignored record that binds the exact public values to the Vite output and dynamic client bundles; release packing and built Web tests reject a missing record or artifacts changed by a later partial build. `pnpm run dev:web` still requires the artifact tree from a prior complete build, but it samples the current version and Git state once at startup and shares that environment across every watcher stage for the session; it does not validate the complete-build record because the watcher stages rewrite its recorded artifacts.
 

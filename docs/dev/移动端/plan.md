@@ -258,7 +258,7 @@
 | `--host 0.0.0.0` 暴露安全风险 | Phase 0 必须先完成设备认证，再开放绑定 |
 | Session 事件流协议复杂 | MVP 先用轮询 `session.list` + `session.inspect`，流式订阅作为优化 |
 | 移动端开发环境搭建 | 参考 orca `mobile/README.md` 的 Expo 开发流程 |
-| orca 代码移植版权 | orca 和 cinlan-harness 同属 Cinlan Technology，无版权问题 |
+| orca 代码移植版权 | 若复用 orca 代码，必须记录上游版本或 commit、适用许可证、版权与 NOTICE 义务；优先独立实现并保留来源记录 |
 
 ## 里程碑
 

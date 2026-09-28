@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import AuthorizationService, {
@@ -11,6 +11,8 @@ import { MemoryCredentials } from './memory.ts'
 
 const KEY = credentialKey('llm-pi-ai', 'openai-codex')
 const OTHER = credentialKey('llm-pi-ai', 'anthropic')
+
+afterEach(() => { vi.restoreAllMocks() })
 
 /** A context with the record store the seam confirms commits against. */
 async function harness(): Promise<Context> {
@@ -52,6 +54,7 @@ function committingFlow(
       await run?.(session)
       await ctx.credentials.modifyRecord(key, () =>
         Promise.resolve({ kind: 'grant', payload: { token: 'granted' } }))
+      session.commit()
     },
   }
 }
@@ -75,6 +78,35 @@ describe('AuthorizationService registry', () => {
 
     expect(ctx.authorization.list()).toEqual([])
     expect(ctx.authorization.describe(KEY)).toBeUndefined()
+  })
+
+  it('notifies subscribers for registration and in-flight transitions until disposal', async () => {
+    const ctx = await harness()
+    const states: string[] = []
+    const unsubscribe = ctx.authorization.subscribe(() => {
+      states.push(ctx.authorization.list().map(entry => entry.key + ':' + String(entry.inFlight)).join(','))
+    })
+    const dispose = ctx.authorization.registerFlow(committingFlow(ctx))
+
+    await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
+      .resolves.toEqual({ status: 'authorized' })
+    dispose()
+    unsubscribe()
+    ctx.authorization.registerFlow(committingFlow(ctx, OTHER))
+
+    expect(states).toEqual([KEY + ':false', KEY + ':true', KEY + ':false', ''])
+  })
+
+  it('contains synchronous and asynchronous subscriber failures', async () => {
+    const ctx = await harness()
+    const observed = vi.fn()
+    ctx.authorization.subscribe(() => { throw new Error('sync subscriber failure') })
+    ctx.authorization.subscribe(() => Promise.reject(new Error('async subscriber failure')))
+    ctx.authorization.subscribe(observed)
+
+    ctx.authorization.registerFlow(committingFlow(ctx))
+    expect(observed).toHaveBeenCalledOnce()
+    await Promise.resolve()
   })
 
   it('refuses a second flow for the same key', async () => {
@@ -116,7 +148,7 @@ describe('AuthorizationService.begin', () => {
       .resolves.toEqual({ status: 'authorized' })
 
     expect(await ctx.credentials.readRecord(KEY)).toEqual({ kind: 'grant', payload: { token: 'granted' } })
-    expect(settled).toHaveBeenCalledWith(KEY, 'authorized')
+    expect(settled).toHaveBeenCalledWith(KEY, 'authorized', expect.any(String))
   })
 
   it('runs the flow first method when the caller names none, and the named one when it does', async () => {
@@ -191,6 +223,35 @@ describe('AuthorizationService.begin', () => {
       .resolves.toEqual({ status: 'authorized' })
   })
 
+  it('blocks authorization during an exclusive local key operation and releases afterward', async () => {
+    const ctx = await harness()
+    ctx.authorization.registerFlow(committingFlow(ctx))
+    const started = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const operation = ctx.authorization.withExclusiveKey(KEY, async () => {
+      started.resolve(undefined)
+      await release.promise
+      return 'done'
+    })
+    await started.promise
+    await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
+      .rejects.toMatchObject({ code: 'ALREADY_IN_FLIGHT' })
+    release.resolve(undefined)
+    await expect(operation).resolves.toBe('done')
+    await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
+      .resolves.toEqual({ status: 'authorized' })
+  })
+
+  it('releases an exclusive local key operation after rejection', async () => {
+    const ctx = await harness()
+    ctx.authorization.registerFlow(committingFlow(ctx))
+    const failure = new Error('delete failed')
+    await expect(ctx.authorization.withExclusiveKey(KEY, async () => { throw failure }))
+      .rejects.toBe(failure)
+    await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
+      .resolves.toEqual({ status: 'authorized' })
+  })
+
   it('never starts a flow whose caller withdrew before begin', async () => {
     const ctx = await harness()
     const ran = vi.fn()
@@ -238,6 +299,37 @@ describe('AuthorizationService.begin', () => {
       .resolves.toEqual({ status: 'cancelled' })
   })
 
+  it('returns cancellation while post-run record confirmation is pending', async () => {
+    const ctx = await harness()
+    const readStarted = Promise.withResolvers<undefined>()
+    const releaseRead = Promise.withResolvers<undefined>()
+    const readFailure = new Error('record read failed after cancellation')
+    const readRecord = vi.spyOn(ctx.credentials, 'readRecord').mockImplementation(async (key) => {
+      if (key === KEY) {
+        readStarted.resolve(undefined)
+        await releaseRead.promise
+        throw readFailure
+      }
+      return undefined
+    })
+    const settled = vi.fn()
+    ctx.on('authorization/settled', settled)
+    ctx.authorization.registerFlow(committingFlow(ctx))
+    const caller = new AbortController()
+    const attempt = ctx.authorization.begin({ key: KEY, interaction: surface(), signal: caller.signal })
+    await readStarted.promise
+    caller.abort()
+
+    await expect(attempt).resolves.toEqual({ status: 'cancelled' })
+    expect(ctx.authorization.describe(KEY)?.inFlight).toBe(true)
+    expect(settled).not.toHaveBeenCalled()
+
+    releaseRead.resolve(undefined)
+    await vi.waitFor(() => { expect(ctx.authorization.describe(KEY)?.inFlight).toBe(false) })
+    expect(settled).toHaveBeenCalledWith(KEY, 'cancelled', expect.any(String))
+    readRecord.mockRestore()
+  })
+
   it('withdraws a running attempt through cancel(), and ignores cancel() for an idle key', async () => {
     const ctx = await harness()
     const started = Promise.withResolvers<undefined>()
@@ -255,10 +347,41 @@ describe('AuthorizationService.begin', () => {
     await expect(attempt).resolves.toEqual({ status: 'cancelled' })
   })
 
-  it('settles a withdrawn attempt even when its flow never reacts to the signal', async () => {
+  it('waits for a cancellation-sensitive flow to report cleanup failure', async () => {
+    const ctx = await harness()
+    const started = Promise.withResolvers<undefined>()
+    const caller = new AbortController()
+    const failure = new Error('remote cleanup failed')
+    ctx.authorization.registerFlow({
+      key: KEY,
+      label: 'Cleanup-sensitive account',
+      methods: [{ id: 'login', label: 'Sign in' }],
+      awaitCancellation: true,
+      run: async (session) => {
+        started.resolve(undefined)
+        await new Promise<void>((_resolve, reject) => {
+          session.signal.addEventListener('abort', () => { reject(failure) }, { once: true })
+        })
+      },
+    })
+
+    const attempt = ctx.authorization.begin({ key: KEY, interaction: surface(), signal: caller.signal })
+    await started.promise
+    caller.abort()
+
+    await expect(attempt).rejects.toBe(failure)
+    expect(ctx.authorization.describe(KEY)?.inFlight).toBe(false)
+  })
+
+  it('returns cancellation promptly but retains the key until a non-cooperative flow settles', async () => {
     const ctx = await harness()
     const orphan = Promise.withResolvers<undefined>()
     const started = Promise.withResolvers<undefined>()
+    const settled = vi.fn()
+    const lateReleaseError = Object.assign(new Error('late settlement invariant'), { code: 'INVARIANT' })
+    const logged = vi.spyOn(ctx.logger, 'error').mockImplementation(() => undefined)
+    ctx.on('authorization/settled', settled)
+    ctx.on('authorization/settled', () => { throw lateReleaseError })
     ctx.authorization.registerFlow(committingFlow(ctx, KEY, () => {
       started.resolve(undefined)
       return orphan.promise
@@ -269,13 +392,17 @@ describe('AuthorizationService.begin', () => {
     ctx.authorization.cancel(KEY)
 
     await expect(attempt).resolves.toEqual({ status: 'cancelled' })
-    // The key is free again immediately, rather than at the mercy of a flow
-    // that may never settle.
-    expect(ctx.authorization.describe(KEY)?.inFlight).toBe(false)
-    // The orphan's own failure is nobody's to await, and must not surface as an
-    // unhandled rejection.
+    expect(ctx.authorization.describe(KEY)?.inFlight).toBe(true)
+    await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
+      .rejects.toMatchObject({ code: 'ALREADY_IN_FLIGHT' })
+    expect(settled).not.toHaveBeenCalled()
+
     orphan.reject(new Error('gave up long after the human left'))
     await expect(orphan.promise).rejects.toThrow('gave up long after the human left')
+    await vi.waitFor(() => { expect(ctx.authorization.describe(KEY)?.inFlight).toBe(false) })
+    expect(settled).toHaveBeenCalledWith(KEY, 'cancelled', expect.any(String))
+    expect(logged).toHaveBeenNthCalledWith(1, 'authorization: a withdrawn attempt failed while releasing its key')
+    expect(logged).toHaveBeenNthCalledWith(2, lateReleaseError)
   })
 
   it('propagates a flow failure to its caller and settles the key as failed', async () => {
@@ -288,7 +415,7 @@ describe('AuthorizationService.begin', () => {
     await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
       .rejects.toThrow('the token endpoint said no')
 
-    expect(settled).toHaveBeenCalledWith(KEY, 'failed')
+    expect(settled).toHaveBeenCalledWith(KEY, 'failed', expect.any(String))
     expect(ctx.authorization.describe(KEY)?.inFlight).toBe(false)
   })
 
@@ -304,6 +431,33 @@ describe('AuthorizationService.begin', () => {
     await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
       .rejects.toThrow(/resolved without committing a credential record/)
   })
+
+  it('does not treat a concurrent same-key writer as this attempt commit', async () => {
+    const ctx = await harness()
+    const started = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    ctx.authorization.registerFlow({
+      key: KEY,
+      label: 'Concurrent writer probe',
+      methods: [{ id: 'oauth', label: 'Sign in' }],
+      run: async (session) => {
+        started.resolve(undefined)
+        await release.promise
+        session.commit()
+      },
+    })
+
+    const attempt = ctx.authorization.begin({ key: KEY, interaction: surface() })
+    await started.promise
+    await ctx.credentials.modifyRecord(KEY, () =>
+      Promise.resolve({ kind: 'grant', payload: { token: 'unrelated' } }))
+    release.resolve(undefined)
+
+    await expect(attempt).rejects.toMatchObject({ code: 'NOT_COMMITTED' })
+    await expect(ctx.credentials.readRecord(KEY)).resolves.toEqual({
+      kind: 'grant', payload: { token: 'unrelated' },
+    })
+  })
 })
 
 describe('commit confirmation', () => {
@@ -316,16 +470,51 @@ describe('commit confirmation', () => {
       label: 'Forgetful',
       methods: [{ id: 'oauth', label: 'Sign in' }],
       // A commit for another key is not this flow's commit either.
-      async run() {
+      async run(session) {
         await ctx.credentials.modifyRecord(OTHER, () =>
           Promise.resolve({ kind: 'grant', payload: { token: 'other' } }))
+        session.commit()
       },
     })
 
     await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
-      .rejects.toThrow(/without committing a credential record in this attempt/)
+      .rejects.toMatchObject({ code: 'NOT_COMMITTED' })
     // Refused, not cleaned up: the stale record still belongs to its owner.
     expect(await ctx.credentials.readRecord(KEY)).toEqual({ kind: 'grant', payload: { token: 'stale' } })
+  })
+
+  it('does not let a commit receipt authorize an unchanged stale record', async () => {
+    const ctx = await harness()
+    await ctx.credentials.modifyRecord(KEY, () =>
+      Promise.resolve({ kind: 'grant', payload: { token: 'stale' } }))
+    ctx.authorization.registerFlow({
+      key: KEY,
+      label: 'Receipt without write',
+      methods: [{ id: 'oauth', label: 'Sign in' }],
+      run: async (session) => { session.commit() },
+    })
+
+    await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
+      .rejects.toMatchObject({ code: 'NOT_COMMITTED' })
+    expect(await ctx.credentials.readRecord(KEY)).toEqual({ kind: 'grant', payload: { token: 'stale' } })
+  })
+
+  it('rejects a commit receipt that arrives before the target write', async () => {
+    const ctx = await harness()
+    ctx.authorization.registerFlow({
+      key: KEY,
+      label: 'Early receipt',
+      methods: [{ id: 'oauth', label: 'Sign in' }],
+      async run(session) {
+        expect(() => { session.commit() }).toThrow(/before writing/)
+        await ctx.credentials.modifyRecord(KEY, () =>
+          Promise.resolve({ kind: 'grant', payload: { token: 'late' } }))
+      },
+    })
+
+    await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
+      .rejects.toMatchObject({ code: 'NOT_COMMITTED' })
+    expect(await ctx.credentials.readRecord(KEY)).toEqual({ kind: 'grant', payload: { token: 'late' } })
   })
 
   it('refuses a flow that deleted its record instead of committing one', async () => {
@@ -336,7 +525,10 @@ describe('commit confirmation', () => {
       key: KEY,
       label: 'Destructive',
       methods: [{ id: 'oauth', label: 'Sign in' }],
-      run: () => ctx.credentials.deleteRecord(KEY),
+      run: async (session) => {
+        await ctx.credentials.deleteRecord(KEY)
+        session.commit()
+      },
     })
 
     await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
@@ -360,7 +552,7 @@ describe('declined prompts', () => {
     await expect(ctx.authorization.begin({ key: KEY, interaction: declining }))
       .resolves.toEqual({ status: 'cancelled' })
 
-    expect(settled).toHaveBeenCalledWith(KEY, 'cancelled')
+    expect(settled).toHaveBeenCalledWith(KEY, 'cancelled', expect.any(String))
   })
 
   it('reads a decline through a flow that rewraps the rejection on its way out', async () => {
@@ -395,7 +587,7 @@ describe('declined prompts', () => {
     await expect(ctx.authorization.begin({ key: KEY, interaction: broken }))
       .rejects.toThrow('the transport dropped')
 
-    expect(settled).toHaveBeenCalledWith(KEY, 'failed')
+    expect(settled).toHaveBeenCalledWith(KEY, 'failed', expect.any(String))
   })
 })
 
@@ -431,7 +623,7 @@ describe('the settled fan-out', () => {
     await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
       .resolves.toEqual({ status: 'authorized' })
 
-    expect(second).toHaveBeenCalledWith(KEY, 'authorized')
+    expect(second).toHaveBeenCalledWith(KEY, 'authorized', expect.any(String))
   })
 
   it('contains an async listener rejection', async () => {
@@ -459,7 +651,7 @@ describe('the settled fan-out', () => {
     await expect(ctx.authorization.begin({ key: KEY, interaction: surface() }))
       .rejects.toThrow(/forged relation/)
     // Harness-fatal by design — but the record itself committed first.
-    expect(second).toHaveBeenCalledWith(KEY, 'authorized')
+    expect(second).toHaveBeenCalledWith(KEY, 'authorized', expect.any(String))
     expect(await ctx.credentials.readRecord(KEY)).toEqual({ kind: 'grant', payload: { token: 'granted' } })
   })
 })

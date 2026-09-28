@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin when a composition routes model requests through pi-ai's provider catalogs or through gateways that pi-ai's installed catalog does not describe. The `providers` dictionary is the whole configuration surface: each key is the provider route name a request selects with `GenerateOptions.provider`.
+Mount this plugin when a composition routes model requests through pi-ai's provider catalogs or through gateways that pi-ai's installed catalog does not describe. The `providers` dictionary is the model-route configuration surface: each key is the provider route name a request selects with `GenerateOptions.provider`; `sub2ApiCleanupTimeoutMs` separately bounds cleanup for the Cinlan account flow.
 
 ### When to choose it
 
@@ -70,6 +70,8 @@ Each profile may set a `retryPolicy`; omission uses normal mode with five retrie
               high: high
 ```
 
+For an OpenAI Responses gateway, set `api: openai-responses` and a `baseURL` ending in `/v1`; pi-ai then sends requests to `/v1/responses`. This route never falls back to `/v1/chat/completions`. Account authentication does not create or select a model route; configure model routes explicitly in the LLM settings.
+
 | Field | Default | Meaning |
 |---|---|---|
 | `apiKeyEnv` | absent | Credential reference resolved per request; omission defers to pi-ai ambient discovery |
@@ -85,12 +87,15 @@ Each profile may set a `retryPolicy`; omission uses normal mode with five retrie
 | `requestImageMaxBytes` | `1 MiB` | Encoded-byte target for each request image before base64 expansion |
 | `maxRequestImageBytes` | `20 MiB` | Aggregate base64 image-payload bound with oldest-first offload |
 | `retryPolicy` | normal, 5 retries | Provider-owned retry policy executed by `dsh-llm-retry` |
+| `sub2ApiCleanupTimeoutMs` | `10,000` ms | Deadline for each compensating Sub2API key reconciliation, key-delete, or logout request |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-llm-pi-ai) is the exhaustive source for every accepted field and its JSDoc.
 
 ### Sign in to a provider
 
 A provider pi-ai ships a login for can be signed into through the harness authorization seam: the flow offers OAuth or an interactive key prompt (a key is typed into pi-ai's own login prompt, not into the settings form), and the resulting credential is stored in the harness credential store at `llm-pi-ai/<provider id>`. The stored sign-in authenticates its route beneath any `apiKeyEnv` override and refreshes itself under the store's cross-process lock; signing out deletes the stored record. A hand-declared route key outside the record grammar — a lowercase hyphenated identifier — cannot be signed into, because a record write for it refuses with `LlmError('UNSTORABLE_PROVIDER_ID')`; such a route authenticates through `apiKeyEnv` or ambient provider settings instead.
+
+Cinlan is an account flow, not a pi-ai provider login. When `dsh-authorization` is mounted, the Account Settings card asks only for the Cinlan email and password, then asks for a TOTP code only when the service requires it. The Host always uses `https://api.cinlan.online/api/v1`, calls `/auth/login`, lists `/keys`, reuses an active `Cinlan Harness` key or creates it, writes only `{ kind: 'api-key', key }` to `llm-pi-ai/sub2api`, and logs out with `/auth/logout` when the service returns a refresh token. The account card does not configure providers or models. The remote key remains issuer-owned: deleting the local record cannot revoke it. A failed commit or cancellation attempts to delete a newly created key. A response missing only the id can be reconciled by its returned key; an unreadable response or response without a safe id/key cannot be deleted by name and raises `SUB2API_CLEANUP_FAILED` to report possible residual remote state. Failed deletes, uncertain local commit state, refresh-token logout failures, and cleanup deadlines use the same error; uncertain local state is reported without unsafe remote deletion. `sub2ApiCleanupTimeoutMs` bounds each reconciliation, delete, and logout request independently.
 
 ### Resolve the model catalog
 

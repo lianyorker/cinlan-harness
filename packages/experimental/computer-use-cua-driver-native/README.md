@@ -27,7 +27,7 @@ Use Cua Driver to inspect and operate desktop windows without installing its sep
 
 Mount the provider in a composition that already supplies the tool registry and system prompt.
 
-Mount one Cua Driver adapter and unload any registered Cinlan Computer Use provider and `tool-computer-use` first. Keep the [permission policy](../../computer-use/computer-use-permission-policy/README.md) mounted: its `native` decision covers all `cua_driver_native__*` tools and defaults to `ask`. The opt-in [computer-use bundle](../../bundle/cinlan-computer-use/README.md) supplies this composition.
+Mount one Cua Driver adapter and first unload any registered facade provider and any `tool-computer-use` consumer. Keep the [permission policy](../../computer-use/computer-use-permission-policy/README.md) mounted: its `native` decision covers all `cua_driver_native__*` tools and defaults to `ask`. The opt-in [computer-use bundle](../../bundle/cinlan-computer-use/README.md) supplies this composition.
 
 ### Minimal configuration
 

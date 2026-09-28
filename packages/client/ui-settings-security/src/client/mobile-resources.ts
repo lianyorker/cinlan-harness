@@ -1,5 +1,5 @@
 /** Registration-owned reads of Android resources, connected devices, and mirror processes. */
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { MobileRuntimeStatus } from '@deepseek-ai/dsh-mobile-device-runtime/types'
 
 /** Host observation bound to the resource panel by the renderer. */
@@ -10,7 +10,15 @@ export type MobileResourceRead = { status: 'loading' } | { status: 'error' } | {
  * @param pollIntervalMs - Poll interval from plugin configuration.
  * @returns Stable source, watch disposal, explicit refresh, and final disposal.
  */
-export function createMobileResourceObserver(readStatus: (signal: AbortSignal) => Promise<MobileRuntimeStatus>, pollIntervalMs: number) {
+export function createMobileResourceObserver(
+  readStatus: (signal: AbortSignal) => Promise<MobileRuntimeStatus>,
+  pollIntervalMs: number,
+): {
+  store: SnapshotStore<MobileResourceRead>
+  watch: () => () => void
+  refresh: () => void
+  dispose: () => void
+} {
   const store = createSnapshotStore<MobileResourceRead>({ status: 'loading' })
   let observation: AbortController | undefined
   let timer: ReturnType<typeof setTimeout> | undefined

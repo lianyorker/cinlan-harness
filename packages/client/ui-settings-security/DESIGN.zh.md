@@ -31,4 +31,4 @@ Loader 激活、Provider 可达、安装与授权是不同事实。尚不支持�
 
 ## 验证
 
-[Web 场景](../../../apps/web/tests/device-capabilities.e2e.ts)负责 ARIA 预期、窄内容列溢出与侧栏几何。[安全研究覆盖](../../../apps/web/tests/security-capabilities.e2e.ts)加载实际可选组合包并撤回其预设贡献。原生 Orca 输入与第三方安装器不属于本轮视觉验证。
+[Web 场景](../../../apps/web/tests/device-capabilities.e2e.ts)负责 ARIA 预期、窄内容列溢出与侧栏几何。[安全研究覆盖](../../../apps/web/tests/security-capabilities.e2e.ts)加载实际可选组合包并撤回其预设贡献。原生 CUA 与 ADB 输入执行以及第三方安装器不属于本轮视觉验证。

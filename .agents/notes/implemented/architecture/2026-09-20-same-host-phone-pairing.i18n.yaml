@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-same-host-phone-pairing.md
-2026-09-20-same-host-phone-pairing.md: 49331415d6f4e2685f5bac38e76e3e102272ea19
-2026-09-20-same-host-phone-pairing.zh.md: d47725d31d4d7ee60c067e93d004ca1f12d78495
+2026-09-20-same-host-phone-pairing.md: c867caee287de9c22235ebf75ede5bf0cd6792b6
+2026-09-20-same-host-phone-pairing.zh.md: eb8853cd87c0f93034dfe3440384190a3b4674e2

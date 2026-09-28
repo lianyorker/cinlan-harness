@@ -1,5 +1,5 @@
 ---
-description: "Computer Use 能力包：Service Definition、CLI Provider、权限策略和工具。"
+description: "Computer Use 能力包：Service Definition、原生 Provider、权限策略和工具。"
 kind: "package-group"
 ---
 
@@ -16,7 +16,6 @@ kind: "package-group"
 | Package | Role |
 |---|---|
 | [computer-use](computer-use/README.zh.md) | Service Definition |
-| [computer-use-cinlan](computer-use-cinlan/README.zh.md) | Provider |
 | [computer-use-permission-policy](computer-use-permission-policy/README.zh.md) | Permission Consumer |
 | [tool-computer-use](tool-computer-use/README.zh.md) | Tool Consumer |
 
@@ -26,4 +25,4 @@ kind: "package-group"
 
 ## Dev Note
 
-平台执行、认证和设备可用性由外部 CLI 提供；包存在不代表设备已就绪。
+平台执行、认证和设备可用性由所选 Provider 及其部署环境负责；包存在不代表设备已就绪。

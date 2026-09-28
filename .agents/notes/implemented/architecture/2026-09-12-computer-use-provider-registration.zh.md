@@ -10,7 +10,7 @@ Status: implemented
 
 ## Decision
 
-DSH 能力称为 **computer use（计算机操作）**。[`dsh-computer-use`](../../../../packages/computer-use/computer-use/README.zh.md) 拥有 `ctx.computerUse.register()`，预留一个提供方自定的名称并返回其 effect 清理函数。第二次独占注册无论名称为何都会失败。此 API 不包含 Cua Driver 操作类型、分派方法、Session 锁或运行时选择器。同一服务依据 [Cinlan 兼容性决策](2026-09-20-cinlan-cua-driver-compatibility.zh.md)保留 Cinlan Provider 执行入口；其已注册 Provider 同样排斥这些适配器。
+DSH 能力称为 **computer use（计算机操作）**。[`dsh-computer-use`](../../../../packages/computer-use/computer-use/README.zh.md) 拥有 `ctx.computerUse.register()`，预留一个提供方自定的名称并返回其 effect 清理函数。第二次独占注册无论名称为何都会失败。此 API 不包含 Cua Driver 操作类型、分派方法、Session 锁或运行时选择器。同一服务依据 [Computer Use 兼容性决策](2026-09-20-cinlan-cua-driver-compatibility.zh.md)保留 Provider facade；facade Provider 同样排斥这些适配器。
 
 **Cua Driver** 是上游实现的名称。[MCP 提供方](../../../../packages/experimental/computer-use-cua-driver-mcp/README.zh.md)连接已安装的可执行文件。[原生提供方](../../../../packages/experimental/computer-use-cua-driver-native/README.zh.md)安装上游原生 npm 依赖。两者均保持实验性并加入显式公开发布允许列表；均不默认启用。
 
@@ -20,7 +20,7 @@ DSH 能力称为 **computer use（计算机操作）**。[`dsh-computer-use`](..
 
 ## Alternatives considered
 
-**Cua Driver 统一操作 API。** 将 Cua Driver 截图、输入和窗口操作映射为 Cinlan 请求需要转换提供方特有的语义，而当前没有需要这种可移植性的消费者。由提供方拥有工具可保留这些语义。
+**Cua Driver 统一操作 API。** 将 Cua Driver 截图、输入和窗口操作映射为 facade 请求需要转换提供方特有的语义，而当前没有需要这种可移植性的消费者。由提供方拥有工具可保留这些语义。
 
 **仅外部 MCP。** 此方案复用已安装的驱动及其进程身份，但保留独立安装的前提。原生提供方提供单包运行时安装。
 

@@ -48,7 +48,7 @@ None; readiness does not enter model requests.
 <a id="known-limitations-and-deferred-work"></a>
 
 - Readiness reports catalog lifecycle or a facade probe at one point in time; it does not authorize actions or verify OS grants. Native CUA permissions stay unknown, and its packaged SDK does not require an external CLI. Facade transports retain their own prerequisites. Caller cancellation propagates to the Provider.
-- The saved SDK path controls local SDK checks only. The external Cinlan device runtime has no supported SDK override in the public CLI used by the Mobile Device Provider; SDK checks do not configure that runtime.
+- The saved Android SDK path supplies the default ADB executable resolution for the native Mobile Device provider unless an executable override is configured. Readiness checks only test an existing executable; they do not install or modify SDK files.
 
 No runtime invariant companion is published: the controller returns immediate results and retains no independent Provider state.
 

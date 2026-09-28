@@ -61,6 +61,64 @@ interface CredentialInfo {
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxaccountcontroller--accountcontroller"></a>
+
+### `ctx.accountController` — `AccountController`
+
+Account Settings controller over generic authorization flows and local credential records.
+
+```ts cordis-catalog
+/**
+ * Read registered authorization flows and local credential presence.
+ * @returns complete secret-free Account Settings state, limited to 256 KiB as serialized UTF-8 JSON.
+ * @throws RemoteError when the complete snapshot exceeds its wire limit.
+ */
+@Remote async snapshot(): Promise<AccountAuthorizationSnapshot>
+
+/**
+ * Observe complete replacement snapshots, coalescing changes for a paused client.
+ * @param signal - caller and transport cancellation.
+ * @returns initial state followed by flow, attempt, and credential changes.
+ */
+@Remote({ mode: 'stream' }) async *watch(signal: AbortSignal): AsyncIterable<AccountAuthorizationSnapshot>
+
+/**
+ * Run one authorization through a stream owned by the caller that started it.
+ * @param keyValue - registered credential record key.
+ * @param methodValue - method advertised for that flow.
+ * @param signal - closes this caller's stream and cancels its attempt.
+ * @returns notices, prompt metadata, and settlement; every serialized frame is at most 64 KiB.
+ * @throws RemoteError when control-frame volume or one control frame exceeds its output limit.
+ */
+@Remote({ mode: 'stream' }) async *authorize( keyValue: CredentialKey, methodValue: AccountAuthorizationMethodId, signal: AbortSignal, ): AsyncIterable<AccountAuthorizationFrame>
+
+/**
+ * Submit one prompt answer. The answer is resolved directly to the flow and is never retained or returned.
+ * @param attemptValue - caller-owned attempt identity.
+ * @param promptValue - current prompt identity.
+ * @param answerValue - text, secret, or selected option value.
+ */
+@Remote answer( attemptValue: AccountAuthorizationAttemptId, promptValue: AccountAuthorizationPromptId, answerValue: string, ): void
+
+/**
+ * Cancel only the attempt named by the caller-owned identity.
+ * @param attemptValue - active attempt identity.
+ * @returns true when the attempt was still active.
+ */
+@Remote cancel(attemptValue: AccountAuthorizationAttemptId): boolean
+
+/**
+ * Delete one flow's local credential record without claiming issuer revocation.
+ * @param keyValue - registered flow key.
+ * @returns local deletion result with issuerRevoked fixed to false.
+ */
+@Remote async deleteCredential(keyValue: CredentialKey): Promise<AccountCredentialDeletionResult>
+```
+
+Types: [AccountAuthorizationAttemptId](../../packages/api/account-controller/README.zh.md#use-the-remote) · [AccountAuthorizationFrame](../../packages/api/account-controller/README.zh.md#use-the-remote) · [AccountAuthorizationMethodId](../../packages/api/account-controller/README.zh.md#use-the-remote) · [AccountAuthorizationPromptId](../../packages/api/account-controller/README.zh.md#use-the-remote) · [AccountAuthorizationSnapshot](../../packages/api/account-controller/README.zh.md#use-the-remote) · [AccountCredentialDeletionResult](../../packages/api/account-controller/README.zh.md#use-the-remote)
+
+Source: [`packages/api/account-controller/src/index.ts`](../../packages/api/account-controller/src/index.ts)
+
 <a id="ctxauthorization--authorizationservice"></a>
 
 ### `ctx.authorization` — `AuthorizationService`
@@ -80,6 +138,15 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 registerFlow(flow: AuthorizationFlow): () => void
 
 /**
+ * Observe flow registration and in-flight changes. Credential commits are
+ * reported by the flow's attempt-owned {@link AuthorizationSession.commit}
+ * receipt; subscriber failures are contained.
+ * @param subscriber - callback that re-reads {@link list} or {@link describe}.
+ * @returns disposer that removes the callback.
+ */
+subscribe(subscriber: () => unknown): () => void
+
+/**
  * Every registered flow, for a surface listing what can be authorized.
  * @returns one entry per flow, in registration order.
  */
@@ -91,6 +158,16 @@ list(): readonly AuthorizationEntry[]
  * @returns the entry, or undefined when no flow claims that key.
  */
 describe(key: CredentialKey): AuthorizationEntry | undefined
+
+/**
+ * Run one local credential operation without allowing authorization for the same key to start.
+ * The reservation is released after the callback settles, including rejection.
+ * @param key - the credential record to reserve.
+ * @param operation - the local operation protected by the reservation.
+ * @returns the callback result.
+ * @throws {AuthorizationError} code `ALREADY_IN_FLIGHT` when authorization or another operation owns the key.
+ */
+async withExclusiveKey<T>(key: CredentialKey, operation: () => Promise<T>): Promise<T>
 
 /**
  * Withdraw the attempt running for a key, if any. Separate from the
@@ -108,14 +185,19 @@ cancel(key: CredentialKey): void
  * and the second would answer questions the first was asked.
  *
  * @param request - the key, the method, the surface, and the cancel signal.
- * @returns `authorized` once the flow's record is committed during this
- *   attempt and observed, or `cancelled` when the human declined or the
- *   caller withdrew.
+ * @returns `authorized` once the flow's target-key write and commit receipt
+ *   are confirmed and the record remains present, or `cancelled` when the
+ *   human declined or the caller withdrew. Withdrawal returns promptly for
+ *   flows without {@link AuthorizationFlow.awaitCancellation}, which keep the
+ *   key in flight until their runner settles; a flow declaring
+ *   `awaitCancellation` keeps this call pending until its bounded remote
+ *   compensation settles, and a compensation failure reaches the caller as a
+ *   thrown error.
  * @throws {AuthorizationError} code `NO_FLOW` when nothing claims the key,
  *   `UNKNOWN_METHOD` when the named method is not one the flow offers,
  *   `ALREADY_IN_FLIGHT` when an attempt is already running for the key, or
- *   `NOT_COMMITTED` when the flow resolved without committing a record
- *   during the attempt.
+ *   `NOT_COMMITTED` when the flow did not produce an observed target-key write,
+ *   commit receipt, or present record during the attempt.
  */
 async begin(request: AuthorizationRequest): Promise<AuthorizationOutcome>
 ```
@@ -271,8 +353,9 @@ One authorization attempt has finished and released its key. Fires for every ter
  * @mode emit
  * @param key - the credential record the finished attempt was authorizing.
  * @param settlement - how it ended, including the `failed` case its caller sees as a thrown error.
+ * @param attemptId - the identity of the attempt that released the key.
  */
-'authorization/settled'(key: CredentialKey, settlement: AuthorizationSettlement): void
+'authorization/settled'( key: CredentialKey, settlement: AuthorizationSettlement, attemptId: AuthorizationAttemptId): void
 ```
 
 Source: [`packages/credentials/authorization/src/index.ts`](../../packages/credentials/authorization/src/index.ts)

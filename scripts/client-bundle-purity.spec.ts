@@ -41,6 +41,11 @@ describe('client bundle build faces', () => {
     expect(development?.entry).toEqual({ client: 'src/client/index.ts' })
     expect(artifact?.entry).toEqual({ client: 'lib/types/client/index.js' })
   })
+
+  it('uses npm browser aliases for dynamic client dependencies', () => {
+    const configs = clientConfigs()
+    expect(configs[0]?.inputOptions).toMatchObject({ resolve: { aliasFields: [['browser']] } })
+  })
 })
 
 function clientSourceMapPath(packagePath: string): string {

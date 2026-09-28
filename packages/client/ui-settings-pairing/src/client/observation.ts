@@ -4,18 +4,31 @@ import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type { PairedDeviceId, PairingGrant } from '@deepseek-ai/dsh-remote-access/types'
 import type { PairingObservation, PairingRemote, PairingSnapshot } from './types.ts'
 
+const DEFAULT_OPERATION_TIMEOUT_MS = 15_000
+
 async function unwrap<T>(result: Promise<RemoteResult<T>>): Promise<T> {
   const settled = await result
   if (!settled.ok) throw settled.error
   return settled.value
 }
 
+function bounded<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => { reject(new Error('Pairing operation timed out')) }, timeoutMs)
+    void operation.then(
+      (value) => { clearTimeout(timer); resolve(value) },
+      (error) => { clearTimeout(timer); reject(error) },
+    )
+  })
+}
+
 /**
  * Observe explicit management operations without persisting invitation material.
  * @param remote - official generated pairing namespace on the trusted local carrier.
+ * @param operationTimeoutMs - deadline for one management call and disposal wait.
  * @returns a stable source, serialized human actions and a quiescent disposer.
  */
-export function observePairing(remote: PairingRemote): PairingObservation {
+export function observePairing(remote: PairingRemote, operationTimeoutMs = DEFAULT_OPERATION_TIMEOUT_MS): PairingObservation {
   const source = createSnapshotStore<PairingSnapshot>({ status: undefined, invitation: undefined, pending: false, failed: false })
   const lifetime = new AbortController()
   let task: Promise<void> | undefined
@@ -37,7 +50,7 @@ export function observePairing(remote: PairingRemote): PairingObservation {
     if (lifetime.signal.aborted || task !== undefined) return task ?? Promise.resolve()
     publish({ pending: true, failed: false })
     task = Promise.resolve().then(async () => {
-      if (!lifetime.signal.aborted) await action()
+      if (!lifetime.signal.aborted) await bounded(action(), operationTimeoutMs)
     }).catch(() => {
       // Remote failures are rendered as localized recovery copy; never log invitation material.
       publish({ failed: true })

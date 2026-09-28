@@ -9,7 +9,9 @@
  * /model popup; exact-model reasoning metadata and the selected effort come
  * from the Host rather than a client-owned vocabulary. A rejected selection
  * announces through the shared transient Toast anchored to the composer
- * card; the in-menu strip with Retry remains the catalog-load surface.
+ * card; the in-menu strip with Retry remains the catalog-load surface. While
+ * the shared directory is selecting, a fixed trailing slot shows the ongoing
+ * state and a localized live status announces it without resizing the trigger.
  */
 import {
   useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore,
@@ -20,7 +22,7 @@ import clsx from 'clsx'
 import type { ModelReasoningEffort, ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14,
-  IconDataOutline16, IconWarningOutline16, Toast,
+  IconDataOutline16, IconWarningOutline16, StateDot, Toast,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ModelSelectInjected } from './slots.ts'
@@ -272,7 +274,9 @@ export function ModelSelect(
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? `${id}-menu` : undefined}
-        title={triggerLabel}
+        aria-busy={busy}
+        aria-describedby={busy ? `${id}-selection-status` : undefined}
+        title={busy ? t('status.selecting') : triggerLabel}
         disabled={locked}
         onClick={() => {
           if (open) {
@@ -285,8 +289,20 @@ export function ModelSelect(
         <IconDataOutline16 className={css.triggerIcon} size={16} />
         <span className={css.triggerLabel}>{modelLabel}</span>
         {effortLabel !== undefined && <span className={css.triggerEffort}>{effortLabel}</span>}
-        <IconChevronDownOutline14 className={clsx(css.chevron, open && css.chevronOpen)} />
+        <span className={css.triggerStatus} aria-hidden="true">
+          {busy
+            ? <StateDot state="ongoing" />
+            : <IconChevronDownOutline14 className={clsx(css.chevron, open && css.chevronOpen)} />}
+        </span>
       </button>
+      <span
+        id={`${id}-selection-status`}
+        className={css.visuallyHidden}
+        role="status"
+        aria-live="polite"
+      >
+        {busy ? t('status.selecting') : ''}
+      </span>
 
       {/* Portaled to body (Menu primitive's portal mode) so the sidebar and
           column overflow clips cannot crop the card; synthetic events still

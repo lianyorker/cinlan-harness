@@ -2,11 +2,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { MobileDeviceListSnapshot, MobileSdkSnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 import type { MobileDeviceSettings } from '@deepseek-ai/dsh-mobile-device/types'
-import type { CapabilitySectionProps } from './CapabilitySection.tsx'
+import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
+import type { MobileSectionInjected, CapabilitySectionProps } from './CapabilitySection.tsx'
 import css from './CapabilitySection.module.css'
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 
-type Props = Pick<CapabilitySectionProps, 'useMobileSettings' | 'saveMobileSettings' | 'resetMobileSettings' | 'checkSdk' | 'listMobileDevices' | 't'>
+type Props = Pick<InjectFace<MobileSectionInjected>, 'useMobileSettings' | 'saveMobileSettings' | 'resetMobileSettings' | 'checkSdk' | 'listMobileDevices'> & Pick<CapabilitySectionProps, 't'>
 
 /**
  * Edit preferences for SDK checks and device observation without granting control authority.

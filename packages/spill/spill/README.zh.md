@@ -33,13 +33,13 @@ kind: "package-reference"
 
 ### 最小可用组合
 
-把后端与策略一起挂载；设置 `maxInlineBytes` 后，任何过大的纯文本工具结果都会自动变成预览加定位信息。
+把后端与策略一起挂载；设置 `maxInlineTokens` 后，任何过大的文字/图片工具结果都会自动变成按原顺序排列的预览和定位信息。图片继续保存在附件存储中，保存的文本会记录可读取路径，之后可用 `read_image` 恢复查看。
 
 ```yaml
 - name: '@deepseek-ai/dsh-spill-local'
 - name: '@deepseek-ai/dsh-spill-policy'
   config:
-    maxInlineBytes: 50000
+    maxInlineTokens: 12500
 ```
 
 ### 保存文本

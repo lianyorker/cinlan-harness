@@ -28,8 +28,8 @@ export interface PairingInjected {
 /** Apply-owned observation source, management callbacks, and disposal. */
 export interface PairingObservation extends Omit<PairingInjected, 'hooks'> {
   readonly source: ObservableSnapshot<PairingSnapshot>
-  /** Stop publication, await pending requests, and clear transient invitation data.
-   * @returns settlement after the pending operation and source cleanup.
+  /** Stop publication, await pending requests up to their local deadline, and clear transient invitation data.
+   * @returns settlement after the bounded pending operation and source cleanup.
    */
   dispose: () => Promise<void>
 }

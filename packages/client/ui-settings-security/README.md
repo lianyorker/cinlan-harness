@@ -24,7 +24,7 @@ Configure browser launch preferences and link routing, and inspect desktop and m
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount with Settings, Locale, and the pluginInventory, deviceCapabilities, securityResearch, browser, and settings Remotes. The optional pluginManager Remote supplies entry activation controls. The Security Research, Browser, Computer Use, and Mobile navigation sections remain available when a capability is missing. Security Research reports a missing resource manager explicitly and does not read or switch agent presets. Plugin loading, Provider readiness, and action authorization are separate facts.
+Mount with Settings, Locale, and the pluginInventory, deviceCapabilities, securityResearch, browser, and settings Remotes. The optional pluginManager Remote supplies entry activation controls. The Security Research, Browser, Computer Use, and Mobile navigation sections remain available when a capability is missing. Security Research reports a missing resource manager explicitly and does not read or switch agent presets. Plugin loading, Provider readiness, and action authorization are separate facts. The root assembly contributes the locale dictionary and mounts four feature plugins. `browser-registration.ts`, `computer-registration.ts`, `mobile-registration.ts`, and `security-registration.ts` own their scopes, observers, Remote calls, section lifecycle, and disposal; `capability-registration.ts` and `capability-shared.ts` contain shared inventory and provider-activation infrastructure. A missing optional Remote leaves unrelated feature fibers available.
 
 The Computer Use and Mobile pages copy the supported `dsh --profile device-control` command. It launches a separate profile without installing external software. Clipboard denial displays a failure message.
 
@@ -53,7 +53,7 @@ Explicit browser connect, home/search, history/network inspection, cookie-file i
 
 Without a configured network release source, Security Research offers “Install bundled resources” and explains why downloads are unavailable. A configured release enables download, redownload, update checks, and updates when a different version is available. Removal requires confirmation. Leaving the page unsubscribes from progress without cancelling the Host task; only Cancel task sends the observed operation id. Failed operations retain any committed installation and expose an explicit retry.
 
-Native page headings and rows inherit the Settings shell's width. Search indexes localized public titles, descriptions, and keywords, never preference values, device identities, scope contents, credentials, or reports. Descriptors and section slots share one declaration lifetime. Search targets remain identifiable in unavailable states, and targeted component diagnostics expand without issuing new operational actions.
+Native page headings and rows inherit the Settings shell's width. Search indexes localized public titles, descriptions, and keywords, never preference values, device identities, scope contents, credentials, or reports. Each feature fiber owns its descriptors, section slots, observers, and Remote listeners; disposing that fiber removes its registrations without changing sibling pages. Search targets remain identifiable in unavailable states, and targeted component diagnostics expand without issuing new operational actions.
 
 -----
 

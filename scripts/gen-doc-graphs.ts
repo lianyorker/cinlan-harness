@@ -132,9 +132,14 @@ const SERVICE_ROLES: ServiceRole[] = [
   },
   {
     key: 'browser', pkg: 'browser', title: 'Browser automation seam', mode: 'seam',
-    implementations: ['browser-cinlan', 'browser-playwright'],
+    implementations: ['browser-playwright'],
     consumers: ['tool-browser', 'tool-browser-element-capture', 'api-browser-controller', 'coordination-browser-element-capture'],
     note: 'Routes browser observation and interaction to a selected provider.',
+  },
+  {
+    key: 'browserRuntime', pkg: 'browser-playwright', title: 'Native browser runtime resources', mode: 'core',
+    consumers: ['browser-playwright', 'api-browser-controller'],
+    note: 'Owns the managed browser installation, provider selection, executable leases, and one Host task independently from plugin activation.',
   },
   {
     key: 'browserController', pkg: 'api-browser-controller', title: 'Browser Remote controller', mode: 'core',
@@ -148,7 +153,7 @@ const SERVICE_ROLES: ServiceRole[] = [
   },
   {
     key: 'computerUse', pkg: 'computer-use', title: 'Computer interaction seam', mode: 'seam',
-    implementations: ['computer-use-cinlan', 'experimental-computer-use-cua-driver-native', 'experimental-computer-use-cua-driver-mcp'],
+    implementations: ['experimental-computer-use-cua-driver-native', 'experimental-computer-use-cua-driver-mcp'],
     consumers: ['tool-computer-use', 'api-device-capabilities-controller'],
     note: 'Provides desktop observation and input through interchangeable device providers.',
   },
@@ -162,6 +167,16 @@ const SERVICE_ROLES: ServiceRole[] = [
     key: 'deviceCapabilitiesController', pkg: 'api-device-capabilities-controller', title: 'Device capability Remote controller', mode: 'core',
     consumers: ['client-ui-settings-security'],
     note: 'Reports desktop and mobile capability availability, SDK detection, and device choices.',
+  },
+  {
+    key: 'executionBindings', pkg: 'execution-binding', title: 'Session execution bindings', mode: 'core',
+    consumers: ['agent', 'automation', 'subagent', 'workspace', 'api-session-controller', 'api-workspace-controller'],
+    note: 'Retains the local or SSH execution incarnation selected for a Session and lends the captured provider world to each operation.',
+  },
+  {
+    key: 'executionRuntimes', pkg: 'execution-runtime', title: 'Remote execution runtime lifecycle', mode: 'core',
+    consumers: ['api-execution-host-controller'],
+    note: 'Owns remote runtime inspection, installation tasks, cancellation, and atomic saved-target activation.',
   },
   {
     key: 'executionHost', pkg: 'execution-host', title: 'Execution-host seam', mode: 'seam',
@@ -219,14 +234,24 @@ const SERVICE_ROLES: ServiceRole[] = [
   },
   {
     key: 'mobileDevice', pkg: 'mobile-device', title: 'Mobile device seam', mode: 'seam',
-    implementations: ['mobile-device-cinlan'],
+    implementations: ['mobile-device-adb'],
     consumers: ['tool-mobile-device', 'api-device-capabilities-controller'],
     note: 'Provides device discovery, observation, and input for mobile automation.',
+  },
+  {
+    key: 'mobileRuntime', pkg: 'mobile-device-runtime', title: 'Native mobile runtime resources', mode: 'core',
+    consumers: ['mobile-device-adb', 'api-device-capabilities-controller'],
+    note: 'Owns managed Android tools, executable leases, one resource task, and explicit human mirror sessions independently from provider activation.',
   },
   {
     key: 'officeToPdf', pkg: 'office-to-pdf', title: 'Workspace document previews', mode: 'core',
     consumers: ['client-ui-better-sidebar'],
     note: 'Owns reusable converters, bounded conversion queues, cached outputs, and authorized workspace previews.',
+  },
+  {
+    key: 'pairingController', pkg: 'api-pairing-controller', title: 'Pairing Remote controller', mode: 'core',
+    consumers: ['client-ui-settings-pairing'],
+    note: 'Exposes trusted-local listener management, invitations, and durable device revocation through the remote-access owner.',
   },
   {
     key: 'pluginManagementHost', pkg: 'plugin-manager', title: 'Launcher-owned plugin management facts', mode: 'seam',
@@ -238,6 +263,16 @@ const SERVICE_ROLES: ServiceRole[] = [
     implementations: ['ptc-runtime-node'],
     consumers: ['tools', 'workflow-ptc', 'ptc-runtime-node'],
     note: 'Resolves and runs programs with typed tool bindings; the Node provider also exposes the local code-runtime compatibility adapter.',
+  },
+  {
+    key: 'remoteAccess', pkg: 'remote-access', title: 'Paired-device remote access', mode: 'core',
+    consumers: ['api-pairing-controller'],
+    note: 'Owns opt-in HTTPS listener state, one-time pairing grants, durable device credentials, revocation, and carrier settlement.',
+  },
+  {
+    key: 'remoteAccessHost', pkg: 'remote-access', title: 'Launcher-owned remote access adapter', mode: 'seam',
+    consumers: ['remote-access'],
+    note: 'The Desktop launcher supplies authenticated dispatch and runtime assets without transferring Host ownership to the paired carrier.',
   },
   {
     key: 'securityResearchController', pkg: 'api-security-research-controller', title: 'Security research Remote controller', mode: 'core',
@@ -438,6 +473,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Session-addressed skill Remote adapter',
     mode: 'core',
     note: 'Lists the Session composition\'s user-invocable skills without activating a cold Agent.',
+  },
+  {
+    key: 'accountController',
+    pkg: 'api-account-controller',
+    title: 'Host account authorization Remote controller',
+    mode: 'core',
+    consumers: ['client-ui-settings-account'],
+    note: 'Projects secret-free authorization state, caller-owned prompts, and local-only credential deletion to Account Settings.',
   },
   {
     key: 'credentialsController',

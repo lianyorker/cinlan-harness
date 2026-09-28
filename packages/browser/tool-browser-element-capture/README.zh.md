@@ -11,7 +11,7 @@ kind: "package-reference"
 
 这个 Consumer 为持久 [`ctx.browser`](../browser/README.zh.md) 能力增加 `browser_select_element` 和 `browser_capture_element`。Selection 直接调用 Browser Provider；capture 把 JSON-safe task 提交给进程内 Coordination service，由 Host executor 负责 Browser I/O 与附件持久化。
 
-默认 Cinlan Web 组合使用 Cinlan CLI Provider，并挂载这两个工具及 capture executor。其他组合可以将它们与独立的 Playwright Provider 一起挂载。
+默认 Cinlan Web 组合使用 Playwright Provider，并挂载这两个工具及 capture executor。
 
 ## 目录
 
@@ -103,7 +103,7 @@ Tool result 追加在可复用请求前缀之后。新的 selection 或 capture 
 ## 已知限制与后续工作
 <a id="known-limitations-and-deferred-work"></a>
 
-- Cinlan CLI Provider 支持人工选择和 selection-bound capture；observation ref 返回 `BROWSER_FEATURE_UNSUPPORTED`。见 [Provider capture 语义](../browser-cinlan/README.zh.md#element-selection-and-capture)。
+- Playwright Provider 支持 observation-bound capture 和人工选择 capture。见 [Provider capture 语义](../browser-playwright/README.zh.md#verified-element-capture)。
 - Selection id 是进程内临时值，并在 capture 后被消费；它不是 durable Session entity。
 - 当前 capture 不支持 padding、annotation、full-page mode、script evaluation 或独立 element-text extraction。
 - 人工选择需要具备可见 UI 的 Browser Provider。

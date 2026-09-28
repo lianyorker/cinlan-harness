@@ -46,56 +46,79 @@ export interface CapabilityDefinition {
 }
 
 /** Stable product capability roster. */
+export const SECURITY_CAPABILITY = { id: 'security', navKey: 'securityNav', titleKey: 'securityTitle', descriptionKey: 'securityDescription', order: 40 } as const
+export const BROWSER_CAPABILITY = { id: 'browser', navKey: 'browserNav', titleKey: 'browserTitle', descriptionKey: 'browserDescription', order: 50 } as const
+export const COMPUTER_CAPABILITY = { id: 'computer', navKey: 'computerNav', titleKey: 'computerTitle', descriptionKey: 'computerDescription', order: 60 } as const
+export const MOBILE_CAPABILITY = { id: 'mobile', navKey: 'mobileNav', titleKey: 'mobileTitle', descriptionKey: 'mobileDescription', order: 70 } as const
+
 export const CAPABILITIES: readonly CapabilityDefinition[] = [
-  { id: 'security', navKey: 'securityNav', titleKey: 'securityTitle', descriptionKey: 'securityDescription', order: 40 },
-  { id: 'browser', navKey: 'browserNav', titleKey: 'browserTitle', descriptionKey: 'browserDescription', order: 50 },
-  { id: 'computer', navKey: 'computerNav', titleKey: 'computerTitle', descriptionKey: 'computerDescription', order: 60 },
-  { id: 'mobile', navKey: 'mobileNav', titleKey: 'mobileTitle', descriptionKey: 'mobileDescription', order: 70 },
+  SECURITY_CAPABILITY, BROWSER_CAPABILITY, COMPUTER_CAPABILITY, MOBILE_CAPABILITY,
 ] as const
 
 const CAPABILITY_MATCHERS = {
-  browser: /^@deepseek-ai\/dsh-(?:browser(?:-cinlan|-playwright|-permission-policy)?|tool-browser)$/i,
+  browser: /^@deepseek-ai\/dsh-(?:browser(?:-playwright|-permission-policy)?|tool-browser)$/i,
   computer:
-    /^@deepseek-ai\/dsh-(?:experimental-computer-use-cua-driver-native|computer-use(?:-cinlan|-permission-policy)?|tool-computer-use)$/i,
-  mobile: /^@deepseek-ai\/dsh-(?:mobile-device(?:-adb|-cinlan|-permission-policy)?|tool-mobile-device)$/i,
+    /^@deepseek-ai\/dsh-(?:experimental-computer-use-cua-driver-native|computer-use(?:-permission-policy)?|tool-computer-use)$/i,
+  mobile: /^@deepseek-ai\/dsh-(?:mobile-device(?:-adb|-permission-policy)?|tool-mobile-device)$/i,
 } as const satisfies Record<Exclude<CapabilityId, 'security'>, RegExp>
 
-/** Injected Remote face shared by Browser, Computer, and Mobile pages. */
-export interface CapabilitySectionInjected extends Omit<BrowserResourcesInjected, 'hooks'>,
-  Omit<MobileResourcesInjected, 'hooks'>, ProviderActivationCallbacks {
-  /** Explicit human Browser commands through the generated Remote. */
-  browserControls: BrowserControlsCallbacks | undefined
-  /** Settings-owned source bound by the renderer, including unavailable/read-only states. */
-  hooks: BrowserResourcesInjected['hooks'] & MobileResourcesInjected['hooks'] & {
-    browserPreferences: SettingsScope<BrowserPreferences>
-    browserRouting: SettingsScope<SidebarPrefs>
-    mobileSettings: SettingsScope<MobileDeviceSettings>
-  }
-  /** Save only changed sidebar-owned link routing fields with the opening revision. */
-  saveBrowserRouting: (changes: Partial<BrowserRoutingPreferences>, revision: number) => Promise<void>
-  /** Remove only link routing overrides; other sidebar settings remain owned by their pages. */
-  resetBrowserRouting: (revision: number) => Promise<void>
-  /** Persist stored mobile preferences with their opening revision. */
-  saveMobileSettings: (value: MobileDeviceSettings, revision: number) => Promise<void>
-  /** Remove mobile preference overrides so composition defaults apply. */
-  resetMobileSettings: (revision: number) => Promise<void>
-  /** Remove browser preference overrides so composition defaults apply. */
-  resetBrowserPreferences: (revision: number) => Promise<void>
-  /** Persist an explicit draft using the revision at which it was opened. */
-  saveBrowserPreferences: (value: BrowserPreferences, revision: number) => Promise<void>
+/** Inputs shared by every capability registration. */
+interface CapabilitySectionShared extends ProviderActivationCallbacks {
   /** Read the current Host Loader projection. */
   list: () => Promise<PluginInventorySnapshot>
   /** Page registration metadata. */
   definition: CapabilityDefinition & { id: Exclude<CapabilityId, 'security'> }
-  /** Probe actual device Provider readiness; never infer it from Loader activation. */
+}
+
+/** Required Browser registration inputs and renderer-bound sources. */
+export interface BrowserSectionInjected extends CapabilitySectionShared, BrowserResourcesInjected {
+  definition: typeof BROWSER_CAPABILITY
+  /** Explicit human Browser commands through the generated Remote. */
+  browserControls: BrowserControlsCallbacks | undefined
+  /** Settings-owned sources bound by the renderer. */
+  hooks: BrowserResourcesInjected['hooks'] & {
+    browserPreferences: SettingsScope<BrowserPreferences>
+    browserRouting: SettingsScope<SidebarPrefs>
+  }
+  /** Save only changed sidebar-owned link routing fields with the opening revision. */
+  saveBrowserRouting: (changes: Partial<BrowserRoutingPreferences>, revision: number) => Promise<void>
+  /** Remove only link routing overrides. */
+  resetBrowserRouting: (revision: number) => Promise<void>
+  /** Remove browser preference overrides. */
+  resetBrowserPreferences: (revision: number) => Promise<void>
+  /** Persist an explicit browser preference draft. */
+  saveBrowserPreferences: (value: BrowserPreferences, revision: number) => Promise<void>
+}
+
+/** Required Computer registration inputs. */
+export interface ComputerSectionInjected extends CapabilitySectionShared {
+  definition: typeof COMPUTER_CAPABILITY
+  /** Probe actual device Provider readiness. */
   checkDevice: (capability: DeviceCapabilityKind, signal: AbortSignal) => Promise<DeviceCapabilitySnapshot>
+}
+
+/** Required Mobile registration inputs and renderer-bound sources. */
+export interface MobileSectionInjected extends CapabilitySectionShared, MobileResourcesInjected {
+  definition: typeof MOBILE_CAPABILITY
+  checkDevice: ComputerSectionInjected['checkDevice']
+  /** Settings-owned sources bound by the renderer. */
+  hooks: MobileResourcesInjected['hooks'] & {
+    mobileSettings: SettingsScope<MobileDeviceSettings>
+  }
+  /** Persist stored mobile preferences with their opening revision. */
+  saveMobileSettings: (value: MobileDeviceSettings, revision: number) => Promise<void>
+  /** Remove mobile preference overrides. */
+  resetMobileSettings: (revision: number) => Promise<void>
   /** Detect Android SDK and iOS Simulator availability. */
   checkSdk: (signal: AbortSignal) => Promise<MobileSdkSnapshot>
   /** List mobile devices for the default-device selector. */
   listMobileDevices: (signal: AbortSignal) => Promise<MobileDeviceListSnapshot>
 }
 
-/** Props assembled by the Settings renderer. */
+/** Each feature supplies only its own required inputs. */
+export type CapabilitySectionInjected = BrowserSectionInjected | ComputerSectionInjected | MobileSectionInjected
+
+/** Shared renderer props preserve each feature's required inputs. */
 export type CapabilitySectionProps = PropsRuntime<'settings.section'>
   & PropsLocale<'settings.cinlanCapabilities'>
   & InjectFace<CapabilitySectionInjected>
@@ -245,8 +268,8 @@ function ComputerCapabilityBody(props: BodyProps): ReactNode {
   </>
 }
 
-function BrowserCapabilityBody(props: BodyProps & BrowserResourcesProps & Pick<CapabilitySectionProps,
-  'useBrowserPreferences' | 'saveBrowserPreferences' | 'resetBrowserPreferences' | 'browserControls' | 'target'
+function BrowserCapabilityBody(props: BodyProps & BrowserResourcesProps & Pick<CapabilitySectionProps, 'target'> & Pick<InjectFace<BrowserSectionInjected>,
+  'useBrowserPreferences' | 'saveBrowserPreferences' | 'resetBrowserPreferences' | 'browserControls'
   | 'useBrowserRouting' | 'saveBrowserRouting' | 'resetBrowserRouting'>): ReactNode {
   const { state, t } = props
   const configured = props.useBrowserPreferences(snapshot => snapshot.status === 'ready')
@@ -278,7 +301,7 @@ function BrowserCapabilityBody(props: BodyProps & BrowserResourcesProps & Pick<C
   </div>
 }
 
-function MobileCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps,
+function MobileCapabilityBody(props: BodyProps & Pick<InjectFace<MobileSectionInjected>,
   'checkSdk' | 'listMobileDevices' | 'useMobileSettings' | 'saveMobileSettings' | 'resetMobileSettings'> & MobileResourcesProps): ReactNode {
   const { state, t } = props
   const status = deviceStatus(state)
@@ -302,19 +325,20 @@ function MobileCapabilityBody(props: BodyProps & Pick<CapabilitySectionProps,
   </div>
 }
 
+function isCapability<Id extends CapabilitySectionProps['definition']['id']>(
+  props: CapabilitySectionProps,
+  id: Id,
+): props is Extract<CapabilitySectionProps, { definition: { id: Id } }> {
+  return props.definition.id === id
+}
+
 /** Render a capability page through injected Host reads; no installation or device input occurs here.
  * @param props - Settings slot hooks, explicit preference/actions callbacks, and optional search target.
  * @returns The localized capability page and collapsed component diagnostics.
  */
-export function CapabilitySection({
-  list, definition, checkDevice, checkSdk, listMobileDevices, useBrowserPreferences, saveBrowserPreferences,
-  browserControls, useMobileSettings, saveMobileSettings, resetMobileSettings,
-  useBrowserResources, watchBrowserResources, refreshBrowserResources, runBrowserResource, cancelBrowserResource, closeBrowserRuntime,
-  listProviderEntries, setProviderEnabled,
-  useMobileResources, watchMobileResources, refreshMobileResources, runMobileResource, cancelMobileResource,
-  startMobileMirror, closeMobileMirror,
-  resetBrowserPreferences, useBrowserRouting, saveBrowserRouting, resetBrowserRouting, target, t,
-}: CapabilitySectionProps): ReactNode {
+export function CapabilitySection(props: CapabilitySectionProps): ReactNode {
+  const { list, definition, listProviderEntries, setProviderEnabled, target, t } = props
+  const checkDevice = 'checkDevice' in props ? props.checkDevice : undefined
   const diagnostics = useRef<HTMLDetailsElement>(null)
   useEffect(() => {
     if (target?.anchorId === definition.id + '-components' && diagnostics.current !== null) diagnostics.current.open = true
@@ -328,7 +352,7 @@ export function CapabilitySection({
     setState({ phase: 'loading' })
     void Promise.resolve().then(() => Promise.all([
       list(),
-      device === undefined ? undefined : checkDevice(device, abort.signal),
+      device === undefined || checkDevice === undefined ? undefined : checkDevice(device, abort.signal),
     ])).then(
       ([snapshot, readiness]) => {
         if (current) setState({ phase: 'ready', components: capabilityComponents(snapshot.entries, CAPABILITY_MATCHERS[definition.id]), device: readiness })
@@ -343,26 +367,9 @@ export function CapabilitySection({
     {state.phase === 'error' && <p className={css.failure} role="alert">{t('loadFailed')}</p>}
     <ProviderActivation capability={definition.id} listProviderEntries={listProviderEntries}
       setProviderEnabled={setProviderEnabled} onChanged={body.onRefresh} revision={request} t={t} />
-    {definition.id === 'computer' ? <ComputerCapabilityBody {...body} />
-      : definition.id === 'browser' ? <BrowserCapabilityBody
-        {...body}
-        useBrowserPreferences={useBrowserPreferences}
-        saveBrowserPreferences={saveBrowserPreferences}
-        resetBrowserPreferences={resetBrowserPreferences}
-        useBrowserRouting={useBrowserRouting}
-        saveBrowserRouting={saveBrowserRouting}
-        resetBrowserRouting={resetBrowserRouting}
-        browserControls={browserControls}
-        useBrowserResources={useBrowserResources} watchBrowserResources={watchBrowserResources}
-        refreshBrowserResources={refreshBrowserResources}
-        runBrowserResource={runBrowserResource} cancelBrowserResource={cancelBrowserResource} closeBrowserRuntime={closeBrowserRuntime}
-        {...target === undefined ? {} : { target }}
-      />
-        : <MobileCapabilityBody {...body} checkSdk={checkSdk} listMobileDevices={listMobileDevices}
-          useMobileResources={useMobileResources} watchMobileResources={watchMobileResources}
-          refreshMobileResources={refreshMobileResources} runMobileResource={runMobileResource}
-          cancelMobileResource={cancelMobileResource} startMobileMirror={startMobileMirror} closeMobileMirror={closeMobileMirror}
-          useMobileSettings={useMobileSettings} saveMobileSettings={saveMobileSettings} resetMobileSettings={resetMobileSettings} />}
+    {isCapability(props, 'computer') ? <ComputerCapabilityBody {...body} />
+      : isCapability(props, 'browser') ? <BrowserCapabilityBody {...props} {...body} />
+        : <MobileCapabilityBody {...props} {...body} />}
     <details ref={diagnostics} className={css.diagnostics} data-settings-anchor={definition.id + '-components'}>
       <summary>{t('hostFact')}{state.phase === 'ready' ? ` · ${state.components.length}` : ''}</summary>
       <p>{t('inventoryCaveat')}</p>

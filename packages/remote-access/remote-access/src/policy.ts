@@ -104,9 +104,15 @@ export class PairedSessionPolicy implements TypertGatewayAccessPolicy {
     return Object.fromEntries(Object.entries(object(value)).filter(([id]) => this.sessions.has(id)))
   }
   private summary(value: Record<string, unknown>): Record<string, unknown> {
-    const result = { ...value }
-    if (result.parentSessionId !== undefined && !this.hasSession(result.parentSessionId)) delete result.parentSessionId
-    if (result.projections !== undefined) result.projections = projectValues(result.projections)
+    const result: Record<string, unknown> = {
+      sessionId: value.sessionId,
+      updatedAt: value.updatedAt,
+      running: value.running,
+      blank: value.blank,
+    }
+    if (this.hasSession(value.parentSessionId)) result.parentSessionId = value.parentSessionId
+    if (value.origin === 'subagent') result.origin = value.origin
+    if (value.projections !== undefined) result.projections = projectValues(value.projections)
     return result
   }
 }

@@ -220,7 +220,8 @@ export class TypertGatewayService extends Service implements TypertGateway {
           this.wireStream.failure,
           resolved.websocketHeartbeatIntervalMs,
         )
-        webCtx.effect(() => {
+        webCtx.effect(function* () {
+          yield () => mux.close()
           const route: WebUpgradeRoute = {
             path: REMOTE_STREAM_MUX_PATH,
             handler: (req, socket, head) => {
@@ -232,11 +233,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
               mux.handleUpgrade(req, socket, head)
             },
           }
-          const unregister = webCtx.webServer.registerUpgrade(route)
-          return async () => {
-            unregister()
-            await mux.close()
-          }
+          yield webCtx.webServer.registerUpgrade(route)
         }, `api-gateway: ${REMOTE_STREAM_MUX_PATH} WebSocket`)
       }
       // Existing pages reconnect before the new Host prints its URL. No stream

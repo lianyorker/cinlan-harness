@@ -14,6 +14,8 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import AuthorizationService from '@deepseek-ai/dsh-authorization'
+import type { AuthorizationInteraction } from '@deepseek-ai/dsh-authorization'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import LlmRuntime, { createMessage, createUserMessage, userAgent } from '@deepseek-ai/dsh-llm'
@@ -46,7 +48,10 @@ afterEach(async () => {
 })
 
 /** Boot the dormant composition: a bare `llm-pi-ai` row with no config at all. */
-async function loadComposition(storedSettings = '# personal settings\n'): Promise<{ ctx: Context; settingsPath: string }> {
+async function loadComposition(
+  storedSettings = '# personal settings\n',
+  withAuthorization = true,
+): Promise<{ ctx: Context; settingsPath: string }> {
   root = await mkdtemp(join(tmpdir(), 'dsh-pi-composition-'))
   const settingsPath = join(root, 'settings.yaml')
   await writeFile(settingsPath, storedSettings)
@@ -66,6 +71,10 @@ async function loadComposition(storedSettings = '# personal settings\n'): Promis
     '  config:',
     `    path: ${JSON.stringify(join(root, '.credentials.yaml'))}`,
     '    debounceMs: 10',
+    ...(withAuthorization ? [
+      '- id: authorization',
+      "  name: '@deepseek-ai/dsh-authorization'",
+    ] : []),
     '- id: llm-pi-ai',
     "  name: '@deepseek-ai/dsh-llm-pi-ai'",
     '',
@@ -80,6 +89,7 @@ async function loadComposition(storedSettings = '# personal settings\n'): Promis
     ['test-llm-service', LlmRuntime],
     ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
     ['@deepseek-ai/dsh-credentials-local', LocalCredentialProvider],
+    ['@deepseek-ai/dsh-authorization', AuthorizationService],
     ['@deepseek-ai/dsh-llm-pi-ai', LlmPiAi],
   ])
   ctx.loader.internal = {
@@ -322,5 +332,28 @@ describe('llm-pi-ai real dormant composition', () => {
         { role: 'user', content: 'continue' },
       ],
     })
+  })
+
+  it('does not expose the Cinlan account flow without the injected authorization service', async () => {
+    const { ctx } = await loadComposition('# personal settings\n', false)
+    expect(ctx.get('authorization')).toBeUndefined()
+  })
+
+  it('registers, invokes, and disposes the Cinlan account flow through Loader', async () => {
+    const { ctx } = await loadComposition()
+    const key = LlmPiAi.recordKeyFor(LlmPiAi.SUB2API_PROVIDER_ID)
+    expect(ctx.authorization.list().find(entry => entry.key === key)?.methods).toEqual([
+      { id: LlmPiAi.SUB2API_LOGIN_METHOD, label: 'Sign in to Cinlan' },
+    ])
+    const interaction: AuthorizationInteraction = {
+      notify: () => {},
+      prompt: () => Promise.resolve(''),
+    }
+    await expect(ctx.authorization.begin({ key, interaction })).rejects.toMatchObject({ code: 'SUB2API_INVALID_INPUT' })
+
+    const entry = [...ctx.loader.entries()].find(item => item.options.name === '@deepseek-ai/dsh-llm-pi-ai')
+    if (entry?.fiber === undefined) throw new Error('llm-pi-ai Loader entry did not mount')
+    await entry.fiber.dispose()
+    expect(ctx.authorization.list().some(item => item.key === key)).toBe(false)
   })
 })

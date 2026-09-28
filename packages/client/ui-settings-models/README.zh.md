@@ -29,6 +29,8 @@ kind: "package-reference"
 
 ### API 密钥
 
+API 密钥输入框初始为空，并使用 `autocomplete="new-password"`、`autocapitalize="none"` 与 `spellcheck="false"`；这些标准提示会请求浏览器与密码管理器不要复用已保存的账号密码，也不要把不透明密钥当作普通文本修改。
+
 编辑卡片上的主字段是单独一个 **API 密钥**输入框——页面从不询问环境变量名。键入的密钥经 `credentials.set` 以**只写**方式存入 profile 的引用之下，profile 没有引用时便派生 `<ROUTE>_API_KEY`，pi-ai profile 会把这次派生记录为 `apiKeyEnv`，因此 `settings.yaml` 从不携带密钥值。为新的 pi-ai 提供方留空密钥会保存一个不带引用的 profile，从而保留提供方原生认证（例如 Bedrock 凭据链或 Vertex ADC）。只有确认引用的凭据已配置时，行才会以绿色实心点标示 API 密钥状态；只有确认具名引用缺失时，才会以红色实心点标示。「应用」成功后会发出本地无障碍状态消息，且绝不回显任何机密内容。
 
 ### 编辑提供方

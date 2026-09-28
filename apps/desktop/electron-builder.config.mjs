@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import {
   resolveMacOSNotarizationEnvironment,
   resolveMacOSSigningEnvironment,
@@ -34,10 +35,22 @@ export function createElectronBuilderConfig(
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
-  const packagesWindows = targetPlatform === 'win32'
+  const packagesWindows = targetPlatform === 'win32' || (targetPlatform === undefined && hostPlatform === 'win32')
+  const unsignedWindows = packagesWindows && env.DSH_DESKTOP_UNSIGNED === '1'
+  const installerTarget = env.DSH_DESKTOP_INSTALLER_TARGET ?? 'nsis'
+  if (packagesWindows && !['nsis', 'msi'].includes(installerTarget)) {
+    throw new Error('desktop release environment: DSH_DESKTOP_INSTALLER_TARGET must be nsis or msi')
+  }
+  if (!packagesWindows && installerTarget !== 'nsis') {
+    throw new Error('desktop release environment: MSI packaging is supported only for Windows')
+  }
+  if (packagesWindows && env.DSH_DESKTOP_UNSIGNED !== undefined
+    && env.DSH_DESKTOP_UNSIGNED !== '' && env.DSH_DESKTOP_UNSIGNED !== '0' && env.DSH_DESKTOP_UNSIGNED !== '1') {
+    throw new Error('desktop release environment: DSH_DESKTOP_UNSIGNED must be 1 for deliberate unsigned Windows packaging')
+  }
   const macOSSigning = packagesMacOS ? resolveMacOSSigningEnvironment(env) : undefined
   if (packagesMacOS) resolveMacOSNotarizationEnvironment(env)
-  const windowsSigner = packagesWindows && env.DSH_DESKTOP_WINDOWS_CER_FILE
+  const windowsSigner = packagesWindows && !unsignedWindows
     ? createWindowsTokenSigner({
         certificateFile: env.DSH_DESKTOP_WINDOWS_CER_FILE,
         signTool: env.DSH_DESKTOP_WINDOWS_SIGNTOOL,
@@ -59,8 +72,11 @@ export function createElectronBuilderConfig(
     appId,
     extraMetadata: { dshDesktopAppId: appId, ...(policy === undefined ? {} : { dshMandatoryUpdatePolicy: policy }) },
     productName: 'DeepSeek Harness',
-    artifactName: 'deepseek-harness-${version}-${os}-${arch}.${ext}',
+    artifactName: unsignedWindows
+      ? 'deepseek-harness-${version}-${os}-${arch}-unsigned.${ext}'
+      : 'deepseek-harness-${version}-${os}-${arch}.${ext}',
     directories: { output: builderOutput || buildPaths.artifacts },
+    npmRebuild: false,
     asar: true,
     files: [
       'lib/*.js',
@@ -104,7 +120,11 @@ export function createElectronBuilderConfig(
         sign: windowsSigner,
         signingHashAlgorithms: ['sha256'],
       },
-      target: ['nsis', 'msi'],
+      target: installerTarget === 'msi' ? ['msi'] : ['nsis'],
+    },
+    msi: {
+      oneClick: false,
+      warningsAsErrors: true,
     },
     linux: {
       category: 'Development',
@@ -114,11 +134,7 @@ export function createElectronBuilderConfig(
       oneClick: false,
       allowToChangeInstallationDirectory: true,
       differentialPackage: true,
-    },
-    msi: {
-      oneClick: false,
-      perMachine: false,
-      runAfterFinish: true,
+      include: resolve(import.meta.dirname, 'scripts/installer.nsh'),
     },
     publish: [{ provider: 'generic', url: update.publicUrl, channel: 'nightly' }],
   }

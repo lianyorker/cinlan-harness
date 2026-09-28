@@ -11,7 +11,7 @@ afterEach(async () => {
   vi.useRealTimers()
 })
 const grant: PairingGrant = { sessionIds: ['session-1' as PairingGrant['sessionIds'][number]], scopes: ['session:read'] }
-function fixture() {
+function fixture(operationTimeoutMs = 15_000) {
   const status: RemoteAccessStatus = { state: 'ready', missingConfiguration: [], origin: 'https://desktop.example', certificateFingerprint: 'AA', devices: [] }
   const ok = <T>(value: T) => ({ ok: true as const, value })
   const remote: PairingRemote = {
@@ -20,7 +20,7 @@ function fixture() {
     createInvitation: vi.fn(async request => ok({ ...request, invitationId: 'invite-1' as PairingInvitation['invitationId'], code: '123456', expiresAt: Date.now() + 1000 })),
     cancelInvitation: vi.fn(async () => ok(undefined)), revokeDevice: vi.fn(async () => ok(undefined)),
   }
-  const observer = observePairing(remote)
+  const observer = observePairing(remote, operationTimeoutMs)
   disposers.push(observer.dispose)
   return { observer, remote, status, ok }
 }
@@ -67,6 +67,21 @@ it('waits for in-flight operations before disposal and never republishes a late 
   expect(b.observer.source.getSnapshot()).toEqual({ status: undefined, invitation: undefined, pending: false, failed: false })
   await b.observer.enable()
   expect(b.remote.enable).not.toHaveBeenCalled()
+})
+
+it('returns from disposal when a management call stalls', async () => {
+  vi.useFakeTimers()
+  const b = fixture(10)
+  await b.observer.refresh()
+  b.remote.createInvitation = vi.fn(() => new Promise<Awaited<ReturnType<PairingRemote['createInvitation']>>>(() => {}))
+  const creating = b.observer.createInvitation(grant)
+  await Promise.resolve()
+  await Promise.resolve()
+  const disposal = b.observer.dispose()
+  await vi.advanceTimersByTimeAsync(10)
+  await expect(disposal).resolves.toBeUndefined()
+  await expect(creating).resolves.toBeUndefined()
+  expect(b.observer.source.getSnapshot()).toEqual({ status: undefined, invitation: undefined, pending: false, failed: false })
 })
 
 it('preserves a confirmed invitation after refused cancellation and clears it on disabled refresh', async () => {

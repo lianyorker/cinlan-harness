@@ -48,7 +48,7 @@ deviceCapabilities/check Remote 探测可选的 Computer Use 或 Mobile Device P
 <a id="known-limitations-and-deferred-work"></a>
 
 - 就绪状态报告某一时刻的目录生命周期或 facade 探测结果，不授权动作，也不验证操作系统授权。原生 CUA 权限保持 unknown，其随包 SDK 无需外部 CLI。facade 传输保留各自前置条件。调用方取消会传播到 Provider。
-- 保存的 SDK 路径仅控制本地 SDK 检查。Mobile Device Provider 使用的公开 CLI 不支持覆盖外部 Cinlan 设备运行时的 SDK；SDK 检查不会配置该运行时。
+- 未配置可执行文件覆盖时，原生 Mobile Device Provider 使用保存的 Android SDK 路径解析 ADB 可执行文件。就绪检查只测试已有可执行文件，不安装或修改 SDK 文件。
 
 不发布 runtime invariant companion：控制器返回即时结果，不保留与 Provider 独立的状态。
 

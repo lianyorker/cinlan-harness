@@ -10,7 +10,7 @@
   },
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "description": "Durable SSH targets and scoped execution-host inspection connections",
   "type": "module",
   "license": "MIT",

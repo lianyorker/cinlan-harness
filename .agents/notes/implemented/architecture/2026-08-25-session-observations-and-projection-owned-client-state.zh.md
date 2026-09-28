@@ -116,7 +116,7 @@ List view 与已打开 Session 读取同一个 per-Session store。Hints 可以�
 
 不由单个 Session 派生的数据不进入 projection。`session/modelCatalog` 持有当前 Host generation 的 model catalog，`agentPresets/list` 持有可配置 preset roster。Selector 只在相应 catalog 与 Session 的 `modelSelection` 或 `agentPreset` projection 均就绪后组合两者。刷新时可以保留上一份完整 catalog；第一次获得完整输入前显示 loading，而不是展示猜测的名称或可用性结论。
 
-Client 本地交互状态也继续留在本地：loading 和 error 状态、打开的菜单、进行中的选择，以及为尚未创建 Session 暂存的选择都不是可回放 Session 事实。选择一旦应用到 Session，其持久事件与 projection 就成为权威。
+Client 本地交互状态也继续留在本地：loading 和 error 状态、打开的菜单、进行中的选择，以及为尚未创建 Session 暂存的选择都不是可回放 Session 事实。Model directory 在各选择入口之间共享其进行中状态，使 composer 能播报等待状态并停用冲突选项；完成或 reconnect 会清除该状态，而不会添加 Session event。选择一旦应用到 Session，其持久事件与 projection 就成为权威。
 
 ### 领域应用
 

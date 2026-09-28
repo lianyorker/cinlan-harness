@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 Settings、Locale 以及 pluginInventory、deviceCapabilities、securityResearch、browser 和 settings Remote 一起挂载。可选 pluginManager Remote 提供条目启停控制。能力缺失时，安全研究、浏览器、计算机控制和手机模拟器导航分区仍然可见。安全研究明确显示资源管理组件缺失，不读取或切换 Agent 预设。插件加载、Provider 就绪和动作授权是不同事实。
+与 Settings、Locale 以及 pluginInventory、deviceCapabilities、securityResearch、browser 和 settings Remote 一起挂载。可选 pluginManager Remote 提供条目启停控制。能力缺失时，安全研究、浏览器、计算机控制和手机模拟器导航分区仍然可见。安全研究明确显示资源管理组件缺失，不读取或切换 Agent 预设。插件加载、Provider 就绪和动作授权是不同事实。根组装插件只提供 locale 字典并挂载四个 feature 插件。`browser-registration.ts`、`computer-registration.ts`、`mobile-registration.ts` 和 `security-registration.ts` 分别拥有自己的 scope、观察器、Remote 调用、分区生命周期及清理；`capability-registration.ts` 与 `capability-shared.ts` 只包含共享的 inventory 和 provider 启停基础设施。缺少可选 Remote 时，不相关的 feature fiber 仍保持可用。
 
 计算机控制与移动设备页面复制受支持的 `dsh --profile device-control` 命令。它启动独立 profile，不会安装外部软件。剪贴板拒绝写入时显示失败提示。
 
@@ -53,7 +53,7 @@ kind: "package-reference"
 
 未配置网络发行源时，安全研究提供“安装内置资源”，并解释网络下载不可用的原因。已配置发行源时可下载、重新下载、检查更新，并在版本不同时更新。移除操作需要确认。离页只退订进度，不取消 Host 任务；只有“取消任务”发送已观察到的任务 id。失败保留已提交的安装，并提供显式重试。
 
-原生风格标题和设置行继承设置壳层的宽度。搜索仅索引本地化公共标题、说明与关键词，不包含偏好值、设备标识、范围内容、凭证或报告。描述符与页面 slot 共享声明生命周期。不可用状态仍保留可识别的搜索目标；搜索目标为组件诊断时展开详情，不发起新的操作动作。
+原生风格标题和设置行继承设置壳层的宽度。搜索仅索引本地化公共标题、说明与关键词，不包含偏好值、设备标识、范围内容、凭证或报告。每个 feature fiber 拥有自己的描述符、页面 slot、观察器和 Remote 监听器；释放该 fiber 会移除其注册，不改变兄弟页面。不可用状态仍保留可识别的搜索目标；搜索目标为组件诊断时展开详情，不发起新的操作动作。
 
 -----
 

@@ -32,6 +32,7 @@ In-package relative imports use explicit `.ts` specifiers.
 
 `pnpm run build` orders Host lib, Client lib, and Web; each lib phase keeps tsc emission before tsdown bundling:
 
+- A source-mode Typert pass first generates genuine Host Remote projections with diagnostics enabled. This breaks the dependency cycle when Host tests or mixed-face references reach Client consumers before bundling; diagnostic failures stop the build before projections are written.
 - Host tsc runs `tsc -b` against `tsconfig.host.json`, emitting per-module `.js`, `.d.ts`, `.js.map`, and `.d.ts.map` into `lib/types` for each package in the Host graph; Host tsdown then reads that JavaScript, produces published entries, and runs Host Typert.
 - Client tsc runs `tsc -b` against `tsconfig.client.json` after Host Typert has generated the Remote Client declarations; Client tsdown then reads the JavaScript emitted by the Client graph and produces the Client packages' Node loader entries and browser bundles.
 - The Web build starts only after both lib phases complete.
@@ -46,6 +47,7 @@ The command orchestration shape is:
 
 ```sh
 pnpm run build:
+tsx scripts/build-remote-contracts.ts
 tsc -b tsconfig.host.json
 tsdown --env.DSH_BUILD_FACE host
 tsc -b tsconfig.client.json

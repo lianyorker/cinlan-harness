@@ -16,7 +16,7 @@ Settings 外壳此前只显示通用 Computer Use Loader inventory 页面，而�
 
 ## 备选方案
 
-单独新增 Computer Use 设置包可以隔离功能，但会重复 capability roster 并拆分现有 Settings 集成。继续使用 `ui-settings-security` 可让注册、inventory 读取和本地化保持在同一 owner 中。
+单独新增 Computer Use 设置包可以隔离功能，但会重复 capability roster 并拆分现有 Settings 集成。继续使用 `ui-settings-security` 可让共享 locale、renderer 约定和产品能力清单保持在一起；[功能所有者设置注册决策](../architecture/2026-09-24-feature-owned-capability-settings.zh.md)将 Remote 依赖、inventory 读取和注册生命周期交给各 feature 子插件。
 
 让浏览器页面直接执行安装或权限变更会产生第二个策略 owner。因此页面只呈现命令，执行仍由 Host/CLI 服务负责。
 

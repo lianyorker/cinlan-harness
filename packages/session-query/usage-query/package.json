@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-usage-query",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "description": "Bounded exact known-Turn usage queries over live and durable Sessions.",
   "type": "module",
   "main": "lib/index.js",

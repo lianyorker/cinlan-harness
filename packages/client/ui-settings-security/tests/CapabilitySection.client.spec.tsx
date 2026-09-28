@@ -8,7 +8,8 @@ import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/
 import { SIDEBAR_PREFS_DEFAULTS } from '@deepseek-ai/dsh-client-ui-better-sidebar/src/prefs-shared.ts'
 import type { PluginEntryId } from '@deepseek-ai/dsh-host-plugin-inventory/types'
 import type { DeviceCapabilitySnapshot, PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
-import { CAPABILITIES, CapabilitySection, type CapabilitySectionProps } from '../src/client/CapabilitySection.tsx'
+import { BROWSER_CAPABILITY, COMPUTER_CAPABILITY, MOBILE_CAPABILITY, CapabilitySection, type CapabilitySectionProps, type BrowserSectionInjected, type MobileSectionInjected } from '../src/client/CapabilitySection.tsx'
+import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import { en, zh } from '../src/client/locales.ts'
 import { BrowserTransfersPanel } from '../src/client/BrowserTransfersPanel.tsx'
 import type { BrowserControlsCallbacks } from '../src/client/BrowserControls.tsx'
@@ -22,58 +23,63 @@ afterEach(() => {
 })
 
 function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', language: 'en' | 'zh' = 'en', id: CapabilitySectionProps['definition']['id'] = 'computer') {
-  const definition = CAPABILITIES.find(item => item.id === id)!
+  const definition = { browser: BROWSER_CAPABILITY, computer: COMPUTER_CAPABILITY, mobile: MOBILE_CAPABILITY }[id]
   const inventory: PluginInventorySnapshot = { entries: [{
     entryId: 'active-plugin' as PluginEntryId,
-    moduleName: '@deepseek-ai/dsh-computer-use-cinlan',
+    moduleName: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native',
     enabled: true,
     fiberPhase: 'active',
   }] }
-  const checkDevice = vi.fn<CapabilitySectionProps['checkDevice']>(async capability => ({
+  const checkDevice = vi.fn<MobileSectionInjected['checkDevice']>(async capability => ({
     capability, status, reason: status === 'not-configured' ? 'not-configured' : status === 'unavailable' ? 'cli-missing' : null,
   }))
-  const checkSdk = vi.fn<CapabilitySectionProps['checkSdk']>(async () => ({
+  const checkSdk = vi.fn<MobileSectionInjected['checkSdk']>(async () => ({
     platform: 'linux',
     android: { found: false, sdkPath: null, message: 'Not found' },
     ios: null,
   }))
-  const listMobileDevices = vi.fn<CapabilitySectionProps['listMobileDevices']>(async () => ({ devices: [], available: false }))
+  const listMobileDevices = vi.fn<MobileSectionInjected['listMobileDevices']>(async () => ({ devices: [], available: false }))
   const unavailable: SettingsScopeSnapshot<never> = {
     status: 'unavailable', mode: 'host', writable: false, value: undefined, base: undefined, user: undefined, revision: undefined,
   }
   const unusedHook = (): never => { throw new Error('This section does not read the standard hook') }
-  const props: CapabilitySectionProps = {
-    definition: { ...definition, id },
-    close: vi.fn(),
-    useSessions: unusedHook, useWorkspaces: unusedHook, useSessionPendingInteraction: unusedHook, useResource: unusedHook,
-    list: vi.fn(async () => inventory),
-    checkDevice,
-    checkSdk,
-    listMobileDevices,
-    useMobileSettings: selector => selector({ status: 'ready', mode: 'host', writable: true, revision: 1,
-      value: { enabled: false, defaultDeviceId: '', androidSdkPath: '' }, base: undefined, user: undefined }),
-    saveMobileSettings: vi.fn(), resetMobileSettings: vi.fn(), resetBrowserPreferences: vi.fn(),
-    useBrowserPreferences: selector => selector(unavailable),
-    useBrowserRouting: selector => selector(unavailable),
-    saveBrowserRouting: vi.fn<CapabilitySectionProps['saveBrowserRouting']>(async () => {}),
-    resetBrowserRouting: vi.fn<CapabilitySectionProps['resetBrowserRouting']>(async () => {}),
-    saveBrowserPreferences: vi.fn(),
-    browserControls: undefined,
-    listProviderEntries: vi.fn(async () => ({ kind: 'unavailable' as const })),
-    setProviderEnabled: vi.fn(async () => ({ kind: 'unavailable' as const })),
-    useBrowserResources: selector => selector({ status: 'loading' }),
-    watchBrowserResources: vi.fn(() => () => {}), refreshBrowserResources: vi.fn(), runBrowserResource: vi.fn(),
-    cancelBrowserResource: vi.fn(), closeBrowserRuntime: vi.fn(),
-    useMobileResources: selector => selector({ status: 'loading' }),
-    watchMobileResources: vi.fn<CapabilitySectionProps['watchMobileResources']>(() => () => {}),
-    refreshMobileResources: vi.fn<CapabilitySectionProps['refreshMobileResources']>(),
-    runMobileResource: vi.fn<CapabilitySectionProps['runMobileResource']>(async () => {}),
-    cancelMobileResource: vi.fn<CapabilitySectionProps['cancelMobileResource']>(async () => {}),
-    startMobileMirror: vi.fn<CapabilitySectionProps['startMobileMirror']>(async () => {}),
-    closeMobileMirror: vi.fn<CapabilitySectionProps['closeMobileMirror']>(async () => {}),
-    t: language === 'en' ? makeTranslate(en, commonEn) : makeTranslate(zh, commonZh),
-  }
-  return { ...render(<CapabilitySection {...props} />), checkDevice, props, inventory }
+  const props: Omit<InjectFace<BrowserSectionInjected>, 'definition'>
+    & Omit<InjectFace<MobileSectionInjected>, 'definition'>
+    & Pick<CapabilitySectionProps, 'definition' | 'close' | 'useSessions' | 'useWorkspaces' | 'useSessionPendingInteraction' | 'useResource' | 't'> = {
+      definition,
+      close: vi.fn(),
+      useSessions: unusedHook, useWorkspaces: unusedHook, useSessionPendingInteraction: unusedHook, useResource: unusedHook,
+      list: vi.fn(async () => inventory),
+      checkDevice,
+      checkSdk,
+      listMobileDevices,
+      useMobileSettings: selector => selector({ status: 'ready', mode: 'host', writable: true, revision: 1,
+        value: { enabled: false, defaultDeviceId: '', androidSdkPath: '' }, base: undefined, user: undefined }),
+      saveMobileSettings: vi.fn(), resetMobileSettings: vi.fn(), resetBrowserPreferences: vi.fn(),
+      useBrowserPreferences: selector => selector(unavailable),
+      useBrowserRouting: selector => selector(unavailable),
+      saveBrowserRouting: vi.fn<BrowserSectionInjected['saveBrowserRouting']>(async () => {}),
+      resetBrowserRouting: vi.fn<BrowserSectionInjected['resetBrowserRouting']>(async () => {}),
+      saveBrowserPreferences: vi.fn(),
+      browserControls: undefined,
+      listProviderEntries: vi.fn(async () => ({ kind: 'unavailable' as const })),
+      setProviderEnabled: vi.fn(async () => ({ kind: 'unavailable' as const })),
+      useBrowserResources: selector => selector({ status: 'loading' }),
+      watchBrowserResources: vi.fn(() => () => {}), refreshBrowserResources: vi.fn(), runBrowserResource: vi.fn(),
+      cancelBrowserResource: vi.fn(), closeBrowserRuntime: vi.fn(),
+      useMobileResources: selector => selector({ status: 'loading' }),
+      watchMobileResources: vi.fn<MobileSectionInjected['watchMobileResources']>(() => () => {}),
+      refreshMobileResources: vi.fn<MobileSectionInjected['refreshMobileResources']>(),
+      runMobileResource: vi.fn<MobileSectionInjected['runMobileResource']>(async () => {}),
+      cancelMobileResource: vi.fn<MobileSectionInjected['cancelMobileResource']>(async () => {}),
+      startMobileMirror: vi.fn<MobileSectionInjected['startMobileMirror']>(async () => {}),
+      closeMobileMirror: vi.fn<MobileSectionInjected['closeMobileMirror']>(async () => {}),
+      t: language === 'en' ? makeTranslate(en, commonEn) : makeTranslate(zh, commonZh),
+    }
+  const sectionProps = id === 'browser' ? { ...props, definition: BROWSER_CAPABILITY }
+    : id === 'mobile' ? { ...props, definition: MOBILE_CAPABILITY }
+      : { ...props, definition: COMPUTER_CAPABILITY }
+  return { ...render(<CapabilitySection {...sectionProps} />), checkDevice, props: sectionProps, inventory }
 }
 
 describe('Device Settings readiness', () => {

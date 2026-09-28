@@ -26,6 +26,8 @@ import { en, zh } from '../src/client/locales.ts'
 import type { PairingInjected } from '../src/client/types.ts'
 import { device, externalRpc } from './external-rpc.client.ts'
 
+vi.mock('qrcode', () => ({ toDataURL: async () => 'data:image/png;base64,loader-fixture' }))
+
 function button(element: HTMLElement): HTMLButtonElement {
   if (!(element instanceof HTMLButtonElement)) throw new Error('Expected a button element')
   return element
@@ -98,19 +100,23 @@ it('requires explicit Session and scope grants, displays and cancels an invitati
   }
   fireEvent.click(b.view.getByRole('checkbox', { name: en['scope.questions:answer'] }))
   fireEvent.click(b.view.getByRole('button', { name: en.create }))
-  await b.view.findByText('482915')
+  await b.view.findByText('482915000')
   expect(b.rpc.calls.find(call => call.method === 'pairing/createInvitation')?.payload).toMatchObject({
     args: { request: { sessionIds: ['fx-alpha'], scopes: ['session:read', 'questions:answer'] } },
   })
-  expect(b.view.getByText('https://desktop.example:7443/pair')).toBeTruthy()
+  const pairingLink = b.view.getByText('https://desktop.example:7443/pair#invitationId=invite-1&code=482915000')
+  expect(pairingLink).toBeTruthy()
   expect(b.view.getByText('invite-1')).toBeTruthy()
+  const qr = await b.view.findByRole('img', { name: en.qrAlt })
+  expect(qr.getAttribute('width')).toBe('256')
+  expect(qr.getAttribute('height')).toBe('256')
   const writeText = vi.fn(async (_value: string) => {})
   vi.stubGlobal('navigator', { clipboard: { writeText }, languages: navigator.languages })
   fireEvent.click(b.view.getByRole('button', { name: en.copy + ' ' + en.link }))
   await b.view.findByText(en.copied)
-  expect(writeText).toHaveBeenCalledWith('https://desktop.example:7443/pair')
+  expect(writeText).toHaveBeenCalledWith('https://desktop.example:7443/pair#invitationId=invite-1&code=482915000')
   fireEvent.click(b.view.getByRole('button', { name: en.cancel }))
-  await waitFor(() => { expect(b.view.queryByText('482915')).toBeNull() })
+  await waitFor(() => { expect(b.view.queryByText('482915000')).toBeNull() })
   fireEvent.click(b.view.getByRole('button', { name: 'Revoke Test phone' }))
   await b.view.findByText(en.revoked)
   expect(b.rpc.calls.find(call => call.method === 'pairing/revokeDevice')?.payload).toMatchObject({ args: { request: { deviceId: device.deviceId } } })

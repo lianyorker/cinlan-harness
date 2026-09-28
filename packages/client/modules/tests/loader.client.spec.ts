@@ -238,7 +238,7 @@ describe('bundle arrival recovery', () => {
     const b = bench([row('a'), row('b')], { a: () => ({ a: 1 }), b: () => ({ b: 2 }) }, {
       transportFailures: { [APPLICATION_URL]: 1 },
     })
-    const [a, c] = await Promise.all([b.loader.import('a'), b.loader.import('b')])
+    const [a, c] = await Promise.all([b.loader.import('a', '', {}), b.loader.import('b', '', {})])
     expect(a).toEqual({ a: 1 })
     expect(c).toEqual({ b: 2 })
     expect(b.fetched).toEqual([APPLICATION_URL, APPLICATION_URL])
@@ -248,7 +248,7 @@ describe('bundle arrival recovery', () => {
     const b = bench([row('a'), row('b')], { a: () => ({ a: 1 }), b: () => ({ b: 2 }) }, {
       transportFailures: { [APPLICATION_URL]: 5 },
     })
-    const [a, c] = await Promise.all([b.loader.import('a'), b.loader.import('b')])
+    const [a, c] = await Promise.all([b.loader.import('a', '', {}), b.loader.import('b', '', {})])
     expect(a).toEqual({ a: 1 })
     expect(c).toEqual({ b: 2 })
     expect(b.fetched.filter(url => url === APPLICATION_URL)).toHaveLength(2)
@@ -258,7 +258,7 @@ describe('bundle arrival recovery', () => {
 
   it('does not re-execute a batch that loaded without registering; the missing row loads alone', async () => {
     const b = bench([row('a')], { a: () => ({ a: 1 }) }, { registerOnly: { [APPLICATION_URL]: [] } })
-    expect(await b.loader.import('a')).toEqual({ a: 1 })
+    expect(await b.loader.import('a', '', {})).toEqual({ a: 1 })
     expect(b.fetched).toEqual([APPLICATION_URL, single('a')])
   })
 
@@ -266,9 +266,9 @@ describe('bundle arrival recovery', () => {
     const b = bench([row('a'), row('b')], { a: () => ({ a: 1 }), b: () => ({ b: 2 }) }, {
       registerOnly: { [APPLICATION_URL]: ['a'] },
     })
-    expect(await b.loader.import('b')).toEqual({ b: 2 })
+    expect(await b.loader.import('b', '', {})).toEqual({ b: 2 })
     expect(b.fetched).toEqual([APPLICATION_URL, single('b')])
-    expect(await b.loader.import('a')).toEqual({ a: 1 })
+    expect(await b.loader.import('a', '', {})).toEqual({ a: 1 })
     expect(b.fetched).toHaveLength(2)
   })
 
@@ -276,7 +276,7 @@ describe('bundle arrival recovery', () => {
     const b = bench([row('a')], { a: () => ({ a: 1 }) }, {
       transportFailures: { [APPLICATION_URL]: 2, [single('a')]: 1 },
     })
-    const failure: unknown = await b.loader.import('a').then(() => undefined, (error: unknown) => error)
+    const failure: unknown = await b.loader.import('a', '', {}).then(() => undefined, (error: unknown) => error)
     if (!(failure instanceof Error)) throw new Error('import resolved')
     expect(failure.message).toContain('could not load "a"')
     const batchAttempts = failure.message.split(`${APPLICATION_URL}: client-modules: bundle script`).length - 1
@@ -288,10 +288,10 @@ describe('bundle arrival recovery', () => {
   it('a one-resource URL that fails stays retryable on the next import', async () => {
     const reloadUrl = comboUrl(['a'], '1')
     const b = bench([row('a')], { a: () => ({ a: 1 }) }, { transportFailures: { [reloadUrl]: 2 } })
-    expect(await b.loader.import('a')).toEqual({ a: 1 })
+    expect(await b.loader.import('a', '', {})).toEqual({ a: 1 })
     b.loader.invalidate('a', '1')
-    await expect(b.loader.import('a')).rejects.toThrow('could not load "a"')
-    expect(await b.loader.import('a')).toEqual({ a: 1 })
+    await expect(b.loader.import('a', '', {})).rejects.toThrow('could not load "a"')
+    expect(await b.loader.import('a', '', {})).toEqual({ a: 1 })
     expect(b.fetched).toEqual([APPLICATION_URL, reloadUrl, reloadUrl, reloadUrl])
   })
 })
@@ -301,16 +301,16 @@ describe('import error record', () => {
     const b = bench([row('a')], { a: () => ({ a: 1 }) }, {
       transportFailures: { [APPLICATION_URL]: 2, [comboUrl(['a'], '0')]: 1 },
     })
-    await expect(b.loader.import('a')).rejects.toThrow()
+    await expect(b.loader.import('a', '', {})).rejects.toThrow()
     expect(b.loader.importError('a')?.message).toContain('could not load "a"')
     expect(b.loader.importError('a/client')).toBe(b.loader.importError('a'))
-    expect(await b.loader.import('a')).toEqual({ a: 1 })
+    expect(await b.loader.import('a', '', {})).toEqual({ a: 1 })
     expect(b.loader.importError('a')).toBeUndefined()
   })
 
   it('records a factory that throws during materialization', async () => {
     const b = bench([row('a')], { a: () => { throw new Error('factory exploded') } })
-    await expect(b.loader.import('a')).rejects.toThrow('factory exploded')
+    await expect(b.loader.import('a', '', {})).rejects.toThrow('factory exploded')
     expect(b.loader.importError('a')?.message).toBe('factory exploded')
   })
 
@@ -319,7 +319,7 @@ describe('import error record', () => {
       registerOnly: { [APPLICATION_URL]: ['consumer'] },
       transportFailures: { [comboUrl(['dep'], '0')]: 1 },
     })
-    await expect(b.loader.import('consumer')).rejects.toThrow(
+    await expect(b.loader.import('consumer', '', {})).rejects.toThrow(
       '"consumer" not loaded because dependency "dep" failed: client-modules: could not load "dep"',
     )
     expect(b.loader.importError('consumer')?.message).toContain('dependency "dep" failed')

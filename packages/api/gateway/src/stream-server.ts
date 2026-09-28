@@ -32,13 +32,18 @@ export class RemoteStreamMuxServer {
    * @param open - Gateway stream dispatcher.
    * @param failure - Gateway error-to-wire mapper.
    * @param heartbeatIntervalMs - interval between WebSocket Ping control frames.
-   * @param limits - optional message and per-connection stream bounds; excess opens terminate the carrier before allocation.
+   * @param limits - optional inbound, outbound, and per-connection stream bounds; excess opens terminate
+   *   the carrier before allocation, and oversized outbound frames terminate it while aborting active streams.
    */
   constructor(
     private readonly open: RemoteStreamOpener,
     private readonly failure: RemoteStreamFailureMapper,
     private readonly heartbeatIntervalMs: number,
-    private readonly limits?: { readonly maxPayloadBytes: number; readonly maxStreamsPerConnection: number },
+    private readonly limits?: {
+      readonly maxPayloadBytes: number
+      readonly maxStreamsPerConnection: number
+      readonly maxOutputBytes?: number
+    },
   ) {
     this.server = new WebSocketServer({ noServer: true, ...(limits === undefined ? {} : { maxPayload: limits.maxPayloadBytes }) })
   }
@@ -64,7 +69,7 @@ export class RemoteStreamMuxServer {
       websocket.once('close', () => { binding?.signal.removeEventListener('abort', revoke) })
       if (binding?.signal.aborted === true) revoke()
       const connection = new RemoteStreamMuxConnection(
-        websocket, binding?.open ?? this.open, this.failure, this.limits?.maxStreamsPerConnection,
+        websocket, binding?.open ?? this.open, this.failure, this.limits?.maxStreamsPerConnection, this.limits?.maxOutputBytes,
       )
       const done = connection.run()
       this.connections.add(done)
@@ -123,6 +128,7 @@ class RemoteStreamMuxConnection {
     private readonly open: RemoteStreamOpener,
     private readonly failure: RemoteStreamFailureMapper,
     private readonly maxStreams: number | undefined,
+    private readonly maxOutputBytes: number | undefined,
   ) {}
 
   async run(): Promise<void> {
@@ -142,9 +148,13 @@ class RemoteStreamMuxConnection {
       })
     })
     await closed
+    this.abortStreams(new Error('Remote stream socket closed'))
     const active = [...this.streams.values()]
-    for (const stream of active) stream.abort.abort(new Error('Remote stream socket closed'))
     await Promise.all(active.map(stream => stream.done))
+  }
+
+  private abortStreams(reason: Error): void {
+    for (const stream of this.streams.values()) stream.abort.abort(reason)
   }
 
   private receive(text: string): void {
@@ -187,6 +197,11 @@ class RemoteStreamMuxConnection {
       }
       if (!active.abort.signal.aborted) await this.send({ type: 'end', streamId })
     } catch (error) {
+      if (error instanceof RemoteStreamOutputLimitError) {
+        this.abortStreams(new Error('Remote stream output exceeds the configured limit'))
+        this.socket.terminate()
+        return
+      }
       if (!active.abort.signal.aborted && this.socket.readyState === WebSocket.OPEN) {
         try {
           await this.send({ type: 'error', streamId, error: this.failure(error) })
@@ -206,6 +221,9 @@ class RemoteStreamMuxConnection {
     } catch (cause) {
       return Promise.reject(new Error('api gateway: Remote stream item is not JSON serializable', { cause }))
     }
+    if (this.maxOutputBytes !== undefined && Buffer.byteLength(text, 'utf8') > this.maxOutputBytes) {
+      return Promise.reject(new RemoteStreamOutputLimitError())
+    }
     const delivery = this.writes.then(() => new Promise<void>((resolve, reject) => {
       if (this.socket.readyState !== WebSocket.OPEN) {
         reject(new Error('api gateway: Remote stream socket is closed'))
@@ -219,6 +237,10 @@ class RemoteStreamMuxConnection {
     this.writes = delivery.catch(() => undefined)
     return delivery
   }
+}
+
+class RemoteStreamOutputLimitError extends Error {
+  constructor() { super('api gateway: Remote stream output exceeds the configured limit') }
 }
 
 function rawText(data: RawData): string {

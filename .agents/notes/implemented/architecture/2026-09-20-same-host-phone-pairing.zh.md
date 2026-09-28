@@ -12,11 +12,11 @@ Status: implemented
 
 显式启用的 HTTPS 传输运行在现有桌面 Host 内，共享其更新准入、Gateway、Session、问题和审批所有者。Connection 要求共享 Fetch 和 RPC 分发显式携带同进程传输权限。一个 Connection 实例提供本地 HTTP 与 WebSocket 适配器共享的身份；每个设备授权持有独立不透明身份和取消生命周期。
 
-Gateway 将委托策略绑定到这些身份。它在 lookup 前授权参数，裁剪汇总结果与流项，在排队或记录投递前过滤事件，并检查事件回答归属。委托队列具有帧数和字节数限制。缺失策略时默认拒绝。本地管理在执行者处检查已认证的一元调用，因此配对设备不能自行发出邀请或扩大授权。
+Gateway 将委托策略绑定到这些身份。它在 lookup 前授权参数，仅允许 Session 元数据且不传输 Host 工作目录，裁剪汇总结果与流项，在排队或记录投递前过滤事件，并检查事件回答归属。委托的一元响应和每个 WebSocket 流帧会在发送前受到限制，委托队列保留帧数和字节数限制。缺失策略时默认拒绝。本地管理在执行者处检查已认证的一元调用，因此配对设备不能自行发出邀请或扩大授权。
 
-邀请具有短有效期和有限尝试次数，成功兑换在串行所有权下只消费配对码一次。Credentials 保存摘要、权限范围、Session 引用、绝对到期时间和持久化撤销元数据。原始凭据仅通过 Secure、HttpOnly、SameSite=Strict cookie 发放。持久化提交后，撤销才取消活动请求与 socket；认证不能利用与撤销竞态的旧读取结果创建权限。
+邀请具有短有效期和有限失败兑换次数，在配置上限时仍接受有效兑换；成功兑换在串行所有权下只消费配对码一次。Credentials 保存摘要、权限范围、Session 引用、绝对到期时间和持久化撤销元数据。原始凭据仅通过 Secure、HttpOnly、SameSite=Strict cookie 发放。持久化提交后，撤销才取消活动请求与 socket；认证不能利用与撤销竞态的旧读取结果创建权限。
 
-传输检查精确的公开 HTTPS authority、Origin 和协议版本，不改变现有本地信任检查。它复用 Connection HTTP bridge，并将每个 WebSocket opener 绑定到已认证权限。Gateway mux 会在投递结算前计入待处理和失败 opening，并在分配超过上限的 opening 前关闭配对载体，因此配额拒绝不会增长排队错误路径。TLS 要求配置对公开主机有效的证书。[浏览器信任决策](2026-07-28-api-browser-trust-boundary.zh.md)仍负责本地浏览器请求保护；[Typert 调用决策](2026-08-02-typert-remote-method-calls.zh.md)保留描述符与 lookup 所有权。
+传输检查精确的公开 HTTPS authority、Origin 和协议版本，不改变现有本地信任检查。它复用 Connection HTTP bridge，并将每个 WebSocket opener 绑定到已认证权限。公开 `/pair` 页面只在片段中接受邀请 ID 和一次性配对码，在兑换前用 `history.replaceState` 清除片段，二维码载荷绝不包含授权范围或 Session ID。Gateway mux 会在投递结算前计入待处理和失败 opening，并在分配超过上限的 opening 前关闭配对载体，因此配额拒绝不会增长排队错误路径。TLS 要求配置对公开主机有效的证书。[浏览器信任决策](2026-07-28-api-browser-trust-boundary.zh.md)仍负责本地浏览器请求保护；[Typert 调用决策](2026-08-02-typert-remote-method-calls.zh.md)保留描述符与 lookup 所有权。
 
 ## 考虑过的替代方案
 
@@ -30,6 +30,6 @@ Gateway 将委托策略绑定到这些身份。它在 lookup 前授权参数，�
 
 ## 影响
 
-直连浏览器客户端可以使用现有对话渲染和 Session 代次替换语义。待处理问题和审批通过原有所有者重放，保留首个回答结算与取消行为。未知方法、新请求字段、无关事件类型和原始 Fetch 资源必须经过显式策略工作才能提供给设备。
+直连浏览器客户端可以使用现有对话渲染和 Session 代次替换语义。Desktop Settings 管理调用具有本地截止时间，因此插件销毁不会无限等待停滞的 Host RPC。待处理问题和审批通过原有所有者重放，保留首个回答结算与取消行为。未知方法、新请求字段、无关事件类型和原始 Fetch 资源必须经过显式策略工作才能提供给设备。
 
 监听器默认关闭，同时要求 TLS 配置和桌面生命周期能力。手机浏览器直连证据不能证明签名 Android 或 iOS 交付。TLS 配置、原生分发以及额外文件或子 Agent 能力仍属于独立事项。

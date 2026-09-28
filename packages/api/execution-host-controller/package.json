@@ -10,7 +10,7 @@
   },
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "description": "Authenticated Remote management of saved SSH execution targets",
   "type": "module",
   "license": "MIT",

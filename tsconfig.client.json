@@ -52,6 +52,7 @@
   "references": [
     { "path": "./packages/client/ui-paired-shell" },
     { "path": "./packages/client/ui-settings-pairing" },
+    { "path": "./packages/client/ui-settings-account" },
     { "path": "./packages/client/ui-settings-unarchive-sessions" },
     // Producer-to-UI spill tests execute the real nested dispatch worker.
     { "path": "./packages/code-runtime/code-runtime-worker-thread" },

@@ -128,6 +128,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`open`](https://github.com/sindresorhus/open) | MIT |
 | [`picomatch`](https://github.com/micromatch/picomatch) | MIT |
 | [`playwright-core`](https://github.com/microsoft/playwright) | Apache-2.0 |
+| [`qrcode`](https://github.com/soldair/node-qrcode) | MIT |
 | [`react`](https://github.com/facebook/react) | MIT |
 | [`react-dom`](https://github.com/facebook/react) | MIT |
 | [`react-icons`](https://github.com:react-icons/react-icons) | MIT |
@@ -205,6 +206,7 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`@types/negotiator`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/node`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/picomatch`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
+| [`@types/qrcode`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/react`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/react-dom`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/readable-stream`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
@@ -237,6 +239,7 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`istanbul-lib-report`](https://github.com/istanbuljs/istanbuljs) | BSD-3-Clause |
 | [`jscpd`](https://github.com/kucherenko/jscpd) | MIT |
 | [`jsdom`](https://github.com/jsdom/jsdom) | MIT |
+| [`jszip`](https://github.com/Stuk/jszip) | (MIT OR GPL-3.0-or-later) |
 | [`lefthook`](https://github.com/evilmartians/lefthook) | MIT |
 | [`lightningcss`](https://github.com/parcel-bundler/lightningcss) | MPL-2.0 |
 | [`msgpackr`](http://github.com/kriszyp/msgpackr) | MIT |

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-security-workflow-prompt",
   "description": "System prompt guidance for security scan, triage, remediation, and reporting phases",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "publishConfig": {
     "access": "public"
   },

@@ -40,7 +40,7 @@ Selection occurs for every call, so provider disposal and availability changes d
 
 `register(name, readiness?)` reserves computer use for an adapter that publishes its own tools; the optional callback returns `ComputerToolReadiness`. `providerName` reports its name while it closes. This registration rejects every registered `ComputerUseProvider`, including unavailable ones, and `registerProvider()` rejects an occupied exclusive registration. Existing multi-provider configuration and per-call selection remain supported. `ComputerUseRegistry` is a class export alias for `ComputerUseRuntime`; the brand constructor is exported through `./brand` and the package root.
 
-[Cua Driver MCP](../../experimental/computer-use-cua-driver-mcp/README.md) and [Cua Driver native](../../experimental/computer-use-cua-driver-native/README.md) are explicit opt-ins. They own their tools and do not implement Cinlan observation/action requests. Unload the Cinlan provider and `tool-computer-use` when switching; mount the permission policy with `native` configured for native CUA tools. Each adapter must remove its tools and await owned work before releasing registration.
+[Cua Driver MCP](../../experimental/computer-use-cua-driver-mcp/README.md) and [Cua Driver native](../../experimental/computer-use-cua-driver-native/README.md) are explicit opt-ins. They own their tools and do not implement the facade's observation/action requests. When switching from a facade composition, unload its provider and any `tool-computer-use` consumer; mount the permission policy with `native` configured for native CUA tools. Each adapter must remove its tools and await owned work before releasing registration.
 
 <a id="readiness"></a>
 ## Readiness

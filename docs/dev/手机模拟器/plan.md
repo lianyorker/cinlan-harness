@@ -42,7 +42,7 @@ DSH 已有完整的手机模拟器后端和基础 UI：
   - `touch()` — 点击/滑动
   - `typeText()` — 输入文本
   - `pressButton()` — 按键
-- `mobile-device-cinlan` — Cinlan 原生 Provider 实现
+- `mobile-device-adb` — Android platform-tools Provider 实现
 - `mobile-device-permission-policy` — 权限策略
 - `tool-mobile-device` — Agent 工具
 - `cinlan-mobile-device` — 安装 bundle

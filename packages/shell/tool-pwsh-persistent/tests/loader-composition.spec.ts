@@ -3,7 +3,7 @@ import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
@@ -13,6 +13,7 @@ import AgentRegistry from '@deepseek-ai/dsh-agent'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import TerminalSessionService from '@deepseek-ai/dsh-terminal'
+import type { TerminalWaitReason } from '@deepseek-ai/dsh-terminal'
 import * as TerminalBash from '@deepseek-ai/dsh-terminal-bash'
 import SandboxProvider from '@deepseek-ai/dsh-sandbox'
 import type { ConfinedArgv, SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
@@ -95,9 +96,7 @@ describe.skipIf(!hasPwsh)('persistent pwsh through a real cordis.yml Loader comp
       '    shellDialect: pwsh',
       '    pollIntervalMs: 10',
       '    exactProbeAfterMs: 20',
-      // Keep the silence tier above the send bound so each case proves the
-      // backend-controlled prompt fast path.
-      '    idleSilenceMs: 30000',
+      // The product default records each send's backend-selected wait reason.
       '    handoffGraceMs: 300',
       '    scrollbackLines: 20000',
       // The first call pays the full pwsh cold-start latency (spawn + .NET +
@@ -142,6 +141,18 @@ describe.skipIf(!hasPwsh)('persistent pwsh through a real cordis.yml Loader comp
     await context.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
     await context.loader.await()
 
+    const terminals = context.terminals
+    const startSend = terminals.startSend.bind(terminals)
+    const settleReasons: TerminalWaitReason[] = []
+    vi.spyOn(terminals, 'startSend').mockImplementation((owner, id, request) => {
+      const operation = startSend(owner, id, request)
+      void operation.done.then(
+        (settled) => { settleReasons.push(settled.waitReason) },
+        () => {},
+      )
+      return operation
+    })
+
     const owner = await agent(context, root)
     const signal = new AbortController().signal
     const execute = (id: string, command: string) => context!.tools.execute({
@@ -179,5 +190,7 @@ describe.skipIf(!hasPwsh)('persistent pwsh through a real cordis.yml Loader comp
     const exited = text(await execute('exit', 'exit'))
     expect(exited).toContain('next pwsh call starts from the workspace')
     expect(text(await execute('after-exit', 'Write-Output "$PWD"'))).toBe(root)
+    expect(settleReasons.filter(reason => reason === 'stdin_read').length).toBeGreaterThanOrEqual(6)
+    expect(settleReasons).not.toContain('inferred_idle')
   }, 120_000)
 })

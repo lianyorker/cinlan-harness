@@ -27,6 +27,8 @@ Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有�
 
 与 `ui-conversation` 及命令包一起挂载本插件；composer 随即在待处理指示器旁显示模型位，`/model` 则以弹窗打开同一份目录。当确切提供方／模型对仍在已公布分组中时，两个表面都显示宿主报告的当前选择；目录行缺席时，可路由的选择保持不变，触发器提示 `Select model`。
 
+任一入口提交的选择等待完成时，composer 的固定尾部状态位会显示动画状态点，并向辅助技术播报本地化等待文本。模型与推理强度选项保持停用，直至成功或失败完成；成功会关闭菜单，失败则保留菜单、重新启用选项，并显示本地化错误 Toast。
+
 ### 模型与推理强度
 
 模型按提供方分组。菜单只显示模型与推理强度名称；目录中的说明仍可供其他消费方使用。`/model` 弹窗应用所选模型的默认推理强度；composer 随后可以选择任一已公布的推理强度。适配器没有推理元数据时不显示 Effort 行；不存在任意推理强度输入。
@@ -52,7 +54,7 @@ Web GUI 允许用户通过 `/model` 弹窗或 composer 模型控件切换既有�
 <details>
 <summary>实现细节——点击展开</summary>
 
-`ModelDirectoryResolver`（`ctx.modelDirectories`）持有一份 Host 代次级 `ModelCatalogDirectory` 与按会话惰性创建的 `ModelDirectory` 投影。`/model` 弹窗与 composer 模型位经 `session.selectModel` 提交，并共享各会话的目录；已寻址 subagent 会话不公开任一选择器。转发的适配器、设置与凭据失效通知会刷新共享目录。
+`ModelDirectoryResolver`（`ctx.modelDirectories`）持有一份 Host 代次级 `ModelCatalogDirectory` 与按会话惰性创建的 `ModelDirectory` 投影。`/model` 弹窗与 composer 模型位经 `session.selectModel` 提交，并共享各会话的目录及其 Client 本地 `selecting` 状态；已寻址 subagent 会话不公开任一选择器。成功或失败完成都会清除等待呈现，转发的适配器、设置与凭据失效通知则刷新共享目录。
 
 `ModelDirectory.select()` 返回本次操作的 `RemoteResult<void>`，因此即使后续目录更新改变共享目录错误，每个选择器仍能呈现自身操作的失败。
 

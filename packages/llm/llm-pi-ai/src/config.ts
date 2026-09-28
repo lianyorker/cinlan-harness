@@ -41,6 +41,7 @@ import type {
   RouteCatalog,
 } from './catalog.ts'
 import { buildProvider, supportedProtocols } from './provider.ts'
+import { DEFAULT_SUB2API_CLEANUP_TIMEOUT_MS } from './sub2api.ts'
 
 /** Default maximum idle interval while an adapter stream read is outstanding. */
 export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000
@@ -225,6 +226,8 @@ export interface Config {
    * and registers them the moment a settings section supplies profiles.
    */
   providers?: Record<string, PiAiProviderProfile>
+  /** Maximum time spent on each compensating Sub2API key reconciliation, deletion, or logout request. */
+  sub2ApiCleanupTimeoutMs?: number
 }
 
 const thinkingBudgets = z.object({
@@ -347,6 +350,7 @@ const profile = z.object({
 /** Runtime schema for {@link Config}. */
 export const Config: z<Config> = z.object({
   providers: z.dict(profile).default({}),
+  sub2ApiCleanupTimeoutMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS).default(DEFAULT_SUB2API_CLEANUP_TIMEOUT_MS),
 })
 
 /**

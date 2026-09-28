@@ -116,7 +116,7 @@ The per-Session Client projection store accepts list hints, the follow baseline,
 
 Data that is not derived from one Session remains outside projections. `session/modelCatalog` owns the Host-generation model catalog, and `agentPresets/list` owns the configurable preset roster. A selector combines the relevant catalog with the Session's `modelSelection` or `agentPreset` projection only when both inputs are ready. During refresh it may retain the last complete catalog; before the first complete pair it reports loading instead of rendering a guessed name or availability verdict.
 
-Client-local interaction state also remains local: loading and error status, an open menu, an in-flight selection, and a staged choice for a not-yet-created Session are not replayable Session facts. Once a choice applies to a Session, its durable event and projection become authoritative.
+Client-local interaction state also remains local: loading and error status, an open menu, an in-flight selection, and a staged choice for a not-yet-created Session are not replayable Session facts. A model directory shares its in-flight status across selection entries so the composer can announce waiting and disable conflicting choices; settlement or reconnect clears that status without adding a Session event. Once a choice applies to a Session, its durable event and projection become authoritative.
 
 ### Domain applications
 

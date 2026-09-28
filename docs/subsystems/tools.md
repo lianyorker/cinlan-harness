@@ -8,7 +8,7 @@ Source: [`packages/core/tools/src/index.ts`](../../packages/core/tools/src/index
 
 ## `ToolDefinition` — a registered tool
 
-A `ToolSchema` (the model-facing fields) plus a mandatory canonical output declaration, the `execute` function, host-only scheduler metadata, an optional final-content callback, and optional UI presenters. The registry holds these; the loop dispatches calls through them. The registry's `schemas()` builds the model-facing `ToolSchema[]` by an explicit allowlist — `output`/`execute`/`finalizeContent`/`timeoutMs`/`isConcurrencySafe`/`presentCall`/`presentResult` must never leak into a model request.
+A `ToolSchema` (the model-facing fields) plus a mandatory canonical output declaration, the `execute` function, host-only scheduler metadata, an optional execution-prepared content projector, an optional final-content callback, and optional UI presenters. The registry holds these; the loop dispatches calls through them. The registry's `schemas()` builds the model-facing `ToolSchema[]` by an explicit allowlist — `output`/`execute`/`projectContent`/`finalizeContent`/`timeoutMs`/`isConcurrencySafe`/`presentCall`/`presentResult` must never leak into a model request.
 
 ```ts type-equiv
 /** Tool-owned canonical output contract used after the body returns a JSON value. */
@@ -38,6 +38,16 @@ interface ToolDefinition extends ToolSchema {
    * @returns the canonical value declared by `output.schema`.
    */
   execute(args: unknown, exec: ToolRunContext): Promise<unknown>
+  /**
+   * Install execution-prepared content before `tools/post-execute` policies.
+   * The callback is captured when the call starts and runs once for a
+   * normalized outcome entering post-execute. Policy replacements remain
+   * authoritative; pipeline failures that bypass post-execute skip projection.
+   * @param exec - immutable execution identity and arguments.
+   * @param result - normalized result before post-execute policy.
+   * @returns replacement content, or undefined to preserve the renderer output.
+   */
+  projectContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined
   /**
    * Synchronous last-mile transform for model-facing content. The registry
    * snapshots this callback when execution starts and invokes it exactly once
@@ -93,7 +103,7 @@ interface ToolDefinition extends ToolSchema {
 }
 ```
 
-`execute` receives `args: unknown` — a raw `ToolDefinition` validates its own input. First-party tools don't write that by hand; they use `defineTool`, which validates and narrows the arguments, infers the body return from `output.schema`, and types both output projectors. `finalizeContent` deliberately receives the immutable execution instead of typed arguments because invalid-input and outer pipeline failures reach it too; it may enforce a tool-owned content bound while preserving `isError`, canonical value, structured error identity, deferred contexts, and presentation metadata.
+`execute` receives `args: unknown` — a raw `ToolDefinition` validates its own input. First-party tools don't write that by hand; they use `defineTool`, which validates and narrows the arguments, infers the body return from `output.schema`, and types both output projectors. `projectContent` receives the normalized outcome before post-execute policies; `finalizeContent` receives the immutable execution instead of typed arguments because invalid-input and outer pipeline failures reach it too. It may enforce a tool-owned content bound while preserving `isError`, canonical value, structured error identity, deferred contexts, and presentation metadata.
 
 ## The unified JSON-value schema DSL
 
@@ -148,7 +158,7 @@ type InferArgs<S> = InferProperties<S, []>
 
 `defineTool({ name, description, parameters, output, execute, … })` ties parameter inference to `parameterSchemaSpecToJsonSchema()` and `validateArgs()`, and ties `execute`/`render`/`presentationMeta` to `InferValue<OutputSchema>`. Schema records contain only own enumerable string keys, and schema arrays are dense intrinsic arrays, so inference, compilation, and validation observe the same declaration. Inference stays exact through 16 container levels and then widens to `JsonValue`; runtime validation keeps walking the complete schema. `valueSchemaSpecToJsonSchema()` compiles output declarations through the same enforced raw subset. A parameter mismatch throws `ToolArgsError` (`INVALID_ARGS`); an invalid body or post-policy value throws `ToolOutputError` (`INVALID_TOOL_OUTPUT`). Both use the normal tool-error path. Raw JSON Schema remains open by default; unsupported keywords reject instead of being accepted without enforcement.
 
-`DefineToolOptions<S, O>` is the typed authoring input to `defineTool`: required identity, parameter schema, output schema/rendering, and execution callbacks share inferred argument and result types. Optional timeout, overlap classification, final-content transformation, and presenters follow the corresponding `ToolDefinition` rules; `finalizeContent` still receives unknown arguments because it also observes validation failures.
+`DefineToolOptions<S, O>` is the typed authoring input to `defineTool`: required identity, parameter schema, output schema/rendering, and execution callbacks share inferred argument and result types. Optional timeout, overlap classification, execution-prepared content projection, final-content transformation, and presenters follow the corresponding `ToolDefinition` rules; `finalizeContent` still receives unknown arguments because it also observes validation failures.
 
 Registration is a trusted same-process contract. The registry borrows the typed definition as readonly input, requires `output`, validates its raw schema, and checks semantic requirements such as a positive finite `timeoutMs`; `schemas()` constructs the model-facing projection when building a request, so execution and presentation share one resolved definition without leaking callbacks onto the wire.
 
@@ -171,7 +181,7 @@ interface ToolRestriction {
 
 ## Execution: extensible waterfalls plus monotonic policy
 
-`ctx.tools.execute()` accepts a caller-owned `ToolExecutionInput` with a required readonly `signal`, materializes its parsed JSON arguments once into a pipeline-owned `ToolExecution`, and runs that call through `tools/pre-execute` (the reorderable allow/deny/ask waterfall) → registered monotonic guards → `tools/execute` (around-dispatch wrappers) → `tools/post-execute` (inspect/replace the result) → optional definition-owned `finalizeContent` → `tools/result` (the immutable authoritative outcome). Only the `tools/execute` view may replace the required signal. The outcome is a `ToolExecutionResult`.
+`ctx.tools.execute()` accepts a caller-owned `ToolExecutionInput` with a required readonly `signal`, materializes its parsed JSON arguments once into a pipeline-owned `ToolExecution`, and runs that call through `tools/pre-execute` (the reorderable allow/deny/ask waterfall) → registered monotonic guards → `tools/execute` (around-dispatch wrappers) → optional definition-owned `projectContent` → `tools/post-execute` (inspect/replace the result) → optional definition-owned `finalizeContent` → `tools/result` (the immutable authoritative outcome). Only the `tools/execute` view may replace the required signal. The outcome is a `ToolExecutionResult`.
 
 ```ts type-equiv
 /** Opaque call identity that permits correlation without exposing mutable execution state. */

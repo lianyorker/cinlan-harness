@@ -1,7 +1,7 @@
 /** Build one release target with matching Electron, Node.js, and seed architecture. */
 
 import { spawn } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
@@ -34,6 +34,89 @@ const PNPM_DEPENDENCY_FILTER_ENV_NAMES = new Set([
   'npm_config_filter_prod',
 ])
 const DESKTOP_PACKAGE_NAME = '@deepseek-ai/dsh-desktop'
+const DESKTOP_RELEASE_RECORD_SCHEMA_VERSION = 2
+type DesktopSigningMode = 'signed' | 'unsigned'
+
+interface ArtifactPublicationOperations {
+  readonly remove: (path: string, options?: { readonly recursive?: boolean; readonly force?: boolean }) => void
+  readonly mkdir: (path: string, options?: { readonly recursive?: boolean }) => void
+  readonly rename: (source: string, destination: string) => void
+  readonly copy: (source: string, destination: string, options?: { readonly recursive?: boolean; readonly force?: boolean }) => void
+  readonly readDirectory: (path: string) => readonly string[]
+}
+
+const defaultArtifactPublicationOperations: ArtifactPublicationOperations = {
+  remove: (path, options) => rmSync(path, options),
+  mkdir: (path, options) => mkdirSync(path, options),
+  rename: renameSync,
+  copy: (source, destination, options) => cpSync(source, destination, options),
+  readDirectory: path => readdirSync(path, { encoding: 'utf8' }),
+}
+
+function isEmptyArtifactDirectory(path: string, operations: ArtifactPublicationOperations): boolean {
+  try {
+    return operations.readDirectory(path).length === 0
+  }
+  catch {
+    return false
+  }
+}
+
+function copyArtifactDirectoryContents(
+  source: string,
+  destination: string,
+  operations: ArtifactPublicationOperations,
+): void {
+  for (const entry of operations.readDirectory(source)) {
+    operations.copy(join(source, entry), join(destination, entry), { recursive: true, force: false })
+  }
+}
+
+/**
+ * Publish a completed electron-builder directory while preserving locked empty output roots.
+ * @param completedOutput - Temporary directory produced by electron-builder.
+ * @param artifactsDirectory - Stable target directory exposed to later packaging stages.
+ * @param overrides - Optional filesystem operations used by focused publication tests.
+ * @returns Nothing; the completed output is removed after a successful publication.
+ * @throws When stale output cannot be removed or a copy/rename fails.
+ */
+export function publishCompletedArtifactDirectory(
+  completedOutput: string,
+  artifactsDirectory: string,
+  overrides: Partial<ArtifactPublicationOperations> = {},
+): void {
+  const operations: ArtifactPublicationOperations = { ...defaultArtifactPublicationOperations, ...overrides }
+  operations.mkdir(dirname(artifactsDirectory), { recursive: true })
+
+  try {
+    operations.remove(artifactsDirectory, { recursive: true, force: true })
+  }
+  catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (!['EACCES', 'EBUSY', 'EPERM'].includes(code ?? '')
+      || !isEmptyArtifactDirectory(artifactsDirectory, operations)) throw error
+    copyArtifactDirectoryContents(completedOutput, artifactsDirectory, operations)
+    operations.remove(completedOutput, { recursive: true, force: true })
+    return
+  }
+
+  try {
+    operations.rename(completedOutput, artifactsDirectory)
+    return
+  }
+  catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'EXDEV') {
+      operations.copy(completedOutput, artifactsDirectory, { recursive: true })
+      operations.remove(completedOutput, { recursive: true, force: true })
+      return
+    }
+    if (!['EACCES', 'EBUSY', 'EPERM'].includes(code ?? '')
+      || !isEmptyArtifactDirectory(artifactsDirectory, operations)) throw error
+    copyArtifactDirectoryContents(completedOutput, artifactsDirectory, operations)
+    operations.remove(completedOutput, { recursive: true, force: true })
+  }
+}
 
 /** Fixed platform and architecture identifiers exposed by package scripts. */
 export type DesktopPackageTargetName = 'mac-arm64' | 'mac-x64' | 'win-x64'
@@ -92,6 +175,19 @@ export function withoutDesktopUploadCredentials(environment: NodeJS.ProcessEnv):
 }
 
 /**
+ * Prevent pnpm script execution from repairing or reinstalling the validated workspace.
+ * @param environment - Packaging command environment.
+ * @returns A copy that disables pnpm's optional pre-run dependency mutation.
+ */
+export function stablePnpmRunEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return {
+    ...Object.fromEntries(Object.entries(environment)
+      .filter(([name]) => name.toLowerCase() !== 'pnpm_config_verify_deps_before_run')),
+    pnpm_config_verify_deps_before_run: 'false',
+  }
+}
+
+/**
  * Limit electron-builder's pnpm dependency listing to the desktop shell.
  * @param environment - Target environment before restoring Windows signing fields.
  * @returns A copy with one Desktop selector and no inherited dependency selectors.
@@ -120,6 +216,7 @@ function writeReleaseRecord(
   target: DesktopPackageTarget,
   environment: NodeJS.ProcessEnv,
   artifactsRoot: string,
+  signingMode: DesktopSigningMode,
 ): void {
   const desktopVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
   const dshVersion = packageVersion(join(REPOSITORY_ROOT, 'package.json'), 'dsh package')
@@ -134,7 +231,8 @@ function writeReleaseRecord(
   const recordPath = join(artifactsRoot, desktopBuildRecordFilename(target.name))
   const temporaryPath = `${recordPath}.tmp`
   writeFileSync(temporaryPath, `${JSON.stringify({
-    schemaVersion: 1,
+    schemaVersion: DESKTOP_RELEASE_RECORD_SCHEMA_VERSION,
+    signingMode,
     target: target.name,
     version: dshVersion,
     environment: update.environment,
@@ -178,6 +276,8 @@ interface DesktopPackageInvocation {
   readonly target: DesktopPackageTarget
   readonly directory: boolean
   readonly prepareOnly: boolean
+  readonly unsigned: boolean
+  readonly msi?: boolean
 }
 
 function hostTargetName(platform: NodeJS.Platform, arch: string): DesktopPackageTargetName {
@@ -204,14 +304,56 @@ export function parseDesktopPackageInvocation(
     options: {
       dir: { type: 'boolean', default: false },
       'prepare-only': { type: 'boolean', default: false },
+      unsigned: { type: 'boolean', default: false },
+      msi: { type: 'boolean', default: false },
     },
   })
   if (positionals.length > 1) throw new Error('desktop package: expected at most one target')
   const name = positionals[0] ?? hostTargetName(hostPlatform, hostArch)
+  const target = resolveDesktopPackageTarget(name, hostPlatform, hostArch)
+  if (values.unsigned && target.platform !== 'win32') {
+    throw new Error('desktop package: --unsigned is supported only for win-x64')
+  }
+  if (values.msi && target.platform !== 'win32') {
+    throw new Error('desktop package: --msi is supported only for win-x64')
+  }
+  if (values.msi && !values.unsigned) {
+    throw new Error('desktop package: --msi requires --unsigned for local-only MSI output')
+  }
+  if (values.msi && (values.dir || values['prepare-only'])) {
+    throw new Error('desktop package: --msi cannot be combined with --dir or --prepare-only')
+  }
   return {
-    target: resolveDesktopPackageTarget(name, hostPlatform, hostArch),
+    target,
     directory: values.dir,
     prepareOnly: values['prepare-only'],
+    unsigned: values.unsigned,
+    msi: values.msi,
+  }
+}
+
+/**
+ * Reject signed Windows packaging without a complete credential declaration.
+ * @param target - Validated Desktop target.
+ * @param environment - Packaging environment.
+ * @param unsigned - Whether the caller explicitly selected unsigned output.
+ * @param prepareOnly - Whether only preparation stages will run.
+ * @returns Nothing.
+ * @throws When a Windows artifact would otherwise silently skip signing.
+ */
+export function assertWindowsSigningEnvironment(
+  target: DesktopPackageTarget,
+  environment: NodeJS.ProcessEnv,
+  unsigned: boolean,
+  prepareOnly: boolean,
+): void {
+  if (target.platform !== 'win32' || unsigned || prepareOnly) return
+  const missing = WINDOWS_SIGNING_ENV_NAMES.filter((name) => {
+    const value = environment[name]
+    return value === undefined || value.trim() === ''
+  })
+  if (missing.length > 0) {
+    throw new Error(`desktop package: signed Windows packaging requires ${missing.join(', ')}; use package:win:x64:unsigned for deliberate unsigned output`)
   }
 }
 
@@ -273,6 +415,8 @@ export async function packageTarget(
   execute: typeof runPackageCommand = runPackageCommand,
 ): Promise<void> {
   const { target } = invocation
+  const unsignedBuilder = invocation.unsigned || invocation.directory
+  assertWindowsSigningEnvironment(target, environment, unsignedBuilder, invocation.prepareOnly)
   const buildPaths = desktopTargetBuildPaths(target.name)
   const releaseRecordPath = join(buildPaths.artifacts, desktopBuildRecordFilename(target.name))
   if (!invocation.prepareOnly) {
@@ -280,22 +424,32 @@ export async function packageTarget(
     rmSync(`${releaseRecordPath}.tmp`, { force: true })
   }
   const buildEnv = {
-    ...withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(environment)),
+    ...stablePnpmRunEnvironment(
+      withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(environment)),
+    ),
     npm_execpath: environment.npm_execpath ?? join(dirname(require.resolve('pnpm')), 'bin/pnpm.mjs'),
   }
   const targetEnv: NodeJS.ProcessEnv = {
     ...buildEnv,
     DSH_DESKTOP_TARGET_PLATFORM: target.platform,
     DSH_DESKTOP_TARGET_ARCH: target.arch,
+    DSH_DESKTOP_INSTALLER_TARGET: invocation.msi ? 'msi' : 'nsis',
   }
+  if (unsignedBuilder && !invocation.prepareOnly) targetEnv.DSH_DESKTOP_UNSIGNED = '1'
+  else delete targetEnv.DSH_DESKTOP_UNSIGNED
   const electronBuilderEnv = desktopElectronBuilderEnvironment(targetEnv)
-  for (const name of WINDOWS_SIGNING_ENV_NAMES) {
-    if (environment[name] !== undefined) electronBuilderEnv[name] = environment[name]
+  if (!unsignedBuilder) {
+    for (const name of WINDOWS_SIGNING_ENV_NAMES) {
+      if (environment[name] !== undefined) electronBuilderEnv[name] = environment[name]
+    }
   }
   if (!invocation.prepareOnly) {
     await execute(['node', 'scripts/validate-electron-builder-config.mjs'], electronBuilderEnv)
-    await execute(['node', 'scripts/validate-electron-builder-dependencies.mjs'],
-      withoutWindowsSigningEnvironment(electronBuilderEnv))
+    // Dependency validation emits no artifact; its config-only child must not require token credentials.
+    await execute(['node', 'scripts/validate-electron-builder-dependencies.mjs'], {
+      ...withoutWindowsSigningEnvironment(electronBuilderEnv),
+      DSH_DESKTOP_UNSIGNED: '1',
+    })
   }
   await execute(['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
   await execute(['run', 'build'], buildEnv)
@@ -319,6 +473,7 @@ export async function packageTarget(
     buildPaths.packedLandlock,
   ], buildEnv, REPOSITORY_ROOT)
   const signPrimaryRuntime = target.platform === 'win32' && !invocation.prepareOnly
+    && !unsignedBuilder
     && Boolean(environment.DSH_DESKTOP_WINDOWS_CER_FILE)
   await execute(['run', 'prepare:runtime', ...(signPrimaryRuntime ? ['--defer-primary-runtime-smoke'] : [])], targetEnv)
   if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime'], electronBuilderEnv)
@@ -328,7 +483,7 @@ export async function packageTarget(
   let builderOutput: string | undefined
   try {
     if (target.platform === 'win32') {
-      // WiX still resolves some MSI inputs through MAX_PATH-limited Win32 APIs.
+      // Keep electron-builder's NSIS staging root short for Windows path-length-sensitive tools.
       builderOutput = mkdtempSync(join(REPOSITORY_ROOT, '..', 'dsh-electron-builder-'))
       electronBuilderEnv.DSH_DESKTOP_BUILDER_OUTPUT = builderOutput
     }
@@ -336,17 +491,11 @@ export async function packageTarget(
     if (builderOutput !== undefined) {
       const completedOutput = builderOutput
       builderOutput = undefined
-      rmSync(buildPaths.artifacts, { recursive: true, force: true })
-      mkdirSync(dirname(buildPaths.artifacts), { recursive: true })
-      try {
-        renameSync(completedOutput, buildPaths.artifacts)
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error
-        cpSync(completedOutput, buildPaths.artifacts, { recursive: true })
-        rmSync(completedOutput, { recursive: true, force: true })
-      }
+      publishCompletedArtifactDirectory(completedOutput, buildPaths.artifacts)
     }
-    if (!invocation.directory) writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)
+    if (!invocation.directory) {
+      writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts, unsignedBuilder ? 'unsigned' : 'signed')
+    }
   } finally {
     if (builderOutput !== undefined) rmSync(builderOutput, { recursive: true, force: true })
   }

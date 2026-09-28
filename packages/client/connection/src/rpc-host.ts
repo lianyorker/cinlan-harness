@@ -269,9 +269,10 @@ function rpcFetchHandler(
         return new Response('body is not JSON', { status: 400 })
       }
 
+      const maxResponseBytes = access.kind === 'delegated' ? access.maxResponseBytes : undefined
       const envelope = clientRequestSchema.safeParse(body)
       if (!envelope.success) {
-        return invalidEnvelopeResponse(body, envelope.error.issues)
+        return invalidEnvelopeResponse(body, envelope.error.issues, maxResponseBytes)
       }
       const message: ClientRequest = envelope.data
       if (message.method !== endpoint) {
@@ -279,17 +280,17 @@ function rpcFetchHandler(
           code: 'gateway/bad-request',
           message: `method ${JSON.stringify(message.method)} does not match endpoint ${JSON.stringify(endpoint)}`,
           details: { issues: [] },
-        })
+        }, maxResponseBytes)
       }
 
       try {
         signal.throwIfAborted()
         const result = await handler(endpoint, message.payload, signal, access)
         signal.throwIfAborted()
-        return fullResponse(message.rpcId, result)
+        return fullResponse(message.rpcId, result, maxResponseBytes)
       } catch (error) {
         signal.throwIfAborted()
-        return new Response(`handler failure: ${String(error)}`, { status: 500 })
+        return textResponse(`handler failure: ${String(error)}`, 500, maxResponseBytes)
       }
     },
   }
@@ -346,14 +347,14 @@ function revocableBody(source: ReadableStream<Uint8Array>, signal: AbortSignal):
   }, { highWaterMark: 0 })
 }
 
-function invalidEnvelopeResponse(body: unknown, issues: readonly object[]): Response {
+function invalidEnvelopeResponse(body: unknown, issues: readonly object[], maxResponseBytes?: number): Response {
   const rawId = (body as { rpcId?: unknown } | null)?.rpcId
   const rpcId = typeof rawId === 'string' ? RpcId(rawId) : INVALID_REQUEST_RPC_ID
   return errorResponse(rpcId, {
     code: 'gateway/bad-request',
     message: 'invalid client-request message',
     details: { issues },
-  })
+  }, maxResponseBytes)
 }
 
 function endpointFromPath(channel: string, pathname: string): string | undefined {
@@ -367,13 +368,31 @@ function endpointFromPath(channel: string, pathname: string): string | undefined
   return endpoint
 }
 
-function errorResponse(rpcId: RpcIdType, error: ConnectionRpcFailure): Response {
-  return fullResponse(rpcId, { ok: false, error })
+function errorResponse(rpcId: RpcIdType, error: ConnectionRpcFailure, maxResponseBytes?: number): Response {
+  return fullResponse(rpcId, { ok: false, error }, maxResponseBytes)
 }
 
-function fullResponse(rpcId: RpcIdType, result: ConnectionRpcResult<unknown>): Response {
+function fullResponse(rpcId: RpcIdType, result: ConnectionRpcResult<unknown>, maxResponseBytes?: number): Response {
   const body: ConnectionServerResponse = { type: 'server-response', rpcId, result }
-  return Response.json(body)
+  const text = JSON.stringify(body)
+  if (maxResponseBytes !== undefined && Buffer.byteLength(text, 'utf8') > maxResponseBytes) {
+    return outputLimitResponse()
+  }
+  return new Response(text, { headers: { 'content-type': 'application/json' } })
+}
+
+function textResponse(text: string, status: number, maxResponseBytes?: number): Response {
+  if (maxResponseBytes !== undefined && Buffer.byteLength(text, 'utf8') > maxResponseBytes) {
+    return outputLimitResponse()
+  }
+  return new Response(text, { status })
+}
+
+function outputLimitResponse(): Response {
+  return new Response('RPC response exceeds the configured output limit', {
+    status: 413,
+    headers: { 'cache-control': 'no-store' },
+  })
 }
 
 function assertChannel(channel: string): void {

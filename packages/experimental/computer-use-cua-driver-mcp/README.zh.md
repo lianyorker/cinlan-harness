@@ -29,7 +29,7 @@ kind: "package-reference"
 
 本插件不下载驱动。请提供可执行的 `cua-driver`（上游兼容参考为 `0.28.0`）及可访问的已登录图形会话。macOS 通常由具备辅助功能和屏幕录制授权的 `CuaDriver.app` 守护进程处理操作；`args: [mcp, --direct]` 则使用启动主机的权限。Windows 需要对应架构的驱动，并受 UIA/进程完整性限制。Linux 需要相应的 X11 或受支持的 Wayland/AT-SPI/合成器配置；具体操作支持见[上游平台记录](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/docs/action-support.md)。安装成功不代表获得桌面授权。
 
-只挂载一个 Cua Driver 适配器，并先卸载任何已注册的 Cinlan Computer Use Provider。若组合包含 Cinlan 的 `tool-computer-use` 和权限策略，也应在选择 Cua Driver 时停用这些 Consumer；Cua Driver 暴露自身的参数与工具名称，Cinlan 专用权限策略不适用于它。本包不会自动启用，也不会修改 Cinlan 默认组合。
+只挂载一个 Cua Driver 适配器，并先卸载任何已注册的 facade Provider。若组合包含 `tool-computer-use` 或 facade 专用权限策略，也应在选择 Cua Driver 时停用该工具 Consumer 和权限策略；Cua Driver 暴露自身的参数与工具名称，该策略不适用于它。本包不会自动启用，也不会改变 profile 默认组合。
 
 ### 最小配置
 

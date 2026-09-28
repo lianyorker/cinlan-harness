@@ -1,12 +1,13 @@
 /** Local browser launch preferences, persisted through the Settings-owned scope. */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { BrowserPreferences } from '@deepseek-ai/dsh-browser-playwright/types'
-import type { CapabilitySectionProps } from './CapabilitySection.tsx'
+import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
+import type { BrowserSectionInjected, CapabilitySectionProps } from './CapabilitySection.tsx'
 import css from './CapabilitySection.module.css'
 import { BROWSER_FIELDS } from './settings-fields.ts'
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 
-type Props = Pick<CapabilitySectionProps, 'useBrowserPreferences' | 'saveBrowserPreferences' | 'resetBrowserPreferences' | 't'>
+type Props = Pick<InjectFace<BrowserSectionInjected>, 'useBrowserPreferences' | 'saveBrowserPreferences' | 'resetBrowserPreferences'> & Pick<CapabilitySectionProps, 't'>
 interface Draft { value: BrowserPreferences; revision: number }
 
 /**

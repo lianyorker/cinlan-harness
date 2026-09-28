@@ -17,7 +17,9 @@ describe('paired Session authorization', () => {
   })
   it('filters list rows, baseline maps, incrementals and unknown projections', () => {
     const policy = new PairedSessionPolicy(grant, 8, 8192)
-    expect(policy.projectResult('session/list', {}, { items: [{ sessionId: 'original', parentSessionId: 'foreign' }, { sessionId: 'foreign' }] })).toEqual({ items: [{ sessionId: 'original' }] })
+    const listed = policy.projectResult('session/list', {}, { items: [{ sessionId: 'original', updatedAt: 123, running: false, blank: false, parentSessionId: 'foreign', cwd: 'C:\\Users\\secret' }, { sessionId: 'foreign' }] })
+    expect(listed).toEqual({ items: [{ sessionId: 'original', updatedAt: 123, running: false, blank: false }] })
+    expect(JSON.stringify(listed)).not.toContain('C:\\Users\\secret')
     expect(policy.projectStreamItem('session/control', {}, { type: 'baseline', value: { queues: { original: [], foreign: ['secret'] }, jobs: {}, projections: { original: { asOfSeq: 2, values: { title: 'Original', secretPlugin: 'secret' } }, foreign: { values: {} } } } })).toEqual({ type: 'baseline', value: { queues: { original: [] }, jobs: {}, projections: { original: { asOfSeq: 2, values: { title: 'Original' } } } } })
     expect(policy.projectStreamItem('session/control', {}, { type: 'jobs', sessionId: 'foreign', jobs: [] })).toBeUndefined()
     expect(policy.projectStreamItem('session/control', {}, { type: 'projection', sessionId: 'original', key: 'secretPlugin', value: 'secret' })).toBeUndefined()

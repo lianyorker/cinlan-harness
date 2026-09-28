@@ -15,6 +15,7 @@ import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
+const DESKTOP_RELEASE_RECORD_SCHEMA_VERSION = 2
 const TARGETS = {
   'mac-arm64': { platform: 'darwin', arch: 'arm64', os: 'mac' },
   'mac-x64': { platform: 'darwin', arch: 'x64', os: 'mac' },
@@ -164,7 +165,7 @@ function uploadArtifact(
 }
 
 /**
- * Validate the completed package record, dsh version, update metadata, hashes, and target files.
+ * Validate the signed package completion record, dsh version, update metadata, hashes, and target files.
  * @param targetName - Fixed platform and architecture selected by the upload command.
  * @param options - Optional filesystem roots and environment for tests or release automation.
  * @returns An upload plan whose mutable channel metadata is the final entry.
@@ -192,12 +193,15 @@ export async function createDesktopUploadPlan(
     join(artifactsRoot, desktopBuildRecordFilename(targetName)),
     `${targetName} package completion record`,
   )
-  if (buildRecord.schemaVersion !== 1
+  if (buildRecord.schemaVersion !== DESKTOP_RELEASE_RECORD_SCHEMA_VERSION
     || buildRecord.target !== targetName
     || buildRecord.version !== dshVersion
     || buildRecord.environment !== update.environment
     || buildRecord.publicUrl !== update.publicUrl) {
     throw new Error(`desktop upload: ${targetName} package completion record does not match dsh ${dshVersion} and ${update.environment} update destination`)
+  }
+  if (buildRecord.signingMode !== 'signed') {
+    throw new Error(`desktop upload: ${targetName} package completion record is not release-signed; unsigned artifacts are local-only`)
   }
 
   const metadataFilename = desktopUpdateMetadataFilename(dshVersion, target.platform)

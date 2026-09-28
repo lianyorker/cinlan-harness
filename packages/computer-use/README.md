@@ -1,5 +1,5 @@
 ---
-description: "Computer Use packages: Service Definition, CLI Provider, permission policy, and tools."
+description: "Computer Use packages: Service Definition, native providers, permission policy, and tools."
 kind: "package-group"
 ---
 
@@ -16,7 +16,6 @@ Local device capabilities compose through the separate device-control profile; o
 | Package | Role |
 |---|---|
 | [computer-use](computer-use/README.md) | Service Definition |
-| [computer-use-cinlan](computer-use-cinlan/README.md) | Provider |
 | [computer-use-permission-policy](computer-use-permission-policy/README.md) | Permission Consumer |
 | [tool-computer-use](tool-computer-use/README.md) | Tool Consumer |
 
@@ -26,4 +25,4 @@ Local device capabilities compose through the separate device-control profile; o
 
 ## Dev Note
 
-Platform execution, authentication, and device availability belong to the external CLI; package presence does not imply device readiness.
+Platform execution, authentication, and device availability belong to the selected Provider and its deployment environment; package presence does not imply device readiness.

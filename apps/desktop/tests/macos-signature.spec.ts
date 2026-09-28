@@ -66,12 +66,16 @@ describe('desktop macOS release signature', () => {
     expect(typeof config.artifactBuildCompleted).toBe('function')
   })
 
-  it('accepts unsigned local Windows installers without macOS credentials', async () => {
+  it('accepts explicit unsigned Windows NSIS installers without macOS credentials', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig({
       DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_UNSIGNED: '1',
     }, 'win32', 'x64')
-    expect(config).toMatchObject({ win: { forceCodeSigning: false } })
+    expect(config).toMatchObject({
+      artifactName: 'deepseek-harness-${version}-${os}-${arch}-unsigned.${ext}',
+      win: { forceCodeSigning: false, target: ['nsis'] },
+    })
     expect(() => { validateDesktopElectronBuilderConfig(config) }).not.toThrow()
   })
 
@@ -79,6 +83,7 @@ describe('desktop macOS release signature', () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig({
       DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_UNSIGNED: '1',
       DSH_DESKTOP_TARGET_ARCH: 'x64',
       DSH_DESKTOP_BUILDER_OUTPUT: 'D:/dsh-eb-output',
     }, 'win32', 'x64')
@@ -87,14 +92,22 @@ describe('desktop macOS release signature', () => {
     expect(portablePath(config.extraResources[1]?.from ?? '')).toContain('/.desktop-build/targets/win-x64/seed')
   })
 
-  it('rejects unsupported MSI installer options', async () => {
+  it('uses NSIS by default and selects MSI only for an explicit unsigned request', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
-    const config = createElectronBuilderConfig({
+    const nsis = createElectronBuilderConfig({
       DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_UNSIGNED: '1',
     }, 'win32', 'x64')
-    expect(() => {
-      validateDesktopElectronBuilderConfig({ ...config, msi: { runAfter: true } })
-    }).toThrow(/msi/u)
+    expect(nsis.win.target).toEqual(['nsis'])
+    const msi = createElectronBuilderConfig({
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_TARGET_ARCH: 'x64',
+      DSH_DESKTOP_UNSIGNED: '1',
+      DSH_DESKTOP_INSTALLER_TARGET: 'msi',
+    }, 'win32', 'x64')
+    expect(msi.win.target).toEqual(['msi'])
+    expect(msi.msi).toMatchObject({ oneClick: false, warningsAsErrors: true })
+    expect(() => { validateDesktopElectronBuilderConfig(msi) }).not.toThrow()
   })
 
   it('accepts the configured authority and team', () => {

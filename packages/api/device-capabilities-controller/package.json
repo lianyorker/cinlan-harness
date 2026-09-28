@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-api-device-capabilities-controller",
   "description": "Read-only Computer Use and Mobile Device runtime readiness for Web Settings",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "publishConfig": {
     "access": "public"
   },

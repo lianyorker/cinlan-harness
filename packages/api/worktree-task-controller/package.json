@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-api-worktree-task-controller",
   "description": "Worktree Task lifecycle Remote for local Web clients",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "publishConfig": {
     "access": "public"
   },

@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-settings-usage",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "description": "Localized usage reports and CSV export for real Host accounting.",
   "type": "module",
   "main": "lib/index.js",

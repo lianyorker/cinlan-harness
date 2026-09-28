@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-26-retain-cancelled-authorization-keys.md
+2026-09-26-retain-cancelled-authorization-keys.md: 86525ba096d98ad831e3d461e530c5daac7d1f9c
+2026-09-26-retain-cancelled-authorization-keys.zh.md: d5a478500fb9e0b9b59ffb0bd137745d92cb29b3
