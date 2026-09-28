@@ -76,7 +76,7 @@ describe('fetching through a proxy', () => {
     const resolve = vi.spyOn(publicHttpNetwork, 'resolve')
     disposeProxy = await installProxy()
 
-    const result = await new HttpFetchProvider(limits).fetch({ url: proxyTarget })
+    const result = await new HttpFetchProvider(limits).fetch({ url: proxyTarget }, new AbortController().signal)
 
     expect(result.body.content).toBe('via-proxy')
     expect(proxied).toEqual([proxyTarget])
@@ -92,7 +92,7 @@ describe('fetching through a proxy', () => {
     // exactly the case this asserts still resolves and pins.
     disposeProxy = await installProxy()
 
-    const result = await new HttpFetchProvider(limits).fetch({ url: originUrl })
+    const result = await new HttpFetchProvider(limits).fetch({ url: originUrl }, new AbortController().signal)
 
     expect(result.body.content).toBe('direct')
     expect(proxied).toEqual([])
@@ -103,7 +103,7 @@ describe('fetching through a proxy', () => {
     const resolve = vi.spyOn(publicHttpNetwork, 'resolve')
       .mockResolvedValue([{ address: '127.0.0.1', family: 4 }])
 
-    const result = await new HttpFetchProvider(limits).fetch({ url: originUrl })
+    const result = await new HttpFetchProvider(limits).fetch({ url: originUrl }, new AbortController().signal)
 
     expect(result.body.content).toBe('direct')
     expect(resolve).toHaveBeenCalledOnce()
@@ -119,7 +119,7 @@ describe('fetching through a proxy', () => {
       // so taking it would spend the address checks for nothing and hand a proxy on this machine
       // the private or loopback destination those checks exist to refuse. The hop therefore takes
       // the validated path instead, where the existing refusal already covers it.
-      await expect(new HttpFetchProvider(limits).fetch({ url: `http://${host}:8080/` }))
+      await expect(new HttpFetchProvider(limits).fetch({ url: `http://${host}:8080/` }, new AbortController().signal))
         .rejects.toThrow(expect.objectContaining({ code: 'WEB_BLOCKED_URL' }))
       expect(proxied).toEqual([])
       expect(resolve).toHaveBeenCalledOnce()
@@ -145,14 +145,14 @@ describe('fetching through a proxy', () => {
     })
     disposeProxy = await installProxy()
 
-    await expect(new HttpFetchProvider(limits).fetch({ url: proxyTarget }))
+    await expect(new HttpFetchProvider(limits).fetch({ url: proxyTarget }, new AbortController().signal))
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_REDIRECT_BLOCKED' }))
   })
 
   it('still refuses a URL the transport policy rejects before any hop', async () => {
     disposeProxy = await installProxy()
 
-    await expect(new HttpFetchProvider(limits).fetch({ url: 'ftp://example.com/x' }))
+    await expect(new HttpFetchProvider(limits).fetch({ url: 'ftp://example.com/x' }, new AbortController().signal))
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_INVALID_URL' }))
     expect(proxied).toEqual([])
   })

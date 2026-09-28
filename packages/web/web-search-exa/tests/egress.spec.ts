@@ -35,6 +35,6 @@ import { ExaSearchProvider } from '../src/provider.ts'
 describe('exa egress', () => {
   it('goes through the proxy', async () => {
     const p = new ExaSearchProvider({ apiKey: 'probe', baseURL: 'http://exa-probe.invalid', searchType: 'auto', highlightsPerResult: 1 })
-    expect(await observe(() => p.search({ query: 'probe' }))).toEqual(['REQ http://exa-probe.invalid/search'])
+    expect(await observe(() => p.search({ query: 'probe' }, new AbortController().signal))).toEqual(['REQ http://exa-probe.invalid/search'])
   })
 })

@@ -70,7 +70,7 @@ async function searchOnce(ctx: Context): Promise<string> {
   const fetchSpy = vi.spyOn(globalThis, 'fetch')
     .mockImplementation(() => Promise.resolve(jsonResponse(ONE_RESULT)))
   fetchSpy.mockClear()
-  await ctx.web.search({ query: 'anything' })
+  await ctx.web.search({ query: 'anything' }, new AbortController().signal)
   return String((fetchSpy.mock.calls.at(-1)?.[0] as URL | string | undefined) ?? '')
 }
 

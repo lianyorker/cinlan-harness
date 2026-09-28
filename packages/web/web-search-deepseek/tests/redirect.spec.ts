@@ -61,7 +61,7 @@ describe('DeepSeekSearchProvider redirect policy', () => {
       maxUses: 1,
     })
 
-    await expect(provider.search({ query: TEST_QUERY }))
+    await expect(provider.search({ query: TEST_QUERY }, new AbortController().signal))
       .rejects.toMatchObject({ code: 'WEB_PROVIDER_ERROR' })
     expect(targetRequests).toHaveLength(0)
   })
