@@ -1,6 +1,6 @@
 # Agent Note: Interactive side sessions and merge-back
 
-Status: proposed
+Status: implemented
 
 English | [中文](2026-07-08-interactive-side-sessions.zh.md)
 
@@ -8,7 +8,7 @@ English | [中文](2026-07-08-interactive-side-sessions.zh.md)
 
 A user may want to explore a question from a live session without changing its main context. Existing primitives do not expose that product shape: [session-store fork](../../archived/feature/2026-06-30-session-store-fork-api.md) creates an unattached session, while [fork subagents](../../implemented/feature/2026-06-21-subagent-capability-seam.md) are model-driven tasks whose transcript collapses into one tool result. Neither gives the user a separate conversation, and neither records a conclusion in the parent together with the side session that produced it.
 
-## Proposal
+## Decision
 
 A **side session** is an ordinary live session forked at the source's last completed turn, attached to its own agent, framed as a read-only advisor, and able to **merge back** one condensed note.
 
@@ -26,7 +26,7 @@ Rewind productization, session-tree views, a model-facing side-session tool, and
 - **Add `sidechat/*` events:** deferred because a sourced `context/message` already records the content, producer, and replay input durably. A dedicated event is justified only by a client that needs distinct rendering.
 - **Bind a protocol API now:** rejected because current UIs are client-owned. Live presentation must eventually derive from the durable message so replay renders the same record.
 
-## Acceptance criteria
+## Verification
 
 - Forking leaves the source untouched and creates a child with the balanced completed-turn prefix, `parentSession`, `isSeeded: true`, the exact `inheritedEventCount`, and a byte-identical system prompt.
 - Advisor framing adds exactly one plugin-sourced `context/message` at the head of the child's appended history, rather than changing its system prompt.
@@ -34,7 +34,7 @@ Rewind productization, session-tree views, a model-facing side-session tool, and
 - Parent and child run concurrently without log or stream cross-talk.
 - Unit tests cover fork/attach and merge-back; snapshot coverage lands with the first bound UI.
 
-## Risks
+## Consequences
 
 - Read-only behavior is advisory until a `tools/pre-execute` deny gate enforces it; [the interception point](../../implemented/feature/2026-06-30-interception-extension-points.md) can add that gate without changing these mechanics.
 - A compacted source forks its compacted view, so a bound UI should disclose that the child inherits summaries rather than replaced turns.

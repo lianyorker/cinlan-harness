@@ -20,6 +20,12 @@ Web 端 `conversation.composer` 链此前仅依据全局单一数值 priority �
 
 `conversation.composer` 链声明 `phases: ['interaction', 'restriction'] as const`。提问与审批注册在 `interaction` 阶段，保留提问优于审批的次序。`SubagentReadOnlyComposer` 注册在 `restriction` 阶段。已有等待优先解决；一旦解决，只读限制重新显现。
 
+## 考虑过的替代方案
+
+**继续使用数值优先级偏移量（如 priority -100）。** 不予采纳，因为数值微调保留了跨无关领域的隐式耦合，无法在结构上保证优先级次序。
+
+**在 `ui-conversation` 中硬编码输入框选择顺序。** 不予采纳，因为输入框由各个独立插件动态注册；插槽框架本身必须负责阶段排序。
+
 ## Consequences
 
 - 语义主导成为结构性约束：交互解决始终先于新工作启动限制，无需脆弱的优先级魔数。

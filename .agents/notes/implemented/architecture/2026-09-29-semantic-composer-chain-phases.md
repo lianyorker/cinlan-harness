@@ -20,6 +20,12 @@ On a phased chain slot, `SlotSpec` and `SlotMap` enforce that every registration
 
 The `conversation.composer` chain declares `phases: ['interaction', 'restriction'] as const`. Question and approval register in `interaction`, retaining question-before-approval precedence. `SubagentReadOnlyComposer` registers in `restriction`. An existing wait resolves first; once resolved, the read-only restriction reappears.
 
+## Alternatives considered
+
+**Continue using numeric priority offsets (e.g. priority -100).** Rejected because numeric tuning preserves hidden coupling across unrelated domains and cannot structurally guarantee precedence.
+
+**Hardcode composer selection order in `ui-conversation`.** Rejected because composers are registered dynamically across independent plugins; the slot framework itself must own phase ordering.
+
 ## Consequences
 
 - Semantic dominance is structural: interaction resolution always precedes work initiation restriction without fragile priority magic numbers.

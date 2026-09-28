@@ -1,6 +1,6 @@
 # Agent Note: Domain KV storage capability seam and the workspace entity
 
-Status: proposed
+Status: implemented
 
 English | [中文](2026-07-24-domain-kv-storage-and-workspace.zh.md)
 
@@ -13,9 +13,9 @@ The host's only persistence surface is the session event log (`packages/session/
 
 Separately, Session deletion needs a `SessionPersistence` delete primitive and a `session.delete` endpoint. That gap's design is settled in this note, but its implementation remains future work.
 
-The later [Workspace registration deletion decision](../../implemented/feature/2026-07-27-workspace-registration-deletion.md) supersedes only that coupling: deleting a Workspace registration preserves its Sessions and their logs, while Session deletion remains separate future work. The cascade design below is therefore not the Workspace GUI delete semantic.
+The later [Workspace registration deletion decision](../feature/2026-07-27-workspace-registration-deletion.md) supersedes only that coupling: deleting a Workspace registration preserves its Sessions and their logs, while Session deletion remains separate future work. The cascade design below is therefore not the Workspace GUI delete semantic.
 
-## Proposal
+## Decision
 
 Create the `packages/storage/` group — the `ctx.storage` hub (backend registry + data-form mounts), two backends, the domain data form — plus the workspace consumer package; extend `SessionPersistence` with a delete primitive.
 
@@ -314,14 +314,14 @@ Snapshots: no model-visible or assembly surface this phase, none added; next pha
 - **Change events carrying the old value**: the repository's change-event convention is "new snapshot + operation discriminant" (the sole exception, fs's before/after, is a method return value rather than an event, because the old value is unrecoverable afterwards and has a diff consumer); consumers needing diffs hold their own previous snapshot.
 - **Delete auto-cancelling a running session**: the persistence/orchestration layer reaching back into the runtime dirties the layering; cancel already exists, callers compose it.
 
-## Acceptance criteria
+## Verification
 
 - This phase's four test suites all green: the shared backend contract suite on both json/sqlite, registry/mount disposer semantics, the domain layer (including the six open steps and fail-loud routing), and full workspace semantics (create/attach checks/consistency doctrine).
 - `ctx.workspaceRegistry` completes the create → attach → list → metadata-only delete lifecycle under a test assembly.
 - Zero diff in the session-persistence packages (the acceptance line for not touching the session side this phase).
 - No new snapshots this phase (no model-visible or assembly surface); added next phase with the RPC wiring.
 
-## Risks
+## Consequences
 
 - **The repository's first push-mode change event on a persistence surface** (session-persistence polls revisions): the shape has the `goal/changed` template, but "the storage layer emits events" is a new precedent, validated only when next phase's RPC consumes it.
 - **The JSON backend's whole-unit rewrite scale premise**: if the second consumer (the session sidecar) lands on the JSON backend at thousand-record scale before being routed to SQLite, the rewrite cost surfaces earlier than expected; the mitigation is exactly `routes` pointing at sqlite.
