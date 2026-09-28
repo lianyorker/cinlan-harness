@@ -91,7 +91,7 @@ export class E2BSubprocessRuntime extends SubprocessRuntime {
       const pending: Promise<unknown>[] = []
       for (const handle of handles) {
         handle.terminate()
-        pending.push(handle.waitForExit().then(async () => {
+        pending.push(handle.waitForExit(new AbortController().signal).then(async () => {
           await handle.done.catch(() => undefined)
           this.live.delete(handle)
         }))
@@ -111,18 +111,18 @@ export class E2BSubprocessRuntime extends SubprocessRuntime {
   /** @inheritdoc */
   async resolveExecutable(
     command: string,
-    env?: Readonly<Record<string, string>>,
-    signal?: AbortSignal,
+    env: Readonly<Record<string, string>> | undefined,
+    signal: AbortSignal,
   ): Promise<string> {
     if (command.length === 0) throw new Error('subprocess-e2b: executable name must be non-empty')
-    signal?.throwIfAborted()
+    signal.throwIfAborted()
     const sandbox = await this.ctx.e2b.getSandbox()
     if (posix.isAbsolute(command)) {
       await sandbox.commands.run(
         `test -f ${quoteE2BShellArg(command)} -a -x ${quoteE2BShellArg(command)}`,
         { envs: e2bControlEnvs(), ...signalOpts(signal) },
       )
-      signal?.throwIfAborted()
+      signal.throwIfAborted()
       return command
     }
     if (command.includes('/')) {
@@ -136,7 +136,7 @@ export class E2BSubprocessRuntime extends SubprocessRuntime {
       `${prefix}command -v -- ${quoteE2BShellArg(command)}`,
       { cwd: this.ctx.e2b.cwd, envs: e2bControlEnvs(), ...signalOpts(signal) },
     ).catch((error: unknown) => {
-      signal?.throwIfAborted()
+      signal.throwIfAborted()
       if (error instanceof CommandExitError && error.exitCode === 1) {
         throw new SubprocessExecutableNotFoundError(
           `subprocess-e2b: command ${JSON.stringify(command)} was not found on PATH`,
@@ -145,7 +145,7 @@ export class E2BSubprocessRuntime extends SubprocessRuntime {
       }
       throw error
     })
-    signal?.throwIfAborted()
+    signal.throwIfAborted()
     const executable = result.stdout.trim()
     if (executable.includes('\n') || (!posix.isAbsolute(executable) && !executable.includes('/'))) {
       throw new Error(`subprocess-e2b: executable ${JSON.stringify(command)} did not resolve to one absolute path`)
@@ -156,8 +156,8 @@ export class E2BSubprocessRuntime extends SubprocessRuntime {
 
   /** @inheritdoc */
   // oxlint-disable-next-line typescript/require-await -- Preserve promise rejection semantics for cancellation.
-  async terminalEnvironment(signal?: AbortSignal): Promise<SubprocessTerminalEnvironment> {
-    signal?.throwIfAborted()
+  async terminalEnvironment(signal: AbortSignal): Promise<SubprocessTerminalEnvironment> {
+    signal.throwIfAborted()
     return { platform: 'posix' }
   }
 
@@ -170,7 +170,7 @@ export class E2BSubprocessRuntime extends SubprocessRuntime {
       throw new Error('invalid argv: expected a non-empty program name at argv[0]')
     }
     requireRepresentableGrace(spec.graceMs)
-    if (spec.signal?.aborted === true) {
+    if (spec.signal.aborted) {
       let reason = 'aborted'
       try {
         reason = String(spec.signal.reason ?? reason)
@@ -192,7 +192,7 @@ export class E2BSubprocessRuntime extends SubprocessRuntime {
     const handle = new E2BSubprocessHandle(this.ctx.e2b, spec, stateDir, this.pollMs)
     this.live.add(handle)
     const release = async (): Promise<void> => {
-      await handle.waitForExit()
+      await handle.waitForExit(new AbortController().signal)
       this.live.delete(handle)
     }
     void handle.done.then(release, release).catch((_automaticReleaseFailure: unknown) => {
@@ -209,13 +209,11 @@ export class E2BSubprocessRuntime extends SubprocessRuntime {
       throw new Error('subprocess-e2b: terminal argv must contain a program')
     }
     requireRepresentableGrace(spec.graceMs)
-    spec.signal?.throwIfAborted()
+    spec.signal.throwIfAborted()
     const stateDir = posix.join(this.ctx.e2b.runtimeRoot, 'terminals', randomUUID())
     const done = Promise.withResolvers<void>()
     const setup: TerminalSetup = { done: done.promise, controller: new AbortController() }
-    const setupSignal = spec.signal === undefined
-      ? setup.controller.signal
-      : AbortSignal.any([spec.signal, setup.controller.signal])
+    const setupSignal = AbortSignal.any([spec.signal, setup.controller.signal])
     this.terminalSetups.add(setup)
     try {
       const terminal = await spawnE2BTerminal(

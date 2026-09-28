@@ -306,6 +306,7 @@ function spec(overrides: Partial<SubprocessSpawnSpec> = {}): SubprocessSpawnSpec
       stderr: { maxBytes: 4 },
     },
     graceMs: 5,
+    signal: new AbortController().signal,
     ...overrides,
   }
 }
@@ -453,7 +454,7 @@ describe('E2BSubprocessHandle', () => {
     expect(piped).toBe('pipe-data')
     expect(handle.collected.stderr!.readFrom(0)).toMatchObject({ text: 'err', lossy: false })
     expect(fake.removed).toContain('/workspace/.dsh-e2b/processes/one/stderr.log')
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('rejects an unrepresentable graceMs before any remote work', () => {
@@ -537,7 +538,7 @@ describe('E2BSubprocessHandle', () => {
     expect(fake.removed).toContain('/runtime/drain-bound/stdout.log')
 
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('releases an inherited-output callback blocked on host backpressure at drain expiry', async () => {
@@ -566,7 +567,7 @@ describe('E2BSubprocessHandle', () => {
       expect(fake.handle.disconnects).toBe(1)
 
       handle.terminate()
-      await expect(handle.waitForExit()).resolves.toBe(true)
+      await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     } finally {
       stdoutWrite.mockRestore()
     }
@@ -628,7 +629,7 @@ describe('E2BSubprocessHandle', () => {
     expect(fake.handle.disconnects).toBe(1)
     fake.alive = false
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('preserves a published nonzero exit code when termination settles the SDK inside the drain grace', async () => {
@@ -642,7 +643,7 @@ describe('E2BSubprocessHandle', () => {
     }
 
     await expect(handle.done).resolves.toEqual({ exitCode: 7, signal: null })
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('rejects an invalid direct-command exit status', async () => {
@@ -652,7 +653,7 @@ describe('E2BSubprocessHandle', () => {
     fake.exitStatus = '999\n'
     await expect(handle.done).rejects.toThrow('invalid exit code')
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('rolls back a published process group before rejecting a monitoring failure', async () => {
@@ -663,7 +664,7 @@ describe('E2BSubprocessHandle', () => {
     await expect(handle.done).rejects.toThrow('status transport failed')
     expect(fake.commandsSeen).toContain('kill -TERM -- -4242')
     expect(fake.alive).toBe(false)
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
 
     const failed = new FakeSandbox()
     failed.statusError = new Error('status transport failed')
@@ -677,7 +678,7 @@ describe('E2BSubprocessHandle', () => {
     expect(failed.alive).toBe(true)
     failed.handle.killError = undefined
     retained.terminate()
-    await expect(retained.waitForExit()).resolves.toBe(true)
+    await expect(retained.waitForExit(new AbortController().signal)).resolves.toBe(true)
 
     // A state-cleanup failure on top preserves the rollback failure instead of
     // re-aggregating only the original monitoring error.
@@ -694,7 +695,7 @@ describe('E2BSubprocessHandle', () => {
     expect(nested.message).toContain('rollback did not reach quiescence')
     triple.handle.killError = undefined
     tripleHandle.terminate()
-    await expect(tripleHandle.waitForExit()).resolves.toBe(true)
+    await expect(tripleHandle.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('surfaces deferred piped-stdin write and close failures as stream errors', async () => {
@@ -790,7 +791,7 @@ describe('E2BSubprocessHandle', () => {
     handle.terminate()
     handle.terminate()
     await expect(handle.done).resolves.toEqual({ exitCode: null, signal: 'SIGTERM' })
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     expect(fake.commandsSeen).toContain('kill -TERM -- -4242')
     expect(fake.commandsSeen).not.toContain('kill -KILL -- -4242')
     const signals = fake.commandsSeen.filter(command => command.startsWith('kill -')).length
@@ -807,7 +808,7 @@ describe('E2BSubprocessHandle', () => {
     await flush()
     fake.finish()
     await expect(handle.done).resolves.toEqual({ exitCode: 0, signal: null })
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
 
     const signals = fake.commandsSeen.filter(command => command.startsWith('kill -')).length
     fake.alive = true
@@ -823,7 +824,7 @@ describe('E2BSubprocessHandle', () => {
     const handle = testHandle(runtime(fake), spec(), '/runtime/zombie-quiescence')
     await flush()
 
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     expect(fake.commandsSeen).toContain(
       'set -o pipefail; ps -eo pgid=,stat= | awk \'$1 == 4242 && $2 !~ /^[ZXx]/ { live=1 } END { if (live) print "live" }\'',
     )
@@ -842,7 +843,7 @@ describe('E2BSubprocessHandle', () => {
     handle.terminate()
     await vi.waitFor(() => { expect(fake.commandsSeen).toContain('kill -TERM -- -4242') })
     fake.alive = false
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
 
     fake.probeError = new Error('post-quiescence probe failed')
     fake.releaseSignals()
@@ -851,7 +852,7 @@ describe('E2BSubprocessHandle', () => {
     await expect(handle.done).resolves.toEqual({ exitCode: 0, signal: null })
     const signals = fake.commandsSeen.filter(command => command.startsWith('kill -')).length
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     expect(fake.commandsSeen.filter(command => command.startsWith('kill -'))).toHaveLength(signals)
   })
 
@@ -863,7 +864,7 @@ describe('E2BSubprocessHandle', () => {
     await flush()
     handle.terminate()
     await expect(handle.done).resolves.toEqual({ exitCode: null, signal: 'SIGKILL' })
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     expect(fake.commandsSeen).toContain('kill -KILL -- -4242')
     expect(fake.handle.kills).toBe(1)
   })
@@ -878,14 +879,14 @@ describe('E2BSubprocessHandle', () => {
     await flush()
     handle.terminate()
     await vi.waitFor(() => { expect(fake.handle.kills).toBe(1) })
-    await expect(handle.waitForExit()).rejects.toThrow('remained live after force termination')
+    await expect(handle.waitForExit(new AbortController().signal)).rejects.toThrow('remained live after force termination')
     expect(fake.alive).toBe(true)
 
     fake.delaysKill = false
     fake.delaysKillCompletion = false
     fake.sdkKillStops = true
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     await expect(handle.done).resolves.toEqual({ exitCode: null, signal: 'SIGKILL' })
   })
 
@@ -920,7 +921,7 @@ describe('E2BSubprocessHandle', () => {
 
     handle.terminate()
     await expect(handle.done).resolves.toEqual({ exitCode: null, signal: 'SIGTERM' })
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     expect(preparationSignal?.aborted).toBe(true)
     expect(fake.startOptions).toBeUndefined()
   })
@@ -935,7 +936,7 @@ describe('E2BSubprocessHandle', () => {
     handle.terminate()
     await vi.waitFor(() => { expect(fake.handle.kills).toBe(1) })
     expect(fake.alive).toBe(false)
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
 
     fake.releaseProcessGroupRead()
     await expect(handle.done).resolves.toEqual({ exitCode: null, signal: 'SIGKILL' })
@@ -954,10 +955,10 @@ describe('E2BSubprocessHandle', () => {
 
     handle.terminate()
     await vi.waitFor(() => { expect(fake.handle.kills).toBe(1) })
-    await expect(handle.waitForExit()).rejects.toThrow('remained live after force termination')
+    await expect(handle.waitForExit(new AbortController().signal)).rejects.toThrow('remained live after force termination')
     fake.alive = false
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     fake.releaseProcessGroupRead()
     fake.finish()
     await handle.done
@@ -983,7 +984,7 @@ describe('E2BSubprocessHandle', () => {
     await expect(waiting).resolves.toBe(false)
 
     reconnect.resolve(fake.sandbox)
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     fake.releaseProcessGroupRead()
     await handle.done
   })
@@ -997,7 +998,7 @@ describe('E2BSubprocessHandle', () => {
     await vi.waitFor(() => { expect(fake.startOptions).toBeDefined() })
 
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     fake.releaseProcessGroupRead()
     await expect(handle.done).resolves.toEqual({ exitCode: null, signal: 'SIGKILL' })
   })
@@ -1011,11 +1012,11 @@ describe('E2BSubprocessHandle', () => {
     await vi.waitFor(() => { expect(fake.startOptions).toBeDefined() })
 
     handle.terminate()
-    await expect(handle.waitForExit()).rejects.toThrow('remained live after force termination')
+    await expect(handle.waitForExit(new AbortController().signal)).rejects.toThrow('remained live after force termination')
 
     fake.handle.killError = undefined
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     fake.releaseProcessGroupRead()
     await handle.done
 
@@ -1030,10 +1031,10 @@ describe('E2BSubprocessHandle', () => {
     )
     await vi.waitFor(() => { expect(absentGroup.startOptions).toBeDefined() })
     absentHandle.terminate()
-    await expect(absentHandle.waitForExit()).rejects.toThrow('remained live after force termination')
+    await expect(absentHandle.waitForExit(new AbortController().signal)).rejects.toThrow('remained live after force termination')
     absentGroup.handle.killError = undefined
     absentHandle.terminate()
-    await expect(absentHandle.waitForExit()).resolves.toBe(true)
+    await expect(absentHandle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     absentGroup.releaseProcessGroupRead()
     await absentHandle.done
 
@@ -1048,9 +1049,9 @@ describe('E2BSubprocessHandle', () => {
     )
     await vi.waitFor(() => { expect(optimisticSdk.startOptions).toBeDefined() })
     optimisticHandle.terminate()
-    await expect(optimisticHandle.waitForExit()).rejects.toThrow('remained live after force termination')
+    await expect(optimisticHandle.waitForExit(new AbortController().signal)).rejects.toThrow('remained live after force termination')
     optimisticHandle.terminate()
-    await expect(optimisticHandle.waitForExit()).resolves.toBe(true)
+    await expect(optimisticHandle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     optimisticSdk.releaseProcessGroupRead()
     await optimisticHandle.done
   })
@@ -1083,7 +1084,7 @@ describe('E2BSubprocessHandle', () => {
     await flush()
     const signaled = fake.commandsSeen.includes('kill -TERM -- -4242')
     if (!signaled) fake.finish()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     expect(signaled).toBe(true)
   })
 
@@ -1164,7 +1165,7 @@ describe('E2BSubprocessHandle', () => {
     await expect(handle.done).rejects.toThrow('start failed')
     expect(fake.removed).toContain('/runtime/fail/environment')
     expect(fake.removed).toContain('/runtime/fail')
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     handle.terminate()
 
     const unavailableHandle = testHandle(
@@ -1173,7 +1174,7 @@ describe('E2BSubprocessHandle', () => {
       '/runtime/unavailable-start',
     )
     await expect(unavailableHandle.done).rejects.toThrow('sandbox unavailable')
-    await expect(unavailableHandle.waitForExit()).resolves.toBe(true)
+    await expect(unavailableHandle.waitForExit(new AbortController().signal)).resolves.toBe(true)
 
     const envFailure = new FakeSandbox()
     envFailure.envError = new Error('ambient lookup failed')
@@ -1246,7 +1247,7 @@ describe('E2BSubprocessHandle', () => {
     })
     const handle = testHandle(unavailable, spec(), '/runtime/unavailable')
     await flush()
-    await expect(handle.waitForExit()).rejects.toThrow('connection unavailable')
+    await expect(handle.waitForExit(new AbortController().signal)).rejects.toThrow('connection unavailable')
     fake.finish()
     await handle.done
   })
@@ -1279,7 +1280,7 @@ describe('E2BSubprocessHandle', () => {
     controller.abort()
     await expect(handle.waitForExit(controller.signal)).resolves.toBe(false)
     fake.probeError = new Error('probe failed')
-    await expect(handle.waitForExit()).rejects.toThrow('probe failed')
+    await expect(handle.waitForExit(new AbortController().signal)).rejects.toThrow('probe failed')
     fake.finish()
     await handle.done
   })
@@ -1292,7 +1293,7 @@ describe('E2BSubprocessHandle', () => {
     await handle.done
     fake.probeError = new SandboxNotFoundError('sandbox expired')
 
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('treats a missing sandbox handle as quiescent during liveness acquisition', async () => {
@@ -1305,7 +1306,7 @@ describe('E2BSubprocessHandle', () => {
     }), spec(), '/runtime/expired-acquisition')
     await flush()
 
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     await fake.completeOutput()
     fake.alive = false
     fake.handle.succeed(0)
@@ -1324,7 +1325,7 @@ describe('E2BSubprocessHandle', () => {
     await fake.completeOutput()
 
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     fake.alive = false
     fake.handle.succeed(0)
     await handle.done
@@ -1348,17 +1349,17 @@ describe('E2BSubprocessHandle', () => {
     await expect(invalid.done).rejects.toThrow(/invalid command pid 0/)
     expect(invalidPid.handle.kills).toBe(1)
     expect(invalidPid.removed).toContain('/runtime/invalid-pid/environment')
-    await expect(invalid.waitForExit()).resolves.toBe(true)
+    await expect(invalid.waitForExit(new AbortController().signal)).resolves.toBe(true)
 
     const failedRollback = new FakeSandbox()
     failedRollback.handle.pid = 0
     failedRollback.handle.killError = new Error('invalid handle kill failed')
     const retained = testHandle(runtime(failedRollback), spec(), '/runtime/invalid-pid-retained')
     await expect(retained.done).rejects.toThrow('invalid command pid rollback did not reach quiescence')
-    await expect(retained.waitForExit()).rejects.toThrow('invalid handle kill failed')
+    await expect(retained.waitForExit(new AbortController().signal)).rejects.toThrow('invalid handle kill failed')
     failedRollback.handle.killError = undefined
     retained.terminate()
-    await expect(retained.waitForExit()).resolves.toBe(true)
+    await expect(retained.waitForExit(new AbortController().signal)).resolves.toBe(true)
 
     const crashedFake = new FakeSandbox()
     const crashed = testHandle(runtime(crashedFake), spec(), '/runtime/crashed')
@@ -1378,7 +1379,7 @@ describe('E2BSubprocessHandle', () => {
     await expect(invalid.done).rejects.toThrow(/invalid process-group id/)
     expect(invalidGroup.handle.kills).toBe(1)
     expect(invalidGroup.commandsSeen).toContain('kill -KILL -- -4242')
-    await expect(invalid.waitForExit()).resolves.toBe(true)
+    await expect(invalid.waitForExit(new AbortController().signal)).resolves.toBe(true)
 
     // A rewritten pid file must not aim the kill at every process (`-- -1`).
     const unsafeGroup = new FakeSandbox()
@@ -1389,7 +1390,7 @@ describe('E2BSubprocessHandle', () => {
     const unsafe = testHandle(runtime(unsafeGroup), spec(), '/runtime/unsafe-group')
     await expect(unsafe.done).rejects.toThrow(/unsafe published process-group id 1/)
     expect(unsafeGroup.commandsSeen).not.toContain('kill -KILL -- -1')
-    await expect(unsafe.waitForExit()).resolves.toBe(true)
+    await expect(unsafe.waitForExit(new AbortController().signal)).resolves.toBe(true)
 
     const absentGroup = new FakeSandbox()
     absentGroup.processGroupId = ''
@@ -1399,7 +1400,7 @@ describe('E2BSubprocessHandle', () => {
     await expect(absent.done).rejects.toThrow(/exited before publishing/)
     expect(absentGroup.handle.kills).toBe(1)
     expect(absentGroup.commandsSeen).toContain('kill -KILL -- -4242')
-    await expect(absent.waitForExit()).resolves.toBe(true)
+    await expect(absent.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('keeps polling while a running command has not published its process group yet', async () => {
@@ -1410,7 +1411,7 @@ describe('E2BSubprocessHandle', () => {
     await vi.waitFor(() => { expect(fake.processGroupReads).toEqual([]) })
     fake.finish()
     await expect(handle.done).resolves.toEqual({ exitCode: 0, signal: null })
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('preserves publication failure and reports cleanup that cannot be verified', async () => {
@@ -1442,7 +1443,7 @@ describe('E2BSubprocessHandle', () => {
     bounded.abort()
     await expect(waiting).resolves.toBe(false)
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     expect(fake.commandsSeen).toContain('kill -TERM -- -4242')
 
     const naturallyGone = new FakeSandbox()
@@ -1452,7 +1453,7 @@ describe('E2BSubprocessHandle', () => {
     const observed = testHandle(runtime(naturallyGone), spec(), '/runtime/failed-rollback-observed')
     await expect(observed.done).rejects.toThrow('process-group publication failed')
     naturallyGone.alive = false
-    await expect(observed.waitForExit()).resolves.toBe(true)
+    await expect(observed.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('handles output backpressure and contains a stderr sink failure', async () => {
@@ -1575,7 +1576,7 @@ describe('E2BSubprocessHandle', () => {
     await flush()
 
     handle.terminate()
-    await expect(handle.waitForExit()).rejects.toThrow('remained live after force termination')
+    await expect(handle.waitForExit(new AbortController().signal)).rejects.toThrow('remained live after force termination')
     fake.handle.killError = undefined
     handle.terminate()
     await expect(handle.done).resolves.toEqual({ exitCode: null, signal: 'SIGTERM' })
@@ -1588,10 +1589,10 @@ describe('E2BSubprocessHandle', () => {
     const raced = testHandle(runtime(missingGroup), spec({ graceMs: 1 }), '/runtime/group-exit-race')
     await flush()
     raced.terminate()
-    await expect(raced.waitForExit()).rejects.toThrow('remained live after force termination')
+    await expect(raced.waitForExit(new AbortController().signal)).rejects.toThrow('remained live after force termination')
     missingGroup.handle.killError = undefined
     raced.terminate()
-    await expect(raced.waitForExit()).resolves.toBe(true)
+    await expect(raced.waitForExit(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('rejects an optimistic SDK kill while descendants survive a failed group KILL', async () => {
@@ -1603,12 +1604,12 @@ describe('E2BSubprocessHandle', () => {
     await flush()
 
     handle.terminate()
-    await expect(handle.waitForExit()).rejects.toThrow('remained live after force termination')
+    await expect(handle.waitForExit(new AbortController().signal)).rejects.toThrow('remained live after force termination')
     expect(fake.alive).toBe(true)
 
     fake.sdkKillStops = true
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     await expect(handle.done).resolves.toEqual({ exitCode: null, signal: 'SIGKILL' })
   })
 })
@@ -1662,11 +1663,11 @@ describe('E2BSubprocessRuntime', () => {
     await flush()
 
     await expect(fiber.dispose()).resolves.toBeUndefined()
-    await expect(handle.waitForExit()).rejects.toThrow('remained live after force termination')
+    await expect(handle.waitForExit(new AbortController().signal)).rejects.toThrow('remained live after force termination')
 
     fake.handle.killError = undefined
     handle.terminate()
-    await expect(handle.waitForExit()).resolves.toBe(true)
+    await expect(handle.waitForExit(new AbortController().signal)).resolves.toBe(true)
     await expect(handle.done).resolves.toEqual({ exitCode: null, signal: 'SIGTERM' })
   })
 

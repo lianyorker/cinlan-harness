@@ -302,14 +302,14 @@ Implementations must honor these semantics:
  * @param signal - aborts remote or local lookup.
  * @returns a canonical executable path.
  */
-abstract resolveExecutable( command: string, env?: Readonly<Record<string, string>>, signal?: AbortSignal, ): Promise<string>
+abstract resolveExecutable( command: string, env: Readonly<Record<string, string>> | undefined, signal: AbortSignal, ): Promise<string>
 
 /**
  * Inspect shell-selection facts in the provider's execution environment.
  * @param signal - cancellation of remote environment inspection.
  * @returns platform and preferred shell; executable lookup and allocation remain separate operations.
  */
-abstract terminalEnvironment(signal?: AbortSignal): Promise<SubprocessTerminalEnvironment>
+abstract terminalEnvironment(signal: AbortSignal): Promise<SubprocessTerminalEnvironment>
 
 /**
  * Start one managed child process from a fully-specified spec; this seam

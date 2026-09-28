@@ -140,8 +140,7 @@ function commandText(spec: SubprocessSpawnSpec, paths: RemotePaths): string {
 
 const WAIT_ABORTED = Symbol('wait aborted')
 
-function waitWithSignal<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T | typeof WAIT_ABORTED> {
-  if (signal === undefined) return promise
+function waitWithSignal<T>(promise: Promise<T>, signal: AbortSignal): Promise<T | typeof WAIT_ABORTED> {
   if (signal.aborted) return Promise.resolve(WAIT_ABORTED)
   return new Promise<T | typeof WAIT_ABORTED>((resolve) => {
     const onAbort = (): void => { cleanup(); resolve(WAIT_ABORTED) }
@@ -220,10 +219,10 @@ export class E2BSubprocessHandle implements SubprocessHandle {
     }
     this.stdin = spec.stdio.stdin === 'pipe' ? new DeferredStdin(this.readyState.promise) : undefined
     void this.readyState.promise.catch(() => {})
-    spec.signal?.addEventListener('abort', this.onAbort, { once: true })
+    spec.signal.addEventListener('abort', this.onAbort, { once: true })
     this.done = this.run()
     void this.done.catch(() => {})
-    if (spec.signal?.aborted === true) this.terminate()
+    if (spec.signal.aborted) this.terminate()
   }
 
   /** @inheritdoc */
@@ -245,7 +244,7 @@ export class E2BSubprocessHandle implements SubprocessHandle {
   }
 
   /** @inheritdoc */
-  async waitForExit(signal?: AbortSignal): Promise<boolean> {
+  async waitForExit(signal: AbortSignal): Promise<boolean> {
     if (this.quiescenceProven) return true
     let handle: CommandHandle | undefined
     if (this.terminationController.signal.aborted) {
@@ -282,7 +281,7 @@ export class E2BSubprocessHandle implements SubprocessHandle {
     try {
       sandbox = await this.runtime.getSandbox()
     } catch (error: unknown) {
-      if (signal?.aborted === true) return false
+      if (signal.aborted) return false
       if (error instanceof SandboxNotFoundError) {
         this.markQuiescent()
         return true
@@ -295,7 +294,7 @@ export class E2BSubprocessHandle implements SubprocessHandle {
       if (!await waitTick(this.pollMs, signal)) return false
     }
     this.throwTerminationFailure()
-    if (signal?.aborted === true) return false
+    if (signal.aborted) return false
     this.markQuiescent()
     return true
   }
@@ -384,7 +383,7 @@ export class E2BSubprocessHandle implements SubprocessHandle {
       if (canceledPreparation && failure === error) return { exitCode: null, signal: 'SIGTERM' }
       throw failure
     } finally {
-      this.spec.signal?.removeEventListener('abort', this.onAbort)
+      this.spec.signal.removeEventListener('abort', this.onAbort)
       this.stdout?.end()
       this.stderr?.end()
     }
@@ -558,7 +557,7 @@ export class E2BSubprocessHandle implements SubprocessHandle {
     if (this.remoteProcessGroupId === undefined || this.quiescenceProven) return error
     this.terminate()
     try {
-      await this.waitForExit()
+      await this.waitForExit(new AbortController().signal)
       return error
     } catch (cleanupError: unknown) {
       return new AggregateError(

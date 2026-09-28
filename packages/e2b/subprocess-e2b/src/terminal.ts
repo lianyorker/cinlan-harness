@@ -476,7 +476,7 @@ export async function spawnE2BTerminal(
   pollMs: number,
 ): Promise<E2BTerminalHandle> {
   const sandbox = await runtime.getSandbox()
-  spec.signal?.throwIfAborted()
+  spec.signal.throwIfAborted()
   const paths: TerminalPaths = {
     runner: posix.join(stateDir, 'runner.bash'),
     environment: posix.join(stateDir, 'environment'),
@@ -521,7 +521,7 @@ export async function spawnE2BTerminal(
     })
     completion = handle.wait()
     void completion.catch(() => {})
-    spec.signal?.throwIfAborted()
+    spec.signal.throwIfAborted()
     if (!Number.isSafeInteger(handle.pid) || handle.pid <= 0) {
       throw new Error(`subprocess-e2b: E2B returned invalid terminal pid ${handle.pid}`)
     }

@@ -244,6 +244,7 @@ function spec(overrides: Partial<SubprocessTerminalSpawnSpec> = {}): SubprocessT
     terminalType: 'dumb',
     graceMs: 5,
     env: { TERM: 'dumb', DSH_SESSION_ID: 'owner', TOKEN_EXPLICIT: 'kept' },
+    signal: new AbortController().signal,
     ...overrides,
   }
 }
@@ -789,11 +790,11 @@ describe('E2B subprocess terminal service', () => {
 
   it('resolves remote executables', async () => {
     const { ctx, fake } = await service()
-    await expect(ctx.subprocess.resolveExecutable('/bin/bash')).resolves.toBe('/bin/bash')
+    await expect(ctx.subprocess.resolveExecutable('/bin/bash', undefined, new AbortController().signal)).resolves.toBe('/bin/bash')
     await expect(ctx.subprocess.resolveExecutable('node', { PATH: '/custom/bin' }, new AbortController().signal))
       .resolves.toBe('/usr/bin/node')
     fake.resolvedExecutable = 'tools/bin/node\n'
-    await expect(ctx.subprocess.resolveExecutable('node', { PATH: 'tools/bin' }))
+    await expect(ctx.subprocess.resolveExecutable('node', { PATH: 'tools/bin' }, new AbortController().signal))
       .resolves.toBe('/workspace/tools/bin/node')
     const commandOptions = fake.commandOptions.at(-1)
     expect(commandOptions).toMatchObject({ cwd: '/workspace' })
@@ -807,17 +808,17 @@ describe('E2B subprocess terminal service', () => {
     try {
       const missing = commandError(1)
       fake.commandFailure = missing
-      await expect(ctx.subprocess.resolveExecutable('missing-tool')).rejects.toMatchObject({
+      await expect(ctx.subprocess.resolveExecutable('missing-tool', undefined, new AbortController().signal)).rejects.toMatchObject({
         name: 'SubprocessExecutableNotFoundError', cause: missing,
       })
       fake.commandFailure = missing
-      await expect(ctx.subprocess.resolveExecutable('missing-tool')).rejects.toBeInstanceOf(SubprocessExecutableNotFoundError)
+      await expect(ctx.subprocess.resolveExecutable('missing-tool', undefined, new AbortController().signal)).rejects.toBeInstanceOf(SubprocessExecutableNotFoundError)
       for (const failure of [commandError(2), new Error('transport unavailable'), new DOMException('cancelled', 'AbortError')]) {
         fake.commandFailure = failure
-        await expect(ctx.subprocess.resolveExecutable('node')).rejects.toBe(failure)
+        await expect(ctx.subprocess.resolveExecutable('node', undefined, new AbortController().signal)).rejects.toBe(failure)
       }
       fake.commandFailure = missing
-      await expect(ctx.subprocess.resolveExecutable('/missing/tool')).rejects.toBe(missing)
+      await expect(ctx.subprocess.resolveExecutable('/missing/tool', undefined, new AbortController().signal)).rejects.toBe(missing)
       const aborted = new Error('caller stopped lookup')
       await expect(ctx.subprocess.resolveExecutable('node', undefined, AbortSignal.abort(aborted))).rejects.toBe(aborted)
     } finally {
@@ -827,15 +828,15 @@ describe('E2B subprocess terminal service', () => {
 
   it('rejects invalid executable lookup inputs and results', async () => {
     const { ctx, fake } = await service()
-    await expect(ctx.subprocess.resolveExecutable('')).rejects.toThrow('non-empty')
-    await expect(ctx.subprocess.resolveExecutable('./bin/server')).rejects.toThrow('is a relative path')
-    await expect(ctx.subprocess.resolveExecutable('node_modules/.bin/server')).rejects.toThrow('is a relative path')
+    await expect(ctx.subprocess.resolveExecutable('', undefined, new AbortController().signal)).rejects.toThrow('non-empty')
+    await expect(ctx.subprocess.resolveExecutable('./bin/server', undefined, new AbortController().signal)).rejects.toThrow('is a relative path')
+    await expect(ctx.subprocess.resolveExecutable('node_modules/.bin/server', undefined, new AbortController().signal)).rejects.toThrow('is a relative path')
     await expect(ctx.subprocess.resolveExecutable('node', undefined, AbortSignal.abort(new Error('stop'))))
       .rejects.toThrow('stop')
     fake.resolvedExecutable = 'node\n'
-    await expect(ctx.subprocess.resolveExecutable('node')).rejects.toThrow('did not resolve')
+    await expect(ctx.subprocess.resolveExecutable('node', undefined, new AbortController().signal)).rejects.toThrow('did not resolve')
     fake.resolvedExecutable = '/one\n/two\n'
-    await expect(ctx.subprocess.resolveExecutable('node')).rejects.toThrow('did not resolve')
+    await expect(ctx.subprocess.resolveExecutable('node', undefined, new AbortController().signal)).rejects.toThrow('did not resolve')
   })
 
   it('rejects a non-positive poll cadence at load', async () => {
