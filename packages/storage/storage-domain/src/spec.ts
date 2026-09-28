@@ -70,6 +70,15 @@ export interface DomainSpec {
   readonly global?: DomainGlobalSpec<unknown>
   /** Table declarations keyed by table name; each name must match `UNIT_NAME_RE`. */
   readonly tables: Record<string, DomainTableSpec>
+  /**
+   * Medium failure recovery policy.
+   * - `'reject'` (the default): version-mismatch, malformed-medium, or schema-invalid
+   *   records fail loud; required for authoritative data like workspaces.
+   * - `'reset'`: damage-class errors (`version-mismatch`, `malformed-medium`, or `invalid-record`)
+   *   log a warning, destroy the medium via the backend's destroy primitive, and open an empty unit.
+   *   Suitable for disposable derived data rebuildable from session logs.
+   */
+  readonly recovery?: 'reject' | 'reset'
 }
 
 /** Key type of one declared table, recovered from its phantom carrier. */

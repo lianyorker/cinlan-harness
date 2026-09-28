@@ -161,6 +161,7 @@ function selectiveFailureBackend(
           close: () => unit.close(),
         }
       },
+      destroy: descriptor => inner.kv.destroy(descriptor),
     },
     close: () => inner.close(),
   }

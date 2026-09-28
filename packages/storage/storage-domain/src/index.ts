@@ -9,7 +9,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { storageBackendServiceKey } from '@deepseek-ai/dsh-storage'
+import { StorageError, storageBackendServiceKey } from '@deepseek-ai/dsh-storage'
 import { DomainError } from './error.ts'
 import { descriptorOf } from './spec.ts'
 import type { DomainSpec } from './spec.ts'
@@ -108,62 +108,79 @@ export class DomainFacility {
     try {
       const backendName = this.config.routes?.[spec.name] ?? this.config.backend
       const backend = this.ctx.storage.backend.get(backendName)
-      if (!backend.kv) {
+      const kv = backend.kv
+      if (kv === undefined) {
         throw new DomainError(
           'facet-unsupported',
           `backend '${backendName}' routed for domain '${spec.name}' has no kv facet`,
         )
       }
-      const unit = await backend.kv.open(descriptorOf(spec))
-      try {
-        const snapshot = await unit.loadAll()
-        const tables = new Map<string, Map<string, unknown>>()
-        for (const [table, tableSpec] of Object.entries(spec.tables)) {
-          const records = new Map<string, unknown>()
-          for (const [key, raw] of Object.entries(snapshot.tables[table] ?? {})) {
-            let parsed: unknown
-            try {
-              parsed = parseRecord(spec.name, table, key, () => tableSpec.valueSchema.parse(raw))
-            } catch (error) {
-              // Backup-and-skip policy (disposable derived data): move the record's
-              // document aside, log the concrete failure, and open without the
-              // record. Backends that cannot move a document keep the loud path.
-              if (spec.invalidRecords !== 'backup-and-skip' || unit.backupRecord === undefined) throw error
-              const moved = await unit.backupRecord(table, key)
-              // parseRecord always wraps the zod failure as the cause.
-              this.ctx.logger.error(
-                `domain '${spec.name}': stored record '${key}' in table '${table}' failed schema validation; `
-                + `moved to '${moved}' and treated as absent. Cause: ${String((error as DomainError).cause)}`,
-              )
-              continue
+
+      const openAttempt = async (): Promise<Domain<S>> => {
+        const unit = await kv.open(descriptorOf(spec))
+        try {
+          const snapshot = await unit.loadAll()
+          const tables = new Map<string, Map<string, unknown>>()
+          for (const [table, tableSpec] of Object.entries(spec.tables)) {
+            const records = new Map<string, unknown>()
+            for (const [key, raw] of Object.entries(snapshot.tables[table] ?? {})) {
+              let parsed: unknown
+              try {
+                parsed = parseRecord(spec.name, table, key, () => tableSpec.valueSchema.parse(raw))
+              } catch (error) {
+                // Backup-and-skip policy (disposable derived data): move the record's
+                // document aside, log the concrete failure, and open without the
+                // record. Backends that cannot move a document keep the loud path.
+                if (spec.invalidRecords !== 'backup-and-skip' || unit.backupRecord === undefined) throw error
+                const moved = await unit.backupRecord(table, key)
+                // parseRecord always wraps the zod failure as the cause.
+                this.ctx.logger.error(
+                  `domain '${spec.name}': stored record '${key}' in table '${table}' failed schema validation; `
+                  + `moved to '${moved}' and treated as absent. Cause: ${String((error as DomainError).cause)}`,
+                )
+                continue
+              }
+              records.set(key, parsed)
             }
-            records.set(key, parsed)
+            tables.set(table, records)
           }
-          tables.set(table, records)
+          // A null stored global means "never written": serve `initial` without
+          // materializing it — the first `set` writes.
+          const globalSpec = spec.global
+          const globalValue = globalSpec === undefined
+            ? undefined
+            : snapshot.global === null
+              ? globalSpec.initial
+              : parseRecord(spec.name, '', '', () => globalSpec.schema.parse(snapshot.global))
+          // The onClosed hook runs strictly after teardown completes: writes
+          // landing during the drain still emit domain/changed, and the domain
+          // stays resolvable (the package invariant cross-checks each event)
+          // until fully closed — only then does the name free up for reopening.
+          const domain: DomainImpl = new DomainImpl(this.ctx, spec, unit, tables, globalValue, () => {
+            this.domains.delete(spec.name)
+            this.reserved.delete(spec.name)
+          })
+          this.domains.set(spec.name, domain)
+          // The single type-erasure point: DomainImpl is the untyped runtime,
+          // Domain<S> the spec-typed view; the unknown hop is required because
+          // S's conditional global-handle type stays unresolved here.
+          return domain as unknown as Domain<S>
+        } catch (error) {
+          await unit.close()
+          throw error
         }
-        // A null stored global means "never written": serve `initial` without
-        // materializing it — the first `set` writes.
-        const globalSpec = spec.global
-        const globalValue = globalSpec === undefined
-          ? undefined
-          : snapshot.global === null
-            ? globalSpec.initial
-            : parseRecord(spec.name, '', '', () => globalSpec.schema.parse(snapshot.global))
-        // The onClosed hook runs strictly after teardown completes: writes
-        // landing during the drain still emit domain/changed, and the domain
-        // stays resolvable (the package invariant cross-checks each event)
-        // until fully closed — only then does the name free up for reopening.
-        const domain: DomainImpl = new DomainImpl(this.ctx, spec, unit, tables, globalValue, () => {
-          this.domains.delete(spec.name)
-          this.reserved.delete(spec.name)
-        })
-        this.domains.set(spec.name, domain)
-        // The single type-erasure point: DomainImpl is the untyped runtime,
-        // Domain<S> the spec-typed view; the unknown hop is required because
-        // S's conditional global-handle type stays unresolved here.
-        return domain as unknown as Domain<S>
+      }
+
+      try {
+        return await openAttempt()
       } catch (error) {
-        await unit.close()
+        if (spec.recovery === 'reset' && isDamageClassError(error)) {
+          this.ctx.logger.warn(
+            `domain '${spec.name}': discarded damaged medium and reset to empty state. Cause: ${String(error)}`,
+          )
+          await kv.destroy(descriptorOf(spec))
+          return await openAttempt()
+        }
         throw error
       }
     } catch (error) {
@@ -194,6 +211,25 @@ export class DomainFacility {
   async closeAll(): Promise<void> {
     await Promise.all([...this.domains.values()].map(domain => domain.close()))
   }
+}
+
+/** Match deterministic medium damage errors eligible for reset. */
+function isDamageClassError(error: unknown): boolean {
+  if (
+    error instanceof StorageError
+    || (typeof error === 'object' && error !== null && 'name' in error && (error as { name: string }).name === 'StorageError')
+  ) {
+    const code = (error as StorageError).code
+    return code === 'version-mismatch' || code === 'malformed-medium'
+  }
+  if (
+    error instanceof DomainError
+    || (typeof error === 'object' && error !== null && 'name' in error && (error as { name: string }).name === 'DomainError')
+  ) {
+    const code = (error as DomainError).code
+    return code === 'invalid-record'
+  }
+  return false
 }
 
 /** Run one zod parse, translating failure to `invalid-record` with its location. */

@@ -43,6 +43,17 @@ export interface KvFacet {
    * @returns the opened unit.
    */
   open(descriptor: KvUnitDescriptor): Promise<KvUnit>
+
+  /**
+   * Remove one unit's medium entirely.
+   * JSON backend: unlinks `<root>/<unit>.json` (or recursively deletes `<root>/<unit>/` if per-record).
+   * SQLite backend: drops all tables matching `u_<unit>_*` and deletes from `units` and `unit_globals`.
+   * Idempotent; resolves without error if the unit does not exist on disk.
+   * Fails with `StorageError('closed')` if the backend is closed.
+   * If the unit is currently open, rejects.
+   * @param descriptor - Static identity and shape of the unit to destroy.
+   */
+  destroy(descriptor: KvUnitDescriptor): Promise<void>
 }
 
 /** Static identity and shape of one KV unit, projected from its owner's spec. */

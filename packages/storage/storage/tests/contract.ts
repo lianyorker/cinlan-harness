@@ -145,5 +145,32 @@ export function runKvBackendContract(label: string, create: () => Promise<KvBack
       await backend.close()
       await backend.close()
     })
+
+    it('destroys a unit medium completely so next open serves empty tables', async () => {
+      const { backend } = await create()
+      const unit = await backend.kv!.open(DESCRIPTOR)
+      await unit.putRecord('alpha', 'k', { v: 1 })
+      await unit.setGlobal({ flag: true })
+      await unit.close()
+      await backend.kv!.destroy(DESCRIPTOR)
+      const unit2 = await backend.kv!.open(DESCRIPTOR)
+      expect(await unit2.loadAll()).toEqual({ tables: { alpha: {}, beta: {} }, global: null })
+      await unit2.close()
+      await backend.close()
+    })
+
+    it('destroy is idempotent on non-existent units', async () => {
+      const { backend } = await create()
+      await expect(backend.kv!.destroy(DESCRIPTOR)).resolves.toBeUndefined()
+      await backend.close()
+    })
+
+    it('destroy rejects if the unit is currently open', async () => {
+      const { backend } = await create()
+      const unit = await backend.kv!.open(DESCRIPTOR)
+      await expect(backend.kv!.destroy(DESCRIPTOR)).rejects.toThrow()
+      await unit.close()
+      await backend.close()
+    })
   })
 }
