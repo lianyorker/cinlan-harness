@@ -49,7 +49,7 @@ export interface ShellExecRequest {
    */
   stdoutMaxBytes?: number | undefined
   /** Abort signal — implementations kill the command when it fires. */
-  signal?: AbortSignal | undefined
+  signal: AbortSignal
   /**
    * Bytes to write to the command's stdin, then close it. Absent leaves stdin
    * closed/empty (the default for model-driven tool calls). Set by in-process
@@ -93,7 +93,7 @@ export interface ShellExecSpec {
    */
   stdoutMaxBytes: number
   /** Abort signal — implementations kill the command when it fires. */
-  signal?: AbortSignal | undefined
+  signal: AbortSignal
   /** Bytes to write to stdin before closing it; absent means no stdin. */
   stdin?: string | undefined
   /**

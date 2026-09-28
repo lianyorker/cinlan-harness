@@ -206,7 +206,7 @@ export class PwshLocalExecutor extends ShellExecutor {
       workdir: request.workdir ?? this.config.cwd ?? process.cwd(),
       timeoutMs,
       stdoutMaxBytes,
-      ...request.signal ? { signal: request.signal } : {},
+      signal: request.signal,
       ...request.stdin !== undefined ? { stdin: request.stdin } : {},
       ...request.env !== undefined ? { env: request.env } : {},
       ...request.dshEnv !== undefined ? { dshEnv: request.dshEnv } : {},
@@ -228,7 +228,7 @@ export class PwshLocalExecutor extends ShellExecutor {
   private spawnSpec(
     spec: ShellExecSpec,
     stdoutMaxBytes: number,
-    signal: AbortSignal | undefined,
+    signal: AbortSignal,
     argv: readonly string[],
   ): SubprocessSpawnSpec {
     const collect = (maxBytes: number): SubprocessCollect =>
@@ -293,7 +293,7 @@ export class PwshLocalExecutor extends ShellExecutor {
     const handle = this.ctx.subprocess.spawn(this.spawnSpec(spec, spec.stdoutMaxBytes, d.signal, argv))
     const outcome = await handle.done.catch(async (error: unknown) => {
       if (!d.signal.aborted || error !== d.signal.reason) throw error
-      await handle.waitForExit()
+      await handle.waitForExit(d.signal)
       return { exitCode: null, signal: null }
     })
     const collected = PwshLocalExecutor.collected(handle)
@@ -320,7 +320,7 @@ export class PwshLocalExecutor extends ShellExecutor {
   /** Background start of an exact argv (the confining subclass re-wraps it). */
   protected startArgv(spec: ShellExecSpec, argv: readonly string[]): ShellProcess {
     // Background runs ignore timeoutMs; callers stop them through kill() or spec.signal.
-    spec.signal?.throwIfAborted()
+    spec.signal.throwIfAborted()
     const running = this.ctx.subprocess.spawn(this.spawnSpec(spec, this.config.maxOutputBytes, spec.signal, argv))
     const collected = PwshLocalExecutor.collected(running)
 
@@ -342,7 +342,7 @@ export class PwshLocalExecutor extends ShellExecutor {
       done: running.done.then((outcome) => {
         // Any signal termination is killed, including a command signaling itself.
         if (proc.status === 'running') {
-          proc.status = spec.signal?.aborted === true || outcome.signal !== null ? 'killed' : 'completed'
+          proc.status = spec.signal.aborted || outcome.signal !== null ? 'killed' : 'completed'
         }
         proc.exitCode = outcome.exitCode
         proc.signal = outcome.signal
@@ -358,7 +358,7 @@ export class PwshLocalExecutor extends ShellExecutor {
         }
         providerFailureNote = `subprocess failed before reporting an outcome: ${detail}`
         this.onProcessDone(proc, providerFailureNote, true, error)
-        await running.waitForExit()
+        await running.waitForExit(spec.signal)
       }),
       readOutput: (): ShellProcessRead => {
         const out = collected.stdout.readFrom(stdoutOffset)

@@ -112,7 +112,7 @@ export class SandboxPwshExecutor extends PwshLocalExecutor {
       }))
     } catch (error) {
       // An upstream abort remains cancellation even when it prevents spawn.
-      if (spec.signal?.aborted === true) spec.signal.throwIfAborted()
+      if (spec.signal.aborted) spec.signal.throwIfAborted()
       if (confined !== undefined && isRunnerSpawnFailure(error, confined.argv[0], spec.workdir)) {
         throw new SandboxUnavailableError(mode, String(error))
       }
@@ -135,7 +135,7 @@ export class SandboxPwshExecutor extends PwshLocalExecutor {
     const { mode } = policy
     if (mode === 'danger-full-access') return super.start(spec)
     const confined = await this.confine(spec, { ...policy, mode }, spec.signal)
-    spec.signal?.throwIfAborted()
+    spec.signal.throwIfAborted()
     let proc: ShellProcess
     try {
       proc = this.startArgv(spec, confined.argv)

@@ -166,11 +166,11 @@ describe.each(['bash', 'pwsh'] as const)('%s asynchronous preparation', (dialect
     await test.entered.promise
     test.prepared.resolve(test.wrap)
     const spawn = await test.spawned.promise
-    spawn.signal!.removeEventListener('abort', test.terminate)
+    spawn.signal.removeEventListener('abort', test.terminate)
     if (cause === 'timeout') await vi.advanceTimersByTimeAsync(10)
     else controller.abort(new Error('caller cancellation during native startup'))
     expect(run.observed.done).toBe(false)
-    test.completion.reject(spawn.signal!.reason)
+    test.completion.reject(spawn.signal.reason)
     await test.joined.promise
     expect(test.waitForExit).toHaveBeenCalledOnce()
     expect(run.observed.done).toBe(false)
@@ -186,9 +186,9 @@ describe.each(['bash', 'pwsh'] as const)('%s asynchronous preparation', (dialect
     await test.entered.promise
     test.prepared.resolve(test.wrap)
     const spawn = await test.spawned.promise
-    spawn.signal!.removeEventListener('abort', test.terminate)
+    spawn.signal.removeEventListener('abort', test.terminate)
     await vi.advanceTimersByTimeAsync(10)
-    test.completion.reject(spawn.signal!.reason)
+    test.completion.reject(spawn.signal.reason)
     await test.joined.promise
     const failure = new Error('managed range observation failed')
     test.rangeExit.reject(failure)
@@ -201,7 +201,7 @@ describe.each(['bash', 'pwsh'] as const)('%s asynchronous preparation', (dialect
     await test.entered.promise
     test.prepared.resolve(test.wrap)
     const spawn = await test.spawned.promise
-    spawn.signal!.removeEventListener('abort', test.terminate)
+    spawn.signal.removeEventListener('abort', test.terminate)
     await vi.advanceTimersByTimeAsync(10)
     const failure = new Error('independent provider failure')
     test.completion.reject(failure)

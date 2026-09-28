@@ -159,7 +159,7 @@ export class LocalBashExecutor extends ShellExecutor {
       workdir: request.workdir ?? this.config.cwd ?? process.cwd(),
       timeoutMs,
       stdoutMaxBytes,
-      ...request.signal ? { signal: request.signal } : {},
+      signal: request.signal,
       // Carry stdin/ordinary env/trusted dshEnv through verbatim — optional,
       // no config default. The subprocess service owns the scrub and merge order.
       ...request.stdin !== undefined ? { stdin: request.stdin } : {},
@@ -178,7 +178,7 @@ export class LocalBashExecutor extends ShellExecutor {
     spec: ShellExecSpec,
     argv: readonly string[],
     stdoutMaxBytes: number,
-    signal: AbortSignal | undefined,
+    signal: AbortSignal,
   ): SubprocessSpawnSpec {
     const collect = (maxBytes: number): SubprocessCollect =>
       ({ maxBytes, spill: { maxBytes: this.config.maxSpillBytes } })
@@ -252,7 +252,7 @@ export class LocalBashExecutor extends ShellExecutor {
     const handle = this.ctx.subprocess.spawn(this.spawnSpec(spec, argv, spec.stdoutMaxBytes, d.signal))
     const outcome = await handle.done.catch(async (error: unknown) => {
       if (!d.signal.aborted || error !== d.signal.reason) throw error
-      await handle.waitForExit()
+      await handle.waitForExit(d.signal)
       return { exitCode: null, signal: null }
     })
     const collected = LocalBashExecutor.collected(handle)
@@ -287,7 +287,7 @@ export class LocalBashExecutor extends ShellExecutor {
    */
   protected startArgv(spec: ShellExecSpec, argv: readonly string[]): ShellProcess {
     // Background runs ignore timeoutMs; callers stop them through kill() or spec.signal.
-    spec.signal?.throwIfAborted()
+    spec.signal.throwIfAborted()
     const running = this.ctx.subprocess.spawn(this.spawnSpec(spec, argv, this.config.maxOutputBytes, spec.signal))
     const collected = LocalBashExecutor.collected(running)
 
@@ -309,7 +309,7 @@ export class LocalBashExecutor extends ShellExecutor {
       done: running.done.then((outcome) => {
         // Any signal termination is killed, including a command signaling itself.
         if (proc.status === 'running') {
-          proc.status = spec.signal?.aborted === true || outcome.signal !== null ? 'killed' : 'completed'
+          proc.status = spec.signal.aborted || outcome.signal !== null ? 'killed' : 'completed'
         }
         proc.exitCode = outcome.exitCode
         proc.signal = outcome.signal
@@ -325,7 +325,7 @@ export class LocalBashExecutor extends ShellExecutor {
         }
         providerFailureNote = `subprocess failed before reporting an outcome: ${detail}`
         this.onProcessDone(proc, providerFailureNote, true, error)
-        await running.waitForExit()
+        await running.waitForExit(spec.signal)
       }),
       readOutput: (): ShellProcessRead => {
         const out = collected.stdout.readFrom(stdoutOffset)

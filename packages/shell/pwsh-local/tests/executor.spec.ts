@@ -20,7 +20,7 @@ import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import SubprocessRuntime from '@deepseek-ai/dsh-subprocess'
 import type { SubprocessHandle, SubprocessOutcome, SubprocessOutputReader, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
-import type { ShellProcess } from '@deepseek-ai/dsh-shell'
+import type { ShellExecRequest, ShellProcess } from '@deepseek-ai/dsh-shell'
 
 const spillDir = mkdtempSync(join(tmpdir(), 'dsh-pwsh-exec-spec-'))
 
@@ -63,6 +63,18 @@ async function setup(config: ConstructorParameters<typeof PwshLocalExecutor>[1] 
   // A short kill grace via the REAL config path, so escalation tests stay fast.
   await ctx.plugin(PwshLocalExecutor, { graceMs: 200, ...config })
   const bash = ctx.shell as PwshLocalExecutor
+  const originalResolve = bash.resolve.bind(bash)
+  bash.resolve = (request: ShellExecRequest) => originalResolve({
+    command: request.command,
+    workdir: request.workdir,
+    timeoutMs: request.timeoutMs,
+    stdoutMaxBytes: request.stdoutMaxBytes,
+    signal: request.signal ?? new AbortController().signal,
+    stdin: request.stdin,
+    env: request.env,
+    dshEnv: request.dshEnv,
+    sandboxPolicy: request.sandboxPolicy,
+  })
   return { ctx, bash }
 }
 
@@ -223,7 +235,7 @@ describe('spawn construction (pure, every platform)', () => {
     subprocess.stderrText = 'target stderr'
     subprocess.done = Promise.reject(new Error('provider lost the direct outcome'))
 
-    const proc = await ctx.shell.start(ctx.shell.resolve({ command: 'Write-Output maybe-ran' }))
+    const proc = await ctx.shell.start(ctx.shell.resolve({ command: 'Write-Output maybe-ran', signal: new AbortController().signal }))
     await expect(proc.done).resolves.toBeUndefined()
     expect(proc.status).toBe('killed')
     const output = proc.readOutput().delta
@@ -243,7 +255,7 @@ describe('spawn construction (pure, every platform)', () => {
     })
     subprocess.done = Promise.reject(providerError)
 
-    const proc = await ctx.shell.start(ctx.shell.resolve({ command: 'Write-Output maybe-ran' }))
+    const proc = await ctx.shell.start(ctx.shell.resolve({ command: 'Write-Output maybe-ran', signal: new AbortController().signal }))
     await expect(proc.done).resolves.toBeUndefined()
     expect(proc.status).toBe('killed')
     expect(proc.readOutput().delta).toContain('unprintable provider failure')
@@ -257,7 +269,7 @@ describe('spawn construction (pure, every platform)', () => {
 
     const killedOutcome = Promise.withResolvers<SubprocessOutcome>()
     subprocess.done = killedOutcome.promise
-    const killed = await ctx.shell.start(ctx.shell.resolve({ command: 'Write-Output maybe-ran' }))
+    const killed = await ctx.shell.start(ctx.shell.resolve({ command: 'Write-Output maybe-ran', signal: new AbortController().signal }))
     expect(killed.kill()).toBe(true)
     killedOutcome.resolve({ exitCode: 0, signal: null })
     await killed.done
@@ -562,7 +574,7 @@ describe.skipIf(!hasPwsh)('process lifecycle ownership (the subprocess service, 
 
     // The child prints its own pid so the test can probe liveness through the
     // public read surface alone.
-    const proc = await bash.start(bash.resolve({ command: 'Write-Output $PID; Start-Sleep -Seconds 60' }))
+    const proc = await bash.start(bash.resolve({ command: 'Write-Output $PID; Start-Sleep -Seconds 60', signal: new AbortController().signal }))
     const pid = Number((await readUntil(proc, '\n', task.timeout)).trim())
     expect(Number.isInteger(pid) && pid > 0).toBe(true)
 
@@ -592,10 +604,10 @@ describe.skipIf(!hasPwsh)('process lifecycle ownership (the subprocess service, 
     await ctx.plugin(PwshLocalExecutor, { graceMs: 200 })
     const bash = ctx.shell as PwshLocalExecutor
 
-    const finished = await bash.start(bash.resolve({ command: 'Write-Output done' }))
+    const finished = await bash.start(bash.resolve({ command: 'Write-Output done', signal: new AbortController().signal }))
     await finished.done
     expect(finished.status).toBe('completed')
-    const running = await bash.start(bash.resolve({ command: 'Start-Sleep -Seconds 60' }))
+    const running = await bash.start(bash.resolve({ command: 'Start-Sleep -Seconds 60', signal: new AbortController().signal }))
 
     await managerFiber.dispose()
     // A settled process was untouched; the live one was terminated and joined.
