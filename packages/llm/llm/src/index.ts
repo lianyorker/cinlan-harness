@@ -34,9 +34,10 @@ import { HarnessError, INVALID_CREDENTIAL_CODE } from './error.ts'
 import { normalizeLlmFailure } from './adapter-failure.ts'
 import { normalizeApiKey } from './api-key.ts'
 import {
-  contentHasFile, contentHasImage, fileHandleText, projectFilesToText, projectImagesForTextModel,
+  collectRetainedImageRefs, contentHasFile, contentHasImage, fileHandleText, isAttachmentQuarantined,
+  projectFilesToText, projectImagesForTextModel, projectQuarantinedImages, quarantinedImageText,
 } from './content.ts'
-import type { FileAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import type { AttachmentStore, FileAttachmentRef } from '@deepseek-ai/dsh-attachment'
 
 export * from './attribution.ts'
 export * from './brand.ts'
@@ -1008,6 +1009,111 @@ export class LlmRuntime extends TypertRemoteService {
   }
 
   /**
+   * Test readability of non-offloaded historical images before provider dispatch.
+   * Quarantines missing or corrupt images on live sessions, replacing them with
+   * deterministic placeholder text. Auxiliary calls without a live session fail loud.
+   * @param messages - messages to verify.
+   * @param options - call options containing signal and optional sessionId.
+   * @returns original messages if all readable, or reprojected messages with placeholders.
+   */
+  private async projectReadableImages(
+    messages: readonly Message[],
+    options: GenerateOptions,
+  ): Promise<readonly Message[]> {
+    const attachments = this.ctx.get('attachments') as AttachmentStore | undefined
+    if (attachments === undefined) return messages
+
+    const retainedRefs = collectRetainedImageRefs(messages)
+    if (retainedRefs.length === 0) return messages
+
+    const sessions = this.ctx.get('sessions') as {
+      get(id: string): {
+        append(type: string, data: unknown): unknown
+        snapshotEvents(): readonly { type: string; data?: unknown }[]
+      } | undefined
+    } | undefined
+    const session = options.sessionId !== undefined ? sessions?.get(options.sessionId) : undefined
+
+    let projected = messages
+
+    for (const ref of retainedRefs) {
+      if (options.signal?.aborted) {
+        throw options.signal.reason
+      }
+
+      if (session !== undefined && isAttachmentQuarantined(session, ref.attachmentId)) {
+        const ev = session.snapshotEvents().findLast(e => e.type === 'attachment/quarantine' && (e.data as { attachmentId?: unknown })?.attachmentId === ref.attachmentId)
+        const failureClass = (ev?.data as { failureClass?: 'not_found' | 'corrupt' | 'read_failed' })?.failureClass ?? 'corrupt'
+        projected = projectQuarantinedImages(projected, ref.attachmentId, quarantinedImageText(ref, failureClass))
+        continue
+      }
+
+      let failureClass: 'not_found' | 'corrupt' | 'read_failed' | undefined
+      let retryable: boolean | undefined
+
+      try {
+        await attachments.readImage(ref, options.signal)
+      } catch (error: unknown) {
+        if (options.signal?.aborted) throw options.signal.reason
+        const err = error as { code?: string; name?: string } | null
+        if (err?.name === 'AbortError') throw error
+
+        if (err?.code === 'ATTACHMENT_NOT_FOUND') {
+          if (session === undefined) {
+            throw new HarnessError((error as Error).message, 'ATTACHMENT_NOT_FOUND', { cause: error })
+          }
+          failureClass = 'not_found'
+        } else if (err?.code === 'ATTACHMENT_CORRUPT') {
+          if (session === undefined) {
+            throw new HarnessError((error as Error).message, 'ATTACHMENT_CORRUPT', { cause: error })
+          }
+          failureClass = 'corrupt'
+        } else if (err?.code === 'ATTACHMENT_READ_FAILED') {
+          if (options.signal?.aborted) throw options.signal.reason
+          try {
+            await attachments.readImage(ref, options.signal)
+          } catch (retryError: unknown) {
+            if (options.signal?.aborted) throw options.signal.reason
+            const retryErr = retryError as { code?: string; name?: string } | null
+            if (retryErr?.name === 'AbortError') throw retryError
+            if (session === undefined) {
+              throw new HarnessError((retryError as Error).message, retryErr?.code ?? 'ATTACHMENT_READ_FAILED', { cause: retryError })
+            }
+
+            if (retryErr?.code === 'ATTACHMENT_READ_FAILED') {
+              failureClass = 'read_failed'
+              retryable = true
+            } else if (retryErr?.code === 'ATTACHMENT_NOT_FOUND') {
+              failureClass = 'not_found'
+            } else if (retryErr?.code === 'ATTACHMENT_CORRUPT') {
+              failureClass = 'corrupt'
+            } else {
+              throw retryError
+            }
+          }
+        } else {
+          throw error
+        }
+      }
+
+      if (failureClass !== undefined && session !== undefined) {
+        if (!isAttachmentQuarantined(session, ref.attachmentId)) {
+          session.append('attachment/quarantine', {
+            attachmentId: ref.attachmentId,
+            failureClass,
+            ...(retryable !== undefined ? { retryable } : {}),
+          })
+        }
+
+        const placeholder = quarantinedImageText(ref, failureClass)
+        projected = projectQuarantinedImages(projected, ref.attachmentId, placeholder)
+      }
+    }
+
+    return projected
+  }
+
+  /**
    * Final adapter boundary. Adapter selection, dispatch, iterator construction,
    * and iteration failures become one terminal failure chunk. Middleware and
    * downstream consumer failures remain thrown plugin or consumer errors.
@@ -1053,6 +1159,9 @@ export class LlmRuntime extends TypertRemoteService {
         && !modelInfo.inputModalities.includes('image')
         && projectedMessages.some(message => contentHasImage(message.content))) {
         projectedMessages = projectImagesForTextModel(projectedMessages)
+      } else if ((modelInfo.inputModalities === undefined || modelInfo.inputModalities.includes('image'))
+        && projectedMessages.some(message => contentHasImage(message.content))) {
+        projectedMessages = await this.projectReadableImages(projectedMessages, resolvedOptions)
       }
       const projectedOptions = projectedMessages === resolvedOptions.messages
         ? resolvedOptions

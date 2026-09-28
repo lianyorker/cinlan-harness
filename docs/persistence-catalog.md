@@ -266,6 +266,39 @@ Types: [TokenUsage](subsystems/llm-streaming.md)
 
 Source: [`packages/core/session/src/types.ts:321`](../packages/core/session/src/types.ts)
 
+### `attachment/*`
+
+<a id="attachmentquarantine--message-projection"></a>
+
+#### `attachment/quarantine` — message-projection
+
+```ts persistence-catalog
+/**
+ * Quarantine an unreadable historical image attachment.
+ * Replaces occurrences of this attachment with deterministic placeholder text
+ * and skips reading the object on subsequent model requests.
+ * @messageProjection
+ */
+'attachment/quarantine': AttachmentQuarantineEventData
+```
+
+Source: [`packages/attachment/attachment-quarantine/src/types.ts:35`](../packages/attachment/attachment-quarantine/src/types.ts)
+
+<a id="attachmentrecovered--message-projection"></a>
+
+#### `attachment/recovered` — message-projection
+
+```ts persistence-catalog
+/**
+ * Restore a previously quarantined image attachment after verified read recovery.
+ * Restores the original image references in model requests.
+ * @messageProjection
+ */
+'attachment/recovered': AttachmentRecoveredEventData
+```
+
+Source: [`packages/attachment/attachment-quarantine/src/types.ts:42`](../packages/attachment/attachment-quarantine/src/types.ts)
+
 ### `command/*`
 
 <a id="commanddone--log-only"></a>

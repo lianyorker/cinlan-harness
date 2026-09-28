@@ -22,12 +22,13 @@ The `attachment/` group provides durable image attachments: attach images to pro
 <a id="packages"></a>
 ## Packages
 
-These two packages provide durable image attachments; each README describes what you can do with its part.
+These three packages provide durable image attachments; each README describes what you can do with its part.
 
 | Package | Role | ctx key |
 |---|---|---|
 | [`attachment/`](attachment/README.md) | Image attachments for prompts and commands that persist and come back in history | `ctx.attachments` |
 | [`attachment-local/`](attachment-local/README.md) | Stores your attached images on this machine below `DSH_HOME` | registers on `ctx.attachments` |
+| [`attachment-quarantine/`](attachment-quarantine/README.md) | Quarantines unreadable historical attachments and restores verified references | registers on `ctx.sessions` |
 
 -----
 

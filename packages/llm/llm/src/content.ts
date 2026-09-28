@@ -358,3 +358,106 @@ export function projectImagesForTextModel(messages: readonly Message[]): readonl
     return content === message.content ? message : { ...message, content }
   })
 }
+
+/**
+ * Stable text shown to a model for a quarantined unreadable image attachment.
+ * @param ref - durable normalized attachment omitted due to read failure.
+ * @param failureClass - classified read failure reason.
+ * @returns deterministic quarantined placeholder text.
+ */
+export function quarantinedImageText(
+  ref: ImageAttachmentRef,
+  failureClass: 'not_found' | 'corrupt' | 'read_failed',
+): string {
+  const digest = String(ref.attachmentId).slice(0, 'sha256:'.length + 8)
+  const identity = ref.name === undefined
+    ? digest
+    : `${quoted(ref.name)} (${digest})`
+  return `[image quarantined: ${failureClass}; ${identity}]`
+}
+
+/** Replace every quarantined occurrence, including nested tool results, with its placeholder. */
+function replaceQuarantinedImages(
+  blocks: readonly ContentBlock[],
+  targetId: ImageAttachmentRef['attachmentId'],
+  placeholder: string,
+): ContentBlock[] {
+  let next: ContentBlock[] | undefined
+  for (const [index, block] of blocks.entries()) {
+    if (block.type === 'image' && block.attachment.attachmentId === targetId) {
+      next ??= blocks.slice(0, index)
+      next.push({ type: 'text', text: placeholder })
+      continue
+    }
+    if (block.type === 'tool-result') {
+      const content = replaceQuarantinedImages(block.content, targetId, placeholder)
+      if (content !== block.content) {
+        next ??= blocks.slice(0, index)
+        next.push({ ...block, content })
+        continue
+      }
+    }
+    next?.push(block)
+  }
+  return next ?? blocks as ContentBlock[]
+}
+
+/**
+ * Project quarantined image occurrences into deterministic placeholder text.
+ * @param messages - derived request history.
+ * @param targetId - quarantined attachment id.
+ * @param placeholder - deterministic replacement text.
+ * @returns the original list when the attachment is absent, otherwise shallow message copies with placeholders.
+ */
+export function projectQuarantinedImages(
+  messages: readonly Message[],
+  targetId: ImageAttachmentRef['attachmentId'],
+  placeholder: string,
+): readonly Message[] {
+  return messages.map((message) => {
+    const content = replaceQuarantinedImages(message.content, targetId, placeholder)
+    return content === message.content ? message : { ...message, content }
+  })
+}
+
+/**
+ * Whether one attachment id is currently quarantined in session history.
+ * @param session - session or event snapshot container.
+ * @param attachmentId - attachment id to check.
+ * @returns true if quarantined without subsequent recovery.
+ */
+export function isAttachmentQuarantined(
+  session: { snapshotEvents(): readonly { type: string; data?: unknown }[] },
+  attachmentId: unknown,
+): boolean {
+  for (const event of session.snapshotEvents().slice().reverse()) {
+    if (event.type === 'attachment/recovered' && (event.data as { attachmentId?: unknown })?.attachmentId === attachmentId) {
+      return false
+    }
+    if (event.type === 'attachment/quarantine' && (event.data as { attachmentId?: unknown })?.attachmentId === attachmentId) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * Collect all unique non-offloaded image attachment references across messages.
+ * Walks nested tool-result content blocks.
+ * @param messages - messages to inspect.
+ * @returns unique non-offloaded image attachment references.
+ */
+export function collectRetainedImageRefs(messages: readonly Message[]): ImageAttachmentRef[] {
+  const byId = new Map<string, ImageAttachmentRef>()
+  const visit = (blocks: readonly ContentBlock[]): void => {
+    for (const block of blocks) {
+      if (block.type === 'image' && block.offloaded !== true) {
+        byId.set(String(block.attachment.attachmentId), block.attachment)
+      } else if (block.type === 'tool-result') {
+        visit(block.content)
+      }
+    }
+  }
+  for (const msg of messages) visit(msg.content)
+  return [...byId.values()]
+}
