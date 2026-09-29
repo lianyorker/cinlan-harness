@@ -22,6 +22,11 @@ Desktop Host 的 Platform API 请求与更新策略请求用相同的 Platform �
 
 按 F12（多媒体功能键键盘上为 Fn+F12）、macOS 的 Command+Option+I 或 Windows 的 Ctrl+Shift+I，可切换当前获得焦点的应用页面的 DevTools，打包版本同样支持。这些原生快捷键通过隐藏的应用菜单项注册。更新遮罩和打包版本的内嵌浏览器禁用 DevTools。
 
+<a id="paired-phone-access"></a>
+## 配对手机访问
+
+桌面端 Host 可通过已验证的远程传输提供配对手机访问。配对手机界面挂载受限的 Shell 与会话视图，不提供管理或文件系统修改能力。
+
 ## 关闭窗口与退出
 
 关闭主窗口（macOS 的关闭按钮和 ⌘W；Windows 的 ×、Alt+F4 和任务栏"关闭窗口"）会隐藏窗口；Windows 首次隐藏前需要确认。页面和 Host 继续运行，任务不受影响，下次显示时仍是原来的文档，会话、草稿和滚动位置都保留；macOS 全屏窗口先退出全屏再隐藏。macOS 通过 Dock 图标、再次启动或 `dsh://open` 找回窗口，Windows 通过托盘找回。最小化行为不变。进入工作区前关闭欢迎窗口，Windows 上走退出流程，macOS 上应用留在 Dock 中且没有窗口。

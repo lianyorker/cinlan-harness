@@ -58,7 +58,7 @@ These owners define persistence, composition, and execution semantics.
 - [Agent presets](../ui-agent-preset/README.md) — read-only built-ins and custom preset copy, open, and delete operations.
 - [Plugin inventory](../../host/plugin-inventory/README.md) — evaluated host and preset rows.
 - [Agent loop](../../core/agent-loop/README.md) — tool-call scheduling.
-- [Workflow worker engine](../../workflow/workflow-worker-thread/README.md) — composition-owned workflow limits.
+- [Workflow PTC engine](../../workflow/workflow-ptc/README.md) — composition-owned workflow limits.
 
 -----
 

@@ -58,7 +58,7 @@ kind: "package-reference"
 - [Agent 预设](../ui-agent-preset/README.zh.md)——内置预设只读，以及自定义预设复制、打开和删除操作。
 - [插件清单](../../host/plugin-inventory/README.zh.md)——已求值的主机与预设条目。
 - [Agent 循环](../../core/agent-loop/README.zh.md)——工具调用调度。
-- [工作流 Worker 引擎](../../workflow/workflow-worker-thread/README.zh.md)——由组成配置管理的工作流限制。
+- [工作流 PTC 引擎](../../workflow/workflow-ptc/README.zh.md)——由组成配置管理的工作流限制。
 
 -----
 

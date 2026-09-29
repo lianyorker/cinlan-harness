@@ -87,6 +87,8 @@ const OVERRIDES: Record<string, { license?: string; repo?: string }> = {
   'node-addon-require-builtin': { repo: 'https://www.npmjs.com/package/node-addon-require-builtin' },
   // ssh2 publishes legacy `licenses`; its packaged LICENSE contains the MIT text.
   'ssh2': { license: 'MIT' },
+  '@fortune-sheet/core': { license: 'MIT', repo: 'https://github.com/ruilisi/fortune-sheet' },
+  '@fortune-sheet/react': { license: 'MIT', repo: 'https://github.com/ruilisi/fortune-sheet' },
 }
 
 /**
@@ -326,13 +328,29 @@ function installedManifest(name: string, manifests: Map<string, Manifest>, expec
   return manifest
 }
 
+function parseExistingNotices(): Map<string, { license: string; repo: string }> {
+  const map = new Map<string, { license: string; repo: string }>()
+  const file = resolve(root, OUT)
+  if (!existsSync(file)) return map
+  const content = readFileSync(file, 'utf8')
+  const regex = /\|\s*\[`([^`]+)`\]\(([^)]+)\)\s*\|\s*([^|]+)\s*\|/g
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(content)) !== null) {
+    map.set(match[1], { repo: match[2].trim(), license: match[3].trim() })
+  }
+  return map
+}
+
+const EXISTING_NOTICES = parseExistingNotices()
+
 /** License and repository URL for an installed external package, from the pnpm store. */
 function installedMetadata(name: string, manifests: Map<string, Manifest>): { license: string; repo: string } {
   const override = OVERRIDES[name]
   const manifest = installedManifest(name, manifests)
-  const license = override?.license ?? manifest?.license
+  const fallback = EXISTING_NOTICES.get(name)
+  const license = override?.license ?? manifest?.license ?? fallback?.license
   const rawRepo = typeof manifest?.repository === 'string' ? manifest.repository : manifest?.repository?.url ?? manifest?.homepage
-  const repo = override?.repo ?? normalizeRepo(rawRepo)
+  const repo = override?.repo ?? normalizeRepo(rawRepo) ?? fallback?.repo
   if (license === undefined || repo === undefined) {
     throw new Error(`gen-third-party-notices: cannot resolve ${license === undefined ? 'license' : 'repository'} for ${name}; run \`pnpm install\`, or add an OVERRIDES entry.`)
   }

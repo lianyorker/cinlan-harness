@@ -54,6 +54,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 | `@deepseek-ai/dsh-tool-recall` | `history_read`, `history_search` | `ctx.tools`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | history_read and history_search read original uncompacted messages directly from the append-only session log without external sidecars. |
 | `@deepseek-ai/dsh-tool-task-surface` | `show_task_surface` | `ctx.tools`, `ctx.sessionProjections` | `tool/call`, `tool/result` | - | show_task_surface renders structured interactive task panels and concludes the turn. |
+| `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 
@@ -4819,3 +4820,20 @@ Present a structured, interactive Task Surface to the user for review, configura
 Source: [`packages/task-surface/tool-task-surface/src/index.ts`](../packages/task-surface/tool-task-surface/src/index.ts)
 
 show_task_surface renders structured interactive task panels and concludes the turn.
+
+<a id="deepseek-aidsh-tool-workspace-dependencies"></a>
+
+## `@deepseek-ai/dsh-tool-workspace-dependencies`
+
+### `load_workspace_dependencies`
+
+Get absolute paths to bundled Python and library directories, plus bundled Python distribution versions. Node.js and pnpm paths are included when the payload provides them. Python includes numpy, pandas, python-docx, python-pptx, openpyxl, Pillow, lxml, and XlsxWriter. Use these libraries for Office files unless the user or workspace instructions select another environment. When Node.js and pnpm paths are returned, run pnpm with that Node executable and pnpm script path. This does not change PATH or package-manager settings.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/skill/tool-workspace-dependencies/src/index.ts`](../packages/skill/tool-workspace-dependencies/src/index.ts)

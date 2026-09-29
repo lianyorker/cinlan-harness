@@ -4501,3 +4501,10 @@ export interface Config {
 | `@deepseek-ai/dsh-util-workspace-path` | — | [`packages/util/workspace-path/src/index.ts`](../packages/util/workspace-path/src/index.ts) |
 | `@deepseek-ai/dsh-win32-process` | — | [`packages/subprocess/win32-process/src/index.ts`](../packages/subprocess/win32-process/src/index.ts) |
 <!-- END GENERATED config-catalog:library -->
+
+<!-- BEGIN GENERATED config-catalog:compat-anchors -->
+<a id="deepseek-aidsh-settings-file"></a>
+<a id="deepseek-aidsh-agent-presets"></a>
+<a id="deepseek-aidsh-subprocess-e2b"></a>
+<a id="deepseek-aidsh-e2b"></a>
+<!-- END GENERATED config-catalog:compat-anchors -->

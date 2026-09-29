@@ -96,6 +96,7 @@ import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
 import * as ToolWorkflow from '@deepseek-ai/dsh-tool-workflow'
 import TaskSurfacePlugin from '@deepseek-ai/dsh-task-surface'
 import ToolTaskSurfacePlugin from '@deepseek-ai/dsh-tool-task-surface'
+import * as ToolWorkspaceDependencies from '@deepseek-ai/dsh-tool-workspace-dependencies'
 import { githubSlug } from './verify-md-links.ts'
 
 /** Attachment seam marker that makes the attachments-conditional `read_image` schema harvestable. */
@@ -812,6 +813,16 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'show_task_surface renders structured interactive task panels and concludes the turn.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-workspace-dependencies',
+    dir: 'tool-workspace-dependencies',
+    source: 'packages/skill/tool-workspace-dependencies/src/index.ts',
+    requires: ['ctx.tools'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(ToolWorkspaceDependencies, { source: resolve(root, '.tmp/tool-catalog/primary-runtime') })
+    },
   },
 ]
 

@@ -69,6 +69,15 @@ A session joins a project only when its execution binding and canonical director
 
 Hide a session from the grouping when it should stop appearing there: it disappears from the visible list, while its session, history, and place in the project stay intact. Remove a project when it is no longer needed: it leaves the list, and its folder, files, and session histories are never touched — those sessions become ungrouped. Adding the same directory again afterwards starts a fresh project without the old sessions.
 
+<a id="first-use-workspace"></a>
+### First-use Workspace
+
+`initializeDefault(resolveDirectory)` initializes the default Workspace without creating a Session. Initial creation requires an empty Workspace registry and no live, persisted, or archived Session, including Sessions without a working directory. The registry checks persistent history directly; an empty visible sidebar is insufficient.
+
+The directory resolver runs inside the mutation queue only when creation is eligible. It returns an absolute path; the registry creates missing parent directories, canonicalizes the path, rechecks Session history, and commits the Workspace with its initialization marker, titled after the requested directory's final segment rather than the canonical one, so a symlink at that path does not retitle the Workspace after its target. An existing directory is reused; a file conflict or directory failure rejects initialization. The [Host controller](../../api/workspace-controller/README.md#first-use-workspace) supplies the Documents path policy.
+
+The first successful registration records its identity durably. Repeated calls return it without resolving a directory again; renaming keeps that identity, and deleting its registration does not permit another automatic creation. Directory or registration failure leaves initialization unset for retry. Directories created before a later failure remain on disk. Once directory resolution succeeds, caller cancellation does not roll back directory creation or registration. The [first-use decision](../../../.agents/notes/implemented/feature/2026-09-20-default-workspace.md) explains this lifetime.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -130,7 +139,7 @@ Read these pages when this package's view is not enough: the subsystem reference
 
 - [Workspace subsystem](../../../docs/subsystems/workspace.md) — the feature contract for projects and their sessions, and the generated API for the workspace service.
 - [Workspace package map](../README.md) — the group's single package and its repository position.
-- [domain KV storage Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.md) — why project records use the domain data form.
+- [domain KV storage Agent Note](../../../.agents/notes/implemented/architecture/2026-07-24-domain-kv-storage-and-workspace.md) — why project records use the domain data form.
 - [Workspace UI product-flow Agent Note](../../../.agents/notes/archived/feature/2026-07-25-workspace-ui-product-flow.md) — how the first start builds projects from session history and how the GUI orders them.
 - [Workspace registration deletion decision](../../../.agents/notes/implemented/feature/2026-07-27-workspace-registration-deletion.md) — why removing a project never deletes its folder or sessions.
 

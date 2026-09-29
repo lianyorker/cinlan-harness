@@ -9,33 +9,57 @@ import type { SessionSeq } from '@deepseek-ai/dsh-session'
 
 /** Model-specific override for compaction policy. */
 export interface ModelCompactPolicyConfig {
+  /** Target provider route name. */
   provider: string
+  /** Target model name. */
   model: string
+  /** Trigger compaction when prompt tokens reach this ratio of context budget. */
   thresholdRatio?: number
+  /** Ratio of historical messages retained as raw turns. */
   retainRatio?: number
+  /** Explicit count of historical tokens retained verbatim. */
   retainTokens?: number
+  /** Target token budget for each compacted chunk. */
   chunkTokens?: number
+  /** Fixed token allotment for stub summarization. */
   stubTokens?: number
+  /** Provider route used to run summarization prompts. */
   summarizationProvider?: string
+  /** Model name used to run summarization prompts. */
   summarizationModel?: string
+  /** Maximum token limit per summarization request. */
   maxTokens?: number
+  /** Maximum retry count for transient compaction failures. */
   compactionRetries?: number
+  /** Maximum retry count when context window overflows during compaction. */
   maxOverflowRetries?: number
 }
 
 /** Deployment configuration for RecallableCompactionEngine. */
 export interface RecallableCompactionConfig {
+  /** Global trigger ratio of context budget before compaction runs. */
   thresholdRatio?: number
+  /** Global ratio of historical messages retained verbatim. */
   retainRatio?: number
+  /** Global explicit token count retained verbatim. */
   retainTokens?: number
+  /** Global target token budget per compacted chunk. */
   chunkTokens?: number
+  /** Global fixed token allotment for stubs. */
   stubTokens?: number
+  /** Default provider route used for summarization. */
   summarizationProvider?: string
+  /** Default model name used for summarization. */
   summarizationModel?: string
+  /** Maximum token limit per summarization request. */
   maxTokens?: number
+  /** Maximum retry count for transient compaction failures. */
   compactionRetries?: number
+  /** Maximum retry count on context overflow during compaction. */
   maxOverflowRetries?: number
+  /** Model-specific compaction policy overrides. */
   modelPolicies?: ModelCompactPolicyConfig[]
+  /** Whether automatic compaction runs on turn completion. */
   auto?: boolean
 }
 
