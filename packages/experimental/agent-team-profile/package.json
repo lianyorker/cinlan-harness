@@ -3,9 +3,7 @@
   "description": "Agent Teams collaboration, tools, and Web UI in one experimental bundle",
   "version": "0.2.0-rc.1",
   "icon": "./icon.svg",
-  "publishConfig": {
-    "access": "public"
-  },
+  "private": true,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",

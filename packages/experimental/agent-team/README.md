@@ -29,7 +29,7 @@ Add this package to a composition when one agent should run a small team of name
 
 ### When to choose it
 
-Choose it when several agents must cooperate on one shared workspace and their roster, messages, and task state must survive crashes and restarts. Avoid it when teammates need separate working directories, when several processes must coordinate over one team, or when a task owner should be released automatically — none of those are supported. The team features need durable session storage to activate.
+Choose it when several agents must cooperate on one shared workspace and their roster, messages, and task state must survive crashes and restarts. Avoid it when teammates need separate working directories without Git worktree support, when several processes must coordinate over one team, or when a task owner should be released automatically — none of those are supported. The team features need durable session storage to activate.
 
 ### Smallest working setup
 
@@ -62,7 +62,8 @@ Ask the Lead to create a teammate: give it a unique lowercase name such as `revi
 
 The roster shows every member with its role (`lead` or `teammate`) and current status: `running`, `idle`, `inactive` (a member that exists but is not loaded), `provisioning`, or `failed`. A member that is not loaded receives its messages when it wakes.
 
-Only the Lead can create teammates or interrupt them.
+Only the Lead can create teammates or interrupt them. Teammates can be assigned an isolated Git checkout using `workspaceMode: 'worktree'` when `@deepseek-ai/dsh-worktree-task` is mounted.
+
 
 ### Messages between teammates
 

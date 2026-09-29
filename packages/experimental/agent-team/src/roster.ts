@@ -8,6 +8,8 @@ import type { MessageId } from '@deepseek-ai/dsh-llm'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import { foldSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
 import type { ContinuableStart } from '@deepseek-ai/dsh-subagent'
+import type { WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task'
+import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { errorMessage, TeamError } from './error.ts'
 import type { TeamJournal } from './journal.ts'
 import type { TeamRuntimeLifecycle } from './lifecycle.ts'
@@ -152,6 +154,8 @@ export class TeamRoster {
         description: member.description,
         provider: member.provider,
         context: member.context,
+        ...member.workspaceMode === undefined ? {} : { workspaceMode: member.workspaceMode },
+        ...member.worktreeTaskId === undefined ? {} : { worktreeTaskId: member.worktreeTaskId },
         ...model === undefined ? {} : { model },
         diagnostics: member.error === undefined ? [] : [member.error],
       })
@@ -240,6 +244,22 @@ export class TeamRoster {
    */
   async stopTeammates(root: Agent, childIds: readonly SessionId[]): Promise<void> {
     await this.lifecycle.withTimeout(this.ctx.subagents.drainContinuableChildren(root, childIds))
+    const worktreeTask = this.ctx.get('worktreeTask')
+    if (worktreeTask !== undefined) {
+      const state = this.journal.state(root)
+      for (const id of childIds) {
+        const member = state.members.find(candidate => candidate.id === id)
+        if (member?.worktreeTaskId !== undefined) {
+          try {
+            await worktreeTask.delete({
+              taskId: brandString<WorktreeTaskId>(member.worktreeTaskId),
+            })
+          } catch {
+            // Best-effort cleanup during teammate teardown.
+          }
+        }
+      }
+    }
   }
 
   /** Perform one creation admitted before the Team runtime disposal cutoff. */
@@ -256,32 +276,70 @@ export class TeamRoster {
     const root = membership.root
     const name = this.memberName(request.name)
     const description = requiredText(request.description, 'description', 200)
+    const provider = requiredText(request.provider, 'provider', 200)
+    const workspaceMode = request.workspaceMode ?? 'inherit'
+    if (workspaceMode !== 'inherit' && workspaceMode !== 'worktree') {
+      throw new TeamError('workspaceMode must be "inherit" or "worktree"', 'TEAM_INVALID_REQUEST')
+    }
+    const worktreeTask = this.ctx.get('worktreeTask')
+    let worktreeTaskId: string | undefined
+    if (workspaceMode === 'worktree') {
+      if (worktreeTask === undefined) {
+        throw new TeamError('worktree task service is not available in this context', 'TEAM_WORKTREE_UNAVAILABLE')
+      }
+      const createdTask = await worktreeTask.create({
+        name: `team-${name}`,
+        workspaceId: brandString<WorkspaceId>(`ws-${root.id}`),
+        sourcePath: root.session.header.cwd ?? process.cwd(),
+      }, signal)
+      worktreeTaskId = createdTask.id
+    }
     const childId = brandString<SessionId>(randomUUID())
     const member: TeamMemberSnapshot = {
       id: childId,
       name,
       description,
-      provider: requiredText(request.provider, 'provider', 200),
+      provider,
       context: request.context,
+      ...workspaceMode === 'worktree' ? { workspaceMode, worktreeTaskId } : {},
       phase: 'provisioning',
     }
 
-    await this.journal.transact(root.id, async () => {
-      const state = this.journal.state(root)
-      if (state.members.some(member => member.name === name)) {
-        throw new TeamError(`teammate name "${name}" was already used in this Team`, 'TEAM_MEMBER_NAME_TAKEN')
+    try {
+      await this.journal.transact(root.id, async () => {
+        const state = this.journal.state(root)
+        if (state.members.some(candidate => candidate.name === name)) {
+          throw new TeamError(`teammate name "${name}" was already used in this Team`, 'TEAM_MEMBER_NAME_TAKEN')
+        }
+        if (state.members.length >= this.maxMembers) {
+          throw new TeamError(`Team member limit ${this.maxMembers} reached`, 'TEAM_MEMBER_LIMIT')
+        }
+        await this.journal.appendAndFlush(root, 'team/member', { version: 2, teamId: TeamId(root.id), member })
+      })
+    } catch (error: unknown) {
+      if (worktreeTaskId !== undefined && worktreeTask !== undefined) {
+        try {
+          await worktreeTask.delete({
+            taskId: brandString<WorktreeTaskId>(worktreeTaskId),
+          })
+        } catch {
+          // Best-effort cleanup on reservation failure.
+        }
       }
-      if (state.members.length >= this.maxMembers) {
-        throw new TeamError(`Team member limit ${this.maxMembers} reached`, 'TEAM_MEMBER_LIMIT')
-      }
-      await this.journal.appendAndFlush(root, 'team/member', { version: 2, teamId: TeamId(root.id), member })
-    })
+      throw error
+    }
 
     let started: ContinuableStart
     try {
+      if (worktreeTaskId !== undefined && worktreeTask !== undefined) {
+        await worktreeTask.bindSession({
+          taskId: brandString<WorktreeTaskId>(worktreeTaskId),
+          sessionId: childId,
+        }, signal)
+      }
       started = await this.ctx.subagents.startContinuable({
         childId,
-        provider: request.provider,
+        provider,
         label: description,
         request: {
           prompt: request.prompt,
@@ -299,6 +357,7 @@ export class TeamRoster {
       try {
         const phase = await this.settleProvisioning(root, failed)
         await this.stopTeammates(root, [childId])
+
         if (phase === 'active') {
           throw new TeamError(
             `teammate "${name}" became active while its creator reported failure`,
@@ -443,6 +502,8 @@ export class TeamRoster {
       description: member.description,
       provider: member.provider,
       context: member.context,
+      ...member.workspaceMode === undefined ? {} : { workspaceMode: member.workspaceMode },
+      ...member.worktreeTaskId === undefined ? {} : { worktreeTaskId: member.worktreeTaskId },
       ...live?.options.model === undefined ? {} : { model: live.options.model },
       diagnostics: [],
     }

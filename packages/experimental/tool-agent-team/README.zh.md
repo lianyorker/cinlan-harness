@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包让模型创建具名 teammate、向它们发送消息、查看可用状态、等待进展、中断卡住的工作，并通过共享任务板协调。每个团队成员都会获得相同的九个工具，以及在共享工作区协调的指引。当模型只应在你明确要求后运行团队时，选择本包。它会取代同名的旧版 subagent 控件，因此同时需要两者的组合必须禁用旧定义。本包处于实验阶段，不进入正式发布，也不提供稳定性保证。
+本包让模型创建具名 teammate、向它们发送消息、查看可用状态、等待进展、中断卡住的工作，并通过共享任务板协调。每个团队成员都会获得相同的九个工具，以及在共享工作区协调的指引。当模型只应在你明确要求后运行团队时，选择本包。它默认会取代同名的旧版 subagent 控件，或在配置后提供带 team 前缀的工具名，允许两者共存。本包处于实验阶段，不进入正式发布，也不提供稳定性保证。
 
 ## 目录
 
@@ -29,11 +29,11 @@ kind: "package-reference"
 
 ### 何时选择
 
-当模型应该自行创建与协调 teammate、而不是由人来操作 subagent 控件时，选择它。当同名的旧全局 subagent 工具必须继续可用时，请不要选择：团队工具会为团队成员取代它们，因此想同时使用两者的组合必须禁用旧定义。固定策略只在明确要求团队或 teammate 时创建成员，因此普通任务永远不会自行触发委派。
+当模型应该自行创建与协调 teammate、而不是由人来操作 subagent 控件时，选择它。当同名的旧全局 subagent 工具必须继续可用时，可配置 `toolNaming: 'team-prefixed'` 消除重名覆盖。固定策略只在明确要求团队或 teammate 时创建成员，因此普通任务永远不会自行触发委派。
 
 ### 最小工作示例
 
-对现有组合的最小增量是 [agent-team README](../agent-team/README.zh.md#smallest-working-setup) 中的两包片段：持久会话存储、团队领域包与本包。插件本身只有两个可选设置：
+对现有组合的最小增量是 [agent-team README](../agent-team/README.zh.md#smallest-working-setup) 中的两包片段：持久会话存储、团队领域包与本包。插件本身提供三个可选设置：
 
 ```yaml
 - id: tool-agent-team
@@ -41,12 +41,14 @@ kind: "package-reference"
   config:
     freshProvider: spawn
     forkProvider: fork
+    toolNaming: override
 ```
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `freshProvider` | `spawn` | 启动 fresh teammate 的 provider |
 | `forkProvider` | `fork` | 启动 fork teammate 的 provider |
+| `toolNaming` | `override` | 工具命名策略（`override` 覆盖旧版名称；`team-prefixed` 使用 `team_*` 前缀） |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-experimental-tool-agent-team)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
@@ -56,12 +58,13 @@ kind: "package-reference"
 
 九个工具分为四类能力：
 
-- **创建 teammate**——`spawn_teammate` 接收名字、描述与初始任务；只有 Lead 可以调用它。
-- **发送消息**——`send_message` 在最近的步骤边界 Steer running member、启动 idle member，并冷恢复 inactive teammate。
-- **查看与等待**——`list_agents` 显示带实时状态的 roster；`wait_agent` 等待下一次团队变化；`interrupt_agent` 停止 teammate 的当前轮次（仅限 Lead）。
+- **创建 teammate**——`spawn_teammate` 接收名字、描述、初始任务与可选的 `workspace_mode`（`inherit` 或 `worktree`）；只有 Lead 可以调用它。
+- **发送消息**——`send_message`（或 `team_send_message`）Steer running member、启动 idle member，并冷恢复 inactive teammate。
+- **查看与等待**——`list_agents` 显示带实时状态的 roster；`wait_agent` 等待团队变化；`interrupt_agent` 停止轮次（prefixed 模式下使用对应 `team_*` 变体）。
 - **管理任务板**——`team_task_create`、`team_task_list`、`team_task_get` 与 `team_task_update` 添加、浏览、读取与更新共享任务。
 
 任何成员都可以给任何其他成员发消息并使用任务板；只有 Lead 可以创建与中断 teammate。任务更新保留领域的 owner 与 revision 校验，因此过期的编辑会被拒绝，而不是覆盖更新的成果。
+
 
 ### 成功与失败的表现
 

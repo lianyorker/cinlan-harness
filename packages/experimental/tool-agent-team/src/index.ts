@@ -19,25 +19,58 @@ export interface Config {
   readonly freshProvider?: string
   /** Continuable-subagent provider used for completed-prefix fork teammates. */
   readonly forkProvider?: string
+  /** Tool naming convention: 'override' (default) or 'team-prefixed'. */
+  readonly toolNaming?: 'override' | 'team-prefixed'
 }
 
 /** Loader schema for the opt-in Team tool plugin. */
 export const Config: z<Config> = z.object({
   freshProvider: z.string().default('spawn'),
   forkProvider: z.string().default('fork'),
+  toolNaming: z.union(['override', 'team-prefixed'] as const).default('override'),
 })
 
-/** Model-facing collaboration guidance shared by Lead and teammates. */
-const POLICY = `Agent Teams is available in this session, but create teammates only when the user explicitly asks to use Agent Teams or teammates.
+interface ToolNames {
+  readonly sendMessage: string
+  readonly listAgents: string
+  readonly waitAgent: string
+  readonly interruptAgent: string
+}
 
-The Team Lead and all teammates share the same working directory and filesystem. Edits are immediately visible to every member. Split write work into disjoint scopes, record expected write scopes on shared tasks, and use task dependencies when work must be ordered. Write-scope overlap is advisory, not a lock.
+function resolveToolNames(toolNaming: 'override' | 'team-prefixed'): ToolNames {
+  if (toolNaming === 'team-prefixed') {
+    return {
+      sendMessage: 'team_send_message',
+      listAgents: 'team_list_agents',
+      waitAgent: 'team_wait_agent',
+      interruptAgent: 'team_interrupt_agent',
+    }
+  }
+  return {
+    sendMessage: 'send_message',
+    listAgents: 'list_agents',
+    waitAgent: 'wait_agent',
+    interruptAgent: 'interrupt_agent',
+  }
+}
+
+
+/** Model-facing collaboration guidance shared by Lead and teammates. */
+function buildPolicy(names: ToolNames): string {
+  return `Agent Teams is available in this session, but create teammates only when the user explicitly asks to use Agent Teams or teammates.
+
+The Team Lead and all teammates share the same working directory and filesystem by default. When a teammate is spawned with workspace_mode: 'worktree', it runs in an isolated Git worktree checkout. Edits in shared workspaces are immediately visible to every member. Split write work into disjoint scopes, record expected write scopes on shared tasks, and use task dependencies when work must be ordered. Write-scope overlap is advisory, not a lock.
 
 Prefer read/edit/write for file changes. If a file operation returns FS_STALE_VERSION, read the current file, rebase your intended change onto the new content, and retry. Bash, formatters, code generators, and scripts are not fully protected by the filesystem version guard; coordinate them explicitly and have the Lead review the final diff and run tests.
 
-send_message steers a running target at its nearest step boundary, starts an idle target, and cold-resumes an inactive teammate. A delivered peer item starts with its stable message id and sender name. A successful send is already durable even when its result says queued; do not resend it. Shared-task workflow is list, get, claim with the current revision, perform the work, then complete. Task readiness never starts an owner. Before wait_agent, use list_agents and make sure another required member is running or provisioning; use send_message first when the required member is inactive. wait_agent observes only changes after that call starts, never wakes a member, and returns noProgress immediately when no other member can produce a change. Re-list after wakeup or timeout. The Lead must wait for required teammates before giving the final answer.`
+${names.sendMessage} steers a running target at its nearest step boundary, starts an idle target, and cold-resumes an inactive teammate. A delivered peer item starts with its stable message id and sender name. A successful send is already durable even when its result says queued; do not resend it. Shared-task workflow is list, get, claim with the current revision, perform the work, then complete. Task readiness never starts an owner. Before ${names.waitAgent}, use ${names.listAgents} and make sure another required member is running or provisioning; use ${names.sendMessage} first when the required member is inactive. ${names.waitAgent} observes only changes after that call starts, never wakes a member, and returns noProgress immediately when no other member can produce a change. Re-list after wakeup or timeout. The Lead must wait for required teammates before giving the final answer.`
+}
 
 const ACTIVE_WAIT_STATUSES: ReadonlySet<TeamMemberView['status']> = new Set(['running', 'provisioning'])
-const NO_ACTIVE_PEER_MESSAGE = 'No other Team member is running or provisioning. wait_agent cannot make progress or wake inactive teammates. Re-list with list_agents and team_task_list, then use send_message to wake each required inactive teammate before waiting again.'
+
+function buildNoActivePeerMessage(names: ToolNames): string {
+  return `No other Team member is running or provisioning. ${names.waitAgent} cannot make progress or wake inactive teammates. Re-list with ${names.listAgents} and team_task_list, then use ${names.sendMessage} to wake each required inactive teammate before waiting again.`
+}
 
 /**
  * One roster row, matching `TeamMemberView`. The Lead pseudo-row omits the
@@ -55,6 +88,8 @@ const MEMBER_VIEW_SCHEMA = {
     description: { type: 'string' },
     provider: { type: 'string' },
     context: { type: 'string', enum: ['fresh', 'fork'] },
+    workspaceMode: { type: 'string', enum: ['inherit', 'worktree'] },
+    worktreeTaskId: { type: 'string' },
     model: { type: 'string' },
     diagnostics: { type: 'array', required: true, items: { type: 'string' } },
   },
@@ -160,13 +195,14 @@ function install(agent: Agent, ctx: Context, config: Required<Config>): () => vo
   const scoped = agent.ctx
   const disposers: Array<() => unknown> = []
   const register = (disposer: () => unknown): void => { disposers.push(disposer) }
+  const names = resolveToolNames(config.toolNaming)
   try {
     register(scoped.systemPrompt.section({
       name: 'team:policy',
       order: scoped.systemPrompt.getSectionOrder('TEAM_POLICY'),
       text: () => {
         const membership = ctx.agentTeams.membership(agent)
-        return `${POLICY}\n\nYour Team role is ${membership.role}; your Team name is ${membership.name}; Team id is ${membership.id}.`
+        return `${buildPolicy(names)}\n\nYour Team role is ${membership.role}; your Team name is ${membership.name}; Team id is ${membership.id}.`
       },
     }))
 
@@ -182,24 +218,31 @@ function install(agent: Agent, ctx: Context, config: Required<Config>): () => vo
           enum: ['fresh', 'fork'],
           description: 'fresh starts without Lead history; fork inherits completed Lead turns. Defaults to fresh.',
         },
+        workspace_mode: {
+          type: 'string',
+          enum: ['inherit', 'worktree'],
+          description: 'inherit shares the Lead working directory; worktree provisions a dedicated Git branch and checkout. Defaults to inherit.',
+        },
       },
       output: jsonOutput(SPAWN_VALUE_SCHEMA),
       async execute(args, exec) {
         const agent = callingAgent(exec.agent, 'spawn_teammate')
         const context = args.context ?? 'fresh'
+        const workspaceMode = args.workspace_mode ?? 'inherit'
         return await ctx.agentTeams.spawnTeammate(agent, {
           name: args.name,
           description: args.description,
           prompt: [{ type: 'text', text: args.prompt }],
           context,
           provider: context === 'fork' ? config.forkProvider : config.freshProvider,
+          workspaceMode,
           signal: exec.signal,
         })
       },
     })))
 
     register(scoped.tools.register(defineTool({
-      name: 'send_message',
+      name: names.sendMessage,
       description: 'Send one durable message to another Team member. A running target receives it at the nearest step boundary; an idle target starts a turn; an inactive teammate cold-resumes.',
       parameters: {
         target: { type: 'string', required: true, description: 'Team member name, or lead.' },
@@ -207,7 +250,7 @@ function install(agent: Agent, ctx: Context, config: Required<Config>): () => vo
       },
       output: jsonOutput(SEND_VALUE_SCHEMA),
       execute(args, exec) {
-        return ctx.agentTeams.sendMessage(callingAgent(exec.agent, 'send_message'), {
+        return ctx.agentTeams.sendMessage(callingAgent(exec.agent, names.sendMessage), {
           target: args.target,
           content: [{ type: 'text', text: args.message }],
           signal: exec.signal,
@@ -216,17 +259,17 @@ function install(agent: Agent, ctx: Context, config: Required<Config>): () => vo
     })))
 
     register(scoped.tools.register(defineTool({
-      name: 'list_agents',
+      name: names.listAgents,
       description: 'List the Lead and every durable teammate with current runtime status.',
       parameters: {},
       output: jsonOutput(MEMBER_LIST_VALUE_SCHEMA),
       async execute(_args, exec) {
-        return Promise.resolve(ctx.agentTeams.listMembers(callingAgent(exec.agent, 'list_agents')))
+        return Promise.resolve(ctx.agentTeams.listMembers(callingAgent(exec.agent, names.listAgents)))
       },
     })))
 
     register(scoped.tools.register(defineTool({
-      name: 'wait_agent',
+      name: names.waitAgent,
       description: 'Wait for the next teammate status, mailbox, or shared-task change after this call starts. This never wakes inactive members and returns noProgress immediately when no other member is running or provisioning. Re-list after wakeup or timeout instead of polling.',
       parameters: {
         timeout_ms: {
@@ -236,7 +279,7 @@ function install(agent: Agent, ctx: Context, config: Required<Config>): () => vo
       },
       output: jsonOutput(WAIT_VALUE_SCHEMA),
       async execute(args, exec) {
-        const caller = callingAgent(exec.agent, 'wait_agent')
+        const caller = callingAgent(exec.agent, names.waitAgent)
         const timeoutMs = args.timeout_ms ?? 30_000
         // Preserve TeamService's authoritative timeout validation before the
         // model-only no-progress shortcut.
@@ -252,7 +295,7 @@ function install(agent: Agent, ctx: Context, config: Required<Config>): () => vo
             timedOut: false,
             noProgress: {
               reason: 'no-active-peer' as const,
-              message: NO_ACTIVE_PEER_MESSAGE,
+              message: buildNoActivePeerMessage(names),
             },
           }
         }
@@ -261,7 +304,7 @@ function install(agent: Agent, ctx: Context, config: Required<Config>): () => vo
     })))
 
     register(scoped.tools.register(defineTool({
-      name: 'interrupt_agent',
+      name: names.interruptAgent,
       description: 'Interrupt one teammate\'s current turn while preserving its pending inbox. Team Lead only.',
       parameters: {
         target: { type: 'string', required: true, description: 'Teammate name.' },
@@ -269,7 +312,7 @@ function install(agent: Agent, ctx: Context, config: Required<Config>): () => vo
       output: jsonOutput(INTERRUPT_VALUE_SCHEMA),
       async execute(args, exec) {
         return Promise.resolve(ctx.agentTeams.interrupt(
-          callingAgent(exec.agent, 'interrupt_agent'),
+          callingAgent(exec.agent, names.interruptAgent),
           args.target,
         ))
       },
@@ -392,6 +435,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   const resolved: Required<Config> = {
     freshProvider: config.freshProvider ?? 'spawn',
     forkProvider: config.forkProvider ?? 'fork',
+    toolNaming: config.toolNaming ?? 'override',
   }
   const installed = new Map<Agent, () => void>()
   const maybeInstall = (agent: Agent): void => {

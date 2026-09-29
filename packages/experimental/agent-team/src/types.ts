@@ -50,6 +50,8 @@ export interface TeamMemberSnapshot {
   readonly description: string
   readonly provider: string
   readonly context: 'fresh' | 'fork'
+  readonly workspaceMode?: 'inherit' | 'worktree'
+  readonly worktreeTaskId?: string
   readonly phase: TeamMemberPhase
   readonly error?: string
 }
@@ -63,6 +65,8 @@ export interface TeamMemberView {
   readonly description?: string
   readonly provider?: string
   readonly context?: 'fresh' | 'fork'
+  readonly workspaceMode?: 'inherit' | 'worktree'
+  readonly worktreeTaskId?: string
   readonly model?: string
   readonly diagnostics: string[]
 }
@@ -147,6 +151,7 @@ export interface SpawnTeammateRequest {
   readonly prompt: ContentBlock[]
   readonly context: 'fresh' | 'fork'
   readonly provider: string
+  readonly workspaceMode?: 'inherit' | 'worktree'
   readonly signal: AbortSignal
 }
 

@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 何时选择
 
-当多个 agent 必须在同一个共享工作区协作、且 roster、消息与任务状态需要挺过崩溃与重启时，选择它。当 teammate 需要独立工作目录、多个进程需要协调同一支团队、或任务 owner 需要自动释放时，请不要选择——这些都不受支持。团队功能需要持久会话存储才能激活。
+当多个 agent 必须在同一个共享工作区协作、且 roster、消息与任务状态需要挺过崩溃与重启时，选择它。当 teammate 在无 Git worktree 支持时需要独立工作目录、多个进程需要协调同一支团队、或任务 owner 需要自动释放时，请不要选择——这些都不受支持。团队功能需要持久会话存储才能激活。
 
 ### 最小工作配置
 
@@ -62,7 +62,8 @@ kind: "package-reference"
 
 roster 显示每个成员的职责（`lead` 或 `teammate`）与当前状态：`running`、`idle`、`inactive`（存在但未加载的成员）、`provisioning` 或 `failed`。未加载的成员会在唤醒后收到其消息。
 
-只有 Lead 可以创建 teammate 或中断它们。
+只有 Lead 可以创建 teammate 或中断它们。当挂载 `@deepseek-ai/dsh-worktree-task` 时，可通过 `workspaceMode: 'worktree'` 为 teammate 分配隔离的 Git checkout。
+
 
 ### teammate 之间的消息
 

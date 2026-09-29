@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package lets the model create named teammates, send them messages, inspect availability, wait for progress, interrupt stuck work, and coordinate through a shared task board. Every team member receives the same nine tools and guidance for coordinating in a shared workspace. Choose it when the model should operate a team only after you explicitly request one. It replaces legacy subagent controls with the same tool names, so compositions that need both must disable the legacy definitions. The package is experimental, excluded from official releases, and provides no stability guarantee.
+This package lets the model create named teammates, send them messages, inspect availability, wait for progress, interrupt stuck work, and coordinate through a shared task board. Every team member receives the same nine tools and guidance for coordinating in a shared workspace. Choose it when the model should operate a team only after you explicitly request one. It replaces legacy subagent controls by default or provides team-prefixed tool names when configured, allowing both models to coexist. The package is experimental, excluded from official releases, and provides no stability guarantee.
 
 ## Table of Contents
 
@@ -29,11 +29,11 @@ Add this package on top of `@deepseek-ai/dsh-experimental-agent-team` when the m
 
 ### When to choose it
 
-Choose it when the model should create and coordinate teammates by itself rather than a human driving subagent controls. Avoid it when the legacy global subagent tools with the same names must stay available: the team tools replace them for team members, so a composition that wants both must disable the legacy definitions. The fixed policy creates teammates only when you explicitly ask for a team or teammates, so ordinary tasks never trigger delegation on their own.
+Choose it when the model should create and coordinate teammates by itself rather than a human driving subagent controls. Avoid it when the legacy global subagent tools with the same names must stay available unless `toolNaming: 'team-prefixed'` is configured to prevent shadowing. The fixed policy creates teammates only when you explicitly ask for a team or teammates, so ordinary tasks never trigger delegation on their own.
 
 ### Smallest working example
 
-The smallest addition to an existing composition is the two-package fragment from the [agent-team README](../agent-team/README.md#smallest-working-setup): durable session storage, the team domain package, and this package. The plugin itself takes two optional settings:
+The smallest addition to an existing composition is the two-package fragment from the [agent-team README](../agent-team/README.md#smallest-working-setup): durable session storage, the team domain package, and this package. The plugin itself takes three optional settings:
 
 ```yaml
 - id: tool-agent-team
@@ -41,12 +41,14 @@ The smallest addition to an existing composition is the two-package fragment fro
   config:
     freshProvider: spawn
     forkProvider: fork
+    toolNaming: override
 ```
 
 | Field | Default | Meaning |
 |---|---|---|
 | `freshProvider` | `spawn` | Provider that starts fresh teammates |
 | `forkProvider` | `fork` | Provider that starts fork teammates |
+| `toolNaming` | `override` | Tool naming strategy (`override` replaces legacy names; `team-prefixed` uses `team_*`) |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-experimental-tool-agent-team) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -56,12 +58,13 @@ Try it by asking the Lead model: "create a teammate named reviewer to check the 
 
 The nine tools group into four capabilities:
 
-- **Create a teammate** — `spawn_teammate` takes a name, a description, and the initial task; only the Lead can call it.
-- **Send messages** — `send_message` steers a running member at its nearest step boundary, starts an idle member, and cold-resumes an inactive teammate.
-- **See and wait** — `list_agents` shows the roster with live status; `wait_agent` waits for the next team change; `interrupt_agent` stops a teammate's current turn (Lead only).
+- **Create a teammate** — `spawn_teammate` takes a name, a description, an initial task, and optional `workspace_mode` (`inherit` or `worktree`); only the Lead can call it.
+- **Send messages** — `send_message` (or `team_send_message`) steers a running member, starts an idle member, and cold-resumes an inactive teammate.
+- **See and wait** — `list_agents` shows the roster with live status; `wait_agent` waits for team changes; `interrupt_agent` stops a turn (with `team_*` variants in prefixed mode).
 - **Manage the task board** — `team_task_create`, `team_task_list`, `team_task_get`, and `team_task_update` add, browse, read, and update shared tasks.
 
 Any member can message any other member and use the task board; only the Lead creates and interrupts teammates. Task updates keep the domain's owner and revision checks, so an outdated edit is rejected instead of overwriting newer work.
+
 
 ### What success and failure look like
 

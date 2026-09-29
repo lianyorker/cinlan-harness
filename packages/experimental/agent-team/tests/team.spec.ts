@@ -14,6 +14,17 @@ import { deliverSubagentPrompt, type HostPromptDeliverer } from '@deepseek-ai/ds
 import * as SubagentFork from '@deepseek-ai/dsh-subagent-fork-in-process'
 import * as SubagentSpawn from '@deepseek-ai/dsh-subagent-spawn-in-process'
 import { MockAdapter, textResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import {
+  WorktreeTaskService,
+  type CreateTaskRequest,
+  type BindSessionRequest,
+  type DeleteTaskRequest,
+  type WorktreeTask,
+  type BindSessionResult,
+  type DeleteTaskResult,
+  type WorktreeTaskId,
+} from '@deepseek-ai/dsh-worktree-task'
 import TeamService, { TeamError, TeamId, TeamMessageId, TeamTaskId } from '../src/index.ts'
 import { TeamRuntimeLifecycle } from '../src/lifecycle.ts'
 import { teamProjectionDefinition } from '../src/projection.ts'
@@ -27,6 +38,67 @@ afterEach(() => {
   vi.useRealTimers()
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
+
+class MockWorktreeTaskService extends WorktreeTaskService {
+  readonly created: CreateTaskRequest[] = []
+  readonly bound: BindSessionRequest[] = []
+  readonly deleted: DeleteTaskRequest[] = []
+  deleteError?: Error
+
+  override async create(request: CreateTaskRequest): Promise<WorktreeTask> {
+    this.created.push(request)
+    return {
+      id: brandString<WorktreeTaskId>(`wt-${this.created.length}`),
+      name: request.name,
+      workspaceId: request.workspaceId,
+      sourcePath: request.sourcePath,
+      baseRef: 'main',
+      branch: `branch-${request.name}`,
+      checkoutPath: `/mock/worktrees/${request.name}`,
+      status: 'active',
+      sessionIds: [],
+      createdAt: '2026-09-29T00:00:00.000Z',
+      updatedAt: '2026-09-29T00:00:00.000Z',
+    }
+  }
+
+  override async bindSession(request: BindSessionRequest): Promise<BindSessionResult> {
+    this.bound.push(request)
+    return {
+      task: {
+        id: request.taskId,
+        name: 'task',
+        workspaceId: brandString('ws-1'),
+        sourcePath: '/mock/src',
+        baseRef: 'main',
+        branch: 'branch',
+        checkoutPath: '/mock/worktrees/task',
+        status: 'active',
+        sessionIds: [request.sessionId],
+        createdAt: '2026-09-29T00:00:00.000Z',
+        updatedAt: '2026-09-29T00:00:00.000Z',
+      },
+      checkoutPath: `/mock/worktrees/${request.taskId}`,
+    }
+  }
+
+  override async delete(request: DeleteTaskRequest): Promise<DeleteTaskResult> {
+    this.deleted.push(request)
+    if (this.deleteError !== undefined) throw this.deleteError
+    return { outcome: 'deleted' }
+  }
+
+  override list(): WorktreeTask[] { return [] }
+  override get(_taskId: WorktreeTaskId): WorktreeTask { throw new Error('not implemented') }
+  override settings(): never { throw new Error('not implemented') }
+  override updateSettings(): never { throw new Error('not implemented') }
+  override review(): never { throw new Error('not implemented') }
+  override unbindSession(): never { throw new Error('not implemented') }
+  override findForSession(): undefined { return undefined }
+  override activate(): never { throw new Error('not implemented') }
+  override hibernate(): never { throw new Error('not implemented') }
+  override archive(): never { throw new Error('not implemented') }
+}
 
 /** Detached durable Team read through the same projection definition as the service. */
 function durable(agent: Agent): {
@@ -86,6 +158,7 @@ interface TeamServiceInternals {
     checkpointInitialPrompt(childId: SessionId, messageId: string, signal: AbortSignal): Promise<void>
     reconcileProvisioning(root: Agent, signal: AbortSignal): Promise<void>
     liveChildrenByRoot(): Map<Agent, SessionId[]>
+    stopTeammates(root: Agent, childIds: readonly SessionId[]): Promise<void>
   }
   readonly mailbox: {
     tryDispatch(root: Agent, message: TeamMessageSnapshot, signal: AbortSignal): Promise<boolean>
@@ -1848,5 +1921,184 @@ describe('Team mailbox and waiting', () => {
     expect(durable(second.lead).members[0]).toMatchObject({
       phase: 'failed', error: 'settled elsewhere',
     })
+  })
+
+  it('validates workspaceMode and integrates with WorktreeTaskService for workspace isolation', async () => {
+    const { ctx, lead } = await setup(['hang', 'hang'])
+
+    // 1. Invalid workspaceMode
+    await expect(ctx.agentTeams.spawnTeammate(lead, {
+      name: 'invalid-mode',
+      description: 'invalid workspaceMode',
+      prompt: content('hello'),
+      context: 'fresh',
+      provider: 'spawn',
+      workspaceMode: 'invalid' as unknown as 'inherit',
+      signal: SIGNAL,
+    })).rejects.toMatchObject({
+      name: 'TeamError',
+      code: 'TEAM_INVALID_REQUEST',
+    })
+
+    // 2. workspaceMode: 'worktree' when worktreeTask service is unavailable
+    await expect(ctx.agentTeams.spawnTeammate(lead, {
+      name: 'no-wt-service',
+      description: 'no worktree service',
+      prompt: content('hello'),
+      context: 'fresh',
+      provider: 'spawn',
+      workspaceMode: 'worktree',
+      signal: SIGNAL,
+    })).rejects.toMatchObject({
+      name: 'TeamError',
+      code: 'TEAM_WORKTREE_UNAVAILABLE',
+    })
+
+    // 3. Mount MockWorktreeTaskService
+    const mockWt = new MockWorktreeTaskService(ctx)
+    const wtLead = await ctx.agentLoop.create(
+      SessionId('lead-wt'),
+      { provider: 'mock', model: 'mock' },
+      { cwd: '/custom/lead/cwd' },
+    )
+
+    // Also spawn a standard inherit worker to verify inherit branch in list() and stopTeammates()
+    const inheritWorker = await ctx.agentTeams.spawnTeammate(lead, {
+      name: 'inherit-worker',
+      description: 'inherit worker',
+      prompt: content('work in parent workspace'),
+      context: 'fresh',
+      provider: 'spawn',
+      workspaceMode: 'inherit',
+      signal: SIGNAL,
+    })
+    expect(inheritWorker.member.workspaceMode).toBeUndefined()
+    expect(inheritWorker.member.worktreeTaskId).toBeUndefined()
+
+    // Spawn with worktree on wtLead
+    const spawned = await ctx.agentTeams.spawnTeammate(wtLead, {
+      name: 'wt-worker',
+      description: 'worktree worker',
+      prompt: content('work on branch'),
+      context: 'fresh',
+      provider: 'spawn',
+      workspaceMode: 'worktree',
+      signal: SIGNAL,
+    })
+    expect(spawned.member).toMatchObject({
+      name: 'wt-worker',
+      workspaceMode: 'worktree',
+      worktreeTaskId: 'wt-1',
+    })
+    expect(mockWt.created).toHaveLength(1)
+    expect(mockWt.created[0]?.name).toBe('team-wt-worker')
+    expect(mockWt.created[0]?.sourcePath).toBe('/custom/lead/cwd')
+    expect(mockWt.bound).toHaveLength(1)
+    expect(mockWt.bound[0]?.taskId).toBe('wt-1')
+    expect(mockWt.bound[0]?.sessionId).toBe(spawned.member.id)
+
+    // Check listMembers and membership
+    const members = ctx.agentTeams.listMembers(wtLead)
+    const wtMember = members.find(m => m.name === 'wt-worker')
+    expect(wtMember).toMatchObject({
+      workspaceMode: 'worktree',
+      worktreeTaskId: 'wt-1',
+    })
+    const inhMember = ctx.agentTeams.listMembers(lead).find(m => m.name === 'inherit-worker')
+    expect(inhMember?.workspaceMode).toBeUndefined()
+
+    const childAgent = ctx.agents.get(spawned.member.id)!
+    const childMembership = ctx.agentTeams.membership(childAgent)
+    expect(childMembership).toMatchObject({
+      name: 'wt-worker',
+      role: 'teammate',
+    })
+
+
+    // 4. stopTeammates deletes worktreeTask for wt-worker, ignores inheritWorker, and handles delete errors
+    await ctx.agentTeams.interrupt(wtLead, 'wt-worker')
+    await ctx.agentTeams.interrupt(lead, 'inherit-worker')
+    await teamInternals(ctx).roster.stopTeammates(lead, [inheritWorker.member.id])
+    expect(mockWt.deleted).toHaveLength(0)
+
+    await teamInternals(ctx).roster.stopTeammates(wtLead, [spawned.member.id])
+    expect(mockWt.deleted).toHaveLength(1)
+    expect(mockWt.deleted[0]?.taskId).toBe('wt-1')
+
+    mockWt.deleteError = new Error('simulated stop failure')
+    await expect(teamInternals(ctx).roster.stopTeammates(wtLead, [spawned.member.id])).resolves.toBeUndefined()
+    mockWt.deleteError = undefined
+
+    // 5. Reservation failure rollback deletes worktreeTask
+    mockWt.deleted.length = 0
+    await expect(ctx.agentTeams.spawnTeammate(wtLead, {
+      name: 'wt-worker', // duplicate name
+      description: 'duplicate name',
+      prompt: content('hello'),
+      context: 'fresh',
+      provider: 'spawn',
+      workspaceMode: 'worktree',
+      signal: SIGNAL,
+    })).rejects.toMatchObject({
+      code: 'TEAM_MEMBER_NAME_TAKEN',
+    })
+    expect(mockWt.deleted).toHaveLength(1)
+
+    // Delete failure during reservation rollback is swallowed
+    mockWt.deleteError = new Error('simulated delete failure during rollback')
+    await expect(ctx.agentTeams.spawnTeammate(wtLead, {
+      name: 'wt-worker',
+      description: 'duplicate name 2',
+      prompt: content('hello'),
+      context: 'fresh',
+      provider: 'spawn',
+      workspaceMode: 'worktree',
+      signal: SIGNAL,
+    })).rejects.toMatchObject({
+      code: 'TEAM_MEMBER_NAME_TAKEN',
+    })
+    mockWt.deleteError = undefined
+
+    // 6. startContinuable failure rollback deletes worktreeTask
+    mockWt.deleted.length = 0
+    vi.spyOn(ctx.subagents, 'startContinuable').mockRejectedValueOnce(new Error('start failure'))
+    await expect(ctx.agentTeams.spawnTeammate(wtLead, {
+      name: 'failed-start',
+      description: 'start will fail',
+      prompt: content('hello'),
+      context: 'fresh',
+      provider: 'spawn',
+      workspaceMode: 'worktree',
+      signal: SIGNAL,
+    })).rejects.toThrow('start failure')
+    expect(mockWt.deleted).toHaveLength(1)
+
+    // Delete failure during startContinuable rollback is swallowed
+    mockWt.deleteError = new Error('simulated delete failure during start error')
+    vi.spyOn(ctx.subagents, 'startContinuable').mockRejectedValueOnce(new Error('start failure 2'))
+    await expect(ctx.agentTeams.spawnTeammate(wtLead, {
+      name: 'failed-start-2',
+      description: 'start will fail 2',
+      prompt: content('hello'),
+      context: 'fresh',
+      provider: 'spawn',
+      workspaceMode: 'worktree',
+      signal: SIGNAL,
+    })).rejects.toThrow('start failure 2')
+    mockWt.deleteError = undefined
+
+    // 7. Fallback when root.session.header.cwd is undefined (lead has no cwd in header)
+    const fallbackSpawned = await ctx.agentTeams.spawnTeammate(lead, {
+      name: 'fallback-cwd-worker',
+      description: 'fallback cwd worker',
+      prompt: content('hello'),
+      context: 'fresh',
+      provider: 'spawn',
+      workspaceMode: 'worktree',
+      signal: SIGNAL,
+    })
+    expect(fallbackSpawned.member.workspaceMode).toBe('worktree')
+    expect(mockWt.created.at(-1)?.sourcePath).toBe(process.cwd())
+
   })
 })

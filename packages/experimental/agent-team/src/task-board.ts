@@ -8,6 +8,7 @@ import type { TeamState } from './projection.ts'
 import { resolveActiveMember } from './roster.ts'
 import { assertTaskGraphCandidate, TeamTaskGraphError } from './task-graph.ts'
 import type { TeamTaskGraphViolation } from './task-graph.ts'
+import { projectTaskView, taskReady } from './task-view.ts'
 import { TeamId, TeamTaskId } from './types.ts'
 import type {
   CreateTeamTaskRequest,
@@ -16,11 +17,6 @@ import type {
   UpdateTeamTaskRequest,
 } from './types.ts'
 import { requiredText, writeScope } from './validation.ts'
-
-/** Whether two normalized file or directory prefixes overlap on path components. */
-function scopesOverlap(left: string, right: string): boolean {
-  return left === right || left.startsWith(`${right}/`) || right.startsWith(`${left}/`)
-}
 
 const TASK_GRAPH_ERROR_CODES: Record<TeamTaskGraphViolation, string> = {
   missing: 'TEAM_TASK_NOT_FOUND',
@@ -253,7 +249,7 @@ export class TeamTaskBoard {
 
   /** Whether all current blockers completed. */
   private taskReady(state: TeamState, task: TeamTaskSnapshot): boolean {
-    return task.blockedBy.every(id => state.tasks.find(candidate => candidate.id === id)?.status === 'completed')
+    return taskReady(state, task)
   }
 
   /** Remove an optional owner field under exactOptionalPropertyTypes. */
@@ -262,36 +258,8 @@ export class TeamTaskBoard {
     return without
   }
 
-  /**
-   * Build one task view with owner name, readiness, and advisory write overlaps.
-   * A committing caller may pass its pre-append state because `task` supplies the
-   * new value explicitly; owner names, blocker readiness, and other task scopes
-   * do not change when that snapshot is appended.
-   */
-  private taskView(root: Agent, state: TeamState, task: TeamTaskSnapshot): TeamTaskView {
-    const ownerName = task.ownerId === undefined
-      ? undefined
-      : task.ownerId === root.id
-        ? 'lead'
-        : state.members.find(member => member.id === task.ownerId)?.name
-    const warnings = new Set<string>()
-    for (const other of state.tasks) {
-      if (other.id === task.id || other.status !== 'in_progress') continue
-      if (task.writeScopes.some(left => other.writeScopes.some(right => scopesOverlap(left, right)))) {
-        warnings.add(`write scopes overlap with ${other.id}`)
-      }
-    }
-    return {
-      id: task.id,
-      revision: task.revision,
-      subject: task.subject,
-      description: task.description,
-      status: task.status,
-      blockedBy: structuredClone(task.blockedBy),
-      writeScopes: structuredClone(task.writeScopes),
-      ...ownerName === undefined ? {} : { ownerName },
-      ready: task.status === 'pending' && this.taskReady(state, task),
-      writeScopeWarnings: [...warnings],
-    }
+  /** Build one task view with owner name, readiness, and advisory write overlaps. */
+  private taskView(_root: Agent, state: TeamState, task: TeamTaskSnapshot): TeamTaskView {
+    return projectTaskView(state, task)
   }
 }

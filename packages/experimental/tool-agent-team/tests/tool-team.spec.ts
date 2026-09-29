@@ -455,4 +455,70 @@ describe('dsh-tool-team', () => {
     await vi.waitFor(() => { expect(ctx.agents.get(childId)).toBeUndefined() }, { timeout: 5_000 })
     expect(ctx.agentTeams.listMembers(lead)[1]).toMatchObject({ provider: 'team-fresh' })
   })
+
+  it('supports team-prefixed toolNaming alongside global subagent controls', async () => {
+    const { ctx, lead, fiber } = await setup(['hang', textResponse('lead received wakeup')], true)
+    await fiber.dispose()
+    await ctx.plugin(toolTeam, { toolNaming: 'team-prefixed' })
+
+    const assembled = await assembly(ctx, lead)
+    const toolNames = assembled.tools.map(t => t.name)
+    expect(toolNames).toContain('team_send_message')
+    expect(toolNames).toContain('team_list_agents')
+    expect(toolNames).toContain('team_wait_agent')
+    expect(toolNames).toContain('team_interrupt_agent')
+    expect(toolNames).toContain('send_message')
+    expect(toolNames).toContain('interrupt_agent')
+
+    const prompt = renderPrompt(assembled)
+    expect(prompt).toContain('team_send_message')
+    expect(prompt).toContain('team_list_agents')
+    expect(prompt).toContain('team_wait_agent')
+
+    const listRes = await execute(ctx, lead, 'team_list_agents', {})
+    expect(listRes.isError).toBe(false)
+    expect(JSON.parse(text(listRes))).toMatchObject([{ name: 'lead', role: 'lead' }])
+
+    const waitRes = await execute(ctx, lead, 'team_wait_agent', { timeout_ms: 10_000 })
+    expect(waitRes.isError).toBe(false)
+    expect(text(waitRes)).toContain('no-active-peer')
+    expect(text(waitRes)).toContain('team_wait_agent')
+    expect(text(waitRes)).toContain('team_list_agents')
+    expect(text(waitRes)).toContain('team_send_message')
+
+    const spawnRes = await execute(ctx, lead, 'spawn_teammate', {
+      name: 'prefixed-worker',
+      description: 'prefixed worker',
+      prompt: 'stay active',
+      workspace_mode: 'inherit',
+    })
+    expect(spawnRes.isError).toBe(false)
+    const childId = spawnedChildId(spawnRes)
+    const child = await waitRunning(ctx, childId)
+
+    const childAssembly = await assembly(ctx, child)
+    expect(childAssembly.tools.map(t => t.name)).toContain('team_send_message')
+    expect(childAssembly.tools.map(t => t.name)).toContain('team_list_agents')
+
+    const childList = await execute(ctx, child, 'team_list_agents', {})
+    expect(childList.isError).toBe(false)
+    expect(JSON.parse(text(childList))).toMatchObject([
+      { name: 'lead', role: 'lead' },
+      { name: 'prefixed-worker', role: 'teammate' },
+    ])
+
+    const sendRes = await execute(ctx, child, 'team_send_message', {
+      target: 'lead',
+      message: 'peer report',
+    })
+    expect(sendRes.isError).toBe(false)
+    expect(JSON.parse(text(sendRes))).toMatchObject({ status: 'accepted' })
+    await lead.whenIdle()
+
+    const interruptRes = await execute(ctx, lead, 'team_interrupt_agent', {
+      target: 'prefixed-worker',
+    })
+    expect(interruptRes.isError).toBe(false)
+    await waitNoAgent(ctx, childId)
+  })
 })
