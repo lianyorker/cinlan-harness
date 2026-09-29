@@ -1,6 +1,49 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/browser/browser-playwright/README.md
-README.md: f3b5d478357fe9cb63417cef08ada419dcb07340
-README.zh.md: ffd4a7d6645608cfb198e2e1c858e35ec00eba36
+/:
+  en: 6d4c7bc5240d50fd
+  zh: c6a72ae432d89697
+/deepseek-ai-dsh-browser-playwright:
+  en: e55fa7f24a3e7fca
+  zh: 8abe7be8b1ff1b27
+/deepseek-ai-dsh-browser-playwright/summary:
+  en: aebe22b60a7a1873
+  zh: 04d5f511ecb05a45
+/deepseek-ai-dsh-browser-playwright/table-of-contents:
+  en: 9bcc4930ece78771
+  zh: ac3f4abb60a44e4e
+/deepseek-ai-dsh-browser-playwright/lifecycle-and-identity:
+  en: 2a4cac37470cc28e
+  zh: 53947b794d3199bd
+/deepseek-ai-dsh-browser-playwright/verified-element-capture:
+  en: d709908b4707fd96
+  zh: 5667e2bc53c25b5a
+/deepseek-ai-dsh-browser-playwright/configuration:
+  en: f89830d4bc18c817
+  zh: 24289706fda12286
+/deepseek-ai-dsh-browser-playwright/managed-chromium:
+  en: b8a418f6783a02eb
+  zh: 4c30f93d420879e7
+/deepseek-ai-dsh-browser-playwright/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-browser-playwright/model-experience/provider-backed-browser-operations:
+  en: 08481cd2a8988479
+  zh: a9650f9361a489e8
+/deepseek-ai-dsh-browser-playwright/model-experience/provider-backed-browser-operations/what-the-model-sees:
+  en: ed9c9b583f9bf30c
+  zh: 1d1acdc7806c6a3c
+/deepseek-ai-dsh-browser-playwright/model-experience/provider-backed-browser-operations/token-effect:
+  en: d2249117d644c53d
+  zh: ee23ba2a8c812ca9
+/deepseek-ai-dsh-browser-playwright/model-experience/provider-backed-browser-operations/kv-cache-effect:
+  en: 24a2275b53e0d5fc
+  zh: e7540e9c340d9b19
+/deepseek-ai-dsh-browser-playwright/known-limitations-and-deferred-work:
+  en: 737c6248f233fdb0
+  zh: 50ef905ff628307e
+/deepseek-ai-dsh-browser-playwright/known-limitations-and-deferred-work/dev-note:
+  en: b9c29cc900d1724c
+  zh: 49f8e75b29e07489

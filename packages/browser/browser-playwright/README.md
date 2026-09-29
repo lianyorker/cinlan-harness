@@ -60,6 +60,7 @@ The plugin requires Browser, Settings, and the same-package `./runtime` service.
 | `maxHistoryEntries` / `maxNetworkEntries` | `100` / `100` | Records retained per open page. |
 | `maxCookieCount` / `maxDownloadCount` | `100` / `20` | Cookies per import and retained downloads per page. |
 | `maxTransferBytes` | `4194304` | Byte limit for uploads and download reads. |
+| `remoteDebuggingPort` | absent | Remote debugging port (CDP) for browser-use and external tool attachment. |
 
 profileName accepts safe lowercase names. default preserves storageDir; other names use storageDir/harness-profiles/profile-{name}. Cookie and browser storage isolation follows these directories; changing names neither copies nor deletes existing data. History/network retain only recent open-page metadata, removing URL credentials, query, and fragment and excluding headers and bodies. Page or Provider closure clears them.
 

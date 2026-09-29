@@ -75,7 +75,7 @@ const INTERACTIVE_SELECTOR = 'a[href],button,input:not([type="hidden"]),select,t
 const CONFIG_KEYS = new Set([
   'providerId', 'storageDir', 'browserChannel', 'executablePath', 'headless', 'profileName', 'homePage', 'searchEngine', 'maxHistoryEntries', 'maxNetworkEntries', 'maxCookieCount', 'maxDownloadCount', 'maxTransferBytes',
   'actionTimeoutMs', 'navigationTimeoutMs', 'maxElements', 'viewportWidth', 'viewportHeight',
-  'maxCaptureBytes', 'maxCapturePixels', 'selectionTimeoutMs',
+  'maxCaptureBytes', 'maxCapturePixels', 'selectionTimeoutMs', 'remoteDebuggingPort',
 ])
 
 type BrowserChannel = 'chrome' | 'msedge' | 'chromium'
@@ -124,6 +124,8 @@ export interface Config {
   readonly maxCapturePixels?: number
   /** Maximum time waiting for an overlay selection. Defaults to 60000 ms. */
   readonly selectionTimeoutMs?: number
+  /** Remote debugging port (CDP) exposed by Chromium. Defaults to undefined (disabled). */
+  readonly remoteDebuggingPort?: number
 }
 
 /** Fully validated Playwright provider settings. */
@@ -149,6 +151,7 @@ export interface ResolvedConfig {
   readonly maxCaptureBytes: number
   readonly maxCapturePixels: number
   readonly selectionTimeoutMs: number
+  readonly remoteDebuggingPort?: number
 }
 
 /** User preferences exclude executable paths, profile storage, and provider identity. */
@@ -186,6 +189,7 @@ export const Config: z<Config> = z.object({
   maxCaptureBytes: z.number().default(DEFAULT_MAX_CAPTURE_BYTES),
   maxCapturePixels: z.number().default(DEFAULT_MAX_CAPTURE_PIXELS),
   selectionTimeoutMs: z.number().default(DEFAULT_SELECTION_TIMEOUT_MS),
+  remoteDebuggingPort: z.number().step(1).min(1024).max(65535),
 })
 
 function cleanString(name: string, value: string): string {
@@ -233,6 +237,14 @@ function positiveInteger(name: string, value: number): number {
   return value
 }
 
+function portLimit(name: string, value: number): number {
+  positiveInteger(name, value)
+  if (value < 1024 || value > 65535) {
+    throw new Error(`browser-playwright: ${name} must be a valid port number between 1024 and 65535`)
+  }
+  return value
+}
+
 /**
  * Validate and default Playwright browser settings.
  * @param config - loader or direct plugin configuration.
@@ -251,6 +263,9 @@ export function resolvePlaywrightBrowserConfig(config: Config = {}): ResolvedCon
   const executablePath = config.executablePath === undefined
     ? undefined
     : cleanString('executablePath', config.executablePath)
+  const envCdpPort = process.env.DSH_BROWSER_CDP_PORT ?? process.env.CINLAN_BROWSER_CDP_PORT
+  const rawPort = config.remoteDebuggingPort ?? (envCdpPort !== undefined && envCdpPort !== '' ? Number(envCdpPort) : undefined)
+  const remoteDebuggingPort = rawPort === undefined ? undefined : portLimit('remoteDebuggingPort', rawPort)
   return {
     providerId: cleanString('providerId', config.providerId ?? 'local'),
     storageDir: cleanString('storageDir', config.storageDir ?? dshHomePath('browser', 'profile')),
@@ -273,6 +288,7 @@ export function resolvePlaywrightBrowserConfig(config: Config = {}): ResolvedCon
     maxCaptureBytes: positiveInteger('maxCaptureBytes', config.maxCaptureBytes ?? DEFAULT_MAX_CAPTURE_BYTES),
     maxCapturePixels: positiveInteger('maxCapturePixels', config.maxCapturePixels ?? DEFAULT_MAX_CAPTURE_PIXELS),
     selectionTimeoutMs: positiveInteger('selectionTimeoutMs', config.selectionTimeoutMs ?? DEFAULT_SELECTION_TIMEOUT_MS),
+    ...(remoteDebuggingPort === undefined ? {} : { remoteDebuggingPort }),
   }
 }
 
@@ -567,6 +583,16 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
   /** @inheritdoc */
   currentProfile(): string { return this.config.profileName }
 
+  /**
+   * CDP endpoint URL if remote debugging port is configured.
+   * @returns CDP HTTP URL string (e.g. `http://127.0.0.1:9222`) or undefined.
+   */
+  cdpEndpoint(): string | undefined {
+    return this.config.remoteDebuggingPort !== undefined
+      ? `http://127.0.0.1:${this.config.remoteDebuggingPort}`
+      : undefined
+  }
+
   /** @inheritdoc */
   resolveNavigation(target: BrowserNavigationTarget): BrowserOpenRequest {
     switch (target.kind) {
@@ -629,11 +655,16 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
   private async context(signal?: AbortSignal): Promise<BrowserContext> {
     if (this.disposed) throw browserFailure('Playwright browser provider is disposed', 'BROWSER_PROVIDER_DISPOSED')
     if (this.contextPromise === undefined) {
+      const launchArgs: string[] = []
+      if (this.config.remoteDebuggingPort !== undefined) {
+        launchArgs.push(`--remote-debugging-port=${this.config.remoteDebuggingPort}`)
+      }
       const launchOptions: NonNullable<Parameters<typeof chromium.launchPersistentContext>[1]> = {
         env: scrubbedParentEnv(),
         headless: this.config.headless,
         timeout: this.config.actionTimeoutMs,
         viewport: { width: this.config.viewportWidth, height: this.config.viewportHeight },
+        ...(launchArgs.length > 0 ? { args: launchArgs } : {}),
         ...(this.config.executablePath === undefined
           ? { channel: this.config.browserChannel }
           : { executablePath: this.config.executablePath }),

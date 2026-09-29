@@ -982,3 +982,22 @@ it('caps downloads, verifies page ownership, and refuses unfinished or oversized
     expect(download.cancel).toHaveBeenCalledOnce()
   } finally { settlement.resolve(null); await b.provider.dispose() }
 })
+
+it('supports remote debugging port and exposes cdpEndpoint', async () => {
+  const b = harness({ remoteDebuggingPort: 9222 })
+  try {
+    expect(b.provider.cdpEndpoint()).toBe('http://127.0.0.1:9222')
+    await b.provider.listPages()
+    expect(b.launch).toHaveBeenCalledOnce()
+    const options = b.launch.mock.calls[0]?.[1]
+    expect(options?.args).toContain('--remote-debugging-port=9222')
+  } finally {
+    await b.provider.dispose()
+  }
+})
+
+it('validates remoteDebuggingPort range and rejects invalid ports', () => {
+  expect(() => resolvePlaywrightBrowserConfig({ remoteDebuggingPort: 80 })).toThrow(/between 1024 and 65535/)
+  expect(() => resolvePlaywrightBrowserConfig({ remoteDebuggingPort: 70000 })).toThrow(/between 1024 and 65535/)
+  expect(resolvePlaywrightBrowserConfig({ remoteDebuggingPort: 9222 }).remoteDebuggingPort).toBe(9222)
+})

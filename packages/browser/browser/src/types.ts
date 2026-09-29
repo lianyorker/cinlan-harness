@@ -301,6 +301,11 @@ export interface BrowserProvider {
   click(request: BrowserClickRequest, signal?: AbortSignal): Promise<BrowserClickResult>
   screenshot(request: BrowserScreenshotRequest, signal?: AbortSignal): Promise<BrowserScreenshot>
   closePage(request: BrowserCloseRequest, signal?: AbortSignal): Promise<void>
+  /**
+   * Optional Chrome DevTools Protocol endpoint (e.g. `http://127.0.0.1:9222`)
+   * when remote debugging is enabled for this provider.
+   */
+  cdpEndpoint?(): string | undefined
 }
 
 /** Optional Provider extension for temporary element selection and verified crops. */

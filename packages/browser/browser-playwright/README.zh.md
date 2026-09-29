@@ -60,6 +60,7 @@ Snapshot element id 只在一个精确 observation 内有效。Selection id 持�
 | `maxHistoryEntries` / `maxNetworkEntries` | `100` / `100` | 每个打开页面保留的记录数。 |
 | `maxCookieCount` / `maxDownloadCount` | `100` / `20` | 单次导入 Cookie 数及每页下载数。 |
 | `maxTransferBytes` | `4194304` | 上传或读取下载文件的字节上限。 |
+| `remoteDebuggingPort` | 无 | 供 browser-use 与外部工具附着连接的远程调试端口（CDP）。 |
 
 profileName 只接受小写字母开头的安全名称。default 保留原 storageDir；其他名称使用 storageDir/harness-profiles/profile-{name}。Cookie 与浏览器存储按目录隔离，修改名称不复制或删除旧数据。history/network 只保留打开页面的最近记录，去掉 URL 凭据、查询和片段，不保留请求头或响应体；关闭页面或 Provider 后清空。
 

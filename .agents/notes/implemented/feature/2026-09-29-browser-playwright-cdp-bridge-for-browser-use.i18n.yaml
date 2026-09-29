@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-29-browser-playwright-cdp-bridge-for-browser-use.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-29-browser-playwright-cdp-bridge-for-browser-use.md
+/agent-note-browser-playwright-cdp-bridge-for-browser-use:
+  en: 9b58874b8ff0473e
+  zh: 14da961692ef96a4
+/agent-note-browser-playwright-cdp-bridge-for-browser-use/problem:
+  en: ff4a021aa461a0b9
+  zh: fdd96107d979ec14
+/agent-note-browser-playwright-cdp-bridge-for-browser-use/decision:
+  en: b2a9753cca0f790a
+  zh: 9d4c9a86d925e905
+/agent-note-browser-playwright-cdp-bridge-for-browser-use/alternatives-considered:
+  en: 7db187f34089e4cf
+  zh: 4efcc7479df3d491
+/agent-note-browser-playwright-cdp-bridge-for-browser-use/consequences:
+  en: f49b64e610406ad1
+  zh: e0c2e25c8e402198
+/agent-note-browser-playwright-cdp-bridge-for-browser-use/verification:
+  en: 87447a758580a8f6
+  zh: 558bdcbfd9b8af47
