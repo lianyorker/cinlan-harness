@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-29-desktop-co-screen-browser-cdp-integration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-29-desktop-co-screen-browser-cdp-integration.md
+/agent-note-desktop-co-screen-browser-cdp-integration:
+  en: 3c2db5faf693f523
+  zh: f2eccc7a98fb0b55
+/agent-note-desktop-co-screen-browser-cdp-integration/problem:
+  en: ec27c1b4ef6fa9ac
+  zh: c7fe3b3e2d72484c
+/agent-note-desktop-co-screen-browser-cdp-integration/decision:
+  en: cd33a4263e933404
+  zh: ffa8ef3a9c63406a
+/agent-note-desktop-co-screen-browser-cdp-integration/alternatives-considered:
+  en: c470eebd4be4c22f
+  zh: 8c2024b69691cb8e
+/agent-note-desktop-co-screen-browser-cdp-integration/consequences:
+  en: 478227823efd31fd
+  zh: 660fe002a6c00b4f
+/agent-note-desktop-co-screen-browser-cdp-integration/verification:
+  en: 4627c91beb561264
+  zh: aeb96f95fc9baff6

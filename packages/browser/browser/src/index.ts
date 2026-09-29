@@ -447,6 +447,14 @@ export class BrowserRuntime extends Service {
   async closePage(request: BrowserCloseRequest, signal?: AbortSignal): Promise<void> {
     return this.provider().closePage(request, signal)
   }
+
+  /**
+   * Return the CDP endpoint from the active browser provider, if supported and configured.
+   * @returns CDP HTTP URL string (e.g. `http://127.0.0.1:9222`) or undefined.
+   */
+  cdpEndpoint(): string | undefined {
+    return this.provider().cdpEndpoint?.()
+  }
 }
 
 export default BrowserRuntime

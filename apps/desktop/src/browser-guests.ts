@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { app, session, type BrowserWindow, type Session, type WebContents } from 'electron'
 import type { DesktopBrowserLeaseId, DesktopBrowserOpenRequest, DesktopBrowserReservation } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import { DESKTOP_IPC } from './ipc.ts'
+import { desktopRemoteDebuggingPort } from './browser-remote-debugging.ts'
 
 interface GuestLease {
   readonly owner: WebContents
@@ -87,7 +88,7 @@ export class DesktopBrowserGuests {
         nodeIntegration: false, nodeIntegrationInWorker: false, nodeIntegrationInSubFrames: false,
         contextIsolation: true, sandbox: true, webSecurity: true, allowRunningInsecureContent: false,
         webviewTag: false, plugins: false, navigateOnDragDrop: false, disableDialogs: true,
-        devTools: !app.isPackaged,
+        devTools: !app.isPackaged || desktopRemoteDebuggingPort() !== undefined,
       })
       params.httpreferrer = ''
     })

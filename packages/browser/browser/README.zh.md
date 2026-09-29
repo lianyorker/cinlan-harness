@@ -34,6 +34,7 @@ kind: "package-reference"
 | `captureElement(request, signal?)` | 通过可选 Provider 扩展返回绑定到 observation 或 selection 的、经过校验的元素 crop。 |
 | `screenshot(request, signal?)` | 返回有界的 viewport 编码字节，由 Consumer 负责持久化为附件。 |
 | `closePage(request, signal?)` | 关闭一个持久页面。 |
+| `cdpEndpoint()` | 返回处于活动状态的 provider 的 Chrome DevTools Protocol URL（若配置了远程调试）。 |
 
 所有异步成员都通过其返回的 Promise 拒绝，包括在 provider I/O 前即可确定的 provider 选择失败。
 

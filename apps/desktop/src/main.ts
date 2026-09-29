@@ -57,6 +57,7 @@ import { DesktopUpdateOverlays } from './update-overlay.ts'
 import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
+import { desktopRemoteDebuggingPort } from './browser-remote-debugging.ts'
 
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => {}
@@ -79,6 +80,10 @@ const rendererConsole = new RendererConsoleTail()
 // Platform-conventional logs directory (macOS ~/Library/Logs/<name>, otherwise under userData);
 // set before ready so the first fatal report already resolves under it.
 app.setAppLogsPath()
+const desktopCdpPort = desktopRemoteDebuggingPort()
+if (desktopCdpPort !== undefined && typeof app.commandLine?.appendSwitch === 'function') {
+  app.commandLine.appendSwitch('remote-debugging-port', String(desktopCdpPort))
+}
 
 function currentDesktopLocale(): ReturnType<typeof resolveDesktopLocale> {
   return resolveDesktopLocale(windowsLanguage ?? app.getLocale())

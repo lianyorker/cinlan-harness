@@ -259,4 +259,14 @@ describe('BrowserRuntime', () => {
     }))
     await fiber.dispose()
   })
+
+  it('forwards cdpEndpoint from the active provider', async () => {
+    const { ctx, fiber } = await mount()
+    const p = provider('cdp-provider')
+    p.cdpEndpoint = vi.fn(() => 'http://127.0.0.1:9222')
+    ctx.browser.registerProvider(p)
+    expect(ctx.browser.cdpEndpoint()).toBe('http://127.0.0.1:9222')
+    expect(p.cdpEndpoint).toHaveBeenCalledOnce()
+    await fiber.dispose()
+  })
 })

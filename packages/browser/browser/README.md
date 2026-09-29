@@ -34,6 +34,7 @@ This package owns one layer of the persistent Browser capability; its detailed s
 | `captureElement(request, signal?)` | Uses an optional Provider extension to return a verified observation-bound or selection-bound element crop. |
 | `screenshot(request, signal?)` | Returns bounded encoded viewport bytes for Consumer-owned attachment persistence. |
 | `closePage(request, signal?)` | Closes one persistent page. |
+| `cdpEndpoint()` | Returns the active provider's Chrome DevTools Protocol URL if remote debugging is configured. |
 
 Every asynchronous member rejects through its returned Promise, including provider-selection failures that are known before provider I/O.
 
