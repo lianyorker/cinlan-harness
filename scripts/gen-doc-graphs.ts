@@ -17,6 +17,14 @@ import {
   graphNodeId as nodeId,
   type PackageGraphNode,
 } from './package-graph.ts'
+import { rewriteTranslationLinkLocales } from './translation-links.ts'
+import {
+  generatedRegions,
+  parseTranslationPairingManifest,
+  renderGeneratedRegion,
+  spliceGeneratedRegion,
+  translationPairSourcePredicate,
+} from './translation-pairing.ts'
 import { TypeScriptProject } from './ts-project.ts'
 
 const root = resolve(import.meta.dirname, '..')
@@ -31,7 +39,7 @@ interface ServiceRole {
   key: string
   pkg: string
   title: string
-  mode: 'core' | 'seam' | 'bundle'
+  mode: 'core' | 'seam' | 'bundle' | 'service'
   implementations?: string[]
   consumers?: string[]
   companions?: string[]
@@ -63,6 +71,7 @@ type EventReceiverKind = 'context' | 'agent-dispatch' | 'events-service'
 const GROUP_ORDER = [
   'util',
   'attachment',
+  'document',
   'llm',
   'core',
   'typert',
@@ -72,7 +81,7 @@ const GROUP_ORDER = [
   'bash',
   'pty',
   'sandbox',
-  'e2b',
+  'ssh',
   'fs',
   'skill',
   'compact',
@@ -99,300 +108,76 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
-    key: 'artifacts', pkg: 'artifact', title: 'Artifact storage', mode: 'seam',
-    implementations: ['artifact-local', 'artifact-memory'],
-    consumers: ['finding-session', 'tool-finding', 'api-security-research-controller'],
-    note: 'Stores execution-host evidence artifacts and resolves their metadata and byte access.',
+    key: 'hmr',
+    pkg: 'hmr',
+    title: 'Serialized module and configuration reloads',
+    mode: 'core',
+    consumers: ['app-boot'],
+    note: 'Owns module and exact configuration watchers; application mutations share its queue and automatic reloads await the application file lock.',
   },
   {
-    key: 'assessmentScope', pkg: 'assessment-scope', title: 'Assessment scope policy', mode: 'seam',
-    implementations: ['assessment-scope-static'],
-    consumers: ['assessment-scope-session', 'api-security-research-controller'],
-    note: 'Validates root grants, narrowing, target admission, and expiry for security assessments.',
+    key: 'pluginRegistryProbe',
+    pkg: 'client-ui-plugin-manager',
+    title: 'Host registry response comparison',
+    mode: 'core',
+    consumers: ['client-ui-plugin-manager'],
+    note: 'Races public registry responses on the Host; the Client owns the initial registry recommendation.',
   },
   {
-    key: 'assessmentScopeSessions', pkg: 'assessment-scope-session', title: 'Session assessment grants', mode: 'core',
-    consumers: ['assessment-scope-tool-policy', 'tool-finding', 'api-security-research-controller'],
-    note: 'Owns durable Session grants and audit records used by assessment tool policy.',
+    key: 'pluginManager',
+    pkg: 'plugin-manager',
+    title: 'Current-profile plugin and bundle management',
+    mode: 'core',
+    consumers: ['plugin-manager', 'ui-settings-plugin-inventory'],
+    note: 'Shares profile package operations with the CLI and reports persisted and running state to Web and agent callers.',
   },
   {
-    key: 'automationController', pkg: 'api-automation-controller', title: 'Automation Remote controller', mode: 'core',
-    consumers: ['client-ui-settings-automation'],
-    note: 'Exposes automation definitions, run controls, schedule previews, and available configuration choices.',
+    key: 'profileContext',
+    pkg: 'app-boot',
+    title: 'Launcher-owned profile data',
+    mode: 'core',
+    consumers: ['plugin-manager'],
+    note: 'The dsh launcher supplies data-only profile locations and composition inputs; reload scheduling belongs to dsh-hmr.',
   },
   {
-    key: 'automationRuntime', pkg: 'automation', title: 'Durable automation scheduling', mode: 'core',
-    consumers: ['api-automation-controller'],
-    note: 'Schedules durable UTC automation runs through ordinary Agents and records their lifecycle.',
+    key: 'connection',
+    pkg: 'client-connection',
+    title: 'Authenticated browser transport',
+    mode: 'core',
+    consumers: ['api-gateway', 'host-frontend-static'],
+    note: 'Owns browser authentication and shared HTTP request dispatch; API adapters register endpoints and streams.',
   },
   {
-    key: 'betterSidebar', pkg: 'client-ui-better-sidebar', title: 'Sidebar tab and viewer registry', mode: 'core',
-    consumers: ['client-ui-plan', 'client-ui-settings-terminal'],
-    note: 'Owns sidebar tab and viewer contributions shared by the local browser interface.',
-  },
-  {
-    key: 'browser', pkg: 'browser', title: 'Browser automation seam', mode: 'seam',
-    implementations: ['browser-playwright'],
-    consumers: ['tool-browser', 'tool-browser-element-capture', 'api-browser-controller', 'coordination-browser-element-capture'],
-    note: 'Routes browser observation and interaction to a selected provider.',
-  },
-  {
-    key: 'browserRuntime', pkg: 'browser-playwright', title: 'Native browser runtime resources', mode: 'core',
-    consumers: ['browser-playwright', 'api-browser-controller'],
-    note: 'Owns the managed browser installation, provider selection, executable leases, and one Host task independently from plugin activation.',
-  },
-  {
-    key: 'browserController', pkg: 'api-browser-controller', title: 'Browser Remote controller', mode: 'core',
-    consumers: ['client-ui-settings-security', 'client-ui-browser-element-capture'],
-    note: 'Exposes browser capability configuration and element-capture operations to the browser client.',
-  },
-  {
-    key: 'browserUse', pkg: 'browser-use', title: 'Exclusive browser-use registration', mode: 'seam',
-    implementations: ['experimental-browser-use-stagehand-native', 'experimental-browser-use-playwright-mcp', 'experimental-browser-use-chrome-devtools-mcp'],
-    note: 'Reserves one named provider until its tools and owned work have closed; providers own execution methods.',
-  },
-  {
-    key: 'computerUse', pkg: 'computer-use', title: 'Computer interaction seam', mode: 'seam',
-    implementations: ['experimental-computer-use-cua-driver-native', 'experimental-computer-use-cua-driver-mcp'],
-    consumers: ['tool-computer-use', 'api-device-capabilities-controller'],
-    note: 'Provides desktop observation and input through interchangeable device providers.',
-  },
-  {
-    key: 'coordination', pkg: 'coordination', title: 'Coordinated task execution', mode: 'seam',
-    implementations: ['coordination-local'],
-    consumers: ['tool-coordination', 'coordination-subagent-executor', 'coordination-browser-element-capture', 'tool-browser-element-capture'],
-    note: 'Owns task graphs, cancellation, and approval state shared by execution adapters.',
-  },
-  {
-    key: 'deviceCapabilitiesController', pkg: 'api-device-capabilities-controller', title: 'Device capability Remote controller', mode: 'core',
-    consumers: ['client-ui-settings-security'],
-    note: 'Reports desktop and mobile capability availability, SDK detection, and device choices.',
-  },
-  {
-    key: 'executionBindings', pkg: 'execution-binding', title: 'Session execution bindings', mode: 'core',
-    consumers: ['agent', 'automation', 'subagent', 'workspace', 'api-session-controller', 'api-workspace-controller'],
-    note: 'Retains the local or SSH execution incarnation selected for a Session and lends the captured provider world to each operation.',
-  },
-  {
-    key: 'executionRuntimes', pkg: 'execution-runtime', title: 'Remote execution runtime lifecycle', mode: 'core',
-    consumers: ['api-execution-host-controller'],
-    note: 'Owns remote runtime inspection, installation tasks, cancellation, and atomic saved-target activation.',
-  },
-  {
-    key: 'executionHost', pkg: 'execution-host', title: 'Execution-host seam', mode: 'seam',
-    implementations: ['execution-host-local'],
-    consumers: ['artifact-local', 'artifact-memory', 'execution-host-worker', 'execution-host-targets', 'tool-finding'],
-    note: 'Defines execution-host identity and operations consumed by workers and artifact providers.',
-  },
-  {
-    key: 'executionHostController', pkg: 'api-execution-host-controller', title: 'Execution-host Remote controller', mode: 'core',
-    consumers: ['client-ui-settings-hosts'],
-    note: 'Exposes saved execution targets, revisions, and connection inspection.',
-  },
-  {
-    key: 'executionHostTargets', pkg: 'execution-host-targets', title: 'Saved execution targets', mode: 'core',
-    consumers: ['api-execution-host-controller'],
-    note: 'Owns saved SSH target configuration and generation-aware inspection results.',
-  },
-  {
-    key: 'findings', pkg: 'finding', title: 'Assessment findings seam', mode: 'seam',
-    implementations: ['finding-session'],
-    consumers: ['tool-finding', 'api-security-research-controller'],
-    note: 'Provides findings and evidence snapshots backed by the owning Session.',
-  },
-  {
-    key: 'git', pkg: 'git', title: 'Read-only Git inspection', mode: 'seam',
-    implementations: ['git-local'],
-    consumers: ['tool-git'],
-    note: 'Provides normalized repository status, diffs, and history without mutation commands.',
-  },
-  {
-    key: 'integrationPreflightController', pkg: 'api-integration-preflight-controller', title: 'Integration preflight Remote controller', mode: 'core',
-    consumers: ['client-ui-integrations', 'client-ui-work-items'],
-    note: 'Reports integration readiness before clients configure or use remote capabilities.',
-  },
-  {
-    key: 'mcpController', pkg: 'api-mcp-controller', title: 'MCP management Remote controller', mode: 'core',
-    consumers: ['client-ui-settings-mcp'],
-    note: 'Exposes configured MCP servers and desired lifecycle changes to settings clients.',
-  },
-  {
-    key: 'mcpManagement', pkg: 'mcp-management', title: 'Persistent MCP management', mode: 'core',
-    consumers: ['api-mcp-controller'],
-    note: 'Owns durable desired MCP entries and reconciles their running lifecycle.',
-  },
-  {
-    key: 'mcpRegistry', pkg: 'mcp-client', title: 'Profile MCP observations', mode: 'core',
-    consumers: ['mcp-management'],
-    note: 'Publishes read-only observations of the root profile MCP clients.',
-  },
-  {
-    key: 'mcpResources', pkg: 'mcp-resources', title: 'MCP resource registry', mode: 'seam',
+    key: 'mcpResources',
+    pkg: 'mcp-resources',
+    title: 'Scoped MCP resource access',
+    mode: 'seam',
     implementations: ['mcp-client'],
     consumers: ['mcp-resources'],
-    note: 'Collects provider resources and templates for the resource tools registered by the same package.',
+    note: 'Connection-owned providers serve shared resource tools in the calling agent scope.',
   },
   {
-    key: 'mobileDevice', pkg: 'mobile-device', title: 'Mobile device seam', mode: 'seam',
-    implementations: ['mobile-device-adb'],
-    consumers: ['tool-mobile-device', 'api-device-capabilities-controller'],
-    note: 'Provides device discovery, observation, and input for mobile automation.',
+    key: 'browserUse',
+    pkg: 'browser-use',
+    title: 'Browser-use provider registration',
+    mode: 'seam',
+    implementations: ['experimental-browser-use-playwright-mcp', 'experimental-browser-use-chrome-devtools-mcp', 'experimental-browser-use-stagehand-native'],
+    consumers: ['experimental-browser-use-playwright-mcp', 'experimental-browser-use-chrome-devtools-mcp', 'experimental-browser-use-stagehand-native'],
+    note: 'One provider-owned name per service instance. Providers own their tools and browser resources per live Session; the shared service has no browser operation API.',
   },
   {
-    key: 'mobileRuntime', pkg: 'mobile-device-runtime', title: 'Native mobile runtime resources', mode: 'core',
-    consumers: ['mobile-device-adb', 'api-device-capabilities-controller'],
-    note: 'Owns managed Android tools, executable leases, one resource task, and explicit human mirror sessions independently from provider activation.',
+    key: 'computerUse',
+    pkg: 'computer-use',
+    title: 'Computer-use provider registration',
+    mode: 'seam',
+    implementations: ['experimental-computer-use-cua-driver-mcp', 'experimental-computer-use-cua-driver-native'],
+    consumers: ['experimental-computer-use-cua-driver-mcp', 'experimental-computer-use-cua-driver-native'],
+    note: 'One provider-owned name per service instance. Each provider also owns its model tools; the service has no common action API, runtime selection, or Session workflow lock.',
   },
   {
-    key: 'officeToPdf', pkg: 'office-to-pdf', title: 'Workspace document previews', mode: 'core',
-    consumers: ['client-ui-better-sidebar'],
-    note: 'Owns reusable converters, bounded conversion queues, cached outputs, and authorized workspace previews.',
-  },
-  {
-    key: 'pairingController', pkg: 'api-pairing-controller', title: 'Pairing Remote controller', mode: 'core',
-    consumers: ['client-ui-settings-pairing'],
-    note: 'Exposes trusted-local listener management, invitations, and durable device revocation through the remote-access owner.',
-  },
-  {
-    key: 'pluginManagementHost', pkg: 'plugin-manager', title: 'Launcher-owned plugin management facts', mode: 'seam',
-    consumers: ['plugin-manager', 'host-plugin-inventory'],
-    note: 'The Desktop launcher supplies protected entry ids and complete application patches; package transactions remain launcher-owned.',
-  },
-  {
-    key: 'ptcRuntime', pkg: 'ptc-runtime', title: 'Programmatic tool runtime', mode: 'seam',
-    implementations: ['ptc-runtime-node'],
-    consumers: ['tools', 'workflow-ptc', 'ptc-runtime-node'],
-    note: 'Resolves and runs programs with typed tool bindings; the Node provider also exposes the local code-runtime compatibility adapter.',
-  },
-  {
-    key: 'remoteAccess', pkg: 'remote-access', title: 'Paired-device remote access', mode: 'core',
-    consumers: ['api-pairing-controller'],
-    note: 'Owns opt-in HTTPS listener state, one-time pairing grants, durable device credentials, revocation, and carrier settlement.',
-  },
-  {
-    key: 'remoteAccessHost', pkg: 'remote-access', title: 'Launcher-owned remote access adapter', mode: 'seam',
-    consumers: ['remote-access'],
-    note: 'The Desktop launcher supplies authenticated dispatch and runtime assets without transferring Host ownership to the paired carrier.',
-  },
-  {
-    key: 'securityResearchController', pkg: 'api-security-research-controller', title: 'Security research Remote controller', mode: 'core',
-    consumers: ['client-ui-settings-security'],
-    note: 'Exposes resource management, assessment scope, findings, evidence artifacts, and vulnerability knowledge through their owning services.',
-  },
-  {
-    key: 'securitySkillResources', pkg: 'security-skills', title: 'Security skill resources', mode: 'core',
-    consumers: ['security-skills', 'api-security-research-controller'],
-    note: 'Installs verified resource generations and retains loaded paths until their Agent realms release them.',
-  },
-  {
-    key: 'sessionFeedback', pkg: 'command-feedback', title: 'Human Session feedback', mode: 'core',
-    consumers: ['client-ui-message-feedback'],
-    note: 'Records human feedback in the Session without starting model work.',
-  },
-  {
-    key: 'sidebarGit', pkg: 'sidebar-git', title: 'Sidebar Git operations', mode: 'core',
-    consumers: ['api-sidebar-git-controller', 'client-ui-better-sidebar'],
-    note: 'Serializes repository mutations and supplies commit previews for the sidebar.',
-  },
-  {
-    key: 'sidebarGitController', pkg: 'api-sidebar-git-controller', title: 'Sidebar Git Remote controller', mode: 'core',
-    consumers: ['client-ui-better-sidebar'],
-    note: 'Exposes sidebar repository state and operations through the shared Git owner.',
-  },
-  {
-    key: 'sidebarTerminalController', pkg: 'api-sidebar-terminal-controller', title: 'Sidebar terminal Remote controller', mode: 'core',
-    consumers: ['client-ui-better-sidebar'],
-    note: 'Exposes attachment-aware terminal output, input, resize, acknowledgement, and release.',
-  },
-  {
-    key: 'sidebarTerminals', pkg: 'sidebar-terminals', title: 'Sidebar terminal seam', mode: 'seam',
-    implementations: ['client-ui-better-sidebar'],
-    consumers: ['api-sidebar-terminal-controller'],
-    note: 'Owns terminal attachment identities and acknowledged output for provider-managed terminal sessions.',
-  },
-  {
-    key: 'ssh', pkg: 'ssh', title: 'SSH connection lifecycle', mode: 'core',
-    consumers: ['fs-ssh', 'subprocess-ssh', 'sandbox-ssh'],
-    note: 'Owns verified helper setup, RPC transport, authentication streams, and connection disposal.',
-  },
-  {
-    key: 'terminalController', pkg: 'api-terminal-controller', title: 'Agent terminal Remote controller', mode: 'core',
-    consumers: ['client-ui-right-sidebar'],
-    note: 'Exposes terminal sessions addressed through their owning Agent and Session.',
-  },
-  {
-    key: 'usageController', pkg: 'api-usage-controller', title: 'Usage Remote controller', mode: 'core',
-    consumers: ['client-ui-settings-usage'],
-    note: 'Exposes bounded usage queries to settings clients.',
-  },
-  {
-    key: 'usageQuery', pkg: 'usage-query', title: 'Session usage aggregation', mode: 'core',
-    consumers: ['api-usage-controller'],
-    note: 'Aggregates live and cold Session usage with cancellation and bounded results.',
-  },
-  {
-    key: 'voice', pkg: 'voice', title: 'Voice transcription seam', mode: 'seam',
-    implementations: ['voice-sherpa-onnx'],
-    consumers: ['api-voice-controller'],
-    note: 'Routes audio transcription through the configured local voice provider.',
-  },
-  {
-    key: 'voiceController', pkg: 'api-voice-controller', title: 'Voice Remote controller', mode: 'core',
-    consumers: ['client-ui-voice-dictation'],
-    note: 'Exposes voice settings and transcription requests to dictation clients.',
-  },
-  {
-    key: 'vulnKb', pkg: 'vuln-kb-service', title: 'Vulnerability knowledge seam', mode: 'seam',
-    implementations: ['vuln-kb-nvd'],
-    consumers: ['tool-vuln-kb', 'api-security-research-controller'],
-    note: 'Provides normalized vulnerability lookup through knowledge-base providers.',
-  },
-  {
-    key: 'workspaceIsolation', pkg: 'workspace-isolation', title: 'Workspace isolation seam', mode: 'seam',
-    implementations: ['workspace-isolation-git'],
-    consumers: ['api-session-controller', 'api-workspace-isolation-controller', 'api-work-items-controller', 'workspace'],
-    note: 'Manages isolated workspace leases and their comparison, integration, and hibernation.',
-  },
-  {
-    key: 'workspaceIsolationController', pkg: 'api-workspace-isolation-controller', title: 'Workspace isolation Remote controller', mode: 'core',
-    consumers: ['client-ui-workspace-isolation', 'client-ui-right-sidebar'],
-    note: 'Exposes isolated workspace lease state and integration controls.',
-  },
-  {
-    key: 'worktreeTask', pkg: 'worktree-task', title: 'Worktree task seam', mode: 'seam',
-    implementations: ['worktree-task-git'],
-    consumers: ['api-worktree-task-controller', 'api-session-controller'],
-    note: 'Owns task branches, worktrees, Session bindings, and review operations.',
-  },
-  {
-    key: 'worktreeTaskController', pkg: 'api-worktree-task-controller', title: 'Worktree task Remote controller', mode: 'core',
-    consumers: ['client-ui-worktree-task', 'client-ui-right-sidebar'],
-    note: 'Exposes task worktrees and their review lifecycle to browser clients.',
-  },
-  {
-    key: 'pluginManager', pkg: 'plugin-manager', title: 'Profile plugin and bundle management', mode: 'core',
-    consumers: ['client-ui-plugin-manager'],
-    note: 'Owns persisted composition changes, package operations, cancellation, and profile reload outcomes.',
-  },
-  {
-    key: 'profileContext', pkg: 'app-boot', title: 'Launcher-provided profile facts', mode: 'core',
-    consumers: ['plugin-manager'],
-    note: 'The launcher provides immutable profile paths, startup selections, and reload policy.',
-  },
-  {
-    key: 'workspaceChanges', pkg: 'workspace-changes', title: 'Per-turn workspace file changes', mode: 'core',
-    consumers: ['client-ui-deliverables'],
-    note: 'Records changed files and serves summaries and comparisons until the owning Session is disposed.',
-  },
-  {
-    key: 'workItems', pkg: 'work-items', title: 'Work Items provider registry and write ledger', mode: 'seam',
-    implementations: ['work-items-github', 'work-items-linear'], consumers: ['tool-work-items', 'api-work-items-controller'],
-    note: 'Providers own fixed-origin requests; the service owns immutable write previews and durable receipts.',
-  },
-  {
-    key: 'workItemsController', pkg: 'api-work-items-controller', title: 'Work Items Remote controller', mode: 'core',
-    consumers: ['client-ui-work-items'],
-    note: 'Projects normalized issues and persists explicit Workspace and Session associations independently of external mutations.',
+    key: 'officeToPdf', pkg: 'office-to-pdf', title: 'Office to PDF conversion',
+    mode: 'core', consumers: ['client-ui-sidebar-documentpreview'],
+    note: 'Authorized Office bytes are converted on the Host using the declared native target engine, or Node WASM when no native target is declared.',
   },
   {
     key: 'attachments',
@@ -454,6 +239,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns append-only Session instances and emits the durable session event feed.',
   },
   {
+    key: 'speechController',
+    pkg: 'experimental-api-speech-to-text',
+    title: 'Experimental transcription Remote',
+    mode: 'core',
+    note: 'Validates bounded browser audio before provider dispatch.',
+  },
+  {
     key: 'sessionController',
     pkg: 'api-session-controller',
     title: 'Host Session Remote controller',
@@ -475,12 +267,11 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Lists the Session composition\'s user-invocable skills without activating a cold Agent.',
   },
   {
-    key: 'accountController',
-    pkg: 'api-account-controller',
-    title: 'Host account authorization Remote controller',
+    key: 'jobController',
+    pkg: 'api-job-controller',
+    title: 'Host job Remote controller',
     mode: 'core',
-    consumers: ['client-ui-settings-account'],
-    note: 'Projects secret-free authorization state, caller-owned prompts, and local-only credential deletion to Account Settings.',
+    note: 'Streams one background job\'s observation record over the generated Remote namespace; the roster stays on the session control stream.',
   },
   {
     key: 'credentialsController',
@@ -502,6 +293,20 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Host workspace file Remote service',
     mode: 'core',
     note: 'Serves stat, paged text, byte windows, directory listings, and the change feed for files inside a Session\'s workspace root, confined by lstat, containment, and a stat re-check.',
+  },
+  {
+    key: 'workspaceChanges',
+    pkg: 'workspace-changes',
+    title: 'Host per-turn changed-file summaries',
+    mode: 'core',
+    note: 'Serves the summary each workspace/changes event announced and each listed file\'s turn-start and turn-end comparison, by Session and event sequence, until that Session is disposed; the log carries only the turn.',
+  },
+  {
+    key: 'terminalController',
+    pkg: 'api-terminal-controller',
+    title: 'Session interactive terminal Remote controller',
+    mode: 'core',
+    note: 'Owns user terminal processes, default shell resolution and bounded screen recovery through the subprocess provider and typed Remote transport.',
   },
   {
     key: 'workspaceController',
@@ -550,13 +355,20 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'The JSONL backend persists the SessionEvent vocabulary as one artifact per Session.',
   },
   {
+    key: 'configEditor',
+    pkg: 'config-editor',
+    title: 'Profile configuration edits',
+    mode: 'core',
+    consumers: ['settings', 'agent-default-model'],
+    note: 'Persists profile config patches under the application file lock and HMR queue, then reconciles Loader entries.',
+  },
+  {
     key: 'settings',
     pkg: 'settings',
-    title: 'User-settings seam',
-    mode: 'seam',
-    implementations: ['settings-file'],
-    consumers: ['api-settings-controller', 'llm-deepseek', 'llm-pi-ai'],
-    note: 'Plugins register namespace schemas and resolve layered values; providers store the raw document. The LLM adapters register their entry config as the composition base under the user section; the settings controller serves redacted layered descriptors and writes the user layer.',
+    title: 'Plugin configuration forms',
+    mode: 'core',
+    consumers: ['api-settings-controller'],
+    note: 'Forms project volatile Config fields from active profile entries and delegate validated edits to config-editor. Plugins consume their own Config references.',
   },
   {
     key: 'subagentModelSelection',
@@ -576,6 +388,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Configuration carries references to secrets; providers own the values. Consumers resolve per operation, so a rotated credential reaches the very next request; the settings controller exposes value-free views and write-only storage.',
   },
   {
+    key: 'deepseekAccount',
+    pkg: 'deepseek-account',
+    title: 'DeepSeek account',
+    mode: 'seam',
+    implementations: ['deepseek-account-platform'],
+    consumers: ['api-account-controller', 'llm-deepseek'],
+    note: 'The Host owns browser authorization and local credentials; UI consumers receive state without tokens.',
+  },
+  {
     key: 'authorization',
     pkg: 'authorization',
     title: 'Authorization flow registry',
@@ -584,6 +405,29 @@ const SERVICE_ROLES: ServiceRole[] = [
     consumers: ['llm-pi-ai'],
     note: 'Flows are registered by the plugin that knows how to obtain one credential and keyed by the record they write; the seam owns the conversation and the one-attempt-per-key lifecycle, never the protocol.',
   },
+  {
+    key: 'productAnalytics',
+    pkg: 'client-product-analytics',
+    title: 'Desktop interaction collection',
+    mode: 'service',
+    note: 'Accepts selected Desktop events, enriches available login identity, and observes live compaction under the live Host collection policy.',
+  },
+  {
+    key: 'otel',
+    pkg: 'otel',
+    title: 'Shared OTel reporting channels',
+    mode: 'service',
+    consumers: ['host-product-telemetry-otel', 'session-telemetry-otel'],
+    note: 'Product analytics and Session feedback adapters create independent reporting channels through one injected service.',
+  },
+  {
+    key: 'productTelemetry',
+    pkg: 'host-product-telemetry-otel',
+    title: 'Product usage event sender',
+    mode: 'service',
+    note: 'Exports explicitly submitted analytics events through OTLP/HTTP; mounting alone collects nothing.',
+  },
+
   {
     key: 'sessionTelemetry',
     pkg: 'session-telemetry',
@@ -616,6 +460,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Lifecycle-bound message feedback',
     mode: 'core',
     note: 'Owns per-assistant-message feedback in the canonical Session log, target validation, per-item compare-and-set, and the Host unary Remote contract. Feedback stays outside model history; log export follows the consumer policy.',
+  },
+  {
+    key: 'sessionFeedback',
+    pkg: 'command-feedback',
+    title: 'Session-level feedback recorder',
+    mode: 'core',
+    note: 'Records one Session-level remark with its category as a log-only feedback/record event on a live Session through the Host unary Remote contract; the /feedback command shares the same producer.',
   },
   {
     key: 'workspaceRegistry',
@@ -691,10 +542,10 @@ const SERVICE_ROLES: ServiceRole[] = [
   },
   {
     key: 'agentPresets',
-    pkg: 'agent-presets',
+    pkg: 'agent-preset-registry',
     title: 'Per-session agent composition',
     mode: 'core',
-    note: 'Discovers preset directories over trusted and user-authored roots and mounts one preset cordis.yml under an agent scope during creation, rejecting a row that never activates or that publishes into the root service realm.',
+    note: 'Eagerly mounts YAML-declared preset revisions, binds Agents and cold readers to scoped contributions, and retains retired revisions until their last user releases them.',
   },
   {
     key: 'commands',
@@ -716,15 +567,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'session-projection-cache',
     title: 'Persisted projection cache',
     mode: 'core',
-    consumers: ['api-session-controller', 'session-query', 'session-reference', 'subagent'],
-    note: 'Durably checkpoints projection unit states per session (throttled + turn/end/detach mandatory points) and serves the cold-read ladder: cache row + persistence tail replay, so listings never load full logs.',
+    consumers: ['api-session-controller', 'session-query', 'session-reference'],
+    note: 'Durably checkpoints projection unit states per session (throttled + turn/end/detach mandatory points), serves cached projection views, and accelerates prepared-Session projection hydration.',
   },
   {
     key: 'skills',
     pkg: 'skill',
     title: 'Skill provider registry',
     mode: 'seam',
-    implementations: ['skill-badge', 'skill-filesystem'],
+    implementations: ['sandbox-windows-acl', 'skill-badge', 'skill-filesystem', 'skill-office'],
     consumers: ['tool-skill'],
     note: 'Merges provider skill catalogs; tool-skill renders the session-prefix catalog and loads complete skill bodies.',
   },
@@ -742,7 +593,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Default Agent model selection',
     mode: 'core',
     consumers: ['api-session-controller', 'headless'],
-    note: 'Layers the default ModelSelection through settings so direct and Host-backed Agent entry points share one state owner.',
+    note: 'Reads the default ModelSelection from volatile Config and saves selections through the profile editor.',
   },
   {
     key: 'agentLoop',
@@ -753,6 +604,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'The one concrete loop plugin; extension packages depend on dsh-agent events and services, not on this package.',
   },
   {
+    key: 'schedule',
+    pkg: 'schedule',
+    title: 'Host scheduled messages',
+    mode: 'core',
+    note: 'Stores tasks independently of Session activation and queues due messages in the original Session.',
+  },
+  {
     key: 'goals',
     pkg: 'goal',
     title: 'Same-session goal domain',
@@ -760,19 +618,19 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Folds revisioned objective state from the session log and keeps live continuation activation process-local.',
   },
   {
-    key: 'e2b',
-    pkg: 'e2b',
-    title: 'E2B sandbox lifecycle owner',
+    key: 'ssh',
+    pkg: 'ssh',
+    title: 'POSIX SSH connection owner',
     mode: 'core',
-    consumers: ['fs-e2b', 'subprocess-e2b'],
-    note: 'Owns one shared E2B SDK handle, remote working directory, and final sandbox disposition so both fundamental E2B providers inhabit the same Linux runtime.',
+    consumers: ['fs-ssh', 'subprocess-ssh', 'sandbox-ssh'],
+    note: 'Owns one authenticated OpenSSH connection, installed helper identity, independent program streams and disconnect cleanup for the paired remote providers.',
   },
   {
     key: 'subprocess',
     pkg: 'subprocess',
     title: 'Subprocess seam',
     mode: 'seam',
-    implementations: ['subprocess-local', 'subprocess-e2b'],
+    implementations: ['subprocess-local', 'subprocess-ssh'],
     consumers: ['bash-local', 'bash-sandbox', 'terminal-bash', 'lsp-stdio', 'subagent-acp', 'subagent-codex', 'subagent-claude-code'],
     note: 'The bash executors, the PTY shell backend, the LSP host, and the out-of-process ACP, Codex, and Claude Code subagent backends spawn through ctx.subprocess; the service owns process coordinates, tree/session lifetime, stdio dispositions, terminal mechanics, and kill escalation.',
   },
@@ -807,7 +665,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'sandbox',
     title: 'Process-sandbox seam',
     mode: 'seam',
-    implementations: ['sandbox-local'],
+    implementations: ['sandbox-local', 'sandbox-ssh'],
     consumers: ['bash-sandbox', 'terminal-bash'],
     note: 'Consumers hand over the exact argv they are about to spawn; same-world backends wrap it under a per-call policy and report enforcement.',
   },
@@ -838,20 +696,20 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'User-facing preset table (`workspace-write`/`danger-full-access`) bundling the sandbox-mode and approval-policy knobs; a switch writes one `permission/preset` event through to both knob events.',
   },
   {
-    key: 'codeRuntime',
-    pkg: 'code-runtime',
-    title: 'Code-execution seam',
+    key: 'ptcRuntime',
+    pkg: 'ptc-runtime',
+    title: 'PTC execution seam',
     mode: 'seam',
-    implementations: ['code-runtime-worker-thread', 'experimental-code-runtime-python'],
-    consumers: ['tools'],
-    note: 'Runs one model-written program against host-provided async bindings; backends differ by substrate and language (the tool registry consumes it for PTC mode).',
+    implementations: ['ptc-runtime-node', 'experimental-ptc-runtime-python'],
+    consumers: ['tools', 'workflow-ptc'],
+    note: 'Runs programs against host-provided async bindings; tools owns PTC presentation and workflow-ptc owns workflow orchestration.',
   },
   {
     key: 'fs',
     pkg: 'fs',
     title: 'Filesystem provider seam',
     mode: 'seam',
-    implementations: ['fs-local', 'fs-sandbox', 'fs-e2b'],
+    implementations: ['fs-local', 'fs-sandbox', 'fs-ssh'],
     consumers: ['tool-fs'],
     companions: ['fs-observation-policy'],
     note: 'tool-fs executes read/write/edit through ctx.fs; fs-sandbox fences mutations by the shared sandbox mode; fs-observation-policy contributes observed-state checks through the fs/* event gate.',
@@ -875,12 +733,21 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Providers implement transports; the service also owns optional Activation-based continuation orchestration, tool-subagent selects one-shot or continuable delegation, tool-subagent-control delivers follow-ups, and tool-ralph requires one fresh structured-output route.',
   },
   {
+    key: 'speechToText',
+    pkg: 'experimental-speech-to-text',
+    title: 'Experimental speech recognition providers',
+    mode: 'seam',
+    implementations: ['experimental-speech-to-text-sensevoice'],
+    consumers: ['experimental-api-speech-to-text'],
+    note: 'Routes explicit recognizers; the browser uses the authenticated Remote and keeps transcripts in the draft until submission.',
+  },
+  {
     key: 'agentTeams',
     pkg: 'experimental-agent-team',
     title: 'Agent Teams coordination domain',
     mode: 'core',
-    consumers: ['experimental-tool-agent-team', 'experimental-client-ui-agent-team'],
-    note: 'Owns the implicit-root roster, durable peer mailbox, shared task DAG, continuable-child lifecycle, and generated Team Remote methods; tool-agent-team contributes model controls and client-ui-agent-team mounts the browser contribution.',
+    consumers: ['experimental-tool-agent-team'],
+    note: 'Owns the implicit-root roster, durable peer mailbox, shared task DAG, and continuable-child lifecycle; tool-agent-team contributes model controls.',
   },
   {
     key: 'inspector',
@@ -895,8 +762,8 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Background job registry',
     mode: 'seam',
     implementations: ['jobs-local'],
-    consumers: ['tool-bash', 'tool-terminal', 'tool-subagent', 'tool-jobs'],
-    note: 'Producers (background bash, PTY sends, and subagent delegations) register running work; tool-jobs is the model-facing controller that reads, lists, and kills it; jobs-local is the process-local registry.',
+    consumers: ['tool-bash', 'tool-pwsh', 'tool-terminal', 'tool-subagent', 'tool-jobs', 'api-job-controller'],
+    note: 'Producers (background bash/pwsh, PTY sends, and subagent delegations) register running work; record-declaring jobs additionally stream raw output for non-consuming observers; tool-jobs is the model-facing controller that reads, lists, and kills it; jobs-local is the process-local registry.',
   },
   {
     key: 'web',
@@ -1058,7 +925,7 @@ function renderCapabilitySeams(pkgs: Pkg[], services: readonly ServiceEntry[]): 
   const addEdge = (from: string, to: string): void => { edges.add(`  ${from} --> ${to}`) }
   const lines = generatedHeader('Capability Seams And Core Services')
   lines.push(
-    'A service can be a core spine service, a swappable capability seam, or a bundle/composition point. The graph shows the package that owns the service declaration, known implementation packages, and packages that consume the service directly.',
+    'A service can be a core spine service, a swappable capability seam, a bundle/composition point, or a standalone service. The graph shows the package that owns the service declaration, known implementation packages, and packages that consume the service directly.',
     '',
     '```mermaid',
     'flowchart LR',
@@ -1570,13 +1437,13 @@ function renderEventRelations(pkgs: Pkg[], events: readonly EventEntry[]): strin
   lines.push(
     'This matrix shows which packages dispatch each harness-owned event and which packages listen to it. Events are many-to-many, so the dense relation data is presented as a table rather than one large graph. Receiver and event-name types also cover contained dispatch sites that deliberately bypass `ctx.emit`, such as subagent lifecycle containment.',
     '',
-    '| Event | Mode | Declared in | Dispatchers | Listeners |',
-    '| --- | --- | --- | --- | --- |',
   )
+  const rows = ['| Event | Mode | Declared in | Dispatchers | Listeners |', '| --- | --- | --- | --- | --- |']
   for (const event of [...events].sort((a, b) => a.name.localeCompare(b.name))) {
     const relation = relations.get(event.name) ?? { dispatchers: new Map<string, Set<string>>(), listeners: new Set<string>() }
-    lines.push(`| \`${event.name}\` | \`${event.mode}\` | ${sourceLink(event.source)} | ${relationPackages(relation.dispatchers, pkgsByShort)} | ${listenerPackages(relation.listeners, pkgsByShort)} |`)
+    rows.push(`| \`${event.name}\` | \`${event.mode}\` | ${sourceLink(event.source)} | ${relationPackages(relation.dispatchers, pkgsByShort)} | ${listenerPackages(relation.listeners, pkgsByShort)} |`)
   }
+  lines.push(renderGeneratedRegion('event-producer-consumer:events', rows.join('\n')))
   // Every declared event needs a dispatcher: zero means dead vocabulary or an
   // unrecognized semantic dispatch form. Listener-free extension points remain
   // valid. Client-declared events are exempt: the relation scan seeds the HOST
@@ -1598,12 +1465,18 @@ function renderEventRelations(pkgs: Pkg[], events: readonly EventEntry[]): strin
   const declared = new Set(events.map(event => event.name))
   const extra = [...relations.keys()].filter(event => !declared.has(event)).sort()
   if (extra.length > 0) {
-    lines.push('', '## Non-harness or undeclared event strings seen in package source', '', '| Event string | Dispatchers | Listeners |', '| --- | --- | --- |')
+    const extraRows = ['| Event string | Dispatchers | Listeners |', '| --- | --- | --- |']
     for (const event of extra) {
       const relation = relations.get(event)
       if (!relation) continue
-      lines.push(`| \`${event}\` | ${relationPackages(relation.dispatchers, pkgsByShort)} | ${listenerPackages(relation.listeners, pkgsByShort)} |`)
+      extraRows.push(`| \`${event}\` | ${relationPackages(relation.dispatchers, pkgsByShort)} | ${listenerPackages(relation.listeners, pkgsByShort)} |`)
     }
+    lines.push(
+      '',
+      '## Non-harness or undeclared event strings seen in package source',
+      '',
+      renderGeneratedRegion('event-producer-consumer:undeclared', extraRows.join('\n')),
+    )
   }
   lines.push('', ...maintenanceFooter(maintenance))
   return lines.join('\n')
@@ -1706,7 +1579,7 @@ function renderToolPipeline(): string {
   const maintenance = 'curated Mermaid flow; exact tool schemas and event signatures live in generated catalogs'
   return [
     ...generatedHeader('Tool Execution Pipeline'),
-    'This graph shows where policy, hooks, sandboxing, filesystem guards, result rewriting, final-outcome observation, and UI rendering run without changing the loop. The `tools/pre-execute` waterfall runs first, monotonic guards run next, and the `tools/execute` and `tools/post-execute` waterfalls follow; the three waterfalls may transform a call. Definition-owned `finalizeContent` and `tools/result` run afterward.',
+    'This graph shows where policy, hooks, sandboxing, filesystem guards, result rewriting, final-outcome observation, and UI rendering run without changing the loop. The `tools/pre-execute` waterfall runs first, monotonic guards run next, and the `tools/execute` and `tools/post-execute` waterfalls follow; the three waterfalls may transform a call. Definition-owned `projectContent` installs prepared content before post-execute; `finalizeContent` and `tools/result` run afterward.',
     '',
     '```mermaid',
     'flowchart TD',
@@ -1721,6 +1594,7 @@ function renderToolPipeline(): string {
     '  toolBody["Registered tool execute() body"]',
     `  fsGate["${mermaidCode('fs/write-intent')} or ${mermaidCode('fs/edit-intent')}<br/>tool-fs mutations only"]`,
     `  owned["Tool-owned session events<br/>${mermaidCode('todo/write')}, ${mermaidCode('fs/observed')}, ${mermaidCode('hook/invoked')}, ${mermaidCode('hook/result')}, ${mermaidCode('tool/ptc-dispatch')}"]`,
+    '  project["ToolDefinition.projectContent<br/>execution-prepared text and images"]',
     `  post["${mermaidCode('tools/post-execute')} waterfall<br/>accept, block, replace, add context"]`,
     '  normalized["Registry outer normalization<br/>pipeline/result snapshot throws become isError"]',
     '  finalize["ToolDefinition.finalizeContent<br/>last content-only invariant"]',
@@ -1742,13 +1616,15 @@ function renderToolPipeline(): string {
     '  approval -->|allowed-once| guards',
     '  approval -->|rejected, cancelled, unavailable| denied',
     '  approval -.->|throw| normalized',
-    '  denied --> post',
+    '  denied --> project',
     '  pre -.->|throw| normalized',
     '  toolBody --> fsGate',
     '  fsGate --> toolBody',
     '  toolBody --> owned',
     '  toolBody --> around',
-    '  around --> post',
+    '  around --> project',
+    '  project --> post',
+    '  project -.->|throw| normalized',
     '  around -.->|wrapper throws| normalized',
     '  post -.->|throw| normalized',
     '  post --> finalize',
@@ -1777,7 +1653,29 @@ function renderDocs(): GraphDoc[] {
     { rel: 'docs/tool-execution-pipeline.md', content: renderToolPipeline() },
   ]
   docs.unshift({ rel: 'docs/graph-atlas.md', content: renderIndex(docs) })
+  const events = docs.find(doc => doc.rel === 'docs/event-producer-consumer.md')
+  if (events !== undefined) docs.push(spliceChineseRegions(events))
   return docs
+}
+
+/**
+ * Splice a generated page's regions into its authored Chinese counterpart,
+ * localizing paired-document links; the surrounding Chinese prose stays authored.
+ */
+function spliceChineseRegions(doc: GraphDoc): GraphDoc {
+  const rel = doc.rel.replace(/\.md$/, '.zh.md')
+  const context = {
+    repoRoot: root,
+    sourcePath: rel,
+    isTranslationPairSource: translationPairSourcePredicate(parseTranslationPairingManifest(
+      readFileSync(resolve(root, 'scripts/translation-pairing.manifest.json'), 'utf8'),
+    )),
+  }
+  let content = readFileSync(resolve(root, rel), 'utf8')
+  for (const region of generatedRegions(doc.content)) {
+    content = spliceGeneratedRegion(content, rewriteTranslationLinkLocales(region.text, context).content)
+  }
+  return { rel, content }
 }
 
 function renderIndex(docs: GraphDoc[]): string {

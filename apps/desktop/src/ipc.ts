@@ -1,27 +1,36 @@
 /** Typed preload operations exposed only by the Electron shell. */
 
-import type { DesktopPluginRecord } from './project-manager.ts'
-import type { DesktopLocale } from './locale.ts'
-import type { DesktopStartupState } from './startup.ts'
+import type { DesktopKeyboardApi, DesktopShortcutsApi } from '@deepseek-ai/dsh-client-shortcuts/protocol'
+import type { IpcMainInvokeEvent } from 'electron'
+import type { DesktopBrowserBridge } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 
 /** IPC channel names kept private to the desktop application bundle. */
 export const DESKTOP_IPC = {
-  localeGet: 'dsh-desktop:locale-get',
-  startupGet: 'dsh-desktop:startup-get',
-  startupState: 'dsh-desktop:startup-state',
-  startupQuit: 'dsh-desktop:startup-quit',
-  startupRestart: 'dsh-desktop:startup-restart',
-  openPluginsWindow: 'dsh-desktop:open-plugins-window',
-  pluginsList: 'dsh-desktop:plugins-list',
-  pluginsAdd: 'dsh-desktop:plugins-add',
-  pluginsRemove: 'dsh-desktop:plugins-remove',
-  pluginsUpdate: 'dsh-desktop:plugins-update',
+  shortcutsInput: 'dsh-desktop:shortcuts-input',
+  shortcutsCloseWindow: 'dsh-desktop:shortcuts-close-window',
+  shortcutsGet: 'dsh-desktop:shortcuts-get',
+  shortcutsEdit: 'dsh-desktop:shortcuts-edit',
+  shortcutsChanged: 'dsh-desktop:shortcuts-changed',
+  shortcutsRecording: 'dsh-desktop:shortcuts-recording',
+  boot: 'dsh-desktop:boot',
+  enterWorkspace: 'dsh-desktop:enter-workspace',
+  onboardingActive: 'dsh-desktop:onboarding-active',
+  onboardingApiKey: 'dsh-desktop:onboarding-api-key',
+  bootFailed: 'dsh-desktop:boot-failed',
+  browserAcquire: 'dsh-desktop:browser-acquire',
+  browserRelease: 'dsh-desktop:browser-release',
+  browserOpenRequested: 'dsh-desktop:browser-open-requested',
+  directoryPick: 'dsh-desktop:directory-pick',
+  deviceInfo: 'dsh-desktop:device-info',
+  localeBootstrap: 'dsh-desktop:locale-bootstrap',
+  localeChanged: 'dsh-desktop:locale-changed',
   updatesStatus: 'dsh-desktop:updates-status',
   updatesOpen: 'dsh-desktop:updates-open',
   updatesPresentation: 'dsh-desktop:updates-presentation',
-  updatesCheck: 'dsh-desktop:updates-check',
-  updatesInstall: 'dsh-desktop:updates-install',
-  updatesState: 'dsh-desktop:updates-state',
+  nativeThemeSet: 'dsh-desktop:native-theme-set',
+  windowFullscreen: 'dsh-desktop:window-fullscreen',
+  windowsAppearance: 'dsh-desktop:windows-appearance',
+  windowsMenu: 'dsh-desktop:windows-menu',
 } as const
 
 /** Desktop release update state rendered by desktop-owned UI. */
@@ -62,6 +71,14 @@ export interface DesktopUpdatePresentation {
 /** Product documents cannot supply update versions, package URLs, or installation authorization. */
 export interface DshDesktopProductApi {
   readonly protocolVersion: 1
+  readonly browser: DesktopBrowserBridge
+  readonly keyboard: DesktopKeyboardApi
+  readonly shortcuts: DesktopShortcutsApi
+  /**
+   * Local machine description for the feedback questionnaire.
+   * @returns `name=value` fields separated by `; `, with no hostname, user name, or serial number.
+   */
+  deviceInfo(): Promise<string>
   readonly updates: {
     status(): Promise<DesktopUpdatePresentation>
     open(): Promise<void>
@@ -69,36 +86,19 @@ export interface DshDesktopProductApi {
   }
 }
 
-/** Startup bridge is exposed only to the local recovery document. */
-export interface DesktopStartupApi {
-  readonly read: () => Promise<{ readonly locale: DesktopLocale; readonly state: DesktopStartupState }>
-  readonly quit: () => Promise<void>
-  readonly restart: () => Promise<void>
-  readonly subscribe: (listener: (state: DesktopStartupState) => void) => () => void
-}
+/** Scheme of Desktop-owned application documents. */
+export const SCHEME = 'dsh-app'
 
-/** App renderer bridge exposed only at dsh-app://app, without package operations. */
-export interface DesktopAppApi extends DshDesktopProductApi {
-  readonly protocolVersion: 1
-  /** Open or focus the shell-owned Plugins window.
-   * @returns Completion of the window request; does not report package installation.
-   */
-  openPlugins(): Promise<void>
-}
-
-/** Shell management bridge exposed through context isolation. */
-export interface DshDesktopApi {
-  readonly protocolVersion: 1
-  locale(): Promise<DesktopLocale>
-  readonly plugins: {
-    list(): Promise<readonly DesktopPluginRecord[]>
-    add(spec: string): Promise<void>
-    remove(name: string): Promise<void>
-    update(name: string, version: string): Promise<void>
-  }
-  readonly updates: {
-    check(): Promise<DesktopUpdateState>
-    install(): Promise<void>
-    subscribe(listener: (state: DesktopUpdateState) => void): () => void
+/**
+ * Reject IPC outside the allowed Desktop document origins.
+ * @param event - IPC caller whose frame URL supplies the origin.
+ * @param hostnames - Desktop document hosts allowed for this operation.
+ */
+export function assertDesktopSender(event: IpcMainInvokeEvent, hostnames: readonly string[]): void {
+  const senderFrame = event.senderFrame
+  if (senderFrame === null) throw new Error('dsh desktop: rejected IPC without a sender frame')
+  const url = new URL(senderFrame.url)
+  if (url.protocol !== `${SCHEME}:` || !hostnames.includes(url.hostname)) {
+    throw new Error('dsh desktop: rejected IPC from an unowned renderer')
   }
 }

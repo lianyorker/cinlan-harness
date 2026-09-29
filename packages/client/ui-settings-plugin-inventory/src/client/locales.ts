@@ -68,7 +68,7 @@ export const en = {
   enabledTag: 'Enabled',
   disabledTag: 'Disabled',
   conditionalTag: 'Conditional',
-  presetEnabledTag: 'Enabled via presets',
+  presetEnabledTag: 'Via presets',
   failedTag: 'Failed',
   moduleLabel: 'Module',
   fromPreset: 'From',

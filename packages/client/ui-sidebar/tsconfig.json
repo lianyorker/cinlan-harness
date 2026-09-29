@@ -18,7 +18,13 @@
       "path": "../ui-slots"
     },
     {
+      "path": "../store"
+    },
+    {
       "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-conversation/tsconfig.client.json"
     },
     {
       "path": "../ui-renderer"
@@ -28,6 +34,15 @@
     },
     {
       "path": "../ui-layout"
+    },
+    {
+      "path": "../locale/tsconfig.client.json"
+    },
+    {
+      "path": "../shortcuts/tsconfig.client.json"
+    },
+    {
+      "path": "../product-analytics/tsconfig.client.json"
     },
     {
       "path": "../locale"

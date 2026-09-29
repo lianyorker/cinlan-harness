@@ -11,6 +11,7 @@
  */
 
 import { useLayoutEffect, useState, type CSSProperties, type RefObject } from 'react'
+import { overlayTopMargin } from './overlay-top-margin.ts'
 
 /** Inputs for {@link useAnchoredPosition}. */
 export interface AnchoredPositionOptions {
@@ -24,7 +25,7 @@ export interface AnchoredPositionOptions {
   side?: 'top' | 'bottom'
   /** Distance kept between the anchor edge named by `side` and the panel. */
   gap: number
-  /** Distance kept between the panel and each viewport edge. */
+  /** Distance kept between the panel and each viewport edge; the frame's overlay inset widens the top margin. */
   margin: number
 }
 
@@ -53,7 +54,7 @@ export function useAnchoredPosition(options: AnchoredPositionOptions): CSSProper
       let left = rect.left
       let top = side === 'top' ? rect.top - gap - height : rect.bottom + gap
       if (width > 0) left = Math.min(Math.max(left, margin), window.innerWidth - width - margin)
-      if (height > 0) top = Math.min(Math.max(top, margin), window.innerHeight - height - margin)
+      if (height > 0) top = Math.min(Math.max(top, overlayTopMargin(margin)), window.innerHeight - height - margin)
       /* v8 ignore stop */
       setPosition({ left, top })
     }

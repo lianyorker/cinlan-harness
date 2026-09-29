@@ -14,10 +14,6 @@
   text-align: left;
 }
 
-.root:not([data-open]) {
-  margin-bottom: 8px;
-}
-
 .chevron {
   flex: none;
   width: 16px;

@@ -1,14 +1,14 @@
 {
-  "name": "@deepseek-ai/dsh-worktree-task",
-  "description": "Worktree Task Service Definition: per-task branch and worktree checkout lifecycle",
-  "version": "0.1.7-rc.2",
+  "name": "@deepseek-ai/dsh-deepseek-account",
+  "description": "Read account state and resolve official API credentials",
+  "version": "0.2.0-rc.1",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
-    "directory": "packages/workspace/worktree-task"
+    "directory": "packages/credentials/deepseek-account"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -30,19 +30,30 @@
     "lib/types/**/*.js",
     "lib/types/**/*.d.ts"
   ],
-  "scripts": {
-    "build": "tsc -b"
-  },
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-brand": "workspace:*",
+    "@deepseek-ai/dsh-agent": "workspace:*",
+    "@deepseek-ai/dsh-llm": "workspace:*"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-brand": "workspace:*",
+    "@deepseek-ai/dsh-agent": "workspace:*",
+    "@deepseek-ai/dsh-llm": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-agent": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@deepseek-ai/dsh-brand": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",
     "@deepseek-ai/dsh-workspace": "workspace:^"
   },
-  "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+  "scripts": {
+    "build": "tsc -b"
   }
 }

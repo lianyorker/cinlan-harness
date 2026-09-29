@@ -141,7 +141,6 @@ Boot itself changes no request prefix. `addHarnessSourceSection` places its sour
 
 <a id="known-limitations-and-deferred-work"></a>
 
-
 These limits describe when this boot library is a poor fit or needs special care. They are current package constraints, not a task backlog.
 
 - **Bare package specifiers depend on Loader internals** — production bins need Loader's optional native helper; an in-process caller without it must use resolvable relative/file specifiers or provide its own module-resolution hook.

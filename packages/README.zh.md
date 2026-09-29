@@ -35,6 +35,7 @@ kind: "package-group"
 | [`schedule/`](schedule/README.zh.md) | 仅限会话内的定时后续操作 |
 | [`automation/`](automation/README.zh.md) | 持久 UTC 定义、独占本地调度与常规 Agent 调用 |
 | [`feedback/`](feedback/README.zh.md) | 人类反馈的采集与命令 |
+| [`telemetry/`](telemetry/README.zh.md) | 共享 Cordis OTel 上报通道 |
 | [`identity/`](identity/README.zh.md) | 共享匿名身份 |
 | [`llm/`](llm/README.zh.md) | LLM 能力系列：抽象服务 + 提供方适配器 |
 | [`e2b/`](e2b/README.zh.md) | E2B 远程运行时提供方 |

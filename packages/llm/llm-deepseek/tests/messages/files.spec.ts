@@ -1,16 +1,17 @@
 /** Messages file-reference admission, bounded recovery and request-wide inline fallback. */
+import type { AnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AttachmentId, ImageVariantId } from '@deepseek-ai/dsh-attachment'
-import type { AttachmentStore, ImageAttachmentRef, RequestImageAttachment } from '@deepseek-ai/dsh-attachment'
+import type { ImageAttachmentRef, RequestImageAttachment } from '@deepseek-ai/dsh-attachment'
 import { createAssistantMessage, createToolResultMessage, LlmError, ToolCallId } from '@deepseek-ai/dsh-llm'
-import { DeepSeekFileId } from '../../src/file-id.ts'
-import type { DeepSeekFileStore } from '../../src/file-store.ts'
-import { resolveAdapterOptions } from '../../src/index.ts'
-import type { Config } from '../../src/index.ts'
-import { DeepSeekMessagesAdapter } from '../../src/protocols/messages/adapter.ts'
-import { prepareImages } from '../../src/protocols/messages/images.ts'
-import { providerErrorDetail } from '../../src/protocols/messages/transport.ts'
-import { chunks, options, prepareExtensions, sse, textEvents, user } from './helpers.ts'
+import { DeepSeekFileId } from '../src/file-id.ts'
+import { DeepSeekFileStore } from '../src/file-store.ts'
+import { resolveAdapterOptions } from '../src/config.ts'
+import type { Options as Config } from '../src/config.ts'
+import { DeepSeekAdapter } from '../src/adapter.ts'
+import { prepareImages } from '../src/images.ts'
+import { providerErrorDetail } from '../src/transport.ts'
+import { chunks, options, prepareExtensions, sse, textEvents, user, requestImageStore } from './helpers.ts'
 
 const model = 'deepseek-flash'
 const ref: ImageAttachmentRef = { attachmentId: AttachmentId(`sha256:${'a'.repeat(64)}`), width: 1, height: 1, mediaType: 'image/png', bytes: 3 }
@@ -31,15 +32,15 @@ function harness(config: Config = {}) {
     record: { fileId: DeepSeekFileId(image.attachment.attachmentId === ref.attachmentId ? 'file-a' : 'file-b') }, uploaded: false,
   } as Awaited<ReturnType<DeepSeekFileStore['ensureUploaded']>>))
   const invalidate = vi.fn<DeepSeekFileStore['invalidate']>(async () => {})
-  const files = { ensureUploaded, invalidate } as unknown as DeepSeekFileStore
+  const files = Object.assign(new DeepSeekFileStore(), { ensureUploaded, invalidate })
   const readImageRequest = vi.fn(async (attachment: ImageAttachmentRef) => version(attachment))
   // The codec and remote upload are the expensive boundaries; request projection and recovery stay real.
-  const attachments = { readImageRequest } as unknown as AttachmentStore
+  const attachments = requestImageStore(readImageRequest)
   const prepare = vi.fn(prepareExtensions)
-  const adapter = new DeepSeekMessagesAdapter({
-    connection: () => resolveAdapterOptions(Object.assign({ baseURL: 'https://gateway.example/custom' }, config)),
-    apiKey: async () => 'test-key', userId: () => 'test-user', attachments: () => attachments,
-    imageAccess: () => ({ readonlyPath: '/workspace/image.png' }), files: () => files, prepareExtensions: prepare,
+  const adapter = new DeepSeekAdapter({
+    options: () => resolveAdapterOptions(Object.assign({ baseURL: 'https://gateway.example/custom' }, config)),
+    resolveAuth: async () => ({ headers: { 'x-api-key': 'test-key' } }), resolveUserId: () => 'test-user' as AnonymousUserId, resolveAttachments: () => attachments,
+    resolveImageAccess: () => ({ readonlyPath: '/workspace/image.png' }), resolveFiles: () => files, prepareExtensions: prepare,
   })
   return { adapter, ensureUploaded, invalidate, readImageRequest, prepare }
 }
@@ -55,7 +56,7 @@ describe('Messages Files requests', () => {
       createToolResultMessage({ callId, isError: false, content: [{ type: 'image', attachment: ref }, { type: 'image', attachment: ref }] })]
     await chunks(h.adapter.stream(options({ model, messages })))
     expect(h.readImageRequest).toHaveBeenCalledTimes(1)
-    expect(h.ensureUploaded).toHaveBeenCalledWith(expect.anything(), { baseURL: 'https://gateway.example/custom', apiKey: 'test-key', protocol: 'messages' }, expect.anything(), expect.any(AbortSignal))
+    expect(h.ensureUploaded).toHaveBeenCalledWith(expect.anything(), { baseURL: 'https://gateway.example/custom', headers: { 'x-api-key': 'test-key' } }, expect.anything(), expect.any(AbortSignal))
     const [url, init] = fetchImpl.mock.calls[0]!
     expect(url).toBe('https://gateway.example/custom/v1/messages')
     expect(new Headers(init?.headers).get('anthropic-beta')).toBe('files-api-2025-04-14')
@@ -72,7 +73,7 @@ describe('Messages Files requests', () => {
     vi.stubGlobal('fetch', fetchImpl)
     const h = harness()
     await chunks(h.adapter.stream(request([ref, second])))
-    expect(h.invalidate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ attachment: ref }), 'file-a', expect.objectContaining({ protocol: 'messages' }))
+    expect(h.invalidate).toHaveBeenCalledExactlyOnceWith([{ variantId: version(ref).variantId, fileId: 'file-a' }], expect.objectContaining({}))
     expect(fetchImpl).toHaveBeenCalledTimes(2)
     expect(h.prepare).toHaveBeenCalledTimes(2)
     expect(h.ensureUploaded).toHaveBeenCalledTimes(4)
@@ -84,7 +85,7 @@ describe('Messages Files requests', () => {
     const h = harness()
     await expect(chunks(h.adapter.stream(request([ref, second])))).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
     expect(fetchImpl).toHaveBeenCalledTimes(2)
-    expect(h.invalidate).toHaveBeenCalledTimes(4)
+    expect(h.invalidate.mock.calls.map(call => call[0].length)).toEqual([2, 2])
     expect(fetchImpl.mock.calls.every(call => !body(call[1]).includes('base64'))).toBe(true)
   })
 
@@ -171,14 +172,14 @@ describe('Messages Files requests', () => {
     const messages = [createToolResultMessage({ callId: ToolCallId('offloaded'), isError: false, content: [
       { type: 'image', attachment: ref, offloaded: true },
     ] })]
-    const prepared = await prepareImages(messages, resolveAdapterOptions({ protocol: 'messages' }), 'text-model', undefined,
+    const prepared = await prepareImages(messages, resolveAdapterOptions({}), 'text-model', undefined,
       () => ({ readonlyPath: '/workspace/image.png' }), new AbortController().signal)
     expect(prepared.versions.size).toBe(0)
-    expect(prepared.messages[0]?.content).toMatchObject([{ type: 'tool-result', content: [
+    expect(prepared.messages[0]?.content).toMatchObject([
       { type: 'text', text: expect.stringContaining('image omitted to fit request image limits') as string },
-    ] }])
+    ])
     expect(JSON.stringify(prepared.messages)).toContain('/workspace/image.png')
-    expect(messages[0]?.content).toMatchObject([{ type: 'tool-result', content: [{ type: 'image', offloaded: true }] }])
+    expect(messages[0]?.content).toMatchObject([{ type: 'image', offloaded: true }])
   })
 
   it('falls back when the Files deadline expires but never converts caller cancellation into another request', async () => {

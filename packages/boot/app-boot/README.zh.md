@@ -141,7 +141,6 @@ Loader 求值 profile 配置前，CLI 从已加载的 profile 提供 `dshProfile
 
 <a id="known-limitations-and-deferred-work"></a>
 
-
 这些限制说明此启动库在何时不合适，或何时需要特别注意。它们是当前包约束，不是任务积压。
 
 - **裸包 specifier 依赖 Loader 内部机制**——生产 bin 需要 Loader 的可选原生辅助组件；没有该辅助组件的进程内调用方必须使用可解析的相对／file specifier，或提供自己的模块解析钩子。

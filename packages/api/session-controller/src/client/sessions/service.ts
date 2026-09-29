@@ -466,6 +466,7 @@ export class ClientSessions implements ISessions {
     sessionId: SessionId
     atSeq?: number
     increaseTitle?: boolean
+    onCreated?: (childId: SessionId) => void
   }): Promise<SessionId> {
     const sourceTitle = opts.increaseTitle
       ? this.list.getSnapshot().byId[opts.sessionId]?.title
@@ -480,6 +481,7 @@ export class ClientSessions implements ISessions {
     if (!result.ok) throw new SessionForkError(result.error, opts.sessionId)
     this.projectList()
     const childId = result.value.sessionId
+    opts.onCreated?.(childId)
     if (sourceTitle !== undefined) {
       const child = this.binding(childId)?.session
       if (child === undefined) throw new Error(`fork child "${childId}" is not locally addressable`)

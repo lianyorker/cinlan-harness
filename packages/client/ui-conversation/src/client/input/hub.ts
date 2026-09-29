@@ -7,6 +7,10 @@
  * listeners on each Session context and owns the default-sink choreography: every session is a
  * real host entity, so the sink is one unconditional prompt path.
  */
+import type {} from '@deepseek-ai/dsh-client-product-analytics/client'
+import type { ModelSelectionProjection } from '@deepseek-ai/dsh-api-session-controller/types'
+import type { PlanProjection } from '@deepseek-ai/dsh-plan-mode/types'
+import type { GoalProjection } from '@deepseek-ai/dsh-goal/types'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   ISessions, SessionBinding, SessionFace,
@@ -21,6 +25,7 @@ import type {
 import type { InputSubmitMode } from '../contract/composer-submission.ts'
 import type { PopupDismissFace } from './facade.ts'
 import { SessionInputShell } from './facade.ts'
+import { reportMessageSubmission } from './submission-analytics.ts'
 
 /** Structural command face for per-session popup resolution. */
 interface CommandFace {
@@ -85,6 +90,23 @@ export class InputHub implements SessionInputResolver {
     const { sessionId: id, session, ctx: actx } = binding
     const shell = new SessionInputShell({
       actx,
+      submissionState: () => {
+        const state = session.getSnapshot()
+        const model = session.projections.faceOf('modelSelection').getSnapshot() as ModelSelectionProjection | undefined
+        const plan = session.projections.faceOf('plan').getSnapshot() as PlanProjection | undefined
+        const goal = session.projections.faceOf('goal').getSnapshot() as GoalProjection | null | undefined
+        const selection = model?.next ?? model?.lastUsed
+        return Object.freeze({
+          ...state.blank ? {} : { sessionId: state.sessionId },
+          ...selection == null ? {} : { model: Object.freeze({
+            provider: selection.provider, name: selection.model,
+            ...selection.reasoningEffort === undefined ? {} : { effort: selection.reasoningEffort },
+          }) },
+          runMode: plan?.active ? 'plan' : goal?.goal.phase === 'active' ? 'goal' : 'default',
+          running: state.running,
+        })
+      },
+      messageSubmitted: (submission) => { reportMessageSubmission(this.rootCtx, submission) },
       inputTriggers: () => this.controller(actx),
       popup: () => this.popup(actx),
       queue: queueReadFaceOf(session),

@@ -2,17 +2,54 @@
   "extends": "../../../tsconfig.base.client.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "lib/types"
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.client.tsbuildinfo"
   },
-  "include": [
-    "src"
-  ],
   "references": [
+    {
+      "path": "../../util/package-manifest"
+    },
     {
       "path": "../../../vendor/cordis"
     },
     {
       "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../../boot/plugin-manager"
+    },
+    {
+      "path": "../../test-support/client-runtime"
+    },
+    {
+      "path": "../locale/tsconfig.client.json"
+    },
+    {
+      "path": "../store"
+    },
+    {
+      "path": "../ui-layout"
+    },
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-renderer"
+    },
+    {
+      "path": "../ui-sidebar"
+    },
+    {
+      "path": "../ui-slots"
+    },
+    {
+      "path": "../../util/crypto"
+    },
+    {
+      "path": "../ui-settings/tsconfig.client.json"
+    },
+    {
+      "path": "../product-analytics/tsconfig.client.json"
     },
     {
       "path": "../../api/worktree-task-controller"
@@ -27,16 +64,7 @@
       "path": "../locale"
     },
     {
-      "path": "../ui-primitives"
-    },
-    {
-      "path": "../ui-renderer"
-    },
-    {
       "path": "../ui-settings"
-    },
-    {
-      "path": "../ui-slots"
     },
     {
       "path": "../ui-workspace"
@@ -46,9 +74,11 @@
     },
     {
       "path": "../../typert/protocol"
-    },
-    {
-      "path": "../../test-support/client-runtime"
     }
+  ],
+  "include": [
+    "src/client",
+    "src/css-modules.d.ts",
+    "src"
   ]
 }
