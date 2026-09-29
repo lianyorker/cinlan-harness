@@ -124,7 +124,7 @@ kind: "package-library"
 
 这些限制描述钩子目前还无法通过共享引擎做到的事情。它们是当前包约束，而非任务积压。
 
-- **`HookOutput.updatedInput` 会被解析但不会应用**——输入改写是已延期的设计一致性问题（见 [pre-tool-input-rewrite Agent Note](../../../.agents/notes/proposed/feature/2026-06-30-pre-tool-input-rewrite.zh.md)）；当 hook 设置它时，桥接会记录并警告。
+- **`HookOutput.updatedInput` 仅转发至合并结果而不进行本地应用**——输入改写在循环与桥接层处理（见 [pre-tool-input-rewrite Agent Note](../../../.agents/notes/implemented/feature/2026-06-30-pre-tool-input-rewrite.zh.md)）；`dsh-hook-protocol` 仅负责解析与合并该字段。
 - **折叠出的停止没有运行级效果**——`mergeHookOutputs` 把 `continue: false` 折叠为粘性 `stop`，但拦截点没有硬停止原语，因此桥接只记录该停止并保留 hook 的逐点效果。
 - **只有 command 形态会运行**——协议只执行 `{ type: 'command', command, timeout? }`；桥接会解析并跳过其方言定义的其他形态（`http`、`mcp_tool`、`prompt`、`agent`）。
 

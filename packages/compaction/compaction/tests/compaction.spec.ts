@@ -6,6 +6,9 @@ import {
   CompactionEngine,
   compactCheckpointSource,
   isCompactCheckpointSource,
+  formatCheckpointFooter,
+  CHECKPOINT_FOOTER_RE,
+  ManualCompactionError,
 } from '@deepseek-ai/dsh-compaction'
 import type { CompactionResult, CompactionTrigger } from '@deepseek-ai/dsh-compaction'
 import { Session, SessionId } from '@deepseek-ai/dsh-session'
@@ -167,5 +170,24 @@ describe('CompactionEngine seam', () => {
 
     await svc.compactIfNeeded(stubAgent(session), 'context-overflow', controller.signal)
     expect(svc.lastSignal).toBe(controller.signal)
+  })
+
+  it('formats and parses checkpoint footers round-trip byte-identically', () => {
+    const footer = formatCheckpointFooter(42, 5, 20)
+    expect(footer).toBe('[checkpoint c42: shadows conversation span #5–#20; originals retrievable via history_read]')
+    const match = CHECKPOINT_FOOTER_RE.exec(footer)
+    expect(match).not.toBeNull()
+    expect(match?.[1]).toBe('42')
+    expect(match?.[2]).toBe('5')
+    expect(match?.[3]).toBe('20')
+  })
+
+  it('constructs ManualCompactionError with code, message, and options', () => {
+    const cause = new Error('root cause')
+    const err = new ManualCompactionError('busy', 'lock held', { cause })
+    expect(err.name).toBe('ManualCompactionError')
+    expect(err.code).toBe('busy')
+    expect(err.message).toBe('lock held')
+    expect(err.cause).toBe(cause)
   })
 })

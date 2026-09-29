@@ -129,9 +129,8 @@ export interface HookOutput {
   /** A warning surfaced to the user (CC `systemMessage`). */
   systemMessage?: string
   /**
-   * A tool-input rewrite a hook requested (CC `updatedInput`). PARSED but NOT
-   * honored — input rewrite is deferred (see the interception extension-points Agent Note); a
-   * bridge logs + warns when this is present.
+   * A tool-input rewrite a hook requested (CC `updatedInput`).
+   * Forwarded through {@link MergedHookOutcome.updatedInput} to pre-tool input rewrite.
    */
   updatedInput?: Record<string, unknown>
 }

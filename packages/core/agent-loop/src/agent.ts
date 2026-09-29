@@ -22,6 +22,8 @@ import {
   createAssistantMessage,
   errorChain,
   markAgentLoopRequest,
+  type ToolCallBlock,
+  type ToolCallId,
 } from '@deepseek-ai/dsh-llm'
 import { deepFreeze } from '@deepseek-ai/dsh-util-values'
 import type { Scope } from '@deepseek-ai/dsh-scope'
@@ -36,7 +38,7 @@ import { ReactLoopInbox } from './inbox.ts'
 import { RuntimeContextProjection } from './runtime-context.ts'
 import { AssistantStreamAttempt } from './assistant-stream.ts'
 import { SystemPromptProjection } from './runtime-context.ts'
-import { executeToolCalls } from './tool-calls.ts'
+import { executeToolCalls, parseArguments } from './tool-calls.ts'
 
 type Phase =
   | { kind: 'idle'; lastTurn: number }
@@ -464,8 +466,43 @@ export class ReactLoopAgent implements Agent {
           continue
         }
 
+        const rawBlocks = live.blocks()
+        const toolCalls = rawBlocks.filter((block): block is ToolCallBlock => block.type === 'tool-call')
+        let effectiveBlocks = rawBlocks
+        let originalArgumentsByCallId: Map<ToolCallId, string> | undefined
+
+        if (toolCalls.length > 0) {
+          let rewrittenArgumentsByCallId: Map<ToolCallId, string> | undefined
+          for (const block of toolCalls) {
+            const outcome = await this.loopCtx.tools.rewriteInput({
+              callId: block.id,
+              name: block.name,
+              arguments: parseArguments(block.arguments),
+              agent: this,
+              signal,
+            })
+            if (outcome.rewritten) {
+              originalArgumentsByCallId ??= new Map()
+              originalArgumentsByCallId.set(block.id, block.arguments)
+              rewrittenArgumentsByCallId ??= new Map()
+              rewrittenArgumentsByCallId.set(block.id, JSON.stringify(outcome.arguments))
+            }
+          }
+          if (rewrittenArgumentsByCallId !== undefined) {
+            effectiveBlocks = rawBlocks.map((block) => {
+              if (block.type === 'tool-call') {
+                const rewritten = rewrittenArgumentsByCallId.get(block.id)
+                if (rewritten !== undefined) {
+                  return { ...block, arguments: rewritten }
+                }
+              }
+              return block
+            })
+          }
+        }
+
         const message = createAssistantMessage({
-          content: live.blocks(),
+          content: effectiveBlocks,
           source: {
             provider: request.provider,
             model: request.model,
@@ -484,11 +521,12 @@ export class ReactLoopAgent implements Agent {
         )
         if (finish.kind === 'max-tokens') return { kind: 'max-tokens' }
 
-        const toolCalls = message.content.filter(block => block.type === 'tool-call')
-        if (toolCalls.length === 0) return { kind: 'completed' }
+        const effectiveToolCalls = message.content.filter((block): block is ToolCallBlock => block.type === 'tool-call')
+        if (effectiveToolCalls.length === 0) return { kind: 'completed' }
         const { concluded } = await executeToolCalls(
-          this.loopCtx, turn, step, toolCalls, signal,
+          this.loopCtx, turn, step, effectiveToolCalls, signal,
           context => this.inbox.splice('next-step', this.inbox.nextStep.length, 0, [context]),
+          originalArgumentsByCallId,
         )
         return concluded ? { kind: 'completed' } : null
       } catch (error: unknown) {

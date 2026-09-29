@@ -30,6 +30,8 @@ Each package below provides one piece of the feature; open a package page for ho
 | [`compaction-basic/`](compaction-basic/README.md) | Automatic condensation of older history into a summary as token pressure builds | registers `ctx.compaction` |
 | [`compaction-tool-result-pruner/`](compaction-tool-result-pruner/README.md) | Trims oversized tool outputs so less history needs condensing | `ctx.toolResultPruner` |
 | [`command-compact/`](command-compact/README.md) | The `/compact` command to condense history on demand | registers on `ctx.commands` |
+| [`compact-recallable/`](compact-recallable/README.md) | Recallable compaction engine with frozen index stubs and mutable state checkpoint | registers `ctx.compaction` |
+| [`tool-recall/`](tool-recall/README.md) | Recall tools (`history_read`, `history_search`) over compacted session logs | registers on `ctx.tools` |
 
 -----
 

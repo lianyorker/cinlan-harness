@@ -12,7 +12,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { createToolResultMessage, type ToolCallBlock } from '@deepseek-ai/dsh-llm'
+import { createToolResultMessage, type ToolCallBlock, type ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { Session, SessionSeq, UserMessage } from '@deepseek-ai/dsh-session'
 import { TOOL_ABORTED_BEFORE_DISPATCH, TOOL_RUNTIME_SCHEDULER, type ToolExecutionInput, type ToolExecutionMode, type ToolExecutionResult, type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
@@ -21,6 +21,7 @@ import { assertNever } from '@deepseek-ai/dsh-util-values'
 interface PlannedCall {
   block: ToolCallBlock
   exec: ToolExecutionInput
+  originalArguments?: string
 }
 
 /** Settled dispatch awaiting model-order finalization. */
@@ -64,21 +65,26 @@ export async function executeToolCalls(
   toolCalls: ToolCallBlock[],
   signal: AbortSignal,
   acceptContext: (context: UserMessage) => void,
+  originalArgumentsByCallId?: ReadonlyMap<ToolCallId, string>,
 ): Promise<{ concluded: boolean }> {
   const agent = ctx.agents.requireInitiator()
   const { session } = agent
 
   // Inputs are distinct because tools/execute wrappers may replace `exec.signal`.
-  const planned: PlannedCall[] = toolCalls.map(block => ({
-    block,
-    exec: {
-      callId: block.id,
-      name: block.name,
-      arguments: parseArguments(block.arguments),
-      agent,
-      signal,
-    },
-  }))
+  const planned: PlannedCall[] = toolCalls.map((block) => {
+    const originalArguments = originalArgumentsByCallId?.get(block.id)
+    return {
+      block,
+      exec: {
+        callId: block.id,
+        name: block.name,
+        arguments: parseArguments(block.arguments),
+        agent,
+        signal,
+      },
+      ...originalArguments !== undefined ? { originalArguments } : {},
+    }
+  })
 
   let next = 0
   let concluded = false
@@ -94,7 +100,7 @@ export async function executeToolCalls(
     next += outcome.consumed
     concluded ||= outcome.concluded
     if (outcome.aborted) {
-      for (const call of planned.slice(next)) appendSkippedToolCall(session, turn, step, call.block)
+      for (const call of planned.slice(next)) appendSkippedToolCall(session, turn, step, call)
       return { concluded }
     }
   }
@@ -102,7 +108,7 @@ export async function executeToolCalls(
 }
 
 /** Parse model arguments, preserving invalid JSON as text and mapping empty input to `{}`. */
-function parseArguments(raw: string): unknown {
+export function parseArguments(raw: string): unknown {
   try {
     return raw ? JSON.parse(raw) : {}
   } catch {
@@ -165,7 +171,7 @@ async function runGroup(
   const startCall = async (index: number): Promise<void> => {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- bounded index
     const call = group[index]!
-    callSeqs[index] = appendToolCall(session, turn, step, call.block)
+    callSeqs[index] = appendToolCall(session, turn, step, call.block, call.originalArguments)
     started++
     const prepared = await ctx.tools[TOOL_RUNTIME_SCHEDULER].prepare(call.exec)
     throwSchedulerFailure()
@@ -238,7 +244,7 @@ async function runGroup(
   if (aborted) {
     // Started calls and accepted context settle first; every remaining model
     // call then receives an ordered synthetic result before the turn aborts.
-    for (const call of group.slice(started)) appendSkippedToolCall(session, turn, step, call.block)
+    for (const call of group.slice(started)) appendSkippedToolCall(session, turn, step, call)
     return { consumed: group.length, aborted: true, concluded }
   }
   /* v8 ignore next -- unreachable: a non-aborted group commits every started call */
@@ -247,9 +253,9 @@ async function runGroup(
 }
 
 /** Append the durable call/result pair for a model call skipped after cancellation. */
-function appendSkippedToolCall(session: Session, turn: number, step: number, block: ToolCallBlock): void {
-  const callSeq = appendToolCall(session, turn, step, block)
-  appendToolResult(session, turn, step, block, {
+function appendSkippedToolCall(session: Session, turn: number, step: number, call: PlannedCall): void {
+  const callSeq = appendToolCall(session, turn, step, call.block, call.originalArguments)
+  appendToolResult(session, turn, step, call.block, {
     content: [{ type: 'text', text: 'Error: tool call aborted before dispatch' }],
     isError: true,
     error: {
@@ -260,8 +266,21 @@ function appendSkippedToolCall(session: Session, turn: number, step: number, blo
 }
 
 /** Append a started call and return the event seq that its result must cite. */
-function appendToolCall(session: Session, turn: number, step: number, block: ToolCallBlock): SessionSeq {
-  const event = session.append('tool/call', { turn, step, callId: block.id, name: block.name, arguments: block.arguments })
+function appendToolCall(
+  session: Session,
+  turn: number,
+  step: number,
+  block: ToolCallBlock,
+  originalArguments?: string,
+): SessionSeq {
+  const event = session.append('tool/call', {
+    turn,
+    step,
+    callId: block.id,
+    name: block.name,
+    arguments: block.arguments,
+    ...originalArguments !== undefined ? { originalArguments } : {},
+  })
   return event.seq
 }
 

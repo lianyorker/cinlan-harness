@@ -56,6 +56,8 @@
 | `@deepseek-ai/dsh-tool-vuln-kb` | `vuln_query`、`vuln_read` | `ctx.tools`、`ctx.vulnKb`、执行时配置的漏洞知识库提供方 | `tool/call`、`tool/result` | - | vuln_query 和 vuln_read 暴露提供方结果，不判断可利用性，也不授予评估权限；目录启动使用 NVD+OSV 适配器且不会发起网络请求。 |
 | `@deepseek-ai/dsh-tool-work-items` | `work_items_cancel_write`, `work_items_confirm_write`, `work_items_get`, `work_items_list`, `work_items_list_writes`, `work_items_prepare_write` | `ctx.tools`, `ctx.workItems`, `ctx.systemPrompt`, `ctx.storageDomain 用于写入预览和回执` | `tool/call`, `持久化写入预览和回执`, `tool/result` | - | Provider 写入默认关闭。启用后仍需持久化预览和独立确认；不确定结果绝不自动重发。 |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
+| `@deepseek-ai/dsh-tool-recall` | `history_read`、`history_search` | `ctx.tools`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | history_read 与 history_search 直接从仅追加的会话日志中读取未经压缩的原始消息，无需外部 sidecar。 |
+| `@deepseek-ai/dsh-tool-task-surface` | `show_task_surface` | `ctx.tools`、`ctx.sessionProjections` | `tool/call`、`tool/result` | - | show_task_surface 渲染结构化交互任务面板并结束轮次。 |
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 
@@ -4738,3 +4740,89 @@ Provider 写入默认关闭。启用后仍需持久化预览和独立确认；�
 来源：[`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/index.ts)
 
 web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。
+
+<a id="deepseek-aidsh-tool-recall"></a>
+
+## `@deepseek-ai/dsh-tool-recall`
+
+### `history_read`
+
+获取由压缩检查点遮蔽的原始消息完整转录记录。输出包含原始用户 prompt、助手回复轮次与工具结果，篇幅较长时进行分页。请提供检查点页脚中注明的检查点 ID（例如 "c42"）。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "checkpoint": {
+      "type": "string",
+      "description": "The checkpoint ID (e.g. \"c42\") whose shadowed span to retrieve."
+    },
+    "offset": {
+      "type": "integer",
+      "description": "0-based message offset for paginating long transcripts."
+    }
+  },
+  "required": [
+    "checkpoint"
+  ]
+}
+```
+
+来源：[`packages/compaction/tool-recall/src/index.ts`](../packages/compaction/tool-recall/src/index.ts)
+
+### `history_search`
+
+在所有已压缩的历史跨度中搜索确切关键词、错误字符串、配置标志或路径。执行不区分大小写的字面量扫描，并返回带有检查点 ID 标记的匹配片段。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "The literal string to search for across shadowed conversation spans."
+    },
+    "checkpoint": {
+      "type": "string",
+      "description": "Optional specific checkpoint ID to restrict the search to."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum matching occurrences to return (defaults to 25)."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+来源：[`packages/compaction/tool-recall/src/index.ts`](../packages/compaction/tool-recall/src/index.ts)
+
+history_read 与 history_search 直接从仅追加的会话日志中读取未经压缩的原始消息，无需外部 sidecar。
+
+<a id="deepseek-aidsh-tool-task-surface"></a>
+
+## `@deepseek-ai/dsh-tool-task-surface`
+
+### `show_task_surface`
+
+向用户呈现结构化交互任务面板（Task Surface），用于审查、配置或决策。面板将结束当前轮次并呈现声明式板块和输入字段。用户可以提交字段值或关闭面板以继续对话。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "model": {
+      "description": "Declarative Task Surface v1 model defining title, sections, blocks, optional input fields, and submit button."
+    }
+  },
+  "required": [
+    "model"
+  ]
+}
+```
+
+来源：[`packages/task-surface/tool-task-surface/src/index.ts`](../packages/task-surface/tool-task-surface/src/index.ts)
+
+show_task_surface 渲染结构化交互任务面板并结束轮次。

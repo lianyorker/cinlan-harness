@@ -335,10 +335,21 @@ export interface SessionEventMap {
   'assistant/attempt': { turn: number; step: number; stream: AssistantStreamRecord[] }
   /**
    * The model requested one tool invocation: `name` with the raw `arguments`
-   * JSON string exactly as the model produced it (unparsed). `callId` pairs the
-   * call with its `tool/result`.
+   * JSON string exactly as the model produced it (unparsed), or rewritten arguments
+   * when an input rewrite took effect. `callId` pairs the call with its `tool/result`.
    */
-  'tool/call': { turn: number; step: number; callId: ToolCallId; name: string; arguments: string }
+  'tool/call': {
+    turn: number
+    step: number
+    callId: ToolCallId
+    name: string
+    arguments: string
+    /**
+     * Original un-rewritten arguments JSON string emitted by the model,
+     * present only when an extension point (e.g. PreToolUse hook) rewrote the input.
+     */
+    originalArguments?: string
+  }
   /**
    * A completed tool call's model-facing result, optional internal failure
    * identity, and optional tool-private `meta` presentation payload. `meta` is

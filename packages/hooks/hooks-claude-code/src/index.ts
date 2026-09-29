@@ -3,8 +3,8 @@
  * extension points. It supports SessionStart, prompt/tool pre/post, Stop, and subagent
  * start/stop. It owns Claude payloads, environment, substitution, and decision
  * mapping; shared execution and parsing live in `dsh-hook-protocol`.
- * `updatedInput` is logged and warned but not honored. Bespoke behavior should
- * use typed native plugins on the same extension points.
+ * PreToolUse updatedInput rewrites input before execution identity is created.
+ * Bespoke behavior should use typed native plugins on the same extension points.
  * @module @deepseek-ai/dsh-hooks-claude-code
  */
 
@@ -13,10 +13,17 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision, TurnBoundaryProjection } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-session-projection'
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, type ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, MessageSource } from '@deepseek-ai/dsh-llm'
 import type { UserMessage } from '@deepseek-ai/dsh-session'
-import type { PostToolDecision, PreToolDecision, ToolExecution, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
+import type {
+  PostToolDecision,
+  PreToolDecision,
+  ToolExecution,
+  ToolExecutionResult,
+  ToolInputRewriteContext,
+  ToolInputRewriteDecision,
+} from '@deepseek-ai/dsh-tools'
 import {
   appendHookInvoked,
   appendHookResult,
@@ -122,6 +129,7 @@ export function apply(ctx: Context, config: Config): void {
   // handle unregisters the agent. Every retained entry relies on that paired
   // end; a producer that can omit it must provide another release edge.
   const subagentChildren = new Map<SubagentRunId, Agent>()
+  const preToolOutcomes = new Map<ToolCallId, { merged: MergedHookOutcome; agent?: Agent }>()
   ctx.effect(() => () => detached.drain(), 'hooks-claude-code: drain detached hook runs')
 
   /**
@@ -171,8 +179,8 @@ export function apply(ctx: Context, config: Config): void {
           expectedEventName: point,
         }, () => performance.now())
         outputs.push(output)
-        if (output.updatedInput !== undefined) {
-          ctx.logger.warn(`hooks-claude-code: ${point} hook requested updatedInput, which is not yet honored (ignored)`)
+        if (output.updatedInput !== undefined && point !== 'PreToolUse') {
+          ctx.logger.warn(`hooks-claude-code: ${point} hook requested updatedInput, which is only supported on PreToolUse (ignored)`)
         }
         if (output.systemMessage !== undefined) {
           ctx.logger.warn(`hooks-claude-code: ${point} hook emitted a systemMessage, which is not yet surfaced (ignored)`)
@@ -233,10 +241,35 @@ export function apply(ctx: Context, config: Config): void {
     }
   })
 
+  // --- PreToolUse → ToolInputRewriteDecision. Matcher subject is the tool name. ---
+  // Fires before execution identity is created and before `assistant/message` is
+  // committed. PreToolUse hook scripts execute once here, and the merged outcome
+  // is cached for `tools/pre-execute` by callId.
+  ctx.on('tools/input-rewrite', async (call: ToolInputRewriteContext, next): Promise<ToolInputRewriteDecision> => {
+    const turn = lastTurn(ctx, call.agent)
+    const merged = await runPoint('PreToolUse', call.name, preToolPayload(call), { ...call.agent ? { agent: call.agent } : {}, turn, signal: call.signal })
+    preToolOutcomes.set(call.callId, { merged, ...call.agent ? { agent: call.agent } : {} })
+    const downstream = await next()
+    if (merged.updatedInput !== undefined) {
+      return {
+        ...downstream,
+        arguments: downstream.arguments !== undefined ? downstream.arguments : merged.updatedInput,
+      }
+    }
+    return downstream
+  })
+
   // --- PreToolUse → PreToolDecision. Matcher subject is the tool name. ---
   ctx.on('tools/pre-execute', async (exec, next): Promise<PreToolDecision> => {
-    const turn = lastTurn(ctx, exec.agent)
-    const merged = await runPoint('PreToolUse', exec.name, preToolPayload(exec), { ...exec.agent ? { agent: exec.agent } : {}, turn, signal: exec.signal })
+    const cached = preToolOutcomes.get(exec.callId)
+    let merged: MergedHookOutcome
+    if (cached !== undefined) {
+      preToolOutcomes.delete(exec.callId)
+      merged = cached.merged
+    } else {
+      const turn = lastTurn(ctx, exec.agent)
+      merged = await runPoint('PreToolUse', exec.name, preToolPayload(exec), { ...exec.agent ? { agent: exec.agent } : {}, turn, signal: exec.signal })
+    }
     if (merged.decision === 'deny') return { kind: 'deny', reason: merged.reason ?? 'blocked by PreToolUse hook' }
     if (merged.decision === 'ask') return { kind: 'ask', ...merged.reason !== undefined ? { reason: merged.reason } : {} }
     return next()
@@ -267,6 +300,9 @@ export function apply(ctx: Context, config: Config): void {
   // machine observe pending input and run another step.
   // TODO(stop-loop-guard): cap consecutive forced continuations; hooks must self-limit meanwhile.
   ctx.on('agent/turn-stopping', async ({ agent, turn, signal }): Promise<void> => {
+    for (const [callId, entry] of preToolOutcomes) {
+      if (entry.agent === agent) preToolOutcomes.delete(callId)
+    }
     const merged = await runPoint('Stop', '', stopPayload(agent), { agent, turn, signal })
     if (merged.decision === 'deny') {
       // A blocking Stop hook forces continuation.
@@ -334,8 +370,13 @@ function sessionStartPayload(agent: Agent, source: string): Record<string, unkno
 function promptPayload(agent: Agent, content: ContentBlock[]): Record<string, unknown> {
   return { ...base(agent, 'UserPromptSubmit'), prompt: blocksToText(content) }
 }
-function preToolPayload(exec: ToolExecution): Record<string, unknown> {
-  return { ...base(exec.agent, 'PreToolUse'), tool_name: exec.name, tool_input: exec.arguments, tool_use_id: exec.callId }
+function preToolPayload(call: {
+  readonly agent?: Agent
+  readonly name: string
+  readonly arguments: unknown
+  readonly callId: ToolCallId
+}): Record<string, unknown> {
+  return { ...base(call.agent, 'PreToolUse'), tool_name: call.name, tool_input: call.arguments, tool_use_id: call.callId }
 }
 function postToolPayload(exec: ToolExecution, result: ToolExecutionResult): Record<string, unknown> {
   return { ...base(exec.agent, 'PostToolUse'), tool_name: exec.name, tool_input: exec.arguments, tool_use_id: exec.callId, tool_response: blocksToText(result.content) }

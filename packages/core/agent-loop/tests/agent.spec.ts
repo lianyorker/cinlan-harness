@@ -7,8 +7,8 @@ import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime from '@deepseek-ai/dsh-tools'
-import { MockAdapter, textResponse } from './mock-adapter.ts'
+import ToolRuntime, { defineContentToolFixture, type ToolInputRewriteDecision } from '@deepseek-ai/dsh-tools'
+import { MockAdapter, textResponse, toolCallResponse } from './mock-adapter.ts'
 
 async function harness(adapter: MockAdapter): Promise<Context> {
   const ctx = new Context()
@@ -165,5 +165,88 @@ describe('Agent', () => {
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('agent event "agent/status" listener threw'),
     )
+  })
+
+  it('pre-tool input rewrite updates assistant/message, tool/call, and execution atomically', async () => {
+    const adapter = new MockAdapter([
+      toolCallResponse('call-1', 'echo', { command: 'original' }),
+      textResponse('completed'),
+    ])
+    const ctx = await harness(adapter)
+    let executedArgs: unknown
+
+    ctx.tools.register(defineContentToolFixture({
+      name: 'echo',
+      description: 'echo tool',
+      parameters: { command: { type: 'string' } },
+      execute: async (args) => {
+        executedArgs = args
+        return [{ type: 'text', text: 'result' }]
+      },
+    }))
+
+    ctx.on('tools/input-rewrite', async (call, next): Promise<ToolInputRewriteDecision> => {
+      const downstream = await next()
+      return {
+        ...downstream,
+        arguments: { command: 'rewritten' },
+      }
+    })
+
+    const agent = await ctx.agentLoop.create(SessionId('a-rewrite'), { provider: 'mock', model: 'mock' })
+    send(agent, 'start')
+    await agent.whenIdle()
+
+    // 1. Tool executed with rewritten arguments
+    expect(executedArgs).toEqual({ command: 'rewritten' })
+
+    // 2. tool/call audit event contains rewritten arguments and originalArguments sidecar
+    const events = agent.session.snapshotEvents()
+    const callEvent = events.find(e => e.type === 'tool/call')
+    expect(callEvent?.type === 'tool/call' && callEvent.data).toMatchObject({
+      callId: 'call-1',
+      name: 'echo',
+      arguments: JSON.stringify({ command: 'rewritten' }),
+      originalArguments: JSON.stringify({ command: 'original' }),
+    })
+
+    // 3. assistant/message in log and deriveMessages reflects the rewritten arguments
+    const assistantEvent = events.find(e => e.type === 'assistant/message')
+    expect(assistantEvent?.type === 'assistant/message' && assistantEvent.data.message.content[0]).toMatchObject({
+      type: 'tool-call',
+      id: 'call-1',
+      arguments: JSON.stringify({ command: 'rewritten' }),
+    })
+
+    const derived = agent.session.deriveMessages()
+    const derivedAssistant = derived.find(m => m.role === 'assistant')
+    expect(derivedAssistant?.content[0]).toMatchObject({
+      type: 'tool-call',
+      id: 'call-1',
+      arguments: JSON.stringify({ command: 'rewritten' }),
+    })
+  })
+
+  it('unrewritten tool call omits originalArguments on tool/call event', async () => {
+    const adapter = new MockAdapter([
+      toolCallResponse('call-2', 'echo', { command: 'hello' }),
+      textResponse('completed'),
+    ])
+    const ctx = await harness(adapter)
+    ctx.tools.register(defineContentToolFixture({
+      name: 'echo',
+      description: 'echo tool',
+      parameters: { command: { type: 'string' } },
+      execute: async () => [{ type: 'text', text: 'result' }],
+    }))
+
+    const agent = await ctx.agentLoop.create(SessionId('a-plain'), { provider: 'mock', model: 'mock' })
+    send(agent, 'start')
+    await agent.whenIdle()
+
+    const events = agent.session.snapshotEvents()
+    const callEvent = events.find(e => e.type === 'tool/call')
+    expect(callEvent?.type === 'tool/call' && callEvent.data.arguments).toBe(JSON.stringify({ command: 'hello' }))
+    expect(callEvent?.type === 'tool/call' && (callEvent.data as { originalArguments?: string }).originalArguments).toBeUndefined()
   })
 })

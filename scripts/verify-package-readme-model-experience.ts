@@ -282,6 +282,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/security/vuln-kb-service': { kind: 'indirect', reason: 'The vulnerability knowledge-base service supplies records to its tool consumer.' },
   'packages/workspace/worktree-task': { kind: 'indirect', reason: 'The Worktree Task service supplies lifecycle state to Remote and settings consumers.' },
   'packages/workspace/worktree-task-git': { kind: 'indirect', reason: 'The Git provider supplies lifecycle state to Worktree Task consumers.' },
+  'packages/task-surface/task-surface': { kind: 'indirect', reason: 'The task surface service and projection delegate model rendering and tool execution to dsh-tool-task-surface.' },
 }
 
 interface Failure {

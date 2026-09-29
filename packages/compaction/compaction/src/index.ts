@@ -18,7 +18,12 @@ export { toolPairingBalancedAfter, toolPairingBalancedBefore } from './tool-pair
 // The checkpoint source constructor and predicate are declared on the cordis-free
 // `./checkpoint` leaf so client and wire programs can name them without this
 // root's Context merge; the root stays the host-side entry point for both.
-export { compactCheckpointSource, isCompactCheckpointSource } from './checkpoint.ts'
+export {
+  compactCheckpointSource,
+  isCompactCheckpointSource,
+  formatCheckpointFooter,
+  CHECKPOINT_FOOTER_RE,
+} from './checkpoint.ts'
 export type { CompactionCheckpointSource } from './checkpoint.ts'
 
 /** Why automatic policy is asking a backend to consider compaction. */

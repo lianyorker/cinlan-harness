@@ -49,3 +49,22 @@ export function compactCheckpointSource(
 export function isCompactCheckpointSource(source: MessageSource): boolean {
   return source.kind === 'plugin' && source.plugin === COMPACT_CHECKPOINT_MARKER.plugin
 }
+
+/**
+ * Format the standard code-composed footer pointer for a compaction checkpoint.
+ * @param summarySeq - seq of the compaction/summary event.
+ * @param start - first shadowed surface sequence.
+ * @param end - last shadowed surface sequence.
+ * @returns deterministic footer string.
+ */
+export function formatCheckpointFooter(
+  summarySeq: number,
+  start: number,
+  end: number,
+): string {
+  return `[checkpoint c${summarySeq}: shadows conversation span #${start}–#${end}; originals retrievable via history_read]`
+}
+
+/** Pattern matching standard checkpoint footer pointers. */
+export const CHECKPOINT_FOOTER_RE =
+  /\[checkpoint c(\d+): shadows conversation span #(\d+)–#(\d+); originals retrievable via history_read\]/

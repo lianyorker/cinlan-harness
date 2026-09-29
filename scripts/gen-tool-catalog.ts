@@ -82,6 +82,7 @@ import { registerListSubagentModels } from '../packages/subagent/tool-subagent/s
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
 import WorkItemsRuntime from '@deepseek-ai/dsh-work-items'
 import * as ToolWorkItems from '@deepseek-ai/dsh-tool-work-items'
+import * as ToolRecall from '@deepseek-ai/dsh-tool-recall'
 import ArtifactMemoryProvider from '@deepseek-ai/dsh-artifact-memory'
 import ExecutionHostLocal from '@deepseek-ai/dsh-execution-host-local'
 import SessionFindingService from '@deepseek-ai/dsh-finding-session'
@@ -93,6 +94,8 @@ import WorkflowEngine from '@deepseek-ai/dsh-workflow'
 import type { WorkflowRun, WorkflowStartRequest } from '@deepseek-ai/dsh-workflow'
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
 import * as ToolWorkflow from '@deepseek-ai/dsh-tool-workflow'
+import TaskSurfacePlugin from '@deepseek-ai/dsh-task-surface'
+import ToolTaskSurfacePlugin from '@deepseek-ai/dsh-tool-task-surface'
 import { githubSlug } from './verify-md-links.ts'
 
 /** Attachment seam marker that makes the attachments-conditional `read_image` schema harvestable. */
@@ -784,6 +787,31 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-recall',
+    dir: 'tool-recall',
+    source: 'packages/compaction/tool-recall/src/index.ts',
+    requires: ['ctx.tools', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(ToolRecall)
+    },
+    note:
+      'history_read and history_search read original uncompacted messages directly from the append-only session log without external sidecars.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-task-surface',
+    dir: 'tool-task-surface',
+    source: 'packages/task-surface/tool-task-surface/src/index.ts',
+    requires: ['ctx.tools', 'ctx.sessionProjections'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(TaskSurfacePlugin)
+      await ctx.plugin(ToolTaskSurfacePlugin)
+    },
+    note:
+      'show_task_surface renders structured interactive task panels and concludes the turn.',
   },
 ]
 

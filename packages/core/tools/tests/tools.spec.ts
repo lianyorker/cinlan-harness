@@ -11,6 +11,7 @@ import ToolRuntime, {
   defineContentToolFixture, defineTool, JsonSchemaError, parameterSchemaSpecToJsonSchema, validateArgs, ToolArgsError, ToolNotFoundError,
   TOOL_ABORTED, TOOL_ABORTED_BEFORE_DISPATCH,
   type InferArgs, type ParameterSchemaSpec, type PreToolDecision, type PostToolDecision,
+  type ToolInputRewriteDecision,
   type JsonSchemaNode, type ToolDefinition, type ToolDispatchExecution, type ToolExecutionResult, type ToolExecutionToken,
 } from '@deepseek-ai/dsh-tools'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
@@ -1757,6 +1758,64 @@ describe('ToolRuntime', () => {
     expect(result.isError).toBe(true)
     expect(result.content[0]).toMatchObject({ text: 'Error: nope' })
     expect(entered).toBe(false) // A denied call never enters the around-dispatch extension point.
+  })
+
+  describe('tools/input-rewrite pre-identity rewrite waterfall', () => {
+    it('rewriteInput returns original arguments when no listener rewrites', async () => {
+      const ctx = await setup()
+      const call = {
+        callId: ToolCallId('c1'),
+        name: 'echo',
+        arguments: { text: 'hello' },
+        signal: testToolSignal,
+      }
+      const outcome = await ctx.tools.rewriteInput(call)
+      expect(outcome.rewritten).toBe(false)
+      expect(outcome.arguments).toEqual({ text: 'hello' })
+    })
+
+    it('rewriteInput returns rewritten arguments when listener supplies arguments', async () => {
+      const ctx = await setup()
+      ctx.on('tools/input-rewrite', async (call, next): Promise<ToolInputRewriteDecision> => {
+        const downstream = await next()
+        return {
+          ...downstream,
+          arguments: { text: 'rewritten' },
+        }
+      })
+      const call = {
+        callId: ToolCallId('c1'),
+        name: 'echo',
+        arguments: { text: 'original' },
+        signal: testToolSignal,
+      }
+      const outcome = await ctx.tools.rewriteInput(call)
+      expect(outcome.rewritten).toBe(true)
+      expect(outcome.arguments).toEqual({ text: 'rewritten' })
+    })
+
+    it('waterfall delegates across multiple rewrite listeners', async () => {
+      const ctx = await setup()
+      ctx.on('tools/input-rewrite', async (call, next): Promise<ToolInputRewriteDecision> => {
+        const downstream = await next()
+        const current = (downstream.arguments ?? call.arguments) as Record<string, unknown>
+        return { ...downstream, arguments: { ...current, first: 1 } }
+      })
+      ctx.on('tools/input-rewrite', async (call, next): Promise<ToolInputRewriteDecision> => {
+        const downstream = await next()
+        const current = (downstream.arguments ?? call.arguments) as Record<string, unknown>
+        return { ...downstream, arguments: { ...current, second: 2 } }
+      })
+      const call = {
+        callId: ToolCallId('c1'),
+        name: 'echo',
+        arguments: { base: 0 },
+        signal: testToolSignal,
+      }
+      const outcome = await ctx.tools.rewriteInput(call)
+      expect(outcome.rewritten).toBe(true)
+      expect(outcome.arguments).toEqual({ base: 0, first: 1, second: 2 })
+    })
   })
 
   it('a thrown tool is normalized to an isError result BEFORE a tools/execute listener sees next()', async () => {

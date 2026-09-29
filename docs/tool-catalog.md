@@ -52,6 +52,8 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-vuln-kb` | `vuln_query`, `vuln_read` | `ctx.tools`, `ctx.vulnKb`, `a configured vulnerability KB provider at execution time` | `tool/call`, `tool/result` | - | vuln_query and vuln_read expose provider results without asserting exploitability or granting assessment authority; the catalog boot uses the NVD+OSV adapter without making a network request. |
 | `@deepseek-ai/dsh-tool-work-items` | `work_items_cancel_write`, `work_items_confirm_write`, `work_items_get`, `work_items_list`, `work_items_list_writes`, `work_items_prepare_write` | `ctx.tools`, `ctx.workItems`, `ctx.systemPrompt`, `ctx.storageDomain for write previews and receipts` | `tool/call`, `durable write previews and receipts`, `tool/result` | - | Provider writes are disabled by default. Enabled writes require a persisted preview and separate confirmation; uncertain outcomes are never automatically resent. |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
+| `@deepseek-ai/dsh-tool-recall` | `history_read`, `history_search` | `ctx.tools`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | history_read and history_search read original uncompacted messages directly from the append-only session log without external sidecars. |
+| `@deepseek-ai/dsh-tool-task-surface` | `show_task_surface` | `ctx.tools`, `ctx.sessionProjections` | `tool/call`, `tool/result` | - | show_task_surface renders structured interactive task panels and concludes the turn. |
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 
@@ -4731,3 +4733,89 @@ Search the web for current information. Provide 1–4 queries in the required qu
 Source: [`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/index.ts)
 
 web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps.
+
+<a id="deepseek-aidsh-tool-recall"></a>
+
+## `@deepseek-ai/dsh-tool-recall`
+
+### `history_read`
+
+Retrieve the full transcript of original messages shadowed by a compaction checkpoint. Output includes original user prompts, assistant turns, and tool results, paginated when long. Provide the checkpoint ID (e.g. "c42") found in checkpoint footers.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "checkpoint": {
+      "type": "string",
+      "description": "The checkpoint ID (e.g. \"c42\") whose shadowed span to retrieve."
+    },
+    "offset": {
+      "type": "integer",
+      "description": "0-based message offset for paginating long transcripts."
+    }
+  },
+  "required": [
+    "checkpoint"
+  ]
+}
+```
+
+Source: [`packages/compaction/tool-recall/src/index.ts`](../packages/compaction/tool-recall/src/index.ts)
+
+### `history_search`
+
+Search across all compacted history spans for exact keywords, error strings, configuration flags, or paths. Performs a case-insensitive literal scan and returns matching snippets tagged with checkpoint IDs.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "The literal string to search for across shadowed conversation spans."
+    },
+    "checkpoint": {
+      "type": "string",
+      "description": "Optional specific checkpoint ID to restrict the search to."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum matching occurrences to return (defaults to 25)."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+Source: [`packages/compaction/tool-recall/src/index.ts`](../packages/compaction/tool-recall/src/index.ts)
+
+history_read and history_search read original uncompacted messages directly from the append-only session log without external sidecars.
+
+<a id="deepseek-aidsh-tool-task-surface"></a>
+
+## `@deepseek-ai/dsh-tool-task-surface`
+
+### `show_task_surface`
+
+Present a structured, interactive Task Surface to the user for review, configuration, or decision-making. The surface ends the agent turn, presenting declarative sections and input fields. The user can submit field values or dismiss the surface to continue the conversation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "model": {
+      "description": "Declarative Task Surface v1 model defining title, sections, blocks, optional input fields, and submit button."
+    }
+  },
+  "required": [
+    "model"
+  ]
+}
+```
+
+Source: [`packages/task-surface/tool-task-surface/src/index.ts`](../packages/task-surface/tool-task-surface/src/index.ts)
+
+show_task_surface renders structured interactive task panels and concludes the turn.

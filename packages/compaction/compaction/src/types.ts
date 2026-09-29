@@ -51,6 +51,8 @@ declare module '@deepseek-ai/dsh-session/types' {
       maxTokens?: number
       /** Provider-reported token usage for the summarization request, when emitted. */
       usage?: TokenUsage
+      /** Whether this checkpoint is a frozen index stub or the mutable state checkpoint. */
+      checkpointKind?: 'index' | 'state'
     } & (
       | {
         /** Complete provider output before the backend's safe summary projection. */
@@ -117,4 +119,6 @@ export interface CompactionResult {
   shadowedSeqs: SessionSeq[]
   /** Estimated token count of the shadowed content. */
   shadowedTokenCount: number
+  /** Whether this checkpoint is a frozen index stub or the mutable state checkpoint. */
+  checkpointKind?: 'index' | 'state'
 }

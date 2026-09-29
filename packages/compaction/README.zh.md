@@ -30,6 +30,8 @@ kind: "package-group"
 | [`compaction-basic/`](compaction-basic/README.zh.md) | 随 token 压力上升自动把较早历史压缩为摘要 | 注册 `ctx.compaction` |
 | [`compaction-tool-result-pruner/`](compaction-tool-result-pruner/README.zh.md) | 修剪超大工具输出，减少需要压缩的历史 | `ctx.toolResultPruner` |
 | [`command-compact/`](command-compact/README.zh.md) | 按需压缩历史的 `/compact` 命令 | 注册到 `ctx.commands` |
+| [`compact-recallable/`](compact-recallable/README.zh.md) | 带冻结索引存根与可变状态检查点的可召回式压缩引擎 | 注册 `ctx.compaction` |
+| [`tool-recall/`](tool-recall/README.zh.md) | 访问已压缩会话日志的召回工具（`history_read`、`history_search`） | 注册到 `ctx.tools` |
 
 -----
 
