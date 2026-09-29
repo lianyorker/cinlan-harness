@@ -168,7 +168,7 @@ These rules apply to new Session-derived Client state even when a direct event s
 - [Session history and Remote event transport](2026-08-18-session-history-and-event-transport.md) owns stream generations and replacement semantics. This decision supplies the exact snapshot that opens each journal generation.
 - [Projection state and Client views](../../archived/architecture/2026-08-19-session-projection-state-and-client-views.md) owns the distinction between Host fold state and Client values. This decision governs where those values are consumed and how partial list hints differ from a complete baseline.
 - [Subagent identity projection](../../archived/architecture/2026-08-06-subagent-list-identity-projection.md) continues to own descriptor folding, the serializable `null` sentinel, and the own-suffix sequence check. This decision supersedes only its independent corpus merge and direct cold-inspection path: listing now uses SessionQuery's corpus and observation.
-- The broader [session projection and command-log proposal](../../proposed/architecture/2026-07-27-session-projection-and-command-log.md) remains proposed for the portions not represented by shipped code. This decision records the shipped observation and Client-ownership subset.
+- The [session projection and command-log decision](2026-07-27-session-projection-and-command-log.md) records the base projection registry, command log lifecycle, and client store architecture. This decision records the observation and Client-ownership layer built on top of it.
 
 ## Verification
 

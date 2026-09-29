@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-Worktree Task 使用 Git-backed provider 在 `ctx.worktreeTask` 提供服务，并通过类型化 Host Remote controller 暴露。生命周期请求使用 Provider 签发的不透明 task id，由该 owner 解析路径并执行。[程序捕获提案](../../proposed/feature/2026-09-18-worktree-task-lifecycle-hooks.zh.md)单独允许通过带 revision 检查的默认值配置未来任务，其验收仍待完成。创建接受来源仓库，生命周期调用不能替换 checkout 路径或程序。在完整选定该产品路径之前，Worktree Task 与 Workspace Isolation row 在默认 Web 组合中保持未激活。
+Worktree Task 使用 Git-backed provider 在 `ctx.worktreeTask` 提供服务，并通过类型化 Host Remote controller 暴露。生命周期请求使用 Provider 签发的不透明 task id，由该 owner 解析路径并执行。[程序捕获决策](2026-09-18-worktree-task-lifecycle-hooks.zh.md)单独允许通过带 revision 检查的默认值配置未来任务。创建接受来源仓库，生命周期调用不能替换 checkout 路径或程序。在完整选定该产品路径之前，Worktree Task 与 Workspace Isolation row 在默认 Web 组合中保持未激活。
 
 Worktree Task 的 setup 与 cleanup 和 Git 操作共用受管子进程执行器。Provider 为新任务捕获已配置的可执行文件与 argv，仅在 setup 成功后发布任务，并在回滚前等待命令及进程树退出。Setup 只在创建时执行。Cleanup 只由显式归档或删除触发，休眠、容量回收和启动恢复不调用它。执行 cleanup 前持久化 running claim，回收 checkout 前持久化成功收据；失败或未结算 claim 保留 checkout 供审查。归档后再删除不重复成功的 cleanup，未合并分支保持已归档状态。共享的取消、输出和时限约束避免钩子进程仍在工作时释放 checkout；进程结算未知会阻止自动重跑。Setup 和 cleanup 的外部副作用无法通过 checkout 回滚撤销。
 

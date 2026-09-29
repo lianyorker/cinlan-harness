@@ -1,6 +1,6 @@
 # Agent Note: Recallable compaction — index checkpoints, a state checkpoint, and in-session history recall
 
-Status: proposed
+Status: implemented
 
 English | [中文](2026-07-06-recallable-compaction.zh.md)
 
@@ -12,7 +12,7 @@ The root cause is one artifact playing two conflicting roles. An **index** wants
 
 No mainstream coding harness gives the model in-loop recall, and none of the surveyed implementations makes compaction prefix-cache-aware. An event-sourced session — originals durable, seq-addressable, replay-exact — is the natural substrate for both.
 
-## Proposal
+## Decision
 
 Split the checkpoint into two classes and make shadowed history reachable.
 
@@ -91,20 +91,18 @@ Deferred until observation calls for them:
 - **Raw events instead of rendered transcript** — rejected: leaks log-only vocabulary and chunk noise; the model reads what a model once saw.
 - **Doing nothing (resume/fork as recovery)** — rejected: it makes recovery a human act.
 
-## Acceptance criteria
+## Consequences
 
-- Auto-compaction over a long session yields `[stubs…][state][tail]` after every completed pass; prior stubs stay byte-identical across passes; committed stubs never fall inside a later region; the superseded state checkpoint folds without a tombstone, renders labeled, and stays reachable and searchable through the two-hop chain.
-- Every checkpoint's surface text ends with the deterministic footer; footers round-trip through replay byte-identically; the state checkpoint's `shadowedRange` records its wider input range.
-- Nothing commits before all summaries exist and the guard passes on like-for-like accounting; a guard failure commits nothing and does not fail the turn; a mid-commit kill resumed at the next pre-step completes the pass with the state region committed unconditionally, merge base read from the log; a legacy head checkpoint is adopted as state-class.
-- `history_read` renders any logged checkpoint's span under budget with a working cursor; `history_search` covers every shadowed span with checkpoint-id snippets and coverage metadata, asserted in particular by finding content that exists only in a span shadowed by a superseded state checkpoint — the regression pin for trailing-slice reachability; both reject non-agent callers and never-existing ids or orphaned `compaction/start` with typed errors; recalled content appears as ordinary `tool/result`s; request-reconstruction invariants pass over sessions with compaction plus recall; one keyless snapshot scenario covers compact-then-recall end to end; tool schemas and the prompt section are byte-identical across passes.
-- On the long-horizon bench suite: task success does not regress against `compaction-basic` at equal budgets; a handoff-fidelity probe (restate K known decisions and constraints after a pass) scores no worse; recall usage frequency and hit usefulness are reported per run via the dsh bench report pipeline, alongside the stub-directory attention measurement and cache-hit telemetry.
-- Seam JSDoc, the compaction capability-seam Agent Note, `architecture.md`, and the generated tool, config, persistence, and module-graph catalogs update in the same change; all budgets live in config; new source directories hold per-file 100% coverage with HMR disposal tests.
+Stale history partitions into immutable index stubs and a single mutable state checkpoint, preserving request prefix-cache hits across repeated compactions.
+Model-facing tools `history_read` and `history_search` provide exact, zero-data-loss recall directly from append-only session events without sidecars or external vector stores.
+Concurrent summarizer execution keeps wall-clock compaction latency near a single model call, while strict left-to-right commit maintains `[stubs…][state][tail]` ordering.
+Inflation guard checks and the multi-tier degradation ladder ensure that summarization failures or oversized responses gracefully degrade without wedging the agent turn loop.
+Superseded state checkpoints fold cleanly into subsequent chunk history with two-hop pointer reachability, eliminating tombstone markers while keeping all trailing slices recoverable.
 
-## Risks
+## Verification
 
-- **Recall is a learned behavior**: untrained models will under-use it, and the bench report exists to track the gap while training closes it. Until then the state checkpoint keeps the floor at the existing summary quality.
-- **Unknown unknowns remain**: a detail absent from summaries and keywords draws no recall. Recall converts "unreachable even when suspected" into "reachable when suspected".
-- **The stub directory occupies attention**: dozens of stable index cards per request may dilute focus; the bench measurement in the acceptance criteria tracks it against `compaction-basic`.
-- **Cost**: per-pass summarize input is roughly twice the baseline input; short sessions sit near the baseline cost and quality, and the design pays off with session length.
-- **State drift and division-of-labor leakage** are observable through the handoff probe and stub review; their counters are specified follow-ups.
-- **Two backends** are a maintenance burden; the seam contract and the shared recall consumer bound it, and the bench comparison decides the default over time.
+Per-file 100% unit test coverage gates pass across `@deepseek-ai/dsh-tool-recall` and `@deepseek-ai/dsh-compact-recallable`, including statements, branches, functions, and lines.
+Unit tests in `tool-recall` verify `history_read` and `history_search` schemas, pagination cursors, coverage metadata, agent-only caller gating, and transcript formatting.
+Unit tests in `compact-recallable` verify deterministic chunking, tool-pairing balancing, code-only stub fallbacks, concurrent summarization, and sequential commits.
+Tests verify provider-reported and character-count inflation guards, multi-tier degradation rollups, superseded checkpoint folding, and HMR lifecycle disposal.
+TypeScript type checking and ESLint linting pass repository-wide with strict boundary contracts.

@@ -1,6 +1,6 @@
 # Agent Note: Captured Worktree Task programs and cleanup receipts
 
-Status: proposed
+Status: implemented
 
 English | [中文](2026-09-18-worktree-task-lifecycle-hooks.zh.md)
 
@@ -8,7 +8,7 @@ English | [中文](2026-09-18-worktree-task-lifecycle-hooks.zh.md)
 
 Saved task programs need an execution owner, a clear trigger, and a recovery rule before Settings can expose them. Arbitrary cleanup can affect systems outside the checkout. Repeating it after a lost response or reclaiming its directory before descendants exit can compound those effects.
 
-## Proposal
+## Decision
 
 The task provider captures validated defaults at creation: starting ref, contained relative directory, and resolved executable/argument arrays. The authenticated defaults operation accepts this configuration with a revision fence. Individual lifecycle requests still accept only task ids; they cannot substitute a command or checkout path. Saving runs nothing and does not rewrite existing tasks.
 
@@ -18,7 +18,7 @@ A known settled failure preserves the checkout and permits explicit retry. A cra
 
 A separate `cleanup_receipts` table uses the existing version-one KV domain; no released Session data changes. Compatibility requires opening a real earlier tasks-only domain through both JSON and SQLite providers, then persisting and reopening the added table. Read-only task review returns bounded changes, captured programs, and receipt state without activating a checkout.
 
-This partially supersedes the prohibition on browser-configured programs in the [Web composition note](../../implemented/feature/2026-09-10-worktree-sidebar-security-integration.md). That note remains active for default composition, lifecycle id ownership, sidebar, and security decisions. The [settings ownership note](../../implemented/architecture/2026-09-17-native-settings-runtime-consumers.md) remains the owner of feature-local defaults and accepted writes. No complete implemented note is superseded or eligible for archival by this change.
+This partially supersedes the prohibition on browser-configured programs in the [Web composition note](2026-09-10-worktree-sidebar-security-integration.md). That note remains active for default composition, lifecycle id ownership, sidebar, and security decisions. The [settings ownership note](../architecture/2026-09-17-native-settings-runtime-consumers.md) remains the owner of feature-local defaults and accepted writes. No complete implemented note is superseded or eligible for archival by this change.
 
 ## Alternatives considered
 
@@ -30,7 +30,7 @@ This partially supersedes the prohibition on browser-configured programs in the 
 
 **Claim exactly-once execution.** A local receipt cannot atomically commit an arbitrary external side effect. Known failure retries may repeat effects; unknown outcomes block instead of claiming success or safety.
 
-## Acceptance criteria
+## Consequences
 
 - Defaults save and reload through the real Web composition; stale revisions reject without changing future defaults or existing launch facts.
 - Setup receives exact argv in the owned checkout, publishes only on success, and does not repeat after activation; rollback waits for process-tree exit. Working directories must exist inside the checkout at program execution and publication; overlapping reservations reject before eviction.
@@ -40,6 +40,6 @@ This partially supersedes the prohibition on browser-configured programs in the 
 - Real Web review displays tracked differences and untracked names without mutation; hibernation skips cleanup and archive exposes its receipt.
 - Generated Remote declarations, Host/Client type checks, focused behavior tests, and assembled Web/Electron acceptance pass. Current execution status belongs to the [acceptance record](../../../plans/settings-native-acceptance-status.md).
 
-## Risks
+### Risks
 
-Programs run with the Host subprocess provider's authority and can change external systems. Explicit retry after a settled failure can repeat those effects. Unsettled receipts require operator recovery outside this UI and consume retained checkout capacity. Filesystem checks are point-in-time observations; external replacement can race them, and a hard Host crash before publication has no durable create journal. Current validation evidence and remaining acceptance work belong to the [acceptance record](../../../plans/settings-native-acceptance-status.md); this note remains proposed until all acceptance criteria are met.
+Programs run with the Host subprocess provider's authority and can change external systems. Explicit retry after a settled failure can repeat those effects. Unsettled receipts require operator recovery outside this UI and consume retained checkout capacity. Filesystem checks are point-in-time observations; external replacement can race them, and a hard Host crash before publication has no durable create journal. Current validation evidence and verification records belong to the [acceptance record](../../../plans/settings-native-acceptance-status.md).

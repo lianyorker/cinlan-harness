@@ -1,6 +1,6 @@
 # Agent Note: 在会话索引中记录最后活动
 
-Status: proposed
+Status: rejected — 由 session-projection-cache 与 bounded-cold-blank-verification 取代：JSONL 的单工件与不可变不变式排除了可变 header 与异步伴随文件
 
 [English](2026-07-29-durable-last-activity-index.md) | 中文
 

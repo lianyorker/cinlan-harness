@@ -1,6 +1,6 @@
 # Agent Note: 用于结构化会话交互的 Task Surface
 
-Status: proposed
+Status: implemented
 
 [English](2026-08-04-task-surface.md) | 中文
 
@@ -12,7 +12,7 @@ Status: proposed
 
 目前缺少这样一份约定：用有界、可回放的描述来定义临时 UI，并让它只属于一个会话和一次工具调用实例。产品应当负责校验、放置、交互机制和提交；agent 应当负责特定任务的文案、数据，以及从受支持组件中作出选择。
 
-## 提案
+## 决策
 
 新增 **Task Surface**：一种由普通 Web 客户端插件渲染、带版本的声明式模型。面向模型提供一个稳定工具 `show_task_surface`，用于发布该模型。调用成功后，当前轮次结束。用户编辑并提交渲染出的面板；Host 将提交内容记录为一条普通的可见用户消息，并开始下一轮。
 
@@ -206,7 +206,7 @@ Task Surface 服务将已接受提交的协调状态记录为 `pending.phase: 'q
 
 ## 生命周期与恢复
 
-会话日志是真源。现有[会话投影系统](../architecture/2026-07-27-session-projection-and-command-log.zh.md)中的一个小型 `taskSurface` 单元会折叠成功调用的 Surface 结果元数据和后续用户消息来源，得到以下状态：
+会话日志是真源。现有[会话投影系统](../../implemented/architecture/2026-07-27-session-projection-and-command-log.zh.md)中的一个小型 `taskSurface` 单元会折叠成功调用的 Surface 结果元数据和后续用户消息来源，得到以下状态：
 
 ```ts ignore-check
 interface TaskSurfaceProjection {
@@ -258,7 +258,7 @@ Web 插件将未提交值保存在一个有界、按会话持久化的 slot stor
 
 **将面板存入长期记忆。**不予采用，因为布局和草稿状态不是可复用事实。现有记忆策略可以保留用户提交的结论。
 
-## 验收标准
+## 结果与影响
 
 - 在 `native` 或 `both` 工具模式下，真实模型可以调用一个稳定的 `show_task_surface` schema；调用结束当前轮次；具备相应能力的 Web 客户端在实时运行和回放后都能渲染同一份规范化模型；仅支持 `ptc` 的模式不会向模型公布该工具。
 - 静态 `TaskSurfaceDock` 是唯一的编辑器，即使活动结果位于已加载历史窗口之外也仍可操作；带 key 的 toolview 始终是 transcript 的只读摘要和回放。composer 接管会隐藏仍处于挂载状态的 Dock、保留其草稿，并在接管释放后重新显示同一个所有者。
@@ -272,7 +272,7 @@ Web 插件将未提交值保存在一个有界、按会话持久化的 slot stor
 - 前缀快照表明：无论任务特定模型如何变化，都只存在一个稳定的工具定义；只有调用参数和后续用户结论发生变化。
 - 卸载 Web 插件时，其所属 Fiber 会对 Dock、工具行和草稿 store 执行 dispose，但不会改变持久 transcript。
 
-## 风险
+### 风险
 
 第一批组件可能小到无法满足实际任务，也可能大到足以演变成一个粗糙的应用框架。是否新增组件应由使用证据决定；初始组件集不提供表达式语言或网络行为。
 

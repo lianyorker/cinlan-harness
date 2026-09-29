@@ -1,6 +1,6 @@
 # Agent Note: Session projections and command lifecycle logging
 
-Status: proposed
+Status: implemented
 
 English | [中文](2026-07-27-session-projection-and-command-log.zh.md)
 
@@ -14,7 +14,7 @@ Three in-flight web features — todo (#497), goal (#527), and plan mode (#587) 
 
 The underlying gap is architectural: the client has no seam for a plugin to observe session events in a session's scope and keep its own derived state, and the host has no uniform way to hand a client the current value of log-derived state whose history may have been paged out of the client's window.
 
-## Proposal
+## Decision
 
 Four infrastructure pieces, then the domains become pure contributors.
 
@@ -128,13 +128,13 @@ Two log-only (non-surface, model-invisible) events, mirroring the `tool/call`/`t
 'command/done': { commandId: string; kind: 'success' | 'error'; text?: string }
 ```
 
-The host command executor (`packages/interaction/commands`) appends `command/run` before invoking the handler and `command/done` at settlement — direct standalone appends on the receiving agent's session, in the same shape as every other plugin-owned log-only event after the [synthetic-turn removal](../../implemented/simplification/2026-07-28-remove-synthetic-log-only-turns.md): no turn wraps them (turns describe model-loop executions only), persistence drains them at ordinary checkpoints, and the commands package's own invariant companion enforces the run/done pairing. The payload is structured — `name` and, by default, `args` are the parser's own split (`parseCommand`'s name and rawInput), so a consumer (a projection unit folding its own command records, a rich command card) never re-parses a line. A definition sets `recordInput: false` when its authoritative domain event owns the payload; `command/run` then omits `args` rather than duplicating it. `text` is the handler's verbatim outcome — factual data of the same nature as `tool/result.content`, not presentation (how it is laid out remains client-computed at render time, satisfying the "presentation never enters the log" red line). Domains that want the model to know the outcome keep their existing behavior (plan's narration, goal's inject) — that is a domain decision, unchanged.
+The host command executor (`packages/interaction/commands`) appends `command/run` before invoking the handler and `command/done` at settlement — direct standalone appends on the receiving agent's session, in the same shape as every other plugin-owned log-only event after the [synthetic-turn removal](../simplification/2026-07-28-remove-synthetic-log-only-turns.md): no turn wraps them (turns describe model-loop executions only), persistence drains them at ordinary checkpoints, and the commands package's own invariant companion enforces the run/done pairing. The payload is structured — `name` and, by default, `args` are the parser's own split (`parseCommand`'s name and rawInput), so a consumer (a projection unit folding its own command records, a rich command card) never re-parses a line. A definition sets `recordInput: false` when its authoritative domain event owns the payload; `command/run` then omits `args` rather than duplicating it. `text` is the handler's verbatim outcome — factual data of the same nature as `tool/result.content`, not presentation (how it is laid out remains client-computed at render time, satisfying the "presentation never enters the log" red line). Domains that want the model to know the outcome keep their existing behavior (plan's narration, goal's inject) — that is a domain decision, unchanged.
 
 Because committed events broadcast on the mux stream, refresh persistence, multi-tab sync, and fork/resume recovery all come for free. The `command.execute` RPC degrades to admission — `{ matched, commandId? }`: whether the line resolved, and the minted pairing id when it did, so the issuing client can correlate its request with the flow node the lifecycle events produce. The one-shot notice channel (`runDetached` → `noticeFor`) is retired.
 
 The client flow builder gains one generic command node (run/done paired by `commandId`; cross-window cuts soft-fall like tool pairs). Rendering goes through a new keyed slot `'conversation.chat.commandview'`, key = command name, **fallback = a generic command card** (zero registration required — the former notice text now renders durably in the flow). A domain upgrades by registering one row component, drawing on `command/run`'s structured fields and its own projection value (`useProjection`) — the same shape as tool rows after the toolview dissolution.
 
-## Delivery plan
+### Delivered architecture
 
 Infrastructure first; the three in-flight PRs are left untouched and re-target after the base lands (their migration mapping is the guide):
 
@@ -172,7 +172,7 @@ Infrastructure first; the three in-flight PRs are left untouched and re-target a
 
 **Making mutation RPC responses feed cell state** — rejected: the committed mux event arrives immediately and carries the same whole value with a seq; responses feeding state is what required #527's write-revision fence.
 
-## Acceptance criteria
+## Consequences
 
 - A domain plugin ships per-session log-derived state to React by writing only: the whole-value event declaration, one host unit `register`, its `SessionProjectionMap` merge, and inject callbacks — zero client-side code, no edits to the client `Session` class, `ConversationSnapshot`, api-proxy, or the wire schema files.
 - The history tail page carries `projections` with `asOfSeq` equal to the window tail seq; loadOlder pages never carry it; a deployment without the registry serves histories without the block and clients treat every key as absent.
@@ -181,7 +181,7 @@ Infrastructure first; the three in-flight PRs are left untouched and re-target a
 - `useProjection` reaches components through the standard props kit; no hook crosses an inject contract (including `useSelection`).
 - Session titles ride the generic pair (baseline block + projection frame); the bespoke `session/title` frame and the client title-snapshot map are gone.
 
-## Risks
+### Operational risks and mitigations
 
 - **Whole-value rule is load-bearing**: a future domain logging bare deltas cannot serve consumers from its latest event and complicates its own unit. Mitigation: the rule is stated here and in the projection package README; the unit contract makes the full state explicit at every transition.
 - **Synchronous unit discipline**: `init`/`apply`/`view` that await would tear the consistency cut. The registry documents and the invariant companion asserts synchronicity as far as practical; review owns the rest.

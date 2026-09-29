@@ -1,6 +1,6 @@
 # Agent Note: 会话投影与命令生命周期日志记录
 
-Status: proposed
+Status: implemented
 
 [English](2026-07-27-session-projection-and-command-log.md) | 中文
 
@@ -14,7 +14,7 @@ Status: proposed
 
 底层缺口是架构性的：客户端没有一个 seam 让插件在会话 scope 内观察会话事件并维护自己的派生状态；host 侧也没有统一的方式把日志派生状态的当前值交给客户端——而该状态的历史可能已被分页挤出客户端窗口之外。
 
-## 提案
+## 决策
 
 先立四件基础设施，之后各领域都退化为纯贡献方。
 
@@ -128,13 +128,13 @@ type UseProjection = {
 'command/done': { commandId: string; kind: 'success' | 'error'; text?: string }
 ```
 
-host 侧命令执行器（`packages/interaction/commands`）在调用处理器前追加 `command/run`，在结算时追加 `command/done`——在接收 agent（智能体）的会话上直接独立追加，与[合成轮次移除](../../implemented/simplification/2026-07-28-remove-synthetic-log-only-turns.zh.md)之后所有插件自有 log-only 事件同一形状：没有轮次包裹它们（轮次只描述模型循环执行），持久化在常规检查点排空它们，run/done 配对由 commands 包自己的 invariant 伴生插件把守。载荷是结构化的——`name` 以及默认携带的 `args` 来自解析器自己的切分（`parseCommand` 的 name 与 rawInput），因此消费方（折叠自己命令记录的投影单元、富命令卡片）永远无需重新解析行文本。当载荷由权威领域事件持有时，命令定义会设置 `recordInput: false`；此时 `command/run` 省略 `args`，而不是重复该载荷。`text` 是处理器的原样结果——与 `tool/result.content` 同一性质的事实数据，不是呈现（版式如何编排仍由客户端在渲染时计算，满足「呈现永不入日志」这条红线）。想让模型知道结果的领域保持既有行为（plan 的旁白、goal 的注入）——那是领域自己的决定，保持不变。
+host 侧命令执行器（`packages/interaction/commands`）在调用处理器前追加 `command/run`，在结算时追加 `command/done`——在接收 agent（智能体）的会话上直接独立追加，与[合成轮次移除](../simplification/2026-07-28-remove-synthetic-log-only-turns.zh.md)之后所有插件自有 log-only 事件同一形状：没有轮次包裹它们（轮次只描述模型循环执行），持久化在常规检查点排空它们，run/done 配对由 commands 包自己的 invariant 伴生插件把守。载荷是结构化的——`name` 以及默认携带的 `args` 来自解析器自己的切分（`parseCommand` 的 name 与 rawInput），因此消费方（折叠自己命令记录的投影单元、富命令卡片）永远无需重新解析行文本。当载荷由权威领域事件持有时，命令定义会设置 `recordInput: false`；此时 `command/run` 省略 `args`，而不是重复该载荷。`text` 是处理器的原样结果——与 `tool/result.content` 同一性质的事实数据，不是呈现（版式如何编排仍由客户端在渲染时计算，满足「呈现永不入日志」这条红线）。想让模型知道结果的领域保持既有行为（plan 的旁白、goal 的注入）——那是领域自己的决定，保持不变。
 
 由于已提交事件会在 mux 流上广播，刷新后仍在、多标签页同步、fork/恢复后可还原这三件事随之全部自动获得。`command.execute` RPC 退化为准入判定——`{ matched, commandId? }`：该行是否匹配命中，以及命中时新铸的配对 id，发起命令的客户端据此把自己的请求与生命周期事件产出的 flow 节点关联起来。一次性通知通道（`runDetached` → `noticeFor`）就此下线。
 
 客户端 flow 构建器新增一个通用命令节点（run/done 按 `commandId` 配对；跨窗口截断时与工具配对同样软降级）。渲染走一个新的 keyed slot `'conversation.chat.commandview'`，key = 命令名，**兜底 = 通用命令卡片**（零注册即可用——从前的通知文本现在持久地渲染在 flow 里）。领域要升级展示，只需注册一个行组件，取材于 `command/run` 的结构化字段与自己的投影值（`useProjection`）——与 toolview 解散之后的工具行同一形状。
 
-## 交付计划
+### 交付架构
 
 基础设施先行；三个在途 PR（Pull Request）原样不动，待基座落地后重新对接（它们的迁移映射即指南）：
 
@@ -172,7 +172,7 @@ host 侧命令执行器（`packages/interaction/commands`）在调用处理器�
 
 **让变更 RPC 的响应喂 cell 状态**——不予采纳：已提交的 mux 事件即刻到达，携带同一个全量值外加 seq；「响应喂状态」正是当初逼出 #527 写 revision 栅栏的根源。
 
-## 验收标准
+## 后果
 
 - 领域插件把按会话的日志派生状态送达 React，只需写：全量值事件声明、一次 host 侧单元 `register`、自己那份 `SessionProjectionMap` merge、以及 inject 回调——零客户端侧代码，不改客户端 `Session` 类、`ConversationSnapshot`、api-proxy 或任何协议 schema 文件。
 - 历史尾页携带 `projections`，其 `asOfSeq` 等于窗口尾部 seq；loadOlder 页永不携带；未装注册表的部署照常返回不带该块的历史，客户端把所有 key 视为缺席。
@@ -181,7 +181,7 @@ host 侧命令执行器（`packages/interaction/commands`）在调用处理器�
 - `useProjection` 经标准 props 套件抵达组件；没有任何钩子穿过 inject 约定（包括 `useSelection`）。
 - 会话标题搭乘这对通用机制（基线块 + 投影帧）；专设的 `session/title` 帧与客户端标题快照表彻底移除。
 
-## 风险
+### 运行风险与缓解措施
 
 - **全量值规则是承重结构**：未来某个领域若只记裸增量，就无法凭其最新事件服务消费方，还会让自己的单元复杂化。缓解：该规则写明在本 Note 与投影包的 README 里；单元约定让完整状态在每次转移处都是显式的。
 - **单元的同步纪律**：`init`/`apply`/`view` 一旦 await 就会撕裂一致性切面。注册表在文档中申明这条纪律，invariant 配套在可行范围内断言同步性；其余由评审把关。

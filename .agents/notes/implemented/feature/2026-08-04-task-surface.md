@@ -1,6 +1,6 @@
 # Agent Note: Task Surface for structured session interaction
 
-Status: proposed
+Status: implemented
 
 English | [中文](2026-08-04-task-surface.zh.md)
 
@@ -12,7 +12,7 @@ Those two workarounds put ownership in the wrong place. Product-specific compone
 
 The missing contract is a bounded, replayable description of a temporary UI that belongs to one Session and one tool occurrence. The product should own validation, placement, interaction mechanics, and submission. The agent should own the task-specific copy, data, and choice of supported components.
 
-## Proposal
+## Decision
 
 Add **Task Surface**, a versioned declarative model rendered by a normal Web Client Plugin. One stable model-facing tool, `show_task_surface`, publishes the model. A successful call ends the current turn. The user edits and submits the rendered panel; the Host records the submission as one ordinary visible user message and starts the next turn.
 
@@ -206,7 +206,7 @@ The matching `user/message` closes the durable projection and clears the claim. 
 
 ## Lifecycle and recovery
 
-The Session log is the authority. A small `taskSurface` unit in the existing [Session projection system](../architecture/2026-07-27-session-projection-and-command-log.md) folds successful surface result metadata and later user-message sources into this state:
+The Session log is the authority. A small `taskSurface` unit in the existing [Session projection system](../../implemented/architecture/2026-07-27-session-projection-and-command-log.md) folds successful surface result metadata and later user-message sources into this state:
 
 ```ts ignore-check
 interface TaskSurfaceProjection {
@@ -258,7 +258,7 @@ The implementation depends on the existing message log, canonical tool output, t
 
 **Store the panel in long-term memory.** Rejected because layout and draft state are not the reusable fact. Memory may retain the submitted user conclusion under existing memory policy.
 
-## Acceptance criteria
+## Consequences
 
 - A real model in `native` or `both` mode can call one stable `show_task_surface` schema, the call ends its turn, and a capable Web client renders the same normalized model live and after replay; `ptc`-only mode does not advertise it.
 - The static `TaskSurfaceDock` is the only editor and remains actionable for an active result outside the loaded history window; the keyed toolview remains a read-only transcript summary and replay. A composer takeover hides the still-mounted Dock, preserves its draft, and reveals the same owner after release.
@@ -272,7 +272,7 @@ The implementation depends on the existing message log, canonical tool output, t
 - Prefix snapshots show one stable tool definition regardless of the task-specific model; only the call arguments and later user conclusion vary.
 - Unloading the Web plugin disposes its Dock, row, and draft stores through the owning Fiber without changing the durable transcript.
 
-## Risks
+### Risks
 
 The first component set may be either too small for useful tasks or broad enough to become a weak application framework. Usage evidence should decide additions; the initial set has no expression language or network behavior.
 
