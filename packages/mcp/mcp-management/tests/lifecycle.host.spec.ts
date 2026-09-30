@@ -162,7 +162,7 @@ describe('managed MCP lifecycle transitions', () => {
       transport: 'streamable-http', serverName: 'default_policy', enabled: true, url: server.url, headers: {},
     } })
     await vi.waitFor(() => { expect(row(ctx, saved.id)?.observed.phase).toBe('ready') }, { timeout: 5_000 })
-    const fiber = ctx.loader.entries().find(entry => entry.options.id === 'manager')!.fiber!
+    const fiber = [...ctx.loader.entries()].find((entry: any) => entry.options.id === 'manager')!.fiber!
     const shutdown: PromiseWithResolvers<void> = Promise.withResolvers()
     const unsubscribe = ctx.mcpRegistry.subscribe(() => {
       if (ctx.mcpRegistry.getSnapshot().length !== 0) return
@@ -185,7 +185,7 @@ describe('managed MCP lifecycle transitions', () => {
     const first = manager.save({ record: disabled, expectedRevision: 0 })
     const second = manager.save({ record: { ...disabled, serverName: 'second' }, expectedRevision: 1 })
     const settled = Promise.allSettled([first, second])
-    const fiber = ctx.loader.entries().find(entry => entry.options.id === 'manager')!.fiber!
+    const fiber = [...ctx.loader.entries()].find((entry: any) => entry.options.id === 'manager')!.fiber!
     await fiber.dispose()
     while (fiber.inertia !== undefined) await fiber.inertia
     const committed: McpServerId[] = []

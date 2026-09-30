@@ -1,71 +1,55 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { expect, it } from 'vitest'
 import { resolveDesktopPolicyEnvironment } from '../scripts/desktop-policy-environment.mjs'
+import { validateDesktopPackageEnvironment } from '../scripts/desktop-package-environment.mjs'
+import { resolveDesktopPolicyConfig } from '../src/mandatory-update-policy.ts'
 
-vi.stubEnv('DSH_DESKTOP_UNSIGNED', '1')
-const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
-afterAll(() => { vi.unstubAllEnvs() })
+const origins = { DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://test.example.com',
+  DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: 'https://prod.example.com' }
+const auth = { DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }) }
 
-describe('Desktop policy release identity', () => {
-  it('selects only the active deployment and keeps test authentication explicit', () => {
-    expect(resolveDesktopPolicyEnvironment({
-      DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.test.example',
-    })).toEqual({ origin: 'https://policy.test.example', allowedPageOrigins: ['https://policy.test.example'], authentication: 'feishu-test' })
-    expect(resolveDesktopPolicyEnvironment({
-      DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
-      DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: 'https://policy.prod.example',
-    })).toEqual({ origin: 'https://policy.prod.example', allowedPageOrigins: ['https://policy.prod.example'], authentication: 'anonymous' })
-  })
+it.each(['test', 'production'] as const)('selects the %s policy and authentication together', (deployment) => {
+  const policy = resolveDesktopPolicyEnvironment({ ...origins, ...(deployment === 'test' ? auth : {}), DSH_DESKTOP_AUTO_UPDATE_ENV: deployment })
+  const origin = deployment === 'test' ? origins.DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN : origins.DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN
+  expect(policy).toEqual({ origin, allowedPageOrigins: [origin],
+    ...(deployment === 'test' ? { allowedAuthOrigins: ['https://login.example.com'] } : {}),
+    authentication: deployment === 'test' ? 'feishu-test' : 'anonymous' })
+  expect(resolveDesktopPolicyConfig(policy)).toMatchObject(policy)
+})
 
-  it('rejects absent production policy, unsafe origins, and forged auth or origin fields', () => {
-    expect(() => createElectronBuilderConfig({ DSH_DESKTOP_AUTO_UPDATE_ENV: 'production' }, 'win32', 'x64')).toThrow('PROD_ORIGIN')
-    for (const origin of ['http://policy.example', 'https://user@policy.example', 'https://policy.example/path']) {
-      expect(() => resolveDesktopPolicyEnvironment({ DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: origin })).toThrow('HTTPS origin')
-    }
-    for (const options of ['{', '[]', '{"authentication":"anonymous"}', '{"origin":"https://other.example"}', '{"allowedPageOrigins":[]}']) {
-      expect(() => resolveDesktopPolicyEnvironment({
-        DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.test.example',
-        DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: options,
-      })).toThrow()
-    }
-  })
+it('requires only the selected origin, defaults to test, and accepts explicit page restrictions', () => {
+  const policy = resolveDesktopPolicyEnvironment({
+    DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: origins.DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN,
+    DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'],
+      allowedPageOrigins: ['https://download.example.com'], intervalMs: 5000 }) })
+  expect(policy).toMatchObject({ authentication: 'feishu-test', intervalMs: 5000, allowedPageOrigins: ['https://download.example.com'] })
+  expect(() => resolveDesktopPolicyEnvironment({ ...origins, DSH_DESKTOP_AUTO_UPDATE_ENV: 'prod' })).toThrow('production')
+})
 
-  it('binds policy and nightly artifacts to the retained native application identity and feed', () => {
-    const config = createElectronBuilderConfig({
-      DSH_DESKTOP_APP_ID: 'com.cinlan.harness.test',
-      DOWNLOAD_TEST_ORIGIN: 'https://artifacts.test.example',
-      DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.test.example',
-      DSH_DESKTOP_UNSIGNED: '1',
-    }, 'win32', 'x64')
-    expect(config.appId).toBe('com.cinlan.harness.test')
-    expect(config.extraMetadata).toMatchObject({
-      dshDesktopAppId: config.appId,
-      dshMandatoryUpdatePolicy: { origin: 'https://policy.test.example', authentication: 'feishu-test' },
-    })
-    expect(config.publish).toEqual([{ provider: 'generic', url: 'https://artifacts.test.example/_/harness/desktop/stable/win-x64/', channel: 'nightly' }])
-    expect(config.extraResources.map(resource => resource.to)).toEqual(['runtime', 'seed'])
-    expect(config.npmRebuild).toBe(false)
-    expect(config.artifactName).toContain('-unsigned.')
-    expect(config.win).toMatchObject({ forceCodeSigning: false, target: ['nsis'] })
-    expect(config.nsis.include).toMatch(/[\\/]scripts[\\/]installer\.nsh$/u)
-  })
+it.each([undefined, '', 'http://test.example.com', 'https://user:secret@test.example.com',
+  'https://test.example.com/api', 'https://test.example.com/?secret=value'])('rejects invalid selected origin %s', (origin) => {
+  expect(() => resolveDesktopPolicyEnvironment({ ...auth, DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: origin })).toThrow('HTTPS origin')
+  expect(() => resolveDesktopPolicyEnvironment({ ...auth, DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: origin })).not.toThrow('secret=value')
+})
 
-  it('rejects an unconfigured signed Windows package', () => {
-    expect(() => createElectronBuilderConfig({}, 'win32', 'x64'))
-      .toThrow(/DSH_DESKTOP_WINDOWS_CER_FILE/u)
-  })
+it.each(['{', 'null', '[]', '{"origin":"https://old.example.com"}', '{"authentication":"anonymous"}',
+  '{"allowedPageOrigins":[]}', '{"allowedPageOrigins":["http://example.com"]}'])('rejects invalid or conflicting shared options %s', (options) => {
+  expect(() => resolveDesktopPolicyEnvironment({ ...origins, DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: options })).toThrow()
+})
 
-  it('rejects invalid unsigned mode instead of silently changing artifact identity', () => {
-    expect(() => createElectronBuilderConfig({ DSH_DESKTOP_UNSIGNED: 'yes' }, 'win32', 'x64'))
-      .toThrow(/DSH_DESKTOP_UNSIGNED must be 1/u)
-  })
+it.each([undefined, '[]', '["http://login.example.com"]', '["https://login.example.com/path"]',
+  '["https://user:secret@login.example.com"]'])('rejects missing or invalid test login origins %s', (value) => {
+  const settings = value === undefined ? {} : { allowedAuthOrigins: JSON.parse(value) as unknown }
+  expect(() => resolveDesktopPolicyEnvironment({ ...origins, DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify(settings) })).toThrow()
+})
 
-  it('hooks the running-app rejection before NSIS extraction', () => {
-    const installer = readFileSync(resolve(import.meta.dirname, '../scripts/installer.nsh'), 'utf8')
-    expect(installer).toContain('!macro customCheckAppRunning')
-    expect(installer).toContain('nsProcess::FindProcess "${APP_EXECUTABLE_FILENAME}"')
-    expect(installer).toContain('SetErrorLevel 2')
-    expect(installer.indexOf('nsProcess::FindProcess')).toBeLessThan(installer.indexOf('SetErrorLevel 2'))
-  })
+it('rejects login origins in production', () => {
+  expect(() => resolveDesktopPolicyEnvironment({ ...origins, ...auth, DSH_DESKTOP_AUTO_UPDATE_ENV: 'production' }))
+    .toThrow('must not configure allowedAuthOrigins')
+})
+
+it.each([{ unsigned: true }, { prepareOnly: true }, {}])('fails before signing/preparation when policy is absent in %j', (options) => {
+  for (const platform of ['win32', 'darwin'] as const) {
+    expect(() => { validateDesktopPackageEnvironment({ DSH_DESKTOP_APP_ID: 'com.example.test' }, { platform, arch: 'x64' }, options) })
+      .toThrow('DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN')
+  }
 })

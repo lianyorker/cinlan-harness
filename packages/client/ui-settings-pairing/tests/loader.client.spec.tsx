@@ -20,10 +20,9 @@ import * as settings from '@deepseek-ai/dsh-client-ui-settings/client'
 import * as locale from '@deepseek-ai/dsh-client-locale/client'
 import * as renderer from '@deepseek-ai/dsh-client-ui-renderer/client'
 import * as uiSession from '@deepseek-ai/dsh-client-ui-session/client'
-import type { RemoteAccessStatus } from '@deepseek-ai/dsh-remote-access/types'
 import * as pairing from '../src/client/index.ts'
 import { en, zh } from '../src/client/locales.ts'
-import type { PairingInjected } from '../src/client/types.ts'
+import type { PairingInjected, RemoteAccessStatus } from '../src/client/types.ts'
 import { device, externalRpc } from './external-rpc.client.ts'
 
 vi.mock('qrcode', () => ({ toDataURL: async () => 'data:image/png;base64,loader-fixture' }))

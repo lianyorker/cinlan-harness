@@ -19,7 +19,6 @@
  *   async run(session) {
  *     session.notify({ message: 'Continue in your browser', url })
  *     await commitThroughCredentials(await exchange(session.signal))
- *     session.commit()
  *   },
  * })
  * ```
@@ -27,21 +26,18 @@
  * @module @deepseek-ai/dsh-authorization
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks'
 import { Context, Service } from '@deepseek-ai/cordis'
-import { brandString } from '@deepseek-ai/dsh-brand'
-import type { CredentialKey } from '@deepseek-ai/dsh-credentials'
+import type { CredentialKey, CredentialRecord } from '@deepseek-ai/dsh-credentials'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 
 import type {
-  AuthorizationAttemptId, AuthorizationEntry, AuthorizationMethod, AuthorizationNotice, AuthorizationOutcome,
-  AuthorizationPrompt, AuthorizationSettlement,
+  AuthorizationEntry, AuthorizationMethod, AuthorizationNotice, AuthorizationOutcome, AuthorizationPrompt,
+  AuthorizationSettlement,
 } from './types.ts'
 
 export type {
-  AuthorizationAttemptId, AuthorizationEntry, AuthorizationMethod, AuthorizationNotice, AuthorizationOutcome,
-  AuthorizationPrompt, AuthorizationPromptAutocomplete, AuthorizationPromptOption, AuthorizationSettlement,
-  AuthorizationStatus,
+  AuthorizationEntry, AuthorizationMethod, AuthorizationNotice, AuthorizationOutcome, AuthorizationPrompt,
+  AuthorizationPromptOption, AuthorizationSettlement, AuthorizationStatus,
 } from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -57,10 +53,8 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      * @param key - the credential record the finished attempt was authorizing.
      * @param settlement - how it ended, including the `failed` case its caller sees as a thrown error.
-     * @param attemptId - the identity of the attempt that released the key.
      */
-    'authorization/settled'(
-      key: CredentialKey, settlement: AuthorizationSettlement, attemptId: AuthorizationAttemptId): void
+    'authorization/settled'(key: CredentialKey, settlement: AuthorizationSettlement): void
   }
 }
 
@@ -99,6 +93,12 @@ export interface AuthorizationSession {
   /** Aborted when the caller withdraws or `cancel()` is called for this key. */
   readonly signal: AbortSignal
   /**
+   * Commit a record while rejecting cancelled attempts. Once admitted, cancellation waits for completion.
+   * @param record - credential owned by this flow.
+   * @returns after the credential store commits the record.
+   */
+  commit(record: CredentialRecord): Promise<void>
+  /**
    * Report progress, or tell the human what to do next. Fire-and-forget: a
    * surface that cannot render a notice must not stall the flow.
    * @param notice - the message, and any page or code it refers to.
@@ -111,26 +111,16 @@ export interface AuthorizationSession {
    * @throws when the human declines, or the prompt's own signal withdraws it.
    */
   prompt(prompt: AuthorizationPrompt): Promise<string>
-  /**
-   * Record that this flow committed its credential through the credentials seam.
-   * The target-key record update must already be observed in this flow's
-   * asynchronous execution context; the service then confirms the record after
-   * the flow resolves.
-   * @throws {AuthorizationError} code `NOT_COMMITTED` when no target-key write
-   *   was observed, or when the attempt has already been withdrawn.
-   */
-  commit(): void
 }
 
 /**
  * A plugin's knowledge of how to obtain one credential. The flow owns the
- * write: it calls `session.commit()` after the record for `key` is committed
- * through `ctx.credentials` during that run. The seam requires an observed
- * target-key update in that flow's asynchronous context, then reads the record
- * after the flow resolves before reporting success. Committing inside the flow
- * lets a library that persists through its own store adapter (pi-ai's
- * `Models.login()`) stay the single writer instead of being copied back out and
- * written twice.
+ * write: `run()` resolving means the record for `key` is committed through
+ * `ctx.credentials` during that run, which the seam confirms — a commit
+ * observed within the attempt, still present after it — before reporting
+ * success. Committing inside the flow is what lets a library that persists
+ * through its own store adapter (pi-ai's `Models.login()`) stay the single
+ * writer instead of being copied back out and written twice.
  */
 export interface AuthorizationFlow {
   /** The credential record this flow writes. Its scope names the owning plugin. */
@@ -144,16 +134,9 @@ export interface AuthorizationFlow {
    */
   readonly methods: readonly [AuthorizationMethod, ...AuthorizationMethod[]]
   /**
-   * Wait for this flow to settle after caller cancellation before returning.
-   * Set this for flows that perform bounded remote compensation whose failure
-   * must reach the initiating surface; omitted flows retain prompt cancellation
-   * while their runner keeps the key in flight until it settles.
-   */
-  readonly awaitCancellation?: boolean
-  /**
    * Run one attempt to obtain and commit the credential.
    * @param session - the chosen method, the cancellation signal, and the interaction callbacks.
-   * @returns after the flow has written its target record and called `commit()`.
+   * @returns once the record is committed.
    * @throws when the attempt fails or the human declines.
    */
   run(session: AuthorizationSession): Promise<void>
@@ -195,27 +178,8 @@ export interface AuthorizationRequest {
 
 /** One attempt in flight, with the handle that withdraws it. */
 interface InFlight {
-  readonly id: AuthorizationAttemptId
   readonly controller: AbortController
-}
-
-/** Caller outcome plus a flow lifetime that outlasted cancellation, when present. */
-interface AttemptResult {
-  readonly outcome: AuthorizationOutcome
-  readonly completion?: Promise<void>
-}
-
-function isAbortFailure(error: unknown, signal: AbortSignal): boolean {
-  if (error === signal.reason) return true
-  if (typeof error !== 'object' || error === null) return false
-  const candidate = error as { name?: unknown; code?: unknown }
-  return candidate.name === 'AbortError' || candidate.code === 'ABORT_ERR'
-}
-
-/** Record-write observation inherited only by work started from one flow runner. */
-interface AttemptWriteObservation {
-  readonly key: CredentialKey
-  written: boolean
+  committing: boolean
 }
 
 /**
@@ -223,22 +187,14 @@ interface AttemptWriteObservation {
  * a time per key.
  */
 export class AuthorizationService extends Service {
-  /** The commit receipt and post-run record read make the credential store required. */
+  /** The commit this seam confirms is a credential-record write, so the store is required, not optional. */
   static inject = ['credentials']
 
   private readonly flows = new Map<CredentialKey, AuthorizationFlow>()
   private readonly running = new Map<CredentialKey, InFlight>()
-  private readonly subscribers = new Set<() => unknown>()
-  private readonly writeObservations = new AsyncLocalStorage<AttemptWriteObservation>()
-  private attemptSequence = 0
-  private readonly reservations = new Map<CredentialKey, symbol>()
 
   constructor(ctx: Context) {
     super(ctx, 'authorization')
-    ctx.on('credentials/record-updated', (key) => {
-      const observation = this.writeObservations.getStore()
-      if (observation?.key === key) observation.written = true
-    })
   }
 
   /**
@@ -257,29 +213,15 @@ export class AuthorizationService extends Service {
           `an authorization flow for "${flow.key}" is already registered`, 'DUPLICATE_FLOW')
       }
       this.flows.set(flow.key, flow)
-      this.changed()
       yield () => {
         this.flows.delete(flow.key)
         // A flow leaving mid-attempt takes its attempt with it: the runner
         // belongs to a plugin that is going away, so letting it keep prompting
         // would outlive the fiber that can answer for it.
-        this.running.get(flow.key)?.controller.abort()
-        this.changed()
+        this.cancel(flow.key)
       }
     }.bind(this), 'authorization.registerFlow()')
     return () => void dispose()
-  }
-
-  /**
-   * Observe flow registration and in-flight changes. Credential commits are
-   * reported by the flow's attempt-owned {@link AuthorizationSession.commit}
-   * receipt; subscriber failures are contained.
-   * @param subscriber - callback that re-reads {@link list} or {@link describe}.
-   * @returns disposer that removes the callback.
-   */
-  subscribe(subscriber: () => unknown): () => void {
-    this.subscribers.add(subscriber)
-    return () => { this.subscribers.delete(subscriber) }
   }
 
   /**
@@ -302,35 +244,11 @@ export class AuthorizationService extends Service {
 
   /** The public view of one registered flow. */
   private entry(flow: AuthorizationFlow): AuthorizationEntry {
-    const running = this.running.get(flow.key)
     return {
       key: flow.key,
       label: flow.label,
       methods: flow.methods,
-      inFlight: running !== undefined,
-      ...running === undefined ? {} : { attemptId: running.id },
-    }
-  }
-
-  /**
-   * Run one local credential operation without allowing authorization for the same key to start.
-   * The reservation is released after the callback settles, including rejection.
-   * @param key - the credential record to reserve.
-   * @param operation - the local operation protected by the reservation.
-   * @returns the callback result.
-   * @throws {AuthorizationError} code `ALREADY_IN_FLIGHT` when authorization or another operation owns the key.
-   */
-  async withExclusiveKey<T>(key: CredentialKey, operation: () => Promise<T>): Promise<T> {
-    if (this.running.has(key) || this.reservations.has(key)) {
-      throw new AuthorizationError(
-        `an authorization attempt for "${key}" is already running`, 'ALREADY_IN_FLIGHT')
-    }
-    const token = Symbol(key)
-    this.reservations.set(key, token)
-    try {
-      return await operation()
-    } finally {
-      if (this.reservations.get(key) === token) this.reservations.delete(key)
+      inFlight: this.running.has(flow.key),
     }
   }
 
@@ -341,7 +259,8 @@ export class AuthorizationService extends Service {
    * @param key - the credential record whose attempt should stop.
    */
   cancel(key: CredentialKey): void {
-    this.running.get(key)?.controller.abort()
+    const running = this.running.get(key)
+    if (running !== undefined && !running.committing) running.controller.abort()
   }
 
   /**
@@ -352,19 +271,14 @@ export class AuthorizationService extends Service {
    * and the second would answer questions the first was asked.
    *
    * @param request - the key, the method, the surface, and the cancel signal.
-   * @returns `authorized` once the flow's target-key write and commit receipt
-   *   are confirmed and the record remains present, or `cancelled` when the
-   *   human declined or the caller withdrew. Withdrawal returns promptly for
-   *   flows without {@link AuthorizationFlow.awaitCancellation}, which keep the
-   *   key in flight until their runner settles; a flow declaring
-   *   `awaitCancellation` keeps this call pending until its bounded remote
-   *   compensation settles, and a compensation failure reaches the caller as a
-   *   thrown error.
+   * @returns `authorized` once the flow's record is committed during this
+   *   attempt and observed, or `cancelled` when the human declined or the
+   *   caller withdrew.
    * @throws {AuthorizationError} code `NO_FLOW` when nothing claims the key,
    *   `UNKNOWN_METHOD` when the named method is not one the flow offers,
    *   `ALREADY_IN_FLIGHT` when an attempt is already running for the key, or
-   *   `NOT_COMMITTED` when the flow did not produce an observed target-key write,
-   *   commit receipt, or present record during the attempt.
+   *   `NOT_COMMITTED` when the flow resolved without committing a record
+   *   during the attempt.
    */
   async begin(request: AuthorizationRequest): Promise<AuthorizationOutcome> {
     const { key } = request
@@ -377,7 +291,7 @@ export class AuthorizationService extends Service {
       throw new AuthorizationError(
         `authorization flow for "${key}" offers no method "${method}"`, 'UNKNOWN_METHOD')
     }
-    if (this.running.has(key) || this.reservations.has(key)) {
+    if (this.running.has(key)) {
       throw new AuthorizationError(
         `an authorization attempt for "${key}" is already running`, 'ALREADY_IN_FLIGHT')
     }
@@ -388,73 +302,24 @@ export class AuthorizationService extends Service {
     // not exist hears about it whether or not it also gave up.
     if (request.signal?.aborted === true) return { status: 'cancelled' }
     const controller = new AbortController()
-    const withdraw = (): void => { controller.abort(request.signal?.reason) }
+    const withdraw = (): void => {
+      const running = this.running.get(key)
+      if (running !== undefined && !running.committing) controller.abort(request.signal?.reason)
+    }
     request.signal?.addEventListener('abort', withdraw, { once: true })
-    const attemptId = brandString<AuthorizationAttemptId>(String(++this.attemptSequence))
-    this.running.set(key, { id: attemptId, controller })
-    this.changed()
+    this.running.set(key, { controller, committing: false })
     let settlement: AuthorizationSettlement = 'failed'
-    let completion: Promise<void> | undefined
     try {
-      const result = await this.attempt(flow, method, controller.signal, request.interaction)
-      settlement = result.outcome.status
-      completion = result.completion
-      return result.outcome
+      const outcome = await this.attempt(flow, method, controller.signal, request.interaction)
+      settlement = outcome.status
+      return outcome
     } finally {
       request.signal?.removeEventListener('abort', withdraw)
-      if (completion === undefined) {
-        this.release(key, attemptId, settlement)
-      } else {
-        void completion.then(() => {
-          try {
-            this.release(key, attemptId, settlement)
-          } catch (error) {
-            // The caller already received cancellation, so a late invariant
-            // failure has no promise left to reject. Keep it visible without
-            // creating an unhandled rejection.
-            this.ctx.logger.error('authorization: a withdrawn attempt failed while releasing its key')
-            this.ctx.logger.error(error)
-          }
-        })
-      }
-    }
-  }
-
-  /** Release one exact attempt, publish its registry transition, then report settlement. */
-  private release(
-    key: CredentialKey, attemptId: AuthorizationAttemptId, settlement: AuthorizationSettlement,
-  ): void {
-    if (this.running.get(key)?.id === attemptId) {
       this.running.delete(key)
-      this.changed()
+      // After the slot is released, so a listener that reacts by starting the
+      // next attempt is not refused by the one that just finished.
+      this.settle(key, settlement)
     }
-    // Release the slot before settlement listeners run, so a listener can start
-    // a replacement without being refused by the attempt that just finished.
-    // The event still names an attempt whose flow was replaced or unregistered;
-    // its identity lets listeners distinguish that event from the current owner.
-    this.settle(key, settlement, attemptId)
-  }
-
-  /** Notify registry observers without letting one broken surface block another. */
-  private changed(): void {
-    for (const subscriber of [...this.subscribers]) {
-      try {
-        const returned: unknown = subscriber()
-        if (returned != null && typeof (returned as PromiseLike<unknown>).then === 'function') {
-          void Promise.resolve(returned as PromiseLike<unknown>).then(
-            undefined, (error: unknown) => { this.warnSubscriberFailure(error) },
-          )
-        }
-      } catch (error) {
-        this.warnSubscriberFailure(error)
-      }
-    }
-  }
-
-  /** Contain one synchronous or asynchronous registry subscriber failure. */
-  private warnSubscriberFailure(error: unknown): void {
-    this.ctx.logger.warn('authorization: a registry subscriber failed')
-    this.ctx.logger.warn(error)
   }
 
   /* jscpd:ignore-start -- deliberate symmetry with the credentials seam's
@@ -470,14 +335,12 @@ export class AuthorizationService extends Service {
    * second browser tab) can never turn the caller's settled result into a
    * failure of its own.
    */
-  private settle(
-    key: CredentialKey, settlement: AuthorizationSettlement, attemptId: AuthorizationAttemptId,
-  ): void {
+  private settle(key: CredentialKey, settlement: AuthorizationSettlement): void {
     let invariantFailure: unknown
-    const args = ['authorization/settled', key, settlement, attemptId]
+    const args = ['authorization/settled', key, settlement]
     for (const listener of this.ctx.events.dispatch('emit', args) as Array<(...listenerArgs: unknown[]) => unknown>) {
       try {
-        const returned = listener(key, settlement, attemptId)
+        const returned = listener(key, settlement)
         if (returned != null && typeof (returned as PromiseLike<unknown>).then === 'function') {
           void Promise.resolve(returned as PromiseLike<unknown>).then(undefined, (error: unknown) => {
             this.warnSettledListenerFailure(key, error)
@@ -507,22 +370,42 @@ export class AuthorizationService extends Service {
     method: string,
     signal: AbortSignal,
     interaction: AuthorizationInteraction,
-  ): Promise<AttemptResult> {
+  ): Promise<AuthorizationOutcome> {
+    // Withdrawal settles the attempt whether or not the flow reacts to it. A
+    // flow is supposed to stop when its signal fires, but one that does not
+    // would otherwise hold the key for the life of the process, and a wedged
+    // key is indistinguishable from a busy one from the outside. The orphaned
+    // run is left to finish on its own; nothing waits on it, and a record it
+    // still manages to commit is a record the human did authorize.
     const withdrawn = new Promise<'withdrawn'>((resolve) => {
       // `begin()` returns before claiming the key when its caller has already
       // withdrawn, so this signal cannot already be aborted here.
       signal.addEventListener('abort', () => { resolve('withdrawn') }, { once: true })
     })
-    // Closure writes stay on this object so their values remain visible after
-    // the awaited flow and prompt callbacks settle. The write observation is
-    // inherited only by work started from this runner, so an unrelated writer
-    // cannot satisfy this attempt by emitting the same-key event.
+    // What the seam itself witnessed during the run, held as properties
+    // because closure writes do not narrow locals across awaits: the prompt
+    // wrapper sees a decline first-hand (a flow that rewraps the rejection on
+    // its way out cannot hide it), and confirming the commit means confirming
+    // it happened *now* — on a re-auth the record already exists, so presence
+    // alone would let a flow that wrote nothing report the stale credential
+    // as freshly authorized.
     const observed = { declined: false, committed: false }
-    const writeObservation: AttemptWriteObservation = { key: flow.key, written: false }
-    const running = this.writeObservations.run(writeObservation, async (): Promise<void> => {
-      await flow.run({
+    const unwatch = this.ctx.on('credentials/record-updated', (key: CredentialKey) => {
+      if (key === flow.key) observed.committed = true
+    })
+    try {
+      const running = flow.run({
         method,
         signal,
+        commit: async (record) => {
+          signal.throwIfAborted()
+          const attempt = this.running.get(flow.key)
+          if (attempt === undefined || attempt.controller.signal !== signal) {
+            throw new AuthorizationError('authorization attempt is no longer active', 'CANCELLED')
+          }
+          attempt.committing = true
+          await this.ctx.credentials.modifyRecord(flow.key, () => Promise.resolve(record))
+        },
         notify: (notice) => {
           try {
             interaction.notify(notice)
@@ -538,54 +421,36 @@ export class AuthorizationService extends Service {
           if (error instanceof AuthorizationDeclinedError) observed.declined = true
           throw error
         }),
-        commit: () => {
-          signal.throwIfAborted()
-          if (!writeObservation.written) {
-            throw new AuthorizationError(
-              `authorization flow for "${flow.key}" called commit before writing its credential record`,
-              'NOT_COMMITTED')
-          }
-          observed.committed = true
-        },
       })
-      if (!observed.committed || !writeObservation.written) {
-        throw new AuthorizationError(
-          `authorization flow for "${flow.key}" resolved without committing a credential record in this attempt`,
-          'NOT_COMMITTED')
-      }
-      const stored = await this.ctx.credentials.readRecord(flow.key)
-      if (stored === undefined) {
-        throw new AuthorizationError(
-          `authorization flow for "${flow.key}" deleted its credential record instead of committing one`,
-          'NOT_COMMITTED')
-      }
-    })
-    try {
-      if (await Promise.race([running.then(() => 'ran' as const), withdrawn]) === 'withdrawn') {
-        if (flow.awaitCancellation === true) {
-          try {
-            await running
-          } catch (error) {
-            if (!isAbortFailure(error, signal) && !observed.declined) throw error
-          }
-          return { outcome: { status: 'cancelled' } }
+      try {
+        if (await Promise.race([running.then(() => 'ran' as const), withdrawn]) === 'withdrawn') {
+          // Nothing awaits the orphan any more, so its eventual failure has to be
+          // marked handled or it would take down the process.
+          void running.catch(() => { this.ctx.logger.debug('authorization: withdrawn flow failed after the fact') })
+          return { status: 'cancelled' }
         }
-        const completion = running.then(
-          () => undefined,
-          () => { this.ctx.logger.debug('authorization: withdrawn flow failed after the fact') },
-        )
-        return { outcome: { status: 'cancelled' }, completion }
+      } catch (error) {
+        // A withdrawn attempt and a declined prompt are outcomes, not
+        // failures: the human said no, or closed the page. Anything else is
+        // the flow failing and belongs to the caller, cause chain intact.
+        if (signal.aborted || observed.declined) return { status: 'cancelled' }
+        throw error
       }
-      return { outcome: { status: 'authorized' } }
-    } catch (error) {
-      // A withdrawn attempt and a declined prompt are outcomes, not failures:
-      // the human said no, or closed the page. Anything else is the flow
-      // failing and belongs to the caller, cause chain intact.
-      const cancellationIsAbort = signal.aborted
-        && (flow.awaitCancellation !== true || isAbortFailure(error, signal))
-      if (observed.declined || cancellationIsAbort) return { outcome: { status: 'cancelled' } }
-      throw error
+    } finally {
+      unwatch()
     }
+    if (!observed.committed) {
+      throw new AuthorizationError(
+        `authorization flow for "${flow.key}" resolved without committing a credential record in this attempt`,
+        'NOT_COMMITTED')
+    }
+    const stored = await this.ctx.credentials.describeRecord(flow.key)
+    if (!stored.configured) {
+      throw new AuthorizationError(
+        `authorization flow for "${flow.key}" deleted its credential record instead of committing one`,
+        'NOT_COMMITTED')
+    }
+    return { status: 'authorized' }
   }
 }
 

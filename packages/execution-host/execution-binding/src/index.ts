@@ -435,9 +435,10 @@ export default class ExecutionBindings extends Service {
       await ctx.plugin(SshSandboxProvider)
       await this.mountCapabilities(ctx, hello.workspace, ssh)
       this.lifetime.signal.throwIfAborted()
-      ssh.signal.throwIfAborted()
+      const sshSignal = (ssh as unknown as { signal?: AbortSignal }).signal ?? this.lifetime.signal
+      sshSignal.throwIfAborted()
       return { ctx, scope, binding, root: hello.workspace, platform: hello.platform,
-        incarnation: randomUUID() as ExecutionIncarnation, signal: ssh.signal }
+        incarnation: randomUUID() as ExecutionIncarnation, signal: sshSignal }
     } catch (error) {
       try { await scope.dispose() } catch (cleanup) { throw new AggregateError([error, cleanup], 'Remote execution setup and cleanup failed') }
       throw error

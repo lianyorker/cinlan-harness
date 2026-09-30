@@ -11,7 +11,7 @@ export const NOTIFICATION_SOUNDS = [
 ] as const
 
 /** Schema used by Host registration and Client settings decoding. */
-export const NotificationSettingsSchema: s<NotificationSettings> = s.object({
+export const NotificationSettingsSchema: s<Partial<NotificationSettings>, NotificationSettings> = s.object({
   enabled: s.boolean().default(false),
   agentCompletion: s.boolean().default(false),
   terminalBell: s.boolean().default(false),

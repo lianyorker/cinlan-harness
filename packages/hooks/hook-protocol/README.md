@@ -124,7 +124,7 @@ No direct invalidation; the named consumers own any request-prefix changes.
 
 These limits describe what hooks cannot do through the shared engine yet. They are current package constraints, not a task backlog.
 
-- **`HookOutput.updatedInput` is forwarded to merged outcomes without local enforcement** — input rewriting is resolved at the loop and bridge layer ([the pre-tool-input-rewrite Agent Note](../../../.agents/notes/implemented/feature/2026-06-30-pre-tool-input-rewrite.md)); `dsh-hook-protocol` only parses and merges the field.
+- **`HookOutput.updatedInput` is parsed but not honored** — input rewrite is a deferred consistency-design problem ([the pre-tool-input-rewrite Agent Note](../../../.agents/notes/proposed/feature/2026-06-30-pre-tool-input-rewrite.md)); a bridge logs and warns when a hook sets it.
 - **A folded halt has no run-level effect** — `mergeHookOutputs` folds `continue: false` into a sticky `stop`, but the interception points have no hard-halt primitive, so a bridge records the halt and keeps the hook's per-point effect.
 - **Only the command-hook shape runs** — the protocol executes `{ type: 'command', command, timeout? }`; a bridge parses-and-skips the other shapes its dialect defines (`http`, `mcp_tool`, `prompt`, `agent`).
 

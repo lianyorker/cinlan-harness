@@ -1,6 +1,6 @@
 /** Framework-bound mobile preference drafts and independent read-only device checks. */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { MobileDeviceListSnapshot, MobileSdkSnapshot } from '@deepseek-ai/dsh-api-remotes/client'
+import type { MobileDeviceListSnapshot, MobileSdkSnapshot } from '@deepseek-ai/dsh-api-device-capabilities-controller/types'
 import type { MobileDeviceSettings } from '@deepseek-ai/dsh-mobile-device/types'
 import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MobileSectionInjected, CapabilitySectionProps } from './CapabilitySection.tsx'

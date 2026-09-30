@@ -101,15 +101,7 @@
     "@deepseek-ai/dsh-atomic-write": "workspace:*",
     "@deepseek-ai/dsh-agent-preset": "workspace:*",
     "@deepseek-ai/dsh-experimental-voice-input-bundle": "workspace:*",
-    "@deepseek-ai/dsh-experimental-auto-review": "workspace:*",
-    "@deepseek-ai/cordis-plugin-hmr": "workspace:^",
-    "@deepseek-ai/dsh-execution-host-app": "workspace:^",
-    "@deepseek-ai/dsh-security-research": "workspace:^",
-    "@deepseek-ai/dsh-web-capability-defaults": "workspace:^",
-    "@deepseek-ai/dsh-cinlan-computer-use": "workspace:^",
-    "@deepseek-ai/dsh-cinlan-mobile-device": "workspace:^",
-    "@deepseek-ai/dsh-cinlan-work-items": "workspace:^",
-    "@deepseek-ai/dsh-cinlan-browser": "workspace:^"
+    "@deepseek-ai/dsh-experimental-auto-review": "workspace:*"
   },
   "devDependencies": {
     "@agentclientprotocol/sdk": "1.4.0",
@@ -158,10 +150,7 @@
     "@types/ws": "8.18.1",
     "ajv": "^8.20.0",
     "execa": "^10.0.0",
-    "ws": "8.21.0",
-    "@deepseek-ai/dsh-experimental-agent-team-profile": "workspace:^",
-    "@deepseek-ai/dsh-experimental-code-runtime-python": "workspace:^",
-    "@deepseek-ai/dsh-settings-file": "workspace:^"
+    "ws": "8.21.0"
   },
   "exports": {
     "./profile-boot": {

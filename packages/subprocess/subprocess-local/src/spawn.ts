@@ -22,10 +22,10 @@ import type {
 } from '@deepseek-ai/dsh-subprocess'
 import type { BoundProcessOwner, ManagedProcessLaunch } from './managed-owner.ts'
 import { waitWithAbort } from './managed-owner.ts'
-import { linuxProcessGroupHasLiveMembers } from './process-inspector.ts'
-import { OutputCollector, prepareManagedProcessBinding, type SpillFailureReporter } from './output.ts'
 import { controlEnvironment, controlPipe } from './control-spawn.ts'
 import { SUBPROCESS_CONTROL_FD } from '@deepseek-ai/dsh-subprocess/control'
+import { linuxProcessGroupHasLiveMembers } from './process-inspector.ts'
+import { OutputCollector, prepareManagedProcessBinding, type SpillFailureReporter } from './output.ts'
 
 type SpawnProcess = (
   program: string,
@@ -59,7 +59,7 @@ export interface SpawnInternals {
   spawn?: SpawnProcess
   /** Directory for spill files (defaults to the OS temp dir). */
   spillDir?: string
-  /** Receives spill open/write failures; bare callers get a stderr line. */
+  /** Receives spill open/write failures; the runtime supplies its plugin logger, bare callers get a stderr line. */
   onSpillFailure?: SpillFailureReporter
   /** Windows tree-termination runner (defaults to `taskkill /PID <pid> /T /F`). */
   taskkill?: (pid: number) => void
@@ -165,7 +165,7 @@ export function validateSubprocessSpec(spec: SubprocessSpawnSpec): void {
   if (!Number.isFinite(spec.graceMs) || spec.graceMs <= 0 || spec.graceMs > MAX_TIMER_DELAY_MS) {
     throw new Error(`subprocess graceMs must be a positive finite number no greater than ${MAX_TIMER_DELAY_MS}`)
   }
-  if (spec.signal.aborted) {
+  if (spec.signal?.aborted) {
     let reason = 'aborted'
     try {
       reason = String(spec.signal.reason ?? reason)
@@ -261,7 +261,7 @@ function fallbackOwner(
  * Bind platform launch facts to the existing stdio, outcome, abort, and termination lifecycle.
  * @param spec - fully resolved argv, cwd, stdio, grace, cancellation, environment.
  * @param launch - platform streams, direct outcome, and managed-range owner.
- * @param internals - test-only spill-directory override.
+ * @param internals - spill-directory override and spill failure reporter.
  * @returns live subprocess handle.
  */
 export function bindManagedProcess(
@@ -340,7 +340,7 @@ export function bindManagedProcess(
       rangeExitObserved = true
       if (graceTimer !== undefined) clearTimeout(graceTimer)
       graceTimer = undefined
-      spec.signal.removeEventListener('abort', onAbort)
+      spec.signal?.removeEventListener('abort', onAbort)
       scheduleOwnerCleanup()
     })().catch((error: unknown) => {
       if (!settled || !scheduleOwnerCleanup()) rangeExitObservation = undefined
@@ -376,8 +376,8 @@ export function bindManagedProcess(
   }
 
   // The caller owns timeout classification; this layer only reacts to abort.
-  const onAbort = (): void => { terminateWithReason(spec.signal.reason) }
-  spec.signal.addEventListener('abort', onAbort, { once: true })
+  const onAbort = (): void => { terminateWithReason(spec.signal?.reason) }
+  spec.signal?.addEventListener('abort', onAbort, { once: true })
 
   // Batch stdin is written and closed up front; process exit and captured
   // output remain authoritative, so write errors (EPIPE) are best-effort.
@@ -421,7 +421,7 @@ export function bindManagedProcess(
     }
   })
 
-  const waitForExit = async (signal: AbortSignal): Promise<boolean> => {
+  const waitForExit = async (signal?: AbortSignal): Promise<boolean> => {
     if (rangeExitObserved) return true
     return waitWithAbort(observeRangeExit(), signal)
   }
@@ -432,8 +432,8 @@ export function bindManagedProcess(
     stdin: stdinMode === 'pipe' ? stdin ?? undefined : undefined,
     stdout: outMode === 'pipe' ? stdout ?? undefined : undefined,
     stderr: errMode === 'pipe' ? stderr ?? undefined : undefined,
-    /* v8 ignore stop */
     control: launch.control,
+    /* v8 ignore stop */
     collected: {
       ...stdoutCollector !== undefined ? { stdout: stdoutCollector } : {},
       ...stderrCollector !== undefined ? { stderr: stderrCollector } : {},
@@ -455,7 +455,7 @@ export function spawnSubprocess(spec: SubprocessSpawnSpec, internals: SpawnInter
   const binding = prepareManagedProcessBinding(internals)
   const platform = internals.platform ?? process.platform
   const [program, ...args] = spec.argv
-  const stdio: NonNullable<SpawnOptions['stdio']> = [
+  const stdio: import('node:child_process').StdioOptions = [
     spec.stdio.stdin === 'ignore' ? 'ignore' : 'pipe',
     spec.stdio.stdout === 'inherit' ? 'inherit' : 'pipe',
     spec.stdio.stderr === 'inherit' ? 'inherit' : 'pipe',

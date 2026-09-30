@@ -1,7 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { SshExecutionSnapshot } from '@deepseek-ai/dsh-execution-binding/types'
 import SessionStore, { SESSION_FORMAT_VERSION, SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session'
 import { SessionQueryError, type SessionObservation } from '@deepseek-ai/dsh-session-query'
 import type {} from '@deepseek-ai/dsh-skill'
@@ -58,6 +57,7 @@ describe('SessionSkillCatalog', () => {
         name: 'review',
         description: 'Review the current change.',
         whenToUse: 'Before publishing.',
+        path: '/cold/project/.agents/skills/review/SKILL.md',
         invocation: { modelInvocable: true, userInvocable: true },
       },
       {
@@ -74,6 +74,7 @@ describe('SessionSkillCatalog', () => {
         name: 'review',
         description: 'Review the current change.',
         whenToUse: 'Before publishing.',
+        path: '/cold/project/.agents/skills/review/SKILL.md',
         modelInvocable: true,
       }],
     })
@@ -98,10 +99,10 @@ describe('SessionSkillCatalog', () => {
       description: 'Composed for this Agent.',
       invocation: { modelInvocable: false, userInvocable: true },
     }]))
-    const standingKeyFor = vi.fn()
+    const acquireScope = vi.fn()
     ctx.provide('agentPresets', {
       serviceFor: () => ({ list: scopedList }),
-      standingKeyFor,
+      acquireScope,
     } as never)
     const catalog = new SessionSkillCatalog(ctx)
 
@@ -113,7 +114,7 @@ describe('SessionSkillCatalog', () => {
       }],
     })
     expect(scopedList).toHaveBeenCalledWith({ cwd: '/live/project', scope: agent })
-    expect(standingKeyFor).not.toHaveBeenCalled()
+    expect(acquireScope).not.toHaveBeenCalled()
   })
 
   it('uses the recorded preset standing scope for a cold Session', async () => {
@@ -126,14 +127,14 @@ describe('SessionSkillCatalog', () => {
         agentPreset: 'minimal',
       })),
     } as never)
-    const standingKeyFor = vi.fn(() => Promise.resolve(scope))
-    ctx.provide('agentPresets', { standingKeyFor } as never)
+    const acquireScope = vi.fn(() => Promise.resolve({ key: scope, [Symbol.asyncDispose]: async () => {} }))
+    ctx.provide('agentPresets', { acquireScope } as never)
     const list = vi.fn(() => Promise.resolve([]))
     ctx.provide('skills', { list } as never)
     const catalog = new SessionSkillCatalog(ctx)
 
     await expect(catalog.list({ sessionId }, new AbortController().signal)).resolves.toEqual({ skills: [] })
-    expect(standingKeyFor).toHaveBeenCalledWith('minimal')
+    expect(acquireScope).toHaveBeenCalledWith('minimal')
     expect(list).toHaveBeenCalledWith({ cwd: '/cold/project', scope })
     expect(ctx.agents.list()).toEqual([])
   })
@@ -148,7 +149,7 @@ describe('SessionSkillCatalog', () => {
       })),
     } as never)
     ctx.provide('agentPresets', {
-      standingKeyFor: () => Promise.reject(new Error('unknown preset')),
+      acquireScope: () => Promise.reject(new Error('unknown preset')),
     } as never)
     const list = vi.fn(() => Promise.resolve([]))
     ctx.provide('skills', { list } as never)
@@ -225,32 +226,4 @@ describe('SessionSkillCatalog', () => {
         code: 'gateway/internal', message: 'skill listing failed: Error: catalog offline',
       })
   })
-})
-
-it('rejects remote skill discovery before mounting a Host standing composition', async () => {
-  const ctx = await context()
-  try {
-    const sessionId = SessionId('remote-skills')
-    const session = ctx.sessions.create(sessionId, { meta: { cwd: '/remote' } })
-    const binding: SshExecutionSnapshot = {
-      kind: 'ssh', targetId: '11111111-1111-4111-8111-111111111111' as SshExecutionSnapshot['targetId'], revision: 1,
-      endpoint: { host: 'execution.example', port: 22, username: 'worker', hostKeySHA256: 'a'.repeat(64) },
-      node: '/usr/bin/node', helper: '/opt/dsh/helper.mjs', helperHash: 'b'.repeat(64),
-      workspace: '/remote', bootstrapPath: '/opt/dsh/bootstrap.mjs', bootstrapHash: 'c'.repeat(64),
-    }
-    session.append('execution/bound', { binding })
-    ctx.provide('sessionQuery', {
-      observeSession: async () => ({ ...observation(sessionId, { cwd: '/remote', agentPreset: 'standard' }), events: session.snapshotEvents() }),
-    } as never)
-    const standingKeyFor = vi.fn()
-    const list = vi.fn()
-    ctx.provide('agentPresets', { standingKeyFor } as never)
-    ctx.provide('skills', { list } as never)
-    const catalog = new SessionSkillCatalog(ctx)
-    await expect(catalog.list({ sessionId }, new AbortController().signal)).rejects.toThrow('unsupported')
-    expect(standingKeyFor).not.toHaveBeenCalled()
-    expect(list).not.toHaveBeenCalled()
-  } finally {
-    await ctx.fiber.dispose()
-  }
 })

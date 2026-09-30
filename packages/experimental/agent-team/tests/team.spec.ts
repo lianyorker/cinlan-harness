@@ -15,6 +15,7 @@ import * as SubagentFork from '@deepseek-ai/dsh-subagent-fork-in-process'
 import * as SubagentSpawn from '@deepseek-ai/dsh-subagent-spawn-in-process'
 import { MockAdapter, textResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import { brandString } from '@deepseek-ai/dsh-brand'
+import type { WorkspaceId } from '@deepseek-ai/dsh-workspace'
 import {
   WorktreeTaskService,
   type CreateTaskRequest,
@@ -43,7 +44,7 @@ class MockWorktreeTaskService extends WorktreeTaskService {
   readonly created: CreateTaskRequest[] = []
   readonly bound: BindSessionRequest[] = []
   readonly deleted: DeleteTaskRequest[] = []
-  deleteError?: Error
+  deleteError?: Error | undefined
 
   override async create(request: CreateTaskRequest): Promise<WorktreeTask> {
     this.created.push(request)
@@ -68,7 +69,7 @@ class MockWorktreeTaskService extends WorktreeTaskService {
       task: {
         id: request.taskId,
         name: 'task',
-        workspaceId: brandString('ws-1'),
+        workspaceId: brandString<WorkspaceId>('ws-1'),
         sourcePath: '/mock/src',
         baseRef: 'main',
         branch: 'branch',
@@ -85,7 +86,7 @@ class MockWorktreeTaskService extends WorktreeTaskService {
   override async delete(request: DeleteTaskRequest): Promise<DeleteTaskResult> {
     this.deleted.push(request)
     if (this.deleteError !== undefined) throw this.deleteError
-    return { outcome: 'deleted' }
+    return { deleted: true }
   }
 
   override list(): WorktreeTask[] { return [] }

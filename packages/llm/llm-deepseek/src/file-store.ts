@@ -7,12 +7,9 @@ import type { DeepSeekFileId } from './file-id.ts'
 import { messagesApiRoot } from './messages-api.ts'
 import { deepSeekFileScope, DeepSeekUploadIndex } from './upload-index.ts'
 import type { DeepSeekUploadRecord } from './upload-index.ts'
-import type { DeepSeekProtocol } from './adapter.ts'
 
 /** Shared Files-store limit for each request image, including file-id references. */
 export const MAX_IMAGE_BYTES = 32 * 1024 * 1024
-/** Chat Completions name for the shared per-image limit. */
-export const MAX_CHAT_IMAGE_BYTES = MAX_IMAGE_BYTES
 const OWNED_FILE_PREFIX = 'dsh-'
 
 /** Resolved file-store policy from the plugin configuration. */
@@ -25,9 +22,8 @@ export interface DeepSeekFilePolicy {
 /** Connection facts needed by file operations. */
 export interface DeepSeekFileConnection {
   baseURL: string
-  apiKey: string
-  /** Files wire protocol; omission selects Chat Completions. */
-  protocol?: DeepSeekProtocol
+  /** Provider-resolved authentication headers for this endpoint. */
+  headers: Readonly<Record<string, string>>
 }
 
 /** Result of one file-id resolution. */
@@ -49,11 +45,11 @@ interface SharedUpload {
   waiters: number
 }
 
-/** The Files resource's parent URL distinguishes custom protocol namespaces. */
+/** The Files resource's parent URL identifies the upload namespace. */
 function fileScope(connection: DeepSeekFileConnection) {
   return deepSeekFileScope(
-    connection.protocol === 'messages' ? messagesApiRoot(connection.baseURL) : connection.baseURL,
-    connection.apiKey,
+    messagesApiRoot(connection.baseURL),
+    JSON.stringify(Object.entries(connection.headers).sort(([left], [right]) => left.localeCompare(right))),
   )
 }
 
@@ -140,8 +136,7 @@ export class DeepSeekFileStore {
   private client(connection: DeepSeekFileConnection): DeepSeekFilesClient {
     return new DeepSeekFilesClient({
       baseURL: connection.baseURL,
-      apiKey: connection.apiKey,
-      ...connection.protocol === undefined ? {} : { protocol: connection.protocol },
+      headers: connection.headers,
       ...this.fetchImpl === undefined ? {} : { fetch: this.fetchImpl },
     })
   }
@@ -302,24 +297,19 @@ export class DeepSeekFileStore {
     const client = this.client(connection)
     let after: DeepSeekFileId | undefined
     const owned: { id: DeepSeekFileId; createdAt: number }[] = []
-    const messages = connection.protocol === 'messages'
-    while (messages || owned.length < count) {
+    while (true) {
       const page = await client.list({
         ...after === undefined ? {} : { after },
         limit: 1_000,
-        order: 'asc',
         ...signal === undefined ? {} : { signal },
       })
       for (const file of page.data) {
         if (!file.filename.startsWith(OWNED_FILE_PREFIX)) continue
         owned.push({ id: file.id, createdAt: file.createdAt })
-        if (!messages && owned.length === count) break
       }
-      if (messages) {
-        // Messages offers no ascending-order query; retain the oldest candidates across every page.
-        owned.sort((left, right) => left.createdAt - right.createdAt)
-        owned.splice(count)
-      }
+      // The API offers no ascending-order query; retain the oldest candidates across every page.
+      owned.sort((left, right) => left.createdAt - right.createdAt)
+      owned.splice(count)
       if (!page.hasMore || page.lastId === undefined || page.lastId === after) break
       after = page.lastId
     }

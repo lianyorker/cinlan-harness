@@ -1,127 +1,70 @@
-/**
- * Client-safe types for the terminal Remote namespace.
- * @module @deepseek-ai/dsh-api-terminal-controller/types
- */
-
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+/** Browser terminal identities, metadata and screen-stream frames. */
 import type { Branded } from '@deepseek-ai/dsh-brand'
-
-/** Opaque terminal session identity for Remote clients. */
-export type TerminalSessionId = Branded<'TerminalSessionId'>
-
-/** Terminal session status visible to Remote clients. */
-export type TerminalSessionStatus =
-  | { kind: 'running' }
-  | { kind: 'exited'; exitCode: number | null; signal: string | null }
-
-/** Client-safe terminal session snapshot. */
-export interface TerminalView {
-  readonly terminalSessionId: TerminalSessionId
-  readonly name?: string
-  readonly type: string
-  readonly pid?: number
-  readonly status: TerminalSessionStatus
-}
-
-/** Request to list terminals for one session. */
-export interface TerminalListRequest {
-  readonly sessionId: SessionId
-}
-
-/** Result of listing terminals. */
-export interface TerminalListValue {
-  readonly terminals: readonly TerminalView[]
-}
-
-/** Request to spawn a new terminal. */
-export interface TerminalSpawnRequest {
-  readonly sessionId: SessionId
-  readonly type: string
-  readonly name?: string
-  readonly cwd?: string
-}
-
-/** Result of spawning a terminal. */
-export interface TerminalSpawnValue extends TerminalView {
-  readonly motd: string
-}
-
-/** Request to send input to a terminal. */
-export interface TerminalSendRequest {
-  readonly sessionId: SessionId
-  readonly terminalSessionId: TerminalSessionId
-  readonly text: string
-  readonly submit: boolean
-}
-
-/** Why one terminal send operation completed. */
-export type TerminalWaitReason = 'stdin_read' | 'inferred_idle' | 'timeout' | 'session_exit'
-
-/** Result of sending input to a terminal. */
-export interface TerminalSendValue {
-  readonly viewport: string
-  readonly waitReason: TerminalWaitReason
-  readonly sessionStatus: TerminalSessionStatus
-  readonly truncated: boolean
-}
-
-/** Request to read terminal scrollback. */
-export interface TerminalReadRequest {
-  readonly sessionId: SessionId
-  readonly terminalSessionId: TerminalSessionId
-  readonly offset?: number
-  readonly count?: number
-}
-
-/** Result of reading terminal scrollback. */
-export interface TerminalReadValue {
-  readonly text: string
-  readonly totalLines: number
-  readonly lineBegin: number
-  readonly lineEnd: number
-  readonly truncated: boolean
-}
-
-/** Allowed terminal signals. */
-export type TerminalSignalName = 'SIGINT' | 'SIGTERM' | 'SIGKILL' | 'SIGTSTP' | 'SIGHUP'
-
-/** Request to signal a terminal. */
-export interface TerminalSignalRequest {
-  readonly sessionId: SessionId
-  readonly terminalSessionId: TerminalSessionId
-  readonly signal: TerminalSignalName
-}
-
-/** Result of signaling a terminal. */
-export interface TerminalSignalValue {
-  readonly delivered: true
-  readonly targetPgid: number
-}
-
-/** Request to kill a terminal. */
-export interface TerminalKillRequest {
-  readonly sessionId: SessionId
-  readonly terminalSessionId: TerminalSessionId
-}
-
-/** Result of killing a terminal. */
-export interface TerminalKillValue {
-  readonly closed: boolean
-}
+import type {} from '@deepseek-ai/dsh-typert-protocol'
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
-    /** Terminal service is unavailable. */
-    'terminal/unavailable': {}
-    /** Session is not live or agent is not owned. */
-    'terminal/session-not-live': { readonly sessionId: SessionId }
-    /** Terminal session not found. */
-    'terminal/not-found': { readonly sessionId: SessionId; readonly terminalSessionId: TerminalSessionId }
-    /** Terminal backend type not registered. */
-    'terminal/no-backend': { readonly sessionId: SessionId; readonly type: string }
-    /** Terminal name already in use. */
-    'terminal/duplicate-name': { readonly sessionId: SessionId; readonly name: string }
-    /** Terminal has active send operation. */
-    'terminal/send-active': { readonly sessionId: SessionId; readonly terminalSessionId: TerminalSessionId }
+    /** The terminal identity is missing or has begun process cleanup. */
+    'terminal/unavailable': Record<string, never>
+    /** Input or resize was refused without invalidating the output attachment. */
+    'terminal/control-unavailable': { readonly reason: 'read-only' | 'not-running' }
+    /** Retained screens and pending allocations consume the Session's terminal quota. */
+    'terminal/limit-reached': { readonly limit: number }
   }
 }
+
+/** A terminal identity scoped to one Session and one Host lifetime. */
+export type WebTerminalId = Branded<'WebTerminalId'>
+/** An attachment allowed to write and resize one terminal. */
+export type TerminalAttachmentId = Branded<'TerminalAttachmentId'>
+
+/** Acknowledges one physical window hold without taking screen or input control. */
+export interface TerminalRetentionFrame {
+  readonly type: 'retained'
+}
+
+/** An executable shell verified in the subprocess provider's execution environment. */
+export interface TerminalShell {
+  readonly path: string
+  readonly args: readonly string[]
+  readonly name: string
+}
+
+/** Working directory and limits shared by new and restored terminals. */
+export interface TerminalEnvironment {
+  readonly cwd: string
+  readonly maxInputBytes: number
+  readonly maxCols: number
+  readonly maxRows: number
+  readonly scrollback: number
+}
+
+/** Host-owned terminal state; process exit never creates a replacement shell. */
+export interface WebTerminalInfo {
+  readonly id: WebTerminalId
+  readonly title: string
+  readonly shell: TerminalShell
+  /** Initial working directory; shell directory changes do not update this field. */
+  readonly cwd: string
+  readonly cols: number
+  readonly rows: number
+  readonly state: 'running' | 'exited' | 'failed'
+  readonly exitCode: number | null
+  readonly error?: string
+  readonly controllerId?: TerminalAttachmentId
+}
+
+/** Create is idempotent for an open identity; closed identities cannot be recreated. */
+export interface TerminalCreateRequest {
+  /** A path returned by shell discovery; absent selects the execution default. */
+  readonly shellPath?: string
+  readonly id: WebTerminalId
+  readonly cols: number
+  readonly rows: number
+}
+
+/** Every attachment begins with a complete bounded screen, then ordered output. */
+export type TerminalFrame =
+  | { readonly type: 'snapshot'; readonly sequence: number; readonly screen: string; readonly info: WebTerminalInfo }
+  | { readonly type: 'output'; readonly sequence: number; readonly data: string }
+  | { readonly type: 'state'; readonly info: WebTerminalInfo }

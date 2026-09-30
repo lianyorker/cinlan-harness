@@ -1,11 +1,11 @@
 /** Native element capture with a verified preview and explicit Session draft handoff. */
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { BrowserElementCaptureValue, BrowserPageId, BrowserPagesValue, SessionId } from '@deepseek-ai/dsh-api-remotes/client'
+import type { BrowserElementCaptureValue, BrowserPageId, BrowserPagesValue, CaptureInjected } from './contract.ts'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { CaptureInjected } from './contract.ts'
 import { NS } from './locales.ts'
 import css from './BrowserElementCaptureSection.module.css'
 
@@ -26,7 +26,7 @@ type CaptureState =
 export function BrowserElementCaptureSection({
   t, useSessions, pages, select, capture, attach,
 }: BrowserElementCaptureSectionProps): ReactNode {
-  const current = useSessions(snapshot => snapshot.current === undefined ? undefined : snapshot.byId[snapshot.current])
+  const current = useSessions(snapshot => snapshot.ids[0] === undefined ? undefined : snapshot.byId[snapshot.ids[0]])
   const [pageList, setPageList] = useState<BrowserPagesValue>()
   const [pageId, setPageId] = useState<BrowserPageId>()
   const [state, setState] = useState<CaptureState>({ phase: 'idle' })
@@ -52,7 +52,7 @@ export function BrowserElementCaptureSection({
       const value = await pages(signal)
       if (signal.aborted) return
       setPageList(value)
-      setPageId(previous => value.pages.find(page => page.pageId === previous)?.pageId ?? value.pages[0]?.pageId)
+      setPageId((previous: any) => value.pages.find((page: any) => page.pageId === previous)?.pageId ?? value.pages[0]?.pageId)
       setState({ phase: 'idle' })
     })
   }
@@ -99,8 +99,8 @@ export function BrowserElementCaptureSection({
           {pageList !== undefined && <label className={css.pageLabel}>
             <span>{t('pageLabel')}</span>
             <select aria-label={t('pageLabel')} value={pageId ?? ''} disabled={busy || pageList.pages.length === 0}
-              onChange={(event) => { setPageId(pageList.pages.find(page => page.pageId === event.target.value)?.pageId); setState({ phase: 'idle' }) }}>
-              {pageList.pages.map(page => <option key={page.pageId} value={page.pageId}>{page.title ? `${page.title} — ${page.url}` : page.url}</option>)}
+              onChange={(event) => { setPageId(pageList.pages.find((page: any) => page.pageId === event.target.value)?.pageId); setState({ phase: 'idle' }) }}>
+              {pageList.pages.map((page: any) => <option key={page.pageId} value={page.pageId}>{page.title ? `${page.title} — ${page.url}` : page.url}</option>)}
             </select>
           </label>}
         </div>

@@ -1,5 +1,5 @@
 ---
-description: "Browser UI renderer: React slot bindings, ctx.uiRenderer, and the assembled application root for the dsh web client."
+description: "Browser UI renderer: React bindings for ordinary Slots and reusable Component Factories, ctx.uiRenderer, and the assembled dsh web application root."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-renderer` mounts the assembled dsh web client GUI: after the complete client plugin roster settles, the boot kernel calls `ctx.uiRenderer.mount(container)`, which hydrates the framework-free boot page and switches to the full React application before the next paint. Business plugins stay plain React components that receive session and workspace data through typed props and never wire subscriptions themselves — the renderer binds the runtime's bare observable sources into selector hooks at the slot outlets. The web shell, boot kernel, and explicitly scoped secondary views use its bindings when a composition needs a React-rendered GUI.
+`dsh-client-ui-renderer` mounts the assembled dsh web client GUI: after the complete client plugin roster settles, the boot kernel calls `ctx.uiRenderer.mount(container)`, which hydrates the framework-free boot page and switches to the full React application before the next paint. Business plugins stay plain React components that receive session and workspace data through typed props and never wire subscriptions themselves — the renderer binds the runtime's bare observable sources into selector hooks at the slot outlets. The web shell and the boot kernel are its only direct consumers, so a composition needs it exactly when it wants a React-rendered GUI.
 
 ## Table of Contents
 
@@ -25,8 +25,6 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-`ctx.slots.renderSessionView(key, owner, sessionId)` renders a registration that explicitly enables `reusable: true` in a separate Session occurrence. Its normal child slots, injected callbacks, hooks, and stores resolve against that Session without selecting it. The caller retains the Session for the mounted occurrence and releases it on teardown. Existing root rendering and selected-Session providers keep their default behavior.
-
 This package is infrastructure: the web shell and the boot kernel are its only direct consumers. A composition needs it whenever it wants a React-rendered GUI — `dsh-client-web` loads the roster, waits for every entry to activate, then calls `ctx.uiRenderer.mount(container)`.
 
 ### What mounting does
@@ -35,7 +33,7 @@ This package is infrastructure: the web shell and the boot kernel are its only d
 
 ### For business plugins
 
-A business plugin registers a component through the slot system; the renderer binds the runtime's session and workspace observable sources into selector hooks at the outlet. The plugin receives the standard session props (session id, conversation snapshot hooks) through its composed props — it never imports the renderer or touches React internals.
+A business plugin registers an ordinary Slot entry or a reusable Component Factory; the renderer binds the runtime's session and workspace observable sources into selector hooks at the render position. The plugin receives standard scope props through its derived Component props — it never imports the renderer or touches React internals. Every renderer-created Component can render a Factory occurrence, and a Factory can expose caller-selected local Components without sharing implementation values between packages.
 
 -----
 
@@ -53,7 +51,7 @@ The plugin activates after `slots`, `sessions`, and `layout`; it installs `creat
 
 ### Slot bindings
 
-`createSlotRenderer` connects the slot registry to React: entry lists become reactive sources, and each outlet renders through the installed renderer. Business plugins pass bare observable sources through typed slot `hooks`; the renderer binds them at the outlet via the uSES adapter.
+`createSlotRenderer` connects the slot registry to React: ordinary entry lists and Factory definitions become reactive sources, and each outlet or occurrence renders through the installed renderer. Business plugins pass bare observable sources through typed `hooks`; the renderer binds them at the render position via the uSES adapter. A Factory Store factory stays lazy until an occurrence first materializes; its exclusive handle rejects persistence, render-time records stay weak, and an idempotent effect strongly retains only mounted occurrences while preserving identity across effect replay. Factory errors use the ordinary supervision channel without abdicating the shared definition: the definition and its fallback local Components report against the definition, caller-selected local Components report against the caller registration, and each boundary resets with its own scope incarnation.
 
 ### Identity
 
@@ -73,6 +71,7 @@ These pages cover the surrounding machinery and the composition model.
 - [ui-session](../ui-session/README.md) — the adapter that supplies the standard Session sources and hooks this renderer binds.
 - [Web client architecture](../../../.agents/notes/implemented/architecture/2026-07-19-gui-web-client-architecture.md) — the loading chain, object layer, and layering red lines.
 - [Slot system standard](../../../.agents/notes/implemented/architecture/2026-07-22-slot-type-chain-implementation.md) — the definitive composition model.
+- [Component Factories](../../../.agents/notes/implemented/architecture/2026-09-10-component-factories-and-local-slots.md) — reusable definitions, local Component selection, and occurrence lifetimes.
 
 -----
 

@@ -75,9 +75,7 @@
     "@deepseek-ai/dsh-brand": "workspace:*",
     "@deepseek-ai/dsh-sandbox-policy": "workspace:*",
     "@deepseek-ai/dsh-sandbox": "workspace:*",
-    "@deepseek-ai/dsh-user-approval": "workspace:*",
-    "@deepseek-ai/cordis-plugin-include": "workspace:^",
-    "@deepseek-ai/cordis-plugin-hmr": "workspace:^"
+    "@deepseek-ai/dsh-user-approval": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-hmr": {
@@ -104,10 +102,6 @@
     "@deepseek-ai/dsh-session": "workspace:*",
     "@deepseek-ai/dsh-session-projection": "workspace:*",
     "@deepseek-ai/dsh-sandbox": "workspace:*",
-    "@deepseek-ai/dsh-user-approval": "workspace:*",
-    "@deepseek-ai/cordis-plugin-include": "workspace:^",
-    "@deepseek-ai/cordis-plugin-hmr": "workspace:^",
-    "pnpm": "11.7.0",
-    "@deepseek-ai/dsh-llm": "workspace:^"
+    "@deepseek-ai/dsh-user-approval": "workspace:*"
   }
 }

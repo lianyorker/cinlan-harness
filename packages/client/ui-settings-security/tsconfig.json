@@ -8,10 +8,18 @@
     "src"
   ],
   "references": [
-    { "path": "../../mobile-device/mobile-device-runtime" },
-    { "path": "../../../vendor/schemastery" },
-    { "path": "../store" },
-    { "path": "../../security/security-skills" },
+    {
+      "path": "../../mobile-device/mobile-device-runtime"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../store"
+    },
+    {
+      "path": "../../security/security-skills"
+    },
     {
       "path": "../../../vendor/cordis"
     },
@@ -22,7 +30,7 @@
       "path": "../../mobile-device/mobile-device"
     },
     {
-      "path": "../locale"
+      "path": "../locale/tsconfig.client.json"
     },
     {
       "path": "../ui-better-sidebar/tsconfig.client.json"
@@ -34,7 +42,7 @@
       "path": "../ui-renderer"
     },
     {
-      "path": "../ui-settings"
+      "path": "../ui-settings/tsconfig.client.json"
     },
     {
       "path": "../ui-slots"
@@ -44,6 +52,12 @@
     },
     {
       "path": "../../api/browser-controller"
+    },
+    {
+      "path": "../../api/device-capabilities-controller"
+    },
+    {
+      "path": "../../api/security-research-controller"
     }
   ]
 }

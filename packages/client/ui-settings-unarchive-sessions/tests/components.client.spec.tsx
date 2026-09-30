@@ -20,7 +20,7 @@ const sid = (id: string): SessionId => id as SessionId
 const t = makeTranslate(en)
 
 function summary(id: string, title: string, updatedAt: number): SessionSummary {
-  return { id: sid(id), displayTitle: title, running: false, blank: false, updatedAt }
+  return { id: sid(id), displayTitle: title, running: false, blank: false, updatedAt, retainedBy: {} }
 }
 
 function sessionState(sessions: readonly SessionSummary[], phase: SessionListState['phase'] = 'ready'): SessionListState {
@@ -28,15 +28,12 @@ function sessionState(sessions: readonly SessionSummary[], phase: SessionListSta
     ids: sessions.map(session => session.id),
     byId: Object.fromEntries(sessions.map(session => [session.id, session])),
     phase,
-    current: undefined,
-    currentAddress: undefined,
-    subagentsByParent: {},
-    jobsBySession: {},
+    projectionsBySession: {},
   }
 }
 
 function snapshot(archivedSessionIds: readonly string[], items: readonly WorkspaceView[] = []): WorkspaceSnapshot {
-  return { items, archivedSessionIds: archivedSessionIds.map(sid), state: 'idle', phase: 'ready', error: null }
+  return { items, archivedSessionIds: archivedSessionIds.map(sid), pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null }
 }
 
 function workspace(title: string, sessionIds: readonly string[]): WorkspaceView {

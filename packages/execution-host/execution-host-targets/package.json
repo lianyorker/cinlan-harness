@@ -60,8 +60,6 @@
     "@deepseek-ai/dsh-fs-local": "workspace:^",
     "@deepseek-ai/dsh-storage": "workspace:^",
     "@deepseek-ai/dsh-storage-json": "workspace:^",
-    "playwright": "^1.49.0",
-    "ssh2": "^1.17.0",
-    "@types/ssh2": "^1.15.5"
+    "playwright": "^1.49.0"
   }
 }

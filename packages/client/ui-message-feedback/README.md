@@ -1,5 +1,5 @@
 ---
-description: "Submit message ratings and conversation feedback through a dialog with categories, context disclosure, and retryable drafts."
+description: "The Web feedback surface: the Like/Dislike pair in the finalized assistant message's action row, the feedback dialog behind both ratings and `/feedback`, and its acknowledgement and failure toasts; for users and maintainers of the feedback experience."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Submit feedback about a completed answer or the whole conversation. Like and Dislike open a dialog with seven optional categories and a detail field; a bare `/feedback` opens the same form for the Session. The dialog discloses that submission includes the current conversation log. Feedback stays outside model context, and failed submissions keep the draft available for correction.
+This package is the Web GUI's feedback surface: the Like/Dislike pair in the finalized assistant message's action strip, the feedback dialog with its acknowledgement and failure toasts in the composer overlay, and a decoration that opens the dialog from a bare `/feedback`. Like and Dislike both open the dialog, which collects a category and an optional description before recording the selected rating. One surface per Session backs every entry, so a single list read seeds the whole transcript and one dialog serves the Session and its messages. Ratings, categories, and notes are log-only Session events that never enter model context.
 
 ## Table of Contents
 
@@ -25,11 +25,11 @@ Submit feedback about a completed answer or the whole conversation. Like and Dis
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-conversation` and `ui-commands`. Either unrecorded rating opens the feedback dialog; Submit records the judgment with the optional category and description. Closing the dialog discards the draft without recording. Clicking an already recorded rating retracts it. The composer menu and bare `/feedback` open the Session form, while `/feedback <text>` retains the Host command and its acknowledgement row.
+Mount this plugin alongside `ui-conversation` and `ui-commands`; the Like/Dislike pair then appears in the action row of each turn's closing assistant message, between copy and branch, and Feedback in the composer menu opens the same dialog. Mounting `session-log-export` also adds Feedback to the Session Header's more-actions menu. A recorded rating shows the filled glyph and stays visible without hover. Like and Dislike both open the dialog: seven category chips and a detail box are optional, and Submit records the selected judgment with whatever was filled in before the toast thanks the user; the conversation log travels with every feedback event. Clicking the recorded rating retracts it without opening the dialog. A bare `/feedback`, picked from the menu or typed and sent without text, opens the same dialog for the Session; `/feedback <text>` keeps the Host command path and its acknowledgement row.
 
 ### Failures
 
-A list-load or retraction failure appears beside the rating buttons. A submission failure shows a warning toast and keeps the dialog draft open. A conflict updates the recorded rating from the Host reply, while the draft remains available for retry. Only finalized messages receive feedback controls.
+A rating or list-load failure shows inline in the row; a submission failure shows in a warning toast while the dialog stays open so the draft can be corrected. Only finalized messages reach the message entry — an interruption-frozen partial carries no `messageId` and therefore no feedback controls.
 
 -----
 
@@ -39,7 +39,9 @@ A list-load or retraction failure appears beside the rating buttons. A submissio
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-One message controller and one dialog controller serve each Session. The message controller defers its first read until interaction, serializes mutations, and uses Host versions for compare-and-set updates. The dialog routes a message judgment through `messageFeedback` and a Session remark through `sessionFeedback`. A late successful submission acknowledges the saved feedback without closing a newer draft; disposal prevents later notifications. Slot entries and the bare-command decoration share the plugin lifetime.
+The package contributes the `feedback` entry (order 10) of `conversation.chat.assistant-actions`, declared by ui-conversation and rendered inside the finalized assistant message's IconActions row, and the `feedback-dialog` entry (order 2) of `conversation.input.overlay`, which renders the Modal and Toast primitives through body portals and centers the toast over the composer card it mounts inside. The `feedbackUi.openSession(sessionId)` Client service opens that same Session-scoped dialog without recording feedback; the Header menu and command decoration both use it. The `/feedback` decoration is an `action` registered through `ctx.commandUi.decorate`, so a menu pick or a bare Enter consumes the trigger token and opens the dialog while an argued line still reaches the Host command.
+
+Per Session, one `MessageFeedbackController` backs every message control and one `FeedbackDialogController` owns the dialog draft, the submission, and the toast sequence. The message controller reads `messageFeedback.list` once, deferred to the first hover or focus rather than fired on mount, and serializes mutations so each carries the version last observed; a `version-conflict` reply carries the authoritative item and reconciles the view without refetching. Before either rating action proceeds, the row checks the committed item: the matching rating calls `retract`, which rechecks the rating in the serialized queue and becomes a no-op after a concurrent change, while any other state opens the dialog with the requested rating. The dialog controller submits by target: a message target puts that rating with the dialog's note and category through the message controller, and the Session target records through `ctx.remote.sessionFeedback`. Success closes the draft and raises the acknowledgement toast; a late success from a superseded draft raises that toast without closing the new draft; a failure keeps the draft open and raises a longer-lived warning toast.
 
 </details>
 
@@ -48,10 +50,12 @@ One message controller and one dialog controller serve each Session. The message
 <a id="further-exploration"></a>
 ## Further Exploration
 
-Read these pages when the feedback surface is not enough. They move from the browser strip to the Session-log backend and the conversation shell.
+Read these pages when the feedback surface is not enough. They move from the browser strip to the Session-log backends and the conversation shell.
 
 - [dsh-message-feedback](../../feedback/message-feedback/README.md) — the Session-log backend that owns per-item compare-and-set and persistence.
-- [ui-conversation](../ui-conversation/README.md) — declares the assistant-actions strip and renders the action row.
+- [dsh-command-feedback](../../feedback/command-feedback/README.md) — the `/feedback` command, the `sessionFeedback` Remote, and the category taxonomy.
+- [ui-commands](../ui-commands/README.md) — the command decoration contract the `/feedback` row goes through.
+- [ui-conversation](../ui-conversation/README.md) — declares the assistant-actions strip and the composer overlay.
 - [Client package map](../README.md) — adjacent browser UI packages.
 
 -----
@@ -59,7 +63,7 @@ Read these pages when the feedback surface is not enough. They move from the bro
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as ratings and notes are log-only events, not model input. Optional Session-log delivery uses request metadata rather than model context.
+None, as ratings, categories, and notes are log-only events, not model input. Optional Session-log delivery uses request metadata rather than model context.
 
 #### KV Cache effect
 
@@ -72,7 +76,7 @@ None; feedback mutations leave the model-visible history unchanged.
 
 These limits define the current feedback surface. They are current package constraints, not a general rating comparison or a task backlog.
 
-- **Note size is a Host policy** — the deployment configures `maxNoteBytes` (8192 in the Web bundle) and the Host rejects an oversized note with `note-too-large`. The dialog does not pre-check the limit, so an oversized message description fails on submit while preserving the draft. Session remarks have no size bound.
+- **Note size is a Host policy** — the deployment configures `maxNoteBytes` (8192 in the Web bundle) and the Host rejects an oversized note with `note-too-large`. The dialog does not pre-check the limit, so an oversized description for a message fails on submit rather than while typing; a Session remark has no bound.
 - **No cross-tab push** — a second tab's rating becomes visible on reconnect or on the next conflict reply, not immediately; the controller does not consume feedback log events.
 - **Chat view only** — the trajectory and waterfall views render no feedback controls even though their assistant nodes carry the same `messageId`.
 
@@ -86,4 +90,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No companion is published. Slot registrations, command decoration, and per-session controllers share the plugin lifetime; lifecycle tests observe their removal and reject late publication.
+**Runtime invariant:** No companion is published. The plugin owns two slot registrations, one command decoration, the `feedbackUi` service, and one per-session controller-pair map, all released with the owning plugin fiber. The lifecycle spec verifies that the registrations and service are withdrawn and every controller pair is dropped when the fiber is disposed, so no second authority exists to check at runtime.

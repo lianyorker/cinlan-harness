@@ -1,6 +1,6 @@
 /** Floating Workspace settings card backed by accepted preferences. */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { IconFolderOpenOutline16, Input, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconFolderOpen16, Input, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -103,7 +103,7 @@ function DirectoryRow({
         }} />
       <button type="button" className={css.directoryButton} disabled={disabled || submitting}
         aria-label={pickLabel} title={pickLabel} onClick={() => { void choose() }}>
-        <IconFolderOpenOutline16 size={16} />
+        <IconFolderOpen16 size={16} />
       </button>
       {pickerFailed && <p className={css.controlError} role="alert">{pickFailed}</p>}
     </div>

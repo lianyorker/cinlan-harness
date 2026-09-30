@@ -6,7 +6,15 @@ import { Context } from '@deepseek-ai/cordis'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import MobileDeviceRuntime from '@deepseek-ai/dsh-mobile-device'
-import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
+const FileSettingsProvider = {
+  name: '@deepseek-ai/dsh-settings-file',
+  apply(c: Context) {
+    c.provide('settings', {
+      describe: () => [],
+      configure: () => () => {},
+    } as never)
+  },
+}
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import { afterEach, describe, expect, it, vi } from 'vitest'

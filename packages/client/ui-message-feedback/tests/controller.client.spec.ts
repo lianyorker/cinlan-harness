@@ -1,12 +1,13 @@
 /**
  * MessageFeedbackController: the browser-local object layer over one Session's
- * durable message feedback. These specs pin the per-item compare-and-set
+ * message-feedback sidecar. These specs pin the per-item compare-and-set
  * contract — every mutation sends the version last observed, a conflict
  * reconciles from the authoritative item carried by the reply, mutations
  * serialize per Session, and a disposed controller stops publishing.
  */
+import { RemoteMock, ok } from '@deepseek-ai/dsh-remote-mock'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ClientRemote, MessageId, SessionId } from '@deepseek-ai/dsh-api-remotes/client'
+import type { MessageId, SessionId } from '@deepseek-ai/dsh-api-remotes/client'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type {
   MessageFeedbackItem, MessageFeedbackVersion,
@@ -30,20 +31,10 @@ function item(overrides: Partial<MessageFeedbackItem> = {}): MessageFeedbackItem
   }
 }
 
-const ok = <T>(value: T): { ok: true; value: T } => ({ ok: true, value })
-
-function createMock() {
-  return { remote: { messageFeedback: {
-    list: vi.fn<ClientRemote['messageFeedback']['list']>(),
-    put: vi.fn<ClientRemote['messageFeedback']['put']>(),
-    delete: vi.fn<ClientRemote['messageFeedback']['delete']>(),
-  } } }
-}
-
-let mock: ReturnType<typeof createMock>
+let mock: RemoteMock
 
 beforeEach(() => {
-  mock = createMock()
+  mock = RemoteMock.create()
   mock.remote.messageFeedback.list.mockResolvedValue(ok({ ok: true, value: { items: [] } }))
   mock.remote.messageFeedback.put.mockResolvedValue(ok({ ok: true, value: item() }))
   mock.remote.messageFeedback.delete.mockResolvedValue(ok({ ok: true, value: { absent: true } }))

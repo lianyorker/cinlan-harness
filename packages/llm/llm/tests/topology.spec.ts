@@ -254,7 +254,7 @@ describe('model discovery registry', () => {
     const ctx = await setup()
     const discover = vi.fn()
       .mockResolvedValueOnce([
-        { id: 'keep', name: 'Keep', contextWindow: 1024, maxTokens: 256, inputModalities: ['text', 'image'] },
+        { id: 'keep', name: 'Keep', contextWindow: 1024, maxTokens: 256 },
         { id: '' },
         { id: 'keep' },
         { id: 'bare' },
@@ -269,7 +269,7 @@ describe('model discovery registry', () => {
       { baseURL: 'https://gateway.example/v1' },
       signal,
     )).resolves.toEqual([
-      { id: 'keep', name: 'Keep', contextWindow: 1024, maxTokens: 256, inputModalities: ['text', 'image'] },
+      { id: 'keep', name: 'Keep', contextWindow: 1024, maxTokens: 256 },
       { id: 'bare' },
     ])
     expect(discover).toHaveBeenNthCalledWith(

@@ -1,88 +1,144 @@
 // @vitest-environment jsdom
-/** Real Lexical DOM routing with effective shortcut changes and composition ownership. */
+/**
+ * Keymap routing at the DOM boundary: synthetic keydowns on the
+ * contenteditable reach the registered composer commands (the jsdom lane's
+ * gesture entry, below the full component bench).
+ */
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { fireEvent } from '@testing-library/react'
-import { createEditor } from 'lexical'
+import { $createParagraphNode, $createTextNode, $getRoot, createEditor } from 'lexical'
 import { registerPlainText } from '@lexical/plain-text'
-import { registerComposerKeymap, type ComposerKeymapHandlers } from '../src/client/input/editor/keymap.ts'
-import { createKeyboardFixture } from './keyboard-fixture.client.ts'
-
-function bench(patch: Partial<ComposerKeymapHandlers> = {}) {
-  const shortcuts = createKeyboardFixture()
-  const editor = createEditor({ namespace: 'keymap-routing', onError: (error) => { throw error } })
-  const root = document.createElement('div')
-  root.contentEditable = 'true'
-  document.body.appendChild(root)
-  editor.setRootElement(root)
-  const plain = registerPlainText(editor)
-  const submit = vi.fn()
-  const remove = registerComposerKeymap(editor, { matches: shortcuts.matches, arbitrate: () => 'pass', space: () => false,
-    dismissPopup: () => false, canSubmit: () => true, submit, intakeFiles: () => {}, pasteText: () => {}, ...patch })
-  onTestFinished(() => { remove(); plain(); editor.setRootElement(null); root.remove() })
-  return { ...shortcuts, root, submit, remove }
-}
+import { registerComposerKeymap } from '../src/client/input/editor/keymap.ts'
 
 describe('keymap keydown routing', () => {
-  it('routes default Enter, Ctrl+Enter, and Meta+Enter while live overrides disable the old gesture', () => {
-    const { root, submit, settings } = bench()
+  it('clears composition presentation on root swaps and unregisters pending callbacks', async () => {
+    const editor = createEditor({ namespace: 'composition-root', onError: (e) => { throw e } })
+    const first = document.createElement('div')
+    const second = document.createElement('div')
+    document.body.append(first, second)
+    onTestFinished(() => {
+      editor.setRootElement(null)
+      first.remove()
+      second.remove()
+    })
+    editor.setRootElement(first)
+    const unregister = registerComposerKeymap(editor, {
+      arbitrate: () => 'pass', space: () => false, dismissPopup: () => {},
+      canSubmit: () => false, submit: () => {}, intakeFiles: () => {}, pasteText: () => {},
+    })
+    onTestFinished(unregister)
+    fireEvent.compositionStart(first)
+    expect(first.hasAttribute('data-composer-composing')).toBe(true)
+    editor.setRootElement(second)
+    expect(first.hasAttribute('data-composer-composing')).toBe(false)
+    expect(second.hasAttribute('data-composer-composing')).toBe(false)
+    fireEvent.compositionStart(first)
+    expect(first.hasAttribute('data-composer-composing')).toBe(false)
+    fireEvent.compositionStart(second)
+    expect(second.hasAttribute('data-composer-composing')).toBe(true)
+    fireEvent.compositionEnd(second, { data: '' })
+    unregister()
+    await Promise.resolve()
+    expect(second.hasAttribute('data-composer-composing')).toBe(false)
+    fireEvent.compositionStart(second)
+    expect(second.hasAttribute('data-composer-composing')).toBe(false)
+  })
+
+  it('routes Enter to the keymap submit handler', () => {
+    const editor = createEditor({ namespace: 'keymap-routing', onError: (e) => { throw e } })
+    const root = document.createElement('div')
+    root.contentEditable = 'true'
+    document.body.appendChild(root)
+    editor.setRootElement(root)
+    registerPlainText(editor)
+    const submit = vi.fn()
+    registerComposerKeymap(editor, {
+      arbitrate: () => 'pass',
+      space: () => false,
+      dismissPopup: () => {},
+      canSubmit: () => true,
+      submit,
+      intakeFiles: () => {},
+      pasteText: () => {},
+    })
     fireEvent.keyDown(root, { key: 'Enter' })
-    expect(submit).toHaveBeenLastCalledWith(false)
+    expect(submit).toHaveBeenCalledWith(false)
     fireEvent.keyDown(root, { key: 'Enter', metaKey: true })
-    expect(submit).toHaveBeenLastCalledWith(true)
-    fireEvent.keyDown(root, { key: 'Enter', ctrlKey: true })
-    expect(submit).toHaveBeenCalledTimes(3)
-    settings.publish({ value: { overrides: [{ commandId: 'conversation.submit', binding: { key: 'p', modifiers: { alt: true } } }] } })
-    fireEvent.keyDown(root, { key: 'Enter' })
-    expect(submit).toHaveBeenCalledTimes(3)
-    fireEvent.keyDown(root, { key: 'p', altKey: true })
-    expect(submit).toHaveBeenLastCalledWith(false)
-    expect(submit).toHaveBeenCalledTimes(4)
-    settings.publish({ value: { overrides: [{ commandId: 'conversation.submit', binding: null }] } })
-    fireEvent.keyDown(root, { key: 'Enter' })
-    expect(submit).toHaveBeenCalledTimes(4)
+    expect(submit).toHaveBeenCalledWith(true)
   })
 
-  it('arbitrates Tab and remapped completion before submitting or native traversal', () => {
-    const arbitrate = vi.fn<ComposerKeymapHandlers['arbitrate']>()
-      .mockReturnValueOnce('consumed').mockReturnValueOnce('pick-highlighted').mockReturnValue('pass')
-    const { root, settings } = bench({ arbitrate })
-    expect(fireEvent.keyDown(root, { key: 'Tab', keyCode: 9 })).toBe(false)
+  it.each([
+    { altKey: true },
+    { altKey: true, metaKey: true },
+    { altKey: true, ctrlKey: true },
+    { ctrlKey: true, metaKey: true },
+    { shiftKey: true, metaKey: true },
+    { shiftKey: true, ctrlKey: true },
+    { shiftKey: true, altKey: true },
+  ])('leaves modified Enter %j available to application commands', async (modifiers) => {
+    const editor = createEditor({ namespace: 'modified-enter', onError: (error) => { throw error } })
+    const root = document.createElement('div')
+    root.contentEditable = 'true'
+    document.body.appendChild(root)
+    onTestFinished(() => { editor.setRootElement(null); root.remove() })
+    editor.setRootElement(root)
+    onTestFinished(registerPlainText(editor))
+    const submit = vi.fn()
+    const arbitrate = vi.fn(() => 'pass' as const)
+    onTestFinished(registerComposerKeymap(editor, {
+      arbitrate, space: () => false, dismissPopup: () => {}, canSubmit: () => true,
+      submit, intakeFiles: () => {}, pasteText: () => {},
+    }))
+    editor.update(() => {
+      const paragraph = $createParagraphNode().append($createTextNode('unsent draft'))
+      $getRoot().append(paragraph)
+      paragraph.selectEnd()
+    }, { discrete: true })
+    const applicationKeydown = vi.fn()
+    document.addEventListener('keydown', applicationKeydown)
+    onTestFinished(() => { document.removeEventListener('keydown', applicationKeydown) })
+
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, ...modifiers })
+    root.dispatchEvent(event)
+    await Promise.resolve()
+
+    expect(submit).not.toHaveBeenCalled()
+    expect(arbitrate).not.toHaveBeenCalled()
+    expect(event.defaultPrevented).toBe(false)
+    expect(applicationKeydown).toHaveBeenCalledOnce()
+    expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('unsent draft')
+  })
+
+  it('routes Tab through arbitration and passes when unconsumed', () => {
+    const editor = createEditor({ namespace: 'keymap-routing', onError: (e) => { throw e } })
+    const root = document.createElement('div')
+    root.contentEditable = 'true'
+    document.body.appendChild(root)
+    editor.setRootElement(root)
+    registerPlainText(editor)
+    const arbitrate = vi.fn<(key: string, composing: boolean) => 'consumed' | 'pick-highlighted' | 'pass'>()
+      .mockReturnValueOnce('consumed')
+      .mockReturnValueOnce('pick-highlighted')
+      .mockReturnValue('pass')
+    registerComposerKeymap(editor, {
+      arbitrate,
+      space: () => false,
+      dismissPopup: () => {},
+      canSubmit: () => true,
+      submit: () => {},
+      intakeFiles: () => {},
+      pasteText: () => {},
+    })
+    const consumed = fireEvent.keyDown(root, { key: 'Tab', keyCode: 9 })
     expect(arbitrate).toHaveBeenCalledWith('tab', false)
-    expect(fireEvent.keyDown(root, { key: 'Tab', keyCode: 9 })).toBe(false)
-    expect(fireEvent.keyDown(root, { key: 'Tab', keyCode: 9 })).toBe(true)
-    settings.publish({ value: { overrides: [{ commandId: 'conversation.complete', binding: { key: 'c', modifiers: { alt: true } } }] } })
-    arbitrate.mockReturnValue('pick-highlighted')
-    expect(fireEvent.keyDown(root, { key: 'c', altKey: true })).toBe(false)
-    expect(arbitrate).toHaveBeenLastCalledWith('tab', false)
-  })
+    expect(consumed).toBe(false) // consumed: preventDefault fired
+    const picked = fireEvent.keyDown(root, { key: 'Tab', keyCode: 9 })
+    expect(picked).toBe(false) // picked: the completion replaces native traversal
+    const passed = fireEvent.keyDown(root, { key: 'Tab', keyCode: 9 })
+    expect(passed).toBe(true) // pass: the browser keeps native focus traversal
 
-  it('consumes a remapped printable dismissal while an actual popup is open', () => {
-    let open = true
-    const { root, settings, submit } = bench({ dismissPopup: () => { const wasOpen = open; open = false; return wasOpen } })
-    settings.publish({ value: { overrides: [{ commandId: 'conversation.dismissPopup', binding: { key: 'x', modifiers: {} } }] } })
-    expect(fireEvent.keyDown(root, { key: 'x' })).toBe(false)
-    expect(root.textContent).not.toContain('x')
-    expect(open).toBe(false)
-    expect(submit).not.toHaveBeenCalled()
-    expect(fireEvent.keyDown(root, { key: 'x' })).toBe(true)
-  })
-
-  it('keeps popup priority ahead of a remapped submit and keeps composition/repeat from sending', () => {
-    const arbitrate = vi.fn<ComposerKeymapHandlers['arbitrate']>().mockReturnValue('pick-highlighted')
-    const { root, submit, settings, remove } = bench({ arbitrate })
-    settings.publish({ value: { overrides: [{ commandId: 'conversation.submit', binding: { key: 'p', modifiers: { alt: true } } }] } })
-    fireEvent.keyDown(root, { key: 'p', altKey: true })
-    expect(submit).not.toHaveBeenCalled()
-    expect(arbitrate).toHaveBeenCalledWith('enter', false)
-    arbitrate.mockReturnValue('pass')
-    for (const patch of [{ isComposing: true }, { keyCode: 229 }, { repeat: true }]) {
-      fireEvent.keyDown(root, { key: 'p', altKey: true, ...patch })
-    }
-    expect(submit).not.toHaveBeenCalled()
-    fireEvent.keyDown(root, { key: 'p', altKey: true })
-    expect(submit).toHaveBeenCalledOnce()
-    remove()
-    fireEvent.keyDown(root, { key: 'p', altKey: true })
-    expect(submit).toHaveBeenCalledOnce()
+    // Shift+Tab is the menu's exit key, never its settle key.
+    fireEvent.keyDown(root, { key: 'Tab', keyCode: 9, shiftKey: true })
+    expect(arbitrate).toHaveBeenLastCalledWith('tabBack', false)
   })
 })

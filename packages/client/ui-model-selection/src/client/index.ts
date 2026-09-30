@@ -1,6 +1,6 @@
 /**
- * Model selection plugin, browser half. ModelDirectoryResolver owns the shared
- * catalog and per-session directories. The /model popupSelect
+ * Model selection plugin, browser half — TWO entries over ONE per-session
+ * directory owned by ModelDirectoryResolver (`ctx.modelDirectories`). The /model popupSelect
  * contribution and the composer's named `conversation.input.model` seat share
  * one Host-generation `session/modelCatalog` catalog, combine it with the Session's
  * durable model-selection projection, and submit through `session.selectModel`.
@@ -9,9 +9,6 @@
  * inline error) without forking the state. Addressed subagent sessions expose
  * neither entry because those Agent-bound RPCs would activate persisted
  * history outside the direct-parent continuation path.
- *
- * The optional Models settings contribution reads the same catalog and changes
- * only future-session defaults through the bound settings scope.
  */
 // Type-only: the carrier types, the forwarded Host-event face and the ctx.remote merge.
 import type { ModelSelection } from '@deepseek-ai/dsh-api-session-controller/types'
@@ -24,16 +21,13 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
+import { IconDataOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ModelDirectoryState } from './directory.ts'
 import { ModelDirectoryResolver } from './service.ts'
 import type { ModelSelectInjected } from './slots.ts'
 import { ModelSelect } from './ModelSelect.tsx'
 import { en, zh, type ModelKey } from './locales.ts'
-import { DefaultModelSettings, type DefaultModelSettingsInjected } from './DefaultModelSettings.tsx'
-import { DEFAULT_MODEL_NAMESPACE, DefaultModelSettingsController } from './default-settings.ts'
 
 export { ModelDirectory } from './directory.ts'
 export type { ModelDirectoryState } from './directory.ts'
@@ -53,15 +47,33 @@ function rowId(providerId: string, modelId: string): string {
   return `${providerId}/${modelId}`
 }
 
+const BUILTIN_DESCRIPTION_KEYS: Readonly<Record<string, ModelKey>> = {
+  'deepseek-account/deepseek-v4-flash': 'option.deepseekV4Flash.description',
+  'deepseek-account/deepseek-v4-pro': 'option.deepseekV4Pro.description',
+  'deepseek-official/deepseek-v4-flash': 'option.deepseekV4Flash.description',
+  'deepseek-official/deepseek-v4-pro': 'option.deepseekV4Pro.description',
+}
+
+function descriptionOf(
+  providerId: string,
+  model: ModelDirectoryState['groups'][number]['models'][number],
+  t: TranslateNS<'model'>,
+): string | undefined {
+  const key = BUILTIN_DESCRIPTION_KEYS[rowId(providerId, model.id)]
+  return key !== undefined && model.description === en[key] ? t(key) : model.description
+}
+
 /** Flatten the directory into popup rows; failure rows are listed for visibility but never selectable. */
 function optionsOf(directory: ModelDirectoryState, t: TranslateNS<'model'>): SelectOption[] {
   const rows: SelectOption[] = []
   for (const group of directory.groups) {
+    const name = group.id === 'deepseek-account' ? t('provider.account') : group.name
     for (const model of group.models) {
+      const description = descriptionOf(group.id, model, t)
       rows.push({
         id: rowId(group.id, model.id),
         label: model.name,
-        detail: model.description !== undefined ? `${group.name} · ${model.description}` : group.name,
+        detail: description !== undefined ? `${name} · ${description}` : name,
         ...(directory.current !== null
           && directory.current.provider === group.id
           && directory.current.model === model.id
@@ -72,7 +84,7 @@ function optionsOf(directory: ModelDirectoryState, t: TranslateNS<'model'>): Sel
   for (const failure of directory.failures) {
     rows.push({
       id: `failure/${failure.id}`,
-      label: failure.name,
+      label: failure.id === 'deepseek-account' ? t('provider.account') : failure.name,
       detail: t('option.loadError', { message: failure.message }),
     })
   }
@@ -112,7 +124,8 @@ export const inject = ['commandUi', 'locale', 'sessions', 'slots', 'remote', 're
 
 /**
  * Client plugin body: mount ModelDirectoryResolver, register the `model` dictionaries,
- * then contribute the Session selectors and optional new-session defaults.
+ * then register the /model popup contribution and the composer model seat
+ * over the service.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
@@ -122,9 +135,7 @@ export function apply(ctx: ClientContext): void {
   // through the bound translate; the seat component reads the standard seat.
   const t = ctx.locale.bind(NS)
 
-  // The composer-block reason is this plugin's own copy, read at raise time so
-  // a locale change reaches the next publish.
-  ctx.plugin(ModelDirectoryResolver, { blockReason: () => t('blocked.composer') })
+  ctx.plugin(ModelDirectoryResolver)
 
   // Entry 1: the /model popupSelect over the shared directory.
   ctx.inject(['commandUi', 'modelDirectories'], (scope: ClientContext) => {
@@ -133,7 +144,9 @@ export function apply(ctx: ClientContext): void {
     const sessions = scope.sessions
     scope.effect(() => command.register({
       name: 'model',
+      label: () => t('command.label'),
       description: () => t('command.description'),
+      icon: IconDataOutlineRegular,
       available: session => sessions.subagentAddress(session.sessionId) === undefined,
       ui: {
         kind: 'popupSelect',
@@ -160,39 +173,6 @@ export function apply(ctx: ClientContext): void {
         },
       },
     }), 'ui-model-selection: /model contribution')
-  })
-
-  ctx.inject(['settingsScope', 'settingsMetadata', 'modelDirectories'], (scope: ClientContext) => {
-    const defaults = scope.settingsScope.bind<ModelSelection>({ namespace: DEFAULT_MODEL_NAMESPACE })
-    const catalog = scope.modelDirectories.catalog
-    scope.slots.inject('settings.models.defaults', function* () {
-      const controller = new DefaultModelSettingsController(defaults, catalog)
-      yield scope.effect(() => () => controller.dispose(), 'ui-model-selection: default settings lifetime')
-      yield scope.slots.register({
-        name: 'settings.models.defaults',
-        id: 'default-model',
-        locale: NS,
-        inject: (): DefaultModelSettingsInjected => ({
-          hooks: { catalog: catalog.store, defaults, write: controller.store },
-          select: selection => controller.select(selection),
-          reset: () => controller.reset(),
-          retry: () => controller.retry(),
-          reload: () => { catalog.refresh() },
-        }),
-      }, DefaultModelSettings)
-      yield scope.settingsMetadata.registerItems('models', [
-        {
-          id: 'default-model', anchorId: 'default-model',
-          title: () => t('defaults.model'), description: () => t('defaults.scope'),
-          keywords: () => ['default', 'model', 'new session'],
-        },
-        {
-          id: 'default-reasoning', anchorId: 'default-reasoning',
-          title: () => t('defaults.reasoning'), description: () => t('defaults.reasoningDescription'),
-          keywords: () => ['reasoning', 'effort', 'default'],
-        },
-      ])
-    })
   })
 
   // Entry 2: the composer's named model seat over the SAME directory.

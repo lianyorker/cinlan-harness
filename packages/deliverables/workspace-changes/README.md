@@ -1,5 +1,5 @@
 ---
-description: "Per-turn changed-file summaries and comparisons from git snapshots and file-tool captures; configuration, live Session lifetime, and coverage limits."
+description: "Summarize each top-level turn's changed files from git working-tree snapshots and whole-file captures around file-tool edits, announce them with a workspace/changes Session event, and serve the summary and per-file comparisons while the Session lives; configuration, repository requirement, and coverage rules."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-See which files a top-level turn changed, with line counts and a comparison of each file before and after the turn. Git snapshots exclude earlier uncommitted changes, while whole-file captures cover paths changed by file tools outside the snapshots. Without git or a repository, only file-tool edits are listed. Summaries and comparison content remain available in the Host process until the Session is disposed, and use temporary disk space for that lifetime.
+This plugin summarizes which files each top-level turn changed, with per-file line counts, and serves each listed file's turn-start and turn-end comparison. Git snapshots of the working tree at turn start and turn end are diffed; every file a file tool edits is copied whole before its first edit and again at turn end, covering the files git does not. Without a repository or git, only file-tool edits are listed. The Session log receives one `workspace/changes` event naming the turn; summaries and comparisons stay on the Host until the Session is disposed. The Web changed-files card renders them.
 
 ## Table of Contents
 
@@ -25,29 +25,27 @@ See which files a top-level turn changed, with line counts and a comparison of e
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the plugin with a Session store and a local subprocess provider. Git enables working-tree snapshots; its absence leaves file-tool capture available.
+The shipped Web bundle mounts this plugin. Mount it in any composition with the `subprocess` capability and a git executable on the Host:
 
 ```yaml
-- name: '@deepseek-ai/dsh-session'
-- name: '@deepseek-ai/dsh-subprocess-local'
 - name: '@deepseek-ai/dsh-workspace-changes'
+  config:
+    maxFiles: 500
 ```
-
-All bounds must be positive safe integers.
 
 | Field | Default | Meaning |
 |---|---|---|
-| `timeoutMs` | `30000` | Milliseconds allowed for each git command |
-| `outputMaxBytes` | `8388608` | Retained git stdout bytes; an oversized diff listing abandons the turn's record |
-| `maxFiles` | `500` | Listed files per summary; totals include omitted files |
-| `maxFileBytes` | `2097152` | Inclusive byte cap for a captured file or a snapshot side read for comparison |
-| `diffTimeoutMs` | `100` | Milliseconds for line comparison before whole-file replacement |
+| `timeoutMs` | `30000` | Milliseconds one git command may run before the turn's record is abandoned |
+| `outputMaxBytes` | `8388608` | Bytes of git output retained per command; a larger diff listing abandons the record |
+| `maxFiles` | `500` | Maximum files carried by one summary; `total` still reports the complete count |
+| `maxFileBytes` | `2097152` | Bytes a file may hold to be captured around a file-tool edit or read from a snapshot for its comparison; a larger file gets no comparison, and one captured around a file-tool edit is also listed without counts |
+| `diffTimeoutMs` | `100` | Milliseconds a line comparison may run before it degrades to whole-file replacement |
 
-The recorder observes Sessions with a working directory, excluding subagent origins and positive delegation depths. It captures each path before the turn's first `write`, `edit`, or mutating `str_replace_editor` call. Paths covered by snapshots use git counts; ignored paths and paths outside the repository use captured content. Without snapshots, every file-tool edit uses captures. Repeated edits count once, including subsequent shell edits to a captured path. Unchanged captures are omitted; two oversized sides remain listed because their contents are unknown.
+Every Session with a working directory and no subagent origin is recorded; subagent Sessions are not. Snapshots are written through a private index into a temporary object directory owned by the Session, with the repository's own object store attached as a read-only alternate; the repository's index, objects, work tree, and refs stay untouched, and the user's earlier uncommitted changes never enter a summary. Session disposal removes the directory. Nested repositories and submodules inside the working directory are recorded as gitlinks, so their internal changes do not appear. A working directory outside any git repository takes no snapshots. Without git — or, on macOS, with only the developer-tools stub at `/usr/bin/git` — no repository is located either, and the plugin logs that once. Either way the summary lists the file-tool edits alone, as described next, with the working directory as the workspace; shell edits are absent.
 
-Each `workspace/changes` event carries the turn number. `ctx.workspaceChanges.summary(sessionId, seq)` returns its summary, and `ctx.workspaceChanges.diff(sessionId, seq, index, signal)` compares the file at that summary index. The service returns undefined for unavailable records or files. Caller cancellation rejects a pending read; Session disposal makes it unavailable. Text comparisons have three context lines, `binary` and `oversized` results carry no text, and `coarse` marks a comparison that exceeded its time budget. See the [service types](src/types.ts) for all returned fields.
+Before a `write`, `edit`, or mutating `str_replace_editor` call runs, the recorder copies the file at its path into the Session's temporary directory, once per path per turn, and copies it again at turn end; the copies are named by the SHA-1 of their bytes, so identical content is stored once. This needs no git. Paths the snapshots cover keep their git counts; the copies serve the other paths — files matching an ignore pattern, files outside the repository, and every file-tool edit when there is no snapshot — with counts from a line comparison of the two copies, so repeated edits to one file count once and a shell edit after a file-tool edit is included. A path whose content is unchanged at turn end is not listed. A copy larger than `maxFileBytes` is not stored: the file is listed with `oversized` and no counts, and a path whose both sides are that large is listed too, since unread content is never known to be unchanged. A path whose only difference is a missing final newline compares as unchanged, while git still counts that line. Files under `/tmp` or the platform temporary directory are excluded unless they lie inside the repository. Changes made only through shell commands outside the snapshot coverage are not recorded.
 
-Files sort by their slash-separated `display` path: relative to the working directory, `../` for repository files above it, `~/` under the home directory, otherwise absolute. The file's `path` is relative inside the working directory and absolute elsewhere; absolute Windows paths retain native separators.
+Each file carries a durable `path` — relative to the working directory inside it, absolute elsewhere — and a `display` path used for ordering and labels: the relative path, a `../` path for repository files above the working directory, a `~` path under the home directory, otherwise the absolute path. Files sort by `display` in code-unit order, which lists parent and absolute paths before the working directory's own files. The `workspace/changes` event carries only the turn number; `ctx.workspaceChanges.summary(sessionId, seq)` returns the summary the event with that sequence announced, or undefined once the Session is disposed or when this Host process never recorded it. `ctx.workspaceChanges.diff(sessionId, seq, index, signal)` compares the listed file at that index: hunks with three context lines from the two snapshot trees or the two copies, `binary` for a side git reported as binary or that holds a NUL byte, `oversized` for a side larger than `maxFileBytes`. A line comparison that runs longer than `diffTimeoutMs` degrades to one hunk replacing every line, marked `coarse`. A conversation reopened after a Host restart therefore has no card, and no comparison, for its earlier turns.
 
 -----
 
@@ -57,13 +55,11 @@ Files sort by their slash-separated `display` path: relative to the working dire
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The [recorder](src/recorder.ts) serializes baseline snapshots, captures, and turn-end records for each Session. Tools wait for queued work before executing. A private index and object store isolate snapshot writes from the repository's ordinary index and object store; committed objects are read through an alternate. Captured copies are content-addressed and bounded reads consume at most `maxFileBytes + 1` bytes. Comparisons read retained snapshots or copies, so later edits do not alter their contents.
+One `TurnRecorder` per Session serializes its git work. `turn/start` queues the baseline: `rev-parse` locates the repository once per Session and the Session's temporary object directory is created, then `add --all --ignore-errors` into a temporary index seeded from the repository's index and `write-tree` produce the tree id; an unreadable file is skipped and reported through git's exit code 1, which the snapshot accepts. Each turn holds its own state object, so a record still running for an interrupted turn keeps that turn's files when the next turn starts. Every command runs with `GIT_OBJECT_DIRECTORY` pointing at the temporary directory and `GIT_ALTERNATE_OBJECT_DIRECTORIES` at the repository's objects, so committed content is read from the repository and new objects never land there. Every `tools/pre-execute` waits for that queue before a tool runs, so no mutation can precede its baseline; the same step queues the whole-file capture of the path a `write`, `edit`, or mutating `str_replace_editor` call names, so the copy precedes the edit, and `tool/result` events only mark that the turn has results to record. `agent/turn-stopping` records inside the turn: a second snapshot, `diff-tree -r -M --numstat` between the two trees, `check-ignore` for captured paths inside the work tree, a second copy and line comparison of each uncovered path, the appended event, and the summary kept under the event's sequence beside each listed file's two content sources, a path in a snapshot tree or a copy. A comparison is computed when asked for: `ls-tree -l` locates and sizes a snapshot side and `cat-file blob` reads it under `maxFileBytes`, copies are read from disk, and both sides go through the same line comparison with its timeout. `turn/end` records again only when tool results settled after the last record attempt, which covers aborted, failed, and steered turns without repeating a failed attempt; an empty list after an earlier record supersedes it. The repository's index is only read.
 
-[Git commands](src/git.ts) run through the subprocess provider with scrubbed environment, bounded stdout and stderr, cancellation, and deadlines. `GIT_CONFIG_COUNT=0` excludes ambient indexed configuration whose key entries the credential scrub removes. Recording failures warn and skip that attempt; later turns retry. Session and plugin disposal abort queued work and remove retained records and temporary data.
+Git runs through the `subprocess` capability with a scrubbed environment, `GIT_CONFIG_COUNT=0` (ambient indexed configuration is excluded because the credential scrub removes its key entries), `GIT_TERMINAL_PROMPT=0`, `GIT_OPTIONAL_LOCKS=0`, the configured timeout, and bounded output. A failing step abandons that turn's record with a warning; the next turn starts afresh. Session disposal and plugin disposal abort queued work, forget the summaries, and remove the temporary directory.
 
-`agent/turn-stopping` records before the turn closes. A later tool result permits another record after `turn/end`; the latest event for that turn supersedes earlier records, including an empty result after changes were reverted.
-
-**Runtime invariant:** No companion is published. The recorder owns the summaries, snapshots, and captures together; there is no independently maintained observation to reconcile.
+**Runtime invariant:** No companion is published. Event listeners are effect-owned and the recorder owns the summaries, the snapshot trees, and the captured copies for its Session's lifetime; no independent observation can diverge from them.
 
 </details>
 
@@ -72,9 +68,9 @@ The [recorder](src/recorder.ts) serializes baseline snapshots, captures, and tur
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [Web deliverables](../../client/ui-deliverables/README.md) — renders changed files and comparisons.
-- [Subprocess capability](../../subprocess/README.md) — executes git commands and owns their processes.
-- [Architecture](../../../docs/architecture.md) — Session events and turn extension points.
+- [Web deliverables](../../client/ui-deliverables/README.md) — the changed-files card that reads the served summary and opens its files.
+- [Subprocess capability](../../subprocess/README.md) — the seam git runs through.
+- [Turn changed-files card decision](../../../.agents/notes/implemented/feature/2026-09-11-turn-changed-files-card.md) — snapshot design, coverage rules, the deferred shadow repository, and rejected alternatives.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -83,21 +79,23 @@ None, as the recorder appends a log-only `workspace/changes` event that only cli
 
 #### KV Cache effect
 
-Nothing enters model requests, so provider cache reuse is unaffected.
+Nothing here enters a model request, so provider cache reuse is unaffected.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-The recorder reports observed turn changes within these limits:
-
-- Records survive only for the live Session in this Host process; reopening after a Host restart cannot recover earlier summaries or comparisons.
-- Nested repositories and submodule contents are excluded. Outside snapshot coverage, files changed only through shell commands are absent; changes before a path's first file-tool call are also absent.
-- Scratch paths under temporary roots are excluded outside the workspace. Edits by another actor during the turn are attributed to that turn.
-- Snapshot storage includes every untracked, non-ignored file and has no aggregate disk cap. Git split indexes can write `sharedindex.*`, and git-lfs clean filters can write `.git/lfs` in the repository.
-- Oversized captured files have no counts or comparison; oversized snapshot files retain git counts. Binary files serve no text. Captured comparisons ignore a missing final newline; git counts may still include it.
-- Comparisons can disclose ignored files and files outside the workspace to the client. Deployments that must keep this content on the Host omit this plugin.
-- A coarse comparison includes both files' lines, with input content up to twice `maxFileBytes` plus hunk metadata and line prefixes.
+- Summaries, snapshot trees, and captured copies live only as long as their Session in this Host process; earlier turns of a conversation reopened after a Host restart have no card and no comparison. This is the decided behavior: a card whose content the Host can no longer open is not shown.
+- Two git features still write into the repository's own git directory during a snapshot: `core.splitIndex` writes `sharedindex.*` files, and git-lfs runs its clean filter on changed files and stores their objects under `.git/lfs`.
+- git 2.13 or later is required for `rev-parse --absolute-git-dir`; an unsupported repository format or another git failure abandons the turn with a warning rather than being treated as a plain directory.
+- The first snapshot of a Session writes every untracked, non-ignored file of the work tree into the Session's temporary directory; a repository without a `.gitignore` that carries large build outputs costs that much temporary space until the Session is disposed.
+- Edits the user makes during a turn are attributed to that turn.
+- A working directory outside any git repository lists file-tool edits only, so shell edits are missing from its card; a shadow repository under the Harness home is deferred until its exclude rules can replace a missing `.gitignore` reliably.
+- Outside snapshot coverage only paths a file tool names are captured: a file only a shell command changes there is absent, and a file both changed before its first file-tool call is compared from that call onward.
+- Every file-tool edit copies its whole file once per turn, up to `maxFileBytes`, even for paths the snapshots also cover; the copies go with the Session's temporary directory.
+- A comparison serves the listed file's complete text to the client, including ignored files, repository files above the working directory, and files outside the workspace; the summary route serves only paths and counts. A deployment that must keep such content on the Host composes this plugin out.
+- A comparison that degrades to whole-file replacement carries every line of both sides, up to twice `maxFileBytes`.
+- Windows paths keep native separators in `path`; `display` is always slash-separated.
 
 <a id="dev-note"></a>
 ### Dev Note

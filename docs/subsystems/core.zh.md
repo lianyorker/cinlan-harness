@@ -419,9 +419,9 @@ type Branded<B extends string> = string & { readonly [BRAND]: B }
 
 两个核心 ID 是 `ToolCallId`（关联工具调用及其结果；dsh-llm）和 `SessionId`（活跃 agent 与持久会话共享的标识；dsh-session）。能力包也会品牌化各自的 id，例如 [jobs.md](jobs.zh.md) 中的 `JobId`。
 
-## 插件贡献的预设
+## Agent 预设
 
-已安装插件可通过 `AgentPresets.registerSystemRoot(path)` 贡献只读预设目录。发现过程只在注册插件的生命周期内包含该目录，且随附与显式配置根目录优先。撤回不会删除文件或已加入的组装。[预设包](../../packages/preset/agent-presets/README.zh.md)负责发现与创作细节。
+预设是普通的 Cordis 配置：[`@deepseek-ai/dsh-agent-preset`](../../packages/preset/agent-preset/README.zh.md) 声明标识、展示元数据和子插件列表，[`@deepseek-ai/dsh-agent-preset-registry`](../../packages/preset/agent-preset-registry/README.zh.md) 负责选择与运行时修订。新增预设与覆盖都是 profile 或 bundle 补丁；registry 不扫描任何目录。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -753,7 +753,7 @@ async standingKeyFor(id?: string): Promise<ScopeKey>
 
 Types: [ScopeKey](scope.zh.md)
 
-Source: [`packages/preset/agent-presets/src/index.ts`](../../packages/preset/agent-presets/src/index.ts)
+Source: [`packages/preset/agent-preset-registry/src/index.ts`](../../packages/preset/agent-preset-registry/src/index.ts)
 
 <a id="ctxagents--agentregistry"></a>
 
@@ -1306,5 +1306,5 @@ One session committed a different agent preset to its durable log. Consumers inv
 'agent-preset/selected'(sessionId: SessionId, agentPreset: string): void
 ```
 
-Source: [`packages/preset/agent-presets/src/types.ts`](../../packages/preset/agent-presets/src/types.ts)
+Source: [`packages/preset/agent-preset-registry/src/types.ts`](../../packages/preset/agent-preset-registry/src/types.ts)
 <!-- END GENERATED cordis-surface -->

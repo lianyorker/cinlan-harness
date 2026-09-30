@@ -100,7 +100,7 @@ describe('dsh-tool-git through a real cordis.yml Loader composition', () => {
     ])
     const agentId = SessionId('loader-git-agent')
     const session = Session.create(agentId, [], {
-      version: 3,
+      version: 4,
       id: agentId,
       createdAt: 0,
       isSeeded: false,

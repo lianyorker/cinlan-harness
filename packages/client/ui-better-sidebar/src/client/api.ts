@@ -3,6 +3,7 @@
  * HTTP calls retain the Session cwd hint; Git repository selection belongs to the Host.
  */
 import type { ClientRemote, RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-api-sidebar-git-controller/remote'
 import type { GitCommitPreview, GitSessionRequest } from '@deepseek-ai/dsh-sidebar-git/types'
 import { encodeHtmlUrl } from '../html-route.ts'
 import type { LastActivity } from '../subagent-activity.ts'

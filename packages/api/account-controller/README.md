@@ -1,5 +1,5 @@
 ---
-description: "Secret-free account authorization state, caller-owned prompt streams, and local credential deletion over Remote."
+description: "Account screens use authenticated Remote commands and a snapshot stream. The controller exposes login state without returning tokens or PKCE secrets."
 kind: "package-reference"
 ---
 
@@ -9,60 +9,51 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `account` Remote namespace exposes registered authorization flows to Account Settings without exposing credential records. It lists methods and local configured state, routes notices and prompt metadata only to the caller that started an attempt, accepts answers through a one-way command, and deletes local credential records without claiming issuer revocation.
+Account screens use authenticated Remote commands and a snapshot stream. The controller exposes login state without returning tokens or PKCE secrets.
 
 ## Table of Contents
 
-- [Use the Remote](#use-the-remote)
-- [Security and lifetime](#security-and-lifetime)
-- [Further Exploration](#further-exploration)
+- [Use this package](#use-this-package)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 
-<a id="use-the-remote"></a>
-## Use the Remote
+<a id="use-this-package"></a>
+## Use this package
 
-`snapshot` returns a complete list of registered authorization flows. `watch` immediately yields that secret-free view and then coalesces flow registration, in-flight, and credential-presence changes. Each flow contains its credential key, provider label, methods, in-flight state, and local record presence, kind, and writability. It never contains the record payload.
+The account namespace exposes getState, getProfile / getBalance, getUnnotifiedBonuses, ackBonusNotified, startSignIn, cancelSignIn, signOut, and watch. watch emits an initial complete state and subsequent complete states; disconnecting stops observation, not the login attempt. Cancellation names the attempt ID so a stale screen cannot cancel a newer login. getUnnotifiedBonuses returns null and ackBonusNotified returns false while the account is absent or has changed; failures the caller should retry arrive as thrown Remote errors.
 
-`authorize` opens a stream owned by the calling surface. The first frame supplies branded attempt and method identities. Later frames carry provider notices, prompt metadata, prompt withdrawal, and a discriminated settlement. Notice links cross the wire only when they are absolute HTTP(S) URLs without URL credentials. Failures use fixed classes instead of upstream exception text.
+Every operation that reaches Platform takes the calling UI's `AccountClientMetadata` — client version, active language, and UTC offset in seconds — so the Host reports the requesting UI rather than the last caller it saw. Cancellation and watch remain identity-free because they never reach Platform.
 
-Call `answer` with the active attempt and prompt identities. Text and secret answers are resolved directly to the waiting authorization flow and never enter a snapshot, stream frame, controller log, or retained attempt view. Call `cancel` with the attempt identity to withdraw only that caller-owned operation.
+`watchExpiry` delivers live credential-expiry notifications without an initial item or replay. Desktop uses this stream to hand off a one-shot toast when switching to Welcome.
 
-`deleteCredential` accepts keys belonging to registered flows. It holds the authorization service's per-key exclusive reservation across the complete local read and delete, so direct authorization callers and controller attempts cannot start while deletion is pending; it also retains the controller's early in-flight check and rejects read-only records. A successful result reports whether a local record existed and fixes `issuerRevoked` to `false`: this operation does not call the issuer.
+`hasRunningAccountTasks` checks running Agents through the account-owned predicate over their latest logged request context, including tools and retries. Idle Agents and API-key contexts are excluded. The account provider independently cancels matching tasks when credentials are removed.
 
-<a id="security-and-lifetime"></a>
-## Security and lifetime
+<a id="understand-the-implementation"></a>
+## Understand the implementation
 
-The controller depends on `typert`, `authorization`, and `credentials`. Authorization registry subscriptions and credential update events drive complete replacement snapshots. A complete snapshot is limited to 256 KiB and each authorization frame to 64 KiB as serialized UTF-8 JSON. A paused watcher accumulates no history, each authorization queue retains at most 32 frames, and the Client independently retains at most 16 notices. Only notice frames may be discarded; if control frames cannot stay within either limit, the authorization is cancelled and its stream fails with `account/output-limit`.
-
-Caller cancellation or controller disposal aborts the owned authorization. Prompt cancellation combines the attempt signal with any flow-supplied prompt signal, so a provider cannot keep the controller waiting by omitting a prompt-local signal. The authorization service retains the credential key until the flow runner actually settles, so local deletion and a replacement attempt remain blocked after a non-cooperative flow's caller has received cancellation. The controller disposer directly detaches paused watch listeners, closes authorization attempts, rejects pending prompts, and waits for its `runAttempt` work; it does not own the provider runner retained by the authorization service. Generated `./typert` and `./remote` entries publish the Host descriptors and Client namespace.
-
-No invariant companion is published because the controller has no durable projection independent from the authorization and credential services.
+The controller forwards operations to the account service and maintains no independent account state; no invariant companion is published.
 
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [Credentials subsystem](../../../docs/subsystems/credentials.md) — credential keys, record storage, and authorization flow ownership.
-- [Authorization seam](../../credentials/authorization/README.md) — provider registration, human interaction, and settlement.
-- [API Gateway reference](../../../docs/api-gateway.md) — Remote generation and invocation.
+The [credentials subsystem](../../../docs/subsystems/credentials.md) owns storage APIs; the [architecture](../../../docs/architecture.md) explains application composition.
 
 <a id="model-experience"></a>
 ## Model Experience
 
-None. Account authorization and local credential management are configuration-time operations, and their notices, prompts, and state do not enter model requests.
+None, as account credentials affect HTTP authentication and never enter model prompts, Session logs, or tool results.
 
 #### KV Cache effect
 
-No invalidation; this controller adds nothing to a request prefix.
+No model request prefix changes.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-- Local credential deletion cannot revoke issuer-side credential or account access. The user must revoke it at the issuer when required.
-- Only currently registered authorization flows are listed. An orphan record from an uninstalled provider remains outside this Settings view.
-- Attempts are process-local and caller-owned. Reloading the initiating page cancels the stream and requires a new authorization attempt.
+<a id="known-limitations-and-deferred-work"></a>
+
+- A disconnected UI can recover account state through watch, but cannot resume an attempt after the Host exits. Credentials and request-token resolution are not Remote operations.
 
 <a id="dev-note"></a>
 ### Dev Note
 
-No runtime invariant companion is published because this controller has no independent durable projection; authorization and credentials own the state relationships it observes.
+The [desktop login decision](../../../.agents/notes/implemented/architecture/2026-09-14-deepseek-account-login.md) records cancellation and storage ownership.

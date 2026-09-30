@@ -1,15 +1,15 @@
 ---
-description: "用于已授权工作区预览的 Host 文档转换包映射。"
+description: "Host Office 转换和可复用 PDF 结果的包索引。"
 kind: "package-group"
 ---
 
-# document/——文档转换
+# document/ — Office 转换
 
 [English](README.md) | 中文
 
-## 概述
+## 摘要
 
-本组为工作区预览提供 Host 文档转换。Office 转换器生成受限、可缓存的 PDF 结果，不修改源文件。Workspace Files 负责 Session 授权；转换器负责排队任务、取消与输出字节。包 README 说明支持的格式、限制与原生引擎要求。
+在宿主上将已授权的 Office 文件转换为可复用的 PDF。共享服务使用 LibreOffice kit 执行转换。声明了原生引擎的目标使用原生引擎，其余目标使用 Node WASM。
 
 ## 目录
 
@@ -22,20 +22,29 @@ kind: "package-group"
 <a id="packages"></a>
 ## 包
 
-| 包 | 职责 | 服务 |
+每个包负责自身配置和生命周期规则；子系统参考描述共享转换操作。
+
+| 包 | 职责 | ctx 键 |
 |---|---|---|
-| [office-to-pdf](office-to-pdf/README.zh.md) | 将已授权的 Office 源文件转换为供预览使用的 PDF | `ctx.officeToPdf` |
+| [office-to-pdf](office-to-pdf/README.zh.md) | 将已授权 Office 字节转换为完整 PDF，并提供有界队列和缓存 | `ctx.officeToPdf` |
 
 -----
 
 <a id="related-documentation"></a>
 ## 相关文档
 
-- [工作区子系统](../../docs/subsystems/workspace.zh.md)——工作区服务与 Office 转换 API。
-- [Workspace Files](../api/workspace-files/README.zh.md)——本地 Session 授权与受限源文件读取。
-- [配置目录](../../docs/config-catalog.zh.md#deepseek-aidsh-office-to-pdf)——转换器支持的配置字段。
+消费者负责源文件授权与展示。
+
+- [文档转换](../../docs/subsystems/office-to-pdf.zh.md) — 共享操作和生成的服务参考。
+- [独立 kit 所有权](../../.agents/notes/implemented/architecture/2026-09-14-independent-libreoffice-kit.zh.md) — 引擎分发与应用集成。
+- [工作区文件](../api/workspace-files/README.zh.md) — 已授权的有界源文件读取。
 
 <a id="dev-note"></a>
 ## 开发备注
 
+<details>
+<summary>维护者工作上下文 — 点击展开</summary>
+
 无。
+
+</details>

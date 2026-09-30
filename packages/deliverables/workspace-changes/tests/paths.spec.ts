@@ -1,5 +1,5 @@
 /** Display, durable, canonical, and temporary path rules. */
-import { mkdir, realpath, symlink, unlink } from 'node:fs/promises'
+import { mkdir, realpath, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -50,10 +50,7 @@ describe('canonicalPath', () => {
     const root = await scratchDir('dsh-canonical-', cleanups)
     const real = join(root, 'real')
     await mkdir(join(real, 'nested'), { recursive: true })
-    const link = join(root, 'link')
-    // Directory junctions exercise canonical resolution without Windows symlink privileges.
-    await symlink(real, link, process.platform === 'win32' ? 'junction' : 'dir')
-    cleanups.push(() => unlink(link))
+    await symlink(real, join(root, 'link'))
     const resolvedReal = await realpath(real)
     expect(await canonicalPath(join(root, 'link', 'nested'))).toBe(join(resolvedReal, 'nested'))
     expect(await canonicalPath(join(root, 'link', 'nested', 'new.txt'))).toBe(join(resolvedReal, 'nested', 'new.txt'))

@@ -3,8 +3,6 @@ import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { bindSnapshotSelector, makeTranslate, stubSettingsScope, TestSessions, TestWorkspaces } from '@deepseek-ai/dsh-client-test-runtime'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { SessionPendingInteractionSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
 import type { NotificationSettings } from '@deepseek-ai/dsh-notifications/types'
 import { NotificationsSection } from '../src/client/NotificationsSection.tsx'
 import type { NotificationsSectionProps } from '../src/client/NotificationsSection.tsx'
@@ -14,7 +12,6 @@ function bench(value: Partial<NotificationSettings> = {}) {
   const ctx = new Context()
   const sessions = new TestSessions(async (fn) => { await fn() }, ctx)
   const workspaces = new TestWorkspaces(async (fn) => { await fn() })
-  const interactions = createSnapshotStore<SessionPendingInteractionSnapshot>(new Map())
   onTestFinished(async () => { await sessions.disposeScopes(); await ctx.fiber.dispose() })
   const settings = stubSettingsScope<NotificationSettings>()
   settings.publish({
@@ -32,9 +29,11 @@ function bench(value: Partial<NotificationSettings> = {}) {
   const props: NotificationsSectionProps = {
     close: vi.fn(),
     t: makeTranslate(en, {}),
+    usePanelInfo: (() => ({})) as any,
+    useSessionStatus: (() => ({})) as any,
+    useSessionRetainInfo: (() => ({})) as any,
     useSessions: bindSnapshotSelector(sessions.list),
     useWorkspaces: bindSnapshotSelector(workspaces.list),
-    useSessionPendingInteraction: bindSnapshotSelector(interactions),
     useResource: () => { throw new Error('Resource hook is not used by this fixture') },
     useSettings: bindSnapshotSelector(settings.scope),
     writePreference, writeQuietHours, selectCustomSound, resetPreferences, testNotification,

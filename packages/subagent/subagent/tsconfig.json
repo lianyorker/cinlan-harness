@@ -9,9 +9,6 @@
   ],
   "references": [
     {
-      "path": "../../execution-host/execution-binding"
-    },
-    {
       "path": "../../../vendor/cosmokit"
     },
     {
@@ -19,9 +16,6 @@
     },
     {
       "path": "../../../vendor/schemastery"
-    },
-    {
-      "path": "../../settings/settings"
     },
     {
       "path": "../../attachment/attachment"
@@ -45,10 +39,7 @@
       "path": "../../interaction/user-approval"
     },
     {
-      "path": "../../interaction/permission-presets"
-    },
-    {
-      "path": "../../preset/agent-presets"
+      "path": "../../preset/agent-preset-registry"
     },
     {
       "path": "../../sandbox/sandbox"
@@ -63,10 +54,10 @@
       "path": "../../session/session-projection"
     },
     {
-      "path": "../../session/session-projection-cache"
+      "path": "../../session-query/session-query"
     },
     {
-      "path": "../../session-query/session-query"
+      "path": "../../workspace/workspace"
     },
     {
       "path": "../../jobs/jobs"
@@ -78,10 +69,13 @@
       "path": "../../util/time"
     },
     {
-      "path": "../../util/chunked-list"
+      "path": "../../runtime-diagnostics/invariants"
     },
     {
-      "path": "../../runtime-diagnostics/invariants"
+      "path": "../../interaction/permission-presets"
+    },
+    {
+      "path": "../../util/chunked-list"
     }
   ]
 }

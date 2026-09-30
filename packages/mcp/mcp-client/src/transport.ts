@@ -6,9 +6,9 @@
  * @module
  */
 
-import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import type { Transport } from '@modelcontextprotocol/client'
+import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
 import type { Config } from './index.ts'
 
@@ -26,10 +26,9 @@ function buildChildEnv(extra: Record<string, string>): Record<string, string> {
  * Create an MCP transport from the resolved plugin config.
  *
  * @param config - Resolved plugin config discriminated on `transport`.
- * @param suppressStderr - discard child diagnostics for credential-managed launches.
  * @returns A connected-ready MCP Transport (stdio or Streamable HTTP).
  */
-export function createTransport(config: Config, suppressStderr = false): Transport {
+export function createTransport(config: Config): Transport {
   switch (config.transport) {
     case 'stdio':
       return new StdioClientTransport({
@@ -37,16 +36,11 @@ export function createTransport(config: Config, suppressStderr = false): Transpo
         args: config.args,
         env: buildChildEnv(config.env),
         cwd: config.cwd,
-        ...suppressStderr ? { stderr: 'ignore' as const } : {},
       })
     case 'streamable-http':
-      // The MCP SDK's StreamableHTTPClientTransport has optional callback
-      // properties typed without `| undefined` (exactOptionalPropertyTypes
-      // mismatch with the Transport interface); the SDK constructed the
-      // object, so the cast records only that widening.
       return new StreamableHTTPClientTransport(
         new URL(config.url),
         { requestInit: { headers: config.headers } },
-      ) as Transport
+      )
   }
 }

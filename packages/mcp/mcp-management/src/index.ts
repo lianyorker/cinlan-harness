@@ -290,8 +290,8 @@ export class McpManagement extends Service {
         try {
           const handle = launchMcpClient(ctx, this.transportConfig(record), {
             owner: { kind: 'managed', recordId: record.id },
-            resolveConfig: signal => this.resolveConfig(record, secrets, signal),
-            redact: (text) => {
+            resolveConfig: (signal: AbortSignal) => this.resolveConfig(record, secrets, signal),
+            redact: (text: string) => {
               let redacted = text
               for (const secret of secrets) redacted = redacted.replaceAll(secret, '[redacted]')
               return redacted
@@ -299,7 +299,7 @@ export class McpManagement extends Service {
           })
           child.handle = handle
           ctx.effect(() => handle.subscribe(() => { this.publish() }), 'mcp-management.connection-view')
-        } catch (error) {
+        } catch (error: unknown) {
           /* v8 ignore next -- Admitted synchronous launches only throw branded namespace failures; retain a safe unexpected-error code. */
           child.failure = error instanceof McpConnectionFailure ? error.code : 'connection-failed'
         }

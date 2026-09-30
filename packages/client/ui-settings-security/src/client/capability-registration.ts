@@ -5,7 +5,8 @@ import type { CapabilityDefinition, CapabilitySectionInjected, CapabilitySection
 import { CapabilitySection } from './CapabilitySection.tsx'
 import { CAPABILITY_FIELDS } from './settings-fields.ts'
 import type { ProviderActivationCallbacks } from './ProviderActivation.tsx'
-import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
+import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-host-plugin-inventory'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 
 /** Locale namespace used by the capability section renderers. */
 export const CAPABILITY_LOCALE = 'settings.cinlanCapabilities' as const

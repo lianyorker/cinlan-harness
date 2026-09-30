@@ -52,7 +52,7 @@ function sourceOf(gateway: GatewayProbe): TypertRemoteEventSource {
 }
 
 function emitRaw(ctx: Context, event: string, args: readonly unknown[]): void {
-  const emit = ctx.emit.bind(ctx) as unknown as (name: string, ...values: readonly unknown[]) => void
+  const emit = ctx.emit.bind(ctx) as (name: string, ...values: readonly unknown[]) => void
   emit(event, ...args)
 }
 
@@ -63,7 +63,7 @@ function waterfallRaw(
   args: readonly unknown[],
   next: () => Promise<unknown>,
 ): Promise<unknown> {
-  const waterfall = ctx.waterfall.bind(ctx) as unknown as (
+  const waterfall = ctx.waterfall.bind(ctx) as (
     receiver: object,
     name: string,
     ...values: readonly unknown[]
@@ -123,13 +123,15 @@ describe('Remote event Host source', () => {
       },
     })
 
-    emitRaw(ctx, 'permission-presets/catalog-changed', [])
-    for (const stream of [first, second]) {
-      await expect(stream.next()).resolves.toEqual({
-        done: false,
-        value: { event: 'permission-presets/catalog-changed', args: [] },
-      })
-    }
+    emitRaw(ctx, 'schedule/changed', [])
+    await expect(first.next()).resolves.toEqual({
+      done: false,
+      value: { event: 'schedule/changed', args: [] },
+    })
+    await expect(second.next()).resolves.toEqual({
+      done: false,
+      value: { event: 'schedule/changed', args: [] },
+    })
 
     const firstDone = first.next()
     firstAbort.abort(new Error('first Client disconnected'))

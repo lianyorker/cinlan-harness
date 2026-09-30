@@ -1,4 +1,4 @@
-/** Phone root: authorized selection and the existing embedded Conversation slot. */
+import { useState } from 'react'
 import type { PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -12,7 +12,7 @@ export interface PairedShellInjected {
 
 /** Framework-derived root props with no business-owned hooks. */
 export type PairedShellProps = PropsRuntime<'root'>
-  & PropsRenderSlots<'conversation'>
+  & PropsRenderSlots<'main.conversation'>
   & PropsLocale<'pairedShell'>
   & PairedShellInjected
 
@@ -22,9 +22,11 @@ export type PairedShellProps = PropsRuntime<'root'>
  * @returns Phone conversation root.
  */
 export function PairedShell({ useSessions, renderSlot, selectSession, t }: PairedShellProps) {
+  const [selectedSessionId, setSelectedSessionId] = useState<SessionId | undefined>(undefined)
   const list = useSessions(value => value)
-  const selectedSession = list.current !== undefined && list.ids.includes(list.current)
-    ? list.current : undefined
+  const selectedSession = (selectedSessionId !== undefined && list.ids.includes(selectedSessionId))
+    ? selectedSessionId
+    : list.ids[0]
   return (
     <main className={css.root}>
       <header className={css.header}>
@@ -35,7 +37,10 @@ export function PairedShell({ useSessions, renderSlot, selectSession, t }: Paire
           value={selectedSession ?? ''}
           onChange={(event) => {
             const id = list.ids.find(candidate => candidate === event.currentTarget.value)
-            if (id !== undefined) selectSession(id)
+            if (id !== undefined) {
+              setSelectedSessionId(id)
+              selectSession(id)
+            }
           }}
         >
           <option value="" disabled>{t('choose')}</option>
@@ -44,7 +49,7 @@ export function PairedShell({ useSessions, renderSlot, selectSession, t }: Paire
       </header>
       <section className={css.conversation}>
         {selectedSession !== undefined
-          ? renderSlot('conversation', { embedded: true })
+          ? renderSlot('main.conversation', { embedded: true })
           : <p className={css.empty} role="status">{t(list.phase !== 'ready' ? 'loading' : list.ids.length === 0 ? 'empty' : 'choose')}</p>}
       </section>
     </main>

@@ -1,4 +1,5 @@
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import type { ContextFormed } from '@deepseek-ai/dsh-llm'
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import {
@@ -6,15 +7,18 @@ import {
   CompactionEngine,
   compactCheckpointSource,
   isCompactCheckpointSource,
-  formatCheckpointFooter,
-  CHECKPOINT_FOOTER_RE,
-  ManualCompactionError,
 } from '@deepseek-ai/dsh-compaction'
 import type { CompactionResult, CompactionTrigger } from '@deepseek-ai/dsh-compaction'
 import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionSeq } from '@deepseek-ai/dsh-session'
 import type { CompactionAgentContext } from '@deepseek-ai/dsh-compaction'
 import type { ManualCompactAgentContext } from '@deepseek-ai/dsh-compaction'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'other': { kind: 'other' } & ContextFormed
+  }
+}
 
 /**
  * A trivial concrete CompactionEngine implementing the abstract contract. The
@@ -149,7 +153,7 @@ describe('CompactionEngine seam', () => {
       && isCompactCheckpointSource(event.data.source))
     expect(checkpoint?.type === 'user/message' && checkpoint.data.source)
       .toEqual(compactCheckpointSource(result.compactionId))
-    expect(isCompactCheckpointSource({ kind: 'plugin', plugin: 'other' })).toBe(false)
+    expect(isCompactCheckpointSource({ kind: 'other' })).toBe(false)
     expect(isCompactCheckpointSource({ kind: 'user' })).toBe(false)
     expect(session.snapshotEvents().filter(e => e.type.startsWith('compaction/')).map(e => e.type))
       .toEqual(['compaction/start', 'compaction/summary', 'compaction/end'])
@@ -170,24 +174,5 @@ describe('CompactionEngine seam', () => {
 
     await svc.compactIfNeeded(stubAgent(session), 'context-overflow', controller.signal)
     expect(svc.lastSignal).toBe(controller.signal)
-  })
-
-  it('formats and parses checkpoint footers round-trip byte-identically', () => {
-    const footer = formatCheckpointFooter(42, 5, 20)
-    expect(footer).toBe('[checkpoint c42: shadows conversation span #5–#20; originals retrievable via history_read]')
-    const match = CHECKPOINT_FOOTER_RE.exec(footer)
-    expect(match).not.toBeNull()
-    expect(match?.[1]).toBe('42')
-    expect(match?.[2]).toBe('5')
-    expect(match?.[3]).toBe('20')
-  })
-
-  it('constructs ManualCompactionError with code, message, and options', () => {
-    const cause = new Error('root cause')
-    const err = new ManualCompactionError('busy', 'lock held', { cause })
-    expect(err.name).toBe('ManualCompactionError')
-    expect(err.code).toBe('busy')
-    expect(err.message).toBe('lock held')
-    expect(err.cause).toBe(cause)
   })
 })

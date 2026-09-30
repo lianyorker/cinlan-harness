@@ -39,7 +39,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => ctx.locale.register(ns, { en, zh }), 'floating workspace: dictionaries')
   const t = ctx.locale.bind(ns)
   const settings = ctx.settingsScope.bind<FloatingWorkspaceSettings>({ namespace: 'floating-workspace' })
-  const environment = browserWindowEnvironment(window, () => ctx.sessions.list.getSnapshot().current, config.windowClosedPollMs)
+  const environment = browserWindowEnvironment(window, () => (ctx.uiWorkspace as any)?.selection?.getSnapshot?.()?.sessionId ?? ctx.sessions.list.getSnapshot().ids[0], config.windowClosedPollMs)
   const runtime = new FloatingRuntime(settings, environment)
   ctx.effect(() => () => runtime.dispose(), 'floating workspace: exact app-window lifetime')
   ctx.provide('floatingWorkspaceContext', runtime.terminalContext)
@@ -61,7 +61,7 @@ export function apply(ctx: Context, config: Config): void {
           resolved = true
           const id = catalog.ids.find(candidate => candidate === target)
           if (id === undefined) runtime.setTargetUnavailable(true)
-          else ctx.sessions.open(id)
+          else ctx.uiWorkspace.openSession(id)
         }
         const off = ctx.sessions.list.subscribe(select)
         select()

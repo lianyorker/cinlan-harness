@@ -2,35 +2,42 @@
   "extends": "../../../tsconfig.base.client.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "lib/types"
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.client.tsbuildinfo"
   },
   "include": [
     "src/client",
     "src/changes.ts",
-    "src/css-modules.d.ts",
-    "src/presented.ts"
+    "src/presented.ts",
+    "src/css-modules.d.ts"
   ],
   "references": [
     {
-      "path": "../../api/remotes/tsconfig.client.json"
+      "path": "../ui-settings/tsconfig.client.json"
     },
     {
       "path": "../../../vendor/cordis"
     },
     {
+      "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
       "path": "../connection/tsconfig.client.json"
     },
     {
-      "path": "../locale"
+      "path": "../locale/tsconfig.client.json"
     },
     {
       "path": "../store"
     },
     {
-      "path": "../ui-conversation"
+      "path": "../ui-conversation/tsconfig.client.json"
     },
     {
-      "path": "../ui-chat"
+      "path": "../ui-dockkit"
+    },
+    {
+      "path": "../ui-chat/tsconfig.client.json"
     },
     {
       "path": "../ui-renderer"
@@ -39,34 +46,28 @@
       "path": "../ui-primitives"
     },
     {
-      "path": "../ui-slots"
+      "path": "../ui-sidebar-right"
     },
     {
-      "path": "../../core/system-prompt"
+      "path": "../ui-slots"
     },
     {
       "path": "../../core/session"
     },
     {
-      "path": "../ui-sidebar-right"
+      "path": "../../llm/llm"
     },
     {
-      "path": "../ui-better-sidebar/tsconfig.client.json"
+      "path": "../ui-tool"
+    },
+    {
+      "path": "../../deliverables/tool-present"
     },
     {
       "path": "../../deliverables/workspace-changes"
     },
     {
       "path": "../../util/workspace-path"
-    },
-    {
-      "path": "../../deliverables/tool-present"
-    },
-    {
-      "path": "../ui-tool"
-    },
-    {
-      "path": "../../llm/llm"
     }
   ]
 }

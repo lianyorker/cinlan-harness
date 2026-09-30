@@ -75,7 +75,7 @@ async function setup() {
 }
 
 function workspaceRoot(): string {
-  return mkdtempSync(join(tmpdir(), 'dsh-acl-grants-ws-'))
+  return realpathSync(mkdtempSync(join(tmpdir(), 'dsh-acl-grants-ws-')))
 }
 
 function flag(argv: readonly string[], name: string): string | undefined {
@@ -102,6 +102,19 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
     }
     for (const dir of scratch.splice(0)) rmSync(dir, { recursive: true, force: true })
   }
+
+  it('does not create grants for a cancelled confinement request', async () => {
+    const { sandbox, fiber } = await setup()
+    try {
+      const ws = workspaceRoot()
+      scratch.push(ws)
+      const reason = new Error('cancel before grant creation')
+      await expect(sandbox.confine(['true'], {
+        mode: 'workspace-write', workspaceRoot: ws, sessionId: SessionId('cancelled'),
+      }, AbortSignal.abort(reason))).rejects.toBe(reason)
+      expect(mockState.grants).toEqual([])
+    } finally { await fiber.dispose(); cleanup() }
+  })
 
   it('workspace-write materializes one standing workspace grant and one private temp capability, then reuses both', async () => {
     try {

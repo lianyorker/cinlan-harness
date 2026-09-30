@@ -1,12 +1,9 @@
 /** Explicit deliveries commit only after a successful final tool result. */
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import Loader from '@deepseek-ai/cordis-plugin-loader'
-import Include from '@deepseek-ai/cordis-plugin-include'
-import { pathToFileURL } from 'node:url'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 import { unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
@@ -89,7 +86,6 @@ describe('present', () => {
     expect(files).toHaveLength(1)
     expect(owner.session.snapshotEvents().find(event => event.type === 'deliverables/presented')?.data.files).toEqual(files)
     expect(files).toEqual([{ path: '报告.docx', description: 'Report' }])
-    expect(owner.session.snapshotEvents().find(event => event.type === 'deliverables/presented')?.ignorable).toBeUndefined()
     expect(read).not.toHaveBeenCalled()
     expect(ctx.get('attachments')).toBeUndefined()
     await fiber.dispose()
@@ -140,7 +136,8 @@ describe('present', () => {
   it('rejects missing, non-file, empty, and excessive inputs', async () => {
     const { root, owner, execute } = await setup()
     await writeFile(join(root, 'large'), 'four')
-    for (const files of [[], [{ path: '' }], [{ path: 'missing' }], [{ path: '.' }], [{ path: 'large' }, { path: 'large' }, { path: 'large' }]]) {
+    await symlink(tmpdir(), join(root, 'outside'))
+    for (const files of [[], [{ path: '' }], [{ path: 'missing' }], [{ path: '.' }], [{ path: 'outside' }], [{ path: 'large' }, { path: 'large' }, { path: 'large' }]]) {
       const result = await execute(files)
       expect(result.isError, JSON.stringify(files)).toBe(true)
     }
@@ -182,10 +179,9 @@ it('declares readable files outside the Session directory using absolute and rel
 })
 
 it('refuses a final symlink to an ordinary file', async () => {
-  const { ctx, root, execute } = await setup()
+  const { root, execute } = await setup()
   await writeFile(join(root, 'source'), 'source')
-  const source = (await ctx.fs.lstat('source', { cwd: root }))!
-  vi.spyOn(ctx.fs, 'lstat').mockResolvedValueOnce({ ...source, type: 'symlink' })
+  await symlink(join(root, 'source'), join(root, 'link'))
   expect((await execute([{ path: 'link' }])).isError).toBe(true)
 })
 
@@ -196,84 +192,4 @@ it('refuses a file replaced by a directory after inspecting its final component'
   const directory = await ctx.fs.stat(await ctx.fs.resolve(root))
   vi.spyOn(ctx.fs, 'stat').mockResolvedValueOnce(directory)
   expect((await execute([{ path: 'source' }])).isError).toBe(true)
-})
-
-it('loads present from cordis.yml and records final delivery without reading source contents', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'dsh-present-loader-'))
-  cleanups.push(() => rm(root, { recursive: true, force: true }))
-  const ctx = new Context()
-  cleanups.push(() => ctx.fiber.dispose())
-  const path = join(root, 'cordis.yml')
-  await writeFile(path, [
-    "- name: '@deepseek-ai/dsh-system-prompt'",
-    "- name: '@deepseek-ai/dsh-tools'",
-    "- name: '@deepseek-ai/dsh-agent'",
-    "- name: '@deepseek-ai/dsh-fs-local'",
-    '  config:',
-    '    cwd: ' + JSON.stringify(root),
-    "- name: '@deepseek-ai/dsh-session-projection'",
-    "- name: 'test-turn-projection'",
-    "- name: '@deepseek-ai/dsh-tool-present'",
-    '',
-  ].join('\n'))
-  ctx.baseUrl = pathToFileURL(root).href + '/'
-  await ctx.plugin(Loader)
-  ctx.loader.builtins.include = Include
-  const modules = new Map<string, unknown>([
-    ['@deepseek-ai/dsh-system-prompt', SystemPrompt], ['@deepseek-ai/dsh-tools', ToolRuntime],
-    ['@deepseek-ai/dsh-agent', AgentRegistry], ['@deepseek-ai/dsh-fs-local', LocalFileSystem],
-    ['@deepseek-ai/dsh-session-projection', SessionProjectionRegistry],
-    ['test-turn-projection', { inject: ['sessionProjections'], apply(scope: Context) {
-      scope.sessionProjections.register(turnBoundaryProjectionDefinition)
-    } }],
-    ['@deepseek-ai/dsh-tool-present', Present],
-  ])
-  ctx.loader.internal = { version: 'v2', async import(specifier: string) {
-    if (!modules.has(specifier)) throw new Error('Unexpected Loader import: ' + specifier)
-    return modules.get(specifier)
-  } } as unknown as NonNullable<typeof ctx.loader.internal>
-  await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(path).href } })
-  await ctx.loader.await()
-  expect([...ctx.loader.entries()].filter(entry => entry.fiber === undefined && !entry.disabled)).toEqual([])
-  const owner = await agent(ctx, root)
-  owner.session.append('turn/start', { turn: 1 })
-  await writeFile(join(root, 'report.txt'), 'source version one')
-  const request = { signal: new AbortController().signal, callId: ToolCallId('loader-present'), name: 'present',
-    arguments: { files: [{ path: 'report.txt', description: 'Final report' }] }, agent: owner }
-  const result = await ctx.tools.execute(request)
-  expect(result.isError).toBe(false)
-  if (result.isError) throw new Error('Loader declaration failed')
-  expect(result.value).toMatchInlineSnapshot(
-    `
-    {
-      "files": [
-        {
-          "description": "Final report",
-          "path": "report.txt",
-        },
-      ],
-      "turn": 1,
-    }
-  `,
-  )
-  expect(owner.session.snapshotEvents().filter(event => event.type === 'deliverables/presented').map(event => event.data))
-    .toEqual([{ turn: 1, callId: 'loader-present', files: [{ path: 'report.txt', description: 'Final report' }] }])
-  expect((await ctx.tools.execute({ ...request, arguments: { files: Array.from({ length: 9 }, () => ({ path: 'report.txt' })) } })).isError).toBe(true)
-})
-
-it('keeps a completed nested declaration when its enclosing tool fails', async () => {
-  const { ctx, owner, root } = await setup()
-  await writeFile(join(root, 'nested.txt'), 'nested output')
-  ctx.tools.register(defineTool({
-    name: 'outer', description: 'Nested declaration fixture.', parameters: {},
-    output: { schema: { type: 'null' }, render: () => [] },
-    async execute(_args, exec) {
-      await ctx.tools.execute({ signal: exec.signal, callId: ToolCallId('inner-present'), name: 'present',
-        arguments: { files: [{ path: 'nested.txt' }] }, agent: owner })
-      throw new Error('Outer program failed after delivery')
-    },
-  }))
-  expect((await ctx.tools.execute({ signal: new AbortController().signal, callId: ToolCallId('outer'), name: 'outer', arguments: {}, agent: owner })).isError).toBe(true)
-  expect(owner.session.snapshotEvents().filter(event => event.type === 'deliverables/presented').map(event => event.data))
-    .toEqual([{ turn: 1, callId: 'inner-present', files: [{ path: 'nested.txt' }] }])
 })

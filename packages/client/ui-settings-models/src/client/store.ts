@@ -30,7 +30,6 @@ export interface ProviderDirectoryEntry {
   readonly settingsPath: readonly string[]
   readonly active: boolean
   readonly declared?: boolean
-  /** Adapter diagnostic when this provider cannot serve requests. */
   readonly error?: string
 }
 
@@ -38,7 +37,7 @@ export interface ProviderDirectoryEntry {
  * Join declared configurable providers with the currently registered routes.
  * @param registered - live provider routes in registration order.
  * @param directory - declared configurable providers in declaration order.
- * @returns declared rows followed by live routes with no declaration.
+ * @returns account and official routes first, then other routes in their original order.
  */
 export function joinProviderDirectory(
   registered: readonly LlmProviderInfo[],
@@ -65,11 +64,15 @@ export function joinProviderDirectory(
       active: true,
     })
   }
-  return rows
+  return rows.toSorted((left, right) =>
+    (left.provider === 'deepseek-account' ? 0 : left.provider === 'deepseek-official' ? 1 : 2)
+      - (right.provider === 'deepseek-account' ? 0 : right.provider === 'deepseek-official' ? 1 : 2))
 }
 
 /** One provider row the page renders. */
 export interface ProviderRow {
+  /** Account route has usable credentials for the configured inference origin. */
+  accountAvailable?: boolean
   /** The directory entry (route id, display name, settings address, live state). */
   entry: ProviderDirectoryEntry
   /** Whether any layer configures this provider (its profile resolves). */
@@ -116,7 +119,7 @@ export function deriveKeyRef(provider: string): string {
 }
 
 /**
- * The wire protocols a DeepSeek or hand-declared pi-ai route may name, read from its
+ * The wire protocols a hand-declared route may name, read out of the owning
  * namespace's own schema. This stays a schema read rather than a wire field so
  * the choices the page offers cannot drift from the ones the adapter accepts:
  * both come from the same `Config`.
@@ -129,8 +132,7 @@ export function protocolChoices(
   schema: SettingsSchemaOperations,
 ): string[] {
   if (namespace === undefined) return []
-  const path = namespace.ns === 'llm-deepseek' ? ['protocol'] : ['providers', PROBE_ROUTE, 'api']
-  const node = schema.nodeAtPath(schema.rehydrate(namespace.schema), path)
+  const node = schema.nodeAtPath(schema.rehydrate(namespace.schema), ['providers', PROBE_ROUTE, 'api'])
   const list = (node as { type?: string; list?: readonly { value?: unknown }[] } | undefined)
   if (list?.type !== 'union' || list.list === undefined) return []
   return list.list.map(entry => entry.value).filter((value): value is string => typeof value === 'string')
@@ -210,11 +212,18 @@ export class ModelsSettingsStore {
         entry,
         configured,
         removable,
-        apiKeyEnv: apiKeyEnvOf(namespace, entry.settingsPath, this.schema),
+        apiKeyEnv: entry.provider === 'deepseek-account' ? undefined : apiKeyEnvOf(namespace, entry.settingsPath, this.schema),
         credential: undefined,
       }
     })
-    const refs = [...new Set(rows.map(row => row.apiKeyEnv ?? deriveKeyRef(row.entry.provider)))]
+    if (rows.some(row => row.entry.provider === 'deepseek-account')) {
+      const catalog = await this.ctx.remote.session.modelCatalog()
+      for (const row of rows) {
+        if (row.entry.provider === 'deepseek-account') row.accountAvailable = catalog.ok
+          && catalog.value.groups.some(group => group.id === 'deepseek-account' && group.models.length > 0)
+      }
+    }
+    const refs = [...new Set(rows.filter(row => row.entry.provider !== 'deepseek-account').map(row => row.apiKeyEnv ?? deriveKeyRef(row.entry.provider)))]
     let credentials: Record<string, CredentialInfo> = {}
     let credentialError: string | null = null
     if (refs.length > 0) {
@@ -231,7 +240,8 @@ export class ModelsSettingsStore {
       s.error = null
       s.credentialError = credentialError
       s.writable = writable
-      s.rows = rows.map((row) => {
+      s.rows = rows.filter(row => row.entry.provider !== 'deepseek-account' || row.accountAvailable === true).map((row) => {
+        if (row.entry.provider === 'deepseek-account') return row
         const named = row.apiKeyEnv === undefined ? undefined : credentials[row.apiKeyEnv]
         const derived = row.apiKeyEnv !== undefined ? undefined : credentials[deriveKeyRef(row.entry.provider)]
         return {
@@ -256,7 +266,7 @@ export class ModelsSettingsStore {
 
 /**
  * Whether a joined row can serve model requests as it stands: the route is
- * registered without a provider error, and whatever credential its resolved
+ * registered with the adapter registry, and whatever credential its resolved
  * profile names is stored. A profile naming no reference authenticates through
  * the provider's own path (the Bedrock chain, Vertex ADC, a gateway that needs
  * nothing), as does a live route with no settings address at all, so neither
@@ -265,7 +275,8 @@ export class ModelsSettingsStore {
  * @returns whether the user already has this provider to talk to.
  */
 export function providerUsable(row: ProviderRow): boolean {
-  if (!row.entry.active || row.entry.error !== undefined) return false
+  if (!row.entry.active) return false
+  if (row.entry.provider === 'deepseek-account') return row.accountAvailable === true
   if (row.apiKeyEnv === undefined) return true
   return row.credential?.configured === true
 }
@@ -312,7 +323,7 @@ export function onboardingReadiness(state: ModelsSettingsState): OnboardingReadi
     && candidate.entry.settingsNs === 'llm-deepseek'
     && candidate.entry.settingsPath.length === 0)
   if (row === undefined) return { kind: 'adapter-absent' }
-  if (!row.entry.active || row.entry.error !== undefined) {
+  if (!row.entry.active) {
     return {
       kind: 'unavailable',
       reason: 'provider-inactive',

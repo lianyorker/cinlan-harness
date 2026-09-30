@@ -1,10 +1,9 @@
 /* oxlint-disable typescript/no-unsafe-assignment -- Vitest asymmetric matchers are typed as any. */
 import { Context } from '@deepseek-ai/cordis'
 import { Readable } from 'node:stream'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
 import BrowserRuntime, {
   BrowserElementId,
   BrowserObservationId,
@@ -836,12 +835,30 @@ describe('Playwright browser provider behavior', () => {
   })
 })
 
+function createMockSettings(initial: Record<string, unknown> = {}, onWrite?: (val: Record<string, unknown>) => Promise<void> | void) {
+  let registered = true
+  let stored = { ...initial }
+  return (c: Context) => {
+    c.provide('settings', {
+      describe: () => !registered ? [] : [{ ns: 'browser-playwright', applies: 'restart', value: stored }],
+      update: async (_ns: string, patch: Record<string, unknown>) => {
+        if (patch.viewportWidth === 0 || patch.storageDir === 'outside-profile') {
+          throw new Error('invalid')
+        }
+        stored = { ...stored, ...patch }
+        await onWrite?.(stored)
+      },
+      configure: () => () => { registered = false },
+    } as never)
+  }
+}
+
 describe('Playwright browser Cordis plugins', () => {
   it('registers and removes the Browser provider without launching it', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-browser-preferences-'))
     const ctx = new Context()
     try {
-      await ctx.plugin(FileSettingsProvider, { path: join(root, 'settings.json'), watch: false })
+      await ctx.plugin(createMockSettings())
       await ctx.plugin(BrowserRuntime)
       ctx.provide('subprocess', { spawn: vi.fn(() => { throw new Error('Unexpected installer') }) } as never)
       await ctx.plugin(BrowserRuntimeManager, { storageDir: join(root, 'runtime') })
@@ -868,7 +885,9 @@ it('persists browser preferences, rejects invalid dimensions, and applies saved 
   const launch = vi.spyOn(chromium, 'launchPersistentContext').mockImplementation(async () => new FakeContext() as unknown as BrowserContext)
   try {
     const settingsPath = join(root, 'settings.json')
-    await ctx.plugin(FileSettingsProvider, { path: settingsPath, watch: false })
+    await ctx.plugin(createMockSettings({}, async (val) => {
+      await writeFile(settingsPath, JSON.stringify({ 'browser-playwright': val }))
+    }))
     await ctx.plugin(BrowserRuntime)
     ctx.provide('subprocess', { spawn: vi.fn(() => { throw new Error('Unexpected installer') }) } as never)
     await ctx.plugin(BrowserRuntimeManager, { storageDir: join(root, 'runtime') })
@@ -989,7 +1008,7 @@ it('supports remote debugging port and exposes cdpEndpoint', async () => {
     expect(b.provider.cdpEndpoint()).toBe('http://127.0.0.1:9222')
     await b.provider.listPages()
     expect(b.launch).toHaveBeenCalledOnce()
-    const options = b.launch.mock.calls[0]?.[1]
+    const options = b.launch.mock.calls[0]?.[1] as { args?: string[] } | undefined
     expect(options?.args).toContain('--remote-debugging-port=9222')
   } finally {
     await b.provider.dispose()

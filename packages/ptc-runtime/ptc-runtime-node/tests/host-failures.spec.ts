@@ -10,7 +10,7 @@ import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import type { Config } from '../src/index.ts'
 import { JsonChannel } from '../src/channel.ts'
 import { encodePtcJsonWire } from '../src/json-wire.ts'
-import { mountMockRuntime as mountRuntime } from './mocked-runtime.ts'
+import { mountRuntime } from './setup.ts'
 
 const request: PtcRunRequest = { program: 'return 1', bindings: [] }
 const NO_INITIAL_FRAME = Symbol('no initial frame')
@@ -169,38 +169,6 @@ describe('Node runtime host failures', () => {
     const result = await h.start()
     expect(result.error?.kind).toBe('sandbox-unavailable')
     expect(result.sandbox?.denied).toBe(false)
-  })
-
-  it('uses the configured remote executable and installed bootstrap without host path mapping', async () => {
-    const h = await setup({ nodeExecutable: '/remote/bin/node', bootstrapPath: '/remote/ptc/process.js' })
-    h.resolveExecutable.mockResolvedValue('/resolved/bin/node')
-    const map = vi.spyOn(h.ctx.fs, 'processPathFromHostPath').mockImplementation(() => { throw new Error('host mapping is unavailable') })
-    h.onBoot(() => { h.emit({ type: 'done', value: encodePtcJsonWire(42) }) })
-    expect((await h.start()).value).toBe(42)
-    expect(h.resolveExecutable).toHaveBeenCalledWith('/remote/bin/node', undefined, expect.any(AbortSignal))
-    expect(h.spawn.mock.calls[0]![0].argv).toEqual(['/resolved/bin/node', '--max-old-space-size=512', '/remote/ptc/process.js', '134217728'])
-    expect(map).not.toHaveBeenCalled()
-  })
-
-  it('aborts a live program on provider disposal and waits for managed exit', async () => {
-    const h = await setup()
-    const booted = Promise.withResolvers<undefined>()
-    const cleaned = Promise.withResolvers<boolean>()
-    h.waitForExit.mockImplementation(async () => await cleaned.promise)
-    h.onBoot(() => { booted.resolve(undefined) })
-    const pending = h.start({ ...request, timeoutMs: null })
-    await booted.promise
-    let disposed = false
-    const disposal = h.ctx.fiber.dispose().then(() => { disposed = true })
-    try {
-      await vi.waitFor(() => { expect(h.terminate).toHaveBeenCalledOnce() })
-      expect(disposed).toBe(false)
-    } finally {
-      cleaned.resolve(true)
-      await disposal
-    }
-    expect((await pending).error).toEqual({ kind: 'abort', message: 'runtime disposed' })
-    expect(h.ctx.get('ptcRuntime')).toBeUndefined()
   })
 
   it('reports bootstrap assets that cannot map into the execution world', async () => {

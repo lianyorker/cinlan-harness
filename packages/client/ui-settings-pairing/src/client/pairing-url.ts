@@ -1,5 +1,5 @@
 /** Build the HTTPS pairing URL without placing invitation secrets in its request URL. */
-import type { PairingInvitation } from '@deepseek-ai/dsh-remote-access/types'
+import type { PairingInvitation } from './types.ts'
 
 /**
  * Build the one-time pairing URL consumed by the phone form and QR encoder.

@@ -28,16 +28,17 @@ function review(): WorktreeTaskReview {
 const useWorkspaces: WorktreeTaskSectionProps['useWorkspaces'] = select => select({
   items: [{ workspaceId: task().workspaceId, title: 'Registered workspace', path: '/projects/real',
     sessionIds: [], createdAt: '2026-09-10T00:00:00Z', updatedAt: '2026-09-10T00:00:00Z' }],
-  archivedSessionIds: [], state: 'idle', phase: 'ready', error: null,
+  archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null,
 })
 
 function props(overrides: Partial<WorktreeTaskSectionProps> = {}): WorktreeTaskSectionProps {
   const dictionary: Readonly<Record<string, string>> = en
   return {
     close: vi.fn(), useWorkspaces,
-    useSessions: select => select({ ids: [], byId: {}, current: undefined, phase: 'ready',
-      subagentsByParent: {}, jobsBySession: {}, currentAddress: undefined }),
-    useSessionPendingInteraction: select => select(new Map()),
+    usePanelInfo: (() => ({})) as any,
+    useSessionStatus: (() => ({})) as any,
+    useSessionRetainInfo: (() => ({})) as any,
+    useSessions: ((select: any) => select({ ids: [], byId: {}, phase: 'ready', jobsBySession: {}, currentAddress: undefined })) as any,
     useResource: () => { throw new Error('Resource hook is not used by this fixture') },
     t: (key, params: Record<string, unknown> = {}) =>
       Object.entries(params).reduce((text, [name, value]) => text.replaceAll('{' + name + '}', String(value)), dictionary[key] ?? key),
@@ -107,7 +108,7 @@ describe('native worktree task settings', () => {
   it('withholds creation without a registered workspace and recovers provider read failures', async () => {
     const list = vi.fn().mockRejectedValueOnce(new Error(en.errorUnavailable)).mockResolvedValue([])
     const p = props({ list, useWorkspaces: select => select({
-      items: [], archivedSessionIds: [], state: 'idle', phase: 'ready', error: null,
+      items: [], archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null,
     }) })
     render(<WorktreeTaskSection {...p} />)
     expect((await screen.findByRole('alert')).textContent).toBe(en.errorUnavailable)

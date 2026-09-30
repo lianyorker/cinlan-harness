@@ -19,8 +19,6 @@ export interface FixtureTurnResult {
 /** Options for one fixture turn against exactly one configured root agent. */
 export interface FixtureTurnOptions {
   readonly task: string
-  /** Cancels the wait for successful startup; does not interrupt idle waits or a submitted task. */
-  readonly signal?: AbortSignal
   readonly onEvent?: (sessionId: string, event: SessionEvent) => void
 }
 
@@ -40,37 +38,19 @@ function assistantText(event: Extract<SessionEvent, { type: 'assistant/message' 
   return blocks.length === 0 ? undefined : blocks.map(block => block.text).join('')
 }
 
-async function onlyRootAgent(ctx: Context, signal: AbortSignal | undefined): Promise<Agent> {
-  signal?.throwIfAborted()
+async function onlyRootAgent(ctx: Context): Promise<Agent> {
   const registry = ctx.get('agents')
   if (registry === undefined) throw new Error('fixture turn requires exactly one top-level agent, found 0')
   // Configured agents publish asynchronously (persistence create/resume runs
   // before publication), so a settled Loader does not imply a registered
-  // agent yet. Only session-start confirms creation listeners succeeded.
+  // agent yet; wait for the first publication instead of requiring it.
   if (registry.roots().length === 0) {
-    const ready = Promise.withResolvers<void>()
-    let pending: Agent | undefined
-    const abort = (): void => { ready.reject(signal?.reason) }
-    const stopCreated = ctx.on('agent/created', ({ agent }) => {
-      if (registry.roots().includes(agent)) pending = agent
+    await new Promise<void>((resolve) => {
+      const dispose = ctx.on('agent/created', () => {
+        dispose()
+        resolve()
+      })
     })
-    const stopStarted = ctx.on('agent/session-start', ({ agent }) => {
-      if (registry.roots().includes(agent)) ready.resolve()
-    })
-    const stopDisposed = ctx.on('agent/disposed', ({ agent }) => {
-      if (agent === pending) ready.reject(new Error(`fixture agent "${agent.id}" was disposed before startup completed`))
-    })
-    signal?.addEventListener('abort', abort, { once: true })
-    try {
-      signal?.throwIfAborted()
-      await ready.promise
-    } finally {
-      signal?.removeEventListener('abort', abort)
-      const cleanups = await Promise.allSettled([stopCreated, stopStarted, stopDisposed]
-        .map(dispose => Promise.resolve().then(dispose)))
-      const failures = cleanups.filter(result => result.status === 'rejected').map((result): unknown => result.reason)
-      if (failures.length > 0) throw new AggregateError(failures, 'fixture startup listener cleanup failed')
-    }
   }
   const agents = registry.roots()
   const [agent] = agents
@@ -82,17 +62,13 @@ async function onlyRootAgent(ctx: Context, signal: AbortSignal | undefined): Pro
 
 /**
  * Drive one task from its durable inbox receipt through whole-agent idle.
- * The caller may abort the wait for `agent/session-start` with `options.signal`
- * and must await this operation before disposing its context. Cancellation
- * does not interrupt `whenIdle()` or stop a task after submission.
- * @param ctx - Loader context with one ready root agent or one pending root creation.
- * @param options - task, optional publication signal, and canonical-event observer.
- * @returns the final assistant text and accumulated model usage after listener cleanup.
+ * @param ctx - settled Loader context with exactly one configured root agent.
+ * @param options - task and optional canonical-event observer.
+ * @returns the final assistant text and accumulated model usage.
  */
 export async function runFixtureTurn(ctx: Context, options: FixtureTurnOptions): Promise<FixtureTurnResult> {
-  const agent = await onlyRootAgent(ctx, options.signal)
+  const agent = await onlyRootAgent(ctx)
   await agent.whenIdle()
-  options.signal?.throwIfAborted()
 
   const message = createUserMessage({
     content: [{ type: 'text', text: options.task }],
@@ -127,7 +103,7 @@ export async function runFixtureTurn(ctx: Context, options: FixtureTurnOptions):
     agent.followup(message)
     await agent.whenIdle()
   } finally {
-    await Promise.resolve().then(disposeListener)
+    disposeListener()
   }
   await ctx.sessions.flush(agent.session)
   const usage = [...usageByStep.values()].reduce<TokenUsage | undefined>(addUsage, undefined)

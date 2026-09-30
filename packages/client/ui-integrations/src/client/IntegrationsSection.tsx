@@ -2,8 +2,14 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button, IconLinkOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { IntegrationPreflightSnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 import type { IntegrationSettingsKey } from './locales.ts'
+
+export interface IntegrationPreflightSnapshot {
+  readonly provider: 'github' | 'gitlab' | 'gitee'
+  readonly status: 'connected' | 'not-installed' | 'not-authenticated' | 'not-configured' | 'unavailable' | 'checking'
+  readonly reason: string | null
+  readonly account: string | null
+}
 import css from './IntegrationsSection.module.css'
 
 /** Registration-side callback for real provider tool and authentication checks. */

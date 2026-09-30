@@ -125,7 +125,7 @@ describe('createVoiceApi', () => {
     const remote = createVoiceRemote()
     const controller = new AbortController()
     const cancellation = new DOMException('Stop transcription', 'AbortError')
-    remote.transcribe.mockImplementation((_request, requestSignal) => new Promise((_resolve, reject) => {
+    remote.transcribe.mockImplementation((_request: any, requestSignal?: AbortSignal) => new Promise((_resolve, reject) => {
       requestSignal!.addEventListener('abort', () => { reject(cancellation) }, { once: true })
     }))
     const result = createVoiceApi(remote).transcribe('zh', 'YWJj', controller.signal)

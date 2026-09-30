@@ -25,8 +25,10 @@ async function fixture(dictionary: Record<BrowserElementCaptureKey, string> = en
   }
   const props: BrowserElementCaptureSectionProps = {
     close: vi.fn(), t: makeTranslate(dictionary, {}),
+    usePanelInfo: (() => ({})) as any,
+    useSessionStatus: (() => ({})) as any,
+    useSessionRetainInfo: (() => ({})) as any,
     useSessions: bindSnapshotSelector(runtime.sessions.list),
-    useSessionPendingInteraction: bindSnapshotSelector(runtime.ctx.uiSession.pendingInteractions),
     useWorkspaces: bindSnapshotSelector(runtime.workspaces.list),
     useResource: () => { throw new Error('Resource hook is not used by this fixture') },
     ...callbacks,

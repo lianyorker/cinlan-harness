@@ -56,7 +56,6 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@types/js-yaml": "^4.0.9",
     "js-yaml": "^4.2.0",
-    "@deepseek-ai/dsh-settings-file": "workspace:^",
     "@deepseek-ai/dsh-settings": "workspace:^",
     "playwright-core": "^1.61.1",
     "@deepseek-ai/dsh-typert-registry": "workspace:^"

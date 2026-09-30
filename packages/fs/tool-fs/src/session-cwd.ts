@@ -10,7 +10,7 @@
 import type { ToolExecution } from '@deepseek-ai/dsh-tools'
 
 /**
- * The session workspace cwd, preserved for resolution by the filesystem provider.
+ * The session workspace cwd for this call, or `undefined` when none applies.
  * @param exec - the tool-execution context; only its optional `agent` is read.
  * @returns the calling agent's session cwd, or undefined for a non-agent caller (the backend then applies its own default).
  */

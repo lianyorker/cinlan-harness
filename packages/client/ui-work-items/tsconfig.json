@@ -18,7 +18,10 @@
       "path": "../../api/work-items-controller"
     },
     {
-      "path": "../locale"
+      "path": "../../api/integration-preflight-controller"
+    },
+    {
+      "path": "../locale/tsconfig.client.json"
     },
     {
       "path": "../ui-primitives"
@@ -27,7 +30,7 @@
       "path": "../ui-renderer"
     },
     {
-      "path": "../ui-settings"
+      "path": "../ui-settings/tsconfig.client.json"
     },
     {
       "path": "../ui-slots"

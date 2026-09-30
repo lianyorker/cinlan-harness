@@ -1,6 +1,7 @@
 /** Apply-owned MCP Remote readback and cancellable command lifetimes. */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-api-mcp-controller/remote'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {

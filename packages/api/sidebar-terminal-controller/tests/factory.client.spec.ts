@@ -29,7 +29,7 @@ function externalTransport(opening?: SidebarTerminalFrame) {
   const arrivals: PendingFetch[] = []
   const receivers: Array<(request: PendingFetch) => void> = []
   const streams = new Set<AbortSignal>()
-  const fetch = vi.fn<ClientTransportHooks['fetch']>((url) => {
+  const fetch: any = vi.fn(((url: any) => {
     const response = Promise.withResolvers<Response>()
     const request = { url, fail: (error: Error) => { response.reject(error) } }
     pending.add(request)
@@ -37,7 +37,7 @@ function externalTransport(opening?: SidebarTerminalFrame) {
     if (receive === undefined) arrivals.push(request)
     else receive(request)
     return response.promise.finally(() => { pending.delete(request) })
-  })
+  }) as any)
   const hooks: ClientTransportHooks = {
     fetch,
     async *openStream(endpoint, _payload, signal) {

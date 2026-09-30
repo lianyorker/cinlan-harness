@@ -18,13 +18,14 @@ import type {
 } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-file-upload/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { EncodedImageAttachment, ImageMediaType } from '@deepseek-ai/dsh-attachment'
+import type { ImageMediaType } from '@deepseek-ai/dsh-attachment'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {
   ComposerAttachment, ComposerFileAttachment, ComposerImageAttachment, DraftFileUpload,
 } from './contract/slots.ts'
-import type { QueueAction, QueueItemId } from './contract/queue.ts'
+import type { QueueAction } from '@deepseek-ai/dsh-api-session-controller/types'
+import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
 import type { ComposerBlocks } from './contract/composer-blocks.ts'
 import type {
   DraftAttachmentId, DraftAttachmentSerializationResult, SessionInputResolver, SubmitAttachment, SubmitOutcome,
@@ -51,19 +52,12 @@ export interface IConversation {
    */
   send(text: string): Promise<void>
   /**
-   * Add an encoded image to the caller scope's existing draft without sending it.
-   * @param image - Canonical image bytes and metadata from a human capture or upload.
-   * @returns Whether the draft accepted the image; an admission in progress refuses it.
-   * @throws When the caller has no live Session scope or image decoding fails.
-   */
-  addImageDraft(image: EncodedImageAttachment): boolean
-  /**
    * Apply one edit, remove, or Steer operation to a pending queue occurrence.
    * @param itemId - agent-owned inbox occurrence identity.
    * @param action - requested queue operation.
    * @returns completion; converged QueueDock races resolve, while other failures reject.
    */
-  updateQueue(itemId: QueueItemId, action: QueueAction): Promise<void>
+  updateQueue(itemId: MessageId, action: QueueAction): Promise<void>
   /**
    * Cancel the scoped session's in-flight turn while preserving its pending Queue.
    * @returns completion; failures reject as in send.
@@ -216,17 +210,6 @@ export class ConversationController extends Service implements IConversation {
     const session = this.scopedSession('send')
     const result = await session.prompt([{ type: 'text', text }], 'queue')
     if (!result.ok) throw new Error(`conversation.send failed: ${result.error.code}: ${result.error.message}`)
-  }
-
-  /** Add one encoded image through the existing scoped draft registry. */
-  addImageDraft(image: EncodedImageAttachment): boolean {
-    const session = this.scopedSession('addImageDraft')
-    const input = this.input.for(this.ctx)
-    const data = Uint8Array.from(atob(image.data), character => character.charCodeAt(0))
-    const drafts = this.createDrafts(session.sessionId, [new File([data], image.name ?? '', { type: image.mediaType })])
-    if (input.addAttachments(drafts.map(draft => draft.id))) return true
-    this.releaseDraftAttachments(drafts)
-    return false
   }
 
   /**
@@ -509,7 +492,7 @@ export class ConversationController extends Service implements IConversation {
   }
 
   /** Apply one operation to a pending queue occurrence. */
-  async updateQueue(itemId: QueueItemId, action: QueueAction): Promise<void> {
+  async updateQueue(itemId: MessageId, action: QueueAction): Promise<void> {
     const session = this.scopedSession('updateQueue')
     const result = await session.updateQueue(itemId, action)
     if (!result.ok) {
@@ -611,8 +594,12 @@ function imageMediaType(value: string): ImageMediaType {
   }
 }
 
-/** Whether a browser-declared MIME selects the image draft path (all other files upload verbatim). */
-function isImageMediaType(value: string): boolean {
+/**
+ * Whether a browser-declared MIME selects the image draft path (all other files upload verbatim).
+ * @param value - the browser's declared MIME type.
+ * @returns whether the file is an accepted raster image.
+ */
+export function isImageMediaType(value: string): boolean {
   return value === 'image/png' || value === 'image/jpeg' || value === 'image/webp' || value === 'image/gif'
 }
 

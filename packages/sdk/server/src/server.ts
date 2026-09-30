@@ -8,14 +8,14 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { resolve } from 'node:path'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import type { Agent, AgentHandle, AgentSetup, AgentSetupCommit } from '@deepseek-ai/dsh-agent'
+import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import { admitEncodedImages, type EncodedImageAttachment, type ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { createUserMessage, ReasoningEffortId, type ContentBlock, type LlmRuntime } from '@deepseek-ai/dsh-llm'
 import { carrierKeyOf, type Scoped } from '@deepseek-ai/dsh-scope'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import type { SubagentRunEndInfo } from '@deepseek-ai/dsh-subagent'
-import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek'
+import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
 import type {
   InitializeParams,
   InitializeResult,
@@ -30,20 +30,6 @@ import type {
 
 interface SessionRecord {
   handle: AgentHandle
-}
-
-interface OptionalExecutionBindings {
-  setup(ctx: Context, agent: Agent): Promise<AgentSetupCommit | void>
-}
-
-/** Resolve the optional execution-aware Agent setup without making SDK-only profiles depend on its provider. */
-function executionSetup(ctx: Context): AgentSetup | undefined {
-  const services = ctx as unknown as {
-    get(name: 'executionBindings'): OptionalExecutionBindings | undefined
-  }
-  const bindings = services.get('executionBindings')
-  if (bindings === undefined) return undefined
-  return (agentCtx, agent) => bindings.setup(agentCtx, agent)
 }
 
 function encodedImage(block: SessionPromptParams['contentBlocks'][number]): block is SdkEncodedImageBlock {
@@ -135,7 +121,9 @@ export class HarnessSdkJsonRpcServer {
         childSessionId: String(info.id),
         status: successStatus(info.stopReason, serverOptions),
         stopReason: info.stopReason,
-        ...(info.lastAssistantMessage === undefined ? {} : { lastAssistantMessage: info.lastAssistantMessage }),
+        ...(info.lastAssistantMessage === undefined
+          ? {}
+          : { lastAssistantMessage: [...info.lastAssistantMessage] }),
       }
       transport.notify('subagent.finished', payload)
     }))
@@ -163,7 +151,7 @@ export class HarnessSdkJsonRpcServer {
       : ReasoningEffortId(params.reasoningEffort)
     if (!this.hasAdapterFor(provider)) {
       if (provider !== 'deepseek-official') throw new Error(`no adapter registered for provider "${provider}"`)
-      this.llmFiber = await this.ctx.plugin(LlmDeepSeek, {})
+      this.llmFiber = await this.ctx.plugin(LlmDeepSeek)
     }
     // Adapter presence was read from this service above; a successful fallback mount also requires it.
     const llm = this.ctx.get('llm') as LlmRuntime
@@ -289,12 +277,10 @@ export class HarnessSdkJsonRpcServer {
     // No preset composition: this server's compositions keep the model-facing
     // rows in the host plane, so this agent reads them from the global layer. A
     // deployment that configures a roster has to join one here first
-    // (@deepseek-ai/dsh-agent-presets README, "Composing a child agent").
-    const setup = executionSetup(this.ctx)
+    // (@deepseek-ai/dsh-agent-preset-registry README, "Composing a child agent").
     const handle = await this.ctx.agents.create({
       sessionId: brandString<SessionId>(sessionId),
       meta: { cwd: this.cwd },
-      ...(setup === undefined ? {} : { setup }),
       agentOptions: {
         provider: this.provider,
         model: this.model,

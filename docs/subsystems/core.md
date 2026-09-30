@@ -409,9 +409,9 @@ type Branded<B extends string> = string & { readonly [BRAND]: B }
 
 The two core IDs are `ToolCallId` (correlates a tool call with its result; dsh-llm) and `SessionId` (the shared live agent and durable session identity; dsh-session). Capability packages brand their own ids too, such as `JobId` in [jobs.md](jobs.md).
 
-## Plugin-contributed presets
+## Agent presets
 
-Installed plugins can contribute a read-only preset directory through `AgentPresets.registerSystemRoot(path)`. Discovery includes the directory only for the registering plugin's lifetime and gives shipped and explicitly configured roots precedence. Withdrawal leaves files and joined compositions intact. The [preset package](../../packages/preset/agent-presets/README.md) owns discovery and authoring details.
+Presets are ordinary Cordis configuration: [`@deepseek-ai/dsh-agent-preset`](../../packages/preset/agent-preset/README.md) declares an identity, display metadata and child plugin list, and [`@deepseek-ai/dsh-agent-preset-registry`](../../packages/preset/agent-preset-registry/README.md) owns selection and runtime revisions. New presets and overrides are profile or bundle patches; the registry scans no directories.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -743,7 +743,7 @@ async standingKeyFor(id?: string): Promise<ScopeKey>
 
 Types: [ScopeKey](scope.md)
 
-Source: [`packages/preset/agent-presets/src/index.ts`](../../packages/preset/agent-presets/src/index.ts)
+Source: [`packages/preset/agent-preset-registry/src/index.ts`](../../packages/preset/agent-preset-registry/src/index.ts)
 
 <a id="ctxagents--agentregistry"></a>
 
@@ -1296,5 +1296,5 @@ One session committed a different agent preset to its durable log. Consumers inv
 'agent-preset/selected'(sessionId: SessionId, agentPreset: string): void
 ```
 
-Source: [`packages/preset/agent-presets/src/types.ts`](../../packages/preset/agent-presets/src/types.ts)
+Source: [`packages/preset/agent-preset-registry/src/types.ts`](../../packages/preset/agent-preset-registry/src/types.ts)
 <!-- END GENERATED cordis-surface -->

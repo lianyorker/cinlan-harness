@@ -160,7 +160,8 @@ async function waitGone(pid: number, timeoutMs = 5_000): Promise<void> {
         const state = stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3)
         if (state === 'Z' || state === 'X') return
       } catch (error: unknown) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+        const code = (error as NodeJS.ErrnoException).code
+        if (code === 'ENOENT' || code === 'ESRCH') return
         throw error
       }
     }
@@ -538,20 +539,6 @@ describe('output truncation and spill', () => {
 })
 
 describe('OutputCollector', () => {
-  it('snapshots independent raw tail bytes with the full byte count across truncation', () => {
-    const collector = new OutputCollector(4, 'snapshot', undefined)
-    const first = Buffer.from([0, 255, 128, 1])
-    collector.push(first)
-    const snapshot = collector.snapshot()
-    expect(snapshot).toEqual({ bytes: first, totalBytes: 4 })
-    snapshot.bytes.fill(9)
-    expect(collector.snapshot().bytes).toEqual(first)
-    collector.push(Buffer.from([2, 3]))
-    expect(collector.snapshot()).toEqual({ bytes: Buffer.from([128, 1, 2, 3]), totalBytes: 6 })
-    collector.seal()
-    expect(collector.snapshot().totalBytes).toBe(6)
-  })
-
   it('keeps the tail of a single oversized chunk', () => {
     const collector = new OutputCollector(10, 'test', spillOptions(100).options)
     collector.push(Buffer.from('0123456789abcdef'))
@@ -651,7 +638,7 @@ describe('OutputCollector', () => {
     unlinkSync(spillPath)
   })
 
-  it('keeps collecting when the spill directory has been removed', () => {
+  it('keeps collecting when the spill directory has been removed (ENOENT on open)', () => {
     const removedDir = mkdtempSync(join(tmpdir(), 'dsh-subprocess-removed-'))
     rmSync(removedDir, { recursive: true, force: true })
     const { options, failures } = spillOptions(100, removedDir)
@@ -668,7 +655,7 @@ describe('OutputCollector', () => {
     expect(out.spillPath).toBeUndefined()
   })
 
-  it('keeps collecting when the spill directory is a file', () => {
+  it('keeps collecting when the spill directory is a file (ENOTDIR on open)', () => {
     const fileAsDir = join(spillDir, `not-a-dir-${Date.now()}`)
     writeFileSync(fileAsDir, '')
     const { options, failures } = spillOptions(100, fileAsDir)
@@ -680,7 +667,7 @@ describe('OutputCollector', () => {
     expect(collector.finalize()).toEqual({ text: 'bbbb', truncated: true })
   })
 
-  it('withdraws a spill whose append fails after the file exists', () => {
+  it('withdraws a spill whose append fails after the file exists (ENOSPC on write)', () => {
     const { options, failures } = spillOptions(100)
     const collector = new OutputCollector(4, 'enospc', options)
     collector.push(Buffer.from('aaaa'))

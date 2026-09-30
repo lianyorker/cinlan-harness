@@ -1,97 +1,61 @@
-/** Native Desktop update admission and task inspection. */
+/** Desktop installation admission and task inspection for the shared Web Host. */
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-jobs'
-
-/** Actions supported by the Desktop update coordinator. */
-export type DesktopUpdateTaskAction = 'inspect' | 'lock' | 'unlock'
+import type {} from '@deepseek-ai/dsh-client-connection'
 
 /**
- * Owns request admission while an update coordinator inspects or drains Host work.
- * API response-body lifetime is intentionally outside admission; long-lived streams
- * cannot block installation after their handler has accepted the request.
+ * Whether stopping the Host now would interrupt work: a generating or tool-running
+ * agent (including subagents and turns waiting for approval), queued inbox
+ * messages, or a running or stopping background job.
+ * @param liveAgents - Current agent roster.
+ * @param jobs - Job registry queried for the global roster and each agent's own jobs.
+ * @returns true when any of those conditions holds.
  */
-export class DesktopUpdateTaskControl {
-  private locked = false
-  private generation = 0
-  private disposed = false
-  private changed = Promise.withResolvers<void>()
-  private readonly admitted = new Set<Promise<void>>()
-
-  /** @param ctx - Booted profile context used to inspect agent and job services. */
-  constructor(private readonly ctx: Context) {
-    ctx.effect(() => () => { this.dispose() })
-  }
-
-  /** Close admission and invalidate any draining lock. */
-  dispose(): void {
-    this.disposed = true
-    this.invalidate()
-  }
-
-  private invalidate(): void {
-    this.generation++
-    this.changed.resolve()
-    this.changed = Promise.withResolvers<void>()
-  }
-
-  /**
-   * Dispatch an API request while admission is open, returning 503 while locked.
-   * @param dispatch - Handler that resolves after accepting work, before response-body consumption.
-   * @returns the handler response or admission refusal.
-   */
-  async dispatch(dispatch: () => Promise<Response>): Promise<Response> {
-    if (this.disposed || this.locked) return new Response(null, { status: 503 })
-    return this.admit(dispatch)
-  }
-
-  /**
-   * Admit local or delegated work through the same draining update lock.
-   * @param operation - operation to begin while admission is open.
-   * @returns its result; rejects before execution when locked or disposed.
-   */
-  async admit<T>(operation: () => T | Promise<T>): Promise<T> {
-    if (this.disposed || this.locked) throw new Error('desktop update: request admission is closed')
-    const done = Promise.withResolvers<void>()
-    this.admitted.add(done.promise)
-    try { return await operation() }
-    finally { this.admitted.delete(done.promise); done.resolve() }
-  }
-
-  /**
-   * Inspect or change update admission and report live agent/job work.
-   * @param action - inspection, draining lock, or unlock.
-   * @returns whether active tasks remain.
-   */
-  async run(action: DesktopUpdateTaskAction): Promise<boolean> {
-    if (this.disposed) throw new Error('desktop update: Host is stopping')
-    const agents = this.ctx.get('agents')
-    const jobs = this.ctx.get('jobs')
-    if (agents === undefined || jobs === undefined) {
-      throw new Error('desktop update: task services are unavailable')
-    }
-    if (action === 'unlock') {
-      this.locked = false
-      this.invalidate()
-    } else if (action === 'lock') {
-      this.locked = true
-      this.invalidate()
-      const generation = this.generation
-      await Promise.race([Promise.all(this.admitted), this.changed.promise])
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Context disposal can run while admitted requests drain.
-      if (this.disposed) throw new Error('desktop update: Host is stopping')
-      if (generation !== this.generation) throw new Error('desktop update: admission lock was superseded')
-    }
-    const liveAgents = agents.list()
-    return liveAgents.some(agent => agent.status === 'running'
-      || agent.inbox.nextTurn.length > 0 || agent.inbox.nextStep.length > 0)
-      || [undefined, ...liveAgents].some(agent => jobs.list(agent)
-        .some(job => job.status === 'running' || job.status === 'stopping'))
-  }
+export function hasDesktopActiveTasks(liveAgents: ReturnType<Context['agents']['list']>, jobs: Context['jobs']): boolean {
+  return liveAgents.some(agent => agent.status === 'running'
+    || agent.inbox.nextTurn.length > 0 || agent.inbox.nextStep.length > 0)
+    || [undefined, ...liveAgents].some(agent => jobs.list(agent?.id)
+      .some(job => job.status === 'running' || job.status === 'stopping'))
 }
 
-/** Register update admission on the owning Host context. */
-export function installDesktopUpdateTaskControl(ctx: Context): DesktopUpdateTaskControl {
-  return new DesktopUpdateTaskControl(ctx)
+/**
+ * Register update admission on the owning Host context.
+ * @param ctx - Booted Desktop profile context; disposal removes the request listener.
+ * @returns Task inspector whose lock refuses new API requests, drains admitted requests, and rechecks work.
+ */
+export function installDesktopUpdateTaskControl(ctx: Context): (action: 'inspect' | 'lock' | 'unlock') => Promise<boolean> {
+  let locked = false
+  let lockGeneration = 0
+  let stopped = false
+  ctx.effect(() => () => { stopped = true })
+  const pendingRequests = new Set<Promise<void>>()
+  ctx.on('connection/request', async (_request, response, next) => {
+    if (locked) {
+      response.writeHead(503)
+      response.end()
+      return
+    }
+    const finished = Promise.withResolvers<void>()
+    pendingRequests.add(finished.promise)
+    try { await next() }
+    finally { pendingRequests.delete(finished.promise); finished.resolve() }
+  })
+  return async (action) => {
+    if (stopped) throw new Error('desktop update: Host is stopping')
+    if (action === 'unlock') { locked = false; lockGeneration++ }
+    const agents = ctx.get('agents')
+    const jobs = ctx.get('jobs')
+    if (agents === undefined || jobs === undefined) throw new Error('desktop update: task services are unavailable')
+    if (action === 'lock') {
+      locked = true
+      const generation = ++lockGeneration
+      // Read requests are not tasks; admitted writes must finish before the final work check.
+      await Promise.all(pendingRequests)
+      if (stopped) throw new Error('desktop update: Host is stopping')
+      if (generation !== lockGeneration) throw new Error('desktop update: admission lock was superseded')
+    }
+    return hasDesktopActiveTasks(agents.list(), jobs)
+  }
 }

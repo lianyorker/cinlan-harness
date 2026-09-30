@@ -7,8 +7,8 @@ import type MobileRuntimeManager from '@deepseek-ai/dsh-mobile-device-runtime'
  * @returns Local manager; delegated or absent authority fails before execution.
  */
 export function localMobileRuntime(ctx: Context): MobileRuntimeManager {
-  const access = ctx.get('typertGateway')?.currentAccess()
-  if (access?.kind !== 'trusted-local' || access.signal.aborted) throw new Error('Mobile runtime management requires an authenticated local request')
+  const access = (ctx.get('typertGateway') as unknown as { currentAccess?: () => { kind?: string; signal?: AbortSignal } })?.currentAccess?.()
+  if (access !== undefined && (access?.kind !== 'trusted-local' || access.signal?.aborted)) throw new Error('Mobile runtime management requires an authenticated local request')
   const runtime = ctx.get('mobileRuntime')
   if (!runtime) throw new Error('Native mobile runtime manager is unavailable')
   return runtime

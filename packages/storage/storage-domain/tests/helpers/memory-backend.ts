@@ -150,16 +150,6 @@ export class MemoryStorageBackend implements StorageBackend {
         this.openUnits.add(descriptor.name)
         return new MemoryKvUnit(this.pool, medium, descriptor, () => this.openUnits.delete(descriptor.name))
       },
-      destroy: async (descriptor: KvUnitDescriptor): Promise<void> => {
-        if (this.closed) {
-          throw new StorageError('closed', 'memory backend is closed')
-        }
-        if (this.openUnits.has(descriptor.name)) {
-          throw new Error(`cannot destroy open unit '${descriptor.name}'`)
-        }
-        this.pool.versions.delete(descriptor.name)
-        this.pool.media.delete(descriptor.name)
-      },
     }
   }
 

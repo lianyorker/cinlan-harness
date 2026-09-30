@@ -42,7 +42,6 @@ import { credentialKey } from '@deepseek-ai/dsh-credentials'
 
 declare const ctx: Context
 declare const exchangeCode: (code: string, signal: AbortSignal) => Promise<{ token: string }>
-declare const refreshSurface: () => void
 
 const key = credentialKey('llm-pi-ai', 'openai-codex') // <scope>/<id> — your plugin / this credential
 
@@ -55,27 +54,24 @@ const dispose = ctx.authorization.registerFlow({
     const code = await session.prompt({ kind: 'text', message: 'Paste the code' })
     const { token } = await exchangeCode(code, session.signal)
     await ctx.credentials.modifyRecord(key, () => Promise.resolve({ kind: 'grant', payload: { token } }))
-    session.commit()
   },
 })
 
-const unsubscribe = ctx.authorization.subscribe(refreshSurface)
 ctx.authorization.list()          // every registered flow, with inFlight
 ctx.authorization.describe(key)   // the entry above, or undefined
-unsubscribe()                     // stop observing registry and in-flight changes
 dispose()                         // unregister; withdraws any running attempt
 ```
 
-A flow declares the credential record it writes, a user-facing label, and the sign-in methods it offers, most preferred first. `run()` talks to the human through the session — one-way notices and questions the flow cannot answer for itself — and calls `session.commit()` after its own `ctx.credentials` write before resolving. The seam refuses a flow that resolves without an attempt-local write observation, receipt, and present record. `list()` and `describe()` let a surface show what can be authorized and whether an attempt is running. `subscribe()` reports flow registration and in-flight transitions so a long-lived surface can re-read those views; callback failures are contained. `withExclusiveKey()` protects a local record operation, such as deletion, from authorization for the same key and releases its reservation after success or failure. `dispose()` unregisters the flow and withdraws any attempt still running.
+A flow declares the credential record it writes, a user-facing label, and the sign-in methods it offers, most preferred first. `run()` talks to the human through the session — one-way notices and questions the flow cannot answer for itself — and must commit the record through `ctx.credentials` before resolving: the seam refuses a flow that resolved without committing. `list()` and `describe()` let a surface show what can be authorized and whether an attempt is running; `dispose()` unregisters the flow and withdraws any attempt still running.
 
 ### Running an attempt
 
-A surface runs one attempt per credential at a time. The interaction travels with the request rather than living in a registry, so prompts reach exactly the page that asked; a headless caller supplies an interaction that declines. `begin()` reports `{ status: 'authorized' }` only after the flow supplies its attempt-local write observation and commit receipt and the record is still present, and `{ status: 'cancelled' }` when the human declined or the caller withdrew. Cancellation also wins while post-run record confirmation is pending; the caller returns promptly while the key remains `inFlight` until that confirmation settles. A flow that performs bounded remote compensation on cancellation declares `awaitCancellation: true`, and `begin()` then stays pending until that compensation settles, surfacing its failure to the caller instead of a plain `cancelled`. `cancel(key)` withdraws the running attempt from a second call, for the request/response transport that answers a Cancel button without holding the first call's signal. A flow that ignores its signal remains `inFlight` and retains the key until its runner settles.
+A surface runs one attempt per credential at a time. The interaction travels with the request rather than living in a registry, so prompts reach exactly the page that asked; a headless caller supplies an interaction that declines. `begin()` reports `{ status: 'authorized' }` when the record was committed and observed during the attempt, and `{ status: 'cancelled' }` when the human declined or the caller withdrew. `cancel(key)` withdraws the running attempt from a second call, for the request/response transport that answers a Cancel button without holding the first call's signal.
 
 ### What can go wrong
 
 - **A credential with no flow is inert** — `begin()` on a key no flow claims throws `NO_FLOW`; a record left by an uninstalled plugin can be deleted but not re-authorized.
-- **One operation at a time per credential** — a second `begin()` while one is running, or while `withExclusiveKey()` owns the key, throws `ALREADY_IN_FLIGHT`; `inFlight` remains true after cancellation until a non-cooperative runner settles, so a replacement attempt or local delete cannot race a late credential write.
+- **One attempt at a time per credential** — a second `begin()` while one is running throws `ALREADY_IN_FLIGHT`; `inFlight` on the entry lets a UI disable the button up front.
 - **A flow that resolves without committing is refused** — `NOT_COMMITTED`, so `authorized` always means the record is really stored.
 - **Naming a method the flow does not offer throws `UNKNOWN_METHOD`** — naming none runs the flow's first method.
 - **"No" is an outcome, not a breakage** — a declined prompt settles the attempt as `cancelled`, the same as a withdrawn signal; any other failure reaches the caller as a thrown error.
@@ -93,7 +89,7 @@ This section explains the design decisions behind the seam and points at the cod
 ### Design philosophy
 
 - **The seam owns the conversation, never the protocol.** A plugin that knows how to obtain its own credential registers a flow keyed by the record it writes; a second authorization protocol arrives as another flow rather than another seam, and a surface that renders one flow renders all of them.
-- **The flow owns the write.** `run()` calls `session.commit()` after writing through `ctx.credentials`; the seam accepts the receipt only after it observed the target-key update in that flow's asynchronous execution context and while the record remains present. This prevents a stale record or concurrent same-key writer from satisfying another attempt and lets a library that persists through its own store adapter stay the single writer instead of being copied back out and written twice.
+- **The flow owns the write.** `run()` resolving means the record is already committed through `ctx.credentials`; the seam confirms a commit it observed during the attempt — presence alone would let a re-authorization pass a stale record off as fresh — and refuses a flow that resolved without one. Committing inside the flow is what lets a library that persists through its own store adapter stay the single writer instead of being copied back out and written twice.
 - **The interaction travels with the request, not a registry.** Whoever starts an authorization is the one who can talk to the human about it, so prompts reach exactly the surface that asked, and a headless caller supplies an interaction that declines. There is no ambient provider to be absent, and no question about which of two open pages a prompt belongs to.
 - **A human's "no" is an outcome, not a breakage.** An interaction that declines rejects its prompt with `AuthorizationDeclinedError`, and the attempt settles as `cancelled`, exactly as a withdrawn signal does; any other prompt rejection stays a flow failure that reaches the caller.
 
@@ -107,7 +103,7 @@ This section explains the design decisions behind the seam and points at the cod
 
 ### Lifecycle
 
-One attempt per key at a time. `begin()` validates the key and method, refuses a second attempt for a busy key, and runs the flow with an `AuthorizationSession` that carries the chosen method, a cancellation signal, the `notify`/`prompt` callbacks routed to the request's interaction, and the attempt-local `commit()` receipt. Withdrawal resolves the caller-facing operation as `cancelled` promptly, including while post-run record confirmation is pending; the key remains held until the full runner settles. A flow that declares `awaitCancellation` instead keeps the caller pending until its runner settles after withdrawal, so a bounded remote compensation failure (an issuer logout, a compensating key deletion) reaches the surface that started the attempt. If the flow ignores cancellation, its runner retains the key and `inFlight` state until it actually settles; this prevents a late commit from racing local deletion or a replacement attempt. `withExclusiveKey()` uses a separate per-key reservation for local operations such as deletion, and `begin()` refuses while that reservation is held. Registry subscribers are notified after registration, removal, attempt reservation, and eventual release. The key is released before `authorization/settled` fires, and the event identifies the released attempt, so a listener that reacts by starting the next attempt is not mistaken for a wedged old attempt; subscriber and settlement-listener failures are contained.
+One attempt per key at a time. `begin()` validates the key and method, refuses a second attempt for a busy key, and runs the flow with an `AuthorizationSession` that carries the chosen method, a cancellation signal, and the `notify`/`prompt` callbacks routed to the request's interaction. A withdrawn attempt settles immediately even when the flow never reacts to its signal — the orphaned run is left to finish on its own, and a record it still manages to commit is a record the human did authorize. The key is released before `authorization/settled` fires, so a listener that reacts by starting the next attempt is not refused; listener failures are contained on the credentials seam's terms.
 
 ### The interaction vocabulary
 
@@ -115,7 +111,7 @@ A notice is one-way and never carries a secret: a message, optionally the page t
 
 ### Commit confirmation
 
-The flow calls `session.commit()` after its own record write. The receipt fails immediately if the target-key update was not observed in that flow's asynchronous execution context. The seam then re-reads the record before reporting success. A stale record, an unrelated concurrent write, an early or missing receipt, and a flow that deleted its record all fail with `NOT_COMMITTED`.
+During the attempt the seam watches `credentials/record-updated` for the flow's key, then after `run()` resolves it re-reads `describeRecord` — confirming the commit happened now, because on a re-auth the record already exists and presence alone would let a stale credential pass as freshly authorized. A flow that resolves without committing, or that deleted its record instead of committing one, throws `NOT_COMMITTED`.
 
 </details>
 
@@ -162,6 +158,8 @@ These limits define when this package is a poor fit or needs special care. They 
 
 This Dev Note is working context for maintainers: open questions and undecided directions. It is explicitly non-authoritative — shipped behavior, limits, and accepted rationale live in the sections above, the package code, and the linked Agent Note.
 
-The limitations above name the open directions — resumable attempts, server-side revocation, orphaned-record discovery — each needing its own design and store before landing. The invariant companion checks that settlement released the exact attempt it names. A non-settling runner is indistinguishable from a busy key and only process exit frees it.
+The limitations above name the open directions — resumable attempts, server-side revocation, orphaned-record discovery — each needing its own design and store before landing. The invariant companion is the one load-bearing runtime check: settlement must always find the key released, because a wedged key is indistinguishable from a busy one and only a restart frees it.
 
 </details>
+
+A flow can use session.commit(record) to refuse writes after cancellation. Once commit is admitted, cancel() leaves it running until persistence and flow settlement complete. Flows that write through their own credential adapter remain responsible for their own cancellation ordering.

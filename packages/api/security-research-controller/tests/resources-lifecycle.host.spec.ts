@@ -1,5 +1,4 @@
 /** Background resource work remains manager-owned across Remote and Loader lifetimes. */
-import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -21,7 +20,7 @@ describe('Host-owned security resource operations through Remotes', () => {
     const observer = new AbortController()
     onTestFinished(() => { observer.abort() })
     const stream = await b.ctx.typertGateway.wireStream.open(
-      'securityResearch/observeResources', { args: {} }, observer.signal, createTrustedConnectionAccess(),
+      'securityResearch/observeResources', { args: {} }, (async function* () {})(), undefined, observer.signal,
     )
     const iterator = stream[Symbol.asyncIterator]()
     expect((await iterator.next()).value).toMatchObject({ state: 'not-installed' })

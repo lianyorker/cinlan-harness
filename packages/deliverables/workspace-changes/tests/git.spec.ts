@@ -16,7 +16,6 @@ const cleanups: Array<() => Promise<unknown>> = []
 afterEach(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup()
   cleanups.length = 0
-  vi.restoreAllMocks()
 })
 
 async function runner(limits = { timeoutMs: 30_000, outputMaxBytes: 1024 * 1024 }, executable = 'git') {
@@ -46,34 +45,15 @@ describe('GitRunner', () => {
     }
   })
 
-  it('reports timeouts and external aborts after the provider settles', async () => {
+  it('reports timeouts and external aborts as failures', async () => {
     const cwd = await scratchDir('dsh-git-runner-', cleanups)
-    const { ctx, git: command } = await runner()
-    // A provider may reject before spawn on Windows; this case owns the post-spawn completion path.
-    for (const cause of ['timeout', 'external'] as const) {
-      const timeout = new AbortController()
-      const external = new AbortController()
-      const completion = Promise.withResolvers<{ exitCode: number | null; signal: null }>()
-      const timer = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeout.signal)
-      const spawn = vi.spyOn(ctx.subprocess, 'spawn').mockReturnValue({ done: completion.promise } as never)
-      try {
-        const pending = command.run(['--version'], { cwd, signal: external.signal })
-        const rejected = expect(pending).rejects.toThrow(cause === 'timeout' ? 'timed out after 30000ms' : 'git --version was aborted')
-        expect(timer).toHaveBeenCalledWith(30_000)
-        const childSignal = spawn.mock.calls[0]![0].signal!
-        expect(childSignal.aborted).toBe(false)
-        const cancellation = cause === 'timeout' ? timeout : external
-        cancellation.abort()
-        expect(childSignal.aborted).toBe(true)
-        completion.resolve({ exitCode: null, signal: null })
-        await rejected
-      } finally {
-        completion.resolve({ exitCode: null, signal: null })
-        spawn.mockRestore()
-        timer.mockRestore()
-      }
-    }
-    const ok = await command.run(['--version'], { cwd, signal })
+    const { git: slow } = await runner({ timeoutMs: 1, outputMaxBytes: 1024 })
+    await expect(slow.run(['--version'], { cwd, signal })).rejects.toThrow('timed out after 1ms')
+    const { git: quick } = await runner()
+    const aborted = new AbortController()
+    setTimeout(() => { aborted.abort() }, 0)
+    await expect(quick.run(['--version'], { cwd, signal: aborted.signal })).rejects.toThrow('git --version was aborted')
+    const ok = await quick.run(['--version'], { cwd, signal })
     expect(ok.exitCode).toBe(0)
     expect(ok.stdout).toContain('git version')
   })

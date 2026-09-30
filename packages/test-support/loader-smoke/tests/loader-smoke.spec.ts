@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -20,11 +21,13 @@ describe('runLoaderSmoke', () => {
       configPath,
       tsconfigPath,
       mode: 'src',
+      sourceImport: 'tsx/esm',
       env: { LOADER_SMOKE_MARKER: 'present' },
     })
     const output = JSON.parse(result.stdout) as {
       configPath: string
       args: string[]
+      execArgv: string[]
       cwd: string
       dshHome: string
       agentsHome: string
@@ -34,6 +37,7 @@ describe('runLoaderSmoke', () => {
     expect(output).toMatchObject({
       configPath,
       args: [configPath],
+      execArgv: ['--import', import.meta.resolve('tsx/esm')],
       marker: 'present',
       input: '',
     })
@@ -41,6 +45,25 @@ describe('runLoaderSmoke', () => {
     expect(canonicalTempPath(output.agentsHome)).toBe(canonicalTempPath(join(output.cwd, '.agents')))
     expect(result.stderr).toContain('fixture stderr')
     expect(existsSync(output.cwd)).toBe(false)
+  }, LOADER_SMOKE_TEST_TIMEOUT_MS)
+
+  it('reuses a caller-provided cwd and leaves it in place', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'loader-smoke-shared-'))
+    try {
+      const result = await runLoaderSmoke({
+        label: 'shared cwd fixture',
+        cwd,
+        binScript: fixture('success'),
+        configPath,
+        tsconfigPath,
+        mode: 'src',
+      })
+      const output = JSON.parse(result.stdout) as { cwd: string }
+      expect(canonicalTempPath(output.cwd)).toBe(canonicalTempPath(cwd))
+      expect(existsSync(cwd)).toBe(true)
+    } finally {
+      await rm(cwd, { recursive: true, force: true })
+    }
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)
 
   it('passes an arbitrary bin argv and inspects world state before cleanup', async () => {
@@ -66,27 +89,6 @@ describe('runLoaderSmoke', () => {
     expect(marker).toBe('prepared')
     expect(existsSync(inspected)).toBe(false)
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)
-
-  it('preserves child diagnostics and the inspection cause while cleaning up', async () => {
-    const cause = new Error('missing persisted turn')
-    let inspected = ''
-    const result = runLoaderSmoke({
-      label: 'inspection fixture',
-      tempDirPrefix: 'loader-smoke-inspect-',
-      binScript: fixture('success'),
-      libBinScript: fixture('success'),
-      configPath,
-      tsconfigPath,
-      inspect: (cwd) => { inspected = cwd; throw cause },
-    })
-    await expect(result).rejects.toMatchObject({
-      cause,
-      message: expect.stringContaining('inspection fixture inspection failed after exit 0. stdout:'),
-    })
-    await expect(result).rejects.toThrow('fixture stderr')
-    expect(inspected).not.toBe('')
-    expect(existsSync(inspected)).toBe(false)
-  })
 
   it('rejects a non-zero exit with captured diagnostics', async () => {
     await expect(runLoaderSmoke({

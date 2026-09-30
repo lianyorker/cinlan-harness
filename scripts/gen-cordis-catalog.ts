@@ -709,6 +709,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   SettingsDescribeOptions: 'settings.md',
   SkillListRequest: 'skills.md',
   SkillListValue: 'skills.md',
+  SecuritySkillResourceStatus: 'security-research.md',
+  AuthorizationAttemptId: 'credentials.md',
   AuthorizationEntry: 'credentials.md',
   AuthorizationFlow: 'credentials.md',
   AuthorizationInteraction: 'credentials.md',

@@ -96,8 +96,7 @@ function attachDescriptorAppend(childCtx: Context, descriptor: SubagentDescripto
  * and disposal work through the returned run. Rejection means the agent
  * factory's unpublished creation transaction reached quiescence without
  * publishing a child. Every start appends its resolved descriptor inside the
- * child's initial turn. Execution admission completes before child consumers
- * compose, and its finalizer validates the lease at publication.
+ * child's initial turn.
  * @param request - the trusted typed start request, including its required signal.
  * @param options - the optional fork seed.
  * @returns a published holder-owned run.
@@ -120,17 +119,16 @@ export async function startInProcessRun(
   const inherited = captureDelegatedPolicyOverrides(parent)
 
   let structured: StructuredAttachment | undefined
-  const setup = async (childCtx: Context, child: Agent) => {
+  const setup = (childCtx: Context, child: Agent): void => {
     appendDelegatedPolicyOverrides(child.session, inherited)
-    const commit = await applyChildComposition(childCtx, parent, {
+    applyChildComposition(childCtx, parent, {
       persona: request.persona,
       toolFilter: request.toolFilter,
-    }, child)
+    })
     if (request.outputSchema !== undefined) {
       structured = attachStructuredRuntime(childCtx, request.outputSchema)
     }
     attachDescriptorAppend(childCtx, request.descriptor)
-    return commit
   }
 
   const handle = await parent.ctx.agents.create({
@@ -217,6 +215,7 @@ function readResult(
   cancelled: boolean,
   structured?: { captured?: { value: unknown } | undefined },
 ): SubagentResult {
+  // oxlint-disable-next-line typescript/no-deprecated -- Existing Session history read; migration deferred.
   const own = child.session.snapshotEvents(boundary)
   // `droppedUnrun` is deliberately unread: a one-shot prompt is claimed by its
   // awaited first turn almost immediately, and the owner's own teardown is the
@@ -224,7 +223,7 @@ function readResult(
   // `error` through `toStopReason(undefined)`, which never overstates success.
   const lastEnd = foldConsumedWork(own).end
   // The seam's canonical selection rule; a partial answer survives cancel and truncation.
-  const output: ContentBlock[] = finalAssistantOutput(own) ?? []
+  const output: readonly ContentBlock[] = finalAssistantOutput(own) ?? []
   const recorded = toStopReason(lastEnd?.data.reason)
   // Disposal can tear the owner down before the loop records its ordinary
   // `aborted` end, yielding `disposed` instead.

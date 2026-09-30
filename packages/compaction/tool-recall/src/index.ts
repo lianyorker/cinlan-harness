@@ -45,7 +45,7 @@ export function apply(ctx: Context, config: Config = {}): void {
 
   ctx.systemPrompt.section({
     name: 'tool:recall',
-    order: ctx.systemPrompt.getSectionOrder('TOOL_RECALL'),
+    order: ctx.systemPrompt.getSectionOrder('TOOL_SESSION_QUERY'),
     text: PROMPT_TEXT,
   })
 

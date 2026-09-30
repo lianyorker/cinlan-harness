@@ -45,13 +45,12 @@ describe('scoped-dispatch invariants', () => {
       source: { kind: 'user' },
     })
     const agentRows = {
-      'agent/created': [{ agent, source: 'startup', signal }],
+      'agent/created': [{ agent, source: 'startup' }],
       'agent/disposed': [{ agent }],
       'agent/status': [{ agent, status: 'idle' }],
       'agent/inbox/inserted': [{ agent, message }],
       'agent/inbox/claimed': [{ agent, message, turn: 1 }],
       'agent/inbox/discarded': [{ agent, message }],
-      'agent/session-start': [{ agent, source: 'startup' }],
       'agent/pre-step': [{ agent, messages: [message], turn: 1, step: 1, signal }, () => Promise.resolve({ kind: 'enter', messages: [message] })],
       'agent/request': [{ agent, turn: 1, step: 1, signal }, () => Promise.resolve(config)],
       'agent/assistant-stream': [{
@@ -89,11 +88,6 @@ describe('scoped-dispatch invariants', () => {
     ]
 
     for (const [event, args] of rows) {
-      if (event === 'agent/created') {
-        await expect(ctx.serial(scopeTarget(agent, agent), event, agentRows[event][0])).resolves.toBeUndefined()
-        await expect(ctx.serial(scopeTarget(agent, other), event, agentRows[event][0])).rejects.toThrow(/DIFFERENT subject/)
-        continue
-      }
       expect(() => { emit(ctx, scopeTarget(agent, agent), event, args) }, `${event} matching`).not.toThrow()
       expect(() => { emit(ctx, scopeTarget(agent, other), event, args) }, `${event} mismatched`)
         .toThrow(/DIFFERENT subject/)

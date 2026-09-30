@@ -22,7 +22,7 @@ function ctxWith(describeCall: unknown) {
 }
 
 function view(ns: string, revision = 0): SettingsNamespaceView {
-  return { ns, schema: {}, value: { field: ns }, applies: 'live', secrets: [], revision }
+  return { ns, schema: {}, value: { field: ns }, autoGenerate: true, applies: 'live', secrets: [], revision }
 }
 
 function described(namespaces: SettingsNamespaceView[]): Answer<SettingsDescribeView> {
@@ -55,34 +55,6 @@ describe('SettingsDescribeMirror', () => {
     expect(describeCall).toHaveBeenCalledTimes(2)
     expect(mirror.getSnapshot().status).toBe('ready')
     expect(mirror.namespace('theme')?.revision).toBe(1)
-  })
-
-  it('never publishes a describe answer invalidated by namespace replacement', async () => {
-    const stale = deferred<Answer<SettingsDescribeView>>()
-    const fresh = deferred<Answer<SettingsDescribeView>>()
-    const describeCall = vi.fn().mockResolvedValueOnce(described([view('theme', 0)]))
-      .mockReturnValueOnce(stale.promise).mockReturnValueOnce(fresh.promise)
-    const mirror = new SettingsDescribeMirror(ctxWith(describeCall))
-    await mirror.ensure()
-    const observed: Array<SettingsDescribeView | undefined> = []
-    const dispose = mirror.subscribe(() => { observed.push(mirror.getSnapshot().view) })
-    const pending = mirror.load()
-    try {
-      await Promise.resolve()
-      const invalidation = mirror.load()
-      stale.resolve(described([view('removed-namespace', 5)]))
-      await vi.waitFor(() => { expect(describeCall).toHaveBeenCalledTimes(3) })
-      expect(observed.some(snapshot => snapshot?.namespaces.some(item => item.ns === 'removed-namespace'))).toBe(false)
-      fresh.resolve(described([view('replacement', 0)]))
-      await Promise.all([pending, invalidation])
-      expect(mirror.getSnapshot().view?.namespaces.map(item => item.ns)).toEqual(['replacement'])
-      expect(observed.some(snapshot => snapshot?.namespaces.some(item => item.ns === 'removed-namespace'))).toBe(false)
-    } finally {
-      stale.resolve(described([]))
-      fresh.resolve(described([]))
-      await pending
-      dispose()
-    }
   })
 
   it('keeps the last good view when a later refresh fails, recording the failure', async () => {

@@ -1,5 +1,5 @@
-/** Voice operations over the generated Remote shared by Web and desktop carriers. */
 import type { ClientRemote, RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-api-voice-controller/remote'
 import type {
   VoiceEngineStatus, VoiceModelsDownloadValue, VoiceModelsListValue, VoiceModelsRemoveValue, VoiceTranscribeResult,
   VoiceModelTask, VoiceModelTaskId, VoiceModelsCancelValue,

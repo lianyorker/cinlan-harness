@@ -5,7 +5,7 @@ import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
-import type { ClientRemote, SessionId } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { apply, inject } from '../src/client/index.ts'
 import { BrowserElementCaptureSection } from '../src/client/BrowserElementCaptureSection.tsx'
@@ -20,14 +20,14 @@ async function bench(withBrowser = true) {
   const locale = new LocaleRuntime(ctx)
   locale.setLocale('zh')
   ctx.provide('locale', locale)
-  const addImageDraft = vi.fn((_image: Parameters<Context['conversation']['addImageDraft']>[0]) => true)
+  const addImageDraft = vi.fn((_image: any) => true)
   ctx.provide('conversation', { addImageDraft } as never)
   const sessions = { scope: vi.fn((id: SessionId): Context | undefined => id === 'source' ? scope : undefined) }
   ctx.provide('sessions', sessions as never)
   const browser = {
-    pages: vi.fn<ClientRemote['browser']['pages']>().mockResolvedValue({ ok: true, value: pages }),
-    selectElement: vi.fn<ClientRemote['browser']['selectElement']>().mockResolvedValue({ ok: true, value: selection }),
-    captureElement: vi.fn<ClientRemote['browser']['captureElement']>().mockResolvedValue({ ok: true, value: capture }),
+    pages: vi.fn().mockResolvedValue({ ok: true, value: pages }),
+    selectElement: vi.fn().mockResolvedValue({ ok: true, value: selection }),
+    captureElement: vi.fn().mockResolvedValue({ ok: true, value: capture }),
   }
   const mountBrowser = () => ctx.plugin({ apply(owner: Context) { new TestRemote(owner, { browser }) } })
   if (withBrowser) await mountBrowser().await()

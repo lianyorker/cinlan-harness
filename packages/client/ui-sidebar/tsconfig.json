@@ -43,9 +43,6 @@
     },
     {
       "path": "../product-analytics/tsconfig.client.json"
-    },
-    {
-      "path": "../locale"
     }
   ]
 }

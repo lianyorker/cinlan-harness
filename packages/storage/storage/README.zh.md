@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 何时使用
 
-当组合中任何包需要持久化会话事件日志以外的数据——工作区记录、会话伴随数据——时就挂载枢纽。领域数据形式与两个内置后端都依赖它，因此组合的存储行是 `storage` 加一个后端加 `storage-domain`。没有任何此类数据的组合可以省略整个组；agent loop 永远不需要它。
+当组合中任何包需要持久化会话事件日志以外的数据——工作区记录、会话伴随数据——时就挂载枢纽。领域数据形式与两个内置后端都依赖它，因此组合的存储行是 `storage` 加一个后端加 `storage-domain`。没有任何此类数据的组合可以省略整个组；agent loop（智能体循环）永远不需要它。
 
 ### 最小组合
 
@@ -76,7 +76,7 @@ kind: "package-reference"
 
 ### 后端约定
 
-[`src/backend.ts`](src/backend.ts) 是后端实现者的规范性约定，由 `tests/contract.ts` 中的共享一致性套件逐条款检查。一个后端只拥有一种介质，并暴露可选的数据形状分面；`kv` 是唯一的分面，打开单元即可获得一个带版本、全局单例的 schema 句柄，其每次单独调用都是原子的，且 resolve 后即已持久。单元名与表名必须匹配 `UNIT_NAME_RE`；记录键是任意字符串，绝不进入文件路径。单元不对并发写入做串行化——顺序由调用方负责——接受的版本为当前版本戳加上 `compatibleVersions` 明确声明的旧版本。整单元 JSON 与 SQLite 拒绝其他所有版本戳；兼容读取不改变数据或版本戳，首次成功写入原子发布数据变化与当前版本戳。领域所有者必须确保当前记录和全局值 schema 接受所列前代。
+[`src/backend.ts`](src/backend.ts) 是后端实现者的规范性约定，由 `tests/contract.ts` 中的共享一致性套件逐条款检查。一个后端只拥有一种介质，并暴露可选的数据形状分面；`kv` 是唯一的分面，打开单元即可获得一个带版本、全局单例的 schema 句柄，其每次调用均具备原子性，并在完成时保证持久化。单元名与表名必须匹配 `UNIT_NAME_RE`；记录键是任意字符串，绝不进入文件路径。单元不对并发写入做串行化——顺序由调用方负责——介质上记录的版本与描述符不同时拒绝 `version-mismatch`（不做迁移）。
 
 ### 源码地图
 
@@ -86,7 +86,7 @@ kind: "package-reference"
 | [`src/registry.ts`](src/registry.ts) | `BackendRegistry`：名称 → 后端表、注册资源释放函数 |
 | [`src/backend.ts`](src/backend.ts) | 后端约定：分面、单元、`UNIT_NAME_RE` |
 | [`src/error.ts`](src/error.ts) | 枢纽与每个后端共享的 `StorageError` 代码 |
-| — | 不发布运行时不变式伴生入口；纯注册表。 |
+| — | 不发布运行时不变式伴生入口；枢纽是纯注册表（名称 → 后端、形式 → 设施），其一致性完全由调用点强制保障（重复项或缺失项会同步明确报错）；它既没有事件流，也没有可变介质可供交叉检查。 |
 | [`tests/contract.ts`](tests/contract.ts) | 针对每个后端运行的共享一致性套件 |
 
 </details>
@@ -100,7 +100,7 @@ kind: "package-reference"
 
 - [存储子系统](../../../docs/subsystems/storage.zh.md)——后端约定、领域语义、变更事件与生成的 API。
 - [存储包映射](../README.zh.md)——家族的各包及其在仓库中的位置。
-- [领域 KV 存储 Agent Note](../../../.agents/notes/implemented/architecture/2026-07-24-domain-kv-storage-and-workspace.zh.md)——枢纽、领域数据形式与会话后端迁移背后的设计。
+- [领域 KV 存储 Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.zh.md)——枢纽、领域数据形式与会话后端迁移背后的设计。
 
 -----
 
@@ -128,7 +128,7 @@ kind: "package-reference"
 
 这些限制定义了枢纽不能做什么。它们是当前包约束，不是任务积压。
 
-- **`kv` 是唯一的数据形状**——后端只实现一个分面；面向会话事件日志的 `log` 分面被推迟到会话后端迁移（[Agent Note](../../../.agents/notes/implemented/architecture/2026-07-24-domain-kv-storage-and-workspace.zh.md)）。
+- **`kv` 是唯一的数据形状**——后端只实现一个分面；面向会话事件日志的 `log` 分面被推迟到会话后端迁移（[Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.zh.md)）。
 - **数据形式按需解析**——在领域插件挂载前读取 `ctx.storage.domain` 会抛出 `form-not-mounted`；组装会按相应顺序排列插件，而不是静默推迟。
 
 <a id="dev-note"></a>

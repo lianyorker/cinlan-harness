@@ -1,9 +1,9 @@
 /**
  * One opened SQLite KV unit: prepared per-table statements over the
  * `u_<unit>_<table>` record tables plus this unit's row in the shared
- * `unit_globals` table. Writes commit their record change and current version
- * stamp in one transaction. Write ordering remains the caller's responsibility
- * per the KV contract.
+ * `unit_globals` table. Each primitive is a single statement, so atomicity
+ * comes from SQLite itself — no explicit transactions, and no write queue
+ * (write ordering is the caller's responsibility per the KV contract).
  * @module @deepseek-ai/dsh-storage-sqlite/unit
  */
 
@@ -36,7 +36,7 @@ export class SqliteKvUnit implements KvUnit {
    * @param onClose - Backend callback releasing this unit's open-name slot.
    */
   constructor(
-    private readonly db: DatabaseSync,
+    db: DatabaseSync,
     private readonly descriptor: KvUnitDescriptor,
     private readonly onClose: () => void,
   ) {
@@ -69,7 +69,7 @@ export class SqliteKvUnit implements KvUnit {
         // Null prototype: record keys are arbitrary strings, so '__proto__'
         // must land as an own property instead of mutating the prototype.
         const records: Record<string, unknown> = Object.create(null) as Record<string, unknown>
-        for (const row of statements.selectAll.all() as unknown as Array<{ key: string; value: string }>) {
+        for (const row of statements.selectAll.all() as Array<{ key: string; value: string }>) {
           records[row.key] = this.parseValue(row.value, `table '${name}' key '${row.key}'`)
         }
         tables[name] = records
@@ -97,19 +97,19 @@ export class SqliteKvUnit implements KvUnit {
   }
 
   putRecord(table: string, key: string, value: unknown): Promise<void> {
-    return this.mutate(() => {
+    return this.settle(() => {
       this.statementsFor(table).upsert.run(key, JSON.stringify(value))
     })
   }
 
   deleteRecord(table: string, key: string): Promise<void> {
-    return this.mutate(() => {
+    return this.settle(() => {
       this.statementsFor(table).remove.run(key)
     })
   }
 
   setGlobal(value: unknown): Promise<void> {
-    return this.mutate(() => {
+    return this.settle(() => {
       if (this.globalUpsert === undefined) {
         throw new Error(`kv unit '${this.descriptor.name}' declared no global slot`)
       }
@@ -138,26 +138,6 @@ export class SqliteKvUnit implements KvUnit {
       // value's own toJSON throw; wrap those, preserve every real Error.
       return Promise.reject(error instanceof Error ? error : new Error(String(error)))
     }
-  }
-
-  /** Commit data and its version stamp together; reject a unit upgraded by another open handle. */
-  private mutate(operation: () => void): Promise<void> {
-    return this.settle(() => {
-      this.db.exec('BEGIN IMMEDIATE')
-      try {
-        const row = this.db.prepare('SELECT version FROM units WHERE name = ?').get(this.descriptor.name) as { version: number }
-        const { version, compatibleVersions } = this.descriptor
-        if (row.version !== version && !(row.version < version && compatibleVersions?.includes(row.version))) {
-          throw new StorageError('version-mismatch', `kv unit '${this.descriptor.name}' is stamped version ${row.version}, incompatible with descriptor version ${version}`)
-        }
-        operation()
-        this.db.prepare('UPDATE units SET version = ? WHERE name = ?').run(version, this.descriptor.name)
-        this.db.exec('COMMIT')
-      } catch (error) {
-        this.db.exec('ROLLBACK')
-        throw error
-      }
-    })
   }
 
   private ensureOpen(): void {

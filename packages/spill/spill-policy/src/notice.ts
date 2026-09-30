@@ -14,15 +14,11 @@ const COUNT_SUFFIX = EXACT_OMISSION.slice(COUNT_OFFSET + 1)
 /**
  * Format the notice appended to a retained preview, preserving its persisted spelling.
  * @param omitted - bytes omitted by the retention policy.
- * @param ref - saved spill artifact locator and retrieval guidance.
+ * @param ref - saved text locator and retrieval guidance.
  * @param images - number of whole images omitted alongside text.
  * @returns the complete notice without a leading preview separator.
  */
-export function formatSpillNotice(
-  omitted: Omitted,
-  ref: Pick<SpillRef, 'locator' | 'retrievalHint'>,
-  images = 0,
-): string {
+export function formatSpillNotice(omitted: Omitted, ref: Pick<SpillRef, 'locator' | 'retrievalHint'>, images = 0): string {
   const imageNotice = images > 0 ? ` Omitted ${images} images.` : ''
   return `${OPEN}${describeOmitted(omitted, 'bytes')}${imageNotice}${LOCATION}${ref.locator}${GUIDANCE_SEPARATOR}${ref.retrievalHint}${CLOSE}`
 }
@@ -42,7 +38,7 @@ function isOmission(text: string): boolean {
 
 /**
  * Recognize a final spill-policy notice in persisted text, including notice-only output.
- * This identifies the text convention, not authenticated provenance of tool output.
+ * This identifies the text convention, not authenticated tool-output origin.
  * @param text - complete recorded text result.
  * @returns whether a complete notice occupies the end of the result.
  */

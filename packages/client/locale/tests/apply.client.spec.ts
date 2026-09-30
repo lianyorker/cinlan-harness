@@ -2,7 +2,7 @@
  * Language row registration, snapshot projection into the row store, and
  * recovery after an HMR collapse of the declaring entry. */
 import { Context } from '@deepseek-ai/cordis'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
@@ -15,17 +15,17 @@ import { LanguageRow } from '../src/client/LanguageRow.tsx'
 import type { createLanguageRowStore } from '../src/client/settings-store.ts'
 
 const SLOT = 'settings.general.item'
+afterEach(() => { vi.unstubAllGlobals() })
 
-async function bench() {
+async function bench(preference?: string) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
-  let preference: string | undefined
   let revision = 0
   const namespace = () => ({
     ns: LOCALE_SETTINGS_NAMESPACE,
     schema: LocaleSettingsSchema.toJSON(),
     value: preference === undefined ? {} : { preference },
-    applies: 'live' as const,
+    autoGenerate: true, applies: 'live' as const,
     secrets: [],
     revision,
   })
@@ -65,13 +65,59 @@ function faceOf(slots: SlotRegistry) {
 }
 
 describe('locale apply', () => {
+  it.each(['resolve', 'reject'] as const)('contains a late native initialization %s after unloading', async (outcome) => {
+    const b = await bench()
+    const ready = Promise.withResolvers<unknown>()
+    const read = vi.fn(() => ready.promise)
+    const onChange = vi.fn()
+    vi.stubGlobal('__DSH_LOCALE__', { read, onChange })
+    const fiber = b.ctx.plugin({ inject: [...inject], apply })
+    try {
+      await vi.waitFor(() => { expect(read).toHaveBeenCalledOnce() })
+      const disposal = fiber.dispose()
+      if (outcome === 'resolve') ready.resolve({ languages: ['zh-CN'], preference: null })
+      else ready.reject(new Error('native window closed'))
+      await disposal
+      expect(b.ctx.get('locale')).toBeUndefined()
+      expect(onChange).not.toHaveBeenCalled()
+    } finally {
+      ready.resolve({ languages: ['zh-CN'], preference: null })
+      await b.ctx.fiber.dispose()
+    }
+  })
+
+  it('awaits native initialization and reports later changes only while mounted', async () => {
+    const b = await bench('zh')
+    const ready = Promise.withResolvers<unknown>()
+    const onChange = vi.fn()
+    vi.stubGlobal('__DSH_LOCALE__', { read: () => ready.promise, onChange })
+    const fiber = b.ctx.plugin({ inject: [...inject], apply })
+    try {
+      expect(b.ctx.get('locale')).toBeUndefined()
+      ready.resolve({ languages: ['en-US'], preference: 'zh' })
+      await fiber.await()
+      const locale = b.ctx.get('locale') as LocaleRuntime
+      expect(locale.getSnapshot().active).toBe('zh')
+      expect(onChange).toHaveBeenLastCalledWith('zh')
+      locale.setLocale('en')
+      expect(onChange).toHaveBeenLastCalledWith('en')
+      await fiber.dispose()
+      const calls = onChange.mock.calls.length
+      b.ctx.emit('locale/change', { active: 'zh', locales: [], revision: 99 })
+      expect(onChange).toHaveBeenCalledTimes(calls)
+    } finally {
+      ready.resolve({ languages: ['en-US'], preference: 'zh' })
+      await b.ctx.fiber.dispose()
+    }
+  })
+
   // These are wiring specs, not default-language specs. A fresh LocaleRuntime
   // with no jsdom `window` skips browser detection and opens on FALLBACK_LOCALE
   // (en); each test that reads localized copy stages its locale explicitly via
   // setLocale/Host preference instead of leaning on a dead browser pin.
 
   it('declares the slot service', () => {
-    expect(inject).toEqual(['slots', 'remote', 'settingsScope', 'settingsMetadata'])
+    expect(inject).toEqual(['slots', 'remote', 'configForms'])
   })
 
   it('provides the service with base + settings dictionaries and registers the row (declaration before or after apply)', async () => {
@@ -86,12 +132,6 @@ describe('locale apply', () => {
     // service opens on FALLBACK_LOCALE (en); read the zh side explicitly.
     locale.setLocale('zh')
     expect(locale.bind(SETTINGS_NS)('language.title')).toBe('语言')
-    expect(before.ctx.settingsMetadata.getSnapshot().items).toEqual([{
-      sectionId: 'general', id: 'language', anchorId: 'language', title: '语言',
-      keywords: ['locale', 'language', 'translation'],
-    }])
-    locale.setLocale('en')
-    expect(before.ctx.settingsMetadata.getSnapshot().items[0]?.title).toBe('Language')
     const entry = before.slots.entries(SLOT).find(e => e.component === LanguageRow)!
     expect(entry.options).toMatchObject({ id: 'language', order: 0 })
 
@@ -99,7 +139,6 @@ describe('locale apply', () => {
     const fiber = after.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(after.slots.entries(SLOT)).toHaveLength(0)
-    expect(after.ctx.settingsMetadata.getSnapshot().items).toEqual([])
     declareItems(after.slots)
     await Promise.resolve()
     expect(after.slots.entries(SLOT).some(e => e.component === LanguageRow)).toBe(true)
@@ -181,13 +220,11 @@ describe('locale apply', () => {
     const host = declareItems(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     expect(b.slots.entries(SLOT)).toHaveLength(1)
-    expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(1)
 
     // Collapse: the declarer dies, the cascade removes our entry while the
     // apply closure still holds its (now stale) disposer.
     host()
     expect(b.slots.entries(SLOT)).toHaveLength(0)
-    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
 
     declareItems(b.slots)
     await Promise.resolve()
@@ -200,10 +237,8 @@ describe('locale apply', () => {
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(b.slots.entries(SLOT)).toHaveLength(1)
-    expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(1)
     await fiber.dispose()
     expect(b.slots.entries(SLOT)).toHaveLength(0)
-    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
 
     // Never-declared bench: the effect disposer's dispose arm stays undefined.
     const quiet = await bench()

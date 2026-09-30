@@ -53,7 +53,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Observable behavior
 
-A missing `single` file or `per-record` directory opens as an empty unit and materializes on the first write. In `single`, malformed content rejects with `malformed-medium`; versions other than the current stamp or an explicitly listed older `compatibleVersions` entry reject with `version-mismatch`. Opening and `loadAll()` leave accepted predecessor bytes unchanged. The in-memory state uses the current version, and the first successful file publication writes that stamp with the data change; failed publication preserves the predecessor file, and deleting an absent key performs no publication. In `per-record`, each malformed or unreadable document, and each document whose version is outside the descriptor's current and compatible versions, reads as an absent record, so one bad document does not reject the unit. Record keys must match `[a-zA-Z0-9_-]+`; an unsafe key rejects before any file operation. Every resolved write is durable, and operations after close reject with `closed`.
+A missing `single` file or `per-record` directory opens as an empty unit and materializes on the first write. In `single`, malformed content rejects with `malformed-medium`, and a different stored version rejects with `version-mismatch`. In `per-record`, each malformed or unreadable document, and each document whose version is outside the descriptor's current and compatible versions, reads as an absent record, so one bad document does not reject the unit. Record keys must match `[a-zA-Z0-9_-]+`; an unsafe key rejects before any file operation. Every resolved write is durable, and operations after close reject with `closed`.
 
 An empty `per-record` tree can initialize its declared tables from a valid `<root>/<unit>.json` whole-unit document only when the source unit name matches and its version is current or declared compatible. The backend leaves that source file unchanged and stamps migrated records with the current version. A source version outside the accepted set leaves the new tree empty. Any document path in a declared table, or a declared `global.json`, suppresses this initialization for the complete unit, even if that document is unreadable or stale.
 
@@ -110,7 +110,7 @@ Read these pages when this backend's view is not enough: the subsystem reference
 - [Storage subsystem](../../../docs/subsystems/storage.md) — the backend contract, domain semantics, and generated API.
 - [Storage package map](../README.md) — the family's packages and their repository position.
 - [SQLite storage backend](../storage-sqlite/README.md) — the point-update medium for high-frequency data.
-- [domain KV storage Agent Note](../../../.agents/notes/implemented/architecture/2026-07-24-domain-kv-storage-and-workspace.md) — the design behind the backend family and its deferred work.
+- [domain KV storage Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.md) — the design behind the backend family and its deferred work.
 
 -----
 

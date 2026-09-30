@@ -3,7 +3,15 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
+const FileSettingsProvider = {
+  name: '@deepseek-ai/dsh-settings-file',
+  apply(c: Context) {
+    c.provide('settings', {
+      describe: () => [],
+      configure: () => () => {},
+    } as never)
+  },
+}
 import { Context } from '@deepseek-ai/cordis'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import Loader from '@deepseek-ai/cordis-plugin-loader'

@@ -10,7 +10,7 @@ import { bench, declare } from './fixture.client.ts'
 
 type Preset = NonNullable<PluginInventorySnapshot['agentPresets']>[number]
 function preset(id: string, rows: Preset['rows'], broken?: string): Preset {
-  return { id, trust: 'system', isDefault: false, rows, ...broken === undefined ? {} : { broken } }
+  return { id, isDefault: false, rows, ...broken === undefined ? {} : { broken } }
 }
 function workflow(enabled: boolean | 'conditional', fiberPhase: Preset['rows'][number]['fiberPhase'] = null): Preset['rows'][number] {
   return { entryId: null, moduleName: '@deepseek-ai/dsh-tool-workflow', enabled, fiberPhase }

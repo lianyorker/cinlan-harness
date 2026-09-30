@@ -7,7 +7,8 @@ import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts
 import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { SIDEBAR_PREFS_DEFAULTS } from '@deepseek-ai/dsh-client-ui-better-sidebar/src/prefs-shared.ts'
 import type { PluginEntryId } from '@deepseek-ai/dsh-host-plugin-inventory/types'
-import type { DeviceCapabilitySnapshot, PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
+import type { DeviceCapabilitySnapshot } from '@deepseek-ai/dsh-api-device-capabilities-controller/types'
+import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-host-plugin-inventory'
 import { BROWSER_CAPABILITY, COMPUTER_CAPABILITY, MOBILE_CAPABILITY, CapabilitySection, type CapabilitySectionProps, type BrowserSectionInjected, type MobileSectionInjected } from '../src/client/CapabilitySection.tsx'
 import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import { en, zh } from '../src/client/locales.ts'
@@ -45,10 +46,10 @@ function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', la
   const unusedHook = (): never => { throw new Error('This section does not read the standard hook') }
   const props: Omit<InjectFace<BrowserSectionInjected>, 'definition'>
     & Omit<InjectFace<MobileSectionInjected>, 'definition'>
-    & Pick<CapabilitySectionProps, 'definition' | 'close' | 'useSessions' | 'useWorkspaces' | 'useSessionPendingInteraction' | 'useResource' | 't'> = {
+    & Pick<CapabilitySectionProps, 'definition' | 'close' | 'useSessions' | 'useWorkspaces' | 'usePanelInfo' | 'useSessionStatus' | 'useSessionRetainInfo' | 'useResource' | 't'> = {
       definition,
       close: vi.fn(),
-      useSessions: unusedHook, useWorkspaces: unusedHook, useSessionPendingInteraction: unusedHook, useResource: unusedHook,
+      useSessions: unusedHook, useWorkspaces: unusedHook, usePanelInfo: unusedHook, useSessionStatus: unusedHook, useSessionRetainInfo: unusedHook, useResource: unusedHook,
       list: vi.fn(async () => inventory),
       checkDevice,
       checkSdk,

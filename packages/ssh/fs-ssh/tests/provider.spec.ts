@@ -31,6 +31,13 @@ async function setup() {
 }
 
 describe('SSH filesystem provider', () => {
+  it('declares watching unsupported without sending a remote request', async () => {
+    const { fs, dispatch } = await setup()
+    await expect(fs.watch(target, vi.fn(), new AbortController().signal))
+      .rejects.toMatchObject({ code: 'FS_IO_ERROR' })
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
   it.each([
     ['literal%20name.ts', 'literal%2520name.ts'],
     ['back\\slash.ts', 'back%5Cslash.ts'],
@@ -40,7 +47,7 @@ describe('SSH filesystem provider', () => {
     const path = `/remote/work/${name}`
     const url = fs.fileUrl({ targetKey: FsTargetKey(path), displayPath: path })
     expect(url).toBe(`file:///remote/work/${encoded}`)
-    expect(fileURLToPath(url, { windows: false })).toBe(path)
+    expect(fileURLToPath(url)).toBe(path)
   })
 
   it('keeps remote canonical paths and sends relative spelling to the remote resolver', async () => {

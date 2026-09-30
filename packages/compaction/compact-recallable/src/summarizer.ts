@@ -92,19 +92,17 @@ export async function summarizeChunk(
   if (priorStateText !== undefined && priorStateText.trim().length > 0) {
     promptMessages.push(createSystemMessage(
       `Prior working memory context:\n${priorStateText}`,
-      'compact-recallable',
     ))
   }
   if (priorKeywords.length > 0) {
     promptMessages.push(createSystemMessage(
       `Already indexed keywords directory (do not repeat unless key):\n${priorKeywords.join(', ')}`,
-      'compact-recallable',
     ))
   }
   promptMessages.push(...messages)
   promptMessages.push(createUserMessage({
     content: [{ type: 'text', text: INDEX_STUB_INSTRUCTION }],
-    source: { kind: 'plugin', plugin: 'compact-recallable' },
+    source: { kind: 'user' },
   }))
 
   try {
@@ -176,7 +174,7 @@ export async function summarizeState(
     ...staledMessages,
     createUserMessage({
       content: [{ type: 'text', text: STATE_SUMMARIZATION_INSTRUCTION }],
-      source: { kind: 'plugin', plugin: 'compact-recallable' },
+      source: { kind: 'user' },
     }),
   ]
 

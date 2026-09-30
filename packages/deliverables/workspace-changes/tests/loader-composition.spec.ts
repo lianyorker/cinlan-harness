@@ -27,17 +27,6 @@ afterEach(async () => {
 })
 
 describe('real Loader composition', () => {
-  it('keeps namespace exports through the Loader', () => {
-    expect('default' in WorkspaceChangesPlugin).toBe(false)
-    const loader = Object.create(Loader.prototype) as Loader
-    const plugin = loader.unwrapExports(WorkspaceChangesPlugin) as Record<string, unknown>
-    expect(plugin).toBe(WorkspaceChangesPlugin)
-    expect(plugin.name).toBe('workspace-changes')
-    expect(plugin.inject).toEqual(['subprocess'])
-    expect(plugin.Config).toBe(WorkspaceChangesPlugin.Config)
-    expect(plugin.apply).toBe(WorkspaceChangesPlugin.apply)
-  })
-
   it('loads the shipped rows and records a turn’s changes', async () => {
     root = await mkdtemp(join(tmpdir(), 'dsh-workspace-changes-loader-'))
     const cwd = join(root, 'ws')

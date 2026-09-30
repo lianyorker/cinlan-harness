@@ -55,18 +55,6 @@
     },
     {
       "path": "../product-analytics/tsconfig.client.json"
-    },
-    {
-      "path": "../ui-settings"
-    },
-    {
-      "path": "../ui-settings-models"
-    },
-    {
-      "path": "../locale"
-    },
-    {
-      "path": "../ui-conversation"
     }
   ]
 }

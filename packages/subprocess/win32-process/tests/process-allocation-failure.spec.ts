@@ -14,11 +14,11 @@ import type { NativePtr, Win32ProcessBindings } from '../src/ffi.ts'
 vi.mock('../src/ffi.ts', { spy: true })
 vi.mock('../src/koffi.ts', { spy: true })
 
+const PVOID = koffi.pointer('void')
+
 beforeEach(() => {
   vi.mocked(koffiLoader.requireKoffi).mockReturnValue(koffi)
 })
-
-const PVOID = koffi.pointer('void')
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -79,7 +79,7 @@ describe('spawnInheritedJobProcess allocation cleanup', () => {
 })
 
 describe('shared process allocation cleanup', () => {
-  it('hides the piped child and frees pipe slots and process structs after spawn', () => {
+  it('frees pipe slots and process structs after a successful piped spawn', () => {
     let nextHandle = 10n
     const api = {
       createPipe: vi.fn((readSlot: NativePtr, writeSlot: NativePtr) => {
@@ -89,10 +89,6 @@ describe('shared process allocation cleanup', () => {
       }),
       setHandleInformation: vi.fn(() => 1),
       createProcessAsUserW: vi.fn((_token, _app, _line, _pa, _ta, _inherit, _flags, _env, _cwd, _startup, info) => {
-        expect(_flags).toBe(0)
-        expect(koffi.decode(_startup, ffi.startupInfoType())).toMatchObject({
-          dwFlags: 0x101, wShowWindow: 0, hStdInput: 10n, hStdOutput: 13n, hStdError: 15n,
-        })
         koffi.encode(info, processInformationType(), {
           hProcess: 60n,
           hThread: 61n,

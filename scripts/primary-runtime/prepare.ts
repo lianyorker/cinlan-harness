@@ -68,7 +68,7 @@ export function primaryRuntimePayloadDigest(
 export async function unpackPrimaryRuntimeWheel(archive: string, destination: string): Promise<void> {
   await extractZip(archive, {
     dir: destination,
-    onEntry: (entry) => {
+    onEntry: (entry: { fileName: string }) => {
       const [directory, scheme] = entry.fileName.split('/')
       if (directory?.endsWith('.data') && scheme !== '' && scheme !== 'scripts') {
         throw new Error(`primary runtime: wheel requires unsupported installation paths: ${entry.fileName}`)

@@ -5,6 +5,7 @@
  */
 
 import type { Agent } from '@deepseek-ai/dsh-agent'
+import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 
 export const SIDECHAT_PLUGIN_ID = 'sidechat'
@@ -20,7 +21,7 @@ export function balancedCompletedTurnPrefix(events: readonly SessionEvent[]): Se
   let lastValidBoundary = -1
   for (let i = events.length - 1; i >= 0; i--) {
     const event = events[i]
-    if (event !== undefined && (event.type === 'turn/end' || event.type === 'session/created')) {
+    if (event !== undefined && event.type === 'turn/end') {
       lastValidBoundary = i
       break
     }
@@ -29,8 +30,19 @@ export function balancedCompletedTurnPrefix(events: readonly SessionEvent[]): Se
   return events.slice(0, lastValidBoundary + 1)
 }
 
+export interface SideSessionMessageSource {
+  readonly kind: 'side-session'
+  readonly plugin: string
+}
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'side-session': SideSessionMessageSource
+  }
+}
+
 /**
- * Frame a newly forked side session as a read-only advisor by injecting a
+ * Frame an advisor or critique side session with a guiding non-system-prompt
  * context message. This prevents changing the system prompt and invalidating
  * the provider prefix cache.
  * @param child - the newly created side session agent.
@@ -38,15 +50,15 @@ export function balancedCompletedTurnPrefix(events: readonly SessionEvent[]): Se
  */
 export function frameAdvisor(child: Agent, explanation?: string): void {
   const text = explanation ?? 'This is a side conversation. Explain or analyze the preceding context without mutating or continuing the parent task.'
-  child.session.append('context/message', {
-    message: text,
-    source: { plugin: SIDECHAT_PLUGIN_ID },
-  })
+  child.inject(createUserMessage({
+    content: [{ type: 'text', text }],
+    source: { kind: 'side-session', plugin: SIDECHAT_PLUGIN_ID },
+  }))
 }
 
 /**
  * Merge a condensed note from a side session back into its parent session.
- * Injects one plugin-sourced `context/message` into the parent. The next parent
+ * Injects one plugin-sourced user message into the parent. The next parent
  * request sees it at its logged position, preserving replay and reconstructability.
  * @param parent - the parent agent to merge back into.
  * @param sourceSessionId - the id of the side session producing the note.
@@ -59,8 +71,8 @@ export function mergeSideSessionBack(parent: Agent, sourceSessionId: SessionId, 
     ? note.slice(0, MAX_MERGE_LENGTH) + '…\n\n(Note truncated)'
     : note
 
-  parent.session.append('context/message', {
-    message: `Side session ${sourceSessionId} conclusion:\n\n${text}`,
-    source: { plugin: SIDECHAT_PLUGIN_ID },
-  })
+  parent.inject(createUserMessage({
+    content: [{ type: 'text', text: `Side session ${sourceSessionId} conclusion:\n\n${text}` }],
+    source: { kind: 'side-session', plugin: SIDECHAT_PLUGIN_ID },
+  }))
 }

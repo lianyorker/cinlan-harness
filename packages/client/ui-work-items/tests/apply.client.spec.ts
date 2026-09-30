@@ -4,7 +4,6 @@ import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
-import type { TypertClientRemote } from '@deepseek-ai/dsh-typert-protocol'
 import { describe, expect, it, vi } from 'vitest'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as hostApply } from '../src/index.ts'
@@ -28,9 +27,9 @@ async function harness() {
   const integrationPreflight = {
     check: vi.fn().mockResolvedValue({ ok: true, value: { provider: 'github', status: 'connected', reason: 'connected', account: 'private-account' } }),
   }
-  ctx.provide('remote', { workItems: remote, integrationPreflight } as unknown as TypertClientRemote)
-  ctx.provide('remote.workItems', remote as unknown as TypertClientRemote['workItems'])
-  ctx.provide('remote.integrationPreflight', integrationPreflight as unknown as TypertClientRemote['integrationPreflight'])
+  ctx.provide('remote', { workItems: remote, integrationPreflight } as any)
+  ctx.provide('remote.workItems', remote as any)
+  ctx.provide('remote.integrationPreflight', integrationPreflight as any)
   ctx.provide('settingsScope', { bind: vi.fn(() => scope.scope) } as never)
   ctx.provide('settings', { register: vi.fn() } as never)
   await ctx.plugin(SlotRegistry).await()

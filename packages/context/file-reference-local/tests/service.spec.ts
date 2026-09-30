@@ -55,6 +55,25 @@ async function stubAgent(
 }
 
 describe('LocalFileReferenceService', () => {
+  it('defers guidance until optional prompt and tool services become available', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(AgentRegistry)
+    await ctx.plugin(LocalFileReferenceService)
+    try {
+      const { agent } = await stubAgent(ctx, 'deferred-prompt')
+      expect(ctx.agents.get(agent.id)).toBe(agent)
+      await ctx.plugin(SystemPrompt, { personaPrefix: '' })
+      await ctx.plugin(ToolRegistry)
+      ctx.tools.register(defineContentToolFixture({
+        name: 'read', description: 'read a file', parameters: {}, execute: () => Promise.resolve([]),
+      }))
+      expect(renderPrompt(await ctx.systemPrompt.assemble())).toContain(FILE_REFERENCE_PROMPT)
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('serves the addressed workspace and installs read-tool guidance for existing agents', async () => {
     const ctx = await harness()
     const { agent } = await stubAgent(ctx)
@@ -136,70 +155,6 @@ describe('LocalFileReferenceService', () => {
     await expect(ctx.fileReferences.list(agent, '', new AbortController().signal)).resolves.toEqual([])
     await expect(ctx.fileReferences.list(agent, 'src', new AbortController().signal)).resolves.toEqual([])
     expect(list).toHaveBeenCalledTimes(2)
-  })
-
-  it('awaits prompt initialization before later creation listeners and registration', async () => {
-    const ctx = await harness()
-    await ctx.plugin(LocalFileReferenceService)
-    const entered = Promise.withResolvers<undefined>()
-    const release = Promise.withResolvers<undefined>()
-    const order: string[] = []
-    const prompt = ctx.plugin(async () => {
-      await release.promise
-      order.push('prompt-ready')
-    })
-    vi.spyOn(ctx, 'inject').mockImplementationOnce(() => {
-      entered.resolve(undefined)
-      return prompt
-    })
-    ctx.on('agent/created', () => { order.push('next-listener') })
-    const registration = stubAgent(ctx, 'prompt-readiness').then((handle) => {
-      order.push('registered')
-      return handle
-    })
-    try {
-      await entered.promise
-      expect(order).toEqual([])
-      release.resolve(undefined)
-      const handle = await registration
-      expect(order).toEqual(['prompt-ready', 'next-listener', 'registered'])
-      await handle.dispose()
-    } finally {
-      release.resolve(undefined)
-      await registration
-      await ctx.fiber.dispose()
-    }
-  })
-
-  it('rolls back registration when the prompt fiber fails', async () => {
-    const ctx = await harness()
-    await ctx.plugin(LocalFileReferenceService)
-    const entered = Promise.withResolvers<undefined>()
-    const release = Promise.withResolvers<undefined>()
-    const failure = new Error('prompt installation failed')
-    const prompt = ctx.plugin(async () => {
-      await release.promise
-      throw failure
-    })
-    vi.spyOn(ctx, 'inject').mockImplementationOnce(() => {
-      entered.resolve(undefined)
-      return prompt
-    })
-    const later = vi.fn()
-    ctx.on('agent/created', later)
-    const registration = stubAgent(ctx, 'prompt-failure')
-    const rejected = expect(registration).rejects.toThrow('prompt installation failed')
-    try {
-      await entered.promise
-      release.resolve(undefined)
-      await rejected
-      expect(later).not.toHaveBeenCalled()
-      expect(ctx.agents.roots()).toEqual([])
-    } finally {
-      release.resolve(undefined)
-      await rejected
-      await ctx.fiber.dispose()
-    }
   })
 
   it('logs rejected prompt cleanup without failing service teardown', async () => {

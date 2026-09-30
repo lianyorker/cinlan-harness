@@ -106,7 +106,7 @@ export class AssessmentScopeSessions extends Service {
   constructor(ctx: Context) {
     super(ctx, 'assessmentScopeSessions')
 
-    ctx.on('agent/session-start', ({ agent, source }) => {
+    ctx.on('agent/created', ({ agent, source }) => {
       try {
         this.activate(agent, source)
       } catch (cause) {

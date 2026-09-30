@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { Context } from '@deepseek-ai/cordis'
-import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
-import { PermissionCatalogDirectory } from '../src/client/catalog.ts'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type {
   PermissionCatalog, PermissionSelection,
@@ -18,6 +15,7 @@ import { accessZh } from '../src/client/locales.ts'
 afterEach(cleanup)
 
 const CATALOG: PermissionCatalog = {
+  defaultPreset: 'read-only', defaultOptions: [{ value: 'read-only', name: 'read-only' }, { value: 'workspace-write', name: 'workspace-write' }, { value: 'danger-full-access', name: 'danger-full-access' }],
   options: [
     { value: 'read-only', name: 'read-only' },
     { value: 'workspace-write', name: 'workspace-write' },
@@ -35,14 +33,13 @@ const t: PermissionSelectProps['t'] = makeTranslate(accessZh)
 function setup(options: {
   selection?: PermissionSelection | undefined
   catalog?: PermissionCatalog | null
-  catalogSource?: SnapshotStore<PermissionCatalogState>
   locked?: boolean
   select?: (preset: string) => Promise<boolean>
 } = {}) {
   const selection = createSnapshotStore<{ value: PermissionSelection | undefined }>({
     value: 'selection' in options ? options.selection : { currentValue: 'workspace-write' },
   })
-  const catalog = options.catalogSource ?? createSnapshotStore<PermissionCatalogState>({
+  const catalog = createSnapshotStore<PermissionCatalogState>({
     value: options.catalog === undefined ? CATALOG : options.catalog,
   })
   const useProjection = (_key: string, selector?: (value: unknown) => unknown) =>
@@ -64,45 +61,6 @@ function trigger(): HTMLButtonElement {
 }
 
 describe('PermissionSelect', () => {
-  it('updates an existing Session menu and revokes Auto confirmation on live catalog changes', async () => {
-    const ctx = new Context()
-    const generation = createSnapshotStore({ id: 1, host: { home: '/test' } })
-    ctx.provide('connection', { generation })
-    const withoutAuto = { options: CATALOG.options.filter(option => option.value !== 'auto') }
-    let current: PermissionCatalog = withoutAuto
-    const remote = new TestRemote(ctx, {
-      permissionPresets: { catalog: () => Promise.resolve({ ok: true as const, value: current }) },
-    })
-    const directory = new PermissionCatalogDirectory(ctx)
-    try {
-      await directory.load()
-      const { selection, select } = setup({ catalogSource: directory.store })
-      const originalSelection = selection.getSnapshot()
-      fireEvent.click(trigger())
-      expect(screen.queryByRole('menuitem', { name: 'Auto review (EXP)' })).toBeNull()
-      await act(async () => {
-        current = CATALOG
-        remote.emit('permission-presets/catalog-changed', [])
-        await directory.load()
-      })
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Auto review (EXP)' }))
-      fireEvent.click(screen.getByRole('checkbox'))
-      await act(async () => {
-        current = withoutAuto
-        remote.emit('permission-presets/catalog-changed', [])
-        await directory.load()
-      })
-      expect(screen.queryByRole('dialog')).toBeNull()
-      expect(select).not.toHaveBeenCalled()
-      expect(selection.getSnapshot()).toBe(originalSelection)
-      fireEvent.click(trigger())
-      expect(screen.queryByRole('menuitem', { name: 'Auto review (EXP)' })).toBeNull()
-    } finally {
-      directory.dispose()
-      await ctx.fiber.dispose()
-    }
-  })
-
   it('renders only when both the Session selection and process catalog exist', () => {
     const missingSelection = setup({ selection: undefined })
     expect(missingSelection.view.container.innerHTML).toBe('')
@@ -123,7 +81,7 @@ describe('PermissionSelect', () => {
 
     fireEvent.click(trigger())
     expect(screen.getAllByRole('menuitem').map(item => item.textContent))
-      .toEqual(['仅可查看', '工作区内修改', '完全权限', 'Auto review (EXP)'])
+      .toEqual(['仅可查看', '工作区内修改', '完全权限', 'Auto reviewEXP'])
     fireEvent.click(screen.getByRole('menuitem', { name: '工作区内修改' }))
 
     expect(select).toHaveBeenCalledExactlyOnceWith('workspace-write')
@@ -136,6 +94,7 @@ describe('PermissionSelect', () => {
 
   it('preserves host labels and ignores the already-current row', () => {
     const catalog: PermissionCatalog = {
+      defaultPreset: 'read-only', defaultOptions: [{ value: 'read-only', name: 'read-only' }, { value: 'workspace-write', name: 'workspace-write' }, { value: 'danger-full-access', name: 'danger-full-access' }],
       options: [
         { value: 'workspace-write', name: 'Project Files' },
         { value: 'danger-full-access', name: 'Operator Mode' },
@@ -184,7 +143,7 @@ describe('PermissionSelect', () => {
   it('marks Auto experimental and uses the current-session risk copy', async () => {
     const { select, selection } = setup()
     fireEvent.click(trigger())
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Auto review (EXP)' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Auto review EXP' }))
 
     const dialog = screen.getByRole('dialog', { name: '确认启用 Auto review（实验）？' })
     expect(dialog.textContent).toContain('不使用沙箱')
@@ -195,8 +154,9 @@ describe('PermissionSelect', () => {
     act(() => { selection.set({ value: { currentValue: 'auto' } }) })
     await act(async () => {})
 
-    expect(trigger().getAttribute('aria-label')).toBe('访问模式，当前：Auto review (EXP)')
-    expect(trigger().getAttribute('title')).toBe('Host English Auto description')
+    expect(trigger().getAttribute('aria-label')).toBe('访问模式，当前：Auto review EXP')
+    expect(trigger().querySelector('sup')?.textContent).toBe('EXP')
+    expect(trigger().getAttribute('title')).toBe('无沙箱运行；每次原生工具调用和 PTC 内层调用前由同一模型进行实验性审查。')
   })
 
   it('revokes open UI when locked or either source disappears', () => {
@@ -223,10 +183,10 @@ describe('PermissionSelect', () => {
   it('revokes Auto confirmation and its optimistic label when the catalog withdraws it', async () => {
     const submitted = Promise.withResolvers<boolean>()
     const { catalog, select, selection } = setup({ select: () => submitted.promise })
-    const withoutAuto = { options: CATALOG.options.filter(option => option.value !== 'auto') }
+    const withoutAuto = { ...CATALOG, options: CATALOG.options.filter(option => option.value !== 'auto') }
     const chooseAuto = () => {
       fireEvent.click(trigger())
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Auto review (EXP)' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Auto review EXP' }))
     }
     try {
       chooseAuto()
@@ -243,7 +203,7 @@ describe('PermissionSelect', () => {
       fireEvent.click(screen.getByRole('checkbox'))
       fireEvent.click(screen.getByRole('button', { name: '启用 Auto review' }))
       expect(select).toHaveBeenCalledExactlyOnceWith('auto')
-      expect(trigger().textContent).toBe('Auto review (EXP)')
+      expect(trigger().textContent).toBe('Auto reviewEXP')
 
       act(() => {
         selection.set({ value: { currentValue: 'danger-full-access' } })

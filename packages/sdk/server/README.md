@@ -29,7 +29,7 @@ Mount this plugin when a runtime must serve SDK clients: add it to a `cordis.yml
 
 ### Wiring
 
-The plugin creates one agent per `sessionId` on first use. When the surrounding composition provides `executionBindings`, its setup transaction runs before Agent publication; profiles without that optional service keep the ordinary local lifecycle. A registered model adapter wins the route; an unowned `deepseek-official` route mounts the DeepSeek adapter, and any other unowned provider fails initialization. The selected adapter resolves the exact model and optional reasoning effort before initialization succeeds.
+The plugin creates one agent per `sessionId` on first use. A registered model adapter wins the route; an unowned `deepseek-official` route mounts the DeepSeek adapter, and any other unowned provider fails initialization. The selected adapter resolves the exact model and optional reasoning effort before initialization succeeds.
 
 ### Configuration
 
@@ -75,7 +75,7 @@ The plugin is a thin presentation adapter: [`HarnessSdkJsonRpcServer`](src/serve
 
 ### Request flow
 
-Each protocol method validates its inputs and resolves the owning state before acting — `initialize` stores the SDK route, `session/prompt` resolves the live agent+session pair and queues the message, and `shutdown` disposes server-owned state to quiescence before flushing the response and exiting 0 — and a shared exit task guarantees that racing `shutdown` requests never dispose or exit twice. The dispatch lives in [src/index.ts](src/index.ts) and [src/server.ts](src/server.ts).
+Each protocol method validates its inputs and resolves the owning state before acting — `initialize` stores the SDK route, `session/prompt` resolves the live agent+session pair and queues the message, and `shutdown` flushes the response, then disposes the root context to quiescence before exiting 0 — and a shared exit task guarantees that racing `shutdown` requests never dispose or exit twice. The dispatch lives in [src/index.ts](src/index.ts) and [src/server.ts](src/server.ts).
 
 ### Teardown
 

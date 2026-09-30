@@ -24,9 +24,6 @@
       "path": "../../core/tools"
     },
     {
-      "path": "../mcp-resources"
-    },
-    {
       "path": "../../core/scope"
     },
     {
@@ -39,16 +36,10 @@
       "path": "../../util/http-proxy"
     },
     {
-      "path": "../../util/brand"
+      "path": "../mcp-resources"
     },
     {
-      "path": "../../util/values"
-    },
-    {
-      "path": "../../../vendor/loader"
-    },
-    {
-      "path": "../../runtime-diagnostics/invariants"
+      "path": "../../core/system-prompt"
     }
   ]
 }

@@ -6,7 +6,6 @@
  */
 
 import type { Branded } from '@deepseek-ai/dsh-brand'
-import type { ExecutionBinding } from '@deepseek-ai/dsh-execution-host-targets/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-typert-protocol'
 
@@ -24,6 +23,38 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 }
 
 /**
+ * Activity families a `workspace/session-activity` listener may report. This
+ * package declares none: each provider merges its own key from a module both
+ * its Host and Client faces import, so a consumer that renders the families
+ * sees exactly the keys its program compiled and falls through to a generic
+ * description for any other. The shipped providers merge `turn` (the Agent
+ * registry), `job` (the job registry seam), `subagent` (the Subagent
+ * runtime), and `schedule` (the Schedule plugin).
+ */
+export interface SessionActivityKindMap {}
+
+/** One activity family key. */
+export type SessionActivityKind = keyof SessionActivityKindMap
+
+/** One active item of a family that has per-item identity. */
+export interface SessionActivityItem {
+  /** Family-specific identity: a session id, a job id, or a schedule id. */
+  readonly id: string
+  /** Display label when the family carries one (a job label, a subagent label). */
+  readonly label?: string
+}
+
+/**
+ * One reason a session counts as active for archive admission. Families with
+ * per-item identity list their items so a caller can name what must stop.
+ */
+export interface SessionActivity {
+  readonly kind: SessionActivityKind
+  /** Active items of the family; absent for a family without per-item identity (`turn`). */
+  readonly items?: readonly SessionActivityItem[]
+}
+
+/**
  * One workspace: a stable id over an existing directory, a display title, and
  * an ordered candidate account of sessions. Membership requires both an id in
  * that account and a session header whose canonical cwd equals the workspace
@@ -34,14 +65,11 @@ export interface Workspace {
   readonly id: WorkspaceId
 
   /**
-   * Canonical directory path in the captured execution filesystem; local
-   * realpath or the remote lease resolves symlinks at creation. Never rewritten
+   * Canonical directory path: the `fs.realpath` of the path given at create
+   * time (trailing slashes, `..`, and symlinks all resolved). Never rewritten
    * afterwards, even when the directory disappears (see {@link status}).
    */
   readonly path: string
-
-  /** Captured execution selection; configured SSH root remains distinct from the canonical path. */
-  readonly execution: ExecutionBinding
 
   /** Display title. Defaults to the final path segment, or a filesystem root's own spelling; duplicates are allowed. */
   readonly title: string
@@ -57,7 +85,7 @@ export interface Workspace {
    * prepended at attach, explicit reordering goes through
    * `insertSessionBefore`, and activity never reorders. The durable candidate
    * account is filtered synchronously: missing headers, invalid cwd values,
-   * execution binding differences, and canonical cwd mismatches are never returned. A subsequent workspace
+   * and canonical cwd mismatches are never returned. A subsequent workspace
    * mutation prunes those filtered candidates durably.
    */
   readonly sessionIds: readonly SessionId[]
@@ -73,10 +101,10 @@ export interface Workspace {
    * Prepend a session to this workspace's candidate account. An already
    * accounted id resolves without writing, aside from the durable
    * filtered-candidate prune every accepted mutation performs. A new id's
-   * published execution lease (or durable local fallback when the optional
-   * service is absent) must match, and its provider must verify a cwd equal to
-   * {@link path}; unknown ids, missing or invalid cwd values, and mismatches
-   * reject without writing. The lease is released after validation.
+   * live or persisted
+   * header cwd must resolve to an existing directory equal to {@link path};
+   * unknown ids, missing or invalid cwd values, and mismatches reject without
+   * writing.
    * @param sessionId - The session to record.
    * @returns resolution after durability.
    */
@@ -110,11 +138,7 @@ export interface Workspace {
    * Live directory check, uncached: whether {@link path} currently exists and
    * is a directory. A missing directory never mutates the record — the
    * directory may only be temporarily moved.
-   * Remote checks acquire and release the captured execution binding; attachment
-   * instead retains the published Session lease through provider verification.
-   * An unavailable service, target, or connection rejects without a local fallback.
-   * @returns `'ok'` for a directory, `'missing-dir'` when a successful lease's
-   * filesystem reports absence/non-directory or a local stat fails. Lease admission failures reject.
+   * @returns `'ok'` when the directory exists, `'missing-dir'` otherwise.
    */
   status(): Promise<'ok' | 'missing-dir'>
 }

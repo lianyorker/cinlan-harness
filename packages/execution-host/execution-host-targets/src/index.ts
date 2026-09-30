@@ -209,7 +209,7 @@ export default class ExecutionHostTargets extends Service {
    * @param snapshot Captured SSH deployment identity, validated as durable input.
    * @returns an independent SSH configuration with that revision's privateKeyFile; deleted, unretained or altered bindings throw conflict.
    */
-  resolveExecution(snapshot: SshExecutionSnapshot): SshConfig {
+  resolveExecution(snapshot: SshExecutionSnapshot): SshConfig & { endpoint?: SshExecutionConfiguration['endpoint'] } {
     const value = parse(executionSnapshotSchema, snapshot)
     const record = this.requireTable().get(value.targetId)
     if (record === undefined) {
@@ -226,7 +226,7 @@ export default class ExecutionHostTargets extends Service {
     if (!isDeepStrictEqual(value, current)) {
       throw new ExecutionTargetError('conflict', 'Saved execution binding does not match the target deployment')
     }
-    return structuredClone({ ...execution, bootstrapPath: current.bootstrapPath, bootstrapHash: current.bootstrapHash })
+    return structuredClone({ ...execution, host: record.sshAlias, bootstrapPath: current.bootstrapPath, bootstrapHash: current.bootstrapHash })
   }
 
   /**

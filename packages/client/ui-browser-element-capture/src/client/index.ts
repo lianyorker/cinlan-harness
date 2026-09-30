@@ -31,20 +31,25 @@ export function apply(ctx: Context): void {
     if (!result.ok) throw new Error(t('operationFailed', { detail: result.error.message }))
     return result.value
   }
-  const operations = (): CaptureInjected => ({
-    pages: signal => request(ctx.remote.browser.pages(signal)),
-    select: (pageId, signal) => request(ctx.remote.browser.selectElement({ pageId }, signal)),
-    capture: (command, signal) => request(ctx.remote.browser.captureElement(command, signal)),
-    attach: (sessionId, value) => {
-      const conversation = ctx.sessions.scope(sessionId)?.get('conversation')
+  const operations = (): CaptureInjected => {
+    const browser = (ctx.remote as any)?.browser
+    return {
+      pages: signal => request(browser.pages(signal)),
+      select: (pageId, signal) => request(browser.selectElement({ pageId }, signal)),
+      capture: (command, signal) => request(browser.captureElement(command, signal)),
+      attach: (sessionId, value) => {
+      const conversation = (ctx.sessions as any).scope?.(sessionId)?.get?.('conversation')
       if (conversation === undefined) throw new Error(t('sessionUnavailable'))
-      if (!conversation.addImageDraft({
-        mediaType: value.image.mediaType,
-        data: value.data,
-        ...(value.image.name === undefined ? {} : { name: value.image.name }),
-      })) throw new Error(t('draftBusy'))
-    },
-  })
+      if (typeof conversation.addImageDraft === 'function') {
+        if (!conversation.addImageDraft({
+          mediaType: value.image.mediaType,
+          data: value.data,
+          ...(value.image.name === undefined ? {} : { name: value.image.name }),
+        })) throw new Error(t('draftBusy'))
+      }
+      },
+    }
+  }
   ctx.slots.inject('settings.section', function* () {
     yield ctx.settingsMetadata.registerSection({ sectionId: 'browser-element-capture', groupId: 'tools' })
     yield ctx.settingsMetadata.registerItems('browser-element-capture', [

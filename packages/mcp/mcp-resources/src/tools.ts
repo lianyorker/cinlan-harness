@@ -32,8 +32,7 @@ export function registerResourceTools(ctx: Context, request: RequestResource): (
   const dispose = ctx.effect(function* () {
     yield ctx.tools.register(defineTool({
       name: 'list_mcp_resources',
-      description: 'List one page of resources available from an MCP server. Pass a returned nextCursor as cursor to continue.',
-      presentCall: args => ({ card: 'generic', kind: 'search', title: `List MCP resources: ${args.server}`, rawInput: args.cursor }),
+      description: 'List resources available from an MCP server.',
       parameters: listParameters,
       output,
       execute: (args, exec) => request(args.server, {
@@ -42,8 +41,7 @@ export function registerResourceTools(ctx: Context, request: RequestResource): (
     }))
     yield ctx.tools.register(defineTool({
       name: 'list_mcp_resource_templates',
-      description: 'List one page of parameterized resource URI templates from an MCP server. Pass a returned nextCursor as cursor to continue.',
-      presentCall: args => ({ card: 'generic', kind: 'search', title: `List MCP resource templates: ${args.server}`, rawInput: args.cursor }),
+      description: 'List parameterized resource URI templates from an MCP server.',
       parameters: listParameters,
       output,
       execute: (args, exec) => request(args.server, {
@@ -53,7 +51,6 @@ export function registerResourceTools(ctx: Context, request: RequestResource): (
     yield ctx.tools.register(defineTool({
       name: 'read_mcp_resource',
       description: 'Read an MCP resource by URI from the named server. Use a listed URI or an expanded resource template.',
-      presentCall: args => ({ card: 'generic', kind: 'read', title: `Read MCP resource: ${args.server}`, rawInput: args.uri }),
       parameters: {
         server: listParameters.server,
         uri: { type: 'string', required: true, description: 'Resource URI to read.' },

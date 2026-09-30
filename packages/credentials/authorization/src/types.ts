@@ -5,7 +5,6 @@
  * @module @deepseek-ai/dsh-authorization/types
  */
 
-import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { CredentialKey } from '@deepseek-ai/dsh-credentials/types'
 
 /** One way a flow can obtain its credential, named by the flow that offers it. */
@@ -36,9 +35,6 @@ export interface AuthorizationPromptOption {
   description?: string
 }
 
-/** Browser input purpose that prevents credential-manager autofill collisions. */
-export type AuthorizationPromptAutocomplete = 'username' | 'current-password' | 'one-time-code'
-
 /**
  * A question a flow must have answered before it can continue. `secret` differs
  * from `text` only in presentation — a surface masks it and keeps it out of
@@ -51,8 +47,6 @@ export type AuthorizationPrompt = {
    * whole authorization is cancelled through the request's signal instead.
    */
   signal?: AbortSignal
-  /** Optional browser input purpose for credential and one-time-code fields. */
-  autocomplete?: AuthorizationPromptAutocomplete
 } & ({
   kind: 'text'
   message: string
@@ -66,9 +60,6 @@ export type AuthorizationPrompt = {
   message: string
   options: readonly AuthorizationPromptOption[]
 })
-
-/** Opaque identity of one authorization attempt within a service lifetime. */
-export type AuthorizationAttemptId = Branded<'AuthorizationAttemptId'>
 
 /** How one authorization attempt ended, as its own caller sees it. */
 export type AuthorizationStatus = 'authorized' | 'cancelled'
@@ -97,6 +88,4 @@ export interface AuthorizationEntry {
   methods: readonly AuthorizationMethod[]
   /** Whether an attempt for this key is running right now. */
   inFlight: boolean
-  /** Opaque identity of the active attempt, present only while `inFlight` is true. */
-  attemptId?: AuthorizationAttemptId
 }

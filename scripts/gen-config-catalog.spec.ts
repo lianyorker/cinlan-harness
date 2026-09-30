@@ -4,7 +4,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { collectConfigCatalog } from './gen-config-catalog.ts'
+import { collectConfigCatalog, render, type CatalogEntry } from './gen-config-catalog.ts'
+import { computeTranslationPairingRecord, translationPairPaths } from './translation-pairing-record.ts'
+import { generatedRegions } from './translation-pairing.ts'
 
 const roots: string[] = []
 const sharedSchema = `
@@ -60,19 +62,6 @@ afterEach(() => {
 })
 
 describe('shared config schema catalog', () => {
-  it('omits a configuration-only Bundle while preserving source requirements for executable packages', () => {
-    const { root, write } = fixture()
-    const manifest = {
-      name: '@test/defaults', dsh: { bundle: { patch: './cordis.patch.yml' } },
-      exports: { './cordis.patch.yml': './cordis.patch.yml', './package.json': './package.json' },
-    }
-    write('packages/bundle/defaults/package.json', JSON.stringify(manifest))
-    write('packages/bundle/defaults/cordis.patch.yml', '[]\n')
-    expect(collectConfigCatalog(root).map(entry => entry.pkg)).toEqual(['@test/provider', '@test/runtime'])
-    write('packages/bundle/defaults/package.json', JSON.stringify({ ...manifest, main: 'lib/index.js' }))
-    expect(() => collectConfigCatalog(root)).toThrow('@test/defaults: entry packages/bundle/defaults/src/index.ts is missing')
-  })
-
   it('collects every branch through a renamed named import from a public source subpath', () => {
     const { root } = fixture()
     const provider = collectConfigCatalog(root).find(entry => entry.pkg === '@test/provider')
@@ -90,58 +79,6 @@ describe('shared config schema catalog', () => {
     const { root } = fixture(sharedSchema.replace('export const Shared = Schema.union', 'export const Shared = Base\nconst Base = Schema.union'))
     const provider = collectConfigCatalog(root).find(entry => entry.pkg === '@test/provider')
     expect(new Set(provider?.schemaKeys)).toEqual(new Set(['mode', 'headless', 'endpoint']))
-  })
-
-  it.each([false, true])('collects exported package-local schema aliases, class plugin=%s', (classPlugin) => {
-    const { root, write } = fixture()
-    write('packages/test/provider/src/schema.ts', sharedSchema)
-    write('packages/test/provider/src/index.ts', `
-import { Shared as SharedConfig, type BrowserConfig } from './schema.ts'
-export type Config = BrowserConfig
-${classPlugin
-  ? 'export default class Provider { static Config = SharedConfig; constructor(ctx: unknown, config: Config) {} }'
-  : 'export const Config = SharedConfig; export function apply(ctx: unknown, config: Config): void {}'}
-`)
-    const provider = collectConfigCatalog(root).find(entry => entry.pkg === '@test/provider')
-    expect(new Set(provider?.schemaKeys)).toEqual(new Set(['mode', 'headless', 'endpoint']))
-  })
-
-  it('rejects fields absent from the package-local shared type', () => {
-    const { root, write } = fixture()
-    write('packages/test/provider/src/schema.ts', sharedSchema.replace('headless: Schema.boolean()', 'headless: Schema.boolean(), hidden: Schema.string()'))
-    write('packages/test/provider/src/index.ts', `
-import { Shared as SharedConfig, type BrowserConfig } from './schema.ts'
-export type Config = BrowserConfig
-export const Config = SharedConfig
-export function apply(ctx: unknown, config: Config): void {}
-`)
-    expect(() => collectConfigCatalog(root)).toThrow("schema validates key 'hidden' but config type 'Config' declares no such member")
-  })
-
-  it.each(['./schema', './schema.d.ts', '../../runtime/src/config.ts'])(
-    'rejects relative schema import %s outside the package source contract', (specifier) => {
-      const { root, write } = fixture()
-      write('packages/test/provider/src/index.ts', `
-import { Shared as SharedConfig } from '${specifier}'
-import type { BrowserConfig } from '@test/runtime/config'
-export type Config = BrowserConfig
-export const Config = SharedConfig
-export function apply(ctx: unknown, config: Config): void {}
-`)
-      expect(() => collectConfigCatalog(root)).toThrow("must be an explicit .ts source inside the importing package's src directory")
-    },
-  )
-
-  it('rejects unexported package-local schema constants', () => {
-    const { root, write } = fixture()
-    write('packages/test/provider/src/schema.ts', sharedSchema.replace('export const Shared', 'const Shared'))
-    write('packages/test/provider/src/index.ts', `
-import { Shared as SharedConfig, type BrowserConfig } from './schema.ts'
-export type Config = BrowserConfig
-export const Config = SharedConfig
-export function apply(ctx: unknown, config: Config): void {}
-`)
-    expect(() => collectConfigCatalog(root)).toThrow("has no exported const 'Shared'")
   })
 
   it('rejects type-only imports used as runtime schemas', () => {
@@ -200,5 +137,43 @@ export const Shared = makeSchema()
 export const Shared = Schema.union([MissingSchema])
 `)
     expect(() => collectConfigCatalog(root)).toThrow("schema alias 'MissingSchema' must name a const or named value import")
+  })
+})
+
+describe('config catalog rendering', () => {
+  const entries = (inject: string[]): CatalogEntry[] => [
+    {
+      pkg: '@deepseek-ai/dsh-demo',
+      dir: 'packages/demo/demo',
+      entry: 'packages/demo/demo/src/index.ts',
+      kind: 'config',
+      inject,
+      pastes: [{ text: 'export interface DemoConfig {}', source: 'packages/demo/demo/src/index.ts:3' }],
+    },
+    { pkg: '@deepseek-ai/dsh-plain', dir: 'packages/demo/plain', entry: 'packages/demo/plain/src/index.ts', kind: 'no-config', inject },
+  ]
+  const paths = translationPairPaths('docs/config-catalog.md')
+  const record = (inject: string[]) => computeTranslationPairingRecord(
+    paths,
+    render(entries(inject), 'en'),
+    render(entries(inject), 'zh'),
+    { repoRoot: process.cwd(), isTranslationPairSource: () => false },
+  )
+
+  it('keeps package data in generated regions shared by both languages', () => {
+    const en = generatedRegions(render(entries(['jobs']), 'en')).map(region => region.text)
+    expect(en.map(region => region.split('\n')[0])).toEqual([
+      '<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-demo -->',
+      '<!-- BEGIN GENERATED config-catalog:no-config -->',
+      '<!-- BEGIN GENERATED config-catalog:seam -->',
+      '<!-- BEGIN GENERATED config-catalog:library -->',
+    ])
+    expect(generatedRegions(render(entries(['jobs']), 'zh')).map(region => region.text)).toEqual(en)
+    expect(en[0]).toContain('- `inject`: `jobs`')
+  })
+
+  it('leaves the consistency record unchanged when only package data changes', () => {
+    expect(record(['jobs', 'typert'])).toEqual(record(['jobs']))
+    expect([...record(['jobs']).keys()].some(key => key.includes('dsh-demo'))).toBe(false)
   })
 })

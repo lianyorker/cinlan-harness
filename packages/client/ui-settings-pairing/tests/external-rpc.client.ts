@@ -1,7 +1,6 @@
-/** External Host RPC fixture only; production Client models, codecs and UI stay real. */
-import { createFixtureFaces } from '@deepseek-ai/dsh-client-connection/src/client/fixture.ts'
+import { RemoteMock } from '@deepseek-ai/dsh-remote-mock'
 import type { ClientTransportHooks, ClientRequest } from '@deepseek-ai/dsh-client-connection/client'
-import type { PairedDevice, PairingGrant, PairingInvitation, RemoteAccessStatus } from '@deepseek-ai/dsh-remote-access/types'
+import type { PairedDevice, PairingGrant, PairingInvitation, RemoteAccessStatus } from '../src/client/types.ts'
 
 export const device: PairedDevice = {
   deviceId: 'device-1' as PairedDevice['deviceId'], displayName: 'Test phone',
@@ -10,7 +9,7 @@ export const device: PairedDevice = {
 }
 export function externalRpc(initial: RemoteAccessStatus['state'] = 'disabled', paired = false) {
   const calls: ClientRequest[] = []
-  const rpc = createFixtureFaces().rpc
+  const rpc = RemoteMock.create().rpc
   let status: RemoteAccessStatus = {
     state: initial, missingConfiguration: initial === 'not-configured' ? ['advertisedOrigin', 'tlsCertificatePath', 'tlsPrivateKeyPath'] : [],
     origin: initial === 'not-configured' ? null : 'https://desktop.example:7443',

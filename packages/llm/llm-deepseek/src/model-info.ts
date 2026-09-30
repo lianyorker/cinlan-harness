@@ -1,7 +1,7 @@
 /** Protocol-independent model capabilities and reasoning choices. */
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { LlmModelInfo, LlmResolvedModelInfo } from '@deepseek-ai/dsh-llm'
-import type { DeepSeekCatalogModel, DeepSeekConnectionOptions } from './adapter.ts'
+import type { DeepSeekCatalogModel, DeepSeekConnectionOptions } from './types.ts'
 
 const OFF_REASONING_EFFORT = ReasoningEffortId('off')
 const LOW_REASONING_EFFORT = ReasoningEffortId('low')
@@ -76,6 +76,7 @@ export function modelInfo(
     context: { contextWindow },
     defaultMaxTokens: configured?.maxTokens ?? connection.maxTokens,
     ...configured?.systemPromptUpdate === undefined ? {} : { systemPromptUpdate: configured.systemPromptUpdate },
+    ...configured?.toolUpdate === undefined ? {} : { toolUpdate: configured.toolUpdate },
     ...connection.defaults.thinking === 'disabled'
       ? {
         reasoning: {

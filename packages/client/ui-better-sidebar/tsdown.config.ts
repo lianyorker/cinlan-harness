@@ -130,6 +130,7 @@ function browserSourcePath(source: string, sourcemapPath: string): string {
  */
 function clientBundle(pluginId: string, entryFile: string): UserConfig {
   return {
+    name: `${pluginId}/client`,
     entry: { client: 'src/client/index.tsx' },
     outDir: 'lib',
     format: 'cjs',

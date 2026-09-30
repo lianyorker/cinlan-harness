@@ -25,7 +25,7 @@ let agentCounter = 0
 function callingAgent(cwd: string | null = '/workspace'): Agent {
   const id = SessionId(`git-agent-${++agentCounter}`)
   const session = Session.create(id, [], {
-    version: 3,
+    version: 4,
     id,
     createdAt: 0,
     isSeeded: false,

@@ -76,7 +76,7 @@ The hub is a pure registration table with two faces, designed so backends and da
 
 ### The backend contract
 
-[`src/backend.ts`](src/backend.ts) is the normative contract for backend implementers, checked clause by clause by the shared conformance suite in `tests/contract.ts`. A backend owns exactly one medium and exposes optional data-shape facets; `kv` is the only facet, and opening a unit yields a versioned, globally-singleton schema handle whose single calls are atomic and durable once resolved. Unit and table names must match `UNIT_NAME_RE`; record keys are arbitrary strings that never reach file paths. The unit does not serialize concurrent writes — ordering belongs to the caller — and accepted versions are the current stamp plus explicitly declared older `compatibleVersions`. Whole-unit JSON and SQLite reject every other stamp; compatible reads leave data and stamps untouched, and the first successful write publishes the current stamp atomically with its change. The domain owner must ensure that current record and global schemas accept the listed predecessors.
+[`src/backend.ts`](src/backend.ts) is the normative contract for backend implementers, checked clause by clause by the shared conformance suite in `tests/contract.ts`. A backend owns exactly one medium and exposes optional data-shape facets; `kv` is the only facet, and opening a unit yields a versioned, globally-singleton schema handle whose single calls are atomic and durable once resolved. Unit and table names must match `UNIT_NAME_RE`; record keys are arbitrary strings that never reach file paths. The unit does not serialize concurrent writes — ordering belongs to the caller — and a stored version differing from the descriptor rejects `version-mismatch` (no migration).
 
 ### Source map
 
@@ -100,7 +100,7 @@ Read these pages when the hub's view is not enough: the subsystem reference is t
 
 - [Storage subsystem](../../../docs/subsystems/storage.md) — the backend contract, domain semantics, change events, and generated API.
 - [Storage package map](../README.md) — the family's packages and their repository position.
-- [domain KV storage Agent Note](../../../.agents/notes/implemented/architecture/2026-07-24-domain-kv-storage-and-workspace.md) — the design behind the hub, the domain form, and the session-backend migration.
+- [domain KV storage Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.md) — the design behind the hub, the domain form, and the session-backend migration.
 
 -----
 
@@ -128,7 +128,7 @@ Independent of live requests: the hub never touches a request prefix, so it cann
 
 These limits define what the hub cannot do. They are current package constraints, not a task backlog.
 
-- **`kv` is the only data shape** — a backend implements one facet; the `log` facet for session event logs is deferred to the session-backend migration ([Agent Note](../../../.agents/notes/implemented/architecture/2026-07-24-domain-kv-storage-and-workspace.md)).
+- **`kv` is the only data shape** — a backend implements one facet; the `log` facet for session event logs is deferred to the session-backend migration ([Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.md)).
 - **Forms resolve lazily** — reading `ctx.storage.domain` before the domain plugin mounts throws `form-not-mounted`; assemblies order plugins accordingly rather than silently deferring.
 
 <a id="dev-note"></a>

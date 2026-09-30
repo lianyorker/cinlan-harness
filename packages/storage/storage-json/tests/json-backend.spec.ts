@@ -80,34 +80,6 @@ describe('json backend specifics', () => {
     await backend.close()
   })
 
-  it('preserves the legacy file and version when an upgrade publish fails', async () => {
-    const root = await freshRoot()
-    const path = join(root, 'shape.json')
-    const backup = join(root, 'shape.legacy.json')
-    const backend = new JsonStorageBackend(root)
-    try {
-      const original = await backend.kv.open(descriptor)
-      await original.putRecord('t', 'old', { n: 1 })
-      await original.close()
-      const legacyBytes = await readFile(path, 'utf8')
-      const upgraded = await backend.kv.open({ ...descriptor, version: 2, compatibleVersions: [1] })
-      await upgraded.loadAll()
-      expect(await readFile(path, 'utf8')).toBe(legacyBytes)
-      await rename(path, backup)
-      await mkdir(path)
-      await expect(upgraded.putRecord('t', 'new', { execution: { kind: 'local' } })).rejects.toThrow()
-      expect((await upgraded.loadAll()).tables['t']).toEqual({ old: { n: 1 } })
-      expect(await readFile(backup, 'utf8')).toBe(legacyBytes)
-      await rm(path, { recursive: true })
-      await rename(backup, path)
-      await upgraded.putRecord('t', 'new', { execution: { kind: 'local' } })
-      const persisted = JSON.parse(await readFile(path, 'utf8')) as { unit: { version: number } }
-      expect(persisted.unit.version).toBe(2)
-    } finally {
-      await backend.close()
-    }
-  })
-
   it('rolls back memory when a publish fails', async () => {
     const root = await freshRoot()
     const backend = new JsonStorageBackend(root)
@@ -206,6 +178,38 @@ describe('json backend specifics', () => {
 
     await writeFile(join(root, 'shape.json'), JSON.stringify('just a string'), 'utf8')
     await expect(backend.kv.open(descriptor)).rejects.toMatchObject({ code: 'malformed-medium' })
+
+    await writeFile(join(root, 'shape.json'), JSON.stringify([{ t: { k: 1 } }]), 'utf8')
+    await expect(backend.kv.open(descriptor)).rejects.toMatchObject({ code: 'malformed-medium' })
+    await backend.close()
+  })
+
+  it('rejects a whole-unit document whose tables is an array', async () => {
+    const root = await freshRoot()
+    // An array passes `typeof 'object'`: reading it as a table map would open
+    // an empty unit, and the first write would republish the file without the
+    // records it could not see.
+    await writeFile(
+      join(root, 'shape.json'),
+      JSON.stringify({ unit: { name: 'shape', version: 1 }, global: null, tables: [{ t: { k: { hello: 'world' } } }] }),
+      'utf8',
+    )
+    const backend = new JsonStorageBackend(root)
+    await expect(backend.kv.open(descriptor)).rejects.toMatchObject({ code: 'malformed-medium' })
+    await expect(backend.kv.open(descriptor)).rejects.toThrow(/unit 'shape': tables is not an object/)
+    await backend.close()
+  })
+
+  it('opens a whole-unit document whose declared tables hold records', async () => {
+    const root = await freshRoot()
+    await writeFile(
+      join(root, 'shape.json'),
+      `${JSON.stringify({ unit: { name: 'shape', version: 1 }, global: { g: 1 }, tables: { t: { k: { hello: 'world' } } } }, null, 2)}\n`,
+      'utf8',
+    )
+    const backend = new JsonStorageBackend(root)
+    const unit = await backend.kv.open(descriptor)
+    expect(await unit.loadAll()).toEqual({ tables: { t: { k: { hello: 'world' } } }, global: { g: 1 } })
     await backend.close()
   })
 

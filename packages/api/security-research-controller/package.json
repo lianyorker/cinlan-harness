@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-api-security-research-controller",
   "description": "Security skill resource management and Session assessment Remotes",
-  "version": "0.1.7-rc.2",
+  "version": "0.2.0-rc.1",
   "publishConfig": {
     "access": "public"
   },
@@ -56,7 +56,7 @@
     "@deepseek-ai/dsh-typert-registry": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
-    "@deepseek-ai/dsh-agent-presets": "workspace:^",
+    "@deepseek-ai/dsh-agent-preset-registry": "workspace:^",
     "@deepseek-ai/dsh-assessment-scope": "workspace:^",
     "@deepseek-ai/dsh-artifact": "workspace:^",
     "@deepseek-ai/dsh-finding": "workspace:^",

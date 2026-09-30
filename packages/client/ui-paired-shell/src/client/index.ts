@@ -34,10 +34,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => ctx.slots.register({
     name: 'root',
     locale: 'pairedShell',
-    children: { conversation: { kind: 'single', scope: 'session-maybe' } },
+    children: { 'main.conversation': { kind: 'single', scope: 'session-maybe' } },
     inject: (): PairedShellInjected => ({
       selectSession: (id) => {
-        if (ctx.sessions.list.getSnapshot().ids.includes(id)) ctx.sessions.open(id)
+        if (ctx.sessions.list.getSnapshot().ids.includes(id)) {
+          (ctx.get('uiWorkspace') as any)?.openSession?.(id)
+        }
       },
     }),
   }, PairedShell), 'paired shell: root')

@@ -12,10 +12,6 @@ import { isAttachmentQuarantined } from './quarantine.ts'
 function findRef(blocks: readonly ContentBlock[], targetId: AttachmentId): ImageAttachmentRef | undefined {
   for (const block of blocks) {
     if (block.type === 'image' && block.attachment.attachmentId === targetId) return block.attachment
-    if (block.type === 'tool-result') {
-      const found = findRef(block.content, targetId)
-      if (found !== undefined) return found
-    }
   }
   return undefined
 }

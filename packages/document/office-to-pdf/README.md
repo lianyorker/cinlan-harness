@@ -1,5 +1,5 @@
 ---
-description: "Convert authorized Office files to bounded, cached PDFs on the Host."
+description: "Host Office conversion with the independently published LibreOffice kit."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Convert DOC, DOCX, XLS, XLSX, PPT, and PPTX files to PDFs on the Host computer. Concurrent callers share conversion and cached results within configured limits. Browser previews retain the original source identity, and callers receive independent PDF bytes. Conversion uses the independently published LibreOffice kit and does not modify the Office file.
+Convert Office documents to PDFs on the Host computer. Targets with a declared native LibreOffice engine use it; other targets use Node WASM. The provider accepts DOC, DOCX, XLS, XLSX, PPT, and PPTX. OOXML conversion returns missing-font names; binary Office conversion returns an empty list.
 
 ## Table of Contents
 
@@ -25,26 +25,32 @@ Convert DOC, DOCX, XLS, XLSX, PPT, and PPTX files to PDFs on the Host computer. 
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount `@deepseek-ai/dsh-office-to-pdf` as a `cordis.yml` row. Local file previews also require the [Workspace Files](../../api/workspace-files/README.md) service and its filesystem, sandbox policy, and Typert dependencies.
+The [Web bundle](../../bundle/web-app/README.md) mounts this provider as `office-to-pdf`. Independent compositions mount `@deepseek-ai/dsh-office-to-pdf` as a `cordis.yml` row.
 
-In-process callers submit authorized source identity, version, optional byte size, a deferred bounded read, extension, and priority through `ctx.officeToPdf.convert()`. A source version change rejects conversion. Each result contains caller-owned PDF bytes, missing font names, a content cache key, and the provider generation. Cancellation rejects with its reason; conversion failures use `OfficeToPdfError`.
+Callers submit authorized source identity, version, optional byte size, a deferred bounded read, Office extension, and scheduling priority through `ctx.officeToPdf.convert()`. A changed source version rejects conversion. Results contain caller-owned PDF bytes, missing fonts, a cache key, and a conversion generation that changes on configuration replacement. Cancellation rejects with its reason; conversion failures use `OfficeToPdfError`.
 
-The `officeToPdf.render` Remote method accepts the Session identity, Office path, and priority. The Host resolves that identity to the local Agent and applies ordinary workspace-file authorization before checking the cache. Responses retain the source path and version and carry base64 PDF bytes, missing fonts, and the provider generation. `officeToPdf.generation` reports the current generation; replacement of the provider invalidates earlier rendering identities.
+The provider depends on the independently published [`@deepseek-ai/libreoffice-kit`](https://github.com/deepseek-harness/libreoffice-kit/tree/main/packages/entry) npm API at kit version `0.1.1`. Application packaging selects the matching native package declared in the kit’s `optionalDependencies`, or WASM when no native package is declared for that target. A missing declared native engine rejects packaging without selecting WASM. The [platform engine decision](../../../.agents/notes/implemented/architecture/2026-09-15-platform-office-engines.md) defines installation and packaging; the [release ownership decision](../../../.agents/notes/implemented/architecture/2026-09-14-independent-libreoffice-kit.md) defines the independent kit and Harness responsibilities.
+
+Browsers request PDFs through the `officeToPdf.render` Remote method with a Session identity, Office path, and priority. This entry uses `workspaceFiles` for authorization and source versions, then reads raw bytes through `fs.readBytes` within the conversion reservation. In-process `convert()` does not require those services. Responses retain the source path and version and carry native PDF bytes through the binary Remote multipart transport, plus missing fonts and conversion generation. The `officeToPdf.generation` Remote method returns the current provider generation; `api/remotes` mounts the generated Client descriptor.
 
 | Field | Default | Meaning |
 |---|---|---|
-| `maxConcurrentConversions` | `2` | Maximum active converters. |
-| `maxQueuedJobs` | `8` | Maximum queued metadata-only jobs. |
-| `maxReaders` | `32` | Maximum outstanding readers; the final allowance is reserved for foreground work. |
-| `maxSourceBytes` | `104857600` | Total source-byte reservations; must cover `maxInputBytes`. |
-| `maxBackgroundConversions` | `1` | Maximum active background jobs; zero refuses background admission. |
-| `maxCachedEntries` / `maxCachedBytes` | `8` / `134217728` | Retained PDF count and bytes. |
-| `maxSourceEntries` | `64` | Maximum retained source-version aliases. |
-| `timeoutMs` | `60000` | Kit conversion deadline, excluding the queue. |
-| `maxInputBytes` / `maxOutputBytes` | `52428800` / `104857600` | Maximum source and complete PDF bytes. |
-| `maxImageResolution` | `192` | Maximum exported raster-image DPI. |
+| `maxConcurrentConversions` | `2` | Maximum active converters; queued calls remain cancellable. |
+| `timeoutMs` | `60000` | Conversion deadline after a converter is acquired. |
+| `maxInputBytes` | `52428800` | Maximum source bytes. |
+| `maxOutputBytes` | `104857600` | Maximum complete PDF bytes. |
+| `maxImageResolution` | `192` | Maximum raster-image DPI; overrides the kit default of `144`. |
+| `fontFallbacks` | Kit defaults | Ordered font-family preference groups; each group requires at least two names containing non-whitespace characters. |
 
-[Config](src/index.ts) also defines archive and font limits. `fontDirectories` accepts absolute paths; omission retains kit platform defaults. `fontFallbacks` replaces the kit preference groups, with at least two nonblank names per group. The runtime dependency is `@deepseek-ai/libreoffice-kit` version `0.0.1`; its published optional dependencies declare the native Windows x64 and ARM64 engines.
+The [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-office-to-pdf) owns the full font, archive, and image settings. `fontDirectories` accepts absolute directories; omission uses the kit platform defaults. Explicit `fontFallbacks` replaces the kit's default groups. Installed requested fonts retain precedence, and other system fonts remain eligible for uncovered glyphs. Native engines can select installed metric-compatible fonts before these preferences.
+
+The [bounded conversion decision](../../../.agents/notes/implemented/architecture/2026-09-15-bounded-office-conversion.md) explains queue admission, cache limits, and shared cancellation.
+
+The provider retains successful PDFs by converter generation, Office extension, and SHA-256 of the exact source bytes. A bounded source-version index avoids rereading known content after an authorized stat; content identity also shares conversion across different source paths. Least-recently-used PDFs leave at either retention limit, together with their aliases. Failures and oversized cache entries are not retained. Every result has independent PDF/font buffers. Ready alias hits consume no reader slot; active source locators are released when their last reader leaves. Reopening a source after its final reader cancels rereads its bytes before sharing by digest, even if another source kept the conversion alive or its PDF is ready.
+
+Admission bounds queued metadata, outstanding readers, active source-byte reservations, and conversions before invoking a source read. Unknown source sizes reserve `maxInputBytes`; known sizes reserve their stat size. Reads receive that capacity and may read one overflow sentinel byte. `maxSourceBytes` must cover `maxInputBytes`. The final reader allowance is reserved for foreground work. Setting `maxBackgroundConversions` to zero rejects background joins to queued and running work; completed alias hits remain available. Background jobs wait while any foreground job is queued, including when it awaits source capacity. Foreground joins promote queued prewarming; when its last foreground reader leaves, the queued job returns to background priority and eligible work can start immediately. Foreground admission can evict queued speculation. Background concurrency leaves a foreground slot when total concurrency exceeds one. A running prewarm keeps its background admission slot until settlement, even after promotion. The final reader cancels shared work. Removing a queued foreground blocker immediately admits other eligible work; active reservations remain held until actual read/conversion cleanup settles.
+
+The defaults retain 8 PDFs/128 MiB and 64 source aliases, admit 32 readers and 8 queued jobs, reserve at most 100 MiB of source bytes, and allow one background conversion. These limits bound owned requests and binary payloads, not engine RSS, multipart framing, caller-retained results, or PDF.js page rendering.
 
 -----
 
@@ -54,13 +60,11 @@ The `officeToPdf.render` Remote method accepts the Session identity, Office path
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-[The queue](src/queue.ts) admits metadata before reading bytes. Known sizes reserve their stat size; unknown sizes reserve the input limit. Foreground work precedes queued background work, can promote shared prewarming, and can evict queued speculation. Readers cancel independently; the final reader cancels shared work. Active reservations remain held until reads, conversion, and cleanup settle.
+Invalid engine metadata, missing required assets, and conversion errors reject the request instead of switching engines. The shared WASM engine uses LibreOffice's CPU image filter. Native conversion uses its separate platform engine.
 
-Successful PDFs are retained by provider generation, extension, and SHA-256 of source bytes. A bounded source-version index avoids repeated reads after authorization; distinct paths can share content conversion. Least-recently-used eviction removes PDFs and their aliases. Failures and oversized cache entries are not retained. Completed alias hits consume no outstanding-reader allowance, including when background admission is disabled.
+Each concurrent slot lazily creates and reuses one kit converter. The provider writes authorized input into a private temporary directory, reads a bounded regular PDF, and removes the directory before settling. Canceling an admitted reader does not block later queued work. Reader cancellation releases only that reader; the final reader and provider disposal cancel shared work. Disposal reports `unavailable` to outstanding readers and joins conversions and converter teardown. No runtime invariant companion is published because active operations and scratch cleanup have one lifetime owner.
 
-Each active slot lazily creates and reuses a kit converter. The provider writes input to a private temporary directory, [validates and bounds the PDF](src/output.ts), and removes scratch files before conversion settles. Unload cancels and joins authorization, conversion, and converter disposal. No runtime invariant companion is published because these operations and their scratch files have one lifetime owner.
-
-Remote reads verify the source identity before and after the reserved filesystem read. Authorization failures pass through; conversion failures return `document-render/failed` with a classified reason and no engine diagnostics. [The real conversion test](tests/conversion.spec.ts) loads the services through Loader and checks document text and tables, spreadsheet values, and slide order with PDF.js using [deterministic OOXML samples](tests/fixtures/office.ts).
+Remote file reads recheck content authorization and source version before consulting the conversion cache. Deferred reads run after conversion admission and verify the source version after reading. Source-read failures pass through; conversion failures return `document-render/failed` with a classified reason and no engine diagnostics. Unload cancels and joins authorization reads, Remote requests, and conversion work.
 
 </details>
 
@@ -69,9 +73,8 @@ Remote reads verify the source identity before and after the reserved filesystem
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [Workspace Files](../../api/workspace-files/README.md) — local Session file authorization and bounded reads.
-- [Architecture](../../../docs/architecture.md) — Cordis composition and application launch.
-- [Testing](../../../docs/testing.md) — source and artifact verification.
+- [Office to PDF](../../../docs/subsystems/office-to-pdf.md) — composition and input/result ownership.
+- [Workspace Files](../../api/workspace-files/README.md) — Session file authorization and bounded reads.
 
 -----
 
@@ -88,8 +91,8 @@ None; conversion does not construct or modify model requests.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- Conversion fidelity, fonts, and native engine assets belong to `@deepseek-ai/libreoffice-kit`; this provider does not search for system LibreOffice or download an engine at runtime.
-- Queue waiting is outside `timeoutMs`. Limits cover owned requests and payloads, not engine RSS, base64 transport expansion, caller-retained results, or browser PDF rendering.
+- Conversion fidelity and installed native/WASM assets belong to `@deepseek-ai/libreoffice-kit`; this provider neither searches for system LibreOffice nor downloads an engine at runtime.
+- Queue waiting time is not bounded by `timeoutMs`, which starts only when kit conversion begins.
 
 <a id="dev-note"></a>
 ### Dev Note

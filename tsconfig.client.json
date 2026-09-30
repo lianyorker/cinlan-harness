@@ -12,24 +12,34 @@
     "apps/desktop/src/keyboard.ts",
     "apps/desktop/src/keybindings.ts",
     "apps/desktop/src/browser-guests.ts",
+    "apps/desktop/src/browser-remote-debugging.ts",
     "apps/desktop/src/ipc.ts",
     "apps/desktop/src/update-overlay.ts",
-    "apps/desktop/tests*.client.spec.tsx",
-    "packages/clienttests*.ts",
-    "packages/client*.tsx",
-    "benchmarks*.client.ts",
-    "benchmarks*.client.tsx",
-    "benchmarks/support*.ts",
-    "packagestests*.client.spec.ts",
-    "packagestests*.client.spec.tsx",
-    "packagestests*.client.tsx",
-    "packagestests*.client.ts",
+    "apps/desktop/tests/**/*.client.spec.tsx",
+    "packages/client/*/src/css-modules.d.ts",
+    "packages/client/*/tests/**/*.ts",
+    "packages/client/*/tests/**/*.tsx",
+    "benchmarks/**/*.client.ts",
+    "benchmarks/**/*.client.tsx",
+    "benchmarks/support/**/*.ts",
+    "packages/*/*/tests/**/*.client.spec.ts",
+    "packages/*/*/tests/**/*.client.spec.tsx",
+    "packages/*/*/tests/**/*.client.tsx",
+    "packages/*/*/tests/**/*.client.ts",
     "packages/extensions/ui-cordis/src/css-modules.d.ts",
     "packages/client/tsdown.client.ts",
     "scripts/client-build-environment.ts",
     "scripts/bundle-input-isolation.ts",
-    "scriptstests*.host.spec.ts",
-    "packages/client/ui-better-sidebar/tests/**"
+    "scripts/*.client.spec.ts",
+    "scripts/client-bundle-css.spec.ts",
+    "scripts/client-bundle-purity.spec.ts"
+  ],
+  "exclude": [
+    "packages/client/*/tests/**/*.host.spec.ts",
+    "packages/client/ui-better-sidebar/tests/**",
+    "packages/client/ui-right-sidebar/**",
+    "packages/notifications/notifications/tests/**",
+    "packages/test-support/client-runtime/tests/**"
   ],
   "references": [
     {
@@ -297,22 +307,10 @@
       "path": "./packages/client/ui-settings-unarchive-sessions"
     },
     {
-      "path": "./packages/code-runtime/code-runtime-worker-thread"
-    },
-    {
       "path": "./packages/api/workspace-isolation-controller/tsconfig.json"
     },
     {
       "path": "./packages/api/worktree-task-controller/tsconfig.json"
-    },
-    {
-      "path": "./packages/client/ui-chat"
-    },
-    {
-      "path": "./packages/client/ui-conversation"
-    },
-    {
-      "path": "./packages/client/ui-plugin-manager"
     },
     {
       "path": "./packages/client/ui-workspace-isolation"
@@ -324,22 +322,7 @@
       "path": "./packages/client/ui-work-items"
     },
     {
-      "path": "./packages/client/ui-sidebar-textpreview"
-    },
-    {
-      "path": "./packages/client/ui-theme"
-    },
-    {
       "path": "./packages/client/ui-notifications"
-    },
-    {
-      "path": "./packages/settings/settings-file"
-    },
-    {
-      "path": "./packages/client/ui-settings"
-    },
-    {
-      "path": "./packages/client/ui-settings-general"
     },
     {
       "path": "./packages/client/ui-settings-security"
@@ -384,12 +367,6 @@
       "path": "./packages/client/ui-git-settings"
     },
     {
-      "path": "./packages/client/locale"
-    },
-    {
-      "path": "./packages/client/ui-right-sidebar"
-    },
-    {
       "path": "./packages/client/ui-better-sidebar/tsconfig.client.json"
     },
     {
@@ -399,7 +376,16 @@
       "path": "./packages/client/ui-voice-dictation"
     },
     {
-      "path": "./packages/voice/voice"
+      "path": "./packages/api/integration-preflight-controller/tsconfig.json"
+    },
+    {
+      "path": "./packages/jobs/tool-jobs"
+    },
+    {
+      "path": "./packages/session-query/tool-session-query"
+    },
+    {
+      "path": "./packages/terminal/tool-terminal"
     }
   ]
 }

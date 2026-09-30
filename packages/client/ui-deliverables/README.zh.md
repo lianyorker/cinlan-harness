@@ -1,5 +1,5 @@
 ---
-description: "Web 客户端中的逐回合文件改动卡片、逐文件差异审阅和可点击产物引用。"
+description: "Web GUI 的改动文件、交付文件与可点击文件引用：已完成轮次末尾的改动文件卡片与交付文件卡片、逐个对比改动文件的 review tab，以及收尾正文中的行内代码链接；供产出物体验的用户与维护者阅读。"
 kind: "package-reference"
 ---
 
@@ -9,35 +9,52 @@ kind: "package-reference"
 
 ## 概述
 
-审阅已完成回合改动的文件，并查看每个文件已记录的前后差异。卡片显示行数统计；安装 better-sidebar 时在其中打开审阅 tab，否则使用 sidebar-right。显式 `present` 声明为当前源文件添加交付卡片，包括通过 shell 创建的文件。原有产物文件行和行内代码链接继续打开文件。二进制文件、超大捕获和过期记录均显示明确状态。
+本包渲染已完成轮次末尾的改动文件卡片——列出本轮改动的文件及 Host 记录的行数，每一行在该文件上打开本轮的 review tab——以及显式交付文件的卡片，并把收尾正文中匹配的行内代码引用转为链接，让被点名的文件在右侧 Sidebar 中打开。列出与链接的路径来自记录的改动摘要、成功的文件修改与显式交付，而非收尾正文。只有正式提供的 Web patch 加载本包；删除其 cordis.yml 条目会同时移除指引、卡片与正文链接。
 
 ## 目录
 
-- [使用此包](#use-this-package)
+- [使用本包](#use-this-package)
 - [理解实现](#understand-the-implementation)
-- [继续探索](#further-exploration)
+- [进一步探索](#further-exploration)
 - [模型体验](#model-experience)
-- [已知限制与后续工作](#known-limitations-and-deferred-work)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
 
 -----
 
 <a id="use-this-package"></a>
-## 使用此包
+## 使用本包
 
-已完成回合的改动卡片列出 [workspace-changes](../../deliverables/workspace-changes/README.zh.md) 记录的文件。点击标题打开第一个比较；点击文件行使用该文件在摘要中的原始索引。超过三个文件时折叠。审阅支持文件切换、统一或并排显示、换行，以及通过侧栏现有导航打开完整文件。
+与 `ui-conversation` 和 Host 侧的 [workspace-changes](../../deliverables/workspace-changes/README.zh.md) 插件一起挂载本插件；已完成轮次随即以改动文件卡片收尾，位于收尾消息正文与其动作页脚之间。没有可提供的摘要时——本轮没有改动任何文件、该插件被组合出去，或该轮之后 Host 重启过——卡片不出现，只保留交付卡片与正文链接；工作区不在 git 仓库内时摘要只列文件工具的编辑。
 
-交付卡片直接重放 `deliverables/presented`，无需文件修改调用。卡片主体通过 better-sidebar 预览，并携带当前查看的 Session ID 与已知 cwd；菜单使用默认应用打开，或在 Host 文件管理器中定位源文件。`GET /api/present.host` 提供 Host 能力。`POST /api/present.open` 只接受 Session、事件、文件索引及动作；它解析持久声明，并在验证与原生启动期间持有同一个执行租约。远端租约在访问 Host 文件之前返回不支持。本地租约通过其文件系统拒绝非普通文件和末级符号链接，并在启动前确认提供方与 Host 指向同一文件。读取声明不会激活 Agent。编辑会改变打开的内容，移动或删除源文件会使其不可用；不保存独立副本。
+改动文件与交付文件的入口卡片、内部文件图标底框和悬停预览浮层遵循 [R16 预览卡片规则](../../../docs/ui-radius.zh.md#radius-scale)，hover 保持相同轮廓。
 
-同时挂载 workspace-changes 和本插件。Host 通过 Connection Fetch 注册经过身份验证的 `GET /api/changes.summary` 和 `GET /api/changes.diff` 路由。请求仅指定 Session、通知事件序号和原始文件索引，不指定 Host 文件路径；摘要不包含 cwd 和私有快照 id。
+<a id="explicit-deliveries"></a>
+### 显式交付
 
-安装 better-sidebar 时，审阅通过其公开 tab 和文件导航 API 打开。后备实现注册 `sidebar.right.pane.tab` 内容和 tab 定义。新卡片使用新增的 `conversation.chat.turnCards` 列表；现有 `conversation.chat.turnTail` chain 和产物文件行保留原有行为。Settings 样式和 Desktop 传输仍由现有包负责。
+`present` 工具的准备阶段是带文档图标的不可展开单行。记录的调用提供参数前，该行不显示文件名、不创建交付卡片，也不启用文件操作。
 
-比较内容保留到 Host 重启或 Session 销毁。仅保留事件无法重建过期差异。摘要缺失时隐藏卡片；打开的审阅区分缺失记录和可重试读取错误。二进制或超大捕获没有文本差异，超过 10,000 行时显示截断提示。
+Web 的 `standard`、`ptc` 与 `cordis` preset 提供 `present`，用于声明会话文件系统可访问的最终文件，包括通过 Bash 创建的文件。创建后以 `files: [{ path, description? }]` 调用。[present 工具](../../deliverables/tool-present/README.zh.md)拥有文件数量限制和会话声明。单个交付占满一行，多个交付使用双列网格，超过四个时默认收起。卡片显示文件名、说明或文件类型，以及共享的原生打开控件。交付和改动文件卡片的图标底块在浅色主题下使用 50% 不透明度的白色，深色主题下为 5%。图标底块与单文件改动卡片的外框使用与交付卡片相同的描边。点击卡片会在右侧 Sidebar 预览文件。控件打开默认应用，并列出关联应用，文件定位始终放在最后。匹配的行内代码引用也打开 Sidebar 预览。重复声明使用收尾回复之前最近一次的说明。
 
-### 原有产物文件行和提及
+`present` 工具行在执行、成功、失败和中断状态下保留文档图标及记录的结果。原生操作共享等待状态，并在卡片显示进度或可重试错误。打开或定位成功的反馈显示五秒后，在 200ms 内淡出并恢复文件说明；失败信息保留到下次尝试。卡片挂载时读取桌面信息，连接更换时清除缓存。Host 没有桌面时，卡片保留 Sidebar 预览并隐藏原生控件；元数据读取失败时提供重试。交付卡片和变更对比页通过 `deliverables.file.actions` 和 `deliverables.review.file.actions` 使用 [ui-open-in-app](../ui-open-in-app/README.zh.md) 提供的控件。关联应用 GET 查询与原生 POST 操作都会先校验记录中的文件坐标及会话文件系统映射，再调用 Host 桌面。
 
-产物文件行和收尾正文提及继续使用精确路径或唯一 basename 词表。它们使用原有的 `conversation.chat.turnTail` chain，并与改动文件卡片相互独立。
+### 改动文件卡片
+
+只有开启代码工作工具才展示此卡片并请求其摘要。关闭该偏好会立即隐藏卡片，同时保留显式交付卡片、行内文件链接和已记录的工作区改动。
+
+卡片渲染 Host 为本轮最新一条 `workspace/changes` 宣告提供的摘要，每条宣告通过经过认证的摘要路由读取一次；读取尚未完成、Host 答复摘要已不存在，或摘要没有列出任何文件时，没有卡片。仅改动一个文件时，标题显示“已编辑”和文件名，配合对应的文件类型图标，不展示文件列表；标题保留增删行数或二进制/过大状态，并通过无障碍描述提供完整路径。多个文件使用代码文件图标，标题给出改动文件总数与增删行数合计；鼠标悬停或键盘聚焦时，统计信息替换为“在侧边栏预览”。每一行使用普通界面字体显示文件路径，增删行数保留等宽字体，二进制文件显示“二进制”，Host 没有捕获的文件显示“过大”。行按记录的展示顺序排列，因此仓库内位于工作目录之上的文件与工作区外的文件排在最前。折叠前显示四行；控件展开全部记录文件，展开后从底部收起列表。每一行在右侧 Sidebar 中打开本轮的 review 并选中该文件，标题则在第一个文件上打开它。 在文件行或单文件标题上悬停 500ms 后，会出现可滚动的单列改动浮层，不受 Sidebar 视图设置影响。顶部完整路径使用较浅的等宽字体，超出宽度时可横向滚动。浮层不显示代码旁的文件状态说明和 hunk 头；没有 hunk 的对比仍显示状态文字。每行通过无障碍描述提供完整路径。浮层比卡片窄 48px，左右各内缩 24px，高度最多 420px，并受视口可用空间限制。整个浮层的淡入和淡出各持续 100ms。鼠标移入浮层后保持打开；移出、按 Escape 或通过鼠标和键盘激活文件行会关闭浮层。对比只在浮层打开时加载，与 review tab 共用缓存及重试状态。
+
+### review tab
+
+行在该行的文件上打开本轮的 `changes-review` tab，其地址由当前查看的 Session 和宣告事件的序号组成，以轮号作标题；同一张卡片的另一行会在其文件上显示同一个 tab。头部的文件选择器列出所有记录的文件及其行数，用于切换对比。新 tab 默认选择不换行的左右对比。只有新增或只有删除的对比（包括周围的上下文行）使用单栏展示，不改变所选视图；同时包含增删的对比按所选视图展示。其控件用于切换单栏或左右对比、切换自动换行、在 Sidebar 中打开当前完整文件，并在 Host 有桌面时用默认应用打开文件；原生打开的等待与可重试错误状态与卡片一致，视图和换行选择按 tab 保留。tab 通过经过认证的路由各读取一次摘要和每个对比。文本对比逐个列出 hunk，每一行带旧侧和新侧的行号，并按代码预览的文件名 grammar 与 Shiki token 色分别高亮每个已渲染 hunk 的两侧。新增与删除在各主题下使用独立的代码区与行号区底色，并为行号、增删符号和对齐的左侧色条着色；普通代码文字保留主文本色。文件是本轮新建或删除、两侧内容相同、Host 的逐行对比超时而按整文件替换显示，或 tab 在 5000 行处停止绘制时，tab 还会给出一行说明。二进制或过大的文件、Host 已不再提供的对比，以及读取失败各显示一行提示；读取失败时提供重试。对比是本轮对该文件的快照，不是它当前的内容。
+
+当前文件标题使用 `ui-primitives` 的共享组件 [`PathLabel`](../ui-primitives/README.zh.md#component-catalog)：空间足够时完整靠左显示，否则从左侧裁剪并渐隐，保留尾部字符和扩展名。目录使用弱化颜色，文件名使用主色，悬停显示完整路径。调整面板宽度或切换文件时更新渐隐；下拉箭头、行数和工具栏操作保留各自的空间。
+
+关闭自动换行时，两列同步纵向滚动，横向偏移同步到各自可滚动范围内。各行背景（包括用于对齐的空行）覆盖所在列的完整可滚动宽度。两列在双轴上都禁用弹性边缘反馈和向外层传递滚动；各列可滚动范围内的原生惯性仍由浏览器控制。两侧横向滚动条始终位于可见对比区域底部；如果只有一侧需要横向滚动，上下滚动会保留该侧的横向偏移。
+
+### 行内代码链接
+
+收尾正文链接产出或已交付的路径：行内代码 token 按精确路径解析，或当它恰好等于其中某条路径的 basename 且该路径唯一时解析——两条路径共享同一 basename 时保持不可点击而不作猜测，因此提及绝不打开错误的文件。解析成功的提及保留代码标签，并采用 Markdown 样式表的链接样式，完整路径作为其 `title`。
 
 -----
 
@@ -47,25 +64,25 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-浏览器半部按回合关联 `workspace/changes` 通知，包括结束消息之后追加的通知。Host 路由只接受经过校验的 Session、事件序号和文件索引坐标；不接受请求指定的文件系统路径，摘要响应也不包含 cwd 和私有快照 id。
+Node 半部注册[模型体验](#model-experience)所述的静态 `ui:deliverable-file-references` 系统提示词段。显式 Markdown 链接使用共享的 [Markdown 渲染器](../ui-primitives/README.zh.md)；行内代码匹配仍仅限产出或交付文件。浏览器半部把组合改动文件卡片与显式交付的包装组件注册进 chat 视图的 `conversation.chat.turnTail` 列表，与其他功能产物并列。`deliverablesDefinition` 把每个轮次最新且通过校验的 `workspace/changes` 宣告的序号折叠进 `DeliverablesTurnData.changes`，卡片按它向 Host 读取摘要并缓存到连接被替换为止，把 `deliverables/presented` 事件折叠为交付，并根据 `write`、`edit` 和有修改作用的 `str_replace_editor` 命令中经过校验的原始参数把成功的第一方修改调用折叠为产出路径；产出路径只供正文提及解析器使用。读取、删除、不受支持的工具、格式错误的调用、格式错误的事件和失败结果不贡献任何条目。每一行通过 `ctx.sidebarRight.openResource` 打开 `dsh-resource://changes-review/session/<sessionId>/<seq>/<turn>`，并以文件下标作为 `changes-review` 的导航参数；本包在 `builtin` 档为该模式注册 `changes-review` tab 类型，把其 body 连同一个按 tab 保存选择的独占 store 注册到按键的 `sidebar.right.pane.tab` 座位下，body 通过经过认证的路由把摘要和对比读进连接更换时清空的 store。本包还提供 chat 视图按收尾消息查询的 `chatFileMentions` 服务；把插件组合出去会移除全部表面，视图的空列表以零成本留下。
 
-可选的 better-sidebar 集成仅调用公开的 tab 和文件导航方法。后备实现注册 `sidebar.right.pane.tab` 内容和 tab 定义。切换文件会取消未完成读取，插件销毁会等待自身请求结束，比较最多渲染 10,000 行。
-
-运行时不变量：无。本包验证 Host 响应并从会话数据派生卡片，不拥有可能独立偏离的运行时关系。
+原生打开使用经过认证的 POST，通过当前查看的会话、事件序号和原始文件索引定位声明；review tab 对改动文件的原生打开使用同一组坐标。对声明，Host 读取事件及当前查看的会话 header，将其中的 cwd 传给 `workspaceFiles.stat`，未记录 cwd 时使用部署的工作目录；对改动文件，传的是所提供摘要携带的工作目录。它与侧栏预览使用同一组合文件系统，无需启动 Agent，子会话也适用。原生操作要求规范化的进程路径能从 Host 路径映射回同一进程路径。提供方没有这种映射时返回 422，之后 review tab 隐藏原生打开；Host 上存在同名文件并不足够。同一份桌面可用性配置同时约束信息查询和实际执行。编辑会影响后续打开的内容；删除后返回错误。不创建文件内容副本或附件。插件释放时取消并等待进行中的原生打开请求。
 
 </details>
 
 -----
 
 <a id="further-exploration"></a>
-## 继续探索
+## 进一步探索
 
-继续阅读以下页面，了解记录器、聊天卡片组合和侧栏导航。
+当产出物面不够用时阅读以下页面。它们从卡片进入 Host 记录器、turn-tail 洞与词表背后的决策。
 
-- [工作区改动](../../deliverables/workspace-changes/README.zh.md)——捕获上限、比较服务和活动 Session 生命周期。
-- [ui-conversation](../ui-conversation/README.zh.md)——聊天回合卡片和 tail 渲染。
-- [右侧栏](../ui-sidebar-right/README.zh.md)——后备 tab 导航。
-- [Better-sidebar 扩展 API](../ui-better-sidebar/AGENTS.md)——可选 tab 注册。
+- [workspace-changes](../../deliverables/workspace-changes/README.zh.md)——记录并提供卡片所渲染摘要的 Host 插件。
+- [ui-chat](../ui-chat/README.zh.md)——声明 `conversation.chat.turnTail` 洞并渲染收尾正文。
+- [本轮改动文件卡片](../../../.agents/notes/implemented/feature/2026-09-11-turn-changed-files-card.zh.md)——用 git 记录的摘要取代修改调用行背后的决策。
+- [工作区文件链接](../../../.agents/notes/implemented/feature/2026-07-31-web-workspace-file-links.zh.md)——早先产出文件行背后的决策；其 Host 打开路径已被[右侧 Sidebar](../../../.agents/notes/implemented/feature/2026-09-04-right-sidebar-docking-infrastructure.zh.md)取代。
+- [行内文件提及](../../../.agents/notes/archived/feature/2026-08-07-web-inline-file-mentions.md)——收尾正文可点击提及背后的决策。
+- [客户端包映射](../README.zh.md)——相邻的浏览器 UI 包。
 
 -----
 
@@ -76,35 +93,40 @@ kind: "package-reference"
 
 #### 模型看到的内容
 
-一段固定提示词要求模型在最终回复中点名成功创建或修改的主要文件，并将这些文件以及正文中提到的其他本轮变更文件写成采用精确路径或唯一 basename 的 Markdown 行内代码，例如 `out/report.html`。
+提示词建议在最终回复中展示主要结果：内嵌图片用于讲解与对比，图片链接用于引用和文件列表，图片文件卡片用于独立交付。文件目标路径使用尖括号包裹，包括含空格的路径。对于需要完整文件的交付，尤其是 Office 文件，建议使用独立的 `present` 卡片，通常选最重要的一两项，需要时可以更多，但每次调用最多四项。提示词建议避免仅为列出代码改动生成卡片，也不为确认 diff 是否显示额外运行命令。代码工作工具关闭时仍采用这条建议，接受较少的文件展示入口，以减少重复展示和不必要的工具调用。文件引用要求链接命令、配置表达式和代码块以外的每次现有文件提及，包括重复提及和表格。标签默认使用文件名或清楚的别名，仅添加足以区分文件的父目录。精确引用显示为 `filename:24` 或 `filename:24–30`；目标保留完整相对路径或绝对路径，以及 `#L24` 或 `#L24-L30` 锚点。显示后缀不含 `#` 或 `L`。
 
 #### Token 影响
 
-加载本包时增加一段固定提示词；不增加工具 schema、工具结果或按回合变化的上下文。
+加载本包时增加一段包含产出选择、渲染效果和文件引用指导的固定提示词。[present 工具](../../deliverables/tool-present/README.zh.md#model-experience)拥有交付 schema 和结果文本。
 
 #### KV Cache 影响
 
-该段落在本包挂载期间始终以 first-party 顺序 9000 保持静态，因此留在可复用的提示词前缀中，不会随回合改变。
+该段落在本包挂载期间始终以 first-party 顺序 9000 保持静态，因此留在可复用的提示词前缀中，不会随轮次改变。
 
-## 已知限制与后续工作
+## 已知限制与延期工作
 
 <a id="known-limitations-and-deferred-work"></a>
 
-这些限制界定当前改动卡片和比较服务：
 
-- **比较内容只保留在活动 Host Session 中**——Host 重启或 Session 销毁后，仅保留事件也无法重建差异。
-- **摘要或比较缺失时不猜测路径**——摘要缺失会隐藏卡片，已打开的审阅会区分缺失记录和可重试读取错误。
-- **二进制或超大捕获没有文本差异**——超过 10,000 行的比较显示截断提示。
-- **行内文件提及只认精确路径或唯一 basename**——产出路径与显式交付路径使用同一套匹配规则。
+这些限制界定了当前产出物词表。它们是当前包约束，不是通用文件链接对比或任务积压。
+
+- **本地行内图片要求 HTTP(S) 页面**：Desktop 的 `dsh-app:` 页面不支持此文件路由。支持 POSIX 绝对路径与 Windows 盘符路径；Chat 中的相对图片路径需要当前查看的 Session 工作区根目录。图片的独立文件链接是可选的。
+- **提及匹配只认精确路径或唯一 basename**——后缀式提及保持惰性；等真实的收尾消息形态产生需求后再放宽匹配规则。
+- **终端创建的文件需要显式交付**——git 记录到改动后卡片会列出它们，但交付卡片和行内代码引用需要调用 `present`；显式 Markdown 链接可以直接引用现有文件。
+- **声明不保存文件内容**：重新打开或转移 Session 后，源文件仍需能被当前查看的 Session 文件系统访问。文件缺失、为目录或最终路径为符号链接时返回 404。
+- **原生打开需要 Host 桌面**——没有桌面时 review tab 不提供原生打开；对比本身只需要记录了该轮的 Host。
+- **对比高亮使用 hunk 内上下文**——省略的源码行不可用，因此每个已渲染 hunk 的新旧两侧分别分词；未知后缀保持纯文本，tab 最多绘制 5000 行并给出提示。
+- **对比携带整个文件的文本**——对比路由会送出所列文件在 Host 上记录时的完整文本，包括被忽略的文件和 Sidebar 预览所限定的工作区根目录之外的文件。
+- **工作区外的文件只按绝对路径打开**——记录的路径是记录时的 Host 路径；工作区移动或换一个查看 Session 都无法重新定位它。
 
 <a id="dev-note"></a>
 ### 开发备注
 
 <details>
-<summary>维护者工作背景——点击展开</summary>
+<summary>维护者的工作上下文——点击展开</summary>
 
-本实现选择性适配官方 `b784e586ef`（回合改动）和 `8225e18d70`（逐文件审阅），并保留 `2440937459`、`974d0271c0`、`4233590de6` 的捕获上限、Windows 行为和 Git 配置隔离修复。集成使用本地侧栏 API，不引入 Session references 或替换 slots 系统，也不修改 Settings 样式。
+无。
 
 </details>
 
-**运行时不变量：** 不发布运行时不变量伴生入口，因为 UI 从已记录事件和源文件读取结果派生卡片，不独立持有持久状态。提示词、slot、字典、事件定义和可选服务注册均由 effect 管理，并随插件生命周期释放。
+**运行时不变式：** 不发布伴生入口。提示词、slot、dictionary、文件操作路由与可选 service 注册归 effect 所有；Session 日志拥有声明，文件系统拥有文件内容。

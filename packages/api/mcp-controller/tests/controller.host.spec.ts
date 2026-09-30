@@ -1,5 +1,4 @@
 /** Real Gateway dispatch over a Loader-composed durable MCP manager. */
-import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import TypertGateway from '@deepseek-ai/dsh-api-gateway'
@@ -19,9 +18,8 @@ async function fixture() {
       'mcp-fixture-typert': TypertRegistry, 'mcp-fixture-gateway': TypertGateway, 'mcp-fixture-controller': McpController,
     })
   } })
-  const access = createTrustedConnectionAccess()
   const call = (method: string, request?: unknown) => ctx.typertGateway.invoke({
-    access, namespace: 'mcp', method, args: request === undefined ? {} : { request },
+    namespace: 'mcp', method, args: request === undefined ? {} : { request },
   })
   return { ctx, call }
 }
@@ -48,7 +46,7 @@ describe('MCP Remote management', () => {
     const { ctx, call } = await fixture()
     const abort = new AbortController()
     onTestFinished(() => { abort.abort() })
-    const source = await ctx.typertGateway.wireStream.open('mcp/watch', { args: {} }, abort.signal, createTrustedConnectionAccess())
+    const source = await ctx.typertGateway.wireStream.open('mcp/watch', { args: {} }, (async function* () {})(), undefined, abort.signal)
     const iterator = source[Symbol.asyncIterator]()
     expect((await iterator.next()).value).toMatchObject({ revision: 0, servers: [] })
     await call('save', { record, expectedRevision: 0 })
@@ -89,7 +87,7 @@ describe('MCP Remote management', () => {
     await call('setEnabled', { id: saved.id, enabled: false, expectedRevision: 1 })
     expect((await iterator.next()).value).toMatchObject({ revision: 2 })
     const waiting = iterator.next()
-    const entry = ctx.loader.entries().find(item => item.options.id === 'controller')
+    const entry = [...ctx.loader.entries()].find(item => item.options.id === 'controller')
     if (entry?.fiber === undefined) throw new Error('Fixture controller has no active fiber')
     await entry.fiber.update({}, true)
     expect(await waiting).toEqual({ done: true, value: undefined })

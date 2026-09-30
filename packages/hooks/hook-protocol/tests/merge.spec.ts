@@ -97,17 +97,4 @@ describe('mergeHookOutputs — reasons, stop, context, systemMessages accumulate
     expect(m.additionalContext).toEqual(['ctx-A', 'ctx-B'])
     expect(m.systemMessages).toEqual(['warn-A', 'warn-B'])
   })
-
-  it('merges updatedInput across hooks in hook order', () => {
-    const m = mergeHookOutputs([
-      out({ updatedInput: { a: 1, b: 2 } }),
-      out({ updatedInput: { b: 3, c: 4 } }),
-    ])
-    expect(m.updatedInput).toEqual({ a: 1, b: 3, c: 4 })
-  })
-
-  it('omits updatedInput when no hook supplied one', () => {
-    const m = mergeHookOutputs([out(), out()])
-    expect(m.updatedInput).toBeUndefined()
-  })
 })

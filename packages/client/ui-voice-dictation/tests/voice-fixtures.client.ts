@@ -1,6 +1,6 @@
-/** Typed voice callbacks and Remote results scripted independently by each test. */
 import { vi } from 'vitest'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-api-voice-controller/remote'
 import type { VoiceApi, VoiceModelRow } from '../src/client/api.ts'
 
 type VoiceRemote = ClientRemote['voice']

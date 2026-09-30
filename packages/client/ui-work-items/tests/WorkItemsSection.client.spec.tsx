@@ -17,7 +17,7 @@ const item: WorkItemView = {
   labels: ['bug'], assignees: ['alice'], associations: [],
 }
 function props(): WorkItemsSectionProps {
-  const snapshot: WorkspaceSnapshot = { items: [workspace], archivedSessionIds: [], state: 'idle', phase: 'ready', error: null }
+  const snapshot: WorkspaceSnapshot = { items: [workspace], archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null }
   return {
     t: makeTranslate(en),
     prepareWrite: vi.fn(), confirmWrite: vi.fn(), cancelWrite: vi.fn(),
@@ -130,7 +130,7 @@ describe('Work Items Settings', () => {
     const p = props()
     const view = render(<WorkItemsSection {...p} />)
     await scope()
-    const snapshot: WorkspaceSnapshot = { items: [], archivedSessionIds: [], state: 'idle', phase: 'ready', error: null }
+    const snapshot: WorkspaceSnapshot = { items: [], archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null }
     view.rerender(<WorkItemsSection {...p} useWorkspaces={selector => selector(snapshot)} />)
     await waitFor(() =>{  expect(screen.queryByRole('option', { name: 'Product' })).toBeNull() })
     expect(screen.queryByRole('button', { name: en.associate })).toBeNull()

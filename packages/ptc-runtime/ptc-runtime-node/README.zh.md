@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在提供 `fs`、`subprocess`、`sandbox` 与 `sandboxPolicy` 的组合中挂载本提供方。`dsh-tools` 的 PTC 模式传入调用 Session 的目录和常设策略；直接运行时消费方在执行前解析这些选项。运行时提供方查找使用构造时捕获的 Context，因此调用方绑定的 Cordis traceable receiver 不能把执行移动到 Host 服务。
+在提供 `fs`、`subprocess`、`sandbox` 与 `sandboxPolicy` 的组合中挂载本提供方。`dsh-tools` 的 PTC 模式传入调用 Session 的目录和常设策略；直接运行时消费方在执行前解析这些选项。
 
 ### 配置
 
@@ -56,13 +56,6 @@ kind: "package-reference"
 | `bootstrapPath` | 包内 bootstrap | 该执行世界中预先安装的构建后 bootstrap 的可选绝对路径 |
 
 [配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-ptc-runtime-node)定义可接受的配置字段。`resolve(request)` 补全 cwd、数值或 null 截止选择与执行策略；`run(spec)` 接受这些已解析输入，不补缺省值。
-
-<a id="optional-coderuntime-adapter"></a>
-### 可选 CodeRuntime 适配器
-
-使用 `ctx.codeRuntime` 的自定义 profile 可在本提供方和 `sandboxPolicy` 旁挂载 `@deepseek-ai/dsh-ptc-runtime-node/code-runtime`。适配器注册 `codeRuntime` 并委托 `ptcRuntime` 执行，不创建另一份 worker。tools 和 workflow 消费方直接使用 `ptcRuntime`。
-
-适配器通过可选 `agents` 服务取得发起调用的 Session 并解析其常设策略；无 agent 调用使用部署策略。它转发绑定、取消、日志和 JSON 值，释放时仅取消并等待自身调用。CodeRuntime API 没有逐次执行控制或沙箱结果元数据；`protocol` 和 `sandbox-unavailable` 转为 `worker-exit`，保留诊断文本。
 
 ### 执行与结果
 

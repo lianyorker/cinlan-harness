@@ -59,9 +59,10 @@ function OfficeDocument({ read, scope, path, title }: OfficePreviewProps): React
         if (read === undefined) throw new OfficePreviewError('officeUnavailable')
         const file = await read(scope.sessionId, path, controller.signal)
         controller.signal.throwIfAborted()
-        const binary = atob(file.data)
-        const bytes = Uint8Array.from(binary, char => char.charCodeAt(0))
-        url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+        const bytes = typeof file.data === 'string'
+          ? Uint8Array.from(atob(file.data), char => char.charCodeAt(0))
+          : file.data
+        url = URL.createObjectURL(new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' }))
         setState({ status: 'ready', url, missingFonts: file.missingFonts })
       } catch (error) {
         if (!controller.signal.aborted) {

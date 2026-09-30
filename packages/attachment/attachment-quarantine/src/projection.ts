@@ -4,14 +4,33 @@
  */
 
 import type { ContentBlock, Message } from '@deepseek-ai/dsh-llm'
-import { quarantinedImageText } from '@deepseek-ai/dsh-llm'
 import type { AttachmentId, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { SessionEvent, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import type { SessionMessageProjection, SessionMessageProjectionContext } from '@deepseek-ai/dsh-session/surface'
 import { deepFreeze } from '@deepseek-ai/dsh-util-values'
 import type { AttachmentQuarantineEventData } from './types.ts'
 
-export { quarantinedImageText } from '@deepseek-ai/dsh-llm'
+function quoted(value: string): string {
+  return JSON.stringify(value)
+}
+
+/**
+ * Stable text shown to a model for a quarantined unreadable image attachment.
+ * @param ref - durable normalized attachment omitted due to read failure.
+ * @param failureClass - classified read failure reason.
+ * @returns deterministic quarantined placeholder text.
+ */
+export function quarantinedImageText(
+  ref: ImageAttachmentRef,
+  failureClass: 'not_found' | 'corrupt' | 'read_failed',
+): string {
+  const digest = String(ref.attachmentId).slice(0, 'sha256:'.length + 8)
+  const identity = ref.name === undefined
+    ? digest
+    : `${quoted(ref.name)} (${digest})`
+  return `[image quarantined: ${failureClass}; ${identity}]`
+}
+
 export type { AttachmentQuarantineEventData, AttachmentQuarantineFailureClass, AttachmentRecoveredEventData } from './types.ts'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -28,11 +47,6 @@ function replaceInBlocks(
     let projected: ContentBlock = block
     if (block.type === 'image' && block.attachment.attachmentId === targetId) {
       projected = { type: 'text', text: makePlaceholder(block.attachment) }
-    } else if (block.type === 'tool-result') {
-      const content = replaceInBlocks(block.content, targetId, makePlaceholder)
-      if (content !== block.content) {
-        projected = { ...block, content }
-      }
     }
     if (projected !== block) {
       next ??= blocks.slice(0, index)
@@ -56,11 +70,6 @@ function restoreBlocks(
     if (orig !== undefined && orig.type === 'image' && orig.attachment.attachmentId === targetId) {
       if (curr.type === 'text') {
         restored = orig
-      }
-    } else if (curr.type === 'tool-result' && orig !== undefined && orig.type === 'tool-result') {
-      const content = restoreBlocks(curr.content, orig.content, targetId)
-      if (content !== curr.content) {
-        restored = { ...curr, content }
       }
     }
     if (restored !== curr) {

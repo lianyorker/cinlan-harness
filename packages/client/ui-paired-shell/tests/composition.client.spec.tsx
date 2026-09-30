@@ -9,7 +9,7 @@ import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import { afterEach, expect, it, vi } from 'vitest'
 import { act, fireEvent, waitFor, within } from '@testing-library/react'
-import { createFixtureFaces } from '@deepseek-ai/dsh-client-connection/src/client/fixture.ts'
+import { RemoteMock } from '@deepseek-ai/dsh-remote-mock'
 import type { ClientTransportHooks } from '@deepseek-ai/dsh-client-connection/client'
 import * as modules from '@deepseek-ai/dsh-client-modules/client'
 import type { ClientBundleRegistration, ClientModuleLoaderTarget, DshWindow } from '@deepseek-ai/dsh-client-modules/client'
@@ -79,12 +79,10 @@ async function boot() {
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
   vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }))
   vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en-US'])
-  const rpc = createFixtureFaces().rpc
+  const rpc = RemoteMock.create().rpc
   const calls: string[] = []
   win.__DSH_TRANSPORT__ = {
     ownsHost: false,
-    authority: 'paired',
-    pairingProtocolVersion: 1,
     fetch: async (_url, init) => {
       if (typeof init.body !== 'string') throw new Error('Fixture RPC expects a JSON body')
       const request = JSON.parse(init.body) as { method: string; payload: unknown; rpcId: string }

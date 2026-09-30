@@ -3,7 +3,15 @@ import { Context } from '@deepseek-ai/cordis'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Browser from '@deepseek-ai/dsh-browser'
-import FileSettings from '@deepseek-ai/dsh-settings-file'
+const FileSettings = {
+  name: 'settings',
+  apply(c: Context) {
+    c.provide('settings', {
+      describe: () => [],
+      configure: () => () => {},
+    } as never)
+  },
+}
 import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import BrowserController from '../../../api/browser-controller/src/index.ts'

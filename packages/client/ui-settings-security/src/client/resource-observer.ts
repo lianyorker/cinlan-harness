@@ -1,7 +1,7 @@
-/** One observable view of Host resource snapshots; observation never owns mutations. */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
-import type { SecurityResourceAvailability } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SecurityResourceAvailability } from '@deepseek-ai/dsh-api-security-research-controller/types'
+import type {} from '@deepseek-ai/dsh-api-security-research-controller/remote'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 
 /** Read state for the registered resource hook, with no derived installation inventory. */

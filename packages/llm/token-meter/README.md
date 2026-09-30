@@ -40,8 +40,6 @@ const { totalTokens, surfaceTokens, nodes } = ctx.tokenMeter.measure(session)
 const price = ctx.tokenMeter.estimateMessage(message)
 ```
 
-Consumers that need only the pure heuristic can import `@deepseek-ai/dsh-token-meter/estimate`. This subpath has no Cordis, Session, or provider service dependency and is suitable for a package that must price text or content blocks without mounting the plugin.
-
 Each measurement resolves the effective envelope's provider/model through the optional `llm` service. Image occurrences use the routed request's visual-token price plus model-visible text when the adapter declares pricing, and occurrences selected by an `image/offload` event are priced as the route's placeholder text exactly as the surface sends them; other routes keep the fixed heuristic. File occurrences use the exact route-independent handle text that the same `llm` service resolves for adapter dispatch, including its current execution-world path or explicit no-path message. Each node also carries route-independent `heuristicTokens` for replacement shadow prices. Provider usage is reused only when the latest successful call's canonical request envelope matches the measured envelope and its total is no lower than that call's full route-priced anchor; otherwise the complete current envelope and surface are estimated. Surface changes stay signed relative to a matching anchor repriced under the same route, including negative deltas after shrinking replacements.
 
 The measurement anchor includes the priced surface immediately before the successful `assistant/message`, including system and user messages admitted after `step/start` and replacements made before a retry. With unchanged durable output, the completed call has zero surface delta: its prompt is already included in provider usage. Later surface changes remain signed deltas against that anchor.
@@ -103,6 +101,8 @@ Each `measure()` call synchronizes the fold to the current durable tail, then re
 ### Projection semantics
 
 `contextBreakdown` retains plain-JSON `{ seq, heuristicTokens, system }` entries in surface order and reuses the measurement plan/commit fold. Its state and surface transitions are O(current retained surface), not O(1) and not O(total historical log); replaced entries and message bodies are not retained. State version 5 invalidates checkpoints priced with offload metadata. `contextPressure` remains the scalar shadow-price consumer: replacements without adjacent claims contribute zero delta. The usage fold retains one last-sample slot because legal logs never report usage for an earlier step after a later step reports usage.
+
+`./estimate` exports the stateless text/content estimators used by tool-result retention. Model adapters supply request-image costs through `imageRequestPricing`.
 
 </details>
 

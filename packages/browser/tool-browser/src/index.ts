@@ -28,6 +28,12 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'tool-browser': { kind: 'tool-browser' }
+  }
+}
 import type { GenericCallView, ToolExecution } from '@deepseek-ai/dsh-tools'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 
@@ -513,7 +519,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       if (exec.parent !== undefined) {
         exec.deferContext(createUserMessage({
           content: screenshotContent(value),
-          source: { kind: 'plugin', plugin: 'tool-browser' },
+          source: { kind: 'tool-browser' },
         }))
       }
       return value

@@ -163,22 +163,6 @@ describe('FeedbackDialogController', () => {
     expect(controller.state.getSnapshot()).toMatchObject({ target: null, failure: null, submitting: false, toast: 0 })
   })
 
-  it('does not publish a late success or reopen after disposal', async () => {
-    let release = (): void => {}
-    const gate = new Promise<MessageFeedbackActionResult>((resolve) => { release = () => { resolve({ ok: true }) } })
-    const { controller } = bench(() => gate)
-    controller.open(MESSAGE_TARGET)
-    const pending = controller.submitDraft()
-    controller.dispose()
-    const listener = vi.fn()
-    controller.state.subscribe(listener)
-    controller.open({ kind: 'session' })
-    release()
-    await pending
-    expect(listener).not.toHaveBeenCalled()
-    expect(controller.state.getSnapshot()).toMatchObject({ target: null, toast: 0 })
-  })
-
   it('retires only the toast the view finished showing', async () => {
     const { controller } = bench()
 

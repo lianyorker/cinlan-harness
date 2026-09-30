@@ -5,9 +5,9 @@ import type { OfficeToPdfErrorCode } from '@deepseek-ai/dsh-office-to-pdf/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { CopyKey } from '../locales.ts'
 
-/** Converted bytes remain base64 until the mounted viewer owns a PDF Blob URL. */
+/** Converted bytes are Uint8Array from remote or legacy base64 string until Blob URL. */
 export interface OfficePreviewFile {
-  readonly data: string
+  readonly data: Uint8Array | string
   readonly missingFonts: readonly string[]
 }
 

@@ -58,24 +58,6 @@
     },
     {
       "path": "../product-analytics/tsconfig.client.json"
-    },
-    {
-      "path": "../../api/account-controller"
-    },
-    {
-      "path": "../../credentials/credentials"
-    },
-    {
-      "path": "../../typert/protocol"
-    },
-    {
-      "path": "../connection/tsconfig.client.json"
-    },
-    {
-      "path": "../locale"
-    },
-    {
-      "path": "../ui-settings"
     }
   ]
 }

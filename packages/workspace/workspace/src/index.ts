@@ -6,25 +6,23 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { stat } from 'node:fs/promises'
-import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
-import type { ExecutionBinding } from '@deepseek-ai/dsh-execution-host-targets/types'
-import type {} from '@deepseek-ai/dsh-execution-binding'
+import { mkdir, stat } from 'node:fs/promises'
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
+import type { SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
 import type { DomainGlobal, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { WorkspaceEntity } from './entity.ts'
-import { foldDurableExecutionBinding, remoteWorkspacePath, verifyWorkspaceDirectory, verifyWorkspaceLeaseDirectory, workspaceIdentity } from './execution.ts'
 import type { WorkspaceEntityHost } from './entity.ts'
 
 export { WorkspaceMoveInvalidError } from './entity.ts'
-import { defaultWorkspaceTitle, realpathNormalize } from './paths.ts'
+import { defaultWorkspaceTitle, fullyQualifiedWorkspacePath, realpathNormalize } from './paths.ts'
 import { workspaceDomainSpec } from './spec.ts'
 import type { WorkspaceDomainState, WorkspaceRecord } from './spec.ts'
-import type { Workspace, WorkspaceId as WorkspaceIdBrand } from './types.ts'
+import type { SessionActivity, Workspace, WorkspaceId as WorkspaceIdBrand } from './types.ts'
 
-export type { Workspace } from './types.ts'
+export type {
+  SessionActivity, SessionActivityItem, SessionActivityKind, SessionActivityKindMap, Workspace,
+} from './types.ts'
 export { workspaceDomainState, workspaceRecord, workspaceDomainSpec } from './spec.ts'
 export type { WorkspaceDomainState, WorkspaceRecord } from './spec.ts'
 export { realpathNormalize } from './paths.ts'
@@ -42,16 +40,45 @@ export function WorkspaceId(id: string): WorkspaceId {
 }
 
 /**
- * An archiveSession request named a session neither live nor in session
- * persistence — a definite miss only; storage faults propagate as themselves.
+ * An archiveSession or pinSession request named a session neither live nor in
+ * session persistence — a definite miss only; storage faults propagate as
+ * themselves.
  */
 export class WorkspaceUnknownSessionError extends Error {
   /**
    * @param sessionId - The unknown session id.
+   * @param verb - The registry operation that named the session.
+   */
+  constructor(readonly sessionId: SessionId, verb: 'archive' | 'pin') {
+    super(`cannot ${verb} session '${sessionId}': live sessions and session persistence hold no such session`)
+    this.name = 'WorkspaceUnknownSessionError'
+  }
+}
+
+/**
+ * An archiveSession request named a session that at least one
+ * `workspace/session-activity` listener reported active. Nothing was written;
+ * `activity` names what must stop before the session can be archived.
+ */
+export class WorkspaceActiveSessionError extends Error {
+  /**
+   * @param sessionId - The active session id.
+   * @param activity - The reported activity, in listener order.
+   */
+  constructor(readonly sessionId: SessionId, readonly activity: readonly SessionActivity[]) {
+    super(`cannot archive session '${sessionId}': the session is active (${activity.map(entry => entry.kind).join(', ')})`)
+    this.name = 'WorkspaceActiveSessionError'
+  }
+}
+
+/** A pinSession request named a session currently in the archive set; pinning and archival are mutually exclusive. */
+export class WorkspaceArchivedSessionPinError extends Error {
+  /**
+   * @param sessionId - The archived session id.
    */
   constructor(readonly sessionId: SessionId) {
-    super(`cannot archive session '${sessionId}': live sessions and session persistence hold no such session`)
-    this.name = 'WorkspaceUnknownSessionError'
+    super(`cannot pin session '${sessionId}': the session is archived`)
+    this.name = 'WorkspaceArchivedSessionPinError'
   }
 }
 
@@ -67,19 +94,62 @@ export class WorkspaceOrderInvalidError extends Error {
 }
 
 
+/** The session an archive request is about to write into the archive set. */
+export interface SessionActivityRequest {
+  readonly sessionId: SessionId
+}
+
+/** Caller choices for {@link WorkspaceRegistry.archiveSession}. */
+export interface ArchiveSessionOptions {
+  /**
+   * Ask the composed providers to stop the session's running work instead of
+   * refusing the archive because of it. The archive is written first, then
+   * the stops are requested; running work is never awaited to settlement, and
+   * a provider failure is logged without undoing the archive.
+   */
+  readonly stopActivity?: boolean
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     workspaceRegistry: WorkspaceRegistry
   }
-}
 
-interface WorkspaceIsolationSource {
-  sourceFor(sessionId: SessionId, cwd: string): string | undefined
+  interface Events {
+    /**
+     * Ask the composed providers what still runs for a session before it is
+     * archived. A listener prepends its own {@link SessionActivity} entries to
+     * the result of `next()`; the registry's innermost callback returns an
+     * empty list, so a composition without providers archives freely. Any
+     * non-empty result refuses the archive without a write.
+     * @param request - the session about to be archived.
+     * @param next - delegate to the remaining providers.
+     * @mode waterfall
+     */
+    'workspace/session-activity'(
+      request: SessionActivityRequest,
+      next: () => Promise<readonly SessionActivity[]>,
+    ): Promise<readonly SessionActivity[]>
+    /**
+     * Stop a session's running work because the caller archived it with
+     * `stopActivity`; the archive set is durable when this dispatches. Each
+     * provider stops its own families — cancelling a turn, its subagent
+     * descendants, owned jobs, or active schedules — through the same cancel
+     * paths the user's own stop actions use, so the session log ends every
+     * open turn regularly and a later unarchive can continue the
+     * conversation. Listeners issue their stop requests without waiting for
+     * running work to settle; a listener may await its own durability
+     * barrier. A rejection is logged by the registry and does not undo the
+     * archive.
+     * @param request - the session being archived.
+     * @mode parallel
+     */
+    'workspace/session-stop'(request: SessionActivityRequest): Promise<void> | void
+  }
 }
 
 interface BootstrapGroup {
   readonly path: string
-  readonly execution: ExecutionBinding
   readonly headers: SessionHeader[]
   readonly newestAt: number
 }
@@ -91,12 +161,11 @@ const compareHeaders = (left: SessionHeader, right: SessionHeader): number =>
   right.createdAt - left.createdAt || String(left.id).localeCompare(String(right.id))
 
 /**
- * Durable workspace registry. Startup waits for `sessionPersistence`, folds each
- * durable Session's execution event when the optional execution service is absent,
- * builds one canonical-cwd header index, and completes the one-time history
+ * Durable workspace registry. Startup waits for `sessionPersistence`, builds
+ * one canonical-cwd header index, and completes the one-time history
  * bootstrap before the service becomes active. The persistence dependency is
- * mandatory so an unavailable peer can never be mistaken for an empty history
- * and commit the initialized marker.
+ * mandatory so an unavailable peer can never be mistaken for an empty
+ * history and commit the initialized marker.
  */
 export class WorkspaceRegistry extends Service {
   static inject = ['storageDomain', 'sessionPersistence']
@@ -107,21 +176,12 @@ export class WorkspaceRegistry extends Service {
   private readonly entities = new Map<WorkspaceId, WorkspaceEntity>()
   private readonly headers = new Map<SessionId, SessionHeader>()
   private readonly sessionPaths = new Map<SessionId, string>()
-  private readonly sessionExecutions = new Map<SessionId, ExecutionBinding>()
-  private readonly sessionEventCounts = new Map<SessionId, number>()
   private readonly invalidSessionPaths = new Map<SessionId, string>()
   private operationTail: Promise<void> = Promise.resolve()
 
   private readonly host: WorkspaceEntityHost = {
     table: () => this.requireTable(),
     sessionPath: id => this.sessionPaths.get(id),
-    sessionExecution: id => this.sessionExecutions.get(id),
-    readSessionExecution: id => this.readSessionExecution(id),
-    sessionLease: id => this.sessionLease(id),
-    verifyDirectory: (path, execution) => verifyWorkspaceDirectory(this.ctx, path, execution),
-    verifyLeaseDirectory: (lease, path) => verifyWorkspaceLeaseDirectory(lease, path),
-    rememberSessionExecution: (id, execution) => { this.sessionExecutions.set(id, execution) },
-    sourcePath: (id, cwd) => (this.ctx.get('workspaceIsolation') as WorkspaceIsolationSource | undefined)?.sourceFor(id, cwd),
     readSessionHeader: id => this.readSessionHeader(id),
     rememberSessionPath: (id, path) => {
       this.sessionPaths.set(id, path)
@@ -133,10 +193,7 @@ export class WorkspaceRegistry extends Service {
     super(ctx, 'workspaceRegistry')
   }
 
-  /**
-   * Open the domain, reject durable SSH metadata before Host path resolution
-   * when executionBindings is absent, finish bootstrap, and rebuild the cache.
-   */
+  /** Open the domain, finish bootstrap when required, and rebuild the ordered cache. */
   protected async [Service.init](): Promise<void> {
     const domain = await this.ctx.storageDomain.open(workspaceDomainSpec)
     this.ctx.effect(() => () => domain.close(), 'workspace.domainClose')
@@ -162,19 +219,57 @@ export class WorkspaceRegistry extends Service {
 
   /**
    * Create or reuse a workspace for an existing directory. The fully qualified
-   * path is canonicalized in its execution filesystem; a relative, nonexistent, or
-   * non-directory path rejects. Repeated calls for the same binding and canonical path
+   * path is canonicalized through `fs.realpath`; a relative, nonexistent, or
+   * non-directory path rejects. Repeated calls for the same canonical path
    * return the existing entity without changing its title.
    * A newly created workspace is prepended to the durable registry order.
    * Different canonical paths may share a display title.
    * @param path - Existing directory to own, in a fully qualified path spelling.
    * @param title - Display title used only when a new record is created.
-   * @param execution - Captured execution selection; omitted means local. SSH requires executionBindings.
    * @returns the existing or newly durable workspace.
    */
-  async create(path: string, title?: string, execution: ExecutionBinding = { kind: 'local' }): Promise<Workspace> {
-    const canonical = await verifyWorkspaceDirectory(this.ctx, path, execution)
-    return await this.enqueueOperation(() => this.createCanonical(canonical, execution, title))
+  // TODO: `title` lost its last production caller when the gateway's
+  // create-by-name branch was deleted
+  // (.agents/notes/archived/simplification/2026-07-31-one-route-to-add-a-workspace.md);
+  // drop the parameter with its @param clause and the `create(path, title?)`
+  // lines in this package's README pair.
+  async create(path: string, title?: string): Promise<Workspace> {
+    const canonical = await realpathNormalize(path)
+    if (!(await stat(canonical)).isDirectory()) {
+      throw new Error(`cannot create a workspace at '${canonical}': path is not a directory`)
+    }
+    return await this.enqueueOperation(() => this.createCanonical(canonical, title))
+  }
+
+  /**
+   * Initialize the default Workspace only while both the registry and Session
+   * history are empty. Repeated requests reuse its durable identity; deleting
+   * that registration permanently disables automatic creation.
+   * @param resolveDirectory - resolve the absolute directory; called only for
+   * eligible creation, inside the registry mutation queue. Missing directories
+   * are created recursively before registration, and the initial title is the
+   * requested directory's own final segment — not the canonical one, so a
+   * symlink at that path does not retitle the Workspace after its target.
+   * After resolution, caller cancellation does not roll back creation or registration.
+   * @returns the initialized Workspace, or undefined when automatic creation is ineligible.
+   */
+  initializeDefault(resolveDirectory: () => Promise<string>): Promise<Workspace | undefined> {
+    return this.enqueueOperation(async () => {
+      const state = this.requireState()
+      if (state.defaultWorkspaceId !== undefined) return this.entities.get(state.defaultWorkspaceId)
+      const sessions = this.ctx.get('sessions')
+      if (sessions === undefined) throw new Error('default Workspace initialization requires the Session store')
+      if (state.workspaceIds.length > 0 || state.archivedSessionIds.length > 0
+        || sessions.list().length > 0 || (await this.listStoredHeaders()).length > 0) return undefined
+
+      const path = await resolveDirectory()
+      if (!fullyQualifiedWorkspacePath(path)) throw new TypeError(`Workspace path is not fully qualified: '${path}'`)
+      await mkdir(path, { recursive: true })
+      const canonical = await realpathNormalize(path)
+      // A Session can start outside the registry queue while directory preparation awaits I/O.
+      if ((await this.listStoredHeaders()).length > 0 || sessions.list().length > 0) return undefined
+      return this.createCanonical(canonical, defaultWorkspaceTitle(path), true)
+    })
   }
 
   /**
@@ -251,20 +346,41 @@ export class WorkspaceRegistry extends Service {
   /**
    * Archive one session durably. The session must exist (live or in session
    * persistence); its workspace accounting — or lack of one — is irrelevant.
-   * An already archived id resolves without writing.
+   * Without `stopActivity` the session must also be inactive: the
+   * `workspace/session-activity` waterfall is asked once, and any reported
+   * activity rejects with {@link WorkspaceActiveSessionError} before anything
+   * is written. With `stopActivity` the archive is written without an
+   * activity check, and the `workspace/session-stop` providers are then asked
+   * to stop the session's work: the durable archive set is what a provider's
+   * `agent/pre-step` gate reads, so every wake the stops induce is already
+   * blocked. Archiving drops the session's pin in the same durable write
+   * (pinning and archival are mutually exclusive). An already archived id
+   * resolves without writing, asking, or stopping.
    * @param sessionId - The session to archive.
-   * @returns resolution after durability.
+   * @param options - Whether running work is stopped instead of refusing.
+   * @returns resolution after durability and, with `stopActivity`, after every stop request was issued.
    */
-  archiveSession(sessionId: SessionId): Promise<void> {
+  archiveSession(sessionId: SessionId, options: ArchiveSessionOptions = {}): Promise<void> {
     return this.enqueueOperation(async () => {
       // The chain slot serializes against every other registry write, so this
       // check-then-write pair cannot interleave with another archive.
       if (this.requireState().archivedSessionIds.includes(sessionId)) return
       if (!(await this.sessionKnown(sessionId))) {
-        throw new WorkspaceUnknownSessionError(sessionId)
+        throw new WorkspaceUnknownSessionError(sessionId, 'archive')
+      }
+      if (options.stopActivity !== true) {
+        const activity = await this.ctx.waterfall(
+          'workspace/session-activity', { sessionId }, () => Promise.resolve([]),
+        )
+        if (activity.length > 0) throw new WorkspaceActiveSessionError(sessionId, activity)
       }
       const state = this.requireState()
-      await this.setState({ ...state, archivedSessionIds: [...state.archivedSessionIds, sessionId] })
+      await this.setState({
+        ...state,
+        archivedSessionIds: [...state.archivedSessionIds, sessionId],
+        pinnedSessionIds: state.pinnedSessionIds.filter(id => id !== sessionId),
+      })
+      if (options.stopActivity === true) await this.stopSessionActivity(sessionId)
     })
   }
 
@@ -292,6 +408,62 @@ export class WorkspaceRegistry extends Service {
   }
 
   /**
+   * The registry-global pin set: sessions surfaced ahead of every unpinned
+   * session on grouping surfaces. Pinning never touches workspace accounting.
+   * @returns Session ids in pin order (most recently pinned first).
+   */
+  get pinnedSessionIds(): readonly SessionId[] {
+    return this.requireState().pinnedSessionIds
+  }
+
+  /**
+   * Pin one session durably, prepending it to the registry-global pin set.
+   * The session must exist (live or in session persistence) and must not be
+   * archived. An already pinned id resolves without writing or reordering.
+   * @param sessionId - The session to pin.
+   * @returns resolution after durability.
+   */
+  pinSession(sessionId: SessionId): Promise<void> {
+    return this.enqueueOperation(async () => {
+      // The chain slot serializes against every other registry write, so this
+      // check-then-write pair cannot interleave with another pin or archive.
+      if (this.requireState().pinnedSessionIds.includes(sessionId)) return
+      if (this.requireState().archivedSessionIds.includes(sessionId)) {
+        throw new WorkspaceArchivedSessionPinError(sessionId)
+      }
+      if (!(await this.sessionKnown(sessionId))) {
+        throw new WorkspaceUnknownSessionError(sessionId, 'pin')
+      }
+      const state = this.requireState()
+      await this.setState({
+        ...state,
+        pinnedSessionIds: [sessionId, ...state.pinnedSessionIds],
+      })
+    })
+  }
+
+  /**
+   * Unpin one session durably by dropping it from the registry-global pin
+   * set. Unpinning runs no session-existence check because removing an id
+   * cannot introduce an unknown one, so an entry whose session is gone still
+   * resolves. An id that is not pinned resolves without writing.
+   * @param sessionId - The session to unpin.
+   * @returns resolution after durability.
+   */
+  unpinSession(sessionId: SessionId): Promise<void> {
+    return this.enqueueOperation(async () => {
+      // The chain slot serializes against every other registry write, so this
+      // check-then-write pair cannot interleave with a concurrent pin.
+      const state = this.requireState()
+      if (!state.pinnedSessionIds.includes(sessionId)) return
+      await this.setState({
+        ...state,
+        pinnedSessionIds: state.pinnedSessionIds.filter(id => id !== sessionId),
+      })
+    })
+  }
+
+  /**
    * Whether a session is live, header-indexed, or present in a fresh
    * persistence listing. Only a definite miss returns false — a failing
    * `sessionPersistence.list()` propagates so storage faults never
@@ -304,38 +476,47 @@ export class WorkspaceRegistry extends Service {
     return this.headers.has(id)
   }
 
+  /** Request every provider's stop; a failing provider is logged, never a reason to keep the session visible. */
+  private async stopSessionActivity(sessionId: SessionId): Promise<void> {
+    try {
+      await this.ctx.parallel('workspace/session-stop', { sessionId })
+    } catch (error: unknown) {
+      // ctx.parallel settles every listener and rejects with one AggregateError.
+      /* v8 ignore next -- the plain arm guards a rethrowing dispatcher. */
+      const failures = error instanceof AggregateError ? error.errors : [error]
+      for (const failure of failures) {
+        this.ctx.logger.warn(`workspace: stopping session '${sessionId}' for archive failed: ${String(failure)}`)
+      }
+    }
+  }
+
   /**
-   * Resolve a Workspace by execution binding and canonical directory without
-   * creating or mutating it. Local paths use realpath; remote paths require
-   * a verified directory lease. Missing paths or unavailable execution reject;
-   * an existing unowned directory returns `undefined`.
+   * Resolve by canonical directory path without creating or mutating a
+   * workspace. A missing path rejects during `realpath`; an existing unowned
+   * directory returns `undefined`.
    * @param path - Existing directory path in a fully qualified spelling.
-   * @param execution - Captured execution selection; omitted means local.
-   * @returns the workspace owning that binding and canonical path, when one exists.
+   * @returns the workspace owning the canonical path, when one exists.
    */
-  async resolveByPath(path: string, execution: ExecutionBinding = { kind: 'local' }): Promise<Workspace | undefined> {
-    const canonical = execution.kind === 'local'
-      ? await realpathNormalize(path)
-      : await verifyWorkspaceDirectory(this.ctx, path, execution)
+  async resolveByPath(path: string): Promise<Workspace | undefined> {
+    const canonical = await realpathNormalize(path)
     for (const entity of this.entities.values()) {
-      if (workspaceIdentity(entity.path, entity.execution) === workspaceIdentity(canonical, execution)) return entity
+      if (entity.path === canonical) return entity
     }
     return undefined
   }
 
-  private async createCanonical(canonical: string, execution: ExecutionBinding, title?: string): Promise<WorkspaceEntity> {
+  private async createCanonical(canonical: string, title?: string, firstUse = false): Promise<WorkspaceEntity> {
     for (const entity of this.entities.values()) {
-      if (workspaceIdentity(entity.path, entity.execution) === workspaceIdentity(canonical, execution)) return entity
+      if (entity.path === canonical) return entity
     }
 
-    const workspaceName = title ?? defaultWorkspaceTitle(canonical, execution.kind === 'local' ? process.platform : 'linux')
+    const workspaceName = title ?? defaultWorkspaceTitle(canonical)
     const table = this.requireTable()
     const state = this.requireState()
     const id = WorkspaceId(randomUUID())
     const now = new Date().toISOString()
     const record: WorkspaceRecord = {
       path: canonical,
-      execution,
       title: workspaceName,
       sessionIds: [],
       createdAt: now,
@@ -370,9 +551,11 @@ export class WorkspaceRegistry extends Service {
 
     try {
       await this.setState({
+        ...state,
+        pendingMutation: undefined,
         initialized: true,
+        ...(firstUse ? { defaultWorkspaceId: id } : {}),
         workspaceIds: [id, ...state.workspaceIds],
-        archivedSessionIds: state.archivedSessionIds,
       })
     } catch (error) {
       this.entities.delete(id)
@@ -402,9 +585,10 @@ export class WorkspaceRegistry extends Service {
     if (entity === undefined) return false
     const state = this.requireState()
     const nextState = {
+      ...state,
+      pendingMutation: undefined,
       initialized: true,
       workspaceIds: state.workspaceIds.filter(workspaceId => workspaceId !== id),
-      archivedSessionIds: state.archivedSessionIds,
     }
     await this.setState({
       ...nextState,
@@ -458,43 +642,36 @@ export class WorkspaceRegistry extends Service {
       )
     }
     await this.requireTable().delete(pending.workspaceId)
-    await this.setState({
-      initialized: state.initialized,
-      workspaceIds: state.workspaceIds,
-      archivedSessionIds: state.archivedSessionIds,
-    })
+    await this.setState({ ...state, pendingMutation: undefined })
   }
 
   private async bootstrap(headers: readonly SessionHeader[]): Promise<void> {
     const table = this.requireTable()
     const state = this.requireState()
-    const groupsByPath = new Map<string, { path: string; execution: ExecutionBinding; headers: SessionHeader[] }>()
+    const groupsByPath = new Map<string, SessionHeader[]>()
     for (const header of headers) {
       const path = this.sessionPaths.get(header.id)
-      const execution = this.sessionExecutions.get(header.id)
-      if (path === undefined || execution === undefined) continue
-      const key = workspaceIdentity(path, execution)
-      const group = groupsByPath.get(key)
-      if (group === undefined) groupsByPath.set(key, { path, execution, headers: [header] })
-      else group.headers.push(header)
+      if (path === undefined) continue
+      const group = groupsByPath.get(path)
+      if (group === undefined) groupsByPath.set(path, [header])
+      else group.push(header)
     }
-    const groups: BootstrapGroup[] = [...groupsByPath.values()].map((group) => {
-      group.headers.sort(compareHeaders)
-      const newest = group.headers[0] as SessionHeader
-      return { ...group, newestAt: newest.createdAt }
+    const groups: BootstrapGroup[] = [...groupsByPath].map(([path, groupHeaders]) => {
+      groupHeaders.sort(compareHeaders)
+      const newest = groupHeaders[0] as SessionHeader
+      return { path, headers: groupHeaders, newestAt: newest.createdAt }
     }).sort((left, right) =>
-      right.newestAt - left.newestAt
-      || workspaceIdentity(left.path, left.execution).localeCompare(workspaceIdentity(right.path, right.execution)))
+      right.newestAt - left.newestAt || left.path.localeCompare(right.path))
 
     const byPath = new Map<string, WorkspaceId>()
     const accounted = new Map<SessionId, WorkspaceId>()
     for (const [id, record] of table.entries()) {
-      byPath.set(workspaceIdentity(record.path, record.execution), id)
+      byPath.set(record.path, id)
       for (const sessionId of record.sessionIds) accounted.set(sessionId, id)
     }
 
     for (const group of groups) {
-      let id = byPath.get(workspaceIdentity(group.path, group.execution))
+      let id = byPath.get(group.path)
       if (id === undefined) {
         const sessionIds = group.headers
           .map(header => header.id)
@@ -504,14 +681,13 @@ export class WorkspaceRegistry extends Service {
         const createdAt = new Date(group.newestAt).toISOString()
         const record: WorkspaceRecord = {
           path: group.path,
-          execution: group.execution,
-          title: defaultWorkspaceTitle(group.path, group.execution.kind === 'local' ? process.platform : 'linux'),
+          title: defaultWorkspaceTitle(group.path),
           sessionIds,
           createdAt,
           updatedAt: createdAt,
         }
         await table.put(id, record)
-        byPath.set(workspaceIdentity(group.path, group.execution), id)
+        byPath.set(group.path, id)
         for (const sessionId of sessionIds) accounted.set(sessionId, id)
         continue
       }
@@ -534,12 +710,12 @@ export class WorkspaceRegistry extends Service {
       for (const sessionId of historical) accounted.set(sessionId, id)
     }
 
-    const groupRank = new Map(groups.map(group => [workspaceIdentity(group.path, group.execution), group.newestAt]))
+    const groupRank = new Map(groups.map(group => [group.path, group.newestAt]))
     const priorRank = new Map(state.workspaceIds.map((id, index) => [id, index]))
     const workspaceIds = [...table.entries()]
       .sort(([leftId, left], [rightId, right]) => {
-        const leftTime = groupRank.get(workspaceIdentity(left.path, left.execution)) ?? Date.parse(left.createdAt)
-        const rightTime = groupRank.get(workspaceIdentity(right.path, right.execution)) ?? Date.parse(right.createdAt)
+        const leftTime = groupRank.get(left.path) ?? Date.parse(left.createdAt)
+        const rightTime = groupRank.get(right.path) ?? Date.parse(right.createdAt)
         return rightTime - leftTime
           || (priorRank.get(leftId) ?? Number.MAX_SAFE_INTEGER)
             - (priorRank.get(rightId) ?? Number.MAX_SAFE_INTEGER)
@@ -548,9 +724,19 @@ export class WorkspaceRegistry extends Service {
       .map(([id]) => id)
 
     if (!sameIds(state.workspaceIds, workspaceIds)) {
-      await this.setState({ initialized: false, workspaceIds, archivedSessionIds: state.archivedSessionIds })
+      await this.setState({
+        initialized: false,
+        workspaceIds,
+        archivedSessionIds: state.archivedSessionIds,
+        pinnedSessionIds: state.pinnedSessionIds,
+      })
     }
-    await this.setState({ initialized: true, workspaceIds, archivedSessionIds: state.archivedSessionIds })
+    await this.setState({
+      initialized: true,
+      workspaceIds,
+      archivedSessionIds: state.archivedSessionIds,
+      pinnedSessionIds: state.pinnedSessionIds,
+    })
   }
 
   private validateStoredState(state: WorkspaceDomainState): void {
@@ -575,18 +761,14 @@ export class WorkspaceRegistry extends Service {
     const paths = new Map<string, WorkspaceId>()
     const accounted = new Map<SessionId, WorkspaceId>()
     for (const [id, record] of table.entries()) {
-      if (record.execution.kind !== 'local' && this.ctx.get('executionBindings') === undefined) {
-        throw new Error(`remote workspace '${id}' requires executionBindings`)
-      }
-      const key = workspaceIdentity(record.path, record.execution)
-      const pathHolder = paths.get(key)
+      const pathHolder = paths.get(record.path)
       if (pathHolder !== undefined) {
         throw new Error(
           `workspace domain is inconsistent: path '${record.path}' is claimed `
           + `by both workspace '${pathHolder}' and workspace '${id}'`,
         )
       }
-      paths.set(key, id)
+      paths.set(record.path, id)
       for (const sessionId of record.sessionIds) {
         const holder = accounted.get(sessionId)
         if (holder !== undefined) {
@@ -611,7 +793,6 @@ export class WorkspaceRegistry extends Service {
   private async replaceHeaderIndex(headers: readonly SessionHeader[]): Promise<void> {
     this.headers.clear()
     this.sessionPaths.clear()
-    this.sessionExecutions.clear()
     this.invalidSessionPaths.clear()
     await this.indexHeaders(headers)
   }
@@ -623,24 +804,12 @@ export class WorkspaceRegistry extends Service {
   private async indexHeader(header: SessionHeader): Promise<void> {
     this.headers.set(header.id, header)
     this.sessionPaths.delete(header.id)
-    const execution = await this.readSessionExecution(header.id)
     if (header.cwd === undefined) {
       this.invalidSessionPaths.set(header.id, 'header has no cwd')
       return
     }
-    if (execution.kind !== 'local') {
-      try {
-        this.sessionPaths.set(header.id, remoteWorkspacePath(header.cwd))
-        this.invalidSessionPaths.delete(header.id)
-      } catch {
-        // Invalid durable POSIX paths cannot identify a remote Workspace.
-        this.invalidSessionPaths.set(header.id, `cwd '${header.cwd}' is not an absolute remote path`)
-      }
-      return
-    }
     try {
-      const source = (this.ctx.get('workspaceIsolation') as WorkspaceIsolationSource | undefined)?.sourceFor(header.id, header.cwd) ?? header.cwd
-      const path = await realpathNormalize(source)
+      const path = await realpathNormalize(header.cwd)
       if (!(await stat(path)).isDirectory()) {
         this.invalidSessionPaths.set(header.id, `cwd '${header.cwd}' is not a directory`)
         return
@@ -652,13 +821,9 @@ export class WorkspaceRegistry extends Service {
     }
   }
 
-  /** Every stored Session header, retaining cheap event-count hints for binding reads. */
+  /** Every stored session's header, projected from the persistence snapshot listing. */
   private async listStoredHeaders(): Promise<SessionHeader[]> {
     const snapshots = await this.ctx.sessionPersistence.list()
-    this.sessionEventCounts.clear()
-    for (const snapshot of snapshots) {
-      if (snapshot.eventCount !== undefined) this.sessionEventCounts.set(snapshot.header.id, snapshot.eventCount)
-    }
     return snapshots.map(snapshot => snapshot.header)
   }
 
@@ -673,59 +838,16 @@ export class WorkspaceRegistry extends Service {
       const record = this.requireTable().get(entity.id) as WorkspaceRecord
       for (const sessionId of record.sessionIds) {
         const path = this.sessionPaths.get(sessionId)
-        const execution = this.sessionExecutions.get(sessionId)
-        if (path !== undefined && execution !== undefined
-          && workspaceIdentity(path, execution) === workspaceIdentity(record.path, record.execution)) continue
+        if (path === record.path) continue
         const reason = this.invalidSessionPaths.get(sessionId)
           ?? (this.headers.has(sessionId)
-            ? `execution binding or canonical cwd '${path}' differs from workspace path '${record.path}'`
+            ? `canonical cwd '${path}' differs from workspace path '${record.path}'`
             : 'session header is missing')
         this.ctx.logger.warn(
           `workspace '${entity.id}' filtered session '${sessionId}' from membership: ${reason}`,
         )
       }
     }
-  }
-
-  private async readSessionExecution(id: SessionId): Promise<ExecutionBinding> {
-    const bindings = this.ctx.get('executionBindings')
-    let execution: ExecutionBinding
-    if (bindings !== undefined) {
-      execution = await bindings.bindingForSession(id)
-    } else {
-      const live = this.ctx.get('sessions')?.get(id)
-      const events = live !== undefined
-        ? live.snapshotEvents()
-        : this.sessionEventCounts.get(id) === 0 ? [] : await this.readStoredSessionEvents(id)
-      execution = foldDurableExecutionBinding(events) ?? { kind: 'local' as const }
-      if (execution.kind === 'ssh') {
-        throw new Error(`remote session '${id}' requires executionBindings`)
-      }
-    }
-    this.sessionExecutions.set(id, execution)
-    return execution
-  }
-
-  private async readStoredSessionEvents(id: SessionId): Promise<readonly SessionEvent[]> {
-    const handle = await this.ctx.sessionPersistence.open(id, 'read')
-    let read
-    try {
-      read = await handle.read()
-    } catch (error) {
-      try {
-        await handle.close()
-      } catch (cleanupError) {
-        throw new AggregateError([error, cleanupError], `session '${id}' log read and handle cleanup both failed`)
-      }
-      throw error
-    }
-    await handle.close()
-    return read.events
-  }
-
-  private sessionLease(id: SessionId): Promise<ExecutionLease | undefined> {
-    const bindings = this.ctx.get('executionBindings')
-    return bindings === undefined ? Promise.resolve(undefined) : bindings.forSession(id)
   }
 
   private async readSessionHeader(id: SessionId): Promise<SessionHeader> {
@@ -737,11 +859,12 @@ export class WorkspaceRegistry extends Service {
     const cached = this.headers.get(id)
     if (cached !== undefined) return cached
 
-    const header = (await this.listStoredHeaders()).find(candidate => candidate.id === id)
+    const headers = await this.listStoredHeaders()
+    await this.indexHeaders(headers)
+    const header = this.headers.get(id)
     if (header === undefined) {
       throw new Error(`cannot validate session '${id}': session persistence holds no such session`)
     }
-    this.headers.set(id, header)
     return header
   }
 

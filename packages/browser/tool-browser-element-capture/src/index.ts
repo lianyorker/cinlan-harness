@@ -20,6 +20,12 @@ import type { BrowserElementCaptureTarget, BrowserScreenshotFormat } from '@deep
 import { TaskId } from '@deepseek-ai/dsh-coordination'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'tool-browser-element-capture': { kind: 'tool-browser-element-capture' }
+  }
+}
 import type { PromptAssembly } from '@deepseek-ai/dsh-system-prompt'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView, ToolExecution } from '@deepseek-ai/dsh-tools'
@@ -491,7 +497,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       if (exec.parent !== undefined) {
         exec.deferContext(createUserMessage({
           content: captureContent(value),
-          source: { kind: 'plugin', plugin: 'tool-browser-element-capture' },
+          source: { kind: 'tool-browser-element-capture' },
         }))
       }
       return value

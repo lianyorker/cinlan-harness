@@ -2,17 +2,16 @@
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "lib/types"
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
   },
-  "include": [
+  "files": [
     "src/index.ts",
     "src/changes.ts",
-    "src/changes-routes.ts",
     "src/presented.ts",
     "src/present-open.ts"
   ],
   "references": [
-    { "path": "../../execution-host/execution-binding" },
     {
       "path": "../../../vendor/cordis"
     },
@@ -20,34 +19,37 @@
       "path": "../connection/tsconfig.host.json"
     },
     {
-      "path": "../../core/system-prompt"
-    },
-    {
       "path": "../../core/session"
     },
     {
-      "path": "../../deliverables/workspace-changes"
-    },
-    {
-      "path": "../../deliverables/tool-present"
+      "path": "../../core/system-prompt"
     },
     {
       "path": "../../session-query/session-query"
     },
     {
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../../deliverables/tool-present"
+    },
+    {
+      "path": "../../deliverables/workspace-changes"
+    },
+    {
       "path": "../../api/session-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../../api/workspace-files/tsconfig.host.json"
     },
     {
       "path": "../../fs/fs"
     },
     {
-      "path": "../../sandbox/sandbox-policy"
-    },
-    {
       "path": "../../typert/protocol"
     },
     {
-      "path": "../../llm/llm"
+      "path": "../../sandbox/sandbox-policy"
     }
   ]
 }

@@ -1,28 +1,17 @@
-/**
- * Real-composition guard for the dormant pi-ai posture: LlmRuntime,
- * settings-file, credentials-local, and a bare `llm-pi-ai` row boot from a
- * test-only cordis.yml through the actual Loader + Include path, an external
- * edit of settings.yaml registers the route live, and the next request
- * carries the credential the credentials document supplies. A hand-mounted `ctx.plugin` cannot
- * catch Loader export-shape failures, which is why the twin adapter has the
- * same guard.
- */
+/** Profile patch edits and credential updates reach the next real adapter request. */
 
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import AuthorizationService from '@deepseek-ai/dsh-authorization'
-import type { AuthorizationInteraction } from '@deepseek-ai/dsh-authorization'
-import Loader from '@deepseek-ai/cordis-plugin-loader'
+import Loader, { type ModuleLoaderV2 } from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import LlmRuntime, { createMessage, createUserMessage, userAgent } from '@deepseek-ai/dsh-llm'
 import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
-import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
+import { profileComposition } from '../../../settings/settings/tests/profile-composition.ts'
 import * as LlmPiAi from '@deepseek-ai/dsh-llm-pi-ai'
-import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
 import { assemble } from './assemble.ts'
 import { closeMockServers, mockServer, textEvents } from './mock-server.ts'
 
@@ -48,33 +37,19 @@ afterEach(async () => {
 })
 
 /** Boot the dormant composition: a bare `llm-pi-ai` row with no config at all. */
-async function loadComposition(
-  storedSettings = '# personal settings\n',
-  withAuthorization = true,
-): Promise<{ ctx: Context; settingsPath: string }> {
+async function loadComposition(): Promise<{ ctx: Context; settingsPath: string }> {
   root = await mkdtemp(join(tmpdir(), 'dsh-pi-composition-'))
-  const settingsPath = join(root, 'settings.yaml')
-  await writeFile(settingsPath, storedSettings)
   await writeFile(join(root, '.credentials.yaml'), 'version: 1\nrefs:\n  PI_COMPOSITION_KEY: key-from-store\n', { mode: 0o600 })
 
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
     '- id: llm',
     "  name: 'test-llm-service'",
-    '- id: settings',
-    "  name: '@deepseek-ai/dsh-settings-file'",
-    '  config:',
-    `    path: ${JSON.stringify(settingsPath)}`,
-    '    debounceMs: 10',
     '- id: credentials',
     "  name: '@deepseek-ai/dsh-credentials-local'",
     '  config:',
     `    path: ${JSON.stringify(join(root, '.credentials.yaml'))}`,
     '    debounceMs: 10',
-    ...(withAuthorization ? [
-      '- id: authorization',
-      "  name: '@deepseek-ai/dsh-authorization'",
-    ] : []),
     '- id: llm-pi-ai',
     "  name: '@deepseek-ai/dsh-llm-pi-ai'",
     '',
@@ -87,72 +62,27 @@ async function loadComposition(
   ctx.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
     ['test-llm-service', LlmRuntime],
-    ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
     ['@deepseek-ai/dsh-credentials-local', LocalCredentialProvider],
-    ['@deepseek-ai/dsh-authorization', AuthorizationService],
     ['@deepseek-ai/dsh-llm-pi-ai', LlmPiAi],
   ])
-  ctx.loader.internal = {
+  const internal: ModuleLoaderV2 = {
     version: 'v2',
-    async import(specifier: string) {
+    loadCache: new Map(),
+    import: (specifier: string) => {
       if (!modules.has(specifier)) throw new Error(`unexpected Loader import: ${specifier}`)
-      return modules.get(specifier)
+      return Promise.resolve(modules.get(specifier))
     },
-  } as unknown as NonNullable<typeof ctx.loader.internal>
-  await ctx.loader.create({
-    name: 'cordis:include',
-    config: { path: pathToFileURL(configPath).href },
-  })
-  await ctx.loader.await()
-  return { ctx, settingsPath }
+    register(): never { throw new Error('unexpected module hook registration') },
+    getOrCreateModuleJob(): never { throw new Error('unexpected module job creation') },
+    resolveSync(): never { throw new Error('unexpected synchronous module resolution') },
+    load(): never { throw new Error('unexpected module load') },
+  }
+  ctx.loader.internal = internal
+  const patchPath = await profileComposition(ctx, root, configPath)
+  return { ctx, settingsPath: patchPath }
 }
 
 describe('llm-pi-ai real dormant composition', () => {
-  it('boots with stored model errors and repairs them without replacing the configured list or endpoint', async () => {
-    vi.stubEnv('PI_COMPOSITION_KEY', '')
-    const server = await mockServer([{ events: textEvents }, { events: textEvents }])
-    const known = getBuiltinModels('openrouter').find(model => model.api === 'openai-completions')!
-    const stored = JSON.stringify({ 'llm-pi-ai': { providers: { openrouter: {
-      apiKeyEnv: 'PI_COMPOSITION_KEY', baseURL: server.url,
-      models: [{ id: known.id }, { id: 'unlisted-local-model' }],
-    } } } })
-    const { ctx, settingsPath } = await loadComposition(stored)
-
-    expect(ctx.settings.describe().map(section => section.ns)).toContain('llm-pi-ai')
-    expect(await readFile(settingsPath, 'utf8')).toBe(stored)
-    expect(ctx.llm.listConfigurableProviders().find(entry => entry.provider === 'openrouter')?.error)
-      .toContain('model "unlisted-local-model" needs an api')
-    expect((await ctx.llm.listModels('openrouter')).map(model => model.id)).toEqual([known.id])
-    const rejected = await assemble(ctx, { provider: 'openrouter', model: 'unlisted-local-model', messages: [] })
-    expect(rejected.finish).toMatchObject({ kind: 'error', failure: { code: 'INVALID_CONFIG' } })
-    expect(server.requests).toHaveLength(0)
-    const available = await assemble(ctx, { provider: 'openrouter', model: known.id, messages: [] })
-    expect(available.message.content).toEqual([{ type: 'text', text: 'hello' }])
-
-    const vision = getBuiltinModels('openai').find(model => model.input.includes('image'))!
-    const discovered = await ctx.llm.discoverModels('llm-pi-ai', { provider: 'openai' })
-    expect(discovered.find(model => model.id === vision.id)?.inputModalities).toEqual(vision.input)
-    await ctx.settings.mutate('llm-pi-ai', [{
-      op: 'set', path: ['providers', 'openrouter', 'api'], value: 'openai-completions',
-    }])
-    expect(ctx.llm.listConfigurableProviders().find(entry => entry.provider === 'openrouter')?.error).toBeUndefined()
-    expect((await ctx.llm.listModels('openrouter')).map(model => model.id)).toEqual([known.id, 'unlisted-local-model'])
-    const persisted = await readFile(settingsPath, 'utf8')
-    expect(persisted).toContain(server.url)
-    expect(persisted).toContain(known.id)
-    expect(persisted).toContain('unlisted-local-model')
-    expect(ctx.settings.describe().find(section => section.ns === 'llm-pi-ai')?.user).toMatchObject({
-      providers: { openrouter: {
-        api: 'openai-completions', baseURL: server.url,
-        models: [{ id: known.id }, { id: 'unlisted-local-model' }],
-      } },
-    })
-    const repaired = await assemble(ctx, { provider: 'openrouter', model: 'unlisted-local-model', messages: [] })
-    expect(repaired.message.content).toEqual([{ type: 'text', text: 'hello' }])
-    expect(server.paths).toEqual(['/chat/completions', '/chat/completions'])
-    expect(server.requests[1]).toMatchObject({ model: 'unlisted-local-model' })
-  })
-
   it('boots with zero routes and registers one the moment settings supply a profile', async () => {
     vi.stubEnv('PI_COMPOSITION_KEY', '')
     const server = await mockServer([{ events: textEvents }])
@@ -163,11 +93,12 @@ describe('llm-pi-ai real dormant composition', () => {
 
     // Exactly what the web Models page leaves on disk.
     await writeFile(settingsPath, [
-      'llm-pi-ai:',
-      '  providers:',
-      '    deepseek:',
-      '      apiKeyEnv: PI_COMPOSITION_KEY',
-      `      baseURL: ${server.url}`,
+      '- id: llm-pi-ai',
+      '  config:',
+      '    providers:',
+      '      deepseek:',
+      '        apiKeyEnv: PI_COMPOSITION_KEY',
+      `        baseURL: ${server.url}`,
       '',
     ].join('\n'))
     await vi.waitFor(() => {
@@ -185,18 +116,19 @@ describe('llm-pi-ai real dormant composition', () => {
     const { ctx, settingsPath } = await loadComposition()
 
     await writeFile(settingsPath, [
-      'llm-pi-ai:',
-      '  providers:',
-      '    acme-gateway:',
-      '      apiKeyEnv: PI_COMPOSITION_KEY',
-      '      api: openai-completions',
-      `      baseURL: ${server.url}`,
-      '      headers:',
-      '        X-Company-Code: private-tenant',
-      '        Accept: text/plain',
-      '        User-Agent: deployment-owned',
-      '      models:',
-      '        - id: acme-bootstrap',
+      '- id: llm-pi-ai',
+      '  config:',
+      '    providers:',
+      '      acme-gateway:',
+      '        apiKeyEnv: PI_COMPOSITION_KEY',
+      '        api: openai-completions',
+      `        baseURL: ${server.url}`,
+      '        headers:',
+      '          X-Company-Code: private-tenant',
+      '          Accept: text/plain',
+      '          User-Agent: deployment-owned',
+      '        models:',
+      '          - id: acme-bootstrap',
       '',
     ].join('\n'))
     await vi.waitFor(() => {
@@ -223,11 +155,12 @@ describe('llm-pi-ai real dormant composition', () => {
     ])
     const { ctx, settingsPath } = await loadComposition()
     await writeFile(settingsPath, [
-      'llm-pi-ai:',
-      '  providers:',
-      '    deepseek:',
-      '      apiKeyEnv: PI_COMPOSITION_KEY',
-      `      baseURL: ${server.url}`,
+      '- id: llm-pi-ai',
+      '  config:',
+      '    providers:',
+      '      deepseek:',
+      '        apiKeyEnv: PI_COMPOSITION_KEY',
+      `        baseURL: ${server.url}`,
       '',
     ].join('\n'))
     await vi.waitFor(() => {
@@ -283,11 +216,12 @@ describe('llm-pi-ai real dormant composition', () => {
     const server = await mockServer([{ events: textEvents }])
     const { ctx, settingsPath } = await loadComposition()
     await writeFile(settingsPath, [
-      'llm-pi-ai:',
-      '  providers:',
-      '    deepseek:',
-      '      apiKeyEnv: PI_COMPOSITION_KEY',
-      `      baseURL: ${server.url}`,
+      '- id: llm-pi-ai',
+      '  config:',
+      '    providers:',
+      '      deepseek:',
+      '        apiKeyEnv: PI_COMPOSITION_KEY',
+      `        baseURL: ${server.url}`,
       '',
     ].join('\n'))
     await vi.waitFor(() => {
@@ -332,28 +266,5 @@ describe('llm-pi-ai real dormant composition', () => {
         { role: 'user', content: 'continue' },
       ],
     })
-  })
-
-  it('does not expose the Cinlan account flow without the injected authorization service', async () => {
-    const { ctx } = await loadComposition('# personal settings\n', false)
-    expect(ctx.get('authorization')).toBeUndefined()
-  })
-
-  it('registers, invokes, and disposes the Cinlan account flow through Loader', async () => {
-    const { ctx } = await loadComposition()
-    const key = LlmPiAi.recordKeyFor(LlmPiAi.SUB2API_PROVIDER_ID)
-    expect(ctx.authorization.list().find(entry => entry.key === key)?.methods).toEqual([
-      { id: LlmPiAi.SUB2API_LOGIN_METHOD, label: 'Sign in to Cinlan' },
-    ])
-    const interaction: AuthorizationInteraction = {
-      notify: () => {},
-      prompt: () => Promise.resolve(''),
-    }
-    await expect(ctx.authorization.begin({ key, interaction })).rejects.toMatchObject({ code: 'SUB2API_INVALID_INPUT' })
-
-    const entry = [...ctx.loader.entries()].find(item => item.options.name === '@deepseek-ai/dsh-llm-pi-ai')
-    if (entry?.fiber === undefined) throw new Error('llm-pi-ai Loader entry did not mount')
-    await entry.fiber.dispose()
-    expect(ctx.authorization.list().some(item => item.key === key)).toBe(false)
   })
 })

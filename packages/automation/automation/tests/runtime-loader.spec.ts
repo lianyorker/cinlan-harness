@@ -247,7 +247,7 @@ describe('real Loader automation runtime', () => {
     const runtime = ctx.automationRuntime
     const definition = await runtime.create(draft)
     ctx.on('agent/inbox/claimed', ({ agent, message }) => {
-      if (message.source.kind !== 'plugin' || message.source.plugin !== 'automation') return
+      if (message.source.kind !== 'automation') return
       agent.followup(createUserMessage({ content: [{ type: 'text', text: 'A separate later request.' }], source: { kind: 'user' } }))
     })
     model.responses.push(() => answer('The automation completed.'))

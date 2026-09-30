@@ -197,7 +197,6 @@ export class ContinuableActivationRegistry {
    * Build one registry inside the service's Agent-injected context.
    * @param ctx - context providing Agents, Sessions, and teardown ownership.
    * @param observeActivation - build the lifecycle observer for one residency epoch.
-   * @param maxActiveSubagents - current capacity applied before admitting a new Activation.
    */
   constructor(
     private readonly ctx: Context,
@@ -621,14 +620,14 @@ export class ContinuableActivationRegistry {
   ): Promise<Activation> {
     const { childId, provider, parent, create } = inputs
     inputs.signal.throwIfAborted()
-    const setup = async (childCtx: Context, child: Agent) => {
+    const setup = (childCtx: Context, child: Agent): void => {
       // Only fresh creation appends the descriptor and delegated policy after
       // the inherited marker; a cold resume replays those persisted events.
       if (create !== undefined) {
         child.session.append('subagent/descriptor', create.descriptor)
         appendDelegatedPolicyOverrides(child.session, create.delegatedPolicies)
       }
-      return await applyChildComposition(childCtx, parent, inputs.composition, child, create === undefined)
+      applyChildComposition(childCtx, parent, inputs.composition)
     }
     const observer = this.observeActivation(provider, childId, parent)
     const handle: AgentHandle = create === undefined

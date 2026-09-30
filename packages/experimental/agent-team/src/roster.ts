@@ -301,7 +301,7 @@ export class TeamRoster {
       description,
       provider,
       context: request.context,
-      ...workspaceMode === 'worktree' ? { workspaceMode, worktreeTaskId } : {},
+      ...(workspaceMode === 'worktree' && worktreeTaskId !== undefined ? { workspaceMode, worktreeTaskId } : {}),
       phase: 'provisioning',
     }
 

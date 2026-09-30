@@ -156,15 +156,14 @@ function parseArguments(raw: string): unknown {
   if (raw === '') return {}
   const seen = { nonFinite: false }
   try {
-    const parsed = JSON.parse(raw, (_key, value: unknown) => {
+    const parsed: unknown = JSON.parse(raw, (_key, value: unknown) => {
       // `1e400` is valid JSON but parses to Infinity, which JSON.stringify
       // reports as null; keep the raw text rather than misdescribe the call.
       if (typeof value === 'number' && !Number.isFinite(value)) seen.nonFinite = true
       return value
-    }) as unknown
+    })
     return seen.nonFinite ? raw : parsed
   } catch {
-    // JSON.parse rejects malformed tool arguments; preserve their original text.
     return raw
   }
 }
@@ -302,17 +301,16 @@ export function projectJsonRun(
         // Compaction replaces older results in the surface; those are history,
         // not this run's output, and would otherwise duplicate a callId.
         if (event.surfaceOp !== 'append') return
-        const block = event.data.message.content[0]
+        const message = event.data.message
         write({
           type: 'tool_result',
-          callId: block.toolCallId,
-          status: block.isError === true ? 'error' : 'completed',
-          result: resultText(block.content),
+          callId: message.toolCallId,
+          status: message.isError === true ? 'error' : 'completed',
+          result: resultText(message.content),
         })
         return
       }
       default:
-        // Session event types are extensible; project only this protocol's events.
         return
     }
   }

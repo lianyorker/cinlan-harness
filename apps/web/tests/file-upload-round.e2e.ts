@@ -12,7 +12,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import type { Browser, Page } from 'playwright'
 import { chromium } from 'playwright'
-import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFailed, vi } from 'vitest'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import {
   acknowledgeReloadConnectionLoss, assertFixtureInventory, captureStableAria, compareOrRefreshGolden, fixtureUserPrompts,
@@ -24,6 +24,7 @@ const SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/file-upload-r
 const FIXTURE = fileURLToPath(new URL('../../../snapshots/web/file-upload-round/session.v3.jsonl', import.meta.url))
 const UI_EXPECTED = fileURLToPath(new URL('../../../snapshots/web/file-upload-round/ui.expected.md', import.meta.url))
 const TRAJECTORY_EXPECTED = fileURLToPath(new URL('../../../snapshots/web/file-upload-round/trajectory.expected.md', import.meta.url))
+const TRAJECTORY_STATUS_EXPECTED = fileURLToPath(new URL('../../../snapshots/web/file-upload-round/trajectory-status.expected.md', import.meta.url))
 const OVERRIDE = fileURLToPath(new URL('../../../snapshots/web/file-upload-round/replay.override.json', import.meta.url))
 const DRAFT_EXPECTED = fileURLToPath(new URL('./expected/file-upload-round/draft.expected.md', import.meta.url))
 const HISTORY_EXPECTED = fileURLToPath(new URL('./expected/file-upload-round/history.expected.md', import.meta.url))
@@ -38,6 +39,9 @@ const IMAGE_NAMES = Array.from({ length: 10 }, (_unused, index) => `reference-${
 
 /** Browser-measured relations for the mixed composer attachment rail. */
 interface DraftRailGeometry {
+  readonly fileIconBox: string
+  readonly fileIconColor: string
+  readonly fileIconUsesSolidFill: boolean
   readonly order: readonly string[]
   readonly oneGroup: boolean
   readonly oneRow: boolean
@@ -54,6 +58,9 @@ function renderDraftRailGeometry(geometry: DraftRailGeometry): string {
     '',
     `- selection order: ${geometry.order.join(' > ')}`,
     `- one attachment group: ${String(geometry.oneGroup)}`,
+    `- file icon dimensions: ${geometry.fileIconBox}`,
+    `- file icon color: ${geometry.fileIconColor}`,
+    `- file icon uses a solid fill: ${String(geometry.fileIconUsesSolidFill)}`,
     `- all cards share one row: ${String(geometry.oneRow)}`,
     `- every card is 64px high: ${String(geometry.equalHeight)}`,
     `- the file card is wider than an image: ${String(geometry.fileWider)}`,
@@ -64,6 +71,9 @@ function renderDraftRailGeometry(geometry: DraftRailGeometry): string {
 
 /** Browser-measured relations for one durable mixed-attachment message. */
 interface HistoryAttachmentGeometry {
+  readonly fileIconBox: string
+  readonly fileIconColor: string
+  readonly fileIconUsesSolidFill: boolean
   readonly order: readonly string[]
   readonly oneGroup: boolean
   readonly oneRow: boolean
@@ -81,6 +91,9 @@ function renderHistoryAttachmentGeometry(geometry: HistoryAttachmentGeometry): s
     '',
     `- source order: ${geometry.order.join(' > ')}`,
     `- one attachment group: ${String(geometry.oneGroup)}`,
+    `- file icon dimensions: ${geometry.fileIconBox}`,
+    `- file icon color: ${geometry.fileIconColor}`,
+    `- file icon uses a solid fill: ${String(geometry.fileIconUsesSolidFill)}`,
     `- file and image share one row: ${String(geometry.oneRow)}`,
     `- both cards are 64px high: ${String(geometry.equalHeight)}`,
     `- the image is a 64px tile: ${String(geometry.imageIsTile)}`,
@@ -111,7 +124,7 @@ describe('web e2e: generic file upload through the real assembly', () => {
 
     await page.getByRole('tab', { name: 'Trajectory', exact: true }).click()
     await page.getByLabel('Trajectory timeline').waitFor({ timeout: 30_000 })
-    const row = page.getByRole('row', { name: /USER, Files ×1/ })
+    const row = page.getByRole('row', { name: `USER, Images ×1 · Files ×1 · ${PROMPT}`, exact: true })
     await row.waitFor({ timeout: 10_000 })
     const ledger = await captureStableAria(page, '[data-trajectory-row-key][aria-label*="Files ×1"]', scaffold.workspaceCwd)
     await row.click()
@@ -213,10 +226,9 @@ describe('web e2e: generic file upload through the real assembly', () => {
       // Drift guard: the committed fixture must carry exactly the drive prompt.
       expect(fixtureUserPrompts(await readFile(FIXTURE, 'utf8'))).toEqual([PROMPT])
     }
-    const composer = page.locator('#root [data-conversation-scroll] > [data-composer-seat] [data-composer-card]')
-    const input = composer.locator('[data-composer-input]')
+    const input = page.locator('[data-composer-input]').first()
     await input.waitFor({ timeout: 10_000 })
-    const modelTrigger = composer.getByRole('button', { name: /^Select model, current/ })
+    const modelTrigger = page.getByRole('button', { name: /^Select model, current/ })
     await modelTrigger.click()
     await page.getByRole('menuitem', { name: /^Model\b/ }).click()
     await page.getByRole('menuitemradio', { name: 'DeepSeek-V4-Flash-Vision-Exp' }).click()
@@ -225,20 +237,26 @@ describe('web e2e: generic file upload through the real assembly', () => {
     const imageBytes = await readFile(IMAGE_FIXTURE)
     // Pick through the composer's hidden file input: the upload RPC runs
     // immediately and the pending card appears before any prompt is typed.
-    await composer.locator('input[type="file"]').setInputFiles([
+    await page.locator('input[type="file"]').setInputFiles([
       { name: FILE_NAME, mimeType: 'text/plain', buffer: Buffer.from(FILE_TEXT) },
       ...IMAGE_NAMES.map(name => ({ name, mimeType: 'image/png', buffer: imageBytes })),
     ])
-    await composer.getByTitle(FILE_NAME).waitFor({ timeout: 10_000 })
-    const rail = composer.getByRole('group', { name: 'Pending attachments' })
+    await page.getByTitle(FILE_NAME).waitFor({ timeout: 10_000 })
+    const rail = page.getByRole('group', { name: 'Pending attachments' })
     await expect.poll(() => rail.locator(':scope > *').count(), { timeout: 10_000 })
       .toBe(IMAGE_NAMES.length + 1)
+    await rail.locator('svg[viewBox="0 0 28 28"]').waitFor({ timeout: 15_000 })
     const geometry = await rail.evaluate((element): DraftRailGeometry => {
       const cards = [...element.children] as HTMLElement[]
       const boxes = cards.map(card => card.getBoundingClientRect())
       const imageWidth = boxes[cards.findIndex(card => card.querySelector('img') !== null)]?.width ?? 0
-      const fileWidth = boxes[cards.findIndex(card => card.querySelector('[title="poem.txt"]') !== null)]?.width ?? 0
+      const fileCard = cards.find(card => card.querySelector('[title="poem.txt"]') !== null)!
+      const fileWidth = fileCard.getBoundingClientRect().width
+      const fileIcon = fileCard.querySelector('svg[viewBox="0 0 28 28"]')!
       return {
+        fileIconBox: `${fileIcon.getBoundingClientRect().width} × ${fileIcon.getBoundingClientRect().height}`,
+        fileIconColor: getComputedStyle(fileIcon).color,
+        fileIconUsesSolidFill: fileIcon.querySelector('path')?.getAttribute('fill') === 'currentColor',
         order: cards.map(card => card.querySelector('img')?.getAttribute('alt')
           ?? card.querySelector<HTMLElement>('[title]')?.title ?? ''),
         oneGroup: document.querySelectorAll('[role="group"][aria-label="Pending attachments"]').length === 1,
@@ -251,12 +269,12 @@ describe('web e2e: generic file upload through the real assembly', () => {
     })
     await compareOrRefreshGolden(DRAFT_EXPECTED, renderDraftRailGeometry(geometry), MODE)
     for (const name of IMAGE_NAMES.slice(1)) {
-      await composer.getByRole('button', { name: `Remove image ${name}` }).click({ force: true })
+      await page.getByRole('button', { name: `Remove image ${name}` }).click({ force: true })
     }
     await expect.poll(() => rail.locator(':scope > *').count(), { timeout: 10_000 }).toBe(2)
     await input.fill(PROMPT)
     // Send unlocks only after the upload receipt lands (the staged file gate).
-    const send = composer.getByRole('button', { name: 'Send message' })
+    const send = page.getByRole('button', { name: 'Send message' })
     await send.waitFor({ state: 'visible', timeout: 15_000 })
     await expect.poll(() => send.isEnabled(), { timeout: 15_000 }).toBe(true)
     const settled = scaffold.whenTurnSettled()
@@ -300,9 +318,9 @@ describe('web e2e: generic file upload through the real assembly', () => {
         event.type === 'tool/result' && event.data.message.source.callId === readCall.data.callId,
     )
     if (readResult === undefined) throw new Error('the read call produced no durable result')
-    const content = readResult.data.message.content[0]
-    expect(content.isError).toBe(false)
-    expect(content.content.filter(block => block.type === 'text').map(block => block.text).join(''))
+    const message = readResult.data.message
+    expect(message.isError).toBe(false)
+    expect(message.content.filter(block => block.type === 'text').map(block => block.text).join(''))
       .toContain('UPLOAD_ROUND_OK')
 
     const turnEnds = sessionEvents.filter(event => event.type === 'turn/end')
@@ -335,7 +353,11 @@ describe('web e2e: generic file upload through the real assembly', () => {
       const fileIndex = cards.findIndex(card => card.getAttribute('title') === 'poem.txt')
       const imageBox = boxes[imageIndex]
       const fileBox = boxes[fileIndex]
+      const fileIcon = cards[fileIndex]!.querySelector('svg')!
       return {
+        fileIconBox: `${fileIcon.getBoundingClientRect().width} × ${fileIcon.getBoundingClientRect().height}`,
+        fileIconColor: getComputedStyle(fileIcon).color,
+        fileIconUsesSolidFill: fileIcon.querySelector('path')?.getAttribute('fill') === 'currentColor',
         order: cards.map(card => card.getAttribute('title') ?? card.querySelector('img')?.getAttribute('alt') ?? ''),
         oneGroup: document.querySelectorAll('[data-message-attachments]').length === 1,
         oneRow: boxes.every(box => Math.abs(box.top - (boxes[0]?.top ?? box.top)) < 0.5),
@@ -349,21 +371,10 @@ describe('web e2e: generic file upload through the real assembly', () => {
     await compareOrRefreshGolden(HISTORY_EXPECTED, renderHistoryAttachmentGeometry(geometry), MODE)
   })
 
-  it.skipIf(MODE === 'record')('marks the durable file in the Trajectory ledger', async () => {
-    await page.getByRole('tab', { name: 'Trajectory', exact: true }).click()
-    await page.getByLabel('Trajectory timeline').waitFor({ timeout: 30_000 })
-    await page.getByRole('row', { name: /Files ×1/ }).waitFor({ timeout: 10_000 })
-    const snapshot = await captureStableAria(
-      page,
-      '[data-trajectory-row-key][aria-label*="Files ×1"]',
-      scaffold.workspaceCwd,
-    )
-    await compareOrRefreshGolden(TRAJECTORY_EXPECTED, snapshot, MODE)
-  })
-
   it.skipIf(MODE === 'record')('shows both attachment kinds throughout the Trajectory inspector', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-file-upload-trajectory'))
     liveTrajectory = await inspectTrajectoryAttachments()
+    await compareOrRefreshGolden(TRAJECTORY_EXPECTED, liveTrajectory, MODE)
   })
 
   it.skipIf(MODE === 'record')('restores the same Trajectory attachments from persisted history after reload', async () => {
@@ -375,11 +386,53 @@ describe('web e2e: generic file upload through the real assembly', () => {
     expect(await inspectTrajectoryAttachments()).toBe(liveTrajectory)
   })
 
+  it.skipIf(MODE === 'record')('keeps thumbnail loading and retry feedback inside the attachment row', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-thumbnail-status'))
+    const releaseRead = Promise.withResolvers<undefined>()
+    const read = vi.spyOn(scaffold.ctx.attachments, 'readImage').mockImplementationOnce(async () => {
+      await releaseRead.promise
+      throw new Error('fixture image read failed')
+    })
+    try {
+      // Reload clears the browser image cache so the real image slot observes the delayed read.
+      const warningStart = tripwire.warnings.length
+      await page.reload({ waitUntil: 'load' })
+      acknowledgeReloadConnectionLoss(tripwire, warningStart)
+      await page.getByRole('tab', { name: 'Trajectory', exact: true }).click()
+      await page.getByRole('row', { name: `USER, Images ×1 · Files ×1 · ${PROMPT}`, exact: true }).click()
+      await page.getByRole('tab', { name: 'Preview', exact: true }).click()
+      const panel = page.getByRole('tabpanel')
+      const thumbnail = panel.locator('[data-variant="thumbnail"]')
+      await thumbnail.waitFor()
+      await expect.poll(() => read.mock.calls.length).toBe(1)
+      const feedbackFits = () => thumbnail.evaluate(element => element.scrollHeight <= element.clientHeight
+        && element.scrollWidth <= element.clientWidth)
+      expect(await feedbackFits()).toBe(true)
+      const loading = await captureStableAria(page, '[role="tabpanel"] [aria-label="Attachments"]', scaffold.workspaceCwd)
+
+      releaseRead.resolve(undefined)
+      const retry = panel.getByRole('button', { name: 'Image failed to load; click to retry', exact: true })
+      await retry.waitFor()
+      expect(await feedbackFits()).toBe(true)
+      const failed = await captureStableAria(page, '[role="tabpanel"] [aria-label="Attachments"]', scaffold.workspaceCwd)
+      await retry.focus()
+      await retry.press('Enter')
+      await panel.getByRole('img', { name: IMAGE_NAMES[0]!, exact: true }).waitFor()
+      expect(read).toHaveBeenCalledTimes(2)
+      await compareOrRefreshGolden(TRAJECTORY_STATUS_EXPECTED, [
+        '# Loading', loading, '# Failed', failed,
+      ].join('\n\n'), MODE)
+    } finally {
+      releaseRead.resolve(undefined)
+      read.mockRestore()
+    }
+  })
+
   it.skipIf(MODE === 'record')('stayed clean and kept the exact fixture inventory', async () => {
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
     await assertFixtureInventory(SNAPSHOT_DIR, [
-      'session.v3.jsonl', 'replay.override.json', 'ui.expected.md', 'trajectory.expected.md',
+      'session.v3.jsonl', 'replay.override.json', 'ui.expected.md', 'trajectory.expected.md', 'trajectory-status.expected.md',
     ])
   })
 })

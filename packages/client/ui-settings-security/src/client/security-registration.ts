@@ -1,5 +1,6 @@
 /** Security skill resource settings plugin and lifecycle owner. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-api-security-research-controller/remote'
 import { IconSkillOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { SECURITY_CAPABILITY } from './CapabilitySection.tsx'
 import { SecurityResourcesSection, type SecurityResourcesInjected, type SecurityResourceAction } from './SecurityResourcesSection.tsx'

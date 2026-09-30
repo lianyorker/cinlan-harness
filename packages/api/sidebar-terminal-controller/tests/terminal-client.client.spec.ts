@@ -53,28 +53,36 @@ class ExternalFeed<T> {
   fail(error: unknown): void { this.queue.push({ type: 'error', error }); this.changed.resolve(undefined) }
   end(): void { this.queue.push({ type: 'end' }); this.changed.resolve(undefined) }
 
-  async *open(signal: AbortSignal): AsyncIterable<T> {
+  open(signal: AbortSignal): any {
     this.signal = signal
     const aborted = (): void => { this.changed.resolve(undefined) }
     signal.addEventListener('abort', aborted, { once: true })
-    try {
-      while (true) {
-        signal.throwIfAborted()
-        const next = this.queue.shift()
-        if (next === undefined) {
-          await this.changed.promise
-          this.changed = deferred<undefined>()
-          continue
+    const self = this
+    const iterable = (async function* () {
+      try {
+        while (true) {
+          signal.throwIfAborted()
+          const next = self.queue.shift()
+          if (next === undefined) {
+            await self.changed.promise
+            self.changed = deferred<undefined>()
+            continue
+          }
+          if (next.type === 'end') return
+          if (next.type === 'error') throw next.error
+          yield next.value
         }
-        if (next.type === 'end') return
-        if (next.type === 'error') throw next.error
-        yield next.value
+      } finally {
+        signal.removeEventListener('abort', aborted)
+        await self.closing
+        self.closed.resolve(undefined)
       }
-    } finally {
-      signal.removeEventListener('abort', aborted)
-      await this.closing
-      this.closed.resolve(undefined)
-    }
+    })()
+    return Object.assign(iterable, {
+      send: () => {},
+      end: () => {},
+      dispose: () => {},
+    })
   }
 }
 
@@ -203,10 +211,17 @@ describe('terminal Remote transport', () => {
     const opening = deferred<undefined>()
     const returned = deferred<undefined>()
     let signal: AbortSignal | undefined
-    f.remote.open.mockImplementation(async function* (_request, abort) {
+    f.remote.open.mockImplementation(((_request: any, abort?: AbortSignal) => {
       signal = abort
-      try { await opening.promise; yield ready() } finally { returned.resolve(undefined) }
-    })
+      const iter = (async function* () {
+        try { await opening.promise; yield ready() } finally { returned.resolve(undefined) }
+      })()
+      return Object.assign(iter, {
+        send: () => {},
+        end: () => {},
+        dispose: () => {},
+      }) as any
+    }) as any)
     const close = f.connect()
     const closing = close('park')
     await vi.waitFor(() => { expect(signal?.aborted).toBe(true) })
@@ -731,12 +746,13 @@ describe('agent terminal watch lifetime', () => {
     const f = fixture()
     const delivery = deferred<IteratorResult<AgentList>>()
     const stopped = deferred<undefined>()
-    f.remote.watch.mockImplementation(() => ({
+    f.remote.watch.mockImplementation((() => ({
       [Symbol.asyncIterator]: () => ({
         next: () => delivery.promise,
         return: async () => ({ done: true, value: undefined }),
       }),
-    }))
+      send: () => {}, end: () => {}, dispose: () => {},
+    })) as any)
     const receive = vi.fn()
     const stop = f.transport.watchAgentTerminals(sessionId, receive)
     // The source read resolves before RemoteStream's yielded item reaches the consumer reaction.

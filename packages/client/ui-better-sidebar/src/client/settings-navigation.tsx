@@ -121,7 +121,7 @@ export function registerFeatureSettings(ctx: Context, injected: SideCardSectionI
           }))
           disposers.push(ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
             name: 'settings.section.icon', key: page.sectionId,
-          }, ({ size }: { size: number }) => createElement(Fragment, null,
+          }, ({ size = 16 }: { size?: number }) => createElement(Fragment, null,
             typeof feature.icon === 'function' ? feature.icon(size) : feature.icon ?? createElement(IconPanelRightOutline16, { size }),
           ))))
         }

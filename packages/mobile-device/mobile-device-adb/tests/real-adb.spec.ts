@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
-import FileSettings from '@deepseek-ai/dsh-settings-file'
+import SettingsForms from '@deepseek-ai/dsh-settings'
 import MobileDevice from '@deepseek-ai/dsh-mobile-device'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -26,7 +26,7 @@ it.runIf(!!process.env.DSH_NATIVE_ADB_SMOKE)('reads real adb version and invento
       { name: 'subprocess' }, { name: 'settings', config: { path: settingsPath, watch: false } },
       { name: 'mobile', config: { provider: 'adb' } }, { name: 'native', config: { providerId: 'adb', cwd: path } },
     ]))
-    const modules = new Map<string, unknown>([['subprocess', LocalSubprocess], ['settings', FileSettings], ['mobile', MobileDevice], ['native', NativeAdb]])
+    const modules = new Map<string, unknown>([['subprocess', LocalSubprocess], ['settings', SettingsForms], ['mobile', MobileDevice], ['native', NativeAdb]])
     ctx.baseUrl = pathToFileURL(path).href + '/'
     await ctx.plugin(Loader)
     ctx.loader.builtins.include = Include

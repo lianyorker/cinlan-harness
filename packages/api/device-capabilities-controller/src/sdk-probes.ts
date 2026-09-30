@@ -178,7 +178,7 @@ export class SdkProbes {
       if (handle !== undefined) {
         handle.terminate()
         await handle.done.catch(() => undefined)
-        await handle.waitForExit()
+        await handle.waitForExit(signal).catch(() => undefined)
       }
     }
     return !signal.aborted && succeeded

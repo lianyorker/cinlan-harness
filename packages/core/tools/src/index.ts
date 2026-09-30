@@ -27,8 +27,13 @@ import type { PtcSdkLanguage } from './ptc.ts'
 import { renderToolsSdk } from './ts-types.ts'
 import type { ToolSdkSchema } from './ts-types.ts'
 import { renderToolsSdkPy } from './py-types.ts'
-import { defineTool } from './schema.ts'
-import type { DefineToolOptions, ParameterSchemaSpec, ValueSchemaSpec } from './schema.ts'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    /** Tool availability changes supplied by the tool registry. */
+    'tool-registry': { kind: 'tool-registry' }
+  }
+}
 
 /**
  * Language → SDK-section renderer. The registry looks up the loaded
@@ -135,15 +140,6 @@ declare module '@deepseek-ai/cordis' {
   }
 
   interface Events {
-    /**
-     * Rewrite tool call arguments before execution identity is materialized.
-     * `next()` delegates to downstream listeners or leaves arguments unchanged.
-     * A listener may supply `arguments` to rewrite the call's input arguments.
-     * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's calls.
-     * @param call - the pending call (callId, name, arguments, caller agent, signal).
-     * @mode waterfall
-     */
-    'tools/input-rewrite'(this: Scoped<ToolRuntime>, call: ToolInputRewriteContext, next: () => Promise<ToolInputRewriteDecision>): Promise<ToolInputRewriteDecision>
     /**
      * Allow, deny, cancel, or ask before dispatch. `next()` delegates to allow;
      * `cancel` selects the canonical pre-dispatch cancellation result, and missing
@@ -599,37 +595,20 @@ export interface ToolExecutionFailure {
 /** The discriminated, execution-local outcome of one tool call. */
 export type ToolExecutionResult = ToolExecutionSuccess | ToolExecutionFailure
 
-/** Pending tool call context passed to `tools/input-rewrite` before durable events and execution identity exist. */
-export interface ToolInputRewriteContext {
-  /** The tool call identity assigned by the model or scheduler. */
-  readonly callId: ToolCallId
-  /** Tool name requested. */
-  readonly name: string
-  /** The parsed arguments before rewrite. */
-  readonly arguments: unknown
-  /** The initiating Agent. */
-  readonly agent?: Agent
-  /** Abort signal for this step/call. */
-  readonly signal: AbortSignal
-}
-
-/** Pre-tool input rewrite outcome returned by a `tools/input-rewrite` listener. */
-export type ToolInputRewriteDecision =
-  | { kind: 'proceed'; arguments?: unknown }
-
 /**
  * Pre-dispatch decision. `allow` runs the call; `deny` materializes its
  * model-facing reason and optional structured error identity; `cancel` selects
  * the canonical cancellation result without presenting a policy denial; `ask`
  * runs only after an approval service returns `allowed-once` and otherwise
- * denies. Input rewriting is handled by the dedicated pre-identity `tools/input-rewrite`
- * waterfall before execution identity and durable log events are created.
+ * denies; its `reason` is the audited approval reason and its optional
+ * `displayReason` is the localized prompt text. Input rewriting is excluded because arguments are already logged and
+ * presented.
  */
 export type PreToolDecision =
   | { kind: 'allow' }
   | { kind: 'deny'; reason: string; info?: ToolErrorInfo }
   | { kind: 'cancel' }
-  | { kind: 'ask'; reason?: string }
+  | { kind: 'ask'; reason?: string; displayReason?: { readonly en: string; readonly [locale: string]: string } }
 
 /**
  * Post-dispatch decision: accept, replace one projection, attach context for the
@@ -858,10 +837,13 @@ export class ToolRuntime extends Service {
   /** Presentation for scopes that declare none; {@link presentAs} shadows it per scope. */
   private readonly defaultMode: ToolPresentationMode
   private readonly maxParallelSubCalls: number
-  /** Agent-bound transports keep PTC provider lookups in the Agent execution world. */
-  private readonly scopedPtcTransports = new WeakMap<ScopeKey, ToolDefinition>()
-  /** Agentless PTC transport for the global view and direct registry callers. */
-  private globalPtcTransport: ToolDefinition | undefined
+  /**
+   * Reserved presentation transport, kept outside the filterable registration
+   * layers. Built on first need rather than at construction: which agents run
+   * a PTC mode is no longer known when the service is constructed, and the
+   * transport is stateless beyond its closures over `this`.
+   */
+  private ptcTransport: ToolDefinition | undefined
 
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'tools')
@@ -920,7 +902,7 @@ export class ToolRuntime extends Service {
       text: (context) => {
         const mode = this.modeFor(context.scope)
         if (mode === 'native') return ''
-        const runtime = this.requirePtcRuntime(mode, this.providerContext(context.scope))
+        const runtime = this.requirePtcRuntime(mode)
         // Own-property read: a language like `toString`/`constructor` would
         // otherwise resolve an inherited Object.prototype member as a renderer.
         const render = SDK_RENDERERS[runtime.language]
@@ -950,45 +932,32 @@ export class ToolRuntime extends Service {
     return this.defaultMode
   }
 
-  /** Resolve the provider context owned by an Agent scope, or the Host context for an unscoped view. */
-  private providerContext(scope?: ScopeKey): Context {
-    return scope !== undefined && 'ctx' in scope ? (scope as Agent).ctx : this.ctx
-  }
-
   /**
-   * Build the reserved `run_code` transport for one execution scope.
+   * The reserved `run_code` transport, built on first need.
    *
    * It never enters the global layer: per-agent restrictions must not remove
-   * it, and a scoped registration must not shadow it. Binding the definition to
-   * the viewing Agent also binds its lazy schema and result rendering to that
-   * Agent's private PTC provider world.
-   * @param scope - the viewing Agent, or undefined for the Host-global view.
-   * @returns the transport definition for that execution scope.
+   * it, and a scoped registration must not shadow it. The visibility resolver
+   * appends it after resolving the filterable global/scoped capability layers,
+   * and only for scopes whose mode actually presents it.
+   * @returns the shared transport definition.
    */
-  private requirePtcTransport(scope?: ScopeKey): ToolDefinition {
-    const current = scope === undefined ? this.globalPtcTransport : this.scopedPtcTransports.get(scope)
-    if (current !== undefined) return current
-    // Keep the Agent execution world captured when the transport is built; Cordis traceable calls can rebind receivers.
-    const provider = this.providerContext(scope)
-    const transport = createRunCodeTool(this, {
-      requireRuntime: exec => this.requirePtcRuntime(this.modeFor(exec.agent), provider),
-      peekApprover: exec => (exec.agent?.ctx ?? this.ctx).get('approval'),
+  private requirePtcTransport(): ToolDefinition {
+    this.ptcTransport ??= createRunCodeTool(this, {
+      requireRuntime: () => this.requirePtcRuntime(this.defaultMode),
+      peekApprover: () => this.ctx.get('approval'),
       resolveSandboxPolicy: (exec) => {
-        const executionProvider = exec.agent?.ctx ?? provider
-        const policy = executionProvider.get('sandboxPolicy')
+        const policy = this.ctx.get('sandboxPolicy')
         if (policy === undefined) throw new Error('dsh-tools: confined PTC runtime requires sandboxPolicy')
         return policy.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })
       },
       // The language-aware description/parameters getters read the runtime
       // without demanding one, so a native-default process can still project
       // the transport for an agent that chose code.
-      peekRuntime: () => provider.get('ptcRuntime'),
+      peekRuntime: () => this.ctx.get('ptcRuntime'),
       maxParallel: this.maxParallelSubCalls,
       shapeDispatchLog: dispatch => this.shapeDispatchLog(dispatch),
     })
-    if (scope === undefined) this.globalPtcTransport = transport
-    else this.scopedPtcTransports.set(scope, transport)
-    return transport
+    return this.ptcTransport
   }
 
   /**
@@ -1028,6 +997,7 @@ export class ToolRuntime extends Service {
         yield ctx.systemPrompt.section(this.sdkSection())
       }
     }.bind(this), 'tools.presentAs()')
+    // oxlint-disable-next-line typescript/no-misused-promises -- synchronous composite teardown
     return dispose
   }
 
@@ -1047,7 +1017,7 @@ export class ToolRuntime extends Service {
     // flavor-table guard would otherwise surface first. This keeps the
     // renderer-table rejection the canonical assembly-time error for a
     // language with no SDK renderer.
-    this.requirePtcRuntime(mode, this.providerContext(scope))
+    this.requirePtcRuntime(mode)
     const schemas = [...view.visible.values()].map(definition => this.schemaOf(definition, false))
     if (mode === 'ptc') {
       return {
@@ -1072,8 +1042,8 @@ export class ToolRuntime extends Service {
    * other. Binding it is deferred until a second backend ships (the first
    * point it is testable).
    */
-  private requirePtcRuntime(mode: ToolPresentationMode, provider: Context = this.ctx): PtcRuntime {
-    const runtime = provider.get('ptcRuntime')
+  private requirePtcRuntime(mode: ToolPresentationMode): PtcRuntime {
+    const runtime = this.ctx.get('ptcRuntime')
     if (!runtime) {
       throw new Error(`dsh-tools: mode "${mode}" requires a PTC runtime — load a ctx.ptcRuntime implementation (e.g. @deepseek-ai/dsh-ptc-runtime-node) or set tools mode to "native"`)
     }
@@ -1082,17 +1052,6 @@ export class ToolRuntime extends Service {
       throw new Error(`dsh-tools: no SDK renderer registered for runtime language ${JSON.stringify(runtime.language)} (known: ${known})`)
     }
     return runtime
-  }
-
-  /**
-   * Compile typed author schemas through the injected registry service.
-   * @param options - Typed definition and optional finalizer and presenters.
-   * @returns A registry-ready definition.
-   */
-  define<const S extends ParameterSchemaSpec, const O extends ValueSchemaSpec>(
-    options: DefineToolOptions<S, O>,
-  ): ToolDefinition {
-    return (defineTool as unknown as (value: unknown) => ToolDefinition)(options)
   }
 
   /**
@@ -1254,7 +1213,7 @@ export class ToolRuntime extends Service {
     // changes. Per scope: a native agent must not find `run_code` in its
     // dispatch table because some other agent in the process presents it.
     if (this.modeFor(scope) !== 'native') {
-      visible.set(RUN_CODE_NAME, this.requirePtcTransport(scope))
+      visible.set(RUN_CODE_NAME, this.requirePtcTransport())
     }
     return { visible, knownNames, restrictableNames }
   }
@@ -1321,7 +1280,7 @@ export class ToolRuntime extends Service {
 
   /** Project one definition onto the model-facing schema fields. */
   private schemaOf(definition: ToolDefinition, detachParameters: boolean): ToolSchema {
-    const { name, description, parameters } = definition
+    const { name, description, parameters, deferLoading } = definition
     const detached = detachParameters ? snapshotJsonValue(parameters) : parameters
     if (detached === undefined) {
       throw new Error(`tool "${name}" parameters must be lossless JSON before schema projection`)
@@ -1330,6 +1289,7 @@ export class ToolRuntime extends Service {
       name,
       description,
       parameters: detached,
+      ...deferLoading === true ? { deferLoading } : {},
     }
   }
 
@@ -1390,26 +1350,6 @@ export class ToolRuntime extends Service {
    */
   private collapses(name: string, scope: ScopeKey | undefined, nested: boolean): boolean {
     return !nested && this.modeFor(scope) === 'ptc' && name !== RUN_CODE_NAME
-  }
-
-  /**
-   * Run pre-identity input rewrite listeners over a model-requested tool call
-   * before durable events and immutable execution identity are materialized.
-   * @param call - the pending call context.
-   * @returns whether a rewrite occurred and the effective arguments.
-   */
-  async rewriteInput(call: ToolInputRewriteContext): Promise<{ rewritten: boolean; arguments: unknown }> {
-    const carrier = scopeTarget(this, call.agent)
-    const decision = await this.ctx.waterfall(
-      carrier,
-      'tools/input-rewrite',
-      call,
-      () => Promise.resolve<ToolInputRewriteDecision>({ kind: 'proceed' }),
-    )
-    if (decision.arguments !== undefined) {
-      return { rewritten: true, arguments: decision.arguments }
-    }
-    return { rewritten: false, arguments: call.arguments }
   }
 
   /**
@@ -1806,6 +1746,7 @@ export class ToolRuntime extends Service {
       toolName: exec.name,
       callId: exec.callId,
       ...ask.reason !== undefined ? { reason: ask.reason } : {},
+      ...ask.displayReason !== undefined ? { displayReason: ask.displayReason } : {},
       signal: exec.signal,
     })
     switch (outcome) {

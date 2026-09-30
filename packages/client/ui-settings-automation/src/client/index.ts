@@ -46,7 +46,7 @@ export function apply(ctx: Context): void {
         cancel: runId => ctx.automationClient.cancel(runId),
         loadRuns: id => ctx.automationClient.loadRuns(id),
         loadMoreRuns: () => ctx.automationClient.loadMoreRuns(),
-        openSession: (id) => { ctx.sessions.open(id) },
+        openSession: (id) => { (ctx.get('uiWorkspace') as any)?.openSession?.(id) },
       }),
     }, AutomationSettingsSection)
   })

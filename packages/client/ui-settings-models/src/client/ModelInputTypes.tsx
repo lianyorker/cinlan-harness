@@ -1,54 +1,61 @@
-/** Input capability controls shared by the existing model-row editors. */
+/** Input-type declarations shared by the DeepSeek and pi-ai catalog editors. */
 
 import type { ReactNode } from 'react'
+import { Checkbox } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { DeepSeekModelDraft } from './DeepSeekModelsEditor.tsx'
 import type { ModelsKey } from './locales.ts'
 import styles from './ModelsSection.module.css'
 
+/** Props of {@link ModelInputTypes}. */
 interface ModelInputTypesProps {
+  /** Effective model row, including fields outside the curated editor. */
   model: DeepSeekModelDraft
-  /** DeepSeek and pi-ai use different configuration keys for the same choices. */
+  /** Adapter-owned field; pi-ai inherits capabilities when absent or empty. */
   field: 'inputModalities' | 'input'
+  /** One-based row position for the accessible group label. */
   position: number
+  /** Prevent changes while read-only or saving. */
   disabled: boolean
-  /** Installed model or provider capabilities when the row inherits its inputs. */
+  /** Installed model or provider defaults when the row does not declare input types. */
   fallback?: readonly string[] | undefined
+  /** Section copy. */
   t: (key: ModelsKey) => string
+  /** Replace this row, preserving unrelated configuration. */
   onChange: (model: DeepSeekModelDraft) => void
 }
 
 /**
- * Edit a nonempty set of model input types without changing other row fields.
- * @param props - effective row, inherited capabilities, and row replacement action.
- * @returns the input-type selector inside an existing model field.
+ * Edit a nonempty set of input types, displaying inherited types before an override exists.
+ * @param props - model declaration and row replacement action.
+ * @returns the labeled text and image checkboxes.
  */
 export function ModelInputTypes({ model, field, position, disabled, fallback, t, onChange }: ModelInputTypesProps): ReactNode {
-  const declared = model[field]
-  const selected = Array.isArray(declared) && declared.length > 0 ? declared : fallback ?? ['text']
-  const value = selected.includes('image') ? selected.includes('text') ? 'text,image' : 'image' : 'text'
+  const modalities = model[field]
+  const selected = Array.isArray(modalities) && modalities.length > 0 ? modalities : fallback ?? ['text']
   return (
-    <label className={styles['modelField']}>
-      <span className={styles['modelFieldLabel']}>{t('modelInputTypes')}</span>
-      <select
-        className={`${styles['input']} ${styles['selectInput']}`}
-        value={value}
-        aria-label={`${t('modelInputTypes')} ${String(position)}`}
-        disabled={disabled}
-        onChange={(event) => {
-          const input = event.target.value.split(',')
-          const next = { ...model, [field]: input }
-          // DeepSeek rejects image request limits on a text-only model.
-          if (field === 'inputModalities' && !input.includes('image')) {
-            Reflect.deleteProperty(next, 'imagePixelBudget')
-            Reflect.deleteProperty(next, 'imageMaxBytes')
-          }
-          onChange(next)
-        }}
-      >
-        <option value="text">{t('modelInputText')}</option>
-        <option value="text,image">{t('modelInputTextImage')}</option>
-        <option value="image">{t('modelInputImage')}</option>
-      </select>
-    </label>
+    <fieldset className={styles['modelInputTypes']} aria-label={`${t('modelInputTypes')} ${String(position)}`}>
+      <legend className={styles['modelFieldLabel']}>{t('modelInputTypes')}</legend>
+      <div className={styles['modelInputChoices']}>
+        {(['text', 'image'] as const).map(modality => (
+          <Checkbox
+            key={modality}
+            label={t(modality === 'text' ? 'modelInputText' : 'modelInputImage')}
+            checked={selected.includes(modality)}
+            disabled={disabled || (selected.length === 1 && selected.includes(modality))}
+            onChange={(checked) => {
+              const nextSelected = (['text', 'image'] as const).filter(value =>
+                value === modality ? checked : selected.includes(value))
+              const next = { ...model, [field]: nextSelected }
+              // DeepSeek rejects image request limits on a text-only model.
+              if (field === 'inputModalities' && !nextSelected.includes('image')) {
+                Reflect.deleteProperty(next, 'imagePixelBudget')
+                Reflect.deleteProperty(next, 'imageMaxBytes')
+              }
+              onChange(next)
+            }}
+          />
+        ))}
+      </div>
+    </fieldset>
   )
 }

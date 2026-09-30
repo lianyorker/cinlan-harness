@@ -54,7 +54,6 @@
     "@deepseek-ai/dsh-settings": "workspace:^",
     "@deepseek-ai/dsh-subprocess-local": "workspace:^",
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",
-    "@deepseek-ai/cordis-plugin-include": "workspace:^",
-    "@deepseek-ai/dsh-settings-file": "workspace:^"
+    "@deepseek-ai/cordis-plugin-include": "workspace:^"
   }
 }

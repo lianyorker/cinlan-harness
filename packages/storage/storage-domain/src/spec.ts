@@ -46,13 +46,12 @@ export interface DomainSpec {
    */
   readonly layout?: 'single' | 'per-record'
   /**
-   * Older domain versions whose stored records and global value the current
-   * schemas also accept. The owner vouches for compatibility; entries must
-   * be non-negative integers below {@link version}. Whole-unit JSON and
-   * SQLite reads leave stored values and stamps unchanged; their first
-   * successful write publishes the current stamp atomically with its change.
-   * Per-record reads and legacy bootstrap accept listed stamps, and each
-   * published record carries the current version.
+   * Older domain versions whose stored records the current record schemas
+   * also accept (the declaring owner vouches for that, typically by
+   * declaring the fields older records lack as optional). `per-record` backends
+   * read documents stamped with a listed version instead of discarding them,
+   * and accept a legacy whole-unit file so stamped for the one-time
+   * bootstrap; writes always stamp {@link version}.
    */
   readonly compatibleVersions?: readonly number[]
   /**
@@ -70,15 +69,6 @@ export interface DomainSpec {
   readonly global?: DomainGlobalSpec<unknown>
   /** Table declarations keyed by table name; each name must match `UNIT_NAME_RE`. */
   readonly tables: Record<string, DomainTableSpec>
-  /**
-   * Medium failure recovery policy.
-   * - `'reject'` (the default): version-mismatch, malformed-medium, or schema-invalid
-   *   records fail loud; required for authoritative data like workspaces.
-   * - `'reset'`: damage-class errors (`version-mismatch`, `malformed-medium`, or `invalid-record`)
-   *   log a warning, destroy the medium via the backend's destroy primitive, and open an empty unit.
-   *   Suitable for disposable derived data rebuildable from session logs.
-   */
-  readonly recovery?: 'reject' | 'reset'
 }
 
 /** Key type of one declared table, recovered from its phantom carrier. */

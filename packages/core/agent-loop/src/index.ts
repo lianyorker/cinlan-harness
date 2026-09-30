@@ -4,27 +4,25 @@
  *
  * @module @deepseek-ai/dsh-agent-loop
  */
+import type { Volatile } from '@deepseek-ai/cosmokit'
 
 import { Context, FiberState, Service } from '@deepseek-ai/cordis'
 import { randomUUID } from 'node:crypto'
 import z from '@deepseek-ai/schemastery'
 import { z as zod } from 'zod'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import { emitAgentEvent } from '@deepseek-ai/dsh-agent'
 import type {
   Agent,
   AgentFactory,
   AgentHandle,
   AgentOptions,
   AgentSetup,
-  AgentSetupCommit,
   CreateAgentOptions,
   ResumeAgentOptions,
   SessionStartSource,
   TurnBoundaryProjection,
 } from '@deepseek-ai/dsh-agent'
 import { errorChain, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
-import type {} from '@deepseek-ai/dsh-settings'
 import { interruptedTurnClosers, SessionLogOffset, SessionPreparation, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { Session, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-system-prompt'
@@ -36,6 +34,7 @@ import type { SessionHandle, SessionPersistence } from '@deepseek-ai/dsh-session
 import { ReactLoopAgent } from './agent.ts'
 import { inboxProjectionDefinition } from './inbox.ts'
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS } from './constants.ts'
+import type {} from './runtime-context.ts'
 
 /** Fiber states that cannot own or serve a new lifecycle. */
 const INACTIVE_STATES: ReadonlySet<FiberState> = new Set([
@@ -188,15 +187,6 @@ async function raceAbortCall<T>(
   }
 }
 
-/** Resolve the deployment-wide scheduler cap at the owning config boundary. */
-function resolveMaxParallelToolCalls(value: number | undefined): number {
-  const maxParallelToolCalls = value ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS
-  if (!Number.isInteger(maxParallelToolCalls) || maxParallelToolCalls < 1) {
-    throw new Error('maxParallelToolCalls must be a positive integer')
-  }
-  return maxParallelToolCalls
-}
-
 /** Reject an output-token cap that cannot be represented exactly on the request wire. */
 function assertAgentOptions(options: AgentOptions): void {
   if (options.maxTokens !== undefined
@@ -216,8 +206,8 @@ interface PreparedAgent {
   agent: ReactLoopAgent
   /** Aborts when the factory unloads, the caller cancels, or teardown begins — ends any setup await. */
   signal: AbortSignal
-  /** Enter registries, await creation listeners, and notify session-start. */
-  publish(source: SessionStartSource, setupCommit?: AgentSetupCommit | void): Promise<AgentHandle>
+  /** Enter both registries and await creation listeners. */
+  publish(source: SessionStartSource): Promise<AgentHandle>
   /** Reverse teardown: stop the machine, unregister, unwind the scope. Memoized. */
   dispose(): Promise<void>
 }
@@ -298,31 +288,13 @@ function applyLauncherIdentities(
   })
 }
 
-/** Settings namespace carrying the tool-call parallelism a user owns. */
-export const AGENT_LOOP_SETTINGS_NAMESPACE = 'agent-loop'
-
-/**
- * The agent-loop fields a user owns. Deliberately a strict subset of
- * {@link Config}: `agents` is a boot-time composition array consumed once when
- * the service starts, so a stored change could only look like it had an effect.
- */
-export interface AgentLoopSettings {
-  /** Maximum parallel-safe calls in flight per agent step. */
-  maxParallelToolCalls: number
-}
-
-/** Schema of the agent-loop settings section. */
-export const AGENT_LOOP_SETTINGS_SCHEMA: z<AgentLoopSettings> = z.object({
-  maxParallelToolCalls: z.number().step(1).min(1).default(DEFAULT_MAX_PARALLEL_TOOL_CALLS),
-})
-
 /** Agent-loop plugin configuration. */
 export interface Config {
   /**
    * Maximum parallel-safe calls in flight per agent step. `1` is serial;
    * omission defaults to {@link DEFAULT_MAX_PARALLEL_TOOL_CALLS}.
    */
-  maxParallelToolCalls?: number
+  maxParallelToolCalls: Volatile<number>
   /** Agents created or resumed at plugin startup. */
   agents: (AgentOptions & {
     /** Stable config label used in logs and as the fresh combined-id prefix. */
@@ -335,9 +307,6 @@ export interface Config {
     resumeSessionId?: SessionId
   })[]
 }
-
-/** Agent-loop configuration after defaults and load-time validation. */
-type ResolvedConfig = Config & { maxParallelToolCalls: number }
 
 /** Reject self-contained identity conflicts before any configured agent starts. */
 function validateConfiguredAgents(agents: Config['agents']): void {
@@ -362,8 +331,8 @@ export class AgentLoop extends Service implements AgentFactory {
   static inject = ['agents', 'sessions', 'llm', 'tools', 'systemPrompt', 'sessionProjections']
 
   /** Runtime schema for declarative agents. */
-  static Config = z.object({
-    maxParallelToolCalls: z.number().step(1).min(1).default(DEFAULT_MAX_PARALLEL_TOOL_CALLS),
+  static Config: z<{ agents?: Config['agents']; maxParallelToolCalls?: number }, Config> = z.object({
+    maxParallelToolCalls: z.number().step(1).min(1).default(DEFAULT_MAX_PARALLEL_TOOL_CALLS).volatile(),
     agents: z.array(z.object({
       id: z.string().required(),
       sessionId: z.string().min(1),
@@ -374,10 +343,10 @@ export class AgentLoop extends Service implements AgentFactory {
       cwd: z.string(),
       resumeSessionId: z.string(),
     })).default([]),
-  }) as z<Config>
+  }) as z<{ agents?: Config['agents']; maxParallelToolCalls?: number }, Config>
 
   /** Validated configuration owned by the agent-loop service. */
-  readonly config: ResolvedConfig
+  readonly config: Config
   private readonly ownership: FactoryOwnership
   /** Plain holder prevents Cordis from re-tracing the factory's dependency context through a caller shadow. */
   private readonly runtime: { ctx: Context }
@@ -385,33 +354,10 @@ export class AgentLoop extends Service implements AgentFactory {
   constructor(ctx: Context, config: Config) {
     super(ctx, 'agentLoop')
 
-    const entry: AgentLoopSettings = {
-      maxParallelToolCalls: resolveMaxParallelToolCalls(config.maxParallelToolCalls),
-    }
-    let source: () => AgentLoopSettings = () => entry
     this.config = {
-      ...config,
       agents: applyLauncherIdentities(config.agents, ctx.get(CONFIGURED_AGENT_IDENTITIES_KEY)),
-      // Read through on every scheduler decision: `tool-calls.ts` destructures
-      // this at the start of each group, so a committed change caps the next
-      // group without disturbing the one in flight.
-      get maxParallelToolCalls() {
-        return source().maxParallelToolCalls
-      },
+      maxParallelToolCalls: config.maxParallelToolCalls,
     }
-    ctx.inject(['settings'], (settingsCtx) => {
-      settingsCtx.settings.installSection(ctx, AGENT_LOOP_SETTINGS_NAMESPACE, AGENT_LOOP_SETTINGS_SCHEMA, entry, {
-        // The schema admits any integer above zero; `resolveMaxParallelToolCalls`
-        // owns the whole rule, so refusing here keeps the running scheduler on
-        // its last good cap instead of failing at the next tool group.
-        validate: value => void resolveMaxParallelToolCalls(value.maxParallelToolCalls),
-        setSource: (current) => {
-          source = current
-        },
-        // Nothing is derived from the cap: the getter above is the only reader.
-        onChange: () => {},
-      })
-    })
     validateConfiguredAgents(this.config.agents)
     // Register only after every config validation above has passed, so a
     // rejected constructor leaves no projection unit behind.
@@ -572,7 +518,7 @@ export class AgentLoop extends Service implements AgentFactory {
     let detachSession: (() => void) | undefined
     let detachAgent: (() => void) | undefined
     let disposing: Promise<void> | undefined
-    let publication: PromiseWithResolvers<void> | undefined
+    let publication: ReturnType<typeof Promise.withResolvers<void>> | undefined
     const machineReady = Promise.withResolvers<void>()
     // Reverse teardown, memoized so every racing owner awaits one quiescence:
     // stop the machine, drain and close the session's write path, leave the
@@ -626,9 +572,7 @@ export class AgentLoop extends Service implements AgentFactory {
     const untrack = this.ownership.track(dispose)
     let unfollowOwner: () => Promise<void> | void
     try {
-      // The scope is a child of loopCtx; nest its exact disposer there before
-      // attaching the same lifecycle to the caller so either owner awaits it.
-      unfollowOwner = ownerCtx.effect(() => loopCtx.effect(function* (this: AgentLoop) {
+      unfollowOwner = ownerCtx.effect(function* () {
         machine = new ReactLoopAgent(loopCtx, id, options, session)
         machineReady.resolve()
         yield machine.scope.rawDispose
@@ -636,12 +580,10 @@ export class AgentLoop extends Service implements AgentFactory {
           // Owner disposal owns the same quiescence boundary. Its teardown skips
           // unregistering this already-running owner effect from inside itself.
           if (disposing !== undefined) return
-          abort.abort(this.ownership.isActive()
-            ? new Error(`agent "${id}" setup aborted: owner disposed during setup`)
-            : new Error('agent loop is not active'))
+          abort.abort(new Error(`agent "${id}" setup aborted: owner disposed during setup`))
           return dispose(true)
         }
-      }.bind(this), `agentLoop.scopeLifecycle(${id})`), `agentLoop.lifecycle(${id})`)
+      }, `agentLoop.lifecycle(${id})`)
       /* v8 ignore start -- ctx.effect throws only on an inactive fiber, which assertActive() above already rejected */
     } catch (error: unknown) {
       machineReady.resolve()
@@ -669,11 +611,9 @@ export class AgentLoop extends Service implements AgentFactory {
       return {
         agent,
         signal: abort.signal,
-        publish: async (source, setupCommit) => {
+        publish: async (source) => {
           publication = Promise.withResolvers<void>()
           try {
-            assertLive()
-            setupCommit?.commit()
             assertLive()
             detachSession = agent.ctx.sessions.enter(session)
             // The mounted backend routes announced live events into the active
@@ -682,8 +622,6 @@ export class AgentLoop extends Service implements AgentFactory {
             agent.ctx.sessions.announce(session)
             assertLive()
             await loopCtx.agents.announce(agent, source, abort.signal)
-            assertLive()
-            emitAgentEvent(loopCtx, agent, 'agent/session-start', { source })
             assertLive()
             return { agent, dispose }
           } finally {
@@ -759,6 +697,7 @@ export class AgentLoop extends Service implements AgentFactory {
    */
   private async appendUnstoredSuffix(stored: StoredSession | undefined, session: Session): Promise<void> {
     if (stored === undefined) return
+    // oxlint-disable-next-line typescript/no-deprecated -- Existing Session history read; migration deferred.
     const suffix = session.snapshotEvents(SessionLogOffset(stored.storedCount))
     if (suffix.length > 0) await stored.handle.append(suffix)
     // Advance by what was stored, not to `session.seq`: an event appended
@@ -834,12 +773,12 @@ export class AgentLoop extends Service implements AgentFactory {
     }
     return await this.initializeAgent(prepared, async () => {
       const setupCommit = await raceAbort(setup?.(prepared.agent.ctx, prepared.agent), prepared.signal, id)
+      setupCommit?.commit()
       await this.appendUnstoredSuffix(stored, session)
-      return await prepared.publish(source, setupCommit)
+      return await prepared.publish(source)
     })
   }
 
-  /** Hold queued input until initialization settles and await failed-creation rollback. */
   private async initializeAgent(prepared: PreparedAgent, initialize: () => Promise<AgentHandle>): Promise<AgentHandle> {
     try {
       return await prepared.agent.runMaintenance(async () => {

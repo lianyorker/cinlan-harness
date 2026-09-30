@@ -14,9 +14,8 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { estimateContent } from '@deepseek-ai/dsh-token-meter/estimate'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
@@ -39,7 +38,7 @@ let spillRoot: string
 let ctx: Context
 
 const BODY = 'X'.repeat(4000) // formatted result is well over the policy cap
-const MAX_INLINE_TOKENS = 1000 // leaves room for a head/tail preview beside the notice
+const MAX_INLINE_TOKENS = 250 // leaves room for a head/tail preview beside the notice
 
 beforeEach(async () => {
   vi.spyOn(publicHttpNetwork, 'resolve').mockResolvedValue([{ address: '127.0.0.1', family: 4 }])
@@ -63,12 +62,13 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.restoreAllMocks()
+  await ctx.fiber.dispose()
   await new Promise<void>(resolve => server.close(() => { resolve() }))
   rmSync(spillRoot, { recursive: true, force: true })
 })
 
 /** A web_fetch call carrying a session owner (so the policy can scope the spill). */
-function fetchCall(): Promise<{ isError: boolean; content: ContentBlock[] }> {
+function fetchCall(): Promise<{ isError: boolean; content: { type: string; text?: string }[] }> {
   const agent = { session: { header: { id: SessionId('web-sess') } } }
   const exec = { callId: ToolCallId('call-1'), name: 'web_fetch', arguments: { url: base }, agent, signal: testToolSignal } as unknown as ToolExecution
   return ctx.tools.execute(exec)
@@ -78,11 +78,11 @@ describe('web_fetch spill showcase', () => {
   it('spills a large formatted result and returns a preview + spill locator', async () => {
     const out = await fetchCall()
     expect(out.isError).toBe(false)
-    const text = out.content.map(b => b.type === 'text' ? b.text : '').join('')
+    const text = out.content.map(b => b.text).join('')
 
     // Model-facing text is a preview + notice within the cap, NOT the full body.
     expect(text.length).toBeLessThan(BODY.length)
-    expect(estimateContent(out.content)).toBeLessThanOrEqual(MAX_INLINE_TOKENS)
+    expect(estimateContent([{ type: 'text', text }])).toBeLessThanOrEqual(MAX_INLINE_TOKENS)
     expect(text).toContain(`Fetched ${base}`) // the head of the formatted result survives
     expect(text).toContain('Full formatted result stored at:')
     expect(text).toContain('Use read with offset/limit, or grep this path')

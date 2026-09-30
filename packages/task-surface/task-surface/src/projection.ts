@@ -11,13 +11,13 @@ import { TaskSurfaceId } from './types.ts'
 import type { TaskSurfaceProjection } from './types.ts'
 
 const taskSurfaceActiveSchema = z.object({
-  callId: z.string().transform(val => ToolCallId(val)),
-  surfaceId: z.string().transform(val => TaskSurfaceId(val)),
+  callId: z.custom<ToolCallId>(val => typeof val === 'string'),
+  surfaceId: z.custom<TaskSurfaceId>(val => typeof val === 'string'),
 })
 
-const taskSurfaceStateSchema: z.ZodType<TaskSurfaceProjection> = z.object({
+const taskSurfaceStateSchema = z.object({
   active: taskSurfaceActiveSchema.nullable(),
-})
+}) as unknown as z.ZodType<TaskSurfaceProjection>
 
 /**
  * Pure projection unit maintaining the active Task Surface occurrence for one session.
@@ -29,7 +29,7 @@ export const taskSurfaceProjectionDefinition: Omit<ProjectionDefinition<'taskSur
   stateVersion: 1,
   stateSchema: taskSurfaceStateSchema,
 
-  init(): TaskSurfaceProjection {
+  init(_header?: unknown, _inheritedEventCount?: unknown): TaskSurfaceProjection {
     return { active: null }
   },
 
@@ -42,7 +42,7 @@ export const taskSurfaceProjectionDefinition: Omit<ProjectionDefinition<'taskSur
         meta['kind'] === 'dsh/task-surface' &&
         typeof meta['surfaceId'] === 'string'
       ) {
-        const callId = event.data.message.content[0].toolCallId
+        const callId = event.data.message.toolCallId ?? (event.data.message.content[0] as unknown as { toolCallId: ToolCallId })?.toolCallId
         const surfaceId = TaskSurfaceId(meta['surfaceId'])
         return { active: { callId, surfaceId } }
       }

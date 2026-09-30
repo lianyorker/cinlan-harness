@@ -12,9 +12,8 @@ import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import SessionQuery from '@deepseek-ai/dsh-session-query-sqlite'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import ExecutionBindings from '@deepseek-ai/dsh-execution-binding'
-import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
 import * as gitSettings from '@deepseek-ai/dsh-git-settings'
-import { GIT_SETTINGS_NAMESPACE } from '@deepseek-ai/dsh-git-settings/settings-schema'
+import { GIT_SETTINGS_NAMESPACE, GitSourceControlSettingsSchema } from '@deepseek-ai/dsh-git-settings/settings-schema'
 import type { GitSourceControlSettings } from '@deepseek-ai/dsh-git-settings/types'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import type { SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
@@ -82,16 +81,30 @@ export async function harness(
     await fixtureGit(repository, 'commit', '--quiet', '-m', 'base')
   }
   const globalConfig = join(root, 'gitconfig')
-  const settingsPath = join(root, 'settings.json')
   await writeFile(globalConfig, '')
-  await writeFile(settingsPath, JSON.stringify({ [GIT_SETTINGS_NAMESPACE]: preferences }))
+  let currentPreferences: GitSourceControlSettings = { ...GitSourceControlSettingsSchema(), ...preferences }
+  const mockSettings = {
+    name: 'test-settings',
+    apply(c: Context) {
+      c.provide('settings', {
+        describe() {
+          return [{ ns: GIT_SETTINGS_NAMESPACE, value: GitSourceControlSettingsSchema(currentPreferences) }]
+        },
+        async update(ns: string, patch: Partial<GitSourceControlSettings>) {
+          if (ns === GIT_SETTINGS_NAMESPACE) {
+            currentPreferences = { ...currentPreferences, ...patch }
+          }
+        },
+      } as never)
+    },
+  }
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, JSON.stringify([
     { id: 'sessions', name: '@deepseek-ai/dsh-session' },
     { id: 'query', name: 'session-query', config: { path: ':memory:', openAt: 'never' } },
     { id: 'projections', name: 'session-projections' },
     { id: 'bindings', name: 'execution-bindings' },
-    { id: 'settings', name: '@deepseek-ai/dsh-settings-file', config: { path: settingsPath, watch: false } },
+    { id: 'settings', name: 'test-settings' },
     { id: 'git-settings', name: '@deepseek-ai/dsh-git-settings' },
     { id: 'subprocess', name: 'test-subprocess', config: { globalConfig } },
     { id: 'sidebar-git', name: '@deepseek-ai/dsh-sidebar-git', config: options.config ?? {} },
@@ -100,7 +113,7 @@ export async function harness(
   const modules = new Map<string, unknown>([
     ['session-query', SessionQuery], ['session-projections', SessionProjectionRegistry],
     ['execution-bindings', LocalBindings],
-    ['@deepseek-ai/dsh-session', SessionStore], ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
+    ['@deepseek-ai/dsh-session', SessionStore], ['test-settings', mockSettings],
     ['@deepseek-ai/dsh-git-settings', gitSettings], ['test-subprocess', HermeticSubprocess], ['@deepseek-ai/dsh-sidebar-git', SidebarGit],
   ])
   for (const entry of options.extra ?? []) modules.set(entry.name, entry.module)

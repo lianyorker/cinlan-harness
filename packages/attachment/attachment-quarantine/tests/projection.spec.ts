@@ -104,7 +104,7 @@ describe('attachment quarantine and recovery message projections', () => {
     expect(derivedTool).toBeDefined()
     expect(derivedTool?.role).toBe('user')
 
-    const nested = (derivedTool?.content[0] as { content: ContentBlock[] }).content
+    const nested = (derivedTool?.content[0] as unknown as { content: ContentBlock[] }).content
     expect(nested[1]).toEqual({
       type: 'text',
       text: quarantinedImageText(imageA.attachment, 'corrupt'),

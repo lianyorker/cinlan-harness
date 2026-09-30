@@ -241,7 +241,7 @@ describe('ui-voice-dictation apply', () => {
     if (method === 'modelsList') b.voice.modelsList.mockImplementation(cancelled)
     else {
       b.voice.modelsList.mockResolvedValue({ ok: true, value: { models: [modelRow('zh', { state: 'ready', cacheDir: '/cache/zh' })] } })
-      b.voice.transcribe.mockImplementation((_request, signal) => cancelled(signal))
+      b.voice.transcribe.mockImplementation((_request: any, signal?: AbortSignal) => cancelled(signal!))
     }
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()

@@ -160,7 +160,7 @@ async function harness() {
       await startHost()
     },
     async providerEnabled(enabled: boolean, context = ctx()) {
-      const entry = context.loader.entries().find(entry => entry.options.id === 'provider')
+      const entry = [...context.loader.entries()].find(entry => entry.options.id === 'provider')
       if (entry === undefined) throw new Error('Fixture provider entry missing')
       await entry.update({ disabled: !enabled })
       await context.loader.await()

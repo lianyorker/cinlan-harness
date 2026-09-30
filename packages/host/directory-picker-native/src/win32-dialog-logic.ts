@@ -80,10 +80,16 @@ export interface Win32DialogBindings {
    */
   currentThreadId(): number
   /**
-   * Synthesize one Alt press (down, then up) through `keybd_event` immediately
-   * before `Show` to help a background host's child take the foreground.
-   * Windows does not guarantee this foreground grant; restricted desktops or
-   * elevated foreground windows may suppress the input. The focused window
+   * Make the dialog that `Show` is about to create able to take the
+   * foreground. Windows grants activation only to the foreground process,
+   * to a process it started, or to a process that received recent input; a
+   * worker spawned by a background host (the web GUI server) qualifies for
+   * none, so the dialog would open behind every other window. Synthesizing
+   * one Alt press (down, then up) through `keybd_event` counts this process
+   * as the most recent input owner — a community-documented technique with
+   * no documented contract. Call immediately before `Show`. When the
+   * process already holds foreground rights (a console-launched CLI), the
+   * press is inert, but the focused window still receives the lone Alt and
    * may briefly highlight its menu bar before the dialog activates.
    */
   pressAltForForeground(): void

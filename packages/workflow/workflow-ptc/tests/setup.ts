@@ -36,17 +36,7 @@ export async function mountWorkflowRuntime(
   if (!ctx.get('sessionProjections')) await ctx.plugin(SessionProjections)
   if (!ctx.get('fs')) await ctx.plugin(FileSystem)
   if (!ctx.get('subprocess')) await ctx.plugin(Subprocess)
-  if (!ctx.get('sandbox')) {
-    await ctx.plugin(Sandbox)
-    if (process.platform === 'win32') {
-      const runnerRoot = await mkdtemp(join(homedir(), '.dsh-workflow-source-runner-'))
-      onTestFinished(async () => {
-        await rm(runnerRoot, { recursive: true, force: true })
-      })
-      // Source tests pin the ACL source entry even when lib/runner.js exists.
-      ;(ctx.sandbox as Sandbox).internals.windowsAclRunnerEntry = join(runnerRoot, 'runner.js')
-    }
-  }
+  if (!ctx.get('sandbox')) await ctx.plugin(Sandbox)
   if (!ctx.get('sandboxPolicy')) await ctx.plugin(SandboxPolicy, {
     mode: options.mode ?? 'danger-full-access',
     ...options.cwd === undefined ? {} : { workspaceRoot: options.cwd },

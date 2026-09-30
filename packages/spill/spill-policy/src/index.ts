@@ -132,9 +132,7 @@ export function apply(ctx: Context, config: Config): void {
 
   ctx.on('tools/post-execute', async (exec, result, next): Promise<PostToolDecision> => {
     const decision = await next()
-    if (decision.kind !== 'accept' || Object.hasOwn(decision, 'value')) return decision
-    // Explicit recovery stays visible even above the cap; dispatch logs remain bounded.
-    if (exec.name === 'read' || exec.name === 'read_image') return decision
+    if (decision.kind !== 'accept' || Object.hasOwn(decision, 'value') || exec.name === 'read') return decision
     const content = decision.content ?? result.content
     const hasImages = content.some(block => block.type === 'image')
     // Text-only PTC bindings retain their asynchronous log-only spill path.
@@ -143,7 +141,7 @@ export function apply(ctx: Context, config: Config): void {
     if (retained === undefined) return decision
     const additionalContexts = [...decision.additionalContexts ?? []]
     if (exec.parent !== undefined && !result.isError && hasImages && !retained.some(block => block.type === 'image')) {
-      additionalContexts.push(createUserMessage({ content: retained, source: { kind: 'plugin', plugin: 'tools-ptc' } }))
+      additionalContexts.push(createUserMessage({ content: retained, source: { kind: 'ptc-mode' } }))
     }
     return {
       kind: 'accept', content: retained,

@@ -60,15 +60,11 @@
     "@deepseek-ai/schemastery": "workspace:~",
     "@xterm/headless": "^6.0.0",
     "@xterm/addon-serialize": "^0.14.0",
-    "zod": "^4.4.3",
-    "@deepseek-ai/dsh-session": "workspace:^"
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh-subprocess": "workspace:*",
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-agent": "workspace:^",
-    "@deepseek-ai/dsh-terminal": "workspace:^",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:~"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
@@ -84,9 +80,7 @@
     "@deepseek-ai/dsh-session-projection": "workspace:*",
     "@deepseek-ai/dsh-subprocess": "workspace:*",
     "@deepseek-ai/dsh-subprocess-local": "workspace:*",
-    "@deepseek-ai/dsh-util-crypto": "workspace:*",
-    "@deepseek-ai/dsh-terminal": "workspace:^",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:^"
+    "@deepseek-ai/dsh-util-crypto": "workspace:*"
   },
   "files": [
     "lib/index.js",

@@ -24,7 +24,15 @@ import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import * as LocalBrowser from '@deepseek-ai/dsh-browser-playwright'
 import BrowserRuntimeManager from '@deepseek-ai/dsh-browser-playwright/runtime'
 import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
-import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
+const FileSettingsProvider = {
+  name: '@deepseek-ai/dsh-settings-file',
+  apply(c: Context) {
+    c.provide('settings', {
+      describe: () => [],
+      configure: () => () => {},
+    } as never)
+  },
+}
 import { chromium, type BrowserContext } from 'playwright-core'
 import * as BrowserPermissionPolicy from '@deepseek-ai/dsh-browser-permission-policy'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'

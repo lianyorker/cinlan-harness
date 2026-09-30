@@ -1,13 +1,9 @@
-import Schema from '@deepseek-ai/schemastery'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply, inject } from '../src/client/index.ts'
 import { SettingsSchemaService } from '../src/client/schema.ts'
-import { SettingsScopeBinder } from '../src/client/settings-scope.ts'
-import { SettingsMetadataService } from '../src/client/settings-metadata.ts'
-import * as clientPlugin from '../src/client/index.ts'
-import { apply as hostApply } from '../src/index.ts'
+import { ConfigForms } from '../src/client/config-form.ts'
 
 function bench() {
   const describeCall = vi.fn().mockResolvedValue({
@@ -19,17 +15,11 @@ function bench() {
 }
 
 describe('settings domain base plugin', () => {
-  it('keeps the host Loader entry inert', () => {
-    expect(hostApply).not.toThrow()
-  })
-
-  it('mounts the scope service under settingsScope and reads once eagerly', async () => {
+  it('mounts the scope service under configForms and reads once eagerly', async () => {
     const { ctx, describeCall, fiber } = bench()
     await fiber.await()
-    expect(ctx.get('settingsScope')).toBeInstanceOf(SettingsScopeBinder)
+    expect(ctx.get('configForms')).toBeInstanceOf(ConfigForms)
     expect(ctx.get('settingsSchema')).toBeInstanceOf(SettingsSchemaService)
-    expect(ctx.get('settingsMetadata')).toBeInstanceOf(SettingsMetadataService)
-    expect(Object.keys(clientPlugin).sort()).toEqual(['apply', 'inject'])
     await vi.waitFor(() => { expect(describeCall).toHaveBeenCalledTimes(1) })
   })
 
@@ -43,41 +33,13 @@ describe('settings domain base plugin', () => {
     await vi.waitFor(() => { expect(describeCall).toHaveBeenCalledTimes(3) })
   })
 
-  it('refreshes an already-bound namespace after activation, disposal, and remount', async () => {
-    const { ctx, describeCall, remote, fiber } = bench()
-    const row = { ns: 'browser-playwright', schema: Schema.object({ headed: Schema.boolean().default(false) }).toJSON(),
-      value: { headed: false }, applies: 'live', secrets: [], revision: 0 }
-    try {
-      await fiber.await()
-      await ctx.settingsScope.describe().ensure()
-      const bound = ctx.settingsScope.bind<{ headed: boolean }>({ namespace: 'browser-playwright' })
-      expect(bound.getSnapshot()).toMatchObject({ status: 'unavailable' })
-      describeCall.mockResolvedValue({ ok: true, value: { writable: true, hasDocument: true, namespaces: [row] } })
-      remote.emit('settings/namespaces-updated', ['browser-playwright'])
-      await vi.waitFor(() => { expect(bound.getSnapshot()).toMatchObject({ status: 'ready', value: { headed: false } }) })
-      describeCall.mockResolvedValue({ ok: true, value: { writable: true, hasDocument: true, namespaces: [] } })
-      remote.emit('settings/namespaces-updated', ['browser-playwright'])
-      await vi.waitFor(() => { expect(bound.getSnapshot()).toMatchObject({ status: 'unavailable' }) })
-      describeCall.mockResolvedValue({ ok: true, value: {
-        writable: true, hasDocument: true, namespaces: [{ ...row, value: { headed: true } }],
-      } })
-      remote.emit('settings/namespaces-updated', ['browser-playwright'])
-      await vi.waitFor(() => { expect(bound.getSnapshot()).toMatchObject({ status: 'ready', value: { headed: true } }) })
-      await fiber.dispose()
-      const count = describeCall.mock.calls.length
-      remote.emit('settings/namespaces-updated', ['browser-playwright'])
-      expect(describeCall).toHaveBeenCalledTimes(count)
-    } finally { await ctx.fiber.dispose() }
-  })
-
   it('fiber disposal retires the service and its invalidation subscriptions', async () => {
     const { ctx, describeCall, remote, fiber } = bench()
     await fiber.await()
     await vi.waitFor(() => { expect(describeCall).toHaveBeenCalledTimes(1) })
     await fiber.dispose()
-    expect(ctx.get('settingsScope')).toBeUndefined()
+    expect(ctx.get('configForms')).toBeUndefined()
     expect(ctx.get('settingsSchema')).toBeUndefined()
-    expect(ctx.get('settingsMetadata')).toBeUndefined()
     remote.emit('settings/document-updated', ['ui-test', 0])
     ctx.emit('connection/reset')
     await Promise.resolve()

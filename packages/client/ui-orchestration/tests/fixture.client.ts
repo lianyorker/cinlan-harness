@@ -38,6 +38,7 @@ export async function bench(declared = true) {
     inventory: { entries: [], agentPresets: [] } as PluginInventorySnapshot,
   }
   const view = (): SettingsNamespaceView => ({
+    autoGenerate: false,
     ns: 'agent-loop', revision: host.revision, applies: 'live', secrets: [],
     schema: { type: 'object', dict: { maxParallelToolCalls: { type: 'number', meta: { min: 1, step: 1 } } } },
     value: { maxParallelToolCalls: host.value }, base: { maxParallelToolCalls: 4 },

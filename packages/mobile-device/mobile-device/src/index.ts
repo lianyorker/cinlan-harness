@@ -8,7 +8,6 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
-import type { SettingsScope } from '@deepseek-ai/dsh-settings'
 import { MOBILE_DEVICE_NAMESPACE, MobileDeviceSettingsSchema } from './settings.ts'
 import type {
   Config,
@@ -111,15 +110,13 @@ export class MobileDeviceRuntime extends Service {
 
   private readonly providers = new Map<string, MobileDeviceProvider>()
   private readonly providerId: string | undefined
-  private settings: SettingsScope<MobileDeviceSettings> | undefined
 
   /** Create the provider-neutral mobile-device runtime. */
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'mobileDevice')
     this.providerId = resolveConfig(config).provider
     ctx.inject(['settings'], (settingsCtx) => {
-      this.settings = settingsCtx.settings.register(MOBILE_DEVICE_NAMESPACE, MobileDeviceSettingsSchema)
-      settingsCtx.effect(() => () => { this.settings = undefined }, 'mobileDevice.settings()')
+      (settingsCtx.get('settings') as any)?.configure({ auto: false })
     })
   }
 
@@ -128,7 +125,11 @@ export class MobileDeviceRuntime extends Service {
    * @returns A detached settings value, or schema defaults when no settings service is mounted.
    */
   getPreferences(): MobileDeviceSettings {
-    return { ...(this.settings?.get() ?? MobileDeviceSettingsSchema({} as never)) }
+    const descriptor = (this.ctx.get('settings') as any)?.describe().find((d: any) => d.ns === MOBILE_DEVICE_NAMESPACE)
+    if (descriptor?.value) {
+      return MobileDeviceSettingsSchema(descriptor.value as never)
+    }
+    return MobileDeviceSettingsSchema({} as never)
   }
 
   /**

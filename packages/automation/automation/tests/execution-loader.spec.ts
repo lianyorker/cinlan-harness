@@ -73,7 +73,7 @@ it('publishes an explicit local execution binding before the Automation Agent ru
 it('rejects a remote Workspace before probing its colliding Host directory', async () => {
   const { ctx, draft, workspace, model } = await boot()
   // Registry execution is the external admission input; the real local directory stays present.
-  vi.spyOn(workspace, 'execution', 'get').mockReturnValue(remote)
+  vi.spyOn(workspace as any, 'execution', 'get').mockReturnValue(remote)
   const status = vi.spyOn(workspace, 'status')
   await expect(ctx.automationRuntime.create(draft)).rejects.toMatchObject({ code: 'resource', cause: { message: 'Automation requires a local Workspace' } })
   expect(status).not.toHaveBeenCalled()
@@ -84,7 +84,7 @@ it('rejects a remote Workspace before probing its colliding Host directory', asy
 it('rejects update and run when a saved Workspace changes execution before admission', async () => {
   const { ctx, draft, workspace, model } = await boot()
   const definition = await ctx.automationRuntime.create(draft)
-  vi.spyOn(workspace, 'execution', 'get').mockReturnValue(remote)
+  vi.spyOn(workspace as any, 'execution', 'get').mockReturnValue(remote)
   const status = vi.spyOn(workspace, 'status')
   await expect(ctx.automationRuntime.update({ id: definition.id, expectedRevision: definition.revision, draft, enabled: true }))
     .rejects.toMatchObject({ code: 'resource' })
@@ -101,7 +101,7 @@ it('rolls back setup if preset mounting changes the Workspace to remote', async 
   const original = ctx.agentPresets.mount.bind(ctx.agentPresets)
   vi.spyOn(ctx.agentPresets, 'mount').mockImplementation(async (...args) => {
     const mounted = await original(...args)
-    vi.spyOn(workspace, 'execution', 'get').mockReturnValue(remote)
+    vi.spyOn(workspace as any, 'execution', 'get').mockReturnValue(remote)
     return mounted
   })
   const run = await ctx.automationRuntime.run({ id: definition.id, expectedRevision: definition.revision, requestId: requestId('setup-change') })
@@ -124,7 +124,7 @@ it('rejects publication if Workspace execution changes during the durable setup 
     vi.spyOn(handle, 'append').mockImplementationOnce(async (events, appendOptions) => {
       await append(events, appendOptions)
       appended = true
-      vi.spyOn(workspace, 'execution', 'get').mockReturnValue(remote)
+      vi.spyOn(workspace as any, 'execution', 'get').mockReturnValue(remote)
     })
     return handle
   })

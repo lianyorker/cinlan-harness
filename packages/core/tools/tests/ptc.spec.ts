@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { createUserMessage, ToolCallId  } from '@deepseek-ai/dsh-llm'
+import type { ContextFormed } from '@deepseek-ai/dsh-llm'
 import type { ToolSchema } from '@deepseek-ai/dsh-llm'
 import { createScope } from '@deepseek-ai/dsh-scope'
 import type { Scope } from '@deepseek-ai/dsh-scope'
@@ -16,6 +17,13 @@ import type { SessionEventMap } from '@deepseek-ai/dsh-session'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
 import SessionProjections from '@deepseek-ai/dsh-session-projection'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'order-probe': { kind: 'order-probe' } & ContextFormed
+    'test': { kind: 'test' } & ContextFormed
+  }
+}
 
 const testToolSignal = new AbortController().signal
 
@@ -72,7 +80,6 @@ async function mintAgentScope(ctx: Context, name = 'scoped'): Promise<{ scope: S
   let scope!: Scope
   await ctx.plugin(Object.assign((inner: Context) => { scope = createScope(inner, agent) },
     { inject: ['tools', 'systemPrompt'] }))
-  Object.assign(agent, { ctx: scope.ctx })
   return { scope, agent }
 }
 
@@ -357,9 +364,7 @@ describe('mode-aware wire contribution', () => {
     expect(transports[0]?.description).toContain('Execute a TypeScript program')
     expect(assembly.sections.find(section => section.name === 'scoped-note')?.text).toBe('safe note')
     expect(assembly.sections.find(section => section.name === 'tools:sdk')?.text).toContain('scoped_safe:')
-    const scopedTransport = ctx.tools.get(RUN_CODE_NAME, agent)
-    expect(scopedTransport).toBe(ctx.tools.get(RUN_CODE_NAME, agent))
-    expect(scopedTransport).not.toBe(ctx.tools.get(RUN_CODE_NAME))
+    expect(ctx.tools.get(RUN_CODE_NAME, agent)).toBe(ctx.tools.get(RUN_CODE_NAME))
     const result = await runCode(ctx, 'return 1', { agent })
     expect(result.content).toEqual([{ type: 'text', text: '(run_code completed with no output)' }])
   })
@@ -429,50 +434,6 @@ describe('mode-aware wire contribution', () => {
     expect(sdk?.text).toContain('class Tools(Protocol):')
     expect(sdk?.text).toContain('async def echo(self, args:')
     expect(sdk?.text).toContain('top-level `await`')
-  })
-
-  it('binds schema and execution to the Agent private PTC runtime', async () => {
-    const { ctx, systemPrompt, runtime: hostRuntime } = await setup({ mode: 'native' })
-    try {
-      registerEcho(ctx)
-      const { scope, agent } = await mintAgentScope(ctx, 'remote-ptc')
-      const agentCtx = scope.ctx.isolate('ptcRuntime')
-      await agentCtx.plugin(FakeRuntime, { language: 'python' })
-      Object.assign(agent, { ctx: agentCtx })
-      agentCtx.tools.presentAs('ptc')
-      const agentRuntime = agentCtx.get('ptcRuntime') as FakeRuntime
-      agentRuntime.behavior = () => Promise.resolve({ logs: ['agent-runtime'], value: 'remote-only' })
-      hostRuntime.behavior = () => Promise.reject(new Error('Host PTC runtime must not execute'))
-
-      const assembly = await systemPrompt.assemble({ scope: agent })
-      const runCodeSchema = assembly.tools.find(tool => tool.name === RUN_CODE_NAME)
-      expect(runCodeSchema?.description).toContain('Execute a Python program')
-      expect(assembly.sections.find(section => section.name === 'tools:sdk')?.text).toContain('class Tools(Protocol):')
-
-      const result = await runCode(ctx, 'return \"remote-only\"', { agent })
-      expect(result.isError).not.toBe(true)
-      expect(result.value).toEqual({ logs: ['agent-runtime'], result: 'remote-only' })
-      expect(agentRuntime.lastRequest?.program).toBe('return \"remote-only\"')
-      expect(hostRuntime.lastRequest).toBeUndefined()
-    } finally {
-      await ctx.fiber.dispose()
-    }
-  })
-
-  it('refuses Host PTC fallback when an Agent provider world has no runtime', async () => {
-    const { ctx, systemPrompt, runtime: hostRuntime } = await setup({ mode: 'native' })
-    try {
-      const { scope, agent } = await mintAgentScope(ctx, 'missing-remote-ptc')
-      const agentCtx = scope.ctx.isolate('ptcRuntime')
-      Object.assign(agent, { ctx: agentCtx })
-      agentCtx.tools.presentAs('ptc')
-
-      await expect(systemPrompt.assemble({ scope: agent }))
-        .rejects.toThrow('mode \"ptc\" requires a PTC runtime')
-      expect(hostRuntime.lastRequest).toBeUndefined()
-    } finally {
-      await ctx.fiber.dispose()
-    }
   })
 
   it("assembles under a python runtime in mode 'both' as well, SDK and schema together", async () => {
@@ -865,7 +826,7 @@ describe('the sub-dispatch scheduler (native concurrency contract)', () => {
           kind: 'accept' as const,
           additionalContexts: [createUserMessage({
             content: [{ type: 'text' as const, text: `ctx:${String(postExec.callId)}` }],
-            source: { kind: 'plugin' as const, plugin: 'order-probe' },
+            source: { kind: 'order-probe' as const },
           })],
         }
       }
@@ -1369,7 +1330,7 @@ describe('the run_code dispatch bridge', () => {
           kind: 'accept' as const,
           additionalContexts: [createUserMessage({
             content: [{ type: 'text' as const, text: `context for ${exec.callId}` }],
-            source: { kind: 'plugin' as const, plugin: 'test' },
+            source: { kind: 'test' as const },
           })],
         })
       }
@@ -1386,12 +1347,12 @@ describe('the run_code dispatch bridge', () => {
       {
         role: 'user',
         content: [{ type: 'text', text: 'context for call-1:ptc:1' }],
-        source: { kind: 'plugin', plugin: 'test' },
+        source: { kind: 'test' },
       },
       {
         role: 'user',
         content: [{ type: 'text', text: 'context for call-1:ptc:2' }],
-        source: { kind: 'plugin', plugin: 'test' },
+        source: { kind: 'test' },
       },
     ])
   })
@@ -1422,7 +1383,7 @@ describe('the run_code dispatch bridge', () => {
 
     expect(result.additionalContexts).toMatchObject([{
       role: 'user',
-      source: { kind: 'plugin', plugin: 'tools-ptc' },
+      source: { kind: 'ptc-mode' },
       content: [
         { type: 'text', text: 'image result' },
         { type: 'image', attachment: { mediaType: 'image/png', bytes: 1, width: 1, height: 1 } },
@@ -1472,7 +1433,7 @@ describe('the run_code dispatch bridge', () => {
         kind: 'accept',
         additionalContexts: [createUserMessage({
           content: [{ type: 'text', text: 'nested context' }],
-          source: { kind: 'plugin', plugin: 'test' },
+          source: { kind: 'test' },
         })],
       })
     })
@@ -1488,7 +1449,7 @@ describe('the run_code dispatch bridge', () => {
       id: expect.any(String) as unknown,
       role: 'user',
       content: [{ type: 'text', text: 'nested context' }],
-      source: { kind: 'plugin', plugin: 'test' },
+      source: { kind: 'test' },
     }])
   })
 

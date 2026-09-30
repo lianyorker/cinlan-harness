@@ -33,7 +33,7 @@ Choose it for any host-side data that must survive restarts and stay valid again
 
 ### Declaring a domain
 
-The owning package declares the domain once with `defineDomain` — name, version, and zod record schemas — and exports it. `defineDomain` fails loud at module load on a bad name, a non-integer version, or a global schema that accepts `null`.
+The owning package declares the domain once with `defineDomain` — name, version, and zod record schemas — and exports it. `defineDomain` fails loudly at module load on a bad name, a version that is not a non-negative integer, or a global schema that accepts `null`.
 
 ```text
 // Owning package, once:
@@ -59,7 +59,7 @@ The caller owns the handle's lifecycle and releases it with `domain.close()` whe
 
 ### Routing domains to backends
 
-The domain plugin's configuration decides which backend serves which domain — never the hub. `backend` names the default route; `routes` overrides it per domain name. A route naming an unregistered backend fails loud at open with `backend-not-found`.
+The domain plugin's configuration decides which backend serves which domain — never the hub. `backend` names the default route; `routes` overrides it per domain name. A route naming an unregistered backend fails loudly at open with `backend-not-found`.
 
 | Field | Default | Meaning |
 |---|---|---|
@@ -84,7 +84,7 @@ The domain layer is a single implementation, not an abstracted seam: consumers d
 
 ### Design concept
 
-- **The spec object is the single source of truth.** `defineDomain` pins the spec's literal types and validates its fields at the owning package's module load, before any medium is touched. Record schemas are zod so `z.infer` keeps consumer types un-duplicated; plugin `Config` stays schemastery.
+- **The spec object is the single source of truth.** `defineDomain` pins the spec's literal types and validates its fields at the owning package's module load, before any medium is touched. Record schemas are zod, so `z.infer` avoids duplicating consumer types; plugin `Config` stays schemastery.
 - **Memory is authoritative; the medium is the durable projection.** Reads are synchronous from validated in-memory state. Every write queues on one per-domain write chain: backend durability first, then memory mutation, then `domain/changed` — a rejected backend write leaves memory untouched, so reads never diverge from the medium.
 - **One write chain per domain.** `put`, `delete`, `update`, and `global.set` all queue on it; `update`'s transform runs at its chain slot, so concurrent updates never interleave. Records are plain immutable data — returned values are the stored objects themselves and must not be mutated in place.
 - **Writes emit after the commit point.** `domain/changed` is a notification, not a transaction participant: a throwing listener is contained with a logged warning rather than rejecting the already-durable write.
@@ -119,7 +119,7 @@ Read these pages when the domain layer's view is not enough: the subsystem refer
 
 - [Storage subsystem](../../../docs/subsystems/storage.md) — the domain contract, backend contract, change events, and generated API.
 - [Storage package map](../README.md) — the family's packages and their repository position.
-- [domain KV storage Agent Note](../../../.agents/notes/implemented/architecture/2026-07-24-domain-kv-storage-and-workspace.md) — why domains exist, the workspace consumer, and deferred work such as cross-process change push.
+- [domain KV storage Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.md) — why domains exist, the workspace consumer, and deferred work such as cross-process change push.
 - [Workspace subsystem](../../../docs/subsystems/workspace.md) — the first consumer of the domain data form.
 
 -----
@@ -148,9 +148,9 @@ Independent: domain reads and writes never touch request prefixes, so nothing he
 
 These limits define when the domain layer is a poor fit or needs special operational care. They are current package constraints, not a task backlog.
 
-- **Single-process change visibility** — `domain/changed` is an in-process event; a second host process or a reconnecting GUI observes no changes until the cross-process revision pattern lands ([Agent Note](../../../.agents/notes/implemented/architecture/2026-07-24-domain-kv-storage-and-workspace.md)).
+- **Single-process change visibility** — `domain/changed` is an in-process event; a second host process or a reconnecting GUI observes no changes until the cross-process revision pattern lands ([Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.md)).
 - **No cross-table transactions, secondary indexes, or multi-segment keys** — each write touches one record; these extensions are deferred in the Agent Note's out-of-scope list.
-- **No record transformation** — `compatibleVersions` admits only explicitly listed older versions that current record and global schemas already accept. Whole-unit JSON and SQLite retain the stored stamp until the first successful write; incompatible data still requires an owner-defined migration. This does not change Session JSONL generations.
+- **No data migration** — a domain whose stored version differs from its spec rejects at open (`version-mismatch`); changing a schema requires migrating the stored data by hand.
 
 <a id="dev-note"></a>
 ### Dev Note

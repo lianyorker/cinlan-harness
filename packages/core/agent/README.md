@@ -40,7 +40,7 @@ const handle = await ctx.agents.create({
 await handle.dispose()   // stops the loop, unregisters, removes the session, unwinds the scope
 ```
 
-`AgentOptions` supplies the initial provider/model route, optional adapter-owned `reasoningEffort`, and optional positive `maxTokens` output cap. The loop validates exact-model reasoning support, resolves adapter defaults, records the effective values in the request header, and applies them to each conversation request. An optional `setup(agentCtx, agent)` callback composes the agent's scoped world before it is published: `agentCtx` owns registrations, while the explicit unpublished Agent provides its Session; the Context has no reverse Agent property. Scoped tools, prompt sections, and listeners exist before any creation announcement. Setup is composition-only: drive the agent only after creation resolves. Its optional commit runs once after setup events are persisted, synchronously before registry insertion. Append Session events during setup; the commit only validates and finalizes prepared state. Persistence or commit failure rolls back the unpublished scope.
+`AgentOptions` supplies the initial provider/model route, optional adapter-owned `reasoningEffort`, and optional positive `maxTokens` output cap. The loop validates exact-model reasoning support, resolves adapter defaults, records the effective values in the request header, and applies them to each conversation request. An optional `setup(agentCtx, agent)` callback composes the agent's scoped world before it is published: `agentCtx` owns registrations, while the explicit unpublished Agent provides its Session; the Context has no reverse Agent property. Scoped tools, prompt sections, and listeners exist before any creation announcement. Setup is composition-only: drive the agent only after creation resolves.
 
 ### Drive an agent's conversation
 
@@ -101,10 +101,13 @@ The package is built on one separation: the public `Agent` surface and registry 
 | [`src/consumed-work.ts`](src/consumed-work.ts) | `foldConsumedWork(events)`: what the log's consumed work became |
 | [`src/model-selection.ts`](src/model-selection.ts) | `installModelSelection`: coupling one selection to assembly and routing |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion: no-op `agent/status` transitions fail |
+| [`src/archive-admission.ts`](src/archive-admission.ts) | The `turn` family of the Workspace registry's archive admission: a running turn and its user-cause cancel |
 
 ### Registry and lifecycle
 
-`AgentRegistry` keeps one entry per live agent with its carrier and creator relation. Await `register()` before using an already-constructed agent; it resolves to the registration disposer after serial `agent/created` listeners finish. The factory uses `enter()`/`announce()` so setup and publication remain rollback-covered. A listener throw or rejection stops creation and skips later listeners. Cancellation reaches listeners through the optional initialization signal; teardown retains both entries and the scope until dispatch settles. Listeners must not await `agent.whenIdle()` or their own owner’s disposal. Teardown stops and drains the loop, unwinds the scope, detaches the agent, then detaches the session; each detach owns its exact entry and the id becomes reusable after cleanup.
+`AgentRegistry` keeps one entry per live agent with its carrier and creator relation. Await `register()` to finish serial creation listeners with source `startup` before using an already-constructed agent; the async factory uses the split `enter()`/`announce()` pair so setup and initialization stay rollback-covered. A detach requested during creation waits for every awaited listener to settle, and each detach is bound to the exact entry, so a stale disposer cannot remove a later same-id replacement. Teardown stops and drains the loop, unwinds the scope, detaches the agent, then detaches the session; the id becomes reusable after private cleanup.
+
+The registry also answers the Workspace registry's archive admission ([seam](../../workspace/workspace/README.md)) for every Agent it publishes: `workspace/session-activity` reports the `turn` family while the Session's Agent is running, a turn waiting for an approval or an answer included, and `workspace/session-stop` cancels that turn the way the user's own stop does — `agent.cancel({ kind: 'user' })`, but without the stop button's `keepInbox`, so queued input is discarded with a logged inbox splice instead of waking the archived Session later. Nothing is awaited to settlement; a Session without a live Agent has no turn that could run. The `turn` key is merged into `SessionActivityKindMap` from [`src/types.ts`](src/types.ts), so a Client that renders the families imports `@deepseek-ai/dsh-agent/types` for it.
 
 ### Initiator scope
 
@@ -171,7 +174,7 @@ These limits define when this package needs special care. They are current packa
 
 - **Initiator scope is process-local** — workers, child processes, HTTP, durable queues, and restarts must materialize any required identity explicitly.
 - **Ambient identity may outlive liveness** — consumers still check `agent.status`, cancellation, and the owning capability contract before lifecycle-sensitive work.
-- **`agent/session-start` cannot gate startup** — it remains a synchronous, veto-less notification. Unpublished composition belongs in `setup(agentCtx, agent)`; initialization that needs live registry entries belongs in serial `agent/created` listeners.
+- **Creation listeners share the initialization lifetime.** An `agent/created` listener must not await `agent.whenIdle()` or its own owner's disposal: those operations wait for creation to finish. Return only after required asynchronous tool and prompt installation completes.
 - **`cancel()` clears the inbox by default** — it aborts the in-flight turn plus queued and steering work; `cancel(cause, { keepInbox: true })` aborts only the turn and preserves pending items, and there is no step-only abort that keeps the turn running.
 - **Each additional `UserMessage` carries exactly one `MessageSource`** — contributions from several plugins merged onto one message collapse under one source, so the message cannot name several producers.
 

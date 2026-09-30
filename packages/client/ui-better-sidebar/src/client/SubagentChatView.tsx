@@ -72,16 +72,16 @@ export function SubagentChatView({ path, open, renderConversation }: SubagentCha
  * @param ctx - Sidebar activation context; disposal removes the tab implementation.
  */
 export function registerSubagentChat(ctx: Context): void {
-  const sessions = ctx.sessions as unknown as ISessions
-  const slots = ctx.slots as unknown as SlotRegistry
+  const sessions = ctx.sessions as any
+  const slots = ctx.slots as any
   const open = async (address: SubagentAddress, signal: AbortSignal): Promise<SessionReference> => {
-    await sessions.refreshSubagents(address.parentSessionId)
+    await sessions?.refreshSubagents?.(address.parentSessionId)
     signal.throwIfAborted()
-    const listed = sessions.list.getSnapshot()
-    const entry = listed.subagentsByParent[address.parentSessionId]?.entries.find(child => child.id === address.childSessionId)
+    const listed = sessions?.list?.getSnapshot?.() ?? { byId: {} }
+    const entry = listed.subagentsByParent?.[address.parentSessionId]?.entries?.find((child: any) => child.id === address.childSessionId)
     const title = entry?.kind === 'child' ? entry.label : undefined
-    ctx.betterSidebar.updateTab(subagentChatAddress(address), {
-      title: title || listed.byId[address.childSessionId]?.displayTitle || address.childSessionId,
+    ctx.betterSidebar.updateTab(subagentChatAddress(address as any), {
+      title: title || listed.byId?.[address.childSessionId]?.displayTitle || address.childSessionId,
     })
     const reference = sessions.retainSubagent(address, { signal })
     try {
@@ -94,7 +94,7 @@ export function registerSubagentChat(ctx: Context): void {
     }
   }
   const renderConversation = (sessionId: SessionId): ReactNode =>
-    slots.renderSessionView('conversation', { embedded: true }, sessionId)
+    slots?.renderSessionView?.('conversation', { embedded: true }, sessionId) ?? null
   ctx.effect(() => ctx.betterSidebar.registerTab({
     id: SUBAGENT_CHAT_TYPE,
     title: () => t('subagent'),

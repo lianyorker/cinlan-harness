@@ -25,7 +25,6 @@ const FILE_TYPE_PIPE = 3
  * @param api - native file-type inspection for inherited handles.
  * @param stdio - standard handles and the provider-owned fd-7 control pipe.
  * @returns descriptor count, flag bytes, and handle values for STARTUPINFO's reserved CRT fields.
- * @throws when the control handle is not a Windows pipe.
  */
 export function inheritedControlStdio(api: Pick<Win32ProcessBindings, 'getFileType'>, stdio: InheritedControlStdio): Buffer {
   const count = stdio.control.fileDescriptor + 1

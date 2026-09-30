@@ -12,9 +12,6 @@
       "path": "../../core/session"
     },
     {
-      "path": "../../core/agent"
-    },
-    {
       "path": "../../../vendor/cosmokit"
     },
     {
@@ -25,9 +22,6 @@
     },
     {
       "path": "../ptc-runtime"
-    },
-    {
-      "path": "../../code-runtime/code-runtime"
     },
     {
       "path": "../../util/timeout"

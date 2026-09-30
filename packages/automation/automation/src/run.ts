@@ -1,6 +1,6 @@
-/** One admitted automation's ordinary Agent lifetime, including cancellation and teardown. */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-execution-binding'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import { realpath } from 'node:fs/promises'
 import { installModelSelection, type AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'

@@ -69,7 +69,6 @@
     "@deepseek-ai/dsh-api-session-controller": "workspace:^",
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
-    "@deepseek-ai/dsh-settings-file": "workspace:^",
     "@deepseek-ai/dsh-sidebar-terminals": "workspace:^"
   },
   "files": [

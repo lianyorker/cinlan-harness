@@ -11,6 +11,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import type { Session, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { CommandId } from '@deepseek-ai/dsh-commands/brand'
 import type { CompactionResult } from './types.ts'
+import type { CompactionCheckpointSource } from './checkpoint.ts'
 
 export type { CompactionResult } from './types.ts'
 export { CompactionId } from './brand.ts'
@@ -25,6 +26,12 @@ export {
   CHECKPOINT_FOOTER_RE,
 } from './checkpoint.ts'
 export type { CompactionCheckpointSource } from './checkpoint.ts'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'compact-checkpoint': CompactionCheckpointSource
+  }
+}
 
 /** Why automatic policy is asking a backend to consider compaction. */
 export type CompactionTrigger = 'pressure' | 'context-overflow'

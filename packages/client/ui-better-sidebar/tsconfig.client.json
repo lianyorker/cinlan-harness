@@ -22,12 +22,24 @@
     "src/subagent-activity.ts"
   ],
   "references": [
-    { "path": "../../subprocess/subprocess" },
-    { "path": "../../git/git" },
-    { "path": "../../fs/fs" },
-    { "path": "../../execution-host/execution-binding" },
-    { "path": "../../document/office-to-pdf" },
-    { "path": "../../api/session-controller/tsconfig.client.json" },
+    {
+      "path": "../../subprocess/subprocess"
+    },
+    {
+      "path": "../../git/git"
+    },
+    {
+      "path": "../../fs/fs"
+    },
+    {
+      "path": "../../execution-host/execution-binding"
+    },
+    {
+      "path": "../../document/office-to-pdf"
+    },
+    {
+      "path": "../../api/session-controller/tsconfig.client.json"
+    },
     {
       "path": "../../../vendor/cordis"
     },
@@ -38,10 +50,10 @@
       "path": "../ui-renderer"
     },
     {
-      "path": "../ui-settings"
+      "path": "../ui-settings/tsconfig.client.json"
     },
     {
-      "path": "../locale"
+      "path": "../locale/tsconfig.client.json"
     },
     {
       "path": "../modules"
@@ -53,10 +65,7 @@
       "path": "../ui-primitives"
     },
     {
-      "path": "../ui-settings"
-    },
-    {
-      "path": "../ui-conversation"
+      "path": "../ui-conversation/tsconfig.client.json"
     },
     {
       "path": "../../core/agent"

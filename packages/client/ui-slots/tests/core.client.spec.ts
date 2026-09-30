@@ -11,12 +11,6 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'test.list': { kind: 'list'; scope: 'root' }
     'test.keyed': { kind: 'keyed'; scope: 'session' }
     'test.chain': { kind: 'chain'; scope: 'session'; owner: { tags: string[] } }
-    'test.phased-chain': {
-      kind: 'chain'
-      scope: 'session'
-      owner: { tags: string[] }
-      phases: readonly ['interaction', 'restriction']
-    }
     'test.grandchild': { kind: 'single'; scope: 'root' }
   }
 }
@@ -42,7 +36,6 @@ function mountFrame(core: SlotCore) {
       'test.list': { kind: 'list', scope: 'root' },
       'test.keyed': { kind: 'keyed', scope: 'session' },
       'test.chain': { kind: 'chain', scope: 'session' },
-      'test.phased-chain': { kind: 'chain', scope: 'session', phases: ['interaction', 'restriction'] as const },
     },
   // Type-level renderSlot presence is proven by the type-chain spec; erasing
   // here keeps runtime fixtures terse.
@@ -87,6 +80,29 @@ describe('a-priori root and declaration gate', () => {
 })
 
 describe('lifecycle cascade (one axis)', () => {
+  it('publishes Factory child mutations only after every sibling declaration is installed', () => {
+    const core = new SlotCore()
+    const observed: unknown[] = []
+    core.onMutate((key) => {
+      if (key === 'test.single') observed.push(core.specDynamic('test.session'))
+    })
+    const registerFactory = core.registerFactory as (
+      options: object,
+      component: unknown,
+    ) => () => void
+
+    registerFactory({
+      name: 'test.atomic-factory',
+      scope: 'root',
+      children: {
+        'test.single': { kind: 'single', scope: 'root' },
+        'test.session': { kind: 'single', scope: 'session' },
+      },
+    }, Comp)
+
+    expect(observed).toEqual([{ kind: 'single', scope: 'session' }])
+  })
+
   it('disposing a declaring entry collapses child slots and their contributions recursively', () => {
     const core = new SlotCore()
     const disposeFrame = mountFrame(core)
@@ -377,129 +393,12 @@ describe('subscription API', () => {
     const off = core.onMutate(key => keys.push(key))
     mountFrame(core)
     // Contribution first, then each declared child key.
-    expect(keys).toEqual([
-      'root', 'test.single', 'test.session', 'test.list', 'test.keyed', 'test.chain', 'test.phased-chain',
-    ])
+    expect(keys).toEqual(['root', 'test.single', 'test.session', 'test.list', 'test.keyed', 'test.chain'])
     keys.length = 0
     core.register({ name: 'test.list', id: 'a' }, Comp)
     expect(keys).toEqual(['test.list'])
     off()
     core.register({ name: 'test.list', id: 'b' }, Comp)
     expect(keys).toHaveLength(1)
-  })
-})
-
-describe('phased chain slots', () => {
-  it('rejects phase declaration on non-chain slots', () => {
-    const core = new SlotCore()
-    mountFrame(core)
-    expect(() => {
-      // @ts-expect-error phase rejected on non-chain slots
-      core.register({ name: 'test.single', phase: 'interaction' }, Comp)
-    }).toThrow('single slot "test.single" does not accept options.phase')
-  })
-
-  it('rejects phase on unphased chain slots', () => {
-    const core = new SlotCore()
-    mountFrame(core)
-    expect(() => {
-      // @ts-expect-error phase rejected on unphased chain slots
-      core.register({ name: 'test.chain', select: () => null, phase: 'interaction' }, Comp)
-    }).toThrow('unphased chain slot "test.chain" does not accept options.phase')
-  })
-
-  it('requires phase on phased chain slots', () => {
-    const core = new SlotCore()
-    mountFrame(core)
-    expect(() => {
-      // @ts-expect-error phase required on phased chain slots
-      core.register({ name: 'test.phased-chain', select: () => null }, Comp)
-    }).toThrow('phased chain slot "test.phased-chain" requires options.phase (declared phases: interaction, restriction)')
-  })
-
-  it('rejects undeclared phase on phased chain slots', () => {
-    const core = new SlotCore()
-    mountFrame(core)
-    expect(() => {
-      // @ts-expect-error undeclared phase rejected
-      core.register({ name: 'test.phased-chain', select: () => null, phase: 'unknown' }, Comp)
-    }).toThrow('phased chain slot "test.phased-chain" received unknown phase "unknown" (declared phases: interaction, restriction)')
-  })
-
-  it('orders entries by phase index before numeric priority', () => {
-    const core = new SlotCore()
-    mountFrame(core)
-    const CompA: SlotComponent<object> = () => 'A'
-    const CompB: SlotComponent<object> = () => 'B'
-    // B registers first with phase 'restriction' and priority -100
-    core.register({
-      name: 'test.phased-chain',
-      phase: 'restriction',
-      priority: -100,
-      select: () => 'b',
-    }, CompB)
-    // A registers second with phase 'interaction' and priority 100
-    core.register({
-      name: 'test.phased-chain',
-      phase: 'interaction',
-      priority: 100,
-      select: () => 'a',
-    }, CompA)
-
-    const entries = core.entriesOfSlot('test.phased-chain')
-    expect(entries).toHaveLength(2)
-    // Interaction phase (index 0) must precede restriction phase (index 1) despite priority
-    expect(entries[0]?.component).toBe(CompA)
-    expect(entries[0]?.options.phase).toBe('interaction')
-    expect(entries[1]?.component).toBe(CompB)
-    expect(entries[1]?.options.phase).toBe('restriction')
-  })
-
-  it('orders entries within the same phase by numeric priority ascending', () => {
-    const core = new SlotCore()
-    mountFrame(core)
-    const CompLow: SlotComponent<object> = () => 'low'
-    const CompHigh: SlotComponent<object> = () => 'high'
-    core.register({
-      name: 'test.phased-chain',
-      phase: 'interaction',
-      priority: 5,
-      select: () => 'high',
-    }, CompHigh)
-    core.register({
-      name: 'test.phased-chain',
-      phase: 'interaction',
-      priority: 0,
-      select: () => 'low',
-    }, CompLow)
-
-    const entries = core.entriesOfSlot('test.phased-chain')
-    expect(entries).toHaveLength(2)
-    expect(entries[0]?.component).toBe(CompLow)
-    expect(entries[1]?.component).toBe(CompHigh)
-  })
-
-  it('preserves stable registration order for entries with same phase and priority', () => {
-    const core = new SlotCore()
-    mountFrame(core)
-    const CompFirst: SlotComponent<object> = () => 'first'
-    const CompSecond: SlotComponent<object> = () => 'second'
-    core.register({
-      name: 'test.phased-chain',
-      phase: 'interaction',
-      priority: 0,
-      select: () => 'first',
-    }, CompFirst)
-    core.register({
-      name: 'test.phased-chain',
-      phase: 'interaction',
-      priority: 0,
-      select: () => 'second',
-    }, CompSecond)
-
-    const entries = core.entriesOfSlot('test.phased-chain')
-    expect(entries).toHaveLength(2)
-    expect(entries[0]?.component).toBe(CompFirst)
-    expect(entries[1]?.component).toBe(CompSecond)
   })
 })

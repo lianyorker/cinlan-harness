@@ -5,7 +5,7 @@ import Storage, { storageBackendServiceKey } from '@deepseek-ai/dsh-storage'
 import { apply, defineDomain, descriptorOf, DomainFacility, domainTable } from '../src/index.ts'
 import type { Config } from '../src/index.ts'
 import type { DomainChanged } from '../src/events.ts'
-import { MemoryMediaPool, MemoryStorageBackend, type MemoryMedium } from './helpers/memory-backend.ts'
+import { MemoryMediaPool, MemoryStorageBackend } from './helpers/memory-backend.ts'
 
 const itemSchema = z.object({ label: z.string(), count: z.number().int() })
 type Item = z.infer<typeof itemSchema>
@@ -137,7 +137,6 @@ describe('DomainFacility.open', () => {
           setGlobal: async () => {},
           close: async () => {},
         }),
-        destroy: async () => {},
       },
       close: async () => {},
     })
@@ -407,49 +406,5 @@ describe('close and lifecycle', () => {
     expect(changes).toHaveLength(1)
     // The chain is unpoisoned: subsequent writes proceed normally.
     await expect(table.delete('a')).resolves.toBe(true)
-  })
-
-  describe('recovery: reset policy', () => {
-    const derivedSpec = defineDomain({
-      name: 'derived',
-      version: 1,
-      recovery: 'reset',
-      tables: { rows: domainTable<string, Item>(itemSchema) },
-    })
-
-    it('resets a medium with version-mismatch when recovery is reset', async () => {
-      const pool = new MemoryMediaPool()
-      pool.versions.set('derived', 99)
-      const { facility } = await harness({ pool })
-      const domain = await facility.open(derivedSpec)
-      expect(domain.table('rows').size).toBe(0)
-      await domain.close()
-    })
-
-    it('resets a medium with invalid records when recovery is reset', async () => {
-      const pool = new MemoryMediaPool()
-      const corruptedMedium: MemoryMedium = {
-        tables: new Map([['rows', new Map([['corrupt', { invalid: 'shape' }]])]]),
-        global: null,
-      }
-      pool.media.set('derived', corruptedMedium)
-      pool.versions.set('derived', 1)
-      const { facility } = await harness({ pool })
-      const domain = await facility.open(derivedSpec)
-      expect(domain.table('rows').size).toBe(0)
-      await domain.close()
-    })
-
-    it('propagates damage errors loud when recovery is default reject', async () => {
-      const pool = new MemoryMediaPool()
-      pool.versions.set('bare', 99)
-      const { facility } = await harness({ pool })
-      await expect(facility.open(bareSpec)).rejects.toMatchObject({ code: 'version-mismatch' })
-    })
-
-    it('propagates non-damage errors loud even when recovery is reset', async () => {
-      const { facility } = await harness({ config: { routes: { derived: 'unknown-backend' } } })
-      await expect(facility.open(derivedSpec)).rejects.toMatchObject({ code: 'backend-not-found' })
-    })
   })
 })

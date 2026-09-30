@@ -155,8 +155,8 @@ export interface ResolvedConfig {
 }
 
 /** User preferences exclude executable paths, profile storage, and provider identity. */
-const PREFERENCE_KEYS = new Set(['browserChannel', 'headless', 'viewportWidth', 'viewportHeight', 'profileName', 'homePage', 'searchEngine'])
-const BrowserPreferencesSchema: z<BrowserPreferences> = z.object({
+export const PREFERENCE_KEYS = new Set(['browserChannel', 'headless', 'viewportWidth', 'viewportHeight', 'profileName', 'homePage', 'searchEngine'])
+export const BrowserPreferencesSchema: z<BrowserPreferences> = z.object({
   browserChannel: z.union(['chrome', 'msedge', 'chromium'] as const).default('chrome'),
   headless: z.boolean().default(false),
   viewportWidth: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_VIEWPORT_WIDTH),
@@ -1247,27 +1247,24 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
  */
 export function apply(ctx: Context, config: Config = {}): void {
   const base = resolvePlaywrightBrowserConfig(config)
-  const preferences = ctx.settings.register('browser-playwright', BrowserPreferencesSchema, {
-    base: {
-      browserChannel: base.browserChannel, headless: base.headless,
-      viewportWidth: base.viewportWidth, viewportHeight: base.viewportHeight,
-      profileName: base.profileName, homePage: base.homePage, searchEngine: base.searchEngine,
-    },
-    applies: 'restart',
-    validate: (value) => {
-      if (Object.keys(value).some(key => !PREFERENCE_KEYS.has(key))) throw new Error('browser-playwright: unsupported preference field')
-      profileName(value.profileName)
-      browserUrl('homePage', value.homePage)
-    },
-  })
-  const saved = preferences.get()
+  const descriptor = ctx.get('settings')?.describe().find(d => d.ns === 'browser-playwright')
+  const saved = (descriptor?.value ?? {}) as Partial<BrowserPreferences>
+  const preferences: BrowserPreferences = {
+    browserChannel: saved.browserChannel ?? base.browserChannel,
+    headless: saved.headless ?? base.headless,
+    viewportWidth: saved.viewportWidth ?? base.viewportWidth,
+    viewportHeight: saved.viewportHeight ?? base.viewportHeight,
+    profileName: saved.profileName ?? base.profileName,
+    homePage: saved.homePage ?? base.homePage,
+    searchEngine: saved.searchEngine ?? base.searchEngine,
+  }
   const runtime = ctx.browserRuntime
   let leaseRelease = Promise.resolve()
   const provider = new PlaywrightBrowserProvider({
-    ...base, browserChannel: saved.browserChannel, headless: saved.headless,
-    viewportWidth: saved.viewportWidth, viewportHeight: saved.viewportHeight,
-    homePage: saved.homePage, searchEngine: saved.searchEngine,
-    profileName: profileName(saved.profileName),
+    ...base, browserChannel: preferences.browserChannel, headless: preferences.headless,
+    viewportWidth: preferences.viewportWidth, viewportHeight: preferences.viewportHeight,
+    homePage: preferences.homePage, searchEngine: preferences.searchEngine,
+    profileName: profileName(preferences.profileName),
   }, async (directory, options) => {
     await leaseRelease
     const release = await runtime.acquireBrowserLease()
@@ -1292,7 +1289,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   })
   ctx.effect(function* () {
     const detach = runtime.attach({
-      channel: saved.browserChannel, executablePath: base.executablePath, state: () => provider.browserState(),
+      channel: preferences.browserChannel, executablePath: base.executablePath, state: () => provider.browserState(),
       close: async () => { await provider.closeBrowser(); await leaseRelease },
     })
     const unregister = ctx.browser.registerProvider(provider)

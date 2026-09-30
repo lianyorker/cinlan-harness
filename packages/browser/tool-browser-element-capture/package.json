@@ -59,7 +59,6 @@
     "@deepseek-ai/dsh-tools": "workspace:^",
     "@deepseek-ai/dsh-util-values": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "playwright-core": "^1.61.1",
-    "@deepseek-ai/dsh-settings-file": "workspace:^"
+    "playwright-core": "^1.61.1"
   }
 }

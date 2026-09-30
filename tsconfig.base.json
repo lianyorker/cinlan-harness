@@ -147,6 +147,9 @@
       "@deepseek-ai/dsh-computer-use/brand": [
         "./packages/computer-use/computer-use/src/brand.ts"
       ],
+      "@deepseek-ai/dsh-computer-use/types": [
+        "./packages/computer-use/computer-use/src/types.ts"
+      ],
       "@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp": [
         "./packages/experimental/computer-use-cua-driver-mcp/src"
       ],
@@ -662,6 +665,12 @@
       ],
       "@deepseek-ai/dsh-client-shortcuts": [
         "./packages/client/shortcuts/src"
+      ],
+      "@deepseek-ai/dsh-client-shortcuts/client": [
+        "./packages/client/shortcuts/src/client/index.ts"
+      ],
+      "@deepseek-ai/dsh-client-shortcuts/src/*": [
+        "./packages/client/shortcuts/src/*"
       ],
       "@deepseek-ai/dsh-client-ui-shortcuts": [
         "./packages/client/ui-shortcuts/src"
@@ -1569,6 +1578,9 @@
       "@deepseek-ai/dsh-api-voice-controller/types": [
         "./packages/api/voice-controller/src/types.ts"
       ],
+      "@deepseek-ai/dsh-api-voice-controller/remote": [
+        "./packages/api/voice-controller/lib/typert.remote-client.d.ts"
+      ],
       "@deepseek-ai/dsh-api-voice-controller/src/*": [
         "./packages/api/voice-controller/src/*"
       ],
@@ -1592,6 +1604,9 @@
       ],
       "@deepseek-ai/dsh-api-usage-controller/types": [
         "./packages/api/usage-controller/src/types.ts"
+      ],
+      "@deepseek-ai/dsh-api-usage-controller/remote": [
+        "./packages/api/usage-controller/lib/typert.remote-client.d.ts"
       ],
       "@deepseek-ai/dsh-api-usage-controller/src/*": [
         "./packages/api/usage-controller/src/*"
@@ -1623,11 +1638,11 @@
       "@deepseek-ai/dsh-client-ui-settings-usage/src/*": [
         "./packages/client/ui-settings-usage/src/*"
       ],
-      "@deepseek-ai/dsh-agent-presets/types": [
-        "./packages/preset/agent-presets/src/types.ts"
+      "@deepseek-ai/dsh-agent-preset-registry/types": [
+        "./packages/preset/agent-preset-registry/src/types.ts"
       ],
-      "@deepseek-ai/dsh-agent-presets/display": [
-        "./packages/preset/agent-presets/src/display.ts"
+      "@deepseek-ai/dsh-agent-preset-registry/display": [
+        "./packages/preset/agent-preset-registry/src/display.ts"
       ],
       "@deepseek-ai/dsh-client-ui-sidebar-textpreview": [
         "./packages/client/ui-sidebar-textpreview/src"
@@ -1671,8 +1686,20 @@
       "@deepseek-ai/dsh-api-device-capabilities-controller/types": [
         "./packages/api/device-capabilities-controller/src/types.ts"
       ],
+      "@deepseek-ai/dsh-api-device-capabilities-controller/remote": [
+        "./packages/api/device-capabilities-controller/lib/typert.remote-client.d.ts"
+      ],
       "@deepseek-ai/dsh-api-security-research-controller/types": [
         "./packages/api/security-research-controller/src/types.ts"
+      ],
+      "@deepseek-ai/dsh-api-security-research-controller/remote": [
+        "./packages/api/security-research-controller/lib/typert.remote-client.d.ts"
+      ],
+      "@deepseek-ai/dsh-api-sidebar-git-controller/remote": [
+        "./packages/api/sidebar-git-controller/lib/typert.remote-client.d.ts"
+      ],
+      "@deepseek-ai/dsh-experimental-api-speech-to-text/remote": [
+        "./packages/experimental/api-speech-to-text/lib/typert.remote-client.d.ts"
       ],
       "@deepseek-ai/dsh-api-work-items-controller/types": [
         "./packages/api/work-items-controller/src/types.ts"
@@ -1737,6 +1764,9 @@
       "@deepseek-ai/dsh-experimental-agent-team/client": [
         "./packages/experimental/agent-team/src/client.ts"
       ],
+      "@deepseek-ai/dsh-experimental-agent-team/remote": [
+        "./packages/experimental/agent-team/lib/typert.remote-client.d.ts"
+      ],
       "@deepseek-ai/dsh-experimental-webworker-runtime/client": [
         "./packages/experimental/webworker-runtime/src/client/index.ts"
       ],
@@ -1772,6 +1802,9 @@
       ],
       "@deepseek-ai/dsh-api-integration-preflight-controller/types": [
         "./packages/api/integration-preflight-controller/src/types.ts"
+      ],
+      "@deepseek-ai/dsh-api-integration-preflight-controller/remote": [
+        "./packages/api/integration-preflight-controller/lib/typert.remote-client.d.ts"
       ],
       "@deepseek-ai/dsh-api-mcp-controller/types": [
         "./packages/api/mcp-controller/src/types.ts"
@@ -1899,14 +1932,14 @@
       "@deepseek-ai/dsh-agent-loop-testkit/src/*": [
         "./packages/test-support/agent-loop-testkit/src/*"
       ],
-      "@deepseek-ai/dsh-agent-presets": [
-        "./packages/preset/agent-presets/src"
+      "@deepseek-ai/dsh-agent-preset": [
+        "./packages/preset/agent-preset/src"
       ],
-      "@deepseek-ai/dsh-agent-presets/src/*": [
-        "./packages/preset/agent-presets/src/*"
+      "@deepseek-ai/dsh-agent-preset-registry": [
+        "./packages/preset/agent-preset-registry/src"
       ],
-      "@deepseek-ai/dsh-agent-presets/invariant": [
-        "./packages/preset/agent-presets/src/invariant.ts"
+      "@deepseek-ai/dsh-agent-preset-registry/invariant": [
+        "./packages/preset/agent-preset-registry/src/invariant.ts"
       ],
       "@deepseek-ai/dsh-agent-tool-presentation/src/*": [
         "./packages/core/agent-tool-presentation/src/*"
@@ -1925,6 +1958,9 @@
       ],
       "@deepseek-ai/dsh-api-browser-controller": [
         "./packages/api/browser-controller/src"
+      ],
+      "@deepseek-ai/dsh-api-browser-controller/remote": [
+        "./packages/api/browser-controller/lib/typert.remote-client.d.ts"
       ],
       "@deepseek-ai/dsh-api-browser-controller/src/*": [
         "./packages/api/browser-controller/src/*"
@@ -1949,6 +1985,9 @@
       ],
       "@deepseek-ai/dsh-api-mcp-controller": [
         "./packages/api/mcp-controller/src"
+      ],
+      "@deepseek-ai/dsh-api-mcp-controller/remote": [
+        "./packages/api/mcp-controller/lib/typert.remote-client.d.ts"
       ],
       "@deepseek-ai/dsh-api-mcp-controller/src/*": [
         "./packages/api/mcp-controller/src/*"
@@ -2520,12 +2559,6 @@
       "@deepseek-ai/dsh-deque/src/*": [
         "./packages/util/deque/src/*"
       ],
-      "@deepseek-ai/dsh-e2b": [
-        "./packages/e2b/e2b/src"
-      ],
-      "@deepseek-ai/dsh-e2b/src/*": [
-        "./packages/e2b/e2b/src/*"
-      ],
       "@deepseek-ai/dsh-execution-host": [
         "./packages/execution-host/execution-host/src"
       ],
@@ -2633,12 +2666,6 @@
       ],
       "@deepseek-ai/dsh-fs/src/*": [
         "./packages/fs/fs/src/*"
-      ],
-      "@deepseek-ai/dsh-fs-e2b": [
-        "./packages/e2b/fs-e2b/src"
-      ],
-      "@deepseek-ai/dsh-fs-e2b/src/*": [
-        "./packages/e2b/fs-e2b/src/*"
       ],
       "@deepseek-ai/dsh-fs-local/src/*": [
         "./packages/fs/fs-local/src/*"
@@ -3009,12 +3036,6 @@
       "@deepseek-ai/dsh-settings/invariant": [
         "./packages/settings/settings/src/invariant.ts"
       ],
-      "@deepseek-ai/dsh-settings-file": [
-        "./packages/settings/settings-file/src"
-      ],
-      "@deepseek-ai/dsh-settings-file/src/*": [
-        "./packages/settings/settings-file/src/*"
-      ],
       "@deepseek-ai/dsh-shell/src/*": [
         "./packages/shell/shell/src/*"
       ],
@@ -3101,12 +3122,6 @@
       ],
       "@deepseek-ai/dsh-subprocess/src/*": [
         "./packages/subprocess/subprocess/src/*"
-      ],
-      "@deepseek-ai/dsh-subprocess-e2b": [
-        "./packages/e2b/subprocess-e2b/src"
-      ],
-      "@deepseek-ai/dsh-subprocess-e2b/src/*": [
-        "./packages/e2b/subprocess-e2b/src/*"
       ],
       "@deepseek-ai/dsh-subprocess-local/src/*": [
         "./packages/subprocess/subprocess-local/src/*"

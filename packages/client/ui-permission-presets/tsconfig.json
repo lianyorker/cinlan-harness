@@ -8,10 +8,11 @@
     "src"
   ],
   "references": [
-    { "path": "../connection/tsconfig.client.json" },
-    { "path": "../ui-conversation" },
     {
-      "path": "../locale"
+      "path": "../locale/tsconfig.client.json"
+    },
+    {
+      "path": "../connection/tsconfig.client.json"
     },
     {
       "path": "../../../vendor/cordis"
@@ -21,6 +22,9 @@
     },
     {
       "path": "../ui-commands"
+    },
+    {
+      "path": "../ui-conversation/tsconfig.client.json"
     },
     {
       "path": "../ui-primitives"
@@ -47,7 +51,7 @@
       "path": "../../api/session-controller/tsconfig.client.json"
     },
     {
-      "path": "../ui-settings"
+      "path": "../ui-settings/tsconfig.client.json"
     }
   ]
 }

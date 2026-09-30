@@ -2,10 +2,9 @@
 
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
+import type { PeerScope } from '@deepseek-ai/dsh-typert-protocol'
 import {
   RpcId,
-  createTrustedConnectionAccess,
-  type HostConnectionAccess,
   type ClientRequest,
   type RpcId as RpcIdType,
 } from './rpc.ts'
@@ -14,7 +13,9 @@ import { bridge } from './http-bridge.ts'
 import { isTrustedApiRequest } from './api-request-trust.ts'
 import { API_PATH } from './api-path.ts'
 import type { BrowserAuth } from './browser-auth.ts'
+import { OperatorPeer } from './operator-peer.ts'
 import type {
+  PeerAdmission,
   ConnectionIndexRequest,
   ConnectionIndexResponse,
   ConnectionFetchRoute,
@@ -36,11 +37,10 @@ const ENDPOINT_SEGMENT_PATTERN = /^[A-Za-z0-9_$.-]+$/
 
 interface ConnectionRpcInterceptor {
   readonly matches: ConnectionRpcEndpointMatcher
-  readonly handler: ConnectionRpcHandler
+  readonly fetchHandler: ConnectionFetchHandler
 }
 
 interface RegisteredFetchRoute {
-  readonly match: NonNullable<ConnectionFetchRoute['match']>
   readonly methods: ReadonlySet<string>
   readonly requestBody: ConnectionFetchRoute['requestBody']
   readonly fetch: ConnectionFetchRoute['fetch']
@@ -61,9 +61,8 @@ declare module '@deepseek-ai/cordis' {
 
 /** Host Connection service whose channel registrations belong to the caller fiber. */
 export class HostConnectionService extends Service implements HostConnectionHandle {
-  private readonly lifetime = new AbortController()
-  /** Local authenticated carriers reuse this instance identity; disposing Connection revokes it. */
-  readonly trustedAccess = createTrustedConnectionAccess(this.lifetime.signal)
+  /** The operator Peer every admitted request speaks for. */
+  readonly operator: PeerScope
   private readonly interceptors = new Map<string, ConnectionRpcInterceptor>()
   private readonly fetchRoutes = new Map<string, RegisteredFetchRoute>()
 
@@ -79,7 +78,8 @@ export class HostConnectionService extends Service implements HostConnectionHand
     private readonly browserAuth: BrowserAuth,
   ) {
     super(ctx, 'connection')
-    ctx.effect(() => () => { this.lifetime.abort(new Error('Connection disposed')) })
+    this.operator = new OperatorPeer(ctx)
+    ctx.effect(() => () => this.operator.dispose(), 'client-connection: operator Peer')
   }
 
   /** Generic channel registry scoped to the Context reading this service. */
@@ -92,7 +92,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
     }
   }
 
-  /** Fetch-route registry scoped to the Context reading this service. */
+  /** Exact Fetch-route registry scoped to the Context reading this service. */
   get fetch(): HostConnectionFetch {
     const owner = this.ctx
     return {
@@ -106,6 +106,12 @@ export class HostConnectionService extends Service implements HostConnectionHand
     return this.browserAuth.isAuthenticated(request) ? undefined : 401
   }
 
+  /** A request that passes the fence and authentication speaks for the operator. */
+  admit(request: ConnectionTrustRequest): PeerAdmission {
+    const rejection = this.requestRejection(request)
+    return rejection === undefined ? { peer: this.operator } : { rejection }
+  }
+
   /** Authenticate an index request through the process-token exchange or cookie. */
   authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexResponse): boolean {
     return this.browserAuth.authorizeIndex(request, response)
@@ -117,72 +123,45 @@ export class HostConnectionService extends Service implements HostConnectionHand
   }
 
   /**
-   * Compose one shared-channel Fetch handler from Fetch routes and its interceptor.
+   * Compose one shared-channel Fetch handler from exact routes and its interceptor.
    * @param channel - shared channel mounted by Connection.
-   * @param access - Explicit carrier authority and revocation lifetime.
    * @returns Fetch handler that selects one owner or returns 404.
    */
   createSharedFetchHandler(
     channel: '/api',
-    access: HostConnectionAccess,
   ): ConnectionFetchHandler {
     return {
       requestBodyMode: ({ method, url }) => {
-        const route = this.matchFetchRoute(url.pathname)
+        const route = this.fetchRoutes.get(url.pathname)
         return route?.methods.has(method) === true ? route.requestBody : 'buffered'
       },
-      fetch: async (incoming) => {
-        const signal = AbortSignal.any([incoming.signal, access.signal])
-        signal.throwIfAborted()
-        const request = new Request(incoming, { signal })
+      fetch: (request) => {
         const pathname = new URL(request.url).pathname
-        const route = this.matchFetchRoute(pathname)
-        if (route !== undefined) {
-          if (!route.methods.has(request.method)) return new Response('not found', { status: 404 })
-          if (access.kind === 'delegated') await access.authorizeFetch(request)
-          signal.throwIfAborted()
-          const response = await route.fetch(revocableRequest(request, signal), access)
-          return revocableResponse(response, signal)
-        }
+        const route = this.fetchRoutes.get(pathname)
+        if (route?.methods.has(request.method) === true) return route.fetch(request)
         const endpoint = endpointFromPath(channel, pathname)
         const interceptor = this.interceptors.get(channel)
         if (endpoint === undefined || interceptor === undefined || !interceptor.matches(endpoint)) {
           return Promise.resolve(new Response('not found', { status: 404 }))
         }
-        return rpcFetchHandler(channel, interceptor.handler, access).fetch(request)
+        return interceptor.fetchHandler.fetch(request)
       },
     }
-  }
-
-  private matchFetchRoute(pathname: string): RegisteredFetchRoute | undefined {
-    const exact = this.fetchRoutes.get(pathname)
-    if (exact?.match === 'exact') return exact
-    let selected: RegisteredFetchRoute | undefined
-    let longestPrefix = 0
-    for (const [path, route] of this.fetchRoutes) {
-      if (route.match === 'prefix' && path.length > longestPrefix && pathname.startsWith(path)) {
-        selected = route
-        longestPrefix = path.length
-      }
-    }
-    return selected
   }
 
   private registerFetchRoute(
     owner: Context,
     route: ConnectionFetchRoute,
   ): () => Promise<void> {
-    const match = route.match ?? 'exact'
-    assertFetchRoute(route, match)
+    assertFetchRoute(route)
     const registered: RegisteredFetchRoute = {
-      match,
       methods: new Set(route.methods),
       requestBody: route.requestBody,
       fetch: route.fetch,
     }
     return owner.effect(() => {
       if (this.fetchRoutes.has(route.path)) {
-        throw new Error(`connection: ${match} Fetch route ${JSON.stringify(route.path)} is already registered`)
+        throw new Error(`connection: exact Fetch route ${JSON.stringify(route.path)} is already registered`)
       }
       this.fetchRoutes.set(route.path, registered)
       return () => { this.fetchRoutes.delete(route.path) }
@@ -195,15 +174,15 @@ export class HostConnectionService extends Service implements HostConnectionHand
     handler: ConnectionRpcHandler,
   ): () => Promise<void> {
     assertChannel(channel)
-    const fetchHandler = rpcFetchHandler(channel, handler, this.trustedAccess)
+    const fetchHandler = rpcFetchHandler(channel, handler, this.operator)
     const route: WebRoute = {
       kind: 'prefix',
       path: channel,
       handler: async (req, res) => {
-        const rejection = this.requestRejection(req)
-        if (rejection !== undefined) {
-          res.writeHead(rejection)
-          res.end(rejection === 401 ? 'unauthorized' : 'forbidden')
+        const admission = this.admit(req)
+        if ('rejection' in admission) {
+          res.writeHead(admission.rejection)
+          res.end(admission.rejection === 401 ? 'unauthorized' : 'forbidden')
           return
         }
         await bridge(req, res, fetchHandler)
@@ -226,7 +205,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
     }
     const interceptor: ConnectionRpcInterceptor = {
       matches,
-      handler,
+      fetchHandler: rpcFetchHandler(channel, handler, this.operator),
     }
     return owner.effect(() => {
       if (this.interceptors.has(channel)) {
@@ -243,14 +222,11 @@ export class HostConnectionService extends Service implements HostConnectionHand
 function rpcFetchHandler(
   channel: string,
   handler: ConnectionRpcHandler,
-  access: HostConnectionAccess,
+  peer: PeerScope,
 ): ConnectionFetchHandler {
   return {
     requestBodyMode: () => 'buffered',
-    async fetch(incoming: Request): Promise<Response> {
-      const signal = AbortSignal.any([incoming.signal, access.signal])
-      signal.throwIfAborted()
-      const request = revocableRequest(incoming, signal)
+    async fetch(request: Request): Promise<Response> {
       const endpoint = endpointFromPath(channel, new URL(request.url).pathname)
       if (request.method !== 'POST' || endpoint === undefined) {
         return new Response('not found', { status: 404 })
@@ -265,14 +241,12 @@ function rpcFetchHandler(
       try {
         body = await request.json()
       } catch {
-        signal.throwIfAborted()
         return new Response('body is not JSON', { status: 400 })
       }
 
-      const maxResponseBytes = access.kind === 'delegated' ? access.maxResponseBytes : undefined
       const envelope = clientRequestSchema.safeParse(body)
       if (!envelope.success) {
-        return invalidEnvelopeResponse(body, envelope.error.issues, maxResponseBytes)
+        return invalidEnvelopeResponse(body, envelope.error.issues)
       }
       const message: ClientRequest = envelope.data
       if (message.method !== endpoint) {
@@ -280,81 +254,27 @@ function rpcFetchHandler(
           code: 'gateway/bad-request',
           message: `method ${JSON.stringify(message.method)} does not match endpoint ${JSON.stringify(endpoint)}`,
           details: { issues: [] },
-        }, maxResponseBytes)
+        })
       }
 
       try {
-        signal.throwIfAborted()
-        const result = await handler(endpoint, message.payload, signal, access)
-        signal.throwIfAborted()
-        return fullResponse(message.rpcId, result, maxResponseBytes)
+        const result = await handler(endpoint, message.payload, request.signal, peer)
+        return fullResponse(message.rpcId, result)
       } catch (error) {
-        signal.throwIfAborted()
-        return textResponse(`handler failure: ${String(error)}`, 500, maxResponseBytes)
+        return new Response(`handler failure: ${String(error)}`, { status: 500 })
       }
     },
   }
 }
 
-function revocableRequest(request: Request, signal: AbortSignal): Request {
-  const init: RequestInit & { duplex?: 'half' } = { signal }
-  if (request.body !== null) { init.body = revocableBody(request.body, signal); init.duplex = 'half' }
-  return new Request(request, init)
-}
-
-function revocableResponse(response: Response, signal: AbortSignal): Response {
-  if (signal.aborted) {
-    void response.body?.cancel(signal.reason).catch(() => { /* Cancellation releases an already-failed producer. */ })
-    signal.throwIfAborted()
-  }
-  if (response.body === null) return response
-  return new Response(revocableBody(response.body, signal), {
-    status: response.status, statusText: response.statusText, headers: response.headers,
-  })
-}
-
-function revocableBody(source: ReadableStream<Uint8Array>, signal: AbortSignal): ReadableStream<Uint8Array> {
-  const reader = source.getReader()
-  let aborted: (() => void) | undefined
-  const finish = (): void => {
-    if (aborted !== undefined) signal.removeEventListener('abort', aborted)
-  }
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      aborted = () => {
-        finish()
-        controller.error(signal.reason)
-        void reader.cancel(signal.reason).catch(() => { /* Revocation already errors the consumer stream. */ })
-      }
-      signal.addEventListener('abort', aborted, { once: true })
-      if (signal.aborted) aborted()
-    },
-    async pull(controller) {
-      try {
-        const item = await reader.read()
-        if (signal.aborted) return
-        if (item.done) { finish(); controller.close() }
-        else controller.enqueue(item.value)
-      } catch (error) {
-        finish()
-        controller.error(error)
-      }
-    },
-    async cancel(reason) {
-      finish()
-      await reader.cancel(reason)
-    },
-  }, { highWaterMark: 0 })
-}
-
-function invalidEnvelopeResponse(body: unknown, issues: readonly object[], maxResponseBytes?: number): Response {
+function invalidEnvelopeResponse(body: unknown, issues: readonly object[]): Response {
   const rawId = (body as { rpcId?: unknown } | null)?.rpcId
   const rpcId = typeof rawId === 'string' ? RpcId(rawId) : INVALID_REQUEST_RPC_ID
   return errorResponse(rpcId, {
     code: 'gateway/bad-request',
     message: 'invalid client-request message',
     details: { issues },
-  }, maxResponseBytes)
+  })
 }
 
 function endpointFromPath(channel: string, pathname: string): string | undefined {
@@ -368,31 +288,27 @@ function endpointFromPath(channel: string, pathname: string): string | undefined
   return endpoint
 }
 
-function errorResponse(rpcId: RpcIdType, error: ConnectionRpcFailure, maxResponseBytes?: number): Response {
-  return fullResponse(rpcId, { ok: false, error }, maxResponseBytes)
+function errorResponse(rpcId: RpcIdType, error: ConnectionRpcFailure): Response {
+  return fullResponse(rpcId, { ok: false, error })
 }
 
-function fullResponse(rpcId: RpcIdType, result: ConnectionRpcResult<unknown>, maxResponseBytes?: number): Response {
-  const body: ConnectionServerResponse = { type: 'server-response', rpcId, result }
-  const text = JSON.stringify(body)
-  if (maxResponseBytes !== undefined && Buffer.byteLength(text, 'utf8') > maxResponseBytes) {
-    return outputLimitResponse()
+function fullResponse(rpcId: RpcIdType, result: Awaited<ReturnType<ConnectionRpcHandler>>): Response {
+  if (!result.ok) {
+    const body: ConnectionServerResponse = { type: 'server-response', rpcId, result }
+    return Response.json(body)
   }
-  return new Response(text, { headers: { 'content-type': 'application/json' } })
-}
-
-function textResponse(text: string, status: number, maxResponseBytes?: number): Response {
-  if (maxResponseBytes !== undefined && Buffer.byteLength(text, 'utf8') > maxResponseBytes) {
-    return outputLimitResponse()
-  }
-  return new Response(text, { status })
-}
-
-function outputLimitResponse(): Response {
-  return new Response('RPC response exceeds the configured output limit', {
-    status: 413,
-    headers: { 'cache-control': 'no-store' },
+  const { attachments, ...success } = result
+  const body: ConnectionServerResponse = { type: 'server-response', rpcId, result: success }
+  if (attachments === undefined || attachments.length === 0) return Response.json(body)
+  const parts = new FormData()
+  const attachmentMetadata = attachments.map((attachment, index) => {
+    const part = `bytes-${index}`
+    // FileSystem bytes may have SharedArrayBuffer backing, which BlobPart excludes.
+    parts.set(part, new Blob([new Uint8Array(attachment.bytes)]))
+    return { path: [...attachment.path], codec: 'bytes' as const, part }
   })
+  parts.set('metadata', JSON.stringify({ ...body, attachments: attachmentMetadata }))
+  return new Response(parts)
 }
 
 function assertChannel(channel: string): void {
@@ -401,22 +317,15 @@ function assertChannel(channel: string): void {
   }
 }
 
-function assertFetchRoute(
-  route: ConnectionFetchRoute,
-  match: RegisteredFetchRoute['match'],
-): void {
-  if (match === 'prefix' && !route.path.endsWith('/')) {
-    throw new Error(`connection: prefix Fetch route ${JSON.stringify(route.path)} must end in /`)
-  }
-  const endpointPath = match === 'prefix' ? route.path.slice(0, -1) : route.path
-  if (endpointFromPath(API_PATH, endpointPath) === undefined) {
-    throw new Error(`connection: invalid ${match} Fetch route ${JSON.stringify(route.path)}`)
+function assertFetchRoute(route: ConnectionFetchRoute): void {
+  if (endpointFromPath(API_PATH, route.path) === undefined) {
+    throw new Error(`connection: invalid exact Fetch route ${JSON.stringify(route.path)}`)
   }
   if (route.methods.length === 0) {
-    throw new Error(`connection: ${match} Fetch route ${JSON.stringify(route.path)} declares no methods`)
+    throw new Error(`connection: exact Fetch route ${JSON.stringify(route.path)} declares no methods`)
   }
   const methods = new Set(route.methods)
   if (methods.size !== route.methods.length) {
-    throw new Error(`connection: ${match} Fetch route ${JSON.stringify(route.path)} repeats a method`)
+    throw new Error(`connection: exact Fetch route ${JSON.stringify(route.path)} repeats a method`)
   }
 }

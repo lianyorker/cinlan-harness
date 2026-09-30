@@ -9,16 +9,19 @@
   ],
   "references": [
     {
+      "path": "../store"
+    },
+    {
       "path": "../../api/remotes/tsconfig.client.json"
     },
     {
       "path": "../../../vendor/cordis"
     },
     {
-      "path": "../locale"
+      "path": "../locale/tsconfig.client.json"
     },
     {
-      "path": "../ui-conversation"
+      "path": "../ui-conversation/tsconfig.client.json"
     },
     {
       "path": "../ui-primitives"
@@ -39,31 +42,25 @@
       "path": "../../api/session-controller/tsconfig.client.json"
     },
     {
-      "path": "../resources"
-    },
-    {
-      "path": "../store"
-    },
-    {
-      "path": "../ui-chat"
-    },
-    {
-      "path": "../ui-user-questions"
+      "path": "../ui-chat/tsconfig.client.json"
     },
     {
       "path": "../ui-sidebar-right"
     },
     {
-      "path": "../ui-better-sidebar/tsconfig.client.json"
+      "path": "../ui-user-questions"
+    },
+    {
+      "path": "../resources"
+    },
+    {
+      "path": "../../typert/protocol"
     },
     {
       "path": "../../llm/llm"
     },
     {
       "path": "../../core/tools"
-    },
-    {
-      "path": "../../typert/protocol"
     },
     {
       "path": "../../util/crypto"

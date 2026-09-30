@@ -112,13 +112,13 @@ it('persists official Plugin Manager enables after the defaults layer without ch
   }))
   await writeFile(join(fixture, 'cordis.patch.yml'), JSON.stringify([{ insert: rows }]))
   const bundles = ['management-fixture', '@deepseek-ai/dsh-web-capability-defaults']
-  initProfile(dir, bundles, 'startup')
+  initProfile(dir, bundles)
   const anchor = join(home, 'package.json')
   await writeFile(anchor, JSON.stringify({ name: 'management-installation', dependencies: {} }))
   await writeFile(join(dir, 'cordis.yml'), '[]\n')
   const profile: ProfileContext = {
     name: 'management', dir, home, patchPath: join(dir, 'cordis.patch.yml'), installAnchor: anchor,
-    cwd: home, startedBundles: bundles, overlays: [], telemetryDisabledEnv: undefined, patchReload: 'startup',
+    cwd: home, startedBundles: bundles, overlays: [], telemetryDisabledEnv: undefined,
   }
   const before = await readFile(join(bundleRoot, 'cordis.patch.yml'), 'utf8')
   const ctx = await boot('test', join(dir, 'cordis.yml'), readProfilePatches('test', profile), (ctx) => {

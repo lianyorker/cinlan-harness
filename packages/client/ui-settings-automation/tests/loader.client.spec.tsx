@@ -85,7 +85,7 @@ async function load() {
   ctx.slots.install(createSlotRenderer())
   ctx.slots.installLocale(locale)
   const absent = { key: undefined, hooks: {}, keyedHooks: {}, props: {} }
-  ctx.slots.installScope('session', { current: { getSnapshot: () => absent, subscribe: () => () => {} }, resolve: () => undefined })
+  ctx.slots.installScope('session', { current: { getSnapshot: () => absent, subscribe: () => () => {} }, bindingSource: () => undefined as any, renderArea: () => null } as any)
   await vi.waitFor(() => { expect(ctx.automationClient.getSnapshot().catalogLoading).toBe(false) })
   const owner = { inject: ['slots'], apply(context: Context) {
     context.effect(() => context.slots.register({ name: 'root', children: {

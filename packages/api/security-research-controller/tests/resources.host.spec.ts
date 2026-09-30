@@ -1,5 +1,4 @@
 /** Resource Remote behavior through actual Loader and Gateway services. */
-import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -25,9 +24,8 @@ async function missingManagerFixture() {
       'security-resource-fixture-controller': SecurityResearchController,
     })
   })
-  const access = createTrustedConnectionAccess()
   const call = (method: string, request?: unknown) => ctx.typertGateway.invoke({
-    access, namespace: 'securityResearch', method, args: request === undefined ? {} : { request },
+    namespace: 'securityResearch', method, args: request === undefined ? {} : { request },
   })
   return { ctx, call }
 }
@@ -58,7 +56,7 @@ describe('Security resource Remotes without an optional manager', () => {
     await paused.next()
     expect(ctx.events._hooks['security-skill-resources/changed']).toHaveLength(2)
     const pending = idle.next()
-    const entry = ctx.loader.entries().find(row => row.options.id === 'controller')!
+    const entry = [...ctx.loader.entries()].find(row => row.options.id === 'controller')!
     await entry.update({ disabled: true })
     await ctx.loader.await()
     expect(await pending).toEqual({ done: true, value: undefined })
@@ -76,7 +74,7 @@ describe('Security resource Remotes without an optional manager', () => {
     const abort = new AbortController()
     onTestFinished(() => { abort.abort() })
     const stream = await ctx.typertGateway.wireStream.open(
-      'securityResearch/observeResources', { args: {} }, abort.signal, createTrustedConnectionAccess(),
+      'securityResearch/observeResources', { args: {} }, (async function* () {})(), undefined, abort.signal,
     )
     const iterator = stream[Symbol.asyncIterator]()
     expect((await iterator.next()).value).toEqual({ state: 'unavailable', reason: 'component-missing' })

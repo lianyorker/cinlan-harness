@@ -1,12 +1,11 @@
-/** Only the external Host carrier is replaced; generated Remote codecs and UI run unchanged. */
-import { createFixtureFaces } from '@deepseek-ai/dsh-client-connection/src/client/fixture.ts'
+import { RemoteMock } from '@deepseek-ai/dsh-remote-mock'
 import type { ClientTransportHooks, ClientRequest } from '@deepseek-ai/dsh-client-connection/client'
 import type { RuntimeTaskValue } from '@deepseek-ai/dsh-api-execution-host-controller/types'
 import { baseline, feed, runtimeInspection, runtimeTask } from './fixtures.client.ts'
 
 export function externalRpc() {
   const calls: ClientRequest[] = []
-  const rpc = createFixtureFaces().rpc
+  const rpc = RemoteMock.create().rpc
   const targets = feed(baseline)
   const tasks = feed<RuntimeTaskValue>({ task: runtimeTask })
   let active: RuntimeTaskValue | undefined

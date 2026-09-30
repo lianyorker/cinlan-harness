@@ -48,6 +48,19 @@ describe('ordered mixed-content retention', () => {
     })
   })
 
+  it('omits a text suffix when its minimum framing cost exceeds the remaining budget', () => {
+    const result = retainContent([text('ABC')], 4,
+      block => block.type === 'text' ? block.text.length + 4 : price(block))
+    expect(result).toEqual({ head: [], tail: [], omittedBytes: 3, omittedImages: 0 })
+  })
+
+  it('drops an incomplete surrogate pair at the retained prefix', () => {
+    const result = retainContent([text('A😀middleZ')], 4, price)
+    expect(result.head).toEqual([text('A')])
+    expect(result.tail).toEqual([text('eZ')])
+    expect(result.omittedBytes).toBe(Buffer.byteLength('😀middl'))
+  })
+
   it('does not split a surrogate pair at either retained end', () => {
     const result = retainContent([text('A😀middle😀Z')], 5, price)
     expect(result.head).toEqual([text('A😀')])

@@ -9,10 +9,12 @@
 import { spawn } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import { chmod, copyFile, cp, lstat, mkdir, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { basename, dirname, extname, join, resolve, sep } from 'node:path'
 import { parseArgs } from 'node:util'
 import { resolveLinuxNodePtyAddon, resolveWindowsNodePtyAddons } from './build-exe-for-python-sdk-native-pty.ts'
 import { copyOfficeSidecar, OFFICE_ASSET_IGNORES } from './build-exe-for-python-sdk-office.ts'
+import { preparePrimaryRuntime, smokePrimaryRuntime, type PrimaryRuntimeTarget } from './primary-runtime/prepare.ts'
 
 const root = resolve(import.meta.dirname, '..')
 
@@ -270,9 +272,7 @@ class SingleExeBuild {
 
   /** Verify the closure before compiling or packaging. */
   async verifyClosure(): Promise<void> {
-    await this.run('runtime dependency closure', process.execPath, [
-      '--import', 'tsx/esm', resolve(root, 'scripts/verify-runtime-closure.ts'),
-    ])
+    await this.runPnpm('runtime dependency closure', ['run', 'verify-runtime-closure'])
   }
 
   /** Build all package artifacts unless `--skip-build` was passed. */
@@ -281,7 +281,7 @@ class SingleExeBuild {
       console.log('build-exe-for-python-sdk: skipping pnpm run build (--skip-build)')
       return
     }
-    await this.run('build', process.execPath, ['--import', 'tsx/esm', resolve(root, 'scripts/build.ts')])
+    await this.runPnpm('build', ['run', 'build'])
   }
 
   /** Clear and deploy the runtime closure into the node carrier. */
@@ -423,15 +423,16 @@ class SingleExeBuild {
   /**
    * Package one target; SEA mode accepts one target per invocation.
    * @param target - the pkg target triple to build.
-   * @returns the executable, Office directory, ripgrep, and required macOS spawn helper paths.
+   * @returns the executable, resource directories, ripgrep, and required macOS spawn helper paths.
    */
   async pack(target: Target): Promise<string[]> {
     const productBase = join(this.outDir, `${OUTPUT_BASENAME}-${target.platform}-${target.arch}`)
     const product = target.platform === 'win' ? `${productBase}.exe` : productBase
     await this.prepareNativePty(target)
     if (!this.cli.dryRun) await mkdir(this.outDir, { recursive: true })
-    await this.run(`pkg ${target.spec}`, process.execPath, [
-      resolve(root, 'node_modules/@yao-pkg/pkg/lib-es5/bin.js'),
+    await this.runPnpm(`pkg ${target.spec}`, [
+      'exec',
+      'pkg',
       this.staging,
       '--sea',
       '--targets',
@@ -451,7 +452,17 @@ class SingleExeBuild {
       console.log(`build-exe-for-python-sdk: copied ${packages.length} Office packages to ${office}`)
     }
     const ripgrep = await this.copyRipgrepSidecar(target, product)
-    if (target.platform !== 'macos') return [product, ripgrep, office]
+    const resources = join(this.outDir, `${target.platform}-${target.arch}`)
+    const runtimeTarget = `${target.platform === 'macos' ? 'mac' : target.platform}-${target.arch}` as PrimaryRuntimeTarget
+    if (this.cli.dryRun) {
+      console.log(`build-exe-for-python-sdk: [dry-run] prepare Python and Office skills for ${runtimeTarget} in ${resources}`)
+    } else {
+      const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as { version: string }
+      await preparePrimaryRuntime({ target: runtimeTarget, output: resources,
+        cache: join(tmpdir(), 'dsh-primary-runtime-downloads'), version })
+      smokePrimaryRuntime(join(resources, 'primary-runtime'))
+    }
+    if (target.platform !== 'macos') return [product, ripgrep, office, resources]
     const spawnHelper = `${product}-spawn-helper`
     const source = join(this.staging, 'node_modules', 'node-pty', 'prebuilds', `darwin-${target.arch}`, 'spawn-helper')
     if (this.cli.dryRun) {
@@ -460,7 +471,7 @@ class SingleExeBuild {
       await copyFile(source, spawnHelper)
       await chmod(spawnHelper, 0o755)
     }
-    return [product, ripgrep, spawnHelper, office]
+    return [product, ripgrep, spawnHelper, office, resources]
   }
 
   /** Copy the target ripgrep binary beside the executable so Node can spawn it outside pkg's virtual filesystem. */
@@ -518,9 +529,7 @@ class SingleExeBuild {
           + `target ${target.platform}-${target.arch} does not match host ${host.platform}-${host.arch}.`,
         )
       }
-      const stagedPty = join(this.staging, 'node_modules', 'node-pty')
-      if (this.cli.dryRun) console.log(`build-exe-for-python-sdk: [dry-run] validate Windows node-pty addons in ${stagedPty}`)
-      else resolveWindowsNodePtyAddons(stagedPty, target.arch)
+      resolveWindowsNodePtyAddons(join(this.staging, 'node_modules', 'node-pty'), target.arch)
       return
     }
     if (target.platform !== 'linux') return
@@ -553,7 +562,7 @@ class SingleExeBuild {
         continue
       }
       if (statSync(path).isDirectory()) {
-        console.log(`  ${path}  (Office dependency directory)`)
+        console.log(`  ${path}  (resource directory)`)
         continue
       }
       const megabytes = statSync(path).size / (1024 * 1024)
@@ -605,7 +614,7 @@ class SingleExeBuild {
         cwd: root,
         stdio: 'inherit',
         // Artifact builds must not mutate or validate a developer's Git hooks.
-        env: { ...process.env, CI: 'true', pnpm_config_verify_deps_before_run: 'error' },
+        env: { ...process.env, CI: 'true' },
       })
       child.once('error', (error) => {
         reject(new Error(`build-exe-for-python-sdk: ${label} failed to spawn: ${error.message} (${printable})`))

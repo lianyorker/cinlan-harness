@@ -1,5 +1,5 @@
 ---
-description: "The MCP package group: attach external Model Context Protocol servers so their tools are callable as native tools."
+description: "The MCP package group: connect external Model Context Protocol servers, call their tools, and read their resources."
 kind: "package-group"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `mcp/` group connects the harness to the Model Context Protocol (MCP) ecosystem of tool servers. Its client attaches external servers so their tools are available under stable server-qualified names, and its resource service lets the model discover and read server content on demand. Each server is one configuration entry; nothing ships enabled, so you opt in per server. MCP prompt templates are not supported. This page maps the group; the package README owns the per-package contract.
+The `mcp/` group lets the model call external Model Context Protocol (MCP) tools and read server resources. Configure only `mcp-client` entries; shipped profiles already mount `mcp-resources` once. MCP tools and prompt text appear only for callers with a configured server in scope. Connections also supply server instructions. Package READMEs own configuration and limitations.
 
 ## Table of Contents
 
@@ -22,13 +22,12 @@ The `mcp/` group connects the harness to the Model Context Protocol (MCP) ecosys
 <a id="packages"></a>
 ## Packages
 
-This group contains the MCP transport bridge and current-profile management; their READMEs own package-specific behavior.
+The client owns each configured connection; the shared resource package supplies resource tools across those connections.
 
 | Package | What it provides |
 |---|---|
-| [`mcp-client/`](mcp-client/README.md) | Attach one external MCP server so the model can call its tools as native tools |
-| [`mcp-resources/`](mcp-resources/README.md) | Discover resource pages and URI templates, then read content through shared tools |
-| [`mcp-management/`](mcp-management/README.md) | Persists current-profile server definitions and owns their connection lifetimes |
+| [`mcp-client/`](mcp-client/README.md) | Connect one MCP server, expose its tools and instructions, and provide its resource operations |
+| [`mcp-resources/`](mcp-resources/README.md) | Discover and read resources through shared tools with explicit server selection |
 
 -----
 
@@ -38,8 +37,8 @@ This group contains the MCP transport bridge and current-profile management; the
 Try the worked example configurations to see the plugin in action, then read the Agent Note for the behavior decisions behind it.
 
 - [MCP client plugin Agent Note](../../.agents/notes/implemented/feature/2026-07-07-mcp-client-plugin.md) — the bridge's design: server-qualified naming, discovery, execution, and environment scrubbing.
+- [Resources and instructions Agent Note](../../.agents/notes/implemented/feature/2026-09-12-mcp-resources-and-instructions.md) — on-demand resource access and scoped server guidance.
 - [Third-party memory MCP guide](../../docs/user/guide/mcp-memory.md) — runnable overlay rows and setup instructions.
-- [MCP subsystem reference](../../docs/subsystems/mcp.md) — connection snapshots, revisioned management requests, and the Cordis API.
 - [Tools subsystem reference](../../docs/subsystems/tools.md) — the `ToolRuntime` that receives the registered tools.
 
 <a id="dev-note"></a>

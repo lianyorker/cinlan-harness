@@ -6,19 +6,23 @@ import ToolRuntime, { defineTool, type Config as ToolConfig } from '@deepseek-ai
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { bindScopeParent, createScope, type Scope } from '@deepseek-ai/dsh-scope'
-import { CodeRuntime, type CodeRunRequest, type CodeRunResult } from '@deepseek-ai/dsh-code-runtime'
+import { PtcRuntime, type PtcRunRequest, type PtcRunResult, type PtcRunSpec } from '@deepseek-ai/dsh-ptc-runtime'
 import McpResources, { type McpResourceProvider } from '../src/index.ts'
 
 const resourceToolNames = ['list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource']
 
-class BindingProbe extends CodeRuntime {
+class BindingProbe extends PtcRuntime {
   readonly language = 'typescript'
   readonly isolation = 'in-process-test'
-  behavior: (spec: CodeRunRequest) => Promise<CodeRunResult> = async spec => ({
+  behavior: (spec: PtcRunSpec) => Promise<PtcRunResult> = async spec => ({
     logs: [], value: Object.keys(spec.bindings[0]!.functions).sort(),
   })
 
-  run(spec: CodeRunRequest): Promise<CodeRunResult> {
+  resolve(request: PtcRunRequest): PtcRunSpec {
+    return { ...request, cwd: request.cwd ?? process.cwd(), timeoutMs: request.timeoutMs ?? 60_000 }
+  }
+
+  run(spec: PtcRunSpec): Promise<PtcRunResult> {
     return this.behavior(spec)
   }
 }
@@ -196,7 +200,7 @@ describe('MCP resource tools', () => {
     const request = vi.fn<McpResourceProvider['request']>().mockResolvedValue({ resources: [] })
     const remove = ctx.mcpResources.register('docs', { request })
     expect(renderPrompt(await ctx.systemPrompt.assemble())).toContain('list_mcp_resources:')
-    const runtime = ctx.codeRuntime as BindingProbe
+    const runtime = ctx.ptcRuntime as BindingProbe
     runtime.behavior = async (spec) => {
       const binding = spec.bindings[0]!.functions['list_mcp_resources']!
       expect(await binding({ server: 'docs' })).toEqual({ resources: [] })
@@ -305,17 +309,6 @@ describe('MCP resource tools', () => {
     expect((await call(ctx, 'list_mcp_resource_templates', { server: 'docs', cursor: 'template-page' })).isError)
       .toBe(false)
     expect(request.mock.calls[3]?.[0]).toEqual({ method: 'resources/templates/list', cursor: 'template-page' })
-  })
-
-  it('presents resource calls using server attribution and opaque URI details', async () => {
-    const ctx = await setup()
-    ctx.mcpResources.register('docs', { request: async () => ({ resources: [] }) })
-    expect(ctx.tools.get('list_mcp_resources')?.presentCall?.({ server: 'docs', cursor: 'page-2' }))
-      .toEqual({ card: 'generic', kind: 'search', title: 'List MCP resources: docs', rawInput: 'page-2' })
-    expect(ctx.tools.get('list_mcp_resource_templates')?.presentCall?.({ server: 'docs' }))
-      .toEqual({ card: 'generic', kind: 'search', title: 'List MCP resource templates: docs', rawInput: undefined })
-    expect(ctx.tools.get('read_mcp_resource')?.presentCall?.({ server: 'docs', uri: 'docs://guide' }))
-      .toEqual({ card: 'generic', kind: 'read', title: 'Read MCP resource: docs', rawInput: 'docs://guide' })
   })
 
   it('keeps binary bytes programmatic while projecting text, URI and server attribution', async () => {

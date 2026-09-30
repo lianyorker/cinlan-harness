@@ -1,45 +1,11 @@
 {
-  "extends": "../../../tsconfig.base.client.json",
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "lib/types"
-  },
-  "include": [
-    "src"
-  ],
+  "files": [],
   "references": [
     {
-      "path": "../../../vendor/cordis"
+      "path": "./tsconfig.host.json"
     },
     {
-      "path": "../../api/remotes/tsconfig.client.json"
-    },
-    {
-      "path": "../locale"
-    },
-    {
-      "path": "../store"
-    },
-    {
-      "path": "../../test-support/client-runtime"
-    },
-    {
-      "path": "../ui-primitives"
-    },
-    {
-      "path": "../ui-renderer"
-    },
-    {
-      "path": "../ui-settings"
-    },
-    {
-      "path": "../ui-slots"
-    },
-    {
-      "path": "../../boot/plugin-manager"
-    },
-    {
-      "path": "../../util/crypto"
+      "path": "./tsconfig.client.json"
     }
   ]
 }

@@ -1,8 +1,44 @@
-/** Private callbacks for the capture Settings entry; Session identity is explicit at draft intake. */
-import type {
-  BrowserElementCaptureCommand, BrowserElementCaptureValue, BrowserElementSelectionValue,
-  BrowserPageId, BrowserPagesValue, SessionId,
-} from '@deepseek-ai/dsh-api-remotes/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+
+export type BrowserPageId = string
+
+export interface BrowserPagesValue {
+  readonly pages: readonly {
+    readonly pageId: BrowserPageId
+    readonly url: string
+    readonly title?: string
+  }[]
+}
+
+export interface BrowserElementSelectionValue {
+  readonly pageId: BrowserPageId
+  readonly selectionId: string
+  readonly tagName?: string
+  readonly role?: string
+  readonly name?: string
+  readonly text?: string
+  readonly rect?: { x: number; y: number; width: number; height: number }
+}
+
+export interface BrowserElementCaptureCommand {
+  readonly pageId: BrowserPageId
+  readonly selectionId: string
+}
+
+export interface BrowserElementCaptureValue {
+  readonly pageId: BrowserPageId
+  readonly selectionId: string
+  readonly verified: boolean
+  readonly image: {
+    readonly attachmentId: string
+    readonly mediaType: string
+    readonly bytes: number
+    readonly width: number
+    readonly height: number
+    readonly name?: string
+  }
+  readonly data: string
+}
 
 /** Operations injected by the capture plugin's apply closure. */
 export interface CaptureInjected {

@@ -1,5 +1,4 @@
 /** Production Loader rows with isolated storage and authenticated Remote carriers. */
-import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -114,7 +113,7 @@ export async function createHarness(targetConfig: Partial<TargetsConfig> = {}, p
   await ctx.loader.await()
   const origin = 'http://127.0.0.1:' + String(ctx.webServer.port)
   const cookie = authenticatedCookie(ctx.connection, origin)
-  const shared = ctx.connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
+  const shared = ctx.connection.createSharedFetchHandler('/api')
   let rpcSequence = 0
   const request = (method: string, args: unknown) => ({
     method: 'POST', headers: { 'content-type': 'application/json' },

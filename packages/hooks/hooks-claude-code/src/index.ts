@@ -3,8 +3,8 @@
  * extension points. It supports SessionStart, prompt/tool pre/post, Stop, and subagent
  * start/stop. It owns Claude payloads, environment, substitution, and decision
  * mapping; shared execution and parsing live in `dsh-hook-protocol`.
- * PreToolUse updatedInput rewrites input before execution identity is created.
- * Bespoke behavior should use typed native plugins on the same extension points.
+ * `updatedInput` is logged and warned but not honored. Bespoke behavior should
+ * use typed native plugins on the same extension points.
  * @module @deepseek-ai/dsh-hooks-claude-code
  */
 
@@ -13,17 +13,17 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision, TurnBoundaryProjection } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-session-projection'
-import { createUserMessage, type ToolCallId } from '@deepseek-ai/dsh-llm'
+import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import type { ContextFormed } from '@deepseek-ai/dsh-llm'
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'hooks-claude-code': { kind: 'hooks-claude-code' } & ContextFormed
+  }
+}
+
 import type { ContentBlock, MessageSource } from '@deepseek-ai/dsh-llm'
 import type { UserMessage } from '@deepseek-ai/dsh-session'
-import type {
-  PostToolDecision,
-  PreToolDecision,
-  ToolExecution,
-  ToolExecutionResult,
-  ToolInputRewriteContext,
-  ToolInputRewriteDecision,
-} from '@deepseek-ai/dsh-tools'
+import type { PostToolDecision, PreToolDecision, ToolExecution, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
 import {
   appendHookInvoked,
   appendHookResult,
@@ -89,8 +89,8 @@ function nextHandlerId(point: string): string {
   return `claude-code:${point}:${++handlerCounter}`
 }
 
-/** The `{kind:'plugin'}` source stamped on every context this bridge injects. */
-const PLUGIN_SOURCE: MessageSource = { kind: 'plugin', plugin: 'hooks-claude-code' }
+/** The `{kind:'hooks-claude-code'}` producer source stamped on every context this bridge injects. */
+const CONTEXT_SOURCE: MessageSource = { kind: 'hooks-claude-code' }
 
 /** The summary cap bounds a persisted event field — a positive integer or the slice misbehaves silently. */
 function assertPositiveInteger(name: string, value: number): void {
@@ -129,7 +129,6 @@ export function apply(ctx: Context, config: Config): void {
   // handle unregisters the agent. Every retained entry relies on that paired
   // end; a producer that can omit it must provide another release edge.
   const subagentChildren = new Map<SubagentRunId, Agent>()
-  const preToolOutcomes = new Map<ToolCallId, { merged: MergedHookOutcome; agent?: Agent }>()
   ctx.effect(() => () => detached.drain(), 'hooks-claude-code: drain detached hook runs')
 
   /**
@@ -179,8 +178,8 @@ export function apply(ctx: Context, config: Config): void {
           expectedEventName: point,
         }, () => performance.now())
         outputs.push(output)
-        if (output.updatedInput !== undefined && point !== 'PreToolUse') {
-          ctx.logger.warn(`hooks-claude-code: ${point} hook requested updatedInput, which is only supported on PreToolUse (ignored)`)
+        if (output.updatedInput !== undefined) {
+          ctx.logger.warn(`hooks-claude-code: ${point} hook requested updatedInput, which is not yet honored (ignored)`)
         }
         if (output.systemMessage !== undefined) {
           ctx.logger.warn(`hooks-claude-code: ${point} hook emitted a systemMessage, which is not yet surfaced (ignored)`)
@@ -199,7 +198,7 @@ export function apply(ctx: Context, config: Config): void {
   function contextFrom(merged: MergedHookOutcome): UserMessage | undefined {
     if (merged.additionalContext.length === 0) return undefined
     const content: ContentBlock[] = merged.additionalContext.map(text => ({ type: 'text', text }))
-    return createUserMessage({ content, source: PLUGIN_SOURCE })
+    return createUserMessage({ content, source: CONTEXT_SOURCE })
   }
 
   /** Prepend one context without flattening source fields or other downstream metadata. */
@@ -207,18 +206,18 @@ export function apply(ctx: Context, config: Config): void {
     return [ours, ...theirs ?? []]
   }
 
-  // SessionStart injects context when its detached hook resolves; a slow hook
-  // may miss the first request.
-  // TODO(session-start-gating): add a startup gate before promising first-turn delivery.
-  ctx.on('agent/session-start', ({ agent, source }) => {
-    detached.track(runPoint('SessionStart', source, sessionStartPayload(agent, source), { agent, signal: detached.signal })
+  ctx.on('agent/created', async ({ agent, source, signal }) => {
+    const ownerSignal = signal === undefined ? detached.signal : AbortSignal.any([signal, detached.signal])
+    const run = runPoint('SessionStart', source, sessionStartPayload(agent, source), { agent, signal: ownerSignal })
       .then((merged) => {
         const context = contextFrom(merged)
         if (context) agent.inject(context)
       })
       .catch((error: unknown) => {
         ctx.logger.warn(`hooks-claude-code: SessionStart hook failed: ${String(error)}`)
-      }))
+      })
+    detached.track(run)
+    await run
   })
 
   // --- UserPromptSubmit → PreStepDecision. The prompt text is the payload; no
@@ -241,35 +240,10 @@ export function apply(ctx: Context, config: Config): void {
     }
   })
 
-  // --- PreToolUse → ToolInputRewriteDecision. Matcher subject is the tool name. ---
-  // Fires before execution identity is created and before `assistant/message` is
-  // committed. PreToolUse hook scripts execute once here, and the merged outcome
-  // is cached for `tools/pre-execute` by callId.
-  ctx.on('tools/input-rewrite', async (call: ToolInputRewriteContext, next): Promise<ToolInputRewriteDecision> => {
-    const turn = lastTurn(ctx, call.agent)
-    const merged = await runPoint('PreToolUse', call.name, preToolPayload(call), { ...call.agent ? { agent: call.agent } : {}, turn, signal: call.signal })
-    preToolOutcomes.set(call.callId, { merged, ...call.agent ? { agent: call.agent } : {} })
-    const downstream = await next()
-    if (merged.updatedInput !== undefined) {
-      return {
-        ...downstream,
-        arguments: downstream.arguments !== undefined ? downstream.arguments : merged.updatedInput,
-      }
-    }
-    return downstream
-  })
-
   // --- PreToolUse → PreToolDecision. Matcher subject is the tool name. ---
   ctx.on('tools/pre-execute', async (exec, next): Promise<PreToolDecision> => {
-    const cached = preToolOutcomes.get(exec.callId)
-    let merged: MergedHookOutcome
-    if (cached !== undefined) {
-      preToolOutcomes.delete(exec.callId)
-      merged = cached.merged
-    } else {
-      const turn = lastTurn(ctx, exec.agent)
-      merged = await runPoint('PreToolUse', exec.name, preToolPayload(exec), { ...exec.agent ? { agent: exec.agent } : {}, turn, signal: exec.signal })
-    }
+    const turn = lastTurn(ctx, exec.agent)
+    const merged = await runPoint('PreToolUse', exec.name, preToolPayload(exec), { ...exec.agent ? { agent: exec.agent } : {}, turn, signal: exec.signal })
     if (merged.decision === 'deny') return { kind: 'deny', reason: merged.reason ?? 'blocked by PreToolUse hook' }
     if (merged.decision === 'ask') return { kind: 'ask', ...merged.reason !== undefined ? { reason: merged.reason } : {} }
     return next()
@@ -300,14 +274,11 @@ export function apply(ctx: Context, config: Config): void {
   // machine observe pending input and run another step.
   // TODO(stop-loop-guard): cap consecutive forced continuations; hooks must self-limit meanwhile.
   ctx.on('agent/turn-stopping', async ({ agent, turn, signal }): Promise<void> => {
-    for (const [callId, entry] of preToolOutcomes) {
-      if (entry.agent === agent) preToolOutcomes.delete(callId)
-    }
     const merged = await runPoint('Stop', '', stopPayload(agent), { agent, turn, signal })
     if (merged.decision === 'deny') {
       // A blocking Stop hook forces continuation.
       const text = merged.reason ?? 'continue: blocked by Stop hook'
-      agent.steer(createUserMessage({ content: [{ type: 'text', text }], source: PLUGIN_SOURCE }))
+      agent.steer(createUserMessage({ content: [{ type: 'text', text }], source: CONTEXT_SOURCE }))
     }
   })
 
@@ -370,13 +341,8 @@ function sessionStartPayload(agent: Agent, source: string): Record<string, unkno
 function promptPayload(agent: Agent, content: ContentBlock[]): Record<string, unknown> {
   return { ...base(agent, 'UserPromptSubmit'), prompt: blocksToText(content) }
 }
-function preToolPayload(call: {
-  readonly agent?: Agent
-  readonly name: string
-  readonly arguments: unknown
-  readonly callId: ToolCallId
-}): Record<string, unknown> {
-  return { ...base(call.agent, 'PreToolUse'), tool_name: call.name, tool_input: call.arguments, tool_use_id: call.callId }
+function preToolPayload(exec: ToolExecution): Record<string, unknown> {
+  return { ...base(exec.agent, 'PreToolUse'), tool_name: exec.name, tool_input: exec.arguments, tool_use_id: exec.callId }
 }
 function postToolPayload(exec: ToolExecution, result: ToolExecutionResult): Record<string, unknown> {
   return { ...base(exec.agent, 'PostToolUse'), tool_name: exec.name, tool_input: exec.arguments, tool_use_id: exec.callId, tool_response: blocksToText(result.content) }

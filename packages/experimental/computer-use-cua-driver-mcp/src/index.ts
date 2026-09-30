@@ -63,25 +63,9 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // One effect orders child shutdown before release; separate fiber effects
   // unload concurrently and could otherwise admit another live driver.
   let child!: Fiber
-  let handle: McpClient.ConnectionHandle | undefined
   ctx.effect(function* () {
     yield ctx.computerUse.register(ComputerUseProviderName('cua-driver-mcp'))
-    child = ctx.plugin({
-      name: 'computer-use-cua-driver-mcp-client',
-      inject: McpClient.inject,
-      async apply(inner: Context) {
-        handle = McpClient.launchMcpClient(inner, connection)
-        const outcome = await handle.ready
-        if (outcome.error !== undefined) {
-          throw new Error('mcp-client(cua-driver-mcp): initial connection or tool synchronization failed', { cause: outcome.error })
-        }
-      },
-    })
-    yield () => {
-      if (handle?.getSnapshot().errorCode === 'close-timeout') {
-        throw new Error('Cua Driver MCP shutdown timed out; restart the host before mounting another computer-use provider')
-      }
-    }
+    child = ctx.plugin(McpClient, connection)
     yield child.dispose
   }, 'computer-use-cua-driver-mcp.connection')
   await child.await()

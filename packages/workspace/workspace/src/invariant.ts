@@ -6,8 +6,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 import type { DomainChanged } from '@deepseek-ai/dsh-storage-domain'
-import { WorkspaceId, workspaceRecord } from '@deepseek-ai/dsh-workspace'
-import { workspaceIdentity } from './execution.ts'
+import { WorkspaceId } from '@deepseek-ai/dsh-workspace'
 
 const PACKAGE_NAME = '@deepseek-ai/dsh-workspace'
 
@@ -38,16 +37,11 @@ const install: InvariantInstaller = Object.assign(
         }
         return
       }
-      const entity = ctx.workspaceRegistry.get(WorkspaceId(change.key))
-      if (entity === undefined) {
+      if (ctx.workspaceRegistry.get(WorkspaceId(change.key)) === undefined) {
         fail(
           `workspace record '${change.key}' landed durably but the registry cache holds `
           + 'no entity for it — the cache and the domain table have diverged',
         )
-      }
-      const record = workspaceRecord.parse(change.value)
-      if (workspaceIdentity(entity.path, entity.execution) !== workspaceIdentity(record.path, record.execution)) {
-        fail(`workspace record '${change.key}' changed its execution binding or canonical path outside the registry`)
       }
     })
   },

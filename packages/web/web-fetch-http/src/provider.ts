@@ -52,8 +52,9 @@ export class HttpFetchProvider implements WebFetchProvider {
   available(): boolean {
     return true
   }
-  async fetch(request: WebFetchRequest, signal: AbortSignal): Promise<WebFetchResult> {
-    if (signal.aborted) throw new WebError('web fetch aborted', 'WEB_ABORTED')
+
+  async fetch(request: WebFetchRequest, signal?: AbortSignal): Promise<WebFetchResult> {
+    if (signal?.aborted) throw new WebError('web fetch aborted', 'WEB_ABORTED')
 
     // One signal stops both the request and body read. The deadline's TimeoutReason later
     // distinguishes this provider's timeout from caller or outer-deadline cancellation.

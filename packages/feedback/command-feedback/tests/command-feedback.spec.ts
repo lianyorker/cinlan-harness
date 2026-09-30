@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
@@ -19,12 +19,7 @@ vi.mock('@deepseek-ai/dsh-anonymous-user-id', () => ({
   getOrCreateAnonymousUserId,
 }))
 
-const contexts: Context[] = []
-
 beforeEach(() => getOrCreateAnonymousUserId.mockClear())
-afterEach(async () => {
-  await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
-})
 
 interface Harness {
   readonly ctx: Context
@@ -42,7 +37,7 @@ function stubAgent(ctx: Context, id: string): { agent: Agent; session: Session }
     options: {},
     session,
     inbox: unsupportedInbox(),
-    ctx: ctx.plugin(() => {}).ctx,
+    ctx: new Context(),
     get status() { return status },
     send: () => {},
     followup: () => {},
@@ -57,7 +52,6 @@ function stubAgent(ctx: Context, id: string): { agent: Agent; session: Session }
 
 async function harness(): Promise<Harness> {
   const ctx = new Context()
-  contexts.push(ctx)
   await ctx.plugin(CommandRuntime)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(SessionStore)
@@ -86,6 +80,7 @@ function feedbackRecords(session: Session): FeedbackRecord[] {
     .map(event => event.data)
 }
 
+/** The text of each authoritative feedback payload in log order. */
 function feedbackTexts(session: Session): (string | undefined)[] {
   return feedbackRecords(session).map(record => record.text)
 }
@@ -100,8 +95,9 @@ describe('@deepseek-ai/dsh-command-feedback registration', () => {
     expect(loader.unwrapExports(commandFeedback)).toBe(commandFeedback)
 
     expect(test.ctx.commands.list(test.agent)).toContainEqual({
+      definitionId: '@deepseek-ai/dsh-command-feedback',
       name: 'feedback',
-      description: 'record feedback about this session',
+      description: 'Record feedback about this session',
       input: { hint: '<text>' },
     })
     expect(test.ctx.commands.find(test.agent, 'feedback')).toMatchObject({ recordInput: false })
@@ -173,6 +169,7 @@ describe('/feedback human command', () => {
     commandFeedback.recordFeedback(test.session, {})
     expect(test.session.snapshotEvents().map(event => event.type))
       .toEqual(['feedback/record', 'feedback/record', 'feedback/record'])
+    // Blank text is recorded as absent; an entry with neither member still records.
     expect(feedbackRecords(test.session)).toEqual([
       { text: 'recorded outside a command' },
       { category: 'service-stability' },

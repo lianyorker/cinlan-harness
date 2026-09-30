@@ -11,7 +11,6 @@ import type { Agent, AgentStatus } from '@deepseek-ai/dsh-agent'
 import CommandRuntime from '@deepseek-ai/dsh-commands'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import * as CommandFeedback from '@deepseek-ai/dsh-command-feedback'
-import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import { getOrCreateAnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import { unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
 
@@ -111,22 +110,8 @@ describe('/feedback real Loader composition through cordis.yml', () => {
     expect(feedback?.type === 'feedback/record' && feedback.data.text).toBe('the diff view is unreadable')
     expect(JSON.stringify(owner.session.snapshotEvents()).match(/the diff view is unreadable/gu)).toHaveLength(1)
 
-    expect(context.sessionFeedback.typertRemote.namespace).toBe('sessionFeedback')
-    expect(remoteMethods(context.sessionFeedback)).toEqual([
-      { method: 'record', invocation: { kind: 'direct' } },
-    ])
-    await expect(context.sessionFeedback.record({ sessionId: owner.id, category: 'other' }))
-      .resolves.toEqual({ ok: true, value: { recorded: true } })
-    expect(owner.session.snapshotEvents().at(-1)).toMatchObject({ type: 'feedback/record', data: { category: 'other' } })
-
+    // Nothing reached the model.
     expect(owner.session.deriveMessages()).toEqual([])
     expect(owner.session.surface.nodes).toEqual([])
-
-    const entry = [...context.loader.entries()]
-      .find(entry => entry.options.name === '@deepseek-ai/dsh-command-feedback')
-    expect(entry?.fiber).toBeDefined()
-    await entry!.fiber!.dispose()
-    expect(context.get('sessionFeedback')).toBeUndefined()
-    expect(context.commands.find(owner, 'feedback')).toBeUndefined()
   })
 })

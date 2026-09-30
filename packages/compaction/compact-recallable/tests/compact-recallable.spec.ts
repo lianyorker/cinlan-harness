@@ -99,7 +99,7 @@ function appendSystem(session: Session, text = 'System prompt') {
   return session.append('system/message', {
     turn: 1,
     step: 1,
-    message: createSystemMessage(text, 'system-prompt'),
+    message: createSystemMessage(text),
   }, { surfaceOp: 'append' })
 }
 
@@ -644,7 +644,7 @@ function conversation(turns = 4, text = 'fixture '.repeat(40).trim(), system?: s
       session.append('system/message', {
         turn,
         step: 1,
-        message: createSystemMessage(system, 'system-prompt'),
+        message: createSystemMessage(system),
       }, { surfaceOp: 'append' })
     }
     session.append('user/message', createUserMessage({
@@ -713,7 +713,7 @@ describe('RecallableCompactionEngine execution', () => {
     // Check footers match CHECKPOINT_FOOTER_RE
     const messages = session.deriveMessages()
     for (const msg of messages) {
-      if (msg.source?.kind === 'plugin' && msg.source.plugin === 'compact') {
+      if (msg.source?.kind === 'compact-checkpoint') {
         const text = (msg.content[0] as { text: string }).text
         expect(text).toMatch(CHECKPOINT_FOOTER_RE)
       }

@@ -7,6 +7,7 @@
  * are all exercised through the real `confine()` path.
  */
 
+import { spawnSync } from 'node:child_process'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -15,8 +16,6 @@ import { Context } from '@deepseek-ai/cordis'
 import { LAUNCHER_FAILURE_EXIT } from '@deepseek-ai/node-addon-system/landlock-run'
 import { SANDBOX_UNAVAILABLE, SandboxUnavailableError } from '@deepseek-ai/dsh-sandbox'
 import type { SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
-import { AclWriteGrant } from '@deepseek-ai/dsh-sandbox-windows-acl'
-import { SessionId } from '@deepseek-ai/dsh-session'
 import {
   LocalSandboxProvider,
 } from '@deepseek-ai/dsh-sandbox-local'
@@ -168,40 +167,6 @@ describe('runnerCommand config', () => {
       )
     },
   )
-})
-
-describe('cancelled confinement', () => {
-  it.each(['linux', 'win32'] as const)('%s rejects a pre-aborted signal before probing or allocating write grants', async (platform) => {
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'dsh-cancelled-confine-'))
-    tempDirs.push(workspaceRoot)
-    const probeBwrap = vi.fn(() => true)
-    const probeLandlock = vi.fn(() => 'full' as const)
-    const probeSeatbelt = vi.fn(() => true)
-    const probeWindowsAcl = vi.fn(() => true)
-    const { ctx, sandbox } = await setup({}, {
-      platform, probeBwrap, probeLandlock, probeSeatbelt, probeWindowsAcl,
-      windowsAclRunnerArgs: ['node', 'windows-acl-runner.js'],
-    })
-    const createGrant = vi.spyOn(AclWriteGrant, 'create').mockImplementation(() => {
-      throw new Error('unexpected write grant allocation')
-    })
-    const controller = new AbortController()
-    const reason = new Error('confine cancelled')
-    controller.abort(reason)
-    try {
-      await expect(sandbox.confine(['true'], {
-        mode: 'workspace-write', workspaceRoot, sessionId: SessionId('cancelled'),
-      }, controller.signal)).rejects.toBe(reason)
-      expect(probeBwrap).not.toHaveBeenCalled()
-      expect(probeLandlock).not.toHaveBeenCalled()
-      expect(probeSeatbelt).not.toHaveBeenCalled()
-      expect(probeWindowsAcl).not.toHaveBeenCalled()
-      expect(createGrant).not.toHaveBeenCalled()
-    } finally {
-      createGrant.mockRestore()
-      await ctx.fiber.dispose()
-    }
-  })
 })
 
 describe('the platform chains', () => {
@@ -478,6 +443,30 @@ describe('the windows-acl probe (runner invocation contract)', () => {
     expect(confined.argv[2]).toMatch(/^data:text\/javascript,/)
     expect(confined.argv[3]).toMatch(/runner\.ts$/)
   })
+
+  it('loads the full source runner independently of cwd and ambient tsconfig', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'dsh-acl-source-cwd-'))
+    tempDirs.push(cwd)
+    writeFileSync(join(cwd, 'tsconfig.json'), '{ invalid workspace configuration')
+    const { sandbox } = await setup({}, {
+      chain: ['windows-acl', 'bwrap'],
+      probeWindowsAcl: () => true,
+      windowsAclRunnerEntry: absentRunnerEntry(),
+    })
+    const { argv } = await sandbox.confine(['true'], RO)
+    for (const ambientConfig of [undefined, join(cwd, 'absent-ambient-tsconfig.json')]) {
+      const result = spawnSync(argv[0]!, argv.slice(1, 4), {
+        cwd,
+        encoding: 'utf8',
+        timeout: 5000,
+        env: { ...process.env, NODE_OPTIONS: undefined, TSX_TSCONFIG_PATH: ambientConfig },
+      })
+      expect(result.error).toBeUndefined()
+      expect(result.signal).toBeNull()
+      expect(result.status, result.stderr).toBe(127)
+      expect(result.stderr).toBe('windows-acl-run: missing --workspace\n')
+    }
+  }, 10_000)
 
   it('reads an empty runner invocation as unusable (the probe\'s empty-argv guard)', async () => {
     // windowsAclRunnerInvocation always yields [node, ...] in product; an

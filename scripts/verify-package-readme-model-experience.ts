@@ -263,7 +263,6 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/web/web-fetch-http': { kind: 'indirect', reason: 'The provider backend delegates model rendering to dsh-tool-web.' },
   'packages/web/web-search-exa': { kind: 'indirect', reason: 'The provider backend delegates model rendering to dsh-tool-web.' },
   'packages/workflow/workflow': { kind: 'indirect', reason: 'The service delegates parent and child model rendering to its consumer and engine.' },
-  'packages/api/terminal-controller': { kind: 'none', reason: 'The terminal Remote controller registers no prompt, tool, or Session event.' },
   'packages/api/browser-controller': { kind: 'none', reason: 'The Browser Remote accepts authenticated human actions; the separate Browser tools own model input.' },
   'packages/api/work-items-controller': { kind: 'none', reason: 'The Host controller exposes issue reads and durable association/write commands without registering model input.' },
   'packages/client/ui-work-items': { kind: 'none', reason: 'The Settings page renders generated Remote results and contributes no model input.' },

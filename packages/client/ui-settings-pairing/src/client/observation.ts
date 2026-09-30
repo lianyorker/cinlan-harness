@@ -1,8 +1,7 @@
 /** Apply-owned management snapshot; invitations are memory-only and expire locally. */
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
-import type { PairedDeviceId, PairingGrant } from '@deepseek-ai/dsh-remote-access/types'
-import type { PairingObservation, PairingRemote, PairingSnapshot } from './types.ts'
+import type { PairedDeviceId, PairingGrant, PairingObservation, PairingRemote, PairingSnapshot } from './types.ts'
 
 const DEFAULT_OPERATION_TIMEOUT_MS = 15_000
 

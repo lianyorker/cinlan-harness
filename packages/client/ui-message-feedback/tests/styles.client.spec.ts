@@ -1,4 +1,20 @@
-/** Feedback controls and dialogs use declared theme tokens and keep their CSS blocks well formed. */
+/**
+ * Feedback stylesheet contract, asserted against the CSS text on disk for the
+ * message controls and the dialog.
+ *
+ * A `--dsw-*` name the theme never declares fails silently, and for the
+ * controls' sheet it failed loudly in the product: `border`, `background`, and
+ * the primary button's fill and label each named a token that does not exist,
+ * so every one of those declarations was invalid at computed-value time and
+ * dropped. The note editor of the time shipped with no border and no surface,
+ * and its Save button with neither fill nor readable label. Nothing downstream
+ * reports this — the sheet parses, the classes attach, and the DOM snapshots
+ * are unchanged.
+ *
+ * The dialog is the body-portaled Modal primitive, so nothing this package
+ * renders enters the IconActions row's flex layout beyond the two 28px
+ * buttons and the failure notice.
+ */
 import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -72,9 +88,9 @@ describe('MessageFeedbackActions row styles', () => {
     expect(block('MessageFeedbackActions', '.action svg')).toMatch(/width:\s*calc\(15px \+ var\(--dsh-content-font-delta, 0px\)\)/)
   })
 
-  it('keeps the primary label colour for recorded rating icons', () => {
+  it('uses the tertiary label colour for recorded rating icons', () => {
     expect(block('MessageFeedbackActions', '.action[data-active]'))
-      .toMatch(/color:\s*var\(--dsw-alias-label-primary\)/)
+      .toMatch(/color:\s*var\(--dsw-alias-label-tertiary\)/)
   })
 })
 
@@ -84,8 +100,8 @@ describe('FeedbackDialog layout styles', () => {
     expect(block('FeedbackDialog', '.categories')).toMatch(/margin-top:\s*-14px/)
     expect(block('FeedbackDialog', '.chip')).toMatch(/color:\s*var\(--dsw-alias-label-primary\)/)
     expect(block('FeedbackDialog', '.detail::placeholder')).toMatch(/color:\s*var\(--dsw-alias-label-caption\)/)
-    expect(block('FeedbackDialog', '.detail')).toMatch(/border-radius:\s*16px/)
-    expect(block('FeedbackDialog', '.submit')).toMatch(/border-radius:\s*18px/)
+    expect(block('FeedbackDialog', '.detail')).toContain('border-radius: var(--dsw-radius-lg)')
+    expect(block('FeedbackDialog', '.submit')).toContain('border-radius: var(--dsw-radius-lg)')
     expect(block('FeedbackDialog', '.submit')).toMatch(/font-weight:\s*500/)
   })
 })

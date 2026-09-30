@@ -20,9 +20,10 @@ export function renderBlocks(blocks: readonly ContentBlock[]): string {
       parts.push(block.text)
     } else if (block.type === 'tool-call') {
       parts.push(`[Tool call: ${block.name}(${block.arguments})]`)
-    } else if (block.type === 'tool-result') {
-      const text = block.content.map(c => (c.type === 'text' ? c.text : `[${c.type}]`)).join('\n')
-      parts.push(block.isError === true ? `[Tool error: ${text}]` : text)
+    } else if (block.type === 'image') {
+      parts.push('[image]')
+    } else if (block.type === 'file') {
+      parts.push('[file]')
     }
   }
   return parts.join('\n')
@@ -38,13 +39,14 @@ export function renderBlocks(blocks: readonly ContentBlock[]): string {
  * @returns formatted transcript text.
  */
 export function renderMessage(message: Message): string {
+  if (message.role === 'tool') {
+    const body = renderBlocks(message.content)
+    return message.isError ? `[Tool error: ${body}]` : `Tool result: ${body}`
+  }
   const body = renderBlocks(message.content)
   if (message.role === 'user') {
     if (isCompactCheckpointSource(message.source)) {
       return `[prior state checkpoint]\n${body}`
-    }
-    if (message.source.kind === 'tool') {
-      return `Tool result: ${body}`
     }
     return `User: ${body}`
   }

@@ -13,7 +13,6 @@ const CLIENT_FACE_EXCLUDE: readonly string[] = [
 const HOST_DEPENDENCY_PACKAGES: readonly string[] = [
   '@deepseek-ai/dsh-llm',
   '@deepseek-ai/dsh-session',
-  '@deepseek-ai/dsh-api-execution-host-controller',
 ]
 
 /** Development-only package relationships not represented by source imports. */
@@ -33,7 +32,9 @@ const CONFIGURATION_ONLY_DEV_DEPENDENCIES = {
 /** Workspace packages whose complete runtime surface is safe across duplicate installations. */
 const DUPLICATE_SAFE_PACKAGES: readonly string[] = [
   '@deepseek-ai/dsh-brand',
+  '@deepseek-ai/dsh-lazy-require',
   '@deepseek-ai/dsh-typert-protocol',
+  '@deepseek-ai/dsh-util-code-language',
   '@deepseek-ai/dsh-util-crypto',
   '@deepseek-ai/dsh-util-values',
 ]
@@ -55,17 +56,11 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
 
 /** Runtime exports that require every consumer to resolve the provider's shared peer instance. */
 const PEER_REQUIRED_HOST_EXPORTS = {
-  '@deepseek-ai/dsh-fs': ['FsError'],
-  '@deepseek-ai/dsh-git': ['GitError'],
-  '@deepseek-ai/dsh-execution-runtime': ['RuntimeError'],
-  '@deepseek-ai/dsh-execution-host-targets': ['ExecutionTargetError'],
-  '@deepseek-ai/dsh-subprocess': ['SubprocessExecutableNotFoundError', 'scrubbedParentEnv'],
-  '@deepseek-ai/dsh-scope': ['carrierKeyOf', 'scopeOf', 'scopeTarget'],
+  '@deepseek-ai/dsh-client-connection': ['OperatorPeer'],
+  '@deepseek-ai/dsh-subprocess': ['SubprocessExecutableNotFoundError'],
+  '@deepseek-ai/dsh-scope': ['carrierKeyOf', 'createScope', 'scopeOf', 'scopeTarget'],
   '@deepseek-ai/dsh-session': ['SESSION_FORMAT_VERSION'],
   '@deepseek-ai/dsh-session-persistence': ['SessionPersistenceNotFoundError'],
-  '@deepseek-ai/dsh-sidebar-terminals': ['SidebarTerminals', 'SidebarTerminalError'],
-  '@deepseek-ai/dsh-automation': ['AutomationError'],
-  '@deepseek-ai/dsh-sidebar-git': ['SidebarGitError'],
 } as const satisfies HostDependencyExports
 
 /** Exact import specifier to reviewed runtime exports. */

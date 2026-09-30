@@ -8,7 +8,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@deepseek-ai/dsh-api-workspace-controller` 拥有 Host 的 `ctx.workspaceController` 服务和生成的 Client `ctx.remote.workspace` namespace。它的 Remote 方法负责创建、重命名、移除和重排 Workspace，在 Workspace 内重排 Session，在 Workspace 导航中归档和恢复 Session，以及跟随完整的 Workspace 投影。当 Client 必须修改或跟随 Workspace 导航时，请通过 API Gateway 使用它。本包同时拥有 `ctx.directoryPickerController` 与生成的 `ctx.remote.directoryPicker` namespace，因为它承载的选目录 seam 是抽象的，自身从不作为 Loader entry。
+`@deepseek-ai/dsh-api-workspace-controller` 拥有 Host 的 `ctx.workspaceController` 服务和生成的 Client `ctx.remote.workspace` namespace。它的 Remote 方法负责创建、重命名、移除和重排 Workspace，在 Workspace 内重排 Session，归档与取消归档 Session，以及跟随完整的 Workspace 投影。当 Client 必须修改或跟随 Workspace 导航时，请通过 API 网关使用它。本包同时拥有 `ctx.directoryPickerController` 与生成的 `ctx.remote.directoryPicker` namespace，因为它承载的选目录 seam 是抽象的，自身从不作为 Loader entry。
 
 ## 目录
 
@@ -22,11 +22,9 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-Host 控制器会串行执行正确性取决于当前 registry 状态的变更，并为预期失败抛出带稳定 `workspace/*` 或 `directory-picker/*` 码的 `RemoteError`。它的 `follow()` 流会同步订阅持久 Workspace 变更，先发出一份完整 baseline，再按顺序发出 `upsert`、`remove`、`order` 和 `archived` 增量。重连会以替换 baseline 开始新一代，因此消费方不依赖收到断线期间的每个增量。
+Host 控制器会串行执行正确性取决于当前注册表状态的变更，并为预期失败抛出带有稳定错误码的 `RemoteError`。它的 `follow()` 流会同步订阅持久 Workspace 变更，先发出一份完整 baseline，再按顺序发出 `upsert`、`remove`、`order`、`archived` 和 `pinned` 增量。归档与置顶集合都是会话 id 数组，置顶数组把最近置顶的 id 放在前面。重连会以替换 baseline 开始新一代，因此消费方不依赖收到断线期间的每个增量。不带 `stopActivity` 的 `archiveSession` 会以 `workspace/session-active` 拒绝仍有工作在跑的会话，其 details 按族（`turn`、`subagent`、`job`、`schedule`）列出这些工作及各项的 id 与名称；带 `stopActivity: true` 时注册表的提供方先停止这些工作，归档集合持久化后即返回响应，停止在后台收敛。
 
-创建请求接受可选的精确已保存目标版本。省略时选择本地执行；远程请求要求目标服务存在，由该服务在 registry 接纳前捕获权威部署快照。Client 不提供执行快照。目录验证与去重使用所选执行环境。投影包含已捕获绑定；不含该字段的旧投影表示本地执行。
-
-Client 入口提供 `ClientWorkspaceModel` 和 `createWorkspaceStateStream()`。该模型拥有 Workspace 行、registry 顺序、已归档 Session id、一元变更回声，以及流与一元调用的竞态处理。较新的 Host 行按 `updatedAt` 获胜；已提交的流顺序优先于较旧的一元响应；已经移除的 Workspace id 不会被延迟数据复活。归档与恢复共用请求序号：后续请求、推送的归档集合或替换 baseline 会取代较旧的一元响应。该包公开与框架无关的快照和订阅，把导航策略与 React hook 留给 UI owner。
+Client 入口提供 `ClientWorkspaceModel` 和 `createWorkspaceStateStream()`。该模型拥有 Workspace 行、registry 顺序、归档与置顶会话身份、一元变更回显，以及流与一元调用的竞态处理。较新的 Host 行按 `updatedAt` 获胜；已提交的流顺序优先于较旧的一元响应；已经移除的 Workspace id 不会被延迟数据复活。置顶快照仅在会话身份或顺序变化时更新。该包公开与框架无关的快照和订阅，把导航策略与 React 钩子留给 UI owner。`WorkspaceController.archiveSession(sessionId, { stopActivity })` 抛出携带 Host `rpcError` 的 `WorkspaceArchiveError`，界面因此能区分"仍有工作在跑"的拒绝与会话缺失或载体故障，并提议停止这些工作。
 
 <a id="first-use-workspace"></a>
 ### 首次使用工作区
@@ -39,17 +37,17 @@ Client 入口提供 `ClientWorkspaceModel` 和 `createWorkspaceStateStream()`。
 
 | 配置 | 默认值 | 用途 |
 | --- | --- | --- |
-| `documentsDirectory` | 系统 Documents 目录 | 完整限定的 Host 目录覆盖项 |
-| `documentsLookupTimeoutMs` | `10000` | 操作系统目录查询的正数最大时长（毫秒） |
+| `documentsDirectory` | 系统 Documents 目录 | 完全限定的 Host 目录覆盖值 |
+| `documentsLookupTimeoutMs` | `10000` | 操作系统目录查询的正数最大时长，单位为毫秒 |
 
-查询 Documents 会占用注册表变更队列，因此其他工作区变更（包括登记所选目录）最多可能等待 `documentsLookupTimeoutMs`。取消操作可以终止查询；解析成功后，取消不会回滚创建或登记。
+Documents 查询占用注册表变更队列，因此其他 Workspace 变更（包括登记已选目录）最多可能等待 `documentsLookupTimeoutMs`。取消可以停止查询；解析成功后，取消不会回滚创建或登记。
 
 -----
 
 <a id="model-experience"></a>
 ## 模型体验
 
-无，因为 Workspace 组织属于浏览器与 Host 控制状态，并且不注册提示词、工具或会话事件。
+无，因为 Workspace 组织属于浏览器和 Host 的控制状态，并且不注册提示词、工具或会话事件。
 
 #### KV Cache 影响
 
@@ -60,7 +58,7 @@ Client 入口提供 `ClientWorkspaceModel` 和 `createWorkspaceStateStream()`。
 <a id="known-limitations-and-deferred-work"></a>
 
 - `follow()` 在重连后替换完整投影，不提供持久 cursor 或增量追赶协议。
-- 进程本地删除标记只会在 Client 模型生命周期内阻止延迟数据复活已移除的 Workspace。
+- 进程内删除标记只会在 Client 模型生命周期内阻止延迟数据复活已移除的 Workspace。
 
 
 <a id="dev-note"></a>
@@ -73,4 +71,4 @@ Client 入口提供 `ClientWorkspaceModel` 和 `createWorkspaceStateStream()`。
 
 </details>
 
-**运行时不变式：** 不发布伴生入口。Workspace Registry 负责持久化，每次流生成都是完整投影。
+**运行时不变式：** 不发布伴生入口。Workspace 注册表负责持久化，每次流生成都是完整投影。

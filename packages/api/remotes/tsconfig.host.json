@@ -11,12 +11,6 @@
     "src/types.ts"
   ],
   "references": [
-    { "path": "../account-controller" },
-    { "path": "../pairing-controller" },
-    { "path": "../../interaction/permission-presets" },
-    { "path": "../../document/office-to-pdf" },
-    { "path": "../../feedback/command-feedback" },
-    { "path": "../../boot/plugin-manager" },
     {
       "path": "../../../vendor/cordis"
     },
@@ -33,13 +27,19 @@
       "path": "../../interaction/commands"
     },
     {
+      "path": "../../interaction/permission-presets"
+    },
+    {
       "path": "../../llm/llm"
     },
     {
       "path": "../../goal/goal"
     },
     {
-      "path": "../../preset/agent-presets"
+      "path": "../../schedule/schedule"
+    },
+    {
+      "path": "../../preset/agent-preset-registry"
     },
     {
       "path": "../../extensions/cordis-host-runner"
@@ -75,49 +75,19 @@
       "path": "../../typert/protocol"
     },
     {
-      "path": "../workspace-isolation-controller/tsconfig.json"
+      "path": "../terminal-controller/tsconfig.host.json"
     },
     {
-      "path": "../worktree-task-controller/tsconfig.json"
+      "path": "../../boot/plugin-manager"
     },
     {
-      "path": "../terminal-controller/tsconfig.json"
+      "path": "../../host/plugin-inventory"
     },
     {
-      "path": "../device-capabilities-controller"
+      "path": "../account-controller"
     },
     {
-      "path": "../security-research-controller"
-    },
-    {
-      "path": "../work-items-controller"
-    },
-    {
-      "path": "../browser-controller"
-    },
-    {
-      "path": "../integration-preflight-controller"
-    },
-    {
-      "path": "../usage-controller"
-    },
-    {
-      "path": "../voice-controller"
-    },
-    {
-      "path": "../mcp-controller"
-    },
-    {
-      "path": "../automation-controller/tsconfig.host.json"
-    },
-    {
-      "path": "../sidebar-terminal-controller/tsconfig.host.json"
-    },
-    {
-      "path": "../execution-host-controller"
-    },
-    {
-      "path": "../sidebar-git-controller"
+      "path": "../../credentials/deepseek-account"
     }
   ]
 }

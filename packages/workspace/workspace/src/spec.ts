@@ -6,7 +6,6 @@
  */
 
 import { z } from 'zod'
-import { executionSnapshotSchema } from '@deepseek-ai/dsh-execution-host-targets'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
@@ -15,22 +14,17 @@ import type { WorkspaceId } from './types.ts'
 /** Workspace id schema at the durable boundary; branding has no runtime representation. */
 const workspaceId = z.string().transform(value => value as WorkspaceId)
 
-/** Durable local-or-SSH execution selection stored by Workspace records and Session events. */
-export const workspaceExecutionBinding = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('local') }),
-  executionSnapshotSchema,
-])
+const sessionId = z.string().transform(value => brandString<SessionId>(value))
 
 /**
- * Durable Workspace record. `path` is canonical in `execution`'s filesystem;
- * absent execution metadata means local. `sessionIds` is the ownership account (array
+ * Durable shape of one workspace record. `path` is the `fs.realpath` canon
+ * stamped at create; `sessionIds` is the ordered ownership account (array
  * order is display order); timestamps are ISO-8601 strings.
  */
 export const workspaceRecord = z.object({
   path: z.string(),
-  execution: workspaceExecutionBinding.default({ kind: 'local' }),
   title: z.string(),
-  sessionIds: z.array(z.string().transform(value => brandString<SessionId>(value))),
+  sessionIds: z.array(sessionId),
   createdAt: z.string(),
   updatedAt: z.string(),
 })
@@ -55,12 +49,18 @@ const workspacePendingMutation = z.discriminatedUnion('operation', [
  * the registry-global archive set layered over workspace accounting: an
  * archived session keeps its `sessionIds` slot (unarchiving must restore the
  * position), so the set never participates in the one-owner accounting
- * invariant. Defaulted so records written before the field parse unchanged.
+ * invariant. `pinnedSessionIds` is the registry-global pin set in pin order
+ * (most recently pinned first); pinning and archival are mutually
+ * exclusive, so archiving drops the session's pin. Both session sets are
+ * defaulted so records written before the fields parse unchanged.
  */
 export const workspaceDomainState = z.object({
   initialized: z.boolean(),
+  /** First-use Workspace identity, retained after its registration is deleted. */
+  defaultWorkspaceId: workspaceId.optional(),
   workspaceIds: z.array(workspaceId),
-  archivedSessionIds: z.array(z.string().transform(value => brandString<SessionId>(value))).default([]),
+  archivedSessionIds: z.array(sessionId).default([]),
+  pinnedSessionIds: z.array(sessionId).default([]),
   pendingMutation: workspacePendingMutation.optional(),
 })
 
@@ -75,11 +75,10 @@ export type WorkspaceDomainState = z.infer<typeof workspaceDomainState>
  */
 export const workspaceDomainSpec = defineDomain({
   name: 'workspace',
-  version: 3,
-  compatibleVersions: [2],
+  version: 2,
   global: {
     schema: workspaceDomainState,
-    initial: { initialized: false, workspaceIds: [], archivedSessionIds: [] },
+    initial: { initialized: false, workspaceIds: [], archivedSessionIds: [], pinnedSessionIds: [] },
   },
   tables: { workspaces: domainTable<WorkspaceId, WorkspaceRecord>(workspaceRecord) },
 })

@@ -1,7 +1,6 @@
 /** Settings-owned root grant; existing Session bindings are never rewritten. */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
-import type { SettingsScope } from '@deepseek-ai/dsh-settings'
 import { AssessmentScopePolicy } from '@deepseek-ai/dsh-assessment-scope'
 import type { AssessmentGrant } from '@deepseek-ai/dsh-assessment-scope'
 import * as StaticScope from '@deepseek-ai/dsh-assessment-scope-static'
@@ -15,7 +14,7 @@ export type Config = StaticConfig
 export class SettingsAssessmentScopePolicy extends AssessmentScopePolicy {
   static inject = ['settings']
   static Config: schema<Config> = schema.intersect([StaticScope.Config])
-  private readonly settingsScope: SettingsScope<Config>
+  private readonly config: Config
 
   /**
    * @param ctx - Context carrying Settings.
@@ -23,16 +22,15 @@ export class SettingsAssessmentScopePolicy extends AssessmentScopePolicy {
    */
   constructor(ctx: Context, config: Config) {
     super(ctx)
-    this.settingsScope = ctx.settings.register('assessment-scope', SettingsAssessmentScopePolicy.Config, {
-      base: config,
-      applies: 'live',
-      validate: (value) => { StaticScope.resolveAssessmentScopeConfig(value) },
+    this.config = config
+    ctx.inject(['settings'], (child) => {
+      child.effect(() => child.settings.configure({ auto: false }, ctx.fiber))
     })
   }
 
   /** Canonical root authority from the committed Settings value, without an asynchronous policy mirror. */
   override get rootGrant(): AssessmentGrant {
-    return StaticScope.resolveAssessmentScopeConfig(this.settingsScope.get())
+    return StaticScope.resolveAssessmentScopeConfig(this.config)
   }
 }
 

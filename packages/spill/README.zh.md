@@ -28,7 +28,7 @@ kind: "package-group"
 |---|---|---|
 | [`spill/`](spill/README.zh.md) | 存储服务：保存超大文本并返回定位信息与取回指引 | `ctx.spillStore` |
 | [`spill-local/`](spill-local/README.zh.md) | 将 spill 文本保存到本机的私有会话级文件 | 注册到 `ctx.spillStore` |
-| [`spill-policy/`](spill-policy/README.zh.md) | 在 token 预算内保留过大的文字/图片工具结果，并提供恢复路径 | 监听 `ctx.tools` |
+| [`spill-policy/`](spill-policy/README.zh.md) | 用预览和定位信息替换过大的纯文本工具结果 | 监听 `ctx.tools` |
 
 -----
 

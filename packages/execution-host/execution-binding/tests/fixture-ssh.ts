@@ -45,7 +45,8 @@ export class FixtureSsh extends Service {
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'ssh')
-    const world = config.endpoint === undefined ? undefined : endpoints.get(config.endpoint.host)
+    const host = config.host ?? (config as unknown as { endpoint?: { host: string } }).endpoint?.host
+    const world = host === undefined ? undefined : endpoints.get(host)
     if (world === undefined) throw new Error('Unknown test SSH endpoint')
     this.world = world
     world.connections.push(this)

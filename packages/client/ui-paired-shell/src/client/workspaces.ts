@@ -20,6 +20,11 @@ export function readonlyWorkspace(unavailable: () => string): UiWorkspace {
     pickDirectory: reject,
     listDirectory: reject,
     createDirectory: reject,
+    openSession: reject,
+    openWorkspace: reject,
+    forkSession: reject,
+    pinSession: reject,
+    unpinSession: reject,
   }
 }
 
@@ -43,6 +48,7 @@ export function authorizedWorkspaces(sessions: ISessions): HostObservable<Worksp
           state: list.phase === 'ready' ? 'idle' : 'loading',
           error: null,
           archivedSessionIds: [],
+          pinnedSessionIds: [],
           items: list.ids.flatMap((id) => {
             const session = list.byId[id]
             if (session === undefined) return []

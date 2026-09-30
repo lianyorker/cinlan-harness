@@ -93,7 +93,7 @@ describe('orchestration settings page', () => {
     const b = await renderSection()
     await waitFor(() => { expect(screen.getAllByText(en.noPresets)).toHaveLength(2) })
     b.host.inventory = { entries: [], agentPresets: [{
-      id: 'mine', name: 'My agent', trust: 'user', isDefault: true,
+      id: 'mine', name: 'My agent', isDefault: true,
       rows: [{ entryId: null, moduleName: '@deepseek-ai/dsh-tool-workflow', enabled: false, fiberPhase: null }],
     }] }
     fireEvent.click(screen.getByRole('button', { name: en.coverageRefresh }))

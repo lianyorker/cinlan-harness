@@ -33,6 +33,7 @@ const DeepSeekConfig = Schema.object({
 
 function namespace(user: Record<string, JsonValue> = {}, base: Record<string, JsonValue> = {}): SettingsNamespaceView {
   return {
+    autoGenerate: false,
     ns: 'llm-deepseek',
     schema: JSON.parse(JSON.stringify(DeepSeekConfig.toJSON())) as JsonValue,
     value: DeepSeekConfig({ ...base, ...user }),
@@ -158,7 +159,7 @@ describe('pi-ai capability discovery', () => {
     const onChange = vi.fn()
     render(<ModelListEditor models={models} catalogProvider="installed" defaultInput={['image']}
       probe={{ settingsNs: 'llm-pi-ai', provider: 'installed', baseURL: 'https://unsaved.example', apiKey: 'unsaved-key' }}
-      operations={api} t={t} disabled={false} onChange={onChange}
+      operations={api} t={t} disabled={false} onChange={onChange} onBusyChange={() => {}}
     />)
     fireEvent.click(screen.getByLabelText(`${en.modelAdvanced} 1`))
     fireEvent.click(screen.getByLabelText(`${en.modelAdvanced} 2`))
@@ -179,7 +180,7 @@ describe('pi-ai capability discovery', () => {
     const models = [{ id: 'existing', name: 'Local', input: ['text'], custom: true }, { id: 'private' }]
     const onChange = vi.fn()
     render(<ModelListEditor models={models} probe={{ settingsNs: 'llm-pi-ai', baseURL: 'https://gateway.example' }}
-      operations={api} t={t} disabled={false} onChange={onChange}
+      operations={api} t={t} disabled={false} onChange={onChange} onBusyChange={() => {}}
     />)
     fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
     await screen.findByRole('dialog')
@@ -196,7 +197,7 @@ describe('pi-ai capability discovery', () => {
     api.discoverModels.mockResolvedValue({ kind: 'refused', message: 'Catalog unavailable' })
     const onChange = vi.fn()
     render(<ModelListEditor models={[{ id: 'model' }]} catalogProvider="installed"
-      probe={{ settingsNs: 'llm-pi-ai' }} operations={api} t={t} disabled={false} onChange={onChange}
+      probe={{ settingsNs: 'llm-pi-ai' }} operations={api} t={t} disabled={false} onChange={onChange} onBusyChange={() => {}}
     />)
     fireEvent.click(screen.getByLabelText(`${en.modelAdvanced} 1`))
     await screen.findByText('Catalog unavailable')
@@ -210,7 +211,7 @@ describe('pi-ai capability discovery', () => {
     api.discoverModels.mockReturnValueOnce(oldReply.promise).mockResolvedValue({
       kind: 'found', models: [{ id: 'model', inputModalities: ['text'] }],
     })
-    const props = { models: [{ id: 'model' }], probe: { settingsNs: 'llm-pi-ai' }, operations: api, t, disabled: false, onChange: vi.fn() }
+    const props = { models: [{ id: 'model' }], probe: { settingsNs: 'llm-pi-ai' }, operations: api, t, disabled: false, onChange: vi.fn(), onBusyChange: () => {} }
     const view = render(<ModelListEditor {...props} catalogProvider="old" />)
     fireEvent.click(screen.getByLabelText(`${en.modelAdvanced} 1`))
     expect(screen.getByRole('status').textContent).toBe(en.fetching)

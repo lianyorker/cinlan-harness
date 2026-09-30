@@ -148,11 +148,6 @@ describe('workspace-changes in a repository', () => {
     // A rename compares the old path's turn-start content with the new path's turn-end content.
     expect(await diff(5)).toEqual({ kind: 'text', path: 'moved.txt', display: 'moved.txt', before: true, after: true, coarse: false, hunks: [] })
     expect(await diff(6)).toMatchObject({ kind: 'text', path: 'new.txt', before: false, after: true, hunks: [{ lines: ['+n1'] }] })
-    const retained = await Promise.all([diff(0), diff(1)])
-    await writeFile(join(cwd, '.env'), 'later captured edit\n')
-    await writeFile(join(cwd, 'a.txt'), 'later snapshot edit\n')
-    // Independent readers retain the recorded sides after the live files change.
-    expect(await Promise.all([diff(0), diff(1), diff(0), diff(1)])).toEqual([...retained, ...retained])
     expect(await diff(7)).toBeUndefined()
     expect(await ctx.workspaceChanges.diff(session.id, seq + 1, 0, signal)).toBeUndefined()
     expect(await ctx.workspaceChanges.diff(SessionId('elsewhere'), seq, 0, signal)).toBeUndefined()

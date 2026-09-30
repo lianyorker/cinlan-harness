@@ -6,15 +6,21 @@ import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
-import { boundContextSummary, createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm'
+import { boundContextSummary, createUserMessage, type ContextFormed, type UserMessage } from '@deepseek-ai/dsh-llm'
 import { SessionPersistenceNotFoundError } from '@deepseek-ai/dsh-session-persistence'
 import { readColdSessionLog } from '@deepseek-ai/dsh-session-query'
 import type {} from '@deepseek-ai/dsh-app-boot'
-import type {} from '@deepseek-ai/dsh-agent-presets'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import type {} from '@deepseek-ai/dsh-session-title'
 import type { SessionId, TurnEndReason } from '@deepseek-ai/dsh-session'
 import type { Workspace } from '@deepseek-ai/dsh-workspace'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    automation: { kind: 'automation' } & ContextFormed
+  }
+}
 import { AutomationError } from './error.ts'
 import { AutomationOwnership } from './ownership.ts'
 import { AutomationStore } from './store.ts'
@@ -262,7 +268,7 @@ export class AutomationRuntime extends Service {
   private proposal(definition: AutomationDefinition, plannedAt: number,
     requestId: AutomationRunRequest['requestId'] | null): { run: AutomationRun; message: UserMessage } {
     const message = createUserMessage({ content: [{ type: 'text', text: definition.spec.prompt }],
-      source: { kind: 'plugin', plugin: 'automation', form: 'notice', summary: boundContextSummary(definition.spec.title) } })
+      source: { kind: 'automation', form: 'notice', summary: boundContextSummary(definition.spec.title) } })
     const now = Date.now()
     const run: AutomationRun = { id: brandString<AutomationRunId>(randomUUID()), automationId: definition.id,
       definitionRevision: definition.revision, scheduleRevision: definition.scheduleRevision, spec: definition.spec,

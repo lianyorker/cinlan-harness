@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { ClientModuleLoader } from '@deepseek-ai/dsh-client-modules/client'
 import { Context, Service } from '@deepseek-ai/cordis'
-import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -22,7 +23,9 @@ type ListResult =
 
 async function bench() {
   const ctx = new Context()
-  new SettingsMetadataService(ctx)
+  onTestFinished(async () => { await ctx.fiber.dispose() })
+  const retryClient = vi.fn(async () => {})
+  ctx.provide('modules', { entries: { state: createSnapshotStore({ syncing: false, failures: [] }), retry: retryClient } } as unknown as ClientModuleLoader)
   await ctx.plugin(SlotRegistry).await()
   const locale = new LocaleRuntime(ctx)
   ctx.provide('locale', locale)
@@ -35,7 +38,7 @@ async function bench() {
   const list = vi.fn<() => Promise<ListResult>>()
     .mockResolvedValue({ ok: true, value: EMPTY })
   ctx.provide('remote.pluginInventory', { list })
-  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, list }
+  return { ctx, retryClient, slots: ctx.get('slots') as SlotRegistry, locale, list }
 }
 
 function declare(slots: SlotRegistry): () => void {
@@ -51,7 +54,7 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
   })
 
   it('declares only the services used by the Settings Remote contribution', () => {
-    expect(inject).toEqual(['settingsMetadata', 'slots', 'locale', 'remote', 'remote.pluginInventory'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.pluginInventory', 'modules'])
   })
 
   it('registers a localized tab without reading the Remote eagerly', async () => {
@@ -65,11 +68,19 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     expect(entry.locale).toBe(NS)
     expect(resolveSlotLabel(entry.options.label)).toBe('插件列表')
     expect(b.list).not.toHaveBeenCalled()
-    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([expect.objectContaining({
-      sectionId: 'plugins', id: 'inventory', anchorId: 'plugins-inventory', tabId: 'all', title: '插件列表',
-    })])
 
     const injected = (entry.inject as unknown as () => PluginInventorySettingsTabInjected)()
+    const text = { en: 'Local tools', zh: '本地工具' }
+    expect(injected.resolveText(text)).toBe('本地工具')
+    b.locale.setLocale('en')
+    expect(injected.resolveText(text)).toBe('Local tools')
+    b.locale.setLocale('zh')
+    injected.retryClient()
+    const retryError = vi.spyOn(b.ctx.logger, 'error').mockImplementation(() => {})
+    b.retryClient.mockRejectedValueOnce(new Error('retry unavailable'))
+    injected.retryClient()
+    await vi.waitFor(() => { expect(retryError).toHaveBeenCalled() })
+    retryError.mockRestore()
     await expect(injected.list()).resolves.toEqual(EMPTY)
     expect(b.list).toHaveBeenCalledOnce()
     b.list.mockResolvedValueOnce({ ok: false, error: { code: 'REMOTE_ERROR', message: 'unavailable' } })
@@ -78,8 +89,8 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     // Shipped preset names resolve over the agent-preset dictionaries the
     // real plugin registers; user-authored metadata stays untranslated.
     b.locale.register('settings.agentPreset', 'zh', { presetStandardName: '标准模式' } as never)
-    expect(injected.presetName({ id: 'standard', trust: 'system', isDefault: true, rows: [] })).toBe('标准模式')
-    expect(injected.presetName({ id: 'mine', trust: 'user', name: '我自己的', isDefault: false, rows: [] })).toBe('我自己的')
+    expect(injected.presetName({ id: 'standard', isDefault: true, rows: [] })).toBe('标准模式')
+    expect(injected.presetName({ id: 'mine', name: '我自己的', isDefault: false, rows: [] })).toBe('我自己的')
     await b.ctx.fiber.dispose()
   })
 
@@ -88,17 +99,14 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(b.slots.entries('settings.plugins.tab')).toHaveLength(0)
-    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
 
     const stop = declare(b.slots)
     await vi.waitFor(() => { expect(b.slots.entries('settings.plugins.tab')).toHaveLength(1) })
     b.locale.setLocale('en')
     expect(resolveSlotLabel(b.slots.entries('settings.plugins.tab')[0]!.options.label)).toBe('Plugin list')
-    expect(b.ctx.settingsMetadata.getSnapshot().items[0]?.title).toBe('Plugin list')
 
     stop()
     expect(b.slots.entries('settings.plugins.tab')).toHaveLength(0)
-    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
     declare(b.slots)
     await vi.waitFor(() => {
       expect(b.slots.entries('settings.plugins.tab')[0]?.component).toBe(PluginInventorySettingsTab)
@@ -106,7 +114,6 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
 
     await fiber.dispose()
     expect(b.slots.entries('settings.plugins.tab')).toHaveLength(0)
-    expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
     expect(() => b.locale.register(NS, 'zh', {})).not.toThrow()
     await b.ctx.fiber.dispose()
   })

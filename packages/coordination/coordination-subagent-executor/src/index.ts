@@ -151,7 +151,7 @@ async function executeTask(
   const outcome = await settleRun(run)
   switch (outcome.status) {
     case 'completed':
-      return { status: 'succeeded', output: { subagentId, text: outcome.output ?? '' } }
+      return { status: 'succeeded', output: { subagentId, text: outcome.result ?? '' } }
     case 'killed':
       return { status: 'cancelled', ...outcome.detail === undefined ? {} : { error: outcome.detail } }
     case 'failed':

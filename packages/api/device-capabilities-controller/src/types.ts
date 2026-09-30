@@ -1,6 +1,6 @@
 /** Browser-safe results of read-only device Provider readiness checks. */
 
-import type { ComputerCapabilities, ComputerToolReadiness } from '@deepseek-ai/dsh-computer-use'
+import type { ComputerCapabilities, ComputerToolReadiness } from '@deepseek-ai/dsh-computer-use/types'
 
 /** Read-only descriptor of the selected local Computer Use provider; permissions are not probed. */
 export type ComputerCapabilityObservation = ComputerToolReadiness | {

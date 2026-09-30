@@ -1,5 +1,5 @@
 ---
-description: "The tool-result spill policy: how deployments retain oversized text and image results within a token budget with recoverable spill content."
+description: "Tool-result retention with a shared text/image token budget and readable recovery files."
 kind: "package-reference"
 ---
 
@@ -58,15 +58,15 @@ The notice also reports omitted image counts. A notice-only result is allowed wh
 
 ### Which results are affected
 
-The policy accepts text/image sequences. Results within budget, explicit `read` and `read_image` recovery, blocked decisions, value replacements, and other block types pass through. Recovery content reaches the model even when one image exceeds the cap, without creating another model-facing spill. Text-only nested results are bounded only in their log copies. Provider or tool limits applied before this policy cannot be recovered here.
+The policy accepts text/image sequences. Results within budget, `read`, blocked decisions, value replacements, and other block types pass through. Text-only nested results are bounded only in their log copies. Provider or tool limits applied before this policy cannot be recovered here.
 
 ### Best-effort failure behavior
 
-A missing owner or spill backend, failed storage, missing route image pricing, or unavailable execution-world image path logs a warning and keeps the original content. The policy never substitutes an unreadable path for an image. Cancellation before dispatch returns the canonical aborted result. Cancellation after `saveText` starts can still leave the full artifact committed because the spill store has no cancellation parameter; the core replaces the late tool result with `ABORTED`.
+A missing owner or spill backend, failed storage, missing route image pricing, or unavailable execution-world image path logs a warning and keeps the original content. The policy never substitutes an unreadable path for an image.
 
 ### The durable log copy
 
-PTC programs receive complete canonical values. Image-bearing sub-results other than `read_image` are bounded before forwarding to the model; when every image is omitted, the model still receives the retained text and recovery notice. Their dispatch logs use the same retained content. Text-only sub-call logs and `read_image` recovery logs are bounded asynchronously without delaying program values; model-facing recovery stays complete.
+PTC programs receive complete canonical values. Image-bearing sub-results are bounded before forwarding to the model; when every image is omitted, the model still receives the retained text and recovery notice. The dispatch log uses the same retained content. Text-only sub-call logs, including `read`, are bounded asynchronously without delaying program values.
 
 -----
 
@@ -90,10 +90,6 @@ The prepended `tools/post-execute` listener delegates before bounding accepted c
 ### Shared notice ownership
 
 The browser-safe `./notice` entry owns `formatSpillNotice(omitted, ref, images)` and `hasSpillNotice(text)`. It recognizes both historical byte-only notices and notices with whole-image counts without changing recorded text.
-
-### Testing
-
-The ordinary Loader test runs from source. After `pnpm run build:lib:host`, run `pnpm --filter @deepseek-ai/dsh-spill-policy test:built` to verify published exports through the real Loader under plain Node; missing build artifacts fail the test.
 
 ### Source map
 
@@ -149,7 +145,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 These limits define when the policy cannot help. They are current package constraints.
 
 - **Text recognition cannot authenticate output** — a tool can print the same notice text; `hasSpillNotice` identifies a text convention, not proof that the policy saved a result.
-- **Unavailable recovery or pricing** — images require a route calculator and execution-readable attachment paths; otherwise the original content stays visible. Unsupported blocks, blocked feedback, and explicit recovery also pass through.
+- **Unavailable recovery or pricing** — images require a route calculator and execution-readable attachment paths; otherwise the original content stays visible. Unsupported blocks, blocked feedback, and `read` also pass through.
 - **A notice that cannot fit disables replacement for that call** — a tiny cap or long locator leaves the oversized original inline after the backend has already saved an unreferenced spill.
 
 <a id="dev-note"></a>
@@ -162,7 +158,7 @@ This Dev Note is working context for maintainers: open directions. It is explici
 
 #### Future: per-tool configuration
 
-Per-tool opt-out or per-tool policy declarations remain deferred; built-in recovery exemptions cover `read` and `read_image`. Other tool-specific needs would justify configuration.
+Per-tool opt-out or per-tool policy declarations remain deferred; the built-in `read` skip covers the known loop, and a second real tool need would justify configuration.
 
 #### Future: earlier spill
 

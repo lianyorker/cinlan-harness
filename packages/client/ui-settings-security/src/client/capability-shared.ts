@@ -1,6 +1,8 @@
 /** Shared callbacks for feature-owned capability settings registrations. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { PluginInventorySnapshot, SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
+import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-host-plugin-inventory'
+import type {} from '@deepseek-ai/dsh-api-device-capabilities-controller/remote'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { CapabilitySectionInjected, CapabilitySectionProps, ComputerSectionInjected, MobileSectionInjected } from './CapabilitySection.tsx'
 import type { ProviderActivationCallbacks } from './ProviderActivation.tsx'

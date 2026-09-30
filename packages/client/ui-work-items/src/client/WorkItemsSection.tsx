@@ -6,7 +6,7 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-cli
 import type { WorkItemSource, WorkItemStateFilter } from '@deepseek-ai/dsh-work-items/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { IntegrationProvider, IntegrationPreflightSnapshot } from '@deepseek-ai/dsh-api-remotes/client'
+import type { IntegrationProvider, IntegrationPreflightSnapshot } from '@deepseek-ai/dsh-api-integration-preflight-controller/types'
 import type {
   WorkItemsPrepareWriteRequest, WorkItemsWriteRequest, WorkItemsWriteValue, WorkItemsWriteHistoryRequest, WorkItemsWriteHistoryValue,
   WorkItemAssociation, WorkItemView, WorkItemsAssociationRequest, WorkItemsAssociationValue,

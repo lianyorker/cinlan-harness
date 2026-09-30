@@ -76,15 +76,6 @@
     },
     {
       "path": "../product-analytics/tsconfig.client.json"
-    },
-    {
-      "path": "../../api/execution-host-controller"
-    },
-    {
-      "path": "../locale"
-    },
-    {
-      "path": "../ui-conversation"
     }
   ]
 }

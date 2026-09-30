@@ -104,7 +104,7 @@ export interface WebSearchProvider {
   /** Cheap local usability check; must not make network calls. */
   available(): boolean
   /** Run one search; honor `signal` for cancellation. */
-  search(request: WebSearchRequest, signal: AbortSignal): Promise<WebSearchResult>
+  search(request: WebSearchRequest, signal?: AbortSignal): Promise<WebSearchResult>
 }
 
 /**
@@ -116,7 +116,7 @@ export interface WebFetchProvider {
   /** Cheap local usability check; must not make network calls. */
   available(): boolean
   /** Retrieve one URL; honor `signal` for cancellation. */
-  fetch(request: WebFetchRequest, signal: AbortSignal): Promise<WebFetchResult>
+  fetch(request: WebFetchRequest, signal?: AbortSignal): Promise<WebFetchResult>
 }
 
 /**

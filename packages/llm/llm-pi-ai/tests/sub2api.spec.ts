@@ -188,7 +188,7 @@ function answers(twoFactor = false): string[] {
 }
 
 function session(ui: AuthorizationInteraction, signal = new AbortController().signal): AuthorizationSession {
-  return { method: SUB2API_LOGIN_METHOD, signal, notify: ui.notify, prompt: ui.prompt, commit: () => {} }
+  return { method: SUB2API_LOGIN_METHOD, signal, notify: ui.notify, prompt: ui.prompt, commit: async () => {} }
 }
 
 async function harness(): Promise<Context> {
@@ -202,7 +202,6 @@ async function harness(): Promise<Context> {
     key: SUB2API_KEY,
     label: 'Cinlan account',
     methods: [{ id: SUB2API_LOGIN_METHOD, label: 'Sign in to Cinlan' }],
-    awaitCancellation: true,
     run: attempt => runSub2ApiLogin(ctx, attempt),
   })
   return ctx
@@ -245,7 +244,7 @@ describe('Sub2API authorization', () => {
     expect(server.requests[2]?.headers.authorization).toBe('Bearer account-access-token')
     expect(server.requests[2]?.body).toEqual({ name: 'Cinlan Harness' })
     expect(server.requests[3]?.body).toEqual({ refresh_token: 'account-refresh-token' })
-    expect(ui.prompts.map(prompt => prompt.autocomplete)).toEqual(['username', 'current-password'])
+    expect(ui.prompts.map(prompt => (prompt as any).autocomplete)).toEqual(['username', 'current-password'])
   })
 
   it('reuses the issuer key after local deletion instead of creating another active key', async () => {
@@ -362,7 +361,7 @@ describe('Sub2API authorization', () => {
     ])
     expect(server.requests[1]?.body).toEqual({ temp_token: 'temporary-login-token', totp_code: '123456' })
     expect(ui.prompts.map(prompt => prompt.kind)).toEqual(['text', 'secret', 'secret'])
-    expect(ui.prompts.map(prompt => prompt.autocomplete)).toEqual(['username', 'current-password', 'one-time-code'])
+    expect(ui.prompts.map(prompt => (prompt as any).autocomplete)).toEqual(['username', 'current-password', 'one-time-code'])
   })
 
   it('reports residual remote state when a create response has no id or cleanup fails', async () => {
@@ -473,18 +472,8 @@ describe('Sub2API authorization', () => {
         return mutate(undefined)
       },
     } as never)
-    await ctx.plugin(AuthorizationService)
-    ctx.authorization.registerFlow({
-      key: SUB2API_KEY,
-      label: 'Cinlan account',
-      methods: [{ id: SUB2API_LOGIN_METHOD, label: 'Sign in to Cinlan' }],
-      awaitCancellation: true,
-      run: attempt => runSub2ApiLogin(ctx, attempt),
-    })
-
-    await expect(ctx.authorization.begin({
-      key: SUB2API_KEY, interaction: interaction(answers()), signal: caller.signal,
-    })).rejects.toMatchObject({ code: 'SUB2API_CLEANUP_FAILED' })
+    await expect(runSub2ApiLogin(ctx, session(interaction(answers()), caller.signal)))
+      .rejects.toMatchObject({ code: 'SUB2API_CLEANUP_FAILED' })
     expect(server.remoteKey()).toBeDefined()
     expect(server.requests.map(request => request.path)).toEqual([
       '/api/v1/auth/login',
@@ -507,18 +496,9 @@ describe('Sub2API authorization', () => {
         return mutate(undefined)
       },
     } as never)
-    await ctx.plugin(AuthorizationService)
-    ctx.authorization.registerFlow({
-      key: SUB2API_KEY,
-      label: 'Cinlan account',
-      methods: [{ id: SUB2API_LOGIN_METHOD, label: 'Sign in to Cinlan' }],
-      awaitCancellation: true,
-      run: attempt => runSub2ApiLogin(ctx, attempt),
-    })
 
-    await expect(ctx.authorization.begin({
-      key: SUB2API_KEY, interaction: interaction(answers()), signal: caller.signal,
-    })).rejects.toMatchObject({ code: 'SUB2API_CLEANUP_FAILED' })
+    await expect(runSub2ApiLogin(ctx, session(interaction(answers()), caller.signal)))
+      .rejects.toMatchObject({ code: 'SUB2API_CLEANUP_FAILED' })
     expect(server.remoteKey()).toBeUndefined()
     expect(server.requests.map(request => request.path)).toEqual([
       '/api/v1/auth/login',

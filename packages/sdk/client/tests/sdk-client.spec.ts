@@ -121,6 +121,99 @@ describe('DeepSeekHarness', () => {
     expect(closed).toBe(true)
   })
 
+  it('preserves Auto review denial details in native and PTC session events', async () => {
+    const receipt = {
+      type: 'agent/inbox/spliced',
+      data: {
+        target: 'next-turn',
+        start: 0,
+        inserted: [{ id: 'accepted-message', role: 'user', content: [], source: { kind: 'user' } }],
+      },
+    }
+    const nativeResult = {
+      type: 'tool/result',
+      data: {
+        turn: 1,
+        step: 1,
+        message: {
+          source: { kind: 'tool', callId: 'native-call' },
+          content: [{
+            type: 'tool-result',
+            toolCallId: 'native-call',
+            content: [{ type: 'text', text: 'Error: blocked by policy' }],
+            isError: true,
+          }],
+          role: 'user',
+          id: 'native-result',
+        },
+        error: {
+          name: 'AutoReviewDeniedError',
+          code: 'AUTO_REVIEW_DENIED',
+          reason: ' native raw\nreason ',
+        },
+      },
+    }
+    const ptcStart = {
+      type: 'tool/ptc-dispatch-start',
+      data: {
+        rootCallId: 'run-code-call',
+        parentCallId: 'run-code-call',
+        subCallId: 'run-code-call:ptc:1',
+        name: 'bash',
+        arguments: { command: 'git push --force' },
+      },
+    }
+    const ptcResult = {
+      type: 'tool/ptc-dispatch',
+      data: {
+        rootCallId: 'run-code-call',
+        parentCallId: 'run-code-call',
+        subCallId: 'run-code-call:ptc:1',
+        name: 'bash',
+        arguments: { command: 'git push --force' },
+        isError: true,
+        content: [{ type: 'text', text: 'Error: blocked by policy' }],
+        error: {
+          name: 'AutoReviewDeniedError',
+          code: 'AUTO_REVIEW_DENIED',
+          reason: ' ptc raw\nreason ',
+        },
+      },
+    }
+    const notifications = [
+      { method: 'session.event', params: { sessionId: 'owned', event: receipt } },
+      { method: 'session.event', params: { sessionId: 'owned', event: nativeResult } },
+      { method: 'session.event', params: { sessionId: 'owned', event: ptcStart } },
+      { method: 'session.event', params: { sessionId: 'owned', event: ptcResult } },
+      { method: 'session.status', params: { sessionId: 'owned', status: 'idle' } },
+    ] as HarnessNotification[]
+    const harness = {
+      start: () => Promise.resolve(),
+      client: {
+        prompt: () => Promise.resolve('accepted-message'),
+        subscribeSessionTree: () => ({
+          next: async () => {
+            const notification = notifications.shift()
+            if (notification === undefined) throw new Error('scripted notification queue exhausted')
+            return notification
+          },
+          tryNext: () => notifications.shift(),
+          close: () => {},
+          async * [Symbol.asyncIterator]() {},
+        }),
+      },
+    } as unknown as DeepSeekHarness
+
+    const result = await new HarnessSession(harness, 'owned').run('go')
+
+    expect(result.events).toEqual([receipt, nativeResult, ptcStart, ptcResult])
+    for (const event of result.events.filter(event => event.type.startsWith('tool/ptc-dispatch'))) {
+      expect(event.data).not.toHaveProperty('description')
+      expect(event.data).not.toHaveProperty('parameters')
+      expect(event.data).not.toHaveProperty('schema')
+    }
+  })
+
   it('runs a turn end to end and reuses the runtime across sessions', async () => {
     const harness = harnessWith({ FAKE_TEXT: 'turn answer' })
     const first = await harness.run('say hi')
@@ -144,18 +237,6 @@ describe('DeepSeekHarness', () => {
     const second = await harness.run([{ type: 'text', text: 'again' }])
     expect(second.sessionId).not.toBe(first.sessionId)
     await harness.close()
-  })
-
-  it('preserves image-offload selections and parent-owned child catalog events', async () => {
-    const result = await harnessWith({ FAKE_SESSION_DECISIONS: '1' }).run('inspect images', { sessionId: 'images' })
-    const decisions = result.events.filter(event => ['image/offload', 'subagent/catalog'].includes(event.type))
-    expect(decisions).toEqual([
-      { type: 'image/offload', seq: 2, time: 0, data: { targets: [{ seq: 0, imageIndexes: [0, 2] }] } },
-      { type: 'subagent/catalog', seq: 3, time: 0, data: {
-        version: 0, childId: 'images-child', childCreatedAt: 1234, mode: 'continuable', label: 'image reviewer',
-      } },
-    ])
-    expect(result.finalResponse).toBe('hello from fake runtime')
   })
 
   it('keeps events root-scoped while streaming notifications for the session tree', async () => {
@@ -566,6 +647,9 @@ describe('HarnessClient', () => {
     const inject = (method: string, params: Record<string, unknown>): void => {
       (client as unknown as { dispatchNotification(n: HarnessNotification): void }).dispatchNotification({ method, params })
     }
+    const unknownChild = { type: 'subagent/catalog', seq: 0, time: 1,
+      data: { version: 1, childId: 'unreadable-child', childCreatedAt: 1, mode: 'unknown' } }
+    inject('session.event', { sessionId: 'root', event: unknownChild })
     inject('subagent.started', { parentSessionId: 'root', childSessionId: 'child' })
     inject('subagent.started', { parentSessionId: 'child', childSessionId: 'grandchild' })
     inject('session.event', { sessionId: 'grandchild', event: { type: 'noop' } })
@@ -577,6 +661,7 @@ describe('HarnessClient', () => {
     inject('subagent.started', { parentSessionId: '', childSessionId: 'x' })
     inject('subagent.finished', { childSessionId: 'root' })
 
+    expect(await tree.next()).toEqual({ method: 'session.event', params: { sessionId: 'root', event: unknownChild } })
     expect((await tree.next()).method).toBe('subagent.started')
     expect((await tree.next()).method).toBe('subagent.started')
     expect((await tree.next()).params.sessionId).toBe('grandchild')

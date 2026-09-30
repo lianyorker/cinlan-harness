@@ -2,9 +2,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import * as QRCode from 'qrcode'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PairingScope } from '@deepseek-ai/dsh-remote-access/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { PairingProps } from './types.ts'
+import type { PairingProps, PairingScope } from './types.ts'
 import { buildPairingUrl } from './pairing-url.ts'
 import css from './PairingSection.module.css'
 

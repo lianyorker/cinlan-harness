@@ -11,6 +11,7 @@ import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typer
 import { deepFreeze } from '@deepseek-ai/dsh-util-values'
 import type {
   GenerateOptions,
+  RequestMessage,
   LlmConfigurableProvider,
   LlmDiscoveredModel,
   LlmFailure,
@@ -23,8 +24,10 @@ import type {
   ModelModality,
   StreamChunk,
   SystemPromptUpdate,
+  ToolSchema,
+  ToolUpdate,
 } from './types.ts'
-import { freezeMessage, type Message } from './message.ts'
+import { freezeMessage } from './message.ts'
 import { resolveRetryPolicy } from './retry-policy.ts'
 import type { ResolvedRetryPolicy } from './retry-policy.ts'
 import type { ProviderRequestId } from './brand.ts'
@@ -34,10 +37,9 @@ import { HarnessError, INVALID_CREDENTIAL_CODE } from './error.ts'
 import { normalizeLlmFailure } from './adapter-failure.ts'
 import { normalizeApiKey } from './api-key.ts'
 import {
-  collectRetainedImageRefs, contentHasFile, contentHasImage, fileHandleText, isAttachmentQuarantined,
-  projectFilesToText, projectImagesForTextModel, projectQuarantinedImages, quarantinedImageText,
+  contentHasFile, contentHasImage, fileHandleText, projectFilesToText, projectImagesForTextModel, projectToolUpdates,
 } from './content.ts'
-import type { AttachmentStore, FileAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import type { FileAttachmentRef } from '@deepseek-ai/dsh-attachment'
 
 export * from './attribution.ts'
 export * from './brand.ts'
@@ -66,8 +68,8 @@ declare module '@deepseek-ai/cordis' {
      *   process-local {@link markAgentLoopRequest} identity and arrives deep-frozen
      *   (mutation throws): its content is a pure function of the session log (the
      *   reconstructability Agent Note), so listeners read it, never rewrite it.
-     *   Hand-built calls do not carry that marker; their messages already obey
-     *   the immutable creation contract.
+     *   Hand-built calls do not carry that marker; callers own their request
+     *   inputs and must keep them unchanged until the stream settles.
      * @mode waterfall
      */
     'llm/stream'(this: LlmRuntime, options: GenerateOptions, next: () => AsyncIterable<StreamChunk>): AsyncIterable<StreamChunk>
@@ -175,6 +177,8 @@ export interface PreparedLlmCall {
   readonly inputModalities?: readonly ModelModality[]
   /** Exact model system prompt update mode captured with the adapter dispatch generation. */
   readonly systemPromptUpdate?: SystemPromptUpdate
+  /** Exact model tool update mode captured with the adapter dispatch generation. */
+  readonly toolUpdate?: ToolUpdate
   /** Config fields materialized by the captured adapter rather than proposed by the caller. */
   readonly adapterDefaults: LlmCallConfigAdapterDefaults
   /**
@@ -235,8 +239,9 @@ export abstract class LlmAdapter {
 
   /**
    * List models this adapter can currently advertise for one owned provider.
-   * The result is advisory: an adapter may accept unlisted model ids, and
-   * consumers must not turn absence into request rejection.
+   * Core routing accepts unlisted model ids; catalog-driven entry points such
+   * as the GUI may require membership. Adapters used there must advertise
+   * their available models; the base empty catalog offers no GUI selection.
    * @param _provider - one provider route owned by this adapter.
    * @returns discoverable models in adapter-preferred order.
    */
@@ -689,7 +694,8 @@ export class LlmRuntime extends TypertRemoteService {
 
   /**
    * Discover models advertised by one registered provider. Catalog membership
-   * is advisory and never changes routing or request validation.
+   * does not constrain core routing. Catalog-driven entry points may restrict
+   * selection and submission to the advertised models.
    * @param provider - registered provider route to inspect.
    * @returns detached model metadata in adapter-preferred order.
    */
@@ -787,6 +793,14 @@ export class LlmRuntime extends TypertRemoteService {
         'INVALID_MODEL_INFO',
       )
     }
+    // Widened for the same reason: catalog config supplies the tool update mode as text.
+    const toolUpdate: string | undefined = resolved.toolUpdate
+    if (toolUpdate !== undefined && toolUpdate !== 'in-history' && toolUpdate !== 'addition-only') {
+      throw new LlmError(
+        `adapter returned invalid tool update mode for provider "${provider}" model "${model}"`,
+        'INVALID_MODEL_INFO',
+      )
+    }
     const defaultMaxTokens = resolved.defaultMaxTokens
     if (defaultMaxTokens !== undefined
       && (!Number.isSafeInteger(defaultMaxTokens) || defaultMaxTokens <= 0)) {
@@ -804,6 +818,7 @@ export class LlmRuntime extends TypertRemoteService {
       ...context === undefined ? {} : { context: { contextWindow: context.contextWindow } },
       ...defaultMaxTokens === undefined ? {} : { defaultMaxTokens },
       ...resolved.systemPromptUpdate === undefined ? {} : { systemPromptUpdate: resolved.systemPromptUpdate },
+      ...resolved.toolUpdate === undefined ? {} : { toolUpdate: resolved.toolUpdate },
     }
     const reasoning = resolved.reasoning
     if (reasoning === undefined) return info
@@ -945,6 +960,7 @@ export class LlmRuntime extends TypertRemoteService {
         ? {}
         : { inputModalities: Object.freeze([...modelInfo.inputModalities]) },
       ...modelInfo.systemPromptUpdate === undefined ? {} : { systemPromptUpdate: modelInfo.systemPromptUpdate },
+      ...modelInfo.toolUpdate === undefined ? {} : { toolUpdate: modelInfo.toolUpdate },
       stream: (options: GenerateOptions): AsyncIterable<StreamChunk> => {
         if (dispatched) {
           throw new LlmError('a prepared LLM call can only be dispatched once', 'INVALID_PREPARED_CALL')
@@ -974,9 +990,10 @@ export class LlmRuntime extends TypertRemoteService {
 
   /** Remove replay state whose historical route is owned by another adapter. */
   private forAdapter(options: GenerateOptions, adapter: LlmAdapter): GenerateOptions {
-    const messages: Message[] = options.messages.map((message) => {
+    const messages: RequestMessage[] = options.messages.map((message) => {
+      if (message.role !== 'assistant') return message
       const source = message.source
-      if (message.role !== 'assistant' || source.kind !== 'model' || source.replayState === undefined) return message
+      if (source.replayState === undefined) return message
       if (this.adapters.get(source.provider)?.adapter === adapter) return message
       return freezeMessage({
         ...message,
@@ -1006,111 +1023,6 @@ export class LlmRuntime extends TypertRemoteService {
     // only this one mapping method is consumed.
     const fs = this.ctx.get('fs') as { processPathFromHostPath(hostPath: string): string | undefined } | undefined
     return fs?.processPathFromHostPath(hostPath)
-  }
-
-  /**
-   * Test readability of non-offloaded historical images before provider dispatch.
-   * Quarantines missing or corrupt images on live sessions, replacing them with
-   * deterministic placeholder text. Auxiliary calls without a live session fail loud.
-   * @param messages - messages to verify.
-   * @param options - call options containing signal and optional sessionId.
-   * @returns original messages if all readable, or reprojected messages with placeholders.
-   */
-  private async projectReadableImages(
-    messages: readonly Message[],
-    options: GenerateOptions,
-  ): Promise<readonly Message[]> {
-    const attachments = this.ctx.get('attachments') as AttachmentStore | undefined
-    if (attachments === undefined) return messages
-
-    const retainedRefs = collectRetainedImageRefs(messages)
-    if (retainedRefs.length === 0) return messages
-
-    const sessions = this.ctx.get('sessions') as {
-      get(id: string): {
-        append(type: string, data: unknown): unknown
-        snapshotEvents(): readonly { type: string; data?: unknown }[]
-      } | undefined
-    } | undefined
-    const session = options.sessionId !== undefined ? sessions?.get(options.sessionId) : undefined
-
-    let projected = messages
-
-    for (const ref of retainedRefs) {
-      if (options.signal?.aborted) {
-        throw options.signal.reason
-      }
-
-      if (session !== undefined && isAttachmentQuarantined(session, ref.attachmentId)) {
-        const ev = session.snapshotEvents().findLast(e => e.type === 'attachment/quarantine' && (e.data as { attachmentId?: unknown })?.attachmentId === ref.attachmentId)
-        const failureClass = (ev?.data as { failureClass?: 'not_found' | 'corrupt' | 'read_failed' })?.failureClass ?? 'corrupt'
-        projected = projectQuarantinedImages(projected, ref.attachmentId, quarantinedImageText(ref, failureClass))
-        continue
-      }
-
-      let failureClass: 'not_found' | 'corrupt' | 'read_failed' | undefined
-      let retryable: boolean | undefined
-
-      try {
-        await attachments.readImage(ref, options.signal)
-      } catch (error: unknown) {
-        if (options.signal?.aborted) throw options.signal.reason
-        const err = error as { code?: string; name?: string } | null
-        if (err?.name === 'AbortError') throw error
-
-        if (err?.code === 'ATTACHMENT_NOT_FOUND') {
-          if (session === undefined) {
-            throw new HarnessError((error as Error).message, 'ATTACHMENT_NOT_FOUND', { cause: error })
-          }
-          failureClass = 'not_found'
-        } else if (err?.code === 'ATTACHMENT_CORRUPT') {
-          if (session === undefined) {
-            throw new HarnessError((error as Error).message, 'ATTACHMENT_CORRUPT', { cause: error })
-          }
-          failureClass = 'corrupt'
-        } else if (err?.code === 'ATTACHMENT_READ_FAILED') {
-          if (options.signal?.aborted) throw options.signal.reason
-          try {
-            await attachments.readImage(ref, options.signal)
-          } catch (retryError: unknown) {
-            if (options.signal?.aborted) throw options.signal.reason
-            const retryErr = retryError as { code?: string; name?: string } | null
-            if (retryErr?.name === 'AbortError') throw retryError
-            if (session === undefined) {
-              throw new HarnessError((retryError as Error).message, retryErr?.code ?? 'ATTACHMENT_READ_FAILED', { cause: retryError })
-            }
-
-            if (retryErr?.code === 'ATTACHMENT_READ_FAILED') {
-              failureClass = 'read_failed'
-              retryable = true
-            } else if (retryErr?.code === 'ATTACHMENT_NOT_FOUND') {
-              failureClass = 'not_found'
-            } else if (retryErr?.code === 'ATTACHMENT_CORRUPT') {
-              failureClass = 'corrupt'
-            } else {
-              throw retryError
-            }
-          }
-        } else {
-          throw error
-        }
-      }
-
-      if (failureClass !== undefined && session !== undefined) {
-        if (!isAttachmentQuarantined(session, ref.attachmentId)) {
-          session.append('attachment/quarantine', {
-            attachmentId: ref.attachmentId,
-            failureClass,
-            ...(retryable !== undefined ? { retryable } : {}),
-          })
-        }
-
-        const placeholder = quarantinedImageText(ref, failureClass)
-        projected = projectQuarantinedImages(projected, ref.attachmentId, placeholder)
-      }
-    }
-
-    return projected
   }
 
   /**
@@ -1151,7 +1063,7 @@ export class LlmRuntime extends TypertRemoteService {
           ? deepFreeze({ ...options, ...resolvedConfig })
           : { ...options, ...resolvedConfig }
       // Files are never dispatched natively: every route receives handle text.
-      let projectedMessages: readonly Message[] = resolvedOptions.messages
+      let projectedMessages: readonly RequestMessage[] = resolvedOptions.messages
       if (projectedMessages.some(message => contentHasFile(message.content))) {
         projectedMessages = projectFilesToText(projectedMessages, ref => this.fileReadPath(ref))
       }
@@ -1159,15 +1071,19 @@ export class LlmRuntime extends TypertRemoteService {
         && !modelInfo.inputModalities.includes('image')
         && projectedMessages.some(message => contentHasImage(message.content))) {
         projectedMessages = projectImagesForTextModel(projectedMessages)
-      } else if ((modelInfo.inputModalities === undefined || modelInfo.inputModalities.includes('image'))
-        && projectedMessages.some(message => contentHasImage(message.content))) {
-        projectedMessages = await this.projectReadableImages(projectedMessages, resolvedOptions)
       }
-      const projectedOptions = projectedMessages === resolvedOptions.messages
-        ? resolvedOptions
-        : Object.isFrozen(resolvedOptions)
-          ? deepFreeze({ ...resolvedOptions, messages: projectedMessages as Message[] })
-          : { ...resolvedOptions, messages: projectedMessages as Message[] }
+      // Tool changes are logged on every route; the route's declared mode selects what it receives.
+      const projectedTools = projectToolUpdates(projectedMessages, resolvedOptions.tools, modelInfo.toolUpdate, resolvedOptions.toolHistory)
+      projectedMessages = projectedTools.messages
+      let projectedOptions = resolvedOptions
+      if (projectedMessages !== resolvedOptions.messages || projectedTools.tools !== resolvedOptions.tools) {
+        projectedOptions = {
+          ...resolvedOptions,
+          messages: projectedMessages as RequestMessage[],
+          ...projectedTools.tools === undefined ? {} : { tools: projectedTools.tools as ToolSchema[] },
+        }
+        if (Object.isFrozen(resolvedOptions)) deepFreeze(projectedOptions)
+      }
       const stream = dispatch(this.forAdapter(projectedOptions, adapter))
       iterator = stream[Symbol.asyncIterator]()
     } catch (error: unknown) {

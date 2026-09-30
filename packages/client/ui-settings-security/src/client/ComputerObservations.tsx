@@ -1,6 +1,6 @@
 /** Read-only Computer Use descriptor facts from the connected Host's Provider check. */
 import type { ReactNode } from 'react'
-import type { DeviceCapabilitySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
+import type { DeviceCapabilitySnapshot } from '@deepseek-ai/dsh-api-device-capabilities-controller/types'
 import type { CapabilitySectionProps } from './CapabilitySection.tsx'
 import type { CapabilitySettingsKey } from './locales.ts'
 import css from './CapabilitySection.module.css'

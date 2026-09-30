@@ -1,15 +1,15 @@
 ---
-description: "Package map for Host document conversion used by authorized workspace previews."
+description: "Package map for Host Office conversion and reusable PDF results."
 kind: "package-group"
 ---
 
-# document/ — document conversion
+# document/ — Office conversion
 
 English | [中文](README.zh.md)
 
 ## Summary
 
-This group supplies Host document conversion for workspace previews. Its Office converter produces bounded, cached PDF results without changing source files. Workspace Files owns Session authorization; the converter owns queued work, cancellation and output bytes. The package README documents supported formats, limits and native engine requirements.
+Convert authorized Office files to reusable PDFs on the Host. The shared service converts through LibreOffice kit. Targets with a declared native engine use it; other targets use Node WASM.
 
 ## Table of Contents
 
@@ -22,20 +22,29 @@ This group supplies Host document conversion for workspace previews. Its Office 
 <a id="packages"></a>
 ## Packages
 
-| Package | Role | Service |
+Each package owns its configuration and lifetime rules; the subsystem reference describes their shared conversion operation.
+
+| Package | Role | ctx key |
 |---|---|---|
-| [office-to-pdf](office-to-pdf/README.md) | Converts authorized Office sources to PDF for previews | `ctx.officeToPdf` |
+| [office-to-pdf](office-to-pdf/README.md) | Authorized Office bytes to complete PDFs with bounded queues and caching | `ctx.officeToPdf` |
 
 -----
 
 <a id="related-documentation"></a>
 ## Related documentation
 
-- [Workspace subsystem](../../docs/subsystems/workspace.md) — workspace services and the Office conversion API.
-- [Workspace Files](../api/workspace-files/README.md) — local Session authorization and bounded source reads.
-- [Configuration catalog](../../docs/config-catalog.md#deepseek-aidsh-office-to-pdf) — accepted converter configuration fields.
+Consumers own source authorization and presentation.
+
+- [Document conversion](../../docs/subsystems/office-to-pdf.md) — shared operation and generated service reference.
+- [Independent kit ownership](../../.agents/notes/implemented/architecture/2026-09-14-independent-libreoffice-kit.md) — engine distribution and application integration.
+- [Workspace Files](../api/workspace-files/README.md) — authorized bounded source reads.
 
 <a id="dev-note"></a>
 ## Dev Note
 
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
 None.
+
+</details>

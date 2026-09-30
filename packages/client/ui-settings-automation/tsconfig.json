@@ -8,9 +8,15 @@
     "src"
   ],
   "references": [
-    { "path": "../../util/crypto" },
-    { "path": "../../util/values" },
-    { "path": "../../api/gateway/tsconfig.client.json" },
+    {
+      "path": "../../util/crypto"
+    },
+    {
+      "path": "../../util/values"
+    },
+    {
+      "path": "../../api/gateway/tsconfig.client.json"
+    },
     {
       "path": "../../../vendor/cordis"
     },
@@ -21,10 +27,10 @@
       "path": "../../api/automation-controller/tsconfig.client.json"
     },
     {
-      "path": "../locale"
+      "path": "../locale/tsconfig.client.json"
     },
     {
-      "path": "../ui-settings"
+      "path": "../ui-settings/tsconfig.client.json"
     },
     {
       "path": "../ui-slots"

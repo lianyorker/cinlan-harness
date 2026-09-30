@@ -10,6 +10,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { SessionRetainInfo } from '@deepseek-ai/dsh-api-session-controller/client'
+import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { AgentPresetLabel } from '../src/client/AgentPresetLabel.tsx'
 import type { AgentPresetLabelProps } from '../src/client/AgentPresetLabel.tsx'
 import { AgentPresetSeat } from '../src/client/AgentPresetSeat.tsx'
@@ -23,20 +25,21 @@ afterEach(cleanup)
 const ROSTER_READY: AgentPresetSettingsState = {
   status: 'ready',
   error: null,
-  options: [{ id: 'standard', trust: 'system', name: '标准模式' }, { id: 'mine', trust: 'user' }],
+  options: [{ id: 'standard' }, { id: 'mine' }],
 }
 
 const SEAT_READY: AgentPresetSeatState = {
-  showPicker: true,
   current: 'standard',
   options: [
-    { id: 'standard', trust: 'system', name: '标准模式', description: '完整的编码 agent。' },
-    { id: 'mine', trust: 'user' },
+    { id: 'standard' },
+    { id: 'mine' },
   ],
   busy: false,
   error: null,
   introduce: false,
 }
+
+const useSessionRetainInfo = <Selected,>(selector: (value: undefined) => Selected): Selected => selector(undefined)
 
 /** The runtime's own `{name}` substitution, so a test reads the shown text. */
 function translate(key: keyof typeof en, params?: Record<string, unknown>): string {
@@ -49,15 +52,24 @@ function translate(key: keyof typeof en, params?: Record<string, unknown>): stri
 function renderSeat(
   state: Partial<AgentPresetSeatState> = {},
   select: () => Promise<string | undefined> = () => Promise.resolve(undefined),
+  session?: { id: string; retainInfo: SessionRetainInfo | undefined },
+  enabled = true,
 ) {
   const store = createSnapshotStore<AgentPresetSeatState>({ ...SEAT_READY, ...state })
+  const developerTools = createSnapshotStore(enabled)
   const actions = { load: vi.fn(() => Promise.resolve()), select: vi.fn(select), introduced: vi.fn() }
-  render(<AgentPresetSeat {...({
+  const props = {
     ...actions,
+    sessionId: session === undefined ? undefined : SessionId(session.id),
+    useDeveloperTools: bindSnapshotSelector(developerTools),
     useAgentPresetSeat: bindSnapshotSelector(store),
+    useSessionRetainInfo: session === undefined
+      ? useSessionRetainInfo
+      : <Selected,>(selector: (value: SessionRetainInfo | undefined) => Selected) => selector(session.retainInfo),
     t: translate,
-  } as unknown as AgentPresetSeatProps)} />)
-  return { ...actions, store }
+  } as AgentPresetSeatProps
+  render(<AgentPresetSeat {...props} />)
+  return { ...actions, developerTools }
 }
 
 function renderLabel(
@@ -81,24 +93,21 @@ function renderLabel(
 }
 
 describe('the new-session chip', () => {
-  it('renders nothing while the picker is disabled', () => {
-    renderSeat({ showPicker: false })
+  it('renders nothing while Developer tools are off', () => {
+    renderSeat({}, undefined, undefined, false)
 
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('discards the open menu across a policy off/on change', () => {
-    const { store } = renderSeat()
-    fireEvent.click(screen.getByRole('button'))
-    expect(screen.getByRole('menuitem', { name: /mine/ })).toBeTruthy()
+  it('renders only for a Session retained by the main view', () => {
+    renderSeat({}, undefined, {
+      id: 's1', retainInfo: { referenceCount: 1, retainedBy: { mainView: 1 } },
+    })
+    expect(screen.getByRole('button')).toBeTruthy()
+    cleanup()
 
-    act(() => { store.set({ ...store.getSnapshot(), showPicker: false }) })
+    renderSeat({}, undefined, { id: 's1', retainInfo: undefined })
     expect(screen.queryByRole('button')).toBeNull()
-    expect(screen.queryByRole('menuitem')).toBeNull()
-    act(() => { store.set({ ...store.getSnapshot(), showPicker: true }) })
-
-    expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false')
-    expect(screen.queryByRole('menuitem')).toBeNull()
   })
 
   it('reads the roster once and shows the staged preset by name', async () => {
@@ -121,6 +130,19 @@ describe('the new-session chip', () => {
     // in for the name.
     expect(screen.getByText(en.noDescription)).toBeTruthy()
     expect(screen.getByText('mine')).toBeTruthy()
+  })
+
+  it('closes the picker immediately when developer tools turn off without changing the staged preset', () => {
+    const actions = renderSeat()
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByText(en.presetStandardDescription)).toBeTruthy()
+    act(() => { actions.developerTools.set(false) })
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.queryByText(en.presetStandardDescription)).toBeNull()
+    expect(actions.select).not.toHaveBeenCalled()
+    act(() => { actions.developerTools.set(true) })
+    expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false')
+    expect(screen.getByRole('button').textContent).toContain(en.presetStandardName)
   })
 
   it('falls back to the id when the staged preset published no name', () => {
@@ -178,30 +200,6 @@ describe('the new-session chip', () => {
 })
 
 describe('a refused switch', () => {
-  it('discards an existing banner and a late refusal while selection is hidden', async () => {
-    const pending = Promise.withResolvers<string | undefined>()
-    const first = vi.fn<() => Promise<string | undefined>>()
-      .mockResolvedValueOnce('first refusal')
-      .mockReturnValueOnce(pending.promise)
-    const { store } = renderSeat({}, first)
-    fireEvent.click(screen.getByRole('button'))
-    fireEvent.click(screen.getByRole('menuitem', { name: /mine/ }))
-    expect((await screen.findByRole('alert')).textContent).toContain('first refusal')
-    fireEvent.click(screen.getByRole('button'))
-    fireEvent.click(screen.getByRole('menuitem', { name: /mine/ }))
-
-    act(() => { store.set({ ...store.getSnapshot(), showPicker: false }) })
-    await act(async () => {
-      pending.resolve('late refusal')
-      await pending.promise
-    })
-    expect(screen.queryByRole('alert')).toBeNull()
-    act(() => { store.set({ ...store.getSnapshot(), showPicker: true }) })
-
-    expect(screen.queryByRole('alert')).toBeNull()
-    expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false')
-  })
-
   it('announces the reason instead of letting the label snap back in silence', async () => {
     // The banner's own timer has to be a fake one from the start, or the
     // lifetime assertion below would wait out its real nine seconds.
@@ -256,7 +254,7 @@ describe('the chip introduce cue', () => {
     vi.useFakeTimers()
     const actions = renderSeat({
       current: 'creator',
-      options: [{ id: 'creator', trust: 'user', name: 'CreatorMode' }],
+      options: [{ id: 'creator', name: 'CreatorMode' }],
       introduce: true,
     })
 
@@ -282,7 +280,7 @@ describe('the chip introduce cue', () => {
     vi.useFakeTimers()
     renderSeat({
       current: 'creator',
-      options: [{ id: 'creator', trust: 'user', name: '创造模式' }],
+      options: [{ id: 'creator', name: '创造模式' }],
       introduce: true,
     })
 
@@ -298,7 +296,7 @@ describe('the chip introduce cue', () => {
     vi.useFakeTimers()
     const actions = renderSeat({
       current: 'creator',
-      options: [{ id: 'creator', trust: 'user', name: 'C' }],
+      options: [{ id: 'creator', name: 'C' }],
       introduce: true,
     })
 
@@ -319,7 +317,7 @@ describe('the chip introduce cue', () => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })))
     const actions = renderSeat({
       current: 'creator',
-      options: [{ id: 'creator', trust: 'user', name: '' }],
+      options: [{ id: 'creator', name: '' }],
       introduce: true,
     })
 

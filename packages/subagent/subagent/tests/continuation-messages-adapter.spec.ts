@@ -3,42 +3,51 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import type { AnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import { DeepSeekAdapter, resolveAdapterOptions } from '@deepseek-ai/dsh-llm-deepseek'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import * as SubagentSpawn from '@deepseek-ai/dsh-subagent-spawn-in-process'
-import { MockAdapter, textResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
+import { end, MODEL, server, sse, start } from '../../../llm/llm-deepseek/tests/helpers.ts'
 import SubagentRuntime, { type SubagentRunEndInfo } from '../src/index.ts'
 import { loadStoredSession } from './persistence-helpers.ts'
-import { TestSessionQuery } from './test-session-query.ts'
 
-it('delivers only closing text to the parent while retaining child reasoning in its log and run result', async () => {
+it('continues the parent through default Messages after a reasoning-bearing continuable child settles', async () => {
   const root = mkdtempSync(join(tmpdir(), 'dsh-settlement-messages-'))
   const ctx = new Context()
+  let http: Awaited<ReturnType<typeof server>> | undefined
   try {
-    const adapter = new MockAdapter([
-      [
-        { type: 'block-start', index: 0, blockType: 'reasoning' },
-        { type: 'reasoning-delta', index: 0, text: 'child reasoning' },
-        { type: 'block-end', index: 0, block: { type: 'reasoning', text: 'child reasoning' } },
-        { type: 'block-start', index: 1, blockType: 'text' },
-        { type: 'text-delta', index: 1, text: 'child answer' },
-        { type: 'block-end', index: 1, block: { type: 'text', text: 'child answer' } },
-        { type: 'finish', reason: { kind: 'stop' } },
-      ],
-      textResponse('parent answer'),
-      textResponse('continued answer'),
-    ])
+    http = await server((response, count) => {
+      const blocks = count === 1
+        ? [{ type: 'thinking', thinking: 'child reasoning' }, { type: 'text', text: 'child answer' }]
+        : [{ type: 'text', text: 'parent answer' }]
+      response.end(sse([
+        start,
+        ...blocks.flatMap((content_block, index) => [
+          { type: 'content_block_start', index, content_block },
+          { type: 'content_block_stop', index },
+        ]),
+        ...end(),
+      ]))
+    })
+    const { requests } = http
+    const connection = resolveAdapterOptions({ baseURL: http.url })
+    const adapter = new DeepSeekAdapter({
+      options: () => connection,
+      resolveAuth: () => Promise.resolve({ headers: { 'x-api-key': 'test-key' } }),
+      resolveUserId: () => '00000000-0000-4000-8000-000000000001' as AnonymousUserId,
+      prepareExtensions: () => Promise.resolve({ fields: {}, accept: () => Promise.resolve() }),
+    })
     await mountAgentLoopTestDependencies(ctx)
     await ctx.plugin(JsonlSessionPersistence, { root })
     await ctx.plugin(AgentLoop, { agents: [] })
-    await ctx.plugin(TestSessionQuery)
     await ctx.plugin(SubagentRuntime)
     await ctx.plugin(SubagentSpawn, { providerName: 'spawn' })
-    ctx.llm.registerAdapter(['mock'], adapter)
-    const parent = await ctx.agentLoop.create(SessionId('parent'), { provider: 'mock', model: 'mock' })
+    ctx.llm.registerAdapter(['deepseek-official'], adapter)
+    const parent = await ctx.agentLoop.create(SessionId('parent'), { provider: 'deepseek-official', model: MODEL })
     const ends: SubagentRunEndInfo[] = []
     const settled = Promise.withResolvers<undefined>()
     ctx.on('subagent/end', (info) => {
@@ -63,26 +72,35 @@ it('delivers only closing text to the parent while retaining child reasoning in 
       .toMatchObject({ data: { message: { content: output } } })
     expect(parent.session.snapshotEvents().at(-1))
       .toMatchObject({ type: 'turn/end', data: { reason: { kind: 'completed' } } })
-    expect(adapter.requests).toHaveLength(2)
+    expect(requests).toHaveLength(2)
+    expect(requests.map(request => request.path)).toEqual(['/anthropic/v1/messages', '/anthropic/v1/messages'])
     const notice = parent.session.deriveMessages().find(message => message.source.kind === 'subagent-settled')
     expect(notice?.content).toEqual([
       { type: 'text', text: `Background subagent ${started.childId} finished and will do no further work unless you send it more.` },
       { type: 'text', text: 'Its closing message:' },
       { type: 'text', text: 'child answer' },
     ])
-    expect(adapter.requests[1]?.messages).toContainEqual(expect.objectContaining({ role: 'user', content: notice?.content }))
+    expect(requests[1]?.body).toMatchObject({ messages: [{ role: 'user', content: notice?.content }] })
 
     parent.followup(createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'continue' }] }))
     await parent.whenIdle()
     expect(parent.session.snapshotEvents().filter(event => event.type === 'turn/end'))
       .toMatchObject([{ data: { reason: { kind: 'completed' } } }, { data: { reason: { kind: 'completed' } } }])
-    expect(adapter.requests).toHaveLength(3)
-    expect(adapter.requests[2]?.messages).toContainEqual(expect.objectContaining({ role: 'user', content: notice?.content }))
+    expect(requests).toHaveLength(3)
+    expect(requests[2]?.body).toMatchObject({ messages: [
+      { role: 'user', content: notice?.content },
+      { role: 'assistant', content: [{ type: 'text', text: 'parent answer' }] },
+      { role: 'user', content: [{ type: 'text', text: 'continue' }] },
+    ] })
   } finally {
     try {
       await ctx.fiber.dispose()
     } finally {
-      rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+      try {
+        await http?.close()
+      } finally {
+        rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+      }
     }
   }
 })

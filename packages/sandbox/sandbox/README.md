@@ -63,7 +63,7 @@ Enforcement is reported per call: `full` means the backend governs every promise
 
 ### Denied calls and escalation
 
-When a confined call is denied, the operation reports a denial marker naming the mode — `[sandbox: file access denied under <mode> mode]` — and, when the composition advertises escalation, an escalation hint. The model may retry the exact call once with `sandbox_permissions` (the narrowest wider mode that suffices) plus a `justification`; the user sees one approval prompt and can allow once, reject, or cancel. A wider mode requires approval and applies to that one call only. Repeating the call's effective mode succeeds without approval; narrower targets remain invalid.
+When a confined call is denied, the operation reports a denial marker naming the mode — `[sandbox: file access denied under <mode> mode]` — and, when the composition advertises escalation, an escalation hint. The model may retry the exact call once with `sandbox_permissions` (the narrowest wider mode that suffices) plus a `justification`; the approval service obtains consent for the operation. The request retains its audit reason and supplies English and Chinese presentation copy with the model's justification unchanged. Missing translations follow the locale service's fallback chain, ultimately English; requesters own their translated presentation text. A wider mode requires approval and applies to that one call only. Repeating the call's effective mode succeeds without approval; narrower targets remain invalid.
 
 ### Fail-closed behavior
 
@@ -81,9 +81,9 @@ This section explains the design decisions behind the contract and points at the
 
 ### Design philosophy
 
-- **Same-world by contract.** `ctx.sandbox` wraps argv under a host-path file policy; containers, microVMs, and remote execution replace the surrounding capability seam instead.
+- **One execution world.** The filesystem, subprocess and sandbox providers operate on the same filesystem and kernel. Remote compositions replace all three providers; confinement resolves asynchronously in that world.
 - **Policy rides the call.** `SandboxPolicy` is carried per call, never fixed on the provider: two consumers may confine under different policies at the same instant, and an escalated retry is a new call with a wider policy. Defaulting and resolution are explicit consumer steps.
-- **Asynchronous, fail-closed preparation.** Callers await `confine(argv, policy, signal?)` before spawning. It resolves enforcing argv or rejects with `SandboxUnavailableError`; the optional signal cancels preparation. Silent unconfined passthrough is forbidden, and functional probes arbitrate multi-runner chains.
+- **Fail closed.** `confine()` resolves to enforcing argv or rejects with `SandboxUnavailableError`; silent unconfined passthrough is forbidden, and functional probes arbitrate multi-runner chains.
 - **One vocabulary for denial and escalation.** The marker and hint texts and the strictly-wider ladder live here so the bash and fs families cannot drift apart.
 
 ### Source map
@@ -141,7 +141,7 @@ Conditional error text is visible for that call and retained in history until co
 
 #### KV Cache effect
 
-Append-only; newly visible content follows the reusable request prefix and does not invalidate existing KV-cache entries.
+Append-only; newly visible content follows the reusable request prefix and does not invalidate existing KV Cache entries.
 
 ### Escalation request and outcome
 

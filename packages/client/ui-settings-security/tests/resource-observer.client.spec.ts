@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { SecurityResourceAvailability } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SecurityResourceAvailability } from '@deepseek-ai/dsh-api-security-research-controller/types'
 import { createSecurityResourceObserver } from '../src/client/resource-observer.ts'
 
 function deferred<T>() {

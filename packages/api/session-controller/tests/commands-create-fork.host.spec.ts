@@ -1,8 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import type { Agent, AgentHandle, CreateAgentOptions } from '@deepseek-ai/dsh-agent'
-import type {} from '@deepseek-ai/dsh-agent-presets'
-import type { SshExecutionSnapshot } from '@deepseek-ai/dsh-execution-binding/types'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
@@ -64,7 +63,6 @@ describe('Session creation failures', () => {
       '/default-workspace',
       false,
       undefined,
-      { kind: 'local' },
     )
     await ctx.fiber.dispose()
   })
@@ -120,6 +118,10 @@ describe('Session creation failures', () => {
     {
       error: new ApiSessionCwdConflict(SessionId('wrong-cwd'), '/requested', '/stored'),
       code: 'session/conflict',
+    },
+    {
+      error: Object.assign(new Error('writer already held'), { name: 'SessionAlreadyOwnedError' }),
+      code: 'session/writer-held',
     },
     {
       error: new Error('factory unavailable'),
@@ -219,6 +221,10 @@ describe('Session fork failures', () => {
     const controller = new SessionCommandController(ctx, controllerAgents(), '/default')
 
     await expectFailure(controller.fork({ sessionId: source.id }), 'session/fork-unavailable')
+    await expect(controller.fork({ sessionId: source.id, atSeq: 0 })).rejects.toMatchObject({
+      code: 'session/fork-unavailable',
+      message: 'event 0 does not exist in session "empty-source" (last seq: none)',
+    })
     await ctx.fiber.dispose()
   })
 
@@ -284,35 +290,4 @@ describe('Session fork failures', () => {
     expect(options.meta?.agentPreset).toBe('minimal')
     await ctx.fiber.dispose()
   })
-})
-
-it('rejects remote isolation and tasks before invoking local providers', async () => {
-  const ctx = await baseContext()
-  const execution: SshExecutionSnapshot = {
-    kind: 'ssh', targetId: '11111111-1111-4111-8111-111111111111' as SshExecutionSnapshot['targetId'], revision: 1,
-    endpoint: { host: 'execution.example', port: 22, username: 'worker', hostKeySHA256: 'a'.repeat(64) },
-    node: '/usr/bin/node', helper: '/opt/dsh/helper.mjs', helperHash: 'b'.repeat(64),
-    workspace: '/remote', bootstrapPath: '/opt/dsh/bootstrap.mjs', bootstrapHash: 'c'.repeat(64),
-  }
-  const workspace = { id: 'remote-workspace' as WorkspaceId, path: '/remote', execution }
-  ctx.provide('workspaceRegistry', { get: () => workspace } as never)
-  const ensure = vi.fn()
-  const bindSession = vi.fn()
-  ctx.provide('workspaceIsolation', { ensure } as never)
-  ctx.provide('worktreeTask', { bindSession } as never)
-  const ensureSession = vi.fn()
-  const commands = new SessionCommandController(ctx, controllerAgents({ ensureSession }), '/host')
-  try {
-    await expect(commands.create({ workspaceId: workspace.id, isolate: true })).rejects.toThrow('unsupported')
-    await expect(commands.create({ workspaceId: workspace.id, taskId: 'task' as never })).rejects.toThrow('unsupported')
-    const existing = ctx.sessions.create(SessionId('existing-remote'), { meta: { cwd: '/remote' } })
-    existing.append('execution/bound', { binding: execution })
-    await expect(commands.create({ sessionId: existing.id, isolate: true })).rejects.toThrow('unsupported')
-    await expect(commands.create({ sessionId: existing.id, taskId: 'task' as never })).rejects.toThrow('unsupported')
-    expect(ensure).not.toHaveBeenCalled()
-    expect(bindSession).not.toHaveBeenCalled()
-    expect(ensureSession).not.toHaveBeenCalled()
-  } finally {
-    await ctx.fiber.dispose()
-  }
 })

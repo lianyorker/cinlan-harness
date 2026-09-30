@@ -1,6 +1,6 @@
 /** One PTY, a bounded terminal emulator and its detachable browser followers. */
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
-import type { Terminal as HeadlessTerminal } from '@xterm/headless'
+import type { Terminal as HeadlessTerminal, ITerminalAddon } from '@xterm/headless'
 import type { SerializeAddon as Serializer } from '@xterm/addon-serialize'
 import type { SubprocessTerminalHandle } from '@deepseek-ai/dsh-subprocess'
 import { createLazyRequire } from '@deepseek-ai/dsh-lazy-require'
@@ -39,7 +39,7 @@ export class BrowserTerminal {
     const { SerializeAddon } = requireSerialize()
     this.screen = new Terminal({ cols: info.cols, rows: info.rows, scrollback, allowProposedApi: true })
     this.serializer = new SerializeAddon()
-    this.screen.loadAddon(this.serializer)
+    this.screen.loadAddon(this.serializer as unknown as ITerminalAddon)
     this.drained = this.consume()
   }
 

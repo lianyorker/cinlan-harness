@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-side-session",
   "description": "Interactive side sessions and merge-back mechanics",
-  "version": "0.1.7-rc.2",
+  "version": "0.2.0-rc.1",
   "publishConfig": {
     "access": "public"
   },
@@ -28,16 +28,17 @@
   "license": "MIT",
   "peerDependencies": {
     "@deepseek-ai/dsh-agent": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",
     "@deepseek-ai/dsh-subagent": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-agent": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",
     "@deepseek-ai/dsh-subagent": "workspace:^",
     "@deepseek-ai/dsh-agent-loop": "workspace:^",
-    "@deepseek-ai/dsh-session-store-memory": "workspace:^",
     "@deepseek-ai/dsh-session-format-catalog": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }

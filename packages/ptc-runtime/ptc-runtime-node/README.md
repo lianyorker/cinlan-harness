@@ -25,7 +25,7 @@ Execute model-written TypeScript under the same platform sandbox policy as Bash,
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this provider in a composition that supplies `fs`, `subprocess`, `sandbox` and `sandboxPolicy`. PTC mode in `dsh-tools` supplies the calling Session's directory and standing policy; direct runtime consumers resolve those options before execution. Runtime provider lookups use the Context captured at construction, so a caller-bound Cordis traceable receiver cannot move execution to Host services.
+Mount this provider in a composition that supplies `fs`, `subprocess`, `sandbox` and `sandboxPolicy`. PTC mode in `dsh-tools` supplies the calling Session's directory and standing policy; direct runtime consumers resolve those options before execution.
 
 ### Configuration
 
@@ -56,13 +56,6 @@ Configure the provider row after its required services are available:
 | `bootstrapPath` | Package bootstrap | Optional absolute path to a preinstalled built bootstrap in that world |
 
 The [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-ptc-runtime-node) defines accepted config fields. `resolve(request)` supplies cwd, the numeric or null deadline choice and the execution policy; `run(spec)` accepts those resolved inputs and does not fill missing values.
-
-<a id="optional-coderuntime-adapter"></a>
-### Optional CodeRuntime adapter
-
-Custom profiles using `ctx.codeRuntime` can mount `@deepseek-ai/dsh-ptc-runtime-node/code-runtime` alongside this provider and `sandboxPolicy`. The adapter registers `codeRuntime` and delegates to `ptcRuntime` without another worker. The tools and workflow consumers use `ptcRuntime` directly.
-
-The adapter derives the initiating Session through the optional `agents` service and resolves its standing policy; agentless calls use deployment policy. It forwards bindings, cancellation, logs and JSON values, and its disposal aborts and drains only its own calls. The CodeRuntime API has no per-call execution controls or sandbox result metadata; `protocol` and `sandbox-unavailable` become `worker-exit` with diagnostic text preserved.
 
 ### Execution and results
 

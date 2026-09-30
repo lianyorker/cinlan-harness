@@ -151,8 +151,6 @@
     "@deepseek-ai/dsh-workflow": "workspace:*",
     "@deepseek-ai/dsh-workflow-ptc": "workspace:*",
     "@deepseek-ai/dsh-otel": "workspace:*",
-    "@deepseek-ai/schemastery": "workspace:~",
-    "@deepseek-ai/dsh-code-runtime": "workspace:^",
-    "@deepseek-ai/dsh-sandbox-windows-acl": "workspace:^"
+    "@deepseek-ai/schemastery": "workspace:~"
   }
 }

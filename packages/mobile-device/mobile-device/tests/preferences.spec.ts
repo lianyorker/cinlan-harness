@@ -7,7 +7,7 @@ import type { MobileDevice, MobileDeviceProvider, MobileObserveSpec } from '../s
 
 class MemorySettings extends SettingsProvider {
   readonly documentValue: Record<string, unknown> = {}
-  get writable(): boolean { return true }
+  override get writable(): boolean { return true }
   protected load(): Promise<Record<string, unknown>> { return Promise.resolve(this.documentValue) }
   protected persist(ns: SettingsNamespace, value: Record<string, unknown>): Promise<void> {
     this.documentValue[ns] = structuredClone(value)

@@ -11,6 +11,7 @@ export type { KeyBinding, KeybindingOverride, KeybindingsSettings } from './type
  */
 export function apply(ctx: Context): void {
   ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.register(KEYBINDINGS_NAMESPACE, KeybindingsSettingsSchema)
+    const settings = settingsCtx.settings as unknown as { register?: (ns: string, schema: unknown) => void }
+    settings.register?.(KEYBINDINGS_NAMESPACE, KeybindingsSettingsSchema)
   })
 }

@@ -50,7 +50,7 @@ describe.skipIf(process.platform !== 'win32')('managed Windows ACL control pipe'
     ctx = new Context()
     await ctx.plugin(LocalSubprocessRuntime)
     const runner = fileURLToPath(new URL('../src/runner.ts', import.meta.url))
-    const helper = new URL('../../../subprocess/subprocess/src/control.ts', import.meta.url).href
+    const helper = import.meta.resolve('@deepseek-ai/dsh-subprocess/src/control.ts')
     const program = `
       const { openInheritedControlChannel } = await import(process.argv[1]);
       const { writeFileSync } = await import('node:fs');

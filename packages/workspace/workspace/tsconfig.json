@@ -8,9 +8,6 @@
     "src"
   ],
   "references": [
-    { "path": "../../execution-host/execution-binding" },
-    { "path": "../../execution-host/execution-host-targets" },
-    { "path": "../../fs/fs" },
     {
       "path": "../../../vendor/cosmokit"
     },

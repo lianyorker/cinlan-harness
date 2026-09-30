@@ -12,6 +12,7 @@ import { isPromise } from 'node:util/types'
 import { scopeTarget } from '@deepseek-ai/dsh-scope'
 import type { Scoped } from '@deepseek-ai/dsh-scope'
 import type { SessionEvent, SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session'
+import { installTurnArchiveAdmission } from './archive-admission.ts'
 import type { Agent } from './types.ts'
 import type { AgentOptions, SessionStartSource } from './runtime-types.ts'
 
@@ -35,9 +36,7 @@ declare module '@deepseek-ai/cordis' {
  */
 export interface AgentSetupCommit {
   /**
-   * Validate and commit once after setup events are persisted, immediately before
-   * registry insertion with no intervening await. Record Session events in setup,
-   * not here: this finalizer must not append to the already-flushed log.
+   * Validate and commit the prepared setup immediately before publication.
    * @throws when publication must roll the unpublished Agent back.
    */
   commit(): void
@@ -88,11 +87,10 @@ export interface CreateAgentOptions {
   /** Exact fork-inherited prefix length when the session metadata sets `isSeeded`. */
   readonly inheritedEventCount?: SessionLogOffset
   /**
-   * Initial replay/fork history. A fork supplies a balanced completed-turn
-   * prefix of the parent's log. The complete seed must be contiguous from seq
-   * 0, carry only lossless-JSON data, and contain no open turn/step or dangling
-   * tool call. The factory passes it to the session's durable
-   * validator/snapshot boundary before publication.
+   * Initial replay/fork history, contiguous from seq 0 with lossless-JSON data.
+   * A fork supplies an exact parent prefix, its inherited marker, and closers
+   * for the open tail. Previously closed steps and turns remain unchanged.
+   * The factory validates and snapshots the seed before publication.
    */
   readonly seed?: readonly SessionEvent[]
   /** Per-agent options (model, …). */
@@ -104,12 +102,12 @@ export interface CreateAgentOptions {
    * setup after minting `agentCtx` but BEFORE inserting or announcing either
    * the session or agent, so observers can never see a partially configured
    * world. Setup may return an {@link AgentSetupCommit}; the factory invokes its
-   * synchronous `commit()` once after setup and persistence awaits settle,
-   * immediately before registry publication. This lets mutable provisioning revalidate at
+   * synchronous `commit()` after every setup await settles and immediately
+   * before registry publication. This lets mutable provisioning revalidate at
    * the exact publication boundary. Everything registered through `agentCtx`
    * (scoped tools, prompt sections/variables, `restrict()`, listeners, awaited
    * child plugins) exists before `session/created`, `agent/created`,
-   * `agent/session-start`, and the first prompt assembly. A setup
+   * and the first prompt assembly. A setup
    * throw/rejection, commit throw, or owner disposal rolls the scope back
    * without publishing either id.
    *
@@ -174,8 +172,8 @@ export interface AgentFactory {
   /**
    * Create a new agent on a caller-supplied session id. Async because creation
    * awaits unpublished setup, invokes its optional synchronous commit, inserts
-   * both session and agent, announces the session, awaits serial `agent/created`
-   * listeners, emits `agent/session-start`, and releases queued work. The sequence is
+   * both session and agent, announces session creation, and awaits serial
+   * `agent/created` listeners before releasing queued work. The sequence is
    * rollback-covered, but notifications delivered before a later listener
    * failure remain observable; every agent or session creation announcement
    * that began is paired by `agent/disposed` or `session/disposed` during
@@ -187,7 +185,7 @@ export interface AgentFactory {
    * ownership from the factory object's registration context.
    * @param ownerCtx - caller-bound context that owns the transaction and live handle.
    * @param options - agent/session identity, configuration, optional live parent, and setup.
-   * @returns the owned handle after setup, both announcements, and loop start complete.
+   * @returns the owned handle after setup and both creation announcements complete.
    */
   createAgent(ownerCtx: Context, options: CreateAgentOptions): Promise<AgentHandle>
   /**
@@ -279,6 +277,9 @@ export class AgentRegistry extends Service {
       yield () => this.disposeInitiators()
       yield () => { this.closeInitiators() }
     }.bind(this), 'agents.initiatorLifecycle()')
+    // Archive admission: the Workspace registry asks what still runs for a
+    // Session before hiding it; a running turn answers here, for every Agent.
+    installTurnArchiveAdmission(ctx, sessionId => this.get(sessionId))
   }
 
   /**

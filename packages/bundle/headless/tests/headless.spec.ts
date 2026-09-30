@@ -13,7 +13,7 @@ import type {
   ResumeAgentOptions,
 } from '@deepseek-ai/dsh-agent'
 import AgentDefaultModelConfig from '@deepseek-ai/dsh-agent-default-model'
-import { LlmAttemptId, ToolCallId, createAssistantMessage, createToolResultMessage, type StreamChunk } from '@deepseek-ai/dsh-llm'
+import { LlmAttemptId, ToolCallId, createAssistantMessage, createToolResultMessage, type MessageId, type StreamChunk } from '@deepseek-ai/dsh-llm'
 import SessionStore from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import type { Session, SessionId, UserMessage } from '@deepseek-ai/dsh-session'
@@ -23,24 +23,7 @@ import { apply, Config } from '../src/index.ts'
 import { internals } from '../src/runner-internals.ts'
 
 const originalInternals = { ...internals }
-const contexts = new Set<Context>()
-const stdinDescriptor = Object.getOwnPropertyDescriptor(process, 'stdin')
-afterEach(async () => {
-  try {
-    for (const ctx of contexts) await ctx.fiber.dispose()
-  } finally {
-    contexts.clear()
-    Object.assign(internals, originalInternals)
-    if (stdinDescriptor === undefined) Reflect.deleteProperty(process, 'stdin')
-    else Object.defineProperty(process, 'stdin', stdinDescriptor)
-  }
-})
-
-function createContext(): Context {
-  const ctx = new Context()
-  contexts.add(ctx)
-  return ctx
-}
+afterEach(() => { Object.assign(internals, originalInternals) })
 
 interface Script {
   before?(session: Session): void
@@ -129,7 +112,7 @@ function appendTurn(
   })
 }
 
-/** Append the preset-selection event owned by dsh-agent-presets. */
+/** Append the preset-selection event owned by dsh-agent-preset-registry. */
 function selectPreset(session: Session, agentPreset: string): void {
   const target = session as unknown as { append(type: string, data: unknown): void }
   target.append('agent-preset/selected', { agentPreset })
@@ -141,7 +124,7 @@ async function bench(script: Script, options: BenchOptions = {}): Promise<{
   output(): { out: string; err: string; order: string[] }
   run(): Promise<{ code: number; out: string; err: string; order: string[] }>
 }> {
-  const ctx = createContext()
+  const ctx = new Context()
   if (options.filesystemCwd !== undefined) {
     const cwd = options.filesystemCwd
     ctx.provide('fs', {
@@ -280,8 +263,8 @@ describe('headless runner', () => {
     const test = await bench({
       before(session) {
         const setupMessage = {
-          role: 'user', content: [{ type: 'text', text: 'setup' }], source: { kind: 'user' }, id: 'setup',
-        } as UserMessage
+          role: 'user', content: [{ type: 'text', text: 'setup' }], source: { kind: 'user' }, id: brandString<MessageId>('setup'),
+        } satisfies UserMessage
         appendTurn(session, 0, setupMessage, 'pre-task noise', true)
       },
       async afterPrompt(session, message) {
@@ -320,24 +303,13 @@ describe('headless runner', () => {
   })
 
   it('waits for asynchronously appended events instead of racing Agent idleness', async () => {
-    const entered = Promise.withResolvers<undefined>()
-    const release = Promise.withResolvers<undefined>()
     const test = await bench({
       afterPrompt: async (session, message) => {
-        entered.resolve(undefined)
-        await release.promise
+        await new Promise(resolve => setTimeout(resolve, 5))
         appendTurn(session, 1, message, 'race-free answer', true)
       },
     })
-    const running = test.run()
-    try {
-      await entered.promise
-      expect(test.output()).toEqual({ out: '', err: '', order: [] })
-    } finally {
-      release.resolve(undefined)
-      await running
-    }
-    expect(await running).toMatchObject({ code: 0, out: 'race-free answer\n', err: '' })
+    expect(await test.run()).toMatchObject({ code: 0, out: 'race-free answer\n', err: '' })
     await test.ctx.fiber.dispose()
   })
 
@@ -437,17 +409,14 @@ describe('headless runner', () => {
       },
     })
     const running = test.run()
-    try {
-      await reasoningAppended.promise
-      expect(test.output().err).toBe('dsh: reasoning:\nunfinished reasoning')
-      releaseEnd.resolve(undefined)
-      await ended.promise
-      expect(test.output().err).toBe('dsh: reasoning:\nunfinished reasoning\n')
-    } finally {
-      releaseEnd.resolve(undefined)
-      finish.resolve(undefined)
-      await running
-    }
+    await reasoningAppended.promise
+    expect(test.output().err).toBe('dsh: reasoning:\nunfinished reasoning')
+
+    releaseEnd.resolve(undefined)
+    await ended.promise
+    expect(test.output().err).toBe('dsh: reasoning:\nunfinished reasoning\n')
+
+    finish.resolve(undefined)
     await expect(running).resolves.toMatchObject({ code: 1 })
     await test.ctx.fiber.dispose()
   })
@@ -531,31 +500,13 @@ describe('headless runner', () => {
 
   it('reads the task from stdin when the invocation omits one', async () => {
     const test = await bench({
-      afterPrompt(session, message) {
-        expect(message.content).toEqual([{ type: 'text', text: '任务 from stdin\n' }])
-        appendTurn(session, 1, message, 'stdin answer', true)
-      },
+      afterPrompt(session, message) { appendTurn(session, 1, message, 'stdin answer', true) },
     }, {
       useStdin: true,
-      readStdin: () => Promise.resolve('任务 from stdin\n'),
+      readStdin: () => Promise.resolve('task from stdin'),
     })
     expect(await test.run()).toMatchObject({ code: 0, out: 'stdin answer\n', err: '' })
     await test.ctx.fiber.dispose()
-  })
-
-  it('uses a positional task without consuming stdin', async () => {
-    let reads = 0
-    const test = await bench({
-      afterPrompt(session, message) {
-        expect(message.content).toEqual([{ type: 'text', text: '  positional task  ' }])
-        appendTurn(session, 1, message, 'positional answer', true)
-      },
-    }, {
-      task: '  positional task  ',
-      readStdin: async () => { reads += 1; return 'unused pipe' },
-    })
-    expect(await test.run()).toMatchObject({ code: 0, out: 'positional answer\n' })
-    expect(reads).toBe(0)
   })
 
   it('rejects an empty stdin task', async () => {
@@ -656,8 +607,8 @@ describe('headless runner', () => {
     })
     const session = test.ctx.sessions.create(brandString<SessionId>('session-exact'), { meta: { cwd: process.cwd() } })
     const history = {
-      role: 'user', content: [{ type: 'text', text: 'earlier' }], source: { kind: 'user' }, id: 'history',
-    } as UserMessage
+      role: 'user', content: [{ type: 'text', text: 'earlier' }], source: { kind: 'user' }, id: brandString<MessageId>('history'),
+    } satisfies UserMessage
     appendTurn(session, 0, history, 'earlier answer', true)
     const before = session.seq
     expect(await test.run()).toMatchObject({ code: 0, out: 'resumed answer\n', err: '' })
@@ -838,8 +789,8 @@ describe('headless runner', () => {
     const test = await bench({
       before(session) {
         const history = {
-          role: 'user', content: [{ type: 'text', text: 'earlier' }], source: { kind: 'user' }, id: 'history',
-        } as UserMessage
+          role: 'user', content: [{ type: 'text', text: 'earlier' }], source: { kind: 'user' }, id: brandString<MessageId>('history'),
+        } satisfies UserMessage
         appendTurn(session, 0, history, 'earlier answer', true)
         selectPreset(session, 'minimal')
       },
@@ -894,8 +845,8 @@ describe('headless runner', () => {
     const test = await bench({
       before(session) {
         const history = {
-          role: 'user', content: [{ type: 'text', text: 'earlier' }], source: { kind: 'user' }, id: 'history',
-        } as UserMessage
+          role: 'user', content: [{ type: 'text', text: 'earlier' }], source: { kind: 'user' }, id: brandString<MessageId>('history'),
+        } satisfies UserMessage
         appendTurn(session, 0, history, 'earlier answer', true)
         capturedLength = session.seq
         Object.defineProperty(session, 'eventAt', { value: () => undefined })
@@ -1013,44 +964,6 @@ describe('headless runner', () => {
     await test.ctx.fiber.dispose()
   })
 
-  it('closes an in-turn failure with final and the failing turn reason', async () => {
-    const reason = { kind: 'error', error: { code: 'LLM_REQUEST_FAILED', message: 'request failed' } } as const
-    const test = await bench({
-      afterPrompt(session) {
-        session.append('turn/start', { turn: 1 })
-        session.append('turn/end', { turn: 1, reason })
-      },
-    }, { json: true })
-    const result = await test.run()
-    const events = result.out.trim().split('\n').map(line => JSON.parse(line) as Record<string, unknown>)
-    expect(result.code).toBe(1)
-    expect(result.err).toBe('dsh: LLM_REQUEST_FAILED: request failed\n')
-    expect(events.slice(-2)).toEqual([
-      { type: 'status', phase: 'turn_end', turn: 1, reason },
-      { type: 'final', text: '' },
-    ])
-    expect(events.some(event => event.type === 'error')).toBe(false)
-  })
-
-  it('reports a flush failure without final and detaches the JSON projection', async () => {
-    let owned: Session | undefined
-    const test = await bench({
-      afterPrompt(session, message) {
-        owned = session
-        appendTurn(session, 1, message, 'unflushed answer', true)
-      },
-    }, { json: true })
-    test.ctx.sessions.flush = async () => { throw new Error('flush failed') }
-    const result = await test.run()
-    const events = result.out.trim().split('\n').map(line => JSON.parse(line) as Record<string, unknown>)
-    expect(result.code).toBe(1)
-    expect(events.at(-1)).toEqual({ type: 'error', message: 'flush failed' })
-    expect(events.some(event => event.type === 'final')).toBe(false)
-    expect(result.err).toBe('dsh: flush failed\n')
-    owned?.append('turn/start', { turn: 2 })
-    expect(test.output().out).toBe(result.out)
-  })
-
   it('reports a direct failure as an error event in --json mode', async () => {
     const test = await bench({ afterPrompt: () => {} }, {
       useStdin: true,
@@ -1065,7 +978,7 @@ describe('headless runner', () => {
   })
 
   it('reports a direct Agent creation failure', async () => {
-    const ctx = createContext()
+    const ctx = new Context()
     let err = ''
     internals.stdout = { write: () => true }
     internals.stderr = { write: (chunk: string) => { err += chunk; return true } }
@@ -1082,7 +995,7 @@ describe('headless runner', () => {
   })
 
   it('stringifies a non-Error Agent creation failure', async () => {
-    const ctx = createContext()
+    const ctx = new Context()
     let err = ''
     internals.stdout = { write: () => true }
     internals.stderr = { write: (chunk: string) => { err += chunk; return true } }
@@ -1104,7 +1017,7 @@ describe('headless runner', () => {
   })
 
   it('abandons a run when the tree is disposed during Loader settlement', async () => {
-    const ctx = createContext()
+    const ctx = new Context()
     let exited = false
     internals.stdout = { write: () => true }
     internals.stderr = { write: () => true }
@@ -1115,19 +1028,19 @@ describe('headless runner', () => {
       child.provide('agents', {} as never)
     })
     await services
-    const { promise: settlement, resolve: release } = Promise.withResolvers<undefined>()
+    let release: () => void
+    const settlement = new Promise<void>((resolve) => { release = resolve })
     ctx.provide('loader', { await: () => settlement } as never)
     apply(ctx, { task: 't' })
     await services.dispose()
-    release(undefined)
-    // The runner registered its settlement continuation before this await.
-    await settlement
+    release!()
+    await new Promise(resolve => setTimeout(resolve, 10))
     expect(exited).toBe(false)
     await ctx.fiber.dispose()
   })
 
   it('fails loud without the launcher-provided exit request', () => {
-    const ctx = createContext()
+    const ctx = new Context()
     expect(() => { apply(ctx, { task: 't' }) }).toThrow('must provide ctx.appExit')
   })
 

@@ -3,7 +3,7 @@
  * web carrier; the fetch-shaped handler itself is transport-agnostic).
  */
 
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { IncomingMessage } from 'node:http'
 import { Readable } from 'node:stream'
 import type { ConnectionFetchHandler } from './rpc.ts'
 
@@ -13,9 +13,20 @@ import type { ConnectionFetchHandler } from './rpc.ts'
  * each body in memory, so this cap is also the per-request resident bound. */
 export const DEFAULT_MAX_REQUEST_BODY_BYTES = 300 * 1024 * 1024
 
+interface BridgeServerResponse {
+  readonly destroyed: boolean
+  readonly writableEnded: boolean
+  on(event: 'close', listener: () => void): this
+  off(event: 'close' | 'drain', listener: () => void): this
+  once(event: 'close' | 'drain', listener: () => void): this
+  writeHead(statusCode: number, headers?: Record<string, string>): unknown
+  write(chunk: Uint8Array): boolean
+  end(): unknown
+}
+
 /**
  * Bridge one node:http request to the fetch-shaped handler (client close
- * aborts; response bodies stream out chunk by chunk).
+ * aborts; response writes respect backpressure and stop on disconnect).
  * @param req - incoming node:http request.
  * @param res - node:http response the bridge writes and owns to completion.
  * @param apiHandler - fetch-shaped API carrier the request is dispatched to.
@@ -23,7 +34,7 @@ export const DEFAULT_MAX_REQUEST_BODY_BYTES = 300 * 1024 * 1024
  */
 export async function bridge(
   req: IncomingMessage,
-  res: ServerResponse,
+  res: BridgeServerResponse,
   apiHandler: ConnectionFetchHandler,
   maxRequestBodyBytes = DEFAULT_MAX_REQUEST_BODY_BYTES,
 ): Promise<void> {
@@ -81,11 +92,6 @@ export async function bridge(
     } as RequestInit & { duplex: 'half' })
   }
   const response = await apiHandler.fetch(request)
-  const responseClosed = (): boolean => res.destroyed || res.writableEnded || abort.signal.aborted
-  if (responseClosed()) {
-    await response.body?.cancel()
-    return
-  }
   const requestUnread = bodyMode === 'streaming' && !req.readableEnded
   const responseHeaders = Object.fromEntries(response.headers.entries())
   res.writeHead(response.status, requestUnread ? { ...responseHeaders, connection: 'close' } : responseHeaders)
@@ -95,12 +101,13 @@ export async function bridge(
     return
   }
   for await (const chunk of response.body) {
-    if (responseClosed()) break
+    // Drain without writing after disconnect: cancelling Node multipart bodies
+    // can race their producer and reject with ERR_INVALID_STATE.
+    if (abort.signal.aborted) continue
     // Backpressure: a false return means the socket buffer is full — wait for drain
     // instead of buffering unboundedly (slow or suspended consumers). 'close' also
-    // resolves so a mid-wait disconnect can't park this loop forever; the close
-    // handler above aborts the handler stream, which then ends the iteration.
-    if (!res.write(chunk)) {
+    // resolves so a mid-wait disconnect cannot park this loop forever.
+    if (!res.write(chunk) && !res.destroyed) {
       await new Promise<void>((resolve) => {
         const done = (): void => {
           res.off('drain', done)
@@ -109,10 +116,9 @@ export async function bridge(
         }
         res.once('drain', done)
         res.once('close', done)
-        if (responseClosed()) done()
       })
     }
   }
-  if (!responseClosed()) res.end()
+  res.end()
   if (requestUnread) req.destroy()
 }

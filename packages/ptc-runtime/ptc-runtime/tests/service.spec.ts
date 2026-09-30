@@ -1,4 +1,4 @@
-import { describe, expect, it, onTestFinished } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { PtcRuntime } from '@deepseek-ai/dsh-ptc-runtime'
 import type { PtcRunRequest, PtcRunResult } from '@deepseek-ai/dsh-ptc-runtime'
@@ -33,7 +33,6 @@ class StubRuntime extends PtcRuntime {
 
 async function setup() {
   const ctx = new Context()
-  onTestFinished(async () => { await ctx.fiber.dispose() })
   await ctx.plugin(StubRuntime)
   const runtime = ctx.ptcRuntime as StubRuntime
   return { ctx, runtime }

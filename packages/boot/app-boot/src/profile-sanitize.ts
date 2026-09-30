@@ -2,7 +2,8 @@
 
 import { existsSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
-import { PROFILE_PATCH_FILENAME, readProfileManifest, writeProfileManifest } from './profile.ts'
+import { PROFILE_PATCH_FILENAME, readProfileManifest } from './profile.ts'
+import { writeProfileBundles } from './profile-plugins.ts'
 
 /**
  * Back up the profile patch and retain only the caller's recovery bundles.
@@ -28,9 +29,6 @@ export function sanitizeProfile(binName: string, profileDir: string, bundles: re
     if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     backupPath = undefined
   }
-  if (manifest !== undefined) writeProfileManifest(profileDir, {
-    ...manifest,
-    dsh: { ...manifest.dsh, profile: { ...manifest.dsh?.profile, bundles: [...bundles] } },
-  })
+  if (manifest !== undefined) writeProfileBundles(profileDir, manifest, bundles)
   return backupPath
 }

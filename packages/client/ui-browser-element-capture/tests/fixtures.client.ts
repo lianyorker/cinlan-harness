@@ -1,7 +1,7 @@
 /** Browser-owned image and page values used by capture consumer tests. */
 import type {
   BrowserElementCaptureValue, BrowserElementSelectionValue, BrowserPagesValue,
-} from '@deepseek-ai/dsh-api-remotes/client'
+} from '../src/client/contract.ts'
 
 /** A page-local one-use selection returned after human input. */
 export const selection: BrowserElementSelectionValue = {
@@ -23,6 +23,5 @@ export const capture: BrowserElementCaptureValue = {
 
 /** The existing native page list; it contains no browser filesystem paths. */
 export const pages: BrowserPagesValue = {
-  profileName: 'default', maxFileBytes: 1024,
-  pages: [{ pageId: selection.pageId, index: 0, title: 'Documentation', url: 'https://example.test/docs', active: true }],
+  pages: [{ pageId: selection.pageId, title: 'Documentation', url: 'https://example.test/docs' }],
 }

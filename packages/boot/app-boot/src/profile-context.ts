@@ -14,8 +14,6 @@ export interface ProfilePnpmInvocation {
 /** Current profile facts; scheduling and mutation belong to their callers. */
 export interface ProfileContext {
   readonly name: string
-  /** Whether saved composition changes apply during this process. */
-  readonly patchReload: 'live' | 'startup'
   /** Packaged applications supply their bundled runtime instead of a PATH executable. */
   readonly packageManager?: ProfilePnpmInvocation
   readonly dir: string

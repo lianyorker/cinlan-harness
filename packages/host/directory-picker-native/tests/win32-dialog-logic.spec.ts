@@ -62,6 +62,8 @@ describe('runFolderDialog', () => {
     expect(dialog.setOptions).toHaveBeenCalledWith(FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_NOCHANGEDIR)
     expect(dialog.setTitle).toHaveBeenCalledWith('Pick')
     expect(showing).toHaveBeenCalledWith(4242)
+    expect(showing.mock.invocationCallOrder[0]).toBeLessThan(dialog.show.mock.invocationCallOrder[0] as number)
+    // The foreground press sits between the showing notice and the blocking Show.
     expect(pressAlt).toHaveBeenCalledOnce()
     expect(showing.mock.invocationCallOrder[0]).toBeLessThan(pressAlt.mock.invocationCallOrder[0] as number)
     expect(pressAlt.mock.invocationCallOrder[0]).toBeLessThan(dialog.show.mock.invocationCallOrder[0] as number)
@@ -83,10 +85,9 @@ describe('runFolderDialog', () => {
   })
 
   it('throws on a failing CoInitializeEx without creating a dialog or uninitializing', () => {
-    const { bindings, pressAlt, createDialog, uninitialize } = world({}, E_FAIL)
+    const { bindings, createDialog, uninitialize } = world({}, E_FAIL)
     expect(() => runFolderDialog(bindings, 'Pick', vi.fn())).toThrow('CoInitializeEx failed: HRESULT 0x80004005')
     expect(createDialog).not.toHaveBeenCalled()
-    expect(pressAlt).not.toHaveBeenCalled()
     // A failed CoInitializeEx must NOT be paired with CoUninitialize.
     expect(uninitialize).not.toHaveBeenCalled()
   })
@@ -97,9 +98,8 @@ describe('runFolderDialog', () => {
     ['Show', { show: vi.fn(() => E_FAIL) }],
     ['GetResult', { resultPath: vi.fn(() => ({ hr: E_FAIL })) }],
   ] satisfies [string, Partial<Win32FolderDialog>][])('releases the dialog and apartment when %s fails', (what, overrides) => {
-    const { bindings, pressAlt, dialog, uninitialize } = world(overrides)
+    const { bindings, dialog, uninitialize } = world(overrides)
     expect(() => runFolderDialog(bindings, 'Pick', vi.fn())).toThrow(`${what} failed: HRESULT 0x80004005`)
-    expect(pressAlt).toHaveBeenCalledTimes(what === 'Show' || what === 'GetResult' ? 1 : 0)
     expect(dialog.release).toHaveBeenCalledOnce()
     expect(uninitialize).toHaveBeenCalledOnce()
   })

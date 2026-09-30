@@ -6,13 +6,9 @@ export type RetainableBlock = Extract<ContentBlock, { type: 'text' | 'image' }>
 
 /** Retained ends and exact quantities excluded from their original sequence. */
 export interface RetainedContent {
-  /** Blocks retained from the beginning of the original sequence. */
   head: RetainableBlock[]
-  /** Blocks retained from the end of the original sequence. */
   tail: RetainableBlock[]
-  /** UTF-8 bytes omitted from text blocks. */
   omittedBytes: number
-  /** Whole image blocks omitted from the sequence. */
   omittedImages: number
 }
 

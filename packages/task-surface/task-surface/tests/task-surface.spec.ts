@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, createToolResultMessage, MessageId, ToolCallId } from '@deepseek-ai/dsh-llm'
 import SessionStore, {
   SessionId,
+  SessionLogOffset,
   SessionSeq,
   type SessionEvent,
   type SessionEventMap,
@@ -181,10 +182,10 @@ describe('TaskSurface parser and limits', () => {
       ],
       submit: { label: 'S' },
     })
-    expect(parsed.fields?.[0].initial).toBe('o1')
-    expect(parsed.fields?.[1].initial).toEqual(['o1'])
-    expect(parsed.fields?.[2].initial).toBe(true)
-    expect(parsed.fields?.[3].initial).toEqual(['o1'])
+    expect(parsed.fields?.[0]?.initial).toBe('o1')
+    expect(parsed.fields?.[1]?.initial).toEqual(['o1'])
+    expect(parsed.fields?.[2]?.initial).toBe(true)
+    expect(parsed.fields?.[3]?.initial).toEqual(['o1'])
   })
 
   it('parses fields without initial values', () => {
@@ -201,11 +202,11 @@ describe('TaskSurface parser and limits', () => {
       ],
       submit: { label: 'S' },
     })
-    expect(parsed.fields?.[0].initial).toBeUndefined()
-    expect(parsed.fields?.[1].initial).toBeUndefined()
-    expect(parsed.fields?.[2].initial).toBeUndefined()
-    expect(parsed.fields?.[3].initial).toBeUndefined()
-    expect(parsed.fields?.[4].initial).toBeUndefined()
+    expect(parsed.fields?.[0]?.initial).toBeUndefined()
+    expect(parsed.fields?.[1]?.initial).toBeUndefined()
+    expect(parsed.fields?.[2]?.initial).toBeUndefined()
+    expect(parsed.fields?.[3]?.initial).toBeUndefined()
+    expect(parsed.fields?.[4]?.initial).toBeUndefined()
   })
 
   it('rejects models violating structural or schema rules', () => {
@@ -588,7 +589,7 @@ describe('validateSubmission & formatSubmissionMessage', () => {
 
 describe('taskSurfaceProjectionDefinition', () => {
   it('folds tool/result, task-surface/dismissed, and user/message', () => {
-    const init = taskSurfaceProjectionDefinition.init()
+    const init = taskSurfaceProjectionDefinition.init({} as any, SessionLogOffset(0))
     expect(init).toEqual({ active: null })
 
     // Unrelated event does nothing
@@ -598,17 +599,18 @@ describe('taskSurfaceProjectionDefinition', () => {
     expect(taskSurfaceProjectionDefinition.apply(init, createTestEvent('tool/result', {
       turn: 1,
       step: 1,
-      message: { role: 'tool', content: [{ type: 'tool-result', toolCallId: ToolCallId('c1'), content: [] }] },
+      message: createToolResultMessage({ callId: ToolCallId('c1'), content: [], isError: false }),
     }))).toBe(init)
 
     // tool/result with task-surface meta sets active
     const activeState = taskSurfaceProjectionDefinition.apply(init, createTestEvent('tool/result', {
       turn: 1,
       step: 1,
-      message: {
-        role: 'tool',
-        content: [{ type: 'tool-result', toolCallId: ToolCallId('call-1'), content: [] }],
-      },
+      message: createToolResultMessage({
+        callId: ToolCallId('call-1'),
+        content: [],
+        isError: false,
+      }),
       meta: {
         kind: 'dsh/task-surface',
         version: 1,
@@ -637,6 +639,7 @@ describe('taskSurfaceProjectionDefinition', () => {
     // user/message closes active surface
     const userMessageState = taskSurfaceProjectionDefinition.apply(activeState, createTestEvent('user/message', createUserMessage({
       content: [],
+      source: { kind: 'user' },
     })))
     expect(userMessageState).toEqual({ active: null })
 
@@ -653,6 +656,7 @@ describe('taskSurfaceProjectionDefinition', () => {
     // user/message when already idle stays idle
     expect(taskSurfaceProjectionDefinition.apply(init, createTestEvent('user/message', createUserMessage({
       content: [],
+      source: { kind: 'user' },
     })))).toBe(init)
   })
 })
@@ -696,10 +700,11 @@ describe('TaskSurfaceServiceImpl', () => {
     session.append('tool/result', {
       turn: 1,
       step: 1,
-      message: {
-        role: 'tool',
-        content: [{ type: 'tool-result', toolCallId: ToolCallId('call-test'), content: [] }],
-      },
+      message: createToolResultMessage({
+        callId: ToolCallId('call-test'),
+        content: [],
+        isError: false,
+      }),
       meta: {
         kind: 'dsh/task-surface',
         version: 1,
@@ -712,10 +717,11 @@ describe('TaskSurfaceServiceImpl', () => {
     session.append('tool/result', {
       turn: 1,
       step: 2,
-      message: {
-        role: 'tool',
+      message: createToolResultMessage({
+        callId: ToolCallId('call-other'),
         content: [],
-      },
+        isError: false,
+      }),
       meta: { kind: 'other' },
     }, { surfaceOp: 'append' })
 
@@ -756,10 +762,11 @@ describe('TaskSurfaceServiceImpl', () => {
     session.append('tool/result', {
       turn: 1,
       step: 1,
-      message: {
-        role: 'tool',
-        content: [{ type: 'tool-result', toolCallId: ToolCallId('call-test'), content: [] }],
-      },
+      message: createToolResultMessage({
+        callId: ToolCallId('call-test'),
+        content: [],
+        isError: false,
+      }),
       meta: {
         kind: 'dsh/task-surface',
         version: 1,
@@ -782,7 +789,7 @@ describe('TaskSurfaceServiceImpl', () => {
     // If another submission is already pending, submit is rejected with submission-pending
     testAccess(ctx.taskSurface).pendingSubmissions.set(`${session.id}:${surfId}`, {
       submissionId: TaskSurfaceSubmissionId('conflict-sub'),
-      messageId: 'msg-prev',
+      messageId: MessageId('msg-prev'),
       phase: 'queued',
     })
     const conflictSubmit = await ctx.taskSurface.submit({
@@ -804,13 +811,14 @@ describe('TaskSurfaceServiceImpl', () => {
     // Cross-session pending cleanup test
     testAccess(ctx.taskSurface).pendingSubmissions.set(`other-sess:${surfId}`, {
       submissionId: TaskSurfaceSubmissionId('other-sub'),
-      messageId: 'msg-other',
+      messageId: MessageId('msg-other'),
       phase: 'queued',
     })
     session.append('user/message', {
-      id: 'm-clear',
+      id: MessageId('m-clear'),
       role: 'user',
       content: [{ type: 'text', text: 'clearing' }],
+      source: { kind: 'user' },
     }, { surfaceOp: 'append' })
     expect(testAccess(ctx.taskSurface).pendingSubmissions.has(`other-sess:${surfId}`)).toBe(true)
     expect(testAccess(ctx.taskSurface).pendingSubmissions.has(`${session.id}:${surfId}`)).toBe(false)
@@ -819,10 +827,11 @@ describe('TaskSurfaceServiceImpl', () => {
     session.append('tool/result', {
       turn: 2,
       step: 1,
-      message: {
-        role: 'tool',
-        content: [{ type: 'tool-result', toolCallId: ToolCallId('call-test'), content: [] }],
-      },
+      message: createToolResultMessage({
+        callId: ToolCallId('call-test'),
+        content: [],
+        isError: false,
+      }),
       meta: {
         kind: 'dsh/task-surface',
         version: 1,
@@ -899,10 +908,11 @@ describe('TaskSurfaceServiceImpl', () => {
     session.append('tool/result', {
       turn: 1,
       step: 1,
-      message: {
-        role: 'tool',
-        content: [{ type: 'tool-result', toolCallId: ToolCallId('call-dis'), content: [] }],
-      },
+      message: createToolResultMessage({
+        callId: ToolCallId('call-dis'),
+        content: [],
+        isError: false,
+      }),
       meta: {
         kind: 'dsh/task-surface',
         version: 1,

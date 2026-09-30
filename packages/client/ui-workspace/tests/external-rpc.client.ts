@@ -1,5 +1,4 @@
-/** External Host fixture; real generated Client Remote owns request decoding. */
-import { createFixtureFaces } from '@deepseek-ai/dsh-client-connection/src/client/fixture.ts'
+import { RemoteMock } from '@deepseek-ai/dsh-remote-mock'
 import type { ClientTransportHooks, ClientRequest } from '@deepseek-ai/dsh-client-connection/client'
 import type { ListTargetsValue, TargetView } from '@deepseek-ai/dsh-api-execution-host-controller/types'
 
@@ -12,7 +11,7 @@ export const target: TargetView = {
 }
 export function externalRpc() {
   const calls: ClientRequest[] = []
-  const rpc = createFixtureFaces().rpc
+  const rpc = RemoteMock.create().rpc
   const baseline: ListTargetsValue = { targets: [target], current: {
     hostId: 'local' as ListTargetsValue['current']['hostId'], hostname: 'desktop', pid: 1, platform: 'win32', createdAt: '2026-09-01T10:00:00.000Z',
   } }

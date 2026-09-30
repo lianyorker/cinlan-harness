@@ -148,11 +148,23 @@ export type GetActiveTaskSurfaceResult =
 
 /** Host-side Task Surface service seam. */
 export interface TaskSurfaceService {
-  /** Query the currently active Task Surface and its pending state. */
+  /**
+   * Query the currently active Task Surface and its pending state.
+   * @param input - the session to query, optionally narrowed to one surface id.
+   * @returns the active surface with its pending submission, or `not-open`.
+   */
   getActive(input: { readonly sessionId: SessionId; readonly surfaceId?: TaskSurfaceId }): Promise<GetActiveTaskSurfaceResult>
-  /** Submit field values for the active surface, enqueuing a user message. */
+  /**
+   * Submit field values for the active surface, enqueuing a user message.
+   * @param input - session, surface, idempotent submission identity, and field values.
+   * @returns acceptance with the queued message id and phase, or the rejection reason.
+   */
   submit(input: SubmitTaskSurfaceRequest): Promise<SubmitTaskSurfaceResult>
-  /** Dismiss the active surface without submission. */
+  /**
+   * Dismiss the active surface without submission.
+   * @param input - session, surface, and idempotent dismissal identity.
+   * @returns dismissal with the committing event sequence, or the rejection reason.
+   */
   dismiss(input: DismissTaskSurfaceRequest): Promise<DismissTaskSurfaceResult>
 }
 
@@ -178,6 +190,12 @@ declare module '@deepseek-ai/cordis' {
 
 declare module '@deepseek-ai/dsh-session/types' {
   interface SessionEventMap {
+    /**
+     * A session dismissed its active Task Surface without submitting. The
+     * payload names the dismissed `surfaceId` and the idempotent `dismissalId`
+     * attempt; the projection clears the active surface only when `surfaceId`
+     * matches, so a stale dismissal for another surface changes nothing.
+     */
     'task-surface/dismissed': {
       surfaceId: TaskSurfaceId
       dismissalId: TaskSurfaceDismissalId

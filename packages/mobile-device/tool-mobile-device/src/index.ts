@@ -15,6 +15,12 @@ import type {
 } from '@deepseek-ai/dsh-mobile-device'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'tool-mobile-device': { kind: 'tool-mobile-device' }
+  }
+}
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView, ToolExecution, ToolRunContext } from '@deepseek-ai/dsh-tools'
@@ -220,7 +226,7 @@ async function observationValue(
   if (image !== undefined && exec.parent !== undefined) {
     exec.deferContext(createUserMessage({
       content: observationContent(value),
-      source: { kind: 'plugin', plugin: 'tool-mobile-device' },
+      source: { kind: 'tool-mobile-device' },
     }))
   }
   return value

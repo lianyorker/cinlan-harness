@@ -104,30 +104,6 @@ afterEach(() => {
 })
 
 describe('WorkspaceAnalyzer', { timeout: 60_000 }, () => {
-  it('retains qualified import value queries without treating values as type declarations', () => {
-    const root = copyFixture('typert-import-value-query-')
-    const models = join(root, 'packages/host/src/models.ts')
-    writeFileSync(models, readFileSync(models, 'utf8') + [
-      '',
-      '/** Import value-query fixture fields. */',
-      'export interface SyntaxZoo {',
-      "  importedConstant: typeof import('./models.ts').phaseOrder",
-      "  importedFunction: typeof import('./models.ts').genericFactory<string>",
-      '}',
-      '',
-    ].join('\n'))
-    const model = new WorkspaceAnalyzer({ root }).analyze()
-    const host = model.faces.find(face => face.face === 'host')!
-    const queries = host.graph.nodes.filter((node): node is Extract<TypeNodeModel, { kind: 'import-type' }> => node.kind === 'import-type' && node.typeof && node.qualifier !== undefined)
-    expect(queries.map(node => node.qualifier)).toEqual(['phaseOrder', 'genericFactory'])
-    expect(queries.every(node => node.target === undefined)).toBe(true)
-    const renderer = new TypeGraphRenderer(host.graph)
-    expect(queries.map(node => renderer.renderType(node.id))).toEqual([
-      "typeof import('./models.ts').phaseOrder", "typeof import('./models.ts').genericFactory<string>",
-    ])
-    expect(host.graph.declarations.some(declaration => declaration.name === 'phaseOrder' || declaration.name === 'genericFactory')).toBe(false)
-  })
-
   it('builds independent face models with an explicit cross-face type graph', () => {
     const model = new WorkspaceAnalyzer({ root: fixtureRoot }).analyze()
 
@@ -1629,18 +1605,19 @@ describe('FaceModelEmitter', { timeout: 60_000 }, () => {
     const modulePath = join(root, 'host.mjs')
     writeFileSync(modulePath, artifact.js)
     const generated = await import(`${pathToFileURL(modulePath).href}?test=${Date.now()}`) as {
-      Payload: { safeParse(value: unknown): { success: boolean } }
+      Payload: () => { safeParse(value: unknown): { success: boolean } }
       TYPERT: {
         package: string
         face: string
-        schemas: { name: string; schema: unknown }[]
+        schemas: { name: string; create: () => unknown }[]
         model: { services: { key: string; members: { signature: string }[] }[] }
       }
     }
-    expect(generated.Payload.safeParse({ name: 'ready', count: 2 }).success).toBe(true)
-    expect(generated.Payload.safeParse({ name: 'ready', count: 'two' }).success).toBe(false)
+    expect(generated.Payload().safeParse({ name: 'ready', count: 2 }).success).toBe(true)
+    expect(generated.Payload().safeParse({ name: 'ready', count: 'two' }).success).toBe(false)
+    expect(generated.Payload()).toBe(generated.Payload())
     expect(generated.TYPERT).toMatchObject({ package: '@fixture/host', face: 'host' })
-    expect(generated.TYPERT.schemas[0]?.schema).toBe(generated.Payload)
+    expect(generated.TYPERT.schemas[0]?.create).toBe(generated.Payload)
     const demo = generated.TYPERT.model.services.find(service => service.key === 'demo')
     expect(demo).toMatchObject({ key: 'demo' })
     expect(demo?.members.map(member => member.signature)).toContain(
@@ -1655,7 +1632,7 @@ describe('FaceModelEmitter', { timeout: 60_000 }, () => {
       'import { Payload } from \'./host.js\'',
       'import type { Payload as SourcePayload } from \'@fixture/host\'',
       'import type { z } from \'zod\'',
-      'const precise: z.ZodType<SourcePayload> = Payload',
+      'const precise: () => z.ZodType<SourcePayload> = Payload',
       'void precise',
       '',
     ].join('\n'))

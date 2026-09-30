@@ -22,13 +22,12 @@ kind: "package-group"
 <a id="packages"></a>
 ## 包
 
-这三个包提供持久图片附件；每个 README 描述其各自部分可以做什么。
+这两个包提供持久图片附件；每个 README 描述其各自部分可以做什么。
 
 | 包 | 角色 | ctx 键 |
 |---|---|---|
 | [`attachment/`](attachment/README.zh.md) | 可用于提示词与命令、会持久保存并回到历史中的图片附件 | `ctx.attachments` |
 | [`attachment-local/`](attachment-local/README.zh.md) | 把附加图片存储在本机 `DSH_HOME` 下 | 注册到 `ctx.attachments` |
-| [`attachment-quarantine/`](attachment-quarantine/README.zh.md) | 隔离无法读取的历史附件并在校验后恢复引用 | 注册到 `ctx.sessions` |
 
 -----
 
@@ -37,7 +36,7 @@ kind: "package-group"
 
 先从子系统参考了解服务约定，再看能力 seam 表与本地后端的配置面。
 
-- [附件子系统参考](../../docs/subsystems/attachment.zh.md)——服务约定、载荷类型与 `ctx.attachments` 的 cordis 接口面。
+- [附件子系统参考](../../docs/subsystems/attachment.zh.md)——服务约定、载荷类型与 `ctx.attachments` 的 Cordis 接口面。
 - [能力 seam](../../docs/capability-seams.zh.md)——本家族遵循的 Service Definition / Service Provider / Consumer 拆分。
 - [生成配置目录](../../docs/config-catalog.zh.md#deepseek-aidsh-attachment-local)——本地后端的每个受支持字段。
 

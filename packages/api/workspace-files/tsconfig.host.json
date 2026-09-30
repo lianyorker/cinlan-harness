@@ -11,15 +11,11 @@
     "src/changes.ts"
   ],
   "references": [
-    { "path": "../../execution-host/execution-binding" },
     {
       "path": "../../../vendor/cordis"
     },
     {
       "path": "../../../vendor/schemastery"
-    },
-    {
-      "path": "../../core/agent"
     },
     {
       "path": "../../core/session"
@@ -29,6 +25,9 @@
     },
     {
       "path": "../../sandbox/sandbox-policy"
+    },
+    {
+      "path": "../../session/session-persistence"
     },
     {
       "path": "../../typert/protocol"

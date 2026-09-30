@@ -22,13 +22,12 @@ The `attachment/` group provides durable image attachments: attach images to pro
 <a id="packages"></a>
 ## Packages
 
-These three packages provide durable image attachments; each README describes what you can do with its part.
+These two packages provide durable image attachments; each README describes what you can do with its part.
 
 | Package | Role | ctx key |
 |---|---|---|
 | [`attachment/`](attachment/README.md) | Image attachments for prompts and commands that persist and come back in history | `ctx.attachments` |
 | [`attachment-local/`](attachment-local/README.md) | Stores your attached images on this machine below `DSH_HOME` | registers on `ctx.attachments` |
-| [`attachment-quarantine/`](attachment-quarantine/README.md) | Quarantines unreadable historical attachments and restores verified references | registers on `ctx.sessions` |
 
 -----
 
@@ -37,7 +36,7 @@ These three packages provide durable image attachments; each README describes wh
 
 Start with the subsystem reference for the service contract, then the capability-seam table and the configuration surface of the local backend.
 
-- [Attachment subsystem reference](../../docs/subsystems/attachment.md) — service contract, payload types, and the `ctx.attachments` cordis surface.
+- [Attachment subsystem reference](../../docs/subsystems/attachment.md) — service contract, payload types, and the `ctx.attachments` Cordis surface.
 - [Capability seams](../../docs/capability-seams.md) — the Service Definition / Service Provider / Consumer split this family follows.
 - [Generated configuration catalog](../../docs/config-catalog.md#deepseek-aidsh-attachment-local) — every accepted field of the local backend.
 

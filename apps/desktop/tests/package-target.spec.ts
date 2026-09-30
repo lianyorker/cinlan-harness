@@ -1,43 +1,12 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { createRequire } from 'node:module'
 import { describe, expect, it } from 'vitest'
 import {
-  assertWindowsSigningEnvironment,
   desktopElectronBuilderArguments,
   desktopElectronBuilderEnvironment,
   parseDesktopPackageInvocation,
-  publishCompletedArtifactDirectory,
   resolveDesktopPackageTarget,
-  stablePnpmRunEnvironment,
   withoutDesktopUploadCredentials,
   withoutWindowsSigningEnvironment,
 } from '../scripts/package-target.ts'
-import { assertDesktopDependencySelection } from '../scripts/validate-electron-builder-dependencies.mjs'
-
-function desktopDependencyRoot() {
-  const appPath = resolve(import.meta.dirname, '..')
-  return {
-    name: '@deepseek-ai/dsh-desktop',
-    path: appPath,
-    dependencies: {
-      '@deepseek-ai/cordis': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/cordis') },
-      '@deepseek-ai/cordis-plugin-group': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/cordis-plugin-group') },
-      '@deepseek-ai/cordis-plugin-include': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/cordis-plugin-include') },
-      '@deepseek-ai/cordis-plugin-loader': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/cordis-plugin-loader') },
-      '@deepseek-ai/dsh-app-boot': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/dsh-app-boot') },
-      '@deepseek-ai/dsh-home-paths': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/dsh-home-paths') },
-      '@deepseek-ai/dsh-launch-environment': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/dsh-launch-environment') },
-      '@deepseek-ai/dsh-system-prompt': { version: 'workspace', path: resolve(appPath, 'node_modules/@deepseek-ai/dsh-system-prompt') },
-      'electron-updater': {
-        version: '6.8.9', path: resolve(appPath, 'node_modules/electron-updater'),
-        dependencies: { semver: { version: '7.7.4', path: resolve(appPath, 'node_modules/electron-updater/node_modules/semver') } },
-      },
-      semver: { version: '7.8.5', path: resolve(appPath, 'node_modules/semver') },
-    },
-  }
-}
 
 describe('desktop package target', () => {
   it('selects matching runtime and electron-builder architectures', () => {
@@ -64,42 +33,36 @@ describe('desktop package target', () => {
     expect(() => resolveDesktopPackageTarget('mac-x64', 'darwin', 'ppc64')).toThrow(/Rosetta/u)
   })
 
-  it('parses installer, unpacked-directory, and deliberate unsigned invocations', () => {
+  it('parses installer and unpacked-directory invocations', () => {
     expect(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64').directory).toBe(false)
     expect(parseDesktopPackageInvocation(['mac-arm64', '--dir'], 'darwin', 'arm64').directory).toBe(true)
     expect(parseDesktopPackageInvocation([], 'darwin', 'arm64').target.name).toBe('mac-arm64')
     expect(parseDesktopPackageInvocation(['--prepare-only'], 'darwin', 'arm64').prepareOnly).toBe(true)
-    expect(parseDesktopPackageInvocation(['win-x64', '--unsigned'], 'win32', 'x64')).toMatchObject({
-      target: { name: 'win-x64' }, unsigned: true, msi: false, directory: false,
-    })
-    expect(parseDesktopPackageInvocation(['win-x64', '--unsigned', '--msi'], 'win32', 'x64')).toMatchObject({
-      target: { name: 'win-x64' }, unsigned: true, msi: true, directory: false,
-    })
-    expect(() => parseDesktopPackageInvocation(['mac-arm64', '--msi'], 'darwin', 'arm64'))
-      .toThrow(/only for win-x64/u)
-    expect(() => parseDesktopPackageInvocation(['win-x64', '--msi'], 'win32', 'x64'))
-      .toThrow(/requires --unsigned/u)
-    expect(() => parseDesktopPackageInvocation(['win-x64', '--unsigned', '--msi', '--dir'], 'win32', 'x64'))
-      .toThrow(/cannot be combined/u)
-    expect(() => parseDesktopPackageInvocation(['mac-arm64', '--unsigned'], 'darwin', 'arm64'))
-      .toThrow(/only for win-x64/u)
+    expect(parseDesktopPackageInvocation(['--check'], 'darwin', 'arm64').check).toBe(true)
+    expect(parseDesktopPackageInvocation(['win-x64', '--check', '--unsigned'], 'win32', 'x64')).toMatchObject({ check: true, unsigned: true })
     expect(() => parseDesktopPackageInvocation(['mac-arm64', 'mac-x64'], 'darwin', 'arm64'))
       .toThrow(/at most one target/u)
   })
 
-  it('requires all Windows signing fields for normal artifacts', () => {
-    const target = resolveDesktopPackageTarget('win-x64', 'win32', 'x64')
-    expect(() => { assertWindowsSigningEnvironment(target, {}, false, false) })
-      .toThrow(/signed Windows packaging requires.*DSH_DESKTOP_WINDOWS_CER_FILE/u)
-    expect(() => { assertWindowsSigningEnvironment(target, {}, true, false) }).not.toThrow()
-    expect(() => { assertWindowsSigningEnvironment(target, {}, false, true) }).not.toThrow()
+  it('parses a build version, including the separator a pnpm run script forwards', () => {
+    expect(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64').requestedBuildVersion).toBeUndefined()
+    expect(parseDesktopPackageInvocation(['mac-arm64', '--build-version', '0.1.6-alpha.2.20260921.1'], 'darwin', 'arm64')
+      .requestedBuildVersion).toBe('0.1.6-alpha.2.20260921.1')
+    expect(parseDesktopPackageInvocation(['mac-arm64', '--build-version', 'auto'], 'darwin', 'arm64')
+      .requestedBuildVersion).toBe('auto')
+    // A run script's preset arguments come first, so pnpm forwards the separator after the target.
+    expect(parseDesktopPackageInvocation(['mac-arm64', '--', '--build-version', 'auto'], 'darwin', 'arm64'))
+      .toMatchObject({ requestedBuildVersion: 'auto', target: { name: 'mac-arm64' } })
+    expect(parseDesktopPackageInvocation(['--', '--check'], 'darwin', 'arm64').check).toBe(true)
+    expect(() => parseDesktopPackageInvocation(['mac-arm64', '--build-version', '  '], 'darwin', 'arm64'))
+      .toThrow(/--build-version requires a value/u)
   })
 
   it('keeps electron-builder publishing disabled for the separate validated upload', () => {
     const target = resolveDesktopPackageTarget('mac-arm64', 'darwin', 'arm64')
     expect(desktopElectronBuilderArguments(target, false)).toEqual([
-      'node',
-      createRequire(import.meta.url).resolve('electron-builder/out/cli/cli.js'),
+      'exec',
+      'electron-builder',
       '--config',
       'electron-builder.config.mjs',
       '--mac',
@@ -110,58 +73,46 @@ describe('desktop package target', () => {
     expect(desktopElectronBuilderArguments(target, true)).toContain('--dir')
   })
 
-  it('copies completed output into an empty directory held open by another process', () => {
-    const root = mkdtempSync(join(tmpdir(), 'desktop-artifact-publication-'))
-    try {
-      const completed = join(root, 'completed')
-      const destination = join(root, 'artifacts')
-      mkdirSync(completed)
-      mkdirSync(destination)
-      writeFileSync(join(completed, 'DeepSeek Harness.exe'), 'complete')
-      const remove = (path: string, options?: { recursive?: boolean; force?: boolean }) => {
-        if (path === destination) {
-          const error = Object.assign(new Error('directory is held open'), { code: 'EPERM' })
-          throw error
-        }
-        rmSync(path, options)
-      }
-      publishCompletedArtifactDirectory(completed, destination, { remove })
-      expect(readFileSync(join(destination, 'DeepSeek Harness.exe'), 'utf8')).toBe('complete')
-
-      const stale = join(root, 'stale')
-      const staleSource = join(root, 'stale-completed')
-      mkdirSync(stale)
-      mkdirSync(staleSource)
-      writeFileSync(join(stale, 'old.exe'), 'old')
-      const staleRemove = (path: string, options?: { recursive?: boolean; force?: boolean }) => {
-        if (path === stale) {
-          const error = Object.assign(new Error('directory is held open'), { code: 'EPERM' })
-          throw error
-        }
-        rmSync(path, options)
-      }
-      expect(() => { publishCompletedArtifactDirectory(staleSource, stale, { remove: staleRemove }) })
-        .toThrow(/directory is held open/u)
-      expect(readFileSync(join(stale, 'old.exe'), 'utf8')).toBe('old')
-    }
-    finally {
-      rmSync(root, { recursive: true, force: true })
-    }
+  it('accepts unsigned Windows artifacts and rejects other targets or preparation-only use', () => {
+    expect(parseDesktopPackageInvocation(['win-x64', '--unsigned'], 'win32', 'x64').unsigned).toBe(true)
+    expect(parseDesktopPackageInvocation(['win-x64'], 'win32', 'x64').unsigned).toBe(false)
+    expect(parseDesktopPackageInvocation(['--unsigned', '--dir'], 'win32', 'x64')).toMatchObject({
+      unsigned: true, directory: true,
+    })
+    expect(() => parseDesktopPackageInvocation(['mac-arm64', '--unsigned'], 'darwin', 'arm64'))
+      .toThrow(/requires win-x64/u)
+    expect(() => parseDesktopPackageInvocation(['--unsigned', '--prepare-only'], 'win32', 'x64'))
+      .toThrow(/cannot use --prepare-only/u)
   })
 
-  it('prevents pnpm run from mutating the validated dependency installation', () => {
-    const environment = Object.freeze({
-      PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: 'true',
-      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+  it('removes ambient certificate inputs for unsigned builds and overrides an inherited signing mode', () => {
+    const environment = {
+      DSH_DESKTOP_APP_ID: 'com.example.desktop',
+      DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret',
+      CSC_LINK: 'private.pfx',
+      CSC_KEY_PASSWORD: 'secret',
+      WIN_CSC_LINK: 'windows.pfx',
+      CSC_IDENTITY_AUTO_DISCOVERY: 'true',
+      DSH_DESKTOP_UNSIGNED: '1',
+    }
+    expect(desktopElectronBuilderEnvironment(environment, true)).toEqual({
+      DSH_DESKTOP_APP_ID: 'com.example.desktop',
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false',
+      DSH_DESKTOP_UNSIGNED: '1',
     })
-    expect(stablePnpmRunEnvironment(environment)).toEqual({
-      pnpm_config_verify_deps_before_run: 'false',
-      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
-    })
-    expect(environment.PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN).toBe('true')
+    expect(desktopElectronBuilderEnvironment(environment, false)).toEqual({ ...environment, DSH_DESKTOP_UNSIGNED: '0' })
   })
 
-  it('keeps Windows signing fields out of build and seed preparation subprocesses', () => {
+  it.each([false, true])('pins the Windows archive filter for the NSIS decoder (unsigned: %s)', (unsigned) => {
+    expect(desktopElectronBuilderEnvironment({
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32', ELECTRON_BUILDER_7Z_FILTER: 'ARM64',
+    }, unsigned).ELECTRON_BUILDER_7Z_FILTER).toBe('BCJ')
+    expect(desktopElectronBuilderEnvironment({
+      DSH_DESKTOP_TARGET_PLATFORM: 'darwin', ELECTRON_BUILDER_7Z_FILTER: 'ARM',
+    }, unsigned).ELECTRON_BUILDER_7Z_FILTER).toBe('ARM')
+  })
+
+  it('keeps Windows signing fields out of build and runtime preparation subprocesses', () => {
     expect(withoutWindowsSigningEnvironment({
       DSH_DESKTOP_WINDOWS_CER_FILE: 'C:\\release\\server.cer',
       DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret',
@@ -169,62 +120,6 @@ describe('desktop package target', () => {
       DSH_DESKTOP_WINDOWS_SIGNTOOL: 'C:\\tools\\signtool.exe',
       DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
     })).toEqual({ DSH_DESKTOP_AUTO_UPDATE_ENV: 'production' })
-  })
-
-  it('accepts the Desktop production tree without removing transitive dependencies', () => {
-    const root = desktopDependencyRoot()
-    const before = structuredClone(root)
-    expect(() => { assertDesktopDependencySelection([root]) }).not.toThrow()
-    expect(root).toEqual(before)
-  })
-
-  it('rejects empty listings, other projects, and selection of the whole workspace', () => {
-    const root = desktopDependencyRoot()
-    for (const tree of [
-      [],
-      [root, { name: '@deepseek-ai/dsh', path: resolve(import.meta.dirname, '../../..') }],
-      [{ ...root, name: '@deepseek-ai/other-app' }],
-      [{ ...root, path: resolve(import.meta.dirname, '../../web') }],
-    ]) {
-      expect(() => { assertDesktopDependencySelection(tree) }).toThrow(/must select only/u)
-    }
-  })
-
-  it.each([
-    '@deepseek-ai/cordis',
-    '@deepseek-ai/cordis-plugin-group',
-    '@deepseek-ai/cordis-plugin-include',
-    '@deepseek-ai/cordis-plugin-loader',
-    '@deepseek-ai/dsh-app-boot',
-    '@deepseek-ai/dsh-home-paths',
-    '@deepseek-ai/dsh-launch-environment',
-    '@deepseek-ai/dsh-system-prompt',
-    'electron-updater',
-    'semver',
-  ])('rejects a listing missing %s', (dependency) => {
-    const root = desktopDependencyRoot()
-    const dependencies = Object.fromEntries(Object.entries(root.dependencies).filter(([name]) => name !== dependency))
-    expect(() => { assertDesktopDependencySelection([{ ...root, dependencies }]) }).toThrow(`missing ${dependency}`)
-  })
-
-  it('overrides inherited collector filters without changing the preparation environment', () => {
-    const environment = Object.freeze({
-      pnpm_config_filter: 'website',
-      PNPM_CONFIG_FILTER: '*',
-      pnpm_config_filter_prod: '.../website',
-      PNPM_CONFIG_FILTER_PROD: '*',
-      npm_config_filter: '*',
-      npm_config_filter_prod: '.../benchmarks',
-      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
-      DSH_DESKTOP_AUTO_UPDATE_ENV: 'test',
-    })
-    expect(desktopElectronBuilderEnvironment(environment)).toEqual({
-      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
-      DSH_DESKTOP_AUTO_UPDATE_ENV: 'test',
-      pnpm_config_filter: '@deepseek-ai/dsh-desktop',
-    })
-    expect(environment.pnpm_config_filter).toBe('website')
-    expect(environment.PNPM_CONFIG_FILTER_PROD).toBe('*')
   })
 
   it('keeps COS credentials out of every packaging subprocess', () => {

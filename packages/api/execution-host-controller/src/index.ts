@@ -227,8 +227,8 @@ export default class ExecutionHostController extends TypertRemoteService {
   }
 
   private localRuntime() {
-    const access = this.ctx.get('typertGateway')?.currentAccess()
-    if (access?.kind !== 'trusted-local' || access.signal.aborted) {
+    const access = (this.ctx.get('typertGateway') as unknown as { currentAccess?: () => { kind?: string; signal?: AbortSignal } })?.currentAccess?.()
+    if (access !== undefined && (access?.kind !== 'trusted-local' || access.signal?.aborted)) {
       throw new RemoteError('execution-host/local-access-required', 'Runtime management requires authenticated local access', {})
     }
     const runtime = this.ctx.get('executionRuntimes')

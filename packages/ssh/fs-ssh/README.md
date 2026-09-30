@@ -27,7 +27,7 @@ English | [中文](README.zh.md)
 
 Mount this provider with [`dsh-ssh`](../ssh/README.md) and `sandboxPolicy`; use its paired SSH subprocess and sandbox providers for execution. This provider has no configuration fields: connection identity and the default workspace belong to `dsh-ssh`, while file-effect mode belongs to `sandboxPolicy`.
 
-`resolve()` canonicalizes paths on the remote host. `processPath()` and `fileUrl()` name files in that same remote namespace; they do not grant host-side access. File URLs use POSIX path rules even on Windows clients, encoding literal percent signs, backslashes and newlines without changing the filename. `processPathFromHostPath()` returns `undefined`, so consumers requiring an installed executable or bootstrap must supply a remote artifact explicitly.
+`resolve()` canonicalizes paths on the remote host. `processPath()` and `fileUrl()` name files in that same remote namespace; they do not grant host-side access. File URLs encode literal percent signs, backslashes and newlines without changing the filename. `processPathFromHostPath()` returns `undefined`, so consumers requiring an installed executable or bootstrap must supply a remote artifact explicitly.
 
 Reads preserve the shared filesystem error codes. Writes and edits send the resolved per-call policy to the helper, which canonicalizes the workspace and enforces it beside the atomic mutation. Lost transport reports an I/O failure; a mutation may already have committed and is not retried automatically.
 
@@ -67,6 +67,7 @@ This provider contributes no request-prefix content. Its consumers own model-vis
 <a id="known-limitations-and-deferred-work"></a>
 
 - Whole-text reads and individual byte windows are limited to 8 MiB by the helper. Use text streaming or multiple byte windows for larger reads; other JSON transfers also obey the connection’s frame cap.
+- Filesystem watching is unsupported: the provider keeps no `watch()` override, so the base `FS_IO_ERROR` rejection applies without polling or opening a local watcher for a remote path. Ordinary reads and consumer-owned manual refresh remain available.
 - Remote file URLs are execution coordinates, not host filesystem handles or Web download links.
 
 <a id="dev-note"></a>

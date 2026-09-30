@@ -1,5 +1,5 @@
 ---
-description: "deliverables 包组：逐轮工作区改动记录与对比，供选择记录器的用户和维护者阅读。"
+description: "deliverables 组导览：记录轮次交给用户的内容的 Host 插件，即显式文件交付与观察到的工作区改动，供浏览本组的用户与维护者阅读。"
 kind: "package-group"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-本组让客户端展示轮次中哪些工作区文件发生了改动，并对比其内容。workspace-changes 包记录 git 快照和文件工具捕获，再为每个存活 Session 提供摘要与对比。用户需要审阅轮次文件改动时可选择本组。Web 产出物插件负责渲染结果。
+deliverables 系列把一轮交给用户的内容记录为只有客户端读取的持久 Session 事件：`present` 工具声明模型交付的最终文件，workspace-changes 记录器用 git 快照和整文件捕获记录一轮改动的文件及其行数，并提供每个文件的对比。Web 的[交付插件](../client/ui-deliverables/README.zh.md)在轮次末尾渲染两者。需要展示交付文件和每轮改动的产品选择本系列；`present` 需要 `ctx.tools` 与 `ctx.fs`，记录器需要 `ctx.subprocess` 和 git 可执行文件。
 
 ## 目录
 
@@ -22,20 +22,29 @@ kind: "package-group"
 <a id="packages"></a>
 ## 包
 
-本组拥有工作区改动记录；客户端展示归 Web 插件所有。
+| 包 | 角色 | ctx key |
+|---|---|---|
+| [`tool-present`](tool-present/README.zh.md) | 通过 `present` 工具把已有文件声明为最终交付物 | 注册到 `ctx.tools` |
+| [`workspace-changes`](workspace-changes/README.zh.md) | 用 git 工作树快照和整文件捕获汇总每个顶层轮次改动的文件，并提供其对比 | 提供 `ctx.workspaceChanges`；监听 `session/event`，追加 `workspace/changes` |
 
-| 包 | 角色 |
-|---|---|
-| [workspace-changes](workspace-changes/README.zh.md) | 逐轮记录改动文件，提供摘要和逐文件对比 |
+-----
 
 <a id="related-documentation"></a>
 ## 相关文档
 
-- [Web 产出物](../client/ui-deliverables/README.zh.md)——展示轮次结果。
-- [Session 子系统](../../docs/subsystems/session.zh.md)——宣告已完成工作的持久事件。
-- [子进程能力](../subprocess/README.zh.md)——管理 git 进程。
+- [产出物子系统](../../docs/subsystems/deliverables.zh.md)——`PresentedFile` 与 `WorkspaceChangesSummary` 的词汇、两个持久事件和摘要服务。
+- [Web 产出物](../client/ui-deliverables/README.zh.md)——渲染这些事件的轮尾卡片与文件提及。
+- [present 声明工作区源文件](../../.agents/notes/implemented/feature/2026-09-08-present-workspace-source-files.zh.md)——交付决策。
+- [本轮改动文件卡片](../../.agents/notes/implemented/feature/2026-09-11-turn-changed-files-card.zh.md)——快照设计与覆盖规则。
+
+-----
 
 <a id="dev-note"></a>
 ## 开发备注
 
+<details>
+<summary>维护者的工作上下文——点击展开</summary>
+
 无。
+
+</details>

@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Button, extractMarkdownPlainText, IconEditOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  Button, extractMarkdownPlainText, IconEditOutlineRegular, StateDot,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PendingQuestion, PlanReview, QuestionComposerProps } from './contract/slots.ts'
 import css from './PlanReviewPanel.module.css'
 
@@ -27,7 +29,6 @@ function tooltip(description: string | undefined): { title?: string } {
 export function PlanReviewPanel({ pending, review, t, renderSlot }: PlanReviewPanelProps) {
   // The panel waits for the host's resolved frame before leaving, so repeated
   // clicks must not resubmit. A failed send re-enables it and shows the error.
-  const decline = review.decline
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const settle = (send: () => Promise<void>): void => {
@@ -49,9 +50,9 @@ export function PlanReviewPanel({ pending, review, t, renderSlot }: PlanReviewPa
 
   return (
     <div className={css.frame} data-plan-review-key={pending.key}>
-      <section className={css.card} aria-label={review.question}>
+      <section className={css.card} aria-label={review.question} aria-busy={busy}>
         <div className={css.strip}>
-          <span className={css.dot} />
+          <StateDot state={busy ? 'ongoing' : 'warning'} />
           {t('plan.header')}
           <div className={css.previewActions}>
             {renderSlot('conversation.plan-review.actions', { review, requestKey: pending.key })}
@@ -65,19 +66,11 @@ export function PlanReviewPanel({ pending, review, t, renderSlot }: PlanReviewPa
           <div className={css.feedback} role="status">{error}</div>
           <div className={css.actions}>
             <Button
-              variant="outline" className={css.discuss} icon={<IconEditOutline16 size={14} />}
+              variant="outline" className={css.discuss} icon={<IconEditOutlineRegular size={14} />}
               disabled={busy} onClick={() => { settle(() => pending.cancel()) }}
             >
               {t('plan.discuss')}
             </Button>
-            {decline !== undefined && (
-              <Button
-                variant="outline" {...tooltip(decline.description)}
-                disabled={busy} onClick={() => { decide(decline.label) }}
-              >
-                {t('plan.decline')}
-              </Button>
-            )}
             <Button
               variant="primary" {...tooltip(review.approve.description)}
               disabled={busy} onClick={() => { decide(review.approve.label) }}

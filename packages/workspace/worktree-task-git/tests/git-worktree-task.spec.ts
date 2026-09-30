@@ -8,7 +8,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
-import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
 import * as gitSettings from '@deepseek-ai/dsh-git-settings'
 import { GIT_SETTINGS_NAMESPACE } from '@deepseek-ai/dsh-git-settings/settings-schema'
 import type { GitSourceControlSettings } from '@deepseek-ai/dsh-git-settings/types'
@@ -101,7 +100,18 @@ async function harness(options: {
       },
     }],
     ['@deepseek-ai/dsh-subprocess-local', LocalSubprocessRuntime],
-    ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
+    ['@deepseek-ai/dsh-settings-file', {
+      name: 'mock-settings',
+      apply(ctx: Context) {
+        ctx.provide('settings', {
+          get(_ns: string) {
+            return options.preferences !== undefined && options.registerPreferences !== false
+              ? { branchPrefix: options.preferences.branchPrefix ?? 'none', branchPrefixCustom: options.preferences.branchPrefixCustom ?? '' }
+              : undefined
+          },
+        } as never)
+      },
+    }],
     ['@deepseek-ai/dsh-git-settings', gitSettings],
     ['@deepseek-ai/dsh-worktree-task-git', GitWorktreeTask],
   ])
@@ -162,7 +172,7 @@ afterEach(async () => {
 describe('GitWorktreeTask', { timeout: 90_000 }, () => {
   it('uses schema defaults when Settings exists without the Git namespace', async () => {
     const h = await harness({ preferences: { branchPrefix: 'custom', branchPrefixCustom: 'ignored/' }, registerPreferences: false })
-    expect(h.ctx.settings.get(GIT_SETTINGS_NAMESPACE)).toBeUndefined()
+    expect((h.ctx.settings as any)?.get?.(GIT_SETTINGS_NAMESPACE)).toBeUndefined()
     const task = await h.service.create({ name: 'default', workspaceId: WorkspaceId('ws-default'), sourcePath: h.repository })
     expect(task.branch).toBe('dsh/task/' + task.id)
   })

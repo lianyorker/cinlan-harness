@@ -6,8 +6,7 @@
  * @module @deepseek-ai/dsh-storage-json
  */
 
-import { mkdir, rm } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { mkdir } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { StorageError, UNIT_NAME_RE, storageBackendServiceKey } from '@deepseek-ai/dsh-storage'
@@ -43,11 +42,8 @@ export class JsonStorageBackend implements StorageBackend {
   // unit fails, and close() can await opens still in flight.
   private readonly opening = new Map<string, Promise<KvUnit>>()
   private closed = false
-  private readonly root: string
 
-  constructor(root: string) {
-    this.root = resolve(root)
-  }
+  constructor(private readonly root: string) {}
 
   readonly kv: KvFacet = {
     // The body up to the first await runs synchronously, so the opening-slot
@@ -62,19 +58,6 @@ export class JsonStorageBackend implements StorageBackend {
       const opening = this.openUnit(descriptor)
       this.opening.set(descriptor.name, opening)
       return opening.finally(() => this.opening.delete(descriptor.name))
-    },
-
-    destroy: async (descriptor: KvUnitDescriptor): Promise<void> => {
-      if (this.closed) throw new StorageError('closed', 'json backend is closed')
-      validateDescriptor(descriptor)
-      if (this.open.has(descriptor.name) || this.opening.has(descriptor.name)) {
-        throw new Error(`unit '${descriptor.name}' is currently open; cannot destroy open unit`)
-      }
-      if (descriptor.layout === 'per-record') {
-        await rm(join(this.root, descriptor.name), { recursive: true, force: true })
-      } else {
-        await rm(join(this.root, `${descriptor.name}.json`), { force: true })
-      }
     },
   }
 

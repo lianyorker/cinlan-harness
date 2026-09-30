@@ -13,7 +13,15 @@ import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import MobileDeviceRuntime, { MobileDeviceId } from '@deepseek-ai/dsh-mobile-device'
 import * as NativeAdb from '@deepseek-ai/dsh-mobile-device-adb'
 import * as MobileDevicePermissionPolicy from '@deepseek-ai/dsh-mobile-device-permission-policy'
-import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
+const FileSettingsProvider = {
+  name: '@deepseek-ai/dsh-settings-file',
+  apply(c: Context) {
+    c.provide('settings', {
+      describe: () => [],
+      configure: () => () => {},
+    } as never)
+  },
+}
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as ToolMobileDevice from '@deepseek-ai/dsh-tool-mobile-device'

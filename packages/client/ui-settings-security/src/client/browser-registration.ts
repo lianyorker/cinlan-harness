@@ -1,6 +1,7 @@
 /** Browser settings plugin: scopes, runtime observation, and explicit Browser operations. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { IconGlobeOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import type {} from '@deepseek-ai/dsh-api-browser-controller/remote'
 import type { BrowserPreferences, BrowserRuntimeTask, BrowserRuntimeTaskId } from '@deepseek-ai/dsh-browser-playwright/types'
 import type { SidebarPrefs } from '@deepseek-ai/dsh-client-ui-better-sidebar/client/service'
 import type { Config } from '../config.ts'

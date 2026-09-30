@@ -7,7 +7,8 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import Loader, { type ModuleLoaderV2 } from '@deepseek-ai/cordis-plugin-loader'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import AgentPresets, { COMPOSITION_FILE } from '@deepseek-ai/dsh-agent-presets'
+import AgentPreset from '@deepseek-ai/dsh-agent-preset'
+import AgentPresetRegistry from '@deepseek-ai/dsh-agent-preset-registry'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import LlmRuntime, { LlmAdapter, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
 import PermissionPresets from '@deepseek-ai/dsh-permission-presets'
@@ -51,8 +52,7 @@ export class FixtureModel extends LlmAdapter {
 class DisabledShell extends ShellExecutor {
   override get sandboxMode() { return 'read-only' as const }
   resolve(): never { throw new Error('Shell execution is not composed in automation integration tests') }
-  run(): never { throw new Error('Shell execution is not composed in automation integration tests') }
-  start(): never { throw new Error('Shell execution is not composed in automation integration tests') }
+  execute(): never { throw new Error('Shell execution is not composed in automation integration tests') }
 }
 
 /** A deterministic completed model response. @param text - final answer. @returns scripted chunks. */
@@ -84,11 +84,8 @@ export async function bootRuntimeFixture(options: RuntimeFixtureOptions) {
   if (resolve(resolveDshHome()) !== resolve(home)) throw new Error('Set DSH_HOME to the fixture home before boot')
   const profile = options.profile ?? 'automation-test'
   const model = options.model ?? new FixtureModel()
-  const presetRoot = join(home, 'fixture-presets')
   const presetPath = new URL('./preset.ts', import.meta.url).href
-  await mkdir(join(presetRoot, 'fixture'), { recursive: true })
   await mkdir(join(home, 'workspace'), { recursive: true })
-  await writeFile(join(presetRoot, 'fixture', COMPOSITION_FILE), JSON.stringify([{ name: presetPath }]) + '\n')
   const modules = new Map<string, unknown>([
     ['fixture-identity', { apply(ctx: Context) { ctx.provide('dshProfileName', profile) } }],
     ['fixture-model', { inject: ['llm'], apply(ctx: Context) { ctx.llm.registerAdapter(['fixture'], model) } }],
@@ -106,7 +103,8 @@ export async function bootRuntimeFixture(options: RuntimeFixtureOptions) {
     ['@deepseek-ai/dsh-llm', LlmRuntime],
     ['@deepseek-ai/dsh-agent', AgentRegistry],
     ['@deepseek-ai/dsh-agent-loop', AgentLoop],
-    ['@deepseek-ai/dsh-agent-presets', AgentPresets],
+    ['@deepseek-ai/dsh-agent-preset-registry', AgentPresetRegistry],
+    ['@deepseek-ai/dsh-agent-preset', AgentPreset],
     ['@deepseek-ai/dsh-user-approval', Approval],
     ['@deepseek-ai/dsh-permission-presets', PermissionPresets],
     ['@deepseek-ai/dsh-automation', AutomationRuntime],
@@ -130,7 +128,8 @@ export async function bootRuntimeFixture(options: RuntimeFixtureOptions) {
     { name: 'fixture-model' },
     { name: '@deepseek-ai/dsh-agent' },
     { name: '@deepseek-ai/dsh-agent-loop', config: { agents: [] } },
-    { name: '@deepseek-ai/dsh-agent-presets', config: { default: 'fixture', roots: [{ path: presetRoot, trust: 'system' }], includeShippedRoot: false, includeUserRoot: false } },
+    { name: '@deepseek-ai/dsh-agent-preset-registry', config: { default: 'fixture' } },
+    { name: '@deepseek-ai/dsh-agent-preset', config: { id: 'fixture', plugins: [{ name: presetPath }] } },
     { name: 'fixture-shell' },
     { name: '@deepseek-ai/dsh-user-approval', config: { policy: 'ask' } },
     { name: '@deepseek-ai/dsh-permission-presets', config: {

@@ -1,9 +1,8 @@
 /** Pairing expiry, rejected operations, and disposal are owned by the apply observer. */
 import { afterEach, expect, it, vi } from 'vitest'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
-import type { PairingGrant, PairingInvitation, RemoteAccessStatus } from '@deepseek-ai/dsh-remote-access/types'
+import type { PairingGrant, PairingInvitation, PairingRemote, RemoteAccessStatus } from '../src/client/types.ts'
 import { observePairing } from '../src/client/observation.ts'
-import type { PairingRemote } from '../src/client/types.ts'
 
 const disposers: (() => Promise<void>)[] = []
 afterEach(async () => {

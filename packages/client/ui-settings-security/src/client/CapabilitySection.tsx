@@ -10,7 +10,8 @@ import {
   IconRefreshOutline16,
   writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { DeviceCapabilityKind, DeviceCapabilitySnapshot, MobileSdkSnapshot, MobileDeviceListSnapshot, PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
+import type { DeviceCapabilityKind, DeviceCapabilitySnapshot, MobileSdkSnapshot, MobileDeviceListSnapshot } from '@deepseek-ai/dsh-api-device-capabilities-controller/types'
+import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-host-plugin-inventory'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { CapabilitySettingsKey } from './locales.ts'
 import {

@@ -26,6 +26,12 @@ import type {
 } from '@deepseek-ai/dsh-computer-use'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'tool-computer-use': { kind: 'tool-computer-use' }
+  }
+}
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView, ToolExecution, ToolRunContext } from '@deepseek-ai/dsh-tools'
@@ -296,7 +302,7 @@ async function observationValue(
   if (value.image !== undefined && exec.parent !== undefined) {
     exec.deferContext(createUserMessage({
       content: observationContent(value),
-      source: { kind: 'plugin', plugin: 'tool-computer-use' },
+      source: { kind: 'tool-computer-use' },
     }))
   }
   return value

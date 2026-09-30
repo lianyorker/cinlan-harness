@@ -72,7 +72,7 @@ export interface Config {
   /** File-sandbox mode a session starts from (default: `read-only`). */
   mode?: SandboxMode
   /**
-   * Fallback root for agentless calls and sessions without a cwd (default:
+   * Absolute fallback root for agentless calls and sessions without a cwd (default:
    * `process.cwd()`). Normal agent calls use their session cwd instead.
    */
   workspaceRoot?: string
@@ -111,7 +111,8 @@ export class SandboxPolicyService extends Service {
   // Inline schema call: the config catalog walks `static Config` statically.
   static Config: z<Config> = z.object({
     mode: z.union(['read-only', 'workspace-write', 'danger-full-access'] as const).default('read-only'),
-    // The constructor supplies process.cwd() and rejects relative configured roots.
+    // No schema default: process.cwd() is resolved in the constructor so the
+    // stored root is always absolute regardless of how it was supplied.
     workspaceRoot: z.string(),
   })
 
@@ -124,8 +125,8 @@ export class SandboxPolicyService extends Service {
   constructor(ctx: Context, config: Config) {
     super(ctx, 'sandboxPolicy')
     // schemastery (static Config) already filled `mode`; the cast records that
-    // runtime fact. `workspaceRoot` has no schema default; an explicit root
-    // names the execution world and must already be absolute.
+    // runtime fact. `workspaceRoot` has NO schema default, so its fallback to
+    // the process cwd is real branching, resolved absolute either way.
     this.defaultMode = config.mode as SandboxMode
     this.workspaceRoot = resolveWorkspaceRoot(config.workspaceRoot ?? process.cwd())
 

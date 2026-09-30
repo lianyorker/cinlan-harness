@@ -25,12 +25,8 @@ export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([
   'approval/asked',
   'approval/decided',
   'approval/policy',
-  'assessment/operation-decided',
-  'assessment/scope-bound',
   'assistant/attempt',
   'assistant/message',
-  'attachment/quarantine',
-  'attachment/recovered',
   'command/done',
   'command/run',
   'compaction/end',
@@ -38,11 +34,10 @@ export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([
   'compaction/start',
   'compaction/summary',
   'deliverables/presented',
-  'execution/bound',
+  'developer/message',
   'feedback/message-delete',
   'feedback/message-put',
   'feedback/record',
-  'finding/change',
   'goal/change',
   'hook/invoked',
   'hook/result',
@@ -88,7 +83,5 @@ export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([
 
 /** Event types whose model-visible effects require an explicit pure interpreter. */
 export const MESSAGE_PROJECTION_EVENT_TYPES: ReadonlySet<string> = new Set([
-  'attachment/quarantine',
-  'attachment/recovered',
   'image/offload',
 ])

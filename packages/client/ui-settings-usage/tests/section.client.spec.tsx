@@ -29,7 +29,7 @@ function mount(query: QueryUsage | undefined, dictionary: Record<UsageKey, strin
   const unused = (() => { throw new Error('unused standard hook') }) as never
   const props: UsageSectionProps = {
     close: vi.fn(),
-    useSessions: unused, useWorkspaces: unused, useSessionPendingInteraction: unused, useResource: unused,
+    useSessions: unused, useWorkspaces: unused, usePanelInfo: unused, useSessionStatus: unused, useSessionRetainInfo: unused, useResource: unused,
     useStore: bindSnapshotSelector(store), actions: store.actions,
     useUsage: bindSnapshotSelector(source), load: source.load, cancel: source.cancel,
     download, t: makeTranslate(dictionary),

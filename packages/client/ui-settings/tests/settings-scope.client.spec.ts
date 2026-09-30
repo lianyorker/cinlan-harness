@@ -49,6 +49,7 @@ function view(value: JsonValue, revision = 0): SettingsNamespaceView {
     applies: 'live',
     secrets: [],
     revision,
+    autoGenerate: false,
   }
 }
 

@@ -6,8 +6,8 @@
  *
  * Namespace plugin (named exports, no default export). Lifecycle is
  * effect-scoped: disposal disconnects from the server, unregisters all tools,
- * and releases the namespace after confirmed shutdown. A close timeout keeps
- * the namespace reserved until Host restart. HMR replaces the old instance; identical `serverName`
+ * and releases the `serverName` namespace reservation. HMR hot-swaps by
+ * disposing the old instance and creating a new one; identical `serverName`
  * reproduces identical public tool names.
  *
  * @module @deepseek-ai/dsh-mcp-client
@@ -15,18 +15,20 @@
 
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/cordis-plugin-loader'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { contributeConnection } from './registry-internal.ts'
 import type {} from './registry.ts'
 import { McpConnectionFailure } from './failure.ts'
-import type { StdioConfig, StreamableHttpConfig, McpConnectionId, McpLaunchOptions, McpOwner } from './types.ts'
+import type {
+  McpConnectionId, McpConnectionState, McpLaunchOptions, McpOwner,
+} from './types.ts'
 import type { ConnectionHandle } from './host-types.ts'
 import z from '@deepseek-ai/schemastery'
 import { scopeOf } from '@deepseek-ai/dsh-scope'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { DEFAULT_MAX_INSTRUCTION_BYTES, RECONNECT_DEFAULTS, resolveReconnectPolicy, startConnection } from './connection.ts'
 import type { ReconnectConfig } from './connection.ts'
+import { registerServerContext } from './server-context.ts'
 // Side-effect type import: declaration-merges `ctx.tools` onto Context.
 import type {} from '@deepseek-ai/dsh-tools'
 
@@ -35,7 +37,10 @@ export type { McpResult, McpToolDefinitionOptions } from './tools.ts'
 export type { ReconnectConfig, ResolvedReconnectPolicy } from './connection.ts'
 export { resolveReconnectPolicy } from './connection.ts'
 export { McpConnectionFailure } from './failure.ts'
-export type { ConnectionOutcome, McpConnectionError, McpConnectionId, McpConnectionSnapshot, McpConnectionState, McpLaunchOptions, McpOwner, McpServerId, McpToolDescriptor } from './types.ts'
+export type {
+  ConnectionOutcome, McpConnectionError, McpConnectionId, McpConnectionSnapshot,
+  McpConnectionState, McpLaunchOptions, McpOwner, McpServerId, McpToolDescriptor,
+} from './types.ts'
 export type { ConnectionHandle } from './host-types.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
@@ -59,9 +64,60 @@ const activeServerNames = new WeakMap<object, Set<string>>()
 
 // ---- Config ----
 
-/** Configuration for one MCP transport. */
+/** Config for connecting to an MCP server via a spawned child process over stdio. */
+export interface StdioConfig {
+  /** Selects child-process stdio transport. */
+  transport: 'stdio'
+  /**
+   * Stable local namespace for this server's model-facing tool names
+   * (`mcp__<serverName>__<rawName>`). Must match `[A-Za-z0-9_-]{1,32}` and be
+   * unique across live mcp-client instances.
+   */
+  serverName: string
+  /** Executable used to start the server. */
+  command: string
+  /** Arguments passed directly, without shell interpolation. */
+  args: string[]
+  /** Extra env vars merged on top of scrubbed ambient env. */
+  env: Record<string, string>
+  /** Working directory for the child process. */
+  cwd: string
+  /** Timeout per tool call or resource request in milliseconds. */
+  toolCallTimeoutMs: number
+  /** Fail plugin activation when the initial connection or tool synchronization fails. */
+  failOnStartupError: boolean
+  /** Maximum UTF-8 bytes of attributed server instructions (default 32768). */
+  maxInstructionBytes?: number
+  /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
+  reconnect?: ReconnectConfig
+}
+
+/** Config for connecting to an MCP server over Streamable HTTP (SSE). */
+export interface StreamableHttpConfig {
+  /** Selects Streamable HTTP transport. */
+  transport: 'streamable-http'
+  /**
+   * Stable local namespace for this server's model-facing tool names
+   * (`mcp__<serverName>__<rawName>`). Must match `[A-Za-z0-9_-]{1,32}` and be
+   * unique across live mcp-client instances.
+   */
+  serverName: string
+  /** MCP endpoint URL. */
+  url: string
+  /** Additional headers attached to MCP requests. */
+  headers: Record<string, string>
+  /** Timeout per tool call or resource request in milliseconds. */
+  toolCallTimeoutMs: number
+  /** Fail plugin activation when the initial connection or tool synchronization fails. */
+  failOnStartupError: boolean
+  /** Maximum UTF-8 bytes of attributed server instructions (default 32768). */
+  maxInstructionBytes?: number
+  /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
+  reconnect?: ReconnectConfig
+}
+
+/** Configuration for one stdio or Streamable HTTP MCP server. */
 export type Config = StdioConfig | StreamableHttpConfig
-export type { StdioConfig, StreamableHttpConfig } from './types.ts'
 
 type StdioConfigInput = Omit<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError'>
   & Partial<Pick<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError'>>
@@ -85,8 +141,8 @@ export const Config = z.union([
     env: z.dict(String).default({}),
     cwd: z.string().default(''),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
-    maxInstructionBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_INSTRUCTION_BYTES),
     failOnStartupError: z.boolean().default(false),
+    maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),
     reconnect: Reconnect,
   }),
   z.object({
@@ -95,11 +151,11 @@ export const Config = z.union([
     url: z.string().required(),
     headers: z.dict(String).default({}),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
-    maxInstructionBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_INSTRUCTION_BYTES),
     failOnStartupError: z.boolean().default(false),
+    maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),
     reconnect: Reconnect,
   }),
-]) as unknown as z<ConfigInput, Config>
+]) as z<ConfigInput, Config>
 
 /**
  * Launch one MCP instance with the same namespace and effects as the plugin entry.
@@ -109,44 +165,80 @@ export const Config = z.union([
  * @returns a handle whose disposal releases its namespace after transport cleanup.
  */
 export function launchMcpClient(ctx: Context, config: Config, options: McpLaunchOptions = {}): ConnectionHandle {
-  const reconnect = resolveReconnectPolicy(config.reconnect, 'mcp-client(' + config.serverName + '): reconnect')
+  const reconnect = resolveReconnectPolicy(config.reconnect, `mcp-client(${config.serverName}): reconnect`)
   const maxInstructionBytes = config.maxInstructionBytes ?? DEFAULT_MAX_INSTRUCTION_BYTES
   if (!Number.isSafeInteger(maxInstructionBytes) || maxInstructionBytes < 1) {
-    throw new Error('mcp-client(' + config.serverName + '): maxInstructionBytes must be a positive safe integer')
+    throw new Error(`mcp-client(${config.serverName}): maxInstructionBytes must be a positive safe integer`)
   }
   let handle!: ConnectionHandle
   ctx.effect(() => {
     const scope = scopeOf(ctx) ?? ctx.root
     let names = activeServerNames.get(scope)
-    if (names === undefined) { names = new Set(); activeServerNames.set(scope, names) }
+    if (!names) {
+      names = new Set()
+      activeServerNames.set(scope, names)
+    }
     if (names.has(config.serverName)) {
       if (options.owner?.kind === 'managed') throw new McpConnectionFailure('namespace-conflict')
-      throw new Error('mcp-client: serverName "' + config.serverName + '" is already in use by another mcp-client instance — pick a unique serverName in cordis.yml')
+      throw new Error(
+        `mcp-client: serverName "${config.serverName}" is already in use by another mcp-client instance — pick a unique serverName in cordis.yml`,
+      )
     }
     names.add(config.serverName)
-    const connection = startConnection(ctx, config, reconnect, options)
+    const connection = startConnection(ctx, config, reconnect)
+    registerServerContext(ctx, config.serverName, connection)
+
     let stopping: Promise<void> | undefined
+    const listeners = new Set<() => void>()
+    let state: McpConnectionState = { phase: 'connecting', attempt: 0, tools: [] }
+
+    void connection.ready.then(
+      (outcome) => {
+        if (outcome.error !== undefined) {
+          state = { phase: 'error', attempt: 0, tools: [], errorCode: 'connection-failed' }
+        } else {
+          state = { phase: 'ready', attempt: 0, tools: [] }
+        }
+        for (const listener of listeners) listener()
+      },
+      () => {
+        state = { phase: 'error', attempt: 0, tools: [], errorCode: 'connection-failed' }
+        for (const listener of listeners) listener()
+      },
+    )
+
     handle = {
-      ...connection,
+      ready: connection.ready,
+      resources: connection.resources,
       dispose: () => stopping ??= (async () => {
+        state = { phase: 'stopped', attempt: 0, tools: [] }
+        for (const listener of listeners) listener()
         await connection.dispose()
-        // Cordis unloads independent effects concurrently. Keep namespace
-        // release in this cleanup, after transport shutdown is acknowledged.
-        if (connection.getSnapshot().errorCode !== 'close-timeout') names.delete(config.serverName)
+        if (state.errorCode !== 'close-timeout') names.delete(config.serverName)
       })(),
+      getSnapshot: () => state,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener)
+        return () => void listeners.delete(listener)
+      },
+      probe: async (_signal: AbortSignal) => {
+        return state.tools
+      },
     }
     return () => handle.dispose()
   }, 'mcp-client.connection')
-  // Cordis announces unload before awaiting apply; cancellation must release pending startup requests.
-  // oxlint-disable-next-line typescript/no-misused-promises -- Cordis contains observer failures; the effect awaits this same disposal.
+
   ctx.on('internal/plugin', (fiber) => {
     if (fiber !== ctx.fiber || fiber.uid !== null) return
-    return handle.dispose()
+    return handle?.dispose()
   }, { global: true })
+
   const registry = ctx.get('mcpRegistry')
   if (scopeOf(ctx) === undefined && registry !== undefined) {
+    const loader = ctx.get('loader') as { locate?(fiber: unknown): string } | undefined
+    const label = loader?.locate?.(ctx.fiber) ?? ctx.fiber.runtime?.name ?? 'root'
     const owner: McpOwner = options.owner === undefined
-      ? { kind: 'composition', label: ctx.get('loader')?.locate(ctx.fiber) ?? ctx.fiber.runtime?.name ?? 'root' }
+      ? { kind: 'composition', label }
       : { ...options.owner }
     contributeConnection(ctx, registry, {
       id: brandString<McpConnectionId>(randomUUID()),
@@ -155,22 +247,24 @@ export function launchMcpClient(ctx: Context, config: Config, options: McpLaunch
       owner: Object.freeze(owner),
     }, handle)
   }
-  ctx.inject(['mcpResources'], (inner) => {
-    inner.mcpResources.register(config.serverName, handle.resources)
-  })
+
   return handle
 }
 
+// ---- Plugin apply ----
+
 /**
- * Connect and discover tools before Cordis activates this plugin.
+ * Connect one MCP server and publish its initial tool generation before activation.
+ * This entry remains explicitly `async`: Cordis treats a prototype-bearing
+ * ordinary function as a constructor, whose returned Promise is not startup work.
  * @param ctx - plugin context carrying the tool registry.
- * @param config - resolved configuration.
- * @returns initial connection settlement; strict startup rejects failed discovery.
+ * @param config - resolved transport and server namespace configuration.
+ * @returns startup readiness after connection and initial tool discovery settle.
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   const connection = launchMcpClient(ctx, config)
   const outcome = await connection.ready
   if (outcome.error !== undefined && config.failOnStartupError) {
-    throw new Error('mcp-client(' + config.serverName + '): initial connection or tool synchronization failed', { cause: outcome.error })
+    throw new Error(`mcp-client(${config.serverName}): initial connection or tool synchronization failed`, { cause: outcome.error })
   }
 }

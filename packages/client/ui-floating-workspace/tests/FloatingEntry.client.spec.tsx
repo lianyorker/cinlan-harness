@@ -21,7 +21,7 @@ function mount(position: ToggleButtonPosition, selected: ToggleButtonPosition = 
   const toggle = vi.fn(), closeWindow = vi.fn(), matchesShortcut = vi.fn(() => false)
   const unused = (() => { throw new Error('unused standard hook') }) as never
   const props: FloatingEntryProps = {
-    useSessions: unused, useWorkspaces: unused, useSessionPendingInteraction: unused, useResource: unused,
+    useSessions: unused, useWorkspaces: unused, usePanelInfo: unused, useSessionStatus: unused, useSessionRetainInfo: unused, useResource: unused,
     useFloating: bindSnapshotSelector({ getSnapshot: () => snapshot, subscribe: () => () => {} }),
     t: makeTranslate(en), position, toggle, closeWindow, matchesShortcut,
   }

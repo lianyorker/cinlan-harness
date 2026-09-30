@@ -2,12 +2,14 @@ import { PassThrough } from 'node:stream'
 import os from 'node:os'
 import { syncBuiltinESMExports } from 'node:module'
 import { describe, expect, it, vi } from 'vitest'
-import { basename, dirname, relative, resolve } from 'node:path'
+import { basename, dirname, join, relative, resolve } from 'node:path'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { Context } from '@deepseek-ai/cordis'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
-import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import type { SubprocessSpawnSpec, SubprocessTerminalHandle, SubprocessTerminalSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { childEnv } from '../src/spawn.ts'
+import { signalLinuxDirectProcess } from '../src/linux-scope.ts'
 
 function mockWin32ForIsolatedRuntime(): void {
   vi.doMock('@deepseek-ai/dsh-win32-process', () => ({
@@ -51,25 +53,11 @@ function spec(command: string, overrides: Partial<SubprocessSpawnSpec> = {}): Su
       stderr: { maxBytes: 64_000, spill: { maxBytes: 64 * 1024 * 1024 } },
     },
     graceMs: 200,
-    signal: new AbortController().signal,
     ...overrides,
   }
 }
 
 describe('LocalSubprocessRuntime', () => {
-  it('distinguishes missing executables from invalid lookup requests', async () => {
-    const ctx = new Context()
-    const fiber = await ctx.plugin(LocalSubprocessRuntime)
-    try {
-      await expect(ctx.subprocess.resolveExecutable('dsh-missing-executable-016', { PATH: '' }, new AbortController().signal))
-        .rejects.toBeInstanceOf(SubprocessExecutableNotFoundError)
-      await expect(ctx.subprocess.resolveExecutable('./relative-tool', undefined, new AbortController().signal))
-        .rejects.not.toBeInstanceOf(SubprocessExecutableNotFoundError)
-    } finally {
-      await fiber.dispose()
-    }
-  })
-
   it('discovers the platform shell without inventing a missing default and honors cancellation', async () => {
     let loginShell: string | null = '/account/shell'
     const userInfo = vi.spyOn(os, 'userInfo').mockImplementation(() => ({
@@ -84,29 +72,29 @@ describe('LocalSubprocessRuntime', () => {
       const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
       restorePlatform = () => { platform.mockRestore() }
       vi.stubEnv('SHELL', '/environment/shell')
-      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({
+      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({
         platform: 'posix', defaultShell: '/environment/shell',
       })
       expect(userInfo).not.toHaveBeenCalled()
       vi.stubEnv('SHELL', undefined)
-      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({
+      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({
         platform: 'posix', defaultShell: '/account/shell',
       })
       vi.stubEnv('SHELL', '')
-      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({ platform: 'posix', defaultShell: '/account/shell' })
+      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({ platform: 'posix', defaultShell: '/account/shell' })
       loginShell = ''
-      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({ platform: 'posix' })
+      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({ platform: 'posix' })
       loginShell = null
-      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({ platform: 'posix' })
+      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({ platform: 'posix' })
       platform.mockReturnValue('win32')
       vi.stubEnv('ComSpec', 'C:\\Windows\\System32\\cmd.exe')
-      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({
+      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({
         platform: 'windows', defaultShell: 'C:\\Windows\\System32\\cmd.exe',
       })
       vi.stubEnv('ComSpec', undefined)
-      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({ platform: 'windows' })
+      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({ platform: 'windows' })
       vi.stubEnv('ComSpec', '')
-      await expect(ctx.subprocess.terminalEnvironment(new AbortController().signal)).resolves.toEqual({ platform: 'windows' })
+      await expect(ctx.subprocess.terminalEnvironment()).resolves.toEqual({ platform: 'windows' })
       platform.mockReturnValue('linux')
       userInfo.mockClear()
       const reason = new Error('terminal inspection cancelled')
@@ -154,14 +142,14 @@ describe('LocalSubprocessRuntime', () => {
         done: Promise<{ exitCode: number; signal: null }>
         terminate(): void
         terminateForHostExit(): void
-        waitForExit(signal: AbortSignal): Promise<boolean>
+        waitForExit(): Promise<boolean>
       }>
     }).live
     live.add({
       done: Promise.resolve({ exitCode: 0, signal: null }),
       terminate,
       terminateForHostExit,
-      waitForExit: async (_signal: AbortSignal) => { await exited; return true },
+      waitForExit: async () => { await exited; return true },
     })
 
     let disposed = false
@@ -194,14 +182,14 @@ describe('LocalSubprocessRuntime', () => {
         done: Promise<never>
         terminate(): void
         terminateForHostExit(): void
-        waitForExit(signal: AbortSignal): Promise<boolean>
+        waitForExit(): Promise<boolean>
       }>
     }).live
     live.add({
       done: new Promise<never>(() => {}),
       terminate,
       terminateForHostExit,
-      waitForExit: async (_signal: AbortSignal) => { throw rangeFailure },
+      waitForExit: async () => { throw rangeFailure },
     })
 
     await expect(Promise.race([
@@ -251,23 +239,23 @@ describe('LocalSubprocessRuntime', () => {
   it('resolves absolute and PATH executables and honors lookup cancellation', async () => {
     const ctx = new Context()
     const fiber = await ctx.plugin(LocalSubprocessRuntime)
-    expect(await ctx.subprocess.resolveExecutable(process.execPath, undefined, new AbortController().signal)).toBe(process.execPath)
+    expect(await ctx.subprocess.resolveExecutable(process.execPath)).toBe(process.execPath)
     expect(await ctx.subprocess.resolveExecutable(basename(process.execPath), {
       PATH: dirname(process.execPath),
-    }, new AbortController().signal)).toBe(process.execPath)
+    })).toBe(process.execPath)
     expect(await ctx.subprocess.resolveExecutable(basename(process.execPath), {
       PATH: relative(process.cwd(), dirname(process.execPath)) || '.',
-    }, new AbortController().signal)).toBe(process.execPath)
-    await expect(ctx.subprocess.resolveExecutable('', undefined, new AbortController().signal)).rejects.toThrow('must be non-empty')
-    await expect(ctx.subprocess.resolveExecutable('./bin/tsserver', undefined, new AbortController().signal))
+    })).toBe(process.execPath)
+    await expect(ctx.subprocess.resolveExecutable('')).rejects.toThrow('must be non-empty')
+    await expect(ctx.subprocess.resolveExecutable('./bin/tsserver'))
       .rejects.toThrow('is a relative path')
-    await expect(ctx.subprocess.resolveExecutable('node_modules/.bin/server', undefined, new AbortController().signal))
+    await expect(ctx.subprocess.resolveExecutable('node_modules/.bin/server'))
       .rejects.toThrow('is a relative path')
-    await expect(ctx.subprocess.resolveExecutable('dsh-command-that-does-not-exist', { PATH: '' }, new AbortController().signal))
+    await expect(ctx.subprocess.resolveExecutable('dsh-command-that-does-not-exist', { PATH: '' }))
       .rejects.toThrow('was not found on PATH')
-    await expect(ctx.subprocess.resolveExecutable('/dsh-absolute-command-that-does-not-exist', undefined, new AbortController().signal))
+    await expect(ctx.subprocess.resolveExecutable('/dsh-absolute-command-that-does-not-exist'))
       .rejects.toThrow('is not an executable file')
-    await expect(ctx.subprocess.resolveExecutable(process.cwd(), undefined, new AbortController().signal))
+    await expect(ctx.subprocess.resolveExecutable(process.cwd()))
       .rejects.toThrow('is not an executable file')
     await expect(ctx.subprocess.resolveExecutable(process.execPath, {}, AbortSignal.abort('stop')))
       .rejects.toBe('stop')
@@ -292,7 +280,7 @@ describe('LocalSubprocessRuntime', () => {
         .toEqual([resolve('/explicit', 'tool.EXE')])
       expect(candidates('tool.exe', {})).toEqual([resolve(process.cwd(), 'tool.exe')])
       expect(candidates('tool', { PATH: '/bin' })).toHaveLength(4)
-      await expect(ctx.subprocess.resolveExecutable(String.raw`bin\server.exe`, undefined, new AbortController().signal))
+      await expect(ctx.subprocess.resolveExecutable(String.raw`bin\server.exe`))
         .rejects.toThrow('is a relative path')
     } finally {
       platform.mockRestore()
@@ -475,6 +463,10 @@ describe('LocalSubprocessRuntime', () => {
       ...await importOriginal<typeof import('../src/process-inspector.ts')>(),
       createProcessInspector: () => inspector,
     }))
+    vi.doMock('../src/linux-scope.ts', async importOriginal => ({
+      ...await importOriginal<typeof import('../src/linux-scope.ts')>(),
+      probeLinuxNative: () => false,
+    }))
     try {
       const { default: IsolatedLocalSubprocessRuntime } = await import('../src/index.ts')
       const ctx = new Context()
@@ -486,12 +478,12 @@ describe('LocalSubprocessRuntime', () => {
       expect((service as unknown as { terminals: Set<SubprocessTerminalHandle> }).terminals.size).toBe(1)
       exitListener?.({ exitCode: 0 })
       await handle.done
-      await new Promise(resolve => setImmediate(resolve))
-      expect((service as unknown as { terminals: Set<SubprocessTerminalHandle> }).terminals.size).toBe(0)
+      await expect.poll(() => (service as unknown as { terminals: Set<SubprocessTerminalHandle> }).terminals.size).toBe(0)
       await fiber.dispose()
     } finally {
       unmockLazyRequireForIsolatedRuntime()
       vi.doUnmock('../src/process-inspector.ts')
+      vi.doUnmock('../src/linux-scope.ts')
       unmockWin32ForIsolatedRuntime()
       vi.resetModules()
     }
@@ -500,8 +492,13 @@ describe('LocalSubprocessRuntime', () => {
   it('wraps Linux terminals in the selected scope and binds owner liveness', async () => {
     let exitListener: ((event: { exitCode: number; signal?: number }) => void) | undefined
     let launcherRunning: (() => boolean) | undefined
-    let launcherSignal: ((signal: 'SIGTERM' | 'SIGKILL') => void) | undefined
-    const terminalKill = vi.fn(() => { throw new Error('terminal already exited') })
+    let launcherSignal: ((signal: 'SIGTERM' | 'SIGKILL') => boolean) | undefined
+    let launcherSettlement: Promise<unknown> | undefined
+    const directProbe = vi.spyOn(process, 'kill').mockImplementation((_pid, signal) => {
+      if (signal === 0) return true
+      throw Object.assign(new Error('denied'), { code: 'EPERM' })
+    })
+    const terminalKill = vi.fn(() => {})
     const terminal = {
       pid: 123,
       onData: () => ({ dispose: () => {} }),
@@ -519,9 +516,10 @@ describe('LocalSubprocessRuntime', () => {
       terminateForHostExit: vi.fn(),
     }
     const launcherStates: boolean[] = []
-    const bindOwner = vi.fn((direct: { running(): boolean; signal(signal: 'SIGTERM' | 'SIGKILL'): void }) => {
+    const bindOwner = vi.fn((direct: { running(): boolean; signal(signal: 'SIGTERM' | 'SIGKILL'): boolean; settled: Promise<unknown> }) => {
       launcherRunning = () => direct.running()
-      launcherSignal = (signal) => { direct.signal(signal) }
+      launcherSignal = signal => direct.signal(signal)
+      launcherSettlement = direct.settled
       launcherStates.push(direct.running())
       return owner
     })
@@ -553,6 +551,7 @@ describe('LocalSubprocessRuntime', () => {
     mockWin32ForIsolatedRuntime()
     mockNodePtyForIsolatedRuntime(nodePtySpawn)
     vi.doMock('../src/linux-scope.ts', () => ({
+      signalLinuxDirectProcess,
       launchLinuxScope: vi.fn(),
       prepareLinuxTerminalScope,
       probeLinuxManager,
@@ -591,17 +590,31 @@ describe('LocalSubprocessRuntime', () => {
       expect(bindOwner).toHaveBeenCalledOnce()
       expect(launcherStates).toEqual([true])
       expect(launcherRunning?.()).toBe(true)
-      expect(() => { launcherSignal?.('SIGTERM') }).not.toThrow()
-      expect(terminalKill).toHaveBeenCalledExactlyOnceWith('SIGTERM')
+      expect(launcherSignal?.('SIGTERM')).toBe(false)
+      expect(terminalKill).not.toHaveBeenCalled()
+      directProbe.mockImplementationOnce(() => true)
+      expect(launcherSignal?.('SIGKILL')).toBe(true)
+      directProbe.mockImplementation(() => { throw Object.assign(new Error('absent'), { code: 'ESRCH' }) })
+      expect(launcherSignal?.('SIGKILL')).toBe(true)
+      expect(directProbe.mock.calls).toEqual([
+        [123, 'SIGTERM'], [123, 0], [123, 'SIGKILL'], [123, 'SIGKILL'], [123, 0],
+      ])
+      let directSettled = false
+      void launcherSettlement?.then(() => { directSettled = true })
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(directSettled).toBe(false)
 
       exitListener?.({ exitCode: 0 })
       expect(launcherRunning?.()).toBe(false)
+      await launcherSettlement
+      expect(directSettled).toBe(true)
       await handle.done
       await new Promise(resolve => setImmediate(resolve))
       expect(owner.signal).toHaveBeenCalledExactlyOnceWith('SIGTERM')
       expect(owner.waitForExit).toHaveBeenCalledOnce()
     } finally {
       await fiber?.dispose()
+      directProbe.mockRestore()
       unmockLazyRequireForIsolatedRuntime()
       vi.doUnmock('../src/linux-scope.ts')
       unmockWin32ForIsolatedRuntime()
@@ -639,6 +652,7 @@ describe('LocalSubprocessRuntime', () => {
     mockWin32ForIsolatedRuntime()
     mockNodePtyForIsolatedRuntime(nodePtySpawn)
     vi.doMock('../src/linux-scope.ts', () => ({
+      signalLinuxDirectProcess,
       launchLinuxScope: vi.fn(),
       prepareLinuxTerminalScope,
       probeLinuxManager: () => true,
@@ -688,6 +702,9 @@ describe('LocalSubprocessRuntime', () => {
       ctx.logger.error = ((error: unknown) => { disposalErrors.push(error) }) as typeof ctx.logger.error
       const fiber = await ctx.plugin(IsolatedLocalSubprocessRuntime)
       const alive = new Set([124])
+      // Pins the containment choice: with the host's native scope a mocked PTY
+      // exit races the scope bootstrap.
+      ;(ctx.subprocess as InstanceType<typeof IsolatedLocalSubprocessRuntime>).internals = { platform: 'darwin' }
       ;(ctx.subprocess as InstanceType<typeof IsolatedLocalSubprocessRuntime>).terminalInspector = {
         foregroundPgid: () => 123,
         isStdinWaiting: () => false,
@@ -703,9 +720,11 @@ describe('LocalSubprocessRuntime', () => {
       const handle = await ctx.subprocess.spawnTerminal({
         argv: ['shell'], cwd: process.cwd(), rows: 24, cols: 80, terminalType: 'dumb', graceMs: 1,
       })
+      const terminate = vi.spyOn(handle, 'terminate')
       exitListener?.({ exitCode: 0 })
       await handle.done
-      await new Promise(resolve => setTimeout(resolve, 10))
+      await expect.poll(() => terminate.mock.calls.length).toBe(1)
+      await expect(terminate.mock.results[0]?.value).rejects.toThrow('surviving pids: 124')
       expect((ctx.subprocess as unknown as { terminals: Set<SubprocessTerminalHandle> }).terminals.size).toBe(1)
       await fiber.dispose()
       expect(disposalErrors).toHaveLength(1)
@@ -725,6 +744,35 @@ describe('LocalSubprocessRuntime', () => {
     expect(result.exitCode).toBe(0)
     expect(handle.collected.stdout!.readFrom(0).text).toBe('managed\n')
     await fiber.dispose()
+  })
+
+  it('logs one error through the plugin logger when a spill cannot be written and keeps the tail', async () => {
+    const removedDir = mkdtempSync(join(tmpdir(), 'dsh-subprocess-removed-'))
+    rmSync(removedDir, { recursive: true, force: true })
+    const ctx = new Context()
+    const logged = vi.spyOn(ctx.logger, 'error').mockImplementation(() => {})
+    const fiber = await ctx.plugin(LocalSubprocessRuntime)
+    const runtime = ctx.subprocess as LocalSubprocessRuntime
+    runtime.internals = { spillDir: removedDir }
+    try {
+      const handle = runtime.spawn(spec('', {
+        argv: [process.execPath, '-e', 'process.stdout.write("x".repeat(4096))'],
+        stdio: { stdin: 'ignore', stdout: { maxBytes: 16, spill: { maxBytes: 1_000_000 } }, stderr: 'pipe' },
+      }))
+      const result = await handle.done
+      expect(result.exitCode).toBe(0)
+      const stdout = handle.collected.stdout!.readFrom(0)
+      expect(stdout.text).toBe('x'.repeat(16))
+      expect(stdout.lossy).toBe(true)
+      expect(stdout.spillPath).toBeUndefined()
+      expect(logged).toHaveBeenCalledOnce()
+      const [message, error] = logged.mock.calls[0] as [string, NodeJS.ErrnoException]
+      expect(message).toContain('could not write the complete stdout stream')
+      expect(message).toContain('temporary-file cleaner')
+      expect(error.code).toBe('ENOENT')
+    } finally {
+      await fiber.dispose()
+    }
   })
 
   it('warns once when ordinary spawns use the weaker macOS fallback', async () => {
@@ -806,6 +854,7 @@ describe('LocalSubprocessRuntime', () => {
     vi.resetModules()
     mockWin32ForIsolatedRuntime()
     vi.doMock('../src/linux-scope.ts', () => ({
+      signalLinuxDirectProcess,
       launchLinuxScope,
       prepareLinuxTerminalScope: vi.fn(),
       probeLinuxManager,
@@ -884,6 +933,7 @@ describe('LocalSubprocessRuntime', () => {
     vi.resetModules()
     mockWin32ForIsolatedRuntime()
     vi.doMock('../src/linux-scope.ts', () => ({
+      signalLinuxDirectProcess,
       launchLinuxScope: vi.fn(),
       prepareLinuxTerminalScope: vi.fn(),
       probeLinuxManager,
@@ -1026,10 +1076,26 @@ describe('LocalSubprocessRuntime', () => {
     const ctx = new Context()
     const fiber = await ctx.plugin(LocalSubprocessRuntime)
     // Dispose before the rejection continuation removes the handle from the
-    // live set, so teardown itself must swallow the rejected done.
+    // live set, so teardown itself must swallow the rejected done. Two
+    // settlements are valid and the winner is a race: a bootstrap that
+    // publishes its pre-exec failure rejects with that failure, and a teardown
+    // that stops the bootstrap first settles as the requested termination —
+    // the recorded failure only outranks the stop when it was published before
+    // the stop landed.
     const handle = ctx.subprocess.spawn(spec('true', { cwd: '/nonexistent-dir-dsh-subprocess-test' }))
     await fiber.dispose()
-    await expect(handle.done).rejects.toThrow()
+    const settlement = await handle.done.then(
+      outcome => ({ kind: 'stopped' as const, outcome }),
+      (error: unknown) => ({ kind: 'failed' as const, error }),
+    )
+    if (settlement.kind === 'failed') {
+      expect(settlement.error).toBeInstanceOf(Error)
+    } else {
+      // Only the Linux scope records a stop this way: the win32 job owner
+      // rejects a cancelled start and the fallback launcher rejects the ENOENT,
+      // so neither can produce the stopped branch.
+      expect(settlement.outcome.signal).toBe('SIGTERM')
+    }
   })
 
   it('loading a second implementation throws (one processes service per context — cordis standard)', async () => {

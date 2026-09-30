@@ -6,7 +6,7 @@ import { AssessmentTargetId } from '@deepseek-ai/dsh-assessment-scope'
 import type { AssessmentGrant } from '@deepseek-ai/dsh-assessment-scope'
 import type { FindingSnapshot } from '@deepseek-ai/dsh-finding'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
-import type {} from '@deepseek-ai/dsh-agent-presets'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import type {} from '@deepseek-ai/dsh-assessment-scope'
 import type {} from '@deepseek-ai/dsh-artifact'
 import type {} from '@deepseek-ai/dsh-finding'
@@ -347,7 +347,6 @@ export class SecurityResearchController extends TypertRemoteService {
     if (row === undefined) return { present: false }
     return {
       present: true,
-      trust: row.trust,
       ...(row.broken === undefined ? {} : { broken: 'preset-invalid' }),
     }
   }

@@ -53,13 +53,19 @@ function registerUi(ctx: ClientContext): void {
     async openTeammate(sessionId: SessionId, member: TeamRosterMember): Promise<void> {
       if (member.role !== 'teammate') return
       const parentSessionId = leadSessionId(sessionId)
-      await sessions.refreshSubagents(parentSessionId)
-      if (sessions.list.getSnapshot().current !== sessionId) return
-      sessions.openSubagent({
-        parentSessionId,
-        childSessionId: member.id,
-        mode: 'continuable',
-      })
+      await (sessions as any).refreshSubagents?.(parentSessionId)
+      const snapshot = sessions.list.getSnapshot() as any
+      const current = snapshot.current ?? (Object.values(snapshot.byId ?? {}).find((row: any) => ((row as any).retainedBy?.mainView ?? 0) > 0) as any)?.id
+      if (current !== sessionId) return
+      if (typeof (sessions as any).openSubagent === 'function') {
+        (sessions as any).openSubagent({
+          parentSessionId,
+          childSessionId: member.id,
+          mode: 'continuable',
+        })
+      } else if (typeof (sessions as any).open === 'function') {
+        (sessions as any).open(member.id)
+      }
     },
   }
 

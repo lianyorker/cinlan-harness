@@ -491,10 +491,10 @@ describe('sidebar keyboard commands', () => {
     const registry = new ShortcutRegistry('web', platform)
     releases.push(registerSidebarShortcuts({ register: command => registry.register(command),
       runtime: registry.runtime }, h.controller, makeTranslate(en), vi.fn()))
-    expect(registry.catalog.getSnapshot().map(row => row.id)).toEqual([
+    expect(registry.catalog.getSnapshot().map((row: any) => row.id)).toEqual([
       'sidebar.right.toggle', 'pane.split', 'pane.fullscreen.toggle', 'page.close', 'page.refresh',
     ])
-    expect(registry.catalog.getSnapshot().map(row => row.aria)).toEqual(keys)
+    expect(registry.catalog.getSnapshot().map((row: any) => row.aria)).toEqual(keys)
   })
 })
 

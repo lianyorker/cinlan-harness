@@ -1,79 +1,120 @@
-/** Experimental-package publication and dependency constraints. */
+/** Workspace dependency ranges and package publication constraints. */
 
-import { globSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { describe, expect, it, onTestFinished } from 'vitest'
+import {
+  isPublicExperimentalPackageDirectory,
+  PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES,
+} from './experimental-package-policy.ts'
 import {
   checkDshFamilyVersion,
-  checkExperimentalDependencyIsolation,
-  checkExperimentalManifest,
   checkWorkspaceManifest,
   checkWorkspaceProtocol,
+  checkExperimentalDependencyIsolation,
+  checkExperimentalManifest,
   expectedDshPackageFiles,
-  type PackageManifest,
+  readWorkspaceManifests,
   type WorkspaceManifest,
 } from './check-workspace-constraints.ts'
-import { PUBLIC_EXPERIMENTAL_PACKAGES } from './experimental-package-policy.ts'
 
 const experimental = {
   dir: 'packages/experimental/prototype',
-  manifest: { name: '@deepseek-ai/dsh-experimental-prototype', private: true },
+  manifest: {
+    name: '@deepseek-ai/dsh-experimental-prototype',
+    publishConfig: { access: 'public' },
+  },
 } satisfies WorkspaceManifest
 
-const root = resolve(import.meta.dirname, '..')
-const rootVersion = (JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as { version: string }).version
-const publicExperimental: WorkspaceManifest[] = Object.entries(PUBLIC_EXPERIMENTAL_PACKAGES).map(([dir, name]) => ({
-  dir,
-  manifest: {
-    name,
-    version: rootVersion,
-    publishConfig: { access: 'public' },
-    repository: { type: 'git', url: 'git+https://github.com/deepseek-ai/deepseek-harness.git', directory: dir },
-    type: 'module',
-    main: 'lib/index.js',
-    types: 'lib/types/index.d.ts',
-    exports: { '.': { types: './lib/types/index.d.ts', default: './lib/index.js' } },
-    files: ['lib/index.js', 'lib/types/**/*.d.ts'],
-    peerDependencies: { '@deepseek-ai/cordis': 'workspace:^' },
-    devDependencies: { '@deepseek-ai/cordis': 'workspace:^' },
-  },
-}))
+describe('workspace dependency ranges', () => {
+  const dependency = { dir: 'packages/core/runtime', manifest: { name: '@deepseek-ai/dsh-runtime' } }
+  const cli = { dir: 'apps/cli', manifest: { name: '@deepseek-ai/dsh' } }
+  const vendor = { dir: 'vendor/cordis', manifest: { name: '@deepseek-ai/cordis' } }
+  const native = { dir: 'native/system', manifest: { name: '@deepseek-ai/node-addon-system' } }
+  const platform = { dir: 'native/system/packages/darwin-arm64', manifest: { name: '@deepseek-ai/node-addon-system-darwin-arm64' } }
+  const unrelated = { dir: 'tools/helper', manifest: { name: '@other/helper' } }
+
+  describe.each([
+    '.', 'packages/core/probe', 'packages/experimental/probe', 'apps/cli', 'apps/web',
+    'apps/desktop', 'apps/desktop-host', 'benchmarks', 'website', 'python/sdk-runtime', 'tools/probe',
+    'vendor/loader', 'native/system', 'native/system/packages/entry',
+  ])('consumer %s', (dir) => {
+    it.each(['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'] as const)(
+      'requires exact DSH and tilde vendor/native %s independently of the consumer name',
+      (section) => {
+        const consumer = (name: string, range: string): WorkspaceManifest => ({
+          dir, manifest: { name: 'consumer', [section]: { [name]: range } },
+        })
+        const check = (name: string, range: string): string[] =>
+          checkWorkspaceProtocol([dependency, cli, vendor, native, platform, unrelated, consumer(name, range)])
+        for (const name of ['@deepseek-ai/dsh', '@deepseek-ai/dsh-runtime']) {
+          expect(check(name, 'workspace:*')).toEqual([])
+          for (const range of ['workspace:^', 'workspace:~', 'workspace:^0.1.7', '^0.1.7', '*']) {
+            expect(check(name, range)).toEqual([
+              `consumer: ${section}.${name} must use workspace:*, got ${range}`,
+            ])
+          }
+        }
+        for (const name of ['@deepseek-ai/cordis', '@deepseek-ai/node-addon-system', '@deepseek-ai/node-addon-system-darwin-arm64']) {
+          expect(check(name, 'workspace:~')).toEqual([])
+          for (const range of ['workspace:*', 'workspace:^', '^4.0.3', '~4.0.3']) {
+            expect(check(name, range)).toEqual([
+              `consumer: ${section}.${name} must use workspace:~, got ${range}`,
+            ])
+          }
+        }
+        for (const range of ['workspace:*', 'workspace:^']) {
+          expect(check('@other/helper', range)).toEqual([])
+        }
+        expect(check('@other/helper', '^0.1.0')).toEqual([
+          `consumer: ${section}.@other/helper must use the workspace: protocol, got ^0.1.0`,
+        ])
+        expect(check('external', '^1.2.3')).toEqual([])
+      },
+    )
+  })
+})
+
+describe('workspace manifest discovery', () => {
+  it('checks root, app, runtime, tooling, and newly declared members while honoring exclusions', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-workspace-ranges-'))
+    onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+    const consumers = ['.', 'apps/cli', 'apps/web', 'apps/desktop', 'apps/desktop-host', 'benchmarks', 'website', 'python/sdk-runtime', 'tools/probe']
+    writeFileSync(join(root, 'pnpm-workspace.yaml'), [
+      'packages:', '  - packages/*/*', '  - apps/*', '  - apps/cli', '  - benchmarks',
+      '  - website', '  - python/sdk-runtime', '  - tools/*', '  - "!tools/excluded"',
+    ].join('\n'))
+    for (const dir of [...consumers, 'tools/excluded', 'unlisted/probe', 'packages/core/runtime']) {
+      mkdirSync(join(root, dir), { recursive: true })
+      writeFileSync(join(root, dir, 'package.json'), JSON.stringify(dir === 'packages/core/runtime'
+        ? { name: '@deepseek-ai/dsh-runtime' }
+        : { dependencies: { '@deepseek-ai/dsh-runtime': 'workspace:^' } }))
+    }
+    const manifests = readWorkspaceManifests(root)
+    expect(manifests.map(entry => entry.dir).sort()).toEqual([...consumers, 'packages/core/runtime'].sort())
+    expect(checkWorkspaceProtocol(manifests).sort()).toEqual(consumers.map(dir =>
+      `${dir}: dependencies.@deepseek-ai/dsh-runtime must use workspace:*, got workspace:^`).sort())
+  })
+
+  it.each(['', 'null', '{}', 'packages: []', 'packages: [false]', 'packages: [""]', 'packages: wrong'])(
+    'rejects an invalid workspace declaration: %s', (contents) => {
+      const root = mkdtempSync(join(tmpdir(), 'dsh-workspace-ranges-'))
+      onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+      writeFileSync(join(root, 'pnpm-workspace.yaml'), contents)
+      expect(() => readWorkspaceManifests(root)).toThrow('packages must be a non-empty list of workspace patterns')
+    },
+  )
+
+  it('rejects a declaration that matches no workspace members', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-workspace-ranges-'))
+    onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+    writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages: [missing/*]')
+    expect(() => readWorkspaceManifests(root)).toThrow('packages matched no workspace manifests')
+  })
+})
 
 describe('experimental workspace constraints', () => {
-  it.each(publicExperimental)('accepts the public release declarations for $dir', (entry) => {
-    expect(checkWorkspaceManifest(entry)).toEqual([])
-  })
-
-  it.each([
-    [{ private: true }, 'release member must not set "private": true'],
-    [{ publishConfig: {} }, 'release member must set publishConfig.access to "public"'],
-    [{ repository: {} }, 'release member repository must use'],
-    [{ version: '0.0.0' }, 'package.json version must match root version'],
-    [{ peerDependencies: {} }, '@deepseek-ai/cordis must be a peerDependency'],
-    [{ files: ['src'] }, 'package.json files must not publish "src"'],
-  ] satisfies [Partial<PackageManifest>, string][])('applies release constraints to an official experimental import: %j', (fields, error) => {
-    const entry = publicExperimental[0]!
-    expect(checkWorkspaceManifest({ ...entry, manifest: { ...entry.manifest, ...fields } }).join('\n'))
-      .toContain(error)
-  })
-
-  it('requires the allowed package name in its exact directory', () => {
-    const entry = publicExperimental[0]!
-    expect(checkExperimentalManifest({
-      ...entry, manifest: { ...entry.manifest, name: experimental.manifest.name },
-    }).join('\n')).toContain('public experimental package name must be "@deepseek-ai/dsh-experimental-auto-review"')
-    expect(checkWorkspaceManifest({ ...entry, dir: experimental.dir }).join('\n'))
-      .toContain('experimental package must set "private": true')
-  })
-
-  it('rejects an unknown public experimental manifest through the workspace gate', () => {
-    const entry = publicExperimental[0]!
-    expect(checkWorkspaceManifest({
-      dir: experimental.dir,
-      manifest: { ...entry.manifest, name: experimental.manifest.name },
-    }).join('\n')).toContain('experimental package must set "private": true')
-  })
-
   it('requires the experimental package-name prefix', () => {
     expect(checkExperimentalManifest({
       ...experimental,
@@ -83,15 +124,44 @@ describe('experimental workspace constraints', () => {
     ])
   })
 
-  it('requires private manifests without publication metadata', () => {
+  it('requires public metadata for unlisted experimental packages', () => {
     expect(checkExperimentalManifest(experimental)).toEqual([])
     expect(checkExperimentalManifest({
       ...experimental,
-      manifest: { ...experimental.manifest, private: false, publishConfig: { access: 'public' } },
+      manifest: { name: experimental.manifest.name, private: true },
     })).toEqual([
-      '@deepseek-ai/dsh-experimental-prototype: experimental package must set "private": true',
-      '@deepseek-ai/dsh-experimental-prototype: experimental package must omit publishConfig',
+      '@deepseek-ai/dsh-experimental-prototype: public experimental package must not set "private": true',
+      '@deepseek-ai/dsh-experimental-prototype: public experimental package must set publishConfig.access to "public"',
     ])
+  })
+
+  it('requires private metadata for an explicitly excluded prototype', () => {
+    const { dir, manifest: { name } } = experimental
+    const privateDirectories = [dir]
+    expect(isPublicExperimentalPackageDirectory(dir, privateDirectories)).toBe(false)
+    expect(checkExperimentalManifest({ dir, manifest: { name, private: true } }, privateDirectories)).toEqual([])
+    expect(checkExperimentalManifest(experimental, privateDirectories)).toEqual([
+      `${name}: experimental package must set "private": true`,
+      `${name}: experimental package must omit publishConfig`,
+    ])
+  })
+
+  it('keeps the current experimental publication set unrestricted', () => {
+    expect(PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES).toEqual([])
+  })
+
+  it('limits the public default to experimental package directories', () => {
+    expect(isPublicExperimentalPackageDirectory(experimental.dir)).toBe(true)
+    for (const dir of [
+      'packages/core/session',
+      'apps/cli',
+      'vendor/cordis',
+      'packages/experimental',
+      'packages/experimental/prototype/src',
+      ...PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES,
+    ]) {
+      expect(isPublicExperimentalPackageDirectory(dir)).toBe(false)
+    }
   })
 
   it.each(['dependencies', 'optionalDependencies', 'peerDependencies'] as const)(
@@ -104,35 +174,26 @@ describe('experimental workspace constraints', () => {
           [section]: { '@deepseek-ai/dsh-experimental-prototype': 'workspace:^' },
         },
       }])).toEqual([
-        `@deepseek-ai/dsh-consumer: ${section}.@deepseek-ai/dsh-experimental-prototype must not reference a private or unpublished workspace package`,
+        `@deepseek-ai/dsh-consumer: ${section}.@deepseek-ai/dsh-experimental-prototype must not reference an experimental package`,
       ])
     },
   )
 
-  it.each(['dependencies', 'optionalDependencies', 'peerDependencies'] as const)(
-    'allows public experimental %s but rejects private and unlisted targets',
-    (section) => {
-      const target = publicExperimental[0]!
-      const publicConsumer = publicExperimental[1]!
-      const ordinaryConsumer: WorkspaceManifest = { dir: 'packages/core/consumer', manifest: { name: '@deepseek-ai/dsh-consumer' } }
-      for (const consumer of [ordinaryConsumer, publicConsumer]) {
-        const importer = { ...consumer, manifest: { ...consumer.manifest, [section]: { [target.manifest.name!]: 'workspace:^' } } }
-        expect(checkExperimentalDependencyIsolation([target, importer])).toEqual([])
-        expect(checkExperimentalDependencyIsolation([
-          { ...target, manifest: { ...target.manifest, private: true } }, importer,
-        ])).toHaveLength(1)
-        expect(checkExperimentalDependencyIsolation([{ ...target, dir: experimental.dir }, importer])).toHaveLength(1)
-        expect(checkExperimentalDependencyIsolation([experimental, {
-          ...consumer,
-          manifest: { ...consumer.manifest, [section]: { [experimental.manifest.name]: 'workspace:^' } },
-        }])).toHaveLength(1)
-      }
-      expect(checkExperimentalDependencyIsolation([
-        { dir: 'packages/core/internal', manifest: { name: '@deepseek-ai/dsh-internal', private: true } },
-        { ...ordinaryConsumer, manifest: { ...ordinaryConsumer.manifest, [section]: { '@deepseek-ai/dsh-internal': 'workspace:^' } } },
-      ])).toHaveLength(1)
-    },
-  )
+  it('allows the dsh installation to ship the optional bundles the launcher names, and nothing else experimental', () => {
+    const listed = { '@deepseek-ai/dsh-experimental-prototype': 'workspace:^' }
+    const installation = { dir: 'apps/cli', manifest: { name: '@deepseek-ai/dsh', dependencies: listed } } satisfies WorkspaceManifest
+    expect(checkExperimentalDependencyIsolation([experimental, installation], ['@deepseek-ai/dsh-experimental-prototype'])).toEqual([])
+    expect(checkExperimentalDependencyIsolation([experimental, installation], [])).toEqual([
+      '@deepseek-ai/dsh: dependencies.@deepseek-ai/dsh-experimental-prototype must not reference an experimental package',
+    ])
+    // Only a plain dependency edge is offered; a peer would make the bundle a requirement of every consumer.
+    expect(checkExperimentalDependencyIsolation([experimental, {
+      dir: 'apps/cli',
+      manifest: { name: '@deepseek-ai/dsh', peerDependencies: listed },
+    }], ['@deepseek-ai/dsh-experimental-prototype'])).toEqual([
+      '@deepseek-ai/dsh: peerDependencies.@deepseek-ai/dsh-experimental-prototype must not reference an experimental package',
+    ])
+  })
 
   it('allows development and experimental consumers but rejects the Python release runtime', () => {
     const manifests: WorkspaceManifest[] = [experimental, {
@@ -156,34 +217,8 @@ describe('experimental workspace constraints', () => {
     }]
 
     expect(checkExperimentalDependencyIsolation(manifests)).toEqual([
-      '@deepseek-ai/dsh-python-runtime: dependencies.@deepseek-ai/dsh-experimental-prototype must not reference a private or unpublished workspace package',
+      '@deepseek-ai/dsh-python-runtime: dependencies.@deepseek-ai/dsh-experimental-prototype must not reference an experimental package',
     ])
-  })
-})
-
-describe('official experimental workspace imports', () => {
-  it('validates all seven manifests and their workspace dependency ranges', () => {
-    const manifests = globSync(['packages/*/*/package.json', 'apps/*/package.json', 'vendor/*/package.json'], { cwd: root })
-      .map((path): WorkspaceManifest => ({
-        dir: path.replaceAll('\\', '/').slice(0, -'/package.json'.length),
-        manifest: JSON.parse(readFileSync(resolve(root, path), 'utf8')) as PackageManifest,
-      }))
-    for (const [dir, name] of Object.entries(PUBLIC_EXPERIMENTAL_PACKAGES)) {
-      const entry = manifests.find(candidate => candidate.dir === dir)
-      expect(entry?.manifest.name).toBe(name)
-      expect(entry?.manifest.version).toBe(rootVersion)
-      expect(checkWorkspaceManifest(entry!)).toEqual([])
-    }
-    expect(checkWorkspaceProtocol(manifests)).toEqual([])
-    expect(checkExperimentalDependencyIsolation(manifests)).toEqual([])
-  })
-
-  it('rejects a non-workspace range to an official experimental import', () => {
-    const target = publicExperimental[0]!
-    expect(checkWorkspaceProtocol([target, {
-      dir: 'packages/core/consumer',
-      manifest: { name: '@deepseek-ai/dsh-consumer', dependencies: { [target.manifest.name!]: '^0.1.6' } },
-    }]).join('\n')).toContain('must use the workspace: protocol, got ^0.1.6')
   })
 })
 
@@ -220,53 +255,64 @@ describe('dsh family version coherence', () => {
 })
 
 describe('package payload constraints', () => {
-  it('publishes only the declared patch for a configuration-only bundle', () => {
-    const dir = 'packages/bundle/web-capability-defaults'
-    const manifest = JSON.parse(readFileSync(resolve(root, dir, 'package.json'), 'utf8')) as PackageManifest
+  it.each(['./art/icon.svg', 'art/icon.svg'])('includes declared icon %s in the canonical payload', (icon) => {
+    expect(expectedDshPackageFiles({ icon, exports: { './locale/*.json': './locale/*.json' } })).toEqual([
+      'art/icon.svg', 'locale/*.json', 'lib/index.js', 'lib/types/**/*.d.ts',
+    ])
+  })
+
+  it('accepts the Agent Team icon payload and rejects its omission', () => {
+    const dir = 'packages/experimental/agent-team-profile'
+    const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
     expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
-    expect(expectedDshPackageFiles(manifest)).toEqual(['cordis.patch.yml'])
-    expect(checkWorkspaceManifest({ dir: 'packages/host/not-a-bundle', manifest }).join(String.fromCharCode(10)))
-      .toContain('package.json must set "main"')
-    for (const changed of [
-      { ...manifest, files: ['cordis.patch.yml', 'lib/hidden.js'] },
-      { ...manifest, main: 'lib/index.js' },
-      { ...manifest, types: 'lib/types/index.d.ts' },
-      { ...manifest, bin: 'hidden.js' },
-      { ...manifest, exports: { ...manifest.exports, './hidden': './lib/hidden.js' } },
-      { ...manifest, exports: { './package.json': './package.json' } },
-      { ...manifest, dsh: { bundle: { patch: './../outside.yml' } } },
-    ]) expect(checkWorkspaceManifest({ dir, manifest: changed })).not.toEqual([])
+    expect(checkWorkspaceManifest({ dir, manifest: { ...manifest, files: manifest.files!.filter(file => file !== 'icon.svg') } }))
+      .toEqual([expect.stringContaining('package.json files must be')])
   })
 
   it.each([
-    ['bundle/headless', ['lib/json-stream-*.js']],
-    ['client/ui-git-settings', ['lib/types.js']],
-    ['client/web', ['lib/boot-page.js', 'lib/**/*.css']],
-    ['computer-use/computer-use', ['lib/brand.js']],
-    ['execution-host/execution-host-worker', ['lib/*.js', 'lib/chunks/**/*.js']],
-    ['git/git-settings', ['lib/settings-schema.js', 'lib/types.js']],
-    ['mcp/mcp-client', ['lib/registry.js', 'lib/*.js']],
-    ['ptc-runtime/ptc-runtime-node', ['lib/code-runtime.js', 'lib/process.js']],
-    ['ssh/ssh', ['lib/helper.js', 'lib/protocol.js', 'lib/schemas.js', 'lib/protocol-*.js', 'lib/schemas-*.js', 'lib/stream-security-*.js']],
-    ['subprocess/subprocess', ['lib/control.js']],
-    ['subprocess/subprocess-local', ['lib/output.js', 'lib/runner.js', 'lib/runner-*.js']],
-  ] satisfies [string, string[]][])('retains required runtime artifacts for %s and rejects extra payloads', (directory, assets) => {
-    const dir = 'packages/' + directory
-    const manifest = JSON.parse(readFileSync(resolve(root, dir, 'package.json'), 'utf8')) as PackageManifest
-    expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
-    for (const asset of assets) {
-      expect(manifest.files).toContain(asset)
-      expect(checkWorkspaceManifest({
-        dir, manifest: { ...manifest, files: manifest.files!.filter(file => file !== asset) },
-      }).join('\n')).toContain('package.json files must be')
-    }
-    expect(checkWorkspaceManifest({
-      dir, manifest: { ...manifest, files: [...manifest.files!, 'lib/unreviewed.js'] },
-    }).join('\n')).toContain('package.json files must be')
-    expect(expectedDshPackageFiles({ name: '@deepseek-ai/dsh-unrelated' }))
-      .toEqual(['lib/index.js', 'lib/types/**/*.d.ts'])
+    { exports: { './locale/*.json': './locale/*.json' }, resources: ['locale/*.json'] },
+    { exports: { './search/locale/*.json': './resources/search/*.json' }, resources: ['resources/search/*.json'] },
+    { exports: { './locale/en.json': './locale/en.json', './locale/zh.json': './locale/zh.json' }, resources: ['locale/en.json', 'locale/zh.json'] },
+    { exports: { './locale/*.json': { default: './locale/*.json' } }, resources: ['locale/*.json'] },
+    { exports: { './locale/*.json': './locale/*.json', './search/locale/*.json': './locale/*.json' }, resources: ['locale/*.json'] },
+    { exports: { './search/locale/*.json': './z/*.json', './locale/*.json': './a/*.json' }, resources: ['a/*.json', 'z/*.json'] },
+  ])('includes declared locale resources in the canonical payload: $exports', ({ exports, resources }) => {
+    expect(expectedDshPackageFiles({ name: '@deepseek-ai/dsh-localized', exports })).toEqual([
+      ...resources, 'lib/index.js', 'lib/types/**/*.d.ts',
+    ])
   })
 
+  it('does not infer locale payloads from unrelated or non-JSON exports', () => {
+    expect(expectedDshPackageFiles({
+      exports: {
+        './config.json': './config.json',
+        './locale/README.md': './locale/README.md',
+        './locale/en.json': './metadata.js',
+        './locale/zh.json': null,
+        './locale/fr.json': { types: './locale/fr.d.ts' },
+      },
+    })).toEqual(['lib/index.js', 'lib/types/**/*.d.ts'])
+  })
+
+  it.each(['agent-team', 'agent-team-profile', 'auto-review', 'client-ui-agent-team', 'tool-agent-team'])(
+    'accepts the published locale files for %s and rejects their omission', (name) => {
+      const dir = `packages/experimental/${name}`
+      const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+      expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
+      expect(checkWorkspaceManifest({ dir, manifest: {
+        ...manifest, files: manifest.files!.filter(file => file !== 'locale/*.json'),
+      } })).toEqual([expect.stringContaining('package.json files must be')])
+    },
+  )
+
+  it('rejects locale publication entries without their resource exports', () => {
+    const dir = 'packages/experimental/auto-review'
+    const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+    const exports = { ...manifest.exports }
+    delete exports['./locale/*.json']
+    expect(checkWorkspaceManifest({ dir, manifest: { ...manifest, exports } }))
+      .toEqual([expect.stringContaining('package.json files must be')])
+  })
 
   it('includes a declared profile patch without a package-name allowlist', () => {
     expect(expectedDshPackageFiles({
@@ -277,21 +323,68 @@ describe('package payload constraints', () => {
       'cordis.patch.yml',
       'lib/types/**/*.d.ts',
     ])
+    expect(expectedDshPackageFiles({
+      name: '@deepseek-ai/dsh-private-profile',
+      dsh: { bundle: { patch: ['./cordis.patch.yml', './layers/web.patch.yml'] } },
+    })).toEqual([
+      'lib/index.js',
+      'cordis.patch.yml',
+      'layers/web.patch.yml',
+      'lib/types/**/*.d.ts',
+    ])
+  })
+
+  it.each([
+    'packages/client/ui-sidebar-documentpreview',
+    'packages/client/ui-sidebar-terminal',
+  ])('accepts package-local Client chunks from %s', (dir) => {
+    const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+    expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
   })
 })
 
-describe('runtime-loaded security and sidebar payloads', () => {
-  it.each([
-    ['bundle/security-research', 'presets'],
-    ['security/security-skills', 'assets'],
-    ['client/ui-better-sidebar', 'lib/client-terminal.js'],
-    ['client/ui-better-sidebar', 'lib/client-editor.js'],
-    ['client/ui-better-sidebar', 'lib/client-mermaid.js'],
-  ])('requires %s to publish %s', (directory, asset) => {
-    const manifest = JSON.parse(readFileSync('packages/' + directory + '/package.json', 'utf8')) as PackageManifest
-    const expected = expectedDshPackageFiles(manifest)
-    expect(expected).toContain(asset)
-    expect(manifest.files).toEqual(expected)
-    expect(manifest.files?.filter(file => file !== asset)).not.toEqual(expected)
-  })
+it('publishes CLI runtime declarations and rejects a payload that omits them', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../apps/cli/package.json', import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+  expect(checkWorkspaceManifest({ dir: 'apps/cli', manifest })).toEqual([])
+  expect(checkWorkspaceManifest({ dir: 'apps/cli', manifest: { ...manifest, files: ['lib/*.js'] } }))
+    .toEqual([expect.stringContaining('@deepseek-ai/dsh: package.json files must be ["lib/*.js","lib/types/*.d.ts"]')])
+})
+
+it('requires the shared Web injection entry in the published payload', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../packages/client/web/package.json', import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+  expect(checkWorkspaceManifest({ dir: 'packages/client/web', manifest })).toEqual([])
+  expect(checkWorkspaceManifest({ dir: 'packages/client/web', manifest: {
+    ...manifest, files: ['lib/index.js', 'lib/**/*.css', 'lib/types/**/*.d.ts'],
+  } })).toEqual([expect.stringContaining('package.json files must be')])
+})
+
+it('requires Office skill bodies and helpers in the published payload', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../packages/skill/skill-office/package.json', import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+  expect(checkWorkspaceManifest({ dir: 'packages/skill/skill-office', manifest })).toEqual([])
+  expect(checkWorkspaceManifest({ dir: 'packages/skill/skill-office', manifest: {
+    ...manifest, files: ['lib/index.js', 'lib/types/**/*.d.ts'],
+  } })).toEqual([expect.stringContaining('package.json files must be')])
+})
+
+it('requires the local speech worker and locked runtime in the published payload', () => {
+  const dir = 'packages/experimental/speech-to-text-sensevoice'
+  const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+  expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
+  for (const omitted of ['lib/worker.js', 'runtime/assets.json']) {
+    expect(checkWorkspaceManifest({ dir, manifest: { ...manifest, files: manifest.files!.filter(file => file !== omitted) } }))
+      .toEqual([expect.stringContaining('package.json files must be')])
+  }
+})
+
+it('requires the standalone shortcut protocol and rejects unrelated runtime files', () => {
+  const dir = 'packages/client/shortcuts'
+  const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+  expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
+  for (const files of [
+    ['lib/index.js', 'lib/client.js', 'lib/types/**/*.d.ts'],
+    ['lib/index.js', 'lib/client.js', 'lib/protocol.js', 'lib/extra.js', 'lib/types/**/*.d.ts'],
+  ]) {
+    expect(checkWorkspaceManifest({ dir, manifest: { ...manifest, files } }))
+      .toEqual([expect.stringContaining('package.json files must be')])
+  }
 })

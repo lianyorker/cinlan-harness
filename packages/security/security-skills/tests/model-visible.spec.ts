@@ -7,7 +7,7 @@ import { boot } from '@deepseek-ai/dsh-app-boot'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { createUserMessage, LlmAdapter, ToolCallId } from '@deepseek-ai/dsh-llm'
-import type { ContentBlock, GenerateOptions, Message, StreamChunk } from '@deepseek-ai/dsh-llm'
+import type { ContentBlock, GenerateOptions, Message, RequestMessage, StreamChunk, ToolResultMessage } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import SkillRegistry, { escapeText, renderSkillContent } from '@deepseek-ai/dsh-skill'
@@ -49,11 +49,11 @@ function text(blocks: readonly ContentBlock[]): string {
   return blocks.filter(block => block.type === 'text').map(block => block.text).join('\n')
 }
 
-function results(messages: readonly Message[]): string[] {
-  return messages.flatMap(message => message.content.filter(block => block.type === 'tool-result').map((block) => {
-    expect(block.isError).not.toBe(true)
-    return text(block.content)
-  }))
+function results(messages: readonly RequestMessage[]): string[] {
+  return messages.filter((message): message is ToolResultMessage => (message as Message).role === 'tool').map((message) => {
+    expect(message.isError).not.toBe(true)
+    return text(message.content)
+  })
 }
 
 it('publishes all managed skills and persists complete official skill results from a real Agent turn', async () => {
@@ -120,9 +120,9 @@ it('publishes all managed skills and persists complete official skill results fr
   expect(adapter.requests).toHaveLength(3)
   const first = adapter.requests[0]!
   expect(first.tools?.map(tool => tool.name)).toContain('skill')
-  const catalog = first.messages.find(message => message.source.kind === 'skill-catalog')
-  if (catalog?.source.kind !== 'skill-catalog') throw new Error('First model request lacks the official skill catalog')
-  const catalogNames = catalog.source.entries.map(entry => entry.name)
+  const catalog = first.messages.find(message => (message.source as any)?.kind === 'skill-catalog')
+  if (!catalog || (catalog.source as any)?.kind !== 'skill-catalog') throw new Error('First model request lacks the official skill catalog')
+  const catalogNames = ((catalog?.source as any)?.entries as any[]).map(entry => entry.name)
   expect(catalogNames).toHaveLength(22)
   expect(catalogNames).toContain('cinlan-cyber-security')
   expect(catalogNames).toContain('js-reverse')

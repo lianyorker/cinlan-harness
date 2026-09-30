@@ -1,18 +1,46 @@
 {
   "extends": "../../../tsconfig.base.client.json",
-  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
-  "include": ["src", "src/client/css-modules.d.ts"],
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src",
+    "src/client/css-modules.d.ts"
+  ],
   "references": [
-    { "path": "../../../vendor/cordis" },
-    { "path": "../ui-slots" },
-    { "path": "../ui-primitives" },
-    { "path": "../store" },
-    { "path": "../ui-renderer" },
-    { "path": "../ui-settings" },
-    { "path": "../locale" },
-    { "path": "../ui-conversation" },
-    { "path": "../../voice/voice" },
-    { "path": "../../api/remotes/tsconfig.client.json" },
-    { "path": "../../api/voice-controller" }
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../ui-slots"
+    },
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../store"
+    },
+    {
+      "path": "../ui-renderer"
+    },
+    {
+      "path": "../ui-settings/tsconfig.client.json"
+    },
+    {
+      "path": "../locale/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-conversation/tsconfig.client.json"
+    },
+    {
+      "path": "../../voice/voice"
+    },
+    {
+      "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../../api/voice-controller"
+    }
   ]
 }

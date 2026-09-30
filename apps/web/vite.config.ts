@@ -48,7 +48,9 @@ function emitPreviewPage(): Plugin {
   let bootstrapFile: string | undefined
   return {
     name: 'dsh-emit-preview-page',
-    generateBundle(_options, bundle) {
+    generateBundle(options, bundle) {
+      const inputs = typeof options.input === 'object' && options.input !== null && !Array.isArray(options.input) ? Object.keys(options.input) : []
+      if (!inputs.includes('bootstrap')) return
       for (const item of Object.values(bundle)) {
         if (item.type === 'chunk' && item.isEntry && item.name === 'bootstrap') bootstrapFile = item.fileName
       }

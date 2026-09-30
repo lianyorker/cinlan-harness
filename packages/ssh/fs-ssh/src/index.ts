@@ -29,7 +29,7 @@ export class SshFileSystem extends FileSystem {
   override processPath(target: FsTarget): string { return String(target.targetKey) }
 
   override fileUrl(target: FsTarget): string {
-    return pathToFileURL(this.processPath(target), { windows: false }).href
+    return pathToFileURL(this.processPath(target)).href
   }
 
   override contains(parent: FsTarget, child: FsTarget): boolean {

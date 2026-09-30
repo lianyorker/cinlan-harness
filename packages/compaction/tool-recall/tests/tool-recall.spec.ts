@@ -10,6 +10,7 @@ import {
 import {
   createUserMessage,
   createToolResultMessage,
+  createSystemMessage,
   createMessage,
   ToolCallId,
 } from '@deepseek-ai/dsh-llm'
@@ -338,11 +339,7 @@ describe('dsh-tool-recall', () => {
     const sys = session.append('system/message', {
       turn: 1,
       step: 1,
-      message: createMessage({
-        role: 'system',
-        content: [{ type: 'text', text: 'System instruction prompt' }],
-        source: { kind: 'plugin', plugin: 'test' },
-      }),
+      message: createSystemMessage('System instruction prompt'),
     }, { surfaceOp: 'append' })
 
     const asst = session.append('assistant/message', {

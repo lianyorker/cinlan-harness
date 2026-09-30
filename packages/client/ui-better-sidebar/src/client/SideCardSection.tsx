@@ -54,7 +54,7 @@ export interface SideCardSectionInjected {
 }
 
 /** Full section props: the runtime share plus the injected face. */
-export type SideCardSectionProps = PropsRuntime<'settings.section'> & SideCardSectionInjected
+export type SideCardSectionProps = Partial<PropsRuntime<'settings.section'>> & SideCardSectionInjected
 
 /** Map one wire failure to the inline message (the conflict gets friendly copy). */
 function messageOf(error: unknown): string {
@@ -467,7 +467,7 @@ export function SettingsBody(props: {
   onPluginCommit: (toggle: SidebarSettingToggle, raw: string) => string
   onPluginSelectValue: (toggle: SidebarSettingToggle, next: unknown) => void
   onPluginWrite: (key: string, value: unknown) => void
-  onClose: () => void
+  onClose?: () => void
 }) {
   const {
     feature, prefs, store, service, anchorPrefix, onToggle, onCommit, onSelectValue,
@@ -518,7 +518,7 @@ export function SettingsBody(props: {
             prefs,
             pluginSettings: prefs.pluginSettings[feature.id] ?? {},
             updatePluginSetting: onPluginWrite,
-            close: onClose,
+            close: onClose ?? (() => {}),
           }}
         />
       )}

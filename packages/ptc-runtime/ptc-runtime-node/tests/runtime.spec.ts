@@ -234,8 +234,7 @@ describe('Node program process', () => {
     expect(runtime.isolation).toBe('process')
   })
 
-  // The attack writes to a POSIX fd; Windows adopts a native control handle instead.
-  it.skipIf(process.platform === 'win32').each([
+  it.each([
     'const fs = await import("node:fs"); const b=Buffer.alloc(4); b.writeUInt32BE(4294967295); fs.writeSync(7,b); await new Promise(()=>{});',
     'const fs = await import("node:fs"); const body=Buffer.from(JSON.stringify({type:"call",id:1,global:"tools",name:"undeclared",args:[]})); const h=Buffer.alloc(4); h.writeUInt32BE(body.length); fs.writeSync(7,Buffer.concat([h,body])); await new Promise(()=>{});',
   ])('refuses hostile program control traffic', async (program) => {

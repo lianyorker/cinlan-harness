@@ -1,55 +1,50 @@
-import { describe, expect, it, onTestFinished } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import * as Notifications from '../src/index.ts'
-import { NOTIFICATIONS_SETTINGS_NAMESPACE } from '../src/index.ts'
-import { MemorySettings } from '../../../settings/settings/tests/memory.ts'
-
-async function bench() {
-  const ctx = new Context()
-  onTestFinished(() => ctx.fiber.dispose())
-  await ctx.plugin(MemorySettings)
-  const fiber = ctx.plugin(Notifications)
-  await fiber
-  return { ctx, fiber }
-}
+import { NotificationSettingsSchema } from '../src/index.ts'
 
 describe('notifications Host registration', () => {
-  it('registers disabled defaults and the local overnight interval, then unregisters with its owner', async () => {
-    const { ctx, fiber } = await bench()
-    expect(ctx.settings.get(NOTIFICATIONS_SETTINGS_NAMESPACE)).toEqual({
+  it('registers disabled defaults and the local overnight interval', () => {
+    const resolved = NotificationSettingsSchema({})
+    expect(resolved).toEqual({
       enabled: false, agentCompletion: false, terminalBell: false, sound: 'system', suppressWhenFocused: false, customSoundName: '',
       quietHoursEnabled: false, quietHoursStart: '22:00', quietHoursEnd: '08:00',
     })
-    await fiber.dispose()
-    expect(ctx.settings.get(NOTIFICATIONS_SETTINGS_NAMESPACE)).toBeUndefined()
   })
 
-  it.each(['quietHoursStart', 'quietHoursEnd'] as const)('refuses malformed persisted %s without changing accepted preferences', async (field) => {
-    const { ctx } = await bench()
-    const before = ctx.settings.describe()
+  it('configures settings presentation on apply', async () => {
+    const ctx = new Context()
+    let configured = false
+    class MockSettings {
+      static name = 'settings'
+      constructor(c: Context) {
+        c.provide('settings', this)
+      }
+      configure(policy: { auto?: boolean }) {
+        configured = policy.auto ?? false
+        return () => {}
+      }
+    }
+    await ctx.plugin(MockSettings)
+    await ctx.plugin(Notifications)
+    expect(configured).toBe(true)
+  })
+
+  it.each(['quietHoursStart', 'quietHoursEnd'] as const)('refuses malformed persisted %s', (field) => {
     for (const value of ['', '24:00', '12:60', '7:00', '12:00:30']) {
-      await expect(ctx.settings.mutate(NOTIFICATIONS_SETTINGS_NAMESPACE, [
-        { op: 'set', path: ['quietHoursEnabled'], value: true },
-        { op: 'set', path: [field], value },
-      ])).rejects.toThrow()
-      expect(ctx.settings.describe()).toEqual(before)
+      expect(() => NotificationSettingsSchema({ [field]: value } as never)).toThrow()
     }
   })
 
   it.each([['23:59', '00:00'], ['00:00', '00:00'], ['08:30', '17:15']] as const)(
-    'accepts the complete %s–%s interval in one revision', async (start, end) => {
-      const { ctx } = await bench()
-      const before = ctx.settings.describe()[0]!
-      await ctx.settings.mutate(NOTIFICATIONS_SETTINGS_NAMESPACE, [
-        { op: 'set', path: ['quietHoursEnabled'], value: true },
-        { op: 'set', path: ['quietHoursStart'], value: start },
-        { op: 'set', path: ['quietHoursEnd'], value: end },
-      ], before.revision)
-      expect(ctx.settings.describe()[0]).toMatchObject({
-        revision: before.revision + 1,
-        user: { quietHoursEnabled: true, quietHoursStart: start, quietHoursEnd: end },
-        value: { quietHoursEnabled: true, quietHoursStart: start, quietHoursEnd: end },
+    'accepts the complete %s–%s interval', (start, end) => {
+      const resolved = NotificationSettingsSchema({
+        quietHoursEnabled: true,
+        quietHoursStart: start,
+        quietHoursEnd: end,
       })
+      expect(resolved.quietHoursStart).toBe(start)
+      expect(resolved.quietHoursEnd).toBe(end)
     },
   )
 })

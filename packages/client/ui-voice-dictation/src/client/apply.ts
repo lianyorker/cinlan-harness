@@ -7,6 +7,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { DictationController } from './dictation-controller.ts'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-api-voice-controller/remote'
 import { createVoiceApi } from './api.ts'
 import { en, zh, type VoiceSettingsKey } from './locales.ts'
 import { VoiceButton, type VoiceButtonInjected } from './VoiceButton.tsx'
@@ -47,7 +48,8 @@ function registerDictationShortcut(ctx: ClientContext, controller: DictationCont
     if (event.repeat || event.isComposing || event.defaultPrevented || isEditableTarget(event.target)) return
     const { enabled, dictationMode } = settingsStore.getSnapshot()
     if (!enabled) return
-    const sessionId = ctx.sessions.list.getSnapshot().current
+    const snapshot = ctx.sessions.list.getSnapshot() as any
+    const sessionId = (snapshot.current ?? (Object.values(snapshot.byId ?? {}).find((row: any) => ((row as any).retainedBy?.mainView ?? 0) > 0) as any)?.id) as SessionId | undefined
     if (sessionId === undefined) return
     event.preventDefault()
     if (dictationMode === 'hold') {

@@ -71,8 +71,8 @@ function result(seq: number, text: string): SessionLiveEventEntry {
     data: { turn: 1, step: 1, message: {
       id: MessageId(`result-${seq}`), role: 'user', source: { kind: 'tool', callId },
       content: [{ type: 'tool-result', toolCallId: callId, content: [{ type: 'text', text }], isError: false }],
-    } },
-  } }
+    } } as any,
+  } } as any
 }
 
 describe('daily local quiet hours', () => {

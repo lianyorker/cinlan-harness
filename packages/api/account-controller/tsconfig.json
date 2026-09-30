@@ -9,19 +9,19 @@
   ],
   "references": [
     {
+      "path": "../../../vendor/cosmokit"
+    },
+    {
       "path": "../../../vendor/cordis"
     },
     {
-      "path": "../../credentials/authorization"
-    },
-    {
-      "path": "../../credentials/credentials"
-    },
-    {
-      "path": "../../util/brand"
+      "path": "../../credentials/deepseek-account"
     },
     {
       "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../core/agent"
     }
   ]
 }

@@ -40,12 +40,6 @@
     },
     {
       "path": "../product-analytics/tsconfig.client.json"
-    },
-    {
-      "path": "../ui-settings"
-    },
-    {
-      "path": "../locale"
     }
   ]
 }

@@ -11,9 +11,7 @@
     "src/types.ts"
   ],
   "references": [
-    {
-      "path": "../../client/product-analytics/tsconfig.client.json"
-    },
+    { "path": "../../client/product-analytics/tsconfig.client.json" },
     {
       "path": "../../../vendor/cordis"
     },
@@ -109,57 +107,6 @@
     },
     {
       "path": "../../credentials/deepseek-account"
-    },
-    {
-      "path": "../pairing-controller"
-    },
-    {
-      "path": "../../preset/agent-presets"
-    },
-    {
-      "path": "../workspace-isolation-controller/tsconfig.json"
-    },
-    {
-      "path": "../worktree-task-controller/tsconfig.json"
-    },
-    {
-      "path": "../terminal-controller/tsconfig.json"
-    },
-    {
-      "path": "../device-capabilities-controller"
-    },
-    {
-      "path": "../security-research-controller"
-    },
-    {
-      "path": "../work-items-controller"
-    },
-    {
-      "path": "../browser-controller"
-    },
-    {
-      "path": "../integration-preflight-controller"
-    },
-    {
-      "path": "../usage-controller"
-    },
-    {
-      "path": "../voice-controller"
-    },
-    {
-      "path": "../mcp-controller"
-    },
-    {
-      "path": "../automation-controller/tsconfig.client.json"
-    },
-    {
-      "path": "../sidebar-terminal-controller/tsconfig.client.json"
-    },
-    {
-      "path": "../execution-host-controller"
-    },
-    {
-      "path": "../sidebar-git-controller"
     }
   ]
 }

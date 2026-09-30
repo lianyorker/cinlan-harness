@@ -1,8 +1,8 @@
 /**
  * Client mirror of the Host settings document: the one `settings.describe`
  * reader in the browser. Every settings consumer derives from this store —
- * per-namespace scopes through `SettingsScopeBinder.bind`, cross-namespace
- * surfaces through the binder's shared describe face — so startup cost and
+ * shared entry forms through `ConfigForms.get`, cross-namespace
+ * surfaces through the provider's shared describe face — so startup cost and
  * freshness are properties of this class, not of how many features own a
  * preference. The Host stays the fact source: the mirror re-reads on the
  * invalidations its owning plugin subscribes to and folds write answers in
@@ -108,13 +108,12 @@ export class SettingsDescribeMirror implements SettingsDescribeFace {
 
   /**
    * Refresh from the Host. A call during an in-flight read marks one rerun
-   * after it settles and discards its stale answer without racing a second read.
+   * after it settles instead of racing a second wire read.
    * @returns settlement after this call's freshness is reflected.
    */
   load(): Promise<void> {
     if (this.persistence === 'memory') return Promise.resolve()
     if (this.inFlight !== undefined) {
-      this.generation += 1
       this.rerun = true
       return this.inFlight
     }
@@ -188,7 +187,7 @@ export class SettingsDescribeMirror implements SettingsDescribeFace {
         } catch (error) {
           outcome = { failure: error instanceof Error ? error.message : String(error) }
         }
-        // A write answer or invalidation supersedes an older document read.
+        // A write answer invalidates a document read before that write committed.
         if (generation !== this.generation) continue
         if ('view' in outcome) {
           this.store.set({ status: 'ready', view: outcome.view, error: null })

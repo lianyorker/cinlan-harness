@@ -112,11 +112,13 @@ export function createNotificationRuntime(
       if (entry.type !== 'event') continue
       if (entry.event.type !== 'tool/result') continue
       for (const block of entry.event.data.message.content) {
-        for (const inner of block.content) {
-          if (inner.type === 'text' && inner.text.includes('\u0007')) {
-            const title = ctx.sessions.list.getSnapshot().byId[sessionId]?.displayTitle ?? String(sessionId)
-            void deliver({ title: copy.bellTitle, body: copy.bellBody(title) }, false)
-            return
+        if ('content' in block && Array.isArray(block.content)) {
+          for (const inner of block.content) {
+            if (inner.type === 'text' && inner.text.includes('\u0007')) {
+              const title = ctx.sessions.list.getSnapshot().byId[sessionId]?.displayTitle ?? String(sessionId)
+              void deliver({ title: copy.bellTitle, body: copy.bellBody(title) }, false)
+              return
+            }
           }
         }
       }

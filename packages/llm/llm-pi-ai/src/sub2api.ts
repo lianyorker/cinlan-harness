@@ -1,6 +1,6 @@
 /** Fixed Cinlan account authorization over the Sub2API-compatible service. */
 import type { Context } from '@deepseek-ai/cordis'
-import type { AuthorizationPromptAutocomplete, AuthorizationSession } from '@deepseek-ai/dsh-authorization'
+import type { AuthorizationSession } from '@deepseek-ai/dsh-authorization'
 import type { CredentialRecord } from '@deepseek-ai/dsh-credentials'
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import { recordKeyFor } from './auth.ts'
@@ -135,13 +135,13 @@ async function ask(
   session: AuthorizationSession,
   kind: 'text' | 'secret',
   message: string,
-  autocomplete: AuthorizationPromptAutocomplete,
+  autocomplete?: unknown,
   placeholder?: string,
 ): Promise<string> {
   return session.prompt({
     kind,
     message,
-    autocomplete,
+    ...autocomplete === undefined ? {} : { autocomplete } as never,
     ...placeholder === undefined ? {} : { placeholder },
     signal: session.signal,
   })
@@ -344,7 +344,7 @@ export async function runSub2ApiLogin(
           return { kind: 'api-key', key: commitKey }
         },
       )
-      session.commit()
+      await session.commit({ kind: 'api-key', key: commitKey })
     } catch (error) {
       let commitState: 'present' | 'absent' | 'unknown' = 'absent'
       if (key !== undefined) {

@@ -3,8 +3,8 @@ import { defineConfig } from 'tsdown'
 export default defineConfig({
   entry: {
     index: 'lib/types/index.js',
-    output: 'lib/types/output.js',
     runner: 'lib/types/bin.js',
+    output: 'lib/types/output.js',
   },
   outDir: 'lib',
   format: ['esm'],

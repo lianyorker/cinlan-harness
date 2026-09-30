@@ -46,9 +46,21 @@ export interface ComputerWindow {
   readonly main: boolean | null
 }
 
+export type ComputerPlatform =
+  | 'aix'
+  | 'android'
+  | 'darwin'
+  | 'freebsd'
+  | 'haiku'
+  | 'linux'
+  | 'openbsd'
+  | 'sunos'
+  | 'win32'
+  | (string & {})
+
 /** Provider capability descriptor used for load-time compatibility checks. */
 export interface ComputerCapabilities {
-  readonly platform: NodeJS.Platform
+  readonly platform: ComputerPlatform
   readonly provider: string
   readonly providerVersion: string
   readonly protocolVersion: number
@@ -91,7 +103,7 @@ export interface ComputerCapabilities {
 export interface ComputerToolReadiness {
   readonly kind: 'tool-catalog'
   readonly provider: string
-  readonly platform: NodeJS.Platform
+  readonly platform: ComputerPlatform
   readonly state: 'initializing' | 'ready' | 'disposing' | 'failed'
   /** Registered public tool names; an empty catalog does not establish readiness. */
   readonly toolNames: readonly string[]

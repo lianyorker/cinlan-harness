@@ -40,7 +40,7 @@ function mount(
   const set = vi.fn<FloatingActions['set']>(async () => {})
   const unused = (() => { throw new Error('unused standard hook') }) as never
   const props: FloatingWorkspaceSectionProps = {
-    useSessions: unused, useWorkspaces: unused, useSessionPendingInteraction: unused, useResource: unused,
+    useSessions: unused, useWorkspaces: unused, usePanelInfo: unused, useSessionStatus: unused, useSessionRetainInfo: unused, useResource: unused,
     close: vi.fn(), useFloating: bindSnapshotSelector(source), set, pickDirectory, t: makeTranslate(dictionary),
   }
   const view = render(<FloatingWorkspaceSection {...props} />)

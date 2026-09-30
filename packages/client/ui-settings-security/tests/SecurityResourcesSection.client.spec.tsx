@@ -22,7 +22,7 @@ function mount(value: SecurityResourceRead = { status: 'ready', value: empty() }
   const unsubscribe = vi.fn()
   const unused = (): never => { throw new Error('Unused standard hook') }
   const props: SecurityResourcesProps = {
-    close: vi.fn(), useSessions: unused, useWorkspaces: unused, useSessionPendingInteraction: unused, useResource: unused,
+    close: vi.fn(), useSessions: unused, useWorkspaces: unused, usePanelInfo: unused, useSessionStatus: unused, useSessionRetainInfo: unused, useResource: unused,
     useSecurityResources: selector => selector(snapshot), watch: vi.fn(() => unsubscribe), refresh: vi.fn(),
     run: vi.fn(async () => {}), cancel: vi.fn(async () => {}),
     t: language === 'en' ? makeTranslate(en, commonEn) : makeTranslate(zh, commonZh),

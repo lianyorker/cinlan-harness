@@ -18,7 +18,7 @@
       "path": "../../typert/protocol"
     },
     {
-      "path": "../../preset/agent-presets"
+      "path": "../../preset/agent-preset-registry"
     },
     {
       "path": "../../security/assessment-scope"

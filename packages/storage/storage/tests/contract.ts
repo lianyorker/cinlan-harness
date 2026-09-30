@@ -88,53 +88,6 @@ export function runKvBackendContract(label: string, create: () => Promise<KvBack
       await reopened.close()
     })
 
-    it('reads explicitly compatible versions without advancing the stamp until a durable write', async () => {
-      const harness = await create()
-      const backend = harness.backend
-      try {
-        const original = await backend.kv!.open(DESCRIPTOR)
-        await original.putRecord('alpha', 'old', { n: 1 })
-        await original.setGlobal({ title: 'legacy' })
-        await original.close()
-        const successor = { ...DESCRIPTOR, version: 4, compatibleVersions: [3] }
-        const reader = await backend.kv!.open(successor)
-        expect(await reader.loadAll()).toEqual({ tables: { alpha: { old: { n: 1 } }, beta: {} }, global: { title: 'legacy' } })
-        await reader.close()
-        const untouched = await backend.kv!.open(DESCRIPTOR)
-        await untouched.close()
-        const writer = await backend.kv!.open(successor)
-        await writer.putRecord('alpha', 'new', { execution: { kind: 'local' } })
-        await writer.close()
-        await expect(backend.kv!.open(DESCRIPTOR)).rejects.toMatchObject({ code: 'version-mismatch' })
-      } finally {
-        await backend.close()
-      }
-      const reopened = await harness.reopen()
-      try {
-        const unit = await reopened.kv!.open({ ...DESCRIPTOR, version: 4 })
-        expect(await unit.loadAll()).toEqual({
-          tables: { alpha: { old: { n: 1 }, new: { execution: { kind: 'local' } } }, beta: {} },
-          global: { title: 'legacy' },
-        })
-      } finally {
-        await reopened.close()
-      }
-    })
-
-    it('never treats a listed newer stamp as an older compatible version', async () => {
-      const { backend } = await create()
-      try {
-        const unit = await backend.kv!.open({ ...DESCRIPTOR, version: 4 })
-        await unit.putRecord('alpha', 'k', { n: 1 })
-        await unit.close()
-        await expect(backend.kv!.open({ ...DESCRIPTOR, compatibleVersions: [4] })).rejects.toMatchObject({ code: 'version-mismatch' })
-        const current = await backend.kv!.open({ ...DESCRIPTOR, version: 4 })
-        expect((await current.loadAll()).tables['alpha']).toEqual({ k: { n: 1 } })
-      } finally {
-        await backend.close()
-      }
-    })
-
     it('rejects operations after unit close, and close is idempotent', async () => {
       const { backend } = await create()
       const unit = await backend.kv!.open(DESCRIPTOR)
@@ -143,33 +96,6 @@ export function runKvBackendContract(label: string, create: () => Promise<KvBack
       await expect(unit.putRecord('alpha', 'k', {})).rejects.toMatchObject({ code: 'closed' })
       await expect(unit.loadAll()).rejects.toMatchObject({ code: 'closed' })
       await backend.close()
-      await backend.close()
-    })
-
-    it('destroys a unit medium completely so next open serves empty tables', async () => {
-      const { backend } = await create()
-      const unit = await backend.kv!.open(DESCRIPTOR)
-      await unit.putRecord('alpha', 'k', { v: 1 })
-      await unit.setGlobal({ flag: true })
-      await unit.close()
-      await backend.kv!.destroy(DESCRIPTOR)
-      const unit2 = await backend.kv!.open(DESCRIPTOR)
-      expect(await unit2.loadAll()).toEqual({ tables: { alpha: {}, beta: {} }, global: null })
-      await unit2.close()
-      await backend.close()
-    })
-
-    it('destroy is idempotent on non-existent units', async () => {
-      const { backend } = await create()
-      await expect(backend.kv!.destroy(DESCRIPTOR)).resolves.toBeUndefined()
-      await backend.close()
-    })
-
-    it('destroy rejects if the unit is currently open', async () => {
-      const { backend } = await create()
-      const unit = await backend.kv!.open(DESCRIPTOR)
-      await expect(backend.kv!.destroy(DESCRIPTOR)).rejects.toThrow()
-      await unit.close()
       await backend.close()
     })
   })

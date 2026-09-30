@@ -622,8 +622,8 @@ class GitOperation {
   }
 
   private preferences() {
-    const resolved = this.ctx.settings.get(GIT_SETTINGS_NAMESPACE) as GitSourceControlSettings | undefined
-    return GitSourceControlSettingsSchema(resolved)
+    const descriptor = this.ctx.settings?.describe().find(d => d.ns === GIT_SETTINGS_NAMESPACE)
+    return GitSourceControlSettingsSchema(descriptor?.value as GitSourceControlSettings | undefined)
   }
 
   private attached(sessionId: SessionId): { session: Session; cwd: string } {

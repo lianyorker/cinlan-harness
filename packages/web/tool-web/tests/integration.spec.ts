@@ -172,7 +172,7 @@ describe('tool-call timeout returns TOOL_TIMEOUT (deadline wins over a slow fetc
       maxRedirects: 5,
       userAgent: 'integration-test',
     })
-    const err = await direct.fetch({ url: slowBase }, new AbortController().signal).then(
+    const err = await direct.fetch({ url: slowBase }).then(
       () => undefined,
       (e: unknown) => e as { code?: string },
     )

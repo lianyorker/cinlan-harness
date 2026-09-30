@@ -1,6 +1,6 @@
 /**
- * Browser-local object layer over one Session's durable message feedback.
- * The Host owns per-item compare-and-set: every mutation carries the
+ * Browser-local object layer over one Session's durable message-feedback
+ * sidecar. The Host owns per-item compare-and-set: every mutation carries the
  * version this controller last observed, and a `version-conflict` reply carries
  * the authoritative item, so a lost race reconciles from the reply itself
  * instead of refetching the whole Session.
@@ -237,7 +237,7 @@ export class MessageFeedbackController implements HostObservable<MessageFeedback
     this.listeners.clear()
   }
 
-  /** Fetch the current feedback and publish it as the seeded view. */
+  /** Fetch the whole sidecar and publish it as the seeded view. */
   private async load(): Promise<MessageFeedbackActionResult> {
     const carried = await this.remote.list({ sessionId: this.sessionId })
     if (this.disposed) return OK

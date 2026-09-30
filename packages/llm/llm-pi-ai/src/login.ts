@@ -15,7 +15,6 @@ import { catalogProvider, catalogProviderIds } from './catalog.ts'
 import { recordKeyFor } from './auth.ts'
 import type { PiAiAuthInjection } from './adapter.ts'
 import { createModels } from './models.ts'
-import { runSub2ApiLogin, SUB2API_LOGIN_METHOD, SUB2API_PROVIDER_ID } from './sub2api.ts'
 
 /**
  * The login methods one catalog provider offers.
@@ -117,22 +116,8 @@ function restate(prompt: AuthPrompt): AuthorizationPrompt {
  * moment the plugin mounts rather than appearing once a profile does.
  * @param ctx - the plugin context carrying `ctx.authorization`.
  * @param auth - the injectables every collection here is built with.
- * @param options - deployment limits for compensating Sub2API requests.
- * @returns Nothing; the registered flows live until this context is disposed.
  */
-export function registerPiAiFlows(
-  ctx: Context,
-  auth: PiAiAuthInjection,
-  options: { cleanupTimeoutMs?: number } = {},
-): void {
-  ctx.effect(() => ctx.authorization.registerFlow({
-    key: recordKeyFor(SUB2API_PROVIDER_ID),
-    label: 'Cinlan account',
-    methods: [{ id: SUB2API_LOGIN_METHOD, label: 'Sign in to Cinlan' }],
-    awaitCancellation: true,
-    run: session => runSub2ApiLogin(ctx, session, options.cleanupTimeoutMs),
-  }))
-
+export function registerPiAiFlows(ctx: Context, auth: PiAiAuthInjection): void {
   for (const providerId of catalogProviderIds()) {
     const provider = catalogProvider(providerId)
     const [first, ...rest] = loginMethods(provider)
@@ -150,7 +135,7 @@ export function registerPiAiFlows(
         providerId)
       continue
     }
-    ctx.effect(() => ctx.authorization.registerFlow({
+    ctx.authorization.registerFlow({
       key: recordKeyFor(providerId),
       label: provider.name,
       methods: [first, ...rest],
@@ -170,8 +155,7 @@ export function registerPiAiFlows(
           notify: (event) => { relay(event, session) },
           prompt: prompt => session.prompt(restate(prompt)),
         })
-        session.commit()
       },
-    }))
+    })
   }
 }

@@ -153,7 +153,7 @@ describe('executionHosts follow composition', () => {
     const h = await createHarness()
     const cancellation = new AbortController()
     const source = await h.ctx.typertGateway.stream({
-      namespace: 'executionHosts', method: 'follow', args: {}, signal: cancellation.signal, access: h.ctx.connection.trustedAccess,
+      namespace: 'executionHosts', method: 'follow', args: {}, signal: cancellation.signal,
     })
     const iterator = source[Symbol.asyncIterator]()
     try {

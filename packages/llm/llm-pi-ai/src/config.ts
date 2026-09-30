@@ -12,6 +12,7 @@
  *
  * @module dsh-llm-pi-ai/config
  */
+import type { Volatile } from '@deepseek-ai/cordis'
 
 import type { CacheRetention, ChatTemplateKwargValue, ModelThinkingLevel, Provider, ThinkingBudgets, Transport } from '@earendil-works/pi-ai'
 import z from '@deepseek-ai/schemastery'
@@ -41,7 +42,6 @@ import type {
   RouteCatalog,
 } from './catalog.ts'
 import { buildProvider, supportedProtocols } from './provider.ts'
-import { DEFAULT_SUB2API_CLEANUP_TIMEOUT_MS } from './sub2api.ts'
 
 /** Default maximum idle interval while an adapter stream read is outstanding. */
 export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000
@@ -225,10 +225,11 @@ export interface Config {
    * the dormant settings-driven posture: the adapter mounts with no routes
    * and registers them the moment a settings section supplies profiles.
    */
-  providers?: Record<string, PiAiProviderProfile>
-  /** Maximum time spent on each compensating Sub2API key reconciliation, deletion, or logout request. */
-  sub2ApiCleanupTimeoutMs?: number
+  providers: Volatile<Record<string, PiAiProviderProfile>>
 }
+
+/** Plain options accepted by the provider resolver. */
+export type Options = { [K in keyof Config]?: Config[K] extends Volatile<infer T> ? T : never }
 
 const thinkingBudgets = z.object({
   minimal: z.number(),
@@ -348,9 +349,8 @@ const profile = z.object({
 })
 
 /** Runtime schema for {@link Config}. */
-export const Config: z<Config> = z.object({
-  providers: z.dict(profile).default({}),
-  sub2ApiCleanupTimeoutMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS).default(DEFAULT_SUB2API_CLEANUP_TIMEOUT_MS),
+export const Config = z.object({
+  providers: z.dict(profile).default({}).volatile(),
 })
 
 /**
@@ -361,7 +361,7 @@ export const Config: z<Config> = z.object({
  * @param previous - current resolved section; omission checks every provider.
  * @throws Error naming the route and configuration entry that cannot be served.
  */
-export function assertServiceable(config: Config, previous?: Config): void {
+export function assertServiceable(config: Options, previous?: Options): void {
   const changed = Object.fromEntries(Object.entries(config.providers ?? {}).filter(([provider, profile]) =>
     !deepEqualJson(profile, previous?.providers?.[provider])))
   resolveProfiles(changed)

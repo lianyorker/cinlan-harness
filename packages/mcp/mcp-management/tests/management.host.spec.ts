@@ -135,7 +135,7 @@ describe('profile-owned MCP management through the Loader', () => {
     await vi.waitFor(() => { expect(snapshotRow(ctx.mcpManagement, saved.id)?.observed.phase).toBe('ready') }, { timeout: 8_000 })
     expect(ctx.mcpRegistry.getSnapshot()).toHaveLength(1)
     expect(ctx.mcpRegistry.getSnapshot()[0]?.id).not.toBe(originalConnection)
-    const entry = ctx.loader.entries().find(item => item.options.id === 'manager')
+    const entry = [...ctx.loader.entries()].find((item: any) => item.options.id === 'manager')
     if (entry?.fiber === undefined) throw new Error('Fixture manager has no Loader fiber')
     await entry.fiber.update({ profile: 'fixture-profile' }, true)
     await entry.fiber.await()
@@ -156,7 +156,7 @@ describe('profile-owned MCP management through the Loader', () => {
     })
     const external = ctx.mcpManagement.getSnapshot().external[0]
     expect(external?.owner).toMatchObject({ kind: 'composition', label: 'include:external' })
-    const before = ctx.loader.entries().find(entry => entry.options.id === 'external')?.options
+    const before = [...ctx.loader.entries()].find((entry: any) => entry.options.id === 'external')?.options
     const agent = createScope(ctx, {})
     const fiber = agent.ctx.plugin(McpClient, { transport: 'streamable-http', serverName: 'agent_only', url: server.url })
     await fiber.await()
@@ -165,7 +165,7 @@ describe('profile-owned MCP management through the Loader', () => {
     await vi.waitFor(() => { expect(snapshotRow(ctx.mcpManagement, saved.id)?.observed.phase).toBe('error') }, { timeout: 5_000 })
     await ctx.mcpManagement.remove({ id: saved.id, expectedRevision: 1 })
     expect(ctx.mcpManagement.getSnapshot().external).toHaveLength(1)
-    expect(ctx.loader.entries().find(entry => entry.options.id === 'external')?.options).toEqual(before)
+    expect([...ctx.loader.entries()].find((entry: any) => entry.options.id === 'external')?.options).toEqual(before)
     await agent.dispose()
   }, 15_000)
 })

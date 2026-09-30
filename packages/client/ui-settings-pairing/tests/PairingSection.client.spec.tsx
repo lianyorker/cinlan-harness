@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PairingInvitation, RemoteAccessStatus } from '@deepseek-ai/dsh-remote-access/types'
-import type { PairingSnapshot, PairingProps } from '../src/client/types.ts'
+import type { PairingInvitation, PairingProps, PairingSnapshot, RemoteAccessStatus } from '../src/client/types.ts'
 import { PairingSection } from '../src/client/PairingSection.tsx'
 import { buildPairingUrl } from '../src/client/pairing-url.ts'
 import { en } from '../src/client/locales.ts'

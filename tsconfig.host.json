@@ -168,54 +168,39 @@
     "apps/web/tests/pwsh-terminal.e2e.ts",
     "apps/web/tests/workflow-run.e2e.ts",
     "apps/web/stress-tests/reasoning-chunks.stress.ts",
-    "apps/cli/tests*.ts",
-    "apps/desktop/scripts*.ts",
-    "apps/desktop/tests*.ts",
-    "apps/desktop-host/tests*.ts",
-    "benchmarks*.ts",
-    "packagestests*.ts",
-    "scripts*.ts",
-    "website*.ts",
-    "website/.vitepress*.ts",
-    "vitest.web.config.ts",
-    "vitest.shared.ts",
-    "apps/web/tests/mobile-resources.e2e.ts",
-    "apps/web/tests/execution-hosts.e2e.ts",
-    "apps/web/tests/windows-linux-ssh.acceptance.e2e.ts",
-    "apps/web/tests/terminal-rename-recovery.e2e.ts",
-    "apps/web/tests/office-preview.e2e.ts",
-    "apps/web/tests/subagent-sidebar-chat.e2e.ts",
-    "apps/web/tests/present-deliverables.e2e.ts",
-    "apps/web/tests/settings-feature-pages.e2e.ts",
-    "apps/web/tests/settings-feature-navigation.e2e.ts",
-    "apps/web/tests/settings-element-capture.e2e.ts",
-    "apps/web/tests/settings-sidebar-git.e2e.ts",
-    "apps/web/tests/settings-worktree-tasks.e2e.ts",
-    "apps/web/tests/settings-floating.e2e.ts",
-    "apps/web/tests/device-capabilities.e2e.ts",
-    "apps/web/tests/security-capabilities.e2e.ts",
-    "apps/web/tests/security-resources.e2e.ts",
-    "apps/web/tests/native-browser-settings.e2e.ts",
-    "apps/web/tests/voice-settings.e2e.ts",
-    "apps/web/tests/browser-resources.e2e.ts",
-    "apps/web/tests/work-items.e2e.ts",
-    "apps/web/tests/message-feedback-layout.e2e.ts",
-    "apps/web/tests/produced-files.e2e.ts",
-    "packages/execution-host/execution-runtime/scripts*.ts"
+    "apps/cli/tests/**/*.ts",
+    "apps/desktop/scripts/**/*.ts",
+    "apps/desktop/tests/**/*.ts",
+    "apps/desktop-host/tests/**/*.ts",
+    "benchmarks/**/*.ts",
+    "packages/*/*/tests/**/*.ts",
+    "packages/execution-host/execution-runtime/scripts/**/*.ts",
+    "scripts/**/*.ts",
+    "website/**/*.ts",
+    "website/.vitepress/**/*.ts"
   ],
+  // Under packages/client and benchmarks, a test file names the face it covers:
+  // `*.client.*` belongs to the Client aggregate, `*.host.spec.ts` to this one. The two
+  // suffixes are mutually exclusive, so each aggregate excludes the other's
+  // and the package test glob above needs no per-file entry.
   "exclude": [
     "apps/desktop/tests/keyboard.spec.ts",
-    "packages/client*.client.ts",
-    "benchmarks*.client.tsx",
-    "packagestests*.client.ts",
-    "packagestests*.client.tsx",
-    "packagestests*.client.spec.ts",
-    "packagestests*.client.spec.tsx",
+    "packages/client/*/src/**",
+    "packages/client/ui-better-sidebar/tests/**",
+    "packages/remote-access/**",
+    "packages/api/pairing-controller/**",
+    "benchmarks/**/*.client.ts",
+    "benchmarks/**/*.client.tsx",
+    "packages/*/*/tests/**/*.client.ts",
+    "packages/*/*/tests/**/*.client.tsx",
+    "packages/*/*/tests/**/*.client.spec.ts",
+    "packages/*/*/tests/**/*.client.spec.tsx",
     "packages/client/tsdown.client.ts",
     "scripts/*.client.spec.ts",
     "scripts/client-bundle-css.spec.ts",
     "packages/typert/generator/tests/fixtures/**",
-    "scripts/client-bundle-purity.spec.ts"
+    "scripts/client-bundle-purity.spec.ts",
+    "**/*.vitest.config.ts"
   ],
   "references": [
     {
@@ -616,6 +601,9 @@
     },
     {
       "path": "./packages/interaction/permission-presets"
+    },
+    {
+      "path": "./packages/interaction/side-session"
     },
     {
       "path": "./packages/experimental/auto-review"
@@ -1131,7 +1119,7 @@
       "path": "./packages/api/worktree-task-controller/tsconfig.json"
     },
     {
-      "path": "./packages/api/terminal-controller/tsconfig.json"
+      "path": "./packages/api/terminal-controller/tsconfig.host.json"
     },
     {
       "path": "./packages/bundle/security-research"
@@ -1149,9 +1137,6 @@
       "path": "./packages/bundle/vuln-kb"
     },
     {
-      "path": "./packages/settings/settings-file"
-    },
-    {
       "path": "./packages/notifications/notifications"
     },
     {
@@ -1165,24 +1150,6 @@
     },
     {
       "path": "./packages/workspace/worktree-task-git"
-    },
-    {
-      "path": "./packages/e2b/e2b"
-    },
-    {
-      "path": "./packages/e2b/subprocess-e2b"
-    },
-    {
-      "path": "./packages/code-runtime/code-runtime"
-    },
-    {
-      "path": "./packages/experimental/code-runtime-python"
-    },
-    {
-      "path": "./packages/code-runtime/code-runtime-worker-thread"
-    },
-    {
-      "path": "./packages/e2b/fs-e2b"
     },
     {
       "path": "./packages/compaction/tool-recall"
@@ -1203,16 +1170,10 @@
       "path": "./packages/experimental/agent-team-web-profile"
     },
     {
-      "path": "./packages/workflow/workflow-worker-thread"
-    },
-    {
       "path": "./packages/task-surface/task-surface"
     },
     {
       "path": "./packages/task-surface/tool-task-surface"
-    },
-    {
-      "path": "./packages/preset/agent-presets"
     },
     {
       "path": "./packages/mcp/mcp-management"
@@ -1242,9 +1203,6 @@
       "path": "./packages/api/sidebar-terminal-controller/tsconfig.host.json"
     },
     {
-      "path": "./packages/client/ui-better-sidebar/tsconfig.host.json"
-    },
-    {
       "path": "./packages/execution-host/execution-host-targets"
     },
     {
@@ -1254,13 +1212,7 @@
       "path": "./packages/execution-host/execution-runtime"
     },
     {
-      "path": "./packages/remote-access/remote-access"
-    },
-    {
       "path": "./packages/mobile-device/mobile-device-runtime"
-    },
-    {
-      "path": "./packages/api/pairing-controller"
     },
     {
       "path": "./packages/execution-host/execution-host-worker"
@@ -1345,9 +1297,6 @@
     },
     {
       "path": "./packages/security/vuln-kb-service"
-    },
-    {
-      "path": "./apps/desktop"
     },
     {
       "path": "./packages/voice/voice"

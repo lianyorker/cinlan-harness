@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId, createToolResultMessage } from '@deepseek-ai/dsh-llm'
 import SessionStore from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
@@ -127,10 +127,11 @@ describe('tool-task-surface show_task_surface', () => {
     session.append('tool/result', {
       turn: 1,
       step: 1,
-      message: {
-        role: 'tool',
-        content: [{ type: 'tool-result', toolCallId: ToolCallId('call-prior'), content: [] }],
-      },
+      message: createToolResultMessage({
+        callId: ToolCallId('call-prior'),
+        content: [],
+        isError: false,
+      }),
       meta: {
         kind: 'dsh/task-surface',
         version: 1,

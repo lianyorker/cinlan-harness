@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-api-automation-controller",
   "description": "Automation Remote commands, selection catalog and reconnect-safe Client state",
-  "version": "0.1.7-rc.2",
+  "version": "0.2.0-rc.1",
   "publishConfig": {
     "access": "public"
   },
@@ -73,7 +73,7 @@
     "@deepseek-ai/dsh-automation": "workspace:^",
     "@deepseek-ai/dsh-agent": "workspace:^",
     "@deepseek-ai/dsh-agent-default-model": "workspace:^",
-    "@deepseek-ai/dsh-agent-presets": "workspace:^",
+    "@deepseek-ai/dsh-agent-preset-registry": "workspace:^",
     "@deepseek-ai/dsh-api-gateway": "workspace:^",
     "@deepseek-ai/dsh-client-connection": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",

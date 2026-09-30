@@ -485,10 +485,8 @@ export class GitWorktreeTask extends WorktreeTaskService {
 
   /** Resolve missing headless settings explicitly from the shared schema defaults. */
   private resolveGitSettings(): GitSourceControlSettings {
-    const settings = this.ownerCtx.get('settings')
-    const section = settings?.get(GIT_SETTINGS_NAMESPACE)
-    if (section === undefined) return GitSourceControlSettingsSchema()
-    return section as GitSourceControlSettings
+    const descriptor = this.ownerCtx.get('settings')?.describe().find(d => d.ns === GIT_SETTINGS_NAMESPACE)
+    return GitSourceControlSettingsSchema(descriptor?.value as GitSourceControlSettings | undefined)
   }
 
   /** Resolve and validate a new branch before capacity changes or worktree creation. */

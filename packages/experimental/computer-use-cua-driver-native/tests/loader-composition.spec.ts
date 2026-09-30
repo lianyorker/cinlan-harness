@@ -13,7 +13,7 @@ import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import ComputerUseRegistry from '@deepseek-ai/dsh-computer-use'
 import LocalAttachmentStore from '@deepseek-ai/dsh-attachment-local'
 import LlmRuntime, { LlmAdapter, ToolCallId, createUserMessage } from '@deepseek-ai/dsh-llm'
-import type { GenerateOptions, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
+import type { GenerateOptions, LlmResolvedModelInfo, StreamChunk, ToolResultMessage } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
@@ -112,18 +112,18 @@ it.each(['allowed-once', 'rejected'] as const)('logs native results after one %s
   expect(JSON.stringify(model.requests[0])).toContain('Cua Driver native computer-use tools operate the host desktop.')
   const toolEvent = agent.session.snapshotEvents().find(event => event.type === 'tool/result')
   expect(toolEvent?.data.message.source.callId).toBe('native-window')
-  const toolResult = agent.session.deriveMessages().flatMap(message => message.content).find(block => block.type === 'tool-result')
+  const toolResult = agent.session.deriveMessages().find(message => message.role === 'tool') as ToolResultMessage | undefined
   expect(approvals).toBe(1)
   expect(agent.session.snapshotEvents().filter(event => event.type === 'approval/asked')).toHaveLength(1)
   expect(agent.session.snapshotEvents().filter(event => event.type === 'approval/decided')).toHaveLength(1)
   if (outcome === 'rejected') {
     expect(fixture.calls).toEqual([])
-    expect(toolResult).toMatchObject({ type: 'tool-result', isError: true, content: [{ type: 'text', text: 'Error: the user rejected tool "cua_driver_native__get_window_state"' }] })
+    expect(toolResult).toMatchObject({ role: 'tool', isError: true, content: [{ type: 'text', text: 'Error: the user rejected tool "cua_driver_native__get_window_state"' }] })
     expect(JSON.stringify(model.requests[1]?.messages)).toContain('the user rejected tool')
     return
   }
   expect(fixture.calls).toHaveLength(1)
-  const image = toolResult?.type === 'tool-result' ? toolResult.content.find(block => block.type === 'image') : undefined
+  const image = toolResult?.content.find(block => block.type === 'image')
   expect(image?.type).toBe('image')
   if (image?.type !== 'image') throw new Error('Native screenshot was not admitted')
   expect(image.attachment).toMatchObject({ mediaType: 'image/png', width: 1, height: 1 })
