@@ -1,6 +1,34 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write README.md
-README.md: 9f89db3d4502dea4a0d181799164f304d4976740
-README.zh.md: aa66ef1d24a5e2165859e9337273d807dff3d070
+/cinlan-harness-harness:
+  en: 3e7978418f3daea7
+  zh: f37a4be6bd74b220
+/cinlan-harness-harness/developer-preview:
+  en: 5124288c618a0523
+  zh: dfa9f7865ca374b8
+/cinlan-harness-harness/key-features-isolation:
+  en: 85d29a3c17fe045c
+  zh: e0ba54de437f19b2
+/cinlan-harness-harness/run:
+  en: 8bcfe486110004e4
+  zh: 5491f0aa70750247
+/cinlan-harness-harness/run/run-from-source:
+  en: f3ed7fbadaba463f
+  zh: b5bff19f01f3018d
+/cinlan-harness-harness/run/cli-commands:
+  en: e91520eb9e8779e1
+  zh: 54a0e0311e44a9b9
+/cinlan-harness-harness/community-and-support:
+  en: 81265d89f463bf63
+  zh: 3b32cbe438604c1e
+/cinlan-harness-harness/contributing:
+  en: cabc2d3e9f8898bd
+  zh: 83b6d238bae29ce3
+/cinlan-harness-harness/development:
+  en: adf6241055331ff3
+  zh: 15844b8f1c3a2f09
+/cinlan-harness-harness/license:
+  en: 926995344fc1c72b
+  zh: c92fab5abf85932f
