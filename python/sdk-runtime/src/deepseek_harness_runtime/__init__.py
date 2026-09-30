@@ -173,14 +173,21 @@ def _node_launch_args() -> tuple[str, str]:
 
 
 def main() -> None:
-    """Launch the CLI with explicit DSH_HOME; wait on Windows, replace the process on POSIX."""
-    if not os.environ.get("DSH_HOME", "").strip():
+    """Launch the CLI with explicit CLH_HOME or DSH_HOME; wait on Windows, replace the process on POSIX."""
+    home = (
+        os.environ.get("CLH_HOME", "").strip()
+        or os.environ.get("CINLAN_HARNESS_HOME", "").strip()
+        or os.environ.get("DSH_HOME", "").strip()
+    )
+    if not home:
         print(
-            "dsh: the Python runtime command requires an explicit DSH_HOME; "
-            "it never uses ~/.dsh implicitly",
+            "clh: the Python runtime command requires an explicit CLH_HOME (or DSH_HOME); "
+            "it never uses ~/.clh implicitly",
             file=sys.stderr,
         )
         raise SystemExit(2)
+    os.environ["CLH_HOME"] = home
+    os.environ["DSH_HOME"] = home
     argv = (*resolve_bundled_launch_args(), *sys.argv[1:])
     if sys.platform == "win32":
         # Windows CRT exec does not replace the process; wait and preserve the runtime status.

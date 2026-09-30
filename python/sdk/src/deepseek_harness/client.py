@@ -468,14 +468,25 @@ class HarnessClient:
         else:
             base = (str(Path(self.config.dsh_bin).expanduser().resolve()),)
 
+        home_from_env = (
+            env.get("CLH_HOME", "").strip()
+            or env.get("CINLAN_HARNESS_HOME", "").strip()
+            or env.get("DSH_HOME", "").strip()
+        )
         if self.config.dsh_home is not None:
             if not self.config.dsh_home.strip():
                 raise ValueError("HarnessConfig requires a non-empty dsh_home")
-            env["DSH_HOME"] = str(Path(self.config.dsh_home).expanduser().resolve())
-        elif not env.get("DSH_HOME", "").strip():
+            resolved_home = str(Path(self.config.dsh_home).expanduser().resolve())
+            env["CLH_HOME"] = resolved_home
+            env["DSH_HOME"] = resolved_home
+        elif home_from_env:
+            resolved_home = str(Path(home_from_env).expanduser().resolve())
+            env["CLH_HOME"] = resolved_home
+            env["DSH_HOME"] = resolved_home
+        else:
             raise ValueError(
-                "HarnessConfig requires an explicit dsh_home or non-empty DSH_HOME; "
-                "the Python SDK never uses ~/.dsh implicitly"
+                "HarnessConfig requires an explicit dsh_home or non-empty CLH_HOME / DSH_HOME; "
+                "the Python SDK never uses ~/.clh implicitly"
             )
 
         patches = tuple(

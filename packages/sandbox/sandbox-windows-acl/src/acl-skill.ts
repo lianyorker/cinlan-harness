@@ -44,7 +44,7 @@ function parseSkill(raw: string, path: string): { description: string; content: 
 export function registerAclDiagnosisSkill(ctx: Context): void {
   const packaged = fileURLToPath(new URL(`../assets/${ACL_DIAGNOSIS_SKILL}/`, import.meta.url))
   ctx.effect(function* () {
-    const directory = mkdtempSync(join(tmpdir(), 'dsh-acl-skill-'))
+    const directory = mkdtempSync(join(tmpdir(), 'clh-acl-skill-'))
     yield async () => { await rm(directory, { recursive: true, force: true }) }
     mkdirSync(join(directory, 'scripts'))
     for (const path of ['SKILL.md', 'scripts/diagnose-windows-sandbox-acl.ps1']) {

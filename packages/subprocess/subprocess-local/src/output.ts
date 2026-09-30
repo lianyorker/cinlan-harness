@@ -40,7 +40,7 @@ let defaultSpillDir: string | undefined
  * external cleanup).
  */
 function privateSpillDir(): string {
-  defaultSpillDir ??= mkdtempSync(join(tmpdir(), 'dsh-subprocess-'))
+  defaultSpillDir ??= mkdtempSync(join(tmpdir(), 'clh-subprocess-'))
   return defaultSpillDir
 }
 

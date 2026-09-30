@@ -10,9 +10,10 @@
  * @returns validated TCP port number (1024-65535) or undefined if unconfigured.
  */
 export function desktopRemoteDebuggingPort(env: NodeJS.ProcessEnv = process.env): number | undefined {
-  const configured = env.DSH_DESKTOP_RENDERER_DEBUG_PORT
-    ?? env.DSH_DESKTOP_CDP_PORT
+  const configured = env.CLH_DESKTOP_CDP_PORT
     ?? env.CINLAN_DESKTOP_CDP_PORT
+    ?? env.DSH_DESKTOP_RENDERER_DEBUG_PORT
+    ?? env.DSH_DESKTOP_CDP_PORT
   if (configured === undefined || configured === '') return undefined
   const port = Number(configured)
   if (!Number.isSafeInteger(port) || port < 1024 || port > 65_535) {

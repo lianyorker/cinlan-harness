@@ -262,7 +262,7 @@ ${application === null ? 'ConvertTo-Json -InputObject @([DshFileAssociations]::L
   // embedded C# and overflowed the 32767-character CreateProcess limit for long paths.
   // PowerShell 5.1 decodes a -File script as ANSI unless it carries a BOM; the BOM keeps
   // the embedded UTF-8 source intact.
-  const directory = await mkdtemp(join(tmpdir(), 'dsh-native-command-'))
+  const directory = await mkdtemp(join(tmpdir(), 'clh-native-command-'))
   const scriptPath = join(directory, 'associations.ps1')
   try {
     await writeFile(scriptPath, `\uFEFF${script}`, 'utf8')

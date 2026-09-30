@@ -263,7 +263,7 @@ export function resolvePlaywrightBrowserConfig(config: Config = {}): ResolvedCon
   const executablePath = config.executablePath === undefined
     ? undefined
     : cleanString('executablePath', config.executablePath)
-  const envCdpPort = process.env.DSH_BROWSER_CDP_PORT ?? process.env.CINLAN_BROWSER_CDP_PORT
+  const envCdpPort = process.env.CLH_BROWSER_CDP_PORT ?? process.env.CINLAN_BROWSER_CDP_PORT ?? process.env.DSH_BROWSER_CDP_PORT
   const rawPort = config.remoteDebuggingPort ?? (envCdpPort !== undefined && envCdpPort !== '' ? Number(envCdpPort) : undefined)
   const remoteDebuggingPort = rawPort === undefined ? undefined : portLimit('remoteDebuggingPort', rawPort)
   return {

@@ -12,12 +12,14 @@ license = "MIT"
 authors = [{ name = "DeepSeek" }]
 
 [project.urls]
-Homepage = "https://github.com/deepseek-ai/deepseek-harness"
-Documentation = "https://github.com/deepseek-ai/deepseek-harness/blob/master/python/sdk-runtime/README.md"
-Issues = "https://github.com/deepseek-ai/deepseek-harness/issues"
-Source = "https://github.com/deepseek-ai/deepseek-harness"
+Homepage = "https://github.com/lianyorker/cinlan-harness"
+Documentation = "https://github.com/lianyorker/cinlan-harness/blob/main/python/sdk-runtime/README.md"
+Issues = "https://github.com/lianyorker/cinlan-harness/issues"
+Source = "https://github.com/lianyorker/cinlan-harness"
 
 [project.scripts]
+clh = "deepseek_harness_runtime:main"
+cinlan-harness = "deepseek_harness_runtime:main"
 dsh = "deepseek_harness_runtime:main"
 
 # Include the injected dsh executable and sidecars; exclude the dev-only node closure.

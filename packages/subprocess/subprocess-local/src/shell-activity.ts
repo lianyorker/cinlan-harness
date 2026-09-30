@@ -63,7 +63,7 @@ export function prepareShellActivity(
   if (spec.shellActivity !== true || platform === 'win32' || spec.argv.length !== 2 || spec.argv[1] !== '-i') return undefined
   const shell = basename(spec.argv[0] as string)
   if (shell !== 'bash' && shell !== 'zsh') return undefined
-  const directory = mkdtempSync(join(tmpdir(), 'dsh-shell-'))
+  const directory = mkdtempSync(join(tmpdir(), 'clh-shell-'))
   const state = quote(join(directory, 'state'))
   const guards = quote(join(directory, 'guards'))
   try {

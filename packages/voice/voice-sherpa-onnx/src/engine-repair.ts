@@ -49,9 +49,10 @@ function realDir(file: string): string {
 export function findProfileDir(fromFile: string = fileURLToPath(import.meta.url)): string | null {
   const detected = walkUp(realDir(fromFile), isProfileRoot)
   if (detected !== null) return detected
-  const home = process.env.DSH_HOME !== undefined && process.env.DSH_HOME.trim() !== ''
-    ? process.env.DSH_HOME
-    : join(homedir(), '.dsh')
+  const homeEnv = process.env.CLH_HOME?.trim() || process.env.CINLAN_HARNESS_HOME?.trim() || process.env.DSH_HOME?.trim()
+  const home = homeEnv !== undefined && homeEnv !== ''
+    ? homeEnv
+    : join(homedir(), '.clh')
   const web = join(home, 'profiles', 'web')
   return isProfileRoot(web) ? realpathSync(web) : null
 }
