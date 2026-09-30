@@ -1,6 +1,6 @@
 import { defineConfig } from 'tsdown'
 
-export default defineConfig({
+export default defineConfig(({ env }) => (env?.DSH_BUILD_FACE === 'client' ? { entry: '' } : {
   entry: ['lib/types/{index,resources,types,resource-inventory}.js'],
   outDir: 'lib',
   format: ['esm'],
@@ -9,4 +9,4 @@ export default defineConfig({
   fixedExtension: false,
   dts: false,
   clean: false,
-})
+}))

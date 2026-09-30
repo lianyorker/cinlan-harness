@@ -18,10 +18,10 @@ export default defineConfig(({ env }) => {
   return {
     workspace: client
       ? [
-        'vendor/*', 'packages/*/*', '!packages/bundle/web-capability-defaults', '!packages/remote-access/*', '!packages/api/pairing-controller', 'apps/cli',
+        'vendor/*', 'packages/*/*', '!packages/bundle/web-capability-defaults', '!packages/remote-access/*', '!packages/api/pairing-controller', '!packages/client/ui-right-sidebar', 'apps/cli',
       ]
       : [
-        'vendor/*', 'packages/*/*', '!packages/bundle/web-capability-defaults', '!packages/remote-access/*', '!packages/api/pairing-controller', 'apps/cli', 'apps/desktop', 'apps/desktop-host',
+        'vendor/*', 'packages/*/*', '!packages/bundle/web-capability-defaults', '!packages/remote-access/*', '!packages/api/pairing-controller', '!packages/client/ui-right-sidebar', 'apps/cli', 'apps/desktop', 'apps/desktop-host',
       ],
     entry: client ? '' : ['lib/types/{index,invariant,startup}.js'],
     outDir: 'lib',

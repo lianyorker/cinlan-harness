@@ -58,7 +58,7 @@ function styleInjectionModule(
  * Everything else under @deepseek-ai/* is either a module-table entry
  * (external) or a leak the purity gate rejects.
  */
-export const INLINE_SAFE = /^(?:@deepseek-ai\/dsh-(?:file-reference|session|llm|tools|brand|deque|output-retention|typert-protocol|util-crypto|util-values|util-workspace-path)(?:\/|$)|@deepseek-ai\/dsh-token-meter\/client$|@deepseek-ai\/dsh-host-open-in-app\/shared$|@deepseek-ai\/dsh-agent-presets\/display$|@deepseek-ai\/dsh-spill-policy\/notice$|@deepseek-ai\/dsh-git-settings\/settings-schema$)/
+export const INLINE_SAFE = /^(?:@deepseek-ai\/dsh-(?:file-reference|session|llm|tools|brand|deque|output-retention|typert-protocol|util-crypto|util-values|util-workspace-path)(?:\/|$)|@deepseek-ai\/dsh-token-meter\/client$|@deepseek-ai\/dsh-host-open-in-app\/shared$|@deepseek-ai\/dsh-agent-preset(?:s|-registry)\/display$|@deepseek-ai\/dsh-spill-policy\/notice$|@deepseek-ai\/dsh-git-settings\/settings-schema$|@deepseek-ai\/dsh-plugin-manager\/registry$|@deepseek-ai\/dsh-native-command\/types$|@deepseek-ai\/dsh-api-workspace-controller\/default-workspace$)/
 
 /**
  * Vendored framework libraries: rescoped into @deepseek-ai, so the gate below
@@ -333,8 +333,30 @@ interface WorkspaceManifest {
 }
 
 const manifestCache = new Map<string, WorkspaceManifest>()
+const packageDirCache = new Map<string, string>()
 const productionExternalCache = new Map<string, readonly RegExp[]>()
 const clientExternalCache = new Map<string, ReadonlySet<string>>()
+
+/**
+ * Locate one workspace package's directory by package name.
+ * @param id - package name.
+ * @returns absolute directory of the package.
+ */
+function workspacePackageDir(id: string): string {
+  const cached = packageDirCache.get(id)
+  if (cached !== undefined) return cached
+  for (const manifestPath of globSync('packages/*/*/package.json', { cwd: REPOSITORY_ROOT })) {
+    const manifest = JSON.parse(
+      readFileSync(resolvePath(REPOSITORY_ROOT, manifestPath), 'utf8'),
+    ) as WorkspaceManifest
+    if (manifest.name === undefined) continue
+    const dir = resolvePath(REPOSITORY_ROOT, dirname(manifestPath))
+    manifestCache.set(manifest.name, manifest)
+    packageDirCache.set(manifest.name, dir)
+    if (manifest.name === id) return dir
+  }
+  throw new Error(`tsdown: no packages/*/*/package.json declares the name ${id}`)
+}
 
 /**
  * Read one workspace package's manifest. Located by package name rather than by
@@ -349,14 +371,9 @@ const clientExternalCache = new Map<string, ReadonlySet<string>>()
 function workspaceManifest(id: string): WorkspaceManifest {
   const cached = manifestCache.get(id)
   if (cached !== undefined) return cached
-  for (const manifestPath of globSync('packages/*/*/package.json', { cwd: REPOSITORY_ROOT })) {
-    const manifest = JSON.parse(
-      readFileSync(resolvePath(REPOSITORY_ROOT, manifestPath), 'utf8'),
-    ) as WorkspaceManifest
-    if (manifest.name !== id) continue
-    manifestCache.set(id, manifest)
-    return manifest
-  }
+  workspacePackageDir(id)
+  const manifest = manifestCache.get(id)
+  if (manifest !== undefined) return manifest
   throw new Error(`tsdown: no packages/*/*/package.json declares the name ${id}`)
 }
 
@@ -492,15 +509,32 @@ function clientConfig(id: string, entry: string): UserConfig {
       // Cross-plugin collaboration goes through cordis services instead.
       name: 'dsh-client-bundle-purity',
       resolveId(source: string) {
+        if (source.endsWith('typert.remote-client.d.ts')) {
+          return source.replace(/\.d\.ts$/, '.js')
+        }
         if (!source.startsWith('@deepseek-ai/')) return null
         if (isRequested(source)) return null // requested module-table row: external wins
         if (VENDORED_LIBRARY.test(source)) return null // vendored library: inline, no shared identity
-        if (INLINE_SAFE.test(source) || GENERATED_REMOTE.test(source)) return null // wire contribution: inline is the point
+        if (GENERATED_REMOTE.test(source)) {
+          const packageName = source.slice(0, -'/remote'.length)
+          const dir = workspacePackageDir(packageName)
+          const candidate = resolvePath(dir, 'lib/typert.remote-client.js')
+          if (existsSync(candidate)) return candidate
+          return null
+        }
+        if (INLINE_SAFE.test(source)) return null // wire contribution: inline is the point
         throw new Error(
           `client bundle purity: "${source}" is not in the default client externals or ${id}'s dsh.client.external, an inline-safe wire layer, or a generated /remote contribution — `
           + 'cross-plugin value imports are forbidden; declare a non-default module request or collaborate through cordis services '
           + '(type-only imports are erased and never reach this gate)',
         )
+      },
+      async load(fileId: string) {
+        if (fileId.endsWith('typert.remote-client.d.ts')) {
+          const js = fileId.replace(/\.d\.ts$/, '.js')
+          if (existsSync(js)) return await readFile(js, 'utf8')
+        }
+        return null
       },
     }, tscSourceMapPlugin(), {
       name: 'dsh-css-modules-inline',
