@@ -21,7 +21,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const NS = 'settings.integrations'
 
 /** Required services: the Remote namespaces the preflight checker reads through. */
-export const inject = ['settingsMetadata', 'slots', 'locale', 'remote', 'remote.integrationPreflight']
+export const inject = ['settingsMetadata', 'slots', 'locale', 'remote']
 
 /**
  * Register the Integrations settings section.
@@ -32,6 +32,9 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
 
   const check: IntegrationsSectionInjected['check'] = async (provider, signal) => {
+    if (!ctx.remote?.integrationPreflight) {
+      return { provider, status: 'unavailable', reason: 'probe-failed', account: null }
+    }
     const result = await ctx.remote.integrationPreflight.check({ provider }, signal)
     if (!result.ok) throw new Error(`integrationPreflight.check failed: ${result.error.code}: ${result.error.message}`)
     return result.value

@@ -71,6 +71,10 @@
       config:
         maxNoteBytes: 8192
 
+    # Host settings namespace and browser system-notification preferences.
+    - id: notifications
+      name: '@deepseek-ai/dsh-notifications'
+
     # Browser Session export: `/export` command plus the shared download dialog.
     - id: session-log-download
       name: '@deepseek-ai/dsh-session-log-export'
@@ -240,6 +244,9 @@
 
     - id: ui-theme
       name: '@deepseek-ai/dsh-client-ui-theme'
+
+    - id: ui-notifications
+      name: '@deepseek-ai/dsh-client-ui-notifications'
 
     - id: locale
       name: '@deepseek-ai/dsh-client-locale'
@@ -422,6 +429,30 @@
 
     - id: ui-settings-web-search
       name: '@deepseek-ai/dsh-client-ui-settings-web-search'
+
+    - id: keyboard
+      name: '@deepseek-ai/dsh-client-keyboard'
+
+    - id: ui-keybindings
+      name: '@deepseek-ai/dsh-client-ui-keybindings'
+
+    - id: ui-floating-workspace
+      name: '@deepseek-ai/dsh-client-ui-floating-workspace'
+
+    - id: ui-orchestration
+      name: '@deepseek-ai/dsh-client-ui-orchestration'
+
+    - id: ui-integrations
+      name: '@deepseek-ai/dsh-client-ui-integrations'
+
+    - id: ui-git-settings
+      name: '@deepseek-ai/dsh-client-ui-git-settings'
+
+    - id: ui-settings-terminal
+      name: '@deepseek-ai/dsh-client-ui-settings-terminal'
+
+    - id: ui-settings-usage
+      name: '@deepseek-ai/dsh-client-ui-settings-usage'
 
     # Plan control: the composer plan seat over the plan projection + /plan channel.
     - id: ui-plan
