@@ -134,6 +134,20 @@
     - id: terminal-controller
       name: '@deepseek-ai/dsh-api-terminal-controller'
 
+    # Integrated terminal and Git sidecar controllers used by the optional
+    # workspace tooling and its settings surfaces.
+    - id: sidebar-terminal-controller
+      name: '@deepseek-ai/dsh-api-sidebar-terminal-controller'
+
+    - id: git-settings
+      name: '@deepseek-ai/dsh-git-settings'
+
+    - id: sidebar-git
+      name: '@deepseek-ai/dsh-sidebar-git'
+
+    - id: sidebar-git-controller
+      name: '@deepseek-ai/dsh-api-sidebar-git-controller'
+
     # Workspace file service: bounded read, directory listing, and the
     # agent-write change feed inside the session workspace root.
     - id: workspace-files
@@ -156,6 +170,75 @@
     # Workspace commands and reconnect-safe projection over Typert Remote.
     - id: workspace-controller
       name: '@deepseek-ai/dsh-api-workspace-controller'
+
+    - id: automation
+      name: '@deepseek-ai/dsh-automation'
+      config:
+        profile: !!js "ctx.get('clhProfileName') ?? ctx.get('dshProfileName')"
+        clockCheckIntervalMs: 60000
+        maxStartLatenessMs: 30000
+
+    - id: automation-controller
+      name: '@deepseek-ai/dsh-api-automation-controller'
+
+    - id: usage-query
+      name: '@deepseek-ai/dsh-usage-query'
+
+    - id: usage-controller
+      name: '@deepseek-ai/dsh-api-usage-controller'
+
+    - id: execution-host-local
+      name: '@deepseek-ai/dsh-execution-host-local'
+
+    - id: execution-host-targets
+      name: '@deepseek-ai/dsh-execution-host-targets'
+
+    - id: execution-binding
+      name: '@deepseek-ai/dsh-execution-binding'
+
+    - id: execution-runtime
+      name: '@deepseek-ai/dsh-execution-runtime'
+
+    - id: execution-host-controller
+      name: '@deepseek-ai/dsh-api-execution-host-controller'
+
+    - id: mcp-registry
+      name: '@deepseek-ai/dsh-mcp-client/registry'
+
+    - id: mcp-management
+      name: '@deepseek-ai/dsh-mcp-management'
+      config:
+        profile: !!js "ctx.get('clhProfileName') ?? ctx.get('dshProfileName')"
+
+    - id: mcp-controller
+      name: '@deepseek-ai/dsh-api-mcp-controller'
+
+    - id: device-capabilities-controller
+      name: '@deepseek-ai/dsh-api-device-capabilities-controller'
+
+    - id: security-research-controller
+      name: '@deepseek-ai/dsh-api-security-research-controller'
+
+    - id: security-skill-resources
+      name: '@deepseek-ai/dsh-security-skills/resources'
+
+    - id: security-skills
+      name: '@deepseek-ai/dsh-security-skills'
+
+    - id: integration-preflight-controller
+      name: '@deepseek-ai/dsh-api-integration-preflight-controller'
+
+    # Shared dictation providers for the Web voice settings and composer
+    # shortcut. The provider itself keeps model files under the configured
+    # local cache and exposes no credentials through the Remote.
+    - id: voice
+      name: '@deepseek-ai/dsh-voice'
+
+    - id: voice-controller
+      name: '@deepseek-ai/dsh-api-voice-controller'
+
+    - id: voice-sherpa-onnx
+      name: '@deepseek-ai/dsh-voice-sherpa-onnx'
 
     - id: cordis-host-runner
       name: '@deepseek-ai/dsh-cordis-host-runner'
@@ -309,6 +392,9 @@
     - id: ui-settings-models
       name: '@deepseek-ai/dsh-client-ui-settings-models'
 
+    - id: ui-voice-dictation
+      name: '@deepseek-ai/dsh-client-ui-voice-dictation'
+
     # Plugin management: the sidebar Plugins page installs, enables, disables,
     # and removes the profile's bundles through the `pluginManager` Remote.
     # Without a profile-backed Host it reports itself unavailable.
@@ -453,6 +539,18 @@
 
     - id: ui-settings-usage
       name: '@deepseek-ai/dsh-client-ui-settings-usage'
+
+    - id: ui-settings-automation
+      name: '@deepseek-ai/dsh-client-ui-settings-automation'
+
+    - id: ui-settings-hosts
+      name: '@deepseek-ai/dsh-client-ui-settings-hosts'
+
+    - id: ui-settings-mcp
+      name: '@deepseek-ai/dsh-client-ui-settings-mcp'
+
+    - id: ui-settings-security
+      name: '@deepseek-ai/dsh-client-ui-settings-security'
 
     # Plan control: the composer plan seat over the plan projection + /plan channel.
     - id: ui-plan

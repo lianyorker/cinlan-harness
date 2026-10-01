@@ -41,7 +41,7 @@ export function apply(ctx: ClientContext): void {
     },
   })
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'cinlan-security', groupId: 'tools' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'cinlan-security', groupId: 'capabilities' })
     yield ctx.settingsMetadata.registerItems('cinlan-security', CAPABILITY_FIELDS.security.map(field => ({
       id: field.title, anchorId: field.anchorId, title: () => t(field.title), description: () => t(field.description),
       keywords: () => [t('securityNav')],

@@ -97,6 +97,48 @@
       "path": "../terminal-controller/tsconfig.client.json"
     },
     {
+      "path": "../workspace-isolation-controller"
+    },
+    {
+      "path": "../worktree-task-controller"
+    },
+    {
+      "path": "../device-capabilities-controller"
+    },
+    {
+      "path": "../security-research-controller"
+    },
+    {
+      "path": "../work-items-controller"
+    },
+    {
+      "path": "../browser-controller"
+    },
+    {
+      "path": "../integration-preflight-controller"
+    },
+    {
+      "path": "../usage-controller"
+    },
+    {
+      "path": "../voice-controller"
+    },
+    {
+      "path": "../mcp-controller"
+    },
+    {
+      "path": "../automation-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../sidebar-terminal-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../execution-host-controller"
+    },
+    {
+      "path": "../sidebar-git-controller"
+    },
+    {
       "path": "../../boot/plugin-manager"
     },
     {

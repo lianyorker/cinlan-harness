@@ -5,6 +5,7 @@ export const PERMISSION_ACCESS_NS = 'permission.access'
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
+  'nav': '权限与审批',
   'title': '权限',
   'description': '选择新会话的默认权限模式',
   'loading': '加载中',
@@ -24,6 +25,7 @@ export type PermissionSettingsKey = keyof typeof zh
 
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
+  'nav': 'Permissions & approvals',
   'title': 'Permission',
   'description': 'Choose the default permission mode for new sessions',
   'loading': 'Loading',

@@ -25,7 +25,7 @@ Use the Usage settings page to inspect recorded Turns and provider-reported toke
 <a id="use-this-package"></a>
 ## Use this package
 
-The Usage entry belongs to Settings → Experimental. Dates mean midnight UTC: the start date is inclusive and the end date is exclusive. The initial interval includes today and the preceding six UTC dates. Provider and model options come from exact identities observed by the Host before route filtering; selections match those strings exactly.
+The Usage entry belongs to Settings → Data & advanced. Dates mean midnight UTC: the start date is inclusive and the end date is exclusive. The initial interval includes today and the preceding six UTC dates. Provider and model options come from exact identities observed by the Host before route filtering; selections match those strings exactly.
 
 The unit is **Turns**. Tokens include only known complete Turns, with attempts and retries supplied by the Host's canonical accounting. Reasoning tokens are an output subset. Missing optional cache or reasoning buckets remain unavailable, while an actual zero stays zero. Mixed or unattributed routes remain explicit and never get guessed into filtered totals.
 
@@ -35,7 +35,7 @@ Refresh reads the selected interval again. Download CSV uses exactly the display
 
 ### Composition and configuration
 
-The package has no configuration fields. Its Host entry is inert; the Client plugin contributes to `settings.section` and `settingsMetadata` under section id `usage` and group `experimental`. The enclosing application supplies the settings slot owner, locale service, and authenticated Usage Remote. [Usage API types](../../api/usage-controller/src/types.ts) define the request and report data.
+The package has no configuration fields. Its Host entry is inert; the Client plugin contributes to `settings.section` and `settingsMetadata` under section id `usage` and group `advanced`. The enclosing application supplies the settings slot owner, locale service, and authenticated Usage Remote. [Usage API types](../../api/usage-controller/src/types.ts) define the request and report data.
 
 -----
 

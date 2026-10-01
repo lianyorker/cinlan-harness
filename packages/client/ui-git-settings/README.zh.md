@@ -1,5 +1,5 @@
 ---
-description: "原生 Git 偏好页面、持久化反馈与运行时消费方限制。"
+description: "原生 Git 偏好页面、持久化反馈与运行时消费方。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在开发设置组中配置新 Worktree Task 的分支前缀，以及源代码控制的分组顺序、上游比较和提交署名。页面编辑由 [Git settings](../../git/git-settings/README.zh.md) 拥有的持久化 `git-source-control` 命名空间。本地基线刷新不可用；已保存值仍可显示和重置。
+在工作区设置组中配置新 Worktree Task 的分支前缀，以及源代码控制的分组顺序、上游比较和提交署名。页面编辑由 [Git settings](../../git/git-settings/README.zh.md) 拥有的持久化 `git-source-control` 命名空间。本地基线刷新不可用；已保存值仍可显示和重置。
 
 ## 目录
 
@@ -30,7 +30,7 @@ kind: "package-reference"
 
 渲染器通过标准注入钩子绑定命名空间快照。写入与重置使用操作读取的版本进行并发检查，只有权威回读确认了请求值或覆盖移除，才会报告成功。SettingsScope 变更操作完成本身不代表持久化成功。页面在保存时禁用并发控件，仅在成功保存或重置后清除自定义草稿。
 
-`settings.section` 贡献、开发组元数据和六条搜索描述共享一个 `slots.inject` 生命周期。分区 id 保持为 `git-source-control`，顺序为 36。[设置域](../ui-settings/README.zh.md)拥有传输与持久化；[操作模块](src/client/settings-operations.ts)拥有本页面的确认结果回调。
+`settings.section` 贡献、工作区组元数据和六条搜索描述共享一个 `slots.inject` 生命周期。分区 id 保持为 `git-source-control`，顺序为 36。[设置域](../ui-settings/README.zh.md)拥有传输与持久化；[操作模块](src/client/settings-operations.ts)拥有本页面的确认结果回调。
 
 不发布运行时不变量伴随插件：页面从设置作用域派生实时值，不拥有独立的持久化投影。
 
@@ -56,4 +56,4 @@ kind: "package-reference"
 | `compareAgainstUpstream` | 在源代码控制中选择与上游比较；上游不可用时会提示。 |
 | `enableGitHubAttribution` | 为显式源代码控制提交添加署名，不影响 Worktree Task 检查点、Pull Request 或 Issue。 |
 
-视觉参考中的自动命名、签署、AI（人工智能）提交信息和提交语言字段在这里没有对应设置或操作。此页面不提供这些字段。
+- 视觉参考中的自动命名、签署、AI（人工智能）提交信息和提交语言字段在这里没有对应设置或操作。此页面不提供这些字段。

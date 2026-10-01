@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The Integrations page in the Development settings group checks the real Host readiness of GitHub, GitLab, and Gitee. It reports the provider's status and available account hint; it does not install tools, authenticate accounts, or change credentials.
+The Integrations page in the Capabilities & connections settings group checks the real Host readiness of GitHub, GitLab, and Gitee. It reports the provider's status and available account hint; it does not install tools, authenticate accounts, or change credentials.
 
 ## Table of Contents
 
@@ -32,7 +32,7 @@ Settings search indexes localized provider descriptions and Refresh all. Account
 
 The [preflight controller](../../api/integration-preflight-controller/src/index.ts) checks GitHub through `gh auth status`, GitLab through `glab auth status`, and Gitee through its user endpoint. The component owns one AbortController per check pass; replacing the callback, refreshing, or leaving the page cancels the retired pass and suppresses late results.
 
-The section id remains `integrations` with order 40. Its UI, Development group metadata, and four search descriptors share one `slots.inject` lifecycle; labels follow the active locale without indexing live account data.
+The section id remains `integrations` with order 40. Its UI, Capabilities & connections group metadata, and four search descriptors share one `slots.inject` lifecycle; labels follow the active locale without indexing live account data.
 
 No runtime invariant companion is published: readiness belongs to the Host controller and this page renders a disposable request snapshot.
 
@@ -49,4 +49,4 @@ None; these browser-triggered checks do not enter model requests.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-Status is refreshed on opening and explicit Refresh all; this page does not subscribe to external authentication changes. CLI installation guidance contains the existing Windows commands. The visual reference's Linear connection, add-connection flow, and verify-on-start preference have no corresponding operations or settings and are not exposed here.
+- Status is refreshed on opening and explicit Refresh all; this page does not subscribe to external authentication changes. CLI installation guidance contains the existing Windows commands. The visual reference's Linear connection, add-connection flow, and verify-on-start preference have no corresponding operations or settings and are not exposed here.

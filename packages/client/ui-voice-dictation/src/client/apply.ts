@@ -4,6 +4,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { DictationController } from './dictation-controller.ts'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
@@ -41,6 +42,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 type SettingsStore = ReturnType<typeof createVoiceSettingsStore>
 
+interface DictationSessionList {
+  readonly current?: SessionId
+  readonly byId?: Readonly<Record<string, Pick<SessionSummary, 'id' | 'retainedBy'>>>
+}
+
 function registerDictationShortcut(ctx: ClientContext, controller: DictationController, settingsStore: SettingsStore): () => void {
   let heldSession: SessionId | undefined
   const onKeyDown = (event: KeyboardEvent): void => {
@@ -48,8 +54,9 @@ function registerDictationShortcut(ctx: ClientContext, controller: DictationCont
     if (event.repeat || event.isComposing || event.defaultPrevented || isEditableTarget(event.target)) return
     const { enabled, dictationMode } = settingsStore.getSnapshot()
     if (!enabled) return
-    const snapshot = ctx.sessions.list.getSnapshot() as any
-    const sessionId = (snapshot.current ?? (Object.values(snapshot.byId ?? {}).find((row: any) => ((row as any).retainedBy?.mainView ?? 0) > 0) as any)?.id) as SessionId | undefined
+    const snapshot = ctx.sessions.list.getSnapshot() as DictationSessionList
+    const sessionId = snapshot.current
+      ?? Object.values(snapshot.byId ?? {}).find(row => (row.retainedBy.mainView ?? 0) > 0)?.id
     if (sessionId === undefined) return
     event.preventDefault()
     if (dictationMode === 'hold') {
@@ -106,7 +113,7 @@ export function apply(ctx: ClientContext): void {
     transcribe: voiceApi.transcribe,
   })
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'voice', groupId: 'ai' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'voice', groupId: 'personal' })
     yield ctx.settingsMetadata.registerItems('voice', [
       { id: 'enabled', anchorId: 'voice-enabled', title: () => t('enableDictation'), description: () => t('enableDictationDescription'), keywords: () => [t('keywordDictation')] },
       { id: 'mode', anchorId: 'voice-mode', title: () => t('dictationModeTitle'), description: () => t('dictationModeDescription'), keywords: () => [t('modeToggle'), t('modeHold'), 'Ctrl+Shift+E'] },

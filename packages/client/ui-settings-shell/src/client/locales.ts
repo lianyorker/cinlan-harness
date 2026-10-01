@@ -4,6 +4,7 @@ import type { SettingsFormLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 
 /** Locale keys the page renders. */
 export type ShellSettingsLocaleKey =
+  | 'nav'
   | 'title' | 'description'
   | 'timeoutMs' | 'timeoutMsHint' | 'maxOutputBytes' | 'maxOutputBytesHint'
   | 'overridden' | 'reset' | 'readOnly' | 'unavailable'
@@ -11,6 +12,7 @@ export type ShellSettingsLocaleKey =
 
 /** English copy. */
 export const en: Record<ShellSettingsLocaleKey, string> = {
+  nav: 'Shell execution',
   title: 'Shell',
   description: 'Limit how long each command may run and how much it may output.',
   timeoutMs: 'Command timeout (ms)',
@@ -29,6 +31,7 @@ export const en: Record<ShellSettingsLocaleKey, string> = {
 
 /** Simplified Chinese copy. */
 export const zh: Record<ShellSettingsLocaleKey, string> = {
+  nav: 'Shell 执行',
   title: '终端',
   description: '限制每条命令最多能跑多久、最多输出多少内容。',
   timeoutMs: '命令超时（毫秒）',

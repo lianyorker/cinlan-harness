@@ -3,26 +3,26 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-agent-loop/README.md
 /:
-  en: 12adb999b01b035a
-  zh: 15ac17dd70c78e07
+  en: c90578b12a3abf6d
+  zh: 0dd6549a02f5169b
 /deepseek-ai-dsh-client-ui-settings-agent-loop:
   en: 375e454589cac6c8
   zh: 7d609e69bc62fa77
 /deepseek-ai-dsh-client-ui-settings-agent-loop/summary:
-  en: 42fc4bae4890b0f7
-  zh: b11cbdc801aefb56
+  en: 2a6fad73a84314b0
+  zh: 0835f77ad7f9ac8e
 /deepseek-ai-dsh-client-ui-settings-agent-loop/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
 /deepseek-ai-dsh-client-ui-settings-agent-loop/use-this-package:
-  en: 189a3f8d22570043
-  zh: 6bda29a5eff7d4bd
+  en: b75a1c786a869efd
+  zh: 5311f36277a16087
 /deepseek-ai-dsh-client-ui-settings-agent-loop/understand-the-implementation:
-  en: 6412d65e7c17da6a
-  zh: 530d8b53c355efba
+  en: fa3d6be02c319b52
+  zh: 03e2fd0eb5fc7c96
 /deepseek-ai-dsh-client-ui-settings-agent-loop/further-exploration:
-  en: 14267229f22a17b0
-  zh: e59359820f0c2c2f
+  en: 0f9344cf20423644
+  zh: 4b753efed6395d17
 /deepseek-ai-dsh-client-ui-settings-agent-loop/model-experience:
   en: 6b7c6f82ab6c8435
   zh: 4517689c899abcbe

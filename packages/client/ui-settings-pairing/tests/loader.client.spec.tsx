@@ -20,10 +20,19 @@ import * as settings from '@deepseek-ai/dsh-client-ui-settings/client'
 import * as locale from '@deepseek-ai/dsh-client-locale/client'
 import * as renderer from '@deepseek-ai/dsh-client-ui-renderer/client'
 import * as uiSession from '@deepseek-ai/dsh-client-ui-session/client'
+import pairingRemote from '@deepseek-ai/dsh-api-pairing-controller/remote'
 import * as pairing from '../src/client/index.ts'
 import { en, zh } from '../src/client/locales.ts'
 import type { PairingInjected, RemoteAccessStatus } from '../src/client/types.ts'
 import { device, externalRpc } from './external-rpc.client.ts'
+
+/** Test-only Desktop composition: the default Web/CLH Remote assembly omits pairing. */
+const pairingRemotes = {
+  inject: ['remote'],
+  async apply(ctx: Context) {
+    return ctx.remote.$mount(pairingRemote)
+  },
+}
 
 vi.mock('qrcode', () => ({ toDataURL: async () => 'data:image/png;base64,loader-fixture' }))
 
@@ -62,7 +71,7 @@ async function boot(
   vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en-US'])
   const rpc = externalRpc(state, paired)
   vi.stubGlobal('__DSH_TRANSPORT__', rpc.transport)
-  const roster = { connection, registry, gateway, remotes, sessions, fileUpload, settings, locale, renderer, uiSession, pairing, owner }
+  const roster = { connection, registry, gateway, remotes, sessions, fileUpload, settings, locale, renderer, uiSession, pairing, owner, 'pairing-remotes': pairingRemotes }
   const ctx = new Context()
   contexts.push(ctx)
   await ctx.plugin(Loader)
@@ -136,7 +145,7 @@ it('shows actual missing configuration, keeps invitation disabled, and localizes
   const entry = b.ctx.slots.entries('settings.section')[0]!
   const injected = (entry.inject as unknown as () => PairingInjected)()
   expect(injected.hooks.pairingSessions).toBe(clientSessions(b.ctx).list)
-  expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'phone-pairing', groupId: 'personal' }])
+  expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'phone-pairing', groupId: 'capabilities', heading: 'shell' }])
   expect(JSON.stringify(b.ctx.settingsMetadata.getSnapshot())).not.toContain('device-1')
   await act(async () => { b.ctx.locale.setLocale('zh') })
   expect(b.view.getByRole('heading', { name: zh.title })).toBeTruthy()

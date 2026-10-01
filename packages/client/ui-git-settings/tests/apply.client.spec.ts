@@ -36,7 +36,7 @@ describe('Git settings contribution', () => {
     expect(entry.options).toMatchObject({ id: 'git-source-control', order: 36 })
     const face = (entry.inject as unknown as () => GitSettingsSectionInjected)()
     expect(face.hooks.settings).toBe(fixture.scope)
-    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'git-source-control', groupId: 'development' }])
+    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'git-source-control', groupId: 'workspace' }])
     expect(ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual([
       'git-branch-prefix', 'git-custom-prefix', 'git-update-base', 'git-group-order', 'git-upstream', 'git-attribution',
     ])

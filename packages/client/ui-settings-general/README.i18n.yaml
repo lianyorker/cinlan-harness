@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-general/README.md
 /:
-  en: b12def981d836df5
-  zh: 9d813c1937f22c61
+  en: ffc3c056be26d3ab
+  zh: 2af45273ddd2edbd
 /deepseek-ai-dsh-client-ui-settings-general:
   en: 1017c980d55e1945
   zh: d3febd2062fce20f
@@ -12,14 +12,14 @@
   en: cd94b4a8dae32670
   zh: 333b8603e77f92d7
 /deepseek-ai-dsh-client-ui-settings-general/table-of-contents:
-  en: 2843d46e95311bce
-  zh: ec11bdeb5d3ce818
+  en: ae73b3b1465221d1
+  zh: fcc5632a5d236c4c
 /deepseek-ai-dsh-client-ui-settings-general/use-this-package:
-  en: 3be9bf992c10bc6b
-  zh: b270083651e5dc43
-/deepseek-ai-dsh-client-ui-settings-general/use-this-package/the-general-section:
-  en: 8b8a7c6287bb303b
-  zh: 19535112531aedd5
+  en: 5ea696e38085aa39
+  zh: f750211fbc6f34e5
+/deepseek-ai-dsh-client-ui-settings-general/use-this-package/settings-groups-and-the-general-section:
+  en: ff51d02752ccf443
+  zh: 81dcd0dc080a395f
 /deepseek-ai-dsh-client-ui-settings-general/use-this-package/opening-the-configuration-file:
   en: ca2b4f5ccfbe2705
   zh: bd1dc1d9879d0f0e

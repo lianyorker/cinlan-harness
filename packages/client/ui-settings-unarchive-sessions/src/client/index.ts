@@ -43,7 +43,7 @@ export function apply(ctx: ClientContext): void {
   })
 
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'archived-sessions', groupId: 'personal' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'archived-sessions', groupId: 'advanced', heading: 'shell' })
     yield ctx.settingsMetadata.registerItems('archived-sessions', [{
       id: 'restore', anchorId: 'archived-sessions-search',
       title: () => t('nav'), description: () => t('search'),

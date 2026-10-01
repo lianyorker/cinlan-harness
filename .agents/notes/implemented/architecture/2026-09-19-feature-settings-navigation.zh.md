@@ -1,4 +1,4 @@
-# Agent Note: 功能设置导航保留原生属主
+# Agent Note：设置分组保留功能所有权
 
 Status: implemented
 
@@ -6,26 +6,34 @@ Status: implemented
 
 ## 问题
 
-单一的「侧边卡片」目录按渲染包把无关功能归在一起。寻找文件、任务、侧边对话、Git、浏览器或终端的用户需要以该功能命名的入口。在此目录内重建原生表单还会让同一偏好拥有多个编辑器，带来保存行为分歧的风险。
+设置需要一套随功能增长仍然易懂的产品信息层级。由外壳拥有中央路由表或复制表单，会让外壳承担功能策略、拆分持久化所有权，并在提供方消失后留下可见但不可用的能力页。
 
 ## 决策
 
-每个可见功能都有独立的 Settings 菜单入口。[导航映射](../../../../reports/design/cinlan-feature-navigation.md#settings-destinations)记录内置入口。文件页拥有文件预览器控件；工作区布局页仅包含共享布局偏好。每个可见第三方页签描述符都有独立页面，标识为 `feature:` 加上描述符 id。隐藏的计划、差异与审阅描述符仍是运行时面板，不成为菜单项。
+Settings 外壳提供五个稳定分组：`personal`、`ai`、`workspace`、`capabilities` 和 `advanced`。产品文案分别为「个人」「智能体」「工作区」「能力与连接」「数据与高级」。功能包在注册既有 `settings.section` slot 的同时，通过 `settingsMetadata` 登记分组和公开可搜索字段。
 
-[Settings 外壳](../../../../packages/client/ui-settings-general/src/client/SettingsRoot.tsx)为所选分区渲染通用键控 `settings.section.extension` slot。此新增 Settings API 用于组合页面内容，不改变 `ctx.betterSidebar` 的公开方法。[better-sidebar 注册表](../../../../packages/client/ui-better-sidebar/src/client/settings-navigation.tsx)提供功能页面、元数据，以及位于既有 Git、浏览器和终端分区 id 下的扩展。其原生表单继续拥有各自字段。注册项遵循描述符生命周期；外壳不持有针对具体功能的路由表。
+`ui-settings-general` 渲染一个全页 Settings 路由，提供响应式导航栏、独立内容滚动和公开文案搜索。搜索会选择所属分区，需要时激活登记的标签页，并聚焦稳定的 `data-settings-anchor`。外壳不读取设置值、密钥、Host schema 或功能专用控件。
 
-功能导航保留已保存的键名、命名空间、序列化方式，以及属主的保存与重置行为。侧栏偏好仍位于 `dsh-better-sidebar`，描述符自有值仍位于 `pluginSettings[descriptorId]`。运行时面板与 `ctx.betterSidebar` 服务 API 继续供其消费方使用。
+分区元数据还声明顶层标题的所有权。外壳为紧凑的历史页面提供标题；功能自有页面保留自己的标题和内部层级。新增页面时，外壳不需要再维护分区 id 策略。
 
-[选择性集成决策](2026-09-19-selective-upstream-integration-preserves-product-ownership.zh.md)继续保护全页外壳、CSS、主题 token、原生控件与公开 API，但不冻结菜单入口。[设置元数据](2026-09-17-settings-navigation-metadata.zh.md)与[原生设置](2026-09-17-native-settings-runtime-consumers.zh.md)决策继续拥有导航与持久化规则。Cinlan 的独立产品方向与 Linear.app 视觉参考属于[未来设计背景](../../../../reports/design/cinlan-feature-navigation.md#dev-note)，并不授权当前重设计外壳。
+功能包继续拥有自己的分区 id、设置命名空间、Remote 调用、保存/重置行为和持久存储。Models、Agent 预设、权限、Shell 执行、工具执行、Subagents 与 Web Search 归入「智能体」。运行时诊断是「数据与高级」中的独立分区，同时保留 Plugins 行作为兼容启动入口。Automation 拥有侧边栏面板，Settings 行只负责跳转到该面板。
 
-## 曾考虑的替代方案
+能力分区仍可独立注入。缺少提供方时页面显示明确的不可用状态。手机配对实现保留为可选的 Desktop 回环贡献；默认 Web/CLH 组合不挂载其配对控制器或 Settings 分区。
 
-**把所有功能留在「侧边卡片」目录中。** 这要求用户按实现包导航，无法让每个功能都有独立菜单入口。
+Remote assembly 对每个生成贡献只挂载一次。默认 Web/CLH graph 包含已挂载页面使用的能力命名空间，并在 profile 明确组合该功能前省略可选的配对命名空间。
 
-**在功能卡片中复制原生表单。** 同一字段的独立编辑器更容易产生不同的校验、保存与重置行为。键控扩展把附加控件放在既有属主表单旁边。
+## 考虑过的替代方案
 
-**把未来视觉参考用于此次导航变更。** Cinlan 的未来产品身份需要独立设计决策。在此替换外壳 CSS 或主题 token，会把该决策与功能发现混在一起。
+**保留单一 Side Cards 目录。** 它按实现包而不是用户意图分组，直接查找功能更困难。
+
+**在外壳目录内复制原生表单。** 同一命名空间拥有两个编辑器时，校验、持久化和重置行为可能产生分歧。
+
+**由外壳拥有功能路由表。** 静态表无法跟随插件释放或可选提供方组合，还会迫使外壳导入所有功能。
 
 ## 后果
 
-用户可以直接找到各个功能，已安装插件同时保留运行时集成与已保存偏好。代价是导航条目增加，描述符属主需要维护注册项。隐藏的运行时描述符不会产生空设置页。所需回归证据覆盖注册与 dispose（资源释放）、原生表单组合，以及保持不变的偏好请求内容；组装后的 Web 与 Desktop 验收独立于文档验证。
+用户可以按产品意图查找设置，每个功能继续保留自己的数据所有权。搜索索引只包含本地化公开文案和锚点，因此不会读取敏感值。新增功能只需登记分区、元数据和组合行，无需修改外壳。更多分组和分区会增加导航密度，因此空分组保持隐藏，窄屏仍保留搜索。
+
+## 验证
+
+元数据、外壳、功能加载器和 Automation panel 测试覆盖分组归属、释放、搜索定位、兼容入口及响应式导航。生成合约构建覆盖已挂载的 Remote assembly。Web 与 Desktop 应用测试继续负责完整载体组合行为。

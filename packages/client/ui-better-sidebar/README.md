@@ -70,7 +70,7 @@ Subagent catalog side-open actions and topology child cards open the existing ch
 - **⚡ On-demand Loading**: only ~325KB core at startup; heavy deps (terminal / editor / mermaid diagrams) load on demand ([design](docs/plans/2026-08-12-lazy-chunks-design.md))
 - **🌏 i18n**: UI text follows DSH's language (zh / en) with live switching
 
-Settings places Files under Tools, and Tasks and Side Chat under AI. Git, Browser, and Terminal each use their existing native page with additional sidebar controls; native fields retain their forms and save/reset behavior. Workspace layout under Personal contains only layout preferences. The [feature navigation decision](../../../.agents/notes/implemented/architecture/2026-09-19-feature-settings-navigation.md) records the ownership rules.
+Settings places Files under Workspace, and Tasks and Side Chat under Agents. Git, Browser, and Terminal each use their existing native page with additional sidebar controls; native fields retain their forms and save/reset behavior. Workspace layout under Personal contains only layout preferences. The [feature navigation decision](../../../.agents/notes/implemented/architecture/2026-09-19-feature-settings-navigation.md) records the ownership rules.
 
 Office files open in Files through the built-in viewers for DOCX/XLSX/PPTX and their DOC/XLS/PPT extensions. The authorized [Office converter](../../document/office-to-pdf/README.md) renders a PDF for the browser viewer; the source remains unchanged. The preview offers retry, original-file download, and missing-font details. Closing or replacing it cancels conversion and releases its PDF URL. Files settings can disable these viewers, and higher-priority registered viewers can replace them. Rendering depends on the converter, installed fonts, and browser PDF support.
 
@@ -443,7 +443,7 @@ Full integration docs:
 
 ### Plugin settings navigation
 
-Each visible third-party tab descriptor receives a `feature:${id}` page in Extensions, using its existing enable control and declared settings. Hidden descriptors, including plan, diff, and review panels, add no menu entry. File-viewer controls remain inside Files. Sidebar preference keys, the `dsh-better-sidebar` namespace, serialization, and `pluginSettings[descriptorId]` remain under their existing owners. The [GitHub topic `dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar) lists ecosystem plugins.
+Each visible third-party tab descriptor receives a `feature:${id}` page in Capabilities & connections, using its existing enable control and declared settings. Hidden descriptors, including plan, diff, and review panels, add no menu entry. File-viewer controls remain inside Files. Sidebar preference keys, the `dsh-better-sidebar` namespace, serialization, and `pluginSettings[descriptorId]` remain under their existing owners. The [GitHub topic `dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar) lists ecosystem plugins.
 
 **Curating a new plugin**: append a `PluginEntry` to [`src/client/plugins-tabs.ts`](./src/client/plugins-tabs.ts) (tab registrations) or [`src/client/plugins-viewers.ts`](./src/client/plugins-viewers.ts) (file-previewer registrations) and tag your repo with the `dsh-better-sidebar` topic; data integrity is guarded by `tests/plugin-list.spec.ts`.
 

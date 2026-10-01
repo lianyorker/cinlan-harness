@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-settings-navigation-metadata.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-settings-navigation-metadata.md
-2026-09-17-settings-navigation-metadata.md: 5c0dd86f089aaea7d88dc99c24eacb01d4bf0615
-2026-09-17-settings-navigation-metadata.zh.md: 08dc250102f96b29e184aae5542bea8017746355
+/agent-note-feature-owned-settings-navigation-metadata:
+  en: 489da8c7cea11032
+  zh: 8be9bf163080f5c9
+/agent-note-feature-owned-settings-navigation-metadata/problem:
+  en: 8bd65d45f54ceb0c
+  zh: bc9e512c406098b2
+/agent-note-feature-owned-settings-navigation-metadata/decision:
+  en: 6f1caf009dbc3f0a
+  zh: 1ead37462a7ed108
+/agent-note-feature-owned-settings-navigation-metadata/alternatives-considered:
+  en: 7219c44fcaed1481
+  zh: 4d8d9189fffc8a22
+/agent-note-feature-owned-settings-navigation-metadata/consequences:
+  en: f2557e24ed318587
+  zh: 79e64dc49b7bd77c
+/agent-note-feature-owned-settings-navigation-metadata/verification:
+  en: 811b7b0bc174e5f0
+  zh: 816fde0ca902b756

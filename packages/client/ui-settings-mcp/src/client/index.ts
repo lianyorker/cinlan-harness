@@ -47,7 +47,7 @@ export function apply(ctx: Context): void {
     return async () => { unsubscribe(); await source.dispose() }
   }, 'ui-settings-mcp: readback lifetime')
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'mcp', groupId: 'experimental' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'mcp', groupId: 'capabilities' })
     yield ctx.settingsMetadata.registerItems('mcp', [
       { id: 'server-list', anchorId: 'mcp-server-list', title: () => t('serverList'), description: () => t('serverListHelp') },
       { id: 'add-server', anchorId: 'mcp-add-server', title: () => t('add'), description: () => t('addHelp'), keywords: () => [t('serverName'), t('enabled')] },

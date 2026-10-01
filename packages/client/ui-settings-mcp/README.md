@@ -29,7 +29,7 @@ Choose this contributor when the Host provides current-profile MCP management an
 
 ### Composition
 
-The package mounts as a Cordis plugin row. Its Node entry has no Host behavior; its browser entry contributes the `mcp` section to the Experimental group. The controller and manager own connection and persistence behavior.
+The package mounts as a Cordis plugin row. Its Node entry has no Host behavior; its browser entry contributes the `mcp` section to the Capabilities & connections group. The controller and manager own connection and persistence behavior.
 
 ```yaml
 - name: "@deepseek-ai/dsh-client-ui-settings-mcp"

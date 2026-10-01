@@ -43,7 +43,7 @@ function SettingsPage({ rows, narrow, renderSlot, activeId, onSelect, onClose, r
   const sectionContent = useRef<HTMLDivElement>(null)
   const focusAfterNavigation = useRef(false)
   const target = selection !== undefined && selection.sectionId === active?.id ? selection.target : undefined
-  const shellHeading = active !== undefined && ['general', 'models', 'plugins'].includes(active.id)
+  const shellHeading = active?.heading === 'shell'
 
   const dismissDrawer = useCallback(() => {
     setDrawerOpen(false)
@@ -282,9 +282,10 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   const rows = useSections(s => s)
   const narrow = useNarrowViewport(value => value)
   const onboardingSteps = useOnboardingSteps(s => s)
-  const onboardingActive = useSessions(state =>
-    state.phase === 'ready'
-    && (state.current === undefined || state.byId[state.current]?.blank === true))
+  const onboardingActive = useSessions((state) => {
+    const current = Object.values(state.byId).find(session => (session.retainedBy.mainView ?? 0) > 0)
+    return state.phase === 'ready' && (current === undefined || current.blank)
+  })
   const onboardingStep = onboardingActive
     ? onboardingSteps.find(step => !completedOnboarding.has(step.id))
     : undefined

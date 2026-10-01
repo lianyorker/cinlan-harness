@@ -4,6 +4,7 @@ import type { SettingsFormLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 
 /** Locale keys the page renders. */
 export type WebSearchSettingsLocaleKey =
+  | 'nav'
   | 'title' | 'description'
   | 'apiKey' | 'apiKeyHint' | 'apiKeySet' | 'apiKeyUnset'
   | 'baseUrl' | 'baseUrlHint' | 'maxUses' | 'maxUsesHint'
@@ -12,6 +13,7 @@ export type WebSearchSettingsLocaleKey =
 
 /** English copy. */
 export const en: Record<WebSearchSettingsLocaleKey, string> = {
+  nav: 'Web search',
   title: 'Web search',
   description: 'Set up the DeepSeek search provider.',
   apiKey: 'API key',
@@ -34,6 +36,7 @@ export const en: Record<WebSearchSettingsLocaleKey, string> = {
 
 /** Simplified Chinese copy. */
 export const zh: Record<WebSearchSettingsLocaleKey, string> = {
+  nav: '网络搜索',
   title: '网页搜索',
   description: '设置 DeepSeek 的搜索提供方。',
   apiKey: 'API Key',

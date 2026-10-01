@@ -9,7 +9,14 @@ export const device: PairedDevice = {
 }
 export function externalRpc(initial: RemoteAccessStatus['state'] = 'disabled', paired = false) {
   const calls: ClientRequest[] = []
-  const rpc = RemoteMock.create().rpc
+  const mock = RemoteMock.create()
+  mock.unary('session/list', () => ({ ok: true, value: { items: [{
+    sessionId: 'fx-alpha', updatedAt: 1, running: false, blank: false, agentAvailable: true,
+  }] } }))
+  mock.stream('session/control', (_args, stream) => {
+    stream.push({ type: 'baseline', value: { projections: {} } })
+  })
+  const rpc = mock.rpc
   let status: RemoteAccessStatus = {
     state: initial, missingConfiguration: initial === 'not-configured' ? ['advertisedOrigin', 'tlsCertificatePath', 'tlsPrivateKeyPath'] : [],
     origin: initial === 'not-configured' ? null : 'https://desktop.example:7443',

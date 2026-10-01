@@ -40,7 +40,10 @@ async function bench(served?: string[]) {
 function declareRoot(slots: SlotRegistry): () => void {
   return slots.register({
     name: 'root',
-    children: { 'plugins.item': { kind: 'list', scope: 'root' } },
+    children: {
+      'plugins.item': { kind: 'list', scope: 'root' },
+      'settings.section': { kind: 'list', scope: 'root' },
+    },
   } as never, () => null)
 }
 
@@ -50,7 +53,7 @@ describe('ui-settings-subagent apply', () => {
   })
 
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.session', 'configForms'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.session', 'configForms', 'settingsMetadata'])
   })
 
   it('registers one page for both namespaces while the Host serves either, titled in the active locale', async () => {
@@ -60,6 +63,9 @@ describe('ui-settings-subagent apply', () => {
     await ctx.plugin({ inject: [...inject], apply }).await()
 
     await vi.waitFor(() => { expect(slots.entries('plugins.item')).toHaveLength(1) })
+    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'subagent', groupId: 'ai', heading: 'shell' }])
+    expect(slots.entries('settings.section')).toHaveLength(1)
+    expect(ctx.settingsMetadata.getSnapshot().items[0]?.anchorId).toBe('subagent-settings')
     const entry = slots.entries('plugins.item')[0]!
     expect(entry.options).toMatchObject({ id: 'subagent', order: 30 })
     expect(resolveSlotLabel(entry.options.label)).toBe('子智能体')
@@ -113,5 +119,7 @@ describe('ui-settings-subagent apply', () => {
     await fiber.dispose()
 
     expect(slots.entries('plugins.item')).toHaveLength(0)
+    expect(slots.entries('settings.section')).toHaveLength(0)
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
   })
 })

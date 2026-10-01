@@ -22,7 +22,7 @@ import type {
   PermissionCatalog, PermissionSelection,
 } from '@deepseek-ai/dsh-permission-presets/client'
 import {
-  PermissionRow, type PermissionRowInjected,
+  PermissionSettingsSection, type PermissionRowInjected,
 } from '../src/client/PermissionRow.tsx'
 import { PermissionSelect } from '../src/client/PermissionSelect.tsx'
 import type { PermissionSelectInjected } from '../src/client/PermissionSelect.tsx'
@@ -78,7 +78,7 @@ async function bench() {
   ctx.slots.register({
     name: 'root',
     children: {
-      'settings.general.item': { kind: 'list', scope: 'root' },
+      'settings.section': { kind: 'list', scope: 'root' },
       'conversation.input.permission': { kind: 'single', scope: 'session' },
     },
   } as never, () => null)
@@ -146,8 +146,8 @@ async function bench() {
       if (ui.kind !== 'popupSelect') throw new Error('expected the popupSelect kind')
       return ui
     },
-    permissionRow: () => ctx.slots.entries('settings.general.item')
-      .find(entry => entry.component === PermissionRow),
+    permissionRow: () => ctx.slots.entries('settings.section')
+      .find(entry => entry.component === PermissionSettingsSection),
     permissionSelect: () => ctx.slots.entries('conversation.input.permission')
       .find(entry => entry.component === PermissionSelect),
   }
@@ -171,7 +171,7 @@ describe('ui-permission browser plugin', () => {
     expect(c.name).toBe('permission')
     expect(c.ui.kind).toBe('popupSelect')
     const row = b.permissionRow()!
-    expect(row.options).toEqual({ id: 'permission', order: -20 })
+    expect(row.options).toMatchObject({ id: 'permissions', order: 45 })
     const injected = row.inject?.() as PermissionRowInjected | undefined
     expect(injected?.hooks.permission).toBeDefined()
     expect(typeof injected?.load).toBe('function')

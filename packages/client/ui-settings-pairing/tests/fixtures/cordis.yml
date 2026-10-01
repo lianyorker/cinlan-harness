@@ -20,5 +20,7 @@
   name: cordis:uiSession
 - id: pairing
   name: cordis:pairing
+- id: pairing-remotes
+  name: cordis:pairing-remotes
 - id: settings-owner
   name: cordis:owner

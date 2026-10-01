@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import type { PluginsSettingsSectionInjected } from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import { apply as hostApply } from '../src/index.ts'
@@ -19,6 +20,7 @@ async function bench() {
   const locale = new LocaleRuntime(ctx)
   locale.setLocale('zh')
   ctx.provide('locale', locale)
+  new SettingsMetadataService(ctx)
   return { ctx, slots: ctx.get('slots') as SlotRegistry }
 }
 
@@ -36,7 +38,7 @@ describe('ui-settings-plugins apply', () => {
   })
 
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale'])
+    expect(inject).toEqual(['slots', 'locale', 'settingsMetadata'])
   })
 
   it('registers one Built-in plugins section and declares its tab slot, contributing no tab of its own', async () => {
@@ -48,7 +50,7 @@ describe('ui-settings-plugins apply', () => {
     const section = slots.entries('settings.section')[0]!
     expect(section.options).toMatchObject({ id: 'plugins', order: 15 })
     // The nav label is a locale-following thunk; owners resolve it at read time.
-    expect(resolveSlotLabel(section.options.label)).toBe('内置插件')
+    expect(resolveSlotLabel(section.options.label)).toBe('运行诊断')
     expect(slots.spec('settings.plugins.tab')).toMatchObject({ kind: 'list', scope: 'root' })
     expect(slots.entries('settings.plugins.tab')).toHaveLength(0)
   })

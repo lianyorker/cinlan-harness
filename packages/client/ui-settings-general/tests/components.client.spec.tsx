@@ -27,12 +27,16 @@ afterEach(cleanup)
 // package dictionary and falls back to the key like the real chain.
 const t: TriggerContentProps['t'] = key => (en as Record<string, string>)[key] ?? key
 
-// Global standard kit stubs: none of these components consume the hooks.
+// Global standard kit stubs: these components consume no standard hooks, but
+// the fixture still supplies the current global contract.
 const unusedHook = (() => { throw new Error('unused by settings-general components') }) as never
-type AttentionSnapshot = Parameters<Parameters<TriggerContentProps['useSessionPendingInteraction']>[0]>[0]
-const noAttention: AttentionSnapshot = new Map()
-const useSessionPendingInteraction: TriggerContentProps['useSessionPendingInteraction'] = selector => selector(noAttention)
-const kit = { useSessions: unusedHook, useSessionPendingInteraction, useResource, useWorkspaces: unusedHook }
+const usePanelInfo: GlobalStandardProps['usePanelInfo'] = selector => selector({ activePanelId: null })
+const useSessionStatus = (() => new Map()) as GlobalStandardProps['useSessionStatus']
+const useSessionRetainInfo = (() => undefined) as GlobalStandardProps['useSessionRetainInfo']
+const kit = {
+  useSessions: unusedHook, useResource, useWorkspaces: unusedHook,
+  usePanelInfo, useSessionStatus, useSessionRetainInfo,
+}
 
 describe('chrome content', () => {
   it('TriggerContent renders the icon with the label in the wide column', () => {

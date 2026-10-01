@@ -1,5 +1,6 @@
 /** Product copy for automation settings; task data never enters public metadata. */
 export const en = {
+  openAutomation: 'Open automation', scheduleLimits: 'Schedules run while this local Host is running. Hourly, daily, and weekly schedules use UTC.',
   title: 'Automation', description: 'Manage recurring tasks, pause schedules, and inspect recorded runs.', scope: 'This profile',
   tasks: 'Task schedules', tasksHelp: 'New tasks are disabled. Enable scheduling explicitly, or run once without enabling.',
   draft: 'Task draft', draftHelp: 'Choose an existing workspace, agent, model, and permission preset. All schedule times are UTC.',
@@ -33,6 +34,7 @@ export type AutomationSettingsKey = keyof typeof en
 
 /** Simplified Chinese copy with the same keys as English. */
 export const zh: Record<AutomationSettingsKey, string> = {
+  openAutomation: '打开自动化', scheduleLimits: '本地主机运行期间执行计划。支持每小时、每天和每周计划，时间使用 UTC。',
   title: '自动化', description: '管理重复任务、暂停计划并查看已记录的运行。', scope: '当前配置档',
   tasks: '任务计划', tasksHelp: '新建任务默认停用。请明确启用计划，或在不启用计划的情况下运行一次。',
   draft: '任务草稿', draftHelp: '选择已有工作区、智能体、模型与权限预设。所有计划时间均为 UTC。',

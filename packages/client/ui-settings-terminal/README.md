@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Configure integrated sidebar terminals from Settings → Experimental → Terminal. The page reads and edits the existing `dsh-better-sidebar` namespace and enables its form only after the current sidebar Host confirms terminal availability.
+Configure integrated sidebar terminals from Settings → Workspace → Terminal. The page reads and edits the existing `dsh-better-sidebar` namespace and enables its form only after the current sidebar Host confirms terminal availability.
 
 ## Table of Contents
 

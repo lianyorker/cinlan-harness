@@ -45,7 +45,7 @@ describe('Usage registration', () => {
     expect(entry.options).toMatchObject({ id: 'usage' })
     expect(entry.locale).toBe('settings.usage')
     expect(resolveSlotLabel(entry.options.label)).toBe('Usage')
-    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'usage', groupId: 'experimental' }])
+    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'usage', groupId: 'advanced', heading: 'shell' }])
     expect(ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual([
       'usage-filters', 'usage-overview', 'usage-coverage', 'usage-export',
     ])

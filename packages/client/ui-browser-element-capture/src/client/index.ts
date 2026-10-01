@@ -5,6 +5,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-api-browser-controller/remote'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type { CaptureInjected } from './contract.ts'
 import {
@@ -15,6 +16,10 @@ import { en, NS, zh } from './locales.ts'
 
 export type { BrowserElementCaptureSectionProps }
 export type { BrowserElementCaptureKey } from './locales.ts'
+
+interface DraftConversation {
+  addImageDraft?: (value: { mediaType: string; data: string; name?: string }) => boolean
+}
 
 /** Client services required by the Settings registration. */
 export const inject = ['settingsMetadata', 'slots', 'locale', 'sessions', 'conversation', 'remote', 'remote.browser']
@@ -32,26 +37,26 @@ export function apply(ctx: Context): void {
     return result.value
   }
   const operations = (): CaptureInjected => {
-    const browser = (ctx.remote as any)?.browser
+    const browser = ctx.remote.browser
     return {
       pages: signal => request(browser.pages(signal)),
       select: (pageId, signal) => request(browser.selectElement({ pageId }, signal)),
       capture: (command, signal) => request(browser.captureElement(command, signal)),
       attach: (sessionId, value) => {
-      const conversation = (ctx.sessions as any).scope?.(sessionId)?.get?.('conversation')
-      if (conversation === undefined) throw new Error(t('sessionUnavailable'))
-      if (typeof conversation.addImageDraft === 'function') {
-        if (!conversation.addImageDraft({
-          mediaType: value.image.mediaType,
-          data: value.data,
-          ...(value.image.name === undefined ? {} : { name: value.image.name }),
-        })) throw new Error(t('draftBusy'))
-      }
+        const conversation = ctx.sessions.scope(sessionId)?.get('conversation') as unknown as DraftConversation | undefined
+        if (conversation === undefined) throw new Error(t('sessionUnavailable'))
+        if (typeof conversation.addImageDraft === 'function') {
+          if (!conversation.addImageDraft({
+            mediaType: value.image.mediaType,
+            data: value.data,
+            ...(value.image.name === undefined ? {} : { name: value.image.name }),
+          })) throw new Error(t('draftBusy'))
+        }
       },
     }
   }
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'browser-element-capture', groupId: 'tools' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'browser-element-capture', groupId: 'capabilities' })
     yield ctx.settingsMetadata.registerItems('browser-element-capture', [
       { id: 'availability', anchorId: 'capture-availability', title: () => t('title'), description: () => t('availability'), keywords: () => [t('nav')] },
       { id: 'page', anchorId: 'capture-page', title: () => t('pageTitle'), description: () => t('stepOne'), keywords: () => ['browser_list'] },

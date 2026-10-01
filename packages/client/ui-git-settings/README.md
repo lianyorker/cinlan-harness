@@ -1,5 +1,5 @@
 ---
-description: "Native Git preferences, persistence feedback, and runtime-consumer limitations."
+description: "Native Git preferences, persistence feedback, and runtime consumers."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Configure new Worktree Task branch prefixes and Source Control group order, upstream comparison, and commit attribution from the Development settings group. The page edits the durable `git-source-control` namespace owned by [Git settings](../../git/git-settings/README.md). Local base refresh is unavailable; its saved value remains visible and resettable.
+Configure new Worktree Task branch prefixes and Source Control group order, upstream comparison, and commit attribution from the Workspace settings group. The page edits the durable `git-source-control` namespace owned by [Git settings](../../git/git-settings/README.md). Local base refresh is unavailable; its saved value remains visible and resettable.
 
 ## Table of Contents
 
@@ -30,7 +30,7 @@ Settings search indexes the six localized field labels and descriptions. Each re
 
 The renderer binds the namespace snapshot through the standard injected hook. Writes and resets fence the revision read by the operation and report success only when authoritative readback confirms the requested value or override removal. A settled SettingsScope mutation alone does not imply persistence. The page disables concurrent controls while saving and clears a custom draft only after a successful save or reset.
 
-The `settings.section` contribution, Development group metadata, and six search descriptors share one `slots.inject` lifetime. The section id remains `git-source-control` with order 36. The [settings domain](../ui-settings/README.md) owns transport and persistence; [operations](src/client/settings-operations.ts) own this page's confirmed outcome callbacks.
+The `settings.section` contribution, Workspace group metadata, and six search descriptors share one `slots.inject` lifetime. The section id remains `git-source-control` with order 36. The [settings domain](../ui-settings/README.md) owns transport and persistence; [operations](src/client/settings-operations.ts) own this page's confirmed outcome callbacks.
 
 No runtime invariant companion is published: the page derives live values from its settings scope and owns no independent durable projection.
 
@@ -56,4 +56,4 @@ The page describes each preference's runtime scope:
 | `compareAgainstUpstream` | Selects upstream comparison in Source Control; an unavailable upstream is reported. |
 | `enableGitHubAttribution` | Adds attribution to explicit Source Control commits, excluding Worktree Task checkpoints, pull requests, and issues. |
 
-The visual reference's automatic naming, sign-off, AI commit-message, and commit-language fields have no corresponding settings or operations here. They are not exposed by this page.
+- The visual reference's automatic naming, sign-off, AI commit-message, and commit-language fields have no corresponding settings or operations here. They are not exposed by this page.

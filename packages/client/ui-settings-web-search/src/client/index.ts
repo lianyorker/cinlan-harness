@@ -17,7 +17,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: the ctx.remote Context merge and the forwarded-event key face.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { WebSearchCard } from './WebSearchCard.tsx'
+import { WebSearchCard, WebSearchSettingsSection } from './WebSearchCard.tsx'
 import { WEB_SEARCH_NS, WebSearchCardController } from './web-search-card-controller.ts'
 import { en, zh, type WebSearchSettingsLocaleKey } from './locales.ts'
 
@@ -36,7 +36,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export const NS = 'settings.webSearch'
 
 /** Required services (cordis fiber inject). */
-export const inject = ['slots', 'locale', 'remote', 'remote.credentials', 'configForms']
+export const inject = ['slots', 'locale', 'remote', 'remote.credentials', 'configForms', 'settingsMetadata']
 
 /**
  * Mount the web-search settings page while the Host serves its namespace.
@@ -57,4 +57,16 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.configForms.whileServed([WEB_SEARCH_NS], () => ctx.slots.inject('plugins.item', () => ctx.slots.register({
     name: 'plugins.item', id: 'web-search', order: 40, label: () => t('title'), locale: NS, inject: () => card.inject(),
   }, WebSearchCard))), 'ui-settings-web-search: page')
+  ctx.effect(() => ctx.configForms.whileServed([WEB_SEARCH_NS], () =>
+    ctx.slots.inject('settings.section', function* () {
+      yield ctx.settingsMetadata.registerSection({ sectionId: 'web-search', groupId: 'capabilities', heading: 'shell' })
+      yield ctx.settingsMetadata.registerItems('web-search', [{
+        id: 'web-search-settings', anchorId: 'web-search-settings', title: () => t('nav'), description: () => t('description'),
+      }])
+      yield ctx.slots.register({
+        name: 'settings.section', id: 'web-search', order: 45, label: () => t('nav'), locale: NS,
+        inject: () => card.inject(),
+      }, WebSearchSettingsSection)
+    })), 'ui-settings-web-search: settings page')
+
 }

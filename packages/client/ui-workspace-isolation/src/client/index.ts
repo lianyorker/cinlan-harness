@@ -63,7 +63,7 @@ export function apply(ctx: Context): void {
   }
 
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'workspace-isolation', groupId: 'development' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'workspace-isolation', groupId: 'workspace' })
     yield ctx.settingsMetadata.registerItems('workspace-isolation', [
       { id: 'policy', anchorId: 'workspace-isolation-policy', title: () => t('policyTitle'), description: () => t('policyHelp') },
       { id: 'leases', anchorId: 'workspace-isolation-leases', title: () => t('total'), description: () => t('description'),

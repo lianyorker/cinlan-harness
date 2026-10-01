@@ -118,7 +118,8 @@ export function apply(ctx: ClientContext): void {
                 id: e.options.id ?? '',
                 order: e.options.order ?? 0,
                 label: resolveSlotLabel(e.options.label) ?? '',
-                groupId: metadata.sections.find(section => section.sectionId === e.options.id)?.groupId ?? 'extensions',
+                groupId: metadata.sections.find(section => section.sectionId === e.options.id)?.groupId ?? 'capabilities',
+                heading: metadata.sections.find(section => section.sectionId === e.options.id)?.heading ?? 'feature',
                 items: metadata.items.filter(item => item.sectionId === e.options.id),
               }))
               .sort((a, b) => a.order - b.order)
@@ -188,7 +189,7 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.section.icon', () =>
     ctx.slots.register({ name: 'settings.section.icon', key: 'general' }, IconSettingsOutline16))
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'general', groupId: 'personal' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'general', groupId: 'personal', heading: 'shell' })
     yield ctx.slots.register({
       name: 'settings.section',
       id: 'general',

@@ -73,7 +73,7 @@ function registeredCallbacks(ctx: Context, slots: SlotRegistry) {
   }
   expect(ctx.settingsMetadata.getSnapshot().sections).toEqual(expect.arrayContaining([
     { sectionId: 'workspace-layout', groupId: 'personal' },
-    { sectionId: 'files', groupId: 'tools' },
+    { sectionId: 'files', groupId: 'workspace' },
     { sectionId: 'tasks', groupId: 'ai' },
     { sectionId: 'sidechat', groupId: 'ai' },
   ]))
@@ -140,7 +140,7 @@ function assertLiveSettingsRegistrations(ctx: Context, slots: SlotRegistry, face
     })
     expect(slots.entries('settings.section.icon').map(icon => icon.options.key)).toContain('feature:fixture-notes')
     expect(slots.entries('settings.section.extension')).toEqual(extensions)
-    expect(ctx.settingsMetadata.getSnapshot().sections).toContainEqual({ sectionId: 'feature:fixture-notes', groupId: 'extensions' })
+    expect(ctx.settingsMetadata.getSnapshot().sections).toContainEqual({ sectionId: 'feature:fixture-notes', groupId: 'capabilities' })
     expect(ctx.settingsMetadata.getSnapshot().items.filter(item => item.sectionId === 'feature:fixture-notes'))
       .toEqual([
         expect.objectContaining({ anchorId: 'better-sidebar-fixture-notes-enabled' }),

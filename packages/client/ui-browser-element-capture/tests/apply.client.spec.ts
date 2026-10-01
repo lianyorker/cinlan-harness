@@ -20,7 +20,7 @@ async function bench(withBrowser = true) {
   const locale = new LocaleRuntime(ctx)
   locale.setLocale('zh')
   ctx.provide('locale', locale)
-  const addImageDraft = vi.fn((_image: any) => true)
+  const addImageDraft = vi.fn((_image: unknown) => true)
   ctx.provide('conversation', { addImageDraft } as never)
   const sessions = { scope: vi.fn((id: SessionId): Context | undefined => id === 'source' ? scope : undefined) }
   ctx.provide('sessions', sessions as never)
@@ -58,7 +58,7 @@ describe('ui-browser-element-capture registration', () => {
     await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toHaveLength(1) })
     const section = b.slots.entries('settings.section')[0]!
     expect(section.component).toBe(BrowserElementCaptureSection)
-    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'browser-element-capture', groupId: 'tools' }])
+    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'browser-element-capture', groupId: 'capabilities' }])
     expect(resolveSlotLabel(section.options.label)).toBe('元素捕获')
     expect(b.ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual([
       'capture-availability', 'capture-page', 'capture-selection', 'capture-image', 'capture-permissions',

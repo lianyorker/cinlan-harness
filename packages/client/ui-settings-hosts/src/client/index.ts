@@ -47,7 +47,7 @@ export function apply(ctx: Context): void {
   ctx.effect(() => runtimes.dispose)
   ctx.effect(() => observation.dispose)
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'hosts', groupId: 'experimental' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'hosts', groupId: 'capabilities', heading: 'shell' })
     yield ctx.settingsMetadata.registerItems('hosts', ITEMS.map(([id, title, description]) => ({
       id, anchorId: id, title: () => t(title), description: () => t(description), keywords: () => [t('searchTerms')],
     })))

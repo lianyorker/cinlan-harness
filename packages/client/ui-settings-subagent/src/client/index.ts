@@ -17,7 +17,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: the ctx.remote Context merge and the forwarded-event key face.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { SubagentCard } from './SubagentCard.tsx'
+import { SubagentCard, SubagentSettingsSection } from './SubagentCard.tsx'
 import { subagentCardFace } from './subagent-card-controller.ts'
 import { SubagentLimitsCardController } from './subagent-limits-card-controller.ts'
 import {
@@ -50,7 +50,7 @@ export const NS = 'settings.subagent'
 export const SUBAGENT_NS = 'subagent'
 
 /** Required services (cordis fiber inject). */
-export const inject = ['slots', 'locale', 'remote', 'remote.session', 'configForms']
+export const inject = ['slots', 'locale', 'remote', 'remote.session', 'configForms', 'settingsMetadata']
 
 /**
  * Mount the Subagent settings page while the Host serves either of its namespaces.
@@ -90,4 +90,16 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: () => subagentCardFace(limitsFace, modelsFace),
   }, SubagentCard))), 'ui-settings-subagent: page')
+  ctx.effect(() => ctx.configForms.whileServed([SUBAGENT_NS, SUBAGENT_MODEL_SELECTION_NS], () =>
+    ctx.slots.inject('settings.section', function* () {
+      yield ctx.settingsMetadata.registerSection({ sectionId: 'subagent', groupId: 'ai', heading: 'shell' })
+      yield ctx.settingsMetadata.registerItems('subagent', [{
+        id: 'subagent-settings', anchorId: 'subagent-settings', title: () => t('nav'), description: () => t('subagentDescription'),
+      }])
+      yield ctx.slots.register({
+        name: 'settings.section', id: 'subagent', order: 41, label: () => t('nav'), locale: NS,
+        inject: () => subagentCardFace(limitsFace, modelsFace),
+      }, SubagentSettingsSection)
+    })), 'ui-settings-subagent: settings page')
+
 }

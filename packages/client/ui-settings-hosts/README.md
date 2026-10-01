@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Manage saved SSH targets from Settings → Experimental → Execution hosts. Add a label and an existing OpenSSH alias, then explicitly connect to inspect exported directories. Configure an explicit pinned SSH endpoint to detect, install or update an execution runtime. The current local Host remains a read-only process record. Existing Workspaces and Sessions retain their captured execution binding.
+Manage saved SSH targets from Settings → Capabilities & connections → Execution hosts. Add a label and an existing OpenSSH alias, then explicitly connect to inspect exported directories. Configure an explicit pinned SSH endpoint to detect, install or update an execution runtime. The current local Host remains a read-only process record. Existing Workspaces and Sessions retain their captured execution binding.
 
 ## Table of Contents
 

@@ -33,7 +33,7 @@ export function apply(ctx: Context): void {
   const observation = observePairing(ctx.remote.pairing)
   ctx.effect(() => observation.dispose)
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'phone-pairing', groupId: 'personal' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'phone-pairing', groupId: 'capabilities', heading: 'shell' })
     yield ctx.settingsMetadata.registerItems('phone-pairing', (['listener', 'invitation', 'devices'] as const).map(id => ({
       id, anchorId: id, title: () => t(id), description: () => t('description'), keywords: () => [t('searchTerms')],
     })))

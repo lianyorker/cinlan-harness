@@ -38,7 +38,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Services required by account settings. */
-export const inject = ['slots', 'locale', 'remote', 'remote.account', 'remote.session', 'theme', 'configForms']
+export const inject = ['slots', 'locale', 'remote', 'remote.account', 'remote.session', 'theme', 'configForms', 'settingsMetadata']
 /** Register account UI only in the Desktop renderer. @param ctx - client plugin context. */
 export function apply(ctx: Context): void {
   if (!('clhDesktop' in globalThis || 'dshDesktop' in globalThis)) return
@@ -294,7 +294,8 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('settings.launcher', () => ctx.slots.register({
     name: 'settings.launcher', locale: 'settings.account', inject: () => operations,
   }, AccountMenu))
-  ctx.slots.inject('settings.section', () => {
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'account', groupId: 'personal', heading: 'shell' })
     let unregister: (() => void) | undefined
     const update = () => {
       if (snapshot.view?.status === 'credential-stored') {
@@ -309,6 +310,6 @@ export function apply(ctx: Context): void {
     }
     listeners.add(update)
     update()
-    return () => { listeners.delete(update); unregister?.() }
+    yield () => { listeners.delete(update); unregister?.() }
   })
 }

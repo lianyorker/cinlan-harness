@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-mcp/README.md
-README.md: b52a97f1a221426151b238f43c6acd76e7ff8fcb
-README.zh.md: 76ca477bd0297e81322c1fa6837c3ae240691516
+/:
+  en: d15963dab4ebb7b2
+  zh: e5717e81ecffb356
+/deepseek-ai-dsh-client-ui-settings-mcp:
+  en: 6ba6f9819727d227
+  zh: 8e2801429e74acc3
+/deepseek-ai-dsh-client-ui-settings-mcp/summary:
+  en: 5e574623136dbe26
+  zh: 02ae85cee37f3fd0
+/deepseek-ai-dsh-client-ui-settings-mcp/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 48b5d57734df94ad
+/deepseek-ai-dsh-client-ui-settings-mcp/use-this-package:
+  en: e8a4d2bf3771ba46
+  zh: b6248851f29c8fef
+/deepseek-ai-dsh-client-ui-settings-mcp/use-this-package/composition:
+  en: 07b4dcfde0c8e9e3
+  zh: f76f9568461f5c40
+/deepseek-ai-dsh-client-ui-settings-mcp/use-this-package/edit-and-inspect-servers:
+  en: afab3149a1028304
+  zh: cbaebdce9283d8b5
+/deepseek-ai-dsh-client-ui-settings-mcp/understand-the-implementation:
+  en: 3afda41f81cc1ea5
+  zh: 84a64aa4031f5747
+/deepseek-ai-dsh-client-ui-settings-mcp/further-exploration:
+  en: e754976ca7a79e51
+  zh: f590fe9af3eb88f7
+/deepseek-ai-dsh-client-ui-settings-mcp/model-experience:
+  en: 0781bd4fb8a9744c
+  zh: ac6edd58cc848d57
+/deepseek-ai-dsh-client-ui-settings-mcp/model-experience/kv-cache-effect:
+  en: a2643a3c18b6016d
+  zh: a5819cbee58eb616
+/deepseek-ai-dsh-client-ui-settings-mcp/known-limitations-and-deferred-work:
+  en: dffb9eb01519f313
+  zh: 3664233ddbdde1f3
+/deepseek-ai-dsh-client-ui-settings-mcp/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: e88aeb617ffb74ea

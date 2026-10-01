@@ -1,6 +1,7 @@
 /** The agent loop's settings page: how many tool calls one step may run at once. */
 
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { SettingsForm, SettingsValueField } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { formLabels } from './locales.ts'
@@ -38,4 +39,14 @@ export function AgentLoopCard(props: AgentLoopCardProps) {
       />
     </SettingsForm>
   )
+}
+
+/**
+ * Render the existing form at its product settings destination.
+ * @param props - Settings owner, locale, and the existing form controller face.
+ * @returns the native form with its search anchor.
+ */
+export function AgentLoopSettingsSection(props: PropsRuntime<'settings.section'>
+  & PropsLocale<'settings.agentLoop'> & InjectFace<AgentLoopCardFace>) {
+  return <div data-settings-anchor="agent-loop-settings"><AgentLoopCard {...props} view="page" /></div>
 }

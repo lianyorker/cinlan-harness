@@ -35,7 +35,10 @@ async function bench(served?: string[]) {
 function declareRoot(slots: SlotRegistry): () => void {
   return slots.register({
     name: 'root',
-    children: { 'plugins.item': { kind: 'list', scope: 'root' } },
+    children: {
+      'plugins.item': { kind: 'list', scope: 'root' },
+      'settings.section': { kind: 'list', scope: 'root' },
+    },
   } as never, () => null)
 }
 
@@ -45,7 +48,7 @@ describe('ui-settings-agent-loop apply', () => {
   })
 
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale', 'configForms'])
+    expect(inject).toEqual(['slots', 'locale', 'configForms', 'settingsMetadata'])
   })
 
   it('registers the page while the Host serves the namespace, titled in the active locale', async () => {
@@ -55,6 +58,9 @@ describe('ui-settings-agent-loop apply', () => {
     await ctx.plugin({ inject: [...inject], apply }).await()
 
     await vi.waitFor(() => { expect(slots.entries('plugins.item')).toHaveLength(1) })
+    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'agent-loop', groupId: 'ai', heading: 'shell' }])
+    expect(slots.entries('settings.section')).toHaveLength(1)
+    expect(ctx.settingsMetadata.getSnapshot().items[0]?.anchorId).toBe('agent-loop-settings')
     const entry = slots.entries('plugins.item')[0]!
     expect(entry.options).toMatchObject({ id: 'agent-loop', order: 20 })
     expect(resolveSlotLabel(entry.options.label)).toBe('Agent 循环')
@@ -69,6 +75,8 @@ describe('ui-settings-agent-loop apply', () => {
     await ctx.plugin({ inject: [...inject], apply }).await()
     await vi.waitFor(() => { expect(describeSettings).toHaveBeenCalled() })
     expect(slots.entries('plugins.item')).toHaveLength(0)
+    expect(slots.entries('settings.section')).toHaveLength(0)
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
 
     describeSettings.mockResolvedValue({
       ok: true, value: { writable: true, hasDocument: true, namespaces: [view('agent-loop', 1)] },
@@ -91,5 +99,7 @@ describe('ui-settings-agent-loop apply', () => {
     await fiber.dispose()
 
     expect(slots.entries('plugins.item')).toHaveLength(0)
+    expect(slots.entries('settings.section')).toHaveLength(0)
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
   })
 })

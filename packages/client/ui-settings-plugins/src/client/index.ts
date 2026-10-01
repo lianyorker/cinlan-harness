@@ -26,7 +26,7 @@ export type { PluginsSettingsSectionInjected, PluginsSettingsSectionProps } from
 const NS = 'settings.plugins'
 
 /** Required services (cordis fiber inject). */
-export const inject = ['slots', 'locale']
+export const inject = ['slots', 'locale', 'settingsMetadata']
 
 /**
  * Mount the built-in plugins section.
@@ -73,13 +73,16 @@ export function apply(ctx: ClientContext): void {
 
   // This package owns the one Built-in plugins navigation entry and the tab
   // chrome; feature plugins contribute pages without competing for Settings nav rows.
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'plugins',
-    order: 15,
-    label: () => t('nav'),
-    locale: NS,
-    inject: sectionInjected,
-    children: { 'settings.plugins.tab': { kind: 'list', scope: 'root' } },
-  }, PluginsSettingsSection))
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'plugins', groupId: 'advanced', heading: 'shell' })
+    yield ctx.slots.register({
+      name: 'settings.section',
+      id: 'plugins',
+      order: 15,
+      label: () => t('nav'),
+      locale: NS,
+      inject: sectionInjected,
+      children: { 'settings.plugins.tab': { kind: 'list', scope: 'root' } },
+    }, PluginsSettingsSection)
+  })
 }

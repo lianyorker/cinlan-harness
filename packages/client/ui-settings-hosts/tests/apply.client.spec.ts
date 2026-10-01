@@ -4,7 +4,8 @@ import { fireEvent } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
-import { RemoteError, SlotTestRuntime, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
+import { RemoteError, SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
+import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as hostApply } from '../src/index.ts'
 import { HostsSection } from '../src/client/HostsSection.tsx'
@@ -29,8 +30,9 @@ async function bench() {
   ctx.provide('locale', locale)
   slots.installLocale(locale)
   locale.setLocale('en')
+  new SettingsMetadataService(ctx)
   const fixture = remoteFixture()
-  new TestRemote(ctx, { executionHosts: fixture.remote })
+  runtime.remote.provideNamespaces({ executionHosts: fixture.remote })
   return { runtime, ctx, locale, slots, ...fixture }
 }
 async function declare(runtime: SlotTestRuntime): Promise<void> {
@@ -57,7 +59,7 @@ describe('native hosts registration', () => {
     expect(entry.component).toBe(HostsSection)
     expect(entry.options).toMatchObject({ id: 'hosts', order: 140 })
     expect(resolveSlotLabel(entry.options.label)).toBe('Execution hosts')
-    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'hosts', groupId: 'experimental' }])
+    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'hosts', groupId: 'capabilities', heading: 'shell' }])
     expect(b.ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual(['current', 'hosts', 'ssh-alias', 'inspection', 'runtime', 'default', 'confirmSwitch', 'isolation'])
     expect(b.slots.entries('settings.section.icon')).toHaveLength(1)
     b.locale.setLocale('zh')

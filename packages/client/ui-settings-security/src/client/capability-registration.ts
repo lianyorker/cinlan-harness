@@ -35,7 +35,7 @@ export function registerCapabilitySection(
   inject: () => CapabilitySectionInjected,
 ): () => void {
   const section = ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: `cinlan-${definition.id}`, groupId: 'tools' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: `cinlan-${definition.id}`, groupId: 'capabilities' })
     yield ctx.settingsMetadata.registerItems(`cinlan-${definition.id}`, [
       ...CAPABILITY_FIELDS[definition.id].map(field => ({
         id: field.title,

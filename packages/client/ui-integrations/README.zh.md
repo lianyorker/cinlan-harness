@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-开发设置组中的集成页面检查 GitHub、GitLab 与 Gitee 在 Host 上的真实就绪状态。它显示提供方状态和可用的账号提示，不安装工具、不认证账号，也不更改凭据。
+能力与连接设置组中的集成页面检查 GitHub、GitLab 与 Gitee 在 Host 上的真实就绪状态。它显示提供方状态和可用的账号提示，不安装工具、不认证账号，也不更改凭据。
 
 ## 目录
 
@@ -32,7 +32,7 @@ kind: "package-reference"
 
 [预检控制器](../../api/integration-preflight-controller/src/index.ts)通过 `gh auth status` 检查 GitHub，通过 `glab auth status` 检查 GitLab，并通过用户端点检查 Gitee。组件为每轮检查拥有一个 AbortController；替换回调、刷新或离开页面会取消已结束使用的检查轮次，并忽略迟到结果。
 
-分区 id 保持为 `integrations`，顺序为 40。其 UI、开发组元数据与四条搜索描述共享一个 `slots.inject` 生命周期；标签跟随当前语言，不索引实时账号数据。
+分区 id 保持为 `integrations`，顺序为 40。其 UI、能力与连接组元数据与四条搜索描述共享一个 `slots.inject` 生命周期；标签跟随当前语言，不索引实时账号数据。
 
 不发布运行时不变量伴随插件：就绪状态由 Host 控制器拥有，此页面渲染可释放的请求快照。
 
@@ -49,4 +49,4 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-状态在打开页面和显式刷新全部时更新；页面不订阅外部认证变化。CLI 安装指导包含现有 Windows 命令。视觉参考中的 Linear 连接、添加连接流程与启动时验证偏好没有对应操作或设置，因此这里不提供这些功能。
+- 状态在打开页面和显式刷新全部时更新；页面不订阅外部认证变化。CLI 安装指导包含现有 Windows 命令。视觉参考中的 Linear 连接、添加连接流程与启动时验证偏好没有对应操作或设置，因此这里不提供这些功能。

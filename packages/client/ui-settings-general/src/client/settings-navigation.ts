@@ -4,7 +4,7 @@ import type { SettingsSectionRow } from './shell-contract.ts'
 
 /** Product group order; empty groups do not create unavailable pages. */
 export const SETTINGS_GROUPS: readonly SettingsGroupId[] = [
-  'personal', 'ai', 'development', 'tools', 'extensions', 'experimental',
+  'personal', 'ai', 'workspace', 'capabilities', 'advanced',
 ]
 
 /** One page or field match, with the owning section and optional focus target. */

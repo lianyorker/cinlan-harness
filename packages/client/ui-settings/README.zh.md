@@ -41,6 +41,8 @@ kind: "package-reference"
 
 设置界面会注册进本包声明的 slot 类型。外壳（`sidebar.settings` 占位方、导航、界面框架）位于 ui-settings-general；功能页面注册 `settings.section` 贡献；「插件」分区承载 `settings.plugins.tab` 页面；首次使用引导步骤注册 `settings.onboarding`。跨命名空间的表面（schema 内省、已服务命名空间目录、`hasDocument`）通过 `ctx.configForms.describe()` 读同一面镜像。
 
+每个页面都在分区 slot 旁通过 `ctx.settingsMetadata` 登记产品分组、标题所有者和公开搜索锚点。外壳使用这些元数据完成导航和定位，不读取偏好值，也不导入功能控件。
+
 ### 可观察的成功与失败
 
 已提交的写入将应答合入共享镜像。被拒绝的写入刷新最新 Host 值。浏览器使用序列化的 Config schema 校验；Host 校验完整配置，包括无法序列化的检查。
@@ -79,7 +81,7 @@ kind: "package-reference"
 以下页面覆盖设置界面家族及其背后的持久化 seam。
 
 - [ui-settings-general](../ui-settings-general/README.zh.md)——设置外壳：触发控件、导航、「通用」分区、引导投影。
-- [ui-settings-plugins](../ui-settings-plugins/README.zh.md)——围绕清单标签页的「内置插件」分区壳。
+- [ui-settings-plugins](../ui-settings-plugins/README.zh.md)——围绕清单标签页的「运行诊断」分区壳。
 - [ui-settings-shell](../ui-settings-shell/README.zh.md)、[ui-settings-agent-loop](../ui-settings-agent-loop/README.zh.md)、[ui-settings-subagent](../ui-settings-subagent/README.zh.md)、[ui-settings-web-search](../ui-settings-web-search/README.zh.md)——插件页上的官方配置页，各自通过 `whileServed` 跟随其命名空间。
 - [ui-settings-models](../ui-settings-models/README.zh.md)——建立在本底座之上的 Models 页面与 DeepSeek 引导。
 - [settings](../../settings/README.zh.md)——持久化用户设置 seam 及其文件提供方。

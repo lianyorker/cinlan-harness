@@ -41,6 +41,8 @@ A page that edits a namespace another plugin owns registers through `ctx.configF
 
 A settings surface registers into the slot types this package declares. The shell (`sidebar.settings` occupant, navigation, chrome) lives in ui-settings-general; feature pages register `settings.section` contributions; the Plugins section hosts `settings.plugins.tab` pages; onboarding steps register `settings.onboarding`. Cross-namespace surfaces (schema introspection, the served-namespace directory, `hasDocument`) read the same mirror through `ctx.configForms.describe()`.
 
+Each page registers its product group, heading owner, and public search anchors through `ctx.settingsMetadata` beside its section slot. The shell uses that metadata for navigation and focus without reading preference values or importing feature controls.
+
 ### Observable success and failures
 
 A committed write folds its answer into the shared mirror. Refused writes refresh the latest Host values. Browser validation uses the serialized Config schema; the Host validates complete configuration, including checks that cannot be serialized.
@@ -79,7 +81,7 @@ The provider owns one controller per Host entry, including its subscription and 
 These pages cover the settings surface family and the durable seam behind it.
 
 - [ui-settings-general](../ui-settings-general/README.md) — the settings shell: trigger chrome, navigation, General section, onboarding projection.
-- [ui-settings-plugins](../ui-settings-plugins/README.md) — the Built-in plugins section shell around the inventory tab.
+- [ui-settings-plugins](../ui-settings-plugins/README.md) — the Runtime diagnostics section shell around the inventory tab.
 - [ui-settings-shell](../ui-settings-shell/README.md), [ui-settings-agent-loop](../ui-settings-agent-loop/README.md), [ui-settings-subagent](../ui-settings-subagent/README.md), [ui-settings-web-search](../ui-settings-web-search/README.md) — the official configuration pages on the Plugins page, each following its namespaces through `whileServed`.
 - [ui-settings-models](../ui-settings-models/README.md) — the Models page and DeepSeek onboarding over this base.
 - [settings](../../settings/README.md) — the durable user-settings seam and its file provider.

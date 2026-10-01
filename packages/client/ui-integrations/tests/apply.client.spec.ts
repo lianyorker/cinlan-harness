@@ -53,7 +53,7 @@ describe('ui-integrations registration', () => {
     await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toHaveLength(1) })
     const section = b.slots.entries('settings.section')[0]!
     expect(section.component).toBe(IntegrationsSection)
-    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'integrations', groupId: 'development' }])
+    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'integrations', groupId: 'capabilities' }])
     expect(section.options).toMatchObject({ id: 'integrations', order: 40 })
     expect(section.locale).toBe('settings.integrations')
     expect(resolveSlotLabel(section.options.label)).toBe(zh.nav)

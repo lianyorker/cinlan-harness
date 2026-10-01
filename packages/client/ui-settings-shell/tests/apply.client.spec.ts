@@ -42,7 +42,10 @@ async function bench(served?: string[]) {
 function declareRoot(slots: SlotRegistry): () => void {
   return slots.register({
     name: 'root',
-    children: { 'plugins.item': { kind: 'list', scope: 'root' } },
+    children: {
+      'plugins.item': { kind: 'list', scope: 'root' },
+      'settings.section': { kind: 'list', scope: 'root' },
+    },
   } as never, () => null)
 }
 
@@ -52,7 +55,7 @@ describe('ui-settings-shell apply', () => {
   })
 
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale', 'configForms'])
+    expect(inject).toEqual(['slots', 'locale', 'configForms', 'settingsMetadata'])
   })
 
   it('registers the shell page while the Host serves the namespace, titled in the active locale', async () => {
@@ -62,6 +65,9 @@ describe('ui-settings-shell apply', () => {
     await ctx.plugin({ inject: [...inject], apply }).await()
 
     await vi.waitFor(() => { expect(slots.entries('plugins.item')).toHaveLength(1) })
+    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'shell', groupId: 'ai', heading: 'shell' }])
+    expect(slots.entries('settings.section')).toHaveLength(1)
+    expect(ctx.settingsMetadata.getSnapshot().items[0]?.anchorId).toBe('shell-settings')
     const entry = slots.entries('plugins.item')[0]!
     expect(entry.options).toMatchObject({ id: 'shell', order: 10 })
     expect(resolveSlotLabel(entry.options.label)).toBe('终端')
@@ -78,6 +84,8 @@ describe('ui-settings-shell apply', () => {
     await ctx.plugin({ inject: [...inject], apply }).await()
     await vi.waitFor(() => { expect(describeSettings).toHaveBeenCalled() })
     expect(slots.entries('plugins.item')).toHaveLength(0)
+    expect(slots.entries('settings.section')).toHaveLength(0)
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
 
     describeSettings.mockResolvedValue({
       ok: true, value: { writable: true, hasDocument: true, namespaces: [view('bash-sandbox', 1)] },
@@ -118,5 +126,7 @@ describe('ui-settings-shell apply', () => {
     await fiber.dispose()
 
     expect(slots.entries('plugins.item')).toHaveLength(0)
+    expect(slots.entries('settings.section')).toHaveLength(0)
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
   })
 })

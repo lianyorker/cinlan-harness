@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 组合
 
-此包作为 Cordis 插件条目挂载。Node 入口没有主机行为；浏览器入口向实验分组添加 `mcp` 页面。控制器与管理器负责连接和持久化行为。
+此包作为 Cordis 插件条目挂载。Node 入口没有主机行为；浏览器入口向能力与连接分组添加 `mcp` 页面。控制器与管理器负责连接和持久化行为。
 
 ```yaml
 - name: "@deepseek-ai/dsh-client-ui-settings-mcp"

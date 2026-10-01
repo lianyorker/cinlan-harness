@@ -36,7 +36,7 @@ export function apply(ctx: ClientContext): void {
   const settings = ctx.settingsScope.bind<GitSourceControlSettings>({ namespace: GIT_SETTINGS_NAMESPACE })
 
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'git-source-control', groupId: 'development' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'git-source-control', groupId: 'workspace' })
     yield ctx.settingsMetadata.registerItems('git-source-control', [
       { id: 'branch-prefix', anchorId: 'git-branch-prefix', title: () => t('branchPrefixTitle'),
         description: () => t('branchPrefixDescription'), keywords: () => [t('branchPrefixGitUsername'), t('branchPrefixNone')] },

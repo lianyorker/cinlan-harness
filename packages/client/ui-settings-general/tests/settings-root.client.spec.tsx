@@ -21,8 +21,13 @@ beforeEach(() => {
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-type Row = Pick<SettingsSectionRow, 'id' | 'order' | 'label'> & Partial<Pick<SettingsSectionRow, 'groupId' | 'items'>>
-const resolveRows = (rows: Row[]): SettingsSectionRow[] => rows.map(row => ({ ...row, groupId: row.groupId ?? (row.id === 'general' ? 'personal' : 'ai'), items: row.items ?? [] }))
+type Row = Pick<SettingsSectionRow, 'id' | 'order' | 'label'> & Partial<Pick<SettingsSectionRow, 'groupId' | 'heading' | 'items'>>
+const resolveRows = (rows: Row[]): SettingsSectionRow[] => rows.map(row => ({
+  ...row,
+  groupId: row.groupId ?? (row.id === 'general' ? 'personal' : 'ai'),
+  heading: row.heading ?? 'feature',
+  items: row.items ?? [],
+}))
 type Step = { id: string; order: number }
 
 /** Slot-content stand-ins: the shell renders whatever the seats contribute. */
@@ -33,11 +38,13 @@ const SEAT_CONTENT: Record<string, string> = {
   'settings.close': 'Back to app',
 }
 
-// Global standard kit stubs: SettingsRoot does not consume these hooks.
+// Global standard kit stubs: SettingsRoot consumes only the Session list; the
+// remaining standard hooks keep this direct component fixture on the current
+// slot contract.
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
-type AttentionSnapshot = Parameters<Parameters<GlobalStandardProps['useSessionPendingInteraction']>[0]>[0]
-const noAttention: AttentionSnapshot = new Map()
-const useSessionPendingInteraction: GlobalStandardProps['useSessionPendingInteraction'] = selector => selector(noAttention)
+const usePanelInfo: GlobalStandardProps['usePanelInfo'] = selector => selector({ activePanelId: null })
+const useSessionStatus = (() => new Map()) as GlobalStandardProps['useSessionStatus']
+const useSessionRetainInfo = (() => undefined) as GlobalStandardProps['useSessionRetainInfo']
 
 function DraftControl() {
   const [value, setValue] = useState('')
@@ -48,7 +55,7 @@ function mount({
   wide = true,
   onboardingActive = true,
   rows = [
-    { id: 'general', order: 0, label: 'General' },
+    { id: 'general', order: 0, label: 'General', heading: 'shell' },
     { id: 'models', order: 10, label: 'Models' },
     { id: 'agent-presets', order: 20, label: 'Agent presets' },
   ],
@@ -77,18 +84,19 @@ function mount({
     }) as SettingsRootComponentProps['renderSlot'],
   )
   const useSessions = ((select: (state: unknown) => unknown) => select(onboardingActive
-    ? { phase: 'ready', current: undefined, byId: {} }
+    ? { phase: 'ready', byId: {} }
     : {
       phase: 'ready',
-      current: 'active-session',
-      byId: { 'active-session': { blank: false } },
+      byId: { 'active-session': { blank: false, retainedBy: { mainView: 1 } } },
     })) as never
   const unusedHook = (() => { throw new Error('unused by SettingsRoot') }) as never
   const props: SettingsRootComponentProps = {
     useSessions,
-    useSessionPendingInteraction,
     useResource,
     useWorkspaces: unusedHook,
+    usePanelInfo,
+    useSessionStatus,
+    useSessionRetainInfo,
     wide,
     useOnboardingSteps: select => select(steps),
     useNarrowViewport: select => select(false),
@@ -283,7 +291,7 @@ describe('SettingsPage navigation', () => {
     fireEvent.change(search, { target: { value: 'AGENT' } })
     expect(screen.getByRole('button', { name: 'General' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBeNull()
-    expect(screen.getByRole('button', { name: 'AI & models / Agent presets Agent presets' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Agents / Agent presets Agent presets' })).toBeTruthy()
     expect(screen.queryByTestId('section-agent-presets')).toBeNull()
 
     fireEvent.change(search, { target: { value: '' } })
@@ -318,7 +326,7 @@ describe('SettingsPage navigation', () => {
   it('groups live pages and preserves the active section while a group is collapsed', () => {
     mount()
     openPage()
-    const group = screen.getByRole('button', { name: 'Personal preferences' })
+    const group = screen.getByRole('button', { name: 'Personal' })
     fireEvent.click(group)
     expect(group.getAttribute('aria-expanded')).toBe('false')
     expect(screen.queryByRole('button', { name: 'General' })).toBeNull()
@@ -337,7 +345,7 @@ describe('SettingsPage navigation', () => {
     const search = screen.getByRole('searchbox')
     expect(document.activeElement).toBe(search)
     fireEvent.change(search, { target: { value: 'dark mode' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Personal preferences / General Appearance Choose a theme' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Personal / General Appearance Choose a theme' }))
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Choose appearance' }))
     const sectionCalls = renderSlot.mock.calls.filter(call => call[0] === 'settings.section')
     expect(sectionCalls.at(-1)?.[1]).toMatchObject({ target: { itemId: 'appearance', anchorId: 'appearance' } })

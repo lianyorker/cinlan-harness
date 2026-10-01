@@ -5,6 +5,7 @@
  */
 
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { SettingsForm, SettingsSecretField, SettingsValueField } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { formLabels } from './locales.ts'
@@ -69,4 +70,14 @@ export function WebSearchCard(props: WebSearchCardProps) {
       />
     </SettingsForm>
   )
+}
+
+/**
+ * Render the existing form at its product settings destination.
+ * @param props - Settings owner, locale, and the existing form controller face.
+ * @returns the native form with its search anchor.
+ */
+export function WebSearchSettingsSection(props: PropsRuntime<'settings.section'>
+  & PropsLocale<'settings.webSearch'> & InjectFace<WebSearchCardFace>) {
+  return <div data-settings-anchor="web-search-settings"><WebSearchCard {...props} view="page" /></div>
 }

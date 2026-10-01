@@ -31,7 +31,7 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
 
-async function load() {
+async function load(panel = true) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-automation-ui-'))
   roots.push(root)
   const config = join(root, 'cordis.yml')
@@ -60,6 +60,7 @@ async function load() {
   const generation = { id: 1, host: { home: '/fixture' } }
   const connection = { isLoopback: true, generation: { getSnapshot: () => generation, subscribe: () => () => {} } }
   const opened = vi.fn()
+  const selectPanel = vi.fn()
   let locale!: LocaleRuntime
   const host = { apply(context: Context) {
     locale = new LocaleRuntime(context)
@@ -67,6 +68,8 @@ async function load() {
     context.provide('locale', locale)
     new SettingsMetadataService(context)
     context.provide('sessions', { open: opened } as never)
+    context.provide('uiWorkspace', { openSession: opened } as never)
+    context.provide('layout', { selectPanel } as never)
     context.provide('connection', connection as never)
     context.provide('remote', { automation: remote, $stream: <T,>(options: RemoteStreamOptions<T>) => new RemoteStream(connection, options) } as never)
     context.provide('remote.automation', remote as never)
@@ -85,14 +88,17 @@ async function load() {
   ctx.slots.install(createSlotRenderer())
   ctx.slots.installLocale(locale)
   const absent = { key: undefined, hooks: {}, keyedHooks: {}, props: {} }
-  ctx.slots.installScope('session', { current: { getSnapshot: () => absent, subscribe: () => () => {} }, bindingSource: () => undefined as any, renderArea: () => null } as any)
+  ctx.slots.installScope('session', { current: { getSnapshot: () => absent, subscribe: () => () => {} }, bindingSource: () => undefined as never, renderArea: () => null } as never)
   await vi.waitFor(() => { expect(ctx.automationClient.getSnapshot().catalogLoading).toBe(false) })
   const owner = { inject: ['slots'], apply(context: Context) {
     context.effect(() => context.slots.register({ name: 'root', children: {
       'settings.section': { kind: 'list', scope: 'root' }, 'settings.section.icon': { kind: 'keyed', scope: 'root' },
-    } } as never, (props: PropsRenderSlots<'settings.section' | 'settings.section.icon'>) => <>{props.renderSlot('settings.section', { close() {} })}</>))
+      'main': { kind: 'keyed', scope: 'root' }, 'sidebar.panellist': { kind: 'list', scope: 'root' },
+    } } as never, (props: PropsRenderSlots<'settings.section' | 'settings.section.icon' | 'main'>) =>
+      <>{panel ? props.renderSlot('main', {}, { entryKey: 'automation' }) : props.renderSlot('settings.section', { close: () => { closed() } })}</>))
   } }
-  return { ctx, remote, opened, locale, owner }
+  const closed = vi.fn()
+  return { ctx, remote, opened, selectPanel, closed, locale, owner }
 }
 
 describe('automation settings Loader composition', () => {
@@ -103,6 +109,7 @@ describe('automation settings Loader composition', () => {
     await owner.await()
     await vi.waitFor(() => { expect(b.ctx.slots.entries('settings.section')).toHaveLength(1) })
     const view = render(<>{b.ctx.slots.renderSlot('root', {})}</>)
+    expect(b.ctx.slots.entries('sidebar.panellist')[0]?.options.id).toBe('automation')
     await screen.findByRole('heading', { name: en.title, level: 1 })
     fireEvent.click(screen.getByRole('button', { name: en.run }))
     await waitFor(() => {
@@ -112,7 +119,8 @@ describe('automation settings Loader composition', () => {
     await screen.findByText(en.completedHelp)
     fireEvent.click(screen.getByRole('button', { name: en.openSession }))
     expect(b.opened).toHaveBeenCalledWith(run().sessionId)
-    const entry = b.ctx.slots.entries('settings.section')[0]!
+    expect(b.selectPanel).toHaveBeenCalledWith('conversation')
+    const entry = b.ctx.slots.entries('main')[0]!
     const injected = (entry.inject as unknown as () => AutomationInjected)()
     expect(injected.hooks.automation).toBe(b.ctx.automationClient.source)
     await injected.create(definitionDraft(definition()))
@@ -141,5 +149,19 @@ describe('automation settings Loader composition', () => {
     expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
     expect(b.ctx.slots.entries('settings.section')).toHaveLength(0)
     expect(b.ctx.slots.entries('settings.section.icon')).toHaveLength(0)
+    expect(b.ctx.slots.entries('main')).toHaveLength(0)
+    expect(b.ctx.slots.entries('sidebar.panellist')).toHaveLength(0)
+  })
+
+  it('opens the independent panel from Settings without starting a task', async () => {
+    const b = await load(false)
+    await b.ctx.plugin(b.owner).await()
+    const view = render(<>{b.ctx.slots.renderSlot('root', {})}</>)
+    fireEvent.click(await view.findAllByRole('button', { name: en.openAutomation }).then(buttons => buttons[0]!))
+    expect(b.selectPanel).toHaveBeenCalledWith('automation')
+    expect(b.closed).toHaveBeenCalledOnce()
+    expect(b.remote.run).not.toHaveBeenCalled()
+    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'automation', groupId: 'ai' }])
+    expect(view.container.textContent).toMatchSnapshot()
   })
 })

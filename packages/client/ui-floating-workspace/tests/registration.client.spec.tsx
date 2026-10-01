@@ -9,6 +9,7 @@ import { SlotTestRuntime, stubSettingsScope } from '@deepseek-ai/dsh-client-test
 import { KeyboardController } from '@deepseek-ai/dsh-client-keyboard/src/client/controller.ts'
 import type { KeybindingsSettings } from '@deepseek-ai/dsh-client-keyboard/client'
 import type { FloatingWorkspaceSettings } from '../src/types.ts'
+import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { FloatingWorkspaceSection } from '../src/client/FloatingWorkspaceSection.tsx'
 import { FloatingEntry } from '../src/client/FloatingEntry.tsx'
@@ -79,10 +80,11 @@ async function bench(values: Partial<FloatingWorkspaceSettings> = {}) {
     return floating.scope
   })
   await runtime.mount({ inject: ['slots'], apply(ctx: Context) {
+    new SettingsMetadataService(ctx)
     ctx.provide('locale', locale)
     ctx.slots.installLocale(locale)
     ctx.provide('keyboard', keyboard)
-    ctx.provide('uiWorkspace', { pickDirectory } as never)
+    ctx.provide('uiWorkspace', { pickDirectory, openSession: vi.fn() } as never)
     // The settings transport is the only service double; its snapshot and boolean mutation are driven explicitly.
     ctx.provide('settingsScope', { bind } as never)
     ctx.effect(() => () => { keyboard.dispose() }, 'test keyboard lifetime')
@@ -190,9 +192,11 @@ describe('Floating Workspace client registration unit composition', () => {
   it('renders the real header entry in the framework SessionProvider and opens the current catalog session', async () => {
     const h = await bench({ enabled: true })
     await h.runtime.sessions.add({ id: 'header-session' })
+    const reference = h.runtime.sessions.retain('header-session')
+    await reference.ready
     await h.runtime.root.declare({
       'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
-    }, ({ renderSlot, SessionProvider }) => <SessionProvider>{renderSlot('conversation.session.header.utilities', {})}</SessionProvider>)
+    }, ({ renderSlot, SessionProvider }) => <SessionProvider session={reference}>{renderSlot('conversation.session.header.utilities', {})}</SessionProvider>)
     await h.start()
     const view = h.runtime.renderRoot()
     fireEvent.click(view.getByRole('button', { name: en.toggle }))
@@ -281,10 +285,10 @@ describe('Floating Workspace client registration unit composition', () => {
     expect(h.keyboard.getSnapshot().commands).toEqual([])
     expect(h.runtime.slots.entries('conversation.session.header.utilities')).toEqual([])
     expect(overlay.view.queryByRole('button', { name: en.toggle })).toBeNull()
-    expect((h.runtime.sessions.calls as any[]).filter(call => call.method === 'open')).toEqual([])
+    expect((h.runtime.sessions.calls as readonly { method: string }[]).filter(call => call.method === 'open')).toEqual([])
     await act(async () => { h.runtime.sessions.list.update((state) => { state.phase = 'ready' }) })
-    await act(async () => { h.runtime.sessions.list.update((state) => { (state as any).current = other }) })
-    expect((h.runtime.sessions.calls as any[]).filter(call => call.method === 'open')).toEqual([])
+    await act(async () => { h.runtime.sessions.list.update((state) => { (state as unknown as { current: unknown }).current = other }) })
+    expect((h.runtime.sessions.calls as readonly { method: string }[]).filter(call => call.method === 'open')).toEqual([])
     fireEvent.keyDown(window, { key: ' ', ctrlKey: true, shiftKey: true })
     expect(h.open).not.toHaveBeenCalled()
     fireEvent.click(sidebar.view.getByRole('button', { name: en.close }))

@@ -21,7 +21,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const NS = 'settings.integrations'
 
 /** Required services: the Remote namespaces the preflight checker reads through. */
-export const inject = ['settingsMetadata', 'slots', 'locale', 'remote']
+export const inject = ['settingsMetadata', 'slots', 'locale', 'remote', 'remote.integrationPreflight']
 
 /**
  * Register the Integrations settings section.
@@ -41,7 +41,7 @@ export function apply(ctx: ClientContext): void {
   }
 
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'integrations', groupId: 'development' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'integrations', groupId: 'capabilities' })
     yield ctx.settingsMetadata.registerItems('integrations', [
       { id: 'github', anchorId: 'integrations-github', title: () => t('githubTitle'), description: () => t('githubDescription') },
       { id: 'gitlab', anchorId: 'integrations-gitlab', title: () => t('gitlabTitle'), description: () => t('gitlabDescription') },

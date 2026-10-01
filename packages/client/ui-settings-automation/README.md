@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Manage recurring tasks from Settings → Experimental → Automation. Create a disabled draft, choose existing resources, and explicitly enable its schedule or run it once. Inspect recorded runs and open their Sessions to verify the actual task result. All displayed schedule and journal times use UTC.
+Manage recurring tasks from the Sidebar Automation panel or Settings → Agents → Automation. The Settings row opens the panel; the panel owns drafts, execution controls, run evidence, and Session navigation. Create a disabled draft, choose existing resources, and explicitly enable its schedule or run it once. All displayed schedule and journal times use UTC.
 
 ## Table of Contents
 

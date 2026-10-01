@@ -60,7 +60,7 @@ export { AGENT_PRESET_SETTINGS_NS, writeDefaultPreset } from './settings-store.t
 
 /** Required services (cordis fiber inject). */
 export const inject = [
-  'slots', 'sessions', 'locale', 'remote', 'remote.agentPresets', 'remote.settings', 'configForms',
+  'slots', 'sessions', 'locale', 'remote', 'remote.agentPresets', 'remote.settings', 'configForms', 'settingsMetadata',
 ]
 
 /**
@@ -220,12 +220,15 @@ export function apply(ctx: ClientContext): void {
 
   // Ordered after Models: choosing a model is routine, and composing an
   // agent is the deployment-shaping act behind it.
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'agent-presets',
-    order: 20,
-    label: () => ctx.locale.bind('settings.agentPreset')('nav'),
-    locale: 'settings.agentPreset',
-    inject: sectionInjected,
-  }, AgentPresetSection))
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'agent-presets', groupId: 'ai', heading: 'shell' })
+    yield ctx.slots.register({
+      name: 'settings.section',
+      id: 'agent-presets',
+      order: 20,
+      label: () => ctx.locale.bind('settings.agentPreset')('nav'),
+      locale: 'settings.agentPreset',
+      inject: sectionInjected,
+    }, AgentPresetSection)
+  })
 }

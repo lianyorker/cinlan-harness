@@ -1,6 +1,7 @@
 /** The shell executor's settings page: the limits every command the agent runs is bound by. */
 
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { SettingsForm, SettingsValueField } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { formLabels } from './locales.ts'
@@ -52,4 +53,14 @@ export function ShellCard(props: ShellCardProps) {
       />
     </SettingsForm>
   )
+}
+
+/**
+ * Render the existing form at its product settings destination.
+ * @param props - Settings owner, locale, and the existing form controller face.
+ * @returns the native form with its search anchor.
+ */
+export function ShellSettingsSection(props: PropsRuntime<'settings.section'>
+  & PropsLocale<'settings.shell'> & InjectFace<ShellCardFace>) {
+  return <div data-settings-anchor="shell-settings"><ShellCard {...props} view="page" /></div>
 }

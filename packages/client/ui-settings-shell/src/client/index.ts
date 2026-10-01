@@ -15,7 +15,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { ShellCard } from './ShellCard.tsx'
+import { ShellCard, ShellSettingsSection } from './ShellCard.tsx'
 import { BASH_NS, PWSH_NS, ShellCardController } from './shell-card-controller.ts'
 import { en, zh, type ShellSettingsLocaleKey } from './locales.ts'
 
@@ -34,7 +34,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export const NS = 'settings.shell'
 
 /** Required services (cordis fiber inject). */
-export const inject = ['slots', 'locale', 'configForms']
+export const inject = ['slots', 'locale', 'configForms', 'settingsMetadata']
 
 /**
  * Mount the shell settings page while the Host serves its namespace.
@@ -50,4 +50,16 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.configForms.whileServed([BASH_NS, PWSH_NS], served => ctx.slots.inject('plugins.item', () => ctx.slots.register({
     name: 'plugins.item', id: 'shell', order: 10, label: () => t('title'), locale: NS, inject: () => (served.has(PWSH_NS) ? pwsh : bash).inject(),
   }, ShellCard))), 'ui-settings-shell: page')
+  ctx.effect(() => ctx.configForms.whileServed([BASH_NS, PWSH_NS], served =>
+    ctx.slots.inject('settings.section', function* () {
+      yield ctx.settingsMetadata.registerSection({ sectionId: 'shell', groupId: 'ai', heading: 'shell' })
+      yield ctx.settingsMetadata.registerItems('shell', [{
+        id: 'shell-settings', anchorId: 'shell-settings', title: () => t('nav'), description: () => t('description'),
+      }])
+      yield ctx.slots.register({
+        name: 'settings.section', id: 'shell', order: 42, label: () => t('nav'), locale: NS,
+        inject: () => (served.has(PWSH_NS) ? pwsh : bash).inject(),
+      }, ShellSettingsSection)
+    })), 'ui-settings-shell: settings page')
+
 }

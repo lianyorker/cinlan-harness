@@ -14,7 +14,7 @@ import type {
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 // Type-only: pulls the settings slot declarations the shell renders into.
 import type {
-  SettingsGroupId, SettingsResolvedItemMetadata,
+  SettingsGroupId, SettingsResolvedItemMetadata, SettingsSectionHeading,
 } from '@deepseek-ai/dsh-client-ui-settings/client'
 
 /** One nav row projected from a settings.section registration's options. */
@@ -23,6 +23,7 @@ export interface SettingsSectionRow {
   order: number
   label: string
   groupId: SettingsGroupId
+  heading: SettingsSectionHeading
   items: readonly SettingsResolvedItemMetadata[]
 }
 
