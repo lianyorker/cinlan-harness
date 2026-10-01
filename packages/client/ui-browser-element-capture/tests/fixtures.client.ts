@@ -23,5 +23,7 @@ export const capture: BrowserElementCaptureValue = {
 
 /** The existing native page list; it contains no browser filesystem paths. */
 export const pages: BrowserPagesValue = {
-  pages: [{ pageId: selection.pageId, title: 'Documentation', url: 'https://example.test/docs' }],
+  profileName: 'default',
+  maxFileBytes: 1024 * 1024,
+  pages: [{ pageId: selection.pageId, index: 0, active: true, title: 'Documentation', url: 'https://example.test/docs' }],
 }
