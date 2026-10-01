@@ -5,9 +5,11 @@
  * @returns configured API-key presence; rejects when the desktop bridge is unavailable.
  */
 export async function readOnboardingApiKeyPresence(): Promise<boolean> {
-  const bridge = (globalThis as typeof globalThis & {
+  const carrier = (globalThis as typeof globalThis & {
+    clhOnboarding?: { hasApiKey(): Promise<boolean> }
     dshOnboarding?: { hasApiKey(): Promise<boolean> }
-  }).dshOnboarding
+  })
+  const bridge = carrier.clhOnboarding ?? carrier.dshOnboarding
   if (bridge === undefined) throw new Error('desktop login bridge unavailable')
   return bridge.hasApiKey()
 }

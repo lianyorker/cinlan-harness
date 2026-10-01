@@ -10,7 +10,7 @@
 
 import { Service, type Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { DSH_ENV_PREFIX } from '@deepseek-ai/dsh-shell'
+import { CLH_ENV_PREFIX, DSH_ENV_PREFIX } from '@deepseek-ai/dsh-shell'
 import type { DshEnvironment, DshEnvironmentKey } from '@deepseek-ai/dsh-shell'
 import { DSH_HOME_ENV, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import type { ToolExecution } from '@deepseek-ai/dsh-tools'
@@ -122,8 +122,9 @@ export class ShellEnvRegistry extends Service {
 
       const variables = Object.entries(contributor.variables) as [DshEnvironmentKey, BashEnvVariable][]
       for (const [key, variable] of variables) {
-        if (!key.startsWith(DSH_ENV_PREFIX)
-          || !BASH_ENV_KEY_SUFFIX.test(key.slice(DSH_ENV_PREFIX.length))) {
+        const isDsh = key.startsWith(DSH_ENV_PREFIX) && BASH_ENV_KEY_SUFFIX.test(key.slice(DSH_ENV_PREFIX.length))
+        const isClh = key.startsWith(CLH_ENV_PREFIX) && BASH_ENV_KEY_SUFFIX.test(key.slice(CLH_ENV_PREFIX.length))
+        if (!isDsh && !isClh) {
           throw new Error(`bash env contributor "${contributor.name}" declared invalid key "${key}"`)
         }
         if (RESERVED_BASH_ENV_KEYS.has(key)) {

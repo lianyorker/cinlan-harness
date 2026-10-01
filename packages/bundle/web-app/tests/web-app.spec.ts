@@ -152,14 +152,14 @@ describe('web-app runtime glue', () => {
       'open:http://127.0.0.1:4567/?token=test-token',
     ])
     const assembly = await ctx.systemPrompt.assemble()
-    expect(assembly.sections.find(entry => entry.name === 'harness:source')?.text).toContain('DeepSeek Harness implementation checkout')
+    expect(assembly.sections.find(entry => entry.name === 'harness:source')?.text).toContain('Cinlan Harness implementation checkout')
     const section = assembly.sections.find(entry => entry.name === 'app:web-surface')
     expect(section?.text).toContain('http://127.0.0.1:4567')
     // The single update contract: the receiver is always on; no-refresh
     // reloads additionally need the rebuild watcher.
     expect(section?.text).toContain('pnpm run dev:web')
     const webRuntime = contributions.find(contribution => contribution.name === 'web-runtime')
-    expect(webRuntime?.resolve()).toEqual({ DSH_WEB_URL: 'http://127.0.0.1:4567' })
+    expect(webRuntime?.resolve()).toEqual({ CLH_WEB_URL: 'http://127.0.0.1:4567', DSH_WEB_URL: 'http://127.0.0.1:4567' })
     await ctx.fiber.dispose()
   })
 

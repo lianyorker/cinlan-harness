@@ -27,9 +27,11 @@ export function DesktopOnboardingEntry({ useOnboarding, useAccount, ...props }:
   const account = useAccount(value => value)
   useLayoutEffect(() => {
     if (!state.visible) return
-    const bridge = (globalThis as typeof globalThis & {
+    const carrier = (globalThis as typeof globalThis & {
+      clhOnboarding?: { setActive(active: boolean): void }
       dshOnboarding?: { setActive(active: boolean): void }
-    }).dshOnboarding
+    })
+    const bridge = carrier.clhOnboarding ?? carrier.dshOnboarding
     bridge?.setActive(true)
     return () => { bridge?.setActive(false) }
   }, [state.visible])

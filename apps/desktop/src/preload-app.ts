@@ -59,10 +59,12 @@ function createProductApi(): DshDesktopProductApi {
 }
 
 if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
-  contextBridge.exposeInMainWorld('dshOnboarding', {
+  const onboardingApi = {
     hasApiKey: () => ipcRenderer.invoke(DESKTOP_IPC.onboardingApiKey) as Promise<boolean>,
     setActive: (active: boolean) => { ipcRenderer.send(DESKTOP_IPC.onboardingActive, active) },
-  })
+  }
+  contextBridge.exposeInMainWorld('clhOnboarding', onboardingApi)
+  contextBridge.exposeInMainWorld('dshOnboarding', onboardingApi)
   ipcRenderer.on(DESKTOP_IPC.enterWorkspace, () => {
     const body = document.body
     const previous = body.getAttribute('tabindex')
@@ -73,35 +75,47 @@ if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
   })
   syncWindowsAppearance()
   if (process.platform === 'win32') installMandatoryUpdateOverlay()
-  contextBridge.exposeInMainWorld('__DSH_DIRECTORY_PICKER__', {
+  const dirPickerApi = {
     pick: () => ipcRenderer.invoke(DESKTOP_IPC.directoryPick) as Promise<string | null>,
-  })
+  }
+  contextBridge.exposeInMainWorld('__CLH_DIRECTORY_PICKER__', dirPickerApi)
+  contextBridge.exposeInMainWorld('__DSH_DIRECTORY_PICKER__', dirPickerApi)
   // The composer cites dropped, picked, and pasted files and folders that
   // have a real path as `@path` references instead of uploading them; a
   // File without one (pasted bytes) answers '' and uploads as before.
-  contextBridge.exposeInMainWorld('__DSH_HOST_PATHS__', {
+  const hostPathsApi = {
     pathFor: (file: File) => webUtils.getPathForFile(file),
-  })
-  contextBridge.exposeInMainWorld('dshDesktopBoot', {
+  }
+  contextBridge.exposeInMainWorld('__CLH_HOST_PATHS__', hostPathsApi)
+  contextBridge.exposeInMainWorld('__DSH_HOST_PATHS__', hostPathsApi)
+  const bootApi = {
     ready: () => ipcRenderer.invoke(DESKTOP_IPC.boot) as Promise<unknown>,
     failed: (message: string) => ipcRenderer.invoke(DESKTOP_IPC.bootFailed, message) as Promise<void>,
-  })
-  contextBridge.exposeInMainWorld('dshPlatform', {
+  }
+  contextBridge.exposeInMainWorld('clhDesktopBoot', bootApi)
+  contextBridge.exposeInMainWorld('dshDesktopBoot', bootApi)
+  const platformApi = {
     open: (page: 'usage' | 'top-up', bounds: { x: number; y: number; width: number; height: number }) => ipcRenderer.invoke(PLATFORM_IPC.open, page, bounds),
     setBounds: (bounds: { x: number; y: number; width: number; height: number }) => ipcRenderer.invoke(PLATFORM_IPC.bounds, bounds),
     close: () => ipcRenderer.invoke(PLATFORM_IPC.close),
-  })
+  }
+  contextBridge.exposeInMainWorld('clhPlatform', platformApi)
+  contextBridge.exposeInMainWorld('dshPlatform', platformApi)
 }
 
 markDocumentPlatform()
 syncWindowFullscreen()
 syncNativeTheme()
 // Main-process IPC also verifies the owning window and top frame.
-contextBridge.exposeInMainWorld('dshDesktop', location.protocol === `${SCHEME}:` && location.hostname === 'app' && process.isMainFrame ? createProductApi() : { protocolVersion: 1 })
+const desktopApi = location.protocol === `${SCHEME}:` && location.hostname === 'app' && process.isMainFrame ? createProductApi() : { protocolVersion: 1 }
+contextBridge.exposeInMainWorld('clhDesktop', desktopApi)
+contextBridge.exposeInMainWorld('dshDesktop', desktopApi)
 
 if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
-  contextBridge.exposeInMainWorld('__DSH_LOCALE__', {
+  const localeApi = {
     read: () => ipcRenderer.invoke(DESKTOP_IPC.localeBootstrap),
     onChange: (locale: string) => { ipcRenderer.send(DESKTOP_IPC.localeChanged, locale) },
-  })
+  }
+  contextBridge.exposeInMainWorld('__CLH_LOCALE__', localeApi)
+  contextBridge.exposeInMainWorld('__DSH_LOCALE__', localeApi)
 }

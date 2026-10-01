@@ -242,6 +242,16 @@
 
     - id: office-to-pdf
       name: '@deepseek-ai/dsh-office-to-pdf'
+
+    # The right Sidebar's document tab: bounded file reads with selectable
+    # Markdown, code, HTML, PDF, Office, and plain-text renderers.
+    - id: ui-sidebar-documentpreview
+      name: '@deepseek-ai/dsh-client-ui-sidebar-documentpreview'
+
+    # Web profiles opt in; Desktop retains sandboxed HTTP(S) Browser tabs.
+    - id: ui-sidebar-browser
+      name: '@deepseek-ai/dsh-client-ui-sidebar-browser'
+      disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
     # Configuration-surface reads and writes over Typert Remote. Each method
     # reports an actionable error when its settings-domain provider is absent.
     - id: settings-controller

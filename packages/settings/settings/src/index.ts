@@ -240,8 +240,12 @@ export class SettingsForms extends Service {
    * composition rejects is logged and remains only in the renamed file. */
   private async importLegacyDocument(): Promise<void> {
     const profile = this.ownerContext.profileContext
-    const path = join(profile.home, 'settings.yaml')
-    if (!existsSync(path)) return
+    let path = join(profile.home, 'settings.yaml')
+    if (!existsSync(path)) {
+      const legacyPath = join(profile.home.replace(/[\\/]\.clh([\\/]|$)/, '$1.dsh$1'), 'settings.yaml')
+      if (existsSync(legacyPath)) path = legacyPath
+      else return
+    }
     const imported = `${path}.imported`
     await rename(path, imported)
     const sections = parse(await readFile(imported, 'utf8')) as Record<string, object> | null

@@ -131,13 +131,13 @@ export function resolveDesktopAutoUpdateConfig(env, platform, arch) {
   const environment = resolveDesktopAutoUpdateEnvironment(env)
   const target = resolveDesktopAutoUpdateTarget(platform, arch)
   const deployment = UPDATE_ENVIRONMENTS[environment]
-  let origin = deployment.fixedOrigin
+  let origin = (env.CLH_DESKTOP_DOWNLOAD_ORIGIN || env.CINLAN_DOWNLOAD_ORIGIN)?.trim() || deployment.fixedOrigin
   if (origin === undefined) {
     const { originEnvName } = deployment
     if (originEnvName === undefined) throw new Error('desktop auto-update: selected deployment has no origin')
     origin = httpsOrigin(requiredEnvironmentValue(env, originEnvName), originEnvName)
   }
-  let releasePrefix = 'dsh-desk'
+  let releasePrefix = env.CLH_DESKTOP_RELEASE_PREFIX ?? env.DSH_DESKTOP_RELEASE_PREFIX ?? 'clh-desk'
   if (environment === 'test') {
     const releaseId = requiredEnvironmentValue(env, 'DOWNLOAD_TEST_RELEASE_ID')
     if (!/^[a-f0-9]{32}$/u.test(releaseId)) {

@@ -10,11 +10,11 @@
 
 import { Context, Service } from '@deepseek-ai/cordis'
 import { proxyEnvironmentForChild } from '@deepseek-ai/dsh-http-proxy'
-import { DSH_ENV_PREFIX } from './types.ts'
+import { CLH_ENV_PREFIX, DSH_ENV_PREFIX } from './types.ts'
 import type { SubprocessHandle, SubprocessSpawnSpec } from './types.ts'
 import type { SubprocessTerminalEnvironment, SubprocessTerminalHandle, SubprocessTerminalSpawnSpec } from './types.ts'
 
-export { DSH_ENV_PREFIX } from './types.ts'
+export { CLH_ENV_PREFIX, DSH_ENV_PREFIX } from './types.ts'
 export type {
   CollectedOutput,
   DshEnvironment,
@@ -66,7 +66,14 @@ export const SENSITIVE_ENV_PATTERN = /KEY|PASSWORD|SECRET|TOKEN/i
 export function scrubbedParentEnv(): Record<string, string> {
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
-    if (value !== undefined && !SENSITIVE_ENV_PATTERN.test(key) && !key.toUpperCase().startsWith(DSH_ENV_PREFIX)) env[key] = value
+    if (
+      value !== undefined
+      && !SENSITIVE_ENV_PATTERN.test(key)
+      && !key.toUpperCase().startsWith(DSH_ENV_PREFIX)
+      && !key.toUpperCase().startsWith(CLH_ENV_PREFIX)
+    ) {
+      env[key] = value
+    }
   }
   // A child Node ignores the inherited proxy variables unless the flag this adds is set, so an MCP
   // stdio server or subagent CLI would connect directly while its parent proxies. The same overlay
