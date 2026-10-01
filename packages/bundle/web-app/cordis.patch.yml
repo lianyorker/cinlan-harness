@@ -143,14 +143,17 @@
 
     - id: remote-access
       name: '@deepseek-ai/dsh-remote-access'
+      disabled: true
       config:
         enabled: false
 
     - id: pairing-controller
       name: '@deepseek-ai/dsh-api-pairing-controller'
+      disabled: true
 
     - id: ui-settings-pairing
       name: '@deepseek-ai/dsh-client-ui-settings-pairing'
+      disabled: true
 
     - id: device-capabilities-controller
       name: '@deepseek-ai/dsh-api-device-capabilities-controller'
@@ -174,7 +177,7 @@
     - id: mcp-management
       name: '@deepseek-ai/dsh-mcp-management'
       config:
-        profile: !!js dshProfileName
+        profile: !!js (clhProfileName ?? dshProfileName)
 
     - id: mcp-controller
       name: '@deepseek-ai/dsh-api-mcp-controller'
@@ -182,7 +185,7 @@
     - id: automation
       name: '@deepseek-ai/dsh-automation'
       config:
-        profile: !!js dshProfileName
+        profile: !!js (clhProfileName ?? dshProfileName)
         clockCheckIntervalMs: 60000
         maxStartLatenessMs: 60000
 

@@ -296,6 +296,8 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     const ctx = await boot(NAME, rootConfig, readProfilePatches(NAME, profileContext, composed.profile), async (hostCtx) => {
       app.current = hostCtx
       hostCtx.provide('profileContext', profileContext)
+      hostCtx.provide('dshProfileName', options.profile)
+      hostCtx.provide('clhProfileName', options.profile)
       // Before any config-tree entry mounts, so plugins resolve all launch-time
       // environment values from the same immutable launch snapshot.
       hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, options.environment)
