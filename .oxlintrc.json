@@ -204,6 +204,19 @@
         "scripts/**/*.spec.{ts,tsx}"
       ],
       "rules": {
+        "typescript/no-deprecated": [
+          "error",
+          {
+            // Session history readers stay callable in tests; see the 2026-09-09
+            // deprecate-synchronous-session-event-reads note. Name-based, so any
+            // declaration with one of these names is allowed too.
+            "allow": [
+              "snapshotEvents",
+              "eventAt",
+              "ownEvents"
+            ]
+          }
+        ],
         "typescript/no-invalid-void-type": "error",
         "typescript/no-non-null-assertion": "off", // Assertions commonly follow an expect() that proves presence.
         "typescript/no-unnecessary-condition": "off",
