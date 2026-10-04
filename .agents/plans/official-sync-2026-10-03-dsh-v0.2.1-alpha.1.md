@@ -120,3 +120,43 @@
 - 覆盖率门禁为逐文件 100%，删除 4 个自建包的 invariant 伴生后，原本只由伴生覆盖的路径必须补测，否则 CI 覆盖率闸门失败。
 - 本地 `ui-dockkit`、`ui-shortcuts`、`ui-floating-workspace` 等尚未提交的重构与官方 2.4、体验类改动落在同一批客户端文件上，顺序安排不当会产生返工。
 - 本计划基于 2026-10-03 的 `dsh-v0.2.1-alpha.1` 与本地 `72848fae42`；官方若有新 tag 或本地基线移动，需重新计算重叠面。
+
+## 8. P0 基线记录（2026-10-05）
+
+- 冻结提交 `878c38710d` 已推送 `origin/main`；修复提交 `fc5440cd60`（typecheck 修复）、`c969daf968`（lint 豁免恢复）。
+- `pnpm install --frozen-lockfile`：通过。前置修复：冻结把 `pnpm-workspace.yaml` 的 `allowBuilds` 中 `cpu-features`/`ssh2` 写成了占位符，已恢复为 `false`。
+- `pnpm run typecheck`：**通过（exit 0）**。修复面：`apps/web/tsconfig.json` 恢复 e2e/perf/snapshot glob exclude 与 `"paths": {}`（冻结误删，导致 host-plane e2e 文件混入 client 项目，报 TS2877/TS2878/TS6059/TS6307）；`apps/web/tests/assembled-remote.ts` 恢复 `.ts` 后缀导入；`security-research` 补 `yaml` 依赖；`execution-host-targets` 补 `@types/ssh2`。
+- `pnpm run lint:contracts-ready`：**3 warnings + 3756 errors（既有红点，非本次同步引入）**。构成：e2e 2554（Cinlan 自建 e2e 文件未注册进任何 tsconfig，type-aware 规则退化为 any，集中在 `apps/web/tests` 与 `packages/client/ui-better-sidebar/tests/e2e`）；tests 844；src 358。其中 no-deprecated 已修复：测试文件豁免 `snapshotEvents`/`eventAt`/`ownEvents`（-1237），oxlint 合同测试 `allows Session history reads only in tests or with existing-call waivers` 恢复通过。
+- `pnpm run test:gui`：**31 个测试文件失败 / 755 通过（共 786），113 个失败用例，249s**（既有红点）。失败集中在 Cinlan 自建包（`ui-settings-account` 26/26、`ui-settings-models` 11/12、`ui-better-sidebar`、`ui-shortcuts`、`ui-right-sidebar`、`ui-theme` 样式套件等）与少量官方包（`file-upload`、`ui-deliverables`、`ui-primitives` icons、`ui-renderer` reconnect 等；部分为 25s 超时类）。失败文件清单：
+
+  ```text
+  packages/client/file-upload/tests/resolver-lifecycle.host.spec.ts
+  packages/client/ui-better-sidebar/tests/builtins.spec.ts
+  packages/client/ui-better-sidebar/tests/smoke.spec.ts
+  packages/client/ui-deliverables/tests/present-open.host.spec.ts
+  packages/client/ui-directory-picker-native/tests/desktop-picker.client.spec.tsx
+  packages/client/ui-jobs/tests/browser-plugin.client.spec.ts
+  packages/client/ui-notifications/tests/runtime.client.spec.ts
+  packages/client/ui-paired-shell/tests/composition.client.spec.tsx
+  packages/client/ui-primitives/tests/icons.client.spec.tsx
+  packages/client/ui-renderer/tests/reconnect.client.spec.tsx
+  packages/client/ui-right-sidebar/tests/apply.client.spec.ts
+  packages/client/ui-right-sidebar/tests/definitions.client.spec.ts
+  packages/client/ui-settings-account/tests/apply.client.spec.ts
+  packages/client/ui-settings-agent-loop/tests/apply.client.spec.ts
+  packages/client/ui-settings-models/tests/model-capabilities.client.spec.tsx
+  packages/client/ui-settings-shell/tests/apply.client.spec.ts
+  packages/client/ui-shortcuts/tests/commands.client.spec.ts
+  packages/client/ui-sidebar/tests/sidebar-root.client.spec.tsx
+  packages/client/ui-sidebar/tests/sidebar-snapshot.client.spec.tsx
+  packages/client/ui-sidebar-documentpreview/tests/document-preview-license-bundle.client.spec.ts
+  packages/client/ui-sidebar-documentpreview/tests/failure-line.client.spec.ts
+  packages/client/ui-sidebar-terminal/tests/bundle-split.client.spec.ts
+  packages/client/ui-theme/tests/corner-shape-styles.client.spec.ts
+  packages/client/ui-theme/tests/elevation-styles.client.spec.ts
+  packages/client/ui-theme/tests/focus-ring-styles.client.spec.ts
+  packages/client/ui-theme/tests/radius-styles.client.spec.ts
+  packages/client/ui-tool/tests/chat-code-subcalls.client.spec.ts
+  packages/client/ui-trajectory/tests/client-bundle.client.spec.ts
+  packages/client/ui-user-questions/tests/browser-plugin.client.spec.ts
+  ```
