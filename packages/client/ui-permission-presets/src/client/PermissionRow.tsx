@@ -39,7 +39,7 @@ export type PermissionRowProps =
  * @param props - Settings owner, locale, and the existing permission directory.
  * @returns the selector and its search anchor.
  */
-export function PermissionSettingsSection(props: PropsRuntime<'settings.section'>
+export function PermissionSettingsSection(props: PropsRuntime<'settings.general.item'>
   & PropsLocale<'settings.permission'> & InjectFace<PermissionRowInjected>) {
   return <div data-settings-anchor="permission-default"><PermissionRow {...props} /></div>
 }

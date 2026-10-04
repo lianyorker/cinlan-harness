@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-/** Loader composition binds the real API source, renderer hooks, metadata and command callbacks. */
+/** Loader composition registers the Schedule entry point and binds the layout action. */
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
@@ -13,14 +13,8 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { createSlotRenderer } from '@deepseek-ai/dsh-client-ui-renderer/src/client/scoped-slots.tsx'
 import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
-import { RemoteStream, type RemoteStreamOptions } from '@deepseek-ai/dsh-api-gateway/client'
-import AutomationClient from '@deepseek-ai/dsh-api-automation-controller/client'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
-import type { AutomationRemote } from '@deepseek-ai/dsh-api-automation-controller/src/client/remote.ts'
 import * as plugin from '../src/client/index.ts'
-import type { AutomationInjected } from '../src/client/types.ts'
-import { definition, run, snapshot, catalog } from './fixtures.client.ts'
-import { definitionDraft } from '../src/client/presentation.ts'
 import { en } from '../src/client/locales.ts'
 
 const contexts: Context[] = []
@@ -31,38 +25,16 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
 
-async function load(panel = true, uiConfig?: Record<string, unknown>) {
+async function load() {
   const root = await mkdtemp(join(tmpdir(), 'dsh-automation-ui-'))
   roots.push(root)
   const config = join(root, 'cordis.yml')
-  const uiLines = uiConfig
-    ? ['- id: ui', "  name: '@deepseek-ai/dsh-client-ui-settings-automation'", '  config:', ...Object.entries(uiConfig).map(([k, v]) => `    ${k}: ${v}`)]
-    : ['- id: ui', "  name: '@deepseek-ai/dsh-client-ui-settings-automation'"]
   await writeFile(config, [
     '- id: slots', '  name: test-slots', '- id: host', '  name: test-host',
-    '- id: client', "  name: '@deepseek-ai/dsh-api-automation-controller'",
-    ...uiLines, '',
+    '- id: ui', "  name: '@deepseek-ai/dsh-client-ui-settings-automation'", '',
   ].join('\n'))
   const ctx = new Context()
   contexts.push(ctx)
-  const ok = <T,>(value: T) => ({ ok: true as const, value })
-  const remote: AutomationRemote = {
-    snapshot: async () => ok(snapshot().runtime!), catalog: async () => ok(catalog()),
-    create: vi.fn(async () => ok(definition())), update: vi.fn(async () => ok(definition())), delete: vi.fn(async () => ok(undefined)),
-    run: vi.fn(async () => ok(run())), cancel: vi.fn(async () => ok(undefined)),
-    runs: vi.fn(async () => ok({ runs: [run()], nextCursor: null })),
-    previewSchedule: async () => ok([]),
-    async *follow(signal = new AbortController().signal) {
-      yield { type: 'baseline', value: snapshot().runtime! }
-      await new Promise<void>((resolve) => {
-        if (signal.aborted) resolve()
-        else signal.addEventListener('abort', () => { resolve() }, { once: true })
-      })
-    },
-  }
-  const generation = { id: 1, host: { home: '/fixture' } }
-  const connection = { isLoopback: true, generation: { getSnapshot: () => generation, subscribe: () => () => {} } }
-  const opened = vi.fn()
   const selectPanel = vi.fn()
   let locale!: LocaleRuntime
   const host = { apply(context: Context) {
@@ -70,15 +42,10 @@ async function load(panel = true, uiConfig?: Record<string, unknown>) {
     locale.setLocale('en')
     context.provide('locale', locale)
     new SettingsMetadataService(context)
-    context.provide('sessions', { open: opened } as never)
-    context.provide('uiWorkspace', { openSession: opened } as never)
     context.provide('layout', { selectPanel } as never)
-    context.provide('connection', connection as never)
-    context.provide('remote', { automation: remote, $stream: <T,>(options: RemoteStreamOptions<T>) => new RemoteStream(connection, options) } as never)
-    context.provide('remote.automation', remote as never)
   } }
   const modules = new Map<string, unknown>([['test-slots', SlotRegistry], ['test-host', host],
-    ['@deepseek-ai/dsh-api-automation-controller', AutomationClient], ['@deepseek-ai/dsh-client-ui-settings-automation', plugin]])
+    ['@deepseek-ai/dsh-client-ui-settings-automation', plugin]])
   ctx.baseUrl = pathToFileURL(root).href + '/'
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
@@ -92,51 +59,36 @@ async function load(panel = true, uiConfig?: Record<string, unknown>) {
   ctx.slots.installLocale(locale)
   const absent = { key: undefined, hooks: {}, keyedHooks: {}, props: {} }
   ctx.slots.installScope('session', { current: { getSnapshot: () => absent, subscribe: () => () => {} }, bindingSource: () => undefined as never, renderArea: () => null } as never)
-  await vi.waitFor(() => { expect(ctx.automationClient.getSnapshot().catalogLoading).toBe(false) })
   const owner = { inject: ['slots'], apply(context: Context) {
     context.effect(() => context.slots.register({ name: 'root', children: {
       'settings.section': { kind: 'list', scope: 'root' }, 'settings.section.icon': { kind: 'keyed', scope: 'root' },
-      'main': { kind: 'keyed', scope: 'root' }, 'sidebar.panellist': { kind: 'list', scope: 'root' },
-    } } as never, (props: PropsRenderSlots<'settings.section' | 'settings.section.icon' | 'main'>) =>
-      <>{panel ? props.renderSlot('main', {}, { entryKey: 'automation' }) : props.renderSlot('settings.section', { close: () => { closed() } })}</>))
+    } } as never, (props: PropsRenderSlots<'settings.section' | 'settings.section.icon'>) =>
+      <>{props.renderSlot('settings.section', { close: () => { closed() } })}</>))
   } }
   const closed = vi.fn()
-  return { ctx, remote, opened, selectPanel, closed, locale, owner }
+  return { ctx, selectPanel, closed, locale, owner }
 }
 
 describe('automation settings Loader composition', () => {
-  it('waits for Settings declaration and binds actual API commands and framework source hook', async () => {
+  it('waits for the Settings declaration, registers the Schedule entry, and opens the manager panel', async () => {
     const b = await load()
     expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
     const owner = b.ctx.plugin(b.owner)
     await owner.await()
     await vi.waitFor(() => { expect(b.ctx.slots.entries('settings.section')).toHaveLength(1) })
     const view = render(<>{b.ctx.slots.renderSlot('root', {})}</>)
-    expect(b.ctx.slots.entries('sidebar.panellist')[0]?.options.id).toBe('automation')
     await screen.findByRole('heading', { name: en.title, level: 1 })
-    fireEvent.click(screen.getByRole('button', { name: en.run }))
-    await waitFor(() => {
-      expect(b.remote.run).toHaveBeenCalledWith(expect.objectContaining({ id: definition().id, expectedRevision: 7 }))
-    })
-    fireEvent.click(screen.getByRole('button', { name: en.showRuns }))
-    await screen.findByText(en.completedHelp)
-    fireEvent.click(screen.getByRole('button', { name: en.openSession }))
-    expect(b.opened).toHaveBeenCalledWith(run().sessionId)
-    expect(b.selectPanel).toHaveBeenCalledWith('conversation')
-    const entry = b.ctx.slots.entries('main')[0]!
-    const injected = (entry.inject as unknown as () => AutomationInjected)()
-    expect(injected.hooks.automation).toBe(b.ctx.automationClient.source)
-    await injected.create(definitionDraft(definition()))
-    await injected.update({ id: definition().id, expectedRevision: 7, enabled: false, draft: definitionDraft(definition()) })
-    await injected.cancel(run().id)
-    await injected.deleteTask({ id: definition().id, expectedRevision: 7 })
-    await injected.refresh()
-    await injected.loadMoreRuns()
-    expect(b.remote.cancel).toHaveBeenCalledWith({ runId: run().id })
-    expect(b.remote.delete).toHaveBeenCalledWith({ id: definition().id, expectedRevision: 7 })
+    expect(b.selectPanel).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: en.openAutomation }))
+    expect(b.selectPanel).toHaveBeenCalledWith('schedule')
+    expect(b.closed).toHaveBeenCalledOnce()
+
     const metadata = b.ctx.settingsMetadata.getSnapshot()
-    expect(metadata.items.map(item => item.anchorId)).toEqual(['tasks', 'draft', 'journal'])
-    for (const value of ['Private prompt', 'private/workspace', 'Check workspace']) expect(JSON.stringify(metadata)).not.toContain(value)
+    expect(metadata.sections).toEqual([{ sectionId: 'schedule', groupId: 'execution' }])
+    expect(metadata.items.map(item => item.anchorId)).toEqual(['tasks'])
+    expect(b.ctx.slots.entries('settings.section.icon')[0]?.options).toMatchObject({ key: 'schedule' })
+
     view.unmount()
     await owner.dispose()
     expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
@@ -144,7 +96,6 @@ describe('automation settings Loader composition', () => {
     const replacement = b.ctx.plugin(b.owner)
     await replacement.await()
     await vi.waitFor(() => { expect(b.ctx.slots.entries('settings.section')).toHaveLength(1) })
-    expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(3)
     b.locale.setLocale('zh')
     expect(b.ctx.settingsMetadata.getSnapshot().items[0]?.title).toBe('任务计划')
     const ui = [...b.ctx.loader.entries()].find(row => row.options.name === '@deepseek-ai/dsh-client-ui-settings-automation')!
@@ -152,28 +103,5 @@ describe('automation settings Loader composition', () => {
     expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
     expect(b.ctx.slots.entries('settings.section')).toHaveLength(0)
     expect(b.ctx.slots.entries('settings.section.icon')).toHaveLength(0)
-    expect(b.ctx.slots.entries('main')).toHaveLength(0)
-    expect(b.ctx.slots.entries('sidebar.panellist')).toHaveLength(0)
-  })
-
-  it('opens the independent panel from Settings without starting a task', async () => {
-    const b = await load(false)
-    await b.ctx.plugin(b.owner).await()
-    const view = render(<>{b.ctx.slots.renderSlot('root', {})}</>)
-    fireEvent.click(await view.findAllByRole('button', { name: en.openAutomation }).then(buttons => buttons[0]!))
-    expect(b.selectPanel).toHaveBeenCalledWith('automation')
-    expect(b.closed).toHaveBeenCalledOnce()
-    expect(b.remote.run).not.toHaveBeenCalled()
-    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'automation', groupId: 'execution' }])
-    expect(view.container.textContent).toMatchSnapshot()
-  })
-
-  it('omits settings section when settingsSection is false while preserving main and sidebar', async () => {
-    const b = await load(true, { settingsSection: false })
-    await b.ctx.plugin(b.owner).await()
-    expect(b.ctx.slots.entries('settings.section')).toHaveLength(0)
-    expect(b.ctx.slots.entries('settings.section.icon')).toHaveLength(0)
-    expect(b.ctx.slots.entries('main')).toHaveLength(1)
-    expect(b.ctx.slots.entries('sidebar.panellist')).toHaveLength(1)
   })
 })

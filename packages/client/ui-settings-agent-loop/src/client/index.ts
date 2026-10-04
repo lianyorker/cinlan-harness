@@ -1,8 +1,9 @@
 /**
- * The agent loop's settings page, browser half: the parallel tool-call cap
- * over the `agent-loop` namespace the loop registers. The page registers into
- * the Plugins page's `plugins.item` slot while the Host serves that namespace,
- * so a deployment that exposes no agent-loop settings shows no trace of it.
+ * The agent loop's settings row, browser half: the parallel tool-call cap
+ * over the `agent-loop` namespace the loop registers. The row registers into
+ * the General settings page's `settings.general.item` slot while the Host
+ * serves that namespace, so a deployment that exposes no agent-loop settings
+ * shows no trace of it.
  */
 
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
@@ -22,7 +23,7 @@ export type { AgentLoopSettingsLocaleKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Agent loop settings page copy. */
+    /** Agent loop settings row copy. */
     'settings.agentLoop': AgentLoopSettingsLocaleKey
   }
 }
@@ -34,7 +35,7 @@ export const NS = 'settings.agentLoop'
 export const inject = ['slots', 'locale', 'configForms', 'settingsMetadata']
 
 /**
- * Mount the agent loop's settings page while the Host serves its namespace.
+ * Mount the agent loop's settings row while the Host serves its namespace.
  * @param ctx - the browser plugin context.
  */
 export function apply(ctx: ClientContext): void {
@@ -43,16 +44,15 @@ export function apply(ctx: ClientContext): void {
   const card = new AgentLoopCardController(ctx.configForms.get(AGENT_LOOP_NS))
   ctx.effect(() => () => { card.dispose() }, 'ui-settings-agent-loop: form subscription')
   ctx.effect(() => ctx.configForms.whileServed([AGENT_LOOP_NS], () =>
-    ctx.slots.inject('settings.section', function* () {
-      yield ctx.settingsMetadata.registerSection({ sectionId: 'agent-loop', groupId: 'ai', heading: 'shell' })
-      yield ctx.settingsMetadata.registerItems('agent-loop', [{
-        id: 'agent-loop-settings', anchorId: 'agent-loop-settings', title: () => t('nav'), description: () => t('description'),
-        keywords: () => [t('maxParallel'), t('title'), t('description'), t('nav'), 'parallel', 'loop', 'tool'],
+    ctx.slots.inject('settings.general.item', function* () {
+      yield ctx.settingsMetadata.registerItems('general', [{
+        id: 'agent-loop-settings', anchorId: 'agent-loop-settings', title: () => t('maxParallel'), description: () => t('maxParallelHint'),
+        keywords: () => [t('maxParallel'), t('maxParallelHint'), 'parallel', 'loop', 'tool'],
       }])
       yield ctx.slots.register({
-        name: 'settings.section', id: 'agent-loop', order: 40, label: () => t('nav'), locale: NS,
+        name: 'settings.general.item', id: 'agent-loop', order: 40, locale: NS,
         inject: () => card.inject(),
       }, AgentLoopSettingsSection)
-    })), 'ui-settings-agent-loop: settings page')
+    })), 'ui-settings-agent-loop: general row')
 
 }

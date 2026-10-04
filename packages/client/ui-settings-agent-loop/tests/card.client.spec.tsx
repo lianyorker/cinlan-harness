@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
-/** The agent-loop page as the Plugins page renders it: its one-liner and its one field. */
+/** The agent-loop General row: its live number input, reset, and availability. */
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { SettingsFieldState, SettingsFormShell } from '@deepseek-ai/dsh-client-ui-primitives'
 import { AgentLoopCard, type AgentLoopCardProps } from '../src/client/AgentLoopCard.tsx'
 import type { AgentLoopCardState } from '../src/client/agent-loop-card-controller.ts'
 import { en } from '../src/client/locales.ts'
@@ -14,53 +13,85 @@ afterEach(cleanup)
 
 const t = (key: keyof typeof en) => en[key]
 
-const settled: SettingsFormShell = { available: true, writable: true, dirty: false, invalid: false, saving: false, failed: false }
-
-function field(text: string, rest: Partial<SettingsFieldState> = {}): SettingsFieldState {
-  return { text, overridden: false, invalid: false, ...rest }
-}
-
-function renderCard(state: Partial<AgentLoopCardState> = {}, view: 'summary' | 'page' = 'page') {
-  const store = createSnapshotStore<AgentLoopCardState>({ ...settled, maxParallelToolCalls: field('10'), ...state })
-  const actions = { edit: vi.fn(), resetField: vi.fn(), save: vi.fn(), discard: vi.fn() }
-  const props = { ...actions, view, t, useAgentLoopCard: bindSnapshotSelector(store) } as AgentLoopCardProps
+function renderRow(state: Partial<AgentLoopCardState> = {}) {
+  const store = createSnapshotStore<AgentLoopCardState>({
+    available: true, writable: true, maxParallelToolCalls: 10, overridden: false, ...state,
+  })
+  const actions = { setMaxParallel: vi.fn(), resetMaxParallel: vi.fn() }
+  const props = { ...actions, t, useAgentLoopCard: bindSnapshotSelector(store) } as AgentLoopCardProps
   render(<AgentLoopCard {...props} />)
-  return actions
+  return { ...actions, store }
 }
 
 describe('AgentLoopCard', () => {
-  it('renders its one-liner alone in the summary view', () => {
-    renderCard({}, 'summary')
+  it('renders nothing while the namespace is unavailable', () => {
+    renderRow({ available: false })
 
-    expect(document.body.textContent).toBe(en.description)
     expect(screen.queryByLabelText(en.maxParallel)).toBeNull()
   })
 
-  it('stages and saves the only field it owns', () => {
-    const actions = renderCard({ dirty: true })
+  it('writes every whole-number keystroke through and keeps the draft on display', () => {
+    const { setMaxParallel } = renderRow()
+    const input = screen.getByLabelText(en.maxParallel)
 
-    fireEvent.change(screen.getByLabelText(en.maxParallel), { target: { value: '2' } })
-    fireEvent.click(screen.getByRole('button', { name: en.save }))
+    fireEvent.change(input, { target: { value: '2' } })
+    fireEvent.change(input, { target: { value: '12' } })
 
-    expect(actions.edit).toHaveBeenCalledWith('maxParallelToolCalls', '2')
-    expect(actions.save).toHaveBeenCalledOnce()
+    expect(setMaxParallel.mock.calls).toEqual([[2], [12]])
+    expect(input).toHaveProperty('value', '12')
   })
 
-  it('stages a reset for the field it owns', () => {
-    const actions = renderCard({ maxParallelToolCalls: field('2', { overridden: true }) })
+  it('writes neither for an invalid draft and blurs back to the accepted cap', () => {
+    const { setMaxParallel } = renderRow({ maxParallelToolCalls: 10 })
+    const input = screen.getByLabelText(en.maxParallel)
+
+    fireEvent.change(input, { target: { value: '0' } })
+    expect(setMaxParallel).not.toHaveBeenCalled()
+    fireEvent.blur(input)
+
+    expect(input).toHaveProperty('value', '10')
+  })
+
+  it('treats a blanked draft as reset when an override stands, and as a plain revert otherwise', () => {
+    const overridden = renderRow({ maxParallelToolCalls: 4, overridden: true })
+    const overrideInput = screen.getByLabelText(en.maxParallel)
+    fireEvent.change(overrideInput, { target: { value: '' } })
+    fireEvent.blur(overrideInput)
+    expect(overridden.resetMaxParallel).toHaveBeenCalledOnce()
+
+    cleanup()
+    const plain = renderRow()
+    const plainInput = screen.getByLabelText(en.maxParallel)
+    fireEvent.change(plainInput, { target: { value: '' } })
+    fireEvent.blur(plainInput)
+    expect(plain.resetMaxParallel).not.toHaveBeenCalled()
+    expect(plainInput).toHaveProperty('value', '10')
+  })
+
+  it('steps from the displayed value with the stepper arrows and floors at 1', () => {
+    const { setMaxParallel } = renderRow({ maxParallelToolCalls: 2 })
+    const input = screen.getByLabelText(en.maxParallel)
+
+    fireEvent.click(screen.getByRole('button', { name: en.increase }))
+    expect(setMaxParallel).toHaveBeenCalledWith(3)
+    expect(input).toHaveProperty('value', '3')
+    fireEvent.click(screen.getByRole('button', { name: en.decrease }))
+    expect(setMaxParallel).toHaveBeenCalledWith(2)
+
+    cleanup()
+    renderRow({ maxParallelToolCalls: 1 })
+    expect(screen.getByRole('button', { name: en.decrease })).toHaveProperty('disabled', true)
+  })
+
+  it('offers the reset only while an override stands and disables the control on a read-only document', () => {
+    const { resetMaxParallel } = renderRow({ maxParallelToolCalls: 4, overridden: true })
 
     fireEvent.click(screen.getByRole('button', { name: en.reset }))
+    expect(resetMaxParallel).toHaveBeenCalledOnce()
 
-    expect(actions.resetField).toHaveBeenCalledWith('maxParallelToolCalls')
-  })
-
-  it('says the plugin is not loaded while its namespace is unavailable, and disables the field while the document is read-only', () => {
-    renderCard({ available: false })
-    expect(screen.getByRole('status').textContent).toBe(en.unavailable)
     cleanup()
-
-    renderCard({ writable: false })
-    expect(screen.getByRole('status').textContent).toBe(en.readOnly)
+    renderRow({ writable: false })
     expect(screen.getByLabelText(en.maxParallel)).toHaveProperty('disabled', true)
+    expect(screen.queryByRole('button', { name: en.reset })).toBeNull()
   })
 })

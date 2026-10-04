@@ -7,7 +7,7 @@ export type SubagentSettingsLocaleKey =
   | 'nav'
   | 'overridden' | 'reset' | 'readOnly' | 'unavailable'
   | 'save' | 'saving' | 'saveFailed'
-  | 'subagentTitle' | 'subagentDescription' | 'subagentLimitsTitle'
+  | 'subagentTitle' | 'subagentDescription' | 'subagentLimitsTitle' | 'subagentLimitsDescription'
   | 'subagentMaxDepth'
   | 'subagentDepthHelpLabel' | 'subagentDepthHelp'
   | 'subagentDepthZero' | 'subagentDepthOne' | 'subagentDepthOverride'
@@ -33,8 +33,9 @@ export const en: Record<SubagentSettingsLocaleKey, string> = {
   saveFailed: 'The deployment did not accept these values; they were left for you to correct.',
   nav: 'Subagents',
   subagentTitle: 'Subagent',
-  subagentDescription: 'Set Subagent recursion depth, count, and models.',
+  subagentDescription: 'Set the models agents may choose for Subagents.',
   subagentLimitsTitle: 'Limits',
+  subagentLimitsDescription: 'Set the Subagent recursion depth and parallelism limit.',
   subagentMaxDepth: 'Maximum recursion depth',
   subagentDepthHelpLabel: 'About maximum recursion depth',
   subagentDepthHelp: 'Limits how many levels of Subagents an Agent can create.',
@@ -73,8 +74,9 @@ export const zh: Record<SubagentSettingsLocaleKey, string> = {
   saveFailed: '本部署没有接受这些值，已保留供你修改。',
   nav: '子智能体',
   subagentTitle: '子智能体',
-  subagentDescription: '设置子智能体的递归层级、数量和模型。',
+  subagentDescription: '设置 Agent 能为子智能体选择的模型。',
   subagentLimitsTitle: '运行限制',
+  subagentLimitsDescription: '设置子智能体的递归层级与并行数量上限。',
   subagentMaxDepth: '最大递归深度',
   subagentDepthHelpLabel: '最大递归深度说明',
   subagentDepthHelp: '限制 Agent 创建子智能体的递归层级。',

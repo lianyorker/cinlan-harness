@@ -1,5 +1,5 @@
 ---
-description: "The Subagent settings page under Settings → Agents: delegation depth and capacity over the subagent namespace, and the models agents may choose over subagent-model-selection, on one page with one save."
+description: "The two Subagent settings pages under Settings → Agents: the **Limits** page holds delegation depth and capacity over the subagent namespace, and the **Subagents** page holds the models agents may choose over subagent-model-selection."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Open Settings → **Agents** → **Subagents** to set how deep and how wide delegation may go, and which models agents may choose for their subagents. The page groups the two Host namespaces, `subagent` and `subagent-model-selection`, under one save; it exists while the Host serves either and shows the sections it serves.
+Open Settings → **Agents** to set how deep and how wide delegation may go (the **Limits** page), and which models agents may choose for their subagents (the **Subagents** page). Each page follows its own namespace: the **Limits** page exists while the Host serves `subagent`, and the **Subagents** page while it serves `subagent-model-selection`.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Open Settings → **Agents** → **Subagents** to set how deep and how wide dele
 
 **Model selection** stages its permission switch and the exact adapter routes together. Enabling requires at least one selected route; disabling keeps the selected routes for later. Routes the Host stored but no adapter advertises stay listed under **Saved but currently unavailable** and remain removable; a provider that failed to load is reported without hiding the others, and a failed load offers **Retry**.
 
-One **Save** writes both sections through their own namespaces, each fenced by the revision its draft read. The writes are independent: a section the Host refuses keeps its draft with the failure reported while the other lands, and a model draft a newer Host revision superseded is reported as a conflict to discard rather than overwriting the newer routes. Leaving the page drops every draft.
+Each page's **Save** writes its own draft, fenced by the revision the draft read. A draft the Host refuses keeps its staged state with the failure reported, and a model draft a newer Host revision superseded is reported as a conflict to discard rather than overwriting the newer routes. Leaving a page drops that page's draft.
 
 -----
 
@@ -39,7 +39,7 @@ One **Save** writes both sections through their own namespaces, each fenced by t
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The Host half is an empty `apply`, present only so the package holds a Loader row the client module system serves the browser half for. The browser half binds each namespace through `ctx.configForms.get`: `SubagentLimitsCardController` stages the limits over the shared `SettingsFormModel` of `ui-primitives`, with a field spec that admits safe whole numbers at or above each field's floor; `SubagentModelSelectionCardController` keeps its own draft because its two fields save as one revision-fenced `mutate`, joins the stored routes with `remote.session.modelCatalog()`, and re-reads the catalogue on `llm/adapters-updated` and `settings/document-updated` while a connection reset drops its draft. `subagentCardFace` composes the two into the one face `SubagentCard` renders inside the shared `SettingsForm`, whose save validates both and writes the dirty ones. The page registers into the Settings section slot through `ctx.configForms.whileServed` over both namespaces.
+The Host half is an empty `apply`, present only so the package holds a Loader row the client module system serves the browser half for. The browser half binds each namespace through `ctx.configForms.get`: `SubagentLimitsCardController` stages the limits over the shared `SettingsFormModel` of `ui-primitives`, with a field spec that admits safe whole numbers at or above each field's floor; `SubagentModelSelectionCardController` keeps its own draft because its two fields save as one revision-fenced `mutate`, joins the stored routes with `remote.session.modelCatalog()`, and re-reads the catalogue on `llm/adapters-updated` and `settings/document-updated` while a connection reset drops its draft. `SubagentLimitsSection` and `SubagentModelSelectionSection` render one page each inside the shared `SettingsForm`, and each page registers into the Settings section slot through `ctx.configForms.whileServed` over its own namespace.
 
 </details>
 

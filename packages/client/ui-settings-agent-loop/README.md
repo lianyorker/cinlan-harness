@@ -1,5 +1,5 @@
 ---
-description: "The agent loop's settings page under Settings → Agents: the parallel tool-call cap of the agent-loop namespace."
+description: "The parallel tool-call cap of the agent-loop namespace, as a live row in the General settings."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Open Settings → **Agents** → **Agent loop** to set how many parallel-safe tool calls one step may run at once. The page stages what is typed and writes it only on save, marks a value the user overrode, and offers to reset it to the deployment's default. The page exists while the Host serves the `agent-loop` namespace.
+Open Settings → **General** to set how many parallel-safe tool calls one step may run at once. The row is a live number input: every accepted whole number writes through at once, and an overridden value carries **Reset to default** beside it. The row exists while the Host serves the `agent-loop` namespace.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ Open Settings → **Agents** → **Agent loop** to set how many parallel-safe to
 <a id="use-this-package"></a>
 ## Use this package
 
-The **Agent loop** page opens the settings surface. **Parallel tool calls** bounds the calls the loop runs at once within one step; the field renders the effective value, and once overridden carries an **Overridden** badge with **Reset to default** beside it. Nothing is written until **Save**; leaving the page drops the draft, an empty field saves as a reset, and text that is not a number blocks the save and says so under the field.
+The **Parallel tool calls** row in General bounds the calls the loop runs at once within one step. The input applies immediately: every whole number of at least 1 typed into it writes through, an invalid draft writes nothing and blurs back to the effective value, and blanking an override blurs as a reset to the deployment default. An overridden value carries **Reset to default** beside it.
 
 -----
 
@@ -35,7 +35,7 @@ The **Agent loop** page opens the settings surface. **Parallel tool calls** boun
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The Host half is an empty `apply`, present only so the package holds a Loader row the client module system serves the browser half for. The browser half binds the `agent-loop` namespace through `ctx.configForms.get`, keeps the staged form in `AgentLoopCardController` over the shared `SettingsFormModel` of `ui-primitives`, and registers `AgentLoopCard` into the Settings section slot through `ctx.configForms.whileServed`. The page's copy lives in this package's `settings.agentLoop` dictionary.
+The Host half is an empty `apply`, present only so the package holds a Loader row the client module system serves the browser half for. The browser half binds the `agent-loop` namespace through `ctx.configForms.get`; `AgentLoopCardController` mirrors the shared configuration form's effective value, override state, and writability directly, and writes go through the form's `set`/`unset`. `AgentLoopCard` registers into the General settings' item slot through `ctx.configForms.whileServed`. The row's copy lives in this package's `settings.agentLoop` dictionary.
 
 </details>
 

@@ -31,13 +31,12 @@ async function bench(served?: string[]) {
   return { ctx, slots: ctx.get('slots') as SlotRegistry, describeSettings, remote }
 }
 
-/** The Plugins page's item slot, as its owner declares it. */
+/** The General section's item slot, as its owner declares it. */
 function declareRoot(slots: SlotRegistry): () => void {
   return slots.register({
     name: 'root',
     children: {
-      'plugins.item': { kind: 'list', scope: 'root' },
-      'settings.section': { kind: 'list', scope: 'root' },
+      'settings.general.item': { kind: 'list', scope: 'root' },
     },
   } as never, () => null)
 }
@@ -51,52 +50,54 @@ describe('ui-settings-agent-loop apply', () => {
     expect(inject).toEqual(['slots', 'locale', 'configForms', 'settingsMetadata'])
   })
 
-  it('registers the page while the Host serves the namespace, titled in the active locale', async () => {
+  it('registers the row while the Host serves the namespace, titled in the active locale', async () => {
     const { ctx, slots } = await bench(['agent-loop', 'shell'])
     declareRoot(slots)
 
     await ctx.plugin({ inject: [...inject], apply }).await()
 
-    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
-    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'agent-loop', groupId: 'ai', heading: 'shell' }])
-    expect(ctx.settingsMetadata.getSnapshot().items[0]?.anchorId).toBe('agent-loop-settings')
-    const entry = slots.entries('settings.section')[0]!
+    await vi.waitFor(() => { expect(slots.entries('settings.general.item')).toHaveLength(1) })
+    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([])
+    expect(ctx.settingsMetadata.getSnapshot().items[0]).toMatchObject({
+      sectionId: 'general', id: 'agent-loop-settings', anchorId: 'agent-loop-settings',
+    })
+    expect(resolveSlotLabel(ctx.settingsMetadata.getSnapshot().items[0]?.title)).toBe('并行工具调用数')
+    const entry = slots.entries('settings.general.item')[0]!
     expect(entry.options).toMatchObject({ id: 'agent-loop', order: 40 })
-    expect(resolveSlotLabel(entry.options.label)).toBe('工具执行')
     expect(entry.locale).toBe(NS)
     const face = (entry.inject as () => Pick<AgentLoopCardFace, 'hooks'>)()
     expect(Object.keys(face.hooks)).toEqual(['agentLoopCard'])
   })
 
-  it('registers nothing while the namespace is not served, and withdraws the page when the Host stops serving it', async () => {
+  it('registers nothing while the namespace is not served, and withdraws the row when the Host stops serving it', async () => {
     const { ctx, slots, describeSettings, remote } = await bench(['shell'])
     declareRoot(slots)
     await ctx.plugin({ inject: [...inject], apply }).await()
     await vi.waitFor(() => { expect(describeSettings).toHaveBeenCalled() })
-    expect(slots.entries('settings.section')).toHaveLength(0)
+    expect(slots.entries('settings.general.item')).toHaveLength(0)
     expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
 
     describeSettings.mockResolvedValue({
       ok: true, value: { writable: true, hasDocument: true, namespaces: [view('agent-loop', 1)] },
     })
     remote.emit('settings/document-updated', ['agent-loop', 1])
-    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
+    await vi.waitFor(() => { expect(slots.entries('settings.general.item')).toHaveLength(1) })
 
     describeSettings.mockResolvedValue({ ok: true, value: { writable: true, hasDocument: true, namespaces: [] } })
     remote.emit('settings/document-updated', ['agent-loop', 2])
-    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(0) })
+    await vi.waitFor(() => { expect(slots.entries('settings.general.item')).toHaveLength(0) })
   })
 
-  it('collapses the page on teardown', async () => {
+  it('collapses the row on teardown', async () => {
     const { ctx, slots } = await bench(['agent-loop'])
     declareRoot(slots)
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
+    await vi.waitFor(() => { expect(slots.entries('settings.general.item')).toHaveLength(1) })
 
     await fiber.dispose()
 
-    expect(slots.entries('settings.section')).toHaveLength(0)
+    expect(slots.entries('settings.general.item')).toHaveLength(0)
     expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
   })
 })

@@ -2,13 +2,12 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
-import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { RemoteError, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { apply, inject, NS } from '../src/client/index.ts'
-import type { SubagentCardFace } from '../src/client/index.ts'
+import type { SubagentLimitsCardFace, SubagentModelSelectionCardFace } from '../src/client/index.ts'
 import { SubagentModelSelectionCardController } from '../src/client/subagent-model-selection-card-controller.ts'
 import { apply as hostApply } from '../src/index.ts'
 
@@ -36,12 +35,11 @@ async function bench(served?: string[]) {
   return { ctx, slots: ctx.get('slots') as SlotRegistry, describeSettings, models, remote }
 }
 
-/** The Plugins page's item slot, as its owner declares it. */
+/** The settings shell's section slot, as its owner declares it. */
 function declareRoot(slots: SlotRegistry): () => void {
   return slots.register({
     name: 'root',
     children: {
-      'plugins.item': { kind: 'list', scope: 'root' },
       'settings.section': { kind: 'list', scope: 'root' },
     },
   } as never, () => null)
@@ -56,37 +54,55 @@ describe('ui-settings-subagent apply', () => {
     expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.session', 'configForms', 'settingsMetadata'])
   })
 
-  it('registers one page for both namespaces while the Host serves either, titled in the active locale', async () => {
+  it('registers one page per served namespace, titled in the active locale', async () => {
     const { ctx, slots } = await bench(['subagent', 'subagent-model-selection-settings'])
     declareRoot(slots)
 
     await ctx.plugin({ inject: [...inject], apply }).await()
 
-    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
-    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'subagent', groupId: 'ai', heading: 'shell' }])
-    expect(ctx.settingsMetadata.getSnapshot().items[0]?.anchorId).toBe('subagent-settings')
-    const entry = slots.entries('settings.section')[0]!
-    expect(entry.options).toMatchObject({ id: 'subagent', order: 41 })
-    expect(resolveSlotLabel(entry.options.label)).toBe('子智能体')
-    expect(entry.locale).toBe(NS)
-    const face = (entry.inject as () => Pick<SubagentCardFace, 'hooks'>)()
-    expect(Object.keys(face.hooks).sort()).toEqual(['subagentLimitsCard', 'subagentModelSelectionCard'])
+    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(2) })
+    const metadata = ctx.settingsMetadata.getSnapshot()
+    expect(metadata.sections).toHaveLength(2)
+    expect(metadata.sections).toEqual(expect.arrayContaining([
+      { sectionId: 'subagent', groupId: 'ai', heading: 'shell' },
+      { sectionId: 'subagent-limits', groupId: 'ai', heading: 'shell' },
+    ]))
+    expect(metadata.items.find(item => item.sectionId === 'subagent')).toMatchObject({
+      id: 'subagent-model-selection', anchorId: 'subagent-model-selection',
+    })
+    expect(metadata.items.find(item => item.sectionId === 'subagent-limits')).toMatchObject({
+      id: 'subagent-limits', anchorId: 'subagent-limits',
+    })
+    const byId = (id: string) => slots.entries('settings.section').find(entry => entry.options.id === id)!
+    expect(byId('subagent').options).toMatchObject({ order: 21 })
+    expect(byId('subagent-limits').options).toMatchObject({ order: 22 })
+    expect(byId('subagent').locale).toBe(NS)
+    expect(byId('subagent-limits').locale).toBe(NS)
+    const modelsFace = (byId('subagent').inject as () => Pick<SubagentModelSelectionCardFace, 'hooks'>)()
+    expect(Object.keys(modelsFace.hooks)).toEqual(['subagentModelSelectionCard'])
+    const limitsFace = (byId('subagent-limits').inject as () => Pick<SubagentLimitsCardFace, 'hooks'>)()
+    expect(Object.keys(limitsFace.hooks)).toEqual(['subagentLimitsCard'])
   })
 
-  it('registers the page when only the model namespace is served, and nothing when neither is', async () => {
-    const { ctx, slots, describeSettings } = await bench(['subagent-model-selection-settings'])
+  it('registers each page only while its own namespace is served, and withdraws it when the Host stops', async () => {
+    const { ctx, slots, describeSettings, remote } = await bench(['subagent-model-selection-settings'])
     declareRoot(slots)
     await ctx.plugin({ inject: [...inject], apply }).await()
     await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
-    await ctx.plugin({ inject: [...inject], apply }).dispose()
-    expect(slots.entries('settings.section')).toHaveLength(1)
+    expect(slots.entries('settings.section')[0]?.options).toMatchObject({ id: 'subagent' })
 
-    const other = await bench(['shell'])
-    declareRoot(other.slots)
-    await other.ctx.plugin({ inject: [...inject], apply }).await()
-    await vi.waitFor(() => { expect(other.describeSettings).toHaveBeenCalled() })
-    expect(other.slots.entries('settings.section')).toHaveLength(0)
-    expect(describeSettings).toHaveBeenCalled()
+    describeSettings.mockResolvedValue({
+      ok: true, value: { writable: true, hasDocument: true, namespaces: [view('subagent', 1)] },
+    })
+    remote.emit('settings/document-updated', ['subagent', 1])
+    await vi.waitFor(() => {
+      expect(slots.entries('settings.section').map(entry => entry.options.id)).toEqual(['subagent-limits'])
+    })
+
+    describeSettings.mockResolvedValue({ ok: true, value: { writable: true, hasDocument: true, namespaces: [] } })
+    remote.emit('settings/document-updated', ['subagent', 2])
+    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(0) })
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
   })
 
   it('refreshes the model catalogue after model inputs change or the connection resets', async () => {
@@ -108,7 +124,7 @@ describe('ui-settings-subagent apply', () => {
     reset.mockRestore()
   })
 
-  it('collapses the page on teardown', async () => {
+  it('collapses the pages on teardown', async () => {
     const { ctx, slots } = await bench(['subagent'])
     declareRoot(slots)
     const fiber = ctx.plugin({ inject: [...inject], apply })

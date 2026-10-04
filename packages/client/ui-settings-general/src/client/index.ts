@@ -12,9 +12,9 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { IconSettingsOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
-// Type-only: the settings slot declarations plus the ctx.settingsScope Context
-// merge. Cross-plugin collaboration goes through the service, never a value
-// import (client bundle purity gate).
+// Type-only: the settings slot declarations plus the ctx.settingsScope and
+// ctx.configForms Context merges. Cross-plugin collaboration goes through the
+// service, never a value import (client bundle purity gate).
 import type { SettingsMetadataSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 // Type-only: pulls ctx.locale into this program.
 import type {} from '@deepseek-ai/dsh-client-locale/client'
@@ -26,6 +26,8 @@ import type {
 import { SettingsRoot } from './SettingsRoot.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
+import { CurrentVersionRow } from './CurrentVersionRow.tsx'
+import { DeveloperToolsRow, type DeveloperToolsRowInjected } from './DeveloperToolsRow.tsx'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
 import { SettingsDocumentStore } from './settings-document-store.ts'
@@ -57,7 +59,7 @@ const NS = 'settings'
  * ui-settings' apply, whose activation order relative to this one is NOT
  * constrained; registrations depend on their slots through `slots.inject()`.
  */
-export const inject = ['slots', 'locale', 'remote', 'remote.settings', 'settingsScope', 'settingsMetadata']
+export const inject = ['slots', 'locale', 'remote', 'remote.settings', 'configForms', 'settingsScope', 'settingsMetadata']
 
 /**
  * Register the `settings` dictionaries, the chrome content, and the General
@@ -65,6 +67,17 @@ export const inject = ['slots', 'locale', 'remote', 'remote.settings', 'settings
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item', id: 'developer-tools', order: 15, locale: NS,
+    inject: (): DeveloperToolsRowInjected => ({
+      hooks: { developerTools: ctx.configForms.developerTools.enabled },
+      setEnabled: enabled => ctx.configForms.developerTools.setEnabled(enabled),
+    }),
+  }, DeveloperToolsRow))
+  // Version information follows the core preferences.
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item', id: 'current-version', order: 100, locale: NS,
+  }, CurrentVersionRow))
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-general: dictionaries')
 
   // Copy freshness is framework-owned: components read the standard `t`

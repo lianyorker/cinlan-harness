@@ -25,8 +25,8 @@
 | 官方包 | 设置位置 |
 |---|---|
 | `ui-settings-shell` | 工作区 → 终端（groupId 已由 `execution` 改为 `workspace`） |
-| `ui-settings-agent-loop` | 智能体 → Agent 循环（导航名由"工具执行"改为"Agent 循环"） |
-| `ui-settings-subagent` | 智能体 → 子智能体 |
+| `ui-settings-agent-loop` | 通用设置 → 并行工具调用数（2026-10-05 确认：单字段不值得独立页，改为即时生效的数字输入行，无保存按钮） |
+| `ui-settings-subagent` | 智能体 → **子智能体**（模型选择）与 智能体 → **运行限制**（递归深度、并行上限）两个独立页（2026-10-05 确认拆分，不再合并为一页一行） |
 | `ui-settings-web-search` | 连接与扩展 → 联网搜索 |
 
 这四个包不再注册 `plugins.item`，侧栏「插件」面板里不再出现它们的入口。

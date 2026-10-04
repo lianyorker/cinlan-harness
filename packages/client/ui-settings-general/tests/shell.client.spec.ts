@@ -62,7 +62,7 @@ const CHILD_SPECS = {
 describe('ui-settings apply', () => {
   it('declares only the slot registry (a pure composition face, no locale)', () => {
     expect(inject).toEqual([
-      'slots', 'locale', 'remote', 'remote.settings', 'settingsScope', 'settingsMetadata',
+      'slots', 'locale', 'remote', 'remote.settings', 'configForms', 'settingsScope', 'settingsMetadata',
     ])
   })
 

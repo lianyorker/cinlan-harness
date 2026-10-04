@@ -33,9 +33,8 @@ function acceptWrites<T>(host: StubConfigForm<T>): void {
   })
 }
 
-/** The card plugin's context, scripted down to the namespaces a card reaches. */
 describe('AgentLoopCardController', () => {
-  it('saves the only field it owns', async () => {
+  it('mirrors the accepted cap and writes every cap through the shared form', async () => {
     const host = stubConfigForm<AgentLoopSettings>()
     acceptWrites(host)
     const controller = new AgentLoopCardController(host.scope)
@@ -48,22 +47,47 @@ describe('AgentLoopCardController', () => {
     })
     const face = controller.inject()
 
-    face.edit('maxParallelToolCalls', '4')
-    face.save()
-    await vi.waitFor(() => { expect(host.mutate).toHaveBeenCalledWith([{ op: 'set', path: ['maxParallelToolCalls'], value: 4 }], undefined) })
+    expect(face.hooks.agentLoopCard.getSnapshot()).toMatchObject({
+      available: true, writable: true, maxParallelToolCalls: 10, overridden: false,
+    })
+    face.setMaxParallel(4)
+    await vi.waitFor(() => { expect(host.set).toHaveBeenCalledWith('maxParallelToolCalls', 4) })
 
     expect(face.hooks.agentLoopCard.getSnapshot()).toMatchObject({
-      dirty: false,
-      maxParallelToolCalls: { text: '4', overridden: true },
+      maxParallelToolCalls: 4, overridden: true,
     })
   })
 
-  it('reports a read-only document so the card can disable its controls', () => {
+  it('clears the override through resetMaxParallel, re-inheriting the composition default', async () => {
+    const host = stubConfigForm<AgentLoopSettings>()
+    acceptWrites(host)
+    const controller = new AgentLoopCardController(host.scope)
+    host.publish({
+      status: 'ready',
+      writable: true,
+      value: { maxParallelToolCalls: 4 },
+      base: { maxParallelToolCalls: 10 },
+      user: { maxParallelToolCalls: 4 },
+    })
+    const face = controller.inject()
+    expect(face.hooks.agentLoopCard.getSnapshot().overridden).toBe(true)
+
+    face.resetMaxParallel()
+    await vi.waitFor(() => { expect(host.unset).toHaveBeenCalledWith('maxParallelToolCalls') })
+
+    expect(face.hooks.agentLoopCard.getSnapshot()).toMatchObject({
+      maxParallelToolCalls: 10, overridden: false,
+    })
+  })
+
+  it('reports an unserved namespace and a read-only document so the row can disable its control', () => {
     const host = stubConfigForm<AgentLoopSettings>()
     const controller = new AgentLoopCardController(host.scope)
 
-    host.publish({ status: 'ready', writable: false, value: { maxParallelToolCalls: 10 } })
+    host.publish({ status: 'unavailable', writable: false, value: { maxParallelToolCalls: 10 } })
 
-    expect(controller.inject().hooks.agentLoopCard.getSnapshot().writable).toBe(false)
+    expect(controller.inject().hooks.agentLoopCard.getSnapshot()).toMatchObject({
+      available: false, writable: false,
+    })
   })
 })

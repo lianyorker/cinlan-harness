@@ -12,7 +12,7 @@
  * write through one path and the pushed projection frame is the one
  * confirmation. The Full access row carries the same explicit risk gate as
  * the composer chip; the shared popup shell owns the modal mechanics.
- * The General-settings row separately writes the default preset for sessions
+ * The General-settings row writes the default preset for sessions
  * created later through the host Settings API.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -157,13 +157,12 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => () => { controller.dispose() }, 'ui-permission: settings row directory')
 
   const settingsT = ctx.locale.bind('settings.permission')
-  ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'permissions', groupId: 'execution', heading: 'shell' })
-    yield ctx.settingsMetadata.registerItems('permissions', [{
+  ctx.slots.inject('settings.general.item', function* () {
+    yield ctx.settingsMetadata.registerItems('general', [{
       id: 'permission-default', anchorId: 'permission-default', title: () => settingsT('title'), description: () => settingsT('description'),
     }])
     yield ctx.slots.register({
-      name: 'settings.section', id: 'permissions', order: 45, label: () => settingsT('nav'),
+      name: 'settings.general.item', id: 'permission-default', order: 45,
       locale: 'settings.permission', inject: injected,
     }, PermissionSettingsSection)
   })
