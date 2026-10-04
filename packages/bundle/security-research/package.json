@@ -59,7 +59,8 @@
     "@deepseek-ai/dsh-artifact-local": "workspace:^",
     "@deepseek-ai/dsh-assessment-scope-settings": "workspace:^",
     "@deepseek-ai/dsh-assessment-scope-tool-policy": "workspace:^",
-    "js-yaml": "^4.2.0"
+    "js-yaml": "^4.2.0",
+    "yaml": "^2.9.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^"

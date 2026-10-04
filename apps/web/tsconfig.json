@@ -11,7 +11,8 @@
     ],
     "types": [
       "node"
-    ]
+    ],
+    "paths": {}
   },
   "include": [
     "src",
@@ -22,6 +23,14 @@
   // this client-registered project must not also hold them (one program
   // cannot see both sides of the cordis Context merges).
   "exclude": [
+    "tests/**/*.e2e.ts",
+    "tests/*.e2e.ts",
+    "tests/**/*.perf.ts",
+    "tests/*.perf.ts",
+    "tests/**/*.snapshot.ts",
+    "tests/*.snapshot.ts",
+    "tests/support.ts",
+    "tests/model-input-layout.ts",
     "tests/layout-bottom.e2e.ts",
     "tests/shortcuts-desktop.e2e.ts",
     "tests/shortcuts-workspace.e2e.ts",
