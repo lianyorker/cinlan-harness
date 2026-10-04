@@ -22,6 +22,8 @@ import type {
   WorktreeTaskSettings,
   UpdateWorktreeTaskSettingsRequest,
   WorktreeTaskReview,
+  MergeTaskRequest,
+  WorktreeTaskMergeResult,
 } from './types.ts'
 
 export {
@@ -41,6 +43,8 @@ export {
   type WorktreeTaskSettings,
   type UpdateWorktreeTaskSettingsRequest,
   type WorktreeTaskReview,
+  type MergeTaskRequest,
+  type WorktreeTaskMergeResult,
 } from './types.ts'
 
 /** Identifies one Worktree Task record. */
@@ -115,6 +119,16 @@ export abstract class WorktreeTaskService extends Service {
    * @returns the complete review; exceeding the provider's byte bound rejects.
    */
   abstract review(taskId: WorktreeTaskId, requestSignal?: AbortSignal): Promise<WorktreeTaskReview>
+
+  /**
+   * Checkpoint and merge a task branch into its captured source branch.
+   * The source checkout must be clean and on the captured branch; conflicts abort
+   * the merge and retain the archived task for review or retry.
+   * @param request - Task identity.
+   * @param requestSignal - Cancellation forwarded to queued work and Git commands.
+   * @returns the archived task and resulting source commit.
+   */
+  abstract merge(request: MergeTaskRequest, requestSignal?: AbortSignal): Promise<WorktreeTaskMergeResult>
 
   /**
    * Bind a session to an active task, granting it the checkout path.

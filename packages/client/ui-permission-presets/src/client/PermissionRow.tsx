@@ -14,6 +14,7 @@ import type { PermissionSettingsState } from './settings-store.ts'
 import type { PermissionSettingsKey } from './locales.ts'
 import { displayPermissionPreset, FULL_ACCESS_PRESET } from './presentation.ts'
 import css from './PermissionRow.module.css'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 
 /** Registration-side business face for the host-backed preference. */
 export interface PermissionRowInjected {
@@ -32,6 +33,16 @@ export type PermissionRowProps =
   PropsRuntime<'settings.general.item'>
   & PropsLocale<'settings.permission'>
   & InjectFace<PermissionRowInjected>
+
+/**
+ * Render the default permission selector in Agent settings.
+ * @param props - Settings owner, locale, and the existing permission directory.
+ * @returns the selector and its search anchor.
+ */
+export function PermissionSettingsSection(props: PropsRuntime<'settings.section'>
+  & PropsLocale<'settings.permission'> & InjectFace<PermissionRowInjected>) {
+  return <div data-settings-anchor="permission-default"><PermissionRow {...props} /></div>
+}
 
 /**
  * Render the new-session Permission default selector.

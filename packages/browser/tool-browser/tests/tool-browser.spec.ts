@@ -5,19 +5,25 @@ import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
-import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import type { FileAttachmentRef, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import BrowserRuntime, {
   BrowserElementId,
   BrowserObservationId,
   BrowserPageId,
 } from '@deepseek-ai/dsh-browser'
-import type { BrowserProvider } from '@deepseek-ai/dsh-browser'
+import type { BrowserDownload, BrowserDownloadId, BrowserProvider } from '@deepseek-ai/dsh-browser'
 import type {
+  BrowserAutomationProvider,
   BrowserClickRequest,
+  BrowserHistoryEntry,
   BrowserNavigateRequest,
+  BrowserNavigationTarget,
+  BrowserNetworkEntry,
   BrowserScreenshotRequest,
   BrowserSnapshotRequest,
+  BrowserTransferProvider,
 } from '@deepseek-ai/dsh-browser'
+import type {} from '@deepseek-ai/dsh-fs'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
@@ -37,7 +43,9 @@ afterEach(async () => {
   await Promise.allSettled(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
 })
 
-function provider(): BrowserProvider {
+interface FakeBrowserProvider extends BrowserProvider, BrowserAutomationProvider, BrowserTransferProvider {}
+
+function provider(): FakeBrowserProvider {
   const pageId = BrowserPageId('page-1')
   const observationId = BrowserObservationId('observation-1')
   const elementId = BrowserElementId('e1')
@@ -64,8 +72,30 @@ function provider(): BrowserProvider {
       format: request.format,
       mediaType: request.format === 'png' ? 'image/png' as const : 'image/jpeg' as const,
       data: Uint8Array.of(1, 2, 3),
+      viewport: { width: 800, height: 600 },
     })),
     closePage: vi.fn(() => Promise.resolve()),
+    currentProfile: vi.fn(() => 'default'),
+    resolveNavigation: vi.fn((target: BrowserNavigationTarget) => target.kind === 'search'
+      ? { url: `https://search.example/?q=${target.query}` }
+      : { url: 'https://home.example/' }),
+    history: vi.fn((): Promise<readonly BrowserHistoryEntry[]> => Promise.resolve([
+      { url: 'https://example.com/', title: 'Example', at: 1 },
+      { url: 'https://example.com/next', title: 'Next', at: 2 },
+    ])),
+    back: vi.fn((input: BrowserPageId) => Promise.resolve({ pageId: input, url: 'https://example.com/previous', title: 'Previous' })),
+    forward: vi.fn((input: BrowserPageId) => Promise.resolve({ pageId: input, url: 'https://example.com/forward', title: 'Forward' })),
+    network: vi.fn((): Promise<readonly BrowserNetworkEntry[]> => Promise.resolve([
+      { url: 'https://example.com/api', method: 'GET', resourceType: 'fetch', status: 200, at: 3 },
+      { url: 'https://example.com/broken', method: 'POST', resourceType: 'xhr', failed: 'net::ERR_FAILED', at: 4 },
+    ])),
+    importCookies: vi.fn(() => Promise.resolve({ imported: 0 })),
+    upload: vi.fn(() => Promise.resolve()),
+    downloads: vi.fn((): Promise<{ readonly items: readonly BrowserDownload[]; readonly truncated: boolean }> => Promise.resolve({
+      truncated: false,
+      items: [{ id: 'download-1' as BrowserDownloadId, pageId, name: 'report.txt', status: 'complete' }],
+    })),
+    readDownload: vi.fn(() => Promise.resolve({ name: 'report.txt', data: Uint8Array.of(1, 2, 3) })),
   }
 }
 
@@ -88,6 +118,11 @@ function attachmentStore(name: string | undefined = 'browser-screenshot.png') {
       ...name === undefined ? {} : { name },
     })),
     readImage: vi.fn(() => Promise.reject(new Error('unused'))),
+    saveFile: vi.fn((): Promise<FileAttachmentRef> => Promise.resolve({
+      attachmentId: AttachmentId('sha256:download'),
+      name: 'report.txt',
+      bytes: 3,
+    })),
   }
 }
 
@@ -108,10 +143,17 @@ async function harness(
   return { ctx, fiber, selected, attachments }
 }
 
-function agent(header?: { provider?: string; model?: string }, options: { provider?: string; model?: string } = {}): Agent {
+function agent(
+  header?: { provider?: string; model?: string },
+  options: { provider?: string; model?: string } = {},
+  cwd?: string,
+): Agent {
   return {
     options,
-    session: { requestHeader: () => header === undefined ? undefined : { config: header } },
+    session: {
+      requestHeader: () => header === undefined ? undefined : { config: header },
+      header: cwd === undefined ? {} : { cwd },
+    },
   } as unknown as Agent
 }
 
@@ -142,6 +184,14 @@ describe('browser tool configuration and registration', () => {
       expect(() => resolveBrowserToolConfig({ timeoutMs })).toThrow(/positive safe integer/)
     }
     expect(() => resolveBrowserToolConfig({ screenshotFormat: 'webp' as never })).toThrow(/png.*jpeg/)
+    expect(resolveBrowserToolConfig({ maxFileBytes: 1 })).toMatchObject({ maxFileBytes: 1 })
+    for (const maxFileBytes of [1.5, 0, 100 * 1024 * 1024 + 1]) {
+      expect(() => resolveBrowserToolConfig({ maxFileBytes })).toThrow(/maxFileBytes must be between 1 and 104857600/)
+    }
+    for (const limit of [1.5, 0, 101]) {
+      expect(() => resolveBrowserToolConfig({ historyLimit: limit })).toThrow(/entry limit must be between 1 and 100/)
+      expect(() => resolveBrowserToolConfig({ networkLimit: limit })).toThrow(/entry limit must be between 1 and 100/)
+    }
   })
 
   it('registers stable schemas, prompt guidance, timeout metadata, and HMR cleanup', async () => {
@@ -324,7 +374,7 @@ describe('browser screenshot attachment path', () => {
     expect(deferred).toHaveLength(1)
     expect(deferred[0]).toMatchObject({
       role: 'user',
-      source: { kind: 'plugin', plugin: 'tool-browser' },
+      source: { kind: 'tool-browser' },
       content: [{ type: 'text' }, { type: 'image', attachment: { attachmentId: 'sha256:jpeg' } }],
     })
     expect(selected.screenshot).toHaveBeenCalledWith({ pageId: 'page-1', format: 'jpeg' }, expect.any(AbortSignal))
@@ -389,6 +439,198 @@ describe('browser tool render intent', () => {
     })
     expect(ctx.tools.get('browser_screenshot')?.presentCall?.({ page_id: 'page' })).toEqual({ card: 'generic', title: 'Screenshot page', kind: 'read' })
     expect(ctx.tools.get('browser_close')?.presentCall?.({ page_id: 'page' })).toEqual({ card: 'generic', title: 'Close page', kind: 'delete' })
+    expect(ctx.tools.get('browser_home')?.presentCall?.({})).toEqual({ card: 'generic', title: 'Open Browser home page', kind: 'fetch' })
+    expect(ctx.tools.get('browser_search')?.presentCall?.({ query: 'deep sea' })).toEqual({
+      card: 'generic', title: 'Search Browser', kind: 'fetch', rawInput: 'deep sea',
+    })
+    expect(ctx.tools.get('browser_history')?.presentCall?.({ page_id: 'page' })).toEqual({
+      card: 'generic', title: 'Browser history', kind: 'read', rawInput: 'page',
+    })
+    expect(ctx.tools.get('browser_back')?.presentCall?.({ page_id: 'page' })).toEqual({
+      card: 'generic', title: 'Browser back', kind: 'execute', rawInput: 'page',
+    })
+    expect(ctx.tools.get('browser_forward')?.presentCall?.({ page_id: 'page' })).toEqual({
+      card: 'generic', title: 'Browser forward', kind: 'execute', rawInput: 'page',
+    })
+    expect(ctx.tools.get('browser_network')?.presentCall?.({ page_id: 'page' })).toEqual({
+      card: 'generic', title: 'Browser network', kind: 'read', rawInput: 'page',
+    })
+    expect(ctx.tools.get('browser_upload')?.presentCall?.({
+      page_id: 'page', observation_id: 'observation', element_id: 'e1', file_path: 'assets/report.txt',
+    })).toEqual({
+      card: 'generic', title: 'Upload workspace file to browser', kind: 'execute', rawInput: 'assets/report.txt',
+    })
+    expect(ctx.tools.get('browser_downloads')?.presentCall?.({ page_id: 'page' })).toEqual({
+      card: 'generic', title: 'List browser downloads', kind: 'read', rawInput: 'page',
+    })
+    expect(ctx.tools.get('browser_save_download')?.presentCall?.({ page_id: 'page', download_id: 'download-1' })).toEqual({
+      card: 'generic', title: 'Save browser download', kind: 'execute', rawInput: 'download-1',
+    })
+    expect(ctx.tools.get('browser_history')?.isConcurrencySafe?.({ page_id: 'page' })).toBe(true)
+    expect(ctx.tools.get('browser_network')?.isConcurrencySafe?.({ page_id: 'page' })).toBe(true)
+    expect(ctx.tools.get('browser_downloads')?.isConcurrencySafe?.({ page_id: 'page' })).toBe(true)
     expect(ctx.tools.get('browser_open')?.presentCall?.({})).toBeUndefined()
+  })
+})
+
+describe('browser navigation-intent, history, and network tools', () => {
+  it('opens the configured home and search targets', async () => {
+    const selected = provider()
+    const { ctx } = await harness({}, selected)
+
+    const home = await execute(ctx, 'browser_home', {})
+    expectSuccess(home)
+    expect(home.value).toEqual({ page_id: 'page-1' })
+    expect(home.content).toEqual([{ type: 'text', text: 'Opened Browser home page in page-1.' }])
+    expect(selected.resolveNavigation).toHaveBeenLastCalledWith({ kind: 'home' })
+    expect(selected.openPage).toHaveBeenLastCalledWith({ url: 'https://home.example/' }, expect.any(AbortSignal))
+
+    const search = await execute(ctx, 'browser_search', { query: 'deep sea' })
+    expectSuccess(search)
+    expect(search.value).toEqual({ page_id: 'page-1' })
+    expect(search.content).toEqual([{ type: 'text', text: 'Opened Browser search in page-1.' }])
+    expect(selected.resolveNavigation).toHaveBeenLastCalledWith({ kind: 'search', query: 'deep sea' })
+    expect(selected.openPage).toHaveBeenLastCalledWith({ url: 'https://search.example/?q=deep sea' }, expect.any(AbortSignal))
+
+    const rejected = await execute(ctx, 'browser_search', { query: ' deep sea ' })
+    expect(rejected.isError).toBe(true)
+    expect(rejected.error?.message).toMatch(/query must be non-empty/)
+    expect(selected.resolveNavigation).toHaveBeenCalledTimes(2)
+    expect(selected.openPage).toHaveBeenCalledTimes(2)
+  })
+
+  it('reads bounded history and network entries with explicit and default limits', async () => {
+    const selected = provider()
+    const { ctx } = await harness({ historyLimit: 7, networkLimit: 9 }, selected)
+    const historyEntries = [
+      { url: 'https://example.com/', title: 'Example', at: 1 },
+      { url: 'https://example.com/next', title: 'Next', at: 2 },
+    ]
+
+    const history = await execute(ctx, 'browser_history', { page_id: 'page-1' })
+    expectSuccess(history)
+    expect(history.value).toEqual({ entries: historyEntries })
+    expect(history.content).toEqual([{ type: 'text', text: JSON.stringify(historyEntries, null, 2) }])
+    expect(selected.history).toHaveBeenCalledWith('page-1', 7, expect.any(AbortSignal))
+
+    const boundedHistory = await execute(ctx, 'browser_history', { page_id: 'page-1', limit: 3 })
+    expectSuccess(boundedHistory)
+    expect(boundedHistory.value).toEqual({ entries: historyEntries })
+    expect(selected.history).toHaveBeenLastCalledWith('page-1', 3, expect.any(AbortSignal))
+
+    const invalidHistory = await execute(ctx, 'browser_history', { page_id: 'page-1', limit: 0 })
+    expect(invalidHistory.isError).toBe(true)
+    expect(invalidHistory.error?.message).toMatch(/entry limit must be between 1 and 100/)
+    expect(selected.history).toHaveBeenCalledTimes(2)
+
+    const networkEntries = [
+      { url: 'https://example.com/api', method: 'GET', resourceType: 'fetch', status: 200, at: 3 },
+      { url: 'https://example.com/broken', method: 'POST', resourceType: 'xhr', failed: 'net::ERR_FAILED', at: 4 },
+    ]
+    const network = await execute(ctx, 'browser_network', { page_id: 'page-1' })
+    expectSuccess(network)
+    expect(network.value).toEqual({ entries: networkEntries })
+    expect(network.content).toEqual([{ type: 'text', text: JSON.stringify(networkEntries, null, 2) }])
+    expect(selected.network).toHaveBeenCalledWith('page-1', 9, expect.any(AbortSignal))
+
+    const boundedNetwork = await execute(ctx, 'browser_network', { page_id: 'page-1', limit: 100 })
+    expectSuccess(boundedNetwork)
+    expect(boundedNetwork.value).toEqual({ entries: networkEntries })
+    expect(selected.network).toHaveBeenLastCalledWith('page-1', 100, expect.any(AbortSignal))
+
+    const invalidNetwork = await execute(ctx, 'browser_network', { page_id: 'page-1', limit: 101 })
+    expect(invalidNetwork.isError).toBe(true)
+    expect(invalidNetwork.error?.message).toMatch(/entry limit must be between 1 and 100/)
+    expect(selected.network).toHaveBeenCalledTimes(2)
+  })
+
+  it('navigates backward and forward with the resulting location', async () => {
+    const selected = provider()
+    const { ctx } = await harness({}, selected)
+
+    const back = await execute(ctx, 'browser_back', { page_id: 'page-1' })
+    expectSuccess(back)
+    expect(back.value).toEqual({ page_id: 'page-1', url: 'https://example.com/previous', title: 'Previous' })
+    expect(back.content).toEqual([{ type: 'text', text: 'Navigated back to https://example.com/previous.' }])
+    expect(selected.back).toHaveBeenCalledWith('page-1', expect.any(AbortSignal))
+
+    const forward = await execute(ctx, 'browser_forward', { page_id: 'page-1' })
+    expectSuccess(forward)
+    expect(forward.value).toEqual({ page_id: 'page-1', url: 'https://example.com/forward', title: 'Forward' })
+    expect(forward.content).toEqual([{ type: 'text', text: 'Navigated forward to https://example.com/forward.' }])
+    expect(selected.forward).toHaveBeenCalledWith('page-1', expect.any(AbortSignal))
+  })
+})
+
+describe('browser file transfer tools', () => {
+  it('uploads a workspace file to a current file input and refuses paths outside the workspace', async () => {
+    const selected = provider()
+    const { ctx } = await harness({ maxFileBytes: 512 }, selected)
+    const cwd = 'C:\\work'
+    const filePath = 'C:\\work\\assets\\report.txt'
+    const fs = {
+      resolve: vi.fn((path: string) => Promise.resolve({ targetKey: `key:${path}`, displayPath: path })),
+      contains: vi.fn((root: { displayPath: string }, target: { displayPath: string }) => target.displayPath.startsWith(root.displayPath)),
+      readBytes: vi.fn(() => Promise.resolve(Uint8Array.of(1, 2, 3))),
+    }
+    ctx.provide('fs', fs as never)
+    const uploadArgs = {
+      page_id: 'page-1', observation_id: 'observation-1', element_id: 'e1', file_path: filePath,
+    }
+
+    const result = await execute(ctx, 'browser_upload', uploadArgs, agent(undefined, {}, cwd))
+    expectSuccess(result)
+    expect(result.value).toEqual({ bytes: 3 })
+    expect(result.content).toEqual([{ type: 'text', text: 'Set file input with 3 bytes. Page input/change handlers may upload data.' }])
+    expect(fs.resolve).toHaveBeenNthCalledWith(1, cwd, { signal: expect.any(AbortSignal) })
+    expect(fs.resolve).toHaveBeenNthCalledWith(2, filePath, { cwd, signal: expect.any(AbortSignal) })
+    expect(fs.readBytes).toHaveBeenCalledWith(
+      { targetKey: `key:${filePath}`, displayPath: filePath },
+      expect.any(AbortSignal),
+      512,
+    )
+    expect(selected.upload).toHaveBeenCalledWith({
+      pageId: 'page-1', observationId: 'observation-1', elementId: 'e1', name: 'report.txt', data: Uint8Array.of(1, 2, 3),
+    }, expect.any(AbortSignal))
+
+    const outside = await execute(ctx, 'browser_upload', { ...uploadArgs, file_path: 'C:\\other\\secret.txt' }, agent(undefined, {}, cwd))
+    expect(outside.isError).toBe(true)
+    expect(outside.error?.message).toMatch(/inside the Session workspace/)
+    expect(fs.readBytes).toHaveBeenCalledTimes(1)
+    expect(selected.upload).toHaveBeenCalledTimes(1)
+
+    const withoutProvider = await harness()
+    const noWorkspace = await execute(withoutProvider.ctx, 'browser_upload', uploadArgs, agent(undefined, {}, cwd))
+    expect(noWorkspace.isError).toBe(true)
+    expect(noWorkspace.error?.message).toMatch(/Session workspace and filesystem Provider/)
+
+    const withoutCwd = await harness()
+    withoutCwd.ctx.provide('fs', fs as never)
+    const noSession = await execute(withoutCwd.ctx, 'browser_upload', uploadArgs, agent())
+    expect(noSession.isError).toBe(true)
+    expect(noSession.error?.message).toMatch(/Session workspace and filesystem Provider/)
+    expect(selected.upload).toHaveBeenCalledTimes(1)
+  })
+
+  it('lists downloads and persists a completed download as a file attachment', async () => {
+    const selected = provider()
+    const { ctx, attachments } = await harness({ maxFileBytes: 1024 }, selected)
+    const listedValue = {
+      truncated: false,
+      items: [{ download_id: 'download-1', name: 'report.txt', status: 'complete' }],
+    }
+
+    const listed = await execute(ctx, 'browser_downloads', { page_id: 'page-1' })
+    expectSuccess(listed)
+    expect(listed.value).toEqual(listedValue)
+    expect(listed.content).toEqual([{ type: 'text', text: JSON.stringify(listedValue, null, 2) }])
+    expect(selected.downloads).toHaveBeenCalledWith('page-1', expect.any(AbortSignal))
+
+    const saved = await execute(ctx, 'browser_save_download', { page_id: 'page-1', download_id: 'download-1' })
+    expectSuccess(saved)
+    expect(saved.value).toEqual({ attachmentId: 'sha256:download', name: 'report.txt', bytes: 3 })
+    expect(saved.content).toEqual([{ type: 'text', text: 'Saved download report.txt (3 bytes), attachment sha256:download.' }])
+    expect(selected.readDownload).toHaveBeenCalledWith('page-1', 'download-1', 1024, expect.any(AbortSignal))
+    expect(attachments.saveFile).toHaveBeenCalledWith({ name: 'report.txt', data: Uint8Array.of(1, 2, 3) })
   })
 })

@@ -24,7 +24,7 @@ kind: "package-bundle"
 
 本组合包默认对观察、导航和交互全部请求审批。后续 profile patch 可以替换完整 browser-permission-policy 配置。可执行路径、浏览器通道和存储目录覆盖属于 browser-playwright 行；行配置整体替换，缺省字段使用提供方默认值。
 
-此 bundle 还挂载 [Browser Remote](../../api/browser-controller/README.zh.md)，供经过认证的人工设置操作，并挂载[元素捕获页](../../client/ui-browser-element-capture/README.zh.md)，在 Web 设置中选择、预览图片并附加到 Session 草稿。Profile 决定何时挂载本 bundle；运行时管理器独立于 Provider 启用状态。模型审批策略仍覆盖新增导航、检查与传输工具，人工 Remote 不以模型工具调用运行。
+此 bundle 还挂载 [Browser Remote](../../api/browser-controller/README.zh.md)，供经过认证的人工设置操作。Profile 决定何时挂载本 bundle；运行时管理器独立于 Provider 启用状态。模型审批策略仍覆盖导航、检查与传输工具，人工 Remote 不以模型工具调用运行。
 
 ## 模型体验
 

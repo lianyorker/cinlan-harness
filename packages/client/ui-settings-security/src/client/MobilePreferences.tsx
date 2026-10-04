@@ -1,21 +1,40 @@
-/** Framework-bound mobile preference drafts and independent read-only device checks. */
+/** Mobile Emulator setup card: enable, availability, Android SDK, and default device. */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { MobileDeviceListSnapshot, MobileSdkSnapshot } from '@deepseek-ai/dsh-api-device-capabilities-controller/types'
+import type { DeviceCapabilitySnapshot, MobileDeviceListSnapshot, MobileSdkSnapshot } from '@deepseek-ai/dsh-api-device-capabilities-controller/types'
 import type { MobileDeviceSettings } from '@deepseek-ai/dsh-mobile-device/types'
 import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MobileSectionInjected, CapabilitySectionProps } from './CapabilitySection.tsx'
+import type { CapabilitySettingsKey } from './locales.ts'
 import css from './CapabilitySection.module.css'
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 
-type Props = Pick<InjectFace<MobileSectionInjected>, 'useMobileSettings' | 'saveMobileSettings' | 'resetMobileSettings' | 'checkSdk' | 'listMobileDevices'> & Pick<CapabilitySectionProps, 't'>
+/** Device readiness the capability page already probed, projected into the setup card. */
+export interface MobileAvailability {
+  /** Raw probe status, which selects the badge tone. */
+  readonly status: DeviceCapabilitySnapshot['status'] | 'checking'
+  /** Locale key naming that status. */
+  readonly statusKey: CapabilitySettingsKey
+  /** Localized explanation of the current probe status. */
+  readonly reason: string
+  /** True while the Host probe is in flight. */
+  readonly checking: boolean
+  /** Re-run the read-only device probe owned by the capability page. */
+  readonly onRefresh: () => void
+}
+
+type Props = Pick<InjectFace<MobileSectionInjected>, 'useMobileSettings' | 'saveMobileSettings' | 'resetMobileSettings' | 'checkSdk' | 'listMobileDevices'> & Pick<CapabilitySectionProps, 't'> & {
+  /** Probe result rendered as the availability row. */
+  readonly availability: MobileAvailability
+}
 
 /**
- * Edit preferences for SDK checks and device observation without granting control authority.
- * @param props - Renderer-bound settings, revision-fenced callbacks, and read-only checks.
- * @returns Native preference rows and explicit SDK/device results.
+ * Edit mobile emulator setup without granting control authority: one draft form owns the enable switch,
+ * the custom SDK path, and the default device, while availability and toolchain rows stay read-only.
+ * @param props - Renderer-bound settings, revision-fenced callbacks, read-only checks, and the probed availability.
+ * @returns The setup card with its switch, availability, SDK, device, and save rows.
  */
 export function MobilePreferences({
-  useMobileSettings, saveMobileSettings, resetMobileSettings, checkSdk, listMobileDevices, t,
+  useMobileSettings, saveMobileSettings, resetMobileSettings, checkSdk, listMobileDevices, availability, t,
 }: Props): ReactNode {
   const snapshot = useMobileSettings(value => value)
   const [draft, setDraft] = useState<{ value: MobileDeviceSettings; revision: number }>()
@@ -54,7 +73,10 @@ export function MobilePreferences({
     pending.current = true; setStatus('saving')
     try {
       if (reset) await resetMobileSettings(draft?.revision ?? snapshot.revision)
-      else if (draft !== undefined) await saveMobileSettings(draft.value, draft.revision)
+      else {
+        /* v8 ignore next -- defensive: the submit control stays disabled until a draft exists, so a write with no draft has no route. */
+        if (draft !== undefined) await saveMobileSettings(draft.value, draft.revision)
+      }
       if (mounted.current) { setDraft(undefined); setStatus('saved') }
     } catch (_preferenceWriteRejected) {
       if (mounted.current) setStatus('error')
@@ -62,67 +84,77 @@ export function MobilePreferences({
   }
   const unavailable = t(snapshot.status === 'loading' ? 'preferencesLoading' : 'preferencesUnavailable')
   const selectedMissing = value !== undefined && value.defaultDeviceId !== '' && !devices?.devices.some(device => device.id === value.defaultDeviceId)
+  const detectedPath = sdkState === 'ready' && sdk?.android.found === true ? sdk.android.sdkPath ?? undefined : undefined
+  const sdkDetail = sdkState === 'loading' ? t('preferencesLoading')
+    : sdkState === 'error' ? t('mobileSdkFailed')
+      : sdk === undefined ? t('mobileNotChecked')
+        : !sdk.android.found ? t('mobileSdkAndroidNotFound')
+          : detectedPath === undefined ? t('mobileSdkFound') : t('mobileSdkDetectedAt', { path: detectedPath })
+  const deviceCount = devices?.available === true ? devices.devices.length : undefined
+  const availabilityDetail = deviceCount === undefined ? availability.reason
+    : deviceCount === 0 ? t('deviceNoDevices')
+      : t(deviceCount === 1 ? 'mobileDeviceDetectedOne' : 'mobileDevicesDetected', { count: deviceCount })
   const checking = sdkState === 'loading' || deviceState === 'loading'
-  return <div className={css.mobilePreferences}>
-    <form onSubmit={(event) => { event.preventDefault(); void save() }}>
-      <p>{t('mobilePreferenceConsumers')}</p>
-      {snapshot.status !== 'ready' && <p role="status">{unavailable}</p>}
-      <fieldset disabled={!writable || status === 'saving'}>
-        <label className={css.settingRow} data-settings-anchor="mobile-enabled">
-          <span>{t('mobileEnable')}<small>{t('mobileEnableDescription')}</small></span>
-          {value === undefined ? <span role="status">{unavailable}</span> : <Switch label={t('mobileEnable')}
-            checked={value.enabled} disabled={!writable || status === 'saving'} onChange={(enabled) => { change({ enabled }) }} />}
-        </label>
-        <label className={css.settingRow} data-settings-anchor="mobile-sdk-path">
-          <span>{t('mobileSdkCustomPath')}<small>{t('mobileSdkPathHelp')}</small></span>
-          {value === undefined ? <span role="status">{unavailable}</span> : <span className={css.settingControl}>
-            <input type="text" aria-label={t('mobileSdkCustomPath')} value={value.androidSdkPath}
-              onChange={(event) => { change({ androidSdkPath: event.currentTarget.value }) }} />
-            {value.androidSdkPath !== '' && <button type="button" className={css.recheckButton} onClick={() => { change({ androidSdkPath: '' }) }}>{t('mobileSdkClear')}</button>}
-            {sdk?.android.sdkPath !== null && sdk?.android.sdkPath !== undefined && <button type="button" className={css.recheckButton}
-              onClick={() => { change({ androidSdkPath: sdk.android.sdkPath ?? '' }) }}>{t('mobileSdkUseDetected')}</button>}
-          </span>}
-        </label>
-        <label className={css.settingRow} data-settings-anchor="mobile-device">
-          <span>{t('mobileDefaultDevice')}<small>{t('mobileDefaultDeviceDescription')}</small></span>
-          {value === undefined ? <span role="status">{unavailable}</span> : <select aria-label={t('mobileDefaultDevice')}
-            value={value.defaultDeviceId} onChange={(event) => { change({ defaultDeviceId: event.currentTarget.value }) }}>
-            <option value="">{t('mobileDefaultDeviceAuto')}</option>
-            {selectedMissing && <option value={value.defaultDeviceId} disabled>{t('mobileSavedDeviceUnavailable')}</option>}
-            {devices?.devices.map(device => <option key={device.id} value={device.id} disabled={!device.isAvailable}>
-              {device.name}
-            </option>)}
-          </select>}
-        </label>
-        <div className={css.browserActions}>
-          <button className={css.recheckButton} type="submit" disabled={draft === undefined}>{t(status === 'saving' ? 'preferencesSaving' : 'preferencesSave')}</button>
-          <button className={css.recheckButton} type="button" disabled={draft === undefined}
-            onClick={() => { setDraft(undefined); setStatus('idle') }}>{t('preferencesDiscard')}</button>
-          <button className={css.recheckButton} type="button" onClick={() => { void save(true) }}>{t('preferencesReset')}</button>
-        </div>
-      </fieldset>
-      {!writable && <p role="status">{t('preferencesReadOnly')}</p>}
-      {status === 'saved' && <p role="status">{t('mobilePreferencesSaved')}</p>}
-      {status === 'error' && <p className={css.failure} role="alert">{t('preferencesFailed')}</p>}
-    </form>
-    <section className={css.agentSetup} data-settings-anchor="mobile-detection" aria-busy={checking}>
-      <div className={css.availability}><div><h2>{t('mobileDetectTitle')}</h2><p>{t('mobileDetectDescription')}</p></div>
-        <button type="button" className={css.recheckButton} disabled={checking} onClick={() => { setRequest(value => value + 1) }}>{t('computerRecheck')}</button>
+  const refreshAll = (): void => { setRequest(current => current + 1); availability.onRefresh() }
+  return <form className={css.mobileSetupCard} data-settings-anchor="mobile-setup" aria-busy={checking}
+    onSubmit={(event) => { event.preventDefault(); void save() }}>
+    {snapshot.status !== 'ready' && <p role="status">{unavailable}</p>}
+    <fieldset disabled={!writable || status === 'saving'}>
+      <div className={css.settingRow} data-settings-anchor="mobile-enabled">
+        <span>{t('mobileEnable')}<small>{t('mobileEnableDescription')}</small></span>
+        {value !== undefined && <Switch label={t('mobileEnable')}
+          checked={value.enabled} disabled={!writable || status === 'saving'} onChange={(enabled) => { change({ enabled }) }} />}
       </div>
-      <dl className={css.facts}>
-        <div><dt>{t('mobileSdkAndroid')}</dt><dd>
-          {sdkState === 'loading' ? t('preferencesLoading') : sdkState === 'error' ? <span className={css.failure} role="alert">{t('mobileSdkFailed')}</span>
-            : sdk === undefined ? t('mobileNotChecked') : sdk.android.found ? sdk.android.sdkPath ?? t('mobileSdkFound') : t('mobileSdkAndroidNotFound')}
-          {sdkState === 'ready' && sdk?.android.found === false && <a href="https://developer.android.com/studio" target="_blank" rel="noreferrer">{t('mobileSdkDownload')}</a>}
-        </dd></div>
-        {sdkState === 'ready' && sdk?.ios !== null && sdk?.ios !== undefined && <div><dt>{t('mobileSdkIos')}</dt><dd>{t(sdk.ios.simctlOk ? 'mobileSdkIosReady' : 'mobileSdkIosNotReady')}</dd></div>}
-        <div><dt>{t('mobileDevicesTitle')}</dt><dd>
-          {deviceState === 'loading' ? t('preferencesLoading') : deviceState === 'error' ? <span className={css.failure} role="alert">{t('mobileDevicesFailed')}</span>
-            : devices === undefined ? t('mobileNotChecked') : !devices.available ? t('deviceProviderUnavailable')
-              : devices.devices.length === 0 ? t('deviceNoDevices')
-                : <ul>{devices.devices.map(device => <li key={device.id}>{device.name} — {t(device.isAvailable ? 'mobileDeviceAvailable' : 'mobileDeviceUnavailable')}</li>)}</ul>}
-        </dd></div>
-      </dl>
-    </section>
-  </div>
+      <div className={css.settingRow} data-settings-anchor="mobile-readiness">
+        <span>{t('mobileSdkStatusTitle')}<small>{availabilityDetail}</small></span>
+        <span className={css.settingControl}>
+          <span className={css.computerBadge} data-capability-status={availability.status} role="status">
+            <span className={css.dot} aria-hidden="true" />{t(availability.statusKey)}
+          </span>
+          <button type="button" className={css.recheckButton} disabled={availability.checking}
+            onClick={refreshAll}>{t('mobileAgentRecheck')}</button>
+        </span>
+      </div>
+      <div className={css.settingRow} data-settings-anchor="mobile-sdk-path">
+        <span>{t('mobileSdkAndroid')}<small>{sdkDetail}</small></span>
+        <span className={css.settingControl}>
+          {sdkState === 'ready' && sdk?.android.found === false
+            && <a className={css.recheckButton} href="https://developer.android.com/studio" target="_blank" rel="noreferrer">{t('mobileSdkDownload')}</a>}
+          {detectedPath !== undefined && <button type="button" className={css.recheckButton}
+            onClick={() => { change({ androidSdkPath: detectedPath }) }}>{t('mobileSdkUseDetected')}</button>}
+          {value !== undefined && value.androidSdkPath !== '' && <button type="button" className={css.recheckButton}
+            onClick={() => { change({ androidSdkPath: '' }) }}>{t('mobileSdkClear')}</button>}
+        </span>
+      </div>
+      <div className={css.settingRow}>
+        <span>{t('mobileSdkCustomPath')}<small>{t('mobileSdkPathHelp')}</small></span>
+        {value !== undefined && <input type="text" aria-label={t('mobileSdkCustomPath')} value={value.androidSdkPath}
+          onChange={(event) => { change({ androidSdkPath: event.currentTarget.value }) }} />}
+      </div>
+      {sdkState === 'ready' && sdk?.ios !== null && sdk?.ios !== undefined && <div className={css.settingRow} data-settings-anchor="mobile-ios">
+        <span>{t('mobileSdkIos')}<small>{t(sdk.ios.simctlOk ? 'mobileSdkIosReady' : 'mobileSdkIosNotReady')}</small></span>
+      </div>}
+      <div className={css.settingRow} data-settings-anchor="mobile-device">
+        <span>{t('mobileDefaultDevice')}<small>{t('mobileDefaultDeviceDescription')}</small></span>
+        {value !== undefined && <select aria-label={t('mobileDefaultDevice')}
+          value={value.defaultDeviceId} onChange={(event) => { change({ defaultDeviceId: event.currentTarget.value }) }}>
+          <option value="">{t('mobileDefaultDeviceAuto')}</option>
+          {selectedMissing && <option value={value.defaultDeviceId} disabled>{t('mobileSavedDeviceUnavailable')}</option>}
+          {devices?.devices.map(device => <option key={device.id} value={device.id} disabled={!device.isAvailable}>
+            {device.name}
+          </option>)}
+        </select>}
+      </div>
+      <div className={css.browserActions}>
+        <button className={css.recheckButton} type="submit" disabled={draft === undefined}>{t(status === 'saving' ? 'preferencesSaving' : 'preferencesSave')}</button>
+        <button className={css.recheckButton} type="button" disabled={draft === undefined}
+          onClick={() => { setDraft(undefined); setStatus('idle') }}>{t('preferencesDiscard')}</button>
+        <button className={css.recheckButton} type="button" onClick={() => { void save(true) }}>{t('preferencesReset')}</button>
+      </div>
+    </fieldset>
+    {!writable && <p role="status">{t('preferencesReadOnly')}</p>}
+    {deviceState === 'error' && <p className={css.failure} role="alert">{t('mobileDevicesFailed')}</p>}
+    {status === 'saved' && <p role="status">{t('mobilePreferencesSaved')}</p>}
+    {status === 'error' && <p className={css.failure} role="alert">{t('preferencesFailed')}</p>}
+  </form>
 }

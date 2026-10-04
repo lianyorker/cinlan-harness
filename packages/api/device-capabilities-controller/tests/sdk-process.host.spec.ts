@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { copyFile, link, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -6,14 +7,23 @@ import { Context } from '@deepseek-ai/cordis'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import MobileDeviceRuntime from '@deepseek-ai/dsh-mobile-device'
-const FileSettingsProvider = {
-  name: '@deepseek-ai/dsh-settings-file',
-  apply(c: Context) {
-    c.provide('settings', {
-      describe: () => [],
-      configure: () => () => {},
-    } as never)
-  },
+/**
+ * Minimal settings service over a seeded JSON document: the fixture updates the
+ * mobile-device namespace at runtime, so describe() must observe each write.
+ */
+function settingsServiceStub(settingsPath: string) {
+  const read = (): Record<string, unknown> => JSON.parse(readFileSync(settingsPath, 'utf8'))['mobile-device'] as Record<string, unknown>
+  let value = read()
+  return {
+    name: '@deepseek-ai/dsh-settings',
+    apply(c: Context) {
+      c.provide('settings', {
+        describe: () => [{ ns: 'mobile-device', value, schema: {}, autoGenerate: false, applies: 'live', revision: 1 }],
+        configure: () => () => {},
+        update: async (_ns: string, patch: object) => { value = { ...value, ...patch } },
+      } as never)
+    },
+  }
 }
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
@@ -58,7 +68,7 @@ async function boot(state: { exitCode?: number; output?: string; pending?: boole
   await writeFile(settingsPath, JSON.stringify({ 'mobile-device': { androidSdkPath: sdkPath, enabled: false } }))
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, JSON.stringify([
-    { name: '@deepseek-ai/dsh-settings-file', config: { path: settingsPath, watch: false } },
+    { name: '@deepseek-ai/dsh-settings', config: { path: settingsPath, watch: false } },
     { name: '@deepseek-ai/dsh-mobile-device' },
     { name: '@deepseek-ai/dsh-subprocess-local' },
     { name: '@deepseek-ai/dsh-typert-registry' },
@@ -72,7 +82,7 @@ async function boot(state: { exitCode?: number; output?: string; pending?: boole
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
-    ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
+    ['@deepseek-ai/dsh-settings', settingsServiceStub(settingsPath)],
     ['@deepseek-ai/dsh-mobile-device', MobileDeviceRuntime],
     ['@deepseek-ai/dsh-subprocess-local', LocalSubprocessRuntime],
     ['@deepseek-ai/dsh-typert-registry', TypertRegistry],

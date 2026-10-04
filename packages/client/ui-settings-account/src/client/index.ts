@@ -38,10 +38,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Services required by account settings. */
-export const inject = ['slots', 'locale', 'remote', 'remote.account', 'remote.session', 'theme', 'configForms']
+export const inject = ['slots', 'locale', 'remote', 'remote.account', 'remote.session', 'theme', 'configForms', 'settingsMetadata']
 /** Register account UI only in the Desktop renderer. @param ctx - client plugin context. */
 export function apply(ctx: Context): void {
-  if (!('dshDesktop' in globalThis)) return
+  if (!('clhDesktop' in globalThis || 'dshDesktop' in globalThis)) return
   ctx.effect(() => ctx.locale.register('settings.account', { en, zh }), 'account: dictionaries')
   const t = ctx.locale.bind('settings.account')
   const page = globalThis as Partial<Record<typeof CONTACT_CONFIG_GLOBAL, unknown>>
@@ -50,7 +50,10 @@ export function apply(ctx: Context): void {
   const listeners = new Set<() => void>()
   const publish = (value: AccountSnapshot) => { snapshot = value; for (const listener of listeners) listener() }
   /** @returns the client identity for one account call, read at call time so it carries the language and zone in effect then. */
-  const client = () => accountClientMetadata(ctx.locale.getSnapshot().active, process.env.DSH_CLIENT_VERSION)
+  const client = () => accountClientMetadata(
+    ctx.locale.getSnapshot().active,
+    process.env.CLH_CLIENT_VERSION ?? process.env.DSH_CLIENT_VERSION,
+  )
   // The browser half of the notice lifecycle: reads when the account becomes
   // active and on an explicit refresh, and acknowledges an order only after its
   // card reports a presented frame. The Host owns which bonus is unnotified and
@@ -133,7 +136,8 @@ export function apply(ctx: Context): void {
       void refresh()
     }
   })().catch(() => { if (!disposed) publish({ ...snapshot, failed: true }) })
-  const nativePlatform = (globalThis as typeof globalThis & { dshPlatform?: PlatformBridge }).dshPlatform
+  const platformCarrier = (globalThis as typeof globalThis & { clhPlatform?: PlatformBridge; dshPlatform?: PlatformBridge })
+  const nativePlatform = platformCarrier.clhPlatform ?? platformCarrier.dshPlatform
   // One request channel for the single native Platform view. It always exists
   // so every entry can observe whether a page is showing; only a native bridge
   // lets an entry request one.
@@ -166,16 +170,18 @@ export function apply(ctx: Context): void {
       const profile = snapshot.details?.profile
       const context = {
         uid: profile?.status === 'ready' ? profile.value.id : null,
-        version: process.env.DSH_CLIENT_VERSION,
+        version: process.env.CLH_CLIENT_VERSION ?? process.env.DSH_CLIENT_VERSION,
         locale: ctx.locale.getSnapshot().active === 'zh' ? 'zh-CN' : 'en',
         width: window.screen.width, height: window.screen.height, pixelRatio: window.devicePixelRatio,
       }
       const openForm = (deviceInfo: string): void => {
         window.open(contactUrl(config, { ...context, deviceInfo }), '_blank', 'noopener,noreferrer')
       }
-      const readDeviceInfo = (globalThis as typeof globalThis & {
+      const desktopCarrier = (globalThis as typeof globalThis & {
+        clhDesktop?: { deviceInfo?: () => Promise<string> }
         dshDesktop?: { deviceInfo?: () => Promise<string> }
-      }).dshDesktop?.deviceInfo
+      })
+      const readDeviceInfo = desktopCarrier.clhDesktop?.deviceInfo ?? desktopCarrier.dshDesktop?.deviceInfo
       if (readDeviceInfo === undefined) {
         // A Desktop bridge without the optional reader reports the renderer user agent.
         openForm(navigator.userAgent)
@@ -207,11 +213,13 @@ export function apply(ctx: Context): void {
     async start() {
       publish({ ...snapshot, loginVisible: true, loginFailed: false })
       const transport = (globalThis as typeof globalThis & {
+        __CLH_TRANSPORT__?: { streamBaseUrl?: string }
         __DSH_TRANSPORT__?: { streamBaseUrl?: string }
-      }).__DSH_TRANSPORT__
+      })
+      const transportConfig = transport.__CLH_TRANSPORT__ ?? transport.__DSH_TRANSPORT__
       try {
         const result = await ctx.remote.account.startSignIn(client(),
-          transport?.streamBaseUrl !== undefined ? new URL(transport.streamBaseUrl).origin : window.location.origin,
+          transportConfig?.streamBaseUrl !== undefined ? new URL(transportConfig.streamBaseUrl).origin : window.location.origin,
           'desktop')
         if (!result.ok) throw new Error('account start failed')
       } catch (error) {
@@ -231,7 +239,7 @@ export function apply(ctx: Context): void {
       throw result.error
     },
   }
-  if ('dshDesktop' in globalThis) {
+  if ('clhDesktop' in globalThis || 'dshDesktop' in globalThis) {
     const controller = new DesktopOnboardingController(
       ctx.configForms.get<OnboardingSettings>(DESKTOP_ONBOARDING_NAMESPACE),
       ctx.configForms.get<{ transcriptView?: TranscriptViewMode | null; performanceUsage: 'compact' | 'detailed' }>('ui-chat'),
@@ -286,7 +294,8 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('settings.launcher', () => ctx.slots.register({
     name: 'settings.launcher', locale: 'settings.account', inject: () => operations,
   }, AccountMenu))
-  ctx.slots.inject('settings.section', () => {
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'account', groupId: 'personal', heading: 'shell' })
     let unregister: (() => void) | undefined
     const update = () => {
       if (snapshot.view?.status === 'credential-stored') {
@@ -301,6 +310,6 @@ export function apply(ctx: Context): void {
     }
     listeners.add(update)
     update()
-    return () => { listeners.delete(update); unregister?.() }
+    yield () => { listeners.delete(update); unregister?.() }
   })
 }

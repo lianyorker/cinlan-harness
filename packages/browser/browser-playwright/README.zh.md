@@ -40,7 +40,7 @@ Snapshot element id 只在一个精确 observation 内有效。Selection id 持�
 <a id="configuration"></a>
 ## 配置
 
-本插件需要 Browser、Settings 及同包 `./runtime` 服务。browser-playwright Settings 命名空间在部署默认值之上持久化 browserChannel、headless、viewportWidth、viewportHeight、profileName、homePage 和 searchEngine。修改在 Provider 重新挂载或 profile 重启时生效，不会打断当前浏览器操作。视口偏好接受正安全整数。可执行路径、存储目录与 Provider 身份仍属于部署配置。
+本插件需要 Browser、Settings 及同包 `./runtime` 服务。browser-playwright Settings 命名空间在部署默认值之上持久化 browserChannel、headless、viewportWidth、viewportHeight、zoom、attach、attachPort、profileName、homePage 和 searchEngine；这些 Config 字段为 volatile，设置服务因此才会发布该命名空间。修改在 Provider 重新挂载或 profile 重启时生效，不会打断当前浏览器操作。视口偏好接受正安全整数，zoom 接受 0.25 到 5，attachPort 接受 1024 到 65535。设置页会列出本 Provider 已保存的配置：`default` 使用存储目录本身，其他名称位于 `storageDir/harness-profiles/profile-<name>`，因此切换配置即切换 Cookie 与浏览器存储。可执行路径、存储目录与 Provider 身份仍属于部署配置。
 
 | 键 | 默认值 | 含义 |
 |---|---|---|
@@ -53,6 +53,7 @@ Snapshot element id 只在一个精确 observation 内有效。Selection id 持�
 | `navigationTimeoutMs` | `60000` | 页面 navigation timeout。 |
 | `maxElements` | `200` | 单次 snapshot 最多返回的交互引用数。 |
 | `viewportWidth` / `viewportHeight` | `1440` / `900` | 浏览器 viewport 尺寸。 |
+| `zoom` | `1` | 默认页面缩放；页面按视口/zoom 布局，并按配置尺寸栅格化。 |
 | `maxCaptureBytes` | `10485760` | 单次元素裁剪的最大编码字节数。 |
 | `maxCapturePixels` | `4000000` | 单次元素裁剪的最大可见 CSS 像素数。 |
 | `selectionTimeoutMs` | `60000` | 等待一次人工选择的最大时间。 |
@@ -60,7 +61,8 @@ Snapshot element id 只在一个精确 observation 内有效。Selection id 持�
 | `maxHistoryEntries` / `maxNetworkEntries` | `100` / `100` | 每个打开页面保留的记录数。 |
 | `maxCookieCount` / `maxDownloadCount` | `100` / `20` | 单次导入 Cookie 数及每页下载数。 |
 | `maxTransferBytes` | `4194304` | 上传或读取下载文件的字节上限。 |
-| `remoteDebuggingPort` | 无 | 供 browser-use 与外部工具附着连接的远程调试端口（CDP）。 |
+| `remoteDebuggingPort` | 无 | 本 Provider 启动的浏览器向外暴露的远程调试端口（CDP）。 |
+| `attach` / `attachPort` | `false` / `9222` | 通过 CDP 连接已在运行的本机 Chromium，而不是自行启动；销毁时只断开，绝不关闭该浏览器。 |
 
 profileName 只接受小写字母开头的安全名称。default 保留原 storageDir；其他名称使用 storageDir/harness-profiles/profile-{name}。Cookie 与浏览器存储按目录隔离，修改名称不复制或删除旧数据。history/network 只保留打开页面的最近记录，去掉 URL 凭据、查询和片段，不保留请求头或响应体；关闭页面或 Provider 后清空。
 

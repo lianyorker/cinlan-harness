@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-03-orca-execution-host-target-form.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-03-orca-execution-host-target-form.md
+/agent-note-the-execution-host-page-edits-a-connection-record:
+  en: 90a389cbea0b9f82
+  zh: d14fb5628a50e531
+/agent-note-the-execution-host-page-edits-a-connection-record/problem:
+  en: bb07cd8430b5d657
+  zh: 72051f8e1e1419d5
+/agent-note-the-execution-host-page-edits-a-connection-record/decision:
+  en: 05d923603355634c
+  zh: bbd531a18f0d931a
+/agent-note-the-execution-host-page-edits-a-connection-record/alternatives-considered:
+  en: e526f8fad2b2f467
+  zh: 277edb63dddd723f
+/agent-note-the-execution-host-page-edits-a-connection-record/consequences:
+  en: cc3aa9120ad1dfc4
+  zh: 8b1cd855e99f1946
+/agent-note-the-execution-host-page-edits-a-connection-record/testing:
+  en: 8723e6cc7c590f79
+  zh: 04a1f0aaed300003

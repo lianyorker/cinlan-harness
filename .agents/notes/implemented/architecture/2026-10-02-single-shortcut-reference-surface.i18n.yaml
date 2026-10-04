@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-02-single-shortcut-reference-surface.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-02-single-shortcut-reference-surface.md
+/agent-note-one-shortcut-reference-surface:
+  en: ccbbc16c19420b9d
+  zh: 0aaf1e363f82eb5c
+/agent-note-one-shortcut-reference-surface/problem:
+  en: bdc6e9b55ac8d721
+  zh: 2eeca6781fbff800
+/agent-note-one-shortcut-reference-surface/decision:
+  en: 52ea8ece4cc5a36a
+  zh: 4b43bcd348698b2b
+/agent-note-one-shortcut-reference-surface/alternatives-considered:
+  en: 0eeb93553837ccd6
+  zh: d56d844b343335c6
+/agent-note-one-shortcut-reference-surface/consequences:
+  en: 2129c8ddcf097894
+  zh: 1582bcdb73c540b4
+/agent-note-one-shortcut-reference-surface/testing:
+  en: a2865c02dbbd11e7
+  zh: ebd6cc23df70f806

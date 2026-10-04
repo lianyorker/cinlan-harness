@@ -2,6 +2,7 @@
   "name": "@deepseek-ai/dsh-cinlan-browser",
   "description": "Opt-in Cinlan persistent-browser composition for dsh profiles",
   "version": "0.1.7-rc.2",
+  "icon": "./icon.svg",
   "publishConfig": {
     "access": "public"
   },
@@ -20,9 +21,12 @@
     },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./src/*": "./src/*",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
+    "icon.svg",
+    "locale/*.json",
     "lib/index.js",
     "cordis.patch.yml",
     "lib/types/**/*.d.ts"
@@ -38,8 +42,7 @@
     "@deepseek-ai/dsh-browser-permission-policy": "workspace:^",
     "@deepseek-ai/dsh-tool-browser": "workspace:^",
     "@deepseek-ai/dsh-browser-playwright": "workspace:^",
-    "@deepseek-ai/dsh-api-browser-controller": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-browser-element-capture": "workspace:^"
+    "@deepseek-ai/dsh-api-browser-controller": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^"

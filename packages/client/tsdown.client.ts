@@ -7,17 +7,20 @@
  * and injects a tagged style at factory execution, while `x.css?inline`
  * exports compiled text for a plugin-owned lifecycle effect. The virtual
  * loaders register each real stylesheet as a watch dependency.
+ * Non-experimental client outputs reject experimental module and stylesheet
+ * inputs, including origins recorded by chained source maps.
  */
-import { readFile } from 'node:fs/promises'
+import { readFile, stat, utimes } from 'node:fs/promises'
 import { existsSync, globSync, readFileSync } from 'node:fs'
 import { createRequire, isBuiltin } from 'node:module'
 import { basename, dirname, isAbsolute, relative, resolve as resolvePath, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { UserConfig } from 'tsdown'
+import { Rolldown, type TsdownPlugin, type UserConfig } from 'tsdown'
 import { transform } from 'lightningcss'
 import { optionalStringArray } from './modules/src/client/manifest.ts'
 import { PLATFORM_MODULES, PRELOADED_CLIENT_EXTERNALS } from './web/src/platform.ts'
 import { clientBuildEnvironmentDefines } from '../../scripts/client-build-environment.ts'
+import { BundleInputIsolation, physicalBundleInput } from '../../scripts/bundle-input-isolation.ts'
 
 /**
  * Virtual-id wrapper keeping module CSS away from tsdown's own css pipeline
@@ -58,7 +61,7 @@ function styleInjectionModule(
  * Everything else under @deepseek-ai/* is either a module-table entry
  * (external) or a leak the purity gate rejects.
  */
-export const INLINE_SAFE = /^(?:@deepseek-ai\/dsh-(?:file-reference|session|llm|tools|brand|deque|output-retention|typert-protocol|util-crypto|util-values|util-workspace-path)(?:\/|$)|@deepseek-ai\/dsh-token-meter\/client$|@deepseek-ai\/dsh-host-open-in-app\/shared$|@deepseek-ai\/dsh-agent-preset(?:s|-registry)\/display$|@deepseek-ai\/dsh-spill-policy\/notice$|@deepseek-ai\/dsh-git-settings\/settings-schema$|@deepseek-ai\/dsh-plugin-manager\/registry$|@deepseek-ai\/dsh-native-command\/types$|@deepseek-ai\/dsh-api-workspace-controller\/default-workspace$)/
+export const INLINE_SAFE = /^(?:@deepseek-ai\/dsh-(?:file-reference|session|llm|tools|brand|deque|output-retention|typert-protocol|util-crypto|util-values|util-workspace-path)(?:\/|$)|@deepseek-ai\/dsh-token-meter\/client$|@deepseek-ai\/dsh-native-command\/types$|@deepseek-ai\/dsh-host-open-in-app\/shared$|@deepseek-ai\/dsh-plugin-manager\/registry$|@deepseek-ai\/dsh-agent-preset-registry\/display$|@deepseek-ai\/dsh-api-workspace-controller\/default-workspace$|@deepseek-ai\/dsh-spill-policy\/notice$)/
 
 /**
  * Vendored framework libraries: rescoped into @deepseek-ai, so the gate below
@@ -98,10 +101,8 @@ function browserSourcePath(source: string, sourcemapPath: string): string {
  * original source content, into the standalone plugin map.
  * @param id - plugin id (package name), stamped into the __ModuleLoader__.load
  * handoff and onto the injected style tags.
- * @param libEntry - node-half entries, spelled at the call site so the
- * package-invariants gate can see `lib/types/invariant.js` in each package's
- * own tsdown.config.ts (a preset-side glob hides it from the mechanical check).
- * @param options - phase placement, lib overrides, and companion Node configs.
+ * @param libEntry - node-half entries.
+ * @param options - phase placement, lib overrides, companion Node configs, the source-mode Client entry, and optional per-file Client banner.
  * @returns ENV-selected tsdown config for the current build face.
  */
 export function clientBundle(
@@ -112,8 +113,8 @@ export function clientBundle(
   const lib = clientLibraryConfig(id, libEntry, options.lib)
   return ({ env }) => {
     const face = buildFace(env?.DSH_BUILD_FACE)
-    const clientEntry = face === undefined ? 'src/client/index.ts' : 'lib/types/client/index.js'
-    const client = clientConfig(id, clientEntry)
+    const clientEntry = face === undefined ? options.clientSource ?? 'src/client/index.ts' : 'lib/types/client/index.js'
+    const client = clientConfig(id, clientEntry, options.clientBanner)
     const node = [lib, ...(options.companions ?? [])]
     if (face === 'host') return options.hostPhase === true ? node : [SKIP_WORKSPACE_BUILD]
     if (face === 'client') {
@@ -202,6 +203,10 @@ interface ClientBundleOptions {
   readonly companions?: readonly UserConfig[]
   /** Overrides for the package's primary Node-side library config. */
   readonly lib?: UserConfig
+  /** Source-mode Client entry, used when no build face selects the compiled one; a package whose Client half is `.tsx` names it here. */
+  readonly clientSource?: string
+  /** Optional legal or attribution text selected by emitted client filename. */
+  readonly clientBanner?: (fileName: string) => string | undefined
 }
 
 type BuildFace = 'host' | 'client' | undefined
@@ -255,6 +260,7 @@ interface AssetEmitter {
 
 function staticLinkedConfig(id: string, entry: string, outputName = basename(entry, '.js')): UserConfig {
   const emitted = new Set<string>()
+  const isolation = clientInputIsolation(id)
   return {
     name: id,
     entry: { [outputName]: entry },
@@ -268,7 +274,10 @@ function staticLinkedConfig(id: string, entry: string, outputName = basename(ent
     // The shell compiles this artifact, so its map is the only path from a
     // browser stack frame back to the TSX (tsc emits the lib/types half).
     sourcemap: true,
-    outputOptions: { sourcemapExcludeSources: false },
+    outputOptions: {
+      sourcemapExcludeSources: false,
+      sourcemapPathTransform: isolation.sourcePath,
+    },
     plugins: [{
       // Contract 1. `pre` because tsdown's own deps plugin would otherwise
       // resolve and inline every specifier missing from the npm production
@@ -283,7 +292,7 @@ function staticLinkedConfig(id: string, entry: string, outputName = basename(ent
           return isBareSpecifier(source) ? { id: source, external: true } : null
         },
       },
-    }, tscSourceMapPlugin(), {
+    }, tscSourceMapPlugin(), isolation.plugin, {
       // Contract 4. The import survives verbatim and the sheet lands beside the
       // JavaScript, so the shell's CSS Modules pipeline sees a real stylesheet.
       name: 'dsh-css-asset',
@@ -333,30 +342,8 @@ interface WorkspaceManifest {
 }
 
 const manifestCache = new Map<string, WorkspaceManifest>()
-const packageDirCache = new Map<string, string>()
 const productionExternalCache = new Map<string, readonly RegExp[]>()
 const clientExternalCache = new Map<string, ReadonlySet<string>>()
-
-/**
- * Locate one workspace package's directory by package name.
- * @param id - package name.
- * @returns absolute directory of the package.
- */
-function workspacePackageDir(id: string): string {
-  const cached = packageDirCache.get(id)
-  if (cached !== undefined) return cached
-  for (const manifestPath of globSync('packages/*/*/package.json', { cwd: REPOSITORY_ROOT })) {
-    const manifest = JSON.parse(
-      readFileSync(resolvePath(REPOSITORY_ROOT, manifestPath), 'utf8'),
-    ) as WorkspaceManifest
-    if (manifest.name === undefined) continue
-    const dir = resolvePath(REPOSITORY_ROOT, dirname(manifestPath))
-    manifestCache.set(manifest.name, manifest)
-    packageDirCache.set(manifest.name, dir)
-    if (manifest.name === id) return dir
-  }
-  throw new Error(`tsdown: no packages/*/*/package.json declares the name ${id}`)
-}
 
 /**
  * Read one workspace package's manifest. Located by package name rather than by
@@ -371,9 +358,14 @@ function workspacePackageDir(id: string): string {
 function workspaceManifest(id: string): WorkspaceManifest {
   const cached = manifestCache.get(id)
   if (cached !== undefined) return cached
-  workspacePackageDir(id)
-  const manifest = manifestCache.get(id)
-  if (manifest !== undefined) return manifest
+  for (const manifestPath of globSync('packages/*/*/package.json', { cwd: REPOSITORY_ROOT })) {
+    const manifest = JSON.parse(
+      readFileSync(resolvePath(REPOSITORY_ROOT, manifestPath), 'utf8'),
+    ) as WorkspaceManifest
+    if (manifest.name !== id) continue
+    manifestCache.set(id, manifest)
+    return manifest
+  }
   throw new Error(`tsdown: no packages/*/*/package.json declares the name ${id}`)
 }
 
@@ -442,8 +434,45 @@ function matchesSpecifier(patterns: readonly RegExp[], specifier: string): boole
   return patterns.some(pattern => pattern.test(specifier))
 }
 
-function clientConfig(id: string, entry: string): UserConfig {
+/** Render package-local dynamic imports through the Client module loader's asynchronous operation. */
+function asyncChunkRequirePlugin(): TsdownPlugin {
+  return {
+    name: 'dsh-client-async-chunk-require',
+    renderChunk(code, chunk, outputOptions) {
+      if (outputOptions.format !== 'cjs') return null
+      const transformed = new Rolldown.RolldownMagicString(code)
+      for (const dynamicImport of chunk.dynamicImports) {
+        const fileName = dynamicImport.startsWith('./') ? dynamicImport.slice(2) : dynamicImport
+        if (!/^client\.[A-Za-z0-9][A-Za-z0-9._-]*\.js$/.test(fileName)) continue
+        const specifier = `./${fileName}`
+        const call = new RegExp(
+          `Promise\\.resolve\\(\\)\\.then\\(\\(\\)\\s*=>\\s*require\\((['"])${escapeSpecifier(specifier)}\\1\\)\\)`,
+          'gu',
+        )
+        const matches = [...code.matchAll(call)]
+        if (matches.length === 0) {
+          throw new Error(`client bundle compiler: dynamic chunk ${JSON.stringify(specifier)} has no generated import expression`)
+        }
+        for (const match of matches) {
+          transformed.overwrite(match.index, match.index + match[0].length, `require.async(${JSON.stringify(specifier)})`)
+        }
+      }
+      return transformed.hasChanged() ? transformed : null
+    },
+    async writeBundle(outputOptions, bundle) {
+      const entry = Object.values(bundle).find(output => output.type === 'chunk' && output.isEntry)
+      if (entry === undefined || outputOptions.dir === undefined) return
+      const entryPath = resolvePath(outputOptions.dir, entry.fileName)
+      const current = await stat(entryPath)
+      const completedAt = new Date(Math.max(Date.now(), current.mtimeMs + 1))
+      await utimes(entryPath, current.atime, completedAt)
+    },
+  }
+}
+
+function clientConfig(id: string, entry: string, clientBanner?: (fileName: string) => string | undefined): UserConfig {
   const isRequested = (specifier: string): boolean => clientExternals(id).has(specifier)
+  const isolation = clientInputIsolation(id)
   return {
     name: `${id}/client`,
     entry: { client: entry },
@@ -474,10 +503,6 @@ function clientConfig(id: string, entry: string): UserConfig {
     // NODE_ENV the defines below bake in.
     inputOptions: {
       resolve: {
-        // Honor npm's browser alias map so browser-only replacements (for
-        // example qrcode's canvas entry and its fs stub) never pull Node code
-        // into a module-table factory.
-        aliasFields: [['browser']],
         conditionNames: [
           (process.env.NODE_ENV ?? 'production') === 'development' ? 'development' : 'production',
           'browser', 'import', 'module', 'default',
@@ -509,34 +534,17 @@ function clientConfig(id: string, entry: string): UserConfig {
       // Cross-plugin collaboration goes through cordis services instead.
       name: 'dsh-client-bundle-purity',
       resolveId(source: string) {
-        if (source.endsWith('typert.remote-client.d.ts')) {
-          return source.replace(/\.d\.ts$/, '.js')
-        }
         if (!source.startsWith('@deepseek-ai/')) return null
         if (isRequested(source)) return null // requested module-table row: external wins
         if (VENDORED_LIBRARY.test(source)) return null // vendored library: inline, no shared identity
-        if (GENERATED_REMOTE.test(source)) {
-          const packageName = source.slice(0, -'/remote'.length)
-          const dir = workspacePackageDir(packageName)
-          const candidate = resolvePath(dir, 'lib/typert.remote-client.js')
-          if (existsSync(candidate)) return candidate
-          return null
-        }
-        if (INLINE_SAFE.test(source)) return null // wire contribution: inline is the point
+        if (INLINE_SAFE.test(source) || GENERATED_REMOTE.test(source)) return null // wire contribution: inline is the point
         throw new Error(
           `client bundle purity: "${source}" is not in the default client externals or ${id}'s dsh.client.external, an inline-safe wire layer, or a generated /remote contribution — `
           + 'cross-plugin value imports are forbidden; declare a non-default module request or collaborate through cordis services '
           + '(type-only imports are erased and never reach this gate)',
         )
       },
-      async load(fileId: string) {
-        if (fileId.endsWith('typert.remote-client.d.ts')) {
-          const js = fileId.replace(/\.d\.ts$/, '.js')
-          if (existsSync(js)) return await readFile(js, 'utf8')
-        }
-        return null
-      },
-    }, tscSourceMapPlugin(), {
+    }, tscSourceMapPlugin(), asyncChunkRequirePlugin(), isolation.plugin, {
       name: 'dsh-css-modules-inline',
       resolveId(source: string, importer: string | undefined) {
         if (!source.endsWith('.module.css')) return null
@@ -595,17 +603,81 @@ function clientConfig(id: string, entry: string): UserConfig {
     }],
     outputOptions: {
       entryFileNames: 'client.js',
+      // The imported source basename becomes the published chunk name; package
+      // files lists and artifact tests pin every intentional chunk.
+      chunkFileNames: 'client.[name].js',
       sourcemapExcludeSources: false,
       // The map is served from /plugins/<scoped-package>/client.js.map. The
       // browser resolves its local sources back into URLs that mirror the
       // /packages/<group>/<package>/src directories; sourcesContent keeps them usable
       // without exposing that tree as an HTTP route.
-      sourcemapPathTransform: browserSourcePath,
-      banner: `window.__ModuleLoader__.load({ id: ${JSON.stringify(id)}, factory: (require) => {`,
+      sourcemapPathTransform(source, mapPath) {
+        isolation.sourcePath(source, mapPath)
+        return browserSourcePath(source, mapPath)
+      },
+      banner: (chunk) => {
+        const registration = `window.__ModuleLoader__.load({ id: ${JSON.stringify(id)}, ${chunk.isEntry ? '' : `chunk: ${JSON.stringify(chunk.fileName)}, `}factory: (require) => {`
+        const prefix = clientBanner?.(chunk.fileName)
+        return prefix === undefined ? registration : `${prefix}\n${registration}`
+      },
       footer: 'return module.exports; } });',
       intro: 'var module = { exports: {} }; var exports = module.exports;',
     },
   }
+}
+
+/** Check browser bundle inputs before their original package identity is folded into an artifact. */
+function clientInputIsolation(id: string): {
+  plugin: TsdownPlugin
+  sourcePath: (source: string, mapPath: string) => string
+} {
+  const experimental = id.startsWith('@deepseek-ai/dsh-experimental-')
+  const inputs = new BundleInputIsolation(REPOSITORY_ROOT, `client bundle isolation (${id})`)
+  return {
+    plugin: {
+      name: 'dsh-client-input-isolation',
+      buildStart() { inputs.reset() },
+      generateBundle(_options, bundle) {
+        if (experimental) return
+        for (const output of Object.values(bundle)) {
+          if (output.type === 'chunk') {
+            for (const module of Object.keys(output.modules)) {
+              inputs.assertInput(clientInputFile(module))
+              const info = this.getModuleInfo(module)
+              if (info === null) {
+                // Rolldown's runtime helper is compiler-generated and has no source module record.
+                if (module === '\0rolldown/runtime.js') continue
+                throw new Error(`client bundle isolation (${id}): module ${module} has no bundler module record`)
+              }
+              for (const dependency of [...info.importedIds, ...info.dynamicallyImportedIds]) {
+                inputs.assertInput(clientInputFile(dependency))
+              }
+            }
+            for (const external of [...output.imports, ...output.dynamicImports]) {
+              if (!(external in bundle)) inputs.assertInput(external)
+            }
+          } else {
+            for (const original of output.originalFileNames) inputs.assertInput(original)
+          }
+        }
+      },
+    },
+    sourcePath(source, mapPath) {
+      if (!experimental) {
+        const decoded = clientInputFile(source)
+        const file = physicalBundleInput(decoded) ?? resolvePath(dirname(mapPath), decoded)
+        inputs.assertSourceMapInput(file)
+      }
+      return source
+    },
+  }
+}
+
+/** CSS loader ids append a JavaScript suffix to the physical stylesheet path. */
+function clientInputFile(id: string): string {
+  const prefix = [CSS_VIRTUAL_PREFIX, GLOBAL_CSS_VIRTUAL_PREFIX, INLINE_CSS_VIRTUAL_PREFIX]
+    .find(prefix => id.startsWith(prefix))
+  return prefix === undefined ? id : id.slice(prefix.length, -CSS_VIRTUAL_SUFFIX.length)
 }
 
 /** Chain tsc's emitted maps into any Client bundle that consumes `lib/types`. */
@@ -654,9 +726,7 @@ const SOURCEMAP_COMMENT = /\n\/\/# sourceMappingURL=.*\s*$/
 
 /** Resolve an emitted JS asset import against its source-tree counterpart. */
 function sourceAssetPath(source: string, importer: string): string {
-  if (isBareSpecifier(source)) {
-    return createRequire(importer).resolve(source)
-  }
+  if (!source.startsWith('.') && !isAbsolute(source)) return createRequire(importer).resolve(source)
   const emitted = resolvePath(dirname(importer), source)
   if (existsSync(emitted)) return emitted
   const boundary = emitted.indexOf(TYPES_MARKER)

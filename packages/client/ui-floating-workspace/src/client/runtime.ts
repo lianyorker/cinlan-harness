@@ -1,48 +1,46 @@
-/** Accepted preference effects and exact app-window ownership, independent of React. */
+/** Accepted preference effects and the one panel this activation owns, independent of React. */
 import { notifySubscribers } from '@deepseek-ai/dsh-client-store'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { FloatingWorkspaceTerminalContext } from '@deepseek-ai/dsh-sidebar-terminals/types'
+import type { FloatingWorkspaceTerminalContext, FloatingWorkspaceWindowId } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import type { FloatingWorkspaceSettings } from '../types.ts'
 import type { FloatingActions, FloatingSnapshot, FloatingWindowPhase } from './contract.ts'
-import type { FloatingWindowEnvironment, OwnedAppWindow } from './window-environment.ts'
 
-/** Owns at most one app window and applies only accepted durable settings. */
+/** Environmental facts the panel owner reads, kept out of render props. */
+export interface FloatingPanelEnvironment {
+  readonly supported: boolean
+  /** @returns validated floating window identity, or undefined in the main window. */
+  readWindowId(): FloatingWorkspaceWindowId | undefined
+}
+
+/** Owns at most one in-app panel and applies only accepted durable settings. */
 export class FloatingRuntime implements FloatingActions {
   private snapshot: FloatingSnapshot
   private readonly listeners = new Set<() => void>()
   private readonly pending = new Set<Promise<void>>()
   private readonly offSettings: () => void
-  private readonly offExit: () => void
-  private owned: OwnedAppWindow | undefined
-  private offClosed: (() => void) | undefined
-  private restoreFocus: (() => void) | undefined
   private disposed = false
 
   /**
    * @param scope - feature-owned accepted settings mirror.
-   * @param environment - exact renderer's app-window operations.
+   * @param environment - renderer facts the entry and terminal context read.
    */
-  constructor(private readonly scope: SettingsScope<FloatingWorkspaceSettings>, private readonly environment: FloatingWindowEnvironment) {
+  constructor(private readonly scope: SettingsScope<FloatingWorkspaceSettings>, private readonly environment: FloatingPanelEnvironment) {
     this.snapshot = {
-      settings: scope.getSnapshot(), phase: environment.supported ? environment.child ? 'open' : 'closed' : 'unavailable',
-      child: environment.child, writeFailed: false, writing: false, targetUnavailable: false, directorySupported: false,
+      settings: scope.getSnapshot(), phase: environment.supported ? 'closed' : 'unavailable',
+      open: false, writeFailed: false, writing: false, directorySupported: false,
     }
     const acceptPreferences = () => {
       this.publish({ settings: scope.getSnapshot() })
-      if (this.snapshot.settings.status === 'ready' && this.snapshot.settings.value?.enabled === false) {
-        if (environment.child) environment.closeSelf()
-        else this.close()
-      }
+      if (this.snapshot.settings.status === 'ready' && this.snapshot.settings.value?.enabled === false) this.close(false)
     }
     this.offSettings = scope.subscribe(acceptPreferences)
-    this.offExit = environment.onPageExit(() => { this.close(false) })
     acceptPreferences()
   }
 
-  /** @returns identical snapshot until an accepted preference or window transition. */
+  /** @returns identical snapshot until an accepted preference or panel transition. */
   getSnapshot = (): FloatingSnapshot => this.snapshot
   /**
-   * Observe window and accepted preference facts.
+   * Observe panel and accepted preference facts.
    * @param listener - framework subscriber.
    * @returns disposer for that subscription.
    */
@@ -51,12 +49,12 @@ export class FloatingRuntime implements FloatingActions {
     return () => { this.listeners.delete(listener) }
   }
 
-  /** @returns whether accepted preferences and the platform permit the main-window command. */
+  /** @returns whether accepted preferences and the platform permit the panel control. */
   available = (): boolean => this.enabledPreferences() !== undefined
 
   /**
    * Apply one explicit preference through the canonical revisioned mutation owner.
-   * @param key - owned preference key; the unsupported directory cannot be changed here.
+   * @param key - owned preference key.
    * @param value - requested schema-valid scalar.
    * @returns settlement after accepted-state confirmation or a published failure.
    */
@@ -75,40 +73,22 @@ export class FloatingRuntime implements FloatingActions {
     return operation
   }
 
-  /** Open synchronously within a user gesture, or close this exact owner's existing window. */
+  /** Open this activation's panel, or close it when it is already open. */
   toggle = (): void => {
-    if (this.environment.child) { this.close(); return }
-    if (!this.available()) return
-    if (this.owned !== undefined && !this.owned.closed) { this.close(); return }
-    this.close(false)
-    const prefs = this.enabledPreferences()
-    if (prefs === undefined) return
-    this.restoreFocus = this.environment.captureFocus()
-    let target: OwnedAppWindow | null
-    try { target = this.environment.open(prefs.floatDefaultWidth, prefs.floatDefaultHeight) }
-    catch { this.phase('unavailable'); return }
-    if (target === null) { this.phase('blocked'); return }
-    this.owned = target
-    this.offClosed = this.environment.observeClosed(target, () => {
-      if (this.owned === target) this.close()
-    })
-    this.phase('open')
+    if (this.disposed) return
+    if (this.snapshot.open) { this.close(); return }
+    if (this.enabledPreferences() === undefined) return
+    this.publish({ open: true, phase: 'open' })
   }
 
   /**
-   * Release only this activation's window and its close observer.
-   * @param focus - whether a live originating element should regain focus.
+   * Close this activation's panel.
+   * @param focus - retained for callers that also restore focus themselves.
    */
   close = (focus = true): void => {
-    if (this.environment.child) { this.environment.closeSelf(); return }
-    const target = this.owned
-    this.owned = undefined
-    this.offClosed?.(); this.offClosed = undefined
-    if (target !== undefined && !target.closed) target.close()
-    const restore = this.restoreFocus
-    this.restoreFocus = undefined
-    this.phase(this.environment.supported ? 'closed' : 'unavailable')
-    if (focus && target !== undefined) restore?.()
+    void focus
+    if (!this.snapshot.open) { this.phase(this.environment.supported ? 'closed' : 'unavailable'); return }
+    this.publish({ open: false, phase: this.environment.supported ? 'closed' : 'unavailable' })
   }
 
   /**
@@ -117,7 +97,7 @@ export class FloatingRuntime implements FloatingActions {
    */
   setDirectorySupported(supported: boolean): void { this.publish({ directorySupported: supported }) }
 
-  /** @returns validated window identity immediately, then accepted directory facts once preferences are ready. */
+  /** @returns validated panel identity immediately, then accepted directory facts once preferences are ready. */
   terminalContext = (): FloatingWorkspaceTerminalContext | undefined => {
     if (this.disposed) return undefined
     const windowId = this.environment.readWindowId()
@@ -130,19 +110,12 @@ export class FloatingRuntime implements FloatingActions {
   }
 
   /**
-   * Report the result of initial catalog navigation.
-   * @param unavailable - whether the requested initial Session is absent from the accepted catalog.
-   */
-  setTargetUnavailable(unavailable: boolean): void { this.publish({ targetUnavailable: unavailable }) }
-
-  /**
-   * Close the owned window, remove observations, and silence subscribers.
+   * Remove observations and silence subscribers.
    * @returns settlement after outstanding preference mutations finish.
    */
   async dispose(): Promise<void> {
     this.disposed = true
-    this.offSettings(); this.offExit()
-    this.close(false)
+    this.offSettings()
     this.listeners.clear()
     await Promise.allSettled(this.pending)
   }
@@ -158,7 +131,7 @@ export class FloatingRuntime implements FloatingActions {
     this.publish({ settings: state, writing: false, writeFailed: !confirmed })
   }
   private enabledPreferences(): FloatingWorkspaceSettings | undefined {
-    if (this.disposed || this.environment.child || !this.environment.supported || this.snapshot.settings.status !== 'ready') return undefined
+    if (this.disposed || !this.environment.supported || this.snapshot.settings.status !== 'ready') return undefined
     return this.snapshot.settings.value?.enabled === true ? this.snapshot.settings.value : undefined
   }
   private phase(phase: FloatingWindowPhase): void { this.publish({ phase }) }

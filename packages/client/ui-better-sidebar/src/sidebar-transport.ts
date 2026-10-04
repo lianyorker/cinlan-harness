@@ -161,7 +161,7 @@ export function registerSidebarFetch(fetch: HostConnectionFetch, operations: Sid
       fetch: request => operations.upload(new URL(request.url), sidebarRequestChunks(request), request.signal) }),
     fetch.register({ path: '/api/sidebar.file', methods: ['GET'], requestBody: 'buffered',
       fetch: request => operations.media(new URL(request.url), request.signal) }),
-    fetch.register({ path: '/api/sidebar/html/', match: 'prefix', methods: ['GET'], requestBody: 'buffered',
+    fetch.register({ path: '/api/sidebar/html', match: 'prefix', methods: ['GET'], requestBody: 'buffered',
       fetch: request => operations.html(new URL(request.url), request.signal) }),
   ]
   return async () => { await Promise.all(dispose.map(remove => remove())) }

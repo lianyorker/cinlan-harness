@@ -27,10 +27,6 @@ Let the model operate the local desktop through an already installed Cua Driver.
 
 Choose this provider when Cua Driver is already installed and configured on the same machine as DSH. The [upstream installation and permissions guide](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/README.md) owns platform setup.
 
-This plugin does not download a driver. Supply an executable `cua-driver` (upstream compatibility reference: `0.28.0`) and access to a logged-in graphical session. On macOS, the usual installation uses a `CuaDriver.app` daemon with Accessibility and Screen Recording grants; `args: [mcp, --direct]` uses the launching host's permissions instead. Windows needs the driver for its architecture and remains subject to UIA/process integrity limits. Linux needs the corresponding X11 or supported Wayland/AT-SPI/compositor setup; see the [upstream platform ledger](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/docs/action-support.md) for operation support. Installation does not grant desktop access.
-
-Mount one Cua Driver adapter and first unload any registered facade provider. If the composition includes `tool-computer-use` or a facade-specific permission policy, disable the tool consumer and policy when selecting Cua Driver; Cua Driver publishes its own arguments and tool names, and that policy does not govern them. This package does not activate automatically or change profile defaults.
-
 ### Minimal configuration
 
 Add these rows to a composition that already provides tools and system-prompt services. Screenshots also require an attachment store and a model route declaring image input.
@@ -50,11 +46,11 @@ Add these rows to a composition that already provides tools and system-prompt se
 | `toolCallTimeoutMs` | MCP client default | Per-call timeout override in milliseconds |
 | `reconnect` | MCP client policy | Optional reconnection overrides |
 
-The [configuration schema](src/index.ts) defines accepted fields. The [MCP client](../../mcp/mcp-client/README.md) owns timeout and reconnection defaults.
+The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-experimental-computer-use-cua-driver-mcp) lists accepted fields. The [MCP client](../../mcp/mcp-client/README.md) owns timeout and reconnection defaults.
 
 ### Activation and ownership
 
-The provider registers as `cua-driver-mcp` before connecting. A second computer-use provider fails activation, including another instance of this package. Failed initialization or initial tool discovery rejects this entry and releases its registration after cleanup. Later disconnects retain the registration while the MCP client reconnects or exhausts its attempt budget; unload the entry after confirmed shutdown to release it. An MCP close timeout retains the registration; restart the host before mounting another provider.
+The provider registers as `cua-driver-mcp` before connecting. A second computer-use provider fails activation, including another instance of this package. Failed initialization or initial tool discovery rejects this entry and releases its registration after cleanup. Later disconnects retain the registration while the MCP client reconnects or exhausts its attempt budget; unload the entry to release it.
 
 The model sees tools under the fixed `mcp__cua-driver-mcp__` namespace. Tool names, descriptions, input schemas, canonical results, and image admission follow the existing [MCP bridge](../../mcp/mcp-client/README.md). There is no additional DSH action catalog or provider-selection tool.
 
@@ -68,14 +64,14 @@ The model sees tools under the fixed `mcp__cua-driver-mcp__` namespace. Tool nam
 
 [`src/index.ts`](src/index.ts) groups the computer-use reservation and owned MCP child into one ordered effect. Child teardown finishes before the reservation disposer runs, including during failed activation. The MCP client owns credential scrubbing, subprocess termination, tool synchronization, cancellation, and durable image projection.
 
-No runtime invariant companion is published: the provider exposes no independent driver state to compare with its registration, and the child owns its connection and tool generations.
+### Verify an installed driver
 
-### Mock verification
-
-Run the package tests from the repository root. They use a local stdio fixture that returns fixed text and PNG bytes without reading the real desktop or sending input. Loader composition covers durable images, reconnection, and startup rollback; lifecycle tests cover reservation retention after a close timeout. The real driver and platform permissions require separate verification.
+From the repository root, opt into the live compatibility test with the absolute path of a Cua Driver executable. It discovers tools, calls `check_permissions` with `prompt: false`, and verifies teardown. On macOS, `--direct` runs the runtime in the MCP process using the launching host's permissions; omit `DSH_COMPUTER_USE_MCP_ARGS` to use the default `["mcp"]` arguments.
 
 ```sh
-node node_modules/vitest/vitest.mjs run packages/experimental/computer-use-cua-driver-mcp
+DSH_COMPUTER_USE_MCP_EXECUTABLE=/absolute/path/to/cua-driver \
+DSH_COMPUTER_USE_MCP_ARGS='["mcp","--direct"]' \
+pnpm run test:e2e packages/experimental/computer-use-cua-driver-mcp/tests/installed-driver.e2e.ts
 ```
 
 </details>

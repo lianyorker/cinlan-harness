@@ -11,9 +11,11 @@ exports[`ArchivedSessionsSection > renders the Chinese list, search, and restore
       class="icon"
     >
       <svg
-        data-content="4ca56c6d"
+        aria-hidden="true"
+        data-content="36e55712"
         fill="none"
         height="16"
+        stroke-width="1.3"
         viewBox="0 0 16 16"
         width="16"
         xmlns="http://www.w3.org/2000/svg"
@@ -96,9 +98,11 @@ exports[`ArchivedSessionsSection > renders the English list, search, and restore
       class="icon"
     >
       <svg
-        data-content="4ca56c6d"
+        aria-hidden="true"
+        data-content="36e55712"
         fill="none"
         height="16"
+        stroke-width="1.3"
         viewBox="0 0 16 16"
         width="16"
         xmlns="http://www.w3.org/2000/svg"

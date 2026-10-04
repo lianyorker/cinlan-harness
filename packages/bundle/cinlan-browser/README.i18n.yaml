@@ -1,6 +1,37 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/cinlan-browser/README.md
-README.md: 8b975165338beb187ee4e72323371b7a2117ed5f
-README.zh.md: 4141e9d8cf9bff967e066825898910d20d592167
+/:
+  en: e6fdc629380f925a
+  zh: 05da52a54f18fa00
+/deepseek-ai-dsh-cinlan-browser:
+  en: f1799b601cb71768
+  zh: 1c7447e8f4ee7112
+/deepseek-ai-dsh-cinlan-browser/summary:
+  en: 8cf00bb63997b72f
+  zh: cd0a86a885fbec09
+/deepseek-ai-dsh-cinlan-browser/table-of-contents:
+  en: 4011d53d57823dce
+  zh: 8c3dd30606f7436b
+/deepseek-ai-dsh-cinlan-browser/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-cinlan-browser/model-experience/persistent-browser-tools:
+  en: b7585b61c9ec5205
+  zh: 914374e876e9a669
+/deepseek-ai-dsh-cinlan-browser/model-experience/persistent-browser-tools/what-the-model-sees:
+  en: 26a28d72f8710039
+  zh: 0a027f1ea079fe35
+/deepseek-ai-dsh-cinlan-browser/model-experience/persistent-browser-tools/token-effect:
+  en: 6943e90760a0cf6f
+  zh: 6db070675d2270b7
+/deepseek-ai-dsh-cinlan-browser/model-experience/persistent-browser-tools/kv-cache-effect:
+  en: 1aba82fe60c0f226
+  zh: cf796c6e1c000c29
+/deepseek-ai-dsh-cinlan-browser/known-limitations-and-deferred-work:
+  en: 7034045dde468100
+  zh: 61fbd3789af6c43f
+/deepseek-ai-dsh-cinlan-browser/known-limitations-and-deferred-work/dev-note:
+  en: e10b596364d5f006
+  zh: d03c692c3a44ce62

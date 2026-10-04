@@ -24,8 +24,8 @@ import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import * as LocalBrowser from '@deepseek-ai/dsh-browser-playwright'
 import BrowserRuntimeManager from '@deepseek-ai/dsh-browser-playwright/runtime'
 import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
-const FileSettingsProvider = {
-  name: '@deepseek-ai/dsh-settings-file',
+const SettingsServiceStub = {
+  name: '@deepseek-ai/dsh-settings',
   apply(c: Context) {
     c.provide('settings', {
       describe: () => [],
@@ -48,7 +48,6 @@ const BROWSER_PACKAGES = [
   '@deepseek-ai/dsh-browser-permission-policy',
   '@deepseek-ai/dsh-tool-browser',
   '@deepseek-ai/dsh-api-browser-controller',
-  '@deepseek-ai/dsh-client-ui-browser-element-capture',
 ] as const
 
 let fixtureRoot: string | undefined
@@ -118,7 +117,6 @@ describe('dsh-cinlan-browser bundle', () => {
       'browser-permission-policy',
       'tool-browser',
       'browser-controller',
-      'ui-browser-element-capture',
     ])
     expect(rows.find(row => row.id === 'browser')?.config).toEqual({ provider: 'local' })
     expect(rows.find(row => row.id === 'browser-playwright')?.config).toEqual({ providerId: 'local' })
@@ -136,7 +134,7 @@ describe('dsh-cinlan-browser bundle', () => {
     const fixtureLayer: PatchOptions[] = [{
       insert: [
         { id: 'subprocess', name: '@deepseek-ai/dsh-subprocess-local' },
-        { id: 'settings', name: '@deepseek-ai/dsh-settings-file', config: { path: join(fixtureRoot, 'settings.json'), watch: false } },
+        { id: 'settings', name: '@deepseek-ai/dsh-settings' },
         { id: 'fixture-attachments', name: 'fixture-attachments' },
         { id: 'system-prompt', name: '@deepseek-ai/dsh-system-prompt', config: { persona: '' } },
         { id: 'tools', name: '@deepseek-ai/dsh-tools' },
@@ -144,10 +142,6 @@ describe('dsh-cinlan-browser bundle', () => {
       ],
     }]
     const profileOverride: PatchOptions[] = [{
-      // Browser presentation is exercised by the assembled Web acceptance case.
-      id: 'ui-browser-element-capture',
-      disabled: true,
-    }, {
       id: 'browser-runtime', config: { storageDir: join(fixtureRoot, 'runtime') },
     }, {
       id: 'browser-playwright',
@@ -175,7 +169,7 @@ describe('dsh-cinlan-browser bundle', () => {
     const modules = new Map<string, unknown>([
       ['@deepseek-ai/dsh-subprocess-local', LocalSubprocess],
       ['@deepseek-ai/dsh-browser-playwright/runtime', BrowserRuntimeManager],
-      ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
+      ['@deepseek-ai/dsh-settings', SettingsServiceStub],
       ['fixture-attachments', FixtureAttachments],
       ['@deepseek-ai/dsh-system-prompt', SystemPrompt],
       ['@deepseek-ai/dsh-tools', ToolRuntime],

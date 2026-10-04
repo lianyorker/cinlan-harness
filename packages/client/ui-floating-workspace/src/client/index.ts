@@ -1,20 +1,23 @@
-/** Floating app-window owner and native settings registration, using the existing app artifact. */
+/** Floating workspace owner: an in-app chat panel, its entries, and its settings. */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type {} from '@deepseek-ai/dsh-client-keyboard/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
-import type { Config } from '../config.ts'
 import type { FloatingWorkspaceSettings, ToggleButtonPosition } from '../types.ts'
+import { FLOATING_WORKSPACE_NAMESPACE } from '../schema.ts'
 import { FloatingWorkspaceSection, type FloatingWorkspaceSectionInjected } from './FloatingWorkspaceSection.tsx'
+import { FloatingChat } from './FloatingChat.tsx'
+import { FloatingPanel, type FloatingPanelInjected } from './FloatingPanel.tsx'
+import { FloatingTab } from './FloatingTab.tsx'
 import { FloatingEntry, type FloatingEntryInjected } from './FloatingEntry.tsx'
-import { FloatingRuntime } from './runtime.ts'
-import { browserWindowEnvironment } from './window-environment.ts'
+import { FloatingRuntime, type FloatingPanelEnvironment } from './runtime.ts'
 import { en, zh, type FloatingWorkspaceSettingsKey } from './locales.ts'
 
 export { Config } from '../config.ts'
@@ -26,22 +29,29 @@ declare module '@deepseek-ai/dsh-client-keyboard/client' {
   interface KeyboardCommandMap { 'floatingWorkspace.toggle': { scope: 'shell' } }
 }
 
+/** Stable identity of the right-Sidebar tab body. */
+export const SIDEBAR_TAB_ID = '@deepseek-ai/dsh-client-ui-floating-workspace'
+
+/** Page kind the right-Sidebar opens for the pinned chat. */
+export const SIDEBAR_TAB_KIND = 'floatingWorkspace'
+
 /** Dependencies keep registrations bound to the actual owners used by the feature. */
-export const inject = ['settingsMetadata', 'slots', 'locale', 'settingsScope', 'keyboard', 'sessions', 'uiWorkspace']
+export const inject = ['settingsMetadata', 'slots', 'locale', 'settingsScope', 'keyboard', 'sessions', 'uiWorkspace', 'sidebarRightTabs', 'sidebarRight']
 
 /**
- * Own one app window, accepted preferences, command, and slot contributions.
+ * Own the panel, accepted preferences, command, and slot contributions.
  * @param ctx - Client feature fiber; components receive only framework sources and callbacks.
- * @param config - validated closed-window observation cadence.
  */
-export function apply(ctx: Context, config: Config): void {
+export function apply(ctx: Context): void {
   const ns = 'settings.floatingWorkspace'
   ctx.effect(() => ctx.locale.register(ns, { en, zh }), 'floating workspace: dictionaries')
   const t = ctx.locale.bind(ns)
-  const settings = ctx.settingsScope.bind<FloatingWorkspaceSettings>({ namespace: 'floating-workspace' })
-  const environment = browserWindowEnvironment(window, () => (ctx.uiWorkspace as any)?.selection?.getSnapshot?.()?.sessionId ?? ctx.sessions.list.getSnapshot().ids[0], config.windowClosedPollMs)
+  const settings = ctx.settingsScope.bind<FloatingWorkspaceSettings>({ namespace: FLOATING_WORKSPACE_NAMESPACE })
+  // The panel lives in this renderer: no separate app window is opened, so the
+  // environment reports only that the platform can host it.
+  const environment: FloatingPanelEnvironment = { supported: true, readWindowId: () => undefined }
   const runtime = new FloatingRuntime(settings, environment)
-  ctx.effect(() => () => runtime.dispose(), 'floating workspace: exact app-window lifetime')
+  ctx.effect(() => () => runtime.dispose(), 'floating workspace: exact panel lifetime')
   ctx.provide('floatingWorkspaceContext', runtime.terminalContext)
   ctx.inject(['floatingTerminalConsumer'], (consumerCtx) => {
     consumerCtx.effect(() => {
@@ -50,39 +60,17 @@ export function apply(ctx: Context, config: Config): void {
     }, 'floating workspace: real terminal consumer')
   })
 
-  if (environment.child) {
-    const target = environment.initialSession
-    if (target !== undefined) {
-      ctx.effect(() => {
-        let resolved = false
-        const select = () => {
-          const catalog = ctx.sessions.list.getSnapshot()
-          if (resolved || catalog.phase !== 'ready') return
-          resolved = true
-          const id = catalog.ids.find(candidate => candidate === target)
-          if (id === undefined) runtime.setTargetUnavailable(true)
-          else ctx.uiWorkspace.openSession(id)
-        }
-        const off = ctx.sessions.list.subscribe(select)
-        select()
-        return off
-      }, 'floating workspace: initial catalog navigation')
-    }
-  } else {
-    ctx.effect(() => ctx.keyboard.register({
-      id: 'floatingWorkspace.toggle', scope: 'shell', label: () => t('toggle'), description: () => t('shortcutDescription'),
-      defaultBindings: [{ key: ' ', modifiers: { ctrl: true, shift: true } }],
-      available: { getSnapshot: runtime.available, subscribe: runtime.subscribe },
-    }), 'floating workspace: keyboard command')
-  }
-  const settingsFace: FloatingWorkspaceSectionInjected = {
-    hooks: { floating: runtime }, set: runtime.set, pickDirectory: () => ctx.uiWorkspace.pickDirectory(),
-  }
+  ctx.effect(() => ctx.keyboard.register({
+    id: 'floatingWorkspace.toggle', scope: 'shell', label: () => t('toggle'), description: () => t('shortcutDescription'),
+    defaultBindings: [{ key: ' ', modifiers: { ctrl: true, shift: true } }],
+    available: { getSnapshot: runtime.available, subscribe: runtime.subscribe },
+  }), 'floating workspace: keyboard command')
+
+  const settingsFace: FloatingWorkspaceSectionInjected = { hooks: { floating: runtime }, set: runtime.set }
   ctx.slots.inject('settings.section', function* () {
     yield ctx.settingsMetadata.registerSection({ sectionId: 'floating-workspace', groupId: 'personal' })
     yield ctx.settingsMetadata.registerItems('floating-workspace', [
       { id: 'enabled', anchorId: 'floating-enabled', title: () => t('enable'), description: () => t('enableDescription') },
-      { id: 'directory', anchorId: 'floating-directory', title: () => t('terminalDirectory'), description: () => t('terminalDirectoryDescription') },
       { id: 'position', anchorId: 'floating-position', title: () => t('toggleButtonPosition'), description: () => t('toggleButtonPositionDescription') },
     ])
     yield ctx.slots.register({
@@ -90,19 +78,43 @@ export function apply(ctx: Context, config: Config): void {
       inject: () => settingsFace,
     }, FloatingWorkspaceSection)
   })
+
   const entryFace = (position: ToggleButtonPosition): FloatingEntryInjected => ({
-    hooks: { floating: runtime }, position, toggle: runtime.toggle, closeWindow: runtime.close,
-    matchesShortcut: facts => !environment.child && ctx.keyboard.matches('floatingWorkspace.toggle', facts),
+    hooks: { floating: runtime }, position,
+    // The header entry pins the chat as a docked right-Sidebar tab; the floating
+    // entry opens the panel above the conversation.
+    toggle: position === 'header'
+      ? () => { ctx.sidebarRight.openTab(SIDEBAR_TAB_KIND, { revealIfOpened: true }) }
+      : runtime.toggle,
+    matchesShortcut: facts => ctx.keyboard.matches('floatingWorkspace.toggle', facts),
   })
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'floating-workspace', order: 60, locale: ns, inject: () => entryFace('floating'),
   }, FloatingEntry))
-  if (!environment.child) {
-    ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
+  // The panel lives inside the Conversation's Session area so the embedded
+  // occurrence renders with the Conversation provide and the Session binding
+  // the seat already carries; its own CSS keeps it floating over the column.
+  ctx.slots.inject('conversation.session.header.utilities', function* () {
+    yield ctx.slots.register({
+      name: 'conversation.session.header.utilities', id: 'floating-workspace.panel', order: 71, locale: ns,
+      children: { 'floatingWorkspace.chat': { kind: 'single', scope: 'session' } },
+      inject: (): FloatingPanelInjected => ({ hooks: { floating: runtime }, close: () => { runtime.close() } }),
+    }, FloatingPanel)
+    yield ctx.slots.register({
       name: 'conversation.session.header.utilities', id: 'floating-workspace', order: 70, locale: ns, inject: () => entryFace('header'),
-    }, FloatingEntry))
-  }
-  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
-    name: 'sidebar.footer.action', id: 'floating-workspace', order: 50, locale: ns, inject: () => entryFace('sidebar'),
-  }, FloatingEntry))
+    }, FloatingEntry)
+  })
+  ctx.slots.inject('floatingWorkspace.chat', () => ctx.slots.register({ name: 'floatingWorkspace.chat' }, FloatingChat))
+  // The second form: the same chat docked in the right Sidebar, opened by kind.
+  ctx.effect(() => ctx.sidebarRightTabs.register({
+    id: SIDEBAR_TAB_ID, kind: SIDEBAR_TAB_KIND, priority: 'builtin', keepMounted: true,
+    title: () => t('title'),
+  }), 'floating workspace: Sidebar tab type')
+  ctx.effect(() => ctx.slots.inject('floatingWorkspace.tab.chat', () => ctx.slots.register(
+    { name: 'floatingWorkspace.tab.chat' }, FloatingChat,
+  )), 'floating workspace: Sidebar chat body')
+  ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
+    name: 'sidebar.right.pane.tab', key: SIDEBAR_TAB_KIND,
+    children: { 'floatingWorkspace.tab.chat': { kind: 'single', scope: 'session' } },
+  }, FloatingTab)), 'floating workspace: Sidebar tab body')
 }

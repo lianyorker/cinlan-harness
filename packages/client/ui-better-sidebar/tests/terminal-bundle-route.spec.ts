@@ -1,5 +1,4 @@
 /** Exact terminal artifact delivery through real Desktop and authenticated Web Connection routes. */
-import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdir, mkdtemp, rm, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -74,7 +73,7 @@ async function loadFixture({ web = false, present = true } = {}) {
   } } as unknown as NonNullable<typeof ctx.loader.internal>
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
-  const shared = ctx.connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
+  const shared = ctx.connection.createSharedFetchHandler('/api')
   const origin = web ? 'http://127.0.0.1:' + String(ctx.webServer.port) : undefined
   return {
     ctx, terminalFile, origin,
@@ -85,7 +84,7 @@ async function loadFixture({ web = false, present = true } = {}) {
       if (origin === undefined) throw new Error('Web listener required for a browser cookie.')
       const response = await fetch(ctx.connection.authenticatedUrl(origin), { redirect: 'manual' })
       expect(response.status).toBe(303)
-      expect(response.headers.get('location')).toBe('/')
+      expect(response.headers.get('location')).toBe('./')
       await response.text()
       const cookie = response.headers.get('set-cookie')?.split(';', 1)[0]
       if (cookie === undefined) throw new Error('Connection did not issue a browser cookie.')

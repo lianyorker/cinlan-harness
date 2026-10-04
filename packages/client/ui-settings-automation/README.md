@@ -1,5 +1,5 @@
 ---
-description: "Create disabled automation drafts, explicitly control execution, and inspect UTC run evidence in Settings."
+description: "Open the official Schedule task manager from Settings."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Manage recurring tasks from Settings → Experimental → Automation. Create a disabled draft, choose existing resources, and explicitly enable its schedule or run it once. Inspect recorded runs and open their Sessions to verify the actual task result. All displayed schedule and journal times use UTC.
+Provide a Settings entry point to the official Schedule task manager. The page opens the same catalog and task detail surface used by the Schedule sidebar and Session views; it does not create a second task store or execution runtime.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ Manage recurring tasks from Settings → Experimental → Automation. Create a d
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the browser entry beside Settings, Locale, Session navigation, and the Automation API Client. The package accepts no configuration fields; its Node entry registers no services. The composition supplies the runtime and controller separately.
+Mount the browser entry beside Settings, Locale, and Layout. The package registers only a Settings launcher; the official `ui-schedule` entry owns the Schedule catalog, task detail view, and remote mutations.
 
 A new draft requires a title, prompt, workspace, agent preset, model, permission preset, and hourly, daily, or weekly UTC schedule. Weekly days use Sunday = 0. Optional reasoning effort is an explicit provider-owned value, not an invented list of supported choices. Failed saves preserve the draft and its original revision; discard and reopen Edit to adopt a newer task revision after a conflict.
 
@@ -50,8 +50,8 @@ No runtime invariant companion is published: the page owns no independent busine
 
 - [Web Client architecture](../../../docs/subsystems/web-client.md) — business data and rendering ownership.
 - [Slots reference](../../../docs/subsystems/slots.md) — source hooks and registration lifetimes.
-- [API declarations](../../api/automation-controller/src/types.ts) — actual resource choices and journal pages.
-- [Runtime declarations](../../automation/automation/src/types.ts) — recurrence, admission, and execution evidence.
+- [Schedule package](../../schedule/schedule/README.md) — durable task rules and delivery semantics.
+- [Schedule client](../ui-schedule/package.json) — the official task manager opened by this entry.
 
 <a id="dev-note"></a>
 ## Dev Note
@@ -66,7 +66,7 @@ Package-local tests use deterministic Host replies and never start a model or ex
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the [automation runtime](../../automation/automation/README.md), which owns execution of the saved prompt and resource selections requested by this page.
+This page invokes no model and owns no Schedule data. The official Schedule service and task manager own reminder delivery and model-visible operations.
 
 #### KV Cache effect
 
@@ -76,7 +76,6 @@ This page does not assemble provider requests or alter their prefixes; the autom
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- Schedules use UTC only. There are no queue, notification, retention, or remote-routing controls.
-- Drafts and uncertain manual request tokens are local to the mounted page; leaving Settings discards that viewing state.
-- Journal browsing selects one task. A deleted task's already-open journal remains inspectable; this page does not provide a separate deleted-task directory.
-- Supported reasoning effort values are validated by the runtime; the page does not claim a provider-independent effort list.
+- Creation starts from the official Schedule task manager or the `schedule_create` tool; this Settings entry only opens that manager.
+- The page and the task manager share the Host Schedule catalog and delivery history.
+- Task creation, recurrence validation, Session targeting, and delivery are owned by the Schedule package.

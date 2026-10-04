@@ -43,7 +43,7 @@ describe('terminal settings registration', () => {
     const b = await bench()
     try {
       expect(resolveSlotLabel(b.entry.options.label)).toBe('Terminal')
-      expect(b.ctx.settingsMetadata.getSnapshot().sections).toContainEqual({ sectionId: 'terminal', groupId: 'experimental' })
+      expect(b.ctx.settingsMetadata.getSnapshot().sections).toContainEqual({ sectionId: 'terminal', groupId: 'workspace', heading: 'shell' })
       expect(b.ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toContain('shell-arguments')
       b.locale.setLocale('zh')
       expect(resolveSlotLabel(b.entry.options.label)).toBe('终端')

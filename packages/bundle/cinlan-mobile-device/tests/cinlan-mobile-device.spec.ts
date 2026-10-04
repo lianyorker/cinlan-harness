@@ -13,11 +13,16 @@ import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import MobileDeviceRuntime, { MobileDeviceId } from '@deepseek-ai/dsh-mobile-device'
 import * as NativeAdb from '@deepseek-ai/dsh-mobile-device-adb'
 import * as MobileDevicePermissionPolicy from '@deepseek-ai/dsh-mobile-device-permission-policy'
-const FileSettingsProvider = {
-  name: '@deepseek-ai/dsh-settings-file',
+/** Minimal settings service: the mobile-device preferences the fixture seeds. */
+const SettingsServiceStub = {
+  name: '@deepseek-ai/dsh-settings',
   apply(c: Context) {
     c.provide('settings', {
-      describe: () => [],
+      describe: () => [{
+        ns: 'mobile-device',
+        value: { enabled: true, defaultDeviceId: 'android:fixture-serial' },
+        schema: {}, autoGenerate: false, applies: 'live', revision: 1,
+      }],
       configure: () => () => {},
     } as never)
   },
@@ -52,11 +57,10 @@ async function boot(policy = 'allow') {
   const devices = [{ serial: 'fixture-serial', state: 'device', transportId: '7', bootId: '11111111-2222-4333-8444-555555555555' }]
   await writeFile(join(path, 'fixture-state.json'), JSON.stringify({ devices }))
   await writeFile(join(path, 'calls.jsonl'), '')
-  await writeFile(join(path, 'settings.json'), JSON.stringify({ 'mobile-device': { enabled: true, defaultDeviceId: 'android:fixture-serial' } }))
   const patches = yaml.load(await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8'), { schema: entryListSchema }) as PatchOptions[]
   const fixture: PatchOptions[] = [{ insert: [
     { id: 'fixture-local-subprocess', name: 'local-subprocess' },
-    { id: 'fixture-settings', name: 'settings', config: { path: join(path, 'settings.json'), watch: false } },
+    { id: 'fixture-settings', name: 'settings' },
     { id: 'fixture-attachments', name: 'attachments' }, { id: 'fixture-prompt', name: 'prompt' }, { id: 'fixture-tools', name: 'tools' },
   ] }]
   const entries = applyEntryPatches([], [...fixture, ...patches,
@@ -66,7 +70,7 @@ async function boot(policy = 'allow') {
   const configPath = join(path, 'cordis.yml')
   await writeFile(configPath, yaml.dump(entries, { lineWidth: -1, noRefs: true }))
   const modules = new Map<string, unknown>([
-    ['local-subprocess', LocalSubprocessRuntime], ['settings', FileSettingsProvider], ['attachments', FixtureAttachments],
+    ['local-subprocess', LocalSubprocessRuntime], ['settings', SettingsServiceStub], ['attachments', FixtureAttachments],
     ['prompt', SystemPrompt], ['tools', ToolRuntime], ['@deepseek-ai/dsh-mobile-device', MobileDeviceRuntime],
     ['@deepseek-ai/dsh-mobile-device-adb', NativeAdb], ['@deepseek-ai/dsh-mobile-device-permission-policy', MobileDevicePermissionPolicy],
     ['@deepseek-ai/dsh-tool-mobile-device', ToolMobileDevice],

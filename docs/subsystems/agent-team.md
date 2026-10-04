@@ -2,11 +2,22 @@
 
 English | [中文](agent-team.zh.md)
 
-Types shared by the experimental implicit-root Team domain, model tools, and host adapters. The [Agent Teams Agent Note](../../.agents/notes/implemented/feature/2026-08-05-agent-teams.md) owns identity, mailbox, task, and shared-checkout decisions; this page records the literal durable forms from [`packages/experimental/agent-team/src/types.ts`](../../packages/experimental/agent-team/src/types.ts).
+Types shared by the experimental implicit-root Team domain, model tools, and host adapters. The [Agent Teams Agent Note](../../.agents/notes/implemented/feature/2026-08-05-agent-teams.md) owns identity, mailbox, and task decisions; the [worktree integration decision](../../.agents/notes/implemented/feature/2026-10-04-agent-team-worktree-integration.md) owns opt-in isolation, integration, and read-only history. This page records the literal durable forms from [`packages/experimental/agent-team/src/types.ts`](../../packages/experimental/agent-team/src/types.ts).
 
 ## Identity and roster
 
 `TeamId` is the root `SessionId` under a distinct [brand](core.md#branded-ids). `TeamTaskId` is Team-local and monotonically allocated as `task-<n>`; `TeamMessageId` is globally random. A teammate's Session id remains its persistent identity, while `name` is an immutable model/UI label.
+
+```ts type-equiv
+/** Git result committed when a teammate worktree is integrated. */
+interface TeamWorktreeIntegration {
+  readonly taskId: WorktreeTaskId
+  readonly branch: string
+  readonly sourceBranch: string
+  readonly sourceHeadBefore: string
+  readonly sourceHeadAfter: string
+}
+```
 
 ```ts type-equiv
 /** Whole durable value written on every teammate lifecycle change. */
@@ -16,12 +27,15 @@ interface TeamMemberSnapshot {
   readonly description: string
   readonly provider: string
   readonly context: 'fresh' | 'fork'
+  readonly workspaceMode?: 'inherit' | 'worktree' | 'integrated'
+  readonly worktreeTaskId?: WorktreeTaskId
+  readonly integration?: TeamWorktreeIntegration
   readonly phase: TeamMemberPhase
   readonly error?: string
 }
 ```
 
-Every member starts in `provisioning` and reaches exactly one terminal roster phase, `active` or `failed`. Runtime `running`/`idle`/`inactive` status is derived separately and never rewrites this record.
+Every member starts in `provisioning` and reaches exactly one roster phase, `active` or `failed`. An active worktree member may move to `integrated`; the durable integration record keeps the source commits while its Session is archived as read-only history. Runtime `running`/`idle`/`inactive` status is derived separately and never rewrites this record.
 
 ## Durable mailbox
 

@@ -3,6 +3,7 @@
 import { useId } from 'react'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { SettingsForm } from '@deepseek-ai/dsh-client-ui-primitives'
 import { formLabels } from './locales.ts'
 import { SubagentLimitsFields } from './SubagentLimitsFields.tsx'
@@ -11,8 +12,9 @@ import { subagentCardShell, type SubagentCardFace } from './subagent-card-contro
 import css from './SubagentCard.module.css'
 
 /** Framework-derived props for the shared Subagent settings card. */
-export type SubagentCardProps = PropsRuntime<'plugins.item'>
+export type SubagentCardProps = (PropsRuntime<'plugins.item'> | PropsRuntime<'settings.section'>)
   & PropsLocale<'settings.subagent'> & InjectFace<SubagentCardFace>
+  & { readonly view?: 'summary' | 'page' }
 
 /**
  * Render the available Subagent settings with one configuration page and save footer.
@@ -49,4 +51,14 @@ export function SubagentCard(props: SubagentCardProps) {
         : null}
     </SettingsForm>
   )
+}
+
+/**
+ * Render the existing form at its product settings destination.
+ * @param props - Settings owner, locale, and the existing form controller face.
+ * @returns the native form with its search anchor.
+ */
+export function SubagentSettingsSection(props: PropsRuntime<'settings.section'>
+  & PropsLocale<'settings.subagent'> & InjectFace<SubagentCardFace>) {
+  return <div data-settings-anchor="subagent-settings"><SubagentCard {...props} view="page" /></div>
 }

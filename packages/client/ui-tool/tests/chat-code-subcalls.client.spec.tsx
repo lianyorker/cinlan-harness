@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent } from '@testing-library/react'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { PartialArguments } from '@deepseek-ai/dsh-util-values'
 import type {
   ChatSnapshot, StartedToolCall, ToolCallBlock, ToolResultNode,
 } from '@deepseek-ai/dsh-client-ui-chat/client'
@@ -44,6 +45,7 @@ const RUN_CODE_ARGS = JSON.stringify({ code: PROGRAM, description: 'List the not
 
 const codeResult = (seq: number, callId: string): ToolResultNode => ({
   kind: 'tool-result', seq, time: seq * 1_000, callId,
+  name: 'run_code', args: PartialArguments.fromText(RUN_CODE_ARGS),
   call: { name: 'run_code', argsRaw: RUN_CODE_ARGS },
   callTime: seq * 1_000 - 500,
   content: [{ type: 'text', text: 'demo.txt' }], isError: false,
@@ -51,7 +53,7 @@ const codeResult = (seq: number, callId: string): ToolResultNode => ({
 })
 
 const runningCode = (callId: string): StartedToolCall => ({
-  phase: 'start' as const, callId, name: 'run_code', argsRaw: RUN_CODE_ARGS, turn: 9, step: 0, time: 9_000,
+  phase: 'start' as const, callId, name: 'run_code', argsRaw: RUN_CODE_ARGS, args: PartialArguments.fromText(RUN_CODE_ARGS), turn: 9, step: 0, time: 9_000,
   subCalls: [],
 })
 
@@ -61,6 +63,7 @@ const subCall = (
   kind: 'tool-result', seq, time: seq * 1_000,
   callId: `${parent}:code:${n}`,
   parentCallId: parent,
+  name, args: PartialArguments.fromText(JSON.stringify(args)),
   call: { name, argsRaw: JSON.stringify(args) },
   callTime: seq * 1_000,
   content: [{ type: 'text', text: resultText }], isError,
@@ -252,7 +255,7 @@ describe('run_code sub-calls through the real chat machinery', () => {
     const parent = 'call-live'
     const runningSub: ToolCallBlock = {
       phase: 'start' as const,
-      callId: `${parent}:code:1`, name: 'grep', argsRaw: '{"pattern":"todo"}',
+      callId: `${parent}:code:1`, name: 'grep', argsRaw: '{"pattern":"todo"}', args: PartialArguments.fromText('{"pattern":"todo"}'),
       parentCallId: parent,
       turn: 0, step: 0, time: 21_000, subCalls: [],
     }
@@ -268,6 +271,7 @@ describe('run_code sub-calls through the real chat machinery', () => {
     const parent = 'call-64'
     const plain: ToolResultNode = {
       kind: 'tool-result', seq: 10, time: 10_000, callId: parent,
+      name: 'mystery', args: PartialArguments.fromText('{"n":1}'),
       call: { name: 'mystery', argsRaw: '{"n":1}' },
       callTime: 9_500,
       content: [], isError: false, subCalls: [],

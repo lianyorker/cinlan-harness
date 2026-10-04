@@ -8,6 +8,9 @@
     "src"
   ],
   "references": [
+    { "path": "../ui-layout" },
+    { "path": "../ui-sidebar" },
+    { "path": "../ui-workspace" },
     {
       "path": "../../util/crypto"
     },

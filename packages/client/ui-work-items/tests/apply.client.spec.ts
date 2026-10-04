@@ -27,9 +27,9 @@ async function harness() {
   const integrationPreflight = {
     check: vi.fn().mockResolvedValue({ ok: true, value: { provider: 'github', status: 'connected', reason: 'connected', account: 'private-account' } }),
   }
-  ctx.provide('remote', { workItems: remote, integrationPreflight } as any)
-  ctx.provide('remote.workItems', remote as any)
-  ctx.provide('remote.integrationPreflight', integrationPreflight as any)
+  ctx.provide('remote', { workItems: remote, integrationPreflight } as never)
+  ctx.provide('remote.workItems', remote as never)
+  ctx.provide('remote.integrationPreflight', integrationPreflight as never)
   ctx.provide('settingsScope', { bind: vi.fn(() => scope.scope) } as never)
   ctx.provide('settings', { register: vi.fn() } as never)
   await ctx.plugin(SlotRegistry).await()
@@ -51,7 +51,7 @@ describe('Work Items registration', () => {
       let removeOwner = declare()
       await vi.waitFor(() => { expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(17) })
       const english = ctx.settingsMetadata.getSnapshot()
-      expect(english.sections).toEqual([{ sectionId: 'workItems', groupId: 'development' }])
+      expect(english.sections).toEqual([{ sectionId: 'workItems', groupId: 'workspace' }])
       expect(english.items.find(item => item.id === 'write-state')).toMatchObject({ anchorId: 'work-items-write-state', title: en.writeStateValue, description: en.writeStateHelp })
       expect(new Set(english.items.map(item => item.anchorId)).size).toBe(17)
       locale.setLocale('zh')

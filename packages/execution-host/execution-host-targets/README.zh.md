@@ -22,9 +22,11 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-将此服务与 `storageDomain`、本地 subprocess 提供方和 `executionHost` 一同挂载。[Remote 控制器](../../api/execution-host-controller/README.zh.md)为原生设置消费此服务。每条已保存记录包含显示名称和一个具体的 OpenSSH 检查别名。可选的 `execution` 设置为[官方 SSH 提供方](../../ssh/ssh/README.zh.md)选择显式端点和已安装的部署；这些设置保存私钥文件路径，不保存密钥内容。检查别名继续使用 OpenSSH 配置及其本地 agent。
+将此服务与 `storageDomain`、本地 subprocess 提供方和 `executionHost` 一同挂载。[Remote 控制器](../../api/execution-host-controller/README.zh.md)为原生设置消费此服务。每条已保存记录包含显示名称、一个具体的 OpenSSH 别名，以及可选的 `connection`。别名仍是目的地；`connection` 保存设置表单采集的非秘密细化项——`port`、`username`、`privateKeyFile`、`proxyCommand`、`jumpHost`、`multiplex`、`keepAliveIntervalSeconds`、`connectTimeoutSeconds`——每个字段都可选，未填写者保持 OpenSSH 配置自身的取值。可选的 `execution` 设置则单独为[官方 SSH 提供方](../../ssh/ssh/README.zh.md)选择显式端点和已安装的部署；这些设置保存私钥文件路径，不保存密钥内容。连接与探测按 `connection ?? execution.endpoint` 拨号，因此从未部署过的记录也会完全按它描述的内容拨号。检查别名继续使用 OpenSSH 配置及其本地 agent。
 
-远程机器需要 [worker profile](../../bundle/execution-host-app/README.zh.md) 和显式配置的导出根目录。空根目录列表产生 `roots-unconfigured`。连接使用批量认证、严格的已知主机验证，不转发 agent、不创建转发监听器或共享控制套接字，并使用固定命令 `dsh --profile execution-host`。连接前须在 Host 的 OpenSSH 配置中验证信任与认证。
+远程机器需要 [worker profile](../../bundle/execution-host-app/README.zh.md) 和显式配置的导出根目录。空根目录列表产生 `roots-unconfigured`。连接使用批量认证、严格的已知主机验证，不转发 agent、不创建转发监听器或共享控制套接字，并使用固定命令 `dsh --profile execution-host`。已保存端点的 `port`、`privateKeyFile`、`proxyCommand`、`jumpHost`、`keepAliveIntervalSeconds` 与 `connectTimeoutSeconds` 以记录优先的方式细化别名：每个显式字段在插件自带选项之后追加一个选项，OpenSSH 对重复选项以后出现者为准。`multiplex` 不可细化，因为每次连接都以 `-S none` 拨号；`hostKeySHA256` 继续用于运行时安装的主机密钥固定。连接前须在 Host 的 OpenSSH 配置中验证信任与认证。`username` 会追加 `-o User=`，因此保存的账户会覆盖别名已配置的账户。
+
+`listImportableHosts()` 读取 `sshConfigFile` 或 `~/.ssh/config`，返回设置表单可预填的具体 `Host` 条目：别名及其首个 `HostName`、`User`、`Port`、`IdentityFile`、`ProxyCommand` 与 `ProxyJump`。通配与取反模式、`Match` 块之后的全部内容，以及 `Include` 指向的文件都会被跳过，且从不写入该文件。返回值会给出实际读取的路径及该路径是否存在；文件缺失是空导入而不是失败，不可读则产生 `configuration-unreadable`。
 
 | 配置 | 默认值 | 含义 |
 |---|---|---|

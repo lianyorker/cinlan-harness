@@ -2,6 +2,7 @@
   "name": "@deepseek-ai/dsh-security-research",
   "description": "Security Research profile layer: authorized assessment scope, findings, evidence, vulnerability KB, skills, and workflow guidance",
   "version": "0.1.7-rc.2",
+  "icon": "./icon.svg",
   "publishConfig": {
     "access": "public"
   },
@@ -20,9 +21,12 @@
     },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./src/*": "./src/*",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
+    "icon.svg",
+    "locale/*.json",
     "lib/index.js",
     "cordis.patch.yml",
     "presets",
@@ -38,12 +42,12 @@
     "build": "tsc -b"
   },
   "dependencies": {
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
     "@deepseek-ai/dsh-artifact": "workspace:^",
     "@deepseek-ai/dsh-assessment-scope": "workspace:^",
     "@deepseek-ai/dsh-assessment-scope-session": "workspace:^",
     "@deepseek-ai/dsh-assessment-scope-static": "workspace:^",
     "@deepseek-ai/dsh-execution-host": "workspace:^",
-    "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/dsh-finding": "workspace:^",
     "@deepseek-ai/dsh-finding-session": "workspace:^",
     "@deepseek-ai/dsh-security-skills": "workspace:^",
@@ -54,7 +58,8 @@
     "@deepseek-ai/dsh-vuln-kb-service": "workspace:^",
     "@deepseek-ai/dsh-artifact-local": "workspace:^",
     "@deepseek-ai/dsh-assessment-scope-settings": "workspace:^",
-    "@deepseek-ai/dsh-assessment-scope-tool-policy": "workspace:^"
+    "@deepseek-ai/dsh-assessment-scope-tool-policy": "workspace:^",
+    "js-yaml": "^4.2.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^"

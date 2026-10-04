@@ -1,5 +1,5 @@
 ---
-description: "在设置中创建默认停用的自动化草稿，明确控制执行，并查看 UTC 运行证据。"
+description: "在设置中打开官方 Schedule 任务管理器。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 摘要
 
-从设置 → 实验 → 自动化管理重复任务。创建默认停用的草稿，选择已有资源，再明确启用计划或运行一次。查看已记录的运行并打开对应会话，以核实任务实际结果。所有计划与记录时间均以 UTC 展示。
+提供官方 Schedule 任务管理器的设置入口。设置页与侧栏及会话视图共享同一任务目录、任务详情和投递历史，不创建第二套任务存储或执行运行时。
 
 ## 目录
 
@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-将浏览器入口与设置、语言、会话导航和自动化 API 客户端一同挂载。此包不接受配置字段，Node 入口不注册服务。组合层单独提供运行时与控制器。
+将浏览器入口与设置、语言和布局服务一同挂载。此包只注册设置入口；官方 `ui-schedule` 负责任务目录、任务详情和远程修改。
 
 新草稿需要标题、提示词、工作区、智能体预设、模型、权限预设，以及每小时、每天或每周的 UTC 计划。每周计划使用星期日 = 0。可选推理强度是提供方定义的显式值，不是虚构的支持选项列表。保存失败会保留草稿和原始版本；发生冲突后，放弃草稿并重新编辑，才能采用更新的任务版本。
 
@@ -50,8 +50,8 @@ Slots 渲染器将 API 客户端的稳定数据源绑定到 useAutomation 钩子
 
 - [Web 客户端架构](../../../docs/subsystems/web-client.zh.md) — 业务数据与渲染的归属。
 - [Slots 参考](../../../docs/subsystems/slots.zh.md) — 数据源钩子与注册生命周期。
-- [API 声明](../../api/automation-controller/src/types.ts) — 实际资源选项与记录分页。
-- [运行时声明](../../automation/automation/src/types.ts) — 重复计划、准入与执行证据。
+- [Schedule 包](../../schedule/schedule/README.zh.md) — 持久化规则与投递语义。
+- [Schedule 客户端](../ui-schedule/package.json) — 此设置入口打开的官方任务管理器。
 
 <a id="dev-note"></a>
 ## 开发备注
@@ -66,7 +66,7 @@ Slots 渲染器将 API 客户端的稳定数据源绑定到 useAutomation 钩子
 <a id="model-experience"></a>
 ## 模型体验
 
-间接通过[自动化运行时](../../automation/automation/README.zh.md)，由其执行此页面请求的已保存提示词与资源选择。
+此页面不调用模型，也不拥有 Schedule 数据。官方 Schedule 服务与任务管理器负责提醒投递和模型可见操作。
 
 #### KV Cache 影响
 
@@ -76,7 +76,6 @@ Slots 渲染器将 API 客户端的稳定数据源绑定到 useAutomation 钩子
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 计划仅使用 UTC，不提供队列、通知、保留期限或远程路由控制。
-- 草稿与不确定的手动请求令牌仅存在于挂载的页面中；离开设置会丢弃这些查看状态。
-- 记录按单个任务浏览。已删除任务此前打开的记录仍可查看；此页面不提供单独的已删除任务目录。
-- 支持的推理强度值由运行时校验；页面不声称存在与提供方无关的强度列表。
+- 创建任务通过官方 Schedule 任务管理器或 `schedule_create` 工具完成；此设置入口只负责打开管理器。
+- 设置页与任务管理器共享 Host Schedule 目录和投递历史。
+- 任务创建、规则校验、Session 目标与投递均由 Schedule 包负责。

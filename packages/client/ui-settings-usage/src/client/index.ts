@@ -28,7 +28,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export const inject = ['slots', 'locale', 'settingsMetadata']
 
 /**
- * Register Usage in the experimental settings group and own every request lifetime.
+ * Register Usage in the advanced settings group and own every request lifetime.
  * @param ctx - Client context supplying slots, locale and settings metadata.
  */
 export function apply(ctx: Context): void {
@@ -51,7 +51,7 @@ export function apply(ctx: Context): void {
     hooks: { usage: source }, load: source.load, cancel: source.cancel, download: downloadCsv,
   }
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'usage', groupId: 'experimental' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'usage', groupId: 'advanced', heading: 'shell' })
     yield ctx.settingsMetadata.registerItems('usage', [
       { id: 'filters', anchorId: 'usage-filters', title: () => t('filters'), description: () => t('dateHelp'), keywords: () => [t('provider'), t('model')] },
       { id: 'overview', anchorId: 'usage-overview', title: () => t('overview'), description: () => t('accountingHelp') },

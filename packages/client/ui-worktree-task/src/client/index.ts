@@ -48,11 +48,12 @@ export function apply(ctx: Context): void {
     activate: async (taskId, signal) => value(await ctx.remote.worktreeTasks.activate({ taskId }, signal)).task,
     hibernate: async (taskId, signal) => value(await ctx.remote.worktreeTasks.hibernate({ taskId }, signal)).task,
     archive: async (taskId, signal) => value(await ctx.remote.worktreeTasks.archive({ taskId }, signal)).task,
+    merge: async (taskId, signal) => value(await ctx.remote.worktreeTasks.merge({ taskId }, signal)),
     delete: async (taskId, signal) => value(await ctx.remote.worktreeTasks.delete({ taskId }, signal)),
   }
 
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'worktree-task', groupId: 'development' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'worktree-task', groupId: 'workspace' })
     yield ctx.settingsMetadata.registerItems('worktree-task', [
       { id: 'policy', anchorId: 'worktree-task-policy', title: () => t('policyTitle'), description: () => t('policyHelp') },
       { id: 'records', anchorId: 'worktree-task-records', title: () => t('recordsTitle'), description: () => t('recordsHelp'),

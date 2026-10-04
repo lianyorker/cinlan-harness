@@ -13,7 +13,9 @@ import { readFile, readdir, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { scopeOf } from '@deepseek-ai/dsh-scope'
 import type { SecuritySkillGenerationId, SecuritySkillGenerationLease } from './types.ts'
-import type {} from './resources.ts'
+// Re-exported so the emitted declarations carry the resource manager's `Context`
+// member and change event; a bare `import type {}` is erased from declarations.
+export type * from './resources.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import {
   BUNDLED_SKILL_RANK,

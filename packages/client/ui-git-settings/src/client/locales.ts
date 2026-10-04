@@ -38,6 +38,8 @@ export type GitSettingsKey =
   | 'attributionTitle'
   | 'attributionDescription'
   | 'attributionKeywordHint'
+  | 'renameBranchTitle'
+  | 'renameBranchDescription'
   | 'settingsLoading'
   | 'settingsError'
   | 'settingsSaveFailed'
@@ -46,7 +48,7 @@ export type GitSettingsKey =
 export const en: Record<GitSettingsKey, string> = {
   nav: 'Git & Source Control',
   description: 'Manage branch naming and source control preferences.',
-  runtimeNotice: 'Branch prefixes apply to new Worktree Tasks. Group order, upstream comparison, and attribution apply to Source Control. Local base refresh is unavailable.',
+  runtimeNotice: 'Branch prefixes, base refresh, and branch naming apply to new Worktree Tasks. Group order, upstream comparison, and attribution apply to Source Control.',
   readOnly: 'Git preferences are read-only for this connection.',
   reset: 'Reset',
   resetField: 'Reset {field}',
@@ -63,14 +65,14 @@ export const en: Record<GitSettingsKey, string> = {
   branchPrefixGitUsername: 'Git Username',
   branchPrefixGitUsernameDesc: 'Resolved at Create from repository-local github.user, then user.username. Missing or invalid values prevent creation; no username preview is available here.',
   branchPrefixCustom: 'Custom',
-  branchPrefixCustomDesc: 'Prepended to dsh/task/<uuid>, separated by /. Git validates the branch before Create; an empty or invalid prefix prevents creation.',
+  branchPrefixCustomDesc: 'Prepended to dsh/task/<uuid-or-task-name>, separated by /. Git validates the branch before Create; an empty or invalid prefix prevents creation.',
   branchPrefixNone: 'None',
   branchPrefixNoneDesc: 'Task branch names use dsh/task/<uuid>.',
   branchPrefixCustomLabel: 'Custom prefix',
   branchPrefixCustomPlaceholder: 'e.g. feature/',
   branchPrefixPreview: 'Preview: {value}',
   keepLocalMainTitle: 'Keep Local Main Up To Date',
-  keepLocalMainDescription: 'Unavailable: Worktree Task Create does not fetch or fast-forward local main/master. The saved value is preserved; Reset removes your override.',
+  keepLocalMainDescription: 'Before creating a task, fetch the checked-out main/master branch and fast-forward it when it carries no local-only commits. A branch without an upstream, an unreachable remote, or local-only commits stays where it is.',
   groupOrderTitle: 'Source Control Group Order',
   groupOrderDescription: 'Apply this order to Changes, Staged, and Untracked on the next Source Control refresh.',
   groupOrderChangesFirst: 'Changes First',
@@ -81,6 +83,8 @@ export const en: Record<GitSettingsKey, string> = {
   attributionTitle: 'Cinlan IDE Attribution',
   attributionDescription: 'Add Co-authored-by attribution to commits you create in Source Control. Worktree Task checkpoint commits, pull requests, and issues are unaffected.',
   attributionKeywordHint: 'Triggers on keywords: github, gh, pr, issue, co-author, coauthored, attribution.',
+  renameBranchTitle: 'Rename Task Branch',
+  renameBranchDescription: 'Name a generated task branch after the task (dsh/task/<task-name>) instead of its internal id. Names without usable characters, and branches that already exist, keep the id form.',
   settingsLoading: 'Loading settings…',
   settingsError: 'Failed to load settings.',
   settingsSaveFailed: 'Failed to save setting.',
@@ -90,7 +94,7 @@ export const en: Record<GitSettingsKey, string> = {
 export const zh: Record<GitSettingsKey, string> = {
   nav: 'Git 与源代码控制',
   description: '管理分支命名与源代码控制偏好。',
-  runtimeNotice: '分支前缀应用于新建 Worktree Task。分组顺序、上游比较和署名应用于源代码控制。本地基线刷新不可用。',
+  runtimeNotice: '分支前缀、基线刷新和分支命名应用于新建 Worktree Task。分组顺序、上游比较和署名应用于源代码控制。',
   readOnly: '此连接中的 Git 偏好为只读。',
   reset: '重置',
   resetField: '重置{field}',
@@ -107,14 +111,14 @@ export const zh: Record<GitSettingsKey, string> = {
   branchPrefixGitUsername: 'Git 用户名',
   branchPrefixGitUsernameDesc: '创建时依次读取仓库本地的 github.user、user.username。缺失或无效值会阻止创建；此处无法预览用户名。',
   branchPrefixCustom: '自定义',
-  branchPrefixCustomDesc: '添加到 dsh/task/<uuid> 前，以 / 分隔。Git 在创建前验证分支；前缀为空或无效时无法创建。',
+  branchPrefixCustomDesc: '添加到 dsh/task/<uuid 或任务名> 前，以 / 分隔。Git 在创建前验证分支；前缀为空或无效时无法创建。',
   branchPrefixNone: '无',
   branchPrefixNoneDesc: '任务分支名使用 dsh/task/<uuid>。',
   branchPrefixCustomLabel: '自定义前缀',
   branchPrefixCustomPlaceholder: '例如 feature/',
   branchPrefixPreview: '预览：{value}',
   keepLocalMainTitle: '保持本地 main 最新',
-  keepLocalMainDescription: '不可用：Worktree Task 创建操作不会抓取或快进本地 main/master。已保存值会被保留；重置可移除用户覆盖。',
+  keepLocalMainDescription: '创建任务前抓取当前检出的 main/master 分支，并在它没有本地领先提交时快进。没有上游、远端不可达、或存在本地领先提交时保持原样。',
   groupOrderTitle: '源代码控制组顺序',
   groupOrderDescription: '下次刷新源代码控制时，按此顺序显示变更、已暂存和未跟踪分组。',
   groupOrderChangesFirst: '变更优先',
@@ -125,6 +129,8 @@ export const zh: Record<GitSettingsKey, string> = {
   attributionTitle: 'Cinlan IDE 署名',
   attributionDescription: '为你在源代码控制中创建的提交添加 Co-authored-by 署名。Worktree Task 检查点提交、Pull Request 和 Issue 不受影响。',
   attributionKeywordHint: '触发关键词：github, gh, pr, issue, co-author, coauthored, attribution。',
+  renameBranchTitle: '重命名任务分支',
+  renameBranchDescription: '把生成的任务分支命名为任务名（dsh/task/<任务名>）而不是内部 id。名称没有可用字符、或分支已存在时仍使用 id 形式。',
   settingsLoading: '正在加载设置…',
   settingsError: '加载设置失败。',
   settingsSaveFailed: '保存设置失败。',

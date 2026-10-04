@@ -9,15 +9,13 @@ export type FloatingWindowPhase = 'closed' | 'open' | 'blocked' | 'unavailable'
 export interface FloatingSnapshot {
   readonly settings: SettingsScopeSnapshot<FloatingWorkspaceSettings>
   readonly phase: FloatingWindowPhase
-  /** Child renderers use normal app slots and expose only a close control. */
-  readonly child: boolean
+  /** Whether this activation's panel is on screen. */
+  readonly open: boolean
   /** A failed preference write preserves the last accepted settings. */
   readonly writeFailed: boolean
   readonly writing: boolean
   /** True only while the actual terminal creation consumer is installed. */
   readonly directorySupported: boolean
-  /** Parent-provided initial Session could not be found in the normal catalog. */
-  readonly targetUnavailable: boolean
 }
 
 /** Explicit user operations; successful writes are reflected by the settings owner. */
@@ -29,8 +27,8 @@ export interface FloatingActions {
    * @returns settlement after accepted-state confirmation or a published failure.
    */
   set<K extends keyof FloatingWorkspaceSettings>(key: K, value: FloatingWorkspaceSettings[K]): Promise<void>
-  /** Open or close this exact owner's app window. */
+  /** Open this activation's panel, or close it when it is already open. */
   toggle(): void
-  /** Close only this owner window and return focus to its live source. */
+  /** Close this activation's panel. */
   close(): void
 }

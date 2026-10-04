@@ -38,7 +38,7 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { PermissionCatalogDirectory } from './catalog.ts'
 import { PermissionSelect } from './PermissionSelect.tsx'
 import type { PermissionSelectInjected } from './PermissionSelect.tsx'
-import { PermissionRow } from './PermissionRow.tsx'
+import { PermissionSettingsSection } from './PermissionRow.tsx'
 import type { PermissionRowInjected } from './PermissionRow.tsx'
 import {
   accessEn, accessZh, en, PERMISSION_ACCESS_NS, zh,
@@ -59,7 +59,7 @@ export type {
 export const inject = [
   'commandUi', 'connection', 'sessions', 'slots', 'locale', 'remote',
   'remote.permissionPresets', 'remote.settings',
-  'configForms', 'settingsSchema',
+  'configForms', 'settingsSchema', 'settingsMetadata',
 ]
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -156,13 +156,17 @@ export function apply(ctx: ClientContext): void {
 
   ctx.effect(() => () => { controller.dispose() }, 'ui-permission: settings row directory')
 
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
-    id: 'permission',
-    order: -20,
-    locale: 'settings.permission',
-    inject: injected,
-  }, PermissionRow))
+  const settingsT = ctx.locale.bind('settings.permission')
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'permissions', groupId: 'execution', heading: 'shell' })
+    yield ctx.settingsMetadata.registerItems('permissions', [{
+      id: 'permission-default', anchorId: 'permission-default', title: () => settingsT('title'), description: () => settingsT('description'),
+    }])
+    yield ctx.slots.register({
+      name: 'settings.section', id: 'permissions', order: 45, label: () => settingsT('nav'),
+      locale: 'settings.permission', inject: injected,
+    }, PermissionSettingsSection)
+  })
 
   ctx.slots.inject('conversation.input.permission', () => ctx.slots.register({
     name: 'conversation.input.permission',

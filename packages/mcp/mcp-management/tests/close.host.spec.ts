@@ -1,8 +1,6 @@
 /** A non-acknowledging external transport cannot authorize an overlapping managed connection. */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import InvariantRegistry from '@deepseek-ai/dsh-invariants'
-import * as invariant from '../src/invariant.ts'
 import { startHttpMcpFixture } from '../../mcp-client/tests/http-fixture.ts'
 import { bootFixture } from './harness.ts'
 
@@ -16,8 +14,6 @@ describe('unconfirmed MCP transport shutdown', () => {
       headers: {}, reconnect: { enabled: false },
     } })
     await vi.waitFor(() => { expect(ctx.mcpManagement.getSnapshot().servers[0]?.observed.phase).toBe('ready') }, { timeout: 5_000 })
-    await ctx.plugin(InvariantRegistry).await()
-    await ctx.plugin(invariant).await()
     const dispatch = (): void => { ctx.events.dispatch('waterfall', ['tools/pre-execute']) }
     expect(dispatch).not.toThrow()
     expect(ctx.mcpRegistry.getSnapshot()).toHaveLength(1)

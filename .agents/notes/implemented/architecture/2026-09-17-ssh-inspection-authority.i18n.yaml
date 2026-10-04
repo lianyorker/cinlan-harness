@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-ssh-inspection-authority.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-ssh-inspection-authority.md
-2026-09-17-ssh-inspection-authority.md: 74b4fb1a150fc7cc577866700b92e29c3bc6ef56
-2026-09-17-ssh-inspection-authority.zh.md: 272efeef10a5d656091f4131b0e8847aef3b3c4b
+/agent-note-ssh-inspection-does-not-establish-remote-session-authority:
+  en: 612dbfd1b55c3323
+  zh: 59ef7cb594ec16d7
+/agent-note-ssh-inspection-does-not-establish-remote-session-authority/problem:
+  en: be3a94ef97813568
+  zh: 68ad0fe8a2baf23d
+/agent-note-ssh-inspection-does-not-establish-remote-session-authority/decision:
+  en: 8aacd5f27bba8678
+  zh: 262dd96f430427cd
+/agent-note-ssh-inspection-does-not-establish-remote-session-authority/alternatives-considered:
+  en: 1a631852109a3d5b
+  zh: f96cf5df675ff133
+/agent-note-ssh-inspection-does-not-establish-remote-session-authority/consequences:
+  en: e2ffd696f5984d32
+  zh: a475feadbbdc20de

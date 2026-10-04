@@ -347,7 +347,7 @@ describe('Mobile Device tool behavior', () => {
     } as unknown as ToolRunContext)
     expect(value).toMatchObject({ image: { attachmentId: 'sha256:unnamed' } })
     expect(deferred).toMatchObject([{
-      role: 'user', source: { kind: 'plugin', plugin: 'tool-mobile-device' },
+      role: 'user', source: { kind: 'tool-mobile-device' },
       content: [{ type: 'text' }, { type: 'image', attachment: { attachmentId: 'sha256:unnamed' } }],
     }])
 

@@ -9,8 +9,6 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import { boot } from '@deepseek-ai/dsh-app-boot'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
-import InvariantRegistry from '@deepseek-ai/dsh-invariants'
-import * as McpInvariant from '../src/invariant.ts'
 import { createScope } from '@deepseek-ai/dsh-scope'
 import * as McpClient from '../src/index.ts'
 import McpRegistry from '../src/registry.ts'
@@ -134,20 +132,6 @@ describe('MCP management observations through Loader', () => {
     await scope.dispose()
   })
 
-  it('checks real registry drift and removes invariant listeners on unload', async () => {
-    const endpoint = await httpFixture()
-    const { ctx } = await compose(httpConfig(endpoint.url), managed())
-    await ctx.plugin(InvariantRegistry)
-    const companion = ctx.plugin(McpInvariant)
-    await companion.await()
-    const dispatch = (): void => { ctx.events.dispatch('waterfall', ['tools/pre-execute']) }
-    expect(dispatch).not.toThrow()
-    const getter = vi.spyOn(ctx.tools, 'get').mockReturnValue(undefined)
-    expect(dispatch).toThrow(/MCP discovery lists a tool absent/)
-    await companion.dispose()
-    expect(dispatch).not.toThrow()
-    getter.mockRestore()
-  })
 
   it('contains observer failures and leaves cancelled probes unable to replace tools', async () => {
     const endpoint = await httpFixture()

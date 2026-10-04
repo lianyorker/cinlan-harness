@@ -4,14 +4,27 @@ import { notifySubscribers } from '@deepseek-ai/dsh-client-store'
 import type { LocaleFace } from '@deepseek-ai/dsh-client-ui-slots'
 
 /** Standard settings navigation groups; their labels and order belong to the shell. */
-export type SettingsGroupId = 'personal' | 'ai' | 'development' | 'tools' | 'extensions' | 'experimental'
+export type SettingsGroupId =
+  | 'personal'
+  | 'ai'
+  | 'workspace'
+  | 'execution'
+  | 'tools'
+  | 'extensions'
+  | 'advanced'
+  | 'capabilities'
 
-/** Group assignment for one settings.section registration. */
+/** Owner of the top-level heading for one settings page. */
+export type SettingsSectionHeading = 'shell' | 'feature'
+
+/** Group and shell-heading assignment for one settings.section registration. */
 export interface SettingsSectionMetadata {
   /** Stable settings.section registration id. */
   readonly sectionId: string
   /** Shell-owned navigation group. */
   readonly groupId: SettingsGroupId
+  /** Render the page title in the shell; feature pages render their own heading. */
+  readonly heading?: SettingsSectionHeading
 }
 
 /** Searchable UI copy only; resolvers must never return settings values or secrets. */
@@ -128,11 +141,14 @@ export class SettingsMetadataService extends Service {
    */
   registerSection(input: SettingsSectionMetadata): () => void {
     const dispose = this.ctx.effect(() => {
-      const { sectionId, groupId } = input
+      const { sectionId, groupId, heading } = input
       if (this.snapshot.sections.some(section => section.sectionId === sectionId)) {
         throw new Error(`settings metadata section "${sectionId}" is already registered`)
       }
-      const section = Object.freeze({ sectionId, groupId })
+      const section = Object.freeze({
+        sectionId, groupId,
+        ...(heading === undefined ? {} : { heading }),
+      })
       this.publish([...this.snapshot.sections, section], this.snapshot.items)
       return () => {
         if (!this.snapshot.sections.includes(section)) return

@@ -82,7 +82,7 @@ describe('ui-worktree-task registration', () => {
 
     const section = b.slots.entries('settings.section')[0]!
     expect(section.component).toBe(WorktreeTaskSection)
-    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'worktree-task', groupId: 'development' }])
+    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'worktree-task', groupId: 'workspace' }])
     expect(section.options).toMatchObject({ id: 'worktree-task', order: 60 })
     expect(section.locale).toBe('settings.worktreeTask')
     expect(resolveSlotLabel(section.options.label)).toBe('工作树任务')

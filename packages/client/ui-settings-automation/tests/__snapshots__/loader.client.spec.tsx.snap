@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`automation settings Loader composition > opens the independent panel from Settings without starting a task 1`] = `"Scheduled tasksManage reminders in the official Schedule task manager.Schedule tasks are delivered to their original Session by the official Schedule service.Task schedulesNew tasks are disabled. Enable scheduling explicitly, or run once without enabling.Open Schedule manager"`;

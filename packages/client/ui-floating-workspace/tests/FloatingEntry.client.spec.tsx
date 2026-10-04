@@ -15,21 +15,21 @@ function mount(position: ToggleButtonPosition, selected: ToggleButtonPosition = 
       status: 'ready', value: { enabled: true, terminalDirectory: '', toggleButtonPosition: selected, floatDefaultWidth: 400, floatDefaultHeight: 300 },
       base: {}, user: {}, revision: 1, mode: 'host', writable: true,
     },
-    phase: 'closed', child: false, writing: false, writeFailed: false, targetUnavailable: false, directorySupported: false,
+    phase: 'closed', open: false, writing: false, writeFailed: false, directorySupported: false,
     ...patch,
   }
-  const toggle = vi.fn(), closeWindow = vi.fn(), matchesShortcut = vi.fn(() => false)
+  const toggle = vi.fn(), matchesShortcut = vi.fn(() => false)
   const unused = (() => { throw new Error('unused standard hook') }) as never
   const props: FloatingEntryProps = {
     useSessions: unused, useWorkspaces: unused, usePanelInfo: unused, useSessionStatus: unused, useSessionRetainInfo: unused, useResource: unused,
     useFloating: bindSnapshotSelector({ getSnapshot: () => snapshot, subscribe: () => () => {} }),
-    t: makeTranslate(en), position, toggle, closeWindow, matchesShortcut,
+    t: makeTranslate(en), position, toggle, matchesShortcut,
   }
-  return { ...render(<FloatingEntry {...props} />), toggle, closeWindow, matchesShortcut }
+  return { ...render(<FloatingEntry {...props} />), toggle, matchesShortcut }
 }
 
 describe('floating entry presentation', () => {
-  it.each(['header', 'sidebar', 'floating'] as const)('renders the %s entry and invokes the real owner callback', (position) => {
+  it.each(['header', 'floating'] as const)('renders the %s entry and invokes the real owner callback', (position) => {
     const h = mount(position)
     const trigger = screen.getByRole('button', { name: en.toggle })
     expect(trigger.getAttribute('aria-pressed')).toBe('false')
@@ -40,7 +40,7 @@ describe('floating entry presentation', () => {
     const h = mount('header', 'header', { phase: 'open' })
     expect(screen.getByRole('button', { name: en.toggle }).getAttribute('aria-pressed')).toBe('true')
     h.unmount()
-    mount('sidebar', 'header')
+    mount('floating', 'header')
     expect(screen.queryByRole('button')).toBeNull()
   })
   it.each(['blocked', 'unavailable'] as const)('keeps %s feedback visible in the overlay for a header entry', (phase) => {
@@ -67,26 +67,11 @@ describe('floating entry presentation', () => {
     mount('header', 'header', { settings })
     expect(screen.queryByRole('button')).toBeNull()
   })
-  it('the child exposes only its own close control and no global shortcut dispatcher', () => {
-    const h = mount('sidebar', 'header', { child: true, targetUnavailable: true })
-    expect(screen.queryByRole('status')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: en.close }))
-    expect(h.closeWindow).toHaveBeenCalledOnce()
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', ctrlKey: true, shiftKey: true }))
-    expect(h.matchesShortcut).not.toHaveBeenCalled()
-    expect(h.toggle).not.toHaveBeenCalled()
-    h.unmount()
-    const warning = mount('floating', 'header', { child: true, targetUnavailable: true })
-    expect(screen.getByRole('status').textContent).toBe(en.initialSessionUnavailable)
-    expect(screen.queryByRole('button')).toBeNull()
-    warning.unmount()
-    mount('header', 'header', { child: true })
-    expect(screen.queryByRole('button')).toBeNull()
-  })
-  it('a healthy child does not show a missing-session warning', () => {
-    mount('floating', 'header', { child: true })
-    expect(screen.queryByRole('status')).toBeNull()
-    expect(screen.queryByRole('button')).toBeNull()
+  it('keeps exactly one pressed control while its panel is open', () => {
+    mount('floating', 'floating', { phase: 'open', open: true })
+    const triggers = screen.getAllByRole('button', { name: en.toggle })
+    expect(triggers).toHaveLength(1)
+    expect(triggers[0]?.getAttribute('aria-pressed')).toBe('true')
   })
   it('dispatches only a match from the keyboard service and removes its one listener on unmount', () => {
     const h = mount('floating', 'header')

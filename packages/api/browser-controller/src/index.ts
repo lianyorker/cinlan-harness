@@ -26,6 +26,7 @@ import type {
   BrowserPageRequest,
   BrowserPagesValue,
   BrowserProfileValue,
+  BrowserProfilesValue,
 } from './types.ts'
 export type * from './types.ts'
 declare module '@deepseek-ai/cordis' {
@@ -133,6 +134,17 @@ export class BrowserController extends TypertRemoteService {
   @Remote('profile') profile(signal: AbortSignal): BrowserProfileValue {
     signal.throwIfAborted()
     return { profileName: this.browser.currentProfile() }
+  }
+  /** List stored persistent-browser profiles without launching a browser.
+   * @param signal - Caller cancellation.
+   * @returns The selected profile and every stored profile name; directories stay on the Host.
+   */
+  @Remote('listProfiles') listProfiles(signal: AbortSignal): BrowserProfilesValue {
+    signal.throwIfAborted()
+    return {
+      profileName: this.browser.currentProfile(),
+      profiles: this.browser.listProfiles().map(({ name, stored, current }) => ({ name, stored, current })),
+    }
   }
   /** Launch if needed and list native pages after an explicit UI action.
    * @param signal - Caller cancellation.

@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-将这个普通的 Host/Client 插件与设置、语言服务一同挂载。Host 入口注册持久化命名空间，Client 入口提供 `ctx.keyboard`。[快捷键设置](../ui-keybindings/README.zh.md) 展示当前组合中各操作所有者提供的命令。
+将这个普通的 Host/Client 插件与设置、语言服务一同挂载。Host 入口注册持久化命名空间，Client 入口提供 `ctx.keyboard`。[快捷键设置](../ui-shortcuts/README.zh.md) 将这些命令与窗口内的快捷键目录一并展示。
 
 所有者扩展 `@deepseek-ai/dsh-client-keyboard/client` 的 `KeyboardCommandMap`，声明各命令 id 与作用域。在 Cordis effect 中注册默认绑定并返回注册的 disposer。名称和说明使用函数，使语言变化能重新发布当前文案。可选的可用状态源在所属能力不可用时禁用该操作。
 

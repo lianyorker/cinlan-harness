@@ -34,6 +34,8 @@ import type {
   WorktreeTaskDefaults,
   WorktreeTaskReview,
   WorktreeTaskCleanupReceipt,
+  MergeTaskRequest,
+  WorktreeTaskMergeResult,
 } from '@deepseek-ai/dsh-worktree-task'
 import type { WorktreeTaskId as WorktreeTaskIdType } from '@deepseek-ai/dsh-worktree-task/types'
 import { gitWorktreeTaskSpec, worktreeTaskDefaults } from './spec.ts'
@@ -133,6 +135,21 @@ const pathKey = (path: string): string => {
   const normalized = resolve(path).replace(/[\\/]+$/u, '')
   return process.platform === 'win32' ? normalized.toLowerCase() : normalized
 }
+
+/**
+ * Turn a task name into a branch-safe slug.
+ * @param name - task name as the user typed it.
+ * @returns lowercase alphanumeric segments joined by single dashes, or an empty
+ * string when nothing usable remains (an all-CJK name, for example); the caller
+ * then falls back to the internal task id.
+ */
+const branchSlug = (name: string): string => name
+  .normalize('NFKD')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/gu, '-')
+  .replace(/^-+|-+$/gu, '')
+  .slice(0, 48)
+  .replace(/-+$/u, '')
 
 const pathIsWithin = (root: string, path: string): boolean => {
   const child = relative(root, path)
@@ -269,12 +286,17 @@ export class GitWorktreeTask extends WorktreeTaskService {
       }
       const baseRef = request.baseRef ?? defaults.baseRef
       this.validateDefaults({ ...defaults, baseRef })
-      const headResult = await this.git(repositoryPath, ['rev-parse', '--verify', '--end-of-options', baseRef + '^{commit}'], signal)
-      this.assertSuccess(headResult, 'rev-parse base ref')
-      const baseHead = headResult.stdout.trim()
       const branchResult = await this.git(repositoryPath, ['rev-parse', '--abbrev-ref', 'HEAD'], signal)
       this.assertSuccess(branchResult, 'rev-parse branch')
       const baseBranch = branchResult.stdout.trim()
+      // Refresh before resolving the base commit, so a fast-forwarded branch
+      // becomes the commit the new worktree starts from.
+      if (this.resolveGitSettings().refreshLocalBaseRefOnWorktreeCreate) {
+        await this.refreshLocalBaseBranch(repositoryPath, baseBranch, signal)
+      }
+      const headResult = await this.git(repositoryPath, ['rev-parse', '--verify', '--end-of-options', baseRef + '^{commit}'], signal)
+      this.assertSuccess(headResult, 'rev-parse base ref')
+      const baseHead = headResult.stdout.trim()
       const id = WorktreeTaskId(randomUUID())
       const launch = {
         ...defaults,
@@ -289,7 +311,7 @@ export class GitWorktreeTask extends WorktreeTaskService {
         }
       }
       const checkoutPath = sourceRelative.length === 0 ? checkoutRoot : join(checkoutRoot, sourceRelative)
-      const branch = await this.resolveCreateBranch(repositoryPath, id, signal)
+      const branch = await this.resolveCreateBranch(repositoryPath, id, request.name, signal)
       if (await exists(checkoutRoot)) {
         throw new WorktreeTaskError('conflict', `managed checkout destination already exists: ${checkoutRoot}`)
       }
@@ -407,6 +429,82 @@ export class GitWorktreeTask extends WorktreeTaskService {
     }, requestSignal)
   }
 
+  /**
+   * Checkpoint and merge one task branch into its captured source branch.
+   *
+   * The task is archived before the merge so cleanup and checkpoint effects are
+   * settled before Git changes the source checkout. The branch remains available
+   * for the caller to delete after its durable owner records the integration.
+   */
+  async merge(request: MergeTaskRequest, requestSignal?: AbortSignal): Promise<WorktreeTaskMergeResult> {
+    return this.enqueue(async (signal) => {
+      const record = this.requireRecord(request.taskId)
+      if (this.isBusy(record)) {
+        throw new WorktreeTaskError('busy', 'cannot merge task "' + String(request.taskId) + '" while sessions are bound')
+      }
+      const archived = await this.archiveRecord(record, 'delete', signal)
+      const sourcePath = await realpath(archived.sourcePath)
+      if (!(await stat(sourcePath)).isDirectory() || !pathIsWithin(archived.repositoryPath, sourcePath)) {
+        throw new WorktreeTaskError('invalid-workspace', 'task source checkout is unavailable: ' + archived.sourcePath)
+      }
+      const filters = await this.filterOverrides(archived.repositoryPath, signal)
+      const status = await this.git(sourcePath, ['status', '--porcelain=v1', '-z', '--untracked-files=all'], signal, filters)
+      this.assertSuccess(status, 'source status')
+      if (status.stdout.length > 0) {
+        throw new WorktreeTaskError('conflict', 'source checkout "' + sourcePath + '" has uncommitted changes')
+      }
+      const sourceBranch = await this.git(sourcePath, ['rev-parse', '--abbrev-ref', 'HEAD'], signal, filters)
+      this.assertSuccess(sourceBranch, 'source branch')
+      if (sourceBranch.stdout.trim() !== archived.baseBranch) {
+        throw new WorktreeTaskError(
+          'conflict',
+          'source checkout is on "' + sourceBranch.stdout.trim() + '"; expected "' + archived.baseBranch + '"',
+        )
+      }
+      const sourceHead = await this.git(sourcePath, ['rev-parse', '--verify', 'HEAD^{commit}'], signal, filters)
+      this.assertSuccess(sourceHead, 'source head')
+      const sourceHeadBefore = sourceHead.stdout.trim()
+      const branchHead = await this.localBranchHead(archived, archived.branch, signal)
+      const alreadyMerged = await this.git(
+        sourcePath, ['merge-base', '--is-ancestor', 'refs/heads/' + archived.branch, 'HEAD'], signal, filters,
+      )
+      if (alreadyMerged.exitCode !== 0 && alreadyMerged.exitCode !== 1) this.assertSuccess(alreadyMerged, 'merge-base')
+      if (alreadyMerged.exitCode === 1) {
+        const merged = await this.git(
+          sourcePath, ['merge', '--no-edit', '--no-verify', 'refs/heads/' + archived.branch], undefined, filters,
+        )
+        if (merged.stdoutTruncated || merged.stderrTruncated) {
+          throw new WorktreeTaskError('git-failed', 'git merge output exceeded the configured limit')
+        }
+        if (merged.exitCode !== 0) {
+          const marker = await this.git(sourcePath, ['rev-parse', '-q', '--verify', 'MERGE_HEAD'], undefined, filters)
+          if (marker.exitCode !== 0 && marker.exitCode !== 1 && marker.exitCode !== 128) this.assertSuccess(marker, 'rev-parse MERGE_HEAD')
+          const aborted = marker.exitCode === 0
+            ? await this.git(sourcePath, ['merge', '--abort'], undefined, filters)
+            : undefined
+          const abortFailed = aborted !== undefined && aborted.exitCode !== 0
+          const suffix = abortFailed ? '; merge abort also failed: ' + (aborted.stderr.trim() || 'unknown error') : ''
+          throw new WorktreeTaskError(
+            'conflict',
+            (merged.stderr.trim() || 'could not merge task branch "' + archived.branch + '"') + suffix,
+            { branchHead, sourceHeadBefore, mergeAbortFailed: abortFailed },
+          )
+        }
+      }
+      const sourceHeadAfterResult = await this.git(sourcePath, ['rev-parse', '--verify', 'HEAD^{commit}'], signal, filters)
+      this.assertSuccess(sourceHeadAfterResult, 'merged source head')
+      return this.boundResult({
+        taskId: archived.id,
+        sourcePath,
+        sourceBranch: archived.baseBranch,
+        branch: archived.branch,
+        sourceHeadBefore,
+        sourceHeadAfter: sourceHeadAfterResult.stdout.trim(),
+        task: this.snapshot(archived),
+      })
+    }, requestSignal)
+  }
+
   private boundResult<T>(value: T): T {
     if (Buffer.byteLength(JSON.stringify(value), 'utf8') > this.config.maxOutputBytes) {
       throw new WorktreeTaskError('operation-failed', 'Worktree Task result exceeded the configured byte limit')
@@ -424,6 +522,31 @@ export class GitWorktreeTask extends WorktreeTaskService {
     if (value.baseRef.trim().length === 0 || value.baseRef.startsWith('-') || value.baseRef.includes(String.fromCharCode(0))) {
       throw new WorktreeTaskError('invalid-path', 'The starting ref must be a nonempty Git revision, not an option')
     }
+  }
+
+  /**
+   * Fast-forward the checked-out base branch to its configured upstream.
+   *
+   * Best effort by design: a branch without an upstream, an unreachable remote,
+   * or a branch that carries local-only commits is left exactly where it is, and
+   * the task still starts from the current commit. The caller has already
+   * refused a dirty workspace, so only the ahead check gates the update.
+   * @param repositoryPath - Git root the task is created from.
+   * @param baseBranch - branch currently checked out in the main worktree.
+   * @param signal - task creation cancellation.
+   */
+  private async refreshLocalBaseBranch(repositoryPath: string, baseBranch: string, signal: AbortSignal): Promise<void> {
+    const remoteResult = await this.git(repositoryPath, ['config', '--get', `branch.${baseBranch}.remote`], signal)
+    const remote = remoteResult.exitCode === 0 ? remoteResult.stdout.trim() : ''
+    const mergeResult = await this.git(repositoryPath, ['config', '--get', `branch.${baseBranch}.merge`], signal)
+    const merge = mergeResult.exitCode === 0 ? mergeResult.stdout.trim() : ''
+    if (remote === '' || merge === '') return
+    const fetched = await this.git(repositoryPath, ['fetch', '--quiet', remote, baseBranch], signal)
+    if (fetched.exitCode !== 0) return
+    const upstream = `${remote}/${merge.replace(/^refs\/heads\//u, '')}`
+    const ahead = await this.git(repositoryPath, ['rev-list', '--count', `${upstream}..${baseBranch}`], signal)
+    if (ahead.exitCode !== 0 || Number(ahead.stdout.trim()) !== 0) return
+    await this.git(repositoryPath, ['merge', '--ff-only', '--quiet', upstream], signal)
   }
 
   private async checkoutParent(directory: string, create: boolean): Promise<string> {
@@ -490,9 +613,10 @@ export class GitWorktreeTask extends WorktreeTaskService {
   }
 
   /** Resolve and validate a new branch before capacity changes or worktree creation. */
-  private async resolveCreateBranch(repositoryPath: string, id: WorktreeTaskIdType, signal?: AbortSignal): Promise<string> {
+  private async resolveCreateBranch(repositoryPath: string, id: WorktreeTaskIdType, name: string, signal?: AbortSignal): Promise<string> {
     const settings = this.resolveGitSettings()
-    const suffix = `dsh/task/${String(id)}`
+    const slug = settings.autoRenameTaskBranch ? branchSlug(name) : ''
+    const suffix = `dsh/task/${slug === '' ? String(id) : slug}`
     let prefix: string
     let correction: string
     switch (settings.branchPrefix) {

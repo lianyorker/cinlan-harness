@@ -11,8 +11,16 @@ const sshAlias = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,252}$/)
 
 const hash = z.string().regex(/^[0-9a-f]{64}$/)
 const remotePath = z.string().startsWith('/')
+const endpointOptions = {
+  proxyCommand: z.string().min(1).max(4096).optional(),
+  jumpHost: z.string().min(1).max(253).optional(),
+  multiplex: z.boolean().optional(),
+  keepAliveIntervalSeconds: z.number().int().min(1).max(86_400).optional(),
+  connectTimeoutSeconds: z.number().int().min(1).max(604_800).optional(),
+}
 const publicEndpointSchema = z.strictObject({
   host: z.string().min(1), port: z.number().int().min(1).max(65535), username: z.string().min(1), hostKeySHA256: hash,
+  ...endpointOptions,
 })
 const deploymentFields = { node: remotePath, helper: remotePath, helperHash: hash, workspace: remotePath }
 /** Saved SSH deployment configuration, including its Host credential-file reference. */
@@ -28,8 +36,21 @@ export const executionSnapshotSchema = z.strictObject({
   ...deploymentFields, bootstrapPath: remotePath, bootstrapHash: hash,
 })
 
-/** User-provided inspection alias and optional explicit SSH execution deployment. */
-export const createTargetSchema = z.strictObject({ label, sshAlias, execution: executionSchema.optional() })
+// Editable connection refinements are all optional: an omitted field keeps the
+// OpenSSH configuration's own value. Unlike the deployment endpoint, the key
+// reference is not required to be absolute because OpenSSH expands a leading
+// tilde in -i.
+const connectionSchema = z.strictObject({
+  port: z.number().int().min(1).max(65535).optional(),
+  username: z.string().min(1).optional(),
+  privateKeyFile: z.string().min(1).optional(),
+  ...endpointOptions,
+})
+
+/** User-provided inspection alias, connection description and optional explicit execution deployment. */
+export const createTargetSchema = z.strictObject({
+  label, sshAlias, connection: connectionSchema.optional(), execution: executionSchema.optional(),
+})
 /** Revision-bound changes to an existing target. */
 export const updateTargetSchema = createTargetSchema.extend({ id: targetId, revision })
 /** Revision admission for connect and remove. */

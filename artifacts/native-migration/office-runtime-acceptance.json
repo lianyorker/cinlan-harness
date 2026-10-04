@@ -1,0 +1,128 @@
+{
+  "target": "win-x64",
+  "source": "D:\\Company\\cinlan\\cinlan-harness\\apps\\desktop\\.desktop-build\\targets\\win-x64\\runtime\\primary-runtime",
+  "destination": "D:\\Company\\cinlan\\cinlan-harness\\apps\\desktop\\.desktop-build\\office-acceptance\\home\\dsh-runtimes\\dsh-primary-runtime",
+  "manifest": {
+    "desktopVersion": "0.1.6-alpha.2",
+    "platform": "win32",
+    "arch": "x64",
+    "payloadDigest": "c553432c6a0689c0ef54efe263e85090e599253a720b6d45ecfbd36e3031fce4",
+    "pythonPackages": {
+      "numpy": "2.3.5",
+      "pandas": "3.0.1",
+      "python-dateutil": "2.9.0.post0",
+      "six": "1.17.0",
+      "tzdata": "2025.2",
+      "python-docx": "1.2.0",
+      "python-pptx": "1.0.2",
+      "openpyxl": "3.1.5",
+      "Pillow": "12.3.0",
+      "lxml": "6.1.3",
+      "XlsxWriter": "3.2.9",
+      "typing_extensions": "4.16.0",
+      "et_xmlfile": "2.0.0"
+    },
+    "components": {
+      "python": "3.12.14",
+      "node": "24.21.0",
+      "pnpm": "11.7.0",
+      "numpy": "2.3.5",
+      "pandas": "3.0.1"
+    }
+  },
+  "archives": [
+    {
+      "sha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
+      "bytes": 37618919
+    },
+    {
+      "sha256": "7c45c9622400d578709a9b2cddbe8124cc21d382409d9f13406d706d28e31b14",
+      "bytes": 21980728
+    },
+    {
+      "sha256": "86945f2ee6d10cdfd67bcb4069c1662dd711f7e2a4343db5cecec06b87cf31aa",
+      "bytes": 12782922
+    },
+    {
+      "sha256": "536232a5fe26dd989bd633e7a0c450705fdc86a207fec7254a55e9a22950fe43",
+      "bytes": 9741627
+    },
+    {
+      "sha256": "a2b55dd6b2a4c4b7d87ffa56bdb33fdc5fdb9a462173861a7bc097f17d91cb09",
+      "bytes": 7227137
+    },
+    {
+      "sha256": "3e9a00d1c2c30936f7add097c41afc5da6556c580909104aafd382cac92a855c",
+      "bytes": 4005999
+    },
+    {
+      "sha256": "a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427",
+      "bytes": 229892
+    },
+    {
+      "sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274",
+      "bytes": 11050
+    },
+    {
+      "sha256": "1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8",
+      "bytes": 347839
+    },
+    {
+      "sha256": "3fd478f3250fbbbfd3b94fe1e985955737c145627498896a8a6bf81f4baf66c7",
+      "bytes": 252987
+    },
+    {
+      "sha256": "160838e0b8565a8b1f67947675886e9fea18aa5e795db7ae531606d68e785cba",
+      "bytes": 472788
+    },
+    {
+      "sha256": "5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2",
+      "bytes": 250910
+    },
+    {
+      "sha256": "9a5db42bc5dff014806c58a20b9eae7322a134abb6fce3c92c181bfb275ec5b3",
+      "bytes": 175315
+    },
+    {
+      "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+      "bytes": 45571
+    },
+    {
+      "sha256": "7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa",
+      "bytes": 18059
+    }
+  ],
+  "payload": {
+    "files": 8104,
+    "bytes": 294431271
+  },
+  "installed": {
+    "files": 8104,
+    "bytes": 294431271
+  },
+  "interpreters": {
+    "python": {
+      "path": "D:\\Company\\cinlan\\cinlan-harness\\apps\\desktop\\.desktop-build\\office-acceptance\\home\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\python\\python.exe",
+      "bytes": 91648,
+      "sha256": "1a967738a234a3bd90e8fa8b925e20a994326e1eb8b74913026a9449a933e6db"
+    },
+    "node": {
+      "path": "D:\\Company\\cinlan\\cinlan-harness\\apps\\desktop\\.desktop-build\\office-acceptance\\home\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\node\\bin\\node.exe",
+      "bytes": 93580104,
+      "sha256": "ba4e6d110e8c1592a1ecd390f6b05f3da124b13871a5be62b341a07a853c6c32"
+    },
+    "pnpm": {
+      "path": "D:\\Company\\cinlan\\cinlan-harness\\apps\\desktop\\.desktop-build\\office-acceptance\\home\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\pnpm\\bin\\pnpm.mjs",
+      "bytes": 1464,
+      "sha256": "ff3224d46b47fbb24a7e9fe15fededef7e00892d07d4e376b6762d4899906bfd"
+    }
+  },
+  "pythonVersion": "3.12.14 (main, Sep  1 2026, 14:17:39) [MSC v.1944 64 bit (AMD64)]",
+  "nodeVersion": "v24.21.0",
+  "pnpmVersion": "11.7.0",
+  "smoke": "Office runtime versions and document round trips passed.",
+  "pipCheck": "No broken requirements found.",
+  "actualSigningVerified": false,
+  "visualInspectionPerformed": false,
+  "excelFormulaRecalculationPerformed": false
+}

@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { RemoteError, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createHostsCallbacks } from '../src/client/callbacks.ts'
-import { baseline, failure, inspection, readyTarget, remoteFixture, target } from './fixtures.client.ts'
+import { baseline, failure, importable, readyTarget, remoteFixture, target } from './fixtures.client.ts'
 
 const contexts: Context[] = []
 afterEach(async () => { for (const ctx of contexts.splice(0)) await ctx.fiber.dispose() })
@@ -18,25 +18,26 @@ function bench() {
 describe('execution host callbacks', () => {
   it('unwraps all successful management methods and passes exact revisions, generations and signals', async () => {
     const b = bench()
-    for (const name of ['list', 'create', 'update', 'removeTarget', 'connect', 'disconnect', 'inspectDirectory'] as const) vi.spyOn(b.remote, name)
+    for (const name of ['list', 'create', 'update', 'removeTarget', 'connect', 'disconnect', 'test', 'listImportableHosts'] as const) vi.spyOn(b.remote, name)
     const signal = new AbortController().signal
     const draft = { label: 'Build', sshAlias: 'build-host' }
     const revision = { id: target.id, revision: target.revision }
-    const request = { id: target.id, generation: 4, rootId: 'project', path: 'src' }
     expect(await b.callbacks.list(signal)).toBe(baseline)
     expect(await b.callbacks.create(draft, signal)).toEqual({ target })
     expect(await b.callbacks.update({ ...draft, ...revision }, signal)).toEqual({ target })
     expect(await b.callbacks.removeTarget(revision, signal)).toEqual({})
     expect(await b.callbacks.connect(revision, signal)).toEqual({ target: readyTarget })
     expect(await b.callbacks.disconnect({ id: target.id }, signal)).toEqual({ target })
-    expect(await b.callbacks.inspectDirectory(request, signal)).toEqual({ inspection, target: readyTarget })
+    expect(await b.callbacks.test(revision, signal)).toEqual({ target, rootCount: 2 })
+    expect(await b.callbacks.listImportableHosts(signal)).toEqual(importable)
     expect(b.remote.list).toHaveBeenCalledWith(signal)
     expect(b.remote.create).toHaveBeenCalledWith(draft, signal)
     expect(b.remote.update).toHaveBeenCalledWith({ ...draft, ...revision }, signal)
     expect(b.remote.removeTarget).toHaveBeenCalledWith(revision, signal)
     expect(b.remote.connect).toHaveBeenCalledWith(revision, signal)
     expect(b.remote.disconnect).toHaveBeenCalledWith({ id: target.id }, signal)
-    expect(b.remote.inspectDirectory).toHaveBeenCalledWith(request, signal)
+    expect(b.remote.test).toHaveBeenCalledWith(revision, signal)
+    expect(b.remote.listImportableHosts).toHaveBeenCalledWith(signal)
   })
 
   it('throws the original typed error without hiding its details', async () => {

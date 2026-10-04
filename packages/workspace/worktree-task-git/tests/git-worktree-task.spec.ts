@@ -100,14 +100,25 @@ async function harness(options: {
       },
     }],
     ['@deepseek-ai/dsh-subprocess-local', LocalSubprocessRuntime],
-    ['@deepseek-ai/dsh-settings-file', {
+    ['@deepseek-ai/dsh-settings', {
       name: 'mock-settings',
       apply(ctx: Context) {
         ctx.provide('settings', {
+          configure: () => () => {},
           get(_ns: string) {
             return options.preferences !== undefined && options.registerPreferences !== false
               ? { branchPrefix: options.preferences.branchPrefix ?? 'none', branchPrefixCustom: options.preferences.branchPrefixCustom ?? '' }
               : undefined
+          },
+          describe() {
+            return options.preferences === undefined || options.registerPreferences === false
+              ? []
+              : [{ ns: GIT_SETTINGS_NAMESPACE, value: { ...options.preferences } }]
+          },
+          async update(ns: string, patch: Record<string, unknown>) {
+            if (ns !== GIT_SETTINGS_NAMESPACE) return false
+            options.preferences = { ...options.preferences, ...patch }
+            return true
           },
         } as never)
       },
@@ -125,7 +136,7 @@ async function harness(options: {
     ],
     { id: 'subprocess', name: '@deepseek-ai/dsh-subprocess-local' },
     ...options.preferences === undefined ? [] : [
-      { id: 'settings', name: '@deepseek-ai/dsh-settings-file', config: { path: settingsPath, watch: false } },
+      { id: 'settings', name: '@deepseek-ai/dsh-settings', config: { path: settingsPath, watch: false } },
       ...options.registerPreferences === false ? [] : [{ id: 'git-settings', name: '@deepseek-ai/dsh-git-settings' }],
     ],
     { id: 'tasks', name: '@deepseek-ai/dsh-worktree-task-git', config: {
@@ -172,7 +183,7 @@ afterEach(async () => {
 describe('GitWorktreeTask', { timeout: 90_000 }, () => {
   it('uses schema defaults when Settings exists without the Git namespace', async () => {
     const h = await harness({ preferences: { branchPrefix: 'custom', branchPrefixCustom: 'ignored/' }, registerPreferences: false })
-    expect((h.ctx.settings as any)?.get?.(GIT_SETTINGS_NAMESPACE)).toBeUndefined()
+    expect(h.ctx.settings.describe().find(row => row.ns === GIT_SETTINGS_NAMESPACE)).toBeUndefined()
     const task = await h.service.create({ name: 'default', workspaceId: WorkspaceId('ws-default'), sourcePath: h.repository })
     expect(task.branch).toBe('dsh/task/' + task.id)
   })
@@ -386,6 +397,58 @@ describe('GitWorktreeTask', { timeout: 90_000 }, () => {
     expect(h.service.list()).toEqual([])
     expect(await git(h.repository, 'show-ref', '--heads')).toBe(refs)
     expect((await git(h.repository, 'worktree', 'list', '--porcelain')).match(/^worktree /gm)).toHaveLength(1)
+  })
+
+  it('fast-forwards the local base branch before creating a task when the preference asks', async () => {
+    const h = await harness({ preferences: { branchPrefix: 'none', refreshLocalBaseRefOnWorktreeCreate: true } })
+    const remote = join(h.root, 'origin.git')
+    await mkdir(remote)
+    await git(remote, 'init', '--bare', '--template=')
+    await git(h.repository, 'remote', 'add', 'origin', remote)
+    const branch = (await git(h.repository, 'rev-parse', '--abbrev-ref', 'HEAD')).trim()
+    await git(h.repository, 'push', '--set-upstream', 'origin', branch)
+    const peer = join(h.root, 'peer')
+    await git(h.root, 'clone', remote, peer)
+    await git(peer, 'config', 'user.name', 'Peer')
+    await git(peer, 'config', 'user.email', 'peer@localhost')
+    await writeFile(join(peer, 'peer.txt'), 'peer\n')
+    await git(peer, 'add', '--all')
+    await git(peer, 'commit', '-m', 'peer')
+    await git(peer, 'push', 'origin', branch)
+    const before = (await git(h.repository, 'rev-parse', 'HEAD')).trim()
+    const task = await h.service.create({ name: 'refresh', workspaceId: WorkspaceId('ws-refresh'), sourcePath: h.repository })
+    const after = (await git(h.repository, 'rev-parse', 'HEAD')).trim()
+    expect(after).not.toBe(before)
+    expect((await git(task.checkoutPath, 'rev-parse', 'HEAD')).trim()).toBe(after)
+  })
+
+  it('leaves a base branch with local-only commits exactly where it is', async () => {
+    const h = await harness({ preferences: { branchPrefix: 'none', refreshLocalBaseRefOnWorktreeCreate: true } })
+    const remote = join(h.root, 'origin.git')
+    await mkdir(remote)
+    await git(remote, 'init', '--bare', '--template=')
+    await git(h.repository, 'remote', 'add', 'origin', remote)
+    const branch = (await git(h.repository, 'rev-parse', '--abbrev-ref', 'HEAD')).trim()
+    await git(h.repository, 'push', '--set-upstream', 'origin', branch)
+    await writeFile(join(h.repository, 'local.txt'), 'local\n')
+    await git(h.repository, 'add', '--all')
+    await git(h.repository, 'commit', '-m', 'local only')
+    const before = (await git(h.repository, 'rev-parse', 'HEAD')).trim()
+    const task = await h.service.create({ name: 'skip', workspaceId: WorkspaceId('ws-skip'), sourcePath: h.repository })
+    expect((await git(h.repository, 'rev-parse', 'HEAD')).trim()).toBe(before)
+    expect((await git(task.checkoutPath, 'rev-parse', 'HEAD')).trim()).toBe(before)
+  })
+
+  it('names a generated task branch after the task when the preference asks', async () => {
+    const h = await harness({ preferences: { branchPrefix: 'none', autoRenameTaskBranch: true } })
+    const task = await h.service.create({ name: 'Fix Login Redirect!', workspaceId: WorkspaceId('ws-rename'), sourcePath: h.repository })
+    expect(task.branch).toBe('dsh/task/fix-login-redirect')
+  })
+
+  it('falls back to the task id when the name has no usable branch characters', async () => {
+    const h = await harness({ preferences: { branchPrefix: 'none', autoRenameTaskBranch: true } })
+    const task = await h.service.create({ name: '修复登录跳转', workspaceId: WorkspaceId('ws-cjk'), sourcePath: h.repository })
+    expect(task.branch).toBe('dsh/task/' + String(task.id))
   })
 
   it('does not obtain a username from included config files', async () => {
@@ -942,6 +1005,48 @@ describe('GitWorktreeTask', { timeout: 90_000 }, () => {
     const archived = await h.service.archive({ taskId: task.id })
     expect(archived.status).toBe('archived')
     await expect(stat(task.checkoutPath)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('merges a task branch into the clean source checkout and permits safe deletion', async () => {
+    const h = await harness()
+    const workspaceId = WorkspaceId('ws-merge')
+    const task = await h.service.create({ name: 'task-merge', workspaceId, sourcePath: h.repository })
+    await writeFile(join(task.checkoutPath, 'merged.txt'), 'merged\n')
+    const sourceHeadBefore = (await git(h.repository, 'rev-parse', 'HEAD')).trim()
+    const sourceBranch = (await git(h.repository, 'rev-parse', '--abbrev-ref', 'HEAD')).trim()
+
+    const merged = await h.service.merge({ taskId: task.id })
+    expect(merged).toMatchObject({
+      taskId: task.id,
+      branch: task.branch,
+      sourceBranch,
+      sourceHeadBefore,
+      task: { status: 'archived', branch: task.branch },
+    })
+    expect(merged.sourceHeadAfter).not.toBe(merged.sourceHeadBefore)
+    expect(await readFile(join(h.repository, 'merged.txt'), 'utf8')).toBe('merged\n')
+    expect((await h.service.get(task.id)).status).toBe('archived')
+
+    const result = await h.service.delete({ taskId: task.id })
+    expect(result.deleted).toBe(true)
+    expect(() => h.service.get(task.id)).toThrow(WorktreeTaskError)
+  })
+
+  it('aborts a source conflict and retains the archived task for retry', async () => {
+    const h = await harness()
+    const workspaceId = WorkspaceId('ws-merge-conflict')
+    const task = await h.service.create({ name: 'task-merge-conflict', workspaceId, sourcePath: h.repository })
+    await writeFile(join(task.checkoutPath, 'conflict.txt'), 'task\n')
+    await writeFile(join(h.repository, 'conflict.txt'), 'source\n')
+
+    await expect(h.service.merge({ taskId: task.id })).rejects.toMatchObject({ code: 'conflict' })
+    expect((await h.service.get(task.id)).status).toBe('archived')
+    expect(await readFile(join(h.repository, 'conflict.txt'), 'utf8')).toBe('source\n')
+
+    await rm(join(h.repository, 'conflict.txt'))
+    const merged = await h.service.merge({ taskId: task.id })
+    expect(merged.sourceHeadAfter).not.toBe(merged.sourceHeadBefore)
+    expect(await readFile(join(h.repository, 'conflict.txt'), 'utf8')).toBe('task\n')
   })
 
   it('deletes a task whose branch is merged into the base branch', async () => {

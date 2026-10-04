@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+/** Settings presentation: one card with enablement and the two entry positions. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
@@ -22,15 +23,11 @@ function accepted(overrides: Partial<FloatingWorkspaceSettings> = {}): FloatingS
         ...overrides,
       }, base: undefined, user: undefined, revision: 1, writable: true, mode: 'host',
     },
-    phase: 'closed', child: false, writing: false, writeFailed: false, targetUnavailable: false, directorySupported: false,
+    phase: 'closed', open: false, writing: false, writeFailed: false, directorySupported: false,
   }
 }
 
-function mount(
-  initial: FloatingSnapshot = accepted(),
-  dictionary: Record<FloatingWorkspaceSettingsKey, string> = en,
-  pickDirectory = vi.fn<() => Promise<string | null>>(async () => null),
-) {
+function mount(initial: FloatingSnapshot = accepted(), dictionary: Record<FloatingWorkspaceSettingsKey, string> = en) {
   let snapshot = initial
   const listeners = new Set<() => void>()
   const source = {
@@ -41,7 +38,7 @@ function mount(
   const unused = (() => { throw new Error('unused standard hook') }) as never
   const props: FloatingWorkspaceSectionProps = {
     useSessions: unused, useWorkspaces: unused, usePanelInfo: unused, useSessionStatus: unused, useSessionRetainInfo: unused, useResource: unused,
-    close: vi.fn(), useFloating: bindSnapshotSelector(source), set, pickDirectory, t: makeTranslate(dictionary),
+    close: vi.fn(), useFloating: bindSnapshotSelector(source), set, t: makeTranslate(dictionary),
   }
   const view = render(<FloatingWorkspaceSection {...props} />)
   const publish = (update: Partial<FloatingSnapshot>): void => {
@@ -53,198 +50,56 @@ function mount(
   const accept = (update: Partial<FloatingWorkspaceSettings>): void => {
     publish({ settings: { ...snapshot.settings, value: { ...snapshot.settings.value!, ...update } } })
   }
-  return { ...view, props, set, pickDirectory, publish, accept, source }
-}
-
-function directory(label: string = en.terminalDirectory): HTMLInputElement {
-  return screen.getByRole<HTMLInputElement>('textbox', { name: label })
+  return { ...view, props, set, publish, accept, source }
 }
 
 describe('Floating Workspace settings presentation', () => {
-  it.each([en, zh])('renders a locale-owned heading and exactly one three-row card', (dictionary) => {
-    const h = mount(accepted({ enabled: true, terminalDirectory: '/saved/project' }), dictionary)
+  it.each([en, zh])('renders a locale-owned heading and one card with only the two positions', (dictionary) => {
+    mount(accepted({ enabled: true }), dictionary)
     expect(screen.getByRole('heading', { level: 1, name: dictionary.title })).toBeTruthy()
     expect(screen.getByText(dictionary.description)).toBeTruthy()
-    expect(directory(dictionary.terminalDirectory).value).toBe('/saved/project')
-    expect(screen.getByRole<HTMLInputElement>('radio', { name: dictionary.toggleButtonPositionHeader }).checked).toBe(true)
+    // The terminal-directory row is gone: the panel starts no terminal.
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.getByRole('switch', { name: dictionary.enable }).getAttribute('aria-checked')).toBe('true')
     expect(screen.getAllByRole('radio').map(input => input.parentElement?.textContent)).toEqual([
-      dictionary.toggleButtonPositionHeader, dictionary.toggleButtonPositionSidebar, dictionary.toggleButtonPositionFloating,
+      dictionary.toggleButtonPositionHeader, dictionary.toggleButtonPositionFloating,
     ])
-    expect([...h.container.querySelectorAll('[data-settings-anchor]')].map(element => element.getAttribute('data-settings-anchor')))
-      .toEqual(['floating-enabled', 'floating-directory', 'floating-position'])
-    expect(screen.queryByRole('spinbutton')).toBeNull()
-    expect(screen.queryByRole('button', { name: dictionary.open })).toBeNull()
-    expect(screen.queryByText(dictionary.shortcutDescription)).toBeNull()
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: dictionary.toggleButtonPositionHeader }).checked).toBe(true)
   })
 
-  it('waits for accepted preference echoes and locks all controls during a write', async () => {
-    const h = mount()
-    const enable = screen.getByRole<HTMLButtonElement>('switch', { name: en.enable })
-    const header = screen.getByRole<HTMLInputElement>('radio', { name: en.toggleButtonPositionHeader })
-    expect(enable.getAttribute('aria-checked')).toBe('false')
-    expect(header.disabled).toBe(true)
-    fireEvent.click(enable)
-    expect(h.set).toHaveBeenCalledWith('enabled', true)
-    expect(enable.getAttribute('aria-checked')).toBe('false')
-    h.publish({ writing: true })
-    expect(enable.disabled).toBe(true)
-    expect(screen.getByText(en.saving)).toBeTruthy()
-    fireEvent.click(enable)
-    expect(h.set).toHaveBeenCalledOnce()
-    h.publish({ writing: false, writeFailed: true })
-    expect(screen.getByRole('alert').textContent).toBe(en.writeFailed)
+  it('persists enablement and both entry positions after their accepted echo', () => {
+    const h = mount(accepted({ enabled: false }))
+    fireEvent.click(screen.getByRole('switch', { name: en.enable }))
+    expect(h.set).toHaveBeenLastCalledWith('enabled', true)
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: en.toggleButtonPositionFloating }).disabled).toBe(true)
     h.accept({ enabled: true })
-    expect(enable.getAttribute('aria-checked')).toBe('true')
-    expect(header.disabled).toBe(false)
-    await act(async () => { fireEvent.click(enable) })
-    expect(h.set).toHaveBeenLastCalledWith('enabled', false)
-    expect(enable.getAttribute('aria-checked')).toBe('true')
-  })
-
-  it('keeps a saved directory visible but disables both directory controls without a terminal consumer', () => {
-    const h = mount(accepted({ enabled: true, terminalDirectory: 'D:\\work\\terminal' }))
-    const input = directory()
-    const picker = screen.getByRole<HTMLButtonElement>('button', { name: en.terminalDirectoryPick })
-    expect(input.value).toBe('D:\\work\\terminal')
-    expect(input.disabled).toBe(true)
-    expect(picker.disabled).toBe(true)
-    expect(screen.getByText(en.terminalDirectoryUnavailable)).toBeTruthy()
-    expect(h.set).not.toHaveBeenCalled()
-  })
-
-  it.each([en, zh])('commits a supported typed directory on blur or Enter and preserves a pending draft', async (dictionary) => {
-    const h = mount({ ...accepted({ enabled: true, terminalDirectory: '/work' }), directorySupported: true }, dictionary)
-    const input = directory(dictionary.terminalDirectory)
-    expect(screen.getByText(dictionary.terminalDirectoryDescription)).toBeTruthy()
-    fireEvent.change(input, { target: { value: './nested folder' } })
-    fireEvent.keyDown(input, { key: 'ArrowLeft' })
-    expect(h.set).not.toHaveBeenCalled()
-    h.publish({ phase: 'open' })
-    h.accept({ terminalDirectory: '/work/older' })
-    expect(input.value).toBe('./nested folder')
-    await act(async () => { fireEvent.blur(input) })
-    expect(h.set).toHaveBeenCalledWith('terminalDirectory', './nested folder')
-    h.publish({ settings: {
-      ...h.source.getSnapshot().settings,
-      value: { ...h.source.getSnapshot().settings.value!, terminalDirectory: '/work/nested folder' },
-      user: { terminalDirectory: './nested folder' },
-    } })
-    expect(input.value).toBe('/work/nested folder')
-    h.accept({ terminalDirectory: '/work/future' })
-    fireEvent.change(input, { target: { value: '' } })
-    await act(async () => { fireEvent.keyDown(input, { key: 'Enter' }) })
-    expect(h.set).toHaveBeenLastCalledWith('terminalDirectory', '')
-  })
-
-  it('retains refused directory drafts, restores with Escape, and suppresses duplicate writes', async () => {
-    const h = mount({ ...accepted({ enabled: true, terminalDirectory: '/work' }), directorySupported: true })
-    let finish!: () => void
-    const pending = new Promise<void>((resolve) => { finish = resolve })
-    release.push(finish)
-    h.set.mockReturnValueOnce(pending)
-    const input = directory()
-    fireEvent.change(input, { target: { value: '/work/rejected' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(input.disabled).toBe(true)
-    fireEvent.blur(input)
-    expect(h.set).toHaveBeenCalledOnce()
-    await act(async () => { finish(); await pending })
-    h.publish({ writeFailed: true })
-    expect(input.value).toBe('/work/rejected')
-    fireEvent.keyDown(input, { key: 'Escape' })
-    expect(input.value).toBe('/work')
-  })
-
-  it('does not rewrite unchanged effective or raw directory values and respects later locks', async () => {
-    const initial = { ...accepted({ enabled: true, terminalDirectory: '/work/sub' }), directorySupported: true }
-    const h = mount({ ...initial, settings: { ...initial.settings, user: { terminalDirectory: './sub' } } })
-    const input = directory()
-    await act(async () => { fireEvent.blur(input) })
-    fireEvent.change(input, { target: { value: '/work/new' } })
-    fireEvent.change(input, { target: { value: '/work/sub' } })
-    await act(async () => { fireEvent.blur(input) })
-    fireEvent.change(input, { target: { value: './sub' } })
-    await act(async () => { fireEvent.blur(input) })
-    expect(h.set).not.toHaveBeenCalled()
-    fireEvent.change(input, { target: { value: '/work/locked' } })
-    h.publish({ settings: { ...h.source.getSnapshot().settings, writable: false } })
-    await act(async () => { fireEvent.blur(input) })
-    expect(h.set).not.toHaveBeenCalled()
-    expect(input.value).toBe('/work/locked')
-  })
-
-  it('uses the Host picker, ignores cancellation, reports failure, and preserves the typed value', async () => {
-    const pick = vi.fn<() => Promise<string | null>>()
-      .mockResolvedValueOnce('/picked/project')
-      .mockResolvedValueOnce(null)
-      .mockRejectedValueOnce(new Error('picker unavailable'))
-    const h = mount({ ...accepted({ enabled: true, terminalDirectory: '/work' }), directorySupported: true }, en, pick)
-    const picker = screen.getByRole<HTMLButtonElement>('button', { name: en.terminalDirectoryPick })
-    await act(async () => { fireEvent.click(picker) })
-    expect(h.set).toHaveBeenCalledWith('terminalDirectory', '/picked/project')
-    h.set.mockClear()
-    await act(async () => { fireEvent.click(picker) })
-    expect(h.set).not.toHaveBeenCalled()
-    const input = directory()
-    fireEvent.focus(input)
-    fireEvent.change(input, { target: { value: '/typed/value' } })
-    fireEvent.blur(input, { relatedTarget: picker })
-    expect(h.set).not.toHaveBeenCalled()
-    await act(async () => { fireEvent.click(picker) })
-    expect(screen.getByRole('alert').textContent).toBe(en.terminalDirectoryPickFailed)
-    expect(directory().value).toBe('/typed/value')
-  })
-
-  it('persists only the three supported entry positions after their accepted echo', () => {
-    const h = mount(accepted({ enabled: true }))
-    const header = screen.getByRole<HTMLInputElement>('radio', { name: en.toggleButtonPositionHeader })
-    const sidebar = screen.getByRole<HTMLInputElement>('radio', { name: en.toggleButtonPositionSidebar })
     const floating = screen.getByRole<HTMLInputElement>('radio', { name: en.toggleButtonPositionFloating })
-    expect(header.checked).toBe(true)
-    fireEvent.click(sidebar)
-    expect(h.set).toHaveBeenLastCalledWith('toggleButtonPosition', 'sidebar')
-    expect(header.checked).toBe(true)
-    h.accept({ toggleButtonPosition: 'sidebar' })
-    expect(sidebar.checked).toBe(true)
     fireEvent.click(floating)
     expect(h.set).toHaveBeenLastCalledWith('toggleButtonPosition', 'floating')
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: en.toggleButtonPositionHeader }).checked).toBe(true)
+    h.accept({ toggleButtonPosition: 'floating' })
+    expect(floating.checked).toBe(true)
   })
 
-  it('gates directory editing by enablement, consumer support, writability, and active writes', async () => {
-    const initial = accepted({ terminalDirectory: '/saved' })
-    const h = mount(initial)
-    const input = directory()
-    h.publish({ directorySupported: true })
-    expect(input.disabled).toBe(true)
-    h.accept({ enabled: true })
-    expect(input.disabled).toBe(false)
-    fireEvent.change(input, { target: { value: '/saved/nested' } })
-    h.publish({ directorySupported: false })
-    await act(async () => { fireEvent.blur(input) })
-    expect(h.set).not.toHaveBeenCalled()
-    h.publish({ directorySupported: true, settings: { ...h.source.getSnapshot().settings, writable: false } })
-    expect(input.disabled).toBe(true)
-    h.publish({ settings: { ...h.source.getSnapshot().settings, writable: true }, writing: true })
-    expect(input.disabled).toBe(true)
-    h.publish({ writing: false })
-    await act(async () => { fireEvent.blur(input) })
-    expect(h.set).toHaveBeenCalledWith('terminalDirectory', '/saved/nested')
-  })
-
-  it('shows read-only and missing-value states without inventing card controls', () => {
-    const ready = accepted({ enabled: true })
-    const h = mount({ ...ready, settings: { ...ready.settings, writable: false } })
+  it('reports loading, unavailable, refused writes and read-only mode', () => {
+    const loading = mount({ ...accepted(), settings: { ...accepted().settings, status: 'loading', value: undefined } })
+    expect(screen.getByText(en.loading)).toBeTruthy()
+    loading.unmount()
+    const unavailable = mount({ ...accepted(), settings: { ...accepted().settings, status: 'unavailable', value: undefined } })
+    expect(screen.getByText(en.error)).toBeTruthy()
+    unavailable.unmount()
+    const refused = mount({ ...accepted({ enabled: true }), writeFailed: true })
+    expect(screen.getByRole('alert').textContent).toBe(en.writeFailed)
+    refused.unmount()
+    mount({ ...accepted({ enabled: true }), settings: { ...accepted().settings, writable: false, value: { ...accepted().settings.value!, enabled: true } } })
     expect(screen.getByText(en.readOnly)).toBeTruthy()
-    expect(screen.getByRole<HTMLButtonElement>('switch').disabled).toBe(true)
+    expect(screen.getByRole('switch', { name: en.enable }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('locks every control while a write is in flight and announces the write', () => {
+    mount({ ...accepted({ enabled: true }), writing: true })
+    expect(screen.getByText(en.saving)).toBeTruthy()
+    expect(screen.getByRole('switch', { name: en.enable }).hasAttribute('disabled')).toBe(true)
     expect(screen.getAllByRole<HTMLInputElement>('radio').every(input => input.disabled)).toBe(true)
-    h.unmount()
-    for (const status of ['loading', 'unavailable', 'ready'] as const) {
-      const initial = accepted()
-      const view = mount({ ...initial, settings: { ...initial.settings, status, value: undefined } })
-      expect(screen.getByText(status === 'loading' ? en.loading : en.error)).toBeTruthy()
-      expect(screen.getByRole('heading', { name: en.title })).toBeTruthy()
-      expect(screen.queryByRole('switch')).toBeNull()
-      view.unmount()
-    }
   })
 })

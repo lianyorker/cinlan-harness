@@ -29,14 +29,20 @@ it.each(['accepted', 'refused', 'disconnected', 'pending'] as const)('initialize
   const ctx = {
     effect: (install: () => (() => void) | undefined) => { const dispose = install(); if (dispose) disposers.push(dispose) },
     locale: { register: () => () => {}, bind: () => (key: string) => key },
+    settingsMetadata: { registerSection: () => () => {}, registerItems: () => () => {} },
     configForms: {
       get: () => ({ subscribe: () => () => {}, getSnapshot: () => ({ status: 'loading', value: undefined }) }),
       describe: () => ({ subscribe: () => () => {}, getSnapshot: () => ({ error: null }) }),
     },
     slots: {
-      inject: (_name: string, install: () => (() => void) | undefined) => {
+      inject: (_name: string, install: () => unknown) => {
         const dispose = install()
-        if (dispose) disposers.push(dispose)
+        if (typeof dispose === 'function') disposers.push(dispose as () => void)
+        else if (dispose && Symbol.iterator in (dispose as object)) {
+          for (const item of dispose as Iterable<unknown>) {
+            if (typeof item === 'function') disposers.push(item as () => void)
+          }
+        }
       },
       register: (entry: { inject?: () => AccountSectionInjected }) => {
         if (entry.inject) operations = entry.inject()

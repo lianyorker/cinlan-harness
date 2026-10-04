@@ -17,6 +17,27 @@ type Hello = z.infer<typeof helloSchema>
 export interface Config {
   /** OpenSSH host alias, including its existing user, key and known-host configuration. */
   host: string
+  /** Optional explicit port; omitted keeps the OpenSSH-configured or default port. */
+  port?: number
+  /** Optional explicit user; omitted keeps the alias or OpenSSH default. */
+  username?: string
+  /** Optional private-key path on the managing host. */
+  identityFile?: string
+  /** Optional ProxyCommand, for tunnels such as Cloudflare Access. */
+  proxyCommand?: string
+  /** Optional ProxyJump destination, equivalent to ssh -J. */
+  jumpHost?: string
+  /** Optional ServerAliveInterval in seconds. */
+  keepAliveIntervalSeconds?: number
+  /** Optional connection deadline in seconds. */
+  connectTimeoutSeconds?: number
+  /**
+   * OpenSSH connection multiplexing. The default keeps one master connection
+   * with a control socket, which the forwarded-stream channel needs; a
+   * deployment that turns it off gets an explicit failure from that channel
+   * instead of a half-open connection.
+   */
+  multiplex?: boolean
   /** Absolute remote Node executable. */
   node: string
   /** Absolute path to the installed, bundled helper entry. */
@@ -51,7 +72,32 @@ export class SshConnection extends Service {
     bootstrapPath: schema.string(), bootstrapHash: schema.string(),
     requestTimeoutMs: schema.number().default(30_000), maxFrameBytes: schema.number().default(64 * 1024 * 1024),
     maxPending: schema.number().default(128), leaseMs: schema.number().default(30_000),
+    port: schema.number().min(1).max(65_535), username: schema.string(), identityFile: schema.string(),
+    proxyCommand: schema.string(), jumpHost: schema.string(),
+    keepAliveIntervalSeconds: schema.number().min(1).max(86_400), connectTimeoutSeconds: schema.number().min(1).max(604_800),
+    multiplex: schema.boolean().default(true),
   })
+
+  /**
+   * Build the destination and its OpenSSH option arguments.
+   *
+   * An alias keeps working unchanged; each explicit endpoint field adds exactly
+   * one option, in a fixed order, so the resulting command line is testable and
+   * the configured values override the plugin's own keep-alive defaults.
+   * @returns option arguments followed by the destination.
+   */
+  private connectionArgs(): string[] {
+    const { host, username, port, identityFile, proxyCommand, jumpHost, keepAliveIntervalSeconds, connectTimeoutSeconds } = this.config
+    const args: string[] = []
+    if (port !== undefined) args.push('-p', String(port))
+    if (identityFile !== undefined) args.push('-i', identityFile)
+    if (proxyCommand !== undefined) args.push('-o', `ProxyCommand=${proxyCommand}`)
+    if (jumpHost !== undefined) args.push('-o', `ProxyJump=${jumpHost}`)
+    if (keepAliveIntervalSeconds !== undefined) args.push('-o', `ServerAliveInterval=${keepAliveIntervalSeconds}`)
+    if (connectTimeoutSeconds !== undefined) args.push('-o', `ConnectTimeout=${connectTimeoutSeconds}`)
+    args.push(username === undefined ? host : `${username}@${host}`)
+    return args
+  }
 
   /** Verified remote helper coordinates; callers must await this before launch. */
   readonly ready: Promise<Hello>
@@ -222,12 +268,15 @@ export class SshConnection extends Service {
   }
 
   private async controlCommand(args: string[], signal?: AbortSignal): Promise<void> {
+    if (!this.config.multiplex) {
+      throw new Error('SSH connection multiplexing is disabled for this deployment, so the forwarded-stream channel is unavailable; enable "multiplex" or drop the feature that needs it')
+    }
     const signals = [this.lifetime.signal, AbortSignal.timeout(this.config.requestTimeoutMs)]
     if (signal !== undefined) signals.push(signal)
     const combined = AbortSignal.any(signals)
     combined.throwIfAborted()
     const result = Promise.withResolvers<undefined>()
-    const command = execFile('ssh', ['-S', this.controlPath(), ...args, this.config.host], {
+    const command = execFile('ssh', ['-S', this.controlPath(), ...args, ...this.connectionArgs()], {
       signal: combined, maxBuffer: 64 * 1024,
     }, (error) => { if (error === null) result.resolve(undefined); else result.reject(error) })
     const closed = new Promise<void>((resolve) => { command.once('close', () => { resolve() }) })
@@ -261,9 +310,9 @@ export class SshConnection extends Service {
     const quote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`
     const command = [this.config.node, '--disable-sigusr1', this.config.helper].map(quote).join(' ')
     const child = spawn('ssh', [
-      '-T', '-M', '-S', this.controlPath(), '-o', 'ControlPersist=no', '-o', 'BatchMode=yes',
+      '-T', ...this.config.multiplex ? ['-M', '-S', this.controlPath(), '-o', 'ControlPersist=no'] : [], '-o', 'BatchMode=yes',
       '-o', 'StrictHostKeyChecking=yes', '-o', 'ForwardAgent=no', '-o', 'ClearAllForwardings=yes',
-      '-o', 'ServerAliveInterval=10', '-o', 'ServerAliveCountMax=3', this.config.host, command,
+      '-o', 'ServerAliveInterval=10', '-o', 'ServerAliveCountMax=3', ...this.connectionArgs(), command,
     ], { stdio: ['pipe', 'pipe', 'pipe'] })
     this.child = child
     this.childClosed = new Promise((resolve) => { child.once('close', () => { resolve() }) })

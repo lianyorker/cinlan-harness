@@ -66,7 +66,7 @@
 - E19：L/packages/client/ui-chat/src/client/apply.ts:85；此项只登记transcript-view。
 - E20：O/src/renderer/src/components/settings/InputPane.tsx:15、:24、:66；primarySelectionMiddleClickPaste。
 - E21：L/packages/client/ui-notifications/src/client/index.ts:42、:59。
-- E22：L/packages/client/ui-keybindings/src/client/index.ts:24、:28、:46；基于真实registered commands而非独立假命令表。
+- E22：L/packages/client/ui-shortcuts/src/client/index.ts:49、:71、:76（个人分组 `keybindings` 分区）；基于真实registered commands而非独立假命令表。
 - E23：L/packages/client/ui-settings-usage/src/client/index.ts:52、:53。
 - E24：L/packages/client/ui-settings-hosts/src/client/index.ts:38、:44、:53；回调来自remote.executionHosts。
 - E25：O/src/renderer/src/components/settings/RuntimeEnvironmentsPane.tsx:456、:484；verifyAndAddFromPairingCode，非单纯保存字符串。

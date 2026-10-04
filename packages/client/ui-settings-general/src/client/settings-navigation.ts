@@ -4,7 +4,7 @@ import type { SettingsSectionRow } from './shell-contract.ts'
 
 /** Product group order; empty groups do not create unavailable pages. */
 export const SETTINGS_GROUPS: readonly SettingsGroupId[] = [
-  'personal', 'ai', 'development', 'tools', 'extensions', 'experimental',
+  'personal', 'ai', 'workspace', 'execution', 'tools', 'extensions', 'advanced',
 ]
 
 /** One page or field match, with the owning section and optional focus target. */
@@ -34,7 +34,7 @@ export function searchSettings(rows: readonly SettingsSectionRow[], query: strin
   for (const section of rows) {
     const pageScore = score(section.label, '')
     if (pageScore > 0) results.push({ section, title: section.label, score: 3 })
-    for (const item of (section.items ?? [])) {
+    for (const item of section.items) {
       const itemScore = score(item.title, [item.description ?? '', ...item.keywords].join(' '))
       if (itemScore === 0) continue
       results.push({

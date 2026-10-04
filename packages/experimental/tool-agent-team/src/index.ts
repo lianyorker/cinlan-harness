@@ -63,7 +63,7 @@ The Team Lead and all teammates share the same working directory and filesystem 
 
 Prefer read/edit/write for file changes. If a file operation returns FS_STALE_VERSION, read the current file, rebase your intended change onto the new content, and retry. Bash, formatters, code generators, and scripts are not fully protected by the filesystem version guard; coordinate them explicitly and have the Lead review the final diff and run tests.
 
-${names.sendMessage} steers a running target at its nearest step boundary, starts an idle target, and cold-resumes an inactive teammate. A delivered peer item starts with its stable message id and sender name. A successful send is already durable even when its result says queued; do not resend it. Shared-task workflow is list, get, claim with the current revision, perform the work, then complete. Task readiness never starts an owner. Before ${names.waitAgent}, use ${names.listAgents} and make sure another required member is running or provisioning; use ${names.sendMessage} first when the required member is inactive. ${names.waitAgent} observes only changes after that call starts, never wakes a member, and returns noProgress immediately when no other member can produce a change. Re-list after wakeup or timeout. The Lead must wait for required teammates before giving the final answer.`
+${names.sendMessage} steers a running target at its nearest step boundary, starts an idle target, and cold-resumes an inactive teammate. team_merge_worktree integrates a completed worktree teammate into the Lead source branch; wait until it is inactive and keep the source checkout clean. A delivered peer item starts with its stable message id and sender name. A successful send is already durable even when its result says queued; do not resend it. Shared-task workflow is list, get, claim with the current revision, perform the work, then complete. Task readiness never starts an owner. Before ${names.waitAgent}, use ${names.listAgents} and make sure another required member is running or provisioning; use ${names.sendMessage} first when the required member is inactive. ${names.waitAgent} observes only changes after that call starts, never wakes a member, and returns noProgress immediately when no other member can produce a change. Re-list after wakeup or timeout. The Lead must wait for required teammates before giving the final answer.`
 }
 
 const ACTIVE_WAIT_STATUSES: ReadonlySet<TeamMemberView['status']> = new Set(['running', 'provisioning'])
@@ -88,8 +88,19 @@ const MEMBER_VIEW_SCHEMA = {
     description: { type: 'string' },
     provider: { type: 'string' },
     context: { type: 'string', enum: ['fresh', 'fork'] },
-    workspaceMode: { type: 'string', enum: ['inherit', 'worktree'] },
+    workspaceMode: { type: 'string', enum: ['inherit', 'worktree', 'integrated'] },
     worktreeTaskId: { type: 'string' },
+    integration: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        taskId: { type: 'string', required: true },
+        branch: { type: 'string', required: true },
+        sourceBranch: { type: 'string', required: true },
+        sourceHeadBefore: { type: 'string', required: true },
+        sourceHeadAfter: { type: 'string', required: true },
+      },
+    },
     model: { type: 'string' },
     diagnostics: { type: 'array', required: true, items: { type: 'string' } },
   },
@@ -122,6 +133,21 @@ const SPAWN_VALUE_SCHEMA = {
 } as const
 
 const MEMBER_LIST_VALUE_SCHEMA = { type: 'array', items: MEMBER_VIEW_SCHEMA } as const
+
+const MERGE_WORKTREE_VALUE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    teammate: { type: 'string', required: true },
+    taskId: { type: 'string', required: true },
+    branch: { type: 'string', required: true },
+    sourceBranch: { type: 'string', required: true },
+    sourceHeadBefore: { type: 'string', required: true },
+    sourceHeadAfter: { type: 'string', required: true },
+    cleanup: { type: 'string', required: true, enum: ['deleted', 'retained'] },
+    retainedBranch: { type: 'string' },
+  },
+} as const
 
 const SEND_VALUE_SCHEMA = {
   type: 'object',
@@ -238,6 +264,22 @@ function install(agent: Agent, ctx: Context, config: Required<Config>): () => vo
           workspaceMode,
           signal: exec.signal,
         })
+      },
+    })))
+
+    register(scoped.tools.register(defineTool({
+      name: 'team_merge_worktree',
+      description: 'Stop a completed teammate, merge its isolated worktree branch into the Lead source branch, and retain the teammate Session as read-only. Lead only.',
+      parameters: {
+        teammate: { type: 'string', required: true, description: 'Completed teammate name.' },
+      },
+      output: jsonOutput(MERGE_WORKTREE_VALUE_SCHEMA),
+      async execute(args, exec) {
+        return await ctx.agentTeams.mergeWorktree(
+          callingAgent(exec.agent, 'team_merge_worktree'),
+          args.teammate,
+          exec.signal,
+        )
       },
     })))
 

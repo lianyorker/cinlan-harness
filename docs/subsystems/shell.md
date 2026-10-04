@@ -1,8 +1,8 @@
-# Bash Executor
+# Shell Executor
 
 English | [中文](shell.zh.md)
 
-The bash execution seam is split across a Service Definition ([dsh-shell](../../packages/shell/shell), `ctx.shell`), Service Providers ([dsh-bash-local](../../packages/shell/bash-local) and [dsh-bash-sandbox](../../packages/shell/bash-sandbox)), and Consumer ([dsh-tool-bash](../../packages/shell/tool-bash), the `bash` schema). Generic background-job ids, ownership, and controls live in [jobs.md](jobs.md); this seam returns a task-free process handle. Managed-range mechanics live behind the [subprocess seam](subprocess.md).
+The shell execution seam uses [dsh-shell](../../packages/shell/shell) as its Service Definition on `ctx.shell`. The [shell package group](../../packages/shell/README.md) lists its Bash and PowerShell providers and model-facing Consumers. Generic background-job ids, ownership, and controls live in [jobs.md](jobs.md); this seam returns a process handle without job registration. Managed-range mechanics live behind the [subprocess seam](subprocess.md).
 
 Source: [`packages/shell/shell/src/types.ts`](../../packages/shell/shell/src/types.ts)
 
@@ -12,7 +12,7 @@ Source: [`packages/shell/shell/src/types.ts`](../../packages/shell/shell/src/typ
 
 ## Request vs. spec: the `resolve()` split
 
-The seam separates the **model-/plugin-facing request** (optional `workdir`/`timeoutMs`/`stdoutMaxBytes`, filled from config or request policy) from the **fully-resolved spec** the executor acts on (those fields required). The tool layer calls synchronous `ctx.shell.resolve(request)` between them (the repo's "explicit > implicit at package boundaries" rule); a `ShellExecSpec` carries resolved values.
+The seam separates the **model-/plugin-facing request** (optional `workdir`/`timeoutMs`/`stdoutMaxBytes`, filled from config or request policy) from the **fully-resolved spec** the executor acts on (those fields required). The tool layer calls `ctx.shell.resolve(request)` between them (the repo's "explicit > implicit at package boundaries" rule); a `ShellExecSpec` carries resolved values.
 
 ```ts type-equiv
 /**
@@ -27,6 +27,8 @@ interface ShellExecRequest {
   workdir?: string | undefined
   /** Timeout override in milliseconds (implementations cap it). */
   timeoutMs?: number | undefined
+  /** Deadline policy at `timeoutMs` expiry (default `'kill'`). */
+  onExpiry?: ShellExpiryPolicy | undefined
   /**
    * Foreground stdout capture budget in bytes. Absent uses the executor's
    * default output cap. Trusted in-process consumers use this when they must
@@ -34,7 +36,7 @@ interface ShellExecRequest {
    * tool does not expose it as a parameter.
    */
   stdoutMaxBytes?: number | undefined
-  /** Abort signal — implementations kill the command when it fires. */
+  /** Abort signal — implementations kill the command when it fires, and treat a signal that is already aborted as fired. */
   signal?: AbortSignal | undefined
   /**
    * Bytes to write to the command's stdin, then close it. Absent leaves stdin
@@ -68,19 +70,21 @@ interface ShellExecRequest {
 ```ts type-equiv
 /**
  * A resolved execution spec. {@link ShellExecutor.resolve} fills and caps the
- * required fields; {@link ShellExecutor.start} ignores `timeoutMs` because
- * background processes have no executor timeout.
+ * required fields; under `onExpiry: 'none'` the resolved `timeoutMs` arms no
+ * timer and is only echoed into {@link ShellRunResult.timeoutMs}.
  */
 interface ShellExecSpec {
   command: string
   workdir: string
   timeoutMs: number
+  /** Deadline policy at `timeoutMs` expiry ({@link ShellExecutor.resolve} defaults it to `'kill'`). */
+  onExpiry: ShellExpiryPolicy
   /**
-   * Resolved foreground stdout capture budget in bytes. `run()` uses it for
-   * stdout; background jobs and stderr keep the executor's own output cap.
+   * Resolved stdout capture budget in bytes, applied to every execution's
+   * stdout; stderr keeps the executor's own output cap.
    */
   stdoutMaxBytes: number
-  /** Abort signal — implementations kill the command when it fires. */
+  /** Abort signal — implementations kill the command when it fires, and treat a signal that is already aborted as fired. */
   signal?: AbortSignal | undefined
   /** Bytes to write to stdin before closing it; absent means no stdin. */
   stdin?: string | undefined
@@ -104,16 +108,14 @@ interface ShellExecSpec {
 
 ## Foreground runs: `ShellRunResult`
 
-One foreground deadline covers confinement preparation, spawn, and execution. A timeout before spawn returns `timedOut: true`, empty output, null exit code and signal, and no sandbox enforcement evidence; caller cancellation during preparation rejects. After a subprocess handle exists, a rejection carrying the deadline signal's exact abort reason returns a timeout or abort result only after `waitForExit()` observes managed-range quiescence; unrelated errors and cleanup observation failures reject.
-
 The outcome of one completed (or killed) foreground run. Orthogonal outcomes are reported **independently** — a process can both time out AND exit 0 because it trapped the signal — so `timedOut`, `aborted`, `signal`, and `exitCode` are each their own field; a caller never reads a cut-short run as a clean success.
 
 ```ts type-equiv
-/** The outcome of one completed (or killed) foreground run. */
+/** The outcome of a foreground run, including timeout during preparation. */
 interface ShellRunResult {
-  /** Exit code; null when the process died from a signal. */
+  /** Exit code; null when preparation expired or the process died from a signal. */
   exitCode: number | null
-  /** Terminating signal (e.g. 'SIGTERM'); null on normal exit. */
+  /** Terminating signal, or null when none was reported, including preparation expiry. */
   signal: NodeJS.Signals | null
   /**
    * True when the executor's own timeout was the FIRST cause to cut the command
@@ -144,7 +146,7 @@ Each stream is a `CollectedOutput` — the (possibly truncated) text plus recove
 
 A sandbox-consuming executor exposes its configured mode fallback through `ShellExecutor.sandboxMode`. The tool layer asks [`@deepseek-ai/dsh-sandbox-policy`](../../packages/sandbox/sandbox-policy/README.md) to resolve each calling session's durable `sandbox/mode` override and immutable cwd into `ShellExecRequest.sandboxPolicy`; a user-approved strictly wider call replaces only the mode. The mode/root/enforcement vocabulary is owned by the [`@deepseek-ai/dsh-sandbox` seam](sandbox.md); modes govern file effects only.
 
-A sandboxed run reports its mode and conservative denial classification; enforcement completeness is present only after spawn. `runnerFailed` marks a sandbox runner failure before the command ran; foreground execution throws `SANDBOX_UNAVAILABLE`, while a settled background process has only its facts channel.
+A sandboxed run reports its mode, conservative denial classification, and enforcement completeness. `runnerFailed` marks a sandbox runner failure before the command ran; foreground execution throws `SANDBOX_UNAVAILABLE`, while a settled background process has only its facts channel.
 
 ```ts type-equiv
 /**
@@ -164,11 +166,11 @@ interface ShellSandboxInfo {
 }
 ```
 
-The `SANDBOX_UNAVAILABLE` error code (owned by the [sandbox seam](sandbox.md)) is what the `ctx.sandbox` provider rejects with — and the executor propagates — when a confined mode has no usable backend. A selected runner refusing its profile reaches the same fail-closed foreground error; a settled background job records `runnerFailed`. The model receives denial/runner facts in results, learns the effective mode only when a denial marker names it, and can request a one-shot strictly wider retry through `sandbox_permissions` plus `justification`; `ctx.approval` must grant that exact call before anything executes. The complete policy and switching design is the [sandbox Agent Note](../../.agents/notes/implemented/feature/2026-07-06-sandbox.md).
+The `SANDBOX_UNAVAILABLE` error code (owned by the [sandbox seam](sandbox.md)) is what the `ctx.sandbox` provider throws — and the executor propagates — when a confined mode has no usable backend. A selected runner refusing its profile reaches the same fail-closed foreground error; a settled background job records `runnerFailed`. The model receives denial/runner facts in results, learns the effective mode only when a denial marker names it, and can request a one-shot strictly wider retry through `sandbox_permissions` plus `justification`; `ctx.approval` must grant that exact call before anything executes. The complete policy and switching design is the [sandbox reference](../../packages/sandbox/sandbox-policy/README.md).
 
 ## Background processes: `ShellProcess`
 
-`start()` returns `Promise<ShellProcess>` and publishes a handle with no id or owner after preparation. Preparation failure or cancellation rejects before publication; no executor timeout applies. The Bash and PowerShell tools return synchronous `JobHooks` whose adapters own preparation cancellation and await any late process handle's termination. The generic job runtime owns job identity and lifecycle. `done` settles when the direct command closes. A subprocess provider rejection sets `killed` and a stage-neutral error on stderr, then waits for managed-range exit; failed exit observation rejects `done` and the tool adapter reports a failed job. Reads remain valid after settlement, and sandbox facts are stamped before `done` resolves.
+`start()` resolves with a handle after asynchronous launch preparation; cancellation or preparation failure rejects before publication. The handle has no id or owner. `dsh-tool-bash` adapts it into `ctx.jobs.start()` hooks; the generic runtime then owns job identity and lifecycle. `done` resolves when the underlying process settles and never rejects; a subprocess provider rejection becomes a `killed` process with a stage-neutral error on stderr. Reads remain valid after settlement, and sandbox facts are stamped before `done` resolves.
 
 ```ts type-equiv
 /**
@@ -185,9 +187,8 @@ interface ShellProcess {
   /** Terminating signal name, when signal-killed. */
   signal: NodeJS.Signals | null
   /**
-   * Settles when the direct command closes; subprocess provider rejection waits
-   * for managed-range exit and settles as `killed` with a stage-neutral stderr
-   * error. Rejects if the provider cannot observe managed-range exit.
+   * Resolves when the underlying process settles (never rejects — provider
+   * rejection settles as `killed` with a stage-neutral error on stderr).
    */
   readonly done: Promise<void>
   /** Sandbox facts, stamped once a confined process settles. */
@@ -198,6 +199,13 @@ interface ShellProcess {
    * full-stream spill files when available.
    */
   readOutput(): ShellProcessRead
+  /**
+   * Non-consuming offset readers over the same captured streams the consuming
+   * {@link readOutput} cursor drains, including the provider-failure note a
+   * rejected spawn leaves on stderr. Independent observers read here at their
+   * own offsets without stealing bytes from `readOutput`.
+   */
+  observed: ShellObservedStreams
   /**
    * Terminate the provider-managed range. Returns false when it had already finished
    * (no-op); idempotent.
@@ -240,37 +248,33 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 
 Abstract bash execution service. Subclass, implement the abstract methods, and load the subclass as a plugin — it registers as `ctx.shell` (one implementation per context; loading a second throws, which is cordis' standard duplicate-service behavior).
 
+execute resolves with the process handle after preparation. "Foreground" is a property of what the caller awaits, not of the spawn — a caller that awaits ShellExecution.result ran the command in the foreground; one that keeps the handle ran it in the background. A caller that waits only for a while runs the command under `onExpiry: 'none'` and bounds its own wait; the handle stays valid after the caller stops waiting.
+
 Implementations must honor these semantics:
 
-- run rejects only for infrastructure failures. Nonzero exits, timeout kills, and abort kills resolve with a ShellRunResult.
-- start resolves after launch preparation; cancellation or setup failure rejects before publishing a handle. No timeout applies to background processes. Once published, subprocess failures settle as `killed` with the error on stderr after the managed range exits; `done` rejects if that range cannot be observed.
+- ShellExecution.result rejects only for infrastructure failures. Nonzero exits, timeout kills, and abort kills resolve with a descriptive result: first-cause `timedOut`/`aborted`, the spec's `timeoutMs` echoed.
+- The handle is published after preparation. `done` settles at process close and never rejects; spawn failures settle as `killed` with the error on the read path, while `result()` carries the same failure as its rejection.
+- `onExpiry: 'none'` arms no deadline; `'kill'` kills at expiry. Expiry during preparation returns a settled timed-out handle without output.
 - ShellProcess.readOutput is incremental: consecutive reads never repeat output. Lossy reads report truncation and available spill files.
-- A still-running background process is stopped and awaited when its owning composition tears down. With the subprocess seam that boundary is `ctx.subprocess` disposal, so a background process survives an executor-only reload.
+- A still-running process is stopped and awaited when its owning composition tears down. With the subprocess seam that boundary is `ctx.subprocess` disposal, so a process survives an executor-only reload.
 
 ```ts cordis-catalog
 /**
  * Apply implementation-owned defaults and caps to a request before execution.
  * @param request - the caller's request; omitted fields get this
  *   implementation's defaults, capped fields are clamped.
- * @returns the fully-specified spec to hand to {@link run}/{@link start}.
+ * @returns the fully-specified spec to hand to {@link execute}.
  */
 abstract resolve(request: ShellExecRequest): ShellExecSpec
 
 /**
- * Run preparation and the foreground command under the resolved timeout.
+ * Prepare and spawn the command under its resolved deadline.
  * @param spec - a resolved spec from {@link resolve}, never a raw request.
- * @returns the outcome; nonzero exits, timeout kills, and abort kills
- *   resolve with a descriptive result rather than reject.
+ * @returns the prepared handle, including its result projection;
+ *   preparation timeout yields an already-settled handle with no output.
  * @throws on preparation failure or caller cancellation before process publication.
  */
-abstract run(spec: ShellExecSpec): Promise<ShellRunResult>
-
-/**
- * Prepare a background process asynchronously and publish its live handle.
- * @param spec - a resolved spec from {@link resolve}, never a raw request.
- * @returns the live process handle after preparation; cancellation or setup failure rejects.
- */
-abstract start(spec: ShellExecSpec): Promise<ShellProcess>
+abstract execute(spec: ShellExecSpec): Promise<ShellExecution>
 ```
 
 Source: [`packages/shell/shell/src/index.ts`](../../packages/shell/shell/src/index.ts)

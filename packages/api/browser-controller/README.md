@@ -23,7 +23,7 @@ This Host Remote controller connects Browser Settings to the selected native Pro
 
 The optional cinlan-browser bundle mounts this controller. The generated browser Remote namespace requires the authenticated Connection/Gateway; these human commands are independent from model tool approvals. Profile reads do not launch a browser. Page listing and navigation are explicit user actions and may launch it.
 
-Element selection opens a cancellable native picker on an explicit page. Capture consumes that page's one-use selection, requests PNG, persists the bytes through Attachments, and returns the stored image reference and verified bytes for preview. The controller does not select a Session or send a message; the [capture page](../../client/ui-browser-element-capture/README.md) owns explicit admission to the initiating draft.
+Element selection opens a cancellable native picker on an explicit page. Capture consumes that page's one-use selection, requests PNG, persists the bytes through Attachments, and returns the stored image reference and verified bytes to an explicit Consumer. The controller does not select a Session or send a message.
 
 Cookie import accepts a JSON array up to 256 KiB, an expected active profile name, and bounded cookie fields. It does not scan another browser's database. Parsing and native-import failures omit values; receipts contain only the accepted count and profile name. Cookies are retained by the browser profile, not by Harness Settings or the Session log.
 

@@ -13,7 +13,13 @@ export const name = '@deepseek-ai/dsh-git-settings'
 /** The existing settings provider owns persistence and registration disposal. */
 export const inject = ['settings']
 
-export const Config = GitSourceControlSettingsSchema
+/**
+ * Live-editable registration schema. The settings document serves only a
+ * schema that carries a volatile field, so the Host entry registers this
+ * wrapper; consumers keep reading plain values through
+ * {@link GitSourceControlSettingsSchema} and the served namespace.
+ */
+export const Config = GitSourceControlSettingsSchema.volatile()
 
 /**
  * Register the Git namespace for this plugin fiber.

@@ -24,8 +24,8 @@ import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import * as LocalBrowser from '@deepseek-ai/dsh-browser-playwright'
 import BrowserRuntimeManager from '@deepseek-ai/dsh-browser-playwright/runtime'
 import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
-const FileSettingsProvider = {
-  name: '@deepseek-ai/dsh-settings-file',
+const SettingsServiceStub = {
+  name: '@deepseek-ai/dsh-settings',
   apply(c: Context) {
     c.provide('settings', {
       describe: () => [],
@@ -100,7 +100,7 @@ describe('Desktop co-screen live integration with CDP bridge', () => {
     const fixtureLayer: PatchOptions[] = [{
       insert: [
         { id: 'subprocess', name: '@deepseek-ai/dsh-subprocess-local' },
-        { id: 'settings', name: '@deepseek-ai/dsh-settings-file', config: { path: join(fixtureRoot, 'settings.json'), watch: false } },
+        { id: 'settings', name: '@deepseek-ai/dsh-settings' },
         { id: 'fixture-attachments', name: 'fixture-attachments' },
         { id: 'system-prompt', name: '@deepseek-ai/dsh-system-prompt', config: { persona: '' } },
         { id: 'tools', name: '@deepseek-ai/dsh-tools' },
@@ -109,7 +109,6 @@ describe('Desktop co-screen live integration with CDP bridge', () => {
     }]
 
     const coScreenProfileOverride: PatchOptions[] = [
-      { id: 'ui-browser-element-capture', disabled: true },
       { id: 'browser-runtime', config: { storageDir: join(fixtureRoot, 'runtime') } },
       {
         id: 'browser-permission-policy',
@@ -142,7 +141,7 @@ describe('Desktop co-screen live integration with CDP bridge', () => {
     const modules = new Map<string, unknown>([
       ['@deepseek-ai/dsh-subprocess-local', LocalSubprocess],
       ['@deepseek-ai/dsh-browser-playwright/runtime', BrowserRuntimeManager],
-      ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
+      ['@deepseek-ai/dsh-settings', SettingsServiceStub],
       ['fixture-attachments', FixtureAttachments],
       ['@deepseek-ai/dsh-system-prompt', SystemPrompt],
       ['@deepseek-ai/dsh-tools', ToolRuntime],

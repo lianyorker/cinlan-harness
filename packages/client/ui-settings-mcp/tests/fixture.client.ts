@@ -1,8 +1,17 @@
 /** Instance-local Remote boundary doubles with cancellable streams and real Cordis registration. */
 import { Context } from '@deepseek-ai/cordis'
 import { onTestFinished, vi } from 'vitest'
-import { RemoteError, type RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
+import { RemoteError, type RemoteResult, type RemoteStreamHandle } from '@deepseek-ai/dsh-typert-protocol'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+
+export function streamHandle<Out, In = never>(source: AsyncIterable<Out>): RemoteStreamHandle<Out, In> {
+  return {
+    [Symbol.asyncIterator]: () => source[Symbol.asyncIterator](),
+    send: () => undefined,
+    end: () => undefined,
+    dispose: () => undefined,
+  }
+}
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
@@ -37,7 +46,7 @@ export function remoteFixture(initial = snapshot()) {
     setEnabled: vi.fn<McpRemote['setEnabled']>(async () => ({ ok: true, value })),
     reconnect: vi.fn<McpRemote['reconnect']>(async () => ({ ok: true, value })),
     probe: vi.fn<McpRemote['probe']>(async () => ({ ok: true, value })),
-    watch: vi.fn<McpRemote['watch']>(async function* (signal = new AbortController().signal) {
+    watch: vi.fn<McpRemote['watch']>((signal = new AbortController().signal) => streamHandle((async function* () {
       signals.push(signal)
       const completion = Promise.withResolvers<undefined>()
       done.push(completion.promise)
@@ -62,7 +71,7 @@ export function remoteFixture(initial = snapshot()) {
         signal.removeEventListener('abort', abort)
         completion.resolve(undefined)
       }
-    }),
+    })())),
   } satisfies McpRemote
   return {
     remote, signals, done, subscribers,

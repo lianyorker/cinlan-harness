@@ -17,27 +17,22 @@ This table connects model-visible tool names to the plugin package and service s
 | --- | --- | --- | --- | --- | --- |
 | `@deepseek-ai/dsh-plugin-manager` | `plugin_manager` | `ctx.tools`, `ctx.pluginManager`, `ctx.sandboxPolicy` | `tool/call`, `tool/result`, `user/message` | - | - |
 | `@deepseek-ai/dsh-mcp-resources` | `list_mcp_resource_templates`, `list_mcp_resources`, `read_mcp_resource` | `ctx.tools`, `ctx.mcpResources` | `tool/call`, `tool/result` | - | - |
-| `@deepseek-ai/dsh-tool-ask-user` | `ask_user_question` | `ctx.tools`, `ctx.userQuestions` | `tool/call`, `tool/result after a UI/provider answers the question` | - | ask_user_question pauses the tool call until the active UI provider returns a human answer. |
+| `@deepseek-ai/dsh-experimental-browser-use-stagehand-native` | `stagehand_act`, `stagehand_extract`, `stagehand_navigate`, `stagehand_observe`, `stagehand_screenshot`, `stagehand_tabs` | `ctx.browserUse`, `ctx.agents`, `ctx.tools`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-ask-user` | `ask_user_question` | `ctx.tools`, `ctx.userQuestions` | `tool/call`, `tool/result after an answer or timeout`, `late user/message` | - | ask_user_question keeps the original blocking behavior by default; set `mode: timed` to opt into a foreground timeout and pending result while the question remains answerable. In timed mode, `timeout: -1` keeps that call blocking indefinitely. |
 | `@deepseek-ai/dsh-tools` | `run_code` | `ctx.tools`, `ctx.ptcRuntime (execution time)`, `ctx.systemPrompt` | `tool/call`, `one tool/ptc-dispatch-start + tool/ptc-dispatch pair per bridged sub-call`, `tool/result` | - | Owned by the tool registry as a reserved transport outside filterable capability layers under `mode: ptc` / `mode: both` (see the PTC mode Agent Note). Under `ptc` it is the registry's only wire contribution; the other visible capabilities are declared in a generated SDK section in the loaded runtime's language, and a program calls them through bindings scheduled under the native concurrency contract (submission-ordered starts and policy; concurrency-safe bodies overlap up to `maxParallelSubCalls`) that re-enter the complete guarded tool pipeline and link each nested execution to this outer result. |
 | `@deepseek-ai/dsh-plan-mode` | `exit_plan_mode` | `ctx.tools`, `ctx.systemPrompt`, `ctx.userQuestions (execution time, opportunistic)` | `tool/call`, `plan/mode inactive on an approved review`, `tool/result` | - | exit_plan_mode stays in the model-facing schema while planning is inactive so transitions add no tool-catalog churn on top of the plan-policy change. Its execute path rejects calls outside plan mode; in plan mode it presents the plan over the user-questions seam (approve / keep planning with feedback), and approval logs plan mode inactive at the step boundary. |
-| `@deepseek-ai/dsh-tool-bash` | `bash` | `ctx.tools`, `ctx.shell`, `ctx.systemPrompt`, `ctx.shellEnv`, `ctx.jobs at call time for run_in_background` | `tool/call`, `tool/result` | - | The bash tool is the model-facing consumer of the bash executor seam. A `run_in_background` run registers with the generic `ctx.jobs` runtime and is collected/stopped through the `job_*` tools from `@deepseek-ai/dsh-tool-jobs`; the `enableRunInBackground` config (default true) removes the parameter entirely when disabled. |
+| `@deepseek-ai/dsh-tool-bash` | `bash` | `ctx.tools`, `ctx.shell`, `ctx.systemPrompt`, `ctx.shellEnv`, `ctx.jobs for run_in_background and the job-backed foreground path` | `tool/call`, `tool/result` | - | The bash tool is the model-facing consumer of the bash executor seam. With a job registry composed every call registers with the generic `ctx.jobs` runtime as it starts, collected/stopped through the `job_*` tools from `@deepseek-ai/dsh-tool-jobs`; without one, or with `enableRunInBackground: false`, the tool registers a foreground-only schema without the `run_in_background` parameter. |
 | `@deepseek-ai/dsh-tool-present` | `present` | `ctx.tools`, `ctx.fs`, `ctx.sessionProjections` | `tool/call`, `deliverables/presented after a successful final result`, `tool/result` | - | Deliveries belong to the calling Session; Web ui-deliverables supplies source-file opening and cards. |
-| `@deepseek-ai/dsh-tool-pwsh` | `pwsh` | `ctx.tools`, `ctx.shell`, `ctx.systemPrompt`, `ctx.shellEnv`, `ctx.jobs at call time for run_in_background` | `tool/call`, `tool/result` | - | The pwsh tool is the PowerShell-dialect consumer of the bash executor seam for Windows compositions (a PowerShell executor such as `@deepseek-ai/dsh-pwsh-local` backs `ctx.shell`); it mirrors the bash tool call-for-call minus sandbox controls — `run_in_background` runs register with the generic `ctx.jobs` runtime and are collected/stopped through the `job_*` tools, and the managed `DSH_*` environment comes from `@deepseek-ai/dsh-shell-env`. Each call runs in a fresh process (no persistent PTY session), with native `C:\...` paths and `$env:NAME` variables. |
-| `@deepseek-ai/dsh-tool-cordis` | `cordis_define`, `cordis_inspect_list`, `cordis_inspect_query`, `cordis_inspect_self`, `cordis_run`, `cordis_stop`, `cordis_undefine` | `ctx.tools`, `ctx.dynamicCordisRunner` | `tool/call`, `tool/result`, `process-local dynamic package lifecycle` | - | Not in any shipped tree (a deliberate opt-in — dynamic package code reaches the real runtime, see .agents/notes/implemented/feature/2026-07-08-self-referential-cordis-toolset.md). The toolset injects `ctx.dynamicCordisRunner` from `@deepseek-ai/dsh-cordis-host-runner`, which owns the definition registry and the vm sandbox; a composition missing it never activates the tools. A running package may register ADDITIONAL model-visible tools until it is stopped, undefined, or DSH restarts; a full changed request header logs those tool-set changes. |
+| `@deepseek-ai/dsh-tool-pwsh` | `pwsh` | `ctx.tools`, `ctx.shell`, `ctx.systemPrompt`, `ctx.shellEnv`, `ctx.jobs for run_in_background and the job-backed foreground path` | `tool/call`, `tool/result` | - | The pwsh tool is the PowerShell-dialect consumer of the bash executor seam for Windows compositions (a PowerShell executor such as `@deepseek-ai/dsh-pwsh-local` backs `ctx.shell`); it mirrors the bash tool call-for-call minus sandbox controls — `run_in_background` runs register with the generic `ctx.jobs` runtime and are collected/stopped through the `job_*` tools, and the managed `DSH_*` environment comes from `@deepseek-ai/dsh-shell-env`. Each call runs in a fresh process (no persistent PTY session), with native `C:\...` paths and `$env:NAME` variables. |
+| `@deepseek-ai/dsh-tool-cordis` | `cordis_inspect_list`, `cordis_inspect_query` | `ctx.tools`, `ctx.cordisInspect` | `tool/call`, `tool/result` | - | Creator mode provides two read-only runtime inspection tools. The Cordis host runner supplies the inspection registry; Client queries require a connected page. Author persistent changes as bundles and install them with plugin_manager. |
 | `@deepseek-ai/dsh-tool-bash-persistent` | `bash` | `ctx.tools`, `ctx.terminals`, `an owning Agent at execution time` | `tool/call`, `PTY shell state`, `tool/result` | - | One owner-isolated persistent bash tool; deployment composition supplies the PTY backend and may override the model-facing environment description. |
 | `@deepseek-ai/dsh-tool-pwsh-persistent` | `pwsh` | `ctx.tools`, `ctx.terminals`, `an owning Agent at execution time` | `tool/call`, `PTY shell state`, `tool/result` | - | One owner-isolated persistent pwsh tool, the Windows counterpart of the persistent bash tool; deployment composition supplies a pwsh-dialect PTY backend and may override the model-facing environment description. |
 | `@deepseek-ai/dsh-tool-str-replace-editor` | `str_replace_editor` | `ctx.tools`, `ctx.fs` | `tool/call`, `fs/observed after view presence/absence, edit absence, or successful mutation`, `tool/result` | - | Standalone view/create/unique literal replace/line insert tool over the filesystem seam; it composes with any shell or terminal API. |
 | `@deepseek-ai/dsh-tool-fs` | `edit`, `read`, `read_image`, `write` | `ctx.tools`, `ctx.fs`, `ctx.systemPrompt`, `ctx.attachments (image-tool registration)`, `ctx.llm + an image-capable route (image-tool execution)` | `tool/call`, `fs/write-intent or fs/edit-intent for mutations`, `fs/observed after read presence/absence or successful file operation`, `durable attachment (read_image)`, `tool/result` | - | The read-before-write/edit policy is added by `@deepseek-ai/dsh-fs-observation-policy` (an `fs/*` event-gate plugin, no schema change); a deployment that loads these tools is expected to also load it. The image tool is not registered without `ctx.attachments`; its schema is route-independent, and execution refuses unless the exact routed model declares image input. |
 | `@deepseek-ai/dsh-tool-fs-search` | `glob`, `grep` | `ctx.tools`, `ctx.subprocess`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | glob and grep are unconditional discovery tools that spawn the packaged ripgrep binary (`@vscode/ripgrep`) through ctx.subprocess as ordinary foreground calls (never background jobs) — no host `rg` install and no shell layer. The catalog uses `sampleOverCapGlobResults: true`; deployments must choose that behavior explicitly. Capped results save the complete formatted list through the optional ctx.spillStore backend; returned locators are follow-up-readable/searchable when the backend exposes local paths in co-located deployments. |
 | `@deepseek-ai/dsh-tool-terminal` | `terminal_close`, `terminal_list`, `terminal_open`, `terminal_read`, `terminal_send`, `terminal_signal` | `ctx.tools`, `ctx.terminals`, `ctx.systemPrompt`, `ctx.jobs at call time for run_in_background` | `tool/call`, `tool/result` | - | The six terminal tools are opt-in and complement one-shot shell/filesystem tools. `terminal_send(run_in_background: true)` registers with `ctx.jobs`; TUI, named key sequences, BEL, resize, auto-start, and cross-agent sharing are absent from the schema. |
-| `@deepseek-ai/dsh-tool-browser` | `browser_back`, `browser_click`, `browser_close`, `browser_downloads`, `browser_forward`, `browser_history`, `browser_home`, `browser_list`, `browser_navigate`, `browser_network`, `browser_open`, `browser_save_download`, `browser_screenshot`, `browser_search`, `browser_snapshot`, `browser_upload` | `ctx.tools`, `ctx.browser`, `ctx.attachments`, `ctx.systemPrompt`, `ctx.llm for screenshot execution`, `ctx.fs for workspace-file upload` | `tool/call`, `durable image attachment from browser_screenshot`, `tool/result` | - | The sixteen persistent-browser tools keep page and observation handles in the selected Browser provider. Screenshot execution additionally requires an image-capable model route. |
-| `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`, `browser_select_element` | `ctx.tools`, `ctx.browser`, `ctx.coordination`, `ctx.systemPrompt`, `an image-capable route for capture execution` | `tool/call`, `durable verified crop attachment through Coordination`, `tool/result` | - | The two tools form a selection-and-capture workflow. Schemas use the default 60000 ms timeout and PNG output; execution requires a Browser provider with element capture and a matching Coordination executor. |
-| `@deepseek-ai/dsh-tool-computer-use` | `computer_accessibility`, `computer_keyboard`, `computer_list_apps`, `computer_list_windows`, `computer_observe`, `computer_pointer` | `ctx.tools`, `ctx.computerUse`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `optional image attachments` | - | Device tools are opt-in. Every desktop action uses a current observation; screenshots require an image-capable route and accepted attachment policy. |
-| `@deepseek-ai/dsh-tool-mobile-device` | `mobile_button`, `mobile_list_devices`, `mobile_observe`, `mobile_touch`, `mobile_type` | `ctx.tools`, `ctx.mobileDevice`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `optional image attachments` | - | Mobile tools use normalized coordinates and one-use observation tokens. Device input requires explicit policy approval in the device-control profile. |
-| `@deepseek-ai/dsh-tool-coordination` | `coordination_add_task`, `coordination_cancel`, `coordination_send_message`, `coordination_start`, `coordination_status`, `coordination_wait` | `ctx.tools`, `ctx.agents`, `ctx.coordination` | `tool/call`, `process-local task graph state and executor messages`, `tool/result` | - | The six task-graph tools are session-owned. The catalog uses the default subagent executor name and bounded wait defaults; execution requires a registered executor for started tasks. |
-| `@deepseek-ai/dsh-tool-git` | `git_diff`, `git_log`, `git_status` | `ctx.tools`, `ctx.agents`, `ctx.git` | `tool/call`, `tool/result` | - | The three read-only Git tools are catalogued with the local provider using the explicit executable and bounded limits shown above; a deployment may choose different provider configuration. |
 | `@deepseek-ai/dsh-tool-goal` | `create_goal`, `get_goal`, `update_goal` | `ctx.tools`, `ctx.agents`, `ctx.goals`, `ctx.systemPrompt`, `a calling Agent in an authorized open turn` | `tool/call`, `goal/change for mutations`, `tool/result` | - | create, edit, pause, and resume require direct-human root authority; complete and blocked also accept the exact current goal round. The default blocked lower bound is three admitted rounds. |
-| `@deepseek-ai/dsh-schedule` | `schedule_create`, `schedule_delete`, `schedule_list` | `ctx.tools`, `ctx.sessions`, `Session persistence`, `a future live root Agent` | `tool/call`, `schedule/change create or delete`, `tool/result` | - | Registered only inside live root Agent scopes created after the opt-in Schedule plugin loads. Version 1 accepts after_seconds, explicit absolute at, and bounded fixed-rate every_seconds, and discloses session-local delivery; management reads and mutations require the shared Session persistence barrier. |
+| `@deepseek-ai/dsh-tool-schedule` | `schedule_create`, `schedule_delete`, `schedule_list`, `schedule_update` | `ctx.tools`, `ctx.schedule` | `tool/call`, `Schedule storage domain create, update, or delete`, `tool/result` | - | A preset or Agent scope mounts this package; the preset decides which agents receive the four management tools. Each call acts on the calling Agent's Session. Accepts after_seconds, explicit absolute at, bounded fixed-rate every_seconds, daily and weekly local times in an explicit IANA zone, and cron as a five-field expression. Management uses the Host storage domain; due messages resume the original Session. |
 | `@deepseek-ai/dsh-tool-lsp` | `lsp` | `ctx.tools`, `ctx.lsp`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | The lsp tool keeps provider selection and language-server subprocesses behind ctx.lsp, so its model-visible schema stays stable across providers. Requires a registered provider (e.g. `@deepseek-ai/dsh-lsp-stdio`) at runtime; without one, a query returns the structured `LSP_UNAVAILABLE` error rather than changing the schema. |
 | `@deepseek-ai/dsh-tool-ralph` | `ralph` | `ctx.tools`, `ctx.workflowEngine`, `ctx.subagents`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents every fresh round)` | `tool/call`, `tool/result`, `workflow and child session events during execution` | - | A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an optional round cap. |
 | `@deepseek-ai/dsh-tool-skill` | `skill` | `ctx.tools`, `ctx.agents`, `ctx.skills` | `tool/call`, `tool/result`, `user/message replacement catalogs via agent.inject()` | - | - |
@@ -48,13 +43,8 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All nine tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
-| `@deepseek-ai/dsh-tool-finding` | `finding_export`, `finding_query`, `finding_record`, `finding_transition` | `ctx.tools`, `ctx.findings`, `ctx.artifacts`, `ctx.executionHost`, `a calling Agent for same-session authority` | `tool/call`, `finding/change`, `durable report Artifact`, `tool/result` | - | The four finding tools use the active Session and Artifact providers. Report provenance is bound to the current execution host; reproduction and remediation transitions require typed evidence. |
-| `@deepseek-ai/dsh-tool-vuln-kb` | `vuln_query`, `vuln_read` | `ctx.tools`, `ctx.vulnKb`, `a configured vulnerability KB provider at execution time` | `tool/call`, `tool/result` | - | vuln_query and vuln_read expose provider results without asserting exploitability or granting assessment authority; the catalog boot uses the NVD+OSV adapter without making a network request. |
-| `@deepseek-ai/dsh-tool-work-items` | `work_items_cancel_write`, `work_items_confirm_write`, `work_items_get`, `work_items_list`, `work_items_list_writes`, `work_items_prepare_write` | `ctx.tools`, `ctx.workItems`, `ctx.systemPrompt`, `ctx.storageDomain for write previews and receipts` | `tool/call`, `durable write previews and receipts`, `tool/result` | - | Provider writes are disabled by default. Enabled writes require a persisted preview and separate confirmation; uncertain outcomes are never automatically resent. |
-| `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
-| `@deepseek-ai/dsh-tool-recall` | `history_read`, `history_search` | `ctx.tools`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | history_read and history_search read original uncompacted messages directly from the append-only session log without external sidecars. |
-| `@deepseek-ai/dsh-tool-task-surface` | `show_task_surface` | `ctx.tools`, `ctx.sessionProjections` | `tool/call`, `tool/result` | - | show_task_surface renders structured interactive task panels and concludes the turn. |
 | `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 
@@ -62,7 +52,7 @@ This table connects model-visible tool names to the plugin package and service s
 
 ### `plugin_manager`
 
-List plugins or bundles in the current profile, enable or disable them, install a bundle, or remove an installed bundle. Every action requires danger-full-access permission or approval for this call. Approval does not change the session permission mode. Changes affect every session in this profile. List first to obtain exact identifiers. Package installation can execute allowed build scripts. Live profiles apply changes immediately; startup profiles require restart.
+List plugins or bundles in the current profile, enable or disable them, install a bundle, or remove an installed bundle. Every action requires danger-full-access permission or approval for this call. Approval does not change the session permission mode. Changes affect every session in this profile. List first to obtain exact identifiers. Package installation can execute allowed build scripts. Live profiles apply changes immediately; startup profiles require restart. Incompatible DSH peer dependencies block installation and activation. Version exemptions risk crashes and data loss: warn the user and obtain explicit permission for the exact plugin and runtime versions before granting one.
 
 ```json
 {
@@ -77,7 +67,9 @@ List plugins or bundles in the current profile, enable or disable them, install 
         "set_plugin",
         "set_bundle",
         "install_bundle",
-        "remove_bundle"
+        "remove_bundle",
+        "list_version_exemptions",
+        "set_version_exemption"
       ]
     },
     "target": {
@@ -86,7 +78,15 @@ List plugins or bundles in the current profile, enable or disable them, install 
     },
     "enabled": {
       "type": "boolean",
-      "description": "Required for set operations; defaults to true for installation."
+      "description": "Required for set operations; defaults to true for installation. For set_version_exemption, true grants and false revokes."
+    },
+    "runtimeVersion": {
+      "type": "string",
+      "description": "For set_version_exemption: exact DSH version from list_version_exemptions. Target must be the manifest package-name@version, not an alias or version range."
+    },
+    "acceptRisk": {
+      "type": "boolean",
+      "description": "For granting an exemption: true only after warning the user about possible crashes and data loss and receiving explicit permission for this exact plugin/runtime pair. General installation permission is not enough."
     },
     "approvedBuilds": {
       "type": "array",
@@ -94,6 +94,10 @@ List plugins or bundles in the current profile, enable or disable them, install 
       "items": {
         "type": "string"
       }
+    },
+    "registry": {
+      "type": "string",
+      "description": "For install_bundle: the npm registry URL asked first, when the user names one; otherwise the configured registry is asked, and its configured fallbacks while a registry is unreachable."
     },
     "offset": {
       "type": "number",
@@ -118,7 +122,7 @@ Source: [`packages/boot/plugin-manager/src/tools.ts`](../packages/boot/plugin-ma
 
 ### `list_mcp_resource_templates`
 
-List one page of parameterized resource URI templates from an MCP server. Pass a returned nextCursor as cursor to continue.
+List parameterized resource URI templates from an MCP server.
 
 ```json
 {
@@ -143,7 +147,7 @@ Source: [`packages/mcp/mcp-resources/src/tools.ts`](../packages/mcp/mcp-resource
 
 ### `list_mcp_resources`
 
-List one page of resources available from an MCP server. Pass a returned nextCursor as cursor to continue.
+List resources available from an MCP server.
 
 ```json
 {
@@ -192,13 +196,260 @@ Read an MCP resource by URI from the named server. Use a listed URI or an expand
 
 Source: [`packages/mcp/mcp-resources/src/tools.ts`](../packages/mcp/mcp-resources/src/tools.ts)
 
+<a id="deepseek-aidsh-experimental-browser-use-stagehand-native"></a>
+
+## `@deepseek-ai/dsh-experimental-browser-use-stagehand-native`
+
+### `stagehand_act`
+
+Perform one natural-language browser action using the configured Stagehand model.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "pageId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "instruction": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "instruction"
+  ],
+  "additionalProperties": false
+}
+```
+
+Source: [`packages/experimental/browser-use-stagehand-native/src/index.ts`](../packages/experimental/browser-use-stagehand-native/src/index.ts)
+
+### `stagehand_extract`
+
+Extract page data using the configured Stagehand model and an optional JSON Schema.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "pageId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "instruction": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/__schema0"
+      }
+    }
+  },
+  "required": [
+    "instruction"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema0"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+Source: [`packages/experimental/browser-use-stagehand-native/src/index.ts`](../packages/experimental/browser-use-stagehand-native/src/index.ts)
+
+### `stagehand_navigate`
+
+Navigate a Stagehand browser tab to a URL.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "pageId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "url": {
+      "type": "string",
+      "format": "uri"
+    }
+  },
+  "required": [
+    "url"
+  ],
+  "additionalProperties": false
+}
+```
+
+Source: [`packages/experimental/browser-use-stagehand-native/src/index.ts`](../packages/experimental/browser-use-stagehand-native/src/index.ts)
+
+### `stagehand_observe`
+
+Find browser actions matching an instruction using the configured Stagehand model.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "pageId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "instruction": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "instruction"
+  ],
+  "additionalProperties": false
+}
+```
+
+Source: [`packages/experimental/browser-use-stagehand-native/src/index.ts`](../packages/experimental/browser-use-stagehand-native/src/index.ts)
+
+### `stagehand_screenshot`
+
+Capture a Stagehand tab screenshot for visual inspection.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "pageId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fullPage": {
+      "default": false,
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "fullPage"
+  ],
+  "additionalProperties": false
+}
+```
+
+Source: [`packages/experimental/browser-use-stagehand-native/src/index.ts`](../packages/experimental/browser-use-stagehand-native/src/index.ts)
+
+### `stagehand_tabs`
+
+List, create, select, or close a Stagehand browser tab.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "list"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "new"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "select",
+            "close"
+          ]
+        },
+        "pageId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "action",
+        "pageId"
+      ],
+      "additionalProperties": false
+    }
+  ],
+  "type": "object"
+}
+```
+
+Source: [`packages/experimental/browser-use-stagehand-native/src/index.ts`](../packages/experimental/browser-use-stagehand-native/src/index.ts)
+
 <a id="deepseek-aidsh-tool-ask-user"></a>
 
 ## `@deepseek-ai/dsh-tool-ask-user`
 
 ### `ask_user_question`
 
-Ask the user a concise question when you need confirmation, a choice, or missing information before proceeding. Send one or more questions, each with a stable id that will be echoed in the answer.
+Ask the user a concise question when you need confirmation, a choice, or missing information before proceeding.
 
 ```json
 {
@@ -264,7 +515,7 @@ Ask the user a concise question when you need confirmation, a choice, or missing
 
 Source: [`packages/interaction/tool-ask-user/src/index.ts`](../packages/interaction/tool-ask-user/src/index.ts)
 
-ask_user_question pauses the tool call until the active UI provider returns a human answer.
+ask_user_question keeps the original blocking behavior by default; set `mode: timed` to opt into a foreground timeout and pending result while the question remains answerable. In timed mode, `timeout: -1` keeps that call blocking indefinitely.
 
 <a id="deepseek-aidsh-tools"></a>
 
@@ -272,19 +523,19 @@ ask_user_question pauses the tool call until the active UI provider returns a hu
 
 ### `run_code`
 
-Execute a TypeScript program against the available tools. Takes two required arguments: `code`, the BODY of an async function (erasable syntax only; top-level `await` and `return` work), and `description`, a short summary of what the program does. Call tools as `await tools.name(args)` per the declarations in the system prompt. Only what you print or return is program output — curate it. Image-bearing subtool results are attached after the run.
+Execute a TypeScript program against the available tools. Takes two required arguments: `description`, a short summary of what the program does, and `code`, the BODY of an async function (erasable syntax only; top-level `await` and `return` work). Call tools as `await tools.name(args)` per the declarations in the system prompt. Only what you print or return is program output — curate it. Image-bearing subtool results are attached after the run.
 
 ```json
 {
   "type": "object",
   "properties": {
+    "description": {
+      "type": "string",
+      "description": "Clear, concise description of what this program does in active voice, 5-10 words (shown in the UI). Provide `description` before `code` in the arguments. Examples: \"Count TODO markers across packages\"; \"Read failing test and its fixture\"; \"Rename config key in every cordis.yml\"."
+    },
     "code": {
       "type": "string",
       "description": "The program: the body of an async TypeScript function."
-    },
-    "description": {
-      "type": "string",
-      "description": "Clear, concise description of what this program does in active voice, 5-10 words (shown in the UI). Examples: \"Count TODO markers across packages\"; \"Read failing test and its fixture\"; \"Rename config key in every cordis.yml\"."
     },
     "timeoutMs": {
       "type": "number",
@@ -300,12 +551,12 @@ Execute a TypeScript program against the available tools. Takes two required arg
     },
     "justification": {
       "type": "string",
-      "description": "Reason this complete program needs wider access, shown to the user for approval."
+      "description": "Reason this complete program needs wider access, shown to the user for approval. Use the language of the user’s current request."
     }
   },
   "required": [
-    "code",
-    "description"
+    "description",
+    "code"
   ]
 }
 ```
@@ -320,7 +571,7 @@ Owned by the tool registry as a reserved transport outside filterable capability
 
 ### `exit_plan_mode`
 
-Use only in plan mode. Present your plan for the user's review and, on approval, leave plan mode. Send the COMPLETE plan as markdown, starting with a # heading that names it. The user may approve (carry out the plan from your next step) or keep planning — their feedback comes back in the tool result; revise and present again.
+Use only in plan mode. Present your plan for the user's review and, on approval, leave plan mode. The user may approve (carry out the plan from your next step) or keep planning — their feedback comes back in the tool result; revise and present again.
 
 ```json
 {
@@ -347,23 +598,23 @@ exit_plan_mode stays in the model-facing schema while planning is inactive so tr
 
 ### `bash`
 
-Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell: no state (cwd, variables, functions) persists between calls — pass `workdir` instead of using `cd`. Non-zero exits are reported as `[exit code: N]`. Current harness environment facts are exposed through managed `$DSH_*` variables; inspect them when needed. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. Set `run_in_background: true` for long-running commands: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`.
+Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell; pass `workdir` instead of using `cd`. Managed `$DSH_*` variables expose current harness environment facts. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. Provide `description` before `command` in the arguments. Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. An unset variable expands to an empty string, so guard variables in such paths with `${VAR:?}`. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way.
 
 ```json
 {
   "type": "object",
   "properties": {
-    "command": {
-      "type": "string",
-      "description": "The bash command to execute."
-    },
     "description": {
       "type": "string",
       "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"npm install\" → \"Install package dependencies\"."
     },
+    "command": {
+      "type": "string",
+      "description": "The bash command to execute."
+    },
     "timeoutMs": {
       "type": "number",
-      "description": "Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry."
+      "description": "Timeout in milliseconds. The executor applies its configured default and cap; on expiry the command moves to the background as a job instead of being killed."
     },
     "workdir": {
       "type": "string",
@@ -375,15 +626,15 @@ Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs 
     }
   },
   "required": [
-    "command",
-    "description"
+    "description",
+    "command"
   ]
 }
 ```
 
 Source: [`packages/shell/tool-bash/src/index.ts`](../packages/shell/tool-bash/src/index.ts)
 
-The bash tool is the model-facing consumer of the bash executor seam. A `run_in_background` run registers with the generic `ctx.jobs` runtime and is collected/stopped through the `job_*` tools from `@deepseek-ai/dsh-tool-jobs`; the `enableRunInBackground` config (default true) removes the parameter entirely when disabled.
+The bash tool is the model-facing consumer of the bash executor seam. With a job registry composed every call registers with the generic `ctx.jobs` runtime as it starts, collected/stopped through the `job_*` tools from `@deepseek-ai/dsh-tool-jobs`; without one, or with `enableRunInBackground: false`, the tool registers a foreground-only schema without the `run_in_background` parameter.
 
 <a id="deepseek-aidsh-tool-present"></a>
 
@@ -391,7 +642,7 @@ The bash tool is the model-facing consumer of the bash executor seam. A `run_in_
 
 ### `present`
 
-Declare existing files accessible through the Session filesystem as final deliverables. When a file you create or update is an output the user asked to receive, you must call present after writing it and before your final response, including files created through Bash or code execution. Mentioning its path in your reply does not replace this call. The files must already exist. The user opens the current source files; their contents are not copied or preserved.
+Declare existing files as final deliverables for the user. Use it when the user needs a separate file, especially Office documents, spreadsheets, and slide decks; prefer your final response when that suffices. The user opens the current files; their contents are not copied.
 
 ```json
 {
@@ -399,6 +650,7 @@ Declare existing files accessible through the Session filesystem as final delive
   "properties": {
     "files": {
       "type": "array",
+      "description": "Usually the 1-2 most important deliverables; at most 4 per call.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -434,23 +686,23 @@ Deliveries belong to the calling Session; Web ui-deliverables supplies source-fi
 
 ### `pwsh`
 
-Execute a PowerShell command (`pwsh -Command`) and return its stdout/stderr. Each call runs in a fresh pwsh process: no state (cwd, variables, functions) persists between calls — pass `workdir` instead of using `cd`. Paths use native Windows form (`C:\...`); read environment variables with `$env:NAME`. Non-zero exits are reported as `[exit code: N]`. Current harness environment facts are exposed through managed `$env:DSH_*` variables; inspect them when needed. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. On Windows a force-killed command settles as `[exit code: 1]` without a signal marker — treat it as an interruption, not a command failure. Set `run_in_background: true` for long-running commands: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`.
+Execute a PowerShell command (`pwsh -Command`) and return its stdout/stderr. Each call runs in a fresh pwsh process; pass `workdir` instead of using `cd`. Paths use native Windows form (`C:\...`); read environment variables with `$env:NAME`. Managed `$env:DSH_*` variables expose current harness environment facts. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. On Windows a force-killed command settles as `[exit code: 1]` without a signal marker — treat it as an interruption, not a command failure. Provide `description` before `command` in the arguments. Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. Do not assign to automatic variables such as `$HOME`; variable names are case-insensitive, so `$home` is the same read-only variable. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way.
 
 ```json
 {
   "type": "object",
   "properties": {
-    "command": {
-      "type": "string",
-      "description": "The PowerShell command to execute."
-    },
     "description": {
       "type": "string",
       "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"Get-Process\" → \"List running processes\"."
     },
+    "command": {
+      "type": "string",
+      "description": "The PowerShell command to execute."
+    },
     "timeoutMs": {
       "type": "number",
-      "description": "Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry."
+      "description": "Timeout in milliseconds. The executor applies its configured default and cap; on expiry the command moves to the background as a job instead of being killed."
     },
     "workdir": {
       "type": "string",
@@ -462,8 +714,8 @@ Execute a PowerShell command (`pwsh -Command`) and return its stdout/stderr. Eac
     }
   },
   "required": [
-    "command",
-    "description"
+    "description",
+    "command"
   ]
 }
 ```
@@ -476,91 +728,9 @@ The pwsh tool is the PowerShell-dialect consumer of the bash executor seam for W
 
 ## `@deepseek-ai/dsh-tool-cordis`
 
-### `cordis_define`
-
-Define an immutable Cordis Package. For a new Plugin, use kind:"new" and provide only a semantic prefix of 3–6 lowercase English letters; the Host returns the final pluginId and packageId. To modify an existing Plugin, use kind:"existing" with its exact pluginId to append a Package without overwriting older versions. Provide at least one of code.host and code.client. Each value is a plain JavaScript function body that returns a Cordis Plugin; no TypeScript, JSX, or import transformation occurs. Query Inspect before depending on a Service, Event, Builtin, Slot, or token. Define only validates parameters and syntax and records source: it does not request approval, execute apply, or change currentPackageId. On success, call cordis_run with the returned IDs.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "plugin": {
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "kind": {
-              "type": "string",
-              "const": "new"
-            },
-            "idPrefix": {
-              "type": "string",
-              "description": "Suggested semantic prefix of 3–6 lowercase English letters; the Host adds a unique numeric suffix."
-            }
-          },
-          "required": [
-            "kind",
-            "idPrefix"
-          ]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "kind": {
-              "type": "string",
-              "const": "existing"
-            },
-            "pluginId": {
-              "type": "string",
-              "description": "Exact ID of an existing Plugin; the new Package is appended to that instance."
-            }
-          },
-          "required": [
-            "kind",
-            "pluginId"
-          ]
-        }
-      ]
-    },
-    "name": {
-      "type": "string",
-      "description": "Short, readable Package name."
-    },
-    "purpose": {
-      "type": "string",
-      "description": "One-sentence, user-facing description of the Package purpose."
-    },
-    "code": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "host": {
-          "type": "string",
-          "description": "Plain JavaScript function body that returns the Host-half Cordis Plugin."
-        },
-        "client": {
-          "type": "string",
-          "description": "Plain JavaScript function body that returns the browser Client-half Cordis Plugin."
-        }
-      }
-    }
-  },
-  "required": [
-    "plugin",
-    "name",
-    "purpose",
-    "code"
-  ]
-}
-```
-
-Source: [`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
-
 ### `cordis_inspect_list`
 
-List every Cordis Inspect Provider currently known to the Host, including local Host Providers and the latest manifests synchronized from the Client. Each entry includes its platform, purpose, read-only methods, and input/output schemas. Call this Tool before creating or modifying a Package, then select the provider and method for cordis_inspect_query from its result. Do not guess names or treat an Inspect method as a business Service that Plugin code can call.
+List every Cordis Inspect Provider currently known to the Host, including local Host Providers and the latest manifests synchronized from the Client. Each entry includes its platform, purpose, read-only methods, and input/output schemas. Call this Tool before writing or configuring a plugin, then select the provider and method for cordis_inspect_query from its result. Do not guess names or treat an Inspect method as a business Service that Plugin code can call.
 
 ```json
 {
@@ -573,7 +743,7 @@ Source: [`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/
 
 ### `cordis_inspect_query`
 
-Run a read-only query explicitly declared by an Inspect Provider. platform, provider, and method must come from cordis_inspect_list, and input must satisfy that method's schema. Use this Tool before cordis_define to read exact Service methods, Event modes, Builtin signatures, Tool schemas, theme tokens, or live Slot trees and props. Host queries run locally. A Client query waits for the first valid page response and remains pending until a page answers or the Tool is cancelled. This Tool cannot invoke business Service methods or modify the runtime. For Service.listService and Event.listEvents, query without input to navigate the compact signature directory, then query the exact service or event for its structured contract and referenced types. For Slots.listSubTree, query without root to navigate the compact tree, then query the exact root for its complete registration contract and props.
+Run a read-only query declared by an Inspect Provider. platform, provider, and method must come from cordis_inspect_list, and input must satisfy that method's schema. Use this Tool before writing plugin code to read exact Service methods, Event modes, plugin Config schemas, Tool schemas, theme tokens, or live Slot trees and props. Host queries run locally. A Client query waits for the first valid page response within the configured timeout; otherwise it reports a Client failure or asks you to reconnect and retry. This Tool cannot invoke business Service methods or modify the runtime.
 
 ```json
 {
@@ -609,106 +779,7 @@ Run a read-only query explicitly declared by an Inspect Provider. platform, prov
 
 Source: [`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
-### `cordis_inspect_self`
-
-Inspect dynamic Cordis objects owned by the current Session at increasing levels of detail. With no IDs, list only Plugin summaries. With pluginId alone, return version pointers, the latest Run, and every Package summary. Only pluginId plus packageId returns that immutable Package's Host/Client source and runtime diagnostics. packageId cannot be supplied alone. Query an exact Package before handling @pluginId, repairing an asynchronous failure, or defining an updated version. This Tool is read-only: it neither executes code nor changes version pointers.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "pluginId": {
-      "type": "string",
-      "description": "Stable Plugin ID returned by cordis_define or injected by @pluginId; omit it to list every current Plugin."
-    },
-    "packageId": {
-      "type": "string",
-      "description": "Exact immutable Package ID owned by pluginId; when specified, source and diagnostics are returned."
-    }
-  }
-}
-```
-
-Source: [`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
-
-### `cordis_run`
-
-Activate one exact Package of a dynamic Plugin. Use mode:"run" for the first activation, restarting currentPackageId, or rollback. When current exists, use mode:"update" to switch to a different Package, even if the Plugin is currently stopped. An unauthorized Client Package creates an approval request and returns awaiting-approval; an authorized Package returns starting and continues asynchronously in the browser. Neither result waits for the final outcome inside the Tool. currentPackageId changes only after complete success; on failure, the old current and target next remain. Asynchronous success, rejection, or technical failure is reported through state and steering. After a technical failure, read diagnostics with cordis_inspect_self, correct the same Plugin, and retry autonomously. Do not request approval again after the user rejects it.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "pluginId": {
-      "type": "string",
-      "description": "Stable Plugin ID returned by cordis_define."
-    },
-    "packageId": {
-      "type": "string",
-      "description": "Exact immutable Package ID to activate under that Plugin."
-    },
-    "mode": {
-      "type": "string",
-      "description": "Use run for the first activation, restarting current, or rollback; use update to switch from current to a different Package.",
-      "enum": [
-        "run",
-        "update"
-      ]
-    }
-  },
-  "required": [
-    "pluginId",
-    "packageId",
-    "mode"
-  ]
-}
-```
-
-Source: [`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
-
-### `cordis_stop`
-
-Stop the current Run of a dynamic Plugin and cancel unfinished approval or activation requests. Retain the Plugin, every immutable Package, grants, currentPackageId, and nextPackageId so it can later run or update directly. Stopping an already stopped Plugin succeeds idempotently. Use this Tool to disable effects temporarily; use cordis_undefine for permanent removal.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "pluginId": {
-      "type": "string",
-      "description": "Stable dynamic Plugin ID to stop."
-    }
-  },
-  "required": [
-    "pluginId"
-  ]
-}
-```
-
-Source: [`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
-
-### `cordis_undefine`
-
-Permanently remove a dynamic Plugin owned by the current Session. If it is running or awaiting approval, first stop it and cancel the request, then delete every Package, grant, and version pointer. After this returns, its pluginId, packageIds, @ reference, and Package business views are invalid; historical cards retain only a "Plugin removed" record. Do not call this Tool when versions must remain available for restart or rollback; use cordis_stop instead.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "pluginId": {
-      "type": "string",
-      "description": "Stable dynamic Plugin ID to remove permanently."
-    }
-  },
-  "required": [
-    "pluginId"
-  ]
-}
-```
-
-Source: [`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
-
-Not in any shipped tree (a deliberate opt-in — dynamic package code reaches the real runtime, see .agents/notes/implemented/feature/2026-07-08-self-referential-cordis-toolset.md). The toolset injects `ctx.dynamicCordisRunner` from `@deepseek-ai/dsh-cordis-host-runner`, which owns the definition registry and the vm sandbox; a composition missing it never activates the tools. A running package may register ADDITIONAL model-visible tools until it is stopped, undefined, or DSH restarts; a full changed request header logs those tool-set changes.
+Creator mode provides two read-only runtime inspection tools. The Cordis host runner supplies the inspection registry; Client queries require a connected page. Author persistent changes as bundles and install them with plugin_manager.
 
 <a id="deepseek-aidsh-tool-bash-persistent"></a>
 
@@ -884,11 +955,11 @@ Edit an existing UTF-8 text file by replacing literal text.
   "properties": {
     "file_path": {
       "type": "string",
-      "description": "Path to edit, resolved by the filesystem backend."
+      "description": "Path to edit, resolved by the filesystem backend. Provide `file_path` before `old_string` and `new_string` in the arguments."
     },
     "old_string": {
       "type": "string",
-      "description": "Literal text to replace. Must match exactly."
+      "description": "Literal text to replace."
     },
     "new_string": {
       "type": "string",
@@ -940,7 +1011,7 @@ Source: [`packages/fs/tool-fs/src/index.ts`](../packages/fs/tool-fs/src/index.ts
 
 ### `read_image`
 
-Read a PNG/JPEG/WebP/GIF file and return the image itself. A path without a file extension is accepted; the format is detected from the file content, so normalized attachment paths can be passed directly without copying or renaming. Harness validates and downscales large supported images before the next model request, so use this tool directly instead of installing image libraries or creating thumbnails merely to inspect an image. Independent files may be read concurrently in small batches. Requires the current model to accept image input.
+Read a PNG/JPEG/WebP/GIF file and return the image itself. Large images are downscaled automatically; do not install image libraries or create thumbnails to inspect an image.
 
 ```json
 {
@@ -969,7 +1040,7 @@ Create or fully replace a UTF-8 text file.
   "properties": {
     "file_path": {
       "type": "string",
-      "description": "Path to write, resolved by the filesystem backend."
+      "description": "Path to write, resolved by the filesystem backend. Provide `file_path` before `content` in the arguments."
     },
     "content": {
       "type": "string",
@@ -993,7 +1064,7 @@ The read-before-write/edit policy is added by `@deepseek-ai/dsh-fs-observation-p
 
 ### `glob`
 
-Find files whose paths match a glob pattern. Returns matching file paths — never directories — including hidden and ignored files (VCS metadata directories are excluded). Up to 100 paths come back in modification-time order; a larger result instead returns 100 paths sampled across top-level entries, says so, and reports where the complete sorted list was saved. This tool does not enumerate directory entries.
+Find files, not directories, whose paths match a glob pattern, including hidden and ignored files. Returns up to 100 paths in modification-time order; a larger result is sampled across top-level entries and reports where the complete list was saved.
 
 ```json
 {
@@ -1018,7 +1089,7 @@ Source: [`packages/fs/tool-fs-search/src/index.ts`](../packages/fs/tool-fs-searc
 
 ### `grep`
 
-Search file contents with a ripgrep regular expression. Returns matching lines with line numbers, grouped by file. Returns the first 250 matches inline; a capped result reports where the complete match list was saved. Use read on a matched file for surrounding context.
+Search file contents with a ripgrep regular expression. Returns matching lines with line numbers, grouped by file. Returns up to 250 matches; a larger result reports where the complete match list was saved.
 
 ```json
 {
@@ -1212,1147 +1283,13 @@ Source: [`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/to
 
 The six terminal tools are opt-in and complement one-shot shell/filesystem tools. `terminal_send(run_in_background: true)` registers with `ctx.jobs`; TUI, named key sequences, BEL, resize, auto-start, and cross-agent sharing are absent from the schema.
 
-<a id="deepseek-aidsh-tool-browser"></a>
-
-## `@deepseek-ai/dsh-tool-browser`
-
-### `browser_back`
-
-Navigate one persistent browser page one step backward.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    }
-  },
-  "required": [
-    "page_id"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_click`
-
-Click an element from the latest browser_snapshot observation.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    },
-    "observation_id": {
-      "type": "string",
-      "description": "Observation id returned by the latest browser_snapshot for this page."
-    },
-    "element_id": {
-      "type": "string",
-      "description": "Element id from that exact browser_snapshot observation."
-    }
-  },
-  "required": [
-    "page_id",
-    "observation_id",
-    "element_id"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_close`
-
-Close one persistent browser page.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    }
-  },
-  "required": [
-    "page_id"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_downloads`
-
-List captured downloads belonging to one open browser page.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    }
-  },
-  "required": [
-    "page_id"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_forward`
-
-Navigate one persistent browser page one step forward.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    }
-  },
-  "required": [
-    "page_id"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_history`
-
-Read bounded navigation history for one persistent browser page.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    },
-    "limit": {
-      "type": "integer",
-      "description": "Maximum entries from 1 through 100."
-    }
-  },
-  "required": [
-    "page_id"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_home`
-
-Open the configured Browser home page in a new persistent page.
-
-```json
-{
-  "type": "object",
-  "properties": {}
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_list`
-
-List persistent browser pages and their stable page ids.
-
-```json
-{
-  "type": "object",
-  "properties": {}
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_navigate`
-
-Navigate one persistent browser page to an HTTP or HTTPS URL.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    },
-    "url": {
-      "type": "string",
-      "description": "Absolute HTTP or HTTPS destination URL."
-    }
-  },
-  "required": [
-    "page_id",
-    "url"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_network`
-
-Read bounded network request observations captured by one persistent browser page.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    },
-    "limit": {
-      "type": "integer",
-      "description": "Maximum entries from 1 through 100."
-    }
-  },
-  "required": [
-    "page_id"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_open`
-
-Open an HTTP or HTTPS URL in a new persistent browser page.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "url": {
-      "type": "string",
-      "description": "Absolute HTTP or HTTPS URL to open."
-    }
-  },
-  "required": [
-    "url"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_save_download`
-
-Persist one completed browser download as a file attachment; returns metadata, never file contents.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    },
-    "download_id": {
-      "type": "string",
-      "description": "Download id returned by browser_downloads."
-    }
-  },
-  "required": [
-    "page_id",
-    "download_id"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_screenshot`
-
-Capture the current browser viewport and return it as an image.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    }
-  },
-  "required": [
-    "page_id"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_search`
-
-Search the configured Browser search engine in a new persistent page.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "query": {
-      "type": "string",
-      "description": "Search text."
-    }
-  },
-  "required": [
-    "query"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_snapshot`
-
-Read a persistent browser page accessibility tree and fresh element ids.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    }
-  },
-  "required": [
-    "page_id"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-### `browser_upload`
-
-Set a browser file input from a workspace file. Page input/change handlers may upload data. Requires a fresh browser_snapshot.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    },
-    "observation_id": {
-      "type": "string",
-      "description": "Latest page observation."
-    },
-    "element_id": {
-      "type": "string",
-      "description": "File input element from that observation."
-    },
-    "file_path": {
-      "type": "string",
-      "description": "File inside the calling Session workspace."
-    }
-  },
-  "required": [
-    "page_id",
-    "observation_id",
-    "element_id",
-    "file_path"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
-
-The sixteen persistent-browser tools keep page and observation handles in the selected Browser provider. Screenshot execution additionally requires an image-capable model route.
-
-<a id="deepseek-aidsh-tool-browser-element-capture"></a>
-
-## `@deepseek-ai/dsh-tool-browser-element-capture`
-
-### `browser_capture_element`
-
-Capture a verified cropped image using either browser_snapshot ids or a browser_select_element selection id.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent browser page id."
-    },
-    "observation_id": {
-      "type": "string",
-      "description": "Exact observation_id returned by browser_snapshot; use with element_id."
-    },
-    "element_id": {
-      "type": "string",
-      "description": "Element id from the same browser_snapshot observation."
-    },
-    "selection_id": {
-      "type": "string",
-      "description": "Temporary selection id returned by browser_select_element."
-    }
-  },
-  "required": [
-    "page_id"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser-element-capture/src/index.ts`](../packages/browser/tool-browser-element-capture/src/index.ts)
-
-### `browser_select_element`
-
-Show a temporary hover highlight on a persistent browser page and wait for one user-selected element.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "page_id": {
-      "type": "string",
-      "description": "Persistent page id returned by browser_list or browser_open."
-    }
-  },
-  "required": [
-    "page_id"
-  ]
-}
-```
-
-Source: [`packages/browser/tool-browser-element-capture/src/index.ts`](../packages/browser/tool-browser-element-capture/src/index.ts)
-
-The two tools form a selection-and-capture workflow. Schemas use the default 60000 ms timeout and PNG output; execution requires a Browser provider with element capture and a matching Coordination executor.
-
-<a id="deepseek-aidsh-tool-computer-use"></a>
-
-## `@deepseek-ai/dsh-tool-computer-use`
-
-### `computer_accessibility`
-
-Perform a secondary accessibility action or set one element value using an exact observation.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "app_id": {
-      "type": "string",
-      "description": "Application id returned by computer_list_apps."
-    },
-    "window_id": {
-      "type": "string",
-      "description": "Window id returned by computer_list_windows or computer_observe."
-    },
-    "observation_id": {
-      "type": "string",
-      "description": "Exact observation id returned by the latest computer_observe or action for this window."
-    },
-    "restore_window": {
-      "type": "boolean",
-      "description": "Bring the exact target window forward before acting."
-    },
-    "action": {
-      "type": "string",
-      "enum": [
-        "secondary_action",
-        "set_value"
-      ]
-    },
-    "element_id": {
-      "type": "string"
-    },
-    "action_name": {
-      "type": "string",
-      "description": "Provider-advertised action name for secondary_action."
-    },
-    "value": {
-      "type": "string",
-      "description": "Exact value for set_value."
-    }
-  },
-  "required": [
-    "app_id",
-    "window_id",
-    "observation_id",
-    "action",
-    "element_id"
-  ]
-}
-```
-
-Source: [`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
-
-### `computer_keyboard`
-
-Type, paste, press one key, or press one hotkey using one exact desktop observation.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "app_id": {
-      "type": "string",
-      "description": "Application id returned by computer_list_apps."
-    },
-    "window_id": {
-      "type": "string",
-      "description": "Window id returned by computer_list_windows or computer_observe."
-    },
-    "observation_id": {
-      "type": "string",
-      "description": "Exact observation id returned by the latest computer_observe or action for this window."
-    },
-    "restore_window": {
-      "type": "boolean",
-      "description": "Bring the exact target window forward before acting."
-    },
-    "action": {
-      "type": "string",
-      "enum": [
-        "type_text",
-        "paste_text",
-        "press_key",
-        "hotkey"
-      ]
-    },
-    "text": {
-      "type": "string",
-      "description": "Literal text for type_text or paste_text."
-    },
-    "key": {
-      "type": "string",
-      "description": "Single key or modifier chord for press_key or hotkey."
-    }
-  },
-  "required": [
-    "app_id",
-    "window_id",
-    "observation_id",
-    "action"
-  ]
-}
-```
-
-Source: [`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
-
-### `computer_list_apps`
-
-List local desktop applications available to Computer Use.
-
-```json
-{
-  "type": "object",
-  "properties": {}
-}
-```
-
-Source: [`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
-
-### `computer_list_windows`
-
-List current windows for one desktop application.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "app_id": {
-      "type": "string",
-      "description": "Application id returned by computer_list_apps."
-    }
-  },
-  "required": [
-    "app_id"
-  ]
-}
-```
-
-Source: [`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
-
-### `computer_observe`
-
-Read one desktop application accessibility tree and fresh element ids.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "app_id": {
-      "type": "string",
-      "description": "Application id returned by computer_list_apps."
-    },
-    "window_id": {
-      "type": "string",
-      "description": "Optional window id; omit only when the application has one unambiguous window."
-    },
-    "restore_window": {
-      "type": "boolean",
-      "description": "Bring the target window forward before observing it."
-    }
-  },
-  "required": [
-    "app_id"
-  ]
-}
-```
-
-Source: [`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
-
-### `computer_pointer`
-
-Click, scroll, or drag using one exact desktop observation.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "app_id": {
-      "type": "string",
-      "description": "Application id returned by computer_list_apps."
-    },
-    "window_id": {
-      "type": "string",
-      "description": "Window id returned by computer_list_windows or computer_observe."
-    },
-    "observation_id": {
-      "type": "string",
-      "description": "Exact observation id returned by the latest computer_observe or action for this window."
-    },
-    "restore_window": {
-      "type": "boolean",
-      "description": "Bring the exact target window forward before acting."
-    },
-    "action": {
-      "type": "string",
-      "enum": [
-        "click",
-        "scroll",
-        "drag"
-      ]
-    },
-    "element_id": {
-      "type": "string",
-      "description": "Element id for click/scroll or drag start."
-    },
-    "to_element_id": {
-      "type": "string",
-      "description": "Element id for drag destination."
-    },
-    "x": {
-      "type": "number",
-      "description": "Window-local x for click/scroll or drag start."
-    },
-    "y": {
-      "type": "number",
-      "description": "Window-local y for click/scroll or drag start."
-    },
-    "to_x": {
-      "type": "number",
-      "description": "Window-local drag destination x."
-    },
-    "to_y": {
-      "type": "number",
-      "description": "Window-local drag destination y."
-    },
-    "direction": {
-      "type": "string",
-      "enum": [
-        "up",
-        "down",
-        "left",
-        "right"
-      ]
-    },
-    "pages": {
-      "type": "integer"
-    },
-    "click_count": {
-      "type": "integer"
-    },
-    "mouse_button": {
-      "type": "string",
-      "enum": [
-        "left",
-        "right",
-        "middle"
-      ]
-    },
-    "modifiers": {
-      "type": "string",
-      "description": "One provider-supported modifier chord."
-    }
-  },
-  "required": [
-    "app_id",
-    "window_id",
-    "observation_id",
-    "action"
-  ]
-}
-```
-
-Source: [`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
-
-Device tools are opt-in. Every desktop action uses a current observation; screenshots require an image-capable route and accepted attachment policy.
-
-<a id="deepseek-aidsh-tool-mobile-device"></a>
-
-## `@deepseek-ai/dsh-tool-mobile-device`
-
-### `mobile_button`
-
-Press one provider-supported device navigation button using an exact observation.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "device_id": {
-      "type": "string",
-      "description": "Exact device id returned by the latest mobile_observe."
-    },
-    "observation_id": {
-      "type": "string",
-      "description": "One-use observation id returned by the latest mobile_observe for this device."
-    },
-    "button": {
-      "type": "string"
-    }
-  },
-  "required": [
-    "device_id",
-    "observation_id",
-    "button"
-  ]
-}
-```
-
-Source: [`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
-
-### `mobile_list_devices`
-
-List exact device ids and availability from the configured mobile provider.
-
-```json
-{
-  "type": "object",
-  "properties": {}
-}
-```
-
-Source: [`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
-
-### `mobile_observe`
-
-Read one fresh mobile-device tree and optional native PNG image.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "device_id": {
-      "type": "string",
-      "description": "Exact device id returned by mobile_list_devices. Omit to use the saved default device; it must be currently available and there is no fallback."
-    }
-  }
-}
-```
-
-Source: [`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
-
-### `mobile_touch`
-
-Tap or swipe with normalized coordinates using one exact observation.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "device_id": {
-      "type": "string",
-      "description": "Exact device id returned by the latest mobile_observe."
-    },
-    "observation_id": {
-      "type": "string",
-      "description": "One-use observation id returned by the latest mobile_observe for this device."
-    },
-    "action": {
-      "type": "string",
-      "enum": [
-        "tap",
-        "swipe"
-      ]
-    },
-    "x": {
-      "type": "number",
-      "description": "Normalized tap x from 0 to 1."
-    },
-    "y": {
-      "type": "number",
-      "description": "Normalized tap y from 0 to 1."
-    },
-    "from_x": {
-      "type": "number",
-      "description": "Normalized swipe start x from 0 to 1."
-    },
-    "from_y": {
-      "type": "number",
-      "description": "Normalized swipe start y from 0 to 1."
-    },
-    "to_x": {
-      "type": "number",
-      "description": "Normalized swipe destination x from 0 to 1."
-    },
-    "to_y": {
-      "type": "number",
-      "description": "Normalized swipe destination y from 0 to 1."
-    }
-  },
-  "required": [
-    "device_id",
-    "observation_id",
-    "action"
-  ]
-}
-```
-
-Source: [`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
-
-### `mobile_type`
-
-Type literal text through stdin using one exact mobile observation.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "device_id": {
-      "type": "string",
-      "description": "Exact device id returned by the latest mobile_observe."
-    },
-    "observation_id": {
-      "type": "string",
-      "description": "One-use observation id returned by the latest mobile_observe for this device."
-    },
-    "text": {
-      "type": "string"
-    }
-  },
-  "required": [
-    "device_id",
-    "observation_id",
-    "text"
-  ]
-}
-```
-
-Source: [`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
-
-Mobile tools use normalized coordinates and one-use observation tokens. Device input requires explicit policy approval in the device-control profile.
-
-<a id="deepseek-aidsh-tool-coordination"></a>
-
-## `@deepseek-ai/dsh-tool-coordination`
-
-### `coordination_add_task`
-
-Add one task to a live coordination run. Its dependencies and parent must already belong to that run.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "run_id": {
-      "type": "string",
-      "description": "Run id returned by coordination_start."
-    },
-    "task": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "task_id": {
-          "type": "string",
-          "description": "Optional stable id. Assign ids to tasks referenced by dependencies."
-        },
-        "label": {
-          "type": "string",
-          "description": "Short task label."
-        },
-        "prompt": {
-          "type": "string",
-          "description": "Standalone instructions for the task executor."
-        },
-        "dependencies": {
-          "type": "array",
-          "description": "Task ids that must succeed first.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "executor": {
-          "type": "string",
-          "description": "Registered executor kind. Omit to use the configured default."
-        },
-        "parent_task_id": {
-          "type": "string",
-          "description": "Optional acyclic parent task for subtree cancellation."
-        }
-      },
-      "required": [
-        "label",
-        "prompt"
-      ]
-    }
-  },
-  "required": [
-    "run_id",
-    "task"
-  ]
-}
-```
-
-Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
-
-### `coordination_cancel`
-
-Cancel one owned run, or one owned task parent-subtree plus tasks transitively blocked by cancelled dependencies. Running executors receive the reason through their AbortSignal.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "run_id": {
-      "type": "string",
-      "description": "Run id to cancel; mutually exclusive with task_id."
-    },
-    "task_id": {
-      "type": "string",
-      "description": "Task id whose parent-subtree and dependency-blocked descendants should be cancelled; mutually exclusive with run_id."
-    },
-    "reason": {
-      "type": "string",
-      "description": "Optional cancellation reason."
-    }
-  }
-}
-```
-
-Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
-
-### `coordination_send_message`
-
-Commit a message addressed to one owned task. Message listeners decide delivery; the coordination record itself does not imply that an executor supports live steering.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "task_id": {
-      "type": "string",
-      "description": "Recipient task id."
-    },
-    "message": {
-      "type": "string",
-      "description": "Non-empty message for the task."
-    }
-  },
-  "required": [
-    "task_id",
-    "message"
-  ]
-}
-```
-
-Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
-
-### `coordination_start`
-
-Start a background task DAG. Independent tasks may run concurrently; dependency tasks start only after every named dependency succeeds. Keep the returned run and task ids for status, messages, cancellation, and waits.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "tasks": {
-      "type": "array",
-      "description": "Complete initial task graph.",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "task_id": {
-            "type": "string",
-            "description": "Optional stable id. Assign ids to tasks referenced by dependencies."
-          },
-          "label": {
-            "type": "string",
-            "description": "Short task label."
-          },
-          "prompt": {
-            "type": "string",
-            "description": "Standalone instructions for the task executor."
-          },
-          "dependencies": {
-            "type": "array",
-            "description": "Task ids that must succeed first.",
-            "items": {
-              "type": "string"
-            }
-          },
-          "executor": {
-            "type": "string",
-            "description": "Registered executor kind. Omit to use the configured default."
-          },
-          "parent_task_id": {
-            "type": "string",
-            "description": "Optional acyclic parent task for subtree cancellation."
-          }
-        },
-        "required": [
-          "label",
-          "prompt"
-        ]
-      }
-    }
-  },
-  "required": [
-    "tasks"
-  ]
-}
-```
-
-Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
-
-### `coordination_status`
-
-Read one owned coordination run with all of its tasks, or one owned task. This call never waits.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "run_id": {
-      "type": "string",
-      "description": "Run id to inspect; mutually exclusive with task_id."
-    },
-    "task_id": {
-      "type": "string",
-      "description": "Task id to inspect; mutually exclusive with run_id."
-    }
-  }
-}
-```
-
-Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
-
-### `coordination_wait`
-
-Wait for one owned run or task to become terminal, up to the configured timeout cap. A timeout returns current state with timedOut: true and leaves work running.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "run_id": {
-      "type": "string",
-      "description": "Run id to wait for; mutually exclusive with task_id."
-    },
-    "task_id": {
-      "type": "string",
-      "description": "Task id to wait for; mutually exclusive with run_id."
-    },
-    "timeout_ms": {
-      "type": "integer",
-      "description": "Optional positive wait duration, capped by deployment configuration."
-    }
-  }
-}
-```
-
-Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
-
-The six task-graph tools are session-owned. The catalog uses the default subagent executor name and bounded wait defaults; execution requires a registered executor for started tasks.
-
-<a id="deepseek-aidsh-tool-git"></a>
-
-## `@deepseek-ai/dsh-tool-git`
-
-### `git_diff`
-
-Read the bounded diff observation for the calling agent workspace repository. This tool never changes the repository.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "max_bytes": {
-      "type": "integer",
-      "description": "Optional positive byte cap within the configured provider limit."
-    }
-  }
-}
-```
-
-Source: [`packages/git/tool-git/src/index.ts`](../packages/git/tool-git/src/index.ts)
-
-### `git_log`
-
-Read recent commits from the calling agent workspace repository as bounded structured entries. This tool never changes the repository.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "limit": {
-      "type": "integer",
-      "description": "Optional positive entry limit within the configured provider limit."
-    }
-  }
-}
-```
-
-Source: [`packages/git/tool-git/src/index.ts`](../packages/git/tool-git/src/index.ts)
-
-### `git_status`
-
-Read structured branch, divergence, and working-tree counts for the calling agent workspace repository. This tool never changes the repository.
-
-```json
-{
-  "type": "object",
-  "properties": {}
-}
-```
-
-Source: [`packages/git/tool-git/src/index.ts`](../packages/git/tool-git/src/index.ts)
-
-The three read-only Git tools are catalogued with the local provider using the explicit executable and bounded limits shown above; a deployment may choose different provider configuration.
-
 <a id="deepseek-aidsh-tool-goal"></a>
 
 ## `@deepseek-ai/dsh-tool-goal`
 
 ### `create_goal`
 
-Create one persisted same-session completion goal when the current direct human request is a long-running objective that should continue across autonomous goal rounds. You may infer that intent without requiring the user to say "create a goal". Do not use this for trivial single-turn work. Execution rejects non-human and subagent authority.
+Create a persisted goal that keeps this session working across automatic continuation rounds. Use it when the direct human request is a long-running objective, even if the user did not say "goal"; not for single-turn work.
 
 ```json
 {
@@ -2377,7 +1314,7 @@ Source: [`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/
 
 ### `get_goal`
 
-Read the current same-session goal, including its exact id/revision, objective, phase, completed continuation rounds, round limit, blocker reason when present, and whether another continuation is armed. Call this before updating a goal.
+Read the current session goal, including the id and revision that update_goal requires.
 
 ```json
 {
@@ -2390,7 +1327,7 @@ Source: [`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/
 
 ### `update_goal`
 
-Update the exact current goal revision. edit, pause, and resume require a direct top-level human request. During an automatic continuation of the current goal, complete and blocked are also allowed. blocked is rejected before the configured minimum round count; the model remains responsible for judging that the same condition persisted across those rounds and must explain it in blocked_reason.
+Update the current goal.
 
 ```json
 {
@@ -2406,7 +1343,7 @@ Update the exact current goal revision. edit, pause, and resume require a direct
     },
     "action": {
       "type": "string",
-      "description": "edit | pause | resume | complete | blocked",
+      "description": "edit, pause, and resume require a direct top-level human request. complete and blocked are also allowed during an automatic continuation of this goal; blocked is rejected before the configured minimum round count.",
       "enum": [
         "edit",
         "pause",
@@ -2425,7 +1362,7 @@ Update the exact current goal revision. edit, pause, and resume require a direct
     },
     "blocked_reason": {
       "type": "string",
-      "description": "Concrete blocking condition; required only with action blocked."
+      "description": "Required only with action blocked: the concrete condition that persisted across rounds and blocks progress."
     }
   },
   "required": [
@@ -2440,13 +1377,13 @@ Source: [`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/
 
 create, edit, pause, and resume require direct-human root authority; complete and blocked also accept the exact current goal round. The default blocked lower bound is three admitted rounds.
 
-<a id="deepseek-aidsh-schedule"></a>
+<a id="deepseek-aidsh-tool-schedule"></a>
 
-## `@deepseek-ai/dsh-schedule`
+## `@deepseek-ai/dsh-tool-schedule`
 
 ### `schedule_create`
 
-Create one reminder in the current session. Supply a non-empty prompt and exactly one selector: a positive safe-integer after_seconds delay, at as a strict offset date-time or local date/time object, or safe-integer every_seconds of at least 300. Fixed-rate reminders stay creation-aligned, skip missed occurrences, and batch one latest occurrence per overdue rule. Delivery is session-local: the reminder runs on time only while this session is live and otherwise becomes overdue until the session is resumed.
+Create a reminder in the current session that delivers prompt when it becomes due. Supply exactly one timing parameter: after_seconds, at, every_seconds, daily, weekly, or cron. Local times that do not exist in the zone are skipped; repeated local times fire once, at the earlier instant. After downtime, a recurring reminder delivers only its latest missed occurrence. Delivery can repeat after a crash.
 
 ```json
 {
@@ -2456,13 +1393,82 @@ Create one reminder in the current session. Supply a non-empty prompt and exactl
       "type": "string",
       "description": "Reminder content to present when the target becomes due."
     },
+    "title": {
+      "type": "string",
+      "description": "Task name of at most 120 characters, shown on the task card and in task lists."
+    },
     "after_seconds": {
       "type": "number",
-      "description": "Positive safe-integer delay in seconds."
+      "description": "Delay in whole seconds."
     },
     "every_seconds": {
       "type": "number",
-      "description": "Fixed-rate safe-integer interval in seconds, at least 300."
+      "description": "Fixed-rate interval in whole seconds, at least 60, aligned to the creation time; changing it with schedule_update re-aligns it to the save time."
+    },
+    "daily": {
+      "type": "object",
+      "description": "Every day at a local time.",
+      "additionalProperties": false,
+      "properties": {
+        "time": {
+          "type": "string",
+          "description": "HH:mm:ss with optional 1-3 fractional digits, for example 23:00:00."
+        },
+        "time_zone": {
+          "type": "string",
+          "description": "UTC or IANA Area/Location, for example Asia/Shanghai."
+        }
+      },
+      "required": [
+        "time",
+        "time_zone"
+      ]
+    },
+    "weekly": {
+      "type": "object",
+      "description": "On the given weekdays at a local time.",
+      "additionalProperties": false,
+      "properties": {
+        "time": {
+          "type": "string",
+          "description": "HH:mm:ss with optional 1-3 fractional digits, for example 09:00:00."
+        },
+        "time_zone": {
+          "type": "string",
+          "description": "UTC or IANA Area/Location, for example Asia/Shanghai."
+        },
+        "weekdays": {
+          "type": "array",
+          "description": "ISO weekdays, Monday 1 through Sunday 7, without repetitions.",
+          "items": {
+            "type": "integer"
+          }
+        }
+      },
+      "required": [
+        "time",
+        "time_zone",
+        "weekdays"
+      ]
+    },
+    "cron": {
+      "type": "object",
+      "description": "Five-field Vixie cron expression in a time zone.",
+      "additionalProperties": false,
+      "properties": {
+        "expression": {
+          "type": "string",
+          "description": "minute hour day-of-month month day-of-week, for example \"*/15 9-17 * * 1-5\". When both day fields are restricted, a date matches if either one matches."
+        },
+        "time_zone": {
+          "type": "string",
+          "description": "UTC or IANA Area/Location, for example Asia/Shanghai."
+        }
+      },
+      "required": [
+        "expression",
+        "time_zone"
+      ]
     },
     "at": {
       "oneOf": [
@@ -2490,20 +1496,21 @@ Create one reminder in the current session. Supply a non-empty prompt and exactl
           ]
         }
       ],
-      "description": "Absolute target as strict offset RFC 3339 or local date/time with an explicit IANA zone."
+      "description": "Absolute target: an RFC 3339 date-time with offset, or a local date, time, and IANA time_zone."
     }
   },
   "required": [
-    "prompt"
+    "prompt",
+    "title"
   ]
 }
 ```
 
-Source: [`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
+Source: [`packages/schedule/tool-schedule/src/index.ts`](../packages/schedule/tool-schedule/src/index.ts)
 
 ### `schedule_delete`
 
-Delete one active reminder in the current session by the exact id returned by schedule_create or schedule_list. Unknown or already-finished ids return deleted false.
+Delete a reminder in the current session, active or inactive. Deletion does not retract a reminder message that is already queued.
 
 ```json
 {
@@ -2511,7 +1518,7 @@ Delete one active reminder in the current session by the exact id returned by sc
   "properties": {
     "id": {
       "type": "string",
-      "description": "Exact session-local schedule id."
+      "description": "Exact schedule id."
     }
   },
   "required": [
@@ -2520,11 +1527,11 @@ Delete one active reminder in the current session by the exact id returned by sc
 }
 ```
 
-Source: [`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
+Source: [`packages/schedule/tool-schedule/src/index.ts`](../packages/schedule/tool-schedule/src/index.ts)
 
 ### `schedule_list`
 
-List every active reminder in the current session in creation order, including its exact id, UTC target, scheduled or overdue state, and session-local delivery mode.
+List the active reminders in the current session.
 
 ```json
 {
@@ -2533,9 +1540,135 @@ List every active reminder in the current session in creation order, including i
 }
 ```
 
-Source: [`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
+Source: [`packages/schedule/tool-schedule/src/index.ts`](../packages/schedule/tool-schedule/src/index.ts)
 
-Registered only inside live root Agent scopes created after the opt-in Schedule plugin loads. Version 1 accepts after_seconds, explicit absolute at, and bounded fixed-rate every_seconds, and discloses session-local delivery; management reads and mutations require the shared Session persistence barrier.
+### `schedule_update`
+
+Change a reminder in place, keeping its id. Supply a new title, prompt, or at most one timing parameter; omitted fields keep their stored values. To change a relative delay, create a new reminder.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Schedule id returned by schedule_list."
+    },
+    "title": {
+      "type": "string",
+      "description": "New task name of at most 120 characters."
+    },
+    "prompt": {
+      "type": "string",
+      "description": "New reminder content."
+    },
+    "every_seconds": {
+      "type": "number",
+      "description": "Fixed-rate interval in whole seconds, at least 60, aligned to the creation time; changing it with schedule_update re-aligns it to the save time."
+    },
+    "daily": {
+      "type": "object",
+      "description": "Every day at a local time.",
+      "additionalProperties": false,
+      "properties": {
+        "time": {
+          "type": "string",
+          "description": "HH:mm:ss with optional 1-3 fractional digits, for example 23:00:00."
+        },
+        "time_zone": {
+          "type": "string",
+          "description": "UTC or IANA Area/Location, for example Asia/Shanghai."
+        }
+      },
+      "required": [
+        "time",
+        "time_zone"
+      ]
+    },
+    "weekly": {
+      "type": "object",
+      "description": "On the given weekdays at a local time.",
+      "additionalProperties": false,
+      "properties": {
+        "time": {
+          "type": "string",
+          "description": "HH:mm:ss with optional 1-3 fractional digits, for example 09:00:00."
+        },
+        "time_zone": {
+          "type": "string",
+          "description": "UTC or IANA Area/Location, for example Asia/Shanghai."
+        },
+        "weekdays": {
+          "type": "array",
+          "description": "ISO weekdays, Monday 1 through Sunday 7, without repetitions.",
+          "items": {
+            "type": "integer"
+          }
+        }
+      },
+      "required": [
+        "time",
+        "time_zone",
+        "weekdays"
+      ]
+    },
+    "cron": {
+      "type": "object",
+      "description": "Five-field Vixie cron expression in a time zone.",
+      "additionalProperties": false,
+      "properties": {
+        "expression": {
+          "type": "string",
+          "description": "minute hour day-of-month month day-of-week, for example \"*/15 9-17 * * 1-5\". When both day fields are restricted, a date matches if either one matches."
+        },
+        "time_zone": {
+          "type": "string",
+          "description": "UTC or IANA Area/Location, for example Asia/Shanghai."
+        }
+      },
+      "required": [
+        "expression",
+        "time_zone"
+      ]
+    },
+    "at": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "date": {
+              "type": "string"
+            },
+            "time": {
+              "type": "string"
+            },
+            "time_zone": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "date",
+            "time",
+            "time_zone"
+          ]
+        }
+      ],
+      "description": "Absolute target: an RFC 3339 date-time with offset, or a local date, time, and IANA time_zone."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+Source: [`packages/schedule/tool-schedule/src/index.ts`](../packages/schedule/tool-schedule/src/index.ts)
+
+A preset or Agent scope mounts this package; the preset decides which agents receive the four management tools. Each call acts on the calling Agent's Session. Accepts after_seconds, explicit absolute at, bounded fixed-rate every_seconds, daily and weekly local times in an explicit IANA zone, and cron as a five-field expression. Management uses the Host storage domain; due messages resume the original Session.
 
 <a id="deepseek-aidsh-tool-lsp"></a>
 
@@ -2622,7 +1755,7 @@ A fixed foreground workflow starts one fresh structured child per round; the mod
 
 ### `skill`
 
-Load the full instructions for an available skill. Call this with the exact skill name from the session skill catalog before acting on a task that names or clearly matches that skill.
+Load the full instructions for a skill. Call it before acting on a task that names or clearly matches a skill in the session skill catalog.
 
 ```json
 {
@@ -2904,7 +2037,7 @@ Source: [`packages/subagent/tool-subagent/src/list-models.ts`](../packages/subag
 
 ### `subagent`
 
-Delegate a self-contained task to a subagent (a separate agent that works in its own context) to offload focused, independent work — research, a scoped implementation, an analysis — so it does not consume this conversation's context. The subagent returns its result, not its intermediate steps. Give it a complete, standalone prompt: it does not see this conversation. This call waits for the result by default. Set `run_in_background: true` to return a job id; collect with `job_output` and stop with `job_kill`.
+Delegate a self-contained task to a subagent (a separate agent that works in its own context) to offload focused, independent work — research, a scoped implementation, an analysis — so it does not consume this conversation's context. The subagent returns its result, not its intermediate steps. This call waits for the result by default.
 
 ```json
 {
@@ -2920,7 +2053,7 @@ Delegate a self-contained task to a subagent (a separate agent that works in its
     },
     "run_in_background": {
       "type": "boolean",
-      "description": "Whether to run as a background job and return its id. Defaults to false; collect with job_output or stop with job_kill."
+      "description": "Run as a background job and return its id (collect with job_output, stop with job_kill). Defaults to false."
     }
   },
   "required": [
@@ -2940,7 +2073,7 @@ The registered delegation name is the load-time `toolName` config (default `suba
 
 ### `interrupt_agent`
 
-Request cancellation of a background agent's current turn by its agent id. The target may be your direct child or a deeper agent created under you. Only the current turn stops: messages already queued for the agent stay parked until a later send_message, agents it started keep running, and the agent itself stays available for follow-ups. This call returns as soon as the stop request is accepted, so the target may keep running briefly; interrupting an agent that already finished is an accepted no-op.
+Ask a subagent to stop its current work. This call returns without waiting for it to stop. You can continue a direct child's conversation later with send_message. Subagents it started will keep running.
 
 ```json
 {
@@ -2948,7 +2081,7 @@ Request cancellation of a background agent's current turn by its agent id. The t
   "properties": {
     "agent_id": {
       "type": "string",
-      "description": "The agent id of the running agent to interrupt."
+      "description": "The id of an agent created under you: your direct child or a deeper descendant."
     }
   },
   "required": [
@@ -2961,7 +2094,7 @@ Source: [`packages/subagent/tool-subagent-control/src/index.ts`](../packages/sub
 
 ### `list_agents`
 
-List your continuable background subagents by durable id and label. Use it to recall which ones you started, not to poll for completion — you are told when one finishes. Status comes from the live registry: running means the agent is working right now, idle means it is loaded but between turns (it may be waiting on agents it started), and ready means it exists only in storage — resumable, not terminal, and not a result waiting to be collected; a `send_message` steers a running child at its nearest step boundary or starts a turn for an idle or ready child, and a direct child remains a `send_message` candidate in every status. The snapshot is not a delivery promise — `send_message` performs the authoritative check and may still fail. Children that could not be read are reported as diagnostics instead of being silently dropped. Scope `descendants` walks the whole tree below you in stable pre-order, annotating each entry with its durable direct-parent session id and depth. You may use `send_message` only for depth-1 entries; deeper entries are candidates for `interrupt_agent` only.
+List subagents you started, with their ids, labels, and status. running means it is working; inactive means it is not currently working. You will be notified when a subagent finishes; there is no need to keep checking its status. Use send_message to continue the conversation.
 
 ```json
 {
@@ -2969,7 +2102,7 @@ List your continuable background subagents by durable id and label. Use it to re
   "properties": {
     "scope": {
       "type": "string",
-      "description": "children (default) lists direct children only; descendants walks the complete tree below you.",
+      "description": "children (default) lists direct children, which accept send_message in any status. descendants lists the whole tree below you with each entry's parent session id and depth; entries deeper than 1 accept only interrupt_agent.",
       "enum": [
         "children",
         "descendants"
@@ -2983,7 +2116,7 @@ Source: [`packages/subagent/tool-subagent-control/src/list-agents.ts`](../packag
 
 ### `send_message`
 
-Send a message to a direct continuable child by its agent id. If you are a resident continuable child, you may also target your direct parent. If the target is still working, the message steers its nearest step; if it is idle, the message starts a turn. This call returns no answer from the agent — only confirmation that the message was delivered. A failure means the message was NOT delivered.
+Send a message to an agent. A working agent receives it at its next step; an idle agent starts a new turn with it. Returns delivery confirmation, not the agent's answer.
 
 ```json
 {
@@ -3015,7 +2148,7 @@ The globally named control tools over continuable background subagents: provider
 
 ### `job_kill`
 
-Request cancellation of a running background job by job id. Returns immediately; the job settles as killed once its work actually stops.
+Request cancellation of a running background job.
 
 ```json
 {
@@ -3053,7 +2186,7 @@ Source: [`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/
 
 ### `job_output`
 
-Read a background job. Stream jobs return only output since the previous read; final-output jobs return their result after settlement. Every response ends with `[status: ...]`. Reads are non-blocking unless `wait: true`, which waits up to the configured cap.
+Read a background job: output since the previous read for stream jobs, or the result of a finished final-output job.
 
 ```json
 {
@@ -3065,11 +2198,11 @@ Read a background job. Stream jobs return only output since the previous read; f
     },
     "wait": {
       "type": "boolean",
-      "description": "Block until the job reaches a terminal status or the timeout expires. A timed-out wait returns [status: running] and leaves the job alive."
+      "description": "Block until the job finishes or the timeout expires; a timed-out wait leaves the job running. Defaults to false."
     },
     "timeout_ms": {
       "type": "number",
-      "description": "Max wait in milliseconds (only meaningful with wait: true). Defaults to the configured wait timeout; capped by the configured maximum."
+      "description": "Max wait in milliseconds with wait: true. Defaults to and is capped by configuration."
     }
   },
   "required": [
@@ -3096,7 +2229,7 @@ Interrupt one teammate's current turn while preserving its pending inbox. Team L
   "properties": {
     "target": {
       "type": "string",
-      "description": "Teammate name."
+      "description": "Teammate target returned by spawn_teammate or list_agents."
     }
   },
   "required": [
@@ -3109,7 +2242,7 @@ Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/exper
 
 ### `list_agents`
 
-List the Lead and every durable teammate with current runtime status.
+List the Lead and every durable teammate with an addressable target and current availability. inactive means no turn is executing, not a task result. provisioning and failed describe member creation.
 
 ```json
 {
@@ -3122,7 +2255,7 @@ Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/exper
 
 ### `send_message`
 
-Send one durable message to another Team member. A running target receives it at the nearest step boundary; an idle target starts a turn; an inactive teammate cold-resumes.
+Send one durable message to another Team member. A running target receives it at the nearest step boundary; an inactive target starts or resumes a turn.
 
 ```json
 {
@@ -3130,7 +2263,7 @@ Send one durable message to another Team member. A running target receives it at
   "properties": {
     "target": {
       "type": "string",
-      "description": "Team member name, or lead."
+      "description": "Member target returned by spawn_teammate or list_agents, including lead."
     },
     "message": {
       "type": "string",
@@ -3265,7 +2398,7 @@ List shared tasks, including readiness, owner, revision, blockers, and write-sco
     },
     "owner": {
       "type": "string",
-      "description": "Optional member-name filter; use unowned for tasks without an owner."
+      "description": "Optional member target from spawn_teammate or list_agents, matching ownerName; use unowned for tasks without an owner."
     },
     "ready": {
       "type": "boolean",
@@ -3339,7 +2472,7 @@ Compare-and-set a shared task action using the latest revision from team_task_ge
     },
     "owner": {
       "type": "string",
-      "description": "Member name for Lead-only reassign; omit to unassign."
+      "description": "Member target from spawn_teammate or list_agents for Lead-only reassign; omit to unassign."
     }
   },
   "required": [
@@ -3378,7 +2511,7 @@ All nine tools are scoped to implicit Team Leads and durable teammates. The ship
 
 ### `todo_write`
 
-Record and update a structured task list for the current work. Send the ENTIRE list every call — it REPLACES the previous list (there are no partial updates, no per-item edits). Use it to plan multi-step work and show progress: add one todo per concrete step before you start. Mark every todo being actively worked on `in_progress` — several at once when work genuinely runs in parallel (e.g. concurrent subagents or background commands), one for sequential work; while work remains, at least one task should be `in_progress`. Mark a todo `completed` the moment it is done (do not batch completions), and allow no `in_progress` item only once all work is complete. Skip the list for trivial single-step tasks. Statuses: `pending` (not started), `in_progress` (being worked on now), `completed` (finished).
+Record and update a task list to plan multi-step work and show progress; skip it for trivial single-step tasks. Add one todo per concrete step before you start. While work remains, keep the todos being worked on `in_progress`, several only when work runs in parallel. Mark each todo `completed` as soon as it is done.
 
 ```json
 {
@@ -3430,17 +2563,13 @@ todo_write is session-owned state; UIs render the latest todo/write event as a c
 
 Run a JavaScript workflow script that orchestrates subagents at scale. Use this for work that fans out across many independent pieces — an audit over many files, a migration, multi-angle research, adversarial verification of findings — where you write the orchestration as a script instead of delegating turn by turn.
 
-The workflow's identity rides the `meta` parameter as JSON: required `name` (short kebab-case) and `description` strings, optional `whenToUse` string and `phases` array (`{title, detail?, provider?, model?}`). The `script` parameter is the plain JavaScript body ONLY (NOT TypeScript, and NO `export const meta` statement — meta is a parameter, not code), running with top-level await; end with `return <value>` — the value must be JSON-serializable and is this tool's result.
-
 Script-body hooks:
-- `agent(prompt, opts?): Promise<any>` — run one subagent to completion. Without `opts.schema` it resolves to the child's final text; with `opts.schema` (an object-rooted JSON Schema using ONLY type/properties/required/additionalProperties/items/enum/const/oneOf — no pattern/format/numeric bounds) it resolves to the validated object. Resolves `null` when the child fails (filter with `.filter(Boolean)`). Other opts: `label` (display), `phase` (progress group), and independent `provider`/`model` LLM target overrides (either may be provided alone). Anything else (`effort`/`isolation`/`agentType`) is rejected loudly.
-- `pipeline(items, ...stages): Promise<any[]>` — run each item through the stages independently with NO barrier between stages (prefer this for multi-stage work). Each stage receives `(prev, item, index)`. An ordinary stage throw drops that ITEM to `null` and skips its remaining stages.
+- `agent(prompt, opts?): Promise<any>` — run one subagent to completion. Without `opts.schema` it resolves to the child's final text; with `opts.schema` (an object-rooted JSON Schema using ONLY type/properties/required/additionalProperties/items/enum/const/oneOf) it resolves to the validated object. Resolves `null` when the child fails (filter with `.filter(Boolean)`). Other opts: `label` (display), `phase` (progress group), and independent `provider`/`model` LLM target overrides.
+- `pipeline(items, ...stages): Promise<any[]>` — run each item through the stages independently with NO barrier between stages (prefer this for multi-stage work). Each stage receives `(prev, item, index)`. A stage throw drops that ITEM to `null` and skips its remaining stages.
 - `parallel(thunks): Promise<any[]>` — run zero-argument functions concurrently and await ALL of them (a barrier; use only when a stage genuinely needs every prior result together). A throwing thunk resolves to `null`.
 - `phase(title)` — start a progress phase; `log(message)` — narrate progress; `args` — the tool call's `args` input, verbatim.
 
-Misused hooks (bad arguments, unknown options, unsupported schemas, tripped caps) throw errors that ALWAYS kill the script — they never dissolve into a per-item `null`.
-
-Constraints: concurrency and total-agent caps apply; no filesystem, network, timers, or Node.js APIs are provided — the agents do the work, the script only coordinates them. The run executes in the foreground: this call returns when the whole script finishes.
+Misused hooks (bad arguments, unknown options, unsupported schemas, tripped caps) end the whole script instead of producing `null`. The script has no filesystem, network, timer, or Node.js APIs; the agents do the work.
 
 ```json
 {
@@ -3448,11 +2577,11 @@ Constraints: concurrency and total-agent caps apply; no filesystem, network, tim
   "properties": {
     "script": {
       "type": "string",
-      "description": "The plain-JS workflow script body (top-level await allowed; NO `export const meta` statement; end with `return <json-value>`)."
+      "description": "The plain JavaScript body, not TypeScript and without an `export const meta` statement; top-level await is allowed. End with `return <value>`; the JSON-serializable value is this tool's result."
     },
     "meta": {
       "type": "object",
-      "description": "The workflow identity block (plain JSON — never code).",
+      "description": "The workflow identity as plain JSON, not code.",
       "additionalProperties": true,
       "properties": {
         "name": {
@@ -3506,6 +2635,10 @@ Constraints: concurrency and total-agent caps apply; no filesystem, network, tim
       "type": "object",
       "description": "Optional JSON input exposed to the script as the `args` global (wrap a bare list as a field, e.g. {\"files\": [...]}).",
       "additionalProperties": true
+    },
+    "run_in_background": {
+      "type": "boolean",
+      "description": "Run as a background job: return a job id immediately instead of waiting; the return value arrives with the completion notice."
     }
   },
   "required": [
@@ -3517,1172 +2650,22 @@ Constraints: concurrency and total-agent caps apply; no filesystem, network, tim
 
 Source: [`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
 
-<a id="deepseek-aidsh-tool-finding"></a>
+<a id="deepseek-aidsh-tool-workspace-dependencies"></a>
 
-## `@deepseek-ai/dsh-tool-finding`
+## `@deepseek-ai/dsh-tool-workspace-dependencies`
 
-### `finding_export`
+### `load_workspace_dependencies`
 
-Export every matching same-session finding as deterministic JSON, Markdown, or SARIF 2.1.0 and publish one report Artifact.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "ids": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "states": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": [
-          "observation",
-          "hypothesis",
-          "reproduced-vulnerability",
-          "remediation",
-          "unresolved"
-        ]
-      }
-    },
-    "severities": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": [
-          "informational",
-          "low",
-          "medium",
-          "high",
-          "critical"
-        ]
-      }
-    },
-    "ruleIds": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "targetIds": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "format": {
-      "type": "string",
-      "enum": [
-        "json",
-        "markdown",
-        "sarif"
-      ]
-    }
-  },
-  "required": [
-    "format"
-  ]
-}
-```
-
-Source: [`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
-
-### `finding_query`
-
-Read a bounded deterministic page of same-session findings. Use exact ids and revisions before a transition.
+Get absolute paths to bundled Python and library directories, plus bundled Python distribution versions. Node.js and pnpm paths are included when the payload provides them. Python includes numpy, pandas, python-docx, python-pptx, openpyxl, Pillow, lxml, and XlsxWriter. Use these libraries for Office files unless the user or workspace instructions select another environment. When Node.js and pnpm paths are returned, run pnpm with that Node executable and pnpm script path. This does not change PATH or package-manager settings.
 
 ```json
 {
   "type": "object",
-  "properties": {
-    "ids": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "states": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": [
-          "observation",
-          "hypothesis",
-          "reproduced-vulnerability",
-          "remediation",
-          "unresolved"
-        ]
-      }
-    },
-    "severities": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": [
-          "informational",
-          "low",
-          "medium",
-          "high",
-          "critical"
-        ]
-      }
-    },
-    "ruleIds": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "targetIds": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "cursor": {
-      "type": "string"
-    },
-    "limit": {
-      "type": "integer"
-    },
-    "detail": {
-      "type": "string",
-      "enum": [
-        "summary",
-        "full"
-      ]
-    }
-  }
+  "properties": {}
 }
 ```
 
-Source: [`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
-
-### `finding_record`
-
-Record a typed same-session security finding. The service derives id and fingerprint; repeated identities add one occurrence without promoting state.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "ruleId": {
-      "type": "string",
-      "description": "Stable detector or rule identifier."
-    },
-    "title": {
-      "type": "string"
-    },
-    "summary": {
-      "type": "string"
-    },
-    "state": {
-      "type": "string",
-      "enum": [
-        "observation",
-        "hypothesis",
-        "reproduced-vulnerability"
-      ]
-    },
-    "severity": {
-      "type": "string",
-      "enum": [
-        "informational",
-        "low",
-        "medium",
-        "high",
-        "critical"
-      ]
-    },
-    "confidence": {
-      "type": "string",
-      "enum": [
-        "low",
-        "medium",
-        "high"
-      ]
-    },
-    "targets": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "host",
-              "service",
-              "url",
-              "repository",
-              "package",
-              "file",
-              "component",
-              "other"
-            ]
-          },
-          "displayName": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "displayName"
-        ]
-      }
-    },
-    "locations": {
-      "type": "array",
-      "items": {
-        "oneOf": [
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "code"
-                ]
-              },
-              "targetId": {
-                "type": "string"
-              },
-              "uri": {
-                "type": "string"
-              },
-              "startLine": {
-                "type": "integer"
-              },
-              "startColumn": {
-                "type": "integer"
-              },
-              "endLine": {
-                "type": "integer"
-              },
-              "endColumn": {
-                "type": "integer"
-              }
-            },
-            "required": [
-              "kind",
-              "targetId",
-              "uri"
-            ]
-          },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "dependency"
-                ]
-              },
-              "targetId": {
-                "type": "string"
-              },
-              "ecosystem": {
-                "type": "string"
-              },
-              "packageName": {
-                "type": "string"
-              },
-              "version": {
-                "type": "string"
-              },
-              "manifestUri": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "kind",
-              "targetId",
-              "ecosystem",
-              "packageName"
-            ]
-          }
-        ]
-      }
-    },
-    "cweIds": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "cveIds": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "cvss": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "version": {
-          "type": "string",
-          "enum": [
-            "3.1",
-            "4.0"
-          ]
-        },
-        "vector": {
-          "type": "string"
-        },
-        "score": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "version",
-        "vector",
-        "score"
-      ]
-    },
-    "assumptions": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "reachability": {
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "kind": {
-              "type": "string",
-              "enum": [
-                "unknown"
-              ]
-            }
-          },
-          "required": [
-            "kind"
-          ]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "kind": {
-              "type": "string",
-              "enum": [
-                "unreachable"
-              ]
-            },
-            "reason": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "kind",
-            "reason"
-          ]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "kind": {
-              "type": "string",
-              "enum": [
-                "reachable"
-              ]
-            },
-            "entrypoint": {
-              "type": "string"
-            },
-            "pathEvidence": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "artifactId": {
-                  "type": "string"
-                },
-                "mediaType": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string"
-                },
-                "bytes": {
-                  "type": "integer"
-                },
-                "sha256": {
-                  "type": "string"
-                },
-                "createdAt": {
-                  "type": "string"
-                },
-                "provenance": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "properties": {
-                    "producerId": {
-                      "type": "string"
-                    },
-                    "executionHostId": {
-                      "type": "string"
-                    },
-                    "sessionId": {
-                      "type": "string"
-                    },
-                    "taskId": {
-                      "type": "string"
-                    },
-                    "engagementId": {
-                      "type": "string"
-                    },
-                    "scopeRef": {
-                      "type": "string"
-                    },
-                    "source": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "producerId",
-                    "executionHostId"
-                  ]
-                },
-                "retention": {
-                  "type": "string",
-                  "enum": [
-                    "ephemeral",
-                    "session",
-                    "task",
-                    "engagement",
-                    "pinned",
-                    "managed"
-                  ]
-                },
-                "redaction": {
-                  "type": "string",
-                  "enum": [
-                    "none",
-                    "redacted",
-                    "unknown"
-                  ]
-                },
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "artifactId",
-                "mediaType",
-                "kind",
-                "bytes",
-                "sha256",
-                "createdAt",
-                "provenance",
-                "retention",
-                "redaction"
-              ]
-            }
-          },
-          "required": [
-            "kind",
-            "entrypoint"
-          ]
-        }
-      ]
-    },
-    "evidence": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "role": {
-            "type": "string",
-            "enum": [
-              "observation",
-              "reproduction",
-              "remediation-validation",
-              "supporting"
-            ]
-          },
-          "artifact": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "artifactId": {
-                "type": "string"
-              },
-              "mediaType": {
-                "type": "string"
-              },
-              "kind": {
-                "type": "string"
-              },
-              "bytes": {
-                "type": "integer"
-              },
-              "sha256": {
-                "type": "string"
-              },
-              "createdAt": {
-                "type": "string"
-              },
-              "provenance": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "producerId": {
-                    "type": "string"
-                  },
-                  "executionHostId": {
-                    "type": "string"
-                  },
-                  "sessionId": {
-                    "type": "string"
-                  },
-                  "taskId": {
-                    "type": "string"
-                  },
-                  "engagementId": {
-                    "type": "string"
-                  },
-                  "scopeRef": {
-                    "type": "string"
-                  },
-                  "source": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "producerId",
-                  "executionHostId"
-                ]
-              },
-              "retention": {
-                "type": "string",
-                "enum": [
-                  "ephemeral",
-                  "session",
-                  "task",
-                  "engagement",
-                  "pinned",
-                  "managed"
-                ]
-              },
-              "redaction": {
-                "type": "string",
-                "enum": [
-                  "none",
-                  "redacted",
-                  "unknown"
-                ]
-              },
-              "name": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "artifactId",
-              "mediaType",
-              "kind",
-              "bytes",
-              "sha256",
-              "createdAt",
-              "provenance",
-              "retention",
-              "redaction"
-            ]
-          },
-          "note": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "role",
-          "artifact"
-        ]
-      }
-    }
-  },
-  "required": [
-    "ruleId",
-    "title",
-    "summary",
-    "state",
-    "severity",
-    "confidence",
-    "targets",
-    "locations",
-    "reachability"
-  ]
-}
-```
-
-Source: [`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
-
-### `finding_transition`
-
-Transition one exact finding revision. Reproduction and remediation states require their typed evidence prerequisites.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "findingId": {
-      "type": "string"
-    },
-    "revision": {
-      "type": "integer"
-    },
-    "to": {
-      "type": "string",
-      "enum": [
-        "hypothesis",
-        "reproduced-vulnerability",
-        "remediation",
-        "unresolved"
-      ]
-    },
-    "evidence": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "role": {
-            "type": "string",
-            "enum": [
-              "observation",
-              "reproduction",
-              "remediation-validation",
-              "supporting"
-            ]
-          },
-          "artifact": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "artifactId": {
-                "type": "string"
-              },
-              "mediaType": {
-                "type": "string"
-              },
-              "kind": {
-                "type": "string"
-              },
-              "bytes": {
-                "type": "integer"
-              },
-              "sha256": {
-                "type": "string"
-              },
-              "createdAt": {
-                "type": "string"
-              },
-              "provenance": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "producerId": {
-                    "type": "string"
-                  },
-                  "executionHostId": {
-                    "type": "string"
-                  },
-                  "sessionId": {
-                    "type": "string"
-                  },
-                  "taskId": {
-                    "type": "string"
-                  },
-                  "engagementId": {
-                    "type": "string"
-                  },
-                  "scopeRef": {
-                    "type": "string"
-                  },
-                  "source": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "producerId",
-                  "executionHostId"
-                ]
-              },
-              "retention": {
-                "type": "string",
-                "enum": [
-                  "ephemeral",
-                  "session",
-                  "task",
-                  "engagement",
-                  "pinned",
-                  "managed"
-                ]
-              },
-              "redaction": {
-                "type": "string",
-                "enum": [
-                  "none",
-                  "redacted",
-                  "unknown"
-                ]
-              },
-              "name": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "artifactId",
-              "mediaType",
-              "kind",
-              "bytes",
-              "sha256",
-              "createdAt",
-              "provenance",
-              "retention",
-              "redaction"
-            ]
-          },
-          "note": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "role",
-          "artifact"
-        ]
-      }
-    },
-    "fixGuidance": {
-      "type": "string"
-    }
-  },
-  "required": [
-    "findingId",
-    "revision",
-    "to"
-  ]
-}
-```
-
-Source: [`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
-
-The four finding tools use the active Session and Artifact providers. Report provenance is bound to the current execution host; reproduction and remediation transitions require typed evidence.
-
-<a id="deepseek-aidsh-tool-vuln-kb"></a>
-
-## `@deepseek-ai/dsh-tool-vuln-kb`
-
-### `vuln_query`
-
-Query the vulnerability knowledge base for CVEs by package name and ecosystem, optionally filtered by version. Returns compact matching entries with severity and fix availability; use vuln_read for affected ranges and references.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "cveId": {
-      "type": "string",
-      "description": "Specific CVE id (e.g., CVE-2024-12345). If provided, ecosystem/package/version are ignored."
-    },
-    "ecosystem": {
-      "type": "string",
-      "description": "Package ecosystem (e.g., npm, pypi, maven, go, nuget). Required if cveId is not provided."
-    },
-    "package": {
-      "type": "string",
-      "description": "Package name within the ecosystem. Required if cveId is not provided."
-    },
-    "version": {
-      "type": "string",
-      "description": "Specific version to check for affectedness. Optional."
-    },
-    "maxResults": {
-      "type": "integer",
-      "description": "Positive maximum number of results to return. The active provider supplies the default."
-    }
-  }
-}
-```
-
-Source: [`packages/security/tool-vuln-kb/src/index.ts`](../packages/security/tool-vuln-kb/src/index.ts)
-
-### `vuln_read`
-
-Read full details of a single vulnerability by CVE id, including description, CVSS vector, affected package ranges, and reference URLs.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "cveId": {
-      "type": "string",
-      "description": "The CVE id (e.g., CVE-2024-12345)."
-    }
-  },
-  "required": [
-    "cveId"
-  ]
-}
-```
-
-Source: [`packages/security/tool-vuln-kb/src/index.ts`](../packages/security/tool-vuln-kb/src/index.ts)
-
-vuln_query and vuln_read expose provider results without asserting exploitability or granting assessment authority; the catalog boot uses the NVD+OSV adapter without making a network request.
-
-<a id="deepseek-aidsh-tool-work-items"></a>
-
-## `@deepseek-ai/dsh-tool-work-items`
-
-### `work_items_cancel_write`
-
-Cancel one unexecuted Work Items preview by its exact persisted operation_id.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "operation_id": {
-      "type": "string",
-      "description": "Exact operation_id returned by work_items_prepare_write or work_items_list_writes."
-    }
-  },
-  "required": [
-    "operation_id"
-  ]
-}
-```
-
-Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
-
-### `work_items_confirm_write`
-
-Confirm exactly one previously persisted Work Items preview by operation_id; no replacement mutation is accepted.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "operation_id": {
-      "type": "string",
-      "description": "Exact operation_id returned by work_items_prepare_write or work_items_list_writes."
-    }
-  },
-  "required": [
-    "operation_id"
-  ]
-}
-```
-
-Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
-
-### `work_items_get`
-
-Read one normalized Work Item by its opaque provider id.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "id": {
-      "type": "string",
-      "description": "Opaque id returned by work_items_list, such as github:owner/repository#123."
-    }
-  },
-  "required": [
-    "id"
-  ]
-}
-```
-
-Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
-
-### `work_items_list`
-
-List normalized Work Items from the configured GitHub, GitLab, or Linear provider.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "source": {
-      "type": "string",
-      "description": "Optional provider family; omit only when exactly one provider is usable.",
-      "enum": [
-        "github",
-        "linear",
-        "gitlab"
-      ]
-    },
-    "scope": {
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "source": {
-              "type": "string",
-              "const": "github"
-            },
-            "owner": {
-              "type": "string",
-              "description": "Configured GitHub repository owner."
-            },
-            "repository": {
-              "type": "string",
-              "description": "Configured GitHub repository name."
-            }
-          },
-          "required": [
-            "source",
-            "owner",
-            "repository"
-          ]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "source": {
-              "type": "string",
-              "const": "linear"
-            },
-            "team": {
-              "type": "string",
-              "description": "Configured Linear team id."
-            },
-            "project": {
-              "type": "string",
-              "description": "Configured Linear project id."
-            }
-          },
-          "required": [
-            "source"
-          ]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "source": {
-              "type": "string",
-              "const": "gitlab"
-            },
-            "owner": {
-              "type": "string",
-              "description": "Configured GitLab namespace."
-            },
-            "repository": {
-              "type": "string",
-              "description": "Configured GitLab project path."
-            }
-          },
-          "required": [
-            "source",
-            "owner",
-            "repository"
-          ]
-        }
-      ],
-      "description": "Optional configured provider scope. GitHub requires owner and repository; Linear requires team or project; GitLab requires owner and repository."
-    },
-    "query": {
-      "type": "string",
-      "description": "Optional bounded title/body text filter."
-    },
-    "state": {
-      "type": "string",
-      "description": "Optional provider-neutral state filter; defaults to open.",
-      "enum": [
-        "open",
-        "closed",
-        "all"
-      ]
-    },
-    "cursor": {
-      "type": "string",
-      "description": "Opaque cursor returned by a prior page."
-    },
-    "limit": {
-      "type": "integer",
-      "description": "Maximum items to request, from 1 through 100."
-    }
-  }
-}
-```
-
-Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
-
-### `work_items_list_writes`
-
-Read durable Work Items previews and receipts for one provider family without issuing provider mutation requests.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "source": {
-      "type": "string",
-      "enum": [
-        "github",
-        "linear",
-        "gitlab"
-      ]
-    },
-    "limit": {
-      "type": "integer",
-      "description": "Maximum history rows, from 1 through 100."
-    }
-  },
-  "required": [
-    "source",
-    "limit"
-  ]
-}
-```
-
-Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
-
-### `work_items_prepare_write`
-
-Validate and durably preview one Work Item mutation without contacting the external provider to mutate it.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "mutation": {
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "kind": {
-              "type": "string",
-              "const": "create"
-            },
-            "source": {
-              "type": "string",
-              "enum": [
-                "github",
-                "linear",
-                "gitlab"
-              ]
-            },
-            "title": {
-              "type": "string",
-              "description": "New Work Item title."
-            },
-            "body": {
-              "type": "string",
-              "description": "New Work Item body."
-            }
-          },
-          "required": [
-            "kind",
-            "source",
-            "title",
-            "body"
-          ]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "kind": {
-              "type": "string",
-              "const": "comment"
-            },
-            "id": {
-              "type": "string",
-              "description": "Opaque id returned by a Work Items read."
-            },
-            "body": {
-              "type": "string",
-              "description": "Comment body."
-            }
-          },
-          "required": [
-            "kind",
-            "id",
-            "body"
-          ]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "kind": {
-              "type": "string",
-              "const": "state"
-            },
-            "id": {
-              "type": "string",
-              "description": "Opaque id returned by a Work Items read."
-            },
-            "state": {
-              "type": "string",
-              "description": "Provider state value."
-            }
-          },
-          "required": [
-            "kind",
-            "id",
-            "state"
-          ]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "kind": {
-              "type": "string",
-              "const": "assign"
-            },
-            "id": {
-              "type": "string",
-              "description": "Opaque id returned by a Work Items read."
-            },
-            "assignees": {
-              "type": "array",
-              "description": "Provider assignee ids; an empty list clears assignment.",
-              "items": {
-                "type": "string"
-              }
-            }
-          },
-          "required": [
-            "kind",
-            "id",
-            "assignees"
-          ]
-        }
-      ],
-      "description": "Exact external mutation to preview. The returned operation_id is required for confirmation."
-    }
-  },
-  "required": [
-    "mutation"
-  ]
-}
-```
-
-Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
-
-Provider writes are disabled by default. Enabled writes require a persisted preview and separate confirmation; uncertain outcomes are never automatically resent.
+Source: [`packages/skill/tool-workspace-dependencies/src/index.ts`](../packages/skill/tool-workspace-dependencies/src/index.ts)
 
 <a id="deepseek-aidsh-tool-web"></a>
 
@@ -4711,7 +2694,7 @@ Source: [`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/inde
 
 ### `web_search`
 
-Search the web for current information. Provide 1–4 queries in the required queries array. Returns an optional summary answer and a list of source URLs.
+Search the web for current information. Returns an optional summary answer and a list of source URLs.
 
 ```json
 {
@@ -4719,7 +2702,7 @@ Search the web for current information. Provide 1–4 queries in the required qu
   "properties": {
     "queries": {
       "type": "array",
-      "description": "Required search queries; accepts 1–4 items and merges their results.",
+      "description": "1–4 search queries; their results are merged.",
       "items": {
         "type": "string"
       }
@@ -4734,106 +2717,3 @@ Search the web for current information. Provide 1–4 queries in the required qu
 Source: [`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/index.ts)
 
 web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps.
-
-<a id="deepseek-aidsh-tool-recall"></a>
-
-## `@deepseek-ai/dsh-tool-recall`
-
-### `history_read`
-
-Retrieve the full transcript of original messages shadowed by a compaction checkpoint. Output includes original user prompts, assistant turns, and tool results, paginated when long. Provide the checkpoint ID (e.g. "c42") found in checkpoint footers.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "checkpoint": {
-      "type": "string",
-      "description": "The checkpoint ID (e.g. \"c42\") whose shadowed span to retrieve."
-    },
-    "offset": {
-      "type": "integer",
-      "description": "0-based message offset for paginating long transcripts."
-    }
-  },
-  "required": [
-    "checkpoint"
-  ]
-}
-```
-
-Source: [`packages/compaction/tool-recall/src/index.ts`](../packages/compaction/tool-recall/src/index.ts)
-
-### `history_search`
-
-Search across all compacted history spans for exact keywords, error strings, configuration flags, or paths. Performs a case-insensitive literal scan and returns matching snippets tagged with checkpoint IDs.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "query": {
-      "type": "string",
-      "description": "The literal string to search for across shadowed conversation spans."
-    },
-    "checkpoint": {
-      "type": "string",
-      "description": "Optional specific checkpoint ID to restrict the search to."
-    },
-    "limit": {
-      "type": "integer",
-      "description": "Maximum matching occurrences to return (defaults to 25)."
-    }
-  },
-  "required": [
-    "query"
-  ]
-}
-```
-
-Source: [`packages/compaction/tool-recall/src/index.ts`](../packages/compaction/tool-recall/src/index.ts)
-
-history_read and history_search read original uncompacted messages directly from the append-only session log without external sidecars.
-
-<a id="deepseek-aidsh-tool-task-surface"></a>
-
-## `@deepseek-ai/dsh-tool-task-surface`
-
-### `show_task_surface`
-
-Present a structured, interactive Task Surface to the user for review, configuration, or decision-making. The surface ends the agent turn, presenting declarative sections and input fields. The user can submit field values or dismiss the surface to continue the conversation.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "model": {
-      "description": "Declarative Task Surface v1 model defining title, sections, blocks, optional input fields, and submit button."
-    }
-  },
-  "required": [
-    "model"
-  ]
-}
-```
-
-Source: [`packages/task-surface/tool-task-surface/src/index.ts`](../packages/task-surface/tool-task-surface/src/index.ts)
-
-show_task_surface renders structured interactive task panels and concludes the turn.
-
-<a id="deepseek-aidsh-tool-workspace-dependencies"></a>
-
-## `@deepseek-ai/dsh-tool-workspace-dependencies`
-
-### `load_workspace_dependencies`
-
-Get absolute paths to bundled Python and library directories, plus bundled Python distribution versions. Node.js and pnpm paths are included when the payload provides them. Python includes numpy, pandas, python-docx, python-pptx, openpyxl, Pillow, lxml, and XlsxWriter. Use these libraries for Office files unless the user or workspace instructions select another environment. When Node.js and pnpm paths are returned, run pnpm with that Node executable and pnpm script path. This does not change PATH or package-manager settings.
-
-```json
-{
-  "type": "object",
-  "properties": {}
-}
-```
-
-Source: [`packages/skill/tool-workspace-dependencies/src/index.ts`](../packages/skill/tool-workspace-dependencies/src/index.ts)

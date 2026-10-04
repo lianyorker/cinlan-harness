@@ -1,6 +1,28 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-security/README.md
-README.md: 1616fb49cdcfd042d74b92cbd61455a4ab104e86
-README.zh.md: 723e5959db3f6c9c57b67ff0d548d76455736026
+/:
+  en: 3e5f103a66eb99c7
+  zh: e540eb4bc7c80312
+/deepseek-ai-dsh-client-ui-settings-security:
+  en: 3a33d7ff9a82f25a
+  zh: 0bc4408af3c196b9
+/deepseek-ai-dsh-client-ui-settings-security/summary:
+  en: 0599485ed9b8a2b6
+  zh: bddebc46907a6241
+/deepseek-ai-dsh-client-ui-settings-security/table-of-contents:
+  en: 177e5f7d0e0aa938
+  zh: 81f1f8fd71a8530e
+/deepseek-ai-dsh-client-ui-settings-security/use-this-package:
+  en: 75c0f71363807c25
+  zh: c51094357561a5ac
+/deepseek-ai-dsh-client-ui-settings-security/settings-and-action-ownership:
+  en: 44e3ef22ebd76502
+  zh: f9a25bd4ca683ee7
+/deepseek-ai-dsh-client-ui-settings-security/dev-note:
+  en: 2ec5591a3b7a2997
+  zh: 337ddf2a9ea1c4e0
+/deepseek-ai-dsh-client-ui-settings-security/known-limitations-and-deferred-work:
+  en: 6011e61d40f8931c
+  zh: 05c54b562adcebb2

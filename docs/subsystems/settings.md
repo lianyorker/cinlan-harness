@@ -2,7 +2,7 @@
 
 English | [中文](settings.zh.md)
 
-The user-settings seam of [dsh-settings](../../packages/settings/settings) holds one user-owned document of per-namespace sections and resolves each registered namespace as schema defaults, then the registrant's composition `base`, then the user section. Providers such as [dsh-settings-file](../../packages/settings/settings-file) store the raw document and push external edits; consumer plugins register a schema and read or observe the resolved value. Composition config stays in `cordis.yml` — a namespace carries only the user-editable subset.
+The settings service projects volatile fields from active Loader entry Config schemas into profile-backed forms. Each namespace is the entry id; Settings Forms reads resolved values and writes profile patches with revision checks. Plugins opt into generated settings pages with `configure({ auto: true })`, while custom pages can use `describe`, `update`, `replace`, and `mutate` directly.
 
 Source: [`packages/settings/settings/src/index.ts`](../../packages/settings/settings/src/index.ts)
 

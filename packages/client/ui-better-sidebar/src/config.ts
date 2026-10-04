@@ -82,8 +82,61 @@ export interface SidebarConfig {
   shellCandidates?: string[]
 }
 
-/** Schemastery schema for the plugin configuration. */
-export const Config: z<SidebarConfig> = z.object({
+// ── User-facing "Side card" preferences ─────────────────────────────────────
+
+/** Schemastery schema for the user-facing preferences (validated by the settings service). */
+export const PrefsSchema: z<SidebarPrefs> = z.object({
+  openByDefault: z.boolean().default(false),
+  defaultWidthPercent: z.number().step(1).min(WIDTH_PERCENT_MIN).max(WIDTH_PERCENT_MAX).default(WIDTH_PERCENT_DEFAULT),
+  autoOpenSubagent: z.boolean().default(true),
+  autoOpenJobs: z.boolean().default(true),
+  agentTerminalTools: z.boolean().default(false),
+  bottomPanelAutoTerminal: z.boolean().default(true),
+  terminalFontFamily: z.string().default(''),
+  terminalFontSize: z.number().step(1).min(TERMINAL_FONT_SIZE_MIN).max(TERMINAL_FONT_SIZE_MAX).default(TERMINAL_FONT_SIZE_DEFAULT),
+  terminalScrollback: z.number().step(1).min(TERMINAL_SCROLLBACK_MIN).max(TERMINAL_SCROLLBACK_MAX).default(TERMINAL_SCROLLBACK_DEFAULT),
+  terminalCursorStyle: z.union([z.const('block'), z.const('underline'), z.const('bar')]).default('block'),
+  terminalCursorBlink: z.boolean().default(true),
+  interceptOpenPath: z.boolean().default(true),
+  editorExplorer: z.boolean().default(false),
+  terminalShell: z.string().default(''),
+  terminalShellArgs: z.string().default(''),
+  titleBarScheme: z.union([z.const('auto'), z.const('web'), z.const('preset'), z.const('custom')]),
+  titleBarPresetId: z.string(),
+  customCss: z.string(),
+  titleBarCompat: z.boolean().default(false),
+  titleBarStripPx: z.number().step(1).min(TITLE_BAR_STRIP_MIN).max(TITLE_BAR_STRIP_MAX).default(TITLE_BAR_STRIP_DEFAULT),
+  htmlViewerNoSandbox: z.boolean().default(false),
+  htmlViewerDefaultUnsafe: z.boolean().default(false),
+  browserNoSandbox: z.boolean().default(false),
+  browserInterceptLinks: z.boolean().default(true),
+  browserInterceptHttp: z.boolean().default(true),
+  browserInterceptHttps: z.boolean().default(false),
+  // Per-feature enable switches are OPEN maps (any tab/viewer id, built-in or
+  // external): an absent key means enabled, so old documents resolve to {}
+  // (everything on) with no migration. Non-boolean values fail validation.
+  tabsEnabled: z.dict(z.boolean()).default({}),
+  viewersEnabled: z.dict(z.boolean()).default({}),
+  // Plugin-owned settings blobs (v0.12.0+) are an OPEN nested map: any
+  // descriptor id may carry any JSON-serializable values. This is the
+  // "settings seam" opening — without it the seam would drop third-party
+  // keys as unknown schema fields.
+  pluginSettings: z.dict(z.dict(z.any())).default({}),
+})
+
+/**
+ * Re-declare each preference field with the volatile marker. The settings seam
+ * serves only an entry's volatile fields as its editable form, so the plugin
+ * entry exposes exactly the preferences while the deployment fields stay out.
+ * @param schema - Preference schema whose fields become user-editable.
+ * @returns One volatile copy per preference field.
+ */
+function volatileFields(schema: z): Record<string, z> {
+  return Object.fromEntries(Object.entries(schema.dict ?? {}).map(([key, field]) => [key, field.volatile()]))
+}
+
+/** Schemastery schema for the plugin configuration: deployment fields plus the editable preferences. */
+export const Config = z.object({
   readLimit: z.number().step(1).min(1).default(512 * 1024),
   mediaLimit: z.number().step(1).min(1).default(20 * 1024 * 1024),
   uploadLimit: z.number().step(1).min(1).default(128 * 1024 * 1024),
@@ -97,6 +150,7 @@ export const Config: z<SidebarConfig> = z.object({
   shell: z.string().default(''),
   shellArgs: z.array(z.string()).default([]),
   shellCandidates: z.array(z.string().min(1)).default(['zsh', 'bash', 'fish', 'pwsh', 'powershell', 'cmd']),
+  ...volatileFields(PrefsSchema),
 })
 
 /** Fully defaulted sidebar host settings. */
@@ -143,44 +197,3 @@ export function resolveSidebarConfig(config: SidebarConfig | undefined): Resolve
   }
 }
 
-// ── User-facing "Side card" preferences ─────────────────────────────────────
-
-/** Schemastery schema for the user-facing preferences (validated by the settings service). */
-export const PrefsSchema: z<SidebarPrefs> = z.object({
-  openByDefault: z.boolean().default(false),
-  defaultWidthPercent: z.number().step(1).min(WIDTH_PERCENT_MIN).max(WIDTH_PERCENT_MAX).default(WIDTH_PERCENT_DEFAULT),
-  autoOpenSubagent: z.boolean().default(true),
-  autoOpenJobs: z.boolean().default(true),
-  agentTerminalTools: z.boolean().default(false),
-  bottomPanelAutoTerminal: z.boolean().default(true),
-  terminalFontFamily: z.string().default(''),
-  terminalFontSize: z.number().step(1).min(TERMINAL_FONT_SIZE_MIN).max(TERMINAL_FONT_SIZE_MAX).default(TERMINAL_FONT_SIZE_DEFAULT),
-  terminalScrollback: z.number().step(1).min(TERMINAL_SCROLLBACK_MIN).max(TERMINAL_SCROLLBACK_MAX).default(TERMINAL_SCROLLBACK_DEFAULT),
-  terminalCursorStyle: z.union([z.const('block'), z.const('underline'), z.const('bar')]).default('block'),
-  terminalCursorBlink: z.boolean().default(true),
-  interceptOpenPath: z.boolean().default(true),
-  editorExplorer: z.boolean().default(false),
-  terminalShell: z.string().default(''),
-  terminalShellArgs: z.string().default(''),
-  titleBarScheme: z.union([z.const('auto'), z.const('web'), z.const('preset'), z.const('custom')]),
-  titleBarPresetId: z.string(),
-  customCss: z.string(),
-  titleBarCompat: z.boolean().default(false),
-  titleBarStripPx: z.number().step(1).min(TITLE_BAR_STRIP_MIN).max(TITLE_BAR_STRIP_MAX).default(TITLE_BAR_STRIP_DEFAULT),
-  htmlViewerNoSandbox: z.boolean().default(false),
-  htmlViewerDefaultUnsafe: z.boolean().default(false),
-  browserNoSandbox: z.boolean().default(false),
-  browserInterceptLinks: z.boolean().default(true),
-  browserInterceptHttp: z.boolean().default(true),
-  browserInterceptHttps: z.boolean().default(false),
-  // Per-feature enable switches are OPEN maps (any tab/viewer id, built-in or
-  // external): an absent key means enabled, so old documents resolve to {}
-  // (everything on) with no migration. Non-boolean values fail validation.
-  tabsEnabled: z.dict(z.boolean()).default({}),
-  viewersEnabled: z.dict(z.boolean()).default({}),
-  // Plugin-owned settings blobs (v0.12.0+) are an OPEN nested map: any
-  // descriptor id may carry any JSON-serializable values. This is the
-  // "settings seam" opening — without it the seam would drop third-party
-  // keys as unknown schema fields.
-  pluginSettings: z.dict(z.dict(z.any())).default({}),
-})

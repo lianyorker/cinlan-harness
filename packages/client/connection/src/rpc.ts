@@ -144,6 +144,12 @@ export type ConnectionRequestBodyMode = 'buffered' | 'streaming'
 export interface ConnectionFetchRoute {
   /** Absolute path below `/api`; query parameters remain available on the request URL. */
   readonly path: string
+  /**
+   * Path match: `exact` (the default) owns one pathname; `prefix` also owns every
+   * pathname below the path, so path-shaped resources such as preview assets keep
+   * one owner on carriers without a Web route table.
+   */
+  readonly match?: 'exact' | 'prefix'
   /** Methods this route owns. Other methods continue through normal shared-channel dispatch. */
   readonly methods: readonly ConnectionFetchMethod[]
   /** Buffered requests obey the configured JSON cap; streaming requests arrive with backpressure and no aggregate cap. */

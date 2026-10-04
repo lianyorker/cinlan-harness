@@ -63,7 +63,7 @@
 |---|---|---|
 | 通用 | ui-settings-general | general |
 | 通知 | ui-notifications | notifications |
-| 快捷键 | ui-keybindings | keybindings |
+| 快捷键 | ui-shortcuts | keybindings |
 | 浮动工作区 | ui-floating-workspace | floating-workspace |
 | 模型 | ui-settings-models | models |
 | Agent 预设 | ui-agent-preset | agent-presets |
@@ -193,5 +193,5 @@
 
 - [设置导航合同](../../packages/client/ui-settings-general/src/client/shell-contract.ts)、[slot 投影与注册](../../packages/client/ui-settings-general/src/client/index.ts)、[页面 shell](../../packages/client/ui-settings-general/src/client/SettingsRoot.tsx)。
 - [设置 slot 所有权](../../packages/client/ui-settings/src/client/contract/slots.ts)、[设置域启动](../../packages/client/ui-settings/src/client/index.ts)、[SettingsScope 写入](../../packages/client/ui-settings/src/client/settings-scope.ts)、[持久设置说明](../../docs/subsystems/settings.md)。
-- [快捷键设置及保存](../../packages/client/ui-keybindings/src/client/KeybindingsSection.tsx)、[语音偏好](../../packages/client/ui-voice-dictation/src/client/voice-settings.ts)。
+- [快捷键设置及保存](../../packages/client/ui-shortcuts/src/client/Reference.tsx)、[语音偏好](../../packages/client/ui-voice-dictation/src/client/voice-settings.ts)。
 - [工单组合](../../packages/bundle/cinlan-work-items/cordis.patch.yml)、[GitLab Provider](../../packages/work-items/work-items-gitlab/src/index.ts)、[元素捕获当前范围](../../packages/client/ui-browser-element-capture/README.md)。

@@ -8,6 +8,41 @@ export type { DirectoryInspection, WorkerInfo, ExecutionHostInfo }
 /** Durable connection record identity; distinct from a worker process hostId. */
 export type ExecutionTargetId = Branded<'ExecutionTargetId'>
 
+/**
+ * Optional OpenSSH options carried by a saved endpoint. Every field is
+ * connection-describing and non-secret, so all of them survive into a captured
+ * execution snapshot; an omitted field keeps OpenSSH's own configuration.
+ */
+export interface SshEndpointOptions {
+  /** Explicit ProxyCommand, for tunnels such as Cloudflare Access. */
+  readonly proxyCommand?: string | undefined
+  /** Explicit ProxyJump destination, equivalent to ssh -J. */
+  readonly jumpHost?: string | undefined
+  /** OpenSSH connection multiplexing; the target connection always dials -S none, so this field does not refine it. */
+  readonly multiplex?: boolean | undefined
+  /** ServerAliveInterval in seconds. */
+  readonly keepAliveIntervalSeconds?: number | undefined
+  /** Connection deadline in seconds. */
+  readonly connectTimeoutSeconds?: number | undefined
+}
+
+/**
+ * Editable connection refinements of one saved target.
+ *
+ * The saved alias stays the destination, so every field here is an optional
+ * refinement appended after the plugin-owned OpenSSH defaults: an omitted
+ * field keeps whatever the OpenSSH configuration already says. A target that
+ * has not been deployed carries only this record; a deployed target also pins
+ * a full SshExecutionConfiguration, whose endpoint is the authoritative
+ * deployment identity for execution bindings.
+ */
+export interface SshConnection extends SshEndpointOptions {
+  readonly port?: number | undefined
+  readonly username?: string | undefined
+  /** Host-owned path reference; absent means the OpenSSH agent and configuration decide. */
+  readonly privateKeyFile?: string | undefined
+}
+
 /** Saved deployment configuration for the official SSH provider; key contents remain on the Host. */
 export interface SshExecutionConfiguration {
   readonly endpoint: {
@@ -16,7 +51,7 @@ export interface SshExecutionConfiguration {
     readonly username: string
     readonly privateKeyFile: string
     readonly hostKeySHA256: string
-  }
+  } & SshEndpointOptions
   readonly node: string
   readonly helper: string
   readonly helperHash: string
@@ -36,7 +71,7 @@ export interface SshExecutionSnapshot {
     readonly port: number
     readonly username: string
     readonly hostKeySHA256: string
-  }
+  } & SshEndpointOptions
   readonly node: string
   readonly helper: string
   readonly helperHash: string
@@ -62,10 +97,11 @@ export interface ExecutionAuthorization {
   release(): void
 }
 
-/** Editable inspection alias and optional explicit execution deployment. */
+/** Editable inspection alias, connection description and optional explicit execution deployment. */
 export interface CreateTargetRequest {
   readonly label: string
   readonly sshAlias: string
+  readonly connection?: SshConnection | undefined
   readonly execution?: SshExecutionConfiguration | undefined
 }
 
@@ -122,9 +158,47 @@ export interface TargetValue { readonly target: TargetView }
 /** Completed remote inspection with its current target observation. */
 export interface InspectionValue extends TargetValue { readonly inspection: DirectoryInspection }
 
+/**
+ * Result of one non-publishing connectivity probe.
+ *
+ * The probe dials the record's own endpoint through a throwaway connection and
+ * never writes the live map, the state map or the generation counter, so it
+ * cannot disturb an active inspection or a retained binding.
+ */
+export interface TargetTestValue extends TargetValue {
+  /** Roots the probed worker advertised during the probe. */
+  readonly rootCount: number
+}
+
+/** One concrete Host block read from the managing Host's OpenSSH configuration. */
+export interface SshConfigHost {
+  /** Concrete Host pattern, used as the saved target's alias. */
+  readonly alias: string
+  readonly host?: string | undefined
+  readonly username?: string | undefined
+  readonly port?: number | undefined
+  readonly identityFile?: string | undefined
+  readonly proxyCommand?: string | undefined
+  readonly jumpHost?: string | undefined
+}
+
+/**
+ * Import candidates and the exact file they were read from.
+ *
+ * The read is one-way: the OpenSSH configuration is never rewritten, and every
+ * field is a non-secret destination detail.
+ */
+export interface ImportableHostsValue {
+  /** Absolute path of the OpenSSH configuration that was read. */
+  readonly source: string
+  /** Whether that path exists; a missing file is an empty import, not a failure. */
+  readonly exists: boolean
+  readonly entries: readonly SshConfigHost[]
+}
+
 /** Stable operational failures, safe to display without SSH diagnostics. */
 export type TargetErrorCode =
   | 'invalid-request' | 'not-found' | 'conflict' | 'limit-reached' | 'roots-unconfigured'
   | 'ssh-unavailable' | 'authentication-required' | 'host-key-mismatch' | 'unreachable'
   | 'incompatible' | 'cancelled' | 'timeout' | 'connection-lost' | 'outcome-unconfirmed'
-  | 'inspection-failed' | 'closed'
+  | 'inspection-failed' | 'configuration-unreadable' | 'closed'

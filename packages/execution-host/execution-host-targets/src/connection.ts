@@ -9,6 +9,7 @@ import {
 import type { DirectoryInspection, WorkerInfo, WorkerTransport } from '@deepseek-ai/dsh-execution-host-worker/protocol'
 import { ExecutionTargetError } from './errors.ts'
 import type { Config } from './config.ts'
+import type { SshConnection } from './types.ts'
 
 function cancelled(signal: AbortSignal): ExecutionTargetError {
   return signal.reason instanceof ExecutionTargetError
@@ -27,19 +28,48 @@ function workerFailure(code: string): ExecutionTargetError {
 }
 
 /**
+ * Record-first OpenSSH refinements for one saved connection. Each explicit
+ * field adds exactly one option in a fixed order after the plugin-owned
+ * defaults; OpenSSH resolves repeated options last-wins, so the saved record
+ * overrides ssh_config while an omitted field leaves that configuration alone.
+ * multiplex stays unrefinable because this connection always passes -S none,
+ * and hostKeySHA256 stays separate host-key pinning.
+ * @param endpoint Saved connection refinements.
+ * @returns appended option arguments; empty without a saved connection.
+ */
+function endpointArguments(endpoint: SshConnection | undefined): string[] {
+  if (endpoint === undefined) return []
+  const { port, username, privateKeyFile, proxyCommand, jumpHost, keepAliveIntervalSeconds, connectTimeoutSeconds } = endpoint
+  const args: string[] = []
+  if (port !== undefined) args.push('-p', String(port))
+  if (privateKeyFile !== undefined) args.push('-i', privateKeyFile)
+  if (username !== undefined) args.push('-o', `User=${username}`)
+  if (proxyCommand !== undefined) args.push('-o', `ProxyCommand=${proxyCommand}`)
+  if (jumpHost !== undefined) args.push('-o', `ProxyJump=${jumpHost}`)
+  if (keepAliveIntervalSeconds !== undefined) args.push('-o', `ServerAliveInterval=${keepAliveIntervalSeconds}`)
+  if (connectTimeoutSeconds !== undefined) args.push('-o', `ConnectTimeout=${connectTimeoutSeconds}`)
+  return args
+}
+
+/**
  * Build the fixed worker command with host-owned OpenSSH settings.
  * @param executable Resolved OpenSSH executable.
- * @param alias Validated saved configuration alias.
+ * @param alias Validated saved configuration alias; it stays the destination.
  * @param connectTimeoutMs Connection deadline in milliseconds.
  * @param configFile Optional host-owned OpenSSH configuration file.
+ * @param endpoint Optional saved endpoint whose explicit fields refine the alias record-first.
  * @returns argv without caller-supplied commands, flags or patches.
  */
-export function sshArguments(executable: string, alias: string, connectTimeoutMs: number, configFile?: string): readonly string[] {
+export function sshArguments(
+  executable: string, alias: string, connectTimeoutMs: number, configFile?: string,
+  endpoint?: SshConnection,
+): readonly string[] {
   return [
     executable, ...(configFile === undefined ? [] : ['-F', configFile]), '-T', '-S', 'none',
     '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'ForwardAgent=no',
     '-o', 'ClearAllForwardings=yes', '-o', 'RequestTTY=no',
     '-o', 'ConnectTimeout=' + String(Math.ceil(connectTimeoutMs / 1000)),
+    ...endpointArguments(endpoint),
     '--', alias, 'dsh --profile execution-host',
   ]
 }
@@ -58,6 +88,7 @@ export class SshTargetConnection {
     private readonly subprocess: SubprocessRuntime,
     private readonly config: Config,
     private readonly alias: string,
+    private readonly endpoint: SshConnection | undefined,
     private readonly onLost: (cleanup: Promise<boolean>) => void,
   ) {}
 
@@ -80,7 +111,7 @@ export class SshTargetConnection {
     if (timedOut()) throw new ExecutionTargetError('timeout', 'SSH worker connection timed out')
     if (admission.aborted) throw cancelled(admission)
     this.handle = this.subprocess.spawn({
-      argv: sshArguments(executable, this.alias, this.config.connectTimeoutMs, this.config.sshConfigFile), cwd: process.cwd(),
+      argv: sshArguments(executable, this.alias, this.config.connectTimeoutMs, this.config.sshConfigFile, this.endpoint), cwd: process.cwd(),
       stdio: { stdin: 'pipe', stdout: 'pipe', stderr: { maxBytes: this.config.maxDiagnosticBytes } },
       graceMs: this.config.shutdownTimeoutMs,
     })

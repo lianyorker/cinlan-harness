@@ -1,5 +1,4 @@
 /** Desktop terminal composition through real Loader, managers, tools, and optional Gateway. */
-import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
-import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
+import { settingsServiceStub } from './settings-service-stub.ts'
 import ToolRuntime, { type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
@@ -159,7 +158,7 @@ async function load(overrides: SidebarConfig = {}, gateway = false) {
   const config = resolveSidebarConfig({ shell: 'desktop-test-shell', shellArgs: ['--configured'], ...overrides })
   const rows = [
     { name: 'test-desktop-session' },
-    { name: '@deepseek-ai/dsh-settings-file', config: { path: settingsPath } },
+    { name: '@deepseek-ai/dsh-settings', config: { path: settingsPath } },
     { name: '@deepseek-ai/dsh-system-prompt' },
     { name: '@deepseek-ai/dsh-tools' },
     { name: '@deepseek-ai/dsh-client-ui-better-sidebar', config },
@@ -192,7 +191,7 @@ async function load(overrides: SidebarConfig = {}, gateway = false) {
     } } as never)
   } }
   const modules = new Map<string, unknown>([
-    ['test-desktop-session', sessions], ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
+    ['test-desktop-session', sessions], ['@deepseek-ai/dsh-settings', settingsServiceStub(settingsPath)],
     ['@deepseek-ai/dsh-system-prompt', SystemPrompt], ['@deepseek-ai/dsh-tools', ToolRuntime],
     ['@deepseek-ai/dsh-client-ui-better-sidebar', sidebar],
     ['@deepseek-ai/dsh-credentials-local', LocalCredentials], ['@deepseek-ai/dsh-client-connection', Connection],
@@ -715,8 +714,7 @@ describe('Desktop sidebar terminals through source Loader', () => {
     const h = await load({}, true)
     expect(h.ctx.get('webServer')).toBeUndefined()
     expect(h.ctx.get('webRuntime')).toBeUndefined()
-    const access = createTrustedConnectionAccess()
-    const shared = h.ctx.connection.createSharedFetchHandler('/api', access)
+    const shared = h.ctx.connection.createSharedFetchHandler('/api')
     const response = await shared.fetch(new Request('dsh-app://app/api/sidebarTerminals/capability', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ type: 'client-request', rpcId: 'terminal-capability', method: 'sidebarTerminals/capability', payload: { args: {} } }),
@@ -724,13 +722,14 @@ describe('Desktop sidebar terminals through source Loader', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ type: 'server-response', result: { ok: true, value: { status: 'available' } } })
     const lifetime = new AbortController()
+    const empty = (async function* () {})()
     const source = await h.ctx.typertGateway.wireStream.open(
-      'sidebarTerminals/open', { args: { request: uiRequest() } }, lifetime.signal, access,
+      'sidebarTerminals/open', { args: { request: uiRequest() } }, empty, undefined, lifetime.signal,
     )
     const iterator = ownStream(source as AsyncIterable<SidebarTerminalFrame>, lifetime)
     const ready = await readFrame(iterator, 'ready')
     const call = (method: string, request: unknown) => h.ctx.typertGateway.invoke({
-      access, namespace: 'sidebarTerminals', method, args: { request },
+      namespace: 'sidebarTerminals', method, args: { request },
     })
     await call('ack', { attachmentId: ready.attachmentId, sequence: 0 })
     await call('input', { attachmentId: ready.attachmentId, data: 'from-gateway\r' })

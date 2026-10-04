@@ -18,7 +18,8 @@ import { networkInterfaces } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { addHarnessSourceSection } from '@deepseek-ai/dsh-app-boot'
+import { addHarnessSourceSection, auditStartupEntries } from '@deepseek-ai/dsh-app-boot'
+import { parsePublicUrl } from './public-url.ts'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import * as FrontendStatic from '@deepseek-ai/dsh-host-frontend-static'
 import { launchedThroughSsh, launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
@@ -42,6 +43,13 @@ export const inject = ['webServer']
 
 /** Plugin config: composed deployment settings plus per-invocation command-line values. */
 export interface Config {
+  /**
+   * Canonical HTTP(S) root to advertise in the printed and opened URL,
+   * `CLH_WEB_URL`/`DSH_WEB_URL`, and the web-surface orientation, e.g.
+   * `https://app.example/ui/`, normalized to end in `/`. Advertisement only.
+   * Absent or YAML `null` advertises the loopback URL.
+   */
+  publicUrl?: string
   /** Permit default-browser handoff after the Loader tree settles; an SSH launch suppresses it. */
   openBrowser: boolean
   /** Print the URL line on activation; a non-interactive layer can turn it off. */
@@ -58,6 +66,7 @@ export interface Config {
 }
 
 export const Config: z<Config> = z.object({
+  publicUrl: z.transform(z.string(), value => parsePublicUrl(value).href),
   openBrowser: z.boolean().default(true),
   printUrl: z.boolean().default(true),
   surfaceContext: z.boolean().default(true),
@@ -73,6 +82,7 @@ export interface WebRuntimeValues {
 }
 
 /** Environment variable naming the canonical local URL of this Web GUI. */
+const CLH_WEB_URL = 'CLH_WEB_URL' as const
 const DSH_WEB_URL = 'DSH_WEB_URL' as const
 
 // Display-only mirror of the webserver schema's loopback host: the address the
@@ -136,7 +146,7 @@ function webSurfacePrompt(webUrl: string): string {
   const updateContract = 'The client-plugin HMR receiver is active, but client-plugin changes reload without a refresh only while '
     + '`pnpm run dev:web` is also running from this same checkout to rebuild their bundles; verify that watcher before promising automatic updates. '
     + 'Every other change — the apps/web shell and plain packages — requires rebuilding the affected Web artifacts and verifying this existing URL after a page refresh. '
-  return `You are interacting with the user through the DeepSeek Harness Web GUI at ${webUrl}. `
+  return `You are interacting with the user through the Cinlan Harness Web GUI at ${webUrl}. `
     + 'When the user refers to "this page", "this GUI", or "this app" without naming another target, they mean this GUI. '
     + 'The browser provides no implicit DOM, route, or screenshot context. '
     + updateContract
@@ -146,6 +156,11 @@ function webSurfacePrompt(webUrl: string): string {
 }
 
 /** Resolve the canonical loopback URL from the active Web server. */
+function appRootUrl(ctx: Context, publicUrl: string | undefined): string {
+  if (publicUrl !== undefined) return publicUrl
+  return localWebUrl(ctx)
+}
+
 function localWebUrl(ctx: Context): string {
   const port = ctx.get('webServer')?.port
   if (port === undefined) throw new Error('web-app: webServer service missing while resolving Web runtime')
@@ -223,6 +238,8 @@ export const internals: {
  * @param config - validated {@link Config}.
  */
 export function apply(ctx: Context, config: Config): void {
+  // The schema validates a present string; an explicit YAML `null` reaches here as unset.
+  const publicUrl = config.publicUrl ?? undefined
   const runtime = resolveLanTrust(ctx.webServer.host, config.trustedHosts)
   // The loopback URL belongs to this host. Under SSH, the operator reaches it
   // through a local forwarding address that this process cannot derive.
@@ -236,16 +253,20 @@ export function apply(ctx: Context, config: Config): void {
       promptCtx.systemPrompt.section({
         name: 'app:web-surface',
         order: promptCtx.systemPrompt.getSectionOrder('WEB_SURFACE'),
-        text: () => webSurfacePrompt(localWebUrl(promptCtx)),
+        text: () => webSurfacePrompt(appRootUrl(promptCtx, publicUrl)),
       })
     })
     ctx.inject(['shellEnv'], (runtimeCtx) => {
       runtimeCtx.shellEnv.register({
         name: 'web-runtime',
         variables: {
-          [DSH_WEB_URL]: { description: 'Canonical local URL of the DeepSeek Harness Web GUI serving this session.' },
+          [CLH_WEB_URL]: { description: 'Advertised URL of the Cinlan Harness Web GUI serving this session.' },
+          [DSH_WEB_URL]: { description: 'Advertised URL of the Cinlan Harness Web GUI serving this session.' },
         },
-        resolve: () => ({ [DSH_WEB_URL]: localWebUrl(runtimeCtx) }),
+        resolve: () => {
+          const url = appRootUrl(runtimeCtx, publicUrl)
+          return { [CLH_WEB_URL]: url, [DSH_WEB_URL]: url }
+        },
       })
     })
   }
@@ -258,7 +279,7 @@ export function apply(ctx: Context, config: Config): void {
       // hand-built tree without a Loader is already the complete tree.
       const announceReady = (): void => {
         if (ANNOUNCED_ROOTS.has(connectionCtx.root)) return
-        const webUrl = localWebUrl(connectionCtx)
+        const webUrl = appRootUrl(connectionCtx, publicUrl)
         const authenticatedUrl = connectionCtx.connection.authenticatedUrl(webUrl)
         // Reuse the exact LAN snapshot provided to the /api trust fence.
         const lanCandidate = runtime.lanAddresses[0]
@@ -268,13 +289,13 @@ export function apply(ctx: Context, config: Config): void {
           : connectionCtx.connection.authenticatedUrl(`http://${lanCandidate}:${String(port)}`)
         ANNOUNCED_ROOTS.add(connectionCtx.root)
         if (config.printUrl) {
-          console.log(`dsh web: ${authenticatedUrl}${lanUrl === undefined ? '' : ` (LAN: ${lanUrl})`}`)
+          console.log(`clh web: ${authenticatedUrl}${lanUrl === undefined ? '' : ` (LAN: ${lanUrl})`}`)
         }
         if (handoffBrowser) {
-          console.log('dsh web: opening the default browser; pass --no-open to disable')
+          console.log('clh web: opening the default browser; pass --no-open to disable')
           void internals.openBrowser(authenticatedUrl).catch((error: unknown) => {
             const reason = error instanceof Error ? error.message : String(error)
-            console.error(`web-app: could not open the default browser because ${reason}; use the dsh web URL printed at startup`)
+            console.error(`web-app: could not open the default browser because ${reason}; use the clh web URL printed at startup`)
           })
         }
       }
@@ -284,15 +305,17 @@ export function apply(ctx: Context, config: Config): void {
       const settled = connectionCtx.get('loader')?.await()
       if (settled === undefined) announceReady()
       else {
-        void settled.then(() => {
+        void settled.then(async () => {
+          await auditStartupEntries(connectionCtx.root, 'clh web', () => {})
           // The tree can be disposed while the boot was in flight (early
           // SIGTERM); a URL line or browser tab for a dead server would only
           // mislead, and reading torn-down services would turn a clean shutdown
           // into a crash.
           if (connectionCtx.get('webServer') !== undefined
             && connectionCtx.get('connection') !== undefined) announceReady()
-        // Loader reports a failed boot; this row only stays quiet.
-        }, () => {})
+        }).catch(() => {
+          // Loader reports the failed boot; this row only stays quiet.
+        })
       }
     })
   }

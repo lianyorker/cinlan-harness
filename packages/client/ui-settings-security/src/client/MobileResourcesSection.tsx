@@ -49,6 +49,7 @@ function ResourceRow({ resource, busy, run, t }: {
   const mutable = resource.supported && !resource.leased && !busy
   const installed = resource.installedVersion !== null
   const submit = (operation: MobileResourceTask['operation']): void => {
+    /* v8 ignore next -- every submit control is disabled unless the resource is mutable and its license is accepted. */
     if (!mutable || (operation !== 'remove' && !accepted)) return
     run({ resourceId: resource.definition.id, expectedRevision: resource.revision, operation, acceptLicense: accepted })
   }
@@ -78,6 +79,7 @@ function ResourceRow({ resource, busy, run, t }: {
       closeLabel={t('mobileResourcesClose')} onClose={() => { setRemoval(undefined) }} footer={<>
         <Button variant="outline" onClick={() => { setRemoval(undefined) }}>{t('mobileResourcesKeep')}</Button>
         <Button variant="outline" disabled={!mutable || removal?.expectedRevision !== resource.revision} onClick={() => {
+          /* v8 ignore next -- the control is disabled whenever the resource is busy or its revision moved. */
           if (mutable && removal !== undefined && removal.expectedRevision === resource.revision) { run(removal); setRemoval(undefined) }
         }}>{t('mobileResourcesRemove')}</Button>
       </>} />
@@ -102,6 +104,7 @@ export function MobileResourcesSection({ useMobileResources, watchMobileResource
     return () => { active.current = false; release() }
   }, [watchMobileResources])
   const request = async (action: () => Promise<void>): Promise<void> => {
+    /* v8 ignore next -- defensive: every resource command control is disabled for the whole in-flight request. */
     if (inFlight.current) return
     inFlight.current = true; setPending(true); setRequestError(false)
     try { await action() } catch (_resourceRequestRejected) { if (active.current) setRequestError(true) }
@@ -144,6 +147,7 @@ export function MobileResourcesSection({ useMobileResources, watchMobileResource
         {status.devices.map(item => <option key={item.id} value={item.id} disabled={!item.available}>{item.serial} — {item.state}</option>)}
       </select></label>
       <div className={css.actions}><Button variant="outline" disabled={!canMirror} onClick={() => {
+        /* v8 ignore next -- the mirror control needs an available device and a verified scrcpy. */
         if (canMirror) void request(() => startMobileMirror(device.id))
       }}>{t('mobileResourcesMirrorStart')}</Button>
       {mirroring && <Button variant="outline" disabled={pending} onClick={() => {

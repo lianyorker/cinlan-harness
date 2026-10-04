@@ -54,6 +54,7 @@ const provider: BrowserProvider = {
     format: request.format,
     mediaType: request.format === 'png' ? 'image/png' : 'image/jpeg',
     data: Uint8Array.of(1),
+    viewport: { width: 800, height: 600 },
   }),
   closePage: () => Promise.resolve(),
 }

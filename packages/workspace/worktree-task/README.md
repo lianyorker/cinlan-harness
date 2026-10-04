@@ -20,7 +20,7 @@ This package defines the Worktree Task service used to create and manage isolate
 ## Use this package
 Mount a provider such as dsh-worktree-task-git as ctx.worktreeTask. Pass branded task ids across service and Remote calls, and use lifecycle methods rather than manipulating checkout paths directly.
 
-Revisioned settings apply to future tasks; each task retains its captured starting point and programs. Read-only review returns bounded tracked changes, untracked filenames, and captured programs without activating a checkout. Archive and delete may return a cleanup receipt; a settled failure permits an explicit retry, while an unsettled claim blocks it. Successful cleanup is not repeated. Safe deletion retains an unmerged branch and archived record; receipts survive task deletion. Hibernation does not run cleanup.
+Revisioned settings apply to future tasks; each task retains its captured starting point and programs. Read-only review returns bounded tracked changes, untracked filenames, and captured programs without activating a checkout. Merge checkpoints and archives an unbound task, requires its captured source checkout to be clean and on the captured branch, and returns both source commits. A conflict aborts the Git merge and retains the archived task for review or retry. Archive and delete may return a cleanup receipt; a settled failure permits an explicit retry, while an unsettled claim blocks it. Successful cleanup is not repeated. Safe deletion retains an unmerged branch and archived record; receipts survive task deletion. Hibernation does not run cleanup.
 
 The [Git provider](../worktree-task-git/README.md) owns command execution, checkout containment, settlement, and durability.
 

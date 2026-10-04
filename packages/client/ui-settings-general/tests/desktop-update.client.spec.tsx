@@ -1,13 +1,29 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import { DesktopUpdateIndicator } from '../src/client/DesktopUpdateIndicator.tsx'
 import type { DesktopUpdateBridge, DesktopUpdatePresentation } from '../src/types.ts'
 import { DesktopUpdateSource } from '../src/client/desktop-update-source.ts'
 import { en, zh } from '../src/client/locales.ts'
 
+beforeEach(() => {
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(private readonly callback: ResizeObserverCallback) {}
+    observe(target: Element): void {
+      this.callback([{
+        target,
+        borderBoxSize: [{ inlineSize: 100, blockSize: 20 }],
+        contentBoxSize: [{ inlineSize: 100, blockSize: 20 }],
+        devicePixelContentBoxSize: [{ inlineSize: 100, blockSize: 20 }],
+        contentRect: new DOMRect(0, 0, 100, 20),
+      }], this as unknown as ResizeObserver)
+    }
+    unobserve(): void {}
+    disconnect(): void {}
+  })
+})
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 type SettingsTranslate = PropsLocale<'settings'>['t']

@@ -4,10 +4,6 @@
     - id: security-research-presets
       name: '@deepseek-ai/dsh-security-research'
 
-    # Runtime invariant registry backing the assessment-scope and finding
-    # companions below; base compositions do not mount it, so this layer owns it.
-    - id: invariants
-      name: '@deepseek-ai/dsh-invariants'
 
     - id: artifact-local
       name: '@deepseek-ai/dsh-artifact-local'
@@ -38,13 +34,9 @@
     - id: assessment-scope-tool-policy
       name: '@deepseek-ai/dsh-assessment-scope-tool-policy'
 
-    - id: assessment-scope-invariant
-      name: '@deepseek-ai/dsh-assessment-scope/invariant'
 
     - id: finding-session
       name: '@deepseek-ai/dsh-finding-session'
-    - id: finding-invariant
-      name: '@deepseek-ai/dsh-finding/invariant'
 
     - id: vuln-kb
       name: '@deepseek-ai/dsh-vuln-kb-service'

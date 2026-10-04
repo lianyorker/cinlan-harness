@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-04-agent-team-worktree-integration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-04-agent-team-worktree-integration.md
+/agent-note-agent-team-worktree-integration:
+  en: c9c7ed6dd1567b92
+  zh: 82898dffd0ae6282
+/agent-note-agent-team-worktree-integration/problem:
+  en: 50c8e6b56ea8e624
+  zh: aaaedfcb63e7c2f5
+/agent-note-agent-team-worktree-integration/decision:
+  en: 6cfa4e34121ce758
+  zh: 7dded3a8ad9efeee
+/agent-note-agent-team-worktree-integration/alternatives-considered:
+  en: 7d65aaeb40baef30
+  zh: b572349d1e860dc5
+/agent-note-agent-team-worktree-integration/consequences:
+  en: 50a32f5d9604e71e
+  zh: dfa85a5f928cc318

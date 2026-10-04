@@ -65,7 +65,7 @@ describe('ui-settings-unarchive-sessions browser plugin', () => {
     expect(entry.locale).toBe('settings.archivedSessions')
     expect(resolveSlotLabel(entry.options.label)).toBe('已归档会话')
     expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({
-      sections: [{ sectionId: 'archived-sessions', groupId: 'personal' }],
+      sections: [{ sectionId: 'archived-sessions', groupId: 'advanced', heading: 'shell' }],
       items: [{
         sectionId: 'archived-sessions', id: 'restore', anchorId: 'archived-sessions-search',
         title: '已归档会话', description: '搜索已归档会话', keywords: ['取消归档', '恢复会话'],

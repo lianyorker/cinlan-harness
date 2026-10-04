@@ -1,79 +1,115 @@
-# MCP 连接与管理
+# MCP
 
 [English](mcp.md) | 中文
 
-MCP 将外部工具服务器接入 Harness，并提供可检查的连接状态。[客户端桥接](../../packages/mcp/mcp-client/README.zh.md) 拥有活动连接与已发现工具；[管理服务](../../packages/mcp/mcp-management/README.zh.md) 为单个启动 profile 保存服务器定义。[资源服务](../../packages/mcp/mcp-resources/README.zh.md)提供调用方作用域内的发现与读取。本参考说明这些包声明的类型。
+## 摘要
 
-## 连接身份与观测
+模型上下文协议（Model Context Protocol，MCP）让模型使用外部服务器提供的工具。每个已配置服务器都会提供普通 Harness 工具，支持取消、权限检查、结果记录和受支持的图像输出。调用方作用域中配置了服务器时，共享工具负责发现和读取资源，服务器指令则加入已记录的系统提示词。官方 SDK 协商现代或受支持的旧版协议。本参考页介绍 MCP 包组的职责、作用域和组合选择；服务器配置由[客户端 README](../../packages/mcp/mcp-client/README.zh.md) 维护。
 
-来源：[`mcp-client/src/types.ts`](../../packages/mcp/mcp-client/src/types.ts)。持久管理记录与活动启动器实例具有独立身份。[根级注册表](../../packages/mcp/mcp-client/src/registry.ts) 提供不可变快照，在变化之间保持对象身份稳定；Agent 作用域的启动器不贡献条目。
+## 目录
 
-| 类型 | 字段与含义 |
+- [配置](#configuration)
+- [职责与作用域](#responsibilities-and-scope)
+- [协议与结果](#protocol-and-results)
+- [资源与指令](#resources-and-instructions)
+- [资源提供方类型](#resource-provider-types)
+- [限制](#limits)
+- [延伸阅读](#further-reading)
+
+-----
+
+<a id="configuration"></a>
+## 配置
+
+MCP 服务器需要主动配置。在目标 Cordis 作用域中，为每台服务器配置一个 `@deepseek-ai/dsh-mcp-client` 条目。每个随附 profile 都提供[工具注册表](tools.zh.md)，并统一挂载共享资源服务一次；用户只需配置客户端条目。调用方没有可见的已配置服务器时，在 native 或 PTC 模式下都不会获得 MCP 提示词文本或工具。
+
+| 选择 | 配置维护位置 |
 |---|---|
-| `McpServerId` | profile 记录拥有者分配的品牌化持久地址；更改 `serverName` 时保留。 |
-| `McpConnectionId` | 单个活动启动器实例的品牌化身份，不是已保存的服务器地址。 |
-| `McpOwner` | `kind: managed` 携带 `recordId`；`kind: composition` 携带实际组合拥有者的 `label`。观测本身不授予修改权限。 |
-| `McpToolDescriptor` | 最近一次已提交发现结果中的公开 `name`、`description` 与 `inputSchema`。 |
-| `McpConnectionState` | `phase`、重连 `attempt`、可选 `retryAt` 与 `errorCode`，以及已提交的 `tools`。启动时 attempt 为 0；`retryAt` 是 Unix 毫秒，仅在退避期间出现。 |
-| `McpConnectionSnapshot` | 连接状态加上活动 `id`、`serverName`、`transport`（`stdio` 或 `streamable-http`）与 `owner`。不含可执行配置、端点、环境变量和授权标头。 |
+| 服务器身份、本地进程或 HTTP 端点、凭据和进程环境 | [客户端配置](../../packages/mcp/mcp-client/README.zh.md#use-this-package) |
+| 工具与资源请求超时、启动失败策略和重连 | [客户端配置](../../packages/mcp/mcp-client/README.zh.md#use-this-package) |
+| 资源发现与读取 | 随附 profile 已包含 [MCP 资源服务](../../packages/mcp/mcp-resources/README.zh.md#use-this-package)；该服务没有配置字段 |
+| 服务器指令大小限制 | 客户端 `maxInstructionBytes`；组合提供[系统提示词装配](system-prompt.zh.md) |
+| 权限决策和受支持的图像输出 | [工具执行](tools.zh.md)和[附件](attachment.zh.md) |
 
-`McpConnectionState.phase` 为 `connecting`、`ready`、`backoff`、`error` 或 `stopped`。`ready` 表示发现结果已提交，且之后未观测到错误。中断期间保留的工具列表不表示调用能够成功；停止或重试耗尽会移除它。
+协议协商遵循 SDK 支持的修订版；产品没有强制指定协议修订版的设置。[配置目录](../config-catalog.zh.md#deepseek-aidsh-mcp-client) 列出客户端接受的字段和默认值。
 
-`McpConnectionError` 在不包含上游文本或凭据的情况下分类失败：`missing-credential`、`authentication-failed`、`connection-failed`、`tool-sync-failed`、`namespace-conflict` 或 `close-timeout`。带有 `close-timeout` 的已停止连接保留命名空间占用，因为传输关闭尚未得到确认。
+-----
 
-## 保存的服务器定义
+<a id="responsibilities-and-scope"></a>
+## 职责与作用域
 
-来源：[`mcp-management/src/types.ts`](../../packages/mcp/mcp-management/src/types.ts)。期望配置记录包含凭据引用；每次连接尝试的解析结果保持私有。参数和端点路径是公开配置，不能包含秘密值。
+客户端是每服务器一个的连接插件，也是 Harness 工具注册表的消费者。它不发布共享的 `ctx.mcp` 服务。外部服务器实现 MCP 操作；SDK 拥有协议交换；客户端将发现的工具适配到 Harness 执行过程。
 
-| 类型 | 字段与含义 |
-|---|---|
-| `McpServerCommon` | `serverName`、`enabled`、可选 `toolCallTimeoutMs` 与可选 `reconnect`。名称是匹配 `[A-Za-z0-9_-]{1,32}` 的本地工具命名空间。 |
-| `ReconnectConfig` | 可选 `enabled`、`initialDelayMs`、`maxDelayMs` 与 `maxAttempts`。延迟以毫秒计；`maxDelayMs` 还指定重置尝试预算所需的稳定运行窗口。省略的值使用客户端桥接解析后的默认值。 |
-| `McpStdioServer` | 公共字段加上 `transport: stdio`、`command`、字面量 `args`、`cwd` 与 `env`（将变量名映射到 `CredentialRef` 值）。 |
-| `McpHeaderReference` | 凭据 `ref` 与非秘密 `prefix`，解析标头时在私有范围内拼接。 |
-| `McpHttpServer` | 公共字段加上 `transport: streamable-http`、`url` 与 `headers`（将名称映射到 `McpHeaderReference`）。URL 不含用户信息、查询字符串或片段。 |
-| `McpServerInput` | 以 `transport` 区分的 stdio 与 HTTP 定义联合，不含持久 id。 |
-| `McpServerRecord` | 输入加上持久 `id: McpServerId`；服务器名称在 profile 的期望配置集合内保持唯一。 |
+`mcp-resources` 拥有共享资源工具，并在调用方作用域中选择提供方。每个 MCP 客户端通过自己的连接提供资源操作。作用域中的首个提供方启用本地共享工具，移除最后一个提供方时移除这些工具；继承的提供方仍然可见。服务独立于任何单一客户端拥有这些工具注册。只要可见的客户端条目保持激活，连接失败就不会移除共享资源工具。
 
-## 管理快照与修改
+配置的 `serverName` 在注册作用域内标识服务器。同一作用域中的两个条目不能占用相同名称；不同 Agent 作用域可以复用该名称。公开工具名包含配置的服务器名称，因此不同服务器的同名工具仍可区分。注册副作用拥有名称和已发现工具；插件释放时关闭连接并移除其贡献。
 
-[管理服务](../../packages/mcp/mcp-management/src/index.ts) 将持久化意图与观测到的连接就绪状态分开。保存或启用记录可以成功，同时其连接报告激活错误。重连或连接失败不会改变已保存集合的 revision。
+[原生 Cua Driver 提供方](../../packages/experimental/computer-use-cua-driver-native/README.zh.md) 复用客户端导出的结果适配器，无需打开 MCP 连接。桌面提供方选择属于[计算机使用子系统](computer-use.zh.md)。
 
-| 类型 | 字段与含义 |
-|---|---|
-| `McpManagedServerView` | 期望 `record`、实际 `observed` 连接状态，以及表示期望配置是否仍需应用到所拥有子实例的 `applying`。 |
-| `McpExternalServerView` | `owner.kind` 为 `composition` 的连接快照；管理服务仅为观测而公开它。 |
-| `McpManagementSnapshot` | `profile`、期望集合的 `revision`、表示待处理管理操作的 `reconciling`、受管理的 `servers` 与组合拥有的 `external` 连接。 |
-| `McpSaveRequest` | 可选 `id`、完整 `record: McpServerInput` 与 `expectedRevision`。省略 id 时创建；提供 id 时替换对应记录。 |
-| `McpSaveResult` | 持久 `id` 与当前 `snapshot`，调用方无需通过匹配用户提供的文本恢复新建身份。 |
-| `McpRemoveRequest` | `id` 与 `expectedRevision`；删除在提交前停止所拥有的连接。 |
-| `McpSetEnabledRequest` | 删除请求的字段加上 `enabled`；先持久化期望开关，再协调子实例生命周期。 |
-| `McpServerRequest` | 当前 profile 中用于重连或探测的管理记录 `id`；不能指向外部组合。 |
+-----
 
-`expectedRevision` 比较完整 profile 集合，而非单个服务器。过期值会导致修改被拒绝。`probe` 在已初始化连接上刷新 `tools/list`，不调用工具，也不启动已禁用服务器；取消会保留上一代工具。
+<a id="protocol-and-results"></a>
+## 协议与结果
 
-`McpManagementErrorCode` 为 `conflict`、`invalid-config`、`not-found`、`disabled`、`not-ready`、`storage-failed`、`stopped`、`probe-failed` 或 `close-failed`。这些固定分类可安全用于 Remote 错误与本地化 UI 文本。关闭未得到确认时保留记录，并阻止替换该子实例。
+stdio 和 Streamable HTTP 都使用官方 SDK 的协商、发现、协议校验和取消机制。工具列表变化通过旧版通知或现代订阅触发发现。刷新失败时保留上一代工具；连接恢复遵循[客户端生命周期](../../packages/mcp/mcp-client/README.zh.md#use-this-package)。
 
-## 启动器句柄
+结果适配器为程序化调用方保留规范 MCP JSON，并准备普通工具内容。受支持的图像使用附件系统；不受支持的富内容产生明确的文本诊断。工具注册表仍决定策略失败和结果替换。[工具契约](tools.zh.md) 维护记录和最终呈现规则；[客户端结果参考](../../packages/mcp/mcp-client/README.zh.md#use-this-package) 维护 MCP 特有的投影细节。
 
-客户端的编程启动器与组合插件共用连接监督器。启动时的所有权和凭据解析与插件配置分离。
+-----
 
-| 类型 | 字段与含义 |
-|---|---|
-| `ConnectionOutcome` | 首次尝试产生的可选 `error`。单凭 `ready` promise 成功兑现不能确定连接已就绪。 |
-| `ConnectionHandle` | `ready` 报告首次结算；`getSnapshot()` 与 `subscribe()` 公开已提交状态；`probe(signal)` 刷新描述符；`resources` 将请求路由至已初始化的当前世代；`dispose()` 等待清理完成。并发释放共享同一次完成。 |
-| `McpLaunchOptions` | 可选 `owner`、在保持服务器身份不变的前提下为每次尝试解析新凭据的 `resolveConfig(signal)`，以及从公开元数据中移除已知秘密值的 `redact(text)`。 |
+<a id="resources-and-instructions"></a>
+## 资源与指令
 
-## 作用域资源
+资源调用必须显式指定配置的服务器名称。系统提示词组装服务可用时，资源服务从派发所用的同一注册表列出调用方可见的名称，包括没有工具或指令的服务器。共享注册表在分发前，于调用 Agent 的作用域中解析该名称；不可用的服务器会在发出网络请求前失败。发现和读取均按需执行，也支持只提供资源而不提供工具的服务器。[资源包](../../packages/mcp/mcp-resources/README.zh.md) 维护分页和内容渲染规则；其生成的工具 schema 位于[工具目录](../tool-catalog.zh.md#deepseek-aidsh-mcp-resources)。
 
-来源：[资源运行时](../../packages/mcp/mcp-resources/src/index.ts)。提供方以配置的服务器名称在 effect 所有者的作用域中注册。后代继承最近的提供方；无关作用域不能通过该提供方派发。首个本地提供方公开三个共享工具，最后一个移除时撤销这些工具。
+资源提供方仍由连接拥有。作用域释放时移除注册；MCP 客户端控制取消和恢复。规范结果为程序化调用方保留完整 JSON，文本投影则以描述替换二进制 blob。返回的文本进入普通工具历史；服务器连接本身不会触发内容读取。
 
-| 类型 | 字段与含义 |
-|---|---|
-| `McpResourceRequest` | `resources/list` 或 `resources/templates/list` 带可选不透明 `cursor`；`resources/read` 带显式 `uri`。 |
-| `McpResourceProvider` | `request(request, execution)` 接收调用方身份与取消信号，并返回无损 JSON。 |
+组合包含系统提示词装配时，客户端将非空白的服务器指令发布为带服务器归属的作用域章节。指令保持字面文本，并在发布前通过配置的大小限制。替换连接仅在发现成功后发布指令；缺少指令时不添加章节。[系统提示词子系统](system-prompt.zh.md) 维护装配与记录规则。
 
-资源列表返回一页并保留 `nextCursor`。读取结果保留规范文本或二进制内容，模型文本则将 base64 `blob` 值替换为长度说明。配置的提供方名称在连接失败期间保持可见；协商、断开或释放期间调用会失败。托管请求使用与工具调用相同的安全错误分类。
+-----
+
+<a id="resource-provider-types"></a>
+## 资源提供方类型
+
+连接提供方接收一个操作与原始工具执行对象，其中包含调用方和取消信号。
+
+```ts type-equiv
+/** One supported resource operation, with server-owned cursors and URIs. */
+type McpResourceRequest =
+  | { method: 'resources/list' | 'resources/templates/list'; cursor?: string }
+  | { method: 'resources/read'; uri: string }
+```
+
+```ts type-equiv
+/** One configured server's resource access, owned by its MCP connection plugin. */
+interface McpResourceProvider {
+  /**
+   * Run an operation against one live connection generation.
+   * @param request - MCP resource method and parameters.
+   * @param exec - caller identity and cancellation for this invocation.
+   * @returns the protocol result as lossless JSON.
+   */
+  request(request: McpResourceRequest, exec: ToolExecution): Promise<JsonValue>
+}
+```
+
+-----
+
+<a id="limits"></a>
+## 限制
+
+不支持 MCP 提示词模板、人工输入征询、基于任务的执行和资源订阅。资源工具需要调用方可见的已配置服务器；二进制资源保留为程序化数据，模型接收其文本描述。没有工具能力的服务器以空工具集连接。连接和发现超时遵循 SDK；客户端没有对应的独立设置。
+
+-----
+
+<a id="further-reading"></a>
+## 延伸阅读
+
+- [MCP 包组](../../packages/mcp/README.zh.md) — 包入口。
+- [MCP 资源](../../packages/mcp/mcp-resources/README.zh.md) — 共享工具与资源提供方语义。
+- [资源可见性参考](../../packages/mcp/mcp-resources/README.zh.md) — profile 统一挂载及由已配置服务器决定的可见性。
+- [第三方记忆服务器](../user/guide/mcp-memory.zh.md) — 产品配置指南。
+- [协议协商参考](../../packages/mcp/mcp-client/README.zh.md) — SDK 职责与兼容性决策。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -82,88 +118,6 @@ MCP 将外部工具服务器接入 Harness，并提供可检查的连接状态�
 ## Cordis API
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
-
-<a id="ctxmcpmanagement--mcpmanagement"></a>
-
-### `ctx.mcpManagement` — `McpManagement`
-
-Persist desired state independently from connection readiness and own only programmatic children.
-
-```ts cordis-catalog
-/**
- * Read the manager's current complete profile view.
- * @returns Stable readback between desired or observed changes.
- */
-getSnapshot(): McpManagementSnapshot
-
-/**
- * Observe committed desired state and actual connection changes.
- * @param listener - Notification callback.
- * @returns Disposer for this observer.
- */
-subscribe(listener: () => void): () => void
-
-/**
- * Persist a validated definition at the requested profile revision, then start applying it.
- * @param request - New or existing record and revision last observed by the editor.
- * @returns Durable identity and a readback that separates desired state from connection state.
- */
-async save(request: McpSaveRequest): Promise<McpSaveResult>
-
-/**
- * Remove a record only after its owned connection has stopped.
- * @param request - Owned record and expected collection revision.
- * @returns Durable removal and completed child teardown.
- */
-async remove(request: McpRemoveRequest): Promise<McpManagementSnapshot>
-
-/**
- * Save enablement before reconciling its connection lifetime.
- * @param request - Explicit desired enablement and expected revision.
- * @returns Saved switch and current observed connection state.
- */
-async setEnabled(request: McpSetEnabledRequest): Promise<McpManagementSnapshot>
-
-/**
- * Replace an enabled owned child after its previous lifetime has quiesced; resolve credentials anew.
- * @param request - Owned record identity.
- * @returns Connecting or failed observed state without changing the desired revision.
- */
-async reconnect(request: McpServerRequest): Promise<McpManagementSnapshot>
-
-/**
- * Refresh tools through an initialized managed bridge; never starts a disabled server or calls a tool.
- * @param request - Owned record identity.
- * @param signal - Caller cancellation of the tools/list request.
- * @returns Current status and the newly observed tool descriptors.
- */
-async probe(request: McpServerRequest, signal: AbortSignal): Promise<McpManagementSnapshot>
-```
-
-Source: [`packages/mcp/mcp-management/src/index.ts`](../../packages/mcp/mcp-management/src/index.ts)
-
-<a id="ctxmcpregistry--mcpregistry"></a>
-
-### `ctx.mcpRegistry` — `McpRegistry`
-
-Root/profile connection catalog; Agent-scoped launchers do not contribute.
-
-```ts cordis-catalog
-/**
- * Read immutable rows, stable between changes.
- * @returns the current secret-free observations.
- */
-getSnapshot(): readonly McpConnectionSnapshot[]
-
-/**
- * Observe row changes.
- * @param listener - callback without a payload.
- * @returns effect-scoped unsubscribe.
- */
-subscribe(listener: () => void): () => void
-```
-
-Source: [`packages/mcp/mcp-client/src/registry.ts`](../../packages/mcp/mcp-client/src/registry.ts)
 
 <a id="ctxmcpresources--mcpresourceruntime"></a>
 

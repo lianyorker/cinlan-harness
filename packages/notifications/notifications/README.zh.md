@@ -22,7 +22,7 @@ kind: "package-reference"
 ## 使用
 
 ```yaml
-- name: '@deepseek-ai/dsh-settings-file'
+- name: '@deepseek-ai/dsh-settings'
 - name: '@deepseek-ai/dsh-notifications'
 ```
 

@@ -115,7 +115,7 @@ describe('ui-workspace-isolation registration', () => {
 
     const section = b.slots.entries('settings.section')[0]!
     expect(section.component).toBe(WorkspaceIsolationSection)
-    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'workspace-isolation', groupId: 'development' }])
+    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'workspace-isolation', groupId: 'workspace' }])
     expect(section.options).toMatchObject({ id: 'workspace-isolation', order: 70 })
     expect(section.locale).toBe('settings.workspaceIsolation')
     expect(resolveSlotLabel(section.options.label)).toBe('隔离工作区')

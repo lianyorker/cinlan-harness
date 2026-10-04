@@ -1,6 +1,118 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-better-sidebar/README.md
-README.md: 153a2ff6128257525b1999ed21cd3b5288986dbe
-README.zh.md: c2e14dff5ce1d13bd8783907a3f8f9bca5f1c4d3
+/:
+  en: b6fa4809da872bb4
+  zh: 1fd20c57ec951a78
+/dsh-better-sidebar:
+  en: 1238d746806e7a8e
+  zh: 6dc82e555c758347
+/dsh-better-sidebar/summary:
+  en: 3349a35113cc4e2d
+  zh: cc9f3dec9da0e699
+/dsh-better-sidebar/overview:
+  en: 5d34ef7253395220
+  zh: 273bb55817e91f1f
+/dsh-better-sidebar/table-of-contents:
+  en: c87d7194d9f54a9e
+  zh: 88598349f289e7bf
+/dsh-better-sidebar/features:
+  en: d993d5e8adfcb5a9
+  zh: baad5b5e3b34076a
+/dsh-better-sidebar/installation:
+  en: 8ec11735a24846c4
+  zh: 0e2530b5950ca10c
+/dsh-better-sidebar/feature-tour:
+  en: e1f28d2ff0e80517
+  zh: 015bbf486801b21c
+/dsh-better-sidebar/plugin-ecosystem:
+  en: 76be5e8bc877dd3e
+  zh: a3b64dca7219b9fc
+/dsh-better-sidebar/plugin-ecosystem/tab-plugins-sidebar-pages:
+  en: cbe66967480dfb65
+  zh: acd55305329e43f7
+/dsh-better-sidebar/plugin-ecosystem/viewer-plugins-file-previewers:
+  en: 125ecd2d9a1a8d25
+  zh: 5bf9a715d14b0ad8
+/dsh-better-sidebar/plugin-ecosystem/enhancements-tools:
+  en: fae165d601ff3755
+  zh: 2bfc4a91f34e0f48
+/dsh-better-sidebar/recent-updates:
+  en: 6cf3de0f0f434faf
+  zh: f5594723b36f7bdf
+/dsh-better-sidebar/recent-updates/v0-15-2:
+  en: de3e5ffdb9d1f381
+  zh: c1b0df9d99a0170a
+/dsh-better-sidebar/recent-updates/v0-15-1:
+  en: d035f8727f2c0122
+  zh: bc263f9827bab204
+/dsh-better-sidebar/recent-updates/v0-15-0:
+  en: e4989971b8b82bcc
+  zh: 14bbe26c001a2e27
+/dsh-better-sidebar/recent-updates/v0-14-0:
+  en: 92bcfdde564e0b0c
+  zh: 23c225ff151af8ef
+/dsh-better-sidebar/recent-updates/v0-13-1:
+  en: 1615bdb87f2e5177
+  zh: 632f8856105b6856
+/dsh-better-sidebar/recent-updates/v0-13-0:
+  en: 906d5c6af64da20c
+  zh: efeddbd9640b1bab
+/dsh-better-sidebar/recent-updates/v0-12-3:
+  en: 07347dc8f3499750
+  zh: bb59828ae2558c22
+/dsh-better-sidebar/keyboard-shortcuts:
+  en: d1f9b886cdc12151
+  zh: 825695c4a217bc53
+/dsh-better-sidebar/service-api:
+  en: cf6884f4e12a4606
+  zh: ebb1b7073bbcd30d
+/dsh-better-sidebar/service-api/plugin-settings-navigation:
+  en: e9f213c7fbe0fd9b
+  zh: bdb67a7f4a6cebe9
+/dsh-better-sidebar/development-build:
+  en: 890c6ca15ffc2a9f
+  zh: 656926842fc208fb
+/dsh-better-sidebar/security:
+  en: 7d732e2079d0f464
+  zh: a66d3b1c9c84041a
+/dsh-better-sidebar/platform-support:
+  en: 6a04ec5814efaddb
+  zh: f19e64676b742bb4
+/dsh-better-sidebar/community:
+  en: c905dda84f00f657
+  zh: 6cbbfdabc6baa1bf
+/dsh-better-sidebar/contributing:
+  en: 10f4a5bcfddcf2f6
+  zh: 3b29c924587ea9fa
+/dsh-better-sidebar/star-history:
+  en: cdde378405882238
+  zh: cdde378405882238
+/dsh-better-sidebar/contributors:
+  en: 16feb7ba33ba7ea6
+  zh: 538a71a3f8d56e1d
+/dsh-better-sidebar/friends:
+  en: 13a3e5422ef11efd
+  zh: 71d6e4abd2b70838
+/dsh-better-sidebar/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/dsh-better-sidebar/model-experience/persistent-terminal-tools:
+  en: af983bcd3eaede6f
+  zh: fb29beef57190bee
+/dsh-better-sidebar/model-experience/persistent-terminal-tools/what-the-model-sees:
+  en: 474de5ed12762286
+  zh: 44515f703ef07daf
+/dsh-better-sidebar/model-experience/persistent-terminal-tools/token-effect:
+  en: 0a000796c3345912
+  zh: 91b6885a2a5c7162
+/dsh-better-sidebar/model-experience/persistent-terminal-tools/kv-cache-effect:
+  en: 8506084eac764c41
+  zh: cdeafc36e44cca67
+/dsh-better-sidebar/known-limitations-and-deferred-work:
+  en: 2065f636b54f187f
+  zh: dff3a3113d418dae
+/dsh-better-sidebar/known-limitations-and-deferred-work/dev-note:
+  en: 2b90290b9ee0acc2
+  zh: 741bddbd4b00b5da

@@ -24,7 +24,7 @@ it('registers localized value-free metadata for each declaration lifetime and di
   expect(entry.locale).toBe('settings.mcp')
   expect(resolveSlotLabel(entry.options.label)).toBe('MCP')
   const metadata = bench.ctx.settingsMetadata
-  expect(metadata.getSnapshot().sections).toEqual([{ sectionId: 'mcp', groupId: 'experimental' }])
+  expect(metadata.getSnapshot().sections).toEqual([{ sectionId: 'mcp', groupId: 'extensions' }])
   expect(metadata.getSnapshot().items.map(item => item.anchorId)).toEqual([
     'mcp-server-list', 'mcp-add-server', 'mcp-transport', 'mcp-credentials', 'mcp-tools',
   ])

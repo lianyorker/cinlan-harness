@@ -1,6 +1,6 @@
 # Agent Note: Domain KV storage capability seam and the workspace entity
 
-Status: implemented
+Status: proposed
 
 English | [中文](2026-07-24-domain-kv-storage-and-workspace.zh.md)
 
@@ -13,9 +13,9 @@ The host's only persistence surface is the session event log (`packages/session/
 
 Separately, Session deletion needs a `SessionPersistence` delete primitive and a `session.delete` endpoint. That gap's design is settled in this note, but its implementation remains future work.
 
-The later [Workspace registration deletion decision](../feature/2026-07-27-workspace-registration-deletion.md) supersedes only that coupling: deleting a Workspace registration preserves its Sessions and their logs, while Session deletion remains separate future work. The cascade design below is therefore not the Workspace GUI delete semantic.
+The [Workspace reference](../../../../packages/workspace/workspace/README.md) defines non-destructive registration removal: deleting a Workspace registration preserves its Sessions and their logs, while Session deletion remains separate future work. The cascade design below is therefore not the Workspace GUI delete semantic.
 
-## Decision
+## Proposal
 
 Create the `packages/storage/` group — the `ctx.storage` hub (backend registry + data-form mounts), two backends, the domain data form — plus the workspace consumer package; extend `SessionPersistence` with a delete primitive.
 
@@ -106,7 +106,7 @@ export function apply(ctx: Context, config: Config) {
 }
 ```
 
-(Facility unmount order: dispose each domain first (drain its write chain), then remove the name from the hub — in-flight writes still emit `domain/changed` during the drain, and the event-consistency invariant resolves domains back through the facility, so the name must stay resolvable at that point.)
+(Facility unmount order: dispose each domain first (drain its write chain), then remove the name from the hub — in-flight writes still emit `domain/changed` during the drain, so the name must stay resolvable at that point.)
 
 Domain declarations (the spec object is defined and exported by the package that owns the domain — the single source of type and runtime truth; schemas use zod with `z.infer` deriving the types without re-declaration — the record model projects into RPC wire schemas next phase and the wire boundary is all zod; schemastery still owns plugin Config only):
 
@@ -243,7 +243,7 @@ export class WorkspaceRegistry extends Service {
 - **Path canon**: the stored value = `fs.realpath(input)` (trailing slashes, `..`, and symlinks all resolved); uniqueness = string equality after normalization (a symlink resolving to the same directory counts as a collision). A missing directory makes create reject outright (realpath fails — a workspace must point at an existing directory; "Create new = make the directory" is upper-layer interaction: mkdir first, then create). The session cwd in attach checks follows the same canon. Single-valued cwd + unique path ⇒ one session structurally belongs to at most one workspace; double bookkeeping is impossible on the write side.
 - **Title**: a display name, defaults to `basename(path)`, mutable, duplicates allowed. Ownership is never derived from cwd as a fallback — cwd cannot express ordering, and ownership is a workspace-side fact; sessions started headless belong to no workspace.
 - Consumers see only the `Workspace` interface; `WorkspaceEntity` stays inside the package (a single implementation does not pre-split a seam). Entities are unique per id (registry cache); the record snapshot is swapped in place after each write, and the outside sees getters only. Every write funnels through the entity's internal `mutate(fn)` → `table.update`, with `updatedAt` refreshed inside mutate. Domain objects never cross RPC; next phase the wire layer projects records into zod wire schemas.
-- **Session deletion remains future work.** The later [Workspace registration deletion decision](../../implemented/feature/2026-07-27-workspace-registration-deletion.md) ships `ctx.workspaceRegistry.delete(id)` as a metadata-only operation that preserves Sessions and logs. Recursive Session deletion, running checks, and crash-rerun convergence belong to a separate `session.delete` capability.
+- **Session deletion remains future work.** The [Workspace registry](../../../../packages/workspace/workspace/README.md) provides `ctx.workspaceRegistry.delete(id)` as a metadata-only operation that preserves Sessions and logs. Recursive Session deletion, running checks, and crash-rerun convergence belong to a separate `session.delete` capability.
 
 Consistency doctrine (the ledger = the only ownership authority; the implementation and test baseline):
 
@@ -314,14 +314,14 @@ Snapshots: no model-visible or assembly surface this phase, none added; next pha
 - **Change events carrying the old value**: the repository's change-event convention is "new snapshot + operation discriminant" (the sole exception, fs's before/after, is a method return value rather than an event, because the old value is unrecoverable afterwards and has a diff consumer); consumers needing diffs hold their own previous snapshot.
 - **Delete auto-cancelling a running session**: the persistence/orchestration layer reaching back into the runtime dirties the layering; cancel already exists, callers compose it.
 
-## Verification
+## Acceptance criteria
 
 - This phase's four test suites all green: the shared backend contract suite on both json/sqlite, registry/mount disposer semantics, the domain layer (including the six open steps and fail-loud routing), and full workspace semantics (create/attach checks/consistency doctrine).
 - `ctx.workspaceRegistry` completes the create → attach → list → metadata-only delete lifecycle under a test assembly.
 - Zero diff in the session-persistence packages (the acceptance line for not touching the session side this phase).
 - No new snapshots this phase (no model-visible or assembly surface); added next phase with the RPC wiring.
 
-## Consequences
+## Risks
 
 - **The repository's first push-mode change event on a persistence surface** (session-persistence polls revisions): the shape has the `goal/changed` template, but "the storage layer emits events" is a new precedent, validated only when next phase's RPC consumes it.
 - **The JSON backend's whole-unit rewrite scale premise**: if the second consumer (the session sidecar) lands on the JSON backend at thousand-record scale before being routed to SQLite, the rewrite cost surfaces earlier than expected; the mitigation is exactly `routes` pointing at sqlite.

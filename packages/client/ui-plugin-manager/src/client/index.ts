@@ -13,6 +13,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // ui-layout with the panel id brand, and the `sidebar.panellist` list the
 // entry registers into, declared by ui-sidebar.
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: the ctx.remote Context merge and the forwarded-event key face.
@@ -20,6 +21,8 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 // Type-only: the forwarded events' own declaration (`$on`'s key face resolves
 // through the owning package's client-safe types subpath).
 import type {} from '@deepseek-ai/dsh-plugin-manager/types'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { AutomationSection, AUTOMATION_BUNDLE, type AutomationSectionInjected } from './AutomationSection.tsx'
 import { PluginManagerPage } from './PluginManagerPage.tsx'
 import { PluginRefreshToast, type PluginRefreshToastFace } from './PluginRefreshToast.tsx'
 import { PluginsPanelIcon } from './PluginsPanelIcon.tsx'
@@ -48,7 +51,8 @@ export type { ConfigLedger, OfficialItem } from './config-ledger.ts'
 export type { PluginManagerFace } from './manager-store.ts'
 export type { PluginManagerLocaleKey } from './locales.ts'
 export type {
-  ConfigPageForm, PluginActivationOwnerProps, PluginConfigViewProps, PluginDetailProps, PluginPackageRef, PluginRowRef, PluginsSubject,
+  ConfigPageForm, PluginActivationOwnerProps, PluginAddActionsProps,
+  PluginConfigViewProps, PluginDetailProps, PluginPackageRef, PluginRowRef, PluginsSubject,
 } from './slot-contract.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -65,7 +69,7 @@ export const NS = 'pluginManager'
 export const PANEL_ID = 'plugins' as MainPanelId
 
 /** Services required by the sidebar registration and the Remote methods; the inventory says whether the Host manages a profile. */
-export const inject = ['slots', 'locale', 'remote', 'remote.pluginManager', 'remote.pluginInventory', 'remote.pluginRegistryProbe', 'configForms', 'layout']
+export const inject = ['slots', 'locale', 'remote', 'remote.pluginManager', 'remote.pluginInventory', 'remote.pluginRegistryProbe', 'configForms', 'layout', 'settingsMetadata']
 
 /**
  * Contribute the Plugins entry to the sidebar with the management page it
@@ -93,6 +97,34 @@ export function apply(ctx: ClientContext): void {
     return () => { for (const dispose of disposers) dispose() }
   }, 'ui-plugin-manager: host invalidations')
 
+  // The automation switch reads the same Host inventory the page toggles, so
+  // Settings and the Plugins page can never disagree about the bundle's state.
+  const automationEnabled = createSnapshotStore<boolean | undefined>(undefined)
+  const refreshAutomation = (): void => {
+    void ctx.remote.pluginManager.listBundles().then((result) => {
+      automationEnabled.set(result.ok ? result.value.find(bundle => bundle.name === AUTOMATION_BUNDLE)?.enabled : undefined)
+    }, () => { automationEnabled.set(undefined) })
+  }
+  refreshAutomation()
+  ctx.effect(() => ctx.remote.$on('plugin-manager/changed', refreshAutomation), 'ui-plugin-manager: automation switch source')
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'automation', groupId: 'execution' })
+    yield ctx.settingsMetadata.registerItems('automation', [{
+      id: 'enabled', anchorId: 'automation-enabled',
+      title: () => t('automationTitle'), description: () => t('automationDescription'),
+      keywords: () => ['automation', 'schedule', '自动化', '计划任务'],
+    }])
+    yield ctx.slots.register({
+      name: 'settings.section', id: 'automation', order: 45, locale: NS,
+      label: () => t('automationTitle'),
+      inject: (): AutomationSectionInjected => ({
+        hooks: { automationEnabled },
+        setEnabled: (enabled) => {
+          void ctx.remote.pluginManager.setBundleEnabled(AUTOMATION_BUNDLE, enabled).then(refreshAutomation, refreshAutomation)
+        },
+      }),
+    }, AutomationSection)
+  })
   // The page is a global panel: it belongs to the profile, not to a Session,
   // and the sidebar's entry selects it. What is installed and switched on is
   // the page's own; a plugin's configuration arrives through the slots the
@@ -116,6 +148,7 @@ export function apply(ctx: ClientContext): void {
       store,
       inject: () => face,
       children: {
+        'plugins.add.actions': { kind: 'list', scope: 'root' },
         'plugins.item': { kind: 'list', scope: 'root' },
         'plugins.bundle.activation': { kind: 'keyed', scope: 'root' },
         'plugins.bundle.config': { kind: 'keyed', scope: 'root' },

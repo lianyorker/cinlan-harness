@@ -4,7 +4,8 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ShortcutCatalogEntry, ShortcutCommandId, ShortcutFixedCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
-import { ShortcutReference, ShortcutsRow } from '../src/client/Reference.tsx'
+import type { KeyboardSnapshot } from '@deepseek-ai/dsh-client-keyboard/client'
+import { ShortcutReference, ShortcutSettingsPage } from '../src/client/Reference.tsx'
 import { createShortcutsStore } from '../src/client/store.ts'
 import { en, zh } from '../src/client/locales.ts'
 import { initialShortcutConfig, bindingIssue, normalizeBinding, presentBinding } from '@deepseek-ai/dsh-client-shortcuts/protocol'
@@ -17,6 +18,15 @@ const describeBinding: Parameters<typeof ShortcutReference>[0]['describeBinding'
   const normalized = binding === null ? null : normalizeBinding(binding, 'macos')
   return { binding: normalized, keys: presentBinding(normalized, 'macos').keys,
     issue: normalized === null ? null : bindingIssue(normalized, 'web', 'macos'), conflicts: [] }
+}
+/** Keyboard-registry face shared by reference fixtures; no test mutates this source. */
+const keyboardSource = createSnapshotStore<KeyboardSnapshot>({ commands: [], status: 'ready', writable: true, hasOverrides: false })
+const keyboardFace = {
+  useKeyboard: bindSnapshotSelector(keyboardSource),
+  captureKey: () => ({ kind: 'ignored' as const }),
+  setBinding: async () => ({ ok: true as const }),
+  resetBinding: async () => ({ ok: true as const }),
+  resetAll: async () => ({ ok: true as const }),
 }
 afterEach(cleanup)
 it('ignores reset completion after the reference unmounts', async () => {
@@ -71,11 +81,9 @@ it.each(['macos', 'windows'] as const)('shows the reference, filters labels and 
     bindings: [{ code: 'Enter', modifiers: ['primary'] }], group: 'input' })
   const props = { actions: store.actions, useStore: bindSnapshotSelector(store), useCatalog: bindSnapshotSelector(catalog),
     useConfig: bindSnapshotSelector(config), useFixedCatalog: bindSnapshotSelector(registry.fixedCatalog), runtime: 'web', edit: async () => ({ status: 'saved', snapshot: config.getSnapshot() }), recording: async () => {},
-    describeBinding: describe, platform, t: makeTranslate(en) } as Parameters<typeof ShortcutReference>[0]
-  render(<><ShortcutsRow {...props} /><ShortcutReference {...props} /></>)
-  expect(screen.queryByRole('dialog')).toBeNull()
-  const opener = screen.getByRole('button', { name: en.view }); opener.focus(); fireEvent.click(opener)
-  expect(opener.getAttribute('aria-keyshortcuts')).toBe(platform === 'macos' ? 'Meta+/' : 'Control+/')
+    describeBinding: describe, platform, t: makeTranslate(en), ...keyboardFace } as unknown as Parameters<typeof ShortcutReference>[0]
+  store.actions.open()
+  render(<ShortcutReference {...props} />)
   const search = screen.getByRole('searchbox')
   expect(document.activeElement).toBe(search)
   expect(screen.getByText('No shortcut')).toBeTruthy()
@@ -98,20 +106,10 @@ it.each(['macos', 'windows'] as const)('shows the reference, filters labels and 
     expect(screen.queryAllByRole('listitem')).toHaveLength(0)
     expect(screen.getByRole('status').textContent).toBe('No matching shortcuts')
   }
-  act(() => { store.actions.open() })
   expect(screen.getAllByRole('dialog')).toHaveLength(1)
   fireEvent.keyDown(search, { key: 'Escape' })
+  expect(store.getSnapshot().open).toBe(false)
   expect(store.getSnapshot().query).toBe('')
-  expect(document.activeElement).toBe(opener)
-  fireEvent.mouseEnter(opener)
-  expect(screen.getByRole('tooltip').getAttribute('aria-label')).toBe(`${en['global-hint']} ${platform === 'macos' ? '⌘ /' : 'Ctrl + /'}`)
-  act(() => { catalog.set(catalog.getSnapshot().map(row => row.id === 'shortcuts.open'
-    ? { ...row, binding: null, keys: [], aria: undefined } : row)) })
-  expect(screen.queryByRole('tooltip')).toBeNull()
-  fireEvent.mouseLeave(opener); fireEvent.mouseEnter(opener)
-  expect(screen.queryByRole('tooltip')).toBeNull()
-  act(() => { catalog.set([]) })
-  expect(opener.hasAttribute('aria-keyshortcuts')).toBe(false)
   expect(makeTranslate(zh)('title')).toBe('快捷键')
 })
 
@@ -128,7 +126,7 @@ it('saves individual edits and disables changes when configuration cannot be rea
   const edit = vi.fn(async () => ({ status: 'saved' as const, snapshot: config.getSnapshot() }))
   const props = { actions: store.actions, useStore: bindSnapshotSelector(store), useCatalog: bindSnapshotSelector(catalog),
     useConfig: bindSnapshotSelector(config), useFixedCatalog: bindSnapshotSelector(createSnapshotStore([])), runtime: 'web', platform: 'macos', edit, recording: async () => {},
-    describeBinding, t: makeTranslate(en) } as Parameters<typeof ShortcutReference>[0]
+    describeBinding, t: makeTranslate(en), ...keyboardFace } as unknown as Parameters<typeof ShortcutReference>[0]
   store.actions.open()
   render(<ShortcutReference {...props} />)
   expect(screen.getByRole('button', { name: en['reset-all'] }).hasAttribute('disabled')).toBe(true)
@@ -167,7 +165,7 @@ function referenceFixture({ runtime = 'web', dictionary = en }: { runtime?: 'web
   store.actions.open()
   const props = { actions: store.actions, useStore: bindSnapshotSelector(store), useCatalog: bindSnapshotSelector(catalog),
     useConfig: bindSnapshotSelector(config), useFixedCatalog: bindSnapshotSelector(fixedCatalog), runtime, platform: 'macos', edit,
-    recording: async () => {}, describeBinding, t: makeTranslate(dictionary) } as Parameters<typeof ShortcutReference>[0]
+    recording: async () => {}, describeBinding, t: makeTranslate(dictionary), ...keyboardFace } as unknown as Parameters<typeof ShortcutReference>[0]
   const view = render(<ShortcutReference {...props} />)
   return { store, catalog, fixedCatalog, config, edit, view }
 }
@@ -582,4 +580,40 @@ it('preserves a failed draft when its status text is clicked, then retries after
   await act(async () => { within(editor).getByRole('button', { name: en['retry-save'] }).click() })
   expect(f.edit).toHaveBeenLastCalledWith({ type: 'set', id: 'settings.open', binding: { code: 'Period', modifiers: ['shift', 'meta'] } }, f.config.getSnapshot().revision)
   expect(screen.queryByRole('group', { name: 'Open settings' })).toBeNull()
+})
+it('renders the same reference inline as the settings page and edits keyboard-registry commands', async () => {
+  const store = createShortcutsStore().create()
+  const catalog = createSnapshotStore<readonly ShortcutCatalogEntry[]>([
+    { id: 'settings.open' as ShortcutCommandId, label: 'Open settings', aliases: ['preferences'], binding: null, modified: false,
+      conflicts: [], issue: null, keys: [], aria: undefined },
+  ])
+  const config = createSnapshotStore<ShortcutConfigSnapshot>({ ...initialShortcutConfig(), status: 'ready' })
+  const keyboard = createSnapshotStore<KeyboardSnapshot>({ status: 'ready', writable: true, hasOverrides: false, commands: [
+    { id: 'floatingWorkspace.toggle', scope: 'shell', label: 'Toggle floating workspace', description: 'Show or hide the floating window.',
+      bindings: [{ key: ' ', modifiers: { ctrl: true, shift: true } }], bindingLabels: ['Ctrl + Shift + Space'],
+      overridden: false, registered: true, status: 'available', conflicts: [] },
+  ] })
+  const setBinding = vi.fn(async () => ({ ok: true as const }))
+  const props = { actions: store.actions, useStore: bindSnapshotSelector(store), useCatalog: bindSnapshotSelector(catalog),
+    useConfig: bindSnapshotSelector(config), useFixedCatalog: bindSnapshotSelector(createSnapshotStore([])),
+    useKeyboard: bindSnapshotSelector(keyboard), platform: 'macos', runtime: 'web',
+    edit: async () => ({ status: 'saved', snapshot: config.getSnapshot() }), recording: async () => {}, describeBinding,
+    captureKey: () => ({ kind: 'binding' as const, binding: { key: 'k', modifiers: { mod: true } } }),
+    setBinding, resetBinding: async () => ({ ok: true as const }), resetAll: async () => ({ ok: true as const }),
+    t: makeTranslate(en) } as unknown as Parameters<typeof ShortcutSettingsPage>[0]
+  render(<ShortcutSettingsPage {...props} close={() => {}} />)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(screen.getByRole('heading', { name: en.title })).toBeTruthy()
+  expect(screen.getByText('Ctrl + Shift + Space')).toBeTruthy()
+  expect(screen.getByText('Toggle floating workspace')).toBeTruthy()
+  const search = screen.getByRole('searchbox')
+  fireEvent.change(search, { target: { value: 'floating' } })
+  expect(screen.queryByText('Open settings')).toBeNull()
+  fireEvent.change(search, { target: { value: '' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Edit shortcut for Toggle floating workspace' }))
+  const recorder = screen.getByRole('button', { name: en.record })
+  expect(document.activeElement).toBe(recorder)
+  fireEvent.keyDown(recorder, { key: 'k', code: 'KeyK', metaKey: true })
+  await act(async () => {})
+  expect(setBinding).toHaveBeenCalledWith('floatingWorkspace.toggle', { key: 'k', modifiers: { mod: true } })
 })

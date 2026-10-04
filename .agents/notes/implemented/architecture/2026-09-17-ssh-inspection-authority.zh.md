@@ -18,7 +18,7 @@ OpenSSH 通过既有配置别名拥有认证与主机信任。连接使用批处
 
 取消等待原 worker 操作结束并确认结果。截止时间或传输断开使确认不可得时，报告 outcome-unconfirmed。拆除保留清理所有权，卸载后阻止替换准入，并退役陈旧 worker。已完成取消 id 的保留有界，因此过期 id 不能证明历史结果。
 
-[Controller](../../../../packages/api/execution-host-controller/README.zh.md) 与 [原生页面](../../../../packages/client/ui-settings-hosts/README.zh.md) 经现有认证 Remote 通道公开记录、显式连接操作和受根目录约束的检查。默认主机、切换确认及隔离行不保存偏好，因为没有远程 Workspace 或 Session 执行权限来消费这些值。既有 execution-host 来源服务继续标识当前进程；选择目标不会替换该标识。[可移植执行世界决策](2026-07-28-portable-execution-world-consumers.zh.md) 继续要求文件系统与子进程 Provider 属于同一执行世界；目标检查不安装或替换这些 Provider。
+[Controller](../../../../packages/api/execution-host-controller/README.zh.md) 与 [原生页面](../../../../packages/client/ui-settings-hosts/README.zh.md) 经现有认证 Remote 通道公开记录、显式连接操作和受根目录约束的检查。保存的记录还可以携带页面采集的连接细化项，而 OpenSSH 仍拥有认证与主机信任：别名仍是目的地，每个细化项只覆盖它已经解析到的配置（[按 Orca 形态的目标表单](2026-10-03-orca-execution-host-target-form.zh.md)）。默认主机、切换确认及隔离行不保存偏好，因为没有远程 Workspace 或 Session 执行权限来消费这些值。既有 execution-host 来源服务继续标识当前进程；选择目标不会替换该标识。[可移植执行世界决策](2026-07-28-portable-execution-world-consumers.zh.md) 继续要求文件系统与子进程 Provider 属于同一执行世界；目标检查不安装或替换这些 Provider。
 
 ## 考虑过的替代方案
 

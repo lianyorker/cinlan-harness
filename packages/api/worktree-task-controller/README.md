@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-Create and manage Worktree Tasks through the typed `worktreeTasks` Remote namespace. Read and save defaults, review task changes, and request activation, hibernation, archiving, or safe deletion. Creation accepts a source repository and defaults accept structured program/argument configuration; lifecycle calls address provider-issued task ids. The provider owns filesystem policy and execution.
+Create and manage Worktree Tasks through the typed `worktreeTasks` Remote namespace. Read and save defaults, review task changes, and request activation, hibernation, merging, archiving, or safe deletion. Creation accepts a source repository and defaults accept structured program/argument configuration; lifecycle calls address provider-issued task ids. The provider owns filesystem policy and execution.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ Create and manage Worktree Tasks through the typed `worktreeTasks` Remote namesp
 
 <a id="use-this-package"></a>
 ## Use this package
-Mount the controller with the Typert Gateway and a `ctx.worktreeTask` provider, then mount `dsh-api-remotes` for the browser namespace. The generated Remote exposes `settings`, `updateSettings`, `review`, and lifecycle methods. Saving defaults requires the current revision; review is read-only and bounded; cleanup receipts distinguish unsettled execution, success, and failure. The controller forwards cancellation to the provider and maps provider failures to stable Remote error codes.
+Mount the controller with the Typert Gateway and a `ctx.worktreeTask` provider, then mount `dsh-api-remotes` for the browser namespace. The generated Remote exposes `settings`, `updateSettings`, `review`, `merge`, and lifecycle methods. Saving defaults requires the current revision; review is read-only and bounded; merge returns the source branch commits before and after integration; cleanup receipts distinguish unsettled execution, success, and failure. The controller forwards cancellation to the provider and maps provider failures to stable Remote error codes.
 
 <a id="model-experience"></a>
 ## Model Experience

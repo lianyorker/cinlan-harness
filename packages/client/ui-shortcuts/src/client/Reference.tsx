@@ -1,10 +1,13 @@
-/** Searchable editable shortcut reference and its General Settings row. */
+/** Searchable editable shortcut reference, hosted by its settings page and the shell overlay. */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Button, IconCloseOutlineRegular, IconRefreshOutlineRegular, Modal, ShortcutKeys, Tooltip, Toast, focusWithoutRing, isBehindModal, rankByName } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconCloseOutlineRegular, IconRefreshOutlineRegular, Modal, ShortcutKeys, Toast, focusWithoutRing, isBehindModal, rankByName } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot, PropsStore } from '@deepseek-ai/dsh-client-store'
 import type { ShortcutCatalogEntry, ShortcutPlatform, Shortcuts } from '@deepseek-ai/dsh-client-shortcuts/client'
+import type { KeyboardService } from '@deepseek-ai/dsh-client-keyboard/client'
+import type { SettingsNavigationTarget } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { ShortcutEditor } from './Editor.tsx'
+import { KeyboardCommands } from './KeyboardCommands.tsx'
 import { ShortcutIcon } from './Icons.tsx'
 import { shortcutFailure, shortcutReadFailure } from './feedback.ts'
 import type { createShortcutsStore } from './store.ts'
@@ -17,10 +20,30 @@ export interface ReferenceInjected {
   edit: Shortcuts['edit']
   recording: Shortcuts['recording']
   describeBinding: Shortcuts['describeBinding']
-  hooks: { catalog: ObservableSnapshot<readonly ShortcutCatalogEntry[]>; config: Shortcuts['config']; fixedCatalog: Shortcuts['fixedCatalog'] }
+  captureKey: KeyboardService['capture']
+  setBinding: KeyboardService['setBinding']
+  resetBinding: KeyboardService['resetBinding']
+  resetAll: KeyboardService['resetAll']
+  hooks: {
+    catalog: ObservableSnapshot<readonly ShortcutCatalogEntry[]>
+    config: Shortcuts['config']
+    fixedCatalog: Shortcuts['fixedCatalog']
+    keyboard: Pick<KeyboardService, 'getSnapshot' | 'subscribe'>
+  }
 }
 type Store = PropsStore<ReturnType<typeof createShortcutsStore>>
 type Locale = PropsLocale<'shortcuts'>
+
+/** Overlay registration props. */
+export type ShortcutReferenceProps = PropsRuntime<'shell.overlay'> & Store & Locale & InjectFace<ReferenceInjected>
+/** Settings page registration props; `target` is the settings search destination. */
+export type ShortcutSettingsPageProps = PropsRuntime<'settings.section'> & Store & Locale & InjectFace<ReferenceInjected>
+type SurfaceProps = PropsRuntime<'shell.overlay'> & Store & Locale & InjectFace<ReferenceInjected> & {
+  /** Dialog for the global overlay, page for the Settings section. */
+  variant: 'dialog' | 'page'
+  /** Settings search destination, absent for the overlay. */
+  target?: SettingsNavigationTarget
+}
 
 /** Core reference positions are independent of labels and plugin registration order. */
 const coreActionOrder = new Map<string, number>([
@@ -45,38 +68,36 @@ const coreActionOrder = new Map<string, number>([
 ].map((id, index) => [id, index]))
 
 /**
- * Render the General Settings action that opens the shortcut reference.
- * @param props - shared dialog action and localized labels.
- * @returns the settings row.
+ * Render the shortcut reference as the shell overlay.
+ * @param props - shared reference state, command catalog, and localized copy.
+ * @returns the single reference dialog when open.
  */
-export function ShortcutsRow({ actions, t, useCatalog }: PropsRuntime<'settings.general.item'> & Store & Locale & InjectFace<ReferenceInjected>) {
-  const shortcut = useCatalog(rows => rows.find(row => row.id === 'shortcuts.open'))
-  return <div className={css.setting}>
-    <div className={css.settingText}>
-      <div className={css.settingTitle}>{t('settings')}</div>
-      <p className={css.settingDescription}>{t('description')}</p>
-    </div>
-    <Tooltip disabled={!shortcut?.keys.length} label={t('global-hint')} shortcutKeys={shortcut?.keys}>
-      <button className={css.button} type="button" aria-label={t('view')} aria-keyshortcuts={shortcut?.aria}
-        onClick={() => { actions.open() }}>{t('view')}</button>
-    </Tooltip>
-  </div>
+export function ShortcutReference(props: ShortcutReferenceProps) {
+  return <ReferenceSurface {...props} variant="dialog" />
+}
+
+/**
+ * Render the shortcut reference as the Personal Settings page.
+ * @param props - shared reference state, command catalog, and localized copy.
+ * @returns the inline reference page.
+ */
+export function ShortcutSettingsPage(props: ShortcutSettingsPageProps) {
+  return <ReferenceSurface {...props} variant="page" />
 }
 
 /**
  * Render core actions in product order, then other commands by ID within each group. Search relevance takes precedence.
- * @param props - root store, effective catalog, and localized copy.
- * @returns the single reference dialog when open.
+ * @param props - root store, effective catalog, presentation variant, and localized copy.
+ * @returns the reference body with its reset confirmation and write feedback.
  */
-export function ShortcutReference({
-  useStore, actions, useCatalog, useConfig, useFixedCatalog, platform, runtime, edit, recording, describeBinding, t,
-}:
-  PropsRuntime<'shell.overlay'> & Store & Locale & InjectFace<ReferenceInjected>) {
+function ReferenceSurface({ useStore, actions, useCatalog, useConfig, useFixedCatalog, useKeyboard, platform, runtime, edit,
+  recording, describeBinding, captureKey, setBinding, resetBinding, resetAll, t, variant, target }: SurfaceProps) {
+  const dialog = variant === 'dialog'
   const { open, query, focusRequest } = useStore(state => state)
   const catalog = useCatalog(value => value)
   const config = useConfig(value => value)
   const fixedCatalog = useFixedCatalog(value => value)
-  const [target, setTarget] = useState<ShortcutCatalogEntry | null>(null)
+  const [target_, setTarget] = useState<ShortcutCatalogEntry | null>(null)
   const [resetRevision, setResetRevision] = useState<typeof config.revision | null>(null)
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<{ text: string; error: boolean; seq: number } | null>(null)
@@ -91,19 +112,20 @@ export function ShortcutReference({
     })
   }, [])
   useEffect(() => {
-    if (open && config.status === 'unreadable') notify(shortcutReadFailure(config, runtime, t), true)
-  }, [open, config, runtime, notify, t])
+    if (dialog && open && config.status === 'unreadable') notify(shortcutReadFailure(config, runtime, t), true)
+  }, [dialog, open, config, runtime, notify, t])
+  useEffect(() => { if (target !== undefined) actions.search('') }, [actions, target])
   const closeEditor = (): void => {
     setTarget(null)
-    const dialog = search.current?.closest<HTMLElement>('[role="dialog"]')
-    /* v8 ignore next -- Editor callbacks run while its reference dialog and search input are mounted. */
-    if (dialog != null) focusWithoutRing(dialog, { preventScroll: true })
+    const container = search.current?.closest<HTMLElement>(dialog ? '[role="dialog"]' : '[data-shortcuts-surface]')
+    /* v8 ignore next -- Editor callbacks run while its reference surface and search input are mounted. */
+    if (container != null) focusWithoutRing(container, { preventScroll: true })
   }
   const closeReference = (): void => {
     if (busy) return
     /* v8 ignore next -- The confirmation modal blocks the reference's close control. */
     if (resetRevision !== null) setResetRevision(null)
-    else if (target !== null) closeEditor()
+    else if (target_ !== null) closeEditor()
     else actions.close()
   }
   useEffect(() => { if (!open) setResetRevision(null) }, [open])
@@ -113,7 +135,7 @@ export function ShortcutReference({
     if (mounted.current) setBusy(false)
     return result
   }
-  const resetAll = async (): Promise<void> => {
+  const confirmResetAll = async (): Promise<void> => {
     /* v8 ignore next -- The reset control is accessible only while its confirmation is open. */
     if (resetRevision === null) return
     const result = await persist({ type: 'reset-all' }, resetRevision)
@@ -128,8 +150,8 @@ export function ShortcutReference({
     onError: (message: string) => { notify(message, true) } }
   useLayoutEffect(() => {
     const input = search.current
-    if (open && input !== null && !isBehindModal(input)) focusWithoutRing(input)
-  }, [open, focusRequest])
+    if (dialog && open && input !== null && !isBehindModal(input)) focusWithoutRing(input)
+  }, [dialog, open, focusRequest])
   // Stop stays after the other fixed input actions.
   const entries = [
     ...catalog.map(row => ({
@@ -143,25 +165,29 @@ export function ShortcutReference({
     || Number(left.id > right.id) - Number(left.id < right.id))
   const ranked = rankByName(entries.flatMap(row => row.names.map(name => ({ name, label: row.label, row }))), query.trim())
   const matches = [...new Set(ranked.map(match => match.row))]
+  const keyboard = useKeyboard(value => value)
+  const keyboardCommands = [...new Set(rankByName(keyboard.commands.filter(command => command.registered).flatMap(command =>
+    [command.label, command.id, ...command.bindingLabels].map(name => ({ name, label: command.label, row: command }))),
+  query.trim()).map(match => match.row))]
   const modifiedCount = Object.keys(config.document.profiles[`${runtime}:${platform}`] ?? {}).length
   useLayoutEffect(() => {
     const input = search.current
-    if (open && resetRevision === null && modifiedCount === 0 && document.activeElement === document.body && input !== null) {
+    if (dialog && open && resetRevision === null && modifiedCount === 0 && document.activeElement === document.body && input !== null) {
       focusWithoutRing(input)
     }
-  }, [open, resetRevision, modifiedCount])
-  return <><Modal open={open} onClose={closeReference} title={t('title')} headless
-    shortcutModal="shortcuts" className={css.dialog as string}>
-    <div className={css.contents} onPointerDownCapture={(event) => {
-      if (target === null || busy || !(event.target instanceof Element) || event.target.closest('button, input, a, [contenteditable="true"], [role="group"]') !== null) return
+  }, [dialog, open, resetRevision, modifiedCount])
+  const body = <div className={css.contents} data-shortcuts-surface={variant} onPointerDownCapture={(event) => {
+      if (!dialog || target_ === null || busy || !(event.target instanceof Element) || event.target.closest('button, input, a, [contenteditable="true"], [role="group"]') !== null) return
       event.preventDefault()
       closeEditor()
     }}>
       <header className={css.header}>
-        <h2 className={css.title}>{t('title')}</h2>
-        <button type="button" className={css.close} aria-label={t('close')} disabled={busy} onClick={closeReference}>
+        {dialog
+          ? <h2 className={css.title}>{t('title')}</h2>
+          : <h1 className={css.title}>{t('title')}</h1>}
+        {dialog && <button type="button" className={css.close} aria-label={t('close')} disabled={busy} onClick={closeReference}>
           <IconCloseOutlineRegular size={14} />
-        </button>
+        </button>}
       </header>
       <div className={css.searchRow}>
         <div className={css.searchField} role="search" aria-label={t('search')}>
@@ -181,14 +207,14 @@ export function ShortcutReference({
           if (rows.length === 0) return null
           return <section key={group} aria-label={t(group)}>
             {group !== 'application' && <h3 className={css.group}>{t(group)}</h3>}
-            <ul className={css.rows}>{rows.map(row => <li key={row.id} className={css.row}>
-              {'modified' in row && target?.id !== row.id && <button type="button" className={css.rowButton}
+            <ul className={css.rows}>{rows.map(row => <li key={row.id} className={css.row} data-settings-anchor={'shortcut-' + row.id}>
+              {'modified' in row && target_?.id !== row.id && <button type="button" className={css.rowButton}
                 aria-label={t('edit-label', { command: row.label })} disabled={busy || config.status !== 'ready'}
                 onClick={() => { setTarget(row) }} />}
               <span className={css.commandLabel}>{row.label}</span>
               <span className={css.binding}>
                 {'modified' in row
-                  ? target?.id === row.id
+                  ? target_?.id === row.id
                     ? <ShortcutEditor key={row.id} target={row} {...editorProps} />
                     : <>
                       <span className={css.rowActions}><ShortcutIcon kind="edit" /></span>
@@ -199,24 +225,32 @@ export function ShortcutReference({
             </li>)}</ul>
           </section>
         })}
-        {matches.length === 0 && <p className={css.hint} role="status">{t('empty')}</p>}
+        <KeyboardCommands commands={keyboardCommands} writable={keyboard.status === 'ready' && keyboard.writable}
+          hasOverrides={keyboard.hasOverrides}
+          captureKey={captureKey} setBinding={setBinding} resetBinding={resetBinding} resetAll={resetAll} t={t} />
+        {matches.length === 0 && keyboardCommands.length === 0 && <p className={css.hint} role="status">{t('empty')}</p>}
       </div>
       <footer className={css.footer}>
-        <button type="button" className={css.resetAll} disabled={busy || config.status !== 'ready' || modifiedCount === 0}
+        <button type="button" className={css.resetAll} data-settings-anchor="shortcut-reset"
+          disabled={busy || config.status !== 'ready' || modifiedCount === 0}
           onClick={(event) => { event.currentTarget.focus(); setTarget(null); setResetRevision(config.revision) }}>
           <IconRefreshOutlineRegular size={12} />{t('reset-all')}
         </button>
         {modifiedCount > 0 && <span className={css.modifiedCount}>{t('modified-count', { count: modifiedCount })}</span>}
       </footer>
     </div>
-  </Modal>
-  <Modal open={open && resetRevision !== null} title={t('reset-title')} description={t('reset-description')}
-    closeLabel={t('close-confirmation')} onClose={() => { if (!busy) setResetRevision(null) }}
-    footer={<>
-      <Button data-modal-autofocus disabled={busy} onClick={() => { setResetRevision(null) }}>{t('cancel')}</Button>
-      <Button variant="primary" disabled={busy || config.status !== 'ready'} onClick={() => { void resetAll() }}>{t('reset')}</Button>
-    </>} />
-  {toast !== null && <Toast key={toast.seq} text={toast.text} onDone={dismissToast}
-    icon={<ShortcutIcon kind={toast.error ? 'error' : 'success'} className={toast.error ? css.toastError : css.toastSuccess} />} />}
+  return <>
+    {dialog
+      ? <Modal open={open} onClose={closeReference} title={t('title')} headless
+          shortcutModal="shortcuts" className={css.dialog as string}>{body}</Modal>
+      : <div className={css.page}>{body}</div>}
+    <Modal open={open && resetRevision !== null} title={t('reset-title')} description={t('reset-description')}
+      closeLabel={t('close-confirmation')} onClose={() => { if (!busy) setResetRevision(null) }}
+      footer={<>
+        <Button data-modal-autofocus disabled={busy} onClick={() => { setResetRevision(null) }}>{t('cancel')}</Button>
+        <Button variant="primary" disabled={busy || config.status !== 'ready'} onClick={() => { void confirmResetAll() }}>{t('reset')}</Button>
+      </>} />
+    {toast !== null && <Toast key={toast.seq} text={toast.text} onDone={dismissToast}
+      icon={<ShortcutIcon kind={toast.error ? 'error' : 'success'} className={toast.error ? css.toastError : css.toastSuccess} />} />}
   </>
 }

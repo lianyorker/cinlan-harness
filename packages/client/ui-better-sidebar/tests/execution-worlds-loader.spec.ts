@@ -7,9 +7,7 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import type { Agent } from '@deepseek-ai/dsh-agent'
 import { WorkspaceFiles } from '@deepseek-ai/dsh-api-workspace-files'
-import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import * as Connection from '@deepseek-ai/dsh-client-connection'
 import Credentials from '@deepseek-ai/dsh-credentials-local'
 import ExecutionBindings from '@deepseek-ai/dsh-execution-binding'
@@ -20,7 +18,7 @@ import { SessionId } from '@deepseek-ai/dsh-session'
 import SessionStore from '@deepseek-ai/dsh-session'
 import SessionProjections from '@deepseek-ai/dsh-session-projection'
 import SessionQuery from '@deepseek-ai/dsh-session-query-sqlite'
-import Settings from '@deepseek-ai/dsh-settings-file'
+import { settingsServiceStub } from './settings-service-stub.ts'
 import SidebarGit from '@deepseek-ai/dsh-sidebar-git'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import Storage from '@deepseek-ai/dsh-storage'
@@ -36,12 +34,17 @@ vi.mock('@deepseek-ai/dsh-ssh', async () => {
   return { default: FilePeer, SshConnection: FilePeer }
 })
 
-class FileEndpoint extends WorkspaceFiles { static override inject = ['executionBindings'] }
+class FileEndpoint extends WorkspaceFiles { static override inject = ['fs', 'sandboxPolicy', 'sessions', 'executionBindings'] }
 
 async function createHarness() {
   const root = await mkdtemp(join(tmpdir(), 'dsh-sidebar-worlds-'))
   const localRoot = join(root, 'local')
   const ctx = new Context()
+  // WorkspaceFiles is Host-local in the current public API.
+  ctx.provide('sandboxPolicy', {
+    workspaceRoot: localRoot,
+    resolve: () => ({ mode: 'workspace-write', workspaceRoot: localRoot }),
+  } as never)
   const unregister: (() => void)[] = []
   onTestFinished(async () => {
     try { await ctx.fiber.dispose() }
@@ -103,7 +106,7 @@ async function fixture() {
   const entries = [
     { name: 'consumer-credentials', module: Credentials, config: { path: join(h.root, 'credentials.yml'), watch: false } },
     { name: 'consumer-connection', module: Connection },
-    { name: 'consumer-settings', module: Settings, config: { path: join(h.root, 'settings.yml'), watch: false } },
+    { name: 'consumer-settings', module: settingsServiceStub(join(h.root, 'settings.yml')), config: { path: join(h.root, 'settings.yml'), watch: false } },
     { name: 'consumer-git', module: SidebarGit },
     { name: 'consumer-files', module: FileEndpoint },
     { name: 'consumer-sidebar', module: Sidebar, config: { agentTerminalTools: false } },
@@ -126,7 +129,7 @@ async function fixture() {
   }
   const a = session('left-files', left.binding)
   const b = session('right-files', right.binding)
-  const fetch = h.ctx.connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
+  const fetch = h.ctx.connection.createSharedFetchHandler('/api')
   const call = async (method: string, payload: unknown) => {
     const response = await fetch.fetch(new Request('http://localhost/api/sidebar.api?method=' + method, { method: 'POST', body: JSON.stringify(payload) }))
     return { response, body: await response.json() as { ok: boolean; value?: Record<string, unknown>; error?: unknown } }
@@ -145,11 +148,13 @@ describe('file and Git execution worlds through Loader', () => {
       const media = await h.fetch.fetch(new Request('http://localhost/api/sidebar.file?' + new URLSearchParams(scope).toString()))
       expect(media.status).toBe(200)
       expect(await media.text()).toBe(label)
-      const agent = { session } as Agent
-      const bytes = await h.ctx.workspaceFiles.readBytes(agent, 'shared.txt', { offset: 0, length: 2 }, new AbortController().signal)
-      expect(Buffer.from(bytes.data, 'base64').toString()).toBe(label.slice(0, 2))
-      expect((await h.ctx.workspaceFiles.read(agent, 'shared.txt', {}, new AbortController().signal)).text).toBe(label)
     }
+    const fileScope = { sessionId: h.a.id, workspaceRoot: h.localRoot }
+    const bytes = await h.ctx.workspaceFiles.readBytes(
+      fileScope, 'shared.txt', { range: { offset: 0, length: 2 } }, new AbortController().signal,
+    )
+    expect(Buffer.from(bytes.data, 'base64').toString()).toBe('lo')
+    expect((await h.ctx.workspaceFiles.read(fileScope, 'shared.txt', {}, new AbortController().signal)).text).toBe('local')
     expect((await h.call('fs.write', { sessionId: h.a.id, path: '/project/shared.txt', content: 'edited left' })).body.ok).toBe(true)
     expect(h.left.world.files.get('/project/shared.txt')).toBe('edited left')
     expect(h.right.world.files.get('/project/shared.txt')).toBe('right')
@@ -176,20 +181,21 @@ describe('file and Git execution worlds through Loader', () => {
     expect(h.left.world.disposed).toBe(h.left.world.connections.length)
   })
 
-  it('filters same-path observations by Session and releases suspended change generations on cancellation', async () => {
+  it('reports Host-local observations and releases change generations on cancellation', async () => {
     const h = await fixture()
     const controller = new AbortController()
-    const iterator = h.ctx.workspaceFiles.changes({ session: h.a } as Agent, controller.signal)[Symbol.asyncIterator]()
+    const iterator = h.ctx.workspaceFiles.changes(
+      { sessionId: h.a.id, workspaceRoot: h.localRoot }, 'shared.txt', controller.signal,
+    )[Symbol.asyncIterator]()
     expect(await iterator.next()).toEqual({ done: false, value: { kind: 'ready' } })
-    const lease = await h.ctx.executionBindings.forSession(h.a.id)
     try {
-      const fs = lease.ctx.get('fs')!
-      const target = await fs.resolve('/project/shared.txt')
+      const target = await h.ctx.fs.resolve('shared.txt', { cwd: h.localRoot })
       const pending = iterator.next()
-      h.ctx.emit('fs/observed', target, { kind: 'present', version: 'wrong' as never }, { agent: { session: h.b } })
-      h.ctx.emit('fs/observed', target, { kind: 'present', version: 'right' as never }, { agent: { session: h.a } })
-      expect(await pending).toEqual({ done: false, value: { kind: 'change', change: { absolutePath: '/project/shared.txt', version: 'right' } } })
-    } finally { await lease.release(); controller.abort() }
+      h.ctx.emit('fs/observed', target, { kind: 'present', version: 'host' as never })
+      expect(await pending).toMatchObject({
+        done: false, value: { kind: 'change', change: { absolutePath: h.ctx.fs.processPath(target) } },
+      })
+    } finally { controller.abort() }
     await iterator.return?.()
     expect(h.left.world.disposed).toBe(h.left.world.connections.length)
   })

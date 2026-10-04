@@ -76,7 +76,6 @@ node node_modules/vitest/vitest.mjs run packages/experimental/computer-use-cua-d
 | 文件 | 职责 |
 |---|---|
 | [src/index.ts](src/index.ts) | 原生运行时所有权、目录校验、工具注册和提供者指导文本 |
-| — | 不发布运行时不变量伴随模块；资源所有权没有可独立观测并比较的状态。 |
 
 工具定义复用现有 MCP 结果适配器。Cua Driver 的 JSON 目录决定 schema，其原始结果提供规范文本、结构化输出和图像字节。本适配器使用电脑操作服务的独占注册和就绪回调。工具保留上游请求和结果，不实现 facade 动作 DTO。
 

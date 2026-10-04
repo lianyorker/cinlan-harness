@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
-import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
+import { settingsServiceStub } from './settings-service-stub.ts'
 import ToolRuntime, { type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as sidebar from '../src/index.ts'
@@ -82,7 +82,7 @@ async function load() {
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
     '- id: external-context', '  name: test-terminal-context',
-    '- id: settings', "  name: '@deepseek-ai/dsh-settings-file'", '  config:', '    path: ' + JSON.stringify(settingsPath),
+    '- id: settings', "  name: '@deepseek-ai/dsh-settings'", '  config:', '    path: ' + JSON.stringify(settingsPath),
     '- id: prompt', "  name: '@deepseek-ai/dsh-system-prompt'",
     '- id: tools', "  name: '@deepseek-ai/dsh-tools'",
     '- id: sidebar', "  name: '@deepseek-ai/dsh-client-ui-better-sidebar'", '  config:', '    shell: deployment-shell', '    shellArgs: [--base]',
@@ -110,7 +110,7 @@ async function load() {
   } }
   const modules = new Map<string, unknown>([
     ['test-terminal-context', externalContext],
-    ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
+    ['@deepseek-ai/dsh-settings', settingsServiceStub(settingsPath)],
     ['@deepseek-ai/dsh-system-prompt', SystemPrompt], ['@deepseek-ai/dsh-tools', ToolRuntime],
     ['@deepseek-ai/dsh-client-ui-better-sidebar', sidebar],
   ])

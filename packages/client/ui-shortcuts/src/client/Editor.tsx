@@ -9,7 +9,9 @@ import type { ReferenceInjected } from './Reference.tsx'
 import { shortcutFailure, shortcutReadFailure } from './feedback.ts'
 import css from './Reference.module.css'
 
-type EditorInjected = ReferenceInjected
+// The inline editor reads and writes through the window-local shortcut service only.
+type EditorInjected = Pick<ReferenceInjected, 'platform' | 'runtime' | 'edit' | 'recording' | 'describeBinding'>
+  & { hooks: Pick<ReferenceInjected['hooks'], 'catalog' | 'config' | 'fixedCatalog'> }
 type EditorProps = InjectFace<EditorInjected> & PropsLocale<'shortcuts'> & {
   target: ShortcutCatalogEntry
   onClose(this: void): void

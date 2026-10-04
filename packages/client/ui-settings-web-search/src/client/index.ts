@@ -11,13 +11,11 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 // Type-only: the ctx.configForms Context merge. Cross-plugin collaboration
 // goes through the service, never a value import (client bundle purity gate).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-// Type-only: the Plugins page's SlotMap merge (the 'plugins.item' entry).
-import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: the ctx.remote Context merge and the forwarded-event key face.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { WebSearchCard } from './WebSearchCard.tsx'
+import { WebSearchSettingsSection } from './WebSearchCard.tsx'
 import { WEB_SEARCH_NS, WebSearchCardController } from './web-search-card-controller.ts'
 import { en, zh, type WebSearchSettingsLocaleKey } from './locales.ts'
 
@@ -36,7 +34,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export const NS = 'settings.webSearch'
 
 /** Required services (cordis fiber inject). */
-export const inject = ['slots', 'locale', 'remote', 'remote.credentials', 'configForms']
+export const inject = ['slots', 'locale', 'remote', 'remote.credentials', 'configForms', 'settingsMetadata']
 
 /**
  * Mount the web-search settings page while the Host serves its namespace.
@@ -54,7 +52,17 @@ export function apply(ctx: ClientContext): void {
     () => ctx.remote.$on('credentials/reference-updated', (ref) => { card.refreshCredential(ref) }),
     'ui-settings-web-search: credential invalidations',
   )
-  ctx.effect(() => ctx.configForms.whileServed([WEB_SEARCH_NS], () => ctx.slots.inject('plugins.item', () => ctx.slots.register({
-    name: 'plugins.item', id: 'web-search', order: 40, label: () => t('title'), locale: NS, inject: () => card.inject(),
-  }, WebSearchCard))), 'ui-settings-web-search: page')
+  ctx.effect(() => ctx.configForms.whileServed([WEB_SEARCH_NS], () =>
+    ctx.slots.inject('settings.section', function* () {
+      yield ctx.settingsMetadata.registerSection({ sectionId: 'web-search', groupId: 'extensions', heading: 'shell' })
+      yield ctx.settingsMetadata.registerItems('web-search', [{
+        id: 'web-search-settings', anchorId: 'web-search-settings', title: () => t('nav'), description: () => t('description'),
+        keywords: () => [t('title'), t('description'), t('apiKey'), t('baseUrl'), t('maxUses'), t('nav'), 'web', 'search', 'deepseek'],
+      }])
+      yield ctx.slots.register({
+        name: 'settings.section', id: 'web-search', order: 45, label: () => t('nav'), locale: NS,
+        inject: () => card.inject(),
+      }, WebSearchSettingsSection)
+    })), 'ui-settings-web-search: settings page')
+
 }

@@ -2,9 +2,7 @@
 
 English | [中文](web-server.zh.md)
 
-[dsh-host-webserver](../../packages/host/webserver) is the browser HTTP carrier for the GUI host: a single `node:http` plugin providing `ctx.webServer`, a named-route registry, optional gzip response compression, index.html transform callbacks, and one fallback handler that a plugin may claim. It is not part of the agent loop and not a capability seam; it knows no harness concepts, and another plugin registers every feature route, including the `/api` bridge, plugin bundles, and the HMR event stream ([layering note](../../.agents/notes/implemented/architecture/2026-07-24-web-config-tree-boot-and-transport-layering.md)). The ordinary local [Desktop carrier](../../apps/desktop/README.md) uses `dsh-app://` and framed byte pipes for assets, Fetch requests, and streaming responses; Node IPC carries lifecycle control, and this mode opens no Web listening port.
-
-[Remote Access](../../packages/remote-access/remote-access/README.md) adds an opt-in, independent HTTPS/WSS carrier to the same Desktop Host and existing Sessions. It owns the paired-device listener separately from `ctx.webServer`; its package reference owns deployment, pairing, and device-grant details.
+[dsh-host-webserver](../../packages/host/webserver) is the browser HTTP carrier for the GUI host: a single `node:http` plugin providing `ctx.webServer`, a named-route registry, optional gzip response compression, index.html transform callbacks, and one fallback handler that a plugin may claim. It is not part of the agent loop and not a capability seam; it knows no harness concepts, and another plugin registers every feature route, including the `/api` bridge, plugin bundles, and the HMR event stream ([layering reference](../../packages/boot/app-boot/README.md)). It serves browsers only: Electron loads the built files over `file://` and sends fetch requests through an IPC bridge instead of this server.
 
 Source: [`packages/host/webserver/src/index.ts`](../../packages/host/webserver/src/index.ts)
 
@@ -62,75 +60,53 @@ A request whose handling throws (a malformed %-escape hitting `decodeURIComponen
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
-<a id="ctxremoteaccess--remoteaccess"></a>
+<a id="ctxconnection--hostconnectionhandle"></a>
 
-### `ctx.remoteAccess` — `RemoteAccess`
+### `ctx.connection` — `HostConnectionHandle`
 
-Listener and paired-device lifecycle; management methods require a trusted local Gateway invocation.
-
-```ts cordis-catalog
-/**
- * Read local listener readiness and safe device metadata.
- * @returns listener readiness, verified certificate fingerprint and safe paired-device metadata.
- */
-async describe(): Promise<RemoteAccessStatus>
-
-/**
- * Enable the explicitly configured HTTPS listener.
- * @returns readiness after explicitly enabling the configured HTTPS listener.
- */
-async enable(): Promise<RemoteAccessStatus>
-
-/**
- * Disable the listener and settle its active carriers.
- * @returns disabled state after every network request and stream has settled.
- */
-async disable(): Promise<RemoteAccessStatus>
-
-/**
- * Select exact Session references and scopes for one short-lived pairing code.
- * @param grant - local UI-selected grant.
- * @returns one-time invitation displayed only on the trusted Desktop.
- */
-createInvitation(grant: PairingGrant): PairingInvitation
-
-/** Invalidate the current one-time invitation. */
-cancelInvitation(): void
-
-/**
- * Persist revocation before terminating this device's active requests and streams.
- * @param deviceId - paired device selected on the trusted Desktop.
- */
-async revokeDevice(deviceId: PairedDeviceId): Promise<void>
-```
-
-Types: [PairedDeviceId](../../packages/remote-access/remote-access/README.md) · [PairingGrant](../../packages/remote-access/remote-access/README.md) · [PairingInvitation](../../packages/remote-access/remote-access/README.md) · [RemoteAccessStatus](../../packages/remote-access/remote-access/README.md)
-
-Source: [`packages/remote-access/remote-access/src/index.ts`](../../packages/remote-access/remote-access/src/index.ts)
-
-<a id="ctxremoteaccesshost--remoteaccesshost"></a>
-
-### `ctx.remoteAccessHost` — `RemoteAccessHost`
-
-Desktop lifecycle capability: dispatch shares the local update lock; assets use a phone bootstrap.
+Host `ctx.connection` members consumed by transport-independent adapters.
 
 ```ts cordis-catalog
 /**
- * Admit work through the same update lock as local API and stream requests.
- * @param operation - operation to admit before execution.
- * @returns the admitted operation's result.
+ * Compose exact Fetch routes and the shared-channel RPC interceptor.
+ * @param channel - shared channel mounted by Connection.
+ * @returns Fetch handler for trusted, authenticated requests.
  */
-dispatch<T>(operation: () => T | Promise<T>): Promise<T>
+createSharedFetchHandler(channel: '/api'): ConnectionFetchHandler
 
 /**
- * Serve matching runtime assets with a paired browser bootstrap, never ownsHost:true.
- * @param request - authenticated asset request.
- * @returns the runtime asset, or 404 for an unrecognized path.
+ * Apply Connection's Host/Origin checks and browser authentication to
+ * another Web route.
+ * @param request - request headers from the HTTP or upgrade request.
+ * @returns rejection status, or undefined when the route may accept the request.
  */
-fetchAssets(request: Request): Response | Promise<Response>
+requestRejection(request: ConnectionTrustRequest): ConnectionRequestRejection
+
+/**
+ * Admit one request: it passes {@link requestRejection} and speaks for the
+ * operator, or it is refused with that status.
+ * @param request - request headers from the HTTP or upgrade request.
+ * @returns the operator Peer, or the rejection status.
+ */
+admit(request: ConnectionTrustRequest): PeerAdmission
+
+/**
+ * Authenticate one frontend index request, owning a token redirect or 401.
+ * @param request - root or configured-index HTTP request.
+ * @param response - response owned when the result is false.
+ * @returns true only when the frontend may serve index.html.
+ */
+authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexResponse): boolean
+
+/**
+ * Add the fresh process token to an ordinary Web application URL.
+ * @param baseUrl - clean application URL whose authority and mount are preserved.
+ * @returns tokenized URL for initial login; a mount proxy strips its prefix before {@link authorizeIndex}.
+ */
+authenticatedUrl(baseUrl: string): string
 ```
 
-Source: [`packages/remote-access/remote-access/src/types.ts`](../../packages/remote-access/remote-access/src/types.ts)
+Source: [`packages/client/connection/src/rpc.ts`](../../packages/client/connection/src/rpc.ts)
 
 <a id="ctxwebserver--webserver"></a>
 
@@ -200,6 +176,30 @@ renderIndex(html: string): string
 ```
 
 Source: [`packages/host/webserver/src/index.ts`](../../packages/host/webserver/src/index.ts)
+
+<a id="connection-events"></a>
+
+### `connection/*` events
+
+<a id="connectionrequest--waterfall"></a>
+
+#### `connection/request` — waterfall
+
+Admit or wrap an authenticated shared API request, including body transfer. Existing requests continue when a listener refuses subsequent requests.
+
+```ts cordis-catalog
+/**
+ * Admit or wrap an authenticated shared API request, including body transfer.
+ * Existing requests continue when a listener refuses subsequent requests.
+ * @param request - Authenticated incoming HTTP request.
+ * @param response - Response owned until the delegated bridge settles.
+ * @param next - Delegate to the next listener or the shared API bridge.
+ * @mode waterfall
+ */
+'connection/request'(request: IncomingMessage, response: ServerResponse, next: () => Promise<void>): Promise<void>
+```
+
+Source: [`packages/client/connection/src/index.ts`](../../packages/client/connection/src/index.ts)
 
 <a id="webserver-events"></a>
 

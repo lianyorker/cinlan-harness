@@ -1,6 +1,7 @@
 /** Product copy for automation settings; task data never enters public metadata. */
 export const en = {
-  title: 'Automation', description: 'Manage recurring tasks, pause schedules, and inspect recorded runs.', scope: 'This profile',
+  openAutomation: 'Open Schedule manager', scheduleLimits: 'Schedule tasks are delivered to their original Session by the official Schedule service.',
+  title: 'Scheduled tasks', description: 'Manage reminders in the official Schedule task manager.', scope: 'This profile',
   tasks: 'Task schedules', tasksHelp: 'New tasks are disabled. Enable scheduling explicitly, or run once without enabling.',
   draft: 'Task draft', draftHelp: 'Choose an existing workspace, agent, model, and permission preset. All schedule times are UTC.',
   journal: 'Run journal', journalHelp: 'Recorded execution evidence, not a guarantee that the task achieved its goal.',
@@ -33,7 +34,8 @@ export type AutomationSettingsKey = keyof typeof en
 
 /** Simplified Chinese copy with the same keys as English. */
 export const zh: Record<AutomationSettingsKey, string> = {
-  title: '自动化', description: '管理重复任务、暂停计划并查看已记录的运行。', scope: '当前配置档',
+  openAutomation: '打开 Schedule 任务管理器', scheduleLimits: '定时任务由官方 Schedule 服务投递到其原始会话。',
+  title: '定时任务', description: '在官方 Schedule 任务管理器中管理提醒。', scope: '当前配置档',
   tasks: '任务计划', tasksHelp: '新建任务默认停用。请明确启用计划，或在不启用计划的情况下运行一次。',
   draft: '任务草稿', draftHelp: '选择已有工作区、智能体、模型与权限预设。所有计划时间均为 UTC。',
   journal: '运行记录', journalHelp: '记录提供执行证据，不保证任务目标已达成。',

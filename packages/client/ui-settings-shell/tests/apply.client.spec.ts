@@ -38,11 +38,14 @@ async function bench(served?: string[]) {
   return { ctx, slots: ctx.get('slots') as SlotRegistry, describeSettings, remote }
 }
 
-/** The Plugins page's item slot, as its owner declares it. */
+/** The Settings section slot, as its owner declares it. */
 function declareRoot(slots: SlotRegistry): () => void {
   return slots.register({
     name: 'root',
-    children: { 'plugins.item': { kind: 'list', scope: 'root' } },
+    children: {
+      'settings.section': { kind: 'list', scope: 'root' },
+      'settings.section.icon': { kind: 'keyed', scope: 'root' },
+    },
   } as never, () => null)
 }
 
@@ -52,7 +55,7 @@ describe('ui-settings-shell apply', () => {
   })
 
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale', 'configForms'])
+    expect(inject).toEqual(['slots', 'locale', 'configForms', 'settingsMetadata'])
   })
 
   it('registers the shell page while the Host serves the namespace, titled in the active locale', async () => {
@@ -61,14 +64,18 @@ describe('ui-settings-shell apply', () => {
 
     await ctx.plugin({ inject: [...inject], apply }).await()
 
-    await vi.waitFor(() => { expect(slots.entries('plugins.item')).toHaveLength(1) })
-    const entry = slots.entries('plugins.item')[0]!
-    expect(entry.options).toMatchObject({ id: 'shell', order: 10 })
-    expect(resolveSlotLabel(entry.options.label)).toBe('终端')
+    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
+    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'shell', groupId: 'execution', heading: 'shell' }])
+    expect(slots.entries('settings.section')).toHaveLength(1)
+    expect(ctx.settingsMetadata.getSnapshot().items[0]?.anchorId).toBe('shell-settings')
+    const entry = slots.entries('settings.section')[0]!
+    expect(entry.options).toMatchObject({ id: 'shell', order: 42 })
+    expect(resolveSlotLabel(entry.options.label)).toBe('Agent 命令执行')
     expect(entry.locale).toBe(NS)
     const face = (entry.inject as () => Pick<ShellCardFace, 'hooks'>)()
     expect(Object.keys(face.hooks)).toEqual(['shellCard'])
     expect(face.hooks.shellCard.getSnapshot()).toMatchObject({ available: false, dirty: false })
+    expect(slots.entries('settings.section.icon')).toHaveLength(1)
   })
 
   it('registers nothing while the namespace is not served, and follows the Host when that changes', async () => {
@@ -77,25 +84,26 @@ describe('ui-settings-shell apply', () => {
     declareRoot(slots)
     await ctx.plugin({ inject: [...inject], apply }).await()
     await vi.waitFor(() => { expect(describeSettings).toHaveBeenCalled() })
-    expect(slots.entries('plugins.item')).toHaveLength(0)
+    expect(slots.entries('settings.section')).toHaveLength(0)
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
 
     describeSettings.mockResolvedValue({
       ok: true, value: { writable: true, hasDocument: true, namespaces: [view('bash-sandbox', 1)] },
     })
     remote.emit('settings/document-updated', ['bash-sandbox', 1])
-    await vi.waitFor(() => { expect(slots.entries('plugins.item')).toHaveLength(1) })
+    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
 
     describeSettings.mockResolvedValue({ ok: true, value: { writable: true, hasDocument: true, namespaces: [] } })
     remote.emit('settings/document-updated', ['bash-sandbox', 2])
-    await vi.waitFor(() => { expect(slots.entries('plugins.item')).toHaveLength(0) })
+    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(0) })
   })
 
   it('binds the page to the PowerShell executor entry when that is the composed shell', async () => {
     const { ctx, slots } = await bench(['pwsh-sandbox'])
     declareRoot(slots)
     await ctx.plugin({ inject: [...inject], apply }).await()
-    await vi.waitFor(() => { expect(slots.entries('plugins.item')).toHaveLength(1) })
-    const face = (slots.entries('plugins.item')[0]!.inject as () => Pick<ShellCardFace, 'hooks'>)()
+    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
+    const face = (slots.entries('settings.section')[0]!.inject as () => Pick<ShellCardFace, 'hooks'>)()
     expect(Object.keys(face.hooks)).toEqual(['shellCard'])
   })
 
@@ -105,7 +113,7 @@ describe('ui-settings-shell apply', () => {
 
     declareRoot(slots)
 
-    await vi.waitFor(() => { expect(slots.entries('plugins.item')).toHaveLength(1) })
+    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
   })
 
   it('collapses the page on teardown', async () => {
@@ -113,10 +121,11 @@ describe('ui-settings-shell apply', () => {
     declareRoot(slots)
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    await vi.waitFor(() => { expect(slots.entries('plugins.item')).toHaveLength(1) })
+    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
 
     await fiber.dispose()
 
-    expect(slots.entries('plugins.item')).toHaveLength(0)
+    expect(slots.entries('settings.section')).toHaveLength(0)
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
   })
 })

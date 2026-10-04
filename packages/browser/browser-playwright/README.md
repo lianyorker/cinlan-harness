@@ -40,7 +40,7 @@ Changed, detached, invisible, stale, or oversized elements fail without publishi
 <a id="configuration"></a>
 ## Configuration
 
-The plugin requires Browser, Settings, and the same-package `./runtime` service. Its browser-playwright Settings namespace persists browserChannel, headless, viewportWidth, viewportHeight, profileName, homePage, and searchEngine over the deployment defaults. Changes apply on Provider remount or profile restart, never during a live browser operation. Viewport preferences accept positive safe integers. Executable paths, storage directories, and provider identity remain deployment-only configuration.
+The plugin requires Browser, Settings, and the same-package `./runtime` service. Its browser-playwright Settings namespace persists browserChannel, headless, viewportWidth, viewportHeight, zoom, attach, attachPort, profileName, homePage, and searchEngine over the deployment defaults; those Config fields are volatile, which is what makes the settings service serve the namespace. Changes apply on Provider remount or profile restart, never during a live browser operation. Viewport preferences accept positive safe integers, zoom accepts 0.25 to 5, and attachPort accepts 1024 to 65535. The settings page lists this provider's stored profiles: `default` keeps the storage directory itself and every other name lives under `storageDir/harness-profiles/profile-<name>`, so switching profiles switches cookies and browser storage. Executable paths, storage directories, and provider identity remain deployment-only configuration.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -53,6 +53,7 @@ The plugin requires Browser, Settings, and the same-package `./runtime` service.
 | `navigationTimeoutMs` | `60000` | Page navigation timeout. |
 | `maxElements` | `200` | Maximum interactive references in one snapshot. |
 | `viewportWidth` / `viewportHeight` | `1440` / `900` | Browser viewport dimensions. |
+| `zoom` | `1` | Default page zoom; the page lays out at viewport/zoom and rasterizes at the configured size. |
 | `maxCaptureBytes` | `10485760` | Maximum encoded bytes in one element crop. |
 | `maxCapturePixels` | `4000000` | Maximum visible CSS pixels in one element crop. |
 | `selectionTimeoutMs` | `60000` | Maximum wait for one human selection. |
@@ -60,7 +61,8 @@ The plugin requires Browser, Settings, and the same-package `./runtime` service.
 | `maxHistoryEntries` / `maxNetworkEntries` | `100` / `100` | Records retained per open page. |
 | `maxCookieCount` / `maxDownloadCount` | `100` / `20` | Cookies per import and retained downloads per page. |
 | `maxTransferBytes` | `4194304` | Byte limit for uploads and download reads. |
-| `remoteDebuggingPort` | absent | Remote debugging port (CDP) for browser-use and external tool attachment. |
+| `remoteDebuggingPort` | absent | Remote debugging port (CDP) exposed by the browser this provider launches. |
+| `attach` / `attachPort` | `false` / `9222` | Attach to an already-running Chromium over CDP instead of launching one; disposal disconnects and never closes that browser. |
 
 profileName accepts safe lowercase names. default preserves storageDir; other names use storageDir/harness-profiles/profile-{name}. Cookie and browser storage isolation follows these directories; changing names neither copies nor deletes existing data. History/network retain only recent open-page metadata, removing URL credentials, query, and fragment and excluding headers and bodies. Page or Provider closure clears them.
 

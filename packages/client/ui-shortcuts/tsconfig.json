@@ -18,6 +18,9 @@
       "path": "../shortcuts/tsconfig.client.json"
     },
     {
+      "path": "../keyboard"
+    },
+    {
       "path": "../locale/tsconfig.client.json"
     },
     {

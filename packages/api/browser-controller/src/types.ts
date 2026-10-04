@@ -18,6 +18,10 @@ export interface BrowserElementCaptureValue {
 }
 /** Active Provider profile without exposing its filesystem location. */
 export interface BrowserProfileValue { readonly profileName: string }
+/** One stored persistent-browser profile the settings page can select; its directory stays on the Host. */
+export interface BrowserProfileEntry { readonly name: string; readonly stored: boolean; readonly current: boolean }
+/** Stored profiles and the one the active Provider settings select. */
+export interface BrowserProfilesValue { readonly profileName: string; readonly profiles: readonly BrowserProfileEntry[] }
 /** Explicit JSON cookie file import; the receipt never echoes file contents. */
 export interface BrowserImportCookiesRequest { readonly profileName: string; readonly json: string }
 /** Successful cookie import into the expected active profile. */

@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { ok, RemoteMock } from '@deepseek-ai/dsh-remote-mock'
-import { remoteDefaultResponses } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/remote-default-responses.ts'
+import { remoteDefaultResponses } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/remote-default-responses'
 
 interface SessionSummary {
   readonly sessionId: string
@@ -223,10 +223,8 @@ export function createAssembledRemote(options: AssembledRemoteOptions = {}): Ass
     return ok(undefined)
   })
   mock.unary('session/list', () => ok({ items: structuredClone(sessions) }))
-  // The shipped bundle layers this graph composes carry the `ui-schedule` row
-  // disabled, so the Schedule client does not mount and no case here reads the
-  // catalog or the per-Session list. Both stay declared so an enabled
-  // composition reads empty lists instead of a missing-rule failure.
+  // The shipped composition mounts the `ui-schedule` row, so the Schedule
+  // client reads the catalog and the per-Session list over this mock.
   mock.unary('schedule/catalog', () => ok([]))
   mock.unary('schedule/list', () => ok([]))
   mock.unary('session/projections', (request: unknown) => {

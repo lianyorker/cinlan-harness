@@ -24,6 +24,7 @@ import * as toolTeam from '../src/index.ts'
 const SIGNAL = new AbortController().signal
 const TOOL_NAMES = [
   'spawn_teammate',
+  'team_merge_worktree',
   'send_message',
   'list_agents',
   'wait_agent',

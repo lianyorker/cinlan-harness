@@ -4,12 +4,14 @@ import type { SettingsFormLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 
 /** Locale keys the page renders. */
 export type AgentLoopSettingsLocaleKey =
+  | 'nav'
   | 'title' | 'description' | 'maxParallel' | 'maxParallelHint'
   | 'overridden' | 'reset' | 'readOnly' | 'unavailable'
   | 'save' | 'saving' | 'saveFailed' | 'invalidNumber'
 
 /** English copy. */
 export const en: Record<AgentLoopSettingsLocaleKey, string> = {
+  nav: 'Agent loop',
   title: 'Agent loop',
   description: 'Control how the Agent dispatches tool calls.',
   maxParallel: 'Parallel tool calls',
@@ -26,6 +28,7 @@ export const en: Record<AgentLoopSettingsLocaleKey, string> = {
 
 /** Simplified Chinese copy. */
 export const zh: Record<AgentLoopSettingsLocaleKey, string> = {
+  nav: 'Agent 循环',
   title: 'Agent 循环',
   description: '控制 Agent 派发工具调用的方式。',
   maxParallel: '并行工具调用数',

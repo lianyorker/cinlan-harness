@@ -12,7 +12,13 @@
       "path": "../../../vendor/cordis"
     },
     {
+      "path": "../../../vendor/include"
+    },
+    {
       "path": "../../preset/agent-preset-registry"
+    },
+    {
+      "path": "../../security/security-skills"
     }
   ]
 }

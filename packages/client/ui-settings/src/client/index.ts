@@ -20,7 +20,7 @@ export type {
 } from './contract/slots.ts'
 export type {
   SettingsGroupId, SettingsSectionMetadata, SettingsItemMetadata, SettingsResolvedItemMetadata,
-  SettingsMetadataSnapshot, SettingsMetadataService,
+  SettingsSectionHeading, SettingsMetadataSnapshot, SettingsMetadataService,
 } from './settings-metadata.ts'
 export type { SettingsScopeController, SettingsScopeBinder } from './settings-scope.ts'
 export type { SettingsScope, SettingsScopeSnapshot, SettingsScopeSpec } from './settings-contract.ts'

@@ -1,5 +1,4 @@
 /** Native shells behind the same source Loader, settings, and Remote controller used by Desktop. */
-import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdtemp, readFile, realpath, rm, symlink, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
@@ -9,7 +8,7 @@ import { load as loadYaml } from 'js-yaml'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
-import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
+import { settingsServiceStub } from './settings-service-stub.ts'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
@@ -56,7 +55,7 @@ async function load() {
   await writeFile(settingsPath, 'dsh-better-sidebar:\n  terminalShell: ""\n  terminalShellArgs: ""\n')
   const rows = [
     { name: 'test-native-session' },
-    { name: '@deepseek-ai/dsh-settings-file', config: { path: settingsPath } },
+    { name: '@deepseek-ai/dsh-settings', config: { path: settingsPath } },
     { name: '@deepseek-ai/dsh-system-prompt' },
     { name: '@deepseek-ai/dsh-tools' },
     { name: '@deepseek-ai/dsh-client-ui-better-sidebar', config: {
@@ -84,7 +83,7 @@ async function load() {
     } } as never)
   } }
   const modules = new Map<string, unknown>([
-    ['test-native-session', sessions], ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
+    ['test-native-session', sessions], ['@deepseek-ai/dsh-settings', settingsServiceStub(settingsPath)],
     ['@deepseek-ai/dsh-system-prompt', SystemPrompt], ['@deepseek-ai/dsh-tools', ToolRuntime],
     ['@deepseek-ai/dsh-client-ui-better-sidebar', sidebar],
     ['@deepseek-ai/dsh-credentials-local', LocalCredentials], ['@deepseek-ai/dsh-client-connection', Connection],
@@ -98,8 +97,7 @@ async function load() {
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
   expect(ctx.get('webServer')).toBeUndefined()
-  const access = createTrustedConnectionAccess()
-  const shared = ctx.connection.createSharedFetchHandler('/api', access)
+  const shared = ctx.connection.createSharedFetchHandler('/api')
   let rpcId = 0
   const call = async (method: string, request?: unknown) => {
     const response = await shared.fetch(new Request('dsh-app://app/api/sidebarTerminals/' + method, {
@@ -132,8 +130,9 @@ async function load() {
       const lifetime = new AbortController()
       const request: SidebarTerminalOpenRequest = { target: { ...target, tabId,
         ...shellPath === undefined ? {} : { shellPath } }, cols: 120, rows: 24 }
+      const empty = (async function* () {})()
       const source = await ctx.typertGateway.wireStream.open(
-        'sidebarTerminals/open', { args: { request } }, lifetime.signal, access,
+        'sidebarTerminals/open', { args: { request } }, empty, undefined, lifetime.signal,
       )
       const iterator = (source as AsyncIterable<SidebarTerminalFrame>)[Symbol.asyncIterator]()
       const stream: typeof streams[number] = { lifetime, iterator }

@@ -2,11 +2,12 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
-import { NotificationSettingsSchema } from './settings.ts'
+import { NotificationSettingsConfig } from './settings.ts'
 
 export {
   NOTIFICATIONS_SETTINGS_NAMESPACE,
   NOTIFICATION_SOUNDS,
+  NotificationSettingsConfig,
   NotificationSettingsSchema,
 } from './settings.ts'
 export type { NotificationSettings, NotificationSound } from './types.ts'
@@ -14,7 +15,8 @@ export type { NotificationSettings, NotificationSound } from './types.ts'
 /** Cordis function-plugin name. */
 export const name = 'notifications'
 
-export const Config = NotificationSettingsSchema
+/** Entry schema the settings document serves; its live-editable wrapper carries the volatile marker. */
+export const Config = NotificationSettingsConfig
 
 /** Register the durable notification namespace when a settings provider exists. */
 export function apply(ctx: Context): void {

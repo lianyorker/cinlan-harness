@@ -50,6 +50,22 @@ export interface WorktreeTaskValue {
   readonly task: WorktreeTaskView
 }
 
+/** Browser-safe result of merging a task branch into its source branch. */
+export interface WorktreeTaskMergeView {
+  readonly taskId: WorktreeTaskId
+  readonly sourcePath: string
+  readonly sourceBranch: string
+  readonly branch: string
+  readonly sourceHeadBefore: string
+  readonly sourceHeadAfter: string
+  readonly task: WorktreeTaskView
+}
+
+/** Merge result returned by the Worktree Task Remote. */
+export interface WorktreeTaskMergeValue {
+  readonly merge: WorktreeTaskMergeView
+}
+
 /** Complete task list. */
 export interface WorktreeTaskListValue {
   readonly items: readonly WorktreeTaskView[]
@@ -81,6 +97,7 @@ export type WorktreeTaskOperation =
   | 'settings'
   | 'updateSettings'
   | 'review'
+  | 'merge'
   | 'bindSession'
   | 'activate'
   | 'hibernate'

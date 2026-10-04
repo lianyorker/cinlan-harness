@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-floating-workspace/README.md
-README.md: eaa874ba7b2ec90d393a60f912cf9ac84fb61e7e
-README.zh.md: 2eed3aff556d36d7942a1fb0bf3a990e1911bcdc
+/:
+  en: b9043c5b00589454
+  zh: cdcffdd874d3a370
+/deepseek-ai-dsh-client-ui-floating-workspace:
+  en: b58d6653fb527b2d
+  zh: a6878a794b35f4a7
+/deepseek-ai-dsh-client-ui-floating-workspace/summary:
+  en: 5f0d9a9703f0f7f6
+  zh: 2c0399cf9d82504b
+/deepseek-ai-dsh-client-ui-floating-workspace/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: cafd77c56408c22b
+/deepseek-ai-dsh-client-ui-floating-workspace/use-this-package:
+  en: fd6b32be33345641
+  zh: d2360687c48e4473
+/deepseek-ai-dsh-client-ui-floating-workspace/use-this-package/composition-and-configuration:
+  en: 10a99392620372d5
+  zh: acb69e958686da67
+/deepseek-ai-dsh-client-ui-floating-workspace/understand-the-implementation:
+  en: 693300dd366d36f6
+  zh: 20bcca1d4a67d7cd
+/deepseek-ai-dsh-client-ui-floating-workspace/further-exploration:
+  en: 3fc43a50e02ab63f
+  zh: 2049fc2c11d4aaae
+/deepseek-ai-dsh-client-ui-floating-workspace/model-experience:
+  en: 62ba937b59de5b95
+  zh: 2587d6be5f848935
+/deepseek-ai-dsh-client-ui-floating-workspace/model-experience/kv-cache-effect:
+  en: 900faab998fa3942
+  zh: e9796803b14abff7
+/deepseek-ai-dsh-client-ui-floating-workspace/known-limitations-and-deferred-work:
+  en: c7194628157c639e
+  zh: eab875998dc70646
+/deepseek-ai-dsh-client-ui-floating-workspace/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 8141b369cfb2bc26

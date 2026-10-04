@@ -1,79 +1,115 @@
-# MCP connections and management
+# MCP
 
 English | [中文](mcp.zh.md)
 
-MCP connects external tool servers to the Harness and exposes their connection state for inspection. The [client bridge](../../packages/mcp/mcp-client/README.md) owns live connections and discovered tools; [management](../../packages/mcp/mcp-management/README.md) saves server definitions for one launch profile. [Resources](../../packages/mcp/mcp-resources/README.md) exposes caller-scoped discovery and reading. This reference covers the types declared by those packages.
+## Summary
 
-## Connection identity and observation
+Model Context Protocol (MCP) connects the model to tools supplied by external servers. Each configured server contributes ordinary harness tools with cancellation, permission checks, recorded results, and supported image output. Shared tools discover and read resources when a server is configured in the caller's scope, while server instructions join the logged system prompt. The official SDK negotiates modern or supported legacy protocol revisions. This reference covers the MCP package group's responsibilities, scope, and composition choices; the [client README](../../packages/mcp/mcp-client/README.md) owns server configuration.
 
-Source: [`mcp-client/src/types.ts`](../../packages/mcp/mcp-client/src/types.ts). A durable managed record and a live launcher instance have separate identities. The [root registry](../../packages/mcp/mcp-client/src/registry.ts) reports immutable snapshots with stable object identity between changes; Agent-scoped launchers do not contribute rows.
+## Table of Contents
 
-| Type | Fields and meaning |
+- [Configuration](#configuration)
+- [Responsibilities and scope](#responsibilities-and-scope)
+- [Protocol and results](#protocol-and-results)
+- [Resources and instructions](#resources-and-instructions)
+- [Resource provider types](#resource-provider-types)
+- [Limits](#limits)
+- [Further reading](#further-reading)
+
+-----
+
+<a id="configuration"></a>
+## Configuration
+
+MCP servers are opt-in. Configure one `@deepseek-ai/dsh-mcp-client` entry per server in the intended Cordis scope. Every shipped profile supplies the [tool registry](tools.md) and mounts the shared resource service once; users configure only client entries. Callers with no visible configured server receive no MCP prompt text or tools in native or PTC mode.
+
+| Choice | Configuration owner |
 |---|---|
-| `McpServerId` | Branded durable address allocated by the profile record owner; changing `serverName` preserves it. |
-| `McpConnectionId` | Branded identity for one live launcher instance; not a saved server address. |
-| `McpOwner` | `kind: managed` carries `recordId`; `kind: composition` carries the actual composition owner `label`. Observation alone grants no mutation authority. |
-| `McpToolDescriptor` | Public `name`, `description`, and `inputSchema` from the last committed discovery. |
-| `McpConnectionState` | `phase`, reconnect `attempt`, optional `retryAt` and `errorCode`, and committed `tools`. Startup uses attempt 0; `retryAt` is Unix milliseconds and appears only during backoff. |
-| `McpConnectionSnapshot` | The connection state plus live `id`, `serverName`, `transport` (`stdio` or `streamable-http`), and `owner`. It excludes executable configuration, endpoint, environment, and authorization headers. |
+| Server identity, local process or HTTP endpoint, credentials, and process environment | [Client configuration](../../packages/mcp/mcp-client/README.md#use-this-package) |
+| Tool and resource request timeout, startup failure policy, and reconnection | [Client configuration](../../packages/mcp/mcp-client/README.md#use-this-package) |
+| Resource discovery and reading | The [MCP resource service](../../packages/mcp/mcp-resources/README.md#use-this-package) is included in shipped profiles; it has no configuration fields |
+| Server instruction size limit | Client `maxInstructionBytes`; the composition supplies [system-prompt assembly](system-prompt.md) |
+| Permission decisions and supported image output | [Tool execution](tools.md) and [attachments](attachment.md) |
 
-`McpConnectionState.phase` is `connecting`, `ready`, `backoff`, `error`, or `stopped`. `ready` means discovery committed and no later error was observed. A retained tool list during an outage does not imply successful calls; stop or retry exhaustion removes it.
+Protocol negotiation follows the SDK's supported revisions; there is no product setting that forces a protocol revision. The [configuration catalog](../config-catalog.md#deepseek-aidsh-mcp-client) lists accepted client fields and defaults.
 
-`McpConnectionError` classifies failures without upstream text or credentials: `missing-credential`, `authentication-failed`, `connection-failed`, `tool-sync-failed`, `namespace-conflict`, or `close-timeout`. A stopped connection with `close-timeout` retains its namespace reservation because transport shutdown is unconfirmed.
+-----
 
-## Saved server definitions
+<a id="responsibilities-and-scope"></a>
+## Responsibilities and scope
 
-Source: [`mcp-management/src/types.ts`](../../packages/mcp/mcp-management/src/types.ts). Desired records contain credential references; resolution for each connection attempt stays private. Arguments and endpoint paths are public configuration and must not contain secrets.
+The client is a per-server connection plugin and a consumer of the harness tool registry. It does not publish a shared `ctx.mcp` service. The external server implements MCP operations; the SDK owns protocol exchange; the client adapts discovered tools to harness execution.
 
-| Type | Fields and meaning |
-|---|---|
-| `McpServerCommon` | `serverName`, `enabled`, optional `toolCallTimeoutMs`, and optional `reconnect`. The name is a local tool namespace matching `[A-Za-z0-9_-]{1,32}`. |
-| `ReconnectConfig` | Optional `enabled`, `initialDelayMs`, `maxDelayMs`, and `maxAttempts`. Delays use milliseconds; `maxDelayMs` also sets the stable-uptime window that resets the attempt budget. Omitted values use the client bridge’s resolved defaults. |
-| `McpStdioServer` | Common fields plus `transport: stdio`, `command`, literal `args`, `cwd`, and `env` mapping variable names to `CredentialRef` values. |
-| `McpHeaderReference` | Credential `ref` and non-secret `prefix`, concatenated privately when resolving the header. |
-| `McpHttpServer` | Common fields plus `transport: streamable-http`, `url`, and `headers` mapping names to `McpHeaderReference`. URLs exclude userinfo, query strings, and fragments. |
-| `McpServerInput` | The `transport`-discriminated union of stdio and HTTP definitions, without a durable id. |
-| `McpServerRecord` | An input plus durable `id: McpServerId`; server names remain unique within the profile’s desired collection. |
+`mcp-resources` owns the shared resource tools and selects providers in the caller's scope. Each MCP client supplies resource operations through its own connection. The first provider in a scope enables the local shared tools, and removing the last removes them; inherited providers remain visible. The service owns these tool registrations independently of any one client. Connection failures do not remove shared resource tools while a visible client entry remains active.
 
-## Management snapshots and mutations
+Configured `serverName` identifies a server in its registration scope. Two entries in that scope cannot reserve the same name; separate Agent scopes can reuse it. Public tool names include the configured server name, so equally named tools from different servers remain distinct. Registration effects own names and discovered tools; plugin disposal closes the connection and removes its contributions.
 
-The [management service](../../packages/mcp/mcp-management/src/index.ts) separates persisted intent from observed connection readiness. Saving or enabling a record can succeed while its connection reports an activation error. A reconnect or connection failure does not change the saved collection revision.
+The [native Cua Driver provider](../../packages/experimental/computer-use-cua-driver-native/README.md) shares the client's exported result adapter without opening an MCP connection. Desktop provider selection belongs to the [computer-use subsystem](computer-use.md).
 
-| Type | Fields and meaning |
-|---|---|
-| `McpManagedServerView` | Desired `record`, actual `observed` connection state, and `applying` indicating whether its desired configuration still needs to be applied to the owned child. |
-| `McpExternalServerView` | A connection snapshot whose `owner.kind` is `composition`; management exposes it for observation only. |
-| `McpManagementSnapshot` | `profile`, desired collection `revision`, `reconciling` for pending managed operations, managed `servers`, and composition-owned `external` connections. |
-| `McpSaveRequest` | Optional `id`, complete `record: McpServerInput`, and `expectedRevision`. Omitting the id creates; supplying it replaces that record. |
-| `McpSaveResult` | Durable `id` and current `snapshot`, so callers need not recover a created identity by matching user-supplied text. |
-| `McpRemoveRequest` | `id` and `expectedRevision`; removal stops the owned connection before committing deletion. |
-| `McpSetEnabledRequest` | Removal-request fields plus `enabled`; the desired switch persists before the child lifetime is reconciled. |
-| `McpServerRequest` | Managed record `id` for reconnect or probe in the current profile; it cannot address an external composition. |
+-----
 
-`expectedRevision` compares the complete profile collection, not one server. A stale value rejects the mutation. `probe` refreshes `tools/list` on an initialized connection without invoking a tool or starting a disabled server; cancellation preserves the previous tool generation.
+<a id="protocol-and-results"></a>
+## Protocol and results
 
-`McpManagementErrorCode` is `conflict`, `invalid-config`, `not-found`, `disabled`, `not-ready`, `storage-failed`, `stopped`, `probe-failed`, or `close-failed`. These fixed classifications are safe for Remote errors and localized UI text. An unconfirmed close retains the record and prevents replacement of that child.
+Both stdio and Streamable HTTP use the official SDK's negotiation, discovery, protocol validation, and cancellation. Tool-list changes trigger discovery through legacy notifications or a modern subscription. A failed refresh retains the previous tool generation; connection recovery follows the [client lifecycle](../../packages/mcp/mcp-client/README.md#use-this-package).
 
-## Launcher handles
+The result adapter retains canonical MCP JSON for programmatic callers and prepares ordinary tool content. Supported images use the attachment system; unsupported rich content produces explicit text diagnostics. The tool registry remains authoritative for policy failures and replaced results. The [tool contracts](tools.md) own recording and final presentation; the [client result reference](../../packages/mcp/mcp-client/README.md#use-this-package) owns MCP-specific projection details.
 
-The client’s programmatic launcher shares the same connection supervisor as its composition plugin. Launch-time ownership and credential resolution are separate from plugin configuration.
+-----
 
-| Type | Fields and meaning |
-|---|---|
-| `ConnectionOutcome` | Optional `error` from the initial attempt. A fulfilled `ready` promise alone does not establish connection readiness. |
-| `ConnectionHandle` | `ready` reports initial settlement; `getSnapshot()` and `subscribe()` expose committed state; `probe(signal)` refreshes descriptors; `resources` routes requests through the initialized current generation; `dispose()` joins cleanup. Concurrent disposals share one completion. |
-| `McpLaunchOptions` | Optional `owner`, `resolveConfig(signal)` for fresh credentials on each attempt with unchanged server identity, and `redact(text)` for removing known secrets from public metadata. |
+<a id="resources-and-instructions"></a>
+## Resources and instructions
 
-## Scoped resources
+Resource calls require an explicit configured server name. When system-prompt assembly is available, the resource service lists caller-visible names from the same registry used for dispatch, including servers with no tools or instructions. The shared registry resolves that name in the calling Agent's scope before dispatch; unavailable servers fail without a network request. Discovery and reads are on demand, including for servers that expose resources without tools. The [resource package](../../packages/mcp/mcp-resources/README.md) owns pagination and content rendering; its generated tool schemas live in the [tool catalog](../tool-catalog.md#deepseek-aidsh-mcp-resources).
 
-Source: [resource runtime](../../packages/mcp/mcp-resources/src/index.ts). Providers register under a configured server name in their effect owner's scope. Descendants inherit the nearest provider; unrelated scopes cannot dispatch through it. The first local provider exposes three shared tools, and the last removal withdraws them.
+Resource providers remain connection-owned. Scope disposal removes registrations; the MCP client controls cancellation and recovery. Canonical results retain complete JSON for programmatic callers, while the text projection replaces binary blobs with descriptions. Returned text enters ordinary tool history; content is not fetched merely because a server connects.
 
-| Type | Fields and meaning |
-|---|---|
-| `McpResourceRequest` | `resources/list` or `resources/templates/list` with an optional opaque `cursor`; `resources/read` with an explicit `uri`. |
-| `McpResourceProvider` | `request(request, execution)` receives caller identity and cancellation and returns lossless JSON. |
+When system-prompt assembly is composed, the client publishes nonblank server instructions as a scoped, server-attributed section. Instructions remain literal text and pass the configured size limit before publication. A replacement connection publishes instructions only after discovery succeeds; absent instructions add no section. The [system-prompt subsystem](system-prompt.md) owns assembly and recording.
 
-Resource listings return one page and preserve `nextCursor`. Read results retain canonical text or binary content, while model text replaces base64 `blob` values with length descriptions. Configured provider names remain visible across connection failures; calls fail during negotiation, disconnect, or disposal. Managed requests use the same safe error classifications as tool calls.
+-----
+
+<a id="resource-provider-types"></a>
+## Resource provider types
+
+The connection provider receives one operation and the original tool execution, including its caller and cancellation signal.
+
+```ts type-equiv
+/** One supported resource operation, with server-owned cursors and URIs. */
+type McpResourceRequest =
+  | { method: 'resources/list' | 'resources/templates/list'; cursor?: string }
+  | { method: 'resources/read'; uri: string }
+```
+
+```ts type-equiv
+/** One configured server's resource access, owned by its MCP connection plugin. */
+interface McpResourceProvider {
+  /**
+   * Run an operation against one live connection generation.
+   * @param request - MCP resource method and parameters.
+   * @param exec - caller identity and cancellation for this invocation.
+   * @returns the protocol result as lossless JSON.
+   */
+  request(request: McpResourceRequest, exec: ToolExecution): Promise<JsonValue>
+}
+```
+
+-----
+
+<a id="limits"></a>
+## Limits
+
+MCP prompt templates, human-input elicitation, task-based execution, and resource subscriptions are unsupported. Resource tools require a caller-visible configured server; binary resources remain programmatic data with text descriptions for the model. Servers without a tools capability connect with an empty tool set. Connection and discovery timeouts follow the SDK; the client has no separate settings for them.
+
+-----
+
+<a id="further-reading"></a>
+## Further reading
+
+- [MCP package group](../../packages/mcp/README.md) — package entry points.
+- [MCP resources](../../packages/mcp/mcp-resources/README.md) — shared tools and resource-provider semantics.
+- [Resource visibility reference](../../packages/mcp/mcp-resources/README.md) — shared profile mounting and visibility from configured servers.
+- [Third-party memory servers](../user/guide/mcp-memory.md) — product configuration guide.
+- [Protocol negotiation reference](../../packages/mcp/mcp-client/README.md) — SDK ownership and compatibility decisions.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -82,88 +118,6 @@ Resource listings return one page and preserve `nextCursor`. Read results retain
 ## Cordis API
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
-
-<a id="ctxmcpmanagement--mcpmanagement"></a>
-
-### `ctx.mcpManagement` — `McpManagement`
-
-Persist desired state independently from connection readiness and own only programmatic children.
-
-```ts cordis-catalog
-/**
- * Read the manager's current complete profile view.
- * @returns Stable readback between desired or observed changes.
- */
-getSnapshot(): McpManagementSnapshot
-
-/**
- * Observe committed desired state and actual connection changes.
- * @param listener - Notification callback.
- * @returns Disposer for this observer.
- */
-subscribe(listener: () => void): () => void
-
-/**
- * Persist a validated definition at the requested profile revision, then start applying it.
- * @param request - New or existing record and revision last observed by the editor.
- * @returns Durable identity and a readback that separates desired state from connection state.
- */
-async save(request: McpSaveRequest): Promise<McpSaveResult>
-
-/**
- * Remove a record only after its owned connection has stopped.
- * @param request - Owned record and expected collection revision.
- * @returns Durable removal and completed child teardown.
- */
-async remove(request: McpRemoveRequest): Promise<McpManagementSnapshot>
-
-/**
- * Save enablement before reconciling its connection lifetime.
- * @param request - Explicit desired enablement and expected revision.
- * @returns Saved switch and current observed connection state.
- */
-async setEnabled(request: McpSetEnabledRequest): Promise<McpManagementSnapshot>
-
-/**
- * Replace an enabled owned child after its previous lifetime has quiesced; resolve credentials anew.
- * @param request - Owned record identity.
- * @returns Connecting or failed observed state without changing the desired revision.
- */
-async reconnect(request: McpServerRequest): Promise<McpManagementSnapshot>
-
-/**
- * Refresh tools through an initialized managed bridge; never starts a disabled server or calls a tool.
- * @param request - Owned record identity.
- * @param signal - Caller cancellation of the tools/list request.
- * @returns Current status and the newly observed tool descriptors.
- */
-async probe(request: McpServerRequest, signal: AbortSignal): Promise<McpManagementSnapshot>
-```
-
-Source: [`packages/mcp/mcp-management/src/index.ts`](../../packages/mcp/mcp-management/src/index.ts)
-
-<a id="ctxmcpregistry--mcpregistry"></a>
-
-### `ctx.mcpRegistry` — `McpRegistry`
-
-Root/profile connection catalog; Agent-scoped launchers do not contribute.
-
-```ts cordis-catalog
-/**
- * Read immutable rows, stable between changes.
- * @returns the current secret-free observations.
- */
-getSnapshot(): readonly McpConnectionSnapshot[]
-
-/**
- * Observe row changes.
- * @param listener - callback without a payload.
- * @returns effect-scoped unsubscribe.
- */
-subscribe(listener: () => void): () => void
-```
-
-Source: [`packages/mcp/mcp-client/src/registry.ts`](../../packages/mcp/mcp-client/src/registry.ts)
 
 <a id="ctxmcpresources--mcpresourceruntime"></a>
 

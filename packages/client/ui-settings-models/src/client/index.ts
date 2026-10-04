@@ -66,7 +66,7 @@ export function refreshIfLoaded(controller: ModelsSettingsStore): void {
  */
 export const inject = [
   'slots', 'locale', 'remote', 'remote.credentials', 'remote.llm', 'remote.settings', 'remote.session',
-  'configForms', 'settingsSchema',
+  'configForms', 'settingsSchema', 'settingsMetadata',
 ]
 
 /**
@@ -135,17 +135,20 @@ export function apply(ctx: ClientContext): void {
     }
   }, 'ui-settings-models: pushed invalidations')
 
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'models',
-    order: 10,
-    label: () => t('nav'),
-    inject: injected,
-    children: {
-      'settings.models.provider-card': { kind: 'keyed', scope: 'root' },
-      'settings.models.footer': { kind: 'list', scope: 'root' },
-    },
-  }, ModelsSection))
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'models', groupId: 'ai', heading: 'shell' })
+    yield ctx.slots.register({
+      name: 'settings.section',
+      id: 'models',
+      order: 10,
+      label: () => t('nav'),
+      inject: injected,
+      children: {
+        'settings.models.provider-card': { kind: 'keyed', scope: 'root' },
+        'settings.models.footer': { kind: 'list', scope: 'root' },
+      },
+    }, ModelsSection)
+  })
   if (!('dshDesktop' in globalThis)) ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
     name: 'settings.onboarding',
     id: 'welcome-notice',

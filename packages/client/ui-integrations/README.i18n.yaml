@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-integrations/README.md
-README.md: 6b62ba67d37d6953fdd37fc8c59e523679aa7d3e
-README.zh.md: c241a058415a7057e6026ac0f68807e88e8dd4ca
+/:
+  en: 8590fc52bca22f01
+  zh: af557530b29029cc
+/deepseek-ai-dsh-client-ui-integrations:
+  en: 7b74888c56b141c6
+  zh: 8929ab6bd6eea30c
+/deepseek-ai-dsh-client-ui-integrations/summary:
+  en: ecbfc9442fedb059
+  zh: df1413502cbd665c
+/deepseek-ai-dsh-client-ui-integrations/table-of-contents:
+  en: ed122a1f086d7743
+  zh: 0c3a251d7d35529d
+/deepseek-ai-dsh-client-ui-integrations/use-this-package:
+  en: 05d2ef31893eecb0
+  zh: 91e58f1db9a5cc2b
+/deepseek-ai-dsh-client-ui-integrations/implementation:
+  en: 366428e4fe625adf
+  zh: 4ee28997cb504770
+/deepseek-ai-dsh-client-ui-integrations/model-experience:
+  en: 4b04b3e36b03bc85
+  zh: fec954f6a323a950
+/deepseek-ai-dsh-client-ui-integrations/model-experience/kv-cache-effect:
+  en: c549231216d074e9
+  zh: 9c0335062bd3888e
+/deepseek-ai-dsh-client-ui-integrations/known-limitations-and-deferred-work:
+  en: a15b956a52cc9fbe
+  zh: 77cf6f396a3614a5

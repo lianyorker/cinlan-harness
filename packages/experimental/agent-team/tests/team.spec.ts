@@ -25,6 +25,8 @@ import {
   type BindSessionResult,
   type DeleteTaskResult,
   type WorktreeTaskId,
+  type MergeTaskRequest,
+  type WorktreeTaskMergeResult,
 } from '@deepseek-ai/dsh-worktree-task'
 import TeamService, { TeamError, TeamId, TeamMessageId, TeamTaskId } from '../src/index.ts'
 import { TeamRuntimeLifecycle } from '../src/lifecycle.ts'
@@ -44,7 +46,10 @@ class MockWorktreeTaskService extends WorktreeTaskService {
   readonly created: CreateTaskRequest[] = []
   readonly bound: BindSessionRequest[] = []
   readonly deleted: DeleteTaskRequest[] = []
+  readonly unbound: BindSessionRequest[] = []
+  readonly merged: MergeTaskRequest[] = []
   deleteError?: Error | undefined
+  mergeError?: Error | undefined
 
   override async create(request: CreateTaskRequest): Promise<WorktreeTask> {
     this.created.push(request)
@@ -83,6 +88,27 @@ class MockWorktreeTaskService extends WorktreeTaskService {
     }
   }
 
+  override async merge(request: MergeTaskRequest): Promise<WorktreeTaskMergeResult> {
+    if (this.mergeError !== undefined) throw this.mergeError
+    this.merged.push(request)
+    const task: WorktreeTask = {
+      id: request.taskId, name: 'task', workspaceId: brandString<WorkspaceId>('ws-1'), sourcePath: '/mock/src',
+      baseRef: 'main', branch: 'branch', checkoutPath: '/mock/worktrees/task', status: 'archived', sessionIds: [],
+      createdAt: '2026-09-29T00:00:00.000Z', updatedAt: '2026-09-29T00:00:00.000Z',
+    }
+    return { taskId: request.taskId, sourcePath: '/mock/src', sourceBranch: 'main', branch: 'branch',
+      sourceHeadBefore: 'a'.repeat(40), sourceHeadAfter: 'b'.repeat(40), task }
+  }
+
+  override async unbindSession(_taskId: WorktreeTaskId, sessionId: SessionId): Promise<WorktreeTask> {
+    this.unbound.push({ taskId: _taskId, sessionId })
+    return {
+      id: _taskId, name: 'task', workspaceId: brandString<WorkspaceId>('ws-1'), sourcePath: '/mock/src',
+      baseRef: 'main', branch: 'branch', checkoutPath: '/mock/worktrees/task', status: 'active', sessionIds: [],
+      createdAt: '2026-09-29T00:00:00.000Z', updatedAt: '2026-09-29T00:00:00.000Z',
+    }
+  }
+
   override async delete(request: DeleteTaskRequest): Promise<DeleteTaskResult> {
     this.deleted.push(request)
     if (this.deleteError !== undefined) throw this.deleteError
@@ -90,13 +116,18 @@ class MockWorktreeTaskService extends WorktreeTaskService {
   }
 
   override list(): WorktreeTask[] { return [] }
-  override get(_taskId: WorktreeTaskId): WorktreeTask { throw new Error('not implemented') }
+  override get(taskId: WorktreeTaskId): WorktreeTask {
+    return { id: taskId, name: 'task', workspaceId: brandString<WorkspaceId>('ws-1'), sourcePath: '/mock/src',
+      baseRef: 'main', branch: 'branch', checkoutPath: '/mock/worktrees/task', status: 'archived', sessionIds: [],
+      createdAt: '2026-09-29T00:00:00.000Z', updatedAt: '2026-09-29T00:00:00.000Z' }
+  }
   override settings(): never { throw new Error('not implemented') }
   override updateSettings(): never { throw new Error('not implemented') }
   override review(): never { throw new Error('not implemented') }
-  override unbindSession(): never { throw new Error('not implemented') }
   override findForSession(): undefined { return undefined }
-  override activate(): never { throw new Error('not implemented') }
+  override async activate(request: { taskId: WorktreeTaskId }): Promise<WorktreeTask> {
+    return { ...this.get(request.taskId), status: 'active' }
+  }
   override hibernate(): never { throw new Error('not implemented') }
   override archive(): never { throw new Error('not implemented') }
 }
@@ -1922,6 +1953,75 @@ describe('Team mailbox and waiting', () => {
     expect(durable(second.lead).members[0]).toMatchObject({
       phase: 'failed', error: 'settled elsewhere',
     })
+  })
+
+  it('integrates a completed teammate worktree and preserves its Session history', async () => {
+    const { ctx, lead } = await setup(['hang'])
+    const mockWt = new MockWorktreeTaskService(ctx)
+    const archiveSession = vi.fn(async () => undefined)
+    ctx.provide('workspaceRegistry', { archiveSession } as never)
+    const spawned = await ctx.agentTeams.spawnTeammate(lead, {
+      name: 'merge-worker',
+      description: 'merge worker',
+      prompt: content('work on branch'),
+      context: 'fresh',
+      provider: 'spawn',
+      workspaceMode: 'worktree',
+      signal: SIGNAL,
+    })
+    await ctx.agentTeams.interrupt(lead, 'merge-worker')
+    await waitNoAgent(ctx, spawned.member.id)
+
+    mockWt.deleteError = new Error('branch cleanup failed')
+    await expect(ctx.agentTeams.mergeWorktree(lead, 'merge-worker', SIGNAL)).rejects.toThrow('branch cleanup failed')
+    expect(mockWt.merged).toEqual([{ taskId: 'wt-1' }])
+    expect(ctx.agentTeams.listMembers(lead).find(member => member.name === 'merge-worker')).toMatchObject({
+      workspaceMode: 'integrated', worktreeTaskId: 'wt-1',
+      integration: { sourceHeadAfter: 'b'.repeat(40) },
+    })
+    mockWt.deleteError = undefined
+
+    const result = await ctx.agentTeams.mergeWorktree(lead, 'merge-worker', SIGNAL)
+    expect(result).toMatchObject({
+      teammate: 'merge-worker',
+      taskId: 'wt-1',
+      branch: 'branch',
+      sourceBranch: 'main',
+      sourceHeadBefore: 'a'.repeat(40),
+      sourceHeadAfter: 'b'.repeat(40),
+      cleanup: 'deleted',
+    })
+    expect(archiveSession).toHaveBeenCalledWith(spawned.member.id, { stopActivity: true })
+    expect(mockWt.unbound).toEqual([{ taskId: 'wt-1', sessionId: spawned.member.id }])
+    expect(mockWt.merged).toEqual([{ taskId: 'wt-1' }])
+    expect(mockWt.deleted).toEqual([{ taskId: 'wt-1' }, { taskId: 'wt-1' }])
+    expect(ctx.agentTeams.listMembers(lead).find(member => member.name === 'merge-worker')).toMatchObject({
+      workspaceMode: 'integrated',
+    })
+    expect(ctx.agentTeams.listMembers(lead).find(member => member.name === 'merge-worker')).not.toHaveProperty('worktreeTaskId')
+    expect(durable(lead).members.find(member => member.name === 'merge-worker')).toMatchObject({
+      workspaceMode: 'integrated',
+    })
+  })
+
+  it('restores a teammate checkout when integration fails before the merge commit', async () => {
+    const { ctx, lead } = await setup(['hang'])
+    const mockWt = new MockWorktreeTaskService(ctx)
+    const archiveSession = vi.fn(async () => undefined)
+    ctx.provide('workspaceRegistry', { archiveSession } as never)
+    const spawned = await ctx.agentTeams.spawnTeammate(lead, {
+      name: 'restore-worker', description: 'restore worker', prompt: content('work on branch'),
+      context: 'fresh', provider: 'spawn', workspaceMode: 'worktree', signal: SIGNAL,
+    })
+    await ctx.agentTeams.interrupt(lead, 'restore-worker')
+    await waitNoAgent(ctx, spawned.member.id)
+    mockWt.mergeError = new Error('source conflict')
+    await expect(ctx.agentTeams.mergeWorktree(lead, 'restore-worker', SIGNAL)).rejects.toThrow('source conflict')
+    expect(mockWt.unbound).toEqual([{ taskId: 'wt-1', sessionId: spawned.member.id }])
+    expect(mockWt.bound).toHaveLength(1)
+    expect(archiveSession).toHaveBeenCalledWith(spawned.member.id, { stopActivity: true })
+    expect(ctx.agentTeams.listMembers(lead).find(member => member.name === 'restore-worker')).toMatchObject({ workspaceMode: 'worktree' })
+    mockWt.mergeError = undefined
   })
 
   it('validates workspaceMode and integrates with WorktreeTaskService for workspace isolation', async () => {

@@ -19,7 +19,7 @@ type FeaturePage = { sectionId: string; embedded: true } | {
 }
 
 const BUILTIN_PAGES: Readonly<Record<string, FeaturePage>> = {
-  editor: { sectionId: 'files', group: 'tools', order: 55, embedded: false },
+  editor: { sectionId: 'files', group: 'workspace', order: 55, embedded: false },
   subagent: { sectionId: 'tasks', group: 'ai', order: 35, embedded: false },
   sidechat: { sectionId: 'sidechat', group: 'ai', order: 36, embedded: false },
   git: { sectionId: 'git-source-control', embedded: true },
@@ -103,7 +103,7 @@ export function registerFeatureSettings(ctx: Context, injected: SideCardSectionI
       for (const [id, feature] of visible) {
         if (mounted.has(id)) continue
         const page: FeaturePage = BUILTIN_PAGES[id] ?? {
-          sectionId: 'feature:' + id, group: 'extensions', order: feature.order ?? 100, embedded: false,
+          sectionId: 'feature:' + id, group: 'capabilities', order: feature.order ?? 100, embedded: false,
         }
         const featureProps = () => ({ ...injected, featureId: id, embedded: page.embedded })
         const disposers: Array<() => void> = [ctx.settingsMetadata.registerItems(page.sectionId, items(feature))]

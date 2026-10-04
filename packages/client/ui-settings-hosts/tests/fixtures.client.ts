@@ -1,5 +1,5 @@
 /** Typed external Remote fixtures; no HTTP or framework replacement. */
-import type { RuntimeTask, RuntimeInspection, DirectoryInspection, ExecutionHostInfo, ListTargetsValue, TargetErrorCode, TargetView } from '@deepseek-ai/dsh-api-execution-host-controller/types'
+import type { ExecutionHostInfo, ImportableHostsValue, ListTargetsValue, TargetErrorCode, TargetView } from '@deepseek-ai/dsh-api-execution-host-controller/types'
 import type { HostsRemote } from '../src/client/callbacks.ts'
 
 export const current: ExecutionHostInfo = {
@@ -10,6 +10,20 @@ export const target: TargetView = {
   id: 'saved-target-3' as TargetView['id'], revision: 3, label: 'Development', sshAlias: 'dev-server',
   createdAt: '2026-09-01T10:00:00.000Z', updatedAt: '2026-09-01T10:00:00.000Z', state: { phase: 'disconnected' },
 }
+/** Saved target carrying the editable connection refinements the host form writes. */
+export const connectionTarget: TargetView = {
+  ...target, label: 'Build host', sshAlias: 'build-host',
+  connection: { port: 2222, username: 'deploy', privateKeyFile: '~/.ssh/id_ed25519',
+    connectTimeoutSeconds: 3600, multiplex: false },
+}
+/** Import read: one concrete Host entry with every importable destination detail. */
+export const importable: ImportableHostsValue = {
+  source: 'C:/Users/operator/.ssh/config', exists: true,
+  entries: [{
+    alias: 'build-host', host: '10.0.0.9', username: 'deploy', port: 2222, identityFile: '~/.ssh/id_ed25519',
+    proxyCommand: 'cloudflared access ssh --hostname %h', jumpHost: 'bastion.example.com',
+  }],
+}
 export const readyTarget: TargetView = {
   ...target, state: {
     phase: 'ready', generation: 4, checkedAt: '2026-09-02T10:00:00.000Z', info: {
@@ -18,18 +32,6 @@ export const readyTarget: TargetView = {
       capabilities: ['directory-inspection'],
     },
   },
-}
-export const inspection: DirectoryInspection = {
-  executionHostId: 'remote-process-8' as ExecutionHostInfo['hostId'], rootId: 'project', path: 'src',
-  entries: [{ name: 'main.ts', type: 'file' }, { name: 'nested', type: 'directory' }, { name: 'shortcut', type: 'symlink' }, { name: 'pipe', type: 'other' }], truncated: true,
-}
-export const runtimeInspection: RuntimeInspection = {
-  state: 'installed', platform: 'linux', arch: 'x64', node: '/usr/bin/node', nodeVersion: 'v24.0.0',
-  installRoot: '/opt/runtime', generation: 'a'.repeat(64) as RuntimeInspection['generation'], version: '1.0.0',
-}
-export const runtimeTask: RuntimeTask = {
-  id: 'runtime-task-1' as RuntimeTask['id'], target: { id: target.id, revision: target.revision },
-  operation: 'install', state: 'running', startedAt: '2026-09-01T10:00:00.000Z',
 }
 export const baseline: ListTargetsValue = { current, targets: [target] }
 
@@ -82,12 +84,6 @@ export function feed<T>(initial: T) {
 export function remoteFixture(value: ListTargetsValue = baseline) {
   const frames = feed(value)
   const remote: HostsRemote = {
-    detectRuntime: async () => ({ ok: true, value: runtimeInspection }),
-    startRuntime: async () => ({ ok: true, value: { task: runtimeTask } }),
-    getRuntimeTask: async () => ({ ok: true, value: { task: runtimeTask } }),
-    listRuntimeTasks: async () => ({ ok: true, value: { tasks: [] } }),
-    followRuntimeTask: (_request, signal) => feed({ task: runtimeTask }).open(signal),
-    cancelRuntimeTask: async () => ({ ok: true, value: { task: { ...runtimeTask, state: 'cancelled' } } }),
     list: async () => ({ ok: true, value }),
     follow: signal => frames.open(signal),
     create: async () => ({ ok: true, value: { target } }),
@@ -95,7 +91,8 @@ export function remoteFixture(value: ListTargetsValue = baseline) {
     removeTarget: async () => ({ ok: true, value: {} }),
     connect: async () => ({ ok: true, value: { target: readyTarget } }),
     disconnect: async () => ({ ok: true, value: { target } }),
-    inspectDirectory: async () => ({ ok: true, value: { target: readyTarget, inspection } }),
+    test: async () => ({ ok: true, value: { target, rootCount: 2 } }),
+    listImportableHosts: async () => ({ ok: true, value: importable }),
   }
   return { remote, frames }
 }

@@ -11,7 +11,7 @@ import { createCapabilityShared, createDeviceProbe, createMobileDeviceList, crea
 
 /** Dependencies owned by the Mobile registration. */
 export const inject = [
-  'settingsMetadata', 'slots', 'locale', 'remote', 'remote.pluginInventory',
+  'settingsMetadata', 'slots', 'locale', 'remote',
   'remote.deviceCapabilities', 'remote.settings', 'settingsScope',
 ]
 
@@ -43,7 +43,7 @@ export function apply(ctx: ClientContext, config: Config): void {
     revision, 'preferencesFailed',
   )
   const injectSection = (): MobileSectionInjected => ({
-    ...shared.providerActivation, list: shared.list, definition: MOBILE_CAPABILITY,
+    ...shared.providerActivation, definition: MOBILE_CAPABILITY,
     checkDevice, checkSdk, listMobileDevices,
     hooks: { mobileSettings, mobileResources: mobileResources.store },
     watchMobileResources: mobileResources.watch, refreshMobileResources: mobileResources.refresh,

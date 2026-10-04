@@ -2,7 +2,7 @@
 
 [English](settings.md) | 中文
 
-[dsh-settings](../../packages/settings/settings) 的用户设置 seam 持有一份按 namespace 分节的用户文档，并把每个已注册 namespace 解析为：schema 默认值，然后注册方的组合 `base`，最后用户分节。[dsh-settings-file](../../packages/settings/settings-file) 这类提供方存储原始文档并推送外部编辑；消费方插件注册 schema 后读取或观察解析值。组合配置仍留在 `cordis.yml`——namespace 只承载用户可编辑子集。
+settings 服务把活动 Loader entry Config 中标记为 volatile 的字段投影成基于 profile 的表单。每个 namespace 就是 entry id；Settings Forms 读取解析后的值，并带 revision 校验地写入 profile patch。插件可用 `configure({ auto: true })` 请求自动设置页，也可以直接使用 `describe`、`update`、`replace` 和 `mutate` 构建自定义页面。
 
 来源：[`packages/settings/settings/src/index.ts`](../../packages/settings/settings/src/index.ts)
 

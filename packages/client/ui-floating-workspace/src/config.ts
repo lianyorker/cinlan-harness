@@ -1,10 +1,13 @@
-/** Deployment-only cadence for observing closure of an opener-owned app window. */
-import Schema from '@deepseek-ai/schemastery'
+/**
+ * Durable preferences this entry publishes to the settings document.
+ *
+ * The document serves only a schema that carries a volatile field, so the
+ * Host entry registers this wrapper; consumers keep reading plain values
+ * through {@link FloatingWorkspaceSettingsSchema} and the served namespace.
+ * The former deployment-only window-observation cadence is gone with the
+ * separate app window.
+ */
+import { FloatingWorkspaceSettingsSchema } from './schema.ts'
 
-/** This cadence changes observation latency, never popup admission or preference values. */
-export interface Config { windowClosedPollMs: number }
-
-/** WindowProxy.closed has no browser event; polling exists only while an owned window is open. */
-export const Config: Schema<Config> = Schema.object({
-  windowClosedPollMs: Schema.number().step(1).min(100).max(5000).default(500),
-})
+/** Live-editable registration schema for this entry. */
+export const Config = FloatingWorkspaceSettingsSchema.volatile()

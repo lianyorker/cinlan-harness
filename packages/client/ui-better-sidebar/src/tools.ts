@@ -12,7 +12,7 @@
  *   C6 — `exec.signal.throwIfAborted()` before any spawn.
  *   C10 — no UI/transport vocabulary in the canonical value.
  */
-import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-execution-binding'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -98,7 +98,7 @@ export function registerTools(
     disposers.push(ctx.tools.register(tool))
   }
 
-  register(ctx.tools.define({
+  register(defineTool({
     name: 'terminal_create',
     description:
       'Open a persistent terminal in the sidebar and run a command in it. '
@@ -145,7 +145,7 @@ export function registerTools(
     },
   }))
 
-  register(ctx.tools.define({
+  register(defineTool({
     name: 'terminal_list',
     description:
       'List every terminal the current agent has opened in this session. Returns each terminal\'s uuid, title, '
@@ -186,7 +186,7 @@ export function registerTools(
     },
   }))
 
-  register(ctx.tools.define({
+  register(defineTool({
     name: 'terminal_send',
     description:
       'Send raw text (keystrokes) to a terminal opened with terminal_create — tmux send-keys semantics. '
@@ -236,7 +236,7 @@ export function registerTools(
     },
   }))
 
-  register(ctx.tools.define({
+  register(defineTool({
     name: 'terminal_read',
     description:
       'Read a bounded page of retained output from an agent terminal without sending input. '
@@ -293,7 +293,7 @@ export function registerTools(
     },
   }))
 
-  register(ctx.tools.define({
+  register(defineTool({
     name: 'terminal_wait_for',
     description:
       'Block until a substring appears in a terminal\'s retained transcript, or until the timeout elapses, or until the terminal exits — whichever happens first. '
@@ -379,7 +379,7 @@ export function registerTools(
     },
   }))
 
-  register(ctx.tools.define({
+  register(defineTool({
     name: 'terminal_resize',
     description:
       'Resize an agent terminal\'s pty ( cols × rows ). The host clamps both to a 2..1024 sane range. '
@@ -414,7 +414,7 @@ export function registerTools(
     },
   }))
 
-  register(ctx.tools.define({
+  register(defineTool({
     name: 'terminal_signal',
     description:
       'Send a POSIX signal to an agent terminal\'s foreground process — this is how you send Ctrl+C, Ctrl+Z, etc. '
@@ -455,7 +455,7 @@ export function registerTools(
     },
   }))
 
-  register(ctx.tools.define({
+  register(defineTool({
     name: 'terminal_close',
     description:
       'Close an agent terminal and release its process. The uuid becomes invalid for all subsequent tool calls. '

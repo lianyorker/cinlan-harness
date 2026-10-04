@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** Real Loader, Remote codecs, Session model, locale and renderer; external RPC is a fixture. */
+/** Real Loader, Remote codecs, locale and renderer; external RPC is a fixture. */
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url'
 import { Context, FiberState } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
-import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import * as connection from '@deepseek-ai/dsh-client-connection/client'
@@ -23,7 +23,7 @@ import * as uiSession from '@deepseek-ai/dsh-client-ui-session/client'
 import * as hosts from '../src/client/index.ts'
 import { en } from '../src/client/locales.ts'
 import { externalRpc } from './external-rpc.client.ts'
-import { runtimeTask, target } from './fixtures.client.ts'
+import { target } from './fixtures.client.ts'
 
 const contexts: Context[] = []
 const roots: string[] = []
@@ -65,25 +65,17 @@ async function boot() {
   return { ctx, view, rpc }
 }
 
-it('starts an exact-revision Host task, recovers it after leaving the page, and cancels only its receipt', async () => {
+it('edits a saved target through the real Loader, Remote codecs and renderer', async () => {
   const b = await boot()
-  await b.view.findByRole('heading', { name: target.label })
-  fireEvent.change(b.view.getByRole('combobox', { name: en['runtime.target'] }), { target: { value: target.id } })
-  for (const [key, value] of Object.entries({ host: 'remote.example', username: 'operator', privateKeyFile: 'C:/keys/remote', hostKeySHA256: 'a'.repeat(64), node: '/usr/bin/node', installRoot: '/opt/runtime', workspace: '/srv/work' })) {
-    fireEvent.change(b.view.getByRole('textbox', { name: en[('runtime.' + key) as keyof typeof en] }), { target: { value } })
-  }
-  fireEvent.click(b.view.getByRole('button', { name: en['runtime.install'] }))
-  await b.view.findByText(runtimeTask.id)
-  expect(b.rpc.calls.find(call => call.method === 'executionHosts/startRuntime')?.payload).toMatchObject({ args: { request: {
-    target: { id: target.id, revision: target.revision }, operation: 'install', endpoint: { privateKeyFile: 'C:/keys/remote' },
+  await b.view.findByLabelText(target.label)
+  fireEvent.click(b.view.getByRole('button', { name: en.edit }))
+  const dialog = screen.getByRole('dialog', { name: en.editTitle })
+  fireEvent.change(within(dialog).getByRole('textbox', { name: en.formLabel }), { target: { value: 'Renamed' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: en.formSave }))
+  await screen.findByText(en.saved)
+  expect(b.rpc.calls.find(call => call.method === 'executionHosts/update')?.payload).toMatchObject({ args: { request: {
+    id: target.id, revision: target.revision, label: 'Renamed', sshAlias: target.sshAlias, connection: { port: 22 },
   } } })
-  b.view.unmount()
-  expect(b.rpc.calls.some(call => call.method === 'executionHosts/cancelRuntimeTask')).toBe(false)
-  const view = render(<>{b.ctx.slots.renderSlot('root', {})}</>)
-  await view.findByText(runtimeTask.id)
-  fireEvent.click(view.getByRole('button', { name: en['runtime.cancel'] }))
-  await view.findByText(en['runtime.revision'].replace('{revision}', String(target.revision)) + ' · ' + en['runtime.cancelled'])
-  expect(b.rpc.calls.find(call => call.method === 'executionHosts/cancelRuntimeTask')?.payload).toMatchObject({ args: { request: { id: runtimeTask.id } } })
-  expect(view.container.textContent).not.toContain('C:/keys/remote')
-  expect(view.container.textContent).toMatchSnapshot('runtime task receipt')
+  expect(b.view.container.textContent).toContain('dev-server')
+  expect(b.view.container.textContent).not.toContain('Renamed')
 })

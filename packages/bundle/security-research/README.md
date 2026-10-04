@@ -34,7 +34,7 @@ dsh plugin --profile <name> add @deepseek-ai/dsh-security-research
 dsh plugin --profile <name> remove @deepseek-ai/dsh-security-research
 ```
 
-The shipped `security-research` profile includes this bundle after `dsh-base` and `dsh-web-app`. A custom profile must supply a base layer, an Execution Host provider, and one Host-root `@deepseek-ai/dsh-security-skills/resources` manager before this patch. The Web layer supplies the local Execution Host and resource manager. Install packaged or configured network resources through Security Research settings before discovering their skills.
+The shipped `security-research` profile includes this bundle after `dsh-base` and `dsh-web-app`. A custom profile must supply a base layer, an Execution Host provider, and one Host-root `@deepseek-ai/dsh-security-skills/resources` manager before this patch. The Web layer supplies the local Execution Host and resource manager. The packaged Agent preset is built in: it enters the preset roster as soon as the preset registry is available, and skill resources only widen the catalog its own provider serves.
 
 ### What you get
 

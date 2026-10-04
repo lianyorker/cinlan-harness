@@ -136,4 +136,56 @@ describe('Android managed resources and explicit device mirroring', () => {
     await act(async () => { receipt.reject(new Error('private transport error')); await receipt.promise.catch(() => {}) })
     expect(b.props.cancelMobileResource).not.toHaveBeenCalled()
   })
+
+  it('reports a failed task with its resource and offers no cancel while it is settled', () => {
+    mount({ status: 'ready', value: mobileStatus({ task: mobileTask({ state: 'failed', error: 'download failed' }) }) })
+    expect(screen.getByRole('alert').textContent).toContain(mobileEn.mobileResourcesTaskFailed)
+    expect(within(screen.getByRole('alert')).getByText('platform-tools')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: mobileEn.mobileResourcesCancel })).toBeNull()
+  })
+
+  it('reports a loading observation without inventing resources', () => {
+    mount({ status: 'loading' })
+    expect(screen.getByRole('status').textContent).toBe(mobileEn.mobileResourcesLoading)
+    expect(screen.queryByRole('checkbox')).toBeNull()
+  })
+
+  it('reports a cancelled task without claiming progress', () => {
+    mount({ status: 'ready', value: mobileStatus({ task: mobileTask({ state: 'cancelled' }) }) })
+    expect(screen.getByText(mobileEn.mobileResourcesCancelled)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: mobileEn.mobileResourcesCancel })).toBeNull()
+  })
+
+  it('reports an unavailable adb toolchain and a failed mirror', () => {
+    mount({ status: 'ready', value: mobileStatus({
+      adb: { source: 'custom', path: 'C:/custom/adb.exe', version: null, error: 'missing' },
+      mirror: { id: mirrorId, deviceId: 'android:selected', state: 'failed', error: 'spawn failed' },
+    }) })
+    const adb = screen.getByText(mobileEn.mobileResourcesAdbSource).closest('dl')
+    if (adb === null) throw new Error('adb facts were not rendered')
+    expect(within(adb).getByText(mobileEn.mobileResourcesMissing)).toBeTruthy()
+    expect(screen.getByText(mobileEn.mobileResourcesAdbFailed)).toBeTruthy()
+    expect(screen.getByText(mobileEn.mobileResourcesMirrorFailed, { exact: false })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: mobileEn.mobileResourcesMirrorStop })).toBeNull()
+  })
+
+  it('keeps a rejected resource command visible and leaves the panel usable', async () => {
+    const b = mount()
+    fireEvent.click(screen.getByRole('checkbox'))
+    vi.mocked(b.props.runMobileResource).mockRejectedValueOnce(new Error('transport rejected'))
+    const install = screen.getByRole('button', { name: mobileEn.mobileResourcesInstall })
+    fireEvent.click(install)
+    expect((await screen.findByRole('alert')).textContent).toBe(mobileEn.mobileResourcesActionFailed)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: mobileEn.mobileResourcesInstall }).disabled).toBe(false)
+    expect(b.props.cancelMobileResource).not.toHaveBeenCalled()
+  })
+
+  it('closes the removal confirmation without removing the resource', async () => {
+    const b = mount({ status: 'ready', value: mobileStatus({ resources: [installed()] }) })
+    fireEvent.click(screen.getByRole('button', { name: mobileEn.mobileResourcesRemove }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: mobileEn.mobileResourcesClose }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(b.props.runMobileResource).not.toHaveBeenCalled()
+  })
+
 })

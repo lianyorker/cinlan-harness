@@ -86,6 +86,23 @@ export interface WorktreeTaskReview {
   readonly cleanupReceipt?: WorktreeTaskCleanupReceipt
 }
 
+/** Request to merge one task branch into its captured source branch. */
+export interface MergeTaskRequest {
+  readonly taskId: WorktreeTaskId
+}
+
+/** Result of merging a task branch into its clean source checkout. */
+export interface WorktreeTaskMergeResult {
+  readonly taskId: WorktreeTaskId
+  readonly sourcePath: string
+  readonly sourceBranch: string
+  readonly branch: string
+  readonly sourceHeadBefore: string
+  readonly sourceHeadAfter: string
+  /** Archived task state retained until the caller safely deletes the branch. */
+  readonly task: WorktreeTask
+}
+
 /** Request to create a new Worktree Task. */
 export interface CreateTaskRequest {
   readonly name: string

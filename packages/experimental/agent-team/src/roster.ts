@@ -8,7 +8,8 @@ import type { MessageId } from '@deepseek-ai/dsh-llm'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import { foldSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
 import type { ContinuableStart } from '@deepseek-ai/dsh-subagent'
-import type { WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task'
+import { WorktreeTaskError, type WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task'
+import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { errorMessage, TeamError } from './error.ts'
 import type { TeamJournal } from './journal.ts'
@@ -22,6 +23,7 @@ import type {
   SpawnTeammateResult,
   TeamMemberSnapshot,
   TeamMemberView,
+  TeamWorktreeIntegration,
 } from './types.ts'
 import { requiredText } from './validation.ts'
 
@@ -50,6 +52,9 @@ export function resolveActiveMember(
   const name = rawName.trim()
   if (name === 'lead') return { id: root.id, name }
   const member = state.members.find(candidate => candidate.name === name)
+  if (member?.workspaceMode === 'integrated') {
+    throw new TeamError('teammate "' + name + '" has already been integrated and is read-only', 'TEAM_MEMBER_INTEGRATED')
+  }
   if (member === undefined || member.phase !== 'active') {
     throw new TeamError(`active teammate "${name}" not found`, 'TEAM_MEMBER_NOT_FOUND')
   }
@@ -156,6 +161,7 @@ export class TeamRoster {
         context: member.context,
         ...member.workspaceMode === undefined ? {} : { workspaceMode: member.workspaceMode },
         ...member.worktreeTaskId === undefined ? {} : { worktreeTaskId: member.worktreeTaskId },
+        ...member.integration === undefined ? {} : { integration: member.integration },
         ...model === undefined ? {} : { model },
         diagnostics: member.error === undefined ? [] : [member.error],
       })
@@ -216,6 +222,107 @@ export class TeamRoster {
     const previousStatus = live.status
     this.ctx.subagents.interrupt(target.id, { kind: 'ancestor', agent: caller })
     return { previousStatus }
+  }
+
+  /**
+   * Stop a completed teammate, merge its Worktree branch, and retain the Session history.
+   * @param caller - exact live Team Lead authorizing integration.
+   * @param targetName - durable teammate name.
+   * @param requestSignal - cancellation for stopping, merging, and cleanup.
+   * @returns source commit and branch cleanup outcome.
+   */
+  async mergeWorktree(caller: Agent, targetName: string, requestSignal: AbortSignal): Promise<import('./types.ts').TeamWorktreeMergeResult> {
+    const membership = this.membership(caller)
+    if (membership.role !== 'lead') throw new TeamError('only the Team Lead can merge teammate worktrees', 'TEAM_LEAD_REQUIRED')
+    const signal = AbortSignal.any([requestSignal, this.lifecycle.signal])
+    const state = this.journal.state(membership.root)
+    const name = targetName.trim()
+    const member = state.members.find(candidate => candidate.name === name)
+    if (member === undefined || member.phase !== 'active') {
+      throw new TeamError('active teammate "' + name + '" not found', 'TEAM_MEMBER_NOT_FOUND')
+    }
+    if (member.workspaceMode !== 'worktree' && member.workspaceMode !== 'integrated') {
+      throw new TeamError('target teammate does not have an active worktree', 'TEAM_WORKTREE_NOT_FOUND')
+    }
+    const live = this.ctx.agents.get(member.id)
+    if (live?.status === 'running') {
+      throw new TeamError('target teammate is still running; wait for it to stop before merging', 'TEAM_MEMBER_BUSY')
+    }
+    const worktreeTask = this.ctx.get('worktreeTask')
+    const workspaceRegistry = this.ctx.get('workspaceRegistry')
+
+    let integration: TeamWorktreeIntegration
+    let taskId: WorktreeTaskId
+    if (member.workspaceMode === 'integrated') {
+      if (member.integration === undefined) throw new TeamError('integrated teammate is missing its merge record', 'TEAM_PROVISIONING_CONFLICT')
+      integration = member.integration
+      taskId = brandString<WorktreeTaskId>(member.worktreeTaskId ?? integration.taskId)
+    } else {
+      if (worktreeTask === undefined) throw new TeamError('worktree task service is not available in this context', 'TEAM_WORKTREE_UNAVAILABLE')
+      if (workspaceRegistry === undefined) throw new TeamError('workspace registry is required to archive an integrated teammate Session', 'TEAM_WORKSPACE_UNAVAILABLE')
+      if (member.worktreeTaskId === undefined) throw new TeamError('target teammate worktree identity is missing', 'TEAM_WORKTREE_NOT_FOUND')
+      taskId = brandString<WorktreeTaskId>(member.worktreeTaskId)
+      await this.lifecycle.withTimeout(this.ctx.subagents.drainContinuableChildren(membership.root, [member.id]))
+      await workspaceRegistry.archiveSession(member.id, { stopActivity: true })
+      await worktreeTask.unbindSession(taskId, member.id, signal)
+      const merged = await worktreeTask.merge({ taskId }, signal)
+      integration = {
+        taskId,
+        branch: merged.branch,
+        sourceBranch: merged.sourceBranch,
+        sourceHeadBefore: merged.sourceHeadBefore,
+        sourceHeadAfter: merged.sourceHeadAfter,
+      }
+      const integrated: TeamMemberSnapshot = {
+        ...member,
+        workspaceMode: 'integrated',
+        worktreeTaskId: taskId,
+        integration,
+      }
+      await this.journal.transact(membership.root.id, async () => {
+        const current = this.journal.state(membership.root).members.find(candidate => candidate.id === member.id)
+        if (current?.workspaceMode !== 'worktree' || current.worktreeTaskId !== taskId) {
+          throw new TeamError('teammate workspace changed while merging', 'TEAM_PROVISIONING_CONFLICT')
+        }
+        await this.journal.appendAndFlush(membership.root, 'team/member', {
+          version: 2, teamId: TeamId(membership.root.id), member: integrated,
+        })
+      })
+    }
+
+    let deleted: { deleted: boolean; retainedBranch?: string }
+    if (member.workspaceMode === 'integrated' && member.worktreeTaskId === undefined) {
+      deleted = { deleted: true }
+    } else {
+      if (worktreeTask === undefined) throw new TeamError('worktree task service is not available in this context', 'TEAM_WORKTREE_UNAVAILABLE')
+      try {
+        deleted = await worktreeTask.delete({ taskId }, signal)
+      } catch (error: unknown) {
+        if (error instanceof WorktreeTaskError && error.code === 'not-found') deleted = { deleted: true }
+        else throw error
+      }
+    }
+    if (deleted.deleted) {
+      await this.journal.transact(membership.root.id, async () => {
+        const current = this.journal.state(membership.root).members.find(candidate => candidate.id === member.id)
+        if (current?.workspaceMode !== 'integrated' || current.worktreeTaskId === undefined) return
+        const { worktreeTaskId: _worktreeTaskId, ...withoutWorktreeTask } = current
+        await this.journal.appendAndFlush(membership.root, 'team/member', {
+          version: 2, teamId: TeamId(membership.root.id), member: withoutWorktreeTask,
+        })
+      })
+    }
+    const resultTaskId = brandString<WorktreeTaskId>(integration.taskId)
+    return {
+      teammate: name,
+      taskId: resultTaskId,
+      branch: integration.branch,
+      sourceBranch: integration.sourceBranch,
+      sourceHeadBefore: integration.sourceHeadBefore,
+      sourceHeadAfter: integration.sourceHeadAfter,
+      cleanup: deleted.deleted ? 'deleted' : 'retained',
+      ...(deleted.deleted ? {} : { retainedBranch: deleted.retainedBranch }),
+    }
   }
 
   /**
@@ -282,7 +389,7 @@ export class TeamRoster {
       throw new TeamError('workspaceMode must be "inherit" or "worktree"', 'TEAM_INVALID_REQUEST')
     }
     const worktreeTask = this.ctx.get('worktreeTask')
-    let worktreeTaskId: string | undefined
+    let worktreeTaskId: WorktreeTaskId | undefined
     if (workspaceMode === 'worktree') {
       if (worktreeTask === undefined) {
         throw new TeamError('worktree task service is not available in this context', 'TEAM_WORKTREE_UNAVAILABLE')
@@ -504,6 +611,7 @@ export class TeamRoster {
       context: member.context,
       ...member.workspaceMode === undefined ? {} : { workspaceMode: member.workspaceMode },
       ...member.worktreeTaskId === undefined ? {} : { worktreeTaskId: member.worktreeTaskId },
+      ...member.integration === undefined ? {} : { integration: member.integration },
       ...live?.options.model === undefined ? {} : { model: live.options.model },
       diagnostics: [],
     }

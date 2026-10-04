@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Floating Workspace opens the existing application in a separate window while the main window remains available. Its Settings page controls enablement, entry position, and the directory used by new floating terminals. The runtime continues to honor stored window dimensions, but the page does not edit them.
+Floating Workspace opens the conversation as an in-app chat panel: floating over the column, or docked as a right-Sidebar tab. Its Settings page controls enablement, entry position, and the floating panel's size.
 
 ## Table of Contents
 
@@ -25,31 +25,28 @@ Floating Workspace opens the existing application in a separate window while the
 <a id="use-this-package"></a>
 ## Use this package
 
-Open Settings → Personal → Floating Workspace and enable the feature. Enabling adds an entry without opening a window. Use that entry or the registered shortcut to open and close one workspace window. Turning the feature off closes its owned window. Existing preferences remain in the Host's `floating-workspace` namespace through the normal revisioned settings writer.
+Open Settings → Personal → Floating Workspace and enable the feature. Enabling adds an entry without opening anything. The conversation-header entry opens the docked Sidebar tab, whose own tab control closes it; the floating entry — and the registered shortcut — toggles the panel. Turning the feature off closes the panel. Preferences live in the Host's `ui-floating-workspace` namespace, which is this row's Loader entry id, through the normal revisioned settings writer.
 
 | Preference | Default | Consumption |
 | --- | --- | --- |
-| Enable Floating Workspace | Off | Shows the entry and enables the command; disabling closes the owned window. |
-| Entry position | Conversation header | Chooses the conversation header, sidebar footer, or floating button. |
-| Window width | 400 px | Requests 200–800 integer pixels for the next window. |
-| Window height | 300 px | Requests 150–600 integer pixels for the next window. |
-| Terminal starting directory | Empty | New floating terminals inherit their associated Session directory when empty; a configured existing directory must resolve to that directory or a descendant. |
+| Enable Floating Workspace | Off | Shows the entry and enables the command; disabling closes the panel. |
+| Entry position | Conversation header | The conversation header opens the docked Sidebar tab; the floating button opens the panel. |
+| Panel width | 400 px | Floating panel width, an integer from 200 to 800 pixels. |
+| Panel height | 300 px | Floating panel maximum height, an integer from 150 to 600 pixels. |
 
-The settings page presents one card with enablement, terminal directory, and entry position. It has no window-size fields or window action. The header entry appears only when a Session header exists; the shortcut also works from the app's empty-session view. The default command is Ctrl + Shift + Space, and the Keyboard shortcuts page owns overrides and conflict reporting. Stored size changes affect future windows. Browsers and operating systems may constrain actual dimensions.
+The settings page presents one card with enablement and entry position; the panel starts no terminal, so the card carries no directory row. The header entry appears only when a Session header exists; the shortcut also works from the app's empty-session view. The default command is Ctrl + Shift + Space, and the Keyboard shortcuts page owns overrides and conflict reporting. Browsers constrain the panel to the viewport.
 
-The child loads the same app artifact and normal layout, conversation, workspace, and terminal slots. Its Close workspace window control stays in the sidebar footer in both expanded and compact layouts. It initially selects the source Session if that Session is in the accepted catalog, then retains normal navigation. If the Session is missing, the child explains that another Session can be selected. It creates no Session and submits no conversation input merely by opening.
+Both surfaces render the Conversation's embedded occurrence: the `conversation.content` Component Factory with `variant: 'embedded'` and a chat-only `views` selection. The panel therefore holds the transcript, its tool cards, and the composer, and no main Conversation header. The floating panel registers inside the Conversation's Session area, which supplies the Session binding and the Conversation provide, and positions itself over the column with its own CSS. The docked form is a right-Sidebar page kind whose body renders the same occurrence. Opening either surface creates no Session and submits no input.
 
-Directory editing and its Host-native picker are available only while the actual terminal renderer provides its consumption marker. Each new floating UI terminal captures its window identity and the accepted directory. The terminal Host validates existing-directory containment, including symlinks, before spawning. Running terminals and main-window or Agent terminal directories are unaffected. Loading or unavailable preferences withhold new-terminal readiness while retaining the floating window identity for isolated layout.
-
-A blocked Web popup produces an explicit retry message below the header while the configured entry remains available to retry. An unsupported environment or refused native app-window request reports unavailability. Closing restores the still-connected originating control when its source window remains alive. Open windows are not persisted or reopened automatically.
+The optional `floatingTerminalConsumer` service stays wired for a real terminal consumer, but nothing on this surface edits a directory.
 
 ### Composition and configuration
 
-The Host entry registers the existing five-field schema. The Client consumes settings, locale, slots, keyboard, and Sessions; it registers its page under section id `floating-workspace` in group `personal`. An optional `floatingTerminalConsumer` service enables directory editing only for the lifetime of the real terminal consumer. The shared `floatingWorkspaceContext` callback publishes JSON data from [sidebar terminal types](../../terminal/sidebar-terminals/src/types.ts); no UI implementation crosses package imports.
+The Host entry registers the preference schema through `Config`, derived as the volatile form of `FloatingWorkspaceSettingsSchema`, so the settings document publishes the namespace. The Client consumes settings, locale, slots, keyboard, and Sessions; it registers its page under section id `floating-workspace` in group `personal`. An optional `floatingTerminalConsumer` service enables directory editing only for the lifetime of the real terminal consumer. The shared `floatingWorkspaceContext` callback publishes JSON data from [sidebar terminal types](../../terminal/sidebar-terminals/src/types.ts); no UI implementation crosses package imports.
 
 | Deployment configuration | Default | Meaning |
 | --- | --- | --- |
-| `windowClosedPollMs` | 500 | Check the exact owned WindowProxy for external closure, from 100 to 5000 ms; the timer exists only while a window is owned. |
+This package has no deployment configuration: the panel needs no tunable, and the former window-observation cadence disappeared with the separate app window.
 
 -----
 
@@ -59,13 +56,13 @@ The Host entry registers the existing five-field schema. The Client consumes set
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-[Registration](src/client/index.ts) owns dictionaries, searchable metadata, the command, and contributions to existing settings, header, sidebar, and overlay slots. Settings metadata follows the settings slot declaration's lifetime. Components receive framework-bound observable facts and plain callbacks. The overlay delegates keyboard matching to the keyboard service and installs no command listener in a child window.
+[Registration](src/client/index.ts) owns dictionaries, searchable metadata, the command, the right-Sidebar tab type, and contributions to existing settings, header, sidebar, and overlay slots. Settings metadata follows the settings slot declaration's lifetime. Components receive framework-bound observable facts and plain callbacks. The floating entry delegates keyboard matching to the keyboard service.
 
-[The runtime](src/client/runtime.ts) retains one exact window handle and the accepted settings snapshot. Writes use the canonical settings mutation operation and confirm both effective and raw accepted fields. Refused writes preserve the accepted values. Disable, page exit, and disposal close the owned child; disposal removes observations and awaits pending preference mutations. A validated child exposes its window identity before settings are ready, so the terminal consumer can choose its isolated store before creating layout state.
+[The runtime](src/client/runtime.ts) owns the panel's open state and the accepted settings snapshot. Writes use the canonical settings mutation operation and confirm both effective and raw accepted fields. Refused writes preserve the accepted values. Disabling the feature and disposal close the panel; disposal removes the settings subscription and awaits pending preference mutations.
 
-[The browser adapter](src/client/window-environment.ts) opens synchronously from the user gesture. Its URL contains only the floating marker, a validated window UUID, and an optional nonsecret Session id. Credentials, unrelated query parameters, and hashes are removed. It uses the normal app origin and authentication carrier. [The Desktop policy](../../../apps/desktop/src/floating-window.ts) admits only the exact `dsh-app://app/index.html` floating route from the main app, fixes trusted preload and security options, denies child popups and other navigation, and destroys its exact child on owner or Host replacement.
+[The chat occurrence](src/client/FloatingChat.tsx) renders `renderFactorySlot('conversation.content', …)` with `variant: 'embedded'` and a chat-only `views` component. [The floating panel](src/client/FloatingPanel.tsx) registers in the Conversation's Session area and sizes itself from the accepted width and height preferences; [the docked tab](src/client/FloatingTab.tsx) renders the same occurrence for the right-Sidebar page kind.
 
-No runtime invariant companion is published: its accepted settings and window handle have one owner, and external closure is an observed lifecycle event rather than a second authoritative registry. Loader persistence tests, registration disposal tests, and window-lifecycle tests cover those relationships.
+No runtime invariant companion is published: its accepted settings and panel state have one owner. Loader persistence tests, registration disposal tests, and panel open/close tests cover those relationships.
 
 </details>
 

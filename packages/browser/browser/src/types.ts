@@ -306,6 +306,20 @@ export interface BrowserProvider {
    * when remote debugging is enabled for this provider.
    */
   cdpEndpoint?(): string | undefined
+  /** Optional stored-profile roster for providers that keep named persistent profiles. */
+  listProfiles?(): readonly BrowserStoredProfile[]
+}
+
+/** One stored persistent-browser profile a Provider can launch. */
+export interface BrowserStoredProfile {
+  /** Profile name the `profileName` preference accepts. */
+  readonly name: string
+  /** Absolute directory holding this profile's cookies and browser storage. */
+  readonly directory: string
+  /** Whether a previous run created this profile's directory. */
+  readonly stored: boolean
+  /** Whether the active Provider settings select this profile. */
+  readonly current: boolean
 }
 
 /** Optional Provider extension for temporary element selection and verified crops. */

@@ -9,7 +9,7 @@
 # ordinary Cordis service. Rows configured from flags inject that service, so
 # Loader resolves their expressions only after it exists. The web runtime then
 # provides bind-dependent `webRuntime` values to the trust fence.
-# `dsh --profile web --help` provides neither service, so no server binds.
+# `clh --profile web --help` provides neither service, so no server binds.
 
 # ── surface-specific values the base deliberately omits ─────────────────────
 
@@ -31,23 +31,17 @@
 
 - id: tools
   config:
-    # TEMPORARY workaround: DSH_TOOLS_MODE (native|ptc|both) opts a whole dsh
+    # TEMPORARY workaround: CLH_TOOLS_MODE/DSH_TOOLS_MODE (native|ptc|both) opts a whole clh
     # process into PTC mode while per-session tool-presentation selection is being
     # designed; unset keeps the schema default (native). Remove the env seam
     # once the web UI owns the choice per session.
-    mode: !!js process.env.DSH_TOOLS_MODE
+    mode: !!js (process.env.CLH_TOOLS_MODE ?? process.env.DSH_TOOLS_MODE)
 
 # ── web-only host rows, the transport layer, and the browser roster ─────────
 
 # `dsh.client` rows are the browser roster the modules node half scans into
 # window.__DSH_BOOT__; the modules row is simultaneously a host row.
 - insert:
-    - id: workspace-changes
-      name: '@deepseek-ai/dsh-workspace-changes'
-
-    - id: ui-plugin-manager
-      name: '@deepseek-ai/dsh-client-ui-plugin-manager'
-
     - id: desktop-product-telemetry
       name: '@deepseek-ai/dsh-host-product-telemetry-otel'
       disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
@@ -56,16 +50,16 @@
         timeoutMillis: 15000
         exportTimeoutMillis: 20000
         shutdownTimeoutMillis: 2000
-        serviceName: deepseek-harness-desktop
-        serviceVersion: !!js process.env.DSH_CLIENT_VERSION
-        endpoint: !!js process.env.DSH_PRODUCT_ANALYTICS_OTLP_URL
+        serviceName: cinlan-harness-desktop
+        serviceVersion: !!js (process.env.CLH_CLIENT_VERSION ?? process.env.DSH_CLIENT_VERSION)
+        endpoint: !!js (process.env.CLH_PRODUCT_ANALYTICS_OTLP_URL ?? process.env.DSH_PRODUCT_ANALYTICS_OTLP_URL)
 
     - id: product-analytics
       name: '@deepseek-ai/dsh-client-product-analytics'
       disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
       config:
         enabled: true
-        appVersion: !!js process.env.DSH_CLIENT_VERSION
+        appVersion: !!js (process.env.CLH_CLIENT_VERSION ?? process.env.DSH_CLIENT_VERSION)
 
     # Host-owned opt-in sampled when a new Web session receives its preset
     # delegation tools. The Plugins page edits this settings namespace.
@@ -127,67 +121,74 @@
     - id: plugin-inventory
       name: '@deepseek-ai/dsh-host-plugin-inventory'
 
-    - id: mobile-device
-      name: '@deepseek-ai/dsh-mobile-device'
-      config:
-        provider: adb
+    # Session commands, cold reads, and live control over Typert Remote.
+    - id: session-controller
+      name: '@deepseek-ai/dsh-api-session-controller'
 
-    - id: mobile-device-adb
-      name: '@deepseek-ai/dsh-mobile-device-adb'
-      disabled: true
-      config:
-        providerId: adb
+    # One background job's observation record streamed over Typert Remote;
+    # the roster rides the session control stream above.
+    - id: job-controller
+      name: '@deepseek-ai/dsh-api-job-controller'
 
-    - id: mobile-device-runtime
-      name: '@deepseek-ai/dsh-mobile-device-runtime'
+    # Ephemeral terminal sessions over Typert Remote.
+    - id: terminal-controller
+      name: '@deepseek-ai/dsh-api-terminal-controller'
 
-    - id: remote-access
-      name: '@deepseek-ai/dsh-remote-access'
-      config:
-        enabled: false
+    # Integrated terminal and Git sidecar controllers used by the optional
+    # workspace tooling and its settings surfaces.
+    - id: sidebar-terminal-controller
+      name: '@deepseek-ai/dsh-api-sidebar-terminal-controller'
 
-    - id: pairing-controller
-      name: '@deepseek-ai/dsh-api-pairing-controller'
+    # The settings document keys every namespace by its Loader entry id, and
+    # every Git preference consumer reads the durable 'git-source-control'
+    # namespace, so this row's id must be that namespace rather than a short name.
+    - id: git-source-control
+      name: '@deepseek-ai/dsh-git-settings'
 
-    - id: ui-settings-pairing
-      name: '@deepseek-ai/dsh-client-ui-settings-pairing'
+    - id: sidebar-git
+      name: '@deepseek-ai/dsh-sidebar-git'
 
-    - id: device-capabilities-controller
-      name: '@deepseek-ai/dsh-api-device-capabilities-controller'
+    - id: sidebar-git-controller
+      name: '@deepseek-ai/dsh-api-sidebar-git-controller'
 
-    - id: security-skill-resources
-      name: '@deepseek-ai/dsh-security-skills/resources'
-    - id: security-skills
-      name: '@deepseek-ai/dsh-security-skills'
+    # Workspace file service: bounded read, directory listing, and the
+    # agent-write change feed inside the session workspace root.
+    - id: workspace-files
+      name: '@deepseek-ai/dsh-api-workspace-files'
 
-    # Settings status for the Harness-native Security Research composition.
-    - id: security-research-controller
-      name: '@deepseek-ai/dsh-api-security-research-controller'
+    # DeepSeek account operations over Typert Remote (native Desktop app only).
+    - id: account-controller
+      name: '@deepseek-ai/dsh-api-account-controller'
+      disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
 
-    # Integration readiness: GitHub, GitLab, and Gitee preflight checks.
-    - id: integration-preflight-controller
-      name: '@deepseek-ai/dsh-api-integration-preflight-controller'
+    # The Schedule service owns the task store and delivers each due occurrence
+    # as a follow-up in its original Session. The clock reading and the four
+    # reminder tools belong to the `standard`, `cordis`, and `ptc` presets,
+    # which declare them in their own scope.
+    - id: schedule
+      name: '@deepseek-ai/dsh-schedule'
 
-    - id: mcp-registry
-      name: '@deepseek-ai/dsh-mcp-client/registry'
+    # Task management and Session reminder catalog over the Host Schedule service.
+    - id: ui-schedule
+      name: '@deepseek-ai/dsh-client-ui-schedule'
 
-    - id: mcp-management
-      name: '@deepseek-ai/dsh-mcp-management'
-      config:
-        profile: !!js dshProfileName
+    # Configuration-surface reads and writes over Typert Remote. Each method
+    # reports an actionable error when its settings-domain provider is absent.
+    - id: settings-controller
+      name: '@deepseek-ai/dsh-api-settings-controller'
 
-    - id: mcp-controller
-      name: '@deepseek-ai/dsh-api-mcp-controller'
+    # Workspace commands and reconnect-safe projection over Typert Remote.
+    - id: workspace-controller
+      name: '@deepseek-ai/dsh-api-workspace-controller'
 
-    - id: automation
-      name: '@deepseek-ai/dsh-automation'
-      config:
-        profile: !!js dshProfileName
-        clockCheckIntervalMs: 60000
-        maxStartLatenessMs: 60000
+    # The local automation subsystem is retired from the shipped composition:
+    # the Schedule service above owns tasks and reminders now, so these rows stay
+    # unmounted until the Cinlan Automation Settings page is repointed at it.
+    - id: usage-query
+      name: '@deepseek-ai/dsh-usage-query'
 
-    - id: automation-controller
-      name: '@deepseek-ai/dsh-api-automation-controller'
+    - id: usage-controller
+      name: '@deepseek-ai/dsh-api-usage-controller'
 
     - id: execution-host-local
       name: '@deepseek-ai/dsh-execution-host-local'
@@ -204,58 +205,52 @@
     - id: execution-host-controller
       name: '@deepseek-ai/dsh-api-execution-host-controller'
 
-    - id: sidebar-terminal-controller
-      name: '@deepseek-ai/dsh-api-sidebar-terminal-controller'
+    - id: mcp-registry
+      name: '@deepseek-ai/dsh-mcp-client/registry'
 
-    - id: git-settings
-      name: '@deepseek-ai/dsh-git-settings'
-
-    # Provider-neutral repository discovery for Session-owned file previews.
-    - id: git-local
-      name: '@deepseek-ai/dsh-git-local'
+    - id: mcp-management
+      name: '@deepseek-ai/dsh-mcp-management'
       config:
-        executable: git
-        maxOutputBytes: 8388608
-        maxLogEntries: 500
-        graceMs: 2000
+        profile: !!js "ctx.get('clhProfileName') ?? ctx.get('dshProfileName')"
 
-    - id: sidebar-git
-      name: '@deepseek-ai/dsh-sidebar-git'
+    - id: mcp-controller
+      name: '@deepseek-ai/dsh-api-mcp-controller'
 
-    - id: sidebar-git-controller
-      name: '@deepseek-ai/dsh-api-sidebar-git-controller'
+    - id: device-capabilities-controller
+      name: '@deepseek-ai/dsh-api-device-capabilities-controller'
 
-    - id: usage-query
-      name: '@deepseek-ai/dsh-usage-query'
+    - id: security-research-controller
+      name: '@deepseek-ai/dsh-api-security-research-controller'
 
-    - id: usage-controller
-      name: '@deepseek-ai/dsh-api-usage-controller'
+    - id: security-skill-resources
+      name: '@deepseek-ai/dsh-security-skills/resources'
 
-    # Session commands, cold reads, and live control over Typert Remote.
-    - id: session-controller
-      name: '@deepseek-ai/dsh-api-session-controller'
+    - id: security-skills
+      name: '@deepseek-ai/dsh-security-skills'
 
-    # Workspace file service: bounded read, directory listing, and the
-    # agent-write change feed inside the session workspace root.
-    - id: workspace-files
-      name: '@deepseek-ai/dsh-api-workspace-files'
+    - id: integration-preflight-controller
+      name: '@deepseek-ai/dsh-api-integration-preflight-controller'
 
-    - id: office-to-pdf
-      name: '@deepseek-ai/dsh-office-to-pdf'
-    # Configuration-surface reads and writes over Typert Remote. Each method
-    # reports an actionable error when its settings-domain provider is absent.
-    - id: settings-controller
-      name: '@deepseek-ai/dsh-api-settings-controller'
+    # Shared dictation providers for the Web voice settings and composer
+    # shortcut. The provider itself keeps model files under the configured
+    # local cache and exposes no credentials through the Remote.
+    - id: voice
+      name: '@deepseek-ai/dsh-voice'
 
-    # Workspace commands and reconnect-safe projection over Typert Remote.
-    - id: workspace-controller
-      name: '@deepseek-ai/dsh-api-workspace-controller'
+    - id: voice-controller
+      name: '@deepseek-ai/dsh-api-voice-controller'
 
-    # The superseded terminal service and right-sidebar Remote are not mounted:
-    # ui-better-sidebar owns the current Web terminal surface.
+    - id: voice-sherpa-onnx
+      name: '@deepseek-ai/dsh-voice-sherpa-onnx'
 
     - id: cordis-host-runner
       name: '@deepseek-ai/dsh-cordis-host-runner'
+
+    # The Host inspect providers are process-global: the registry rejects a
+    # duplicate id, so they register here once and every preset's `tool-cordis`
+    # row reads them.
+    - id: cordis-inspect-providers
+      name: '@deepseek-ai/dsh-tool-cordis/host'
 
     # Ordinary provider for the parsed Web flags. Its plugin-level injection
     # waits for cmdlineArgs; no launcher metadata or special row kind is needed.
@@ -277,31 +272,23 @@
         compressionLevel: 1
         compressionThresholdBytes: 1024
 
-    # Shared local dictation operations for Web and Desktop carriers.
-    - id: voice
-      name: '@deepseek-ai/dsh-voice'
-
-    - id: voice-controller
-      name: '@deepseek-ai/dsh-api-voice-controller'
-
-    - id: voice-sherpa-onnx
-      name: '@deepseek-ai/dsh-voice-sherpa-onnx'
-
     # Web glue owned by this bundle: resolves the built frontend dist (an
     # assembly fact of dsh-web-app, never user config), mounts the
     # frontend-static fallback owner, registers the web-surface prompt
     # section and the bash runtime variable, prints the URL line, and opens the
-    # canonical local URL after the full tree settles. The webStartup provider
-    # supplies invocation-only values; after the server binds, this row samples
-    # LAN trust once and provides `webRuntime`. A complete agent-preset persona
-    # suppresses the prompt section for that agent while retaining the host-owned
-    # shell variable.
+    # canonical URL after the full Loader tree settles and the required-entry
+    # audit passes. Invocation-only values come from the webStartup provider;
+    # the advertised application URL is this row's `publicUrl` (the loopback
+    # URL when unset). After the server binds, this row samples LAN trust once
+    # and provides `webRuntime`. A complete agent-preset persona suppresses the
+    # prompt section for that agent while retaining the host-owned shell variable.
     - id: web-runtime
       name: '@deepseek-ai/dsh-web-app'
       inject: [webStartup]
       config:
         openBrowser: !!js ctx.webStartup.openBrowser
         printUrl: true
+        publicUrl: !!js ctx.webStartup.publicUrl
         surfaceContext: true
         trustedHosts: !!js ctx.webStartup.trustedHosts
 
@@ -352,6 +339,12 @@
     - id: locale
       name: '@deepseek-ai/dsh-client-locale'
 
+    - id: shortcuts
+      name: '@deepseek-ai/dsh-client-shortcuts'
+
+    - id: ui-shortcuts
+      name: '@deepseek-ai/dsh-client-ui-shortcuts'
+
     - id: ui-layout
       name: '@deepseek-ai/dsh-client-ui-layout'
 
@@ -368,8 +361,36 @@
     - id: ui-sidebar
       name: '@deepseek-ai/dsh-client-ui-sidebar'
 
+    # The right Sidebar: one docking surface per session over ui-dockkit.
+    - id: ui-sidebar-right
+      name: '@deepseek-ai/dsh-client-ui-sidebar-right'
+
+    - id: office-to-pdf
+      name: '@deepseek-ai/dsh-office-to-pdf'
+
+    # The right Sidebar's document tab: bounded file reads with selectable
+    # Markdown, code, HTML, PDF, Office, and plain-text renderers.
+    - id: ui-sidebar-documentpreview
+      name: '@deepseek-ai/dsh-client-ui-sidebar-documentpreview'
+
+    # Web profiles opt in; Desktop retains sandboxed HTTP(S) Browser tabs.
+    - id: ui-sidebar-browser
+      name: '@deepseek-ai/dsh-client-ui-sidebar-browser'
+      disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
+
+    - id: ui-sidebar-terminal
+      name: '@deepseek-ai/dsh-client-ui-sidebar-terminal'
+
+    # The right Sidebar's workspace file tree tab type.
+    - id: ui-sidebar-files
+      name: '@deepseek-ai/dsh-client-ui-sidebar-files'
+
     - id: ui-settings
       name: '@deepseek-ai/dsh-client-ui-settings'
+
+    # Settings entry point for the official Schedule task manager.
+    - id: ui-settings-schedule
+      name: '@deepseek-ai/dsh-client-ui-settings-automation'
 
     - id: ui-settings-general
       name: '@deepseek-ai/dsh-client-ui-settings-general'
@@ -383,6 +404,17 @@
     - id: ui-settings-account
       name: '@deepseek-ai/dsh-client-ui-settings-account'
 
+    - id: ui-voice-dictation
+      name: '@deepseek-ai/dsh-client-ui-voice-dictation'
+
+    # Plugin management: the sidebar Plugins page installs, enables, disables,
+    # and removes the profile's bundles through the `pluginManager` Remote.
+    # Without a profile-backed Host it reports itself unavailable.
+    - id: ui-plugin-manager
+      name: '@deepseek-ai/dsh-client-ui-plugin-manager'
+
+    # Read-only Plugin list tab in the Settings Plugins section; the built-in
+    # bundles the sidebar page leaves out are inspected here.
     - id: ui-settings-plugin-inventory
       name: '@deepseek-ai/dsh-client-ui-settings-plugin-inventory'
 
@@ -394,9 +426,6 @@
 
     - id: ui-chat
       name: '@deepseek-ai/dsh-client-ui-chat'
-
-    - id: ui-voice-dictation
-      name: '@deepseek-ai/dsh-client-ui-voice-dictation'
 
     # Official occupants for the generic sidebar and conversation brand slots.
     - id: ui-brand-official
@@ -417,17 +446,19 @@
     - id: ui-workflow-run
       name: '@deepseek-ai/dsh-client-ui-workflow-run'
 
-    # Turn tail: the produced-files row under each closing assistant message.
-    # Remove this entry to turn the surface off; the tail hole renders empty.
+    # Turn tail: the changed-files card and delivery cards under each closing
+    # assistant message. Remove this entry to turn the surface off; the tail
+    # hole renders empty.
     - id: ui-deliverables
       name: '@deepseek-ai/dsh-client-ui-deliverables'
 
+    # Records each top-level turn's changed files from git working-tree
+    # snapshots; the changed-files card above renders its events.
+    - id: workspace-changes
+      name: '@deepseek-ai/dsh-workspace-changes'
+
     - id: ui-workspace
       name: '@deepseek-ai/dsh-client-ui-workspace'
-
-    # VSCode-style right sidebar: explorer, terminal, git, browser, editor tabs
-    - id: ui-better-sidebar
-      name: '@deepseek-ai/dsh-client-ui-better-sidebar'
 
     # Input triggers: the '/' | '@' pipeline (ui-input-trigger), the command surface over
     # it (ui-commands), and the reference sources (ui-skill / ui-reference).
@@ -446,13 +477,6 @@
     - id: ui-reference
       name: '@deepseek-ai/dsh-client-ui-reference'
 
-    # Read-only active Schedule catalog. The shipped Web graph resolves the
-    # client package but leaves it disabled; the explicit Schedule overlay
-    # enables this same row together with the host Schedule services.
-    - id: ui-schedule
-      name: '@deepseek-ai/dsh-client-ui-schedule'
-      disabled: true
-
     # Background jobs: the session-header roster with on-demand streaming
     # record panels over the session job-output service.
     - id: ui-jobs
@@ -462,8 +486,9 @@
     - id: ui-goal
       name: '@deepseek-ai/dsh-client-ui-goal'
 
-    # Per-message feedback: Like/Dislike plus an optional note in the
-    # assistant-message action strip, over the messageFeedback Remote.
+    # The feedback surface: Like/Dislike in the assistant-message action
+    # strip, the feedback dialog behind Dislike and /feedback with its
+    # acknowledgement toast, over the messageFeedback and sessionFeedback Remotes.
     - id: ui-message-feedback
       name: '@deepseek-ai/dsh-client-ui-message-feedback'
 
@@ -487,27 +512,45 @@
     # are the companion rows below.
     - id: ui-settings-plugins
       name: '@deepseek-ai/dsh-client-ui-settings-plugins'
-    - id: ui-settings-security
-      name: '@deepseek-ai/dsh-client-ui-settings-security'
-    - id: ui-floating-workspace
-      name: '@deepseek-ai/dsh-client-ui-floating-workspace'
+
+    # The official settings pages: one companion package per host-plane
+    # namespace, each registering its page into the Plugins page while the
+    # Host serves the namespace.
+    - id: ui-settings-shell
+      name: '@deepseek-ai/dsh-client-ui-settings-shell'
+
+    - id: ui-settings-agent-loop
+      name: '@deepseek-ai/dsh-client-ui-settings-agent-loop'
+
+    - id: ui-settings-subagent
+      name: '@deepseek-ai/dsh-client-ui-settings-subagent'
+
+    - id: ui-settings-web-search
+      name: '@deepseek-ai/dsh-client-ui-settings-web-search'
+
     - id: keyboard
       name: '@deepseek-ai/dsh-client-keyboard'
-    - id: ui-keybindings
-      name: '@deepseek-ai/dsh-client-ui-keybindings'
-    - id: ui-settings-mcp
-      name: '@deepseek-ai/dsh-client-ui-settings-mcp'
 
-    - id: ui-settings-automation
-      name: '@deepseek-ai/dsh-client-ui-settings-automation'
+    - id: ui-floating-workspace
+      name: '@deepseek-ai/dsh-client-ui-floating-workspace'
+
+    - id: ui-integrations
+      name: '@deepseek-ai/dsh-client-ui-integrations'
+
+    - id: ui-git-settings
+      name: '@deepseek-ai/dsh-client-ui-git-settings'
+
+    - id: ui-settings-usage
+      name: '@deepseek-ai/dsh-client-ui-settings-usage'
 
     - id: ui-settings-hosts
       name: '@deepseek-ai/dsh-client-ui-settings-hosts'
 
-    - id: ui-settings-usage
-      name: '@deepseek-ai/dsh-client-ui-settings-usage'
-    - id: ui-settings-terminal
-      name: '@deepseek-ai/dsh-client-ui-settings-terminal'
+    - id: ui-settings-mcp
+      name: '@deepseek-ai/dsh-client-ui-settings-mcp'
+
+    - id: ui-settings-security
+      name: '@deepseek-ai/dsh-client-ui-settings-security'
 
     # Plan control: the composer plan seat over the plan projection + /plan channel.
     - id: ui-plan
@@ -518,18 +561,6 @@
 
     - id: ui-trajectory
       name: '@deepseek-ai/dsh-client-ui-trajectory'
-
-    # Orchestration settings: workflow engine overview and agent-preset coverage.
-    - id: ui-orchestration
-      name: '@deepseek-ai/dsh-client-ui-orchestration'
-
-    # Integrations settings: GitHub, GitLab, and Gitee connection status.
-    - id: ui-integrations
-      name: '@deepseek-ai/dsh-client-ui-integrations'
-
-    # Git and source control settings: branch prefix, keep local main, group order, attribution.
-    - id: ui-git-settings
-      name: '@deepseek-ai/dsh-client-ui-git-settings'
 
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #
@@ -543,7 +574,7 @@
 # the composition.
 
 # `shell-env` STAYS in the host plane: `apps/cli/src/web.ts` injects it to
-# publish `DSH_WEB_URL`/`DSH_WEB_MODE`, and a host row that injects a service is
+# publish `CLH_WEB_URL`/`DSH_WEB_URL`/`DSH_WEB_MODE`, and a host row that injects a service is
 # the criterion for host-plane ownership — injection resolves before any session
 # exists, so there is no agent to key by. Behind a preset realm those variables
 # would never reach the model's shell at all.
@@ -644,6 +675,9 @@
 - id: tool-workflow
   disabled: true
 
+# `base` ships this row disabled; the preset-plane gate reads declared row ids
+# without regard to `disabled`, so this row must stay to keep `tool-ralph` off
+# the host plane and out of collision with every preset's row.
 - id: tool-ralph
   disabled: true
 

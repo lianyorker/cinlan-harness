@@ -7,11 +7,24 @@ import type { ExecutionTargetId, SavedTarget, SshExecutionConfiguration, SshExec
 
 function deployment(root: string): SshExecutionConfiguration {
   return {
+    // The harness writes the generated client identity to this path as well as
+    // client_key, so record-first dialing finds a readable -i target.
     endpoint: { host: 'remote.example', port: 2222, username: 'worker',
       privateKeyFile: join(root, 'private-key'), hostKeySHA256: 'a'.repeat(64) },
     node: '/usr/bin/node', helper: '/opt/dsh/helper.mjs', helperHash: 'b'.repeat(64), workspace: '/srv/project',
     bootstrapPath: '/opt/dsh/bootstrap.mjs', bootstrapHash: 'c'.repeat(64),
   }
+}
+
+/**
+ * Expected value of resolveExecution: the ssh plugin configuration, which
+ * carries the target's own host alias on top of the saved deployment.
+ * @param sshAlias - the saved target's OpenSSH alias.
+ * @param execution - the saved deployment configuration.
+ * @returns the configuration the owner resolves for that record.
+ */
+function resolvedConfig(sshAlias: string, execution: SshExecutionConfiguration): SshExecutionConfiguration & { host: string } {
+  return { host: sshAlias, ...execution }
 }
 
 function revision(target: SavedTarget) {
@@ -44,21 +57,21 @@ describe('saved SSH execution bindings', () => {
     expect(activated.createdAt).toBe(target.createdAt)
     expect(activated).not.toHaveProperty('retainedExecutions')
     expect(targets.list().targets[0]).not.toHaveProperty('retainedExecutions')
-    expect(targets.resolveExecution(original)).toEqual(execution)
-    expect(targets.resolveExecution(second)).toEqual(replacement)
+    expect(targets.resolveExecution(original)).toEqual(resolvedConfig('inspection', execution))
+    expect(targets.resolveExecution(second)).toEqual(resolvedConfig('inspection', replacement))
     expect(() => targets.snapshotExecution(revision(target))).toThrow(expect.objectContaining({ code: 'conflict' }))
     const thirdDeployment = { ...replacement, helper: '/generations/three/helper.mjs', bootstrapPath: '/generations/three/bootstrap.mjs' }
     const third = (await targets.activateExecution(revision(activated), thirdDeployment)).target
     expect(third.revision).toBe(3)
     await ctx.fiber.dispose()
     const restored = await h.registry()
-    expect(restored.targets.resolveExecution(original)).toEqual(execution)
-    expect(restored.targets.resolveExecution(second)).toEqual(replacement)
-    expect(restored.targets.resolveExecution(restored.targets.snapshotExecution(revision(third)))).toEqual(thirdDeployment)
+    expect(restored.targets.resolveExecution(original)).toEqual(resolvedConfig('inspection', execution))
+    expect(restored.targets.resolveExecution(second)).toEqual(resolvedConfig('inspection', replacement))
+    expect(restored.targets.resolveExecution(restored.targets.snapshotExecution(revision(third)))).toEqual(resolvedConfig('inspection', thirdDeployment))
     expect(restored.targets.list().targets[0]).not.toHaveProperty('retainedExecutions')
     const resolved = restored.targets.resolveExecution(original)
     Object.assign(resolved.endpoint!, { privateKeyFile: 'caller-edit' })
-    expect(restored.targets.resolveExecution(original)).toEqual(execution)
+    expect(restored.targets.resolveExecution(original)).toEqual(resolvedConfig('inspection', execution))
   })
 
   it('excludes ordinary edits and authorization acquisition in both call orders', async () => {
@@ -95,23 +108,50 @@ describe('saved SSH execution bindings', () => {
     const restored = await h.registry()
     const persisted = restored.targets.list().targets[0]!
     expect(persisted).toMatchObject({ revision: 2, execution: replacement })
-    expect(restored.targets.resolveExecution(restored.targets.snapshotExecution(revision(persisted)))).toEqual(replacement)
+    expect(restored.targets.resolveExecution(restored.targets.snapshotExecution(revision(persisted)))).toEqual(resolvedConfig('inspection', replacement))
   })
 
   it('keeps an active inspection connection and generation usable during runtime activation', async () => {
     const h = await createHarness()
     const worker = await h.worker('activation')
     const { targets } = await h.registry()
-    const saved = (await targets.create({ label: 'Active', sshAlias: 'activation', execution: deployment(h.root) })).target
+    // Record-first dialing takes the endpoint's port from the saved record, so
+    // the record must describe the already-listening server, not a fixture guess.
+    const execution = { ...deployment(h.root), endpoint: { ...deployment(h.root).endpoint, port: worker.port } }
+    const saved = (await targets.create({ label: 'Active', sshAlias: 'activation', execution })).target
     const connected = (await targets.connect(revision(saved))).target
     if (connected.state.phase !== 'ready') throw new Error('expected ready inspection connection')
     const request = { id: saved.id, generation: connected.state.generation, rootId: connected.state.info.roots[0]!.id, path: '' }
-    const next = (await targets.activateExecution(revision(saved), { ...deployment(h.root), helper: '/generation/two/helper.mjs' })).target
+    const next = (await targets.activateExecution(revision(saved), { ...execution, helper: '/generation/two/helper.mjs' })).target
     expect(next.state).toEqual(connected.state)
     const inspected = await targets.inspectDirectory(request)
     expect(inspected.inspection.entries).toContainEqual({ name: 'activation.txt', type: 'file' })
     expect(inspected.target.revision).toBe(2)
     expect(worker.commands).toEqual(['dsh --profile execution-host'])
+  })
+
+  it('probes a saved target without publishing a live connection or changing its state', async () => {
+    const h = await createHarness()
+    const worker = await h.worker('probe')
+    const { targets } = await h.registry()
+    const execution = { ...deployment(h.root), endpoint: { ...deployment(h.root).endpoint, port: worker.port } }
+    const saved = (await targets.create({ label: 'Probe', sshAlias: 'probe', execution })).target
+    const probed = await targets.test(revision(saved))
+    expect(probed.rootCount).toBe(1)
+    // A probe is not a connection: the target keeps its non-persistent observation.
+    expect(probed.target.state).toEqual({ phase: 'disconnected' })
+    expect(targets.list().targets[0]!.state).toEqual({ phase: 'disconnected' })
+    expect(worker.commands).toEqual(['dsh --profile execution-host'])
+  })
+
+  it('reports the typed failure code when the probed target refuses authentication', async () => {
+    const h = await createHarness()
+    const worker = await h.worker('denied', { denyAuthentication: true })
+    const { targets } = await h.registry()
+    const execution = { ...deployment(h.root), endpoint: { ...deployment(h.root).endpoint, port: worker.port } }
+    const saved = (await targets.create({ label: 'Denied', sshAlias: 'denied', execution })).target
+    await expect(targets.test(revision(saved))).rejects.toMatchObject({ code: 'authentication-required' })
+    expect(targets.list().targets[0]!.state).toEqual({ phase: 'disconnected' })
   })
 
   it('activates an inspection-only target without retaining an execution selection for its predecessor', async () => {
@@ -121,7 +161,7 @@ describe('saved SSH execution bindings', () => {
     const next = (await targets.activateExecution(revision(target), deployment(h.root))).target
     expect(next.revision).toBe(2)
     const snapshot = targets.snapshotExecution(revision(next))
-    expect(targets.resolveExecution(snapshot)).toEqual(deployment(h.root))
+    expect(targets.resolveExecution(snapshot)).toEqual(resolvedConfig('inspection', deployment(h.root)))
     expect(() => targets.resolveExecution({ ...snapshot, revision: 1 })).toThrow(expect.objectContaining({ code: 'conflict' }))
   })
 
@@ -179,13 +219,13 @@ describe('saved SSH execution bindings', () => {
     const active = targets.list().targets[0]!
     expect(active.revision).toBe(2)
     expect(active.execution).toEqual(first)
-    expect(targets.resolveExecution(original)).toEqual(execution)
+    expect(targets.resolveExecution(original)).toEqual(resolvedConfig('inspection', execution))
     const path = join(h.root, 'storage', 'execution_host_targets.json')
     const before = await readFile(path, 'utf8')
     await expect(targets.activateExecution(revision(target), second)).rejects.toMatchObject({ code: 'conflict' })
     expect(await readFile(path, 'utf8')).toBe(before)
     expect(targets.list().targets[0]).toEqual(active)
-    expect(targets.resolveExecution(original)).toEqual(execution)
+    expect(targets.resolveExecution(original)).toEqual(resolvedConfig('inspection', execution))
   })
 
   it.each(['0', '1', '2', 'invalid'])('rejects a durable retained revision %s that is not a predecessor', async (key) => {
@@ -196,7 +236,11 @@ describe('saved SSH execution bindings', () => {
       unit: { name: 'execution_host_targets', version: 2 }, global: null,
       tables: { targets: { [target.id]: { ...record, retainedExecutions: { [key]: execution } } } },
     }))
-    await expect(h.registry()).rejects.toThrow(/record/i)
+    // A rejected durable record fails the Loader entry's init, so the harness
+    // reports it as an unpublished service rather than a rejected registry()
+    // promise; a record the domain accepted would publish the service.
+    const { targets } = await h.registry()
+    expect(targets).toBeUndefined()
   })
 
   it('requires complete activation settings before changing selection', async () => {
@@ -224,7 +268,12 @@ describe('saved SSH execution bindings', () => {
     expect(snapshot).not.toHaveProperty('hostId')
     expect(() => Object.assign(snapshot.endpoint, { host: 'other' })).toThrow(TypeError)
     const resolved = targets.resolveExecution(snapshot)
-    expect(resolved).toEqual(execution)
+    // The resolved value is the ssh plugin configuration, so it carries the
+    // plugin's own host field alongside the saved endpoint; the input record
+    // keeps the endpoint form only.
+    expect(resolved).toMatchObject(execution)
+    // The alias remains the ssh destination; the endpoint refines it.
+    expect(resolved.host).toBe(target.sshAlias)
     expect(resolved).not.toBe(target.execution)
     expect(resolved.endpoint).not.toBe(target.execution!.endpoint)
     Object.assign(resolved.endpoint!, { host: 'caller-edit' })
@@ -235,10 +284,10 @@ describe('saved SSH execution bindings', () => {
     const restored = await h.registry()
     expect(restored.targets.snapshotExecution(revision(target))).toEqual(snapshot)
     expect(restored.targets.resolveExecution(JSON.parse(JSON.stringify(snapshot)) as SshExecutionSnapshot))
-      .toEqual(deployment(h.root))
+      .toEqual({ host: target.sshAlias, ...deployment(h.root) })
   })
 
-  it('preserves version-one alias records and stamps the next write with the current domain version', async () => {
+  it('refuses a stored version-one unit at open, because the storage layer never migrates versions', async () => {
     const h = await createHarness()
     const legacy: SavedTarget = { id: '11111111-1111-4111-8111-111111111111' as ExecutionTargetId,
       revision: 1, label: 'Legacy', sshAlias: 'inspection',
@@ -248,12 +297,14 @@ describe('saved SSH execution bindings', () => {
     const path = join(root, 'execution_host_targets.json')
     await writeFile(path, JSON.stringify({ unit: { name: 'execution_host_targets', version: 1 },
       global: null, tables: { targets: { [legacy.id]: legacy } } }))
+    // storage-domain owns this rule: "a domain whose stored version differs
+    // from its spec rejects at open (version-mismatch); changing a schema
+    // requires migrating stored data by hand". The Loader entry therefore fails
+    // its init, no service is published, and the stored unit is left untouched
+    // for the operator's own migration.
     const { targets } = await h.registry()
-    expect(targets.list().targets).toEqual([{ ...legacy, state: { phase: 'disconnected' } }])
-    expect(() => targets.snapshotExecution(revision(legacy))).toThrow(expect.objectContaining({ code: 'incompatible' }))
-    const { target } = await targets.update({ ...editable(legacy), execution: deployment(h.root) })
-    expect(targets.resolveExecution(targets.snapshotExecution(revision(target)))).toEqual(deployment(h.root))
-    expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({ unit: { version: 2 } })
+    expect(targets).toBeUndefined()
+    expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({ unit: { version: 1 } })
   })
 
   it('allows inspection-only targets but requires the complete bootstrap pair for execution', async () => {
@@ -310,12 +361,12 @@ describe('saved SSH execution bindings', () => {
     const next = (await targets.update({ ...editable(target), execution: replacement })).target
     expect(() => targets.snapshotExecution(revision(target))).toThrow(expect.objectContaining({ code: 'conflict' }))
     expect(() => targets.resolveExecution(old)).toThrow(expect.objectContaining({ code: 'conflict' }))
-    expect(acquired).toEqual(execution)
+    expect(acquired).toEqual(resolvedConfig('inspection', execution))
     const current = targets.snapshotExecution(revision(next))
-    expect(targets.resolveExecution(current)).toEqual(replacement)
+    expect(targets.resolveExecution(current)).toEqual(resolvedConfig('inspection', replacement))
     await targets.remove(revision(next))
     expect(() => targets.resolveExecution(current)).toThrow(expect.objectContaining({ code: 'conflict' }))
-    expect(acquired).toEqual(execution)
+    expect(acquired).toEqual(resolvedConfig('inspection', execution))
   })
 
   it('invalidates the saved revision when only the credential location changes', async () => {

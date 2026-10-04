@@ -1,4 +1,9 @@
 .section { width: 100%; min-width: 0; color: var(--dsw-alias-label-primary); }
+.title { margin: 0 0 10px; font-size: 26px; line-height: 1.3; font-weight: 600; color: var(--dsw-alias-label-primary); }
+.lead { margin: 0 0 24px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.7; }
+.panel { margin: 20px 0; padding: 16px 20px 20px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 10px; }
+.panel .targets { margin-top: 12px; }
+.panel .note { margin: 0; }
 .heading { margin-bottom: 32px; }
 .heading h2 { margin: 8px 0 10px; font-size: 26px; line-height: 1.3; font-weight: 600; }
 .heading p, .note { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.7; }
@@ -6,15 +11,15 @@
 .group { margin: 28px 0; }
 .group h3 { margin: 0 0 8px; font-size: 14px; line-height: 1.5; font-weight: 600; }
 .section h4 { margin: 0 0 8px; font-size: 14px; line-height: 1.5; font-weight: 500; }
-.groupHeading { display: flex; gap: 20px; align-items: center; justify-content: space-between; }
+.groupHeading { display: flex; gap: 20px; align-items: flex-start; justify-content: space-between; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+.groupHeading .actions { margin: 0; flex: none; }
 .row { display: flex; gap: 24px; align-items: center; justify-content: space-between; padding: 20px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
 .facts { display: grid; grid-template-columns: minmax(130px, auto) minmax(0, 1fr); gap: 6px 18px; margin: 16px 0; font-size: 12px; line-height: 1.6; }
 .facts dt { color: var(--dsw-alias-label-secondary); }
 .facts dd { margin: 0; overflow-wrap: anywhere; }
 .section code { font-family: var(--ds-font-family-code); font-size: 12px; overflow-wrap: anywhere; }
 .target { padding: 20px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
-.status { color: var(--dsw-alias-label-secondary); font-size: 12px; white-space: nowrap; }
 .editor { margin: 20px 0; padding: 20px; background: var(--dsw-alias-bg-layer-1); border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 10px; }
 .section fieldset { display: grid; grid-template-columns: minmax(100px, auto) minmax(0, 1fr); gap: 12px 18px; align-items: center; padding: 0; margin: 12px 0; border: 0; min-width: 0; }
 .section label { font-size: 13px; }
@@ -25,5 +30,58 @@
 .entries th { font-weight: 500; color: var(--dsw-alias-label-secondary); }
 .error { color: var(--dsw-alias-state-error-primary); font-size: 13px; line-height: 1.6; margin: 12px 0; overflow-wrap: anywhere; }
 .error p { margin: 4px 0; }
-.section [data-settings-anchor]:focus, .section :focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 3px; }
-@media (max-width: 700px) { .groupHeading, .row { flex-direction: column; align-items: stretch; gap: 12px; } .section fieldset { grid-template-columns: minmax(0, 1fr); } .facts { grid-template-columns: minmax(0, 1fr); gap: 4px; } .facts dd { margin-bottom: 8px; } }
+
+/* ── target list ─────────────────────────────────────────────── */
+.empty { display: flex; align-items: center; justify-content: center; margin: 12px 0 0; padding: 20px 16px; border: 0.5px dashed var(--dsw-alias-border-l2); border-radius: 8px; color: var(--dsw-alias-label-secondary); font-size: 13px; }
+.targets { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.card { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-layer-1); }
+.cardGlyph { flex: none; color: var(--dsw-alias-label-secondary); }
+.cardBody { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.cardTitleRow { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cardLabel { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cardStatus { font-size: 11px; color: var(--dsw-alias-label-secondary); white-space: nowrap; }
+.cardLine { margin: 0; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-secondary); overflow-wrap: anywhere; }
+.cardError { margin: 2px 0 0; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-state-error-primary); overflow-wrap: anywhere; }
+.cardActions { flex: none; display: flex; align-items: center; gap: 4px; }
+.cardDetail { flex-basis: 100%; margin-top: 8px; }
+
+/* ── add/edit dialog ─────────────────────────────────────────── */
+.dialogFooter { display: flex; gap: 8px; justify-content: flex-end; }
+.form { display: flex; flex-direction: column; gap: 12px; }
+.editingChip { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin: 0; padding: 4px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 999px; font-size: 11px; color: var(--dsw-alias-label-secondary); }
+.editingChip strong { font-weight: 500; color: var(--dsw-alias-label-primary); }
+/* The shared modal caps itself at 380px; this form needs the reference width,
+   so the doubled class outranks the primitive's own rule regardless of bundle order. */
+.targetDialog.targetDialog { width: min(576px, 100%); }
+.formGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; }
+.formField { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.formField label { font-size: 13px; }
+.formFieldWide { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.advanced { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+.disclosure { align-self: flex-start; padding: 0 8px; font-size: 12px; }
+.chevron, .chevronOpen { display: inline-flex; margin-left: 4px; transition: transform 150ms ease; }
+.chevronOpen { transform: rotate(180deg); }
+.switchRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.switchCopy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.switchCopy label { font-size: 12px; font-weight: 500; }
+
+/* ── import dialog ───────────────────────────────────────────── */
+.importDialog.importDialog { width: min(520px, 100%); }
+.importBody { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.importList { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; padding: 0; list-style: none; max-height: 320px; overflow: auto; }
+.importEntry { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 10px 12px; font: inherit; text-align: left; color: var(--dsw-alias-label-primary); background: none; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; cursor: pointer; }
+.importEntry:hover { background: var(--dsw-alias-bg-layer-1); }
+.importAlias { font-size: 13px; font-weight: 500; }
+
+/* The anchor mark is a search target: a pointer click on it must not paint the
+   ring, while keyboard navigation and a search jump still do. */
+.section [data-settings-anchor]:focus-visible, .section :focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 3px; }
+.section [data-settings-anchor]:focus:not(:focus-visible) { outline: none; }
+@media (max-width: 700px) {
+  .groupHeading, .row { flex-direction: column; align-items: stretch; gap: 12px; }
+  .section fieldset { grid-template-columns: minmax(0, 1fr); }
+  .facts { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .facts dd { margin-bottom: 8px; }
+  .formGrid, .advanced { grid-template-columns: minmax(0, 1fr); }
+  .card { flex-wrap: wrap; }
+}

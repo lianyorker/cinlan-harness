@@ -1,6 +1,5 @@
 /// <reference types="node" />
 /** Real sidebar Loader composition over authenticated Connection Fetch and fenced Web aliases. */
-import { createTrustedConnectionAccess } from '@deepseek-ai/dsh-client-connection'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,7 +15,7 @@ import ExecutionBindings from '@deepseek-ai/dsh-execution-binding'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
 import LocalGit from '@deepseek-ai/dsh-git-local'
-import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
+import { settingsServiceStub } from './settings-service-stub.ts'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import LocalCredentials from '@deepseek-ai/dsh-credentials-local'
@@ -74,7 +73,7 @@ export async function load({ web = false, config = {} }: { web?: boolean; config
     { name: '@deepseek-ai/dsh-session' },
     { name: 'session-query', config: { path: ':memory:', openAt: 'never' } }, { name: 'session-projections' }, { name: 'execution-bindings' },
     { name: 'fs-local' }, { name: 'subprocess-local' }, { name: 'git-local', config: { executable: 'git', maxOutputBytes: 1024 * 1024, maxLogEntries: 100, graceMs: 1000 } },
-    { name: '@deepseek-ai/dsh-settings-file', config: { path: settingsPath } },
+    { name: '@deepseek-ai/dsh-settings', config: { path: settingsPath } },
     { name: '@deepseek-ai/dsh-system-prompt' },
     { name: '@deepseek-ai/dsh-tools' },
     { name: '@deepseek-ai/dsh-credentials-local', config: { path: join(root, 'credentials.yaml'), watch: false } },
@@ -91,7 +90,7 @@ export async function load({ web = false, config = {} }: { web?: boolean; config
   const modules = new Map<string, unknown>([
     ['session-query', SessionQuery], ['session-projections', SessionProjectionRegistry], ['execution-bindings', LocalBindings],
     ['fs-local', LocalFileSystem], ['subprocess-local', LocalSubprocess], ['git-local', LocalGit],
-    ['@deepseek-ai/dsh-session', SessionStore], ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
+    ['@deepseek-ai/dsh-session', SessionStore], ['@deepseek-ai/dsh-settings', settingsServiceStub(settingsPath)],
     ['@deepseek-ai/dsh-system-prompt', SystemPrompt], ['@deepseek-ai/dsh-tools', ToolRuntime],
     ['@deepseek-ai/dsh-credentials-local', LocalCredentials], ['@deepseek-ai/dsh-client-connection', Connection],
     ['@deepseek-ai/dsh-host-webserver', WebServer], ['sidebar-fetch-fixture', fixture], [packageName, sidebar],
@@ -104,7 +103,7 @@ export async function load({ web = false, config = {} }: { web?: boolean; config
   await ctx.loader.await()
   const session = ctx.sessions.create(undefined, { meta: { cwd } })
   const scope = { sessionId: session.id, cwd }
-  const shared = ctx.connection.createSharedFetchHandler('/api', createTrustedConnectionAccess())
+  const shared = ctx.connection.createSharedFetchHandler('/api')
   const origin = web ? 'http://127.0.0.1:' + String(ctx.webServer.port) : 'http://localhost'
   let cookie = ''
   if (web) {

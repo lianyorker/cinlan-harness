@@ -4,15 +4,13 @@ Status: implemented
 
 English | [中文](2026-07-08-tool-output-spill-files.zh.md)
 
-The multimodal extension is recorded in [the token/image retention note](2026-09-23-cinlan-multimodal-tool-result-retention.md).
-
 ## Problem
 
 Tool outputs need bounded model-facing previews, but some oversized results are still useful later. A fetched page body or a verbose tool response should not consume the next model request in full, but the model should be able to inspect the complete formatted result later with existing file-reading tools.
 
 Before this change the behavior was uneven. `dsh-bash-local` already writes complete stdout/stderr streams to private temp spill files when its in-memory tail overflows, but ordinary text tool results were returned inline unless the tool hand-rolled its own cap. The [tool result retention library](../../archived/architecture/2026-07-06-tool-result-retention-library.md) owns preview mechanics, but it does not own storage or an execution-pipeline policy that applies those mechanics to final tool results.
 
-The shape matches the timeout policy design: a tool author declares a canonical value plus Native renderer, and a policy plugin enforces the deployment's default context budget on rendered content. Tool-specific early spill remains possible for provider acquisition bounds; tool-owned presentation spill may retain a complete acquired canonical value while replacing only presentation. The [canonical tool-output contract](2026-07-20-canonical-tool-output-contract.md) owns that split.
+The shape matches the timeout policy design: a tool author declares a canonical value plus Native renderer, and a policy plugin enforces the deployment's default context budget on rendered content. Tool-specific early spill remains possible for provider acquisition bounds; tool-owned presentation spill may retain a complete acquired canonical value while replacing only presentation. The [canonical tool-output contract](../../../../packages/core/tools/README.md) owns that split.
 
 ## Decision
 
@@ -22,9 +20,9 @@ A thin spill storage seam plus a default spill policy plugin, in a new `packages
 |---|---|
 | `@deepseek-ai/dsh-spill` | Interface: `ctx.spillStore`, vocabulary types, no storage implementation. |
 | `@deepseek-ai/dsh-spill-local` | Local backend: private, session-scoped file storage on the host filesystem. |
-| `@deepseek-ai/dsh-spill-policy` | Tool-result policy plugin: retains ordered text/image results after dispatch within a token budget and provides a spill locator plus recovery paths. |
+| `@deepseek-ai/dsh-spill-policy` | Tool-result policy plugin: wraps final text results after dispatch and replaces oversized results with a retained preview plus a spill locator. |
 
-The tool-result Consumer is `dsh-spill-policy`, which consumes final tool results through the `tools/post-execute` waterfall. The model follows the backend-supplied retrieval hint for the returned locator. [Session-reference spill reuse](../bug-fix/2026-09-05-session-reference-spill-reuse.md) adds a direct storage consumer with separate preview, provenance, and failure semantics; it does not change the tool-result policy.
+The tool-result Consumer is `dsh-spill-policy`, which consumes final tool results through the `tools/post-execute` waterfall. The model follows the backend-supplied retrieval hint for the returned locator. [Session-reference spill reuse](../../../../packages/context/session-reference/README.md) adds a direct storage consumer with separate preview, source-description, and failure semantics; it does not change the tool-result policy.
 
 ### Spill seam
 
@@ -68,36 +66,7 @@ interface SpillRef {
 
 ### Spill policy
 
-`dsh-spill-policy` is a `tools/post-execute` result transformer with one configuration knob:
-
-```ts ignore-check
-interface Config {
-  /** Omitted means no automatic retention. Present means apply a shared estimated-token budget to accepted text/image results. */
-  maxInlineTokens?: number
-}
-```
-
-When `maxInlineTokens` is omitted the plugin registers nothing (a true no-op). When set, it applies a default policy to accepted final text/image results:
-
-1. Let the tool run normally, delegating via `next()` so a downstream listener settles the result first.
-2. Accept an ordered `ContentBlock[]` only when every block is text or image; other block types pass through unchanged.
-3. Estimate text, image descriptors, omission notices, and route-specific image pricing against `maxInlineTokens`; results within budget stay unchanged.
-4. If it is larger, call `ctx.spillStore.saveText()` with the full final text.
-5. Replace the model-facing result with a retained head/tail preview plus the spill reference.
-
-The policy retains ordered head/tail content within `maxInlineTokens`. Text can split at a safe character boundary; images are indivisible and keep their original positions. The retention implementation is owned by `dsh-spill-policy` because it combines token estimation, route image pricing, notice text, and recovery metadata.
-
-The replacement text is intentionally generic because the policy only knows the final formatted tool result, not the tool's internal resource:
-
-```text
-<retained preview>
-
-(Omitted N bytes. Full formatted result stored at: /.../session-.../....txt. Use read with offset/limit, or grep this path to search within it.)
-```
-
-If `ctx.spillStore.saveText()` fails (permissions, ENOSPC, backend unavailable), or the call has no session owner, or no backend is loaded, the plugin logs the reason and returns the original result unchanged. Spill failure never turns a successful tool call into an `isError` result or hides the inline result.
-
-The policy skips `read` to avoid a circular `read -> spill file -> read again` loop. Additional opt-out configuration is deferred until a real second tool needs it.
+`dsh-spill-policy` retains ordered text/image ends under `maxInlineTokens` after post-execute policy accepts the result. `saveText()` stores the complete result with readable image paths; image bytes remain in attachment storage. The [multimodal retention reference](../../../../packages/spill/spill-policy/README.md) owns image projection order, atomic image omission, and route pricing. An omitted budget installs no listeners, recovery failures keep the original result, and model-facing `read` results skip retention to avoid a read/spill loop.
 
 ## Showcase: web_fetch
 
@@ -140,7 +109,7 @@ This separation is important. `web-fetch-http` still owns resource caps (`maxRes
 
 Retention is separate from spill storage:
 
-- `@deepseek-ai/dsh-spill-policy` owns ordered text/image retention, omitted counts, token estimation, route image pricing, and recovery notices.
+- `@deepseek-ai/dsh-output-retention` owns preview mechanics (`TextRetainer`, `ItemRetainer`, and omitted metadata).
 - `@deepseek-ai/dsh-spill` owns saving final text and returning a locator plus retrieval hint.
 - `@deepseek-ai/dsh-spill-policy` applies the default final-result policy in the tool pipeline, composing the two.
 
@@ -174,7 +143,7 @@ Cleanup shipped for the local backend as a one-shot startup sweep, not tied to s
 
 - `dsh-spill` unit tests pin the seam contract: registration as `ctx.spillStore`, one-implementation-per-context, and disposal release.
 - `dsh-spill-local` unit tests cover `saveText`, `encodeSegment` sanitization (separators/tilde/whole-segment dots/empty), the session-hash directory, owner-only permissions, distinct paths per save, the configured/private root, and a storage-failure rejection.
-- `dsh-spill-policy` tests drive real tools through `ctx.tools.execute`: token-budget retention, ordered image handling, attachment-path recovery, route pricing, nested PTC forwarding, disabled-mode no-op, `read` skip, best-effort fallback, and downstream composition.
+- `dsh-spill-policy` unit tests drive real tools through `ctx.tools.execute`: disabled-mode no-op, oversized-text replacement, small/non-text passthrough, `read` skip, best-effort fallback (save failure / no backend / no owner), and downstream-composition (bounding a replaced result, preserving `additionalContexts`).
 - `dsh-tool-web` integration drives `web_fetch` through `ctx.tools.execute` with the real `spill-local` backend + policy, proving the model-facing text changes only by the deliberate spill notice while the spill file holds the full formatted result.
 - The `tui-agent` example loads `spill-local` + `spill-policy`, so its keyless Loader/PTY smoke exercises the real load path (the namespace-plugin export shape + `inject`).
 
@@ -188,11 +157,11 @@ The local-backend value proposition depends on the existing `read`/`grep` tools 
 
 **Snapshot gap.** No ACP snapshot scenario covers the transcript-visible `web_fetch` spill notice yet. The ACP snapshot harness replays keyless and cannot hit the live web, and a `web_fetch` spill requires a real over-cap HTTP body; a deterministic scenario would need a seeded loopback fetch target the replay tree does not currently wire (the examples do not load `tool-web` at all). The behavior is covered instead by the `dsh-tool-web` integration test against a loopback server. Closing the gap is follow-up work: wire `tool-web` + a seeded fetch target into the ACP example, then record a `web-fetch-spill` scenario.
 
-The policy remains narrow: it accepts only final text/image content, keeps canonical program values intact, and leaves unsupported blocks and tool-owned early spill to their owners. Image recovery requires the attachment and filesystem services available to the execution world.
+The policy can become too large if it starts owning tool-specific semantics. It handles accepted text/image sequences without interpreting tool-specific text. Tool-owned early spill remains future work.
 
 ## Alternatives considered
 
-**Require each tool to opt in with a retention declaration.** Rejected: the policy is a deployment-wide default. A single `maxInlineTokens` knob covers text, images, notices, and route-specific visual pricing.
+**Require each tool to opt in with a retention declaration.** Rejected: the goal is a default behavior similar to Claude Code's generic tool-result persistence. A single `maxInlineTokens` deployment knob is enough to prove the shape.
 
 **Make `tool-results` a broad tool-result platform.** Rejected: a broad package name invites retention policy, result replacement, preview wording, search, and early spill into one seam. The shared storage part is smaller: save text and return a locator plus retrieval hint.
 
@@ -200,4 +169,4 @@ The policy remains narrow: it accepts only final text/image content, keeps canon
 
 **Let `web-fetch-http` fetch without caps and rely on spill-policy.** Rejected: spill-policy runs after the final tool result exists and cannot protect network, memory, or decoding resources. Provider resource caps stay mandatory.
 
-**Merge retention into spill.** Rejected: retention and spill have different responsibilities. The policy decides what ordered model-facing content and recovery notice fit; storage saves the complete text representation and returns a locator.
+**Merge retention into spill.** Rejected: retention and spill have different responsibilities. `TextRetainer`/`ItemRetainer` decide what preview is kept and what was omitted; spill storage only saves the final text the policy asks it to save.

@@ -23,6 +23,7 @@ import type {
   SpawnTeammateRequest,
   SpawnTeammateResult,
   TeamMemberView,
+  TeamWorktreeMergeResult,
   TeamTaskMutationResult,
   TeamTaskView,
   TeamView,
@@ -152,6 +153,17 @@ export class TeamService extends TypertRemoteService {
    */
   async spawnTeammate(caller: Agent, request: SpawnTeammateRequest): Promise<SpawnTeammateResult> {
     return await this.roster.spawn(caller, request)
+  }
+
+  /**
+   * Stop a completed teammate, merge its worktree into the Lead source branch, and clean up its branch.
+   * @param caller - exact live Team Lead authorizing integration.
+   * @param targetName - durable teammate name.
+   * @param signal - cancellation for the complete integration interval.
+   * @returns source commit and branch cleanup outcome.
+   */
+  async mergeWorktree(caller: Agent, targetName: string, signal: AbortSignal): Promise<TeamWorktreeMergeResult> {
+    return await this.roster.mergeWorktree(caller, targetName, signal)
   }
 
   /**

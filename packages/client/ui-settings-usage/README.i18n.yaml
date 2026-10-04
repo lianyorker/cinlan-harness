@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-usage/README.md
-README.md: f625f524183c70ba8883ddb1215ebb62d0a3bffe
-README.zh.md: f8116a9aa5ce977662c18d8ec98527b1e5354df8
+/:
+  en: 2edf2e4c1ba3059b
+  zh: e7d627a27a20f511
+/deepseek-ai-dsh-client-ui-settings-usage:
+  en: c0935319d3e18b39
+  zh: 82185c3252d7aa93
+/deepseek-ai-dsh-client-ui-settings-usage/summary:
+  en: 8635331db4fc361d
+  zh: 7aeb956060fa5e9a
+/deepseek-ai-dsh-client-ui-settings-usage/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 364c80ee00a374ff
+/deepseek-ai-dsh-client-ui-settings-usage/use-this-package:
+  en: 334ae7fb0b83d9e0
+  zh: dbbce84c5da34f1e
+/deepseek-ai-dsh-client-ui-settings-usage/use-this-package/composition-and-configuration:
+  en: bcc7853bb42ac026
+  zh: aef363421eb3a581
+/deepseek-ai-dsh-client-ui-settings-usage/understand-the-implementation:
+  en: fdb5d9fdf592f11e
+  zh: 84a3cf09a9c2c458
+/deepseek-ai-dsh-client-ui-settings-usage/further-exploration:
+  en: 7b22df3c9d727266
+  zh: 9df101eb7bdf4577
+/deepseek-ai-dsh-client-ui-settings-usage/model-experience:
+  en: 3120df665299c634
+  zh: 4c27bdd8d820dc17
+/deepseek-ai-dsh-client-ui-settings-usage/model-experience/kv-cache-effect:
+  en: ca75c51c89c2c9b0
+  zh: 3fd9a482746d0023
+/deepseek-ai-dsh-client-ui-settings-usage/known-limitations-and-deferred-work:
+  en: d23d89356681aee9
+  zh: e347ed48bd756d2e
+/deepseek-ai-dsh-client-ui-settings-usage/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 8ec3e73528ddb1a6

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SESSION_FORMAT_VERSION, SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
+import { WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task'
 import type { SessionEvent, SessionEventMap, SessionEventType } from '@deepseek-ai/dsh-session'
 import { teamProjectionDefinition } from '../src/projection.ts'
 import type { TeamProjectionState, TeamState } from '../src/projection.ts'
@@ -135,6 +136,30 @@ describe('Agent Teams projection events', () => {
       teamId: TEAM,
       member: duplicateName,
     }, SessionSeq(1))])).toThrow(/name .* reused/)
+  })
+
+  it('accepts only the worktree integration and cleanup member transitions', () => {
+    const taskId = WorktreeTaskId('worktree-task')
+    const provisioning = event('team/member', { version: 2, teamId: TEAM, member: member({
+      workspaceMode: 'worktree', worktreeTaskId: taskId,
+    }) }, SessionSeq(0))
+    const active = event('team/member', { version: 2, teamId: TEAM, member: member({
+      phase: 'active', workspaceMode: 'worktree', worktreeTaskId: taskId,
+    }) }, SessionSeq(1))
+    const integration = { taskId, branch: 'dsh/task/worktree-task', sourceBranch: 'main',
+      sourceHeadBefore: 'a'.repeat(40), sourceHeadAfter: 'b'.repeat(40) }
+    const integrated = event('team/member', { version: 2, teamId: TEAM, member: member({
+      phase: 'active', workspaceMode: 'integrated', worktreeTaskId: taskId, integration,
+    }) }, SessionSeq(2))
+    const cleaned = event('team/member', { version: 2, teamId: TEAM, member: member({
+      phase: 'active', workspaceMode: 'integrated', integration,
+    }) }, SessionSeq(3))
+    expect(projectTeam(ROOT, [provisioning, active, integrated, cleaned]).members[0]).toMatchObject({
+      workspaceMode: 'integrated', integration,
+    })
+    expect(() => projectTeam(ROOT, [provisioning, active, event('team/member', {
+      version: 2, teamId: TEAM, member: member({ phase: 'active', workspaceMode: 'integrated' }),
+    }, SessionSeq(2))])).toThrow(/invalid active -> active/)
   })
 
   it('enforces task revision continuity', () => {

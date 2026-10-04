@@ -17,7 +17,7 @@
               - id: deepseek-v4-pro
 
 - id: settings-file
-  name: '@deepseek-ai/dsh-settings-file'
+  name: '@deepseek-ai/dsh-settings'
   config:
     path: !!js dshHomePath('settings.yaml')
     watch: false

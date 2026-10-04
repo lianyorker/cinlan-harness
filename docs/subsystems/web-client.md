@@ -4,6 +4,8 @@ English | [中文](web-client.zh.md)
 
 The Web Client is a browser-side Cordis application assembled from independently loaded plugins. Its architecture has four reusable foundations: [Client Modules](client-modules.md) loads the plugin graph, the [API Gateway](../api-gateway.md) provides typed Host communication, [Slots](slots.md) composes React UI, and [Conversation](conversation.md) turns a Session history window into target-owned views. This page connects those systems and defines where Client models and feature packages belong.
 
+[Keyboard shortcuts](../../packages/client/shortcuts/README.md) owns window-local command registration and physical-key dispatch; [the shortcut reference](../../packages/client/ui-shortcuts/README.md) presents available commands and local input actions. Command owners declare each runtime/platform default and share their existing actions with mouse controls. The shared modal primitive arbitrates top-layer Escape and restores focus.
+
 ## Layers and ownership
 
 | Layer | Main owners | Responsibility |
@@ -11,7 +13,7 @@ The Web Client is a browser-side Cordis application assembled from independently
 | Host application | business services and `packages/api/*-controller` Host entries | Own authoritative state, persistence, mutation ordering, access policy, and stream production. |
 | Transport and API assembly | `client/connection`, `api/gateway`, `api/remotes` | Establish a Client generation, expose generated `ctx.remote` methods and streams, forward selected Cordis events, and carry cancellation and results. |
 | Client models | `api/session-controller/client`, `api/workspace-controller/client` | Maintain React-free mirrors of Host state, resolve stream/unary races, own object identities and subscriptions, and expose narrow command services. |
-| UI adapters | `client/ui-session`, `client/ui-workspace` | Convert model observables into root or Session-scoped standard Slot sources without taking ownership of business state. |
+| UI adapters | `client/ui-session`, `client/ui-workspace` | Convert model observables into root or Provider-bound Session Slot sources and own view-level navigation and status policy. |
 | Conversation data | `client/ui-conversation`, target packages such as `ui-chat` and `ui-trajectory` | Assemble standard events and compact historical Assistant runs into independent target snapshots and own the shared conversation shell and input flow. |
 | Composition and rendering | `client/ui-slots`, `client/ui-renderer`, `client/ui-layout`, feature UI packages | Declare extension locations, derive component props, bind observables to React hooks, and mount the final tree. |
 
@@ -27,7 +29,7 @@ The Web boot kernel creates the module system, prefetches `immediately` entries,
 
 Host business services annotate callable methods with Typert Remote decorators. Host generation emits strict descriptors, runtime codecs, declaration merges, and source maps. The Client-side `api-remotes` assembly selects those generated contributions and mounts concrete methods under `ctx.remote.<namespace>` and Session-scoped `agentCtx.remote.<namespace>`. Feature packages depend on the generated service face, not the Gateway implementation or a Host package's runtime entry.
 
-The Connection owns request correlation, the `/api` carrier, trust checks, Fetch routes, and connection generations. API Gateway owns Remote dispatch, cancellation, logical streams, and selected Host event forwarding. Controller operations belong on generated Remote methods or explicit Remote streams. Fetch registrations match exact paths by default; a scoped asset subtree can explicitly register a prefix ending in `/` so relative resources retain their URL scope. Exact matches take precedence over the longest matching prefix. The [API Gateway reference](../api-gateway.md) defines generation and invocation, while the [Connection README](../../packages/client/connection/README.md) defines the physical carrier and trust policy.
+The Connection owns request URL resolution, correlation, the `/api` carrier, trust checks, exact Fetch routes, and connection generations. API Gateway owns Remote dispatch, cancellation, logical streams, and selected Host event forwarding. Controller operations belong on generated Remote methods or explicit Remote streams; feature-owned downloads register exact Fetch routes. The [API Gateway reference](../api-gateway.md) defines generation and invocation, while the [Connection README](../../packages/client/connection/README.md) defines the physical carrier and trust policy.
 
 The internal `$events` logical stream is the Connection generation source. Its opening `ready` frame carries the Host home used for path display and establishes the generation after Host listeners are attached, before any controller begins a baseline read. `ctx.remote.$on()` delivers allowlisted ordinary events to the root Client Context and scoped waterfall events to the resolved Session Context; a waterfall listener returns a result, calls `next()`, or rejects.
 
@@ -37,23 +39,25 @@ Each API controller package owns a paired Host and Client face. The Host side ow
 
 ### Sessions
 
-[`api/session-controller`](../../packages/api/session-controller/README.md) exposes Host commands for list, search, creation, selection data, prompt, queue, cancellation, pagination, and follow/control streams. Its Client side is organized as `ClientSessions → SessionManager → Session`:
+[`api/session-controller`](../../packages/api/session-controller/README.md) exposes Host commands for list, search, creation, prompt, queue, cancellation, pagination, and follow/control streams. Its Client side is organized as `ClientSessions → SessionManager → Session`:
 
-- `ClientSessions` provides `ctx.sessions`, owns Session scopes and stable `SessionBinding` objects, and projects the selected list state.
-- `SessionManager` owns the list baseline, live list/control updates, lazy Session instances, queues, projection stores, subagent catalogs, and conflict ordering between pulls and later updates.
+- `ClientSessions` provides `ctx.sessions`, owns references, source counts, Session scopes, and stable `SessionBinding` objects, and projects catalog state without selecting a global current Session.
+- `SessionManager` owns the list baseline, live list/control updates, lazy Session instances, projection stores, subagent catalogs, and conflict ordering between pulls and later updates.
 - Each `Session` owns one contiguous logical-event window represented by `SessionEventLikeEntry` values, paging, follow, prompt/control state, and the observable snapshot consumed by adapters.
 
-The durable event path opens `follow()`, whose first frame contains the current header, tail page, cursor, and complete projection baseline. History records have an explicit `event` or `chunks` discriminator and an aligned inner `event`; the journal validates each inclusive logical sequence range before the Client retains the records as `SessionEventLikeEntry` values without per-record conversion. Each physical generation atomically replaces the retained window from that snapshot; standard live events then append by sequence. `page()` is reserved for older history and gap repair. The transient control stream starts every generation with a complete baseline and then applies queue, job, and projection updates.
+The durable event path opens `follow()`, whose first frame contains the current header, tail page, cursor, and complete projection baseline. History records have an explicit `event` or `chunks` discriminator and an aligned inner `event`; the journal validates each inclusive logical sequence range before the Client retains the records as `SessionEventLikeEntry` values without per-record conversion. Each physical generation atomically replaces the retained window from that snapshot; standard live events then append by sequence. `page()` is reserved for older history and gap repair. The transient control stream starts every generation with a complete baseline and then applies projection updates.
 
 ### Workspaces
 
-[`api/workspace-controller`](../../packages/api/workspace-controller/README.md) keeps Workspace mutation policy and the authoritative follow feed on the Host. `ClientWorkspaceModel` owns the browser rows, order, archived Session ids, command echoes, and stream/unary race resolution. Every stream generation starts with a complete baseline followed by `upsert`, `remove`, `order`, and `archived` increments; reconnect replaces the model from the new baseline. `WorkspaceController` exposes that model as `ctx.workspaces`, while `ui-workspace` contributes `useWorkspaces` and navigation callbacks to the UI.
+[`api/workspace-controller`](../../packages/api/workspace-controller/README.md) keeps Workspace mutation policy and the authoritative follow feed on the Host. `ClientWorkspaceModel` owns browser rows, Workspace order, archived and pinned Session id arrays, command echoes, and stream/unary race resolution. Every stream generation starts with a complete baseline followed by `upsert`, `remove`, `order`, `archived`, and `pinned` increments; reconnect replaces the model from the new baseline. `WorkspaceController` exposes that model as `ctx.workspaces`, while `ui-workspace` contributes `useWorkspaces` and navigation callbacks. The sidebar's `ArchivedFilter` controls default-hidden, shown, or archived-only rows in lists and search. Archived rows retain their ordering slots, render grayed, and cannot open until restored through the row or search-result Unarchive action. Restoration calls `workspace.unarchiveSession`, and its complete archive set reaches Clients through the unary response and `archived` increment. Session display order stays browser-local and includes hidden archives; pinning moves a Session within that full order, while unpinning does not restore its earlier position.
 
 This pairing is not a second source of business truth. Host controllers decide durable state and mutation outcomes; Client models maintain the latest usable local projection, preserve object identity where useful to rendering, and encode how delayed responses and replacement baselines merge.
 
 ## Conversation and presentation
 
-`ui-session` installs the `session` scope adapter and publishes `useSessions`, `useSession`, `sessionId`, and `useProjection`. Domain adapters add further standard sources without putting React hooks on the model objects.
+Web and desktop share the [Coding Tools preference](../../packages/client/ui-settings/README.md#use-this-package). It controls diagnostic Views, [available preset choices](../../packages/client/ui-agent-preset/README.md), changed-file cards, and the builtin HTML preview policy without changing Session records.
+
+`ui-session` installs the Session scope adapter and publishes `useSessions`, `useSessionStatus`, `useSessionRetainInfo`, `useSession`, `sessionId`, and `useProjection`. `SessionProvider` inherits an outer binding or binds an explicit `SessionReference`, so concurrent subtrees can target different Sessions. Domain adapters add further standard sources without putting React hooks on the model objects.
 
 `ui-conversation` binds once to each `SessionBinding.eventSource`. Its event registry correlates durable Session events and Client-only `assistant/live-chunk` updates into stable business Contexts, and its view registry materializes target snapshots. Chat Assistant, Trajectory Assistant, and Turn Tail interpret both live chunks and the compact streams embedded in durable settlements, so reconnect and paged history reproduce the same Assistant state without durable token rows. `ui-chat` and `ui-trajectory` register separate Definitions and builders: they may interpret the same event family, but they do not import or share each other's final display model. The shell selects a registered view and passes its snapshot through standard hooks and Slots. [Conversation](conversation.md) defines Context identity, replay, Location data, target builders, and keyed renderers.
 
@@ -64,7 +68,8 @@ This pairing is not a second source of business truth. Host controllers decide d
 | Path | Sequence |
 |---|---|
 | durable Session display | Host Session log → packed Remote `follow`/`page` history → Client `SessionEventLikeEntry` window → Conversation Contexts → target snapshot (`chat`, `trajectory`, or another registered target) → Slot view → React |
-| transient Session control | Host control baseline → Remote snapshot stream → `SessionManager` queue/job/projection stores → Session and list snapshots → standard hooks → components |
+| transient Session control | Host control baseline → Remote snapshot stream → `SessionManager` projection stores → Session and list snapshots → standard hooks → components |
+| Background jobs | Host job registry → `job.list` / `job.follow` → [`ClientJobs`](../../packages/api/job-controller/README.md) roster and output views → job list and panels |
 | Workspace state | Host Workspace baseline and increments → `ClientWorkspaceModel` → `ctx.workspaces.list` → `useWorkspaces` → sidebar, hero, and navigation entries |
 | scoped interaction | Host Cordis waterfall → API Remotes `$events` → `ctx.remote.$on()` on the Session Context → owning UI package → result or `next()` |
 | user command | component callback → registration inject face or Slot owner → `ctx.sessions`, `ctx.workspaces`, or generated scoped Remote → Host Controller → authoritative update → stream or event projection back to the Client |
@@ -93,171 +98,3 @@ Use the four detailed references according to the extension being added:
 - [API Gateway](../api-gateway.md) for Host methods, generated Remote contributions, streams, and forwarded events.
 - [Web Client Slots](slots.md) for components, hooks, stores, injection, and placement.
 - [Conversation](conversation.md) for durable event correlation, target snapshots, and Chat or Trajectory view contributions.
-
-<!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
-
-<a id="cordis-surface"></a>
-
-## Cordis API
-
-Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
-
-<a id="ctxbettersidebar--bettersidebarservice"></a>
-
-### `ctx.betterSidebar` — `BetterSidebarService`
-
-The registry service published as `ctx.betterSidebar`.
-
-```ts cordis-catalog
-/** Probe terminal dependencies without starting a terminal.
- * @returns Browser transport support and the live Host dependency result.
- */
-getTerminalCapability(): Promise<TerminalCapability>
-
-/** Register a tab descriptor.
- * @param descriptor - Tab type to contribute.
- * @returns Disposer removing this registration.
- */
-registerTab(descriptor: TabDescriptor): () => void
-
-/** Register a file viewer descriptor.
- * @param descriptor - File viewer to contribute.
- * @returns Disposer removing this registration.
- */
-registerFileViewer(descriptor: FileViewerDescriptor): () => void
-
-/** Read registered tab descriptors.
- * @returns Tab descriptors in registration order.
- */
-getTabs(): readonly TabDescriptor[]
-
-/** Read registered file viewer descriptors.
- * @returns File viewer descriptors in registration order.
- */
-getFileViewers(): readonly FileViewerDescriptor[]
-
-/** Find a tab descriptor by id (undefined if not registered).
- * @param id - Registered tab type identity.
- * @returns Descriptor, or undefined when unregistered.
- */
-getTab(id: string): TabDescriptor | undefined
-
-/**
- * Whether a tab type is enabled in the side card prefs. An absent
- * `tabsEnabled[id]` entry means enabled — only an explicit `false`
- * disables the type (hidden from the + menu, `openTab` refuses, and
- * derived flows gate on it).
- * @param id - Tab type identity.
- * @returns False only when explicitly disabled by preferences.
- */
-isTabEnabled(id: string): boolean
-
-/** Whether a file viewer is enabled (absent `viewersEnabled[id]` = enabled).
- * @param id - File viewer identity.
- * @returns False only when explicitly disabled by preferences.
- */
-isViewerEnabled(id: string): boolean
-
-/**
- * Find a file viewer for a path (priority desc; detect first, then exts).
- * Disabled viewers are skipped, so files fall through to the next match.
- * @param path - File path to match.
- * @param head - Optional leading bytes used for content detection.
- * @returns First enabled matching viewer, or undefined.
- */
-matchFileViewer(path: string, head?: Uint8Array): FileViewerDescriptor | undefined
-
-/**
- * Open a tab (used by external tabs and the + menu). `title` overrides
- * the descriptor's title when given (the editor tab shows the file name);
- * when the descriptor provides `createTab` it mints the tab itself and
- * `title`/`path`/`id` are ignored. `url` lands the tab with its `path`
- * pre-set to the URL (the browser tab's navigation seed; the caller
- * usually pairs it with a hostname `title`). A disabled tab type is a
- * no-op.
- *
- * `scope` (v0.12.0+) targets a specific session: when given, the open
- * lands in THAT session's sidebar state (loading it if it has none yet)
- * without switching the UI's active session; when absent the open lands
- * in the currently active session (the pre-0.12 behavior).
- *
- * A CONTENT open (a `path` or `url` seed) must land in sight: when the
- * panel hosting the landing pane is collapsed, it is expanded
- * automatically (the right panel by default, the bottom panel when the
- * active pane lives there; on narrow viewports the merged drawer opens).
- * Type-only opens (the + menu, agent-terminal auto-tabs) never expand —
- * the panel behavior is their caller's business.
- *
- * Note: `available` gates the + menu's disabled state only — it does NOT
- * refuse `openTab` (only the settings disable switch does).
- * @param seed - Tab creation fields.
- * @param scope - Target Session scope; omitted selects the active Session.
- */
-openTab(seed: OpenTabSeed, scope?: SessionScope): void
-
-/**
- * Open a child conversation alongside its parent without changing main selection.
- * @param address - Durable direct-parent child address.
- * @param scope - Sidebar layout owner; defaults to the current session.
- */
-openSubagentChat(address: SidebarSubagentAddress, scope?: SessionScope): void
-
-/**
- * Close a tab by id (fires descriptor.onClose). An unknown tab id is a
- * strict no-op (no state churn, no callbacks). `scope` (v0.12.0+) rides
- * to the callback (its optional cwd included); absent, the callback gets
- * `{ sessionId }` of the active session.
- * @param tabId - Open tab identity.
- * @param scope - Target Session scope; omitted selects the active Session.
- */
-closeTab(tabId: string, scope?: SessionScope): void
-
-/** Subscribe to registry changes (register/dispose).
- * @param listener - Callback invoked after registry changes.
- * @returns Disposer removing this subscription.
- */
-subscribe(listener: () => void): () => void
-
-/**
- * The current sidebar snapshot: the active session id, its state (panel
- * geometry, open tabs, expansions), and the side card prefs (v0.12.0+).
- * `state`/`sessionId` are undefined until a session becomes active.
- * @returns Active Session, sidebar state, and preferences.
- */
-getSnapshot(): SidebarSnapshot
-
-/** Subscribe to snapshot changes (session switch, state changes, prefs changes). Returns the disposer.
- * @param listener - Callback invoked after snapshot changes.
- * @returns Disposer removing this subscription.
- */
-subscribeState(listener: () => void): () => void
-
-/** Update an open tab's display fields (title / path / meta); a missing tab id is a no-op.
- * @param tabId - Open tab identity.
- * @param patch - Display fields to replace.
- */
-updateTab(tabId: string, patch: { title?: string; path?: string; meta?: unknown }): void
-
-/**
- * Activate an open tab (the tab-bar activation path; fires
- * descriptor.onActivate). An unknown tab id is a strict no-op. `scope`
- * (v0.12.0+) rides to the callback like `closeTab`'s.
- * @param tabId - Open tab identity.
- * @param scope - Target Session scope; omitted selects the active Session.
- */
-activateTab(tabId: string, scope?: SessionScope): void
-
-/** Open a file in the visible sidebar layout, retaining its source Session for file access.
- * Relative paths use the source cwd; without a visible Session, the source layout receives the tab.
- * @param scope - Source Session, with its cwd when already known.
- * @param path - Absolute path or path relative to the target Session's cwd.
- * @param title - Tab title; omitted uses the file name.
- * @returns Resolves after opening; rejects when an unknown cwd cannot be resolved from the Host.
- */
-openFile(scope: SessionScope, path: string, title?: string): Promise<void>
-```
-
-Types: [SidebarSubagentAddress](../../packages/client/ui-better-sidebar/README.md#-features)
-
-Source: [`packages/client/ui-better-sidebar/src/client/service.ts`](../../packages/client/ui-better-sidebar/src/client/service.ts)
-<!-- END GENERATED cordis-surface -->

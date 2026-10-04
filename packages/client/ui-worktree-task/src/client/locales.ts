@@ -103,6 +103,7 @@ export const zh = {
   activate: '激活',
   hibernate: '休眠',
   archive: '归档',
+  merge: '合并到源分支',
   delete: '删除',
   deleteRetained: '分支未合并，已保留',
   deleteDeleted: '任务已删除',
@@ -118,6 +119,7 @@ export const zh = {
   noticeActivated: '任务已激活。',
   noticeHibernated: '任务已休眠。',
   noticeArchived: '任务已归档。',
+  noticeMerged: '分支 "{branch}" 已合并，源分支提交为 {commit}。',
   noticeDeleted: '任务已删除。',
   noticeBranchRetained: '分支 "{branch}" 尚未合并，checkout 已回收，分支和记录保留供审查。',
   confirmDeleteTitle: '删除此工作树任务？',
@@ -129,6 +131,10 @@ export const zh = {
   confirmArchiveTitle: '归档此工作树任务？',
   confirmArchiveDescription: 'Provider 将执行尚未成功完成的清理程序，再回收 checkout，保留分支和记录供审查。失败保留 checkout；显式重试可能重复外部副作用。',
   confirmArchiveAction: '执行归档',
+  confirmMergeTitle: '合并此工作树任务？',
+  confirmMergeDescription: 'Provider 将先检查点并回收 checkout，再把分支 "{branch}" 合并到创建时捕获的源分支。源工作区必须干净；冲突会自动中止并保留任务。',
+  confirmMergeAcknowledge: '我了解此操作会修改源分支，并在成功后归档工作树任务。',
+  confirmMergeAction: '执行合并',
 } satisfies Record<string, string>
 
 /** Worktree Task dictionary key union. */
@@ -234,6 +240,7 @@ export const en = {
   activate: 'Activate',
   hibernate: 'Hibernate',
   archive: 'Archive',
+  merge: 'Merge into source',
   delete: 'Delete',
   deleteRetained: 'Branch not merged, retained',
   deleteDeleted: 'Task deleted',
@@ -249,6 +256,7 @@ export const en = {
   noticeActivated: 'Task activated.',
   noticeHibernated: 'Task hibernated.',
   noticeArchived: 'Task archived.',
+  noticeMerged: 'Branch "{branch}" was merged. The source branch is now at {commit}.',
   noticeDeleted: 'Task deleted.',
   noticeBranchRetained: 'Branch "{branch}" is not merged. The checkout was reclaimed, and the branch and records remain for review.',
   confirmDeleteTitle: 'Delete this worktree task?',
@@ -260,6 +268,10 @@ export const en = {
   confirmArchiveTitle: 'Archive this worktree task?',
   confirmArchiveDescription: 'The provider runs cleanup unless it already succeeded, then reclaims the checkout and retains the branch and records for review. Failure retains the checkout; explicitly retrying may repeat external effects.',
   confirmArchiveAction: 'Archive',
+  confirmMergeTitle: 'Merge this worktree task?',
+  confirmMergeDescription: 'The provider checkpoints and reclaims the checkout, then merges branch "{branch}" into the captured source branch. The source checkout must be clean; conflicts abort and retain the task.',
+  confirmMergeAcknowledge: 'I understand this modifies the source branch and archives the worktree task after success.',
+  confirmMergeAction: 'Merge',
 } satisfies Record<WorktreeTaskKey, string>
 
 

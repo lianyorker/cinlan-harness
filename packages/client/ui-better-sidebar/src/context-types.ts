@@ -451,37 +451,25 @@ export interface SidebarWorkspacesService {
   openPath(path: string): Promise<void>
 }
 
-/** The settings service face (mirror of @deepseek-ai/dsh-settings' SettingsProvider). */
+/**
+ * The settings service face this plugin consumes (mirror of
+ * @deepseek-ai/dsh-settings' SettingsForms over Cordis profile patches). One
+ * namespace is one plugin entry: its editable form is the entry's volatile
+ * Config fields, and writes merge those fields into the profile patch.
+ */
 export interface SidebarSettingsService {
-  /**
-   * Read the resolved value of one registered namespace.
-   * Compatible with the real SettingsProvider.get(ns).
-   */
-  get(ns: string): unknown
-  /**
-   * Register one namespace schema (the resolved value layers schema defaults,
-   * then the composition base, then the user document).
-   */
-  register<T>(
-    ns: string,
-    schema: unknown,
-    options?: { base?: Partial<T>; applies?: 'live' | 'restart' },
-  ): {
-    get(): T
-    watch(callback: (next: T, prev: T) => void | Promise<void>): () => void
-    update(patch: object): Promise<void>
-    replace(section: object): Promise<void>
-  }
-  /** Redacted descriptors of every registered namespace (secrets stripped). */
+  /** Own this instance's generated-page policy without changing its Config. */
+  configure(presentation: { auto?: boolean }): () => void
+  /** Redacted descriptors of every configurable entry, keyed by entry id. */
   describe(options?: { redactSecrets?: boolean }): Array<{
     ns: string
     value?: unknown
     base?: unknown
     user?: unknown
-    applies: 'live' | 'restart'
+    applies: 'live'
     revision: number
   }>
-  /** Service-level merge write with the revision guard (a stale writer is refused). */
+  /** Merge editable fields into one entry's config under the revision guard. */
   update(ns: string, patch: object, expectedRevision?: number): Promise<void>
 }
 
@@ -497,8 +485,6 @@ export interface SidebarSettingsScopeBinder {
  * returned disposer to the contributing fiber so unloading unregisters them.
  */
 export interface SidebarToolsService {
-  /** Compile one typed author schema without importing the service package at runtime. */
-  define: typeof import('@deepseek-ai/dsh-tools').defineTool
   /** Register one compiled tool definition. */
   register(tool: import('@deepseek-ai/dsh-tools').ToolDefinition): () => void
 }

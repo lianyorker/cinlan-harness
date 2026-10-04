@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
+import { initProfile } from '@deepseek-ai/dsh-app-boot'
 import { load } from 'js-yaml'
 import { expect, it } from 'vitest'
 
@@ -17,6 +18,12 @@ type Row = { id: string; name: string; config?: Record<string, unknown> }
 it('initializes device-control with both capability families and ask-by-default policies', async () => {
   const home = await mkdtemp(join(tmpdir(), 'dsh-device-profile-'))
   try {
+    initProfile(join(home, 'profiles/device-control'), [
+      '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-web-app',
+      '@deepseek-ai/dsh-cinlan-computer-use',
+      '@deepseek-ai/dsh-cinlan-mobile-device',
+    ])
     const result = await run(process.execPath, ['--import', 'tsx/esm', 'apps/cli/src/bin.ts', '--profile', 'device-control', '--dump-config'], {
       cwd: root,
       env: { ...process.env, DSH_HOME: home },

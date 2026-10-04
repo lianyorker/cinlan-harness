@@ -1,4 +1,4 @@
-- name: '@deepseek-ai/dsh-settings-file'
+- name: '@deepseek-ai/dsh-settings'
   config:
     path: FIXTURE_SETTINGS_PATH
     watch: false

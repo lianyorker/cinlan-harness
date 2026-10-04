@@ -26,6 +26,8 @@ interface ProviderSelection {
   readonly executablePath?: string | undefined
   readonly state: () => BrowserRuntimeStatus['browserState']
   readonly close?: () => Promise<void>
+  /** Whether this provider attached to a running browser instead of launching one. */
+  readonly attached?: boolean
 }
 interface Operation { value: BrowserRuntimeTask; abort: AbortController; done: Promise<void>; progress: (() => number | null) | null }
 
@@ -142,7 +144,8 @@ export default class BrowserRuntimeManager extends Service {
     return {
       providerActive: this.selection !== undefined, channel, source, executablePath: executablePath ?? null,
       installed: source === 'managed' ? managedInstalled : fileExists(executablePath), managedInstalled,
-      browserState: this.selection?.state() ?? 'stopped', playwrightVersion: runtimeMetadata.playwrightVersion,
+      browserState: this.selection?.state() ?? 'stopped', attached: this.selection?.attached ?? false,
+      playwrightVersion: runtimeMetadata.playwrightVersion,
       browserVersion: runtimeMetadata.browserVersion, revision: runtimeMetadata.revision,
       downloadOrigins: runtimeMetadata.downloadOrigins, task: this.task(),
     }

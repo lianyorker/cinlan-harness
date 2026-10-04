@@ -31,9 +31,12 @@ export class AutomationClientError extends Error {
 type Baseline = Extract<AutomationFollowFrame, { type: 'baseline' }>
 type Replacement = Extract<AutomationFollowFrame, { type: 'snapshot' }>
 
+/** Required Client Remote and connection services. */
+export const inject = ['remote', 'remote.automation', 'connection']
+
 /** Host-authoritative data; failed commands never fabricate an empty committed view. */
 export class AutomationClient extends Service implements AutomationSource {
-  static inject = ['remote', 'remote.automation', 'connection']
+  static inject = inject
   /** Stable framework hook input, independent from the Cordis service proxy. */
   readonly source: AutomationSource
   private value: AutomationClientSnapshot = {

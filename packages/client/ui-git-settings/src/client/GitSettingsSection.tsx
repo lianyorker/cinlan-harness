@@ -18,10 +18,11 @@ export type GitSettingsSectionProps = PropsRuntime<'settings.section'>
   & PropsLocale<'settings.gitSourceControl'> & InjectFace<GitSettingsSectionInjected>
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
-type ToggleField = 'compareAgainstUpstream' | 'enableGitHubAttribution'
+type ToggleField = 'compareAgainstUpstream' | 'enableGitHubAttribution' | 'autoRenameTaskBranch'
 const TOGGLES: readonly { field: ToggleField; titleKey: GitSettingsKey; descriptionKey: GitSettingsKey; anchor: string }[] = [
   { field: 'compareAgainstUpstream', titleKey: 'compareUpstreamTitle', descriptionKey: 'compareUpstreamDescription', anchor: 'git-upstream' },
   { field: 'enableGitHubAttribution', titleKey: 'attributionTitle', descriptionKey: 'attributionDescription', anchor: 'git-attribution' },
+  { field: 'autoRenameTaskBranch', titleKey: 'renameBranchTitle', descriptionKey: 'renameBranchDescription', anchor: 'git-rename-branch' },
 ]
 
 /** Render durable Git preferences, preserving custom-prefix drafts after a rejected save. */

@@ -2,14 +2,6 @@
 import type { HostDiagnostic, HostsTranslate } from './types.ts'
 
 const ERROR_KEYS = {
-  'execution-host/local-access-required': 'runtime.errorLocalAccess',
-  'execution-host/runtime-unavailable': 'runtime.errorUnavailable',
-  'execution-runtime/release-unavailable': 'runtime.errorRelease',
-  'execution-runtime/invalid-config': 'runtime.errorConfig',
-  'execution-runtime/connection-failed': 'runtime.errorConnection',
-  'execution-runtime/verification-failed': 'runtime.errorVerification',
-  'execution-runtime/target-changed': 'runtime.changed',
-  'execution-runtime/cancelled': 'runtime.cancelled',
   'execution-host/invalid-request': 'errorInvalidRequest',
   'execution-host/limit-reached': 'errorLimit',
   'execution-host/closed': 'errorClosed',
@@ -26,6 +18,7 @@ const ERROR_KEYS = {
   'execution-host/connection-lost': 'errorConnectionLost',
   'execution-host/outcome-unconfirmed': 'errorUnconfirmed',
   'execution-host/inspection-failed': 'errorInspection',
+  'execution-host/configuration-unreadable': 'errorConfigurationUnreadable',
 } as const
 
 /**

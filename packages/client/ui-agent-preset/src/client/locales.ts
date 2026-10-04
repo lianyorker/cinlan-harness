@@ -21,14 +21,20 @@ export type AgentPresetSettingsKey =
   | 'presetMinimalDescription'
   | 'presetCordisName'
   | 'presetCordisDescription'
+  | 'presetSecurityResearchName'
+  | 'presetSecurityResearchDescription'
   | 'inUse'
   | 'noDescription'
   | 'brokenBadge'
   | 'switchRefused'
+  | 'standardUnavailable'
   | 'close'
   | 'creatorDraft'
-  | 'enableDevToolsToSetDefault'
-  | 'enableDevToolsToCreate'
+  | 'createPlugin'
+  | 'createPluginDescription'
+  | 'createPluginChecking'
+  | 'createPluginUnavailable'
+  | 'createPluginMissing'
 
 /** English copy. */
 export const en: Record<AgentPresetSettingsKey, string> = {
@@ -46,6 +52,9 @@ export const en: Record<AgentPresetSettingsKey, string> = {
   presetStandardName: 'Standard mode',
   presetStandardDescription:
     'Work with code, files, and information. Suitable for most tasks, with search, editing, terminal commands, and other tools available as needed.',
+  presetSecurityResearchName: 'Security Research',
+  presetSecurityResearchDescription:
+    'An agent for authorized security assessment, reverse engineering, vulnerability validation, malware analysis, and security reporting.',
   presetPtcName: 'PTC mode',
   presetPtcDescription:
     'Includes all Standard mode capabilities. Better suited to tasks that call tools in batches and then filter, organize, deduplicate, count, or summarize the results.',
@@ -62,13 +71,17 @@ export const en: Record<AgentPresetSettingsKey, string> = {
   brokenBadge: 'Failed to load',
 
   switchRefused: 'Could not switch to {name}: {reason}',
+  standardUnavailable: 'Standard mode is unavailable. Restore it or choose another available mode.',
 
   close: 'Close',
 
   creatorDraft: 'Let the agent help me create a preset',
+  createPlugin: 'Let the agent create a plugin',
+  createPluginDescription: 'Enter Creator mode and make your own DSH plugin',
+  createPluginChecking: 'Checking whether Creator mode is available',
+  createPluginUnavailable: 'Temporarily unavailable. Reopen this menu to retry',
+  createPluginMissing: 'Creator mode is not included in this configuration',
 
-  enableDevToolsToSetDefault: 'Turn on Coding Tools in General settings to choose a default',
-  enableDevToolsToCreate: 'Turn on Coding Tools in General settings to start Creator mode',
 }
 
 /** Simplified Chinese copy. */
@@ -86,6 +99,8 @@ export const zh: Record<AgentPresetSettingsKey, string> = {
 
   presetStandardName: '标准模式',
   presetStandardDescription: '处理代码、文件和资料，适合大多数任务。Agent 会按需使用检索、编辑和终端等工具。',
+  presetSecurityResearchName: '安全研究',
+  presetSecurityResearchDescription: '面向授权安全评估、逆向分析、漏洞验证、恶意软件分析和安全报告的 Agent。',
   presetPtcName: 'PTC 模式',
   presetPtcDescription: '包含标准模式的所有能力，更适合批量调用工具，并对结果进行筛选、整理、去重、统计或汇总的任务。',
   presetMinimalName: '极简模式',
@@ -99,13 +114,17 @@ export const zh: Record<AgentPresetSettingsKey, string> = {
   brokenBadge: '加载失败',
 
   switchRefused: '无法切换到「{name}」：{reason}',
+  standardUnavailable: '标准模式不可用，请恢复该模式或选择其他可用模式。',
 
   close: '关闭',
 
   creatorDraft: '让 Agent 帮我创建预设模式',
+  createPlugin: '让 Agent 创建插件',
+  createPluginDescription: '进入创造模式，制作属于你的 DSH 插件',
+  createPluginChecking: '正在确认创造模式是否可用',
+  createPluginUnavailable: '暂时不可用，请重新打开菜单重试',
+  createPluginMissing: '当前配置未提供创造模式',
 
-  enableDevToolsToSetDefault: '请先在通用设置中开启代码工作工具，再设置默认值',
-  enableDevToolsToCreate: '请先在通用设置中开启代码工作工具，再启动创造模式',
 }
 
 // The resolution itself is the shared fold in `dsh-agent-preset-registry/display`,

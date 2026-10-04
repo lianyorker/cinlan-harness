@@ -1,15 +1,16 @@
 // @vitest-environment jsdom
 /** Native registration and injected callbacks run through the production slot renderer. */
-import { fireEvent } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
-import { RemoteError, SlotTestRuntime, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
+import { RemoteError, SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
+import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as hostApply } from '../src/index.ts'
 import { HostsSection } from '../src/client/HostsSection.tsx'
 import { en } from '../src/client/locales.ts'
-import { baseline, remoteFixture } from './fixtures.client.ts'
+import { remoteFixture, target } from './fixtures.client.ts'
 
 const runtimes: SlotTestRuntime[] = []
 afterEach(async () => {
@@ -29,8 +30,9 @@ async function bench() {
   ctx.provide('locale', locale)
   slots.installLocale(locale)
   locale.setLocale('en')
+  new SettingsMetadataService(ctx)
   const fixture = remoteFixture()
-  new TestRemote(ctx, { executionHosts: fixture.remote })
+  runtime.remote.provideNamespaces({ executionHosts: fixture.remote })
   return { runtime, ctx, locale, slots, ...fixture }
 }
 async function declare(runtime: SlotTestRuntime): Promise<void> {
@@ -56,13 +58,13 @@ describe('native hosts registration', () => {
     const entry = b.slots.entries('settings.section')[0]!
     expect(entry.component).toBe(HostsSection)
     expect(entry.options).toMatchObject({ id: 'hosts', order: 140 })
-    expect(resolveSlotLabel(entry.options.label)).toBe('Execution hosts')
-    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'hosts', groupId: 'experimental' }])
-    expect(b.ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual(['current', 'hosts', 'ssh-alias', 'inspection', 'runtime', 'default', 'confirmSwitch', 'isolation'])
+    expect(resolveSlotLabel(entry.options.label)).toBe('SSH hosts')
+    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'hosts', groupId: 'execution', heading: 'feature' }])
+    expect(b.ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual(['hosts', 'ssh-alias'])
     expect(b.slots.entries('settings.section.icon')).toHaveLength(1)
     b.locale.setLocale('zh')
-    expect(resolveSlotLabel(entry.options.label)).toBe('执行主机')
-    expect(b.ctx.settingsMetadata.getSnapshot().items.find(item => item.id === 'ssh-alias')?.title).toBe('SSH 别名')
+    expect(resolveSlotLabel(entry.options.label)).toBe('SSH 主机')
+    expect(b.ctx.settingsMetadata.getSnapshot().items.find(item => item.id === 'ssh-alias')?.title).toBe('主机或别名 *')
     b.runtime.root.release()
     expect(b.slots.entries('settings.section')).toHaveLength(0)
     expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
@@ -80,20 +82,21 @@ describe('native hosts registration', () => {
     await b.runtime.declare(children)
     await b.runtime.mount({ inject, apply })
     const { view } = b.runtime.renderSlot('settings.section', { close: vi.fn() })
-    await view.findByText(baseline.current.hostId)
+    await view.findByLabelText(target.label)
     const error = new RemoteError('gateway/internal', 'Host diagnostic', {})
     b.remote.create = async () => ({ ok: false, error })
     vi.spyOn(b.remote, 'create')
+    // The editor is a portaled dialog, so its controls live outside the slot container.
     fireEvent.click(view.getByRole('button', { name: en.add }))
-    fireEvent.change(view.getByRole('textbox', { name: en.label }), { target: { value: 'Draft' } })
-    fireEvent.change(view.getByRole('textbox', { name: en.sshAlias }), { target: { value: 'dev' } })
-    fireEvent.click(view.getByRole('button', { name: en.save }))
-    expect(await view.findByText(en.errorUnknown)).toBeTruthy()
-    expect(view.getByText(error.code)).toBeTruthy()
-    expect(view.getByText(error.message)).toBeTruthy()
-    expect(view.getByRole<HTMLInputElement>('textbox', { name: en.label }).value).toBe('Draft')
-    expect(view.getByRole<HTMLInputElement>('textbox', { name: en.sshAlias }).value).toBe('dev')
-    expect(b.remote.create).toHaveBeenCalledWith({ label: 'Draft', sshAlias: 'dev' }, expect.any(AbortSignal))
+    fireEvent.change(screen.getByRole('textbox', { name: en.formLabel }), { target: { value: 'Draft' } })
+    fireEvent.change(screen.getByRole('textbox', { name: en.formDestination }), { target: { value: 'dev' } })
+    fireEvent.click(within(screen.getByRole('dialog', { name: en.createTitle })).getByRole('button', { name: en.formCreate }))
+    expect(await screen.findByText(en.errorUnknown)).toBeTruthy()
+    expect(screen.getByText(error.code)).toBeTruthy()
+    expect(screen.getByText(error.message)).toBeTruthy()
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: en.formLabel }).value).toBe('Draft')
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: en.formDestination }).value).toBe('dev')
+    expect(b.remote.create).toHaveBeenCalledWith({ label: 'Draft', sshAlias: 'dev', connection: { port: 22 } }, expect.any(AbortSignal))
     const publicIndex = JSON.stringify(b.ctx.settingsMetadata.getSnapshot())
     expect(publicIndex).not.toContain('saved-target-3')
     expect(publicIndex).not.toContain('dev-server')

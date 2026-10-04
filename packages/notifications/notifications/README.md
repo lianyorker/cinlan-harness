@@ -22,7 +22,7 @@ Store desktop notification preferences across Host restarts: enablement, agent c
 ## Use this package
 
 ```yaml
-- name: '@deepseek-ai/dsh-settings-file'
+- name: '@deepseek-ai/dsh-settings'
 - name: '@deepseek-ai/dsh-notifications'
 ```
 

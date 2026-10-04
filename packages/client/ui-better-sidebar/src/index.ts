@@ -422,8 +422,8 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   // turns the feature on, and turning it off mid-session unregisters the
   // tools and releases the agent terminals they created.
   let toolsDisposers: (() => void) | null = null
-  const syncToolsGate = (scope: { get(): SidebarPrefs }): void => {
-    if (scope.get().agentTerminalTools) {
+  const syncToolsGate = (readPrefs: () => SidebarPrefs): void => {
+    if (readPrefs().agentTerminalTools) {
       if (toolsDisposers === null) {
         // Degraded mode (node-pty unavailable): never register the terminal
         // tools — every one of them would fail at spawn time.
@@ -446,13 +446,12 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   }
   ctx.inject(['settings'], (sctx) => {
     const ns = SIDEBAR_PREFS_NS as SettingsNamespace
-    // The structural settings mirror types `schema` as unknown, so the
-    // generic is not inferred here; the real service resolves it from the
-    // schemastery schema (PrefsSchema) — narrow the owner scope explicitly.
-    const scope = sctx.settings.register(ns, PrefsSchema) as {
-      get(): SidebarPrefs
-      watch(callback: (next: SidebarPrefs, prev: SidebarPrefs) => void): () => void
-    }
+    // The preferences are the volatile part of this entry's Config, so the
+    // settings seam serves them as this entry's namespace: reads project the
+    // redacted descriptor and writes merge into the profile patch under the
+    // descriptor revision. The side card owns the editing UI, so no generated
+    // settings page is requested for this entry.
+    sctx.settings.configure({ auto: false })
     const viewOf = (): { value?: unknown; revision?: number } => {
       const descriptor = sctx.settings.describe({ redactSecrets: true }).find(candidate => candidate.ns === ns)
       return descriptor === undefined
@@ -470,6 +469,7 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
       const value = descriptor?.value as { rightPanel?: unknown } | undefined
       return value?.rightPanel === 'aionui-panel'
     }
+    const readPrefs = (): SidebarPrefs => PrefsSchema((viewOf().value ?? {}) as never)
     settingsFace = {
       get: viewOf,
       externalDisable,
@@ -478,10 +478,12 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
         return viewOf()
       },
     }
-    // Register (or unregister) the terminal tools from the current setting,
-    // and keep them in sync with every settings commit.
-    syncToolsGate(scope)
-    scope.watch(() => { syncToolsGate(scope) })
+    // Register (or unregister) the terminal tools from the current setting, and
+    // keep them in sync with every commit the seam reports for this namespace.
+    syncToolsGate(readPrefs)
+    sctx.on('settings/document-updated', (updated) => {
+      if (updated === ns) syncToolsGate(readPrefs)
+    })
   })
 
   const terminalProvider = new SidebarTerminalProvider(ctx, {

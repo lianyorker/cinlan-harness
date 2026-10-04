@@ -2,33 +2,33 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write README.md
-/cinlan-harness-harness:
-  en: 3e7978418f3daea7
-  zh: f37a4be6bd74b220
-/cinlan-harness-harness/developer-preview:
-  en: 5124288c618a0523
-  zh: dfa9f7865ca374b8
-/cinlan-harness-harness/key-features-isolation:
-  en: 85d29a3c17fe045c
-  zh: e0ba54de437f19b2
-/cinlan-harness-harness/run:
-  en: 8bcfe486110004e4
-  zh: 5491f0aa70750247
-/cinlan-harness-harness/run/run-from-source:
-  en: f3ed7fbadaba463f
-  zh: b5bff19f01f3018d
-/cinlan-harness-harness/run/cli-commands:
-  en: e91520eb9e8779e1
-  zh: 54a0e0311e44a9b9
-/cinlan-harness-harness/community-and-support:
-  en: 81265d89f463bf63
-  zh: 3b32cbe438604c1e
-/cinlan-harness-harness/contributing:
+/deepseek-harness:
+  en: f68c4f080ce55ff2
+  zh: 88a76d7f7f0b260e
+/deepseek-harness/developer-preview:
+  en: 4ef4d8a71ac143f0
+  zh: 1bfc3149ba8e5543
+/deepseek-harness/run:
+  en: 4e0248e4c6474fc6
+  zh: eb2fb8d78c7d6bc0
+/deepseek-harness/run/run-from-npm:
+  en: e22005cd42e6cbad
+  zh: 0f536f4208df1d60
+/deepseek-harness/run/run-from-source:
+  en: 819e3f7c144d0d64
+  zh: de815f040975dba7
+/deepseek-harness/community-and-support:
+  en: 20acf6451fdc869b
+  zh: d06246dd019ecef7
+/deepseek-harness/contributing:
   en: cabc2d3e9f8898bd
   zh: 83b6d238bae29ce3
-/cinlan-harness-harness/development:
-  en: adf6241055331ff3
-  zh: 15844b8f1c3a2f09
-/cinlan-harness-harness/license:
+/deepseek-harness/development:
+  en: 803ca2b11b497bed
+  zh: 8b4071eb0e7783ef
+/deepseek-harness/citation:
+  en: 6704e9e5a8d49a91
+  zh: 85c9cdd8d56f8e9d
+/deepseek-harness/license:
   en: 926995344fc1c72b
   zh: c92fab5abf85932f

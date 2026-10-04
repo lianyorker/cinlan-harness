@@ -1,6 +1,70 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/experimental/tool-agent-team/README.md
-README.md: 5052d0af481b02b34583e9327157e000f1fb07b7
-README.zh.md: 86663729861dda7f97b5068c94c1064ba6cb12ad
+/:
+  en: c72ab2dc854ce82b
+  zh: e9303af196c8d785
+/deepseek-ai-dsh-experimental-tool-agent-team:
+  en: 0b01a243291821bc
+  zh: 0dadd38d709ae9bd
+/deepseek-ai-dsh-experimental-tool-agent-team/summary:
+  en: cce86ade8f098960
+  zh: c68960a4bc8110f7
+/deepseek-ai-dsh-experimental-tool-agent-team/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-experimental-tool-agent-team/use-this-package:
+  en: a49959f07723aa18
+  zh: 5611e61623b883db
+/deepseek-ai-dsh-experimental-tool-agent-team/use-this-package/when-to-choose-it:
+  en: 0124d9742eb49ba7
+  zh: 43a2ca43e50c4ea1
+/deepseek-ai-dsh-experimental-tool-agent-team/use-this-package/smallest-working-example:
+  en: ab67ae0fa5d43ced
+  zh: 64367ba2b84f1c97
+/deepseek-ai-dsh-experimental-tool-agent-team/use-this-package/what-the-model-can-do:
+  en: 3a7a42581369a3fc
+  zh: 5b0edcc6badd0371
+/deepseek-ai-dsh-experimental-tool-agent-team/use-this-package/what-success-and-failure-look-like:
+  en: 259e9d39e1d1579a
+  zh: b52b00c44cab7887
+/deepseek-ai-dsh-experimental-tool-agent-team/understand-the-implementation:
+  en: 3952eb1d9de1f988
+  zh: 789d51b88f41b710
+/deepseek-ai-dsh-experimental-tool-agent-team/understand-the-implementation/design-philosophy:
+  en: 651c99117daf9762
+  zh: 590a950d3377e649
+/deepseek-ai-dsh-experimental-tool-agent-team/understand-the-implementation/source-map:
+  en: bf905670dc6faf63
+  zh: 10f9ea0eab26c094
+/deepseek-ai-dsh-experimental-tool-agent-team/understand-the-implementation/policy-and-tools:
+  en: cba4aa90e683b6a8
+  zh: 9cdbbd36ce973750
+/deepseek-ai-dsh-experimental-tool-agent-team/understand-the-implementation/scoped-registration-and-teardown:
+  en: c2b29f27a74c02c0
+  zh: 582d193ea6da63c7
+/deepseek-ai-dsh-experimental-tool-agent-team/further-exploration:
+  en: 4cde96d9b184d1b0
+  zh: fedae651acb7301f
+/deepseek-ai-dsh-experimental-tool-agent-team/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-experimental-tool-agent-team/model-experience/team-policy-and-tools:
+  en: 8e1e365ff3b0dfb2
+  zh: c6c91fbf1e1df934
+/deepseek-ai-dsh-experimental-tool-agent-team/model-experience/team-policy-and-tools/what-the-model-sees:
+  en: 3c871386c873fa11
+  zh: 4a47375ec031ef91
+/deepseek-ai-dsh-experimental-tool-agent-team/model-experience/team-policy-and-tools/token-effect:
+  en: a7a6523ed1554135
+  zh: eef7ae6add838fc4
+/deepseek-ai-dsh-experimental-tool-agent-team/model-experience/team-policy-and-tools/kv-cache-effect:
+  en: 4f0c1ee6b5a3a043
+  zh: 054f1cb160b6ac81
+/deepseek-ai-dsh-experimental-tool-agent-team/known-limitations-and-deferred-work:
+  en: e0fb896df8aa72f4
+  zh: 5ea2fd211972d48e
+/deepseek-ai-dsh-experimental-tool-agent-team/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 3bb0c20c93f16f98

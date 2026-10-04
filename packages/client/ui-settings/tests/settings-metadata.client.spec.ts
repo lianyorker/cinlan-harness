@@ -46,8 +46,8 @@ describe('settings metadata registrations', () => {
     })
     expect(withItems).not.toBe(empty)
     expect(metadata.getSnapshot()).toBe(withItems)
-    const removeSection = metadata.registerSection({ sectionId: 'general', groupId: 'personal' })
-    expect(metadata.getSnapshot().sections).toEqual([{ sectionId: 'general', groupId: 'personal' }])
+    const removeSection = metadata.registerSection({ sectionId: 'general', groupId: 'personal', heading: 'shell' })
+    expect(metadata.getSnapshot().sections).toEqual([{ sectionId: 'general', groupId: 'personal', heading: 'shell' }])
     removeSection()
     expect(metadata.getSnapshot().sections).toEqual([])
     expect(metadata.getSnapshot().items).toBe(withItems.items)
@@ -68,7 +68,7 @@ describe('settings metadata registrations', () => {
     const { metadata } = await bench()
     metadata.registerSection({ sectionId: 'general', groupId: 'personal' })
     const snapshot = metadata.getSnapshot()
-    expect(() => metadata.registerSection({ sectionId: 'general', groupId: 'extensions' }))
+    expect(() => metadata.registerSection({ sectionId: 'general', groupId: 'capabilities' }))
       .toThrow('section "general" is already registered')
     expect(metadata.getSnapshot()).toBe(snapshot)
   })
@@ -131,7 +131,7 @@ describe('settings metadata registrations', () => {
     const owner = {
       inject: ['settingsMetadata'],
       apply(context: Context) {
-        disposers.push(context.settingsMetadata.registerSection({ sectionId: 'plugins', groupId: 'extensions' }))
+        disposers.push(context.settingsMetadata.registerSection({ sectionId: 'plugins', groupId: 'capabilities' }))
         disposers.push(context.settingsMetadata.registerItems('plugins', [item('configuration')]))
       },
     }

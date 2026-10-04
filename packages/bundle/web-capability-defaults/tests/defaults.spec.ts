@@ -24,6 +24,12 @@ async function temporaryHome() {
   return home
 }
 
+/** Opt-in profiles the Web product does not ship as templates, with the bundles each one layers. */
+const OPT_IN_PROFILES: Record<string, readonly string[]> = {
+  browser: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-cinlan-browser'],
+  'device-control': ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-cinlan-computer-use', '@deepseek-ai/dsh-cinlan-mobile-device'],
+}
+
 async function linkBundles(home: string, profile: string) {
   const directory = join(home, 'profiles', profile)
   for (const folder of ['base', 'web-app', 'cinlan-browser', 'cinlan-computer-use', 'cinlan-mobile-device', 'web-capability-defaults']) {
@@ -31,6 +37,8 @@ async function linkBundles(home: string, profile: string) {
     await mkdir(dirname(destination), { recursive: true })
     await symlink(join(workspace, 'packages', 'bundle', folder), destination, process.platform === 'win32' ? 'junction' : 'dir')
   }
+  const optIn = OPT_IN_PROFILES[profile]
+  if (optIn !== undefined) initProfile(directory, optIn)
   return directory
 }
 
@@ -60,7 +68,7 @@ async function dump(home: string, profile: string): Promise<Row[]> {
   return value as Row[]
 }
 
-it('publishes only two activation patches and no runtime entrypoint', async () => {
+it('publishes only the two activation defaults and no runtime entrypoint', async () => {
   const manifest = JSON.parse(await readFile(join(bundleRoot, 'package.json'), 'utf8')) as {
     main?: string
     types?: string
@@ -72,7 +80,7 @@ it('publishes only two activation patches and no runtime entrypoint', async () =
   expect(manifest.exports['.']).toBeUndefined()
   expect(manifest.files).toEqual(['cordis.patch.yml'])
   expect(loadOverlayPatches('test', join(bundleRoot, 'cordis.patch.yml'))).toEqual(
-    targets.map(id => ({ id, disabled: true })),
+    targets.map(id => ({ id, disabled: false })),
   )
 })
 
@@ -82,12 +90,12 @@ it('composes each default provider once in the actual CLI and leaves opt-in prof
   const web = await dump(home, 'web')
   for (const id of [
     'browser-runtime', 'browser', 'browser-playwright', 'browser-permission-policy', 'tool-browser',
-    'browser-controller', 'ui-browser-element-capture', 'computer-use', 'computer-use-permission-policy',
+    'browser-controller', 'computer-use', 'computer-use-permission-policy',
     'computer-use-cua-driver-native',
   ]) expect(web.filter(row => row.id === id)).toHaveLength(1)
-  for (const id of targets) expect(web.find(row => row.id === id)?.disabled).toBe(true)
-  expect(web.filter(row => row.id === 'mobile-device')).toHaveLength(1)
-  expect(web.find(row => row.id === 'mobile-device')?.disabled).not.toBe(true)
+  for (const id of targets) expect(web.find(row => row.id === id)?.disabled).toBe(false)
+  // The mobile device capability stays opt-in: the Web product mounts no mobile rows.
+  expect(web.some(row => row.id === 'mobile-device')).toBe(false)
   const browser = await dump(home, 'browser')
   expect(browser.filter(row => row.id === targets[0])).toHaveLength(1)
   expect(browser.find(row => row.id === targets[0])?.disabled).not.toBe(true)

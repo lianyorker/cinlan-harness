@@ -7,12 +7,13 @@
 import { randomUUID } from 'node:crypto'
 import { assertUploadName, downloadBytes, downloadName } from './transfers.ts'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
+import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
 import type {} from '@deepseek-ai/dsh-settings'
 import type { BrowserPreferences, BrowserRuntimeStatus } from './types.ts'
 import type {} from './runtime.ts'
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import {
   BrowserElementId,
@@ -52,10 +53,11 @@ import type {
   BrowserScreenshot,
   BrowserScreenshotRequest,
   BrowserSnapshotRequest,
+  BrowserStoredProfile,
 } from '@deepseek-ai/dsh-browser'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { chromium } from 'playwright-core'
-import type { BrowserContext, Download, ElementHandle, Page, Request as PlaywrightRequest } from 'playwright-core'
+import type { Browser, BrowserContext, Download, ElementHandle, Page, Request as PlaywrightRequest } from 'playwright-core'
 
 /** Cordis plugin name. */
 export const name = 'browser-playwright'
@@ -71,11 +73,14 @@ const DEFAULT_VIEWPORT_HEIGHT = 900
 const DEFAULT_MAX_CAPTURE_BYTES = 10 * 1024 * 1024
 const DEFAULT_MAX_CAPTURE_PIXELS = 4_000_000
 const DEFAULT_SELECTION_TIMEOUT_MS = 60_000
+const DEFAULT_ATTACH_PORT = 9222
+const MIN_ZOOM = 0.25
+const MAX_ZOOM = 5
 const INTERACTIVE_SELECTOR = 'a[href],button,input:not([type="hidden"]),select,textarea,summary,[role],[tabindex]:not([tabindex="-1"])'
 const CONFIG_KEYS = new Set([
   'providerId', 'storageDir', 'browserChannel', 'executablePath', 'headless', 'profileName', 'homePage', 'searchEngine', 'maxHistoryEntries', 'maxNetworkEntries', 'maxCookieCount', 'maxDownloadCount', 'maxTransferBytes',
   'actionTimeoutMs', 'navigationTimeoutMs', 'maxElements', 'viewportWidth', 'viewportHeight',
-  'maxCaptureBytes', 'maxCapturePixels', 'selectionTimeoutMs', 'remoteDebuggingPort',
+  'maxCaptureBytes', 'maxCapturePixels', 'selectionTimeoutMs', 'remoteDebuggingPort', 'zoom', 'attach', 'attachPort',
 ])
 
 type BrowserChannel = 'chrome' | 'msedge' | 'chromium'
@@ -87,17 +92,23 @@ export interface Config {
   /** Persistent profile directory. Defaults to `$DSH_HOME/browser/profile`. */
   readonly storageDir?: string
   /** Installed browser channel. Defaults to `chrome`. */
-  readonly browserChannel?: BrowserChannel
+  readonly browserChannel?: BrowserChannel | Volatile<BrowserChannel>
   /** Explicit browser executable path, which takes precedence over browserChannel. */
   readonly executablePath?: string
   /** Whether the browser runs without visible windows. Defaults to false. */
-  readonly headless?: boolean
+  readonly headless?: boolean | Volatile<boolean>
   /** Named persistent profile; `default` uses storageDir directly. */
-  readonly profileName?: string
+  readonly profileName?: string | Volatile<string>
   /** New-page destination used by home navigation. Defaults to about:blank. */
-  readonly homePage?: string
+  readonly homePage?: string | Volatile<string>
+  /** Default page zoom applied to every opened document. Defaults to 1. */
+  readonly zoom?: number | Volatile<number>
+  /** Attach to a running Chromium over CDP instead of launching the Harness browser. Defaults to false. */
+  readonly attach?: boolean | Volatile<boolean>
+  /** CDP port used when `attach` is true. Defaults to 9222. */
+  readonly attachPort?: number | Volatile<number>
   /** Search engine for explicit searches. Defaults to google. */
-  readonly searchEngine?: BrowserPreferences['searchEngine']
+  readonly searchEngine?: BrowserPreferences['searchEngine'] | Volatile<BrowserPreferences['searchEngine']>
   /** Maximum visits retained per open page. Defaults to 100. */
   readonly maxHistoryEntries?: number
   /** Maximum requests retained per open page. Defaults to 100. */
@@ -115,9 +126,9 @@ export interface Config {
   /** Maximum interactive references returned by one snapshot. Defaults to 200. */
   readonly maxElements?: number
   /** Viewport width. Defaults to 1440. */
-  readonly viewportWidth?: number
+  readonly viewportWidth?: number | Volatile<number>
   /** Viewport height. Defaults to 900. */
-  readonly viewportHeight?: number
+  readonly viewportHeight?: number | Volatile<number>
   /** Maximum encoded bytes returned by one element capture. Defaults to 10 MiB. */
   readonly maxCaptureBytes?: number
   /** Maximum visible CSS pixels captured by one element operation. Defaults to 4 million. */
@@ -137,6 +148,9 @@ export interface ResolvedConfig {
   readonly headless: boolean
   readonly profileName: string
   readonly homePage: string
+  readonly zoom: number
+  readonly attach: boolean
+  readonly attachPort: number
   readonly searchEngine: BrowserPreferences['searchEngine']
   readonly maxHistoryEntries: number
   readonly maxNetworkEntries: number
@@ -155,7 +169,7 @@ export interface ResolvedConfig {
 }
 
 /** User preferences exclude executable paths, profile storage, and provider identity. */
-export const PREFERENCE_KEYS = new Set(['browserChannel', 'headless', 'viewportWidth', 'viewportHeight', 'profileName', 'homePage', 'searchEngine'])
+export const PREFERENCE_KEYS = new Set(['browserChannel', 'headless', 'viewportWidth', 'viewportHeight', 'profileName', 'homePage', 'searchEngine', 'zoom', 'attach', 'attachPort'])
 export const BrowserPreferencesSchema: z<BrowserPreferences> = z.object({
   browserChannel: z.union(['chrome', 'msedge', 'chromium'] as const).default('chrome'),
   headless: z.boolean().default(false),
@@ -163,29 +177,38 @@ export const BrowserPreferencesSchema: z<BrowserPreferences> = z.object({
   viewportHeight: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_VIEWPORT_HEIGHT),
   profileName: z.string().default('default'),
   homePage: z.string().default('about:blank'),
+  zoom: z.number().step(0.05).min(MIN_ZOOM).max(MAX_ZOOM).default(1),
+  attach: z.boolean().default(false),
+  attachPort: z.number().step(1).min(1024).max(65535).default(DEFAULT_ATTACH_PORT),
   searchEngine: z.union(['google', 'bing', 'duckduckgo'] as const).default('google'),
 })
 
 /** Loader schema for Playwright browser settings. */
-export const Config: z<Config> = z.object({
+export const Config = z.object({
   providerId: z.string().default('local'),
   storageDir: z.string(),
-  browserChannel: z.union(['chrome', 'msedge', 'chromium'] as const).default('chrome'),
-  profileName: z.string().default('default'),
-  homePage: z.string().default('about:blank'),
-  searchEngine: z.union(['google', 'bing', 'duckduckgo'] as const).default('google'),
+  // Every user preference is volatile: the settings service publishes one
+  // namespace per Loader entry, and only volatile fields appear in it, so the
+  // Browser settings page reads and writes these through the profile patch.
+  browserChannel: z.union(['chrome', 'msedge', 'chromium'] as const).default('chrome').volatile(),
+  profileName: z.string().default('default').volatile(),
+  homePage: z.string().default('about:blank').volatile(),
+  zoom: z.number().step(0.05).min(MIN_ZOOM).max(MAX_ZOOM).default(1).volatile(),
+  attach: z.boolean().default(false).volatile(),
+  attachPort: z.number().step(1).min(1024).max(65535).default(DEFAULT_ATTACH_PORT).volatile(),
+  searchEngine: z.union(['google', 'bing', 'duckduckgo'] as const).default('google').volatile(),
   maxHistoryEntries: z.number().step(1).min(1).max(1000).default(100),
   maxNetworkEntries: z.number().step(1).min(1).max(1000).default(100),
   maxCookieCount: z.number().step(1).min(1).max(1000).default(100),
   maxDownloadCount: z.number().step(1).min(1).max(1000).default(20),
   maxTransferBytes: z.number().step(1).min(1).max(100 * 1024 * 1024).default(4 * 1024 * 1024),
   executablePath: z.string(),
-  headless: z.boolean().default(false),
+  headless: z.boolean().default(false).volatile(),
   actionTimeoutMs: z.number().default(DEFAULT_ACTION_TIMEOUT_MS),
   navigationTimeoutMs: z.number().default(DEFAULT_NAVIGATION_TIMEOUT_MS),
   maxElements: z.number().default(DEFAULT_MAX_ELEMENTS),
-  viewportWidth: z.number().default(DEFAULT_VIEWPORT_WIDTH),
-  viewportHeight: z.number().default(DEFAULT_VIEWPORT_HEIGHT),
+  viewportWidth: z.number().default(DEFAULT_VIEWPORT_WIDTH).volatile(),
+  viewportHeight: z.number().default(DEFAULT_VIEWPORT_HEIGHT).volatile(),
   maxCaptureBytes: z.number().default(DEFAULT_MAX_CAPTURE_BYTES),
   maxCapturePixels: z.number().default(DEFAULT_MAX_CAPTURE_PIXELS),
   selectionTimeoutMs: z.number().default(DEFAULT_SELECTION_TIMEOUT_MS),
@@ -237,6 +260,73 @@ function positiveInteger(name: string, value: number): number {
   return value
 }
 
+/** Directory holding one profile's cookies and browser storage.
+ * @param storageDir - provider storage directory.
+ * @param name - validated profile name; `default` keeps the storage directory itself.
+ * @returns the absolute profile directory.
+ */
+export function profileDirectory(storageDir: string, name: string): string {
+  return name === 'default' ? storageDir : join(storageDir, 'harness-profiles', 'profile-' + name)
+}
+
+/** Names of profiles a previous run created under one storage directory.
+ * @param storageDir - provider storage directory.
+ * @returns stored profile names in directory order, ignoring entries this provider never writes.
+ */
+export function storedProfileNames(storageDir: string): readonly string[] {
+  const root = join(storageDir, 'harness-profiles')
+  let entries: readonly string[]
+  try {
+    entries = readdirSync(root)
+  } catch (_storageDirectoryAbsent) {
+    return []
+  }
+  return entries.flatMap((entry) => {
+    const name = /^profile-([a-z][a-z0-9_-]{0,63})$/.exec(entry)?.[1]
+    return name === undefined ? [] : [name]
+  }).sort()
+}
+
+/**
+ * CDP HTTP endpoint for one port on the local host.
+ * @param port - validated CDP port.
+ * @returns the loopback endpoint Playwright attaches to.
+ */
+export function attachEndpoint(port: number): string {
+  return `http://127.0.0.1:${portLimit('attachPort', port)}`
+}
+
+/** Read one configuration field the Loader may have wrapped so settings can update it live.
+ * @param value - plain value or the Loader's volatile wrapper.
+ * @returns the current plain value, or undefined when the entry omits the field.
+ */
+function configValue<T>(value: T | Volatile<T> | undefined): T | undefined {
+  return value !== undefined && typeof value === 'object' && value !== null && 'get' in value
+    ? value.get() as T
+    : value
+}
+
+/**
+ * Lay a page out at the zoomed viewport size and rasterize it at the configured
+ * size, so a zoom above 1 enlarges every rendered pixel an agent reads while
+ * keeping the screenshot dimensions the operator chose.
+ * @param width - configured viewport width in CSS pixels.
+ * @param height - configured viewport height in CSS pixels.
+ * @param zoom - default page zoom; 1 keeps the configured size.
+ * @returns the layout viewport the browser starts with.
+ */
+export function browserViewport(width: number, height: number, zoom: number): { width: number; height: number } {
+  if (zoom === 1) return { width, height }
+  return { width: Math.max(1, Math.round(width / zoom)), height: Math.max(1, Math.round(height / zoom)) }
+}
+
+function zoomLimit(value: number): number {
+  if (!Number.isFinite(value) || value < MIN_ZOOM || value > MAX_ZOOM) {
+    throw new Error(`browser-playwright: zoom must be between ${MIN_ZOOM} and ${MAX_ZOOM}`)
+  }
+  return value
+}
+
 function portLimit(name: string, value: number): number {
   positiveInteger(name, value)
   if (value < 1024 || value > 65535) {
@@ -254,11 +344,11 @@ export function resolvePlaywrightBrowserConfig(config: Config = {}): ResolvedCon
   for (const key of Object.keys(config)) {
     if (!CONFIG_KEYS.has(key)) throw new Error(`browser-playwright: unsupported config key '${key}'`)
   }
-  const browserChannel = config.browserChannel ?? 'chrome'
+  const browserChannel = configValue(config.browserChannel) ?? 'chrome'
   if (!['chrome', 'msedge', 'chromium'].includes(browserChannel)) {
     throw new Error('browser-playwright: browserChannel must be chrome, msedge, or chromium')
   }
-  const searchEngine = config.searchEngine ?? 'google'
+  const searchEngine = configValue(config.searchEngine) ?? 'google'
   if (!['google', 'bing', 'duckduckgo'].includes(searchEngine)) throw new Error('browser-playwright: searchEngine is invalid')
   const executablePath = config.executablePath === undefined
     ? undefined
@@ -270,8 +360,11 @@ export function resolvePlaywrightBrowserConfig(config: Config = {}): ResolvedCon
     providerId: cleanString('providerId', config.providerId ?? 'local'),
     storageDir: cleanString('storageDir', config.storageDir ?? dshHomePath('browser', 'profile')),
     browserChannel,
-    profileName: profileName(config.profileName ?? 'default'),
-    homePage: browserUrl('homePage', config.homePage ?? 'about:blank'),
+    profileName: profileName(configValue(config.profileName) ?? 'default'),
+    homePage: browserUrl('homePage', configValue(config.homePage) ?? 'about:blank'),
+    zoom: zoomLimit(configValue(config.zoom) ?? 1),
+    attach: configValue(config.attach) ?? false,
+    attachPort: portLimit('attachPort', configValue(config.attachPort) ?? DEFAULT_ATTACH_PORT),
     searchEngine,
     maxHistoryEntries: entryLimit('maxHistoryEntries', config.maxHistoryEntries ?? 100),
     maxNetworkEntries: entryLimit('maxNetworkEntries', config.maxNetworkEntries ?? 100),
@@ -279,12 +372,12 @@ export function resolvePlaywrightBrowserConfig(config: Config = {}): ResolvedCon
     maxDownloadCount: entryLimit('maxDownloadCount', config.maxDownloadCount ?? 20),
     maxTransferBytes: transferLimit(config.maxTransferBytes ?? 4 * 1024 * 1024),
     ...(executablePath === undefined ? {} : { executablePath }),
-    headless: config.headless ?? false,
+    headless: configValue(config.headless) ?? false,
     actionTimeoutMs: positiveInteger('actionTimeoutMs', config.actionTimeoutMs ?? DEFAULT_ACTION_TIMEOUT_MS),
     navigationTimeoutMs: positiveInteger('navigationTimeoutMs', config.navigationTimeoutMs ?? DEFAULT_NAVIGATION_TIMEOUT_MS),
     maxElements: positiveInteger('maxElements', config.maxElements ?? DEFAULT_MAX_ELEMENTS),
-    viewportWidth: positiveInteger('viewportWidth', config.viewportWidth ?? DEFAULT_VIEWPORT_WIDTH),
-    viewportHeight: positiveInteger('viewportHeight', config.viewportHeight ?? DEFAULT_VIEWPORT_HEIGHT),
+    viewportWidth: positiveInteger('viewportWidth', configValue(config.viewportWidth) ?? DEFAULT_VIEWPORT_WIDTH),
+    viewportHeight: positiveInteger('viewportHeight', configValue(config.viewportHeight) ?? DEFAULT_VIEWPORT_HEIGHT),
     maxCaptureBytes: positiveInteger('maxCaptureBytes', config.maxCaptureBytes ?? DEFAULT_MAX_CAPTURE_BYTES),
     maxCapturePixels: positiveInteger('maxCapturePixels', config.maxCapturePixels ?? DEFAULT_MAX_CAPTURE_PIXELS),
     selectionTimeoutMs: positiveInteger('selectionTimeoutMs', config.selectionTimeoutMs ?? DEFAULT_SELECTION_TIMEOUT_MS),
@@ -360,6 +453,8 @@ function selectElementInPage(key: string): Promise<RawOverlaySelection | null> {
       document.removeEventListener('click', onClick, true)
       document.removeEventListener('keydown', onKeyDown, true)
       overlay.remove()
+      /* v8 ignore else -- a replacement overlay runs this cleanup before it installs
+         its own capture, so the slot still holds this key. */
       if (win.__dshBrowserElementCapture?.key === key) delete win.__dshBrowserElementCapture
       resolve(result)
     }
@@ -557,10 +652,12 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
   /**
    * @param config - fully validated provider settings.
    * @param launch - Playwright context launcher; injectable for deterministic tests.
+   * @param release - Owned-context teardown; an attached context disconnects instead of closing.
    */
   constructor(
     private readonly config: ResolvedConfig,
     private readonly launch: ContextLauncher = (userDataDir, options) => chromium.launchPersistentContext(userDataDir, options),
+    private readonly release: (context: BrowserContext) => Promise<void> = async (context) => { await context.close() },
   ) {
     this.id = config.providerId
   }
@@ -577,11 +674,20 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
    */
   async closeBrowser(): Promise<void> {
     const context = await this.contextPromise
-    await context?.close()
+    if (context !== undefined) await this.release(context)
   }
 
   /** @inheritdoc */
   currentProfile(): string { return this.config.profileName }
+
+  /** @inheritdoc */
+  listProfiles(): readonly BrowserStoredProfile[] {
+    const names = new Set<string>(['default', this.config.profileName, ...storedProfileNames(this.config.storageDir)])
+    return [...names].sort().map((name) => {
+      const directory = profileDirectory(this.config.storageDir, name)
+      return { name, directory, stored: existsSync(directory), current: name === this.config.profileName }
+    })
+  }
 
   /**
    * CDP endpoint URL if remote debugging port is configured.
@@ -663,15 +769,14 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
         env: scrubbedParentEnv(),
         headless: this.config.headless,
         timeout: this.config.actionTimeoutMs,
-        viewport: { width: this.config.viewportWidth, height: this.config.viewportHeight },
+        viewport: browserViewport(this.config.viewportWidth, this.config.viewportHeight, this.config.zoom),
+        ...(this.config.zoom === 1 ? {} : { deviceScaleFactor: this.config.zoom }),
         ...(launchArgs.length > 0 ? { args: launchArgs } : {}),
         ...(this.config.executablePath === undefined
           ? { channel: this.config.browserChannel }
           : { executablePath: this.config.executablePath }),
       }
-      const storageDir = this.config.profileName === 'default'
-        ? this.config.storageDir
-        : join(this.config.storageDir, 'harness-profiles', 'profile-' + this.config.profileName)
+      const storageDir = profileDirectory(this.config.storageDir, this.config.profileName)
       this.contextPromise = Promise.resolve().then(() => this.launch(storageDir, launchOptions)).then((context) => {
         this.activeContext = context
         context.on('close', () => {
@@ -685,7 +790,9 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
       }).catch((error: unknown) => {
         this.contextPromise = undefined
         throw browserFailure(
-          `Could not start the Harness browser using ${this.config.executablePath ?? this.config.browserChannel}`,
+          this.config.attach
+            ? `Could not attach to the browser at http://127.0.0.1:${this.config.attachPort}; start it with --remote-debugging-port=${this.config.attachPort}`
+            : `Could not start the Harness browser using ${this.config.executablePath ?? this.config.browserChannel}`,
           'BROWSER_PLAYWRIGHT_LAUNCH_FAILED',
           error,
         )
@@ -1106,6 +1213,10 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw browserFailure('browser network limit must be between 1 and 100', 'BROWSER_REQUEST_INVALID')
     this.page(pageId)
     this.boundSignal(signal).throwIfAborted()
+    // trackPage() indexes a page's network entries with the page itself, and the
+    // page close handler removes both together, so the page admitted above always
+    // has an entry; the fallback only satisfies the optional lookup type.
+    /* v8 ignore next -- a page admitted by page() above always has its network entry. */
     return (this.networkByPage.get(pageId) ?? []).slice(-limit).map(entry => ({ ...entry }))
   }
 
@@ -1227,7 +1338,7 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
     this.lifecycle.abort(browserFailure('Playwright browser provider is disposed', 'BROWSER_PROVIDER_DISPOSED'))
     await Promise.allSettled([...this.pages.keys()].map(pageId => this.invalidate(pageId)))
     const context = await this.contextPromise?.catch(() => undefined)
-    if (context !== undefined) await context.close()
+    if (context !== undefined) await this.release(context)
     await Promise.allSettled([...this.downloadSettlements])
     this.downloadsByPage.clear()
     this.truncatedDownloads.clear()
@@ -1246,6 +1357,11 @@ export class PlaywrightBrowserProvider implements BrowserElementCaptureProvider,
  * @param config - Playwright provider settings.
  */
 export function apply(ctx: Context, config: Config = {}): void {
+  // This entry owns user preferences the Browser settings page renders, so it
+  // keeps no auto-generated configuration page of its own. The settings
+  // provider stays optional, matching the preference read below.
+  const settings = ctx.get('settings')
+  if (settings !== undefined) ctx.effect(() => settings.configure({ auto: false }, ctx.fiber))
   const base = resolvePlaywrightBrowserConfig(config)
   const descriptor = ctx.get('settings')?.describe().find(d => d.ns === 'browser-playwright')
   const saved = (descriptor?.value ?? {}) as Partial<BrowserPreferences>
@@ -1256,16 +1372,33 @@ export function apply(ctx: Context, config: Config = {}): void {
     viewportHeight: saved.viewportHeight ?? base.viewportHeight,
     profileName: saved.profileName ?? base.profileName,
     homePage: saved.homePage ?? base.homePage,
+    zoom: saved.zoom ?? base.zoom,
+    attach: saved.attach ?? base.attach,
+    attachPort: saved.attachPort ?? base.attachPort,
     searchEngine: saved.searchEngine ?? base.searchEngine,
   }
   const runtime = ctx.browserRuntime
   let leaseRelease = Promise.resolve()
+  // The attached browser belongs to the person, not to this provider: disposal
+  // disconnects Playwright instead of closing the context it attached to.
+  let attachedBrowser: Browser | undefined
   const provider = new PlaywrightBrowserProvider({
     ...base, browserChannel: preferences.browserChannel, headless: preferences.headless,
     viewportWidth: preferences.viewportWidth, viewportHeight: preferences.viewportHeight,
-    homePage: preferences.homePage, searchEngine: preferences.searchEngine,
+    homePage: preferences.homePage, zoom: preferences.zoom, attach: preferences.attach,
+    attachPort: preferences.attachPort, searchEngine: preferences.searchEngine,
     profileName: profileName(preferences.profileName),
   }, async (directory, options) => {
+    if (preferences.attach) {
+      attachedBrowser = await chromium.connectOverCDP(attachEndpoint(preferences.attachPort))
+      const existing = attachedBrowser.contexts()[0]
+      if (existing === undefined) {
+        await attachedBrowser.close()
+        attachedBrowser = undefined
+        throw new Error('the attached browser exposes no browser context')
+      }
+      return existing
+    }
     await leaseRelease
     const release = await runtime.acquireBrowserLease()
     try {
@@ -1279,17 +1412,26 @@ export function apply(ctx: Context, config: Config = {}): void {
       context.on('close', () => {
         leaseRelease = release()
         // Preserve release failure for the next launch or disposal without an unhandled rejection.
-        void leaseRelease.catch(() => undefined)
+        void leaseRelease.catch(
+          /* v8 ignore next -- releasing the runtime lease removes the lock this launch created, so the settled promise cannot reject. */
+          () => undefined,
+        )
       })
       return context
     } catch (error) {
       await release()
       throw error
     }
+  }, async (context) => {
+    const attached = attachedBrowser
+    attachedBrowser = undefined
+    if (attached !== undefined) { await attached.close(); return }
+    await context.close()
   })
   ctx.effect(function* () {
     const detach = runtime.attach({
-      channel: preferences.browserChannel, executablePath: base.executablePath, state: () => provider.browserState(),
+      channel: preferences.browserChannel, executablePath: base.executablePath,
+      attached: preferences.attach, state: () => provider.browserState(),
       close: async () => { await provider.closeBrowser(); await leaseRelease },
     })
     const unregister = ctx.browser.registerProvider(provider)

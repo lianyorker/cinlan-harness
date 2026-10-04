@@ -47,7 +47,7 @@
 
 ## 快捷键
 
-页面：[ui-keybindings](../../packages/client/ui-keybindings/README.md)。存储/服务：keybindings.overrides / keyboard。owner 已交付；[Composer 命令](../../packages/client/ui-conversation/src/client/keyboard-commands.ts)、CodeMirror 保存/查找/替换、shell 侧边栏与浮动窗口已有实际注册及本地分派，保留输入法、弹层优先级与编辑器撤销。原型八项中可确认发送与浮动切换；Shift+Enter 是固定编辑器行为，其余未注册操作不能计为已接入。[快捷键页](../../packages/client/ui-keybindings/src/client/KeybindingsSection.tsx)仅允许编辑实际注册命令，缺少消费者的旧 id 保留并显示不可用；整批组合验收待完成。
+页面：[ui-shortcuts](../../packages/client/ui-shortcuts/README.md)（个人分组 `keybindings` 分区与 Mod+/ 弹层共用同一份速查）。存储/服务：keybindings.overrides / keyboard。owner 已交付；[Composer 命令](../../packages/client/ui-conversation/src/client/keyboard-commands.ts)、CodeMirror 保存/查找/替换、shell 侧边栏与浮动窗口已有实际注册及本地分派，保留输入法、弹层优先级与编辑器撤销。原型八项中可确认发送与浮动切换；Shift+Enter 是固定编辑器行为，其余未注册操作不能计为已接入。[快捷键页](../../packages/client/ui-shortcuts/src/client/Reference.tsx)仅允许编辑实际注册命令，缺少消费者的旧 id 保留并显示不可用；整批组合验收待完成。
 
 | 原型字段 | 界面名称 | 真实消费者与实施状态 |
 |---|---|---|

@@ -3,7 +3,7 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { McpManagementSnapshot, McpSaveResult } from '@deepseek-ai/dsh-api-mcp-controller/types'
 import { RemoteError, type RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { McpSettingsSource, canRefreshTools } from '../src/client/source.ts'
-import { remoteFixture, snapshot, record, failure, serverId } from './fixture.client.ts'
+import { remoteFixture, snapshot, record, failure, serverId, streamHandle } from './fixture.client.ts'
 
 function setup() {
   const fixture = remoteFixture()
@@ -17,11 +17,11 @@ describe('MCP readback lifetime', () => {
   it.each(['frame', 'throw'] as const)('discards a superseded watch that settles with a late %s', async (settlement) => {
     const { source, remote } = setup()
     const gate = Promise.withResolvers<undefined>()
-    remote.watch.mockImplementationOnce(async function* () {
+    remote.watch.mockImplementationOnce(() => streamHandle((async function* () {
       await gate.promise
       if (settlement === 'throw') throw new Error('OLD_PRIVATE_ERROR')
       yield snapshot({ revision: 99 })
-    })
+    })()))
     source.connect(1)
     try {
       await ready(source)
@@ -102,10 +102,10 @@ describe('MCP readback lifetime', () => {
 
   it('shows unexpected stream termination and transport exceptions', async () => {
     const { source, remote } = setup()
-    remote.watch.mockImplementationOnce(async function* () { throw new Error('PRIVATE') })
+    remote.watch.mockImplementationOnce(() => streamHandle((async function* () { throw new Error('PRIVATE') })()))
     source.connect(1)
     await vi.waitFor(() =>{  expect(source.state.getSnapshot().readError).toBe('unavailable') })
-    remote.watch.mockImplementationOnce(async function* () { return })
+    remote.watch.mockImplementationOnce(() => streamHandle((async function* () { return })()))
     source.restart()
     await vi.waitFor(() =>{  expect(source.state.getSnapshot().status).toBe('error') })
     expect(source.state.getSnapshot().readError).toBe('unavailable')
@@ -114,21 +114,21 @@ describe('MCP readback lifetime', () => {
   it('shows snapshot Remote failures and rejected reads until a stream baseline arrives', async () => {
     const { source, remote } = setup()
     const gate = Promise.withResolvers<undefined>()
-    remote.watch.mockImplementationOnce(async function* (signal = new AbortController().signal) {
+    remote.watch.mockImplementationOnce((signal = new AbortController().signal) => streamHandle((async function* () {
       const abort = () => { gate.resolve(undefined) }
       signal.addEventListener('abort', abort, { once: true })
       try { await gate.promise; if (!signal.aborted) yield snapshot() }
       finally { signal.removeEventListener('abort', abort) }
-    })
+    })()))
     remote.snapshot.mockResolvedValueOnce(failure('not-ready'))
     source.connect(1)
     await vi.waitFor(() =>{  expect(source.state.getSnapshot().readError).toBe('not-ready') })
     gate.resolve(undefined)
     await vi.waitFor(() =>{  expect(source.state.getSnapshot().snapshot).not.toBeNull() })
     remote.snapshot.mockRejectedValueOnce(new Error('PRIVATE'))
-    remote.watch.mockImplementationOnce(async function* (signal = new AbortController().signal) {
+    remote.watch.mockImplementationOnce((signal = new AbortController().signal) => streamHandle((async function* () {
       await new Promise<void>((resolve) => { signal.addEventListener('abort', () => { resolve() }, { once: true }) })
-    })
+    })()))
     source.restart()
     await vi.waitFor(() =>{  expect(source.state.getSnapshot().readError).toBe('unavailable') })
   })

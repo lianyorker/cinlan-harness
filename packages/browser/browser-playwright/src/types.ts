@@ -20,6 +20,8 @@ export interface BrowserRuntimeStatus {
   readonly executablePath: string | null
   readonly installed: boolean
   readonly browserState: 'stopped' | 'starting' | 'running'
+  /** Whether the active provider attached to a running browser instead of launching one. */
+  readonly attached: boolean
   readonly playwrightVersion: string
   readonly browserVersion: string
   readonly revision: string
@@ -46,6 +48,12 @@ export interface BrowserPreferences {
   readonly profileName: string
   /** URL opened by the browser_home tool. */
   readonly homePage: string
+  /** Default page zoom every document starts with; 1 renders at the configured viewport size. */
+  readonly zoom: number
+  /** Attach to an already-running Chromium over CDP instead of launching the Harness browser. */
+  readonly attach: boolean
+  /** CDP port of the running browser this provider attaches to when `attach` is true. */
+  readonly attachPort: number
   /** Search provider used by the browser_search tool. */
   readonly searchEngine: 'google' | 'bing' | 'duckduckgo'
 }

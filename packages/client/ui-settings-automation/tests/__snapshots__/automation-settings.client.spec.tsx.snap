@@ -32,7 +32,7 @@ exports[`automation settings > records the read-only page in en 1`] = `
       "label": "Delete task",
     },
   ],
-  "heading": "Automation",
+  "heading": "Scheduled tasks",
   "notice": "This connection is read-only. Task changes and execution controls are unavailable.",
   "sections": [
     "Task schedules",
@@ -74,7 +74,7 @@ exports[`automation settings > records the read-only page in zh 1`] = `
       "label": "删除任务",
     },
   ],
-  "heading": "自动化",
+  "heading": "定时任务",
   "notice": "当前连接为只读，无法修改任务或控制运行。",
   "sections": [
     "任务计划",

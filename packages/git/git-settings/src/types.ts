@@ -20,4 +20,6 @@ export interface GitSourceControlSettings {
   compareAgainstUpstream: boolean
   /** Add attribution to commits explicitly created through source control. */
   enableGitHubAttribution: boolean
+  /** Name a generated task branch after the task instead of its internal id. */
+  autoRenameTaskBranch: boolean
 }

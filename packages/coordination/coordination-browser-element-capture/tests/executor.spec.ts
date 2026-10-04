@@ -52,6 +52,7 @@ function provider(): BrowserElementCaptureProvider {
     click: vi.fn(async request => request),
     screenshot: vi.fn(async () => ({
       pageId, format: 'png' as const, mediaType: 'image/png' as const, data: Uint8Array.of(1),
+      viewport: { width: 800, height: 600 },
     })),
     closePage: vi.fn(async () => {}),
     selectElement: vi.fn(async () => ({

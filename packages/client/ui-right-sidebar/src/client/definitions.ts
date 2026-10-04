@@ -4,8 +4,6 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 
 /** Stable id for the Review page contribution. */
 export const REVIEW_TAB_ID = 'right-sidebar-review'
-/** Stable id for the Terminal page contribution. */
-export const TERMINAL_TAB_ID = 'right-sidebar-terminal'
 /** Stable id for the Worktree Tasks page contribution. */
 export const TASKS_TAB_ID = 'right-sidebar-tasks'
 /** Stable id for the Browser page contribution. */
@@ -27,6 +25,7 @@ function pageDefinition(copy: PageCopy, t: T): SidebarRightTabDefinition {
     title: () => t(copy.titleKey),
     priority: 'extension',
     guide: [{
+      id: copy.id,
       order: 600,
       title: () => t(copy.titleKey),
       description: () => t(copy.descriptionKey),
@@ -41,15 +40,6 @@ function pageDefinition(copy: PageCopy, t: T): SidebarRightTabDefinition {
  */
 export function reviewTabDefinition(t: T): SidebarRightTabDefinition {
   return pageDefinition({ id: REVIEW_TAB_ID, kind: 'review', titleKey: 'review.title', descriptionKey: 'review.description' }, t)
-}
-
-/**
- * Build the localized Terminal page definition.
- * @param t - Translator for the right-sidebar namespace.
- * @returns The Terminal page definition.
- */
-export function terminalTabDefinition(t: T): SidebarRightTabDefinition {
-  return pageDefinition({ id: TERMINAL_TAB_ID, kind: 'terminal', titleKey: 'terminal.title', descriptionKey: 'terminal.description' }, t)
 }
 
 /**

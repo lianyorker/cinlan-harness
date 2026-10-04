@@ -1,6 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import { WorktreeTaskError, WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task'
-import type { WorktreeTask, WorktreeTaskCleanupReceipt, WorktreeTaskReview, WorktreeTaskService, WorktreeTaskSettings } from '@deepseek-ai/dsh-worktree-task'
+import type { WorktreeTask, WorktreeTaskCleanupReceipt, WorktreeTaskReview, WorktreeTaskService, WorktreeTaskSettings, WorktreeTaskMergeResult } from '@deepseek-ai/dsh-worktree-task'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import WorktreeTaskController from '../src/index.ts'
 
@@ -19,12 +19,15 @@ function bench() {
   const review: WorktreeTaskReview = { taskId: task.id, baseHead: 'a'.repeat(40), head: 'b'.repeat(40),
     checkoutRoot: '/managed/task', dirty: false, patch: 'diff --git a/file b/file\n+change\n',
     untracked: [], setup: null, cleanup: receipt.hook, cleanupReceipt: receipt }
+  const merge: WorktreeTaskMergeResult = { taskId: task.id, sourcePath: task.sourcePath, sourceBranch: task.baseRef,
+    branch: task.branch, sourceHeadBefore: 'a'.repeat(40), sourceHeadAfter: 'b'.repeat(40), task }
   const provider = {
     get: vi.fn<WorktreeTaskService['get']>(() => task),
     list: vi.fn<WorktreeTaskService['list']>(() => [task]),
     settings: vi.fn<WorktreeTaskService['settings']>(() => settings),
     updateSettings: vi.fn<WorktreeTaskService['updateSettings']>(async () => settings),
     review: vi.fn<WorktreeTaskService['review']>(async () => review),
+    merge: vi.fn<WorktreeTaskService['merge']>(async () => merge),
     archive: vi.fn<WorktreeTaskService['archive']>(async () => task),
     delete: vi.fn<WorktreeTaskService['delete']>(async () => ({ deleted: false, retainedBranch: task.branch, cleanupReceipt: receipt })),
   }
@@ -50,6 +53,16 @@ describe('worktree task Remote results', () => {
     expect(retained.cleanupReceipt?.hook.args).not.toBe(h.receipt.hook.args)
     h.provider.delete.mockResolvedValueOnce({ deleted: true, cleanupReceipt: h.receipt })
     expect(await h.controller.delete(h.request, h.signal)).toEqual({ status: 'deleted', taskId: h.task.id, cleanupReceipt: h.receipt })
+  })
+
+  it('forwards merge results and maps provider failures', async () => {
+    const h = bench()
+    expect(await h.controller.merge(h.request, h.signal)).toEqual({ merge: expect.objectContaining({ sourceHeadAfter: 'b'.repeat(40) }) })
+    expect(h.provider.merge).toHaveBeenCalledWith(h.request, h.signal)
+    h.provider.merge.mockRejectedValueOnce(new WorktreeTaskError('conflict', 'source is dirty'))
+    await expect(h.controller.merge(h.request, h.signal)).rejects.toMatchObject({
+      code: 'worktree-task/conflict', details: { operation: 'merge', taskId: h.task.id },
+    })
   })
 
   it('forwards revisioned defaults and read-only review with caller cancellation', async () => {

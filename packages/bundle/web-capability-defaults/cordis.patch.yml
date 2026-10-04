@@ -1,5 +1,7 @@
 # Applied after the browser and Computer Use bundles, before user patches.
+# Both providers are switched on so the Web and Desktop products ship the
+# capabilities ready to use; the permission policies still gate every action.
 - id: browser-playwright
-  disabled: true
+  disabled: false
 - id: computer-use-cua-driver-native
-  disabled: true
+  disabled: false

@@ -6,8 +6,8 @@ import type {} from '@deepseek-ai/dsh-api-gateway'
 import { RuntimeError } from '@deepseek-ai/dsh-execution-runtime'
 import type { RuntimeInspection, RuntimeLocation, RuntimeStartRequest, RuntimeTaskRequest, RuntimeTasksValue, RuntimeTaskValue } from './types.ts'
 import type {
-  CreateTargetRequest, InspectDirectoryRequest, InspectionValue, ListTargetsValue,
-  TargetRequest, TargetRevisionRequest, TargetValue, UpdateTargetRequest,
+  CreateTargetRequest, ImportableHostsValue, InspectDirectoryRequest, InspectionValue, ListTargetsValue,
+  TargetRequest, TargetRevisionRequest, TargetTestValue, TargetValue, UpdateTargetRequest,
 } from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -31,6 +31,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'execution-host/connection-lost': {}
     'execution-host/outcome-unconfirmed': {}
     'execution-host/inspection-failed': {}
+    'execution-host/configuration-unreadable': {}
     'execution-host/closed': {}
     'execution-host/local-access-required': {}
     'execution-host/runtime-unavailable': {}
@@ -90,6 +91,31 @@ export default class ExecutionHostController extends TypertRemoteService {
         })
       }
     } finally { off() }
+  }
+
+  /**
+   * Probe a saved target without connecting it.
+   *
+   * The owner dials the record's own endpoint through a throwaway connection and
+   * closes it again, so probing never publishes a connection, changes the
+   * target's state or disturbs an active inspection.
+   * @param request Exact saved revision to probe.
+   * @param signal Carrier cancellation before admission.
+   * @returns the probed target and the root count the worker advertised.
+   */
+  @Remote
+  test(request: TargetRevisionRequest, signal: AbortSignal): Promise<TargetTestValue> {
+    return this.invoke(signal, () => this.ctx.executionHostTargets.test(request, signal))
+  }
+
+  /**
+   * Read the managing Host's OpenSSH Host entries for the import form.
+   * @param signal Carrier cancellation before the read.
+   * @returns the source path, whether it exists, and its concrete Host entries.
+   */
+  @Remote
+  listImportableHosts(signal: AbortSignal): Promise<ImportableHostsValue> {
+    return this.invoke(signal, () => this.ctx.executionHostTargets.listImportableHosts())
   }
 
   /**

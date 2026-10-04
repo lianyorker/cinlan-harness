@@ -4,7 +4,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { Button, IconPlusOutline16, IconRefreshOutline16, RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   WorktreeTaskView, WorktreeTaskCreateRequest, WorktreeTaskDeleteValue, WorktreeTaskId,
-  WorktreeTaskSettings, UpdateWorktreeTaskSettingsRequest, WorktreeTaskReview,
+  WorktreeTaskSettings, UpdateWorktreeTaskSettingsRequest, WorktreeTaskReview, WorktreeTaskMergeValue,
 } from '@deepseek-ai/dsh-api-worktree-task-controller/types'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
@@ -30,6 +30,8 @@ export interface WorktreeTaskSectionInjected {
   hibernate: (taskId: WorktreeTaskId, signal: AbortSignal) => Promise<WorktreeTaskView>
   /** Retain a task's branch and record for review. */
   archive: (taskId: WorktreeTaskId, signal: AbortSignal) => Promise<WorktreeTaskView>
+  /** Merge the task branch into its clean source branch. */
+  merge: (taskId: WorktreeTaskId, signal: AbortSignal) => Promise<WorktreeTaskMergeValue>
   /** Delete safely, preserving a branch that has not been integrated. */
   delete: (taskId: WorktreeTaskId, signal: AbortSignal) => Promise<WorktreeTaskDeleteValue>
 }
@@ -38,7 +40,7 @@ export interface WorktreeTaskSectionInjected {
 export type WorktreeTaskSectionProps = PropsRuntime<'settings.section'>
   & PropsLocale<'settings.worktreeTask'> & InjectFace<WorktreeTaskSectionInjected>
 
-type Operation = 'activate' | 'hibernate' | 'archive' | 'delete'
+type Operation = 'activate' | 'hibernate' | 'archive' | 'merge' | 'delete'
 type Confirmation = { kind: Exclude<Operation, 'activate'>; task: WorktreeTaskView }
 type Translate = WorktreeTaskSectionProps['t']
 interface WorkspaceChoice { workspaceId: WorkspaceId; title: string; path: string }
@@ -112,6 +114,10 @@ export function WorktreeTaskSection(props: WorktreeTaskSectionProps) {
         const result = await props.delete(task.taskId, controller.signal)
         if (controller.signal.aborted) return
         setNotice(result.status === 'deleted' ? t('noticeDeleted') : t('noticeBranchRetained', { branch: result.retainedBranch }))
+      } else if (kind === 'merge') {
+        const result = await props.merge(task.taskId, controller.signal)
+        if (controller.signal.aborted) return
+        setNotice(t('noticeMerged', { branch: result.merge.branch, commit: result.merge.sourceHeadAfter }))
       } else {
         await props[kind](task.taskId, controller.signal)
         if (controller.signal.aborted) return
@@ -137,12 +143,15 @@ export function WorktreeTaskSection(props: WorktreeTaskSectionProps) {
   const items = tasks ?? []
   const confirmKind = confirmation?.kind
   const confirmTitle = confirmKind === 'hibernate' ? t('confirmHibernateTitle')
-    : confirmKind === 'archive' ? t('confirmArchiveTitle') : t('confirmDeleteTitle')
+    : confirmKind === 'archive' ? t('confirmArchiveTitle')
+      : confirmKind === 'merge' ? t('confirmMergeTitle') : t('confirmDeleteTitle')
   const confirmDescription = confirmKind === 'hibernate' ? t('confirmHibernateDescription')
     : confirmKind === 'archive' ? t('confirmArchiveDescription')
-      : t('confirmDeleteDescription', { branch: confirmation?.task.branch ?? '' })
+      : confirmKind === 'merge' ? t('confirmMergeDescription', { branch: confirmation?.task.branch ?? '' })
+        : t('confirmDeleteDescription', { branch: confirmation?.task.branch ?? '' })
   const confirmAction = confirmKind === 'hibernate' ? t('confirmHibernateAction')
-    : confirmKind === 'archive' ? t('confirmArchiveAction') : t('confirmDeleteAction')
+    : confirmKind === 'archive' ? t('confirmArchiveAction')
+      : confirmKind === 'merge' ? t('confirmMergeAction') : t('confirmDeleteAction')
 
   return <div className={css.section} aria-busy={loading || busy !== null}>
     <header className={css.header}>
@@ -200,8 +209,9 @@ export function WorktreeTaskSection(props: WorktreeTaskSectionProps) {
               onClick={() => { setReviewTask(task); setReviewVersion(version => version + 1) }}>{t('review')}</Button>
             {task.status === 'hibernated' && <Button variant="outline" disabled={busy !== null}
               onClick={() => { void operate('activate', task) }}>{t('activate')}</Button>}
-            {(['hibernate', 'archive', 'delete'] as const).filter(kind => kind === 'delete'
-              || (kind === 'hibernate' ? task.status === 'active' : task.status !== 'archived')).map(kind => (
+            {(['hibernate', 'archive', 'merge', 'delete'] as const).filter(kind => kind === 'delete'
+              || (kind === 'merge' ? task.sessionIds.length === 0
+                : (kind === 'hibernate' ? task.status === 'active' : task.status !== 'archived'))).map(kind => (
               <Button key={kind} variant="outline" disabled={busy !== null}
                 onClick={() => { setAcknowledged(false); setConfirmation({ kind, task }) }}>{t(kind)}</Button>
             ))}
@@ -212,7 +222,7 @@ export function WorktreeTaskSection(props: WorktreeTaskSectionProps) {
     {reviewTask !== null && <WorktreeReviewPanel key={reviewTask.taskId + ':' + reviewVersion}
       t={t} task={reviewTask} review={props.review} onClose={() => { setReviewTask(null) }} />}
     <RiskConfirmation open={confirmation !== null} title={confirmTitle} description={confirmDescription}
-      acknowledgeLabel={t('confirmAcknowledge')} cancelLabel={t('cancel')} closeLabel={t('close')}
+      acknowledgeLabel={t(confirmKind === 'merge' ? 'confirmMergeAcknowledge' : 'confirmAcknowledge')} cancelLabel={t('cancel')} closeLabel={t('close')}
       confirmLabel={confirmAction} acknowledged={acknowledged} disabled={busy !== null}
       onAcknowledgedChange={setAcknowledged} onCancel={() => { setConfirmation(null); setAcknowledged(false) }}
       onConfirm={() => {

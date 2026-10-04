@@ -16,6 +16,7 @@ import type {
   WorktreeTaskOperation,
   WorktreeTaskRequest,
   WorktreeTaskValue,
+  WorktreeTaskMergeValue,
   WorktreeTaskView,
 } from './types.ts'
 
@@ -142,6 +143,34 @@ export class WorktreeTaskController extends TypertRemoteService {
       return structuredClone(review)
     } catch (error) {
       throw mapFailure('review', request.taskId, error, signal)
+    }
+  }
+
+  /**
+   * Merge a task branch into its captured source branch after checkpointing it.
+   * @param request - Provider-issued task identity.
+   * @param signal - Caller cancellation forwarded to provider work.
+   * @returns merge commit information and the archived task state.
+   */
+  @Remote('merge')
+  async merge(request: WorktreeTaskRequest, signal: AbortSignal): Promise<WorktreeTaskMergeValue> {
+    this.admit('merge', signal)
+    try {
+      const merge = await this.provider().merge({ taskId: request.taskId }, signal)
+      this.admit('merge', signal)
+      return {
+        merge: {
+          taskId: merge.taskId,
+          sourcePath: merge.sourcePath,
+          sourceBranch: merge.sourceBranch,
+          branch: merge.branch,
+          sourceHeadBefore: merge.sourceHeadBefore,
+          sourceHeadAfter: merge.sourceHeadAfter,
+          task: projectTask(merge.task),
+        },
+      }
+    } catch (error) {
+      throw mapFailure('merge', request.taskId, error, signal)
     }
   }
 

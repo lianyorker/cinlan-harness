@@ -1,16 +1,18 @@
 /* oxlint-disable typescript/no-unsafe-assignment -- Vitest asymmetric matchers are typed as any. */
 import { Context } from '@deepseek-ai/cordis'
 import { Readable } from 'node:stream'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import BrowserRuntime, {
   BrowserElementId,
+  BrowserError,
   BrowserObservationId,
   BrowserPageId,
 } from '@deepseek-ai/dsh-browser'
 import { chromium } from 'playwright-core'
-import type { BrowserContext, ElementHandle, Locator, Page } from 'playwright-core'
+import type { Browser, BrowserContext, ElementHandle, Locator, Page } from 'playwright-core'
 import { describe, expect, it, vi } from 'vitest'
 import {
   PlaywrightBrowserProvider,
@@ -18,6 +20,19 @@ import {
 } from '../src/index.ts'
 import * as PlaywrightBrowser from '../src/index.ts'
 import BrowserRuntimeManager from '../src/runtime.ts'
+import { runtimeMetadata } from '../src/runtime-metadata.ts'
+
+/** Install one managed Chromium generation so the runtime can resolve its executable. */
+async function installManagedChromium(storageDir: string): Promise<void> {
+  const directory = join(storageDir, 'generation-fixture')
+  const executable = join(directory, runtimeMetadata.executableRelative)
+  const marker = join(directory, runtimeMetadata.markerRelative)
+  await mkdir(dirname(executable), { recursive: true })
+  await mkdir(dirname(marker), { recursive: true })
+  await writeFile(executable, 'fixture')
+  await writeFile(marker, '')
+  await writeFile(join(storageDir, 'active-' + runtimeMetadata.revision + '.json'), JSON.stringify('generation-fixture'))
+}
 
 interface FakeItemValues {
   readonly role?: string
@@ -34,6 +49,10 @@ interface FakeFingerprint {
   readonly role: string
   readonly name: string
   readonly text: string
+  /** Explicit aria-label; null keeps the attribute absent so the title and text fallbacks run. */
+  readonly ariaLabel?: string | null
+  /** Explicit title attribute. */
+  readonly title?: string | null
 }
 
 interface FakeBox {
@@ -44,27 +63,38 @@ interface FakeBox {
 }
 
 class FakeElement {
-  clickFailure: Error | undefined
-  evaluateFailure: Error | undefined
+  clickFailure: unknown
+  evaluateFailure: unknown
   boundingBoxFailure: Error | undefined
+  uploadFailure: unknown
   fingerprints: FakeFingerprint[] = [{ tagName: 'button', role: 'button', name: 'Continue', text: 'Continue' }]
   boxes: Array<FakeBox | null> = [{ x: 10, y: 20, width: 30, height: 40 }]
+  readonly uploads: Array<{ readonly name: string; readonly mimeType: string; readonly buffer: Buffer }> = []
   readonly click = vi.fn(async () => {
     if (this.clickFailure !== undefined) throw this.clickFailure
   })
   readonly dispose = vi.fn(() => Promise.resolve())
+  readonly setInputFiles = vi.fn(async (payload: { name: string; mimeType: string; buffer: Buffer }) => {
+    if (this.uploadFailure !== undefined) throw this.uploadFailure
+    this.uploads.push(payload)
+  })
   readonly boundingBox = vi.fn(async () => {
     if (this.boundingBoxFailure !== undefined) throw this.boundingBoxFailure
     const value = this.boxes.length > 1 ? this.boxes.shift() : this.boxes[0]
     return value ?? null
   })
   evaluate<T>(callback: (node: Element) => T): Promise<T> {
+    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- non-Error page failures are the behavior under test.
     if (this.evaluateFailure !== undefined) return Promise.reject(this.evaluateFailure)
     const value = this.fingerprints.length > 1 ? this.fingerprints.shift() : this.fingerprints[0]
     if (value === undefined) return Promise.reject(new Error('missing fake element fingerprint'))
     const node = {
       tagName: value.tagName.toUpperCase(),
-      getAttribute: (name: string) => name === 'role' ? value.role : name === 'aria-label' ? value.name : null,
+      getAttribute: (name: string) => name === 'role'
+        ? (value.role === '' ? null : value.role)
+        : name === 'aria-label'
+          ? (value.ariaLabel === undefined ? value.name : value.ariaLabel)
+          : name === 'title' ? value.title ?? null : null,
       textContent: value.text,
     } as unknown as Element
     return Promise.resolve(callback(node))
@@ -112,6 +142,99 @@ class FakeLocator {
   }
 }
 
+/** One in-page node the injected overlay scripts read and mutate. */
+class FakeDomNode {
+  readonly attributes = new Map<string, string>()
+  readonly style: Record<string, string> = {}
+  readonly children: FakeDomNode[] = []
+  id = ''
+  textContent: string
+  rect: FakeBox = { x: 0, y: 0, width: 0, height: 0 }
+  removed = false
+  constructor(readonly tagName: string, textContent = '') { this.textContent = textContent }
+  setAttribute(name: string, value: string): void { this.attributes.set(name, value) }
+  getAttribute(name: string): string | null { return this.attributes.get(name) ?? null }
+  removeAttribute(name: string): void { this.attributes.delete(name) }
+  getBoundingClientRect(): FakeBox { return this.rect }
+  append(child: FakeDomNode): void { this.children.push(child) }
+  remove(): void { this.removed = true }
+}
+
+/** One dispatched in-page event; the key field carries the Escape decision for keydown. */
+class FakeDomEvent {
+  defaultPrevented = false
+  propagationStopped = false
+  immediateStopped = false
+  constructor(readonly target: unknown, readonly key = '') {}
+  preventDefault(): void { this.defaultPrevented = true }
+  stopPropagation(): void { this.propagationStopped = true }
+  stopImmediatePropagation(): void { this.immediateStopped = true }
+}
+
+/** Minimal window/document pair the injected overlay scripts run against. */
+class FakeDom {
+  readonly documentElement = new FakeDomNode('html')
+  readonly nodes: FakeDomNode[] = []
+  readonly listeners = new Map<string, ((event: FakeDomEvent) => void)[]>()
+  readonly window: { __dshBrowserElementCapture?: { key: string; cleanup(): void }; innerWidth: number; innerHeight: number } = {
+    innerWidth: 800,
+    innerHeight: 600,
+  }
+  private restoreGlobals: (() => void) | undefined
+
+  /** Install the page globals the injected scripts resolve at call time. */
+  install(): void {
+    const globals = globalThis as unknown as Record<string, unknown>
+    const saved = new Map<string, { present: boolean; value: unknown }>()
+    for (const key of ['window', 'document', 'Element', 'innerWidth', 'innerHeight']) {
+      saved.set(key, { present: Object.hasOwn(globals, key), value: globals[key] })
+    }
+    globals.window = this.window
+    globals.document = this.document
+    globals.Element = FakeDomNode
+    globals.innerWidth = this.window.innerWidth
+    globals.innerHeight = this.window.innerHeight
+    this.restoreGlobals = () => {
+      for (const [key, entry] of saved) {
+        if (entry.present) globals[key] = entry.value
+        else Reflect.deleteProperty(globals, key)
+      }
+    }
+  }
+  restore(): void {
+    this.restoreGlobals?.()
+    this.restoreGlobals = undefined
+  }
+  /** Execute one in-page callback the provider passed to page.evaluate. */
+  run<T>(callback: (argument?: unknown) => T, argument?: unknown): Promise<T> {
+    return Promise.resolve(callback(argument))
+  }
+  readonly document = {
+    documentElement: this.documentElement,
+    createElement: (tagName: string): FakeDomNode => this.create(tagName),
+    addEventListener: (type: string, listener: (event: FakeDomEvent) => void): void => {
+      this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener])
+    },
+    removeEventListener: (type: string, listener: (event: FakeDomEvent) => void): void => {
+      this.listeners.set(type, (this.listeners.get(type) ?? []).filter(entry => entry !== listener))
+    },
+    querySelectorAll: (): FakeDomNode[] => this.nodes.filter(node => node.attributes.has('data-dsh-browser-element')),
+  }
+
+  create(tagName: string, textContent = ''): FakeDomNode {
+    const node = new FakeDomNode(tagName, textContent)
+    this.nodes.push(node)
+    return node
+  }
+  dispatch(type: string, event: FakeDomEvent): void {
+    for (const listener of [...(this.listeners.get(type) ?? [])]) listener(event)
+  }
+  overlay(): FakeDomNode | undefined {
+    return this.nodes.find(node => node.id === '__dsh_browser_element_capture_overlay__')
+  }
+  captureKey(): string | undefined { return this.window.__dshBrowserElementCapture?.key }
+}
+
 class FakePage {
   readonly frame = {}
   readonly element = new FakeElement()
@@ -128,11 +251,18 @@ class FakePage {
   }
   overlayFailure: Error | undefined
   removeMarkerFailure: Error | undefined
+  clearOverlayFailure: Error | undefined
   viewportFailure: Error | undefined
   overlayCleanupCalls = 0
   ariaFailure: Error | undefined
   gotoFailure: Error | undefined
-  screenshotFailure: Error | undefined
+  backUrl: string | undefined
+  forwardUrl: string | undefined
+  backFailure: unknown
+  forwardFailure: unknown
+  /** When set, page scripts run for real against this in-page DOM instead of canned results. */
+  dom: FakeDom | undefined
+  screenshotFailure: unknown
   screenshotPending: Promise<Buffer> | undefined
   closeFailure: Error | undefined
   private readonly overlayResolvers = new Map<string, (value: unknown) => void>()
@@ -142,6 +272,22 @@ class FakePage {
     if (this.gotoFailure !== undefined) throw this.gotoFailure
     this.currentUrl = url
     this.emit('framenavigated', this.frame)
+    return null
+  })
+  readonly goBack = vi.fn(async () => {
+    if (this.backFailure !== undefined) throw this.backFailure
+    if (this.backUrl !== undefined) {
+      this.currentUrl = this.backUrl
+      this.emit('framenavigated', this.frame)
+    }
+    return null
+  })
+  readonly goForward = vi.fn(async () => {
+    if (this.forwardFailure !== undefined) throw this.forwardFailure
+    if (this.forwardUrl !== undefined) {
+      this.currentUrl = this.forwardUrl
+      this.emit('framenavigated', this.frame)
+    }
     return null
   })
   readonly screenshot = vi.fn(async (_options?: unknown) => {
@@ -160,6 +306,15 @@ class FakePage {
   beginPendingSelection(): void {
     this.holdSelections = true
   }
+  /** Settle the pending overlay with one fabricated selection, as a page click would. */
+  completeSelection(): void {
+    const key = this.activeOverlayKey
+    if (key === undefined) throw new Error('no pending selection overlay')
+    this.activeOverlayKey = undefined
+    const value = this.overlaySelection === null ? null : { ...this.overlaySelection, key }
+    this.overlayResolvers.get(key)?.(value)
+    this.overlayResolvers.delete(key)
+  }
   on(event: string, listener: (value: unknown) => void): this {
     const listeners = this.listeners.get(event) ?? []
     listeners.push(listener)
@@ -175,6 +330,7 @@ class FakePage {
   mainFrame(): object { return this.frame }
   evaluate<T, A>(callback: ((argument: A) => T) | (() => T), argument?: A): Promise<T> {
     this.evaluateNames.push(callback.name)
+    if (this.dom !== undefined) return this.dom.run(callback as (argument?: unknown) => T, argument)
     if (callback.name === 'selectElementInPage') {
       if (this.overlayFailure !== undefined) return Promise.reject(this.overlayFailure)
       const key = String(argument)
@@ -202,7 +358,9 @@ class FakePage {
         this.overlayResolvers.delete(key)
         this.activeOverlayKey = undefined
       }
-      return Promise.resolve(undefined as T)
+      return this.clearOverlayFailure === undefined
+        ? Promise.resolve(undefined as T)
+        : Promise.reject(this.clearOverlayFailure)
     }
     if (callback.name === 'removeSelectionMarker') {
       this.removedMarkerKeys.push(String(argument))
@@ -260,6 +418,75 @@ function harness(overrides: Parameters<typeof resolvePlaywrightBrowserConfig>[0]
   return { context, launch, provider }
 }
 
+describe('Browser stored profiles', () => {
+  it('lists the selected, default, and stored profiles without launching a browser', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-browser-profiles-'))
+    try {
+      const storageDir = join(root, 'profile')
+      const provider = new PlaywrightBrowserProvider(
+        resolvePlaywrightBrowserConfig({ storageDir, profileName: 'default' }),
+        () => Promise.reject(new Error('must not launch')),
+      )
+      expect(PlaywrightBrowser.profileDirectory(storageDir, 'default')).toBe(storageDir)
+      expect(PlaywrightBrowser.profileDirectory(storageDir, 'research').replaceAll('\\', '/')).toBe(storageDir.replaceAll('\\', '/') + '/harness-profiles/profile-research')
+      expect(PlaywrightBrowser.storedProfileNames(storageDir)).toEqual([])
+      expect(provider.listProfiles()).toEqual([{ name: 'default', directory: storageDir, stored: false, current: true }])
+      mkdirSync(join(storageDir, 'harness-profiles', 'profile-research'), { recursive: true })
+      mkdirSync(join(storageDir, 'harness-profiles', 'not-a-profile'), { recursive: true })
+      expect(PlaywrightBrowser.storedProfileNames(storageDir)).toEqual(['research'])
+      expect(provider.listProfiles()).toEqual([
+        { name: 'default', directory: storageDir, stored: true, current: true },
+        { name: 'research', directory: join(storageDir, 'harness-profiles', 'profile-research'), stored: true, current: false },
+      ])
+      await provider.dispose()
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('Browser default zoom', () => {
+  it('keeps the configured viewport at zoom 1 and scales the layout viewport above it', () => {
+    expect(PlaywrightBrowser.browserViewport(1440, 900, 1)).toEqual({ width: 1440, height: 900 })
+    expect(PlaywrightBrowser.browserViewport(1440, 900, 2)).toEqual({ width: 720, height: 450 })
+    expect(PlaywrightBrowser.browserViewport(3, 3, 5)).toEqual({ width: 1, height: 1 })
+  })
+
+  it('reads a live-updatable zoom and rejects values outside the supported range', () => {
+    expect(resolvePlaywrightBrowserConfig().zoom).toBe(1)
+    expect(resolvePlaywrightBrowserConfig({ zoom: { get: () => 2 } as never }).zoom).toBe(2)
+    for (const zoom of [0, 0.2, 5.1, Number.NaN]) {
+      expect(() => resolvePlaywrightBrowserConfig({ zoom })).toThrow(/zoom must be between/)
+    }
+  })
+
+  it('launches a zoomed page at the configured pixel size', async () => {
+    const b = harness({ zoom: 1.5 })
+    try {
+      await b.provider.listPages()
+      expect(b.launch.mock.calls[0]?.[1]).toMatchObject({ viewport: { width: 960, height: 600 }, deviceScaleFactor: 1.5 })
+    } finally { await b.provider.dispose() }
+  })
+
+  it('names the loopback endpoint of the debugging port and rejects out-of-range ports', () => {
+    expect(PlaywrightBrowser.attachEndpoint(9333)).toBe('http://127.0.0.1:9333')
+    for (const port of [80, 65536]) expect(() => PlaywrightBrowser.attachEndpoint(port)).toThrow(/between 1024 and 65535/)
+    expect(() => PlaywrightBrowser.attachEndpoint(1.5)).toThrow(/positive safe integer/)
+    expect(resolvePlaywrightBrowserConfig({ attach: true, attachPort: 9333 })).toMatchObject({ attach: true, attachPort: 9333 })
+    expect(() => resolvePlaywrightBrowserConfig({ attachPort: 80 })).toThrow(/between 1024 and 65535/)
+  })
+
+  it('launches without a device scale override at zoom 1', async () => {
+    const b = harness()
+    try {
+      await b.provider.listPages()
+      const options = b.launch.mock.calls[0]?.[1] as Record<string, unknown>
+      expect(options.viewport).toEqual({ width: 1440, height: 900 })
+      expect(Object.hasOwn(options, 'deviceScaleFactor')).toBe(false)
+    } finally { await b.provider.dispose() }
+  })
+})
+
 describe('Playwright browser provider config', () => {
   it('defaults every deployment choice and rejects malformed settings', () => {
     const defaults = resolvePlaywrightBrowserConfig()
@@ -295,6 +522,9 @@ describe('Playwright browser provider config', () => {
       maxHistoryEntries: 100, maxNetworkEntries: 100, maxCookieCount: 100, maxDownloadCount: 20, maxTransferBytes: 4 * 1024 * 1024,
     })).toEqual({
       providerId: 'fixture',
+      zoom: 1,
+      attach: false,
+      attachPort: 9222,
       storageDir: 'C:/profile',
       browserChannel: 'msedge',
       executablePath: 'C:/Browser/browser.exe',
@@ -317,6 +547,26 @@ describe('Playwright browser provider config', () => {
     expect(() => resolvePlaywrightBrowserConfig({ maxElements: 0 })).toThrow(/positive safe integer/)
     expect(() => resolvePlaywrightBrowserConfig({ actionTimeoutMs: Number.NaN })).toThrow(/positive safe integer/)
     expect(() => resolvePlaywrightBrowserConfig({ extra: true } as never)).toThrow(/unsupported config key/)
+    expect(() => resolvePlaywrightBrowserConfig({ homePage: 'http://' })).toThrow(/must be an HTTP or HTTPS URL/)
+    expect(() => resolvePlaywrightBrowserConfig({ homePage: 'https://example.test/' + 'a'.repeat(8192) })).toThrow(/homePage is too long/)
+    expect(() => resolvePlaywrightBrowserConfig({ maxTransferBytes: 100 * 1024 * 1024 + 1 })).toThrow(/maxTransferBytes exceeds 100 MiB/)
+    expect(() => resolvePlaywrightBrowserConfig({ maxNetworkEntries: 1001 })).toThrow(/maxNetworkEntries must not exceed 1000/)
+    expect(() => resolvePlaywrightBrowserConfig({ searchEngine: 'ask' as never })).toThrow(/searchEngine is invalid/)
+  })
+
+  it('reads the remote debugging port from the environment only when the configuration omits it', () => {
+    vi.stubEnv('CLH_BROWSER_CDP_PORT', '9444')
+    vi.stubEnv('DSH_BROWSER_CDP_PORT', '9222')
+    try {
+      expect(resolvePlaywrightBrowserConfig().remoteDebuggingPort).toBe(9444)
+      vi.stubEnv('CLH_BROWSER_CDP_PORT', '')
+      expect(resolvePlaywrightBrowserConfig().remoteDebuggingPort).toBeUndefined()
+      vi.stubEnv('CLH_BROWSER_CDP_PORT', undefined)
+      expect(resolvePlaywrightBrowserConfig().remoteDebuggingPort).toBe(9222)
+      vi.stubEnv('DSH_BROWSER_CDP_PORT', '')
+      expect(resolvePlaywrightBrowserConfig().remoteDebuggingPort).toBeUndefined()
+      expect(resolvePlaywrightBrowserConfig({ remoteDebuggingPort: 9555 }).remoteDebuggingPort).toBe(9555)
+    } finally { vi.unstubAllEnvs() }
   })
 })
 
@@ -402,6 +652,31 @@ describe('Playwright browser provider behavior', () => {
     })
     expect(context.initial.screenshot).toHaveBeenCalledWith({ type: 'png', clip: { x: 10, y: 20, width: 30, height: 40 } })
     await provider.dispose()
+  })
+
+  it('rejects empty and over-budget element bounds before screenshot', async () => {
+    const empty = harness()
+    const [emptyPage] = await empty.provider.listPages()
+    if (emptyPage === undefined) throw new Error('missing fixture page')
+    const emptyObservation = await empty.provider.snapshot({ pageId: emptyPage.pageId })
+    empty.context.initial.element.boxes = [{ x: 0, y: 0, width: 0, height: 10 }]
+    await expect(empty.provider.captureElement({
+      pageId: emptyPage.pageId,
+      target: { kind: 'observation', observationId: emptyObservation.observationId, elementId: emptyObservation.elements[0]!.elementId },
+      format: 'png',
+    })).rejects.toThrow(expect.objectContaining({ code: 'BROWSER_ELEMENT_CAPTURE_BOUNDS' }))
+    await empty.provider.dispose()
+
+    const overBudget = harness({ maxCapturePixels: 10 })
+    const [budgetPage] = await overBudget.provider.listPages()
+    if (budgetPage === undefined) throw new Error('missing fixture page')
+    const budgetObservation = await overBudget.provider.snapshot({ pageId: budgetPage.pageId })
+    await expect(overBudget.provider.captureElement({
+      pageId: budgetPage.pageId,
+      target: { kind: 'observation', observationId: budgetObservation.observationId, elementId: budgetObservation.elements[0]!.elementId },
+      format: 'png',
+    })).rejects.toThrow(expect.objectContaining({ code: 'BROWSER_ELEMENT_CAPTURE_BOUNDS' }))
+    await overBudget.provider.dispose()
   })
 
   it('selects an element, removes its marker, and consumes the selection after capture', async () => {
@@ -499,6 +774,9 @@ describe('Playwright browser provider behavior', () => {
     await expect(missing.provider.selectElement({ pageId: missingPage.pageId }))
       .rejects.toThrow(expect.objectContaining({ code: 'BROWSER_ELEMENT_STALE' }))
     expect(missing.context.initial.removedMarkerKeys).toHaveLength(1)
+    missing.context.initial.removeMarkerFailure = new Error('page navigated during cleanup')
+    await expect(missing.provider.selectElement({ pageId: missingPage.pageId }))
+      .rejects.toThrow(expect.objectContaining({ code: 'BROWSER_ELEMENT_STALE' }))
     await missing.provider.dispose()
 
     const failedFingerprint = harness()
@@ -561,6 +839,135 @@ describe('Playwright browser provider behavior', () => {
       format: 'png',
     })).rejects.toThrow(expect.objectContaining({ code: 'BROWSER_ELEMENT_CAPTURE_FAILED' }))
     await failed.provider.dispose()
+  })
+
+  it('runs the injected overlay scripts against a real in-page DOM', async () => {
+    const { context, provider } = harness()
+    const dom = new FakeDom()
+    context.initial.dom = dom
+    const [page] = await provider.listPages()
+    if (page === undefined) throw new Error('missing fixture page')
+    dom.install()
+    try {
+      const target = dom.create('button', '  Continue  ')
+      target.rect = { x: 10, y: 20, width: 30, height: 40 }
+      target.setAttribute('title', 'Continue')
+      const zeroSize = dom.create('span', 'hidden')
+      const decoy = dom.create('i', 'decoy')
+      decoy.setAttribute('data-dsh-browser-element', 'other')
+
+      const pending = provider.selectElement({ pageId: page.pageId })
+      const overlay = dom.overlay()
+      expect(dom.captureKey()).toBeDefined()
+      dom.dispatch('pointermove', new FakeDomEvent('not-an-element'))
+      dom.dispatch('keydown', new FakeDomEvent(target, 'Tab'))
+      dom.dispatch('pointermove', new FakeDomEvent(zeroSize))
+      expect(overlay?.style.display).toBe('none')
+      dom.dispatch('pointermove', new FakeDomEvent(target))
+      expect(overlay?.style).toMatchObject({ display: 'block', left: '10px', top: '20px', width: '30px', height: '40px' })
+      dom.dispatch('click', new FakeDomEvent('not-an-element'))
+      dom.dispatch('click', new FakeDomEvent(target))
+
+      const selection = await pending
+      // Identity comes from the element handle the page marker resolves to; the
+      // overlay contributes the marker key and the selected node's bounds.
+      expect(selection).toMatchObject({
+        pageId: page.pageId,
+        tagName: 'button',
+        role: 'button',
+        name: 'Continue',
+        text: 'Continue',
+        rect: { x: 10, y: 20, width: 30, height: 40 },
+      })
+      expect(overlay?.removed).toBe(true)
+      expect(dom.captureKey()).toBeUndefined()
+      expect(dom.listeners.get('click')).toEqual([])
+      expect(target.getAttribute('data-dsh-browser-element')).toBeNull()
+      expect(decoy.getAttribute('data-dsh-browser-element')).toBe('other')
+      await expect(provider.captureElement({
+        pageId: page.pageId,
+        target: { kind: 'selection', selectionId: selection.selectionId },
+        format: 'png',
+      })).resolves.toMatchObject({ verified: true, tagName: 'button', rect: { x: 10, y: 20, width: 30, height: 40 } })
+    } finally {
+      dom.restore()
+      await provider.dispose()
+    }
+  })
+
+  it('cancels overlay selection for empty bounds, Escape, and a replaced overlay', async () => {
+    const { context, provider } = harness()
+    const dom = new FakeDom()
+    context.initial.dom = dom
+    const [page] = await provider.listPages()
+    if (page === undefined) throw new Error('missing fixture page')
+    dom.install()
+    try {
+      const zeroSize = dom.create('div', '')
+      const typed = dom.create('input', '  Search  ')
+      typed.rect = { x: 5, y: 6, width: 7, height: 8 }
+
+      const emptyBounds = provider.selectElement({ pageId: page.pageId })
+      dom.dispatch('pointermove', new FakeDomEvent(zeroSize))
+      dom.dispatch('click', new FakeDomEvent(zeroSize))
+      await expect(emptyBounds).rejects.toMatchObject({ code: 'BROWSER_SELECTION_CANCELLED' })
+
+      const directTarget = provider.selectElement({ pageId: page.pageId })
+      dom.dispatch('click', new FakeDomEvent(typed))
+      await expect(directTarget).resolves.toMatchObject({ rect: { x: 5, y: 6, width: 7, height: 8 } })
+
+      const escaped = provider.selectElement({ pageId: page.pageId })
+      dom.dispatch('keydown', new FakeDomEvent(typed, 'Escape'))
+      await expect(escaped).rejects.toMatchObject({ code: 'BROWSER_SELECTION_CANCELLED' })
+
+      const replaced = provider.selectElement({ pageId: page.pageId })
+      const replacing = provider.selectElement({ pageId: page.pageId })
+      await expect(replaced).rejects.toMatchObject({ code: 'BROWSER_SELECTION_CANCELLED' })
+      await expect(replacing).rejects.toMatchObject({ code: 'BROWSER_SELECTION_CANCELLED' })
+      expect(dom.captureKey()).toBeUndefined()
+    } finally {
+      dom.restore()
+      await provider.dispose()
+    }
+  })
+
+  it('clears a pending page overlay through the cleanup hook on cancellation and timeout', async () => {
+    const cancelled = harness()
+    const dom = new FakeDom()
+    cancelled.context.initial.dom = dom
+    const [page] = await cancelled.provider.listPages()
+    if (page === undefined) throw new Error('missing fixture page')
+    dom.install()
+    try {
+      const controller = new AbortController()
+      const pending = cancelled.provider.selectElement({ pageId: page.pageId }, controller.signal)
+      const capture = dom.window.__dshBrowserElementCapture
+      expect(capture?.key).toBeDefined()
+      controller.abort(new Error('selection stopped'))
+      await expect(pending).rejects.toThrow('selection stopped')
+      expect(dom.overlay()?.removed).toBe(true)
+      expect(dom.captureKey()).toBeUndefined()
+      capture?.cleanup()
+      expect(dom.overlay()?.removed).toBe(true)
+    } finally {
+      dom.restore()
+      await cancelled.provider.dispose()
+    }
+
+    const timedOut = harness({ selectionTimeoutMs: 1 })
+    const timeoutDom = new FakeDom()
+    timedOut.context.initial.dom = timeoutDom
+    const [timeoutPage] = await timedOut.provider.listPages()
+    if (timeoutPage === undefined) throw new Error('missing fixture page')
+    timeoutDom.install()
+    try {
+      await expect(timedOut.provider.selectElement({ pageId: timeoutPage.pageId }))
+        .rejects.toMatchObject({ code: 'BROWSER_SELECTION_TIMEOUT' })
+      expect(timeoutDom.overlay()?.removed).toBe(true)
+    } finally {
+      timeoutDom.restore()
+      await timedOut.provider.dispose()
+    }
   })
 
   it('uses an executable without a channel and supports the default Playwright launcher', async () => {
@@ -676,6 +1083,208 @@ describe('Playwright browser provider behavior', () => {
     await provider.dispose()
   })
 
+  it('reports lifecycle state and closes the owned context on demand', async () => {
+    const idle = new PlaywrightBrowserProvider(
+      resolvePlaywrightBrowserConfig({ storageDir: 'C:/fixture/profile' }),
+      () => Promise.reject(new Error('must not launch')),
+    )
+    expect(idle.browserState()).toBe('stopped')
+    expect(idle.cdpEndpoint()).toBeUndefined()
+    await expect(idle.closeBrowser()).resolves.toBeUndefined()
+    await idle.dispose()
+
+    const { context, provider } = harness()
+    expect(provider.browserState()).toBe('stopped')
+    const launching = provider.listPages()
+    expect(provider.browserState()).toBe('starting')
+    await launching
+    expect(provider.browserState()).toBe('running')
+    await provider.closeBrowser()
+    expect(context.close).toHaveBeenCalledOnce()
+    expect(provider.browserState()).toBe('stopped')
+    await provider.dispose()
+  })
+
+  it('resolves home, url, and search navigation and rejects unknown targets', () => {
+    const { provider } = harness({ homePage: 'https://example.test/home', searchEngine: 'duckduckgo' })
+    expect(provider.resolveNavigation({ kind: 'url', url: 'https://example.test/page' })).toEqual({ url: 'https://example.test/page' })
+    expect(provider.resolveNavigation({ kind: 'search', query: 'fixture' })).toEqual({ url: 'https://duckduckgo.com/?q=fixture' })
+    expect(() => provider.resolveNavigation({ kind: 'url', url: 'file:///etc/passwd' })).toThrow(/must be an HTTP or HTTPS URL/)
+    expect(() => provider.resolveNavigation({ kind: 'unknown' } as never)).toThrow(/unreachable variant/)
+  })
+
+  it('drops retained selections when the page is invalidated', async () => {
+    const { context, provider } = harness()
+    const [page] = await provider.listPages()
+    if (page === undefined) throw new Error('missing fixture page')
+    const selection = await provider.selectElement({ pageId: page.pageId })
+    context.initial.element.dispose.mockClear()
+    await provider.navigate({ pageId: page.pageId, url: 'https://example.test/next' })
+    expect(context.initial.element.dispose).toHaveBeenCalledOnce()
+    await expect(provider.captureElement({
+      pageId: page.pageId,
+      target: { kind: 'selection', selectionId: selection.selectionId },
+      format: 'png',
+    })).rejects.toMatchObject({ code: 'BROWSER_ELEMENT_STALE' })
+    await provider.dispose()
+  })
+
+  it('classifies overlay injection, marker recovery, and viewport failures', async () => {
+    const injection = harness()
+    const [injectionPage] = await injection.provider.listPages()
+    if (injectionPage === undefined) throw new Error('missing fixture page')
+    injection.context.initial.overlayFailure = new Error('overlay injection failed')
+    injection.context.initial.clearOverlayFailure = new Error('page navigated before cleanup')
+    await expect(injection.provider.selectElement({ pageId: injectionPage.pageId }))
+      .rejects.toMatchObject({ code: 'BROWSER_ELEMENT_CAPTURE_FAILED' })
+    expect(injection.context.initial.overlayCleanupCalls).toBe(1)
+    await injection.provider.dispose()
+
+    const missingHandle = harness()
+    const [missingHandlePage] = await missingHandle.provider.listPages()
+    if (missingHandlePage === undefined) throw new Error('missing fixture page')
+    missingHandle.context.initial.selectionItems = [new FakeItem(new FakeElement(), { tag: 'button', handle: false })]
+    await expect(missingHandle.provider.selectElement({ pageId: missingHandlePage.pageId }))
+      .rejects.toMatchObject({ code: 'BROWSER_ELEMENT_STALE' })
+    await missingHandle.provider.dispose()
+
+    const viewport = harness()
+    const [viewportPage] = await viewport.provider.listPages()
+    if (viewportPage === undefined) throw new Error('missing fixture page')
+    const observation = await viewport.provider.snapshot({ pageId: viewportPage.pageId })
+    viewport.context.initial.viewportFailure = new Error('viewport probe failed')
+    await expect(viewport.provider.captureElement({
+      pageId: viewportPage.pageId,
+      target: { kind: 'observation', observationId: observation.observationId, elementId: observation.elements[0]!.elementId },
+      format: 'png',
+    })).rejects.toMatchObject({ code: 'BROWSER_ELEMENT_CAPTURE_FAILED' })
+    await viewport.provider.dispose()
+  })
+
+  it('rejects with the caller failure when cancellation lands after the overlay settled', async () => {
+    const { context, provider } = harness()
+    const [page] = await provider.listPages()
+    if (page === undefined) throw new Error('missing fixture page')
+    context.initial.beginPendingSelection()
+    const controller = new AbortController()
+    const pending = provider.selectElement({ pageId: page.pageId }, controller.signal)
+    await vi.waitFor(() => { expect(context.initial.evaluateNames).toContain('selectElementInPage') })
+    context.initial.completeSelection()
+    controller.abort(new Error('selection stopped late'))
+    await expect(pending).rejects.toThrow('selection stopped late')
+    await provider.dispose()
+  })
+
+  it('keeps a provider-held browser error instead of reclassifying it', async () => {
+    const { context, provider } = harness()
+    const [page] = await provider.listPages()
+    if (page === undefined) throw new Error('missing fixture page')
+    context.initial.ariaFailure = new BrowserError('browser page was closed', 'BROWSER_PAGE_CLOSED')
+    await expect(provider.snapshot({ pageId: page.pageId })).rejects.toMatchObject({ code: 'BROWSER_PAGE_CLOSED' })
+    context.initial.ariaFailure = undefined
+    const observation = await provider.snapshot({ pageId: page.pageId })
+    context.initial.element.clickFailure = new BrowserError('browser page was closed', 'BROWSER_PAGE_CLOSED')
+    await expect(provider.click({
+      pageId: page.pageId,
+      observationId: observation.observationId,
+      elementId: observation.elements[0]!.elementId,
+    })).rejects.toMatchObject({ code: 'BROWSER_PAGE_CLOSED' })
+    await provider.dispose()
+  })
+
+  it('rejects stale, absent, changed, and hidden element capture targets', async () => {
+    const stale = harness()
+    const [stalePage] = await stale.provider.listPages()
+    if (stalePage === undefined) throw new Error('missing fixture page')
+    await expect(stale.provider.captureElement({
+      pageId: stalePage.pageId,
+      target: { kind: 'observation', observationId: BrowserObservationId('missing'), elementId: BrowserElementId('e1') },
+      format: 'png',
+    })).rejects.toMatchObject({ code: 'BROWSER_OBSERVATION_STALE' })
+    const staleObservation = await stale.provider.snapshot({ pageId: stalePage.pageId })
+    await expect(stale.provider.captureElement({
+      pageId: stalePage.pageId,
+      target: { kind: 'observation', observationId: staleObservation.observationId, elementId: BrowserElementId('e9') },
+      format: 'png',
+    })).rejects.toMatchObject({ code: 'BROWSER_ELEMENT_STALE' })
+    await stale.provider.dispose()
+
+    const changed = harness()
+    const [changedPage] = await changed.provider.listPages()
+    if (changedPage === undefined) throw new Error('missing fixture page')
+    const selection = await changed.provider.selectElement({ pageId: changedPage.pageId })
+    changed.context.initial.element.fingerprints = [{ tagName: 'button', role: 'button', name: 'Changed', text: 'Changed' }]
+    await expect(changed.provider.captureElement({
+      pageId: changedPage.pageId,
+      target: { kind: 'selection', selectionId: selection.selectionId },
+      format: 'png',
+    })).rejects.toMatchObject({ code: 'BROWSER_ELEMENT_CHANGED', message: expect.stringContaining('changed after selection') })
+    await changed.provider.dispose()
+
+    const hidden = harness()
+    const [hiddenPage] = await hidden.provider.listPages()
+    if (hiddenPage === undefined) throw new Error('missing fixture page')
+    const hiddenObservation = await hidden.provider.snapshot({ pageId: hiddenPage.pageId })
+    hidden.context.initial.element.boxes = [{ x: 10, y: 20, width: 30, height: 40 }, null]
+    await expect(hidden.provider.captureElement({
+      pageId: hiddenPage.pageId,
+      target: { kind: 'observation', observationId: hiddenObservation.observationId, elementId: hiddenObservation.elements[0]!.elementId },
+      format: 'png',
+    })).rejects.toMatchObject({ code: 'BROWSER_ELEMENT_CHANGED', message: expect.stringContaining('became invisible') })
+    await hidden.provider.dispose()
+
+    const closed = harness()
+    const [closedPage] = await closed.provider.listPages()
+    if (closedPage === undefined) throw new Error('missing fixture page')
+    const closedObservation = await closed.provider.snapshot({ pageId: closedPage.pageId })
+    let release!: (value: Buffer) => void
+    closed.context.initial.screenshotPending = new Promise((resolve) => { release = resolve })
+    const pending = closed.provider.captureElement({
+      pageId: closedPage.pageId,
+      target: { kind: 'observation', observationId: closedObservation.observationId, elementId: closedObservation.elements[0]!.elementId },
+      format: 'png',
+    })
+    await vi.waitFor(() => { expect(closed.context.initial.screenshot).toHaveBeenCalledOnce() })
+    await closed.context.initial.close()
+    await expect(pending).rejects.toMatchObject({ code: 'BROWSER_PAGE_CLOSED' })
+    release(Buffer.from([1, 2, 3]))
+    await closed.provider.dispose()
+  })
+
+  it('derives role and name fallbacks from the selected element handle', async () => {
+    const { context, provider } = harness()
+    const [page] = await provider.listPages()
+    if (page === undefined) throw new Error('missing fixture page')
+    context.initial.element.fingerprints = [
+      { tagName: 'a', role: '', name: '', ariaLabel: null, title: null, text: 'Details' },
+      { tagName: 'a', role: 'a', name: '', ariaLabel: null, title: 'Details', text: 'Details' },
+      { tagName: 'a', role: 'a', name: 'Details', ariaLabel: 'Details', text: 'Details' },
+    ]
+    const selection = await provider.selectElement({ pageId: page.pageId })
+    expect(selection).toMatchObject({ tagName: 'a', role: 'a', name: 'Details', text: 'Details' })
+    await expect(provider.captureElement({
+      pageId: page.pageId,
+      target: { kind: 'selection', selectionId: selection.selectionId },
+      format: 'png',
+    })).resolves.toMatchObject({ verified: true, tagName: 'a', role: 'a', name: 'Details' })
+    await provider.dispose()
+  })
+
+  it('maps a detached element and a non-Error page failure onto capture failures', async () => {
+    const detached = harness()
+    const [detachedPage] = await detached.provider.listPages()
+    if (detachedPage === undefined) throw new Error('missing fixture page')
+    const detachedObservation = await detached.provider.snapshot({ pageId: detachedPage.pageId })
+    detached.context.initial.element.evaluateFailure = 'element is detached from the document'
+    await expect(detached.provider.captureElement({
+      pageId: detachedPage.pageId,
+      target: { kind: 'observation', observationId: detachedObservation.observationId, elementId: detachedObservation.elements[0]!.elementId },
+      format: 'png',
+    })).rejects.toMatchObject({ code: 'BROWSER_ELEMENT_STALE', message: expect.stringContaining('take a new snapshot') })
+    await detached.provider.dispose()
+
+  })
+
   it('maps each Playwright operation failure and cleans partial page creation', async () => {
     const openCreation = harness()
     openCreation.context.newPage.mockRejectedValueOnce(new Error('new page failed'))
@@ -729,6 +1338,7 @@ describe('Playwright browser provider behavior', () => {
     [Object.assign(new Error('Timeout 30000ms exceeded'), { name: 'TimeoutError' }), 'BROWSER_CLICK_TIMEOUT', 'timeout'],
     [new Error('another element intercepts pointer events'), 'BROWSER_CLICK_NOT_ACTIONABLE', 'not actionable'],
     [new Error('selected click failure'), 'BROWSER_CLICK_FAILED', "Could not click element 'e1'"],
+    ['click exploded', 'BROWSER_CLICK_FAILED', "Could not click element 'e1'"],
   ])('classifies click failure %s as %s', async (failure, code, message) => {
     const { context, provider } = harness()
     const [page] = await provider.listPages()
@@ -848,12 +1458,55 @@ function createMockSettings(initial: Record<string, unknown> = {}, onWrite?: (va
         stored = { ...stored, ...patch }
         await onWrite?.(stored)
       },
-      configure: () => () => { registered = false },
+      configure: () => { registered = true; return () => { registered = false } },
     } as never)
   }
 }
 
 describe('Playwright browser Cordis plugins', () => {
+  it('attaches to an existing browser and disconnects without closing it', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-browser-attach-'))
+    const ctx = new Context()
+    const context = new FakeContext()
+    const detach = vi.fn(async () => {})
+    const connect = vi.spyOn(chromium, 'connectOverCDP').mockResolvedValue({
+      contexts: () => [context], close: detach,
+    } as unknown as Browser)
+    try {
+      await ctx.plugin(createMockSettings({ browserChannel: 'chrome', attach: true, attachPort: 9333 }))
+      await ctx.plugin(BrowserRuntime)
+      ctx.provide('subprocess', { spawn: vi.fn(() => { throw new Error('Unexpected installer') }) } as never)
+      await ctx.plugin(BrowserRuntimeManager, { storageDir: join(root, 'runtime') })
+      const fiber = await ctx.plugin(PlaywrightBrowser, { storageDir: join(root, 'profile') })
+      expect((await ctx.browser.listPages()).length).toBe(1)
+      expect(connect).toHaveBeenCalledWith('http://127.0.0.1:9333')
+      expect(context.close).not.toHaveBeenCalled()
+      await fiber.dispose()
+      expect(detach).toHaveBeenCalled()
+      expect(context.close).not.toHaveBeenCalled()
+    } finally {
+      await ctx.fiber.dispose()
+      connect.mockRestore()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('mounts the Browser provider when no settings provider exists', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-browser-no-settings-'))
+    const ctx = new Context()
+    try {
+      await ctx.plugin(BrowserRuntime)
+      ctx.provide('subprocess', { spawn: vi.fn(() => { throw new Error('Unexpected installer') }) } as never)
+      await ctx.plugin(BrowserRuntimeManager, { storageDir: join(root, 'runtime') })
+      const fiber = await ctx.plugin(PlaywrightBrowser)
+      expect(ctx.get('settings')).toBeUndefined()
+      await fiber.dispose()
+    } finally {
+      await ctx.fiber.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('registers and removes the Browser provider without launching it', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-browser-preferences-'))
     const ctx = new Context()
@@ -871,6 +1524,113 @@ describe('Playwright browser Cordis plugins', () => {
       const unregister = ctx.browser.registerProvider(replacement)
       unregister()
       await replacement.dispose()
+    } finally {
+      await ctx.fiber.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('fails the attach when the running browser exposes no context', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-browser-attach-empty-'))
+    const ctx = new Context()
+    const detach = vi.fn(async () => {})
+    const connect = vi.spyOn(chromium, 'connectOverCDP').mockResolvedValue({
+      contexts: () => [], close: detach,
+    } as unknown as Browser)
+    try {
+      await ctx.plugin(createMockSettings({ browserChannel: 'chrome', attach: true, attachPort: 9333 }))
+      await ctx.plugin(BrowserRuntime)
+      ctx.provide('subprocess', { spawn: vi.fn(() => { throw new Error('Unexpected installer') }) } as never)
+      await ctx.plugin(BrowserRuntimeManager, { storageDir: join(root, 'runtime') })
+      const fiber = await ctx.plugin(PlaywrightBrowser, { storageDir: join(root, 'profile') })
+      await expect(ctx.browser.listPages()).rejects.toMatchObject({
+        code: 'BROWSER_PLAYWRIGHT_LAUNCH_FAILED',
+        message: expect.stringContaining('Could not attach to the browser at http://127.0.0.1:9333'),
+      })
+      expect(detach).toHaveBeenCalledOnce()
+      await fiber.dispose()
+    } finally {
+      await ctx.fiber.dispose()
+      connect.mockRestore()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('launches the managed Chromium build for the chromium channel and honors an explicit executable', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-browser-managed-'))
+    const ctx = new Context()
+    const context = new FakeContext()
+    const launch = vi.spyOn(chromium, 'launchPersistentContext').mockResolvedValue(context as unknown as BrowserContext)
+    try {
+      const runtimeDir = join(root, 'runtime')
+      await installManagedChromium(runtimeDir)
+      await ctx.plugin(createMockSettings({ browserChannel: 'chromium' }))
+      await ctx.plugin(BrowserRuntime)
+      ctx.provide('subprocess', { spawn: vi.fn(() => { throw new Error('Unexpected installer') }) } as never)
+      await ctx.plugin(BrowserRuntimeManager, { storageDir: runtimeDir })
+      const custom = await ctx.plugin(PlaywrightBrowser, { storageDir: join(root, 'profile'), executablePath: 'C:/Browser/browser.exe' })
+      await ctx.browser.listPages()
+      expect(launch.mock.calls[0]?.[1]).toMatchObject({ executablePath: 'C:/Browser/browser.exe' })
+      expect(launch.mock.calls[0]?.[1]).not.toHaveProperty('channel')
+      await custom.dispose()
+
+      const managed = await ctx.plugin(PlaywrightBrowser, { storageDir: join(root, 'profile') })
+      await ctx.browser.listPages()
+      const managedOptions = launch.mock.calls[1]?.[1] as Record<string, unknown>
+      expect(managedOptions.executablePath?.toString().replaceAll('\\', '/')).toBe(join(runtimeDir, 'generation-fixture', runtimeMetadata.executableRelative).replaceAll('\\', '/'))
+      expect(managedOptions).not.toHaveProperty('channel')
+      await managed.dispose()
+    } finally {
+      await ctx.fiber.dispose()
+      launch.mockRestore()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('publishes runtime state, releases the lease after a failed launch, and closes through the runtime', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-browser-runtime-state-'))
+    const ctx = new Context()
+    const context = new FakeContext()
+    const launch = vi.spyOn(chromium, 'launchPersistentContext')
+    try {
+      await ctx.plugin(createMockSettings({ browserChannel: 'chrome' }))
+      await ctx.plugin(BrowserRuntime)
+      ctx.provide('subprocess', { spawn: vi.fn(() => { throw new Error('Unexpected installer') }) } as never)
+      await ctx.plugin(BrowserRuntimeManager, { storageDir: join(root, 'runtime') })
+      launch.mockRejectedValueOnce(new Error('chrome missing'))
+      const fiber = await ctx.plugin(PlaywrightBrowser, { storageDir: join(root, 'profile') })
+      expect(ctx.browserRuntime.status()).toMatchObject({ providerActive: true, attached: false, browserState: 'stopped' })
+      await expect(ctx.browser.listPages()).rejects.toMatchObject({ code: 'BROWSER_PLAYWRIGHT_LAUNCH_FAILED' })
+      expect(ctx.browserRuntime.status().browserState).toBe('stopped')
+
+      // A held lease would refuse this second acquisition, proving the failed launch released it.
+      const release = await ctx.browserRuntime.acquireBrowserLease()
+      await release()
+
+      launch.mockResolvedValue(context as unknown as BrowserContext)
+      await ctx.browser.listPages()
+      expect(ctx.browserRuntime.status().browserState).toBe('running')
+      await ctx.browserRuntime.closeBrowser()
+      expect(context.close).toHaveBeenCalledOnce()
+      expect(ctx.browserRuntime.status().browserState).toBe('stopped')
+      await fiber.dispose()
+    } finally {
+      await ctx.fiber.dispose()
+      launch.mockRestore()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('mounts the provider for a direct apply caller without a settings service', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-browser-direct-apply-'))
+    const ctx = new Context()
+    try {
+      await ctx.plugin(BrowserRuntime)
+      ctx.provide('subprocess', { spawn: vi.fn(() => { throw new Error('Unexpected installer') }) } as never)
+      await ctx.plugin(BrowserRuntimeManager, { storageDir: join(root, 'runtime') })
+      PlaywrightBrowser.apply(ctx, { storageDir: join(root, 'profile') })
+      expect(ctx.get('settings')).toBeUndefined()
+      expect(ctx.browserRuntime.status()).toMatchObject({ providerActive: true, browserState: 'stopped', channel: 'chrome' })
     } finally {
       await ctx.fiber.dispose()
       await rm(root, { recursive: true, force: true })
@@ -961,7 +1721,14 @@ describe('native Browser extensions', () => {
     try {
       await expect(b.provider.importCookies({ profileName: 'other', cookies: [cookie] })).rejects.toMatchObject({ code: 'BROWSER_PROFILE_MISMATCH' })
       await expect(b.provider.importCookies({ profileName: 'default', cookies: [cookie, cookie] })).rejects.toThrow()
-      for (const patch of [{ value: 'bad;value' }, { domain: '../bad' }, { path: 'relative' }, { sameSite: 'None' as const }, { expires: Number.NaN }]) {
+      for (const patch of [
+        { value: 'bad;value' }, { domain: '../bad' }, { path: 'relative' }, { sameSite: 'None' as const },
+        { expires: Number.NaN }, { expires: -2 },
+        { name: '__Secure-fixture' },
+        { name: '__Host-fixture' },
+        { name: '__Host-fixture', secure: true, path: '/other' },
+        { name: '__Host-fixture', secure: true, path: '/', domain: '.example.test' },
+      ]) {
         await expect(b.provider.importCookies({ profileName: 'default', cookies: [{ ...cookie, ...patch }] })).rejects.toMatchObject({ code: 'BROWSER_REQUEST_INVALID' })
       }
       const cancelled = new AbortController(); cancelled.abort(new Error('cancelled'))
@@ -969,6 +1736,9 @@ describe('native Browser extensions', () => {
       expect(b.launch).not.toHaveBeenCalled()
       expect(await b.provider.importCookies({ profileName: 'default', cookies: [cookie] })).toEqual({ imported: 1 })
       expect(b.context.addCookies).toHaveBeenCalledWith([{ ...cookie, path: '/' }])
+      const complete = { name: 'session', value: 'v', domain: 'example.test', path: '/', expires: 100, secure: true, httpOnly: true, sameSite: 'Lax' as const }
+      await expect(b.provider.importCookies({ profileName: 'default', cookies: [complete] })).resolves.toEqual({ imported: 1 })
+      expect(b.context.addCookies).toHaveBeenLastCalledWith([complete])
       b.context.addCookies.mockRejectedValueOnce(new Error('fixture-only-value'))
       await expect(b.provider.importCookies({ profileName: 'default', cookies: [cookie] })).rejects.toMatchObject({ message: 'The browser rejected the cookie import' })
     } finally { await b.provider.dispose() }
@@ -1000,6 +1770,253 @@ it('caps downloads, verifies page ownership, and refuses unfinished or oversized
     await b.provider.closePage({ pageId: page.pageId })
     expect(download.cancel).toHaveBeenCalledOnce()
   } finally { settlement.resolve(null); await b.provider.dispose() }
+})
+
+it('stops matching network responses after a request settles and ignores events from a closed page', async () => {
+  const b = harness()
+  const [page] = await b.provider.listPages()
+  if (page === undefined) throw new Error('page missing')
+  try {
+    const settled = { url: () => 'https://example.test/settled', method: () => 'GET', resourceType: () => 'fetch' }
+    b.context.initial.emit('request', settled)
+    b.context.initial.emit('requestfinished', settled)
+    b.context.initial.emit('response', { request: () => settled, status: () => 200 })
+    const unresolvable = { url: () => 'not a url', method: () => 'GET', resourceType: () => 'fetch' }
+    b.context.initial.emit('request', unresolvable)
+    const observed = await b.provider.network(page.pageId, 10)
+    expect(observed).toMatchObject([{ url: 'https://example.test/settled' }, { url: 'about:blank' }])
+    expect(observed[0]).not.toHaveProperty('status')
+
+    await b.context.initial.close()
+    b.context.initial.emit('request', settled)
+    b.context.initial.emit('response', { request: () => settled, status: () => 200 })
+    b.context.initial.emit('requestfailed', settled)
+    b.context.initial.emit('framenavigated', b.context.initial.frame)
+    await expect(b.provider.network(page.pageId, 10)).rejects.toMatchObject({ code: 'BROWSER_PAGE_NOT_FOUND' })
+  } finally { await b.provider.dispose() }
+})
+
+it('records failed downloads and swallows cancellation failures', async () => {
+  const b = harness({ maxDownloadCount: 2 })
+  const settlement = Promise.withResolvers<string | null>()
+  const rejected = Promise.withResolvers<string | null>()
+  const cancel = vi.fn(() => Promise.reject(new Error('cancel failed')))
+  const broken = { failure: () => settlement.promise, cancel, suggestedFilename: () => 'broken.bin', createReadStream: vi.fn() }
+  const unreadable = { failure: () => rejected.promise, cancel: vi.fn(async () => {}), suggestedFilename: () => 'unreadable.bin', createReadStream: vi.fn() }
+  const refused = { failure: () => Promise.resolve(null), cancel: vi.fn(() => Promise.reject(new Error('cancel failed'))), suggestedFilename: () => 'refused.bin', createReadStream: vi.fn() }
+  try {
+    const [page] = await b.provider.listPages()
+    if (page === undefined) throw new Error('page missing')
+    b.context.initial.emit('download', broken)
+    b.context.initial.emit('download', unreadable)
+    settlement.resolve('network error')
+    rejected.reject(new Error('transfer aborted'))
+    await vi.waitFor(async () => {
+      expect((await b.provider.downloads(page.pageId)).items.map(item => item.status)).toEqual(['failed', 'failed'])
+    })
+    b.context.initial.emit('download', refused)
+    expect(refused.cancel).toHaveBeenCalledOnce()
+    expect((await b.provider.downloads(page.pageId)).truncated).toBe(true)
+    await b.provider.closePage({ pageId: page.pageId })
+    expect(cancel).toHaveBeenCalledOnce()
+  } finally { settlement.resolve(null); await b.provider.dispose() }
+})
+
+it('reads a completed download and maps read failures', async () => {
+  const b = harness({ maxTransferBytes: 1024 })
+  const settlement = Promise.withResolvers<string | null>()
+  const readable = {
+    failure: () => settlement.promise,
+    cancel: vi.fn(async () => {}),
+    suggestedFilename: () => 'fixture.bin',
+    createReadStream: vi.fn(async () => Readable.from([Buffer.from('payload')])),
+  }
+  const unreadable = {
+    failure: () => Promise.resolve(null),
+    cancel: vi.fn(async () => {}),
+    suggestedFilename: () => 'broken.bin',
+    createReadStream: vi.fn(async () => { throw new Error('stream unavailable') }),
+  }
+  try {
+    const [page] = await b.provider.listPages()
+    if (page === undefined) throw new Error('page missing')
+    b.context.initial.emit('download', readable)
+    b.context.initial.emit('download', unreadable)
+    settlement.resolve(null)
+    await vi.waitFor(async () => {
+      expect((await b.provider.downloads(page.pageId)).items.map(item => item.status)).toEqual(['complete', 'complete'])
+    })
+    const items = (await b.provider.downloads(page.pageId)).items
+    const readableId = items.find(item => item.name === 'fixture.bin')!.id
+    const unreadableId = items.find(item => item.name === 'broken.bin')!.id
+    await expect(b.provider.readDownload(page.pageId, readableId, 1024))
+      .resolves.toEqual({ name: 'fixture.bin', data: Uint8Array.from(Buffer.from('payload')) })
+    await expect(b.provider.readDownload(page.pageId, unreadableId, 1024))
+      .rejects.toMatchObject({ code: 'BROWSER_DOWNLOAD_FAILED', message: 'Download data is unavailable' })
+  } finally { settlement.resolve(null); await b.provider.dispose() }
+})
+
+it('returns empty history and downloads when the page closes during the read', async () => {
+  const b = harness()
+  const [page] = await b.provider.listPages()
+  if (page === undefined) throw new Error('page missing')
+  try {
+    await b.provider.navigate({ pageId: page.pageId, url: 'https://example.test/one' })
+    const history = b.provider.history(page.pageId, 10)
+    await b.context.initial.close()
+    await expect(history).resolves.toEqual([])
+  } finally { await b.provider.dispose() }
+
+  const downloads = harness()
+  const [downloadPage] = await downloads.provider.listPages()
+  if (downloadPage === undefined) throw new Error('page missing')
+  try {
+    const pending = downloads.provider.downloads(downloadPage.pageId)
+    await downloads.context.initial.close()
+    await expect(pending).resolves.toEqual({ items: [], truncated: false })
+  } finally { await downloads.provider.dispose() }
+})
+
+it('navigates back and forward through page history and maps traversal failures', async () => {
+  const b = harness()
+  const [page] = await b.provider.listPages()
+  if (page === undefined) throw new Error('page missing')
+  try {
+    await b.provider.navigate({ pageId: page.pageId, url: 'https://example.test/one' })
+    b.context.initial.backUrl = 'https://example.test/home'
+    await expect(b.provider.back(page.pageId)).resolves.toMatchObject({ pageId: page.pageId, url: 'https://example.test/home', title: 'Fixture' })
+    expect((await b.provider.history(page.pageId, 100)).map(entry => entry.url)).toContain('https://example.test/home')
+
+    b.context.initial.forwardUrl = 'https://example.test/one'
+    await expect(b.provider.forward(page.pageId)).resolves.toMatchObject({ url: 'https://example.test/one' })
+
+    b.context.initial.forwardFailure = new Error('forward failed')
+    await expect(b.provider.forward(page.pageId)).rejects.toMatchObject({ code: 'BROWSER_NAVIGATION_FAILED', message: "Could not traverse browser page '" + page.pageId + "'" })
+
+    b.context.initial.backFailure = new BrowserError('browser page was closed', 'BROWSER_PAGE_CLOSED')
+    await expect(b.provider.back(page.pageId)).rejects.toMatchObject({ code: 'BROWSER_PAGE_CLOSED' })
+
+    const cancelled = new AbortController()
+    cancelled.abort(new Error('traversal stopped'))
+    await expect(b.provider.back(page.pageId, cancelled.signal)).rejects.toThrow('traversal stopped')
+
+    await b.provider.closePage({ pageId: page.pageId })
+    await expect(b.provider.back(page.pageId)).rejects.toMatchObject({ code: 'BROWSER_PAGE_NOT_FOUND' })
+  } finally { await b.provider.dispose() }
+})
+
+it('uploads bytes to an observation-bound file input and consumes the observation', async () => {
+  const b = harness()
+  const [page] = await b.provider.listPages()
+  if (page === undefined) throw new Error('page missing')
+  try {
+    const observation = await b.provider.snapshot({ pageId: page.pageId })
+    const target = {
+      pageId: page.pageId,
+      observationId: observation.observationId,
+      elementId: observation.elements[0]!.elementId,
+    }
+    await expect(b.provider.upload({ ...target, name: 'notes.txt', data: Uint8Array.of(1, 2, 3) })).resolves.toBeUndefined()
+    expect(b.context.initial.element.setInputFiles).toHaveBeenCalledWith({
+      name: 'notes.txt', mimeType: 'application/octet-stream', buffer: Buffer.from([1, 2, 3]),
+    })
+    expect(b.context.initial.element.dispose).toHaveBeenCalledOnce()
+    await expect(b.provider.upload({ ...target, name: 'notes.txt', data: Uint8Array.of(1) }))
+      .rejects.toMatchObject({ code: 'BROWSER_OBSERVATION_STALE' })
+  } finally { await b.provider.dispose() }
+})
+
+it('rejects invalid uploads before touching the page and maps input failures', async () => {
+  const b = harness({ maxTransferBytes: 2 })
+  let observationId = BrowserObservationId('missing')
+  let elementId = BrowserElementId('e1')
+  const request = (overrides: Record<string, unknown> = {}) => ({
+    pageId: BrowserPageId('missing'), observationId, elementId, name: 'notes.txt', data: Uint8Array.of(1), ...overrides,
+  })
+  try {
+    await expect(b.provider.upload(request({ name: '../escape.txt' }))).rejects.toMatchObject({ code: 'BROWSER_REQUEST_INVALID' })
+    await expect(b.provider.upload(request({ data: Uint8Array.of(1, 2, 3) })))
+      .rejects.toMatchObject({ code: 'BROWSER_TRANSFER_TOO_LARGE', message: 'Upload exceeds the configured byte limit' })
+    await expect(b.provider.upload(request())).rejects.toMatchObject({ code: 'BROWSER_PAGE_NOT_FOUND' })
+
+    const [page] = await b.provider.listPages()
+    if (page === undefined) throw new Error('page missing')
+    await expect(b.provider.upload(request({ pageId: page.pageId }))).rejects.toMatchObject({ code: 'BROWSER_OBSERVATION_STALE' })
+
+    const observation = await b.provider.snapshot({ pageId: page.pageId })
+    observationId = observation.observationId
+    elementId = BrowserElementId('e9')
+    await expect(b.provider.upload(request({ pageId: page.pageId })))
+      .rejects.toMatchObject({ code: 'BROWSER_ELEMENT_STALE', message: 'File input is absent from observation' })
+
+    elementId = observation.elements[0]!.elementId
+    b.context.initial.element.fingerprints = [{ tagName: 'button', role: 'button', name: 'Changed', text: 'Changed' }]
+    await expect(b.provider.upload(request({ pageId: page.pageId })))
+      .rejects.toMatchObject({ code: 'BROWSER_ELEMENT_CHANGED', message: 'File input changed since observation' })
+
+    const failed = harness()
+    const [failedPage] = await failed.provider.listPages()
+    if (failedPage === undefined) throw new Error('page missing')
+    const failedObservation = await failed.provider.snapshot({ pageId: failedPage.pageId })
+    const failedTarget = {
+      pageId: failedPage.pageId,
+      observationId: failedObservation.observationId,
+      elementId: failedObservation.elements[0]!.elementId,
+      name: 'notes.txt',
+      data: Uint8Array.of(1),
+    }
+    failed.context.initial.element.uploadFailure = new Error('input rejected')
+    await expect(failed.provider.upload(failedTarget))
+      .rejects.toMatchObject({ code: 'BROWSER_UPLOAD_FAILED', message: 'Could not set browser file input' })
+    const retried = await failed.provider.snapshot({ pageId: failedPage.pageId })
+    failed.context.initial.element.uploadFailure = new BrowserError('browser page was closed', 'BROWSER_PAGE_CLOSED')
+    await expect(failed.provider.upload({
+      ...failedTarget, observationId: retried.observationId, elementId: retried.elements[0]!.elementId,
+    })).rejects.toMatchObject({ code: 'BROWSER_PAGE_CLOSED' })
+    await failed.provider.dispose()
+  } finally { await b.provider.dispose() }
+})
+
+it('records repeated visits to one URL without duplicating history entries', async () => {
+  const b = harness()
+  const [page] = await b.provider.listPages()
+  if (page === undefined) throw new Error('page missing')
+  try {
+    await b.provider.navigate({ pageId: page.pageId, url: 'https://example.test/one' })
+    await b.provider.navigate({ pageId: page.pageId, url: 'https://example.test/one' })
+    b.context.initial.emit('framenavigated', b.context.initial.frame)
+    b.context.initial.emit('framenavigated', b.context.initial.frame)
+    const history = await b.provider.history(page.pageId, 100)
+    expect(history.map(entry => entry.url)).toEqual(['https://example.test/one'])
+  } finally { await b.provider.dispose() }
+})
+
+it('surfaces a page that closes while opening or navigating', async () => {
+  const open = harness()
+  const created = new FakePage()
+  let resolveOpen!: () => void
+  created.goto.mockImplementationOnce(() => new Promise((resolve) => { resolveOpen = () => { resolve(null) } }))
+  open.context.newPage.mockResolvedValueOnce(created as unknown as Page)
+  const pendingOpen = open.provider.openPage({ url: 'https://open.test' })
+  await vi.waitFor(() => { expect(created.goto).toHaveBeenCalledOnce() })
+  await created.close()
+  await expect(pendingOpen).rejects.toMatchObject({ code: 'BROWSER_PAGE_CLOSED' })
+  resolveOpen()
+  await open.provider.dispose()
+
+  const navigate = harness()
+  const [page] = await navigate.provider.listPages()
+  if (page === undefined) throw new Error('page missing')
+  let resolveNavigate!: () => void
+  navigate.context.initial.goto.mockImplementationOnce(() => new Promise((resolve) => {
+    resolveNavigate = () => { resolve(null) }
+  }))
+  const pendingNavigate = navigate.provider.navigate({ pageId: page.pageId, url: 'https://navigate.test' })
+  await vi.waitFor(() => { expect(navigate.context.initial.goto).toHaveBeenCalledOnce() })
+  await navigate.context.initial.close()
+  await expect(pendingNavigate).rejects.toMatchObject({ code: 'BROWSER_PAGE_CLOSED' })
+  resolveNavigate()
+  await navigate.provider.dispose()
 })
 
 it('supports remote debugging port and exposes cdpEndpoint', async () => {

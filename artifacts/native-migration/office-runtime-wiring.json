@@ -1,0 +1,174 @@
+{
+  "version": 2,
+  "scope": "Desktop Office runtime wiring on native dsh-app framed-pipe Host",
+  "status": "implementation, keyless replay, Windows locked payload download, relocated runtime smoke and integrated runtime preparation passed",
+  "owners": {
+    "runtimeQuery": "apps/desktop-host/src/workspace-dependencies.ts",
+    "runtimeInstaller": "apps/desktop-host/src/primary-runtime.ts",
+    "desktopOfficeComposition": "apps/desktop-host/src/office.ts",
+    "hostEntry": "apps/desktop-host/src/index.ts",
+    "electronHost": "apps/desktop/src/host-process.ts",
+    "electronMain": "apps/desktop/src/main.ts",
+    "startupWorker": "apps/desktop/src/startup-worker.ts",
+    "payloadBuilder": "apps/desktop/scripts/prepare-primary-runtime.ts",
+    "payloadLock": "apps/desktop/scripts/primary-runtime-lock.json",
+    "payloadSmoke": "apps/desktop/scripts/smoke-primary-runtime.py",
+    "windowsSigning": "apps/desktop/scripts/sign-primary-runtime.ts"
+  },
+  "wiring": {
+    "host": "runDesktopHost awaits desktopOffice before readiness; --primary-runtime requires an absolute source path. Install root remains $DSH_HOME/dsh-runtimes/dsh-primary-runtime.",
+    "electron": "Packaged source is resources/runtime/primary-runtime; development launcher prepares it and sets DSH_DESKTOP_PRIMARY_RUNTIME. Main, replacement Hosts, and startup worker health-check Hosts receive the same payload.",
+    "assets": "preparePrimaryRuntime copies skill-office/assets to runtime/office-skills outside ASAR. Existing electron-builder extraResources includes the complete runtime directory.",
+    "build": "prepare:runtime prepares Host Node/pnpm/versions then primary payload and assets. package-target preserves existing build, package-set, prepare:seed and rollback chain. No prepare-dsh.ts is introduced because local seed/profile ownership is prepare-seed/project-manager.",
+    "development": "dev and --skip-build both prepare primary payload before launching Electron; Host continues to run under invoking upstream Node.",
+    "signing": "Signed Windows packages defer primary smoke, inspect all PE signatures, preserve valid vendor signatures, sign unsigned files with existing windows-sign.mjs, verify timestamp and thumbprint, then smoke. Unsigned local preparation remains available. macOS remains existing electron-builder signing traversal."
+  },
+  "preserved": [
+    "dsh-app custom protocol",
+    "framed request/response pipes protocol 4",
+    "updateTasks admission and drain",
+    "shutdown-complete acknowledgment plus strict exit",
+    "seed/profile transaction rollback",
+    "ownedHosts cleanup ownership"
+  ],
+  "httpHostIntroduced": false,
+  "runtimeContract": {
+    "tool": "load_workspace_dependencies",
+    "installationRoot": "$DSH_HOME/dsh-runtimes/dsh-primary-runtime",
+    "returns": [
+      "python",
+      "node",
+      "pnpm",
+      "pythonPackages",
+      "nodePackages",
+      "pythonDistributions"
+    ],
+    "installation": "Local copy only; no package download or PATH mutation; tool retries after a failed installation."
+  },
+  "validation": {
+    "sourceTests": [
+      {
+        "suites": 9,
+        "tests": 109,
+        "result": "passed",
+        "note": "Initial pnpm exec unexpectedly auto-synchronized dependencies; subsequent tests use node directly."
+      },
+      {
+        "suites": 2,
+        "tests": 43,
+        "result": "passed",
+        "note": "Includes new real Host Office install + HMR and main payload propagation tests."
+      },
+      {
+        "suites": 3,
+        "tests": 45,
+        "result": "passed",
+        "note": "Worker payload parser/health-check, protocol, existing rollback tests."
+      },
+      {
+        "suites": 6,
+        "uniqueTests": 58,
+        "result": "passed over focused child runs",
+        "note": "Runtime/dev/package pipeline, signature parsing/signing adapter, existing preparation tests; expensive subprocess/download/signing boundaries mocked."
+      }
+    ],
+    "build": {
+      "command": "node node_modules/typescript/bin/tsc -b apps/desktop-host/tsconfig.json apps/desktop/tsconfig.json --pretty false",
+      "result": "passed before final tests/style changes; parent owns final shared build",
+      "hostBundle": "node ../../node_modules/tsdown/dist/run.mjs in apps/desktop-host passed"
+    },
+    "lint": {
+      "hostAndWiring": "typed Oxlint 13 files, 0 warnings, 0 errors",
+      "buildScripts": "typed Oxlint 9 files, 0 warnings, 0 errors",
+      "diffCheck": "passed",
+      "finalDownloadFiles": "typed Oxlint 3 files, 0 warnings, 0 errors",
+      "snapshotHelper": "typed Oxlint 1 file, 0 warnings, 0 errors"
+    },
+    "documentation": {
+      "readmePair": "English/Chinese README and pairing record updated; named pairing check passed"
+    },
+    "snapshots": {
+      "scenarios": [
+        "office-skills",
+        "office-skills-no-renderer"
+      ],
+      "helper": "Only workspaceSetups office-skills entry added to headless.snapshot.ts",
+      "historicalJsonlModified": false,
+      "referenceJsonlCopiedUnchanged": true,
+      "platformFix": "Scenario-local tool-bash enabled/tool-pwsh disabled; no shell invocation in scenarios; no global normalizer changes.",
+      "result": "passed: two actual keyless replays through dsh --profile headless on Windows",
+      "command": "node node_modules/vitest/vitest.mjs run --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts -t office-skills",
+      "fixtureSha256": {
+        "office-skills": "373a3c2bd1860a445eafe2fa3ad7465127a14bb38f7ff67cc341ac77f27b290b",
+        "office-skills-no-renderer": "b1221d5d2cb034cd467190306306fcb1df24347ef4d7912f4110c6c3b4823e37"
+      },
+      "replayComposition": "Both scenario patches retain recorded Bash catalog on every OS without invoking the shell; no-renderer replay disables live DeepSeek package inventory along with provider replacement."
+    },
+    "finalAffectedRun": {
+      "command": "node node_modules/vitest/vitest.mjs run apps/desktop-host/tests/runtime.spec.ts apps/desktop/tests/host-process.spec.ts apps/desktop/tests/startup-worker-office.spec.ts apps/desktop/tests/main-startup.spec.ts apps/desktop/tests/runtime-pipeline.spec.ts apps/desktop/tests/package-runtime-pipeline.spec.ts apps/desktop/tests/dev-runtime-pipeline.spec.ts apps/desktop/tests/primary-runtime-signing.spec.ts apps/desktop/tests/primary-runtime-preparation.spec.ts",
+      "suites": 9,
+      "tests": 106,
+      "result": "passed"
+    },
+    "realPayload": {
+      "result": "passed on win-x64",
+      "commands": [
+        "node --import tsx/esm apps/desktop/scripts/prepare-primary-runtime.ts",
+        "node --import tsx/esm artifacts/native-migration/verify-office-runtime.mjs > artifacts/native-migration/office-runtime-acceptance.json",
+        "node --import tsx/esm apps/desktop/scripts/prepare-runtime.ts"
+      ],
+      "targetEnvironment": {
+        "DSH_DESKTOP_TARGET_PLATFORM": "win32",
+        "DSH_DESKTOP_TARGET_ARCH": "x64"
+      },
+      "downloadedArchives": 15,
+      "archiveBytes": 95161743,
+      "archiveIntegrity": "Every archive independently rehashed to the fixed SHA-256 lock in acceptance runner",
+      "payload": {
+        "files": 8104,
+        "bytes": 294431271
+      },
+      "installed": {
+        "files": 8104,
+        "bytes": 294431271
+      },
+      "payloadDigest": "c553432c6a0689c0ef54efe263e85090e599253a720b6d45ecfbd36e3031fce4",
+      "pythonVersion": "3.12.14 (main, Sep  1 2026, 14:17:39) [MSC v.1944 64 bit (AMD64)]",
+      "nodeVersion": "v24.21.0",
+      "pnpmVersion": "11.7.0",
+      "hostNodeVersion": "24.17.0",
+      "smoke": "Office runtime versions and document round trips passed.",
+      "pipCheck": "No broken requirements found.",
+      "evidence": "artifacts/native-migration/office-runtime-acceptance.json",
+      "runner": "artifacts/native-migration/verify-office-runtime.mjs",
+      "checks": [
+        "all 13 Python distribution versions plus pip baseline",
+        "numpy/pandas actual native imports and computation",
+        "DOCX text/table/image creation and reopening",
+        "PPTX editable text/image/chart creation and reopening",
+        "XLSX editable value/formula/style creation and reopening; pandas read_excel",
+        "check_office.py ZIP/XML, relationship, text and count checks for all three formats",
+        "relocation through production installPrimaryRuntime into isolated Harness-home path"
+      ],
+      "downloadDeadline": "Both Host and primary archive fetches have ten-minute total transfer deadlines, covering headers and response body."
+    },
+    "finalDownloadDeadlineRun": {
+      "command": "node node_modules/vitest/vitest.mjs run apps/desktop/tests/primary-runtime-preparation.spec.ts apps/desktop/tests/runtime-pipeline.spec.ts",
+      "suites": 2,
+      "tests": 17,
+      "result": "passed"
+    }
+  },
+  "notAccepted": {
+    "macOSPayloadAndSmoke": true,
+    "hardwareSigningAndMacNotarization": true,
+    "packagedElectronEndToEnd": true,
+    "visualLayoutInspection": true,
+    "excelFormulaRecalculation": true
+  },
+  "coordination": [
+    "No commit created. Root lock not manually edited or rolled back; parent owns final dependency/lock restoration.",
+    "No core packages changed by this Office wiring work.",
+    "Office model-visible snapshot work limited to two new scenario directories and per-case setup helper."
+  ]
+}

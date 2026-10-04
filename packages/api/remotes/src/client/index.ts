@@ -4,6 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import productAnalyticsRemote from '@deepseek-ai/dsh-client-product-analytics/remote'
 export type {} from '@deepseek-ai/dsh-client-product-analytics/remote'
 import agentPresetsRemote from '@deepseek-ai/dsh-agent-preset-registry/remote'
+import userQuestionsRemote from '@deepseek-ai/dsh-user-questions/remote'
 import commandsRemote from '@deepseek-ai/dsh-commands/remote'
 import accountRemote from '@deepseek-ai/dsh-api-account-controller/remote'
 import settingsControllerRemote from '@deepseek-ai/dsh-api-settings-controller/remote'
@@ -26,6 +27,20 @@ import jobRemote from '@deepseek-ai/dsh-api-job-controller/remote'
 import workspaceRemote from '@deepseek-ai/dsh-api-workspace-controller/remote'
 import terminalRemote from '@deepseek-ai/dsh-api-terminal-controller/remote'
 import workspaceFilesRemote from '@deepseek-ai/dsh-api-workspace-files/remote'
+import workspaceIsolationRemote from '@deepseek-ai/dsh-api-workspace-isolation-controller/remote'
+import worktreeTaskRemote from '@deepseek-ai/dsh-api-worktree-task-controller/remote'
+import deviceCapabilitiesRemote from '@deepseek-ai/dsh-api-device-capabilities-controller/remote'
+import securityResearchRemote from '@deepseek-ai/dsh-api-security-research-controller/remote'
+import workItemsRemote from '@deepseek-ai/dsh-api-work-items-controller/remote'
+import browserRemote from '@deepseek-ai/dsh-api-browser-controller/remote'
+import integrationPreflightRemote from '@deepseek-ai/dsh-api-integration-preflight-controller/remote'
+import usageRemote from '@deepseek-ai/dsh-api-usage-controller/remote'
+import voiceRemote from '@deepseek-ai/dsh-api-voice-controller/remote'
+import mcpRemote from '@deepseek-ai/dsh-api-mcp-controller/remote'
+import automationRemote from '@deepseek-ai/dsh-api-automation-controller/remote'
+import sidebarTerminalsRemote from '@deepseek-ai/dsh-api-sidebar-terminal-controller/remote'
+import executionHostsRemote from '@deepseek-ai/dsh-api-execution-host-controller/remote'
+import sidebarGitRemote from '@deepseek-ai/dsh-api-sidebar-git-controller/remote'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-gateway/client'
 
 export type { ClientRemote } from '@deepseek-ai/dsh-api-gateway/client'
@@ -39,6 +54,7 @@ export type {} from '@deepseek-ai/dsh-plugin-manager/remote'
 export type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/remote'
 export type { PluginInventorySnapshot } from '@deepseek-ai/dsh-host-plugin-inventory/types'
 export type {} from '@deepseek-ai/dsh-agent-preset-registry/remote'
+export type {} from '@deepseek-ai/dsh-user-questions/remote'
 export type {} from '@deepseek-ai/dsh-commands/remote'
 export type {} from '@deepseek-ai/dsh-api-settings-controller/remote'
 export type {} from '@deepseek-ai/dsh-api-account-controller/remote'
@@ -64,6 +80,34 @@ export type {} from '@deepseek-ai/dsh-api-workspace-files/remote'
 export type * from '@deepseek-ai/dsh-api-workspace-files/types'
 export type {} from '@deepseek-ai/dsh-api-terminal-controller/remote'
 export type * from '@deepseek-ai/dsh-api-terminal-controller/types'
+export type {} from '@deepseek-ai/dsh-api-workspace-isolation-controller/remote'
+export type * from '@deepseek-ai/dsh-api-workspace-isolation-controller/types'
+export type {} from '@deepseek-ai/dsh-api-worktree-task-controller/remote'
+export type * from '@deepseek-ai/dsh-api-worktree-task-controller/types'
+export type * from '@deepseek-ai/dsh-api-device-capabilities-controller/types'
+export type {} from '@deepseek-ai/dsh-api-device-capabilities-controller/remote'
+export type {} from '@deepseek-ai/dsh-api-security-research-controller/remote'
+export type * from '@deepseek-ai/dsh-api-security-research-controller/types'
+export type {} from '@deepseek-ai/dsh-api-work-items-controller/remote'
+export type * from '@deepseek-ai/dsh-api-work-items-controller/types'
+export type * from '@deepseek-ai/dsh-api-browser-controller/types'
+export type {} from '@deepseek-ai/dsh-api-browser-controller/remote'
+export type * from '@deepseek-ai/dsh-api-integration-preflight-controller/types'
+export type {} from '@deepseek-ai/dsh-api-integration-preflight-controller/remote'
+export type {} from '@deepseek-ai/dsh-api-usage-controller/remote'
+export type * from '@deepseek-ai/dsh-api-usage-controller/types'
+export type {} from '@deepseek-ai/dsh-api-voice-controller/remote'
+export type * from '@deepseek-ai/dsh-api-voice-controller/types'
+export type {} from '@deepseek-ai/dsh-api-mcp-controller/remote'
+export type * from '@deepseek-ai/dsh-api-mcp-controller/types'
+export type {} from '@deepseek-ai/dsh-api-automation-controller/remote'
+export type * from '@deepseek-ai/dsh-api-automation-controller/types'
+export type {} from '@deepseek-ai/dsh-api-sidebar-terminal-controller/remote'
+export type * from '@deepseek-ai/dsh-api-sidebar-terminal-controller/types'
+export type {} from '@deepseek-ai/dsh-api-execution-host-controller/remote'
+export type * from '@deepseek-ai/dsh-api-execution-host-controller/types'
+export type {} from '@deepseek-ai/dsh-api-sidebar-git-controller/remote'
+export type * from '@deepseek-ai/dsh-api-sidebar-git-controller/types'
 // The forwarded-event allowlist's selection seat: without it in the consumer's
 // compilation face `TypertRemoteEvent` is `never` and every `$on` call fails.
 export type { ApiRemoteForwardedEvent } from '../types.ts'
@@ -181,8 +225,11 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       goalsRemote, llmRemote, dynamicRemote, scheduleRemote,
       pluginInventoryRemote, pluginManagerRemote, pluginRegistryProbeRemote, messageFeedbackRemote, sessionFeedbackRemote,
       fileUploadsRemote, sessionReferencesRemote,
-      permissionPresetsRemote, subagentsRemote, sessionRemote, jobRemote, workspaceRemote, workspaceFilesRemote, terminalRemote,
-      officeToPdfRemote,
+      permissionPresetsRemote, subagentsRemote, sessionRemote, jobRemote, workspaceRemote, workspaceFilesRemote,
+      workspaceIsolationRemote, worktreeTaskRemote, terminalRemote, deviceCapabilitiesRemote, securityResearchRemote,
+      workItemsRemote, browserRemote, integrationPreflightRemote, usageRemote, voiceRemote, mcpRemote, automationRemote,
+      sidebarTerminalsRemote, executionHostsRemote, sidebarGitRemote,
+      officeToPdfRemote, userQuestionsRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

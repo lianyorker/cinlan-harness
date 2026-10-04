@@ -7,7 +7,7 @@ kind: "package-reference"
 [English](README.md) | 中文
 
 ## 概述
-通过类型化 `worktreeTasks` Remote 命名空间创建和管理 Worktree Task。读取与保存默认值、审查任务变更，并请求激活、休眠、归档或安全删除。创建接受来源仓库，默认值接受结构化程序/参数配置；生命周期调用使用 Provider 签发的 task id。Provider 拥有文件系统策略和执行。
+通过类型化 `worktreeTasks` Remote 命名空间创建和管理 Worktree Task。读取与保存默认值、审查任务变更，并请求激活、休眠、合并、归档或安全删除。创建接受来源仓库，默认值接受结构化程序/参数配置；生命周期调用使用 Provider 签发的 task id。Provider 拥有文件系统策略和执行。
 
 ## 目录
 
@@ -18,7 +18,7 @@ kind: "package-reference"
 
 <a id="use-this-package"></a>
 ## 使用本包
-将控制器与 Typert Gateway 和 `ctx.worktreeTask` 提供方一起挂载，再挂载 `dsh-api-remotes` 提供浏览器命名空间。生成的 Remote 暴露 `settings`、`updateSettings`、`review` 和生命周期方法。保存默认值要求当前版本；审查只读且有界；清理收据区分未结算执行、成功和失败。控制器将取消信号转发给提供方，并把提供方失败映射为稳定的 Remote 错误码。
+将控制器与 Typert Gateway 和 `ctx.worktreeTask` 提供方一起挂载，再挂载 `dsh-api-remotes` 提供浏览器命名空间。生成的 Remote 暴露 `settings`、`updateSettings`、`review`、`merge` 和生命周期方法。保存默认值要求当前版本；审查只读且有界；合并返回集成前后的源分支提交；清理收据区分未结算执行、成功和失败。控制器将取消信号转发给提供方，并把提供方失败映射为稳定的 Remote 错误码。
 
 <a id="model-experience"></a>
 ## 模型体验

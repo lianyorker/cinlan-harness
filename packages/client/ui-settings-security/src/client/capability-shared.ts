@@ -1,30 +1,35 @@
 /** Shared callbacks for feature-owned capability settings registrations. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
-import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-host-plugin-inventory'
+import type { ChangeResult, PluginEntryId, PluginInfo, SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-api-device-capabilities-controller/remote'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { CapabilitySectionInjected, CapabilitySectionProps, ComputerSectionInjected, MobileSectionInjected } from './CapabilitySection.tsx'
-import type { ProviderActivationCallbacks } from './ProviderActivation.tsx'
+import type { CapabilitySectionProps, MobileSectionInjected } from './CapabilitySection.tsx'
 
-/** Common settings reads needed by every non-security capability page. */
-export interface CapabilityShared extends Pick<CapabilitySectionInjected, 'list'> {
+/** Authoritative plugin-management inventory, including entries the profile patch cannot address. */
+export type ProviderInventory = { readonly kind: 'ready'; readonly entries: readonly PluginInfo[] } | { readonly kind: 'unavailable' | 'rejected' }
+/** Management transport refusal remains distinct from the Host application result. */
+export type ProviderChange = { readonly kind: 'result'; readonly result: ChangeResult } | { readonly kind: 'unavailable' | 'rejected' }
+/** Plain callbacks to the optional Plugin Manager namespace. */
+export interface ProviderActivationCallbacks {
+  /** Read the entries the Host can manage. */
+  listProviderEntries: () => Promise<ProviderInventory>
+  /** Switch one exact entry and report the Host application result. */
+  setProviderEnabled: (entryId: PluginEntryId, enabled: boolean) => Promise<ProviderChange>
+}
+
+/** Common settings reads needed by the capability page. */
+export interface CapabilityShared {
   readonly providerActivation: ProviderActivationCallbacks
   readonly t: CapabilitySectionProps['t']
 }
 
 /**
- * Build inventory, provider-management, and locale callbacks inside one feature fiber.
+ * Build provider-management and locale callbacks inside one feature fiber.
  * @param ctx - Settings client context that supplies the Host services.
- * @returns Feature-local inventory, provider activation, and locale callbacks.
+ * @returns Feature-local provider activation and locale callbacks.
  */
 export function createCapabilityShared(ctx: ClientContext): CapabilityShared {
   const t = ctx.locale.bind('settings.cinlanCapabilities')
-  const list: CapabilitySectionInjected['list'] = async (): Promise<PluginInventorySnapshot> => {
-    const result = await ctx.remote.pluginInventory.list()
-    if (!result.ok) throw new Error(`pluginInventory.list failed: ${result.error.code}: ${result.error.message}`)
-    return result.value
-  }
   const providerActivation: ProviderActivationCallbacks = {
     listProviderEntries: async () => {
       const manager = ctx.get('remote.pluginManager') as ClientContext['remote']['pluginManager'] | undefined
@@ -43,7 +48,7 @@ export function createCapabilityShared(ctx: ClientContext): CapabilityShared {
       } catch (_managementTransportRejected) { return { kind: 'rejected' } }
     },
   }
-  return { list, providerActivation, t }
+  return { providerActivation, t }
 }
 
 /**
@@ -78,7 +83,7 @@ export async function mutateCapabilityPreferences(
  * @param t - Feature-local locale lookup.
  * @returns Device readiness probe for the settings section.
  */
-export function createDeviceProbe(ctx: ClientContext, t: CapabilitySectionProps['t']): ComputerSectionInjected['checkDevice'] {
+export function createDeviceProbe(ctx: ClientContext, t: CapabilitySectionProps['t']): MobileSectionInjected['checkDevice'] {
   return async (capability, signal) => {
     const result = await ctx.remote.deviceCapabilities.check({ capability }, signal)
     if (!result.ok) throw new Error(t('deviceCheckFailed'))

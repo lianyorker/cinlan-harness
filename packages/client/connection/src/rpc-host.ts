@@ -65,6 +65,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
   readonly operator: PeerScope
   private readonly interceptors = new Map<string, ConnectionRpcInterceptor>()
   private readonly fetchRoutes = new Map<string, RegisteredFetchRoute>()
+  private readonly fetchPrefixRoutes = new Map<string, RegisteredFetchRoute>()
 
   /**
    * Provide the Host half over the active HTTP server.
@@ -132,12 +133,12 @@ export class HostConnectionService extends Service implements HostConnectionHand
   ): ConnectionFetchHandler {
     return {
       requestBodyMode: ({ method, url }) => {
-        const route = this.fetchRoutes.get(url.pathname)
+        const route = this.fetchRouteFor(url.pathname)
         return route?.methods.has(method) === true ? route.requestBody : 'buffered'
       },
       fetch: (request) => {
         const pathname = new URL(request.url).pathname
-        const route = this.fetchRoutes.get(pathname)
+        const route = this.fetchRouteFor(pathname)
         if (route?.methods.has(request.method) === true) return route.fetch(request)
         const endpoint = endpointFromPath(channel, pathname)
         const interceptor = this.interceptors.get(channel)
@@ -149,22 +150,36 @@ export class HostConnectionService extends Service implements HostConnectionHand
     }
   }
 
+  /** Exact pathname owner, else the longest prefix route above it. */
+  private fetchRouteFor(pathname: string): RegisteredFetchRoute | undefined {
+    const exact = this.fetchRoutes.get(pathname)
+    if (exact !== undefined) return exact
+    let best: RegisteredFetchRoute | undefined
+    let bestLength = -1
+    for (const [prefix, route] of this.fetchPrefixRoutes) {
+      if (pathname !== prefix && !pathname.startsWith(`${prefix}/`)) continue
+      if (prefix.length > bestLength) { best = route; bestLength = prefix.length }
+    }
+    return best
+  }
+
   private registerFetchRoute(
     owner: Context,
     route: ConnectionFetchRoute,
   ): () => Promise<void> {
     assertFetchRoute(route)
+    const table = route.match === 'prefix' ? this.fetchPrefixRoutes : this.fetchRoutes
     const registered: RegisteredFetchRoute = {
       methods: new Set(route.methods),
       requestBody: route.requestBody,
       fetch: route.fetch,
     }
     return owner.effect(() => {
-      if (this.fetchRoutes.has(route.path)) {
-        throw new Error(`connection: exact Fetch route ${JSON.stringify(route.path)} is already registered`)
+      if (table.has(route.path)) {
+        throw new Error(`connection: Fetch route ${JSON.stringify(route.path)} is already registered`)
       }
-      this.fetchRoutes.set(route.path, registered)
-      return () => { this.fetchRoutes.delete(route.path) }
+      table.set(route.path, registered)
+      return () => { table.delete(route.path) }
     }, `client-connection: ${route.path} Fetch route`)
   }
 
@@ -318,6 +333,9 @@ function assertChannel(channel: string): void {
 }
 
 function assertFetchRoute(route: ConnectionFetchRoute): void {
+  if (route.match === 'prefix' && route.path.endsWith('/')) {
+    throw new Error(`connection: prefix Fetch route ${JSON.stringify(route.path)} must not end with a separator`)
+  }
   if (endpointFromPath(API_PATH, route.path) === undefined) {
     throw new Error(`connection: invalid exact Fetch route ${JSON.stringify(route.path)}`)
   }

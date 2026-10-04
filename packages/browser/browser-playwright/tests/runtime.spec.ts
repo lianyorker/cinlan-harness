@@ -3,8 +3,9 @@ import { Context } from '@deepseek-ai/cordis'
 import type { SubprocessHandle, SubprocessOutcome, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, join, relative } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Runtime, { type Config } from '../src/runtime.ts'
 import { runtimeMetadata } from '../src/runtime-metadata.ts'
@@ -30,12 +31,73 @@ async function temporaryRoot() {
   roots.push(root)
   return root
 }
-function manager(root: string, spawn = vi.fn<(spec: SubprocessSpawnSpec) => SubprocessHandle>(() => { throw new Error('Unexpected installer') }), config: Config = {}) {
+type Spawn = (spec: SubprocessSpawnSpec) => SubprocessHandle
+function managerWith(
+  RuntimeClass: typeof Runtime,
+  root: string,
+  spawn: Spawn = vi.fn<Spawn>(() => { throw new Error('Unexpected installer') }),
+  config: Config = {},
+) {
   const ctx = new Context()
   contexts.push(ctx)
   ctx.provide('subprocess', { spawn } as unknown as Context['subprocess'])
-  const runtime = new Runtime(ctx, { storageDir: root, ...config })
+  const runtime = new RuntimeClass(ctx, { storageDir: root, ...config })
   return { runtime, ctx, spawn }
+}
+function manager(root: string, spawn?: Spawn, config: Config = {}) {
+  return managerWith(Runtime, root, spawn, config)
+}
+/** Import a fresh manager module whose filesystem raises one injected fault.
+ * The real filesystem cannot produce these failures portably: Windows reports a
+ * path through a file as ENOENT, and permission failures need POSIX modes.
+ */
+async function faultedRuntime(faults: {
+  readonly statSync?: (path: string) => never
+  readonly writeFile?: (path: unknown, data: unknown, options: unknown) => Promise<void>
+  readonly rm?: (path: unknown, options: unknown) => Promise<void>
+}): Promise<typeof Runtime> {
+  vi.doMock('node:fs', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('node:fs')>()
+    return faults.statSync === undefined
+      ? actual
+      : { ...actual, statSync: faults.statSync as unknown as typeof actual.statSync }
+  })
+  vi.doMock('node:fs/promises', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('node:fs/promises')>()
+    return {
+      ...actual,
+      ...faults.writeFile === undefined ? {} : { writeFile: faults.writeFile as unknown as typeof actual.writeFile },
+      ...faults.rm === undefined ? {} : { rm: faults.rm as unknown as typeof actual.rm },
+    }
+  })
+  vi.resetModules()
+  return (await import('../src/runtime.ts')).default
+}
+async function releaseFaults(): Promise<void> {
+  vi.doUnmock('node:fs')
+  vi.doUnmock('node:fs/promises')
+  vi.resetModules()
+}
+/** A spawn fake whose child settles when the test, or an abort, says so. */
+function controllable(options: {
+  readonly collected?: SubprocessHandle['collected']
+  readonly onSpawn?: (spec: SubprocessSpawnSpec, settle: (outcome: SubprocessOutcome) => void) => void
+} = {}) {
+  const started = deferred<SubprocessSpawnSpec>()
+  const outcome = deferred<SubprocessOutcome>()
+  const settle = (value: SubprocessOutcome): void => { outcome.resolve(value) }
+  unblock.push(() => { settle({ exitCode: null, signal: 'SIGTERM' }) })
+  const spawn = vi.fn((spec: SubprocessSpawnSpec): SubprocessHandle => {
+    spec.signal?.addEventListener('abort', () => { settle({ exitCode: null, signal: 'SIGTERM' }) }, { once: true })
+    started.resolve(spec)
+    options.onSpawn?.(spec, settle)
+    return {
+      stdin: undefined, stdout: undefined, stderr: undefined, control: undefined,
+      collected: options.collected ?? { stdout: { readFrom: () => ({ text: '40%', nextOffset: 3, lossy: false }) } },
+      done: outcome.promise, terminate: vi.fn(), waitForExit: vi.fn(async () => true),
+    }
+  })
+  return { spawn, started: started.promise, outcome }
 }
 const pointerPath = (root: string) => join(root, 'active-' + runtimeMetadata.revision + '.json')
 async function generation(root: string, name: string, contents = 'fixture executable') {
@@ -254,5 +316,214 @@ describe('Native runtime storage and lifecycle', () => {
     const root = join(await temporaryRoot(), 'not-created')
     expect(() => Runtime.Config({ storageDir: root, ...config })).toThrow()
     expect(existsSync(root)).toBe(false)
+  })
+
+  it('reports a configured custom executable without probing managed storage', async () => {
+    const root = await temporaryRoot()
+    const custom = join(root, 'custom', 'chrome.exe')
+    const b = manager(root)
+    b.runtime.attach({ channel: 'chrome', executablePath: custom, state: () => 'stopped' })
+    expect(b.runtime.status()).toMatchObject({
+      providerActive: true, channel: 'chrome', source: 'custom', executablePath: custom,
+      installed: false, managedInstalled: false, browserState: 'stopped', attached: false, task: null,
+    })
+  })
+
+  it('propagates a filesystem probe failure instead of reporting a missing installation', async () => {
+    const root = await temporaryRoot()
+    const RuntimeUnderFault = await faultedRuntime({
+      statSync: (path) => { throw Object.assign(new Error('EIO: i/o error, stat ' + path), { code: 'EIO' }) },
+    })
+    try {
+      const b = managerWith(RuntimeUnderFault, root)
+      b.runtime.attach({ channel: 'chrome', executablePath: join(root, 'chrome.exe'), state: () => 'stopped' })
+      expect(() => b.runtime.status()).toThrow('EIO: i/o error')
+    } finally {
+      await releaseFaults()
+    }
+  })
+
+  it('refuses to start work after the runtime service is disposed', async () => {
+    const root = await temporaryRoot()
+    const b = manager(root)
+    await b.ctx.fiber.dispose()
+    expect(() => b.runtime.start('install')).toThrow('Browser runtime is disposed')
+    expect(b.runtime.task()).toBeNull()
+    expect(await readdir(root)).toEqual([])
+  })
+
+  it('fails an installer that outlives its deadline and releases the lock', async () => {
+    // The deadline timer is advanced explicitly so the installer is always
+    // spawned before it fires, however slow the machine is.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const root = await temporaryRoot()
+      const fake = installer()
+      const b = manager(root, fake.spawn, { installTimeoutMs: 600_000 })
+      const task = b.runtime.start('install')
+      const spec = await fake.started
+      expect(b.runtime.task()).toMatchObject({ taskId: task.taskId, state: 'running' })
+      vi.advanceTimersByTime(600_001)
+      expect(spec.signal?.aborted).toBe(true)
+      expect(await settled(b.runtime)).toMatchObject({
+        taskId: task.taskId, state: 'failed', phase: 'complete', errorCode: 'download-failed',
+      })
+      expect(existsSync(spec.cwd)).toBe(false)
+      expect(existsSync(join(root, 'operation.lock'))).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('rejects an installer that exits without the pinned browser files', async () => {
+    const root = await temporaryRoot()
+    const fake = installer()
+    const b = manager(root, fake.spawn)
+    b.runtime.start('install')
+    const spec = await fake.started
+    fake.outcome.resolve({ exitCode: 0, signal: null })
+    expect(await settled(b.runtime)).toMatchObject({ state: 'failed', errorCode: 'download-failed' })
+    expect(existsSync(spec.cwd)).toBe(false)
+    expect(b.runtime.status().managedInstalled).toBe(false)
+  })
+
+  it('reports no installer progress when the subprocess captures no output', async () => {
+    const root = await temporaryRoot()
+    const fake = controllable({ collected: {} })
+    const b = manager(root, fake.spawn)
+    const task = b.runtime.start('install')
+    const spec = await fake.started
+    expect(b.runtime.task()).toMatchObject({ taskId: task.taskId, state: 'running', progressPercent: null })
+    await generation(dirname(spec.cwd), basename(spec.cwd), 'new executable')
+    fake.outcome.resolve({ exitCode: 0, signal: null })
+    expect(await settled(b.runtime)).toMatchObject({ state: 'succeeded', phase: 'complete', progressPercent: 100 })
+  })
+
+  it('removes its staged pointer when the commit rename fails', async () => {
+    const root = await temporaryRoot()
+    await mkdir(pointerPath(root))
+    const fake = installer()
+    const b = manager(root, fake.spawn)
+    b.runtime.start('reinstall')
+    await fake.succeed(await fake.started)
+    expect(await settled(b.runtime)).toMatchObject({ state: 'failed', phase: 'complete', errorCode: 'filesystem-failed' })
+    expect(await readdir(root)).toEqual([basename(pointerPath(root))])
+  })
+
+  it('reports a filesystem failure when failed-install staging is already gone', async () => {
+    const root = await temporaryRoot()
+    const fake = controllable({
+      onSpawn: (spec, settle) => {
+        void rm(spec.cwd, { recursive: true, force: true }).then(() => { settle({ exitCode: 1, signal: null }) })
+      },
+    })
+    const b = manager(root, fake.spawn)
+    b.runtime.start('install')
+    const spec = await fake.started
+    expect(await settled(b.runtime)).toMatchObject({ state: 'failed', phase: 'complete', errorCode: 'filesystem-failed' })
+    expect(existsSync(spec.cwd)).toBe(false)
+    expect(await readdir(root)).toEqual([])
+  })
+
+  it('refuses to cancel a task that is committing its generation', async () => {
+    const root = await temporaryRoot()
+    const fake = installer()
+    const commitGate = deferred<undefined>()
+    const RuntimeUnderFault = await faultedRuntime({
+      writeFile: async (path, data, options) => {
+        await commitGate.promise
+        await writeFile(path as never, data as never, options as never)
+      },
+    })
+    try {
+      const b = managerWith(RuntimeUnderFault, root, fake.spawn)
+      const task = b.runtime.start('reinstall')
+      const spec = await fake.started
+      await fake.succeed(spec)
+      await vi.waitFor(() => { expect(b.runtime.task()?.phase).toBe('committing') })
+      expect(spec.signal?.aborted).toBe(false)
+      await expect(b.runtime.cancel(task.taskId)).rejects.toThrow('Browser runtime commit cannot be cancelled')
+      commitGate.resolve(undefined)
+      expect(await settled(b.runtime)).toMatchObject({ state: 'succeeded', phase: 'complete', progressPercent: 100 })
+      expect(b.runtime.executablePath()).toBe(join(spec.cwd, runtimeMetadata.executableRelative))
+    } finally {
+      commitGate.resolve(undefined)
+      await releaseFaults()
+    }
+  })
+
+  it('reports a filesystem failure when the operation lock cannot be released', async () => {
+    const root = await temporaryRoot()
+    const fake = installer()
+    const RuntimeUnderFault = await faultedRuntime({
+      rm: async (path, options) => {
+        if (typeof path === 'string' && basename(path) === 'operation.lock') throw new Error('lock is busy')
+        await rm(path as never, options as never)
+      },
+    })
+    try {
+      const b = managerWith(RuntimeUnderFault, root, fake.spawn)
+      b.runtime.start('install')
+      await fake.succeed(await fake.started)
+      expect(await settled(b.runtime)).toMatchObject({ state: 'failed', phase: 'complete', errorCode: 'filesystem-failed' })
+      expect(existsSync(join(root, 'operation.lock'))).toBe(true)
+    } finally {
+      await releaseFaults()
+    }
+  })
+})
+
+describe('pinned runtime metadata', () => {
+  const bundlePath = createRequire(import.meta.url).resolve('playwright-core/lib/coreBundle')
+
+  /** Import the metadata module against a stubbed pinned Playwright bundle. */
+  async function importWithBundle(bundle: unknown): Promise<typeof import('../src/runtime-metadata.ts')> {
+    const require = createRequire(import.meta.url)
+    const original = require.cache[bundlePath]
+    require.cache[bundlePath] = {
+      id: bundlePath, filename: bundlePath, loaded: true, exports: bundle,
+    } as unknown as NodeJS.Module
+    try {
+      vi.resetModules()
+      return await import('../src/runtime-metadata.ts')
+    } finally {
+      if (original === undefined) Reflect.deleteProperty(require.cache, bundlePath)
+      else require.cache[bundlePath] = original
+      vi.resetModules()
+    }
+  }
+
+  it('fails loud when the pinned bundle cannot supply a managed Chromium', async () => {
+    await expect(importWithBundle({
+      registry: {
+        registry: { findExecutable: () => ({ executablePath: () => undefined }) },
+        registryDirectory: join(tmpdir(), 'pinned-registry'),
+      },
+    })).rejects.toThrow('Pinned Playwright does not support managed Chromium on this platform')
+  })
+
+  it('derives generation paths from the pinned registry and reports no origins without download URLs', async () => {
+    const registryDirectory = join(tmpdir(), 'pinned-registry')
+    const directory = join(registryDirectory, 'chromium-1234')
+    const executable = join(directory, 'chrome-win', 'chrome.exe')
+    const metadata = await importWithBundle({
+      registry: {
+        registry: {
+          findExecutable: () => ({
+            executablePath: () => executable, directory, revision: '1234', browserVersion: '140.0.0.0',
+          }),
+        },
+        registryDirectory,
+      },
+    })
+    expect(metadata.runtimeMetadata).toMatchObject({
+      revision: '1234',
+      browserVersion: '140.0.0.0',
+      executableRelative: relative(registryDirectory, executable),
+      markerRelative: relative(registryDirectory, join(directory, 'INSTALLATION_COMPLETE')),
+      downloadOrigins: [],
+    })
+    expect(metadata.runtimeMetadata.playwrightVersion).toMatch(/^\d+\./u)
+    expect(metadata.runtimeMetadata.cliPath.endsWith('cli.js')).toBe(true)
   })
 })

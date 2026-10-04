@@ -2,11 +2,22 @@
 
 [English](agent-team.md) | 中文
 
-实验性隐式 Root Team 领域、模型工具与宿主适配器共享的类型。[Agent Teams Agent Note](../../.agents/notes/implemented/feature/2026-08-05-agent-teams.zh.md)负责身份、mailbox、task 与共享 checkout 决策；本页记录 [`packages/experimental/agent-team/src/types.ts`](../../packages/experimental/agent-team/src/types.ts) 中的字面持久形式。
+实验性隐式 Root Team 领域、模型工具与宿主适配器共享的类型。[Agent Teams Agent Note](../../.agents/notes/implemented/feature/2026-08-05-agent-teams.zh.md)负责身份、mailbox 与 task 决策；[worktree 集成决策](../../.agents/notes/implemented/feature/2026-10-04-agent-team-worktree-integration.zh.md)负责 opt-in 隔离、集成与只读历史。本页记录 [`packages/experimental/agent-team/src/types.ts`](../../packages/experimental/agent-team/src/types.ts) 中的字面持久形式。
 
 ## 身份与 roster
 
 `TeamId` 是具有独立[品牌](core.zh.md#branded-ids)的 Root `SessionId`。`TeamTaskId` 在 Team 内按 `task-<n>` 单调分配；`TeamMessageId` 是全局随机值。teammate 的 Session id 始终是持久身份，而 `name` 是不可变的模型／UI 标签。
+
+```ts type-equiv
+/** Git result committed when a teammate worktree is integrated. */
+interface TeamWorktreeIntegration {
+  readonly taskId: WorktreeTaskId
+  readonly branch: string
+  readonly sourceBranch: string
+  readonly sourceHeadBefore: string
+  readonly sourceHeadAfter: string
+}
+```
 
 ```ts type-equiv
 /** Whole durable value written on every teammate lifecycle change. */
@@ -16,12 +27,15 @@ interface TeamMemberSnapshot {
   readonly description: string
   readonly provider: string
   readonly context: 'fresh' | 'fork'
+  readonly workspaceMode?: 'inherit' | 'worktree' | 'integrated'
+  readonly worktreeTaskId?: WorktreeTaskId
+  readonly integration?: TeamWorktreeIntegration
   readonly phase: TeamMemberPhase
   readonly error?: string
 }
 ```
 
-每个 member 都从 `provisioning` 开始，并且只到达一个终态 roster phase：`active` 或 `failed`。运行时 `running`／`idle`／`inactive` 状态单独派生，绝不会重写该记录。
+每个 member 都从 `provisioning` 开始，并且只到达一个 roster phase：`active` 或 `failed`。active worktree member 可以转为 `integrated`；持久 integration 记录保留源提交，其 Session 会归档为只读历史。运行时 `running`／`idle`／`inactive` 状态单独派生，绝不会重写该记录。
 
 ## 持久 mailbox
 

@@ -8,6 +8,7 @@ import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
 import type {
   TeamId,
   TeamMemberSnapshot,
+  TeamWorktreeIntegration,
   TeamMessageId,
   TeamMessageSnapshot,
   TeamTaskSnapshot,
@@ -29,6 +30,7 @@ const teamTaskIdSchema = z.string().min(1).refine((value) => {
   return match === null || Number.isSafeInteger(Number(match[1]))
 }, { message: 'numeric task id suffix must be a safe integer' }).transform(value => toTeamTaskId(value))
 const teamMessageIdSchema = z.string().min(1).transform(value => toTeamMessageId(value))
+const worktreeTaskIdSchema = z.string().min(1).transform(value => brandString<import('@deepseek-ai/dsh-worktree-task/types').WorktreeTaskId>(value))
 
 const coreContentBlockTypes = new Set(['text', 'reasoning', 'image', 'tool-call', 'tool-result'])
 const imageAttachmentSchema = z.object({
@@ -64,14 +66,23 @@ const contentBlockSchema: z.ZodType<ContentBlock> = z.lazy(() => z.union([
   ),
 ])) as z.ZodType<ContentBlock>
 
+const teamWorktreeIntegrationSchema = z.object({
+  taskId: worktreeTaskIdSchema,
+  branch: z.string().min(1),
+  sourceBranch: z.string().min(1),
+  sourceHeadBefore: z.string().min(1),
+  sourceHeadAfter: z.string().min(1),
+}).strict() as z.ZodType<TeamWorktreeIntegration>
+
 const teamMemberSnapshotSchema = z.object({
   id: sessionIdSchema,
   name: z.string(),
   description: z.string(),
   provider: z.string(),
   context: z.enum(['fresh', 'fork']),
-  workspaceMode: z.enum(['inherit', 'worktree']).optional(),
-  worktreeTaskId: z.string().optional(),
+  workspaceMode: z.enum(['inherit', 'worktree', 'integrated']).optional(),
+  worktreeTaskId: worktreeTaskIdSchema.optional(),
+  integration: teamWorktreeIntegrationSchema.optional(),
   phase: z.enum(['provisioning', 'active', 'failed']),
   error: z.string().optional(),
 }).strict() as z.ZodType<TeamMemberSnapshot>
@@ -252,7 +263,24 @@ function applyCurrentTeamEvent(state: TeamState, event: TeamSessionEvent): void 
         if (prior.name !== member.name || prior.provider !== member.provider || prior.context !== member.context) {
           throw new Error(`teammate "${member.id}" changed immutable identity fields`)
         }
-        if (prior.phase !== 'provisioning' || member.phase === 'provisioning') {
+        const stableIntegrationFields = prior.description === member.description && prior.error === member.error
+        const integration = stableIntegrationFields && prior.phase === 'active' && member.phase === 'active'
+          && prior.workspaceMode === 'worktree' && member.workspaceMode === 'integrated'
+          && prior.worktreeTaskId !== undefined && member.worktreeTaskId === prior.worktreeTaskId
+          && prior.integration === undefined && member.integration?.taskId === member.worktreeTaskId
+        const priorIntegration = prior.integration
+        const nextIntegration = member.integration
+        const integrationCleanup = stableIntegrationFields && prior.phase === 'active' && member.phase === 'active'
+          && prior.workspaceMode === 'integrated' && member.workspaceMode === 'integrated'
+          && prior.worktreeTaskId !== undefined && member.worktreeTaskId === undefined
+          && priorIntegration !== undefined && nextIntegration !== undefined
+          && priorIntegration.taskId === nextIntegration.taskId
+          && priorIntegration.branch === nextIntegration.branch
+          && priorIntegration.sourceBranch === nextIntegration.sourceBranch
+          && priorIntegration.sourceHeadBefore === nextIntegration.sourceHeadBefore
+          && priorIntegration.sourceHeadAfter === nextIntegration.sourceHeadAfter
+        if ((!integration && !integrationCleanup)
+          && (prior.phase !== 'provisioning' || member.phase === 'provisioning')) {
           throw new Error(`teammate "${member.name}" has an invalid ${prior.phase} -> ${member.phase} transition`)
         }
       }
@@ -308,7 +336,7 @@ function applyCurrentTeamEvent(state: TeamState, event: TeamSessionEvent): void 
 /** Host-only Team projection selected by the projected Session identity. */
 export const teamProjectionDefinition = {
   key: 'agentTeam',
-  stateVersion: 3,
+  stateVersion: 4,
   stateSchema: teamProjectionEntrySchema,
   init: header => emptyTeamState(header.id),
   apply: (state, event) => {

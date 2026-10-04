@@ -70,7 +70,7 @@ export class AutomationRuntime extends Service {
     super(ctx, 'automationRuntime')
     if (config.profile === '' || config.profile === '.' || config.profile === '..' || config.profile === 'node_modules'
       || config.profile.includes('/') || config.profile.includes(String.fromCharCode(92)) || config.profile.includes(String.fromCharCode(0))
-      || ctx.get('dshProfileName') !== config.profile) throw new Error('automation requires the actual launcher profile identity')
+      || ((ctx.get('clhProfileName') ?? ctx.get('dshProfileName')) !== config.profile)) throw new Error('automation requires the actual launcher profile identity')
     if (![config.clockCheckIntervalMs, config.maxStartLatenessMs].every(value => Number.isSafeInteger(value) && value > 0)) {
       throw new Error('automation timing policy requires positive safe integers')
     }

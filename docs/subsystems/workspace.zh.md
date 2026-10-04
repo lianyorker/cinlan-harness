@@ -126,7 +126,7 @@ interface Workspace {
 
 ## 注册表：`ctx.workspaceRegistry`
 
-`WorkspaceRegistry`（[签名](#ctxworkspaceregistry--workspaceregistry)）拥有注册与解析。`create(path, title?)` 要求完全限定路径并将其规范化，拒绝不存在的路径（原样传出原始 `ENOENT`）或非目录；当规范路径已被拥有时原样返回既有实体；否则创建一条标题为 `title ?? defaultWorkspaceTitle(path)` 的记录并前插到持久的注册表顺序中（不同规范路径可以共享同一显示标题，没有最终路径段时使用根路径拼写）。`get(id)` 与有序的 `list()` 是同步缓存读取；`resolveByPath(path)` 应用同一套完全限定 realpath 规范但不创建。`delete(id)` 只移除注册记录、顺序条目和会话账本——目录、用户文件、实时会话和已持久化日志一概不动，因此这些会话变为 Ungrouped（[决策](../../.agents/notes/implemented/feature/2026-07-27-workspace-registration-deletion.zh.md)）；未知 id 返回 `false`。create 与 delete 会在其两次写入（记录 + 顺序）可能分叉之前先持久写入一个待定变更标记；启动时恰好解决被标记的那次变更——通过删除被标记的表行：这会补完被中断的 delete，并回滚被中断的 create（注册可以重建，因此回滚是安全方向）——而没有标记的顺序/表不一致则作为损坏大声失败。
+`WorkspaceRegistry`（[签名](#ctxworkspaceregistry--workspaceregistry)）拥有注册与解析。`create(path, title?)` 要求完全限定路径并将其规范化，拒绝不存在的路径（原样传出原始 `ENOENT`）或非目录；当规范路径已被拥有时原样返回既有实体；否则创建一条标题为 `title ?? defaultWorkspaceTitle(path)` 的记录并前插到持久的注册表顺序中（不同规范路径可以共享同一显示标题，没有最终路径段时使用根路径拼写）。`get(id)` 与有序的 `list()` 是同步缓存读取；`resolveByPath(path)` 应用同一套完全限定 realpath 规范但不创建。`delete(id)` 只移除注册记录、顺序条目和会话账本——目录、用户文件、实时会话和已持久化日志一概不动，因此这些会话变为 Ungrouped（[参考](../../packages/workspace/workspace/README.zh.md)）；未知 id 返回 `false`。create 与 delete 会在其两次写入（记录 + 顺序）可能分叉之前先持久写入一个待定变更标记；启动时恰好解决被标记的那次变更——通过删除被标记的表行：这会补完被中断的 delete，并回滚被中断的 create（注册可以重建，因此回滚是安全方向）——而没有标记的顺序/表不一致则作为损坏大声失败。
 
 会话的 cwd 在创建时由创建者赋予，而不是由本注册表赋予——API 网关从所选工作区的 `path` 解析新会话的 cwd（回退到显式或默认 cwd），先创建会话使 cwd 落入其不可变的 [`SessionHeader`](persistence.zh.md#sessionheader--metadata-beside-the-log)，再调用 `attachSession`，后者会把已存储的 header cwd 与工作区路径重新校验一遍。首次成功启动时，注册表仅凭已持久化的 header（`id`、`cwd`、`createdAt`——绝不读事件正文）引导历史：把规范 cwd 有效的会话按目录分组为工作区，最新的排在最前；「已初始化」标记最后写入，因此被中断的引导可以安全续跑。引导只发生这一次：没有 cwd 的历史遗留会话保持 Ungrouped，此后创建的会话只能通过 `attachSession` 加入工作区。
 
@@ -213,6 +213,8 @@ interface Workspace {
 | `HibernateTaskRequest` | `taskId`；回收检出并保留分支，不执行 cleanup。 |
 | `ArchiveTaskRequest` | `taskId`；执行捕获的 cleanup、建立检查点并回收检出。 |
 | `DeleteTaskRequest` | `taskId`；通过 cleanup 归档，再请求安全删除分支。 |
+| `MergeTaskRequest` | `taskId`；checkpoint 无绑定 Session 的任务，并合并到捕获的源分支。 |
+| `WorktreeTaskMergeResult` | 任务与分支身份、源路径和源分支、集成前后的源提交，以及保留的已归档任务。 |
 | `BindSessionRequest` | `taskId` 和 `sessionId`；将 Session 绑定到任务检出。 |
 | `BindSessionResult` | 更新后的 `task` 及授予 Session 的 `checkoutPath`。 |
 | `DeleteTaskResult` | `deleted`、可选的 `retainedBranch` 和可选的 `cleanupReceipt`；未合并分支返回 `deleted: false`，保持已归档且可审查。 |
@@ -223,7 +225,7 @@ interface Workspace {
 | `WorktreeTaskReview` | `taskId`、`baseHead`、`head`、`checkoutRoot`、`dirty`、已跟踪 `patch`、未跟踪文件名、捕获的程序和可选的 `cleanupReceipt`；有界读取，不激活任务。 |
 | `WorktreeTaskCleanupReceipt` | 捕获的 `hook`、请求的 `operation`（`archive` 或 `delete`）、`startedAt` 和 `status`；只有已结算的 `succeeded`/`failed` 收据包含 `finishedAt`，`running` 也代表未知结果。 |
 
-存在绑定 Session 时不能休眠、归档或删除任务。`WorktreeTaskError` 携带 `code`、`message` 和可选的 `context`；其 `WorktreeTaskErrorCode` 为 `unavailable`、`not-found`、`busy`、`conflict`、`invalid-workspace`、`invalid-path`、`git-failed` 或 `operation-failed`。查询未知任务会拒绝，而非返回空任务。
+存在绑定 Session 时不能休眠、合并、归档或删除任务。合并要求捕获的源 checkout 保持干净且位于记录分支；冲突会中止并保留已归档任务供重试。`WorktreeTaskError` 携带 `code`、`message` 和可选的 `context`；其 `WorktreeTaskErrorCode` 为 `unavailable`、`not-found`、`busy`、`conflict`、`invalid-workspace`、`invalid-path`、`git-failed` 或 `operation-failed`。查询未知任务会拒绝，而非返回空任务。
 
 `GitWorktreeTaskRecord` 声明在 [Git 任务记录 schema](../../packages/workspace/worktree-task-git/src/spec.ts) 中，存储任务字段，以及 `repositoryPath`、`checkoutRoot`、`baseBranch`、`baseHead`、检查点 `head` 和可选的已捕获 `launch` 默认值。持久 `tasks` 表与独立的 `cleanup_receipts` 表都以任务 id 为键；收据在任务记录删除后保留。[Git 任务 Provider](../../packages/workspace/worktree-task-git/README.zh.md) 负责执行、结算、检出与分支生命周期细节。
 

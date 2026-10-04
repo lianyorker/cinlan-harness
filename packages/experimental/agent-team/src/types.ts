@@ -3,6 +3,7 @@
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task/types'
 
 /** Identifies the implicit team rooted at one top-level Session. */
 export type TeamId = Branded<'TeamId'>
@@ -43,6 +44,15 @@ export function TeamMessageId(id: string): TeamMessageId {
 /** Durable teammate lifecycle. */
 export type TeamMemberPhase = 'provisioning' | 'active' | 'failed'
 
+/** Git result committed when a teammate worktree is integrated. */
+export interface TeamWorktreeIntegration {
+  readonly taskId: WorktreeTaskId
+  readonly branch: string
+  readonly sourceBranch: string
+  readonly sourceHeadBefore: string
+  readonly sourceHeadAfter: string
+}
+
 /** Whole durable value written on every teammate lifecycle change. */
 export interface TeamMemberSnapshot {
   readonly id: SessionId
@@ -50,8 +60,9 @@ export interface TeamMemberSnapshot {
   readonly description: string
   readonly provider: string
   readonly context: 'fresh' | 'fork'
-  readonly workspaceMode?: 'inherit' | 'worktree'
-  readonly worktreeTaskId?: string
+  readonly workspaceMode?: 'inherit' | 'worktree' | 'integrated'
+  readonly worktreeTaskId?: WorktreeTaskId
+  readonly integration?: TeamWorktreeIntegration
   readonly phase: TeamMemberPhase
   readonly error?: string
 }
@@ -65,8 +76,9 @@ export interface TeamMemberView {
   readonly description?: string
   readonly provider?: string
   readonly context?: 'fresh' | 'fork'
-  readonly workspaceMode?: 'inherit' | 'worktree'
-  readonly worktreeTaskId?: string
+  readonly workspaceMode?: 'inherit' | 'worktree' | 'integrated'
+  readonly worktreeTaskId?: WorktreeTaskId
+  readonly integration?: TeamWorktreeIntegration
   readonly model?: string
   readonly diagnostics: string[]
 }
@@ -158,6 +170,18 @@ export interface SpawnTeammateRequest {
 /** Result after one teammate reaches a durable active or failed edge. */
 export interface SpawnTeammateResult {
   readonly member: TeamMemberView
+}
+
+/** Result of integrating one teammate's worktree into the Lead source branch. */
+export interface TeamWorktreeMergeResult {
+  readonly teammate: string
+  readonly taskId: WorktreeTaskId
+  readonly branch: string
+  readonly sourceBranch: string
+  readonly sourceHeadBefore: string
+  readonly sourceHeadAfter: string
+  readonly cleanup: 'deleted' | 'retained'
+  readonly retainedBranch?: string
 }
 
 /** Input for one durable peer message. */

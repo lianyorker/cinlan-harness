@@ -32,13 +32,16 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
 
   const check: IntegrationsSectionInjected['check'] = async (provider, signal) => {
+    if (!ctx.remote?.integrationPreflight) {
+      return { provider, status: 'unavailable', reason: 'probe-failed', account: null }
+    }
     const result = await ctx.remote.integrationPreflight.check({ provider }, signal)
     if (!result.ok) throw new Error(`integrationPreflight.check failed: ${result.error.code}: ${result.error.message}`)
     return result.value
   }
 
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'integrations', groupId: 'development' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'integrations', groupId: 'extensions' })
     yield ctx.settingsMetadata.registerItems('integrations', [
       { id: 'github', anchorId: 'integrations-github', title: () => t('githubTitle'), description: () => t('githubDescription') },
       { id: 'gitlab', anchorId: 'integrations-gitlab', title: () => t('gitlabTitle'), description: () => t('gitlabDescription') },

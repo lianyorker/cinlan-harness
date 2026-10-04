@@ -64,14 +64,20 @@ export async function createHarness() {
   const clientKey = utils.generateKeyPairSync('ecdsa', { bits: 256 })
   const parsed = utils.parseKey(clientKey.private)
   if (parsed instanceof Error) throw parsed
+  // Record-first dialing passes the saved endpoint's privateKeyFile to ssh as
+  // -i, so the identity material must exist at that path too; client_key stays
+  // the ssh_config identity. Both files carry the same generated key.
   const privateFile = join(root, 'client_key')
-  await writeFile(privateFile, clientKey.private, { mode: 0o600 })
-  await chmod(privateFile, 0o600)
-  if (process.platform === 'win32') {
-    const acl = spawnSync('icacls.exe', [privateFile, '/inheritance:r', '/grant:r', userInfo().username + ':(F)'], {
-      stdio: 'ignore', windowsHide: true, timeout: 5000,
-    })
-    if (acl.status !== 0) throw new Error('could not restrict temporary OpenSSH private-key permissions', { cause: acl.error })
+  const recordKeyFile = join(root, 'private-key')
+  for (const keyFile of [privateFile, recordKeyFile]) {
+    await writeFile(keyFile, clientKey.private, { mode: 0o600 })
+    await chmod(keyFile, 0o600)
+    if (process.platform === 'win32') {
+      const acl = spawnSync('icacls.exe', [keyFile, '/inheritance:r', '/grant:r', userInfo().username + ':(F)'], {
+        stdio: 'ignore', windowsHide: true, timeout: 5000,
+      })
+      if (acl.status !== 0) throw new Error('could not restrict temporary OpenSSH private-key permissions', { cause: acl.error })
+    }
   }
   const configPath = join(root, 'ssh_config')
   const knownHosts = join(root, 'known_hosts')
@@ -82,6 +88,8 @@ export async function createHarness() {
   return {
     root,
     configPath,
+    privateFile,
+    recordKeyFile,
     /** Mount one real persisted target registry, optionally reusing the private storage directory. */
     async registry(overrides: Partial<Config> = {}) {
       const ctx = new Context()
@@ -270,7 +278,7 @@ export async function createHarness() {
       await writeFile(configPath, configuration)
       await writeFile(knownHosts, trust)
       return {
-        alias, directory, commands, frames, workers, authentication, childPids, exited: exited.promise,
+        alias, port, directory, commands, frames, workers, authentication, childPids, exited: exited.promise,
         writeProtocol(frame: string) { protocolOutput?.write(frame) },
         replaceNextResult(value: unknown) { replacement = { value } },
         hold() {

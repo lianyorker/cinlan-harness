@@ -11,9 +11,11 @@ import type { Duplex, Readable, Writable } from 'node:stream'
 
 /** Namespace prefix reserved for DeepSeek Harness-managed child environment facts. */
 export const DSH_ENV_PREFIX = 'DSH_' as const
+/** Namespace prefix reserved for Cinlan Harness-managed child environment facts. */
+export const CLH_ENV_PREFIX = 'CLH_' as const
 
-/** One environment key inside the managed {@link DSH_ENV_PREFIX} namespace. */
-export type DshEnvironmentKey = `${typeof DSH_ENV_PREFIX}${string}`
+/** One environment key inside the managed {@link DSH_ENV_PREFIX} or {@link CLH_ENV_PREFIX} namespace. */
+export type DshEnvironmentKey = `${typeof DSH_ENV_PREFIX}${string}` | `${typeof CLH_ENV_PREFIX}${string}`
 
 /** Trusted DeepSeek Harness variables for one child-process execution. */
 export type DshEnvironment = Readonly<Record<DshEnvironmentKey, string>>

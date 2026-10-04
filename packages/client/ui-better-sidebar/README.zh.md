@@ -70,7 +70,7 @@ kind: "package-reference"
 - **⚡ 按需加载**：启动只拉 ~325KB 核心，终端 / 编辑器 / Mermaid 图表等重依赖用到才按需拉取（[设计文档](docs/plans/2026-08-12-lazy-chunks-design.md)）
 - **🌏 多语言**：界面文案跟随 DSH 语言（zh / en）实时切换
 
-Settings 将文件放在工具分组，将任务与侧边对话放在 AI 分组。Git、浏览器和终端各自使用既有原生页面并加入侧栏控件；原生字段保留其表单与保存、重置行为。个人分组下的工作区布局仅包含布局偏好。[功能导航决策](../../../.agents/notes/implemented/architecture/2026-09-19-feature-settings-navigation.zh.md)记录所有权规则。
+Settings 将文件放在「工作区」分组，将任务与侧边对话放在「智能体」分组。Git、浏览器和终端各自使用既有原生页面并加入侧栏控件；原生字段保留其表单与保存、重置行为。个人分组下的工作区布局仅包含布局偏好。[功能导航决策](../../../.agents/notes/implemented/architecture/2026-09-19-feature-settings-navigation.zh.md)记录所有权规则。
 
 Office 文件通过内置 DOCX/XLSX/PPTX 预览器及其 DOC/XLS/PPT 扩展名在文件页打开。已授权的 [Office 转换器](../../document/office-to-pdf/README.zh.md)生成 PDF 供浏览器预览，源文件保持不变。预览提供重试、原文件下载和缺失字体详情。关闭或替换预览会取消转换并释放其 PDF URL。文件设置可禁用这些预览器，更高优先级的已注册预览器可替换它们。渲染效果取决于转换器、已安装字体和浏览器 PDF 支持。
 
@@ -443,7 +443,7 @@ GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar
 
 ### 插件设置导航
 
-每个可见第三方页签描述符在扩展分组中获得一个 `feature:${id}` 页面，使用既有启用控件与所声明的设置。隐藏描述符，包括计划、差异和审阅面板，不增加菜单项。文件预览器控件留在文件页。侧栏偏好键、`dsh-better-sidebar` 命名空间、序列化方式与 `pluginSettings[descriptorId]` 继续由既有属主负责。[GitHub topic `dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar)列出生态插件。
+每个可见第三方页签描述符在「能力与连接」分组中获得一个 `feature:${id}` 页面，使用既有启用控件与所声明的设置。隐藏描述符，包括计划、差异和审阅面板，不增加菜单项。文件预览器控件留在文件页。侧栏偏好键、`dsh-better-sidebar` 命名空间、序列化方式与 `pluginSettings[descriptorId]` 继续由既有属主负责。[GitHub topic `dsh-better-sidebar`](https://github.com/topics/dsh-better-sidebar)列出生态插件。
 
 **收录新插件**：向 [`src/client/plugins-tabs.ts`](./src/client/plugins-tabs.ts)（Tab 注册）或 [`src/client/plugins-viewers.ts`](./src/client/plugins-viewers.ts)（文件预览注册）追加一条 `PluginEntry`，并把仓库打上 `dsh-better-sidebar` topic；数据完整性由 `tests/plugin-list.spec.ts` 守护。
 

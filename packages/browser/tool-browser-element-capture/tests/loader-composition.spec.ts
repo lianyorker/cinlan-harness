@@ -3,8 +3,8 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-const FileSettingsProvider = {
-  name: '@deepseek-ai/dsh-settings-file',
+const SettingsServiceStub = {
+  name: '@deepseek-ai/dsh-settings',
   apply(c: Context) {
     c.provide('settings', {
       describe: () => [],
@@ -199,7 +199,7 @@ describe('browser element capture through a real cordis.yml Loader composition',
     await context.plugin(Loader)
     context.loader.builtins.include = Include
     const modules = new Map<string, unknown>([
-      ['@deepseek-ai/dsh-settings-file', FileSettingsProvider],
+      ['@deepseek-ai/dsh-settings', SettingsServiceStub],
       ['@deepseek-ai/dsh-browser', BrowserRuntime],
       ['@deepseek-ai/dsh-browser-playwright', BrowserPlaywright],
       ['@deepseek-ai/dsh-browser-playwright/runtime', BrowserRuntimeManager],

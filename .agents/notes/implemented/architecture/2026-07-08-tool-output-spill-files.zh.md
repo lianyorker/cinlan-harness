@@ -4,15 +4,13 @@ Status: implemented
 
 [English](2026-07-08-tool-output-spill-files.md) | 中文
 
-多模态扩展记录在[文字/图片保留 Agent Note](2026-09-23-cinlan-multimodal-tool-result-retention.zh.md)。
-
 ## 问题
 
 工具输出需要有界的模型可见预览，但部分超大结果仍可能在之后有用。抓取的页面正文或冗长的工具响应不应完整占用下一次模型请求，但模型应能使用现有文件读取工具，在之后查看经过格式化的完整结果。
 
 这项改动之前的行为并不一致。`dsh-bash-local` 已经会在内存尾部溢出时，把完整 stdout／stderr 流写入私有的临时 spill 文件；普通文本工具结果则仍以内联形式返回，除非工具自行实现上限。[工具结果保留库](../../archived/architecture/2026-07-06-tool-result-retention-library.md)负责预览机制，但不负责存储，也不负责把这些机制应用于最终工具结果的执行流水线策略。
 
-其形态与超时策略设计一致：工具作者声明规范值与 Native renderer（原生渲染器），由策略插件在渲染后的内容上执行部署默认的上下文预算。工具仍可在提供方采集上限处提前 spill；由工具负责的展示 spill 可以保留已完整采集的规范值，而只替换展示内容。[规范工具输出约定](2026-07-20-canonical-tool-output-contract.zh.md)规定了这项区分。
+其形态与超时策略设计一致：工具作者声明规范值与 Native renderer（原生渲染器），由策略插件在渲染后的内容上执行部署默认的上下文预算。工具仍可在提供方采集上限处提前 spill；由工具负责的展示 spill 可以保留已完整采集的规范值，而只替换展示内容。[规范工具输出约定](../../../../packages/core/tools/README.zh.md)规定了这项区分。
 
 ## 决策
 
@@ -22,9 +20,9 @@ Status: implemented
 |---|---|
 | `@deepseek-ai/dsh-spill` | 接口：`ctx.spillStore`、词汇类型，不包含存储实现。 |
 | `@deepseek-ai/dsh-spill-local` | 本地后端：在宿主文件系统中提供私有、会话作用域的文件存储。 |
-| `@deepseek-ai/dsh-spill-policy` | 工具结果策略插件：在分发后按 token 预算保留有序文字/图片结果，并提供 spill 定位符与恢复路径。 |
+| `@deepseek-ai/dsh-spill-policy` | 工具结果策略插件：包装分发后的最终文本结果，并以保留预览和 spill 定位符替换超大结果。 |
 
-工具结果消费方是 `dsh-spill-policy`，它通过 `tools/post-execute` waterfall（瀑布式事件）使用最终工具结果。模型按照后端随定位符返回的检索提示读取内容。[会话引用 spill 复用](../bug-fix/2026-09-05-session-reference-spill-reuse.zh.md)增加一个直接存储消费方，采用独立的预览、来源信息与失败语义；它不改变工具结果策略。
+工具结果消费方是 `dsh-spill-policy`，它通过 `tools/post-execute` waterfall（瀑布式事件）使用最终工具结果。模型按照后端随定位符返回的检索提示读取内容。[会话引用 spill 复用](../../../../packages/context/session-reference/README.zh.md)增加一个直接存储消费方，采用独立的预览、来源信息与失败语义；它不改变工具结果策略。
 
 ### spill seam
 
@@ -68,36 +66,7 @@ interface SpillRef {
 
 ### spill 策略
 
-`dsh-spill-policy` 是一个 `tools/post-execute` 结果转换器，只提供一个配置项：
-
-```ts ignore-check
-interface Config {
-  /** Omitted means no automatic retention. Present means apply a shared estimated-token budget to accepted text/image results. */
-  maxInlineTokens?: number
-}
-```
-
-省略 `maxInlineTokens` 时，插件不会注册任何内容，是真正的无操作。设置该值后，它会对已接受的最终文字/图片结果应用默认策略：
-
-1. 让工具正常运行，通过 `next()` 委托，使下游监听器先结算结果。
-2. 仅当最终 `ContentBlock[]` 中的每个块都是文字或图片时才接受；包含其他块类型的结果保持不变。
-3. 使用 `maxInlineTokens` 估算文字、图片描述、省略通知和路由专属图片计量；预算内的结果保持不变。
-4. 如果超出上限，使用完整的最终文本调用 `ctx.spillStore.saveText()`。
-5. 把模型可见结果替换为保留的首尾预览和 spill 引用。
-
-策略在 `maxInlineTokens` 内保留按原顺序排列的首尾内容。文字可以在安全字符边界处分割；图片不可分割，并保持原有位置。保留实现归 `dsh-spill-policy` 所有，因为它同时组合 token 估算、路由图片计量、通知文本和恢复元数据。
-
-替换文本刻意保持通用，因为策略只知道最终格式化的工具结果，不了解工具的内部资源：
-
-```text
-<retained preview>
-
-(Omitted N bytes. Full formatted result stored at: /.../session-.../....txt. Use read with offset/limit, or grep this path to search within it.)
-```
-
-如果 `ctx.spillStore.saveText()` 失败（权限、ENOSPC、后端不可用），或调用没有会话所有者，或未加载后端，插件会记录原因并原样返回结果。spill 失败绝不会把成功的工具调用变为 `isError` 结果，也不会隐藏内联结果。
-
-策略跳过 `read`，以避免形成 `read -> spill file -> read again` 循环。额外的选择退出配置要等确实出现第二个有此需求的工具后再引入。
+`dsh-spill-policy` 在执行后策略接受结果之后，按 `maxInlineTokens` 对文字和图片共同计量并保留首尾。完整结果仍通过 `saveText()` 保存，图片本体留在附件存储，结果文件记录可读取路径。图片投影顺序、整图省略和模型计量由[图文结果保留参考](../../../../packages/spill/spill-policy/README.zh.md)负责。省略配置时不安装监听器，存储失败时保留原结果；`read` 的模型可见结果跳过自动省略，避免重复读取产生循环。
 
 ## 示例：web_fetch
 
@@ -140,7 +109,7 @@ ctx.tools.register(defineTool({
 
 保留与 spill 存储相互独立：
 
-- `@deepseek-ai/dsh-spill-policy` 负责有序文字/图片保留、省略计数、token 估算、路由图片计量和恢复通知。
+- `@deepseek-ai/dsh-output-retention` 负责预览机制（`TextRetainer`、`ItemRetainer` 和省略元数据）。
 - `@deepseek-ai/dsh-spill` 负责保存最终文本，并返回定位符与检索提示。
 - `@deepseek-ai/dsh-spill-policy` 在工具流水线中应用默认的最终结果策略，将前两者组合起来。
 
@@ -188,11 +157,11 @@ ctx.tools.register(defineTool({
 
 **快照缺口。** 目前没有 ACP 快照场景覆盖 transcript（文本记录）可见的 `web_fetch` spill 提示。ACP 快照 harness 在无密钥环境中回放，无法访问实时 web，而 `web_fetch` spill 需要一个真实的超上限 HTTP 正文；确定性场景需要一个预置的 loopback fetch 目标，但当前回放树尚未接线（示例根本没有加载 `tool-web`）。该行为改由 `dsh-tool-web` 针对 loopback server 的集成测试覆盖。弥补该缺口属于后续工作：把 `tool-web` 和预置 fetch 目标接入 ACP 示例，然后录制 `web-fetch-spill` 场景。
 
-策略保持狭窄：只接受最终文字/图片内容，保持规范程序值不变，并将不支持的块类型与工具负责的提前 spill 留给各自所有者。图片恢复要求执行世界提供附件和文件系统服务。
+如果策略开始负责工具专用语义，就会膨胀得过大。它处理已接受的图文序列，不解释工具专用的文字语义。由工具负责的提前 spill 仍留作未来工作。
 
 ## 考虑过的替代方案
 
-**要求每个工具通过保留声明选择加入。**不予采纳，因为该策略是部署范围的默认行为。单个 `maxInlineTokens` 配置项即可覆盖文字、图片、通知和路由专属视觉计量。
+**要求每个工具通过保留声明选择加入。**不予采纳，因为目标是实现类似 Claude Code 通用工具结果持久化的默认行为。只需一个 `maxInlineTokens` 部署配置项即可验证该形态。
 
 **把 `tool-results` 建成宽泛的工具结果平台。** 不予采纳：宽泛的包名会诱使系统把保留策略、结果替换、预览措辞、搜索和提前 spill 合并进一个 seam。可共享的存储部分更小：保存文本，并返回定位符与检索提示。
 
@@ -200,4 +169,4 @@ ctx.tools.register(defineTool({
 
 **让 `web-fetch-http` 不受限地抓取，只依靠 spill-policy。** 不予采纳：spill-policy 在最终工具结果已经存在之后才运行，无法保护网络、内存或解码资源。提供方资源上限仍然必须存在。
 
-**把保留合并进 spill 机制。** 不予采纳：保留与 spill 职责不同。策略决定哪些有序模型可见内容和恢复通知适合预算；存储保存完整的文本表示并返回定位符。
+**把保留合并进 spill 机制。** 不予采纳：保留与 spill 职责不同。`TextRetainer`／`ItemRetainer` 决定保留哪部分预览、又省略了什么；spill 存储只负责保存策略要求的最终文本。

@@ -9,10 +9,11 @@ import { GIT_SETTINGS_NAMESPACE, GitSourceControlSettingsSchema } from '../src/s
 const defaults = {
   branchPrefix: 'none', branchPrefixCustom: '', refreshLocalBaseRefOnWorktreeCreate: false,
   sourceControlGroupOrder: 'changes-first', compareAgainstUpstream: false, enableGitHubAttribution: false,
+  autoRenameTaskBranch: false,
 }
 
 describe('git-settings', () => {
-  it('keeps the durable namespace and all six defaults', () => {
+  it('keeps the durable namespace and all seven defaults', () => {
     expect(GIT_SETTINGS_NAMESPACE).toBe('git-source-control')
     expect(GitSourceControlSettingsSchema()).toEqual(defaults)
     expect(Object.keys(types)).toEqual([])
@@ -22,6 +23,7 @@ describe('git-settings', () => {
   it.each([
     { branchPrefix: 'automatic' }, { branchPrefixCustom: true }, { refreshLocalBaseRefOnWorktreeCreate: 'true' },
     { sourceControlGroupOrder: 'other' }, { compareAgainstUpstream: 1 }, { enableGitHubAttribution: 'true' },
+    { autoRenameTaskBranch: 'true' },
   ])('rejects an invalid preference: %j', (value) => {
     expect(() => GitSourceControlSettingsSchema(value as never)).toThrow()
   })

@@ -15,10 +15,12 @@ import {
   targetRequestSchema, targetRevisionSchema, updateTargetSchema,
 } from './spec.ts'
 import type { StoredTarget } from './spec.ts'
+import { readImportableHosts } from './import.ts'
 import type {
-  CreateTargetRequest, ExecutionAuthorization, ExecutionTargetId, InspectDirectoryRequest, InspectionValue, ListTargetsValue,
-  SshExecutionConfiguration, SshExecutionSnapshot, TargetRequest, TargetRevisionRequest, TargetState, TargetValue,
-  TargetView, UpdateTargetRequest,
+  CreateTargetRequest, ExecutionAuthorization, ExecutionTargetId, ImportableHostsValue, InspectDirectoryRequest,
+  InspectionValue, ListTargetsValue,
+  SshExecutionConfiguration, SshExecutionSnapshot, TargetRequest, TargetRevisionRequest, TargetState, TargetTestValue,
+  TargetValue, TargetView, UpdateTargetRequest,
 } from './types.ts'
 
 export { ExecutionTargetError } from './errors.ts'
@@ -140,8 +142,8 @@ export default class ExecutionHostTargets extends Service {
       const current = this.requireRevision(value)
       await this.disconnectCurrent(value.id)
       const next = {
-        ...current, label: value.label, sshAlias: value.sshAlias, execution: value.execution, retainedExecutions: {},
-        revision: current.revision + 1, updatedAt: new Date().toISOString(),
+        ...current, label: value.label, sshAlias: value.sshAlias, connection: value.connection, execution: value.execution,
+        retainedExecutions: {}, revision: current.revision + 1, updatedAt: new Date().toISOString(),
       }
       await this.requireTable().put(value.id, next)
       this.changed()
@@ -194,10 +196,17 @@ export default class ExecutionHostTargets extends Service {
     if (execution === undefined || execution.bootstrapPath === undefined || execution.bootstrapHash === undefined) {
       throw new ExecutionTargetError('incompatible', 'Saved target requires execution configuration with both bootstrap fields')
     }
-    const { host, port, username, hostKeySHA256 } = execution.endpoint
+    const { host, port, username, hostKeySHA256, proxyCommand, jumpHost, multiplex, keepAliveIntervalSeconds, connectTimeoutSeconds } = execution.endpoint
     return Object.freeze({
       kind: 'ssh', targetId: id, revision,
-      endpoint: Object.freeze({ host, port, username, hostKeySHA256 }),
+      endpoint: Object.freeze({
+        host, port, username, hostKeySHA256,
+        ...proxyCommand === undefined ? {} : { proxyCommand },
+        ...jumpHost === undefined ? {} : { jumpHost },
+        ...multiplex === undefined ? {} : { multiplex },
+        ...keepAliveIntervalSeconds === undefined ? {} : { keepAliveIntervalSeconds },
+        ...connectTimeoutSeconds === undefined ? {} : { connectTimeoutSeconds },
+      }),
       node: execution.node, helper: execution.helper, helperHash: execution.helperHash, workspace: execution.workspace,
       bootstrapPath: execution.bootstrapPath, bootstrapHash: execution.bootstrapHash,
     })
@@ -297,7 +306,7 @@ export default class ExecutionHostTargets extends Service {
       this.requireTable()
       signal?.throwIfAborted()
       const generation = ++this.generation
-      const connection = new SshTargetConnection(this.ctx.subprocess, this.config, record.sshAlias, (cleanup) => {
+      const connection = new SshTargetConnection(this.ctx.subprocess, this.config, record.sshAlias, this.dialEndpoint(record), (cleanup) => {
         void this.track(cleanup.catch((error: unknown) => { this.ctx.logger.error('Execution target SSH cleanup failed', error) }))
         if (this.live.get(record.id)?.generation !== generation || this.closed) return
         this.states.set(record.id, { phase: 'error', generation, code: 'connection-lost', message: 'Target connection was lost; reconnect to inspect' })
@@ -338,6 +347,59 @@ export default class ExecutionHostTargets extends Service {
       }
       throw failure
     }
+  }
+
+  /**
+   * Probe one saved target through a throwaway connection and close it again.
+   *
+   * The probe dials the record's own endpoint exactly as connect() would, but it
+   * never writes the live map, the state map or the generation counter, so a
+   * probe cannot disturb an active inspection, a retained binding or a running
+   * worker. Failures keep the connection's typed codes (unreachable,
+   * authentication-required, host-key-mismatch, timeout, incompatible).
+   * @param request Exact saved revision to probe.
+   * @param signal Cancellation of the probe.
+   * @returns the probed target and the root count the worker advertised.
+   */
+  test(request: TargetRevisionRequest, signal?: AbortSignal): Promise<TargetTestValue> {
+    const value = parse(targetRevisionSchema, request)
+    return this.track(this.testOperation(value, signal))
+  }
+
+  private async testOperation(request: TargetRevisionRequest, signal?: AbortSignal): Promise<TargetTestValue> {
+    const record = this.requireRevision(request)
+    signal?.throwIfAborted()
+    const connection = new SshTargetConnection(
+      this.ctx.subprocess, this.config, record.sshAlias, this.dialEndpoint(record), () => {},
+    )
+    try {
+      const info = await connection.open(signal)
+      return { target: this.view(record), rootCount: info.roots.length }
+    } finally {
+      await connection.close()
+    }
+  }
+
+  /**
+   * Read the managing Host's OpenSSH Host entries for the import form.
+   *
+   * The read describes destinations only. It never returns key contents, never
+   * writes the configuration, and skips wildcard and negated patterns because
+   * those do not name one importable destination.
+   * @returns the source path, whether it exists, and its concrete Host entries.
+   */
+  listImportableHosts(): Promise<ImportableHostsValue> {
+    return readImportableHosts(this.config)
+  }
+
+  /**
+   * Resolve the endpoint this record dials: its editable connection when one
+   * was saved, otherwise the pinned deployment's endpoint.
+   * @param record Stored target record.
+   * @returns the dial endpoint, or undefined when the record is alias-only.
+   */
+  private dialEndpoint(record: StoredTarget) {
+    return record.connection ?? record.execution?.endpoint
   }
 
   /**

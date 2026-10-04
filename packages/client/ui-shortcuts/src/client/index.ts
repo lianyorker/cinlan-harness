@@ -1,28 +1,29 @@
-/** Shortcut reference plugin; commands and entry points share one declared store. */
+/** Shortcut reference plugin; one dialog and one settings page share a declared store. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { closeTopModal } from '@deepseek-ai/dsh-client-ui-primitives'
+import type {} from '@deepseek-ai/dsh-client-keyboard/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { createShortcutsStore } from './store.ts'
-import { ShortcutReference, ShortcutsRow } from './Reference.tsx'
+import { ShortcutReference, ShortcutSettingsPage } from './Reference.tsx'
 import { en, zh } from './locales.ts'
 import { fixedCommands } from './fixed.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Shortcut reference and settings entry copy. */
+    /** Shortcut reference and settings page copy. */
     shortcuts: keyof typeof zh
   }
 }
 
-/** Required command, locale, and slot services. */
-export const inject = ['shortcuts', 'locale', 'slots']
+/** Required command, keyboard, locale, slot, and settings-metadata services. */
+export const inject = ['shortcuts', 'keyboard', 'locale', 'slots', 'settingsMetadata']
 
 /**
- * Register the reference command, settings row, and single shell overlay.
+ * Register the reference command, its Settings page, and the single shell overlay.
  * @param ctx - plugin-owned client context.
  */
 export function apply(ctx: Context): void {
@@ -38,11 +39,40 @@ export function apply(ctx: Context): void {
     ctx.effect(() => ctx.shortcuts.registerFixed(command), `shortcuts: ${command.id}`)
   }
   const injected = () => ({ platform: ctx.shortcuts.platform, runtime: ctx.shortcuts.runtime, edit, recording, describeBinding,
-    hooks: { catalog: ctx.shortcuts.catalog, config: ctx.shortcuts.config, fixedCatalog: ctx.shortcuts.fixedCatalog } })
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item', id: 'shortcuts', order: 20, locale: 'shortcuts', store,
-    inject: injected,
-  }, ShortcutsRow))
+    captureKey: (facts: Parameters<typeof ctx.keyboard.capture>[0]) => ctx.keyboard.capture(facts),
+    setBinding: (id: string, binding: Parameters<typeof ctx.keyboard.setBinding>[1]) => ctx.keyboard.setBinding(id, binding),
+    resetBinding: (id: string) => ctx.keyboard.resetBinding(id),
+    resetAll: () => ctx.keyboard.resetAll(),
+    hooks: { catalog: ctx.shortcuts.catalog, config: ctx.shortcuts.config, fixedCatalog: ctx.shortcuts.fixedCatalog,
+      keyboard: ctx.keyboard } })
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'keybindings', groupId: 'personal' })
+    yield ctx.effect(() => {
+      let live = true
+      let removeItems: (() => void) | undefined
+      const publish = (): void => {
+        if (!live) return
+        removeItems?.()
+        removeItems = ctx.settingsMetadata.registerItems('keybindings', [
+          { id: 'reset', anchorId: 'shortcut-reset', title: () => t('reset-all'), description: () => t('reset-description') },
+          ...ctx.shortcuts.catalog.getSnapshot().map(row => ({
+            id: row.id, anchorId: 'shortcut-' + row.id, title: () => row.label,
+          })),
+          ...ctx.keyboard.getSnapshot().commands.filter(command => command.registered).map(command => ({
+            id: command.id, anchorId: 'keybinding-' + command.id, title: () => command.label, description: () => command.description,
+          })),
+        ])
+      }
+      publish()
+      const offCatalog = ctx.shortcuts.catalog.subscribe(publish)
+      const offKeyboard = ctx.keyboard.subscribe(publish)
+      return () => { live = false; offCatalog(); offKeyboard(); removeItems?.() }
+    }, 'shortcuts: settings search items')
+    yield ctx.slots.register({
+      name: 'settings.section', id: 'keybindings', order: 95, label: () => t('navLabel'), locale: 'shortcuts', store,
+      inject: injected,
+    }, ShortcutSettingsPage)
+  })
   ctx.slots.inject('shell.overlay', () => {
     const disposeCommand = ctx.shortcuts.register({
       id: 'shortcuts.open' as ShortcutCommandId, label: () => t('open'), aliases: ['shortcuts', 'keyboard shortcuts'],

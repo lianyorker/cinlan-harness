@@ -72,7 +72,7 @@ export function apply(ctx: Context): void {
   }
 
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'terminal', groupId: 'experimental' })
+    yield ctx.settingsMetadata.registerSection({ sectionId: 'terminal', groupId: 'workspace', heading: 'shell' })
     yield ctx.settingsMetadata.registerItems('terminal', TERMINAL_ITEMS.map(([id, title, description]) => ({
       id, anchorId: id, title: () => t(title), description: () => t(description),
     })))

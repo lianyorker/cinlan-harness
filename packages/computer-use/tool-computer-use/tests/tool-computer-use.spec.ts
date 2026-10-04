@@ -389,7 +389,7 @@ describe('Computer Use tool behavior', () => {
     expect(deferred).toHaveLength(1)
     expect(deferred[0]).toMatchObject({
       role: 'user',
-      source: { kind: 'plugin', plugin: 'tool-computer-use' },
+      source: { kind: 'tool-computer-use' },
       content: [{ type: 'text' }, { type: 'image', attachment: { attachmentId: 'sha256:unnamed' } }],
     })
   })

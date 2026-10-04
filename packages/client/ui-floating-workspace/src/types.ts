@@ -1,7 +1,7 @@
 /** Durable preferences owned by the floating workspace feature. */
 
 /** Existing entry positions; persisted values remain stable. */
-export type ToggleButtonPosition = 'header' | 'sidebar' | 'floating'
+export type ToggleButtonPosition = 'header' | 'floating'
 
 /** Preferences affect the entry and future app-window creation. */
 export interface FloatingWorkspaceSettings {

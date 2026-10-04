@@ -27,10 +27,6 @@ kind: "package-reference"
 
 当 Cua Driver 已在运行 DSH 的同一台机器上安装并配置好时，选择此提供者。平台设置以[上游安装和权限指南](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/README.md)为准。
 
-本插件不下载驱动。请提供可执行的 `cua-driver`（上游兼容参考为 `0.28.0`）及可访问的已登录图形会话。macOS 通常由具备辅助功能和屏幕录制授权的 `CuaDriver.app` 守护进程处理操作；`args: [mcp, --direct]` 则使用启动主机的权限。Windows 需要对应架构的驱动，并受 UIA/进程完整性限制。Linux 需要相应的 X11 或受支持的 Wayland/AT-SPI/合成器配置；具体操作支持见[上游平台记录](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/docs/action-support.md)。安装成功不代表获得桌面授权。
-
-只挂载一个 Cua Driver 适配器，并先卸载任何已注册的 facade Provider。若组合包含 `tool-computer-use` 或 facade 专用权限策略，也应在选择 Cua Driver 时停用该工具 Consumer 和权限策略；Cua Driver 暴露自身的参数与工具名称，该策略不适用于它。本包不会自动启用，也不会改变 profile 默认组合。
-
 ### 最小配置
 
 将以下条目加入已提供 tools 和 system-prompt 服务的组合。截图还需要附件存储，以及声明支持图像输入的模型路由。
@@ -50,11 +46,11 @@ kind: "package-reference"
 | `toolCallTimeoutMs` | MCP 客户端默认值 | 单次调用的超时覆盖值，单位为毫秒 |
 | `reconnect` | MCP 客户端策略 | 可选的重连覆盖配置 |
 
-[配置 schema](src/index.ts)定义接受的字段。超时和重连默认值由 [MCP 客户端](../../mcp/mcp-client/README.zh.md)定义。
+生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-experimental-computer-use-cua-driver-mcp)列出了接受的字段。超时和重连默认值由 [MCP 客户端](../../mcp/mcp-client/README.zh.md)定义。
 
 ### 激活与所有权
 
-提供者在连接前以 `cua-driver-mcp` 注册。第二个计算机使用提供者会激活失败，包括本包的另一个实例。初始化或首次工具发现失败会使本条目激活失败，并在清理后释放注册。之后连接断开时，MCP 客户端重连或耗尽尝试次数均保留注册；确认关闭后卸载条目才会释放注册。若 MCP 关闭超时，注册保持占用，必须重启主机才能挂载另一提供者。
+提供者在连接前以 `cua-driver-mcp` 注册。第二个计算机使用提供者会激活失败，包括本包的另一个实例。初始化或首次工具发现失败会使本条目激活失败，并在清理后释放注册。之后连接断开时，MCP 客户端重连或耗尽尝试次数均保留注册；卸载条目才会释放注册。
 
 模型看到的工具使用固定的 `mcp__cua-driver-mcp__` 命名空间。工具名称、描述、输入模式、规范结果和图像准入遵循现有 [MCP 桥接器](../../mcp/mcp-client/README.zh.md)。本包不额外提供 DSH 操作目录或提供者选择工具。
 
@@ -68,14 +64,14 @@ kind: "package-reference"
 
 [`src/index.ts`](src/index.ts) 将计算机使用注册和所属 MCP 子插件归入同一个有序副作用。子插件完成清理后才运行注册释放函数，激活失败时也遵循这一顺序。MCP 客户端负责凭据过滤、子进程终止、工具同步、取消和持久化图像投影。
 
-本包不发布运行时不变量伴随插件：提供者没有独立的驱动状态可与注册比较，连接和工具代次由子插件持有。
+### 验证已安装的驱动
 
-### 模拟验证
-
-在仓库根目录运行包内测试。测试使用仅返回固定文本和 PNG 字节的本地 stdio fixture，不读取真实桌面，也不发送输入。Loader 组合覆盖持久化截图、重连和失败后的资源清理；生命周期测试覆盖关闭超时后保留占用。真实驱动与平台权限需要单独验证。
+在仓库根目录，用 Cua Driver 可执行程序的绝对路径显式启用真实兼容性测试。测试发现工具，以 `prompt: false` 调用 `check_permissions`，并验证清理结果。在 macOS 上，`--direct` 使用启动宿主的权限在 MCP 进程中运行驱动；省略 `DSH_COMPUTER_USE_MCP_ARGS` 则使用默认的 `["mcp"]` 参数。
 
 ```sh
-node node_modules/vitest/vitest.mjs run packages/experimental/computer-use-cua-driver-mcp
+DSH_COMPUTER_USE_MCP_EXECUTABLE=/absolute/path/to/cua-driver \
+DSH_COMPUTER_USE_MCP_ARGS='["mcp","--direct"]' \
+pnpm run test:e2e packages/experimental/computer-use-cua-driver-mcp/tests/installed-driver.e2e.ts
 ```
 
 </details>

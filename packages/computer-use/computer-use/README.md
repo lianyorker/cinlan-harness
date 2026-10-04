@@ -1,5 +1,5 @@
 ---
-description: "Provider-neutral registry and desktop observation/action requests."
+description: "Computer-use provider registration for deployments that enable one desktop driver at a time."
 kind: "package-reference"
 ---
 
@@ -9,77 +9,79 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Select one desktop provider and inspect its readiness before offering computer-use tools. Tool-catalog providers report their lifecycle and discovered tools; facade providers expose capability discovery and observation-scoped actions. Readiness does not grant desktop permissions or authorize input.
+A deployment can enable one computer-use provider at a time. Loading another provider fails with the registered provider name. Each provider supplies its own tools and desktop operations. This package adds no model-visible tools and does not coordinate concurrent Sessions.
 
 ## Table of Contents
 
 - [Use this package](#use-this-package)
-- [Readiness](#readiness)
+- [Understand the implementation](#understand-the-implementation)
+- [Further Exploration](#further-exploration)
 - [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+-----
 
 <a id="use-this-package"></a>
 ## Use this package
 
-This Service Definition owns the provider-neutral `ctx.computerUse` registry and execution facade for local desktop applications. Providers own platform transport, capability discovery, application and window identity, accessibility observations, screenshot bytes, and action execution; Consumers own permission policy, model schemas, attachment persistence, and presentation.
+Mount the service once beside the chosen provider in a Cordis composition:
 
-## Provider selection
+```yaml
+- name: '@deepseek-ai/dsh-computer-use'
+```
 
-The optional `provider` config pins one provider id. Without it, every call selects exactly one currently available provider. Selection failures are structured `ComputerUseError` values:
+The service has no configuration. Provider plugins inject `computerUse` and call `ctx.computerUse.register(ComputerUseProviderName(name))`; the brand is exported from `@deepseek-ai/dsh-computer-use/brand`. The returned effect disposer releases that registration.
 
-| Condition | Code |
-|---|---|
-| Configured provider is not registered | `COMPUTER_PROVIDER_CONFIGURED_MISSING` |
-| Configured provider is unavailable | `COMPUTER_PROVIDER_CONFIGURED_UNAVAILABLE` |
-| No usable provider exists | `COMPUTER_PROVIDER_UNAVAILABLE` |
-| More than one usable provider exists | `COMPUTER_PROVIDER_AMBIGUOUS` |
-| Provider id is blank or duplicated | `COMPUTER_PROVIDER_ID_INVALID` / `COMPUTER_PROVIDER_DUPLICATE` |
+Providers stop admitting tool calls, close their resources, and await owned work before releasing the registration. `ctx.computerUse.providerName` reports the registered name until release.
 
-Selection occurs for every call, so provider disposal and availability changes do not leave a cached backend selection.
+-----
 
-## Exclusive external tool adapters
+<a id="understand-the-implementation"></a>
+## Understand the implementation
 
-`register(name, readiness?)` reserves computer use for an adapter that publishes its own tools; the optional callback returns `ComputerToolReadiness`. `providerName` reports its name while it closes. This registration rejects every registered `ComputerUseProvider`, including unavailable ones, and `registerProvider()` rejects an occupied exclusive registration. Existing multi-provider configuration and per-call selection remain supported. `ComputerUseRegistry` is a class export alias for `ComputerUseRuntime`; the brand constructor is exported through `./brand` and the package root.
+<details>
+<summary>Implementation internals — click to expand</summary>
 
-[Cua Driver MCP](../../experimental/computer-use-cua-driver-mcp/README.md) and [Cua Driver native](../../experimental/computer-use-cua-driver-native/README.md) are explicit opt-ins. They own their tools and do not implement the facade's observation/action requests. When switching from a facade composition, unload its provider and any `tool-computer-use` consumer; mount the permission policy with `native` configured for native CUA tools. Each adapter must remove its tools and await owned work before releasing registration.
+One private name owns the slot. Cordis effects remove contributions when their plugin unloads; a repeated disposer cannot remove a later registration. The [source](src/index.ts) contains no driver object, operation interface, or provider selector.
 
-<a id="readiness"></a>
-## Readiness
+</details>
 
-`readiness(signal)` reports either `kind: tool-catalog` with provider, platform, lifecycle state, readonly tool names, and `permissions: unknown`, or `kind: facade` with `ComputerCapabilities` and `permissions: unknown`. Catalog states are `initializing`, `ready`, `disposing`, and `failed`. Without a readiness callback, an exclusive registration reports `initializing` with an empty catalog. Facade probes retain per-call provider selection and cancellation.
+-----
 
-A registered name alone does not establish readiness. The native provider owns catalog publication and teardown state; see the [readiness and policy decision](../../../.agents/notes/implemented/architecture/2026-09-20-native-cua-readiness-and-policy.md). The service does not convert CUA tools into facade action requests.
+<a id="further-exploration"></a>
+## Further Exploration
 
-## Identity and observations
+- [Computer use](../../../docs/subsystems/computer-use.md) — provider selection and shared-desktop limits.
+- [Cua Driver MCP provider](../../experimental/computer-use-cua-driver-mcp/README.md) — use an installed driver.
+- [Cua Driver native provider](../../experimental/computer-use-cua-driver-native/README.md) — use the npm runtime.
 
-`ComputerAppId` and `ComputerWindowId` are opaque provider-issued selectors. `ComputerObservationId` identifies one short-lived accessibility observation, and each `ComputerElementId` is valid only inside that exact observation. Every mutation requires the application, window, and observation ids; a successful action returns a fresh observation that replaces the prior element scope.
-
-The service exposes capability discovery, application and window listing, observation, click, secondary accessibility action, scroll, drag, literal typing, key press, hotkey, paste, and value setting. `ComputerUseProvider` returns structured values and optional validated PNG bytes; it does not decide tool schemas, approval text, model visibility, or attachment retention.
+-----
 
 <a id="model-experience"></a>
 ## Model Experience
 
-### Consumer-owned desktop results
-
-#### What the model sees
-
-The package contributes no model text directly. [`@deepseek-ai/dsh-tool-computer-use`](../tool-computer-use/README.md) renders `ctx.computerUse` results and preserves `ComputerUseError` failures through the ordinary tool-result path.
-
-#### Token effect
-
-The Service Definition adds no request or result tokens; the model-facing Consumer owns those costs.
+None, as this registry only records provider names.
 
 #### KV Cache effect
 
-Provider registration, selection, capabilities, and observation state do not change the model request prefix; Consumer configuration owns prompt and schema changes.
+Registration does not alter model requests. Provider-owned tools and guidance determine their own request-prefix effects.
 
 ## Known Limitations and Deferred Work
 
-- The service has no display identity, Execution Host binding, remote-host generation, or durable desktop-resource record; the current Provider uses its own runtime generation and short-lived observations.
-- Capability descriptors are advisory provider facts. The optional facade tool Consumer keeps six fixed schemas and unsupported actions fail through the selected Provider rather than disappearing from the tool catalog.
-- The service does not cover persistent Browser pages, Mobile Device control, Android or iOS simulators, Speech/Audio, downloads, network inspection, or credential entry workflows.
+<a id="known-limitations-and-deferred-work"></a>
 
-No runtime invariant companion is published: provider registration, protocol validation, and observation freshness are enforced by their owning operations and covered by the package tests.
+The service limits registrations within its Cordis service instance.
 
+- **Shared desktop** — concurrent Sessions and separate DSH processes can operate the same desktop; callers coordinate whole computer-use workflows.
+- **Provider selection** — configuration selects the provider; the model cannot switch registered drivers at runtime.
+
+<a id="dev-note"></a>
 ### Dev Note
 
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
 None.
+
+</details>

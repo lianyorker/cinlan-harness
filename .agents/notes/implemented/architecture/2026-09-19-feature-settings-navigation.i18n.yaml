@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-19-feature-settings-navigation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-19-feature-settings-navigation.md
-2026-09-19-feature-settings-navigation.md: 87bb34cbc799cb99a51f1c6ef328ab9b5c966c1f
-2026-09-19-feature-settings-navigation.zh.md: 845d760b239cc7c1ab98332b0ac6e6f5f8d2fdfb
+/agent-note-settings-groups-preserve-feature-ownership:
+  en: 3bfbaa23b9a3406d
+  zh: e37b69e26e9725a4
+/agent-note-settings-groups-preserve-feature-ownership/problem:
+  en: e7cf45a391105d82
+  zh: c4d2df9a447f149f
+/agent-note-settings-groups-preserve-feature-ownership/decision:
+  en: 7196427b1f776514
+  zh: ffccf7737b27dd85
+/agent-note-settings-groups-preserve-feature-ownership/alternatives-considered:
+  en: 931e9a23cf4a469d
+  zh: 922693f1c13f4e97
+/agent-note-settings-groups-preserve-feature-ownership/consequences:
+  en: 4ed1a5662fb03046
+  zh: 1928daf7838f2956
+/agent-note-settings-groups-preserve-feature-ownership/verification:
+  en: a616823ada15b939
+  zh: c7f7d3c4c3a0781d

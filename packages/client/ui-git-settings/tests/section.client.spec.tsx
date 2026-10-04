@@ -27,10 +27,10 @@ describe('Git native settings rows', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(zh.nav)
     expect(screen.getByText(zh.runtimeNotice)).toBeTruthy()
     expect(Array.from(view.container.querySelectorAll('[data-settings-anchor]')).map(row => row.getAttribute('data-settings-anchor')))
-      .toEqual(['git-branch-prefix', 'git-custom-prefix', 'git-update-base', 'git-group-order', 'git-upstream', 'git-attribution'])
+      .toEqual(['git-branch-prefix', 'git-custom-prefix', 'git-update-base', 'git-group-order', 'git-upstream', 'git-attribution', 'git-rename-branch'])
     expect(screen.getAllByRole('combobox').map(control => control.getAttribute('id'))).toEqual(['git-branch-prefix', 'git-group-order'])
     expect(screen.getAllByRole('switch').map(control => control.getAttribute('aria-label')))
-      .toEqual([zh.keepLocalMainTitle, zh.compareUpstreamTitle, zh.attributionTitle])
+      .toEqual([zh.keepLocalMainTitle, zh.compareUpstreamTitle, zh.attributionTitle, zh.renameBranchTitle])
     expect(screen.getByLabelText(zh.branchPrefixCustomLabel)).toHaveProperty('disabled', true)
   })
 

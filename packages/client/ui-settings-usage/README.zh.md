@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-使用统计入口位于“设置 → 实验”。日期均表示 UTC 零点：包含开始日期，不包含结束日期。初始范围包含今天和此前六个 UTC 日期。提供方与模型选项来自主机在路由筛选前观察到的精确标识；所选值会按原始字符串精确匹配。
+使用统计入口位于“设置 → 数据与高级”。日期均表示 UTC 零点：包含开始日期，不包含结束日期。初始范围包含今天和此前六个 UTC 日期。提供方与模型选项来自主机在路由筛选前观察到的精确标识；所选值会按原始字符串精确匹配。
 
 统计单位为**轮次（Turns）**。Token 仅包含用量已知的完整轮次，尝试与重试次数由主机的规范用量统计提供。推理 Token 属于输出的一部分。缺失的可选缓存或推理用量保持不可用，实际为零的用量仍显示零。混合或未归属的路由会明确标示，不会推测计入筛选后的总量。
 
@@ -35,7 +35,7 @@ kind: "package-reference"
 
 ### 组合与配置
 
-此包没有配置字段。Host 入口不执行操作；Client 插件在 `settings.section` 和 `settingsMetadata` 中贡献页面，节标识为 `usage`，分组为 `experimental`。外层应用提供设置插槽所有者、语言服务和经过身份验证的 Usage Remote。[使用统计 API 类型](../../api/usage-controller/src/types.ts)定义请求和报告数据。
+此包没有配置字段。Host 入口不执行操作；Client 插件在 `settings.section` 和 `settingsMetadata` 中贡献页面，节标识为 `usage`，分组为 `advanced`。外层应用提供设置插槽所有者、语言服务和经过身份验证的 Usage Remote。[使用统计 API 类型](../../api/usage-controller/src/types.ts)定义请求和报告数据。
 
 -----
 

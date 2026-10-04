@@ -15,12 +15,57 @@
 .section small { display: block; margin-top: 4px; color: var(--dsw-alias-label-tertiary); font-size: 12px; font-weight: 400; line-height: 18px; }
 
 .setupCard, .mobilePreferences { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+/* Browser page: one rounded card per block, so the page reads as a few things to do
+   instead of a column of hairline-separated paragraphs. */
+.section:is([data-capability='browser'], [data-capability='mobile']) .setupCard { gap: 16px; }
+.section:is([data-capability='browser'], [data-capability='mobile']) .setupCard > section,
+.section:is([data-capability='browser'], [data-capability='mobile']) .setupCard > form {
+  display: flex; flex-direction: column; min-width: 0;
+  gap: 10px; padding: 18px 20px; border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 14px; corner-shape: round; background: var(--dsw-alias-bg-layer-1);
+}
+.section:is([data-capability='browser'], [data-capability='mobile']) .setupCard .computerCard { padding-bottom: 0; border-bottom: 0; }
+.section:is([data-capability='browser'], [data-capability='mobile']) .setupCard h2 { font-size: 15px; font-weight: 600; line-height: 22px; }
+.mobileSetupCard fieldset { display: flex; flex-direction: column; gap: 10px; }
+.commandGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px; min-width: 0; }
+.commandGrid code { padding: 6px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; corner-shape: round;
+  background: var(--dsw-alias-bg-layer-2); font-family: var(--dsw-font-mono); font-size: 11px; line-height: 18px; overflow-wrap: anywhere; }
+.runtimeSummary { color: var(--dsw-alias-label-primary) !important; }
+/* Step rows inside the agent card: status dot, title with one supporting line, trailing action. */
+.stepRow { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 14px 0; border-top: 0.5px solid var(--dsw-alias-border-l2); }
+.stepRow:first-child { border-top: 0; padding-top: 0; }
+.stepHead { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.stepIcon { width: 16px; height: 16px; flex: none; border-radius: 50%; corner-shape: round; border: 1.5px solid var(--dsw-alias-label-tertiary); }
+.stepIcon[data-step-state='done'] { border-color: var(--dsw-alias-state-success-primary); background: var(--dsw-alias-state-success-primary); box-shadow: inset 0 0 0 3px var(--dsw-alias-bg-layer-1); }
+.stepIcon[data-step-state='failed'] { border-color: var(--dsw-alias-state-error-primary); background: var(--dsw-alias-state-error-primary); box-shadow: inset 0 0 0 3px var(--dsw-alias-bg-layer-1); }
+.stepText { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.stepTitle { font-size: 13px; font-weight: 500; line-height: 20px; color: var(--dsw-alias-label-primary); }
+.stepText small { margin: 0; color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 18px; }
+.stepActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* Settings rows: label and one supporting line on the left, control on the right.
+   Scoped with .section so these widths beat the shared `.section select { width: 100% }` rule,
+   which otherwise takes the whole row and wraps the label one character per line. */
+.section .settingList { display: flex; flex-direction: column; min-width: 0; }
+.section .settingLine { display: flex; align-items: center; gap: 16px; min-width: 0; padding: 14px 2px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
+.section .settingLine:first-child { border-top: 0; padding-top: 2px; }
+.section .settingLine > span { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; font-size: 13px; font-weight: 500; line-height: 20px; color: var(--dsw-alias-label-primary); }
+.section .settingLine > span small { margin: 0; font-weight: 400; }
+.section .settingLine input[type='text'] { flex: 0 1 340px; width: auto; min-width: 0; }
+.section .settingLine select { flex: 0 0 auto; width: auto; min-width: 148px; }
+.section .settingLine > button { flex: none; }
+@media (max-width: 720px) { .section .settingLine { flex-wrap: wrap; } }
+.cookieRow { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.computerCommand { display: block; padding: 8px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; corner-shape: round; background: var(--dsw-alias-bg-layer-2); font-family: var(--dsw-font-mono); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }
 .computerCard { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-bottom: 20px; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
 .computerCardHeader { display: flex; align-items: flex-start; gap: 12px; }
 .heroText { min-width: 0; flex: 1; }
 .heroText > p { margin-top: 4px; }
 .computerCardTitle { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .computerIcon, .computerFeatureIcon { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 32px; height: 32px; color: var(--dsw-alias-label-secondary); }
+.progressBadge { display: inline-flex; align-items: center; min-width: 34px; justify-content: center; padding: 3px 8px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 999px; corner-shape: round; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
+.console { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; corner-shape: round; background: var(--dsw-alias-bg-layer-2); }
+.consoleTitle { color: var(--dsw-alias-label-primary) !important; }
+.consoleMeta { font-family: var(--dsw-font-mono); overflow-wrap: anywhere; }
 .computerBadge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 999px; corner-shape: round; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; corner-shape: round; background: currentColor; flex: none; }
 .computerBadge[data-capability-status='available'] .dot,
@@ -110,6 +155,12 @@
   .section { gap: 20px; }
   .settingRow, .facts > div { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .section input[type='checkbox'], .settingRow > button { justify-self: start; }
-  .browserActions { align-items: stretch; }
+  .browserAdvanced > summary { cursor: pointer; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); }
+.browserAdvanced { display: flex; flex-direction: column; gap: 12px; }
+.profilePicker { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.profilePicker small { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
+.profileCreate { display: flex; gap: 8px; align-items: center; }
+.profileCreate input { flex: 1; min-width: 0; }
+.browserActions { align-items: stretch; }
   .commandRow { align-items: flex-start; }
 }

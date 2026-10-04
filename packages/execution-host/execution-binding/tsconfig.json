@@ -8,7 +8,6 @@
     "src"
   ],
   "references": [
-    { "path": "../../runtime-diagnostics/invariants" },
     {
       "path": "../../core/agent"
     },

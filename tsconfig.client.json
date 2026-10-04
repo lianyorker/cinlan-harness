@@ -301,9 +301,6 @@
       "path": "./packages/client/ui-paired-shell"
     },
     {
-      "path": "./packages/client/ui-settings-pairing"
-    },
-    {
       "path": "./packages/client/ui-settings-unarchive-sessions"
     },
     {
@@ -329,9 +326,6 @@
     },
     {
       "path": "./packages/client/ui-floating-workspace"
-    },
-    {
-      "path": "./packages/client/ui-keybindings"
     },
     {
       "path": "./packages/client/keyboard"
@@ -370,9 +364,6 @@
       "path": "./packages/client/ui-better-sidebar/tsconfig.client.json"
     },
     {
-      "path": "./packages/client/ui-browser-element-capture"
-    },
-    {
       "path": "./packages/client/ui-voice-dictation"
     },
     {
@@ -386,6 +377,9 @@
     },
     {
       "path": "./packages/terminal/tool-terminal"
-    }
+    },
+    { "path": "./packages/client/ui-right-sidebar" },
+    { "path": "./packages/experimental/client-ui-claude-code-mods" },
+    { "path": "./packages/experimental/session-inspector" }
   ]
 }

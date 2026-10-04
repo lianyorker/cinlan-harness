@@ -33,7 +33,9 @@ const PREFIX = 'remote.'
 export function remoteNamespacesOf(modules: Iterable<ClientPluginModule>, mock: RemoteMock): readonly string[] {
   const names = new Set<string>()
   for (const module of modules) {
-    for (const service of injectNames(module.inject)) if (service.startsWith(PREFIX)) names.add(service.slice(PREFIX.length))
+    const raw = module as ClientPluginModule & { readonly default?: ClientPluginModule }
+    const inject = raw.inject ?? raw.default?.inject
+    for (const service of injectNames(inject)) if (service.startsWith(PREFIX)) names.add(service.slice(PREFIX.length))
   }
   for (const endpoint of mock.endpoints()) {
     const slash = endpoint.indexOf('/')

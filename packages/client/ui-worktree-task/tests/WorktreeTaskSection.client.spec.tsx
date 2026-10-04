@@ -31,15 +31,18 @@ const useWorkspaces: WorktreeTaskSectionProps['useWorkspaces'] = select => selec
   archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null,
 })
 
+/** Framework hooks the section never reads; the fixture fails loudly if one is called. */
+const unusedHook = (): never => { throw new Error('Worktree task settings does not read this hook') }
+
 function props(overrides: Partial<WorktreeTaskSectionProps> = {}): WorktreeTaskSectionProps {
   const dictionary: Readonly<Record<string, string>> = en
   return {
     close: vi.fn(), useWorkspaces,
-    usePanelInfo: (() => ({})) as any,
-    useSessionStatus: (() => ({})) as any,
-    useSessionRetainInfo: (() => ({})) as any,
-    useSessions: ((select: any) => select({ ids: [], byId: {}, phase: 'ready', jobsBySession: {}, currentAddress: undefined })) as any,
-    useResource: () => { throw new Error('Resource hook is not used by this fixture') },
+    usePanelInfo: unusedHook,
+    useSessionStatus: unusedHook,
+    useSessionRetainInfo: unusedHook,
+    useSessions: unusedHook,
+    useResource: unusedHook,
     t: (key, params: Record<string, unknown> = {}) =>
       Object.entries(params).reduce((text, [name, value]) => text.replaceAll('{' + name + '}', String(value)), dictionary[key] ?? key),
     list: vi.fn(async () => []), create: vi.fn(async () => task()),
@@ -48,6 +51,10 @@ function props(overrides: Partial<WorktreeTaskSectionProps> = {}): WorktreeTaskS
     review: vi.fn(async () => review()),
     activate: vi.fn(async () => task()), hibernate: vi.fn(async () => task('hibernated')),
     archive: vi.fn(async () => task('archived')),
+    merge: vi.fn<WorktreeTaskSectionProps['merge']>(async () => ({ merge: {
+      taskId: task().taskId, sourcePath: task().sourcePath, sourceBranch: 'main', branch: task().branch,
+      sourceHeadBefore: 'a'.repeat(40), sourceHeadAfter: 'b'.repeat(40), task: task('archived'),
+    } })),
     delete: vi.fn<WorktreeTaskSectionProps['delete']>(async () => ({ status: 'deleted', taskId: task().taskId })),
     ...overrides,
   }
@@ -138,6 +145,22 @@ describe('native worktree task settings', () => {
     await waitFor(() => { expect(screen.getByRole('status').textContent).toBe(en.noticeBranchRetained.replace('{branch}', current.branch)) })
     expect(screen.getByText(current.branch)).toBeTruthy()
     expect(list).toHaveBeenCalledTimes(2)
+  })
+
+  it('requires acknowledgement and merges an unbound worktree task', async () => {
+    const current = task()
+    const list = vi.fn().mockResolvedValue([current])
+    const merge = vi.fn<WorktreeTaskSectionProps['merge']>(async () => ({ merge: {
+      taskId: current.taskId, sourcePath: current.sourcePath, sourceBranch: 'main', branch: current.branch,
+      sourceHeadBefore: 'a'.repeat(40), sourceHeadAfter: 'b'.repeat(40), task: task('archived'),
+    } }))
+    render(<WorktreeTaskSection {...props({ list, merge })} />)
+    fireEvent.click(await screen.findByRole('button', { name: en.merge }))
+    const dialog = screen.getByRole('dialog', { name: en.confirmMergeTitle })
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: en.confirmMergeAcknowledge }))
+    fireEvent.click(within(dialog).getByRole('button', { name: en.confirmMergeAction }))
+    await waitFor(() => { expect(merge).toHaveBeenCalledWith(current.taskId, expect.any(AbortSignal)) })
+    await waitFor(() => { expect(screen.getByRole('status').textContent).toContain('b'.repeat(40)) })
   })
 
   it('activates, hibernates, and archives through their existing operations', async () => {

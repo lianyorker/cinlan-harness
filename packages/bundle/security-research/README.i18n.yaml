@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/security-research/README.md
-README.md: a70c496aaec31bb611f6835531dae2a6e7710900
-README.zh.md: ff5d2f80a4de197813aa0556542901532848fa6a
+/:
+  en: bd6f00881a2418c2
+  zh: b3d9ee1730ff86e1
+/deepseek-ai-dsh-security-research:
+  en: 4f2eb63bd1f29367
+  zh: 61f780ac30c3fa07
+/deepseek-ai-dsh-security-research/summary:
+  en: cd15e7b90bfa4fd0
+  zh: e9f6e428fc330227
+/deepseek-ai-dsh-security-research/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-security-research/use-this-package:
+  en: bbff250eba0f1b89
+  zh: 0a618f05cc88ee2b
+/deepseek-ai-dsh-security-research/use-this-package/install-into-a-profile:
+  en: c83c9142346f42ea
+  zh: db3432bf3ffd9e2b
+/deepseek-ai-dsh-security-research/use-this-package/what-you-get:
+  en: 7f2a318a4428a122
+  zh: b049432888a205da
+/deepseek-ai-dsh-security-research/understand-the-implementation:
+  en: ce29560300084087
+  zh: e22a330f253b2d83
+/deepseek-ai-dsh-security-research/further-exploration:
+  en: 38e10bd9e43a3d97
+  zh: ca2f9feb3282f2c9
+/deepseek-ai-dsh-security-research/model-experience:
+  en: 7d23bdb5fe5e1317
+  zh: 6f995e37c3d34802
+/deepseek-ai-dsh-security-research/model-experience/kv-cache-effect:
+  en: ea7cbea614868012
+  zh: f0fe7dfb8e34a0c3
+/deepseek-ai-dsh-security-research/known-limitations-and-deferred-work:
+  en: c92e44cff5128256
+  zh: fa405cbbc763e44c
+/deepseek-ai-dsh-security-research/known-limitations-and-deferred-work/dev-note:
+  en: c8ab114922ce8739
+  zh: 162f7299dde50bd3

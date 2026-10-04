@@ -48,7 +48,6 @@
     "@deepseek-ai/dsh-browser": "workspace:^",
     "@deepseek-ai/dsh-browser-permission-policy": "workspace:^",
     "@deepseek-ai/dsh-browser-playwright": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-browser-element-capture": "workspace:^",
     "@deepseek-ai/dsh-coordination": "workspace:^",
     "@deepseek-ai/dsh-coordination-browser-element-capture": "workspace:^",
     "@deepseek-ai/dsh-coordination-local": "workspace:^",
@@ -59,6 +58,7 @@
     "@deepseek-ai/dsh-tools": "workspace:^",
     "@deepseek-ai/dsh-util-values": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "playwright-core": "^1.61.1"
+    "playwright-core": "^1.61.1",
+    "@deepseek-ai/dsh-settings": "workspace:*"
   }
 }

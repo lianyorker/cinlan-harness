@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-03-browser-settings-provider-activation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-03-browser-settings-provider-activation.md
+/agent-note-browser-settings-present-browser-use-setup-and-live-preferences:
+  en: c17e3e0cabddf556
+  zh: d94d64edd1305632
+/agent-note-browser-settings-present-browser-use-setup-and-live-preferences/problem:
+  en: 947fc50a6e7144c4
+  zh: 85602f829f70bc40
+/agent-note-browser-settings-present-browser-use-setup-and-live-preferences/decision:
+  en: c1648561f40c5786
+  zh: 8e21a3d8d8197655
+/agent-note-browser-settings-present-browser-use-setup-and-live-preferences/alternatives-considered:
+  en: 196cb2b5bad2b8d1
+  zh: dda9cff0d6a74b0d
+/agent-note-browser-settings-present-browser-use-setup-and-live-preferences/consequences:
+  en: e119907dc455ecfd
+  zh: 3df8ea918f35ca5c
+/agent-note-browser-settings-present-browser-use-setup-and-live-preferences/testing:
+  en: ab3265beccc20c58
+  zh: fb44386da4c2c589

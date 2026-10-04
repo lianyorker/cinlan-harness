@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Create tasks from registered workspaces, edit defaults for future tasks, and review changes before reclaiming a checkout. Each task keeps its captured starting point and setup/cleanup programs. The loopback Settings page supports explicit activation, hibernation, archiving, and safe deletion, with Host errors and retained branches shown in the page.
+Create tasks from registered workspaces, edit defaults for future tasks, and review changes before reclaiming a checkout. Each task keeps its captured starting point and setup/cleanup programs. The loopback Settings page supports explicit activation, hibernation, merging, archiving, and safe deletion, with Host errors and retained branches shown in the page.
 
 ## Table of Contents
 
@@ -26,7 +26,7 @@ Mount the plugin with Locale, Settings, Remote, and the Workspace UI adapter. Cr
 
 **Review** displays the captured baseline, tracked patch, untracked filenames, captured programs, and cleanup receipt. It neither activates a task nor runs a program. Patch text is displayed literally; untracked file contents are excluded. Refresh supersedes pending reads.
 
-Hibernation, archiving, and deletion require acknowledgement. Hibernation does not run cleanup. Archive and delete run the captured cleanup unless it already succeeded; a settled failure retains the checkout for review and permits an explicit retry. An unsettled receipt blocks further mutation. Unmerged branches remain archived and reviewable after a delete request. Browser cancellation does not establish rollback; refresh authoritative records before retrying an interrupted mutation.
+Hibernation, merging, archiving, and deletion require acknowledgement. Hibernation does not run cleanup. Merge, archive, and delete run the captured cleanup unless it already succeeded; a settled failure retains the checkout for review and permits an explicit retry. Merge is available only when no Session remains bound, modifies the captured source branch, and reports the resulting commit. An unsettled receipt blocks further mutation. Conflicted merges and unmerged delete requests retain archived branches for review. Browser cancellation does not establish rollback; refresh authoritative records before retrying an interrupted mutation.
 
 The page uses native rows and stable search anchors. Localized metadata contains labels and instructions, not task records, paths, or current defaults. Search opens a hidden creation form or policy disclosure before locating its target. Registrations disappear together with their slot declaration or plugin.
 

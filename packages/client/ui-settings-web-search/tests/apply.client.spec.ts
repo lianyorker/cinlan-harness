@@ -41,7 +41,10 @@ async function bench(served?: string[]) {
 function declareRoot(slots: SlotRegistry): () => void {
   return slots.register({
     name: 'root',
-    children: { 'plugins.item': { kind: 'list', scope: 'root' } },
+    children: {
+      'plugins.item': { kind: 'list', scope: 'root' },
+      'settings.section': { kind: 'list', scope: 'root' },
+    },
   } as never, () => null)
 }
 
@@ -51,7 +54,7 @@ describe('ui-settings-web-search apply', () => {
   })
 
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.credentials', 'configForms'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.credentials', 'configForms', 'settingsMetadata'])
   })
 
   it('registers the page while the Host serves the namespace, titled in the active locale', async () => {
@@ -60,10 +63,13 @@ describe('ui-settings-web-search apply', () => {
 
     await ctx.plugin({ inject: [...inject], apply }).await()
 
-    await vi.waitFor(() => { expect(slots.entries('plugins.item')).toHaveLength(1) })
-    const entry = slots.entries('plugins.item')[0]!
-    expect(entry.options).toMatchObject({ id: 'web-search', order: 40 })
-    expect(resolveSlotLabel(entry.options.label)).toBe('网页搜索')
+    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
+    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'web-search', groupId: 'extensions', heading: 'shell' }])
+    expect(slots.entries('settings.section')).toHaveLength(1)
+    expect(ctx.settingsMetadata.getSnapshot().items[0]?.anchorId).toBe('web-search-settings')
+    const entry = slots.entries('settings.section')[0]!
+    expect(entry.options).toMatchObject({ id: 'web-search', order: 45 })
+    expect(resolveSlotLabel(entry.options.label)).toBe('联网搜索')
     expect(entry.locale).toBe(NS)
     const face = (entry.inject as () => Pick<WebSearchCardFace, 'hooks'>)()
     expect(Object.keys(face.hooks)).toEqual(['webSearchCard'])
@@ -75,7 +81,8 @@ describe('ui-settings-web-search apply', () => {
     await ctx.plugin({ inject: [...inject], apply }).await()
     await vi.waitFor(() => { expect(describeSettings).toHaveBeenCalled() })
 
-    expect(slots.entries('plugins.item')).toHaveLength(0)
+    expect(slots.entries('settings.section')).toHaveLength(0)
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
   })
 
   it('re-reads the credential when the Host reports the watched reference changed, and ignores another', async () => {
@@ -100,10 +107,11 @@ describe('ui-settings-web-search apply', () => {
     declareRoot(slots)
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    await vi.waitFor(() => { expect(slots.entries('plugins.item')).toHaveLength(1) })
+    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
 
     await fiber.dispose()
 
-    expect(slots.entries('plugins.item')).toHaveLength(0)
+    expect(slots.entries('settings.section')).toHaveLength(0)
+    expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
   })
 })

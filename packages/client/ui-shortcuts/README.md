@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Browse the commands available in the current window and find them by action, English alias, or key. Open the reference from General Settings or Mod+/. Record, clear, or restore application bindings; fixed input actions remain read-only.
+Browse the commands available in the current window and find them by action, English alias, or key. The Personal Keybindings settings page and Mod+/ show the same reference. Record, clear, or restore application bindings; fixed input actions remain read-only.
 
 ## Table of Contents
 
@@ -25,9 +25,11 @@ Browse the commands available in the current window and find them by action, Eng
 <a id="use-this-package"></a>
 ## Use this package
 
-The Web app bundle mounts this package together with `shortcuts`. The reference shows only registered commands and existing fixed input actions. Desktop shows the effective device keys; commands without a Web default show No shortcut. The Settings entry and Mod+/ open the same single dialog, titled “Keyboard shortcuts” in English and “快捷键” in Chinese. Its 480×600 CSS-pixel card shrinks to fit smaller windows; the header and search remain above an internally scrolling list. The search field receives focus on open without changing its border color. Automatic entry and return focus in the reference, recorder, and reset confirmation omit outlines, including returns after Escape and application close shortcuts. Containers remain outline-free, and Tab and directional navigation retain their visible focus indicators. The Settings entry is labeled “Edit shortcuts”, with an “Open from anywhere” shortcut tooltip, and uses a filled button with the same standard radius as adjacent settings controls and no dropdown icon and reads the same effective binding for its tooltip and `aria-keyshortcuts`; both are absent without a binding.
+The Web app bundle mounts this package together with `shortcuts`. The reference shows only registered commands and existing fixed input actions. Desktop shows the effective device keys; commands without a Web default show No shortcut. The Personal Keybindings page renders this reference inline, and Mod+/ opens it as the same single dialog, titled “Keyboard shortcuts” in English and “快捷键” in Chinese. Its 480×600 CSS-pixel card shrinks to fit smaller windows; the header and search remain above an internally scrolling list. The search field receives focus on open without changing its border color. Automatic entry and return focus in the reference, recorder, and reset confirmation omit outlines, including returns after Escape and application close shortcuts. Containers remain outline-free, and Tab and directional navigation retain their visible focus indicators. General Settings carries no shortcut row of its own.
 
 `Mod+/` opens the reference when no modal is open or Settings is in front, and closes it when the reference is in front. While the reference is in front, the Settings command cannot open or close Settings. Held-key repeats are ignored. Recording, pending writes, and a nested confirmation prevent the reference shortcut from closing the dialog.
+
+Commands registered with the [keyboard service](../keyboard/README.md) follow the window-local groups in an Other actions group; each row carries its effective bindings and Record, Unbind, and Restore default controls, and Restore all defaults appears once the group holds a saved override.
 
 Core actions follow a fixed product order, independent of plugin registration, unloading, or remounting. Stopping the current response ends the Message input group and remains read-only. Extension commands outside that order follow the core actions in stable command ID order; other fixed actions retain their groups.
 
@@ -43,7 +45,7 @@ Hover an application row to highlight its rounded surface and reveal the edit ic
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The General Settings entry and shell overlay share one declared interaction store. Catalog and configuration updates arrive through injected observable hooks; recording and persistence use injected service callbacks. The shared modal primitive owns top-layer Escape, Tab traversal, and restoration to the invoking control.
+The Settings page and shell overlay share one declared interaction store and one presentation component. Catalog, fixed-action, and keyboard-registry updates arrive through injected observable hooks; recording and persistence use injected service callbacks. The plugin registers the Personal `keybindings` section and its search items under the slot lifetime. The shared modal primitive owns top-layer Escape, Tab traversal, and restoration to the invoking control.
 
 All fixed actions come from the service's observable fixed catalog. Conversation and approval plugins contribute their own actions; this integration contributes shared menu actions. Rows follow locale updates and disappear when their registration is disposed.
 
@@ -85,5 +87,3 @@ None; this package neither assembles nor sends a provider request.
 None.
 
 </details>
-
-**Runtime invariant:** No companion is published. Slot registration validates ownership; the view derives its rows from the shortcut catalog without a second mutable registry.

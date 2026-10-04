@@ -23,7 +23,7 @@ This package connects registered actions to the existing `keybindings` preferenc
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this ordinary Host/Client plugin alongside settings and locale. The Host entry registers the durable namespace; the Client entry provides `ctx.keyboard`. [Shortcut settings](../ui-keybindings/README.md) displays the commands supplied by the composed action owners.
+Mount this ordinary Host/Client plugin alongside settings and locale. The Host entry registers the durable namespace; the Client entry provides `ctx.keyboard`. [Shortcut settings](../ui-shortcuts/README.md) displays registered commands beside the window-local shortcut catalog.
 
 An owner augments `KeyboardCommandMap` from `@deepseek-ai/dsh-client-keyboard/client` with each command id and its scope. Register its defaults inside a Cordis effect and return the registration disposer. Supply label and description functions so locale changes republish current copy. An optional availability source disables an action while its owning capability is unavailable.
 

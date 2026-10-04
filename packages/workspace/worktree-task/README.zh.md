@@ -20,7 +20,7 @@ kind: "package-reference"
 ## 使用本包
 挂载 dsh-worktree-task-git 等提供方作为 ctx.worktreeTask。跨服务和 Remote 调用传递带品牌的 task id，并使用生命周期方法，而不是直接操作 checkout 路径。
 
-带 revision 的设置应用于未来任务；每个任务保留其捕获的起始位置和程序。只读审查返回有界的已跟踪文件变更、未跟踪文件名与捕获的程序，不激活 checkout。归档与删除可能返回清理收据；已结算失败允许显式重试，未结算 claim 则阻止重试。成功的 cleanup 不会重复。安全删除会保留未合并分支及已归档记录；收据在任务删除后仍保留。休眠不执行 cleanup。
+带 revision 的设置应用于未来任务；每个任务保留其捕获的起始位置和程序。只读审查返回有界的已跟踪文件变更、未跟踪文件名与捕获的程序，不激活 checkout。合并会检查点并归档无绑定 Session 的任务，要求捕获的源 checkout 保持干净且位于捕获的分支，并返回合并前后的源提交。发生冲突时 Git merge 会中止，已归档任务继续保留，供审查或重试。归档与删除可能返回清理收据；已结算失败允许显式重试，未结算 claim 则阻止重试。成功的 cleanup 不会重复。安全删除会保留未合并分支及已归档记录；收据在任务删除后仍保留。休眠不执行 cleanup。
 
 [Git 提供方](../worktree-task-git/README.zh.md)拥有命令执行、checkout 路径约束、结算与持久化。
 

@@ -40,6 +40,13 @@ export const remoteDefaultResponses: RemoteTable = {
     // ui-settings-account bonus notice read and acknowledgement at signing in.
     'account/getUnnotifiedBonuses': ok(null),
     'account/ackBonusNotified': ok(true),
+    // api-automation-controller client snapshot and catalog at connect
+    'automation/snapshot': ok({ status: 'ready', profile: 'web', revision: 0, automations: [] }),
+    'automation/catalog': ok({ agentPresets: [], models: [], permissionPresets: [] }),
+    // ui-settings-hosts runtime tasks query
+    'executionHosts/listRuntimeTasks': ok({ tasks: [] }),
+    // ui-settings-mcp initial snapshot
+    'mcp/snapshot': ok({ profile: 'test', revision: 0, reconciling: false, servers: [], external: [] }),
   },
   // Stream endpoints the roster opens later than boot; declared so a spec that forgets the script gets a stream miss.
   streams: [
@@ -53,5 +60,11 @@ export const remoteDefaultResponses: RemoteTable = {
     'account/watch': openStream([{ status: 'signed-out', attempt: null, links: { usageUrl: 'https://platform.deepseek.com/usage', topUpUrl: 'https://platform.deepseek.com/top_up' } }]),
     // api-workspace-controller client `apply`: the follow stream's opening baseline, then open.
     'workspace/follow': openStream([{ type: 'baseline', value: { items: [], archivedSessionIds: [], pinnedSessionIds: [] } }]),
+    // api-automation-controller client follow stream
+    'automation/follow': openStream([{ type: 'baseline', value: { status: 'ready', profile: 'web', revision: 0, automations: [] } }]),
+    // ui-settings-hosts targets follow stream
+    'executionHosts/follow': openStream([{ current: { hostId: 'local', hostname: 'localhost', pid: 1, platform: 'win32', createdAt: '2026-01-01T00:00:00.000Z' }, targets: [] }]),
+    // ui-settings-mcp watch stream
+    'mcp/watch': openStream([]),
   },
 }

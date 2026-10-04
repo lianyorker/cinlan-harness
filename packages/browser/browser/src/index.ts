@@ -42,6 +42,7 @@ import type {
   BrowserScreenshot,
   BrowserScreenshotRequest,
   BrowserSnapshotRequest,
+  BrowserStoredProfile,
   Config,
 } from './types.ts'
 
@@ -79,6 +80,7 @@ export type {
   BrowserScreenshotFormat,
   BrowserScreenshotRequest,
   BrowserSnapshotRequest,
+  BrowserStoredProfile,
   Config,
 } from './types.ts'
 
@@ -246,6 +248,14 @@ export class BrowserRuntime extends Service {
    */
   async listPages(signal?: AbortSignal): Promise<readonly BrowserPage[]> {
     return this.provider().listPages(signal)
+  }
+
+  /**
+   * List stored persistent-browser profiles without launching a browser.
+   * @returns The selected profile and every profile this provider keeps, or an empty roster when it keeps none.
+   */
+  listProfiles(): readonly BrowserStoredProfile[] {
+    return this.provider().listProfiles?.() ?? []
   }
 
   /**

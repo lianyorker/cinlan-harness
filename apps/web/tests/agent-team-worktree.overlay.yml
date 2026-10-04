@@ -1,0 +1,49 @@
+# Opt-in Agent Teams with one Git worktree per teammate.
+# Apply after the shipped base and Web bundles with --patch.
+# The Lead can integrate an inactive worktree teammate with team_merge_worktree.
+# The source checkout must be clean and the Workspace registry must be mounted.
+- id: tool-subagent-control
+  disabled: true
+
+- id: tool-subagent-list-agents
+  disabled: true
+
+- id: tool-subagent
+  config:
+    provider: spawn
+    toolName: subagent
+    backgroundMode: one-shot
+
+- id: tool-subagent-fork
+  config:
+    provider: fork
+    toolName: subagent_fork
+    backgroundMode: one-shot
+
+- insert:
+    - id: worktree-task-git
+      name: '@deepseek-ai/dsh-worktree-task-git'
+
+    - id: worktree-task-controller
+      name: '@deepseek-ai/dsh-api-worktree-task-controller'
+
+    - id: ui-worktree-task
+      name: '@deepseek-ai/dsh-client-ui-worktree-task'
+
+    - id: agent-team
+      name: '@deepseek-ai/dsh-experimental-agent-team'
+      config:
+        maxMembers: 8
+        maxTasks: 256
+        maxPendingMessagesPerMember: 64
+        maxMessageBytes: 65536
+        disposalTimeoutMs: 5000
+
+    - id: tool-agent-team
+      name: '@deepseek-ai/dsh-experimental-tool-agent-team'
+      config:
+        freshProvider: spawn
+        forkProvider: fork
+
+    - id: ui-agent-team
+      name: '@deepseek-ai/dsh-experimental-client-ui-agent-team'
