@@ -610,5 +610,50 @@ export function runPersistenceContract(name: string, make: () => Promise<Contrac
         await dispose()
       }
     })
+
+    it('delete permanently removes a stored session and refuses an absent one', async () => {
+      const backend = await make()
+      try {
+        const m = meta('deleted', '/work')
+        const writer = await backend.persistence.create(m)
+        await writer.append(oneTurnLog())
+        await writer.close()
+
+        await backend.persistence.delete(m.id)
+        expect(await backend.persistence.stat(m.id)).toBeUndefined()
+        expect((await backend.persistence.list()).map(s => s.header.id)).not.toContain(m.id)
+        await expect(backend.persistence.open(m.id, 'read')).rejects.toBeInstanceOf(SessionPersistenceNotFoundError)
+        await expect(backend.persistence.delete(m.id)).rejects.toBeInstanceOf(SessionPersistenceNotFoundError)
+
+        if (backend.reopen !== undefined) {
+          const reopened = await backend.reopen()
+          try {
+            expect(await reopened.persistence.stat(m.id)).toBeUndefined()
+            expect((await reopened.persistence.list()).map(s => s.header.id)).not.toContain(m.id)
+          } finally {
+            await reopened.dispose()
+          }
+        }
+      } finally {
+        await backend.dispose()
+      }
+    })
+
+    it('delete refuses while a handle is open — leaving the log intact — and succeeds after close', async () => {
+      const { persistence, dispose } = await make()
+      try {
+        const m = meta('delete-owned', '/work')
+        const writer = await persistence.create(m)
+        await writer.append(oneTurnLog())
+        await expect(persistence.delete(m.id)).rejects.toBeInstanceOf(SessionAlreadyOwnedError)
+        // The refused delete mutated nothing.
+        expect((await writer.read()).events).toEqual(oneTurnLog())
+        await writer.close()
+        await persistence.delete(m.id)
+        expect(await persistence.stat(m.id)).toBeUndefined()
+      } finally {
+        await dispose()
+      }
+    })
   })
 }

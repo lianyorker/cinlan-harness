@@ -82,6 +82,17 @@ export class WorkspaceArchivedSessionPinError extends Error {
   }
 }
 
+/** A deleteSession request named a session that is not in the archive set; only archived sessions may be deleted. */
+export class WorkspaceSessionNotArchivedError extends Error {
+  /**
+   * @param sessionId - The session id that is not archived.
+   */
+  constructor(readonly sessionId: SessionId) {
+    super(`cannot delete session '${sessionId}': the session is not archived`)
+    this.name = 'WorkspaceSessionNotArchivedError'
+  }
+}
+
 /** A workspace reorder named a source or anchor absent from the durable registry order. */
 export class WorkspaceOrderInvalidError extends Error {
   /**
@@ -145,6 +156,15 @@ declare module '@deepseek-ai/cordis' {
      * @mode parallel
      */
     'workspace/session-stop'(request: SessionActivityRequest): Promise<void> | void
+    /**
+     * Release live agents and open write handles for a session being archived
+     * or deleted, freeing locks so the session log can be closed or removed.
+     * Providers dispose active session instances without undoing the archive or
+     * deletion.
+     * @param request - the session being released.
+     * @mode parallel
+     */
+    'workspace/session-release'(request: SessionActivityRequest): Promise<void> | void
   }
 }
 
@@ -354,11 +374,12 @@ export class WorkspaceRegistry extends Service {
    * to stop the session's work: the durable archive set is what a provider's
    * `agent/pre-step` gate reads, so every wake the stops induce is already
    * blocked. Archiving drops the session's pin in the same durable write
-   * (pinning and archival are mutually exclusive). An already archived id
-   * resolves without writing, asking, or stopping.
+   * (pinning and archival are mutually exclusive). Archiving always releases
+   * live agents and write handles for the session after durability. An already
+   * archived id resolves without writing, asking, stopping, or releasing.
    * @param sessionId - The session to archive.
    * @param options - Whether running work is stopped instead of refusing.
-   * @returns resolution after durability and, with `stopActivity`, after every stop request was issued.
+   * @returns resolution after durability, stop requests (when requested), and session release.
    */
   archiveSession(sessionId: SessionId, options: ArchiveSessionOptions = {}): Promise<void> {
     return this.enqueueOperation(async () => {
@@ -381,6 +402,7 @@ export class WorkspaceRegistry extends Service {
         pinnedSessionIds: state.pinnedSessionIds.filter(id => id !== sessionId),
       })
       if (options.stopActivity === true) await this.stopSessionActivity(sessionId)
+      await this.releaseSession(sessionId)
     })
   }
 
@@ -404,6 +426,40 @@ export class WorkspaceRegistry extends Service {
         ...state,
         archivedSessionIds: state.archivedSessionIds.filter(id => id !== sessionId),
       })
+    })
+  }
+
+  /**
+   * Permanently delete one archived session: active handles are released,
+   * the durable log is removed through `sessionPersistence.delete`, and the
+   * session leaves the archive set and its workspace accounting slot. There is
+   * no undo. Only an archived session may be deleted — the archive set is what
+   * the deletion surfaces gate on — and the log removal runs first, so a failed
+   * deletion leaves the session archived and intact.
+   * @param sessionId - The archived session to delete.
+   * @returns resolution after release, the log removal, and every registry write are durable.
+   * @throws {WorkspaceSessionNotArchivedError} when the session is not archived.
+   */
+  deleteSession(sessionId: SessionId): Promise<void> {
+    return this.enqueueOperation(async () => {
+      // The chain slot serializes against every other registry write, so this
+      // check-then-write pair cannot interleave with a concurrent archive.
+      const state = this.requireState()
+      if (!state.archivedSessionIds.includes(sessionId)) {
+        throw new WorkspaceSessionNotArchivedError(sessionId)
+      }
+      await this.releaseSession(sessionId)
+      await this.ctx.sessionPersistence.delete(sessionId)
+      this.headers.delete(sessionId)
+      this.sessionPaths.delete(sessionId)
+      this.invalidSessionPaths.delete(sessionId)
+      await this.setState({
+        ...state,
+        archivedSessionIds: state.archivedSessionIds.filter(id => id !== sessionId),
+      })
+      for (const entity of this.entities.values()) {
+        if (entity.sessionIds.includes(sessionId)) await entity.detachSession(sessionId)
+      }
     })
   }
 
@@ -486,6 +542,20 @@ export class WorkspaceRegistry extends Service {
       const failures = error instanceof AggregateError ? error.errors : [error]
       for (const failure of failures) {
         this.ctx.logger.warn(`workspace: stopping session '${sessionId}' for archive failed: ${String(failure)}`)
+      }
+    }
+  }
+
+  /** Request every provider to release live agents and handles for the session; failures are logged, never rethrown. */
+  private async releaseSession(sessionId: SessionId): Promise<void> {
+    try {
+      await this.ctx.parallel('workspace/session-release', { sessionId })
+    } catch (error: unknown) {
+      // ctx.parallel settles every listener and rejects with one AggregateError.
+      /* v8 ignore next -- the plain arm guards a rethrowing dispatcher. */
+      const failures = error instanceof AggregateError ? error.errors : [error]
+      for (const failure of failures) {
+        this.ctx.logger.warn(`workspace: releasing session '${sessionId}' failed: ${String(failure)}`)
       }
     }
   }

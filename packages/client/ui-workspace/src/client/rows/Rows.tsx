@@ -15,10 +15,10 @@ import type { RefObject } from 'react'
 import clsx from 'clsx'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import {
-  HoverCard, IconArchiveOutlineRegular, IconEditOutlineRegular,
+  HoverCard, IconEditOutlineRegular,
   IconEllipsisOutlineRegular, IconFolderCloseRegular, IconFolderOpenRegular,
   IconNewChatOutlineRegular, IconPinFillRegular, IconTrashOutlineRegular,
-  IconTriangleRightFillRegular, IconUnarchiveOutlineRegular, Menu, relativeTime, StateDot, Tooltip,
+  IconTriangleRightFillRegular, Menu, relativeTime, StateDot, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -429,10 +429,8 @@ function SessionHoverContent({ node, now, renderSlot, t }: {
   renderSlot: RowRenderSlots
   t: RowTranslate
 }) {
-  // On archived rows the archived line already says the session is inactive,
-  // so resting statuses (idle/completed) drop; live activity still shows.
+  // On visible rows every status shows; archived sessions never surface here.
   const statuses = sessionStatuses(node, t)
-    .filter(status => !(node.archived && (status.state === 'done' || status.state === 'idle')))
   return (
     <div className={css.hoverContent}>
       <div className={css.hoverTitle}>{displayTitle(node, t)}</div>
@@ -446,12 +444,6 @@ function SessionHoverContent({ node, now, renderSlot, t }: {
           <span>{status.label}</span>
         </div>
       ))}
-      {node.archived && (
-        <div className={clsx(css.hoverStatus, css.hoverArchived)}>
-          <IconArchiveOutlineRegular size={14} />
-          <span>{t('row.archived')}</span>
-        </div>
-      )}
     </div>
   )
 }
@@ -459,20 +451,17 @@ function SessionHoverContent({ node, now, renderSlot, t }: {
 /**
  * One flat search result: title, Workspace context, and optional content
  * excerpt. Search navigation opens the session only; it does not address an
- * event inside the conversation. Archived rows carry a hover unarchive
- * button, because search is where the filter surfaces them for recovery.
+ * event inside the conversation.
  * @param props.result - merged local/content search row.
  * @param props.currentId - selected session id.
  * @param props.onOpen - open the selected session.
- * @param props.onUnarchive - unarchive an archived result row.
  * @param props.t - Workspace-browser translation seat.
  * @returns the result row.
  */
-export function SearchResultItem({ result, currentId, onOpen, onUnarchive, t }: {
+export function SearchResultItem({ result, currentId, onOpen, t }: {
   result: SearchResultNode
   currentId: string | undefined
   onOpen: (id: SearchResultNode['id']) => void
-  onUnarchive: (id: SearchResultNode['id']) => void
   t: RowTranslate
 }) {
   const selected = result.id === currentId
@@ -480,36 +469,17 @@ export function SearchResultItem({ result, currentId, onOpen, onUnarchive, t }: 
   const primaryStatus = statuses[0]
   return (
     <div
-      className={clsx(css.searchResultRow, selected && css.selected, result.archived && css.archived)}
+      className={clsx(css.searchResultRow, selected && css.selected)}
       role="treeitem"
       aria-selected={selected}
-      aria-description={result.archived ? t('toast.archivedNotOpenable') : undefined}
       onClick={() => { onOpen(result.id) }}
     >
       <span className={css.searchResultHeading}>
-        {/* Like session rows, the leading slot owns every row marker; on
-            archived rows it stays blank — the grayed row carries the
-            archived look. */}
+        {/* Like session rows, the leading slot owns every row marker. */}
         <span className={css.slot}>
-          {!result.archived && primaryStatus.state !== 'idle' && (
-            <SessionStatusDots statuses={statuses} />
-          )}
+          {primaryStatus.state !== 'idle' && <SessionStatusDots statuses={statuses} />}
         </span>
         <span className={css.searchResultTitle}>{result.title || t('session.untitled')}</span>
-        {result.archived && (
-          <span className={css.rowActions}>
-            <Tooltip label={t('actions.unarchive')} side="bottom" align="end" delayMs={500}>
-              <button
-                type="button"
-                className={css.iconButton}
-                aria-label={t('menu.unarchiveSession')}
-                onClick={(e) => { e.stopPropagation(); onUnarchive(result.id) }}
-              >
-                <IconUnarchiveOutlineRegular size={14} />
-              </button>
-            </Tooltip>
-          </span>
-        )}
       </span>
       <span className={css.searchResultMeta}>
         <span className={css.searchResultWorkspace}>{result.workspace || t('group.ungrouped')}</span>
@@ -526,8 +496,7 @@ export function SearchResultItem({ result, currentId, onOpen, onUnarchive, t }: 
  * leading seat while the row's primary state is idle), title, relative time or
  * compact pending label, and the row actions menu. A row that owns a state dot
  * keeps that cell and renders no seat, so an ambient automation mark never
- * appears beside the row's own state dot. An archived row keeps the cell blank:
- * neither marker renders there, and its live status stays on the hover card.
+ * appears beside the row's own state dot.
  * @param props.node - derived session node.
  * @param props.currentId - selected session id (row highlight).
  * @param props.now - epoch ms for relative-time formatting.
@@ -567,10 +536,9 @@ export function SessionNodeItem({
   const statuses = sessionStatuses(node, t)
   const primaryStatus = statuses[0]
   const showStatus = primaryStatus.state !== 'idle'
-  // Archived rows hold their in-place grayed slot, so manual reorder cannot
-  // move them. Pinned rows drag within the pinned block: the browser gates
-  // their drop targets to fellow pinned rows.
-  const draggable = drag !== undefined && !row.blank && !row.archived
+  // Pinned rows drag within the pinned block: the browser gates their drop
+  // targets to fellow pinned rows.
+  const draggable = drag !== undefined && !row.blank
   const [menuOpen, setMenuOpen] = useState(false)
   // The menu's open state, bound into the row entries' `useMenuOpenState` hook.
   const menuOpenState = useMemo((): MenuOpenState => [menuOpen, setMenuOpen], [menuOpen])
@@ -589,12 +557,10 @@ export function SessionNodeItem({
       data-row-key={`session:${node.id}`}
       className={clsx(
         css.sessionRow, selected && css.selected, menuOpen && css.menuOpen,
-        row.archived && css.archived,
         drag?.marker === 'before' && css.dropBefore, drag?.marker === 'after' && css.dropAfter,
       )}
       role="treeitem"
       aria-selected={selected}
-      aria-description={row.archived ? t('toast.archivedNotOpenable') : undefined}
       onClick={() => { onOpen(node.id) }}
       onPointerEnter={marquee.enter}
       onPointerLeave={marquee.leave}
@@ -625,11 +591,9 @@ export function SessionNodeItem({
     >
       {/* Pending interaction and own or descendant activity outrank the
           finished-but-unviewed reminder, which returns after activity stops
-          and is cleared by opening the session. Archived rows keep the slot
-          blank — the grayed row carries the archived look — and their live
-          status stays on the hover card only. */}
+          and is cleared by opening the session. */}
       <span className={css.slot}>
-        {!row.archived && !row.blank && (showStatus
+        {!row.blank && (showStatus
           ? <SessionStatusDots statuses={statuses} />
           : renderSlot('sidebar.session.row.leading', { sessionId: node.id }))}
       </span>
@@ -656,7 +620,7 @@ export function SessionNodeItem({
       )}
       {/* Trails the time so the marker occupies the same right-edge cell as
           the hover pin button that replaces it. */}
-      {row.pinned && !row.archived && <PinnedIndicator t={t} />}
+      {row.pinned && <PinnedIndicator t={t} />}
       {/* The strip's clicks stay in the strip: the trigger and every
           row.action entry act without also opening the row, so an entry's
           button needs no propagation handling of its own. */}

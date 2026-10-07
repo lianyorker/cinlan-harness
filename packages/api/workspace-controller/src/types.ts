@@ -50,6 +50,8 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
       readonly sessionId: SessionId
       readonly beforeSessionId?: SessionId
     }
+    /** Deletion was refused because the Session is not in the archive set. */
+    'workspace/session-not-archived': { readonly sessionId: SessionId }
     /** The verb needs an interaction the composed backend does not serve. */
     'directory-picker/unavailable': { readonly capability: string }
     /** The target is not fully qualified, or the backend cannot list it. */
@@ -126,6 +128,11 @@ export interface WorkspaceArchiveSessionRequest {
 
 /** Session requested for restoration from the archived Session list. */
 export interface WorkspaceUnarchiveSessionRequest {
+  readonly sessionId: SessionId
+}
+
+/** Archived Session requested for permanent deletion. */
+export interface WorkspaceDeleteSessionRequest {
   readonly sessionId: SessionId
 }
 

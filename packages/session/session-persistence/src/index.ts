@@ -99,10 +99,15 @@ export interface SessionPersistenceStatOptions {
   /** Optional cancellation for backend metadata reads. */
   readonly signal?: AbortSignal
 }
-
 /** Options for {@link SessionPersistence.list}. */
 export interface SessionPersistenceListOptions {
   /** Optional cancellation for backend listing work. */
+  readonly signal?: AbortSignal
+}
+
+/** Options for {@link SessionPersistence.delete}. */
+export interface SessionPersistenceDeleteOptions {
+  /** Optional cancellation observed before the removal starts. */
   readonly signal?: AbortSignal
 }
 
@@ -199,6 +204,19 @@ export abstract class SessionPersistence extends Service {
    * @returns one snapshot per stored session.
    */
   abstract list(options?: SessionPersistenceListOptions): Promise<readonly SessionPersistenceSnapshot[]>
+
+  /**
+   * Permanently remove a stored session and its artifact. There is no undo:
+   * the next `stat`/`list`/`open` behaves as if the session never existed.
+   * @param id - the stored session to remove.
+   * @param options - optional cancellation.
+   * @returns resolution after the removal is complete.
+   * @throws {SessionPersistenceNotFoundError} when the session does not exist.
+   * @throws {SessionAlreadyOwnedError} while this process holds an open handle
+   *   or a pending creation for the session, or another process holds its
+   *   cross-process write lock.
+   */
+  abstract delete(id: SessionId, options?: SessionPersistenceDeleteOptions): Promise<void>
 }
 
 export default SessionPersistence

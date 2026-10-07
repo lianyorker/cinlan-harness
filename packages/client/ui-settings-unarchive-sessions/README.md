@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The **Archived sessions** Settings page is the restore point for sessions hidden from Workspace navigation. It lists each archived session with the Workspace that owns it and its last activity, newest archive first, and offers one Unarchive action per row. A search box filters the list by session title or Workspace name. Rows come from the archive set joined with the loaded Session summaries, so an archive entry whose session record is gone has no row and no action. Every restore goes through the shared Workspace command.
+The **Archived sessions** Settings page is the restore point for sessions hidden from Workspace navigation. It lists each archived session with the Workspace that owns it and its last activity, newest archive first, and offers Unarchive and Delete actions per row. A search box filters the list by session title or Workspace name. The Workspace archive set owns membership; a missing Session log retains a fallback row so the stale archive entry can be removed. Every restore and delete goes through the shared Workspace commands.
 
 ## Table of Contents
 
@@ -25,15 +25,15 @@ The **Archived sessions** Settings page is the restore point for sessions hidden
 <a id="use-this-package"></a>
 ## Use this package
 
-Open Settings and select **Archived sessions** to see the sessions currently hidden from every grouping surface. Mount `@deepseek-ai/dsh-client-ui-settings-unarchive-sessions` in a Web composition that already provides the settings shell, the Workspace service, and the Session list; the page registers its own Personal navigation entry and needs no configuration. Settings search indexes localized page and restore labels; session titles remain confined to the page search.
+Open Settings and select **Archived sessions** to see the sessions currently hidden from every grouping surface. Mount `@deepseek-ai/dsh-client-ui-settings-unarchive-sessions` in a Web composition that provides the settings shell, Workspace service, and Session Remote; the page registers its own navigation entry and needs no configuration. Settings search indexes localized page and action labels; session titles remain confined to the page search.
 
 ### Reading a row
 
-Each row shows the session's display title, the title of the Workspace that accounts for it or the ungrouped label, and its last activity as a compact relative time. The page lists the most recently archived session first, the reverse of the durable archive order. The page waits for both the Session list and Workspace archive baseline before rendering rows; while either list loads it shows a reading status instead of an empty archive. An empty archive, an archive whose entries have no loaded Session to restore, and a query matching no row report three different messages, so neither a search nor an unaddressable entry ever looks like an empty archive.
+Each row shows the session's display title, the title of the Workspace that accounts for it or the ungrouped label, and its last activity as a compact relative time. The page lists the most recently archived session first, the reverse of the durable archive order. It reads archived summaries independently of the live Session catalog and waits for the Workspace archive baseline before rendering rows. A missing log uses the session id and a missing-log label, while remaining available for deletion and unarchive cleanup. An empty archive and a query matching no row report distinct messages.
 
 ### Restoring a session
 
-Unarchive restores the session to its recorded position under its Workspace, or to the ungrouped sessions when it belongs to none, and the row disappears from the page. The action calls `ctx.uiWorkspace.unarchiveSession`, whose echoed archive set updates every surface that filters on it, so the session reappears in the sidebar and search as well. Restoring preserves the current selection and does not open the Session. A rejected call is logged as a console diagnostic and leaves the row in place for another attempt.
+Unarchive restores the session to its recorded position under its Workspace, or to the ungrouped sessions when it belongs to none, and the row disappears from the page. The action calls `ctx.uiWorkspace.unarchiveSession`, then refreshes the live Session catalog. Delete opens the shared confirmation overlay; confirmation removes the durable Session log and its archive/workspace references. A rejected unarchive call is logged as a console diagnostic and leaves the row in place for another attempt.
 
 -----
 
@@ -47,11 +47,11 @@ The page is one localized `settings.section` contribution with id `archived-sess
 
 ### Registration and data sources
 
-`apply()` registers the locale namespace, binds it, and uses `ctx.slots.inject()` to contribute the section, so a late or restored slot declaration still reaches it. The page reads `state.archivedSessionIds` and `state.items` from `useWorkspaces` and the Session summaries from `useSessions`; it owns no store and no transport, and its only write is the injected `unarchive` callback that the registration closes over `ctx.uiWorkspace.unarchiveSession`.
+`apply()` registers the locale namespace, binds it, and uses `ctx.slots.inject()` to contribute the section, so a late or restored slot declaration still reaches it. The page reads archive membership and Workspace summaries from `useWorkspaces`, and obtains available Session summaries through `session.archived`; it owns no store and no transport. The registration injects the archived read, `ctx.uiWorkspace.unarchiveSession`, and the shared delete-confirmation request.
 
 ### Row derivation
 
-Rows are derived from the archive set joined with the loaded summaries: a member with no summary produces no row, which is why a session deleted outside the Workspace registry leaves no unarchive action behind. Workspace ownership is read from each Workspace's `sessionIds`; a member outside every Workspace renders with the ungrouped label. Search normalizes the query once and matches it against the row title and Workspace label.
+Rows are derived from the archive set and available summaries. A member with no summary still produces a fallback row because the archive set is authoritative and stale ids need a cleanup action. Workspace ownership is read from each Workspace's `sessionIds`; a member outside every Workspace renders with the ungrouped label. Search normalizes the query once and matches it against the row title and Workspace label.
 
 ### Source map
 
@@ -104,8 +104,7 @@ Archive restoration does not change model history or its request prefix.
 
 These limits define which archived sessions this page can restore; they are current package constraints.
 
-- **Archived sessions without a loaded summary are unaddressable** — the page derives its rows by joining the archive set with the Session list, so a member the list does not carry has no row and no Unarchive action even though the archive set still holds it; a set whose members are all in that state reports itself as unrestorable rather than empty.
-- **The page provides list, search, and restore only** — archives are reversible through this page, while deleting a session record remains a separate capability.
+- **A missing Session log cannot be restored** — the fallback row can clear the archive membership or request permanent deletion, but the absent conversation cannot be recovered.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -21,16 +21,16 @@ import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import type {
   MenuOpenState, RowToast, RowToastState, SessionArchiveConfirmInjected, SessionArchiveConfirmRequest,
-  SessionRenameDialogInjected, SessionRenameTarget,
+  SessionDeleteDialogInjected, SessionDeleteTarget, SessionRenameDialogInjected, SessionRenameTarget,
 } from '../src/client/contract/slots.ts'
 import {
   ArchiveSessionMenuItem, ArchiveSessionRowButton, SessionArchiveConfirmDialog,
 } from '../src/client/session-actions/ArchiveSession.tsx'
+import { SessionDeleteDialog } from '../src/client/session-actions/DeleteSession.tsx'
 import { ForkSessionMenuItem } from '../src/client/session-actions/ForkSession.tsx'
 import { PinSessionMenuItem, PinSessionRowButton } from '../src/client/session-actions/PinSession.tsx'
 import { RenameSessionMenuItem, SessionRenameDialog } from '../src/client/session-actions/RenameSession.tsx'
 import { RowActionToast } from '../src/client/session-actions/RowActionToast.tsx'
-import { createWorkspaceViewStore } from '../src/client/stores.ts'
 import { en, zh } from '../src/client/locales.ts'
 import { ShortcutRegistry } from '../../shortcuts/src/client/registry.ts'
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
@@ -165,11 +165,9 @@ describe('pin action', () => {
 })
 
 describe('archive action', () => {
-  /** The archive share over fixed membership: the bound Set hook and the two callbacks the entries call. */
-  const archiveShare = (archived: readonly string[] = []) => ({
-    useArchived: hook(idSet(...archived)),
+  /** The archive share: the one callback the entries call. */
+  const archiveShare = () => ({
     archiveSession: vi.fn(),
-    unarchiveSession: vi.fn(),
   })
 
   it('menu row closes the menu, then archives', () => {
@@ -181,31 +179,15 @@ describe('archive action', () => {
     expect(row.className).not.toMatch(/danger/)
     fireEvent.click(row)
     expect(archive.archiveSession).toHaveBeenCalledWith(sid('one'))
-    expect(archive.unarchiveSession).not.toHaveBeenCalled()
     expect(setMenuOpen).toHaveBeenCalledWith(false)
     expect(callOrder(setMenuOpen)).toBeLessThan(callOrder(archive.archiveSession))
   })
 
-  it('menu row closes the menu, then restores an archived Session', () => {
-    const { state, setMenuOpen } = openMenu()
-    const archive = archiveShare(['one'])
-    render(<ArchiveSessionMenuItem {...menuRow(state)} {...archive} />)
-    fireEvent.click(screen.getByRole('menuitem', { name: '取消归档' }))
-    expect(archive.unarchiveSession).toHaveBeenCalledWith(sid('one'))
-    expect(archive.archiveSession).not.toHaveBeenCalled()
-    expect(setMenuOpen).toHaveBeenCalledWith(false)
-    expect(callOrder(setMenuOpen)).toBeLessThan(callOrder(archive.unarchiveSession))
-  })
-
-  it('row button archives and restores', () => {
+  it('row button archives', () => {
     const archive = archiveShare()
-    const view = render(<ArchiveSessionRowButton {...actionRow} {...archive} />)
+    render(<ArchiveSessionRowButton {...actionRow} {...archive} />)
     fireEvent.click(screen.getByRole('button', { name: '归档会话' }))
     expect(archive.archiveSession).toHaveBeenCalledWith(sid('one'))
-    view.rerender(<ArchiveSessionRowButton {...actionRow} {...archive} useArchived={hook(idSet('one'))} />)
-    fireEvent.click(screen.getByRole('button', { name: '取消归档' }))
-    expect(archive.unarchiveSession).toHaveBeenCalledWith(sid('one'))
-    expect(archive.archiveSession).toHaveBeenCalledOnce()
   })
 })
 
@@ -480,6 +462,79 @@ describe('SessionArchiveConfirmDialog', () => {
   })
 })
 
+describe('SessionDeleteDialog', () => {
+  /** The dialog over a test-owned request source; settling clears the request the way apply does. */
+  function deleteDialog(deleteSession: SessionDeleteDialogInjected['deleteSession']) {
+    const request = createSnapshotStore<SessionDeleteTarget | null>(null)
+    const settleSessionDelete = vi.fn(() => { request.set(null) })
+    render(
+      <SessionDeleteDialog
+        {...overlay}
+        useDeleteRequest={bindSnapshotSelector(request)}
+        settleSessionDelete={settleSessionDelete}
+        deleteSession={deleteSession}
+      />,
+    )
+    const ask = (sessionId: string, displayTitle: string): void => {
+      act(() => { request.set({ sessionId: sid(sessionId), displayTitle }) })
+    }
+    return { settleSessionDelete, ask }
+  }
+
+  it('renders nothing until a deletion is requested', () => {
+    deleteDialog(vi.fn(async () => {}))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.body.textContent).toBe('')
+  })
+
+  it('names the session, deletes on confirm, and settles once the Host accepts', async () => {
+    const pending = Promise.withResolvers<undefined>()
+    const deleteSession = vi.fn(() => pending.promise)
+    const { settleSessionDelete, ask } = deleteDialog(deleteSession)
+    ask('one', 'Archived session')
+    expect(screen.getByRole('dialog', { name: '删除此会话？' })).toBeTruthy()
+    expect(document.body.textContent).toContain('Archived session')
+    fireEvent.click(screen.getByRole('button', { name: '永久删除' }))
+    expect(deleteSession).toHaveBeenCalledWith(sid('one'))
+    // While the Host call is pending, closing is blocked and the status shows.
+    expect(screen.getByRole('status').textContent).toBe('正在删除会话…')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    expect(settleSessionDelete).not.toHaveBeenCalled()
+    await act(async () => { pending.resolve(undefined) })
+    expect(settleSessionDelete).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('keeps the dialog open with a rejection surfaced, and Cancel settles without deleting', async () => {
+    const deleteSession = vi.fn<SessionDeleteDialogInjected['deleteSession']>()
+      .mockRejectedValueOnce(new Error('delete exploded'))
+    const { settleSessionDelete, ask } = deleteDialog(deleteSession)
+    ask('one', 'Archived session')
+    fireEvent.click(screen.getByRole('button', { name: '永久删除' }))
+    await waitFor(() => { expect(screen.getByRole('alert').textContent).toBe('delete exploded') })
+    expect(settleSessionDelete).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    expect(settleSessionDelete).toHaveBeenCalledOnce()
+    expect(deleteSession).toHaveBeenCalledOnce()
+  })
+
+  it('ignores Escape while the Host call is pending and reports a non-Error reason as text', async () => {
+    const pending = Promise.withResolvers<undefined>()
+    const deleteSession = vi.fn<SessionDeleteDialogInjected['deleteSession']>()
+      .mockReturnValueOnce(pending.promise)
+    const { settleSessionDelete, ask } = deleteDialog(deleteSession)
+    ask('one', 'Archived session')
+    fireEvent.click(screen.getByRole('button', { name: '永久删除' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(settleSessionDelete).not.toHaveBeenCalled()
+    await act(async () => { pending.reject('plain failure') })
+    await waitFor(() => { expect(screen.getByRole('alert').textContent).toBe('plain failure') })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(settleSessionDelete).toHaveBeenCalledOnce()
+  })
+})
+
 // A provider outside this package may merge its own family into the kind map;
 // the dialog must describe it without knowing its copy.
 declare module '@deepseek-ai/dsh-workspace/types' {
@@ -490,34 +545,23 @@ declare module '@deepseek-ai/dsh-workspace/types' {
 
 describe('RowActionToast', () => {
   /** The notice surface over a test-owned notice source; dismissal clears the notice the way apply does. */
-  function toastSurface(viewState: { archivedFilter?: 'default' | 'show' | 'only' } = { archivedFilter: 'default' }) {
+  function toastSurface() {
     const toast = createSnapshotStore<RowToastState | null>(null)
-    const instance = createWorkspaceViewStore().create()
-    // A v5 snapshot hydrates without the filter key; mirror it by dropping the
-    // fresh store's default rather than writing an explicit undefined.
-    const state = { ...instance.store.getSnapshot() }
-    if (viewState.archivedFilter === undefined) delete state.archivedFilter
-    else state.archivedFilter = viewState.archivedFilter
-    const view = createSnapshotStore(state)
     const dismissToast = vi.fn(() => { toast.set(null) })
     const undoArchive = vi.fn()
-    const showArchived = vi.fn()
     render(
       <RowActionToast
         {...overlay}
         useToast={bindSnapshotSelector(toast)}
-        useStore={bindSnapshotSelector(view)}
-        actions={instance.actions}
         dismissToast={dismissToast}
         undoArchive={undoArchive}
-        showArchived={showArchived}
       />,
     )
     let seq = 0
     const notify = (notice: RowToast): void => {
       act(() => { toast.set({ ...notice, seq: ++seq }) })
     }
-    return { dismissToast, undoArchive, showArchived, notify }
+    return { dismissToast, undoArchive, notify }
   }
 
   it('renders nothing without a notice', () => {
@@ -526,52 +570,28 @@ describe('RowActionToast', () => {
     expect(document.body.textContent).toBe('')
   })
 
-  it('the stopped-and-archived notice offers the same undo and filter actions under its own wording', () => {
+  it('the stopped-and-archived notice offers undo under its own wording', () => {
     const { undoArchive, notify } = toastSurface()
     notify({ kind: 'stoppedAndArchived', sessionId: sid('one') })
-    expect(screen.getByRole('alert').textContent).toBe('已停止并归档，可撤销或筛选已归档会话')
+    expect(screen.getByRole('alert').textContent).toBe('已停止并归档，可撤销')
     fireEvent.click(screen.getByRole('button', { name: '撤销' }))
     expect(undoArchive).toHaveBeenCalledWith(sid('one'))
   })
 
-  it('the archived notice takes itself down, then undoes the archive or shows the archived rows', () => {
-    const { dismissToast, undoArchive, showArchived, notify } = toastSurface()
+  it('the archived notice takes itself down, then undoes the archive', () => {
+    const { dismissToast, undoArchive, notify } = toastSurface()
     notify({ kind: 'archived', sessionId: sid('one') })
-    expect(screen.getByRole('alert').textContent).toBe('会话已归档，可撤销或筛选已归档会话')
+    expect(screen.getByRole('alert').textContent).toBe('会话已归档，可撤销')
     fireEvent.click(screen.getByRole('button', { name: '撤销' }))
     expect(dismissToast).toHaveBeenCalledOnce()
     expect(undoArchive).toHaveBeenCalledWith(sid('one'))
     expect(callOrder(dismissToast)).toBeLessThan(callOrder(undoArchive))
-    expect(showArchived).not.toHaveBeenCalled()
     expect(screen.queryByRole('alert')).toBeNull()
-
-    notify({ kind: 'archived', sessionId: sid('two') })
-    fireEvent.click(screen.getByRole('button', { name: '筛选已归档会话' }))
-    expect(dismissToast).toHaveBeenCalledTimes(2)
-    expect(showArchived).toHaveBeenCalledOnce()
-    expect(callOrder(dismissToast, 1)).toBeLessThan(callOrder(showArchived))
-    expect(undoArchive).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('alert')).toBeNull()
-  })
-
-  it('treats a view without a persisted filter as the hidden default and keeps the filter action', () => {
-    const { notify } = toastSurface({})
-    notify({ kind: 'archived', sessionId: sid('one') })
-    expect(screen.getByRole('alert').textContent).toBe('会话已归档，可撤销或筛选已归档会话')
-  })
-
-  it.each(['show', 'only'] as const)('omits the filter action while the %s filter already shows archived rows', (archivedFilter) => {
-    const { notify } = toastSurface({ archivedFilter })
-    notify({ kind: 'archived', sessionId: sid('one') })
-    expect(screen.getByRole('alert').textContent).toBe('会话已归档，可撤销')
-    expect(screen.queryByRole('button', { name: '筛选已归档会话' })).toBeNull()
-    expect(screen.getByRole('button', { name: '撤销' })).toBeTruthy()
   })
 
   it.each([
     ['pinFailed', '置顶失败，请稍后重试'],
     ['unpinFailed', '取消置顶失败，请稍后重试'],
-    ['archivedNotOpenable', '已归档对话暂时无法查看，请取消归档后查看'],
     ['defaultWorkspaceFailed', '无法创建默认工作区，请通过“选择工作区”选择文件夹'],
   ] as const)('shows the %s warning and takes it down when its hold ends', (kind, text) => {
     vi.useFakeTimers()
@@ -644,7 +664,7 @@ it('shows effective Session shortcuts while menu clicks keep the row target', ()
   render(<>
     <RenameSessionMenuItem {...props} requestSessionRename={requestSessionRename} />
     <ForkSessionMenuItem {...props} forkSession={forkSession} />
-    <ArchiveSessionMenuItem {...props} useArchived={hook(idSet())} archiveSession={archiveSession} unarchiveSession={vi.fn()} />
+    <ArchiveSessionMenuItem {...props} archiveSession={archiveSession} />
   </>)
   expect(screen.getAllByRole('menuitem').map(item => item.getAttribute('aria-keyshortcuts')))
     .toEqual(['Alt+Meta+R', 'Alt+Meta+F', 'Shift+Meta+A'])

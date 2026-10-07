@@ -18,6 +18,7 @@ import WorkspaceRegistry, {
   type workspaceDomainState,
   WorkspaceMoveInvalidError,
   WorkspaceOrderInvalidError,
+  WorkspaceSessionNotArchivedError,
 } from '../src/index.ts'
 import type { WorkspaceDomainState, WorkspaceRecord } from '../src/index.ts'
 import { defaultWorkspaceTitle, fullyQualifiedWorkspacePath } from '../src/paths.ts'
@@ -55,7 +56,8 @@ async function harness(options: HarnessOptions = {}) {
     listed.map(header => ({ header, revision: SessionPersistenceRevision(`rev-${header.id}`) })))
   const open = vi.fn(() => { throw new Error('event bodies must not be opened') })
   const stat = vi.fn(() => { throw new Error('per-session stat must not be needed') })
-  ctx.provide('sessionPersistence', { list, open, stat } as never)
+  const del = vi.fn(async (_id: SessionId) => undefined)
+  ctx.provide('sessionPersistence', { list, open, stat, delete: del } as never)
 
   if (options.sessionStore === true) {
     await ctx.plugin(SessionStore)
@@ -82,6 +84,7 @@ async function harness(options: HarnessOptions = {}) {
     list,
     open,
     stat,
+    deleteSession: del,
     setSessions: (headers: SessionHeader[]) => { listed = headers },
   }
 }
@@ -997,17 +1000,19 @@ describe('registry-global session archive', () => {
     })
     result.ctx.on('workspace/session-stop', ({ sessionId }) => { order.push(`stop:${sessionId}`) })
     result.ctx.on('workspace/session-stop', () => { throw new Error('job kill exploded') })
+    result.ctx.on('workspace/session-release', ({ sessionId }) => { order.push(`release:${sessionId}`) })
+    result.ctx.on('workspace/session-release', () => { throw new Error('session release exploded') })
     result.ctx.on('domain/changed', (change) => { if (change.table === '') order.push('write') })
     const warn = vi.spyOn(result.ctx.logger, 'warn').mockImplementation(() => {})
 
     await result.registry.archiveSession(SessionId('busy'), { stopActivity: true })
     expect(result.registry.archivedSessionIds).toEqual(['busy'])
     expect(storedState(result.pool).archivedSessionIds).toEqual(['busy'])
-    // The archive write lands first, so a provider's gate sees the archived
-    // set before any stop-induced wake; the activity question is not asked
-    // because the caller already chose to stop what runs.
-    expect(order).toEqual(['write', 'stop:busy'])
+    // The archive write lands first, then stop requests, then session release;
+    // failures are logged and do not undo the archive.
+    expect(order).toEqual(['write', 'stop:busy', 'release:busy'])
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('job kill exploded'))
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('session release exploded'))
 
     // A repeat resolves before stopping anything again.
     order.length = 0
@@ -1023,16 +1028,22 @@ describe('registry-global session archive', () => {
     const dir = await makeDir('archive-quiet')
     const result = await harness({ sessions: [header('known', dir, 100)] })
     const asked: SessionId[] = []
+    const released: SessionId[] = []
     result.ctx.on('workspace/session-activity', ({ sessionId }, next) => {
       asked.push(sessionId)
       return next()
     })
+    result.ctx.on('workspace/session-release', ({ sessionId }) => {
+      released.push(sessionId)
+    })
     await expect(result.registry.archiveSession(SessionId('ghost')))
       .rejects.toThrow(/cannot archive session 'ghost'/)
     expect(asked).toEqual([])
+    expect(released).toEqual([])
 
     await result.registry.archiveSession(SessionId('known'))
     expect(asked).toEqual(['known'])
+    expect(released).toEqual(['known'])
     expect(result.registry.archivedSessionIds).toEqual(['known'])
   })
 
@@ -1115,6 +1126,64 @@ describe('registry-global session unarchive', () => {
 
     const second = await harness({ pool, sessions })
     expect(second.registry.archivedSessionIds).toEqual(['kept'])
+  })
+})
+
+describe('registry-global session delete', () => {
+  it('removes the log, the archive entry, and the accounting slot, durably', async () => {
+    const dir = await makeDir('delete-home')
+    const result = await harness({
+      sessions: [header('gone', dir, 100), header('kept', dir, 200)],
+    })
+    const workspace = result.registry.list()[0]!
+    await result.registry.archiveSession(SessionId('gone'))
+    await result.registry.archiveSession(SessionId('kept'))
+    expect(workspace.sessionIds).toContain('gone')
+
+    const order: string[] = []
+    result.ctx.on('workspace/session-release', ({ sessionId }) => { order.push(`release:${sessionId}`) })
+    result.ctx.on('workspace/session-release', () => { throw new Error('delete release exploded') })
+    const warn = vi.spyOn(result.ctx.logger, 'warn').mockImplementation(() => {})
+    result.deleteSession.mockImplementation(async (id: SessionId) => {
+      order.push(`delete:${id}`)
+    })
+
+    await result.registry.deleteSession(SessionId('gone'))
+    expect(order).toEqual(['release:gone', 'delete:gone'])
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('delete release exploded'))
+    expect(result.deleteSession).toHaveBeenCalledWith(SessionId('gone'))
+    expect(result.registry.archivedSessionIds).toEqual(['kept'])
+    // The accounting slot dropped with the durable write.
+    expect(workspace.sessionIds).not.toContain('gone')
+    expect(storedState(result.pool).archivedSessionIds).toEqual(['kept'])
+
+    // The header index no longer knows the id: a re-archive is an unknown
+    // session, not a resurrected one.
+    result.setSessions([header('kept', dir, 200)])
+    await expect(result.registry.archiveSession(SessionId('gone')))
+      .rejects.toThrow(/cannot archive session 'gone'/)
+  })
+
+  it('refuses a non-archived id without touching the log', async () => {
+    const dir = await makeDir('delete-not-archived')
+    const result = await harness({ sessions: [header('plain', dir, 100)] })
+    await expect(result.registry.deleteSession(SessionId('plain')))
+      .rejects.toBeInstanceOf(WorkspaceSessionNotArchivedError)
+    expect(result.deleteSession).not.toHaveBeenCalled()
+    expect(result.registry.archivedSessionIds).toEqual([])
+  })
+
+  it('leaves the archive set intact when the log removal fails', async () => {
+    const dir = await makeDir('delete-failure')
+    const result = await harness({ sessions: [header('held', dir, 100)] })
+    await result.registry.archiveSession(SessionId('held'))
+    result.deleteSession.mockRejectedValueOnce(new Error('log removal failed'))
+
+    await expect(result.registry.deleteSession(SessionId('held')))
+      .rejects.toThrow('log removal failed')
+    // Nothing was written: the session stays archived and intact.
+    expect(result.registry.archivedSessionIds).toEqual(['held'])
+    expect(storedState(result.pool).archivedSessionIds).toEqual(['held'])
   })
 })
 

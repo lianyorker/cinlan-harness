@@ -19,6 +19,7 @@ import {
 } from '../src/client/contract/slots.ts'
 import { WorkspaceBrowser } from '../src/client/rows/WorkspaceBrowser.tsx'
 import { ArchiveSessionMenuItem, ArchiveSessionRowButton, SessionArchiveConfirmDialog } from '../src/client/session-actions/ArchiveSession.tsx'
+import { SessionDeleteDialog } from '../src/client/session-actions/DeleteSession.tsx'
 import { ForkSessionMenuItem } from '../src/client/session-actions/ForkSession.tsx'
 import { PinSessionMenuItem, PinSessionRowButton } from '../src/client/session-actions/PinSession.tsx'
 import { RenameSessionMenuItem, SessionRenameDialog } from '../src/client/session-actions/RenameSession.tsx'
@@ -220,7 +221,7 @@ describe('ui-workspace apply', () => {
     // The row actions follow the browser's own declaration, whenever it lands.
     expect(after.slots.entries(MENU_ITEM)).toHaveLength(4)
     expect(after.slots.entries(ROW_ACTION)).toHaveLength(2)
-    expect(after.slots.entries('shell.overlay')).toHaveLength(3)
+    expect(after.slots.entries('shell.overlay')).toHaveLength(4)
   })
 
   it('declares the two Session row lists and registers the shipped actions and overlay surfaces into them', async () => {
@@ -249,19 +250,16 @@ describe('ui-workspace apply', () => {
     expect(rows('shell.overlay')).toEqual([
       ['workspace.session-rename', undefined, SessionRenameDialog, 'workspace'],
       ['workspace.session-archive', undefined, SessionArchiveConfirmDialog, 'workspace'],
+      ['workspace.session-delete', undefined, SessionDeleteDialog, 'workspace'],
       ['workspace.row-toast', undefined, RowActionToast, 'workspace'],
     ])
-    // The browser and the row toast declare the same viewing-store handle,
-    // which hands out one instance: the browser's injected callbacks write
-    // view state through it and the toast reads the archived filter from it.
-    // The row actions and the other overlay surfaces declare none.
+    // The browser declares the viewing-store handle, which hands out one
+    // instance: the browser's injected callbacks write view state through it.
+    // The row toast and every other surface declare none.
     const browser = b.slots.entries('sidebar.workspaces')[0]!
     expect(browser.store).toBeDefined()
     expect(viewInstance(b.slots)).toBe(viewInstance(b.slots))
-    const rowToastEntry = entry(b.slots, 'shell.overlay', 'workspace.row-toast')
-    expect(rowToastEntry.store).toBe(browser.store)
     for (const registration of [...b.slots.entries(MENU_ITEM), ...b.slots.entries(ROW_ACTION), ...b.slots.entries('shell.overlay')]) {
-      if (registration === rowToastEntry) continue
       expect(registration.store).toBeUndefined()
     }
     // Each share raises its own notices inside its callbacks.
@@ -278,7 +276,6 @@ describe('ui-workspace apply', () => {
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const pin = faceOf(entry(b.slots, MENU_ITEM, 'pin')) as PinSessionInjected
     const pinButton = faceOf(entry(b.slots, ROW_ACTION, 'pin')) as PinSessionInjected
-    const archive = faceOf(entry(b.slots, ROW_ACTION, 'archive')) as ArchiveSessionInjected
     const pinned = pin.hooks.pinned.getSnapshot()
     const archived = pin.hooks.archived.getSnapshot()
     expect(pinned).toEqual(new Set(['one']))
@@ -286,7 +283,6 @@ describe('ui-workspace apply', () => {
     // One source per set, shared by every entry and held while the snapshot stands.
     expect(pin.hooks.pinned.getSnapshot()).toBe(pinned)
     expect(pinButton.hooks.pinned.getSnapshot()).toBe(pinned)
-    expect(archive.hooks.archived.getSnapshot()).toBe(archived)
     // Subscriptions ride the Workspace Controller's list source.
     const listener = vi.fn()
     const unsubscribe = pin.hooks.pinned.subscribe(listener)
@@ -296,7 +292,6 @@ describe('ui-workspace apply', () => {
     b.setWorkspaces(workspaceState([workspace('alpha', ['one', 'two'])], [], [sid('one'), sid('two')]))
     expect(pin.hooks.pinned.getSnapshot()).toEqual(new Set(['one', 'two']))
     expect(pin.hooks.pinned.getSnapshot()).not.toBe(pinned)
-    expect(archive.hooks.archived.getSnapshot()).toEqual(new Set())
   })
 
   it('pins through the navigation service, which fronts the Session in its group and the flat list of the browser view', async () => {
@@ -364,7 +359,6 @@ describe('ui-workspace apply', () => {
     declare(b.slots, 'sidebar.workspaces', 'shell.overlay')
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const archiveSession = vi.spyOn(b.ctx.uiWorkspace, 'archiveSession').mockResolvedValue(undefined)
-    const unarchiveSession = vi.spyOn(b.ctx.uiWorkspace, 'unarchiveSession').mockResolvedValue(undefined)
     const toast = faceOf(entry(b.slots, 'shell.overlay', 'workspace.row-toast')) as RowToastInjected
     const archive = faceOf(entry(b.slots, ROW_ACTION, 'archive')) as ArchiveSessionInjected
 
@@ -373,23 +367,13 @@ describe('ui-workspace apply', () => {
     await vi.waitFor(() => {
       expect(toast.hooks.toast.getSnapshot()).toEqual({ kind: 'archived', sessionId: 'one', seq: 1 })
     })
-    // The menu row's face is the same behavior; a restore raises no notice.
-    const archiveRow = faceOf(entry(b.slots, MENU_ITEM, 'archive')) as ArchiveSessionInjected
-    archiveRow.unarchiveSession(sid('one'))
-    expect(unarchiveSession).toHaveBeenCalledWith('one')
-    await settled()
-    expect(toast.hooks.toast.getSnapshot()).toEqual({ kind: 'archived', sessionId: 'one', seq: 1 })
 
     const archiveRejection = new Error('archive exploded')
-    const unarchiveRejection = new Error('unarchive exploded')
     archiveSession.mockRejectedValueOnce(archiveRejection)
-    unarchiveSession.mockRejectedValueOnce(unarchiveRejection)
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
       archive.archiveSession(sid('two'))
       await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith('session archive rejected:', archiveRejection) })
-      archive.unarchiveSession(sid('two'))
-      await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith('session unarchive rejected:', unarchiveRejection) })
     } finally {
       warn.mockRestore()
     }
@@ -435,29 +419,12 @@ describe('ui-workspace apply', () => {
     }
   })
 
-  it('the notice share takes the notice down, undoes an archive, and shows the archived rows', async () => {
+  it('the notice share undoes an archive; a rejected undo is a console diagnostic', async () => {
     const b = await bench()
     declare(b.slots, 'sidebar.workspaces', 'shell.overlay')
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const unarchiveSession = vi.spyOn(b.ctx.uiWorkspace, 'unarchiveSession').mockResolvedValue(undefined)
     const toast = faceOf(entry(b.slots, 'shell.overlay', 'workspace.row-toast')) as RowToastInjected
-    const browser = faceOf(b.slots.entries('sidebar.workspaces')[0]!) as WorkspaceBrowserInjected
-    const view = viewInstance(b.slots)
-
-    // The browser raises the not-openable notice into the same entry, and the source notifies.
-    expect(toast.hooks.toast.getSnapshot()).toBeNull()
-    const noticed = vi.fn()
-    const unsubscribe = toast.hooks.toast.subscribe(noticed)
-    browser.notifyArchivedNotOpenable()
-    expect(toast.hooks.toast.getSnapshot()).toEqual({ kind: 'archivedNotOpenable', seq: 1 })
-    expect(noticed).toHaveBeenCalledOnce()
-    toast.dismissToast()
-    expect(toast.hooks.toast.getSnapshot()).toBeNull()
-    unsubscribe()
-
-    expect(view.getSnapshot().archivedFilter).toBe('default')
-    toast.showArchived()
-    expect(view.getSnapshot().archivedFilter).toBe('show')
 
     toast.undoArchive(sid('one'))
     expect(unarchiveSession).toHaveBeenCalledWith('one')
@@ -477,7 +444,6 @@ describe('ui-workspace apply', () => {
     const b = await bench()
     declare(b.slots, 'sidebar.workspaces', 'shell.overlay')
     await b.ctx.plugin({ inject: [...inject], apply }).await()
-    const unarchiveSession = vi.spyOn(b.ctx.uiWorkspace, 'unarchiveSession').mockResolvedValue(undefined)
 
     // Fork goes through the navigation service, which leaves the child unselected.
     const forkSession = vi.spyOn(b.ctx.uiWorkspace, 'forkSession')
@@ -514,11 +480,9 @@ describe('ui-workspace apply', () => {
     const browser = faceOf(b.slots.entries('sidebar.workspaces')[0]!) as WorkspaceBrowserInjected
     browser.requestSessionRename('session' as never, 'Row title')
     expect(dialog.hooks.renameRequest.getSnapshot()).toEqual({ sessionId: 'session', currentTitle: 'Row title' })
-    for (const verb of ['forkSession', 'archiveSession', 'pinSession', 'unpinSession', 'renameSession', 'undoArchive', 'showArchived']) {
+    for (const verb of ['forkSession', 'archiveSession', 'pinSession', 'unpinSession', 'renameSession', 'undoArchive']) {
       expect(browser).not.toHaveProperty(verb)
     }
-    await browser.unarchiveSession('session' as never)
-    expect(unarchiveSession).toHaveBeenCalledWith('session')
   })
 
   it('routes browser actions and picker creation to the services', async () => {
@@ -598,7 +562,7 @@ describe('ui-workspace apply', () => {
     await fiber.await()
     expect(b.slots.entries(MENU_ITEM)).toHaveLength(4)
     expect(b.slots.entries(ROW_ACTION)).toHaveLength(2)
-    expect(b.slots.entries('shell.overlay')).toHaveLength(3)
+    expect(b.slots.entries('shell.overlay')).toHaveLength(4)
     await fiber.dispose()
     expect(b.slots.entries('sidebar.workspaces')).toHaveLength(0)
     expect(b.slots.entries('conversation.hero.workspace')).toHaveLength(0)

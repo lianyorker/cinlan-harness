@@ -466,6 +466,20 @@ export class JsonlBackendTracker {
   }
 
   /**
+   * Whether this process still holds the session live: any open handle or a
+   * created-but-unmaterialized registration.
+   * @param id - the session to test.
+   * @returns true while a handle or pending entry exists.
+   */
+  holds(id: SessionId): boolean {
+    if (this.writers.has(id) || this.pending.has(id)) return true
+    for (const handle of this.openHandles) {
+      if (handle.id === id) return true
+    }
+    return false
+  }
+
+  /**
    * Drop a pending entry once the session materialized durably.
    * @param id - the session that reached durable storage.
    */

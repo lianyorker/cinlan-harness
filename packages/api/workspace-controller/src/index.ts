@@ -21,6 +21,7 @@ import type {
   WorkspacePinSessionRequest,
   WorkspacePinValue,
   WorkspaceRenameRequest,
+  WorkspaceDeleteSessionRequest,
   WorkspaceUnarchiveSessionRequest,
   WorkspaceUnpinSessionRequest,
   WorkspaceValue,
@@ -164,6 +165,18 @@ export class WorkspaceController extends TypertRemoteService {
   @Remote('unarchiveSession')
   unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<WorkspaceArchiveValue> {
     return this.commands.unarchiveSession(request)
+  }
+
+  /**
+   * Permanently delete one archived Session: its durable log is removed and
+   * it leaves the archive set and its Workspace accounting slot. There is no
+   * undo.
+   * @param request - archived Session identity to delete.
+   * @returns the complete resulting archive set.
+   */
+  @Remote('deleteSession')
+  deleteSession(request: WorkspaceDeleteSessionRequest): Promise<WorkspaceArchiveValue> {
+    return this.commands.deleteSession(request)
   }
 
   /**

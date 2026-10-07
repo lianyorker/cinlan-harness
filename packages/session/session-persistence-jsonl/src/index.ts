@@ -22,12 +22,12 @@ import { createHash, randomBytes } from 'node:crypto'
 import {
   SessionPersistence, SessionPersistenceRevision, SessionFormatUnsupportedError,
   SessionPersistenceCorruptionError,
-  SessionAlreadyExistsError, SessionPersistenceNotFoundError,
+  SessionAlreadyExistsError, SessionAlreadyOwnedError, SessionPersistenceNotFoundError,
   assertStoredId, materializeCreateHeader, sessionFormatVersionRefusal, validateStoredEvents,
   type SessionAccess, type SessionHandle,
   type SessionHandleReadResult,
   type SessionLocation, type SessionPersistenceCreateOptions,
-  type SessionPersistenceListOptions, type SessionPersistenceOpenOptions,
+  type SessionPersistenceDeleteOptions, type SessionPersistenceListOptions, type SessionPersistenceOpenOptions,
   type SessionPersistenceSnapshot, type SessionPersistenceStatOptions,
   type SessionPersistenceRevision as PersistenceRevision,
 } from '@deepseek-ai/dsh-session-persistence'
@@ -506,6 +506,39 @@ class JsonlSessionPersistence extends SessionPersistence {
     }
     signal?.throwIfAborted()
     return snapshots
+  }
+
+  /**
+   * Permanently remove a stored session's artifact directory. The
+   * cross-process write lock is held for the whole removal, so a concurrent
+   * writer in another process refuses as already owned instead of racing the
+   * deletion; a locally open handle or pending creation refuses the same way.
+   * @param id - the stored session to remove.
+   * @param options - optional cancellation.
+   * @returns resolution once the session directory is gone.
+   */
+  async delete(id: SessionId, options?: SessionPersistenceDeleteOptions): Promise<void> {
+    options?.signal?.throwIfAborted()
+    await this.ensureRootEncoding()
+    options?.signal?.throwIfAborted()
+    if (this.tracker.holds(id)) throw new SessionAlreadyOwnedError(id)
+    const selected = await this.findLog(id, options?.signal)
+    if (selected === undefined) throw new SessionPersistenceNotFoundError(id)
+    const dir = dirname(selected.sourcePath)
+    const lease = await SessionWriteLease.acquire(dir, id)
+    try {
+      options?.signal?.throwIfAborted()
+      try {
+        await rm(dir, { recursive: true })
+      } catch (error: unknown) {
+        // A concurrent removal won the race; the session is gone either way.
+        if (!isENOENT(error)) throw error
+      }
+      this.coldLogMemo.delete(id)
+      this.migrationPreparations.delete(id)
+    } finally {
+      await lease.release()
+    }
   }
 
   // --- handle-facing storage internals (package-private via the handle class below) ---

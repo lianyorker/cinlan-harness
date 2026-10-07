@@ -17,6 +17,8 @@ export function readonlyWorkspace(unavailable: () => string): UiWorkspace {
     startSession: refuse,
     archiveSession: reject,
     unarchiveSession: reject,
+    deleteSession: reject,
+    requestSessionDelete: refuse,
     pickDirectory: reject,
     listDirectory: reject,
     createDirectory: reject,

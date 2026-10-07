@@ -261,6 +261,19 @@ export class SessionController extends TypertRemoteService {
   }
 
   /**
+   * Read archived Session summaries independently of the live Client catalog.
+   * Missing logs remain represented by the Workspace archive set.
+   * @param signal - cancellation for the cold metadata read.
+   * @returns available archived summaries without activating an Agent.
+   */
+  @Remote('archived')
+  async archived(signal: AbortSignal): Promise<SessionListValue> {
+    const items = await this.listState.list(signal)
+    const archived = new Set(this.ctx.workspaceRegistry.archivedSessionIds)
+    return { items: items.filter(item => archived.has(item.sessionId)) }
+  }
+
+  /**
    * Search visible Session content without resuming an Agent.
    * @param request - literal message-content query.
    * @param signal - cancellation for list and search reads.

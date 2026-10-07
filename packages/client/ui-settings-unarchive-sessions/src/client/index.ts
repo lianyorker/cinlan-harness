@@ -28,7 +28,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const NS = 'settings.archivedSessions'
 
 /** Services required by the Settings registration and the archive write. */
-export const inject = ['slots', 'locale', 'uiWorkspace', 'settingsMetadata']
+export const inject = ['slots', 'locale', 'uiWorkspace', 'settingsMetadata', 'remote.session']
 
 /**
  * Contribute the archived-session page and public search metadata to Settings.
@@ -38,12 +38,23 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-unarchive-sessions: dictionaries')
 
   const t = ctx.locale.bind(NS)
+  const loadArchived: ArchivedSessionsSectionInjected['loadArchived'] = async (signal) => {
+    const result = await ctx.remote.session.archived(signal)
+    if (!result.ok) throw new Error(result.error.message)
+    return result.value.items
+  }
   const injected = (): ArchivedSessionsSectionInjected => ({
+    loadArchived,
     unarchive: sessionId => ctx.uiWorkspace.unarchiveSession(sessionId),
+    requestSessionDelete: (sessionId, currentTitle) => {
+      ctx.uiWorkspace.requestSessionDelete(sessionId, currentTitle)
+    },
   })
 
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'archived-sessions', groupId: 'advanced', heading: 'shell' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'archived-sessions', groupId: 'advanced', description: () => t('description'),
+    })
     yield ctx.settingsMetadata.registerItems('archived-sessions', [{
       id: 'restore', anchorId: 'archived-sessions-search',
       title: () => t('nav'), description: () => t('search'),

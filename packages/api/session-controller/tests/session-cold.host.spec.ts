@@ -195,6 +195,33 @@ describe('sessions.list cold merge', () => {
 
 })
 
+describe('sessions.archived cold summaries', () => {
+  it('filters persisted summaries by the authoritative archive set without activating Agents', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    const metas = [header('archived-one', 100), header('ordinary', 200)]
+    const inspect = vi.fn()
+    providePersistence(ctx, {
+      list: () => Promise.resolve(metas),
+      inspect,
+    })
+    ctx.provide('workspaceRegistry', {
+      archivedSessionIds: [sid('archived-one'), sid('missing-log')],
+    } as never)
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+      cwd: '/tmp',
+    })
+
+    const result = await remote.archived()
+
+    expect(result).toMatchObject({ ok: true, value: { items: [{ sessionId: sid('archived-one') }] } })
+    expect(inspect).not.toHaveBeenCalled()
+    expect(ctx.sessions.get(sid('archived-one'))).toBeUndefined()
+    await ctx.fiber.dispose()
+  })
+})
+
 describe('attached updatedAt tracks human prompts', () => {
   it('ignores pickup and non-prompt work after the latest human message', async () => {
     const ctx = new Context()

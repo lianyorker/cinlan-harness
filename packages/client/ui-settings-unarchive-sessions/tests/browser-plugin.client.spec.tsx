@@ -27,12 +27,16 @@ async function bench() {
   const locale = new LocaleRuntime(ctx)
   ctx.provide('locale', locale)
   const unarchiveSession = vi.fn<(sessionId: SessionId) => Promise<void>>(async () => {})
-  ctx.provide('uiWorkspace', { unarchiveSession })
-  new TestRemote(ctx, { settings: { describe: async () => ({
-    ok: true, value: { namespaces: [], hasDocument: false, writable: true },
-  }) } })
+  const requestSessionDelete = vi.fn<(sessionId: SessionId, currentTitle: string) => void>(() => {})
+  ctx.provide('uiWorkspace', { unarchiveSession, requestSessionDelete })
+  new TestRemote(ctx, {
+    session: { archived: async () => ({ ok: true, value: { items: [] } }) },
+    settings: { describe: async () => ({
+      ok: true, value: { namespaces: [], hasDocument: false, writable: true },
+    }) },
+  })
   await ctx.plugin(SettingsPlugin).await()
-  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, unarchiveSession }
+  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, unarchiveSession, requestSessionDelete }
 }
 
 function declare(slots: SlotRegistry): () => void {
@@ -51,7 +55,7 @@ describe('ui-settings-unarchive-sessions browser plugin', () => {
   })
 
   it('declares only the services used by the page and the archive write', () => {
-    expect(inject).toEqual(['slots', 'locale', 'uiWorkspace', 'settingsMetadata'])
+    expect(inject).toEqual(['slots', 'locale', 'uiWorkspace', 'settingsMetadata', 'remote.session'])
   })
 
   it('registers the archived-session page last with localized copy', async () => {
@@ -65,7 +69,10 @@ describe('ui-settings-unarchive-sessions browser plugin', () => {
     expect(entry.locale).toBe('settings.archivedSessions')
     expect(resolveSlotLabel(entry.options.label)).toBe('已归档会话')
     expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({
-      sections: [{ sectionId: 'archived-sessions', groupId: 'advanced', heading: 'shell' }],
+      sections: [{
+        sectionId: 'archived-sessions', groupId: 'advanced',
+        description: expect.any(Function) as () => string,
+      }],
       items: [{
         sectionId: 'archived-sessions', id: 'restore', anchorId: 'archived-sessions-search',
         title: '已归档会话', description: '搜索已归档会话', keywords: ['取消归档', '恢复会话'],
@@ -80,6 +87,8 @@ describe('ui-settings-unarchive-sessions browser plugin', () => {
     const injected = (entry.inject as unknown as () => ArchivedSessionsSectionInjected)()
     await expect(injected.unarchive('session-one' as SessionId)).resolves.toBeUndefined()
     expect(b.unarchiveSession).toHaveBeenCalledWith('session-one')
+    injected.requestSessionDelete('session-one' as SessionId, 'Stored session')
+    expect(b.requestSessionDelete).toHaveBeenCalledWith('session-one' as SessionId, 'Stored session')
     await b.ctx.fiber.dispose()
   })
 

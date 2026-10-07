@@ -50,13 +50,33 @@ exports[`ArchivedSessionsSection > renders the Chinese list, search, and restore
           Project · 刚刚
         </span>
       </span>
-      <button
-        aria-label="取消归档 Newer session"
-        class="button outline sm"
-        type="button"
+      <span
+        class="actions"
       >
-        取消归档
-      </button>
+        <button
+          aria-label="删除 Newer session"
+          class="iconButton"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="9bf454ee"
+            fill="none"
+            height="14"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="14"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+        <button
+          aria-label="取消归档 Newer session"
+          class="button outline sm"
+          type="button"
+        >
+          取消归档
+        </button>
+      </span>
     </li>
     <li
       class="row"
@@ -75,13 +95,33 @@ exports[`ArchivedSessionsSection > renders the Chinese list, search, and restore
           Project · 2天
         </span>
       </span>
-      <button
-        aria-label="取消归档 Older session"
-        class="button outline sm"
-        type="button"
+      <span
+        class="actions"
       >
-        取消归档
-      </button>
+        <button
+          aria-label="删除 Older session"
+          class="iconButton"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="9bf454ee"
+            fill="none"
+            height="14"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="14"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+        <button
+          aria-label="取消归档 Older session"
+          class="button outline sm"
+          type="button"
+        >
+          取消归档
+        </button>
+      </span>
     </li>
   </ul>
 </div>
@@ -137,13 +177,33 @@ exports[`ArchivedSessionsSection > renders the English list, search, and restore
           Project · now
         </span>
       </span>
-      <button
-        aria-label="Unarchive Newer session"
-        class="button outline sm"
-        type="button"
+      <span
+        class="actions"
       >
-        Unarchive
-      </button>
+        <button
+          aria-label="Delete Newer session"
+          class="iconButton"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="9bf454ee"
+            fill="none"
+            height="14"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="14"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+        <button
+          aria-label="Unarchive Newer session"
+          class="button outline sm"
+          type="button"
+        >
+          Unarchive
+        </button>
+      </span>
     </li>
     <li
       class="row"
@@ -162,13 +222,33 @@ exports[`ArchivedSessionsSection > renders the English list, search, and restore
           Project · 2d
         </span>
       </span>
-      <button
-        aria-label="Unarchive Older session"
-        class="button outline sm"
-        type="button"
+      <span
+        class="actions"
       >
-        Unarchive
-      </button>
+        <button
+          aria-label="Delete Older session"
+          class="iconButton"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            data-content="9bf454ee"
+            fill="none"
+            height="14"
+            stroke-width="1"
+            viewBox="0 0 16 16"
+            width="14"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </button>
+        <button
+          aria-label="Unarchive Older session"
+          class="button outline sm"
+          type="button"
+        >
+          Unarchive
+        </button>
+      </span>
     </li>
   </ul>
 </div>

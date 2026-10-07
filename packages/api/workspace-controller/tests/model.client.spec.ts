@@ -8,6 +8,7 @@ import type {
   WorkspaceCreateRequest,
   WorkspaceCreateValue,
   WorkspaceDeleteRequest,
+  WorkspaceDeleteSessionRequest,
   WorkspaceDeleteValue,
   WorkspaceFollowFrame,
   WorkspaceInsertBeforeRequest,
@@ -94,6 +95,10 @@ class FakeWorkspaceRemote implements WorkspaceRemote {
     request: WorkspaceUnarchiveSessionRequest,
   ) => Promise<RemoteResult<WorkspaceArchiveValue>> = request =>
     Promise.resolve(remoteOk({ archivedSessionIds: [request.sessionId] }))
+  onDeleteSession: (
+    _request: WorkspaceDeleteSessionRequest,
+  ) => Promise<RemoteResult<WorkspaceArchiveValue>> = () =>
+    Promise.resolve(remoteOk({ archivedSessionIds: [] }))
   onPinSession: (
     request: WorkspacePinSessionRequest,
   ) => Promise<RemoteResult<WorkspacePinValue>> = request =>
@@ -136,6 +141,11 @@ class FakeWorkspaceRemote implements WorkspaceRemote {
   unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<RemoteResult<WorkspaceArchiveValue>> {
     this.record('unarchiveSession', request)
     return this.onUnarchiveSession(request)
+  }
+
+  deleteSession(request: WorkspaceDeleteSessionRequest): Promise<RemoteResult<WorkspaceArchiveValue>> {
+    this.record('deleteSession', request)
+    return this.onDeleteSession(request)
   }
 
   pinSession(request: WorkspacePinSessionRequest): Promise<RemoteResult<WorkspacePinValue>> {
@@ -437,6 +447,25 @@ describe('ClientWorkspaceModel', () => {
     gate.resolve(remoteOk({ archivedSessionIds: [] }))
     await expect(pending).resolves.toMatchObject({ ok: true })
     expect(model.getSnapshot().archivedSessionIds).toEqual(['second'])
+  })
+
+  it('applies delete echoes: the archive set drops the id and no row keeps the slot', async () => {
+    const remote = new FakeWorkspaceRemote()
+    const model = modelFor(remote)
+    baseline(model, [workspace('alpha', [sid('gone'), sid('alive')])], [sid('gone')])
+
+    remote.onDeleteSession = () => Promise.resolve(workspaceError(
+      new RemoteError('workspace/session-not-archived', 'not archived', { sessionId: sid('gone') }),
+    ))
+    await expect(model.deleteSession(sid('gone'))).resolves.toMatchObject({ ok: false })
+    expect(model.getSnapshot().archivedSessionIds).toEqual([sid('gone')])
+    expect(model.getSnapshot().items[0]?.sessionIds).toEqual([sid('gone'), sid('alive')])
+
+    remote.onDeleteSession = () => Promise.resolve(remoteOk({ archivedSessionIds: [] }))
+    await expect(model.deleteSession(sid('gone'))).resolves.toMatchObject({ ok: true })
+    expect(model.getSnapshot().archivedSessionIds).toEqual([])
+    expect(model.getSnapshot().items[0]?.sessionIds).toEqual([sid('alive')])
+    expect(remote.calls).toContainEqual({ method: 'deleteSession', request: { sessionId: 'gone' } })
   })
 
   it('applies pin mutation echoes and leaves failed results unchanged', async () => {

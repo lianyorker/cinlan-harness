@@ -8,6 +8,7 @@ import {
   WorkspaceId,
   WorkspaceMoveInvalidError,
   WorkspaceOrderInvalidError,
+  WorkspaceSessionNotArchivedError,
   WorkspaceUnknownSessionError,
 } from '@deepseek-ai/dsh-workspace'
 import { RemoteError, remoteErrorOf } from '@deepseek-ai/dsh-typert-protocol'
@@ -25,6 +26,7 @@ import type {
   WorkspacePinSessionRequest,
   WorkspacePinValue,
   WorkspaceRenameRequest,
+  WorkspaceDeleteSessionRequest,
   WorkspaceUnarchiveSessionRequest,
   WorkspaceUnpinSessionRequest,
   WorkspaceValue,
@@ -191,6 +193,30 @@ export class WorkspaceCommands {
    */
   async unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<WorkspaceArchiveValue> {
     await this.ctx.workspaceRegistry.unarchiveSession(request.sessionId)
+    return { archivedSessionIds: [...this.ctx.workspaceRegistry.archivedSessionIds] }
+  }
+
+  /**
+   * Permanently delete one archived Session: its durable log is removed and
+   * it leaves the archive set and its Workspace accounting slot. There is no
+   * undo.
+   * @param request - archived Session identity to delete.
+   * @returns the complete resulting archive set.
+   */
+  async deleteSession(request: WorkspaceDeleteSessionRequest): Promise<WorkspaceArchiveValue> {
+    try {
+      await this.ctx.workspaceRegistry.deleteSession(request.sessionId)
+    } catch (error) {
+      if (error instanceof WorkspaceSessionNotArchivedError) {
+        throw new RemoteError(
+          'workspace/session-not-archived',
+          error.message,
+          { sessionId: request.sessionId },
+          { cause: error },
+        )
+      }
+      throw error
+    }
     return { archivedSessionIds: [...this.ctx.workspaceRegistry.archivedSessionIds] }
   }
 

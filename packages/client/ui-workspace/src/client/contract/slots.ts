@@ -135,9 +135,9 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     /**
      * The rows of one Session's "..." menu, in ascending `order`. ui-workspace
      * registers the shipped rows here — `pin` (100), `rename` (200), `fork`
-     * (300), `archive` (400) — so a plugin row is placed by its own `order`
-     * among them. Use a package-namespaced `id`; reusing a shipped id at
-     * another `priority` shadows that row. Each entry renders one
+     * (300), `archive` (400) — so a plugin row is placed by its
+     * own `order` among them. Use a package-namespaced `id`; reusing a shipped
+     * id at another `priority` shadows that row. Each entry renders one
      * `role="menuitem"` `<button>` (the shipped rows use ui-primitives'
      * `MenuItemButton`, which adds the host styling and `separatorBefore`),
      * decides its own visibility from its own state, and dismisses the menu
@@ -254,8 +254,6 @@ export type WorkspaceBrowserInjected = {
   searchResultLimit: number
   /** Open the Session rename dialog (a row title double-click); the rename action entry raises the same request. */
   requestSessionRename: (sessionId: SessionId, currentTitle: string) => void
-  /** Tell the user an archived row cannot be opened (a click on it). */
-  notifyArchivedNotOpenable: () => void
   /** Rename a Host Workspace (rejects on name conflict; resolves on durability). */
   renameWorkspace: (workspaceId: WorkspaceId, title: string) => Promise<void>
   /** Delete only a Host Workspace registration; directory and Session logs remain. */
@@ -265,8 +263,6 @@ export type WorkspaceBrowserInjected = {
    * Omitted anchor appends to the end.
    */
   insertWorkspaceBefore: (workspaceId: WorkspaceId, beforeWorkspaceId?: WorkspaceId) => Promise<void>
-  /** Remove a Session from the registry-global archived set (the search results' restore button). */
-  unarchiveSession: (sessionId: SessionId) => Promise<void>
   /** Adopt a picked host directory as a real Workspace before targeting a Session. */
   createWorkspace: (input: { path: string }) => Promise<WorkspaceView>
 }
@@ -292,7 +288,6 @@ export type RowToast =
   | { kind: 'stoppedAndArchived'; sessionId: SessionId }
   | { kind: 'pinFailed' }
   | { kind: 'unpinFailed' }
-  | { kind: 'archivedNotOpenable' }
   | { kind: 'defaultWorkspaceFailed' }
   /**
    * An explicit New Session request that failed. `message` is untranslated:
@@ -324,26 +319,21 @@ export interface PinSessionInjected {
 }
 
 /**
- * Archive action share (menu row and hover button). The callbacks carry the
+ * Archive action share (menu row and hover button). The callback carries the
  * whole behavior: the Host call, the notice a success raises, the
  * stop-and-archive confirmation a Host refusal for running work raises, and
- * the diagnostics for any other rejection.
+ * the diagnostics for any other rejection. Archived sessions never surface
+ * as rows, so there is no restore branch here — the Settings page unarchives.
  */
 export interface ArchiveSessionInjected {
-  hooks: {
-    /** Archived Session ids. */
-    archived: HostObservable<ReadonlySet<SessionId>>
-  }
   /**
    * Archive a Session into the registry-global set: the row keeps its
-   * account position and shows per the archived filter; archiving the
-   * current session clears the selection into the New Session view state.
-   * A Session with running work is not archived by this call: the Host's
-   * refusal opens the stop-and-archive confirmation instead.
+   * account position and leaves the visible list; archiving the current
+   * session clears the selection into the New Session view state. A Session
+   * with running work is not archived by this call: the Host's refusal opens
+   * the stop-and-archive confirmation instead.
    */
   archiveSession: (sessionId: SessionId) => void
-  /** Remove a Session from the registry-global archived set. */
-  unarchiveSession: (sessionId: SessionId) => void
 }
 
 /**
@@ -357,6 +347,29 @@ export interface SessionArchiveConfirmRequest {
   displayTitle: string
   /** What the Host reported running, in family order. */
   activity: readonly SessionActivity[]
+}
+
+/** A Session deletion the delete action asked for; the dialog entry opens on it. */
+export interface SessionDeleteTarget {
+  /** Archived Session to delete. */
+  sessionId: SessionId
+  /** Title the dialog names. */
+  displayTitle: string
+}
+
+/**
+ * Delete dialog share: the pending request, its settlement, and the delete
+ * hop the dialog confirms with.
+ */
+export interface SessionDeleteDialogInjected {
+  hooks: {
+    /** The deletion asked for, until the dialog consumes or cancels it. */
+    deleteRequest: HostObservable<SessionDeleteTarget | null>
+  }
+  /** Consume or cancel the pending request. */
+  settleSessionDelete: () => void
+  /** Permanently delete an archived Session (explicit user confirmation; resolves on host acceptance). */
+  deleteSession: (sessionId: SessionId) => Promise<void>
 }
 
 /**
@@ -410,7 +423,7 @@ export interface SessionRenameDialogInjected {
   renameSession: (sessionId: SessionId, title: string) => Promise<void>
 }
 
-/** Row toast share: the notice on display, its dismissal, and the two actions the archived notice offers. */
+/** Row toast share: the notice on display, its dismissal, and the undo action the archived notice offers. */
 export interface RowToastInjected {
   hooks: {
     /** The notice on display, or none. */
@@ -420,8 +433,6 @@ export interface RowToastInjected {
   dismissToast: () => void
   /** Undo an archive from its notice. */
   undoArchive: (sessionId: SessionId) => void
-  /** Switch the archived filter to "show" so the archived row is back in view. */
-  showArchived: () => void
 }
 
 /** Props of the rename dialog entry in `shell.overlay`. */
@@ -438,15 +449,17 @@ export type SessionArchiveConfirmProps =
   & Omit<SessionArchiveConfirmInjected, 'hooks'>
   & PropsHooks<SessionArchiveConfirmInjected['hooks']>
 
-/**
- * Props of the row toast entry in `shell.overlay`. The declared viewing store
- * carries the archived filter; the archived notice omits its filter action
- * when archived rows are already visible.
- */
+/** Props of the delete dialog entry in `shell.overlay`. */
+export type SessionDeleteDialogProps =
+  PropsRuntime<'shell.overlay'>
+  & PropsLocale<'workspace'>
+  & Omit<SessionDeleteDialogInjected, 'hooks'>
+  & PropsHooks<SessionDeleteDialogInjected['hooks']>
+
+/** Props of the row toast entry in `shell.overlay`. */
 export type RowToastProps =
   PropsRuntime<'shell.overlay'>
   & PropsLocale<'workspace'>
-  & PropsStore<WorkspaceViewStoreHandle>
   & Omit<RowToastInjected, 'hooks'>
   & PropsHooks<RowToastInjected['hooks']>
 

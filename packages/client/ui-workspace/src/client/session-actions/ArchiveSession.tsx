@@ -2,9 +2,8 @@
  * The archive action: a `sidebar.workspaces.session.menu.item` row and a
  * `sidebar.workspaces.session.row.action` button over one injected behavior,
  * plus the `shell.overlay` dialog that confirms stopping a Session's running
- * work before archiving it. The same entries restore an archived row; the
- * notice a successful archive raises and the diagnostics for Host rejections
- * live in the injected callbacks, not here.
+ * work before archiving it. The notice a successful archive raises and the
+ * diagnostics for Host rejections live in the injected callbacks, not here.
  */
 import { useState } from 'react'
 import type { SessionActivity } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -14,7 +13,7 @@ import type {} from '@deepseek-ai/dsh-jobs/view'
 import type {} from '@deepseek-ai/dsh-schedule/client'
 import type {} from '@deepseek-ai/dsh-subagent/client'
 import {
-  Button, IconArchiveOutlineRegular, IconUnarchiveOutlineRegular, MenuItemButton, Modal, Tooltip,
+  Button, IconArchiveOutlineRegular, MenuItemButton, Modal, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   ArchiveSessionInjected, SessionArchiveConfirmInjected, SessionArchiveConfirmProps, SessionArchiveConfirmRequest,
@@ -24,48 +23,47 @@ import css from '../rows/Rows.module.css'
 import browserCss from '../rows/WorkspaceBrowser.module.css'
 
 /**
- * Menu row (order 400): archive, or restore an archived row.
+ * Menu row (order 400): archive the row. Archived sessions never surface as
+ * rows, so the row is always restorable only from the Settings page.
  * @param props - owner share, the archive share, and the menu open state.
  * @returns the row.
  */
 export function ArchiveSessionMenuItem({
-  sessionId, useArchived, useMenuOpenState, useShortcuts, archiveSession, unarchiveSession, t,
+  sessionId, useMenuOpenState, useShortcuts, archiveSession, t,
 }: SessionMenuItemProps<ArchiveSessionInjected>) {
   const [, setMenuOpen] = useMenuOpenState()
   const shortcut = useShortcuts(rows => rows.find(row => row.id === 'session.archive'))
-  const archived = useArchived(set => set.has(sessionId))
   return (
     <MenuItemButton
-      shortcut={archived ? undefined : shortcut}
-      icon={archived ? <IconUnarchiveOutlineRegular size={14} /> : <IconArchiveOutlineRegular size={14} />}
+      shortcut={shortcut}
+      icon={<IconArchiveOutlineRegular size={14} />}
       onSelect={() => {
         setMenuOpen(false)
-        ;(archived ? unarchiveSession : archiveSession)(sessionId)
+        archiveSession(sessionId)
       }}
     >
-      {t(archived ? 'menu.unarchiveSession' : 'menu.archiveSession')}
+      {t('menu.archiveSession')}
     </MenuItemButton>
   )
 }
 
 /**
- * Hover button (order 100): archive, or restore an archived row.
+ * Hover button (order 100): archive the row.
  * @param props - owner share and the archive share.
  * @returns the button.
  */
 export function ArchiveSessionRowButton({
-  sessionId, useArchived, archiveSession, unarchiveSession, t,
+  sessionId, archiveSession, t,
 }: SessionRowActionProps<ArchiveSessionInjected>) {
-  const archived = useArchived(set => set.has(sessionId))
   return (
-    <Tooltip label={t(archived ? 'actions.unarchive' : 'actions.archive')} side="bottom" align="end" delayMs={500}>
+    <Tooltip label={t('actions.archive')} side="bottom" align="end" delayMs={500}>
       <button
         type="button"
         className={css.iconButton}
-        aria-label={t(archived ? 'menu.unarchiveSession' : 'menu.archiveSession')}
-        onClick={() => { (archived ? unarchiveSession : archiveSession)(sessionId) }}
+        aria-label={t('menu.archiveSession')}
+        onClick={() => { archiveSession(sessionId) }}
       >
-        {archived ? <IconUnarchiveOutlineRegular size={14} /> : <IconArchiveOutlineRegular size={14} />}
+        <IconArchiveOutlineRegular size={14} />
       </button>
     </Tooltip>
   )

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-**已归档会话**设置页是从 Workspace 导航中隐藏的会话的恢复入口。它按归档时间由新到旧列出每个已归档会话，并显示其所属 Workspace 与最近活动时间，每行提供一个取消归档操作。搜索框按会话标题或 Workspace 名称过滤列表。行由归档集合与已加载的 Session 摘要合并而来，因此会话记录已不存在的归档条目既没有行也没有操作。每次恢复都经由共享的 Workspace 命令。
+**已归档会话**设置页是从 Workspace 导航中隐藏的会话的恢复入口。它按归档时间由新到旧列出每个已归档会话，并显示其所属 Workspace 与最近活动时间，每行提供取消归档和删除操作。搜索框按会话标题或 Workspace 名称过滤列表。归档集合拥有成员关系；Session 日志缺失时仍保留回退行，以便清理过期归档条目。恢复和删除均经由共享的 Workspace 命令。
 
 ## 目录
 
@@ -25,15 +25,15 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-打开设置并选择**已归档会话**，即可看到当前从所有分组视图中隐藏的会话。在已提供设置外壳、Workspace 服务与 Session 列表的 Web 组合中挂载 `@deepseek-ai/dsh-client-ui-settings-unarchive-sessions`；该页面在个人分组中注册独立导航条目，无需配置。设置搜索索引本地化的页面与恢复标签；会话标题仅参与页面内搜索。
+打开设置并选择**已归档会话**，即可看到当前从所有分组视图中隐藏的会话。在已提供设置外壳、Workspace 服务与 Session Remote 的 Web 组合中挂载 `@deepseek-ai/dsh-client-ui-settings-unarchive-sessions`；该页面注册独立导航条目，无需配置。设置搜索索引本地化的页面与操作标签；会话标题仅参与页面内搜索。
 
 ### 阅读一行
 
-每行显示会话的显示标题、为其记账的 Workspace 标题或未分组标签，以及以紧凑相对时间表示的最近活动。页面把最近归档的会话排在前面，与持久归档顺序相反。页面会先等待 Session 列表与 Workspace 归档基线再渲染行；任一列表加载期间显示读取状态，而不是空归档。空归档、归档条目均无已加载 Session 可恢复、以及查询无匹配分别给出三种提示，因此搜索和不可寻址的条目都不会被误认为归档为空。
+每行显示会话的显示标题、所属 Workspace 标题或未分组标签，以及以紧凑相对时间表示的最近活动。页面把最近归档的会话排在前面，与持久归档顺序相反。它独立读取归档会话摘要，并等待 Workspace 归档基线后渲染行。日志缺失时以 Session ID 与缺失日志标签回退，但仍可删除或取消归档以清理记录。空归档与查询无匹配分别提示。
 
 ### 恢复会话
 
-取消归档会把会话恢复到其 Workspace 下记录的位置；会话不属于任何 Workspace 时则恢复到未分组会话中，该行随即从页面消失。该操作调用 `ctx.uiWorkspace.unarchiveSession`，其回传的完整归档集合会更新所有依据它过滤的界面，因此会话也会重新出现在侧边栏与搜索中。恢复会保留当前选择，不打开该 Session。调用被拒绝时会记录一条 console 诊断，并保留该行以便再次尝试。
+取消归档会把会话恢复到其 Workspace 下记录的位置；会话不属于任何 Workspace 时则恢复到未分组会话中，该行随即从页面消失。操作调用 `ctx.uiWorkspace.unarchiveSession`，并刷新活动 Session 列表。删除会打开共享确认浮层；确认后永久删除 Session 日志及其归档和 Workspace 引用。取消归档调用失败时会记录 console 诊断，并保留该行以便重试。
 
 -----
 
@@ -47,11 +47,11 @@ kind: "package-reference"
 
 ### 注册与数据来源
 
-`apply()` 注册并绑定 locale namespace，再用 `ctx.slots.inject()` 贡献该分区，因此延迟声明或恢复声明的 slot 依然能触达它。页面从 `useWorkspaces` 读取 `state.archivedSessionIds` 与 `state.items`，从 `useSessions` 读取 Session 摘要；它不持有 store 也不持有 transport，唯一的写入是注册处以 `ctx.uiWorkspace.unarchiveSession` 闭包注入的 `unarchive` 回调。
+`apply()` 注册并绑定 locale namespace，再用 `ctx.slots.inject()` 贡献该分区，因此延迟声明或恢复声明的 slot 依然能触达它。页面从 `useWorkspaces` 读取归档成员与 Workspace 摘要，并通过 `session.archived` 获取可用 Session 摘要；它不持有 store 或 transport。注册处注入归档读取、`ctx.uiWorkspace.unarchiveSession` 和共享删除确认请求。
 
 ### 行的派生
 
-行由归档集合与已加载摘要合并派生：没有摘要的成员不产生行，因此在 Workspace 注册表之外被删除的会话不会留下取消归档操作。Workspace 归属从各 Workspace 的 `sessionIds` 读取；不属于任何 Workspace 的成员以未分组标签渲染。搜索只规范化一次查询，并与行标题和 Workspace 标签匹配。
+行由归档集合和可用摘要派生。无摘要成员仍产生回退行，因为归档集合是权威来源，过期 ID 需要清理操作。Workspace 归属从各 Workspace 的 `sessionIds` 读取；不属于任何 Workspace 的成员以未分组标签渲染。搜索只规范化一次查询，并与行标题和 Workspace 标签匹配。
 
 ### 源码地图
 
@@ -104,8 +104,7 @@ kind: "package-reference"
 
 这些限制界定本页面能够恢复哪些已归档会话；它们是当前包约束。
 
-- **已加载摘要缺失的已归档会话无法寻址**：页面通过与 Session 列表合并来派生行，因此列表未携带的成员没有行也没有取消归档操作，尽管归档集合仍持有它；当集合中的成员全部处于该状态时，页面报告无法恢复，而不是报告归档为空。
-- **页面仅提供列表、搜索与恢复**：归档可通过本页面恢复，而删除会话记录仍是彼此独立的能力。
+- **Session 日志缺失时无法恢复对话**：回退行可清除归档成员关系或请求永久删除，但不能恢复缺失的会话内容。
 
 <a id="dev-note"></a>
 ### 开发备注

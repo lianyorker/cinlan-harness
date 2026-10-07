@@ -3,6 +3,7 @@
 /** Simplified Chinese dictionary and key source of truth. */
 export const zh = {
   nav: '已归档会话',
+  description: '搜索并恢复此前归档的会话。',
   search: '搜索已归档会话',
   loading: '正在读取会话…',
   empty: '暂无已归档会话。',
@@ -11,6 +12,9 @@ export const zh = {
   unarchive: '取消归档',
   restoreKeyword: '恢复会话',
   unarchiveNamed: '取消归档 {title}',
+  deleteNamed: '删除 {title}',
+  retry: '重试',
+  missingLog: '会话日志不存在',
   ungrouped: '未分组',
   'time.now': '刚刚',
   'time.minutes': '{n}分钟',
@@ -26,6 +30,7 @@ export type ArchivedSessionsLocaleKey = keyof typeof zh
 /** English dictionary checked against the Chinese key set. */
 export const en = {
   nav: 'Archived sessions',
+  description: 'Search and restore sessions you archived earlier.',
   search: 'Search archived sessions',
   loading: 'Reading sessions…',
   empty: 'No archived sessions.',
@@ -34,6 +39,9 @@ export const en = {
   unarchive: 'Unarchive',
   restoreKeyword: 'Restore sessions',
   unarchiveNamed: 'Unarchive {title}',
+  deleteNamed: 'Delete {title}',
+  retry: 'Retry',
+  missingLog: 'Session log missing',
   ungrouped: 'Ungrouped',
   'time.now': 'now',
   'time.minutes': '{n}min',

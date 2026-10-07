@@ -8,7 +8,7 @@
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { reconcileManualOrder, type ArchivedFilter, type SessionRowState } from './tree.ts'
+import { reconcileManualOrder, type SessionRowState } from './tree.ts'
 
 /** Browser-local order account for the hierarchy-free flat Session list. */
 export const FLAT_SESSION_ORDER_KEY = '__flat_session_order__'
@@ -26,8 +26,6 @@ type WorkspaceViewState = {
   groupExpansion: Record<string, boolean>
   /** Saved manual order per Workspace group plus the browser-local flat-list account. */
   sessionOrderByAccount: Record<string, string[]>
-  /** Archived-row visibility; omitted in pre-filter v5 snapshots and read as 'default'. */
-  archivedFilter?: ArchivedFilter
 }
 
 type SessionOrderSource = {
@@ -65,7 +63,6 @@ type WorkspaceViewActions = {
     accountKeys: readonly string[],
     source: SessionOrderSource,
   ) => void
-  setArchivedFilter: (draft: WorkspaceViewState, filter: ArchivedFilter) => void
 }
 
 /** Copy read-only projections into the persisted mutable store representation. */
@@ -86,7 +83,6 @@ export function createWorkspaceViewStore(): EngineStoreHandle<WorkspaceViewState
       orderBy: 'updated',
       groupExpansion: {},
       sessionOrderByAccount: {},
-      archivedFilter: 'default',
     }),
     persist: 'dsh.workspace.view.v5',
     actions: {
@@ -124,7 +120,6 @@ export function createWorkspaceViewStore(): EngineStoreHandle<WorkspaceViewState
           return [key, selected.has(key) ? [sessionId, ...order.filter(id => id !== sessionId)] : order]
         }))
       },
-      setArchivedFilter: (d, filter: ArchivedFilter) => { d.archivedFilter = filter },
     },
   })
 }

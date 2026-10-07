@@ -10,7 +10,7 @@ import type {
   SessionTarget,
   SessionListState,
 } from '@deepseek-ai/dsh-api-session-controller/client'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SubagentAddress } from '@deepseek-ai/dsh-subagent/client'
 import type {
   IWorkspaces, WorkspaceId, WorkspaceSnapshot, WorkspaceView,
@@ -18,7 +18,7 @@ import type {
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { DraftInitializationOptions } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { RowToast } from './contract/slots.ts'
+import type { RowToast, SessionDeleteTarget } from './contract/slots.ts'
 import { pinOrderAccounts, pinOrderSource } from './pin-order.ts'
 import type { WorkspaceViewStoreActions } from './stores.ts'
 
@@ -92,6 +92,21 @@ export interface UiWorkspace {
    */
   unpinSession(sessionId: SessionId): Promise<void>
   /**
+   * Delete an archived Session for good: the Host removes its durable log and
+   * the id leaves the archive set and its Workspace accounting slot. The
+   * browser offers no way back.
+   * @param sessionId - the archived Session whose records disappear.
+   */
+  deleteSession(sessionId: SessionId): Promise<void>
+  /**
+   * Ask for the Session delete confirmation dialog (the frame-wide overlay
+   * entry), seeded with the row's current title. The Settings archived-
+   * sessions page raises this; the dialog owns the Host call.
+   * @param sessionId - archived Session to delete.
+   * @param currentTitle - title the dialog names.
+   */
+  requestSessionDelete(sessionId: SessionId, currentTitle: string): void
+  /**
    * Open the Host-native directory picker.
    * @returns the selected directory, or null when cancelled.
    */
@@ -145,6 +160,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
    * @param sessions - pure Session Controller.
    * @param view - the browser's viewing-store write set (one instance shared with its registration).
    * @param notify - show one notice through the Workspace notice channel.
+   * @param deleteRequests - the pending Session delete request the overlay dialog answers.
    */
   constructor(
     ctx: Context,
@@ -153,6 +169,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     private readonly sessions: ISessions,
     private readonly view: Pick<WorkspaceViewStoreActions, 'pinSessionOrder'>,
     private readonly notify: (toast: RowToast) => void,
+    private readonly deleteRequests: SnapshotStore<SessionDeleteTarget | null>,
   ) {
     super(ctx, 'uiWorkspace')
     ctx.effect(() => {
@@ -276,6 +293,16 @@ class UiWorkspaceService extends Service implements UiWorkspace {
 
   async unarchiveSession(sessionId: SessionId): Promise<void> {
     await this.workspaces.unarchiveSession(sessionId)
+    await this.sessions.refresh()
+  }
+
+  async deleteSession(sessionId: SessionId): Promise<void> {
+    await this.workspaces.deleteSession(sessionId)
+    if (this.mainReference?.sessionId === sessionId) this.clearMain()
+  }
+
+  requestSessionDelete(sessionId: SessionId, currentTitle: string): void {
+    this.deleteRequests.set({ sessionId, displayTitle: currentTitle })
   }
 
   async pinSession(sessionId: SessionId): Promise<void> {

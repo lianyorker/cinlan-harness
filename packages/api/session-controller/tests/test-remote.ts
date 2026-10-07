@@ -72,6 +72,7 @@ export interface TestSessionRemote {
   ): Promise<RemoteResult<readonly SessionWorkspacePathApplication[]>>
   canOpenWorkspacePath(): Promise<RemoteResult<boolean>>
   list(request: SessionListRequest, signal?: AbortSignal): Promise<RemoteResult<SessionListValue>>
+  archived(signal?: AbortSignal): Promise<RemoteResult<SessionListValue>>
   search(request: SessionSearchRequest, signal?: AbortSignal): Promise<RemoteResult<SessionSearchValue>>
   create(request: SessionCreateRequest): Promise<RemoteResult<SessionCreateValue>>
   selectModel(request: SessionSelectModelRequest): Promise<RemoteResult<SessionSelectModelValue>>
@@ -353,6 +354,10 @@ export function createSessionTestRemote(
     canOpenWorkspacePath: () => remoteResult(() => direct.canOpenWorkspacePath()),
     list: (request, signal = new AbortController().signal) => remoteResult(
       () => direct.list(request, signal),
+      signal,
+    ),
+    archived: (signal = new AbortController().signal) => remoteResult(
+      () => direct.archived(signal),
       signal,
     ),
     search: (request, signal = new AbortController().signal) => remoteResult(

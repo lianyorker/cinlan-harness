@@ -339,6 +339,7 @@ describe('WorkspaceController', () => {
     })
     await expect(controller.archiveSession(sid('session'))).resolves.toBeUndefined()
     await expect(controller.unarchiveSession(sid('session'))).resolves.toBeUndefined()
+    await expect(controller.deleteSession(sid('session'))).resolves.toBeUndefined()
     await expect(controller.pinSession(sid('session'))).resolves.toBeUndefined()
     await expect(controller.unpinSession(sid('session'))).resolves.toBeUndefined()
     await expect(controller.delete(wid('one'))).resolves.toBeUndefined()
@@ -392,6 +393,11 @@ describe('WorkspaceController', () => {
     mock.remote.workspace.unarchiveSession.mockResolvedValueOnce(err(missingSession))
     await expect(controller.unarchiveSession(sid('session')))
       .rejects.toThrow('workspace session unarchive failed: session/not-found: missing session')
+    mock.remote.workspace.deleteSession.mockResolvedValueOnce(err(new RemoteError(
+      'workspace/session-not-archived', 'not archived', { sessionId: sid('session') },
+    )))
+    await expect(controller.deleteSession(sid('session')))
+      .rejects.toThrow('workspace session delete failed: workspace/session-not-archived: not archived')
     mock.remote.workspace.pinSession.mockResolvedValueOnce(err(missingSession))
     await expect(controller.pinSession(sid('session')))
       .rejects.toThrow('workspace session pin failed: session/not-found: missing session')
