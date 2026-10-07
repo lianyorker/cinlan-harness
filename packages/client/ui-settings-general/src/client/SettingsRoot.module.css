@@ -36,6 +36,14 @@
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
+:global(html[data-windows-titlebar]) .page,
+:global(html[data-platform='darwin']) .page {
+  top: var(--dsh-frame-top-clearance, 0px);
+}
+:global(html[data-windows-titlebar][data-fullscreen]) .page,
+:global(html[data-platform='darwin'][data-fullscreen]) .page {
+  top: 0;
+}
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .nav { display: flex; min-width: 0; min-height: 0; flex-direction: column; background: var(--dsw-specific-sidebar-fill); }
 .navHeader { display: flex; min-height: 64px; flex: none; align-items: center; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }

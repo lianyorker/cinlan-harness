@@ -146,6 +146,11 @@ describe('SettingsRoot trigger', () => {
 })
 
 describe('SettingsPage chrome seats', () => {
+  it('keeps the portalled page below native desktop caption controls', () => {
+    expect(settingsCss).toMatch(/html\[data-windows-titlebar\][^}]*\.page|\.page[^}]*top:\s*var\(--dsh-frame-top-clearance/su)
+    expect(settingsCss).toMatch(/html\[data-windows-titlebar\]\[data-fullscreen\][^}]*\.page|\.page[^}]*top:\s*0/su)
+  })
+
   it('aligns the back command with the content header and paints only interaction feedback', () => {
     expect(settingsCss).toMatch(/\.navHeader\s*\{[^}]*min-height:\s*64px;[^}]*align-items:\s*center;[^}]*border-bottom:/su)
     const backRule = new RegExp(
