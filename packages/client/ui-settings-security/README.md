@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Settings provides two separate pages: Mobile and Mobile Emulator. Mobile contains the Orca Mobile Desktop/Web pairing entry point, Relay/LAN selection, and paired-device status. Mobile Emulator edits device preferences, reports the provider probe, lists model-facing mobile tools, and manages Android runtime resources. When the current profile does not mount the Orca Relay/Host pairing service, Mobile reports that it is unavailable and does not fabricate a QR code or device state.
+Mobile is a shared Desktop/Web workbench panel with a left-sidebar entry after Automation Tasks and before Workspaces. Its landing opens pairing inside the application, not the standalone phone client. Settings retains a separate Mobile page. Both pairing views report the missing Host pairing API and disable setup controls; they do not invent a machine name, QR code, or device list. Mobile Emulator remains a separate settings page for device preferences, probes, tools, and Android runtime resources.
 
 ## Table of Contents
 

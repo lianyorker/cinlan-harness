@@ -8,6 +8,8 @@
     "src"
   ],
   "references": [
+    { "path": "../ui-layout" },
+    { "path": "../ui-sidebar" },
     {
       "path": "../../mobile-device/mobile-device-runtime"
     },

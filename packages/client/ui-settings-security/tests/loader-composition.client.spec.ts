@@ -45,6 +45,8 @@ function createFixture() {
         children: {
           'settings.section': { kind: 'list', scope: 'root' },
           'settings.section.icon': { kind: 'keyed', scope: 'root' },
+          main: { kind: 'keyed', scope: 'root' },
+          'sidebar.panellist': { kind: 'list', scope: 'root' },
         },
       } as never, () => null))
     },
@@ -118,6 +120,8 @@ describe('capability settings through real Client Loader composition', () => {
   it('activates the Mobile Emulator section through the Loader', async () => {
     const ctx = await load()
     await expectSections(ctx, ['cinlan-mobile', 'cinlan-companion'])
+    expect(ctx.slots.entries('main').map(entry => entry.options.key)).toEqual(['cinlan-companion'])
+    expect(ctx.slots.entries('sidebar.panellist')[0]!.options).toMatchObject({ id: 'cinlan-companion', order: 20 })
   })
 
   it('registers the Mobile Emulator metadata and icon with the section', async () => {

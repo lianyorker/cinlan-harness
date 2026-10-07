@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`does not invent a machine name, a selected transport, or an empty device list without Host data 1`] = `"安装 Orca Mobile 后，在此将手机与当前 Desktop 或 Web 工作台配对。Orca Relay 当前未接入此配置，配对状态会在 Relay 可用后显示。机器名称手机和主机会看到这个名称。连接方式Orca Relay手机可通过蜂窝网络或任意 Wi-Fi 连接。局域网手机必须连接此电脑所在的 Wi-Fi 或 Tailscale。配对服务尚未连接配对手机生成二维码，然后在 Orca Mobile 中扫描 Pair Desktop。当前 Host 尚未接入手机配对 API，暂时无法生成二维码生成二维码配对设备配对设备列表不可用"`;

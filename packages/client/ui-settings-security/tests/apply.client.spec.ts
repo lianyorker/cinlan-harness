@@ -58,6 +58,8 @@ function declare(slots: SlotRegistry): () => void {
     children: {
       'settings.section': { kind: 'list', scope: 'root' },
       'settings.section.icon': { kind: 'keyed', scope: 'root' },
+      main: { kind: 'keyed', scope: 'root' },
+      'sidebar.panellist': { kind: 'list', scope: 'root' },
     },
   } as never, () => null)
 }
@@ -82,6 +84,10 @@ describe('ui-settings-security registration', () => {
     expect(sections[0]!.options.id).toBe('cinlan-mobile')
     expect(resolveSlotLabel(sections[0]!.options.label)).toBe(zh.mobileNav)
     expect(b.slots.entries('settings.section.icon')).toHaveLength(2)
+    expect(b.slots.entries('main').map(entry => entry.options.key)).toEqual(['cinlan-companion'])
+    const companion = b.slots.entries('sidebar.panellist')[0]!
+    expect(companion.options).toMatchObject({ id: 'cinlan-companion', order: 20 })
+    expect(resolveSlotLabel(companion.options.label)).toBe(zh.companionNav)
     const metadata = b.ctx.settingsMetadata.getSnapshot().items
     expect(metadata.find(item => item.anchorId === 'mobile-sdk-path')).toMatchObject({ title: zh.mobileSdkCustomPath })
     expect(metadata.find(item => item.anchorId === 'mobile-commands')).toMatchObject({ title: zh.mobileCommandsTitle })
@@ -91,6 +97,8 @@ describe('ui-settings-security registration', () => {
     release()
     await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toEqual([]) })
     await fiber.dispose()
+    expect(b.slots.entries('main')).toEqual([])
+    expect(b.slots.entries('sidebar.panellist')).toEqual([])
     await b.ctx.fiber.dispose()
   })
 

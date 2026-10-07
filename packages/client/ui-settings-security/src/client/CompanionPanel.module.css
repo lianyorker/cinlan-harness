@@ -1,0 +1,12 @@
+.page { width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: auto; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-base); }
+.content { box-sizing: border-box; width: 100%; max-width: 960px; margin: 0 auto; padding: 48px 32px; }
+.eyebrow { margin: 0 0 20px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
+.content h1 { margin: 0 0 24px; font-size: 28px; line-height: 38px; font-weight: 500; overflow-wrap: anywhere; }
+.copy { max-width: 600px; font-size: 15px; line-height: 26px; }
+.platforms, .status { margin: 24px 0; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
+.primary, .back { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 36px; padding: 8px 16px; max-width: 100%; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font: inherit; font-size: 14px; line-height: 20px; cursor: pointer; }
+.primary:hover, .back:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.primary:focus-visible, .back:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+.back { margin-bottom: 24px; }
+@media (max-width: 600px) { .content { padding: 28px 20px; } }
+:global([data-platform='darwin']) .content { padding-top: calc(var(--dsh-frame-top-clearance, 0px) + 28px); }
