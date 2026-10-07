@@ -17,9 +17,9 @@
 .setupCard, .mobilePreferences { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 /* Browser page: one rounded card per block, so the page reads as a few things to do
    instead of a column of hairline-separated paragraphs. */
-.section:is([data-capability='browser'], [data-capability='mobile']) .setupCard { gap: 16px; }
-.section:is([data-capability='browser'], [data-capability='mobile']) .setupCard > section,
-.section:is([data-capability='browser'], [data-capability='mobile']) .setupCard > form {
+.section:is([data-capability='browser'], [data-capability='mobile'], [data-capability='companion']) .setupCard { gap: 16px; }
+.section:is([data-capability='browser'], [data-capability='mobile'], [data-capability='companion']) .setupCard > section,
+.section:is([data-capability='browser'], [data-capability='mobile'], [data-capability='companion']) .setupCard > form {
   display: flex; flex-direction: column; min-width: 0;
   gap: 10px; padding: 18px 20px; border: 0.5px solid var(--dsw-alias-border-l2);
   border-radius: 14px; corner-shape: round; background: var(--dsw-alias-bg-layer-1);

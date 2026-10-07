@@ -7,6 +7,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { en, zh, type CapabilitySettingsKey } from './locales.ts'
 import { apply as applyMobile, inject as mobileInject } from './mobile-registration.ts'
 import type { Config } from '../config.ts'
+import { applyCompanion, companionInject } from './companion-registration.ts'
 
 export { Config } from '../config.ts'
 export type { CapabilityDefinition, CapabilitySectionInjected } from './CapabilitySection.tsx'
@@ -27,5 +28,6 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** Register the shared dictionary and mount the Mobile Emulator feature. */
 export function apply(ctx: ClientContext, config: Config): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-security: dictionaries')
+  ctx.plugin({ inject: companionInject, apply: applyCompanion })
   ctx.plugin({ inject: [...mobileInject], apply: applyMobile }, config)
 }

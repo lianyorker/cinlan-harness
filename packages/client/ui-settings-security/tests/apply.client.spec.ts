@@ -78,10 +78,10 @@ describe('ui-settings-security registration', () => {
     const fiber = b.ctx.plugin({ inject: [...inject], apply, Config })
     await fiber.await()
     const sections = b.slots.entries('settings.section')
-    expect(sections).toHaveLength(1)
+    expect(sections).toHaveLength(2)
     expect(sections[0]!.options.id).toBe('cinlan-mobile')
     expect(resolveSlotLabel(sections[0]!.options.label)).toBe(zh.mobileNav)
-    expect(b.slots.entries('settings.section.icon')).toHaveLength(1)
+    expect(b.slots.entries('settings.section.icon')).toHaveLength(2)
     const metadata = b.ctx.settingsMetadata.getSnapshot().items
     expect(metadata.find(item => item.anchorId === 'mobile-sdk-path')).toMatchObject({ title: zh.mobileSdkCustomPath })
     expect(metadata.find(item => item.anchorId === 'mobile-commands')).toMatchObject({ title: zh.mobileCommandsTitle })

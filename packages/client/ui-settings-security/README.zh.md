@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 摘要
 
-设置里只保留一个能力页面：手机模拟器。它编辑已保存的设备偏好、报告服务提供者的探测结果、列出面向模型的移动工具，并以显式动作管理 Android 运行资源。页面不安装任何软件，也不执行设备输入；每次安装、许可证接受与镜像启动都是人的显式动作，并保留 Host 的权限检查。
+设置里提供两个独立页面：移动端和手机模拟器。移动端页面承载 Orca Mobile 的 Desktop/Web 配对入口、Relay/LAN 选择和已配对设备状态；手机模拟器页面编辑设备偏好、报告服务提供者探测、列出移动工具并管理 Android 运行资源。当前 profile 未挂载 Orca Relay/Host 配对服务时，移动端页面会明确显示不可用，不生成虚假的二维码或设备状态。
 
 ## 目录
 
@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 Settings、Locale 以及 deviceCapabilities、settings Remote 一起挂载。可选的 pluginManager Remote 提供智能体卡片渲染的条目启停控件；缺失时卡片报告管理不可用，同时仍然显示探测与资源状态。能力缺失时导航条目保留。`mobile-registration.ts` 拥有作用域绑定、资源观察器、探测与销毁；`capability-registration.ts` 与 `capability-shared.ts` 承载分区注册与提供者启停回调；`CapabilitySection.tsx` 渲染页面。装配只贡献共享语言词典并挂载这一个功能 fiber。
+与 Settings、Locale 以及 deviceCapabilities、settings Remote 一起挂载。可选的 pluginManager Remote 提供智能体卡片渲染的条目启停控件；缺失时卡片报告管理不可用，同时仍然显示探测与资源状态。`companion-registration.ts` 注册移动端配对页面；`mobile-registration.ts` 拥有模拟器页面的作用域绑定、资源观察器、探测与销毁。
 
 <a id="settings-and-action-ownership"></a>
 ## 设置与动作归属

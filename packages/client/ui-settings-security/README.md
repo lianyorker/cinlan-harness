@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-One Settings page: the Mobile Emulator. It edits the stored device preferences, reports the provider probe, lists the model-facing mobile tools, and manages Android runtime resources with explicit actions. It installs no software and performs no device input; every install, license acceptance, and mirror start stays an explicit person action with its Host permission checks.
+Settings provides two separate pages: Mobile and Mobile Emulator. Mobile contains the Orca Mobile Desktop/Web pairing entry point, Relay/LAN selection, and paired-device status. Mobile Emulator edits device preferences, reports the provider probe, lists model-facing mobile tools, and manages Android runtime resources. When the current profile does not mount the Orca Relay/Host pairing service, Mobile reports that it is unavailable and does not fabricate a QR code or device state.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ One Settings page: the Mobile Emulator. It edits the stored device preferences, 
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount with Settings, Locale, and the deviceCapabilities and settings Remotes. The optional pluginManager Remote supplies the entry activation controls the Agent card renders; without it the card reports that management is unavailable and still shows the probe and resource state. The section keeps its navigation entry while the capability is missing. `mobile-registration.ts` owns the scope binding, resource observer, probes, and disposal; `capability-registration.ts` and `capability-shared.ts` hold the section registration and provider-activation callbacks; `CapabilitySection.tsx` renders the page. The assembly contributes the shared locale dictionary and mounts that one feature fiber.
+Mount with Settings, Locale, and the deviceCapabilities and settings Remotes. The optional pluginManager Remote supplies the entry activation controls the Agent card renders; without it the card reports that management is unavailable and still shows the probe and resource state. `companion-registration.ts` registers the Mobile pairing page; `mobile-registration.ts` owns the Mobile Emulator scope binding, resource observer, probes, and disposal.
 
 <a id="settings-and-action-ownership"></a>
 ## Settings and action ownership

@@ -117,13 +117,13 @@ async function expectSections(ctx: Context, expected: string[]): Promise<void> {
 describe('capability settings through real Client Loader composition', () => {
   it('activates the Mobile Emulator section through the Loader', async () => {
     const ctx = await load()
-    await expectSections(ctx, ['cinlan-mobile'])
+    await expectSections(ctx, ['cinlan-mobile', 'cinlan-companion'])
   })
 
   it('registers the Mobile Emulator metadata and icon with the section', async () => {
     const ctx = await load()
-    await vi.waitFor(() => { expect(ctx.slots.entries('settings.section.icon')).toHaveLength(1) })
-    expect(ctx.slots.entries('settings.section.icon')[0]!.options.key).toBe('cinlan-mobile')
+    await vi.waitFor(() => { expect(ctx.slots.entries('settings.section.icon')).toHaveLength(2) })
+    expect(ctx.slots.entries('settings.section.icon').map(entry => entry.options.key)).toEqual(expect.arrayContaining(['cinlan-mobile', 'cinlan-companion']))
     expect(ctx.settingsMetadata.getSnapshot().items.some(item => item.anchorId === 'mobile-agent')).toBe(true)
   })
 })
