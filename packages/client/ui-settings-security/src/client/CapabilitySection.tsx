@@ -143,7 +143,6 @@ export function CapabilitySection(props: CapabilitySectionProps): ReactNode {
   }, [definition, checkDevice, request])
   const body = { state, t, revision: request, onRefresh: () => { setRequest(value => value + 1) } }
   return <section className={css.section} data-capability={definition.id} aria-busy={state.phase === 'loading'}>
-    <header className={css.heading}><h1>{t(definition.titleKey)}</h1><p>{t(definition.descriptionKey)}</p></header>
     {state.phase === 'error' && <p className={css.failure} role="alert">{t('loadFailed')}</p>}
     <MobileCapabilityBody {...props} {...body} />
   </section>

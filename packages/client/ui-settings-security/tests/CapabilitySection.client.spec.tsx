@@ -50,8 +50,6 @@ function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', la
 describe('mobile emulator settings page', () => {
   it('renders the page heading, the setup card, and the agent card', async () => {
     mount()
-    expect(screen.getByRole('heading', { level: 1, name: en.mobileTitle })).toBeTruthy()
-    expect(screen.getByText(en.mobileDescription)).toBeTruthy()
     expect(await screen.findByRole('heading', { level: 2, name: en.mobileAgentControl })).toBeTruthy()
     expect(screen.getByRole('switch', { name: en.mobileEnable })).toBeTruthy()
     expect(screen.getByText(en.mobileSdkStatusTitle)).toBeTruthy()
@@ -105,7 +103,6 @@ describe('mobile emulator settings page', () => {
 
   it('renders the page in Chinese copy', async () => {
     mount('available', 'zh')
-    expect(screen.getByRole('heading', { level: 1, name: zh.mobileTitle })).toBeTruthy()
     expect(await screen.findByText(zh.deviceAvailable)).toBeTruthy()
   })
 
