@@ -26,11 +26,16 @@
       "types": "./lib/types/settings-schema.d.ts",
       "default": "./lib/settings-schema.js"
     },
+    "./ai-author": {
+      "types": "./lib/types/ai-author.d.ts",
+      "default": "./lib/ai-author.js"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
   "files": [
     "lib/index.js",
+    "lib/ai-author.js",
     "lib/settings-schema.js",
     "lib/types.js",
     "lib/types/**/*.d.ts"

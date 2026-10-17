@@ -80,7 +80,7 @@ describe('SideCardSection feature pages', () => {
   it('keeps only layout defaults and compatibility on the workspace layout page', () => {
     const { store, service } = mount()
     const html = renderSection(store, service)
-    expect(html).toContain('>Workspace layout</h1>')
+    expect(html).not.toContain('<h1')
     expect(html).toContain('Default width share')
     expect(html).toContain('better-sidebar-open-by-default')
     expect(html).not.toContain('>Explorer<')
@@ -94,7 +94,7 @@ describe('SideCardSection feature pages', () => {
   it('renders a selected feature inline without catalog or settings modal', () => {
     const { store, service } = mount()
     const html = renderSection(store, service, 'subagent')
-    expect(html).toContain('>Subagents</h1>')
+    expect(html).not.toContain('<h1')
     expect(html).toContain('Auto-open Subagents')
     expect(html).toContain('better-sidebar-subagent-enabled')
     expect(html).toContain('better-sidebar-subagent-autoOpenSubagent')
@@ -120,7 +120,7 @@ describe('SideCardSection feature pages', () => {
     expect(screen.getByRole('status').textContent).toContain('This feature is unavailable')
     let dispose: (() => void) | undefined
     act(() => { dispose = service.registerTab({ id: 'plugin:reports', title: 'Reports', component: () => null }) })
-    expect(screen.getByRole('heading', { name: 'Reports', level: 1 })).not.toBeNull()
+    expect(screen.getByRole('checkbox', { name: 'Enable feature' })).not.toBeNull()
     act(() => { dispose?.() })
     expect(screen.getByRole('status').textContent).toContain('This feature is unavailable')
   })

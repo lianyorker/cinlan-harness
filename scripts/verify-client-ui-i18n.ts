@@ -36,8 +36,10 @@ const COPY_NAME = /(?:^|_)(?:aria|copy|description|empty|heading|label|message|p
 const COPY_SUFFIX = /(?:aria|copy|description|empty|heading|label|labels|message|placeholder|summary|text|title|tooltip|tabs)$/i
 const IMMUTABLE_LANGUAGE_TOKENS = new Set([
   'B',
+  'Cinlan',
   'Function',
   'GB',
+  'HARNESS',
   'K',
   'KB',
   'M',

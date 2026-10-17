@@ -1,6 +1,37 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/voice/voice-sherpa-onnx/README.md
-README.md: b47ce096bcea5ad2e6b98080c64ba52a914c35cf
-README.zh.md: a712db3a41efe89937ef4391906b7ce8b74a1b3b
+/:
+  en: 785ce5ca656ef38f
+  zh: 85ca8a99c70ba4d3
+/sherpa-voice-provider:
+  en: 8da12fe3b7508eb3
+  zh: 73d37c2da0eee8d6
+/sherpa-voice-provider/summary:
+  en: 12abe8e751da5ef9
+  zh: ef18d1f727d0a3e3
+/sherpa-voice-provider/table-of-contents:
+  en: 3eeb32a0d8a9a66f
+  zh: 0e3b802c9ef34fcf
+/sherpa-voice-provider/configuration:
+  en: 96c26dbc37d2be6c
+  zh: effc16997e11b330
+/sherpa-voice-provider/resource-lifecycle:
+  en: 8b29c49a692382a8
+  zh: 58f0297336af0eec
+/sherpa-voice-provider/transports-and-native-recognition:
+  en: c2930001e3998b10
+  zh: c902bf47dcd41592
+/sherpa-voice-provider/model-experience:
+  en: f3100f6a2b6e95b3
+  zh: a7565b5b0f6187fd
+/sherpa-voice-provider/model-experience/kv-cache-effect:
+  en: 5c1ef15c919608ad
+  zh: 22bf67387ab5e650
+/sherpa-voice-provider/known-limitations-and-deferred-work:
+  en: b92104073f0bf4d1
+  zh: 113e3788bc48fff8
+/sherpa-voice-provider/known-limitations-and-deferred-work/dev-note:
+  en: db8b703b640969e1
+  zh: bbf3d228c2740e95

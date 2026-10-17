@@ -1,0 +1,46 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-cinlan-design/README.md
+/:
+  en: f706d113546431bd
+  zh: c0f507c4f66e93e1
+/deepseek-ai-dsh-client-ui-cinlan-design:
+  en: d188829a617e6bdc
+  zh: da0e7f4635e03d8f
+/deepseek-ai-dsh-client-ui-cinlan-design/summary:
+  en: 15c3406920cb4be1
+  zh: 35b579f41d95dd49
+/deepseek-ai-dsh-client-ui-cinlan-design/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 0fd99a0436d4de46
+/deepseek-ai-dsh-client-ui-cinlan-design/use-this-package:
+  en: cc865360a21dea73
+  zh: e6da5815aa38d747
+/deepseek-ai-dsh-client-ui-cinlan-design/use-this-package/when-to-choose-it:
+  en: 7f45a1d749fa6428
+  zh: c90e4737a3fda0df
+/deepseek-ai-dsh-client-ui-cinlan-design/use-this-package/minimal-configuration:
+  en: 2ae7e5903c5c4c1f
+  zh: 170b83de7d160ebe
+/deepseek-ai-dsh-client-ui-cinlan-design/understand-the-implementation:
+  en: 42b15ac6321706aa
+  zh: c8011788e17a2cd6
+/deepseek-ai-dsh-client-ui-cinlan-design/understand-the-implementation/anti-slop-linter:
+  en: 91c242506d5186a3
+  zh: 86ebe9155e01c3bb
+/deepseek-ai-dsh-client-ui-cinlan-design/understand-the-implementation/visual-pin-annotations:
+  en: d3794d5fda7063a1
+  zh: f84f9b95487fbadd
+/deepseek-ai-dsh-client-ui-cinlan-design/further-exploration:
+  en: a6d8c71d4107b3dd
+  zh: 9c2b37c5953be476
+/deepseek-ai-dsh-client-ui-cinlan-design/model-experience:
+  en: 65cd1c214c657bb4
+  zh: 10aca8e1b7f2b7ba
+/deepseek-ai-dsh-client-ui-cinlan-design/known-limitations-and-deferred-work:
+  en: f071e3d998979f3d
+  zh: e312b3ffed4e4412
+/deepseek-ai-dsh-client-ui-cinlan-design/dev-note:
+  en: f3eb3f30a0a788a4
+  zh: 5fae534a3b98c9f1

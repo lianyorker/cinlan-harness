@@ -1,6 +1,10 @@
 /** Native voice settings for browser preferences, microphone access, and host model resources. */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { IconCopyOutline16, Modal, Switch, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  IconCheckOutlineRegular, IconChevronDownOutlineRegular, IconCloseOutlineRegular,
+  IconCopyOutline16, IconDownloadOutlineRegular, IconRefreshOutlineRegular, IconTrashOutlineRegular,
+  Menu, Modal, Switch, Tooltip, writeClipboard,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { VoiceApi, VoiceEngineStatus, VoiceModelRow } from './api.ts'
@@ -8,6 +12,19 @@ import { readMicrophonePermission, requestMicrophonePermission, type MicrophoneP
 import type { DictationMode, VoiceSettings } from './voice-settings.ts'
 import css from './VoiceSettingsSection.module.css'
 import { VoiceTestSection } from './VoiceTestSection.tsx'
+import type { VoiceSettingsKey } from './locales.ts'
+
+const MODEL_DESCRIPTIONS = new Map<string, VoiceSettingsKey>([
+  ['parakeet-tdt-0.6b-v3-int8', 'modelParakeetV3'], ['parakeet-tdt-0.6b-v2-int8', 'modelParakeetV2'],
+  ['zipformer-bilingual-zh-en', 'modelZipformerBilingual'], ['paraformer-bilingual-zh-en', 'modelParaformer'],
+  ['zipformer-streaming-en-20m', 'modelZipformerEn'], ['zipformer-streaming-zh-14m', 'modelZipformerZh'],
+  ['zipformer-streaming-korean', 'modelZipformerKo'], ['parakeet-tdt-ctc-0.6b-ja-int8', 'modelParakeetJa'],
+  ['whisper-tiny', 'modelWhisper'], ['sense-voice-zh-en-ja-ko-yue', 'modelSenseVoice'],
+])
+const MODEL_LANGUAGES = new Map<string, VoiceSettingsKey>([
+  ['multilingual', 'languageMultilingual'], ['zh-en', 'languageZhEn'], ['zh', 'languageZh'],
+  ['en', 'languageEn'], ['ja', 'languageJa'], ['ko', 'languageKo'],
+])
 
 /** Browser preferences and plain host-operation callbacks provided by the plugin lifetime. */
 export interface VoiceSettingsInjected extends Pick<VoiceApi, 'engineStatus' | 'modelsList' | 'modelsDownload' | 'modelsRemove' | 'modelsReinstall' | 'modelsUpdate' | 'modelsCancel' | 'transcribe'> {
@@ -109,6 +126,7 @@ function SpeechModelSection({
   const [pending, setPending] = useState<string | null>(null)
   const [removeTarget, setRemoveTarget] = useState<VoiceModelRow | null>(null)
   const [failedModel, setFailedModel] = useState<string | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const mounted = useRef(true)
   const refreshGeneration = useRef(0)
 
@@ -162,23 +180,97 @@ function SpeechModelSection({
   const selectedMissing = settings.sttModel !== null && !models.some(model => model.definition.id === settings.sttModel)
   const readyModel = models.find(model => model.definition.id === settings.sttModel && model.status.state === 'ready')
     ?? models.find(model => model.status.state === 'ready')
+  const selectedModel = models.find(model => model.definition.id === settings.sttModel)
+  const choose = (modelId: string | null): void => {
+    updateSettings({ sttModel: modelId })
+    setPickerOpen(false)
+  }
 
   return (
     <section className={css.settingSection} data-voice-subsection="speech-model" data-settings-anchor="voice-model">
       <div className={css.settingRow}>
         <div className={css.settingCopy}>
-          <h2 className={css.settingTitle}><label htmlFor="voice-model">{t('selectModel')}</label></h2>
+          <h2 className={css.settingTitle} id="voice-model-label">{t('selectModel')}</h2>
           <p className={css.settingDescription} id="voice-model-description">{t('selectModelDescription')}</p>
         </div>
         <div className={css.settingControl}>
-          <select id="voice-model" className={css.modelSelect} value={settings.sttModel ?? ''}
-            disabled={!settings.enabled || state.phase !== 'ready'} aria-describedby="voice-model-description"
-            onChange={(event) => { updateSettings({ sttModel: event.target.value || null }) }}>
-            <option value="">{t('automaticModel')}</option>
-            {selectedMissing && <option value={settings.sttModel} disabled>{t('selectedModelUnavailable')}</option>}
-            {models.map(model => <option key={model.definition.id} value={model.definition.id} disabled={model.status.state !== 'ready'}>{model.definition.name}</option>)}
-          </select>
-          <button type="button" className={css.actionButton} onClick={() => { void refresh() }}>{t('checkVersions')}</button>
+          <Menu open={pickerOpen && settings.enabled} onClose={() => { setPickerOpen(false) }} portal align="end"
+            listClassName={css.modelMenu} anchor={<button id="voice-model" type="button" className={css.modelTrigger}
+              disabled={!settings.enabled || state.phase !== 'ready'} aria-label={t('selectModel')}
+              aria-haspopup="menu" aria-expanded={pickerOpen && settings.enabled} aria-describedby="voice-model-description"
+              onClick={() => { setPickerOpen(value => !value) }}>
+              <span>{selectedModel?.definition.label ?? selectedModel?.definition.name ?? t(selectedMissing ? 'selectedModelUnavailable' : 'noModelSelected')}</span>
+              <IconChevronDownOutlineRegular />
+            </button>}>
+            <button type="button" role="menuitem" className={css.modelOption} onClick={() => { choose(null) }}>
+              <span>{t('automaticModel')}</span>
+              {settings.sttModel === null && <IconCheckOutlineRegular />}
+            </button>
+            {models.length > 0 && <ul className={css.modelList} aria-label={t('modelsSectionTitle')}>
+              {models.map((model) => {
+                const task = model.task
+                const running = task?.state === 'running'
+                const ready = model.status.state === 'ready'
+                const hasInstallation = model.resource.installedVersion !== null || model.resource.integrity !== 'missing'
+                const blocked = pending !== null || running
+                const progress = running ? task.progress : undefined
+                const descriptionKey = MODEL_DESCRIPTIONS.get(model.definition.id)
+                const languageKey = MODEL_LANGUAGES.get(model.definition.language ?? '')
+                return <li key={model.definition.id} className={css.modelRow} data-voice-model={model.definition.id}>
+                  <button type="button" role="menuitem" className={css.modelOption} disabled={!ready}
+                    aria-label={model.definition.label ?? model.definition.name}
+                    onClick={() => { choose(model.definition.id) }}>
+                    <span className={css.modelInfo}>
+                      <span className={css.modelTitle}>{model.definition.label ?? model.definition.name}
+                        <span className={css.modelTag}>{t(model.definition.streaming ? 'streaming' : 'offline')}</span>
+                        {model.definition.recommended && <span className={css.recommendedTag}>{t('recommended')}</span>}
+                        <span className={css.modelTag}>{formatBytes(model.definition.approximateBytes, t)}</span>
+                      </span>
+                      <span className={css.modelDescription}>
+                        {descriptionKey === undefined ? model.definition.description : t(descriptionKey)}
+                      </span>
+                      {model.definition.language !== undefined && <span className={css.modelTag}>
+                        {languageKey === undefined ? model.definition.language : t(languageKey)}
+                      </span>}
+                    </span>
+                    {settings.sttModel === model.definition.id && <IconCheckOutlineRegular />}
+                  </button>
+                  <div className={css.modelResourceRow}>
+                    <span className={css.modelMeta} role="status">
+                      {ready ? t('modelReady') : model.status.state === 'failed' ? t('statusFailed') : t('modelNotDownloaded')}
+                      {progress !== undefined && ' · ' + t(progress.state === 'downloading' ? 'downloading' : 'installing') + ' ' + formatBytes(progress.receivedBytes, t) + ' / ' + formatBytes(progress.totalBytes, t)}
+                      {running && ' · ' + t(task.operation === 'download' ? 'taskDownload' : task.operation === 'reinstall' ? 'taskReinstall' : 'taskUpdate')}
+                      {task?.state === 'cancelled' && ' · ' + t('taskCancelled')}
+                      {task?.state === 'failed' && ' · ' + t('operationFailed')}
+                    </span>
+                    <div className={css.modelActions}>
+                      {!ready && !hasInstallation && <Tooltip label={t('modelDownload')} portal><button type="button" className={css.iconButton}
+                        aria-label={t('modelDownload')} disabled={blocked} onClick={() => { perform(model.definition.id, () => modelsDownload(model.definition.id)) }}><IconDownloadOutlineRegular /></button></Tooltip>}
+                      {hasInstallation && <Tooltip label={t('modelReinstall')} portal><button type="button" className={css.iconButton}
+                        aria-label={t('modelReinstall')} disabled={blocked} onClick={() => { perform(model.definition.id, () => modelsReinstall(model.definition.id)) }}><IconRefreshOutlineRegular /></button></Tooltip>}
+                      {model.resource.installedVersion !== null && <Tooltip label={t('modelUpdate')} portal><button type="button" className={css.iconButton}
+                        aria-label={t('modelUpdate')} disabled={blocked || !model.resource.updateAvailable} onClick={() => { perform(model.definition.id, () => modelsUpdate(model.definition.id)) }}><IconDownloadOutlineRegular /></button></Tooltip>}
+                      {running && <Tooltip label={t('modelCancel')} portal><button type="button" className={css.iconButton}
+                        aria-label={t('modelCancel')} disabled={pending !== null} onClick={() => { perform(model.definition.id, () => modelsCancel(model.definition.id, task.taskId)) }}><IconCloseOutlineRegular /></button></Tooltip>}
+                      {(ready || hasInstallation || model.status.state === 'failed') && <Tooltip label={t('modelRemove')} portal><button type="button" className={css.iconButton}
+                        aria-label={t('modelRemove')} disabled={blocked} onClick={() => { setPickerOpen(false); setRemoveTarget(model) }}><IconTrashOutlineRegular /></button></Tooltip>}
+                    </div>
+                  </div>
+                  {failedModel === model.definition.id && <p className={css.statusFailed} role="alert">{t('operationFailed')}</p>}
+                  <details className={css.modelDetails}>
+                    <summary>{t('modelDetails')}</summary>
+                    <p className={css.modelMeta}>{t('installedVersion')}: {model.resource.installedVersion ?? t('notInstalled')}</p>
+                    <p className={css.modelMeta}>{t('availableVersion')}: {model.resource.availableVersion}</p>
+                    <p className={css.modelMeta}>{t('versionDescription')}</p>
+                    <p className={css.modelMeta}>{t('source')}: {model.resource.source.join(', ')}</p>
+                    <p className={css.modelMeta}>{t(model.resource.integrity === 'verified' ? 'integrityVerified' : model.resource.integrity === 'unverified' ? 'integrityUnverified' : model.resource.integrity === 'corrupt' ? 'integrityCorrupt' : 'integrityMissing')}</p>
+                  </details>
+                </li>
+              })}
+            </ul>}
+          </Menu>
+          <Tooltip label={t('checkVersions')} portal><button type="button" className={css.iconButton} aria-label={t('checkVersions')}
+            onClick={() => { void refresh() }}><IconRefreshOutlineRegular /></button></Tooltip>
         </div>
       </div>
       {state.phase === 'loading' && <p className={css.stateRow} role="status">{t('loading')}</p>}
@@ -187,45 +279,7 @@ function SpeechModelSection({
         <button type="button" className={css.actionButton} onClick={() => { void refresh(true) }}>{t('retry')}</button>
       </div>}
       {state.phase === 'ready' && models.length === 0 && <p className={css.stateRow}>{t('noModelReady')}</p>}
-      {models.length > 0 && <ul className={css.modelList} aria-label={t('modelsSectionTitle')}>
-        {models.map((model) => {
-          const task = model.task
-          const running = task?.state === 'running'
-          const ready = model.status.state === 'ready'
-          const hasInstallation = model.resource.installedVersion !== null || model.resource.integrity !== 'missing'
-          const blocked = !settings.enabled || pending !== null || running
-          const progress = task?.state === 'running' ? task.progress : undefined
-          return <li key={model.definition.id} className={css.modelRow}>
-            <div className={css.modelInfo}>
-              <div className={css.modelTitle}>{model.definition.name}
-                {model.definition.recommended && <span className={css.recommendedTag}>{t('recommended')}</span>}
-              </div>
-              <p className={css.settingDescription}>{model.definition.description}</p>
-              <p className={css.modelMeta} role="status">
-                {formatBytes(model.definition.approximateBytes, t)}{' · '}
-                {ready ? t('modelReady') : model.status.state === 'failed' ? t('statusFailed') : t('modelNotDownloaded')}
-                {progress !== undefined && ' · ' + t(progress.state === 'downloading' ? 'downloading' : 'installing') + ' ' + formatBytes(progress.receivedBytes, t) + ' / ' + formatBytes(progress.totalBytes, t)}
-                {running && ' · ' + t(task.operation === 'download' ? 'taskDownload' : task.operation === 'reinstall' ? 'taskReinstall' : 'taskUpdate')}
-                {task?.state === 'cancelled' && ' · ' + t('taskCancelled')}
-                {task?.state === 'failed' && ' · ' + t('operationFailed')}
-              </p>
-              <p className={css.modelMeta}>{t('installedVersion')}: {model.resource.installedVersion ?? t('notInstalled')}</p>
-              <p className={css.modelMeta}>{t('availableVersion')}: {model.resource.availableVersion}</p>
-              <p className={css.modelMeta}>{t('versionDescription')}</p>
-              <p className={css.modelMeta}>{t('source')}: {model.resource.source.join(', ')}</p>
-              <p className={css.modelMeta}>{t(model.resource.integrity === 'verified' ? 'integrityVerified' : model.resource.integrity === 'unverified' ? 'integrityUnverified' : model.resource.integrity === 'corrupt' ? 'integrityCorrupt' : 'integrityMissing')}</p>
-              {failedModel === model.definition.id && <p className={css.statusFailed} role="alert">{t('operationFailed')}</p>}
-            </div>
-            <div className={css.modelActions}>
-              {!ready && !hasInstallation && <button type="button" className={css.actionButton} disabled={blocked} onClick={() => { perform(model.definition.id, () => modelsDownload(model.definition.id)) }}>{t('modelDownload')}</button>}
-              {hasInstallation && <button type="button" className={css.actionButton} disabled={blocked} onClick={() => { perform(model.definition.id, () => modelsReinstall(model.definition.id)) }}>{t('modelReinstall')}</button>}
-              {model.resource.installedVersion !== null && <button type="button" className={css.actionButton} disabled={blocked || !model.resource.updateAvailable} onClick={() => { perform(model.definition.id, () => modelsUpdate(model.definition.id)) }}>{t('modelUpdate')}</button>}
-              {running && <button type="button" className={css.actionButton} disabled={!settings.enabled || pending !== null} onClick={() => { perform(model.definition.id, () => modelsCancel(model.definition.id, task.taskId)) }}>{t('modelCancel')}</button>}
-              {(ready || hasInstallation || model.status.state === 'failed') && <button type="button" className={css.actionButton} disabled={blocked} onClick={() => { setRemoveTarget(model) }}>{t('modelRemove')}</button>}
-            </div>
-          </li>
-        })}
-      </ul>}
+      {failedModel !== null && !pickerOpen && <p className={css.statusFailed} role="alert">{t('operationFailed')}</p>}
       <Modal open={removeTarget !== null} title={t('removeTitle')} closeLabel={t('closeDialog')} onClose={() => { setRemoveTarget(null) }}
         description={t('removeConfirm')} footer={<>
           <button type="button" className={css.actionButton} onClick={() => { setRemoveTarget(null) }}>{t('modelCancel')}</button>
@@ -421,10 +475,6 @@ export function VoiceSettingsSection({
 
   return (
     <div className={css.section}>
-      <div className={css.heading}>
-        <h1>{t('title')}</h1>
-        <p>{t('description')}</p>
-      </div>
       <div className={css.panel} data-voice-settings-panel="true">
         <EnableSection settings={settings} updateSettings={updateSettings} t={t} />
         {!settings.enabled && <p className={css.stateRow}>{t('disabledHint')}</p>}

@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-08-builtin-mobile-settings.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-08-builtin-mobile-settings.md
+/agent-note-built-in-mobile-settings-and-operator-resource-management:
+  en: aad46dd6cb048888
+  zh: 50873b12090f978e
+/agent-note-built-in-mobile-settings-and-operator-resource-management/problem:
+  en: be2e4354340248be
+  zh: 0c8602e4d3157e69
+/agent-note-built-in-mobile-settings-and-operator-resource-management/decision:
+  en: ce1100c27d8ad650
+  zh: 05ac210d30a36621
+/agent-note-built-in-mobile-settings-and-operator-resource-management/alternatives-considered:
+  en: 2801de918b5cb0c9
+  zh: c776b26718d1911c
+/agent-note-built-in-mobile-settings-and-operator-resource-management/consequences:
+  en: 60b057df8bccc70d
+  zh: 5500688c4a42da1e

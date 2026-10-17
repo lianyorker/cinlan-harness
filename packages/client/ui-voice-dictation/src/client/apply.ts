@@ -113,7 +113,10 @@ export function apply(ctx: ClientContext): void {
     transcribe: voiceApi.transcribe,
   })
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'voice', groupId: 'personal' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'voice', groupId: 'personal',
+      title: () => t('title'), description: () => t('description'),
+    })
     yield ctx.settingsMetadata.registerItems('voice', [
       { id: 'enabled', anchorId: 'voice-enabled', title: () => t('enableDictation'), description: () => t('enableDictationDescription'), keywords: () => [t('keywordDictation')] },
       { id: 'mode', anchorId: 'voice-mode', title: () => t('dictationModeTitle'), description: () => t('dictationModeDescription'), keywords: () => [t('modeToggle'), t('modeHold'), 'Ctrl+Shift+E'] },

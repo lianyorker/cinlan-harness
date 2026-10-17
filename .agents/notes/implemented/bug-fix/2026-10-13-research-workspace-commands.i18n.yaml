@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for 2026-10-13-research-workspace-commands.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-13-research-workspace-commands.md
+/agent-note-research-workspace-commands:
+  en: 587f441b53e6e0d9
+  zh: f8ad34b558816e75
+/agent-note-research-workspace-commands/decision:
+  en: 6e2333a22fa1a2c4
+  zh: 3f3d91fa5f67edba
+/agent-note-research-workspace-commands/rationale:
+  en: 934fe4ba04809b37
+  zh: 99bb89cc57dbe298
+/agent-note-research-workspace-commands/verification:
+  en: 47aa3ed8cd7b804b
+  zh: 591eb03a51b7cb4f

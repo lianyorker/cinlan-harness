@@ -1,0 +1,67 @@
+{
+  "name": "@cinlan/mobile-relay",
+  "version": "0.1.0",
+  "description": "Lightweight WebSocket pairing and reverse relay server for cinlan-harness mobile companion",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json",
+    "./protocol": {
+      "types": "./lib/types/mobile-protocol.d.ts",
+      "default": "./lib/types/mobile-protocol.js"
+    },
+    "./crypto": {
+      "types": "./lib/types/crypto.d.ts",
+      "default": "./lib/types/crypto.js"
+    },
+    "./config": {
+      "types": "./lib/types/config.d.ts",
+      "default": "./lib/types/config.js"
+    },
+    "./director": {
+      "types": "./lib/types/director.d.ts",
+      "default": "./lib/types/director.js"
+    },
+    "./static": {
+      "types": "./lib/types/static.d.ts",
+      "default": "./lib/types/static.js"
+    }
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "tweetnacl": "^1.0.3",
+    "zod": "^4.3.6",
+    "@deepseek-ai/dsh-cmdline": "workspace:*",
+    "commander": "^14.0.0",
+    "@deepseek-ai/dsh-brand": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.10",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "@deepseek-ai/cordis": "workspace:~"
+  },
+  "private": true,
+  "types": "lib/types/index.d.ts",
+  "files": [
+    "lib",
+    "cordis.patch.yml"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:~"
+  }
+}

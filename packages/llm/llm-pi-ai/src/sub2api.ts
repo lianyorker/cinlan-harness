@@ -252,6 +252,45 @@ function safeId(value: unknown): number | undefined {
 }
 
 /**
+ * Run the fixed Cinlan account flow from explicit answers instead of
+ * interactive prompts.
+ *
+ * The Remote account controller owns the sign-in form, so the answers arrive
+ * complete; the one interactive question left is the 2FA code a server demands
+ * only after seeing the credentials. Supplying no `totpCode` turns that
+ * question into the `SUB2API_TOTP_REQUIRED` failure, thrown after the refresh
+ * token was revoked, so the caller can collect a code and call again.
+ * @param ctx - Host context containing the writable credential provider.
+ * @param input - the account email, its password, and the 2FA code when the caller already has one.
+ * @param signal - cancels the attempt.
+ * @returns Fulfillment after the llm-pi-ai/sub2api API-key record is committed.
+ * @throws {LlmError} code `SUB2API_TOTP_REQUIRED` when the account demands a verification code none was given.
+ * @throws {LlmError} on failed HTTP calls or malformed responses, as `runSub2ApiLogin` does.
+ */
+export async function runSub2ApiLoginWithAnswers(
+  ctx: Context,
+  input: { email: string; password: string; totpCode?: string },
+  signal: AbortSignal = new AbortController().signal,
+): Promise<void> {
+  const answers: string[] = [input.email.trim(), input.password]
+  if (input.totpCode !== undefined) answers.push(input.totpCode.trim())
+  const outcome = runSub2ApiLogin(ctx, {
+    method: SUB2API_LOGIN_METHOD,
+    signal,
+    notify: () => undefined,
+    prompt: () => {
+      const answer = answers.shift()
+      if (answer === undefined) {
+        return Promise.reject(new LlmError('Cinlan account sign-in requires a verification code', 'SUB2API_TOTP_REQUIRED'))
+      }
+      return Promise.resolve(answer)
+    },
+    commit: async () => {},
+  })
+  await outcome
+}
+
+/**
  * Run the fixed Cinlan account flow and commit its generated model API key.
  *
  * The account page owns the single Cinlan sign-in action. The Host always uses

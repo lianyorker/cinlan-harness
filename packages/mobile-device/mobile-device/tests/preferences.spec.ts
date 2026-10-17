@@ -1,19 +1,9 @@
 import { Context } from '@deepseek-ai/cordis'
-import SettingsProvider from '@deepseek-ai/dsh-settings'
-import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
+import type { Volatile } from '@deepseek-ai/cordis'
+import { createVolatile, updateVolatile } from '@deepseek-ai/cosmokit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import MobileDeviceRuntime, { MobileDeviceGeneration, MobileDeviceId, MobileObservationId } from '../src/index.ts'
-import type { MobileDevice, MobileDeviceProvider, MobileObserveSpec } from '../src/index.ts'
-
-class MemorySettings extends SettingsProvider {
-  readonly documentValue: Record<string, unknown> = {}
-  override get writable(): boolean { return true }
-  protected load(): Promise<Record<string, unknown>> { return Promise.resolve(this.documentValue) }
-  protected persist(ns: SettingsNamespace, value: Record<string, unknown>): Promise<void> {
-    this.documentValue[ns] = structuredClone(value)
-    return Promise.resolve()
-  }
-}
+import type { MobileDevice, MobileDeviceProvider, MobileDeviceSettings, MobileObserveSpec } from '../src/index.ts'
 
 const contexts: Context[] = []
 afterEach(async () => {
@@ -42,32 +32,32 @@ async function harness() {
   const ctx = new Context()
   contexts.push(ctx)
   const mobile = await ctx.plugin(MobileDeviceRuntime)
-  const settings = await ctx.plugin(MemorySettings)
+  const config = mobile.config as { [K in keyof MobileDeviceSettings]: Volatile<MobileDeviceSettings[K]> }
+  const update = (patch: Partial<MobileDeviceSettings>): void => {
+    if (patch.enabled !== undefined) updateVolatile(config.enabled, createVolatile(patch.enabled))
+    if (patch.defaultDeviceId !== undefined) updateVolatile(config.defaultDeviceId, createVolatile(patch.defaultDeviceId))
+    if (patch.androidSdkPath !== undefined) updateVolatile(config.androidSdkPath, createVolatile(patch.androidSdkPath))
+  }
   const selected = provider()
   const unregister = ctx.mobileDevice.registerProvider(selected)
-  return { ctx, mobile, settings, selected, unregister }
+  return { ctx, mobile, update, selected, unregister }
 }
 
 describe('mobile-device preferences', () => {
-  it('owns one live namespace, detaches, and registers again after reload', async () => {
-    const { ctx, mobile, settings } = await harness()
+  it('reads live Config fields, returns detached preferences, and accepts saved Config after reload', async () => {
+    const { ctx, mobile, update } = await harness()
     const defaults = { enabled: false, defaultDeviceId: '', androidSdkPath: '' }
     expect(ctx.mobileDevice.getPreferences()).toEqual(defaults)
-    expect(ctx.settings.describe().map(value => value.ns)).toEqual(['mobile-device'])
-    await ctx.settings.update('mobile-device', { enabled: true, defaultDeviceId: 'saved', androidSdkPath: 'sdk' })
+    update({ enabled: true, defaultDeviceId: 'saved', androidSdkPath: 'sdk' })
     expect(ctx.mobileDevice.getPreferences()).toEqual({ enabled: true, defaultDeviceId: 'saved', androidSdkPath: 'sdk' })
     const detached = ctx.mobileDevice.getPreferences()
     detached.defaultDeviceId = 'other'
     expect(ctx.mobileDevice.getPreferences().defaultDeviceId).toBe('saved')
+    const saved = ctx.mobileDevice.getPreferences()
     await mobile.dispose()
-    expect(ctx.settings.describe()).toEqual([])
-    await ctx.plugin(MobileDeviceRuntime)
-    expect(ctx.settings.describe().map(value => value.ns)).toEqual(['mobile-device'])
+    await ctx.plugin(MobileDeviceRuntime, saved)
     expect(ctx.mobileDevice.getPreferences().defaultDeviceId).toBe('saved')
-    await settings.dispose()
-    expect(ctx.mobileDevice.getPreferences()).toEqual(defaults)
-    await ctx.plugin(MemorySettings)
-    expect(ctx.settings.describe().map(value => value.ns)).toEqual(['mobile-device'])
+    expect(ctx.mobileDevice.getPreferences()).toEqual(saved)
   })
 
   it('supplies defaults without settings and does not guess a device', async () => {
@@ -83,8 +73,8 @@ describe('mobile-device preferences', () => {
   })
 
   it('passes an explicit exact id without consulting the saved target or inventory', async () => {
-    const { ctx, selected } = await harness()
-    await ctx.settings.update('mobile-device', { defaultDeviceId: ' saved ' })
+    const { ctx, selected, update } = await harness()
+    update({ defaultDeviceId: ' saved ' })
     const signal = new AbortController().signal
     const request = { deviceId: MobileDeviceId('explicit'), captureScreenshot: true }
     await expect(ctx.mobileDevice.observe(request, signal)).resolves.toMatchObject({ device: { id: 'explicit' } })
@@ -93,16 +83,16 @@ describe('mobile-device preferences', () => {
   })
 
   it.each(['', ' saved ', ' '])('rejects explicit %j rather than using the saved default', async (id) => {
-    const { ctx, selected } = await harness()
-    await ctx.settings.update('mobile-device', { defaultDeviceId: 'saved' })
+    const { ctx, selected, update } = await harness()
+    update({ defaultDeviceId: 'saved' })
     await expect(ctx.mobileDevice.observe({ deviceId: MobileDeviceId(id) })).rejects.toMatchObject({ code: 'MOBILE_DEVICE_ID_INVALID' })
     expect(selected.listDevices).not.toHaveBeenCalled()
     expect(selected.observe).not.toHaveBeenCalled()
   })
 
   it('resolves the saved available exact id and forwards screenshot preference and cancellation', async () => {
-    const { ctx, selected } = await harness()
-    await ctx.settings.update('mobile-device', { defaultDeviceId: 'saved' })
+    const { ctx, selected, update } = await harness()
+    update({ defaultDeviceId: 'saved' })
     const signal = new AbortController().signal
     await expect(ctx.mobileDevice.observe({ captureScreenshot: true }, signal)).resolves.toMatchObject({ device: { id: 'saved' } })
     expect(selected.listDevices).toHaveBeenCalledExactlyOnceWith(signal)
@@ -112,8 +102,8 @@ describe('mobile-device preferences', () => {
   it.each([
     ['', 'MOBILE_DEFAULT_DEVICE_MISSING'], [' saved ', 'MOBILE_DEFAULT_DEVICE_INVALID'],
   ])('rejects unusable saved id %j before inventory', async (defaultDeviceId, code) => {
-    const { ctx, selected } = await harness()
-    await ctx.settings.update('mobile-device', { defaultDeviceId })
+    const { ctx, selected, update } = await harness()
+    update({ defaultDeviceId })
     await expect(ctx.mobileDevice.observe({})).rejects.toMatchObject({ code })
     expect(selected.listDevices).not.toHaveBeenCalled()
     expect(selected.observe).not.toHaveBeenCalled()
@@ -124,8 +114,8 @@ describe('mobile-device preferences', () => {
     [[device('saved', false), device('other')], 'MOBILE_DEVICE_UNAVAILABLE'],
     [[device('saved'), device('saved'), device('other')], 'MOBILE_DEFAULT_DEVICE_AMBIGUOUS'],
   ] as const)('never substitutes another available device for a failing saved target (%s)', async (devices, code) => {
-    const { ctx, selected } = await harness()
-    await ctx.settings.update('mobile-device', { defaultDeviceId: 'saved' })
+    const { ctx, selected, update } = await harness()
+    update({ defaultDeviceId: 'saved' })
     selected.listDevices.mockResolvedValue([...devices])
     await expect(ctx.mobileDevice.observe({})).rejects.toMatchObject({ code })
     expect(selected.listDevices).toHaveBeenCalledOnce()
@@ -133,13 +123,13 @@ describe('mobile-device preferences', () => {
   })
 
   it('captures provider and target before enumeration when preferences and registration change', async () => {
-    const { ctx, selected, unregister } = await harness()
-    await ctx.settings.update('mobile-device', { defaultDeviceId: 'saved' })
+    const { ctx, selected, unregister, update } = await harness()
+    update({ defaultDeviceId: 'saved' })
     const inventory = Promise.withResolvers<MobileDevice[]>()
     selected.listDevices.mockReturnValue(inventory.promise)
     const pending = ctx.mobileDevice.observe({})
     expect(selected.listDevices).toHaveBeenCalledOnce()
-    await ctx.settings.update('mobile-device', { defaultDeviceId: 'other' })
+    update({ defaultDeviceId: 'other' })
     unregister()
     const replacement = provider('replacement')
     ctx.mobileDevice.registerProvider(replacement)
@@ -151,8 +141,8 @@ describe('mobile-device preferences', () => {
   })
 
   it('propagates inventory and observation failures without retry or substitution', async () => {
-    const { ctx, selected } = await harness()
-    await ctx.settings.update('mobile-device', { defaultDeviceId: 'saved' })
+    const { ctx, selected, update } = await harness()
+    update({ defaultDeviceId: 'saved' })
     const failure = new Error('provider failed')
     selected.listDevices.mockRejectedValueOnce(failure)
     await expect(ctx.mobileDevice.observe({})).rejects.toBe(failure)
@@ -164,8 +154,8 @@ describe('mobile-device preferences', () => {
   })
 
   it('stops before dispatch when cancelled before or during default enumeration', async () => {
-    const { ctx, selected } = await harness()
-    await ctx.settings.update('mobile-device', { defaultDeviceId: 'saved' })
+    const { ctx, selected, update } = await harness()
+    update({ defaultDeviceId: 'saved' })
     const reason = new Error('cancelled')
     await expect(ctx.mobileDevice.observe({}, AbortSignal.abort(reason))).rejects.toBe(reason)
     expect(selected.listDevices).not.toHaveBeenCalled()

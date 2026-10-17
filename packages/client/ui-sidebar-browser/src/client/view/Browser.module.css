@@ -245,3 +245,97 @@
   flex: 0 0 auto;
   margin-right: 4px;
 }
+
+.designModeActive {
+  color: var(--dsw-alias-brand-primary);
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 15%, transparent);
+}
+
+.designModeBanner {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  color: var(--dsw-alias-brand-primary);
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent);
+  border-bottom: 0.5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 25%, transparent);
+  font: var(--dsw-font-xxxs-11);
+  font-weight: 500;
+  gap: 8px;
+}
+
+.designModeBannerText {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.designModeExitBtn {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 4px;
+  background: var(--dsw-alias-fill-tertiary);
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.designModeExitBtn:hover {
+  background: var(--dsw-alias-fill-secondary);
+}
+
+.designModeNotice {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  background: #2ea043;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  animation: fadeInOut 2.5s ease forwards;
+}
+
+.inspectorOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  cursor: crosshair;
+  background: transparent;
+}
+
+.inspectorHighlight {
+  position: absolute;
+  pointer-events: none;
+  border: 1.5px solid var(--dsw-alias-brand-primary);
+  background: rgba(31, 111, 235, 0.12);
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+.inspectorTagBadge {
+  position: absolute;
+  top: -22px;
+  left: 0;
+  pointer-events: none;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-family: var(--ds-font-family-code, monospace);
+  font-weight: 600;
+  color: #fff;
+  background: var(--dsw-alias-brand-primary);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+

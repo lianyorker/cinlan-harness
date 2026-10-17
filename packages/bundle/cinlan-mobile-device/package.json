@@ -37,6 +37,7 @@
     "@deepseek-ai/dsh-mobile-device": "workspace:^",
     "@deepseek-ai/dsh-mobile-device-adb": "workspace:^",
     "@deepseek-ai/dsh-mobile-device-permission-policy": "workspace:^",
+    "@deepseek-ai/dsh-mobile-device-runtime": "workspace:*",
     "@deepseek-ai/dsh-tool-mobile-device": "workspace:^"
   },
   "peerDependencies": {

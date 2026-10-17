@@ -503,7 +503,7 @@ describe('Playwright browser provider config', () => {
       maxCapturePixels: 4_000_000,
       selectionTimeoutMs: 60_000,
     })
-    expect(defaults.storageDir.replaceAll('\\', '/')).toMatch(/\/\.dsh\/browser\/profile$/)
+    expect(defaults.storageDir.replaceAll('\\', '/')).toMatch(/\/\.(?:clh|dsh)\/browser\/profile$/)
     expect(resolvePlaywrightBrowserConfig({
       providerId: 'fixture',
       storageDir: 'C:/profile',

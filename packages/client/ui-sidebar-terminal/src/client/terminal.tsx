@@ -1,5 +1,5 @@
 /** Sidebar terminal screen and connection recovery. */
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { Button, IconPlusOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -21,11 +21,24 @@ export type TerminalBodyProps = PropsRuntime<'sidebar.right.pane.tab'> & PropsLo
  * @param props - sidebar occurrence, model lookup and translated copy.
  * @returns the terminal screen and any pending or exceptional state.
  */
-export function TerminalBody({ useTabInfo, useTerminal, useTheme, view, t }: TerminalBodyProps): ReactNode {
+export function TerminalBody({ useTabInfo, useTerminal, useTheme, view, quickCommands, runQuickCommand, t }: TerminalBodyProps): ReactNode {
   const { tab } = useTabInfo()
   const theme = useTheme(value => value)
   const model = view(tab.id)
   const state = useTerminal(tab.id)
+  const [commands, setCommands] = useState<readonly { readonly id: string; readonly name: string; readonly command: string; readonly confirm: boolean }[]>([])
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [pendingRun, setPendingRun] = useState<{ readonly id: string; readonly name: string; readonly command: string }>()
+  const [runError, setRunError] = useState('')
+  useEffect(() => {
+    let disposed = false
+    if (typeof quickCommands === 'function') {
+      void quickCommands().then(list => {
+        if (!disposed) setCommands(list)
+      }).catch(() => { if (!disposed) setCommands([]) })
+    }
+    return () => { disposed = true }
+  }, [quickCommands])
   useEffect(() => model.mount(), [model])
   if (state === undefined) return null
   const newTerminal = <Button variant="primary" size={state.issue === 'missingTerminal' ? 'md' : 'sm'}
@@ -64,7 +77,36 @@ export function TerminalBody({ useTabInfo, useTerminal, useTheme, view, t }: Ter
         {ended && newTerminal}
       </div>}
       {state.info !== undefined && <TerminalScreen state={state} model={model} visible={tab.visible} label={t('title')} theme={theme} />}
+      {commands.length > 0 && state.phase === 'connected' && <div className={css.quickCommands} data-sidebar-terminal-quick-commands>
+        <button type="button" className={css.quickCommandsToggle} aria-expanded={menuOpen}
+          onClick={() => { setMenuOpen(value => !value) }}>{t('quickCommands')}</button>
+        {menuOpen && <div className={css.quickCommandsMenu} role="menu">
+          {commands.map(command => <button key={command.id} type="button" role="menuitem"
+            onClick={() => {
+              setMenuOpen(false)
+              if (command.confirm) setPendingRun({ id: command.id, name: command.name, command: command.command })
+              else {
+                try { runQuickCommand?.(tab.id, command.command + '\r'); setRunError('') }
+                catch (reason) { setRunError(t('runFailed', { message: reason instanceof Error ? reason.message : String(reason) })) }
+              }
+            }}>{command.name}</button>)}
+        </div>}
+      </div>}
+      {pendingRun !== undefined && <div className={css.runConfirm} role="alertdialog" aria-label={t('runConfirmTitle', { name: pendingRun.name })}>
+        <strong>{t('runConfirmTitle', { name: pendingRun.name })}</strong>
+        <code>{pendingRun.command}</code>
+        <div className={css.actions}>
+          <button type="button" className={css.quiet} onClick={() => { setPendingRun(undefined) }}>{t('cancel')}</button>
+          <button type="button" className={css.primary} onClick={() => {
+            const command = pendingRun
+            setPendingRun(undefined)
+            try { runQuickCommand?.(tab.id, command.command + '\r'); setRunError('') }
+            catch (reason) { setRunError(t('runFailed', { message: reason instanceof Error ? reason.message : String(reason) })) }
+          }}>{t('runConfirmAction')}</button>
+        </div>
+      </div>}
       {error !== undefined && <p className={css.error} role="alert">{t('failed', { message: error })}</p>}
+      {runError !== '' && <p className={css.error} role="alert">{runError}</p>}
     </section>
   )
 }

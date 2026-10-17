@@ -68,7 +68,9 @@ export function apply(ctx: Context): void {
 
   const settingsFace: FloatingWorkspaceSectionInjected = { hooks: { floating: runtime }, set: runtime.set }
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'floating-workspace', groupId: 'personal' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'floating-workspace', groupId: 'personal', description: () => t('description'),
+    })
     yield ctx.settingsMetadata.registerItems('floating-workspace', [
       { id: 'enabled', anchorId: 'floating-enabled', title: () => t('enable'), description: () => t('enableDescription') },
       { id: 'position', anchorId: 'floating-position', title: () => t('toggleButtonPosition'), description: () => t('toggleButtonPositionDescription') },

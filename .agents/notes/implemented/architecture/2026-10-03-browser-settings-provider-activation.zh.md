@@ -28,7 +28,7 @@ Status: implemented
 
 **计算机控制使用官方 skill surface，而不是实验性 Provider 表单。** 官方 `@deepseek-ai/dsh-computer-use` 能力由可选 `@deepseek-ai/dsh-cinlan-computer-use` bundle 提供。设置页采用安全研究式下载卡，显示官方更新命令 `cinlan skills update --skill computer-use`，并保留 profile bundle 安装状态与运行详情。页面不再渲染实验性 CUA Provider 启停区块。
 
-**手机模拟器由一张设置卡与一张智能体卡组成。** 设置卡包含本页检查开关、带状态徽标与重新检查的可用性、含下载/使用检测到/清除动作的 Android SDK 行、自定义 SDK 路径和默认设备。智能体卡以 0/2 徽标把能力条目与工具条目列为两步，列出 `dsh --profile device-control` 与 `mobile_*` 工具名，并提供三条可复制示例提示。可用性与工具链探测保持只读；只有开关、SDK 路径和默认设备参与草稿表单。
+**手机模拟器偏好与设备控制权限分离。** 页面将可用性、Android SDK 选择与默认设备同命令及可复制提示一起呈现，不编辑自动检查偏好，也不提供能力启停或资源管理。[页面参考](../../../../packages/client/ui-settings-security/README.zh.md#settings-and-action-ownership)定义保存字段与检查行为。
 
 **运行时维护被降级。** 安装、修复、移除、取消与关闭浏览器移入标题为“详情与维护”的 `details` 折叠；资源来源、版本、修订号与安装事实仍然可见。页面把能力呈现为已组合的能力，而不是待下载的资源。
 

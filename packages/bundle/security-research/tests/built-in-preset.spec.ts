@@ -15,7 +15,9 @@ interface Registration {
 function registry() {
   const released = vi.fn(async () => {})
   const register = vi.fn(async (_definition: Registration) => released)
-  return { register, released }
+  const setPolicy = vi.fn()
+  const composedPreset = vi.fn<(_ctx: Context) => string | undefined>(() => undefined)
+  return { register, released, setPolicy, composedPreset }
 }
 
 afterEach(() => { vi.doUnmock('node:fs'); vi.resetModules() })
@@ -23,9 +25,10 @@ afterEach(() => { vi.doUnmock('node:fs'); vi.resetModules() })
 describe('built-in security research preset', () => {
   it('registers the packaged preset once the registry is available and releases it on disposal', async () => {
     const ctx = new Context()
-    const { register, released } = registry()
-    ctx.provide('agentPresets', { register } as never)
-    const fiber = ctx.plugin({ inject: ['agentPresets'], apply })
+    const { register, released, setPolicy, composedPreset } = registry()
+    ctx.provide('agentPresets', { register, composedPreset } as never)
+    ctx.provide('approval', { setPolicy } as never)
+    const fiber = ctx.plugin({ inject: ['agentPresets', 'approval'], apply })
     await fiber.await()
     expect(register).toHaveBeenCalledOnce()
     const definition = register.mock.calls[0]![0] as Registration
@@ -40,11 +43,12 @@ describe('built-in security research preset', () => {
 
   it('waits for the preset registry instead of registering without one', async () => {
     const ctx = new Context()
-    const { register } = registry()
-    const fiber = ctx.plugin({ inject: ['agentPresets'], apply })
+    const { register, setPolicy, composedPreset } = registry()
+    const fiber = ctx.plugin({ inject: ['agentPresets', 'approval'], apply })
     await Promise.resolve()
     expect(register).not.toHaveBeenCalled()
-    ctx.provide('agentPresets', { register } as never)
+    ctx.provide('agentPresets', { register, composedPreset } as never)
+    ctx.provide('approval', { setPolicy } as never)
     await fiber.await()
     expect(register).toHaveBeenCalledOnce()
     await fiber.dispose()
@@ -60,9 +64,10 @@ describe('built-in security research preset', () => {
     }))
     const isolated = await import('../src/index.ts')
     const ctx = new Context()
-    const { register } = registry()
-    ctx.provide('agentPresets', { register } as never)
-    const fiber = ctx.plugin({ inject: ['agentPresets'], apply: isolated.apply })
+    const { register, setPolicy, composedPreset } = registry()
+    ctx.provide('agentPresets', { register, composedPreset } as never)
+    ctx.provide('approval', { setPolicy } as never)
+    const fiber = ctx.plugin({ inject: ['agentPresets', 'approval'], apply: isolated.apply })
     await fiber.await()
     const definition = register.mock.calls[0]![0] as Registration
     expect(definition).not.toHaveProperty('order')
@@ -77,11 +82,28 @@ describe('built-in security research preset', () => {
     }))
     const isolated = await import('../src/index.ts')
     const ctx = new Context()
-    const { register } = registry()
-    ctx.provide('agentPresets', { register } as never)
-    const fiber = ctx.plugin({ inject: ['agentPresets'], apply: isolated.apply })
+    const { register, setPolicy, composedPreset } = registry()
+    ctx.provide('agentPresets', { register, composedPreset } as never)
+    ctx.provide('approval', { setPolicy } as never)
+    const fiber = ctx.plugin({ inject: ['agentPresets', 'approval'], apply: isolated.apply })
     await fiber.await()
     expect(register).not.toHaveBeenCalled()
+    await fiber.dispose()
+  })
+
+  it('disables approval only for agents composed from the security preset', async () => {
+    const ctx = new Context()
+    const { register, setPolicy, composedPreset } = registry()
+    ctx.provide('agentPresets', { register, composedPreset } as never)
+    ctx.provide('approval', { setPolicy } as never)
+    const fiber = ctx.plugin({ inject: ['agentPresets', 'approval'], apply })
+    await fiber.await()
+    const agent = { ctx: {} } as never
+    composedPreset.mockReturnValueOnce('standard').mockReturnValueOnce('security-research')
+    ctx.emit('agent/created', { agent, source: 'startup' })
+    ctx.emit('agent/created', { agent, source: 'startup' })
+    expect(setPolicy).toHaveBeenCalledWith(agent, 'never')
+    expect(setPolicy).toHaveBeenCalledTimes(1)
     await fiber.dispose()
   })
 })

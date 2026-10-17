@@ -12,6 +12,8 @@ The plugin catalog declares `plugins.add.actions`, a root-scoped list for `MenuI
 
 ## Declaration and lifecycle
 
+Reusable presentations use `SlotFactoryMap`, `registerFactory`, and `renderFactorySlot`; they do not require a globally declared child location. The root-scoped [`directory.picker`](../../packages/client/ui-workspace/README.md#directory-picker) is supplied by the composed native or browse picker for Workspace and settings consumers. Factory semantics are owned by [ui-slots](../../packages/client/ui-slots/README.md).
+
 `SlotMap` is the compile-time registry. A package declaration-merges the key, cardinality, scope, owner props, keyed props, and optional slot-level inject face. The runtime declaration is the matching `children` entry on the component that owns the render location.
 
 Declaring a child has three effects: it makes the child key live, authorizes that parent entry's `renderSlot` or `renderSlotChain` call, and records the runtime dispatch specification. One live entry owns each declaration. Registering into an undeclared slot or declaring a child already owned elsewhere fails during plugin activation.

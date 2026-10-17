@@ -1,17 +1,25 @@
-/** Read-only Host data and plain callbacks consumed by the SSH host settings page. */
 import type {
   CreateTargetRequest, ImportableHostsValue, ListTargetsValue, SshConfigHost, TargetRequest,
   TargetRevisionRequest, TargetTestValue, TargetValue, UpdateTargetRequest,
 } from '@deepseek-ai/dsh-api-execution-host-controller/types'
+import type {
+  DestroyVmRequest, EphemeralVm, EphemeralVmId, EphemeralVmOverview, EphemeralVmState, LaunchVmRequest,
+  VmQuotaLimits, VmRecipe,
+} from '@deepseek-ai/dsh-execution-runtime/types'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+
+export type {
+  DestroyVmRequest, EphemeralVm, EphemeralVmId, EphemeralVmOverview, EphemeralVmState, LaunchVmRequest,
+  VmQuotaLimits, VmRecipe,
+}
 
 /** Saved target edit values; credentials and key contents stay on the managing Host. */
 export type HostDraft = CreateTargetRequest
 /** Revision fence captured before an operation on saved configuration. */
 export type TargetRevision = TargetRevisionRequest
-/** Saved target CRUD, connectivity probe and observation callbacks. */
-export interface HostsCallbacks {
+/** Saved target CRUD, connectivity probe, and observation callbacks. */
+export interface TargetCallbacks {
   list: (signal?: AbortSignal) => Promise<ListTargetsValue>
   follow: (signal?: AbortSignal) => AsyncIterable<ListTargetsValue>
   create: (request: CreateTargetRequest, signal?: AbortSignal) => Promise<TargetValue>
@@ -22,6 +30,17 @@ export interface HostsCallbacks {
   test: (request: TargetRevisionRequest, signal?: AbortSignal) => Promise<TargetTestValue>
   listImportableHosts: (signal?: AbortSignal) => Promise<ImportableHostsValue>
 }
+/** Ephemeral VM lifecycle callbacks. */
+export interface VmCallbacks {
+  listVmRecipes?: (signal?: AbortSignal) => Promise<readonly VmRecipe[]>
+  getVmOverview?: (signal?: AbortSignal) => Promise<EphemeralVmOverview>
+  launchVm?: (request: LaunchVmRequest, signal?: AbortSignal) => Promise<EphemeralVm>
+  destroyVm?: (request: DestroyVmRequest, signal?: AbortSignal) => Promise<EphemeralVm>
+  reapOrphanedVms?: (signal?: AbortSignal) => Promise<readonly EphemeralVmId[]>
+}
+/** Saved target CRUD, connectivity probe, VM lifecycle and observation callbacks. */
+export interface HostsCallbacks extends TargetCallbacks, VmCallbacks {}
+
 /** Serializable diagnostic retained for rendering after a rejected operation. */
 export interface HostDiagnostic { readonly code: string; readonly message: string }
 /** Last complete observation and its transport availability. */

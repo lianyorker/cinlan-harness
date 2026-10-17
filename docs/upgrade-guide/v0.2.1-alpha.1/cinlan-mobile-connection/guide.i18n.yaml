@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-alpha.1/cinlan-mobile-connection/guide.md
+/:
+  en: bcb6018a9f6df359
+  zh: ec3a33429c6b8384
+/cinlan-mobile-connection:
+  en: b164de2071895057
+  zh: acf11b31c6ee9a35
+/cinlan-mobile-connection/change:
+  en: c0b0dfcb3cb9d63f
+  zh: 4158b4476b3329a8
+/cinlan-mobile-connection/deployment:
+  en: 96c412d8a6ce9639
+  zh: 77ead9148518fa62
+/cinlan-mobile-connection/migration:
+  en: 14ad8eb43298410d
+  zh: 94bb5ad6ea0407ef
+/cinlan-mobile-connection/limitations:
+  en: f9cfb5c11bc1b42d
+  zh: 7256b2d165111c48

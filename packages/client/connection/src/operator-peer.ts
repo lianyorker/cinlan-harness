@@ -8,7 +8,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
-import type { PeerId, PeerScope } from '@deepseek-ai/dsh-typert-protocol'
+import type { PeerId, PeerScope, Principal } from '@deepseek-ai/dsh-typert-protocol'
 
 /**
  * The operator's scope. The instance is its own scope key, so `scopeOf(peer.ctx)`
@@ -18,16 +18,23 @@ import type { PeerId, PeerScope } from '@deepseek-ai/dsh-typert-protocol'
 export class OperatorPeer implements PeerScope {
   readonly id: PeerId = randomUUID() as PeerId
   readonly ctx: Context
+  readonly principal: Principal = { kind: 'owner' }
+  readonly interactions = 'answer' as const
+  readonly signal: AbortSignal
   private readonly scope: Scope
+  private readonly abortController = new AbortController()
 
   /** @param owner - Connection plugin context the scope fiber hangs under. */
   constructor(owner: Context) {
     this.scope = createScope(owner, this)
     this.ctx = this.scope.ctx
+    this.signal = this.abortController.signal
   }
 
   /** Tear down every connection-lifetime registration; racing calls share one completion. */
-  dispose(): Promise<void> {
+  async dispose(): Promise<void> {
+    this.abortController.abort()
     return this.scope.dispose()
   }
 }
+

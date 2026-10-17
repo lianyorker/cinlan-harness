@@ -22,15 +22,23 @@ function setup(fixture = settingsFixture(), dictionary = en) {
 }
 
 describe('Git native settings rows', () => {
-  it('shows the existing fields with localized anchors and one page heading', () => {
+  it('shows the existing fields with localized anchors and no duplicated page heading', () => {
     const view = setup(settingsFixture(), zh)
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(zh.nav)
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
     expect(screen.getByText(zh.runtimeNotice)).toBeTruthy()
     expect(Array.from(view.container.querySelectorAll('[data-settings-anchor]')).map(row => row.getAttribute('data-settings-anchor')))
-      .toEqual(['git-branch-prefix', 'git-custom-prefix', 'git-update-base', 'git-group-order', 'git-upstream', 'git-attribution', 'git-rename-branch'])
-    expect(screen.getAllByRole('combobox').map(control => control.getAttribute('id'))).toEqual(['git-branch-prefix', 'git-group-order'])
+      .toEqual([
+        'git-branch-prefix', 'git-custom-prefix', 'git-update-base', 'git-group-order',
+        'git-upstream', 'git-attribution', 'git-rename-branch',
+        'git-ai-author', 'git-ai-sensitive-filter', 'git-ai-max-diff', 'git-ai-recipe-defaults',
+      ])
+    expect(screen.getAllByRole('combobox').map(control => control.getAttribute('id')))
+      .toEqual(['git-branch-prefix', 'git-group-order', 'git-ai-max-diff-select', 'git-ai-action-select'])
     expect(screen.getAllByRole('switch').map(control => control.getAttribute('aria-label')))
-      .toEqual([zh.keepLocalMainTitle, zh.compareUpstreamTitle, zh.attributionTitle, zh.renameBranchTitle])
+      .toEqual([
+        zh.keepLocalMainTitle, zh.compareUpstreamTitle, zh.attributionTitle, zh.renameBranchTitle,
+        zh.sourceControlAiEnabled, zh.sourceControlAiFilterSensitiveTitle,
+      ])
     expect(screen.getByLabelText(zh.branchPrefixCustomLabel)).toHaveProperty('disabled', true)
   })
 
@@ -140,4 +148,36 @@ describe('Git native settings rows', () => {
     await waitFor(() => { expect(screen.queryByRole('button', { name: 'Reset ' + en.compareUpstreamTitle })).toBeNull() })
     expect(screen.getByText(en.settingsSaved)).toBeTruthy()
   })
+
+  it('supports toggling AI Author and editing / saving action recipes', async () => {
+    const f = settingsFixture()
+    const view = setup(f)
+
+    // Toggle AI author off
+    const aiSwitch = screen.getByRole('switch', { name: en.sourceControlAiEnabled })
+    expect(aiSwitch.getAttribute('aria-checked')).toBe('true')
+
+    f.mutate.mockImplementationOnce(async (ops) => {
+      const val = (ops[0] as any).value
+      f.publish({
+        value: { ...f.store.getSnapshot().value!, sourceControlAi: val },
+        user: { sourceControlAi: val },
+        revision: 2,
+      })
+      return true
+    })
+
+    const templateArea = screen.getByLabelText<HTMLTextAreaElement>(en.recipeTemplateLabel)
+    expect(templateArea.value).toContain('{{diff}}')
+
+    // Append variable
+    fireEvent.click(screen.getByRole('button', { name: en.recipeInsertBranch }))
+    expect(templateArea.value).toContain('{{branch}}')
+
+    // Save recipe draft
+    fireEvent.click(screen.getByRole('button', { name: en.save }))
+    await screen.findByText(en.settingsSaved)
+    expect(view.mutate).toHaveBeenCalled()
+  })
 })
+

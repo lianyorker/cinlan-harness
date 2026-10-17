@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在工作区设置组中配置新 Worktree Task 的分支前缀，以及源代码控制的分组顺序、上游比较和提交署名。页面编辑由 [Git settings](../../git/git-settings/README.zh.md) 拥有的持久化 `git-source-control` 命名空间。本地基线刷新不可用；已保存值仍可显示和重置。
+在工作区设置组中配置新 Worktree Task 的分支前缀、源代码控制的分组顺序、上游比较、提交署名以及源代码控制 AI Author 动作配方。页面编辑由 [Git settings](../../git/git-settings/README.zh.md) 拥有的持久化 `git-source-control` 命名空间。本地基线刷新不可用；已保存值仍可显示和重置。
 
 ## 目录
 
@@ -56,4 +56,4 @@ kind: "package-reference"
 | `compareAgainstUpstream` | 在源代码控制中选择与上游比较；上游不可用时会提示。 |
 | `enableGitHubAttribution` | 为显式源代码控制提交添加署名，不影响 Worktree Task 检查点、Pull Request 或 Issue。 |
 
-- 视觉参考中的自动命名、签署、AI（人工智能）提交信息和提交语言字段在这里没有对应设置或操作。此页面不提供这些字段。
+- 此处可配置 AI 提交信息生成与动作配方，包括敏感文件过滤与自定义提示词模版；AI 生成只填充供用户审查的草稿文本，绝不自动提交。

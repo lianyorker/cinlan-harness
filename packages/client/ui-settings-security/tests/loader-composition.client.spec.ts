@@ -26,6 +26,7 @@ function createFixture() {
   return {
     inject: ['slots'],
     apply(ctx: Context) {
+      ctx.provide('connection', { rpc: { call: vi.fn() } })
       const locale = new LocaleRuntime(ctx)
       locale.setLocale('en')
       ctx.provide('locale', locale)
@@ -128,6 +129,8 @@ describe('capability settings through real Client Loader composition', () => {
     const ctx = await load()
     await vi.waitFor(() => { expect(ctx.slots.entries('settings.section.icon')).toHaveLength(2) })
     expect(ctx.slots.entries('settings.section.icon').map(entry => entry.options.key)).toEqual(expect.arrayContaining(['cinlan-mobile', 'cinlan-companion']))
-    expect(ctx.settingsMetadata.getSnapshot().items.some(item => item.anchorId === 'mobile-agent')).toBe(true)
+    expect(ctx.settingsMetadata.getSnapshot().items.some(item => item.anchorId === 'mobile-commands')).toBe(true)
+    expect(ctx.settingsMetadata.getSnapshot().items.some(item => item.anchorId === 'mobile-enabled')).toBe(false)
+    expect(ctx.settingsMetadata.getSnapshot().items.some(item => item.anchorId === 'mobile-agent' || item.anchorId === 'mobile-resources')).toBe(false)
   })
 })

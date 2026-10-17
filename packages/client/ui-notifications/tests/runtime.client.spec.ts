@@ -2,7 +2,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TestRemote, TestSessions, stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
-import type { MutableSessionEventSource, SessionLiveEventEntry } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { MutableSessionEventSource, SessionLiveEventEntry, SessionReference } from '@deepseek-ai/dsh-api-session-controller/client'
 import { MessageId, ToolCallId } from '@deepseek-ai/dsh-llm/brand'
 import type { NotificationSettings } from '@deepseek-ai/dsh-notifications/types'
 import { SessionSeq } from '@deepseek-ai/dsh-session/types'
@@ -13,11 +13,13 @@ interface OwnedRuntime {
   ctx: Context
   runtime?: ReturnType<typeof createNotificationRuntime>
   sessions?: TestSessions
+  reference?: SessionReference
 }
 const active: OwnedRuntime[] = []
 
 afterEach(async () => {
-  for (const { ctx, runtime, sessions } of active.splice(0)) {
+  for (const { ctx, runtime, sessions, reference } of active.splice(0)) {
+    reference?.release()
     runtime?.dispose()
     await sessions?.disposeScopes()
     await ctx.fiber.dispose()
@@ -49,6 +51,9 @@ async function bench(overrides: Partial<NotificationSettings> = {}) {
   owned.sessions = sessions
   ctx.provide('sessions', sessions)
   const sessionId = await sessions.add({ id: 'notification-session', summary: { displayTitle: 'Build UI' } })
+  const reference = sessions.retain(sessionId)
+  await reference.ready
+  owned.reference = reference
   const settings = stubSettingsScope<NotificationSettings>()
   settings.publish({ status: 'ready', writable: true, value: NotificationSettingsSchema({
     ...NotificationSettingsSchema(), enabled: true, agentCompletion: true, terminalBell: true, ...overrides,

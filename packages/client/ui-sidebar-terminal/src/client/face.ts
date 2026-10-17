@@ -9,6 +9,10 @@ export interface TerminalInjected {
   /** @param key - sidebar occurrence key. @returns its terminal commands. */
   readonly view: (key: string) => TerminalView
   readonly keyedHooks: { readonly terminal: (key: string) => HostObservable<TerminalViewState> }
+  /** Saved quick commands for this Host; the body renders them as a menu. */
+  readonly quickCommands?: () => Promise<readonly { readonly id: string; readonly name: string; readonly command: string; readonly confirm: boolean }[]>
+  /** Forward one quick command to the live terminal input. */
+  readonly runQuickCommand?: (key: string, command: string) => void
 }
 
 

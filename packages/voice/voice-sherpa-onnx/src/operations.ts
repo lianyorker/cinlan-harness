@@ -65,6 +65,11 @@ export class SherpaVoiceOperations implements VoiceOperations {
           definition: {
             id: definition.id, name: definition.name, description: definition.description,
             recommended: definition.recommended, approximateBytes: definition.approximateBytes,
+            ...(definition.label !== undefined ? { label: definition.label } : {}),
+            ...(definition.language !== undefined ? { language: definition.language } : {}),
+            ...(definition.type !== undefined ? { type: definition.type } : {}),
+            ...(definition.provider !== undefined ? { provider: definition.provider } : {}),
+            ...(definition.streaming !== undefined ? { streaming: definition.streaming } : {}),
           },
           resource, task, status,
         }

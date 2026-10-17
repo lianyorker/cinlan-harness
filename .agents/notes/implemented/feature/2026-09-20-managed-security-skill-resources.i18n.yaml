@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-managed-security-skill-resources.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-20-managed-security-skill-resources.md
-2026-09-20-managed-security-skill-resources.md: 88e57caf86227ddf6d45e3b5544ca83103d4152f
-2026-09-20-managed-security-skill-resources.zh.md: 73542801151c7c818b4d12822a23eabca768617a
+/agent-note-host-managed-security-skill-resources:
+  en: 1ace68c32ccdd6fe
+  zh: c3800aa76cf1e937
+/agent-note-host-managed-security-skill-resources/problem:
+  en: 2f755f423ccdaff1
+  zh: 332ae325816627ed
+/agent-note-host-managed-security-skill-resources/decision:
+  en: bf369f0cdbf31899
+  zh: 0bd19882fea87711
+/agent-note-host-managed-security-skill-resources/alternatives-considered:
+  en: a4c5111d8345599a
+  zh: f620e2640bc0dc67
+/agent-note-host-managed-security-skill-resources/consequences:
+  en: b8e3ccb669b01d24
+  zh: 0f256c76c6d1bf62
+/agent-note-host-managed-security-skill-resources/verification:
+  en: 06205d8aa791180d
+  zh: 26ddf862227652bd
+/agent-note-host-managed-security-skill-resources/related-decisions:
+  en: ebac717b306a0323
+  zh: 98867d31cfe94a25

@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-08-reusable-directory-picker.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-08-reusable-directory-picker.md
+/agent-note-reusable-composed-directory-picker:
+  en: 096b64a99aee8866
+  zh: ca38a193e8840299
+/agent-note-reusable-composed-directory-picker/problem:
+  en: ed6c0e171b7faebc
+  zh: ff074a8517b9c385
+/agent-note-reusable-composed-directory-picker/decision:
+  en: 92b3546eee0694ba
+  zh: 67b7658f1e4cf920
+/agent-note-reusable-composed-directory-picker/alternatives-considered:
+  en: b23983294fc29a0e
+  zh: b66d3697f983fa7d
+/agent-note-reusable-composed-directory-picker/consequences:
+  en: 3056539813f21386
+  zh: ef4df5f87f104ba0

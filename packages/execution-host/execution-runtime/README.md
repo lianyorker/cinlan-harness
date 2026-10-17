@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Install or update a remote Harness runtime through an explicit SSH endpoint with a pinned host key. Follow the installation by task ID, and recover retained observations after a Client reload connected to the same Host. Activation selects a verified generation for subsequent execution bindings while existing Sessions retain their captured deployment. Installation requires a complete release payload and an existing remote Node executable.
+Install or update a remote Harness runtime through an explicit SSH endpoint with a pinned host key, and manage ephemeral on-demand VM environments from approved recipes with strict resource quota controls, active lifecycle tracking, and orphaned resource reaping. Follow the installation by task ID, and recover retained observations after a Client reload connected to the same Host. Activation selects a verified generation for subsequent execution bindings while existing Sessions retain their captured deployment. Installation requires a complete release payload and an existing remote Node executable.
 
 ## Table of Contents
 

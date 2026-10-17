@@ -13,6 +13,8 @@ afterEach(cleanup)
 
 const theme: ThemeSnapshot = {
   preference: 'light', fontSize: 14,
+  fontSizes: { text: 14, code: 13, terminal: 13 },
+  fontFamilies: { text: '', code: '', terminal: '' },
   active: { id: 'light', colorScheme: 'light', tokens: {} }, themes: [], revision: 0,
 }
 

@@ -1,5 +1,5 @@
 ---
-description: "Right sidebar contributors for review, terminal, task, browser, and canonical file tools."
+description: "Right sidebar contributors for review, worktree tasks, browser, ports forwarding, and line comments."
 kind: "package-reference"
 ---
 # @deepseek-ai/dsh-client-ui-right-sidebar
@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This plugin contributes the Review, Terminal, Tasks, and Browser pages to the production right sidebar. The canonical Files page remains owned by ui-sidebar-files. The existing sidebar header-corner owner renders one integrated tools menu so Files, Review, Terminal, Tasks, and Browser open in the session whose button was clicked.
+This plugin contributes Review, Tasks, Browser, and Ports discovery and forwarding pages to the production right sidebar, as well as an Editor & Diff Preferences row to General Settings. The canonical Files page is owned by ui-sidebar-files, and Terminal is decoupled into ui-sidebar-terminal. The Review page provides Workspace Isolation diff inspection (supporting inline and side-by-side presentation, word wrap, and whitespace toggle), structured line comments, and injection into the Session agent prompt queue. The Ports page discovers listening TCP ports on the remote workspace target and manages loopback port forwarding rules with conflict detection and disconnect teardown.
 
 ## Table of Contents
 
@@ -23,11 +23,11 @@ Mount the plugin with ui-sidebar-right, ui-sidebar-files, locale, the official R
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as the browser sidebar contributors register no prompt, tool, or Session event.
+The Review contributor allows users to dispatch structured line review comments into the active Session agent prompt queue via remote.session.prompt; other tabs register no prompt, tool, or Session event.
 
 #### KV Cache effect
 
-None; sidebar administration does not alter model requests.
+Comments dispatched to the agent queue append text context to subsequent model turns.
 
 ## Known Limitations and Deferred Work
 <a id="known-limitations-and-deferred-work"></a>

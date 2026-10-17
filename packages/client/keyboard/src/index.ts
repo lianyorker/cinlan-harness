@@ -1,17 +1,14 @@
-/** Host ownership of durable keyboard command overrides. */
-import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-settings'
-import { KEYBINDINGS_NAMESPACE, KeybindingsSettingsSchema } from './settings-schema.ts'
+/** Host half: publishes the live-editable keybindings settings schema. */
+import { KeybindingsSettingsSchema } from './settings-schema.ts'
 
 export type { KeyBinding, KeybindingOverride, KeybindingsSettings } from './types.ts'
 
 /**
- * Register the existing namespace while a settings provider is available.
- * @param ctx - Host plugin context owning the schema registration.
+ * The entry's live-editable preferences. The settings document serves a schema
+ * only when it carries a volatile field, and the Loader entry id `keybindings`
+ * is the namespace the Client half binds through `settingsScope`.
  */
-export function apply(ctx: Context): void {
-  ctx.inject(['settings'], (settingsCtx) => {
-    const settings = settingsCtx.settings as unknown as { register?: (ns: string, schema: unknown) => void }
-    settings.register?.(KEYBINDINGS_NAMESPACE, KeybindingsSettingsSchema)
-  })
-}
+export const Config = KeybindingsSettingsSchema.volatile()
+
+/** Register the browser package without adding Host behavior. */
+export function apply(): void {}

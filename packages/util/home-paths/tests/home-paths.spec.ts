@@ -3,15 +3,15 @@ import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  DEFAULT_DSH_HOME_DISPLAY,
-  DSH_HOME_DIR_NAME,
+  CLH_HOME_DIR_NAME,
+  DEFAULT_CLH_HOME_DISPLAY,
   canonicalizeWatchPath,
-  defaultDshHome,
-  dshCachePath,
-  dshHomeDisplay,
-  dshHomePath,
+  clhCachePath,
+  clhHomeDisplay,
+  clhHomePath,
+  defaultClhHome,
   expandHomePath,
-  resolveDshHome,
+  resolveClhHome,
 } from '@deepseek-ai/dsh-home-paths'
 
 afterEach(() => {
@@ -20,9 +20,9 @@ afterEach(() => {
 
 describe('clh/dsh path helpers', () => {
   it('owns the shared default CLH home directory name', () => {
-    expect(DSH_HOME_DIR_NAME).toBe('.clh')
-    expect(DEFAULT_DSH_HOME_DISPLAY).toBe('~/.clh')
-    expect(defaultDshHome()).toBe(join(homedir(), '.clh'))
+    expect(CLH_HOME_DIR_NAME).toBe('.clh')
+    expect(DEFAULT_CLH_HOME_DISPLAY).toBe('~/.clh')
+    expect(defaultClhHome()).toBe(join(homedir(), '.clh'))
   })
 
   it('expands tilde paths without changing non-tilde paths', () => {
@@ -36,69 +36,82 @@ describe('clh/dsh path helpers', () => {
   it('resolves explicit path before environment and the default', () => {
     const envHome = join(homedir(), 'env-clh')
 
-    expect(resolveDshHome('/tmp/explicit-clh', { CLH_HOME: '~/env-clh' })).toBe(resolve('/tmp/explicit-clh'))
-    expect(resolveDshHome(undefined, { CLH_HOME: '~/env-clh' })).toBe(envHome)
-    expect(resolveDshHome(undefined, {})).toBe(defaultDshHome())
+    expect(resolveClhHome('/tmp/explicit-clh', { CLH_HOME: '~/env-clh' })).toBe(resolve('/tmp/explicit-clh'))
+    expect(resolveClhHome(undefined, { CLH_HOME: '~/env-clh' })).toBe(envHome)
+    expect(resolveClhHome(undefined, {})).toBe(defaultClhHome())
   })
 
-  it('respects precedence: CLH_HOME > CINLAN_HARNESS_HOME > DSH_HOME', () => {
-    expect(resolveDshHome(undefined, {
+  it('respects precedence: CLH_HOME > CINLAN_HARNESS_HOME', () => {
+    expect(resolveClhHome(undefined, {
       CLH_HOME: '/clh-1',
       CINLAN_HARNESS_HOME: '/clh-2',
-      DSH_HOME: '/clh-3',
     })).toBe(resolve('/clh-1'))
 
-    expect(resolveDshHome(undefined, {
+    expect(resolveClhHome(undefined, {
       CINLAN_HARNESS_HOME: '/clh-2',
-      DSH_HOME: '/clh-3',
     })).toBe(resolve('/clh-2'))
+  })
 
-    expect(resolveDshHome(undefined, {
-      DSH_HOME: '/clh-3',
-    })).toBe(resolve('/clh-3'))
+  it('never inherits the official DSH_HOME root', () => {
+    // A machine running both products must keep the two roots apart; inheriting
+    // the official home would let CLH read or clean the official sessions.
+    expect(resolveClhHome(undefined, { DSH_HOME: '/official-dsh' })).toBe(defaultClhHome())
+    expect(resolveClhHome(undefined, {
+      CLH_HOME: '/clh-1',
+      DSH_HOME: '/official-dsh',
+    })).toBe(resolve('/clh-1'))
   })
 
   it('treats an empty or whitespace-only home env as unset', () => {
-    expect(resolveDshHome(undefined, { CLH_HOME: '' })).toBe(defaultDshHome())
-    expect(resolveDshHome(undefined, { CLH_HOME: '   ' })).toBe(defaultDshHome())
-    expect(resolveDshHome(undefined, { DSH_HOME: '' })).toBe(defaultDshHome())
-    expect(resolveDshHome(undefined, { DSH_HOME: '   ' })).toBe(defaultDshHome())
+    expect(resolveClhHome(undefined, { CLH_HOME: '' })).toBe(defaultClhHome())
+    expect(resolveClhHome(undefined, { CLH_HOME: '   ' })).toBe(defaultClhHome())
+    expect(resolveClhHome(undefined, { CINLAN_HARNESS_HOME: '' })).toBe(defaultClhHome())
+    expect(resolveClhHome(undefined, { CINLAN_HARNESS_HOME: '   ' })).toBe(defaultClhHome())
   })
 
   it('joins child segments onto the resolved home', () => {
     vi.stubEnv('CLH_HOME', '~/env-clh')
-    expect(dshHomePath()).toBe(join(homedir(), 'env-clh'))
-    expect(dshHomePath('storages', 'cache')).toBe(join(homedir(), 'env-clh', 'storages', 'cache'))
+    expect(clhHomePath()).toBe(join(homedir(), 'env-clh'))
+    expect(clhHomePath('storages', 'cache')).toBe(join(homedir(), 'env-clh', 'storages', 'cache'))
   })
 
   it('labels a resolved home by whether it is the default root', () => {
-    expect(dshHomeDisplay(resolve(defaultDshHome()))).toBe('~/.clh')
-    expect(dshHomeDisplay('/some/other/root')).toBe('$CLH_HOME')
+    expect(clhHomeDisplay(resolve(defaultClhHome()))).toBe('~/.clh')
+    expect(clhHomeDisplay('/some/other/root')).toBe('$CLH_HOME')
   })
 
   it.each([
     [undefined, join(homedir(), '.clh')],
     ['', join(homedir(), '.clh')],
     ['   ', join(homedir(), '.clh')],
-    ['~/env-dsh', join(homedir(), 'env-dsh')],
-    ['./relative-dsh', resolve('./relative-dsh')],
-  ] as const)('resolves cache paths with DSH_HOME=%j', (home, expectedHome) => {
-    vi.stubEnv('DSH_HOME', home)
+    ['~/env-clh', join(homedir(), 'env-clh')],
+    ['./relative-clh', resolve('./relative-clh')],
+  ] as const)('resolves cache paths with CLH_HOME=%j', (home, expectedHome) => {
+    vi.stubEnv('CLH_HOME', home)
     try {
-      expect(dshCachePath()).toBe(join(expectedHome, 'cache'))
-      expect(dshCachePath('models', 'index.json')).toBe(join(expectedHome, 'cache', 'models', 'index.json'))
+      expect(clhCachePath()).toBe(join(expectedHome, 'cache'))
+      expect(clhCachePath('models', 'index.json')).toBe(join(expectedHome, 'cache', 'models', 'index.json'))
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('ignores DSH_HOME when resolving cache paths', () => {
+    vi.stubEnv('DSH_HOME', '~/official-dsh')
+    try {
+      expect(clhCachePath()).toBe(join(defaultClhHome(), 'cache'))
     } finally {
       vi.unstubAllEnvs()
     }
   })
 
   it('resolves configured cache homes before the environment', () => {
-    vi.stubEnv('DSH_HOME', '~/env-dsh')
+    vi.stubEnv('CLH_HOME', '~/env-clh')
     try {
-      expect(dshCachePath({ dshHome: '~/explicit-dsh' })).toBe(join(homedir(), 'explicit-dsh', 'cache'))
-      expect(dshCachePath({ dshHome: './explicit-dsh' }, 'attachments', 'request-images'))
-        .toBe(resolve('./explicit-dsh/cache/attachments/request-images'))
-      expect(dshCachePath({}, 'attachments')).toBe(join(homedir(), 'env-dsh', 'cache', 'attachments'))
+      expect(clhCachePath({ clhHome: '~/explicit-clh' })).toBe(join(homedir(), 'explicit-clh', 'cache'))
+      expect(clhCachePath({ clhHome: './explicit-clh' }, 'attachments', 'request-images'))
+        .toBe(resolve('./explicit-clh/cache/attachments/request-images'))
+      expect(clhCachePath({}, 'attachments')).toBe(join(homedir(), 'env-clh', 'cache', 'attachments'))
     } finally {
       vi.unstubAllEnvs()
     }

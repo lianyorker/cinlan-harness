@@ -94,8 +94,12 @@ it('composes each default provider once in the actual CLI and leaves opt-in prof
     'computer-use-cua-driver-native',
   ]) expect(web.filter(row => row.id === id)).toHaveLength(1)
   for (const id of targets) expect(web.find(row => row.id === id)?.disabled).toBe(false)
-  // The mobile device capability stays opt-in: the Web product mounts no mobile rows.
-  expect(web.some(row => row.id === 'mobile-device')).toBe(false)
+  for (const id of ['mobile-device', 'mobile-device-runtime', 'mobile-device-adb', 'mobile-device-permission-policy', 'tool-mobile-device']) {
+    expect(web.filter(row => row.id === id)).toHaveLength(1)
+    expect(web.find(row => row.id === id)?.disabled).not.toBe(true)
+  }
+  expect(web.find(row => row.id === 'mobile-device-permission-policy')?.config)
+    .toEqual({ observe: 'ask', touch: 'ask', textInput: 'ask', deviceNavigation: 'ask' })
   const browser = await dump(home, 'browser')
   expect(browser.filter(row => row.id === targets[0])).toHaveLength(1)
   expect(browser.find(row => row.id === targets[0])?.disabled).not.toBe(true)
@@ -103,6 +107,7 @@ it('composes each default provider once in the actual CLI and leaves opt-in prof
   const devices = await dump(home, 'device-control')
   expect(devices.filter(row => row.id === targets[1])).toHaveLength(1)
   expect(devices.find(row => row.id === targets[1])?.disabled).not.toBe(true)
+  expect(devices.filter(row => row.id === 'mobile-device')).toHaveLength(1)
 })
 
 it('persists official Plugin Manager enables after the defaults layer without changing bundle files', async () => {

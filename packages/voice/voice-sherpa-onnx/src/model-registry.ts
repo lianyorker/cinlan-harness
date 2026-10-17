@@ -1,170 +1,173 @@
-/**
- * The shipped voice-dictation models for this vertical slice. The two original
- * streaming Zipformer-transducer models are sourced from the upstream
- * k2-fsa/sherpa-onnx `asr-models` GitHub release as tar.bz2 archives. Additional
- * models (English Zipformer, bilingual Paraformer, Sense Voice, Whisper tiny)
- * are sourced as individual files from HuggingFace with per-file SHA-256
- * verification, mirroring the orca speech model download catalog.
- */
-
+/** Orca's local sherpa-onnx speech catalog, with immutable file pins. */
 import { VoiceModelId } from '@deepseek-ai/dsh-voice'
-import type { VoiceModelDefinition } from '@deepseek-ai/dsh-voice'
+import type { VoiceModelDefinition, VoiceModelType } from '@deepseek-ai/dsh-voice'
 
-const RELEASE_BASE = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models'
+type FileSpec = readonly [name: string, bytes: number, sha256: string]
 
-/** Build a HuggingFace download URL for one file in a pinned revision. */
-function hfFile(repository: string, revision: string, name: string): string {
-  return `https://hf-mirror.com/${repository}/resolve/${revision}/${encodeURIComponent(name)}?download=true`
+function model(options: {
+  id: string
+  label: string
+  description: string
+  type: VoiceModelType
+  language: string
+  streaming: boolean
+  recommended?: boolean
+  repository: string
+  revision: string
+  files: readonly FileSpec[]
+  architecture: VoiceModelDefinition['architecture']
+}): VoiceModelDefinition {
+  return {
+    id: VoiceModelId(options.id), name: options.label, label: options.label,
+    description: options.description, language: options.language, type: options.type,
+    provider: 'local', streaming: options.streaming, recommended: options.recommended ?? false,
+    kind: options.streaming ? 'streaming' : 'non-streaming',
+    approximateBytes: options.files.reduce((total, [, bytes]) => total + bytes, 0),
+    download: { type: 'files', entries: options.files.map(([name, bytes, sha256]) => ({
+      name, bytes, sha256,
+      url: `https://hf-mirror.com/${options.repository}/resolve/${options.revision}/${encodeURIComponent(name)}?download=true`,
+    })) },
+    architecture: options.architecture,
+  }
 }
 
-/** Streaming Chinese-only Zipformer (~14M parameters; the smallest shipped model). */
-export const ZH_STREAMING_ZIPFORMER: VoiceModelDefinition = {
-  id: VoiceModelId('zh-streaming-zipformer-14m'),
-  name: 'sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23',
-  description: '中文识别 · 超轻量 14M 参数，适合低资源设备',
-  recommended: false,
-  kind: 'streaming',
-  approximateBytes: 74_004_050,
-  download: {
-    type: 'archive',
-    url: `${RELEASE_BASE}/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23.tar.bz2`,
-    sha256: '2cbd71b640d9c37d3784f29367333a4577b0398b62e9deeed418170b081cba8b',
-  },
-  architecture: {
-    type: 'transducer',
-    encoder: 'sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/encoder-epoch-99-avg-1.onnx',
-    decoder: 'sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/decoder-epoch-99-avg-1.onnx',
-    joiner: 'sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/joiner-epoch-99-avg-1.onnx',
-    tokens: 'sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/tokens.txt',
-  },
-}
+const PARAKEET_V3 = model({
+  id: 'parakeet-tdt-0.6b-v3-int8', label: 'Parakeet TDT v3',
+  description: 'Highest accuracy for 25 European languages. Punctuation, capitalization, and word-level timestamps.',
+  type: 'transducer', language: 'multilingual', streaming: false, recommended: true,
+  repository: 'csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8', revision: '2bda32ec70b097a55adaa07d9a7173915b43cc78',
+  files: [
+    ['encoder.int8.onnx', 652_184_281, 'acfc2b4456377e15d04f0243af540b7fe7c992f8d898d751cf134c3a55fd2247'],
+    ['decoder.int8.onnx', 11_845_275, '179e50c43d1a9de79c8a24149a2f9bac6eb5981823f2a2ed88d655b24248db4e'],
+    ['joiner.int8.onnx', 6_355_277, '3164c13fc2821009440d20fcb5fdc78bff28b4db2f8d0f0b329101719c0948b3'],
+    ['tokens.txt', 93_939, 'd58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d'],
+  ],
+  architecture: { type: 'transducer', encoder: 'encoder.int8.onnx', decoder: 'decoder.int8.onnx', joiner: 'joiner.int8.onnx', tokens: 'tokens.txt' },
+})
 
-/** Streaming Chinese/English bilingual Zipformer. */
-export const BILINGUAL_STREAMING_ZIPFORMER: VoiceModelDefinition = {
-  id: VoiceModelId('bilingual-streaming-zipformer'),
-  name: 'sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20',
-  description: '中英双语 + 代码切换 · 低延迟实时流式识别',
-  recommended: true,
-  kind: 'streaming',
-  approximateBytes: 511_274_346,
-  download: {
-    type: 'archive',
-    url: `${RELEASE_BASE}/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2`,
-    sha256: '27ffbd9ee24ad186d99acc2f6354d7992b27bcab490812510665fa8f9389c5f8',
-  },
-  architecture: {
-    type: 'transducer',
-    encoder: 'sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/encoder-epoch-99-avg-1.onnx',
-    decoder: 'sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/decoder-epoch-99-avg-1.onnx',
-    joiner: 'sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/joiner-epoch-99-avg-1.onnx',
-    tokens: 'sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/tokens.txt',
-  },
-}
+const PARAKEET_V2 = model({
+  id: 'parakeet-tdt-0.6b-v2-int8', label: 'Parakeet TDT v2',
+  description: 'English only. Faster than v3 with similar accuracy. Punctuation and capitalization.',
+  type: 'transducer', language: 'en', streaming: false,
+  repository: 'csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8', revision: '1ab9323565ddb038682214b292f588070a538ce2',
+  files: [
+    ['encoder.int8.onnx', 652_184_296, 'a32b12d17bbbc309d0686fbbcc2987b5e9b8333a7da83fa6b089f0a2acd651ab'],
+    ['decoder.int8.onnx', 7_257_753, 'b6bb64963457237b900e496ee9994b59294526439fbcc1fecf705b31a15c6b4e'],
+    ['joiner.int8.onnx', 1_739_080, '7946164367946e7f9f29a122407c3252b680dbae9a51343eb2488d057c3c43d2'],
+    ['tokens.txt', 9_384, 'ec182b70dd42113aff6c5372c75cac58c952443eb22322f57bbd7f53977d497d'],
+  ],
+  architecture: { type: 'transducer', encoder: 'encoder.int8.onnx', decoder: 'decoder.int8.onnx', joiner: 'joiner.int8.onnx', tokens: 'tokens.txt' },
+})
 
-/** Streaming English-only Zipformer (~20M parameters; small and fast). */
-export const EN_STREAMING_ZIPFORMER_20M: VoiceModelDefinition = {
-  id: VoiceModelId('en-streaming-zipformer-20m'),
-  name: 'sherpa-onnx-streaming-zipformer-en-20M-2023-02-17',
-  description: 'English only · Lightweight 20M-param, good balance of speed and size',
-  recommended: false,
-  kind: 'streaming',
-  approximateBytes: 91_928_372,
-  download: {
-    type: 'files',
-    entries: [
-      { name: 'encoder-epoch-99-avg-1.onnx', url: hfFile('csukuangfj/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17', 'd42f2d9f7ca24806fb667456a18a9f1b60f70d16', 'encoder-epoch-99-avg-1.onnx'), sha256: 'f77a22f4ff94604e1afb2aeb13504d7699363528c047c97d3436087c95c9b659', bytes: 88_804_590 },
-      { name: 'decoder-epoch-99-avg-1.onnx', url: hfFile('csukuangfj/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17', 'd42f2d9f7ca24806fb667456a18a9f1b60f70d16', 'decoder-epoch-99-avg-1.onnx'), sha256: '45a7f940ecfb53d89fa270ad11b88b961e53a317203eb24b1c8e95ed208b0f30', bytes: 2_092_272 },
-      { name: 'joiner-epoch-99-avg-1.onnx', url: hfFile('csukuangfj/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17', 'd42f2d9f7ca24806fb667456a18a9f1b60f70d16', 'joiner-epoch-99-avg-1.onnx'), sha256: '343e17dffa4f386ca206e00d3c406908f68f473c3d35968d6c3cddd5b8559a94', bytes: 1_026_462 },
-      { name: 'tokens.txt', url: hfFile('csukuangfj/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17', 'd42f2d9f7ca24806fb667456a18a9f1b60f70d16', 'tokens.txt'), sha256: '49e3c2646595fd907228b3c6787069658f67b17377c60aeb8619c4551b2316fb', bytes: 5_048 },
-    ],
-  },
-  architecture: {
-    type: 'transducer',
-    encoder: 'encoder-epoch-99-avg-1.onnx',
-    decoder: 'decoder-epoch-99-avg-1.onnx',
-    joiner: 'joiner-epoch-99-avg-1.onnx',
-    tokens: 'tokens.txt',
-  },
-}
+const BILINGUAL_ZIPFORMER = model({
+  id: 'zipformer-bilingual-zh-en', label: 'Zipformer Bilingual',
+  description: 'Chinese + English with code-switching. Low-latency real-time streaming.',
+  type: 'transducer', language: 'zh-en', streaming: true,
+  repository: 'csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20', revision: '98590b7ed6443e77b714204da2757d75e1a642f4',
+  files: [
+    ['encoder-epoch-99-avg-1.onnx', 330_083_505, '709f0ed53a734b7942f170127e7547b566cb29c4afc5e67719f314c3d63ccb10'],
+    ['decoder-epoch-99-avg-1.onnx', 13_876_452, '2e3b5ec371f8899ee6acd829fd753ba45772df57a91bdf37cde3136354e7db7d'],
+    ['joiner-epoch-99-avg-1.onnx', 12_833_618, '5f2adc585dd1bec6421c8bb8660d2a73fc8b9ceb24491ef51399ba2a2f0fc31b'],
+    ['tokens.txt', 56_317, 'a8e0e4ec53810e433789b54a5c0134a7eaa2ffca595a6334d54c00da858841d3'],
+    ['bpe.vocab', 12_564, 'd0b642f3a2eacd5fadefdeff9e0e1358cab729647cbb7fe58cf738e1f7407029'],
+  ],
+  architecture: { type: 'transducer', encoder: 'encoder-epoch-99-avg-1.onnx', decoder: 'decoder-epoch-99-avg-1.onnx', joiner: 'joiner-epoch-99-avg-1.onnx', tokens: 'tokens.txt' },
+})
 
-/** Streaming Chinese/English bilingual Paraformer. */
-export const BILINGUAL_STREAMING_PARAFORMER: VoiceModelDefinition = {
-  id: VoiceModelId('bilingual-streaming-paraformer'),
-  name: 'sherpa-onnx-streaming-paraformer-bilingual-zh-en',
-  description: '中英双语 · 对口音和方言中文识别效果更好',
-  recommended: true,
-  kind: 'streaming',
-  approximateBytes: 237_202_501,
-  download: {
-    type: 'files',
-    entries: [
-      { name: 'encoder.int8.onnx', url: hfFile('csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en', '8e40c43232a1c5c66c82111efc5820d3accca11b', 'encoder.int8.onnx'), sha256: '81a70226a8934e6ed92aa1d4fc486b428b5398e2f2619ed4897b7294cab90e9a', bytes: 165_462_184 },
-      { name: 'decoder.int8.onnx', url: hfFile('csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en', '8e40c43232a1c5c66c82111efc5820d3accca11b', 'decoder.int8.onnx'), sha256: 'f3cca9f77bb9d93c8fcbfb63ae617b6b1ee96818df3aa3b151c40658fe38594f', bytes: 71_664_561 },
-      { name: 'tokens.txt', url: hfFile('csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en', '8e40c43232a1c5c66c82111efc5820d3accca11b', 'tokens.txt'), sha256: '59aba8873a2ed1e122c25fee421e25f283b63290efbde85c1f01a853d83cb6e6', bytes: 75_756 },
-    ],
-  },
-  architecture: {
-    type: 'paraformer',
-    encoder: 'encoder.int8.onnx',
-    decoder: 'decoder.int8.onnx',
-    tokens: 'tokens.txt',
-  },
-}
+const PARAFORMER = model({
+  id: 'paraformer-bilingual-zh-en', label: 'Paraformer Bilingual',
+  description: 'Chinese (Mandarin + dialects) + English. Strong on accented and regional Chinese.',
+  type: 'paraformer', language: 'zh-en', streaming: true,
+  repository: 'csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en', revision: '8e40c43232a1c5c66c82111efc5820d3accca11b',
+  files: [
+    ['encoder.int8.onnx', 165_462_184, '81a70226a8934e6ed92aa1d4fc486b428b5398e2f2619ed4897b7294cab90e9a'],
+    ['decoder.int8.onnx', 71_664_561, 'f3cca9f77bb9d93c8fcbfb63ae617b6b1ee96818df3aa3b151c40658fe38594f'],
+    ['tokens.txt', 75_756, '59aba8873a2ed1e122c25fee421e25f283b63290efbde85c1f01a853d83cb6e6'],
+  ],
+  architecture: { type: 'paraformer', encoder: 'encoder.int8.onnx', decoder: 'decoder.int8.onnx', tokens: 'tokens.txt' },
+})
 
-/** Non-streaming Sense Voice model (Chinese/English/Japanese/Korean/Cantonese). */
-export const SENSE_VOICE_MULTILINGUAL: VoiceModelDefinition = {
-  id: VoiceModelId('sense-voice-zh-en-ja-ko-yue'),
-  name: 'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17',
-  description: '中日英韩粤 · 自动语言检测，多语言非流式识别',
-  recommended: true,
-  kind: 'non-streaming',
-  approximateBytes: 239_549_735,
-  download: {
-    type: 'files',
-    entries: [
-      { name: 'model.int8.onnx', url: hfFile('csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17', '2365baeacb507f821a0c8120fcee3d484dba7a07', 'model.int8.onnx'), sha256: 'c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51', bytes: 239_233_841 },
-      { name: 'tokens.txt', url: hfFile('csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17', '2365baeacb507f821a0c8120fcee3d484dba7a07', 'tokens.txt'), sha256: 'f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc', bytes: 315_894 },
-    ],
-  },
-  architecture: {
-    type: 'sense-voice',
-    model: 'model.int8.onnx',
-    tokens: 'tokens.txt',
-    language: 'auto',
-  },
-}
+const ENGLISH_ZIPFORMER = model({
+  id: 'zipformer-streaming-en-20m', label: 'Zipformer Streaming EN',
+  description: 'English only. Lightweight 20M-param model, good balance of speed and size.',
+  type: 'transducer', language: 'en', streaming: true,
+  repository: 'csukuangfj/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17', revision: 'd42f2d9f7ca24806fb667456a18a9f1b60f70d16',
+  files: [
+    ['encoder-epoch-99-avg-1.onnx', 88_804_590, 'f77a22f4ff94604e1afb2aeb13504d7699363528c047c97d3436087c95c9b659'],
+    ['decoder-epoch-99-avg-1.onnx', 2_092_272, '45a7f940ecfb53d89fa270ad11b88b961e53a317203eb24b1c8e95ed208b0f30'],
+    ['joiner-epoch-99-avg-1.onnx', 1_026_462, '343e17dffa4f386ca206e00d3c406908f68f473c3d35968d6c3cddd5b8559a94'],
+    ['tokens.txt', 5_048, '49e3c2646595fd907228b3c6787069658f67b17377c60aeb8619c4551b2316fb'],
+  ],
+  architecture: { type: 'transducer', encoder: 'encoder-epoch-99-avg-1.onnx', decoder: 'decoder-epoch-99-avg-1.onnx', joiner: 'joiner-epoch-99-avg-1.onnx', tokens: 'tokens.txt' },
+})
 
-/** Non-streaming Whisper tiny model (multilingual). */
-export const WHISPER_TINY: VoiceModelDefinition = {
-  id: VoiceModelId('whisper-tiny'),
-  name: 'sherpa-onnx-whisper-tiny',
-  description: '90+ 语言 · 覆盖最广，精度较低',
-  recommended: false,
-  kind: 'non-streaming',
-  approximateBytes: 152_969_611,
-  download: {
-    type: 'files',
-    entries: [
-      { name: 'tiny-encoder.onnx', url: hfFile('csukuangfj/sherpa-onnx-whisper-tiny', '65176e2deb88badc814a94058666cadccc29b61c', 'tiny-encoder.onnx'), sha256: '42c1d4cbf889632ba21ab6f0d4064c80209755f265ce5cd630db4a6793e7089c', bytes: 37_647_080 },
-      { name: 'tiny-decoder.onnx', url: hfFile('csukuangfj/sherpa-onnx-whisper-tiny', '65176e2deb88badc814a94058666cadccc29b61c', 'tiny-decoder.onnx'), sha256: 'e144c07dc6b55cece24392811f2d934b97013811f5e677d1315d341a0a74a25d', bytes: 114_505_801 },
-      { name: 'tiny-tokens.txt', url: hfFile('csukuangfj/sherpa-onnx-whisper-tiny', '65176e2deb88badc814a94058666cadccc29b61c', 'tiny-tokens.txt'), sha256: 'b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126', bytes: 816_730 },
-    ],
-  },
-  architecture: {
-    type: 'whisper',
-    encoder: 'tiny-encoder.onnx',
-    decoder: 'tiny-decoder.onnx',
-    tokens: 'tiny-tokens.txt',
-    language: 'en',
-  },
-}
+const CHINESE_ZIPFORMER = model({
+  id: 'zipformer-streaming-zh-14m', label: 'Zipformer Streaming ZH',
+  description: 'Chinese only. Ultra-lightweight 14M-param model, ideal for low-resource devices.',
+  type: 'transducer', language: 'zh', streaming: true,
+  repository: 'csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23', revision: '204ad334e2e683fd295359930cc16fc0432a23ac',
+  files: [
+    ['encoder-epoch-99-avg-1.onnx', 40_948_171, '84c6a8f372686faa5b8f45f2d79f0816f76dcd9f547acb9a90eba2772d7eda8b'],
+    ['decoder-epoch-99-avg-1.onnx', 7_509_745, '5ee0f03a2768ff1d5c83ef3a493243c7935d316cd41280037b14783a3467cc78'],
+    ['joiner-epoch-99-avg-1.onnx', 7_109_975, '030212efaea9a8b6a4fa98faf6ac6055529c4408cf4865e898220ddd02780f34'],
+    ['tokens.txt', 48_697, '8b294db9045d6e5f94647f4c1eec1af4da143a75053c399611444b378ff966ac'],
+  ],
+  architecture: { type: 'transducer', encoder: 'encoder-epoch-99-avg-1.onnx', decoder: 'decoder-epoch-99-avg-1.onnx', joiner: 'joiner-epoch-99-avg-1.onnx', tokens: 'tokens.txt' },
+})
 
-/** The complete shipped roster for this vertical slice. */
+const KOREAN_ZIPFORMER = model({
+  id: 'zipformer-streaming-korean', label: 'Zipformer Streaming KO',
+  description: 'Korean only. Low-latency real-time streaming.',
+  type: 'transducer', language: 'ko', streaming: true,
+  repository: 'k2-fsa/sherpa-onnx-streaming-zipformer-korean-2024-06-16', revision: 'ba6078bca4daf3f0dd37f79d0ab505af71df14a6',
+  files: [
+    ['encoder-epoch-99-avg-1.int8.onnx', 126_968_852, '8d0b1aa24fbedd4e3948564ab7facd151b8ce9b0c48fc987c541de2de3af5697'],
+    ['decoder-epoch-99-avg-1.int8.onnx', 2_844_692, '68ea197936aabd249f38b53a87c775422bca64428ad4427d0e6e8092593e71fb'],
+    ['joiner-epoch-99-avg-1.int8.onnx', 2_581_421, '128b80a66a1f718488af8560f9d15895109b99ff3e573f0a0130e03774ef1ced'],
+    ['tokens.txt', 60_246, '016bdf0965029263b7ad01b742366ee542ef0bef38261510e8176ff6f2e9e668'],
+  ],
+  architecture: { type: 'transducer', encoder: 'encoder-epoch-99-avg-1.int8.onnx', decoder: 'decoder-epoch-99-avg-1.int8.onnx', joiner: 'joiner-epoch-99-avg-1.int8.onnx', tokens: 'tokens.txt' },
+})
+
+const JAPANESE_PARAKEET = model({
+  id: 'parakeet-tdt-ctc-0.6b-ja-int8', label: 'Parakeet TDT-CTC JA',
+  description: 'Japanese only. Trained on 35k+ hours of natural speech. Punctuation included.',
+  type: 'nemo-ctc', language: 'ja', streaming: false,
+  repository: 'csukuangfj/sherpa-onnx-nemo-parakeet-tdt_ctc-0.6b-ja-35000-int8', revision: 'bef18eb066808c90bd0f5df5be685767b0732de8',
+  files: [
+    ['model.int8.onnx', 655_542_604, '3addd00ef5bd1742078389e540b77394e4a508bdf2f4c9ad1b4a76d93e76598e'],
+    ['tokens.txt', 28_557, '732f64c53909f2620c713f4106b487d92e6f54a6915b3cd3d1dbd32f9f4f392a'],
+  ],
+  architecture: { type: 'nemo-ctc', model: 'model.int8.onnx', tokens: 'tokens.txt' },
+})
+
+const WHISPER = model({
+  id: 'whisper-tiny', label: 'Whisper Tiny',
+  description: '90+ languages. Lower accuracy than Parakeet but broadest language coverage.',
+  type: 'whisper', language: 'multilingual', streaming: false,
+  repository: 'csukuangfj/sherpa-onnx-whisper-tiny', revision: '65176e2deb88badc814a94058666cadccc29b61c',
+  files: [
+    ['tiny-encoder.onnx', 37_647_080, '42c1d4cbf889632ba21ab6f0d4064c80209755f265ce5cd630db4a6793e7089c'],
+    ['tiny-decoder.onnx', 114_505_801, 'e144c07dc6b55cece24392811f2d934b97013811f5e677d1315d341a0a74a25d'],
+    ['tiny-tokens.txt', 816_730, 'b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126'],
+  ],
+  architecture: { type: 'whisper', encoder: 'tiny-encoder.onnx', decoder: 'tiny-decoder.onnx', tokens: 'tiny-tokens.txt', language: '' },
+})
+
+const SENSE_VOICE = model({
+  id: 'sense-voice-zh-en-ja-ko-yue', label: 'SenseVoice',
+  description: 'Chinese, English, Japanese, Korean, and Cantonese with automatic language detection.',
+  type: 'senseVoice', language: 'multilingual', streaming: false,
+  repository: 'csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17', revision: '2365baeacb507f821a0c8120fcee3d484dba7a07',
+  files: [
+    ['model.int8.onnx', 239_233_841, 'c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51'],
+    ['tokens.txt', 315_894, 'f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc'],
+  ],
+  architecture: { type: 'sense-voice', model: 'model.int8.onnx', tokens: 'tokens.txt', language: 'auto' },
+})
+
+/** The ten local models exposed by stable voice settings. */
 export const SHIPPED_MODELS: readonly VoiceModelDefinition[] = [
-  ZH_STREAMING_ZIPFORMER,
-  BILINGUAL_STREAMING_ZIPFORMER,
-  EN_STREAMING_ZIPFORMER_20M,
-  BILINGUAL_STREAMING_PARAFORMER,
-  SENSE_VOICE_MULTILINGUAL,
-  WHISPER_TINY,
+  PARAKEET_V3, PARAKEET_V2, BILINGUAL_ZIPFORMER, PARAFORMER, ENGLISH_ZIPFORMER,
+  CHINESE_ZIPFORMER, KOREAN_ZIPFORMER, JAPANESE_PARAKEET, WHISPER, SENSE_VOICE,
 ]

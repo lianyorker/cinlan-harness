@@ -2,6 +2,7 @@
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { Context } from '@deepseek-ai/cordis'
 import type { WebTerminalId } from '@deepseek-ai/dsh-api-terminal-controller/types'
+import type { QuickCommandHostId } from '@deepseek-ai/dsh-terminal-quick-commands/types'
 import type { SidebarRightTabParamsMap, TabId } from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-api-terminal-controller/client'
@@ -10,6 +11,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
+import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-api-terminal-quick-commands-controller/remote'
 import { PluginArtworkTerminal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { TerminalGuide, type TerminalGuideInjected } from './TerminalGuide.tsx'
 import { LazyTerminalBody } from './LazyTerminalBody.tsx'
@@ -78,6 +81,20 @@ export function apply(ctx: Context): void {
   const inject = (sessionId: SessionId): TerminalInjected => ({
     view: key => view(sessionId, key),
     keyedHooks: { terminal: key => view(sessionId, key).state },
+    // The catalog is the Host's own 'local' list; commands never carry another
+    // host's entries because the store itself is host-scoped.
+    quickCommands: async () => {
+      const contribution = ctx.remote?.terminalQuickCommands
+      if (contribution === undefined) return []
+      const result = await contribution.list({ hostId: 'local' as QuickCommandHostId })
+      if (!result.ok) return []
+      return (result.value.commands ?? []).map((command: { id: string; name: string; command: string; confirm: boolean }) => ({
+        id: command.id as string, name: command.name, command: command.command, confirm: command.confirm,
+      }))
+    },
+    runQuickCommand: (key, command) => {
+      view(sessionId, key).write(command)
+    },
   })
   const theme: TerminalBodyInjected['hooks']['theme'] = {
     getSnapshot: () => ctx.theme.getTheme(),

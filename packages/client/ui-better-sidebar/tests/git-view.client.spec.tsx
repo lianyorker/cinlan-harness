@@ -323,3 +323,62 @@ describe('confirmed Git history and discard actions', () => {
     expect(screen.getByRole<HTMLSelectElement>('combobox').value).toBe('new-session-branch')
   })
 })
+
+describe('Git AI Author commit message generation', () => {
+  it('generates an AI commit message draft into textarea without auto-committing', async () => {
+    const git = gitCallbacks()
+    git.gitDiff.mockResolvedValue({
+      diff: 'diff --git a/staged.ts b/staged.ts\n+console.log("hello");\n',
+    })
+    const generateAiMessage = vi.fn().mockResolvedValue('feat(staged): add logging statement')
+    render(<GitView scope={scope} git={git} onOpenDiff={vi.fn()} onOpenFile={vi.fn()} generateAiMessage={generateAiMessage} />)
+
+    await screen.findByRole('region', { name: t('staged') })
+
+    const aiButton = screen.getByRole('button', { name: t('gitAiCommit') })
+    fireEvent.click(aiButton)
+
+    await waitFor(() => {
+      expect(generateAiMessage).toHaveBeenCalledOnce()
+    })
+
+    const textarea = screen.getByRole<HTMLTextAreaElement>('textbox', { name: t('commitPlaceholder') })
+    expect(textarea.value).toBe('feat(staged): add logging statement')
+
+    expect(git.gitCommit).not.toHaveBeenCalled()
+    expect(git.gitPrepareCommit).not.toHaveBeenCalled()
+  })
+
+  it('filters sensitive files during AI generation and displays notice', async () => {
+    const git = gitCallbacks({
+      ...status,
+      entries: [
+        { path: 'src/app.ts', xy: 'M ' },
+        { path: '.env', xy: 'M ' },
+      ],
+    })
+    git.gitDiff.mockResolvedValue({
+      diff: `diff --git a/src/app.ts b/src/app.ts
++code
+diff --git a/.env b/.env
++SECRET=123
+`,
+    })
+    const generateAiMessage = vi.fn().mockResolvedValue('feat(app): update application logic')
+    render(<GitView scope={scope} git={git} onOpenDiff={vi.fn()} onOpenFile={vi.fn()} generateAiMessage={generateAiMessage} />)
+
+    await screen.findByRole('region', { name: t('staged') })
+    const aiButton = screen.getByRole('button', { name: t('gitAiCommit') })
+    fireEvent.click(aiButton)
+
+    await waitFor(() => {
+      expect(generateAiMessage).toHaveBeenCalledOnce()
+      expect(screen.getByText(/Omitted sensitive files: \.env/)).toBeTruthy()
+    })
+
+    const textarea = screen.getByRole<HTMLTextAreaElement>('textbox', { name: t('commitPlaceholder') })
+    expect(textarea.value).toBe('feat(app): update application logic')
+    expect(git.gitCommit).not.toHaveBeenCalled()
+  })
+})
+

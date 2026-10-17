@@ -21,11 +21,11 @@ beforeEach(() => {
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-type Row = Pick<SettingsSectionRow, 'id' | 'order' | 'label'> & Partial<Pick<SettingsSectionRow, 'groupId' | 'heading' | 'items'>>
+type Row = Pick<SettingsSectionRow, 'id' | 'order' | 'label'> & Partial<Pick<SettingsSectionRow, 'groupId' | 'title' | 'description' | 'items'>>
 const resolveRows = (rows: Row[]): SettingsSectionRow[] => rows.map(row => ({
   ...row,
   groupId: row.groupId ?? (row.id === 'general' ? 'personal' : 'ai'),
-  heading: row.heading ?? 'feature',
+  title: row.title ?? row.label,
   items: row.items ?? [],
 }))
 type Step = { id: string; order: number }
@@ -55,7 +55,7 @@ function mount({
   wide = true,
   onboardingActive = true,
   rows = [
-    { id: 'general', order: 0, label: 'General', heading: 'shell' },
+    { id: 'general', order: 0, label: 'General', description: en['general.description'] },
     { id: 'models', order: 10, label: 'Models' },
     { id: 'agent-presets', order: 20, label: 'Agent presets' },
   ],

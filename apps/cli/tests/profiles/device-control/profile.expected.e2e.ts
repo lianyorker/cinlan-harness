@@ -37,7 +37,7 @@ it('initializes device-control with both capability families and ask-by-default 
     expect(selected.map(row => row.id)).toEqual([
       'device-capabilities-controller',
       'computer-use', 'computer-use-permission-policy', 'computer-use-cua-driver-native',
-      'mobile-device', 'mobile-device-adb', 'mobile-device-permission-policy', 'tool-mobile-device',
+      'mobile-device', 'mobile-device-runtime', 'mobile-device-adb', 'mobile-device-permission-policy', 'tool-mobile-device',
     ])
     expect(selected.find(row => row.id === 'computer-use-permission-policy')?.config).toEqual({
       native: 'ask',

@@ -29,7 +29,7 @@ export function createGitSettingsOperations(settings: SettingsScope<GitSourceCon
   return {
     save: async (field, value, revision) => {
       const before = settings.getSnapshot()
-      if (field === 'refreshLocalBaseRefOnWorktreeCreate'
+      if (field === 'refreshLocalBaseRefOnWorktreeCreate' || value === undefined
         || before.status !== 'ready' || !before.writable || before.mode !== 'host'
         || (revision !== undefined && revision !== before.revision)) return false
       try {

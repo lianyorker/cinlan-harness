@@ -22,4 +22,34 @@ export interface GitSourceControlSettings {
   enableGitHubAttribution: boolean
   /** Name a generated task branch after the task instead of its internal id. */
   autoRenameTaskBranch: boolean
+  /** Source Control AI author configuration and action recipe defaults. */
+  sourceControlAi?: SourceControlAiSettings
 }
+
+/** Action identifier for Source Control AI Author operations. */
+export type SourceControlAiActionId = 'commit-message' | 'diff-review' | 'pr-description'
+
+/** Action recipe configuration defining prompt templates and model options. */
+export type SourceControlAiActionRecipe = {
+  /** Whether this action recipe is enabled. */
+  readonly enabled: boolean
+  /** Prompt template with placeholder support ({{diff}}, {{branch}}, {{stagedFiles}}). */
+  readonly template: string
+  /** Optional model or agent override. */
+  readonly modelOverride?: string
+  /** Optional CLI arguments or specialized flags. */
+  readonly agentArgs?: string
+}
+
+/** Complete settings for Git Source Control AI Author. */
+export type SourceControlAiSettings = {
+  /** Global toggle for AI Author capabilities in source control. */
+  readonly enabled: boolean
+  /** Maximum bytes of diff allowed before truncation. */
+  readonly maxDiffBytes: number
+  /** Whether to filter out sensitive files (.env, keys, certificates) from AI prompt context. */
+  readonly filterSensitiveFiles: boolean
+  /** Configured action recipes keyed by action identifier. */
+  readonly recipes: Record<SourceControlAiActionId, SourceControlAiActionRecipe>
+}
+

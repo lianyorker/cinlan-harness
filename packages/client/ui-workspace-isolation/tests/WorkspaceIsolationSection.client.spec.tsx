@@ -306,7 +306,6 @@ describe('WorkspaceIsolationSection', () => {
   it('opens provider policy for search without operating on a lease', async () => {
     const p = props({ target: { itemId: 'policy', anchorId: 'workspace-isolation-policy' } })
     render(<WorkspaceIsolationSection {...p} />)
-    expect(screen.getByRole('heading', { level: 1, name: en.title })).toBeTruthy()
     expect(screen.getByText(en.policyTitle).closest('details')).toHaveProperty('open', true)
     expect(document.querySelector('[data-settings-anchor="workspace-isolation-policy"]')).not.toBeNull()
     await screen.findByText(en.empty)

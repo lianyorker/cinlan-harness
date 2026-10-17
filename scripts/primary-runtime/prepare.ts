@@ -2,7 +2,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { cp } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
@@ -113,6 +113,24 @@ export interface PreparePrimaryRuntimeOptions {
 export async function preparePrimaryRuntime(options: PreparePrimaryRuntimeOptions): Promise<void> {
   const { target } = options
   const paths = { runtime: resolve(options.output), downloads: resolve(options.cache) }
+  const destination = join(paths.runtime, 'primary-runtime')
+  const runtimeJsonPath = join(destination, 'runtime.json')
+  const require = createRequire(import.meta.url)
+  const pnpmManifest = require.resolve('pnpm')
+  const pnpmVersion = options.pythonOnly ? undefined : (JSON.parse(readFileSync(pnpmManifest, 'utf8')) as { version: string }).version
+  const expectedDigest = primaryRuntimePayloadDigest(target, lock, pnpmVersion)
+  if (existsSync(runtimeJsonPath)) {
+    try {
+      const manifest = parsePrimaryRuntime(JSON.parse(readFileSync(runtimeJsonPath, 'utf8')))
+      if (manifest.payloadDigest === expectedDigest) {
+        await prepareOfficeSkillAssets(join(dirname(require.resolve('@deepseek-ai/dsh-skill-office/package.json')), 'assets'),
+          join(paths.runtime, 'office-skills'))
+        return
+      }
+    } catch {
+      // Manifest unreadable; proceed with fresh preparation
+    }
+  }
   const artifact = lock.targets[target]
   mkdirSync(paths.runtime, { recursive: true })
   mkdirSync(paths.downloads, { recursive: true })
@@ -121,7 +139,6 @@ export async function preparePrimaryRuntime(options: PreparePrimaryRuntimeOption
     const output = join(staging, 'payload')
     const dependencies = join(output, 'dependencies')
     mkdirSync(dependencies, { recursive: true })
-    let pnpmVersion: string | undefined
     if (!options.pythonOnly) {
       const nodeFilename = `node-v${lock.nodeVersion}-${artifact.nodeArchive}`
       const nodeArchive = await downloadPrimaryRuntimeAsset(`https://nodejs.org/dist/v${lock.nodeVersion}/${nodeFilename}`, artifact.nodeSha256, paths.downloads)
@@ -136,9 +153,6 @@ export async function preparePrimaryRuntime(options: PreparePrimaryRuntimeOption
       cpSync(join(nodeSource, ...(target === 'win-x64' ? ['node.exe'] : ['bin', 'node'])),
         join(dependencies, 'node', 'bin', target === 'win-x64' ? 'node.exe' : 'node'))
       cpSync(join(nodeSource, 'LICENSE'), join(dependencies, 'node', 'LICENSE'))
-      const require = createRequire(import.meta.url)
-      const pnpmManifest = require.resolve('pnpm')
-      pnpmVersion = (JSON.parse(readFileSync(pnpmManifest, 'utf8')) as { version: string }).version
       await cp(dirname(pnpmManifest), join(dependencies, 'pnpm'), { recursive: true, dereference: true })
     }
     await extractTar({ file: await pythonArchive(target, paths.downloads), cwd: dependencies })
@@ -157,12 +171,11 @@ export async function preparePrimaryRuntime(options: PreparePrimaryRuntimeOption
     }
     writeFileSync(join(output, 'runtime.json'), `${JSON.stringify(manifest, undefined, 2)}\n`)
     const destination = join(paths.runtime, 'primary-runtime')
-    rmSync(destination, { recursive: true, force: true })
+    rmSync(destination, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     await cp(output, destination, { recursive: true, dereference: true })
   } finally {
-    rmSync(staging, { recursive: true, force: true })
+    rmSync(staging, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
   }
-  const require = createRequire(import.meta.url)
   await prepareOfficeSkillAssets(join(dirname(require.resolve('@deepseek-ai/dsh-skill-office/package.json')), 'assets'),
     join(paths.runtime, 'office-skills'))
 }

@@ -89,7 +89,7 @@ export const sherpaOnnxEngine: VoiceEngine = {
     const baseModelConfig = { tokens: resolve(architecture.tokens), numThreads: 1, provider: 'cpu' as const, debug: 0 as const }
 
     if (architecture.type === 'transducer') {
-      const recognizer = new sherpaOnnx.OnlineRecognizer({
+      const config = {
         featConfig,
         modelConfig: {
           ...baseModelConfig,
@@ -99,7 +99,11 @@ export const sherpaOnnxEngine: VoiceEngine = {
             joiner: resolve(architecture.joiner),
           },
         },
-      })
+      }
+      if (definition.kind === 'non-streaming') {
+        return Promise.resolve(new SherpaOfflineOnnxRecognizer(new sherpaOnnx.OfflineRecognizer(config)))
+      }
+      const recognizer = new sherpaOnnx.OnlineRecognizer(config)
       return Promise.resolve(new SherpaOnlineOnnxRecognizer(recognizer))
     }
     if (architecture.type === 'paraformer') {
@@ -123,6 +127,16 @@ export const sherpaOnnxEngine: VoiceEngine = {
             language: architecture.language,
             task: 'transcribe' as const,
           },
+        },
+      })
+      return Promise.resolve(new SherpaOfflineOnnxRecognizer(recognizer))
+    }
+    if (architecture.type === 'nemo-ctc') {
+      const recognizer = new sherpaOnnx.OfflineRecognizer({
+        featConfig,
+        modelConfig: {
+          ...baseModelConfig,
+          nemoCtc: { model: resolve(architecture.model) },
         },
       })
       return Promise.resolve(new SherpaOfflineOnnxRecognizer(recognizer))

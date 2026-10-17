@@ -31,8 +31,10 @@ export interface SherpaOnlineRecognizerConfig {
 export interface SherpaOfflineRecognizerConfig {
   featConfig: { sampleRate: number; featureDim: number }
   modelConfig: {
+    transducer?: { encoder: string; decoder: string; joiner: string }
     whisper?: { encoder: string; decoder: string; language: string; task: 'transcribe' | 'translate' }
     senseVoice?: { model: string; language: string }
+    nemoCtc?: { model: string }
     tokens: string
     numThreads: number
     provider: 'cpu'

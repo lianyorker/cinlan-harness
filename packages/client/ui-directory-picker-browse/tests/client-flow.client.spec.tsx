@@ -7,6 +7,7 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import type { DirectoryFlowOwnerProps } from '@deepseek-ai/dsh-client-ui-workspace/client'
+import type { FactoryComponentPropsOf, SlotComponent } from '@deepseek-ai/dsh-client-ui-slots'
 import { apply, inject } from '../src/client/index.ts'
 import { BrowseDirectoryFlow } from '../src/client/flow.ts'
 import { apply as nodeApply } from '../src/index.ts'
@@ -54,6 +55,25 @@ function owner(overrides: Partial<DirectoryFlowOwnerProps> = {}): DirectoryFlowO
 describe('directory-picker-browse client half', () => {
   it('declares the services it drives', () => {
     expect(inject).toEqual(['slots', 'uiWorkspace', 'locale'])
+  })
+
+  it('registers a reusable browser independently of workspace hole declarations', async () => {
+    const b = await bench()
+    const register = vi.spyOn(b.slots, 'registerFactory')
+    const fiber = b.ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    expect(register).toHaveBeenCalledWith({ name: 'directory.picker', scope: 'root' }, expect.any(Function))
+    const Component = register.mock.calls[0]![1] as SlotComponent<FactoryComponentPropsOf<'directory.picker'>>
+    const request = owner() as FactoryComponentPropsOf<'directory.picker'>
+    const view = render(<Component {...request} />)
+    await screen.findByRole('dialog', { name: '选择工作区目录' })
+    await screen.findByText('Documents')
+    fireEvent.click(screen.getByRole('button', { name: '打开' }))
+    expect(request.onPicked).toHaveBeenCalledWith(HOME)
+    view.unmount()
+    await fiber.dispose()
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    await b.ctx.fiber.dispose()
   })
 
   it('fills both directory-flow holes for declarations before or after apply, and leaves with its fiber', async () => {

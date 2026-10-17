@@ -12,6 +12,7 @@ import type {
   MobileDeviceProvider,
   MobileMutationResult,
   MobileObservation,
+  MobileDeviceSettings,
 } from '../src/index.ts'
 
 function observation(): MobileObservation {
@@ -45,7 +46,7 @@ function provider(id: string, usable = true): MobileDeviceProvider {
   }
 }
 
-async function mount(config: ConstructorParameters<typeof MobileDeviceRuntime>[1] = {}) {
+async function mount(config: Partial<MobileDeviceSettings> & { provider?: string } = {}) {
   const ctx = new Context()
   const fiber = await ctx.plugin(MobileDeviceRuntime, config)
   return { ctx, fiber }

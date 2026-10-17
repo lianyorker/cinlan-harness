@@ -27,7 +27,7 @@ The optional `provider` config pins one Provider id. Without it, each call selec
 
 ## Saved preferences
 
-The capability owns the optional settings namespace `mobile-device`. `getPreferences()` returns current resolved `enabled`, `defaultDeviceId`, and `androidSdkPath` values; without a settings service their defaults are `false`, `''`, and `''`. Registration leaves with the capability or settings service. These preferences do not grant input permission or activate a Provider. Browser Consumers import `MobileDeviceSettings` type-only from `@deepseek-ai/dsh-mobile-device/types`.
+The Config fields `enabled`, `defaultDeviceId`, and `androidSdkPath` are volatile preferences exposed by Settings under the Loader entry id (`mobile-device` in the shipped bundle). Settings saves overrides in the profile's `cordis.patch.yml`; `getPreferences()` reads the live Config references and returns a detached value, including without a Settings service. Omitted fields default to `false`, `''`, and `''`. These preferences do not grant input permission or activate a Provider; `enabled` controls checks when opening Settings. Browser Consumers import `MobileDeviceSettings` type-only from `@deepseek-ai/dsh-mobile-device/types`.
 
 Observation requests may omit `deviceId`. The service captures one Provider and preferences value, then requires exactly one currently available inventory record matching the saved default. An explicit nonblank id bypasses default selection. A missing, invalid, ambiguous, or unavailable default fails; discovery or observation failure never substitutes another device. Providers receive a `MobileObserveSpec` with a required exact id, and mutations still require explicit device and observation ids.
 

@@ -17,6 +17,7 @@ export type * from './types.ts'
 export interface Config {
   root?: string
   releaseManifestUrl?: string
+  autoInstallBundled: boolean
   maxArchiveBytes: number
   maxExpandedBytes: number
   maxFiles: number
@@ -68,6 +69,7 @@ export default class SecuritySkillResources extends Service {
   static Config: Schema<Config> = Schema.object({
     root: Schema.string(),
     releaseManifestUrl: Schema.string(),
+    autoInstallBundled: Schema.boolean().default(true),
     maxArchiveBytes: Schema.number().min(1).default(64 * 1024 * 1024),
     maxExpandedBytes: Schema.number().min(1).default(256 * 1024 * 1024),
     maxFiles: Schema.number().min(1).default(10000),
@@ -132,27 +134,34 @@ export default class SecuritySkillResources extends Service {
   /** Check only the configured release manifest.
    * @returns Snapshot of the newly started Host operation.
    */
-  async checkUpdate(): Promise<SecuritySkillResourceStatus> { return this.start('check-update') }
+  async checkUpdate(): Promise<SecuritySkillResourceStatus> { await this.ready; return this.start('check-update') }
   /** Download and install into an empty resource state.
    * @returns Snapshot of the newly started Host operation.
    */
-  async install(): Promise<SecuritySkillResourceStatus> { return this.start('install') }
+  async install(): Promise<SecuritySkillResourceStatus> { await this.ready; return this.start('install') }
   /** Fetch and validate the release again while preserving the active generation.
    * @returns Snapshot of the newly started Host operation.
    */
-  async reinstall(): Promise<SecuritySkillResourceStatus> { return this.start('reinstall') }
+  async reinstall(): Promise<SecuritySkillResourceStatus> { await this.ready; return this.start('reinstall') }
   /** Install a different published version after validating its entire inventory.
    * @returns Snapshot of the newly started Host operation.
    */
-  async update(): Promise<SecuritySkillResourceStatus> { return this.start('update') }
+  async update(): Promise<SecuritySkillResourceStatus> { await this.ready; return this.start('update') }
   /** Copy the audited package seed; this operation performs no download.
    * @returns Snapshot of the newly started Host operation, marked bundled.
    */
-  async installBundled(): Promise<SecuritySkillResourceStatus> { return this.start('install-bundled') }
+  async installBundled(): Promise<SecuritySkillResourceStatus> {
+    await this.ready
+    if (this.pending?.operation.kind === 'install-bundled') {
+      await this.pending.done
+      return this.snapshot()
+    }
+    return this.start('install-bundled')
+  }
   /** Atomically unpublish resources; leased generations remain readable.
    * @returns Snapshot of the newly started Host operation.
    */
-  async remove(): Promise<SecuritySkillResourceStatus> { return this.start('remove') }
+  async remove(): Promise<SecuritySkillResourceStatus> { await this.ready; return this.start('remove') }
 
   /** Cancel only the specified Host operation and await its cleanup.
    * @param expectedOperationId - Optional identity protecting against a stale cancel action.
@@ -214,6 +223,11 @@ export default class SecuritySkillResources extends Service {
   private async initialize(): Promise<void> {
     await this.store.initialize()
     await this.refresh()
+    if (this.installation === undefined && this.config.releaseManifestUrl === undefined && this.config.autoInstallBundled && !this.stopped) {
+      await this.start('install-bundled').catch((error: unknown) => {
+        this.host.logger.warn('Security skill bundled auto-install failed', error)
+      })
+    }
   }
 
   private refresh(): Promise<void> {
@@ -241,7 +255,6 @@ export default class SecuritySkillResources extends Service {
   }
 
   private async start(kind: SecuritySkillResourceOperation['kind']): Promise<SecuritySkillResourceStatus> {
-    await this.ready
     await this.refresh()
     if (this.stopped) throw new SecuritySkillResourceError('disposed', 'Security resource manager is disposed')
     if (this.pending !== undefined) throw new SecuritySkillResourceError('busy', 'A security resource operation is already running')

@@ -1,0 +1,4 @@
+interface:
+  display_name: "安全研究启动 Unpack Lab"
+  short_description: "Offline PE packing and reverse triage for 安全研究启动."
+  default_prompt: "安全研究启动，对这个本地二进制执行脱壳分诊、逆向工具审计和证据报告。"

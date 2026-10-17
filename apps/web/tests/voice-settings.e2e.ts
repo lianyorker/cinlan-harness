@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 import { expect, it, vi } from 'vitest'
 import { modelFixture, nativeRecognizer } from '../../../packages/api/voice-controller/tests/harness.ts'
-import { captureStableAria, compareOrRefreshGolden, launchWebScaffold, webSnapshotMode } from './scaffold.ts'
+import { captureStableAria, compareOrRefreshGolden, launchWebScaffold, webSnapshotMode, type WebScaffold } from './scaffold.ts'
 import { newEnglishPage, waitForApplicationFrame } from './support.ts'
 
 it('manages real voice tasks across navigation and tests captured PCM without saving audio', async () => {
@@ -36,16 +36,17 @@ it('manages real voice tasks across navigation and tests captured PCM without sa
     await writeFile(overlay, JSON.stringify([{ id: 'voice-sherpa-onnx', config: {
       cacheRoot: join(root, 'cache'), downloadConcurrency: 1, downloadMaxAttempts: 1,
     } }]))
-    scaffold = await launchWebScaffold({ extraOverlayPath: overlay, harnessHome: join(root, 'home') })
+    const host: WebScaffold = await launchWebScaffold({ extraOverlayPath: overlay, harnessHome: join(root, 'home') })
+    scaffold = host
     const plugin = join(root, 'voice-fixture.mjs')
     await writeFile(plugin, [
       "export const inject = ['voice'];",
       'export function apply(ctx, config) { ctx.effect(() => ctx.voice.registerModel(config.definition)); }',
     ].join('\n') + '\n')
-    const entryId = await scaffold.ctx.loader.create({ name: pathToFileURL(plugin).href, config: { definition: fixture.definition } })
-    await scaffold.ctx.loader.await()
+    const entryId = await host.ctx.loader.create({ name: pathToFileURL(plugin).href, config: { definition: fixture.definition } })
+    await host.ctx.loader.await()
     const status = async () => {
-      const rows = await scaffold!.ctx.voice.modelsList(new AbortController().signal)
+      const rows = await host.ctx.voice.modelsList(new AbortController().signal)
       const row = rows.models.find(model => model.definition.id === fixture.definition.id)
       if (row === undefined) throw new Error('Browser voice fixture model was not registered')
       return row
@@ -81,9 +82,11 @@ it('manages real voice tasks across navigation and tests captured PCM without sa
     await page.getByRole('button', { name: 'Settings', exact: true }).click()
     await page.getByRole('button', { name: 'Voice', exact: true }).click()
     const section = page.locator('[data-voice-settings-panel]')
-    const row = section.getByRole('listitem').filter({ hasText: fixture.definition.name })
+    const openModels = () => section.getByRole('button', { name: 'Speech Model', exact: true }).click()
+    const row = page.locator(`[data-voice-model="${fixture.definition.id}"]`)
+    await openModels()
     await row.getByRole('button', { name: 'Download', exact: true }).waitFor()
-    expect(await page.evaluate(() => (window as unknown as { __voiceCapture: { requests: number } }).__voiceCapture.requests)).toBe(0)
+    expect(await page.evaluate(() => (window as Window & { __voiceCapture?: { requests: number } }).__voiceCapture!.requests)).toBe(0)
     expect(await section.getByRole('button', { name: 'Start microphone test' }).isDisabled()).toBe(true)
 
     const held = fixture.hold()
@@ -95,6 +98,7 @@ it('manages real voice tasks across navigation and tests captured PCM without sa
     await page.getByRole('button', { name: 'Notifications', exact: true }).click()
     expect((await status()).task?.taskId).toBe(firstTask)
     await page.getByRole('button', { name: 'Voice', exact: true }).click()
+    await openModels()
     await row.getByRole('button', { name: 'Cancel', exact: true }).click()
     await held.closed
     await expect.poll(async () => (await status()).task?.state).toBe('cancelled')
@@ -119,15 +123,16 @@ it('manages real voice tasks across navigation and tests captured PCM without sa
       entries: fixture.definition.download.entries.map(file => file.name === 'encoder.onnx'
         ? { ...file, bytes: changedBytes.length, sha256: createHash('sha256').update(changedBytes).digest('hex') } : file),
     } }
-    await scaffold.ctx.loader.update(entryId, { config: { definition: changedDefinition } })
-    await scaffold.ctx.loader.await()
+    await host.ctx.loader.update(entryId, { config: { definition: changedDefinition } })
+    await host.ctx.loader.await()
     await section.getByRole('button', { name: 'Check model versions' }).click()
+    await openModels()
     await expect.poll(() => row.getByRole('button', { name: 'Update', exact: true }).isEnabled()).toBe(true)
     await row.getByRole('button', { name: 'Update', exact: true }).click()
     await expect.poll(async () => (await status()).resource.installedVersion).not.toBe(installed.resource.installedVersion)
     await expect.poll(async () => (await status()).resource.updateAvailable).toBe(false)
 
-    await section.getByRole('combobox', { name: 'Speech Model', exact: true }).selectOption(fixture.definition.id)
+    await row.getByRole('menuitem', { name: fixture.definition.name, exact: true }).click()
     await expect.poll(() => section.getByRole('button', { name: 'Start microphone test' }).isEnabled()).toBe(true)
     await section.getByRole('button', { name: 'Start microphone test' }).click()
     await section.getByText('Recording...', { exact: true }).waitFor()
@@ -141,19 +146,22 @@ it('manages real voice tasks across navigation and tests captured PCM without sa
     expect(captured.samples.length).toBeGreaterThan(0)
     expect(captured.samples.length).toBeLessThanOrEqual(16_000 * 10)
     expect(captured.samples.some(sample => Math.abs(sample) > 0.01)).toBe(true)
-    expect(await page.evaluate(() => (window as unknown as { __voiceCapture: { streams: MediaStream[] } })
-      .__voiceCapture.streams.every(stream => stream.getTracks().every(track => track.readyState === 'ended')))).toBe(true)
+    expect(await page.evaluate(() => (window as Window & { __voiceCapture?: { streams: MediaStream[] } })
+      .__voiceCapture!.streams.every(stream => stream.getTracks().every(track => track.readyState === 'ended')))).toBe(true)
     if (webSnapshotMode() === 'refresh') await mkdir(fileURLToPath(new URL('./expected/voice-settings', import.meta.url)), { recursive: true })
     await compareOrRefreshGolden(fileURLToPath(new URL('./expected/voice-settings/microphone-test.expected.md', import.meta.url)),
       await captureStableAria(page, '[data-settings-anchor="voice-test"]', scaffold.workspaceCwd), webSnapshotMode())
 
+    await openModels()
     await row.getByRole('button', { name: 'Delete', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Remove voice model', exact: true })
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
     expect((await status()).status.state).toBe('ready')
+    await openModels()
     await row.getByRole('button', { name: 'Delete', exact: true }).click()
     await dialog.getByRole('button', { name: 'Confirm removal', exact: true }).click()
     await expect.poll(async () => (await status()).resource.installedVersion).toBeNull()
+    await openModels()
     await row.getByRole('button', { name: 'Download', exact: true }).waitFor()
   } finally {
     try {

@@ -16,9 +16,24 @@ import type { BrowserInjected } from '../browser/BrowserController.ts'
 import { emptyBrowserFrame } from '../browser/BrowserFrame.ts'
 import { currentBrowserTarget } from '../browser/BrowserPersistence.ts'
 import type { BrowserStore } from '../browser/store.ts'
+import { ElementInspectorOverlay } from './element-inspector.tsx'
+import {
+  formatInspectedElementMarkdown,
+  type InspectedElementData,
+} from './element-inspector-utils.ts'
 import css from './Browser.module.css'
 
 const EMPTY_FRAME = emptyBrowserFrame()
+
+function InspectIcon(): ReactNode {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth={ICON_REGULAR_STROKE} />
+      <circle cx="8" cy="8" r="2" fill="currentColor" />
+      <path d="M8 1V4M8 12V15M1 8H4M12 8H15" stroke="currentColor" strokeWidth={ICON_REGULAR_STROKE} strokeLinecap="round" />
+    </svg>
+  )
+}
 
 function SandboxPolicyIcon({ sandboxed }: { readonly sandboxed: boolean }): ReactNode {
   return (
@@ -36,6 +51,9 @@ export type BrowserBodyProps = PropsRuntime<'sidebar.right.pane.tab'>
   & PropsStore<BrowserStore>
   & PropsLocale<'sidebarBrowser'>
   & InjectFace<BrowserInjected>
+  & {
+    readonly onInjectDraft?: (text: string) => void
+  }
 
 function useBrowserDraft(url: string | undefined, revision: number): readonly [string, (value: string) => void] {
   const [edit, setEdit] = useState<{ readonly revision: number; readonly value: string }>()
@@ -58,6 +76,8 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
   const restoreTarget = state === undefined ? currentBrowserTarget(initial.current) : state.restoreTarget
   const target = frame.target ?? restoreTarget
   const [draft, setDraft] = useBrowserDraft(target?.url ?? initialUrl.current, state?.addressRevision ?? 0)
+  const [inspecting, setInspecting] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
 
   useLayoutEffect(() => {
     const hide = mount({
@@ -99,6 +119,18 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
         <button type="button" className={css.tool} aria-label={t('external')} title={t('external')} disabled={externalUrl === undefined}
           onClick={externalUrl === undefined ? undefined : () => { window.open(externalUrl, '_blank', 'noopener,noreferrer') }}
         ><IconRightUpOutlineRegular size={14} /></button>
+        <Tooltip label={inspecting ? t('designMode.exit') : t('designMode.toggle')} side="bottom" delayMs={500}>
+          <button
+            type="button"
+            className={[css.tool, inspecting ? css.designModeActive : ''].join(' ')}
+            aria-label={inspecting ? t('designMode.exit') : t('designMode.toggle')}
+            title={inspecting ? t('designMode.exit') : t('designMode.toggle')}
+            aria-pressed={inspecting}
+            onClick={() => { setInspecting(value => !value) }}
+          >
+            <InspectIcon />
+          </button>
+        </Tooltip>
         {sandboxed !== undefined && <button
           type="button"
           className={[css.tool, sandboxed ? '' : css.sandboxOff].join(' ')}
@@ -108,6 +140,25 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
           onClick={() => { setSandbox(tab.id, !sandboxed) }}
         ><SandboxPolicyIcon sandboxed={sandboxed} /></button>}
       </form>
+      {notice !== null && (
+        <div className={css.designModeNotice} role="status">
+          {notice}
+        </div>
+      )}
+      {inspecting && (
+        <div className={css.designModeBanner} role="region" aria-label={t('designMode.active')}>
+          <span className={css.designModeBannerText}>
+            🎯 {t('designMode.banner')}
+          </span>
+          <button
+            type="button"
+            className={css.designModeExitBtn}
+            onClick={() => { setInspecting(false) }}
+          >
+            {t('designMode.exit')}
+          </button>
+        </div>
+      )}
       {sandboxed === false && <div className={css.sandboxWarning} role="status">{t('sandbox.warning')}</div>}
       {error !== undefined && <div className={css.failure} role="status">{error.code !== undefined && error.description !== undefined
         ? t('load.failed.detail', { code: String(error.code), description: error.description })
@@ -115,6 +166,24 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
       {failure !== undefined && <div className={css.failure} role="alert">{t(`error.${failure}`)}</div>}
       <div className={css.content} aria-busy={frame.loading}>
         <div id={viewportId} className={css.viewport} aria-label={t('type.label')} />
+        {inspecting && (
+          <ElementInspectorOverlay
+            viewportId={viewportId}
+            pageUrl={target?.url}
+            onInspectElement={(data: InspectedElementData) => {
+              const markdown = formatInspectedElementMarkdown(data)
+              if (props.onInjectDraft) {
+                props.onInjectDraft(markdown)
+              } else if (props.injectDraft) {
+                props.injectDraft(markdown)
+              }
+              setNotice(t('designMode.injected'))
+              setTimeout(() => { setNotice(null) }, 2500)
+              setInspecting(false)
+            }}
+            onCancel={() => { setInspecting(false) }}
+          />
+        )}
         {restoreTarget !== undefined && <section className={css.restore} aria-label={t('restore.previous')}>
           <p className={css.restoreLabel}>{t('restore.previous')}</p>
           <p className={css.restoreTitle}>{restoreTarget.title}</p>

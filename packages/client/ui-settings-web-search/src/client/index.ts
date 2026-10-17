@@ -54,7 +54,10 @@ export function apply(ctx: ClientContext): void {
   )
   ctx.effect(() => ctx.configForms.whileServed([WEB_SEARCH_NS], () =>
     ctx.slots.inject('settings.section', function* () {
-      yield ctx.settingsMetadata.registerSection({ sectionId: 'web-search', groupId: 'extensions', heading: 'shell' })
+      yield ctx.settingsMetadata.registerSection({
+        sectionId: 'web-search', groupId: 'extensions',
+        title: () => t('title'), description: () => t('description'),
+      })
       yield ctx.settingsMetadata.registerItems('web-search', [{
         id: 'web-search-settings', anchorId: 'web-search-settings', title: () => t('nav'), description: () => t('description'),
         keywords: () => [t('title'), t('description'), t('apiKey'), t('baseUrl'), t('maxUses'), t('nav'), 'web', 'search', 'deepseek'],

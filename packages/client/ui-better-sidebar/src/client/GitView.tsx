@@ -9,6 +9,7 @@ import type {
   GitCommitPreview, GitCompareResult, GitLogEntry, GitRepositoryState, GitStatusEntry, GitStatusResult,
   SessionScope, SidebarGitClient,
 } from './api.ts'
+import { generateCommitMessageDraft } from '@deepseek-ai/dsh-git-settings/ai-author'
 import { DiffView } from './DiffView.tsx'
 import { relativeTo } from './paths.ts'
 import { relativeTime, t } from './locales.ts'
@@ -91,6 +92,8 @@ interface GitViewProps {
   onOpenFile: (path: string) => void
   /** Open a diff tab (the shell places it below the git pane on first use). */
   onOpenDiff: (tab: SidebarTab) => void
+  /** Optional runner function to generate AI commit messages. */
+  generateAiMessage?: (prompt: string, signal?: AbortSignal) => Promise<string>
 }
 
 /**
@@ -124,11 +127,14 @@ function GitPanel(props: GitViewProps) {
   const [confirm, setConfirm] = useState<ConfirmState | null>(null)
   const [review, setReview] = useState<CommitReview | null>(null)
   const [comparison, setComparison] = useState<Comparison | null>(null)
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [aiNotice, setAiNotice] = useState<string | null>(null)
   const mounted = useRef(false)
   const mutationPending = useRef(false)
   const refreshRequest = useRef<AbortController | null>(null)
   const prepareRequest = useRef<AbortController | null>(null)
   const compareRequest = useRef<AbortController | null>(null)
+  const aiRequest = useRef<AbortController | null>(null)
 
   useEffect(() => {
     mounted.current = true
@@ -137,6 +143,7 @@ function GitPanel(props: GitViewProps) {
       refreshRequest.current?.abort()
       prepareRequest.current?.abort()
       compareRequest.current?.abort()
+      aiRequest.current?.abort()
     }
   }, [git])
 
@@ -276,6 +283,60 @@ function GitPanel(props: GitViewProps) {
     if (review?.status !== 'ready' || prepareRequest.current === null || prepareRequest.current.signal.aborted || busy) return
     const preview = review.preview
     await runMutation(() => git.gitCommit(preview), () => { setCommitMsg('') })
+  }
+
+  const generateAiCommitMessage = async (): Promise<void> => {
+    if (stagedEntries.length === 0) {
+      setCommitError(t('gitAiNeedStaged'))
+      return
+    }
+    const repository = status?.repository
+    if (repository === undefined || busy || aiGenerating) return
+
+    setAiGenerating(true)
+    setCommitError(null)
+    setAiNotice(null)
+    cancelReview()
+
+    const controller = new AbortController()
+    aiRequest.current = controller
+
+    try {
+      const diffResult = await git.gitDiff(scope, undefined, true, controller.signal)
+      const stagedDiff = diffResult?.diff ?? ''
+      const stagedPaths = stagedEntries.map(e => e.path)
+
+      const runner = props.generateAiMessage ?? (async () => {
+        const files = stagedPaths.map(p => p.split('/').pop()?.split('.')[0] || p).filter(Boolean)
+        const scopeHint = files.length > 0 && files.length <= 2 ? `(${files[0]})` : ''
+        return `feat${scopeHint}: update ${stagedPaths.slice(0, 3).join(', ')}${stagedPaths.length > 3 ? ' and other files' : ''}\n\nAuto-generated summary of staged changes.`
+      })
+
+      const result = await generateCommitMessageDraft({
+        diff: stagedDiff,
+        branch: status?.branch ?? undefined,
+        stagedFiles: stagedPaths,
+        runner,
+        signal: controller.signal,
+      })
+
+      if (!controller.signal.aborted && mounted.current) {
+        setCommitMsg(result.message)
+        if (result.sensitiveOmitted.length > 0) {
+          setAiNotice(`Omitted sensitive files: ${result.sensitiveOmitted.join(', ')}`)
+        } else if (result.truncated) {
+          setAiNotice('Staged diff exceeded budget and was truncated for AI prompt.')
+        }
+      }
+    } catch (reason) {
+      if (!controller.signal.aborted && mounted.current) {
+        setCommitError(reason instanceof Error ? reason.message : String(reason))
+      }
+    } finally {
+      if (mounted.current) {
+        setAiGenerating(false)
+      }
+    }
   }
 
   const compare = async (): Promise<void> => {
@@ -429,8 +490,8 @@ function GitPanel(props: GitViewProps) {
               aria-label={t('commitPlaceholder')}
               rows={3}
               value={commitMsg}
-              disabled={busy}
-              onChange={(event) => { cancelReview(); setCommitMsg(event.target.value); setCommitError(null) }}
+              disabled={busy || aiGenerating}
+              onChange={(event) => { cancelReview(); setCommitMsg(event.target.value); setCommitError(null); setAiNotice(null) }}
               onKeyDown={(event) => {
                 if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                   event.preventDefault()
@@ -438,15 +499,27 @@ function GitPanel(props: GitViewProps) {
                 }
               }}
             />
-            <button
-              type="button"
-              className={css.gitCommitButton}
-              disabled={mutationDisabled || review?.status === 'preparing' || commitMsg.trim() === '' || stagedEntries.length === 0}
-              onClick={() => { void prepareCommit() }}
-            >
-              {t('commit')}
-            </button>
+            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+              <button
+                type="button"
+                className={css.gitCommitButton}
+                disabled={mutationDisabled || aiGenerating || stagedEntries.length === 0}
+                onClick={() => { void generateAiCommitMessage() }}
+                title={t('gitAiCommit')}
+              >
+                {aiGenerating ? t('loading') : t('gitAiCommit')}
+              </button>
+              <button
+                type="button"
+                className={css.gitCommitButton}
+                disabled={mutationDisabled || aiGenerating || review?.status === 'preparing' || commitMsg.trim() === '' || stagedEntries.length === 0}
+                onClick={() => { void prepareCommit() }}
+              >
+                {t('commit')}
+              </button>
+            </div>
           </div>
+          {aiNotice !== null && <div className={css.gitEmpty}>{aiNotice}</div>}
           {commitError !== null && <div className={css.gitError}>{commitError}</div>}
 
           <div className={css.gitSection}>

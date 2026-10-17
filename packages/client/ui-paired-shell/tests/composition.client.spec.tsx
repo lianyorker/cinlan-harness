@@ -157,6 +157,7 @@ it('boots the restricted roster, selects an authorized conversation, and keeps s
   await expect(workspace.createDirectory('/fixture', 'child')).rejects.toThrow('unavailable')
   await expect(workspace.archiveSession('fx-gamma' as SessionId)).rejects.toThrow('unavailable')
   await expect(workspace.unarchiveSession('fx-gamma' as SessionId)).rejects.toThrow('unavailable')
+  await expect(workspace.deleteSession('fx-gamma' as SessionId)).rejects.toThrow('unavailable')
   expect(() => { workspace.startSession() }).toThrow('unavailable')
   expect(b.calls).toEqual(beforeRefusals)
   const rootEntry = [...b.ctx.loader.entries()].find(entry => entry.options.name === '@deepseek-ai/dsh-client-ui-paired-shell')!

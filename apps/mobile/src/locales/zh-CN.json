@@ -1,0 +1,72 @@
+{
+  "brand": {
+    "name": "Cinlan"
+  },
+  "connect": {
+    "title": "连接您的电脑",
+    "subtitle": "在电脑上与 Cinlan 配对，以查看您的智能体、进入任何终端，并直接通过手机推进工作。",
+    "pair_button": "配对电脑",
+    "how_it_works": "工作原理",
+    "step_1_title": "打开 Cinlan 电脑端",
+    "step_1_desc": "前往“设置 -> 移动端”并生成配对二维码。",
+    "step_2_title": "扫描二维码",
+    "step_2_desc": "点击上方按钮打开相机，对准屏幕上的二维码。",
+    "step_3_title": "已连接",
+    "step_3_desc": "您的电脑将显示在此处。一切都经过端到端加密。"
+  },
+  "settings": {
+    "title": "设置",
+    "general": "通用",
+    "browser": "浏览器",
+    "voice": "语音",
+    "notifications": "通知",
+    "troubleshooting": "故障排除",
+    "about": "关于 Cinlan",
+    "privacy": "隐私政策",
+    "support": "支持与反馈"
+  },
+  "manual_pair": {
+    "title": "使用配对码连接",
+    "desc": "由于相机访问限制，或者您更倾向于使用配对码。请在下方输入您在电脑端获取的配对码。",
+    "placeholder": "请输入或粘贴配对码 (例如: TE2NDI1ODES...)",
+    "paste": "粘贴",
+    "submit": "保存并连接",
+    "cancel": "取消"
+  },
+  "notifications": {
+    "title": "不要错过智能体需要您的时刻",
+    "desc": "当智能体完成任务或需要您协助时，此手机将收到通知——即使您没有打开应用。",
+    "hint": "在您的电脑闲置 3 分钟后，将通过 Cinlan 消息推送服务发送。您随时可以在设置中更改此设置。",
+    "enable": "启用通知",
+    "skip": "暂不启用"
+  },
+  "dashboard": {
+    "welcome": "欢迎回来",
+    "stat_sessions": "会话已创建",
+    "stat_time": "手机端运行时间",
+    "desktops_header": "DESKTOPS",
+    "quick_actions": "QUICK ACTIONS",
+    "pair_desktop": "配对电脑",
+    "new_workspace": "新建工作区"
+  },
+  "sessions": {
+    "filter": "筛选",
+    "create_title": "新建会话",
+    "project": "项目 (已有目录)",
+    "workspace_name": "工作区名称 [可选]",
+    "create_button": "创建会话",
+    "group_by": "分组方式",
+    "group_workspace": "按工作区",
+    "group_tree": "按工作区树",
+    "group_list": "单列表",
+    "sort_by": "排序方式",
+    "sort_manual": "手动排序",
+    "sort_recent": "最近更新",
+    "quick_collapse": "快速折叠",
+    "quick_expand": "快速展开",
+    "pin": "置顶会话",
+    "unpin": "取消置顶",
+    "rename": "重命名",
+    "archive": "归档会话"
+  }
+}

@@ -23,6 +23,8 @@ The opt-in `device-control` profile layers the [native CUA bundle](../../package
 
 The [Mobile runtime manager](../../packages/mobile-device/mobile-device-runtime/README.md) owns human-operated Android resource installation and mirroring; its [resource, task, and mirror declarations](../../packages/mobile-device/mobile-device-runtime/src/types.ts) remain separate from Provider observations and action authorization.
 
+Web and Desktop include the Mobile Device bundle. Its [saved preferences](../../packages/mobile-device/mobile-device/README.md#saved-preferences) are volatile Config fields, independent of Provider activation and action approval. Resource-management Remotes require the Connection operator's active invocation.
+
 ## Observations and permission
 
 The [native CUA provider](../../packages/experimental/computer-use-cua-driver-native/README.md) exposes the SDK tool catalog and upstream window snapshots, element tokens, requests, and results. The separate [Computer Use facade](../../packages/computer-use/computer-use/README.md) supplies the legacy observation/action types documented below for explicitly composed facade providers. [Mobile Device](../../packages/mobile-device/mobile-device/README.md) uses exact device ids, normalized coordinates, runtime generations, and one-use observation tokens; mutation requires a subsequent explicit observation.

@@ -1,0 +1,24 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "skipLibCheck": true
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    { "path": "../../../apps/mobile-relay" },
+    { "path": "../../client/connection/tsconfig.host.json" },
+    { "path": "../../api/session-controller/tsconfig.host.json" },
+    { "path": "../../interaction/user-approval" },
+    { "path": "../../boot/app-boot" },
+    { "path": "../../core/session" },
+    { "path": "../../workspace/workspace" },
+    { "path": "../../util/brand" },
+    {
+      "path": "../../../vendor/cordis"
+    }
+  ]
+}

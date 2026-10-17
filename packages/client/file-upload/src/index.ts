@@ -89,8 +89,11 @@ export class FileUploads extends TypertRemoteService {
   registerAgentResolver(resolve: AgentResolver): () => void {
     if (this.agentResolver !== undefined) throw new Error('file-upload: Agent resolver is already registered')
     this.agentResolver = resolve
+    let disposed = false
     return () => {
-      if (this.agentResolver === resolve) this.agentResolver = undefined
+      if (disposed) return
+      disposed = true
+      this.agentResolver = undefined
     }
   }
 

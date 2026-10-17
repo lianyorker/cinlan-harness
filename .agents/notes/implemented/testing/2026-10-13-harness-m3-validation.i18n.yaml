@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-13-harness-m3-validation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/testing/2026-10-13-harness-m3-validation.md
+/agent-note-harness-m3-validation:
+  en: fa0611de77d6ecf7
+  zh: e02ead5afbc249fc
+/agent-note-harness-m3-validation/problem:
+  en: 548f407d9fc01602
+  zh: ac7468eb1e5c258a
+/agent-note-harness-m3-validation/decision:
+  en: f3af1c541a129aff
+  zh: 6dc225ef971356e2
+/agent-note-harness-m3-validation/alternatives-considered:
+  en: 1ce144f499eb368d
+  zh: 5906628101584bf0
+/agent-note-harness-m3-validation/consequences:
+  en: 52006e2a04bde418
+  zh: c88abfe4f7bfafc1

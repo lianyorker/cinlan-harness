@@ -72,10 +72,10 @@ function registeredCallbacks(ctx: Context, slots: SlotRegistry) {
     })
   }
   expect(ctx.settingsMetadata.getSnapshot().sections).toEqual(expect.arrayContaining([
-    { sectionId: 'workspace-layout', groupId: 'personal' },
-    { sectionId: 'files', groupId: 'workspace' },
-    { sectionId: 'tasks', groupId: 'ai' },
-    { sectionId: 'sidechat', groupId: 'ai' },
+    expect.objectContaining({ sectionId: 'workspace-layout', groupId: 'personal' }),
+    expect.objectContaining({ sectionId: 'files', groupId: 'workspace' }),
+    expect.objectContaining({ sectionId: 'tasks', groupId: 'ai' }),
+    expect.objectContaining({ sectionId: 'sidechat', groupId: 'ai' }),
   ]))
   expect(ctx.settingsMetadata.getSnapshot().sections).toHaveLength(4)
   expect(ctx.settingsMetadata.getSnapshot().items.filter(item => item.sectionId === 'workspace-layout').map(item => item.anchorId))
@@ -93,7 +93,7 @@ function registeredCallbacks(ctx: Context, slots: SlotRegistry) {
   expect(face.service.getFileViewers()).toHaveLength(9)
   expect(slots.entries('settings.section.icon').map(entry => entry.options.key).sort())
     .toEqual(['files', 'sidechat', 'tasks', 'workspace-layout'])
-  expect(slots.entries('conversation.chat.turnTail')).toHaveLength(1)
+  expect(slots.entries('conversation.chat.turnTail')).toHaveLength(0)
 
   const props = { ctx: ctx as SidebarContext, store: face.store, scope, visible: true }
   const git = face.service.getTab('git')!.component({
@@ -140,7 +140,7 @@ function assertLiveSettingsRegistrations(ctx: Context, slots: SlotRegistry, face
     })
     expect(slots.entries('settings.section.icon').map(icon => icon.options.key)).toContain('feature:fixture-notes')
     expect(slots.entries('settings.section.extension')).toEqual(extensions)
-    expect(ctx.settingsMetadata.getSnapshot().sections).toContainEqual({ sectionId: 'feature:fixture-notes', groupId: 'capabilities' })
+    expect(ctx.settingsMetadata.getSnapshot().sections).toContainEqual(expect.objectContaining({ sectionId: 'feature:fixture-notes', groupId: 'capabilities' }))
     expect(ctx.settingsMetadata.getSnapshot().items.filter(item => item.sectionId === 'feature:fixture-notes'))
       .toEqual([
         expect.objectContaining({ anchorId: 'better-sidebar-fixture-notes-enabled' }),
@@ -233,7 +233,7 @@ it('waits for sidebarGit, drains its registrations and terminals on unload, and 
     'settings.section': { kind: 'list', scope: 'root' },
     'settings.section.icon': { kind: 'keyed', scope: 'root' },
     'settings.section.extension': { kind: 'keyed', scope: 'root' },
-    'conversation.chat.turnTail': { kind: 'chain', scope: 'session' },
+    'conversation.chat.turnTail': { kind: 'list', scope: 'session' },
   } }, () => null)
   ctx.provide('locale', new LocaleRuntime(ctx))
 

@@ -1,11 +1,14 @@
-# The opt-in Cinlan Mobile Device layer. Profiles apply it after dsh-base;
-# emulator transport remains outside the shared base composition.
+# The Cinlan Mobile Device layer follows dsh-base. Web and Desktop include it;
+# custom profiles can select the same approval-gated composition.
 
 - insert:
     - id: mobile-device
       name: '@deepseek-ai/dsh-mobile-device'
       config:
         provider: adb
+
+    - id: mobile-device-runtime
+      name: '@deepseek-ai/dsh-mobile-device-runtime'
 
     - id: mobile-device-adb
       name: '@deepseek-ai/dsh-mobile-device-adb'

@@ -603,7 +603,8 @@ it('renders the same reference inline as the settings page and edits keyboard-re
     t: makeTranslate(en) } as unknown as Parameters<typeof ShortcutSettingsPage>[0]
   render(<ShortcutSettingsPage {...props} close={() => {}} />)
   expect(screen.queryByRole('dialog')).toBeNull()
-  expect(screen.getByRole('heading', { name: en.title })).toBeTruthy()
+  expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
+  expect(screen.getByRole('searchbox')).toBeTruthy()
   expect(screen.getByText('Ctrl + Shift + Space')).toBeTruthy()
   expect(screen.getByText('Toggle floating workspace')).toBeTruthy()
   const search = screen.getByRole('searchbox')

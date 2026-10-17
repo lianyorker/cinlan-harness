@@ -4,6 +4,7 @@ export interface IntegrationDictionary {
   nav: string
   title: string
   description: string
+  scopeNote: string
   githubTitle: string
   githubDescription: string
   gitlabTitle: string
@@ -30,6 +31,12 @@ export interface IntegrationDictionary {
   learnMore: string
   recheck: string
   refreshAll: string
+  budgetChecking: string
+  budgetRemaining: string
+  budgetResets: string
+  budgetUnavailable: string
+  budgetUnsupported: string
+  budgetNotReported: string
   errorText: string
 }
 
@@ -37,6 +44,7 @@ export const en: IntegrationDictionary = {
   nav: 'Integrations',
   title: 'Integrations',
   description: 'Check the tools and authentication used by your development workflows.',
+  scopeNote: 'This page checks CLI and token readiness. Issue queries read the Host work-item providers, which cover GitHub, GitLab, and Linear.',
   githubTitle: 'GitHub',
   githubDescription: 'Connect via the GitHub CLI (gh) to manage pull requests and issues.',
   gitlabTitle: 'GitLab',
@@ -63,6 +71,12 @@ export const en: IntegrationDictionary = {
   learnMore: 'Learn more',
   recheck: 'Re-check',
   refreshAll: 'Refresh all',
+  budgetChecking: 'Reading API budget…',
+  budgetRemaining: 'API requests left: {remaining} of {limit}',
+  budgetResets: 'Resets {time}',
+  budgetUnavailable: 'API budget could not be read.',
+  budgetUnsupported: 'This provider exposes no readable API budget.',
+  budgetNotReported: 'The provider returned no API budget for this window.',
   errorText: 'Failed to check integration status.',
 }
 
@@ -70,6 +84,7 @@ export const zh: IntegrationDictionary = {
   nav: '集成',
   title: '集成',
   description: '检查开发流程使用的工具与身份验证状态。',
+  scopeNote: '本页检查 CLI 与令牌是否就绪；工单查询读取主机侧工单 Provider，覆盖 GitHub、GitLab 与 Linear。',
   githubTitle: 'GitHub',
   githubDescription: '通过 GitHub CLI (gh) 连接，管理 Pull Request 和 Issue。',
   gitlabTitle: 'GitLab',
@@ -96,6 +111,12 @@ export const zh: IntegrationDictionary = {
   learnMore: '了解更多',
   recheck: '重新检查',
   refreshAll: '刷新全部',
+  budgetChecking: '正在读取 API 额度…',
+  budgetRemaining: 'API 剩余请求：{remaining} / {limit}',
+  budgetResets: '{time} 重置',
+  budgetUnavailable: '无法读取 API 额度。',
+  budgetUnsupported: '该提供方不提供可读取的 API 额度。',
+  budgetNotReported: '提供方未返回当前窗口的 API 额度。',
   errorText: '检查集成状态失败。',
 }
 

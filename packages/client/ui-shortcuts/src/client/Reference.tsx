@@ -182,9 +182,7 @@ function ReferenceSurface({ useStore, actions, useCatalog, useConfig, useFixedCa
       closeEditor()
     }}>
       <header className={css.header}>
-        {dialog
-          ? <h2 className={css.title}>{t('title')}</h2>
-          : <h1 className={css.title}>{t('title')}</h1>}
+        {dialog && <h2 className={css.title}>{t('title')}</h2>}
         {dialog && <button type="button" className={css.close} aria-label={t('close')} disabled={busy} onClick={closeReference}>
           <IconCloseOutlineRegular size={14} />
         </button>}

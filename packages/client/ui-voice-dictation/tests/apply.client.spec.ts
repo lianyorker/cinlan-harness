@@ -241,7 +241,7 @@ describe('ui-voice-dictation apply', () => {
     if (method === 'modelsList') b.voice.modelsList.mockImplementation(cancelled)
     else {
       b.voice.modelsList.mockResolvedValue({ ok: true, value: { models: [modelRow('zh', { state: 'ready', cacheDir: '/cache/zh' })] } })
-      b.voice.transcribe.mockImplementation((_request: any, signal?: AbortSignal) => cancelled(signal!))
+      b.voice.transcribe.mockImplementation((_request, signal) => cancelled(signal))
     }
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -290,7 +290,14 @@ describe('ui-voice-dictation apply', () => {
     expect(b.ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
   })
 
-  it('uses persisted device and model preferences and appends to the latest draft without sending it', async () => {
+  it.each([
+    ['', 'dictated words'],
+    ['  ', '  dictated words'],
+    ['Edited while transcribing', 'Edited while transcribing dictated words'],
+    ['Edited while transcribing ', 'Edited while transcribing dictated words'],
+    ['Edited while transcribing\t', 'Edited while transcribing\tdictated words'],
+    ['Edited while transcribing\n', 'Edited while transcribing\ndictated words'],
+  ])('uses persisted preferences and appends to the latest draft %j without sending it', async (draft, expected) => {
     const preferences = createVoiceSettingsStore()
     preferences.set({ ...preferences.getSnapshot(), microphoneDeviceId: 'desk', sttModel: 'preferred' })
     const b = await bench()
@@ -326,11 +333,11 @@ describe('ui-voice-dictation apply', () => {
       expect(b.voice.transcribe).toHaveBeenCalledExactlyOnceWith({ modelId: 'preferred', pcm16kMonoBase64: 'AAAAAAAAAAA=' }, signal)
     })
     expect(track.stop).toHaveBeenCalledOnce()
-    b.setDraft('Edited while transcribing')
+    b.setDraft(draft)
     b.setDraft.mockClear()
     release()
-    await vi.waitFor(() => { expect(b.setDraft).toHaveBeenCalledWith('Edited while transcribing dictated words') })
-    expect(b.readDraft()).toBe('Edited while transcribing dictated words')
+    await vi.waitFor(() => { expect(b.setDraft).toHaveBeenCalledWith(expected) })
+    expect(b.readDraft()).toBe(expected)
     expect(b.notify).not.toHaveBeenCalled()
     await fiber.dispose()
   })

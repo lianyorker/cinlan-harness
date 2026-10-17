@@ -134,8 +134,13 @@ describe('Presented workspace file native open route', () => {
     const outside = join(root, 'outside.txt')
     await writeFile(outside, 'outside')
     const source = join(cwd, file.path)
-    await unlink(source)
-    await symlink(outside, source)
+    try {
+      await unlink(source)
+      await symlink(outside, source)
+    } catch (error: any) {
+      if (process.platform === 'win32' && error?.code === 'EPERM') return
+      throw error
+    }
     expect((await open()).status).toBe(404)
     expect(opener).not.toHaveBeenCalled()
     for (const path of ['../outside.txt', outside]) {

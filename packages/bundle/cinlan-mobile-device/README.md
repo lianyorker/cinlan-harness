@@ -1,5 +1,5 @@
 ---
-description: "Opt-in profile bundle for Mobile Device control with approval required by default."
+description: "Mobile Device profile bundle with approval required by default."
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Opt-in profile bundle for Mobile Device control with approval required by default.
+Mobile Device profile bundle with approval required by default.
 
 ## Table of Contents
 
@@ -19,9 +19,9 @@ Opt-in profile bundle for Mobile Device control with approval required by defaul
 <a id="use-this-package"></a>
 ## Use this package
 
-This bundle exports `cordis.patch.yml` for the complete Cinlan Mobile Device capability family. A profile applies it after `dsh-base`; the shipped `device-control` template includes it, while generic `web` and `headless` do not.
+This bundle exports `cordis.patch.yml` for the complete Cinlan Mobile Device capability family. A profile applies it once after `dsh-base`; the shipped Web and Desktop compositions include it. Custom profiles, including headless profiles, can select it explicitly.
 
-The patch mounts the provider-neutral Service Definition, the native Android ADB Provider, the permission-policy Consumer, and the five model tools. It pins Provider id `adb` and configures `observe`, `touch`, `textInput`, and `deviceNavigation` as `ask`.
+The patch mounts the provider-neutral Service Definition, native resource manager, native Android ADB Provider, permission-policy Consumer, and five model tools. It pins Provider id `adb` and configures `observe`, `touch`, `textInput`, and `deviceNavigation` as `ask`. Mounting installs no Android resources and starts no mirror; those require explicit human actions. The [Mobile Device preferences](../../mobile-device/mobile-device/README.md#saved-preferences) update live through Settings.
 
 ## Model Experience
 

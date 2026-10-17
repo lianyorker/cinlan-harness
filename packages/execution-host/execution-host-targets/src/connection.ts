@@ -117,6 +117,7 @@ export class SshTargetConnection {
     })
     const handle = this.handle
     if (handle.stdin === undefined || handle.stdout === undefined) throw new Error('SSH subprocess must expose protocol pipes')
+    handle.stdin.on('error', () => { /* stdin write is best-effort on broken pipe */ })
     const transport = this.transport = createWorkerTransport(handle.stdout, handle.stdin, this.config.maxFrameBytes)
     transport.start()
     void handle.done.then(() => { this.markLost() }, () => { this.markLost() })
@@ -129,6 +130,7 @@ export class SshTargetConnection {
       return response.value
     } catch (cause) {
       await this.close()
+      await handle.done.catch(() => {})
       if (signal?.aborted === true) throw cancelled(signal)
       if (timedOut()) throw new ExecutionTargetError('timeout', 'SSH worker connection timed out')
       if (cause instanceof ExecutionTargetError) throw cause

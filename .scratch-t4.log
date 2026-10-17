@@ -1,0 +1,23 @@
+Usage: clh web [options]
+
+Serve the Cinlan Harness browser UI.
+
+Options:
+  --host <host>                  bind host
+  --no-open                      do not open the Web UI in the default browser
+  --port <port>                  listen port; pass 0 to let the OS pick a free
+                                 one
+  --public-url <url>             advertise this HTTP(S) root in the printed,
+                                 opened, web-surface, and
+                                 CLH_WEB_URL/DSH_WEB_URL forms; grants no trust
+  --trusted-host <authority...>  extra authority the /api browser-trust fence
+                                 accepts (host or host:port; repeatable)
+  -h, --help                     show this help
+
+Examples:
+  clh web                                    serve on the composed host and port
+  clh web --no-open                          serve without opening a browser
+  clh web --port 8080                        serve on another port
+  clh web --public-url https://app.example/ui/ --trusted-host app.example
+                                             advertise a prefix-stripping HTTPS proxy entry and admit its authority
+

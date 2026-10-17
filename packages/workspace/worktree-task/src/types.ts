@@ -39,6 +39,8 @@ export interface WorktreeTask {
   readonly sessionIds: readonly SessionId[]
   readonly createdAt: string
   readonly updatedAt: string
+  /** Directory paths retained under Git cone mode sparse-checkout; omitted checks out the complete tree. */
+  readonly sparsePaths?: readonly string[] | undefined
 }
 
 /** A directly executed lifecycle program; shell syntax requires an explicitly selected shell. */
@@ -54,6 +56,7 @@ export interface WorktreeTaskDefaults {
   readonly baseRef: string
   readonly setup: WorktreeTaskHook | null
   readonly cleanup: WorktreeTaskHook | null
+  readonly sparsePaths?: readonly string[] | undefined
 }
 
 /** Revisioned provider-owned defaults and the Host's managed directory. */
@@ -110,6 +113,7 @@ export interface CreateTaskRequest {
   readonly sourcePath: string
   readonly baseRef?: string
   readonly linkedIssue?: string
+  readonly sparsePaths?: readonly string[] | undefined
 }
 
 /** Request to activate a hibernated task. */

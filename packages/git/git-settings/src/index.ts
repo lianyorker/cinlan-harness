@@ -6,6 +6,7 @@ import { GIT_SETTINGS_NAMESPACE, GitSourceControlSettingsSchema } from './settin
 
 export { GIT_SETTINGS_NAMESPACE, GitSourceControlSettingsSchema }
 export * from './types.ts'
+export * from './ai-author.ts'
 
 /** Cordis plugin identity. */
 export const name = '@deepseek-ai/dsh-git-settings'

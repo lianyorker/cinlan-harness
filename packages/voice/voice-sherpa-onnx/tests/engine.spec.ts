@@ -5,6 +5,7 @@ import { VoiceModelId } from '@deepseek-ai/dsh-voice'
 import type { VoiceModelDefinition } from '@deepseek-ai/dsh-voice'
 import * as sherpaDeps from '../src/sherpa-deps.ts'
 import { sherpaOnnxEngine } from '../src/engine.ts'
+import { SHIPPED_MODELS } from '../src/model-registry.ts'
 
 function definition(): VoiceModelDefinition {
   return {
@@ -70,5 +71,38 @@ describe('sherpaOnnxEngine.loadModel', () => {
     expect(createStream).toHaveBeenCalledOnce()
     expect(decode).toHaveBeenCalledOnce()
     expect(() => { recognizer.dispose() }).not.toThrow()
+  })
+
+  it.each(SHIPPED_MODELS.filter(model => model.kind === 'non-streaming'))('loads $name with the offline recognizer', async (model) => {
+    const acceptWaveform = vi.fn()
+    const decode = vi.fn()
+    const online = vi.fn()
+    const configurations: sherpaDeps.SherpaOfflineRecognizerConfig[] = []
+    class Offline {
+      constructor(config: sherpaDeps.SherpaOfflineRecognizerConfig) { configurations.push(config) }
+      createStream() { return { acceptWaveform } }
+      decode = decode
+      getResult() { return { text: 'offline transcript' } }
+    }
+    vi.spyOn(sherpaDeps, 'loadSherpaOnnx').mockReturnValue({ OfflineRecognizer: Offline,
+      OnlineRecognizer: class {
+        constructor() { online() }
+        createStream() { return { acceptWaveform, inputFinished: vi.fn() } }
+        isReady() { return false }
+        decode = decode
+        getResult() { return { text: '' } }
+      },
+    })
+    const recognizer = await sherpaOnnxEngine.loadModel(model, '/cache/model')
+    const samples = new Float32Array([0, 0.1])
+    await expect(recognizer.transcribe(samples)).resolves.toBe('offline transcript')
+    expect(online).not.toHaveBeenCalled()
+    expect(decode).toHaveBeenCalledOnce()
+    expect(acceptWaveform).toHaveBeenCalledExactlyOnceWith({ sampleRate: 16_000, samples })
+    const expectedKey = model.architecture.type === 'nemo-ctc' ? 'nemoCtc'
+      : model.architecture.type === 'sense-voice' ? 'senseVoice' : model.architecture.type
+    expect(configurations[0]?.modelConfig).toHaveProperty(expectedKey)
+    expect(configurations[0]?.modelConfig.tokens).toBe(join('/cache/model', model.architecture.tokens))
+    recognizer.dispose()
   })
 })

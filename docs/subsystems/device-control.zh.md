@@ -23,6 +23,8 @@
 
 [移动运行时管理器](../../packages/mobile-device/mobile-device-runtime/README.zh.md)负责人工操作的 Android 资源安装与镜像；其[资源、任务和镜像类型声明](../../packages/mobile-device/mobile-device-runtime/src/types.ts)与 Provider 观察和动作授权分开。
 
+Web 和 Desktop 内置 Mobile Device 组合包。[已保存偏好](../../packages/mobile-device/mobile-device/README.zh.md#saved-preferences)是 volatile Config 字段，与 Provider 启用和操作审批独立。资源管理 Remote 要求 Connection operator 的有效 invocation。
+
 ## Observations and permission
 
 [原生 CUA Provider](../../packages/experimental/computer-use-cua-driver-native/README.zh.md)暴露 SDK 工具目录及上游窗口快照、元素 token、请求与结果。独立的 [Computer Use facade](../../packages/computer-use/computer-use/README.zh.md) 为显式组合的 facade Provider 提供下文记录的旧式观察与操作类型。[Mobile Device](../../packages/mobile-device/mobile-device/README.zh.md) 使用精确设备 id、归一化坐标、runtime generation 和一次性 observation token；修改后须显式重新观察。

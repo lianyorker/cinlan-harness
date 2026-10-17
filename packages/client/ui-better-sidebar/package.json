@@ -90,7 +90,8 @@
     "node-pty": "1.2.0-beta.15",
     "react-icons": "5.7.0",
     "ws": "^8.18.0",
-    "@deepseek-ai/schemastery": "workspace:^"
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@deepseek-ai/dsh-git-settings": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-session-query-sqlite": "workspace:^",

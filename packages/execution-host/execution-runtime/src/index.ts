@@ -11,9 +11,38 @@ import { RuntimeError } from './errors.ts'
 export { RuntimeError } from './errors.ts'
 import { readRuntimeArtifact } from './artifact.ts'
 import { RuntimeConnectionError, runRemoteOperation } from './transport.ts'
+import {
+  EphemeralVmManager,
+  type DestroyVmOptions,
+  type LaunchVmOptions,
+  type ReapVmOptions,
+} from './ephemeral-vms.ts'
+export {
+  DEFAULT_VM_QUOTA,
+  DEFAULT_VM_RECIPES,
+  EphemeralVmManager,
+  type DestroyVmOptions,
+  type LaunchVmOptions,
+  type ReapVmOptions,
+} from './ephemeral-vms.ts'
 import type {
-  RuntimeGeneration, RuntimeInspection, RuntimeInstallation, RuntimeInstallRequest, RuntimeLocation,
-  RuntimeStartRequest, RuntimeTask, RuntimeTaskId, RuntimeTaskRequest, RuntimeTasksValue, RuntimeTaskValue,
+  DestroyVmRequest,
+  EphemeralVm,
+  EphemeralVmId,
+  EphemeralVmOverview,
+  LaunchVmRequest,
+  RuntimeGeneration,
+  RuntimeInspection,
+  RuntimeInstallation,
+  RuntimeInstallRequest,
+  RuntimeLocation,
+  RuntimeStartRequest,
+  RuntimeTask,
+  RuntimeTaskId,
+  RuntimeTaskRequest,
+  RuntimeTasksValue,
+  RuntimeTaskValue,
+  VmRecipe,
 } from './types.ts'
 export type * from './types.ts'
 export { Config } from './config.ts'
@@ -216,6 +245,53 @@ export default class ExecutionRuntimes extends Service {
     const task = this.tasks.get(request.id)
     if (task === undefined) throw new Error('Runtime task is not retained by this Host')
     return task
+  }
+
+  readonly ephemeralVms = new EphemeralVmManager()
+
+  /**
+   * List approved VM recipes.
+   * @returns array of approved VM recipes.
+   */
+  listVmRecipes(): readonly VmRecipe[] {
+    return this.ephemeralVms.listRecipes()
+  }
+
+  /**
+   * Read current VM catalog, active VM instances and quota overview.
+   * @returns complete ephemeral VM overview.
+   */
+  getVmOverview(): EphemeralVmOverview {
+    return this.ephemeralVms.getOverview()
+  }
+
+  /**
+   * Launch an ephemeral VM from an approved recipe.
+   * @param request - launch request parameters.
+   * @param options - validation and admission options.
+   * @returns the launched VM instance.
+   */
+  launchVm(request: LaunchVmRequest, options?: LaunchVmOptions): EphemeralVm {
+    return this.ephemeralVms.launchVm(request, options)
+  }
+
+  /**
+   * Terminate and destroy an active ephemeral VM.
+   * @param request - target VM identifier.
+   * @param options - execution options.
+   * @returns the terminated VM instance.
+   */
+  destroyVm(request: DestroyVmRequest, options?: DestroyVmOptions): EphemeralVm {
+    return this.ephemeralVms.destroyVm(request, options)
+  }
+
+  /**
+   * Clean up expired or orphaned VM instances.
+   * @param options - reap options.
+   * @returns array of reaped VM identifiers.
+   */
+  reapOrphanedVms(options?: ReapVmOptions): readonly EphemeralVmId[] {
+    return this.ephemeralVms.reapOrphanedVms(options)
   }
 
   private track<T>(operation: Promise<T>): Promise<T> {

@@ -48,7 +48,7 @@ export interface Config {
 
 /** Runtime schema. */
 export const Config: z<Config> = z.object({
-  mode: z.union(['native', 'ptc', 'both'] as const).required(),
+  mode: z.union(['native', 'ptc'] as const).required(),
 })
 
 /**

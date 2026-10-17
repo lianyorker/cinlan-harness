@@ -34,6 +34,8 @@ The `checkSdk` Remote runs `adb version` and, on macOS, `xcrun simctl help` thro
 
 All bounds are positive integers no greater than 2,147,483,647. Deadline expiry requests termination; the request settles after process cleanup. A missing subprocess provider reports SDKs unavailable. The separate `listMobileDevices` Remote performs Provider enumeration and returns only device id, name, state, and availability; it does not observe or control a device.
 
+Android resource and mirror Remotes require an active `ctx.invocation` whose Peer is the mounted Connection operator. Absent invocations, other Peers, and cancelled calls are rejected before reaching `mobileRuntime`. Installing or removing managed components and opening or closing a mirror are explicit human operations, separate from SDK checks and model-tool approval.
+
 <a id="model-experience"></a>
 ## Model Experience
 

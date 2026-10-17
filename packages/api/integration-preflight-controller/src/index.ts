@@ -5,8 +5,10 @@ import { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from 'zod'
 import type { IntegrationPreflightRequest, IntegrationReason, IntegrationProvider, IntegrationPreflightSnapshot } from './types.ts'
+import type { IntegrationBudgetReason, IntegrationBudgetRequest, IntegrationBudgetSnapshot } from './budget.ts'
 
 export type * from './types.ts'
+export type * from './budget.ts'
 
 const execFileAsync = promisify(execFile)
 
@@ -59,7 +61,7 @@ export class IntegrationPreflightController extends TypertRemoteService {
         maxBuffer: 65536,
       })
       signal.throwIfAborted()
-      const account = parseCliAccount(stdout)
+      const account = parseCliAccount(withoutTerminalFormatting(stdout))
       return { provider, status: 'connected', reason: 'connected', account }
     } catch (error) {
       signal.throwIfAborted()
@@ -67,6 +69,48 @@ export class IntegrationPreflightController extends TypertRemoteService {
       if (code === 'ENOENT') return { provider, status: 'not-installed', reason: 'cli-not-found', account: null }
       if (code === 1) return { provider, status: 'not-authenticated', reason: 'cli-auth-failed', account: null }
       return { provider, status: 'unavailable', reason: 'probe-failed', account: null }
+    }
+  }
+
+  /**
+   * Probe one provider's REST request budget. Counts describe the provider's
+   * own request quota, never LLM token usage, and no credential material is read.
+   * @param request - Integration provider to probe.
+   * @param signal - Caller cancellation forwarded to the read-only probe.
+   * @returns Budget snapshot; quota counts stay null unless the provider reported them.
+   */
+  @Remote('budget')
+  async budget(request: IntegrationBudgetRequest, signal: AbortSignal): Promise<IntegrationBudgetSnapshot> {
+    signal.throwIfAborted()
+    const provider = request.provider
+    if (provider === 'github') {
+      return await this.budgetFromCli('gh', ['api', 'rate_limit', '--jq', '.resources.core'], provider, parseGitHubBudget, signal)
+    }
+    if (provider === 'gitlab') {
+      return await this.budgetFromCli('glab', ['api', '--include', 'user'], provider, parseGitLabBudget, signal)
+    }
+    // Gitee exposes no readable request quota to a personal access token.
+    return { provider, state: 'unsupported', reason: 'budget-unsupported', remaining: null, limit: null, resetsAt: null }
+  }
+
+  private async budgetFromCli(
+    command: string,
+    args: readonly string[],
+    provider: IntegrationProvider,
+    parse: (stdout: string) => BudgetCounts | undefined,
+    signal: AbortSignal,
+  ): Promise<IntegrationBudgetSnapshot> {
+    try {
+      const { stdout } = await execFileAsync(command, [...args], { timeout: 10_000, signal, maxBuffer: 65536 })
+      signal.throwIfAborted()
+      const counts = parse(withoutTerminalFormatting(stdout))
+      if (counts === undefined) {
+        return { provider, state: 'not-reported', reason: 'no-rate-limit-data', remaining: null, limit: null, resetsAt: null }
+      }
+      return { provider, state: 'reported', reason: null, ...counts }
+    } catch (error) {
+      signal.throwIfAborted()
+      return { provider, state: 'unavailable', reason: budgetFailure(error), remaining: null, limit: null, resetsAt: null }
     }
   }
 
@@ -104,9 +148,77 @@ function failureReason(error: unknown): IntegrationReason {
   return 'probe-failed'
 }
 
-function parseCliAccount(stdout: string): string | null {
-  const match = stdout.match(/Logged in to .* as (\S+)/i)
+/**
+ * Remove the CSI and OSC sequences a CLI emits when its own colour detection
+ * says to decorate stdout, so a JSON or line parse reads the intended bytes.
+ * @param text - Raw stdout of a CLI probe.
+ * @returns the text with terminal formatting sequences removed.
+ */
+export function withoutTerminalFormatting(text: string): string {
+  return text
+    .replace(/(?:\u001B\]|\u009D)(?:(?!\u0007|\u001B\\)[\s\S])*(?:\u0007|\u001B\\|$)/gu, '')
+    .replace(/(?:\u001B\[|\u009B)[0-?]*[ -/]*[@-~]/gu, '')
+    .replace(/\u001B[@-_]/gu, '')
+}
+
+export function parseCliAccount(stdout: string): string | null {
+  // `gh` reports "Logged in to <host> as <user>" on older releases and
+  // "Logged in to <host> account <user>" on current ones; accept either.
+  const match = stdout.match(/Logged in to \S+ (?:as|account) (\S+)/i)
   return match?.[1] ?? null
+}
+
+/** Counts one provider reported for its current request window. */
+export interface BudgetCounts {
+  readonly remaining: number
+  readonly limit: number
+  readonly resetsAt: string | null
+}
+
+function budgetFailure(error: unknown): IntegrationBudgetReason {
+  const reason = failureReason(error)
+  return reason === 'cli-not-found' || reason === 'cli-auth-failed' ? reason : 'probe-failed'
+}
+
+/** Read the core request bucket of `gh api rate_limit`, filtered or whole. */
+export function parseGitHubBudget(stdout: string): BudgetCounts | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(stdout) as unknown
+  } catch {
+    return undefined
+  }
+  // `--jq .resources.core` prints the core bucket alone; a CLI that ignores the
+  // filter prints the whole payload. Accept the core bucket in either position.
+  const payload = parsed as { resources?: { core?: unknown } }
+  const counts = (payload.resources?.core ?? parsed) as { remaining?: unknown; limit?: unknown; reset?: unknown }
+  const remaining = asCount(counts.remaining)
+  const limit = asCount(counts.limit)
+  if (remaining === undefined || limit === undefined) return undefined
+  return { remaining, limit, resetsAt: asInstant(counts.reset) }
+}
+
+/** Read one `ratelimit-*` response header `glab api --include` echoed to stdout. */
+function parseGitLabBudget(stdout: string): BudgetCounts | undefined {
+  const remaining = headerCount(stdout, 'ratelimit-remaining')
+  const limit = headerCount(stdout, 'ratelimit-limit')
+  if (remaining === undefined || limit === undefined) return undefined
+  return { remaining, limit, resetsAt: asInstant(headerCount(stdout, 'ratelimit-reset')) }
+}
+
+function headerCount(stdout: string, name: string): number | undefined {
+  const match = stdout.match(new RegExp(`^${name}:\\s*(\\d+)\\s*$`, 'im'))
+  return match === null ? undefined : Number(match[1])
+}
+
+function asCount(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined
+}
+
+/** Seconds since the epoch into an RFC 3339 instant. */
+function asInstant(value: unknown): string | null {
+  const seconds = asCount(value)
+  return seconds === undefined ? null : new Date(seconds * 1000).toISOString()
 }
 
 export default IntegrationPreflightController

@@ -14,7 +14,7 @@
 |---|---|
 | `VoiceModelId` | 品牌化的精确模型选择器。重复注册会被拒绝；解析未知 id 时抛出 `VOICE_MODEL_UNKNOWN`。 |
 | `VoiceModelKind` | `streaming` 或 `non-streaming` 识别器类别。两者都使用下文的最终转写 API。 |
-| `VoiceModelDefinition` | `id`、采用上游命名方式的显示 `name`、`description`、`recommended`、`kind`、大小提示 `approximateBytes`、`download` 与 `architecture`。 |
+| `VoiceModelDefinition` | `id`、显示 `name`、`description`、`recommended`、`kind`、大小提示 `approximateBytes`、`download` 与 `architecture`；可选选择器元数据 `label`、`language`、`type`、`provider` 与 `streaming`。 |
 | `VoiceModelDownload` | `type: archive` 携带 tar.bz2 的 `url` 与 `sha256`。`type: files` 携带 `entries`，每项包含 `name`、`url`、`sha256` 与预期 `bytes`。 |
 
 `VoiceModelArchitecture` 选择模型缓存目录内的文件布局。路径标识该识别器所需的文件；语言字段配置对应架构。
@@ -25,6 +25,7 @@
 | `paraformer` | `encoder`、`decoder`、`tokens`。 |
 | `whisper` | `encoder`、`decoder`、`tokens`、`language`。 |
 | `sense-voice` | `model`、`tokens`、`language`。 |
+| `nemo-ctc` | `model`、`tokens`。 |
 
 ## 安装与可用性
 
@@ -34,7 +35,7 @@
 |---|---|
 | `VoiceEngineStatus` | `ok: true` 表示可用。`ok: false` 携带 `cause`、修复 `command`、可空的启动 `profile` 与说明性 `note`。 |
 | `VoiceModelSummary` | 完整 `definition: VoiceModelDefinition` 加上 `status: VoiceModelStatus`。 |
-| `VoiceModelRow` | 仅供显示的 `definition` 包含 `id`、`name`、`description`、`recommended` 与 `approximateBytes`，另有缓存 `status`；省略原生架构和下载配置。 |
+| `VoiceModelRow` | 仅供显示的 `definition` 包含可选选择器元数据，另有缓存 `status`、持久化 `resource` 与 Host 本地 `task`；省略原生架构和下载配置。 |
 | `VoiceModelsListValue` | 当前 `models` 数组，由 `VoiceModelRow` 条目构成。 |
 | `VoiceModelsDownloadValue` | 共享安装完成后就绪的 `cacheDir`。 |
 

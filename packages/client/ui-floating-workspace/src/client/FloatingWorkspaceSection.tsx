@@ -34,10 +34,6 @@ export function FloatingWorkspaceSection({ useFloating, set, t }: FloatingWorksp
   const locked = !settings.writable || snapshot.writing
   const positionName = useId()
   return <section className={css.section} data-floating-workspace-section>
-    <header className={css.pageHeading}>
-      <h1>{t('title')}</h1>
-      <p>{t('description')}</p>
-    </header>
     {settings.status === 'loading' && <p className={css.message} role="status">{t('loading')}</p>}
     {settings.status !== 'loading' && value === undefined && <p className={css.error} role="status">{t('error')}</p>}
     {snapshot.writeFailed && <p className={css.error} role="alert">{t('writeFailed')}</p>}

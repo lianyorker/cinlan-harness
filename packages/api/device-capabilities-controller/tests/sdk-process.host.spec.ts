@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { copyFile, link, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,24 +6,6 @@ import { Context } from '@deepseek-ai/cordis'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import MobileDeviceRuntime from '@deepseek-ai/dsh-mobile-device'
-/**
- * Minimal settings service over a seeded JSON document: the fixture updates the
- * mobile-device namespace at runtime, so describe() must observe each write.
- */
-function settingsServiceStub(settingsPath: string) {
-  const read = (): Record<string, unknown> => JSON.parse(readFileSync(settingsPath, 'utf8'))['mobile-device'] as Record<string, unknown>
-  let value = read()
-  return {
-    name: '@deepseek-ai/dsh-settings',
-    apply(c: Context) {
-      c.provide('settings', {
-        describe: () => [{ ns: 'mobile-device', value, schema: {}, autoGenerate: false, applies: 'live', revision: 1 }],
-        configure: () => () => {},
-        update: async (_ns: string, patch: object) => { value = { ...value, ...patch } },
-      } as never)
-    },
-  }
-}
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -43,7 +24,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
 }, 30_000)
 
-async function boot(state: { exitCode?: number; output?: string; pending?: boolean } = {}) {
+async function boot(state: { exitCode?: number; output?: string; pending?: boolean; sdkKind?: 'missing' | 'relative' } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-sdk-process-'))
   const fixture: Fixture = { root }
   fixtures.push(fixture)
@@ -64,12 +45,11 @@ async function boot(state: { exitCode?: number; output?: string; pending?: boole
   await writeFile(join(bin, 'package.json'), JSON.stringify({ type: 'module' }))
   await writeFile(join(bin, 'state.json'), JSON.stringify({ ...state, journal, ready }))
   await writeFile(journal, '')
-  const settingsPath = join(root, 'settings.json')
-  await writeFile(settingsPath, JSON.stringify({ 'mobile-device': { androidSdkPath: sdkPath, enabled: false } }))
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, JSON.stringify([
-    { name: '@deepseek-ai/dsh-settings', config: { path: settingsPath, watch: false } },
-    { name: '@deepseek-ai/dsh-mobile-device' },
+    { name: '@deepseek-ai/dsh-mobile-device', config: {
+      androidSdkPath: state.sdkKind === 'missing' ? join(root, 'missing-sdk') : state.sdkKind === 'relative' ? 'relative-sdk' : sdkPath,
+    } },
     { name: '@deepseek-ai/dsh-subprocess-local' },
     { name: '@deepseek-ai/dsh-typert-registry' },
     { name: '@deepseek-ai/dsh-api-device-capabilities-controller', config: {
@@ -82,7 +62,6 @@ async function boot(state: { exitCode?: number; output?: string; pending?: boole
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
-    ['@deepseek-ai/dsh-settings', settingsServiceStub(settingsPath)],
     ['@deepseek-ai/dsh-mobile-device', MobileDeviceRuntime],
     ['@deepseek-ai/dsh-subprocess-local', LocalSubprocessRuntime],
     ['@deepseek-ai/dsh-typert-registry', TypertRegistry],
@@ -116,7 +95,7 @@ async function calls(path: string): Promise<{ executable: string; entry: string;
 const signal = () => new AbortController().signal
 
 describe('SDK readiness through Loader and local subprocess', { timeout: 30_000 }, () => {
-  it('executes the SDK path loaded from durable settings through a real managed child', async () => {
+  it('executes the SDK path loaded from durable Config through a real managed child', async () => {
     const { ctx, sdkPath, executable, journal } = await boot()
     expect(ctx.mobileDevice.getPreferences().enabled).toBe(false)
     expect((await ctx.deviceCapabilitiesController.checkSdk(signal())).android).toMatchObject({ found: true, sdkPath })
@@ -132,8 +111,7 @@ describe('SDK readiness through Loader and local subprocess', { timeout: 30_000 
   })
 
   it.each(['missing', 'relative'] as const)('does not execute another SDK for a %s configured root', async (kind) => {
-    const { ctx, root, journal } = await boot()
-    await ctx.settings.update('mobile-device', { androidSdkPath: kind === 'missing' ? join(root, 'missing-sdk') : 'relative-sdk' })
+    const { ctx, journal } = await boot({ sdkKind: kind })
     expect((await ctx.deviceCapabilitiesController.checkSdk(signal())).android.found).toBe(false)
     expect(await calls(journal)).toEqual([])
   })

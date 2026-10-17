@@ -19,6 +19,7 @@ export const worktreeTaskDefaults = z.object({
   baseRef: z.string().min(1),
   setup: worktreeTaskHook.nullable(),
   cleanup: worktreeTaskHook.nullable(),
+  sparsePaths: z.array(z.string()).readonly().optional(),
 }).strict()
 
 /** One provider-owned Worktree Task record. */
@@ -40,6 +41,7 @@ export const gitWorktreeTaskRecord = z.object({
   head: z.string().regex(/^[0-9a-f]{40,64}$/),
   // Absent in earlier records: those tasks retain their original no-hook lifecycle.
   launch: worktreeTaskDefaults.optional(),
+  sparsePaths: z.array(z.string()).readonly().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })

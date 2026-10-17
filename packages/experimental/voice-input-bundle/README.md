@@ -1,5 +1,5 @@
 ---
-description: "Enable experimental speech input from the plugin manager."
+description: "Retired experimental speech-input composition retained for source development."
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This optional bundle composes a speech Service Definition, local SenseVoice provider, authenticated Remote and browser microphone control. Shipped profiles leave it disabled.
+This retired bundle composes a speech Service Definition, local SenseVoice provider, authenticated Remote and browser microphone control. Shipped profiles use [built-in dictation](../../client/ui-voice-dictation/README.md); the official plugin list excludes this bundle.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ This optional bundle composes a speech Service Definition, local SenseVoice prov
 <a id="use-this-package"></a>
 ## Use this package
 
-Open Plugins in the Web sidebar and enable Voice Input, marked by a blue waveform icon. If models need preparation, a dialog offers Go to setup or Later; Go to setup opens the bundle details. Complete caches need no setup prompt. In the details, choose Download and prepare; the collapsed current-step summary expands to the complete step list. Downloads report actual bytes; verification and loading show elapsed time. Once ready, click the microphone between the model selector and Send, then Stop to insert a transcript. Bundle details store the recognizer and language through the Settings service. Disabling the bundle cancels active work; cached assets remain on disk.
+Use Settings > Voice for shipped Web and Desktop profiles. Profile loading removes this retired bundle from the selected bundle list while preserving installed packages and cached assets. See the [upgrade guide](../../../docs/upgrade-guide/v0.2.1-alpha.1/builtin-voice/guide.md) for migration details. The retained experimental source is not the shipped dictation path.
 
 -----
 
@@ -35,7 +35,7 @@ Open Plugins in the Web sidebar and enable Voice Input, marked by a blue wavefor
 <details>
 <summary>Maintainer details — click to expand</summary>
 
-The static `cordis.patch.yml` adds the four voice rows, selects `sensevoice-local` as the default recognizer and supplies the provider cache directory with `dshHomePath`. Optional-bundle installation makes the package available to management without selecting it in default profiles. The browser contribution owns its generated Remote mount; stable API Remotes do not import experimental code.
+The retained `cordis.patch.yml` adds four experimental voice rows, selects `sensevoice-local` as the default recognizer and supplies the provider cache directory with `dshHomePath`. The browser contribution owns its generated Remote mount; stable API Remotes do not import experimental code. Shipped profiles do not compose these rows.
 
 </details>
 
@@ -62,7 +62,7 @@ No direct effect; ordinary submission owns the message content.
 <a id="known-limitations-and-deferred-work"></a>
 
 - The initial bundle supplies one local recognizer. Additional providers register with the same service under distinct ids; cloud recognition requires an explicit new provider and credential configuration. The bundle does not add a model tool or change the agent loop.
-- Installing dsh also installs `sherpa-onnx-node` and its platform-specific native runtime, including ONNX Runtime, even when this bundle is disabled. Runtime installation adds disk and download costs separate from the models downloaded by Download and prepare; the native package size varies by platform and version.
+- The retained source requires `sherpa-onnx-node` and its platform-specific native runtime, including ONNX Runtime. Model preparation has separate disk and download costs; native package size varies by platform and version.
 
 -----
 

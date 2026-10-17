@@ -393,10 +393,6 @@ export function WorkspaceIsolationSection(props: WorkspaceIsolationSectionProps)
       aria-busy={loading || anyBusy}
     >
       <header className={css.header}>
-        <div className={css.intro}>
-          <h1>{t('title')}</h1>
-          <p>{t('description')}</p>
-        </div>
         <div className={css.toolbar}>
           <span className={css.localTag}>{t('hostOnly')}</span>
           <Button

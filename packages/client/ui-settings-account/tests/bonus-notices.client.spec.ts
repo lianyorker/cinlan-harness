@@ -35,13 +35,14 @@ function batch(accountId: string, orderId: string, expiresAt = '2099-01-01T00:00
 function setup() {
   const read = vi.fn(async (): Promise<AccountBonusBatch | null> => null)
   const acknowledge = vi.fn(async (): Promise<boolean> => true)
+  const stacks: (readonly BonusNotice[])[] = []
   const published: (BonusNotice | null)[] = []
   const controller = createBonusNoticeController({
-    ...TIMING, read, acknowledge, publish: (notice) => { published.push(notice) },
+    ...TIMING, read, acknowledge, publish: (notices) => { stacks.push(notices); published.push(notices[0] ?? null) },
   })
   /** @returns the most recently published notice. */
   const latest = (): BonusNotice | null | undefined => published.at(-1)
-  return { controller, read, acknowledge, published, latest }
+  return { controller, read, acknowledge, published, latest, stacks }
 }
 
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })

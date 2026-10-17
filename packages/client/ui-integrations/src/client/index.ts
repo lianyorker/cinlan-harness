@@ -3,6 +3,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-api-integration-preflight-controller/remote'
+import type {} from '@deepseek-ai/dsh-api-integration-preflight-controller/budget'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { IconLinkOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -40,8 +41,20 @@ export function apply(ctx: ClientContext): void {
     return result.value
   }
 
+  const budget: IntegrationsSectionInjected['budget'] = async (provider, signal) => {
+    if (!ctx.remote?.integrationPreflight) {
+      return { provider, state: 'unavailable', reason: 'probe-failed', remaining: null, limit: null, resetsAt: null }
+    }
+    const result = await ctx.remote.integrationPreflight.budget({ provider }, signal)
+    if (!result.ok) throw new Error(`integrationPreflight.budget failed: ${result.error.code}: ${result.error.message}`)
+    return result.value
+  }
+
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'integrations', groupId: 'extensions' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'integrations', groupId: 'extensions',
+      title: () => t('title'), description: () => t('description'),
+    })
     yield ctx.settingsMetadata.registerItems('integrations', [
       { id: 'github', anchorId: 'integrations-github', title: () => t('githubTitle'), description: () => t('githubDescription') },
       { id: 'gitlab', anchorId: 'integrations-gitlab', title: () => t('gitlabTitle'), description: () => t('gitlabDescription') },
@@ -55,7 +68,7 @@ export function apply(ctx: ClientContext): void {
       order: 40,
       label: () => t('nav'),
       locale: NS,
-      inject: (): IntegrationsSectionInjected => ({ check }),
+      inject: (): IntegrationsSectionInjected => ({ check, budget }),
     }, IntegrationsSection)
   })
 

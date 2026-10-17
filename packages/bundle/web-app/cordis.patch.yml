@@ -95,6 +95,9 @@
     - id: workspace
       name: '@deepseek-ai/dsh-workspace'
 
+    - id: worktree-task-git
+      name: '@deepseek-ai/dsh-worktree-task-git'
+
     - id: session-reference
       name: '@deepseek-ai/dsh-session-reference'
 
@@ -130,14 +133,15 @@
     - id: job-controller
       name: '@deepseek-ai/dsh-api-job-controller'
 
+    # Session working directory service.
+    - id: working-directory
+      name: '@deepseek-ai/dsh-working-directory'
+
     # Ephemeral terminal sessions over Typert Remote.
     - id: terminal-controller
       name: '@deepseek-ai/dsh-api-terminal-controller'
-
-    # Integrated terminal and Git sidecar controllers used by the optional
-    # workspace tooling and its settings surfaces.
-    - id: sidebar-terminal-controller
-      name: '@deepseek-ai/dsh-api-sidebar-terminal-controller'
+    - id: terminal-quick-commands
+      name: '@deepseek-ai/dsh-terminal-quick-commands'
 
     # The settings document keys every namespace by its Loader entry id, and
     # every Git preference consumer reads the durable 'git-source-control'
@@ -156,10 +160,9 @@
     - id: workspace-files
       name: '@deepseek-ai/dsh-api-workspace-files'
 
-    # DeepSeek account operations over Typert Remote (native Desktop app only).
+    # Account operations over Typert Remote.
     - id: account-controller
       name: '@deepseek-ai/dsh-api-account-controller'
-      disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
 
     # The Schedule service owns the task store and delivers each due occurrence
     # as a follow-up in its original Session. The clock reading and the four
@@ -172,6 +175,12 @@
     - id: ui-schedule
       name: '@deepseek-ai/dsh-client-ui-schedule'
 
+    # Settings entry point for that same Schedule manager. The local automation
+    # subsystem is retired: this page owns the navigation and opens the Schedule
+    # panel, so no second task store is mounted.
+    - id: ui-settings-automation
+      name: '@deepseek-ai/dsh-client-ui-settings-automation'
+
     # Configuration-surface reads and writes over Typert Remote. Each method
     # reports an actionable error when its settings-domain provider is absent.
     - id: settings-controller
@@ -181,9 +190,10 @@
     - id: workspace-controller
       name: '@deepseek-ai/dsh-api-workspace-controller'
 
-    # The local automation subsystem is retired from the shipped composition:
-    # the Schedule service above owns tasks and reminders now, so these rows stay
-    # unmounted until the Cinlan Automation Settings page is repointed at it.
+    # Worktree task operations over Typert Remote.
+    - id: worktree-task-controller
+      name: '@deepseek-ai/dsh-api-worktree-task-controller'
+
     - id: usage-query
       name: '@deepseek-ai/dsh-usage-query'
 
@@ -230,6 +240,8 @@
 
     - id: integration-preflight-controller
       name: '@deepseek-ai/dsh-api-integration-preflight-controller'
+    - id: terminal-quick-commands-controller
+      name: '@deepseek-ai/dsh-api-terminal-quick-commands-controller'
 
     # Shared dictation providers for the Web voice settings and composer
     # shortcut. The provider itself keeps model files under the configured
@@ -378,6 +390,10 @@
       name: '@deepseek-ai/dsh-client-ui-sidebar-browser'
       disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
 
+    # Cinlan Design Studio: Collaborative AI design workspace with TasteSkill engine.
+    - id: ui-cinlan-design
+      name: '@deepseek-ai/dsh-client-ui-cinlan-design'
+
     - id: ui-sidebar-terminal
       name: '@deepseek-ai/dsh-client-ui-sidebar-terminal'
 
@@ -387,10 +403,6 @@
 
     - id: ui-settings
       name: '@deepseek-ai/dsh-client-ui-settings'
-
-    # Settings entry point for the official Schedule task manager.
-    - id: ui-settings-schedule
-      name: '@deepseek-ai/dsh-client-ui-settings-automation'
 
     - id: ui-settings-general
       name: '@deepseek-ai/dsh-client-ui-settings-general'
@@ -528,14 +540,26 @@
     - id: ui-settings-web-search
       name: '@deepseek-ai/dsh-client-ui-settings-web-search'
 
-    - id: keyboard
+    # The settings document keys every namespace by its Loader entry id, and
+    # every shortcut consumer reads the durable 'keybindings' namespace, so this
+    # row's id must be that namespace rather than a short name.
+    - id: keybindings
       name: '@deepseek-ai/dsh-client-keyboard'
 
     - id: ui-floating-workspace
       name: '@deepseek-ai/dsh-client-ui-floating-workspace'
 
+    # The orchestration settings section: Host tool parallelism and the
+    # evaluated agent-preset capability list.
+    - id: ui-orchestration
+      name: '@deepseek-ai/dsh-client-ui-orchestration'
+
     - id: ui-integrations
       name: '@deepseek-ai/dsh-client-ui-integrations'
+    - id: ui-quick-commands
+      name: '@deepseek-ai/dsh-client-ui-quick-commands'
+    - id: ui-worktree-task
+      name: '@deepseek-ai/dsh-client-ui-worktree-task'
 
     - id: ui-git-settings
       name: '@deepseek-ai/dsh-client-ui-git-settings'
@@ -548,6 +572,9 @@
 
     - id: ui-settings-mcp
       name: '@deepseek-ai/dsh-client-ui-settings-mcp'
+
+    - id: cinlan-mobile-host
+      name: '@deepseek-ai/dsh-cinlan-remote-tunnel'
 
     - id: ui-settings-security
       name: '@deepseek-ai/dsh-client-ui-settings-security'

@@ -297,6 +297,18 @@ export class GitWorktreeTask extends WorktreeTaskService {
       const headResult = await this.git(repositoryPath, ['rev-parse', '--verify', '--end-of-options', baseRef + '^{commit}'], signal)
       this.assertSuccess(headResult, 'rev-parse base ref')
       const baseHead = headResult.stdout.trim()
+      const rawSparse = request.sparsePaths ?? defaults.sparsePaths
+      const sparsePaths = rawSparse && rawSparse.length > 0 ? [...rawSparse] : undefined
+      if (sparsePaths !== undefined) {
+        this.validateSparsePaths(sparsePaths)
+      }
+      const effectiveConePaths = sparsePaths ? sparsePaths.map(p => p.replaceAll('\\', '/')) : []
+      if (sparsePaths !== undefined && sourceRelative.length > 0) {
+        const normSource = sourceRelative.replaceAll('\\', '/')
+        if (!effectiveConePaths.some(p => normSource === p || normSource.startsWith(p + '/') || p.startsWith(normSource + '/'))) {
+          effectiveConePaths.push(normSource)
+        }
+      }
       const id = WorktreeTaskId(randomUUID())
       const launch = {
         ...defaults,
@@ -338,6 +350,7 @@ export class GitWorktreeTask extends WorktreeTaskService {
         sessionIds: [],
         head: baseHead,
         launch,
+        ...(sparsePaths === undefined ? {} : { sparsePaths }),
         createdAt: now,
         updatedAt: now,
       }
@@ -349,6 +362,9 @@ export class GitWorktreeTask extends WorktreeTaskService {
           filters,
         )
         this.assertSuccess(add, 'worktree add')
+        if (sparsePaths !== undefined && effectiveConePaths.length > 0) {
+          await this.applySparseCheckout(checkoutRoot, effectiveConePaths, signal)
+        }
         await this.runHook(record, 'setup', signal)
         await this.validateCheckoutPath(record)
         signal.throwIfAborted()
@@ -522,6 +538,41 @@ export class GitWorktreeTask extends WorktreeTaskService {
     if (value.baseRef.trim().length === 0 || value.baseRef.startsWith('-') || value.baseRef.includes(String.fromCharCode(0))) {
       throw new WorktreeTaskError('invalid-path', 'The starting ref must be a nonempty Git revision, not an option')
     }
+    if (value.sparsePaths !== undefined) {
+      this.validateSparsePaths(value.sparsePaths)
+    }
+  }
+
+  private validateSparsePaths(paths: readonly string[]): void {
+    for (const path of paths) {
+      if (typeof path !== 'string' || path.trim().length === 0) {
+        throw new WorktreeTaskError('invalid-path', 'Sparse path must be a nonempty string')
+      }
+      if (path.startsWith('-') || path.includes(String.fromCharCode(0))) {
+        throw new WorktreeTaskError('invalid-path', 'Sparse path must not contain null characters or option flags')
+      }
+      const normalized = path.replaceAll('\\', '/')
+      if (isAbsolute(path) || path.includes(':')) {
+        throw new WorktreeTaskError('invalid-path', 'Sparse path must be a relative repository path')
+      }
+      const segments = normalized.split('/')
+      if (segments.some(seg => seg === '..' || seg === '.')) {
+        throw new WorktreeTaskError('invalid-path', 'Sparse path must not contain parent or current directory references')
+      }
+    }
+  }
+
+  private async applySparseCheckout(
+    checkoutRoot: string,
+    paths: readonly string[],
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const result = await this.git(
+      checkoutRoot,
+      ['sparse-checkout', 'set', '--cone', ...paths],
+      signal,
+    )
+    this.assertSuccess(result, 'sparse-checkout set')
   }
 
   /**
@@ -834,11 +885,12 @@ export class GitWorktreeTask extends WorktreeTaskService {
   }
 
   private snapshot(record: GitWorktreeTaskRecord): WorktreeTask {
-    const { linkedIssue, ...task } = record
+    const { linkedIssue, sparsePaths, ...task } = record
     const cleanupReceipt = this.receipt(record.id)
     return structuredClone({
       ...task,
       ...(linkedIssue === undefined ? {} : { linkedIssue }),
+      ...(sparsePaths === undefined ? {} : { sparsePaths: [...sparsePaths] }),
       ...(cleanupReceipt === undefined ? {} : { cleanupReceipt }),
     })
   }
@@ -912,6 +964,17 @@ export class GitWorktreeTask extends WorktreeTaskService {
       filters,
     )
     this.assertSuccess(add, 'worktree add')
+    if (record.sparsePaths && record.sparsePaths.length > 0) {
+      const sourceRelative = relative(record.repositoryPath, record.sourcePath)
+      const effectiveConePaths = record.sparsePaths.map(p => p.replaceAll('\\', '/'))
+      if (sourceRelative.length > 0) {
+        const normSource = sourceRelative.replaceAll('\\', '/')
+        if (!effectiveConePaths.some(p => normSource === p || normSource.startsWith(p + '/') || p.startsWith(normSource + '/'))) {
+          effectiveConePaths.push(normSource)
+        }
+      }
+      await this.applySparseCheckout(record.checkoutRoot, effectiveConePaths, signal)
+    }
     try {
       await this.validateCheckoutPath(record)
     } catch (error: unknown) {

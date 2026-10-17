@@ -25,7 +25,6 @@ async function renderSection() {
 describe('orchestration settings page', () => {
   it('saves a valid cap, restores inheritance, and keeps the ownership explanation visible', async () => {
     const b = await renderSection()
-    expect(screen.getByRole('heading', { level: 1, name: en.title })).toBeTruthy()
     expect(screen.getByRole('heading', { level: 2, name: en.capabilityTitle })).toBeTruthy()
     expect(screen.getByText(en.capabilityDescription)).toBeTruthy()
     expect(screen.getByRole('button', { name: en.coverageRefresh })).toBeTruthy()

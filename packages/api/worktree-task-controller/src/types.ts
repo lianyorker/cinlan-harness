@@ -21,6 +21,7 @@ export interface WorktreeTaskView {
   readonly status: WorktreeTaskStatus
   readonly cleanupReceipt?: WorktreeTaskCleanupReceipt
   readonly linkedIssue?: string
+  readonly sparsePaths?: readonly string[] | undefined
   readonly sessionIds: readonly SessionId[]
   readonly createdAt: string
   readonly updatedAt: string
@@ -33,6 +34,7 @@ export interface WorktreeTaskCreateRequest {
   readonly sourcePath: string
   readonly baseRef?: string
   readonly linkedIssue?: string
+  readonly sparsePaths?: readonly string[] | undefined
 }
 
 /** Created Worktree Task. */

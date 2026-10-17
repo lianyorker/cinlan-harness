@@ -51,7 +51,9 @@ export function apply(ctx: Context): void {
     hooks: { usage: source }, load: source.load, cancel: source.cancel, download: downloadCsv,
   }
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'usage', groupId: 'advanced', heading: 'shell' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'usage', groupId: 'advanced', description: () => t('intro'),
+    })
     yield ctx.settingsMetadata.registerItems('usage', [
       { id: 'filters', anchorId: 'usage-filters', title: () => t('filters'), description: () => t('dateHelp'), keywords: () => [t('provider'), t('model')] },
       { id: 'overview', anchorId: 'usage-overview', title: () => t('overview'), description: () => t('accountingHelp') },

@@ -77,12 +77,13 @@ describe('native worktree task settings', () => {
     expect(within(form).getByRole('textbox', { name: en.createSourcePath })).toHaveProperty('value', '/projects/real')
     fireEvent.change(within(form).getByRole('textbox', { name: en.createBaseRef }), { target: { value: ' release ' } })
     fireEvent.change(within(form).getByRole('textbox', { name: en.createLinkedIssue }), { target: { value: ' https://issues.test/17 ' } })
+    fireEvent.change(within(form).getByRole('textbox', { name: en.createSparsePaths }), { target: { value: ' packages/core, apps/web ' } })
     fireEvent.click(within(form).getByRole('button', { name: en.create }))
     await waitFor(() => { expect(p.create).toHaveBeenCalledWith({ name: 'New task', workspaceId: 'workspace-real',
-      sourcePath: '/projects/real', baseRef: 'release', linkedIssue: 'https://issues.test/17' }, expect.any(AbortSignal)) })
+      sourcePath: '/projects/real', baseRef: 'release', linkedIssue: 'https://issues.test/17', sparsePaths: ['packages/core', 'apps/web'] }, expect.any(AbortSignal)) })
     await waitFor(() => { expect(screen.queryByRole('region', { name: en.create })).toBeNull() })
     expect(p.list).toHaveBeenCalledTimes(2)
-    expect(screen.getByRole('heading', { level: 1, name: en.title })).toBeTruthy()
+    expect(screen.getByRole('button', { name: en.create })).toBeTruthy()
   })
 
   it('keeps failed creation drafts and omits unset per-task options on retry', async () => {

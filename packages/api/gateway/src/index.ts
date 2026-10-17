@@ -472,8 +472,8 @@ export class TypertGatewayService extends Service implements TypertGateway {
   private operatorPeer(): PeerScope {
     const connection = this.ctx.get('connection')
     if (connection !== undefined) return connection.operator
-    this.inProcessOperator ??= new OperatorPeer(this.ctx)
-    return this.inProcessOperator
+    const operator = this.inProcessOperator ??= new OperatorPeer(this.ctx)
+    return operator
   }
 
   private async *openRemoteEvents(

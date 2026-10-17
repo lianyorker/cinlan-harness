@@ -33,7 +33,7 @@ Two Advanced controls record only their non-default choice: connection reuse is 
 
 A connected target also offers Reset remote relay. It admits the same exact revision again, which the owner serves by closing the running worker incarnation and dialling a fresh one, so the card reports the connection that replaced it. Requesting that replacement needs no separate Host operation: connecting a target that already holds a connection is what replaces it.
 
-Saving, deleting, and connecting use the target revision. A conflict refreshes the target list while retaining the editor's destination and refinements for review and explicit retry. A ready card reports the connection status the Host published; directory inspection and runtime installation are owned by other surfaces and are not part of this page.
+Saving, deleting, and connecting use the target revision. A conflict refreshes the target list while retaining the editor's destination and refinements for review and explicit retry. A ready card reports the connection status the Host published. Ephemeral on-demand VMs can be provisioned from approved recipe definitions with CPU and memory quotas, live status tracking, and orphaned instance cleanup.
 
 -----
 

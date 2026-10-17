@@ -77,15 +77,17 @@ describe('automation settings Loader composition', () => {
     await owner.await()
     await vi.waitFor(() => { expect(b.ctx.slots.entries('settings.section')).toHaveLength(1) })
     const view = render(<>{b.ctx.slots.renderSlot('root', {})}</>)
-    await screen.findByRole('heading', { name: en.title, level: 1 })
+    await screen.findByRole('button', { name: en.openAutomation })
     expect(b.selectPanel).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: en.openAutomation }))
-    expect(b.selectPanel).toHaveBeenCalledWith('schedule')
+    expect(b.selectPanel).toHaveBeenCalledWith('schedules')
     expect(b.closed).toHaveBeenCalledOnce()
 
     const metadata = b.ctx.settingsMetadata.getSnapshot()
-    expect(metadata.sections).toEqual([{ sectionId: 'schedule', groupId: 'execution' }])
+    expect(metadata.sections).toEqual([{
+      sectionId: 'schedule', groupId: 'execution', description: expect.any(Function),
+    }])
     expect(metadata.items.map(item => item.anchorId)).toEqual(['tasks'])
     expect(b.ctx.slots.entries('settings.section.icon')[0]?.options).toMatchObject({ key: 'schedule' })
 

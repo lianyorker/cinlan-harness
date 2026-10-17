@@ -11,11 +11,8 @@ interface Field {
 /** Every Mobile Emulator setting and guidance target this page renders. */
 export const MOBILE_FIELDS = [
   { anchorId: 'mobile-readiness', title: 'mobileSdkStatusTitle', description: 'deviceAvailableDescription' },
-  { anchorId: 'mobile-enabled', title: 'mobileEnable', description: 'mobileEnableDescription' },
   { anchorId: 'mobile-sdk-path', title: 'mobileSdkCustomPath', description: 'mobileSdkPathHelp' },
   { anchorId: 'mobile-device', title: 'mobileDefaultDevice', description: 'mobileDefaultDeviceDescription' },
-  { anchorId: 'mobile-agent', title: 'mobileAgentControl', description: 'mobileHowToUseDescription' },
   { anchorId: 'mobile-commands', title: 'mobileCommandsTitle', description: 'mobileCommandsDescription' },
   { anchorId: 'mobile-usage', title: 'examplesTitle', description: 'mobileExamplesDescription' },
-  { anchorId: 'mobile-resources', title: 'mobileResourcesTitle', description: 'mobileResourcesDescription' },
 ] as const satisfies readonly Field[]

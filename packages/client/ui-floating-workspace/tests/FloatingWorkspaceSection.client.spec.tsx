@@ -54,10 +54,10 @@ function mount(initial: FloatingSnapshot = accepted(), dictionary: Record<Floati
 }
 
 describe('Floating Workspace settings presentation', () => {
-  it.each([en, zh])('renders a locale-owned heading and one card with only the two positions', (dictionary) => {
+  it.each([en, zh])('renders one card with only the two positions', (dictionary) => {
     mount(accepted({ enabled: true }), dictionary)
-    expect(screen.getByRole('heading', { level: 1, name: dictionary.title })).toBeTruthy()
-    expect(screen.getByText(dictionary.description)).toBeTruthy()
+    // The page heading is the settings shell's; the section renders only its card.
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
     // The terminal-directory row is gone: the panel starts no terminal.
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.getByRole('switch', { name: dictionary.enable }).getAttribute('aria-checked')).toBe('true')

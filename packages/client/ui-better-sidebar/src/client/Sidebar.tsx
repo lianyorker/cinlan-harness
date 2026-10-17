@@ -34,6 +34,7 @@ import clsx from 'clsx'
 import { IconCloseFill14, IconFullscreenOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context, SidebarSessionList } from '../context-types.ts'
 import { appendToDraft } from './conversation-draft.ts'
+import { mainSessionId } from './main-session.ts'
 import {
   BOTTOM_MIN, PANEL_MIN, allLeaves, firstLeaf, leafWithTab,
   migrateBottomTabs, moveTab, moveTabToEdge, openDiffTab,
@@ -257,7 +258,7 @@ export function Sidebar(props: {
     useMemo(() => (callback: () => void) => ctx.sessions.list.subscribe(callback), [ctx]),
     useCallback(() => ctx.sessions.list.getSnapshot(), [ctx]),
   )
-  const current = sessionList.current
+  const current = mainSessionId(sessionList)
 
   // Per-session sidebar state.
   const snapshot = useSyncExternalStore(

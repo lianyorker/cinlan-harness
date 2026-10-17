@@ -8,6 +8,9 @@
     "src"
   ],
   "references": [
+    { "path": "../../../apps/mobile-relay" },
+    { "path": "../connection/tsconfig.client.json" },
+    { "path": "../ui-workspace" },
     { "path": "../ui-layout" },
     { "path": "../ui-sidebar" },
     {

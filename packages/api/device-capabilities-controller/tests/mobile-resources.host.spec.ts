@@ -3,12 +3,28 @@ import { Context } from '@deepseek-ai/cordis'
 import { afterEach, expect, it, vi } from 'vitest'
 import DeviceCapabilitiesController from '../src/index.ts'
 import type { MobileResourceRevision, MobileResourceTaskId, MobileMirrorId } from '@deepseek-ai/dsh-mobile-device-runtime'
+import type { PeerScope, PeerId } from '@deepseek-ai/dsh-typert-protocol'
 const roots: Context[] = []
 afterEach(async () => { for (const ctx of roots.splice(0)) await ctx.fiber.dispose() })
-it.each([undefined, 'delegated'])('denies %s authority before any resource or device operation', async (kind) => {
+function peer(ctx: Context): PeerScope {
+  return {
+    id: 'operator' as PeerId,
+    ctx,
+    principal: { kind: 'owner' },
+    signal: new AbortController().signal,
+    interactions: 'answer',
+    dispose: () => Promise.resolve(),
+  }
+}
+it.each(['absent', 'other-peer', 'aborted', 'no-connection'] as const)('denies %s authority before any operation', async (kind) => {
   const ctx = new Context(); roots.push(ctx)
   const signal = new AbortController().signal
-  ctx.provide('typertGateway', { currentAccess: () => kind ? { kind, signal } : undefined } as never)
+  const operator = peer(ctx)
+  if (kind !== 'no-connection') ctx.provide('connection', { operator } as never)
+  if (kind !== 'absent') ctx.provide('invocation', {
+    peer: kind === 'other-peer' ? peer(ctx) : operator,
+    signal: kind === 'aborted' ? AbortSignal.abort() : signal,
+  } as never)
   const status = vi.fn(); const start = vi.fn(); const cancel = vi.fn(); const startMirror = vi.fn(); const closeMirror = vi.fn()
   ctx.provide('mobileRuntime', { status, start, cancel, startMirror, closeMirror } as never)
   const controller = new DeviceCapabilitiesController(ctx)
@@ -22,7 +38,9 @@ it.each([undefined, 'delegated'])('denies %s authority before any resource or de
 it('passes exact local request identity without turning observer cancellation into task cancellation', async () => {
   const ctx = new Context(); roots.push(ctx)
   const signal = new AbortController().signal
-  ctx.provide('typertGateway', { currentAccess: () => ({ kind: 'trusted-local', signal }) } as never)
+  const operator = peer(ctx)
+  ctx.provide('connection', { operator } as never)
+  ctx.provide('invocation', { peer: operator, signal } as never)
   const receipt = { id: 'exact-task' }; const start = vi.fn(() => receipt)
   ctx.provide('mobileRuntime', { start } as never)
   const controller = new DeviceCapabilitiesController(ctx)

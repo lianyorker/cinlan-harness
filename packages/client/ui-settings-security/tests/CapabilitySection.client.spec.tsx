@@ -5,7 +5,6 @@ import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { PluginEntryId } from '@deepseek-ai/dsh-host-plugin-inventory/types'
 import type { DeviceCapabilitySnapshot } from '@deepseek-ai/dsh-api-device-capabilities-controller/types'
 import { MOBILE_CAPABILITY, CapabilitySection, type MobileSectionInjected } from '../src/client/CapabilitySection.tsx'
 import { en, zh } from '../src/client/locales.ts'
@@ -24,15 +23,17 @@ function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', la
   }
   const props = {
     definition: MOBILE_CAPABILITY,
+    renderFactorySlot: vi.fn(() => null),
     close: vi.fn(),
     checkDevice: checkDevice as unknown as MobileSectionInjected['checkDevice'],
     checkSdk: vi.fn(async () => ({ platform: 'linux', android: { found: false, sdkPath: null, message: 'Not found' }, ios: null })),
     listMobileDevices: vi.fn(async () => ({ devices: [], available: false })),
+    pickSdkDirectory: vi.fn(async () => null), openSdkDirectory: vi.fn(async () => {}),
     useMobileSettings: (selector: (snapshot: SettingsScopeSnapshot<never>) => unknown) => selector({
       status: 'ready', mode: 'host', writable: true, revision: 1,
       value: { enabled: false, defaultDeviceId: '', androidSdkPath: '' }, base: undefined, user: undefined,
     } as never),
-    saveMobileSettings: vi.fn(async () => {}), resetMobileSettings: vi.fn(async () => {}),
+    saveMobileSettings: vi.fn(async () => 2), resetMobileSettings: vi.fn(async () => {}),
     listProviderEntries: vi.fn(async () => ({ kind: 'unavailable' as const })),
     setProviderEnabled: vi.fn(async () => ({ kind: 'unavailable' as const })),
     useMobileResources: (selector: (snapshot: { status: string }) => unknown) => selector({ status: 'loading' }),
@@ -48,12 +49,21 @@ function mount(status: DeviceCapabilitySnapshot['status'] = 'not-configured', la
 }
 
 describe('mobile emulator settings page', () => {
-  it('renders the page heading, the setup card, and the agent card', async () => {
+  it('keeps preferences, commands, and examples without capability controls or resources', async () => {
     mount()
-    expect(await screen.findByRole('heading', { level: 2, name: en.mobileAgentControl })).toBeTruthy()
-    expect(screen.getByRole('switch', { name: en.mobileEnable })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: en.mobileCommandsTitle })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: en.examplesTitle })).toBeTruthy()
+    expect(screen.queryByRole('switch')).toBeNull()
     expect(screen.getByText(en.mobileSdkStatusTitle)).toBeTruthy()
-    expect(screen.getByText('0/2')).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: en.mobileDefaultDevice })).toBeTruthy()
+    expect(screen.getByRole('option', { name: en.mobileDefaultDeviceAuto })).toBeTruthy()
+    expect(screen.queryByText(en.preferencesReadOnly)).toBeNull()
+    expect(screen.queryByText('0/2')).toBeNull()
+    expect(screen.queryByText(en.mobileAgentControl)).toBeNull()
+    expect(screen.queryByText(en.mobileResourcesTitle)).toBeNull()
+    for (const name of [en.preferencesSave, en.preferencesDiscard, en.preferencesReset]) {
+      expect(screen.queryByRole('button', { name })).toBeNull()
+    }
   })
 
   it('reports the probed availability and its localized reason', async () => {
@@ -72,7 +82,7 @@ describe('mobile emulator settings page', () => {
 
   it('re-probes the device when the availability control is used', async () => {
     const view = mount()
-    await screen.findByRole('switch', { name: en.mobileEnable })
+    await screen.findByText(en.deviceNotConfigured)
     fireEvent.click(screen.getAllByRole('button', { name: en.mobileAgentRecheck })[0]!)
     await waitFor(() => { expect(view.checkDevice).toHaveBeenCalledTimes(2) })
   })
@@ -88,14 +98,14 @@ describe('mobile emulator settings page', () => {
   it('ignores a device probe that settles after the page left', async () => {
     const resolved = mount()
     const answer = Promise.withResolvers<never>()
-    resolved.rerender(<CapabilitySection {...{ ...resolved.props, checkDevice: () => answer.promise } as unknown as SectionProps} />)
+    resolved.rerender(<CapabilitySection {...resolved.props} checkDevice={() => answer.promise} />)
     resolved.unmount()
     answer.resolve(undefined as never)
     await settle()
 
     const rejected = mount()
     const failure = Promise.withResolvers<never>()
-    rejected.rerender(<CapabilitySection {...{ ...rejected.props, checkDevice: () => failure.promise } as unknown as SectionProps} />)
+    rejected.rerender(<CapabilitySection {...rejected.props} checkDevice={() => failure.promise} />)
     rejected.unmount()
     failure.reject(new Error('late failure'))
     await settle()
@@ -115,11 +125,9 @@ describe('mobile emulator settings page', () => {
     expect(screen.queryByRole('switch')).toBeNull()
   })
 
-  it('names the loaded provider entry the agent card reports', async () => {
+  it('does not reveal removed runtime controls for an old settings-search target', () => {
     const view = mount()
-    const entry = { entryId: 'row:mobile' as PluginEntryId, moduleName: '@deepseek-ai/dsh-mobile-device-adb', enabled: true, fiberPhase: 'active' as const }
-    const props = { ...view.props, listProviderEntries: async () => ({ kind: 'ready' as const, entries: [entry] }) } as unknown as SectionProps satisfies SectionProps
-    view.rerender(<CapabilitySection {...props} />)
-    expect(await screen.findByText(en.mobileAgentStepLoaded)).toBeTruthy()
+    view.rerender(<CapabilitySection {...view.props} target={{ itemId: 'resources', anchorId: 'mobile-resources' }} />)
+    expect(view.container.querySelector('details')).toBeNull()
   })
 })

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 摘要
 
-移动端是 Desktop/Web 共用的工作台页面，左侧入口位于自动化任务之后、工作区之前。介绍页在应用内打开配对视图，不跳转到独立手机客户端。Settings 保留独立的移动端页面。两处配对视图都报告 Host 配对 API 缺失并禁用配置控件，不生成随机机器名、二维码或设备列表。手机模拟器仍是独立设置页，管理设备偏好、探测、工具及 Android 运行资源。
+移动端伴侣是 Desktop/Web 共用的工作台页面，左侧入口位于自动化任务之后、工作区之前。工作台入口提供“获取应用程序、配对手机、已配对”三步向导；配对设置通过认证 Host 读取和保存机器名称、连接方式、内网地址、中枢地址与区域，并由 Host 生成有时效的 `cinlan://pair` 二维码与链接。手机模拟器仍是独立设置页，管理设备偏好、探测、常用命令和示例提示。
 
 ## 目录
 
@@ -18,32 +18,34 @@ kind: "package-reference"
 - [开发者说明](#dev-note)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
 
+伴侣页面拥有本地展示设置：显示开关会更新共享侧栏入口；机器名称、连接方式和中继状态由 Host 负责，二维码只在 Host 返回有效配对 offer 后在浏览器渲染。中继状态显示为连接中、已连接或未连接；已配对设备列表来自 Host，撤销会立即请求 Host 断开设备。
+
 -----
 
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 Settings、Locale 以及 deviceCapabilities、settings Remote 一起挂载。可选的 pluginManager Remote 提供智能体卡片渲染的条目启停控件；缺失时卡片报告管理不可用，同时仍然显示探测与资源状态。`companion-registration.ts` 注册移动端配对页面；`mobile-registration.ts` 拥有模拟器页面的作用域绑定、资源观察器、探测与销毁。
+与 Settings、Locale 以及 deviceCapabilities、settings Remote 一起挂载。`companion-registration.ts` 注册移动端配对页面；`mobile-registration.ts` 拥有模拟器页面的作用域绑定与探测。页面不渲染插件启停或 Android 资源控件。
 
 <a id="settings-and-action-ownership"></a>
 ## 设置与动作归属
 
 | 区域 | 存储字段与运行消费者 |
 |---|---|
-| 移动设备 | [移动设备能力](../../mobile-device/mobile-device/README.zh.md) 拥有 `mobile-device` 命名空间。`enabled` 控制本页自动检查，`androidSdkPath` 提供给 Host 检查与原生 ADB 操作，`defaultDeviceId` 仅在 `mobile_observe.device_id` 未指定时使用。页面把手机模拟器整理为一张设置卡——检查开关、带状态徽标与重新检查的可用性、含下载/使用检测到/清除动作的 Android SDK 行、自定义 SDK 路径、默认设备——随后是智能体卡片：以 0/2 徽标把能力条目与工具条目列为两步，列出启动命令与 `mobile_*` 工具名，并提供三条可复制示例提示。 |
-| 运行资源 | [移动运行资源管理器](../../mobile-device/mobile-device-runtime/README.zh.md) 拥有 Platform Tools、scrcpy 与原生镜像进程。安装、重新安装和更新均要求显式接受许可证并提交显示的资源修订号；移除需要确认。取消针对已观察到的任务 ID。镜像要求明确选择可用 Android 设备；关闭针对所属镜像 ID。镜像进程运行不证明画面已显示。 |
+| 移动设备 | [移动设备能力](../../mobile-device/mobile-device/README.zh.md) 拥有 `mobile-device` 命名空间。配置中的 `enabled` 控制本页自动检查，页面保留该值但不编辑。`androidSdkPath` 提供给 Host 检查与原生 ADB 操作，`defaultDeviceId` 仅在 `mobile_observe.device_id` 未指定时使用。设置区包含可用性、Android SDK 操作与默认设备，下方保留常用命令和可复制的示例提示。 |
 
-可用性与工具链行是只读的：提供者探测、SDK 检查与设备列表都不写偏好。只有开关、SDK 路径和默认设备参与草稿表单，并通过一次原子修改按草稿打开时的修订号保存。页面仅在挂载期间观察 Host；`runtimePollIntervalMs` 默认为 1000 毫秒，允许 100–60000 毫秒。离页停止观察，不取消 Host 任务或关闭镜像。
+可用性与工具链行是只读的。SDK 路径和默认设备在失焦时按草稿打开时的修订号保存。写入串行执行，排队的修改使用前一次写入接受的修订号。失败时保留草稿以便重试。离页取消检查并放弃排队写入，但不撤销已发送到 Host 的写入。
 
-设置卡复制受支持的 `dsh --profile device-control` 命令。剪贴板被拒绝时显示失败信息。
+下载 Android Studio 指向 `https://developer.android.com/studio`。定位 SDK 文件夹使用组合提供的 `directory.picker` Factory：Browse 打开现有应用内目录浏览器，Native 使用 Desktop preload bridge 或 Host 选择器。确认目录、采用检测路径或清空路径后立即保存；取消时保留草稿。SDK 变更保存后重新检查。打开文件夹通过可选的 Session Remote 打开检测目录或显示其 ADB 可执行文件；未保存路径不提供打开操作。只读连接仍可刷新和打开文件夹，但不能更改偏好。
+
+常用命令包含 `dsh --profile web` 和 `mobile_*` 工具。剪贴板被拒绝时显示失败信息。
 
 <a id="dev-note"></a>
 ## 开发者说明
 
-页面本身不拥有能力：它投影移动能力的存储偏好、Host 设备探测与运行资源管理器的资源状态。提供者仍是独立插件，因此本包可以从组合中省略而不移除该能力。
+页面投影存储偏好与 Host 探测；省略本页不会移除底层能力或改变操作审批。
 
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与后续工作
 
-- 自定义 SDK 路径是文本字段：页面没有原生目录选择器，需要手动输入或粘贴路径。
-- 页面只报告 Host 发布的资源与镜像状态；镜像进程运行不证明画面已显示。
+- 未组合选择器时仍可手动输入 SDK 路径。原生文件夹打开需要 Session Remote 与经过验证的本地 Host 路径。

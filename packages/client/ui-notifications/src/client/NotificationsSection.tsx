@@ -111,8 +111,7 @@ export function NotificationsSection(props: NotificationsSectionProps): ReactNod
     }, () => { setTestState('unavailable') })
   }
 
-  return <section className={css.section} aria-labelledby="notifications-title" aria-busy={saving}>
-    <header className={css.header}><h1 id="notifications-title">{t('title')}</h1><p>{t('description')}</p></header>
+  return <section className={css.section} aria-label={t('title')} aria-busy={saving}>
     {snapshot.status !== 'ready' || !snapshot.writable
       ? <p className={css.feedback} role="status">{t(snapshot.status === 'loading' ? 'loading' : snapshot.status === 'unavailable' ? 'settingsUnavailable' : 'readOnly')}</p>
       : null}

@@ -41,17 +41,18 @@ export function retryTurn(): SessionEvent[] {
   return [
     event(0, 'turn/start', { turn: 1 }),
     event(1, 'step/start', { turn: 1, step: 1 }),
-    event(2, 'assistant/attempt', {
+    event(2, 'request/header', { header: { config: { provider: 'fixture', model: 'mock' } } as any, reason: 'initial' }),
+    event(3, 'assistant/attempt', {
       turn: 1, step: 1, stream: [
-        { type: 'chunk', time: 1002, chunk: { type: 'usage', usage: usage() } },
-        { type: 'chunk', time: 1003, chunk: { type: 'finish', reason: { kind: 'error', failure: { code: 'HTTP', message: 'fixture retry' } } } },
+        { type: 'chunk', time: 1003, chunk: { type: 'usage', usage: usage() } },
+        { type: 'chunk', time: 1004, chunk: { type: 'finish', reason: { kind: 'error', failure: { code: 'HTTP', message: 'fixture retry' } } } },
       ],
     }),
-    event(3, 'llm/retry', { retryId, turn: 1, step: 1, provider: 'deepseek', mode: 'normal', policyKey: 'http', retry: 1, maxRetries: 1, delayMs: 0, failure: { code: 'HTTP', message: 'fixture retry' } }),
-    event(4, 'llm/retry-started', { retryId, turn: 1, step: 1, retry: 1 }),
-    message(5, { inputTokens: 40, outputTokens: 10, totalTokens: 70, cacheReadTokens: 20 }),
-    event(6, 'step/end', { turn: 1, step: 1 }),
-    event(7, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
+    event(4, 'llm/retry', { retryId, turn: 1, step: 1, provider: 'fixture', mode: 'normal', policyKey: 'http', retry: 1, maxRetries: 1, delayMs: 0, failure: { code: 'HTTP', message: 'fixture retry' } }),
+    event(5, 'llm/retry-started', { retryId, turn: 1, step: 1, retry: 1 }),
+    message(6, { inputTokens: 40, outputTokens: 10, totalTokens: 70, cacheReadTokens: 20 }),
+    event(7, 'step/end', { turn: 1, step: 1 }),
+    event(8, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
   ]
 }
 

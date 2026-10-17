@@ -31,6 +31,8 @@ In the local Electron application, this flow uses the narrow preload directory-p
 
 ### When to choose it
 
+The same native interaction is available to settings and other consumers through the [`directory.picker` Factory](../ui-workspace/README.md#directory-picker). Its caller adopts the path; the picker does not create a Workspace. The definition installs independently of the Workspace child slots and follows this plugin's effect lifetime.
+
 Choose this surface when the browser runs on the same machine as the Host, so an OS dialog can open there. Choose the [`-browse`](../ui-directory-picker-browse/README.md) surface when the browser is remote or in-process and no local chooser exists. The two surfaces fill the same slots, so switching is a composition change, not a code change.
 
 -----

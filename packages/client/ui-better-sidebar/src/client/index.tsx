@@ -2,8 +2,8 @@
  * Client half of the workspace panels: resolves feature preferences
  * through the standard settings scope, mounts the
  * right sidebar portal (inside an error boundary so a rendering failure
- * shows an error strip instead of a blank panel), registers the turn-tail
- * interception, and contributes independent feature pages to the
+ * shows an error strip instead of a blank panel), intercepts file opens,
+ * and contributes independent feature pages to the
  * Settings shell. Requires the runtime's slots and sessions services; the
  * bundle itself is a module-table consumer only (react + ui-primitives +
  * xterm, all provided or inlined).
@@ -24,7 +24,7 @@ import { registerEditorCommands } from './keyboard-commands.ts'
 import { Sidebar } from './Sidebar.tsx'
 import { registerSubagentChat } from './SubagentChatView.tsx'
 import { RenderBoundary } from './RenderBoundary.tsx'
-import { registerOpenPathInterception, registerTurnTailInterception } from './intercept.tsx'
+import { registerOpenPathInterception } from './intercept.tsx'
 import { registerLinkInterception } from './link-intercept.ts'
 import { parseDesktopEnv } from './desktop-env.ts'
 import { registerImeGuard } from './ime-guard.ts'
@@ -315,18 +315,6 @@ function applySidebar(ctx: Context): void {
         unmount()
       }
     }, 'dsh-better-sidebar: sidebar mount')
-
-    ctx.effect(
-      () => {
-        try {
-          return registerTurnTailInterception(ctx, sidebarStore)
-        } catch (error) {
-          fail('interception', error)
-          return undefined
-        }
-      },
-      'dsh-better-sidebar: turn-tail interception',
-    )
 
     ctx.effect(
       () => {

@@ -5,6 +5,7 @@
     "rewriteRelativeImportExtensions": false
   },
   "include": [
+    "apps/mobile/src/transport/client.ts",
     "apps/web/product-isolation.ts",
     "apps/web/tests/connection-recovery.e2e.ts",
     "apps/web/tests/server-restart.e2e.ts",
@@ -18,9 +19,12 @@
     "apps/web/tests/code-card-layout.e2e.ts",
     "apps/web/tests/code-language.snapshot.ts",
     "apps/web/tests/scaffold.ts",
+    "apps/web/tests/service-activation.e2e.ts",
+    "apps/web/tests/harness-closed-loop.e2e.ts",
     "apps/web/tests/voice-input.e2e.ts",
     "apps/web/tests/voice-setup.e2e.ts",
     "apps/web/tests/voice-download.e2e.ts",
+    "apps/web/tests/voice-settings.e2e.ts",
     "apps/web/tests/prefix-proxy.ts",
     "apps/web/tests/developer-tools-settings.e2e.ts",
     "apps/web/tests/auto-review-fixture.ts",
@@ -186,6 +190,8 @@
     "apps/web/tests/inspector-panels.e2e.ts",
     "apps/web/tests/inspector-source-build.e2e.ts",
     "apps/web/tests/draft-initialization.e2e.ts",
+    "apps/web/tests/mobile-sdk-settings.e2e.ts",
+    "apps/web/tests/mobile-resources.e2e.ts",
     "packages/experimental/claude-code-mods/examples/*/index.ts",
     "packages/experimental/inspector/scripts/**/*.ts"
   ],
@@ -213,6 +219,8 @@
     "**/*.vitest.config.ts"
   ],
   "references": [
+    { "path": "./apps/mobile-relay" },
+    { "path": "./packages/bundle/cinlan-remote-tunnel" },
     {
       "path": "./packages/client/product-analytics/tsconfig.host.json"
     },
@@ -296,6 +304,9 @@
     },
     {
       "path": "./packages/client/ui-sidebar-browser/tsconfig.host.json"
+    },
+    {
+      "path": "./packages/client/ui-cinlan-design/tsconfig.host.json"
     },
     {
       "path": "./packages/client/ui-settings-general/tsconfig.host.json"
@@ -1237,6 +1248,9 @@
       "path": "./packages/api/integration-preflight-controller"
     },
     {
+      "path": "./packages/api/terminal-quick-commands-controller"
+    },
+    {
       "path": "./packages/api/usage-controller"
     },
     {
@@ -1315,6 +1329,12 @@
     { "path": "./packages/experimental/webworker-runtime" },
     { "path": "./packages/schedule/tool-schedule" },
     { "path": "./packages/security/finding-export" },
-    { "path": "./packages/bundle/web-capability-defaults" }
+    { "path": "./packages/bundle/web-capability-defaults" },
+    { "path": "./packages/session/working-directory" },
+    { "path": "./packages/session/tool-working-directory" },
+    { "path": "./packages/boot/plugin-market" },
+    { "path": "./packages/util/plugin-market-index" },
+    { "path": "./packages/experimental/worktree" },
+    { "path": "./packages/experimental/tool-worktree" }
   ]
 }

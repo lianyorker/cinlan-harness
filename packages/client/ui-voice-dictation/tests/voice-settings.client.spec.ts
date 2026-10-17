@@ -5,6 +5,17 @@ import { createVoiceSettingsStore } from '../src/client/voice-settings.ts'
 afterEach(() => { localStorage.clear(); vi.restoreAllMocks() })
 
 describe('browser-local voice preferences', () => {
+  it.each([
+    ['zh-streaming-zipformer-14m', 'zipformer-streaming-zh-14m'],
+    ['bilingual-streaming-zipformer', 'zipformer-bilingual-zh-en'],
+    ['en-streaming-zipformer-20m', 'zipformer-streaming-en-20m'],
+    ['bilingual-streaming-paraformer', 'paraformer-bilingual-zh-en'],
+  ])('migrates the previous model selector %s without resetting other preferences', (previous, current) => {
+    localStorage.setItem('dsh.voice.settings', JSON.stringify({ enabled: false, dictationMode: 'hold', sttModel: previous, microphoneDeviceId: 'desk' }))
+    expect(createVoiceSettingsStore().getSnapshot()).toEqual({ enabled: false, dictationMode: 'hold', sttModel: current, microphoneDeviceId: 'desk' })
+    expect(JSON.parse(localStorage.getItem('dsh.voice.settings')!)).toEqual(expect.objectContaining({ sttModel: current }))
+  })
+
   it('rehydrates every preference and resets model and device to automatic defaults', () => {
     const first = createVoiceSettingsStore()
     first.set({ enabled: false, dictationMode: 'hold', sttModel: 'chosen', microphoneDeviceId: 'browser-device' })

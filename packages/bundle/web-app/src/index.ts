@@ -15,10 +15,9 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { networkInterfaces } from 'node:os'
-import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { addHarnessSourceSection, auditStartupEntries } from '@deepseek-ai/dsh-app-boot'
+import { auditStartupEntries } from '@deepseek-ai/dsh-app-boot'
 import { parsePublicUrl } from './public-url.ts'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import * as FrontendStatic from '@deepseek-ai/dsh-host-frontend-static'
@@ -31,8 +30,6 @@ import type {} from '@deepseek-ai/dsh-shell-env'
 /** Stable Cordis plugin name. */
 export const name = 'web-app'
 
-/** This dsh installation's root, from either this package's source or built entry. */
-const SOURCE_ROOT = fileURLToPath(new URL('../../../..', import.meta.url))
 const ANNOUNCED_ROOTS = new WeakSet<Context>()
 
 /** Runtime service that releases Web rows after bind-dependent values resolve. */
@@ -249,7 +246,6 @@ export function apply(ctx: Context, config: Config): void {
   ctx.plugin(FrontendStatic, { distIndex: internals.resolveDistIndex() })
   if (config.surfaceContext) {
     ctx.inject(['systemPrompt'], (promptCtx) => {
-      addHarnessSourceSection(promptCtx, SOURCE_ROOT)
       promptCtx.systemPrompt.section({
         name: 'app:web-surface',
         order: promptCtx.systemPrompt.getSectionOrder('WEB_SURFACE'),

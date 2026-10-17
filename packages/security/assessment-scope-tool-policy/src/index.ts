@@ -1,6 +1,8 @@
 /** Tool-pipeline Consumer that enforces assessment scope before shell, web, and Browser effects. */
 import type { Context } from '@deepseek-ai/cordis'
 import schema from '@deepseek-ai/schemastery'
+import { realpath } from 'node:fs/promises'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { AssessmentTargetId } from '@deepseek-ai/dsh-assessment-scope'
 import type { AssessmentAction, AssessmentOperationEgress, AssessmentTarget } from '@deepseek-ai/dsh-assessment-scope'
 import type { AssessmentScopeSessions, AssessmentSessionOperation } from '@deepseek-ai/dsh-assessment-scope-session'
@@ -18,6 +20,13 @@ export interface Config {
   readonly networkTools?: readonly string[]
   /** Tool names that inspect or operate Browser pages. */
   readonly browserTools?: readonly string[]
+  /** Exact shell commands admitted in the calling Session's workspace without assessment authority. Sandbox policy still applies. */
+  readonly workspaceCommands?: readonly {
+    /** Configured shell tool name. */
+    readonly tool: string
+    /** Exact command text trusted by the deployment. */
+    readonly command: string
+  }[]
 }
 
 /** Loader schema for Consumer tool-name overrides. */
@@ -25,6 +34,7 @@ export const Config = schema.object({
   shellTools: schema.array(schema.string()),
   networkTools: schema.array(schema.string()),
   browserTools: schema.array(schema.string()),
+  workspaceCommands: schema.array(schema.object({ tool: schema.string().required(), command: schema.string().required() })),
 })
 
 /** Required fail-closed services. */
@@ -38,7 +48,7 @@ const DEFAULT_BROWSER = [
   'browser_history', 'browser_network', 'browser_home', 'browser_search', 'browser_back',
   'browser_forward', 'browser_open', 'browser_navigate', 'browser_click', 'browser_close',
 ] as const
-const CONFIG_KEYS = new Set(['shellTools', 'networkTools', 'browserTools'])
+const CONFIG_KEYS = new Set(['shellTools', 'networkTools', 'browserTools', 'workspaceCommands'])
 
 function selected(value: readonly string[] | undefined, fallback: readonly string[], name: string): Set<string> {
   const result = value === undefined || value.length === 0 ? fallback : value
@@ -62,10 +72,38 @@ export function apply(ctx: Context, config: Config = {}): void {
   const shell = selected(config.shellTools, DEFAULT_SHELL, 'shellTools')
   const network = selected(config.networkTools, DEFAULT_NETWORK, 'networkTools')
   const browser = selected(config.browserTools, DEFAULT_BROWSER, 'browserTools')
+  const workspaceCommands = config.workspaceCommands ?? []
+  const commandKeys = new Set<string>()
+  for (const entry of workspaceCommands) {
+    const key = JSON.stringify([entry.tool, entry.command])
+    if (!shell.has(entry.tool) || entry.command.length === 0 || entry.command.trim() !== entry.command || commandKeys.has(key)) {
+      throw new TypeError('assessment-scope-tool-policy: invalid workspaceCommands')
+    }
+    commandKeys.add(key)
+  }
   const sessions: AssessmentScopeSessions | undefined = ctx.get('assessmentScopeSessions')
   const hosts: ExecutionHostService | undefined = ctx.get('executionHost')
   if (sessions === undefined || hosts === undefined) throw new Error('assessment-scope-tool-policy requires assessment scope and execution host services')
   const admitted = new WeakSet<ToolExecution>()
+  const workspaceCommand = async (exec: ToolExecution): Promise<boolean> => {
+    const args = argsOf(exec)
+    if (!shell.has(exec.name) || typeof args.command !== 'string'
+      || !commandKeys.has(JSON.stringify([exec.name, args.command]))
+      || args.target_id !== undefined || args.url !== undefined || args.sandbox_permissions !== undefined
+      || args.run_in_background === true) return false
+    const cwd = exec.agent?.session.header.cwd
+    const requestedWorkdir = args.workdir
+    if (cwd === undefined || !isAbsolute(cwd) || (requestedWorkdir !== undefined && typeof requestedWorkdir !== 'string')) return false
+    try {
+      const root = await realpath(cwd)
+      const workdir = await realpath(requestedWorkdir === undefined ? cwd : resolve(cwd, requestedWorkdir))
+      const child = relative(root, workdir)
+      return child === '' || (!isAbsolute(child) && child !== '..' && !child.startsWith('..' + sep))
+    } catch (_error) {
+      // Missing or inaccessible directories cannot qualify for the workspace exception.
+      return false
+    }
+  }
   const operationFor = (exec: ToolExecution): AssessmentSessionOperation => {
     const agent = exec.agent
     if (agent === undefined) throw new Error('Assessment scope authorization requires an Agent')
@@ -90,6 +128,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     const agent = exec.agent
     if (agent === undefined || (!shell.has(exec.name) && !network.has(exec.name) && !browser.has(exec.name))) return next()
     try {
+      if (await workspaceCommand(exec)) { admitted.add(exec); return await next() }
       const decision = sessions.authorize(agent.session, operationFor(exec))
       if (decision.outcome === 'allow') { admitted.add(exec); return await next() }
       if (decision.outcome === 'approval-required') { admitted.add(exec); return { kind: 'ask', reason: denial(decision) } }

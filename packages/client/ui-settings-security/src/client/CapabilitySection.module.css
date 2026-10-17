@@ -151,6 +151,45 @@
 .browserControls button { align-self: flex-start; }
 .browserControls details { padding-top: 12px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
 
+.section[data-capability='mobile'] .setupCard { gap: 24px; }
+.section[data-capability='mobile'] .setupCard > form,
+.section[data-capability='mobile'] .setupCard > section {
+  padding: 0; border: 0; border-radius: 0; background: none;
+}
+.section[data-capability='mobile'] .setupCard > .computerCard {
+  padding: 24px 0 0; border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+.section[data-capability='mobile'] h2 { font-weight: 500; }
+.mobileSetupCard .settingRow { grid-template-columns: minmax(0, 1fr) auto; gap: 16px; padding: 14px 0; }
+.mobileSetupCard .settingControl { justify-content: flex-end; }
+.mobileSetupCard .settingRow select { width: 220px; border-radius: 8px; }
+.sdkPanel { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; min-width: 0; }
+.sdkHeader { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.sdkStatus { display: flex; align-items: flex-start; flex: 1 1 240px; min-width: 0; gap: 8px; font-size: 14px; line-height: 20px; }
+.sdkStatus > svg { flex: none; margin-top: 2px; }
+.sdkStatus > span { min-width: 0; overflow-wrap: anywhere; }
+.sdkDownload { display: inline-flex; align-items: center; min-height: 28px; color: var(--dsw-alias-link); font-size: 13px; line-height: 20px; font-weight: 500; }
+.sdkPath { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.sdkPath label { font-size: 12px; line-height: 18px; }
+.section .sdkPath input { flex: 1 1 220px; width: auto; border-radius: 8px; font-size: 13px; }
+.mobileResources { padding-top: 20px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
+.mobileResources > summary { cursor: pointer; min-height: 32px; font-size: 14px; line-height: 24px; font-weight: 500; }
+.mobileResources > section { padding-top: 12px; }
+.section[data-capability='mobile'] .commandRow { padding: 10px 12px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; }
+.section[data-capability='mobile'] .copyButton { border: 0; border-radius: 8px; }
+.section[data-capability='mobile'] .computerHowTo { padding-top: 16px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
+@media (max-width: 640px) {
+  .mobileSetupCard .settingRow { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .mobileSetupCard .settingControl { justify-content: flex-start; }
+  .mobileSetupCard .settingRow select { width: 100%; }
+  .sdkPanel { padding: 12px; }
+  .sdkPath { align-items: flex-start; }
+  .sdkPath label { flex-basis: 100%; }
+  .computerCardHeader, .stepHead { flex-wrap: wrap; }
+  .stepText { flex-basis: calc(100% - 26px); }
+  .commandGrid { grid-template-columns: minmax(0, 1fr); }
+}
+
 @media (max-width: 640px) {
   .section { gap: 20px; }
   .settingRow, .facts > div { grid-template-columns: minmax(0, 1fr); gap: 10px; }

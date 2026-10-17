@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This optional Consumer checks assessment scope before model-facing shell, network, and Browser tools execute. It records one operation decision per matched call and installs a monotonic guard against listener bypass.
+This optional Consumer checks assessment scope before model-facing shell, network, and Browser tools execute, with explicitly configured workspace command exceptions. It installs a monotonic guard against listener bypass.
 
 ## Table of Contents
 
@@ -22,6 +22,10 @@ This optional Consumer checks assessment scope before model-facing shell, networ
 ## Use this package
 
 Mount it after assessment-scope-session and execution-host. Default sets cover `bash`, `pwsh`, `web_search`, `web_fetch`, and native Browser tools. Calls without a resolvable target are denied; URL calls also require target-scoped egress. `finding_export` is checked by its own Consumer against the same report-download action.
+
+`workspaceCommands` defaults to an empty list. Each entry names a configured shell `tool` and an exact `command`; empty, whitespace-padded, duplicate, or non-shell entries fail at load. A matching call needs an absolute Session workspace and an existing working directory whose resolved path stays inside it. Explicit target or URL arguments, sandbox permission overrides, and background execution exclude the exception. Unmatched calls retain assessment checks; admitted workspace commands still pass downstream guards and sandbox policy.
+
+These entries trust the workspace and its command environment, including scripts invoked by a package manager. They do not classify arbitrary shell text as safe or confine subprocess effects to the working directory. The deployment sandbox owns that confinement.
 
 <a id="model-experience"></a>
 ## Model Experience

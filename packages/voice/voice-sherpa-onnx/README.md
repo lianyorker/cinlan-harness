@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@deepseek-ai/dsh-voice-sherpa-onnx` mounts local `sherpa-onnx-node` recognition and model management on `ctx.voice`. It requires `voice` and managed `subprocess`; a Web server is optional. The [pinned catalog](src/model-registry.ts) contains six models with archive or per-file SHA-256 checksums.
+`@deepseek-ai/dsh-voice-sherpa-onnx` mounts local `sherpa-onnx-node` recognition and model management on `ctx.voice`. It requires `voice` and managed `subprocess`; a Web server is optional. The [pinned catalog](src/model-registry.ts) contains Orca's ten local models with exact per-file sizes and SHA-256 checksums. Streaming models use OnlineRecognizer; Parakeet, Whisper, and SenseVoice use OfflineRecognizer, including Japanese NeMo CTC.
 
 ## Table of Contents
 
@@ -73,7 +73,7 @@ Recognition and resource operations do not change model request prefixes; ordina
 
 - Integrity checks hash model files under the writer lock; size `resourceLockTimeoutMs` for the largest model’s verification time on the target storage.
 - A process killed while holding the exclusive writer lock can leave that lock behind. Contenders time out and never steal it; recovery requires confirming that the writer is gone before removing the lock. Interrupted task staging may remain after process loss. Retained legacy data and unknown leases intentionally trade disk space for safety.
-- The pinned catalog uses GitHub release archives and commit-pinned `hf-mirror.com` files. Arbitrary user-provided model sources and upstream release discovery are not exposed. No invariant companion is published: storage mutations verify their owned revision and lease relationships directly, and consumers read the authoritative store.
+- The pinned catalog uses commit-pinned `hf-mirror.com` files. Arbitrary user-provided model sources and upstream release discovery are not exposed. No invariant companion is published: storage mutations verify their owned revision and lease relationships directly, and consumers read the authoritative store.
 
 ### Dev Note
 

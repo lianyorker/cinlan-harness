@@ -1,7 +1,7 @@
 /** Host-backed settings section for the Mobile Emulator. */
 import { useEffect, useState, type ReactNode } from 'react'
 import type { DeviceCapabilityKind, DeviceCapabilitySnapshot, MobileSdkSnapshot, MobileDeviceListSnapshot } from '@deepseek-ai/dsh-api-device-capabilities-controller/types'
-import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRenderFactories, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { CapabilitySettingsKey } from './locales.ts'
 import css from './CapabilitySection.module.css'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -9,7 +9,7 @@ import type { MobileDeviceSettings } from '@deepseek-ai/dsh-mobile-device/types'
 import type { ProviderActivationCallbacks } from './capability-shared.ts'
 import { MobilePreferences } from './MobilePreferences.tsx'
 import { MobileAgentCard } from './MobileAgentCard.tsx'
-import { MobileResourcesSection, type MobileResourcesInjected, type MobileResourcesProps } from './MobileResourcesSection.tsx'
+import type { MobileResourcesInjected } from './MobileResourcesSection.tsx'
 
 /** Capability pages contributed by this product plugin. */
 export type CapabilityId = 'mobile'
@@ -42,14 +42,18 @@ export interface MobileSectionInjected extends CapabilitySectionShared, MobileRe
   hooks: MobileResourcesInjected['hooks'] & {
     mobileSettings: SettingsScope<MobileDeviceSettings>
   }
-  /** Persist stored mobile preferences with their opening revision. */
-  saveMobileSettings: (value: MobileDeviceSettings, revision: number) => Promise<void>
+  /** Persist mobile preferences with their opening revision and return the accepted revision. */
+  saveMobileSettings: (value: MobileDeviceSettings, revision: number) => Promise<number>
   /** Remove mobile preference overrides. */
   resetMobileSettings: (revision: number) => Promise<void>
   /** Detect Android SDK and iOS Simulator availability. */
   checkSdk: (signal: AbortSignal) => Promise<MobileSdkSnapshot>
   /** List mobile devices for the default-device selector. */
   listMobileDevices: (signal: AbortSignal) => Promise<MobileDeviceListSnapshot>
+  /** Open the Host directory chooser; cancellation leaves the SDK draft unchanged. */
+  pickSdkDirectory: (signal: AbortSignal) => Promise<string | null>
+  /** Open a detected SDK directory, or reveal its ADB executable in the file manager. */
+  openSdkDirectory: (path: string, signal: AbortSignal) => Promise<void>
 }
 
 /** Each feature supplies only its own required inputs. */
@@ -58,6 +62,7 @@ export type CapabilitySectionInjected = MobileSectionInjected
 /** Shared renderer props preserve each feature's required inputs. */
 export type CapabilitySectionProps = PropsRuntime<'settings.section'>
   & PropsLocale<'settings.cinlanCapabilities'>
+  & PropsRenderFactories
   & InjectFace<CapabilitySectionInjected>
 
 type ViewState =
@@ -99,27 +104,22 @@ function deviceReason(state: ViewState, t: CapabilitySectionProps['t']): string 
 }
 
 interface BodyProps {
-  /** Reload counter the page bumps whenever an action must re-read Host state. */
-  revision: number
   state: ViewState
   t: CapabilitySectionProps['t']
   onRefresh: () => void
 }
 
-function MobileCapabilityBody(props: BodyProps & Pick<InjectFace<MobileSectionInjected>,
-  'checkSdk' | 'listMobileDevices' | 'useMobileSettings' | 'saveMobileSettings' | 'resetMobileSettings'
-  | 'listProviderEntries' | 'setProviderEnabled'> & MobileResourcesProps): ReactNode {
+function MobileCapabilityBody(props: BodyProps & PropsRenderFactories & Pick<InjectFace<MobileSectionInjected>,
+  'checkSdk' | 'listMobileDevices' | 'useMobileSettings' | 'saveMobileSettings' | 'openSdkDirectory'>): ReactNode {
   const { state, t } = props
   const status = deviceStatus(state)
   return <div className={css.setupCard}>
     <MobilePreferences useMobileSettings={props.useMobileSettings} saveMobileSettings={props.saveMobileSettings}
-      resetMobileSettings={props.resetMobileSettings} checkSdk={props.checkSdk} listMobileDevices={props.listMobileDevices}
+      checkSdk={props.checkSdk} listMobileDevices={props.listMobileDevices}
+      renderFactorySlot={props.renderFactorySlot} openSdkDirectory={props.openSdkDirectory}
       t={t} availability={{ status, statusKey: DEVICE_STATUS_KEYS[status], reason: deviceReason(state, t),
         checking: state.phase === 'loading', onRefresh: props.onRefresh }} />
-    <MobileAgentCard listProviderEntries={props.listProviderEntries} setProviderEnabled={props.setProviderEnabled}
-      onChanged={props.onRefresh} revision={props.revision} t={t} />
-    <MobileResourcesSection {...props} />
-    <p>{t('devicePrerequisite')}</p>
+    <MobileAgentCard t={t} />
   </div>
 }
 
@@ -141,7 +141,7 @@ export function CapabilitySection(props: CapabilitySectionProps): ReactNode {
     )
     return () => { current = false; abort.abort() }
   }, [definition, checkDevice, request])
-  const body = { state, t, revision: request, onRefresh: () => { setRequest(value => value + 1) } }
+  const body = { state, t, onRefresh: () => { setRequest(value => value + 1) } }
   return <section className={css.section} data-capability={definition.id} aria-busy={state.phase === 'loading'}>
     {state.phase === 'error' && <p className={css.failure} role="alert">{t('loadFailed')}</p>}
     <MobileCapabilityBody {...props} {...body} />

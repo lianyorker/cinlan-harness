@@ -50,7 +50,10 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => () => { bash.dispose(); pwsh.dispose() }, 'ui-settings-shell: form subscriptions')
   ctx.effect(() => ctx.configForms.whileServed([BASH_NS, PWSH_NS], served =>
     ctx.slots.inject('settings.section', function* () {
-      yield ctx.settingsMetadata.registerSection({ sectionId: 'shell', groupId: 'workspace', heading: 'shell' })
+      yield ctx.settingsMetadata.registerSection({
+        sectionId: 'shell', groupId: 'workspace',
+        title: () => t('title'), description: () => t('description'),
+      })
       yield ctx.settingsMetadata.registerItems('shell', [{
         id: 'shell-settings',
         anchorId: 'shell-settings',

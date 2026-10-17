@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/cinlan-mobile-device/README.md
-README.md: 9201b4c313f03d0c448190155743b7c92c892f7c
-README.zh.md: e075f410deab73e353ceaeea04f6cd92be7f9e2e
+/:
+  en: fcc049f0fa52425a
+  zh: 238898f05818f7f5
+/deepseek-ai-dsh-cinlan-mobile-device:
+  en: 8ae7b362ee4c4923
+  zh: 99b52eb3aa3a3ed3
+/deepseek-ai-dsh-cinlan-mobile-device/summary:
+  en: a5b520ce57055c25
+  zh: df7dd50d40e43c61
+/deepseek-ai-dsh-cinlan-mobile-device/table-of-contents:
+  en: 06759ea6cf15280c
+  zh: 41f7c91dc7eeb743
+/deepseek-ai-dsh-cinlan-mobile-device/use-this-package:
+  en: 5736f914e441a9ae
+  zh: d1e441a1c3ddb983
+/deepseek-ai-dsh-cinlan-mobile-device/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-cinlan-mobile-device/model-experience/profile-composition:
+  en: ae3a4988d282fcc2
+  zh: 8216c4b7c7d7916a
+/deepseek-ai-dsh-cinlan-mobile-device/model-experience/profile-composition/what-the-model-sees:
+  en: b9c9cedc9c8517b8
+  zh: ef12287ade6b59f7
+/deepseek-ai-dsh-cinlan-mobile-device/model-experience/profile-composition/token-effect:
+  en: a6a2a6e4a0e650a9
+  zh: 0fb8c2cb99e55596
+/deepseek-ai-dsh-cinlan-mobile-device/model-experience/profile-composition/kv-cache-effect:
+  en: dc9c46f4df0a2006
+  zh: 99f4c8179fa428ee
+/deepseek-ai-dsh-cinlan-mobile-device/known-limitations-and-deferred-work:
+  en: 3e28e0cd2ebafdb7
+  zh: 35e62e236336cbb5
+/deepseek-ai-dsh-cinlan-mobile-device/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

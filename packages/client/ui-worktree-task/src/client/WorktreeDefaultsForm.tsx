@@ -24,6 +24,7 @@ export function WorktreeDefaultsForm({ t, settings, updateSettings, disabled, on
   const [saved, setSaved] = useState<WorktreeTaskSettings | null>(null)
   const [directory, setDirectory] = useState('')
   const [baseRef, setBaseRef] = useState('')
+  const [sparsePaths, setSparsePaths] = useState('')
   const [setup, setSetup] = useState<WorktreeTaskHook>({ executable: '', args: [] })
   const [cleanup, setCleanup] = useState<WorktreeTaskHook>({ executable: '', args: [] })
   const [loading, setLoading] = useState(false)
@@ -37,6 +38,7 @@ export function WorktreeDefaultsForm({ t, settings, updateSettings, disabled, on
     setSaved(value)
     setDirectory(value.value.defaultDirectory)
     setBaseRef(value.value.baseRef)
+    setSparsePaths(value.value.sparsePaths ? value.value.sparsePaths.join(', ') : '')
     setSetup(value.value.setup ?? { executable: '', args: [] })
     setCleanup(value.value.cleanup ?? { executable: '', args: [] })
   }, [])
@@ -78,8 +80,15 @@ export function WorktreeDefaultsForm({ t, settings, updateSettings, disabled, on
     setError(null)
     setNotice(null)
     try {
+      const parsedSparse = sparsePaths.split(/[\r\n,]+/).map(s => s.trim()).filter(s => s.length > 0)
       const value = await updateSettings({ expectedRevision: saved.revision,
-        value: { defaultDirectory: directory, baseRef, setup: hook(setup), cleanup: hook(cleanup) } }, controller.signal)
+        value: {
+          defaultDirectory: directory,
+          baseRef,
+          setup: hook(setup),
+          cleanup: hook(cleanup),
+          ...(parsedSparse.length === 0 ? {} : { sparsePaths: parsedSparse }),
+        } }, controller.signal)
       if (!controller.signal.aborted) { adopt(value); setNotice(t('defaultsSaved')) }
     } catch (reason: unknown) {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : String(reason))
@@ -104,6 +113,10 @@ export function WorktreeDefaultsForm({ t, settings, updateSettings, disabled, on
     <div className={css.formRow} data-settings-anchor="worktree-task-default-base">
       <div><label htmlFor={prefix + '-base'}>{t('defaultBase')}</label><p className={css.help}>{t('defaultBaseHelp')}</p></div>
       <Input id={prefix + '-base'} value={baseRef} disabled={locked} onChange={(event) => { setBaseRef(event.target.value) }} />
+    </div>
+    <div className={css.formRow} data-settings-anchor="worktree-task-default-sparse">
+      <div><label htmlFor={prefix + '-sparse'}>{t('defaultSparsePaths')}</label><p className={css.help}>{t('defaultSparsePathsHelp')}</p></div>
+      <Input id={prefix + '-sparse'} value={sparsePaths} disabled={locked} onChange={(event) => { setSparsePaths(event.target.value) }} />
     </div>
     <HookEditor t={t} kind="setup" value={setup} onChange={setSetup} disabled={locked} />
     <HookEditor t={t} kind="cleanup" value={cleanup} onChange={setCleanup} disabled={locked} />

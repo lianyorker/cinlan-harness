@@ -88,6 +88,7 @@ export type {
   ResolvedPiAiProviderProfile,
 } from './config.ts'
 export { recordKeyFor } from './auth.ts'
+export { runSub2ApiLoginWithAnswers, SUB2API_PROVIDER_ID } from './sub2api.ts'
 export { supportedProtocols } from './provider.ts'
 
 export const name = 'llm-pi-ai'

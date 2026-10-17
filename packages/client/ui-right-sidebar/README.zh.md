@@ -1,5 +1,5 @@
 ---
-description: "为 review、terminal、task、browser 和规范文件工具提供右侧栏贡献。"
+description: "为 review、worktree 任务、browser、端口转发与行评论提供右侧栏贡献。"
 kind: "package-reference"
 ---
 # @deepseek-ai/dsh-client-ui-right-sidebar
@@ -7,7 +7,7 @@ kind: "package-reference"
 [English](README.md) | 中文
 
 ## 概述
-本插件向生产右侧栏贡献 Review、Terminal、Tasks 和 Browser 页面。规范的 Files 页面仍由 ui-sidebar-files 拥有。现有 sidebar header-corner owner 渲染一个集成工具菜单，使 Files、Review、Terminal、Tasks 和 Browser 在触发按钮所属的 session 中打开。
+本插件向生产右侧栏贡献 Review、Tasks、Browser 与端口发现与转发页面，并向通用设置注册「编辑器与 Diff 偏好」项。规范的 Files 页面由 ui-sidebar-files 拥有，Terminal 已解耦至 ui-sidebar-terminal。Review 页面提供工作区隔离 Diff 审查（支持行内与双栏并排视图、自动换行与空白符显示切换）、结构化行级评论编辑以及向 Session Agent 提示词队列的直接注入。Ports 页面负责发现远程工作区目标上的监听 TCP 端口，并管理具备冲突检测与断线清理能力的环回端口转发规则。
 
 ## 目录
 
@@ -23,11 +23,11 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-无，因为浏览器侧栏贡献不注册 prompt、tool 或 Session event。
+Review 贡献允许用户通过 remote.session.prompt 将结构化行审查评论分发至当前活跃的 Session Agent 提示词队列；其他 tab 不注册 prompt、tool 或 Session event。
 
 #### KV Cache 影响
 
-无；侧栏管理不会改变模型请求。
+分发至 Agent 队列的评论将作为文本上下文追加到后续模型 turn 中。
 
 ## 已知限制与延期工作
 <a id="known-limitations-and-deferred-work"></a>

@@ -1,6 +1,7 @@
 /** Type-only declarations for provider-neutral mobile-device control. */
 
 import type { Branded } from '@deepseek-ai/dsh-brand'
+import type { Volatile } from '@deepseek-ai/cordis'
 
 /** Exact provider-issued mobile device selector. */
 export type MobileDeviceId = Branded<'MobileDeviceId'>
@@ -123,4 +124,10 @@ export interface MobileDeviceProvider {
 export interface Config {
   /** Exact Provider id; omit only when exactly one available Provider is registered. */
   readonly provider?: string
+  /** Check devices when opening Settings; never authorizes device operations. Defaults to false. */
+  readonly enabled?: boolean | Volatile<boolean>
+  /** Exact default observation target. Defaults to an empty string. */
+  readonly defaultDeviceId?: string | Volatile<string>
+  /** Android SDK root, platform-tools directory, or adb executable. Defaults to an empty string. */
+  readonly androidSdkPath?: string | Volatile<string>
 }

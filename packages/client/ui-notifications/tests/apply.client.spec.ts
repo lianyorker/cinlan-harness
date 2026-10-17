@@ -85,7 +85,7 @@ describe('notification settings registration and persistence', () => {
     const release = b.declare()
     await vi.waitFor(() => { expect(b.ctx.settingsMetadata.getSnapshot().items).toHaveLength(11) })
     const snapshot = b.ctx.settingsMetadata.getSnapshot()
-    expect(snapshot.sections).toEqual([{ sectionId: 'notifications', groupId: 'personal' }])
+    expect(snapshot.sections).toMatchObject([{ sectionId: 'notifications', groupId: 'personal' }])
     expect(snapshot.items.map(item => [item.id, item.anchorId, item.title])).toEqual([
       ['enabled', 'notifications-enabled', en.enabled],
       ['agent-completion', 'notifications-agent-completion', en.agentCompletion],

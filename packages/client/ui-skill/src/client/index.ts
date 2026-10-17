@@ -36,6 +36,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SkillEntry } from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
+// Type-only: the forwarded `plugin-manager/changed` declaration.
+import type {} from '@deepseek-ai/dsh-plugin-manager/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { InputTriggerServiceContract, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { fileAddressFor } from '@deepseek-ai/dsh-util-workspace-path'
@@ -44,7 +46,10 @@ import { rankByName } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+// Type-only: pulls Settings tab slot types.
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { SkillRow } from './SkillRow.tsx'
+import { SkillSharingTab } from './SkillSharingTab.tsx'
 import { en, NS, zh, type SkillKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-api-session-controller/client' {
@@ -82,6 +87,14 @@ export function apply(ctx: ClientContext): void {
     { name: 'tool.call.toolview', key: 'skill', locale: NS },
     SkillRow,
   ))
+  const t = ctx.locale.bind(NS)
+  ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({
+    name: 'settings.plugins.tab',
+    id: 'skill-sharing',
+    order: 20,
+    label: () => t('sharing.tab'),
+    locale: NS,
+  }, SkillSharingTab))
 
   const skills = ctx.remote.skills
   const sessions = ctx.sessions
@@ -154,8 +167,6 @@ export function apply(ctx: ClientContext): void {
 
   // The bound translate resolves against the registered dictionaries with the
   // locale service's own fallback ladder; candidate-time reads stay plain text.
-  const t = ctx.locale.bind(NS)
-
   const source: InputTriggerSource = {
     trigger: '/',
     name: 'skill',
@@ -228,6 +239,10 @@ export function apply(ctx: ClientContext): void {
   // A preset decides which skill providers an agent reads, so a switched
   // session's cached catalog belongs to the composition it no longer runs.
   ctx.remote.$on('agent-preset/selected', invalidate)
+  // The Host announces every manager operation after its reload without
+  // naming what changed, and a switched plugin may register providers in the
+  // global layer every session reads, so each one drops every cached catalog.
+  ctx.remote.$on('plugin-manager/changed', clearAll)
   ctx.on('connection/reset', clearAll)
   ctx.effect(() => {
     const unregister = inputTriggers.registerSource(source)

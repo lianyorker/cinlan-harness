@@ -566,6 +566,8 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
   const overlayPatches: PatchOptions[] = [
     // Without HMR the profile applies configuration changes at its next start.
     ...options.profile?.hmr === false ? [{ id: 'hmr', disabled: true }] : [],
+    // The Mobile listener belongs to this scaffold, not the running developer profile.
+    { id: 'cinlan-mobile-host', config: { port: 0 } },
     { id: 'session-log-deepseek', config: { enabled: false } },
     { id: 'ui-plugin-manager', config: { registryProbeEnabled: false } },
     ...mode === 'record' || options.deepSeekMissingCredential === true

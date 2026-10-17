@@ -44,9 +44,9 @@ function bench(value: Partial<NotificationSettings> = {}) {
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 describe('NotificationsSection', () => {
-  it('renders one page heading and supported searchable rows', () => {
+  it('renders supported searchable rows without a duplicated page heading', () => {
     const { container } = render(<NotificationsSection {...bench().props} />)
-    expect(screen.getByRole('heading', { name: en.title, level: 1 })).toBeTruthy()
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
     expect(screen.getByRole('heading', { name: en.desktopGroup, level: 2 })).toBeTruthy()
     expect(screen.getByRole('heading', { name: en.soundsGroup, level: 2 })).toBeTruthy()
     expect(screen.getByRole('heading', { name: en.quietHoursGroup, level: 2 })).toBeTruthy()

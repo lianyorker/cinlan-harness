@@ -52,6 +52,9 @@
       "path": "./packages/util/atomic-write"
     },
     {
+      "path": "./packages/util/plugin-market-index"
+    },
+    {
       "path": "./packages/experimental/client-ui-voice-input"
     },
     {
@@ -193,6 +196,9 @@
       "path": "./packages/client/ui-sidebar-browser/tsconfig.client.json"
     },
     {
+      "path": "./packages/client/ui-cinlan-design/tsconfig.client.json"
+    },
+    {
       "path": "./packages/client/ui-sidebar-files"
     },
     {
@@ -269,6 +275,9 @@
     },
     {
       "path": "./packages/client/ui-plugin-manager/tsconfig.client.json"
+    },
+    {
+      "path": "./packages/client/ui-plugin-market"
     },
     {
       "path": "./packages/client/ui-settings-plugin-inventory"
@@ -368,6 +377,12 @@
     },
     {
       "path": "./packages/api/integration-preflight-controller/tsconfig.json"
+    },
+    {
+      "path": "./packages/client/ui-quick-commands"
+    },
+    {
+      "path": "./packages/api/terminal-quick-commands-controller"
     },
     {
       "path": "./packages/jobs/tool-jobs"

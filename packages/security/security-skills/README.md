@@ -23,11 +23,12 @@ Install security research guidance and supporting files, inspect their version, 
 
 Mount `@deepseek-ai/dsh-security-skills/resources` once in the Host composition, alongside the official skill registry. Mount the package's main provider globally or in an Agent scope. The shipped Web application includes both, making installed skills available to ordinary Sessions; a custom headless composition must mount the manager and provider explicitly. The browser-safe `/types` subpath exports management DTOs without Host runtime imports.
 
-A home without an active installation reports `not-installed` and exposes no security skill candidates. `installBundled()` installs the audited package inventory without a network request. `install()`, `reinstall()`, and `update()` use the configured release endpoint. The Host retains operations after a client disconnects; only explicit cancellation or manager disposal stops them. Cancellation includes an operation identity so a stale button cannot cancel a newer download. Cancellation waits for settlement; an already-committed activation remains installed.
+A home without an active installation reports `not-installed` and exposes no security skill candidates. When no release endpoint is configured, the manager installs the audited package inventory at startup so the bundled skills are usable immediately; set `autoInstallBundled: false` to keep installation explicit. `installBundled()` installs the audited package inventory without a network request. `install()`, `reinstall()`, and `update()` use the configured release endpoint. The Host retains operations after a client disconnects; only explicit cancellation or manager disposal stops them. Cancellation includes an operation identity so a stale button cannot cancel a newer download. Cancellation waits for settlement; an already-committed activation remains installed.
 
 | Manager configuration | Default | Meaning |
 |---|---|---|
 | `releaseManifestUrl` | Unset | Network management reports unavailable until a deployment provides a real manifest URL. HTTPS is required except for loopback HTTP. |
+| `autoInstallBundled` | `true` | With no release endpoint configured, install the bundled inventory at startup instead of waiting for an explicit `installBundled()` call. |
 | `root` | `DSH_HOME/resources/security-skills` | Absolute resource store; ordinary skill directories are not modified. |
 | `maxArchiveBytes` | 64 MiB | Maximum network archive size. |
 | `maxExpandedBytes` | 256 MiB | Maximum expanded installation bytes. |
@@ -63,6 +64,7 @@ No direct effect. Changing installed resources changes subsequent skill discover
 <a id="known-limitations-and-deferred-work"></a>
 
 - No public release endpoint is assumed. Operators supply and trust the HTTPS manifest origin; SHA-256 verifies consistency, not an independent publisher signature.
+- Bundled skill content comes from the operator-provided archive recorded in [resource provenance](assets/resource-provenance.json). Its per-skill authorship, revisions, and reuse or redistribution permissions have not been independently verified; the repository MIT license does not cover those files.
 - Archives use ZIP32 stored or deflate entries. Encrypted, split, and ZIP64 archives are rejected. Resource scripts are copied as data and are never executed during installation.
 - Crashed writer locks require operator recovery after confirming the owner stopped. Unknown staging and leases are retained conservatively; abandoned files can occupy disk space.
 - Skill content is guidance. Authorization remains with the assessment-scope service, and resource management does not edit findings or reports.

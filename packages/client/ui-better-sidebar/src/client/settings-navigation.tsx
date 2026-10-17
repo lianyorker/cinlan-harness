@@ -66,7 +66,10 @@ function items(feature: TabDescriptor | FileViewerDescriptor, viewer = false): S
  */
 export function registerFeatureSettings(ctx: Context, injected: SideCardSectionInjected): void {
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'workspace-layout', groupId: 'personal' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'workspace-layout', groupId: 'personal',
+      description: () => t('workspaceLayoutIntro'),
+    })
     yield ctx.settingsMetadata.registerItems('workspace-layout', ([
       ['better-sidebar-open-by-default', 'settingsOpenTitle', 'settingsOpenDesc'],
       ['better-sidebar-default-width', 'settingsWidthTitle', 'settingsWidthDesc'],
@@ -113,7 +116,10 @@ export function registerFeatureSettings(ctx: Context, injected: SideCardSectionI
           }, SideCardSection)))
         } else {
           disposers.push(ctx.slots.inject('settings.section', function* () {
-            yield ctx.settingsMetadata.registerSection({ sectionId: page.sectionId, groupId: page.group })
+            yield ctx.settingsMetadata.registerSection({
+              sectionId: page.sectionId, groupId: page.group,
+              description: () => t('featureSettingsIntro', { feature: title(feature) }),
+            })
             yield ctx.slots.register({
               name: 'settings.section', id: page.sectionId, order: page.order,
               label: () => title(feature), inject: featureProps,

@@ -1,12 +1,12 @@
 /** Apply-owned Remote adaptation; presentation receives values and original failures. */
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
-import type { HostsCallbacks } from './types.ts'
+import type { HostsCallbacks, TargetCallbacks } from './types.ts'
 
-type UnaryMethod = Exclude<keyof HostsCallbacks, 'follow'>
+type UnaryMethod = Exclude<keyof TargetCallbacks, 'follow'>
 /** Narrow generated namespace required by the page, with no transport escape hatch. */
 export type HostsRemote = {
-  [K in UnaryMethod]: (...args: Parameters<HostsCallbacks[K]>) => Promise<RemoteResult<Awaited<ReturnType<HostsCallbacks[K]>>>>
-} & Pick<HostsCallbacks, 'follow'>
+  [K in UnaryMethod]: (...args: Parameters<TargetCallbacks[K]>) => Promise<RemoteResult<Awaited<ReturnType<TargetCallbacks[K]>>>>
+} & Pick<TargetCallbacks, 'follow'>
 
 async function unwrap<T>(result: Promise<RemoteResult<T>>): Promise<T> {
   const settled = await result

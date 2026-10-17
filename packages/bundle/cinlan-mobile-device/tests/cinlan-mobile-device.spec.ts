@@ -13,20 +13,7 @@ import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import MobileDeviceRuntime, { MobileDeviceId } from '@deepseek-ai/dsh-mobile-device'
 import * as NativeAdb from '@deepseek-ai/dsh-mobile-device-adb'
 import * as MobileDevicePermissionPolicy from '@deepseek-ai/dsh-mobile-device-permission-policy'
-/** Minimal settings service: the mobile-device preferences the fixture seeds. */
-const SettingsServiceStub = {
-  name: '@deepseek-ai/dsh-settings',
-  apply(c: Context) {
-    c.provide('settings', {
-      describe: () => [{
-        ns: 'mobile-device',
-        value: { enabled: true, defaultDeviceId: 'android:fixture-serial' },
-        schema: {}, autoGenerate: false, applies: 'live', revision: 1,
-      }],
-      configure: () => () => {},
-    } as never)
-  },
-}
+import MobileRuntimeManager from '@deepseek-ai/dsh-mobile-device-runtime'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as ToolMobileDevice from '@deepseek-ai/dsh-tool-mobile-device'
@@ -60,20 +47,22 @@ async function boot(policy = 'allow') {
   const patches = yaml.load(await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8'), { schema: entryListSchema }) as PatchOptions[]
   const fixture: PatchOptions[] = [{ insert: [
     { id: 'fixture-local-subprocess', name: 'local-subprocess' },
-    { id: 'fixture-settings', name: 'settings' },
     { id: 'fixture-attachments', name: 'attachments' }, { id: 'fixture-prompt', name: 'prompt' }, { id: 'fixture-tools', name: 'tools' },
   ] }]
   const entries = applyEntryPatches([], [...fixture, ...patches,
+    { id: 'mobile-device', config: { provider: 'adb', enabled: true, defaultDeviceId: 'android:fixture-serial' } },
+    { id: 'mobile-device-runtime', config: { storageDir: join(path, 'runtime') } },
     { id: 'mobile-device-adb', config: { providerId: 'adb', command: process.execPath, cwd: path } },
     { id: 'mobile-device-permission-policy', config: { observe: policy, touch: 'deny', textInput: 'allow', deviceNavigation: 'deny' } },
   ], () => {})
   const configPath = join(path, 'cordis.yml')
   await writeFile(configPath, yaml.dump(entries, { lineWidth: -1, noRefs: true }))
   const modules = new Map<string, unknown>([
-    ['local-subprocess', LocalSubprocessRuntime], ['settings', SettingsServiceStub], ['attachments', FixtureAttachments],
+    ['local-subprocess', LocalSubprocessRuntime], ['attachments', FixtureAttachments],
     ['prompt', SystemPrompt], ['tools', ToolRuntime], ['@deepseek-ai/dsh-mobile-device', MobileDeviceRuntime],
     ['@deepseek-ai/dsh-mobile-device-adb', NativeAdb], ['@deepseek-ai/dsh-mobile-device-permission-policy', MobileDevicePermissionPolicy],
     ['@deepseek-ai/dsh-tool-mobile-device', ToolMobileDevice],
+    ['@deepseek-ai/dsh-mobile-device-runtime', MobileRuntimeManager],
   ])
   ctx.baseUrl = pathToFileURL(path).href + '/'
   await ctx.plugin(Loader)
@@ -91,9 +80,11 @@ async function boot(policy = 'allow') {
 it('selects native Android in the shipped bundle and preserves least-privilege policies', async () => {
   const patches = yaml.load(await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8'), { schema: entryListSchema }) as PatchOptions[]
   const rows = applyEntryPatches([], patches, () => {})
-  expect(rows.map(row => row.id)).toEqual(['mobile-device', 'mobile-device-adb', 'mobile-device-permission-policy', 'tool-mobile-device'])
+  expect(rows.map(row => row.id)).toEqual([
+    'mobile-device', 'mobile-device-runtime', 'mobile-device-adb', 'mobile-device-permission-policy', 'tool-mobile-device',
+  ])
   expect(rows[0]?.config).toEqual({ provider: 'adb' })
-  expect(rows[2]?.config).toEqual({ observe: 'ask', touch: 'ask', textInput: 'ask', deviceNavigation: 'ask' })
+  expect(rows[3]?.config).toEqual({ observe: 'ask', touch: 'ask', textInput: 'ask', deviceNavigation: 'ask' })
 })
 it('observes an exact transport through Loader and consumes the model input token once', async () => {
   const b = await boot()

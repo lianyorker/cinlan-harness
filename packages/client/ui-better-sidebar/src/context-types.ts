@@ -136,6 +136,8 @@ export interface SidebarSlotsService {
 /** The client session list row the sidebar reads (cwd for the explorer). */
 export interface SidebarSessionSummary {
   id: string
+  /** Local consumers holding this Session generation. */
+  retainedBy?: Readonly<Partial<Record<string, number>>>
   cwd?: string
   displayTitle: string
   /** Coarse durable origin for navigation filtering (subagent children). */
@@ -341,7 +343,7 @@ export interface SidebarConnectionHandle extends Pick<ClientConnectionHandle, 'g
 
 /** The client session list snapshot the sidebar subscribes to. */
 export interface SidebarSessionList {
-  current: string | undefined
+  current?: string | undefined
   byId: Record<string, SidebarSessionSummary>
   /** Direct durable catalogs keyed by their selected parent address. */
   subagentsByParent?: Readonly<Record<string, SidebarSubagentCatalog>>

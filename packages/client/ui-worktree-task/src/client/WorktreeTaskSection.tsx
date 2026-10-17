@@ -155,7 +155,6 @@ export function WorktreeTaskSection(props: WorktreeTaskSectionProps) {
 
   return <div className={css.section} aria-busy={loading || busy !== null}>
     <header className={css.header}>
-      <div><h1>{t('title')}</h1><p className={css.description}>{t('description')}</p></div>
       <div className={css.toolbar}>
         <span className={css.help}>{t('hostOnly')}</span>
         <Button variant="outline" icon={<IconRefreshOutline16 />} disabled={loading || busy !== null}
@@ -202,6 +201,7 @@ export function WorktreeTaskSection(props: WorktreeTaskSectionProps) {
             <div><dt>{t('createBaseRef')}</dt><dd>{task.baseRef}</dd></div>
             <div><dt>{t('sessions')}</dt><dd>{task.sessionIds.length > 0 ? task.sessionIds.join(', ') : t('noSessions')}</dd></div>
             {task.linkedIssue !== undefined && <div><dt>{t('createLinkedIssue')}</dt><dd>{task.linkedIssue}</dd></div>}
+            {task.sparsePaths !== undefined && task.sparsePaths.length > 0 && <div><dt>{t('sparsePaths')}</dt><dd>{task.sparsePaths.join(', ')}</dd></div>}
             <div><dt>{t('updatedAt')}</dt><dd>{task.updatedAt}</dd></div>
           </dl>
           <div className={css.taskActions}>
@@ -253,6 +253,7 @@ function CreateForm({ t, workspaces, workspaceReady, disabled, create, onBusy, o
   const [sourcePath, setSourcePath] = useState('')
   const [baseRef, setBaseRef] = useState('')
   const [linkedIssue, setLinkedIssue] = useState('')
+  const [sparsePaths, setSparsePaths] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abort = useRef<AbortController | null>(null)
@@ -266,11 +267,13 @@ function CreateForm({ t, workspaces, workspaceReady, disabled, create, onBusy, o
     setCreating(true)
     onBusy(true)
     setError(null)
+    const parsedSparse = sparsePaths.split(/[\r\n,]+/).map(s => s.trim()).filter(s => s.length > 0)
     try {
       const task = await create({
         name: name.trim(), workspaceId: selected.workspaceId, sourcePath: sourcePath.trim(),
         ...baseRef.trim() === '' ? {} : { baseRef: baseRef.trim() },
         ...linkedIssue.trim() === '' ? {} : { linkedIssue: linkedIssue.trim() },
+        ...parsedSparse.length === 0 ? {} : { sparsePaths: parsedSparse },
       }, controller.signal)
       if (!controller.signal.aborted) { onBusy(false); onCreated(task) }
     } catch (reason: unknown) {
@@ -301,6 +304,7 @@ function CreateForm({ t, workspaces, workspaceReady, disabled, create, onBusy, o
       ['source', 'createSourcePath', 'createSourcePathPlaceholder', 'createSourceHelp', sourcePath, setSourcePath],
       ['base', 'createBaseRef', 'createBaseRefPlaceholder', 'createBaseHelp', baseRef, setBaseRef],
       ['issue', 'createLinkedIssue', 'createLinkedIssuePlaceholder', 'createIssueHelp', linkedIssue, setLinkedIssue],
+      ['sparse', 'createSparsePaths', 'createSparsePathsPlaceholder', 'createSparsePathsHelp', sparsePaths, setSparsePaths],
     ] as const).map(([id, label, placeholder, help, text, update]) => <div key={id} className={css.formRow}
       data-settings-anchor={'worktree-task-create-' + id}>
       <div><label htmlFor={prefix + '-' + id}>{t(label)}</label><p className={css.help}>{t(help)}</p></div>

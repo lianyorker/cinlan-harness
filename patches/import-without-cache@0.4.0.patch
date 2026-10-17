@@ -1,0 +1,27 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index b451a9f39a4faca0ea479f661c27ad64034056e3..a9ab1d27cc2bb2900da0434034426f7e5fdc753e 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -1,6 +1,7 @@
+ import module, { createRequire } from "node:module";
+ import { AsyncLocalStorage } from "node:async_hooks";
+ import process from "node:process";
++import { readFileSync } from "node:fs";
+ import { fileURLToPath } from "node:url";
+ //#region \0rolldown/runtime.js
+ var __require = /* @__PURE__ */ createRequire(import.meta.url);
+@@ -35,7 +36,13 @@ function init({ skipNodeModules } = {}) {
+ 		},
+ 		load(url, context, nextLoad) {
+ 			cleanupImportAttributes(context);
+-			return nextLoad(url, context);
++			try {
++				return nextLoad(url, context);
++			} catch (error) {
++				if (error?.code === "ERR_INVALID_RETURN_PROPERTY_VALUE" && context.format === "commonjs" && url.startsWith("file://"))
++					return { format: "commonjs", source: readFileSync(fileURLToPath(url)) };
++				throw error;
++			}
+ 		}
+ 	});
+ 	return deregister = () => {

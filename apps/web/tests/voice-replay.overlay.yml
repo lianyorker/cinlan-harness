@@ -1,0 +1,15 @@
+# Dictation replay makes no tool calls and omits platform-specific skill catalogs.
+- id: preset-standard
+  config:
+    id: standard
+    order: 1
+    plugins:
+      - id: persona
+        name: '@deepseek-ai/dsh-persona'
+        config:
+          suffix: Your working directory is {{cwd}}.
+          prefix: You are a coding agent powered by the {{model}} model.
+      - id: time-context
+        name: '@deepseek-ai/dsh-time-context'
+      - id: tool-fs
+        name: '@deepseek-ai/dsh-tool-fs'

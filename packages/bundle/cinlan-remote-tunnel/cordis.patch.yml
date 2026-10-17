@@ -1,0 +1,8 @@
+# Cinlan Remote Tunnel layer for Mobile Companion reverse connection.
+# Profiles apply it to expose pairing PIN and approval forwarding.
+
+- insert:
+    - id: cinlan-remote-tunnel
+      name: '@deepseek-ai/dsh-cinlan-remote-tunnel'
+      config:
+        port: 3081

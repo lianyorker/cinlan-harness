@@ -25,9 +25,10 @@ kind: "package-reference"
 
 可选的 `provider` 配置固定一个 Provider id。省略时，每次调用都选择唯一可用的 Provider。缺失、不可用、不存在、歧义、空白或重复的 Provider 都通过结构化 `MobileDeviceError` code 失败，不做隐式选择。
 
+<a id="saved-preferences"></a>
 ## 已保存偏好
 
-能力拥有可选 settings namespace `mobile-device`。`getPreferences()` 返回当前解析后的 `enabled`、`defaultDeviceId` 和 `androidSdkPath`；没有 settings 服务时，默认值分别为 `false`、`''` 和 `''`。能力或 settings 服务卸载时会移除注册。这些偏好不会授予输入权限，也不会启用 Provider。浏览器 Consumer 从 `@deepseek-ai/dsh-mobile-device/types` 以 type-only 方式导入 `MobileDeviceSettings`。
+Config 字段 `enabled`、`defaultDeviceId` 和 `androidSdkPath` 是 volatile 偏好，Settings 以 Loader 条目 id 暴露它们（随附组合包中为 `mobile-device`）。Settings 将覆盖值保存到 profile 的 `cordis.patch.yml`；`getPreferences()` 读取实时 Config 引用并返回独立值，没有 Settings 服务时也可读取。省略字段默认分别为 `false`、`''` 和 `''`。这些偏好不会授予输入权限，也不会启用 Provider；`enabled` 控制打开 Settings 时的检查。浏览器 Consumer 从 `@deepseek-ai/dsh-mobile-device/types` 以 type-only 方式导入 `MobileDeviceSettings`。
 
 Observation request 可以省略 `deviceId`。服务捕获一个 Provider 和一份偏好值，并要求设备清单中恰好有一条当前可用的记录与保存的默认设备匹配。显式非空 id 不经过默认选择。默认设备缺失、无效、有歧义或不可用时都会失败；发现或观察失败后绝不替换为其他设备。Provider 接收具有必填精确 id 的 `MobileObserveSpec`，mutation 仍要求显式 device id 和 observation id。
 

@@ -28,19 +28,82 @@ import { DesktopOnboardingController } from './onboarding-state.ts'
 import { DesktopOnboardingEntry, type DesktopOnboardingInjected } from './DesktopOnboardingEntry.tsx'
 import { readOnboardingApiKeyPresence } from './onboarding-credentials.ts'
 import { refreshAfterReturn } from './account-refresh.ts'
+import { CinlanAccountSection, type CinlanAccountInjected, type CinlanAccountSnapshot } from './CinlanAccountSection.tsx'
+import { en as cinlanEn, zh as cinlanZh, type CinlanAccountKey } from './cinlan-locales.ts'
 export type { AccountSectionInjected, AccountSectionProps } from './AccountSection.tsx'
 export type { AccountMenuProps } from './AccountMenu.tsx'
 export type { AccountSnapshot } from './AccountSection.tsx'
 export type { AccountKey } from './locales.ts'
+export type { CinlanAccountInjected, CinlanAccountSnapshot } from './CinlanAccountSection.tsx'
+export type { CinlanAccountKey } from './cinlan-locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap { 'settings.account': AccountKey }
+  interface LocaleNamespaceMap { 'settings.cinlanAccount': CinlanAccountKey }
 }
 
 /** Services required by account settings. */
 export const inject = ['slots', 'locale', 'remote', 'remote.account', 'remote.session', 'theme', 'configForms', 'settingsMetadata']
-/** Register account UI only in the Desktop renderer. @param ctx - client plugin context. */
+/** Register account UI. @param ctx - client plugin context. */
 export function apply(ctx: Context): void {
+  // The Cinlan (Sub2API) account page: primary user account, always visible across Web and Desktop
+  ctx.effect(() => ctx.locale.register('settings.cinlanAccount', { en: cinlanEn, zh: cinlanZh }), 'account: cinlan dictionaries')
+  const tCinlan = ctx.locale.bind('settings.cinlanAccount')
+  let cinlanSnapshot: CinlanAccountSnapshot = { state: undefined, failed: false }
+  const cinlanListeners = new Set<() => void>()
+  const publishCinlan = (value: CinlanAccountSnapshot): void => {
+    cinlanSnapshot = value
+    for (const listener of cinlanListeners) listener()
+  }
+  const cinlanRefresh = async (): Promise<void> => {
+    try {
+      const result = await ctx.remote.account.getSub2ApiState()
+      if (!result.ok) throw result.error
+      publishCinlan({ state: result.value, failed: false })
+    } catch {
+      publishCinlan({ state: undefined, failed: true })
+    }
+  }
+  ctx.effect(() => ctx.remote.$on('credentials/reference-updated', () => { void cinlanRefresh() }), 'account: cinlan credential refresh')
+  const cinlanOperations: CinlanAccountInjected = {
+    hooks: {
+      state: {
+        getSnapshot: () => cinlanSnapshot,
+        subscribe: (listener) => {
+          cinlanListeners.add(listener)
+          return () => { cinlanListeners.delete(listener) }
+        },
+      },
+    },
+    refresh: cinlanRefresh,
+    async signIn(request) {
+      const result = await ctx.remote.account.sub2ApiSignIn(request)
+      if (!result.ok) throw result.error
+      if (result.value.status === 'authorized') {
+        publishCinlan({ state: { signedIn: true, inFlight: false }, failed: false })
+        void cinlanRefresh()
+      }
+      return result.value.status
+    },
+    cancelSignIn() { ctx.remote.account.cancelSub2ApiSignIn() },
+    async signOut() {
+      const result = await ctx.remote.account.sub2ApiSignOut()
+      if (!result.ok) throw result.error
+      publishCinlan({ state: result.value, failed: false })
+      void cinlanRefresh()
+    },
+  }
+  ctx.slots.inject('settings.section', function* () {
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'cinlan-account', groupId: 'personal', description: () => tCinlan('pageDescription'),
+    })
+    yield ctx.slots.register({
+      name: 'settings.section', id: 'cinlan-account', order: -11, label: () => tCinlan('nav'),
+      locale: 'settings.cinlanAccount', inject: () => cinlanOperations,
+    }, CinlanAccountSection)
+  })
+
+  // DeepSeek Platform account registration: only active in Desktop renderer
   if (!('clhDesktop' in globalThis || 'dshDesktop' in globalThis)) return
   ctx.effect(() => ctx.locale.register('settings.account', { en, zh }), 'account: dictionaries')
   const t = ctx.locale.bind('settings.account')
@@ -71,10 +134,9 @@ export function apply(ctx: Context): void {
       if (!result.ok) throw new Error('account bonus acknowledgement failed')
       return result.value
     },
-    publish: (notice) => {
-      const { notice: _replaced, ...withoutNotice } = snapshot
-      // exactOptionalPropertyTypes distinguishes an absent notice from an undefined one.
-      publish(notice === null ? withoutNotice : { ...withoutNotice, notice })
+    publish: (notices) => {
+      const { notices: _replaced, notice: _replacedNotice, ...withoutNotices } = snapshot
+      publish(notices.length === 0 ? withoutNotices : { ...withoutNotices, notices, ...(notices[0] ? { notice: notices[0] } : {}) })
     },
   })
   ctx.effect(() => () => { notices.end() }, 'account: bonus notice lifetime')
@@ -119,9 +181,9 @@ export function apply(ctx: Context): void {
       refreshing = undefined
       const initialize = frame.value.status === 'credential-stored' && frame.value.attempt?.phase === 'succeeded'
         && snapshot.view?.attempt?.phase !== 'succeeded'
-      const { notice, ...previous } = snapshot
+      const { notices: previousNotices, notice: previousNotice, ...previous } = snapshot
       publish({ ...previous, view: frame.value, details: undefined, failed: false,
-        ...(frame.value.status === 'credential-stored' && notice ? { notice } : {}) })
+        ...(frame.value.status === 'credential-stored' && previousNotices ? { notices: previousNotices, ...(previousNotice ? { notice: previousNotice } : {}) } : {}) })
       frame.accept()
       if (frame.value.status === 'credential-stored') notices.begin()
       else notices.end()
@@ -295,7 +357,9 @@ export function apply(ctx: Context): void {
     name: 'settings.launcher', locale: 'settings.account', inject: () => operations,
   }, AccountMenu))
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'account', groupId: 'personal', heading: 'shell' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'account', groupId: 'personal', description: () => t('description'),
+    })
     let unregister: (() => void) | undefined
     const update = () => {
       if (snapshot.view?.status === 'credential-stored') {

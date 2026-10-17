@@ -1,7 +1,7 @@
-/** Native form fields for one revision-bound MCP draft. */
+/** Native form fields for one revision-bound MCP draft, shown in the shared modal frame. */
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
-import { Button, Input, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, Modal, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { McpSettingsSectionProps } from './McpSettingsSection.tsx'
 import type { McpDraft } from './draft.ts'
 import type { McpKey } from './locales.ts'
@@ -15,9 +15,9 @@ type FormProps = Pick<McpSettingsSectionProps, 'actions' | 't'> & {
 }
 
 /**
- * Render a draft; all mutations use the declared interaction-store actions.
+ * Render a draft in the add/edit dialog; all mutations use the declared interaction-store actions.
  * @param props - draft, controls and locale seat.
- * @returns the editable form.
+ * @returns the add/edit dialog.
  */
 export function McpForm({ draft, pending, writable, actions, t, save }: FormProps): ReactNode {
   const field = (name: 'serverName' | 'command' | 'cwd' | 'url', label: McpKey, help?: McpKey): ReactNode =>
@@ -28,10 +28,22 @@ export function McpForm({ draft, pending, writable, actions, t, save }: FormProp
         autoComplete="off" onChange={(event) => { actions.patch({ [name]: event.target.value }) }} />
     </div>
   const references = draft.transport === 'stdio' ? 'env' : 'headers'
-  return <form className={css.form} aria-label={t(draft.id === undefined ? 'newServer' : 'editTitle')}
-    onSubmit={(event) => { event.preventDefault(); save() }}>
-    <h2 className={css.label}>{t(draft.id === undefined ? 'newServer' : 'editTitle')}</h2>
-    {field('serverName', 'serverName', 'serverNameHelp')}
+  const title = t(draft.id === undefined ? 'newServer' : 'editTitle')
+  return <Modal
+    open
+    onClose={() => { if (!pending) actions.cancel() }}
+    title={title}
+    closeLabel={t('close')}
+    className={css.serverDialog ?? ''}
+    contentClassName={css.serverContent ?? ''}
+    footer={<div className={css.dialogFooter}>
+      <Button variant="outline" disabled={pending} onClick={() => { actions.cancel() }}>{t('cancel')}</Button>
+      <Button variant="primary" data-modal-autofocus disabled={pending || !writable} onClick={save}>{t('save')}</Button>
+    </div>}
+  >
+    <form className={css.form} aria-label={title}
+      onSubmit={(event) => { event.preventDefault(); save() }}>
+      {field('serverName', 'serverName', 'serverNameHelp')}
     <div className={css.row}>
       <div><p className={css.label}>{t('enabled')}</p><p className={css.help}>{t('draftEnabledHelp')}</p></div>
       <Switch checked={draft.enabled} label={t('enabled')} disabled={pending}
@@ -77,9 +89,6 @@ export function McpForm({ draft, pending, writable, actions, t, save }: FormProp
       <Button variant="outline" onClick={() => { actions.addReference(references) }}>{t('addReference')}</Button>
     </fieldset>
     <p className={css.help}>{t('advancedHelp')}</p>
-    <div className={css.actions}>
-      <Button type="submit" variant="primary" disabled={pending || !writable}>{t('save')}</Button>
-      <Button disabled={pending} onClick={() => { actions.cancel() }}>{t('cancel')}</Button>
-    </div>
-  </form>
+    </form>
+  </Modal>
 }

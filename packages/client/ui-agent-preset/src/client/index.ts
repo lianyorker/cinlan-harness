@@ -265,12 +265,15 @@ export function apply(ctx: ClientContext): void {
   // Ordered after Models: choosing a model is routine, and composing an
   // agent is the deployment-shaping act behind it.
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'agent-presets', groupId: 'ai', heading: 'shell' })
+    const pageT = ctx.locale.bind('settings.agentPreset')
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'agent-presets', groupId: 'ai', description: () => pageT('sectionIntro'),
+    })
     yield ctx.slots.register({
       name: 'settings.section',
       id: 'agent-presets',
       order: 20,
-      label: () => ctx.locale.bind('settings.agentPreset')('nav'),
+      label: () => pageT('nav'),
       locale: 'settings.agentPreset',
       inject: sectionInjected,
     }, AgentPresetSection)

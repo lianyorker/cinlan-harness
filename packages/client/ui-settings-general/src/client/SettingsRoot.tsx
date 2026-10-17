@@ -44,7 +44,6 @@ function SettingsPage({ rows, narrow, renderSlot, activeId, onSelect, onClose, r
   const sectionContent = useRef<HTMLDivElement>(null)
   const focusAfterNavigation = useRef(false)
   const target = selection !== undefined && selection.sectionId === active?.id ? selection.target : undefined
-  const shellHeading = active?.heading === 'shell'
 
   const dismissDrawer = useCallback(() => {
     setDrawerOpen(false)
@@ -244,9 +243,9 @@ function SettingsPage({ rows, narrow, renderSlot, activeId, onSelect, onClose, r
               <button type="button" className={css.clearSearch} onClick={() => { setQuery(''); searchInput.current?.focus() }}>{t('search.clear')}</button>
             </>}
             <div hidden={searching}>
-              {shellHeading && <div className={css.pageHeading}>
-                <h1 ref={heading} tabIndex={-1}>{active.label}</h1>
-                {active.id === 'general' && <p>{t('general.description')}</p>}
+              {active !== undefined && <div className={css.pageHeading}>
+                <h1 ref={heading} tabIndex={-1}>{active.title}</h1>
+                {active.description !== undefined && <p>{active.description}</p>}
               </div>}
               <div className={css.sectionContent} ref={sectionContent} tabIndex={-1}>
                 {active !== undefined && renderSlot('settings.section', { close: onClose, ...(target === undefined ? {} : { target }) }, { only: active.id })}
@@ -267,19 +266,38 @@ function SettingsPage({ rows, narrow, renderSlot, activeId, onSelect, onClose, r
  */
 export function SettingsRoot(props: SettingsRootComponentProps) {
   const { wide, useSections, useOnboardingSteps, useNarrowViewport, useSessions, renderSlot, t } = props
-  const [open, setOpen] = useState(false)
-  const [activeId, setActiveId] = useState<string | undefined>(undefined)
+  const [localOpen, setLocalOpen] = useState(false)
+  const [localActiveId, setLocalActiveId] = useState<string | undefined>(undefined)
+  const storeState = (props as any).useStore ? (props as any).useStore((s: any) => s) : undefined
+  const open = storeState !== undefined ? storeState.open : localOpen
+  const activeId = storeState !== undefined ? storeState.activeId : localActiveId
+  const actions = (props as any).actions
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const restoreFocus = useCallback(() => { triggerRef.current?.focus() }, [])
   const close = useCallback(() => {
-    setOpen(false)
-    setActiveId(undefined)
-  }, [])
+    if (actions) {
+      actions.close()
+    } else {
+      setLocalOpen(false)
+      setLocalActiveId(undefined)
+    }
+  }, [actions])
   const openSection = useCallback((id: string) => {
-    setActiveId(id)
-    setOpen(true)
-  }, [])
+    if (actions) {
+      actions.openSection(id)
+    } else {
+      setLocalActiveId(id)
+      setLocalOpen(true)
+    }
+  }, [actions])
+  const onSelect = useCallback((id: string) => {
+    if (actions) {
+      actions.select(id)
+    } else {
+      setLocalActiveId(id)
+    }
+  }, [actions])
 
   // The ledger tick keeps the nav rows fresh: registrants re-register with
   // freshly localized text on locale change, and the trigger/header/close
@@ -314,7 +332,10 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
         type="button"
         className={clsx(css.trigger, !wide && css.rail)}
         aria-expanded={open}
-        onClick={() => { setOpen(true) }}
+        onClick={() => {
+          if (actions) actions.open()
+          else setLocalOpen(true)
+        }}
       >
         {renderSlot('settings.trigger', { wide })}
       </button>
@@ -324,7 +345,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
           narrow={narrow}
           renderSlot={renderSlot}
           activeId={activeId}
-          onSelect={setActiveId}
+          onSelect={onSelect}
           onClose={close}
           restoreFocus={restoreFocus}
           t={t}

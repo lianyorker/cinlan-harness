@@ -64,8 +64,8 @@ describe('ui-settings-subagent apply', () => {
     const metadata = ctx.settingsMetadata.getSnapshot()
     expect(metadata.sections).toHaveLength(2)
     expect(metadata.sections).toEqual(expect.arrayContaining([
-      { sectionId: 'subagent', groupId: 'ai', heading: 'shell' },
-      { sectionId: 'subagent-limits', groupId: 'ai', heading: 'shell' },
+      { sectionId: 'subagent', groupId: 'ai', description: expect.any(Function) },
+      { sectionId: 'subagent-limits', groupId: 'ai', description: expect.any(Function) },
     ]))
     expect(metadata.items.find(item => item.sectionId === 'subagent')).toMatchObject({
       id: 'subagent-model-selection', anchorId: 'subagent-model-selection',

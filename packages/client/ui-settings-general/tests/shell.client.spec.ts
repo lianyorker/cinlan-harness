@@ -98,7 +98,7 @@ describe('ui-settings apply', () => {
     const { sections } = injectedOf(b.slots).hooks
     // This package registers the General section itself; every other section
     // arrives from a feature registrant.
-    const GENERAL = { id: 'general', order: 0, label: 'general.nav', groupId: 'personal', heading: 'shell', items: [] }
+    const GENERAL = { id: 'general', order: 0, label: 'general.nav', title: 'general.nav', description: 'general.description', groupId: 'personal', items: [] }
     expect(sections.getSnapshot()).toEqual([GENERAL])
     b.slots.register({ name: 'settings.section', id: 'z', order: 20, label: 'Z' } as never, () => null)
     // No order and no label: both projection defaults apply.
@@ -106,8 +106,8 @@ describe('ui-settings apply', () => {
     const rows = sections.getSnapshot()
     expect(rows).toEqual([
       GENERAL,
-      { id: 'a', order: 0, label: '', groupId: 'tools', heading: 'feature', items: [] },
-      { id: 'z', order: 20, label: 'Z', groupId: 'tools', heading: 'feature', items: [] },
+      { id: 'a', order: 0, label: '', title: '', groupId: 'tools', items: [] },
+      { id: 'z', order: 20, label: 'Z', title: 'Z', groupId: 'tools', items: [] },
     ])
     // Snapshot identity is stable until the ledger moves (uSES contract).
     expect(sections.getSnapshot()).toBe(rows)

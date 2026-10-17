@@ -109,7 +109,7 @@ export function TerminalSettingsSection({ usePreferences, checkCapability, save,
     </div>
 
   return <section className={css.section}>
-    <header className={css.heading}><span className={css.scope}>{t('scope')}</span><h2>{t('title')}</h2><p>{t('description')}</p></header>
+    <p className={css.scope}>{t('scope')}</p>
     {!available && <div role="status" className={css.notice}>
       <p>{t(checkFailed ? 'checkFailed' : capability === undefined ? 'loading' : unavailableKey)}</p>
       {(checkFailed || capability !== undefined) && <button type="button" onClick={() => { setCheckRevision(v => v + 1) }}>{t('retry')}</button>}

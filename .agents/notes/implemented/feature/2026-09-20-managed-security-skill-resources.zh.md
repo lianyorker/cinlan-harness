@@ -34,7 +34,7 @@ Status: implemented
 
 没有研究预设或已安装包时，资源管理器仍可用。资源可见性来自已提交文件，评估权限仍由各 Consumer 独立执行。Realm 保留已加载路径期间，旧 generation 会占用磁盘；租约所有者不明确时，优先保留而非冒险删除。Host 关闭会结束进行中的下载，不持久化部分传输进度。写锁所有者崩溃后，需要操作者确认其已停止，再人工恢复；PID 年龄或超时不构成自动移除写锁的授权。
 
-内置资源包含 22 个技能入口。[来源记录](../../../../packages/security/security-skills/assets/resource-provenance.json)与 [NOTICE](../../../../packages/security/security-skills/assets/NOTICE)保留已知许可，并标明尚未确认的第三方修订和权限。平台元数据描述可读取的资源文件，不代表引用工具普遍支持各平台。缺失的 bootstrap helper 保持为明确限制，不补造安装器。本决策不证明已有公开资源发布。
+内置资源包含从操作者提供的 DSH 归档导入的 169 个技能入口。[来源记录](../../../../packages/security/security-skills/assets/resource-provenance.json)与 [NOTICE](../../../../packages/security/security-skills/assets/NOTICE)记录其 SHA-256，并说明各技能的作者、上游修订、复用与再分发权限尚未逐项核验；仓库 MIT 许可只适用于 Harness 源码。归档安装器、运行时补丁和工作区指令文件均不导入。平台元数据描述可读取的资源文件，不代表引用工具普遍支持各平台。本决策不证明已有公开资源发布。
 
 ## Verification
 
@@ -42,7 +42,7 @@ Status: implemented
 
 [资源组件测试](../../../../packages/client/ui-settings-security/tests/SecurityResourcesSection.client.spec.tsx)和[观察测试](../../../../packages/client/ui-settings-security/tests/resource-observer.client.spec.ts)固定可见状态与观察释放行为。[Web 资源场景](../../../../apps/web/tests/security-resources.e2e.ts)使用真实 loopback manifest 与 ZIP server，覆盖导航、取消、下载失败重试、重新下载、更新、Host 重启和移除。[可选研究场景](../../../../apps/web/tests/security-capabilities.e2e.ts)保留范围和报告后端检查，并断言资源页没有范围/报告控件。这些场景定义不代表完整 Web 执行已通过；发布验证单独记录其结果。
 
-[模型可见资源测试](../../../../packages/security/security-skills/tests/model-visible.spec.ts)验证真实 Session 请求、技能工具结果、重新打开后的持久结果与内置 Provider；其预期输出为[managed-security-skills.json](../../../../packages/security/security-skills/tests/expected/managed-security-skills.json)。[构建器测试](../../../../scripts/build-security-skill-resource.spec.ts)独立验证归档内容、确定性时间与换行、不安全输入拒绝和真实 loopback 传输。已观察到的本地构建包含 503 个文件和 22 个技能，共享内置清单与 ZIP 描述符完全一致。这验证打包，但不宣称存在公开下载端点。
+[模型可见资源测试](../../../../packages/security/security-skills/tests/model-visible.spec.ts)验证真实 Session 请求、技能工具结果、重新打开后的持久结果与内置 Provider；其预期输出为[managed-security-skills.json](../../../../packages/security/security-skills/tests/expected/managed-security-skills.json)。[构建器测试](../../../../scripts/build-security-skill-resource.spec.ts)独立验证归档内容、确定性时间与换行、不安全输入拒绝和真实 loopback 传输。内置资源从已记录的输入清单安装 169 个直接技能入口；打包本身不证明这些文件可以再分发。
 
 ## Related decisions
 

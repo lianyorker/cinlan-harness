@@ -14,7 +14,7 @@ Definitions describe registered models; cache status describes whether a particu
 |---|---|
 | `VoiceModelId` | Branded exact model selector. Duplicate registration rejects; resolving an unknown id raises `VOICE_MODEL_UNKNOWN`. |
 | `VoiceModelKind` | `streaming` or `non-streaming` recognizer family. Both use the final-transcript API described below. |
-| `VoiceModelDefinition` | `id`, upstream-style display `name`, `description`, `recommended`, `kind`, size hint `approximateBytes`, `download`, and `architecture`. |
+| `VoiceModelDefinition` | `id`, display `name`, `description`, `recommended`, `kind`, size hint `approximateBytes`, `download`, and `architecture`; optional picker metadata `label`, `language`, `type`, `provider`, and `streaming`. |
 | `VoiceModelDownload` | `type: archive` carries a tar.bz2 `url` and `sha256`. `type: files` carries `entries`, each with `name`, `url`, `sha256`, and expected `bytes`. |
 
 `VoiceModelArchitecture` selects the file layout inside the model’s cache directory. Paths identify the files required by that recognizer; language fields configure the corresponding architecture.
@@ -25,6 +25,7 @@ Definitions describe registered models; cache status describes whether a particu
 | `paraformer` | `encoder`, `decoder`, `tokens`. |
 | `whisper` | `encoder`, `decoder`, `tokens`, `language`. |
 | `sense-voice` | `model`, `tokens`, `language`. |
+| `nemo-ctc` | `model`, `tokens`. |
 
 ## Installation and availability
 
@@ -34,7 +35,7 @@ Engine availability is independent of model cache state. A missing provider reje
 |---|---|
 | `VoiceEngineStatus` | `ok: true` reports availability. `ok: false` carries `cause`, repair `command`, nullable launch `profile`, and explanatory `note`. |
 | `VoiceModelSummary` | Complete `definition: VoiceModelDefinition` plus `status: VoiceModelStatus`. |
-| `VoiceModelRow` | Display-only `definition` with `id`, `name`, `description`, `recommended`, and `approximateBytes`, plus cache `status`; it omits native architecture and download configuration. |
+| `VoiceModelRow` | Display-only `definition`, including optional picker metadata, plus cache `status`, durable `resource`, and Host-local `task`; it omits native architecture and download configuration. |
 | `VoiceModelsListValue` | Current `models` array of `VoiceModelRow` entries. |
 | `VoiceModelsDownloadValue` | Ready `cacheDir` after the shared installation finishes. |
 

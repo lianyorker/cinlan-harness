@@ -121,7 +121,14 @@ class FakeConnectionService extends Service {
 
   constructor(ctx: Context) {
     super(ctx, 'connection')
-    this.operator = { id: 'fake-operator' as PeerId, ctx, dispose: () => Promise.resolve() }
+    this.operator = {
+      id: 'fake-operator' as PeerId,
+      ctx,
+      dispose: () => Promise.resolve(),
+      principal: { kind: 'owner' },
+      signal: new AbortController().signal,
+      interactions: 'answer',
+    }
   }
 
   get rpc() {

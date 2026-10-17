@@ -91,7 +91,10 @@ Workspace 和 Session 的启动基线均就绪后，空安装环境调用 `works
 
 客户端调用方可以在 `uiWorkspace.startSession` 的第二参数中传入 `prompt` 与 `clearPreviousDraft`。提示词仅接受普通文字；结构化草稿由内部恢复和工作区携带流程处理。不清空时保留已有文字或附件；显式清空只替换目标 Session 的文字和内联引用，不删除附件。在异步创建前捕获选项值，在导航提交前应用到准确保留的 binding。已被后续操作取代的导航不写内容；输入处于提交阻塞状态时拒绝准备并保留原选择。不传选项时保持正常新会话流程。[草稿初始化决策](../../../.agents/notes/implemented/architecture/2026-09-30-structured-draft-initialization.zh.md)说明输入 owner 的数据流。
 
+<a id="directory-picker"></a>
 ### 目录流子 slot
+
+`directory.picker` 是供工作区流程之外的调用方使用的 root 作用域 Factory。组合中的原生或浏览选择器注册一个定义；每次 `renderFactorySlot` 渲染接收 `DirectoryFlowOwnerProps`，并自行持有 open/busy 状态及结果回调。仅选择目录不会创建工作区。Factory 的可用性不依赖两个工作区子 slot 的声明。[可复用选择器决策](../../../.agents/notes/implemented/architecture/2026-10-08-reusable-directory-picker.zh.md)记录组合方式的理由。
 
 每个注册各自声明一个**目录流子 slot**（`single` kind：`conversation.hero.workspace.directoryFlow`／`sidebar.workspaces.directoryFlow`），由组合的选择器包 client half 填入其选取交互——`-native` 后端的无渲染 OS 选择器驱动，`-browse` 组合下则是应用内浏览对话框。平铺显示的**添加工作区…** 操作仅在当前界面的 slot 被占用时渲染；slot 为空意味着该组合没有目录选择能力。本包持有触发与接纳：占用方通过 slot 的属主交互约定（`open`/`busy`/`onPicked`/`onCancel`/`onError`）每次打开上报一个所选路径，owner 通过对象层接纳它，并等待 Workspace 列表投影刷新后才选中已提交的 Workspace。
 

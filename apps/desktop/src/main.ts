@@ -5,6 +5,12 @@ import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { loadHarnessConfig } from './harness/config/loader.ts'
+import type { HarnessConfig } from './harness/config/types.ts'
+import { createLogger, createDefaultLogger } from './harness/logging/logger.ts'
+import type { Logger } from './harness/logging/types.ts'
+import { MemorySessionManager } from './harness/session/manager.ts'
+import { MemoryToolRegistry } from './harness/tools/registry.ts'
 import {
   app,
   BrowserWindow,
@@ -329,6 +335,35 @@ async function main(): Promise<void> {
     : join(process.resourcesPath, 'runtime', 'primary-runtime')
   const activeProject = paths.profile
   const manager = new DesktopProjectManager(paths, resources)
+
+  // Initialize Harness modules (M1-M2 implementation)
+  let harnessLogger: Logger
+  let harnessConfig: HarnessConfig
+
+  try {
+    harnessConfig = await loadHarnessConfig(activeProject)
+    harnessLogger = createLogger({
+      level: development ? 'debug' : 'info',
+      format: development ? 'pretty' : 'json',
+      enableColors: development,
+      destination: join(app.getPath('logs'), 'harness.log'),
+    })
+
+    // Session manager and tool registry will be used in future M2 features
+    const sessionManager = new MemorySessionManager()
+    const toolRegistry = new MemoryToolRegistry()
+
+    harnessLogger.info('Harness modules initialized', {
+      project: activeProject,
+      provider: harnessConfig.llm.provider,
+      sessions: (await sessionManager.listSessions()).length,
+      tools: toolRegistry.list().length,
+    })
+  } catch (error) {
+    harnessLogger = createDefaultLogger()
+    harnessLogger.error('Failed to initialize Harness modules', {}, error as Error)
+    throw error
+  }
   // Dock and Finder launches inherit only launchd's environment; every Host shares one login-shell read.
   const loginShellRead = new AbortController()
   // The probe runs in its own process group, which outlives Desktop unless the read is aborted.
@@ -1206,13 +1241,7 @@ async function main(): Promise<void> {
     locale = resolveDesktopStartupLocale(state.localePreference, systemLanguages)
     windowsLanguage = locale.id
     refreshApplicationMenu()
-    if (!enteredWorkspace && needsWelcome({ loggedIn: state.loggedIn, hasApiKey: state.hasApiKey })) {
-      // A later login must retain its own activation policy instead of replaying startup focus.
-      raiseAfterUpdate = false
-      await showWelcome()
-    } else {
-      await enterWorkspace()
-    }
+    await enterWorkspace()
   }
   focusPrimaryWindow = () => {
     if (quitting) return
@@ -1232,11 +1261,10 @@ async function main(): Promise<void> {
 
   if (app.isPackaged || process.env.DSH_DESKTOP_DEV_APP === '1') {
     app.setAsDefaultProtocolClient('clh')
-    app.setAsDefaultProtocolClient('dsh')
   }
   app.on('open-url', (event, url) => {
     event.preventDefault()
-    if (url === 'clh://open' || url === 'clh://open/' || url === 'dsh://open' || url === 'dsh://open/') focusPrimaryWindow()
+    if (url === 'clh://open' || url === 'clh://open/') focusPrimaryWindow()
   })
 
   app.on('activate', (_event, hasVisibleWindows) => {

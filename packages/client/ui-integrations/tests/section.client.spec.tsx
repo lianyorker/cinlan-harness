@@ -6,13 +6,50 @@ import { en, zh, type IntegrationSettingsKey } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 const translate = (dictionary: typeof en): IntegrationsSectionProps['t'] =>
-  ((key: IntegrationSettingsKey) => dictionary[key]) as IntegrationsSectionProps['t']
-function setup(check: IntegrationsSectionInjected['check'], dictionary = en) {
-  return render(<IntegrationsSection {...{ check, t: translate(dictionary) } as IntegrationsSectionProps} />)
+  ((key: IntegrationSettingsKey, params?: Record<string, unknown>) => {
+    const template: string = dictionary[key]
+    if (params === undefined) return template
+    return Object.entries(params).reduce((text, [name, value]) => text.replace(`{${name}}`, String(value)), template)
+  }) as IntegrationsSectionProps['t']
+const reportedBudget = { state: 'reported' as const, reason: null, remaining: 42, limit: 5000, resetsAt: null }
+const noBudget: IntegrationsSectionInjected['budget'] = async provider => ({ provider, ...reportedBudget })
+function setup(check: IntegrationsSectionInjected['check'], dictionary = en, budget = noBudget) {
+  return render(<IntegrationsSection {...{ check, budget, t: translate(dictionary) } as IntegrationsSectionProps} />)
 }
 const connected: Awaited<ReturnType<IntegrationsSectionInjected['check']>> = {
   provider: 'github', status: 'connected', reason: 'connected', account: 'fixture-account',
 }
+
+describe('Integrations API budget rows', () => {
+  it('shows reported counts with the reset instant and never a fabricated quota', async () => {
+    setup(
+      async provider => ({ provider, status: 'connected', reason: 'connected', account: null }),
+      en,
+      async provider => provider === 'github'
+        ? { provider, state: 'reported', reason: null, remaining: 42, limit: 5000, resetsAt: '2026-10-14T16:30:00.000Z' }
+        : { provider, state: 'unsupported', reason: 'budget-unsupported', remaining: null, limit: null, resetsAt: null },
+    )
+    await screen.findAllByText(en.statusConnected)
+    expect(screen.getByText(en.budgetRemaining.replace('{remaining}', '42').replace('{limit}', '5000'))).toBeTruthy()
+    expect(screen.getByText(en.budgetResets.replace('{time}', new Date('2026-10-14T16:30:00.000Z').toLocaleString()))).toBeTruthy()
+    // Gitee exposes no quota: the row says so instead of showing zero.
+    expect(screen.getAllByText(en.budgetUnsupported)).toHaveLength(2)
+  })
+
+  it('distinguishes an unreadable budget from a provider that reported none', async () => {
+    setup(
+      async provider => ({ provider, status: 'connected', reason: 'connected', account: null }),
+      en,
+      async provider => provider === 'github'
+        ? { provider, state: 'unavailable', reason: 'cli-not-found', remaining: null, limit: null, resetsAt: null }
+        : { provider, state: 'not-reported', reason: 'no-rate-limit-data', remaining: null, limit: null, resetsAt: null },
+    )
+    await screen.findAllByText(en.statusConnected)
+    expect(screen.getByText(en.budgetUnavailable)).toBeTruthy()
+    expect(screen.getAllByText(en.budgetNotReported)).toHaveLength(2)
+    expect(screen.queryByText(en.budgetUnsupported)).toBeNull()
+  })
+})
 
 describe('Integrations native provider rows', () => {
   it('renders real independent statuses, public search anchors, and provider-specific instructions', async () => {
@@ -23,7 +60,6 @@ describe('Integrations native provider rows', () => {
     })
     const view = setup(check)
     await screen.findByText(en.statusConnected)
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(en.title)
     expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['GitHub', 'GitLab', 'Gitee'])
     expect(screen.getByText('fixture-account', { exact: false })).toBeTruthy()
     expect(screen.getByText(en.statusNotInstalled)).toBeTruthy()
@@ -66,7 +102,7 @@ describe('Integrations native provider rows', () => {
     const next = vi.fn<IntegrationsSectionInjected['check']>(async provider => ({
       provider, status: 'not-installed', reason: 'cli-not-found', account: null,
     }))
-    view.rerender(<IntegrationsSection {...{ check: next, t: translate(en) } as IntegrationsSectionProps} />)
+    view.rerender(<IntegrationsSection {...{ check: next, budget: noBudget, t: translate(en) } as IntegrationsSectionProps} />)
     expect(pending.every(request => request.signal.aborted)).toBe(true)
     await screen.findAllByText(en.statusNotInstalled)
     await act(async () => { for (const request of pending) request.resolve(connected) })

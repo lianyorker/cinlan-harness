@@ -1,0 +1,7 @@
+- textbox "Describe what you want to build, / commands, @ files or sessions":
+  - paragraph: Reply with the single word LIGHTHOUSE and stop.
+- button "Add files or run commands"
+- 'button "Access mode, current: Workspace Write"': Workspace Write
+- button "Start voice dictation"
+- button "Select model, current DeepSeek-V4-Flash": DeepSeek-V4-Flash
+- button "Send message"

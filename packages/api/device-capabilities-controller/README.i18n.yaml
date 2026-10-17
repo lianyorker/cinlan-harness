@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/device-capabilities-controller/README.md
-README.md: 512f9e57172457112085e01944960178ba7ef2aa
-README.zh.md: 4bcb86fd4211bce64dbb541edd0a28b909b3949b
+/:
+  en: d8aabe2465a11c13
+  zh: 73965333e8312e8a
+/deepseek-ai-dsh-api-device-capabilities-controller:
+  en: c3fc8fc3ecd88349
+  zh: 7f9730e83b827f8e
+/deepseek-ai-dsh-api-device-capabilities-controller/summary:
+  en: 9dc5228aa58fb20c
+  zh: 3a685e7810fc3115
+/deepseek-ai-dsh-api-device-capabilities-controller/table-of-contents:
+  en: af856ba79fe31b8e
+  zh: bba02270429908c5
+/deepseek-ai-dsh-api-device-capabilities-controller/use-this-package:
+  en: 135f6d8838cffb96
+  zh: 065d46812c787cb8
+/deepseek-ai-dsh-api-device-capabilities-controller/model-experience:
+  en: 7caa66e6a6dd598e
+  zh: 0121267b0954be07
+/deepseek-ai-dsh-api-device-capabilities-controller/model-experience/kv-cache-effect:
+  en: 564d098adcfbfe66
+  zh: 14ad61cb58a68647
+/deepseek-ai-dsh-api-device-capabilities-controller/known-limitations-and-deferred-work:
+  en: 56389f2ae9ca78fd
+  zh: 19134097a06af477
+/deepseek-ai-dsh-api-device-capabilities-controller/known-limitations-and-deferred-work/dev-note:
+  en: 0a226870f918453d
+  zh: 737b1d33c371399c

@@ -104,7 +104,7 @@ describe('open-path interception wiring', () => {
     const funnel = { openPath: async (): Promise<void> => {} }
     const ctx = {
       sessions: {
-        list: { getSnapshot: () => ({ current: 's1', byId: { s1: { cwd: '/w' } } }) },
+        list: { getSnapshot: () => ({ byId: { s1: { cwd: '/w', retainedBy: { mainView: 1 } } } }) },
       },
       workspaces: funnel,
       betterSidebar: { openTab: (seed: unknown) => { opened.push(seed as Record<string, unknown>) } },

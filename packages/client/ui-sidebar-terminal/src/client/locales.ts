@@ -23,6 +23,11 @@ export const zh = {
   attachmentEnded: '终端连接已结束，请重新连接。',
   invalidOutput: '终端画面传输异常，请重新连接。',
   terminalLimit: '终端数量已达上限，请关闭不用的终端后重试。已退出的终端也计入数量。',
+  quickCommands: '快捷命令',
+  runConfirmTitle: '运行「{name}」？',
+  runConfirmAction: '运行',
+  cancel: '取消',
+  runFailed: '发送失败：{message}',
 } satisfies Record<string, string>
 
 /** English terminal copy. */
@@ -41,4 +46,9 @@ export const en = {
   attachmentEnded: 'The terminal connection ended. Reconnect to continue.',
   invalidOutput: 'The terminal screen could not be received. Reconnect to recover it.',
   terminalLimit: 'The terminal limit has been reached. Close unused terminals and try again. Exited terminals also count toward the limit.',
+  quickCommands: 'Quick commands',
+  runConfirmTitle: 'Run “{name}”?',
+  runConfirmAction: 'Run',
+  cancel: 'Cancel',
+  runFailed: 'Sending failed: {message}',
 } satisfies Record<keyof typeof zh, string>

@@ -24,9 +24,9 @@ it('registers localized value-free metadata for each declaration lifetime and di
   expect(entry.locale).toBe('settings.mcp')
   expect(resolveSlotLabel(entry.options.label)).toBe('MCP')
   const metadata = bench.ctx.settingsMetadata
-  expect(metadata.getSnapshot().sections).toEqual([{ sectionId: 'mcp', groupId: 'extensions' }])
+  expect(metadata.getSnapshot().sections).toEqual([{ sectionId: 'mcp', groupId: 'extensions', description: expect.any(Function) }])
   expect(metadata.getSnapshot().items.map(item => item.anchorId)).toEqual([
-    'mcp-server-list', 'mcp-add-server', 'mcp-transport', 'mcp-credentials', 'mcp-tools',
+    'mcp-server-list', 'mcp-add-server',
   ])
   expect(JSON.stringify(metadata.getSnapshot())).not.toContain('PRIVATE_')
   expect(metadata.getSnapshot().items[0]?.title).toBe(en.serverList)
@@ -37,7 +37,7 @@ it('registers localized value-free metadata for each declaration lifetime and di
   release()
   expect(metadata.getSnapshot()).toEqual({ sections: [], items: [] })
   bench.declare()
-  expect(metadata.getSnapshot().items).toHaveLength(5)
+  expect(metadata.getSnapshot().items).toHaveLength(2)
   await bench.fiber.dispose()
   expect(metadata.getSnapshot()).toEqual({ sections: [], items: [] })
   expect(bench.slots.entries('settings.section')).toEqual([])

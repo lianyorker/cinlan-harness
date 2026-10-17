@@ -58,7 +58,7 @@ describe('native integrated terminal settings', () => {
     const b = bench('zh', { status: 'unavailable', reason: 'unsupported-scheme' })
     await screen.findByRole('button', { name: zh.retry })
     expect({
-      title: screen.getByRole('heading', { level: 2 }).textContent,
+      scope: screen.getByText(zh.scope).textContent,
       status: screen.getByRole('status').textContent,
       labels: [...b.container.querySelectorAll('[data-settings-anchor] span')].map(node => node.textContent),
       lifetime: screen.getByText(zh.lifetime).textContent,
@@ -74,8 +74,8 @@ describe('native integrated terminal settings', () => {
           "光标闪烁",
         ],
         "lifetime": "重新连接可接回仍在运行的同一个进程。终端关闭或主机重启后需要创建新进程，无法恢复原先运行的命令。",
+        "scope": "集成侧边栏终端",
         "status": "当前应用不提供集成侧边栏终端。重新检查",
-        "title": "终端",
       }
     `)
   })

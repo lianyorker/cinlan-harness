@@ -74,7 +74,10 @@ export function apply(ctx: ClientContext): void {
   // This package owns the one Built-in plugins navigation entry and the tab
   // chrome; feature plugins contribute pages without competing for Settings nav rows.
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'plugins', groupId: 'advanced', heading: 'shell' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'plugins', groupId: 'advanced',
+      title: () => t('title'), description: () => t('intro'),
+    })
     yield ctx.slots.register({
       name: 'settings.section',
       id: 'plugins',

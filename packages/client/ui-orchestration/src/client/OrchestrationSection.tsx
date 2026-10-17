@@ -158,11 +158,6 @@ export function OrchestrationSection(props: OrchestrationSectionProps): ReactNod
   }
 
   return <div className={css.section}>
-    <header className={css.heading}>
-      <h1>{t('title')}</h1>
-      <p>{t('description')}</p>
-    </header>
-
     <section className={css.capabilityCard} aria-labelledby={capabilityTitleId}>
       <div className={css.heroHeader}>
         <div className={css.heroIcon} aria-hidden="true"><IconWorkflowOutline16 size={20} /></div>

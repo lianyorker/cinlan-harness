@@ -28,4 +28,7 @@ export function buildRemoteContracts(root: string): void {
   }
 }
 
-if (import.meta.main) buildRemoteContracts(resolve(import.meta.dirname, '..'))
+if (import.meta.main) {
+  buildRemoteContracts(resolve(import.meta.dirname, '..'))
+  process.exit(0)
+}

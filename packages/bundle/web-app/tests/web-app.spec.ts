@@ -103,7 +103,9 @@ function provideConnection(ctx: Context): void {
 
 /** A fake Loader whose settlement the test controls (the URL line waits on it). */
 function provideLoader(ctx: Context, settle: () => Promise<void> = async () => {}): void {
-  ctx.provide('loader', { await: settle } as never)
+  // Readiness audits the Loader entry store before publishing; the stub must
+  // carry an empty store or that audit throws and the URL line never prints.
+  ctx.provide('loader', { await: settle, entries: () => [] } as never)
 }
 
 interface BashContribution {
@@ -196,8 +198,8 @@ describe('web-app runtime glue', () => {
     await vi.waitFor(() => { expect(openBrowser).toHaveBeenCalled() })
 
     expect(lifecycle).toEqual([
-      'dsh web: https://proxy.example:8443/web/?token=test-token',
-      'dsh web: opening the default browser; pass --no-open to disable',
+      'clh web: https://proxy.example:8443/web/?token=test-token',
+      'clh web: opening the default browser; pass --no-open to disable',
       'open:https://proxy.example:8443/web/?token=test-token',
     ])
     const assembly = await ctx.systemPrompt.assemble()
@@ -205,7 +207,7 @@ describe('web-app runtime glue', () => {
     expect(section?.text).toContain('https://proxy.example:8443/web/')
     expect(section?.text).not.toContain('127.0.0.1')
     const urlContribution = contributions.find(contribution => contribution.name === 'web-runtime')
-    expect(urlContribution?.resolve()).toEqual({ DSH_WEB_URL: 'https://proxy.example:8443/web/' })
+    expect(urlContribution?.resolve()).toEqual({ CLH_WEB_URL: 'https://proxy.example:8443/web/', DSH_WEB_URL: 'https://proxy.example:8443/web/' })
   })
 
   it('publishes no readiness side effect when printing and browser opening are disabled', async () => {
@@ -287,7 +289,7 @@ describe('web-app runtime glue', () => {
     provideConnection(ctx)
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     apply(ctx, new Config({ openBrowser: false, printUrl: true, surfaceContext: false, publicUrl: null as never, trustedHosts: [] }))
-    await vi.waitFor(() => { expect(log).toHaveBeenCalledWith('dsh web: http://127.0.0.1:4567/?token=test-token') })
+    await vi.waitFor(() => { expect(log).toHaveBeenCalledWith('clh web: http://127.0.0.1:4567/?token=test-token') })
   })
 
   it.each([

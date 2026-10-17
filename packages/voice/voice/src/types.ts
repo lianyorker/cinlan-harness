@@ -39,12 +39,19 @@ export interface VoiceModelsCancelValue {
 /** Streaming (chunk-by-chunk) or non-streaming (whole-utterance) recognizer family. */
 export type VoiceModelKind = 'streaming' | 'non-streaming'
 
+/** Catalog type used by the settings model picker. */
+export type VoiceModelType = 'transducer' | 'paraformer' | 'whisper' | 'senseVoice' | 'nemo-ctc'
+
+/** Model hosting location. The stable voice provider currently ships local models. */
+export type VoiceModelProvider = 'local'
+
 /** Recognizer architecture and the model file paths each one expects in its cache directory. */
 export type VoiceModelArchitecture =
   | { readonly type: 'transducer'; readonly encoder: string; readonly decoder: string; readonly joiner: string; readonly tokens: string }
   | { readonly type: 'paraformer'; readonly encoder: string; readonly decoder: string; readonly tokens: string }
   | { readonly type: 'whisper'; readonly encoder: string; readonly decoder: string; readonly tokens: string; readonly language: string }
   | { readonly type: 'sense-voice'; readonly model: string; readonly tokens: string; readonly language: string }
+  | { readonly type: 'nemo-ctc'; readonly model: string; readonly tokens: string }
 
 /** Download source: either a single tar.bz2 archive or individual files from a hosting provider. */
 export type VoiceModelDownload =
@@ -54,10 +61,20 @@ export type VoiceModelDownload =
 /** One shipped model definition: display metadata plus its download source and recognizer architecture. */
 export interface VoiceModelDefinition {
   readonly id: VoiceModelId
-  /** Localization-free display name (matches the upstream sherpa-onnx release naming). */
+  /** Localization-free model name. */
   readonly name: string
   /** Short user-facing description of the model's language coverage and strengths. */
   readonly description: string
+  /** Compact label shown in model pickers. */
+  readonly label?: string
+  /** Language coverage label shown in model pickers. */
+  readonly language?: string
+  /** Catalog architecture label shown in model pickers. */
+  readonly type?: VoiceModelType
+  /** Catalog provider label shown in model pickers. */
+  readonly provider?: VoiceModelProvider
+  /** Whether the model accepts streaming recognition input. */
+  readonly streaming?: boolean
   /** Whether this model is recommended for most users. */
   readonly recommended: boolean
   readonly kind: VoiceModelKind
@@ -97,7 +114,7 @@ export type VoiceEngineStatus =
 export interface VoiceModelRow {
   readonly resource: VoiceModelResource
   readonly task: VoiceModelTask | null
-  readonly definition: Pick<VoiceModelDefinition, 'id' | 'name' | 'description' | 'recommended' | 'approximateBytes'>
+  readonly definition: Pick<VoiceModelDefinition, 'id' | 'name' | 'description' | 'label' | 'language' | 'type' | 'provider' | 'streaming' | 'recommended' | 'approximateBytes'>
   readonly status: VoiceModelStatus
 }
 

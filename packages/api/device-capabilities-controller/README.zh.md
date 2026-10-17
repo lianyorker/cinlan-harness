@@ -34,6 +34,8 @@ deviceCapabilities/check Remote 探测可选的 Computer Use 或 Mobile Device P
 
 这些上限均为不大于 2,147,483,647 的正整数。截止时间到达后请求终止进程；请求在进程清理完毕后才结束。缺少 subprocess provider 时报告 SDK 不可用。独立的 `listMobileDevices` Remote 仅枚举 Provider 的设备并返回设备 id、名称、状态和可用性，不观察或控制设备。
 
+Android 资源和镜像 Remote 要求有效的 `ctx.invocation`，且其 Peer 必须是已挂载 Connection 的 operator。缺少 invocation、其他 Peer 或已取消调用会在访问 `mobileRuntime` 前被拒绝。安装或移除托管组件、打开或关闭镜像均为显式人工操作，与 SDK 检查和模型工具审批相互独立。
+
 <a id="model-experience"></a>
 ## 模型体验
 

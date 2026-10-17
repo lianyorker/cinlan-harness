@@ -10,7 +10,7 @@ Dictation must preserve user control over when a coding task starts. Local recog
 
 ## Decision
 
-Five public packages under `packages/experimental/` compose one optional, default-disabled voice input bundle. Service Definition, SenseVoice Provider and Remote Consumer are separate because provider deployment and browser transport evolve independently. The browser UI dynamically mounts its generated Remote contribution. Stable API Remotes do not acquire an experimental dependency.
+Five retained public packages under `packages/experimental/` compose the retired voice input bundle. Shipped GUI profiles use [built-in dictation](2026-10-07-builtin-voice-dictation.md); this note owns the retained experimental implementation. Service Definition, SenseVoice Provider and Remote Consumer are separate because provider deployment and browser transport evolve independently. The browser UI dynamically mounts its generated Remote contribution. Stable API Remotes do not acquire an experimental dependency.
 
 Provider ids select exact registrations. Resolution captures an instance, and deregistration closes admission, cancels and joins accepted work. There is no provider fallback: a local failure cannot authorize uploading speech to a cloud service. A new cloud provider supplies its own credentials and explicit processing location through the same registry.
 

@@ -442,7 +442,7 @@ describe('web e2e: plugin manager', () => {
     expect(await panel.getByText('实验性', { exact: true }).count())
       .toBe(OPTIONAL_BUNDLES.filter(name => name.startsWith('@deepseek-ai/dsh-experimental-')).length)
     expect(await panel.locator('[data-plugin-package="@deepseek-ai/dsh-experimental-inspector"]').count()).toBe(0)
-    expect(await panel.getByRole('switch', { name: '启用 语音输入', exact: true }).getAttribute('aria-checked')).toBe('false')
+    expect(await panel.getByRole('switch', { name: '启用 语音输入', exact: true }).count()).toBe(0)
     expect(await panel.getByRole('switch', { name: '启用 开发者工具', exact: true }).getAttribute('aria-checked')).toBe('false')
     expect(await panel.getByText('查看调试会话原始数据、聊天消息分组数据，以及调试 NodeJS 后端', { exact: true }).count()).toBe(1)
     expect(await panel.getByText(/Cordis|Chrome DevTools/).count()).toBe(0)

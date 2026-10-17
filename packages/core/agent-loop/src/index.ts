@@ -31,6 +31,7 @@ import type {} from '@deepseek-ai/dsh-session-projection'
 import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
 import { SessionPersistenceNotFoundError } from '@deepseek-ai/dsh-session-persistence'
 import type { SessionHandle, SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
+import type {} from '@deepseek-ai/dsh-workspace'
 import { ReactLoopAgent } from './agent.ts'
 import { inboxProjectionDefinition } from './inbox.ts'
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS } from './constants.ts'
@@ -99,7 +100,7 @@ class FactoryOwnership {
   private accepting = true
   private readonly teardown = new AbortController()
   private readonly inactive = Promise.withResolvers<void>()
-  private readonly liveAgents = new Set<() => Promise<void>>()
+  private readonly liveAgents = new Map<SessionId, () => Promise<void>>()
   private startupTasks = new Set<Promise<void>>()
 
   constructor(private readonly fiber: Context['fiber']) {}
@@ -114,9 +115,21 @@ class FactoryOwnership {
   }
 
   /** Track one live agent's shared teardown until it has run. */
-  track(dispose: () => Promise<void>): () => void {
-    this.liveAgents.add(dispose)
-    return () => { this.liveAgents.delete(dispose) }
+  track(id: SessionId, dispose: () => Promise<void>): () => void {
+    this.liveAgents.set(id, dispose)
+    return () => {
+      if (this.liveAgents.get(id) === dispose) {
+        this.liveAgents.delete(id)
+      }
+    }
+  }
+
+  /** Release one tracked live agent by id, awaiting its teardown. */
+  async releaseAgent(id: SessionId): Promise<void> {
+    const dispose = this.liveAgents.get(id)
+    if (dispose !== undefined) {
+      await dispose()
+    }
   }
 
   /** Join config startup work that begins before an agent exists. */
@@ -141,7 +154,7 @@ class FactoryOwnership {
     this.teardown.abort(new Error('agent loop is not active'))
     this.inactive.resolve()
     await Promise.all([
-      ...[...this.liveAgents].map(dispose => dispose()),
+      ...[...this.liveAgents.values()].map(dispose => dispose()),
       ...this.startupTasks,
     ])
   }
@@ -367,6 +380,7 @@ export class AgentLoop extends Service implements AgentFactory {
     this.runtime = { ctx }
     ctx.effect(() => () => this.ownership.dispose(), 'agentLoop.transactions()')
     ctx.effect(() => ctx.agents.setFactory(this), 'agentLoop.setFactory()')
+    ctx.on('workspace/session-release', ({ sessionId }) => this.ownership.releaseAgent(sessionId))
     ctx.systemPrompt.variable('provider', context => context.agent?.options.provider)
     ctx.systemPrompt.variable('model', context => context.agent?.options.model)
     ctx.systemPrompt.variable('cwd', context => context.agent?.session.header.cwd)
@@ -569,7 +583,7 @@ export class AgentLoop extends Service implements AgentFactory {
         throw new AggregateError(failures, `agent "${id}" disposal failed`)
       }
     })())
-    const untrack = this.ownership.track(dispose)
+    const untrack = this.ownership.track(id, dispose)
     let unfollowOwner: () => Promise<void> | void
     try {
       unfollowOwner = ownerCtx.effect(function* () {

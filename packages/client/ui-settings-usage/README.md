@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use the Usage settings page to inspect recorded Turns and provider-reported tokens in a UTC interval. Filter by exact provider and model, refresh live data manually, and download the displayed report as CSV. Missing accounting and partial scans remain visible, so a known zero cannot be confused with unavailable usage.
+Use the Usage settings page to inspect recorded Turns and provider-reported tokens in a UTC interval. The page opens with compact stat cards, a usage analysis area with a provider view switcher, a token distribution bar, and provider share cards; exact numbers stay in the route table and CSV. Filter by exact provider and model, refresh live data manually, and download the displayed report as CSV. Missing accounting and partial scans remain visible, so a known zero cannot be confused with unavailable usage.
 
 ## Table of Contents
 

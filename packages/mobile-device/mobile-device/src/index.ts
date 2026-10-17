@@ -6,9 +6,11 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
+import type { Volatile } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
-import { MOBILE_DEVICE_NAMESPACE, MobileDeviceSettingsSchema } from './settings.ts'
+import { MobileDeviceSettingsSchema } from './settings.ts'
 import type {
   Config,
   MobileButtonRequest,
@@ -89,7 +91,11 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-const CONFIG_KEYS = new Set(['provider'])
+const CONFIG_KEYS = new Set(['provider', 'enabled', 'defaultDeviceId', 'androidSdkPath'])
+
+function configValue<T extends string | boolean>(value: T | Volatile<T> | undefined): T | undefined {
+  return typeof value === 'object' ? value.get() as T : value
+}
 
 function resolveConfig(config: Config): Config {
   for (const key of Object.keys(config)) {
@@ -106,30 +112,40 @@ function resolveConfig(config: Config): Config {
 
 /** Registry and execution facade for mobile-device Providers. */
 export class MobileDeviceRuntime extends Service {
-  static Config: z<Config> = z.object({ provider: z.string() })
+  static Config = z.object({
+    provider: z.string(),
+    enabled: z.boolean().default(false).volatile(),
+    defaultDeviceId: z.string().default('').volatile(),
+    androidSdkPath: z.string().default('').volatile(),
+  })
 
   private readonly providers = new Map<string, MobileDeviceProvider>()
   private readonly providerId: string | undefined
+  private readonly config: Config
 
   /** Create the provider-neutral mobile-device runtime. */
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'mobileDevice')
-    this.providerId = resolveConfig(config).provider
+    this.config = resolveConfig(config)
+    this.providerId = this.config.provider
+    this.getPreferences()
     ctx.inject(['settings'], (settingsCtx) => {
-      (settingsCtx.get('settings') as any)?.configure({ auto: false })
+      const settings = settingsCtx.get('settings')
+      if (settings !== undefined) settingsCtx.effect(() => settings.configure({ auto: false }, ctx.fiber))
     })
   }
 
   /**
    * Read current resolved preferences without retaining a mutable settings reference.
-   * @returns A detached settings value, or schema defaults when no settings service is mounted.
+   * @returns Detached live Config preferences; omitted fields use schema defaults independently of Settings.
    */
   getPreferences(): MobileDeviceSettings {
-    const descriptor = (this.ctx.get('settings') as any)?.describe().find((d: any) => d.ns === MOBILE_DEVICE_NAMESPACE)
-    if (descriptor?.value) {
-      return MobileDeviceSettingsSchema(descriptor.value as never)
-    }
-    return MobileDeviceSettingsSchema({} as never)
+    const defaults = MobileDeviceSettingsSchema({})
+    return MobileDeviceSettingsSchema({
+      enabled: configValue(this.config.enabled) ?? defaults.enabled,
+      defaultDeviceId: configValue(this.config.defaultDeviceId) ?? defaults.defaultDeviceId,
+      androidSdkPath: configValue(this.config.androidSdkPath) ?? defaults.androidSdkPath,
+    })
   }
 
   /**

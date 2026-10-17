@@ -25,6 +25,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const ITEMS = [
   ['hosts', 'hosts', 'hostsDescription'],
   ['ssh-alias', 'formDestination', 'connectionDescription'],
+  ['ephemeral-vms', 'vmsTitle', 'vmsDescription'],
 ] as const
 
 /**
@@ -38,9 +39,12 @@ export function apply(ctx: Context): void {
   const observation = observeHosts(callbacks)
   ctx.effect(() => observation.dispose)
   ctx.slots.inject('settings.section', function* () {
-    // The page owns its heading so the navigation item can name the feature while
-    // the page title names the full surface, as the reference does.
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'hosts', groupId: 'execution', heading: 'feature' })
+    // The page title names the full surface while the navigation item names
+    // the feature, so this page overrides the shell-rendered heading.
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'hosts', groupId: 'execution',
+      title: () => t('title'), description: () => t('description'),
+    })
     yield ctx.settingsMetadata.registerItems('hosts', ITEMS.map(([id, title, description]) => ({
       id, anchorId: id, title: () => t(title), description: () => t(description), keywords: () => [t('searchTerms')],
     })))

@@ -22,6 +22,10 @@ async function bench() {
       ok: true as const,
       value: { provider: 'github', status: 'connected', reason: 'connected', account: 'octocat' },
     })),
+    budget: vi.fn(async (_req: { provider: string }) => ({
+      ok: true as const,
+      value: { provider: 'github', state: 'reported', reason: null, remaining: 4999, limit: 5000, resetsAt: null },
+    })),
   }
   ctx.provide('remote', { integrationPreflight, $host: { home: undefined, isLoopback: true }, $on: () => () => {} } as never)
   ctx.provide('remote.integrationPreflight', integrationPreflight as never)
@@ -53,7 +57,7 @@ describe('ui-integrations registration', () => {
     await vi.waitFor(() => { expect(b.slots.entries('settings.section')).toHaveLength(1) })
     const section = b.slots.entries('settings.section')[0]!
     expect(section.component).toBe(IntegrationsSection)
-    expect(b.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'integrations', groupId: 'extensions' }])
+    expect(b.ctx.settingsMetadata.getSnapshot().sections).toMatchObject([{ sectionId: 'integrations', groupId: 'extensions' }])
     expect(section.options).toMatchObject({ id: 'integrations', order: 40 })
     expect(section.locale).toBe('settings.integrations')
     expect(resolveSlotLabel(section.options.label)).toBe(zh.nav)

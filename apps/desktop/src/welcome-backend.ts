@@ -60,11 +60,12 @@ export async function connectDesktopWelcome(
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ type: 'client-request', rpcId, method, payload: { args: request.args } }),
     })
-    if (!response.ok) throw new Error('desktop welcome: Web request failed')
+    if (!response.ok) throw new Error(`desktop welcome: Web request failed: ${response.status}`)
     const envelope: unknown = await response.json()
     if (!record(envelope) || envelope.type !== 'server-response' || envelope.rpcId !== rpcId
       || !record(envelope.result) || envelope.result.ok !== true) {
-      throw new Error('desktop welcome: Web RPC failed')
+      console.error('desktop welcome RPC failure envelope:', JSON.stringify(envelope))
+      throw new Error(`desktop welcome: Web RPC failed: ${JSON.stringify(envelope)}`)
     }
     return envelope.result.value
   }
@@ -124,9 +125,13 @@ export async function connectDesktopWelcome(
     account,
     read,
     async analyticsEnabled() {
-      const enabled = await invoke({ namespace: 'productAnalytics', method: 'enabled', args: {} }, AbortSignal.timeout(1000))
-      if (typeof enabled !== 'boolean') throw new Error('desktop analytics: invalid collection policy')
-      return enabled
+      try {
+        const enabled = await invoke({ namespace: 'productAnalytics', method: 'enabled', args: {} }, AbortSignal.timeout(1000))
+        if (typeof enabled !== 'boolean') return false
+        return enabled
+      } catch {
+        return false
+      }
     },
     async report(event) { await invoke({ namespace: 'productAnalytics', method: 'report', args: { event } }, AbortSignal.timeout(1000)) },
     async readLocalePreference() {

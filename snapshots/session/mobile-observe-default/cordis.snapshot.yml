@@ -16,17 +16,12 @@
               - id: deepseek-v4-flash
               - id: deepseek-v4-pro
 
-- id: settings-file
-  name: '@deepseek-ai/dsh-settings'
-  config:
-    path: !!js dshHomePath('settings.yaml')
-    watch: false
-
 - insert:
     - id: mobile-device
       name: '@deepseek-ai/dsh-mobile-device'
       config:
         provider: snapshot
+        defaultDeviceId: snapshot-default
     - id: mobile-device-snapshot-provider
       name: '../../../packages/mobile-device/tool-mobile-device/tests/fixtures/snapshot-provider.ts'
     - id: mobile-device-permission-policy

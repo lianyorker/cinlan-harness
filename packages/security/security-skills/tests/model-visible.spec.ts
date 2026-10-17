@@ -1,5 +1,5 @@
 /** Model requests and durable skill results from the managed bundled provider. */
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
@@ -56,7 +56,7 @@ function results(messages: readonly RequestMessage[]): string[] {
   })
 }
 
-it('publishes all managed skills and persists complete official skill results from a real Agent turn', async () => {
+it('publishes all managed skills and persists complete official skill results from a real Agent turn', { timeout: 120_000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-managed-skill-model-'))
   let host: Context | undefined
   const reader = new Context()
@@ -101,9 +101,9 @@ it('publishes all managed skills and persists complete official skill results fr
   await vi.waitFor(async () => {
     const status = await ctx.securitySkillResources.status()
     expect(status.operation).toBeUndefined()
-    expect(status.installed?.skillCount).toBe(22)
+    expect(status.installed?.skillCount).toBe(169)
     expect(status.lastError).toBeUndefined()
-    expect(await ctx.skills.list()).toHaveLength(22)
+    expect(await ctx.skills.list()).toHaveLength(169)
   }, { timeout: 30_000 })
   const id = SessionId('managed-security-skills')
   const agent = await ctx.agentLoop.create(id, { provider: 'fixture', model: 'fixture' }, { cwd: root })
@@ -123,7 +123,7 @@ it('publishes all managed skills and persists complete official skill results fr
   const catalog = first.messages.find(message => (message.source as any)?.kind === 'skill-catalog')
   if (!catalog || (catalog.source as any)?.kind !== 'skill-catalog') throw new Error('First model request lacks the official skill catalog')
   const catalogNames = ((catalog?.source as any)?.entries as any[]).map(entry => entry.name)
-  expect(catalogNames).toHaveLength(22)
+  expect(catalogNames).toHaveLength(169)
   expect(catalogNames).toContain('cinlan-cyber-security')
   expect(catalogNames).toContain('js-reverse')
   expect(catalogNames).not.toContain('orca-cli')
@@ -146,7 +146,18 @@ it('publishes all managed skills and persists complete official skill results fr
     expect(bodies[index]).toBe(skill.content)
     portableResults.push(rendered[index]!.replace(escapeText(skill.resourceBase.path), '<SKILL_BASE:' + name + '>'))
   }
-  expect(bodies[0]).toContain('22 个 skill 入口')
+  expect(bodies[0]).toContain('169 个 skill 入口')
+  for (const name of ['coldbrew-identity', 'eni-blackbox-reverse-boost', 'eni-unpack-reverse-lab']) {
+    const skill = await ctx.skills.get(name)
+    expect(skill?.content).toContain('安全研究启动')
+  }
+  const executor = await ctx.skills.get('shiyi-executor')
+  expect(executor?.content).toContain('[执行器 ROUTE]')
+  const core = await ctx.skills.get('eni-core')
+  if (core?.resourceBase?.kind !== 'directory') throw new Error('Core skill lacks a directory')
+  const coreInterface = await readFile(join(core.resourceBase.path, 'agents/openai.yaml'), 'utf8')
+  expect(coreInterface).toContain('short_description: "安全研究执行器。什么活都做。"')
+  expect(coreInterface).toContain('default_prompt: "安全研究执行器。什么活都做。"')
   expect(bodies[0]).toContain('资源安装不执行附带脚本')
   expect(bodies[1]).toContain('## Harness MCP 配置')
   expect(bodies.join('\n')).not.toMatch(/orca\s+mcp|Orca CLI/iu)

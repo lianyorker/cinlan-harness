@@ -1,9 +1,16 @@
 /** Native settings rows over the authoritative Git preferences snapshot. */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Button, Input, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, Switch, fileSizeText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { GitSourceControlSettings, BranchPrefixMode, SourceControlGroupOrder } from '../types.ts'
+import { DEFAULT_SOURCE_CONTROL_AI_SETTINGS } from '@deepseek-ai/dsh-git-settings/ai-author'
+import type {
+  GitSourceControlSettings,
+  BranchPrefixMode,
+  SourceControlGroupOrder,
+  SourceControlAiActionId,
+  SourceControlAiSettings,
+} from '../types.ts'
 import { hasOverride, type GitSettingsOperations } from './settings-operations.ts'
 import type { GitSettingsKey } from './locales.ts'
 import css from './GitSettingsSection.module.css'
@@ -31,6 +38,9 @@ export function GitSettingsSection({ useSettings, save, reset, t }: GitSettingsS
   const value = snapshot.value
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [customDraft, setCustomDraft] = useState<{ value: string; revision: number | undefined }>()
+  const aiConfig: SourceControlAiSettings = value?.sourceControlAi ?? DEFAULT_SOURCE_CONTROL_AI_SETTINGS
+  const [selectedAction, setSelectedAction] = useState<SourceControlAiActionId>('commit-message')
+  const [recipeDraft, setRecipeDraft] = useState<string>()
   const mounted = useRef(true)
   useEffect(() => {
     mounted.current = true
@@ -39,6 +49,36 @@ export function GitSettingsSection({ useSettings, save, reset, t }: GitSettingsS
   const pending = saveStatus === 'saving'
   const writable = snapshot.status === 'ready' && snapshot.writable && snapshot.mode === 'host'
   const disabled = !writable || pending
+
+  const currentTemplate = recipeDraft !== undefined
+    ? recipeDraft
+    : (aiConfig.recipes[selectedAction]?.template ?? DEFAULT_SOURCE_CONTROL_AI_SETTINGS.recipes[selectedAction].template)
+
+  const updateAiConfig = (patch: Partial<SourceControlAiSettings>): Promise<boolean> => {
+    return commit(() => save('sourceControlAi', { ...aiConfig, ...patch }))
+  }
+
+  const handleSaveRecipe = async (): Promise<void> => {
+    const nextRecipes = {
+      ...aiConfig.recipes,
+      [selectedAction]: {
+        ...aiConfig.recipes[selectedAction],
+        template: currentTemplate,
+      },
+    }
+    const saved = await updateAiConfig({ recipes: nextRecipes })
+    if (saved && mounted.current) setRecipeDraft(undefined)
+  }
+
+  const handleResetRecipe = async (): Promise<void> => {
+    const defaultRecipe = DEFAULT_SOURCE_CONTROL_AI_SETTINGS.recipes[selectedAction]
+    const nextRecipes = {
+      ...aiConfig.recipes,
+      [selectedAction]: defaultRecipe,
+    }
+    const saved = await updateAiConfig({ recipes: nextRecipes })
+    if (saved && mounted.current) setRecipeDraft(undefined)
+  }
   const commit = async (operation: () => Promise<boolean>): Promise<boolean> => {
     if (disabled) return false
     setSaveStatus('saving')
@@ -57,10 +97,6 @@ export function GitSettingsSection({ useSettings, save, reset, t }: GitSettingsS
     >{t('reset')}</Button>
 
   return <section className={css.section}>
-    <header className={css.header}>
-      <h1 className={css.title}>{t('nav')}</h1>
-      <p className={css.description}>{t('description')}</p>
-    </header>
     <p className={css.notice}>{t('runtimeNotice')}</p>
     {snapshot.status !== 'ready' || value === undefined
       ? <p className={css.message} role="status">{t(snapshot.mode === 'memory' ? 'readOnly'
@@ -152,6 +188,98 @@ export function GitSettingsSection({ useSettings, save, reset, t }: GitSettingsS
                 {resetButton(field, titleKey)}
               </div>
             </div>)}
+
+          <div className={css.row} data-settings-anchor="git-ai-author">
+            <div className={css.copy}>
+              <h2 className={css.label}>{t('sourceControlAiTitle')}</h2>
+              <p className={css.help}>{t('sourceControlAiDescription')}</p>
+            </div>
+            <div className={css.controls}>
+              <Switch checked={aiConfig.enabled} label={t('sourceControlAiEnabled')} disabled={disabled}
+                onChange={(enabled) => { void updateAiConfig({ enabled }) }} />
+              {resetButton('sourceControlAi', 'sourceControlAiTitle')}
+            </div>
+          </div>
+
+          {aiConfig.enabled && (
+            <>
+              <div className={css.row} data-settings-anchor="git-ai-sensitive-filter">
+                <div className={css.copy}>
+                  <h2 className={css.label}>{t('sourceControlAiFilterSensitiveTitle')}</h2>
+                  <p className={css.help}>{t('sourceControlAiFilterSensitiveDesc')}</p>
+                </div>
+                <div className={css.controls}>
+                  <Switch checked={aiConfig.filterSensitiveFiles} label={t('sourceControlAiFilterSensitiveTitle')} disabled={disabled}
+                    onChange={(filterSensitiveFiles) => { void updateAiConfig({ filterSensitiveFiles }) }} />
+                </div>
+              </div>
+
+              <div className={css.row} data-settings-anchor="git-ai-max-diff">
+                <div className={css.copy}>
+                  <label className={css.label} htmlFor="git-ai-max-diff-select">{t('sourceControlAiMaxDiffTitle')}</label>
+                  <p className={css.help}>{t('sourceControlAiMaxDiffDesc')}</p>
+                </div>
+                <div className={css.controls}>
+                  <select id="git-ai-max-diff-select" className={css.select} value={aiConfig.maxDiffBytes} disabled={disabled}
+                    onChange={(e) => { void updateAiConfig({ maxDiffBytes: parseInt(e.target.value, 10) }) }}>
+                    <option value={16 * 1024}>{fileSizeText(16 * 1024)}</option>
+                    <option value={32 * 1024}>{fileSizeText(32 * 1024)}</option>
+                    <option value={64 * 1024}>{fileSizeText(64 * 1024)}</option>
+                    <option value={128 * 1024}>{fileSizeText(128 * 1024)}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className={css.row} data-settings-anchor="git-ai-recipe-defaults">
+                <div className={css.copy}>
+                  <label className={css.label} htmlFor="git-ai-action-select">{t('recipeActionLabel')}</label>
+                  <p className={css.help}>{t('sourceControlAiDescription')}</p>
+
+                  <div className={css.recipeCard}>
+                    <div className={css.buttonRow}>
+                      <select id="git-ai-action-select" className={css.select} value={selectedAction} disabled={disabled}
+                        onChange={(e) => {
+                          setSelectedAction(e.target.value as SourceControlAiActionId)
+                          setRecipeDraft(undefined)
+                        }}>
+                        <option value="commit-message">{t('recipeCommitMessageTitle')}</option>
+                        <option value="diff-review">{t('recipeDiffReviewTitle')}</option>
+                        <option value="pr-description">{t('recipePrDescriptionTitle')}</option>
+                      </select>
+                      <Button disabled={disabled} onClick={() => { setRecipeDraft(prev => (prev ?? currentTemplate) + ' {{diff}}') }}>
+                        {t('recipeInsertDiff')}
+                      </Button>
+                      <Button disabled={disabled} onClick={() => { setRecipeDraft(prev => (prev ?? currentTemplate) + ' {{branch}}') }}>
+                        {t('recipeInsertBranch')}
+                      </Button>
+                      <Button disabled={disabled} onClick={() => { setRecipeDraft(prev => (prev ?? currentTemplate) + ' {{stagedFiles}}') }}>
+                        {t('recipeInsertFiles')}
+                      </Button>
+                    </div>
+
+                    <textarea className={css.recipeTextarea} value={currentTemplate} aria-label={t('recipeTemplateLabel')}
+                      disabled={disabled} rows={3} onChange={(e) => { setRecipeDraft(e.target.value) }} />
+
+                    <div className={css.buttonRow}>
+                      {recipeDraft !== undefined && (
+                        <>
+                          <Button variant="outline" disabled={disabled} onClick={() => { void handleSaveRecipe() }}>
+                            {t('save')}
+                          </Button>
+                          <Button disabled={pending} onClick={() => { setRecipeDraft(undefined) }}>
+                            {t('discard')}
+                          </Button>
+                        </>
+                      )}
+                      <Button disabled={disabled} onClick={() => { void handleResetRecipe() }}>
+                        {t('reset')}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
         <p className={css.message} role="status" data-state={saveStatus}>
           {saveStatus === 'saving' ? t('settingsSaving') : saveStatus === 'saved' ? t('settingsSaved')

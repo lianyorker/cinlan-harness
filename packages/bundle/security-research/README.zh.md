@@ -34,11 +34,31 @@ dsh plugin --profile <name> add @deepseek-ai/dsh-security-research
 dsh plugin --profile <name> remove @deepseek-ai/dsh-security-research
 ```
 
-随附的 `security-research` profile 会在 `dsh-base` 与 `dsh-web-app` 之后包含此组合包。自定义 profile 必须先提供 base 层、Execution Host 提供方以及唯一的 Host 根部 `@deepseek-ai/dsh-security-skills/resources` 管理器。Web 层提供本地 Execution Host 与资源管理器。通过安全研究设置安装随包资源或已配置的网络资源后，才能发现相应技能。
+随附的 `security-research` profile 会在 `dsh-base` 与 `dsh-web-app` 之后包含此组合包。自定义 profile 必须先提供 base 层、Execution Host 提供方以及唯一的 Host 根部 `@deepseek-ai/dsh-security-skills/resources` 管理器。Web 层提供本地 Execution Host 与资源管理器。技能资源经共享管理器安装与校验；未配置发布端点时，内置清单在启动时自动安装。
 
 ### 你得到什么
 
-此层在 $DSH_HOME/artifacts/v1 挂载本地持久化 Artifact 存储、评估范围与 Session 绑定、持久 Finding 工具、NVD/OSV 漏洞查询以及安全工作流提示。Web 层为普通会话提供全局 Security Skills 提供方。组合包在预设注册表存在时贡献随包的 `security-research` Agent 预设。该预设在编码组装上增加研究 persona 与作用域内的 Security Skills。profile 全局安全提供方与工具仍然共享。独立安全研究设置页通过共享管理器管理资源。页面显示不依赖可选研究预设；安装资源不会增加评估授权或启动 Agent。
+此层在 $DSH_HOME/artifacts/v1 挂载本地持久化 Artifact 存储、评估范围与 Session 绑定、持久 Finding 工具、NVD/OSV 漏洞查询以及安全工作流提示。Web 层为普通会话提供全局 Security Skills 提供方。组合包在预设注册表存在时贡献随包的 `security-research` Agent 预设。该预设在编码组装上增加研究 persona 与作用域内的 Security Skills。profile 全局安全提供方与工具仍然共享。资源经共享管理器管理；未配置发布端点时内置清单自动安装，技能无需手动步骤即可使用。
+
+### 模式说明
+
+**会话预设。** 组合包向 preset 名册贡献 `security-research` Agent 预设。标准模式的普通会话通过全局提供方同样能使用内置安全技能目录，安全问题会经由内置的 `cinlan-cyber-security` 路由技能分流。选择“安全研究”预设会加入研究 persona、限定范围的安全技能目录与编码组合，面向授权安全评估、逆向分析、漏洞验证、恶意软件分析和安全报告。
+
+**技能资源模式。** 内置模式（默认）在启动时安装经过审核的包内清单——不发起网络请求，版本由内容派生；设置 `autoInstallBundled: false` 可改为显式调用 `installBundled()`。发布模式在部署配置 `releaseManifestUrl` 后启用，`install()`、`reinstall()` 和 `update()` 从该端点下载并校验带清单的归档。两种模式都发布不可变 generation，切换模式不会混合清单。
+
+**授权边界。** 安装资源或选择预设都不授予评估授权。评估范围初始为空；操作者通过后续 profile 补丁添加授权目标、动作与证据策略。
+
+**工作区开发。** 启动、普通问答、解释与通用代码不要求评估授权或样本文件。profile 显式允许 [`cordis.patch.yml`](cordis.patch.yml) 列出的工作区本地 shell 命令，包括 `pwd` 及标准 pnpm 版本、类型检查、构建和测试命令。匹配必须精确，不可追加参数或复合语句；目录检查和保留的 sandbox 执行规则见[工具策略](../../security/assessment-scope-tool-policy/README.zh.md#use-this-package)。
+
+**审批策略。** 由 `security-research` 组合的 Agent 会把会话审批策略设为 `never`，安全研究流程不会被审批提示打断。这不会授予 assessment target、action、execution host、credential 或 egress；随包评估范围仍为空，需由操作者通过显式授权补丁配置。Sandbox policy 仍由部署及会话 permission preset 独立控制。
+
+### 如何使用
+
+1. 在 Web 应用中开始会话，在 preset 选择器中选择**安全研究**；或保持标准模式直接提出安全问题——路由技能会把它分流到最匹配的内置技能。
+2. 首次进入安全研究会话时自动安装内置清单；此后每次启动无需手动步骤即可使用完整目录。
+3. 通过技能驱动安全工作：路由技能把请求映射到一个子模块 `SKILL.md`，finding、artifact 与漏洞查询工具在预设内可用。
+4. 通过共享管理器管理资源（`securitySkillResources` 上的 `installBundled()`、`install()`、`update()`、`remove()`）或 Security Research controller 的远程方法；自定义 headless 组合必须显式挂载管理器和提供方。
+5. 自定义 profile 用 `dsh plugin --profile <name> add @deepseek-ai/dsh-security-research` 添加此层。
 
 -----
 
@@ -70,6 +90,8 @@ dsh plugin --profile <name> remove @deepseek-ai/dsh-security-research
 
 间接通过插入的 Finding、漏洞、Skill 与工作流包，以及可选研究预设的 persona、作用域内技能目录和编码组装产生影响。
 
+研究 persona 使用 `执行器` 身份，在每项安全任务开头输出 `安全研究启动`；加载的技能即使包含其他问候语或通道名称，也保留该身份和开场。
+
 #### KV Cache 影响
 
 组合包本身不直接添加提示前缀。工作流提示与工具分别负责自己的提示和工具 schema 影响；选择研究预设会改变其 persona 前缀与作用域内技能目录，不改变 Host 持有的模型路由。
@@ -78,7 +100,7 @@ dsh plugin --profile <name> remove @deepseek-ai/dsh-security-research
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 随附的评估 grant 有意保持为空。操作者必须在后续 patch 中加入授权目标、操作、主机身份与证据策略。范围服务仅约束实际调用它的消费者；shell 与网络执行适配器仍需接入强制执行策略。
+- 随附的评估 grant 有意保持为空。配置的工作区命令例外之外的评估操作，需要在后续 patch 中加入授权目标、操作、主机身份与证据策略。范围服务仅约束实际调用它的消费者；策略配置集合之外的工具需要自己的强制执行检查。
 - 本地 Artifact 字节与元数据在 Host 重启后保留。保留标签不会自动触发删除；加密与引用感知清理尚未实现。原内存 Artifact 无法在所属进程退出后恢复。
 - NVD 与 OSV 请求需要网络访问，并受上游速率限制影响。
 

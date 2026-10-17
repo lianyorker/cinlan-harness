@@ -757,12 +757,7 @@ export function SideCardSection({ store, service, preferences, featureId, embedd
 
   return (
     <div className={clsx(css.section, embedded && css.embedded)}>
-      {embedded ? <h2 className={css.embeddedHeading}>{title}</h2> : <h1 className={css.pageHeading}>{title}</h1>}
-      {!embedded && (
-        <p className={css.intro}>
-          {featureId === undefined ? t('workspaceLayoutIntro') : t('featureSettingsIntro', { feature: title })}
-        </p>
-      )}
+      {embedded && <h2 className={css.embeddedHeading}>{title}</h2>}
 
       {featureId === undefined && (
         <div className={css.group}>

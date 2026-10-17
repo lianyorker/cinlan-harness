@@ -15,6 +15,12 @@
       "path": "../../api/remotes/tsconfig.client.json"
     },
     {
+      "path": "../../api/terminal-quick-commands-controller"
+    },
+    {
+      "path": "../../terminal/terminal-quick-commands"
+    },
+    {
       "path": "../../core/session"
     },
     {

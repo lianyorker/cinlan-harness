@@ -16,6 +16,7 @@ vi.mock('@deepseek-ai/dsh-plugin-manager/operations', async importOriginal => ({
 
 function fixture() {
   const home = mkdtempSync(join(tmpdir(), 'cli-version-exemptions-'))
+  vi.stubEnv('CLH_HOME', home)
   vi.stubEnv('DSH_HOME', home)
   const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
   const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
@@ -87,7 +88,7 @@ it('names the exact grant command for each package a compatibility check refused
   const { stderr } = fixture()
   vi.mocked(runPluginCommand).mockResolvedValue({
     exitCode: 1, output: '', truncated: false, logPath: '/profile/log',
-    incompatible: [{ name: '@example/plugin', version: '1.2.3', runtimeVersion: '0.1.0', peers: { '@deepseek-ai/dsh': '^9.0.0' } }],
+    incompatible: [{ name: '@example/plugin', version: '1.2.3', runtimeVersion: '0.1.0', requirements: { '@deepseek-ai/dsh': '^9.0.0' } }],
   })
   expect(await runPlugin('test', ['add', '@example/plugin'])).toBe(1)
   expect(stderr.mock.calls.map(call => call[0])).toEqual([

@@ -22,7 +22,7 @@ const t = makeTranslate(en)
 
 function summary(id: string, title: string, updatedAt: number): SessionSummary {
   return {
-    sessionId: sid(id), updatedAt, running: false, blank: false, cwd: '/work/Project',
+    sessionId: sid(id), updatedAt, running: false, agentAvailable: true, blank: false, cwd: '/work/Project',
     projections: { kind: 'cached', asOfSeq: 0, values: { title } },
   }
 }
@@ -62,8 +62,8 @@ function props(options: {
   unarchive?: (sessionId: SessionId) => Promise<void>
   requestSessionDelete?: (sessionId: SessionId, currentTitle: string) => void
 }): ArchivedSessionsSectionProps {
-  const summaries: readonly SessionSummary[] = options.sessions.ids.map(id => options.sessions.byId[id]).filter(Boolean).map(row => ({
-    sessionId: row.id, updatedAt: row.updatedAt, running: row.running, blank: row.blank,
+  const summaries: readonly SessionSummary[] = options.sessions.ids.map(id => options.sessions.byId[id]).filter(row => row !== undefined).map(row => ({
+    sessionId: row.id, updatedAt: row.updatedAt, running: row.running, agentAvailable: true, blank: row.blank,
     projections: { kind: 'cached', asOfSeq: 0, values: { title: row.displayTitle } },
   }))
   return {

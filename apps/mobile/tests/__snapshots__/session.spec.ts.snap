@@ -1,0 +1,12 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`folds logged prompts, tool results, duplicate events and replacements 1`] = `
+[
+  {
+    "content": "condensed",
+    "id": "4",
+    "role": "user",
+    "timestamp": 4,
+  },
+]
+`;

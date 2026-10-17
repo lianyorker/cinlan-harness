@@ -44,6 +44,21 @@ export type GitSettingsKey =
   | 'settingsError'
   | 'settingsSaveFailed'
   | 'settingsSaved'
+  | 'sourceControlAiTitle'
+  | 'sourceControlAiDescription'
+  | 'sourceControlAiEnabled'
+  | 'sourceControlAiFilterSensitiveTitle'
+  | 'sourceControlAiFilterSensitiveDesc'
+  | 'sourceControlAiMaxDiffTitle'
+  | 'sourceControlAiMaxDiffDesc'
+  | 'recipeCommitMessageTitle'
+  | 'recipeDiffReviewTitle'
+  | 'recipePrDescriptionTitle'
+  | 'recipeActionLabel'
+  | 'recipeTemplateLabel'
+  | 'recipeInsertDiff'
+  | 'recipeInsertBranch'
+  | 'recipeInsertFiles'
 
 export const en: Record<GitSettingsKey, string> = {
   nav: 'Git & Source Control',
@@ -89,6 +104,21 @@ export const en: Record<GitSettingsKey, string> = {
   settingsError: 'Failed to load settings.',
   settingsSaveFailed: 'Failed to save setting.',
   settingsSaved: 'Saved.',
+  sourceControlAiTitle: 'Source Control AI Author & Action Recipes',
+  sourceControlAiDescription: 'Configure AI-assisted commit message generation, diff reviews, and PR descriptions with customizable prompt templates and sensitive file filters.',
+  sourceControlAiEnabled: 'Enable AI Author',
+  sourceControlAiFilterSensitiveTitle: 'Filter Sensitive Files',
+  sourceControlAiFilterSensitiveDesc: 'Automatically omit .env, private keys, certificates, and secrets from AI prompt context.',
+  sourceControlAiMaxDiffTitle: 'Max Diff Budget (KB)',
+  sourceControlAiMaxDiffDesc: 'Maximum size of diff sent to the AI model before clean truncation.',
+  recipeCommitMessageTitle: 'Commit Message Recipe',
+  recipeDiffReviewTitle: 'Diff Review Recipe',
+  recipePrDescriptionTitle: 'PR Description Recipe',
+  recipeActionLabel: 'Action Recipe',
+  recipeTemplateLabel: 'Prompt Template',
+  recipeInsertDiff: 'Insert {{diff}}',
+  recipeInsertBranch: 'Insert {{branch}}',
+  recipeInsertFiles: 'Insert {{stagedFiles}}',
 }
 
 export const zh: Record<GitSettingsKey, string> = {
@@ -135,4 +165,19 @@ export const zh: Record<GitSettingsKey, string> = {
   settingsError: '加载设置失败。',
   settingsSaveFailed: '保存设置失败。',
   settingsSaved: '已保存。',
+  sourceControlAiTitle: '源代码控制 AI Author 与动作配方',
+  sourceControlAiDescription: '配置 AI 辅助提交信息生成、Diff 审查与 PR 描述，支持自定义提示词配方与敏感文件过滤。',
+  sourceControlAiEnabled: '启用 AI Author',
+  sourceControlAiFilterSensitiveTitle: '过滤敏感文件',
+  sourceControlAiFilterSensitiveDesc: '自动从 AI 提示词上下文中剔除 .env、私钥、证书和密钥文件。',
+  sourceControlAiMaxDiffTitle: 'Diff 大小预算 (KB)',
+  sourceControlAiMaxDiffDesc: '发送给 AI 模型的 Diff 最大体积，超出部分自动截断。',
+  recipeCommitMessageTitle: '提交信息配方',
+  recipeDiffReviewTitle: 'Diff 审查配方',
+  recipePrDescriptionTitle: 'PR 描述配方',
+  recipeActionLabel: '动作配方',
+  recipeTemplateLabel: '提示词模版',
+  recipeInsertDiff: '插入 {{diff}}',
+  recipeInsertBranch: '插入 {{branch}}',
+  recipeInsertFiles: '插入 {{stagedFiles}}',
 }

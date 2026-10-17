@@ -62,7 +62,7 @@ import type { createWorkspaceViewStore } from '../stores.ts'
 export interface DirectoryFlowOwnerProps {
   /** True while a picking interaction is requested; flipping back to false withdraws the request. */
   open: boolean
-  /** True while the owner adopts a picked path (`createWorkspace` in flight); occupants disable their commit affordances. */
+  /** True while the owner adopts a picked path; occupants disable their commit affordances. */
   busy: boolean
   /** The operator picked a directory (absolute host path); the owner adopts it. */
   onPicked: (path: string) => void
@@ -112,6 +112,11 @@ export interface SessionRowScheduleOwnerProps {
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface SlotFactoryMap {
+    /** Host directory selection reusable by workspace and settings surfaces. */
+    'directory.picker': { scope: 'root'; props: DirectoryFlowOwnerProps }
+  }
+
   interface SlotMap {
     /** Directory-flow hole under the conversation empty-state picker (declared by the WorkspacePicker entry). */
     'conversation.hero.workspace.directoryFlow': { kind: 'single'; scope: 'root'; owner: DirectoryFlowOwnerProps }

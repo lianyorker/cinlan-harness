@@ -18,10 +18,19 @@
       "path": "../../credentials/deepseek-account"
     },
     {
+      "path": "../../credentials/credentials"
+    },
+    {
       "path": "../../typert/protocol"
     },
     {
       "path": "../../core/agent"
+    },
+    {
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../../llm/llm-pi-ai"
     }
   ]
 }

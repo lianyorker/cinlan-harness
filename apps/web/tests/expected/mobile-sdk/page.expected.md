@@ -1,0 +1,34 @@
+- group:
+  - text: Availability The Provider check failed. Check the Host configuration and retry.
+  - status: Provider unavailable
+  - button "Re-check"
+  - text: Android SDK Detected at C:\Users\Yorker\AppData\Local\Android\Sdk
+  - link "Download Android Studio":
+    - /url: https://developer.android.com/studio
+  - button "Locate SDK folder"
+  - button "Open folder"
+  - text: Custom SDK path
+  - textbox "Custom SDK path": C:\Users\Yorker\AppData\Local\Android\Sdk
+  - button "Use detected path"
+  - button "Clear"
+  - paragraph: The saved SDK path is used by Host checks and the native ADB provider; a custom path takes precedence over managed Platform Tools.
+  - text: Default Device Used only when mobile_observe omits device_id. An explicit device wins; missing or offline saved devices fail without falling back to another device.
+  - combobox "Default Device":
+    - option "No default device" [selected]
+- status: Preferences saved.
+- heading "Common emulator commands" [level=3]
+- paragraph: Commands target the active emulator; coordinates are normalized from 0..1.
+- code: dsh --profile web
+- code: mobile_list_devices
+- code: mobile_observe
+- code: mobile_touch
+- code: mobile_type
+- code: mobile_button
+- heading "Try it · Example prompt" [level=3]
+- paragraph: Paste a prompt into a project conversation where the mobile device tools are installed.
+- code: List available devices, observe the phone emulator I select, and describe its current page. Ask before input and observe again afterward to verify the result.
+- button "Copy example prompt"
+- code: Walk through the sign-in flow in the emulator, point out where the interface is unclear, and observe again after each action to confirm the result.
+- button "Copy example prompt"
+- code: Inspect the permission prompts on the current emulator page, explain what allowing or denying changes, and do not submit any form.
+- button "Copy example prompt"

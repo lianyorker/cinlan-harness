@@ -485,7 +485,15 @@ export default class ExecutionBindings extends Service {
     const policyProvider = session === undefined && policy === undefined ? SandboxPolicyService : BoundPolicy
     await ctx.plugin(policyProvider, { mode: this.config.sandboxMode, workspaceRoot: cwd })
     await ctx.plugin(SshFileSystem)
-    await ctx.plugin(NodePtcRuntime, { nodeExecutable: ssh.nodeExecutable, bootstrapPath: ssh.bootstrapPath })
+    await ctx.plugin(NodePtcRuntime, {
+      ...ssh.nodeExecutable ? {
+        launch: {
+          kind: 'node-script' as const,
+          executable: ssh.nodeExecutable,
+          ...ssh.bootstrapPath ? { bootstrapPath: ssh.bootstrapPath } : {},
+        },
+      } : {},
+    })
     await ctx.isolate('settings').plugin(SandboxBashExecutor, {
       cwd, timeoutMs: this.config.shellTimeoutMs, maxTimeoutMs: this.config.shellMaxTimeoutMs,
       maxOutputBytes: this.config.maxOutputBytes, maxSpillBytes: this.config.maxSpillBytes, graceMs: this.config.graceMs,

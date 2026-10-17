@@ -31,6 +31,8 @@ kind: "package-reference"
 
 ### 何时选择
 
+设置及其他调用方可通过 [`directory.picker` Factory](../ui-workspace/README.zh.md#directory-picker) 使用同一原生交互。调用方接纳路径；选择器不会创建工作区。定义独立于工作区子 slot 安装，并遵循本插件的 effect 生命周期。
+
 当浏览器与 Host 运行在同一台机器上、操作系统对话框可以在那里打开时，选择此表面。当浏览器为远程或进程内、没有本地选择器时，选择 [`-browse`](../ui-directory-picker-browse/README.zh.md) 表面。两个表面填充相同的 slot，因此切换只是组合改动，而非代码改动。
 
 -----

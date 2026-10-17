@@ -1,5 +1,5 @@
 ---
-description: "默认请求审批的可选移动设备控制 profile bundle。"
+description: "默认请求审批的移动设备 profile bundle。"
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-默认请求审批的可选移动设备控制 profile bundle。
+默认请求审批的移动设备 profile bundle。
 
 ## 目录
 
@@ -19,9 +19,9 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用本包
 
-该 bundle 为完整 Cinlan Mobile Device capability family 导出 `cordis.patch.yml`。Profile 在 `dsh-base` 之后应用它；随附的 `device-control` 模板包含该层，普通 `web` 与 `headless` 则不包含。
+该 bundle 为完整 Cinlan Mobile Device capability family 导出 `cordis.patch.yml`。Profile 在 `dsh-base` 之后应用一次；随附 Web 和 Desktop 组合包含它。自定义 profile（包括 headless profile）可以显式选择它。
 
-Patch 挂载 provider-neutral Service Definition、原生 Android ADB Provider、权限策略 Consumer 和五个模型工具。它固定 Provider id `adb`，并把 `observe`、`touch`、`textInput` 和 `deviceNavigation` 配置为 `ask`。
+Patch 挂载 provider-neutral Service Definition、原生资源管理器、原生 Android ADB Provider、权限策略 Consumer 和五个模型工具。它固定 Provider id `adb`，并把 `observe`、`touch`、`textInput` 和 `deviceNavigation` 配置为 `ask`。挂载不会安装 Android 资源或启动镜像；这些操作需要人手动执行。[Mobile Device 偏好](../../mobile-device/mobile-device/README.zh.md#saved-preferences)通过 Settings 实时更新。
 
 <a id="model-experience"></a>
 ## 模型体验

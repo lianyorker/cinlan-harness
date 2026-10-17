@@ -1,8 +1,8 @@
 /** Native MCP settings rows over complete manager readback and independent draft state. */
 import type { ReactNode } from 'react'
-import { Button, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Modal, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import type { McpConnectionState, McpToolDescriptor, McpRemoveRequest, McpSetEnabledRequest, McpServerRequest } from '@deepseek-ai/dsh-api-mcp-controller/types'
+import type { McpConnectionState, McpRemoveRequest, McpSetEnabledRequest, McpServerRequest } from '@deepseek-ai/dsh-api-mcp-controller/types'
 import type { McpDraft } from './draft.ts'
 import type { createMcpSettingsStore } from './store.ts'
 import { canRefreshTools, type McpReadback } from './source.ts'
@@ -40,16 +40,7 @@ export function McpSettingsSection({
     <p className={css.help}>{t('observed', { phase: t(observed.phase === 'stopped' ? 'stoppedState' : observed.phase) })}</p>
     {observed.errorCode !== undefined && <p className={css.error}>{t(observed.errorCode)}</p>}
   </>
-  const descriptors = (tools: readonly McpToolDescriptor[]): ReactNode => tools.length === 0
-    ? <p className={css.help}>{t('noTools')}</p>
-    : <ul className={css.toolList}>{tools.map(tool => <li className={css.tool} key={tool.name}>
-      <h3 className={css.label}>{tool.name}</h3><p className={css.help}>{tool.description}</p>
-      <details><summary className={css.help}>{t('schema')}</summary><pre className={css.schema}>{JSON.stringify(tool.inputSchema, null, 2)}</pre></details>
-    </li>)}</ul>
   return <section className={css.section}>
-    <header className={css.header}><h1 className={css.title}>{t('nav')}</h1><p className={css.description}>{t('description')}</p>
-      {snapshot !== null && <p className={css.help}>{t('profile', { profile: snapshot.profile })}</p>}
-    </header>
     {readback.status === 'loading' && <p className={css.help} role="status">{t('loading')}</p>}
     {readback.status === 'offline' && <p className={css.help} role="status">{t('offline')}</p>}
     {readback.readError !== null && <div className={css.row}><p className={css.error} role="alert">{t(readback.readError)}</p>
@@ -86,11 +77,13 @@ export function McpSettingsSection({
         </div>
       </article>)}
     </div>
-    {removing !== null && <div className={css.confirm} role="group" aria-label={t('confirmRemove')}>
-      <h2 className={css.label}>{t('confirmRemove')}</h2><p className={css.help}>{t('confirmRemoveHelp')}</p>
-      <div className={css.actions}><Button variant="outline" disabled={disabled} onClick={() => { void remove(removing) }}>{t('remove')}</Button>
-        <Button disabled={pending} onClick={() => { actions.confirmRemove(null) }}>{t('cancel')}</Button></div>
-    </div>}
+    <Modal open={removing !== null} title={t('confirmRemove')} closeLabel={t('close')}
+      description={t('confirmRemoveHelp')}
+      onClose={() => { if (!pending) actions.confirmRemove(null) }}
+      footer={<>
+        <Button variant="outline" disabled={pending} onClick={() => { actions.confirmRemove(null) }}>{t('cancel')}</Button>
+        <Button variant="primary" disabled={disabled} onClick={() => { void remove(removing!) }}>{t('remove')}</Button>
+      </>} />
     {snapshot !== null && snapshot.external.length > 0 && <section>
       <h2 className={css.label}>{t('external')}</h2><p className={css.help}>{t('externalHelp')}</p>
       {snapshot.external.map(row => <article className={css.row} key={row.id} aria-label={row.serverName}>
@@ -99,16 +92,5 @@ export function McpSettingsSection({
           <p className={css.help}>{t(row.transport === 'stdio' ? 'stdio' : 'http')}</p>{phase(row)}</div>
       </article>)}
     </section>}
-    <div className={css.row} data-settings-anchor="mcp-transport"><div><h2 className={css.label}>{t('transport')}</h2>
-      <p className={css.help}>{t('transportHelp')}</p></div></div>
-    <div className={css.row} data-settings-anchor="mcp-credentials"><div><h2 className={css.label}>{t('credentials')}</h2>
-      <p className={css.help}>{t('credentialsHelp')}</p></div></div>
-    <section data-settings-anchor="mcp-tools"><h2 className={css.label}>{t('tools')}</h2><p className={css.help}>{t('toolsHelp')}</p>
-      {snapshot !== null && snapshot.servers.length + snapshot.external.length === 0 && <p className={css.help}>{t('noTools')}</p>}
-      {snapshot?.servers.map(row => <div className={css.toolsGroup} key={row.record.id}>
-        <h3 className={css.label}>{row.record.serverName}</h3>{descriptors(row.observed.tools)}</div>)}
-      {snapshot?.external.map(row => <div className={css.toolsGroup} key={row.id}>
-        <h3 className={css.label}>{row.serverName}</h3>{descriptors(row.tools)}</div>)}
-    </section>
   </section>
 }

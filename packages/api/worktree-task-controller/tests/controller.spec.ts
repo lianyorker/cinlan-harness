@@ -30,6 +30,7 @@ function bench() {
     merge: vi.fn<WorktreeTaskService['merge']>(async () => merge),
     archive: vi.fn<WorktreeTaskService['archive']>(async () => task),
     delete: vi.fn<WorktreeTaskService['delete']>(async () => ({ deleted: false, retainedBranch: task.branch, cleanupReceipt: receipt })),
+    create: vi.fn<WorktreeTaskService['create']>(async req => ({ ...task, sparsePaths: req.sparsePaths })),
   }
   // This controller fixture supplies only the service methods exercised below; Web tests own provider composition.
   ctx.provide('worktreeTask', provider as unknown as WorktreeTaskService)
@@ -38,6 +39,22 @@ function bench() {
 }
 
 describe('worktree task Remote results', () => {
+  it('forwards sparsePaths on create and projects it in task view', async () => {
+    const h = bench()
+    const result = await h.controller.create({
+      name: 'sparse-task',
+      workspaceId: h.task.workspaceId,
+      sourcePath: '/source',
+      sparsePaths: ['packages/core', 'apps/web'],
+    }, h.signal)
+    expect(h.provider.create).toHaveBeenCalledWith({
+      name: 'sparse-task',
+      workspaceId: h.task.workspaceId,
+      sourcePath: '/source',
+      sparsePaths: ['packages/core', 'apps/web'],
+    }, h.signal)
+    expect(result.task.sparsePaths).toEqual(['packages/core', 'apps/web'])
+  })
   it('detaches nested cleanup receipts in task and deletion results', async () => {
     const h = bench()
     const read = h.controller.get(h.request, h.signal).task

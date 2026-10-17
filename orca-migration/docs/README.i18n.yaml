@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write orca-migration/docs/README.md
+/orca-migration-reference:
+  en: 4411579cde1dc097
+  zh: 84f137f08c686447
+/orca-migration-reference/summary:
+  en: b72ab68a4cdd6a05
+  zh: 91aac4ca2e5b466b
+/orca-migration-reference/contents:
+  en: bd5199fd2ff15105
+  zh: 61abdce589c8c876
+/orca-migration-reference/feature-catalog:
+  en: d0283897f4d13d3f
+  zh: 810e231d7474fdcb
+/orca-migration-reference/evidence:
+  en: 656d48df9e4eaf84
+  zh: e13f525835fbe5fd
+/orca-migration-reference/validation:
+  en: becefaeea0ba2ce0
+  zh: a1d6566225a887fb

@@ -1,6 +1,6 @@
-/** Register the HTTP(S) Browser tab type in the right Sidebar. */
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { Context } from '@deepseek-ai/cordis'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
@@ -38,6 +38,23 @@ declare module '@deepseek-ai/dsh-client-ui-sidebar-right/client' {
 
 /** Required Browser services. */
 export const inject = ['slots', 'locale', 'sidebarRight', 'sidebarRightTabs']
+
+function injectDraftToSession(ctx: Context, sessionId: string, text: string): boolean {
+  try {
+    const sessions = ctx.get('sessions') as { scope?: (id: SessionId) => unknown } | undefined
+    const actx = sessions?.scope ? sessions.scope(sessionId as SessionId) : undefined
+    if (!actx) return false
+    const conversation = ctx.get('conversation') as { input?: { for: (a: unknown) => { state: { getSnapshot: () => { draft: string } }; setDraft: (d: string) => void } } } | undefined
+    if (!conversation?.input) return false
+    const input = conversation.input.for(actx)
+    const draft = input.state.getSnapshot().draft
+    input.setDraft(draft === '' || /\s$/.test(draft) ? `${draft}${text}` : `${draft}\n\n${text}`)
+    return true
+  } catch (error) {
+    console.warn('[dsh-client-ui-sidebar-browser] draft insert failed:', error)
+    return false
+  }
+}
 
 /** Register the Browser type, localized guide entry, body, and title. */
 export function apply(ctx: Context): void {
@@ -87,8 +104,15 @@ export function apply(ctx: Context): void {
           existing.rebind(actions)
           return existing
         }
-        const controller = createBrowserControllers(actions, factory(sessionId), tabId =>
-          openTabs.getSnapshot().some(tab => tab.sessionId === sessionId && tab.tabId === tabId))
+        const injectDraft = (text: string) => {
+          injectDraftToSession(scope, sessionId, text)
+        }
+        const controller = createBrowserControllers(
+          actions,
+          factory(sessionId),
+          tabId => openTabs.getSnapshot().some(tab => tab.sessionId === sessionId && tab.tabId === tabId),
+          injectDraft,
+        )
         controllers.set(sessionId, controller)
         return controller
       },

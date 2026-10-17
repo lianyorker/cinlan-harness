@@ -8,7 +8,7 @@ kind: "package-reference"
 
 ## 摘要
 
-`@deepseek-ai/dsh-voice-sherpa-onnx` 在 `ctx.voice` 上挂载本地 `sherpa-onnx-node` 识别与模型管理。它需要 `voice` 和托管 `subprocess`；Web 服务器可选。[固定目录](src/model-registry.ts) 包含六个模型，使用归档或逐文件 SHA-256 校验和。
+`@deepseek-ai/dsh-voice-sherpa-onnx` 在 `ctx.voice` 上挂载本地 `sherpa-onnx-node` 识别与模型管理。它需要 `voice` 和托管 `subprocess`；Web 服务器可选。[固定目录](src/model-registry.ts) 包含 Orca 的十个本地模型，固定逐文件大小和 SHA-256 校验和。流式模型使用 OnlineRecognizer；Parakeet、Whisper 与 SenseVoice 使用 OfflineRecognizer，包括日语 NeMo CTC。
 
 ## 目录
 
@@ -73,7 +73,7 @@ kind: "package-reference"
 
 - 完整性检查在写锁内对模型文件计算哈希；`resourceLockTimeoutMs` 需要覆盖目标存储上最大模型的校验耗时。
 - 进程在持有独占写锁时被终止，可能留下锁。竞争方超时且绝不抢占；恢复需要先确认写入方已退出，再删除锁。进程丢失后可能残留被中断任务的暂存目录。保留旧数据与未知租约有意以磁盘空间换取安全。
-- 固定目录使用 GitHub 发布归档与固定提交的 `hf-mirror.com` 文件。不提供任意用户模型源或上游发布发现。不发布 invariant 伴随插件：存储变更直接验证其拥有的修订和租约关系，消费者读取权威存储。
+- 固定目录使用固定提交的 `hf-mirror.com` 文件。不提供任意用户模型源或上游发布发现。不发布 invariant 伴随插件：存储变更直接验证其拥有的修订和租约关系，消费者读取权威存储。
 
 ### 开发者说明
 

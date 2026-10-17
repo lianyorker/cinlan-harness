@@ -432,4 +432,65 @@ describe('security skill resources through YAML Loader', () => {
     h.releaseArchive()
     expect((await h.settled()).installed?.version).not.toBe(installed.installed?.version)
   })
+
+  it('auto-installs the bundled generation when no release endpoint is configured', { timeout: 120_000 }, async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-skill-resources-auto-'))
+    onTestFinished(() => rm(root, { recursive: true, force: true }))
+    const configFile = join(root, 'cordis.yml')
+    await writeFile(configFile, [
+      '- id: skills',
+      '  name: cordis:resource-registry',
+      '- id: manager',
+      '  name: cordis:resource-manager',
+      '  config:',
+      '    root: ' + JSON.stringify(join(root, 'resources')),
+      '- id: provider',
+      '  name: cordis:resource-provider',
+    ].join('\n') + '\n')
+    const host = await boot('security-resource-auto-test', configFile, [], (context) => {
+      Object.assign(context.loader.builtins, {
+        'resource-registry': SkillRegistry,
+        'resource-manager': SecuritySkillResources,
+        'resource-provider': SecuritySkills,
+      })
+    })
+    onTestFinished(() => dispose(host.fiber))
+    const manager = host.get('securitySkillResources')!
+    await vi.waitFor(async () => {
+      const status = await manager.status()
+      expect(status.installed?.source).toEqual({ kind: 'bundled' })
+      expect(status.installed?.skillCount).toBe(169)
+      expect(status.lastError).toBeUndefined()
+    }, { timeout: 90_000 })
+    expect(await host.skills.list()).toHaveLength(169)
+  })
+
+  it('keeps resources uninstalled when autoInstallBundled is disabled', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-skill-resources-manual-'))
+    onTestFinished(() => rm(root, { recursive: true, force: true }))
+    const configFile = join(root, 'cordis.yml')
+    await writeFile(configFile, [
+      '- id: skills',
+      '  name: cordis:resource-registry',
+      '- id: manager',
+      '  name: cordis:resource-manager',
+      '  config:',
+      '    root: ' + JSON.stringify(join(root, 'resources')),
+      '    autoInstallBundled: false',
+      '- id: provider',
+      '  name: cordis:resource-provider',
+    ].join('\n') + '\n')
+    const host = await boot('security-resource-manual-test', configFile, [], (context) => {
+      Object.assign(context.loader.builtins, {
+        'resource-registry': SkillRegistry,
+        'resource-manager': SecuritySkillResources,
+        'resource-provider': SecuritySkills,
+      })
+    })
+    onTestFinished(() => dispose(host.fiber))
+    const status = await host.get('securitySkillResources')!.status()
+    expect(status.installed).toBeUndefined()
+    expect(status.state).toBe('not-installed')
+    expect(await host.skills.list()).toHaveLength(0)
+  })
 })

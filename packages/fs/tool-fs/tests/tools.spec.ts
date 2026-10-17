@@ -1085,7 +1085,8 @@ class GuidancePtcRuntime extends PtcRuntime {
 }
 
 describe('scope-aware PTC guidance', () => {
-  it.each(['ptc', 'both'] as const)('uses capability visibility in %s mode', async (mode) => {
+  it('uses capability visibility in ptc mode', async () => {
+    const mode = 'ptc' as const
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(GuidancePtcRuntime)
@@ -1097,7 +1098,7 @@ describe('scope-aware PTC guidance', () => {
       const baseline = renderPrompt(await ctx.systemPrompt.assemble({ scope: key }))
       const release = scope.ctx.tools.restrict({ allow: ['read'] })
       const assembly = await ctx.systemPrompt.assemble({ scope: key })
-      expect(assembly.tools.map(tool => tool.name)).toEqual(mode === 'ptc' ? ['run_code'] : ['read', 'run_code'])
+      expect(assembly.tools.map(tool => tool.name)).toEqual(['run_code'])
       expect(assembly.sections.filter(section => ['tool:read', 'tool:write', 'tool:edit'].includes(section.name))
         .map(section => section.text).filter(Boolean)).toEqual([originalGuidance.read])
       expect(renderPrompt(assembly)).toContain(originalGuidance.read)

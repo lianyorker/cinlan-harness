@@ -90,10 +90,15 @@ export async function createHarness() {
     configPath,
     privateFile,
     recordKeyFile,
-    /** Mount one real persisted target registry, optionally reusing the private storage directory. */
     async registry(overrides: Partial<Config> = {}) {
       const ctx = new Context()
       cleanups.push(() => ctx.fiber.dispose())
+      const loggedErrors: unknown[] = []
+      const originalError = ctx.logger.error.bind(ctx.logger)
+      ctx.logger.error = ((...args: unknown[]) => {
+        loggedErrors.push(args[0])
+        originalError(...(args as Parameters<typeof originalError>))
+      }) as typeof ctx.logger.error
       const rows = [
         { name: '@deepseek-ai/dsh-storage' },
         { name: '@deepseek-ai/dsh-storage-json', config: { root: join(root, 'storage') } },
@@ -109,6 +114,11 @@ export async function createHarness() {
       ]))
       const entry = [...ctx.loader.entries()].find(value => value.options.name === '@deepseek-ai/dsh-execution-host-targets')
       const fiber = entry?.fiber
+      const rangeError = loggedErrors.find(err => err instanceof RangeError)
+      if (rangeError) throw rangeError
+      if (ctx.executionHostTargets === undefined && Object.keys(overrides).length > 0 && loggedErrors.length > 0) {
+        throw loggedErrors[0]
+      }
       if (fiber === undefined) throw new Error('target registry Loader entry did not activate')
       return { ctx, targets: ctx.executionHostTargets, fiber }
     },

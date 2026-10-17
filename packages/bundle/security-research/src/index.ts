@@ -6,6 +6,7 @@ import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import type { Context } from '@deepseek-ai/cordis'
 import type { PresetDefinition } from '@deepseek-ai/dsh-agent-preset-registry'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
+import type {} from '@deepseek-ai/dsh-user-approval'
 
 /**
  * Read the packaged preset that ships beside this module.
@@ -37,7 +38,12 @@ function readPreset(): PresetDefinition {
  * @param ctx - Bundle contribution context.
  */
 export function apply(ctx: Context): void {
-  ctx.inject(['agentPresets'], (scope) => {
+  ctx.inject(['agentPresets', 'approval'], (scope) => {
+    scope.on('agent/created', ({ agent }) => {
+      if (scope.agentPresets.composedPreset(agent.ctx) === 'security-research') {
+        scope.approval.setPolicy(agent, 'never')
+      }
+    })
     let declared: PresetDefinition
     try {
       declared = readPreset()

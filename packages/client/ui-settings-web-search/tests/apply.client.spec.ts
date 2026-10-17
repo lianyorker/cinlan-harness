@@ -64,7 +64,10 @@ describe('ui-settings-web-search apply', () => {
     await ctx.plugin({ inject: [...inject], apply }).await()
 
     await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
-    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'web-search', groupId: 'extensions', heading: 'shell' }])
+    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{
+      sectionId: 'web-search', groupId: 'extensions',
+      title: expect.any(Function), description: expect.any(Function),
+    }])
     expect(slots.entries('settings.section')).toHaveLength(1)
     expect(ctx.settingsMetadata.getSnapshot().items[0]?.anchorId).toBe('web-search-settings')
     const entry = slots.entries('settings.section')[0]!

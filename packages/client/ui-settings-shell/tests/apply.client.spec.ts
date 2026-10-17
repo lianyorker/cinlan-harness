@@ -65,12 +65,15 @@ describe('ui-settings-shell apply', () => {
     await ctx.plugin({ inject: [...inject], apply }).await()
 
     await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
-    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'shell', groupId: 'execution', heading: 'shell' }])
+    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{
+      sectionId: 'shell', groupId: 'workspace',
+      title: expect.any(Function), description: expect.any(Function),
+    }])
     expect(slots.entries('settings.section')).toHaveLength(1)
     expect(ctx.settingsMetadata.getSnapshot().items[0]?.anchorId).toBe('shell-settings')
     const entry = slots.entries('settings.section')[0]!
     expect(entry.options).toMatchObject({ id: 'shell', order: 42 })
-    expect(resolveSlotLabel(entry.options.label)).toBe('Agent 命令执行')
+    expect(resolveSlotLabel(entry.options.label)).toBe('终端')
     expect(entry.locale).toBe(NS)
     const face = (entry.inject as () => Pick<ShellCardFace, 'hooks'>)()
     expect(Object.keys(face.hooks)).toEqual(['shellCard'])

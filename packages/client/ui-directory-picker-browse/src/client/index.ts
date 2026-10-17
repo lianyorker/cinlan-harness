@@ -9,6 +9,8 @@
  * package owns its own strings.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { createElement } from 'react'
+import type { FactoryComponentPropsOf } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pulls the SlotMap merge declaring the directory-flow holes.
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
@@ -23,7 +25,7 @@ const LOCALE_NS = 'directory-browser'
 export const inject = ['slots', 'uiWorkspace', 'locale']
 
 /**
- * Client plugin body: register the dialog's dictionaries and the browse flow
+ * Register the dialog's dictionaries, reusable directory.picker Factory, and browse flow
  * into both directory-flow holes through `slots.inject()` because the
  * ui-workspace entries may activate later or replace their declarations.
  * @param ctx - client root context.
@@ -80,6 +82,11 @@ export function apply(ctx: ClientContext): void {
     createDirectory: (path, name) => ctx.uiWorkspace.createDirectory(path, name),
     t: ctx.locale.bind(LOCALE_NS),
   })
+  const browse = injected()
+  function DirectoryPicker(props: FactoryComponentPropsOf<'directory.picker'>) {
+    return createElement(BrowseDirectoryFlow, { ...props, ...browse })
+  }
+  ctx.slots.registerFactory({ name: 'directory.picker', scope: 'root' }, DirectoryPicker)
   // Both declaration lifetimes must be live before the pair installs; the
   // generator makes the two registrations one transactional effect. The
   // outer/inner nesting order is arbitrary; neither hole has precedence.

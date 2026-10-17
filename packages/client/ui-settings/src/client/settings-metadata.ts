@@ -23,6 +23,10 @@ export interface SettingsSectionMetadata {
   readonly sectionId: string
   /** Shell-owned navigation group. */
   readonly groupId: SettingsGroupId
+  /** Optional human-readable or localized section title, or a getter returning it. */
+  readonly title?: string | (() => string)
+  /** Optional human-readable or localized section description, or a getter returning it. */
+  readonly description?: string | (() => string)
   /** Render the page title in the shell; feature pages render their own heading. */
   readonly heading?: SettingsSectionHeading
 }

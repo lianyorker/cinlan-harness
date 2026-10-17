@@ -14,6 +14,15 @@ import { diagnosticLabel, hostDiagnostic } from './diagnostics.ts'
 import { HostErrorNotice } from './HostDetails.tsx'
 import { ImportDialog, type ImportState } from './ImportDialog.tsx'
 import { TargetForm } from './TargetForm.tsx'
+import { EphemeralVmsSection } from './EphemeralVmsSection.tsx'
+import type {
+  DestroyVmRequest,
+  EphemeralVm,
+  EphemeralVmId,
+  EphemeralVmOverview,
+  LaunchVmRequest,
+} from './types.ts'
+import { DEFAULT_VM_OVERVIEW } from './default-vms.ts'
 import css from './HostsSection.module.css'
 
 type Editor = { draft: TargetDraft; target: TargetRevision | undefined; missing?: boolean }
@@ -63,6 +72,7 @@ function connectionLine(target: TargetView, t: HostsTranslate): string {
  * @param props - renderer-bound observation, plain callbacks and localized copy.
  * @returns the SSH host settings page.
  */
+
 export function HostsSection(props: HostsProps): ReactNode {
   const { useHosts, t } = props
   const snapshot = useHosts(value => value)
@@ -73,8 +83,96 @@ export function HostsSection(props: HostsProps): ReactNode {
   const [failure, setFailure] = useState<HostDiagnostic>()
   const [refreshFailed, setRefreshFailed] = useState(false)
   const [notice, setNotice] = useState<Notice>()
+  const [vmOverview, setVmOverview] = useState<EphemeralVmOverview>(DEFAULT_VM_OVERVIEW)
   const operation = useRef<AbortController>()
   useEffect(() => () => { operation.current?.abort() }, [])
+
+  useEffect(() => {
+    if (props.getVmOverview) {
+      void props.getVmOverview().then(setVmOverview).catch(() => {})
+    }
+  }, [props.getVmOverview])
+
+  const handleLaunchVm = async (request: LaunchVmRequest) => {
+    if (props.launchVm) {
+      await props.launchVm(request)
+      if (props.getVmOverview) {
+        setVmOverview(await props.getVmOverview())
+      }
+    } else {
+      setVmOverview(prev => {
+        const recipe = prev.recipes.find(r => r.id === request.recipeId) ?? prev.recipes[0]
+        const newVm: EphemeralVm = {
+          id: (`vm-${Date.now()}`) as EphemeralVmId,
+          recipeId: request.recipeId,
+          label: request.label,
+          state: 'running',
+          createdAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + (request.timeoutMinutes ?? 60) * 60000).toISOString(),
+          resourceAllocation: {
+            cpuCores: recipe?.cpuCores ?? 1,
+            memoryMb: recipe?.memoryMb ?? 2048,
+          },
+          skills: recipe?.skills ?? [],
+          ipAddress: `10.0.0.${prev.vms.length + 2}`,
+          ...(request.targetHostId !== undefined ? { targetHostId: request.targetHostId } : {}),
+        }
+        const vms = [...prev.vms, newVm]
+        return {
+          ...prev,
+          vms,
+          usage: {
+            activeVms: vms.length,
+            allocatedCpuCores: prev.usage.allocatedCpuCores + (recipe?.cpuCores ?? 1),
+            allocatedMemoryMb: prev.usage.allocatedMemoryMb + (recipe?.memoryMb ?? 2048),
+          },
+        }
+      })
+    }
+  }
+
+  const handleDestroyVm = async (request: DestroyVmRequest) => {
+    if (props.destroyVm) {
+      await props.destroyVm(request)
+      if (props.getVmOverview) {
+        setVmOverview(await props.getVmOverview())
+      }
+    } else {
+      setVmOverview(prev => {
+        const vm = prev.vms.find(v => v.id === request.id)
+        if (!vm) return prev
+        const recipe = prev.recipes.find(r => r.id === vm.recipeId)
+        const vms = prev.vms.filter(v => v.id !== request.id)
+        return {
+          ...prev,
+          vms,
+          usage: {
+            activeVms: vms.length,
+            allocatedCpuCores: Math.max(0, prev.usage.allocatedCpuCores - (recipe?.cpuCores ?? 1)),
+            allocatedMemoryMb: Math.max(0, prev.usage.allocatedMemoryMb - (recipe?.memoryMb ?? 2048)),
+          },
+        }
+      })
+    }
+  }
+
+  const handleReapVms = async () => {
+    if (props.reapOrphanedVms) {
+      const ids = await props.reapOrphanedVms()
+      if (props.getVmOverview) {
+        setVmOverview(await props.getVmOverview())
+      }
+      return ids.length
+    } else {
+      setVmOverview(prev => ({
+        ...prev,
+        vms: [],
+        usage: { activeVms: 0, allocatedCpuCores: 0, allocatedMemoryMb: 0 },
+      }))
+      return 0
+    }
+  }
+
   const available = snapshot.status === 'ready'
   const targets = snapshot.value?.targets ?? []
   const perform = async (
@@ -138,8 +236,6 @@ export function HostsSection(props: HostsProps): ReactNode {
     setEditor({ draft: draftFromImport(entry), target: undefined })
   }
   return <section className={css.section}>
-    <h1 className={css.title}>{t('title')}</h1>
-    <p className={css.lead}>{t('description')}</p>
     <div className={css.panel} data-settings-anchor="hosts" tabIndex={-1}>
       <div className={css.groupHeading}>
         <div><h3>{t('hosts')}</h3><p className={css.note}>{t('hostsDescription')}</p></div>
@@ -203,6 +299,15 @@ export function HostsSection(props: HostsProps): ReactNode {
         })}
       </div>
     </div>
+    <EphemeralVmsSection
+      overview={vmOverview}
+      hosts={targets}
+      t={t}
+      disabled={!available}
+      onLaunch={handleLaunchVm}
+      onDestroy={handleDestroyVm}
+      onReap={handleReapVms}
+    />
     {editor !== undefined && <TargetForm
       draft={editor.draft}
       target={editor.target}

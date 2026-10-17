@@ -33,7 +33,7 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
       const { runProfile } = await import('./profile-boot.ts')
       try {
         await runProfile({
-          environment: loadLayeredEnv('dsh'),
+          environment: loadLayeredEnv('clh'),
           profile: invocation.profile,
           fromDefaultProfile: invocation.fromDefaultProfile,
           patchFiles: invocation.patches,

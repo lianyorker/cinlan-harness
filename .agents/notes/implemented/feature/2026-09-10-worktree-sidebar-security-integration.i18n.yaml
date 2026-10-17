@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-10-worktree-sidebar-security-integration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-10-worktree-sidebar-security-integration.md
-2026-09-10-worktree-sidebar-security-integration.md: 04fd870116230861dbb9e13aa52e111900cf1b64
-2026-09-10-worktree-sidebar-security-integration.zh.md: 206d54c1b1976a5e56fb247514752adc667da391
+/agent-note-web-composition-for-worktree-sidebar-and-security-migrations:
+  en: 242aee6ec4767be4
+  zh: d5a4fa4bbdd7ea17
+/agent-note-web-composition-for-worktree-sidebar-and-security-migrations/problem:
+  en: 987164a993892e00
+  zh: b284c8936c79a579
+/agent-note-web-composition-for-worktree-sidebar-and-security-migrations/decision:
+  en: 527e66b6d8a81e26
+  zh: be3cfe311a09c243
+/agent-note-web-composition-for-worktree-sidebar-and-security-migrations/consequences:
+  en: 52543eb31f9db961
+  zh: 44a6dd6c08b09a2c
+/agent-note-web-composition-for-worktree-sidebar-and-security-migrations/alternatives-considered:
+  en: 4f62d4aa1b248b9e
+  zh: 58091c2c5b2668e8
+/agent-note-web-composition-for-worktree-sidebar-and-security-migrations/related-decisions:
+  en: c94baa61d3a9049c
+  zh: 3f4271ef75621d5c
+/agent-note-web-composition-for-worktree-sidebar-and-security-migrations/testing:
+  en: 51a864f7de8e22e7
+  zh: ba7e68fcbf264f82

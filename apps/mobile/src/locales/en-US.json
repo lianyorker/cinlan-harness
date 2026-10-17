@@ -1,0 +1,72 @@
+{
+  "brand": {
+    "name": "Cinlan"
+  },
+  "connect": {
+    "title": "Connect Your Computer",
+    "subtitle": "Pair with Cinlan on your computer to view agents, access terminals, and advance work directly from your phone.",
+    "pair_button": "Pair Computer",
+    "how_it_works": "HOW IT WORKS",
+    "step_1_title": "Open Cinlan Desktop",
+    "step_1_desc": "Go to Settings -> Mobile and generate a pairing QR code.",
+    "step_2_title": "Scan QR Code",
+    "step_2_desc": "Tap the button above to open the camera and point at the QR code.",
+    "step_3_title": "Connected",
+    "step_3_desc": "Your computer will appear here. Everything is end-to-end encrypted."
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "browser": "Browser",
+    "voice": "Voice",
+    "notifications": "Notifications",
+    "troubleshooting": "Troubleshooting",
+    "about": "About Cinlan",
+    "privacy": "Privacy Policy",
+    "support": "Support & Feedback"
+  },
+  "manual_pair": {
+    "title": "Connect with Pairing Code",
+    "desc": "Due to camera restrictions or preference, enter the pairing code obtained from your desktop.",
+    "placeholder": "Enter or paste pairing code",
+    "paste": "Paste",
+    "submit": "Save & Connect",
+    "cancel": "Cancel"
+  },
+  "notifications": {
+    "title": "Never miss when agents need you",
+    "desc": "Get notified on this phone when agents finish tasks or need assistance—even if the app is closed.",
+    "hint": "Sent via Cinlan push notification service after 3 minutes of desktop idle. Change anytime in settings.",
+    "enable": "Enable Notifications",
+    "skip": "Not Now"
+  },
+  "dashboard": {
+    "welcome": "Welcome back",
+    "stat_sessions": "Sessions created",
+    "stat_time": "Mobile run time",
+    "desktops_header": "DESKTOPS",
+    "quick_actions": "QUICK ACTIONS",
+    "pair_desktop": "Pair Computer",
+    "new_workspace": "New Workspace"
+  },
+  "sessions": {
+    "filter": "Filter",
+    "create_title": "Create worktree",
+    "project": "Project (Existing)",
+    "workspace_name": "Workspace name [Optional]",
+    "create_button": "Create worktree",
+    "group_by": "Group by",
+    "group_workspace": "By Workspace",
+    "group_tree": "By Workspace Tree",
+    "group_list": "Single List",
+    "sort_by": "Sort by",
+    "sort_manual": "Manual Sort",
+    "sort_recent": "Recently Updated",
+    "quick_collapse": "Collapse all",
+    "quick_expand": "Expand all",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "rename": "Rename",
+    "archive": "Archive"
+  }
+}

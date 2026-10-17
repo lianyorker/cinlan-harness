@@ -12,6 +12,8 @@ Slots 是 Web Client 的类型化 React 组合系统。[`dsh-client-ui-slots`](.
 
 ## 声明与生命周期
 
+可复用展示通过 `SlotFactoryMap`、`registerFactory` 和 `renderFactorySlot` 提供，不需要全局声明的 child 位置。root 作用域的 [`directory.picker`](../../packages/client/ui-workspace/README.zh.md#directory-picker) 由组合中的原生或浏览选择器提供，供工作区及设置调用方使用。Factory 语义由 [ui-slots](../../packages/client/ui-slots/README.zh.md) 定义。
+
 `SlotMap` 是编译期注册表。包通过声明合并写入 key、cardinality（基数）、scope、owner props、keyed props 与可选的 slot 级 inject face。运行时声明则是拥有该渲染位置的组件在 `children` 中给出的对应条目。
 
 声明一个 child 会同时产生三种效果：令该 child key 生效、授权 parent entry 调用 `renderSlot` 或 `renderSlotChain`，以及记录运行时 dispatch 规格。每个声明只能有一个存活 owner。向未声明 slot 注册，或重复声明其他 entry 已拥有的 child，都会在插件激活时失败。

@@ -8,6 +8,8 @@ export const REVIEW_TAB_ID = 'right-sidebar-review'
 export const TASKS_TAB_ID = 'right-sidebar-tasks'
 /** Stable id for the Browser page contribution. */
 export const BROWSER_TAB_ID = 'right-sidebar-browser'
+/** Stable id for the Ports page contribution. */
+export const PORTS_TAB_ID = 'right-sidebar-ports'
 
 type T = TranslateNS<'rightSidebarContributors'>
 
@@ -59,3 +61,13 @@ export function tasksTabDefinition(t: T): SidebarRightTabDefinition {
 export function browserTabDefinition(t: T): SidebarRightTabDefinition {
   return pageDefinition({ id: BROWSER_TAB_ID, kind: 'browser', titleKey: 'browser.title', descriptionKey: 'browser.description' }, t)
 }
+
+/**
+ * Build the localized Ports page definition.
+ * @param t - Translator for the right-sidebar namespace.
+ * @returns The Ports page definition.
+ */
+export function portsTabDefinition(t: T): SidebarRightTabDefinition {
+  return pageDefinition({ id: PORTS_TAB_ID, kind: 'ports', titleKey: 'ports.title', descriptionKey: 'ports.description' }, t)
+}
+

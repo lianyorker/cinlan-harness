@@ -25,13 +25,20 @@ const DEFAULTS: VoiceSettings = {
   microphoneDeviceId: null,
 }
 
+const LEGACY_MODEL_IDS = new Map([
+  ['zh-streaming-zipformer-14m', 'zipformer-streaming-zh-14m'],
+  ['bilingual-streaming-zipformer', 'zipformer-bilingual-zh-en'],
+  ['en-streaming-zipformer-20m', 'zipformer-streaming-en-20m'],
+  ['bilingual-streaming-paraformer', 'paraformer-bilingual-zh-en'],
+])
+
 function rehydrate(raw: unknown): VoiceSettings {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return DEFAULTS
   const obj = raw as Record<string, unknown>
   return {
     enabled: typeof obj.enabled === 'boolean' ? obj.enabled : DEFAULTS.enabled,
     dictationMode: obj.dictationMode === 'hold' ? 'hold' : 'toggle',
-    sttModel: typeof obj.sttModel === 'string' ? obj.sttModel : null,
+    sttModel: typeof obj.sttModel === 'string' ? LEGACY_MODEL_IDS.get(obj.sttModel) ?? obj.sttModel : null,
     microphoneDeviceId: typeof obj.microphoneDeviceId === 'string' ? obj.microphoneDeviceId : null,
   }
 }

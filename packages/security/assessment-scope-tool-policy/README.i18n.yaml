@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/security/assessment-scope-tool-policy/README.md
-README.md: 43ba7bf765e3fd0846a109e846924fc4aa62c0ff
-README.zh.md: 08a6097b36af5bea1868a034c40d86b8715d1db8
+/:
+  en: 59d077d01877a158
+  zh: 5150ee9c4e9bb529
+/deepseek-ai-dsh-assessment-scope-tool-policy:
+  en: f6ca0965e2ffab79
+  zh: e1ff71b8863b7fb5
+/deepseek-ai-dsh-assessment-scope-tool-policy/summary:
+  en: 34c5d3bbb2d49106
+  zh: fea406fa95d40881
+/deepseek-ai-dsh-assessment-scope-tool-policy/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/deepseek-ai-dsh-assessment-scope-tool-policy/use-this-package:
+  en: c1daa563a3d209f5
+  zh: f354ddce5ac1ab45
+/deepseek-ai-dsh-assessment-scope-tool-policy/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-assessment-scope-tool-policy/model-experience/authorization-decisions:
+  en: 3396ee3027cafa19
+  zh: d77c6324221a9d3a
+/deepseek-ai-dsh-assessment-scope-tool-policy/model-experience/authorization-decisions/what-the-model-sees:
+  en: dc1089fd6cd45b0b
+  zh: 7905dd41ceb36e5f
+/deepseek-ai-dsh-assessment-scope-tool-policy/model-experience/authorization-decisions/token-effect:
+  en: 36016e6569b01e12
+  zh: 982591a11c893dea
+/deepseek-ai-dsh-assessment-scope-tool-policy/model-experience/authorization-decisions/kv-cache-effect:
+  en: c5d0d413738689da
+  zh: d22206533b6ff169
+/deepseek-ai-dsh-assessment-scope-tool-policy/known-limitations-and-deferred-work:
+  en: 6dfbed61ef12c4a2
+  zh: 384163cb47d4adf7
+/deepseek-ai-dsh-assessment-scope-tool-policy/known-limitations-and-deferred-work/dev-note:
+  en: dcf20d9680a6a3e2
+  zh: 276af71040e27435

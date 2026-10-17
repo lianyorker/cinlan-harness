@@ -2,7 +2,7 @@ import { defineConfig } from 'tsdown'
 
 /** Bundle the emitted public entries together to preserve shared runtime identities. */
 export default defineConfig({
-  entry: ['lib/types/index.js', 'lib/types/registry.js', 'lib/types/invariant.js'],
+  entry: ['lib/types/index.js', 'lib/types/registry.js'],
   outDir: 'lib',
   format: ['esm'],
   platform: 'node',

@@ -56,7 +56,81 @@ export interface RuntimeInspection {
 /** Durable activation and the exact generation that passed remote execution probes. */
 export interface RuntimeInstallation { readonly target: Omit<TargetValue['target'], 'execution'>; readonly runtime: RuntimeInspection }
 /** Stable public runtime management failure categories. */
-export type RuntimeErrorCode = 'release-unavailable' | 'invalid-config' | 'connection-failed' | 'verification-failed' | 'target-changed' | 'cancelled'
+export type RuntimeErrorCode =
+  | 'release-unavailable' | 'invalid-config' | 'connection-failed' | 'verification-failed'
+  | 'target-changed' | 'cancelled'
+  | 'unknown-recipe' | 'unauthorized' | 'quota-exceeded' | 'host-offline'
+  | 'destroy-failed' | 'duplicate-request' | 'not-found'
+
+/** Approved VM recipe specification for ephemeral on-demand runtimes. */
+export interface VmRecipe {
+  readonly id: string
+  readonly name: string
+  readonly description: string
+  readonly cpuCores: number
+  readonly memoryMb: number
+  readonly timeoutMinutes: number
+  readonly image: string
+  readonly skills: readonly string[]
+  readonly status: 'approved' | 'deprecated'
+}
+
+/** Branded identifier for an ephemeral VM instance. */
+export type EphemeralVmId = Branded<'EphemeralVmId'>
+
+/** Active or settled lifecycle state of an ephemeral VM. */
+export type EphemeralVmState = 'provisioning' | 'running' | 'terminating' | 'terminated' | 'failed'
+
+/** Ephemeral VM instance managed by the Host runtime. */
+export interface EphemeralVm {
+  readonly id: EphemeralVmId
+  readonly recipeId: string
+  readonly label: string
+  readonly state: EphemeralVmState
+  readonly createdAt: string
+  readonly expiresAt: string
+  readonly resourceAllocation: {
+    readonly cpuCores: number
+    readonly memoryMb: number
+  }
+  readonly skills: readonly string[]
+  readonly targetHostId?: string | undefined
+  readonly ipAddress?: string | undefined
+  readonly error?: string | undefined
+}
+
+/** Request to launch an ephemeral VM from an approved recipe. */
+export interface LaunchVmRequest {
+  readonly recipeId: string
+  readonly label: string
+  readonly targetHostId?: string | undefined
+  readonly timeoutMinutes?: number | undefined
+}
+
+/** Request to destroy an ephemeral VM. */
+export interface DestroyVmRequest {
+  readonly id: EphemeralVmId
+}
+
+/** Resource quota limits for ephemeral VMs. */
+export interface VmQuotaLimits {
+  readonly maxActiveVms: number
+  readonly maxCpuCores: number
+  readonly maxMemoryMb: number
+}
+
+/** Ephemeral VM catalog, active instances, and quota utilization. */
+export interface EphemeralVmOverview {
+  readonly recipes: readonly VmRecipe[]
+  readonly vms: readonly EphemeralVm[]
+  readonly quota: VmQuotaLimits
+  readonly usage: {
+    readonly activeVms: number
+    readonly allocatedCpuCores: number
+    readonly allocatedMemoryMb: number
+  }
+}
+
 /** Host-owned installation identity; closing a view never cancels this task. */
 export type RuntimeTaskId = Branded<'RuntimeTaskId'>
 /** Explicit install/upgrade request captured by one Host task. */

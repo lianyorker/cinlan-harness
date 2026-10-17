@@ -128,7 +128,7 @@ describe('Floating Workspace client registration unit composition', () => {
     expect(section.component).toBe(FloatingWorkspaceSection)
     expect(section.options.id).toBe('floating-workspace')
     expect(resolveSlotLabel(section.options.label)).toBe(en.navLabel)
-    expect(h.runtime.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'floating-workspace', groupId: 'personal' }])
+    expect(h.runtime.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'floating-workspace', groupId: 'personal', description: expect.any(Function) }])
     const metadata = h.runtime.ctx.settingsMetadata.getSnapshot().items
     expect(metadata.map(item => item.anchorId)).toEqual([
       'floating-enabled', 'floating-position',

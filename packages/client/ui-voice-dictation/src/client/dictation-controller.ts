@@ -29,7 +29,7 @@ function appendToDraft(ctx: ClientContext, sessionId: SessionId, text: string): 
     if (conversation === undefined) return false
     const input = conversation.input.for(actx)
     const draft = input.state.getSnapshot().draft
-    input.setDraft(draft.trim() === '' ? text : `${draft} ${text}`)
+    input.setDraft(draft === '' || /\s$/.test(draft) ? `${draft}${text}` : `${draft} ${text}`)
     return true
   } catch (error) {
     console.warn('[dsh-client-ui-voice-dictation] draft insert failed:', error)

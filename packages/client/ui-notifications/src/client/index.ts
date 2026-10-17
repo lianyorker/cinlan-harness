@@ -57,7 +57,9 @@ export function apply(ctx: ClientContext): void {
     testNotification: runtime.test,
   })
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'notifications', groupId: 'personal' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'notifications', groupId: 'personal', description: () => t('description'),
+    })
     const items: readonly [string, string, NotificationsKey, NotificationsKey, NotificationsKey][] = [
       ['enabled', 'notifications-enabled', 'enabled', 'enabledDescription', 'enabledKeywords'],
       ['agent-completion', 'notifications-agent-completion', 'agentCompletion', 'agentCompletionDescription', 'completionKeywords'],

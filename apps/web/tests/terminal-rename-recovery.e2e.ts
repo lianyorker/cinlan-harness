@@ -11,6 +11,9 @@ import { acknowledgeReloadConnectionLoss, captureStableAria, compareOrRefreshGol
 import { saveFailureShot, waitForApplicationFrame } from './support.ts'
 
 const FIXTURE = createChatScrollFixture({ markerPrefix: 'TERMINAL_RENAME', title: 'Retained terminal Session', turns: 1 })
+// The native terminal this scenario drives ships in the optional sidebar plugin;
+// the default Web composition mounts only the official right sidebar.
+const BETTER_SIDEBAR_ANCHOR = fileURLToPath(new URL('../../../packages/client/ui-better-sidebar/package.json', import.meta.url))
 it('renames one real native process and recovers its canonical title after local layout loss', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-terminal-rename-web-'))
   let host: WebScaffold | undefined = undefined
@@ -22,8 +25,8 @@ it('renames one real native process and recovers its canonical title after local
   })
   const shell = process.platform === 'win32' ? join(process.env.SystemRoot!, 'System32/WindowsPowerShell/v1.0/powershell.exe') : '/bin/sh'
   const overlay = join(root, 'terminal.patch.yml')
-  await writeFile(overlay, yaml.dump([{ id: 'ui-better-sidebar', config: { shell, shellArgs: process.platform === 'win32' ? ['-NoLogo', '-NoProfile'] : ['-s'] } }]))
-  const scaffold = host = await launchWebScaffold({ extraOverlayPath: overlay })
+  await writeFile(overlay, yaml.dump([{ insert: [{ id: 'dsh-better-sidebar', name: '@deepseek-ai/dsh-client-ui-better-sidebar', config: { shell, shellArgs: process.platform === 'win32' ? ['-NoLogo', '-NoProfile'] : ['-s'] } }] }]))
+  const scaffold = host = await launchWebScaffold({ extraOverlayPath: overlay, extraInstallAnchors: [BETTER_SIDEBAR_ANCHOR] })
   const sessionId = await seedSession(scaffold, FIXTURE.log, 'terminal-rename-source')
   const owner = sessionId
   browser = await chromium.launch()

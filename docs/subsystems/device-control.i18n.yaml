@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for device-control.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/device-control.md
-device-control.md: d32b3e9135606d646147fc6d9dd3a4e42f98fb53
-device-control.zh.md: 1234a8e69c90f483a0d0dcb99b3076488b061f76
+/device-control:
+  en: 3e0e2c11a5e10d53
+  zh: d8e23581869df061
+/device-control/summary:
+  en: e6f4b99d523d87ed
+  zh: b317f17265ed549f
+/device-control/table-of-contents:
+  en: 1b6bce78325b0e1d
+  zh: c5ee95a8c292cd17
+/device-control/composition:
+  en: bca55bf8fdae7757
+  zh: 1ac5de0ac4576f40
+/device-control/observations-and-permission:
+  en: d99bb03b40265396
+  zh: 66a660c1c6de258e
+/device-control/runtime-readiness:
+  en: 21cf40fb482c6837
+  zh: c27b95bc0e006e18
+/device-control/lifecycle:
+  en: e1b91f61190aacc6
+  zh: 87b643da1d4791c5
+/device-control/desktop-types:
+  en: 6c69df45ba3c49f6
+  zh: ebf49db54812abe8
+/device-control/desktop-types/identity-and-observations:
+  en: 1067aef61ac8e99b
+  zh: 695c0699904d8d61
+/device-control/desktop-types/action-requests-and-results:
+  en: 5b674612682e6ca7
+  zh: e5ce0bd0abce2a03
+/device-control/mobile-types:
+  en: f626d36a55a2ca72
+  zh: adcff59321c1f277
+/device-control/permission-decisions:
+  en: fb30fd11688a316a
+  zh: 049d914354574239
+/device-control/cordis-api/ctx-mobileruntime-mobileruntimemanager:
+  en: 67ce200d49f5caaa
+  zh: 67ce200d49f5caaa
+/device-control/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

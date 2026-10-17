@@ -39,7 +39,7 @@ describe('native MCP settings', () => {
     const v = await view(snapshot(), false)
     expect(screen.getByText(en.offline)).toBeTruthy()
     expect(screen.getByRole('button', { name: en.add })).toHaveProperty('disabled', true)
-    expect(v.container.querySelectorAll('[data-settings-anchor]')).toHaveLength(5)
+    expect(v.container.querySelectorAll('[data-settings-anchor]')).toHaveLength(2)
     expect(screen.queryByText(en.empty)).toBeNull()
   })
 
@@ -56,7 +56,7 @@ describe('native MCP settings', () => {
     expect(screen.getByText('Owner: team-http')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Remove http-reader' }))
     fireEvent.click(screen.getByRole('button', { name: en.cancel }))
-    expect(screen.queryByRole('group', { name: en.confirmRemove })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: en.confirmRemove })).toBeNull()
     expect(v.remote.removeServer).not.toHaveBeenCalled()
   })
 
@@ -90,7 +90,7 @@ describe('native MCP settings', () => {
     expect(row.getByRole('button', { name: en.reconnect })).toHaveProperty('disabled', false)
   })
 
-  it('shows actual external owner and tool descriptors without write controls', async () => {
+  it('shows the actual external owner without write controls', async () => {
     const external: McpExternalServerView = {
       id: 'external-1' as McpExternalServerView['id'], serverName: 'composition-reader',
       owner: { kind: 'composition', label: 'team composition' },
@@ -102,8 +102,6 @@ describe('native MCP settings', () => {
     expect(row.getByText('Owner: team composition')).toBeTruthy()
     expect(row.queryAllByRole('button')).toEqual([])
     expect(row.queryAllByRole('switch')).toEqual([])
-    expect(screen.getByText('external_tool')).toBeTruthy()
-    expect(screen.getByText('An external tool.')).toBeTruthy()
     expect(screen.getByText(en['authentication-failed'])).toBeTruthy()
   })
 
@@ -189,15 +187,14 @@ describe('native MCP settings', () => {
     v.remote.probe.mockResolvedValueOnce(failure('probe-failed'))
     fireEvent.click(screen.getByRole('button', { name: en.refreshTools }))
     await screen.findByText(en['probe-failed'])
-    expect(screen.getByText('read_document')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Remove reader' }))
-    const confirmation = within(screen.getByRole('group', { name: en.confirmRemove }))
+    const confirmation = within(screen.getByRole('dialog', { name: en.confirmRemove }))
     v.remote.removeServer.mockResolvedValueOnce(failure('conflict'))
     fireEvent.click(confirmation.getByRole('button', { name: en.remove }))
     await screen.findByText(en.conflict)
-    expect(screen.getByRole('group', { name: en.confirmRemove })).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: en.confirmRemove })).toBeTruthy()
     fireEvent.click(confirmation.getByRole('button', { name: en.remove }))
-    await waitFor(() =>{  expect(screen.queryByRole('group', { name: en.confirmRemove })).toBeNull() })
+    await waitFor(() =>{  expect(screen.queryByRole('dialog', { name: en.confirmRemove })).toBeNull() })
   })
 
   it('pins owner-local visible empty, error and native states without credentials or a model', async () => {
@@ -211,7 +208,7 @@ describe('native MCP settings', () => {
     fireEvent.click(screen.getByRole('button', { name: en.retry }))
     await waitFor(() =>{  expect(screen.getByRole('button', { name: en.add })).toHaveProperty('disabled', false) })
     await act(async () => { v.push(managed()); await Promise.resolve() })
-    await screen.findByText('read_document')
+    await screen.findByText('Connection: Ready')
     const output = '# MCP native settings\n\n## Empty\n\n' + empty + '\n\n## Error\n\n' + error + '\n\n## Native managed server\n\n' + visible() + '\n'
     expect(output).toBe(readFileSync('packages/client/ui-settings-mcp/tests/expected/native-states.expected.md', 'utf8'))
   })

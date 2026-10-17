@@ -41,6 +41,13 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'execution-runtime/verification-failed': {}
     'execution-runtime/target-changed': {}
     'execution-runtime/cancelled': {}
+    'execution-runtime/unknown-recipe': {}
+    'execution-runtime/unauthorized': {}
+    'execution-runtime/quota-exceeded': {}
+    'execution-runtime/host-offline': {}
+    'execution-runtime/destroy-failed': {}
+    'execution-runtime/duplicate-request': {}
+    'execution-runtime/not-found': {}
   }
 }
 

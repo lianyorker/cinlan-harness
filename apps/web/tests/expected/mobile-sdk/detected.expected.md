@@ -1,0 +1,10 @@
+- text: Android SDK Detected at C:\Users\Yorker\AppData\Local\Android\Sdk
+- link "Download Android Studio":
+  - /url: https://developer.android.com/studio
+- button "Locate SDK folder"
+- button "Open folder"
+- text: Custom SDK path
+- textbox "Custom SDK path": C:\Users\Yorker\AppData\Local\Android\Sdk
+- button "Use detected path"
+- button "Clear"
+- paragraph: The saved SDK path is used by Host checks and the native ADB provider; a custom path takes precedence over managed Platform Tools.

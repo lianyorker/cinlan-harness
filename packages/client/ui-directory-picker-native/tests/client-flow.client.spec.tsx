@@ -5,6 +5,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { DirectoryFlowOwnerProps } from '@deepseek-ai/dsh-client-ui-workspace/client'
+import type { FactoryComponentPropsOf, SlotComponent } from '@deepseek-ai/dsh-client-ui-slots'
 import { apply, inject } from '../src/client/index.ts'
 import { NativeDirectoryFlow } from '../src/client/flow.ts'
 import { apply as nodeApply } from '../src/index.ts'
@@ -78,7 +79,7 @@ describe('directory-picker-native client half', () => {
     b.declare()
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const duplicate = b.ctx.plugin({ inject: [...inject], apply })
-    await expect(duplicate.await()).rejects.toThrow(/already has a registration/)
+    await expect(duplicate.await()).rejects.toThrow('slot factory "directory.picker" already has a definition')
     for (const hole of HOLES) expect(b.slots.entries(hole)).toHaveLength(1)
   })
 
@@ -165,6 +166,22 @@ describe('directory-picker-native client half', () => {
     expect(b.pickDirectory).toHaveBeenCalledOnce()
   })
 
+  it('registers a reusable picker independently of workspace hole declarations', async () => {
+    const b = await bench()
+    const register = vi.spyOn(b.slots, 'registerFactory')
+    const fiber = b.ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    expect(register).toHaveBeenCalledWith({ name: 'directory.picker', scope: 'root' }, expect.any(Function))
+    const Component = register.mock.calls[0]![1] as SlotComponent<FactoryComponentPropsOf<'directory.picker'>>
+    const request = owner() as FactoryComponentPropsOf<'directory.picker'>
+    const view = render(<Component {...request} />)
+    await vi.waitFor(() => { expect(request.onPicked).toHaveBeenCalledWith('/tmp/picked') })
+    view.unmount()
+    await fiber.dispose()
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    await b.ctx.fiber.dispose()
+  })
+
   it.each(['win32', 'darwin'] as const)('consumes the actual Desktop preload directory bridge on %s', async (platform) => {
     vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
     vi.resetModules()
@@ -174,6 +191,7 @@ describe('directory-picker-native client half', () => {
     await import(/* @vite-ignore */ preload)
     desktopIpc.invoke.mockResolvedValue('/desktop/workspace')
     const b = await bench()
+    const register = vi.spyOn(b.slots, 'registerFactory')
     const dispose = b.declare()
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     try {
@@ -182,6 +200,13 @@ describe('directory-picker-native client half', () => {
       const injected = (entry.inject as () => { pick: () => Promise<string | null> })()
       await expect(injected.pick()).resolves.toBe('/desktop/workspace')
       expect(desktopIpc.invoke).toHaveBeenCalledExactlyOnceWith('dsh-desktop:directory-pick')
+      desktopIpc.invoke.mockClear()
+      const Component = register.mock.calls[0]![1] as SlotComponent<FactoryComponentPropsOf<'directory.picker'>>
+      const request = owner() as FactoryComponentPropsOf<'directory.picker'>
+      const view = render(<Component {...request} />)
+      await vi.waitFor(() => { expect(request.onPicked).toHaveBeenCalledWith('/desktop/workspace') })
+      expect(desktopIpc.invoke).toHaveBeenCalledExactlyOnceWith('dsh-desktop:directory-pick')
+      view.unmount()
       expect(b.pickDirectory).not.toHaveBeenCalled()
     } finally {
       await fiber.dispose()

@@ -3,23 +3,23 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/experimental/voice-input-bundle/README.md
 /:
-  en: a610a36da32c92ad
-  zh: 19434bfe1701828d
+  en: cd248ee27aab5d3e
+  zh: acd1a9ce532f4250
 /deepseek-ai-dsh-experimental-voice-input-bundle:
   en: 338585d3575a8f90
   zh: 22a493cbeefec8f0
 /deepseek-ai-dsh-experimental-voice-input-bundle/summary:
-  en: e84cf8d1493e2a08
-  zh: f0549f75a5234388
+  en: aed03925704f2cc2
+  zh: 6d9b6135b21de020
 /deepseek-ai-dsh-experimental-voice-input-bundle/table-of-contents:
   en: d152484eb41ac6b4
   zh: 364c80ee00a374ff
 /deepseek-ai-dsh-experimental-voice-input-bundle/use-this-package:
-  en: 9151bf11e64b4f1c
-  zh: 7c9638c16ac6a0db
+  en: 3b2121168a9065f2
+  zh: 310a1740c05896e2
 /deepseek-ai-dsh-experimental-voice-input-bundle/understand-the-implementation:
-  en: 45c5f442f85483a8
-  zh: 1e6d54bcaef39b89
+  en: f4911e6791d010ae
+  zh: 6f12339ab6efd933
 /deepseek-ai-dsh-experimental-voice-input-bundle/further-exploration:
   en: 5c64426add9d79d6
   zh: 4e06aa2ead8d2ccd
@@ -30,8 +30,8 @@
   en: b5ec79db2e1d0dbc
   zh: e5aff567ae5ee6fc
 /deepseek-ai-dsh-experimental-voice-input-bundle/known-limitations-and-deferred-work:
-  en: 72323eaeec1b0dae
-  zh: becc003f1da53c51
+  en: e51d062fc24bf456
+  zh: 654f7f6e86a43687
 /deepseek-ai-dsh-experimental-voice-input-bundle/known-limitations-and-deferred-work/dev-note:
   en: 0225ba087c5266f3
   zh: 4e706f1b2b984e63

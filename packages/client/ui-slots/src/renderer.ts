@@ -62,7 +62,7 @@ export interface StoreInstanceLike {
 }
 
 /** Resolve one member of an open-key standard hook family. */
-export type KeyedStandardSource = (key: string) => HostObservable<unknown> | undefined
+export type KeyedStandardSource = (key: string, member?: string) => HostObservable<unknown> | undefined
 
 /**
  * Framework-neutral inputs from which the renderer materializes standard

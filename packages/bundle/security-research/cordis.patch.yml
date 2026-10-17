@@ -33,6 +33,21 @@
       name: '@deepseek-ai/dsh-assessment-scope-session'
     - id: assessment-scope-tool-policy
       name: '@deepseek-ai/dsh-assessment-scope-tool-policy'
+      config:
+        workspaceCommands:
+          - { tool: pwsh, command: pwd }
+          - { tool: pwsh, command: Get-Location }
+          - { tool: pwsh, command: Get-ChildItem }
+          - { tool: pwsh, command: pnpm --version }
+          - { tool: pwsh, command: pnpm run typecheck }
+          - { tool: pwsh, command: pnpm run build }
+          - { tool: pwsh, command: pnpm run test }
+          - { tool: bash, command: pwd }
+          - { tool: bash, command: ls }
+          - { tool: bash, command: pnpm --version }
+          - { tool: bash, command: pnpm run typecheck }
+          - { tool: bash, command: pnpm run build }
+          - { tool: bash, command: pnpm run test }
 
 
     - id: finding-session

@@ -11,7 +11,7 @@ import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { defineContentToolFixture, TOOL_RUNTIME_SCHEDULER } from '@deepseek-ai/dsh-tools'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
-import type { SessionHandle } from '@deepseek-ai/dsh-session-persistence'
+import { SessionAlreadyOwnedError, type SessionHandle } from '@deepseek-ai/dsh-session-persistence'
 
 import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
@@ -1402,5 +1402,54 @@ describe('configured-start failure edges', () => {
     // Ownership deactivated before the failure landed: the report is dropped.
     expect(failures).toEqual([])
     await configured.fiber.dispose()
+  })
+
+  it('releases active write handle and unregisters created agent on workspace/session-release', async () => {
+    const { ctx } = await persistentHarness(new MockAdapter([textResponse('ok')]))
+    const sessionId = SessionId('release-created-agent')
+    const seed: SessionEvent[] = [
+      { type: 'turn/start', seq: SessionSeq(0), time: 1, data: { turn: 1 } },
+      { type: 'turn/end', seq: SessionSeq(1), time: 2, data: { turn: 1, reason: { kind: 'completed' } } },
+    ]
+
+    await ctx.agents.create({
+      sessionId,
+      seed,
+      agentOptions: { provider: 'mock', model: 'mock' },
+    })
+
+    expect(ctx.agents.get(sessionId)).toBeDefined()
+    expect(ctx.sessions.get(sessionId)).toBeDefined()
+
+    await expect(ctx.sessionPersistence.delete(sessionId)).rejects.toBeInstanceOf(SessionAlreadyOwnedError)
+
+    await ctx.parallel('workspace/session-release', { sessionId })
+
+    expect(ctx.agents.get(sessionId)).toBeUndefined()
+    expect(ctx.sessions.get(sessionId)).toBeUndefined()
+
+    await expect(ctx.sessionPersistence.delete(sessionId)).resolves.toBeUndefined()
+    await ctx.fiber.dispose()
+  })
+
+  it('releases active write handle and unregisters resumed agent on workspace/session-release', async () => {
+    const sessionId = SessionId('release-resumed-agent')
+    const root = await persistSession(sessionId)
+    const ctx = await mountPersistentHarness(root, new MockAdapter([]))
+
+    const resumed = await ctx.agents.resume({ resumeSessionId: sessionId })
+    expect(resumed).toBeDefined()
+    expect(ctx.agents.get(sessionId)).toBeDefined()
+    expect(ctx.sessions.get(sessionId)).toBeDefined()
+
+    await expect(ctx.sessionPersistence.delete(sessionId)).rejects.toBeInstanceOf(SessionAlreadyOwnedError)
+
+    await ctx.parallel('workspace/session-release', { sessionId })
+
+    expect(ctx.agents.get(sessionId)).toBeUndefined()
+    expect(ctx.sessions.get(sessionId)).toBeUndefined()
+
+    await expect(ctx.sessionPersistence.delete(sessionId)).resolves.toBeUndefined()
+    await ctx.fiber.dispose()
   })
 })

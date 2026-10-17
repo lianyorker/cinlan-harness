@@ -12,5 +12,6 @@ export function architectureFilePaths(arch: VoiceModelArchitecture): readonly st
     case 'paraformer': return [arch.encoder, arch.decoder, arch.tokens]
     case 'whisper': return [arch.encoder, arch.decoder, arch.tokens]
     case 'sense-voice': return [arch.model, arch.tokens]
+    case 'nemo-ctc': return [arch.model, arch.tokens]
   }
 }

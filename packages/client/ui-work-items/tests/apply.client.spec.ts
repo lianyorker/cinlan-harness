@@ -51,7 +51,7 @@ describe('Work Items registration', () => {
       let removeOwner = declare()
       await vi.waitFor(() => { expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(17) })
       const english = ctx.settingsMetadata.getSnapshot()
-      expect(english.sections).toEqual([{ sectionId: 'workItems', groupId: 'workspace' }])
+      expect(english.sections).toMatchObject([{ sectionId: 'workItems', groupId: 'workspace' }])
       expect(english.items.find(item => item.id === 'write-state')).toMatchObject({ anchorId: 'work-items-write-state', title: en.writeStateValue, description: en.writeStateHelp })
       expect(new Set(english.items.map(item => item.anchorId)).size).toBe(17)
       locale.setLocale('zh')

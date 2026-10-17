@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Configure new Worktree Task branch prefixes and Source Control group order, upstream comparison, and commit attribution from the Workspace settings group. The page edits the durable `git-source-control` namespace owned by [Git settings](../../git/git-settings/README.md). Local base refresh is unavailable; its saved value remains visible and resettable.
+Configure new Worktree Task branch prefixes, Source Control group order, upstream comparison, commit attribution, and Source Control AI Author action recipes from the Workspace settings group. The page edits the durable `git-source-control` namespace owned by [Git settings](../../git/git-settings/README.md). Local base refresh is unavailable; its saved value remains visible and resettable.
 
 ## Table of Contents
 
@@ -56,4 +56,4 @@ The page describes each preference's runtime scope:
 | `compareAgainstUpstream` | Selects upstream comparison in Source Control; an unavailable upstream is reported. |
 | `enableGitHubAttribution` | Adds attribution to explicit Source Control commits, excluding Worktree Task checkpoints, pull requests, and issues. |
 
-- The visual reference's automatic naming, sign-off, AI commit-message, and commit-language fields have no corresponding settings or operations here. They are not exposed by this page.
+- AI commit message generation and action recipes are configurable here, including sensitive file filtering and custom prompt templates; AI generation populates draft text for user review and never commits automatically.

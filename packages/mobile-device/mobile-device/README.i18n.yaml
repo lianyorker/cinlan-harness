@@ -1,6 +1,49 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/mobile-device/mobile-device/README.md
-README.md: 7adde3f763eb4463ec549a111ea4ec315301a381
-README.zh.md: 77ffe08114d089c7a64e904b60c0051e4f7028c0
+/:
+  en: eb304ec9e1640ac2
+  zh: 2c51db69f17f5b94
+/deepseek-ai-dsh-mobile-device:
+  en: 9cf7c71206fb47cd
+  zh: 9dbd72124367804d
+/deepseek-ai-dsh-mobile-device/summary:
+  en: f9d7394a44b8f144
+  zh: 830066dbce175648
+/deepseek-ai-dsh-mobile-device/table-of-contents:
+  en: 06759ea6cf15280c
+  zh: 41f7c91dc7eeb743
+/deepseek-ai-dsh-mobile-device/use-this-package:
+  en: f720682e6ca7cffc
+  zh: 972145c997cf242c
+/deepseek-ai-dsh-mobile-device/provider-selection:
+  en: 1bd449b0b2d50edc
+  zh: c9b2dbce3ea4508b
+/deepseek-ai-dsh-mobile-device/saved-preferences:
+  en: bbb072c92cae5333
+  zh: 2138d2da7577e916
+/deepseek-ai-dsh-mobile-device/identity-and-observations:
+  en: 6dfbbd470c8dc8d5
+  zh: 141a4c42f227235d
+/deepseek-ai-dsh-mobile-device/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-mobile-device/model-experience/consumer-owned-results:
+  en: e348eed0f20c914b
+  zh: 89eb4ce761c3e2c1
+/deepseek-ai-dsh-mobile-device/model-experience/consumer-owned-results/what-the-model-sees:
+  en: 14ea5679972788cc
+  zh: 08e6d3f0764d19f5
+/deepseek-ai-dsh-mobile-device/model-experience/consumer-owned-results/token-effect:
+  en: e5df987acf26b119
+  zh: 29137eaf1919e1ee
+/deepseek-ai-dsh-mobile-device/model-experience/consumer-owned-results/kv-cache-effect:
+  en: 8676810974df6f66
+  zh: 6fdc24a2083eca54
+/deepseek-ai-dsh-mobile-device/known-limitations-and-deferred-work:
+  en: a97052af76efd75d
+  zh: c4ad1cc371524e9a
+/deepseek-ai-dsh-mobile-device/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

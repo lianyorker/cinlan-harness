@@ -36,9 +36,9 @@ describe('Git settings contribution', () => {
     expect(entry.options).toMatchObject({ id: 'git-source-control', order: 36 })
     const face = (entry.inject as unknown as () => GitSettingsSectionInjected)()
     expect(face.hooks.settings).toBe(fixture.scope)
-    expect(ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'git-source-control', groupId: 'workspace' }])
+    expect(ctx.settingsMetadata.getSnapshot().sections).toMatchObject([{ sectionId: 'git-source-control', groupId: 'workspace' }])
     expect(ctx.settingsMetadata.getSnapshot().items.map(item => item.anchorId)).toEqual([
-      'git-branch-prefix', 'git-custom-prefix', 'git-update-base', 'git-group-order', 'git-upstream', 'git-rename-branch', 'git-attribution',
+      'git-branch-prefix', 'git-custom-prefix', 'git-update-base', 'git-group-order', 'git-upstream', 'git-rename-branch', 'git-attribution', 'git-ai-author',
     ])
     locale.setLocale('en')
     expect(ctx.settingsMetadata.getSnapshot().items[0]?.title).toBe(en.branchPrefixTitle)
@@ -48,7 +48,7 @@ describe('Git settings contribution', () => {
     release()
     expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
     declare()
-    expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(7)
+    expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(8)
     await fiber.dispose()
     expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
     expect(slots.entries('settings.section.icon')).toEqual([])

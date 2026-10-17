@@ -156,14 +156,14 @@ describe('web command-line provider', () => {
     ])
     expect(values).toEqual({
       openBrowser: true,
-      publicUrl: 'https://web.example/ui',
+      publicUrl: 'https://web.example/ui/',
       trustedHosts: ['lab.internal'],
     })
     expect(observed.readerConfig).toEqual({
       host: '127.0.0.1',
       openBrowser: true,
       port: 3080,
-      publicUrl: 'https://web.example/ui',
+      publicUrl: 'https://web.example/ui/',
       trustedHosts: ['lab.internal'],
     })
     expect(observed.exits).toEqual([])

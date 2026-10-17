@@ -1,7 +1,7 @@
 /** Settings entry point for the official Schedule task manager. */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
@@ -24,13 +24,16 @@ export function apply(ctx: Context): void {
   ctx.effect(() => ctx.locale.register('settings.automation', { en, zh }))
   const t = ctx.locale.bind('settings.automation')
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'schedule', groupId: 'execution' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'schedule', groupId: 'execution', description: () => t('description'),
+    })
     yield ctx.settingsMetadata.registerItems('schedule', [
       { id: 'tasks', anchorId: 'tasks', title: () => t('tasks'), description: () => t('tasksHelp') },
     ])
     yield ctx.slots.register({
       name: 'settings.section', id: 'schedule', order: 130, label: () => t('title'), locale: 'settings.automation',
-      inject: () => ({ openAutomation: () => { ctx.layout.selectPanel('schedule' as never) } }),
+      // ui-schedule registers its manager panel under the plural id.
+      inject: () => ({ openAutomation: () => { ctx.layout.selectPanel('schedules' as MainPanelId) } }),
     }, AutomationSettingsLauncher)
   })
   ctx.slots.inject('settings.section.icon', () => ctx.slots.register({ name: 'settings.section.icon', key: 'schedule' }, IconClockOutline16))

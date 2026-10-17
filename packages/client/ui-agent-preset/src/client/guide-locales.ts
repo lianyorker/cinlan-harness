@@ -71,6 +71,23 @@ export const guideEn = {
     '> Create a “Code review” mode based on Standard mode. Have it prioritize potential bugs and test gaps, cite file paths and lines, and ask before modifying files. Save it as a selectable preset.',
     'Expected output: a custom preset for new tasks. These review instructions guide the agent; permission settings determine which actions it can execute.',
   ].join('\n\n'),
+  guideSecurityResearchIntro: 'Choose Security Research for authorized assessment, reverse engineering, vulnerability validation, malware analysis, and security reporting. Keep Standard mode for ordinary engineering tasks.',
+  guideSecurityResearchExplanation: [
+    '### How it works',
+    'The preset keeps the standard task tools and adds a research persona, a scoped security skill catalog, and security workflow guidance. The bundled router skill maps a request to the narrowest submodule skill, and finding, artifact, and vulnerability-lookup tools are available in the session.',
+    '### Skills and resources',
+    'The audited bundled skill inventory installs automatically at startup — no network request. With a configured release endpoint, install, update, and reinstall download verified archives instead. Both modes publish immutable generations.',
+    '### Authorization boundary',
+    'Selecting the preset or installing resources grants no assessment authorization. The assessment scope starts empty; operators add authorized targets, actions, and evidence policy through a profile patch. Installing resources never starts an Agent or runs resource scripts.',
+  ].join('\n\n'),
+  guideSecurityResearchUsage: [
+    '### Analyze a sample',
+    '> Analyze the binary at samples/demo.exe. Identify packer or obfuscation layers, recover the plaintext strings, and summarize the observed behavior with evidence.',
+    'Expected output: a structured analysis with file hashes, tool output, and the recovered strings; conclusions recorded as durable findings.',
+    '### Assess an authorized target',
+    '> Run the authorized web assessment for a target listed in the assessment scope. Report findings with evidence and severity.',
+    'Expected output: findings with evidence references, produced through the security workflow; only targets inside the configured scope are touched.',
+  ].join('\n\n'),
 }
 
 /** Keys merged into the feature’s ordinary locale seat. */
@@ -148,5 +165,22 @@ export const guideZh: Record<PresetGuideKey, string> = {
     '### 创建自己的模式',
     '> 基于标准模式创建「代码审查」模式，优先检查潜在错误和测试缺口，指出文件与行号，修改文件前先询问我。保存成可选择的预设。',
     '预期产出：可在新任务中选择的自定义模式。审查要求用于指导 Agent，实际可执行的操作仍由权限设置决定。',
+  ].join('\n\n'),
+  guideSecurityResearchIntro: '面向授权安全评估、逆向分析、漏洞验证、恶意软件分析和安全报告的任务选择「安全研究」；普通工程任务保持「标准模式」。',
+  guideSecurityResearchExplanation: [
+    '### 工作方式',
+    '预设保留标准任务工具，并加入研究 persona、限定范围的安全技能目录与安全工作流指引。内置路由技能把请求分流到最匹配的子模块技能；finding、artifact 与漏洞查询工具在会话中可用。',
+    '### 技能与资源',
+    '经过审核的内置技能清单在启动时自动安装，不发起网络请求。配置发布端点后，install、update 与 reinstall 改为下载并校验归档。两种模式都发布不可变 generation。',
+    '### 授权边界',
+    '选择预设或安装资源都不授予评估授权。评估范围初始为空；操作者通过 profile 补丁添加授权目标、动作与证据策略。安装资源不会启动 Agent，也不会执行资源附带脚本。',
+  ].join('\n\n'),
+  guideSecurityResearchUsage: [
+    '### 分析一个样本',
+    '> 分析 samples/demo.exe 这个二进制。识别壳或混淆层，恢复明文字符串，并给出带证据的行为摘要。',
+    '预期产出：包含文件哈希、工具输出与恢复字符串的结构化分析；结论沉淀为持久 finding。',
+    '### 评估一个已授权目标',
+    '> 对评估范围内已授权的 Web 目标执行评估，按证据和严重程度报告发现。',
+    '预期产出：带证据引用的 finding，经安全工作流产出；只触碰配置范围内的目标。',
   ].join('\n\n'),
 }

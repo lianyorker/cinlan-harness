@@ -350,14 +350,72 @@ describe('execution host settings page', () => {
       anchors: [...b.container.querySelectorAll('[data-settings-anchor]')].map(element => element.getAttribute('data-settings-anchor')),
       sections: [...b.container.querySelectorAll('h3')].map(element => element.textContent),
     }).toEqual({
-      title: 'SSH 远程主机',
-      lead: '通过 SSH 使用已有机器处理文件、终端、Git 和工作区。',
-      anchors: ['hosts', 'ssh-alias'],
-      sections: ['目标'],
+      title: undefined,
+      lead: zh.hostsDescription,
+      anchors: ['hosts', 'ssh-alias', 'ephemeral-vms'],
+      sections: ['目标', zh.vmsTitle],
     })
     expect(screen.getByText(zh.empty)).toBeTruthy()
     expect(screen.getAllByRole('button', { name: zh.add })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: zh.import })).toHaveLength(1)
-    expect(b.container.textContent).toContain('通过 SSH 使用已有机器处理文件、终端、Git 和工作区。')
+    expect(b.container.textContent).not.toContain(zh.description)
+  })
+
+  it('renders the approved VM recipes catalog and quota usage', () => {
+    bench('en', baseline)
+    expect(screen.getByText(en.vmsTitle)).toBeTruthy()
+    expect(screen.getByText(en.vmsDescription)).toBeTruthy()
+    expect(screen.getByText('Debian 12 Developer Runtime')).toBeTruthy()
+    expect(screen.getByText('Security Audit & Reverse Sandbox')).toBeTruthy()
+    expect(screen.getByText('Minimal Isolated Worker')).toBeTruthy()
+    expect(screen.getByText(en.vmNoActive)).toBeTruthy()
+  })
+
+  it('launches an ephemeral VM and terminates it with confirmation', async () => {
+    bench('en', baseline)
+    const launchButtons = screen.getAllByRole('button', { name: en.vmLaunch })
+    expect(launchButtons.length).toBeGreaterThanOrEqual(1)
+
+    // Click launch on first recipe
+    fireEvent.click(launchButtons[0]!)
+    expect(screen.getByText(en.vmLaunchTitle)).toBeTruthy()
+
+    // Fill label
+    const labelInput = screen.getByLabelText(en.vmLabel)
+    fireEvent.change(labelInput, { target: { value: 'my-custom-box' } })
+
+    // Submit launch
+    const submitBtn = screen.getByRole('button', { name: en.vmLaunchSubmit })
+    await act(async () => {
+      fireEvent.click(submitBtn)
+    })
+
+    // Now the active list contains my-custom-box
+    expect(screen.getByText('my-custom-box')).toBeTruthy()
+
+    // Click destroy button
+    const destroyBtn = screen.getByRole('button', { name: en.vmDestroy })
+    fireEvent.click(destroyBtn)
+    expect(screen.getByText(en.vmDestroyTitle)).toBeTruthy()
+
+    // Confirm destroy
+    const confirmBtn = screen.getByRole('button', { name: en.vmDestroyConfirm })
+    await act(async () => {
+      fireEvent.click(confirmBtn)
+    })
+
+    // Modal closed and list is empty again
+    expect(screen.queryByText(en.vmDestroyTitle)).toBeNull()
+    expect(screen.getByText(en.vmNoActive)).toBeTruthy()
+  })
+
+  it('reaps orphaned or expired VMs and displays notification', async () => {
+    bench('en', baseline)
+    const reapBtn = screen.getByRole('button', { name: en.vmReapOrphaned })
+    await act(async () => {
+      fireEvent.click(reapBtn)
+    })
+    expect(screen.getByText('Reaped 0 expired or orphaned VM instances.')).toBeTruthy()
   })
 })
+

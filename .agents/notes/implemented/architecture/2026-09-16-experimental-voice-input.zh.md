@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-`packages/experimental/` 下的五个公开包组合成一个默认禁用的可选语音输入 Bundle。服务定义、SenseVoice Provider 和 Remote 消费者分开，因为 Provider 部署与浏览器传输独立演化。浏览器 UI 动态挂载其生成的 Remote 贡献。稳定 API Remotes 不引入实验性依赖。
+`packages/experimental/` 下保留的五个公开包组合成已退休的语音输入 Bundle。随包 GUI profile 使用[内置听写](2026-10-07-builtin-voice-dictation.zh.md)；本笔记记录保留的实验性实现。服务定义、SenseVoice Provider 和 Remote 消费者分开，因为 Provider 部署与浏览器传输独立演化。浏览器 UI 动态挂载其生成的 Remote 贡献。稳定 API Remotes 不引入实验性依赖。
 
 Provider id 选择确切的注册。解析捕获实例，注销先拒绝新任务，再取消并等待已接收的任务。不存在 Provider 回退：本地失败不能授权将语音上传至云端服务。新增云端 Provider 通过同一注册表提供自己的凭据配置与显式处理位置。
 

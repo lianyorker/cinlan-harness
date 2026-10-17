@@ -10,6 +10,10 @@ English | [中文](README.zh.md)
 
 Open a dual workbench for files, previews, terminals, Git, background tasks, embedded Browser pages, and extensible plugin panels.
 
+Chat file opens use the `workspaces.openPath` interceptor. The sidebar preserves the standard Deliverables turn-tail cards and does not register a second produced-files row.
+
+The sidebar selects its Session from catalog rows retained by `mainView`; catalog order and other view references do not select it.
+
 ## Overview
 
 <!-- Hero -->

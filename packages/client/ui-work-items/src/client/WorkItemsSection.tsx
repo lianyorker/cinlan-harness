@@ -191,8 +191,7 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
     }
   }
 
-  return <section className={css.section} aria-labelledby="work-items-title">
-    <header className={css.header}><h1 id="work-items-title">{t('title')}</h1><p>{t('description')}</p></header>
+  return <section className={css.section}>
     <section className={css.providerArea} aria-labelledby="work-items-providers">
       <h2 id="work-items-providers">{t('providerManagement')}</h2><p className={css.help}>{t('providerManagementDesc')}</p>
       {providers.map((provider) => {

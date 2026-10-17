@@ -481,7 +481,7 @@ describe('workspace browser rows', () => {
     }
   })
 
-  it.each(['hover', 'focus'] as const)('shows only the new Session tooltip while its action owns %s', (trigger) => {
+  it.each(['hover', 'focus'] as const)('keeps workspace details alongside the new Session tooltip on %s', (trigger) => {
     vi.useFakeTimers()
     try {
       const group: GroupNode = {
@@ -503,7 +503,7 @@ describe('workspace browser rows', () => {
         fireEvent.focus(create)
       }
       expect(screen.getByRole('tooltip').textContent).toBe('新会话')
-      expect(screen.queryByText('/projects/project')).toBeNull()
+      expect(screen.getByText('/projects/project')).toBeTruthy()
 
       if (trigger === 'hover') fireEvent.mouseLeave(create, { relatedTarget: row })
       else fireEvent.blur(create, { relatedTarget: row })
@@ -514,7 +514,7 @@ describe('workspace browser rows', () => {
     }
   })
 
-  it('keeps workspace details hidden when the pointer first enters its new Session action', () => {
+  it('shows workspace details and the tooltip when the pointer first enters its new Session action', () => {
     vi.useFakeTimers()
     try {
       const group: GroupNode = {
@@ -528,7 +528,7 @@ describe('workspace browser rows', () => {
       fireEvent.mouseEnter(create)
       act(() => { vi.advanceTimersByTime(1000) })
       expect(screen.getByRole('tooltip').textContent).toBe('新会话')
-      expect(screen.queryByText('/projects/project')).toBeNull()
+      expect(screen.getByText('/projects/project')).toBeTruthy()
 
       fireEvent.mouseLeave(create, { relatedTarget: row })
       expect(screen.queryByRole('tooltip')).toBeNull()

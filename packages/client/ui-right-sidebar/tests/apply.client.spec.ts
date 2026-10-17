@@ -7,7 +7,7 @@ describe('ui-right-sidebar apply', () => {
   it('exports required metadata', () => {
     expect(name).toBe('ui-right-sidebar')
     expect(inject).toEqual([
-      'sidebarRightTabs', 'slots', 'locale', 'remote', 'remote.terminals',
+      'sidebarRightTabs', 'slots', 'locale', 'remote',
       'remote.worktreeTasks', 'remote.workspaceIsolation',
     ])
   })
@@ -22,13 +22,13 @@ describe('ui-right-sidebar apply', () => {
         inject: vi.fn((_name: string, factory: Function) => { factory(); return () => {} }),
         register: vi.fn(() => () => {}),
       },
-      remote: { terminals: {}, worktreeTasks: {}, workspaceIsolation: {} },
+      remote: { worktreeTasks: {}, workspaceIsolation: {} },
     } as unknown as ClientContext
 
     expect(() => apply(mockContext)).not.toThrow()
     expect(effects.length).toBeGreaterThan(0)
     expect(mockContext.locale.register).toHaveBeenCalled()
     expect(mockContext.sidebarRightTabs.register).toHaveBeenCalledTimes(4)
-    expect(mockContext.slots.register).toHaveBeenCalledTimes(4)
+    expect(mockContext.slots.register).toHaveBeenCalledTimes(5)
   })
 })

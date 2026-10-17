@@ -71,7 +71,10 @@ export function apply(ctx: Context): void {
     },
   }
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: NS, groupId: 'workspace' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: NS, groupId: 'workspace',
+      title: () => t('title'), description: () => t('description'),
+    })
     yield ctx.settingsMetadata.registerItems(NS, [
       ...(['github', 'gitlab', 'linear'] as const).map(provider => ({
         id: provider + 'Visible', anchorId: 'work-items-' + provider + '-visible',

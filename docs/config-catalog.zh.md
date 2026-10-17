@@ -96,7 +96,7 @@ export interface Config {
 
 - `inject`: `agents` · `sessions` · `llm` · `tools` · `systemPrompt` · `sessionProjections`
 - `refs`: [`AgentOptions`](subsystems/core.zh.md) · [`SessionId`](subsystems/core.zh.md) · `Volatile` (`@deepseek-ai/cosmokit`)
-- `source`: [`packages/core/agent-loop/src/index.ts:292`](../packages/core/agent-loop/src/index.ts)
+- `source`: [`packages/core/agent-loop/src/index.ts:305`](../packages/core/agent-loop/src/index.ts)
 
 ```ts config-catalog
 /** Agent-loop plugin configuration. */
@@ -362,7 +362,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-api-workspace-controller`
 
 - `inject`: `typert` · `workspaceRegistry`
-- `source`: [`packages/api/workspace-controller/src/index.ts:33`](../packages/api/workspace-controller/src/index.ts)
+- `source`: [`packages/api/workspace-controller/src/index.ts:34`](../packages/api/workspace-controller/src/index.ts)
 
 ```ts config-catalog
 /** First-use directory policy for the Host account. */
@@ -534,7 +534,7 @@ export interface AssessmentCredentialConfig {
 ## `@deepseek-ai/dsh-assessment-scope-tool-policy`
 
 - `inject`: `tools` · `assessmentScopeSessions` · `executionHost`
-- `source`: [`packages/security/assessment-scope-tool-policy/src/index.ts:14`](../packages/security/assessment-scope-tool-policy/src/index.ts)
+- `source`: [`packages/security/assessment-scope-tool-policy/src/index.ts:16`](../packages/security/assessment-scope-tool-policy/src/index.ts)
 
 ```ts config-catalog
 /** Scope-enforced model effects. */
@@ -545,6 +545,13 @@ export interface Config {
   readonly networkTools?: readonly string[]
   /** Tool names that inspect or operate Browser pages. */
   readonly browserTools?: readonly string[]
+  /** Exact shell commands admitted in the calling Session's workspace without assessment authority. Sandbox policy still applies. */
+  readonly workspaceCommands?: readonly {
+    /** Configured shell tool name. */
+    readonly tool: string
+    /** Exact command text trusted by the deployment. */
+    readonly command: string
+  }[]
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-assessment-scope-tool-policy -->
@@ -1443,6 +1450,28 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-execution-binding -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-execution-host-local -->
+<a id="deepseek-aidsh-execution-host-local"></a>
+
+## `@deepseek-ai/dsh-execution-host-local`
+
+- `source`: [`packages/execution-host/execution-host-local/src/index.ts:16`](../packages/execution-host/execution-host-local/src/index.ts)
+
+```ts config-catalog
+/**
+ * Operator override for the local host identity.
+ *
+ * The default remains a per-process random id. A static assessment grant can
+ * never name that id, so an operator who needs a durable
+ * `assessment-scope` `executionHostIds` entry pins this host id instead.
+ */
+export interface Config {
+  /** Stable host id; omission keeps the per-process random id. */
+  readonly hostId?: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-execution-host-local -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-execution-host-targets -->
 <a id="deepseek-aidsh-execution-host-targets"></a>
@@ -2924,13 +2953,20 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-mobile-device`
 
-- `source`: [`packages/mobile-device/mobile-device/src/types.ts:123`](../packages/mobile-device/mobile-device/src/types.ts)
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/mobile-device/mobile-device/src/types.ts:124`](../packages/mobile-device/mobile-device/src/types.ts)
 
 ```ts config-catalog
 /** Mobile-device runtime configuration. */
 export interface Config {
   /** Exact Provider id; omit only when exactly one available Provider is registered. */
   readonly provider?: string
+  /** Check devices when opening Settings; never authorizes device operations. Defaults to false. */
+  readonly enabled?: boolean | Volatile<boolean>
+  /** Exact default observation target. Defaults to an empty string. */
+  readonly defaultDeviceId?: string | Volatile<string>
+  /** Android SDK root, platform-tools directory, or adb executable. Defaults to an empty string. */
+  readonly androidSdkPath?: string | Volatile<string>
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-mobile-device -->
@@ -5770,7 +5806,7 @@ export interface Config {
 | --- | --- | --- |
 | `@deepseek-ai/dsh-acp-app` | `cmdlineArgs` | [`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts) |
 | `@deepseek-ai/dsh-agent` | — | [`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts) |
-| `@deepseek-ai/dsh-api-account-controller` | `deepseekAccount` · `agents` | [`packages/api/account-controller/src/index.ts`](../packages/api/account-controller/src/index.ts) |
+| `@deepseek-ai/dsh-api-account-controller` | `credentials` | [`packages/api/account-controller/src/index.ts`](../packages/api/account-controller/src/index.ts) |
 | `@deepseek-ai/dsh-api-automation-controller` | `typert` · `automationRuntime` · `workspaceRegistry` · `agentPresets` · `agentDefaultModel` · `llm` · `permissionPresets` | [`packages/api/automation-controller/src/index.ts`](../packages/api/automation-controller/src/index.ts) |
 | `@deepseek-ai/dsh-api-execution-host-controller` | `typert` · `executionHostTargets` | [`packages/api/execution-host-controller/src/index.ts`](../packages/api/execution-host-controller/src/index.ts) |
 | `@deepseek-ai/dsh-api-integration-preflight-controller` | `typert` | [`packages/api/integration-preflight-controller/src/index.ts`](../packages/api/integration-preflight-controller/src/index.ts) |
@@ -5828,7 +5864,7 @@ export interface Config {
 | `@deepseek-ai/dsh-client-ui-session` | — | [`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings` | — | [`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-agent-loop` | — | [`packages/client/ui-settings-agent-loop/src/index.ts`](../packages/client/ui-settings-agent-loop/src/index.ts) |
-| `@deepseek-ai/dsh-client-ui-settings-automation` | `slots` · `locale` · `settingsMetadata` · `layout` | [`packages/client/ui-settings-automation/src/index.ts`](../packages/client/ui-settings-automation/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-settings-automation` | — | [`packages/client/ui-settings-automation/src/index.ts`](../packages/client/ui-settings-automation/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-general` | — | [`packages/client/ui-settings-general/src/index.ts`](../packages/client/ui-settings-general/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-hosts` | — | [`packages/client/ui-settings-hosts/src/index.ts`](../packages/client/ui-settings-hosts/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-mcp` | — | [`packages/client/ui-settings-mcp/src/index.ts`](../packages/client/ui-settings-mcp/src/index.ts) |
@@ -5868,7 +5904,6 @@ export interface Config {
 | `@deepseek-ai/dsh-coordination-browser-element-capture` | `attachments` · `browser` · `coordination` | [`packages/coordination/coordination-browser-element-capture/src/index.ts`](../packages/coordination/coordination-browser-element-capture/src/index.ts) |
 | `@deepseek-ai/dsh-cordis-client-runner` | — | [`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts) |
 | `@deepseek-ai/dsh-deepseek-llm-api-extensions` | — | [`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../packages/llm/deepseek-llm-api-extensions/src/index.ts) |
-| `@deepseek-ai/dsh-execution-host-local` | — | [`packages/execution-host/execution-host-local/src/index.ts`](../packages/execution-host/execution-host-local/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-auto-review` | `approval` · `llm` · `permissionPresets` · `sessions` · `tools` | [`packages/experimental/auto-review/src/index.ts`](../packages/experimental/auto-review/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-client-ui-agent-team` | — | [`packages/experimental/client-ui-agent-team/src/index.ts`](../packages/experimental/client-ui-agent-team/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-client-ui-claude-code-mods` | — | [`packages/experimental/client-ui-claude-code-mods/src/index.ts`](../packages/experimental/client-ui-claude-code-mods/src/index.ts) |
@@ -5964,6 +5999,7 @@ export interface Config {
 | `@deepseek-ai/dsh-brand` | — | [`packages/util/brand/src/index.ts`](../packages/util/brand/src/index.ts) |
 | `@deepseek-ai/dsh-chunked-list` | — | [`packages/util/chunked-list/src/index.ts`](../packages/util/chunked-list/src/index.ts) |
 | `@deepseek-ai/dsh-cinlan-browser` | — | [`packages/bundle/cinlan-browser/src/index.ts`](../packages/bundle/cinlan-browser/src/index.ts) |
+| `@deepseek-ai/dsh-cinlan-remote-tunnel` | — | [`packages/bundle/cinlan-remote-tunnel/src/index.ts`](../packages/bundle/cinlan-remote-tunnel/src/index.ts) |
 | `@deepseek-ai/dsh-cinlan-work-items` | — | [`packages/bundle/cinlan-work-items/src/index.ts`](../packages/bundle/cinlan-work-items/src/index.ts) |
 | `@deepseek-ai/dsh-client-store` | — | [`packages/client/store/src/index.ts`](../packages/client/store/src/index.ts) |
 | `@deepseek-ai/dsh-client-test-runtime` | — | [`packages/test-support/client-runtime/src/index.ts`](../packages/test-support/client-runtime/src/index.ts) |

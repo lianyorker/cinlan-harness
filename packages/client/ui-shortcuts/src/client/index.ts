@@ -46,22 +46,30 @@ export function apply(ctx: Context): void {
     hooks: { catalog: ctx.shortcuts.catalog, config: ctx.shortcuts.config, fixedCatalog: ctx.shortcuts.fixedCatalog,
       keyboard: ctx.keyboard } })
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'keybindings', groupId: 'personal' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'keybindings', groupId: 'personal',
+      title: () => t('title'), description: () => t('description'),
+    })
     yield ctx.effect(() => {
       let live = true
       let removeItems: (() => void) | undefined
       const publish = (): void => {
-        if (!live) return
+        if (!live || ctx.fiber.store === undefined || ctx.fiber.uid === null) return
         removeItems?.()
-        removeItems = ctx.settingsMetadata.registerItems('keybindings', [
-          { id: 'reset', anchorId: 'shortcut-reset', title: () => t('reset-all'), description: () => t('reset-description') },
-          ...ctx.shortcuts.catalog.getSnapshot().map(row => ({
-            id: row.id, anchorId: 'shortcut-' + row.id, title: () => row.label,
-          })),
-          ...ctx.keyboard.getSnapshot().commands.filter(command => command.registered).map(command => ({
-            id: command.id, anchorId: 'keybinding-' + command.id, title: () => command.label, description: () => command.description,
-          })),
-        ])
+        try {
+          removeItems = ctx.settingsMetadata.registerItems('keybindings', [
+            { id: 'reset', anchorId: 'shortcut-reset', title: () => t('reset-all'), description: () => t('reset-description') },
+            ...ctx.shortcuts.catalog.getSnapshot().map(row => ({
+              id: row.id, anchorId: 'shortcut-' + row.id, title: () => row.label,
+            })),
+            ...ctx.keyboard.getSnapshot().commands.filter(command => command.registered).map(command => ({
+              id: command.id, anchorId: 'keybinding-' + command.id, title: () => command.label, description: () => command.description,
+            })),
+          ])
+        } catch (err: unknown) {
+          if ((err as any)?.code === 'INACTIVE_EFFECT') return
+          throw err
+        }
       }
       publish()
       const offCatalog = ctx.shortcuts.catalog.subscribe(publish)

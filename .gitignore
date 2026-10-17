@@ -48,3 +48,4 @@ worktrees/
 native/system/test/bin/
 .tmp-*
 %SystemDrive%/
+reports/

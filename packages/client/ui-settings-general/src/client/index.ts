@@ -11,7 +11,10 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the ctx.remote merge and its fixed Host facts.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
-import { IconSettingsOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { closeTopModal, IconSettingsOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
+import type {} from '@deepseek-ai/dsh-client-shortcuts/client'
+import { createSettingsShellStore } from './shell-store.ts'
 // Type-only: the settings slot declarations plus the ctx.settingsScope and
 // ctx.configForms Context merges. Cross-plugin collaboration goes through the
 // service, never a value import (client bundle purity gate).
@@ -128,18 +131,20 @@ export function apply(ctx: ClientContext): void {
             rowsVersion = version
             rowsRevision = revision
             rows = ctx.slots.entries('settings.section')
-              .map(e => ({
-                /* v8 ignore next -- list-slot registration requires id (SlotCore rejects an entry without one) */
-                id: e.options.id ?? '',
-                order: e.options.order ?? 0,
-                label: resolveSlotLabel(e.options.label) ?? '',
-                groupId: (() => {
-                  const g = metadata.sections.find(section => section.sectionId === e.options.id)?.groupId
-                  return (g === 'capabilities' || g === undefined) ? 'tools' : g
-                })(),
-                heading: metadata.sections.find(section => section.sectionId === e.options.id)?.heading ?? 'feature',
-                items: metadata.items.filter(item => item.sectionId === e.options.id),
-              }))
+              .map((e) => {
+                const label = resolveSlotLabel(e.options.label) ?? ''
+                const meta = metadata.sections.find(section => section.sectionId === e.options.id)
+                return {
+                  /* v8 ignore next -- list-slot registration requires id (SlotCore rejects an entry without one) */
+                  id: e.options.id ?? '',
+                  order: e.options.order ?? 0,
+                  label,
+                  title: (typeof meta?.title === 'function' ? meta.title() : meta?.title) ?? label,
+                  ...(meta?.description === undefined ? {} : { description: typeof meta.description === 'function' ? meta.description() : meta.description }),
+                  groupId: (meta?.groupId === 'capabilities' || meta === undefined) ? 'tools' : meta.groupId,
+                  items: metadata.items.filter(item => item.sectionId === e.options.id),
+                }
+              })
               .sort((a, b) => a.order - b.order)
           }
           return rows
@@ -174,21 +179,55 @@ export function apply(ctx: ClientContext): void {
       },
     },
   }
-  ctx.slots.inject('sidebar.settings', () => ctx.slots.register({
-    name: 'sidebar.settings',
-    locale: NS,
-    children: {
-      'settings.launcher': { kind: 'single', scope: 'root' },
-      'settings.trigger': { kind: 'single', scope: 'root' },
-      'settings.header': { kind: 'single', scope: 'root' },
-      'settings.action': { kind: 'list', scope: 'root' },
-      'settings.close': { kind: 'single', scope: 'root' },
-      'settings.section': { kind: 'list', scope: 'root' },
-      'settings.section.icon': { kind: 'keyed', scope: 'root' },
-      'settings.onboarding': { kind: 'list', scope: 'root' },
-    },
-    inject: () => shellInjected,
-  }, SettingsRoot))
+  ctx.slots.inject('sidebar.settings', () => {
+    const shellHandle = createSettingsShellStore()
+    const shellInstance = shellHandle.create()
+    const shellStore: typeof shellHandle = { ...shellHandle, create: () => shellInstance }
+    let disposeCommand: (() => void) | undefined
+    const fork = ctx.inject(['shortcuts'], (shortcutsCtx) => {
+      disposeCommand = shortcutsCtx.shortcuts.register({
+        id: 'settings.open' as ShortcutCommandId, label: () => t('shortcut.open'), aliases: ['settings', 'preferences'],
+        defaults: {
+          'desktop:macos': { code: 'Comma', modifiers: ['primary'] },
+          'desktop:windows': { code: 'Comma', modifiers: ['primary'] },
+          'desktop:linux': { code: 'Comma', modifiers: ['primary'] },
+          'web:macos': { code: 'Comma', modifiers: ['primary'] },
+          'web:windows': { code: 'Comma', modifiers: ['primary'] },
+        },
+        regions: ['page', 'editable', 'terminal'], modals: ['settings'],
+        resolve: ({ modal }) => {
+          if (modal !== null && modal !== 'settings') return { status: 'blocked', reason: 'modal' }
+          return { status: 'handled', run: () => {
+            if (modal === 'settings') closeTopModal(document)
+            else shellInstance.actions.open()
+          } }
+        },
+      })
+    })
+
+    const disposeSlot = ctx.slots.register({
+      name: 'sidebar.settings',
+      locale: NS,
+      store: shellStore,
+      children: {
+        'settings.launcher': { kind: 'single', scope: 'root' },
+        'settings.trigger': { kind: 'single', scope: 'root' },
+        'settings.header': { kind: 'single', scope: 'root' },
+        'settings.action': { kind: 'list', scope: 'root' },
+        'settings.close': { kind: 'single', scope: 'root' },
+        'settings.section': { kind: 'list', scope: 'root' },
+        'settings.section.icon': { kind: 'keyed', scope: 'root' },
+        'settings.onboarding': { kind: 'list', scope: 'root' },
+      },
+      inject: () => shellInjected,
+    }, SettingsRoot)
+
+    return () => {
+      void fork.dispose()
+      disposeCommand?.()
+      disposeSlot()
+    }
+  })
 
   ctx.slots.inject('settings.trigger', () =>
     ctx.slots.register({ name: 'settings.trigger', locale: NS }, TriggerContent))
@@ -208,7 +247,9 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.section.icon', () =>
     ctx.slots.register({ name: 'settings.section.icon', key: 'general' }, IconSettingsOutline16))
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'general', groupId: 'personal', heading: 'shell' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'general', groupId: 'personal', description: () => t('general.description'),
+    })
     yield ctx.slots.register({
       name: 'settings.section',
       id: 'general',

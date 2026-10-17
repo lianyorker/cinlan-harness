@@ -60,6 +60,7 @@ export function createCapabilityShared(ctx: ClientContext): CapabilityShared {
  * @param operations - Path operations sent to the Host.
  * @param revision - Revision read when the draft opened.
  * @param errorKey - Locale key for a rejected mutation.
+ * @returns Revision accepted by the Host.
  */
 export async function mutateCapabilityPreferences(
   ctx: ClientContext,
@@ -69,12 +70,13 @@ export async function mutateCapabilityPreferences(
   operations: readonly SettingsPathOpView[],
   revision: number,
   errorKey: 'browserSettingsFailed' | 'preferencesFailed',
-): Promise<void> {
+): Promise<number> {
   const current = scope.getSnapshot()
   if (current.status !== 'ready' || !current.writable || current.mode !== 'host') throw new Error(t('preferencesReadOnly'))
   const result = await ctx.remote.settings.mutate(namespace, [...operations], revision)
   if (!result.ok) throw new Error(t(errorKey))
   ctx.settingsScope.describe().acceptView(result.value)
+  return result.value.revision
 }
 
 /**

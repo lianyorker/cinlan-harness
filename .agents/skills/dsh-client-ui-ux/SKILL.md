@@ -1,62 +1,125 @@
 ---
 name: dsh-client-ui-ux
-description: Design and review DeepSeek Harness client UI changes — visual token discipline, reuse-before-adding, feedback surfaces (toast vs in-place notice vs empty state), overlay and menu safety, platform window adaptation, loading states, and error copy placement. Use when adding or changing product-user-visible GUI behavior in packages/client, or when reviewing such a PR.
+description: Design, redesign, and review Cinlan / DeepSeek Harness client UI and Web surfaces — native Anti-Slop discipline, visual token discipline, Art Direction & layout variance, typography hierarchy, surfaces & texture depth, feedback surfaces, overlay/menu safety, platform window adaptation, and the Look-and-Fix browser verification loop. Use when adding, restyling, or reviewing product-user-visible GUI behavior in packages/client, apps/web, or website.
 ---
 
-# DeepSeek Harness Client UI/UX
+# Cinlan Harness Client UI/UX & Native Art Direction
 
-This skill is guidance, not a complete checklist. It covers judgment calls that lint, typecheck, and the i18n gate cannot make: where feedback appears, what gets reused, and how surfaces behave at window edges and across platforms. Copy quality itself follows [dsh-prose-standard](../dsh-prose-standard/SKILL.md); locale ownership follows the [locale-owned copy decision](../../notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.md); styling ownership and token rules live in [docs/web-styling.md](../../../docs/web-styling.md) and the [ui-primitives component catalog](../../../packages/client/ui-primitives/README.md#component-catalog) — this skill adds judgment on top of those rules, not a second copy of them.
+This skill unites Cinlan Harness client engineering discipline with native Taste Skill art direction. It covers non-negotiable visual invariants, anti-slop house bans, feedback placement, surface depth, window adaptation, and the browser-level look-and-fix verification loop.
 
-## Visual foundation
+Copy quality follows [dsh-prose-standard](../dsh-prose-standard/SKILL.md); locale ownership follows the [locale-owned copy decision](../../notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.md); token rules and shared primitives live in [docs/web-styling.md](../../../docs/web-styling.md) and [ui-primitives](../../../packages/client/ui-primitives/README.md).
 
-- **Use existing tokens for color, radius, and spacing.** Before introducing a literal value, search the target page and its nearest established sibling (the Plugins page is the usual reference for full-page surfaces) for the token or value already in use, and adopt it. The same applies to whole treatments — toasts, menus, in-message artifact previews, sidebar tab layout, colors, clearance rules, page padding: reuse the established component or rule wherever one exists instead of inventing a parallel one.
-- **Verify every color in both light and dark mode.** An ink/background pair must stay readable under both themes before it ships. Dimmed tones are the standing counter-example: they suit decorative surfaces, but on text they routinely fall below readability in one theme — never put a dimmed color on text without checking both.
-- **Font weight tops out at 500 in feature CSS you add or change.** Do not use 600+ for emphasis; differentiate with size or ink instead. The markdown typography tokens owned by ui-theme are the standing exception.
-- **Pick font sizes from the theme typography variables when an existing role matches, otherwise from the page's existing scale.** Parallel content shares one size; never invent a size for a single element, and keep the number of distinct sizes on a page small (13px is the established row/detail size). When the page itself has no precedent, borrow the size and spacing ratios of the most similar existing page or element.
-- **Icons, text, and neighbouring elements stay proportionate and aligned.** Every element lines up with its siblings along a deliberate axis (baseline, vertical center, or shared edge), and an icon's size stays in proportion to the text beside it; never ship an element that aligns to nothing or visibly outweighs its neighbours.
+---
 
-## Reuse before adding
+## 1. The Three Consistency Locks
 
-- **Extend an existing component, container, or interaction before creating a new one.** A new capability that fits an existing surface (an extra menu item, a new prop on an existing primitive) beats a parallel element stacked beside it.
-- **Icons come from the existing icon library.** Pick the semantically closest existing icon; a new glyph requires designer approval before it lands — when reviewing a PR that adds one, suggest requesting a designer review.
-- **Right-sidebar content registers a slot in the existing sidebar**, never a separate sidebar. Every sidebar tab declares a tab icon matching its meaning.
-- **Icon-only actions whose meaning is not obvious get a Tooltip.** Informational content the pointer must rest on or select uses HoverCard instead. Prefer these shared primitives over ad-hoc title attributes.
+Every surface enforces three locks from first paint to final teardown:
 
-## Feedback surfaces
+1. **Color Consistency Lock**: Pick exactly one primary accent per surface or view. Never scatter unrelated brand accents (e.g. blue buttons next to emerald highlights and amber badges without semantic distinction).
+2. **Shape Consistency Lock**: One corner-radius system per view. Containers, cards, inputs, and buttons share an optically harmonious radius scale (e.g. sharp, rounded, or pill). An inner element's radius must never exceed its containing card's radius.
+3. **Theme & Dual-Palette Fidelity Lock**: Dark and light modes must achieve equal visual hierarchy and brand fidelity.
+   - **No pure `#000000` or `#ffffff` backgrounds**: Use off-black (`#0a0a0a`, `#121212`, or tinted dark charcoal) and off-white (`#f5f4f2`, `#faf9f6`) to prevent stark, uncalibrated contrast.
+   - **WCAG AA contrast parity**: Text must pass readability standards under both schemes before shipping. Never test one palette mode and assume the other works.
 
-Choose the surface by the lifetime of the message relative to the surface that produced it:
+---
 
-- **Transient operation outcomes use the app-wide Toast primitive**, not in-place notices, and the toast's state and rendering live in a host that outlives the reporting surface (a `shell.overlay` entry, as RowActionToast does) — a toast rendered by the panel itself unmounts with that panel. A deletion can close the panel or tab that requested it; only a toast held outside that surface survives the close. Report success and failure; do not report still-pending states.
-- **A failed operation keeps the data visible.** A failed deletion keeps its row; the toast announces the failure. Never blank content to show an error for a transient operation.
-- **In-place notices are for states tied to the surface itself**: a query failure with its Retry action, field validation on the form that owns the field. A populated panel keeps a compact notice beside its retained content; only an empty panel centers a full error state.
-- **Error copy is plain language, and short.** No internal jargon or technical nouns unless an error code must be exposed for debugging. Prefer one clear sentence; anything explainable in two sentences must not grow into paragraphs. A Chinese notice of at most two sentences omits the trailing 句号（。）. The notice must not break the existing layout — reserve its space or overlay it; never shift neighbouring elements.
+## 2. Anti-Slop House Bans
 
-## Loading states
+Generated code must never emit generic AI design artifacts. The following patterns are strictly banned:
 
-- Lists use their skeleton; every other page-level load centers a bare spinner. Never place a spinner in a corner of the page.
-- One loading treatment per page/component — concurrent regions must not each flash their own style.
-- No loading text unless the context needs it (narrow sidebars almost never do).
+- **Banned em-dashes and en-dashes (`—` and `–`)**: Do not use em-dashes or en-dashes in UI labels, headlines, buttons, cards, toasts, or captions. Use a standard hyphen (`-`) or rewrite the phrasing.
+- **Banned three-equal-card feature rows**: Never default to three identical side-by-side cards with a centered icon. Replace with an asymmetric layout, a 2-column zig-zag, an interactive preview list, or an expandable detail card.
+- **Banned AI gradients**: Purple-to-blue mesh blob gradients and saturated diagonal linear fades are prohibited. Use neutral surfaces, ambient lighting, or a single restrained accent tint.
+- **Banned div-based fake UI**: Do not assemble mock product dashboards, fake code terminals, or simulated cards out of styled divs when real data or interactive components exist.
+- **Banned repetitive borders**: Never apply `border-t` plus `border-b` across every item in a list or spec view. Use clean spacing, subtle background alternation, or grouped cards.
+- **Banned raw scroll event listeners**: Never write `window.addEventListener('scroll')` in application scripts or React components. Use CSS scroll-driven animations, Motion `useScroll`, or `IntersectionObserver`.
+- **Banned decorative status dots**: Colored pulse/status dots are reserved strictly for live semantic runtime state (e.g. active streaming, connection status). Never sprinkle static decorative green/yellow dots.
 
-## Overlays and menus
+---
 
-Every menu, popover, and tooltip must be verified for all three before merge:
+## 3. Typography & Breathing Space
 
-- **Dismissable**: outside click (and Escape where focusable) closes it.
-- **Viewport-fitting**: it slides or flips to stay inside the window with an edge margin, and flips only into a side that actually fits (no oscillation when neither side fits).
-- **Unclipped**: it escapes `overflow` ancestors and containing blocks (portal to body where needed) and is never covered by neighbouring elements.
+- **Font weight discipline**: Feature CSS tops out at `font-weight: 500`. Do not use `600` or `700` for emphasis in standard feature code; establish hierarchy through size, ink contrast, or tracking instead. The markdown typography tokens in `ui-theme` are the sole standing exception.
+- **Introduce Medium (500)**: Avoid jarring clashes between bare 400 (regular) and 700 (bold). Use 500 (medium) for subtle hierarchy in list titles, table headers, and tab labels.
+- **Optical tracking & line-height**:
+  - Headlines and display titles: Tighten letter-spacing (`tracking-tight` or `-0.015em` to `-0.025em`) with reduced line-height (`leading-[1.1]` to `leading-snug`).
+  - Small labels, badges, and uppercase tags: Slightly loosen letter-spacing (`+0.04em` to `+0.08em`).
+- **Tabular figures for data**: Enable `font-variant-numeric: tabular-nums` (or monospace tokens) for counters, dates, file sizes, token budgets, and prices to eliminate horizontal jitter during updates.
+- **Headline discipline**:
+  - Headlines must not exceed two lines on desktop displays.
+  - Fix awkward single-word wrapping using `text-wrap: balance` on headings and `text-wrap: pretty` on short descriptions.
+- **Double the whitespace**: When in doubt, increase padding and margin. Generous whitespace creates calm, intentional architecture; tight, claustrophobic margins signal unrefined layouts.
 
-Scrollbars stay inside their container: use the shared scrollbar styles rather than component-specific selectors, and verify the bar neither overflows the container nor gets clipped by its rounded corners or edges — keep a small inset instead of letting it sit flush against the container edge.
+---
 
-## Platform window adaptation
+## 4. Surfaces, Depth & Tactile Quality
 
-- Any new header element or full page must account for macOS and Windows window chrome. On macOS the titlebar clearance is `--dsh-frame-top-clearance`, consumed by Menu, Modal, and overlay primitives as their top safe margin — **never change the global variable to fix one page**. Add a scoped `[data-platform='darwin']` override on the page's own inset instead, and assert the override in the page's stylesheet spec.
-- State the intended total offset (clearance + page inset) when reviewing, so two pages aligning to "the same top spacing" agree on the sum, not just one addend.
+- **Tinted shadows**: Never use generic pure-black shadows (`rgba(0,0,0,0.15)`). Tint shadow values to match the surface or background hue (e.g. dark blue/slate shadows on slate backgrounds) to create realistic atmospheric depth.
+- **Subtle borders & backdrops**: Give elevated cards and floating panels a hair-line border with a subtle top edge highlight (`border-t: rgba(255,255,255,0.08)` in dark mode) paired with `backdrop-filter: blur(12px)`.
+- **Consistent lighting angle**: Shadows, bevels, and borders across a single surface must reflect a unified light source (top-down).
 
-## Spacing review
+---
 
-- Review every changed region for gaps: nothing sits flush against its neighbour without an intentional gap, and adjacent icons and elements keep the region's established spacing.
-- Prefer symmetry for parallel elements; an unexplained one-off gap or offset usually signals a missed shared value.
+## 5. Visual Foundation & Token Discipline
 
-## Design review escalation
+- **Use existing tokens for color, radius, and spacing**: Search the target surface and established siblings (e.g. the Plugins and Settings surfaces) for existing tokens before adding custom CSS variables.
+- **Scale discipline**: Keep the number of distinct font sizes on a single view small (13px is the canonical row/detail size, 14px for body text, 12px for badges/metadata).
+- **Proportionate icons**: Icons must scale and align with adjacent text along a deliberate optical axis (vertical center or shared baseline). Never introduce an icon that visibly outweighs neighbouring text.
+- **Reuse before adding**: Extend existing primitives (`Button`, `Menu`, `Toast`, `Modal`, `HoverCard`, `Badge`) before introducing new single-purpose DOM structures.
+- **Icons from the icon library**: Use the existing `@deepseek-ai/dsh-client-ui-primitives` icon exports. New glyphs require designer review.
+- **Slot registrations**: Right-sidebar content must register a slot in the unified right-sidebar host rather than opening a disconnected panel. Every sidebar tab declares a semantic icon.
+- **Tooltips on icon-only actions**: Every icon-only button without visible text requires a `Tooltip`. Informational hover targets with selectable text use `HoverCard`.
 
-- A PR with extensive UI changes, or any clearly user-perceivable change to UI or interaction, must get a designer or product review. When no approver holds that role, suggest requesting one from the design/product reviewers (roster as of 2026-09: yx zhang, yifffan, zhangziya, gaokaige; update this list here when membership changes).
+---
+
+## 6. Feedback Surfaces & State Placement
+
+Choose the surface by message lifetime relative to the triggering action:
+
+- **Transient operation outcomes use Toast**: App-wide `Toast` handles action outcomes (e.g. "Saved", "Copied", "Export completed") rendered in an overlay host that outlives the panel. A deletion can close its triggering modal; only a toast outside the modal survives.
+- **Preserve data on failure**: A failed operation keeps existing rows and form fields intact; never blank the view to display a generic error card.
+- **In-place notices for bound queries**: Use in-place notices with retry triggers for localized network failures. Only an entirely empty container centers a full zero-data error state.
+- **Concise copy**: Error copy is direct and short (one to two sentences). Omit trailing Chinese periods (句号) in two-sentence in-place notices. Never disrupt adjacent layout geometry when error copy mounts.
+- **Loading states**: Lists and structured cards use their skeleton placeholder; full-page loads center a single bare spinner. Concurrent regions must not flash disparate loading treatments.
+
+---
+
+## 7. Overlays, Menus & Container Safety
+
+Every menu, popover, dropdown, and tooltip must verify the three overlay rules:
+
+1. **Dismissable**: Clicking outside or pressing Escape cleanly closes the overlay.
+2. **Viewport-fitting**: Overlays flip or slide to stay inside the viewport with a safe edge margin, without oscillation.
+3. **Unclipped**: Overlays escape parent `overflow: hidden` containers (via portal to `document.body`).
+4. **Scrollbar clearance**: Scrollbars use shared custom styling and keep a small inset so they never clip against rounded borders.
+
+---
+
+## 8. Platform Window Chrome Adaptation
+
+- On macOS (`darwin`), the native titlebar clearance is governed by `--dsh-frame-top-clearance`. Never modify the global clearance variable to fix a single page.
+- Add a scoped `[data-platform='darwin']` selector on the page's own container or inset, and verify total offset (clearance + page inset) matches peer pages.
+
+---
+
+## 9. The Look-and-Fix Browser Verification Loop
+
+Visual work is incomplete until verified in a running browser environment:
+
+1. **Three-Breakpoint Audit**:
+   - Desktop (`1440px`): Check max-width constraints, grid symmetry breaks, and line lengths.
+   - Compact/Tablet (`768px`): Verify navigation collapses gracefully and card rows adapt without horizontal overflow.
+   - Mobile (`390px`): Ensure touch targets are at least 44px, text scales cleanly, and dialogs dock to bottom sheets or full overlays.
+2. **Hero Viewport Discipline**:
+   - The primary hero region must fit comfortably within the initial viewport (`100dvh`, never `100vh`).
+   - The primary call-to-action (CTA) must be visible above the fold without requiring a scroll.
+3. **Automated Inspection Scripts**:
+   - Run `node .agents/skills/design-taste-frontend/scripts/lint.mjs` to scan for banned patterns, unanchored gradients, and generic phrasing.
+   - Use `node .agents/skills/design-taste-frontend/scripts/inspect.mjs` against the live local development server (`http://127.0.0.1:3080/`) to capture multi-resolution screenshots and audit rule conformance.
+   - Critique output against the house rules, fix top defects, and re-inspect before submitting changes.
+
+---
+
+## 10. Design Review Escalation
+
+A PR introducing net-new user-visible surfaces, notable interaction overhauls, or theme token alterations requires a designated design/product review (roster: yx zhang, yifffan, zhangziya, gaokaige).

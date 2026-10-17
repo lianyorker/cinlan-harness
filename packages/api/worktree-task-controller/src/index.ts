@@ -55,6 +55,7 @@ export class WorktreeTaskController extends TypertRemoteService {
         sourcePath: request.sourcePath,
         ...(request.baseRef === undefined ? {} : { baseRef: request.baseRef }),
         ...(request.linkedIssue === undefined ? {} : { linkedIssue: request.linkedIssue }),
+        ...(request.sparsePaths === undefined ? {} : { sparsePaths: request.sparsePaths }),
       }, signal)
       this.admit('create', signal)
       return { task: projectTask(task) }
@@ -304,6 +305,7 @@ function projectTask(task: WorktreeTask): WorktreeTaskView {
     status: task.status,
     ...(task.cleanupReceipt === undefined ? {} : { cleanupReceipt: structuredClone(task.cleanupReceipt) }),
     ...(task.linkedIssue === undefined ? {} : { linkedIssue: task.linkedIssue }),
+    ...(task.sparsePaths === undefined ? {} : { sparsePaths: [...task.sparsePaths] }),
     sessionIds: [...task.sessionIds],
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,

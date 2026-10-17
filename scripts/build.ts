@@ -47,6 +47,7 @@ function main(): void {
   rmSync(resolve(root, CLIENT_BUILD_RECORD_PATH), { force: true })
   runScript('build:native-system', buildEnvironment)
   runScript('build:lib', buildEnvironment)
+  runScript('build:mobile', buildEnvironment)
   runScript('build:web', buildEnvironment)
   const record = writeClientBuildRecord(root, clientEnvironment)
   console.log(

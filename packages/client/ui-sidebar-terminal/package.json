@@ -70,7 +70,9 @@
     "@deepseek-ai/dsh-client-ui-layout": "workspace:*",
     "@deepseek-ai/dsh-client-ui-conversation": "workspace:*",
     "@deepseek-ai/dsh-client-ui-theme": "workspace:*",
-    "@deepseek-ai/dsh-client-shortcuts": "workspace:*"
+    "@deepseek-ai/dsh-client-shortcuts": "workspace:*",
+    "@deepseek-ai/dsh-terminal-quick-commands": "workspace:*",
+    "@deepseek-ai/dsh-api-terminal-quick-commands-controller": "workspace:*"
   },
   "files": [
     "lib/index.js",

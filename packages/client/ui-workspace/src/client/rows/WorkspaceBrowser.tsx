@@ -17,7 +17,7 @@
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  Button, IconChevronsUpDownOutlineRegular, IconClockOutlineRegular, IconCloseFillRegular,
+  Button, HoverCardGroup, IconChevronsUpDownOutlineRegular, IconClockOutlineRegular, IconCloseFillRegular,
   IconFlatListOutlineRegular, IconFolderCloseRegular, IconProjectAddOutlineRegular,
   IconQueueOutlineRegular, IconSearchOutlineRegular, IconSlidersTwoOutlineRegular,
   IconWorkspaceTreeOutlineRegular, Menu, Modal, Toast, Tooltip,
@@ -583,7 +583,7 @@ function SessionTree({
 
   const groupRows = rootGroups.map(group => renderGroup(group, 0))
   return (
-    <div className={clsx(css.treeBody, css.wide)}>
+    <HoverCardGroup className={clsx(css.treeBody, css.wide)}>
       {workspaceDropAtListStart && <span className={css.listTopDropIndicator} aria-hidden="true" />}
       <AnimatedRows
         className={clsx(css.list, workspaceDropAtListStart && css.listTopDropActive)}
@@ -596,7 +596,7 @@ function SessionTree({
         {groupRows}
       </AnimatedRows>
       <span className={css.fade} />
-    </div>
+    </HoverCardGroup>
   )
 }
 
@@ -644,7 +644,7 @@ function FlatList({
   }
   const now = Date.now()
   return (
-    <div className={clsx(css.treeBody, css.wide)}>
+    <HoverCardGroup className={clsx(css.treeBody, css.wide)}>
       <AnimatedRows
         className={clsx(css.list, css.flatList)}
         label={t('section.sessions')}
@@ -696,7 +696,7 @@ function FlatList({
         })}
       </AnimatedRows>
       <span className={css.fade} />
-    </div>
+    </HoverCardGroup>
   )
 }
 
@@ -750,7 +750,7 @@ function SearchResults({
     : Object.values(list.byId).find(session => (session.retainedBy.mainView ?? 0) > 0)?.id
 
   return (
-    <div className={clsx(css.treeBody, css.wide)}>
+    <HoverCardGroup className={clsx(css.treeBody, css.wide)}>
       <div className={css.list}>
         <div className={css.searchTree} role="tree" aria-label={t('search.results.aria')}>
           {results.items.map(result => (
@@ -788,7 +788,7 @@ function SearchResults({
         )}
       </div>
       <span className={css.fade} />
-    </div>
+    </HoverCardGroup>
   )
 }
 

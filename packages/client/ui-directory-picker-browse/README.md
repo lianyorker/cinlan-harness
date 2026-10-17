@@ -29,6 +29,8 @@ Mount this plugin alongside `ui-workspace` and the host backend [`dsh-host-direc
 
 ### Navigating and creating
 
+The same dialog is available to settings and other consumers through the [`directory.picker` Factory](../ui-workspace/README.md#directory-picker). Its caller adopts the path; the picker does not create a Workspace. The definition installs independently of the Workspace child slots and follows this plugin's effect lifetime.
+
 Step through folders, edit the path directly, or filter the last pane by prefix; a Host-flagged hidden entry stays hidden until the footer toggle reveals it. **New folder** opens a nested create dialog targeting the selected folder and selects what it creates; **Open** adopts the selected folder, falling back to the listed level. Confirming a directory is the picked path; dismissing the dialog is the cancellation.
 
 -----

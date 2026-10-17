@@ -52,7 +52,9 @@ export function apply(ctx: ClientContext): void {
   }
 
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'orchestration', groupId: 'ai' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'orchestration', groupId: 'ai', description: () => t('description'),
+    })
     yield ctx.settingsMetadata.registerItems('orchestration', [
       {
         id: 'parallelism', anchorId: 'orchestration-parallelism',

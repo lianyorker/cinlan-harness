@@ -8,6 +8,10 @@ kind: "package-reference"
 
 ## 概述
 
+聊天中的文件打开操作通过 `workspaces.openPath` 拦截器处理。侧栏保留标准 Deliverables turn-tail 卡片，不注册第二份产出文件行。
+
+侧栏通过目录中由 `mainView` 持有的记录选择 Session；目录顺序及其他视图的引用不会决定选择。
+
 打开一个双工作台，处理文件、预览、终端、Git、后台任务、内嵌 Browser 页面和可扩展的插件面板。
 
 ## 概览

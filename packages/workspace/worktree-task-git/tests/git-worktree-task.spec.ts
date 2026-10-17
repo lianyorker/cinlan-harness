@@ -1086,6 +1086,69 @@ describe('GitWorktreeTask', { timeout: 90_000 }, () => {
     const second = await h.service.create({ name: 'task-cap-2', workspaceId, sourcePath: h.repository })
     expect(second.status).toBe('active')
   })
+
+  it('rejects invalid sparse paths', async () => {
+    const h = await harness()
+    const workspaceId = WorkspaceId('ws-sparse-invalid')
+    await expect(h.service.create({ name: 't1', workspaceId, sourcePath: h.repository, sparsePaths: ['/absolute/path'] }))
+      .rejects.toMatchObject({ code: 'invalid-path' })
+    await expect(h.service.create({ name: 't2', workspaceId, sourcePath: h.repository, sparsePaths: ['../traversal'] }))
+      .rejects.toMatchObject({ code: 'invalid-path' })
+    await expect(h.service.create({ name: 't3', workspaceId, sourcePath: h.repository, sparsePaths: ['-flag'] }))
+      .rejects.toMatchObject({ code: 'invalid-path' })
+    await expect(h.service.create({ name: 't4', workspaceId, sourcePath: h.repository, sparsePaths: [''] }))
+      .rejects.toMatchObject({ code: 'invalid-path' })
+  })
+
+  it('applies cone mode sparse checkout and preserves paths on reactivation', async () => {
+    const h = await harness()
+    const workspaceId = WorkspaceId('ws-sparse-cone')
+    await mkdir(join(h.repository, 'packages', 'pkg-a'), { recursive: true })
+    await mkdir(join(h.repository, 'packages', 'pkg-b'), { recursive: true })
+    await writeFile(join(h.repository, 'packages', 'pkg-a', 'a.txt'), 'content-a\n')
+    await writeFile(join(h.repository, 'packages', 'pkg-b', 'b.txt'), 'content-b\n')
+    await git(h.repository, 'add', '--all')
+    await git(h.repository, 'commit', '-m', 'add packages')
+
+    const task = await h.service.create({
+      name: 'task-sparse',
+      workspaceId,
+      sourcePath: h.repository,
+      sparsePaths: ['packages/pkg-a'],
+    })
+
+    expect(task.sparsePaths).toEqual(['packages/pkg-a'])
+    expect(await stat(join(task.checkoutPath, 'packages', 'pkg-a', 'a.txt'))).toBeTruthy()
+    await expect(stat(join(task.checkoutPath, 'packages', 'pkg-b'))).rejects.toThrow()
+
+    await h.service.hibernate({ taskId: task.id })
+    const reactivated = await h.service.activate({ taskId: task.id })
+    expect(reactivated.sparsePaths).toEqual(['packages/pkg-a'])
+    expect(await stat(join(reactivated.checkoutPath, 'packages', 'pkg-a', 'a.txt'))).toBeTruthy()
+    await expect(stat(join(reactivated.checkoutPath, 'packages', 'pkg-b'))).rejects.toThrow()
+  })
+
+  it('ensures sourceRelative is retained in sparse cone paths when workspace is a subfolder', async () => {
+    const h = await harness()
+    const workspaceId = WorkspaceId('ws-sparse-subfolder')
+    const subDir = join(h.repository, 'packages', 'sub')
+    await mkdir(subDir, { recursive: true })
+    await mkdir(join(h.repository, 'other'), { recursive: true })
+    await writeFile(join(subDir, 'file.txt'), 'sub\n')
+    await writeFile(join(h.repository, 'other', 'other.txt'), 'other\n')
+    await git(h.repository, 'add', '--all')
+    await git(h.repository, 'commit', '-m', 'add sub and other')
+
+    const task = await h.service.create({
+      name: 'task-sparse-sub',
+      workspaceId,
+      sourcePath: subDir,
+      sparsePaths: ['other'],
+    })
+
+    expect(task.status).toBe('active')
+    expect(await stat(join(task.checkoutPath, 'file.txt'))).toBeTruthy()
+  })
 })
 
 function WorktreeTaskIdLike(value: string) {

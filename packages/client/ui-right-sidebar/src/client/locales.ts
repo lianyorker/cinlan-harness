@@ -5,6 +5,17 @@ export const NS = 'rightSidebarContributors'
 export type RightSidebarContributorsKey =
   | 'review.title' | 'review.description' | 'review.loading' | 'review.empty' | 'review.refresh'
   | 'review.branch' | 'review.changedFiles' | 'review.patch' | 'review.select'
+  | 'review.diffViewer' | 'review.noPatch' | 'review.addLineComment' | 'review.commentPlaceholder'
+  | 'review.saveComment' | 'review.cancelComment' | 'review.deleteComment' | 'review.sendToAgent'
+  | 'review.sentStatus' | 'review.savedStatus' | 'review.lineRef' | 'review.commentsTitle' | 'review.sendAllToAgent'
+  | 'review.viewMode' | 'review.viewInline' | 'review.viewSideBySide' | 'review.wordWrap' | 'review.showWhitespace'
+  | 'review.diffPreferencesTitle' | 'review.diffPreferencesDesc' | 'review.autoSaveTitle' | 'review.autoSaveDesc' | 'review.autoSaveBadge'
+  | 'review.subtabDiff' | 'review.subtabChecks' | 'review.prTitle' | 'review.prChecksTitle'
+  | 'review.noChecks' | 'review.checksPassed' | 'review.checksFailed' | 'review.checksRunning'
+  | 'review.fixBrokenChecks' | 'review.rerunChecks' | 'review.mergePR' | 'review.openInGit'
+  | 'review.viewLogs' | 'review.checkStatus.success' | 'review.checkStatus.failure'
+  | 'review.checkStatus.in_progress' | 'review.checkStatus.queued' | 'review.checkStatus.timed_out'
+  | 'review.checkStatus.cancelled' | 'review.fixPromptSent' | 'review.noPR'
   | 'terminal.title' | 'terminal.description' | 'terminal.loading' | 'terminal.empty'
   | 'terminal.start' | 'terminal.input' | 'terminal.send' | 'terminal.stop' | 'terminal.refresh'
   | 'terminal.error' | 'terminal.output'
@@ -12,6 +23,10 @@ export type RightSidebarContributorsKey =
   | 'tasks.activate' | 'tasks.hibernate' | 'tasks.path' | 'tasks.branch' | 'tasks.status' | 'tasks.error'
   | 'browser.title' | 'browser.description' | 'browser.placeholder' | 'browser.open'
   | 'browser.invalidUrl' | 'browser.empty'
+  | 'ports.title' | 'ports.description' | 'ports.refresh' | 'ports.scanning' | 'ports.empty' | 'ports.unavailable'
+  | 'ports.forwardedTitle' | 'ports.noForwarded' | 'ports.detectedTitle' | 'ports.noDetected'
+  | 'ports.forward' | 'ports.open' | 'ports.stop' | 'ports.addTitle' | 'ports.localPort' | 'ports.remotePort'
+  | 'ports.remoteHost' | 'ports.label' | 'ports.addBtn' | 'ports.statusActive' | 'ports.statusStopped'
 
 /** Simplified Chinese right-sidebar contributor copy. */
 export const zh: Record<RightSidebarContributorsKey, string> = {
@@ -24,6 +39,50 @@ export const zh: Record<RightSidebarContributorsKey, string> = {
   'review.changedFiles': '改动文件',
   'review.patch': 'Patch',
   'review.select': '选择一个租约查看比较结果。',
+  'review.diffViewer': '改动差异',
+  'review.noPatch': '暂无改动内容。',
+  'review.addLineComment': '添加评论',
+  'review.commentPlaceholder': '输入针对此行改动的评论或修改意见…',
+  'review.saveComment': '保存',
+  'review.cancelComment': '取消',
+  'review.deleteComment': '删除',
+  'review.sendToAgent': '发送给 Agent',
+  'review.sentStatus': '已发送',
+  'review.savedStatus': '已保存',
+  'review.lineRef': 'L{line} ({side})',
+  'review.commentsTitle': '行评论 ({count})',
+  'review.sendAllToAgent': '全部发送给 Agent',
+  'review.viewMode': '视图模式',
+  'review.viewInline': '行内',
+  'review.viewSideBySide': '并排',
+  'review.wordWrap': '自动换行',
+  'review.showWhitespace': '显示空格',
+  'review.diffPreferencesTitle': '编辑器与 Diff 偏好',
+  'review.diffPreferencesDesc': '配置代码改动审查的呈现方式与换行。工作区文件自动保存由会话任务统一管理。',
+  'review.autoSaveTitle': '文件保存策略',
+  'review.autoSaveDesc': '受控管理（当前为代码审查与 Agent 驱动模式，无虚假保存开关）',
+  'review.autoSaveBadge': '受控管理',
+  'review.subtabDiff': '代码改动',
+  'review.subtabChecks': 'CI 检查与 PR',
+  'review.prTitle': '关联 Pull Request',
+  'review.prChecksTitle': 'CI 流水线检查 ({count})',
+  'review.noChecks': '暂无运行中的 CI 检查。',
+  'review.checksPassed': '所有检查均已通过',
+  'review.checksFailed': '{count} 项检查失败',
+  'review.checksRunning': '检查正在运行中…',
+  'review.fixBrokenChecks': '一键修复失败检查',
+  'review.rerunChecks': '重新运行检查',
+  'review.mergePR': '合并 PR',
+  'review.openInGit': '查看远端',
+  'review.viewLogs': '日志',
+  'review.checkStatus.success': '成功',
+  'review.checkStatus.failure': '失败',
+  'review.checkStatus.in_progress': '运行中',
+  'review.checkStatus.queued': '排队中',
+  'review.checkStatus.timed_out': '超时',
+  'review.checkStatus.cancelled': '已取消',
+  'review.fixPromptSent': '已将失败检查分析及修复要求发送给 Agent',
+  'review.noPR': '当前分支暂无关联的 Pull Request。',
   'terminal.title': '终端',
   'terminal.description': '打开当前 Session 所属的持久终端。',
   'terminal.loading': '正在读取终端…',
@@ -52,6 +111,27 @@ export const zh: Record<RightSidebarContributorsKey, string> = {
   'browser.open': '打开',
   'browser.invalidUrl': '请输入有效的 HTTP(S) 地址。',
   'browser.empty': '输入地址后打开预览。',
+  'ports.title': '端口',
+  'ports.description': '工作区端口发现与 SSH 转发管理。',
+  'ports.refresh': '刷新端口',
+  'ports.scanning': '正在扫描端口…',
+  'ports.empty': '未发现正在监听的端口。',
+  'ports.unavailable': '端口服务不可用：{reason}',
+  'ports.forwardedTitle': '已转发端口 ({count})',
+  'ports.noForwarded': '暂无转发端口',
+  'ports.detectedTitle': '已发现端口 ({count})',
+  'ports.noDetected': '当前未探测到监听服务',
+  'ports.forward': '转发',
+  'ports.open': '打开',
+  'ports.stop': '停止',
+  'ports.addTitle': '添加端口转发',
+  'ports.localPort': '本地端口',
+  'ports.remotePort': '远端端口',
+  'ports.remoteHost': '远端主机',
+  'ports.label': '备注/标签',
+  'ports.addBtn': '添加',
+  'ports.statusActive': '转发中',
+  'ports.statusStopped': '已停止',
 }
 
 /** English right-sidebar contributor copy. */
@@ -65,6 +145,50 @@ export const en: Record<RightSidebarContributorsKey, string> = {
   'review.changedFiles': 'Changed files',
   'review.patch': 'Patch',
   'review.select': 'Select a lease to inspect its comparison.',
+  'review.diffViewer': 'Diff Viewer',
+  'review.noPatch': 'No patch content available.',
+  'review.addLineComment': 'Add Comment',
+  'review.commentPlaceholder': 'Enter a comment or suggestion for this line…',
+  'review.saveComment': 'Save',
+  'review.cancelComment': 'Cancel',
+  'review.deleteComment': 'Delete',
+  'review.sendToAgent': 'Send to Agent',
+  'review.sentStatus': 'Sent',
+  'review.savedStatus': 'Saved',
+  'review.lineRef': 'L{line} ({side})',
+  'review.commentsTitle': 'Line Comments ({count})',
+  'review.sendAllToAgent': 'Send All to Agent',
+  'review.viewMode': 'View Mode',
+  'review.viewInline': 'Inline',
+  'review.viewSideBySide': 'Side-by-side',
+  'review.wordWrap': 'Word Wrap',
+  'review.showWhitespace': 'Show Whitespace',
+  'review.diffPreferencesTitle': 'Editor & Diff Preferences',
+  'review.diffPreferencesDesc': 'Configure default diff presentation, wrapping, and whitespace. Workspace autosave is managed by Agent tasks.',
+  'review.autoSaveTitle': 'File Save Strategy',
+  'review.autoSaveDesc': 'Managed by Agent tasks (read-only review mode)',
+  'review.autoSaveBadge': 'Managed',
+  'review.subtabDiff': 'Diff Changes',
+  'review.subtabChecks': 'CI Checks & PR',
+  'review.prTitle': 'Associated Pull Request',
+  'review.prChecksTitle': 'CI Pipeline Checks ({count})',
+  'review.noChecks': 'No CI checks currently running.',
+  'review.checksPassed': 'All checks passed',
+  'review.checksFailed': '{count} check(s) failed',
+  'review.checksRunning': 'Checks in progress…',
+  'review.fixBrokenChecks': 'Fix Broken Checks',
+  'review.rerunChecks': 'Rerun Checks',
+  'review.mergePR': 'Merge PR',
+  'review.openInGit': 'View Remote',
+  'review.viewLogs': 'Logs',
+  'review.checkStatus.success': 'Success',
+  'review.checkStatus.failure': 'Failed',
+  'review.checkStatus.in_progress': 'Running',
+  'review.checkStatus.queued': 'Queued',
+  'review.checkStatus.timed_out': 'Timed out',
+  'review.checkStatus.cancelled': 'Cancelled',
+  'review.fixPromptSent': 'Fix instructions for failing checks sent to Agent',
+  'review.noPR': 'No associated Pull Request found for the current branch.',
   'terminal.title': 'Terminal',
   'terminal.description': 'Open a persistent terminal owned by the current Session.',
   'terminal.loading': 'Loading terminals…',
@@ -93,6 +217,27 @@ export const en: Record<RightSidebarContributorsKey, string> = {
   'browser.open': 'Open',
   'browser.invalidUrl': 'Enter a valid HTTP(S) address.',
   'browser.empty': 'Enter an address to open a preview.',
+  'ports.title': 'Ports',
+  'ports.description': 'Discover workspace listening ports and manage SSH port forwarding.',
+  'ports.refresh': 'Scan Ports',
+  'ports.scanning': 'Scanning listening ports…',
+  'ports.empty': 'No active listening ports detected.',
+  'ports.unavailable': 'Ports service unavailable: {reason}',
+  'ports.forwardedTitle': 'Forwarded Ports ({count})',
+  'ports.noForwarded': 'No active port forwards',
+  'ports.detectedTitle': 'Detected Ports ({count})',
+  'ports.noDetected': 'No listening services detected on target host',
+  'ports.forward': 'Forward',
+  'ports.open': 'Open',
+  'ports.stop': 'Stop',
+  'ports.addTitle': 'Add Port Forward',
+  'ports.localPort': 'Local Port',
+  'ports.remotePort': 'Remote Port',
+  'ports.remoteHost': 'Remote Host',
+  'ports.label': 'Label',
+  'ports.addBtn': 'Add Forward',
+  'ports.statusActive': 'Active',
+  'ports.statusStopped': 'Stopped',
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

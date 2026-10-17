@@ -11,6 +11,8 @@
 .label { margin: 0; color: var(--dsw-alias-label-primary); font-size: 14px; line-height: 22px; font-weight: 500; }
 .help, .detail, .error { margin: 5px 0 0; color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 20px; overflow-wrap: anywhere; }
 .detail code { color: var(--dsw-alias-label-secondary); font-family: var(--ds-font-family-code); }
+.budget { margin-top: 8px; padding-top: 8px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
+.budget .detail { margin-top: 2px; }
 .error { color: var(--dsw-alias-state-error-primary); }
 .status { flex-shrink: 0; padding: 3px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 18px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 20px; }
 .status[data-state="connected"] { color: var(--dsw-alias-state-success-primary); }

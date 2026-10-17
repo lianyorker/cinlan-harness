@@ -82,7 +82,9 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => () => { models.dispose() }, 'ui-settings-subagent: model preference')
   ctx.effect(() => ctx.configForms.whileServed([SUBAGENT_MODEL_SELECTION_NS], () =>
     ctx.slots.inject('settings.section', function* () {
-      yield ctx.settingsMetadata.registerSection({ sectionId: 'subagent', groupId: 'ai', heading: 'shell' })
+      yield ctx.settingsMetadata.registerSection({
+        sectionId: 'subagent', groupId: 'ai', description: () => t('subagentDescription'),
+      })
       yield ctx.settingsMetadata.registerItems('subagent', [{
         id: 'subagent-model-selection', anchorId: 'subagent-model-selection',
         title: () => t('nav'), description: () => t('subagentDescription'),
@@ -95,7 +97,9 @@ export function apply(ctx: ClientContext): void {
     })), 'ui-settings-subagent: model-selection page')
   ctx.effect(() => ctx.configForms.whileServed([SUBAGENT_NS], () =>
     ctx.slots.inject('settings.section', function* () {
-      yield ctx.settingsMetadata.registerSection({ sectionId: 'subagent-limits', groupId: 'ai', heading: 'shell' })
+      yield ctx.settingsMetadata.registerSection({
+        sectionId: 'subagent-limits', groupId: 'ai', description: () => t('subagentLimitsDescription'),
+      })
       yield ctx.settingsMetadata.registerItems('subagent-limits', [{
         id: 'subagent-limits', anchorId: 'subagent-limits',
         title: () => t('subagentLimitsTitle'), description: () => t('subagentLimitsDescription'),

@@ -93,6 +93,21 @@ afterEach(async () => {
 })
 
 describe('VoiceResourceStore', () => {
+  it('installs and reads a model whose Orca identifier contains a decimal', async () => {
+    const { root, store } = await setup()
+    const entry = { ...definition(), id: 'parakeet-tdt-0.6b-v3-int8' as VoiceModelId }
+    const installed = await install(root, store, entry)
+    expect(installed.integrity).toBe('verified')
+    const lease = await store.acquire(entry, signal)
+    expect(lease.definition.id).toBe(entry.id)
+    await lease.release()
+  })
+
+  it.each(['.', '..', '../outside', 'folder/model', 'folder\\model'])('rejects a path-like model identifier %s', async (id) => {
+    const { store } = await setup()
+    await expect(store.inspect({ ...definition(), id: id as VoiceModelId }, signal)).rejects.toThrow('Unsafe voice model identifier')
+  })
+
   it('publishes verified immutable bytes and stable content versions with sanitized sources', async () => {
     const { root, store } = await setup()
     const model = definition()

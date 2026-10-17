@@ -21,10 +21,10 @@ export default defineConfig(({ env }) => {
   return {
     workspace: client
       ? [
-        'vendor/*', 'packages/*/*', '!packages/bundle/web-capability-defaults', '!packages/client/ui-right-sidebar', 'apps/cli',
+        'vendor/*', 'packages/*/*', '!packages/bundle/web-capability-defaults', '!packages/client/ui-right-sidebar', '!packages/client/ui-better-sidebar', '!packages/experimental/plugin-market-bundle', 'apps/cli',
       ]
       : [
-        'vendor/*', 'packages/*/*', '!packages/bundle/web-capability-defaults', '!packages/client/ui-right-sidebar', 'apps/cli', 'apps/desktop-host',
+        'vendor/*', 'packages/*/*', '!packages/bundle/web-capability-defaults', '!packages/client/ui-right-sidebar', '!packages/client/ui-better-sidebar', '!packages/experimental/plugin-market-bundle', 'apps/cli', 'apps/desktop-host', 'apps/mobile-relay',
       ],
     entry: client ? '' : ['lib/types/{index,startup}.js'],
     outDir: 'lib',

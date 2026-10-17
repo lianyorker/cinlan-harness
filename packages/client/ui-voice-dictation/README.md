@@ -24,7 +24,7 @@ Use Voice settings to choose a microphone, dictation mode, and preferred speech 
 <a id="use-this-package"></a>
 ## Use this package
 
-Open Voice under AI and models in Settings. The page keeps searchable fields visible when dictation is disabled; dependent controls remain disabled. The microphone button appears when dictation is enabled and a host model is ready. This browser plugin has no plugin configuration fields.
+Open Voice in Settings. Web and Desktop profiles include dictation without an optional voice plugin. The page keeps searchable fields visible when dictation is disabled; dependent controls remain disabled. The microphone button appears when dictation is enabled and a host model is ready. This browser plugin has no plugin configuration fields.
 
 ### Preferences and resources
 
@@ -40,7 +40,7 @@ Open Voice under AI and models in Settings. The page keeps searchable fields vis
 
 Browser preference writes apply immediately. An unavailable saved microphone remains selected until the user chooses another device; it is never silently replaced or copied into host settings. A denied permission does not clear preferences. Storage rejection leaves the live settings usable, but changes cannot survive a reload.
 
-The resource list displays the Host's source URLs, installation integrity, installed and available manifest fingerprints, and current task progress. Versions identify pinned manifests, not upstream releases; Check model versions refreshes the Host catalog status. Update is enabled only when the Host reports an available update. A replacement can remain ready while its task runs; cancellation targets that exact task without removing the installed model. Leaving settings does not cancel Host installation tasks. A degraded engine supplies a copyable repair command. Failed initial queries offer Retry; later query failures retain the last reported rows.
+The Speech Model menu contains model selection and resource actions, with localized descriptions, language coverage, recognition family, and size. Only ready models are selectable; downloading does not change the preference. Expand Model details for source URLs, integrity, and installed and available manifest fingerprints. Versions identify pinned manifests, not upstream releases; Check model versions refreshes the Host catalog status. Update is enabled only when the Host reports an available update. A replacement can remain ready while its task runs; cancellation targets that exact task without removing the installed model. Leaving settings does not cancel Host installation tasks. A degraded engine supplies a copyable repair command. Failed initial queries offer Retry; later query failures retain the last reported rows.
 
 The microphone test remains disabled until the Host reports a ready engine and model. Stop releases microphone tracks before transcription; cancel, disabling dictation, and leaving the page release capture and suppress late results. A permission prompt that resolves after cancellation also releases its tracks. Audio is not saved, and the test never modifies or sends a Session draft. Empty transcripts and capture or Host failures show localized guidance.
 
@@ -48,7 +48,7 @@ The microphone test remains disabled until the Host reports a ready engine and m
 
 The shortcut ignores editable fields, repeated keydown, composition events, and events already handled by another feature. The initiating session owns recording and insertion even if the user selects another session. Releasing a held shortcut also works when modifiers are released before E.
 
-Stopping closes capture and releases microphone tracks before querying model availability or waiting for transcription. Recognized text is appended to the latest draft, including edits made during transcription. Empty transcripts leave it unchanged; permission, capture, missing-model, and host failures leave the draft intact and publish a composer error notice. Dictation does not send the draft.
+Stopping closes capture and releases microphone tracks before querying model availability or waiting for transcription. Recognized text is appended to the latest draft, including edits made during transcription. Existing whitespace is preserved; a separating space is added only when a nonempty draft does not end in whitespace. Empty transcripts leave it unchanged; permission, capture, missing-model, and host failures leave the draft intact and publish a composer error notice. Dictation does not send the draft.
 
 -----
 
@@ -58,7 +58,7 @@ Stopping closes capture and releases microphone tracks before querying model ava
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-[apply.ts](src/client/apply.ts) shares one browser-local preference store and dictation controller between settings, the shortcut, and the composer button, and supplies host operations as plain callbacks. Its section, six public metadata descriptors, and slot contribution share one declaration lifetime; disposal removes them together. Metadata contains localized labels, descriptions, and keywords without preference values, device identities, model paths, or transcripts. Stable anchors remain mounted so search navigation does not enable dictation as a side effect.
+[apply.ts](src/client/apply.ts) shares one browser-local preference store and dictation controller between settings, the shortcut, and the composer button, and supplies host operations as plain callbacks. Its section, seven public metadata descriptors, and slot contribution share one declaration lifetime; disposal removes them together. Metadata contains localized labels, descriptions, and keywords without preference values, device identities, model paths, or transcripts. Stable anchors remain mounted so search navigation does not enable dictation as a side effect.
 
 [VoiceSettingsSection.tsx](src/client/VoiceSettingsSection.tsx) owns permission prompts and device enumeration, consumes host resource status, and renders native settings rows within the shell's content width. [dictation-controller.ts](src/client/dictation-controller.ts) captures PCM, chooses the ready model, and appends through the conversation input API. Plugin disposal invalidates publication, aborts pending Remote calls, closes active capture, and awaits owned asynchronous operations before returning.
 

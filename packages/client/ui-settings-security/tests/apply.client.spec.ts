@@ -20,6 +20,7 @@ const remoteFailure = { ok: false, error: { code: 'gateway/internal', message: '
 
 async function bench() {
   const ctx = new Context()
+  ctx.provide('connection', { rpc: { call: vi.fn() } })
   new SettingsMetadataService(ctx)
   const locale = new LocaleRuntime(ctx)
   locale.setLocale('zh')
@@ -34,7 +35,7 @@ async function bench() {
     checkSdk: vi.fn(async () => ({ ok: true as const, value: { platform: 'win32', android: { found: true, sdkPath: null, message: '' }, ios: null } })),
     listMobileDevices: vi.fn(async () => ({ ok: true as const, value: { devices: [], available: true } })),
   }
-  const settings = { mutate: vi.fn(async () => ({ ok: true, value: {} })) }
+  const settings = { mutate: vi.fn(async () => ({ ok: true, value: { revision: 8 } })) }
   const settingsState = { status: 'unavailable', mode: 'host', writable: false }
   const acceptView = vi.fn()
   ctx.provide('remote', { settings, $host: { home: undefined, isLoopback: true }, deviceCapabilities, $on: () => () => {} } as never)
@@ -148,7 +149,7 @@ describe('ui-settings-security registration', () => {
     await expect(injected.closeMobileMirror(mirrorId)).rejects.toThrow(zh.mobileResourcesActionFailed)
     b.settingsState.status = 'ready'
     b.settingsState.writable = true
-    await injected.saveMobileSettings({ enabled: true, androidSdkPath: '/sdk', defaultDeviceId: '' }, 7)
+    await expect(injected.saveMobileSettings({ enabled: true, androidSdkPath: '/sdk', defaultDeviceId: '' }, 7)).resolves.toBe(8)
     expect(b.settings.mutate).toHaveBeenCalledWith('mobile-device', [
       { op: 'set', path: ['enabled'], value: true },
       { op: 'set', path: ['androidSdkPath'], value: '/sdk' },
@@ -186,6 +187,51 @@ describe('ui-settings-security registration', () => {
     await expect(injected.setProviderEnabled('row:mobile' as never, false)).resolves.toEqual({ kind: 'rejected' })
     manager.setPluginEnabled.mockRejectedValueOnce(new Error('transport'))
     await expect(injected.setProviderEnabled('row:mobile' as never, false)).resolves.toEqual({ kind: 'rejected' })
+    await b.ctx.fiber.dispose()
+  })
+
+  it('uses the optional Host picker and opens directories without executing a detected ADB file', async () => {
+    const b = await bench()
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply, Config }).await()
+    const section = b.slots.entries('settings.section').find(entry => entry.options.id === 'cinlan-mobile')!
+    const injected = (section.inject as () => CapabilitySectionInjected & Record<string, unknown>)()
+    const signal = new AbortController().signal
+    await expect(injected.pickSdkDirectory(signal)).rejects.toThrow(zh.mobileSdkPickFailed)
+    await expect(injected.openSdkDirectory('/sdk', signal)).rejects.toThrow(zh.mobileSdkOpenFailed)
+    const picker = { pick: vi.fn(async (_signal: AbortSignal) => ({ ok: true as const, value: '/sdk' as string | null })) }
+    const session = {
+      canOpenWorkspacePath: vi.fn(async () => ({ ok: true as const, value: true })),
+      openWorkspacePath: vi.fn(async (_request: { path: string; action?: 'reveal' }, _signal: AbortSignal) => ({ ok: true as const, value: { opened: true as const } })),
+    }
+    b.ctx.provide('remote.directoryPicker', picker as never)
+    b.ctx.provide('remote.session', session as never)
+    await expect(injected.pickSdkDirectory(signal)).resolves.toBe('/sdk')
+    expect(picker.pick).toHaveBeenCalledWith(signal)
+    picker.pick.mockResolvedValueOnce({ ok: true, value: null })
+    await expect(injected.pickSdkDirectory(signal)).resolves.toBeNull()
+    picker.pick.mockResolvedValueOnce(remoteFailure)
+    await expect(injected.pickSdkDirectory(signal)).rejects.toThrow(zh.mobileSdkPickFailed)
+    await injected.openSdkDirectory('/sdk', signal)
+    expect(session.openWorkspacePath).toHaveBeenLastCalledWith({ path: '/sdk' }, signal)
+    for (const path of ['C:\\Android\\Sdk\\platform-tools\\adb.exe', '/sdk/platform-tools/adb']) {
+      await injected.openSdkDirectory(path, signal)
+      expect(session.openWorkspacePath).toHaveBeenLastCalledWith({ path, action: 'reveal' }, signal)
+    }
+    session.canOpenWorkspacePath.mockResolvedValueOnce({ ok: true, value: false })
+    await expect(injected.openSdkDirectory('/sdk', signal)).rejects.toThrow(zh.mobileSdkOpenFailed)
+    expect(session.openWorkspacePath).toHaveBeenCalledTimes(3)
+    session.openWorkspacePath.mockResolvedValueOnce(remoteFailure)
+    await expect(injected.openSdkDirectory('/sdk', signal)).rejects.toThrow(zh.mobileSdkOpenFailed)
+    const availability = Promise.withResolvers<{ ok: true; value: boolean }>()
+    session.canOpenWorkspacePath.mockReturnValueOnce(availability.promise)
+    const cancelled = new AbortController()
+    const reason = new Error('settings closed')
+    const rejected = expect(injected.openSdkDirectory('/sdk', cancelled.signal)).rejects.toBe(reason)
+    cancelled.abort(reason)
+    availability.resolve({ ok: true, value: true })
+    await rejected
+    expect(session.openWorkspacePath).toHaveBeenCalledTimes(4)
     await b.ctx.fiber.dispose()
   })
 

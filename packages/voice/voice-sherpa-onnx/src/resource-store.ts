@@ -11,6 +11,7 @@ import type { VoiceModelDefinition, VoiceModelResource } from '@deepseek-ai/dsh-
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const versionPattern = /^sha256:[0-9a-f]{64}$/
 const manifestName = '.dsh-voice-inventory.json'
+const modelIdPattern = /^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*$/
 
 /** Caller-resolved lock policy; existing locks are never removed by a contender. */
 export interface ResourceStoreOptions {
@@ -94,7 +95,7 @@ async function hashFile(root: string, path: string, signal: AbortSignal): Promis
   return { path, bytes, sha256: hash.digest('hex') }
 }
 function parseDefinition(value: unknown): VoiceModelDefinition {
-  if (!record(value) || typeof value.id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(value.id)
+  if (!record(value) || typeof value.id !== 'string' || !modelIdPattern.test(value.id)
     || typeof value.name !== 'string' || typeof value.description !== 'string' || typeof value.recommended !== 'boolean'
     || typeof value.approximateBytes !== 'number' || !Number.isFinite(value.approximateBytes) || value.approximateBytes < 0
     || (value.kind !== 'streaming' && value.kind !== 'non-streaming') || !record(value.architecture) || !record(value.download)) throw new Error('Invalid stored voice definition')
@@ -102,7 +103,8 @@ function parseDefinition(value: unknown): VoiceModelDefinition {
   const fields = architecture.type === 'transducer' ? ['encoder', 'decoder', 'joiner', 'tokens']
     : architecture.type === 'paraformer' ? ['encoder', 'decoder', 'tokens']
       : architecture.type === 'whisper' ? ['encoder', 'decoder', 'tokens', 'language']
-        : architecture.type === 'sense-voice' ? ['model', 'tokens', 'language'] : undefined
+        : architecture.type === 'sense-voice' ? ['model', 'tokens', 'language']
+          : architecture.type === 'nemo-ctc' ? ['model', 'tokens'] : undefined
   if (!fields || Object.keys(architecture).some(key => key !== 'type' && !fields.includes(key))
     || fields.some(key => typeof architecture[key] !== 'string')) throw new Error('Invalid stored voice architecture')
   const download = value.download
@@ -283,7 +285,7 @@ export class VoiceResourceStore {
   }
 
   private directory(definition: VoiceModelDefinition): string {
-    if (!/^[a-zA-Z0-9_-]+$/.test(definition.id)) throw new Error('Unsafe voice model identifier')
+    if (!modelIdPattern.test(definition.id)) throw new Error('Unsafe voice model identifier')
     return join(this.root, '.resources', definition.id)
   }
 

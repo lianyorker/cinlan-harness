@@ -4,31 +4,12 @@
   color: var(--dsw-alias-label-primary);
 }
 
-.heading {
-  margin-bottom: 24px;
-}
-
-.heading h1,
-.heading p,
 .settingTitle,
 .settingDescription,
 .stateRow,
 .engineDegraded p,
 .modelMeta {
   margin: 0;
-}
-
-.heading h1 {
-  font-size: 26px;
-  font-weight: 600;
-  line-height: 34px;
-}
-
-.heading p {
-  margin-top: 6px;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  line-height: 18px;
 }
 
 .panel,
@@ -127,19 +108,14 @@
 }
 
 .modelList {
-  margin: 16px 0 0;
-  padding: 0 16px;
-  border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 16px;
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
 .modelRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 0;
+  padding: 6px 0;
+  min-width: 0;
 }
 
 .modelRow + .modelRow {
@@ -170,13 +146,13 @@
 
 .actionButton,
 .copyButton,
-.modelSelect {
+.modelSelect,
+.modelTrigger {
   min-height: 36px;
   max-width: 100%;
   box-sizing: border-box;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 999px;
-  corner-shape: round;
+  border-radius: var(--dsw-radius-md);
   padding: 7px 14px;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
@@ -187,7 +163,8 @@
 }
 
 .actionButton,
-.copyButton {
+.copyButton,
+.modelTrigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -202,6 +179,9 @@
 
 .actionButton:focus-visible,
 .copyButton:focus-visible,
+.modelTrigger:focus-visible,
+.modelOption:focus-visible,
+.iconButton:focus-visible,
 .modelSelect:focus-visible,
 .modeInput:focus-visible + .modeButton {
   outline: 2px solid var(--dsw-alias-state-business-primary);
@@ -210,6 +190,8 @@
 
 .actionButton:disabled,
 .copyButton:disabled,
+.modelTrigger:disabled,
+.iconButton:disabled,
 .modelSelect:disabled,
 .modeInput:disabled + .modeButton {
   cursor: default;
@@ -222,12 +204,114 @@
   text-overflow: ellipsis;
 }
 
+.modelTrigger {
+  width: 240px;
+  min-width: 0;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.modelTrigger span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.modelTrigger svg,
+.modelOption > svg {
+  flex: none;
+}
+
+.modelMenu {
+  width: 440px;
+  min-width: min(440px, calc(100vw - 24px));
+  max-width: min(440px, calc(100vw - 24px));
+  max-height: min(560px, calc(100vh - 24px));
+}
+
+.modelOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: var(--dsw-radius-md);
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.modelOption:hover:not(:disabled),
+.modelOption:focus-visible,
+.iconButton:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.modelOption:disabled {
+  cursor: default;
+}
+
+.modelDescription {
+  display: block;
+  margin-top: 4px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.modelTag {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.modelResourceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-inline: 10px;
+}
+
+.modelDetails {
+  padding: 4px 10px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.modelDetails summary {
+  cursor: pointer;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--dsw-radius-md);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
 .modeGroup {
   display: flex;
   max-width: 100%;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 999px;
-  corner-shape: round;
+  border-radius: var(--dsw-radius-md);
   padding: 2px;
   box-sizing: border-box;
 }
@@ -251,8 +335,7 @@
   min-height: 32px;
   padding: 4px 12px;
   border: 0;
-  border-radius: 999px;
-  corner-shape: round;
+  border-radius: var(--dsw-radius-md);
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   font: inherit;
@@ -306,8 +389,7 @@
 }
 
 @media (max-width: 640px) {
-  .settingRow,
-  .modelRow {
+  .settingRow {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
   }

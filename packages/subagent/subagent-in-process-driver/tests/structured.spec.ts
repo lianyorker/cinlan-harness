@@ -48,7 +48,7 @@ async function setup(script: Script, options: SetupOptions = {}) {
   await mountAgentLoopTestDependencies(ctx, {
     tools: { mode: options.toolMode ?? 'native' },
   })
-  if (options.toolMode === 'ptc' || options.toolMode === 'both') {
+  if (options.toolMode === 'ptc') {
     ctx.provide('ptcRuntime', {
       language: 'typescript',
       isolation: 'test',

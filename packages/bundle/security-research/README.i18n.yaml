@@ -19,10 +19,16 @@
   zh: 0a618f05cc88ee2b
 /deepseek-ai-dsh-security-research/use-this-package/install-into-a-profile:
   en: c83c9142346f42ea
-  zh: db3432bf3ffd9e2b
+  zh: 6c3780bbbf320fb8
 /deepseek-ai-dsh-security-research/use-this-package/what-you-get:
-  en: 7f2a318a4428a122
-  zh: b049432888a205da
+  en: 358c708201bb61a9
+  zh: d0f3b6fb3bff5078
+/deepseek-ai-dsh-security-research/use-this-package/modes:
+  en: 202b9fd41acf6aaf
+  zh: a518427202265eb4
+/deepseek-ai-dsh-security-research/use-this-package/how-to-use:
+  en: a5a9a08160d5040c
+  zh: d333e5d4cf764b45
 /deepseek-ai-dsh-security-research/understand-the-implementation:
   en: ce29560300084087
   zh: e22a330f253b2d83
@@ -30,14 +36,14 @@
   en: 38e10bd9e43a3d97
   zh: ca2f9feb3282f2c9
 /deepseek-ai-dsh-security-research/model-experience:
-  en: 7d23bdb5fe5e1317
-  zh: 6f995e37c3d34802
+  en: ca8265430e14f7da
+  zh: ac1315ce4ef74ad2
 /deepseek-ai-dsh-security-research/model-experience/kv-cache-effect:
   en: ea7cbea614868012
   zh: f0fe7dfb8e34a0c3
 /deepseek-ai-dsh-security-research/known-limitations-and-deferred-work:
-  en: c92e44cff5128256
-  zh: fa405cbbc763e44c
+  en: 5f0cb5264216a1f4
+  zh: c8512dce0285116a
 /deepseek-ai-dsh-security-research/known-limitations-and-deferred-work/dev-note:
   en: c8ab114922ce8739
   zh: 162f7299dde50bd3

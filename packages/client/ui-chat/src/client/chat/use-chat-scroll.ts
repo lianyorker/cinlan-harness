@@ -118,7 +118,7 @@ export function useChatScroll(input: ChatScrollInput): ChatScrollState {
     const layoutChanged = previous.order !== order || previous.ready !== ready
     if (layoutChanged) viewport.invalidate()
     processContent()
-    if (layoutChanged) reading.refreshActiveTurn()
+    if (layoutChanged && content.current.opened) reading.refreshActiveTurn()
   }, [
     viewport, reading, processContent, navigationInput, ready, order, lastKey, lastIsUser,
     steeringId, submissionId, running, loadedTurns, chatScroll,

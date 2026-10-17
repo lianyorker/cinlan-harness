@@ -47,13 +47,12 @@ export function apply(ctx: Context): void {
     return async () => { unsubscribe(); await source.dispose() }
   }, 'ui-settings-mcp: readback lifetime')
   ctx.slots.inject('settings.section', function* () {
-    yield ctx.settingsMetadata.registerSection({ sectionId: 'mcp', groupId: 'extensions' })
+    yield ctx.settingsMetadata.registerSection({
+      sectionId: 'mcp', groupId: 'extensions', description: () => t('description'),
+    })
     yield ctx.settingsMetadata.registerItems('mcp', [
       { id: 'server-list', anchorId: 'mcp-server-list', title: () => t('serverList'), description: () => t('serverListHelp') },
       { id: 'add-server', anchorId: 'mcp-add-server', title: () => t('add'), description: () => t('addHelp'), keywords: () => [t('serverName'), t('enabled')] },
-      { id: 'transport', anchorId: 'mcp-transport', title: () => t('transport'), description: () => t('transportHelp'), keywords: () => [t('command'), t('args'), t('cwd'), t('url')] },
-      { id: 'credentials', anchorId: 'mcp-credentials', title: () => t('credentials'), description: () => t('credentialsHelp'), keywords: () => [t('env'), t('headers'), t('prefix')] },
-      { id: 'tools', anchorId: 'mcp-tools', title: () => t('tools'), description: () => t('toolsHelp'), keywords: () => [t('refreshTools'), t('reconnect')] },
     ])
     yield ctx.slots.register({
       name: 'settings.section', id: 'mcp', order: 17, label: () => t('nav'), locale: namespace, store,

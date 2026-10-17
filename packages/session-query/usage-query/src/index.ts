@@ -44,7 +44,7 @@ export class UsageQueryService extends Service {
   static Config: Schema<Config> = Schema.object({
     maxSessions: Schema.number().step(1).min(1).default(200),
     maxEvents: Schema.number().step(1).min(1).default(200_000),
-    timeoutMs: Schema.number().step(1).min(1).max(2_147_483_647).default(15_000),
+    timeoutMs: Schema.number().step(1).min(1).max(2_147_483_647).default(120_000),
     maxRangeDays: Schema.number().step(1).min(1).default(366),
   })
   private readonly lifetime = new AbortController()

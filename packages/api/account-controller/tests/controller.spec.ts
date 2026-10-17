@@ -2,9 +2,19 @@
 import { Context } from '@deepseek-ai/cordis'
 import type { DeepSeekAccount } from '@deepseek-ai/dsh-deepseek-account'
 import type { AccountBonusBatch, AccountBonusOrderId, AccountClientMetadata, AccountUserId } from '@deepseek-ai/dsh-deepseek-account/types'
+import { LlmError } from '@deepseek-ai/dsh-llm'
+import { runSub2ApiLoginWithAnswers } from '@deepseek-ai/dsh-llm-pi-ai'
+import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import type { AccountView, SignInAttemptId } from '../src/types.ts'
 import { afterEach, expect, it, vi } from 'vitest'
 import AccountController from '../src/index.ts'
+
+vi.mock('@deepseek-ai/dsh-llm-pi-ai', () => ({
+  recordKeyFor: (providerId: string) => `llm-pi-ai/${providerId}`,
+  SUB2API_PROVIDER_ID: 'sub2api',
+  runSub2ApiLoginWithAnswers: vi.fn(),
+}))
+const sub2ApiLogin = vi.mocked(runSub2ApiLoginWithAnswers)
 
 const roots: Context[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(ctx => ctx.fiber.dispose())) })
@@ -27,6 +37,17 @@ function fixture() {
   }
   ctx.provide('deepseekAccount', provider as never)
   return { ctx, provider, controller: new AccountController(ctx) }
+}
+
+function sub2ApiFixture() {
+  const ctx = new Context()
+  roots.push(ctx)
+  const credentials = {
+    readRecord: vi.fn<CredentialProvider['readRecord']>().mockResolvedValue(undefined),
+    deleteRecord: vi.fn<CredentialProvider['deleteRecord']>().mockResolvedValue(undefined),
+  }
+  ctx.provide('credentials', credentials as never)
+  return { ctx, credentials, controller: new AccountController(ctx) }
 }
 
 it('delegates account operations without coupling profile and balance queries', async () => {
@@ -91,4 +112,55 @@ it('delivers expiry only to current subscribers and stops on disconnect', async 
   const reopened = controller.watchExpiry(reconnect.signal)[Symbol.asyncIterator]().next()
   reconnect.abort()
   expect(await reopened).toEqual({ done: true, value: undefined })
+})
+
+it('reads the Sub2API projection from the stored record without exposing its value', async () => {
+  const { credentials, controller } = sub2ApiFixture()
+  expect(await controller.getSub2ApiState()).toEqual({ signedIn: false, inFlight: false })
+  credentials.readRecord.mockResolvedValueOnce({ kind: 'api-key', key: 'secret-key' })
+  expect(await controller.getSub2ApiState()).toEqual({ signedIn: true, inFlight: false })
+})
+
+it('signs in with the collected answers and reports the two-factor step', async () => {
+  const { controller } = sub2ApiFixture()
+  sub2ApiLogin.mockResolvedValueOnce(undefined)
+  await expect(controller.sub2ApiSignIn({ email: ' user@example.com ', password: 'pw' }))
+    .resolves.toEqual({ status: 'authorized' })
+  expect(sub2ApiLogin).toHaveBeenCalledExactlyOnceWith(
+    expect.anything(), { email: ' user@example.com ', password: 'pw' }, expect.any(AbortSignal))
+  sub2ApiLogin.mockRejectedValueOnce(new LlmError('two-factor demanded', 'SUB2API_TOTP_REQUIRED'))
+  await expect(controller.sub2ApiSignIn({ email: 'user@example.com', password: 'pw' }))
+    .resolves.toEqual({ status: 'totp-required' })
+  sub2ApiLogin.mockRejectedValueOnce(new LlmError('offline', 'SUB2API_NETWORK'))
+  await expect(controller.sub2ApiSignIn({ email: 'user@example.com', password: 'pw' }))
+    .rejects.toMatchObject({ code: 'SUB2API_NETWORK' })
+})
+
+it('refuses a second Sub2API sign-in while one is in flight and cancels the running one', async () => {
+  const { controller } = sub2ApiFixture()
+  const gate = Promise.withResolvers<void>()
+  sub2ApiLogin.mockImplementationOnce(() => gate.promise)
+  const pending = controller.sub2ApiSignIn({ email: 'user@example.com', password: 'pw' })
+  await expect(controller.sub2ApiSignIn({ email: 'user@example.com', password: 'pw' }))
+    .rejects.toThrow('already running')
+  controller.cancelSub2ApiSignIn()
+  gate.resolve()
+  await expect(pending).resolves.toEqual({ status: 'authorized' })
+  expect(await controller.getSub2ApiState()).toEqual({ signedIn: false, inFlight: false })
+})
+
+it('rejects Sub2API sign-in without answers before starting the flow', async () => {
+  const { controller } = sub2ApiFixture()
+  sub2ApiLogin.mockClear()
+  await expect(controller.sub2ApiSignIn({ email: '  ', password: 'pw' })).rejects.toThrow('required')
+  await expect(controller.sub2ApiSignIn({ email: 'user@example.com', password: '' })).rejects.toThrow('required')
+  expect(sub2ApiLogin).not.toHaveBeenCalled()
+})
+
+it('signs out by deleting only the local Sub2API record', async () => {
+  const { credentials, controller } = sub2ApiFixture()
+  await expect(controller.sub2ApiSignOut()).resolves.toEqual({ signedIn: false, inFlight: false })
+  expect(credentials.deleteRecord).toHaveBeenCalledExactlyOnceWith('llm-pi-ai/sub2api')
+  credentials.readRecord.mockResolvedValueOnce({ kind: 'api-key', key: 'secret-key' })
+  await expect(controller.sub2ApiSignOut()).resolves.toEqual({ signedIn: true, inFlight: false })
 })

@@ -23,11 +23,12 @@ kind: "package-reference"
 
 在 Host 组合中挂载一次 `@deepseek-ai/dsh-security-skills/resources`，并同时挂载官方技能注册表。在全局或 Agent 作用域中挂载本包的主提供方。随附 Web 应用包含两者，使普通 Session 能够使用已安装技能；自定义 headless 组合必须显式挂载管理器和提供方。浏览器安全的 `/types` 子路径导出管理 DTO，不引入 Host 运行时代码。
 
-没有活动安装记录的 home 报告 `not-installed`，且不提供安全技能候选条目。`installBundled()` 安装经过审核的包内清单，不发起网络请求。`install()`、`reinstall()` 和 `update()` 使用配置的发布端点。客户端断开后 Host 继续持有操作；只有显式取消或管理器销毁才会停止任务。取消请求携带操作标识，避免旧按钮取消新的下载。取消会等待操作结束；已经提交的激活结果仍保持安装状态。
+没有活动安装记录的 home 报告 `not-installed`，且不提供安全技能候选条目。未配置发布端点时，管理器会在启动时安装经过审核的包内清单，使内置技能立即可用；设置 `autoInstallBundled: false` 可改为显式安装。`installBundled()` 安装经过审核的包内清单，不发起网络请求。`install()`、`reinstall()` 和 `update()` 使用配置的发布端点。客户端断开后 Host 继续持有操作；只有显式取消或管理器销毁才会停止任务。取消请求携带操作标识，避免旧按钮取消新的下载。取消会等待操作结束；已经提交的激活结果仍保持安装状态。
 
 | 管理器配置 | 默认值 | 含义 |
 |---|---|---|
 | `releaseManifestUrl` | 未设置 | 部署提供真实清单 URL 前，网络管理报告不可用。除回环 HTTP 外均要求 HTTPS。 |
+| `autoInstallBundled` | `true` | 未配置发布端点时，启动即安装包内清单，无需等待显式调用 `installBundled()`。 |
 | `root` | `DSH_HOME/resources/security-skills` | 绝对资源存储路径；不修改普通技能目录。 |
 | `maxArchiveBytes` | 64 MiB | 网络归档大小上限。 |
 | `maxExpandedBytes` | 256 MiB | 解压后的安装字节数上限。 |
@@ -63,6 +64,7 @@ kind: "package-reference"
 <a id="known-limitations-and-deferred-work"></a>
 
 - 不假设存在公开发布端点。操作者提供并信任 HTTPS 清单来源；SHA-256 校验一致性，不提供独立发布者签名。
+- 内置技能内容来自[来源记录](assets/resource-provenance.json)所列的操作者提供归档。各技能的作者、修订和复用或再分发权限尚未独立核验；仓库 MIT 许可不覆盖这些文件。
 - 归档使用 ZIP32 stored 或 deflate 条目。拒绝加密、分卷和 ZIP64 归档。资源脚本作为数据复制，安装期间不执行。
 - 写入进程崩溃遗留的锁，需要操作者确认其已停止后恢复。未知暂存和租约保守保留；遗留文件可能占用磁盘空间。
 - 技能内容属于指导。授权仍由 assessment-scope 服务负责；资源管理不编辑 findings 或报告。

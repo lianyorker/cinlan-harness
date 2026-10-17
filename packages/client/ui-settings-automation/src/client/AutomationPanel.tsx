@@ -29,7 +29,7 @@ type LauncherProps = PropsRuntime<'settings.section'> & PropsLocale<'settings.au
 export function AutomationSettingsLauncher({ t, close, openAutomation }: LauncherProps) {
   const open = () => { openAutomation(); close() }
   return <section className={css.section}>
-    <header className={css.heading}><h1>{t('title')}</h1><p>{t('description')}</p></header>
+    <p className={css.scope}>{t('scope')}</p>
     <p className={css.notice}>{t('scheduleLimits')}</p>
     <section className={css.group} data-settings-anchor="tasks">
       <h2>{t('tasks')}</h2><p className={css.help}>{t('tasksHelp')}</p>

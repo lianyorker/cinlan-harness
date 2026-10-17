@@ -30,7 +30,7 @@ export interface ConfigFormSnapshot<T> {
   /** Whether the Host document accepts writes; memory mode never does. */
   writable: boolean
   /** `host` syncs with the Host document; `memory` keeps a remote browser process-local. */
-  mode: 'host' | 'memory'
+  mode?: 'host' | 'memory'
 }
 
 /**

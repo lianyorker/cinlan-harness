@@ -1,6 +1,49 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-voice-dictation/README.md
-README.md: 20a3609f6f0f29c4c50bd96138fb0d1a52181929
-README.zh.md: d2b8b51a738e29b8d4049955664e8528f8befcd9
+/:
+  en: 14b23dc11b2453f0
+  zh: 5329225439ed5f18
+/deepseek-ai-dsh-client-ui-voice-dictation:
+  en: e50197c9e7271f6b
+  zh: b730a17a9ddee287
+/deepseek-ai-dsh-client-ui-voice-dictation/summary:
+  en: f33ad6559bcd9208
+  zh: e063987e4870b3db
+/deepseek-ai-dsh-client-ui-voice-dictation/table-of-contents:
+  en: 257701b6850ffbfd
+  zh: 6c52f2bba9251fe7
+/deepseek-ai-dsh-client-ui-voice-dictation/use-this-package:
+  en: f9176ad9aee0e761
+  zh: fbd3f5348c15d5d5
+/deepseek-ai-dsh-client-ui-voice-dictation/use-this-package/preferences-and-resources:
+  en: a277f20a9b3d74c3
+  zh: 620bbc85df04ce58
+/deepseek-ai-dsh-client-ui-voice-dictation/use-this-package/dictation-and-drafts:
+  en: 308952b65847143c
+  zh: 949f19bf5e94c279
+/deepseek-ai-dsh-client-ui-voice-dictation/understand-the-implementation:
+  en: b0a52f450b10ebb1
+  zh: fa24826df3ea9484
+/deepseek-ai-dsh-client-ui-voice-dictation/dev-note:
+  en: 57bc572027bf4939
+  zh: 06507a2d0f5a25b5
+/deepseek-ai-dsh-client-ui-voice-dictation/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-client-ui-voice-dictation/model-experience/draft-only-dictation:
+  en: b7da974919c20cb6
+  zh: ee47f67677fbd6be
+/deepseek-ai-dsh-client-ui-voice-dictation/model-experience/draft-only-dictation/what-the-model-sees:
+  en: 60843e1833e611cf
+  zh: a5e5ba40ca5b523b
+/deepseek-ai-dsh-client-ui-voice-dictation/model-experience/draft-only-dictation/token-effect:
+  en: c11ef67aea09d670
+  zh: 3752f1c41d9f2d56
+/deepseek-ai-dsh-client-ui-voice-dictation/model-experience/draft-only-dictation/kv-cache-effect:
+  en: 76f9eceeee08a214
+  zh: d6b41c93b3cb9207
+/deepseek-ai-dsh-client-ui-voice-dictation/known-limitations-and-deferred-work:
+  en: 85935e3fb2e966e5
+  zh: 8090568e39b3d23d

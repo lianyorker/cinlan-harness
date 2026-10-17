@@ -31,7 +31,7 @@ Mount this plugin beside a concrete [Session Query provider](../session-query-sq
 |---|---|---|
 | `maxSessions` | 200 | Maximum Session observations per query |
 | `maxEvents` | 200,000 | Maximum source events admitted to aggregation, including inherited prefixes |
-| `timeoutMs` | 15,000 | Cooperative deadline covering listing, cold reads, and aggregation |
+| `timeoutMs` | 120,000 | Cooperative deadline covering listing, cold reads, and aggregation |
 | `maxRangeDays` | 366 | Maximum interval length |
 
 All bounds are positive integers. A query accepts inclusive `from` and exclusive `to` Unix millisecond timestamps, plus optional exact `provider` and `model` filters. Interval membership uses Turn start, so a Turn crossing midnight belongs to its start date. A fork beginning mid-Turn exposes its own tail as unknown, using its first own lifecycle event for interval membership.

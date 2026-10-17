@@ -9,8 +9,9 @@ import { authenticatedCookie, createHarness, FIXTURE_PLUGIN, installModel, model
 const PROVIDER = '@deepseek-ai/dsh-voice-sherpa-onnx'
 const CONTROLLER = '@deepseek-ai/dsh-api-voice-controller'
 const ROSTER = [
-  'zh-streaming-zipformer-14m', 'bilingual-streaming-zipformer', 'en-streaming-zipformer-20m',
-  'bilingual-streaming-paraformer', 'sense-voice-zh-en-ja-ko-yue', 'whisper-tiny', MODEL_ID,
+  'parakeet-tdt-0.6b-v3-int8', 'parakeet-tdt-0.6b-v2-int8', 'zipformer-bilingual-zh-en',
+  'paraformer-bilingual-zh-en', 'zipformer-streaming-en-20m', 'zipformer-streaming-zh-14m',
+  'zipformer-streaming-korean', 'parakeet-tdt-ctc-0.6b-ja-int8', 'whisper-tiny', 'sense-voice-zh-en-ja-ko-yue', MODEL_ID,
 ]
 const PCM = Buffer.from(new Float32Array([0, 0.25, -0.5]).buffer).toString('base64')
 

@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-07-builtin-voice-dictation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-07-builtin-voice-dictation.md
+/agent-note-built-in-dictation-with-host-owned-speech-models:
+  en: 01e4102fcd14aca3
+  zh: f98f7a4577af2136
+/agent-note-built-in-dictation-with-host-owned-speech-models/problem:
+  en: f1e27f03cc0d6666
+  zh: b4a6a885d21e25ba
+/agent-note-built-in-dictation-with-host-owned-speech-models/decision:
+  en: 56d804599f5febed
+  zh: 96cbe4380b8e1549
+/agent-note-built-in-dictation-with-host-owned-speech-models/alternatives-considered:
+  en: 793d7234bd6b3ad1
+  zh: a4bbfe360cdebea3
+/agent-note-built-in-dictation-with-host-owned-speech-models/consequences:
+  en: f1a5b03588486450
+  zh: 400b3aec1b5ca92c
