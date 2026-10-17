@@ -7,6 +7,7 @@
 *.cmd text eol=crlf
 
 *.pdf binary
+apps/mobile/dist/** -whitespace
 
 # Pairing records are generated from the three confirmed owner-blob pairs.
 # The worktree-local installer registers the fail-closed driver command.

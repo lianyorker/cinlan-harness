@@ -24,9 +24,9 @@ export const ManualPairScreen: React.FC<ManualPairScreenProps> = ({
   // Drawer state (Figure 2)
   const [isDrawerOpen, setIsDrawerOpen] = useState(initialCode !== '')
   // Notification permission state & modal
-  const [hasNotificationPermission, setHasNotificationPermission] = useState(false)
+  const [_hasNotificationPermission, setHasNotificationPermission] = useState(false)
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false)
-  const [pendingCodeToConnect, setPendingCodeToConnect] = useState<string | null>(null)
+  const [pendingCodeToConnect, _setPendingCodeToConnect] = useState<string | null>(null)
 
   const handleOpenDrawer = () => {
     setIsDrawerOpen(true)
@@ -106,22 +106,26 @@ export const ManualPairScreen: React.FC<ManualPairScreenProps> = ({
       {/* 主体：上下居中 (图 1) */}
       <main className="flex-1 flex flex-col items-center justify-center px-6 text-center -mt-12 z-0">
         <h1 className="text-xl font-bold tracking-tight theme-text">
-          {isZh ? '相机权限已禁用' : 'Camera Access Disabled'}
+          {initialCode
+            ? (isZh ? '正在配对连接...' : 'Connecting to Desktop...')
+            : (isZh ? '相机权限已禁用' : 'Camera Access Disabled')}
         </h1>
         <p className="text-xs theme-muted max-w-[280px] mt-2.5 leading-relaxed">
-          {isZh
-            ? '在设置中启用相机访问权限，或改为粘贴配对码。'
-            : 'Enable camera access in Settings, or paste the pairing code instead.'}
+          {initialCode
+            ? (isZh ? '已加载桌面端配对信息，正在建立端到端加密连接。' : 'Pairing link loaded, establishing encrypted channel.')
+            : (isZh ? '在设置中启用相机访问权限，或改为粘贴配对码。' : 'Enable camera access in Settings, or paste the pairing code instead.')}
         </p>
 
         {/* 打开系统设置按钮 (打开本机系统设置，而非应用内部设置) */}
-        <button
-          type="button"
-          onClick={handleOpenSystemSettings}
-          className="mt-6 px-7 py-2.5 rounded-xl theme-btn-primary active:scale-95 font-semibold text-xs tracking-tight shadow-sm transition"
-        >
-          {isZh ? '打开设置' : 'Open Settings'}
-        </button>
+        {!initialCode && (
+          <button
+            type="button"
+            onClick={handleOpenSystemSettings}
+            className="mt-6 px-7 py-2.5 rounded-xl theme-btn-primary active:scale-95 font-semibold text-xs tracking-tight shadow-sm transition"
+          >
+            {isZh ? '打开设置' : 'Open Settings'}
+          </button>
+        )}
 
         {/* 改为粘贴配对码 / 使用配对码连接 */}
         <button

@@ -25,6 +25,21 @@ function AppRoot() {
   const isPaired = Object.keys(connections.hosts).length > 0
   const [connectionMessage, setConnectionMessage] = useState('')
 
+  useEffect(() => {
+    if (initialCode) {
+      void connections.pair(initialCode).then(
+        () => {
+          setConnectionMessage('')
+          setCurrentRoute('dashboard')
+        },
+        (error) => {
+          connections.reportError(error)
+          setCurrentRoute('manual-pair')
+        },
+      )
+    }
+  }, [initialCode])
+
   // Active desktop & session state
   const [activeDesktopId, setActiveDesktopId] = useState<string>('')
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
@@ -38,18 +53,43 @@ function AppRoot() {
   const pendingApproval = connections.approvals[activeDesktopId]?.find(item => item.sessionId === activeSessionId) ?? null
   useEffect(() => {
     const host = Object.values(connections.hosts)[0]
-    if (host && !activeDesktopId) { setActiveDesktopId(host.saved.hostId); setCurrentRoute('dashboard') }
+    if (host && !activeDesktopId) {
+      setActiveDesktopId(host.saved.hostId)
+      setCurrentRoute('dashboard')
+    }
   }, [connections.hosts, activeDesktopId])
   useEffect(() => {
     if (connections.error) setConnectionMessage(connections.error)
   }, [connections.error])
   const workspaces: WorkspaceGroup[] = activeHost ? activeHost.desktop.workspaces.map(workspace => ({
-    id: workspace.id, name: workspace.name, sessions: activeHost.desktop.sessions.filter(session => workspace.sessionIds.includes(session.id)).map(session => ({ id: session.id, title: session.title, type: 'chat', isActive: session.running, updatedAt: session.updatedAt })),
+    id: workspace.id,
+    name: workspace.name,
+    sessions: activeHost.desktop.sessions
+      .filter(session => workspace.sessionIds.includes(session.id))
+      .map(session => ({
+        id: session.id,
+        title: session.title,
+        type: 'chat',
+        isActive: session.running,
+        updatedAt: session.updatedAt,
+      })),
   })) : []
   if (activeHost) {
     const assigned = new Set(workspaces.flatMap(workspace => workspace.sessions.map(session => session.id)))
     const unassigned = activeHost.desktop.sessions.filter(session => !assigned.has(session.id))
-    if (unassigned.length) workspaces.push({ id: '', name: activeHost.desktop.name, sessions: unassigned.map(session => ({ id: session.id, title: session.title, type: 'chat', isActive: session.running, updatedAt: session.updatedAt })) })
+    if (unassigned.length) {
+      workspaces.push({
+        id: '',
+        name: activeHost.desktop.name,
+        sessions: unassigned.map(session => ({
+          id: session.id,
+          title: session.title,
+          type: 'chat',
+          isActive: session.running,
+          updatedAt: session.updatedAt,
+        })),
+      })
+    }
   }
 
   // Modals
@@ -168,9 +208,19 @@ function AppRoot() {
           <DesktopSessionsScreen
             key={activeDesktopId}
             desktopId={activeDesktopId}
-            desktop={activeHost ? { id: activeDesktopId, name: activeHost.desktop.name, os: activeHost.desktop.os, isConnected: activeHost.status === 'paired' || activeHost.status === 'reconnecting', connectionType: activeHost.saved.relay ? 'Relay' : 'LAN', workspaceCount: workspaces.length } : undefined}
+            desktop={activeHost ? {
+              id: activeDesktopId,
+              name: activeHost.desktop.name,
+              os: activeHost.desktop.os,
+              isConnected: activeHost.status === 'paired' || activeHost.status === 'reconnecting',
+              connectionType: activeHost.saved.relay ? 'Relay' : 'LAN',
+              workspaceCount: workspaces.length,
+            } : undefined}
             workspaces={workspaces}
-            onCreateSession={async (workspaceId, title) => { const sessionId = await connections.create(activeDesktopId, workspaceId || undefined, title); handleOpenSession(sessionId, title) }}
+            onCreateSession={async (workspaceId, title) => {
+              const sessionId = await connections.create(activeDesktopId, workspaceId || undefined, title)
+              handleOpenSession(sessionId, title)
+            }}
             onBack={() => {
               setAutoOpenCreateInSessions(false)
               navigateTo('dashboard')
@@ -188,7 +238,11 @@ function AppRoot() {
           <MobileSessionView
             sessionId={activeSessionId ?? 'session-1'}
             sessionTitle={activeSessionTitle}
-            projectPath={activeHost?.desktop.workspaces.find(workspace => workspace.sessionIds.some(id => String(id) === activeSessionId))?.path}
+            projectPath={
+              activeHost?.desktop.workspaces.find(workspace =>
+                workspace.sessionIds.some(id => String(id) === activeSessionId),
+              )?.path
+            }
             status={connectionStatus}
             steps={steps}
             activeThought={activeThought}
@@ -206,7 +260,14 @@ function AppRoot() {
       default:
         return (
           <DashboardScreen
-            desktops={Object.values(connections.hosts).map(host => ({ id: host.saved.hostId, name: host.desktop.name, os: host.desktop.os, isConnected: host.status === 'paired' || host.status === 'reconnecting', connectionType: host.saved.relay ? 'Relay' : 'LAN', workspaceCount: host.desktop.workspaces.length }))}
+            desktops={Object.values(connections.hosts).map(host => ({
+              id: host.saved.hostId,
+              name: host.desktop.name,
+              os: host.desktop.os,
+              isConnected: host.status === 'paired' || host.status === 'reconnecting',
+              connectionType: host.saved.relay ? 'Relay' : 'LAN',
+              workspaceCount: host.desktop.workspaces.length,
+            }))}
             sessionsCount={Object.values(connections.hosts).reduce((count, host) => count + host.desktop.sessions.length, 0)}
             onReconnect={(hostId) => { void connections.reconnect(hostId).catch(connections.reportError) }}
             onOpenSettings={() => navigateTo('settings')}

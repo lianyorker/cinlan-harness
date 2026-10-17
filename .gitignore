@@ -49,3 +49,4 @@ native/system/test/bin/
 .tmp-*
 %SystemDrive%/
 reports/
+.cinlan-mobile-relay/
