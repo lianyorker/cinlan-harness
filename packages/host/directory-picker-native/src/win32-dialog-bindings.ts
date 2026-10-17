@@ -97,6 +97,19 @@ export async function loadWin32DialogBindings(): Promise<Win32DialogBindings> {
   const user32 = koffi.load('user32.dll')
   const kernel32 = koffi.load('kernel32.dll')
 
+  // When launched from background services, jobs, or sandbox environments,
+  // attach the thread to the interactive user desktop ("default") so the dialog
+  // is visible on screen.
+  try {
+    const openDesktopW = user32.func('__stdcall', 'OpenDesktopW', 'void *', ['str16', 'uint32', 'int32', 'uint32'])
+    const setThreadDesktop = user32.func('__stdcall', 'SetThreadDesktop', 'int32', ['void *'])
+    const DESKTOP_ALL = 0x01ff
+    const hDesk = openDesktopW('default', 0, 0, DESKTOP_ALL)
+    if (hDesk !== null) setThreadDesktop(hDesk)
+  } catch {
+    // Best-effort: mock worlds or pre-NT hosts omit desktop switching.
+  }
+
   // Vtable slots and out-pointers are pointer-width offsets: 8 on x64/arm64,
   // 4 on ia32 — koffi reports the running process's width.
   const pointerSize = koffi.sizeof('void *')
@@ -106,6 +119,14 @@ export async function loadWin32DialogBindings(): Promise<Win32DialogBindings> {
   const coTaskMemFree = ole32.func('__stdcall', 'CoTaskMemFree', 'void', ['void *'])
   const getCurrentThreadId = kernel32.func('__stdcall', 'GetCurrentThreadId', 'uint32', [])
   const keybdEvent = user32.func('__stdcall', 'keybd_event', 'void', ['uint8', 'uint8', 'uint32', 'uintptr'])
+
+  const getForegroundWindow = (() => {
+    try {
+      return user32.func('__stdcall', 'GetForegroundWindow', 'void *', [])
+    } catch {
+      return undefined
+    }
+  })()
 
   const protoShow = koffi.proto('int32 __stdcall DshDialogShow(void *self, void *owner)')
   const protoSetOptions = koffi.proto('int32 __stdcall DshDialogSetOptions(void *self, uint32 options)')
@@ -157,7 +178,16 @@ export async function loadWin32DialogBindings(): Promise<Win32DialogBindings> {
       return {
         setOptions: options => method(dialog, SLOT_SET_OPTIONS, protoSetOptions)(options),
         setTitle: title => method(dialog, SLOT_SET_TITLE, protoSetTitle)(title),
-        show: () => method(dialog, SLOT_SHOW, protoShow)(null),
+        show: () => {
+          let owner: unknown = null
+          try {
+            const fg = getForegroundWindow?.()
+            if (fg !== null && fg !== undefined) owner = fg
+          } catch {
+            // Best-effort foreground owner lookup.
+          }
+          return method(dialog, SLOT_SHOW, protoShow)(owner)
+        },
         resultPath: () => {
           const itemOut: unknown[] = [null]
           const gotItem = method(dialog, SLOT_GET_RESULT, protoGetResult)(itemOut)
