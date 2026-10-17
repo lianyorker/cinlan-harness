@@ -62,7 +62,7 @@ export const SessionActionDrawer: React.FC<SessionActionDrawerProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="session-action-title"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
         className="w-full theme-card border-t theme-border rounded-t-3xl p-5 pb-8 space-y-4 shadow-2xl safe-bottom animate-slide-up"
       >
         {/* Drag handle */}
@@ -85,7 +85,7 @@ export const SessionActionDrawer: React.FC<SessionActionDrawerProps> = ({
               type="text"
               autoFocus
               value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
+              onChange={e => setNewTitle(e.target.value)}
               className="w-full p-3 theme-card-subtle border theme-border rounded-xl text-xs theme-text focus:outline-none focus:border-zinc-500"
               placeholder={isZh ? '请输入新会话名称...' : 'Enter new session name...'}
             />

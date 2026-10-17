@@ -75,7 +75,7 @@ export class MobileClient {
           socket.send(JSON.stringify({ type: 'relay-auth', hostId: source.hostId, ...(this.saved ? { deviceId: this.saved.deviceId, credential: this.saved.relayToken } : { credential: 'invite' in source.relay ? source.relay.invite : '' }) }))
         } else startEncryption()
       }
-      socket.onmessage = event => {
+      socket.onmessage = (event) => {
         if (!current()) return
         try {
           if (typeof event.data !== 'string') throw new Error('expected_text_frame')
@@ -89,7 +89,7 @@ export class MobileClient {
             if (ready.clientNonce !== nonce || ready.context.hostId !== context.hostId || ready.context.transport !== context.transport) throw new Error('handshake_context_mismatch')
             this.channel = new EncryptedChannel(keys.secretKey, ready.publicKey, nonce, ready.nonce, 'phone', context)
             const name = navigator.userAgent.includes('Android') ? 'Android' : navigator.userAgent.includes('iPhone') ? 'iPhone' : 'Cinlan Mobile'
-            void this.request({ method: 'auth', params: { name, ...(this.saved ? { deviceId: this.saved.deviceId, token: this.saved.token } : { ticket: 'ticket' in source ? source.ticket : '' }) } }).then(value => {
+            void this.request({ method: 'auth', params: { name, ...(this.saved ? { deviceId: this.saved.deviceId, token: this.saved.token } : { ticket: 'ticket' in source ? source.ticket : '' }) } }).then((value) => {
               if (this.closed || generation !== this.generation) throw new Error('connection_superseded')
               const result = AuthResultSchema.parse(value)
               if (result.desktop.hostId !== source.hostId || this.saved && result.deviceId !== this.saved.deviceId) throw new Error('desktop_identity_mismatch')
@@ -100,7 +100,7 @@ export class MobileClient {
               this.authenticated = true; this.everAuthenticated = true; this.attempt = 0
               this.onEnrolled(this.saved, result.desktop); this.onStatus('paired')
               clearTimeout(timer); resolve()
-            }).catch(reason => { clearTimeout(timer); if (current()) this.onStatus('error'); reject(reason); socket.close() })
+            }).catch((reason) => { clearTimeout(timer); if (current()) this.onStatus('error'); reject(reason); socket.close() })
             return
           }
           const payload = this.channel.decode(event.data)
@@ -112,7 +112,7 @@ export class MobileClient {
         } catch (invalidHostMessage) { clearTimeout(timer); reject(invalidHostMessage); socket.close(4400, 'invalid_host_message') }
       }
       socket.onerror = () => { clearTimeout(timer); reject(new Error('desktop_unreachable')); socket.close() }
-      socket.onclose = event => {
+      socket.onclose = (event) => {
         clearTimeout(timer)
         if (!current()) { reject(new Error('connection_superseded')); return }
         this.socket = undefined; this.channel = undefined; this.authenticated = false

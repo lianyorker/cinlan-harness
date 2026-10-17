@@ -203,7 +203,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       <main className="flex-1 px-4 py-5 overflow-y-auto space-y-4">
         {/* Group 1 Card */}
         <div className="theme-card border rounded-2xl overflow-hidden divide-y divide-[var(--border-line)] theme-border shadow-sm">
-          {group1.map((item) => (
+          {group1.map(item => (
             <button
               key={item.id}
               type="button"
@@ -225,7 +225,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
         {/* Group 2 Card */}
         <div className="theme-card border rounded-2xl overflow-hidden divide-y divide-[var(--border-line)] theme-border shadow-sm">
-          {group2.map((item) => (
+          {group2.map(item => (
             <button
               key={item.id}
               type="button"

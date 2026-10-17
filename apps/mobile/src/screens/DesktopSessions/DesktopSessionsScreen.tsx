@@ -47,7 +47,7 @@ export const DesktopSessionsScreen: React.FC<DesktopSessionsScreenProps> = ({
 
   // Workspaces and sessions state
   const [workspacesState, setWorkspacesState] = useState<WorkspaceGroup[]>(
-    () => [...workspaces]
+    () => [...workspaces],
   )
   useEffect(() => setWorkspacesState([...workspaces]), [workspaces])
 
@@ -109,14 +109,14 @@ export const DesktopSessionsScreen: React.FC<DesktopSessionsScreenProps> = ({
   }
 
   const toggleWorkspace = (id: string) => {
-    setExpandedWorkspaces((prev) => ({
+    setExpandedWorkspaces(prev => ({
       ...prev,
       [id]: !prev[id],
     }))
   }
 
   const isAllCollapsed = useMemo(() => {
-    return Object.values(expandedWorkspaces).every((val) => val === false)
+    return Object.values(expandedWorkspaces).every(val => val === false)
   }, [expandedWorkspaces])
 
   const toggleCollapseAll = () => {
@@ -167,7 +167,7 @@ export const DesktopSessionsScreen: React.FC<DesktopSessionsScreenProps> = ({
         if (query) {
           const wsMatches = ws.name.toLowerCase().includes(query)
           if (!wsMatches) {
-            list = list.filter((s) => s.title.toLowerCase().includes(query))
+            list = list.filter(s => s.title.toLowerCase().includes(query))
           }
         }
 
@@ -256,8 +256,8 @@ export const DesktopSessionsScreen: React.FC<DesktopSessionsScreenProps> = ({
               {groupMode === 'workspace'
                 ? (isZh ? '按工作区' : 'Workspace')
                 : groupMode === 'tree'
-                ? (isZh ? '按工作区树' : 'Tree')
-                : (isZh ? '单列表' : 'List')}
+                  ? (isZh ? '按工作区树' : 'Tree')
+                  : (isZh ? '单列表' : 'List')}
             </span>
           </button>
 
@@ -316,7 +316,7 @@ export const DesktopSessionsScreen: React.FC<DesktopSessionsScreenProps> = ({
             type="text"
             autoFocus
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
             placeholder={
               isZh ? '搜索工作区或会话...' : 'Search workspaces or sessions...'
             }
@@ -345,10 +345,10 @@ export const DesktopSessionsScreen: React.FC<DesktopSessionsScreenProps> = ({
                 role="button"
                 tabIndex={0}
                 onClick={() => onSelectSession(session.id, session.title)}
-                
+
                 onTouchEnd={handleTouchEndOrMove}
                 onTouchMove={handleTouchEndOrMove}
-                
+
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') onSelectSession(session.id, session.title)
                 }}
@@ -433,16 +433,16 @@ export const DesktopSessionsScreen: React.FC<DesktopSessionsScreenProps> = ({
                         {isZh ? '暂无会话记录' : 'No active sessions'}
                       </div>
                     ) : (
-                      workspace.sessions.map((session) => (
+                      workspace.sessions.map(session => (
                         <div
                           key={session.id}
                           role="button"
                           tabIndex={0}
                           onClick={() => onSelectSession(session.id, session.title)}
-                          
+
                           onTouchEnd={handleTouchEndOrMove}
                           onTouchMove={handleTouchEndOrMove}
-                          
+
                           onKeyDown={(e) => {
                             if (e.key === 'Enter')
                               onSelectSession(session.id, session.title)

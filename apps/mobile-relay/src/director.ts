@@ -52,7 +52,7 @@ export class Director {
     for (const [rawId, assignment] of Object.entries(this.state.assignments)) if (assignment.expiresAt + this.config.leaseMs < Date.now()) delete this.state.assignments[HostIdSchema.parse(rawId)]
     const active = Object.values(this.state.assignments).filter(item => item.expiresAt > Date.now()).length
     if ((!previous || previous.expiresAt <= Date.now()) && active >= this.config.maxHosts) throw new Error('host_capacity_reached')
-    const health = await Promise.all(this.regions.map(async region => {
+    const health = await Promise.all(this.regions.map(async (region) => {
       try {
         const response = await fetch(region.url + '/health', { signal: AbortSignal.timeout(this.config.handshakeMs) })
         if (!response.ok) return null

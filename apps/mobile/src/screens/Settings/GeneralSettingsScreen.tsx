@@ -215,7 +215,7 @@ export const GeneralSettingsScreen: React.FC<GeneralSettingsScreenProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="lang-drawer-title"
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
             className="w-full theme-card border-t rounded-t-3xl p-5 pb-8 space-y-4 shadow-2xl safe-bottom animate-slide-up"
           >
             {/* Top Drag Handle */}
@@ -274,7 +274,7 @@ export const GeneralSettingsScreen: React.FC<GeneralSettingsScreenProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="theme-drawer-title"
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
             className="w-full theme-card border-t rounded-t-3xl p-5 pb-8 space-y-4 shadow-2xl safe-bottom animate-slide-up"
           >
             {/* Top Drag Handle */}

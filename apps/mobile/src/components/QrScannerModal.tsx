@@ -170,7 +170,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
               <input
                 type="text"
                 value={manualCode}
-                onChange={(e) => setManualCode(e.target.value)}
+                onChange={e => setManualCode(e.target.value)}
                 placeholder="orca://pair?code=..."
                 className="flex-1 px-3 py-2 theme-card-subtle border rounded-xl text-xs theme-text placeholder-zinc-500 focus:outline-none focus:border-blue-500"
               />

@@ -24,7 +24,7 @@ export const CreateWorktreeDrawer: React.FC<CreateWorktreeDrawerProps> = ({
   const isZh = language === 'zh-CN'
 
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>(
-    workspaces[0]?.id ?? ''
+    workspaces[0]?.id ?? '',
   )
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false)
   const [workspaceName, setWorkspaceName] = useState('')
@@ -34,7 +34,7 @@ export const CreateWorktreeDrawer: React.FC<CreateWorktreeDrawerProps> = ({
   if (!isOpen) return null
 
   const currentWorkspace =
-    workspaces.find((w) => w.id === selectedWorkspaceId) ?? workspaces[0]
+    workspaces.find(w => w.id === selectedWorkspaceId) ?? workspaces[0]
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
@@ -60,7 +60,7 @@ export const CreateWorktreeDrawer: React.FC<CreateWorktreeDrawerProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-worktree-title"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
         className="w-full theme-card border-t theme-border rounded-t-3xl p-5 pb-8 space-y-4 shadow-2xl safe-bottom max-h-[85vh] overflow-y-auto animate-slide-up"
       >
         {/* Drag Handle */}
@@ -146,7 +146,7 @@ export const CreateWorktreeDrawer: React.FC<CreateWorktreeDrawerProps> = ({
             <input
               type="text"
               value={workspaceName}
-              onChange={(e) => setWorkspaceName(e.target.value)}
+              onChange={e => setWorkspaceName(e.target.value)}
               placeholder={
                 isZh ? '输入名称或搜索源...' : 'Type a name or search a source'
               }

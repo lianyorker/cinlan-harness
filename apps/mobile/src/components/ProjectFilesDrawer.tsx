@@ -46,7 +46,7 @@ export const ProjectFilesDrawer: React.FC<ProjectFilesDrawerProps> = ({
   const isZh = language === 'zh-CN'
 
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(
-    () => new Set(['f-docs', 'f-docs-armor'])
+    () => new Set(['f-docs', 'f-docs-armor']),
   )
   const [searchQuery, setSearchQuery] = useState('')
   const [copiedPath, setCopiedPath] = useState<string | null>(null)
@@ -146,7 +146,7 @@ export const ProjectFilesDrawer: React.FC<ProjectFilesDrawerProps> = ({
 
           {isExpanded && node.children && (
             <div className="space-y-0.5">
-              {node.children.map((child) => renderNode(child, depth + 1))}
+              {node.children.map(child => renderNode(child, depth + 1))}
             </div>
           )}
         </div>
@@ -186,7 +186,7 @@ export const ProjectFilesDrawer: React.FC<ProjectFilesDrawerProps> = ({
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
-            onClick={(e) => handleInsertReference(node.name, e)}
+            onClick={e => handleInsertReference(node.name, e)}
             className="p-1 px-2 rounded-lg bg-blue-600/15 hover:bg-blue-600/25 text-blue-500 text-[10px] font-mono flex items-center gap-0.5 transition active:scale-95"
             title={isZh ? '引用此文件' : 'Reference file'}
           >
@@ -195,7 +195,7 @@ export const ProjectFilesDrawer: React.FC<ProjectFilesDrawerProps> = ({
           </button>
           <button
             type="button"
-            onClick={(e) => handleCopyPath(node.path, e)}
+            onClick={e => handleCopyPath(node.path, e)}
             className="p-1 theme-muted hover:theme-text rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
             title={isZh ? '复制路径' : 'Copy path'}
           >
@@ -220,7 +220,7 @@ export const ProjectFilesDrawer: React.FC<ProjectFilesDrawerProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="project-files-title"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
         className="w-full theme-card border-t theme-border rounded-t-3xl p-5 pb-8 space-y-4 shadow-2xl safe-bottom max-h-[85vh] flex flex-col animate-slide-up transition-colors duration-200"
       >
         {/* Drag handle */}
@@ -259,7 +259,7 @@ export const ProjectFilesDrawer: React.FC<ProjectFilesDrawerProps> = ({
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
             placeholder={isZh ? '搜索文件或路径...' : 'Search files or path...'}
             className="w-full pl-8 pr-8 py-2 theme-card-subtle border theme-border rounded-xl text-xs theme-text placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition"
           />
@@ -281,7 +281,7 @@ export const ProjectFilesDrawer: React.FC<ProjectFilesDrawerProps> = ({
               {isZh ? '当前 Host 未提供文件列表接口' : 'The Host does not expose a file listing yet'}
             </div>
           ) : (
-            filteredTree.map((node) => renderNode(node))
+            filteredTree.map(node => renderNode(node))
           )}
         </div>
 

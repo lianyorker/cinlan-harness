@@ -458,7 +458,7 @@ export const MobileSessionView: React.FC<MobileSessionViewProps> = ({
                           <span>项</span>
                           <span className="col-span-2">结果</span>
                         </div>
-                        {msg.tableData.map((row) => (
+                        {msg.tableData.map(row => (
                           <div
                             key={row.key}
                             className="grid grid-cols-3 px-3 py-1.5 border-b theme-border last:border-none theme-text"
@@ -611,7 +611,7 @@ export const MobileSessionView: React.FC<MobileSessionViewProps> = ({
             <div className="w-full">
               <textarea
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                onChange={e => setInputText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
@@ -623,8 +623,8 @@ export const MobileSessionView: React.FC<MobileSessionViewProps> = ({
                   isRecording
                     ? (isZh ? '正在聆听语音输入...' : 'Listening...')
                     : (isZh
-                        ? '发消息或创建任务，/ 调用指令，@ 文件或对话'
-                        : 'Send message, / command, @ file or chat')
+                      ? '发消息或创建任务，/ 调用指令，@ 文件或对话'
+                      : 'Send message, / command, @ file or chat')
                 }
                 className="w-full bg-transparent text-xs theme-text placeholder-zinc-500 focus:outline-none resize-none min-h-[34px] max-h-[110px] leading-relaxed pt-1"
               />
@@ -698,7 +698,7 @@ export const MobileSessionView: React.FC<MobileSessionViewProps> = ({
                         className="fixed inset-0 z-30 bg-transparent"
                       />
                       <div className="absolute bottom-9 left-0 z-40 w-36 theme-card border theme-border rounded-2xl shadow-2xl overflow-hidden divide-y divide-[var(--border-line)] text-xs animate-fade-in">
-                        {['工作区内', '全盘读写', '严格沙箱'].map((mode) => (
+                        {['工作区内', '全盘读写', '严格沙箱'].map(mode => (
                           <button
                             key={mode}
                             type="button"
@@ -751,7 +751,7 @@ export const MobileSessionView: React.FC<MobileSessionViewProps> = ({
                           'DeepSeek-R1 Full Reasoning',
                           'Claude-3.7-Sonnet Hybrid',
                           'GPT-4o Omnipresent',
-                        ].map((model) => (
+                        ].map(model => (
                           <button
                             key={model}
                             type="button"
@@ -836,7 +836,7 @@ export const MobileSessionView: React.FC<MobileSessionViewProps> = ({
         projectPath={projectPath ?? '--'}
         onSelectFile={(filePath) => {
           setIsProjectFilesOpen(false)
-          setInputText((prev) => (prev ? `${prev} @${filePath}` : `@${filePath} `))
+          setInputText(prev => (prev ? `${prev} @${filePath}` : `@${filePath} `))
           showToast(isZh ? `已引用文件: @${filePath}` : `Referenced: @${filePath}`)
         }}
       />

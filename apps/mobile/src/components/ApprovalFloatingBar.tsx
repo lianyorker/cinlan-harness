@@ -36,12 +36,12 @@ export const ApprovalFloatingBar: React.FC<ApprovalFloatingBarProps> = ({
 
     if (approval.options && approval.options.length > 0) {
       const defaults = approval.options
-        .filter((opt) => opt.defaultSelected)
-        .map((opt) => opt.id)
+        .filter(opt => opt.defaultSelected)
+        .map(opt => opt.id)
       setSelectedOptionIds(
         defaults.length > 0
           ? defaults
-          : [approval.options[0].id]
+          : [approval.options[0].id],
       )
     } else {
       // Default permission scope option
@@ -56,8 +56,8 @@ export const ApprovalFloatingBar: React.FC<ApprovalFloatingBarProps> = ({
 
   const handleToggleOption = (id: string) => {
     if (isMultiSelect) {
-      setSelectedOptionIds((prev) =>
-        prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      setSelectedOptionIds(prev =>
+        prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id],
       )
     } else {
       setSelectedOptionIds([id])
@@ -76,13 +76,13 @@ export const ApprovalFloatingBar: React.FC<ApprovalFloatingBarProps> = ({
   const displayOptions = approval.options && approval.options.length > 0
     ? approval.options
     : [
-        {
-          id: 'allow-once',
-          label: isZh ? '仅允许本次调用执行' : 'Allow once for this action',
-          description: isZh ? '操作完成后恢复拦截' : 'Re-intercept on subsequent calls',
-          defaultSelected: true,
-        },
-      ]
+      {
+        id: 'allow-once',
+        label: isZh ? '仅允许本次调用执行' : 'Allow once for this action',
+        description: isZh ? '操作完成后恢复拦截' : 'Re-intercept on subsequent calls',
+        defaultSelected: true,
+      },
+    ]
 
   return (
     <div
@@ -94,7 +94,7 @@ export const ApprovalFloatingBar: React.FC<ApprovalFloatingBarProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="approval-sheet-title"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
         className="w-full theme-card border-t theme-border rounded-t-3xl p-5 pb-8 space-y-4 shadow-2xl safe-bottom max-h-[88vh] flex flex-col animate-slide-up transition-colors duration-200"
       >
         {/* Top Drag Handle */}
@@ -161,8 +161,8 @@ export const ApprovalFloatingBar: React.FC<ApprovalFloatingBarProps> = ({
           <p className="text-xs theme-text font-medium leading-relaxed">
             {approval.reason ||
               (isZh
-                ? `智能体请求执行受限操作，需要您的授权。`
-                : `Agent requested to execute a privileged operation.`)}
+                ? '智能体请求执行受限操作，需要您的授权。'
+                : 'Agent requested to execute a privileged operation.')}
           </p>
 
           {/* Command / Arguments preview */}
@@ -283,8 +283,8 @@ export const ApprovalFloatingBar: React.FC<ApprovalFloatingBarProps> = ({
             <span>
               {isQuestion
                 ? (isZh
-                    ? `确认提交 (${selectedOptionIds.length})`
-                    : `Submit (${selectedOptionIds.length})`)
+                  ? `确认提交 (${selectedOptionIds.length})`
+                  : `Submit (${selectedOptionIds.length})`)
                 : (isZh ? '授权执行 (Approve)' : 'Approve')}
             </span>
           </button>

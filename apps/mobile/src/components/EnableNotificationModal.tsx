@@ -30,7 +30,7 @@ export const EnableNotificationModal: React.FC<EnableNotificationModalProps> = (
         role="dialog"
         aria-modal="true"
         aria-labelledby="enable-notification-title"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
         className="w-full max-w-sm theme-card border theme-border rounded-3xl p-6 shadow-2xl text-center space-y-4 animate-scale-up"
       >
         {/* Icon */}

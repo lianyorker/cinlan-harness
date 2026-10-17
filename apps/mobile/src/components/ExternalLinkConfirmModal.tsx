@@ -37,7 +37,7 @@ export const ExternalLinkConfirmModal: React.FC<ExternalLinkConfirmModalProps> =
         role="dialog"
         aria-modal="true"
         aria-labelledby="external-link-title"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
         className="w-full max-w-sm theme-card border theme-border rounded-3xl p-5 shadow-2xl space-y-4 animate-scale-up transition-colors duration-200"
       >
         {/* Header Icon & Close */}

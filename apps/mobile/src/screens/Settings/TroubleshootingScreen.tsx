@@ -110,7 +110,7 @@ export const TroubleshootingScreen: React.FC<TroubleshootingScreenProps> = ({
   const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
-  const connected = hosts.filter((host) => CONNECTED_STATUSES.includes(host.status))
+  const connected = hosts.filter(host => CONNECTED_STATUSES.includes(host.status))
 
   const statusLabel = (status: ConnectionStatus): string => {
     if (isZh) {
@@ -234,7 +234,7 @@ export const TroubleshootingScreen: React.FC<TroubleshootingScreenProps> = ({
             </span>
           </div>
 
-          {hosts.map((host) => (
+          {hosts.map(host => (
             <div key={host.hostId} className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2.5 min-w-0">
                 {CONNECTED_STATUSES.includes(host.status)
@@ -334,7 +334,7 @@ export const TroubleshootingScreen: React.FC<TroubleshootingScreenProps> = ({
                   {isZh ? '尚未配对任何电脑。' : 'No desktop is paired yet.'}
                 </p>
               )}
-              {hosts.map((host) => (
+              {hosts.map(host => (
                 <div key={host.hostId} className="space-y-1">
                   <p className="text-zinc-100">{host.name} · {host.os}</p>
                   <p className="text-zinc-400">

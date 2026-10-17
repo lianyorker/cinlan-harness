@@ -66,7 +66,7 @@ export class Cell {
       const host: Host = { control: socket, epoch: lease.epoch, expiresAt: lease.expiresAt, publicKey: lease.publicKey, devices: new Map(), queue: Promise.resolve(), queued: 0, requests: 0, rateExpiresAt: Date.now() + 60000 }
       this.hosts.set(lease.hostId, host)
       this.send(socket, { type: 'host-registered', hostId: lease.hostId })
-      socket.on('message', raw => {
+      socket.on('message', (raw) => {
         if (host.rateExpiresAt <= Date.now()) { host.requests = 0; host.rateExpiresAt = Date.now() + 60000 }
         if (host.queued >= this.config.maxControlQueue || ++host.requests > this.config.maxControlMessagesPerMinute) { socket.close(4429, 'control_rate_exceeded'); return }
         host.queued++

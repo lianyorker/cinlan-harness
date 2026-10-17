@@ -44,7 +44,7 @@ export const MidturnComposer: React.FC<MidturnComposerProps> = ({
             <input
               type="text"
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={e => setText(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={disabled}
               placeholder={disabled ? (isZh ? '正在等待主机连接...' : 'Waiting for connection...') : (isZh ? '输入追加指令 (例如: 改用 pytest 测试)...' : 'Type follow-up prompt...')}

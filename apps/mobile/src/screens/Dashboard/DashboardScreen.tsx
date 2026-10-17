@@ -93,7 +93,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             </h2>
           </div>
 
-          {desktops.map((desktop) => <div className="relative" key={desktop.id}>
+          {desktops.map(desktop => <div className="relative" key={desktop.id}>
             <div
               role="button"
               tabIndex={0}

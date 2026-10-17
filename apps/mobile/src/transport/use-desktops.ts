@@ -25,7 +25,7 @@ export function useDesktops() {
   const createClient = (source: SavedHost | ReturnType<typeof decodeOffer>): MobileClient => {
     const hostId = source.hostId
     let client: MobileClient
-    client = new MobileClient(source, status => {
+    client = new MobileClient(source, (status) => {
       if (!alive.current || clients.current.get(hostId) !== client) return
       setHosts(previous => previous[hostId] ? { ...previous, [hostId]: { ...previous[hostId], status } } : previous)
       if (status === 'disconnected' || status === 'error') {
@@ -36,7 +36,7 @@ export function useDesktops() {
         const sessionId = subscriptions.current.get(hostId)
         if (sessionId) void client.request({ method: 'subscribe', params: { sessionId } }).catch(reportError)
       }
-    }, event => {
+    }, (event) => {
       if (!alive.current || clients.current.get(hostId) !== client) return
       if (event.event === 'desktop') {
         const desktop = DesktopSchema.parse(event.value)
@@ -71,7 +71,7 @@ export function useDesktops() {
         const client = createClient(record)
         clients.current.set(record.hostId, client)
         setHosts(previous => ({ ...previous, [record.hostId]: { saved: record, status: 'connecting', desktop: { hostId: record.hostId, name: record.name, os: '', sessions: [], workspaces: [] } } }))
-        void client.connect().catch(reason => {
+        void client.connect().catch((reason) => {
           if (reason instanceof Error && ['desktop_unavailable', 'desktop_unreachable', 'connection_timeout', 'desktop_disconnected'].includes(reason.message)) return
           reportError(reason)
         })

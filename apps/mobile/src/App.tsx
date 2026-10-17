@@ -77,7 +77,7 @@ function AppRoot() {
       setCurrentRoute(
         previousRoute && previousRoute !== currentRoute
           ? previousRoute
-          : 'dashboard'
+          : 'dashboard',
       )
     }
   }
@@ -122,7 +122,7 @@ function AppRoot() {
             onOpenManualPair={() => navigateTo('manual-pair')}
             onOpenSettings={() => navigateTo('settings')}
             onBack={isPaired ? () => navigateTo('dashboard') : undefined}
-            onPairSuccess={(code) => connectWithCode(code)}
+            onPairSuccess={code => connectWithCode(code)}
           />
         )
 
@@ -208,7 +208,7 @@ function AppRoot() {
           <DashboardScreen
             desktops={Object.values(connections.hosts).map(host => ({ id: host.saved.hostId, name: host.desktop.name, os: host.desktop.os, isConnected: host.status === 'paired' || host.status === 'reconnecting', connectionType: host.saved.relay ? 'Relay' : 'LAN', workspaceCount: host.desktop.workspaces.length }))}
             sessionsCount={Object.values(connections.hosts).reduce((count, host) => count + host.desktop.sessions.length, 0)}
-            onReconnect={hostId => { void connections.reconnect(hostId).catch(connections.reportError) }}
+            onReconnect={(hostId) => { void connections.reconnect(hostId).catch(connections.reportError) }}
             onOpenSettings={() => navigateTo('settings')}
             onPairAnother={() => navigateTo('manual-pair')}
             onNewWorkspace={() => {

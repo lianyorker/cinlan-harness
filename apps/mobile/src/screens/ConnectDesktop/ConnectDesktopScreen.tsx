@@ -113,7 +113,7 @@ export const ConnectDesktopScreen: React.FC<ConnectDesktopScreenProps> = ({
     // Web 环境：重新发起相机授权；浏览器未永久拒绝时会弹出授权框
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-      stream.getTracks().forEach((track) => track.stop())
+      stream.getTracks().forEach(track => track.stop())
       prevPermissionRef.current = 'denied'
       setCameraPermission('granted')
       setIsScannerOpen(true)
@@ -290,7 +290,7 @@ export const ConnectDesktopScreen: React.FC<ConnectDesktopScreenProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="paste-code-dialog-title"
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
             className="w-full theme-card border-t theme-border rounded-t-3xl p-5 pb-8 space-y-4 shadow-2xl safe-bottom animate-slide-up"
           >
             {/* 顶部手柄 */}
@@ -318,7 +318,7 @@ export const ConnectDesktopScreen: React.FC<ConnectDesktopScreenProps> = ({
                   type="text"
                   autoFocus
                   value={code}
-                  onChange={(e) => setCode(e.target.value)}
+                  onChange={e => setCode(e.target.value)}
                   placeholder={
                     isZh
                       ? '输入或粘贴配对码...'

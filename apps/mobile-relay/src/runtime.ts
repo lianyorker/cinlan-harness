@@ -73,7 +73,7 @@ export async function startRelay(input: z.input<typeof RelayConfigSchema>): Prom
   server.on('upgrade', (req, socket, head) => {
     const path = new URL(req.url ?? '/', 'http://relay').pathname
     if (!cell || !['/v1/host/control', '/v1/host/data', '/v1/connect'].includes(path) || !admit(req.socket.remoteAddress ?? 'unknown')) { socket.destroy(); return }
-    wss.handleUpgrade(req, socket, head, ws => {
+    wss.handleUpgrade(req, socket, head, (ws) => {
       alive.add(ws)
       ws.on('pong', () => alive.add(ws))
       ws.on('error', () => ws.terminate())
@@ -104,7 +104,7 @@ export async function startRelay(input: z.input<typeof RelayConfigSchema>): Prom
         clearInterval(timer); cell?.dispose()
         for (const ws of wss.clients) ws.terminate()
         await new Promise<void>(resolve => wss.close(() => resolve()))
-        await new Promise<void>(resolve => { server.close(() => resolve()); server.closeAllConnections() })
+        await new Promise<void>((resolve) => { server.close(() => resolve()); server.closeAllConnections() })
       })()
     },
   }

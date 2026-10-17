@@ -50,7 +50,7 @@ export const TrajectoryView: React.FC<TrajectoryViewProps> = ({
         </div>
       )}
 
-      {steps.map((step) => (
+      {steps.map(step => (
         <div key={step.id} className="space-y-2">
           {/* User Input Prompt */}
           {step.role === 'user' && (
@@ -91,7 +91,7 @@ export const TrajectoryView: React.FC<TrajectoryViewProps> = ({
               )}
 
               {/* Tool Execution Cards */}
-              {step.toolCalls && step.toolCalls.map((tc) => (
+              {step.toolCalls && step.toolCalls.map(tc => (
                 <ToolCallCard key={tc.id} toolCall={tc} isZh={isZh} />
               ))}
 
