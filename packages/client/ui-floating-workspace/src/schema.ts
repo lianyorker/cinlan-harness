@@ -17,5 +17,5 @@ export const FloatingWorkspaceSettingsSchema: Schema<FloatingWorkspaceSettings> 
     Schema.const('header'), Schema.const('floating'),
   ]).default('header'),
   floatDefaultWidth: Schema.number().step(1).min(200).max(800).default(400),
-  floatDefaultHeight: Schema.number().step(1).min(150).max(600).default(300),
+  floatDefaultHeight: Schema.number().step(1).min(280).max(800).default(560),
 })

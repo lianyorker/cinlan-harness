@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-floating-workspace/README.md
 /:
-  en: b9043c5b00589454
-  zh: cdcffdd874d3a370
+  en: a3be9570a4e40786
+  zh: ebd4b97d25092770
 /deepseek-ai-dsh-client-ui-floating-workspace:
   en: b58d6653fb527b2d
   zh: a6878a794b35f4a7
@@ -13,16 +13,16 @@
   zh: 2c0399cf9d82504b
 /deepseek-ai-dsh-client-ui-floating-workspace/table-of-contents:
   en: d152484eb41ac6b4
-  zh: cafd77c56408c22b
+  zh: 066c9ded495582b6
 /deepseek-ai-dsh-client-ui-floating-workspace/use-this-package:
-  en: fd6b32be33345641
-  zh: d2360687c48e4473
+  en: 873df8fba9039252
+  zh: 06854447358582bf
 /deepseek-ai-dsh-client-ui-floating-workspace/use-this-package/composition-and-configuration:
   en: 10a99392620372d5
   zh: acb69e958686da67
 /deepseek-ai-dsh-client-ui-floating-workspace/understand-the-implementation:
-  en: 693300dd366d36f6
-  zh: 20bcca1d4a67d7cd
+  en: 1629fb43eec8b260
+  zh: dee74e9ebdb26222
 /deepseek-ai-dsh-client-ui-floating-workspace/further-exploration:
   en: 3fc43a50e02ab63f
   zh: 2049fc2c11d4aaae
@@ -33,8 +33,8 @@
   en: 900faab998fa3942
   zh: e9796803b14abff7
 /deepseek-ai-dsh-client-ui-floating-workspace/known-limitations-and-deferred-work:
-  en: c7194628157c639e
-  zh: eab875998dc70646
+  en: 5967ee477380a45f
+  zh: af472ce2dc9e5a3a
 /deepseek-ai-dsh-client-ui-floating-workspace/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 8141b369cfb2bc26

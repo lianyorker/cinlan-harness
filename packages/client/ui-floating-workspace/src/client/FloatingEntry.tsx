@@ -14,6 +14,8 @@ export interface FloatingEntryInjected {
   position: ToggleButtonPosition
   /** Toggle this activation's panel from an explicit user gesture. */
   toggle: () => void
+  /** Open a new independent side-chat tab. */
+  openSideChat: () => void
   /**
    * Delegate event matching to the keyboard service.
    * @param facts - DOM event facts copied by this entry's listener.
@@ -31,7 +33,7 @@ export type FloatingEntryProps = PropsRuntime<'shell.overlay'>
  * @param props - framework-bound runtime facts and plain actions.
  * @returns an existing-shell entry, or no content when disabled or at another position.
  */
-export function FloatingEntry({ useFloating, position, t, toggle, matchesShortcut }: FloatingEntryProps) {
+export function FloatingEntry({ useFloating, position, t, toggle, openSideChat, matchesShortcut }: FloatingEntryProps) {
   const snapshot = useFloating(value => value)
   const overlay = position === 'floating'
   useEffect(() => {
@@ -40,7 +42,6 @@ export function FloatingEntry({ useFloating, position, t, toggle, matchesShortcu
       if (!matchesShortcut({
         key: event.key, ctrlKey: event.ctrlKey, shiftKey: event.shiftKey, altKey: event.altKey, metaKey: event.metaKey,
         isComposing: event.isComposing, repeat: event.repeat, defaultPrevented: event.defaultPrevented,
-        // oxlint-disable-next-line typescript/no-deprecated -- The keyboard service rejects legacy IME sentinel 229.
         keyCode: event.keyCode, altGraph: event.getModifierState('AltGraph'),
       })) return
       event.preventDefault()
@@ -54,11 +55,13 @@ export function FloatingEntry({ useFloating, position, t, toggle, matchesShortcu
   if (snapshot.settings.status !== 'ready' || prefs?.enabled !== true) return null
   const showTrigger = prefs.toggleButtonPosition === position
   const error = snapshot.phase === 'blocked' || snapshot.phase === 'unavailable'
+  const header = position === 'header'
   if (!showTrigger && !(overlay && error)) return null
   return <>
     {showTrigger && <div className={overlay ? css.floating : css.entry} data-floating-entry={position}>
-      <Button variant="ghost" size="sm" onClick={toggle}
-        aria-label={t('toggle')} aria-pressed={snapshot.phase === 'open'} title={t('toggle')}>
+      <Button variant="ghost" size="sm" onClick={header ? openSideChat : toggle}
+        aria-label={t(header ? 'newSideChat' : 'toggle')} {...header ? {} : { 'aria-pressed': snapshot.phase === 'open' }}
+        title={t(header ? 'newSideChat' : 'toggle')}>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true">
           <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M3 9h18M10 14h6v5" />
         </svg>

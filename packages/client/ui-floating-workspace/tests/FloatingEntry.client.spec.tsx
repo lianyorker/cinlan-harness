@@ -18,27 +18,29 @@ function mount(position: ToggleButtonPosition, selected: ToggleButtonPosition = 
     phase: 'closed', open: false, writing: false, writeFailed: false, directorySupported: false,
     ...patch,
   }
-  const toggle = vi.fn(), matchesShortcut = vi.fn(() => false)
+  const toggle = vi.fn(), openSideChat = vi.fn(), matchesShortcut = vi.fn(() => false)
   const unused = (() => { throw new Error('unused standard hook') }) as never
   const props: FloatingEntryProps = {
-    useSessions: unused, useWorkspaces: unused, usePanelInfo: unused, useSessionStatus: unused, useSessionRetainInfo: unused, useResource: unused,
+    useSessions: unused, useWorkspaces: unused, usePanelInfo: unused, useSessionStatus: unused,
+    useSessionRetainInfo: unused, useResource: unused,
     useFloating: bindSnapshotSelector({ getSnapshot: () => snapshot, subscribe: () => () => {} }),
-    t: makeTranslate(en), position, toggle, matchesShortcut,
+    t: makeTranslate(en), position, toggle, openSideChat, matchesShortcut,
   }
-  return { ...render(<FloatingEntry {...props} />), toggle, matchesShortcut }
+  return { ...render(<FloatingEntry {...props} />), toggle, openSideChat, matchesShortcut }
 }
 
 describe('floating entry presentation', () => {
-  it.each(['header', 'floating'] as const)('renders the %s entry and invokes the real owner callback', (position) => {
+  it.each(['header', 'floating'] as const)('renders the %s entry and invokes its owner callback', (position) => {
     const h = mount(position)
-    const trigger = screen.getByRole('button', { name: en.toggle })
-    expect(trigger.getAttribute('aria-pressed')).toBe('false')
+    const label = position === 'header' ? en.newSideChat : en.toggle
+    const trigger = screen.getByRole('button', { name: label })
+    if (position === 'floating') expect(trigger.getAttribute('aria-pressed')).toBe('false')
     fireEvent.click(trigger)
-    expect(h.toggle).toHaveBeenCalledOnce()
+    expect(position === 'header' ? h.openSideChat : h.toggle).toHaveBeenCalledOnce()
   })
   it('marks the current open state and hides other entry positions', () => {
     const h = mount('header', 'header', { phase: 'open' })
-    expect(screen.getByRole('button', { name: en.toggle }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: en.newSideChat })).toBeTruthy()
     h.unmount()
     mount('floating', 'header')
     expect(screen.queryByRole('button')).toBeNull()

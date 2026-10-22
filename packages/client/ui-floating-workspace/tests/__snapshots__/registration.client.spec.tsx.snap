@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Floating Workspace client registration unit composition > opens the frame panel without a main Session and starts an independent auxiliary Session 1`] = `"Floating WorkspaceCreating auxiliary conversation…"`;

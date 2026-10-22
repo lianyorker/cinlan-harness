@@ -4,12 +4,15 @@ import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { FloatingWorkspaceTerminalContext, FloatingWorkspaceWindowId } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import type { FloatingWorkspaceSettings } from '../types.ts'
 import type { FloatingActions, FloatingSnapshot, FloatingWindowPhase } from './contract.ts'
+import type { SessionReference } from '@deepseek-ai/dsh-api-session-controller/client'
 
 /** Environmental facts the panel owner reads, kept out of render props. */
 export interface FloatingPanelEnvironment {
   readonly supported: boolean
   /** @returns validated floating window identity, or undefined in the main window. */
   readWindowId(): FloatingWorkspaceWindowId | undefined
+  /** Create and retain an independent auxiliary Session without changing main navigation. */
+  createSession?(): Promise<SessionReference>
 }
 
 /** Owns at most one in-app panel and applies only accepted durable settings. */
@@ -19,6 +22,8 @@ export class FloatingRuntime implements FloatingActions {
   private readonly pending = new Set<Promise<void>>()
   private readonly offSettings: () => void
   private disposed = false
+  private reference: SessionReference | undefined
+  private opening: Promise<void> | undefined
 
   /**
    * @param scope - feature-owned accepted settings mirror.
@@ -79,6 +84,33 @@ export class FloatingRuntime implements FloatingActions {
     if (this.snapshot.open) { this.close(); return }
     if (this.enabledPreferences() === undefined) return
     this.publish({ open: true, phase: 'open' })
+    this.ensureSession()
+  }
+
+  /** @returns the owned auxiliary reference for the framework SessionProvider. */
+  session = (): SessionReference | undefined => this.reference
+
+  /** Retry auxiliary creation without changing the main Session. */
+  ensureSession = (): void => {
+    if (this.disposed || this.reference !== undefined || this.opening !== undefined || this.environment.createSession === undefined) return
+    this.publish({ sessionLoading: true, sessionFailed: false })
+    const operation = this.openSession()
+    this.opening = operation
+    this.pending.add(operation)
+    void operation.then(() => { this.opening = undefined; this.pending.delete(operation) })
+  }
+
+  private async openSession(): Promise<void> {
+    const createSession = this.environment.createSession
+    if (createSession === undefined) return
+    try {
+      const reference = await createSession()
+      if (this.disposed) { reference.release(); return }
+      this.reference = reference
+      this.publish({ sessionId: reference.sessionId, sessionLoading: false })
+    } catch (_creationFailed) {
+      this.publish({ sessionLoading: false, sessionFailed: true })
+    }
   }
 
   /**
@@ -118,6 +150,8 @@ export class FloatingRuntime implements FloatingActions {
     this.offSettings()
     this.listeners.clear()
     await Promise.allSettled(this.pending)
+    this.reference?.release()
+    this.reference = undefined
   }
 
   private async write<K extends keyof FloatingWorkspaceSettings>(key: K, value: FloatingWorkspaceSettings[K]): Promise<void> {

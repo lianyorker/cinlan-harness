@@ -1,4 +1,5 @@
 /** Floating workspace owner: an in-app chat panel, its entries, and its settings. */
+import { IconCompareSplitOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -15,7 +16,7 @@ import { FLOATING_WORKSPACE_NAMESPACE } from '../schema.ts'
 import { FloatingWorkspaceSection, type FloatingWorkspaceSectionInjected } from './FloatingWorkspaceSection.tsx'
 import { FloatingChat } from './FloatingChat.tsx'
 import { FloatingPanel, type FloatingPanelInjected } from './FloatingPanel.tsx'
-import { FloatingTab } from './FloatingTab.tsx'
+import { FloatingTab, type FloatingTabInjected } from './FloatingTab.tsx'
 import { FloatingEntry, type FloatingEntryInjected } from './FloatingEntry.tsx'
 import { FloatingRuntime, type FloatingPanelEnvironment } from './runtime.ts'
 import { en, zh, type FloatingWorkspaceSettingsKey } from './locales.ts'
@@ -27,6 +28,9 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 declare module '@deepseek-ai/dsh-client-keyboard/client' {
   interface KeyboardCommandMap { 'floatingWorkspace.toggle': { scope: 'shell' } }
+}
+declare module '@deepseek-ai/dsh-api-session-controller/client' {
+  interface SessionReferenceSourceMap { floatingWorkspace: unknown }
 }
 
 /** Stable identity of the right-Sidebar tab body. */
@@ -47,9 +51,21 @@ export function apply(ctx: Context): void {
   ctx.effect(() => ctx.locale.register(ns, { en, zh }), 'floating workspace: dictionaries')
   const t = ctx.locale.bind(ns)
   const settings = ctx.settingsScope.bind<FloatingWorkspaceSettings>({ namespace: FLOATING_WORKSPACE_NAMESPACE })
+  const createAuxiliarySession = async (): Promise<import('@deepseek-ai/dsh-api-session-controller/client').SessionReference> => {
+    const rows = ctx.sessions.list.getSnapshot()
+    const mountedId = ctx.sidebarRight.mounted.getSnapshot()
+    const main = mountedId === undefined ? undefined : rows.byId[mountedId]
+    const sessionId = await ctx.sessions.create(main?.cwd === undefined ? {} : { cwd: main.cwd })
+    const reference = ctx.sessions.retain(sessionId, { source: 'floatingWorkspace' })
+    try { await reference.ready; return reference }
+    catch (error) { reference.release(); throw error }
+  }
   // The panel lives in this renderer: no separate app window is opened, so the
   // environment reports only that the platform can host it.
-  const environment: FloatingPanelEnvironment = { supported: true, readWindowId: () => undefined }
+  const environment: FloatingPanelEnvironment = {
+    supported: true, readWindowId: () => undefined,
+    createSession: createAuxiliarySession,
+  }
   const runtime = new FloatingRuntime(settings, environment)
   ctx.effect(() => () => runtime.dispose(), 'floating workspace: exact panel lifetime')
   ctx.provide('floatingWorkspaceContext', runtime.terminalContext)
@@ -66,6 +82,8 @@ export function apply(ctx: Context): void {
     available: { getSnapshot: runtime.available, subscribe: runtime.subscribe },
   }), 'floating workspace: keyboard command')
 
+  ctx.slots.inject('settings.section.icon', () =>
+    ctx.slots.register({ name: 'settings.section.icon', key: 'floating-workspace' }, IconCompareSplitOutlineRegular))
   const settingsFace: FloatingWorkspaceSectionInjected = { hooks: { floating: runtime }, set: runtime.set }
   ctx.slots.inject('settings.section', function* () {
     yield ctx.settingsMetadata.registerSection({
@@ -83,25 +101,21 @@ export function apply(ctx: Context): void {
 
   const entryFace = (position: ToggleButtonPosition): FloatingEntryInjected => ({
     hooks: { floating: runtime }, position,
-    // The header entry pins the chat as a docked right-Sidebar tab; the floating
-    // entry opens the panel above the conversation.
-    toggle: position === 'header'
-      ? () => { ctx.sidebarRight.openTab(SIDEBAR_TAB_KIND, { revealIfOpened: true }) }
-      : runtime.toggle,
+    toggle: position === 'header' ? () => { ctx.sidebarRight.openTab(SIDEBAR_TAB_KIND, { revealIfOpened: true }) } : runtime.toggle,
+    openSideChat: () => { ctx.sidebarRight.openTab(SIDEBAR_TAB_KIND, { revealIfOpened: true }) },
     matchesShortcut: facts => ctx.keyboard.matches('floatingWorkspace.toggle', facts),
   })
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'floating-workspace', order: 60, locale: ns, inject: () => entryFace('floating'),
   }, FloatingEntry))
-  // The panel lives inside the Conversation's Session area so the embedded
-  // occurrence renders with the Conversation provide and the Session binding
-  // the seat already carries; its own CSS keeps it floating over the column.
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay', id: 'floating-workspace.panel', order: 61, locale: ns,
+    children: { 'floatingWorkspace.chat': { kind: 'single', scope: 'session' } },
+    inject: (): FloatingPanelInjected => ({
+      hooks: { floating: runtime }, close: () => { runtime.close() }, session: runtime.session, retry: runtime.ensureSession,
+    }),
+  }, FloatingPanel))
   ctx.slots.inject('conversation.session.header.utilities', function* () {
-    yield ctx.slots.register({
-      name: 'conversation.session.header.utilities', id: 'floating-workspace.panel', order: 71, locale: ns,
-      children: { 'floatingWorkspace.chat': { kind: 'single', scope: 'session' } },
-      inject: (): FloatingPanelInjected => ({ hooks: { floating: runtime }, close: () => { runtime.close() } }),
-    }, FloatingPanel)
     yield ctx.slots.register({
       name: 'conversation.session.header.utilities', id: 'floating-workspace', order: 70, locale: ns, inject: () => entryFace('header'),
     }, FloatingEntry)
@@ -109,14 +123,24 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('floatingWorkspace.chat', () => ctx.slots.register({ name: 'floatingWorkspace.chat' }, FloatingChat))
   // The second form: the same chat docked in the right Sidebar, opened by kind.
   ctx.effect(() => ctx.sidebarRightTabs.register({
-    id: SIDEBAR_TAB_ID, kind: SIDEBAR_TAB_KIND, priority: 'builtin', keepMounted: true,
-    title: () => t('title'),
+    id: SIDEBAR_TAB_ID, kind: SIDEBAR_TAB_KIND, priority: 'builtin', multiple: true, keepMounted: true,
+    title: () => {
+      const sessionId = ctx.sidebarRight.mounted.getSnapshot()
+      const count = ctx.sidebarRight.openTabs.getSnapshot().filter(tab =>
+        tab.sessionId === sessionId && tab.kind === SIDEBAR_TAB_KIND).length
+      return count === 0 ? t('sideChat') : `${t('sideChat')} ${count + 1}`
+    },
+    guide: [{ id: 'side-chat', order: 90, title: () => t('sideChat'), description: () => t('sideChatDescription') }],
   }), 'floating workspace: Sidebar tab type')
   ctx.effect(() => ctx.slots.inject('floatingWorkspace.tab.chat', () => ctx.slots.register(
     { name: 'floatingWorkspace.tab.chat' }, FloatingChat,
   )), 'floating workspace: Sidebar chat body')
-  ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
-    name: 'sidebar.right.pane.tab', key: SIDEBAR_TAB_KIND,
-    children: { 'floatingWorkspace.tab.chat': { kind: 'single', scope: 'session' } },
-  }, FloatingTab)), 'floating workspace: Sidebar tab body')
+  ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', function* () {
+    yield ctx.slots.register({
+      name: 'sidebar.right.pane.tab', key: SIDEBAR_TAB_ID,
+      children: { 'floatingWorkspace.tab.chat': { kind: 'single', scope: 'session' } },
+      locale: ns,
+      inject: (): FloatingTabInjected => ({ createSession: createAuxiliarySession }),
+    }, FloatingTab)
+  }), 'floating workspace: Sidebar tab body')
 }

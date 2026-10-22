@@ -74,6 +74,41 @@ describe('floating panel runtime', () => {
     expect(f.runtime.getSnapshot().phase).toBe('closed')
   })
 
+  it('creates one independent Session, preserves it across close and releases it on disposal', async () => {
+    const f = fixture()
+    const release = vi.fn()
+    const reference = { sessionId: 'auxiliary-session', release } as never
+    const createSession = vi.fn(async () => reference)
+    const runtime = new FloatingRuntime(f.scope, {
+      supported: true, readWindowId: () => undefined, createSession,
+    })
+    owned.push(runtime)
+    runtime.toggle()
+    runtime.toggle()
+    runtime.ensureSession()
+    await Promise.resolve()
+    expect(createSession).toHaveBeenCalledOnce()
+    expect(runtime.session()).toBe(reference)
+    expect(runtime.getSnapshot().sessionId).toBe('auxiliary-session')
+    expect(release).not.toHaveBeenCalled()
+    await runtime.dispose()
+    expect(release).toHaveBeenCalledOnce()
+  })
+
+  it('publishes auxiliary Session creation failure and permits retry', async () => {
+    const f = fixture()
+    const reference = { sessionId: 'auxiliary-session', release: vi.fn() } as never
+    const createSession = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(reference)
+    const runtime = new FloatingRuntime(f.scope, { supported: true, readWindowId: () => undefined, createSession })
+    owned.push(runtime)
+    runtime.toggle()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(runtime.getSnapshot().sessionFailed).toBe(true)
+    runtime.ensureSession()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(runtime.session()).toBe(reference)
+  })
+
   it('does not open from disabled, unsupported, unavailable, or loading preferences', () => {
     const disabled = fixture({ enabled: false })
     disabled.runtime.toggle()

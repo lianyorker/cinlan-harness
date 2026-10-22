@@ -11,7 +11,7 @@ import type { KeybindingsSettings } from '@deepseek-ai/dsh-client-keyboard/clien
 import type { SessionTarget } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { FloatingWorkspaceSettings } from '../src/types.ts'
 import { SettingsMetadataService } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-metadata.ts'
-import { apply, inject } from '../src/client/index.ts'
+import { apply, inject, SIDEBAR_TAB_ID } from '../src/client/index.ts'
 import { FloatingWorkspaceSection } from '../src/client/FloatingWorkspaceSection.tsx'
 import { FloatingEntry } from '../src/client/FloatingEntry.tsx'
 import { FloatingPanel } from '../src/client/FloatingPanel.tsx'
@@ -59,13 +59,16 @@ async function bench(values: Partial<FloatingWorkspaceSettings> = {}) {
   floating.publish({
     status: 'ready', writable: true, mode: 'host', revision: 1,
     value: { enabled: false, terminalDirectory: '', toggleButtonPosition: 'header', floatDefaultWidth: 400,
-      floatDefaultHeight: 300, ...values },
+      floatDefaultHeight: 560, ...values },
   })
   const keybindings = stubSettingsScope<KeybindingsSettings>()
   keybindings.publish({ status: 'ready', writable: true, mode: 'host', revision: 1, value: { overrides: [] } })
   const keyboard = new KeyboardController(keybindings.scope, false)
   const pickDirectory = vi.fn<() => Promise<string | null>>(async () => null)
   const openTab = vi.fn()
+  const registerSidebarTab = vi.fn<(definition: { title(address: string): string }) => () => void>(() => () => {})
+  let mountedSession: string | undefined
+  let openTabs: readonly { sessionId: string; kind: string }[] = []
   const locale = new LocaleRuntime(runtime.ctx)
   locale.setLocale('en')
   const bind = vi.fn((spec: { namespace: string }) => {
@@ -78,8 +81,10 @@ async function bench(values: Partial<FloatingWorkspaceSettings> = {}) {
     ctx.slots.installLocale(locale)
     ctx.provide('keyboard', keyboard)
     ctx.provide('uiWorkspace', { pickDirectory, openSession: vi.fn() } as never)
-    ctx.provide('sidebarRightTabs', { register: vi.fn(() => () => {}) } as never)
-    ctx.provide('sidebarRight', { openTab } as never)
+    ctx.provide('sidebarRightTabs', { register: registerSidebarTab } as never)
+    ctx.provide('sidebarRight', {
+      openTab, mounted: { getSnapshot: () => mountedSession }, openTabs: { getSnapshot: () => openTabs },
+    } as never)
     // The settings transport is the only service double; its snapshot and boolean mutation are driven explicitly.
     ctx.provide('settingsScope', { bind } as never)
     ctx.effect(() => () => { keyboard.dispose() }, 'test keyboard lifetime')
@@ -92,7 +97,9 @@ async function bench(values: Partial<FloatingWorkspaceSettings> = {}) {
     const current = floating.scope.getSnapshot()
     act(() => { floating.publish({ ...current, value: { ...current.value!, ...patch }, user: { ...current.user as object, ...patch } }) })
   }
-  return { runtime, floating, keybindings, keyboard, locale, bind, open, openTab, pickDirectory, start, accept }
+  return { runtime, floating, keybindings, keyboard, locale, bind, open, openTab, registerSidebarTab, pickDirectory, start, accept,
+    setMountedSession: (sessionId: string | undefined) => { mountedSession = sessionId },
+    setOpenTabs: (tabs: typeof openTabs) => { openTabs = tabs } }
 }
 
 /**
@@ -101,9 +108,9 @@ async function bench(values: Partial<FloatingWorkspaceSettings> = {}) {
  * @param h - the benchmark fixture.
  */
 async function declareWithSession(h: Awaited<ReturnType<typeof bench>>): Promise<void> {
-  await h.runtime.sessions.add({ id: 'panel-session' })
-  const reference = h.runtime.sessions.retain('panel-session' as SessionTarget)
-  // The header entry is the docked form: it opens the right-Sidebar page kind.
+  await h.runtime.sessions.add({ id: 'panel-session', summary: { cwd: '/repo/main' } })
+  h.setMountedSession('panel-session')
+  const reference = h.runtime.sessions.retain('panel-session' as SessionTarget, { source: 'mainView' })
   await reference.ready
   await h.runtime.root.declare({
     'shell.overlay': { kind: 'list', scope: 'root' },
@@ -120,6 +127,9 @@ describe('Floating Workspace client registration unit composition', () => {
   it('waits for owner slot declarations, mounts the real settings component and localizes metadata and commands', async () => {
     const h = await bench()
     await h.start()
+    expect(h.registerSidebarTab).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'floatingWorkspace', multiple: true, keepMounted: true,
+    }))
     expect(h.runtime.slots.entries('settings.section')).toEqual([])
     expect(h.runtime.ctx.settingsMetadata.getSnapshot().sections).toEqual([])
     expect(h.bind).toHaveBeenCalledWith({ namespace: 'ui-floating-workspace' })
@@ -128,16 +138,24 @@ describe('Floating Workspace client registration unit composition', () => {
     expect(section.component).toBe(FloatingWorkspaceSection)
     expect(section.options.id).toBe('floating-workspace')
     expect(resolveSlotLabel(section.options.label)).toBe(en.navLabel)
-    expect(h.runtime.ctx.settingsMetadata.getSnapshot().sections).toEqual([{ sectionId: 'floating-workspace', groupId: 'personal', description: expect.any(Function) }])
+    const sections = h.runtime.ctx.settingsMetadata.getSnapshot().sections
+    expect(sections).toHaveLength(1)
+    expect(sections[0]?.sectionId).toBe('floating-workspace')
+    expect(sections[0]?.groupId).toBe('personal')
+    expect(resolveSlotLabel(sections[0]?.description)).toBe(en.description)
     const metadata = h.runtime.ctx.settingsMetadata.getSnapshot().items
     expect(metadata.map(item => item.anchorId)).toEqual([
       'floating-enabled', 'floating-position',
     ])
-    expect(h.runtime.slots.entries('shell.overlay')[0]?.component).toBe(FloatingEntry)
+    expect(h.runtime.slots.entries('shell.overlay').map(entry => entry.component)).toEqual([FloatingEntry, FloatingPanel])
     expect(h.runtime.slots.entries('conversation.session.header.utilities').map(entry => entry.component))
-      .toEqual([FloatingEntry, FloatingPanel])
+      .toEqual([FloatingEntry])
     expect(h.runtime.slots.entries('floatingWorkspace.chat')[0]?.component).toBe(FloatingChat)
-    expect(h.runtime.slots.entries('sidebar.right.pane.tab')[0]?.component).toBe(FloatingTab)
+    const sidebarRenderers = h.runtime.slots.entries('sidebar.right.pane.tab')
+    expect(sidebarRenderers).toHaveLength(1)
+    expect(sidebarRenderers[0]?.options.key).toBe(SIDEBAR_TAB_ID)
+    expect(sidebarRenderers[0]?.component).toBe(FloatingTab)
+    expect(h.runtime.slots.entries('floatingWorkspace.tab.chat')).toHaveLength(1)
     expect(h.runtime.slots.entries('floatingWorkspace.tab.chat')[0]?.component).toBe(FloatingChat)
     const view = h.runtime.renderSlot('settings.section', { close: vi.fn() })
     expect(view.view.getByRole('switch', { name: en.enable }).getAttribute('aria-checked')).toBe('false')
@@ -182,22 +200,32 @@ describe('Floating Workspace client registration unit composition', () => {
     expect(view.queryByRole('dialog')).toBeNull()
     fireEvent.click(view.getByRole('button', { name: en.toggle }))
     expect(h.open).not.toHaveBeenCalled()
-    expect(view.getByRole('dialog', { name: en.title })).toBeTruthy()
+    expect(view.getByRole('dialog', { name: en.title }).getAttribute('style')).toContain('height: 560px')
     expect(view.getByRole('button', { name: en.toggle }).getAttribute('aria-pressed')).toBe('true')
     fireEvent.click(view.getByRole('button', { name: en.close }))
     expect(view.queryByRole('dialog')).toBeNull()
   })
 
-  it('docks the chat from the header entry by opening the right-Sidebar page kind', async () => {
+  it('opens an independent right-Sidebar side chat from the header entry', async () => {
     const h = await bench({ enabled: true })
     await declareWithSession(h)
     await h.start()
     const view = h.runtime.renderRoot()
-    fireEvent.click(view.getByRole('button', { name: en.toggle }))
+    fireEvent.click(view.getByRole('button', { name: en.newSideChat }))
     expect(h.open).not.toHaveBeenCalled()
     expect(h.openTab).toHaveBeenCalledWith('floatingWorkspace', { revealIfOpened: true })
-    h.accept({ toggleButtonPosition: 'floating' })
-    expect(view.getByRole('button', { name: en.toggle })).toBeTruthy()
+  })
+
+  it('numbers side-chat titles from already-open tabs in the mounted Session', async () => {
+    const h = await bench({ enabled: true })
+    h.setMountedSession('current-session')
+    await h.start()
+    const definition = h.registerSidebarTab.mock.calls[0]?.[0]
+    expect(definition?.title('first')).toBe(en.sideChat)
+    h.setOpenTabs([{ sessionId: 'current-session', kind: 'floatingWorkspace' }])
+    expect(definition?.title('second')).toBe(`${en.sideChat} 2`)
+    h.setOpenTabs([{ sessionId: 'other-session', kind: 'floatingWorkspace' }])
+    expect(definition?.title('first')).toBe(en.sideChat)
   })
 
   it('follows the current keyboard override and its availability', async () => {
@@ -215,6 +243,34 @@ describe('Floating Workspace client registration unit composition', () => {
     expect(view.queryByRole('dialog')).toBeNull()
     fireEvent.keyDown(window, { key: ' ', ctrlKey: true, shiftKey: true })
     expect(view.queryByRole('dialog')).toBeNull()
+  })
+
+  it('opens the frame panel without a main Session and starts an independent auxiliary Session', async () => {
+    const h = await bench({ enabled: true, toggleButtonPosition: 'floating' })
+    await h.runtime.declare(declarations as never)
+    await h.start()
+    const { view } = h.runtime.renderSlot('shell.overlay', {})
+    fireEvent.click(view.getByRole('button', { name: en.toggle }))
+    expect(view.getByRole('dialog', { name: en.title })).toBeTruthy()
+    expect(view.getByRole('status').textContent).toBe(en.sessionLoading)
+    expect(view.getByRole('dialog').textContent).toMatchSnapshot()
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+    fireEvent.click(view.getByRole('button', { name: en.close }))
+    expect(view.queryByRole('dialog')).toBeNull()
+  })
+
+  it('inherits the working directory from the mounted Session, not an unrelated retained main view', async () => {
+    const h = await bench({ enabled: true, toggleButtonPosition: 'floating' })
+    await h.runtime.sessions.add({ id: 'background-session', summary: { cwd: '/repo/background' } })
+    await h.runtime.sessions.add({ id: 'current-session', summary: { cwd: '/repo/current' } })
+    h.setMountedSession('current-session')
+    const create = vi.spyOn(h.runtime.sessions, 'create')
+    await h.runtime.declare(declarations as never)
+    await h.start()
+    const { view } = h.runtime.renderSlot('shell.overlay', {})
+    fireEvent.click(view.getByRole('button', { name: en.toggle }))
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+    expect(create).toHaveBeenCalledWith({ cwd: '/repo/current' })
   })
 
   it('removes slots, search metadata, command and settings listeners on disposal, then registers once on reload', async () => {

@@ -16,6 +16,10 @@ export interface FloatingSnapshot {
   readonly writing: boolean
   /** True only while the actual terminal creation consumer is installed. */
   readonly directorySupported: boolean
+  /** Auxiliary Session creation and binding, independent of the main selection. */
+  readonly sessionLoading?: boolean
+  readonly sessionFailed?: boolean
+  readonly sessionId?: string
 }
 
 /** Explicit user operations; successful writes are reflected by the settings owner. */
