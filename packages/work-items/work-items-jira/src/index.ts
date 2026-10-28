@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemComment, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -27,6 +27,8 @@ const MAX_QUERY_LENGTH = 500
 const MAX_CURSOR_LENGTH = 500
 const MAX_TIMEOUT_MS = 120_000
 const MAX_ADF_NODES = 10_000
+/** Comments retained per issue; Jira returns the oldest page, so the newest tail is kept. */
+const MAX_COMMENTS = 20
 
 /** Jira project keys are uppercase letters, digits, and underscores. */
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,255}$/
@@ -241,6 +243,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   const assignees = assignee === null || assignee === undefined ? [] : [requiredString(objectValue(assignee).displayName, 'assignee')]
   const createdAt = optionalTimestamp(fields.created, 'createdAt')
   const updatedAt = optionalTimestamp(fields.updated, 'updatedAt')
+  const comments = mapComments(fields.comment)
   return {
     id: providerItemId('jira:' + key),
     source: 'jira',
@@ -255,7 +258,29 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
     assignees,
     ...(createdAt === undefined ? {} : { createdAt }),
     ...(updatedAt === undefined ? {} : { updatedAt }),
+    ...(comments.length === 0 ? {} : { comments }),
   }
+}
+
+/** Flatten the issue comment container to a bounded normalized list. */
+function mapComments(value: unknown): WorkItemComment[] {
+  if (value === null || value === undefined) return []
+  const container = objectValue(value)
+  const entries = container.comments
+  if (!Array.isArray(entries)) return []
+  return entries.slice(-MAX_COMMENTS).map((entry) => {
+    const comment = objectValue(entry)
+    const author = comment.author
+    const text = adfToText(comment.body)
+    const created = optionalTimestamp(comment.created, 'createdAt')
+    const updated = optionalTimestamp(comment.updated, 'updatedAt')
+    return {
+      ...(author === null || author === undefined ? {} : { author: requiredString(objectValue(author).displayName, 'comment author') }),
+      body: text ?? '',
+      ...(created === undefined ? {} : { createdAt: created }),
+      ...(updated === undefined ? {} : { updatedAt: updated }),
+    }
+  })
 }
 
 async function cancelReader(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> {
@@ -302,7 +327,7 @@ function requestError(error: unknown, signal: AbortSignal | undefined, timedOut:
   return new WorkItemsError('provider-failed', 'Jira Work Items request failed', { cause: error })
 }
 
-const ISSUE_FIELDS = 'summary,description,status,labels,assignee,created,updated'
+const ISSUE_FIELDS = 'summary,description,status,labels,assignee,created,updated,comment'
 
 /** Jira REST provider for one configured project on one site. */
 export class JiraWorkItemsProvider implements WorkItemsProvider {

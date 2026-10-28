@@ -32,6 +32,16 @@ export interface WorkItem {
   readonly assignees: readonly string[]
   readonly createdAt?: string
   readonly updatedAt?: string
+  /** Provider comment history when the source exposes it; omitted otherwise. */
+  readonly comments?: readonly WorkItemComment[]
+}
+
+/** One normalized comment on a provider item. */
+export interface WorkItemComment {
+  readonly author?: string
+  readonly body: string
+  readonly createdAt?: string
+  readonly updatedAt?: string
 }
 
 /** Bounded read request for a provider list operation. */

@@ -277,13 +277,37 @@ describe('JiraWorkItemsProvider', () => {
     }
   })
 
+  it('maps bounded comment history to plain text and keeps issues without comments clean', async () => {
+    const commented = {
+      ...issue('ENG-9'),
+      fields: {
+        ...(issue('ENG-9').fields as Record<string, unknown>),
+        comment: {
+          comments: [
+            { author: { displayName: 'Bob' }, body: adf('first note'), created: '2026-01-03T00:00:00Z' },
+            { body: adf('anonymous follow-up'), created: '2026-01-04T00:00:00Z', updated: '2026-01-05T00:00:00Z' },
+          ],
+        },
+      },
+    }
+    vi.stubGlobal('fetch', vi.fn(async () => response(commented)))
+    const item = await provider().get({ id: 'jira:ENG-9' as never })
+    expect(item.comments).toHaveLength(2)
+    expect(item.comments?.[0]).toMatchObject({ author: 'Bob', body: 'first note', createdAt: '2026-01-03T00:00:00Z' })
+    expect(item.comments?.[1]).toMatchObject({ body: 'anonymous follow-up', updatedAt: '2026-01-05T00:00:00Z' })
+    expect(item.comments?.[1]).not.toHaveProperty('author')
+    vi.stubGlobal('fetch', vi.fn(async () => response(issue('ENG-9'))))
+    const plain = await provider().get({ id: 'jira:ENG-9' as never })
+    expect(plain).not.toHaveProperty('comments')
+  })
+
   it('maps get responses and rejects ids outside the configured project', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       record(input instanceof Request ? input.url : String(input), init)
       return response(issue('ENG-7'))
     }))
     await expect(provider().get({ id: WorkItemId('jira:ENG-7') })).resolves.toMatchObject({ id: 'jira:ENG-7' })
-    expect(calls[0]?.url).toBe(ORIGIN + '/rest/api/3/issue/ENG-7?fields=summary,description,status,labels,assignee,created,updated')
+    expect(calls[0]?.url).toBe(ORIGIN + '/rest/api/3/issue/ENG-7?fields=summary,description,status,labels,assignee,created,updated,comment')
     await expect(provider().get({ id: WorkItemId('jira:OPS-7') })).rejects.toMatchObject({ code: 'invalid-request' })
     await expect(provider().get({ id: WorkItemId('invalid') })).rejects.toMatchObject({ code: 'invalid-request' })
   })
