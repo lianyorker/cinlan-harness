@@ -28,6 +28,7 @@ const item: WorkItem = {
   assignees: ['alice'],
   createdAt: '2026-09-01T00:00:00.000Z',
   updatedAt: '2026-09-02T00:00:00.000Z',
+  comments: [{ author: 'bob', body: 'Looks good', createdAt: '2026-09-03T00:00:00.000Z' }],
 }
 
 const operation: WorkItemWriteOperation = {

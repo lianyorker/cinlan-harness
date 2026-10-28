@@ -109,6 +109,19 @@ const ITEM_SCHEMA = {
     assignees: { type: 'array', required: true, items: { type: 'string' } },
     createdAt: { type: 'string' },
     updatedAt: { type: 'string' },
+    comments: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          author: { type: 'string' },
+          body: { type: 'string', required: true },
+          createdAt: { type: 'string' },
+          updatedAt: { type: 'string' },
+        },
+      },
+    },
   },
 } as const
 
@@ -361,6 +374,14 @@ interface PublicItem {
   readonly assignees: string[]
   readonly createdAt?: string
   readonly updatedAt?: string
+  readonly comments?: readonly PublicComment[]
+}
+
+interface PublicComment {
+  readonly author?: string
+  readonly body: string
+  readonly createdAt?: string
+  readonly updatedAt?: string
 }
 
 function itemValue(item: WorkItem): PublicItem {
@@ -378,6 +399,7 @@ function itemValue(item: WorkItem): PublicItem {
     assignees: [...item.assignees],
     ...(item.createdAt === undefined ? {} : { createdAt: item.createdAt }),
     ...(item.updatedAt === undefined ? {} : { updatedAt: item.updatedAt }),
+    ...(item.comments === undefined ? {} : { comments: item.comments.map(comment => ({ ...comment })) }),
   }
 }
 
