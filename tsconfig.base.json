@@ -274,6 +274,7 @@
       "@deepseek-ai/dsh-client-ui-input-trigger": ["./packages/client/ui-input-trigger/src"],
       "@deepseek-ai/dsh-client-ui-reference": ["./packages/client/ui-reference/src"],
       "@deepseek-ai/dsh-client-ui-commands": ["./packages/client/ui-commands/src"],
+      "@deepseek-ai/dsh-client-ui-cinlan-design": ["./packages/client/ui-cinlan-design/src"],
       "@deepseek-ai/dsh-client-ui-model-selection": ["./packages/client/ui-model-selection/src"],
       "@deepseek-ai/dsh-client-ui-goal": ["./packages/client/ui-goal/src"],
       "@deepseek-ai/dsh-client-ui-message-feedback": ["./packages/client/ui-message-feedback/src"],
@@ -521,6 +522,12 @@
       ],
       "@deepseek-ai/dsh-client-ui-commands/client": [
         "./packages/client/ui-commands/src/client/index.ts"
+      ],
+      "@deepseek-ai/dsh-client-ui-cinlan-design/client": [
+        "./packages/client/ui-cinlan-design/src/client/index.ts"
+      ],
+      "@deepseek-ai/dsh-client-ui-cinlan-design/types": [
+        "./packages/client/ui-cinlan-design/src/types.ts"
       ],
       "@deepseek-ai/dsh-client-ui-input-trigger/client": [
         "./packages/client/ui-input-trigger/src/client/index.ts"
@@ -1013,6 +1020,9 @@
       ],
       "@deepseek-ai/dsh-client-ui-commands/src/*": [
         "./packages/client/ui-commands/src/*"
+      ],
+      "@deepseek-ai/dsh-client-ui-cinlan-design/src/*": [
+        "./packages/client/ui-cinlan-design/src/*"
       ],
       "@deepseek-ai/dsh-client-ui-conversation/src/*": [
         "./packages/client/ui-conversation/src/*"
