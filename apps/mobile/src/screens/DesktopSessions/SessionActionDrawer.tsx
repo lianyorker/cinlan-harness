@@ -3,14 +3,9 @@ import {
   Pin,
   Pencil,
   Archive,
-  Trash2,
-  GitBranch,
-  History,
-  Moon,
-  Check,
 } from 'lucide-react'
 import { useAppConfig } from '../../context/ThemeLanguageContext'
-import type { SessionItem } from '../../mock/mock-data'
+import type { SessionItem } from '../../types'
 
 export interface SessionActionDrawerProps {
   readonly session: SessionItem | null

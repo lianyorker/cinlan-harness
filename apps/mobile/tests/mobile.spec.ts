@@ -1,26 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { MOCK_DATA } from '../src/mock/mock-data'
 import type { ScreenRoute } from '../src/navigation/routes'
 import zhCN from '../src/locales/zh-CN.json'
 import enUS from '../src/locales/en-US.json'
 
-describe('mobile companion mock & routes', () => {
-  it('provides complete mock data according to design spec', () => {
-    expect(MOCK_DATA.stats.agentsCreated).toBe(15)
-    expect(MOCK_DATA.stats.runtimeFormatted).toBe('1天 12小时')
-    expect(MOCK_DATA.desktops.length).toBeGreaterThan(0)
-    expect(MOCK_DATA.desktops[0].name).toBe('DESKTOP-3QU41U1')
-    expect(MOCK_DATA.desktops[0].os).toBe('Windows')
-    expect(MOCK_DATA.workspaces.length).toBe(4)
-    expect(MOCK_DATA.workspaces[0].name).toBe('DEEPSEEK 1')
-    expect(MOCK_DATA.workspaces[1].name).toBe('cinlan-harness')
-
-    // Settings mock validation: only the two surfaces that still read static
-    // defaults; voice and troubleshooting render live transport state.
-    expect(MOCK_DATA.settings.browser.openTerminalLinks).toBe('desktop')
-    expect(MOCK_DATA.settings.notifications.onlyWhenAway).toBe(true)
-  })
-
+describe('mobile companion routes', () => {
   it('validates all screen routes', () => {
     const routes: ScreenRoute[] = [
       'connect-desktop',

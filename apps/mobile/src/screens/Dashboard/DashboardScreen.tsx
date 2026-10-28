@@ -9,7 +9,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { CinlanLogo } from '../../components/CinlanLogo'
-import type { DesktopDevice } from '../../mock/mock-data'
+import type { DesktopDevice } from '../../types'
 import { useAppConfig } from '../../context/ThemeLanguageContext'
 
 export interface DashboardScreenProps {

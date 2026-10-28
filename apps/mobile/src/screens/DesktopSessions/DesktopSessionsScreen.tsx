@@ -13,12 +13,11 @@ import {
   X,
   Archive,
 } from 'lucide-react'
-import type { WorkspaceGroup, SessionItem, DesktopDevice } from '../../mock/mock-data'
+import type { WorkspaceGroup, SessionItem, DesktopDevice } from '../../types'
 import { useAppConfig } from '../../context/ThemeLanguageContext'
 import { CreateWorktreeDrawer } from './CreateWorktreeDrawer'
 import { GroupModeDrawer, type GroupMode } from './GroupModeDrawer'
 import { SortModeDrawer, type SortMode } from './SortModeDrawer'
-import { SessionActionDrawer } from './SessionActionDrawer'
 
 export interface DesktopSessionsScreenProps {
   readonly desktopId?: string
@@ -40,7 +39,7 @@ export const DesktopSessionsScreen: React.FC<DesktopSessionsScreenProps> = ({
   onSelectSession,
   initialOpenCreate = false,
 }) => {
-  const { t, language } = useAppConfig()
+  const { language } = useAppConfig()
   const isZh = language === 'zh-CN'
 
   const resolvedDesktop = desktop ?? { id: desktopId ?? '', name: 'Desktop', os: '' }
@@ -74,13 +73,13 @@ export const DesktopSessionsScreen: React.FC<DesktopSessionsScreenProps> = ({
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(initialOpenCreate)
   const [isGroupDrawerOpen, setIsGroupDrawerOpen] = useState(false)
   const [isSortDrawerOpen, setIsSortDrawerOpen] = useState(false)
-  const [actionSession, setActionSession] = useState<SessionItem | null>(null)
-  const [isActionDrawerOpen, setIsActionDrawerOpen] = useState(false)
+  const [_actionSession, setActionSession] = useState<SessionItem | null>(null)
+  const [_isActionDrawerOpen, setIsActionDrawerOpen] = useState(false)
 
   // Long press timer ref for touch interaction
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const handleTouchStart = (session: SessionItem) => {
+  const _handleTouchStart = (session: SessionItem) => {
     longPressTimerRef.current = setTimeout(() => {
       try {
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -99,7 +98,7 @@ export const DesktopSessionsScreen: React.FC<DesktopSessionsScreenProps> = ({
     }
   }
 
-  const handleOpenActionDrawer = (session: SessionItem, e?: React.MouseEvent) => {
+  const _handleOpenActionDrawer = (session: SessionItem, e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation()
       e.preventDefault()

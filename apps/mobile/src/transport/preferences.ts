@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 export type WorkStepsDisplay = 'always' | 'running' | 'hidden'
 export type BusySendMode = 'queue' | 'steer'
 
@@ -28,5 +30,3 @@ export function loadMobilePreferences(): MobilePreferences {
 export function saveMobilePreferences(value: MobilePreferences): void {
   localStorage.setItem(KEY, JSON.stringify(value))
 }
-import { z } from 'zod'
-

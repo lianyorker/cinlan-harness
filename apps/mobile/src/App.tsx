@@ -9,7 +9,7 @@ import { MobileSessionView } from './components/MobileSessionView'
 import { QrScannerModal } from './components/QrScannerModal'
 import { QuotaModal } from './components/QuotaModal'
 import { useDesktops } from './transport/use-desktops'
-import type { WorkspaceGroup } from './mock/mock-data'
+import type { WorkspaceGroup } from './types'
 import type { ScreenRoute } from './navigation/routes'
 import { ThemeLanguageProvider } from './context/ThemeLanguageContext'
 

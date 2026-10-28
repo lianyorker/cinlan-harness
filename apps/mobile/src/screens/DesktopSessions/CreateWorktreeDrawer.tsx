@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { ChevronDown, Folder, Sparkles } from 'lucide-react'
 import { useAppConfig } from '../../context/ThemeLanguageContext'
-import type { WorkspaceGroup } from '../../mock/mock-data'
+import type { WorkspaceGroup } from '../../types'
 
 export interface CreateWorktreeDrawerProps {
   readonly isOpen: boolean
@@ -20,7 +20,7 @@ export const CreateWorktreeDrawer: React.FC<CreateWorktreeDrawerProps> = ({
   workspaces,
   onCreate,
 }) => {
-  const { t, language } = useAppConfig()
+  const { language } = useAppConfig()
   const isZh = language === 'zh-CN'
 
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>(

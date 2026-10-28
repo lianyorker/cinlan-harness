@@ -1,9 +1,7 @@
 import React, { useState } from 'react'
 import { ChevronLeft, ChevronRight, Globe, Check, X } from 'lucide-react'
 import { useAppConfig } from '../../context/ThemeLanguageContext'
-import {
-  type BrowserLinkTarget,
-} from '../../mock/mock-data'
+import type { BrowserLinkTarget } from '../../types'
 
 export interface BrowserSettingsScreenProps {
   readonly onBack: () => void
