@@ -4,7 +4,7 @@
 
 ## 组合
 
-[Work Items 包族](../../packages/work-items/README.zh.md) 将标准化读取和持久化写入与固定地址的 GitHub/Linear Provider 分离。[可选 bundle](../../packages/bundle/cinlan-work-items/README.zh.md) 为基于 base 的 Web profile 增加模型工具及 Web Remote/UI。
+[Work Items 包族](../../packages/work-items/README.zh.md) 将标准化读取和持久化写入与固定地址的 GitHub/GitLab/Jira/Linear Provider 分离。[可选 bundle](../../packages/bundle/cinlan-work-items/README.zh.md) 为基于 base 的 Web profile 增加模型工具及 Web Remote/UI。
 
 ## 读取与本地关联
 

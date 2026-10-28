@@ -18,7 +18,7 @@ async function harness() {
   locale.setLocale('en')
   ctx.provide('locale', locale)
   const scope = stubSettingsScope<WorkItemsSettings>()
-  scope.publish({ status: 'ready', value: { githubVisible: true, gitlabVisible: true, linearVisible: true }, writable: true, user: { githubVisible: true } })
+  scope.publish({ status: 'ready', value: { githubVisible: true, gitlabVisible: true, jiraVisible: true, linearVisible: true }, writable: true, user: { githubVisible: true } })
   const remote = {
     list: vi.fn().mockResolvedValue({ ok: true, value: { items: [], truncated: false } }),
     get: vi.fn(), associate: vi.fn(), disassociate: vi.fn(),
@@ -49,11 +49,11 @@ describe('Work Items registration', () => {
       await fiber.await()
       expect(ctx.settingsMetadata.getSnapshot().items).toEqual([])
       let removeOwner = declare()
-      await vi.waitFor(() => { expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(17) })
+      await vi.waitFor(() => { expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(18) })
       const english = ctx.settingsMetadata.getSnapshot()
       expect(english.sections).toMatchObject([{ sectionId: 'workItems', groupId: 'workspace' }])
       expect(english.items.find(item => item.id === 'write-state')).toMatchObject({ anchorId: 'work-items-write-state', title: en.writeStateValue, description: en.writeStateHelp })
-      expect(new Set(english.items.map(item => item.anchorId)).size).toBe(17)
+      expect(new Set(english.items.map(item => item.anchorId)).size).toBe(18)
       locale.setLocale('zh')
       await vi.waitFor(() => { expect(ctx.settingsMetadata.getSnapshot().items.find(item => item.id === 'write-state')?.title).toBe(zh.writeStateValue) })
       expect(JSON.stringify(ctx.settingsMetadata.getSnapshot())).not.toContain('private-account')
@@ -61,14 +61,14 @@ describe('Work Items registration', () => {
         removeOwner()
         await vi.waitFor(() => { expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] }) })
         removeOwner = declare()
-        await vi.waitFor(() => { expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(17) })
+        await vi.waitFor(() => { expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(18) })
       }
       await fiber.dispose()
       expect(ctx.slots.entries('settings.section')).toHaveLength(0)
       expect(ctx.settingsMetadata.getSnapshot()).toEqual({ sections: [], items: [] })
       const reloaded = ctx.plugin({ inject, apply })
       await reloaded.await()
-      expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(17)
+      expect(ctx.settingsMetadata.getSnapshot().items).toHaveLength(18)
       expect(ctx.settingsMetadata.getSnapshot().items.find(item => item.id === 'source')?.title).toBe(zh.source)
       hostApply(ctx)
     } finally { await ctx.fiber.dispose() }
@@ -152,13 +152,19 @@ describe('Work Items registration', () => {
       await expect(injected.setVisibility('githubVisible', false)).rejects.toThrow(en.visibilityFailed)
       expect(mutate).toHaveBeenCalledWith([{ op: 'set', path: ['githubVisible'], value: false }])
       mutate.mockImplementationOnce(async () => {
-        scope.publish({ value: { githubVisible: false, gitlabVisible: true, linearVisible: true }, user: { githubVisible: false } })
+        scope.publish({
+          value: { githubVisible: false, gitlabVisible: true, jiraVisible: true, linearVisible: true },
+          user: { githubVisible: false },
+        })
         return true
       })
       await expect(injected.setVisibility('githubVisible', false)).resolves.toBeUndefined()
       await expect(injected.resetVisibility('githubVisible')).rejects.toThrow(en.visibilityFailed)
       mutate.mockImplementationOnce(async () => {
-        scope.publish({ user: undefined, value: { githubVisible: true, gitlabVisible: true, linearVisible: true } })
+        scope.publish({
+          user: undefined,
+          value: { githubVisible: true, gitlabVisible: true, jiraVisible: true, linearVisible: true },
+        })
         return true
       })
       await expect(injected.resetVisibility('githubVisible')).resolves.toBeUndefined()

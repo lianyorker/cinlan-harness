@@ -55,7 +55,7 @@ describe('WorkItemsRuntime', () => {
   })
 
   it('rejects invalid configuration and branded ids', async () => {
-    expect(() => new WorkItemsRuntime(new Context(), { provider: 'other' as never })).toThrow(/github, gitlab, or linear/)
+    expect(() => new WorkItemsRuntime(new Context(), { provider: 'other' as never })).toThrow(/github, gitlab, jira, or linear/)
     expect(() => new WorkItemsRuntime(new Context(), { extra: true } as never)).toThrow(/unsupported config key/)
     expect(() => WorkItemId('')).toThrow(/non-empty/)
     expect(() => WorkItemId(' github:one')).toThrow(/trimmed/)

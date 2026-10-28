@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/work-items/README.md
-README.md: a75beb111035db288acec7cec9a603d43b45a0f8
-README.zh.md: 72c648f7bca07b86244870082bb842f669e8a256
+/:
+  en: 326bc6c5df1f090c
+  zh: 78a85e754e67f2db
+/work-items:
+  en: d507dbf15b807dd4
+  zh: 6203a50fdfaa21d5
+/work-items/summary:
+  en: 7128e8fd6e5e8b58
+  zh: 200036ea70d52533
+/work-items/table-of-contents:
+  en: 2b841fb5c94d9b68
+  zh: 1d0196186ff1b8c1
+/work-items/packages:
+  en: 3f6ce693ed2b016d
+  zh: 6f0a668620494deb
+/work-items/architecture:
+  en: dc28ef1ffb2722f9
+  zh: a22385670d8b9c70
+/work-items/model-experience:
+  en: 7c24d7d63f1ffbce
+  zh: d3e7939db46f5181
+/work-items/known-limitations-and-deferred-work:
+  en: 3fe50d6400035237
+  zh: f60950073d4543a7
+/work-items/known-limitations-and-deferred-work/dev-note:
+  en: 0cdd3180049af281
+  zh: fcdc01267ce78ece

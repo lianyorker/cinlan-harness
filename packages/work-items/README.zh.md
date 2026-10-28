@@ -18,7 +18,7 @@ Work Items group 提供标准化 Provider 读取、持久化审批外部写入�
 - 已知限制与后续工作
 - 开发备注
 
-外部 Work Items capability：标准化 GitHub Issue 与 Linear issue、固定凭据 Provider、持久化 prepare/confirm 写入协议、Host API projection、面向模型的工具和可选的 Web Consumer。子系统参考位于 [`docs/subsystems/work-items.zh.md`](../../docs/subsystems/work-items.zh.md)。
+外部 Work Items capability：标准化 GitHub、GitLab、Jira 与 Linear issue、固定凭据 Provider、持久化 prepare/confirm 写入协议、Host API projection、面向模型的工具和可选的 Web Consumer。子系统参考位于 [`docs/subsystems/work-items.zh.md`](../../docs/subsystems/work-items.zh.md)。
 
 ## Packages
 
@@ -26,6 +26,8 @@ Work Items group 提供标准化 Provider 读取、持久化审批外部写入�
 |---|---|---|
 | `@deepseek-ai/dsh-work-items` | Service Definition：Provider registry 与 list/get contract | `ctx.workItems` |
 | `@deepseek-ai/dsh-work-items-github` | Service Provider：固定 GitHub REST origin 与 Issue mapping | — |
+| `@deepseek-ai/dsh-work-items-gitlab` | Service Provider：GitLab REST project、issue mapping 与 opt-in writer | — |
+| `@deepseek-ai/dsh-work-items-jira` | Service Provider：Jira Cloud REST site 与 project、issue mapping 与 opt-in writer | — |
 | `@deepseek-ai/dsh-work-items-linear` | Service Provider：固定 Linear GraphQL endpoint、issue mapping 与 opt-in writer | — |
 | `@deepseek-ai/dsh-tool-work-items` | Consumer：面向模型的标准化读取与持久化写入审批 | `ctx.tools` |
 

@@ -2118,6 +2118,12 @@
       "@deepseek-ai/dsh-work-items-gitlab/src/*": [
         "./packages/work-items/work-items-gitlab/src/*"
       ],
+      "@deepseek-ai/dsh-work-items-jira": [
+        "./packages/work-items/work-items-jira/src"
+      ],
+      "@deepseek-ai/dsh-work-items-jira/src/*": [
+        "./packages/work-items/work-items-jira/src/*"
+      ],
       "@deepseek-ai/dsh-work-items-linear": [
         "./packages/work-items/work-items-linear/src"
       ],

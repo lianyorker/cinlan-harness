@@ -1269,6 +1269,9 @@
       "path": "./packages/work-items/work-items-gitlab"
     },
     {
+      "path": "./packages/work-items/work-items-jira"
+    },
+    {
       "path": "./packages/work-items/work-items-linear"
     },
     {

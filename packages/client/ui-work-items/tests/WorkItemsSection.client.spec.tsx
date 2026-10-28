@@ -29,7 +29,7 @@ function props(): WorkItemsSectionProps {
     disassociate: vi.fn(async () => ({ associations: [] })),
     checkIntegration: vi.fn<WorkItemsSectionProps['checkIntegration']>(async provider => ({ provider, status: 'connected', reason: 'connected', account: 'octocat' })),
     close: vi.fn(),
-    useSettings: selector => selector({ status: 'ready', value: { githubVisible: true, gitlabVisible: true, linearVisible: true }, base: undefined, user: undefined, revision: 1, writable: true, mode: 'host' }),
+    useSettings: selector => selector({ status: 'ready', value: { githubVisible: true, gitlabVisible: true, jiraVisible: true, linearVisible: true }, base: undefined, user: undefined, revision: 1, writable: true, mode: 'host' }),
     setVisibility: vi.fn(async () => {}), resetVisibility: vi.fn(async () => {}),
   } as WorkItemsSectionProps
 }
@@ -172,7 +172,7 @@ it('sends the query, state, cursor, and Workspace projection scope to the select
 
 it('reflects accepted visibility, keeps a rejected choice unchanged, and resets the override', async () => {
   const p = props()
-  const values = { githubVisible: true, gitlabVisible: true, linearVisible: true }
+  const values = { githubVisible: true, gitlabVisible: true, jiraVisible: true, linearVisible: true }
   const snapshot = { status: 'ready' as const, value: values, base: undefined, user: { githubVisible: true }, revision: 1, writable: true, mode: 'host' as const }
   p.useSettings = selector => selector(snapshot)
   p.setVisibility = vi.fn().mockRejectedValueOnce(new Error('visibility rejected')).mockImplementation(async () => { values.githubVisible = false })
@@ -196,14 +196,14 @@ it('reflects accepted visibility, keeps a rejected choice unchanged, and resets 
 
 it('keeps all hidden providers unqueried while exposing searchable write fields', async () => {
   const p = props()
-  p.useSettings = selector => selector({ status: 'ready', value: { githubVisible: false, gitlabVisible: false, linearVisible: false }, base: undefined, user: undefined, revision: 1, writable: true, mode: 'host' })
+  p.useSettings = selector => selector({ status: 'ready', value: { githubVisible: false, gitlabVisible: false, jiraVisible: false, linearVisible: false }, base: undefined, user: undefined, revision: 1, writable: true, mode: 'host' })
   render(<WorkItemsSection {...p} target={{ itemId: 'write-state', anchorId: 'work-items-write-state' }} />)
   expect(screen.getByRole('textbox', { name: en.writeStateValue }).hasAttribute('disabled')).toBe(true)
   expect(screen.getByRole('button', { name: en.writePreview }).hasAttribute('disabled')).toBe(true)
   expect(p.list).not.toHaveBeenCalled()
   expect(p.prepareWrite).not.toHaveBeenCalled()
   await waitFor(() => { expect(p.checkIntegration).toHaveBeenCalledTimes(2) })
-  expect(screen.getByText(en.providerOnQuery)).toBeTruthy()
+  expect(screen.getAllByText(en.providerOnQuery)).toHaveLength(2)
   fireEvent.click(screen.getByRole('button', { name: en.closeSettings }))
   expect(p.close).toHaveBeenCalledOnce()
 })

@@ -4,7 +4,7 @@ English | [中文](work-items.zh.md)
 
 ## Composition
 
-The [Work Items family](../../packages/work-items/README.md) separates normalized reads and durable writes from fixed-origin GitHub/Linear providers. Its [optional bundle](../../packages/bundle/cinlan-work-items/README.md) adds model tools and the Web Remote/UI to a base-backed Web profile.
+The [Work Items family](../../packages/work-items/README.md) separates normalized reads and durable writes from fixed-origin GitHub/GitLab/Jira/Linear providers. Its [optional bundle](../../packages/bundle/cinlan-work-items/README.md) adds model tools and the Web Remote/UI to a base-backed Web profile.
 
 ## Reads and local associations
 

@@ -18,7 +18,7 @@ The Work Items group provides normalized provider reads, durable approved extern
 - Known Limitations and Deferred Work
 - Dev Note
 
-External Work Items capability: normalized GitHub Issues and Linear issues, fixed credentialed Providers, a durable preview/confirm write protocol, Host API projection, model-facing tools, and an optional Web Consumer. The subsystem reference is [docs/subsystems/work-items.md](../../docs/subsystems/work-items.md).
+External Work Items capability: normalized GitHub, GitLab, Jira, and Linear issues, fixed credentialed Providers, a durable preview/confirm write protocol, Host API projection, model-facing tools, and an optional Web Consumer. The subsystem reference is [docs/subsystems/work-items.md](../../docs/subsystems/work-items.md).
 
 ## Packages
 
@@ -26,6 +26,8 @@ External Work Items capability: normalized GitHub Issues and Linear issues, fixe
 |---|---|---|
 | `@deepseek-ai/dsh-work-items` | Service Definition — provider registry and list/get contract | `ctx.workItems` |
 | `@deepseek-ai/dsh-work-items-github` | Service Provider — fixed GitHub REST origin and Issue mapping | — |
+| `@deepseek-ai/dsh-work-items-gitlab` | Service Provider — GitLab REST project, issue mapping, and opt-in writer | — |
+| `@deepseek-ai/dsh-work-items-jira` | Service Provider — Jira Cloud REST site and project, issue mapping, and opt-in writer | — |
 | `@deepseek-ai/dsh-work-items-linear` | Service Provider — fixed Linear GraphQL endpoint, issue mapping, and opt-in writer | — |
 | `@deepseek-ai/dsh-tool-work-items` | Consumer — model-facing normalized reads and durable write approvals | `ctx.tools` |
 

@@ -76,7 +76,7 @@ export function apply(ctx: Context): void {
       title: () => t('title'), description: () => t('description'),
     })
     yield ctx.settingsMetadata.registerItems(NS, [
-      ...(['github', 'gitlab', 'linear'] as const).map(provider => ({
+      ...(['github', 'gitlab', 'jira', 'linear'] as const).map(provider => ({
         id: provider + 'Visible', anchorId: 'work-items-' + provider + '-visible',
         title: () => t('providerVisibility', { provider: t(provider) }), description: () => t('visibilityHelp'),
       })),

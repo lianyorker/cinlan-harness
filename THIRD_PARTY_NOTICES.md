@@ -137,6 +137,7 @@ External packages installed for runtime use or distributed inside the prebuilt b
 | [`micromark-util-sanitize-uri`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-sanitize-uri) | MIT |
 | [`micromark-util-symbol`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-symbol) | MIT |
 | [`mime-types`](https://github.com/jshttp/mime-types) | MIT |
+| [`minisearch`](https://github.com/lucaong/minisearch) | MIT |
 | [`negotiator`](https://github.com/jshttp/negotiator) | MIT |
 | [`node-addon-require-builtin`](https://www.npmjs.com/package/node-addon-require-builtin) | MIT |
 | [`node-pty`](https://github.com/microsoft/node-pty) | MIT |
@@ -144,6 +145,8 @@ External packages installed for runtime use or distributed inside the prebuilt b
 | [`papaparse`](https://github.com/mholt/PapaParse) | MIT |
 | [`pdfjs-dist`](https://github.com/mozilla/pdf.js) | Apache-2.0 |
 | [`picomatch`](https://github.com/micromatch/picomatch) | MIT |
+| [`pino`](https://github.com/pinojs/pino) | MIT |
+| [`pino-pretty`](https://github.com/pinojs/pino-pretty) | MIT |
 | [`playwright-core`](https://github.com/microsoft/playwright) | Apache-2.0 |
 | [`qrcode`](https://github.com/soldair/node-qrcode) | MIT |
 | [`react`](https://github.com/facebook/react) | MIT |
@@ -162,6 +165,7 @@ External packages installed for runtime use or distributed inside the prebuilt b
 | [`tar`](https://github.com/isaacs/node-tar) | BlueOak-1.0.0 |
 | [`tsx`](https://github.com/privatenumber/tsx) | MIT |
 | [`turndown`](https://github.com/mixmark-io/turndown) | MIT |
+| [`tweetnacl`](https://github.com/dchest/tweetnacl-js) | Unlicense |
 | [`typescript`](https://github.com/microsoft/TypeScript) | Apache-2.0 |
 | [`unbzip2-stream`](https://github.com/regular/unbzip2-stream) | MIT |
 | [`undici`](https://github.com/nodejs/undici) | MIT |

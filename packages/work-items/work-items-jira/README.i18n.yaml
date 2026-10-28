@@ -1,0 +1,31 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/work-items/work-items-jira/README.md
+/:
+  en: 090aef1dbef8a8ac
+  zh: 3d59748ba1a58100
+/deepseek-ai-dsh-work-items-jira:
+  en: 3a5fe4df9dcf1b21
+  zh: 3647d45487c3259d
+/deepseek-ai-dsh-work-items-jira/summary:
+  en: 7810105f97c16b4d
+  zh: 1a86daabadcc7616
+/deepseek-ai-dsh-work-items-jira/table-of-contents:
+  en: 550116997dc2fe9a
+  zh: 7f9dba8e6c7c6858
+/deepseek-ai-dsh-work-items-jira/use-this-package:
+  en: dd1064f0ca93f543
+  zh: 9f10ee5c2a573c41
+/deepseek-ai-dsh-work-items-jira/assignment-and-failures:
+  en: 613f195dad7dad47
+  zh: 58777d417b60ac66
+/deepseek-ai-dsh-work-items-jira/model-experience:
+  en: 7128ae0801d37f95
+  zh: a1b47948c96e3622
+/deepseek-ai-dsh-work-items-jira/known-limitations-and-deferred-work:
+  en: 6151d005b9e0a303
+  zh: 05c2d96ea6d3cb7b
+/deepseek-ai-dsh-work-items-jira/dev-note:
+  en: 0ee099e49896af68
+  zh: 2d78250dec98d21c

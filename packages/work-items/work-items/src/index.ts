@@ -35,8 +35,8 @@ function resolveConfig(config: Config): Config {
   for (const key of Object.keys(config)) {
     if (!CONFIG_KEYS.has(key)) throw new Error("work-items: unsupported config key '" + key + "'")
   }
-  if (config.provider !== undefined && !['github', 'gitlab', 'linear'].includes(config.provider)) {
-    throw new Error('work-items: provider must be github, gitlab, or linear')
+  if (config.provider !== undefined && !['github', 'gitlab', 'jira', 'linear'].includes(config.provider)) {
+    throw new Error('work-items: provider must be github, gitlab, jira, or linear')
   }
   if (config.writeApprovalTtlMs !== undefined && (!Number.isSafeInteger(config.writeApprovalTtlMs) || config.writeApprovalTtlMs < 1)) {
     throw new Error('work-items: writeApprovalTtlMs must be a positive safe integer')
@@ -156,7 +156,7 @@ function assertNotAborted(signal?: AbortSignal): void {
 /** Registry and dispatch facade for Work Items providers. */
 export class WorkItemsRuntime extends Service {
   static Config: z<Config> = z.object({
-    provider: z.union(['github', 'linear', 'gitlab'] as const),
+    provider: z.union(['github', 'linear', 'gitlab', 'jira'] as const),
     writeApprovalTtlMs: z.number().step(1).min(1).default(300_000),
   })
   private readonly writeLedger: WorkItemsWriteLedger
@@ -180,7 +180,7 @@ export class WorkItemsRuntime extends Service {
    * @returns disposer for this exact provider contribution.
    */
   registerProvider(provider: WorkItemsProvider): () => void {
-    if (!['github', 'linear', 'gitlab'].includes(provider.id)) throw new WorkItemsError('invalid-request', 'Work Items provider id must be github, linear, or gitlab')
+    if (!['github', 'linear', 'gitlab', 'jira'].includes(provider.id)) throw new WorkItemsError('invalid-request', 'Work Items provider id must be github, linear, gitlab, or jira')
     if (this.providers.has(provider.id)) throw new WorkItemsError('invalid-request', 'Work Items provider ' + provider.id + ' is already registered')
     const dispose = this.ctx.effect(function* (this: WorkItemsRuntime) {
       this.providers.set(provider.id, provider)
@@ -270,7 +270,7 @@ export class WorkItemsRuntime extends Service {
    * @returns the normalized item.
    */
   async get(request: WorkItemGetRequest, signal?: AbortSignal): Promise<WorkItem> {
-    const source = request.id.startsWith('github:') ? 'github' : request.id.startsWith('linear:') ? 'linear' : request.id.startsWith('gitlab:') ? 'gitlab' : undefined
+    const source = request.id.startsWith('github:') ? 'github' : request.id.startsWith('linear:') ? 'linear' : request.id.startsWith('gitlab:') ? 'gitlab' : request.id.startsWith('jira:') ? 'jira' : undefined
     if (source === undefined) throw new WorkItemsError('invalid-request', 'Work Item id has no supported provider prefix')
     assertNotAborted(signal)
     const item = await this.active(source).get(request, signal)

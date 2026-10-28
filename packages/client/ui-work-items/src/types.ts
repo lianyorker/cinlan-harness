@@ -9,6 +9,7 @@ export const WORK_ITEMS_NAMESPACE = 'work-items'
 export interface WorkItemsSettings {
   githubVisible: boolean
   gitlabVisible: boolean
+  jiraVisible: boolean
   linearVisible: boolean
 }
 
@@ -16,5 +17,6 @@ export interface WorkItemsSettings {
 export const WorkItemsSettingsSchema: s<WorkItemsSettings> = s.object({
   githubVisible: s.boolean().default(true),
   gitlabVisible: s.boolean().default(true),
+  jiraVisible: s.boolean().default(true),
   linearVisible: s.boolean().default(true),
 })
