@@ -28,7 +28,9 @@ kind: "package-reference"
 |---|---|
 | `origin` | Jira 站点 HTTPS origin，例如 `https://example.atlassian.net`。 |
 | `project` | 大写 Jira 项目键，例如 `ENG`。 |
-| `credentialRef` | 每次请求解析的凭据引用，默认 `JIRA_CREDENTIAL`。取值必须为 `email:api-token`，以 HTTP Basic auth 发送。 |
+| `credentialRef` | 每次请求解析的凭据引用，默认 `JIRA_CREDENTIAL`。`basic` 取值必须为 `email:api-token`，`bearer` 取值为个人访问令牌。 |
+| `authScheme` | `basic`（默认）以 HTTP Basic 发送凭据，用于 Jira Cloud；`bearer` 以 bearer token 发送凭据，用于 Jira Data Center。 |
+| `jql` | 附加到内置项目/状态查询的额外 JQL 子句，例如 `priority = High`；缺省不追加约束。 |
 | `issueType` | 创建工单使用的 issue type 名称，默认 `Task`。 |
 | `allowWrites` | 默认 `false`；`true` 时启用 Provider writer。 |
 | `timeoutMs` | 单次请求超时为 1–120000 ms，默认 30000。 |
@@ -50,7 +52,7 @@ kind: "package-reference"
 ## 已知限制与延期工作
 
 - Provider write 只有在 deployment configuration 启用 `allowWrites` 后才可用；每次面向模型的写入仍必须经过持久化预览和精确确认。
-- JQL 固定为 `project = <配置键>` 加状态类别筛选；不支持任意 JQL、sprint/board 视图、评论历史、附件或 Data Center PAT 认证。
+- JQL 由 `project = <配置键>`、状态类别筛选和配置的 `jql` 子句组合；模型请求不能传任意 JQL，且不支持 sprint/board 视图、评论历史与附件。
 - Jira 工单只有一个负责人，因此指派至多一个账户。
 - 状态写入依赖项目工作流中存在到达目标类别的可用转换。
 

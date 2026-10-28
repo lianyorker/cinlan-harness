@@ -28,7 +28,9 @@ Mount this function plugin with `credentials` and `workItems`. Set the site HTTP
 |---|---|
 | `origin` | Jira site HTTPS origin, such as `https://example.atlassian.net`. |
 | `project` | Uppercase Jira project key, such as `ENG`. |
-| `credentialRef` | Credential reference resolved for each request; defaults to `JIRA_CREDENTIAL`. The value must be `email:api-token`; it is sent as HTTP Basic auth. |
+| `credentialRef` | Credential reference resolved for each request; defaults to `JIRA_CREDENTIAL`. The value must be `email:api-token` for `basic`, or a personal access token for `bearer`. |
+| `authScheme` | `basic` (default) sends the credential over HTTP Basic for Jira Cloud; `bearer` sends it as a personal access token for Jira Data Center. |
+| `jql` | Extra JQL clause appended to the built project/state query, such as `priority = High`; omitted adds no constraint. |
 | `issueType` | Issue type name used when creating issues; defaults to `Task`. |
 | `allowWrites` | Defaults to `false`; `true` enables the Provider writer. |
 | `timeoutMs` | Per-request timeout from 1 through 120000 ms; defaults to 30000. |
@@ -50,7 +52,7 @@ This package contributes no prompt or model tool. `@deepseek-ai/dsh-tool-work-it
 ## Known Limitations and Deferred Work
 
 - Provider writes remain disabled unless deployment configuration enables `allowWrites`; every model-facing write still requires a durable preview and exact confirmation.
-- JQL is fixed to `project = <configured key>` plus the state category filter; arbitrary JQL, sprint/board views, comment history, attachments, and Data Center PAT auth are not supported.
+- JQL combines `project = <configured key>`, the state category filter, and the configured `jql` clause; model requests cannot pass arbitrary JQL, and sprint/board views, comment history, and attachments are not supported.
 - Assignment supports a single account because Jira issues carry one assignee.
 - State writes depend on the project workflow exposing a reachable transition for the requested category.
 

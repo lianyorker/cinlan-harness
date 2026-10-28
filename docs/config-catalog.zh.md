@@ -593,27 +593,6 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-attachment-local -->
 
-<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-auto-review -->
-<a id="deepseek-aidsh-auto-review"></a>
-
-## `@deepseek-ai/dsh-auto-review`
-
-- `inject`: `approval` · `llm` · `permissionPresets` · `sessions` · `tools`
-- `source`: [`packages/guard/auto-review/src/index.ts:167`](../packages/guard/auto-review/src/index.ts)
-
-```ts config-catalog
-/** Deployment-owned limits for one complete authorization review. */
-export interface Config {
-  /** Maximum UTF-8 bytes in the system policy and framed user input together. */
-  maxInputBytes: number
-  /** Provider output-token cap passed as maxTokens for the review request. */
-  maxOutputTokens: number
-  /** End-to-end review deadline; expiry never grants permission. */
-  timeoutMs: number
-}
-```
-<!-- END GENERATED config-catalog:@deepseek-ai/dsh-auto-review -->
-
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-automation -->
 <a id="deepseek-aidsh-automation"></a>
 
@@ -5773,6 +5752,10 @@ export interface Config {
   readonly origin?: string
   /** CredentialRef resolved for every request; the value must be `email:api-token`; defaults to JIRA_CREDENTIAL. */
   readonly credentialRef?: string
+  /** Authorization scheme: `basic` sends `email:api-token` over HTTP Basic (Jira Cloud), `bearer` sends the credential value as a personal access token (Jira Data Center). */
+  readonly authScheme?: 'basic' | 'bearer'
+  /** Extra JQL clause appended to the built project/state query, such as `priority = High`; omitted adds no constraint. */
+  readonly jql?: string
   /** Issue type name used when creating issues; defaults to Task. */
   readonly issueType?: string
   /** Per-request timeout in milliseconds, from 1 through 120000. */

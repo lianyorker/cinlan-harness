@@ -199,6 +199,18 @@ describe('JiraWorkItemsProvider', () => {
     expect(sparse.items[1]?.assignees).toEqual([])
   })
 
+  it('appends the configured JQL clause and sends Bearer auth for Data Center PATs', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      record(input instanceof Request ? input.url : String(input), init)
+      return response({ issues: [], isLast: true })
+    }))
+    const p = new JiraWorkItemsProvider(context('pat-token'), configured({ authScheme: 'bearer', jql: 'priority = High' }))
+    await p.list({ source: 'jira' })
+    const body = JSON.parse(calls[0]!.init!.body as string) as Record<string, unknown>
+    expect(body.jql).toBe('project = ENG AND statusCategory != done AND (priority = High) ORDER BY updated DESC')
+    expect(calls[0]?.init).toMatchObject({ headers: { authorization: 'Bearer pat-token' } })
+  })
+
   it('fails closed when credentials are absent or malformed and never performs fetch', async () => {
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
@@ -244,6 +256,9 @@ describe('JiraWorkItemsProvider', () => {
       { maxItems: Number.NaN },
       { maxItems: 0 },
       { maxItems: 101 },
+      { jql: '' },
+      { jql: ' untrimmed' },
+      { jql: 'x'.repeat(501) },
     ]) expect(() => resolveJiraWorkItemsConfig(config)).toThrow()
 
     const p = provider()

@@ -43,6 +43,10 @@ export interface Config {
   readonly origin?: string
   /** CredentialRef resolved for every request; the value must be `email:api-token`; defaults to JIRA_CREDENTIAL. */
   readonly credentialRef?: string
+  /** `basic` sends `email:api-token` over HTTP Basic (Cloud); `bearer` sends the credential as a PAT (Data Center). */
+  readonly authScheme?: 'basic' | 'bearer'
+  /** Extra JQL clause appended to the built project/state query, such as `priority = High`; omitted adds no constraint. */
+  readonly jql?: string
   /** Issue type name used when creating issues; defaults to Task. */
   readonly issueType?: string
   /** Per-request timeout in milliseconds, from 1 through 120000. */
@@ -57,6 +61,8 @@ export const Config: z<Config> = z.object({
   project: z.string(),
   origin: z.string(),
   credentialRef: z.string().role('credential-ref').default(DEFAULT_CREDENTIAL_REF),
+  authScheme: z.union(['basic', 'bearer'] as const).default('basic'),
+  jql: z.string(),
   issueType: z.string().default(DEFAULT_ISSUE_TYPE),
   timeoutMs: z.number().default(DEFAULT_TIMEOUT_MS),
   maxItems: z.number().default(DEFAULT_MAX_ITEMS),
@@ -67,12 +73,14 @@ interface ResolvedConfig {
   readonly project: string
   readonly origin: string
   readonly credentialRef: CredentialRef
+  readonly authScheme: 'basic' | 'bearer'
+  readonly jql: string
   readonly issueType: string
   readonly timeoutMs: number
   readonly maxItems: number
 }
 
-const CONFIG_KEYS = new Set(['allowWrites', 'project', 'origin', 'credentialRef', 'issueType', 'timeoutMs', 'maxItems'])
+const CONFIG_KEYS = new Set(['allowWrites', 'project', 'origin', 'credentialRef', 'authScheme', 'jql', 'issueType', 'timeoutMs', 'maxItems'])
 
 function configuredString(value: string | undefined, field: string): string {
   if (value === undefined) return ''
@@ -117,6 +125,8 @@ export function resolveJiraWorkItemsConfig(config: Config = {}): ResolvedConfig 
     throw new Error('work-items-jira: project must be an uppercase Jira project key')
   }
   const issueType = configuredString(config.issueType, 'issueType') || DEFAULT_ISSUE_TYPE
+  const jql = configuredString(config.jql, 'jql')
+  const authScheme = config.authScheme ?? 'basic'
   const origin = configuredString(config.origin, 'origin')
   let parsedOrigin: URL | undefined
   if (origin !== '') {
@@ -132,6 +142,8 @@ export function resolveJiraWorkItemsConfig(config: Config = {}): ResolvedConfig 
     project,
     origin: parsedOrigin?.origin ?? '',
     credentialRef: credentialRef(config.credentialRef ?? DEFAULT_CREDENTIAL_REF),
+    authScheme,
+    jql,
     issueType,
     timeoutMs: positiveInteger(config.timeoutMs, DEFAULT_TIMEOUT_MS, 'timeoutMs', MAX_TIMEOUT_MS),
     maxItems: positiveInteger(config.maxItems, DEFAULT_MAX_ITEMS, 'maxItems', MAX_ITEMS),
@@ -343,12 +355,14 @@ export class JiraWorkItemsProvider implements WorkItemsProvider {
       const resolved = await credentials.resolve(this.config.credentialRef)
       signal.throwIfAborted()
       const value = resolved?.value
-      if (value === undefined || !value.includes(':')) throw new Error('missing')
+      if (value === undefined || value.length === 0) throw new Error('missing')
+      if (this.config.authScheme === 'bearer') return 'Bearer ' + value
+      if (!value.includes(':')) throw new Error('missing')
       return 'Basic ' + btoa(value)
     } catch (error) {
       if (signal.aborted) throw signal.reason
       if (error instanceof WorkItemsError) throw error
-      throw new WorkItemsError('authentication-required', 'Jira credentials are not configured or are not in email:api-token form', { cause: error })
+      throw new WorkItemsError('authentication-required', 'Jira credentials are not configured or are not in the configured credential form', { cause: error })
     }
   }
 
@@ -394,7 +408,7 @@ export class JiraWorkItemsProvider implements WorkItemsProvider {
     this.assertScope(request)
     const limit = requestLimit(request.limit, this.config.maxItems, this.config.maxItems)
     const state = request.state === 'closed' ? 'statusCategory = done' : request.state === 'all' ? undefined : 'statusCategory != done'
-    const jql = 'project = ' + this.config.project + (state === undefined ? '' : ' AND ' + state) + ' ORDER BY updated DESC'
+    const jql = 'project = ' + this.config.project + (state === undefined ? '' : ' AND ' + state) + (this.config.jql === '' ? '' : ' AND (' + this.config.jql + ')') + ' ORDER BY updated DESC'
     const raw = await this.request('/rest/api/3/search/jql', signal, {
       method: 'POST',
       body: {
