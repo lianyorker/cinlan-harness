@@ -128,13 +128,14 @@ function isProfileRoot(dir: string): boolean {
  * Detect the DSH profile directory this plugin is installed into: the
  * nearest ancestor of the plugin module that carries both `package.json`
  * and `pnpm-workspace.yaml` (the profile root; the plugin resolves from the
- * profile's node_modules). Falls back to `$DSH_HOME/profiles/web` (the
- * standard web profile), then null.
+ * profile's node_modules). Falls back to `$CLH_HOME/profiles/web` (the
+ * standard web profile), then null. `$DSH_HOME` is never consulted: it names
+ * the official DeepSeek Harness root, which CLH must not inherit.
  */
 export function findProfileDir(fromFile: string = fileURLToPath(import.meta.url)): string | null {
   const detected = walkUp(realDir(fromFile), isProfileRoot)
   if (detected !== null) return detected
-  const homeEnv = process.env.CLH_HOME?.trim() || process.env.CINLAN_HARNESS_HOME?.trim() || process.env.DSH_HOME?.trim()
+  const homeEnv = process.env.CLH_HOME?.trim() || process.env.CINLAN_HARNESS_HOME?.trim()
   const home = homeEnv !== undefined && homeEnv !== ''
     ? homeEnv
     : join(homedir(), '.clh')
@@ -173,7 +174,7 @@ export interface RepairCommandOptions {
  * The pasteable repair command for a broken node-pty install: rerun the
  * plugin's own installer in `--repair` mode (idempotent: it re-writes the
  * profile's `allowBuilds: node-pty: true` and re-installs/rebuilds the
- * dependency). Falls back to DSH's plugin command when the scripts are not
+ * dependency). Falls back to the CLH plugin command when the scripts are not
  * shipped (exotic layouts).
  */
 export function buildRepairCommand(options: RepairCommandOptions): { command: string; note?: string } {
@@ -198,7 +199,7 @@ export function buildRepairCommand(options: RepairCommandOptions): { command: st
   }
   const name = profileName ?? 'web'
   return {
-    command: `dsh plugin --profile "${name}" install`,
+    command: `clh plugin --profile "${name}" install`,
     note: 'If pnpm 11 blocked node-pty\'s build script, ensure `allowBuilds: node-pty: true` in the profile\'s pnpm-workspace.yaml (the plugin\'s scripts/install.sh / install.ps1 --repair does this automatically).',
   }
 }

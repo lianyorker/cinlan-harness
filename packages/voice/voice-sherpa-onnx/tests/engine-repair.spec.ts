@@ -26,7 +26,7 @@ describe('findProfileDir', () => {
     expect(findProfileDir(moduleFile)).toBe(realpathSync(join(root, 'profiles', 'web')))
   })
 
-  it('falls back to DSH_HOME/profiles/web', () => {
+  it('falls back to CLH_HOME/profiles/web', () => {
     const home = join(root, 'home')
     const web = join(home, 'profiles', 'web')
     mkdirSync(web, { recursive: true })
@@ -35,13 +35,13 @@ describe('findProfileDir', () => {
     const bareModule = join(root, 'elsewhere', 'lib', 'index.js')
     mkdirSync(dirname(bareModule), { recursive: true })
     writeFileSync(bareModule, '')
-    const previous = process.env.DSH_HOME
-    process.env.DSH_HOME = home
+    const previous = process.env.CLH_HOME
+    process.env.CLH_HOME = home
     try {
       expect(findProfileDir(bareModule)).toBe(realpathSync(web))
     } finally {
-      if (previous === undefined) delete process.env.DSH_HOME
-      else process.env.DSH_HOME = previous
+      if (previous === undefined) delete process.env.CLH_HOME
+      else process.env.CLH_HOME = previous
     }
   })
 
@@ -49,13 +49,41 @@ describe('findProfileDir', () => {
     const bareModule = join(root, 'nowhere', 'lib', 'index.js')
     mkdirSync(dirname(bareModule), { recursive: true })
     writeFileSync(bareModule, '')
+    const previous = process.env.CLH_HOME
+    process.env.CLH_HOME = join(root, 'no-such-home')
+    try {
+      expect(findProfileDir(bareModule)).toBeNull()
+    } finally {
+      if (previous === undefined) delete process.env.CLH_HOME
+      else process.env.CLH_HOME = previous
+    }
+  })
+
+  it('never falls back to $DSH_HOME (the official harness root is not inherited)', () => {
+    // DSH_HOME points at a home WITH a valid web profile; CLH_HOME points at
+    // one without. A null result proves the official root was not consulted.
+    const home = join(root, 'home')
+    const web = join(home, 'profiles', 'web')
+    mkdirSync(web, { recursive: true })
+    writeFileSync(join(web, 'package.json'), JSON.stringify({ name: 'dsh-profile-web' }))
+    writeFileSync(join(web, 'pnpm-workspace.yaml'), '')
+    const bareModule = join(root, 'elsewhere-dsh', 'lib', 'index.js')
+    mkdirSync(dirname(bareModule), { recursive: true })
+    writeFileSync(bareModule, '')
     const previous = process.env.DSH_HOME
-    process.env.DSH_HOME = join(root, 'no-such-home')
+    const previousClh = process.env.CLH_HOME
+    const previousCinlan = process.env.CINLAN_HARNESS_HOME
+    process.env.DSH_HOME = home
+    process.env.CLH_HOME = join(root, 'no-clh-home')
+    delete process.env.CINLAN_HARNESS_HOME
     try {
       expect(findProfileDir(bareModule)).toBeNull()
     } finally {
       if (previous === undefined) delete process.env.DSH_HOME
       else process.env.DSH_HOME = previous
+      if (previousClh === undefined) delete process.env.CLH_HOME
+      else process.env.CLH_HOME = previousClh
+      if (previousCinlan !== undefined) process.env.CINLAN_HARNESS_HOME = previousCinlan
     }
   })
 })
@@ -73,7 +101,7 @@ describe('engineRepairHint', () => {
       writeFileSync(moduleFile, '')
       const hint = engineRepairHint(moduleFile)
       expect(hint.profile).toBe('cinlan')
-      expect(hint.command).toBe('dsh plugin --profile "cinlan" install')
+      expect(hint.command).toBe('clh plugin --profile "cinlan" install')
       expect(hint.note).toContain('allowBuilds: sherpa-onnx-node: true')
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -81,15 +109,15 @@ describe('engineRepairHint', () => {
   })
 
   it('targets the standard web profile when no profile is detected', () => {
-    const previous = process.env.DSH_HOME
-    process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'voice-sherpa-onnx-repair-no-home-'))
+    const previous = process.env.CLH_HOME
+    process.env.CLH_HOME = mkdtempSync(join(tmpdir(), 'voice-sherpa-onnx-repair-no-home-'))
     try {
-      const hint = engineRepairHint(join(process.env.DSH_HOME, 'nowhere', 'lib', 'index.js'))
+      const hint = engineRepairHint(join(process.env.CLH_HOME, 'nowhere', 'lib', 'index.js'))
       expect(hint.profile).toBeNull()
-      expect(hint.command).toBe('dsh plugin --profile "web" install')
+      expect(hint.command).toBe('clh plugin --profile "web" install')
     } finally {
-      if (previous === undefined) delete process.env.DSH_HOME
-      else process.env.DSH_HOME = previous
+      if (previous === undefined) delete process.env.CLH_HOME
+      else process.env.CLH_HOME = previous
     }
   })
 })

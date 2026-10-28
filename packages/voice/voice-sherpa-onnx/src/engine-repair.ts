@@ -41,15 +41,16 @@ function realDir(file: string): string {
  * Detect the DSH profile directory this plugin is installed into: the
  * nearest ancestor of the plugin module that carries both `package.json`
  * and `pnpm-workspace.yaml` (the profile root; the plugin resolves from
- * the profile's node_modules). Falls back to `$DSH_HOME/profiles/web`
- * (the standard web profile), then null.
+ * the profile's node_modules). Falls back to `$CLH_HOME/profiles/web`
+ * (the standard web profile), then null. `$DSH_HOME` is never consulted:
+ * it names the official DeepSeek Harness root, which CLH must not inherit.
  * @param fromFile - the plugin module path to walk up from (defaults to this module's own location).
  * @returns the detected profile root, or null when neither the walk nor the fallback resolves one.
  */
 export function findProfileDir(fromFile: string = fileURLToPath(import.meta.url)): string | null {
   const detected = walkUp(realDir(fromFile), isProfileRoot)
   if (detected !== null) return detected
-  const homeEnv = process.env.CLH_HOME?.trim() || process.env.CINLAN_HARNESS_HOME?.trim() || process.env.DSH_HOME?.trim()
+  const homeEnv = process.env.CLH_HOME?.trim() || process.env.CINLAN_HARNESS_HOME?.trim()
   const home = homeEnv !== undefined && homeEnv !== ''
     ? homeEnv
     : join(homedir(), '.clh')
@@ -78,7 +79,7 @@ export function engineRepairHint(fromFile?: string): EngineRepairHint {
   const name = profileDir !== null ? basename(profileDir) : 'web'
   return {
     profile: profileDir !== null ? name : null,
-    command: `dsh plugin --profile "${name}" install`,
+    command: `clh plugin --profile "${name}" install`,
     note: 'If pnpm blocked the sherpa-onnx-node native build scripts, set `allowBuilds: sherpa-onnx-node: true` in the profile pnpm-workspace.yaml before reinstalling.',
   }
 }

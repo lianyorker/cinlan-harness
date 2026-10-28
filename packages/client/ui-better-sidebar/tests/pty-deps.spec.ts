@@ -93,17 +93,17 @@ describe('buildRepairCommand', () => {
     expect(command).toBe(`powershell -ExecutionPolicy Bypass -File "${expected}" -Repair -Profile "web"`)
   })
 
-  it('falls back to the dsh plugin command when the plugin scripts are unavailable', () => {
+  it('falls back to the clh plugin command when the plugin scripts are unavailable', () => {
     const bareRoot = join(root, 'bare')
     mkdirSync(bareRoot)
     const { command, note } = buildRepairCommand({ pluginRoot: bareRoot, profileDir, platform: 'darwin' })
-    expect(command).toBe('dsh plugin --profile "web" install')
+    expect(command).toBe('clh plugin --profile "web" install')
     expect(note).toContain('allowBuilds')
   })
 
-  it('falls back to the dsh plugin command (default web) when nothing is detectable', () => {
+  it('falls back to the clh plugin command (default web) when nothing is detectable', () => {
     const { command } = buildRepairCommand({ pluginRoot: null, profileDir: null, platform: 'darwin' })
-    expect(command).toBe('dsh plugin --profile "web" install')
+    expect(command).toBe('clh plugin --profile "web" install')
   })
 })
 
@@ -134,7 +134,7 @@ describe('findProfileDir / findPluginRoot', () => {
     expect(findPluginRoot(moduleFile)).toBe(realpathSync(join(root, 'profiles', 'web', 'node_modules', '.pnpm', 'dsh-better-sidebar@0.0.0', 'node_modules', 'dsh-better-sidebar')))
   })
 
-  it('falls back to $DSH_HOME/profiles/web when no ancestor looks like a profile', () => {
+  it('falls back to $CLH_HOME/profiles/web when no ancestor looks like a profile', () => {
     const home = join(root, 'home')
     const web = join(home, 'profiles', 'web')
     mkdirSync(web, { recursive: true })
@@ -144,13 +144,41 @@ describe('findProfileDir / findPluginRoot', () => {
     const bareModule = join(root, 'elsewhere', 'lib', 'index.js')
     mkdirSync(dirname(bareModule), { recursive: true })
     writeFileSync(bareModule, '')
-    const previous = process.env.DSH_HOME
-    process.env.DSH_HOME = home
+    const previous = process.env.CLH_HOME
+    process.env.CLH_HOME = home
     try {
       expect(findProfileDir(bareModule)).toBe(realpathSync(web))
     } finally {
+      if (previous === undefined) delete process.env.CLH_HOME
+      else process.env.CLH_HOME = previous
+    }
+  })
+
+  it('never falls back to $DSH_HOME (the official harness root is not inherited)', () => {
+    // DSH_HOME points at a home WITH a valid web profile; CLH_HOME points at
+    // one without. A null result proves the official root was not consulted.
+    const home = join(root, 'home')
+    const web = join(home, 'profiles', 'web')
+    mkdirSync(web, { recursive: true })
+    writeFileSync(join(web, 'package.json'), JSON.stringify({ name: 'dsh-profile-web' }))
+    writeFileSync(join(web, 'pnpm-workspace.yaml'), '')
+    const bareModule = join(root, 'nowhere', 'lib', 'index.js')
+    mkdirSync(dirname(bareModule), { recursive: true })
+    writeFileSync(bareModule, '')
+    const previous = process.env.DSH_HOME
+    const previousClh = process.env.CLH_HOME
+    const previousCinlan = process.env.CINLAN_HARNESS_HOME
+    process.env.DSH_HOME = home
+    process.env.CLH_HOME = join(root, 'no-clh-home')
+    delete process.env.CINLAN_HARNESS_HOME
+    try {
+      expect(findProfileDir(bareModule)).toBeNull()
+    } finally {
       if (previous === undefined) delete process.env.DSH_HOME
       else process.env.DSH_HOME = previous
+      if (previousClh === undefined) delete process.env.CLH_HOME
+      else process.env.CLH_HOME = previousClh
+      if (previousCinlan !== undefined) process.env.CINLAN_HARNESS_HOME = previousCinlan
     }
   })
 })
