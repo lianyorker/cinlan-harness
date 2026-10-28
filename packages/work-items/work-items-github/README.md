@@ -47,6 +47,7 @@ None; credential resolution and GitHub requests do not change the model request 
 - Pull-request workflows and external issue deletion are not provided.
 - Enterprise GitHub origins and repository discovery are not accepted by this Provider.
 - Comment history is fetched on single-item `get` only when the issue reports comments, bounded to the newest 20; `list` stays a single request.
+- Attachments embedded in issue body markdown are not surfaced as structured metadata.
 
 
 <a id="dev-note"></a>

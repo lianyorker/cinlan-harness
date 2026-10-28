@@ -122,6 +122,20 @@ const ITEM_SCHEMA = {
         },
       },
     },
+    attachments: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          name: { type: 'string' },
+          url: { type: 'string', required: true },
+          size: { type: 'number' },
+          mimeType: { type: 'string' },
+          createdAt: { type: 'string' },
+        },
+      },
+    },
   },
 } as const
 
@@ -375,6 +389,7 @@ interface PublicItem {
   readonly createdAt?: string
   readonly updatedAt?: string
   readonly comments?: readonly PublicComment[]
+  readonly attachments?: readonly PublicAttachment[]
 }
 
 interface PublicComment {
@@ -382,6 +397,14 @@ interface PublicComment {
   readonly body: string
   readonly createdAt?: string
   readonly updatedAt?: string
+}
+
+interface PublicAttachment {
+  readonly name?: string
+  readonly url: string
+  readonly size?: number
+  readonly mimeType?: string
+  readonly createdAt?: string
 }
 
 function itemValue(item: WorkItem): PublicItem {
@@ -400,6 +423,7 @@ function itemValue(item: WorkItem): PublicItem {
     ...(item.createdAt === undefined ? {} : { createdAt: item.createdAt }),
     ...(item.updatedAt === undefined ? {} : { updatedAt: item.updatedAt }),
     ...(item.comments === undefined ? {} : { comments: item.comments.map(comment => ({ ...comment })) }),
+    ...(item.attachments === undefined ? {} : { attachments: item.attachments.map(attachment => ({ ...attachment })) }),
   }
 }
 

@@ -34,6 +34,8 @@ export interface WorkItem {
   readonly updatedAt?: string
   /** Provider comment history when the source exposes it; omitted otherwise. */
   readonly comments?: readonly WorkItemComment[]
+  /** Attachment metadata when the source exposes a structured list; binaries are never fetched. */
+  readonly attachments?: readonly WorkItemAttachment[]
 }
 
 /** One normalized comment on a provider item. */
@@ -42,6 +44,15 @@ export interface WorkItemComment {
   readonly body: string
   readonly createdAt?: string
   readonly updatedAt?: string
+}
+
+/** One attachment listed by a provider; only metadata and link survive normalization. */
+export interface WorkItemAttachment {
+  readonly name?: string
+  readonly url: string
+  readonly size?: number
+  readonly mimeType?: string
+  readonly createdAt?: string
 }
 
 /** Bounded read request for a provider list operation. */

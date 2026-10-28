@@ -52,7 +52,7 @@ This package contributes no prompt or model tool. `@deepseek-ai/dsh-tool-work-it
 ## Known Limitations and Deferred Work
 
 - Provider writes remain disabled unless deployment configuration enables `allowWrites`; every model-facing write still requires a durable preview and exact confirmation.
-- JQL combines `project = <configured key>`, the state category filter, and the configured `jql` clause; model requests cannot pass arbitrary JQL, and sprint/board views and attachments are not supported. Comment history is bounded to the newest 20 entries per item.
+- JQL combines `project = <configured key>`, the state category filter, and the configured `jql` clause; model requests cannot pass arbitrary JQL, and sprint/board views are not supported. Comment history is bounded to the newest 20 entries per item; attachments surface as metadata only — the newest 20 per issue with name, link, size, and MIME type, and binaries are never fetched.
 - Assignment supports a single account because Jira issues carry one assignee.
 - State writes depend on the project workflow exposing a reachable transition for the requested category.
 

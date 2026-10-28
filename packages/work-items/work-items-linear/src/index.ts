@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemComment, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemAttachment, WorkItemComment, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -29,7 +29,9 @@ const MAX_CURSOR_LENGTH = 500
 const MAX_TIMEOUT_MS = 120_000
 /** Newest comments retained per Work Item read. */
 const MAX_COMMENTS = 20
-const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } }'
+/** Attachments retained per Work Item; only metadata and link are normalized. */
+const MAX_ATTACHMENTS = 20
+const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } }'
 
 /** Linear provider configuration. */
 export interface Config {
@@ -183,6 +185,7 @@ function mapIssue(value: unknown): WorkItem {
   const createdAt = optionalTimestamp(input.createdAt, 'createdAt')
   const updatedAt = optionalTimestamp(input.updatedAt, 'updatedAt')
   const comments = mapComments(input.comments)
+  const attachments = mapAttachments(input.attachments)
   return {
     id: providerItemId('linear:' + requiredString(input.id, 'id')),
     source: 'linear',
@@ -197,6 +200,7 @@ function mapIssue(value: unknown): WorkItem {
     ...(createdAt === undefined ? {} : { createdAt }),
     ...(updatedAt === undefined ? {} : { updatedAt }),
     ...(comments.length === 0 ? {} : { comments }),
+    ...(attachments.length === 0 ? {} : { attachments }),
   }
 }
 
@@ -218,6 +222,25 @@ function mapComments(value: unknown): WorkItemComment[] {
       body: body ?? '',
       ...(created === undefined ? {} : { createdAt: created }),
       ...(updated === undefined ? {} : { updatedAt: updated }),
+    }
+  })
+}
+
+/** Normalize the attachments connection into a bounded metadata list. */
+function mapAttachments(value: unknown): WorkItemAttachment[] {
+  if (value === null || value === undefined) return []
+  const container = objectValue(value)
+  if (!Array.isArray(container.nodes) || container.nodes.length > MAX_ATTACHMENTS) {
+    throw new WorkItemsError('invalid-response', 'Linear returned invalid Work Item attachments')
+  }
+  return container.nodes.map((entry) => {
+    const attachment = objectValue(entry)
+    const name = optionalString(attachment.title, 'attachment name')
+    const created = optionalTimestamp(attachment.createdAt, 'createdAt')
+    return {
+      ...(name === undefined ? {} : { name }),
+      url: requiredString(attachment.url, 'attachment url'),
+      ...(created === undefined ? {} : { createdAt: created }),
     }
   })
 }

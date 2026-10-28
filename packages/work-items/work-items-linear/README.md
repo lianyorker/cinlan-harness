@@ -47,6 +47,7 @@ None; credential resolution and Linear requests do not change the model request 
 - Bulk mutation, deletion, discovery, and arbitrary saved views are not provided; supported mutations use the service-owned preview/confirm approval API.
 - Team and project filters use configured provider identifiers; discovery and arbitrary saved views are not supported.
 - Comment history is fetched inline with issue reads via `comments(last: 20)`; the newest 20 entries are retained per item.
+- Attachments surface as metadata only via `attachments(last: 20)` — name, link, and timestamp; binaries are never fetched.
 
 
 <a id="dev-note"></a>

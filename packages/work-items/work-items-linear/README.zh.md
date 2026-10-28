@@ -47,6 +47,7 @@ allowWrites 默认为 false；启用后仅由公共服务的预览/确认 API �
 - 本 Provider 不提供批量 mutation、删除、discovery 或任意保存的 view；支持的 mutation 使用 service-owned preview/confirm 审批 API。
 - team 和 project filter 使用已配置的 Provider identifier；不支持 discovery 或任意保存的 view。
 - 评论历史通过 `comments(last: 20)` 随工单读取内联拉取，每个工单保留最新 20 条。
+- 附件仅通过 `attachments(last: 20)` 暴露元数据——名称、链接和时间戳，不拉取二进制内容。
 
 
 <a id="开发备注"></a>

@@ -158,6 +158,11 @@ describe('LinearWorkItemsProvider', () => {
           { user: null, body: 'second note', createdAt: '2026-01-04T00:00:00Z', updatedAt: '2026-01-05T00:00:00Z' },
         ],
       },
+      attachments: {
+        nodes: [
+          { title: 'spec.pdf', url: 'https://files.example.com/spec.pdf', createdAt: '2026-01-06T00:00:00Z' },
+        ],
+      },
     }
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       record(input instanceof Request ? input.url : String(input), init)
@@ -169,7 +174,10 @@ describe('LinearWorkItemsProvider', () => {
     expect(detail.comments?.[0]).toMatchObject({ author: 'Frank', body: 'first note', createdAt: '2026-01-03T00:00:00Z' })
     expect(detail.comments?.[1]).toMatchObject({ body: 'second note', updatedAt: '2026-01-05T00:00:00Z' })
     expect(detail.comments?.[1]).not.toHaveProperty('author')
+    expect(detail.attachments).toHaveLength(1)
+    expect(detail.attachments?.[0]).toMatchObject({ name: 'spec.pdf', url: 'https://files.example.com/spec.pdf', createdAt: '2026-01-06T00:00:00Z' })
     expect(JSON.parse(requestBody())).toMatchObject({ query: expect.stringContaining('comments(last: 20)') as unknown, variables: { id: 'issue-get' } })
+    expect(JSON.parse(requestBody())).toMatchObject({ query: expect.stringContaining('attachments(last: 20)') as unknown })
     vi.stubGlobal('fetch', vi.fn(async () => response({ data: {} })))
     await expect(provider().get({ id: WorkItemId('linear:missing') })).rejects.toMatchObject({ code: 'not-found' })
     for (const id of ['github:one', 'linear:', 'linear:' + 'x'.repeat(501)]) {

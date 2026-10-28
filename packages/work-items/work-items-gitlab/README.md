@@ -58,6 +58,7 @@ This provider registers no model-request prefix and does not replace existing re
 - External deletion and automatic retry of uncertain writes are not provided. Approval revision checks are not an atomic compare-and-swap at GitLab.
 - API requests are rooted at the configured origin; a GitLab deployment under an HTTP path prefix is unsupported.
 - Comment history is fetched on single-item `get` only when the issue reports user notes, bounded to the newest 20 with system notes filtered out; `list` stays a single request.
+- Attachments referenced from issue descriptions or notes are not surfaced as structured metadata.
 
 <a id="dev-note"></a>
 ### Dev Note

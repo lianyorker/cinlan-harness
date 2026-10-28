@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemComment, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemAttachment, WorkItemComment, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -29,6 +29,8 @@ const MAX_TIMEOUT_MS = 120_000
 const MAX_ADF_NODES = 10_000
 /** Comments retained per issue; Jira returns the oldest page, so the newest tail is kept. */
 const MAX_COMMENTS = 20
+/** Attachments retained per issue; only metadata and the API link are normalized. */
+const MAX_ATTACHMENTS = 20
 
 /** Jira project keys are uppercase letters, digits, and underscores. */
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,255}$/
@@ -244,6 +246,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   const createdAt = optionalTimestamp(fields.created, 'createdAt')
   const updatedAt = optionalTimestamp(fields.updated, 'updatedAt')
   const comments = mapComments(fields.comment)
+  const attachments = mapAttachments(fields.attachment)
   return {
     id: providerItemId('jira:' + key),
     source: 'jira',
@@ -259,6 +262,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
     ...(createdAt === undefined ? {} : { createdAt }),
     ...(updatedAt === undefined ? {} : { updatedAt }),
     ...(comments.length === 0 ? {} : { comments }),
+    ...(attachments.length === 0 ? {} : { attachments }),
   }
 }
 
@@ -279,6 +283,26 @@ function mapComments(value: unknown): WorkItemComment[] {
       body: text ?? '',
       ...(created === undefined ? {} : { createdAt: created }),
       ...(updated === undefined ? {} : { updatedAt: updated }),
+    }
+  })
+}
+
+/** Normalize the Jira attachment list to bounded metadata entries. */
+function mapAttachments(value: unknown): WorkItemAttachment[] {
+  if (value === null || value === undefined) return []
+  if (!Array.isArray(value)) return []
+  return value.slice(-MAX_ATTACHMENTS).map((entry) => {
+    const attachment = objectValue(entry)
+    const name = optionalText(attachment.filename, 'attachment name')
+    const size = attachment.size
+    const mimeType = optionalText(attachment.mimeType, 'attachment mimeType')
+    const created = optionalTimestamp(attachment.created, 'createdAt')
+    return {
+      ...(name === undefined ? {} : { name }),
+      url: requiredString(attachment.content, 'attachment url'),
+      ...(typeof size === 'number' && Number.isSafeInteger(size) && size >= 0 ? { size } : {}),
+      ...(mimeType === undefined ? {} : { mimeType }),
+      ...(created === undefined ? {} : { createdAt: created }),
     }
   })
 }
@@ -327,7 +351,7 @@ function requestError(error: unknown, signal: AbortSignal | undefined, timedOut:
   return new WorkItemsError('provider-failed', 'Jira Work Items request failed', { cause: error })
 }
 
-const ISSUE_FIELDS = 'summary,description,status,labels,assignee,created,updated,comment'
+const ISSUE_FIELDS = 'summary,description,status,labels,assignee,created,updated,comment,attachment'
 
 /** Jira REST provider for one configured project on one site. */
 export class JiraWorkItemsProvider implements WorkItemsProvider {
