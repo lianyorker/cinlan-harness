@@ -192,6 +192,23 @@ describe('GitLabWorkItemsProvider', () => {
 
     vi.stubGlobal('fetch', vi.fn(async () => response(issue(7))))
     await expect(provider().get({ id: WorkItemId('gitlab:acme/repo#7') })).resolves.toMatchObject({ id: 'gitlab:acme/repo#7' })
+
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      record(input instanceof Request ? input.url : String(input), init)
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.includes('/notes?')) {
+        return response([
+          { author: { username: 'dave' }, body: 'system noise', system: true, created_at: '2026-01-05T00:00:00Z' },
+          { author: { username: 'dave' }, body: 'newest note', created_at: '2026-01-04T00:00:00Z' },
+          { author: { username: 'erin' }, body: 'oldest note', created_at: '2026-01-03T00:00:00Z' },
+        ])
+      }
+      return response({ ...issue(7), user_notes_count: 2 })
+    }))
+    const commented = await provider().get({ id: WorkItemId('gitlab:acme/repo#7') })
+    expect(commented.comments?.map(comment => comment.body)).toEqual(['oldest note', 'newest note'])
+    expect(commented.comments?.[0]).toMatchObject({ author: 'erin', createdAt: '2026-01-03T00:00:00Z' })
+    expect(calls.at(-1)?.url).toContain('/notes?sort=desc&order_by=created_at&per_page=20')
     await expect(provider().get({ id: WorkItemId('gitlab:acme/other#7') })).rejects.toMatchObject({ code: 'invalid-request' })
     await expect(provider().get({ id: WorkItemId('invalid') })).rejects.toMatchObject({ code: 'invalid-request' })
   })

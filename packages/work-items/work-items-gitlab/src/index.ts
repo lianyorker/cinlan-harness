@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemComment, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -27,6 +27,8 @@ const MAX_TEXT_LENGTH = 20_000
 const MAX_QUERY_LENGTH = 500
 const MAX_CURSOR_LENGTH = 500
 const MAX_TIMEOUT_MS = 120_000
+/** Newest user comments retained per Work Item read; system notes are filtered out. */
+const MAX_COMMENTS = 20
 
 /** GitLab provider configuration. */
 export interface Config {
@@ -220,6 +222,25 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   }
 }
 
+/** Normalize GitLab issue notes to an ascending list of user comments. */
+function mapComments(value: unknown): WorkItemComment[] {
+  if (!Array.isArray(value)) throw new WorkItemsError('invalid-response', 'GitLab returned an invalid notes payload')
+  const entries = value.filter(entry => objectValue(entry).system !== true).slice(0, MAX_COMMENTS)
+  return entries.reverse().map((entry) => {
+    const note = objectValue(entry)
+    const author = note.author
+    const body = optionalText(note.body, 'comment body')
+    const created = optionalTimestamp(note.created_at, 'createdAt')
+    const updated = optionalTimestamp(note.updated_at, 'updatedAt')
+    return {
+      ...(author === null || author === undefined ? {} : { author: requiredString(objectValue(author).username, 'comment author') }),
+      body: body ?? '',
+      ...(created === undefined ? {} : { createdAt: created }),
+      ...(updated === undefined ? {} : { updatedAt: updated }),
+    }
+  })
+}
+
 async function cancelReader(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> {
   try {
     await reader.cancel()
@@ -384,8 +405,16 @@ export class GitLabWorkItemsProvider implements WorkItemsProvider {
     if (match === null || match[3] === undefined || match[1] !== this.config.owner || match[2] !== this.config.repository) {
       throw new WorkItemsError('invalid-request', 'Work Item id does not belong to the configured GitLab project')
     }
-    const raw = await this.request('/api/v4/projects/' + projectPath(this.config) + '/issues/' + match[3], signal)
-    return mapIssue(raw, this.config)
+    const base = '/api/v4/projects/' + projectPath(this.config) + '/issues/' + match[3]
+    const raw = await this.request(base, signal)
+    const item = mapIssue(raw, this.config)
+    const count = objectValue(raw).user_notes_count
+    if (typeof count === 'number' && count > 0) {
+      const notes = await this.request(base + '/notes?sort=desc&order_by=created_at&per_page=' + String(MAX_COMMENTS), signal)
+      const comments = mapComments(notes)
+      if (comments.length > 0) return { ...item, comments }
+    }
+    return item
   }
 
   private issueIid(id: string): string {

@@ -134,6 +134,27 @@ describe('GitHubWorkItemsProvider', () => {
 
     vi.stubGlobal('fetch', vi.fn(async () => response(issue(7))))
     await expect(provider().get({ id: WorkItemId('github:acme/repo#7') })).resolves.toMatchObject({ id: 'github:acme/repo#7' })
+
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      record(input instanceof Request ? input.url : String(input), init)
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.endsWith('/comments?per_page=100')) {
+        return response([
+          { user: { login: 'carol' }, body: 'earlier note', created_at: '2026-01-03T00:00:00Z' },
+          { user: null, body: 'latest note', created_at: '2026-01-04T00:00:00Z', updated_at: '2026-01-05T00:00:00Z' },
+        ])
+      }
+      return response({ ...issue(7), comments: 2 })
+    }))
+    const commented = await provider().get({ id: WorkItemId('github:acme/repo#7') })
+    expect(commented.comments).toHaveLength(2)
+    expect(commented.comments?.[0]).toMatchObject({ author: 'carol', body: 'earlier note' })
+    expect(commented.comments?.[1]).toMatchObject({ body: 'latest note', updatedAt: '2026-01-05T00:00:00Z' })
+    expect(commented.comments?.[1]).not.toHaveProperty('author')
+    expect(calls.at(-1)?.url).toContain('/comments?per_page=100')
+    calls.length = 0
+    const plain = await provider().get({ id: WorkItemId('github:acme/repo#7') })
+    expect(plain.comments).toHaveLength(2)
     vi.stubGlobal('fetch', vi.fn(async () => response(issue(7, true))))
     await expect(provider().get({ id: WorkItemId('github:acme/repo#7') })).rejects.toMatchObject({ code: 'not-found' })
     await expect(provider().get({ id: WorkItemId('github:acme/other#7') })).rejects.toMatchObject({ code: 'invalid-request' })

@@ -46,6 +46,7 @@ allowWrites 默认为 false；启用后仅由公共服务的预览/确认 API �
 
 - 本 Provider 不提供 pull-request workflow、批量 mutation 或 external deletion；支持的写操作使用 service-owned preview/confirm 审批 API。
 - 本 Provider 不接受 Enterprise GitHub origin 或 repository discovery。
+- 评论历史仅在单条 `get` 且 issue 报告有评论时拉取，保留最新 20 条；`list` 保持单次请求。
 
 
 <a id="开发备注"></a>

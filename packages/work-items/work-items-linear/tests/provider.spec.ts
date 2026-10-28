@@ -150,12 +150,26 @@ describe('LinearWorkItemsProvider', () => {
     expect(projectBody.variables).toEqual({ first: 50, after: null, filter: { project: { id: { eq: 'project-1' } } } })
 
     calls.length = 0
+    const commentedIssue = {
+      ...linearIssue('issue-get'),
+      comments: {
+        nodes: [
+          { user: { name: 'Frank' }, body: 'first note', createdAt: '2026-01-03T00:00:00Z' },
+          { user: null, body: 'second note', createdAt: '2026-01-04T00:00:00Z', updatedAt: '2026-01-05T00:00:00Z' },
+        ],
+      },
+    }
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       record(input instanceof Request ? input.url : String(input), init)
-      return response({ data: { issue: linearIssue('issue-get') } })
+      return response({ data: { issue: commentedIssue } })
     }))
-    await expect(provider().get({ id: WorkItemId('linear:issue-get') })).resolves.toMatchObject({ id: 'linear:issue-get' })
-    expect(JSON.parse(requestBody())).toMatchObject({ query: expect.stringContaining('query($id: String!)') as unknown, variables: { id: 'issue-get' } })
+    const detail = await provider().get({ id: WorkItemId('linear:issue-get') })
+    expect(detail).toMatchObject({ id: 'linear:issue-get' })
+    expect(detail.comments).toHaveLength(2)
+    expect(detail.comments?.[0]).toMatchObject({ author: 'Frank', body: 'first note', createdAt: '2026-01-03T00:00:00Z' })
+    expect(detail.comments?.[1]).toMatchObject({ body: 'second note', updatedAt: '2026-01-05T00:00:00Z' })
+    expect(detail.comments?.[1]).not.toHaveProperty('author')
+    expect(JSON.parse(requestBody())).toMatchObject({ query: expect.stringContaining('comments(last: 20)') as unknown, variables: { id: 'issue-get' } })
     vi.stubGlobal('fetch', vi.fn(async () => response({ data: {} })))
     await expect(provider().get({ id: WorkItemId('linear:missing') })).rejects.toMatchObject({ code: 'not-found' })
     for (const id of ['github:one', 'linear:', 'linear:' + 'x'.repeat(501)]) {

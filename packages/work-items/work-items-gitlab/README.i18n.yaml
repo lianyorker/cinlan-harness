@@ -1,6 +1,34 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/work-items/work-items-gitlab/README.md
-README.md: ce0e2423bc1494d3cf2bb820fc7d1e72ef5ef548
-README.zh.md: 6a3c4c2d6ac738435b36a33749d5befe5f3e9af7
+/:
+  en: cee5e449d4238ee8
+  zh: 1ab43922daee44aa
+/deepseek-ai-dsh-work-items-gitlab:
+  en: 22e661832bf173ed
+  zh: 8d13cfdc63c5f1a7
+/deepseek-ai-dsh-work-items-gitlab/summary:
+  en: 3ee2e5861f5ac437
+  zh: a7e248450aae6af0
+/deepseek-ai-dsh-work-items-gitlab/table-of-contents:
+  en: 550116997dc2fe9a
+  zh: 7f9dba8e6c7c6858
+/deepseek-ai-dsh-work-items-gitlab/use-this-package:
+  en: 47f25ee08e71e4f2
+  zh: 4a668cedd25d353a
+/deepseek-ai-dsh-work-items-gitlab/assignment-and-failures:
+  en: 82f0e1285bac1be8
+  zh: 19708599071b2568
+/deepseek-ai-dsh-work-items-gitlab/model-experience:
+  en: feb642a1a938dd1b
+  zh: 0251ecf3499c237e
+/deepseek-ai-dsh-work-items-gitlab/model-experience/kv-cache-effect:
+  en: a88125763fcfb8f4
+  zh: 77834663ff2ca1d6
+/deepseek-ai-dsh-work-items-gitlab/known-limitations-and-deferred-work:
+  en: 3f50792cac6eaf6e
+  zh: ef6f0b1378feca70
+/deepseek-ai-dsh-work-items-gitlab/known-limitations-and-deferred-work/dev-note:
+  en: 1be81fc1ba60425d
+  zh: d2136ffc03293b45

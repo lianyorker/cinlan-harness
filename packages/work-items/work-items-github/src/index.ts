@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemComment, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -27,6 +27,8 @@ const MAX_TEXT_LENGTH = 20_000
 const MAX_QUERY_LENGTH = 500
 const MAX_CURSOR_LENGTH = 500
 const MAX_TIMEOUT_MS = 120_000
+/** Comments fetched for one Work Item read; GitHub returns the oldest page, so the newest tail is kept. */
+const MAX_COMMENTS = 20
 
 /** GitHub provider configuration. */
 export interface Config {
@@ -206,6 +208,25 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem | undefined 
 }
 
 
+/** Normalize GitHub issue comments to the newest bounded list. */
+function mapComments(value: unknown): WorkItemComment[] {
+  if (!Array.isArray(value)) throw new WorkItemsError('invalid-response', 'GitHub returned an invalid comments payload')
+  return value.slice(-MAX_COMMENTS).map((entry) => {
+    const comment = objectValue(entry)
+    const user = comment.user
+    const body = optionalText(comment.body, 'comment body')
+    const created = optionalTimestamp(comment.created_at, 'createdAt')
+    const updated = optionalTimestamp(comment.updated_at, 'updatedAt')
+    return {
+      ...(user === null || user === undefined ? {} : { author: requiredString(objectValue(user).login, 'comment author') }),
+      body: body ?? '',
+      ...(created === undefined ? {} : { createdAt: created }),
+      ...(updated === undefined ? {} : { updatedAt: updated }),
+    }
+  })
+}
+
+
 async function cancelReader(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> {
   try {
     await reader.cancel()
@@ -367,9 +388,16 @@ export class GitHubWorkItemsProvider implements WorkItemsProvider {
     if (match === null || match[3] === undefined || match[1] !== this.config.owner || match[2] !== this.config.repository) {
       throw new WorkItemsError('invalid-request', 'Work Item id does not belong to the configured GitHub repository')
     }
-    const raw = await this.request('/repos/' + encodeURIComponent(this.config.owner) + '/' + encodeURIComponent(this.config.repository) + '/issues/' + match[3], signal)
+    const base = '/repos/' + encodeURIComponent(this.config.owner) + '/' + encodeURIComponent(this.config.repository) + '/issues/' + match[3]
+    const raw = await this.request(base, signal)
     const result = mapIssue(raw, this.config)
     if (result === undefined) throw new WorkItemsError('not-found', 'GitHub Work Item was not found')
+    const count = objectValue(raw).comments
+    if (typeof count === 'number' && count > 0) {
+      const comments = await this.request(base + '/comments?per_page=100', signal)
+      const mapped = mapComments(comments)
+      if (mapped.length > 0) return { ...result, comments: mapped }
+    }
     return result
   }
 

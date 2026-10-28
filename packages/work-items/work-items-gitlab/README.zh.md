@@ -57,6 +57,7 @@ kind: "package-reference"
 - 每个 Provider 实例只服务一个已配置项目。指派除工单写入权限外，还要求能够查询 GitLab 用户。
 - 不提供外部删除或不确定写入的自动重试。审批版本检查不是 GitLab 端的原子 compare-and-swap。
 - API 请求从配置的 origin 根目录发起，不支持部署在 HTTP 路径前缀下的 GitLab。
+- 评论历史仅在单条 `get` 且工单报告有用户笔记时拉取，过滤系统笔记后保留最新 20 条；`list` 保持单次请求。
 
 <a id="dev-note"></a>
 ### 开发备注

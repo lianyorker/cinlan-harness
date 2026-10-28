@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemComment, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -27,7 +27,9 @@ const MAX_TEXT_LENGTH = 20_000
 const MAX_QUERY_LENGTH = 500
 const MAX_CURSOR_LENGTH = 500
 const MAX_TIMEOUT_MS = 120_000
-const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name }'
+/** Newest comments retained per Work Item read. */
+const MAX_COMMENTS = 20
+const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } }'
 
 /** Linear provider configuration. */
 export interface Config {
@@ -180,6 +182,7 @@ function mapIssue(value: unknown): WorkItem {
   const body = optionalText(input.description, 'body')
   const createdAt = optionalTimestamp(input.createdAt, 'createdAt')
   const updatedAt = optionalTimestamp(input.updatedAt, 'updatedAt')
+  const comments = mapComments(input.comments)
   return {
     id: providerItemId('linear:' + requiredString(input.id, 'id')),
     source: 'linear',
@@ -193,7 +196,30 @@ function mapIssue(value: unknown): WorkItem {
     assignees: assignee === undefined ? [] : [assignee],
     ...(createdAt === undefined ? {} : { createdAt }),
     ...(updatedAt === undefined ? {} : { updatedAt }),
+    ...(comments.length === 0 ? {} : { comments }),
   }
+}
+
+/** Normalize the issue comments connection into a bounded ascending list. */
+function mapComments(value: unknown): WorkItemComment[] {
+  if (value === null || value === undefined) return []
+  const container = objectValue(value)
+  if (!Array.isArray(container.nodes) || container.nodes.length > MAX_COMMENTS) {
+    throw new WorkItemsError('invalid-response', 'Linear returned invalid Work Item comments')
+  }
+  return container.nodes.map((entry) => {
+    const comment = objectValue(entry)
+    const user = comment.user
+    const body = optionalText(comment.body, 'comment body')
+    const created = optionalTimestamp(comment.createdAt, 'createdAt')
+    const updated = optionalTimestamp(comment.updatedAt, 'updatedAt')
+    return {
+      ...(user === null || user === undefined ? {} : { author: optionalString(objectValue(user).name, 'comment author') ?? '' }),
+      body: body ?? '',
+      ...(created === undefined ? {} : { createdAt: created }),
+      ...(updated === undefined ? {} : { updatedAt: updated }),
+    }
+  })
 }
 
 
