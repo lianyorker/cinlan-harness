@@ -36,6 +36,16 @@ export interface WorkItem {
   readonly comments?: readonly WorkItemComment[]
   /** Attachment metadata when the source exposes a structured list; binaries are never fetched. */
   readonly attachments?: readonly WorkItemAttachment[]
+  /** Iteration the item belongs to — sprint, cycle, or milestone in provider terms. */
+  readonly iteration?: WorkItemIteration
+}
+
+/** One normalized iteration assignment on a provider item. */
+export interface WorkItemIteration {
+  readonly title: string
+  readonly state?: string
+  readonly startsAt?: string
+  readonly endsAt?: string
 }
 
 /** One normalized comment on a provider item. */

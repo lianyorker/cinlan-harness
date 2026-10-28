@@ -19,7 +19,7 @@ function response(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } })
 }
 function issue(number: number, pullRequest = false, url = 'https://github.com/acme/repo/issues/' + String(number)): Record<string, unknown> {
-  return { number, title: 'Issue ' + String(number), body: 'body', state: 'open', html_url: url, labels: [{ name: 'bug' }], assignees: [{ login: 'alice' }], user: { login: 'author' }, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z', ...(pullRequest ? { pull_request: { url: 'https://api.github.com/pulls/' + String(number) } } : {}) }
+  return { number, title: 'Issue ' + String(number), body: 'body', state: 'open', html_url: url, labels: [{ name: 'bug' }], assignees: [{ login: 'alice' }], user: { login: 'author' }, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z', milestone: { title: 'v2.0', state: 'open', due_on: '2026-02-01T00:00:00Z' }, ...(pullRequest ? { pull_request: { url: 'https://api.github.com/pulls/' + String(number) } } : {}) }
 }
 function provider(ctx = context('secret')): GitHubWorkItemsProvider { return new GitHubWorkItemsProvider(ctx, resolveGitHubWorkItemsConfig({ owner: 'acme', repository: 'repo', maxItems: 20 })) }
 
@@ -54,7 +54,8 @@ describe('GitHubWorkItemsProvider', () => {
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => { record(input instanceof Request ? input.url : String(input), init); return new Response(JSON.stringify([issue(7), issue(8, true)]), { status: 200 }) }))
     const result = await provider().list({ source: 'github', state: 'all', limit: 2 })
     expect(result.items).toHaveLength(1)
-    expect(result.items[0]).toMatchObject({ id: 'github:acme/repo#7', source: 'github', key: '#7', assignees: ['alice'] })
+    expect(result.items[0]).toMatchObject({ id: 'github:acme/repo#7', source: 'github', key: '#7', assignees: ['alice'], iteration: { title: 'v2.0', state: 'open', endsAt: '2026-02-01T00:00:00Z' } })
+    expect(result.items[0]).not.toHaveProperty('iteration.startsAt')
     expect(calls[0]?.url).toContain(GITHUB_API_ORIGIN + '/repos/acme/repo/issues?')
     expect(calls[0]?.url).toContain('state=all')
     expect(calls[0]?.init).toMatchObject({ redirect: 'error', headers: { authorization: 'Bearer secret' } })

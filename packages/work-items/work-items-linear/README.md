@@ -48,6 +48,7 @@ None; credential resolution and Linear requests do not change the model request 
 - Team and project filters use configured provider identifiers; discovery and arbitrary saved views are not supported.
 - Comment history is fetched inline with issue reads via `comments(last: 20)`; the newest 20 entries are retained per item.
 - Attachments surface as metadata only via `attachments(last: 20)` — name, link, and timestamp; binaries are never fetched.
+- The issue cycle surfaces as normalized iteration metadata — title, state, and start/end dates.
 
 
 <a id="dev-note"></a>

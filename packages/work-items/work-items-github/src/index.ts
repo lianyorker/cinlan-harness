@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemComment, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemComment, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -190,6 +190,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem | undefined 
   const body = optionalText(input.body, 'body')
   const createdAt = optionalTimestamp(input.created_at, 'createdAt')
   const updatedAt = optionalTimestamp(input.updated_at, 'updatedAt')
+  const iteration = mapIteration(input.milestone)
   return {
     id: providerItemId('github:' + config.owner + '/' + config.repository + '#' + String(number)),
     source: 'github',
@@ -204,6 +205,20 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem | undefined 
     assignees: logins(input.assignees),
     ...(createdAt === undefined ? {} : { createdAt }),
     ...(updatedAt === undefined ? {} : { updatedAt }),
+    ...(iteration === undefined ? {} : { iteration }),
+  }
+}
+
+/** Normalize a GitHub milestone to the shared iteration shape. */
+function mapIteration(value: unknown): WorkItemIteration | undefined {
+  if (value === null || value === undefined) return undefined
+  const milestone = objectValue(value)
+  const state = milestone.state
+  const due = optionalTimestamp(milestone.due_on, 'endsAt')
+  return {
+    title: requiredString(milestone.title, 'iteration title'),
+    ...(typeof state === 'string' ? { state } : {}),
+    ...(due === undefined ? {} : { endsAt: due }),
   }
 }
 

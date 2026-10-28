@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemComment, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemComment, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -205,6 +205,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   const body = optionalText(input.description, 'body')
   const createdAt = optionalTimestamp(input.created_at, 'createdAt')
   const updatedAt = optionalTimestamp(input.updated_at, 'updatedAt')
+  const iteration = mapIteration(input.iteration, input.milestone)
   return {
     id: providerItemId('gitlab:' + config.owner + '/' + config.repository + '#' + String(iid)),
     source: 'gitlab',
@@ -219,6 +220,23 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
     assignees: usernames(input.assignees),
     ...(createdAt === undefined ? {} : { createdAt }),
     ...(updatedAt === undefined ? {} : { updatedAt }),
+    ...(iteration === undefined ? {} : { iteration }),
+  }
+}
+
+/** Normalize GitLab iteration or milestone to the shared iteration shape; iteration wins when both exist. */
+function mapIteration(iteration: unknown, milestone: unknown): WorkItemIteration | undefined {
+  const source = iteration === null || iteration === undefined ? milestone : iteration
+  if (source === null || source === undefined) return undefined
+  const entry = objectValue(source)
+  const state = entry.state
+  const starts = optionalTimestamp(entry.start_date, 'startsAt')
+  const ends = optionalTimestamp(entry.due_date, 'endsAt')
+  return {
+    title: requiredString(entry.title, 'iteration title'),
+    ...(typeof state === 'string' ? { state } : {}),
+    ...(starts === undefined ? {} : { startsAt: starts }),
+    ...(ends === undefined ? {} : { endsAt: ends }),
   }
 }
 

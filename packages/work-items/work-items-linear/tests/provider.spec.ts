@@ -163,6 +163,7 @@ describe('LinearWorkItemsProvider', () => {
           { title: 'spec.pdf', url: 'https://files.example.com/spec.pdf', createdAt: '2026-01-06T00:00:00Z' },
         ],
       },
+      cycle: { name: 'Sprint 14', number: 14, startsAt: '2026-01-10T00:00:00Z', endsAt: '2026-01-24T00:00:00Z', isActive: true, isPast: false },
     }
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       record(input instanceof Request ? input.url : String(input), init)
@@ -176,6 +177,7 @@ describe('LinearWorkItemsProvider', () => {
     expect(detail.comments?.[1]).not.toHaveProperty('author')
     expect(detail.attachments).toHaveLength(1)
     expect(detail.attachments?.[0]).toMatchObject({ name: 'spec.pdf', url: 'https://files.example.com/spec.pdf', createdAt: '2026-01-06T00:00:00Z' })
+    expect(detail.iteration).toMatchObject({ title: 'Sprint 14', state: 'active', startsAt: '2026-01-10T00:00:00Z', endsAt: '2026-01-24T00:00:00Z' })
     expect(JSON.parse(requestBody())).toMatchObject({ query: expect.stringContaining('comments(last: 20)') as unknown, variables: { id: 'issue-get' } })
     expect(JSON.parse(requestBody())).toMatchObject({ query: expect.stringContaining('attachments(last: 20)') as unknown })
     vi.stubGlobal('fetch', vi.fn(async () => response({ data: {} })))

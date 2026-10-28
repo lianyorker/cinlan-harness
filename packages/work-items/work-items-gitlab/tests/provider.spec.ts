@@ -19,7 +19,7 @@ function response(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } })
 }
 function issue(iid: number, url = 'https://gitlab.com/acme/repo/-/issues/' + String(iid)): Record<string, unknown> {
-  return { iid, title: 'Issue ' + String(iid), description: 'body', state: 'opened', web_url: url, labels: [{ name: 'bug' }], assignees: [{ username: 'alice' }], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z' }
+  return { iid, title: 'Issue ' + String(iid), description: 'body', state: 'opened', web_url: url, labels: [{ name: 'bug' }], assignees: [{ username: 'alice' }], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z', milestone: { title: 'v2.0', state: 'active', start_date: '2026-01-10T00:00:00Z', due_date: '2026-01-24T00:00:00Z' } }
 }
 function provider(ctx = context('secret')): GitLabWorkItemsProvider { return new GitLabWorkItemsProvider(ctx, resolveGitLabWorkItemsConfig({ owner: 'acme', repository: 'repo', maxItems: 20 })) }
 
@@ -115,7 +115,7 @@ describe('GitLabWorkItemsProvider', () => {
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => { record(input instanceof Request ? input.url : String(input), init); return new Response(JSON.stringify([issue(7)]), { status: 200 }) }))
     const result = await provider().list({ source: 'gitlab', state: 'all', limit: 2 })
     expect(result.items).toHaveLength(1)
-    expect(result.items[0]).toMatchObject({ id: 'gitlab:acme/repo#7', source: 'gitlab', key: '#7', assignees: ['alice'] })
+    expect(result.items[0]).toMatchObject({ id: 'gitlab:acme/repo#7', source: 'gitlab', key: '#7', assignees: ['alice'], iteration: { title: 'v2.0', state: 'active', startsAt: '2026-01-10T00:00:00Z', endsAt: '2026-01-24T00:00:00Z' } })
     expect(calls[0]?.url).toContain(GITLAB_API_ORIGIN + '/api/v4/projects/acme%2Frepo/issues?')
     expect(calls[0]?.url).toContain('state=all')
     expect(calls[0]?.init).toMatchObject({ redirect: 'error', headers: { 'PRIVATE-TOKEN': 'secret' } })
@@ -203,11 +203,12 @@ describe('GitLabWorkItemsProvider', () => {
           { author: { username: 'erin' }, body: 'oldest note', created_at: '2026-01-03T00:00:00Z' },
         ])
       }
-      return response({ ...issue(7), user_notes_count: 2 })
+      return response({ ...issue(7), user_notes_count: 2, iteration: { id: 41, title: 'Cadence 5', state: 'current', start_date: '2026-01-12T00:00:00Z', due_date: '2026-01-25T00:00:00Z' } })
     }))
     const commented = await provider().get({ id: WorkItemId('gitlab:acme/repo#7') })
     expect(commented.comments?.map(comment => comment.body)).toEqual(['oldest note', 'newest note'])
     expect(commented.comments?.[0]).toMatchObject({ author: 'erin', createdAt: '2026-01-03T00:00:00Z' })
+    expect(commented.iteration).toMatchObject({ title: 'Cadence 5', state: 'current', startsAt: '2026-01-12T00:00:00Z', endsAt: '2026-01-25T00:00:00Z' })
     expect(calls.at(-1)?.url).toContain('/notes?sort=desc&order_by=created_at&per_page=20')
     await expect(provider().get({ id: WorkItemId('gitlab:acme/other#7') })).rejects.toMatchObject({ code: 'invalid-request' })
     await expect(provider().get({ id: WorkItemId('invalid') })).rejects.toMatchObject({ code: 'invalid-request' })

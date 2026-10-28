@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemAttachment, WorkItemComment, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemAttachment, WorkItemComment, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -31,7 +31,7 @@ const MAX_TIMEOUT_MS = 120_000
 const MAX_COMMENTS = 20
 /** Attachments retained per Work Item; only metadata and link are normalized. */
 const MAX_ATTACHMENTS = 20
-const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } }'
+const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } } cycle { name number startsAt endsAt isActive isPast }'
 
 /** Linear provider configuration. */
 export interface Config {
@@ -186,6 +186,7 @@ function mapIssue(value: unknown): WorkItem {
   const updatedAt = optionalTimestamp(input.updatedAt, 'updatedAt')
   const comments = mapComments(input.comments)
   const attachments = mapAttachments(input.attachments)
+  const iteration = mapIteration(input.cycle)
   return {
     id: providerItemId('linear:' + requiredString(input.id, 'id')),
     source: 'linear',
@@ -201,6 +202,23 @@ function mapIssue(value: unknown): WorkItem {
     ...(updatedAt === undefined ? {} : { updatedAt }),
     ...(comments.length === 0 ? {} : { comments }),
     ...(attachments.length === 0 ? {} : { attachments }),
+    ...(iteration === undefined ? {} : { iteration }),
+  }
+}
+
+/** Normalize a Linear cycle to the shared iteration shape. */
+function mapIteration(value: unknown): WorkItemIteration | undefined {
+  if (value === null || value === undefined) return undefined
+  const cycle = objectValue(value)
+  const number = cycle.number
+  const name = optionalString(cycle.name, 'iteration name')
+  const starts = optionalTimestamp(cycle.startsAt, 'startsAt')
+  const ends = optionalTimestamp(cycle.endsAt, 'endsAt')
+  return {
+    title: name ?? 'Cycle ' + String(typeof number === 'number' ? number : ''),
+    state: cycle.isActive === true ? 'active' : cycle.isPast === true ? 'completed' : 'upcoming',
+    ...(starts === undefined ? {} : { startsAt: starts }),
+    ...(ends === undefined ? {} : { endsAt: ends }),
   }
 }
 

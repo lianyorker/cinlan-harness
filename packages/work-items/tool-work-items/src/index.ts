@@ -136,6 +136,16 @@ const ITEM_SCHEMA = {
         },
       },
     },
+    iteration: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        title: { type: 'string', required: true },
+        state: { type: 'string' },
+        startsAt: { type: 'string' },
+        endsAt: { type: 'string' },
+      },
+    },
   },
 } as const
 
@@ -390,6 +400,7 @@ interface PublicItem {
   readonly updatedAt?: string
   readonly comments?: readonly PublicComment[]
   readonly attachments?: readonly PublicAttachment[]
+  readonly iteration?: PublicIteration
 }
 
 interface PublicComment {
@@ -405,6 +416,13 @@ interface PublicAttachment {
   readonly size?: number
   readonly mimeType?: string
   readonly createdAt?: string
+}
+
+interface PublicIteration {
+  readonly title: string
+  readonly state?: string
+  readonly startsAt?: string
+  readonly endsAt?: string
 }
 
 function itemValue(item: WorkItem): PublicItem {
@@ -424,6 +442,7 @@ function itemValue(item: WorkItem): PublicItem {
     ...(item.updatedAt === undefined ? {} : { updatedAt: item.updatedAt }),
     ...(item.comments === undefined ? {} : { comments: item.comments.map(comment => ({ ...comment })) }),
     ...(item.attachments === undefined ? {} : { attachments: item.attachments.map(attachment => ({ ...attachment })) }),
+    ...(item.iteration === undefined ? {} : { iteration: { ...item.iteration } }),
   }
 }
 
