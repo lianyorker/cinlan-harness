@@ -269,6 +269,18 @@ describe('WorkspaceFileSearch', () => {
     }
   })
 
+  it('skips non-file, non-directory entries regardless of platform Dirent support', async () => {
+    const root = await workspace()
+    const files = search(root)
+    const signal = new AbortController().signal
+    const special = { name: 'mystery', isDirectory: () => false, isFile: () => false, isSymbolicLink: () => true } as never
+
+    vi.mocked(readdir).mockResolvedValueOnce([special])
+    expect(await files.list('README', signal)).toEqual([])
+    vi.mocked(readdir).mockResolvedValueOnce([special])
+    expect(await files.list('src/', signal)).toEqual([])
+  })
+
   it('enforces the entry cap', async () => {
     const root = await workspace()
     const capped = search(root, { maxEntries: 2 })
