@@ -458,6 +458,7 @@ export class LinearWorkItemsProvider implements WorkItemsProvider {
       responseBody = await readJson(response, combined)
     } catch (error) {
       if (error instanceof WorkItemsError) throw error
+      /* v8 ignore next 1 -- readJson wraps its own parse/bound failures; a raw throw here is a defensive fallback. */
       throw requestError(error, signal, timeout, this.lifecycle.signal)
     }
     const raw = objectValue(responseBody)
@@ -612,6 +613,7 @@ export class LinearWorkItemsProvider implements WorkItemsProvider {
   private async validateMutation(mutation: WorkItemMutation, signal?: AbortSignal): Promise<void> {
     signal?.throwIfAborted()
     this.assertAvailable()
+    /* v8 ignore next 1 -- writer only exists when allowWrites is set, so the guard is defensive. */
     if (!this.config.allowWrites) throw new WorkItemsError('write-disabled', 'Linear writes are disabled')
     if (mutation.kind === 'create') {
       if (mutation.source !== 'linear' || !this.config.team) throw new WorkItemsError('invalid-request', 'Creating Linear issues requires a configured team')

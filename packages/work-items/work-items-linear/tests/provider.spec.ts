@@ -67,6 +67,37 @@ describe('LinearWorkItemsProvider', () => {
     await expect(writer.execute({ kind: 'comment', id: WorkItemId('linear:issue-1'), body: 'Review' })).rejects.toMatchObject({ code: 'forbidden' })
     expect(calls).toHaveLength(1)
     expect((JSON.parse(calls[0]?.init?.body as string) as { query: string }).query.startsWith('query')).toBe(true)
+    calls.length = 0
+    const projectWriter = new LinearWorkItemsProvider(context('fixture-token'), resolveLinearWorkItemsConfig({ team: 'team-1', project: 'project-1', allowWrites: true })).writer!
+    const mode = { update: 'success' as 'success' | 'fail' | 'mismatch' }
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      record(input instanceof Request ? input.url : String(input), init)
+      const request = JSON.parse(init?.body as string) as { query: string }
+      if (request.query.includes('workflowState')) return response({ data: { workflowState: { id: 'state-1', team: { id: 'team-1' } } } })
+      if (request.query.startsWith('query')) return response({ data: { issue: { id: 'issue-1', url: 'https://linear.app/acme/issue/ONE-1', team: { id: 'team-1' }, project: null } } })
+      if (request.query.includes('issueCreate')) return response({ data: { issueCreate: { success: false } } })
+      if (request.query.includes('commentCreate')) return response({ data: { commentCreate: { success: false } } })
+      if (mode.update === 'mismatch') return response({ data: { issueUpdate: { success: true, issue: { id: 'issue-9' } } } })
+      return response({ data: { issueUpdate: { success: mode.update === 'success' } } })
+    }))
+    await expect(writer.execute({ kind: 'create', source: 'linear', title: 'Title', body: 'Body' })).rejects.toMatchObject({ code: 'write-rejected' })
+    await expect(writer.execute({ kind: 'comment', id: WorkItemId('linear:issue-1'), body: 'Review' })).rejects.toMatchObject({ code: 'write-rejected' })
+    mode.update = 'fail'
+    await expect(writer.execute({ kind: 'state', id: WorkItemId('linear:issue-1'), state: 'state-1' })).rejects.toMatchObject({ code: 'write-rejected' })
+    mode.update = 'mismatch'
+    await expect(writer.execute({ kind: 'assign', id: WorkItemId('linear:issue-1'), assignees: ['00000000-0000-0000-0000-000000000001'] })).rejects.toMatchObject({ code: 'invalid-response' })
+    calls.length = 0
+    await expect(projectWriter.execute({ kind: 'create', source: 'linear', title: 'T', body: 'B' })).rejects.toMatchObject({ code: 'write-rejected' })
+    const projectCreate = calls.map(call => JSON.parse(call.init?.body as string) as { query: string; variables: { input?: Record<string, unknown> } }).find(call => call.query.includes('issueCreate'))
+    expect(projectCreate?.variables.input).toMatchObject({ projectId: 'project-1' })
+    await expect(writer.execute({ kind: 'create', source: 'github', title: 'T', body: 'B' })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(new LinearWorkItemsProvider(context('fixture-token'), resolveLinearWorkItemsConfig({ project: 'project-1', allowWrites: true })).writer!.execute({ kind: 'create', source: 'linear', title: 'T', body: 'B' })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(writer.execute({ kind: 'assign', id: WorkItemId('linear:issue-1'), assignees: ['not-a-uuid'] })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(writer.execute({ kind: 'assign', id: WorkItemId('linear:issue-1'), assignees: ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'] })).rejects.toMatchObject({ code: 'invalid-request' })
+    const projectScoped = new LinearWorkItemsProvider(context('fixture-token'), resolveLinearWorkItemsConfig({ project: 'project-1', allowWrites: true })).writer!
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { id: 'issue-1', url: 'https://linear.app/acme/issue/ONE-1', team: { id: 'team-1' }, project: { id: 'other-project' } }, workflowState: { id: 'state-1', team: { id: 'other' } } } })))
+    await expect(projectScoped.execute({ kind: 'comment', id: WorkItemId('linear:issue-1'), body: 'B' })).rejects.toMatchObject({ code: 'forbidden' })
+    await expect(writer.execute({ kind: 'state', id: WorkItemId('linear:issue-1'), state: 'state-1' })).rejects.toMatchObject({ code: 'invalid-request' })
   })
 
   it('maps GraphQL issue nodes and sends a fixed credentialed request', async () => {
@@ -401,10 +432,125 @@ describe('LinearWorkItemsProvider', () => {
     expect(projectBoards[0]?.columns[2]?.itemIds).toEqual(['linear:issue-s1'])
     expect(calls).toHaveLength(2)
     await expect(provider().boards({ board: 'Roadmap' })).resolves.toEqual([])
+    await expect(provider().boards({ board: 'Engineering' })).resolves.toHaveLength(1)
+    await expect(projectOnly.boards({ board: 'project-1' })).resolves.toHaveLength(1)
+    await expect(projectOnly.boards({ board: 'Roadmap' })).resolves.toHaveLength(1)
+    projectOnly.dispose()
+  })
+
+  it('rejects malformed board rows and caps buckets at the request limit', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      const request = JSON.parse(init?.body as string) as { query: string }
+      if (request.query.includes('team(id:')) {
+        return response({ data: { team: { name: 'Engineering', states: { nodes: [{ name: 'Backlog', position: 0 }, { name: 'Doing', position: 1 }, { name: 'Done', position: 2 }] } } } })
+      }
+      return response({ data: { issues: { nodes: 'bad' } } })
+    }))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      const request = JSON.parse(init?.body as string) as { query: string }
+      if (request.query.includes('team(id:')) {
+        return response({ data: { team: { name: 'Engineering', states: { nodes: [{ name: 'Backlog', position: 0 }, { name: 'Doing', position: 1 }, { name: 'Done', position: 2 }] } } } })
+      }
+      return response({ data: { issues: { nodes: [
+        { id: 'issue-a', state: { name: 'Backlog', type: 'backlog' } },
+        { id: 'issue-b', state: { name: 'Backlog', type: 'backlog' } },
+        { id: 'issue-c', state: { name: 'Backlog', type: 'backlog' } },
+      ] } } })
+    }))
+    const capped = await provider().boards({ limit: 1 })
+    expect(capped[0]?.columns[0]?.itemIds).toEqual(['linear:issue-a'])
+  })
+
+  it('classifies GraphQL error codes, body read failures, and malformed boards', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => response({ errors: [{ message: 'bad input', extensions: { code: 'BAD_USER_INPUT' } }] })))
+    await expect(provider().list({ source: 'linear' })).rejects.toMatchObject({ code: 'write-rejected' })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{broken json', { status: 200 })))
+    await expect(provider().list({ source: 'linear' })).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new ReadableStream({ start: (controller) => { controller.enqueue(new TextEncoder().encode('{')); controller.error(new Error('stream died')) } }), { status: 200 })))
+    await expect(provider().list({ source: 'linear' })).rejects.toMatchObject({ code: 'provider-failed' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { team: { name: 'Engineering', states: { nodes: 'bad' } } } })))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      const request = JSON.parse(init?.body as string) as { query: string }
+      if (request.query.includes('team(id:')) {
+        return response({ data: { team: { name: 'Engineering', states: { nodes: [{ name: 'NoPos' }, { name: 'First', position: -1 }] } } } })
+      }
+      return response({ data: { issues: { nodes: [] } } })
+    }))
+    const board = await provider().boards({})
+    expect(board[0]?.columns.map(column => column.title)).toEqual(['First', 'NoPos'])
+    const projectOnly = new LinearWorkItemsProvider(context('secret'), resolveLinearWorkItemsConfig({ project: 'project-1' }))
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { project: null } })))
+    await expect(projectOnly.boards({})).rejects.toMatchObject({ code: 'not-found' })
+    await expect(projectOnly.boards({ board: 'zzz' })).rejects.toMatchObject({ code: 'not-found' })
+    projectOnly.dispose()
+  })
+
+  it('rejects foreign ids and missing issues on scoped mutations', async () => {
+    const writer = new LinearWorkItemsProvider(context('fixture-token'), resolveLinearWorkItemsConfig({ team: 'team-1', allowWrites: true })).writer!
+    await expect(writer.execute({ kind: 'comment', id: WorkItemId('github:acme/repo#1'), body: 'B' })).rejects.toMatchObject({ code: 'invalid-request' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: null } })))
+    await expect(writer.execute({ kind: 'comment', id: WorkItemId('linear:missing'), body: 'B' })).rejects.toMatchObject({ code: 'not-found' })
   })
 
   it('reports a missing team as not-found on the board read', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => response({ data: { team: null } })))
     await expect(provider().boards({})).rejects.toMatchObject({ code: 'not-found' })
+  })
+
+  it('covers writer validation, attachment bounds, and the team-name selector', async () => {
+    const writer = new LinearWorkItemsProvider(context('fixture-token'), resolveLinearWorkItemsConfig({ team: 'team-1', allowWrites: true })).writer!
+    await expect(writer.validate({ kind: 'comment', id: WorkItemId('github:acme/repo#1'), body: 'B' })).rejects.toMatchObject({ code: 'invalid-request' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { ...linearIssue(), attachments: { nodes: 'bad' } } } })))
+    await expect(provider().get({ id: WorkItemId('linear:issue-1') })).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { ...linearIssue(), attachments: { nodes: [{ url: 'https://x.test/a' }] } } } })))
+    const got = await provider().get({ id: WorkItemId('linear:issue-1') })
+    expect(got.attachments).toEqual([{ url: 'https://x.test/a' }])
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { ...linearIssue(), comments: { nodes: 'bad' } } } })))
+    await expect(provider().get({ id: WorkItemId('linear:issue-1') })).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { ...linearIssue(), comments: { nodes: [{}] } } } })))
+    const sparse = await provider().get({ id: WorkItemId('linear:issue-1') })
+    expect(sparse.comments).toEqual([{ body: '' }])
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { ...linearIssue(), comments: { nodes: [{ user: {}, body: 'hi' }] }, cycle: { isActive: false, isPast: true, startsAt: '2026-01-01T00:00:00Z' } } } })))
+    const cycled = await provider().get({ id: WorkItemId('linear:issue-1') })
+    expect(cycled.comments).toEqual([{ author: '', body: 'hi' }])
+    expect(cycled.iteration).toEqual({ title: 'Cycle ', state: 'completed', startsAt: '2026-01-01T00:00:00Z' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { ...linearIssue(), cycle: { number: 7, name: 'Sprint 7', isActive: true } } } })))
+    const active = await provider().get({ id: WorkItemId('linear:issue-1') })
+    expect(active.iteration).toEqual({ title: 'Sprint 7', state: 'active' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { ...linearIssue(), cycle: { number: 7 } } } })))
+    const numbered = await provider().get({ id: WorkItemId('linear:issue-1') })
+    expect(numbered.iteration).toEqual({ title: 'Cycle 7', state: 'upcoming' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { ...linearIssue(), parent: { id: '' }, priority: 0, team: null } } })))
+    const barren = await provider().get({ id: WorkItemId('linear:issue-1') })
+    expect(barren).not.toHaveProperty('parentId')
+    expect(barren).not.toHaveProperty('priority')
+    expect(barren).not.toHaveProperty('repository')
+    for (const [priority, label] of [[2, 'high'], [3, 'medium'], [4, 'low']] as const) {
+      vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { ...linearIssue(), priority } } })))
+      const prioritized = await provider().get({ id: WorkItemId('linear:issue-1') })
+      expect(prioritized.priority).toBe(label)
+    }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 400 })))
+    await expect(provider().list({ source: 'linear' })).rejects.toMatchObject({ code: 'write-rejected' })
+    const namedProject = new LinearWorkItemsProvider(context('secret'), resolveLinearWorkItemsConfig({ project: 'project-1' }))
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { project: { name: 'Roadmap' } } })))
+    await expect(namedProject.boards({ board: 'zzz' })).resolves.toEqual([])
+    namedProject.dispose()
+    expect(() => resolveLinearWorkItemsConfig({ allowWrites: 'yes' } as never)).toThrow(/allowWrites must be boolean/)
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { ...linearIssue(), relations: { nodes: 'bad' } } } })))
+    await expect(provider().get({ id: WorkItemId('linear:issue-1') })).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { ...linearIssue(), project: {} } } })))
+    const scoped = await provider().get({ id: WorkItemId('linear:issue-1') })
+    expect(scoped.repository).toBe('Engineering')
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      const request = JSON.parse(init?.body as string) as { query: string }
+      if (request.query.includes('team(id:')) {
+        return response({ data: { team: { name: 'Engineering', states: { nodes: [{ name: 'Todo', position: 0 }] } } } })
+      }
+      return response({ data: { issues: { nodes: [] } } })
+    }))
+    await expect(provider().boards({ board: 'Engineering' })).resolves.toHaveLength(1)
   })
 })
