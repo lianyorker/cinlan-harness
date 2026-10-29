@@ -168,6 +168,7 @@ describe('LinearWorkItemsProvider', () => {
       dueDate: '2026-02-15',
       estimate: 5,
       project: { name: 'Checkout' },
+      parent: { id: 'issue-parent' },
     }
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       record(input instanceof Request ? input.url : String(input), init)
@@ -186,6 +187,7 @@ describe('LinearWorkItemsProvider', () => {
     expect(detail.dueAt).toBe('2026-02-15')
     expect(detail.repository).toBe('Checkout')
     expect(detail.estimate).toEqual({ points: 5 })
+    expect(detail.parentId).toBe('linear:issue-parent')
     expect(JSON.parse(requestBody())).toMatchObject({ query: expect.stringContaining('comments(last: 20)') as unknown, variables: { id: 'issue-get' } })
     expect(JSON.parse(requestBody())).toMatchObject({ query: expect.stringContaining('attachments(last: 20)') as unknown })
     vi.stubGlobal('fetch', vi.fn(async () => response({ data: {} })))

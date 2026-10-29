@@ -462,6 +462,7 @@ interface PublicItem {
   readonly priority?: string
   readonly dueAt?: string
   readonly estimate?: PublicEstimate
+  readonly parentId?: string
 }
 
 interface PublicEstimate {
@@ -512,6 +513,7 @@ function itemValue(item: WorkItem): PublicItem {
     ...(item.priority === undefined ? {} : { priority: item.priority }),
     ...(item.dueAt === undefined ? {} : { dueAt: item.dueAt }),
     ...(item.estimate === undefined ? {} : { estimate: { ...item.estimate } }),
+    ...(item.parentId === undefined ? {} : { parentId: item.parentId }),
   }
 }
 

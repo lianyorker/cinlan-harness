@@ -44,6 +44,8 @@ export interface WorkItem {
   readonly dueAt?: string
   /** Effort estimate in the provider's native unit; omitted when the source reports none. */
   readonly estimate?: WorkItemEstimate
+  /** Parent item id in this provider's id space; omitted when the item has no parent or the source cannot express it. */
+  readonly parentId?: WorkItemId
 }
 
 /** Normalized effort estimate; each provider fills only the slot matching its native unit. */

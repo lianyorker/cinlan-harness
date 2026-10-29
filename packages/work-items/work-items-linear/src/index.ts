@@ -31,7 +31,7 @@ const MAX_TIMEOUT_MS = 120_000
 const MAX_COMMENTS = 20
 /** Attachments retained per Work Item; only metadata and link are normalized. */
 const MAX_ATTACHMENTS = 20
-const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } } cycle { name number startsAt endsAt isActive isPast } priority dueDate project { name } team { name } estimate'
+const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } } cycle { name number startsAt endsAt isActive isPast } priority dueDate project { name } team { name } estimate parent { id }'
 
 /** Linear provider configuration. */
 export interface Config {
@@ -191,6 +191,7 @@ function mapIssue(value: unknown): WorkItem {
   const dueAt = optionalTimestamp(input.dueDate, 'dueAt')
   const repository = mapScope(input.project, input.team)
   const estimate = mapEstimate(input.estimate)
+  const parentId = mapParent(input.parent)
   return {
     id: providerItemId('linear:' + requiredString(input.id, 'id')),
     source: 'linear',
@@ -211,7 +212,16 @@ function mapIssue(value: unknown): WorkItem {
     ...(dueAt === undefined ? {} : { dueAt }),
     ...(repository === undefined ? {} : { repository }),
     ...(estimate === undefined ? {} : { estimate }),
+    ...(parentId === undefined ? {} : { parentId }),
   }
+}
+
+/** Normalize the Linear parent issue reference to this provider's id space. */
+function mapParent(value: unknown): ReturnType<typeof WorkItemId> | undefined {
+  if (value === null || value === undefined) return undefined
+  const id = objectValue(value).id
+  if (typeof id !== 'string' || id.length === 0 || id.length > MAX_TEXT_LENGTH) return undefined
+  return providerItemId('linear:' + id)
 }
 
 /** Normalize the Linear estimate points field; zero means unset. */

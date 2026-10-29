@@ -136,6 +136,12 @@ describe('GitHubWorkItemsProvider', () => {
     vi.stubGlobal('fetch', vi.fn(async () => response(issue(7))))
     await expect(provider().get({ id: WorkItemId('github:acme/repo#7') })).resolves.toMatchObject({ id: 'github:acme/repo#7' })
 
+    vi.stubGlobal('fetch', vi.fn(async () => response({ ...issue(7), parent: { number: 2, html_url: 'https://github.com/acme/repo/issues/2' } })))
+    await expect(provider().get({ id: WorkItemId('github:acme/repo#7') })).resolves.toMatchObject({ parentId: 'github:acme/repo#2' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ ...issue(7), parent: { number: 3, html_url: 'https://github.com/other/repo/issues/3' } })))
+    const crossRepo = await provider().get({ id: WorkItemId('github:acme/repo#7') })
+    expect(crossRepo).not.toHaveProperty('parentId')
+
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       record(input instanceof Request ? input.url : String(input), init)
       const url = input instanceof Request ? input.url : String(input)

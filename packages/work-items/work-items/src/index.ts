@@ -112,6 +112,13 @@ function providerItem(value: unknown, source: WorkItemSource): WorkItem {
   const repository = providerOptionalText(item.repository, 'item repository')
   const createdAt = providerTimestamp(item.createdAt, 'item creation time')
   const updatedAt = providerTimestamp(item.updatedAt, 'item update time')
+  const parent = item.parentId
+  const parentId = parent === undefined
+    ? undefined
+    : providerText(parent, 'parent item id')
+  if (parentId !== undefined && (parentId.length > MAX_WORK_ITEM_ID || !parentId.startsWith(source + ':'))) {
+    throw new WorkItemsError('invalid-response', 'Work Items provider returned an invalid parent item id')
+  }
   return {
     id: WorkItemId(rawId),
     source,
@@ -126,6 +133,7 @@ function providerItem(value: unknown, source: WorkItemSource): WorkItem {
     assignees: providerStrings(item.assignees, 'assignees'),
     ...(createdAt === undefined ? {} : { createdAt }),
     ...(updatedAt === undefined ? {} : { updatedAt }),
+    ...(parentId === undefined ? {} : { parentId: WorkItemId(parentId) }),
   }
 }
 

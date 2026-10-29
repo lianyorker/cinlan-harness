@@ -250,6 +250,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   const priority = mapPriority(fields.priority)
   const dueAt = optionalTimestamp(fields.duedate, 'dueAt')
   const estimate = mapEstimate(fields.timeoriginalestimate)
+  const parentId = mapParent(fields.parent)
   return {
     id: providerItemId('jira:' + key),
     source: 'jira',
@@ -269,7 +270,16 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
     ...(priority === undefined ? {} : { priority }),
     ...(dueAt === undefined ? {} : { dueAt }),
     ...(estimate === undefined ? {} : { estimate }),
+    ...(parentId === undefined ? {} : { parentId }),
   }
+}
+
+/** Normalize the Jira parent issue reference; parents outside issue shape are omitted. */
+function mapParent(value: unknown): ReturnType<typeof WorkItemId> | undefined {
+  if (value === null || value === undefined) return undefined
+  const key = objectValue(value).key
+  if (typeof key !== 'string' || key.length === 0 || key.length > MAX_TEXT_LENGTH) return undefined
+  return providerItemId('jira:' + key)
 }
 
 /** Normalize the Jira original-estimate seconds field. */
@@ -369,7 +379,7 @@ function requestError(error: unknown, signal: AbortSignal | undefined, timedOut:
   return new WorkItemsError('provider-failed', 'Jira Work Items request failed', { cause: error })
 }
 
-const ISSUE_FIELDS = 'summary,description,status,labels,assignee,priority,duedate,timeoriginalestimate,created,updated,comment,attachment'
+const ISSUE_FIELDS = 'summary,description,status,labels,assignee,priority,duedate,timeoriginalestimate,created,updated,comment,attachment,parent'
 /** Boards discovered per boards read. */
 const MAX_BOARD_FETCH = 5
 /** Columns retained per board. */

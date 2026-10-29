@@ -191,6 +191,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem | undefined 
   const createdAt = optionalTimestamp(input.created_at, 'createdAt')
   const updatedAt = optionalTimestamp(input.updated_at, 'updatedAt')
   const iteration = mapIteration(input.milestone)
+  const parentId = mapParent(input.parent, config)
   return {
     id: providerItemId('github:' + config.owner + '/' + config.repository + '#' + String(number)),
     source: 'github',
@@ -206,7 +207,19 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem | undefined 
     ...(createdAt === undefined ? {} : { createdAt }),
     ...(updatedAt === undefined ? {} : { updatedAt }),
     ...(iteration === undefined ? {} : { iteration }),
+    ...(parentId === undefined ? {} : { parentId }),
   }
+}
+
+/** Normalize the issue `parent` payload to this repository's id space; cross-repository parents are omitted. */
+function mapParent(value: unknown, config: ResolvedConfig): ReturnType<typeof WorkItemId> | undefined {
+  if (value === null || value === undefined) return undefined
+  const parent = objectValue(value)
+  const number = parent.number
+  if (typeof number !== 'number' || !Number.isSafeInteger(number) || number < 1) return undefined
+  const url = parent.html_url
+  if (typeof url !== 'string' || !url.startsWith('https://github.com/' + config.owner + '/' + config.repository + '/issues/')) return undefined
+  return providerItemId('github:' + config.owner + '/' + config.repository + '#' + String(number))
 }
 
 /** Normalize a GitHub milestone to the shared iteration shape. */
