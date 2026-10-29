@@ -527,8 +527,14 @@ export class GitHubWorkItemsProvider implements WorkItemsProvider {
     }
     const limit = requestLimit(request.limit, DEFAULT_BOARD_ITEMS, MAX_BOARD_ITEMS)
     const listData = await this.graphql({
-      query: 'query($owner: String!, $name: String!, $first: Int!) { repository(owner: $owner, name: $name) { owner { login projectsV2(first: $first) { nodes { id number title } } } } }',
-      variables: { owner: this.config.owner, name: this.config.repository, first: MAX_BOARD_FETCH },
+      query: 'query($owner: String!, $name: String!, $first: Int!, $fields: Int!, $items: Int!) { repository(owner: $owner, name: $name) { owner { login projectsV2(first: $first) { nodes { id number title fields(first: $fields) { nodes { __typename name ... on ProjectV2SingleSelectField { options { name } } } } items(first: $items) { nodes { fieldValues(first: 20) { nodes { __typename ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } } content { __typename ... on Issue { number } } } } } } } } } }',
+      variables: {
+        owner: this.config.owner,
+        name: this.config.repository,
+        first: MAX_BOARD_FETCH,
+        fields: MAX_BOARD_COLUMNS * 2,
+        items: MAX_BOARD_ITEMS_FETCH,
+      },
     }, signal)
     const ownerNode = objectValue(objectValue(listData.repository).owner)
     const projects = objectValue(ownerNode.projectsV2)
@@ -544,12 +550,7 @@ export class GitHubWorkItemsProvider implements WorkItemsProvider {
       const project = objectValue(node)
       const projectId = requiredString(project.id, 'board id')
       const number = project.number
-      const detail = await this.graphql({
-        query: 'query($id: ID!, $fields: Int!, $items: Int!) { node(id: $id) { ... on ProjectV2 { fields(first: $fields) { nodes { __typename name ... on ProjectV2SingleSelectField { options { name } } } } items(first: $items) { nodes { fieldValues(first: 20) { nodes { __typename ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } } content { __typename ... on Issue { number } } } } } } }',
-        variables: { id: projectId, fields: MAX_BOARD_COLUMNS * 2, items: MAX_BOARD_ITEMS_FETCH },
-      }, signal)
-      const detailNode = objectValue(detail.node)
-      const fields = objectValue(detailNode.fields)
+      const fields = objectValue(project.fields)
       if (!Array.isArray(fields.nodes) || fields.nodes.length > MAX_BOARD_COLUMNS * 2) throw new WorkItemsError('invalid-response', 'GitHub board fields were invalid or exceeded their bound')
       const selectFields = fields.nodes
         .filter(field => objectValue(field).__typename === 'ProjectV2SingleSelectField')
@@ -559,7 +560,7 @@ export class GitHubWorkItemsProvider implements WorkItemsProvider {
       if (!Array.isArray(status.options) || status.options.length > MAX_BOARD_COLUMNS) {
         throw new WorkItemsError('invalid-response', 'GitHub board columns were invalid or exceeded their bound')
       }
-      const itemNodes = objectValue(detailNode.items).nodes
+      const itemNodes = objectValue(project.items).nodes
       if (!Array.isArray(itemNodes) || itemNodes.length > MAX_BOARD_ITEMS_FETCH) throw new WorkItemsError('invalid-response', 'GitHub board items were invalid or exceeded their bound')
       const byColumn = new Map<string, ReturnType<typeof WorkItemId>[]>()
       for (const item of itemNodes) {

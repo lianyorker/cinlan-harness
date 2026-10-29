@@ -338,20 +338,25 @@ describe('GitHubWorkItemsProvider', () => {
       record(input instanceof Request ? input.url : String(input), init)
       const request = JSON.parse(init?.body as string) as { query: string }
       if (request.query.includes('projectsV2')) {
-        return response({ data: { repository: { owner: { login: 'acme', projectsV2: { nodes: [{ id: 'PV_1', number: 3, title: 'Roadmap' }] } } } } })
-      }
-      if (request.query.includes('node(id:')) {
         return response({
           data: {
-            node: {
-              fields: { nodes: [{ __typename: 'ProjectV2SingleSelectField', name: 'Status', options: [{ name: 'Todo' }, { name: 'In Progress' }, { name: 'Done' }] }] },
-              items: {
-                nodes: [
-                  { fieldValues: { nodes: [{ __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'Todo', field: { name: 'Status' } }] }, content: { __typename: 'Issue', number: 7 } },
-                  { fieldValues: { nodes: [{ __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'In Progress', field: { name: 'Status' } }] }, content: { __typename: 'Issue', number: 9 } },
-                  { fieldValues: { nodes: [] }, content: { __typename: 'Issue', number: 11 } },
-                  { fieldValues: { nodes: [{ __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'Done', field: { name: 'Status' } }] }, content: { __typename: 'DraftIssue' } },
-                ],
+            repository: {
+              owner: {
+                login: 'acme',
+                projectsV2: {
+                  nodes: [{
+                    id: 'PV_1', number: 3, title: 'Roadmap',
+                    fields: { nodes: [{ __typename: 'ProjectV2SingleSelectField', name: 'Status', options: [{ name: 'Todo' }, { name: 'In Progress' }, { name: 'Done' }] }] },
+                    items: {
+                      nodes: [
+                        { fieldValues: { nodes: [{ __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'Todo', field: { name: 'Status' } }] }, content: { __typename: 'Issue', number: 7 } },
+                        { fieldValues: { nodes: [{ __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'In Progress', field: { name: 'Status' } }] }, content: { __typename: 'Issue', number: 9 } },
+                        { fieldValues: { nodes: [] }, content: { __typename: 'Issue', number: 11 } },
+                        { fieldValues: { nodes: [{ __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'Done', field: { name: 'Status' } }] }, content: { __typename: 'DraftIssue' } },
+                      ],
+                    },
+                  }],
+                },
               },
             },
           },
@@ -368,7 +373,7 @@ describe('GitHubWorkItemsProvider', () => {
     expect(boards[0]?.columns[0]?.itemIds).toEqual(['github:acme/repo#7'])
     expect(boards[0]?.columns[1]?.itemIds).toEqual(['github:acme/repo#9'])
     expect(boards[0]?.columns[2]?.itemIds).toEqual([])
-    expect(calls).toHaveLength(2)
+    expect(calls).toHaveLength(1)
     expect(calls[0]?.url).toBe('https://api.github.com/graphql')
     calls.length = 0
     await expect(provider().boards({ board: 'Roadmap' })).resolves.toHaveLength(1)
