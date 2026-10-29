@@ -52,6 +52,7 @@ allowWrites 默认为 false；启用后仅由公共服务的预览/确认 API �
 - 工单 priority 整数映射为标准化标签——`urgent`、`high`、`medium` 或 `low`；未设置时省略。
 - 工单 `dueDate` 以标准化 `dueAt` 字段暴露。
 - `repository` 槽位在工单归属 project 时暴露 project 名称，否则暴露 team 名称。
+- `estimate` 以 `estimate.points` 暴露；未设置或为零时省略。
 
 
 <a id="开发备注"></a>

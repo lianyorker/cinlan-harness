@@ -51,6 +51,7 @@ None; credential resolution and GitHub requests do not change the model request 
 - The issue milestone surfaces as normalized iteration metadata — title, state, and due date.
 - GitHub issues carry no native priority field; priority is not inferred from labels.
 - GitHub issues carry no due-date field; milestone due dates surface under `iteration` instead.
+- GitHub issues carry no estimate field.
 
 
 <a id="dev-note"></a>

@@ -62,6 +62,7 @@ kind: "package-reference"
 - 工单 iteration 以标准化迭代元数据暴露，缺失时回退 milestone——标题、状态和起止日期。
 - GitLab issue 没有原生 priority 字段，不从 label 推断优先级。
 - 工单 `due_date` 以标准化 `dueAt` 字段暴露。
+- `time_estimate` 以 `estimate.seconds` 暴露。
 
 <a id="dev-note"></a>
 ### 开发备注

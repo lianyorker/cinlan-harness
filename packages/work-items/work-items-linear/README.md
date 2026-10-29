@@ -52,6 +52,7 @@ None; credential resolution and Linear requests do not change the model request 
 - The issue priority integer maps to a normalized label — `urgent`, `high`, `medium`, or `low`; unset priority is omitted.
 - The issue `dueDate` surfaces as the normalized `dueAt` field.
 - The `repository` slot carries the project name when the issue belongs to a project, otherwise the team name.
+- `estimate` surfaces as `estimate.points`; an unset or zero estimate is omitted.
 
 
 <a id="dev-note"></a>

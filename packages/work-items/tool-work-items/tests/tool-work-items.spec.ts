@@ -33,6 +33,7 @@ const item: WorkItem = {
   iteration: { title: 'v2.0', state: 'open', endsAt: '2026-02-01T00:00:00Z' },
   priority: 'high',
   dueAt: '2026-02-15',
+  estimate: { points: 5 },
 }
 
 const operation: WorkItemWriteOperation = {

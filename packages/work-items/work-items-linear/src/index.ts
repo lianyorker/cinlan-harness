@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemAttachment, WorkItemComment, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemAttachment, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -31,7 +31,7 @@ const MAX_TIMEOUT_MS = 120_000
 const MAX_COMMENTS = 20
 /** Attachments retained per Work Item; only metadata and link are normalized. */
 const MAX_ATTACHMENTS = 20
-const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } } cycle { name number startsAt endsAt isActive isPast } priority dueDate project { name } team { name }'
+const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } } cycle { name number startsAt endsAt isActive isPast } priority dueDate project { name } team { name } estimate'
 
 /** Linear provider configuration. */
 export interface Config {
@@ -190,6 +190,7 @@ function mapIssue(value: unknown): WorkItem {
   const priority = mapPriority(input.priority)
   const dueAt = optionalTimestamp(input.dueDate, 'dueAt')
   const repository = mapScope(input.project, input.team)
+  const estimate = mapEstimate(input.estimate)
   return {
     id: providerItemId('linear:' + requiredString(input.id, 'id')),
     source: 'linear',
@@ -209,7 +210,14 @@ function mapIssue(value: unknown): WorkItem {
     ...(priority === undefined ? {} : { priority }),
     ...(dueAt === undefined ? {} : { dueAt }),
     ...(repository === undefined ? {} : { repository }),
+    ...(estimate === undefined ? {} : { estimate }),
   }
+}
+
+/** Normalize the Linear estimate points field; zero means unset. */
+function mapEstimate(value: unknown): WorkItemEstimate | undefined {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) return undefined
+  return { points: value }
 }
 
 /** Normalize the scoping container to the shared repository slot; the project wins over the team. */

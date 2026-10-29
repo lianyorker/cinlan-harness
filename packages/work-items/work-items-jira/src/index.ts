@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemAttachment, WorkItemComment, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemAttachment, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -249,6 +249,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   const attachments = mapAttachments(fields.attachment)
   const priority = mapPriority(fields.priority)
   const dueAt = optionalTimestamp(fields.duedate, 'dueAt')
+  const estimate = mapEstimate(fields.timeoriginalestimate)
   return {
     id: providerItemId('jira:' + key),
     source: 'jira',
@@ -267,7 +268,14 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
     ...(attachments.length === 0 ? {} : { attachments }),
     ...(priority === undefined ? {} : { priority }),
     ...(dueAt === undefined ? {} : { dueAt }),
+    ...(estimate === undefined ? {} : { estimate }),
   }
+}
+
+/** Normalize the Jira original-estimate seconds field. */
+function mapEstimate(value: unknown): WorkItemEstimate | undefined {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) return undefined
+  return { seconds: value }
 }
 
 /** Normalize the Jira priority object to its display label. */
@@ -361,7 +369,7 @@ function requestError(error: unknown, signal: AbortSignal | undefined, timedOut:
   return new WorkItemsError('provider-failed', 'Jira Work Items request failed', { cause: error })
 }
 
-const ISSUE_FIELDS = 'summary,description,status,labels,assignee,priority,duedate,created,updated,comment,attachment'
+const ISSUE_FIELDS = 'summary,description,status,labels,assignee,priority,duedate,timeoriginalestimate,created,updated,comment,attachment'
 
 /** Jira REST provider for one configured project on one site. */
 export class JiraWorkItemsProvider implements WorkItemsProvider {

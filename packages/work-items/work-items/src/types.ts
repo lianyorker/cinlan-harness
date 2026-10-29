@@ -42,6 +42,16 @@ export interface WorkItem {
   readonly priority?: string
   /** Due date as the provider reports it — ISO date or timestamp; omitted when the source has none. */
   readonly dueAt?: string
+  /** Effort estimate in the provider's native unit; omitted when the source reports none. */
+  readonly estimate?: WorkItemEstimate
+}
+
+/** Normalized effort estimate; each provider fills only the slot matching its native unit. */
+export interface WorkItemEstimate {
+  /** Story points, as reported by point-based trackers like Linear. */
+  readonly points?: number
+  /** Seconds, as reported by time-based trackers like Jira and GitLab. */
+  readonly seconds?: number
 }
 
 /** One normalized iteration assignment on a provider item. */

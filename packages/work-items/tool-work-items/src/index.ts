@@ -148,6 +148,14 @@ const ITEM_SCHEMA = {
     },
     priority: { type: 'string' },
     dueAt: { type: 'string' },
+    estimate: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        points: { type: 'number' },
+        seconds: { type: 'number' },
+      },
+    },
   },
 } as const
 
@@ -405,6 +413,12 @@ interface PublicItem {
   readonly iteration?: PublicIteration
   readonly priority?: string
   readonly dueAt?: string
+  readonly estimate?: PublicEstimate
+}
+
+interface PublicEstimate {
+  readonly points?: number
+  readonly seconds?: number
 }
 
 interface PublicComment {
@@ -449,6 +463,7 @@ function itemValue(item: WorkItem): PublicItem {
     ...(item.iteration === undefined ? {} : { iteration: { ...item.iteration } }),
     ...(item.priority === undefined ? {} : { priority: item.priority }),
     ...(item.dueAt === undefined ? {} : { dueAt: item.dueAt }),
+    ...(item.estimate === undefined ? {} : { estimate: { ...item.estimate } }),
   }
 }
 

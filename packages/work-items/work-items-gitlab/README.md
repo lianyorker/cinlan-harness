@@ -62,6 +62,7 @@ This provider registers no model-request prefix and does not replace existing re
 - The issue iteration surfaces as normalized iteration metadata with milestone as fallback — title, state, and date bounds.
 - GitLab issues carry no native priority field; priority is not inferred from labels.
 - The issue `due_date` surfaces as the normalized `dueAt` field.
+- `time_estimate` surfaces as `estimate.seconds`.
 
 <a id="dev-note"></a>
 ### Dev Note

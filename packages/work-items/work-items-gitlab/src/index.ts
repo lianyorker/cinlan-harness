@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemComment, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -207,6 +207,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   const updatedAt = optionalTimestamp(input.updated_at, 'updatedAt')
   const iteration = mapIteration(input.iteration, input.milestone)
   const dueAt = optionalTimestamp(input.due_date, 'dueAt')
+  const estimate = mapEstimate(input.time_estimate)
   return {
     id: providerItemId('gitlab:' + config.owner + '/' + config.repository + '#' + String(iid)),
     source: 'gitlab',
@@ -223,7 +224,14 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
     ...(updatedAt === undefined ? {} : { updatedAt }),
     ...(iteration === undefined ? {} : { iteration }),
     ...(dueAt === undefined ? {} : { dueAt }),
+    ...(estimate === undefined ? {} : { estimate }),
   }
+}
+
+/** Normalize the GitLab time_estimate seconds field; zero means unset. */
+function mapEstimate(value: unknown): WorkItemEstimate | undefined {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) return undefined
+  return { seconds: value }
 }
 
 /** Normalize GitLab iteration or milestone to the shared iteration shape; iteration wins when both exist. */
