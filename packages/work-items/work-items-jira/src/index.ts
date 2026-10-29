@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemAttachment, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemAttachment, WorkItemBoard, WorkItemBoardRequest, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -370,6 +370,15 @@ function requestError(error: unknown, signal: AbortSignal | undefined, timedOut:
 }
 
 const ISSUE_FIELDS = 'summary,description,status,labels,assignee,priority,duedate,timeoriginalestimate,created,updated,comment,attachment'
+/** Boards discovered per boards read. */
+const MAX_BOARD_FETCH = 5
+/** Columns retained per board. */
+const MAX_BOARD_COLUMNS = 20
+/** Issues fetched per board read; one bounded page, never paginated. */
+const MAX_BOARD_ISSUES = 500
+/** Default and maximum item ids retained per board column. */
+const DEFAULT_BOARD_ITEMS = 50
+const MAX_BOARD_ITEMS = 100
 
 /** Jira REST provider for one configured project on one site. */
 export class JiraWorkItemsProvider implements WorkItemsProvider {
@@ -496,6 +505,67 @@ export class JiraWorkItemsProvider implements WorkItemsProvider {
     const nextPageToken = page.nextPageToken
     const hasMore = page.isLast === false && typeof nextPageToken === 'string' && nextPageToken.length > 0 && nextPageToken.length <= MAX_CURSOR_LENGTH
     return { items: filtered, ...(hasMore ? { nextCursor: nextPageToken } : {}), truncated: false }
+  }
+
+  /** Read bounded project boards through the Jira Software agile API with status-mapped columns. */
+  async boards(request: WorkItemBoardRequest = {}, signal?: AbortSignal): Promise<WorkItemBoard[]> {
+    this.assertAvailable()
+    if (request.source !== undefined && request.source !== 'jira') throw new WorkItemsError('invalid-request', 'requested Work Items source is not Jira')
+    if (request.board !== undefined
+      && (request.board.length === 0 || request.board.length > 100 || request.board.trim() !== request.board)) {
+      throw new WorkItemsError('invalid-request', 'Work Items board selector is invalid')
+    }
+    const limit = requestLimit(request.limit, DEFAULT_BOARD_ITEMS, MAX_BOARD_ITEMS)
+    const discovery = await this.request('/rest/agile/1.0/board?projectKeyOrId=' + encodeURIComponent(this.config.project) + '&maxResults=' + String(MAX_BOARD_FETCH), signal)
+    const values = objectValue(discovery).values
+    if (!Array.isArray(values) || values.length > MAX_BOARD_FETCH) throw new WorkItemsError('invalid-response', 'Jira board list was invalid or exceeded its bound')
+    const selected = request.board === undefined
+      ? values
+      : values.filter((entry) => {
+        const board = objectValue(entry)
+        return String(board.id) === request.board || board.name === request.board
+      })
+    const boards: WorkItemBoard[] = []
+    for (const entry of selected) {
+      const board = objectValue(entry)
+      const id = board.id
+      if (typeof id !== 'number' || !Number.isSafeInteger(id) || id < 1) throw new WorkItemsError('invalid-response', 'Jira returned an invalid board id')
+      const configuration = await this.request('/rest/agile/1.0/board/' + String(id) + '/configuration', signal)
+      const columns = objectValue(objectValue(configuration).columnConfig).columns
+      if (!Array.isArray(columns) || columns.length > MAX_BOARD_COLUMNS) throw new WorkItemsError('invalid-response', 'Jira board columns were invalid')
+      const statusOwners = new Map<string, number>()
+      const titles = columns.map((column, index) => {
+        const entry2 = objectValue(column)
+        const statuses = entry2.statuses
+        if (Array.isArray(statuses)) {
+          for (const status of statuses) {
+            const statusId = objectValue(status).id
+            if (typeof statusId === 'string' && statusId.length > 0) statusOwners.set(statusId, index)
+          }
+        }
+        return requiredString(entry2.name, 'board column title')
+      })
+      const issuesRaw = await this.request('/rest/agile/1.0/board/' + String(id) + '/issue?maxResults=' + String(MAX_BOARD_ISSUES) + '&fields=status', signal)
+      const issues = objectValue(issuesRaw).issues
+      if (!Array.isArray(issues) || issues.length > MAX_BOARD_ISSUES) throw new WorkItemsError('invalid-response', 'Jira board issues were invalid')
+      const itemIds: WorkItemId[][] = titles.map(() => [])
+      for (const issue of issues) {
+        const entry2 = objectValue(issue)
+        const statusId = objectValue(objectValue(entry2.fields).status).id
+        const key = entry2.key
+        const columnIndex = typeof statusId === 'string' ? statusOwners.get(statusId) : undefined
+        const columnIds = columnIndex === undefined ? undefined : itemIds[columnIndex]
+        if (columnIds === undefined || typeof key !== 'string' || columnIds.length >= limit) continue
+        columnIds.push(WorkItemId('jira:' + key))
+      }
+      boards.push({
+        id: String(id),
+        title: requiredString(board.name, 'board title'),
+        url: this.config.origin + '/secure/RapidBoard.jspa?rapidView=' + String(id),
+        columns: titles.map((title, index) => ({ title, itemIds: itemIds[index] ?? [] })),
+      })
+    }
+    return boards
   }
 
   private issueKey(id: string): string {

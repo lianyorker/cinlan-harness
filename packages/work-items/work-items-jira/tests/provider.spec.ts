@@ -319,6 +319,45 @@ describe('JiraWorkItemsProvider', () => {
     expect(plain).not.toHaveProperty('estimate')
   })
 
+  it('maps agile boards with status-mapped columns and bounded item ids', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      record(input instanceof Request ? input.url : String(input), init)
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.includes('/rest/agile/1.0/board?')) return response({ values: [{ id: 3, name: 'Delivery' }] })
+      if (url.includes('/rest/agile/1.0/board/3/configuration')) {
+        return response({ columnConfig: { columns: [
+          { name: 'Backlog', statuses: [{ id: '10000' }] },
+          { name: 'Doing', statuses: [{ id: '10001' }, { id: '10002' }] },
+          { name: 'Done', statuses: [{ id: '10003' }] },
+        ] } })
+      }
+      return response({ issues: [
+        { key: 'ENG-7', fields: { status: { id: '10001' } } },
+        { key: 'ENG-8', fields: { status: { id: '10000' } } },
+        { key: 'ENG-9', fields: { status: { id: '10001' } } },
+        { key: 'ENG-10', fields: { status: { id: '19999' } } },
+      ] })
+    }))
+    const boards = await provider().boards({ source: 'jira' })
+    expect(boards).toEqual([{
+      id: '3', title: 'Delivery', url: ORIGIN + '/secure/RapidBoard.jspa?rapidView=3',
+      columns: [
+        { title: 'Backlog', itemIds: ['jira:ENG-8'] },
+        { title: 'Doing', itemIds: ['jira:ENG-7', 'jira:ENG-9'] },
+        { title: 'Done', itemIds: [] },
+      ],
+    }])
+    expect(calls[0]?.url).toContain('/rest/agile/1.0/board?projectKeyOrId=ENG&maxResults=5')
+    expect(calls[1]?.url).toContain('/rest/agile/1.0/board/3/configuration')
+    expect(calls[2]?.url).toContain('/rest/agile/1.0/board/3/issue?maxResults=500&fields=status')
+
+    const selected = await provider().boards({ board: '3', limit: 1 })
+    expect(selected[0]?.columns[1]?.itemIds).toEqual(['jira:ENG-7'])
+    await expect(provider().boards({ source: 'github' as never })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(provider().boards({ board: ' ' })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(provider().boards({ limit: 0 })).rejects.toMatchObject({ code: 'invalid-request' })
+  })
+
   it('maps get responses and rejects ids outside the configured project', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       record(input instanceof Request ? input.url : String(input), init)
