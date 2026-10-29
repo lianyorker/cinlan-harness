@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import WorkItemsRuntime, { WorkItemId, WorkItemsError } from '../src/index.ts'
-import type { WorkItem, WorkItemMutation, WorkItemsWriter, WorkItemWriteId } from '../src/types.ts'
+import type { WorkItem, WorkItemMutation, WorkItemsProvider, WorkItemsWriter, WorkItemWriteId } from '../src/types.ts'
 import { workItemWriteDomain } from '../src/write-domain.ts'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 
@@ -27,7 +27,7 @@ async function harness(pool = new MemoryMediaPool(), writerOverride?: Partial<Wo
     execute: vi.fn(async () => ({ itemId: current.id, url: current.url })), ...writerOverride,
   }
   const get = vi.fn(async () => current)
-  const provider = { id: current.source, available: () => true, list: async () => ({ items: [current], truncated: false }), get, writer }
+  const provider = { id: current.source, available: () => true, list: async () => ({ items: [current], truncated: false }), get, writer } satisfies WorkItemsProvider
   ctx.workItems.registerProvider(provider)
   return { ctx, service: ctx.workItems, get, writer, provider, pool }
 }
@@ -180,6 +180,63 @@ describe('durable Work Items write approval', () => {
     ;(draft.mutation as { body: string }).body = 'tampered'
     expect((await h.service.confirmWrite(draft.operationId)).mutation).toEqual(comment)
     await expect(h.service.listWrites('github', 101)).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(h.service.listWrites('github', 0)).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(h.service.listWrites('github', 1.5)).rejects.toMatchObject({ code: 'invalid-request' })
     expect(await h.service.listWrites('linear', 5)).toEqual([])
+  })
+
+  it('covers source arms, missing writers, bad receipts, aborts, and terminal cancels', async () => {
+    const h = await harness()
+    ;(h.provider as { writer: WorkItemsWriter | undefined }).writer = undefined
+    await expect(h.service.prepareWrite(comment)).rejects.toMatchObject({ code: 'write-disabled' })
+    await expect(h.service.prepareWrite({ kind: 'comment', id: WorkItemId('jira:ENG-1'), body: 'b' })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(h.service.prepareWrite({ kind: 'comment', id: WorkItemId('linear:x'), body: 'b' })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(h.service.prepareWrite({ kind: 'comment', id: WorkItemId('bogus:x'), body: 'b' })).rejects.toMatchObject({ code: 'invalid-request' })
+    h.provider.writer = h.writer
+    const prepared = await h.service.prepareWrite(comment)
+    ;(h.provider as { writer: WorkItemsWriter | undefined }).writer = undefined
+    expect(await h.service.confirmWrite(prepared.operationId)).toMatchObject({ status: 'failed', errorCode: 'write-disabled' })
+    h.provider.writer = h.writer
+    const second = await h.service.prepareWrite(comment)
+    h.provider.writer = { ...h.writer, execute: vi.fn(async () => ({ itemId: WorkItemId('linear:other#9'), url: item.url })) }
+    expect(await h.service.confirmWrite(second.operationId)).toMatchObject({ status: 'unknown', errorCode: 'invalid-response' })
+    const third = await h.service.prepareWrite(comment)
+    h.provider.writer = { ...h.writer, execute: vi.fn(async () => ({ itemId: item.id, url: 'http://insecure/x' })) }
+    expect(await h.service.confirmWrite(third.operationId)).toMatchObject({ status: 'unknown', errorCode: 'invalid-response' })
+    const fourth = await h.service.prepareWrite(comment)
+    h.provider.writer = { ...h.writer, execute: vi.fn(async () => ({ itemId: WorkItemId('github:acme/repo#9'), url: item.url })) }
+    expect(await h.service.confirmWrite(fourth.operationId)).toMatchObject({ status: 'unknown', errorCode: 'invalid-response' })
+    const fifth = await h.service.prepareWrite(comment)
+    const controller = new AbortController()
+    h.provider.writer = { ...h.writer, execute: vi.fn(async () => { controller.abort(); throw new Error('late') }) }
+    expect(await h.service.confirmWrite(fifth.operationId, controller.signal)).toMatchObject({ errorCode: 'aborted' })
+    const sixth = await h.service.prepareWrite(comment)
+    h.provider.writer = h.writer
+    expect((await h.service.confirmWrite(sixth.operationId)).status).toBe('succeeded')
+    expect((await h.service.cancelWrite(sixth.operationId)).status).toBe('succeeded')
+  })
+
+  it('persists targets without timestamps and rejects work after disposal', async () => {
+    const { updatedAt: _stamp, ...unstamped } = item
+    const h = await harness(undefined, undefined, undefined, unstamped)
+    const prepared = await h.service.prepareWrite(comment)
+    expect(prepared.target).toEqual({ id: item.id, title: item.title })
+    await h.ctx.fiber.dispose()
+    const restarted = await harness(h.pool, undefined, undefined, unstamped)
+    expect((await restarted.service.listWrites('github', 5))[0]?.target).toEqual({ id: item.id, title: item.title })
+    await restarted.ctx.fiber.dispose()
+    await expect(h.service.prepareWrite(comment)).rejects.toMatchObject({ code: 'unavailable' })
+    const closing = await harness()
+    let release!: () => void
+    const gate = new Promise<void>((done) => { release = done })
+    closing.provider.writer = { ...closing.writer, validate: vi.fn(async () => { await gate }) }
+    const held = closing.service.prepareWrite(comment)
+    await vi.waitFor(() => { expect(closing.provider.writer.validate).toHaveBeenCalled() })
+    const racing = closing.service.prepareWrite(comment)
+    const disposing = closing.ctx.fiber.dispose()
+    release()
+    await expect(held).rejects.toThrow()
+    await expect(racing).rejects.toMatchObject({ code: 'unavailable' })
+    await disposing
   })
 })

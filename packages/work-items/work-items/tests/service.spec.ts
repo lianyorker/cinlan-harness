@@ -82,6 +82,8 @@ describe('WorkItemsRuntime', () => {
 
   it('rejects invalid configuration and branded ids', async () => {
     expect(() => new WorkItemsRuntime(new Context(), { provider: 'other' as never })).toThrow(/github, gitlab, jira, or linear/)
+    expect(() => new WorkItemsRuntime(new Context(), { writeApprovalTtlMs: 1 })).not.toThrow()
+    expect(() => new WorkItemsRuntime(new Context(), {})).not.toThrow()
     expect(() => new WorkItemsRuntime(new Context(), { extra: true } as never)).toThrow(/unsupported config key/)
     expect(() => WorkItemId('')).toThrow(/non-empty/)
     expect(() => WorkItemId(' github:one')).toThrow(/trimmed/)
@@ -216,6 +218,47 @@ describe('WorkItemsRuntime', () => {
       list: async () => ({ items: [item('github')], truncated: false }),
       get: async () => item('github'),
     })
+    await fiber.dispose()
+  })
+
+  it('rejects invalid approval TTL and malformed board containers', async () => {
+    expect(() => new WorkItemsRuntime(new Context(), { writeApprovalTtlMs: 0 })).toThrow(/writeApprovalTtlMs/)
+    const ctx = new Context()
+    const fiber = await ctx.plugin(WorkItemsRuntime)
+    const github = boardProvider('github')
+    ctx.workItems.registerProvider(github)
+    for (const boards of [
+      'not-an-array',
+      Array.from({ length: 11 }, () => ({ id: '1', title: 't', columns: [] })),
+      [{ id: '1', title: 't', columns: 'x' }],
+      [{ id: '1', title: 't', columns: Array.from({ length: 21 }, () => ({ title: 'c', itemIds: [] })) }],
+      [{ id: '1', title: 't', url: 'http://gitlab.com/b', columns: [] }],
+      [{ id: '1', title: 't', columns: [{ title: 'c', itemIds: 'x' }] }],
+      [{ id: '1', title: 't', columns: [{ title: 'c', itemIds: Array.from({ length: 101 }, () => 'github:acme/repo#1') }] }],
+      [{ id: '1', title: 't', columns: [{ title: 'c', itemIds: ['github:' + 'x'.repeat(500)] }] }],
+      [{ id: '1', title: 't', columns: [{ title: 'c', itemIds: [' github:acme/repo#1'] }] }],
+      [{ id: '1', title: 't', columns: [{ title: 'c', itemIds: ['gitlab:acme/repo#1'] }] }],
+    ]) {
+      github.boards = vi.fn(async () => boards as never)
+      await expect(ctx.workItems.boards({ source: 'github' })).rejects.toMatchObject({ code: 'invalid-response' })
+    }
+    github.boards = vi.fn(async () => [{ id: '1', title: 't', columns: [] }])
+    expect(await ctx.workItems.boards({ source: 'github' })).toEqual([{ id: '1', title: 't', columns: [] }])
+    await fiber.dispose()
+  })
+
+  it('rebuilds parent, link, and logged-work fields on items', async () => {
+    const ctx = new Context()
+    const fiber = await ctx.plugin(WorkItemsRuntime)
+    const github = provider('github')
+    github.get = vi.fn(async () => ({ ...completeItem('github'), parentId: WorkItemId('github:acme/repo#0'), links: [{ type: 'relates', itemId: WorkItemId('github:acme/repo#7') }], timeSpent: 1800 }))
+    ctx.workItems.registerProvider(github)
+    const detail = await ctx.workItems.get({ id: WorkItemId('github:one') })
+    expect(detail.parentId).toBe('github:acme/repo#0')
+    expect(detail.links).toEqual([{ type: 'relates', itemId: 'github:acme/repo#7' }])
+    expect(detail.timeSpent).toBe(1800)
+    github.get = vi.fn(async () => ({ ...completeItem('github'), links: [] }))
+    expect((await ctx.workItems.get({ id: WorkItemId('github:one') }))).not.toHaveProperty('links')
     await fiber.dispose()
   })
 })

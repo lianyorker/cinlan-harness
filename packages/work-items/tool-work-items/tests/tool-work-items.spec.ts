@@ -241,6 +241,70 @@ describe('tool-work-items execution', () => {
     expect(JSON.stringify(history.value)).not.toContain('GITHUB_TOKEN')
   })
 
+  it('normalizes absent fields, scope variants, and mutation kinds', async () => {
+    const { ctx, service } = await setup()
+    service.prepareWrite.mockImplementation(async (mutation: WorkItemMutation) => ({ ...operation, mutation }))
+    success(await call(ctx, 'work_items_list', {}))
+    expect(service.list).toHaveBeenLastCalledWith({}, expect.any(AbortSignal))
+    success(await call(ctx, 'work_items_list', { scope: { source: 'gitlab', owner: 'g', repository: 'r' } }))
+    expect(service.list).toHaveBeenLastCalledWith({ scope: { source: 'gitlab', owner: 'g', repository: 'r' } }, expect.any(AbortSignal))
+    success(await call(ctx, 'work_items_list', { scope: { source: 'jira', project: 'P' } }))
+    expect(service.list).toHaveBeenLastCalledWith({ scope: { source: 'jira', project: 'P' } }, expect.any(AbortSignal))
+    success(await call(ctx, 'work_items_list', { scope: { source: 'linear', project: 'p1' } }))
+    success(await call(ctx, 'work_items_list', { scope: { source: 'linear', team: 't1', project: 'p1' } }))
+    expect(service.list).toHaveBeenLastCalledWith({ scope: { source: 'linear', team: 't1', project: 'p1' } }, expect.any(AbortSignal))
+    for (const args of [
+      { source: 'bogus' },
+      { board: '  padded' },
+      { limit: 0 },
+    ]) {
+      expect((await call(ctx, 'work_items_boards', args)).isError).toBe(true)
+    }
+    expect((await call(ctx, 'work_items_list_writes', { source: 'bogus', limit: 1 })).isError).toBe(true)
+    expect((await call(ctx, 'work_items_list', { query: 5 })).isError).toBe(true)
+    expect((await call(ctx, 'work_items_prepare_write', { mutation: { kind: 'comment', id: item.id, body: ' ' } })).isError).toBe(true)
+    const created = success(await call(ctx, 'work_items_prepare_write', { mutation: { kind: 'create', source: 'jira', title: 'T', body: 'b' } }))
+    expect(created.value).toMatchObject({ operation: { mutation: { kind: 'create', source: 'jira', title: 'T', body: 'b' } } })
+    const stated = success(await call(ctx, 'work_items_prepare_write', { mutation: { kind: 'state', id: item.id, state: 'closed' } }))
+    expect(stated.value).toMatchObject({ operation: { mutation: { kind: 'state', id: item.id, state: 'closed' } } })
+    const assigned = success(await call(ctx, 'work_items_prepare_write', { mutation: { kind: 'assign', id: item.id, assignees: ['a', 'b'] } }))
+    expect(assigned.value).toMatchObject({ operation: { mutation: { kind: 'assign', id: item.id, assignees: ['a', 'b'] } } })
+    expect((await call(ctx, 'work_items_prepare_write', { mutation: { kind: 'assign', id: item.id, assignees: Array.from({ length: 11 }, () => 'a') } })).isError).toBe(true)
+    expect((await call(ctx, 'work_items_prepare_write', { mutation: { kind: 'bogus' } })).isError).toBe(true)
+  })
+
+  it('serializes minimal items, boards, and present views', async () => {
+    const service = serviceMock()
+    service.get.mockResolvedValue({ id: item.id, source: 'github', externalId: '7', title: 't', state: 'open', url: 'u', labels: [], assignees: [] })
+    service.boards.mockResolvedValue([{ id: '1', title: 'B', columns: [{ title: 'C', itemIds: [] }] }])
+    service.list.mockResolvedValue({ items: [], truncated: true })
+    const { ctx } = await setup(service)
+    const detail = success(await call(ctx, 'work_items_get', { id: item.id }))
+    expect(detail.value).toEqual({ id: item.id, source: 'github', externalId: '7', title: 't', state: 'open', url: 'u', labels: [], assignees: [] })
+    const boards = success(await call(ctx, 'work_items_boards', {}))
+    expect(boards.value).toEqual({ boards: [{ id: '1', title: 'B', columns: [{ title: 'C', itemIds: [] }] }] })
+    const listed = success(await call(ctx, 'work_items_list', {}))
+    expect(listed.value).toEqual({ items: [], truncated: true })
+    expect(ctx.tools.get('work_items_boards')?.presentCall?.({ board: '12' })).toMatchObject({ title: 'Read Work Item Boards', kind: 'read' })
+    expect(ctx.tools.get('work_items_get')?.presentCall?.({ id: item.id })).toMatchObject({ title: `Get Work Item ${item.id}`, kind: 'read' })
+    expect(ctx.tools.get('work_items_cancel_write')?.presentCall?.({ operation_id: operation.operationId })).toMatchObject({ title: `Cancel Work Items operation ${operation.operationId}`, kind: 'delete' })
+    expect(ctx.tools.get('work_items_list_writes')?.presentCall?.({ source: 'github', limit: 20 })).toMatchObject({ title: 'List github Work Items writes', kind: 'read' })
+    expect(ctx.tools.get('work_items_list')?.presentCall?.({ scope: { source: 'linear', team: 't1' } })).toMatchObject({ rawInput: 'linear' })
+    expect(ctx.tools.get('work_items_list')?.presentCall?.({})).toEqual({ card: 'generic', title: 'List Work Items', kind: 'read' })
+    expect((await call(ctx, 'work_items_list', { query: 'x'.repeat(20_001) })).isError).toBe(true)
+    service.get.mockResolvedValue({ id: item.id, source: 'github', externalId: '7', title: 't', state: 'open', url: 'u', labels: [], assignees: [], parentId: WorkItemId('gitlab:acme/repo#9') })
+    const child = success(await call(ctx, 'work_items_get', { id: item.id }))
+    expect(child.value).toMatchObject({ parentId: 'gitlab:acme/repo#9' })
+    const { target: _target, ...targetless } = operation
+    service.confirmWrite.mockResolvedValue({ ...targetless, status: 'succeeded' })
+    const receipt = success(await call(ctx, 'work_items_confirm_write', { operation_id: operation.operationId }))
+    expect(receipt.value).toMatchObject({ operation: { status: 'succeeded' } })
+    expect(receipt.value).not.toHaveProperty('operation.target')
+    service.confirmWrite.mockResolvedValue({ ...operation, status: 'succeeded', target: { id: item.id, title: item.title } })
+    const staleTarget = success(await call(ctx, 'work_items_confirm_write', { operation_id: operation.operationId }))
+    expect(staleTarget.value).toMatchObject({ operation: { target: { id: item.id, title: item.title } } })
+  })
+
   it('keeps an unknown receipt terminal and never creates a replacement mutation', async () => {
     const service = serviceMock()
     service.confirmWrite.mockResolvedValue({ ...operation, status: 'unknown', errorCode: 'provider-failed' })

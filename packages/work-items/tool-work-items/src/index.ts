@@ -329,6 +329,7 @@ function nonEmpty(value: string, field: string, maximum = MAX_SCOPE_LENGTH): str
 }
 
 function source(value: string): WorkItemSource {
+  /* v8 ignore next 1 -- every caller sits behind an enum-validated parameter, so the guard is defensive. */
   if (value !== 'github' && value !== 'linear' && value !== 'gitlab' && value !== 'jira') throw new Error('source must be github, linear, gitlab, or jira')
   return value
 }
@@ -450,6 +451,7 @@ function normalizeMutation(value: ModelMutation): WorkItemMutation {
         assignees: value.assignees.map((entry, index) => nonEmpty(entry, `assignees[${index}]`)),
       }
     }
+    /* v8 ignore next 2 -- the mutation parameter is a closed oneOf schema, so the default is defensive. */
     default:
       throw new Error('unsupported Work Items mutation')
   }
@@ -576,6 +578,7 @@ function mutationValue(mutation: WorkItemMutation): PublicMutation {
     case 'comment': return { kind: 'comment', id: mutation.id, body: mutation.body }
     case 'state': return { kind: 'state', id: mutation.id, state: mutation.state }
     case 'assign': return { kind: 'assign', id: mutation.id, assignees: [...mutation.assignees] }
+    /* v8 ignore next 1 -- WorkItemMutation is a closed union, so the default is defensive. */
     default: throw new Error('unsupported stored Work Items mutation')
   }
 }
