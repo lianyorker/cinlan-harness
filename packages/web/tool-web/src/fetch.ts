@@ -255,6 +255,9 @@ function renderBody(body: WebFetchBody, maxInputChars: number): RenderedBody {
       }
     case 'text':
       return { text: content, sourceTruncated }
+    case 'pdf':
+      // Provider-extracted plain text; passes through verbatim like `text`.
+      return { text: content, sourceTruncated }
     /* v8 ignore next 2 -- WebFetchBody is a closed union; this arm is unreachable and only makes adding a kind a compile error. */
     default:
       return assertNever(body, 'unhandled web fetch body kind')
@@ -482,6 +485,14 @@ export function applyWebFetchTool(ctx: Context, timeoutMs: number, maxOutputChar
                 additionalProperties: false,
                 properties: {
                   kind: { type: 'string', required: true, const: 'text' },
+                  content: { type: 'string', required: true },
+                },
+              },
+              {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  kind: { type: 'string', required: true, const: 'pdf' },
                   content: { type: 'string', required: true },
                 },
               },

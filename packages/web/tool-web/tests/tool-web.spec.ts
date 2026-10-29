@@ -225,6 +225,15 @@ describe('fetch formatting', () => {
     expect(out).toContain('Content truncated')
   })
 
+  it('passes extracted PDF text through verbatim', () => {
+    const out = formatFetchOutput({
+      url: 'https://a.test/doc.pdf', statusCode: 200, truncated: false,
+      body: { kind: 'pdf', content: 'extracted pdf text' },
+    }, NO_CAP)
+    expect(out).toContain('extracted pdf text')
+    expect(out).not.toContain('Content truncated')
+  })
+
   it('caps the complete output and notes truncation, even when markdown escaping expands the body', () => {
     // 1,000 underscores render as 2,000 escaped characters — conversion can
     // outgrow a provider-side body cap, so the bound applies to the output.

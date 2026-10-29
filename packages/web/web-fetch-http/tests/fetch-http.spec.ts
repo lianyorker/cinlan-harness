@@ -25,6 +25,33 @@ const limits: HttpFetchLimits = {
   userAgent: 'test-agent/1.0',
 }
 
+/** A one-page PDF drawing "Hello PDF" in Helvetica, built with correct xref offsets for pdf.js. */
+function minimalPdf(): Buffer {
+  const stream = 'BT /F1 24 Tf 100 700 Td (Hello PDF) Tj ET'
+  const objects = [
+    '<</Type/Catalog/Pages 2 0 R>>',
+    '<</Type/Pages/Kids[3 0 R]/Count 1>>',
+    '<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>',
+    `<</Length ${stream.length}>>\nstream\n${stream}\nendstream`,
+    '<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>',
+  ]
+  const encoder = new TextEncoder()
+  const parts: Uint8Array[] = [encoder.encode('%PDF-1.4\n')]
+  const offsets: number[] = []
+  let length = parts[0].length
+  objects.forEach((body, index) => {
+    offsets.push(length)
+    const chunk = encoder.encode(`${index + 1} 0 obj\n${body}\nendobj\n`)
+    parts.push(chunk)
+    length += chunk.length
+  })
+  const xrefStart = length
+  const rows = ['0000000000 65535 f ', ...offsets.map(offset => String(offset).padStart(10, '0') + ' 00000 n ')]
+  const trailer = `xref\n0 ${objects.length + 1}\n${rows.join('\n')}\ntrailer\n<</Size ${objects.length + 1}/Root 1 0 R>>\nstartxref\n${xrefStart}\n%%EOF\n`
+  parts.push(encoder.encode(trailer))
+  return Buffer.concat(parts)
+}
+
 type Handler = (req: IncomingMessage, res: ServerResponse) => void
 
 let server: Server
@@ -70,6 +97,8 @@ describe('policy helpers', () => {
     expect(classifyContentType('application/xhtml+xml')).toBe('html')
     expect(classifyContentType('text/plain')).toBe('text')
     expect(classifyContentType('application/json')).toBe('text')
+    expect(classifyContentType('application/pdf')).toBe('pdf')
+    expect(classifyContentType('application/pdf; name="doc.pdf"')).toBe('pdf')
     expect(classifyContentType('image/png')).toBeUndefined()
     expect(classifyContentType(null)).toBeUndefined()
   })
@@ -270,6 +299,19 @@ describe('HttpFetchProvider success', () => {
     handler = (_req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end('<h1>hi</h1>') }
     const result = await provider().fetch({ url: base })
     expect(result.body).toEqual({ kind: 'html', content: '<h1>hi</h1>' })
+  })
+
+  it('extracts text from a PDF body through pdf.js', async () => {
+    handler = (_req, res) => { res.writeHead(200, { 'content-type': 'application/pdf' }); res.end(minimalPdf()) }
+    const result = await provider().fetch({ url: base })
+    expect(result.body.kind).toBe('pdf')
+    expect(result.body.content).toContain('Hello PDF')
+    expect(result.truncated).toBe(false)
+  })
+
+  it('maps an unparseable PDF body to a provider error', async () => {
+    handler = (_req, res) => { res.writeHead(200, { 'content-type': 'application/pdf' }); res.end('not a pdf') }
+    await expect(provider().fetch({ url: base })).rejects.toThrow(expect.objectContaining({ code: 'WEB_PROVIDER_ERROR' }))
   })
 
   it('uses an explicitly injected validated-address resolver', async () => {

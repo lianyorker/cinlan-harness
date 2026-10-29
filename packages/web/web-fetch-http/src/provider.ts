@@ -14,6 +14,7 @@ import { proxyRouteFor } from '@deepseek-ai/dsh-http-proxy'
 import { isNonPublicIpLiteral, publicHttpNetwork } from './network.ts'
 import type { PublicAddress } from './network.ts'
 import { classifyContentType, decoderForCharset, isSameOrigin, parseCharset, validateFetchUrl } from './policy.ts'
+import { extractPdfText } from './pdf.ts'
 
 /** Resolved provider limits (the plugin's schemastery Config supplies defaults). */
 export interface HttpFetchLimits {
@@ -150,6 +151,19 @@ export class HttpFetchProvider implements WebFetchProvider {
     if (kind === undefined) {
       await response.body?.cancel()
       throw new WebError(`unsupported content type "${contentType ?? 'unknown'}"`, 'WEB_UNSUPPORTED_CONTENT_TYPE')
+    }
+
+    // PDF bodies are binary and never reach the charset decoder: read the
+    // byte-capped body first, then extract text with pdf.js.
+    if (kind === 'pdf') {
+      const { bytes, truncatedByBytes } = await this.readCapped(response, signal)
+      const extracted = await extractPdfText(bytes, this.limits.maxBodyChars, signal)
+      return {
+        url: finalUrl.toString(),
+        statusCode: response.status,
+        body: { kind: 'pdf', content: extracted.content },
+        truncated: truncatedByBytes || extracted.truncated,
+      }
     }
 
     // Resolve the decoder BEFORE reading the body so an unsupported charset

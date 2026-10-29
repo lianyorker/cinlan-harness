@@ -150,7 +150,7 @@ These limits define when the service is incomplete on its own. They are current 
 
 - **No observation surface** — there is no provider-change event and no capability-status query; availability is observable only by running a search or fetch and routing the thrown code, and the no-provider failure is the generic `WEB_PROVIDER_UNAVAILABLE` with no per-provider reason enumeration ([Agent Note](../../../.agents/notes/archived/simplification/2026-07-04-drop-unconsumed-web-observation-surface.md)).
 - **Search requests carry only `query` and `maxResults`** — provider-neutral controls (recency, domain filters, regional hints, search depth) are deferred until the backends can honor them ([seam Agent Note](../../../.agents/notes/implemented/architecture/2026-06-24-web-capability-seam.md)).
-- **`WebFetchBody` has no `pdf` arm** — text-extractable PDF support is named deferred work; the closed union makes adding it a compile-enforced change across the web packages.
+- **`WebFetchBody` carries a `pdf` arm** — `application/pdf` bodies decode to provider-extracted plain text through `dsh-web-fetch-http`; page order is preserved under the same byte/character bounds.
 - **Provider-backed page extraction is out of scope of `fetch()`** — a Firecrawl/Tavily-style `web_extract` capability is deferred rather than widening the fetch operation.
 
 <a id="dev-note"></a>

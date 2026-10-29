@@ -52,11 +52,11 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### What a fetch returns
 
-A successful call yields a `WebFetchResult`: the final URL after allowed redirects, the HTTP status code, a decoded body classified as `html` or `text`, and a `truncated` flag. A non-2xx response is a result, not an error — the status code is part of the fetched resource state; `WebError` is reserved for failures to safely retrieve or represent the resource.
+A successful call yields a `WebFetchResult`: the final URL after allowed redirects, the HTTP status code, a decoded body classified as `html`, `text`, or `pdf`, and a `truncated` flag. A non-2xx response is a result, not an error — the status code is part of the fetched resource state; `WebError` is reserved for failures to safely retrieve or represent the resource.
 
 ```text
 const page = await ctx.web.fetch({ url: 'https://example.com' })
-// page.body.kind === 'html' | 'text'; page.statusCode === 200 | 404 | ...
+// page.body.kind === 'html' | 'text' | 'pdf'; page.statusCode === 200 | 404 | ...
 ```
 
 ### Transport behavior
@@ -131,7 +131,7 @@ No direct invalidation; the named consumer owns any request-prefix changes.
 
 These limits define when the provider is unsafe or a poor fit. They are current package constraints.
 
-- **Only textual content decodes** — html/xhtml and `text/*` plus JSON/XML families; a missing `Content-Type` or any binary type throws `WEB_UNSUPPORTED_CONTENT_TYPE`, and text-extractable PDF decoding is named deferred work.
+- **Only textual content decodes** — html/xhtml, `text/*` plus JSON/XML families, and `application/pdf` (extracted to plain text through pdf.js, page order preserved, same character bound); a missing `Content-Type` or any other binary type throws `WEB_UNSUPPORTED_CONTENT_TYPE`.
 - **Charset comes only from the `Content-Type` header** (UTF-8 default) — an HTML `<meta charset>` declaration is ignored, and a declared-but-unrecognized charset label throws rather than falling back.
 
 <a id="dev-note"></a>

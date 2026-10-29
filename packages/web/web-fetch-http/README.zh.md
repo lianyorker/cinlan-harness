@@ -52,11 +52,11 @@ kind: "package-reference"
 
 ### 抓取返回什么
 
-成功调用产生 `WebFetchResult`：允许的重定向之后的最终 URL、HTTP 状态码、分类为 `html` 或 `text` 的解码正文，以及 `truncated` 标志。非 2xx 响应是结果而非错误——状态码是被抓取资源状态的一部分；`WebError` 只用于无法安全获取或表示资源的失败。
+成功调用产生 `WebFetchResult`：允许的重定向之后的最终 URL、HTTP 状态码、分类为 `html`、`text` 或 `pdf` 的解码正文，以及 `truncated` 标志。非 2xx 响应是结果而非错误——状态码是被抓取资源状态的一部分；`WebError` 只用于无法安全获取或表示资源的失败。
 
 ```text
 const page = await ctx.web.fetch({ url: 'https://example.com' })
-// page.body.kind === 'html' | 'text'; page.statusCode === 200 | 404 | ...
+// page.body.kind === 'html' | 'text' | 'pdf'; page.statusCode === 200 | 404 | ...
 ```
 
 ### 传输行为
@@ -131,7 +131,7 @@ const page = await ctx.web.fetch({ url: 'https://example.com' })
 
 这些限制说明提供方何时不安全或不合适。它们是当前包约束。
 
-- **只解码文本内容**——包括 html/xhtml 与 `text/*` 加 JSON/XML 家族；缺少 `Content-Type` 或任何二进制类型都会抛出 `WEB_UNSUPPORTED_CONTENT_TYPE`，可提取文本的 PDF 解码属于明确的延期工作。
+- **只解码文本内容**——包括 html/xhtml、`text/*` 加 JSON/XML 家族，以及 `application/pdf`（经 pdf.js 提取为纯文本，保留页序，沿用同一字符限界）；缺少 `Content-Type` 或其余二进制类型都会抛出 `WEB_UNSUPPORTED_CONTENT_TYPE`。
 - **charset 只来自 `Content-Type` 标头**（默认 UTF-8）——HTML `<meta charset>` 声明会被忽略；声明但无法识别的 charset 标签会抛出异常，而非回退。
 
 <a id="dev-note"></a>
