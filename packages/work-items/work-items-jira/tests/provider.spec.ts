@@ -293,6 +293,7 @@ describe('JiraWorkItemsProvider', () => {
           { filename: 'shot.png', content: 'https://jira.example.com/rest/api/3/attachment/content/102' },
         ],
         priority: { name: 'High' },
+        duedate: '2026-02-15',
       },
     }
     vi.stubGlobal('fetch', vi.fn(async () => response(commented)))
@@ -306,11 +307,13 @@ describe('JiraWorkItemsProvider', () => {
     expect(item.attachments?.[1]).toMatchObject({ name: 'shot.png' })
     expect(item.attachments?.[1]).not.toHaveProperty('size')
     expect(item.priority).toBe('High')
+    expect(item.dueAt).toBe('2026-02-15')
     vi.stubGlobal('fetch', vi.fn(async () => response(issue('ENG-9'))))
     const plain = await provider().get({ id: 'jira:ENG-9' as never })
     expect(plain).not.toHaveProperty('comments')
     expect(plain).not.toHaveProperty('attachments')
     expect(plain).not.toHaveProperty('priority')
+    expect(plain).not.toHaveProperty('dueAt')
   })
 
   it('maps get responses and rejects ids outside the configured project', async () => {
@@ -319,7 +322,7 @@ describe('JiraWorkItemsProvider', () => {
       return response(issue('ENG-7'))
     }))
     await expect(provider().get({ id: WorkItemId('jira:ENG-7') })).resolves.toMatchObject({ id: 'jira:ENG-7' })
-    expect(calls[0]?.url).toBe(ORIGIN + '/rest/api/3/issue/ENG-7?fields=summary,description,status,labels,assignee,priority,created,updated,comment,attachment')
+    expect(calls[0]?.url).toBe(ORIGIN + '/rest/api/3/issue/ENG-7?fields=summary,description,status,labels,assignee,priority,duedate,created,updated,comment,attachment')
     await expect(provider().get({ id: WorkItemId('jira:OPS-7') })).rejects.toMatchObject({ code: 'invalid-request' })
     await expect(provider().get({ id: WorkItemId('invalid') })).rejects.toMatchObject({ code: 'invalid-request' })
   })

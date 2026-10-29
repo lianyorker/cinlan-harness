@@ -147,6 +147,7 @@ const ITEM_SCHEMA = {
       },
     },
     priority: { type: 'string' },
+    dueAt: { type: 'string' },
   },
 } as const
 
@@ -403,6 +404,7 @@ interface PublicItem {
   readonly attachments?: readonly PublicAttachment[]
   readonly iteration?: PublicIteration
   readonly priority?: string
+  readonly dueAt?: string
 }
 
 interface PublicComment {
@@ -446,6 +448,7 @@ function itemValue(item: WorkItem): PublicItem {
     ...(item.attachments === undefined ? {} : { attachments: item.attachments.map(attachment => ({ ...attachment })) }),
     ...(item.iteration === undefined ? {} : { iteration: { ...item.iteration } }),
     ...(item.priority === undefined ? {} : { priority: item.priority }),
+    ...(item.dueAt === undefined ? {} : { dueAt: item.dueAt }),
   }
 }
 

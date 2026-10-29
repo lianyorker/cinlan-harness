@@ -32,6 +32,7 @@ const item: WorkItem = {
   attachments: [{ name: 'trace.log', url: 'https://example.com/trace.log', size: 4096, mimeType: 'text/plain' }],
   iteration: { title: 'v2.0', state: 'open', endsAt: '2026-02-01T00:00:00Z' },
   priority: 'high',
+  dueAt: '2026-02-15',
 }
 
 const operation: WorkItemWriteOperation = {

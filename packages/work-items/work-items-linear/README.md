@@ -50,6 +50,7 @@ None; credential resolution and Linear requests do not change the model request 
 - Attachments surface as metadata only via `attachments(last: 20)` — name, link, and timestamp; binaries are never fetched.
 - The issue cycle surfaces as normalized iteration metadata — title, state, and start/end dates.
 - The issue priority integer maps to a normalized label — `urgent`, `high`, `medium`, or `low`; unset priority is omitted.
+- The issue `dueDate` surfaces as the normalized `dueAt` field.
 
 
 <a id="dev-note"></a>

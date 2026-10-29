@@ -40,6 +40,8 @@ export interface WorkItem {
   readonly iteration?: WorkItemIteration
   /** Priority label as the provider reports it; omitted when the source has no priority field. */
   readonly priority?: string
+  /** Due date as the provider reports it — ISO date or timestamp; omitted when the source has none. */
+  readonly dueAt?: string
 }
 
 /** One normalized iteration assignment on a provider item. */

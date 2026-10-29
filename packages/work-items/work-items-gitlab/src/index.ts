@@ -206,6 +206,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   const createdAt = optionalTimestamp(input.created_at, 'createdAt')
   const updatedAt = optionalTimestamp(input.updated_at, 'updatedAt')
   const iteration = mapIteration(input.iteration, input.milestone)
+  const dueAt = optionalTimestamp(input.due_date, 'dueAt')
   return {
     id: providerItemId('gitlab:' + config.owner + '/' + config.repository + '#' + String(iid)),
     source: 'gitlab',
@@ -221,6 +222,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
     ...(createdAt === undefined ? {} : { createdAt }),
     ...(updatedAt === undefined ? {} : { updatedAt }),
     ...(iteration === undefined ? {} : { iteration }),
+    ...(dueAt === undefined ? {} : { dueAt }),
   }
 }
 

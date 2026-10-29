@@ -50,6 +50,7 @@ allowWrites 默认为 false；启用后仅由公共服务的预览/确认 API �
 - 附件仅通过 `attachments(last: 20)` 暴露元数据——名称、链接和时间戳，不拉取二进制内容。
 - 工单 cycle 以标准化迭代元数据暴露——标题、状态和起止日期。
 - 工单 priority 整数映射为标准化标签——`urgent`、`high`、`medium` 或 `low`；未设置时省略。
+- 工单 `dueDate` 以标准化 `dueAt` 字段暴露。
 
 
 <a id="开发备注"></a>

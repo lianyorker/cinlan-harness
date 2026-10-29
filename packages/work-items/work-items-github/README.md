@@ -50,6 +50,7 @@ None; credential resolution and GitHub requests do not change the model request 
 - Attachments embedded in issue body markdown are not surfaced as structured metadata.
 - The issue milestone surfaces as normalized iteration metadata — title, state, and due date.
 - GitHub issues carry no native priority field; priority is not inferred from labels.
+- GitHub issues carry no due-date field; milestone due dates surface under `iteration` instead.
 
 
 <a id="dev-note"></a>

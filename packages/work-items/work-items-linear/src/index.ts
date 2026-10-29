@@ -31,7 +31,7 @@ const MAX_TIMEOUT_MS = 120_000
 const MAX_COMMENTS = 20
 /** Attachments retained per Work Item; only metadata and link are normalized. */
 const MAX_ATTACHMENTS = 20
-const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } } cycle { name number startsAt endsAt isActive isPast } priority'
+const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } } cycle { name number startsAt endsAt isActive isPast } priority dueDate'
 
 /** Linear provider configuration. */
 export interface Config {
@@ -188,6 +188,7 @@ function mapIssue(value: unknown): WorkItem {
   const attachments = mapAttachments(input.attachments)
   const iteration = mapIteration(input.cycle)
   const priority = mapPriority(input.priority)
+  const dueAt = optionalTimestamp(input.dueDate, 'dueAt')
   return {
     id: providerItemId('linear:' + requiredString(input.id, 'id')),
     source: 'linear',
@@ -205,6 +206,7 @@ function mapIssue(value: unknown): WorkItem {
     ...(attachments.length === 0 ? {} : { attachments }),
     ...(iteration === undefined ? {} : { iteration }),
     ...(priority === undefined ? {} : { priority }),
+    ...(dueAt === undefined ? {} : { dueAt }),
   }
 }
 

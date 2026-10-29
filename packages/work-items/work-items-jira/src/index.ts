@@ -248,6 +248,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   const comments = mapComments(fields.comment)
   const attachments = mapAttachments(fields.attachment)
   const priority = mapPriority(fields.priority)
+  const dueAt = optionalTimestamp(fields.duedate, 'dueAt')
   return {
     id: providerItemId('jira:' + key),
     source: 'jira',
@@ -265,6 +266,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
     ...(comments.length === 0 ? {} : { comments }),
     ...(attachments.length === 0 ? {} : { attachments }),
     ...(priority === undefined ? {} : { priority }),
+    ...(dueAt === undefined ? {} : { dueAt }),
   }
 }
 
@@ -359,7 +361,7 @@ function requestError(error: unknown, signal: AbortSignal | undefined, timedOut:
   return new WorkItemsError('provider-failed', 'Jira Work Items request failed', { cause: error })
 }
 
-const ISSUE_FIELDS = 'summary,description,status,labels,assignee,priority,created,updated,comment,attachment'
+const ISSUE_FIELDS = 'summary,description,status,labels,assignee,priority,duedate,created,updated,comment,attachment'
 
 /** Jira REST provider for one configured project on one site. */
 export class JiraWorkItemsProvider implements WorkItemsProvider {

@@ -19,7 +19,7 @@ function response(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } })
 }
 function issue(iid: number, url = 'https://gitlab.com/acme/repo/-/issues/' + String(iid)): Record<string, unknown> {
-  return { iid, title: 'Issue ' + String(iid), description: 'body', state: 'opened', web_url: url, labels: [{ name: 'bug' }], assignees: [{ username: 'alice' }], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z', milestone: { title: 'v2.0', state: 'active', start_date: '2026-01-10T00:00:00Z', due_date: '2026-01-24T00:00:00Z' } }
+  return { iid, title: 'Issue ' + String(iid), description: 'body', state: 'opened', web_url: url, labels: [{ name: 'bug' }], assignees: [{ username: 'alice' }], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z', milestone: { title: 'v2.0', state: 'active', start_date: '2026-01-10T00:00:00Z', due_date: '2026-01-24T00:00:00Z' }, due_date: '2026-02-01' }
 }
 function provider(ctx = context('secret')): GitLabWorkItemsProvider { return new GitLabWorkItemsProvider(ctx, resolveGitLabWorkItemsConfig({ owner: 'acme', repository: 'repo', maxItems: 20 })) }
 
@@ -115,7 +115,7 @@ describe('GitLabWorkItemsProvider', () => {
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => { record(input instanceof Request ? input.url : String(input), init); return new Response(JSON.stringify([issue(7)]), { status: 200 }) }))
     const result = await provider().list({ source: 'gitlab', state: 'all', limit: 2 })
     expect(result.items).toHaveLength(1)
-    expect(result.items[0]).toMatchObject({ id: 'gitlab:acme/repo#7', source: 'gitlab', key: '#7', assignees: ['alice'], iteration: { title: 'v2.0', state: 'active', startsAt: '2026-01-10T00:00:00Z', endsAt: '2026-01-24T00:00:00Z' } })
+    expect(result.items[0]).toMatchObject({ id: 'gitlab:acme/repo#7', source: 'gitlab', key: '#7', assignees: ['alice'], iteration: { title: 'v2.0', state: 'active', startsAt: '2026-01-10T00:00:00Z', endsAt: '2026-01-24T00:00:00Z' }, dueAt: '2026-02-01' })
     expect(calls[0]?.url).toContain(GITLAB_API_ORIGIN + '/api/v4/projects/acme%2Frepo/issues?')
     expect(calls[0]?.url).toContain('state=all')
     expect(calls[0]?.init).toMatchObject({ redirect: 'error', headers: { 'PRIVATE-TOKEN': 'secret' } })

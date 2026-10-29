@@ -50,6 +50,7 @@ allowWrites 默认为 false；启用后仅由公共服务的预览/确认 API �
 - 嵌入 issue body markdown 的附件不作为结构化元数据暴露。
 - issue milestone 以标准化迭代元数据暴露——标题、状态和截止日期。
 - GitHub issue 没有原生 priority 字段，不从 label 推断优先级。
+- GitHub issue 没有原生 due-date 字段，milestone 截止日期通过 `iteration` 暴露。
 
 
 <a id="开发备注"></a>

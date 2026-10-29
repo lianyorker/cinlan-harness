@@ -61,6 +61,7 @@ This provider registers no model-request prefix and does not replace existing re
 - Attachments referenced from issue descriptions or notes are not surfaced as structured metadata.
 - The issue iteration surfaces as normalized iteration metadata with milestone as fallback — title, state, and date bounds.
 - GitLab issues carry no native priority field; priority is not inferred from labels.
+- The issue `due_date` surfaces as the normalized `dueAt` field.
 
 <a id="dev-note"></a>
 ### Dev Note
