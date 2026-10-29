@@ -27,7 +27,7 @@ function listResponse(nodes: unknown[], pageInfo: Record<string, unknown> = { ha
   return response({ data: { issues: { nodes, pageInfo } } })
 }
 function linearIssue(id = 'issue-1', url = 'https://linear.app/acme/issue/DSH-1/linear-issue'): Record<string, unknown> {
-  return { id, identifier: 'DSH-1', title: 'Linear issue', description: 'details', url, state: { name: 'Started', type: 'started' }, labels: { nodes: [{ name: 'feature' }] }, assignee: { name: 'bob' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-02T00:00:00Z' }
+  return { id, identifier: 'DSH-1', title: 'Linear issue', description: 'details', url, state: { name: 'Started', type: 'started' }, labels: { nodes: [{ name: 'feature' }] }, assignee: { name: 'bob' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-02T00:00:00Z', team: { name: 'Engineering' } }
 }
 function provider(ctx = context('secret')): LinearWorkItemsProvider { return new LinearWorkItemsProvider(ctx, resolveLinearWorkItemsConfig({ team: 'team-1', maxItems: 20 })) }
 
@@ -72,7 +72,7 @@ describe('LinearWorkItemsProvider', () => {
   it('maps GraphQL issue nodes and sends a fixed credentialed request', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => { record(input instanceof Request ? input.url : String(input), init); return new Response(JSON.stringify({ data: { issues: { nodes: [linearIssue()], pageInfo: { hasNextPage: true, endCursor: 'cursor-2' } } } }), { status: 200 }) }))
     const result = await provider().list({ source: 'linear', limit: 2 })
-    expect(result).toMatchObject({ items: [{ id: 'linear:issue-1', key: 'DSH-1', assignees: ['bob'] }], nextCursor: 'cursor-2' })
+    expect(result).toMatchObject({ items: [{ id: 'linear:issue-1', key: 'DSH-1', assignees: ['bob'], repository: 'Engineering' }], nextCursor: 'cursor-2' })
     expect(calls[0]?.url).toBe(LINEAR_API_ORIGIN + '/graphql')
     expect(calls[0]?.init).toMatchObject({ method: 'POST', redirect: 'error', headers: { authorization: 'secret' } })
     const body = JSON.parse(requestBody()) as { query: string; variables: Record<string, unknown> }
@@ -166,6 +166,7 @@ describe('LinearWorkItemsProvider', () => {
       cycle: { name: 'Sprint 14', number: 14, startsAt: '2026-01-10T00:00:00Z', endsAt: '2026-01-24T00:00:00Z', isActive: true, isPast: false },
       priority: 1,
       dueDate: '2026-02-15',
+      project: { name: 'Checkout' },
     }
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       record(input instanceof Request ? input.url : String(input), init)
@@ -182,6 +183,7 @@ describe('LinearWorkItemsProvider', () => {
     expect(detail.iteration).toMatchObject({ title: 'Sprint 14', state: 'active', startsAt: '2026-01-10T00:00:00Z', endsAt: '2026-01-24T00:00:00Z' })
     expect(detail.priority).toBe('urgent')
     expect(detail.dueAt).toBe('2026-02-15')
+    expect(detail.repository).toBe('Checkout')
     expect(JSON.parse(requestBody())).toMatchObject({ query: expect.stringContaining('comments(last: 20)') as unknown, variables: { id: 'issue-get' } })
     expect(JSON.parse(requestBody())).toMatchObject({ query: expect.stringContaining('attachments(last: 20)') as unknown })
     vi.stubGlobal('fetch', vi.fn(async () => response({ data: {} })))
