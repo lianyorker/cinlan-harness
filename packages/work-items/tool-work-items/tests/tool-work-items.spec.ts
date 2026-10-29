@@ -31,6 +31,7 @@ const item: WorkItem = {
   comments: [{ author: 'bob', body: 'Looks good', createdAt: '2026-09-03T00:00:00.000Z' }],
   attachments: [{ name: 'trace.log', url: 'https://example.com/trace.log', size: 4096, mimeType: 'text/plain' }],
   iteration: { title: 'v2.0', state: 'open', endsAt: '2026-02-01T00:00:00Z' },
+  priority: 'high',
 }
 
 const operation: WorkItemWriteOperation = {

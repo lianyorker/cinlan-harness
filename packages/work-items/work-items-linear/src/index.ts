@@ -31,7 +31,7 @@ const MAX_TIMEOUT_MS = 120_000
 const MAX_COMMENTS = 20
 /** Attachments retained per Work Item; only metadata and link are normalized. */
 const MAX_ATTACHMENTS = 20
-const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } } cycle { name number startsAt endsAt isActive isPast }'
+const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } } cycle { name number startsAt endsAt isActive isPast } priority'
 
 /** Linear provider configuration. */
 export interface Config {
@@ -187,6 +187,7 @@ function mapIssue(value: unknown): WorkItem {
   const comments = mapComments(input.comments)
   const attachments = mapAttachments(input.attachments)
   const iteration = mapIteration(input.cycle)
+  const priority = mapPriority(input.priority)
   return {
     id: providerItemId('linear:' + requiredString(input.id, 'id')),
     source: 'linear',
@@ -203,7 +204,14 @@ function mapIssue(value: unknown): WorkItem {
     ...(comments.length === 0 ? {} : { comments }),
     ...(attachments.length === 0 ? {} : { attachments }),
     ...(iteration === undefined ? {} : { iteration }),
+    ...(priority === undefined ? {} : { priority }),
   }
+}
+
+/** Map Linear's 0-4 priority integer to the normalized label; zero means no priority. */
+function mapPriority(value: unknown): string | undefined {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) return undefined
+  return value === 1 ? 'urgent' : value === 2 ? 'high' : value === 3 ? 'medium' : value === 4 ? 'low' : undefined
 }
 
 /** Normalize a Linear cycle to the shared iteration shape. */

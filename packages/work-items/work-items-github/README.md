@@ -49,6 +49,7 @@ None; credential resolution and GitHub requests do not change the model request 
 - Comment history is fetched on single-item `get` only when the issue reports comments, bounded to the newest 20; `list` stays a single request.
 - Attachments embedded in issue body markdown are not surfaced as structured metadata.
 - The issue milestone surfaces as normalized iteration metadata — title, state, and due date.
+- GitHub issues carry no native priority field; priority is not inferred from labels.
 
 
 <a id="dev-note"></a>

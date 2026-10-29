@@ -38,6 +38,8 @@ export interface WorkItem {
   readonly attachments?: readonly WorkItemAttachment[]
   /** Iteration the item belongs to — sprint, cycle, or milestone in provider terms. */
   readonly iteration?: WorkItemIteration
+  /** Priority label as the provider reports it; omitted when the source has no priority field. */
+  readonly priority?: string
 }
 
 /** One normalized iteration assignment on a provider item. */

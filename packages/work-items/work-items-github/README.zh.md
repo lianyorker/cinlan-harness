@@ -49,6 +49,7 @@ allowWrites 默认为 false；启用后仅由公共服务的预览/确认 API �
 - 评论历史仅在单条 `get` 且 issue 报告有评论时拉取，保留最新 20 条；`list` 保持单次请求。
 - 嵌入 issue body markdown 的附件不作为结构化元数据暴露。
 - issue milestone 以标准化迭代元数据暴露——标题、状态和截止日期。
+- GitHub issue 没有原生 priority 字段，不从 label 推断优先级。
 
 
 <a id="开发备注"></a>

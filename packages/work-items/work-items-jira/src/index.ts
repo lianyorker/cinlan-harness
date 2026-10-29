@@ -247,6 +247,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   const updatedAt = optionalTimestamp(fields.updated, 'updatedAt')
   const comments = mapComments(fields.comment)
   const attachments = mapAttachments(fields.attachment)
+  const priority = mapPriority(fields.priority)
   return {
     id: providerItemId('jira:' + key),
     source: 'jira',
@@ -263,7 +264,14 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
     ...(updatedAt === undefined ? {} : { updatedAt }),
     ...(comments.length === 0 ? {} : { comments }),
     ...(attachments.length === 0 ? {} : { attachments }),
+    ...(priority === undefined ? {} : { priority }),
   }
+}
+
+/** Normalize the Jira priority object to its display label. */
+function mapPriority(value: unknown): string | undefined {
+  if (value === null || value === undefined) return undefined
+  return optionalText(objectValue(value).name, 'priority')
 }
 
 /** Flatten the issue comment container to a bounded normalized list. */
@@ -351,7 +359,7 @@ function requestError(error: unknown, signal: AbortSignal | undefined, timedOut:
   return new WorkItemsError('provider-failed', 'Jira Work Items request failed', { cause: error })
 }
 
-const ISSUE_FIELDS = 'summary,description,status,labels,assignee,created,updated,comment,attachment'
+const ISSUE_FIELDS = 'summary,description,status,labels,assignee,priority,created,updated,comment,attachment'
 
 /** Jira REST provider for one configured project on one site. */
 export class JiraWorkItemsProvider implements WorkItemsProvider {

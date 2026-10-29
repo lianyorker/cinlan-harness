@@ -49,6 +49,7 @@ None; credential resolution and Linear requests do not change the model request 
 - Comment history is fetched inline with issue reads via `comments(last: 20)`; the newest 20 entries are retained per item.
 - Attachments surface as metadata only via `attachments(last: 20)` — name, link, and timestamp; binaries are never fetched.
 - The issue cycle surfaces as normalized iteration metadata — title, state, and start/end dates.
+- The issue priority integer maps to a normalized label — `urgent`, `high`, `medium`, or `low`; unset priority is omitted.
 
 
 <a id="dev-note"></a>
