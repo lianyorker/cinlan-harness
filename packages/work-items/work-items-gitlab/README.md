@@ -62,7 +62,7 @@ This provider registers no model-request prefix and does not replace existing re
 - The issue iteration surfaces as normalized iteration metadata with milestone as fallback — title, state, and date bounds.
 - GitLab issues carry no native priority field; priority is not inferred from labels.
 - The issue `due_date` surfaces as the normalized `dueAt` field.
-- `time_estimate` surfaces as `estimate.seconds`.
+- `time_estimate` surfaces as `estimate.seconds`; `time_stats.total_time_spent` surfaces as `timeSpent` seconds.
 - Epics live in a group-level id space outside `gitlab:owner/repository#iid`, so issue epics are not surfaced as `parentId`.
 - Issue links surface as `links` — the `link_type` plus the target `gitlab:` id, fetched through a bounded request on single-item `get` up to 20 entries.
 - Project boards surface through `boards()` — up to 5 boards, 20 columns each, 50 item ids per column by default; columns carry their label title.

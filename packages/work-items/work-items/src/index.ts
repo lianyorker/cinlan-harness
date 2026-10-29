@@ -120,6 +120,10 @@ function providerItem(value: unknown, source: WorkItemSource): WorkItem {
     throw new WorkItemsError('invalid-response', 'Work Items provider returned an invalid parent item id')
   }
   const links = item.links === undefined ? undefined : providerLinks(item.links, source)
+  const timeSpent = item.timeSpent
+  if (timeSpent !== undefined && (typeof timeSpent !== 'number' || !Number.isSafeInteger(timeSpent) || timeSpent < 0)) {
+    throw new WorkItemsError('invalid-response', 'Work Items provider returned an invalid logged-work total')
+  }
   return {
     id: WorkItemId(rawId),
     source,
@@ -136,6 +140,7 @@ function providerItem(value: unknown, source: WorkItemSource): WorkItem {
     ...(updatedAt === undefined ? {} : { updatedAt }),
     ...(parentId === undefined ? {} : { parentId: WorkItemId(parentId) }),
     ...(links === undefined || links.length === 0 ? {} : { links }),
+    ...(timeSpent === undefined ? {} : { timeSpent }),
   }
 }
 

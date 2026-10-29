@@ -248,12 +248,13 @@ describe('GitLabWorkItemsProvider', () => {
           { author: { username: 'erin' }, body: 'oldest note', created_at: '2026-01-03T00:00:00Z' },
         ])
       }
-      return response({ ...issue(7), user_notes_count: 2, iteration: { id: 41, title: 'Cadence 5', state: 'current', start_date: '2026-01-12T00:00:00Z', due_date: '2026-01-25T00:00:00Z' } })
+      return response({ ...issue(7), user_notes_count: 2, iteration: { id: 41, title: 'Cadence 5', state: 'current', start_date: '2026-01-12T00:00:00Z', due_date: '2026-01-25T00:00:00Z' }, time_stats: { total_time_spent: 600, time_estimate: 3600 } })
     }))
     const commented = await provider().get({ id: WorkItemId('gitlab:acme/repo#7') })
     expect(commented.comments?.map(comment => comment.body)).toEqual(['oldest note', 'newest note'])
     expect(commented.comments?.[0]).toMatchObject({ author: 'erin', createdAt: '2026-01-03T00:00:00Z' })
     expect(commented.iteration).toMatchObject({ title: 'Cadence 5', state: 'current', startsAt: '2026-01-12T00:00:00Z', endsAt: '2026-01-25T00:00:00Z' })
+    expect(commented.timeSpent).toBe(600)
     expect(commented.links).toEqual([
       { type: 'relates_to', itemId: 'gitlab:acme/repo#9' },
       { type: 'blocks', itemId: 'gitlab:acme/repo#10' },

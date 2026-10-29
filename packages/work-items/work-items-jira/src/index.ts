@@ -252,6 +252,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   const estimate = mapEstimate(fields.timeoriginalestimate)
   const parentId = mapParent(fields.parent)
   const links = mapLinks(fields.issuelinks)
+  const timeSpent = mapSeconds(fields.timespent)
   return {
     id: providerItemId('jira:' + key),
     source: 'jira',
@@ -273,7 +274,14 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
     ...(estimate === undefined ? {} : { estimate }),
     ...(parentId === undefined ? {} : { parentId }),
     ...(links.length === 0 ? {} : { links }),
+    ...(timeSpent === undefined ? {} : { timeSpent }),
   }
+}
+
+/** Normalize a Jira tracked-time seconds field; absent or non-numeric values are omitted. */
+function mapSeconds(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) return undefined
+  return value
 }
 
 const MAX_LINKS = 20
@@ -400,7 +408,7 @@ function requestError(error: unknown, signal: AbortSignal | undefined, timedOut:
   return new WorkItemsError('provider-failed', 'Jira Work Items request failed', { cause: error })
 }
 
-const ISSUE_FIELDS = 'summary,description,status,labels,assignee,priority,duedate,timeoriginalestimate,created,updated,comment,attachment,parent,issuelinks'
+const ISSUE_FIELDS = 'summary,description,status,labels,assignee,priority,duedate,timeoriginalestimate,created,updated,comment,attachment,parent,issuelinks,timespent'
 /** Boards discovered per boards read. */
 const MAX_BOARD_FETCH = 5
 /** Columns retained per board. */

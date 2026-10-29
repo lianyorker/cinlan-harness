@@ -178,6 +178,9 @@ describe('WorkItemsRuntime', () => {
       { ...base, links: Array.from({ length: 21 }, () => ({ type: 'relates', itemId: 'github:acme/repo#1' })) },
       { ...base, links: [{ type: 'relates', itemId: 'gitlab:acme/repo#1' }] },
       { ...base, links: [{ type: '', itemId: 'github:acme/repo#1' }] },
+      { ...base, timeSpent: -1 },
+      { ...base, timeSpent: 1.5 },
+      { ...base, timeSpent: '1800' },
     ]) await getWith(candidate)
     await fiber.dispose()
   })

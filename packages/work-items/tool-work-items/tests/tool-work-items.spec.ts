@@ -34,6 +34,7 @@ const item: WorkItem = {
   priority: 'high',
   dueAt: '2026-02-15',
   estimate: { points: 5 },
+  timeSpent: 1800,
   links: [{ type: 'relates_to', itemId: 'gitlab:acme/repo#9' }],
 }
 

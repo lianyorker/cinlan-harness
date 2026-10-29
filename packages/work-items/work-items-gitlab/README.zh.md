@@ -62,7 +62,7 @@ kind: "package-reference"
 - 工单 iteration 以标准化迭代元数据暴露，缺失时回退 milestone——标题、状态和起止日期。
 - GitLab issue 没有原生 priority 字段，不从 label 推断优先级。
 - 工单 `due_date` 以标准化 `dueAt` 字段暴露。
-- `time_estimate` 以 `estimate.seconds` 暴露。
+- `time_estimate` 以 `estimate.seconds` 暴露；`time_stats.total_time_spent` 以 `timeSpent` 秒数暴露。
 - epic 属于组级 id 空间，不在 `gitlab:owner/repository#iid` 内，因此工单 epic 不以 `parentId` 暴露。
 - issue link 以 `links` 暴露——`link_type` 加目标 `gitlab:` id，单条 `get` 经一次有界请求拉取，至多 20 条。
 - 项目 board 通过 `boards()` 暴露——至多 5 个 board、每个 20 列、默认每列 50 个工单 id；列标题取 label 名称。

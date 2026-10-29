@@ -295,6 +295,7 @@ describe('JiraWorkItemsProvider', () => {
         priority: { name: 'High' },
         duedate: '2026-02-15',
         timeoriginalestimate: 7200,
+        timespent: 1800,
         parent: { key: 'ENG-1' },
         issuelinks: [
           { type: { inward: 'is blocked by', outward: 'blocks' }, outwardIssue: { key: 'ENG-2' } },
@@ -323,6 +324,7 @@ describe('JiraWorkItemsProvider', () => {
       { type: 'is blocked by', itemId: 'jira:ENG-3' },
       { type: 'relates to', itemId: 'jira:OPS-4' },
     ])
+    expect(item.timeSpent).toBe(1800)
     vi.stubGlobal('fetch', vi.fn(async () => response(issue('ENG-9'))))
     const plain = await provider().get({ id: 'jira:ENG-9' as never })
     expect(plain).not.toHaveProperty('comments')
@@ -331,6 +333,8 @@ describe('JiraWorkItemsProvider', () => {
     expect(plain).not.toHaveProperty('dueAt')
     expect(plain).not.toHaveProperty('estimate')
     expect(plain).not.toHaveProperty('parentId')
+    expect(plain).not.toHaveProperty('links')
+    expect(plain).not.toHaveProperty('timeSpent')
   })
 
   it('maps agile boards with status-mapped columns and bounded item ids', async () => {
@@ -378,7 +382,7 @@ describe('JiraWorkItemsProvider', () => {
       return response(issue('ENG-7'))
     }))
     await expect(provider().get({ id: WorkItemId('jira:ENG-7') })).resolves.toMatchObject({ id: 'jira:ENG-7' })
-    expect(calls[0]?.url).toBe(ORIGIN + '/rest/api/3/issue/ENG-7?fields=summary,description,status,labels,assignee,priority,duedate,timeoriginalestimate,created,updated,comment,attachment,parent,issuelinks')
+    expect(calls[0]?.url).toBe(ORIGIN + '/rest/api/3/issue/ENG-7?fields=summary,description,status,labels,assignee,priority,duedate,timeoriginalestimate,created,updated,comment,attachment,parent,issuelinks,timespent')
     await expect(provider().get({ id: WorkItemId('jira:OPS-7') })).rejects.toMatchObject({ code: 'invalid-request' })
     await expect(provider().get({ id: WorkItemId('invalid') })).rejects.toMatchObject({ code: 'invalid-request' })
   })

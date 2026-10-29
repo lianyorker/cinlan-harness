@@ -215,6 +215,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   const iteration = mapIteration(input.iteration, input.milestone)
   const dueAt = optionalTimestamp(input.due_date, 'dueAt')
   const estimate = mapEstimate(input.time_estimate)
+  const timeSpent = mapTimeSpent(input.time_stats)
   return {
     id: providerItemId('gitlab:' + config.owner + '/' + config.repository + '#' + String(iid)),
     source: 'gitlab',
@@ -232,7 +233,16 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
     ...(iteration === undefined ? {} : { iteration }),
     ...(dueAt === undefined ? {} : { dueAt }),
     ...(estimate === undefined ? {} : { estimate }),
+    ...(timeSpent === undefined ? {} : { timeSpent }),
   }
+}
+
+/** Normalize the time_stats container; an absent or malformed total is omitted. */
+function mapTimeSpent(value: unknown): number | undefined {
+  if (value === null || value === undefined) return undefined
+  const total = objectValue(value).total_time_spent
+  if (typeof total !== 'number' || !Number.isSafeInteger(total) || total < 0) return undefined
+  return total
 }
 
 /** Normalize the GitLab time_estimate seconds field; zero means unset. */

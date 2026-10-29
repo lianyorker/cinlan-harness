@@ -48,6 +48,8 @@ export interface WorkItem {
   readonly parentId?: WorkItemId
   /** Typed relations to other items in this provider's id space; omitted when the source has no link surface. */
   readonly links?: readonly WorkItemLink[]
+  /** Logged-work seconds as the provider reports them; omitted when the source has no tracked-time surface. */
+  readonly timeSpent?: number
 }
 
 /** Normalized effort estimate; each provider fills only the slot matching its native unit. */
