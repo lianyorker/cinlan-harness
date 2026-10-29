@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemAttachment, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemIteration, WorkItemLink, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemAttachment, WorkItemBoard, WorkItemBoardColumn, WorkItemBoardRequest, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemIteration, WorkItemLink, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -32,6 +32,12 @@ const MAX_COMMENTS = 20
 /** Attachments retained per Work Item; only metadata and link are normalized. */
 const MAX_ATTACHMENTS = 20
 const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } } cycle { name number startsAt endsAt isActive isPast } priority dueDate project { name } team { name } estimate parent { id } relations { nodes { type relatedIssue { id } } }'
+/** Workflow-state columns retained on the team board. */
+const MAX_BOARD_COLUMNS = 20
+/** Default and maximum item ids retained per board column. */
+const DEFAULT_BOARD_ITEMS = 50
+const MAX_BOARD_ITEMS = 100
+const MAX_BOARD_SELECTOR_LENGTH = 100
 
 /** Linear provider configuration. */
 export interface Config {
@@ -499,6 +505,40 @@ export class LinearWorkItemsProvider implements WorkItemsProvider {
     const data = objectValue(await this.request({ query: 'query($id: String!) { issue(id: $id) { ' + ISSUE_FIELDS + ' } }', variables: { id: String(request.id).slice(prefix.length) } }, signal))
     if (data.issue === null || data.issue === undefined) throw new WorkItemsError('not-found', 'Linear Work Item was not found')
     return mapIssue(data.issue)
+  }
+
+  /** Read the configured team's board; workflow states become columns ordered by position. */
+  async boards(request: WorkItemBoardRequest = {}, signal?: AbortSignal): Promise<WorkItemBoard[]> {
+    this.assertAvailable()
+    if (request.source !== undefined && request.source !== 'linear') throw new WorkItemsError('invalid-request', 'requested Work Items source is not Linear')
+    if (this.config.team.length === 0) throw new WorkItemsError('unavailable', 'Linear boards require a configured team')
+    if (request.board !== undefined
+      && (request.board.length === 0 || request.board.length > MAX_BOARD_SELECTOR_LENGTH || request.board.trim() !== request.board)) {
+      throw new WorkItemsError('invalid-request', 'Work Items board selector is invalid')
+    }
+    const limit = requestLimit(request.limit, DEFAULT_BOARD_ITEMS, MAX_BOARD_ITEMS)
+    const data = objectValue(await this.request({ query: 'query($id: String!) { team(id: $id) { name states { nodes { name position } } } }', variables: { id: this.config.team } }, signal))
+    if (data.team === null || data.team === undefined) throw new WorkItemsError('not-found', 'Linear team was not found')
+    const team = objectValue(data.team)
+    const name = requiredString(team.name, 'team name')
+    if (request.board !== undefined && request.board !== this.config.team && request.board !== name) return []
+    const states = objectValue(team.states)
+    if (!Array.isArray(states.nodes) || states.nodes.length > MAX_BOARD_COLUMNS) throw new WorkItemsError('invalid-response', 'Linear board columns were invalid or exceeded their bound')
+    const ordered = states.nodes.map((state) => {
+      const entry = objectValue(state)
+      return { name: requiredString(entry.name, 'board column title'), position: typeof entry.position === 'number' ? entry.position : 0 }
+    }).sort((a, b) => a.position - b.position)
+    const columns: WorkItemBoardColumn[] = []
+    for (const column of ordered) {
+      const itemsData = objectValue(await this.request({
+        query: 'query($first: Int!, $filter: IssueFilter) { issues(first: $first, filter: $filter) { nodes { id } } }',
+        variables: { first: limit, filter: { team: { id: { eq: this.config.team } }, state: { name: { eq: column.name } } } },
+      }, signal))
+      const nodes = objectValue(itemsData.issues).nodes
+      if (!Array.isArray(nodes) || nodes.length > limit) throw new WorkItemsError('invalid-response', 'Linear board items were invalid or exceeded their bound')
+      columns.push({ title: column.name, itemIds: nodes.map(node => providerItemId('linear:' + requiredString(objectValue(node).id, 'issue id'))) })
+    }
+    return [{ id: this.config.team, title: name, columns }]
   }
 
   private async scopedIssue(id: string, signal?: AbortSignal): Promise<{ id: string; teamId: string; url: string }> {

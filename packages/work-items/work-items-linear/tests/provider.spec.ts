@@ -351,4 +351,41 @@ describe('LinearWorkItemsProvider', () => {
     await expect(provider().list({ source: 'linear' })).rejects.toMatchObject({ code: 'invalid-response' })
     const p = provider(); p.dispose(); await expect(p.list({ source: 'linear' })).rejects.toMatchObject({ code: 'unavailable' }); p.dispose()
   })
+
+  it('maps team workflow states into board columns and honors the board selector', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      record(input instanceof Request ? input.url : String(input), init)
+      const request = JSON.parse(init?.body as string) as { query: string; variables: { filter?: { state?: { name?: { eq?: string } } } } }
+      if (request.query.includes('team(id:')) {
+        return response({ data: { team: { name: 'Engineering', states: { nodes: [{ name: 'Done', position: 4 }, { name: 'Backlog', position: 0 }, { name: 'In Progress', position: 2 }] } } } })
+      }
+      if (request.query.includes('issues(')) {
+        const state = request.variables.filter?.state?.name?.eq
+        const nodes = state === 'Backlog' ? [{ id: 'issue-b1' }, { id: 'issue-b2' }] : state === 'In Progress' ? [{ id: 'issue-p1' }] : []
+        return response({ data: { issues: { nodes } } })
+      }
+      throw new Error('unexpected query')
+    }))
+    const boards = await provider().boards({ source: 'linear' })
+    expect(boards).toHaveLength(1)
+    expect(boards[0]?.id).toBe('team-1')
+    expect(boards[0]?.title).toBe('Engineering')
+    expect(boards[0]?.columns.map(column => column.title)).toEqual(['Backlog', 'In Progress', 'Done'])
+    expect(boards[0]?.columns[0]?.itemIds).toEqual(['linear:issue-b1', 'linear:issue-b2'])
+    expect(boards[0]?.columns[1]?.itemIds).toEqual(['linear:issue-p1'])
+    expect(boards[0]?.columns[2]?.itemIds).toEqual([])
+    expect(calls).toHaveLength(4)
+    calls.length = 0
+    await expect(provider().boards({ board: 'Engineering' })).resolves.toHaveLength(1)
+    await expect(provider().boards({ board: 'other' })).resolves.toEqual([])
+    await expect(provider().boards({ board: ' ' })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(provider().boards({ source: 'gitlab' })).rejects.toMatchObject({ code: 'invalid-request' })
+    const projectOnly = new LinearWorkItemsProvider(context('secret'), resolveLinearWorkItemsConfig({ project: 'project-1' }))
+    await expect(projectOnly.boards({})).rejects.toMatchObject({ code: 'unavailable' })
+  })
+
+  it('reports a missing team as not-found on the board read', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { team: null } })))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'not-found' })
+  })
 })
