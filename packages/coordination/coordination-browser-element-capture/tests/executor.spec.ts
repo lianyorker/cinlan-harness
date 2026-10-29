@@ -195,6 +195,60 @@ describe('coordination browser element capture executor', () => {
     expect(ctx.coordination.getTask('task-cancelled' as never)).toMatchObject({ status: 'cancelled' })
   })
 
+  it('names a jpeg capture with the jpg extension and tolerates a nameless attachment', async () => {
+    const selected = provider()
+    const capture = await selected.captureElement(undefined as never, new AbortController().signal)
+    vi.mocked(selected.captureElement).mockResolvedValue({ ...capture, format: 'jpeg' })
+    const { attachments } = await boot(selected)
+    vi.mocked(attachments.saveImage).mockResolvedValue({
+      attachmentId: AttachmentId('sha256:jpeg'),
+      mediaType: 'image/png',
+      bytes: 3,
+      width: 30,
+      height: 40,
+    })
+    const run = start(input({ format: 'jpeg' }), 'task-jpeg')
+    await run.result
+    if (ctx === undefined) throw new Error('test context is not ready')
+    const task = ctx.coordination.getTask('task-jpeg' as never)
+    expect(task.status).toBe('succeeded')
+    expect(task.output).toEqual({
+      attachmentId: 'sha256:jpeg',
+      mediaType: 'image/png',
+      bytes: 3,
+      width: 30,
+      height: 40,
+    })
+    expect(attachments.saveImage).toHaveBeenCalledWith(expect.objectContaining({ name: 'browser-element.jpg' }))
+  })
+
+  it('fails when the stored attachment media type differs from the capture', async () => {
+    const selected = provider()
+    const { attachments } = await boot(selected)
+    vi.mocked(attachments.saveImage).mockResolvedValue({
+      attachmentId: AttachmentId('sha256:webm'),
+      mediaType: 'image/webp' as never,
+      bytes: 3,
+      width: 30,
+      height: 40,
+    })
+    const run = start(input(), 'task-mismatch')
+    await run.result
+    if (ctx === undefined) throw new Error('test context is not ready')
+    const task = ctx.coordination.getTask('task-mismatch' as never)
+    expect(task).toMatchObject({ status: 'failed', error: expect.stringContaining('did not match') })
+  })
+
+  it('stringifies a non-Error capture failure for the failed outcome', async () => {
+    const selected = provider()
+    vi.mocked(selected.captureElement).mockRejectedValueOnce('plain rejection')
+    await boot(selected)
+    const run = start(input(), 'task-non-error')
+    await run.result
+    if (ctx === undefined) throw new Error('test context is not ready')
+    expect(ctx.coordination.getTask('task-non-error' as never)).toMatchObject({ status: 'failed' })
+  })
+
   it('removes the executor on plugin disposal so later runs fail closed', async () => {
     const { fiber } = await boot()
     await fiber.dispose()

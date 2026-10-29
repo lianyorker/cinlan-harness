@@ -29,6 +29,11 @@ describe('git ai-author: isSensitivePath', () => {
     expect(isSensitivePath('README.md')).toBe(false)
     expect(isSensitivePath('packages/client/ui/Button.tsx')).toBe(false)
   })
+
+  it('rejects empty and whitespace-only paths', () => {
+    expect(isSensitivePath('')).toBe(false)
+    expect(isSensitivePath('   ')).toBe(false)
+  })
 })
 
 describe('git ai-author: filterSensitiveFiles and filterSensitiveDiff', () => {
@@ -59,6 +64,17 @@ diff --git a/.env b/.env
     expect(filteredDiff).not.toContain('API_KEY=456')
     expect(filteredDiff).toContain('[Omitted diff for sensitive file: .env]')
   })
+
+  it('keeps chunks whose diff header does not match the a/b shape verbatim', () => {
+    const diff = `preamble text kept as-is
+diff --git a/src/kept.ts
+@@ -1 +1 @@
+-kept
+`
+    const { filteredDiff, omittedFiles } = filterSensitiveDiff(diff, ['.env'])
+    expect(omittedFiles).toEqual([])
+    expect(filteredDiff).toBe(diff)
+  })
 })
 
 describe('git ai-author: truncateDiff', () => {
@@ -76,6 +92,12 @@ describe('git ai-author: truncateDiff', () => {
     expect(result.text).toContain('[Diff truncated:')
     expect(result.text.length).toBeLessThan(largeDiff.length)
   })
+
+  it('keeps a truncated blob whose slice contains no line boundary', () => {
+    const result = truncateDiff('x'.repeat(500), 256)
+    expect(result.truncated).toBe(true)
+    expect(result.text).toContain('[Diff truncated:')
+  })
 })
 
 describe('git ai-author: interpolateTemplate', () => {
@@ -89,6 +111,10 @@ describe('git ai-author: interpolateTemplate', () => {
     expect(output).toContain('Branch: feature/login')
     expect(output).toContain('Files: src/login.ts\nsrc/auth.ts')
     expect(output).toContain('Changes:\n+export function login() {}')
+  })
+
+  it('renders an empty file list when stagedFiles is omitted', () => {
+    expect(interpolateTemplate('Files: {{files}}', { diff: '+x' })).toBe('Files: ')
   })
 })
 
@@ -150,6 +176,35 @@ describe('git ai-author: generateCommitMessageDraft', () => {
       })
     ).rejects.toThrow(/All staged changes contain sensitive files/)
     expect(runner).not.toHaveBeenCalled()
+  })
+
+  it('skips sensitive filtering when disabled in settings', async () => {
+    const sensitiveDiff = `diff --git a/.env b/.env
+@@ -1 +1 @@
+-A=1
++B=2
+`
+    const runner = vi.fn().mockResolvedValue('chore: rotate env')
+    const result = await generateCommitMessageDraft({
+      diff: sensitiveDiff,
+      stagedFiles: ['.env'],
+      settings: { filterSensitiveFiles: false },
+      runner,
+    })
+    expect(result.message).toBe('chore: rotate env')
+    expect(result.sensitiveOmitted).toEqual([])
+    expect(runner).toHaveBeenCalledOnce()
+  })
+
+  it('throws when the model produces an empty commit message', async () => {
+    const runner = vi.fn().mockResolvedValue('   \n  ')
+    await expect(
+      generateCommitMessageDraft({
+        diff: sampleDiff,
+        stagedFiles: ['src/auth.ts'],
+        runner,
+      })
+    ).rejects.toThrow(/empty commit message/)
   })
 
   it('respects disabled recipe configuration', async () => {

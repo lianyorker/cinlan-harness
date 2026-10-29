@@ -39,6 +39,22 @@ describe('Side Session', () => {
       expect(injectedMessage?.source).toEqual({ kind: 'side-session', plugin: SIDECHAT_PLUGIN_ID })
       expect(injectedMessage?.content).toEqual([{ type: 'text', text: 'custom explanation' }])
     })
+
+    it('falls back to the default framing when no explanation is given', () => {
+      let injectedMessage: UserMessage | undefined
+      const mockAgent = {
+        inject: (message: UserMessage) => {
+          injectedMessage = message
+        },
+      } as unknown as Agent
+
+      frameAdvisor(mockAgent)
+
+      expect(injectedMessage?.content).toEqual([{
+        type: 'text',
+        text: 'This is a side conversation. Explain or analyze the preceding context without mutating or continuing the parent task.',
+      }])
+    })
   })
 
   describe('mergeSideSessionBack', () => {

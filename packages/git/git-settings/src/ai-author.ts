@@ -82,6 +82,7 @@ export function filterSensitiveDiff(
   for (const chunk of chunks) {
     const match = chunk.match(/^diff --git a\/(.+?) b\/(.+?)$/m)
     if (match) {
+      /* v8 ignore next -- the regex's required capture groups always produce a b/-path string. */
       const filePath = match[2] ?? match[1] ?? ''
       if (sensitiveSet.has(filePath.toLowerCase()) || isSensitivePath(filePath)) {
         omittedFiles.push(filePath)
