@@ -16,6 +16,7 @@ import {
   validateFetchUrl,
   WEB_FETCH_MAX_URL_LENGTH,
 } from '../src/policy.ts'
+import { extractPdfText } from '../src/pdf.ts'
 
 const limits: HttpFetchLimits = {
   maxResponseBytes: 5_000_000,
@@ -25,14 +26,21 @@ const limits: HttpFetchLimits = {
   userAgent: 'test-agent/1.0',
 }
 
-/** A one-page PDF drawing "Hello PDF" in Helvetica, built with correct xref offsets for pdf.js. */
-function minimalPdf(): Buffer {
+/** A multi-page PDF drawing "Hello PDF" on every page (or a blank last page), built with correct xref offsets for pdf.js. */
+function minimalPdf(pageCount = 1, blankLast = false): Buffer {
   const stream = 'BT /F1 24 Tf 100 700 Td (Hello PDF) Tj ET'
+  const fontId = 3 + pageCount * 2
+  const kids = Array.from({ length: pageCount }, (_, index) => `${3 + index * 2} 0 R`).join(' ')
   const objects = [
     '<</Type/Catalog/Pages 2 0 R>>',
-    '<</Type/Pages/Kids[3 0 R]/Count 1>>',
-    '<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>',
-    `<</Length ${stream.length}>>\nstream\n${stream}\nendstream`,
+    `<</Type/Pages/Kids[${kids}]/Count ${pageCount}>>`,
+    ...Array.from({ length: pageCount }, (_, index) => {
+      const content = blankLast && index === pageCount - 1 ? '' : stream
+      return [
+        `<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents ${4 + index * 2} 0 R/Resources<</Font<</F1 ${fontId} 0 R>>>>>>`,
+        `<</Length ${content.length}>>\nstream\n${content}\nendstream`,
+      ]
+    }).flat(),
     '<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>',
   ]
   const encoder = new TextEncoder()
@@ -312,6 +320,40 @@ describe('HttpFetchProvider success', () => {
   it('maps an unparseable PDF body to a provider error', async () => {
     handler = (_req, res) => { res.writeHead(200, { 'content-type': 'application/pdf' }); res.end('not a pdf') }
     await expect(provider().fetch({ url: base })).rejects.toThrow(expect.objectContaining({ code: 'WEB_PROVIDER_ERROR' }))
+  })
+
+  it('truncates extracted PDF text at the character bound', async () => {
+    handler = (_req, res) => { res.writeHead(200, { 'content-type': 'application/pdf' }); res.end(minimalPdf(3)) }
+    const result = await provider({ maxBodyChars: 5 }).fetch({ url: base })
+    expect(result.body.content).toBe('Hello')
+    expect(result.truncated).toBe(true)
+  })
+
+  it('stops walking once the character bound is spent', async () => {
+    handler = (_req, res) => { res.writeHead(200, { 'content-type': 'application/pdf' }); res.end(minimalPdf(2)) }
+    const limited = await provider({ maxBodyChars: 9 }).fetch({ url: base })
+    expect(limited.body.content).toBe('Hello PDF')
+    expect(limited.truncated).toBe(true)
+  })
+
+  it('flags truncation when a PDF exceeds the extracted-page bound', async () => {
+    handler = (_req, res) => { res.writeHead(200, { 'content-type': 'application/pdf' }); res.end(minimalPdf(201)) }
+    const result = await provider().fetch({ url: base })
+    expect(result.truncated).toBe(true)
+    expect(result.body.content).toContain('Hello PDF')
+  }, 30_000)
+
+  it('skips pages carrying no extractable text', async () => {
+    handler = (_req, res) => { res.writeHead(200, { 'content-type': 'application/pdf' }); res.end(minimalPdf(2, true)) }
+    const result = await provider().fetch({ url: base })
+    expect(result.body.content).toBe('Hello PDF')
+    expect(result.truncated).toBe(false)
+  })
+
+  it('maps an aborted extraction to WEB_ABORTED', async () => {
+    const bytes = new Uint8Array(minimalPdf())
+    await expect(extractPdfText(bytes, 100_000, AbortSignal.abort()))
+      .rejects.toThrow(expect.objectContaining({ code: 'WEB_ABORTED' }))
   })
 
   it('uses an explicitly injected validated-address resolver', async () => {

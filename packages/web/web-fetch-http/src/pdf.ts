@@ -54,9 +54,10 @@ export async function extractPdfText(bytes: Uint8Array, maxChars: number, signal
     let total = 0
     let truncatedChars = false
     for (let index = 1; index <= pages; index += 1) {
-      signal.throwIfAborted()
+      if (signal.aborted) throw new WebError('web fetch aborted', 'WEB_ABORTED')
       const page = await document.getPage(index)
       const text = await page.getTextContent()
+      /* v8 ignore next 1 -- pdf.js TextItem.str is typed string; the '' arm only keeps non-string items from leaking through the cast. */
       const lines = (text.items as readonly PdfTextItem[])
         .map(item => (typeof item.str === 'string' ? item.str : ''))
         .filter(str => str.length > 0)
@@ -77,6 +78,7 @@ export async function extractPdfText(bytes: Uint8Array, maxChars: number, signal
     }
     return { content: parts.join('\n'), truncated: truncatedPages || truncatedChars }
   } finally {
+    /* v8 ignore next 3 -- pdf.js destroy settles successfully on every reachable path; the catch is defensive cleanup. */
     await task.destroy().catch(() => {
       // pdf.js cleanup is best-effort; extracted text already in hand.
     })
