@@ -53,6 +53,7 @@ None; credential resolution and Linear requests do not change the model request 
 - The issue `dueDate` surfaces as the normalized `dueAt` field.
 - The `repository` slot carries the project name when the issue belongs to a project, otherwise the team name.
 - `estimate` surfaces as `estimate.points`; an unset or zero estimate is omitted.
+- A team board would only re-present state-grouped list items, so no board surface is exposed yet.
 
 
 <a id="dev-note"></a>

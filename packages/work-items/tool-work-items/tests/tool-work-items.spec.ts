@@ -4,7 +4,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { WorkItemsRuntime } from '@deepseek-ai/dsh-work-items'
 import { WorkItemId } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemMutation, WorkItemPage, WorkItemWriteOperation } from '@deepseek-ai/dsh-work-items/types'
+import type { WorkItem, WorkItemBoard, WorkItemMutation, WorkItemPage, WorkItemWriteOperation } from '@deepseek-ai/dsh-work-items/types'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import type { ToolExecutionResult } from '@deepseek-ai/dsh-tools'
@@ -51,9 +51,22 @@ function page(): WorkItemPage {
   return { items: [{ ...item, secret: 'provider-only' } as never], nextCursor: 'next', truncated: false }
 }
 
+function board(): WorkItemBoard {
+  return {
+    id: '12',
+    title: 'Roadmap',
+    url: 'https://gitlab.com/acme/repo/-/boards/12',
+    columns: [
+      { title: 'Backlog', itemIds: [item.id] },
+      { title: 'Doing', itemIds: [WorkItemId('gitlab:acme/repo#9')] },
+    ],
+  }
+}
+
 function serviceMock() {
   return {
     list: vi.fn(async (): Promise<WorkItemPage> => page()),
+    boards: vi.fn(async (): Promise<WorkItemBoard[]> => [board()]),
     get: vi.fn(async (): Promise<WorkItem> => ({ ...item, secret: 'provider-only' } as never)),
     prepareWrite: vi.fn(async (_mutation: WorkItemMutation): Promise<WorkItemWriteOperation> => operation),
     confirmWrite: vi.fn(async (): Promise<WorkItemWriteOperation> => ({ ...operation, status: 'succeeded', result: { itemId: item.id, url: item.url } })),
@@ -97,6 +110,7 @@ describe('tool-work-items registration and model contract', () => {
     const { ctx, fiber } = await setup(undefined, { timeoutMs: 321 })
     expect(ctx.tools.schemas().map(schema => schema.name)).toEqual([
       'work_items_list',
+      'work_items_boards',
       'work_items_get',
       'work_items_prepare_write',
       'work_items_confirm_write',
@@ -105,6 +119,7 @@ describe('tool-work-items registration and model contract', () => {
     ])
     expect(ctx.tools.get('work_items_list')?.timeoutMs).toBe(321)
     expect(ctx.tools.get('work_items_list')?.isConcurrencySafe?.({})).toBe(true)
+    expect(ctx.tools.get('work_items_boards')?.isConcurrencySafe?.({ board: '12' })).toBe(true)
     expect(ctx.tools.get('work_items_get')?.isConcurrencySafe?.({ id: item.id })).toBe(true)
     expect(ctx.tools.get('work_items_list_writes')?.isConcurrencySafe?.({ source: 'github', limit: 1 })).toBe(true)
     expect(ctx.tools.get('work_items_prepare_write')).not.toHaveProperty('isConcurrencySafe')
@@ -186,6 +201,10 @@ describe('tool-work-items execution', () => {
     const detail = success(await call(ctx, 'work_items_get', { id: item.id }))
     expect(service.get).toHaveBeenCalledWith({ id: item.id }, expect.any(AbortSignal))
     expect(detail.value).toEqual(item)
+
+    const boards = success(await call(ctx, 'work_items_boards', { source: 'gitlab', board: '12', limit: 25 }))
+    expect(service.boards).toHaveBeenCalledWith({ source: 'gitlab', board: '12', limit: 25 }, expect.any(AbortSignal))
+    expect(boards.value).toEqual({ boards: [{ id: '12', title: 'Roadmap', url: 'https://gitlab.com/acme/repo/-/boards/12', columns: [{ title: 'Backlog', itemIds: [item.id] }, { title: 'Doing', itemIds: ['gitlab:acme/repo#9'] }] }] })
   })
 
   it('previews exact mutations, confirms only stored ids, cancels, and lists redacted receipts', async () => {

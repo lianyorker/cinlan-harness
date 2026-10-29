@@ -11,7 +11,7 @@ import { WorkItemsError } from './error.ts'
 import { WorkItemsWriteLedger } from './writes.ts'
 import type { WorkItemMutation, WorkItemWriteId, WorkItemWriteOperation } from './types.ts'
 export { WorkItemsError } from './error.ts'
-import type { WorkItem, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from './types.ts'
+import type { WorkItem, WorkItemBoard, WorkItemBoardRequest, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from './types.ts'
 import type { WorkItemId, WorkItemSource } from './types.ts'
 
 export type * from './types.ts'
@@ -147,6 +147,48 @@ function providerPage(value: unknown, source: WorkItemSource): WorkItemPage {
   }
 }
 
+const MAX_BOARDS = 10
+const MAX_BOARD_COLUMNS = 20
+const MAX_COLUMN_ITEMS = 100
+
+function providerBoard(value: unknown, source: WorkItemSource): WorkItemBoard {
+  const board = providerRecord(value, 'board')
+  const columns = board.columns
+  if (!Array.isArray(columns) || columns.length > MAX_BOARD_COLUMNS) {
+    throw new WorkItemsError('invalid-response', 'Work Items provider returned invalid board columns')
+  }
+  const url = providerOptionalText(board.url, 'board URL')
+  if (url !== undefined) {
+    try {
+      const parsed = new URL(url)
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password) throw new Error('unsafe')
+    } catch (error) {
+      throw new WorkItemsError('invalid-response', 'Work Items provider returned an invalid board URL', { cause: error })
+    }
+  }
+  return {
+    id: providerText(board.id, 'board id'),
+    title: providerText(board.title, 'board title'),
+    ...(url === undefined ? {} : { url }),
+    columns: columns.map((column) => {
+      const entry = providerRecord(column, 'board column')
+      if (!Array.isArray(entry.itemIds) || entry.itemIds.length > MAX_COLUMN_ITEMS) {
+        throw new WorkItemsError('invalid-response', 'Work Items provider returned invalid board column items')
+      }
+      return {
+        title: providerText(entry.title, 'board column title'),
+        itemIds: entry.itemIds.map((id) => {
+          const raw = providerText(id, 'board item id')
+          if (raw.length > MAX_WORK_ITEM_ID || raw.trim() !== raw || !raw.startsWith(source + ':')) {
+            throw new WorkItemsError('invalid-response', 'Work Items provider returned an invalid board item id')
+          }
+          return WorkItemId(raw)
+        }),
+      }
+    }),
+  }
+}
+
 function assertNotAborted(signal?: AbortSignal): void {
   if (signal?.aborted === true) {
     throw new WorkItemsError('aborted', 'Work Items request was cancelled', { cause: signal.reason })
@@ -278,6 +320,26 @@ export class WorkItemsRuntime extends Service {
     const normalized = providerItem(item, source)
     if (normalized.id !== request.id) throw new WorkItemsError('invalid-response', 'Work Items provider returned a different item')
     return normalized
+  }
+
+  /**
+   * Read normalized boards through the selected provider when it exposes a board surface.
+   * @param request - optional source, board selection, and per-column bound.
+   * @param signal - optional cancellation signal.
+   * @returns a bounded normalized board list.
+   */
+  async boards(request: WorkItemBoardRequest = {}, signal?: AbortSignal): Promise<WorkItemBoard[]> {
+    assertNotAborted(signal)
+    const provider = this.active(request.source)
+    if (provider.boards === undefined) {
+      throw new WorkItemsError('unavailable', 'Work Items provider ' + provider.id + ' does not expose boards')
+    }
+    const boards = await provider.boards(request, signal)
+    assertNotAborted(signal)
+    if (!Array.isArray(boards) || boards.length > MAX_BOARDS) {
+      throw new WorkItemsError('invalid-response', 'Work Items provider returned invalid boards')
+    }
+    return boards.map(board => providerBoard(board, provider.id))
   }
 }
 

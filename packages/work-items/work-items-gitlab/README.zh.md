@@ -63,6 +63,7 @@ kind: "package-reference"
 - GitLab issue 没有原生 priority 字段，不从 label 推断优先级。
 - 工单 `due_date` 以标准化 `dueAt` 字段暴露。
 - `time_estimate` 以 `estimate.seconds` 暴露。
+- 项目 board 通过 `boards()` 暴露——至多 5 个 board、每个 20 列、默认每列 50 个工单 id；列标题取 label 名称。
 
 <a id="dev-note"></a>
 ### 开发备注

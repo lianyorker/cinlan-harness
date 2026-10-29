@@ -52,6 +52,7 @@ None; credential resolution and GitHub requests do not change the model request 
 - GitHub issues carry no native priority field; priority is not inferred from labels.
 - GitHub issues carry no due-date field; milestone due dates surface under `iteration` instead.
 - GitHub issues carry no estimate field.
+- Boards require Projects v2 over GraphQL with an extra credential scope; no board surface is exposed.
 
 
 <a id="dev-note"></a>

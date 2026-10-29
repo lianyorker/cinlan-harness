@@ -63,6 +63,7 @@ This provider registers no model-request prefix and does not replace existing re
 - GitLab issues carry no native priority field; priority is not inferred from labels.
 - The issue `due_date` surfaces as the normalized `dueAt` field.
 - `time_estimate` surfaces as `estimate.seconds`.
+- Project boards surface through `boards()` — up to 5 boards, 20 columns each, 50 item ids per column by default; columns carry their label title.
 
 <a id="dev-note"></a>
 ### Dev Note

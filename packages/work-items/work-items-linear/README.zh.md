@@ -53,6 +53,7 @@ allowWrites 默认为 false；启用后仅由公共服务的预览/确认 API �
 - 工单 `dueDate` 以标准化 `dueAt` 字段暴露。
 - `repository` 槽位在工单归属 project 时暴露 project 名称，否则暴露 team 名称。
 - `estimate` 以 `estimate.points` 暴露；未设置或为零时省略。
+- team board 只是按 state 分组的 list 重述，暂不提供 board 读面。
 
 
 <a id="开发备注"></a>

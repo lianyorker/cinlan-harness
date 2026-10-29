@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemBoard, WorkItemBoardRequest, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -27,6 +27,13 @@ const MAX_TEXT_LENGTH = 20_000
 const MAX_QUERY_LENGTH = 500
 const MAX_CURSOR_LENGTH = 500
 const MAX_TIMEOUT_MS = 120_000
+/** Boards fetched per boards read. */
+const MAX_BOARD_FETCH = 5
+/** Columns retained per board. */
+const MAX_BOARD_COLUMNS = 20
+/** Default and maximum item ids retained per board column. */
+const DEFAULT_BOARD_ITEMS = 50
+const MAX_BOARD_ITEMS = 100
 /** Newest user comments retained per Work Item read; system notes are filtered out. */
 const MAX_COMMENTS = 20
 
@@ -443,6 +450,53 @@ export class GitLabWorkItemsProvider implements WorkItemsProvider {
       if (comments.length > 0) return { ...item, comments }
     }
     return item
+  }
+
+  /** Read bounded project boards with label columns and inline item ids. */
+  async boards(request: WorkItemBoardRequest = {}, signal?: AbortSignal): Promise<WorkItemBoard[]> {
+    this.assertAvailable()
+    if (request.source !== undefined && request.source !== 'gitlab') throw new WorkItemsError('invalid-request', 'requested Work Items source is not GitLab')
+    if (request.board !== undefined
+      && (request.board.length === 0 || request.board.length > 100 || request.board.trim() !== request.board)) {
+      throw new WorkItemsError('invalid-request', 'Work Items board selector is invalid')
+    }
+    const limit = requestLimit(request.limit, DEFAULT_BOARD_ITEMS, MAX_BOARD_ITEMS)
+    const base = '/api/v4/projects/' + projectPath(this.config)
+    const raw = await this.request(base + '/boards?per_page=' + String(MAX_BOARD_FETCH), signal)
+    if (!Array.isArray(raw) || raw.length > MAX_BOARD_FETCH) throw new WorkItemsError('invalid-response', 'GitLab board list was invalid or exceeded its bound')
+    const selected = request.board === undefined
+      ? raw
+      : raw.filter((entry) => {
+        const board = objectValue(entry)
+        return String(board.id) === request.board || board.name === request.board
+      })
+    const boards: WorkItemBoard[] = []
+    for (const entry of selected) {
+      const board = objectValue(entry)
+      const id = board.id
+      if (typeof id !== 'number' || !Number.isSafeInteger(id) || id < 1) throw new WorkItemsError('invalid-response', 'GitLab returned an invalid board id')
+      const lists = await this.request(base + '/boards/' + String(id) + '/lists?per_page=' + String(MAX_BOARD_COLUMNS), signal)
+      if (!Array.isArray(lists) || lists.length > MAX_BOARD_COLUMNS) throw new WorkItemsError('invalid-response', 'GitLab board columns were invalid')
+      boards.push({
+        id: String(id),
+        title: requiredString(board.name, 'board title'),
+        url: this.config.origin + '/' + this.config.owner + '/' + this.config.repository + '/-/boards/' + String(id),
+        columns: lists.map((list) => {
+          const column = objectValue(list)
+          const label = column.label
+          const issues = column.issues
+          return {
+            title: label === null || label === undefined ? 'list' : requiredString(objectValue(label).name, 'board column title'),
+            itemIds: !Array.isArray(issues) ? [] : issues.slice(0, limit).map((issue) => {
+              const iid = objectValue(issue).iid
+              if (typeof iid !== 'number' || !Number.isSafeInteger(iid) || iid < 1) throw new WorkItemsError('invalid-response', 'GitLab returned an invalid board item')
+              return WorkItemId('gitlab:' + this.config.owner + '/' + this.config.repository + '#' + String(iid))
+            }),
+          }
+        }),
+      })
+    }
+    return boards
   }
 
   private issueIid(id: string): string {

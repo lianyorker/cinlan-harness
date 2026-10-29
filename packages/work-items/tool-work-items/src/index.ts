@@ -6,6 +6,8 @@ import { WorkItemId } from '@deepseek-ai/dsh-work-items'
 import type {} from '@deepseek-ai/dsh-work-items'
 import type {
   WorkItem,
+  WorkItemBoard,
+  WorkItemBoardRequest,
   WorkItemListRequest,
   WorkItemMutation,
   WorkItemPage,
@@ -166,6 +168,38 @@ const PAGE_SCHEMA = {
     items: { type: 'array', required: true, items: ITEM_SCHEMA },
     nextCursor: { type: 'string' },
     truncated: { type: 'boolean', required: true },
+  },
+} as const
+
+const BOARDS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    boards: {
+      type: 'array',
+      required: true,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          id: { type: 'string', required: true },
+          title: { type: 'string', required: true },
+          url: { type: 'string' },
+          columns: {
+            type: 'array',
+            required: true,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                title: { type: 'string', required: true },
+                itemIds: { type: 'array', required: true, items: { type: 'string' } },
+              },
+            },
+          },
+        },
+      },
+    },
   },
 } as const
 
@@ -368,6 +402,20 @@ function listRequest(args: {
   }
 }
 
+function boardRequest(args: {
+  readonly source?: WorkItemSource
+  readonly board?: string
+  readonly limit?: number
+}): WorkItemBoardRequest {
+  const board = args.board === undefined ? undefined : nonEmpty(args.board, 'board')
+  const limit = args.limit === undefined ? undefined : positiveLimit(args.limit)
+  return {
+    ...(args.source === undefined ? {} : { source: source(args.source) }),
+    ...(board === undefined ? {} : { board }),
+    ...(limit === undefined ? {} : { limit }),
+  }
+}
+
 function normalizeMutation(value: ModelMutation): WorkItemMutation {
   switch (value.kind) {
     case 'create':
@@ -464,6 +512,22 @@ function itemValue(item: WorkItem): PublicItem {
     ...(item.priority === undefined ? {} : { priority: item.priority }),
     ...(item.dueAt === undefined ? {} : { dueAt: item.dueAt }),
     ...(item.estimate === undefined ? {} : { estimate: { ...item.estimate } }),
+  }
+}
+
+interface PublicBoard {
+  readonly id: string
+  readonly title: string
+  readonly url?: string
+  readonly columns: { readonly title: string; readonly itemIds: string[] }[]
+}
+
+function boardValue(board: WorkItemBoard): PublicBoard {
+  return {
+    id: board.id,
+    title: board.title,
+    ...(board.url === undefined ? {} : { url: board.url }),
+    columns: board.columns.map(column => ({ title: column.title, itemIds: [...column.itemIds] })),
   }
 }
 
@@ -575,6 +639,23 @@ export function apply(ctx: Context, config: Config = {}): void {
       return pageValue(await ctx.workItems.list(listRequest(args), exec.signal))
     },
     presentCall: args => present('List Work Items', 'read', args.source ?? args.scope?.source),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'work_items_boards',
+    description: 'Read bounded normalized boards with ordered columns and item ids from the configured provider; only providers exposing a native board surface answer.',
+    parameters: {
+      source: { type: 'string', enum: ['github', 'linear', 'gitlab', 'jira'], description: 'Optional provider family; omit only when exactly one provider is usable.' },
+      board: { type: 'string', description: 'Optional provider board id or title selecting one board.' },
+      limit: { type: 'integer', description: 'Maximum item ids retained per column, from 1 through 100.' },
+    },
+    output: { schema: BOARDS_SCHEMA, render: (_args, value) => renderJson(value) },
+    timeoutMs: resolved.timeoutMs,
+    isConcurrencySafe: () => true,
+    async execute(args, exec) {
+      return { boards: (await ctx.workItems.boards(boardRequest(args), exec.signal)).map(boardValue) }
+    },
+    presentCall: args => present('Read Work Item Boards', 'read', args.board),
   }))
 
   ctx.tools.register(defineTool({

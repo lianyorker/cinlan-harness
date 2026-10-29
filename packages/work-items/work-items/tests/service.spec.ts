@@ -1,7 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import WorkItemsRuntime, { WorkItemId, WorkItemsError } from '../src/index.ts'
-import type { WorkItem, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '../src/types.ts'
+import type { WorkItem, WorkItemBoard, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '../src/types.ts'
 
 function item(source: WorkItem['source']): WorkItem {
   return { id: WorkItemId(source + ':one'), source, externalId: 'one', title: 'One', state: 'open', url: 'https://example.com/item', labels: [], assignees: [] }
@@ -24,6 +24,16 @@ function provider(source: WorkItem['source'], usable = true) {
     list: vi.fn(async (_request: WorkItemListRequest): Promise<WorkItemPage> => ({ items: [item(source)], truncated: false })),
     get: vi.fn(async () => item(source)), dispose: vi.fn(),
   } satisfies WorkItemsProvider
+}
+
+function boardProvider(source: WorkItem['source']) {
+  return {
+    ...provider(source),
+    boards: vi.fn(async (): Promise<WorkItemBoard[]> => [{
+      id: '12', title: 'Roadmap', url: 'https://gitlab.com/acme/repo/-/boards/12',
+      columns: [{ title: 'Doing', itemIds: [WorkItemId(source + ':acme/repo#7')] }],
+    }]),
+  }
 }
 
 describe('WorkItemsRuntime', () => {
@@ -51,6 +61,22 @@ describe('WorkItemsRuntime', () => {
     await expect(ctx.workItems.list({ source: 'github' })).resolves.toMatchObject({ items: [{ source: 'github' }] })
     ctx.workItems.registerProvider(linear)
     await expect(ctx.workItems.list({})).rejects.toThrow(expect.objectContaining({ code: 'ambiguous' }))
+    await fiber.dispose()
+  })
+
+  it('routes boards reads, normalizes output, and rejects missing board surfaces', async () => {
+    const ctx = new Context()
+    const fiber = await ctx.plugin(WorkItemsRuntime)
+    ctx.workItems.registerProvider(provider('github'))
+    await expect(ctx.workItems.boards({ source: 'github' })).rejects.toMatchObject({ code: 'unavailable' })
+    const gitlab = boardProvider('gitlab')
+    ctx.workItems.registerProvider(gitlab)
+    const boards = await ctx.workItems.boards({ source: 'gitlab', board: '12' })
+    expect(gitlab.boards).toHaveBeenCalledWith({ source: 'gitlab', board: '12' }, undefined)
+    expect(boards).toEqual([{ id: '12', title: 'Roadmap', url: 'https://gitlab.com/acme/repo/-/boards/12', columns: [{ title: 'Doing', itemIds: ['gitlab:acme/repo#7'] }] }])
+    const invalid = { ...boardProvider('jira'), boards: vi.fn(async () => [{ id: '9', title: 'x', columns: [{ title: 'c', itemIds: ['gitlab:acme/repo#7'] }] }] as never) }
+    ctx.workItems.registerProvider(invalid)
+    await expect(ctx.workItems.boards({ source: 'jira' })).rejects.toMatchObject({ code: 'invalid-response' })
     await fiber.dispose()
   })
 

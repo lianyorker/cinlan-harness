@@ -101,6 +101,29 @@ export interface WorkItemPage {
   readonly truncated: boolean
 }
 
+/** One board column; each entry carries the ids of the items assigned to it. */
+export interface WorkItemBoardColumn {
+  readonly title: string
+  readonly itemIds: readonly WorkItemId[]
+}
+
+/** One normalized board: ordered columns with bounded item ids. */
+export interface WorkItemBoard {
+  readonly id: string
+  readonly title: string
+  readonly url?: string
+  readonly columns: readonly WorkItemBoardColumn[]
+}
+
+/** Bounded read request for the boards of a provider scope. */
+export interface WorkItemBoardRequest {
+  readonly source?: WorkItemSource
+  /** Provider board id or title selecting one board when the scope exposes several. */
+  readonly board?: string
+  /** Maximum item ids retained per column, provider-bounded. */
+  readonly limit?: number
+}
+
 /** Provider implementation for one Work Items source. */
 export interface WorkItemsProvider {
   /** Provider family registered with the Work Items service. */
@@ -111,6 +134,8 @@ export interface WorkItemsProvider {
   list(request: WorkItemListRequest, signal?: AbortSignal): Promise<WorkItemPage>
   /** Read one item identified by this provider's opaque WorkItemId. */
   get(request: WorkItemGetRequest, signal?: AbortSignal): Promise<WorkItem>
+  /** Optional board read for the configured scope; providers without a native board surface omit it. */
+  boards?(request: WorkItemBoardRequest, signal?: AbortSignal): Promise<WorkItemBoard[]>
   /** Optional explicitly enabled write capability; this is a trusted Provider implementation, not an approval API. */
   readonly writer?: WorkItemsWriter
   /** Release provider-owned resources. */

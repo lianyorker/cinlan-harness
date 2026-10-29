@@ -98,6 +98,7 @@ describe('dsh-tool-work-items through a real cordis.yml Loader composition', () 
     expect(unloaded).toEqual([])
     expect(context.tools.schemas().map(schema => schema.name)).toEqual([
       'work_items_list',
+      'work_items_boards',
       'work_items_get',
       'work_items_prepare_write',
       'work_items_confirm_write',

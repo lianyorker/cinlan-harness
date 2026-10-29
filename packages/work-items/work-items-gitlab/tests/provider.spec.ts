@@ -121,6 +121,41 @@ describe('GitLabWorkItemsProvider', () => {
     expect(calls[0]?.init).toMatchObject({ redirect: 'error', headers: { 'PRIVATE-TOKEN': 'secret' } })
   })
 
+  it('maps boards with label columns and inline item ids', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      record(input instanceof Request ? input.url : String(input), init)
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.includes('/boards?')) return response([{ id: 12, name: 'Roadmap' }, { id: 13, name: 'Bugs' }])
+      if (url.includes('/boards/12/lists?')) {
+        return response([
+          { id: 21, label: { name: 'Doing' }, issues: [{ iid: 7 }, { iid: 8 }] },
+          { id: 22, label: { name: 'Review' }, issues: [] },
+        ])
+      }
+      return response([{ id: 31, label: { name: 'Bugs' }, issues: [{ iid: 9 }] }])
+    }))
+    const boards = await provider().boards({ source: 'gitlab' })
+    expect(boards).toEqual([
+      { id: '12', title: 'Roadmap', url: GITLAB_API_ORIGIN + '/acme/repo/-/boards/12', columns: [
+        { title: 'Doing', itemIds: ['gitlab:acme/repo#7', 'gitlab:acme/repo#8'] },
+        { title: 'Review', itemIds: [] },
+      ] },
+      { id: '13', title: 'Bugs', url: GITLAB_API_ORIGIN + '/acme/repo/-/boards/13', columns: [
+        { title: 'Bugs', itemIds: ['gitlab:acme/repo#9'] },
+      ] },
+    ])
+    expect(calls[0]?.url).toContain('/boards?per_page=5')
+    expect(calls[1]?.url).toContain('/boards/12/lists?per_page=20')
+    expect(calls[2]?.url).toContain('/boards/13/lists?per_page=20')
+
+    const selected = await provider().boards({ board: '12', limit: 1 })
+    expect(selected).toHaveLength(1)
+    expect(selected[0]?.columns[0]?.itemIds).toEqual(['gitlab:acme/repo#7'])
+    await expect(provider().boards({ source: 'github' as never })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(provider().boards({ board: ' ' })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(provider().boards({ limit: 0 })).rejects.toMatchObject({ code: 'invalid-request' })
+  })
+
   it('fails closed when credentials are absent and never performs fetch', async () => {
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
