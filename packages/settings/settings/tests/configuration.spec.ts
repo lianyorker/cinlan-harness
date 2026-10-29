@@ -339,6 +339,19 @@ it('imports the removed settings.yaml into the profile once and keeps rejected s
   expect(blocked.agentDefaultModel.currentSelection().model).toBe('legacy')
 })
 
+it('imports a legacy settings.yaml left in the previous .dsh profile directory', async () => {
+  const { ctx, home, profile, start } = await fixture()
+  await ctx.fiber.dispose()
+  ;(profile as { home: string }).home = join(home, '.clh', 'shared')
+  mkdirSync(join(home, '.dsh', 'shared'), { recursive: true })
+  writeFileSync(join(home, '.dsh', 'shared', 'settings.yaml'), 'default-model:\n  model: dsh-legacy\n')
+  const restored = await start()
+  await vi.waitFor(() => { expect(restored.agentDefaultModel.currentSelection().model).toBe('dsh-legacy') })
+  expect(existsSync(join(home, '.dsh', 'shared', 'settings.yaml'))).toBe(false)
+  expect(restored.settings.writable).toBe(true)
+  expect(await restored.settings.prepareDocument()).toBe(restored.settings.documentPath)
+})
+
 it('describes an entry whose required field only the profile supplies, and reports a failed refresh instead of crashing', async () => {
   const { ctx, profile, start } = await fixture({
     schema: z.object({ ordinary: z.string(), required: z.string().required(), count: z.number().default(2).volatile() }),
