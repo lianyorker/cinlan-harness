@@ -55,7 +55,7 @@ allowWrites 默认为 false；启用后仅由公共服务的预览/确认 API �
 - `estimate` 以 `estimate.points` 暴露；未设置或为零时省略。Linear 工单没有时间跟踪字段。
 - 工单 `parent` 以 `linear:` id 空间的 `parentId` 暴露。
 - 工单 relation 以 `links` 暴露——关系类型加目标 `linear:` id，至多 20 条。
-- `boards` 暴露配置 team 的看板：workflow states 按 position 排序成为列，每列给出有界的 `linear:` 工单 id。看板要求已配置 `team`；仅 project 作用域的 board 读取报 unavailable。
+- `boards` 暴露已配置作用域：`team` 产出一块看板，workflow states 按 position 排序成为列；仅 `project` 作用域产出以五种 state type（`Backlog` 到 `Canceled`）为列的看板。每列给出有界的 `linear:` 工单 id。
 
 
 <a id="开发备注"></a>

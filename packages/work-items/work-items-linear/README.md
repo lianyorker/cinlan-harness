@@ -55,7 +55,7 @@ None; credential resolution and Linear requests do not change the model request 
 - `estimate` surfaces as `estimate.points`; an unset or zero estimate is omitted. Linear issues carry no tracked-time field.
 - The issue `parent` surfaces as `parentId` in the `linear:` id space.
 - Issue relations surface as `links` — the relation type plus the target `linear:` id, bounded to 20 entries.
-- `boards` exposes the configured team's board: workflow states become columns ordered by position, each column lists bounded `linear:` item ids. Boards require a configured `team`; a project-only scope reports the board read as unavailable.
+- `boards` exposes the configured scope: a `team` produces one board whose workflow states become columns ordered by position; a `project`-only scope produces a board with the five state types (`Backlog` through `Canceled`) as columns. Each column lists bounded `linear:` item ids.
 
 
 <a id="dev-note"></a>

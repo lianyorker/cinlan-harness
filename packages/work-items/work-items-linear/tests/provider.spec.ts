@@ -355,13 +355,20 @@ describe('LinearWorkItemsProvider', () => {
   it('maps team workflow states into board columns and honors the board selector', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       record(input instanceof Request ? input.url : String(input), init)
-      const request = JSON.parse(init?.body as string) as { query: string; variables: { filter?: { state?: { name?: { eq?: string } } } } }
+      const request = JSON.parse(init?.body as string) as {
+        query: string
+        variables: { filter?: { state?: { name?: { eq?: string }; type?: { eq?: string } } } }
+      }
       if (request.query.includes('team(id:')) {
         return response({ data: { team: { name: 'Engineering', states: { nodes: [{ name: 'Done', position: 4 }, { name: 'Backlog', position: 0 }, { name: 'In Progress', position: 2 }] } } } })
       }
+      if (request.query.includes('project(id:')) {
+        return response({ data: { project: { name: 'Roadmap' } } })
+      }
       if (request.query.includes('issues(')) {
         const state = request.variables.filter?.state?.name?.eq
-        const nodes = state === 'Backlog' ? [{ id: 'issue-b1' }, { id: 'issue-b2' }] : state === 'In Progress' ? [{ id: 'issue-p1' }] : []
+        const type = request.variables.filter?.state?.type?.eq
+        const nodes = state === 'Backlog' ? [{ id: 'issue-b1' }, { id: 'issue-b2' }] : state === 'In Progress' ? [{ id: 'issue-p1' }] : type === 'started' ? [{ id: 'issue-s1' }] : []
         return response({ data: { issues: { nodes } } })
       }
       throw new Error('unexpected query')
@@ -380,8 +387,16 @@ describe('LinearWorkItemsProvider', () => {
     await expect(provider().boards({ board: 'other' })).resolves.toEqual([])
     await expect(provider().boards({ board: ' ' })).rejects.toMatchObject({ code: 'invalid-request' })
     await expect(provider().boards({ source: 'gitlab' })).rejects.toMatchObject({ code: 'invalid-request' })
+    calls.length = 0
     const projectOnly = new LinearWorkItemsProvider(context('secret'), resolveLinearWorkItemsConfig({ project: 'project-1' }))
-    await expect(projectOnly.boards({})).rejects.toMatchObject({ code: 'unavailable' })
+    const projectBoards = await projectOnly.boards({})
+    expect(projectBoards).toHaveLength(1)
+    expect(projectBoards[0]?.id).toBe('project-1')
+    expect(projectBoards[0]?.title).toBe('Roadmap')
+    expect(projectBoards[0]?.columns.map(column => column.title)).toEqual(['Backlog', 'Unstarted', 'Started', 'Completed', 'Canceled'])
+    expect(projectBoards[0]?.columns[2]?.itemIds).toEqual(['linear:issue-s1'])
+    expect(calls).toHaveLength(6)
+    await expect(provider().boards({ board: 'Roadmap' })).resolves.toEqual([])
   })
 
   it('reports a missing team as not-found on the board read', async () => {

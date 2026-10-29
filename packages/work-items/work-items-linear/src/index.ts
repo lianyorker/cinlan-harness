@@ -507,38 +507,68 @@ export class LinearWorkItemsProvider implements WorkItemsProvider {
     return mapIssue(data.issue)
   }
 
-  /** Read the configured team's board; workflow states become columns ordered by position. */
-  async boards(request: WorkItemBoardRequest = {}, signal?: AbortSignal): Promise<WorkItemBoard[]> {
+  /** Read boards for the configured scopes — team workflow states become columns;
+   * a project-only scope falls back to the five state types. */
+  async boards(
+    request: WorkItemBoardRequest = {},
+    signal?: AbortSignal,
+  ): Promise<WorkItemBoard[]> {
     this.assertAvailable()
     if (request.source !== undefined && request.source !== 'linear') throw new WorkItemsError('invalid-request', 'requested Work Items source is not Linear')
-    if (this.config.team.length === 0) throw new WorkItemsError('unavailable', 'Linear boards require a configured team')
     if (request.board !== undefined
       && (request.board.length === 0 || request.board.length > MAX_BOARD_SELECTOR_LENGTH || request.board.trim() !== request.board)) {
       throw new WorkItemsError('invalid-request', 'Work Items board selector is invalid')
     }
     const limit = requestLimit(request.limit, DEFAULT_BOARD_ITEMS, MAX_BOARD_ITEMS)
-    const data = objectValue(await this.request({ query: 'query($id: String!) { team(id: $id) { name states { nodes { name position } } } }', variables: { id: this.config.team } }, signal))
-    if (data.team === null || data.team === undefined) throw new WorkItemsError('not-found', 'Linear team was not found')
-    const team = objectValue(data.team)
-    const name = requiredString(team.name, 'team name')
-    if (request.board !== undefined && request.board !== this.config.team && request.board !== name) return []
-    const states = objectValue(team.states)
-    if (!Array.isArray(states.nodes) || states.nodes.length > MAX_BOARD_COLUMNS) throw new WorkItemsError('invalid-response', 'Linear board columns were invalid or exceeded their bound')
-    const ordered = states.nodes.map((state) => {
-      const entry = objectValue(state)
-      return { name: requiredString(entry.name, 'board column title'), position: typeof entry.position === 'number' ? entry.position : 0 }
-    }).sort((a, b) => a.position - b.position)
-    const columns: WorkItemBoardColumn[] = []
-    for (const column of ordered) {
-      const itemsData = objectValue(await this.request({
-        query: 'query($first: Int!, $filter: IssueFilter) { issues(first: $first, filter: $filter) { nodes { id } } }',
-        variables: { first: limit, filter: { team: { id: { eq: this.config.team } }, state: { name: { eq: column.name } } } },
-      }, signal))
-      const nodes = objectValue(itemsData.issues).nodes
-      if (!Array.isArray(nodes) || nodes.length > limit) throw new WorkItemsError('invalid-response', 'Linear board items were invalid or exceeded their bound')
-      columns.push({ title: column.name, itemIds: nodes.map(node => providerItemId('linear:' + requiredString(objectValue(node).id, 'issue id'))) })
+    const boards: WorkItemBoard[] = []
+    if (this.config.team.length > 0) {
+      const data = objectValue(await this.request({ query: 'query($id: String!) { team(id: $id) { name states { nodes { name position } } } }', variables: { id: this.config.team } }, signal))
+      if (data.team === null || data.team === undefined) throw new WorkItemsError('not-found', 'Linear team was not found')
+      const team = objectValue(data.team)
+      const name = requiredString(team.name, 'team name')
+      if (request.board === undefined || request.board === this.config.team || request.board === name) {
+        const states = objectValue(team.states)
+        if (!Array.isArray(states.nodes) || states.nodes.length > MAX_BOARD_COLUMNS) throw new WorkItemsError('invalid-response', 'Linear board columns were invalid or exceeded their bound')
+        const ordered = states.nodes.map((state) => {
+          const entry = objectValue(state)
+          return { name: requiredString(entry.name, 'board column title'), position: typeof entry.position === 'number' ? entry.position : 0 }
+        }).sort((a, b) => a.position - b.position)
+        const columns: WorkItemBoardColumn[] = []
+        for (const column of ordered) {
+          const filter = { team: { id: { eq: this.config.team } }, state: { name: { eq: column.name } } }
+          columns.push({ title: column.name, itemIds: await this.columnItems(limit, filter, signal) })
+        }
+        boards.push({ id: this.config.team, title: name, columns })
+      }
     }
-    return [{ id: this.config.team, title: name, columns }]
+    if (this.config.project.length > 0) {
+      const data = objectValue(await this.request({ query: 'query($id: String!) { project(id: $id) { name } }', variables: { id: this.config.project } }, signal))
+      if (data.project === null || data.project === undefined) throw new WorkItemsError('not-found', 'Linear project was not found')
+      const name = requiredString(objectValue(data.project).name, 'project name')
+      if (request.board === undefined || request.board === this.config.project || request.board === name) {
+        const columns: WorkItemBoardColumn[] = []
+        for (const type of ['backlog', 'unstarted', 'started', 'completed', 'canceled']) {
+          const filter = { project: { id: { eq: this.config.project } }, state: { type: { eq: type } } }
+          columns.push({ title: type.slice(0, 1).toUpperCase() + type.slice(1), itemIds: await this.columnItems(limit, filter, signal) })
+        }
+        boards.push({ id: this.config.project, title: name, columns })
+      }
+    }
+    return boards
+  }
+
+  private async columnItems(
+    limit: number,
+    filter: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<ReturnType<typeof WorkItemId>[]> {
+    const data = objectValue(await this.request({
+      query: 'query($first: Int!, $filter: IssueFilter) { issues(first: $first, filter: $filter) { nodes { id } } }',
+      variables: { first: limit, filter },
+    }, signal))
+    const nodes = objectValue(data.issues).nodes
+    if (!Array.isArray(nodes) || nodes.length > limit) throw new WorkItemsError('invalid-response', 'Linear board items were invalid or exceeded their bound')
+    return nodes.map(node => providerItemId('linear:' + requiredString(objectValue(node).id, 'issue id')))
   }
 
   private async scopedIssue(id: string, signal?: AbortSignal): Promise<{ id: string; teamId: string; url: string }> {
