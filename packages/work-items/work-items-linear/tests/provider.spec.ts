@@ -439,7 +439,7 @@ describe('LinearWorkItemsProvider', () => {
   })
 
   it('rejects malformed board rows and caps buckets at the request limit', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+    vi.stubGlobal('fetch', vi.fn(async (_input: URL | RequestInfo, init?: RequestInit) => {
       const request = JSON.parse(init?.body as string) as { query: string }
       if (request.query.includes('team(id:')) {
         return response({ data: { team: { name: 'Engineering', states: { nodes: [{ name: 'Backlog', position: 0 }, { name: 'Doing', position: 1 }, { name: 'Done', position: 2 }] } } } })
@@ -447,7 +447,7 @@ describe('LinearWorkItemsProvider', () => {
       return response({ data: { issues: { nodes: 'bad' } } })
     }))
     await expect(provider().boards({})).rejects.toMatchObject({ code: 'invalid-response' })
-    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+    vi.stubGlobal('fetch', vi.fn(async (_input: URL | RequestInfo, init?: RequestInit) => {
       const request = JSON.parse(init?.body as string) as { query: string }
       if (request.query.includes('team(id:')) {
         return response({ data: { team: { name: 'Engineering', states: { nodes: [{ name: 'Backlog', position: 0 }, { name: 'Doing', position: 1 }, { name: 'Done', position: 2 }] } } } })
@@ -471,7 +471,7 @@ describe('LinearWorkItemsProvider', () => {
     await expect(provider().list({ source: 'linear' })).rejects.toMatchObject({ code: 'provider-failed' })
     vi.stubGlobal('fetch', vi.fn(async () => response({ data: { team: { name: 'Engineering', states: { nodes: 'bad' } } } })))
     await expect(provider().boards({})).rejects.toMatchObject({ code: 'invalid-response' })
-    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+    vi.stubGlobal('fetch', vi.fn(async (_input: URL | RequestInfo, init?: RequestInit) => {
       const request = JSON.parse(init?.body as string) as { query: string }
       if (request.query.includes('team(id:')) {
         return response({ data: { team: { name: 'Engineering', states: { nodes: [{ name: 'NoPos' }, { name: 'First', position: -1 }] } } } })
@@ -544,7 +544,7 @@ describe('LinearWorkItemsProvider', () => {
     vi.stubGlobal('fetch', vi.fn(async () => response({ data: { issue: { ...linearIssue(), project: {} } } })))
     const scoped = await provider().get({ id: WorkItemId('linear:issue-1') })
     expect(scoped.repository).toBe('Engineering')
-    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+    vi.stubGlobal('fetch', vi.fn(async (_input: URL | RequestInfo, init?: RequestInit) => {
       const request = JSON.parse(init?.body as string) as { query: string }
       if (request.query.includes('team(id:')) {
         return response({ data: { team: { name: 'Engineering', states: { nodes: [{ name: 'Todo', position: 0 }] } } } })

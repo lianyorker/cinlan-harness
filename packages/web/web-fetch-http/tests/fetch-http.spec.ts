@@ -44,9 +44,10 @@ function minimalPdf(pageCount = 1, blankLast = false): Buffer {
     '<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>',
   ]
   const encoder = new TextEncoder()
-  const parts: Uint8Array[] = [encoder.encode('%PDF-1.4\n')]
+  const header = encoder.encode('%PDF-1.4\n')
+  const parts: Uint8Array[] = [header]
   const offsets: number[] = []
-  let length = parts[0].length
+  let length = header.length
   objects.forEach((body, index) => {
     offsets.push(length)
     const chunk = encoder.encode(`${index + 1} 0 obj\n${body}\nendobj\n`)

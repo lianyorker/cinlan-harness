@@ -35,7 +35,7 @@ const item: WorkItem = {
   dueAt: '2026-02-15',
   estimate: { points: 5 },
   timeSpent: 1800,
-  links: [{ type: 'relates_to', itemId: 'gitlab:acme/repo#9' }],
+  links: [{ type: 'relates_to', itemId: WorkItemId('gitlab:acme/repo#9') }],
 }
 
 const operation: WorkItemWriteOperation = {
