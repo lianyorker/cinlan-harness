@@ -1,7 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import VoiceRuntime, { VoiceError, VoiceModelId } from '../src/index.ts'
-import type { VoiceEngine, VoiceModelDefinition, VoiceRecognizer } from '../src/index.ts'
+import type { VoiceEngine, VoiceModelDefinition, VoiceOperations, VoiceRecognizer } from '../src/index.ts'
 
 function definition(id: string): VoiceModelDefinition {
   return {
@@ -47,6 +47,7 @@ describe('VoiceRuntime', () => {
     expect(() => ctx.voice.registerEngine(engine('two')))
       .toThrow(expect.objectContaining({ code: 'VOICE_ENGINE_DUPLICATE' }))
     unregister()
+    unregister()
     expect(ctx.voice.engineOrUndefined).toBeUndefined()
     await fiber.dispose()
   })
@@ -79,5 +80,68 @@ describe('VoiceRuntime', () => {
     expect(mounted.loadModel).toHaveBeenCalledWith(model, '/cache/zh-14m')
     await expect(recognizer?.transcribe(new Float32Array([0, 0]))).resolves.toBe('hello')
     await fiber.dispose()
+  })
+
+  it('gates operations behind a single registered provider and forwards engine status', async () => {
+    const { ctx, fiber } = await mount()
+    const signal = new AbortController().signal
+    expect(() => ctx.voice.engineStatus(signal)).toThrow(expect.objectContaining({ code: 'VOICE_UNAVAILABLE' }))
+    const aborted = new AbortController()
+    aborted.abort()
+    const operations: VoiceOperations = {
+      engineStatus: vi.fn(async () => ({ ok: true as const })),
+      modelsList: vi.fn(async () => ({ models: [] })),
+      modelsDownload: vi.fn(),
+      modelsReinstall: vi.fn(),
+      modelsUpdate: vi.fn(),
+      modelsCancel: vi.fn(),
+      modelsRemove: vi.fn(async () => {}),
+      transcribe: vi.fn(async () => ({ text: 'hello' })),
+    }
+    const unregister = ctx.voice.registerOperations(operations)
+    expect(() => ctx.voice.registerOperations(operations))
+      .toThrow(expect.objectContaining({ code: 'VOICE_OPERATIONS_DUPLICATE' }))
+    await expect(ctx.voice.engineStatus(signal)).resolves.toEqual({ ok: true })
+    expect(operations.engineStatus).toHaveBeenCalledWith(signal)
+    expect(() => ctx.voice.engineStatus(aborted.signal)).toThrow()
+    expect(operations.engineStatus).toHaveBeenCalledOnce()
+    unregister()
+    unregister()
+    expect(() => ctx.voice.engineStatus(signal)).toThrow(expect.objectContaining({ code: 'VOICE_UNAVAILABLE' }))
+    await fiber.dispose()
+  })
+
+  it('validates transport payloads and decodes canonical PCM', async () => {
+    const { parseVoiceModelRequest, parseVoiceCancelRequest, parseVoiceTranscribeRequest } = await import('../src/transport.ts')
+    const taskId = crypto.randomUUID()
+    expect(parseVoiceModelRequest({ modelId: 'zh-14m' })).toBe('zh-14m')
+    for (const bad of [null, {}, { modelId: '' }, { modelId: 7 }, { modelId: 'x'.repeat(257) }]) {
+      expect(() => parseVoiceModelRequest(bad)).toThrow(expect.objectContaining({ code: 'VOICE_INVALID_REQUEST' }))
+    }
+    expect(parseVoiceCancelRequest({ modelId: 'zh-14m', taskId })).toEqual({ modelId: 'zh-14m', taskId })
+    for (const bad of [{ modelId: 'm' }, { modelId: 'm', taskId: 'not-uuid' }, { modelId: 'm', taskId, extra: 1 }]) {
+      expect(() => parseVoiceCancelRequest(bad)).toThrow(expect.objectContaining({ code: 'VOICE_INVALID_REQUEST' }))
+    }
+    for (const bad of [null, { modelId: 'm' }, { modelId: 'm', pcm16kMonoBase64: '' }, { modelId: 'm', pcm16kMonoBase64: 'x'.repeat(22_000_001) }]) {
+      expect(() => parseVoiceTranscribeRequest(bad)).toThrow(expect.objectContaining({ code: 'VOICE_INVALID_REQUEST' }))
+    }
+    const decoded = parseVoiceTranscribeRequest({
+      modelId: 'zh-14m',
+      pcm16kMonoBase64: Buffer.alloc(8).toString('base64'),
+    })
+    expect(decoded.modelId).toBe('zh-14m')
+    expect(decoded.samples).toEqual(new Float32Array([0, 0]))
+    for (const pcm of [
+      Buffer.from('a'),
+      Buffer.alloc(3),
+      Buffer.alloc(1).fill(0),
+    ]) {
+      expect(() => parseVoiceTranscribeRequest({ modelId: 'm', pcm16kMonoBase64: pcm.toString('base64') }))
+        .toThrow(expect.objectContaining({ code: 'VOICE_INVALID_REQUEST' }))
+    }
+    const nonFinite = Buffer.alloc(4)
+    nonFinite.writeFloatLE(Number.POSITIVE_INFINITY)
+    expect(() => parseVoiceTranscribeRequest({ modelId: 'm', pcm16kMonoBase64: nonFinite.toString('base64') }))
+      .toThrow(expect.objectContaining({ code: 'VOICE_INVALID_REQUEST' }))
   })
 })

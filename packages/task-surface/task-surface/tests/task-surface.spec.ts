@@ -658,6 +658,22 @@ describe('taskSurfaceProjectionDefinition', () => {
       content: [],
       source: { kind: 'user' },
     })))).toBe(init)
+
+    // tool/result without message.toolCallId falls back to the first content block
+    const fallbackState = taskSurfaceProjectionDefinition.apply(init, createTestEvent('tool/result', {
+      turn: 1,
+      step: 1,
+      message: { content: [{ toolCallId: ToolCallId('fallback-call') }] } as never,
+      meta: {
+        kind: 'dsh/task-surface',
+        version: 1,
+        surfaceId: 'surf-fallback',
+        model: { version: 1, title: 'T', sections: [], submit: { label: 'S' } },
+      },
+    }))
+    expect(fallbackState).toEqual({
+      active: { callId: ToolCallId('fallback-call'), surfaceId: TaskSurfaceId('surf-fallback') },
+    })
   })
 })
 

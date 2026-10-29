@@ -312,6 +312,21 @@ describe('MessageFeedbackService public contract', () => {
     }
   })
 
+  it('warns and still resolves when a committed observer rejects', async () => {
+    const { ctx, persistence } = await harness()
+    const fixture = messageFixture('observer-failure')
+    persistence.persist(fixture.session)
+    const warn = vi.spyOn(ctx.logger, 'warn')
+    ctx.on('feedback/committed', () => { throw new Error('observer boom') })
+    expectItem(await ctx.messageFeedback.put({
+      sessionId: fixture.session.id,
+      messageId: fixture.assistantMessageIds[0],
+      rating: 'positive',
+      ifVersion: null,
+    }))
+    expect(warn).toHaveBeenCalledWith('message-feedback: committed feedback observer failed', expect.any(Error))
+  })
+
 })
 
 describe('MessageFeedbackService item concurrency', () => {
