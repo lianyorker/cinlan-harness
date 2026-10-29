@@ -357,7 +357,7 @@ describe('LinearWorkItemsProvider', () => {
       record(input instanceof Request ? input.url : String(input), init)
       const request = JSON.parse(init?.body as string) as {
         query: string
-        variables: { filter?: { state?: { name?: { eq?: string }; type?: { eq?: string } } } }
+        variables: { filter?: { team?: unknown; project?: unknown; state?: { name?: { eq?: string }; type?: { eq?: string } } } }
       }
       if (request.query.includes('team(id:')) {
         return response({ data: { team: { name: 'Engineering', states: { nodes: [{ name: 'Done', position: 4 }, { name: 'Backlog', position: 0 }, { name: 'In Progress', position: 2 }] } } } })
@@ -366,9 +366,13 @@ describe('LinearWorkItemsProvider', () => {
         return response({ data: { project: { name: 'Roadmap' } } })
       }
       if (request.query.includes('issues(')) {
-        const state = request.variables.filter?.state?.name?.eq
-        const type = request.variables.filter?.state?.type?.eq
-        const nodes = state === 'Backlog' ? [{ id: 'issue-b1' }, { id: 'issue-b2' }] : state === 'In Progress' ? [{ id: 'issue-p1' }] : type === 'started' ? [{ id: 'issue-s1' }] : []
+        const nodes = request.variables.filter?.team !== undefined
+          ? [
+            { id: 'issue-b1', state: { name: 'Backlog', type: 'backlog' } },
+            { id: 'issue-b2', state: { name: 'Backlog', type: 'backlog' } },
+            { id: 'issue-p1', state: { name: 'In Progress', type: 'started' } },
+          ]
+          : [{ id: 'issue-s1', state: { name: 'Doing', type: 'started' } }]
         return response({ data: { issues: { nodes } } })
       }
       throw new Error('unexpected query')
@@ -381,7 +385,7 @@ describe('LinearWorkItemsProvider', () => {
     expect(boards[0]?.columns[0]?.itemIds).toEqual(['linear:issue-b1', 'linear:issue-b2'])
     expect(boards[0]?.columns[1]?.itemIds).toEqual(['linear:issue-p1'])
     expect(boards[0]?.columns[2]?.itemIds).toEqual([])
-    expect(calls).toHaveLength(4)
+    expect(calls).toHaveLength(2)
     calls.length = 0
     await expect(provider().boards({ board: 'Engineering' })).resolves.toHaveLength(1)
     await expect(provider().boards({ board: 'other' })).resolves.toEqual([])
@@ -395,7 +399,7 @@ describe('LinearWorkItemsProvider', () => {
     expect(projectBoards[0]?.title).toBe('Roadmap')
     expect(projectBoards[0]?.columns.map(column => column.title)).toEqual(['Backlog', 'Unstarted', 'Started', 'Completed', 'Canceled'])
     expect(projectBoards[0]?.columns[2]?.itemIds).toEqual(['linear:issue-s1'])
-    expect(calls).toHaveLength(6)
+    expect(calls).toHaveLength(2)
     await expect(provider().boards({ board: 'Roadmap' })).resolves.toEqual([])
   })
 

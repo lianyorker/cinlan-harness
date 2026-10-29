@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemAttachment, WorkItemBoard, WorkItemBoardColumn, WorkItemBoardRequest, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemIteration, WorkItemLink, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemAttachment, WorkItemBoard, WorkItemBoardRequest, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemIteration, WorkItemLink, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -37,6 +37,8 @@ const MAX_BOARD_COLUMNS = 20
 /** Default and maximum item ids retained per board column. */
 const DEFAULT_BOARD_ITEMS = 50
 const MAX_BOARD_ITEMS = 100
+/** Total issue rows fetched per board; each column keeps at most the request limit. */
+const MAX_BOARD_ITEMS_FETCH = 500
 const MAX_BOARD_SELECTOR_LENGTH = 100
 
 /** Linear provider configuration. */
@@ -533,11 +535,10 @@ export class LinearWorkItemsProvider implements WorkItemsProvider {
           const entry = objectValue(state)
           return { name: requiredString(entry.name, 'board column title'), position: typeof entry.position === 'number' ? entry.position : 0 }
         }).sort((a, b) => a.position - b.position)
-        const columns: WorkItemBoardColumn[] = []
-        for (const column of ordered) {
-          const filter = { team: { id: { eq: this.config.team } }, state: { name: { eq: column.name } } }
-          columns.push({ title: column.name, itemIds: await this.columnItems(limit, filter, signal) })
-        }
+        const first = Math.min(limit * ordered.length, MAX_BOARD_ITEMS_FETCH)
+        const nodes = await this.boardIssueNodes(first, { team: { id: { eq: this.config.team } } }, signal)
+        const byState = this.bucketItems(nodes, 'name', limit)
+        const columns = ordered.map(column => ({ title: column.name, itemIds: byState.get(column.name) ?? [] }))
         boards.push({ id: this.config.team, title: name, columns })
       }
     }
@@ -546,29 +547,48 @@ export class LinearWorkItemsProvider implements WorkItemsProvider {
       if (data.project === null || data.project === undefined) throw new WorkItemsError('not-found', 'Linear project was not found')
       const name = requiredString(objectValue(data.project).name, 'project name')
       if (request.board === undefined || request.board === this.config.project || request.board === name) {
-        const columns: WorkItemBoardColumn[] = []
-        for (const type of ['backlog', 'unstarted', 'started', 'completed', 'canceled']) {
-          const filter = { project: { id: { eq: this.config.project } }, state: { type: { eq: type } } }
-          columns.push({ title: type.slice(0, 1).toUpperCase() + type.slice(1), itemIds: await this.columnItems(limit, filter, signal) })
-        }
+        const stateTypes = ['backlog', 'unstarted', 'started', 'completed', 'canceled']
+        const first = Math.min(limit * stateTypes.length, MAX_BOARD_ITEMS_FETCH)
+        const nodes = await this.boardIssueNodes(first, { project: { id: { eq: this.config.project } } }, signal)
+        const byType = this.bucketItems(nodes, 'type', limit)
+        const columns = stateTypes.map(type => ({ title: type.slice(0, 1).toUpperCase() + type.slice(1), itemIds: byType.get(type) ?? [] }))
         boards.push({ id: this.config.project, title: name, columns })
       }
     }
     return boards
   }
 
-  private async columnItems(
-    limit: number,
+  /** Fetch board issue rows carrying their workflow state, bounded to `first`. */
+  private async boardIssueNodes(
+    first: number,
     filter: Record<string, unknown>,
     signal?: AbortSignal,
-  ): Promise<ReturnType<typeof WorkItemId>[]> {
+  ): Promise<readonly Record<string, unknown>[]> {
     const data = objectValue(await this.request({
-      query: 'query($first: Int!, $filter: IssueFilter) { issues(first: $first, filter: $filter) { nodes { id } } }',
-      variables: { first: limit, filter },
+      query: 'query($first: Int!, $filter: IssueFilter) { issues(first: $first, filter: $filter) { nodes { id state { name type } } } }',
+      variables: { first, filter },
     }, signal))
     const nodes = objectValue(data.issues).nodes
-    if (!Array.isArray(nodes) || nodes.length > limit) throw new WorkItemsError('invalid-response', 'Linear board items were invalid or exceeded their bound')
-    return nodes.map(node => providerItemId('linear:' + requiredString(objectValue(node).id, 'issue id')))
+    if (!Array.isArray(nodes) || nodes.length > first) {
+      throw new WorkItemsError('invalid-response', 'Linear board items were invalid or exceeded their bound')
+    }
+    return nodes.map(node => objectValue(node))
+  }
+
+  /** Bucket fetched issue rows by their state's name or type, capped per column. */
+  private bucketItems(
+    nodes: readonly Record<string, unknown>[],
+    key: 'name' | 'type',
+    limit: number,
+  ): Map<string, ReturnType<typeof WorkItemId>[]> {
+    const buckets = new Map<string, ReturnType<typeof WorkItemId>[]>()
+    for (const entry of nodes) {
+      const stateKey = requiredString(objectValue(entry.state)[key], 'board item state')
+      const ids = buckets.get(stateKey) ?? []
+      if (ids.length < limit) ids.push(providerItemId('linear:' + requiredString(entry.id, 'issue id')))
+      buckets.set(stateKey, ids)
+    }
+    return buckets
   }
 
   private async scopedIssue(id: string, signal?: AbortSignal): Promise<{ id: string; teamId: string; url: string }> {
