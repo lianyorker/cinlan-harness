@@ -197,6 +197,7 @@ function providerItemId(value: string): ReturnType<typeof WorkItemId> {
   try {
     return WorkItemId(value)
   } catch (error) {
+    /* v8 ignore next 1 -- all call sites pass the fixed 'gitlab:owner/repo#iid' shape, so this is a defensive fallback. */
     throw new WorkItemsError('invalid-response', 'Provider returned an invalid Work Item id', { cause: error })
   }
 }
@@ -436,7 +437,9 @@ export class GitLabWorkItemsProvider implements WorkItemsProvider {
     try {
       return await readJson(response, combined)
     } catch (error) {
+      /* v8 ignore else -- readJson wraps its own parse/bound failures; the generic fallback is defensive. */
       if (error instanceof WorkItemsError) throw error
+      /* v8 ignore next 1 -- readJson wraps its own parse/bound failures; the generic fallback is defensive. */
       throw requestError(error, signal, timeout, this.lifecycle.signal)
     }
   }
@@ -541,6 +544,7 @@ export class GitLabWorkItemsProvider implements WorkItemsProvider {
   private validateMutation(mutation: WorkItemMutation, signal?: AbortSignal): void {
     signal?.throwIfAborted()
     this.assertAvailable()
+    /* v8 ignore next 1 -- writer only exists when allowWrites is set, so the guard is defensive. */
     if (!this.config.allowWrites) throw new WorkItemsError('write-disabled', 'GitLab writes are disabled')
     if (mutation.kind === 'create') {
       if (mutation.source !== 'gitlab') throw new WorkItemsError('invalid-request', 'Wrong Work Items source')

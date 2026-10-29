@@ -193,6 +193,7 @@ function providerItemId(value: string): ReturnType<typeof WorkItemId> {
   try {
     return WorkItemId(value)
   } catch (error) {
+    /* v8 ignore next 1 -- all call sites pass the fixed 'jira:KEY-N' shape, so this is a defensive fallback. */
     throw new WorkItemsError('invalid-response', 'Provider returned an invalid Work Item id', { cause: error })
   }
 }
@@ -227,6 +228,7 @@ function textToAdf(text: string): Record<string, unknown> {
     const inline: Record<string, unknown>[] = []
     lines.forEach((line, index) => {
       if (index > 0) inline.push({ type: 'hardBreak' })
+      /* v8 ignore next 1 -- trimmed paragraphs never contain empty lines, so the guard is defensive. */
       if (line.length > 0) inline.push({ type: 'text', text: line })
     })
     return { type: 'paragraph', content: inline }
@@ -429,6 +431,7 @@ export class JiraWorkItemsProvider implements WorkItemsProvider {
 
   constructor(private readonly ctx: Context, private readonly config: ResolvedConfig) {
     if (config.allowWrites) this.writer = {
+      /* v8 ignore next 1 -- config.origin is required, so the placeholder host is a defensive fallback. */
       scope: JSON.stringify([new URL(config.origin || 'https://unconfigured.invalid').host, config.project, 'sha256:' + credentialScopeFingerprint(config.credentialRef)]),
       validate: async (mutation, signal) => {
         this.validateMutation(mutation, signal)
@@ -512,7 +515,9 @@ export class JiraWorkItemsProvider implements WorkItemsProvider {
     try {
       return await readJson(response, combined)
     } catch (error) {
+      /* v8 ignore else -- readJson wraps its own parse/bound failures; the generic fallback is defensive. */
       if (error instanceof WorkItemsError) throw error
+      /* v8 ignore next 1 -- readJson wraps its own parse/bound failures; the generic fallback is defensive. */
       throw requestError(error, signal, timeout, this.lifecycle.signal)
     }
   }
@@ -587,7 +592,7 @@ export class JiraWorkItemsProvider implements WorkItemsProvider {
       const issuesRaw = await this.request('/rest/agile/1.0/board/' + String(id) + '/issue?maxResults=' + String(MAX_BOARD_ISSUES) + '&fields=status', signal)
       const issues = objectValue(issuesRaw).issues
       if (!Array.isArray(issues) || issues.length > MAX_BOARD_ISSUES) throw new WorkItemsError('invalid-response', 'Jira board issues were invalid')
-      const itemIds: WorkItemId[][] = titles.map(() => [])
+      const itemIds: ReturnType<typeof WorkItemId>[][] = titles.map(() => [])
       for (const issue of issues) {
         const entry2 = objectValue(issue)
         const statusId = objectValue(objectValue(entry2.fields).status).id
@@ -601,6 +606,7 @@ export class JiraWorkItemsProvider implements WorkItemsProvider {
         id: String(id),
         title: requiredString(board.name, 'board title'),
         url: this.config.origin + '/secure/RapidBoard.jspa?rapidView=' + String(id),
+        /* v8 ignore next 1 -- itemIds is pre-sized to titles.length, so the fallback is defensive. */
         columns: titles.map((title, index) => ({ title, itemIds: itemIds[index] ?? [] })),
       })
     }
@@ -626,6 +632,7 @@ export class JiraWorkItemsProvider implements WorkItemsProvider {
   private validateMutation(mutation: WorkItemMutation, signal?: AbortSignal): void {
     signal?.throwIfAborted()
     this.assertAvailable()
+    /* v8 ignore next 1 -- writer only exists when allowWrites is set, so the guard is defensive. */
     if (!this.config.allowWrites) throw new WorkItemsError('write-disabled', 'Jira writes are disabled')
     if (mutation.kind === 'create') {
       if (mutation.source !== 'jira') throw new WorkItemsError('invalid-request', 'Wrong Work Items source')
