@@ -266,14 +266,14 @@ function mapComments(value: unknown): WorkItemComment[] {
   })
 }
 
-/** Normalize the sub_issues endpoint rows to bounded same-repository 'sub-issue' links. */
-function mapSubIssues(value: unknown, config: ResolvedConfig): WorkItemLink[] {
-  if (!Array.isArray(value) || value.length > MAX_LINKS) throw new WorkItemsError('invalid-response', 'GitHub sub-issue list was invalid or exceeded its bound')
+/** Normalize issue-array relation rows (sub_issues, dependencies) to bounded same-repository typed links. */
+function mapIssueLinks(value: unknown, type: string, config: ResolvedConfig): WorkItemLink[] {
+  if (!Array.isArray(value) || value.length > MAX_LINKS) throw new WorkItemsError('invalid-response', 'GitHub ' + type + ' list was invalid or exceeded its bound')
   const links: WorkItemLink[] = []
   for (const entry of value) {
     const number = objectValue(entry).number
     if (typeof number !== 'number' || !Number.isSafeInteger(number) || number < 1) continue
-    links.push({ type: 'sub-issue', itemId: WorkItemId('github:' + config.owner + '/' + config.repository + '#' + String(number)) })
+    links.push({ type, itemId: WorkItemId('github:' + config.owner + '/' + config.repository + '#' + String(number)) })
   }
   return links
 }
@@ -444,12 +444,23 @@ export class GitHubWorkItemsProvider implements WorkItemsProvider {
     const raw = await this.request(base, signal)
     let result = mapIssue(raw, this.config)
     if (result === undefined) throw new WorkItemsError('not-found', 'GitHub Work Item was not found')
+    const links: WorkItemLink[] = []
     const summary = objectValue(raw).sub_issues_summary
     const subTotal = summary === undefined ? undefined : objectValue(summary).total
     if (typeof subTotal === 'number' && subTotal > 0) {
-      const links = mapSubIssues(await this.request(base + '/sub_issues?per_page=' + String(MAX_LINKS), signal), this.config)
-      if (links.length > 0) result = { ...result, links }
+      links.push(...mapIssueLinks(await this.request(base + '/sub_issues?per_page=' + String(MAX_LINKS), signal), 'sub-issue', this.config))
     }
+    const dependencies = objectValue(raw).issue_dependencies_summary
+    if (dependencies !== undefined) {
+      const counts = objectValue(dependencies)
+      for (const relation of [['blocked-by', 'blocked_by'], ['blocking', 'blocking']] as const) {
+        const dependent = counts[relation[1]]
+        if (typeof dependent === 'number' && dependent > 0) {
+          links.push(...mapIssueLinks(await this.request(base + '/dependencies/' + relation[1] + '?per_page=' + String(MAX_LINKS), signal), relation[0], this.config))
+        }
+      }
+    }
+    if (links.length > 0) result = { ...result, links: links.slice(0, MAX_LINKS) }
     const count = objectValue(raw).comments
     if (typeof count === 'number' && count > 0) {
       const comments = await this.request(base + '/comments?per_page=100', signal)

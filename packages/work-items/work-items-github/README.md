@@ -52,7 +52,7 @@ None; credential resolution and GitHub requests do not change the model request 
 - GitHub issues carry no native priority field; priority is not inferred from labels.
 - GitHub issues carry no due-date field; milestone due dates surface under `iteration` instead.
 - GitHub issues carry no estimate field and no tracked-time field.
-- The issue `parent` surfaces as `parentId` when it points at an issue in the configured repository; cross-repository parents are omitted. When the issue reports `sub_issues_summary`, `get` reads `sub_issues` and exposes each child as a `sub-issue` typed `links` entry, bounded to 20.
+- The issue `parent` surfaces as `parentId` when it points at an issue in the configured repository; cross-repository parents are omitted. When the issue reports `sub_issues_summary`, `get` reads `sub_issues` and exposes each child as a `sub-issue` typed `links` entry; `issue_dependencies_summary` likewise yields `blocked-by`/`blocking` entries from the dependencies endpoints — the merged `links` list is bounded to 20.
 - `boards` reads the owner's Projects v2 boards over GraphQL with the same credential: the Status single-select field becomes the columns, each column lists bounded `github:` issue ids. Projects without a single-select field surface no board; draft issues and pull requests are skipped.
 
 
