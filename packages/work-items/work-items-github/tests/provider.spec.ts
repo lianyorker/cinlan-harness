@@ -294,4 +294,61 @@ describe('GitHubWorkItemsProvider', () => {
     await expect(p.get({ id: WorkItemId('github:acme/repo#1') })).rejects.toMatchObject({ code: 'unavailable' })
     p.dispose()
   })
+
+  it('maps Projects V2 boards through GraphQL with Status options as columns', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      record(input instanceof Request ? input.url : String(input), init)
+      const request = JSON.parse(init?.body as string) as { query: string }
+      if (request.query.includes('projectsV2')) {
+        return response({ data: { repository: { owner: { login: 'acme', projectsV2: { nodes: [{ id: 'PV_1', number: 3, title: 'Roadmap' }] } } } } })
+      }
+      if (request.query.includes('node(id:')) {
+        return response({
+          data: {
+            node: {
+              fields: { nodes: [{ __typename: 'ProjectV2SingleSelectField', name: 'Status', options: [{ name: 'Todo' }, { name: 'In Progress' }, { name: 'Done' }] }] },
+              items: {
+                nodes: [
+                  { fieldValues: { nodes: [{ __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'Todo', field: { name: 'Status' } }] }, content: { __typename: 'Issue', number: 7 } },
+                  { fieldValues: { nodes: [{ __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'In Progress', field: { name: 'Status' } }] }, content: { __typename: 'Issue', number: 9 } },
+                  { fieldValues: { nodes: [] }, content: { __typename: 'Issue', number: 11 } },
+                  { fieldValues: { nodes: [{ __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'Done', field: { name: 'Status' } }] }, content: { __typename: 'DraftIssue' } },
+                ],
+              },
+            },
+          },
+        })
+      }
+      throw new Error('unexpected query')
+    }))
+    const boards = await provider().boards({ source: 'github' })
+    expect(boards).toHaveLength(1)
+    expect(boards[0]?.id).toBe('PV_1')
+    expect(boards[0]?.title).toBe('Roadmap')
+    expect(boards[0]?.url).toBe('https://github.com/acme/projects/3')
+    expect(boards[0]?.columns.map(column => column.title)).toEqual(['Todo', 'In Progress', 'Done'])
+    expect(boards[0]?.columns[0]?.itemIds).toEqual(['github:acme/repo#7'])
+    expect(boards[0]?.columns[1]?.itemIds).toEqual(['github:acme/repo#9'])
+    expect(boards[0]?.columns[2]?.itemIds).toEqual([])
+    expect(calls).toHaveLength(2)
+    expect(calls[0]?.url).toBe('https://api.github.com/graphql')
+    calls.length = 0
+    await expect(provider().boards({ board: 'Roadmap' })).resolves.toHaveLength(1)
+    await expect(provider().boards({ board: 'other' })).resolves.toEqual([])
+    await expect(provider().boards({ board: ' ' })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(provider().boards({ source: 'jira' })).rejects.toMatchObject({ code: 'invalid-request' })
+  })
+
+  it('maps GraphQL errors and a missing repository on the board read', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => response({ errors: [{ type: 'NOT_FOUND', message: 'gone' }] })))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'not-found' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ errors: [{ type: 'FORBIDDEN', message: 'denied' }] })))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'forbidden' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ errors: [{ message: 'broken' }] })))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'provider-failed' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ data: { repository: null } })))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 401 })))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'authentication-required' })
+  })
 })

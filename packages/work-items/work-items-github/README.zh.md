@@ -53,7 +53,7 @@ allowWrites 默认为 false；启用后仅由公共服务的预览/确认 API �
 - GitHub issue 没有原生 due-date 字段，milestone 截止日期通过 `iteration` 暴露。
 - GitHub issue 没有原生 estimate 或时间跟踪字段。
 - issue `parent` 在指向已配置仓库内的工单时以 `parentId` 暴露；跨仓库父工单省略。sub-issue 是子项而非类型化关系，暂不提供 `links` 读面。
-- board 需要走 GraphQL 的 Projects v2 及额外 credential scope，不提供 board 读面。
+- `boards` 通过 GraphQL 用同一凭据读取 owner 的 Projects v2 看板：Status 单选字段成为列，每列给出有界的 `github:` issue id。没有单选字段的 project 不产出看板；草稿工单与 pull request 会被跳过。
 
 
 <a id="开发备注"></a>

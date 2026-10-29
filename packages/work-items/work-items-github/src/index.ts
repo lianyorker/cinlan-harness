@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemComment, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemBoard, WorkItemBoardColumn, WorkItemBoardRequest, WorkItemComment, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -29,6 +29,16 @@ const MAX_CURSOR_LENGTH = 500
 const MAX_TIMEOUT_MS = 120_000
 /** Comments fetched for one Work Item read; GitHub returns the oldest page, so the newest tail is kept. */
 const MAX_COMMENTS = 20
+/** Projects fetched per boards read. */
+const MAX_BOARD_FETCH = 20
+/** Status options retained per board. */
+const MAX_BOARD_COLUMNS = 20
+/** Project items fetched per board; each column keeps at most MAX_BOARD_ITEMS ids. */
+const MAX_BOARD_ITEMS_FETCH = 500
+/** Default and maximum item ids retained per board column. */
+const DEFAULT_BOARD_ITEMS = 50
+const MAX_BOARD_ITEMS = 100
+const MAX_BOARD_SELECTOR_LENGTH = 100
 
 /** GitHub provider configuration. */
 export interface Config {
@@ -427,6 +437,129 @@ export class GitHubWorkItemsProvider implements WorkItemsProvider {
       if (mapped.length > 0) return { ...result, comments: mapped }
     }
     return result
+  }
+
+  /** Run a bounded GraphQL request against the fixed /graphql endpoint with the same token. */
+  private async graphql(body: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown>> {
+    const timeout = AbortSignal.timeout(this.config.timeoutMs)
+    const combined = AbortSignal.any([this.lifecycle.signal, timeout, ...(signal === undefined ? [] : [signal])])
+    let response: Response
+    try {
+      const token = await this.token(combined)
+      response = await fetch(GITHUB_API_ORIGIN + '/graphql', {
+        method: 'POST',
+        redirect: 'error',
+        headers: {
+          accept: 'application/vnd.github+json',
+          'content-type': 'application/json',
+          authorization: 'Bearer ' + token,
+          'user-agent': 'deepseek-harness',
+          'x-github-api-version': '2022-11-28',
+        },
+        body: JSON.stringify(body),
+        signal: combined,
+      })
+    } catch (error) {
+      if (error instanceof WorkItemsError) throw error
+      throw requestError(error, signal, timeout, this.lifecycle.signal)
+    }
+    if (response.status === 401) throw new WorkItemsError('authentication-required', 'GitHub rejected the configured credentials')
+    if (response.status === 403) throw new WorkItemsError('forbidden', 'GitHub denied access to the configured repository')
+    if (response.status === 404) throw new WorkItemsError('not-found', 'GitHub repository or Work Item was not found')
+    if (response.status === 429) throw new WorkItemsError('rate-limited', 'GitHub rate limited the Work Items request')
+    if (!response.ok) throw new WorkItemsError('provider-failed', 'GitHub Work Items returned HTTP ' + String(response.status))
+    let raw: unknown
+    try {
+      raw = await readJson(response, combined)
+    } catch (error) {
+      if (error instanceof WorkItemsError) throw error
+      throw requestError(error, signal, timeout, this.lifecycle.signal)
+    }
+    const payload = objectValue(raw)
+    const errors = payload.errors
+    if (Array.isArray(errors) && errors.length > 0) {
+      const type = errors.map(error => objectValue(error).type).find(value => typeof value === 'string')
+      if (type === 'NOT_FOUND') throw new WorkItemsError('not-found', 'GitHub Work Items object was not found')
+      if (type === 'FORBIDDEN' || type === 'INSUFFICIENT_SCOPES') throw new WorkItemsError('forbidden', 'GitHub denied access to the requested object')
+      throw new WorkItemsError('provider-failed', 'GitHub returned a GraphQL error')
+    }
+    return objectValue(payload.data)
+  }
+
+  /** Read the owner's Projects V2 boards; each Status single-select option becomes a column. */
+  async boards(request: WorkItemBoardRequest = {}, signal?: AbortSignal): Promise<WorkItemBoard[]> {
+    this.assertAvailable()
+    if (request.source !== undefined && request.source !== 'github') throw new WorkItemsError('invalid-request', 'requested Work Items source is not GitHub')
+    if (request.board !== undefined
+      && (request.board.length === 0 || request.board.length > MAX_BOARD_SELECTOR_LENGTH || request.board.trim() !== request.board)) {
+      throw new WorkItemsError('invalid-request', 'Work Items board selector is invalid')
+    }
+    const limit = requestLimit(request.limit, DEFAULT_BOARD_ITEMS, MAX_BOARD_ITEMS)
+    const listData = await this.graphql({
+      query: 'query($owner: String!, $name: String!, $first: Int!) { repository(owner: $owner, name: $name) { owner { login projectsV2(first: $first) { nodes { id number title } } } } }',
+      variables: { owner: this.config.owner, name: this.config.repository, first: MAX_BOARD_FETCH },
+    }, signal)
+    const ownerNode = objectValue(objectValue(listData.repository).owner)
+    const projects = objectValue(ownerNode.projectsV2)
+    if (!Array.isArray(projects.nodes) || projects.nodes.length > MAX_BOARD_FETCH) throw new WorkItemsError('invalid-response', 'GitHub board list was invalid or exceeded its bound')
+    const selected = request.board === undefined
+      ? projects.nodes
+      : projects.nodes.filter((node) => {
+        const project = objectValue(node)
+        return String(project.number) === request.board || project.title === request.board || project.id === request.board
+      })
+    const boards: WorkItemBoard[] = []
+    for (const node of selected) {
+      const project = objectValue(node)
+      const projectId = requiredString(project.id, 'board id')
+      const number = project.number
+      const detail = await this.graphql({
+        query: 'query($id: ID!, $fields: Int!, $items: Int!) { node(id: $id) { ... on ProjectV2 { fields(first: $fields) { nodes { __typename name ... on ProjectV2SingleSelectField { options { name } } } } items(first: $items) { nodes { fieldValues(first: 20) { nodes { __typename ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } } content { __typename ... on Issue { number } } } } } } }',
+        variables: { id: projectId, fields: MAX_BOARD_COLUMNS * 2, items: MAX_BOARD_ITEMS_FETCH },
+      }, signal)
+      const detailNode = objectValue(detail.node)
+      const fields = objectValue(detailNode.fields)
+      if (!Array.isArray(fields.nodes) || fields.nodes.length > MAX_BOARD_COLUMNS * 2) throw new WorkItemsError('invalid-response', 'GitHub board fields were invalid or exceeded their bound')
+      const selectFields = fields.nodes
+        .filter(field => objectValue(field).__typename === 'ProjectV2SingleSelectField')
+        .map(field => ({ name: requiredString(objectValue(field).name, 'board field name'), options: objectValue(field).options }))
+      const status = selectFields.find(field => field.name.toLowerCase() === 'status') ?? selectFields[0]
+      if (status === undefined || !Array.isArray(status.options) || status.options.length > MAX_BOARD_COLUMNS) {
+        throw new WorkItemsError('invalid-response', 'GitHub board columns were invalid or exceeded their bound')
+      }
+      const itemNodes = objectValue(detailNode.items).nodes
+      if (!Array.isArray(itemNodes) || itemNodes.length > MAX_BOARD_ITEMS_FETCH) throw new WorkItemsError('invalid-response', 'GitHub board items were invalid or exceeded their bound')
+      const byColumn = new Map<string, ReturnType<typeof WorkItemId>[]>()
+      for (const item of itemNodes) {
+        const entry = objectValue(item)
+        const content = objectValue(entry.content)
+        if (content.__typename !== 'Issue') continue
+        const issueNumber = content.number
+        if (typeof issueNumber !== 'number' || !Number.isSafeInteger(issueNumber) || issueNumber < 1) continue
+        const values = objectValue(entry.fieldValues)
+        if (!Array.isArray(values.nodes)) continue
+        for (const value of values.nodes) {
+          const fieldValue = objectValue(value)
+          if (fieldValue.__typename !== 'ProjectV2ItemFieldSingleSelectValue') continue
+          if (objectValue(fieldValue.field).name !== status.name) continue
+          const column = requiredString(fieldValue.name, 'board item column')
+          const ids = byColumn.get(column) ?? []
+          if (ids.length < limit) ids.push(WorkItemId('github:' + this.config.owner + '/' + this.config.repository + '#' + String(issueNumber)))
+          byColumn.set(column, ids)
+        }
+      }
+      const columns: WorkItemBoardColumn[] = status.options.map((option) => {
+        const title = requiredString(objectValue(option).name, 'board column title')
+        return { title, itemIds: byColumn.get(title) ?? [] }
+      })
+      boards.push({
+        id: requiredString(projectId, 'board id'),
+        title: requiredString(project.title, 'board title'),
+        url: 'https://github.com/' + encodeURIComponent(this.config.owner) + '/projects/' + (typeof number === 'number' ? String(number) : ''),
+        columns,
+      })
+    }
+    return boards
   }
 
   private issueNumber(id: string): string {

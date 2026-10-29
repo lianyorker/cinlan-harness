@@ -53,7 +53,7 @@ None; credential resolution and GitHub requests do not change the model request 
 - GitHub issues carry no due-date field; milestone due dates surface under `iteration` instead.
 - GitHub issues carry no estimate field and no tracked-time field.
 - The issue `parent` surfaces as `parentId` when it points at an issue in the configured repository; cross-repository parents are omitted. Sub-issues are children rather than typed relations, so no `links` surface is exposed yet.
-- Boards require Projects v2 over GraphQL with an extra credential scope; no board surface is exposed.
+- `boards` reads the owner's Projects v2 boards over GraphQL with the same credential: the Status single-select field becomes the columns, each column lists bounded `github:` issue ids. Projects without a single-select field surface no board; draft issues and pull requests are skipped.
 
 
 <a id="dev-note"></a>
