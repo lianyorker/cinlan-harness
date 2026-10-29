@@ -503,7 +503,9 @@ export class GitHubWorkItemsProvider implements WorkItemsProvider {
     try {
       raw = await readJson(response, combined)
     } catch (error) {
+      /* v8 ignore else -- readJson wraps its own parse/bound failures; the generic fallback is defensive. */
       if (error instanceof WorkItemsError) throw error
+      /* v8 ignore next 1 -- readJson wraps its own parse/bound failures; the generic fallback is defensive. */
       throw requestError(error, signal, timeout, this.lifecycle.signal)
     }
     const payload = objectValue(raw)
@@ -606,6 +608,7 @@ export class GitHubWorkItemsProvider implements WorkItemsProvider {
   private validateMutation(mutation: WorkItemMutation, signal?: AbortSignal): void {
     signal?.throwIfAborted()
     this.assertAvailable()
+    /* v8 ignore next 1 -- writer only exists when allowWrites is set, so the guard is defensive. */
     if (!this.config.allowWrites) throw new WorkItemsError('write-disabled', 'GitHub writes are disabled')
     if (mutation.kind === 'create') {
       if (mutation.source !== 'github') throw new WorkItemsError('invalid-request', 'Wrong Work Items source')

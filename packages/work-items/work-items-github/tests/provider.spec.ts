@@ -394,4 +394,124 @@ describe('GitHubWorkItemsProvider', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 401 })))
     await expect(provider().boards({})).rejects.toMatchObject({ code: 'authentication-required' })
   })
+
+  it('rejects malformed mutation receipts and invalid mutation inputs', async () => {
+    const writer = new GitHubWorkItemsProvider(context('fixture-token'), resolveGitHubWorkItemsConfig({ owner: 'acme', repository: 'repo', allowWrites: true })).writer!
+    await expect(writer.execute({ kind: 'assign', id: WorkItemId('github:acme/repo#1'), assignees: ['Bad Login!'] })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(writer.execute({ kind: 'state', id: WorkItemId('github:acme/repo#1'), state: 'done' })).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(writer.execute({ kind: 'create', source: 'linear', title: 'T', body: 'B' })).rejects.toMatchObject({ code: 'invalid-request' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ ...issue(9), pull_request: { url: 'https://api.github.com/pulls/9' } })))
+    await expect(writer.execute({ kind: 'create', source: 'github', title: 'T', body: 'B' })).rejects.toMatchObject({ code: 'invalid-response' })
+    await expect(writer.execute({ kind: 'state', id: WorkItemId('github:acme/repo#1'), state: 'closed' })).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ id: 'x' })))
+    await expect(writer.execute({ kind: 'comment', id: WorkItemId('github:acme/repo#1'), body: 'B' })).rejects.toMatchObject({ code: 'invalid-response' })
+  })
+
+  it('skips malformed board rows and numbers projects without a number', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => response({
+      data: {
+        repository: {
+          owner: {
+            login: 'acme',
+            projectsV2: {
+              nodes: [{
+                id: 'PV_1', title: 'Roadmap',
+                fields: { nodes: [{ __typename: 'ProjectV2SingleSelectField', name: 'Status', options: [{ name: 'Todo' }] }] },
+                items: {
+                  nodes: [
+                    { fieldValues: { nodes: [] }, content: { __typename: 'PullRequest', number: 5 } },
+                    { fieldValues: { nodes: [] }, content: { __typename: 'Issue', number: 'x' } },
+                    { fieldValues: { nodes: 'bad' }, content: { __typename: 'Issue', number: 7 } },
+                    { fieldValues: { nodes: [
+                      { __typename: 'ProjectV2ItemFieldDateValue', name: 'x', field: { name: 'Due' } },
+                      { __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'Todo', field: { name: 'Other' } },
+                    ] }, content: { __typename: 'Issue', number: 8 } },
+                    { fieldValues: { nodes: [
+                      { __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'Todo', field: { name: 'Status' } },
+                      { __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'Todo', field: { name: 'Status' } },
+                    ] }, content: { __typename: 'Issue', number: 9 } },
+                  ],
+                },
+              }],
+            },
+          },
+        },
+      },
+    })))
+    const boards = await provider().boards({ limit: 1 })
+    expect(boards[0]?.url).toBe('https://github.com/acme/projects/')
+    expect(boards[0]?.columns[0]?.itemIds).toEqual(['github:acme/repo#9'])
+  })
+
+  it('rejects malformed board containers and falls back to the first select field', async () => {
+    const project = { id: 'PV_1', number: 1, title: 'Roadmap', fields: { nodes: [{ __typename: 'ProjectV2SingleSelectField', name: 'Status', options: [{ name: 'Todo' }] }] }, items: { nodes: [] } }
+    const wrap = (nodes: unknown) => ({ data: { repository: { owner: { login: 'acme', projectsV2: { nodes } } } } })
+    vi.stubGlobal('fetch', vi.fn(async () => response(wrap('bad'))))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => response(wrap(Array.from({ length: 128 }, () => project)))))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => response(wrap([{ ...project, fields: { nodes: 'bad' } }]))))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => response(wrap([{ ...project, fields: { nodes: [{ __typename: 'ProjectV2TextField', name: 'Note' }] } }]))))
+    await expect(provider().boards({})).resolves.toEqual([])
+    vi.stubGlobal('fetch', vi.fn(async () => response(wrap([{ ...project, fields: { nodes: [{ __typename: 'ProjectV2SingleSelectField', name: 'Status', options: 'bad' }] } }]))))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => response(wrap([{ ...project, fields: { nodes: [{ __typename: 'ProjectV2SingleSelectField', name: 'Status', options: Array.from({ length: 128 }, () => ({ name: 'o' })) }] } }]))))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => response(wrap([{ ...project, items: { nodes: 'bad' } }]))))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => response(wrap([{ ...project, items: { nodes: [] }, fields: { nodes: [{ __typename: 'ProjectV2SingleSelectField', name: 'Priority', options: [{ name: 'High' }] }] } }]))))
+    const fallback = await provider().boards({})
+    expect(fallback[0]?.columns[0]?.title).toBe('High')
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('socket dead') }))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'provider-failed' })
+    for (const [status, code] of [[403, 'forbidden'], [404, 'not-found'], [429, 'rate-limited'], [500, 'provider-failed']] as const) {
+      vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status })))
+      await expect(provider().boards({})).rejects.toMatchObject({ code })
+    }
+    await expect(provider(context()).boards({})).rejects.toMatchObject({ code: 'authentication-required' })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 400 })))
+    await expect(provider().list({ source: 'github' })).rejects.toMatchObject({ code: 'write-rejected' })
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.includes('/comments')) return response([])
+      return response({ ...issue(1), issue_dependencies_summary: { blocked_by: 0, blocking: 0 }, comments: 1 })
+    }))
+    const detail = await provider().get({ id: WorkItemId('github:acme/repo#1') })
+    expect(detail).not.toHaveProperty('links')
+    expect(detail).not.toHaveProperty('comments')
+    vi.stubGlobal('fetch', vi.fn(async () => response(wrap([{ ...project, items: { nodes: [] } }]))))
+    const controller = new AbortController()
+    await expect(provider().boards({ limit: 1 }, controller.signal)).resolves.toHaveLength(1)
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{broken json', { status: 200 })))
+    await expect(provider().boards({})).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async () => response({ ...issue(1), milestone: { title: 'v3' } })))
+    const spareMilestone = await provider().get({ id: WorkItemId('github:acme/repo#1') })
+    expect(spareMilestone.iteration).toEqual({ title: 'v3' })
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.includes('/comments')) return response({ not: 'an array' })
+      return response({ ...issue(1), comments: 1 })
+    }))
+    await expect(provider().get({ id: WorkItemId('github:acme/repo#1') })).rejects.toMatchObject({ code: 'invalid-response' })
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.includes('/comments')) return response([{ body: undefined }])
+      return response({ ...issue(1), comments: 1 })
+    }))
+    const bareComment = await provider().get({ id: WorkItemId('github:acme/repo#1') })
+    expect(bareComment.comments).toEqual([{ body: '' }])
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.includes('/sub_issues')) return response('not an array')
+      return response({ ...issue(1), sub_issues_summary: { total: 1 } })
+    }))
+    await expect(provider().get({ id: WorkItemId('github:acme/repo#1') })).rejects.toMatchObject({ code: 'invalid-response' })
+    await expect(new GitHubWorkItemsProvider(context('secret'), resolveGitHubWorkItemsConfig()).list({ source: 'github' })).rejects.toMatchObject({ code: 'unavailable' })
+    expect(() => resolveGitHubWorkItemsConfig({ allowWrites: 'yes' } as never)).toThrow(/allowWrites must be boolean/)
+    vi.stubGlobal('fetch', vi.fn(async () => response({ ...issue(1), milestone: null, parent: {} })))
+    const bare = await provider().get({ id: WorkItemId('github:acme/repo#1') })
+    expect(bare).not.toHaveProperty('iteration')
+    expect(bare).not.toHaveProperty('parentId')
+  })
 })
