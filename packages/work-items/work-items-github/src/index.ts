@@ -29,8 +29,8 @@ const MAX_CURSOR_LENGTH = 500
 const MAX_TIMEOUT_MS = 120_000
 /** Comments fetched for one Work Item read; GitHub returns the oldest page, so the newest tail is kept. */
 const MAX_COMMENTS = 20
-/** Projects fetched per boards read. */
-const MAX_BOARD_FETCH = 20
+/** Projects fetched per boards read; bounded by the service MAX_BOARDS ceiling. */
+const MAX_BOARD_FETCH = 10
 /** Status options retained per board. */
 const MAX_BOARD_COLUMNS = 20
 /** Project items fetched per board; each column keeps at most MAX_BOARD_ITEMS ids. */
@@ -524,7 +524,8 @@ export class GitHubWorkItemsProvider implements WorkItemsProvider {
         .filter(field => objectValue(field).__typename === 'ProjectV2SingleSelectField')
         .map(field => ({ name: requiredString(objectValue(field).name, 'board field name'), options: objectValue(field).options }))
       const status = selectFields.find(field => field.name.toLowerCase() === 'status') ?? selectFields[0]
-      if (status === undefined || !Array.isArray(status.options) || status.options.length > MAX_BOARD_COLUMNS) {
+      if (status === undefined) continue
+      if (!Array.isArray(status.options) || status.options.length > MAX_BOARD_COLUMNS) {
         throw new WorkItemsError('invalid-response', 'GitHub board columns were invalid or exceeded their bound')
       }
       const itemNodes = objectValue(detailNode.items).nodes
