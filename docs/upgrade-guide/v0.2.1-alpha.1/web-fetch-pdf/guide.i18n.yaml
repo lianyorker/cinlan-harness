@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-alpha.1/web-fetch-pdf/guide.md
+/:
+  en: cb3f91d54eee30e5
+  zh: cb3f91d54eee30e5
+/kind-upgrade-guide-description-webfetchbody-gains-a-pdf-arm-application-pdf-fetches-now-decode-to-extracted-text:
+  en: d718091a0f61c059
+  zh: 4faf568d206b16d7
+/web-fetch-pdf-arm:
+  en: 9013a07fa4866511
+  zh: 22802b43a367f391
+/web-fetch-pdf-arm/change:
+  en: c84c195d495f56ab
+  zh: e22d3590c05d0d9d
+/web-fetch-pdf-arm/migration:
+  en: bcfab5c9bc537799
+  zh: 08c75e596feb4795
