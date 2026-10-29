@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemBoard, WorkItemBoardColumn, WorkItemBoardRequest, WorkItemComment, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemBoard, WorkItemBoardColumn, WorkItemBoardRequest, WorkItemComment, WorkItemGetRequest, WorkItemIteration, WorkItemLink, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -39,6 +39,8 @@ const MAX_BOARD_ITEMS_FETCH = 500
 const DEFAULT_BOARD_ITEMS = 50
 const MAX_BOARD_ITEMS = 100
 const MAX_BOARD_SELECTOR_LENGTH = 100
+/** Sub-issue links retained per Work Item read. */
+const MAX_LINKS = 20
 
 /** GitHub provider configuration. */
 export interface Config {
@@ -264,6 +266,18 @@ function mapComments(value: unknown): WorkItemComment[] {
   })
 }
 
+/** Normalize the sub_issues endpoint rows to bounded same-repository 'sub-issue' links. */
+function mapSubIssues(value: unknown, config: ResolvedConfig): WorkItemLink[] {
+  if (!Array.isArray(value) || value.length > MAX_LINKS) throw new WorkItemsError('invalid-response', 'GitHub sub-issue list was invalid or exceeded its bound')
+  const links: WorkItemLink[] = []
+  for (const entry of value) {
+    const number = objectValue(entry).number
+    if (typeof number !== 'number' || !Number.isSafeInteger(number) || number < 1) continue
+    links.push({ type: 'sub-issue', itemId: WorkItemId('github:' + config.owner + '/' + config.repository + '#' + String(number)) })
+  }
+  return links
+}
+
 
 async function cancelReader(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> {
   try {
@@ -428,8 +442,14 @@ export class GitHubWorkItemsProvider implements WorkItemsProvider {
     }
     const base = '/repos/' + encodeURIComponent(this.config.owner) + '/' + encodeURIComponent(this.config.repository) + '/issues/' + match[3]
     const raw = await this.request(base, signal)
-    const result = mapIssue(raw, this.config)
+    let result = mapIssue(raw, this.config)
     if (result === undefined) throw new WorkItemsError('not-found', 'GitHub Work Item was not found')
+    const summary = objectValue(raw).sub_issues_summary
+    const subTotal = summary === undefined ? undefined : objectValue(summary).total
+    if (typeof subTotal === 'number' && subTotal > 0) {
+      const links = mapSubIssues(await this.request(base + '/sub_issues?per_page=' + String(MAX_LINKS), signal), this.config)
+      if (links.length > 0) result = { ...result, links }
+    }
     const count = objectValue(raw).comments
     if (typeof count === 'number' && count > 0) {
       const comments = await this.request(base + '/comments?per_page=100', signal)

@@ -168,6 +168,32 @@ describe('GitHubWorkItemsProvider', () => {
     await expect(provider().get({ id: WorkItemId('invalid') })).rejects.toMatchObject({ code: 'invalid-request' })
   })
 
+  it('maps sub_issues to typed sub-issue links and skips the fetch without a summary', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      record(input instanceof Request ? input.url : String(input), init)
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.endsWith('/sub_issues?per_page=20')) {
+        return response([{ number: 4 }, { number: 5 }, { number: 'bad' }, {}])
+      }
+      return response({ ...issue(7), sub_issues_summary: { total: 2, completed: 1, percent_completed: 50 } })
+    }))
+    const item = await provider().get({ id: WorkItemId('github:acme/repo#7') })
+    expect(item.links).toEqual([
+      { type: 'sub-issue', itemId: 'github:acme/repo#4' },
+      { type: 'sub-issue', itemId: 'github:acme/repo#5' },
+    ])
+    expect(calls).toHaveLength(2)
+    calls.length = 0
+    vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      record(input instanceof Request ? input.url : String(input), init)
+      return response(issue(7))
+    }))
+    const plain = await provider().get({ id: WorkItemId('github:acme/repo#7') })
+    expect(plain).not.toHaveProperty('links')
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.url).not.toContain('sub_issues')
+  })
+
   it('rejects malformed GitHub Issue fields and URLs', async () => {
     const malformed: unknown[] = [
       'issue',
