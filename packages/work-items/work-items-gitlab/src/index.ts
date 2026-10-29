@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemBoard, WorkItemBoardRequest, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemBoard, WorkItemBoardRequest, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemIteration, WorkItemLink, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -258,6 +258,24 @@ function mapIteration(iteration: unknown, milestone: unknown): WorkItemIteration
 }
 
 /** Normalize GitLab issue notes to an ascending list of user comments. */
+const MAX_LINKS = 20
+
+/** Normalize the issue links endpoint rows to bounded typed relations; each row is a target issue carrying link_type. */
+function mapLinks(value: unknown, config: ResolvedConfig): WorkItemLink[] {
+  if (!Array.isArray(value) || value.length > MAX_LINKS) throw new WorkItemsError('invalid-response', 'GitLab returned invalid issue links')
+  const links: WorkItemLink[] = []
+  for (const entry of value) {
+    const link = objectValue(entry)
+    const iid = link.iid
+    const linkType = link.link_type
+    if (typeof iid !== 'number' || !Number.isSafeInteger(iid) || iid < 1 || typeof linkType !== 'string' || linkType.length === 0 || linkType.length > MAX_TEXT_LENGTH) {
+      throw new WorkItemsError('invalid-response', 'GitLab returned an invalid issue link')
+    }
+    links.push({ type: linkType, itemId: WorkItemId('gitlab:' + config.owner + '/' + config.repository + '#' + String(iid)) })
+  }
+  return links
+}
+
 function mapComments(value: unknown): WorkItemComment[] {
   if (!Array.isArray(value)) throw new WorkItemsError('invalid-response', 'GitLab returned an invalid notes payload')
   const entries = value.filter(entry => objectValue(entry).system !== true).slice(0, MAX_COMMENTS)
@@ -442,7 +460,10 @@ export class GitLabWorkItemsProvider implements WorkItemsProvider {
     }
     const base = '/api/v4/projects/' + projectPath(this.config) + '/issues/' + match[3]
     const raw = await this.request(base, signal)
-    const item = mapIssue(raw, this.config)
+    let item = mapIssue(raw, this.config)
+    const linksRaw = await this.request(base + '/links?per_page=' + String(MAX_LINKS), signal)
+    const links = mapLinks(linksRaw, this.config)
+    if (links.length > 0) item = { ...item, links }
     const count = objectValue(raw).user_notes_count
     if (typeof count === 'number' && count > 0) {
       const notes = await this.request(base + '/notes?sort=desc&order_by=created_at&per_page=' + String(MAX_COMMENTS), signal)

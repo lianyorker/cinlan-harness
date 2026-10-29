@@ -11,7 +11,7 @@ import { WorkItemsError } from './error.ts'
 import { WorkItemsWriteLedger } from './writes.ts'
 import type { WorkItemMutation, WorkItemWriteId, WorkItemWriteOperation } from './types.ts'
 export { WorkItemsError } from './error.ts'
-import type { WorkItem, WorkItemBoard, WorkItemBoardRequest, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from './types.ts'
+import type { WorkItem, WorkItemBoard, WorkItemBoardRequest, WorkItemGetRequest, WorkItemLink, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from './types.ts'
 import type { WorkItemId, WorkItemSource } from './types.ts'
 
 export type * from './types.ts'
@@ -119,6 +119,7 @@ function providerItem(value: unknown, source: WorkItemSource): WorkItem {
   if (parentId !== undefined && (parentId.length > MAX_WORK_ITEM_ID || !parentId.startsWith(source + ':'))) {
     throw new WorkItemsError('invalid-response', 'Work Items provider returned an invalid parent item id')
   }
+  const links = item.links === undefined ? undefined : providerLinks(item.links, source)
   return {
     id: WorkItemId(rawId),
     source,
@@ -134,7 +135,24 @@ function providerItem(value: unknown, source: WorkItemSource): WorkItem {
     ...(createdAt === undefined ? {} : { createdAt }),
     ...(updatedAt === undefined ? {} : { updatedAt }),
     ...(parentId === undefined ? {} : { parentId: WorkItemId(parentId) }),
+    ...(links === undefined || links.length === 0 ? {} : { links }),
   }
+}
+
+const MAX_LINKS = 20
+
+function providerLinks(value: unknown, source: WorkItemSource): WorkItemLink[] {
+  if (!Array.isArray(value) || value.length > MAX_LINKS) {
+    throw new WorkItemsError('invalid-response', 'Work Items provider returned invalid links')
+  }
+  return value.map((entry) => {
+    const link = providerRecord(entry, 'link')
+    const itemId = providerText(link.itemId, 'linked item id')
+    if (itemId.length > MAX_WORK_ITEM_ID || !itemId.startsWith(source + ':')) {
+      throw new WorkItemsError('invalid-response', 'Work Items provider returned an invalid linked item id')
+    }
+    return { type: providerText(link.type, 'link type'), itemId: WorkItemId(itemId) }
+  })
 }
 
 function providerPage(value: unknown, source: WorkItemSource): WorkItemPage {

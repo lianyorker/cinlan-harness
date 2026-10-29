@@ -54,6 +54,7 @@ None; credential resolution and Linear requests do not change the model request 
 - The `repository` slot carries the project name when the issue belongs to a project, otherwise the team name.
 - `estimate` surfaces as `estimate.points`; an unset or zero estimate is omitted.
 - The issue `parent` surfaces as `parentId` in the `linear:` id space.
+- Issue relations surface as `links` — the relation type plus the target `linear:` id, bounded to 20 entries.
 - A team board would only re-present state-grouped list items, so no board surface is exposed yet.
 
 

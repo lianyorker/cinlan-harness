@@ -46,6 +46,8 @@ export interface WorkItem {
   readonly estimate?: WorkItemEstimate
   /** Parent item id in this provider's id space; omitted when the item has no parent or the source cannot express it. */
   readonly parentId?: WorkItemId
+  /** Typed relations to other items in this provider's id space; omitted when the source has no link surface. */
+  readonly links?: readonly WorkItemLink[]
 }
 
 /** Normalized effort estimate; each provider fills only the slot matching its native unit. */
@@ -54,6 +56,14 @@ export interface WorkItemEstimate {
   readonly points?: number
   /** Seconds, as reported by time-based trackers like Jira and GitLab. */
   readonly seconds?: number
+}
+
+/** One typed relation from a Work Item to another provider item. */
+export interface WorkItemLink {
+  /** Relation label as the provider reports it — 'blocks', 'relates_to', 'duplicate', and similar. */
+  readonly type: string
+  /** Related item id in the reporting provider's id space. */
+  readonly itemId: WorkItemId
 }
 
 /** One normalized iteration assignment on a provider item. */

@@ -296,6 +296,12 @@ describe('JiraWorkItemsProvider', () => {
         duedate: '2026-02-15',
         timeoriginalestimate: 7200,
         parent: { key: 'ENG-1' },
+        issuelinks: [
+          { type: { inward: 'is blocked by', outward: 'blocks' }, outwardIssue: { key: 'ENG-2' } },
+          { type: { inward: 'is blocked by', outward: 'blocks' }, inwardIssue: { key: 'ENG-3' } },
+          { type: { inward: 'relates to', outward: 'relates to' }, outwardIssue: { key: 'OPS-4' } },
+          { type: {}, outwardIssue: {} },
+        ],
       },
     }
     vi.stubGlobal('fetch', vi.fn(async () => response(commented)))
@@ -312,6 +318,11 @@ describe('JiraWorkItemsProvider', () => {
     expect(item.dueAt).toBe('2026-02-15')
     expect(item.estimate).toEqual({ seconds: 7200 })
     expect(item.parentId).toBe('jira:ENG-1')
+    expect(item.links).toEqual([
+      { type: 'blocks', itemId: 'jira:ENG-2' },
+      { type: 'is blocked by', itemId: 'jira:ENG-3' },
+      { type: 'relates to', itemId: 'jira:OPS-4' },
+    ])
     vi.stubGlobal('fetch', vi.fn(async () => response(issue('ENG-9'))))
     const plain = await provider().get({ id: 'jira:ENG-9' as never })
     expect(plain).not.toHaveProperty('comments')
@@ -367,7 +378,7 @@ describe('JiraWorkItemsProvider', () => {
       return response(issue('ENG-7'))
     }))
     await expect(provider().get({ id: WorkItemId('jira:ENG-7') })).resolves.toMatchObject({ id: 'jira:ENG-7' })
-    expect(calls[0]?.url).toBe(ORIGIN + '/rest/api/3/issue/ENG-7?fields=summary,description,status,labels,assignee,priority,duedate,timeoriginalestimate,created,updated,comment,attachment,parent')
+    expect(calls[0]?.url).toBe(ORIGIN + '/rest/api/3/issue/ENG-7?fields=summary,description,status,labels,assignee,priority,duedate,timeoriginalestimate,created,updated,comment,attachment,parent,issuelinks')
     await expect(provider().get({ id: WorkItemId('jira:OPS-7') })).rejects.toMatchObject({ code: 'invalid-request' })
     await expect(provider().get({ id: WorkItemId('invalid') })).rejects.toMatchObject({ code: 'invalid-request' })
   })

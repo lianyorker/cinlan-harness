@@ -169,6 +169,12 @@ describe('LinearWorkItemsProvider', () => {
       estimate: 5,
       project: { name: 'Checkout' },
       parent: { id: 'issue-parent' },
+      relations: { nodes: [
+        { type: 'blocks', relatedIssue: { id: 'issue-blocked' } },
+        { type: 'related', relatedIssue: { id: 'issue-related' } },
+        { type: 'duplicate', relatedIssue: null },
+        { type: null, relatedIssue: { id: 'issue-x' } },
+      ] },
     }
     vi.stubGlobal('fetch', vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       record(input instanceof Request ? input.url : String(input), init)
@@ -188,6 +194,10 @@ describe('LinearWorkItemsProvider', () => {
     expect(detail.repository).toBe('Checkout')
     expect(detail.estimate).toEqual({ points: 5 })
     expect(detail.parentId).toBe('linear:issue-parent')
+    expect(detail.links).toEqual([
+      { type: 'blocks', itemId: 'linear:issue-blocked' },
+      { type: 'related', itemId: 'linear:issue-related' },
+    ])
     expect(JSON.parse(requestBody())).toMatchObject({ query: expect.stringContaining('comments(last: 20)') as unknown, variables: { id: 'issue-get' } })
     expect(JSON.parse(requestBody())).toMatchObject({ query: expect.stringContaining('attachments(last: 20)') as unknown })
     vi.stubGlobal('fetch', vi.fn(async () => response({ data: {} })))

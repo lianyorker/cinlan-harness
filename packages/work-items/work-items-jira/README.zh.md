@@ -52,7 +52,7 @@ kind: "package-reference"
 ## 已知限制与延期工作
 
 - Provider write 只有在 deployment configuration 启用 `allowWrites` 后才可用；每次面向模型的写入仍必须经过持久化预览和精确确认。
-- JQL 由 `project = <配置键>`、状态类别筛选和配置的 `jql` 子句组合；模型请求不能传任意 JQL，board 通过 `boards()` 经 Jira Software agile API 暴露——board 发现有界为 5 个、每个 20 列、默认每列 50 个工单 id；token 需 agile 读权限，未安装 Jira Software 的实例读取失败。评论历史每个工单保留最新 20 条；附件仅暴露元数据——每个工单最新 20 条，含名称、链接、大小和 MIME 类型，不拉取二进制内容。sprint 视图与归属不做标准化，因为 sprint 字段 id 与实例相关。工单 priority 以 provider 标签暴露，如 `High` 或 `Medium`。工单 `duedate` 以标准化 `dueAt` 字段暴露。`timeoriginalestimate` 以 `estimate.seconds` 暴露。工单 `parent` 以 `jira:` id 空间的 `parentId` 暴露，包括其他项目的父工单。
+- JQL 由 `project = <配置键>`、状态类别筛选和配置的 `jql` 子句组合；模型请求不能传任意 JQL，board 通过 `boards()` 经 Jira Software agile API 暴露——board 发现有界为 5 个、每个 20 列、默认每列 50 个工单 id；token 需 agile 读权限，未安装 Jira Software 的实例读取失败。评论历史每个工单保留最新 20 条；附件仅暴露元数据——每个工单最新 20 条，含名称、链接、大小和 MIME 类型，不拉取二进制内容。sprint 视图与归属不做标准化，因为 sprint 字段 id 与实例相关。工单 priority 以 provider 标签暴露，如 `High` 或 `Medium`。工单 `duedate` 以标准化 `dueAt` 字段暴露。`timeoriginalestimate` 以 `estimate.seconds` 暴露。工单 `parent` 以 `jira:` id 空间的 `parentId` 暴露，包括其他项目的父工单。issue link 以 `links` 暴露——链接类型报告的方向标签加目标 `jira:KEY` id，保留最新 20 条。
 - Jira 工单只有一个负责人，因此指派至多一个账户。
 - 状态写入依赖项目工作流中存在到达目标类别的可用转换。
 

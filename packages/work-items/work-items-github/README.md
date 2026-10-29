@@ -52,7 +52,7 @@ None; credential resolution and GitHub requests do not change the model request 
 - GitHub issues carry no native priority field; priority is not inferred from labels.
 - GitHub issues carry no due-date field; milestone due dates surface under `iteration` instead.
 - GitHub issues carry no estimate field.
-- The issue `parent` surfaces as `parentId` when it points at an issue in the configured repository; cross-repository parents are omitted.
+- The issue `parent` surfaces as `parentId` when it points at an issue in the configured repository; cross-repository parents are omitted. Sub-issues are children rather than typed relations, so no `links` surface is exposed yet.
 - Boards require Projects v2 over GraphQL with an extra credential scope; no board surface is exposed.
 
 

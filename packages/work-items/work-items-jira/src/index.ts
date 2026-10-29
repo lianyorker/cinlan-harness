@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemAttachment, WorkItemBoard, WorkItemBoardRequest, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemAttachment, WorkItemBoard, WorkItemBoardRequest, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemLink, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -251,6 +251,7 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
   const dueAt = optionalTimestamp(fields.duedate, 'dueAt')
   const estimate = mapEstimate(fields.timeoriginalestimate)
   const parentId = mapParent(fields.parent)
+  const links = mapLinks(fields.issuelinks)
   return {
     id: providerItemId('jira:' + key),
     source: 'jira',
@@ -271,7 +272,27 @@ function mapIssue(value: unknown, config: ResolvedConfig): WorkItem {
     ...(dueAt === undefined ? {} : { dueAt }),
     ...(estimate === undefined ? {} : { estimate }),
     ...(parentId === undefined ? {} : { parentId }),
+    ...(links.length === 0 ? {} : { links }),
   }
+}
+
+const MAX_LINKS = 20
+
+/** Flatten Jira issue links to bounded typed relations using the direction label reported by the type. */
+function mapLinks(value: unknown): WorkItemLink[] {
+  if (!Array.isArray(value)) return []
+  const links: WorkItemLink[] = []
+  for (const entry of value.slice(-MAX_LINKS)) {
+    const link = objectValue(entry)
+    const type = link.type === null || link.type === undefined ? undefined : objectValue(link.type)
+    const outward = link.outwardIssue === null || link.outwardIssue === undefined ? undefined : objectValue(link.outwardIssue).key
+    const inward = link.inwardIssue === null || link.inwardIssue === undefined ? undefined : objectValue(link.inwardIssue).key
+    const target = outward ?? inward
+    const label = outward === undefined ? type?.inward : type?.outward
+    if (typeof target !== 'string' || target.length === 0 || typeof label !== 'string' || label.length === 0) continue
+    links.push({ type: requiredString(label, 'link type'), itemId: providerItemId('jira:' + target) })
+  }
+  return links
 }
 
 /** Normalize the Jira parent issue reference; parents outside issue shape are omitted. */
@@ -379,7 +400,7 @@ function requestError(error: unknown, signal: AbortSignal | undefined, timedOut:
   return new WorkItemsError('provider-failed', 'Jira Work Items request failed', { cause: error })
 }
 
-const ISSUE_FIELDS = 'summary,description,status,labels,assignee,priority,duedate,timeoriginalestimate,created,updated,comment,attachment,parent'
+const ISSUE_FIELDS = 'summary,description,status,labels,assignee,priority,duedate,timeoriginalestimate,created,updated,comment,attachment,parent,issuelinks'
 /** Boards discovered per boards read. */
 const MAX_BOARD_FETCH = 5
 /** Columns retained per board. */

@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemAttachment, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemIteration, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemAttachment, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemIteration, WorkItemLink, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
 import z from '@deepseek-ai/schemastery'
 import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
 
@@ -31,7 +31,7 @@ const MAX_TIMEOUT_MS = 120_000
 const MAX_COMMENTS = 20
 /** Attachments retained per Work Item; only metadata and link are normalized. */
 const MAX_ATTACHMENTS = 20
-const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } } cycle { name number startsAt endsAt isActive isPast } priority dueDate project { name } team { name } estimate parent { id }'
+const ISSUE_FIELDS = 'id identifier title description url createdAt updatedAt state { name type } labels { nodes { name } } assignee { name } comments(last: ' + String(MAX_COMMENTS) + ') { nodes { body createdAt updatedAt user { name } } } attachments(last: ' + String(MAX_ATTACHMENTS) + ') { nodes { title url createdAt } } cycle { name number startsAt endsAt isActive isPast } priority dueDate project { name } team { name } estimate parent { id } relations { nodes { type relatedIssue { id } } }'
 
 /** Linear provider configuration. */
 export interface Config {
@@ -192,6 +192,7 @@ function mapIssue(value: unknown): WorkItem {
   const repository = mapScope(input.project, input.team)
   const estimate = mapEstimate(input.estimate)
   const parentId = mapParent(input.parent)
+  const links = mapLinks(input.relations)
   return {
     id: providerItemId('linear:' + requiredString(input.id, 'id')),
     source: 'linear',
@@ -213,7 +214,26 @@ function mapIssue(value: unknown): WorkItem {
     ...(repository === undefined ? {} : { repository }),
     ...(estimate === undefined ? {} : { estimate }),
     ...(parentId === undefined ? {} : { parentId }),
+    ...(links.length === 0 ? {} : { links }),
   }
+}
+
+const MAX_LINKS = 20
+
+/** Normalize Linear relation nodes to bounded typed relations; malformed rows are dropped. */
+function mapLinks(value: unknown): WorkItemLink[] {
+  if (value === null || value === undefined) return []
+  const nodes = objectValue(value).nodes
+  if (!Array.isArray(nodes) || nodes.length > MAX_LINKS) throw new WorkItemsError('invalid-response', 'Linear returned invalid Work Item links')
+  const links: WorkItemLink[] = []
+  for (const entry of nodes) {
+    const link = objectValue(entry)
+    const type = optionalString(link.type, 'link type')
+    const target = link.relatedIssue === null || link.relatedIssue === undefined ? undefined : objectValue(link.relatedIssue).id
+    if (type === undefined || typeof target !== 'string' || target.length === 0) continue
+    links.push({ type, itemId: providerItemId('linear:' + target) })
+  }
+  return links
 }
 
 /** Normalize the Linear parent issue reference to this provider's id space. */

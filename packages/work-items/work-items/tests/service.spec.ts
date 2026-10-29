@@ -174,6 +174,10 @@ describe('WorkItemsRuntime', () => {
       { ...base, labels: [null] },
       { ...base, parentId: 'gitlab:acme/repo#7' },
       { ...base, parentId: 'github:' + 'x'.repeat(494) },
+      { ...base, links: 'links' },
+      { ...base, links: Array.from({ length: 21 }, () => ({ type: 'relates', itemId: 'github:acme/repo#1' })) },
+      { ...base, links: [{ type: 'relates', itemId: 'gitlab:acme/repo#1' }] },
+      { ...base, links: [{ type: '', itemId: 'github:acme/repo#1' }] },
     ]) await getWith(candidate)
     await fiber.dispose()
   })

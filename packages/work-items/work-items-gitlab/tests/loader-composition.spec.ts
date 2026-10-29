@@ -93,6 +93,9 @@ it('previews, confirms, and restores exact GitLab assignments through Loader and
       const user = { id: username === 'alice' ? 41 : 72, username }
       return new Response(JSON.stringify(lookup === 'missing' ? [] : lookup === 'ambiguous' ? [user, user] : [user]), { status: lookup === 'unavailable' ? 503 : 200 })
     }
+    if (url.pathname === '/api/v4/projects/acme%2Frepo/issues/7/links') {
+      return new Response(JSON.stringify([]), { status: 200 })
+    }
     expect(url.pathname).toBe('/api/v4/projects/acme%2Frepo/issues/7')
     return new Response(JSON.stringify({
       iid: 7, title: 'Review assignment', description: 'Provider fixture', state: 'opened',

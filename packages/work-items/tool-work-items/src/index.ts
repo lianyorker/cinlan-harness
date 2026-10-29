@@ -158,6 +158,18 @@ const ITEM_SCHEMA = {
         seconds: { type: 'number' },
       },
     },
+    parentId: { type: 'string' },
+    links: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          type: { type: 'string', required: true },
+          itemId: { type: 'string', required: true },
+        },
+      },
+    },
   },
 } as const
 
@@ -463,6 +475,7 @@ interface PublicItem {
   readonly dueAt?: string
   readonly estimate?: PublicEstimate
   readonly parentId?: string
+  readonly links?: { readonly type: string; readonly itemId: string }[]
 }
 
 interface PublicEstimate {
@@ -514,6 +527,7 @@ function itemValue(item: WorkItem): PublicItem {
     ...(item.dueAt === undefined ? {} : { dueAt: item.dueAt }),
     ...(item.estimate === undefined ? {} : { estimate: { ...item.estimate } }),
     ...(item.parentId === undefined ? {} : { parentId: item.parentId }),
+    ...(item.links === undefined ? {} : { links: item.links.map(link => ({ ...link })) }),
   }
 }
 
