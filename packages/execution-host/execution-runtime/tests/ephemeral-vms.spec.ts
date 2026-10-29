@@ -131,6 +131,22 @@ describe('EphemeralVmManager', () => {
       .toThrowError(new RuntimeError('quota-exceeded'))
   })
 
+  it('rejects launch with a blank label (invalid-config)', () => {
+    const manager = new EphemeralVmManager()
+    expect(() => manager.launchVm({ recipeId: 'recipe-debian-dev', label: '   ' }))
+      .toThrowError(new RuntimeError('invalid-config'))
+  })
+
+  it('rejects launch when memory quota exceeded (quota-exceeded)', () => {
+    const manager = new EphemeralVmManager(DEFAULT_VM_RECIPES, {
+      maxActiveVms: 5,
+      maxCpuCores: 8,
+      maxMemoryMb: 4096,
+    })
+    expect(() => manager.launchVm({ recipeId: 'recipe-security-audit', label: 'sec-1' }))
+      .toThrowError(new RuntimeError('quota-exceeded'))
+  })
+
   it('rejects launch with duplicate label for active VMs (duplicate-request)', () => {
     const manager = new EphemeralVmManager()
     manager.launchVm({ recipeId: 'recipe-debian-dev', label: 'staging-box' })
@@ -219,6 +235,33 @@ describe('EphemeralVmManager', () => {
     expect(manager.getVm(vm2.id)?.error).toBe('Host unreachable')
 
     expect(manager.getVm(vm3.id)?.state).toBe('running')
+  })
+
+  it('skips settled VMs during reaping and defaults the time anchor to now', () => {
+    const manager = new EphemeralVmManager()
+    const terminated = manager.launchVm({ recipeId: 'recipe-debian-dev', label: 'finished' })
+    manager.destroyVm({ id: terminated.id })
+
+    const reaped = manager.reapOrphanedVms()
+    expect(reaped).toEqual([])
+    expect(manager.getVm(terminated.id)?.state).toBe('terminated')
+    expect(manager.getVm(terminated.id)?.error).toBeUndefined()
+  })
+
+  it('counts provisioning VMs toward quota usage in the overview', () => {
+    const manager = new EphemeralVmManager()
+    const vm = manager.launchVm({ recipeId: 'recipe-isolated-worker', label: 'starting' })
+    const vms = (manager as unknown as { vms: Map<EphemeralVmId, { state: string }> }).vms
+    vms.set(vm.id, { ...vms.get(vm.id)!, state: 'provisioning' })
+
+    const overview = manager.getOverview()
+    expect(overview.usage.activeVms).toBe(1)
+    expect(overview.usage.allocatedCpuCores).toBe(1)
+    expect(overview.usage.allocatedMemoryMb).toBe(2048)
+
+    // Provisioning VMs also participate in orphan reaping.
+    expect(manager.reapOrphanedVms({ now: Date.now() + 60 * 60_000 })).toEqual([vm.id])
+    expect(manager.getVm(vm.id)?.error).toBe('Lifetime expired')
   })
 
   it('calculates accurate overview with resource allocation usage (getOverview)', () => {

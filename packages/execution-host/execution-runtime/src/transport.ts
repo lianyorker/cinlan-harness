@@ -198,6 +198,7 @@ export async function runRemoteOperation(location: RuntimeLocation, generation: 
           return result
         })().then(resolve, reject)
       })
+      /* v8 ignore next 2 -- the synchronous gap after throwIfAborted cannot observe a new abort. */
       if (lifetime.aborted) abort()
       else control.write(JSON.stringify({ action: artifact === undefined ? 'inspect' : 'install', generation,
         installRoot: location.installRoot, workspace: location.workspace, limits }) + '\n')
