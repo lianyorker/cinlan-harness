@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-immutable-session-execution-binding.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-immutable-session-execution-binding.md
-2026-09-20-immutable-session-execution-binding.md: 67122c27b63a78a5a53f4421c92724c8752366ad
-2026-09-20-immutable-session-execution-binding.zh.md: f3bf2219963dd363324bd043f7508fdbf35a0253
+/agent-note-immutable-session-execution-bindings:
+  en: 54e1a47b94edd908
+  zh: d2d2751984f4481a
+/agent-note-immutable-session-execution-bindings/problem:
+  en: be59cf92bb2cd9a2
+  zh: a3694e1b7c394f66
+/agent-note-immutable-session-execution-bindings/decision:
+  en: db0834af59ba0f3e
+  zh: c658d8a12ace0e5e
+/agent-note-immutable-session-execution-bindings/alternatives-considered:
+  en: 9b926013cfc91c5a
+  zh: 3139c0ebd726ce02
+/agent-note-immutable-session-execution-bindings/consequences:
+  en: accea9a9cac219bb
+  zh: defb03065325ea96

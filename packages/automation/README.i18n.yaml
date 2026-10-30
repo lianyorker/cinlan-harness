@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/automation/README.md
-README.md: d515443b5614c1487d8343b9428b92c8cb03ed83
-README.zh.md: 5344dcaff483d9bbb81736c8bb9182a71f360b38
+/:
+  en: ff0131e3429b8206
+  zh: 052a8a2c4dc2a025
+/automation-durable-local-automations:
+  en: f7a7291fcd69b79f
+  zh: cb47a6be60cae50a
+/automation-durable-local-automations/summary:
+  en: f79039335b27c161
+  zh: 831527993c3c37e8
+/automation-durable-local-automations/table-of-contents:
+  en: 559619aefcb7fc3c
+  zh: afefec29f1dc66bd
+/automation-durable-local-automations/packages:
+  en: 7cbeb16e089f40a9
+  zh: d273c46f1013ffdc
+/automation-durable-local-automations/related-documentation:
+  en: a052c9e2236d8497
+  zh: 3d649c3dddb33972
+/automation-durable-local-automations/dev-note:
+  en: 2cebfc326e30d8fd
+  zh: dd6a34522cac7b2a

@@ -63,6 +63,7 @@ pnpm clh --help
 
 - 通过 [GitHub Issues 与 Discussions](https://github.com/lianyorker/cinlan-harness/issues) 提交反馈或 bug 报告。
 - 欢迎在 [GitHub](https://github.com/lianyorker/cinlan-harness) 关注与 Star 本项目。
+- 欢迎加入 Cinlan Harness 企微群！扫描下方二维码填写入群问卷，小助手会定期发送入群邀请。
 
 ## 参与贡献
 

@@ -76,7 +76,7 @@ export function extractElementData(el: Element, pageUrl?: string): InspectedElem
 /** Format inspected element into structured Markdown for session draft injection. */
 export function formatInspectedElementMarkdown(data: InspectedElementData): string {
   const lines: string[] = [
-    `[UI Element Inspection]`,
+    '[UI Element Inspection]',
     `- Page URL: ${data.pageUrl || 'unknown'}`,
     `- Element: <${data.tagName.toLowerCase()}>`,
     `- Selector: \`${data.selector}\``,

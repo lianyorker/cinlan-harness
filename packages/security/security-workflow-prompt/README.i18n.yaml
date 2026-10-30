@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/security/security-workflow-prompt/README.md
-README.md: d60d1c860aa42828a054b50f1d3e6b909a929e7d
-README.zh.md: 9b78efc49281f8ff79d01e0f864d960042352156
+/:
+  en: 2b7bc6247bfebc89
+  zh: e699454ca512b519
+/deepseek-ai-dsh-security-workflow-prompt:
+  en: 28ff8dc1cb99928f
+  zh: 539008cb63b84896
+/deepseek-ai-dsh-security-workflow-prompt/summary:
+  en: 4375be7bae78bf3b
+  zh: 497ea655fd23008b
+/deepseek-ai-dsh-security-workflow-prompt/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/deepseek-ai-dsh-security-workflow-prompt/use-this-package:
+  en: f627378b0cb02f54
+  zh: bffcdc1ffa3cc7c5
+/deepseek-ai-dsh-security-workflow-prompt/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-security-workflow-prompt/model-experience/security-workflow-system-prompt:
+  en: 4a7e943f935e42d3
+  zh: 4a7e943f935e42d3
+/deepseek-ai-dsh-security-workflow-prompt/model-experience/security-workflow-system-prompt/what-the-model-sees:
+  en: 7e886971c9308fa9
+  zh: 93346ac634035cf2
+/deepseek-ai-dsh-security-workflow-prompt/model-experience/security-workflow-system-prompt/what-the-model-sees/verbatim-prompt:
+  en: 3d22740aa33a384e
+  zh: 3d22740aa33a384e
+/deepseek-ai-dsh-security-workflow-prompt/model-experience/security-workflow-system-prompt/token-effect:
+  en: 4f29df23ba349f5f
+  zh: c216745133cde0bf
+/deepseek-ai-dsh-security-workflow-prompt/model-experience/security-workflow-system-prompt/kv-cache-effect:
+  en: ec79a9b53b6d0b50
+  zh: 428514c9dfd39090
+/deepseek-ai-dsh-security-workflow-prompt/known-limitations-and-deferred-work:
+  en: 5d3f93b8fb15e713
+  zh: cc612b63b9e79f02
+/deepseek-ai-dsh-security-workflow-prompt/known-limitations-and-deferred-work/dev-note:
+  en: 069a91cb5cf3e993
+  zh: d79ee7a8af4e09a5

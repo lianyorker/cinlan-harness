@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-21-research-session-permissions.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-21-research-session-permissions.md
+/agent-note-research-presets-preserve-session-permissions:
+  en: 98881a57ec8c5f40
+  zh: ee7bb9aee3b7fa9a
+/agent-note-research-presets-preserve-session-permissions/problem:
+  en: ebbccba16a02eac2
+  zh: 83338394f97c5e39
+/agent-note-research-presets-preserve-session-permissions/decision:
+  en: ed96e9dc5cdb09c4
+  zh: 0147c540eeba8154
+/agent-note-research-presets-preserve-session-permissions/alternatives-considered:
+  en: a65b53ed1cd62e99
+  zh: 84d9d869a7f37152
+/agent-note-research-presets-preserve-session-permissions/consequences:
+  en: 244e9e35e002994c
+  zh: 3cb27c7c99ede952
+/agent-note-research-presets-preserve-session-permissions/verification:
+  en: 694f8c6913a08754
+  zh: 0d5c17297eb31d1c

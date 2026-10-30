@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-04-web-clickable-link-styles.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-04-web-clickable-link-styles.md
-2026-09-04-web-clickable-link-styles.md: 8781990a40de30e26d0c59c0ecc1a08ba41643ac
-2026-09-04-web-clickable-link-styles.zh.md: 7b5fde4c87319f6ae34b76d1c8e712e6f9f18392
+/agent-note-web-clickable-link-language-link-alias-dotted-hover-underline-category-glyphs:
+  en: 2f82507eb7a1e77f
+  zh: 9a5803b4fddd4ebb
+/agent-note-web-clickable-link-language-link-alias-dotted-hover-underline-category-glyphs/problem:
+  en: 1549373bfc157a95
+  zh: 6410dfe532aaae2b
+/agent-note-web-clickable-link-language-link-alias-dotted-hover-underline-category-glyphs/decision:
+  en: b4d8397507c949c5
+  zh: 89db67ec19293dbf
+/agent-note-web-clickable-link-language-link-alias-dotted-hover-underline-category-glyphs/alternatives-considered:
+  en: 214f217560dc74a3
+  zh: 3dbf226f4ae3897b
+/agent-note-web-clickable-link-language-link-alias-dotted-hover-underline-category-glyphs/consequences:
+  en: f33776d59ef08b13
+  zh: b827af7706482d8d

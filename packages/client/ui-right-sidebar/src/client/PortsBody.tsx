@@ -206,7 +206,7 @@ export function PortsBody({ t, probe, onOpenUrl }: PortsBodyProps): JSX.Element 
             placeholder={t('ports.localPort')}
             aria-label={t('ports.localPort')}
             value={localInput}
-            onChange={e => { setLocalInput(e.target.value) }}
+            onChange={(e) => { setLocalInput(e.target.value) }}
           />
           <input
             className={css.portInputSmall}
@@ -216,7 +216,7 @@ export function PortsBody({ t, probe, onOpenUrl }: PortsBodyProps): JSX.Element 
             placeholder={t('ports.remotePort')}
             aria-label={t('ports.remotePort')}
             value={remoteInput}
-            onChange={e => { setRemoteInput(e.target.value) }}
+            onChange={(e) => { setRemoteInput(e.target.value) }}
           />
           <input
             className={css.portInputSmall}
@@ -224,7 +224,7 @@ export function PortsBody({ t, probe, onOpenUrl }: PortsBodyProps): JSX.Element 
             placeholder={t('ports.remoteHost')}
             aria-label={t('ports.remoteHost')}
             value={hostInput}
-            onChange={e => { setHostInput(e.target.value) }}
+            onChange={(e) => { setHostInput(e.target.value) }}
           />
           <input
             className={css.portInputText}
@@ -232,7 +232,7 @@ export function PortsBody({ t, probe, onOpenUrl }: PortsBodyProps): JSX.Element 
             placeholder={t('ports.label')}
             aria-label={t('ports.label')}
             value={labelInput}
-            onChange={e => { setLabelInput(e.target.value) }}
+            onChange={(e) => { setLabelInput(e.target.value) }}
           />
           <button
             type="button"

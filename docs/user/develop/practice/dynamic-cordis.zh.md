@@ -3,6 +3,7 @@
 [English](dynamic-cordis.md) | 中文
 
 本实战指南启用 [`@deepseek-ai/dsh-tool-cordis`](../../../../packages/extensions/tool-cordis/README.zh.md)。智能体可以检查当前 Cordis 进程，并在内存中挂载或卸载模型编写的插件。临时插件会在卸载或进程退出时消失，并可能影响同一进程中的其他会话。
+标准模式和创造模式提供 [Plugin Manager](../../../../packages/boot/plugin-manager/README.zh.md)；创造模式还提供只读[运行时检查](../../../../packages/extensions/tool-cordis/README.zh.md)。插件配置属于当前 profile，影响其会话，并在进程重启后保留。
 
 ## 运行
 

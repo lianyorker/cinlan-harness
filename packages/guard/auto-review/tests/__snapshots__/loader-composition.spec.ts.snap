@@ -1,0 +1,117 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`AutoReview Loader composition > settles 'allow' through the real loop without approval bypass 1`] = `
+{
+  "error": null,
+  "permission": "auto",
+  "result": [
+    {
+      "text": "Executed.",
+      "type": "text",
+    },
+  ],
+  "runs": 1,
+}
+`;
+
+exports[`AutoReview Loader composition > settles 'explicit hard deny' through the real loop without approval bypass 1`] = `
+{
+  "error": {
+    "code": "AUTO_REVIEW_DENIED",
+    "name": "AutoReviewDeniedError",
+    "reason": "private detail",
+  },
+  "permission": "auto",
+  "result": [
+    {
+      "text": "Error: Auto review rejected tool "probe"; its body was not executed",
+      "type": "text",
+    },
+  ],
+  "runs": 0,
+}
+`;
+
+exports[`AutoReview Loader composition > settles 'human approval' through the real loop without approval bypass 1`] = `
+{
+  "error": null,
+  "permission": "auto",
+  "result": [
+    {
+      "text": "Executed.",
+      "type": "text",
+    },
+  ],
+  "runs": 1,
+}
+`;
+
+exports[`AutoReview Loader composition > settles 'human cancellation' through the real loop without approval bypass 1`] = `
+{
+  "error": null,
+  "permission": "auto",
+  "result": [
+    {
+      "text": "Error: approval for tool "probe" was cancelled",
+      "type": "text",
+    },
+  ],
+  "runs": 0,
+}
+`;
+
+exports[`AutoReview Loader composition > settles 'human rejection' through the real loop without approval bypass 1`] = `
+{
+  "error": null,
+  "permission": "auto",
+  "result": [
+    {
+      "text": "Error: the user rejected tool "probe"",
+      "type": "text",
+    },
+  ],
+  "runs": 0,
+}
+`;
+
+exports[`AutoReview Loader composition > settles 'invalid high allow' through the real loop without approval bypass 1`] = `
+{
+  "error": null,
+  "permission": "auto",
+  "result": [
+    {
+      "text": "Error: Auto review of tool "probe" failed; its body was not executed: auto-review: reviewer output does not match the risk/decision protocol",
+      "type": "text",
+    },
+  ],
+  "runs": 0,
+}
+`;
+
+exports[`AutoReview Loader composition > settles 'missing approval channel' through the real loop without approval bypass 1`] = `
+{
+  "error": null,
+  "permission": "auto",
+  "result": [
+    {
+      "text": "Error: tool "probe" requires approval, but no approval channel is available",
+      "type": "text",
+    },
+  ],
+  "runs": 0,
+}
+`;
+
+exports[`AutoReview Loader composition > settles 'review service failure' through the real loop without approval bypass 1`] = `
+{
+  "error": null,
+  "permission": "auto",
+  "result": [
+    {
+      "text": "Error: Auto review of tool "probe" failed; its body was not executed: auto-review: reviewer ended with error UNKNOWN: provider unavailable",
+      "type": "text",
+    },
+  ],
+  "runs": 0,
+}
+`;

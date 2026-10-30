@@ -101,7 +101,7 @@ async function bootStartup(
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(join(dir, 'cordis.yml')).href } })
   await ctx.loader.await()
   return {
-    task: ctx.get(HEADLESS_STARTUP_SERVICE) as HeadlessStartupValues | undefined,
+    task: ctx.get(HEADLESS_STARTUP_SERVICE),
     observed,
   }
 }
@@ -118,6 +118,20 @@ describe('headless command-line provider', () => {
     const { task, observed } = await bootStartup(['--json', '--session-id', 'session-exact', 'do', 'it'])
     expect(task).toEqual({ task: 'do it', sessionId: 'session-exact', json: true })
     expect(observed.runnerConfig).toMatchObject({ task: 'do it', sessionId: 'session-exact', json: true })
+  })
+
+  it.each(['ask', 'never'])('publishes approval policy %s', async (policy) => {
+    const { task } = await bootStartup(['--approval-policy', policy, 'do it'])
+    expect(task).toMatchObject({ approvalPolicy: policy })
+  })
+
+  it('rejects an unsupported approval policy as a JSON usage error', async () => {
+    const { task, observed } = await bootStartup(['--json', '--approval-policy', 'always', 'do it'])
+    expect(task).toBeUndefined()
+    expect(observed.exits).toEqual([1])
+    const event = JSON.parse(observed.out) as Record<string, unknown>
+    expect(event.type).toBe('error')
+    expect(event.message).toContain('approval-policy')
   })
 
   it('keeps the stdin marker as the task so the runner reads the pipe', async () => {
@@ -144,6 +158,29 @@ describe('headless command-line provider', () => {
     expect(observed.out).toContain('--session-id requires a non-empty session id')
     expect(task).toBeUndefined()
     expect(observed.exits).toEqual([1])
+  })
+
+  it('accepts an explicit permission preset and deduplicates absolute directory grants', async () => {
+    const directory = join(tmpdir(), 'headless-grant')
+    const { task } = await bootStartup(['--permission-mode', 'workspace-write', '--add-dir', directory, '--add-dir', directory, 'do it'])
+    expect(task).toMatchObject({ permissionMode: 'workspace-write', additionalWritableRoots: [directory], task: 'do it' })
+  })
+
+  it.each([
+    ['--permission-mode', ' '],
+    ['--add-dir', 'relative'],
+    ['--add-dir', ''],
+    ['--add-dir', `${join(tmpdir(), 'grant')}\0invalid`],
+  ])('rejects invalid supervisor options before the runner mounts: %s %s', async (...args) => {
+    const { task, observed } = await bootStartup(['--json', ...args, 'do it'])
+    expect(task).toBeUndefined()
+    expect(observed.exits).toEqual([1])
+    expect(JSON.parse(observed.out)).toMatchObject({ type: 'error' })
+  })
+
+  it.each(['--add-dir', '--permission-mode', '--approval-policy'])('does not treat an operand of %s as the JSON flag', async (option) => {
+    const { observed } = await bootStartup([option, '--json', 'do it'])
+    expect(observed.out).not.toContain('"type":"error"')
   })
 
   it('keeps the caller-provided exact Session identity verbatim', async () => {

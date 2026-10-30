@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-reviewed-sidebar-git-actions.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-reviewed-sidebar-git-actions.md
-2026-09-17-reviewed-sidebar-git-actions.md: ebbfb4b5d80ea51e8ec380de28b145e35cbdcf3e
-2026-09-17-reviewed-sidebar-git-actions.zh.md: e9f359a43583958823eed0b1b5791722c474ec01
+/agent-note-reviewed-sidebar-git-actions:
+  en: a87a09f4b4989106
+  zh: c419bb526457ad87
+/agent-note-reviewed-sidebar-git-actions/problem:
+  en: 8244f4ec538e0e10
+  zh: 7c53ade9df132187
+/agent-note-reviewed-sidebar-git-actions/decision:
+  en: e0e0f5d441f4886d
+  zh: 43e43a55053eba93
+/agent-note-reviewed-sidebar-git-actions/decision/session-and-repository-authority:
+  en: 9dfbaf3c1489c77b
+  zh: 6f2cba3cef51b5fa
+/agent-note-reviewed-sidebar-git-actions/decision/commit-preparation-and-confirmation:
+  en: fe4728060576a5e5
+  zh: f328289414ed1ed9
+/agent-note-reviewed-sidebar-git-actions/decision/cached-comparisons:
+  en: 9e2ec72e2a2daacc
+  zh: 013fdf7f3bf47c2f
+/agent-note-reviewed-sidebar-git-actions/decision/bounds-and-process-lifetime:
+  en: 7edc08c0fe831406
+  zh: ad5fa74b4c06babc
+/agent-note-reviewed-sidebar-git-actions/decision/worktree-checkpoints:
+  en: bc0c15b0441b5924
+  zh: 6570b6fdd0dda056
+/agent-note-reviewed-sidebar-git-actions/alternatives-considered:
+  en: 946c625cf139bfc9
+  zh: 2918135e581419d0
+/agent-note-reviewed-sidebar-git-actions/consequences:
+  en: ee901407a0e5dd85
+  zh: 88df0c5c3c261e3a
+/agent-note-reviewed-sidebar-git-actions/related-decisions:
+  en: 76569cd78709fd2a
+  zh: 561f7404a439b7d3
+/agent-note-reviewed-sidebar-git-actions/testing:
+  en: 0b7e015ef23c567c
+  zh: 7cc92f07d0b7811c

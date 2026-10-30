@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/security-skills/README.md
-README.md: 514d0cc709607c14832b749abbb12d3d58fcc303
-README.zh.md: fca0b29ceb7f31ff58322c478196f64709fc64b0
+/:
+  en: 5a565c7e9e54d0e6
+  zh: ffaf4c837dfa8c04
+/deepseek-ai-dsh-security-skills-bundle:
+  en: e8772fc1dd76167d
+  zh: deaad609757b9122
+/deepseek-ai-dsh-security-skills-bundle/summary:
+  en: a82e1696a24f5d64
+  zh: 6ba92563c12055a4
+/deepseek-ai-dsh-security-skills-bundle/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/deepseek-ai-dsh-security-skills-bundle/use-this-package:
+  en: 2fb255665d7d77b8
+  zh: 1fd2d5b9d1ed3e30
+/deepseek-ai-dsh-security-skills-bundle/model-experience:
+  en: 0563116b2948535d
+  zh: e941d2a739e17519
+/deepseek-ai-dsh-security-skills-bundle/model-experience/kv-cache-effect:
+  en: f211e94914fb2526
+  zh: d5a863817eeb87ba
+/deepseek-ai-dsh-security-skills-bundle/known-limitations-and-deferred-work:
+  en: ef71b702309fec7e
+  zh: 83c576ec2319b5e5
+/deepseek-ai-dsh-security-skills-bundle/known-limitations-and-deferred-work/dev-note:
+  en: 1211e3a3535e6a51
+  zh: 20a6c7676537c2fe

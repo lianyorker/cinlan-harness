@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/security/assessment-scope-session/README.md
-README.md: 026775cb1f532279be10cc67d769b557922db429
-README.zh.md: 9313ceea23dd527dc89ea4f01b8e5867e14b8f5a
+/:
+  en: 3265b0292741f45d
+  zh: 902d941e280c5d79
+/deepseek-ai-dsh-assessment-scope-session:
+  en: f522aa496d2a04a9
+  zh: b0ca96d7ed0b4c93
+/deepseek-ai-dsh-assessment-scope-session/summary:
+  en: 0cf4ee581415b167
+  zh: 67f6aa3111edba4a
+/deepseek-ai-dsh-assessment-scope-session/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/deepseek-ai-dsh-assessment-scope-session/use-this-package:
+  en: d08abfe60d7954f6
+  zh: 0b78a5cc6b04665d
+/deepseek-ai-dsh-assessment-scope-session/model-experience:
+  en: af2e1883a5f43f43
+  zh: 623759f53f414ebb
+/deepseek-ai-dsh-assessment-scope-session/model-experience/kv-cache-effect:
+  en: 12228feb8eb394d4
+  zh: d575112084b6c9c9
+/deepseek-ai-dsh-assessment-scope-session/known-limitations-and-deferred-work:
+  en: a23e313200565d46
+  zh: 9af8e5a5d3cf6cbf
+/deepseek-ai-dsh-assessment-scope-session/known-limitations-and-deferred-work/dev-note:
+  en: 32cbe6af2d498289
+  zh: 331743b5ffa6a1cf

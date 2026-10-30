@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-native-settings-runtime-consumers.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-native-settings-runtime-consumers.md
-2026-09-17-native-settings-runtime-consumers.md: f783655d49b167ea805100b217deaeedc83bd724
-2026-09-17-native-settings-runtime-consumers.zh.md: 29de60ea420782cc8a3c7a5e3b1bb4d38c7dd9b5
+/agent-note-native-settings-retain-feature-and-operation-ownership:
+  en: 644e28bf33dfb9ed
+  zh: 2e5cbfe40a2a9217
+/agent-note-native-settings-retain-feature-and-operation-ownership/problem:
+  en: f7d0c70322baa3b5
+  zh: 0fcb8b268ac3f286
+/agent-note-native-settings-retain-feature-and-operation-ownership/decision:
+  en: 6164f4c7a2e33358
+  zh: f7e2d1b84e991000
+/agent-note-native-settings-retain-feature-and-operation-ownership/alternatives-considered:
+  en: ff567aec5329c848
+  zh: f6c914f9e010d974
+/agent-note-native-settings-retain-feature-and-operation-ownership/consequences:
+  en: 15ecd40e7809f294
+  zh: c3df12cb339e962b

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-worktree-task-lifecycle-hooks.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-18-worktree-task-lifecycle-hooks.md
-2026-09-18-worktree-task-lifecycle-hooks.md: 55de52fdb006be82c563b9bc4d4b3964167d4291
-2026-09-18-worktree-task-lifecycle-hooks.zh.md: 2f823c7a49d40fe450ce3c9c5a747e2e0b7ebe02
+/agent-note-captured-worktree-task-programs-and-cleanup-receipts:
+  en: cb29b8e24fb808f3
+  zh: e0dadd917adbb645
+/agent-note-captured-worktree-task-programs-and-cleanup-receipts/problem:
+  en: 13901e95313ee53d
+  zh: 8b0420d3c776203b
+/agent-note-captured-worktree-task-programs-and-cleanup-receipts/decision:
+  en: 9dcc0e2696507b67
+  zh: 2b961566e7c1211c
+/agent-note-captured-worktree-task-programs-and-cleanup-receipts/alternatives-considered:
+  en: 9364cf6477f9cf0f
+  zh: f69f30dbe05f86de
+/agent-note-captured-worktree-task-programs-and-cleanup-receipts/consequences:
+  en: df4b74c89dec4e73
+  zh: f5a21e715d7f948c
+/agent-note-captured-worktree-task-programs-and-cleanup-receipts/consequences/risks:
+  en: 033cd64ce0f91531
+  zh: 48cb6b69a5ff3ae6

@@ -73,6 +73,7 @@ describe('ui-settings-web-search apply', () => {
     const entry = slots.entries('settings.section')[0]!
     expect(entry.options).toMatchObject({ id: 'web-search', order: 45 })
     expect(resolveSlotLabel(entry.options.label)).toBe('联网搜索')
+    expect(entry.options).toMatchObject({ id: 'web-search', order: 20 })
     expect(entry.locale).toBe(NS)
     const face = (entry.inject as () => Pick<WebSearchCardFace, 'hooks'>)()
     expect(Object.keys(face.hooks)).toEqual(['webSearchCard'])

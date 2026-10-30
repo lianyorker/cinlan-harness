@@ -167,12 +167,6 @@ export interface TeamProjectionState extends TeamState {
   failure?: string
 }
 
-declare module '@deepseek-ai/dsh-session-projection/types' {
-  interface SessionProjectionStateMap {
-    agentTeam: TeamProjectionState
-  }
-}
-
 const teamProjectionEntrySchema = z.object({
   id: teamIdSchema,
   members: z.array(teamMemberSnapshotSchema),

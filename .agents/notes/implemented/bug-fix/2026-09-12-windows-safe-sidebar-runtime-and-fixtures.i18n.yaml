@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-12-windows-safe-sidebar-runtime-and-fixtures.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-12-windows-safe-sidebar-runtime-and-fixtures.md
-2026-09-12-windows-safe-sidebar-runtime-and-fixtures.md: 561d7cf33ff674f1bbc5ab18c99af8c5506c48b2
-2026-09-12-windows-safe-sidebar-runtime-and-fixtures.zh.md: 0dfa1586d17e9679449a94d907b47386012952cf
+/agent-note-windows-safe-sidebar-runtime-and-fixtures:
+  en: 0a0b7508b2ea0ca9
+  zh: c58205d2284a8feb
+/agent-note-windows-safe-sidebar-runtime-and-fixtures/problem:
+  en: 8628aa049fe41e66
+  zh: a25583ec05dc5e22
+/agent-note-windows-safe-sidebar-runtime-and-fixtures/decision:
+  en: 23e0fa7b19e41392
+  zh: 049b430c01170adc
+/agent-note-windows-safe-sidebar-runtime-and-fixtures/alternatives-considered:
+  en: 4189774a90457228
+  zh: 40d9ec4ef7bec519
+/agent-note-windows-safe-sidebar-runtime-and-fixtures/consequences:
+  en: 2b7b8f1f54250212
+  zh: 4117b1f04dc32356
+/agent-note-windows-safe-sidebar-runtime-and-fixtures/verification:
+  en: 61c9bf691f921a06
+  zh: 618430cc043db1c2

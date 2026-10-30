@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-21-relay-deployment-account.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-21-relay-deployment-account.md
+/agent-note-relay-deployment-and-cinlan-identity-are-independent-prerequisites:
+  en: 6b07a886ffe61476
+  zh: 8171dadaf718f5a9
+/agent-note-relay-deployment-and-cinlan-identity-are-independent-prerequisites/problem:
+  en: 9433a67f979e6dd2
+  zh: 0c0c4cda78211b93
+/agent-note-relay-deployment-and-cinlan-identity-are-independent-prerequisites/decision:
+  en: e5b3b40ffdc1bce9
+  zh: ad88aa6c12c55bd1
+/agent-note-relay-deployment-and-cinlan-identity-are-independent-prerequisites/alternatives-considered:
+  en: d4b8febdc3a32e70
+  zh: 1311060378caf1aa
+/agent-note-relay-deployment-and-cinlan-identity-are-independent-prerequisites/consequences:
+  en: 242400fecbb77c61
+  zh: 82838547578770dc
+/agent-note-relay-deployment-and-cinlan-identity-are-independent-prerequisites/verification:
+  en: 8821ae5e23f7a293
+  zh: 7e3abaa67d6fd03e

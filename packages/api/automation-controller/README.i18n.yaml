@@ -1,6 +1,37 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/automation-controller/README.md
-README.md: 52a7be67cb0ddaddd0caba31b84bef7800bc9e18
-README.zh.md: f20195b66241c14c00214e816f9a447dd81423ba
+/:
+  en: b2d7e3bbd7559043
+  zh: 8a3ea6180374c4d8
+/automation-controller:
+  en: a1a5364788cbb0db
+  zh: 1add3565273fa8af
+/automation-controller/summary:
+  en: 4b4b09403c543739
+  zh: c7a627e3fe6fc723
+/automation-controller/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: a60d61c6bd399c32
+/automation-controller/use-this-package:
+  en: f0471aadff867b92
+  zh: 9c3ab58b9b0610af
+/automation-controller/understand-the-implementation:
+  en: 1b7da99782c85d0f
+  zh: 7276db1539b10a40
+/automation-controller/further-exploration:
+  en: aa4c5be67b9cf414
+  zh: c18b855b8daa2d7b
+/automation-controller/model-experience:
+  en: d68bb6e256d855d8
+  zh: 19a03cb355a25f89
+/automation-controller/model-experience/kv-cache-effect:
+  en: f088a47d641ce3b9
+  zh: 67c927b839fee616
+/automation-controller/known-limitations-and-deferred-work:
+  en: d6d9797f4ced2239
+  zh: 7e720d1ce4256aeb
+/automation-controller/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 8ec3e73528ddb1a6

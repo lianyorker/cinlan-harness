@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/security/vuln-kb-service/README.md
-README.md: c5c8b94fcfab0f9c92a8f81c32aa8165d67591cb
-README.zh.md: 751e4fdfcafa9f9a9d48189ebfdf888a4fd50479
+/:
+  en: 44a0a465a7df41c8
+  zh: 3cff466bda450ac6
+/deepseek-ai-dsh-vuln-kb-service:
+  en: ff45dd4e77fc4951
+  zh: bc1d62eb934a60bb
+/deepseek-ai-dsh-vuln-kb-service/summary:
+  en: a5449ef5c28b5d2d
+  zh: daea81e2fc90d8cc
+/deepseek-ai-dsh-vuln-kb-service/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/deepseek-ai-dsh-vuln-kb-service/use-this-package:
+  en: 0eda844f91b6264a
+  zh: cc25b21f68cd7a86
+/deepseek-ai-dsh-vuln-kb-service/model-experience:
+  en: fce29dd1f47e1c48
+  zh: 80beada0618baf66
+/deepseek-ai-dsh-vuln-kb-service/model-experience/kv-cache-effect:
+  en: 787fa5f1ddf94b1d
+  zh: fa95d41fb9f8ae4a
+/deepseek-ai-dsh-vuln-kb-service/known-limitations-and-deferred-work:
+  en: 3340aa95b33a3fde
+  zh: 488589c4f614634d
+/deepseek-ai-dsh-vuln-kb-service/known-limitations-and-deferred-work/dev-note:
+  en: 9a7db2f0cd39242b
+  zh: f2475ab74e49b6be

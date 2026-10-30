@@ -224,8 +224,8 @@ export function CinlanDesignBody(props: CinlanDesignBodyProps): ReactNode {
     tabState.viewport === 'mobile'
       ? css.deviceWrapperMobile
       : tabState.viewport === 'tablet'
-      ? css.deviceWrapperTablet
-      : css.deviceWrapperDesktop
+        ? css.deviceWrapperTablet
+        : css.deviceWrapperDesktop
 
   let isAppSelfOrigin = false
   try {
@@ -476,7 +476,7 @@ export function CinlanDesignBody(props: CinlanDesignBodyProps): ReactNode {
             type="text"
             value={pinComment}
             onChange={e => setPinComment(e.target.value)}
-            onKeyDown={e => {
+            onKeyDown={(e) => {
               if (e.key === 'Enter') handleSubmitPin()
               if (e.key === 'Escape') setPendingPinCoords(null)
             }}

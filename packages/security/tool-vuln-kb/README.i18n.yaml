@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/security/tool-vuln-kb/README.md
-README.md: 13a0fbac67a4aaa3675111fc1818215d60020565
-README.zh.md: 58c5bd82e8e9443a000385adf2323c4785596ebb
+/:
+  en: 379d8e255de3f3b3
+  zh: bd057fe5dfb1995e
+/deepseek-ai-dsh-tool-vuln-kb:
+  en: ca52ec006f093555
+  zh: 80d62a057556d108
+/deepseek-ai-dsh-tool-vuln-kb/summary:
+  en: 75fc416dbf6d87ed
+  zh: 732cdd6920c64530
+/deepseek-ai-dsh-tool-vuln-kb/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/deepseek-ai-dsh-tool-vuln-kb/use-this-package:
+  en: 3fca1db07cdd0103
+  zh: 009655a64df29947
+/deepseek-ai-dsh-tool-vuln-kb/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-tool-vuln-kb/model-experience/vulnerability-lookup-tool-schemas:
+  en: b7aa1b105f88a5b4
+  zh: 4c5e2b78f9af561b
+/deepseek-ai-dsh-tool-vuln-kb/model-experience/vulnerability-lookup-tool-schemas/what-the-model-sees:
+  en: 15607d6f7b54bacf
+  zh: 018306e418983290
+/deepseek-ai-dsh-tool-vuln-kb/model-experience/vulnerability-lookup-tool-schemas/token-effect:
+  en: 874592dfcadcfe07
+  zh: 784d8882433befab
+/deepseek-ai-dsh-tool-vuln-kb/model-experience/vulnerability-lookup-tool-schemas/kv-cache-effect:
+  en: 8a1a2e0cd13cd80a
+  zh: dcad9ad4049085f0
+/deepseek-ai-dsh-tool-vuln-kb/known-limitations-and-deferred-work:
+  en: 3de2a5ae2da3ea3a
+  zh: f2028c524a2ed112
+/deepseek-ai-dsh-tool-vuln-kb/known-limitations-and-deferred-work/dev-note:
+  en: 0ebb1b9b8ff7b4ed
+  zh: 12bc407df843183a

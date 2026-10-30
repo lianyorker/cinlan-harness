@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-native-cua-readiness-and-policy.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-native-cua-readiness-and-policy.md
-2026-09-20-native-cua-readiness-and-policy.md: cafe8875a83ecda96a09919d7b770a653b6ce245
-2026-09-20-native-cua-readiness-and-policy.zh.md: 4f50f1640b4341ad9018ab8c07bc9328e52898e1
+/agent-note-native-cua-readiness-and-permission-policy:
+  en: 66aa2e9b031c5c7b
+  zh: b2aa52b425355a67
+/agent-note-native-cua-readiness-and-permission-policy/problem:
+  en: a0ab357b423f9abf
+  zh: 5e317a9db0980604
+/agent-note-native-cua-readiness-and-permission-policy/decision:
+  en: 4cc197d34270e3ba
+  zh: a88eace48d0d797b
+/agent-note-native-cua-readiness-and-permission-policy/alternatives-considered:
+  en: 8dbd572e5e807038
+  zh: 3115791a3e7f1757
+/agent-note-native-cua-readiness-and-permission-policy/consequences:
+  en: fcda3bd45ab5427a
+  zh: e8e8bd7f55ee7300
+/agent-note-native-cua-readiness-and-permission-policy/verification:
+  en: de0c781fd09bab3e
+  zh: e80bc29e7fa93b79

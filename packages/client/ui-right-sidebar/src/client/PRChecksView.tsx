@@ -177,7 +177,7 @@ export function PRChecksView({
             {t('review.prChecksTitle', { count: pr.checks.length })}
           </h4>
           <ul className={css.checksList}>
-            {pr.checks.map(check => {
+            {pr.checks.map((check) => {
               const duration = formatCheckDuration(check.startedAt, check.completedAt)
               const isExpanded = Boolean(expandedLogs[check.id])
               const statusLabel = getStatusLabel(check, t)

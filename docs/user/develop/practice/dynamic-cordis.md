@@ -3,6 +3,7 @@
 English | [中文](dynamic-cordis.zh.md)
 
 This practice guide enables [`@deepseek-ai/dsh-tool-cordis`](../../../../packages/extensions/tool-cordis/README.md). The agent can inspect its current Cordis process and mount or unmount model-authored plugins in memory. Temporary plugins disappear when they are unmounted or the process exits and may affect other sessions in the same process.
+Standard and Creator modes provide [Plugin Manager](../../../../packages/boot/plugin-manager/README.md); Creator mode adds read-only [runtime inspection](../../../../packages/extensions/tool-cordis/README.md). Plugin configuration belongs to the current profile, affects its sessions, and survives process restarts.
 
 ## Run it
 

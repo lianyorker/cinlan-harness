@@ -1,6 +1,34 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/integration-preflight-controller/README.md
-README.md: 93977b61c76751678cee2f4828449315c8ac2581
-README.zh.md: 9d924d85d4e11dbdd793fc1f7caff86de4477993
+/:
+  en: 0b2b43a1577cf042
+  zh: 719c793d30f6884d
+/deepseek-ai-dsh-api-integration-preflight-controller:
+  en: 99b5ea473f5d9bd7
+  zh: 0f18cc9d3a38f6d2
+/deepseek-ai-dsh-api-integration-preflight-controller/summary:
+  en: 399bb8b08c6ac5f5
+  zh: 0b06ea5c304e2b0f
+/deepseek-ai-dsh-api-integration-preflight-controller/table-of-contents:
+  en: b563e4ec4727d0de
+  zh: defc125e6f519e77
+/deepseek-ai-dsh-api-integration-preflight-controller/use-this-package:
+  en: fd3aa84671725ae6
+  zh: ef69b2900d8a3947
+/deepseek-ai-dsh-api-integration-preflight-controller/understand-the-implementation:
+  en: ee25777fbdb2676f
+  zh: 2056457a3fda357b
+/deepseek-ai-dsh-api-integration-preflight-controller/further-exploration:
+  en: d949bc0926c8b821
+  zh: 437a6f65b42edefc
+/deepseek-ai-dsh-api-integration-preflight-controller/model-experience:
+  en: 8d987ad1fbaa8736
+  zh: 0c4650a6ad25eba8
+/deepseek-ai-dsh-api-integration-preflight-controller/model-experience/kv-cache-effect:
+  en: 96bc562c648917ce
+  zh: 7e01837dfed9634c
+/deepseek-ai-dsh-api-integration-preflight-controller/known-limitations-and-deferred-work:
+  en: e902fb256f126b87
+  zh: 84ff54ac047dd763

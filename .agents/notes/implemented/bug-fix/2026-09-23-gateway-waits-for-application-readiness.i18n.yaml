@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-23-gateway-waits-for-application-readiness.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-23-gateway-waits-for-application-readiness.md
-2026-09-23-gateway-waits-for-application-readiness.md: c702ff09dcf86c55f40e7f31dcdaa51c6996b4b2
-2026-09-23-gateway-waits-for-application-readiness.zh.md: 04bc87d9e0c626e83518bf46fee4a75bb292bb3a
+/agent-note-remote-websocket-waits-for-application-readiness:
+  en: 8a9620616bd1af11
+  zh: 358000583090e11e
+/agent-note-remote-websocket-waits-for-application-readiness/problem:
+  en: e5972939caeb78a7
+  zh: 2759beacaf3dbf19
+/agent-note-remote-websocket-waits-for-application-readiness/decision:
+  en: dcfa16b3f60cc439
+  zh: c15a67c3b2984ddc
+/agent-note-remote-websocket-waits-for-application-readiness/alternatives-considered:
+  en: 4ad1a89d77197bd6
+  zh: 8ea63e37f171b3c3
+/agent-note-remote-websocket-waits-for-application-readiness/consequences:
+  en: ab35b3969256d346
+  zh: 5157a4d3344b342a
+/agent-note-remote-websocket-waits-for-application-readiness/testing:
+  en: 450f5cbaf7d8b469
+  zh: 65a61a5f2d88a451

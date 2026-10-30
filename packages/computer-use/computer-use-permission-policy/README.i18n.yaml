@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/computer-use/computer-use-permission-policy/README.md
-README.md: 4f59a6bc2ebcd0121c14139d8fe5d6274ca36783
-README.zh.md: 68853ff1c1f0cb95bdf1fd92698eb72ae23aab1f
+/:
+  en: 9e3b4d4ae725ed16
+  zh: 8dba572d463f63ff
+/deepseek-ai-dsh-computer-use-permission-policy:
+  en: 13f897fcacf0eeff
+  zh: 9a7a0cb15df6545a
+/deepseek-ai-dsh-computer-use-permission-policy/summary:
+  en: f986ebacaba1ff51
+  zh: a84c9f93fdc656ab
+/deepseek-ai-dsh-computer-use-permission-policy/table-of-contents:
+  en: 06759ea6cf15280c
+  zh: 41f7c91dc7eeb743
+/deepseek-ai-dsh-computer-use-permission-policy/use-this-package:
+  en: 4eff639468ee8381
+  zh: 311ce2d083cb8d1d
+/deepseek-ai-dsh-computer-use-permission-policy/configuration:
+  en: 68afe63ee4db2d3b
+  zh: 30387a3fe4c324ab
+/deepseek-ai-dsh-computer-use-permission-policy/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-computer-use-permission-policy/model-experience/permission-outcomes:
+  en: 988b22c335657921
+  zh: 7f003ad08544a7d2
+/deepseek-ai-dsh-computer-use-permission-policy/model-experience/permission-outcomes/what-the-model-sees:
+  en: 5a05e71a0632bf78
+  zh: ebcdcc1bd9fc96e5
+/deepseek-ai-dsh-computer-use-permission-policy/model-experience/permission-outcomes/what-the-model-sees/approval-and-denial-text:
+  en: 10d965c4a2c05267
+  zh: 54cfb316e4231db5
+/deepseek-ai-dsh-computer-use-permission-policy/model-experience/permission-outcomes/token-effect:
+  en: e169f989d7e8a1be
+  zh: 136dbfc61ff1bdf9
+/deepseek-ai-dsh-computer-use-permission-policy/model-experience/permission-outcomes/kv-cache-effect:
+  en: 9616ec0c815b7f22
+  zh: fc45b9ef6b73fea4
+/deepseek-ai-dsh-computer-use-permission-policy/known-limitations-and-deferred-work:
+  en: 6deb991afd5e2a4a
+  zh: 49ffdac21bd79a1e
+/deepseek-ai-dsh-computer-use-permission-policy/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-native-browser-runtime-management.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-native-browser-runtime-management.md
-2026-09-20-native-browser-runtime-management.md: 6101fe821d8141ed021a48ad0f669324c1e4be1e
-2026-09-20-native-browser-runtime-management.zh.md: 10c7e9764ad9d7fcad1d90bd9929524c7ae3d20d
+/agent-note-native-browser-runtime-management:
+  en: 377a9bf756464dcb
+  zh: a1ef99b94a965445
+/agent-note-native-browser-runtime-management/problem:
+  en: e4dc164426b515e1
+  zh: 86cf58b7e8fdb400
+/agent-note-native-browser-runtime-management/decision:
+  en: 4f5c9ce35156c2d5
+  zh: 9630bb52868557d1
+/agent-note-native-browser-runtime-management/alternatives-considered:
+  en: 320a9b1f7c1451f2
+  zh: 90b634e55f30fcaf
+/agent-note-native-browser-runtime-management/consequences:
+  en: c2c7b6cee6bf5be7
+  zh: 0058adf5d02fc416
+/agent-note-native-browser-runtime-management/verification:
+  en: 4e95727424ddfb60
+  zh: 48e76a85408ed5d0

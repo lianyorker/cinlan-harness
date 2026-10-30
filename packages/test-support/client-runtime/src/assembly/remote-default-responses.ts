@@ -66,5 +66,7 @@ export const remoteDefaultResponses: RemoteTable = {
     'executionHosts/follow': openStream([{ current: { hostId: 'local', hostname: 'localhost', pid: 1, platform: 'win32', createdAt: '2026-01-01T00:00:00.000Z' }, targets: [] }]),
     // ui-settings-mcp watch stream
     'mcp/watch': openStream([]),
+    // api-remote-access client `mountAccess`: the owner's access snapshot, then open.
+    'remoteAccess/follow': openStream([{ type: 'baseline', owner: true }]),
   },
 }

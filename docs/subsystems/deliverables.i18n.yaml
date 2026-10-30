@@ -1,6 +1,28 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for deliverables.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/deliverables.md
-deliverables.md: 90da2f8e50de0ca68d2080b73b4a5ebf958732d7
-deliverables.zh.md: 9f2345a2b6e78dd6eec77814d966cae0ee49a3dd
+/deliverables:
+  en: 1ebd7efef83f8a7e
+  zh: a507b2cf810dc4b1
+/deliverables/presentedfile-one-declared-delivery:
+  en: 3b1b28a170f96d00
+  zh: 88bef7f2c2f5a54c
+/deliverables/workspacechangedfile-one-changed-file:
+  en: bc4277020182bdd1
+  zh: b93a6e034b18d5e0
+/deliverables/workspacechangessummary-one-turn-s-change-summary:
+  en: c3ffc817f97794ac
+  zh: 3c1776a5d18645c3
+/deliverables/workspacediffhunk-one-unified-diff-hunk:
+  en: d31852e41c811838
+  zh: c1a93e14c93b0f92
+/deliverables/workspacefilediff-one-file-s-comparison:
+  en: febc9740a5e0502d
+  zh: 08ce847c04755575
+/deliverables/workspacechanges-the-host-service-serving-summaries-and-comparisons:
+  en: 8f5d5fb22a7161fd
+  zh: 5943be537faf6535
+/deliverables/durable-events-and-the-served-summary:
+  en: 138e4540efe09196
+  zh: 31e2c147fcf53869

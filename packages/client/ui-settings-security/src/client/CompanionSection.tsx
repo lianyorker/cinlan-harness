@@ -81,7 +81,7 @@ export function CompanionSection({ t, api, onStateChange }: CompanionProps): Rea
       onStateChange?.(value)
       if (version === revision.current) { settingsRef.current = value.settings; setSettings(value.settings) }
     })
-    saving.current = task.catch(reason => {
+    saving.current = task.catch((reason) => {
       if (!mounted.current) return
       setError(reason instanceof Error ? reason.message : 'mobile_request_failed')
       if (version === revision.current) { settingsRef.current = confirmed.current; setSettings(confirmed.current) }
@@ -120,7 +120,7 @@ export function CompanionSection({ t, api, onStateChange }: CompanionProps): Rea
       <p className={css.helper}>{t('companionRelayNotice')}</p>
       <div className={css.visibilityRow} data-settings-anchor="companion-visibility">
         <span><strong>{t('companionWorkspaceVisible')}</strong><small>{t('companionWorkspaceVisibleHelp')}</small></span>
-        <Switch checked={visible} label={t('companionWorkspaceVisible')} onChange={next => {
+        <Switch checked={visible} label={t('companionWorkspaceVisible')} onChange={(next) => {
           setVisible(next)
           try { localStorage.setItem('cinlan-companion:visible', String(next)) } catch (_storageUnavailable) { /* Visibility still applies to this window. */ }
           window.dispatchEvent(new CustomEvent('cinlan-companion-visibility', { detail: next }))
@@ -132,7 +132,7 @@ export function CompanionSection({ t, api, onStateChange }: CompanionProps): Rea
       <h2>{t('companionHostName')}</h2>
       <label className={css.field}>
         <span>{t('companionHostNameHelp')}</span>
-        <input disabled={!ready} value={settings.name} onChange={event => { change({ name: event.currentTarget.value }) }} onBlur={() => { void save().catch(() => {}) }} aria-label={t('companionHostName')} />
+        <input disabled={!ready} value={settings.name} onChange={(event) => { change({ name: event.currentTarget.value }) }} onBlur={() => { void save().catch(() => {}) }} aria-label={t('companionHostName')} />
       </label>
     </div>
 
@@ -144,12 +144,12 @@ export function CompanionSection({ t, api, onStateChange }: CompanionProps): Rea
           <input type="radio" name="companion-transport" checked={settings.mode === mode} onChange={() => { const next = change({ mode }); if (mode !== 'relay' || next.directorUrl) void save(next).catch(() => {}) }} />
         </label>)}
       </fieldset>
-      {settings.mode === 'lan' && <label className={css.field}><span>{t('companionAddress')}</span><select disabled={!ready} value={settings.address} onChange={event => { void save(change({ address: event.currentTarget.value })).catch(() => {}) }}>
+      {settings.mode === 'lan' && <label className={css.field}><span>{t('companionAddress')}</span><select disabled={!ready} value={settings.address} onChange={(event) => { void save(change({ address: event.currentTarget.value })).catch(() => {}) }}>
         <option value="">{t('companionAutomatic')}</option>{state?.addresses.map(address => <option value={address} key={address}>{address}</option>)}
       </select></label>}
       {settings.mode === 'relay' && <>
-        <label className={css.field}><span>{t('companionHubUrl')}</span><input disabled={!ready} type="url" value={settings.directorUrl} onChange={event => { change({ directorUrl: event.currentTarget.value }) }} onBlur={() => { if (settingsRef.current.directorUrl) void save().catch(() => {}) }} /></label>
-        <label className={css.field}><span>{t('companionRegion')}</span><select disabled={!ready} value={settings.preferredRegion} onChange={event => { void save(change({ preferredRegion: event.currentTarget.value })).catch(() => {}) }}>
+        <label className={css.field}><span>{t('companionHubUrl')}</span><input disabled={!ready} type="url" value={settings.directorUrl} onChange={(event) => { change({ directorUrl: event.currentTarget.value }) }} onBlur={() => { if (settingsRef.current.directorUrl) void save().catch(() => {}) }} /></label>
+        <label className={css.field}><span>{t('companionRegion')}</span><select disabled={!ready} value={settings.preferredRegion} onChange={(event) => { void save(change({ preferredRegion: event.currentTarget.value })).catch(() => {}) }}>
           <option value="">{t('companionAutomatic')}</option>{state?.regions.map(region => <option key={region.id} value={region.id}>{region.name}</option>)}
         </select></label>
         <p className={css.relayStatus} role="status"><span className={state?.relayStatus === 'online' ? css.statusDotOnline : css.statusDot} aria-hidden="true" />{t(state?.relayStatus === 'online' ? 'companionConnected' : state?.relayStatus === 'connecting' ? 'companionConnecting' : 'companionOffline')}</p>

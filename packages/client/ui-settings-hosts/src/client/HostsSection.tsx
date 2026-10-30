@@ -100,7 +100,7 @@ export function HostsSection(props: HostsProps): ReactNode {
         setVmOverview(await props.getVmOverview())
       }
     } else {
-      setVmOverview(prev => {
+      setVmOverview((prev) => {
         const recipe = prev.recipes.find(r => r.id === request.recipeId) ?? prev.recipes[0]
         const newVm: EphemeralVm = {
           id: (`vm-${Date.now()}`) as EphemeralVmId,
@@ -138,7 +138,7 @@ export function HostsSection(props: HostsProps): ReactNode {
         setVmOverview(await props.getVmOverview())
       }
     } else {
-      setVmOverview(prev => {
+      setVmOverview((prev) => {
         const vm = prev.vms.find(v => v.id === request.id)
         if (!vm) return prev
         const recipe = prev.recipes.find(r => r.id === vm.recipeId)
@@ -228,7 +228,7 @@ export function HostsSection(props: HostsProps): ReactNode {
     setNotice(undefined)
     setImportState({ status: 'loading' })
     void perform('import', signal => props.listImportableHosts(signal), {
-      onSuccess: value => { setImportState({ status: 'ready', value: value as ImportableHostsValue }) },
+      onSuccess: (value) => { setImportState({ status: 'ready', value: value as ImportableHostsValue }) },
     })
   }
   const acceptImport = (entry: ImportCandidate): void => {
@@ -254,7 +254,7 @@ export function HostsSection(props: HostsProps): ReactNode {
       {notice !== undefined && <p role="status">{t(notice.key, notice.params)}</p>}
       <div className={css.targets} aria-label={t('savedTargets')}>
         {available && targets.length === 0 && <p className={css.empty}>{t('empty')}</p>}
-        {targets.map(target => {
+        {targets.map((target) => {
           const state = target.state
           const busy = pending !== undefined
           return <div key={target.id} className={css.card} aria-label={target.label}>
@@ -289,7 +289,7 @@ export function HostsSection(props: HostsProps): ReactNode {
                   <Button variant="ghost" size="sm" icon={<IconInspectOutlineRegular size={14} />}
                     disabled={!available || busy}
                     onClick={() => { void perform('test:' + target.id, signal => props.test({ id: target.id, revision: target.revision }, signal), {
-                      onSuccess: value => { setNotice({ key: 'testSucceeded', params: { count: (value as { rootCount: number }).rootCount } }) },
+                      onSuccess: (value) => { setNotice({ key: 'testSucceeded', params: { count: (value as { rootCount: number }).rootCount } }) },
                     }) }}>{t(pending === 'test:' + target.id ? 'testing' : 'test')}</Button>
                   <Button variant="ghost" size="sm" icon={<IconPlayOutline16 />} disabled={!available || busy}
                     onClick={() => { void perform('connect:' + target.id, signal => props.connect({ id: target.id, revision: target.revision }, signal), { notice: { key: 'connected' } }) }}>{t('connect')}</Button>

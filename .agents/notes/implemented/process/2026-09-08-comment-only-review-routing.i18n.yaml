@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-comment-only-review-routing.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-08-comment-only-review-routing.md
-2026-09-08-comment-only-review-routing.md: 050905285b2291b34da9873d19c2f122c088a9e5
-2026-09-08-comment-only-review-routing.zh.md: b98f5d70b4d5c0fd27df1c393238b0802e420e09
+/agent-note-exclude-documentation-and-comment-only-changes-from-review-routing:
+  en: fee4247adf13a4cf
+  zh: c10adc8bfd958fd1
+/agent-note-exclude-documentation-and-comment-only-changes-from-review-routing/problem:
+  en: 1eeeba8dbffb1c26
+  zh: 7fab3b68d9dc7347
+/agent-note-exclude-documentation-and-comment-only-changes-from-review-routing/decision:
+  en: 172527b2ab1015e5
+  zh: 6aa1788f44fd2ddb
+/agent-note-exclude-documentation-and-comment-only-changes-from-review-routing/verification:
+  en: 8b027fa13aba252c
+  zh: 5e43f04c34a3a271
+/agent-note-exclude-documentation-and-comment-only-changes-from-review-routing/alternatives-considered:
+  en: 59aec185622a893e
+  zh: db965b5bbf9a3688
+/agent-note-exclude-documentation-and-comment-only-changes-from-review-routing/consequences:
+  en: 53be1091edd028f2
+  zh: 30330b83e9a4abaf

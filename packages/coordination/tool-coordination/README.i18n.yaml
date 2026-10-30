@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/coordination/tool-coordination/README.md
-README.md: 3c1c3212d6e726fd14ad1030ed59542d7c232d59
-README.zh.md: c155c69673564caa41ce1102e9c646cc895d1266
+/:
+  en: 7169eb7f453429ea
+  zh: cb06cc21a9c91ccd
+/dsh-tool-coordination:
+  en: 5040ff775bd53485
+  zh: 69aaf2f7645011b3
+/dsh-tool-coordination/summary:
+  en: bf388243b043c416
+  zh: 91199ad0000fc8b8
+/dsh-tool-coordination/use-this-package:
+  en: c3f7c27c4cd145c9
+  zh: 2c60e3330cb1eb29
+/dsh-tool-coordination/table-of-contents:
+  en: 7529b90637a7d56d
+  zh: cc0159e548ca1270
+/dsh-tool-coordination/ownership-and-lifecycle:
+  en: 4655e28d482c4769
+  zh: ffe5b8e36b430ba9
+/dsh-tool-coordination/config:
+  en: 2459428c0e3c8f05
+  zh: ce26053dc86b43d2
+/dsh-tool-coordination/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/dsh-tool-coordination/model-experience/tool-schemas-and-results:
+  en: cadc497841430a21
+  zh: cadc497841430a21
+/dsh-tool-coordination/model-experience/tool-schemas-and-results/what-the-model-sees:
+  en: 068b7b22b6f27e41
+  zh: fcad674cee771bea
+/dsh-tool-coordination/model-experience/tool-schemas-and-results/token-effect:
+  en: 3d1253a907aee439
+  zh: 889217b60ca0a918
+/dsh-tool-coordination/model-experience/tool-schemas-and-results/kv-cache-effect:
+  en: 8b26511cbaab32e8
+  zh: c0dac0955cd23ff9
+/dsh-tool-coordination/known-limitations-and-deferred-work:
+  en: 73b744f912e00753
+  zh: d93a31fc9e581044
+/dsh-tool-coordination/known-limitations-and-deferred-work/dev-note:
+  en: 7f1cac927da3a6ac
+  zh: 551650610e01d93a

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-20-attachment-read-quarantine.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-20-attachment-read-quarantine.md
-2026-08-20-attachment-read-quarantine.md: d631e75c76a5d72e031db7a2eb3bfa1f655260ba
-2026-08-20-attachment-read-quarantine.zh.md: 50e43d8ed8d30523d7e0465b6226b5619071c9d1
+/agent-note-quarantine-unreadable-historical-attachments:
+  en: 4d0a3251effc37fa
+  zh: b61aa8143d694b78
+/agent-note-quarantine-unreadable-historical-attachments/problem:
+  en: 8652fbd5afd34170
+  zh: b6399f48311b0a7d
+/agent-note-quarantine-unreadable-historical-attachments/decision:
+  en: 47ec17a44dcc9126
+  zh: b77be98d51f171e6
+/agent-note-quarantine-unreadable-historical-attachments/alternatives-considered:
+  en: bac910fed94331cd
+  zh: 6e9ea388c407e3a7
+/agent-note-quarantine-unreadable-historical-attachments/consequences:
+  en: c46b2b6c711b4903
+  zh: f9c8c3a2ed459b6b

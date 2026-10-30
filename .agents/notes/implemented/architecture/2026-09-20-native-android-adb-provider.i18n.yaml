@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-native-android-adb-provider.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-native-android-adb-provider.md
-2026-09-20-native-android-adb-provider.md: 3bc98d93beedc9c85a2c400476152c80c66bc8c4
-2026-09-20-native-android-adb-provider.zh.md: e014350ccee3f367315c8bee27c674ac33210306
+/agent-note-native-android-adb-provider:
+  en: 1d1ec04197537c1e
+  zh: bd1e769fb38b4522
+/agent-note-native-android-adb-provider/problem:
+  en: 08c6c393b5cb5348
+  zh: c0e14abe0de50979
+/agent-note-native-android-adb-provider/decision:
+  en: fda00970d5707905
+  zh: 2a37f3c401ef606e
+/agent-note-native-android-adb-provider/alternatives-considered:
+  en: 97e0fde59129d703
+  zh: f8724da85290c112
+/agent-note-native-android-adb-provider/consequences:
+  en: 142e7d59012e7d83
+  zh: de78c71f932fc5f8
+/agent-note-native-android-adb-provider/verification:
+  en: 5f4a85ca4a4f2e6c
+  zh: e3d33b1a1f8ab365

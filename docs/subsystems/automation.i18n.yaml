@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for automation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/automation.md
-automation.md: 548d782f60c075c7625fa81ac008461b394ee22f
-automation.zh.md: 58606670741a31a9885bd426f93c24b02551c098
+/automation:
+  en: 090e32d217b0b2e7
+  zh: e89b13ca86a1da2e
+/automation/identity-and-definitions:
+  en: 3cd8538c599baa1e
+  zh: f8d5b4391a528313
+/automation/scheduling-semantics:
+  en: 314b33f098ddde1b
+  zh: f13ee77d38edb115
+/automation/state-and-recovery:
+  en: 507df01d9abefe21
+  zh: 5cabdf6b775a9fa0
+/automation/browser-commands:
+  en: cc50a65474173969
+  zh: 6133765d48b2fdc9
+/automation/type-reference:
+  en: 86ef44a936672b63
+  zh: d0d7951fa9ae1d00
+/automation/type-reference/saved-inputs:
+  en: 6271b4d230539dfc
+  zh: fa1237a3fd7f445d
+/automation/type-reference/definitions-and-invocation-evidence:
+  en: 9e2f5d36a082de27
+  zh: 4aac5fb08e008f89
+/automation/type-reference/reads-and-commands:
+  en: d1b4f4d4276e62a9
+  zh: 768a853a59450cde

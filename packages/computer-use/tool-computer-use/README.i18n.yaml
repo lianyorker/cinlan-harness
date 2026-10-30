@@ -1,6 +1,79 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/computer-use/tool-computer-use/README.md
-README.md: b5f21f34858c152301296b9ca102123c6c28f1c2
-README.zh.md: a3750d48148180b558b78a971ec7015ba1c3936b
+/:
+  en: 6edbc17068b35f64
+  zh: afbc286557652fbf
+/deepseek-ai-dsh-tool-computer-use:
+  en: 7ee5697dd49984a4
+  zh: 84f0fced4d21995f
+/deepseek-ai-dsh-tool-computer-use/summary:
+  en: 9a344773c19c6bd0
+  zh: 2296a9f68424ce63
+/deepseek-ai-dsh-tool-computer-use/table-of-contents:
+  en: 06759ea6cf15280c
+  zh: 41f7c91dc7eeb743
+/deepseek-ai-dsh-tool-computer-use/use-this-package:
+  en: 4b926db43252b9ce
+  zh: 8e153621fc2f13e9
+/deepseek-ai-dsh-tool-computer-use/tools:
+  en: f26defa17b3520f6
+  zh: 53679d0eaa8115b6
+/deepseek-ai-dsh-tool-computer-use/configuration:
+  en: a0aba671f82dffdd
+  zh: 9515dd7aafe29b15
+/deepseek-ai-dsh-tool-computer-use/observation-and-screenshot-admission:
+  en: ea0bb729596db5b3
+  zh: 97a14dbd0b030619
+/deepseek-ai-dsh-tool-computer-use/render-intent:
+  en: cce3edc36b21a7b3
+  zh: 0b32a7604118bfb6
+/deepseek-ai-dsh-tool-computer-use/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-tool-computer-use/model-experience/computer-use-system-prompt:
+  en: 22d29edef31a1c2e
+  zh: 22d29edef31a1c2e
+/deepseek-ai-dsh-tool-computer-use/model-experience/computer-use-system-prompt/what-the-model-sees:
+  en: bff70108759173a3
+  zh: 5977772f4a6d0333
+/deepseek-ai-dsh-tool-computer-use/model-experience/computer-use-system-prompt/what-the-model-sees/computer-use-guidance:
+  en: 8013e92967b1dcce
+  zh: 8013e92967b1dcce
+/deepseek-ai-dsh-tool-computer-use/model-experience/computer-use-system-prompt/token-effect:
+  en: 3e0c4d3167814e3f
+  zh: d6069655c56fb4d1
+/deepseek-ai-dsh-tool-computer-use/model-experience/computer-use-system-prompt/kv-cache-effect:
+  en: 80e428ed64f44d29
+  zh: 1ce6153ae77ece04
+/deepseek-ai-dsh-tool-computer-use/model-experience/computer-use-tool-schemas:
+  en: 8c5f7d489f3413ef
+  zh: 56e95256619a12ea
+/deepseek-ai-dsh-tool-computer-use/model-experience/computer-use-tool-schemas/what-the-model-sees:
+  en: 59b098fba2eee8ed
+  zh: c029816f2edf6073
+/deepseek-ai-dsh-tool-computer-use/model-experience/computer-use-tool-schemas/token-effect:
+  en: 30995db321a30fbc
+  zh: 8f30f42869cf6dcd
+/deepseek-ai-dsh-tool-computer-use/model-experience/computer-use-tool-schemas/kv-cache-effect:
+  en: 4cb773595de1d487
+  zh: 6bc9c518edc8d24d
+/deepseek-ai-dsh-tool-computer-use/model-experience/desktop-observations-and-action-results:
+  en: 605013d5b18f64f1
+  zh: 166e2fe68b6f9f3e
+/deepseek-ai-dsh-tool-computer-use/model-experience/desktop-observations-and-action-results/what-the-model-sees:
+  en: 67cb36b1e851e16c
+  zh: 6fc47f245f577d91
+/deepseek-ai-dsh-tool-computer-use/model-experience/desktop-observations-and-action-results/token-effect:
+  en: cd5011d8718c2274
+  zh: 05a92f83f6d901bc
+/deepseek-ai-dsh-tool-computer-use/model-experience/desktop-observations-and-action-results/kv-cache-effect:
+  en: fe31d80997ac1741
+  zh: 221fb7f7d6ec189d
+/deepseek-ai-dsh-tool-computer-use/known-limitations-and-deferred-work:
+  en: 2354e970cf9377ed
+  zh: 8b60fc245a23b3e4
+/deepseek-ai-dsh-tool-computer-use/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

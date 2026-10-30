@@ -1,6 +1,28 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-floating-workspace-command-ownership.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-floating-workspace-command-ownership.md
-2026-09-17-floating-workspace-command-ownership.md: db672591b294683425a791ae8e1c7dd06068d68d
-2026-09-17-floating-workspace-command-ownership.zh.md: 4c117c88abd403807a1591127f900e5ea6efd587
+/agent-note-own-floating-windows-and-shortcut-dispatch-in-their-consuming-features:
+  en: c599cc10cd680a45
+  zh: 200187e658b6c73a
+/agent-note-own-floating-windows-and-shortcut-dispatch-in-their-consuming-features/problem:
+  en: c4d48caded2b13ff
+  zh: 56772fb92101854b
+/agent-note-own-floating-windows-and-shortcut-dispatch-in-their-consuming-features/decision:
+  en: a15c7c13f167e5ac
+  zh: 63bcc2ef60c2f344
+/agent-note-own-floating-windows-and-shortcut-dispatch-in-their-consuming-features/decision/one-child-of-the-existing-application:
+  en: d7fb2225177d4816
+  zh: 1003e8e7f2f1ac40
+/agent-note-own-floating-windows-and-shortcut-dispatch-in-their-consuming-features/decision/commands-belong-to-their-live-consumers:
+  en: 31332806c57654e0
+  zh: 7ea9f4cbb5ac579b
+/agent-note-own-floating-windows-and-shortcut-dispatch-in-their-consuming-features/decision/capture-terminal-context-when-creating-the-tab:
+  en: 8946b69a010e2250
+  zh: e2bf39fb09d2c154
+/agent-note-own-floating-windows-and-shortcut-dispatch-in-their-consuming-features/alternatives-considered:
+  en: 38b566bbcc82976b
+  zh: f7ca4e6caf8e5691
+/agent-note-own-floating-windows-and-shortcut-dispatch-in-their-consuming-features/consequences:
+  en: 58e6a4547a1a2a42
+  zh: 91b3563f6272182b

@@ -3,14 +3,19 @@ import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  AGENTS_HOME_DIR_NAME,
   CLH_HOME_DIR_NAME,
+  DEFAULT_AGENTS_HOME_DISPLAY,
   DEFAULT_CLH_HOME_DISPLAY,
+  agentsHomeDisplay,
   canonicalizeWatchPath,
   clhCachePath,
   clhHomeDisplay,
   clhHomePath,
+  defaultAgentsHome,
   defaultClhHome,
   expandHomePath,
+  resolveAgentsHome,
   resolveClhHome,
 } from '@deepseek-ai/dsh-home-paths'
 
@@ -135,4 +140,28 @@ describe('clh/dsh path helpers', () => {
       await rm(root, { recursive: true, force: true })
     }
   })
+  it('owns the shared default agents home directory name', () => {
+    expect(AGENTS_HOME_DIR_NAME).toBe('.agents')
+    expect(DEFAULT_AGENTS_HOME_DISPLAY).toBe('~/.agents')
+    expect(defaultAgentsHome()).toBe(join(homedir(), '.agents'))
+  })
+
+  it('resolves an explicit agents home before DSH_AGENTS_HOME and the default', () => {
+    const envHome = join(homedir(), 'env-agents')
+
+    expect(resolveAgentsHome('/tmp/explicit-agents', { DSH_AGENTS_HOME: '~/env-agents' })).toBe(resolve('/tmp/explicit-agents'))
+    expect(resolveAgentsHome(undefined, { DSH_AGENTS_HOME: '~/env-agents' })).toBe(envHome)
+    expect(resolveAgentsHome(undefined, {})).toBe(defaultAgentsHome())
+  })
+
+  it('treats an empty or whitespace-only DSH_AGENTS_HOME as unset', () => {
+    expect(resolveAgentsHome(undefined, { DSH_AGENTS_HOME: '' })).toBe(defaultAgentsHome())
+    expect(resolveAgentsHome(undefined, { DSH_AGENTS_HOME: '   ' })).toBe(defaultAgentsHome())
+  })
+
+  it('labels a resolved agents home by whether it is the default root', () => {
+    expect(agentsHomeDisplay(resolve(defaultAgentsHome()))).toBe('~/.agents')
+    expect(agentsHomeDisplay('/some/other/root')).toBe('$DSH_AGENTS_HOME')
+  })
 })
+

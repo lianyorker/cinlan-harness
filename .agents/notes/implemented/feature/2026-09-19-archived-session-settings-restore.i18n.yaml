@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-19-archived-session-settings-restore.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-19-archived-session-settings-restore.md
-2026-09-19-archived-session-settings-restore.md: 2a39756e1b2243faa47b9688b289a02f0b7b5281
-2026-09-19-archived-session-settings-restore.zh.md: 4d4d162742a8c8180cf304803f79c05010c1714c
+/agent-note-archived-session-restore-preserves-workspace-state-ownership:
+  en: bfdbab761298f9f3
+  zh: 237d9b6178e1d0a9
+/agent-note-archived-session-restore-preserves-workspace-state-ownership/problem:
+  en: 0c55a5c4e07314de
+  zh: b03e91496399850f
+/agent-note-archived-session-restore-preserves-workspace-state-ownership/decision:
+  en: 697a4ad15685dd64
+  zh: 760f44315746e415
+/agent-note-archived-session-restore-preserves-workspace-state-ownership/alternatives-considered:
+  en: 5170f7e466edeaa3
+  zh: 96d22039a5116e20
+/agent-note-archived-session-restore-preserves-workspace-state-ownership/consequences:
+  en: 0f7f223b23fccae3
+  zh: 6ec99969a7310455

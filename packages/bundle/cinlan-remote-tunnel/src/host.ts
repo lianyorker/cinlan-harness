@@ -99,7 +99,7 @@ export class CinlanMobileHost extends Service {
     await this.listen(this.state.settings.mode === 'lan' ? '0.0.0.0' : '127.0.0.1')
     this.ctx.effect(() => this.ctx.connection.fetch.register({
       path: '/api/mobile-admin', methods: ['POST'], requestBody: 'buffered',
-      fetch: async request => {
+      fetch: async (request) => {
         const envelope = z.object({ type: z.literal('client-request'), rpcId: z.string(), method: z.literal('mobile-admin'), payload: z.unknown() }).strict().parse(await request.json())
         let result: unknown
         try { result = { ok: true, value: await this.admin(envelope.payload) } }
@@ -117,7 +117,7 @@ export class CinlanMobileHost extends Service {
       }
       for (const [hash, ticket] of this.tickets) if (ticket.expiresAt <= Date.now()) this.tickets.delete(hash)
     }, this.config.heartbeatMs)
-    this.ctx.on('mobile-host/socket', socket => { alive.add(socket); socket.on('pong', () => alive.add(socket)); socket.once('close', () => alive.delete(socket)) })
+    this.ctx.on('mobile-host/socket', (socket) => { alive.add(socket); socket.on('pong', () => alive.add(socket)); socket.once('close', () => alive.delete(socket)) })
     this.ctx.effect(() => async () => {
       this.disposed = true; clearInterval(heartbeat)
       if (this.reconnect) clearTimeout(this.reconnect)
@@ -138,7 +138,7 @@ export class CinlanMobileHost extends Service {
   private get hostId(): HostId { return hostIdentity(base64(nacl.sign.keyPair.fromSecretKey(this.signingKey).publicKey)) }
   private async listen(host: '127.0.0.1' | '0.0.0.0'): Promise<void> {
     const server = createServer((req, res) => {
-      void serveMobile(this.config.mobileAssetsDir ?? fileURLToPath(new URL('../../../../apps/mobile/dist', import.meta.url)), req, res).then(handled => { if (!handled) { res.writeHead(404); res.end() } }, () => { res.writeHead(500); res.end() })
+      void serveMobile(this.config.mobileAssetsDir ?? fileURLToPath(new URL('../../../../apps/mobile/dist', import.meta.url)), req, res).then((handled) => { if (!handled) { res.writeHead(404); res.end() } }, () => { res.writeHead(500); res.end() })
     })
     server.requestTimeout = this.config.handshakeMs; server.headersTimeout = this.config.handshakeMs
     const wss = new WebSocketServer({ server, path: '/mobile', maxPayload: this.config.maxPayloadBytes, perMessageDeflate: false })
@@ -156,7 +156,7 @@ export class CinlanMobileHost extends Service {
     if (!server || !wss) return
     for (const socket of wss.clients) socket.terminate()
     await new Promise<void>(resolve => wss.close(() => resolve()))
-    await new Promise<void>(resolve => { server.close(() => resolve()); server.closeAllConnections() })
+    await new Promise<void>((resolve) => { server.close(() => resolve()); server.closeAllConnections() })
   }
   /** Apply only operator-authenticated settings and enrollment commands. */
   admin(value: unknown): Promise<unknown> {
@@ -313,7 +313,7 @@ export class CinlanMobileHost extends Service {
   private send(peer: Peer, payload: unknown): void {
     if (peer.socket.readyState !== WebSocket.OPEN || !peer.channel) return
     if (peer.socket.bufferedAmount > this.config.maxBufferedBytes) { peer.socket.close(4429, 'backpressure'); return }
-    try { peer.socket.send(peer.channel.encode(payload), error => { if (error) peer.socket.terminate() }) }
+    try { peer.socket.send(peer.channel.encode(payload), (error) => { if (error) peer.socket.terminate() }) }
     catch (_invalidOrOversizedResponse) { peer.socket.close(4400, 'response_unavailable') }
   }
   private async invoke(peer: Peer, request: AppRequest): Promise<unknown> {
@@ -405,7 +405,7 @@ export class CinlanMobileHost extends Service {
   }
   private async desktop(signal: AbortSignal): Promise<Desktop> {
     const list = await this.ctx.sessionController.list({}, signal)
-    return { hostId: this.hostId, name: this.state.settings.name, os: platform(), sessions: list.items.map(item => {
+    return { hostId: this.hostId, name: this.state.settings.name, os: platform(), sessions: list.items.map((item) => {
       const title = item.projections?.values.title
       return { id: item.sessionId, title: typeof title === 'string' ? title : basename(item.cwd ?? '') || item.sessionId, cwd: item.cwd ?? '', running: item.running, updatedAt: item.updatedAt }
     }), workspaces: this.ctx.workspaceRegistry.list().map(item => ({ id: item.id, name: basename(item.path), path: item.path, sessionIds: [...item.sessionIds] })) }
@@ -421,7 +421,7 @@ export class CinlanMobileHost extends Service {
     if (request.signal?.aborted) return Promise.resolve('cancelled')
     const approvalId = brandString<ApprovalId>(randomUUID())
     const approval: Approval = { approvalId, sessionId: request.agent.id, toolName: request.toolName, reason: request.reason ?? '', createdAt: Date.now(), ...(request.callId ? { callId: request.callId } : {}) }
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const finish = (outcome: ApprovalOutcome): void => {
         if (!this.approvals.delete(approvalId)) return
         request.signal?.removeEventListener('abort', abort)

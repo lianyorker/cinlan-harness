@@ -23,12 +23,15 @@
   font-size: 12px;
 }
 
-.trigger:hover,
 .iconButton:hover,
 .smallButton:hover,
 .taskActions button:hover,
 .formActions button:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .trigger:hover {
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .count {
@@ -116,12 +119,23 @@
   cursor: default;
 }
 
+@media (hover: hover) {
+  .member:not(:disabled):hover {
+    --dsw-elevation-stroke-color: var(--dsw-alias-border-l3);
+    box-shadow: var(--dsw-elevation-panel);
+  }
 .memberText {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
+/* Hover-capable cards reveal model details on hover or focus; touch cards
+   keep the details visible beside the name and activity. */
+@media (hover: hover) {
+  .member:hover .memberModel {
+    display: inline;
+  }
 .memberText small,
 .meta {
   color: var(--dsw-alias-label-tertiary);
@@ -200,6 +214,12 @@
   font: inherit;
 }
 
+@media (hover: hover) {
+  .expandToggle:hover {
+    color: var(--dsw-alias-label-primary);
+  }
+}
+
 .taskActions button,
 .formActions button {
   display: inline-flex;
@@ -237,4 +257,10 @@
 .error {
   padding: 9px;
   font-size: 12px;
+}
+
+@media (hover: none) {
+  .memberModel {
+    display: inline;
+  }
 }

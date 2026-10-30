@@ -64,6 +64,7 @@ describe('ui-settings-agent-loop apply', () => {
     expect(resolveSlotLabel(ctx.settingsMetadata.getSnapshot().items[0]?.title)).toBe('并行工具调用数')
     const entry = slots.entries('settings.general.item')[0]!
     expect(entry.options).toMatchObject({ id: 'agent-loop', order: 40 })
+    expect(entry.options).toMatchObject({ id: 'agent-loop', order: 30 })
     expect(entry.locale).toBe(NS)
     const face = (entry.inject as () => Pick<AgentLoopCardFace, 'hooks'>)()
     expect(Object.keys(face.hooks)).toEqual(['agentLoopCard'])

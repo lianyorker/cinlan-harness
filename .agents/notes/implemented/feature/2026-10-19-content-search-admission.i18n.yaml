@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-19-content-search-admission.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-19-content-search-admission.md
+/agent-note-live-full-text-search-admission:
+  en: d6b3505177b8e90f
+  zh: a30b928b855e757b
+/agent-note-live-full-text-search-admission/problem:
+  en: 9c4c139e67213d1a
+  zh: 1d4a2bd6cfcf055e
+/agent-note-live-full-text-search-admission/decision:
+  en: 0a78bcf0d9abee62
+  zh: 594820efd9385aa3
+/agent-note-live-full-text-search-admission/alternatives-considered:
+  en: 58a54eab9bfdaeba
+  zh: fdc662c475776935
+/agent-note-live-full-text-search-admission/consequences:
+  en: ba99efe2e9959752
+  zh: ca414521dc9f6ce1

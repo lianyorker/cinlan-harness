@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/web-capability-defaults/README.md
-README.md: 6dca49ffbc2b4a9b46c904623d81c6bfd447efa0
-README.zh.md: 62f35a55dadc19f8b6bd7b706d7568d73ebf9066
+/:
+  en: a448eb646ab3facf
+  zh: 9b26c472a80266ca
+/web-capability-defaults:
+  en: 9807ab44504629ab
+  zh: 1c064932d6463f94
+/web-capability-defaults/summary:
+  en: b2e17f152fbd8966
+  zh: c6a244a3f2208f21
+/web-capability-defaults/table-of-contents:
+  en: af856ba79fe31b8e
+  zh: 1b557014d99f774f
+/web-capability-defaults/use-this-package:
+  en: 91eb2c311bcbc10d
+  zh: c5e0aa0c8e5cacd7
+/web-capability-defaults/model-experience:
+  en: 0679c3f5bc753676
+  zh: 127835a85a1f8ee5
+/web-capability-defaults/model-experience/kv-cache-effect:
+  en: 75e4cb0cb6920c58
+  zh: 8fae6620a6fe6fa9
+/web-capability-defaults/known-limitations-and-deferred-work:
+  en: 01fba33809655640
+  zh: 24eab4f1e06e4331
+/web-capability-defaults/known-limitations-and-deferred-work/dev-note:
+  en: d85e96aa018bb18a
+  zh: 8ce623bd539e5ac7

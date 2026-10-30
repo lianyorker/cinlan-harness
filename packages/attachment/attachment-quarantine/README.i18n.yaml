@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/attachment/attachment-quarantine/README.md
-README.md: 37e8b56fdd1c0237bb179ef20e4d36ef465171ab
-README.zh.md: 6365c60a31eb4026c3fe39c965bcd3d49c51770b
+/:
+  en: c9646a90943aeabc
+  zh: cda9db055c161449
+/deepseek-ai-dsh-attachment-quarantine:
+  en: 84014ccb6f8827f2
+  zh: f0e4988299e9c875
+/deepseek-ai-dsh-attachment-quarantine/summary:
+  en: e880b06d9f9762e6
+  zh: dd58ae6d2b8dbc1a
+/deepseek-ai-dsh-attachment-quarantine/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 4a9b64b36031a19a
+/deepseek-ai-dsh-attachment-quarantine/use-this-package:
+  en: 10a13542e6d4ce9f
+  zh: 0be2a64d397f16bd
+/deepseek-ai-dsh-attachment-quarantine/use-this-package/minimal-configuration:
+  en: 7e32fdf2571d190c
+  zh: 0e14b8c3b29a8617
+/deepseek-ai-dsh-attachment-quarantine/use-this-package/what-you-can-observe:
+  en: 52aa04c72a9e2057
+  zh: 3c64a30a6f895174
+/deepseek-ai-dsh-attachment-quarantine/use-this-package/failures-and-recovery:
+  en: d99bfc605328a5e8
+  zh: b4bdd86d38429c62
+/deepseek-ai-dsh-attachment-quarantine/understand-the-implementation:
+  en: eb44730380a8fb52
+  zh: 56d6392d0551d038
+/deepseek-ai-dsh-attachment-quarantine/further-exploration:
+  en: c8626eeb9a140603
+  zh: 56fd4477ab5637c4
+/deepseek-ai-dsh-attachment-quarantine/model-experience:
+  en: aaf01af3f8703072
+  zh: d1a5033b0988b64f
+/deepseek-ai-dsh-attachment-quarantine/known-limitations-and-deferred-work:
+  en: 3041b648456d84e9
+  zh: 5ae2b18d458b299a
+/deepseek-ai-dsh-attachment-quarantine/dev-note:
+  en: 5de1d6304e00c58f
+  zh: 99af14fddf3db5e6

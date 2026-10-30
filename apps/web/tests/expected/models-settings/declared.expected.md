@@ -1,70 +1,14 @@
-- region "设置":
+- dialog "设置":
   - text: 设置
-  - navigation "设置导航":
-    - button "返回应用":
-      - img
-      - text: 返回应用
-    - img
-    - searchbox "搜索设置..."
-    - text: Ctrl / ⌘ K
-    - button "个人偏好" [expanded]:
-      - text: 个人偏好
-      - img
+  - navigation:
     - button "通用设置"
-    - button "工作区布局"
-    - button "通知"
-    - button "快捷键"
-    - button "浮动工作区"
-    - button "AI 与模型" [expanded]:
-      - text: AI 与模型
-      - img
     - button "模型"
+    - button "内置插件"
     - button "Agent 预设"
-    - button "编排"
-    - button "任务管理"
-    - button "侧边对话(beta)"
-    - button "语音"
-    - button "开发工作流" [expanded]:
-      - text: 开发工作流
-      - img
-    - button "Git 与源代码控制"
-    - button "集成"
-    - button "工具与设备" [expanded]:
-      - text: 工具与设备
-      - img
-    - button "安全研究"
-    - button "浏览器"
-    - button "文件"
-    - button "计算机控制"
-    - button "手机模拟器"
-    - button "扩展管理" [expanded]:
-      - text: 扩展管理
-      - img
-    - button "插件"
-    - button "实验" [expanded]:
-      - text: 实验
-      - img
-    - button "MCP"
-    - button "自动化"
-    - button "执行主机"
-    - button "终端"
-    - button "使用统计"
-  - text: AI 与模型
-  - img
-  - strong: 模型
   - button "打开配置文件"
-  - heading "模型" [level=1]
-  - region "新会话默认值":
-    - text: 默认模型
-    - paragraph: 默认值用于新会话。在会话中切换模型也会保存后续会话的默认值；此处的更改不会覆盖已有会话的模型选择。
-    - combobox "默认模型"
-    - text: 推理等级
-    - paragraph: 使用所选模型支持的推理等级；Default 采用提供方的默认行为。
-    - combobox "推理等级" [disabled]:
-      - option "Default" [selected]
-    - paragraph: 当前模型未提供推理等级。
-    - button "恢复继承值" [disabled]
-  - paragraph: 填入各提供方的 API 密钥即可使用其模型。
+  - button "关闭"
+  - heading "模型" [level=2]
+  - paragraph: 填入各提供商的 API 密钥即可使用其模型。
   - list:
     - listitem:
       - text: minimax-cn
@@ -75,9 +19,4 @@
       - text: Acme Gateway 自定义
       - button "编辑 Acme Gateway (acme-gateway)": 编辑
       - button "删除 Acme Gateway (acme-gateway)": 删除
-  - button "添加提供方":
-    - img
-    - text: 添加提供方
-  - button "添加自定义提供方":
-    - img
-    - text: 添加自定义提供方
+  - button "添加模型提供商"

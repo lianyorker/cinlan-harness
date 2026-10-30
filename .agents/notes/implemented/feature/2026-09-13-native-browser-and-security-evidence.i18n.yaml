@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-native-browser-and-security-evidence.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-native-browser-and-security-evidence.md
-2026-09-13-native-browser-and-security-evidence.md: ba7a3a80619eb4b2d2618d579b0fa1b870ffa4bb
-2026-09-13-native-browser-and-security-evidence.zh.md: 944073a1ccaf3ec8e3c615a38c01c58f865bf20e
+/agent-note-native-browser-preferences-and-durable-security-evidence:
+  en: 20c194ce1a9c18de
+  zh: a7488493133c4eff
+/agent-note-native-browser-preferences-and-durable-security-evidence/problem:
+  en: 9533f9711c7f55fc
+  zh: 8d05848958262194
+/agent-note-native-browser-preferences-and-durable-security-evidence/decision:
+  en: 7b88f6df370c84f4
+  zh: e4cc60e734981f2c
+/agent-note-native-browser-preferences-and-durable-security-evidence/alternatives-considered:
+  en: 216fbf7b094527b2
+  zh: 8e3c491da303efe0
+/agent-note-native-browser-preferences-and-durable-security-evidence/consequences:
+  en: 1ea82e26fd0a9f02
+  zh: ed078654fbca0954
+/agent-note-native-browser-preferences-and-durable-security-evidence/verification:
+  en: a098d45dea89128d
+  zh: 3fa75d709574f002
+/agent-note-native-browser-preferences-and-durable-security-evidence/related-decisions:
+  en: c20ed01694c4c5f6
+  zh: f1c0ad9e46da3a6a

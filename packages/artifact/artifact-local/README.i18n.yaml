@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/artifact/artifact-local/README.md
-README.md: cb12bf34a989ed3ece428acf157eee83009fdb76
-README.zh.md: ed637cd3bc7f85ba663e256ea8c0a5b159c2c160
+/:
+  en: e5f4218d6a400420
+  zh: 1c2f93f43f4ca17b
+/deepseek-ai-dsh-artifact-local:
+  en: e08e73f7468a2416
+  zh: 5d3e54f267bc73cf
+/deepseek-ai-dsh-artifact-local/summary:
+  en: 800e306ec511b11c
+  zh: 6fd5c2eac960d442
+/deepseek-ai-dsh-artifact-local/table-of-contents:
+  en: b2d59939339132b7
+  zh: 6be7222f019f32b7
+/deepseek-ai-dsh-artifact-local/use-this-package:
+  en: d8240b0b74675d47
+  zh: 3033b5458185f2a5
+/deepseek-ai-dsh-artifact-local/config:
+  en: c0398ca6bcda72c9
+  zh: fee659415d2d1686
+/deepseek-ai-dsh-artifact-local/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/deepseek-ai-dsh-artifact-local/model-experience/request-context-and-condition:
+  en: cd8530c72534ee6b
+  zh: cd8530c72534ee6b
+/deepseek-ai-dsh-artifact-local/model-experience/request-context-and-condition/what-the-model-sees:
+  en: 76c83e7a5f15dbeb
+  zh: 2652883c7eba42a9
+/deepseek-ai-dsh-artifact-local/model-experience/request-context-and-condition/token-effect:
+  en: e10d219d6a8a98b3
+  zh: f2187e9f50c752bd
+/deepseek-ai-dsh-artifact-local/model-experience/request-context-and-condition/kv-cache-effect:
+  en: a96c8864ecaa020e
+  zh: 87b2bcb90fcc4de6
+/deepseek-ai-dsh-artifact-local/known-limitations-and-deferred-work:
+  en: 4c568965e82aab6d
+  zh: 92b5bf7d85d27afb
+/deepseek-ai-dsh-artifact-local/known-limitations-and-deferred-work/dev-note:
+  en: a2b04cc18145805d
+  zh: 5614a32dfe38a94b

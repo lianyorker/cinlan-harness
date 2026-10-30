@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/cinlan-computer-use/README.md
-README.md: 218805f0f71129989cf698629f6aef39f13cb888
-README.zh.md: b17e27bcb256975e484a6156a80ccfb98ba6fe5e
+/:
+  en: 4707ef8b60024011
+  zh: c2b4591607f42f66
+/deepseek-ai-dsh-cinlan-computer-use:
+  en: b5ccbbb915f8f5a6
+  zh: 1794e9e1dc3f6a3b
+/deepseek-ai-dsh-cinlan-computer-use/summary:
+  en: ce9bf0fd523f038d
+  zh: 998ea7f1543e6912
+/deepseek-ai-dsh-cinlan-computer-use/table-of-contents:
+  en: 2fee9973f19f9401
+  zh: 052e6830f2a5745e
+/deepseek-ai-dsh-cinlan-computer-use/use-this-package:
+  en: 92700549f5b2d532
+  zh: e8b87682bdbb2e47
+/deepseek-ai-dsh-cinlan-computer-use/understand-the-implementation:
+  en: a3d14fe7c164745e
+  zh: d4e30475c302a19f
+/deepseek-ai-dsh-cinlan-computer-use/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-cinlan-computer-use/model-experience/native-desktop-tools:
+  en: 8cbbd1ce93cb0778
+  zh: af4d38a5870404e6
+/deepseek-ai-dsh-cinlan-computer-use/model-experience/native-desktop-tools/what-the-model-sees:
+  en: 4f0ff406919fbf9f
+  zh: cda55aee88421855
+/deepseek-ai-dsh-cinlan-computer-use/model-experience/native-desktop-tools/token-effect:
+  en: 77697fe546a76923
+  zh: f28e85a5af3addc8
+/deepseek-ai-dsh-cinlan-computer-use/model-experience/native-desktop-tools/kv-cache-effect:
+  en: d6ae96d29a4bd9b2
+  zh: a532db562e7a0c05
+/deepseek-ai-dsh-cinlan-computer-use/known-limitations-and-deferred-work:
+  en: 08e1d39b76e69a31
+  zh: 64e197508e2a8967
+/deepseek-ai-dsh-cinlan-computer-use/known-limitations-and-deferred-work/dev-note:
+  en: d719956e6a180def
+  zh: 141fb2b7627a94fe

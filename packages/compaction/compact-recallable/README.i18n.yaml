@@ -1,6 +1,67 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/compaction/compact-recallable/README.md
-README.md: 68cc765788850239007711da1ab242f6e828914d
-README.zh.md: 96d665a26e3d85327b7f96c26f43009121d911a0
+/:
+  en: 2f478ea922d63522
+  zh: add7c21905724fb8
+/deepseek-ai-dsh-compact-recallable:
+  en: 3202b4dab26a5e21
+  zh: cb98bf1e26e78758
+/deepseek-ai-dsh-compact-recallable/summary:
+  en: 5aa12b1ed21fb24c
+  zh: d01f5047189fe60d
+/deepseek-ai-dsh-compact-recallable/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 2a1096ec9eaa5888
+/deepseek-ai-dsh-compact-recallable/use-this-package:
+  en: 705e4761412c7195
+  zh: 06c451942b0804ef
+/deepseek-ai-dsh-compact-recallable/use-this-package/what-you-get:
+  en: d50fc40905498e1c
+  zh: 59dad710ec872ee8
+/deepseek-ai-dsh-compact-recallable/use-this-package/configuration-options:
+  en: f491b0b94eb9effa
+  zh: a3e58ad9187100e5
+/deepseek-ai-dsh-compact-recallable/understand-the-implementation:
+  en: b5482f45e2a6db26
+  zh: 82e08a18b4c02f1a
+/deepseek-ai-dsh-compact-recallable/understand-the-implementation/source-map:
+  en: 5870274da9f76cc5
+  zh: 04954f93bfec6608
+/deepseek-ai-dsh-compact-recallable/further-exploration:
+  en: b59d4cbc40e42869
+  zh: 98c664b0be52c650
+/deepseek-ai-dsh-compact-recallable/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-compact-recallable/model-experience/conversation-history:
+  en: 2e1148dd0f39a281
+  zh: 143ee3289d815cd3
+/deepseek-ai-dsh-compact-recallable/model-experience/conversation-history/what-the-model-sees:
+  en: 10c1b311868a0928
+  zh: 4d1bbc1d22c489ab
+/deepseek-ai-dsh-compact-recallable/model-experience/conversation-history/token-effect:
+  en: bc1f1de264994327
+  zh: 3a534e70c01b6c09
+/deepseek-ai-dsh-compact-recallable/model-experience/conversation-history/kv-cache-effect:
+  en: fad4fd49d477f5bb
+  zh: 2374c294ad3d83f8
+/deepseek-ai-dsh-compact-recallable/model-experience/auxiliary-summarizer-request:
+  en: 7169bd02a7a6c396
+  zh: 7c62e3d4a97c73f7
+/deepseek-ai-dsh-compact-recallable/model-experience/auxiliary-summarizer-request/what-the-model-sees:
+  en: 63aa80a9177d2e53
+  zh: b91722b63ca6c594
+/deepseek-ai-dsh-compact-recallable/model-experience/auxiliary-summarizer-request/token-effect:
+  en: 966634bcc5f450e8
+  zh: 3cd82d15c71d9163
+/deepseek-ai-dsh-compact-recallable/model-experience/auxiliary-summarizer-request/kv-cache-effect:
+  en: 7402f999b0f5cd62
+  zh: 5abea9a3451e5e25
+/deepseek-ai-dsh-compact-recallable/known-limitations-and-deferred-work:
+  en: 3eddd38fe3d7090d
+  zh: 93bbe47a85e3e1d8
+/deepseek-ai-dsh-compact-recallable/known-limitations-and-deferred-work/dev-note:
+  en: 71642ec8f75866e8
+  zh: c7387eff5af57f02

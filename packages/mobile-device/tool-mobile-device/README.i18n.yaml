@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/mobile-device/tool-mobile-device/README.md
-README.md: 1f67d84144970dc5abee819182d860d3a223a149
-README.zh.md: 5c9dc022b1ae41eda25100afaf073910b32f52c5
+/:
+  en: af8f499ba13a4b3c
+  zh: 981128e887fc25dd
+/deepseek-ai-dsh-tool-mobile-device:
+  en: 8333c14e0b43d6d5
+  zh: 8c74994fde26fb75
+/deepseek-ai-dsh-tool-mobile-device/summary:
+  en: 991f7989d37e9013
+  zh: 48fc63b0e7248819
+/deepseek-ai-dsh-tool-mobile-device/table-of-contents:
+  en: 06759ea6cf15280c
+  zh: 41f7c91dc7eeb743
+/deepseek-ai-dsh-tool-mobile-device/use-this-package:
+  en: 01bd990f664c61a0
+  zh: a6a4e872b9a92000
+/deepseek-ai-dsh-tool-mobile-device/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-tool-mobile-device/model-experience/tool-visible-state:
+  en: 7e15743690de5c64
+  zh: 103fd1668bb7b7cd
+/deepseek-ai-dsh-tool-mobile-device/model-experience/tool-visible-state/what-the-model-sees:
+  en: 4e7224b331557dfc
+  zh: c9adc742c209c549
+/deepseek-ai-dsh-tool-mobile-device/model-experience/tool-visible-state/token-effect:
+  en: 19b4e8172a08687a
+  zh: cd15d2a09812d206
+/deepseek-ai-dsh-tool-mobile-device/model-experience/tool-visible-state/kv-cache-effect:
+  en: 318bca519b5f4ea0
+  zh: 2e374751185e9576
+/deepseek-ai-dsh-tool-mobile-device/known-limitations-and-deferred-work:
+  en: c4de9acb045a4975
+  zh: c837f6e5d82fd265
+/deepseek-ai-dsh-tool-mobile-device/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

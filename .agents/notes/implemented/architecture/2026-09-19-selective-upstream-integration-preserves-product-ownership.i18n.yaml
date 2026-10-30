@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-19-selective-upstream-integration-preserves-product-ownership.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-19-selective-upstream-integration-preserves-product-ownership.md
-2026-09-19-selective-upstream-integration-preserves-product-ownership.md: 157840baa0c8a4868c5d8062f3959571e8f7f4c7
-2026-09-19-selective-upstream-integration-preserves-product-ownership.zh.md: 1ff2431af5b9d969e815086d06f015ec9e4b9e9f
+/agent-note-selective-upstream-integration-preserves-product-ownership:
+  en: fd0ef71d0e8e78e1
+  zh: 6478052a3cba9803
+/agent-note-selective-upstream-integration-preserves-product-ownership/problem:
+  en: 7b48b636976849ec
+  zh: ad113ff7c9013973
+/agent-note-selective-upstream-integration-preserves-product-ownership/decision:
+  en: c583064fa21cc2a3
+  zh: d823babc12578bd2
+/agent-note-selective-upstream-integration-preserves-product-ownership/alternatives-considered:
+  en: 9be049eda9d14f0a
+  zh: e815e05e10bbb9f1
+/agent-note-selective-upstream-integration-preserves-product-ownership/consequences:
+  en: 2ed459682e73bfad
+  zh: b4ff63ad9744fb72

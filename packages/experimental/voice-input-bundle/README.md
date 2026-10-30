@@ -35,7 +35,7 @@ Use Settings > Voice for shipped Web and Desktop profiles. Profile loading remov
 <details>
 <summary>Maintainer details — click to expand</summary>
 
-The retained `cordis.patch.yml` adds four experimental voice rows, selects `sensevoice-local` as the default recognizer and supplies the provider cache directory with `dshHomePath`. The browser contribution owns its generated Remote mount; stable API Remotes do not import experimental code. Shipped profiles do not compose these rows.
+The static `cordis.patch.yml` adds the four voice rows, selects `sensevoice-local` as the default recognizer and supplies the provider cache directory with `dshHomePath`. Optional-bundle installation makes the package available to management without selecting it in default profiles. The browser contribution owns its generated Remote mount; stable API Remotes do not import experimental code.
 
 </details>
 

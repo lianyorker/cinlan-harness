@@ -42,13 +42,13 @@ export function apply(ctx: ClientContext): void {
 
   const tasks = (_sessionId: string): TasksBodyInjected => ({
     list: async () => unwrap(await ctx.remote.worktreeTasks.list()),
-    activate: async taskId => { unwrap(await ctx.remote.worktreeTasks.activate({ taskId })) },
-    hibernate: async taskId => { unwrap(await ctx.remote.worktreeTasks.hibernate({ taskId })) },
+    activate: async (taskId) => { unwrap(await ctx.remote.worktreeTasks.activate({ taskId })) },
+    hibernate: async (taskId) => { unwrap(await ctx.remote.worktreeTasks.hibernate({ taskId })) },
   })
   const review = (sessionId: string): ReviewBodyInjected => ({
     list: async () => unwrap(await ctx.remote.workspaceIsolation.list()),
     compare: async (leaseId: WorkspaceIsolationLeaseId) => unwrap(await ctx.remote.workspaceIsolation.compare({ leaseId })),
-    sendCommentToAgent: async comment => {
+    sendCommentToAgent: async (comment) => {
       const remoteSession = (ctx.remote as { session?: { prompt?: (req: unknown) => Promise<RemoteResult<unknown>> } }).session
       if (remoteSession && typeof remoteSession.prompt === 'function' && sessionId) {
         const diffCommentBody = `[Diff Review Comment]\nFile: ${comment.filePath}:${comment.line} (${comment.side})\nComment: ${comment.text}`
@@ -60,7 +60,7 @@ export function apply(ctx: ClientContext): void {
         }))
       }
     },
-    sendPromptToAgent: async promptText => {
+    sendPromptToAgent: async (promptText) => {
       const remoteSession = (ctx.remote as { session?: { prompt?: (req: unknown) => Promise<RemoteResult<unknown>> } }).session
       if (remoteSession && typeof remoteSession.prompt === 'function' && sessionId) {
         unwrap(await remoteSession.prompt({

@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-12-computer-use-settings-presentation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-12-computer-use-settings-presentation.md
-2026-09-12-computer-use-settings-presentation.md: 3593cf4deaefa7837b608a6f9967783f9eecc384
-2026-09-12-computer-use-settings-presentation.zh.md: dd2778ab0331ad278da093e3ed5daf96d5ba421c
+/agent-note-computer-use-settings-presentation-migration:
+  en: 25712eaab89eb330
+  zh: 57e9c6f7abd4544c
+/agent-note-computer-use-settings-presentation-migration/problem:
+  en: f4c7e9ee3cc523ca
+  zh: f2ad63c39e81524f
+/agent-note-computer-use-settings-presentation-migration/decision:
+  en: 4e578862702d16cc
+  zh: eca510241ea1ff1c
+/agent-note-computer-use-settings-presentation-migration/alternatives-considered:
+  en: d549ed9a11385a66
+  zh: 8304d5fedec658e0
+/agent-note-computer-use-settings-presentation-migration/consequences:
+  en: 32974830775e53ed
+  zh: 32cb9ae89b1e0f1c
+/agent-note-computer-use-settings-presentation-migration/verification:
+  en: 03a7898bbe79e4f3
+  zh: 69bbeb747ce90904
+/agent-note-computer-use-settings-presentation-migration/deferred:
+  en: f9c852f6b4a88ec4
+  zh: d797e39acc0e4001

@@ -1,6 +1,34 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/voice-controller/README.md
-README.md: f0044e5555912d0e3a1a1bd4f4491faa47c9ef32
-README.zh.md: 3fecb937df3a2f956bfb2dfeec04decd6864c6cf
+/:
+  en: f103310b15671a1d
+  zh: e646248a56414117
+/voice-controller:
+  en: fd4b4403e47fbccf
+  zh: 749fe711d3b5bb8d
+/voice-controller/summary:
+  en: 5d28494528bc98d1
+  zh: 406bf41831b0ee2f
+/voice-controller/table-of-contents:
+  en: b563e4ec4727d0de
+  zh: ac34b6a0cf563285
+/voice-controller/use-this-package:
+  en: ce2373fa3b3cc6cf
+  zh: af3e00d39a934f1b
+/voice-controller/understand-the-implementation:
+  en: 61e791c82a2dd7df
+  zh: ff65b3805845dfbd
+/voice-controller/further-exploration:
+  en: 9d5c9283be5aa237
+  zh: 0250dabcb98f6175
+/voice-controller/model-experience:
+  en: e716acd18902b8fb
+  zh: 8c6de151251d842c
+/voice-controller/model-experience/kv-cache-effect:
+  en: 9d5fc58f01d5e75f
+  zh: c61865d5de298ebf
+/voice-controller/known-limitations-and-deferred-work:
+  en: 0619f62039164db4
+  zh: ff8be27f85aabf23

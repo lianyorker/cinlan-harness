@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-28-kv-facet-destroy-and-domain-recovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-28-kv-facet-destroy-and-domain-recovery.md
-2026-09-28-kv-facet-destroy-and-domain-recovery.md: b748a0f420260749e5af32b635d22684f125318a
-2026-09-28-kv-facet-destroy-and-domain-recovery.zh.md: 2b8fb3e63c9d54303b159321c0c4081dc195b887
+/agent-note-kv-facet-destroy-primitive-and-domain-recovery-reset:
+  en: e62c6b8a935ec8ff
+  zh: 95ab19fbaaa56398
+/agent-note-kv-facet-destroy-primitive-and-domain-recovery-reset/problem:
+  en: 794973f9c7c4360f
+  zh: a9afdfc453ea8689
+/agent-note-kv-facet-destroy-primitive-and-domain-recovery-reset/decision:
+  en: 6882690b75ea9ad9
+  zh: ed4dcd1286df38fc
+/agent-note-kv-facet-destroy-primitive-and-domain-recovery-reset/alternatives-considered:
+  en: 58914de108b8f4bc
+  zh: 2d6410047c5dbc80
+/agent-note-kv-facet-destroy-primitive-and-domain-recovery-reset/consequences:
+  en: 46642bbd4ededb01
+  zh: 6c85d078b41ae363

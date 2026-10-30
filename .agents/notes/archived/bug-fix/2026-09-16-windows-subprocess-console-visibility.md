@@ -7,30 +7,24 @@ English | [中文](2026-09-16-windows-subprocess-console-visibility.zh.md)
 
 ## Problem
 
-A GUI host can start shell commands without an attached console. The private Windows Job runner and its native target each create a process, so either launch can open a visible console and cause a short-lived window to flash during background work.
+PTC runtime and shell calls share the Windows subprocess provider. Its ordinary Job runner omits window hiding, and native targets supply standard handles without a startup visibility flag. Desktop execution can therefore flash console windows for short-lived commands.
 
 ## Decision
 
-The private Node Job runner uses `windowsHide: true`. Shared ordinary and restricted-token process creation supplies `STARTF_USESHOWWINDOW` and `SW_HIDE` alongside standard handles before target code runs, including the anonymous-pipe path. Console inheritance, Job assignment before resume, and stdin/output ownership remain intact. No operation hides an existing parent console or suppresses windows explicitly opened by the command.
+The private Node Job runner uses `windowsHide: true`. Native ordinary and restricted-token process creation supplies `STARTF_USESHOWWINDOW` and `SW_HIDE` alongside standard handles before target code runs. Console inheritance, Job assignment before resume, and pipe ownership stay intact. No operation hides an existing parent console or promises to suppress windows explicitly opened by the command.
 
-This adapts the visibility changes from official DeepSeek Harness commit [`f8b1309fe55ad29d54451886049d0c541be94d5a`](https://github.com/deepseek-ai/deepseek-harness/commit/f8b1309fe55ad29d54451886049d0c541be94d5a). The local eager Koffi structures and existing runner protocol remain the implementation owners; the adaptation does not add upstream control descriptors or change binding initialization.
-
-The [ACL sandbox decision](../feature/2026-08-08-windows-acl-restricted-token-sandbox.md) retains restricted-token policy and console-isolation limits. The [native containment decision](../architecture/2026-08-28-subprocess-native-containment.md) retains process and Job ownership. Neither decision is superseded by the initial visibility setting.
+The [ACL sandbox decision](../feature/2026-08-08-windows-acl-restricted-token-sandbox.md) still owns restricted-token policy and console-isolation limits. Initial window visibility does not require adding `CREATE_NO_WINDOW` or `CREATE_NEW_CONSOLE` to restricted creation.
 
 ## Alternatives considered
 
-**Hide only the outer runner.** Native target creation is independent of Node's launch options, so it also needs an explicit initial visibility setting.
+**Hide only the outer runner.** Native target creation is independent of Node's launch options, so its initial visibility also needs an explicit setting.
 
-**Remove consoles from every process.** Restricted-token creation with `CREATE_NO_WINDOW` or `CREATE_NEW_CONSOLE` has a recorded DLL initialization failure. Startup visibility preserves console attachment and inherited standard handles.
+**Remove consoles from every process.** Restricted-token creation with console-isolation flags has a recorded DLL initialization failure. Startup visibility preserves the existing console attachment rules instead.
 
-**Hide the window after the shell starts.** A window can become visible before the script executes. Creation-time settings avoid that interval.
-
-## Verification
-
-Startup-parameter tests pin the runner option and native startup fields for ordinary, inherited restricted-token, and piped launches while retaining creation flags and handle cleanup checks. The native descendant regression starts a private source-launched host that detaches only its own console. A descendant with ordinary inherited stdio must retain a console and report it hidden through `GetConsoleWindow` and `IsWindowVisible`. This isolation prevents an already-hidden test host console from masking the defect: the test reports `visible: true` without the fix. The fixture uses the existing ESM source launcher across supported Node versions and waits for Job settlement before exit.
-
-The native ACL runner suite exercises both file modes, PowerShell initialization, inherited descendant stdio, and named-pipe denial with the visibility flags enabled. The C++ ABI probe checks both visibility constants against Windows headers. Session recordings cannot observe native console windows, and transcripts are unchanged; native Windows evidence owns this regression.
+**Hide the window after PowerShell starts.** A window can become visible before the script executes; creation-time settings avoid that interval.
 
 ## Consequences
 
-Ordinary background commands suppress incidental console windows while preserving descendant console attachment and process cleanup. Window visibility remains an initial request, not a policy against commands that deliberately create or show windows. Console isolation under restricted tokens remains outside this change.
+Ordinary subprocess startup suppresses incidental console windows without changing tool output or process cleanup. Native Windows tests inspect console visibility in a descendant and in both ACL modes, alongside existing stream, control-pipe, and Job-lifetime tests. A missing console is valid; the tests do not require one to exist. Startup-parameter tests pin the creation-time guarantee that a final visibility observation alone cannot establish.
+
+Session recordings cannot observe native console windows and their transcripts are unchanged. Windows native tests own this regression; browser screenshots cannot establish the absence of desktop windows.

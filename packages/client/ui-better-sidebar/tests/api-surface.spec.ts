@@ -37,7 +37,7 @@ function clientGraphFiles(): string[] {
 
 describe('public API surface (v0.12.0)', () => {
   it('the client-reachable graph imports no node:* modules', () => {
-    const offenders = clientGraphFiles().filter(path => {
+    const offenders = clientGraphFiles().filter((path) => {
       const text = readFileSync(path, 'utf8')
       return /from\s+['"]node:/.test(text)
     })
@@ -45,7 +45,7 @@ describe('public API surface (v0.12.0)', () => {
   })
 
   it('the client-reachable graph never references the Buffer global', () => {
-    const offenders = clientGraphFiles().filter(path => {
+    const offenders = clientGraphFiles().filter((path) => {
       const text = readFileSync(path, 'utf8')
       return text.split('\n').some(line =>
         /\bBuffer\b/.test(line)

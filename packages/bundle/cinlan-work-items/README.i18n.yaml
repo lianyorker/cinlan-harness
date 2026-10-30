@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/cinlan-work-items/README.md
-README.md: 5c2bda5a742db3f61c7385358c5a8b7f51d4b74f
-README.zh.md: d2c39877fa1fc15956f3f533244c5698f11e2483
+/:
+  en: a0c40edc0b5ee584
+  zh: 261f4c3c8f65f9e0
+/deepseek-ai-dsh-cinlan-work-items:
+  en: 2166fa2d992784e4
+  zh: 5a0cfb76920b94f7
+/deepseek-ai-dsh-cinlan-work-items/summary:
+  en: a29668b694aeb0e9
+  zh: 1ba092ab4561c219
+/deepseek-ai-dsh-cinlan-work-items/table-of-contents:
+  en: 648fee9baabbb0d6
+  zh: b844224f7decb87d
+/deepseek-ai-dsh-cinlan-work-items/composition:
+  en: 5741cc162f9ebe76
+  zh: 4e8cde2eba62ccc9
+/deepseek-ai-dsh-cinlan-work-items/model-experience:
+  en: 6d1b1f6a2c2d0517
+  zh: 8957e10eb6f958b3
+/deepseek-ai-dsh-cinlan-work-items/model-experience/kv-cache-effect:
+  en: 01b3de14ba48944f
+  zh: c03202bcdad40c64
+/deepseek-ai-dsh-cinlan-work-items/known-limitations-and-deferred-work:
+  en: 131319dcb0412d92
+  zh: 5190f79bed90fc27
+/deepseek-ai-dsh-cinlan-work-items/known-limitations-and-deferred-work/dev-note:
+  en: b00e6a7af8aaf84f
+  zh: cd852ee77ce4e2e3

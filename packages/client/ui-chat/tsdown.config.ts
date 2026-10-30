@@ -20,3 +20,4 @@ export default ((options) => bundle(options).map(config => ({
     },
   }],
 }))) satisfies typeof bundle
+export default clientBundle(import.meta.dirname, ['lib/types/index.js'])

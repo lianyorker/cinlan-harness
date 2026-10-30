@@ -73,6 +73,16 @@ export type {
   TypertResourceReader,
   TypertResourceReaders,
   TypertResourceRegistry,
+  TypertResource,
+  TypertResourceDeclaration,
+  TypertResourceEntry,
+  TypertResourceId,
+  TypertResourceKind,
+  TypertResourceMap,
+  TypertResourceReader,
+  TypertResourceReaders,
+  TypertResourceRegistry,
+  TypertResourceResolveInput,
   TypertLocalRegistry,
   TypertLookup,
   TypertLookupDefinition,
@@ -162,6 +172,40 @@ export interface RemoteScopeOptions<WireArgs extends readonly unknown[] = never>
    * object argument. A call that carries no identity touches `global`. The
    * readers and these defaults together must name every resource the method
    * accesses: access control never checks a resource they omit.
+   */
+  readonly resources?: TypertResourceReaders<WireArgs>
+  /**
+   * Declared `resources` readers keyed by resource kind. Callers spread the
+   * method's wire arguments into each one and validate its result.
+   */
+  readonly resources?: Readonly<Record<string, TypertResourceReader>>
+}
+
+/**
+ * Explicit endpoint and resource choices for one Remote Scope method.
+ * @template WireArgs - the decorated method's positional parameters as the
+ *   wire carries them; the default `never` admits readers of any tuple.
+ */
+export interface RemoteScopeOptions<WireArgs extends readonly unknown[] = never> {
+  /** Exported endpoint method; omission retains the implementation member name. */
+  readonly name?: string
+  /**
+   * Per-kind readers of the resources one call touches. Each receives the
+   * method's arguments as its own parameters, JSON arguments as their Typert
+   * codecs validated them, a lookup parameter as its wire identity and a
+   * cancellation parameter as the call's signal, so it performs plain reads
+   * only, and returns one identity, several, or `undefined` for none. A
+   * throw, an empty list, or an identity other than a non-empty string
+   * refuses the call. For a kind without a reader, the Gateway reads the
+   * identity of a scoped Context whose Host adapter declares that `resource`
+   * and of lookup parameters declaring it, else the registered default of
+   * `typert.resources`: a `resolve` function receiving the validated named
+   * wire values and their ordered parameters, or a `field` naming a top-level
+   * argument or, failing that, a field of the first object argument. A
+   * throwing resolver, an array result, or a field holding an array refuses
+   * the call. A call that carries no identity touches `global`. The readers
+   * and these defaults together must name every resource the method accesses:
+   * access control never checks a resource they omit.
    */
   readonly resources?: TypertResourceReaders<WireArgs>
 }

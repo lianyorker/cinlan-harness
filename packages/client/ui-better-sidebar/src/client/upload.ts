@@ -39,7 +39,7 @@ export interface UploadResult {
  *  are rejected (the host enforces the same rules with a 400). */
 function sanitizeRelativePath(rel: string): string | undefined {
   if (rel === '' || isAbsolutePath(rel)) return undefined
-  if (rel.split(/[\\/]/).some((s) => s === '' || s === '.' || s === '..')) return undefined
+  if (rel.split(/[\\/]/).some(s => s === '' || s === '.' || s === '..')) return undefined
   return rel
 }
 
@@ -177,8 +177,8 @@ export function summarizeResults(
   results: UploadResult[],
   t: (key: CopyKey, params?: Record<string, string | number>) => string,
 ): string {
-  const okCount = results.filter((r) => r.ok).length
-  const failed = results.find((r) => !r.ok)
+  const okCount = results.filter(r => r.ok).length
+  const failed = results.find(r => !r.ok)
   if (failed !== undefined) {
     const detail = failed.code === 'too-large' ? t('uploadTooLarge') : (failed.error ?? t('uploadFailedUnknown'))
     return t('uploadFailed', { error: detail })

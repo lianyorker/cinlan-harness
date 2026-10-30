@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -6,6 +7,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SettingsRootComponentProps, SettingsSectionRow } from '../src/client/shell-contract.ts'
+import { allowAllAccess, bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
 import { en } from '../src/client/locales.ts'
 
@@ -15,9 +17,19 @@ const settingsCss = readFileSync(join(
 ), 'utf8')
 
 const scrollIntoView = vi.fn()
+let scrollIntoViewDescriptor: PropertyDescriptor | undefined
+
+beforeEach(() => {
+  scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView')
+  Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: scrollIntoView })
+  scrollIntoView.mockClear()
+})
+const scrollIntoView = vi.fn()
 beforeEach(() => {
   scrollIntoView.mockClear()
   Element.prototype.scrollIntoView = scrollIntoView
+  if (scrollIntoViewDescriptor === undefined) Reflect.deleteProperty(Element.prototype, 'scrollIntoView')
+  else Object.defineProperty(Element.prototype, 'scrollIntoView', scrollIntoViewDescriptor)
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
@@ -97,6 +109,8 @@ function mount({
     usePanelInfo,
     useSessionStatus,
     useSessionRetainInfo,
+    ...allowAllAccess,
+    useContextMenu: contextMenuHook(),
     wide,
     useOnboardingSteps: select => select(steps),
     useNarrowViewport: select => select(false),
@@ -276,6 +290,8 @@ describe('SettingsPage navigation', () => {
     expect(screen.getByRole('button', { name: 'Alpha' }).querySelector('[data-testid="icon-alpha"]')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Beta' }).querySelector('[data-testid="icon-beta"]')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Missing' }).querySelector('svg')).toBeTruthy()
+    // Each product glyph names its sprite symbol id in data-icon.
+      .map(name => screen.getByRole('button', { name }).querySelector('svg')?.getAttribute('data-icon'))
   })
 
   it('switches the rendered section on nav click', () => {
@@ -386,6 +402,8 @@ describe('SettingsPage navigation', () => {
     })
     expect(screen.getByRole('region')).toBeTruthy()
     expect(screen.getByTestId('section-models')).toBeTruthy()
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest', inline: 'nearest' })
+    expect(scrollIntoView.mock.instances.at(-1)).toBe(document.activeElement)
 
     cleanup()
     const inactive = mount({ onboardingActive: false }).renderSlot.mock.calls

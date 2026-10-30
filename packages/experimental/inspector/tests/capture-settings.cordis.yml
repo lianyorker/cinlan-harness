@@ -1,0 +1,12 @@
+- id: web-server
+  name: 'cordis:capture-web-server'
+  config:
+    host: 127.0.0.1
+    port: 0
+- id: connection
+  name: 'cordis:capture-connection'
+- id: experimental-inspector
+  name: 'cordis:capture-inspector'
+  config:
+    port: 0
+    captureFetch: false

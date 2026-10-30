@@ -51,7 +51,7 @@ async function boot(pairingMs = 5000, config: Config = {}) {
 }
 async function phone(source: PairingOffer | SavedHost) {
   const events: MobileEvent[] = []; let saved: SavedHost | undefined
-  const client = new MobileClient(source, () => {}, event => events.push(event), record => { saved = record })
+  const client = new MobileClient(source, () => {}, event => events.push(event), (record) => { saved = record })
   phones.push(client); await client.connect()
   return { client, events, get saved() { if (!saved) throw new Error('not_enrolled'); return saved } }
 }

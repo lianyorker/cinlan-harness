@@ -67,7 +67,7 @@ export function formatCheckDuration(startedAt?: string, completedAt?: string): s
 export function buildFixBrokenChecksPrompt(pr: PRSummary): string {
   const brokenChecks = getBrokenChecks(pr.checks)
   const checkData = brokenChecks.length > 0
-    ? brokenChecks.map((check) => ({
+    ? brokenChecks.map(check => ({
       name: check.name,
       status: check.status,
       conclusion: check.conclusion,

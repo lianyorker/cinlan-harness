@@ -6,6 +6,10 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
+import { UiConversation } from '@deepseek-ai/dsh-client-ui-conversation/src/client/conversation/assembly.ts'
+import { FileReference, FolderReference, type FileReferenceInjected } from '../src/client/FileReference.tsx'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type {
@@ -55,6 +59,19 @@ function request(
   }
 }
 
+function TextSlotDeclaration(_props: PropsRenderSlots<'conversation.user.text.node'>): null {
+  return null
+}
+
+async function installTextSlots(ctx: Context, sessions: TestSessions): Promise<void> {
+  new UiConversation(ctx, sessions)
+  await ctx.plugin(SlotRegistry).await()
+  ctx.slots.register({
+    name: 'root',
+    children: { 'conversation.user.text.node': { kind: 'keyed', scope: 'session' } },
+  }, TextSlotDeclaration)
+}
+
 async function bench(
   files: RemoteLookup<FileReferenceCandidate> = vi.fn(() => Promise.resolve({
     ok: true as const,
@@ -96,6 +113,19 @@ async function bench(
   ctx.provide('remote.sessionReferenceResolver', { candidates: sessions })
   ctx.provide('locale', new LocaleRuntime(ctx))
   ctx.provide('sessions', { list: { getSnapshot: () => ({ byId: listed }) } })
+  const sessionStore = new TestSessions(async (action) => { await action() }, ctx)
+  onTestFinished(async () => {
+    await sessionStore.disposeScopes()
+    await ctx.fiber.dispose()
+  })
+  ctx.provide('sessions', sessionStore)
+  const summary = listed[session.sessionId]
+  await sessionStore.add({ id: session.sessionId, ...opening, ...summary === undefined ? {} : { summary } })
+  for (const [id, summary] of Object.entries(listed)) {
+    if (id !== session.sessionId) await sessionStore.add({ id, summary })
+  }
+  await installTextSlots(ctx, sessionStore)
+  const owner = sessionStore.retainFor(ctx, session.sessionId)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
   if (source === undefined) throw new Error('reference source was not registered')
@@ -107,10 +137,13 @@ describe('apply', () => {
     expect(inject).toEqual([
       'inputTriggers', 'locale', 'sessions', 'remote', 'remote.fileReferences',
       'remote.sessionReferenceResolver',
+      'remote.sessionReferenceResolver', 'sidebarRight', 'slots', 'uiConversation',
     ])
     const { fiber } = await bench()
     let registered: InputTriggerSource | undefined
     const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
+    ctx.provide('sidebarRight', { openResource: vi.fn() })
     ctx.provide('inputTriggers', {
       registerSource(source: InputTriggerSource) {
         registered = source
@@ -128,12 +161,23 @@ describe('apply', () => {
     ctx.provide('remote.fileReferences', { list: () => Promise.resolve({ ok: true, value: [] }) })
     ctx.provide('remote.sessionReferenceResolver', { candidates: () => Promise.resolve({ ok: true, value: [] }) })
     ctx.provide('locale', new LocaleRuntime(ctx))
-    ctx.provide('sessions', { list: { getSnapshot: () => ({ byId: {} }) } })
+    const sessions = new TestSessions(async (action) => { await action() }, ctx)
+    onTestFinished(() => sessions.disposeScopes())
+    ctx.provide('sessions', sessions)
+    await installTextSlots(ctx, sessions)
     const ownFiber = ctx.plugin({ inject: [...inject], apply })
     await ownFiber.await()
     expect(registered).toMatchObject({ trigger: '@', name: 'reference', showGroupTitle: false })
+    expect(ctx.uiConversation.userText.entries().map(rule => rule.id)).toEqual(['file', 'folder'])
+    expect(ctx.slots.entries('conversation.user.text.node')).toMatchObject([
+      { options: { key: 'file' }, component: FileReference },
+      { options: { key: 'folder' }, component: FolderReference },
+    ])
+    expect(ctx.slots.entries('conversation.user.text.node')[0]?.inject).toBeTypeOf('function')
     await ownFiber.dispose()
     expect(registered).toBeUndefined()
+    expect(ctx.uiConversation.userText.entries()).toHaveLength(0)
+    expect(ctx.slots.entries('conversation.user.text.node')).toHaveLength(0)
     await fiber.dispose()
   })
 
@@ -501,5 +545,38 @@ describe('pick and codec', () => {
   it('ignores candidates that do not carry a source-owned value', async () => {
     const { source } = await bench()
     expect(pick(source, { name: 'foreign candidate' })).toBeUndefined()
+  })
+})
+
+describe('reference preview', () => {
+  it('binds each inline file action to its originating Session', async () => {
+    const { ctx, sessions } = await bench()
+    const entry = ctx.slots.entries('conversation.user.text.node').find(candidate => candidate.options.key === 'file')!
+    const factory = entry.inject as NonNullable<typeof entry.inject> & ((id: SessionId) => FileReferenceInjected)
+    const openResource = vi.spyOn(ctx.sidebarRight, 'openResource')
+    factory(session.sessionId).openFile('docs/a b.md')
+    factory(sid('other')).openFile('notes.md')
+    const file = factory(session.sessionId)
+    await sessions.updateSummary(session.sessionId, { cwd: '/workspace' })
+    await sessions.setProjection(session.sessionId, 'workingDirectory', '/workspace/elsewhere')
+    expect(file.resolveFilePath('docs/a b.md')).toBe('/workspace/docs/a b.md')
+    expect(factory(sid('other')).resolveFilePath('/absolute.md')).toBe('/absolute.md')
+    expect(openResource.mock.calls).toEqual([
+      ['dsh-resource://file/session/target/docs/a%20b.md'],
+      ['dsh-resource://file/session/other/notes.md'],
+    ])
+  })
+
+  it('opens plain and quoted file references without treating folders or sessions as files', async () => {
+    const { ctx, source, fiber } = await bench()
+    const openResource = vi.spyOn(ctx.sidebarRight, 'openResource')
+    expect(source.openReference?.(session, { ref: '@notes/readme.md', appearance: 'file' })).toBe(true)
+    expect(source.openReference?.(session, { ref: '@"docs/a b.md"', appearance: 'file' })).toBe(true)
+    expect(openResource).toHaveBeenNthCalledWith(1, 'dsh-resource://file/session/target/notes/readme.md')
+    expect(openResource).toHaveBeenNthCalledWith(2, 'dsh-resource://file/session/target/docs/a%20b.md')
+    expect(source.openReference?.(session, { ref: '@docs/', appearance: 'folder' })).toBe(false)
+    expect(source.openReference?.(session, { ref: '@[Research](dsh-session:abc)', appearance: 'session' })).toBe(false)
+    expect(openResource).toHaveBeenCalledTimes(2)
+    await fiber.dispose()
   })
 })

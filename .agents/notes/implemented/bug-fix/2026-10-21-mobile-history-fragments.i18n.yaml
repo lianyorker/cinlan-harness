@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-21-mobile-history-fragments.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-21-mobile-history-fragments.md
+/agent-note-bound-complete-mobile-messages-independently-of-encrypted-frames:
+  en: 15efa9ffec24aae3
+  zh: 46745cd9a4f093ca
+/agent-note-bound-complete-mobile-messages-independently-of-encrypted-frames/problem:
+  en: 83f57bac96785301
+  zh: c67049dc61ce523b
+/agent-note-bound-complete-mobile-messages-independently-of-encrypted-frames/decision:
+  en: 8ed3a98326ec5667
+  zh: 6f10e85045e4bc34
+/agent-note-bound-complete-mobile-messages-independently-of-encrypted-frames/alternatives-considered:
+  en: e4b1e568ca98836d
+  zh: 4fa998d95c1e33c9
+/agent-note-bound-complete-mobile-messages-independently-of-encrypted-frames/consequences:
+  en: 34ea2ff1f8b981ef
+  zh: 9e40a0b75581f93f
+/agent-note-bound-complete-mobile-messages-independently-of-encrypted-frames/verification:
+  en: 969e0d7df7873ca6
+  zh: b06ac9f802ec74ce

@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-19-inspector-live-capture.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-19-inspector-live-capture.md
+/agent-note-live-inspector-capture-requests:
+  en: d985ca76e38a4f6d
+  zh: 8095a561f6fd1041
+/agent-note-live-inspector-capture-requests/problem:
+  en: 1a6846a36cfedf2e
+  zh: eb0a38486605c578
+/agent-note-live-inspector-capture-requests/decision:
+  en: 61c858e63ab3aa54
+  zh: 9cbe4b531e97697b
+/agent-note-live-inspector-capture-requests/alternatives-considered:
+  en: c8476d306f08ed64
+  zh: f929d5995b4f0a08
+/agent-note-live-inspector-capture-requests/consequences:
+  en: df1f1932a6f70022
+  zh: 89bec282485de477

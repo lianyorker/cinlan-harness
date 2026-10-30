@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/security/tool-finding/README.md
-README.md: a4d5aa119cda5920b9e1f149d6ab1216d4ea4fd4
-README.zh.md: 98ccc23b257c09f5603ce8b9588094de36a9d4b4
+/:
+  en: de6896eb76ca77e8
+  zh: 73da701655d34432
+/deepseek-ai-dsh-tool-finding:
+  en: 1c02e07135337ca0
+  zh: 07d6d1816bd8d7db
+/deepseek-ai-dsh-tool-finding/summary:
+  en: 09b9c88d70e36bc1
+  zh: a6821359bef039bb
+/deepseek-ai-dsh-tool-finding/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/deepseek-ai-dsh-tool-finding/use-this-package:
+  en: b7b79608c800eda0
+  zh: 160cea7bab94295d
+/deepseek-ai-dsh-tool-finding/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-tool-finding/model-experience/finding-tool-schemas:
+  en: 3aad4ed81f746712
+  zh: 232baab646cb100a
+/deepseek-ai-dsh-tool-finding/model-experience/finding-tool-schemas/what-the-model-sees:
+  en: 5ec1dae3b1319b7d
+  zh: 9519646b85f237df
+/deepseek-ai-dsh-tool-finding/model-experience/finding-tool-schemas/token-effect:
+  en: 196ef3036ccedca8
+  zh: 43b3c589a0e705dd
+/deepseek-ai-dsh-tool-finding/model-experience/finding-tool-schemas/kv-cache-effect:
+  en: 8a1a2e0cd13cd80a
+  zh: dcad9ad4049085f0
+/deepseek-ai-dsh-tool-finding/known-limitations-and-deferred-work:
+  en: 5a225f12ad703e8b
+  zh: 1ee3b4e8117034c1
+/deepseek-ai-dsh-tool-finding/known-limitations-and-deferred-work/dev-note:
+  en: f38b70e22e9cbdc3
+  zh: fdcaa82b80fc7c10

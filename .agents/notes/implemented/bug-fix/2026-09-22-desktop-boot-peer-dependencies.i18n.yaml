@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-22-desktop-boot-peer-dependencies.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-desktop-boot-peer-dependencies.md
-2026-09-22-desktop-boot-peer-dependencies.md: e6e8d4f5ffc135bb3128ca90fe9c3e41cd19db45
-2026-09-22-desktop-boot-peer-dependencies.zh.md: 0911562edea963b69b2d5552fab5297bb251b9fe
+/agent-note-desktop-packages-boot-peer-dependencies:
+  en: aec4d1cd9f89a16f
+  zh: c09125400f1184e6
+/agent-note-desktop-packages-boot-peer-dependencies/problem:
+  en: 46a6eb17bb38f051
+  zh: 8d4a57377496d54b
+/agent-note-desktop-packages-boot-peer-dependencies/decision:
+  en: f55f042f9316e4c8
+  zh: 1170a3b71f0ac755
+/agent-note-desktop-packages-boot-peer-dependencies/alternatives-considered:
+  en: 05f7f0533c2d40e6
+  zh: 32af63f592971f78
+/agent-note-desktop-packages-boot-peer-dependencies/consequences:
+  en: be54f1c9c20acf7c
+  zh: 735aa56f9b97991d

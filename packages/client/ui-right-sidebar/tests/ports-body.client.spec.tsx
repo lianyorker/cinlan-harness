@@ -67,7 +67,7 @@ describe('ports-store', () => {
   it('detects local port binding conflicts', () => {
     addPortForward({ localPort: 3000, remotePort: 3000, remoteHost: '127.0.0.1' })
     expect(() =>
-      addPortForward({ localPort: 3000, remotePort: 8080, remoteHost: '192.168.1.10' })
+      addPortForward({ localPort: 3000, remotePort: 8080, remoteHost: '192.168.1.10' }),
     ).toThrow(/already bound/)
   })
 

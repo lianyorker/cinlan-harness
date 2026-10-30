@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`keeps quick-command selection, dismissal, confirmation and errors within the terminal UI 1`] = `
+[
+  "git status",
+  "pnpm check",
+]
+`;
+
+exports[`keeps quick-command selection, dismissal, confirmation and errors within the terminal UI 2`] = `
+[
+  "git status",
+  "pnpm check",
+]
+`;

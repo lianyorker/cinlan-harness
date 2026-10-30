@@ -46,6 +46,83 @@ const VIEWPORT = { width: 800, height: 720 } as const
 
 /** Chip aria-label on the English page; the seat renders only while plan is the effective target. */
 const CHIP_ARIA = 'Plan mode on, press to turn off'
+const SHORT_MODEL = 'DeepSeek-V4-Flash'
+const LONG_MODEL = 'DeepSeek-V4-Flash-Vision-Exp'
+
+/** Observe painted controls rather than the composer's internal compact flag. */
+async function controlLayout(page: Page) {
+  return page.getByRole('button', { name: /Select model/ }).evaluate((trigger) => {
+    const card = trigger.closest('[data-composer-card]')
+    const row = Array.from(card?.children ?? []).find(child => child.contains(trigger))
+    if (!(row instanceof HTMLElement)) throw new Error('composer control row is missing')
+    const visible = (element: Element): boolean => {
+      const style = getComputedStyle(element)
+      const rect = element.getBoundingClientRect()
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0
+    }
+    const label = trigger.querySelector(':scope > span')
+    const icon = trigger.querySelector(':scope > svg')
+    if (label === null || icon === null) throw new Error('model trigger label or icon is missing')
+    const rect = row.getBoundingClientRect()
+    const controls = Array.from(row.querySelectorAll('button')).filter(visible)
+      .map(button => button.getBoundingClientRect())
+    return {
+      width: rect.width,
+      text: visible(label),
+      icon: visible(icon),
+      singleLine: controls.length > 1
+        && Math.max(...controls.map(box => box.top)) < Math.min(...controls.map(box => box.bottom)),
+      contained: controls.every(box => box.left >= rect.left && box.right <= rect.right),
+    }
+  })
+}
+
+/** Wait for the responsive column and control row to finish changing width. */
+async function resizeControls(page: Page, width: number): Promise<void> {
+  const previousWidth = page.viewportSize()!.width
+  await page.setViewportSize({ width, height: VIEWPORT.height })
+  if (width >= 768 && width < 1024) {
+    const frame = page.locator('[data-sidebar-collapsed][data-rightbar-collapsed]')
+    if (previousWidth >= 1024) await frame.waitFor()
+    const open = page.getByRole('button', { name: 'Open sidebar', exact: true })
+    if (await open.isVisible()) {
+      await open.click()
+      await expect.poll(() => frame.count()).toBe(0)
+    }
+  }
+  await page.locator('[data-composer-card]').evaluate(async (card) => {
+    let previous = card.getBoundingClientRect().width
+    let stable = 0
+    const deadline = performance.now() + 5_000
+    while (performance.now() < deadline) {
+      await new Promise<void>((resolve) => { requestAnimationFrame(() => { resolve() }) })
+      const current = card.getBoundingClientRect().width
+      stable = Math.abs(current - previous) < 0.01 ? stable + 1 : 0
+      if (stable >= 5) return
+      previous = current
+    }
+    throw new Error('composer width did not settle')
+  })
+}
+
+/** Change the real Session selection without starting a model turn. */
+async function selectModel(page: Page, name: string): Promise<void> {
+  const trigger = page.getByRole('button', { name: /Select model/ })
+  await trigger.click()
+  await page.getByRole('menuitem', { name: /^Model/ }).click()
+  await page.getByRole('menuitemradio', { name, exact: true }).click()
+  await expect.poll(() => trigger.getAttribute('title')).toMatch(new RegExp(`^${name}(?: ·|$)`))
+}
+
+/** A compact decision must remain stable across observer deliveries and paints. */
+async function expectControlLayout(page: Page, compact: boolean): Promise<void> {
+  const expected = { text: !compact, icon: compact, singleLine: true, contained: true }
+  await expect.poll(() => controlLayout(page), { timeout: 10_000 }).toMatchObject(expected)
+  for (let frame = 0; frame < 6; frame += 1) {
+    await page.evaluate(() => new Promise<void>((resolve) => { requestAnimationFrame(() => { resolve() }) }))
+    expect(await controlLayout(page)).toMatchObject(expected)
+  }
+}
 
 describe('web e2e: plan chip click area at the narrow viewport', () => {
   let scaffold: WebScaffold
@@ -138,9 +215,93 @@ describe('web e2e: plan chip click area at the narrow viewport', () => {
       (event): event is SessionEvent<'plan/mode'> => event.type === 'plan/mode',
     )
     expect(planModes.at(-1)?.data.active).toBe(false)
+
+    await page.evaluate(async () => { await document.fonts.ready })
+    await resizeControls(page, 1680)
+    await input.fill('/plan ')
+    await input.press('Enter')
+    await chip.waitFor({ timeout: 15_000 })
+    await selectModel(page, LONG_MODEL)
+    await expectControlLayout(page, false)
+
+    // Find the content-dependent transition on this platform's fonts, never a
+    // committed pixel threshold. The old 360px rule cannot satisfy this case.
+    let narrowViewport: number | undefined
+    for (let width = 1100; width >= 770; width -= 10) {
+      await resizeControls(page, width)
+      const layout = await controlLayout(page)
+      if (layout.width > 360 && layout.icon && !layout.text) {
+        narrowViewport = width
+        break
+      }
+    }
+    expect(narrowViewport, 'long model collapses while the row is wider than 360px').toBeDefined()
+    if (narrowViewport === undefined) throw new Error('no content-driven collapse above 360px')
+    await expectControlLayout(page, true)
+    const collapsed = await controlLayout(page)
+    const narrowRowWidth = collapsed.width
+    expect(await trigger.getAttribute('aria-label')).toContain(LONG_MODEL)
+    expect(await trigger.getAttribute('title')).toContain(LONG_MODEL)
+    expect(await trigger.getAttribute('aria-label')).toMatch(/high/i)
+
+    await selectModel(page, SHORT_MODEL)
+    await expectControlLayout(page, false)
+    const shorter = await controlLayout(page)
+    expect(shorter.width).toBe(narrowRowWidth)
+    await selectModel(page, LONG_MODEL)
+    await expectControlLayout(page, true)
+
+    await resizeControls(page, 1680)
+    await expectControlLayout(page, false)
+    const widened = await controlLayout(page)
+    await resizeControls(page, narrowViewport)
+    await expectControlLayout(page, true)
+    await chip.click()
+    await expect.poll(() => chip.count()).toBe(0)
+    await expectControlLayout(page, false)
+    const withoutPlan = await controlLayout(page)
+    await input.fill('/plan ')
+    await input.press('Enter')
+    await chip.waitFor({ timeout: 15_000 })
+    await expectControlLayout(page, true)
+    await chip.click()
+    await selectModel(page, SHORT_MODEL)
+    const golden = [
+      ...layoutGolden,
+      '',
+      '## Content-driven model collapse',
+      '',
+      `- Model icon replaces text above a 360px row: ${String(collapsed.width > 360 && collapsed.icon && !collapsed.text)}`,
+      `- Compact controls share a line and stay within the row: ${String(collapsed.singleLine && collapsed.contained)}`,
+      `- Shorter model restores text at the same width: ${String(shorter.width === collapsed.width && shorter.text && !shorter.icon)}`,
+      `- Widening restores model text: ${String(widened.text && !widened.icon)}`,
+      `- Removing the plan chip restores model text: ${String(withoutPlan.text && !withoutPlan.icon)}`,
+    ].join('\n').trimEnd()
+    await compareOrRefreshGolden(LAYOUT_EXPECTED, golden, MODE)
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
   }, 200_000)
+
+  // The suite above only reaches the icon through the Plan chip's width. This
+  // case keeps the row otherwise empty: a long model name must still exceed
+  // the row above the mobile minimum, so a row-relative width cap cannot hide
+  // the demand behind a shrunken, ellipsized name.
+  it('collapses the model text on a narrow composer without another control', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-model-collapse-no-plan'))
+    await page.locator('[data-composer-input]').first().waitFor({ timeout: 10_000 })
+    await resizeControls(page, 1680)
+    await selectModel(page, LONG_MODEL)
+    await expectControlLayout(page, false)
+
+    await resizeControls(page, 384)
+    await expectControlLayout(page, true)
+    const trigger = page.getByRole('button', { name: /Select model/ })
+    expect(await trigger.getAttribute('title')).toContain(LONG_MODEL)
+    expect(await trigger.getAttribute('aria-label')).toContain(LONG_MODEL)
+
+    await resizeControls(page, 1680)
+    await expectControlLayout(page, false)
+  }, 120_000)
 
   it('keeps the snapshot inventory closed', async () => {
     await assertFixtureInventory(SNAPSHOT_DIR, ['session.v3.jsonl', 'layout.expected.md'])

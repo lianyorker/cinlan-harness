@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-29-semantic-composer-chain-phases.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-29-semantic-composer-chain-phases.md
-2026-09-29-semantic-composer-chain-phases.md: c9f56a55a6d91d9a9831cd7c7e5110dfaa9fe5cb
-2026-09-29-semantic-composer-chain-phases.zh.md: a81264b1f6aaf5cfe91f7c6c3429cdb0aa9ff73c
+/agent-note-semantic-phases-for-composer-chain-election:
+  en: d2d8e2049cd2a1bd
+  zh: fd1126f13a2f4a42
+/agent-note-semantic-phases-for-composer-chain-election/problem:
+  en: 49ecfb049b18eded
+  zh: 3387391d4747bd6e
+/agent-note-semantic-phases-for-composer-chain-election/decision:
+  en: 8d633c7993b546ce
+  zh: da428d7a3700cf7d
+/agent-note-semantic-phases-for-composer-chain-election/alternatives-considered:
+  en: c6a4dbec5c9b66c4
+  zh: 006da1c4483911bc
+/agent-note-semantic-phases-for-composer-chain-election/consequences:
+  en: 13b99cce23836a64
+  zh: 45a97df2440c53e1
+/agent-note-semantic-phases-for-composer-chain-election/validation:
+  en: f9ee4bd9029c548a
+  zh: 55e1c2a8d9290e52

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-22-orchestration-settings-disclosure.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-22-orchestration-settings-disclosure.md
-2026-09-22-orchestration-settings-disclosure.md: 135aa879634c517d77f1d013ff9b568a3bccfd7c
-2026-09-22-orchestration-settings-disclosure.zh.md: 61d312a1cb064bd1e36fe780ccf031dd0de4921d
+/agent-note-compact-orchestration-settings-disclosure:
+  en: f1e480fe6d9d4802
+  zh: 0a50831a1929c4cd
+/agent-note-compact-orchestration-settings-disclosure/problem:
+  en: 07bc42d59996079f
+  zh: 12a407abe2a98130
+/agent-note-compact-orchestration-settings-disclosure/decision:
+  en: 8dbb0a3ce50c0b2b
+  zh: 2ee050c4cb30eb91
+/agent-note-compact-orchestration-settings-disclosure/alternatives-considered:
+  en: 4c042652db8b3433
+  zh: 14c3be5be0f9748a
+/agent-note-compact-orchestration-settings-disclosure/consequences:
+  en: b46f006ce1b1170e
+  zh: 0e6d4ac98e7a2a77
+/agent-note-compact-orchestration-settings-disclosure/verification:
+  en: d1d90db64a970cb2
+  zh: 0bb783f457d9a1ca

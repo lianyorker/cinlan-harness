@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-durable-automation-ownership.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-durable-automation-ownership.md
-2026-09-17-durable-automation-ownership.md: 85f0ba8cafcfe1e40e56dd6b01e6de2e35d6ecb0
-2026-09-17-durable-automation-ownership.zh.md: 63da6783f6b352b73790ea95b9fd7342e3e7269e
+/agent-note-durable-automations-require-exclusive-local-ownership:
+  en: d9981ae65b194efd
+  zh: f426ca852c90f630
+/agent-note-durable-automations-require-exclusive-local-ownership/problem:
+  en: c76fef8b5d1d987a
+  zh: fb91e8d5ceb098a6
+/agent-note-durable-automations-require-exclusive-local-ownership/decision:
+  en: f99ba35754598495
+  zh: 45ac1bcf5b82d2a6
+/agent-note-durable-automations-require-exclusive-local-ownership/alternatives-considered:
+  en: c8772e7a40f7ced5
+  zh: e82b1e3327ab10d5
+/agent-note-durable-automations-require-exclusive-local-ownership/consequences:
+  en: 1e06fb730dee4389
+  zh: a182d6dda566cfe8

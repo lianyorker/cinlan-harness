@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for plan.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/dev/官方同步/plan.md
-plan.md: 2a32ee7e892b85e635e6094c762656433147b5ea
-plan.zh.md: 8deb5374f5015cc474be10bdc46d9bad333bcc3b
+/rc-2-selective-integration-and-mobile-product-plan:
+  en: 9990ad270d739898
+  zh: c84ed27361e0d416
+/rc-2-selective-integration-and-mobile-product-plan/1-scope-and-pinned-sources:
+  en: 3596eef857e90466
+  zh: 53ffbc84652ece16
+/rc-2-selective-integration-and-mobile-product-plan/2-non-negotiable-boundaries:
+  en: 2fa1a9705e762b27
+  zh: 2f7b66010f3b5887
+/rc-2-selective-integration-and-mobile-product-plan/3-mobile-pairing-contract:
+  en: 8a5435194df52d4c
+  zh: 558ca3de0fa05e47
+/rc-2-selective-integration-and-mobile-product-plan/4-account-and-model-implementation:
+  en: 788a229c97442c86
+  zh: 92557db8621fc181
+/rc-2-selective-integration-and-mobile-product-plan/5-settings-ui-contract:
+  en: 4b3859514a972b39
+  zh: 6664362345df973e
+/rc-2-selective-integration-and-mobile-product-plan/6-rc-2-new-features:
+  en: ac948b83aabfabd8
+  zh: c6ed59e371b9b5d0
+/rc-2-selective-integration-and-mobile-product-plan/7-rc-2-bug-fixes:
+  en: baa047969f1c289e
+  zh: 13d14c0f6cae1ce5
+/rc-2-selective-integration-and-mobile-product-plan/8-rc-2-changes:
+  en: 3736798d645601fc
+  zh: 33a9406c3d44e3b3
+/rc-2-selective-integration-and-mobile-product-plan/9-rc-2-improvements:
+  en: 63ac85a8c44b13c4
+  zh: 949730c17735f7ec
+/rc-2-selective-integration-and-mobile-product-plan/10-delivery-and-cleanup:
+  en: 105281cc80384982
+  zh: 81cd46750bac4d33
+/rc-2-selective-integration-and-mobile-product-plan/11-open-decisions:
+  en: 28c3b51df3b9132d
+  zh: 06a0b4122c2dd858

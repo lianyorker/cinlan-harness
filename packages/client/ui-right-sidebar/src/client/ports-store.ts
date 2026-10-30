@@ -72,7 +72,7 @@ export function resetWorkspacePortsStore(): void {
  * @param mockProbe - Optional scanner implementation or mock result.
  */
 export async function scanWorkspacePorts(
-  mockProbe?: () => Promise<{ readonly ok: boolean; readonly ports?: readonly DetectedPort[]; readonly error?: string }>
+  mockProbe?: () => Promise<{ readonly ok: boolean; readonly ports?: readonly DetectedPort[]; readonly error?: string }>,
 ): Promise<void> {
   const { unavailableReason: _u1, ...scanningRest } = currentState
   currentState = { ...scanningRest, status: 'scanning' }
@@ -82,13 +82,13 @@ export async function scanWorkspacePorts(
     const result = mockProbe
       ? await mockProbe()
       : {
-          ok: true,
-          ports: [
-            { port: 3000, host: '127.0.0.1', processName: 'node (app)', detectedAt: Date.now() },
-            { port: 5173, host: '127.0.0.1', processName: 'vite', detectedAt: Date.now() },
-            { port: 8080, host: '127.0.0.1', processName: 'dev-server', detectedAt: Date.now() },
-          ],
-        }
+        ok: true,
+        ports: [
+          { port: 3000, host: '127.0.0.1', processName: 'node (app)', detectedAt: Date.now() },
+          { port: 5173, host: '127.0.0.1', processName: 'vite', detectedAt: Date.now() },
+          { port: 8080, host: '127.0.0.1', processName: 'dev-server', detectedAt: Date.now() },
+        ],
+      }
 
     if (!result.ok) {
       currentState = {
@@ -144,7 +144,7 @@ export function addPortForward(options: AddPortForwardOptions): PortForwardRule 
 
   // Conflict check: localPort must not already be bound by another active rule
   const conflict = currentState.forwardedPorts.find(
-    f => f.localPort === localPort && f.status === 'active' && !(f.remoteHost === remoteHost && f.remotePort === remotePort)
+    f => f.localPort === localPort && f.status === 'active' && !(f.remoteHost === remoteHost && f.remotePort === remotePort),
   )
   if (conflict) {
     throw new Error(`Local port ${localPort} is already bound to ${conflict.remoteHost}:${conflict.remotePort}`)
@@ -152,7 +152,7 @@ export function addPortForward(options: AddPortForwardOptions): PortForwardRule 
 
   // Existing rule update or new rule
   const existing = currentState.forwardedPorts.find(
-    f => f.remoteHost === remoteHost && f.remotePort === remotePort
+    f => f.remoteHost === remoteHost && f.remotePort === remotePort,
   )
 
   const rule: PortForwardRule = {
@@ -172,7 +172,7 @@ export function addPortForward(options: AddPortForwardOptions): PortForwardRule 
 
   // Filter out from detected ports if present
   const nextDetected = currentState.detectedPorts.filter(
-    p => !(p.port === remotePort && (p.host === remoteHost || remoteHost === '127.0.0.1'))
+    p => !(p.port === remotePort && (p.host === remoteHost || remoteHost === '127.0.0.1')),
   )
 
   currentState = {

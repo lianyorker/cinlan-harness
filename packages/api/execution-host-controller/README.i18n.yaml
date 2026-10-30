@@ -1,6 +1,34 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/execution-host-controller/README.md
-README.md: 88bf9ee7adf4e318eade160b92dca0710cb6b874
-README.zh.md: 4945a866789b68cc3fb0f7553c490062111d8cfb
+/:
+  en: 52c9cbd8c806b49a
+  zh: a5f75f53897a3e5e
+/deepseek-ai-dsh-api-execution-host-controller:
+  en: 138e789217b10706
+  zh: 6249eb69e6971957
+/deepseek-ai-dsh-api-execution-host-controller/summary:
+  en: 940f76c4668ace39
+  zh: 3bfd8af31e3bb4a6
+/deepseek-ai-dsh-api-execution-host-controller/table-of-contents:
+  en: d8043793e1922f70
+  zh: 895e7183e1538cd0
+/deepseek-ai-dsh-api-execution-host-controller/use-this-package:
+  en: e54bae740e3b628d
+  zh: 078fd6d1f09146df
+/deepseek-ai-dsh-api-execution-host-controller/observe-target-changes:
+  en: a053b3fae841d74e
+  zh: 89224cdc086cc621
+/deepseek-ai-dsh-api-execution-host-controller/model-experience:
+  en: 163a8897da6558ed
+  zh: 385546e999921da2
+/deepseek-ai-dsh-api-execution-host-controller/model-experience/kv-cache-effect:
+  en: bd7e7baeb42cd87e
+  zh: 5e9671eff2a50ba2
+/deepseek-ai-dsh-api-execution-host-controller/known-limitations-and-deferred-work:
+  en: 5618e3bde7518a11
+  zh: c048fb5fba997230
+/deepseek-ai-dsh-api-execution-host-controller/known-limitations-and-deferred-work/dev-note:
+  en: 801c2b6a98ff848b
+  zh: b7b771e303022bb5

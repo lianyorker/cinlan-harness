@@ -73,6 +73,7 @@ describe('ui-settings-shell apply', () => {
     expect(ctx.settingsMetadata.getSnapshot().items[0]?.anchorId).toBe('shell-settings')
     const entry = slots.entries('settings.section')[0]!
     expect(entry.options).toMatchObject({ id: 'shell', order: 42 })
+    expect(entry.options).toMatchObject({ id: 'shell', order: 40 })
     expect(resolveSlotLabel(entry.options.label)).toBe('终端')
     expect(entry.locale).toBe(NS)
     const face = (entry.inject as () => Pick<ShellCardFace, 'hooks'>)()

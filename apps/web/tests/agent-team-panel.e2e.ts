@@ -89,6 +89,8 @@ describe('web e2e: Agent Teams panel', () => {
     const action = page.locator('[data-team-action]')
     await action.getByRole('button', { name: /Agent Team/iu }).click()
     await action.getByText('No shared tasks yet').waitFor()
+    await page.locator('[data-team-action]').getByRole('button', { name: 'Agent team', exact: true }).click()
+    const action = page.getByRole('dialog', { name: 'Agent team', exact: true })
     await action.getByText('lead').waitFor()
 
     await action.getByRole('button', { name: 'New task' }).click()
@@ -104,6 +106,13 @@ describe('web e2e: Agent Teams panel', () => {
     expect(tripwire.warnings).toEqual([])
   }, 60_000)
 
+    const panel = page.getByRole('dialog', { name: 'Agent team', exact: true })
+    const trigger = page.locator('[data-team-action]').getByRole('button', { name: 'Agent team', exact: true })
+      const outside = page.getByRole('button', { name: 'Account menu', exact: true })
+    const trigger = page.locator('[data-team-action]').getByRole('button', { name: 'Agent team', exact: true })
+    const panel = page.getByRole('dialog', { name: 'Agent team', exact: true })
+    const trigger = page.locator('[data-team-action]').getByRole('button', { name: 'Agent team', exact: true })
+    const panel = page.getByRole('dialog', { name: 'Agent team', exact: true })
   it.skipIf(MODE === 'record')('keeps the fixture inventory closed', async () => {
     await assertFixtureInventory(SNAPSHOT_DIR, ['task.expected.md'])
   })

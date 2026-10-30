@@ -45,6 +45,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Only the bwrap leg has a Blacksmith equivalent: the earlier
+          # migration dispatch runs measured that Blacksmith's Linux images do
+          # not enforce Landlock (the run-guard would turn the leg red) and
+          # its macOS image is unverified, so those legs stay on GitHub's
+          # images under every failover value — see
+          # .agents/notes/implemented/process/2026-09-09-blacksmith-failover-leg.md.
           - os: ubuntu-latest
             runner: bwrap
           - os: ubuntu-24.04
@@ -54,14 +60,17 @@ jobs:
           - os: macos-latest
             runner: seatbelt
     name: sandbox e2e (${{ matrix.runner }}, ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    runs-on: >-
+      ${{ matrix.runner == 'bwrap' && vars.DSH_CI_FAILOVER_LINUX == 'blacksmith'
+          && 'blacksmith-4vcpu-ubuntu-2404'
+          || matrix.os }}
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v5.0.0
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: 24
 
@@ -137,11 +146,11 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5.0.0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: 24
 

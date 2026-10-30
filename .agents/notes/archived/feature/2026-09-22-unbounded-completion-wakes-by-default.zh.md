@@ -1,4 +1,4 @@
-# Agent Note: 后台任务完成默认无上限唤醒
+# Agent Note: Background job completion wakes are unbounded by default
 
 Status: implemented
 Archived: 2026-09-30
@@ -33,5 +33,5 @@ Archived: 2026-09-30
 
 - 串起后台任务的无人值守会话会为每次完成被唤醒；每次唤醒一次模型请求是其代价，用户可以停止会话。
 - 上限是可选配置。其 README、config-catalog 与 JSDoc 说明了设置它带来的静默停摆代价。
-- 单元覆盖钉住默认配置下连续四次无人值守完成各开启一轮；上限、补充与 quiet 投递的测试保留显式 `maxConsecutiveWakes` 值。
+- 单元覆盖钉住默认配置下连续四次无人值守完成各开启一轮；上限、补充与 quiet 投递的测试保留显式的 `maxConsecutiveWakes` 值。
 - 录制会话快照无变化：没有任何内置 profile 设置该字段，也没有既有场景串起超过三次空闲完成。

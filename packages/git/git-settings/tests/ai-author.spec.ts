@@ -156,7 +156,7 @@ describe('git ai-author: generateCommitMessageDraft', () => {
         diff: '   ',
         stagedFiles: [],
         runner,
-      })
+      }),
     ).rejects.toThrow(/No staged diff available/)
     expect(runner).not.toHaveBeenCalled()
   })
@@ -173,7 +173,7 @@ describe('git ai-author: generateCommitMessageDraft', () => {
         diff: sensitiveDiff,
         stagedFiles: ['.env'],
         runner,
-      })
+      }),
     ).rejects.toThrow(/All staged changes contain sensitive files/)
     expect(runner).not.toHaveBeenCalled()
   })
@@ -203,7 +203,7 @@ describe('git ai-author: generateCommitMessageDraft', () => {
         diff: sampleDiff,
         stagedFiles: ['src/auth.ts'],
         runner,
-      })
+      }),
     ).rejects.toThrow(/empty commit message/)
   })
 
@@ -219,7 +219,7 @@ describe('git ai-author: generateCommitMessageDraft', () => {
         stagedFiles: ['src/auth.ts'],
         recipe,
         runner,
-      })
+      }),
     ).rejects.toThrow(/disabled in settings/)
     expect(runner).not.toHaveBeenCalled()
   })

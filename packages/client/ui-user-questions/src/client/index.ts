@@ -30,7 +30,8 @@ import { createQuestionDraftStore } from './draft-store.ts'
 import { QuestionComposer } from './QuestionComposer.tsx'
 import { questionReplyDefinition } from './question-reply.ts'
 import { QuestionReplyView } from './QuestionReplyView.tsx'
-import { en, zh, type QuestionKey } from './locales.ts'
+import { answeredQuestionDefinition, questionReplyDefinition } from './question-reply.ts'
+import { en, ja, es, fr, de, ru, pt, zh, type QuestionKey } from './locales.ts'
 
 export type {
   PendingQuestion, PlanReview, QuestionAnswer, QuestionComposerProps, QuestionWait,
@@ -366,7 +367,7 @@ function publishContinuedQuestions(ctx: ClientContext, cards: QuestionCards): ()
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-user-questions: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-user-questions: dictionaries')
   const questionDraftStore = createQuestionDraftStore()
   const registerPendingInteraction = ctx.uiSession.registerPendingInteraction<PendingQuestion>(
     pending => pending.kind === 'plan-review' ? 2 : 1,
@@ -398,6 +399,7 @@ export function apply(ctx: ClientContext): void {
     key: 'question-reply',
     locale: NS,
   }, QuestionReplyView))
+  ctx.uiConversation.events.register(answeredQuestionDefinition)
   ctx.remote.$on('user-questions/request', function (request, next) {
     return answerQuestion(ctx, this, request, next, cards)
   })

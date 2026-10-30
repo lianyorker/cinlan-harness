@@ -86,7 +86,7 @@ describe('AddPluginModal wiring', () => {
 
 /** Mount PluginListBody and click its copy button (the first one). */
 function mountBody(service: ReturnType<typeof createBetterSidebarService>, kind: 'tab' | 'viewer' = 'viewer'):
-  { clickCopy: () => void; buttonLabel: () => string | null; unmount: () => void } {
+{ clickCopy: () => void; buttonLabel: () => string | null; unmount: () => void } {
   const container = document.createElement('div')
   document.body.append(container)
   const root = createRoot(container)
@@ -180,7 +180,7 @@ describe('PluginListBody copy click (interactive)', () => {
         act(() => { (button as HTMLButtonElement).click() })
       }
       expect(opened).toEqual(
-        builtinViewerPlugins.flatMap((entry) => [
+        builtinViewerPlugins.flatMap(entry => [
           [entry.url, '_blank', 'noopener'],
           [entry.url, '_blank', 'noopener'],
         ]),

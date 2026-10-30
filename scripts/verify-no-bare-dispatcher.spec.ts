@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { findDispatcherViolations, scanRepository, DISPATCHER_OWNER } from './verify-no-bare-dispatcher.ts'
 
-const FILE = 'packages/web/web-fetch-http/src/network.ts'
+const FILE = 'packages/web/web-fetch-http/src/provider.ts'
 
 function reasons(source: string, file = FILE): string[] {
   return findDispatcherViolations(file, source).map(violation => violation.what)
@@ -41,7 +41,6 @@ describe('bare dispatcher check', () => {
 
   it('rejects the shorthand form a line-wise regex misses', () => {
     expect(reasons(`
-      import { Agent } from 'undici'
       const dispatcher = pool
       const response = await fetch(url, { method: 'GET', dispatcher })
     `)).toEqual(['passes an explicit \`dispatcher\`'])
@@ -105,7 +104,6 @@ describe('bare dispatcher check', () => {
 
   it('accepts an exemption annotated on the line above, where a long line puts it', () => {
     expect(reasons(`
-      import { Agent } from 'undici'
       // proxy-exempt: the dispatcher already applied the active policy.
       const response = await fetch(url, { method: 'GET', headers, dispatcher })
     `)).toEqual([])
@@ -113,7 +111,6 @@ describe('bare dispatcher check', () => {
 
   it('accepts an annotated exemption', () => {
     expect(reasons(`
-      import { Agent } from 'undici'
       const agent = new Agent({}) // proxy-exempt: loopback transport for the local test server
     `)).toEqual([])
   })
@@ -132,7 +129,6 @@ describe('bare dispatcher check', () => {
     // detectable is excluded — the second case proves a violating shape survives the filter.
     expect(reasons('      const agent = new Agent({ keepAlive: true })')).toEqual([])
     expect(reasons(`
-      import { Agent } from 'undici'
       const agent = new Agent({})
     `)).toEqual(['constructs an undici agent'])
   })

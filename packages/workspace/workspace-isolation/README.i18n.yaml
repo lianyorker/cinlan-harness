@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/workspace/workspace-isolation/README.md
-README.md: bb42db97854cebb5c593244bf634dc6d5c05a7f9
-README.zh.md: 9c1513883c15885287673f81758663496beb92ef
+/:
+  en: 58c7921b13c77788
+  zh: c4d586edc30efcda
+/deepseek-ai-dsh-workspace-isolation:
+  en: 1b81b5d290454abc
+  zh: f958161311948dc9
+/deepseek-ai-dsh-workspace-isolation/summary:
+  en: 0ac1ee140b2ad91e
+  zh: 6e56a0bc3eed0a24
+/deepseek-ai-dsh-workspace-isolation/table-of-contents:
+  en: 122f0d41696980b1
+  zh: 5423073f383f055d
+/deepseek-ai-dsh-workspace-isolation/use-this-package:
+  en: 14b69736c36cc7e6
+  zh: bf2c399b7583091a
+/deepseek-ai-dsh-workspace-isolation/understand-the-implementation:
+  en: e36d9088a9c237e7
+  zh: 242893893136a841
+/deepseek-ai-dsh-workspace-isolation/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-workspace-isolation/model-experience/session-working-directory:
+  en: 19e2f2bf281255a2
+  zh: 6f9d903f31e35fb9
+/deepseek-ai-dsh-workspace-isolation/model-experience/session-working-directory/what-the-model-sees:
+  en: 94a676454649f713
+  zh: 18c8459655378bc8
+/deepseek-ai-dsh-workspace-isolation/model-experience/session-working-directory/token-effect:
+  en: c20e2623f5a91c9f
+  zh: 8d29698196d29e64
+/deepseek-ai-dsh-workspace-isolation/model-experience/session-working-directory/kv-cache-effect:
+  en: ee2995cd1ed4380a
+  zh: eb824f5b09b70b62
+/deepseek-ai-dsh-workspace-isolation/known-limitations-and-deferred-work:
+  en: 344cdaca0b804bd6
+  zh: b5525bf515c51c5d
+/deepseek-ai-dsh-workspace-isolation/known-limitations-and-deferred-work/dev-note:
+  en: 28a64b82ad8fff3e
+  zh: 55600127e127f961

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-live-permission-catalog.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-live-permission-catalog.md
-2026-09-20-live-permission-catalog.md: 31a48b3e5a2c8834e60cfe956d1c0fe56ce1cfaa
-2026-09-20-live-permission-catalog.zh.md: bfe518e53f1cce761a0d0bee0baf8b5e38643bfd
+/agent-note-live-permission-catalog:
+  en: 38f24210f3c57123
+  zh: ed32566afae8cc50
+/agent-note-live-permission-catalog/problem:
+  en: d47525f840a1c1cd
+  zh: 142837063c489c29
+/agent-note-live-permission-catalog/decision:
+  en: 9c4152ffa7353816
+  zh: 7ec26ae7a16d759d
+/agent-note-live-permission-catalog/alternatives-considered:
+  en: 07a71cebe7405e3e
+  zh: 9c9ee96e6d0067b0
+/agent-note-live-permission-catalog/consequences:
+  en: 3bfacd3d6a5f8242
+  zh: 0eb6dc8c21a4feb2

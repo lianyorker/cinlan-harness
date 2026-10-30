@@ -1,70 +1,14 @@
-- region "设置":
+- dialog "设置":
   - text: 设置
-  - navigation "设置导航":
-    - button "返回应用":
-      - img
-      - text: 返回应用
-    - img
-    - searchbox "搜索设置..."
-    - text: Ctrl / ⌘ K
-    - button "个人偏好" [expanded]:
-      - text: 个人偏好
-      - img
+  - navigation:
     - button "通用设置"
-    - button "工作区布局"
-    - button "通知"
-    - button "快捷键"
-    - button "浮动工作区"
-    - button "AI 与模型" [expanded]:
-      - text: AI 与模型
-      - img
     - button "模型"
+    - button "内置插件"
     - button "Agent 预设"
-    - button "编排"
-    - button "任务管理"
-    - button "侧边对话(beta)"
-    - button "语音"
-    - button "开发工作流" [expanded]:
-      - text: 开发工作流
-      - img
-    - button "Git 与源代码控制"
-    - button "集成"
-    - button "工具与设备" [expanded]:
-      - text: 工具与设备
-      - img
-    - button "安全研究"
-    - button "浏览器"
-    - button "文件"
-    - button "计算机控制"
-    - button "手机模拟器"
-    - button "扩展管理" [expanded]:
-      - text: 扩展管理
-      - img
-    - button "插件"
-    - button "实验" [expanded]:
-      - text: 实验
-      - img
-    - button "MCP"
-    - button "自动化"
-    - button "执行主机"
-    - button "终端"
-    - button "使用统计"
-  - text: AI 与模型
-  - img
-  - strong: 模型
   - button "打开配置文件"
-  - heading "模型" [level=1]
-  - region "新会话默认值":
-    - text: 默认模型
-    - paragraph: 默认值用于新会话。在会话中切换模型也会保存后续会话的默认值；此处的更改不会覆盖已有会话的模型选择。
-    - combobox "默认模型"
-    - text: 推理等级
-    - paragraph: 使用所选模型支持的推理等级；Default 采用提供方的默认行为。
-    - combobox "推理等级" [disabled]:
-      - option "Default" [selected]
-    - paragraph: 当前模型未提供推理等级。
-    - button "恢复继承值" [disabled]
-  - paragraph: 填入各提供方的 API 密钥即可使用其模型。
+  - button "关闭"
+  - heading "模型" [level=2]
+  - paragraph: 填入各提供商的 API 密钥即可使用其模型。
   - list:
     - listitem:
       - text: minimax-cn
@@ -77,7 +21,7 @@
       - button "删除 Acme Gateway (acme-gateway)": 删除
       - text: Acme Gateway acme-gateway API 密钥
       - textbox "API 密钥":
-        - /placeholder: 输入 API 密钥，或留空使用环境认证
+        - /placeholder: 输入 API 密钥
       - group:
         - text: 自定义设置 显示名称
         - textbox "显示名称":
@@ -89,26 +33,68 @@
           - text: https://gateway.acme.example/v1
         - text: API 协议
         - combobox "API 协议":
-          - option "openai-completions" [selected]
-          - option "openai-responses"
-          - option "anthropic-messages"
+          - option "OpenAI Chat Completions" [selected]
+          - option "OpenAI Responses"
+          - option "Anthropic Messages"
         - region "模型目录":
           - text: 模型目录 已自定义模型目录
           - button "恢复默认模型"
           - button "获取可用模型"
+          - button "调整模型顺序 1"
           - textbox "模型 ID 1":
             - /placeholder: 模型 ID
             - text: acme-large
+          - button "模型选项 1" [expanded]
+          - button "删除模型 1"
           - textbox "显示名称 1":
             - /placeholder: 显示名称
-          - button "容量 1"
-          - button "删除模型 1"
+          - text: 上下文窗口
+          - textbox "上下文窗口 1":
+            - /placeholder: 1M
+          - text: 最大输出 token 数
+          - textbox "最大输出 token 数 1":
+            - /placeholder: 128K
+          - group "输入类型 1":
+            - text: 输入类型
+            - checkbox "文本" [checked]
+            - text: 文本
+            - checkbox "图片" [checked]
+            - text: 图片
+          - group "推理等级 1":
+            - text: 推理等级
+            - button "推理等级说明": "?"
+            - switch "推理等级 1" [checked]
+            - combobox "档位 1":
+              - option "off" [selected]
+              - option "minimal"
+              - option "medium"
+              - option "xhigh"
+              - option "max"
+            - textbox "off API 参数值" [disabled]:
+              - /placeholder: 关闭思考
+            - button "删除档位 off"
+            - combobox "档位 2":
+              - option "minimal"
+              - option "low" [selected]
+              - option "medium"
+              - option "xhigh"
+              - option "max"
+            - textbox "low API 参数值":
+              - /placeholder: low
+              - text: low
+            - button "删除档位 low"
+            - combobox "档位 3":
+              - option "minimal"
+              - option "medium"
+              - option "high" [selected]
+              - option "xhigh"
+              - option "max"
+            - textbox "high API 参数值":
+              - /placeholder: high
+              - text: high
+            - button "删除档位 high"
+            - button "添加档位"
           - button "添加模型"
       - button "取消"
       - button "保存"
-  - button "添加提供方":
-    - img
-    - text: 添加提供方
-  - button "添加自定义提供方":
-    - img
-    - text: 添加自定义提供方
+  - button "添加模型提供商"

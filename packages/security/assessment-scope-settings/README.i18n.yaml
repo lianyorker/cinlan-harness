@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/security/assessment-scope-settings/README.md
-README.md: 86e01a96055c210eb6710661139824d52639d633
-README.zh.md: f18cae28fffec8bc6038463a70724ccdb54b1db0
+/:
+  en: 7f8f20c30c2fb2b7
+  zh: c90479b6b9ea2f90
+/deepseek-ai-dsh-assessment-scope-settings:
+  en: 4d47d69d8b3eb909
+  zh: 1d97632d6f787525
+/deepseek-ai-dsh-assessment-scope-settings/summary:
+  en: a13bf50123a89b5f
+  zh: 4e07b39a3337e644
+/deepseek-ai-dsh-assessment-scope-settings/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/deepseek-ai-dsh-assessment-scope-settings/use-this-package:
+  en: fef09c488f4cd0e5
+  zh: 1236eecc56a70f06
+/deepseek-ai-dsh-assessment-scope-settings/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-assessment-scope-settings/model-experience/assessment-policy-input:
+  en: ecd978c31f9c4a07
+  zh: 5fc2acfc3434c5a4
+/deepseek-ai-dsh-assessment-scope-settings/model-experience/assessment-policy-input/what-the-model-sees:
+  en: 0c2570e715e1a47a
+  zh: 9f73c104b3bec9a5
+/deepseek-ai-dsh-assessment-scope-settings/model-experience/assessment-policy-input/token-effect:
+  en: 1ce120e3044444a0
+  zh: d9497a8346f0d48d
+/deepseek-ai-dsh-assessment-scope-settings/model-experience/assessment-policy-input/kv-cache-effect:
+  en: ae915ccb7215370c
+  zh: fef3dbd9efb4e3f4
+/deepseek-ai-dsh-assessment-scope-settings/known-limitations-and-deferred-work:
+  en: c870027c6d535a44
+  zh: 09f7bd3c500d888b
+/deepseek-ai-dsh-assessment-scope-settings/known-limitations-and-deferred-work/dev-note:
+  en: cf4510c1f7738467
+  zh: 2f6084ef88fc451e

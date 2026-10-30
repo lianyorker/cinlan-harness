@@ -33,6 +33,7 @@ kind: "package-group"
 | [`gateway/`](gateway/README.zh.md) | 承载带类型的单次调用、多路复用 stream 与转发的 Host 事件。 | `ctx.typertGateway` / `ctx.remote` |
 | [`account-controller/`](account-controller/README.zh.md) | 投影不含机密的授权状态、调用方持有的 prompt 与本地凭据删除。 | `ctx.accountController` / `ctx.remote.account` |
 | [`session-controller/`](session-controller/README.zh.md) | 拥有 Session 命令、历史 stream、实时控制状态与 Agent/Session 身份策略。 | `ctx.sessionController` / `ctx.remote.session` |
+| [`remote-access/`](remote-access/README.zh.md) | 决定非 owner Peer 可以调用哪些 Remote 方法，过滤列表结果，并为每个 Peer 推送其访问快照。 | `ctx.remoteAccess` / `ctx.remote.remoteAccess` |
 | [`settings-controller/`](settings-controller/README.zh.md) | 拥有 settings 域各 seam 之上的配置界面读写。 | `ctx.settingsController`、`ctx.credentialsController` / `ctx.remote.settings`、`ctx.remote.credentials` |
 | [`workspace-controller/`](workspace-controller/README.zh.md) | 拥有 Workspace 变更与完整 Client Workspace 投影。 | `ctx.workspaceController` / `ctx.remote.workspace` |
 | [`workspace-files/`](workspace-files/README.zh.md) | 拥有有界的工作区文件访问——`stat`、分页 `read`、`list` 与 agent 写入的 `changes` 流——以及其上的 Client `file` 资源提供者。 | `ctx.workspaceFiles` / `ctx.remote.workspaceFiles` |

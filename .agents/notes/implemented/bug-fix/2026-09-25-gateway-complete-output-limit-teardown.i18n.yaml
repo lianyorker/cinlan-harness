@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-25-gateway-complete-output-limit-teardown.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-25-gateway-complete-output-limit-teardown.md
-2026-09-25-gateway-complete-output-limit-teardown.md: 15fc9d7bbdf087ea2bfdde8d7f4a6c218563530e
-2026-09-25-gateway-complete-output-limit-teardown.zh.md: f5efd8197849f1ace7c63b39987739601f556b38
+/agent-note-gateway-complete-output-limits-terminate-carriers:
+  en: dc417ccd0245a1dc
+  zh: 7fcd3294029b6947
+/agent-note-gateway-complete-output-limits-terminate-carriers/problem:
+  en: 70052a85592ee2ac
+  zh: 1affe52bce662e3a
+/agent-note-gateway-complete-output-limits-terminate-carriers/decision:
+  en: 4e92ef0053b478ad
+  zh: 55892a10c9a51a7e
+/agent-note-gateway-complete-output-limits-terminate-carriers/alternatives-considered:
+  en: 0c2a851b0df7c479
+  zh: d4166f16bb6185db
+/agent-note-gateway-complete-output-limits-terminate-carriers/consequences:
+  en: f7e654115f509dd4
+  zh: 05d76110187a6e0f
+/agent-note-gateway-complete-output-limits-terminate-carriers/testing:
+  en: d87643ff33c847ef
+  zh: 4060bd9684837694

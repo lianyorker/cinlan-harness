@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-typert-import-value-queries.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-13-typert-import-value-queries.md
-2026-09-13-typert-import-value-queries.md: 7922780d99163ca7904182583b2b4d3d4fbfed8e
-2026-09-13-typert-import-value-queries.zh.md: dd00f801ff375075f292cb03a6d87e20c662f581
+/agent-note-typert-import-value-queries:
+  en: fd5f00eb4bfa9cb5
+  zh: d67777d2f49f4bb9
+/agent-note-typert-import-value-queries/problem:
+  en: db48acfa23ab5928
+  zh: cc1ff253a128d4d5
+/agent-note-typert-import-value-queries/decision:
+  en: ef1fe42878d76a10
+  zh: 31ec719087a06b17
+/agent-note-typert-import-value-queries/alternatives-considered:
+  en: a37840139d7dd506
+  zh: 3acf7e1bb08cb101
+/agent-note-typert-import-value-queries/consequences:
+  en: bf9fd2f62fd0015b
+  zh: b0017407a809c313

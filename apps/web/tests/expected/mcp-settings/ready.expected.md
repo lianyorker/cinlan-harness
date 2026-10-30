@@ -1,0 +1,58 @@
+- region "Settings":
+  - text: Settings
+  - navigation "Settings navigation":
+    - button "Back to app"
+    - searchbox "Search settings..."
+    - text: Ctrl / ⌘ K
+    - button "Configure models"
+    - button "Personal" [expanded]
+    - button "Model service account"
+    - button "General"
+    - button "Workspace layout"
+    - button "Notifications"
+    - button "Voice"
+    - button "Keybindings"
+    - button "Floating Workspace"
+    - button "Agents" [expanded]
+    - button "Agent presets"
+    - button "Subagents"
+    - button "Limits"
+    - button "Orchestration"
+    - button "Workspace" [expanded]
+    - button "Git & Source Control"
+    - button "Terminal"
+    - button "Terminal quick commands"
+    - button "Worktree tasks"
+    - button "Execution & security" [expanded]
+    - button "Automation tasks"
+    - button "SSH hosts"
+    - button "Tools & devices" [expanded]
+    - button "Models"
+    - button "Mobile emulator"
+    - button "Mobile"
+    - button "Connections & extensions" [expanded]
+    - button "MCP"
+    - button "Integrations"
+    - button "Web search"
+    - button "Data & advanced" [expanded]
+    - button "Runtime diagnostics"
+    - button "Archived sessions"
+    - button "Usage"
+  - text: Connections & extensions
+  - strong: MCP
+  - button "Open configuration file"
+  - heading "MCP" [level=1]
+  - paragraph: Manage servers for the current profile.
+  - heading "Server list" [level=2]
+  - paragraph: Saved enabled state and live connection status are shown separately.
+  - button "Add server"
+  - article "ui_live_fixture":
+    - heading "ui_live_fixture" [level=3]
+    - paragraph: Streamable HTTP
+    - paragraph: "Saved state: Enabled"
+    - paragraph: "Connection: Ready"
+    - switch "Enable ui_live_fixture" [checked]
+    - button "Edit ui_live_fixture": Edit
+    - button "Reconnect"
+    - button "Refresh tools"
+    - button "Remove ui_live_fixture": Remove

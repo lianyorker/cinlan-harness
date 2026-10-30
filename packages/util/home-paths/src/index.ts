@@ -170,3 +170,50 @@ export function dshCachePath(optionsOrSegment: { clhHome?: string; dshHome?: str
 
 /** @deprecated Use {@link clhHomeDisplay}. */
 export const dshHomeDisplay = clhHomeDisplay
+
+/** Directory name for the default shared agent configuration root under the OS home. */
+export const AGENTS_HOME_DIR_NAME = '.agents'
+
+/** Stable user-facing display form for the default shared agent configuration root. */
+export const DEFAULT_AGENTS_HOME_DISPLAY = `~/${AGENTS_HOME_DIR_NAME}`
+
+/** Environment variable that overrides the default shared agent configuration root. */
+export const AGENTS_HOME_ENV = 'DSH_AGENTS_HOME'
+
+/**
+ * Resolve the default shared agent configuration root using Node's platform path rules.
+ * @returns the absolute default shared agent configuration root.
+ */
+export function defaultAgentsHome(): string {
+  return join(homedir(), AGENTS_HOME_DIR_NAME)
+}
+
+/**
+ * Resolve the shared agent configuration root.
+ *
+ * Precedence, highest first: an explicit configured path, `$DSH_AGENTS_HOME`,
+ * then `~/.agents`. The root holds configuration shared with other agent tools,
+ * so it stays independent of the Cinlan Harness home. An empty or
+ * whitespace-only `$DSH_AGENTS_HOME` is treated as unset, so a blank override
+ * never resolves the root to the current working directory.
+ * @param configured - explicit shared-root override, which has highest precedence.
+ * @param env - environment mapping used to read `DSH_AGENTS_HOME`.
+ * @returns the normalized absolute shared agent configuration root.
+ */
+export function resolveAgentsHome(configured?: string, env: Record<string, string | undefined> = process.env): string {
+  const fromEnv = env[AGENTS_HOME_ENV]?.trim()
+  const selected = configured ?? (fromEnv !== undefined && fromEnv.length > 0 ? fromEnv : undefined) ?? defaultAgentsHome()
+  return resolve(expandHomePath(selected))
+}
+
+/**
+ * Describe a resolved shared agent configuration root symbolically for user-facing display.
+ *
+ * It never returns an absolute machine path: the default root is labelled
+ * `~/.agents`, and any configured root is labelled `$DSH_AGENTS_HOME`.
+ * @param resolvedHome - the absolute path returned by {@link resolveAgentsHome}.
+ * @returns `~/.agents` for the default root, otherwise `$DSH_AGENTS_HOME`.
+ */
+export function agentsHomeDisplay(resolvedHome: string): string {
+  return resolvedHome === resolve(defaultAgentsHome()) ? DEFAULT_AGENTS_HOME_DISPLAY : `$${AGENTS_HOME_ENV}`
+}

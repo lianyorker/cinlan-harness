@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/git/git-local/README.md
-README.md: 92492cc0ce480e75073e9c8b56b9cb1fccb684b7
-README.zh.md: 66ae0ae0da996e65450f98aa2b7b2b218f5a9158
+/:
+  en: 8ac6ec875125a737
+  zh: 52f5296bcde1b4ee
+/deepseek-ai-dsh-git-local:
+  en: 46ecbf59a2eb8745
+  zh: 458db649ed23c230
+/deepseek-ai-dsh-git-local/summary:
+  en: 5bd95966cf00e402
+  zh: e5c6de0efe4295fc
+/deepseek-ai-dsh-git-local/table-of-contents:
+  en: 6bf715e2ff6b5b2c
+  zh: 131ec20739bf3bae
+/deepseek-ai-dsh-git-local/use-this-package:
+  en: b57cce87e8cbc1ae
+  zh: baccd780a25cffe9
+/deepseek-ai-dsh-git-local/config:
+  en: 5c5039a4321747c7
+  zh: 2d170bf69e2fc529
+/deepseek-ai-dsh-git-local/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/deepseek-ai-dsh-git-local/model-experience/request-context-and-condition:
+  en: cd8530c72534ee6b
+  zh: cd8530c72534ee6b
+/deepseek-ai-dsh-git-local/model-experience/request-context-and-condition/what-the-model-sees:
+  en: e4aa9cfeab3f4ac8
+  zh: a08d8b017a26d609
+/deepseek-ai-dsh-git-local/model-experience/request-context-and-condition/token-effect:
+  en: 370b8e8ce5317c16
+  zh: a0eb3f1d0a5daa16
+/deepseek-ai-dsh-git-local/model-experience/request-context-and-condition/kv-cache-effect:
+  en: b3f4e48601d4c1a2
+  zh: c7e67df2657b1eee
+/deepseek-ai-dsh-git-local/known-limitations-and-deferred-work:
+  en: 97d72d899a63ec37
+  zh: 21c00129974fe9a0
+/deepseek-ai-dsh-git-local/known-limitations-and-deferred-work/dev-note:
+  en: 47ab42a178bdad07
+  zh: 713eadc03605e4fc

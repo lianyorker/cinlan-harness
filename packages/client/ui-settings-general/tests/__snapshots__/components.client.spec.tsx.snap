@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`AutomaticTitlesRow > presents the automatic title control with its model-call explanation 1`] = `"Update session titles automaticallyUse the model to update titles from human messages, with extra model calls. Turning this off keeps existing titles and explicit regeneration."`;
+
+exports[`ContentSearchRow > presents the accepted search value and explains index retention 1`] = `"Search session contentsSearch session contents with a local index. Turning this off keeps the existing index and Session reads. Deployment restrictions still apply."`;
+
+exports[`InspectorCaptureControl > requires explicit risk acknowledgement for each enabling write and preserves accepted state 1`] = `"Request Host fetch captureApplies only to an already loaded Inspector; does not start debugging. Capture is unredacted. Disabling does not clear retained records. This is saved configuration, not runtime status. Check Host logs on apply failure, disable, then retry."`;
+
+exports[`InspectorCaptureControl > requires explicit risk acknowledgement for each enabling write and preserves accepted state 2`] = `"Confirm unredacted network captureCapture collects this Host’s later fetch URLs, headers, and request and response bodies, which may contain credentials, cookies, and private content. Debugger access can read these records. Disabling capture does not delete collected data.I understand the sensitive-data risk and consent to trusted diagnostic captureCancelSave capture request"`;
+
+exports[`RalphSettingsControl > shows default-off admission and validates and saves a round ceiling without starting work 1`] = `"Allow Ralph iterationOff by default. Enabling exposes the tool in supported presets but still requires an explicit human request. Disabling withdraws it and cancels active Ralph work, not ordinary Session tasks.Maximum rounds per Ralph callA positive integer, also bounded by the preset ceiling. Changes do not revise calls already started.Save rounds"`;

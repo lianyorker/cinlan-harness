@@ -1,0 +1,17 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`running and lock semantics > shows the registered Stop sequence on 'focus' and removes it when unavailable > focus Stop tooltip 1`] = `
+{
+  "label": "Stop generating Esc Esc",
+  "portal": "true",
+  "text": "Stop generatingEscEsc",
+}
+`;
+
+exports[`running and lock semantics > shows the registered Stop sequence on 'hover' and removes it when unavailable > hover Stop tooltip 1`] = `
+{
+  "label": "停止生成 Esc Esc",
+  "portal": "true",
+  "text": "停止生成EscEsc",
+}
+`;

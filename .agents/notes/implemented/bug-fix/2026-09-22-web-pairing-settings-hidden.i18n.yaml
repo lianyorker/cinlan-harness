@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-22-web-pairing-settings-hidden.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-web-pairing-settings-hidden.md
-2026-09-22-web-pairing-settings-hidden.md: c3a78ce525f2225c0560c2583ccb42e0c1ab3840
-2026-09-22-web-pairing-settings-hidden.zh.md: c3ebeff09aac7486221d53472650f20257a6dccd
+/agent-note-hide-desktop-phone-pairing-settings-from-web:
+  en: cd9ed792200c5a90
+  zh: 4c1a3e2152558272
+/agent-note-hide-desktop-phone-pairing-settings-from-web/problem:
+  en: 47fc18a76a002682
+  zh: dac4dded09d5c54c
+/agent-note-hide-desktop-phone-pairing-settings-from-web/decision:
+  en: 82a90e52a5907d34
+  zh: b1ff49856dbc4317
+/agent-note-hide-desktop-phone-pairing-settings-from-web/alternatives-considered:
+  en: 3338d17fb9fd0b8b
+  zh: d6130fb629d22f9f
+/agent-note-hide-desktop-phone-pairing-settings-from-web/consequences:
+  en: 6929003086b47f54
+  zh: 5dfe16b96fc9eae9

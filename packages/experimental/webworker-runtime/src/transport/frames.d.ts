@@ -4,38 +4,38 @@
  * @module @deepseek-ai/dsh-experimental-webworker-runtime/src/transport/frames
  */
 /** Request identifier minted by the page. */
-export type TunnelRequestId = string | number;
+export type TunnelRequestId = string | number
 /** One request; `body` carries cloneable or transferable raw bytes. */
 export interface TunnelRequestFrame {
-    readonly t: 'req';
-    readonly id: TunnelRequestId;
-    readonly method: string;
-    readonly url: string;
-    readonly headers: Readonly<Record<string, string>>;
-    readonly body?: ArrayBuffer | Blob | ReadableStream<Uint8Array> | undefined;
+  readonly t: 'req'
+  readonly id: TunnelRequestId
+  readonly method: string
+  readonly url: string
+  readonly headers: Readonly<Record<string, string>>
+  readonly body?: ArrayBuffer | Blob | ReadableStream<Uint8Array> | undefined
 }
 /** Open one Gateway Remote stream over the worker-local carrier. */
 export interface TunnelStreamOpenFrame {
-    readonly t: 'stream-open';
-    readonly id: TunnelRequestId;
-    readonly endpoint: string;
-    readonly payload: unknown;
+  readonly t: 'stream-open'
+  readonly id: TunnelRequestId
+  readonly endpoint: string
+  readonly payload: unknown
 }
 /** One uplink item for an open Remote stream; `value` absent and `undefined` are equivalent. */
 export interface TunnelStreamUplinkItemFrame {
-    readonly t: 'stream-uplink-item';
-    readonly id: TunnelRequestId;
-    readonly value?: unknown;
+  readonly t: 'stream-uplink-item'
+  readonly id: TunnelRequestId
+  readonly value?: unknown
 }
 /** Page-side half-close of a Remote stream's uplink. */
 export interface TunnelStreamUplinkEndFrame {
-    readonly t: 'stream-uplink-end';
-    readonly id: TunnelRequestId;
+  readonly t: 'stream-uplink-end'
+  readonly id: TunnelRequestId
 }
 /** Page-side cancellation of an in-flight request or stream. */
 export interface TunnelAbortFrame {
-    readonly t: 'abort';
-    readonly id: TunnelRequestId;
+  readonly t: 'abort'
+  readonly id: TunnelRequestId
 }
 /** Frames the worker accepts. */
 /**
@@ -43,84 +43,84 @@ export interface TunnelAbortFrame {
  * before the worker assembly starts.
  */
 export interface TunnelInitFrame {
-    readonly t: 'init';
-    readonly image: string;
-    readonly overlays: readonly string[];
+  readonly t: 'init'
+  readonly image: string
+  readonly overlays: readonly string[]
 }
 /** Every frame the page sends the worker. */
-export type TunnelInboundFrame = TunnelInitFrame | TunnelRequestFrame | TunnelStreamOpenFrame | TunnelStreamUplinkItemFrame | TunnelStreamUplinkEndFrame | TunnelAbortFrame;
+export type TunnelInboundFrame = TunnelInitFrame | TunnelRequestFrame | TunnelStreamOpenFrame | TunnelStreamUplinkItemFrame | TunnelStreamUplinkEndFrame | TunnelAbortFrame
 /** Complete response for unary requests and static files. */
 export interface TunnelResponseFrame {
-    readonly t: 'res';
-    readonly id: TunnelRequestId;
-    readonly status: number;
-    readonly headers: Record<string, string>;
-    readonly body?: ArrayBuffer | undefined;
-    /** Present when the worker itself refused the request, so the page can surface the reason. */
-    readonly message?: string | undefined;
+  readonly t: 'res'
+  readonly id: TunnelRequestId
+  readonly status: number
+  readonly headers: Record<string, string>
+  readonly body?: ArrayBuffer | undefined
+  /** Present when the worker itself refused the request, so the page can surface the reason. */
+  readonly message?: string | undefined
 }
 /** Head of a streamed response, followed by chunks and one terminator. */
 export interface TunnelResponseHeadFrame {
-    readonly t: 'res-head';
-    readonly id: TunnelRequestId;
-    readonly status: number;
-    readonly headers: Record<string, string>;
+  readonly t: 'res-head'
+  readonly id: TunnelRequestId
+  readonly status: number
+  readonly headers: Record<string, string>
 }
 /** One body chunk of a streamed response. */
 export interface TunnelResponseChunkFrame {
-    readonly t: 'res-chunk';
-    readonly id: TunnelRequestId;
-    readonly chunk: ArrayBuffer;
+  readonly t: 'res-chunk'
+  readonly id: TunnelRequestId
+  readonly chunk: ArrayBuffer
 }
 /** Normal end of a streamed response. */
 export interface TunnelResponseEndFrame {
-    readonly t: 'res-end';
-    readonly id: TunnelRequestId;
+  readonly t: 'res-end'
+  readonly id: TunnelRequestId
 }
 /** Failure of a streamed response after its head was sent. */
 export interface TunnelResponseErrorFrame {
-    readonly t: 'res-err';
-    readonly id: TunnelRequestId;
-    readonly message: string;
+  readonly t: 'res-err'
+  readonly id: TunnelRequestId
+  readonly message: string
 }
 /** One decoded value from a worker-local Gateway Remote stream. */
 export interface TunnelStreamItemFrame {
-    readonly t: 'stream-item';
-    readonly id: TunnelRequestId;
-    readonly value?: unknown;
+  readonly t: 'stream-item'
+  readonly id: TunnelRequestId
+  readonly value?: unknown
 }
 /** Normal completion of a worker-local Gateway Remote stream. */
 export interface TunnelStreamEndFrame {
-    readonly t: 'stream-end';
-    readonly id: TunnelRequestId;
+  readonly t: 'stream-end'
+  readonly id: TunnelRequestId
 }
 /** Stable Host failure or worker-carrier failure for one logical stream. */
 export interface TunnelStreamErrorFrame {
-    readonly t: 'stream-error';
-    readonly id: TunnelRequestId;
-    readonly failure: {
-        readonly kind: 'remote';
-        readonly code: string;
-        readonly message: string;
-        readonly details: object;
-    } | {
-        readonly kind: 'carrier';
-        readonly message: string;
-    };
+  readonly t: 'stream-error'
+  readonly id: TunnelRequestId
+  readonly failure: {
+    readonly kind: 'remote'
+    readonly code: string
+    readonly message: string
+    readonly details: object
+  } | {
+    readonly kind: 'carrier'
+    readonly message: string
+  }
 }
 /** Worker request to show one VFS text file in the page's read-only viewer; no reply follows. */
 export interface TunnelViewTextFrame {
-    readonly t: 'view-text';
-    /** Absolute VFS path, shown as the viewer title. */
-    readonly path: string;
-    readonly text: string;
+  readonly t: 'view-text'
+  /** Absolute VFS path, shown as the viewer title. */
+  readonly path: string
+  readonly text: string
 }
 /** Frames the worker emits. */
-export type TunnelOutboundFrame = TunnelViewTextFrame | TunnelResponseFrame | TunnelResponseHeadFrame | TunnelResponseChunkFrame | TunnelResponseEndFrame | TunnelResponseErrorFrame | TunnelStreamItemFrame | TunnelStreamEndFrame | TunnelStreamErrorFrame;
+export type TunnelOutboundFrame = TunnelViewTextFrame | TunnelResponseFrame | TunnelResponseHeadFrame | TunnelResponseChunkFrame | TunnelResponseEndFrame | TunnelResponseErrorFrame | TunnelStreamItemFrame | TunnelStreamEndFrame | TunnelStreamErrorFrame
 /**
  * Validate a `postMessage` payload as a tunnel frame.
  * @param data - Message data received by the worker.
  * @returns The frame.
  */
-export declare function parseInboundFrame(data: unknown): TunnelInboundFrame;
+export declare function parseInboundFrame(data: unknown): TunnelInboundFrame
 //# sourceMappingURL=frames.d.ts.map

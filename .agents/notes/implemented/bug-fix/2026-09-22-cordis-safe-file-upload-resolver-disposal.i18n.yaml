@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-22-cordis-safe-file-upload-resolver-disposal.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-cordis-safe-file-upload-resolver-disposal.md
-2026-09-22-cordis-safe-file-upload-resolver-disposal.md: 967436eefe0769c9e0c8cf493c4ed575acfdc31a
-2026-09-22-cordis-safe-file-upload-resolver-disposal.zh.md: fd1bb39008a63d9f611ccfca21ab2b3fb0965d24
+/agent-note-cordis-safe-fileuploads-resolver-disposal:
+  en: 718c6462891316a0
+  zh: 4942ae626bbab3e0
+/agent-note-cordis-safe-fileuploads-resolver-disposal/problem:
+  en: 3012c9beb8e906b2
+  zh: 9833e622ba1f9901
+/agent-note-cordis-safe-fileuploads-resolver-disposal/decision:
+  en: 4a678cb284c77876
+  zh: b43b223a42882df8
+/agent-note-cordis-safe-fileuploads-resolver-disposal/alternatives-considered:
+  en: 0ff24debe4bb8a28
+  zh: 8716e51b8f63a54a
+/agent-note-cordis-safe-fileuploads-resolver-disposal/consequences:
+  en: d0307e67454e76c6
+  zh: 83e710294d21a2a2
+/agent-note-cordis-safe-fileuploads-resolver-disposal/verification:
+  en: a3301bbf4c270415
+  zh: aa4fffa880b55f93

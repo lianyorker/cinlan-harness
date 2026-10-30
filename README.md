@@ -63,6 +63,7 @@ pnpm clh --help
 
 - Submit feedback or bug reports through [GitHub Issues and Discussions](https://github.com/lianyorker/cinlan-harness/issues).
 - Fork and star on [GitHub](https://github.com/lianyorker/cinlan-harness).
+- Join <a href="https://discord.gg/4MrtZUhpxg">Cinlan Harness Discord community</a>.
 
 ## Contributing
 

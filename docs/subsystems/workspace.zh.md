@@ -27,9 +27,10 @@ type WorkspaceId = Branded<'WorkspaceId'>
 ```ts type-equiv
 /**
  * One workspace: a stable id over an existing directory, a display title, and
- * an ordered candidate account of sessions. Membership requires both an id in
- * that account and a session header whose canonical cwd equals the workspace
- * path. Consumers only see this interface; the implementation stays private.
+ * an ordered candidate account of sessions. Membership validates header cwd
+ * against the workspace path, but preserves an existing account when its
+ * fully qualified cwd is missing. Consumers only see this interface; the
+ * implementation stays private.
  */
 interface Workspace {
   /** Stable record id (generated uuid). */
@@ -59,8 +60,11 @@ interface Workspace {
    * prepended at attach, explicit reordering goes through
    * `insertSessionBefore`, and activity never reorders. The durable candidate
    * account is filtered synchronously: missing headers, invalid cwd values,
-   * execution binding differences, and canonical cwd mismatches are never returned. A subsequent workspace
-   * mutation prunes those filtered candidates durably.
+   * and canonical cwd mismatches are never returned. A fully qualified cwd
+   * whose realpath or directory stat fails with ENOENT preserves an existing
+   * candidate, including a dangling symlink; other filesystem failures do not.
+   * A subsequent mutation prunes filtered candidates, not missing-directory
+   * candidates. This does not admit new sessions or recreate directories.
    */
   readonly sessionIds: readonly SessionId[]
 
@@ -122,7 +126,7 @@ interface Workspace {
 }
 ```
 
-所有权的真源是记录中有序的 `sessionIds`，绝不从会话 cwd 派生——但成员资格要求两者同时成立：账本上有其 id，且 header 的规范 cwd 等于工作区路径，因此一个会话在结构上至多属于一个工作区。失败的写入会拒绝（`insertSessionBefore` 的账本错误以 `WorkspaceMoveInvalidError` 拒绝，存储失败以普通错误拒绝）；每次被接受的变更都盖上 `updatedAt` 时间戳，并持久修剪不再通过成员资格检查的候选项。
+所有权的真源是记录中有序的 `sessionIds`，绝不从会话 cwd 派生。成员资格将记录的 header cwd 与工作区路径校验；已有候选的完全限定 cwd 在路径解析或目录 stat 时返回 `ENOENT`，仍保留其归属。这会保留目录缺失或符号链接失效时的记账关系，但不会接纳新会话。失败的写入会拒绝（`insertSessionBefore` 的账本错误以 `WorkspaceMoveInvalidError` 拒绝，存储失败以普通错误拒绝）；每次被接受的变更都盖上 `updatedAt` 时间戳，并持久修剪不再通过成员资格检查的候选项。
 
 ## 注册表：`ctx.workspaceRegistry`
 
@@ -295,11 +299,18 @@ A provider lifetime owns all converters, queued calls, and temporary files.
 
 ```ts cordis-catalog
 /**
- * Convert Office bytes without modifying the source or writing Session events.
- * @param request - authorized metadata and deferred bounded source read.
- * @param signal - caller cancellation; provider disposal also stops active work.
- * @returns caller-owned PDF bytes after conversion and scratch cleanup settle; canceled readers reject independently.
- * @throws {OfficeToPdfError} Invalid input, unusable output, or engine failure; cancellation rejects with its reason.
+ * Read the Session's current directory and terminal limits without filesystem validation or shell lookup.
+ * @param agent - Session owner supplied by the Gateway.
+ * @param signal - request cancellation.
+ * @returns the logged current directory and terminal limits; retained terminals keep their own process directories.
+ */
+@Remote environment(agent: Agent, signal: AbortSignal): TerminalEnvironment
+
+/**
+ * Discover installed shells in the Session's execution environment.
+ * @param agent - Session owner supplied by the Gateway.
+ * @param signal - request cancellation.
+ * @returns verified profiles, with the configured or system default first.
  */
 convert(request: OfficeToPdfRequest, signal?: AbortSignal): Promise<OfficeToPdfResult>
 
@@ -318,10 +329,44 @@ convert(request: OfficeToPdfRequest, signal?: AbortSignal): Promise<OfficeToPdfR
  * @param signal - Remote caller cancellation.
  * @returns provider lifetime, replaced with rendering, font, or engine configuration.
  */
-@Remote('generation') getGeneration(signal: AbortSignal): OfficeToPdfGeneration
+@Remote async create(agent: Agent, request: TerminalCreateRequest, signal: AbortSignal): Promise<WebTerminalInfo>
+
+/**
+ * Retain an existing terminal for a window without activating its Agent or taking input control.
+ * @param sessionId - owning Session identity, including an inactive saved layout.
+ * @param id - retained Host terminal identity.
+ * @param signal - physical Remote stream cancellation.
+ * @returns a hold acknowledgement followed by an open lifetime stream.
+ */
+@Remote({ mode: 'stream' }) retain(sessionId: SessionId, id: WebTerminalId, signal: AbortSignal): AsyncIterable<TerminalRetentionFrame>
+
+/**
+ * Attach terminal input and output to one physical Remote stream.
+ * @param agent - Session owner supplied by the Gateway.
+ * @param id - terminal identity.
+ * @param signal - attachment cancellation; the process remains alive and input is never replayed.
+ * @returns screen recovery, output, writable state and provider-acceptance acknowledgements.
+ */
+@Remote({ mode: 'stream' }) attach(agent: Agent, id: WebTerminalId, signal: AbortSignal): RemoteStream<TerminalFrame, TerminalInput>
+
+/**
+ * Rename a terminal without changing its shell.
+ * @param agent - Session owner supplied by the Gateway.
+ * @param id - terminal identity.
+ * @param title - nonempty display title, at most 120 characters.
+ */
+@Remote rename(agent: Agent, id: WebTerminalId, title: string): void
+
+/**
+ * Close an identity to future creation and kill its process range; repeated closes succeed.
+ * @param agent - Session owner supplied by the Gateway.
+ * @param id - terminal identity.
+ * @returns after provider cleanup succeeds. A failure retains the terminal for retry.
+ */
+@Remote async close(agent: Agent, id: WebTerminalId): Promise<void>
 ```
 
-Types: [Agent](core.zh.md) · [OfficeToPdfGeneration](../../packages/document/office-to-pdf/README.zh.md#use-this-package) · [OfficeToPdfPriority](../../packages/document/office-to-pdf/README.zh.md#use-this-package) · [OfficeToPdfRequest](../../packages/document/office-to-pdf/README.zh.md#use-this-package) · [OfficeToPdfResult](../../packages/document/office-to-pdf/README.zh.md#use-this-package) · [RenderedDocumentBytes](../../packages/document/office-to-pdf/README.zh.md#use-this-package)
+Types: [Agent](core.zh.md) · [RemoteStream](typert.zh.md) · [SessionId](core.zh.md)
 
 Source: [`packages/document/office-to-pdf/src/index.ts`](../../packages/document/office-to-pdf/src/index.ts)
 
@@ -382,11 +427,31 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 @Remote('unarchiveSession') unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<WorkspaceArchiveValue>
 
 /**
- * Stream a complete Workspace baseline followed by ordered increments.
+ * Surface one known unarchived Session ahead of unpinned Sessions.
+ * @param request - Session identity to pin.
+ * @returns the complete resulting pin set, most recently pinned first.
+ */
+@Remote('pinSession') pinSession(request: WorkspacePinSessionRequest): Promise<WorkspacePinValue>
+
+/**
+ * Remove one Session's pin without changing its saved Session order.
+ * @param request - Session identity to unpin.
+ * @returns the complete resulting pin set, most recently pinned first.
+ */
+@Remote('unpinSession') unpinSession(request: WorkspaceUnpinSessionRequest): Promise<WorkspacePinValue>
+
+/**
+ * Stream a complete Workspace baseline followed by ordered increments. A
+ * non-owner receives only the Workspaces and Sessions `allows()` admits.
+ * When a delivered Workspace is no longer admitted at its next change or
+ * the next order change, the stream sends a `replace` frame with the
+ * complete filtered state instead of a `remove`, because a Client never
+ * resurrects a removed Workspace; a `remove` frame reports a deletion and
+ * reaches only a Client that received that Workspace.
  * @param signal - generation cancellation.
  * @returns baseline followed by ordered Workspace increments.
  */
-@Remote({ mode: 'stream' }) follow(signal: AbortSignal): AsyncIterable<WorkspaceFollowFrame>
+@Remote({ mode: 'stream' }) async *follow(signal: AbortSignal): AsyncIterable<WorkspaceFollowFrame>
 ```
 
 Types: [WorkspaceUnarchiveSessionRequest](../../packages/api/workspace-controller/README.zh.md#use-this-package)

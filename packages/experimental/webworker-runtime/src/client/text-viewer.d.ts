@@ -4,5 +4,5 @@
  * @param path - Absolute VFS path used as the title.
  * @param text - File contents, rendered as plain text.
  */
-export declare function showTextViewer(path: string, text: string): void;
+export declare function showTextViewer(path: string, text: string): void
 //# sourceMappingURL=text-viewer.d.ts.map

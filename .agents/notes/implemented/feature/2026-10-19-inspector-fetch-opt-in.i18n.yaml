@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-19-inspector-fetch-opt-in.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-19-inspector-fetch-opt-in.md
+/agent-note-explicit-inspector-fetch-capture:
+  en: 7986150aa04aa8ff
+  zh: 79fa6d97436d3f43
+/agent-note-explicit-inspector-fetch-capture/problem:
+  en: e707ef3181c4c480
+  zh: 2123b3f627537f82
+/agent-note-explicit-inspector-fetch-capture/decision:
+  en: 1997b85646b754ae
+  zh: 3a6c0b058c6c45ad
+/agent-note-explicit-inspector-fetch-capture/alternatives-considered:
+  en: cb573aed83035de8
+  zh: a509fcd37beb6514
+/agent-note-explicit-inspector-fetch-capture/consequences:
+  en: dc68434d84252706
+  zh: 200c55107a441307

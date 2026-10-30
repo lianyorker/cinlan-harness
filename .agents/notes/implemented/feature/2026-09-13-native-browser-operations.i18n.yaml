@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-native-browser-operations.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-native-browser-operations.md
-2026-09-13-native-browser-operations.md: 6af07497c1b3b10b107537d9d0826709048ee0a6
-2026-09-13-native-browser-operations.zh.md: 7c8710436a79e28a3ef8b8e5e03d54cdfc004b27
+/agent-note-native-browser-operations-and-profile-data-ownership:
+  en: 72f72e228efad055
+  zh: 3ad0b87002dcc484
+/agent-note-native-browser-operations-and-profile-data-ownership/problem:
+  en: 5cd43e0722a7d051
+  zh: 5ed21169862a0c96
+/agent-note-native-browser-operations-and-profile-data-ownership/decision:
+  en: ac7bdd30265534d9
+  zh: 385f725c41417148
+/agent-note-native-browser-operations-and-profile-data-ownership/alternatives-considered:
+  en: ee5c2ea15d96bbef
+  zh: c31e557a32271cb4
+/agent-note-native-browser-operations-and-profile-data-ownership/consequences:
+  en: ab3d7bdd9a43cf59
+  zh: d1822d259260d930
+/agent-note-native-browser-operations-and-profile-data-ownership/verification:
+  en: 3e8be1c1375c6e78
+  zh: 51672c1c40c3c01a

@@ -116,6 +116,8 @@ export interface SlotScopeTargetMap {}
 export interface SlotEntryDef {
   kind: SlotKind
   scope: SlotScope
+  /** Use span anchors and error placeholders for inline content; omitted uses div. */
+  inline?: true
   owner?: object
   /**
    * Ordered tuple of domain-owned phases for a chain slot. When declared,
@@ -169,6 +171,8 @@ export interface SlotFactoryDef {
 export type SlotSpec<E extends SlotEntryDef> = {
   kind: E['kind']
   scope: E['scope']
+  /** Use span anchors and error placeholders for inline content; omitted uses div. */
+  inline?: true
   /** Use span anchors and error placeholders for inline content; omitted uses div. */
   inline?: true
 } & ('phases' extends keyof E

@@ -1,6 +1,34 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/terminal/sidebar-terminals/README.md
-README.md: ff0fb1e77462100c7a408e8b659faaca7810f957
-README.zh.md: a2fd33302e989d0aee58fd9e69bb202e369a1606
+/:
+  en: b12acb839442c4e3
+  zh: 671c08c06d92c0b0
+/deepseek-ai-dsh-sidebar-terminals:
+  en: 0b32799da80afb80
+  zh: 29594ff5678996da
+/deepseek-ai-dsh-sidebar-terminals/summary:
+  en: ace956730009e980
+  zh: a57350bdaf4fd9ae
+/deepseek-ai-dsh-sidebar-terminals/table-of-contents:
+  en: d8958e8293193414
+  zh: 0b08259411a2ae39
+/deepseek-ai-dsh-sidebar-terminals/ownership-and-lifetime:
+  en: 3b1f4e861f043dd4
+  zh: 8654db0c72961205
+/deepseek-ai-dsh-sidebar-terminals/floating-windows:
+  en: f1a6aa887c636b48
+  zh: 26a23fddd463d887
+/deepseek-ai-dsh-sidebar-terminals/model-experience:
+  en: 2ebaaa81821957c9
+  zh: efe36a720fab1bf2
+/deepseek-ai-dsh-sidebar-terminals/model-experience/kv-cache-effect:
+  en: 80cb16aaa61b7cb1
+  zh: 23a7b5a553101a93
+/deepseek-ai-dsh-sidebar-terminals/known-limitations-and-deferred-work:
+  en: 6e8761c054921086
+  zh: 6fc8802ff13c7fe9
+/deepseek-ai-dsh-sidebar-terminals/known-limitations-and-deferred-work/dev-note:
+  en: 7aea9538789d8657
+  zh: c7d66ea765021597

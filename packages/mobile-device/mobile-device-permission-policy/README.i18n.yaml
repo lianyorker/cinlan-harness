@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/mobile-device/mobile-device-permission-policy/README.md
-README.md: de3b59f40817bebfbf8e47291edf3d465fca2c40
-README.zh.md: ea3323f38216342d64f253ce508504b370b34f95
+/:
+  en: 267ba1243b5ddf8f
+  zh: 3c18abfa891a09bf
+/deepseek-ai-dsh-mobile-device-permission-policy:
+  en: 024cdaf0be0ce98a
+  zh: aac886f86d2368d0
+/deepseek-ai-dsh-mobile-device-permission-policy/summary:
+  en: d0f7f1df70dcc59b
+  zh: f8453e905270a886
+/deepseek-ai-dsh-mobile-device-permission-policy/table-of-contents:
+  en: 06759ea6cf15280c
+  zh: 41f7c91dc7eeb743
+/deepseek-ai-dsh-mobile-device-permission-policy/use-this-package:
+  en: 8b21fd67d9c88476
+  zh: 85548f7b02869213
+/deepseek-ai-dsh-mobile-device-permission-policy/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-mobile-device-permission-policy/model-experience/permission-decisions:
+  en: 2e6d83c846a3a5e1
+  zh: 8d4339c26f3d8f68
+/deepseek-ai-dsh-mobile-device-permission-policy/model-experience/permission-decisions/what-the-model-sees:
+  en: 31afb2206fc3f8d1
+  zh: c8d5659f1aca1236
+/deepseek-ai-dsh-mobile-device-permission-policy/model-experience/permission-decisions/token-effect:
+  en: 3a67ad61f882a709
+  zh: 161fcf37d86a6641
+/deepseek-ai-dsh-mobile-device-permission-policy/model-experience/permission-decisions/kv-cache-effect:
+  en: 89299adb8f7d40a9
+  zh: 320f213042fd77dd
+/deepseek-ai-dsh-mobile-device-permission-policy/known-limitations-and-deferred-work:
+  en: 6afc13dbb863d263
+  zh: 31f94f10f814af28
+/deepseek-ai-dsh-mobile-device-permission-policy/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

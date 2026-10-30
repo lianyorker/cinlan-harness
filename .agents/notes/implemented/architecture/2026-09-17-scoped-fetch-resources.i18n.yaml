@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-scoped-fetch-resources.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-scoped-fetch-resources.md
-2026-09-17-scoped-fetch-resources.md: 96fe5545a4e1b62e8a767a5201f6f29f911f9649
-2026-09-17-scoped-fetch-resources.zh.md: 464bf3755cb9b151f2eb3dceff6a84f1a0eee039
+/agent-note-scoped-fetch-resource-paths-on-connection:
+  en: 080eb06063405f59
+  zh: 46bb776c22fbaead
+/agent-note-scoped-fetch-resource-paths-on-connection/problem:
+  en: 805d6db6d707b0c5
+  zh: dc5bc3b809dd8a40
+/agent-note-scoped-fetch-resource-paths-on-connection/decision:
+  en: cd2349615d60f59c
+  zh: 09141de8457d9224
+/agent-note-scoped-fetch-resource-paths-on-connection/alternatives-considered:
+  en: d25424ace6732687
+  zh: 7c6ff7078ab341bb
+/agent-note-scoped-fetch-resource-paths-on-connection/consequences:
+  en: eb90337d8de3c246
+  zh: f736e761b2ad9edd
+/agent-note-scoped-fetch-resource-paths-on-connection/testing:
+  en: ae38ba0c5b03a4ad
+  zh: 3eb64d109b6a6fb1

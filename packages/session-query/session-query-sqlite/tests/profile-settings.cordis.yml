@@ -1,0 +1,9 @@
+- id: sessions
+  name: 'cordis:search-test-sessions'
+- id: projections
+  name: 'cordis:search-test-projections'
+- id: session-query-sqlite
+  name: 'cordis:search-test-service'
+  config:
+    path: ':memory:'
+    openAt: first-search

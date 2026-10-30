@@ -158,7 +158,6 @@ describe('web e2e: Markdown image rendering', () => {
   let browser: Browser
   let page: Page
   let tripwire: ReturnType<typeof watchConsole>
-  let unpinBrowserClock: (() => void) | undefined
   const mediaResponses = new Map<string, number>()
 
   beforeAll(async () => {
@@ -168,7 +167,8 @@ describe('web e2e: Markdown image rendering', () => {
     await writeFile(join(scaffold.workspaceCwd, 'corrupt.png'), 'invalid image')
     const oversized = await open(join(scaffold.workspaceCwd, 'oversized.png'), 'w')
     try {
-      await oversized.truncate(20 * 1024 * 1024 + 1)
+      // One byte over attachment-local's default maxImageBytes (50 MiB), which also bounds /api/file.
+      await oversized.truncate(50 * 1024 * 1024 + 1)
     } finally {
       await oversized.close()
     }
@@ -179,7 +179,7 @@ describe('web e2e: Markdown image rendering', () => {
       { createdAt: WEB_FIXTURE_TIME - 60_000 })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
-    unpinBrowserClock = await pinBrowserClock(page)
+    await pinBrowserClock(page)
     tripwire = watchConsole(page)
     page.on('response', (response) => {
       const url = new URL(response.url())
@@ -192,7 +192,6 @@ describe('web e2e: Markdown image rendering', () => {
   }, 120_000)
 
   afterAll(async () => {
-    unpinBrowserClock?.()
     await browser?.close()
     await scaffold?.close()
     if (imageOrigin !== undefined) await stopServer(imageOrigin.server)
@@ -263,11 +262,43 @@ describe('web e2e: Markdown image rendering', () => {
     await page.getByText(join(scaffold.workspaceCwd, 'corrupt.png'), { exact: true }).waitFor()
     expect(mediaResponses).toEqual(new Map([
       [join(scaffold.workspaceCwd, 'valid.png'), 200],
+      [join(scaffold.workspaceCwd, 'local-image.png'), 200],
+      [join(scaffold.workspaceCwd, 'test workspace/测试图.png'), 200],
+      [join(scaffold.workspaceCwd, 'test workspace/测试#100%.png'), 200],
       [join(scaffold.workspaceCwd, 'oversized.png'), 413],
       [join(scaffold.persistenceRoot, 'outside.png'), 200],
       [join(scaffold.workspaceCwd, 'missing.png'), 404],
       [join(scaffold.workspaceCwd, 'corrupt.png'), 200],
     ]))
+
+    await page.getByRole('button', { name: `View full image: ${WORKSPACE_ALT}`, exact: true }).click()
+    const lightbox = page.getByRole('dialog', { name: 'Image preview', exact: true })
+    await lightbox.waitFor()
+    const lightboxMask = lightbox.locator(':scope > div > [aria-hidden="true"]')
+    const lightboxClose = lightbox.getByRole('button', { name: 'Close image preview' })
+    for (const windows of [true, false]) {
+      await page.evaluate((value) => {
+        document.documentElement.toggleAttribute('data-windows-titlebar', value)
+        document.documentElement.style.setProperty('--dsh-windows-titlebar-height', value ? '40px' : '')
+      }, windows)
+      // The Windows caption stays unpainted and the close control sits below it.
+      expect((await lightboxMask.boundingBox())?.y).toBe(windows ? 40 : 0)
+      expect((await lightboxClose.boundingBox())?.y).toBe(windows ? 60 : 20)
+    }
+    await lightboxClose.click()
+    await lightbox.waitFor({ state: 'detached' })
+    const link = page.getByRole('button', { name: 'View comparison', exact: true })
+    await link.hover()
+    const hoverImage = page.getByRole('img', { name: './valid.png', exact: true })
+    await hoverImage.waitFor()
+    await expect.poll(() => hoverImage.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBe(1)
+    await page.keyboard.press('Escape')
+    await hoverImage.waitFor({ state: 'detached' })
+    await link.press('Tab')
+    await page.keyboard.press('Shift+Tab')
+    await hoverImage.waitFor()
+    await page.keyboard.press('Escape')
+    await hoverImage.waitFor({ state: 'detached' })
 
     const snapshot = (await captureStableAria(page, '[class*="centerCol"]', scaffold.workspaceCwd))
       .split(SEED_ID).join('{{seededId}}')
@@ -275,5 +306,30 @@ describe('web e2e: Markdown image rendering', () => {
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
     await assertFixtureInventory(SNAPSHOT_DIR, ['ui.expected.md'])
+    const input = page.locator('[data-composer-input]').first()
+    await workspaceImage.dragTo(input)
+    const dragged = page.getByRole('group', { name: 'Pending attachments', exact: true }).getByRole('img')
+    await dragged.waitFor({ state: 'visible' })
+    expect(Buffer.from(await dragged.evaluate(async (node: HTMLImageElement) =>
+      Array.from(new Uint8Array(await (await fetch(node.src)).arrayBuffer()))))).toEqual(PNG)
+    expect(await input.innerText()).toBe('')
+    expect(await page.getByRole('dialog', { name: 'Image preview', exact: true }).count()).toBe(0)
+    await page.getByRole('button', { name: 'Remove image valid.png', exact: true }).click()
+    await link.evaluate((element) => { element.scrollIntoView({ block: 'end' }) })
+    await page.mouse.move(0, 0)
+    await link.hover()
+    await hoverImage.waitFor()
+    const linkRect = await link.boundingBox()
+    if (linkRect === null) throw new Error('image link is not visible')
+    const previewRect = await hoverImage.evaluate((element) => {
+      const rect = element.parentElement!.parentElement!.getBoundingClientRect()
+      return { top: rect.top, bottom: rect.bottom }
+    })
+    expect(previewRect.bottom <= linkRect.y || previewRect.top >= linkRect.y + linkRect.height).toBe(true)
+    const thumbnailRect = await hoverImage.boundingBox()
+    if (thumbnailRect === null) throw new Error('image preview is not visible')
+    expect(thumbnailRect.y + thumbnailRect.height).toBeLessThanOrEqual(previewRect.bottom)
+    await page.mouse.click(linkRect.x + linkRect.width / 2, linkRect.y + linkRect.height / 2)
+    await expect.poll(() => page.locator('[data-image-preview] img').evaluate(element => (element as HTMLImageElement).naturalWidth)).toBe(1)
   }, 60_000)
 })

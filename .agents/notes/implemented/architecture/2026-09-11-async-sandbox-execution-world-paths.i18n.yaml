@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-11-async-sandbox-execution-world-paths.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-11-async-sandbox-execution-world-paths.md
-2026-09-11-async-sandbox-execution-world-paths.md: f34642af175ee774a36082bf7fd5ceb0bf943d86
-2026-09-11-async-sandbox-execution-world-paths.zh.md: af3478b1e1aa3bb32e6695e8bef2ab55b8a2d5cd
+/agent-note-asynchronous-sandbox-preparation-and-execution-world-paths:
+  en: 828b470f1b73a1d9
+  zh: bc2d3c5d692c9eec
+/agent-note-asynchronous-sandbox-preparation-and-execution-world-paths/problem:
+  en: bc804c86cb87f862
+  zh: 1914397f413a85c5
+/agent-note-asynchronous-sandbox-preparation-and-execution-world-paths/decision:
+  en: 9391073cf14c4949
+  zh: 68503548228e3dd6
+/agent-note-asynchronous-sandbox-preparation-and-execution-world-paths/alternatives-considered:
+  en: 1ad00bfe33c0b167
+  zh: f6e4c4ec49641bce
+/agent-note-asynchronous-sandbox-preparation-and-execution-world-paths/consequences:
+  en: 66edca36571013a9
+  zh: 4be58f46e936b094
+/agent-note-asynchronous-sandbox-preparation-and-execution-world-paths/verification:
+  en: 2511895b24f537d6
+  zh: 64d1782d51ee3ab5

@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/automation/automation/README.md
-README.md: e81d658b4108a3b399a1af84e6e4f8ec4f10d5e5
-README.zh.md: e7cf852d74157f6da803e2cf2fbef6303a3fc11c
+/:
+  en: e81bad5171a68d18
+  zh: 6be33f18bf6f5c27
+/automation:
+  en: 0427af65e8e0688b
+  zh: 0c4fff19b88423ac
+/automation/summary:
+  en: 09f14972ba4c913d
+  zh: fda7ed53bf5beed5
+/automation/table-of-contents:
+  en: 17e5e16f5e598968
+  zh: 7ad42ee9b6ff3364
+/automation/configuration:
+  en: 843e45999c5858c0
+  zh: 7f733e0eda17f465
+/automation/scheduling:
+  en: 5771410b3d8396ad
+  zh: 4befde0c6bcf8566
+/automation/execution-and-recovery:
+  en: ef23e0c5aceb3ac5
+  zh: ced897afa89b80bd
+/automation/persistence:
+  en: 4e318525144c9340
+  zh: b63a609d6b58de7a
+/automation/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/automation/model-experience/context-injection:
+  en: 6690b5b5ad7ce3e7
+  zh: 43e7f1f7dc608125
+/automation/model-experience/context-injection/what-the-model-sees:
+  en: be2828c59c1e5414
+  zh: 4a8c96d30c766947
+/automation/model-experience/context-injection/token-effect:
+  en: ba6ab8a270cff416
+  zh: 503a59fdea979bd6
+/automation/model-experience/context-injection/kv-cache-effect:
+  en: bfb891a50ff42f87
+  zh: d4b880c75f412844
+/automation/known-limitations-and-deferred-work:
+  en: 3a7be23f9b9a225b
+  zh: f46856b2b706e3e1

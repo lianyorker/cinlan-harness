@@ -1,0 +1,5 @@
+- id: ralph-policy
+  name: 'cordis:ralph-policy-fixture'
+  config:
+    enabled: false
+    maxRounds: 64

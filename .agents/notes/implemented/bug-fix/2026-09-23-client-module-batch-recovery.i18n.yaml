@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-23-client-module-batch-recovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-23-client-module-batch-recovery.md
-2026-09-23-client-module-batch-recovery.md: 99825ba72f9e48cf5a55a9c58ec7c23e8724808f
-2026-09-23-client-module-batch-recovery.zh.md: 925bc278e2e46f76f261f271024641678ec31500
+/agent-note-client-module-batch-recovery-and-diagnostics:
+  en: 54ad9ad47a3b4093
+  zh: 11ebb61847ea5798
+/agent-note-client-module-batch-recovery-and-diagnostics/problem:
+  en: 0686e2c069d0908d
+  zh: d9b485d68fef70b0
+/agent-note-client-module-batch-recovery-and-diagnostics/decision:
+  en: 0f6e420f296e0752
+  zh: 3e518ef60d3cd448
+/agent-note-client-module-batch-recovery-and-diagnostics/alternatives-considered:
+  en: 40fb81e80f1ce67b
+  zh: a9ce07755795619e
+/agent-note-client-module-batch-recovery-and-diagnostics/consequences:
+  en: 21b9f9203df015d9
+  zh: 5c92c5b762c2b28e
+/agent-note-client-module-batch-recovery-and-diagnostics/testing:
+  en: 8c1aed2f2bed012d
+  zh: 833773569b4f3c1e

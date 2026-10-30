@@ -24,8 +24,10 @@ import { AppearanceRow } from './AppearanceRow.tsx'
 import type { FontSettingsInjected } from './FontSettingsGroup.tsx'
 import { FontSettingsGroup } from './FontSettingsGroup.tsx'
 import { createAppearanceRowStore, createFontRowStore } from './settings-store.ts'
+import { ICON_SYMBOLS, type IconSymbolId } from '@deepseek-ai/dsh-client-ui-primitives'
+import { installIconSprite, type IconReplacements } from './icon-sprite.ts'
 import { installThemeStyles } from './styles.ts'
-import { en, zh, type ThemeKey } from './locales.ts'
+import { en, ja, es, fr, de, ru, pt, zh, type ThemeKey } from './locales.ts'
 import {
   DEFAULT_FONT_SIZES, DEFAULT_PREFERENCE, FONT_FAMILY_FIELDS, FONT_ROLES, FONT_SIZE_SPECS,
   fontFamilyVariable, isFontSize, isThemePreference, normalizeFontFamily, sectionFontSizes,
@@ -78,6 +80,20 @@ export interface ThemeDefinition {
   colorScheme: 'light' | 'dark'
   /** Alias-layer overrides applied as inline CSS variables over the base palette. */
   tokens: ThemeTokens
+  /**
+   * Product icon replacements: ui-primitives `ICON_SYMBOLS` ids to complete
+   * SVG documents, trusted like the registering plugin's code. The icon
+   * sprite renders each replacement as that id's `<symbol>`: the root's
+   * `viewBox` and presentation attributes carry over, its `width`, `height`,
+   * `class`, and `aria-hidden` are ignored because the use site sizes the
+   * icon, and painted elements inherit `currentColor` and CSS variables from
+   * the use site. Gradients and other paint servers resolve their stops in
+   * the sprite, which sits in `body`, so they follow palette tokens but not
+   * use-site overrides. Each document needs an SVG-namespace root with a
+   * `viewBox`, no `<style>` or `<script>` (they would apply to the whole
+   * document), and element ids prefixed with `<symbol id>-`.
+   */
+  icons?: IconReplacements | undefined
 }
 
 /** Immutable theme state published on every change. */
@@ -267,6 +283,24 @@ export class ThemeRuntime {
   }
 
   /**
+   * Change one role's font size. Accepted
+   * values are written through the settings scope and emit `theme/change`.
+   * @param role - font role.
+   * @param px - integer px within the role's `FONT_SIZE_SPECS` range; out-of-range or fractional values throw.
+   * Step all font sizes within their own ranges and save changed fields in one mutation.
+   * Emits one `theme/change`; no write or event occurs when every role is at its limit.
+   * @param delta - one pixel to add or remove from each role's current size.
+   */
+  setFontSize(role: FontRole, px: number): void {
+    const spec = FONT_SIZE_SPECS[role]
+    if (!isFontSize(role, px)) throw new Error(`${role} font size ${px} is outside ${spec.min}..${spec.max}`)
+    if (this.fontSizes[role] === px) return
+    this.fontSizes = Object.freeze({ ...this.fontSizes, [role]: px })
+    this.write(() => this.host.set(spec.field, px))
+    this.publish()
+  }
+
+  /**
    * Step all font sizes within their own ranges and save changed fields in one mutation.
    * Emits one `theme/change`; no write or event occurs when every role is at its limit.
    * @param delta - one pixel to add or remove from each role's current size.
@@ -312,6 +346,30 @@ export class ThemeRuntime {
     })
   }
 
+  /**
+   * Change one role's font list — the only font-family write entry. The value
+   * is normalized, written through the settings scope, and emits `theme/change`
+   * when the normalized list differs.
+   * @param role - font role.
+   * @param value - comma-separated family names; a value without names restores the built-in stack.
+   */
+  setFontFamily(role: FontRole, value: string): void {
+    const list = normalizeFontFamily(value)
+    if (this.fontFamilies[role] === list) return
+    this.fontFamilies = Object.freeze({ ...this.fontFamilies, [role]: list })
+    this.write(() => this.host.set(FONT_FAMILY_FIELDS[role], list))
+    this.publish()
+  }
+
+  /** Queue one settings write, then adopt the durable section once no own write remains. */
+  private write(operation: () => Promise<boolean>): void {
+    this.pendingWrites += 1
+    void operation().finally(() => {
+      this.pendingWrites -= 1
+      this.adopt()
+    })
+  }
+
   /** Adopt the scope's accepted durable preference without writing it back. */
   private adopt(): void {
     if (this.pendingWrites > 0) return
@@ -330,7 +388,9 @@ export class ThemeRuntime {
   /**
    * Register a theme. Duplicate id throws (single occupant per id; the
    * built-in pair counts; `system` is a preference, not a registrable id).
-   * @param definition - theme id, colorScheme, and alias-token overrides.
+   * @param definition - theme id, colorScheme, alias-token overrides, and
+   * optional icon replacements; the runtime keeps a frozen copy of `icons`.
+   * Invalid icon replacements throw a `TypeError` naming the theme and icon.
    * @returns disposer. Disposing the theme backing the active preference
    * resets the preference to the default so the UI never keeps tokens of an
    * unregistered theme.
@@ -340,7 +400,8 @@ export class ThemeRuntime {
     if (this.themes.some(t => t.id === definition.id)) {
       throw new Error(`theme "${definition.id}" is already registered`)
     }
-    this.themes = [...this.themes, definition]
+    const icons = validateIcons(definition)
+    this.themes = [...this.themes, Object.freeze({ ...definition, icons })]
     this.publish()
     return () => {
       if (!this.themes.some(t => t.id === definition.id)) return
@@ -443,6 +504,17 @@ function bootstrapFontSizes(): FontSizes {
 /** Font lists the Host boot script wrote on `body`, read for the same first-paint reason as {@link bootstrapFontSizes}. */
 function bootstrapFontFamilies(): FontFamilies {
   /* v8 ignore next -- needs a documentless run (node e2e booting the client tree), not constructible under jsdom */
+  if (typeof document === 'undefined') return DEFAULT_FONT_SIZES
+  const read = (role: FontRole): number => {
+    const parsed = Number.parseInt(document.body.style.getPropertyValue(FONT_SIZE_SPECS[role].variable), 10)
+    return isFontSize(role, parsed) ? parsed : FONT_SIZE_SPECS[role].default
+  }
+  return Object.freeze({ text: read('text'), code: read('code'), terminal: read('terminal') })
+}
+
+/** Font lists the Host boot script wrote on `body`, read for the same first-paint reason as {@link bootstrapFontSizes}. */
+function bootstrapFontFamilies(): FontFamilies {
+  /* v8 ignore next -- needs a documentless run (node e2e booting the client tree), not constructible under jsdom */
   if (typeof document === 'undefined') return Object.freeze({ text: '', code: '', terminal: '' })
   const style = document.body.style
   return Object.freeze({
@@ -486,6 +558,38 @@ function durableFontFamilies(section: ThemeSettings): FontFamilies {
     validated[name] = { light: modes.light, dark: modes.dark }
   }
   return validated
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg'
+
+/**
+ * Reject icon replacements a sprite cannot render (untyped dynamic-package
+ * callers reach this boundary, as with {@link validateOverrides}): unknown
+ * symbol ids, documents without an SVG-namespace `<svg viewBox>` root,
+ * document-wide `<style>` or `<script>`, and element ids outside the
+ * symbol's own `<symbol id>-` namespace.
+ * @returns a frozen copy of the replacements, or undefined when there are none.
+ */
+function validateIcons({ id, icons }: ThemeDefinition): IconReplacements | undefined {
+  // Untyped callers may pass null; treat it like an absent field.
+  if (icons == null) return undefined
+  const copy: Partial<Record<IconSymbolId, string>> = {}
+  for (const [name, markup] of Object.entries<unknown>(icons)) {
+    const fail = (problem: string): never => { throw new TypeError(`theme "${id}" icon "${name}" ${problem}`) }
+    if (!Object.hasOwn(ICON_SYMBOLS, name)) fail('is not an ICON_SYMBOLS id')
+    if (typeof markup !== 'string') fail('must be an SVG document string')
+    copy[name as IconSymbolId] = markup as string
+    /* v8 ignore next -- needs a documentless run (node e2e booting the client tree), where no sprite renders either */
+    if (typeof DOMParser === 'undefined') continue
+    const root = new DOMParser().parseFromString(markup as string, 'image/svg+xml').documentElement
+    if (root.namespaceURI !== SVG_NS || root.localName !== 'svg' || root.querySelector('parsererror') !== null) fail('is not a well-formed SVG-namespace <svg> document')
+    if (!root.hasAttribute('viewBox')) fail('needs a viewBox')
+    if (root.querySelector('style, script') !== null) fail('must not contain <style> or <script>')
+    for (const element of root.querySelectorAll('[id]')) {
+      if (!element.id.startsWith(`${name}-`)) fail(`element id "${element.id}" must start with "${name}-"`)
+    }
+  }
+  return Object.freeze(copy)
 }
 
 function dynamicToken(name: string): ThemeTokenInspection {
@@ -548,9 +652,11 @@ export const inject = ['slots', 'locale', 'remote', 'configForms']
 export function apply(ctx: ClientContext): void {
   installThemeStyles(ctx)
   ctx.effect(() => ctx.locale.register(SETTINGS_NS, { zh, en }), 'ui-theme: settings row dictionaries')
+  ctx.effect(() => ctx.locale.register(SETTINGS_NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-theme: settings row dictionaries')
   const host = ctx.configForms.get<ThemeSettings>(THEME_SETTINGS_NAMESPACE)
   const theme = new ThemeRuntime(ctx, host)
   ctx.provide('theme', theme)
+  installIconSprite(ctx, theme.getTheme().active.icons)
 
   const store = createAppearanceRowStore()
   let bound: BoundActions<typeof store> | undefined

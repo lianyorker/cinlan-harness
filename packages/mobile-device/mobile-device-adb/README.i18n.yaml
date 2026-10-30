@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/mobile-device/mobile-device-adb/README.md
-README.md: c3ceea67e6fcb6d3d39d8e107ed11b7606b3885c
-README.zh.md: 496e6f86e007d2037b48589be0103a0e6eb52fe5
+/:
+  en: f8af8d9da430439f
+  zh: 8aab1e7f94ae504f
+/deepseek-ai-dsh-mobile-device-adb:
+  en: 045286935d85e59d
+  zh: c432d574cb42bf4f
+/deepseek-ai-dsh-mobile-device-adb/summary:
+  en: 34769b71b625b9bd
+  zh: e822bdeffc1ca700
+/deepseek-ai-dsh-mobile-device-adb/table-of-contents:
+  en: c3ccf23dbd299df1
+  zh: fd61a63e3cc71d93
+/deepseek-ai-dsh-mobile-device-adb/configuration:
+  en: 02431882d5b35623
+  zh: 5c3b7f1379c44d3c
+/deepseek-ai-dsh-mobile-device-adb/observation-and-input:
+  en: 7d20ba98720993fa
+  zh: 781da36c0f3b12b1
+/deepseek-ai-dsh-mobile-device-adb/lifecycle-and-limits:
+  en: e2b794ce08258338
+  zh: 26d84230f4fc29c3
+/deepseek-ai-dsh-mobile-device-adb/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-mobile-device-adb/model-experience/existing-mobile-tools:
+  en: fd02d37d9f663a56
+  zh: 7d2814bea9ac253c
+/deepseek-ai-dsh-mobile-device-adb/model-experience/existing-mobile-tools/what-the-model-sees:
+  en: df8d4818ae7df9ae
+  zh: 113b406d9f3db8c4
+/deepseek-ai-dsh-mobile-device-adb/model-experience/existing-mobile-tools/token-effect:
+  en: 658032718e36bdd3
+  zh: a8a3c90a3639c62e
+/deepseek-ai-dsh-mobile-device-adb/model-experience/existing-mobile-tools/kv-cache-effect:
+  en: c162c8abb0e3d1af
+  zh: c8b7818a0d1ea0e8
+/deepseek-ai-dsh-mobile-device-adb/known-limitations-and-deferred-work:
+  en: 31186fc9900964b5
+  zh: ed083dd9897a133f
+/deepseek-ai-dsh-mobile-device-adb/known-limitations-and-deferred-work/dev-note:
+  en: 4a8e2d71ac6812d0
+  zh: da20557d0a4456f5

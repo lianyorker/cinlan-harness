@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-23-subprocess-spill-failure-containment.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-23-subprocess-spill-failure-containment.md
-2026-09-23-subprocess-spill-failure-containment.md: 552fe59644d7145b81579225e246840dafff8604
-2026-09-23-subprocess-spill-failure-containment.zh.md: bf43e0b3140978b4c090d192b3ce5472462260bd
+/agent-note-contain-subprocess-spill-failures:
+  en: 51cb31b1d5b55dfc
+  zh: 04281b14147d6a72
+/agent-note-contain-subprocess-spill-failures/problem:
+  en: 34169020b5220a24
+  zh: 31331180cc7bcee3
+/agent-note-contain-subprocess-spill-failures/decision:
+  en: 30f07726927e434c
+  zh: 45db2e4844a93abb
+/agent-note-contain-subprocess-spill-failures/alternatives-considered:
+  en: 4fad3c9b40a03148
+  zh: dd3480a33fd44e31
+/agent-note-contain-subprocess-spill-failures/testing:
+  en: a90a595cbbe78f38
+  zh: 227e7155f881a8c7
+/agent-note-contain-subprocess-spill-failures/consequences:
+  en: aafd84951a057977
+  zh: 83265bd303e78889

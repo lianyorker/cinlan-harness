@@ -87,7 +87,7 @@ export function apply(ctx: Context): void {
     key: CINLAN_DESIGN_ID,
     locale: namespace,
     store,
-    inject: (sessionId) => ({
+    inject: sessionId => ({
       onInjectDraft: (text: string) => {
         injectDraftToSession(ctx, sessionId, text)
       },

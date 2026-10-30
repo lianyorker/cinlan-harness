@@ -1,6 +1,28 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-official-capabilities-preserve-cinlan-architecture.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-official-capabilities-preserve-cinlan-architecture.md
-2026-09-20-official-capabilities-preserve-cinlan-architecture.md: 3d7f9369a7379c01d11442294b39a5a2663d57ad
-2026-09-20-official-capabilities-preserve-cinlan-architecture.zh.md: 34fd8abd344a0b4ea956182fa61fc1aa68a2dc99
+/agent-note-official-capabilities-preserve-cinlan-architecture:
+  en: 13630fd2ce913174
+  zh: a23e0fbe55480836
+/agent-note-official-capabilities-preserve-cinlan-architecture/problem:
+  en: 5694ff30fa637209
+  zh: f02fb2ce316367ba
+/agent-note-official-capabilities-preserve-cinlan-architecture/decision:
+  en: 8db3d7c1fbce6629
+  zh: 03b64ea3f6a8c486
+/agent-note-official-capabilities-preserve-cinlan-architecture/decision/sidebar-and-desktop-ownership:
+  en: 384a5bcc1c83608d
+  zh: ba815d05b4c2f329
+/agent-note-official-capabilities-preserve-cinlan-architecture/decision/mcp-and-durable-delivery:
+  en: 3d493047f6fc4553
+  zh: a9eb3df3650b920f
+/agent-note-official-capabilities-preserve-cinlan-architecture/decision/optional-providers:
+  en: 8cd2f6113413e4fd
+  zh: c56119ccb3557c4b
+/agent-note-official-capabilities-preserve-cinlan-architecture/alternatives-considered:
+  en: e8d93348929d53a8
+  zh: a0203b4886398965
+/agent-note-official-capabilities-preserve-cinlan-architecture/consequences:
+  en: cb8a59667ab5b837
+  zh: 2eb8bc94f1349381

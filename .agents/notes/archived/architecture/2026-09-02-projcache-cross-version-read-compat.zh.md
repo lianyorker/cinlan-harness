@@ -34,13 +34,13 @@ v4→v5 的唯一实质差异是 identity 新增两个 lineage 字段；v6 只�
 声明式读兼容——读容忍 owner 背书过的旧版本，写恒戳当前版本：
 
 1. **`DomainSpec.compatibleVersions`（新增，可选）**：域 owner 声明"这些旧版本的存量记录在当前记录 schema 下也可读"（典型手段：新增字段标 optional）。`defineDomain` 校验各项为小于当前 version 的非负整数；`descriptorOf` 透传到后端 `KvUnitDescriptor`。
-2. **json 后端 per-record 读**：接受"当前版本 ∪ compatibleVersions"内的版本戳，集合外照旧视为 foreign 丢弃；**写路径永远戳当前版本**（读到旧记录后的下一次 checkpoint 自然把它推进到当前版本）。整单元 JSON 与 SQLite 兼容性遵循独立的[兼容单元升级决策](2026-09-20-compatible-storage-unit-upgrades.zh.md)。
+2. **json 后端 per-record 读**：接受"当前版本 ∪ compatibleVersions"内的版本戳，集合外照旧视为 foreign 丢弃；**写路径永远戳当前版本**（读到旧记录后的下一次 checkpoint 自然把它推进到当前版本）。single 布局维持 exact-version 不变。
 3. **legacy bootstrap 版本把关（bug 修复本体）**：旧单文件的 `unit.version` 必须落在接受集合内才迁移，否则视为空 unit 留在原地——为 owner 未背书的记录打当前版本戳，会把"可丢弃的过期缓存"变成 domain 层的 schema 硬失败。
 4. **projcache 域声明 `version: 7, compatibleVersions: [3, 4, 5, 6]`**；存储 schema 中的格式与 lineage identity 字段均为 optional，使 owner 背书的前代记录可以打开。当前写入始终包含这三个字段。
 5. **identity 匹配比结构准入更严格**：缺失 `formatVersion` 的记录绝不匹配当前 Session，因此前代行不能播种投影，而会从权威日志重新折叠。格式匹配后，`identityMatches` 才把缺失 lineage 归一化为 unseeded（`?? false` / `?? 0`）：对 unseeded 会话精确，对 seeded 期望则匹配失败。v5 投毒 home 因而可以安全启动，但其未绑定行不会作为当前值暴露。
-6. **schema 校验兜底：`invalidRecords: 'backup-and-skip'`（仅本域声明）**。读兼容之外仍然解析失败的存量记录不再让整个域拒开：domain 层调用后端的 `KvUnit.backupRecord`（json per-record 实现＝把文档改名为 `<key>.json.bak.<YYYYMMDDHHmm>`，字节留档、不再被读取），用 `logger.error` 打印具体失败信息（域名、表、键、移动去向、zod 失败原因），随后当该记录不存在继续启动；下一次冷读会重建并重写该会话的缓存。**该策略是域级显式声明，缺省仍为 fail-loud**——其他业务域的存量数据校验失败照旧整域拒载；后端没有 `backupRecord` 能力（single 布局、行存储）时也回退 fail-loud。命名沿革：quarantine → backup-and-skip（用户裁决：词要同时含"备份"与"跳过"两义，且与 `.bak` 后缀同源；skip-backup 因 CLI `--skip-X` 惯例存在"不备份"反读而弃用）。对本域而言，该策略取代了 [2026-07-28 存储恢复提案](2026-07-28-storage-root-and-derived-medium-recovery.zh.md)中 reset/destroy 的恢复途径；该提案对权威介质与整介质损坏仍然有效。
+6. **schema 校验兜底：`invalidRecords: 'backup-and-skip'`（仅本域声明）**。读兼容之外仍然解析失败的存量记录不再让整个域拒开：domain 层调用后端的 `KvUnit.backupRecord`（json per-record 实现＝把文档改名为 `<key>.json.bak.<YYYYMMDDHHmm>`，字节留档、不再被读取），用 `logger.error` 打印具体失败信息（域名、表、键、移动去向、zod 失败原因），随后当该记录不存在继续启动；下一次冷读会重建并重写该会话的缓存。**该策略是域级显式声明，缺省仍为 fail-loud**——其他业务域的存量数据校验失败照旧整域拒载；后端没有 `backupRecord` 能力（single 布局、行存储）时也回退 fail-loud。命名沿革：quarantine → backup-and-skip（用户裁决：词要同时含"备份"与"跳过"两义，且与 `.bak` 后缀同源；skip-backup 因 CLI `--skip-X` 惯例存在"不备份"反读而弃用）。对本域而言，该策略取代了 [2026-07-28 存储恢复提案](../../proposed/architecture/2026-07-28-storage-root-and-derived-medium-recovery.zh.md)中 reset/destroy 的恢复途径；该提案对权威介质与整介质损坏仍然有效。
 
-7. **predecessor title 是列表 hint，而不是 fold shortcut**：Session list 启动保持 metadata/cache-only，绝不打开冷 log body。log header 是权威来源；生命周期匹配的 checkpoint 是 durable prefix witness，可以落后但不能领先日志。因此 `cachedPredecessorTitle` 只公开仍通过当前 title unit `stateVersion` 与 schema 的 predecessor `title` row。两条相邻 Session format edge 都保留 title 文本。该 hint 使用 `asOfSeq: -1`，而不使用存储 row 的序号，因为改变日志事件数量的迁移会重新映射该坐标。其他 predecessor row 继续隐藏，`hydratePrepared`/`coldSnapshot` 仍要求严格格式 identity，因为即使物理存储一致，normalizer 仍可能改变 `blank` 或 `lastPromptAt` 等值。
+7. **predecessor title 是列表 hint，而不是 fold shortcut**：Session list 启动保持 metadata/cache-only，绝不打开冷 log body。log header 是权威来源；生命周期匹配的 checkpoint 是 durable prefix witness，可以落后但不能领先日志。因此 `cachedPredecessorTitle` 只公开仍通过当前 title unit `stateVersion` 与 schema 的 predecessor `title` row。两条相邻 Session format edge 都保留 title 文本。该 hint 的 `asOfSeq` 是存储 title row 自己的水位；因为改变日志事件数量的迁移会重新映射该坐标，Session list 把该 block 标为 `kind: 'cached'`，客户端不会拿它与建连 Session 的 seq 比较（[只读面按 lifecycle 身份匹配与 cached 行](2026-09-19-projection-cache-listing-identity-and-cached-rows.zh.md)）。其他 predecessor row 继续隐藏，`hydratePrepared`/`coldSnapshot` 仍要求严格格式 identity，因为即使物理存储一致，normalizer 仍可能改变 `blank` 或 `lastPromptAt` 等值。
 
 ### v3-v6 → v7 处置
 
@@ -65,7 +65,7 @@ v4→v5 的唯一实质差异是 identity 新增两个 lineage 字段；v6 只�
 
 ## 影响
 
-- SQLite 接受明确兼容的旧单元版本，但没有 `backupRecord`；schema 无效的记录仍使整个领域拒绝打开，而不执行 JSON 逐记录的 backup-and-skip。发布组合将本领域路由到 JSON。
+- 部署方若把本域路由到 sqlite 后端，得不到任何容忍能力：sqlite 既未实现 `compatibleVersions` 也没有 `backupRecord`，行为退化为原有的严格版本语义（整 unit 版本不匹配仍 `version-mismatch` 拒开；不放松、不出错值）。shipped 组合固定路由 json，此风险仅存在于部署配置层面。
 - optional 格式字段允许前代记录通过结构校验，但缺失格式始终无法通过当前 identity 匹配。只有格式匹配后才归一化 optional lineage；seeded 调用方仍拒绝缺 lineage 的记录。逐行 `ver` 守卫继续筛查每个实际服务的值。
 - `backupRecord` 对同一键的同一分钟内重复备份会覆盖前一份（新字节胜出）；不同分钟、不同键永不冲突。
 

@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/execution-host/execution-host-worker/README.md
-README.md: 8354b0b9ced42f42a48255245deaa73932ef973d
-README.zh.md: 80806e651fb577952b4176777ac318bf47a633d6
+/:
+  en: 9e70d611706e8b43
+  zh: 5039b370c265cd20
+/deepseek-ai-dsh-execution-host-worker:
+  en: 1915a115482dd756
+  zh: 7fa38b92ad2cf523
+/deepseek-ai-dsh-execution-host-worker/summary:
+  en: c679e74e9ee5fae6
+  zh: b27f82ff576313e7
+/deepseek-ai-dsh-execution-host-worker/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 72b347a9fa77f500
+/deepseek-ai-dsh-execution-host-worker/use-this-package:
+  en: c35e80492959439a
+  zh: 200e75771cd3468d
+/deepseek-ai-dsh-execution-host-worker/use-this-package/configuration:
+  en: e0d8f96c9579634a
+  zh: 217d53d940886688
+/deepseek-ai-dsh-execution-host-worker/use-this-package/requests-and-results:
+  en: 6ac1fa93b99149a1
+  zh: b34c4ee9252ceafe
+/deepseek-ai-dsh-execution-host-worker/understand-the-implementation:
+  en: ba22f6a98d1195f1
+  zh: 04c2a176abd326d2
+/deepseek-ai-dsh-execution-host-worker/further-exploration:
+  en: fecc88350096945a
+  zh: 9b3d197f24992e24
+/deepseek-ai-dsh-execution-host-worker/model-experience:
+  en: b2a6c8d4df89722d
+  zh: 0a3ef9580a80b434
+/deepseek-ai-dsh-execution-host-worker/model-experience/kv-cache-effect:
+  en: ecc8a42cc6f101f5
+  zh: 3327c8b68604f3c8
+/deepseek-ai-dsh-execution-host-worker/known-limitations-and-deferred-work:
+  en: 1376cbdc839bb74e
+  zh: 59b24e22dd5df455
+/deepseek-ai-dsh-execution-host-worker/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 8ec3e73528ddb1a6

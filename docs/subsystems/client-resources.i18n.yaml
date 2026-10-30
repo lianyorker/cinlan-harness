@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for client-resources.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/client-resources.md
-client-resources.md: a1643e61779e5c19450c7e1688b0ce7fcfbee786
-client-resources.zh.md: 418c9aef91a58a85ff8102617074a38813c5f94b
+/client-resources:
+  en: a7972413b1780235
+  zh: 74d70a11d7e7f7e3
+/client-resources/addresses:
+  en: c76cf1ffa8db0924
+  zh: 60e9658892d111e5
+/client-resources/registering-a-provider:
+  en: 416b2ab6c6f58cce
+  zh: 022c7d0bc4fe2bf9
+/client-resources/reading-a-resource:
+  en: fe7a385fbc024a65
+  zh: 6c605e87e94db5d0
+/client-resources/holding-and-releasing:
+  en: 3a288f7070a1ead8
+  zh: 120f951682b554f2
+/client-resources/limits:
+  en: 0bb8c1e28d645c4a
+  zh: 1c353afec3af2546

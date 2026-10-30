@@ -1,6 +1,34 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/voice/voice/README.md
-README.md: fa993da976e634258feeee45aab7a504b8b4af9d
-README.zh.md: 0a53b5eaf245a0f2bf1d1d9785cf38af5eac21e5
+/:
+  en: aab9018c184c8e04
+  zh: a823eeef44629373
+/voice-runtime:
+  en: 886a75686c0d490a
+  zh: f8db76f954a67068
+/voice-runtime/summary:
+  en: ba0e3296ac22eb72
+  zh: ffbf420b9432819f
+/voice-runtime/table-of-contents:
+  en: 6bdd718ac9820422
+  zh: 8e8194fb0245cb24
+/voice-runtime/use-this-package:
+  en: 8596067620cb70f6
+  zh: d2e2534902e63ec3
+/voice-runtime/task-semantics:
+  en: 7402ae071e96f991
+  zh: 76159b5910a5674b
+/voice-runtime/model-experience:
+  en: ab577ce1c163d316
+  zh: c312a2153b84b84d
+/voice-runtime/model-experience/kv-cache-effect:
+  en: bcad2a441563264d
+  zh: 22384f798ea43073
+/voice-runtime/known-limitations-and-deferred-work:
+  en: e63ce78155f5714b
+  zh: c4766e47788b8c4a
+/voice-runtime/known-limitations-and-deferred-work/dev-note:
+  en: 65d89713458f8e2f
+  zh: 93dfecd42b052196

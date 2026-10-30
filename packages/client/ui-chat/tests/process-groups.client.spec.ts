@@ -45,6 +45,8 @@ function separator(seq: number, inTurn: boolean): ChatNode<'user'> | ChatNode<'s
   const user: ChatNode<'user'> = {
     key: `user:${seq}`, id: `user:${seq}`, kind: 'user', target: 'chat', anchorSeq: seq,
     location: inTurn ? { kind: 'turn', turn } : { kind: 'session' }, visibility: 'visible',
+    // Neither location is the Step 1 that opens an exchange.
+    groupTree: 'input',
     data: { kind: 'user', seq, time: seq, content: [{ type: 'text', text: 'continue' }], source: null },
   }
   return inTurn ? { ...user, kind: 'steering', data: { ...user.data, kind: 'steering', messageId: 'steer' as MessageId } } : user
@@ -306,6 +308,53 @@ describe('Definition-owned Chat process groups', () => {
     const [trigger, reply] = replyNodes(inTurn)
     const h = harness([trigger, { ...reply, id: 'different-message', data: trigger.data }])
     expect(h.store.entries).toContainEqual({ kind: 'node', key: trigger.key })
+  })
+
+  it.each(['process', 'turn', 'input'] as const)('ends the group at a Node declared at %s, whatever its kind', (position) => {
+    const h = harness([tool('before', 4), { ...tool('standalone', 5), groupTree: position }, tool('after', 8)])
+    expect(h.store.entries.map(entry => entry.kind === 'group' ? 'group' : entry.key)).toEqual(['group', 'standalone', 'group'])
+  })
+
+  it('regroups when a Node changes its position without changing its kind', () => {
+    const middle = tool('middle', 5)
+    const h = harness([tool('before', 4), middle, tool('after', 8)])
+    expect(h.store.entries.map(entry => entry.kind)).toEqual(['group'])
+    h.builder.apply({ upserts: [{ ...middle, groupTree: 'process' }], timeline })
+    h.commit()
+    expect(h.store.entries.map(entry => entry.kind === 'group' ? 'group' : entry.key)).toEqual(['group', 'middle', 'group'])
+  })
+
+  it('keeps the Turn control as an independent root before the process it folds', () => {
+    const control: ChatNode<'turn-process'> = {
+      key: 'control', id: '1', kind: 'turn-process', target: 'chat', anchorSeq: 0.9,
+      location: { kind: 'turn', turn }, visibility: 'visible', groupTree: 'turn',
+      data: {
+        turn: 1, controlAnchorSeq: 1, processStartSeq: 1, answerAnchorSeq: null,
+        answerStep: null, inlineReasoning: false, messageCount: 0, toolCallCount: 1, subagentCount: 0,
+      },
+    }
+    const h = harness([control, tool('first', 6), tool('after', 8)])
+    expect(h.store.entries.map(entry => entry.kind)).toEqual(['node', 'group'])
+    expect(h.store.entries[0]).toEqual({ kind: 'node', key: control.key })
+  })
+
+  it('sorts a later-anchored Turn control before the process of a Turn without opening input', () => {
+    // A Turn opened by a reply that declares no position: the control's own anchor follows the reply.
+    const control: ChatNode<'turn-process'> = {
+      key: 'control', id: '1', kind: 'turn-process', target: 'chat', anchorSeq: 6.9,
+      location: { kind: 'turn', turn }, visibility: 'visible', groupTree: 'turn',
+      data: {
+        turn: 1, controlAnchorSeq: 6, processStartSeq: 1, answerAnchorSeq: null,
+        answerStep: null, inlineReasoning: false, messageCount: 0, toolCallCount: 1, subagentCount: 0,
+      },
+    }
+    const h = harness([tool('reply', 6), control, tool('after', 8)])
+    expect(h.snapshot.order).toEqual(['control', 'reply', 'after'])
+    expect(h.store.entries.map(entry => entry.kind)).toEqual(['node', 'group'])
+    expect(h.store.entries[0]).toEqual({ kind: 'node', key: control.key })
+    const group = h.store.entries[1]!
+    if (group.kind !== 'group') throw new Error('expected group')
+    expect(h.store.groupSource(group.key).getSnapshot()?.members.map(member => member.key)).toEqual(['reply', 'after'])
   })
 
   it('retains a group through repeated prepends and a later append', () => {

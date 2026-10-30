@@ -24,7 +24,7 @@ export function BrowserBody({ t }: BrowserBodyProps): JSX.Element {
   return (
     <section className={css.browserPanel}>
       <div className={css.browserToolbar}>
-        <input className={css.input} value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') open() }} placeholder={t('browser.placeholder')} aria-label={t('browser.placeholder')} />
+        <input className={css.input} value={input} onChange={event => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') open() }} placeholder={t('browser.placeholder')} aria-label={t('browser.placeholder')} />
         <button type="button" className={css.primaryButton} onClick={open}>{t('browser.open')}</button>
       </div>
       {error ? <p className={css.error} role="alert">{t('browser.invalidUrl')}</p> : null}

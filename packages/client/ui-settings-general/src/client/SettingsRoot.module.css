@@ -4,14 +4,18 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  width: calc(100% + 4px);
+  width: 100%;
+  margin: 4px 0;
+  gap: var(--dsh-sidebar-label-gap);
   height: 42px;
   margin: 4px -2px;
-  padding: 0 10px 0 8px;
+  padding: 0 calc(var(--dsh-sidebar-row-padding) - var(--dsh-sidebar-paint-inset));
   box-sizing: border-box;
   border: none;
   border-radius: 12px;
   background: transparent;
+  border-inline: var(--dsh-sidebar-paint-inset) solid transparent;
+  background-clip: padding-box;
   cursor: pointer;
   overflow: hidden;
   color: var(--dsw-alias-label-primary);
@@ -23,6 +27,12 @@
 .trigger.rail { width: 36px; height: 36px; margin: 8px 0 10px; justify-content: center; gap: 0; padding: 0; border-radius: 50%; corner-shape: round; }
 .triggerLabel { overflow: hidden; white-space: nowrap; }
 .page {
+@media (hover: hover) {
+  .trigger:hover {
+    background-color: var(--dsw-alias-interactive-bg-hover);
+  }
+  border-inline: 0;
+  background-clip: border-box;
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -33,16 +43,39 @@
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-base);
   font-family: var(--dsw-font-family);
+   and clear of the strip.
+   The four shell seats are direct children placed by area: the rail's title
+   and the content header share the first row, the rail's cells and the active
+   section the second. Narrow browser windows use a full-viewport panel and
+   rearrange these areas into a horizontal layout. */
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'title header'
+    'nav options';
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 :global(html[data-windows-titlebar]) .page,
 :global(html[data-platform='darwin']) .page {
   top: var(--dsh-frame-top-clearance, 0px);
+/* Nav rail (figma .Setting-nav 501:29958): the 188px track's cells, pad
+   (12,0), no own fill — the panel white shows through. */
+  grid-area: nav;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 12px 0;
+/* Title row (figma 501:29959): 16/500 lh24, at the rail's 24px text inset.
+   Its 54px row aligns with the content header; the nav adds the remaining
+   10px before the first cell. */
+  grid-area: title;
+  padding: 22px 12px 8px 24px;
 }
 :global(html[data-windows-titlebar][data-fullscreen]) .page,
 :global(html[data-platform='darwin'][data-fullscreen]) .page {
   top: 0;
+  min-height: 0;
 }
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .nav { display: flex; min-width: 0; min-height: 0; flex-direction: column; background: var(--dsw-specific-sidebar-fill); }
@@ -50,13 +83,19 @@
 .back {
   display: inline-flex;
   align-items: center;
+@media (hover: hover) {
+  .navCell:hover {
+    background-color: var(--dsw-alias-interactive-bg-hover);
+  }
   min-width: 0;
   flex: 1 1 auto;
+  grid-area: header;
   gap: 8px;
   width: auto;
   height: 34px;
   margin: 0 12px;
   padding: 0 12px;
+  flex: none;
   border: none;
   border-radius: 999px;
   corner-shape: round;
@@ -65,6 +104,67 @@
   font: inherit;
   font-size: 14px;
   cursor: pointer;
+@media (hover: hover) {
+  .close:hover {
+    background-color: var(--dsw-alias-interactive-bg-hover);
+  }
+  grid-area: options;
+  min-width: 0;
+/* Browsers below 768px use the full-viewport panel and horizontal navigation.
+   Windows custom captions and macOS native titlebars retain the desktop rail;
+   their independent root markers exclude both window-chrome layouts. Linux
+   follows the browser layout. The selected cell receives initial focus and
+   scrolls into view when the panel opens. */
+@media (max-width: 767px) {
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .overlay {
+    position: absolute;
+    height: 100%;
+    background: var(--dsw-alias-bg-layer-2);
+  }
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .panel {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      'title header'
+      'nav nav'
+      'options options';
+    width: 100%;
+    max-width: none;
+    border-radius: 0;
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .navTitle {
+    padding: 22px 0 0 16px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .header {
+    height: auto;
+    padding: 20px 16px 0 10px;
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .nav {
+    padding: 0;
+  /* The strip runs edge to edge and pads its own ends, so the first cell lines
+     up with the title and the last one stays clear of the panel edge. */
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .navList {
+    flex-direction: row;
+    gap: 4px;
+    padding: 12px 16px 14px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior: none;
+    scrollbar-width: none;
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .navList::-webkit-scrollbar {
+    display: none;
+  /* Cells grow into spare width and hold a 108px floor. The four shipped
+     sections already measure more than a 390px viewport, so the next cell shows
+     past the edge and the strip reads as scrollable. */
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .navCell {
+    flex: 1 0 auto;
+    justify-content: center;
+    min-width: 108px;
+    padding: 0 14px;
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .navLabel {
+    flex: none;
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .options {
+    padding: 0 16px 24px;
 }
 .back:hover { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-settings-control-bg-hover); }
 .back:active { background: var(--dsw-alias-settings-control-bg-active); }

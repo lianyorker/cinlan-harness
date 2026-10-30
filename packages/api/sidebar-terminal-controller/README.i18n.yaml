@@ -1,6 +1,37 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/sidebar-terminal-controller/README.md
-README.md: 35cd3176cefac0e6080e990f21473d1fec24175f
-README.zh.md: e41c9e49e67c89872aa1f26d2bc1cb8a7cc4860b
+/:
+  en: e4fd62c0e14d8ee4
+  zh: 89b28194a3988227
+/sidebar-terminal-controller:
+  en: c7a05e7ad17addf7
+  zh: cb4d3630b383b4f1
+/sidebar-terminal-controller/summary:
+  en: 3be370b14ba6e8de
+  zh: 0fa44a52b34df268
+/sidebar-terminal-controller/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 725b47765ee8f30b
+/sidebar-terminal-controller/use-this-package:
+  en: 1c07780539436506
+  zh: fad76e52c40bca91
+/sidebar-terminal-controller/understand-the-implementation:
+  en: 63a19d99135bd66d
+  zh: 285504f7f1912327
+/sidebar-terminal-controller/further-exploration:
+  en: bd08b20c1864f65f
+  zh: 40cc174babbe5a27
+/sidebar-terminal-controller/model-experience:
+  en: 03fda9c797b6320f
+  zh: 7e3db474b4a96fd7
+/sidebar-terminal-controller/model-experience/kv-cache-effect:
+  en: 10bb49f6ab06bc2c
+  zh: 6eac937ee54137c7
+/sidebar-terminal-controller/known-limitations-and-deferred-work:
+  en: 3f3092a7602c43f7
+  zh: 219178b2cfbd8fc4
+/sidebar-terminal-controller/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: e88aeb617ffb74ea

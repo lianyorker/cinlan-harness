@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/coordination/coordination-subagent-executor/README.md
-README.md: dd90f2455326b5eb0d81fa1e70eb4fa356288dba
-README.zh.md: c2a6c93a959478512f8fa11e5c69afa1f2b010f4
+/:
+  en: 69751006b908f24c
+  zh: 9af375b211270f52
+/dsh-coordination-subagent-executor:
+  en: a42bdf3e08b2ccfd
+  zh: b6f3f255648424a7
+/dsh-coordination-subagent-executor/summary:
+  en: d7f66e9d2340f588
+  zh: e19606df67e5d1bb
+/dsh-coordination-subagent-executor/table-of-contents:
+  en: d92c8fd564cdaf83
+  zh: 5f31996de87d2081
+/dsh-coordination-subagent-executor/task-input:
+  en: acb06f6fc2c2a736
+  zh: 905ad3035c8f19a8
+/dsh-coordination-subagent-executor/config:
+  en: 1cbaa5bb8325c6e7
+  zh: d3db55e94273a6af
+/dsh-coordination-subagent-executor/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/dsh-coordination-subagent-executor/model-experience/child-task-request:
+  en: 83c9daf176c58eb3
+  zh: 83c9daf176c58eb3
+/dsh-coordination-subagent-executor/model-experience/child-task-request/what-the-model-sees:
+  en: 604aa83d2f4ebee7
+  zh: 1b81c81ca5aa0506
+/dsh-coordination-subagent-executor/model-experience/child-task-request/token-effect:
+  en: 1fe34cd4f2bae905
+  zh: 33ea4eff7cea337b
+/dsh-coordination-subagent-executor/model-experience/child-task-request/kv-cache-effect:
+  en: 7084f91e92f8e778
+  zh: 4f5ea820b305dcf6
+/dsh-coordination-subagent-executor/known-limitations-and-deferred-work:
+  en: 333e3f994ac401ca
+  zh: 2253ae0342057f02
+/dsh-coordination-subagent-executor/known-limitations-and-deferred-work/dev-note:
+  en: ec9d318f61ba76d6
+  zh: edf1ab65681060b4

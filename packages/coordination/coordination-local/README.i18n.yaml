@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/coordination/coordination-local/README.md
-README.md: 6103a4d505524a72efb1eaa926b00cf01539766a
-README.zh.md: 5cf0854ff6096485cf7b849d140a049732b0c53f
+/:
+  en: 75342c58ccd9032a
+  zh: 9ce5815aecf5a374
+/dsh-coordination-local:
+  en: 119074e0b0ed63e1
+  zh: 664bda5b92c322e9
+/dsh-coordination-local/summary:
+  en: 5ea35a0fa2514847
+  zh: 6e721d2a578f5117
+/dsh-coordination-local/use-this-package:
+  en: 462794abde73e0b0
+  zh: bf6494d706c4650a
+/dsh-coordination-local/table-of-contents:
+  en: c2d498a6d1452b42
+  zh: e88e715eb2788345
+/dsh-coordination-local/config:
+  en: b0cd64e66dd89411
+  zh: df1e077a7913f47e
+/dsh-coordination-local/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/dsh-coordination-local/model-experience/no-direct-model-context:
+  en: 11330a3eaa3637ca
+  zh: a69d7926a3467771
+/dsh-coordination-local/model-experience/no-direct-model-context/what-the-model-sees:
+  en: 6b7c81615f9a3c12
+  zh: d453585d9584268a
+/dsh-coordination-local/model-experience/no-direct-model-context/token-effect:
+  en: 0c22e54da683e554
+  zh: f86eae6f26eb5457
+/dsh-coordination-local/model-experience/no-direct-model-context/kv-cache-effect:
+  en: 5c36f69bc12b2e7e
+  zh: 2718d92bad0a00e1
+/dsh-coordination-local/known-limitations-and-deferred-work:
+  en: e51147d26d9b20a4
+  zh: 370f1fd49fe0ed8c
+/dsh-coordination-local/known-limitations-and-deferred-work/dev-note:
+  en: 0f61be382956764e
+  zh: 22579754210023f0

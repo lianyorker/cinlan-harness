@@ -57,7 +57,7 @@ describe('computeTitleBarStrip', () => {
   it('uses the opt-in preset strip under the preset scheme only', () => {
     const preset: ShellPreset = {
       id: 't', title: 't', desc: '',
-      stripFor: (e) => e.platform === 'darwin' ? 20 : undefined,
+      stripFor: e => e.platform === 'darwin' ? 20 : undefined,
     }
     const darwin = env({ desktop: true, mode: 'advanced', platform: 'darwin' })
     expect(computeTitleBarStrip(darwin, wco(false), 'preset', preset, 0)).toBe(20)

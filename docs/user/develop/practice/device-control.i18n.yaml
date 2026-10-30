@@ -1,6 +1,28 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for device-control.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/user/develop/practice/device-control.md
-device-control.md: 536c98489c9d50987d197e117f514d0c3ea8cdb8
-device-control.zh.md: f56cfd22483d1e55a68591fe6336da95e668e074
+/local-device-control:
+  en: 1bde000e27a62d1b
+  zh: f080201f98d326ac
+/local-device-control/summary:
+  en: a53e91c74fa269d1
+  zh: 955736a1de521c27
+/local-device-control/table-of-contents:
+  en: b5a265e7acf9230c
+  zh: 8ac79be5ac43d007
+/local-device-control/prerequisites:
+  en: a47149f9dfa7b62f
+  zh: 5962c073dc195e75
+/local-device-control/start-the-profile:
+  en: 852e77d81717806d
+  zh: cd79e2c4938da10a
+/local-device-control/select-android-tools-and-a-device:
+  en: 01284e6063bd4880
+  zh: 46f51a790f49e5e3
+/local-device-control/verify-readiness:
+  en: 271f50f72f60df66
+  zh: 6312478532cb8460
+/local-device-control/limits:
+  en: 9a456099f427428f
+  zh: 29711d7c6dcf56ed

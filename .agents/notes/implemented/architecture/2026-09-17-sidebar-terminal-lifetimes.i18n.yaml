@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-sidebar-terminal-lifetimes.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-sidebar-terminal-lifetimes.md
-2026-09-17-sidebar-terminal-lifetimes.md: 5ebe3f2b0f6da09ecacbccb1f2ca838bec941ba1
-2026-09-17-sidebar-terminal-lifetimes.zh.md: 481e3d342d356b3d7b3e783721a051635f78451b
+/agent-note-sidebar-terminal-processes-and-transport-scopes-have-separate-lifetimes:
+  en: 116052eda96021fb
+  zh: dfda52f757710dc2
+/agent-note-sidebar-terminal-processes-and-transport-scopes-have-separate-lifetimes/problem:
+  en: 48e431d9a32b9810
+  zh: ce02a9209cb6d634
+/agent-note-sidebar-terminal-processes-and-transport-scopes-have-separate-lifetimes/decision:
+  en: cbd62b088d0538a0
+  zh: 012962efbead881f
+/agent-note-sidebar-terminal-processes-and-transport-scopes-have-separate-lifetimes/alternatives-considered:
+  en: 149e65ceee52db71
+  zh: db062d8d04cde92a
+/agent-note-sidebar-terminal-processes-and-transport-scopes-have-separate-lifetimes/consequences:
+  en: e8867c8cc0193368
+  zh: 0a2fd08f970a5bf9

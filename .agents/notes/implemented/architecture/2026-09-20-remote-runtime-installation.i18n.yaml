@@ -1,6 +1,28 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-remote-runtime-installation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-remote-runtime-installation.md
-2026-09-20-remote-runtime-installation.md: 62dc2884849f0ba32b93b07db0c47429a679f531
-2026-09-20-remote-runtime-installation.zh.md: aefd598cdbfdea87bc69984c332b5e1fcb387fcb
+/agent-note-remote-runtime-installation-and-activation:
+  en: 740c3a1da8c501ae
+  zh: 40ea65cb0cb35b77
+/agent-note-remote-runtime-installation-and-activation/problem:
+  en: 23fedd9448c595e5
+  zh: 32bdc5a25564ae7e
+/agent-note-remote-runtime-installation-and-activation/decision:
+  en: e749fc4f2f9f9c6b
+  zh: 0a4104053f370fe4
+/agent-note-remote-runtime-installation-and-activation/decision/pinned-complete-generations:
+  en: c0b6ac9d5b140252
+  zh: f0c94446517740fd
+/agent-note-remote-runtime-installation-and-activation/decision/activation-and-existing-sessions:
+  en: 25cfeb6e019d5010
+  zh: 1673d1a674740ac8
+/agent-note-remote-runtime-installation-and-activation/alternatives-considered:
+  en: cc383fc1a1ce7a8b
+  zh: 63b9dc8e0cb3bfd8
+/agent-note-remote-runtime-installation-and-activation/consequences:
+  en: 98d68701d44aef35
+  zh: 4d8a071ebcfcb2ab
+/agent-note-remote-runtime-installation-and-activation/verification:
+  en: f952cd9e3a1881ea
+  zh: f8c0f4b7da32e310

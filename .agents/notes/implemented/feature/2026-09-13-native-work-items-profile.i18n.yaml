@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-native-work-items-profile.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-native-work-items-profile.md
-2026-09-13-native-work-items-profile.md: 53adb0e2c564cd4282e79a72fb8bc408ea83c163
-2026-09-13-native-work-items-profile.zh.md: fbbba9185022bc2e460b546339d85b960ecf0e64
+/agent-note-native-work-items-profile-and-workspace-ownership:
+  en: 290f11f107f2f233
+  zh: f8609af1236e89f2
+/agent-note-native-work-items-profile-and-workspace-ownership/problem:
+  en: a58b6e4e1651194d
+  zh: baee120c91b8871a
+/agent-note-native-work-items-profile-and-workspace-ownership/decision:
+  en: 3eb0cd445ca274ba
+  zh: 93c69b0b41cc0e22
+/agent-note-native-work-items-profile-and-workspace-ownership/alternatives-considered:
+  en: 4109da7451e148e8
+  zh: 31efeab70beb2854
+/agent-note-native-work-items-profile-and-workspace-ownership/consequences:
+  en: 9236c879fc3c0283
+  zh: 604b231ae4ac3be8
+/agent-note-native-work-items-profile-and-workspace-ownership/verification:
+  en: e643748c1f535458
+  zh: 099f79d68bc41c64

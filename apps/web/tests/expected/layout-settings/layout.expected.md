@@ -1,0 +1,58 @@
+- region "Settings":
+  - text: Settings
+  - navigation "Settings navigation":
+    - button "Back to app"
+    - searchbox "Search settings..."
+    - text: Ctrl / ⌘ K
+    - button "Configure models"
+    - button "Personal" [expanded]
+    - button "Model service account"
+    - button "General"
+    - button "Workspace layout"
+    - button "Notifications"
+    - button "Voice"
+    - button "Keybindings"
+    - button "Floating Workspace"
+    - button "Agents" [expanded]
+    - button "Agent presets"
+    - button "Subagents"
+    - button "Limits"
+    - button "Orchestration"
+    - button "Workspace" [expanded]
+    - button "Git & Source Control"
+    - button "Terminal"
+    - button "Terminal quick commands"
+    - button "Worktree tasks"
+    - button "Execution & security" [expanded]
+    - button "Automation tasks"
+    - button "SSH hosts"
+    - button "Tools & devices" [expanded]
+    - button "Models"
+    - button "Mobile emulator"
+    - button "Mobile"
+    - button "Connections & extensions" [expanded]
+    - button "MCP"
+    - button "Integrations"
+    - button "Web search"
+    - button "Data & advanced" [expanded]
+    - button "Runtime diagnostics"
+    - button "Archived sessions"
+    - button "Usage"
+  - text: Personal
+  - strong: Workspace layout
+  - button "Open configuration file"
+  - heading "Workspace layout" [level=1]
+  - paragraph: Adjust workspace columns in this window without changing session content
+  - region "Workspace layout":
+    - paragraph: Applies only to this window and resets on reload. Other desktop, Web and phone windows are not synced.
+    - text: Left sidebar width
+    - paragraph: Uses this width after adjustment. Narrow screens still collapse the sidebar until expanded.
+    - slider "Left sidebar width": "280"
+    - status: 280 px
+    - text: Right panel width
+    - paragraph: Can be set while closed. Applies when opened; available space may reduce the rendered width.
+    - slider "Right panel width": "648"
+    - status: 648 px
+    - paragraph: Narrow screens collapse the left sidebar. The right panel closes when space is insufficient; changing its width does not force it open.
+    - paragraph: Restore the default sidebar and adaptive initial right panel width without clearing sessions or panel tabs.
+    - button "Reset column widths"

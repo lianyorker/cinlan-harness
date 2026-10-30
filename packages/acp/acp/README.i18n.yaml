@@ -3,13 +3,13 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/acp/acp/README.md
 /:
-  en: c2dc875f178f219b
+  en: bf9a1fbb3de4cc0c
   zh: e1ebac19bf1c696d
 /deepseek-ai-dsh-acp:
   en: 5e36bdb5bef5842c
   zh: 486621193ef243a8
 /deepseek-ai-dsh-acp/summary:
-  en: 59aff9dea7a075b1
+  en: d71c756d6684b926
   zh: c0f5734c5fd09126
 /deepseek-ai-dsh-acp/table-of-contents:
   en: d152484eb41ac6b4
@@ -27,8 +27,8 @@
   en: 4ed8e37834267edb
   zh: a32d5dedb4e8e919
 /deepseek-ai-dsh-acp/use-this-package/protocol-contract:
-  en: 804b87d8ebed9f8d
-  zh: 1b0c1c7269cdf040
+  en: 195315c12edf895f
+  zh: de307288858a8ece
 /deepseek-ai-dsh-acp/understand-the-implementation:
   en: ea8afe89dbdd1934
   zh: 6567979f92f34afd

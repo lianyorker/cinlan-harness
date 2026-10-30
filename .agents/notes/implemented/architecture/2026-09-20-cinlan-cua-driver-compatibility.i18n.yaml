@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-cinlan-cua-driver-compatibility.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-cinlan-cua-driver-compatibility.md
-2026-09-20-cinlan-cua-driver-compatibility.md: 038616f72d867d941813090d2800399013266d96
-2026-09-20-cinlan-cua-driver-compatibility.zh.md: b4e86b9c0deea737e161fc9ae0ed547671ff8990
+/agent-note-computer-use-facade-and-cua-driver-compatibility:
+  en: a631459b65065bbe
+  zh: b811346ccd4acb61
+/agent-note-computer-use-facade-and-cua-driver-compatibility/problem:
+  en: 38aa0d3aac84e667
+  zh: 1bab8ed9852689b0
+/agent-note-computer-use-facade-and-cua-driver-compatibility/decision:
+  en: aaca647e093fe40d
+  zh: 1f704191a3f6050e
+/agent-note-computer-use-facade-and-cua-driver-compatibility/alternatives-considered:
+  en: a8835a64f7d32b0a
+  zh: 9768975301e5f3b6
+/agent-note-computer-use-facade-and-cua-driver-compatibility/consequences:
+  en: 990474b56fbad957
+  zh: edf7d950d9f6a58b
+/agent-note-computer-use-facade-and-cua-driver-compatibility/verification:
+  en: c7a94ef447f5911f
+  zh: 88a5e234d6ab866a

@@ -1,143 +1,55 @@
-- region "设置":
+- dialog "设置":
   - text: 设置
-  - navigation "设置导航":
-    - button "返回应用":
-      - img
-      - text: 返回应用
-    - img
-    - searchbox "搜索设置..."
-    - text: Ctrl / ⌘ K
-    - button "个人偏好" [expanded]:
-      - text: 个人偏好
-      - img
+  - navigation:
     - button "通用设置"
-    - button "工作区布局"
-    - button "通知"
-    - button "快捷键"
-    - button "浮动工作区"
-    - button "AI 与模型" [expanded]:
-      - text: AI 与模型
-      - img
     - button "模型"
+    - button "内置插件"
     - button "Agent 预设"
-    - button "编排"
-    - button "任务管理"
-    - button "侧边对话(beta)"
-    - button "语音"
-    - button "开发工作流" [expanded]:
-      - text: 开发工作流
-      - img
-    - button "Git 与源代码控制"
-    - button "集成"
-    - button "工具与设备" [expanded]:
-      - text: 工具与设备
-      - img
-    - button "安全研究"
-    - button "浏览器"
-    - button "文件"
-    - button "计算机控制"
-    - button "手机模拟器"
-    - button "扩展管理" [expanded]:
-      - text: 扩展管理
-      - img
-    - button "插件"
-    - button "实验" [expanded]:
-      - text: 实验
-      - img
-    - button "MCP"
-    - button "自动化"
-    - button "执行主机"
-    - button "终端"
-    - button "使用统计"
-  - text: AI 与模型
-  - img
-  - strong: 模型
   - button "打开配置文件"
-  - heading "模型" [level=1]
-  - region "新会话默认值":
-    - text: 默认模型
-    - paragraph: 默认值用于新会话。在会话中切换模型也会保存后续会话的默认值；此处的更改不会覆盖已有会话的模型选择。
-    - combobox "默认模型"
-    - text: 推理等级
-    - paragraph: 使用所选模型支持的推理等级；Default 采用提供方的默认行为。
-    - combobox "推理等级":
-      - option "Default" [selected]
-      - option "Off"
-      - option "Low"
-      - option "High"
-      - option "Max"
-    - button "恢复继承值" [disabled]
-  - paragraph: 填入各提供方的 API 密钥即可使用其模型。
+  - button "关闭"
+  - heading "模型" [level=2]
+  - paragraph: 填入各提供商的 API 密钥即可使用其模型。
   - list:
     - listitem:
       - text: DeepSeek
       - img "API 密钥已配置"
       - button "编辑 DeepSeek (deepseek-official)": 编辑
       - text: DeepSeek deepseek-official API 密钥
+      - button "认证说明": "?"
       - textbox "API 密钥":
-        - /placeholder: 已配置——输入新值可替换
+        - /placeholder: 留空使用已保存凭据
       - group:
         - text: 自定义设置 API 地址
         - textbox "API 地址":
-          - /placeholder: https://api.deepseek.com
-        - text: API 协议
-        - combobox "API 协议":
-          - option "chat-completions" [selected]
-          - option "messages"
+          - /placeholder: https://api.deepseek.com/anthropic（默认使用环境 DEEPSEEK_BASE_URL）
+        - text: 请填写兼容 Anthropic Messages 协议的 API 地址。
         - region "模型目录":
           - text: 模型目录 已自定义模型目录
           - button "恢复默认模型"
+          - button "调整模型顺序 1"
           - textbox "模型 ID 1":
             - /placeholder: 模型 ID
-            - text: deepseek-v4-pro
+            - text: private-preview
+          - button "模型选项 1" [expanded]
+          - button "删除模型 1"
           - textbox "显示名称 1":
             - /placeholder: 显示名称
-            - text: DeepSeek-V4-Pro
-          - button "容量 1":
-            - img
-          - button "删除模型 1":
-            - img
-          - textbox "模型 ID 2":
-            - /placeholder: 模型 ID
-            - text: deepseek-v4-flash-vision-exp
-          - textbox "显示名称 2":
-            - /placeholder: 显示名称
-            - text: DeepSeek-V4-Flash-Vision-Exp
-          - button "容量 2":
-            - img
-          - button "删除模型 2":
-            - img
-          - textbox "模型 ID 3":
-            - /placeholder: 模型 ID
-            - text: private-preview
-          - textbox "显示名称 3":
-            - /placeholder: 显示名称
             - text: Private Preview
-          - button "容量 3" [expanded]:
-            - img
-          - button "删除模型 3":
-            - img
           - text: 上下文窗口
-          - textbox "上下文窗口 3":
+          - textbox "上下文窗口 1":
             - /placeholder: 1M
             - text: "131072"
           - text: 最大输出 token 数
-          - textbox "最大输出 token 数 3":
+          - textbox "最大输出 token 数 1":
             - /placeholder: 256K
             - text: 64K
-          - text: 输入类型
-          - combobox "输入类型 3":
-            - option "文本" [selected]
-            - option "文本与图像"
-            - option "图像"
-          - button "添加模型":
-            - img
-            - text: 添加模型
+          - group "输入类型 1":
+            - text: 输入类型
+            - checkbox "文本" [checked]
+            - text: 文本
+            - checkbox "图片" [checked]
+            - text: 图片
+          - button "添加模型"
       - button "取消"
       - button "保存"
-  - button "添加提供方":
-    - img
-    - text: 添加提供方
-  - button "添加自定义提供方":
-    - img
-    - text: 添加自定义提供方
+  - button "添加模型提供商"

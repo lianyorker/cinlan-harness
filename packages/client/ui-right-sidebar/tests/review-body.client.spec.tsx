@@ -162,7 +162,7 @@ describe('ReviewBody component with diff-line-comments', () => {
         list={list}
         compare={compare}
         sendCommentToAgent={sendCommentToAgent}
-      />
+      />,
     )
 
     const select = await screen.findByRole('combobox', { name: en['review.title'] })
@@ -213,7 +213,7 @@ describe('ReviewBody component with diff-line-comments', () => {
         side: 'modified',
         text: 'Please rename newVar to meaningfulName',
         status: 'sent',
-      })
+      }),
     )
 
     expect(screen.getByText(en['review.sentStatus'])).toBeTruthy()
@@ -238,7 +238,7 @@ describe('ReviewBody component with diff-line-comments', () => {
         list={list}
         compare={compare}
         sendCommentToAgent={sendCommentToAgent}
-      />
+      />,
     )
 
     const select = await screen.findByRole('combobox', { name: en['review.title'] })
@@ -305,7 +305,7 @@ describe('ReviewBody component with diff-line-comments', () => {
         list={list}
         compare={compare}
         sendCommentToAgent={sendCommentToAgent}
-      />
+      />,
     )
 
     const select = await screen.findByRole('combobox', { name: en['review.title'] })
@@ -354,7 +354,7 @@ describe('ReviewBody component with diff-line-comments', () => {
           line: 2,
           side: 'original',
           text: 'Why was oldVar removed?',
-        })
+        }),
       )
     })
   })

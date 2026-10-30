@@ -35,6 +35,8 @@ The same native interaction is available to settings and other consumers through
 
 Choose this surface when the browser runs on the same machine as the Host, so an OS dialog can open there. Choose the [`-browse`](../ui-directory-picker-browse/README.md) surface when the browser is remote or in-process and no local chooser exists. The two surfaces fill the same slots, so switching is a composition change, not a code change.
 
+Access: both directory flows are registered only while the current Peer may call `directoryPicker/pick`. The owner always has access.
+
 -----
 
 <a id="understand-the-implementation"></a>

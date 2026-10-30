@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/security-research-controller/README.md
-README.md: 2e6dca723950f3a1149fe7c8b3c5b715df083a7e
-README.zh.md: bb6eb44c5faff9c7db0ec81748906fa372e05c46
+/:
+  en: 2b84fa8d4734dbaa
+  zh: dcea4a5d7d6197f5
+/deepseek-ai-dsh-api-security-research-controller:
+  en: 8120fda6bacc9193
+  zh: 9d8808de30f663bb
+/deepseek-ai-dsh-api-security-research-controller/summary:
+  en: 971e1ee29759416a
+  zh: c7b23300d329d30e
+/deepseek-ai-dsh-api-security-research-controller/table-of-contents:
+  en: b00055ac7dc6ba1c
+  zh: c02d894da2c9f642
+/deepseek-ai-dsh-api-security-research-controller/use-this-package:
+  en: ac126a07a79ba393
+  zh: 505721ed772ff056
+/deepseek-ai-dsh-api-security-research-controller/resource-management:
+  en: cfd3f3c4a98878b6
+  zh: 3583ead2ae3c0e58
+/deepseek-ai-dsh-api-security-research-controller/report-downloads:
+  en: d28fc1074cb93ea4
+  zh: 8f4b55fa350d1040
+/deepseek-ai-dsh-api-security-research-controller/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-api-security-research-controller/model-experience/configuration-status:
+  en: a81371227759fd7f
+  zh: 3a404f728025d083
+/deepseek-ai-dsh-api-security-research-controller/model-experience/configuration-status/what-the-model-sees:
+  en: ceedfbe191896e2c
+  zh: 16b6c096326edf4d
+/deepseek-ai-dsh-api-security-research-controller/model-experience/configuration-status/token-effect:
+  en: 84f0f9765b3e69a1
+  zh: 5a6d58089adb204f
+/deepseek-ai-dsh-api-security-research-controller/model-experience/configuration-status/kv-cache-effect:
+  en: 644b39b9cf62f21e
+  zh: c430e239cbaedd00
+/deepseek-ai-dsh-api-security-research-controller/known-limitations-and-deferred-work:
+  en: 8a0dbbaa548e558a
+  zh: 1cd4e3e4d36dcec2
+/deepseek-ai-dsh-api-security-research-controller/known-limitations-and-deferred-work/dev-note:
+  en: a6d0b62cd4045ded
+  zh: 1bd994cff365f6a9

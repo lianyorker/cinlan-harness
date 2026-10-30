@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-在创建或恢复 Session 前，将以下条目挂载到已提供 Agent、工具和系统提示词的 profile 组合中。加载或重新加载此提供方不会接管已经活动的 Session。浏览器安装遵循上游运行时；使用 `executablePath` 选择已有 Chromium 安装。
+在创建或恢复 Session 前，将以下条目挂载到已提供 Agent、工具、系统提示词和工作目录服务的 profile 组合中。加载或重新加载此提供方不会接管已经活动的 Session。浏览器安装遵循上游运行时；使用 `executablePath` 选择已有 Chromium 安装。
 
 本包固定使用 `chrome-devtools-mcp` 1.9.0，并依赖共享浏览器运行时。Node 版本须满足 Harness 范围（`^22.19.0 || >=24.0.0`），此范围同时满足固定版本服务器要求（`^20.19.0 || ^22.12.0 || >=23`）。在 Windows 上，通过 `executablePath` 指定已安装的 Chrome 或 Chromium `.exe`，或提供其 HTTP(S) 或 WS(S) 调试端点。提供方用当前 Node 可执行程序运行已安装的服务器；不要求全局安装 MCP。Windows 移植通过无需密钥的模拟测试验证；真实浏览器连接仍须由操作者验证。
 
@@ -61,7 +61,7 @@ kind: "package-reference"
 
 提供方解析固定版本 npm 包的可执行入口，并使用当前 Node 启动。服务进程之前可能运行临时协议探测进程。[共享运行时](../browser-use-runtime/README.zh.md)负责等待 Agent 初始化、逐 Session 串行执行与清理；[MCP 客户端](../../mcp/mcp-client/README.zh.md)负责传输、发现和结果投影。
 
-只要活动 Session 保持连接，浏览器状态就会跨轮次保留。销毁会等待服务器关闭，再释放资源。重新加载后恢复 Session 会创建新的浏览器运行状态；已保存的对话历史不会还原 Cookie 或页面。
+只要活动 Session 保持连接，浏览器状态就会跨轮次保留。MCP 服务器在经验证的 Session 当前工作目录中启动；Session 后续改变目录时，服务器保留启动目录。销毁会等待服务器关闭，再释放资源。重新加载后恢复 Session 会创建新的浏览器运行状态；已保存的对话历史不会还原 Cookie 或页面。
 
 </details>
 

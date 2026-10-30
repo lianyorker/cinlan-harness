@@ -52,5 +52,7 @@ it('offers voice settings and ten local models without an experimental voice plu
       await page.keyboard.press('Escape')
     }
   }
+  expect(await card.getByRole('status').textContent()).toBe('')
+  await page.getByRole('switch', { name: 'Enable Voice input', exact: true, checked: false }).click()
   expect(tripwire.pageErrors).toEqual([])
 })

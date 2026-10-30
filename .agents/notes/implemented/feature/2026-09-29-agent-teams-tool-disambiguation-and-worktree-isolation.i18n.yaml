@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-29-agent-teams-tool-disambiguation-and-worktree-isolation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-29-agent-teams-tool-disambiguation-and-worktree-isolation.md
+/agent-note-agent-teams-tool-disambiguation-and-worktree-task-isolation:
+  en: 0aabdc2e83751f6b
+  zh: 03e7752dca0d3741
+/agent-note-agent-teams-tool-disambiguation-and-worktree-task-isolation/problem:
+  en: 37c1de478c4dfafd
+  zh: 0ad1122dc66d467f
+/agent-note-agent-teams-tool-disambiguation-and-worktree-task-isolation/decision:
+  en: 2e88343c419c0d3d
+  zh: a8323500ba0d8302
+/agent-note-agent-teams-tool-disambiguation-and-worktree-task-isolation/alternatives-considered:
+  en: a9fea3a0417923b8
+  zh: f189e0d7b852c571
+/agent-note-agent-teams-tool-disambiguation-and-worktree-task-isolation/consequences:
+  en: fcab9ad9a90844ee
+  zh: 2e4645a671fab068
+/agent-note-agent-teams-tool-disambiguation-and-worktree-task-isolation/consequences/risks:
+  en: 5212118d9b0fbdda
+  zh: 90a6ec397fbb2acf

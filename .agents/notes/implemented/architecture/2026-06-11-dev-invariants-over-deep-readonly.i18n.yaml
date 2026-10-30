@@ -12,8 +12,8 @@
   en: 821a886d365a2271
   zh: 4ba5d74a7772150d
 /agent-note-source-owned-session-immutability/decision/session-owns-immutable-history:
-  en: 76fc0d8548d192c1
-  zh: 34c610fff5beb455
+  en: 4d2c2bc54dfa88d8
+  zh: 6e099f5371cd78ba
 /agent-note-source-owned-session-immutability/decision/derived-requests-remain-detached:
   en: 975df574ee6e6df8
   zh: 96d765058482835a
@@ -30,5 +30,5 @@
   en: a9848dec50664b92
   zh: 7c558550b054627b
 /agent-note-source-owned-session-immutability/consequences:
-  en: d26609b76b9eea01
-  zh: cf046d5c7173b738
+  en: ad9099d0055c5cd7
+  zh: fdc81ea079ff4b6f

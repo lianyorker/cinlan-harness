@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-19-automatic-title-control.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-19-automatic-title-control.md
+/agent-note-live-automatic-title-admission:
+  en: 27882ab6e4c953f7
+  zh: 9d42e89d477c4f27
+/agent-note-live-automatic-title-admission/problem:
+  en: f78ee8bbea0af0df
+  zh: 10d3085ca38a0cc7
+/agent-note-live-automatic-title-admission/decision:
+  en: 0835ea593d934b21
+  zh: 1748366d2e9d2a9f
+/agent-note-live-automatic-title-admission/alternatives-considered:
+  en: 18f75caa591034f0
+  zh: 985f912c7b6b72c0
+/agent-note-live-automatic-title-admission/consequences:
+  en: d2d849cac466d934
+  zh: 5754df6ee5bbcdab

@@ -44,51 +44,51 @@ export function McpForm({ draft, pending, writable, actions, t, save }: FormProp
     <form className={css.form} aria-label={title}
       onSubmit={(event) => { event.preventDefault(); save() }}>
       {field('serverName', 'serverName', 'serverNameHelp')}
-    <div className={css.row}>
-      <div><p className={css.label}>{t('enabled')}</p><p className={css.help}>{t('draftEnabledHelp')}</p></div>
-      <Switch checked={draft.enabled} label={t('enabled')} disabled={pending}
-        onChange={(enabled) => { actions.patch({ enabled }) }} />
-    </div>
-    <div className={css.formRow}>
-      <label className={css.label} htmlFor="mcp-draft-transport">{t('transport')}</label>
-      <select id="mcp-draft-transport" className={css.select} value={draft.transport} disabled={pending}
-        onChange={(event) => { actions.patch({ transport: event.target.value as McpDraft['transport'] }) }}>
-        <option value="stdio">{t('stdio')}</option><option value="streamable-http">{t('http')}</option>
-      </select>
-    </div>
-    {draft.transport === 'stdio' ? <>
-      {field('command', 'command')}
-      <div className={css.formRow}>
-        <label className={css.label} htmlFor="mcp-draft-args">{t('args')}</label>
-        <p className={css.help}>{t('argsHelp')}</p>
-        <textarea id="mcp-draft-args" className={css.textarea} value={draft.args} disabled={pending} rows={3}
-          onChange={(event) => { actions.patch({ args: event.target.value }) }} />
+      <div className={css.row}>
+        <div><p className={css.label}>{t('enabled')}</p><p className={css.help}>{t('draftEnabledHelp')}</p></div>
+        <Switch checked={draft.enabled} label={t('enabled')} disabled={pending}
+          onChange={(enabled) => { actions.patch({ enabled }) }} />
       </div>
-      {field('cwd', 'cwd', 'cwdHelp')}
-    </> : field('url', 'url', 'urlHelp')}
-    <fieldset className={css.references} disabled={pending}>
-      <legend className={css.label}>{t(references)}</legend>
-      <p className={css.help}>{t('credentialsHelp')}</p>
-      {draft[references].map((row, index) => <div className={css.referenceRow} key={index}>
-        <label className={css.formRow}><span className={css.help}>{t(references === 'env' ? 'envName' : 'headerName')}</span>
-          <Input className={clsx(css.input)} value={row.name} autoComplete="off"
-            onChange={(event) => { actions.changeReference(references, index, { name: event.target.value }) }} />
-        </label>
-        <label className={css.formRow}><span className={css.help}>{t('referenceName')}</span>
-          <Input className={clsx(css.input)} value={row.ref} autoComplete="off"
-            onChange={(event) => { actions.changeReference(references, index, { ref: event.target.value }) }} />
-        </label>
-        {references === 'headers' && <label className={css.formRow}><span className={css.help}>{t('prefix')}</span>
-          <Input className={clsx(css.input)} value={row.prefix} autoComplete="off"
-            onChange={(event) => { actions.changeReference(references, index, { prefix: event.target.value }) }} />
-        </label>}
-        <Button aria-label={t('removeReference', { number: index + 1 })}
-          onClick={() => { actions.removeReference(references, index) }}>{t('remove')}</Button>
-      </div>)}
-      {references === 'headers' && <p className={css.help}>{t('prefixHelp')}</p>}
-      <Button variant="outline" onClick={() => { actions.addReference(references) }}>{t('addReference')}</Button>
-    </fieldset>
-    <p className={css.help}>{t('advancedHelp')}</p>
+      <div className={css.formRow}>
+        <label className={css.label} htmlFor="mcp-draft-transport">{t('transport')}</label>
+        <select id="mcp-draft-transport" className={css.select} value={draft.transport} disabled={pending}
+          onChange={(event) => { actions.patch({ transport: event.target.value as McpDraft['transport'] }) }}>
+          <option value="stdio">{t('stdio')}</option><option value="streamable-http">{t('http')}</option>
+        </select>
+      </div>
+      {draft.transport === 'stdio' ? <>
+        {field('command', 'command')}
+        <div className={css.formRow}>
+          <label className={css.label} htmlFor="mcp-draft-args">{t('args')}</label>
+          <p className={css.help}>{t('argsHelp')}</p>
+          <textarea id="mcp-draft-args" className={css.textarea} value={draft.args} disabled={pending} rows={3}
+            onChange={(event) => { actions.patch({ args: event.target.value }) }} />
+        </div>
+        {field('cwd', 'cwd', 'cwdHelp')}
+      </> : field('url', 'url', 'urlHelp')}
+      <fieldset className={css.references} disabled={pending}>
+        <legend className={css.label}>{t(references)}</legend>
+        <p className={css.help}>{t('credentialsHelp')}</p>
+        {draft[references].map((row, index) => <div className={css.referenceRow} key={index}>
+          <label className={css.formRow}><span className={css.help}>{t(references === 'env' ? 'envName' : 'headerName')}</span>
+            <Input className={clsx(css.input)} value={row.name} autoComplete="off"
+              onChange={(event) => { actions.changeReference(references, index, { name: event.target.value }) }} />
+          </label>
+          <label className={css.formRow}><span className={css.help}>{t('referenceName')}</span>
+            <Input className={clsx(css.input)} value={row.ref} autoComplete="off"
+              onChange={(event) => { actions.changeReference(references, index, { ref: event.target.value }) }} />
+          </label>
+          {references === 'headers' && <label className={css.formRow}><span className={css.help}>{t('prefix')}</span>
+            <Input className={clsx(css.input)} value={row.prefix} autoComplete="off"
+              onChange={(event) => { actions.changeReference(references, index, { prefix: event.target.value }) }} />
+          </label>}
+          <Button aria-label={t('removeReference', { number: index + 1 })}
+            onClick={() => { actions.removeReference(references, index) }}>{t('remove')}</Button>
+        </div>)}
+        {references === 'headers' && <p className={css.help}>{t('prefixHelp')}</p>}
+        <Button variant="outline" onClick={() => { actions.addReference(references) }}>{t('addReference')}</Button>
+      </fieldset>
+      <p className={css.help}>{t('advancedHelp')}</p>
     </form>
   </Modal>
 }

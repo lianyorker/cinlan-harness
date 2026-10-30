@@ -170,7 +170,7 @@ describe('ReviewBody Subtab switching', () => {
         list={list}
         compare={compare}
         prSummary={mockPR}
-      />
+      />,
     )
 
     await waitFor(() => {

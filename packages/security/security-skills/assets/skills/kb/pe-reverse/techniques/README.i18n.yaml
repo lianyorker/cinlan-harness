@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/security/security-skills/assets/skills/kb/pe-reverse/techniques/README.md
-README.md: 597014876e9dab9038944d918f96f1a0a7859b10
-README.zh.md: 2a7a38ce09cba2d638b0c0cda17aed97b093130f
+/pe:
+  en: 150d3a1b8364e42d
+  zh: 5e1c21274364e576
+/pe/9-19:
+  en: f48b401b186a0db3
+  zh: f48b401b186a0db3
+/pe/9-19/01-triage-1:
+  en: a4402372143f7424
+  zh: a4402372143f7424
+/pe/9-19/02-pe-structure-pe-1:
+  en: b327f0a72a7070ee
+  zh: b327f0a72a7070ee
+/pe/9-19/03-static-analysis-4:
+  en: 0954810e77b25b09
+  zh: 0954810e77b25b09
+/pe/9-19/04-dynamic-analysis-8:
+  en: 8ead554662fdb260
+  zh: 8ead554662fdb260
+/pe/9-19/05-crypto-unpack-1:
+  en: ed3941ded18a23e4
+  zh: ed3941ded18a23e4
+/pe/9-19/06-ioc-extraction-ioc-1:
+  en: dd5d963a10ea013d
+  zh: dd5d963a10ea013d
+/pe/9-19/07-yara-sigma-yara-sigma-1:
+  en: d8aff91cd16c4b59
+  zh: d8aff91cd16c4b59
+/pe/9-19/08-patch-patch-1:
+  en: 3b68b7913a112bfc
+  zh: 3b68b7913a112bfc
+/pe/9-19/09-av-evasion-ai-1:
+  en: 946c28abf85f1093
+  zh: 946c28abf85f1093
+/pe/section:
+  en: 67f79a76082ae032
+  zh: 67f79a76082ae032
+/pe/section~2:
+  en: d41833bb2185fba5
+  zh: d41833bb2185fba5

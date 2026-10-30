@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-07-06-recallable-compaction.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-07-06-recallable-compaction.md
-2026-07-06-recallable-compaction.md: d681323df4341b08123c945e3bfda78acc99167e
-2026-07-06-recallable-compaction.zh.md: a71c1fe8bf4b235b08007f4242258a6d8d0222ce
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall:
+  en: 48a5605fbf222126
+  zh: 6ab27ffb145e5fea
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/problem:
+  en: 98419c56fc9d4f6f
+  zh: 30271b2ad21dc596
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/decision:
+  en: 4210d2b93159ae72
+  zh: 63410896e1372130
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/decision/frozen-index-checkpoints:
+  en: 8325d916c340ce7e
+  zh: 8fa9e02b9736c5de
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/decision/the-state-checkpoint:
+  en: 58fa7358424ce606
+  zh: 37e3e0d908c9804c
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/decision/pass-execution:
+  en: 0bbddf585af7054d
+  zh: 6a1d4cb86fe1609a
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/decision/the-recall-tools:
+  en: f433fc7bd888c1a3
+  zh: d6428b50343086f9
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/decision/cache-and-cost:
+  en: 5478157a8990200d
+  zh: 248d5a948cd980bf
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/decision/packaging:
+  en: be69bf9a59318b82
+  zh: 8ba115c958a760ad
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/decision/relation-to-in-flight-work:
+  en: 649b2f91f7ec6bf0
+  zh: e6868d911560ddbd
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/decision/follow-ups:
+  en: ddef3c8ee8af0a71
+  zh: 4d242940dbb34e50
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/alternatives-considered:
+  en: 090bfe09f0292007
+  zh: fd77eeb50eb70761
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/consequences:
+  en: 87130e9a6b6d806d
+  zh: c7ea3591c6e99ce2
+/agent-note-recallable-compaction-index-checkpoints-a-state-checkpoint-and-in-session-history-recall/verification:
+  en: 9562ccc6ef4b0830
+  zh: 04f0bbac50143d7c

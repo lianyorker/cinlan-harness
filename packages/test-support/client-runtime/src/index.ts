@@ -43,6 +43,7 @@ import { TestRemote } from './remote.ts'
 import { TestSessions } from './sessions.ts'
 import { TestWorkspaces } from './workspaces.ts'
 import type { Stabilizer } from './fixtures.ts'
+import { allowAllAccessPlugin } from './access.ts'
 
 export type { UseSession } from '@deepseek-ai/dsh-client-ui-session/client'
 export { domSnapshotSerializer, registerDomSnapshotSerializer } from './snapshot.ts'
@@ -57,9 +58,12 @@ export {
 export type {
   FixtureSnapshot, SessionBehaviorOverrides, SessionFixture, SessionFixtureSnapshot, Stabilizer,
 } from './fixtures.ts'
+export { contextMenuHook } from './context-menu.ts'
 export { makeTranslate } from './translate.ts'
 export { allowAllAccess } from './access.ts'
 export type { AccessStandardProps } from './access.ts'
+export { allowAllAccess, allowAllAccessPlugin, StaticRemoteAccess, staticAccessPlugin } from './access.ts'
+export type { AccessStandardProps, StaticAccessPlugin } from './access.ts'
 export { usePinnedBrowserLanguages } from './locale-env.ts'
 
 /**
@@ -127,6 +131,8 @@ export interface FeatureHandle {
 export interface TestFileUpload {
   /** Test-supplied upload behavior; the default rejects every call. */
   upload: (sessionId: SessionId, ...args: unknown[]) => Promise<unknown>
+  /** Test-supplied image upload behavior; the default rejects every call. */
+  uploadImage: (sessionId: SessionId, ...args: unknown[]) => Promise<unknown>
 }
 
 /**
@@ -259,6 +265,7 @@ export class SlotTestRuntime {
     this.workspaces = new TestWorkspaces(this.stabilizer)
     this.fileUpload = {
       upload: () => Promise.reject(new Error('client test runtime: file upload is not stubbed')),
+      uploadImage: () => Promise.reject(new Error('client test runtime: image upload is not stubbed')),
     }
     ctx.provide('sessions', this.sessions)
     ctx.provide('workspaces', this.workspaces)
@@ -287,6 +294,7 @@ export class SlotTestRuntime {
     const fiber = ctx.plugin(SlotRegistry)
     await fiber.await()
     const runtime = new SlotTestRuntime(ctx, ctx.get('slots') as SlotRegistry)
+    await ctx.plugin(allowAllAccessPlugin).await()
     await ctx.plugin({ inject: [...uiSessionInject], apply: applyUiSession }).await()
     return runtime
   }

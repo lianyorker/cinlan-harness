@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-25-sub2api-account-authorization.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-25-sub2api-account-authorization.md
-2026-09-25-sub2api-account-authorization.md: caec214453e9f55c1452dbbe77542e7b0df6f4ae
-2026-09-25-sub2api-account-authorization.zh.md: ba33b624388e30eb264cd950cef8fbefca20fafa
+/agent-note-sub2api-account-authorization:
+  en: 5bb7fb2de1e3504b
+  zh: 13184ad84c8314b1
+/agent-note-sub2api-account-authorization/problem:
+  en: 9f1f65ce37c29a92
+  zh: 44bdb5c3bd2e4cdb
+/agent-note-sub2api-account-authorization/decision:
+  en: 843bb08c68bd1fbc
+  zh: 8756337905d54d18
+/agent-note-sub2api-account-authorization/alternatives-considered:
+  en: e55d8729cd048cd7
+  zh: cfb00dc7a80c8f66
+/agent-note-sub2api-account-authorization/consequences:
+  en: 29022c1ac78232f4
+  zh: 03624ac2d33ced3f
+/agent-note-sub2api-account-authorization/verification:
+  en: 7cc39226759cfaf6
+  zh: bf5a3a8dbf74c63b

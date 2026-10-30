@@ -93,10 +93,14 @@ describe('web e2e: queued image submission', () => {
     await input.press('Enter')
     await expect.poll(() => existsSync(readyFile), { timeout: 15_000 }).toBe(true)
 
-    // A just-submitted composer is read-only for the prompt round-trip.
+    // The composer keeps the sent prompt, still editable, until the Host accepts it.
+    await expect.poll(() => input.textContent(), { timeout: 10_000 }).toBe('')
     await page.locator('[data-composer-input][contenteditable="true"]').first().waitFor({ timeout: 10_000 })
     await pasteImage(page, await readFile(PNG))
     await page.getByRole('img', { name: 'queued.png' }).waitFor({ timeout: 10_000 })
+    // The image uploads as soon as it is added, and Send waits for its receipt.
+    await page.locator('button[aria-busy="false"]', { has: page.getByRole('img', { name: 'queued.png' }) })
+      .waitFor({ timeout: 10_000 })
     await input.fill(QUEUED_TEXT)
     await input.press('Enter')
 
@@ -109,6 +113,14 @@ describe('web e2e: queued image submission', () => {
     await page.getByText(QUEUED_TEXT, { exact: true }).waitFor()
     const queuedSnapshot = await captureStableAria(page, '[class*="centerCol"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(QUEUED_EXPECTED, queuedSnapshot, MODE)
+    // The composer keeps the text and image, read-only, until the Host accepts the prompt.
+    await expect.poll(() => input.getAttribute('contenteditable'), { timeout: 15_000 }).toBe('false')
+    expect(await page.getByRole('img', { name: 'queued.png' }).count()).toBe(1)
+    expect(await page.locator('[data-queue-dock] [data-submission-echo]').count()).toBe(0)
+    // The Host queue row can arrive before the prompt reply that clears the composer.
+    await expect.poll(() => input.textContent(), { timeout: 15_000 }).toBe('')
+    await page.locator('[data-queue-dock]').getByText(QUEUED_TEXT, { exact: true }).waitFor()
+    // The Host queue row replaces the accepted echo; wait for the durable row's own thumbnail.
 
     // Stop parks the accepted queue; the next waking send delivers the image
     // message first (FIFO), then its own text as the following turn.

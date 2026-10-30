@@ -488,6 +488,60 @@ class ResourceStore {
   }
 }
 
+/** The built-in identity-less resource kind; no declared resource kind may take its name. */
+const GLOBAL_RESOURCE_KIND = 'global' satisfies RemoteAccessResourceKind
+
+class ResourceStore {
+  private readonly declarations = new Map<string, ProviderEntry<TypertResourceDeclaration>>()
+  private readonly changes: ChangeSource
+
+  constructor(report: ReportObserverError) {
+    this.changes = new ChangeSource(report)
+  }
+
+  view(ctx: Context): TypertResourceRegistry {
+    return {
+      register: (kind, declaration) => this.register(ctx, kind, declaration),
+      get: kind => this.declarations.get(kind)?.provider,
+      entries: () => [...this.declarations].map(([kind, entry]) => Object.freeze({ kind, ...entry.provider })),
+      subscribe: listener => this.changes.subscribe(ctx, listener),
+    }
+  }
+
+  private register(ctx: Context, kind: string, declaration: TypertResourceDeclaration): TypertDisposer {
+    validateSegment('resource kind', kind)
+    if (kind === GLOBAL_RESOURCE_KIND) {
+      throw new Error(`typert: resource kind "${GLOBAL_RESOURCE_KIND}" is reserved for the built-in global resource`)
+    }
+    if (this.declarations.has(kind)) throw new Error(`typert: resource kind "${kind}" is already registered`)
+    // Copy by branch so a prototype method cannot vanish in a spread; an opaque declaration fails here
+    // rather than resolving every call of this kind to the global resource.
+    const resolve = declaration.resolve
+    const field = declaration.field
+    let provider: TypertResourceDeclaration
+    if (resolve !== undefined) {
+      provider = { resolve }
+    } else if (field !== undefined) {
+      validateWireName('resource field', field)
+      provider = { field }
+    } else {
+      throw new Error(`typert: resource kind "${kind}" declares neither a field nor a resolve function`)
+    }
+    const entry: ProviderEntry<TypertResourceDeclaration> = { provider, owner: {} }
+    const { declarations, changes } = this
+    return ctx.effect(function* () {
+      declarations.set(kind, entry)
+      changes.emit({ kind: 'resource', key: kind })
+      yield () => {
+        /* v8 ignore next -- duplicate registration is rejected, so this effect remains the kind's unique owner. */
+        if (declarations.get(kind) !== entry) return
+        declarations.delete(kind)
+        changes.emit({ kind: 'resource', key: kind })
+      }
+    }, `typert.resources.register(${JSON.stringify(kind)})`)
+  }
+}
+
 /**
  * Registry of generated schemas, package reflection, invocations, and Remote
  * dependency providers.

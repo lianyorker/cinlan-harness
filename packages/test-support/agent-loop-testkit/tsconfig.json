@@ -40,6 +40,18 @@
     },
     {
       "path": "../../fs/fs-local"
+    },
+    {
+      "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../fs/fs-local"
+    },
+    {
+      "path": "../../core/tool-executor-native"
+    },
+    {
+      "path": "../../core/tool-executor-ptc"
     }
   ]
 }

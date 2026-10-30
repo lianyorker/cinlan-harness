@@ -43,7 +43,7 @@ export function DiffPreferencesRow({ t }: PropsRuntime<'settings.general.item'> 
           <Switch
             checked={prefs.diffWordWrap}
             label={t('review.wordWrap')}
-            onChange={checked => { setPrefs({ diffWordWrap: checked }) }}
+            onChange={(checked) => { setPrefs({ diffWordWrap: checked }) }}
           />
         </div>
         <div className={css.preferenceRow}>
@@ -51,7 +51,7 @@ export function DiffPreferencesRow({ t }: PropsRuntime<'settings.general.item'> 
           <Switch
             checked={prefs.showWhitespace}
             label={t('review.showWhitespace')}
-            onChange={checked => { setPrefs({ showWhitespace: checked }) }}
+            onChange={(checked) => { setPrefs({ showWhitespace: checked }) }}
           />
         </div>
         <div className={css.preferenceRow}>

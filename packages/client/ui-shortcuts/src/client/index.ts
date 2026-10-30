@@ -27,7 +27,7 @@ export const inject = ['shortcuts', 'keyboard', 'locale', 'slots', 'settingsMeta
  * @param ctx - plugin-owned client context.
  */
 export function apply(ctx: Context): void {
-  ctx.effect(() => ctx.locale.register('shortcuts', { zh, en }), 'shortcuts: dictionaries')
+  ctx.effect(() => ctx.locale.register('shortcuts', { zh, en, ja, es, fr, de, ru, pt }), 'shortcuts: dictionaries')
   const t = ctx.locale.bind('shortcuts')
   const handle = createShortcutsStore()
   const instance = handle.create()

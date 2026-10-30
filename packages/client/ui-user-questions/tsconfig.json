@@ -58,6 +58,12 @@
     },
     {
       "path": "../../util/brand"
+    },
+    {
+      "path": "../../util/brand"
+    },
+    {
+      "path": "../../core/tool-executor-ptc"
     }
   ]
 }

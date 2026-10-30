@@ -1,6 +1,73 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/browser/tool-browser-element-capture/README.md
-README.md: df6a6c4d978555f923dc9a9ec6d561de902df0dc
-README.zh.md: 1e01d2dd2752671149abc77898048f27c4af741c
+/:
+  en: d6d06fd4a0be4b46
+  zh: 3d08229a5c5d3179
+/deepseek-ai-dsh-tool-browser-element-capture:
+  en: d4c9e8c7b2ab01ac
+  zh: e594cbe8809d62cf
+/deepseek-ai-dsh-tool-browser-element-capture/summary:
+  en: f184aa7245647182
+  zh: 29400ecfebd86bc2
+/deepseek-ai-dsh-tool-browser-element-capture/table-of-contents:
+  en: d7c3840e88edb248
+  zh: 492cfcab4a4f8bff
+/deepseek-ai-dsh-tool-browser-element-capture/tools-and-data-flow:
+  en: 2752f59902720881
+  zh: d927a454ca63d557
+/deepseek-ai-dsh-tool-browser-element-capture/configuration:
+  en: 36870adffc8ddb84
+  zh: 1915b7e00b43c3c0
+/deepseek-ai-dsh-tool-browser-element-capture/permissions-and-cancellation:
+  en: 94bfea1a3e1713fc
+  zh: 1634b4188209a56e
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-system-prompt:
+  en: acfa6d17728473bd
+  zh: 96c5b665cae71f4e
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-system-prompt/what-the-model-sees:
+  en: c29e756606f3eeb6
+  zh: 0ca732ff4ffc65fc
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-system-prompt/what-the-model-sees/capture-guidance:
+  en: c54846a31db7c0dc
+  zh: c54846a31db7c0dc
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-system-prompt/token-effect:
+  en: e14e493716389964
+  zh: 7ed2d95486d17625
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-system-prompt/kv-cache-effect:
+  en: 4ad13fdc6b1589e2
+  zh: 27cf2a124a7cdd59
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-tool-definitions:
+  en: 626e3311a1eab6c1
+  zh: 5529c72e99283b1d
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-tool-definitions/what-the-model-sees:
+  en: ea78cdc218513c39
+  zh: 40b8df883a7b8d65
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-tool-definitions/token-effect:
+  en: d9604f4f8e92eeb3
+  zh: 0ff6c6a382a66a66
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-tool-definitions/kv-cache-effect:
+  en: e4211fed03b2d12c
+  zh: 60b63495a71898a8
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-results:
+  en: c86206274533c6cb
+  zh: 41fb02e58e7db1ae
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-results/what-the-model-sees:
+  en: 53e1a5c52419681a
+  zh: 55f7853f6e67efe1
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-results/token-effect:
+  en: 4fb2d4b790cf1152
+  zh: 3f6abe6a30919e36
+/deepseek-ai-dsh-tool-browser-element-capture/model-experience/browser-element-capture-results/kv-cache-effect:
+  en: 1f1ae8927627cce9
+  zh: 9915ab6d5b7cb0ef
+/deepseek-ai-dsh-tool-browser-element-capture/known-limitations-and-deferred-work:
+  en: a9b9ba54c06641bf
+  zh: a1cd5948e6f007e9
+/deepseek-ai-dsh-tool-browser-element-capture/known-limitations-and-deferred-work/dev-note:
+  en: 9665bdac763234da
+  zh: c281fda9f524699d

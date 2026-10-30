@@ -55,7 +55,7 @@ export class RelayClient {
       const timer = setTimeout(() => { reject(new Error('relay_registration_timeout')); control.terminate() }, this.deadlineMs)
       const finish = (error?: Error): void => { clearTimeout(timer); if (error) reject(error); else resolve() }
       control.once('open', () => control.send(JSON.stringify({ type: 'host-hello', lease: this.assignment!.lease, proof: createProof('control', this.secretKey) })))
-      control.on('message', raw => {
+      control.on('message', (raw) => {
         try {
           const message = ControlMessageSchema.parse(JSON.parse(raw.toString()))
           if (message.type === 'host-registered') {
@@ -99,7 +99,7 @@ export class RelayClient {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => { this.pending.delete(reqId); reject(new Error('relay_control_timeout')) }, this.deadlineMs)
       this.pending.set(reqId, { resolve, reject, timer })
-      this.control!.send(JSON.stringify({ type, reqId, ...payload }), error => {
+      this.control!.send(JSON.stringify({ type, reqId, ...payload }), (error) => {
         if (!error) return
         clearTimeout(timer); this.pending.delete(reqId); reject(new Error('relay_send_failed'))
       })
@@ -111,7 +111,7 @@ export class RelayClient {
     this.data.add(socket)
     const timer = setTimeout(() => socket.terminate(), this.deadlineMs)
     socket.once('open', () => socket.send(JSON.stringify({ type: 'data-attach', connId: message.connId, ticket: message.ticket })))
-    socket.once('message', raw => {
+    socket.once('message', (raw) => {
       clearTimeout(timer)
       try {
         z.object({ type: z.literal('data-attached') }).strict().parse(JSON.parse(raw.toString()))

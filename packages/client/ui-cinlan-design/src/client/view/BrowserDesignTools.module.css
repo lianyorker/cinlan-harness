@@ -1,0 +1,139 @@
+.tools {
+  flex: 0 0 auto;
+  max-height: 35%;
+  overflow: auto;
+  padding: 8px 10px;
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-bg-layer-1);
+  font: var(--dsw-font-xxs-12);
+}
+
+.actions,
+.direction {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.direction {
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.tools summary {
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.pinForm,
+.pinForm label,
+.pinList li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pinDialog {
+  width: min(460px, 100%);
+}
+
+.recordsButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 36px;
+  height: 28px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  font: var(--dsw-font-xxs-12);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.recordsButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.recordsButton:focus-visible,
+.marker:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+}
+
+.dialogContent {
+  max-height: min(70dvh, 560px);
+  overflow: auto;
+}
+
+.marker {
+  position: fixed;
+  z-index: 60;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 50%;
+  color: var(--dsw-alias-label-primary-foreground);
+  background: var(--dsw-alias-button-primary-fill);
+  cursor: pointer;
+}
+
+.pinForm {
+  padding-block: 12px;
+}
+
+.pinForm select,
+.pinForm textarea {
+  width: 100%;
+  min-height: 36px;
+  box-sizing: border-box;
+  border: 1px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-sm);
+  padding: 8px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-base);
+  font: inherit;
+}
+
+.pinForm textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.location {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  font-size: inherit;
+}
+
+.comment {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pinList {
+  padding: 0;
+  list-style: none;
+}
+
+.pinList li {
+  padding-block: 12px;
+}
+
+@media (max-width: 768px) {
+  .pinDialog button,
+  .pinDialog select {
+    min-height: 44px;
+  }
+
+  .marker {
+    width: 44px;
+    height: 44px;
+  }
+}

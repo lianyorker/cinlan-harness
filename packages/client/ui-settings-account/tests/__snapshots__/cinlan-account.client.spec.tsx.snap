@@ -1,0 +1,5 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`describes Cinlan account access without promising file sharing 1`] = `"Not signed inSign in to use the configured model service on this Host.Sign in to CinlanThis account provides model access and is required when this Host connects through Cinlan Relay."`;
+
+exports[`describes Cinlan account access without promising file sharing 2`] = `"未登录登录后即可在此 Host 使用已配置的模型服务。登录 Cinlan此账户用于模型访问；此 Host 通过 Cinlan Relay 连接时也必须登录。"`;

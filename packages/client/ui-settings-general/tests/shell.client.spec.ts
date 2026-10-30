@@ -9,38 +9,12 @@ import { apply, inject } from '../src/client/index.ts'
 import type { SettingsRootInjected } from '../src/client/shell-contract.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
 
-async function bench() {
-  const ctx = new Context()
-  await ctx.plugin(SlotRegistry).await()
-  // Copy machinery the shell only reads a revision from; the real locale
-  // plugin would drag its own settings-row dependencies into this bench.
-  ctx.provide('locale', {
-    register: () => () => {},
-    bind: () => (key: string) => key,
-    getSnapshot: () => ({ active: 'zh', locales: [], revision: 0 }),
-    subscribe: () => () => {},
-  } as never)
-  // The shell mounts ui-settings, which injects `remote.settings`; without the
-  // namespace provided its fiber parks and no slot is ever declared.
-  const settings = {
-    describe: async () => ({ ok: false, error: new RemoteError('gateway/internal', 'no settings', {}) }),
-  }
-  ctx.provide('remote', {
-    $on: () => () => {},
-    $host: { home: undefined, isLoopback: false },
-    settings,
-  } as never)
-  ctx.provide('remote.settings', settings as never)
-  await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
-  return { ctx, slots: ctx.get('slots') as SlotRegistry }
-}
-
-function declare(slots: SlotRegistry): () => void {
-  return slots.register(
-    { name: 'root', children: { 'sidebar.settings': { kind: 'single', scope: 'root' } } } as never,
-    () => null,
-  )
-}
+const SELF = '@deepseek-ai/dsh-client-ui-settings-general'
+const SIDEBAR = '@deepseek-ai/dsh-client-ui-sidebar'
+const it = createClientTest({ roster: webApp })
+const withoutSettingsAccess = createClientTest({ roster: webApp }, { access: action => action !== 'settings/describe' })
+/** The whole roster's first boot pays the cold module transform of every plugin package. */
+const COLD_BOOT_TIMEOUT_MS = 60_000
 
 function injectedOf(slots: SlotRegistry): SettingsRootInjected {
   const entry = slots.entries('sidebar.settings')[0]!
@@ -103,6 +77,29 @@ describe('ui-settings apply', () => {
     b.slots.register({ name: 'settings.section', id: 'z', order: 20, label: 'Z' } as never, () => null)
     // No order and no label: both projection defaults apply.
     b.slots.register({ name: 'settings.section', id: 'a' } as never, () => null)
+  it('declares its services', () => {
+    expect(inject).toEqual(['slots', 'locale', 'connection', 'remote', 'remote.settings', 'configForms', 'shortcuts', 'modules', 'remoteAccess'])
+  })
+
+  it('occupies sidebar.settings, declared by ui-sidebar, and declares every child slot', async ({ start }) => {
+    const c = await start()
+    expect(c.ctx.slots.entries('sidebar.settings').map(entry => entry.component)).toEqual([SettingsRoot])
+    for (const name of CHILD_NAMES) expect(c.ctx.slots.spec(name)).toEqual(CHILD_SPECS[name])
+  }, COLD_BOOT_TIMEOUT_MS)
+
+  withoutSettingsAccess('leaves sidebar.settings unoccupied while the current Peer may not read the settings description', async ({ start }) => {
+    const c = await start()
+    expect(c.ctx.slots.entries('sidebar.settings')).toEqual([])
+  }, COLD_BOOT_TIMEOUT_MS)
+
+  it('projects the section ledger: product sections in order, defaults for bare rows, stable snapshots', async ({ start }) => {
+    const c = await start()
+    const { sections } = injectedOf(c).hooks
+    const product = sections.getSnapshot()
+    expect(product.map(row => row.id)).toEqual(PRODUCT_SECTIONS)
+    c.ctx.slots.register({ name: 'settings.section', id: 'z', order: 1_000, label: 'Z' } as never, () => null)
+    // No order and no label: both projection defaults apply, and order 0 sorts among the product rows.
+    c.ctx.slots.register({ name: 'settings.section', id: 'a' } as never, () => null)
     const rows = sections.getSnapshot()
     expect(rows).toEqual([
       GENERAL,
@@ -138,6 +135,29 @@ describe('ui-settings apply', () => {
     unregister()
     expect(sections.getSnapshot()).toHaveLength(1)
     off()
+  it('shows Account first only while signed in and removes it on sign-out', async ({ start }) => {
+    const c = await start()
+    const { sections } = injectedOf(c).hooks
+    await c.mock.streams.opened('account/watch', 1)
+    expect(sections.getSnapshot().map(row => row.id)).toEqual(PRODUCT_SECTIONS)
+    c.mock.streams.push('account/watch', { status: 'credential-stored', attempt: null })
+    await vi.waitFor(() => {
+      expect(sections.getSnapshot().map(row => row.id)).toEqual(['account', ...PRODUCT_SECTIONS])
+    })
+    c.mock.streams.push('account/watch', { status: 'credential-stored', attempt: null })
+    await vi.waitFor(() => { expect(sections.getSnapshot().filter(row => row.id === 'account')).toHaveLength(1) })
+    c.mock.streams.push('account/watch', { status: 'signed-out', attempt: null })
+    await vi.waitFor(() => { expect(sections.getSnapshot().map(row => row.id)).toEqual(PRODUCT_SECTIONS) })
+  })
+
+  it('projects the roster Connection control without copying its state; reconnect opens a new $events generation', async ({ start }) => {
+    const c = await start()
+    const injected = injectedOf(c)
+    expect(injected.hooks.connectionState).toBe(c.connection.state)
+    expect(injected.hooks.connectionState.getSnapshot()).toBe('connected')
+    injected.reconnect()
+    await c.mock.streams.opened('$events', 2)
+    await vi.waitFor(() => { expect(c.connection.state.getSnapshot()).toBe('connected') })
   })
 
   it('projects onboarding entries into stable coordinator order', async () => {

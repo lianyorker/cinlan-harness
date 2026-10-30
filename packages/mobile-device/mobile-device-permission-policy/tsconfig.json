@@ -9,10 +9,13 @@
   ],
   "references": [
     {
-      "path": "../../../vendor/cosmokit"
+      "path": "../../../vendor/cordis"
     },
     {
-      "path": "../../../vendor/cordis"
+      "path": "../tools"
+    },
+    {
+      "path": "../../../vendor/cosmokit"
     },
     {
       "path": "../../../vendor/schemastery"

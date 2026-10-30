@@ -1,6 +1,49 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/execution-host/execution-runtime/README.md
-README.md: ecd6e423d026a3bbb77c5cf914915f724bea0eef
-README.zh.md: eb4e2882bbd35c483ea00db3d4f5705d988c6a39
+/:
+  en: f6fd7e5bb25ffdd9
+  zh: ed9ad56366ee412c
+/deepseek-ai-dsh-execution-runtime:
+  en: 3755a5edb684023e
+  zh: 3b705ee5638bde49
+/deepseek-ai-dsh-execution-runtime/summary:
+  en: 1d7a3014085a47da
+  zh: 579638e3c47aa6d2
+/deepseek-ai-dsh-execution-runtime/table-of-contents:
+  en: 9d2c91e8be3a4e65
+  zh: cf8dcff627e351bb
+/deepseek-ai-dsh-execution-runtime/use-this-package:
+  en: 2dc1b1c946e3ce79
+  zh: ee811e5a286ca98b
+/deepseek-ai-dsh-execution-runtime/task-ownership:
+  en: 9876cf2b92bc5b74
+  zh: eab2eed77c1cd562
+/deepseek-ai-dsh-execution-runtime/understand-the-implementation:
+  en: 32ffe58b5ed9ca0c
+  zh: ce08a16f1506d2c3
+/deepseek-ai-dsh-execution-runtime/further-exploration:
+  en: f235486e6fdf4a1c
+  zh: 6a15f297e317275d
+/deepseek-ai-dsh-execution-runtime/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-execution-runtime/model-experience/runtime-management-observations:
+  en: aaf2604809b093f4
+  zh: ebfdbc3aefb0b5f1
+/deepseek-ai-dsh-execution-runtime/model-experience/runtime-management-observations/what-the-model-sees:
+  en: e4ffebe4f94dc633
+  zh: de4cd22c5f9140a8
+/deepseek-ai-dsh-execution-runtime/model-experience/runtime-management-observations/token-effect:
+  en: 9fa613375ea936f6
+  zh: 6a78baaa618e4aab
+/deepseek-ai-dsh-execution-runtime/model-experience/runtime-management-observations/kv-cache-effect:
+  en: 54d11988c7211dc6
+  zh: 868d46c307c953a7
+/deepseek-ai-dsh-execution-runtime/known-limitations-and-deferred-work:
+  en: a51784e145c74dc8
+  zh: 58b13a662e4f7a3f
+/deepseek-ai-dsh-execution-runtime/known-limitations-and-deferred-work/dev-note:
+  en: bd5d6e118163bcfd
+  zh: 147fe6afcb1dc1af

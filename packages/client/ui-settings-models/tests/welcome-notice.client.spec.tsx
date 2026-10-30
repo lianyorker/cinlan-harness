@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -81,7 +82,6 @@ function mount(
     ctx,
     { namespace: WELCOME_NOTICE_SETTINGS_NAMESPACE, decode: decodeWelcomeSection },
     mirror,
-    'host',
     schemaService,
   )
   const controller = new WelcomeNoticeStore(scope)
@@ -97,6 +97,8 @@ function mount(
     usePanelInfo, useSessionRetainInfo: () => undefined, useResource,
     useWorkspaces: unusedHook,
     ...allowAllAccess,
+    ...allowAllAccess,
+    useContextMenu: contextMenuHook(),
     controller,
     useWelcome: bindSnapshotSelector(controller.store),
     t: key => zh[key],

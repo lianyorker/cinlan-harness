@@ -807,7 +807,7 @@ describe('v0.12.0 store additions', () => {
       store.setSession('s1')
       let calls = 0
       store.subscribe(() => { calls++ })
-      store.reduceFor('s2', (state) => ({ ...state, expanded: ['/x'] }))
+      store.reduceFor('s2', state => ({ ...state, expanded: ['/x'] }))
       // No notify, no snapshot switch.
       expect(calls).toBe(0)
       expect(store.getSnapshot().sessionId).toBe('s1')
@@ -819,7 +819,7 @@ describe('v0.12.0 store additions', () => {
     it('loads a fresh state for a never-visited target session', () => {
       const store = createSidebarStore()
       store.setSession('s1')
-      store.reduceFor('brand-new', (state) => ({ ...state, panelOpen: false }))
+      store.reduceFor('brand-new', state => ({ ...state, panelOpen: false }))
       store.setSession('brand-new')
       expect(store.getSnapshot().state?.panelOpen).toBe(false)
       expect(store.getSnapshot().state?.splits).toBeDefined()
@@ -837,7 +837,7 @@ describe('v0.12.0 store additions', () => {
       // A targeted reduce into the OLD, low-id session must not lower the
       // counter: the next split in the ACTIVE session would otherwise mint
       // an id that already exists (mapLeaf visits both leaves → corruption).
-      store.reduceFor('b', (state) => state)
+      store.reduceFor('b', state => state)
       store.reduce(s => splitPane(s, 'row'))
       const after = allLeaves(store.getSnapshot().state!.splits).map(leaf => leaf.id)
       expect(new Set(after).size).toBe(after.length)

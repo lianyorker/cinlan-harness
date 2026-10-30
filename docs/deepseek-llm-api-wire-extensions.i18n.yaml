@@ -1,6 +1,34 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for deepseek-llm-api-wire-extensions.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/deepseek-llm-api-wire-extensions.md
-deepseek-llm-api-wire-extensions.md: 5b1c4de68949d56f99cbfa70ba4af7ca0b71715d
-deepseek-llm-api-wire-extensions.zh.md: a78baace34dcb3e24667295cf06e111ce355aa72
+/official-deepseek-llm-api-wire-extensions:
+  en: 61346a5a8a880274
+  zh: 1546a63211976d0f
+/official-deepseek-llm-api-wire-extensions/wire-namespaces-and-versioning:
+  en: 1da81051addc4b47
+  zh: 3e8d7cd3f8c1cdba
+/official-deepseek-llm-api-wire-extensions/request-headers:
+  en: 7f87d0846d1eaea8
+  zh: baaa8d8c241ae456
+/official-deepseek-llm-api-wire-extensions/body-extension-transaction:
+  en: 4562c8715f863111
+  zh: d410530ae8aa2823
+/official-deepseek-llm-api-wire-extensions/dsh-plugin-packages:
+  en: 99c36d107067d45f
+  zh: da5cf2a4eeb81b75
+/official-deepseek-llm-api-wire-extensions/dsh-session-log:
+  en: 420502d04f929734
+  zh: 3cfc721aaec1af22
+/official-deepseek-llm-api-wire-extensions/dsh-session-log/wire-session-header:
+  en: 3179e667daa1717e
+  zh: 8b918ad28e063c91
+/official-deepseek-llm-api-wire-extensions/dsh-session-log/canonical-event-envelopes:
+  en: 01ccfc924210438f
+  zh: dce5a319fda6f65d
+/official-deepseek-llm-api-wire-extensions/dsh-session-log/acceptance-watermark-and-at-least-once-delivery:
+  en: 64ba792a2a6af122
+  zh: 0f560c3610e07e81
+/official-deepseek-llm-api-wire-extensions/exposure-and-receiver-requirements:
+  en: 75303edd52d2906d
+  zh: 4dd6283e3320c0dc

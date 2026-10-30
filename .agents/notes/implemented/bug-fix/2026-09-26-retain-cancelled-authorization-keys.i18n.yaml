@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-26-retain-cancelled-authorization-keys.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-26-retain-cancelled-authorization-keys.md
-2026-09-26-retain-cancelled-authorization-keys.md: 86525ba096d98ad831e3d461e530c5daac7d1f9c
-2026-09-26-retain-cancelled-authorization-keys.zh.md: d5a478500fb9e0b9b59ffb0bd137745d92cb29b3
+/agent-note-retain-credential-keys-until-cancelled-authorization-runners-settle:
+  en: eb4a4a726c5c92ba
+  zh: 9047014f2cf89bae
+/agent-note-retain-credential-keys-until-cancelled-authorization-runners-settle/problem:
+  en: 0aa3b5338df845f4
+  zh: a48ac14557bdbda3
+/agent-note-retain-credential-keys-until-cancelled-authorization-runners-settle/decision:
+  en: d2ed2e57481ea962
+  zh: 969695bd8f81377f
+/agent-note-retain-credential-keys-until-cancelled-authorization-runners-settle/alternatives-considered:
+  en: b5d713561c7cb59f
+  zh: a0850b5d2040ca9c
+/agent-note-retain-credential-keys-until-cancelled-authorization-runners-settle/consequences:
+  en: f629756253c622ec
+  zh: cc1a8be17f365a0a
+/agent-note-retain-credential-keys-until-cancelled-authorization-runners-settle/verification:
+  en: 3201479e733d5c28
+  zh: 8508b670887d409c

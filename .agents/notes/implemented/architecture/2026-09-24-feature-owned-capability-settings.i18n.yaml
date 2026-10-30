@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-24-feature-owned-capability-settings.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-24-feature-owned-capability-settings.md
-2026-09-24-feature-owned-capability-settings.md: a8cfc9c14a035df9c4b7b3193123b7ef14511c7a
-2026-09-24-feature-owned-capability-settings.zh.md: 587671c32a1a5638162d8b16c2d1672d0fb8ef37
+/agent-note-feature-owned-capability-settings-registration:
+  en: 2c40aacac7d98ebf
+  zh: 63f038ca016490f9
+/agent-note-feature-owned-capability-settings-registration/problem:
+  en: 5fb095c2d2dcd4ca
+  zh: a1bd732037fb4725
+/agent-note-feature-owned-capability-settings-registration/decision:
+  en: fd9dcb3d00e3e1bd
+  zh: 1f83e5852f2ff039
+/agent-note-feature-owned-capability-settings-registration/alternatives-considered:
+  en: ec957ec930f8d940
+  zh: 180f0bf815253c25
+/agent-note-feature-owned-capability-settings-registration/consequences:
+  en: 23c47c3a0cb9515e
+  zh: b06b2863e0957bc1
+/agent-note-feature-owned-capability-settings-registration/verification:
+  en: be46ddf049b867af
+  zh: ffe5098a590ced04
+/agent-note-feature-owned-capability-settings-registration/related-decisions:
+  en: f9b7b6f43444271a
+  zh: 2d5c9202e2b26e0c

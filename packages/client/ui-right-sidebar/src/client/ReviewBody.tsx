@@ -369,143 +369,315 @@ export function ReviewBody({
               {t('review.refresh')}
             </button>
           </div>
-      {leases.length === 0 && !busy ? <p className={css.muted}>{t('review.empty')}</p> : null}
-      {leases.length > 0 ? (
-        <select
-          className={css.select}
-          defaultValue=""
-          onChange={event => {
-            if (event.target.value !== '') void inspect(event.target.value as WorkspaceIsolationLeaseId)
-          }}
-          aria-label={t('review.title')}
-        >
-          <option value="">{t('review.select')}</option>
-          {leases.map(lease => <option key={lease.leaseId} value={lease.leaseId}>{lease.branch}</option>)}
-        </select>
-      ) : null}
-      {comparison !== undefined ? (
-        <>
-          <p className={css.muted}>{t('review.branch')}: {comparison.lease.branch}</p>
-          <h3 className={css.heading}>{t('review.changedFiles')}</h3>
-          <ul className={css.items}>
-            {comparison.changedFiles.map((file: WorkspaceIsolationFileChangeView) => (
-              <li key={file.path} className={css.item}>{file.path}</li>
-            ))}
-          </ul>
-
-          {comments.length > 0 ? (
-            <div className={css.commentsOverview}>
-              <h3 className={css.heading}>
-                {t('review.commentsTitle').replace('{count}', String(comments.length))}
-              </h3>
-              <button type="button" className={css.primaryButton} onClick={() => { void sendAllComments() }}>
-                {t('review.sendAllToAgent')}
-              </button>
-            </div>
+          {leases.length === 0 && !busy ? <p className={css.muted}>{t('review.empty')}</p> : null}
+          {leases.length > 0 ? (
+            <select
+              className={css.select}
+              defaultValue=""
+              onChange={(event) => {
+                if (event.target.value !== '') void inspect(event.target.value as WorkspaceIsolationLeaseId)
+              }}
+              aria-label={t('review.title')}
+            >
+              <option value="">{t('review.select')}</option>
+              {leases.map(lease => <option key={lease.leaseId} value={lease.leaseId}>{lease.branch}</option>)}
+            </select>
           ) : null}
+          {comparison !== undefined ? (
+            <>
+              <p className={css.muted}>{t('review.branch')}: {comparison.lease.branch}</p>
+              <h3 className={css.heading}>{t('review.changedFiles')}</h3>
+              <ul className={css.items}>
+                {comparison.changedFiles.map((file: WorkspaceIsolationFileChangeView) => (
+                  <li key={file.path} className={css.item}>{file.path}</li>
+                ))}
+              </ul>
 
-          <h3 className={css.heading}>{t('review.diffViewer')}</h3>
-          <div className={css.diffToolbar}>
-            <div className={css.diffToolbarGroup}>
-              <button
-                type="button"
-                className={`${css.diffToolbarBtn} ${prefs.diffViewMode === 'inline' ? css.diffToolbarBtnActive : ''}`}
-                onClick={() => { setPrefs({ diffViewMode: 'inline' }) }}
-                aria-label={t('review.viewInline')}
-              >
-                {t('review.viewInline')}
-              </button>
-              <button
-                type="button"
-                className={`${css.diffToolbarBtn} ${prefs.diffViewMode === 'side-by-side' ? css.diffToolbarBtnActive : ''}`}
-                onClick={() => { setPrefs({ diffViewMode: 'side-by-side' }) }}
-                aria-label={t('review.viewSideBySide')}
-              >
-                {t('review.viewSideBySide')}
-              </button>
-            </div>
-            <button
-              type="button"
-              className={`${css.diffToolbarBtn} ${prefs.diffWordWrap ? css.diffToolbarBtnActive : ''}`}
-              onClick={() => { setPrefs({ diffWordWrap: !prefs.diffWordWrap }) }}
-              aria-label={t('review.wordWrap')}
-            >
-              {t('review.wordWrap')}
-            </button>
-            <button
-              type="button"
-              className={`${css.diffToolbarBtn} ${prefs.showWhitespace ? css.diffToolbarBtnActive : ''}`}
-              onClick={() => { setPrefs({ showWhitespace: !prefs.showWhitespace }) }}
-              aria-label={t('review.showWhitespace')}
-            >
-              {t('review.showWhitespace')}
-            </button>
-          </div>
-          {parsedFiles.length > 0 ? (
-            <div className={css.diffViewer}>
-              {parsedFiles.map(file => (
-                <div key={file.path} className={css.diffFile}>
-                  <div className={css.diffFileHeader}>{file.path}</div>
-                  {file.hunks.map((hunk, hunkIdx) => (
-                    <div key={hunkIdx}>
-                      <div className={css.diffHunkHeader}>{hunk.header}</div>
-                      {prefs.diffViewMode === 'side-by-side' ? (
-                        buildSideBySideRows(hunk.lines).map((row, rowIdx) => {
-                          const leftLineNum = row.left?.oldLineNumber
-                          const rightLineNum = row.right?.newLineNumber
-                          return (
-                            <div key={rowIdx}>
-                              <div className={css.diffSideBySideRow}>
-                                {row.left ? (
-                                  <div className={`${css.diffSideLeft} ${row.left.type === 'deletion' ? css.diffDeletion : ''}`}>
-                                    <span className={css.diffLineOldNum}>{row.left.oldLineNumber ?? ''}</span>
-                                    <span className={css.diffLineSign}>{row.left.type === 'deletion' ? '-' : ' '}</span>
+              {comments.length > 0 ? (
+                <div className={css.commentsOverview}>
+                  <h3 className={css.heading}>
+                    {t('review.commentsTitle').replace('{count}', String(comments.length))}
+                  </h3>
+                  <button type="button" className={css.primaryButton} onClick={() => { void sendAllComments() }}>
+                    {t('review.sendAllToAgent')}
+                  </button>
+                </div>
+              ) : null}
+
+              <h3 className={css.heading}>{t('review.diffViewer')}</h3>
+              <div className={css.diffToolbar}>
+                <div className={css.diffToolbarGroup}>
+                  <button
+                    type="button"
+                    className={`${css.diffToolbarBtn} ${prefs.diffViewMode === 'inline' ? css.diffToolbarBtnActive : ''}`}
+                    onClick={() => { setPrefs({ diffViewMode: 'inline' }) }}
+                    aria-label={t('review.viewInline')}
+                  >
+                    {t('review.viewInline')}
+                  </button>
+                  <button
+                    type="button"
+                    className={`${css.diffToolbarBtn} ${prefs.diffViewMode === 'side-by-side' ? css.diffToolbarBtnActive : ''}`}
+                    onClick={() => { setPrefs({ diffViewMode: 'side-by-side' }) }}
+                    aria-label={t('review.viewSideBySide')}
+                  >
+                    {t('review.viewSideBySide')}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className={`${css.diffToolbarBtn} ${prefs.diffWordWrap ? css.diffToolbarBtnActive : ''}`}
+                  onClick={() => { setPrefs({ diffWordWrap: !prefs.diffWordWrap }) }}
+                  aria-label={t('review.wordWrap')}
+                >
+                  {t('review.wordWrap')}
+                </button>
+                <button
+                  type="button"
+                  className={`${css.diffToolbarBtn} ${prefs.showWhitespace ? css.diffToolbarBtnActive : ''}`}
+                  onClick={() => { setPrefs({ showWhitespace: !prefs.showWhitespace }) }}
+                  aria-label={t('review.showWhitespace')}
+                >
+                  {t('review.showWhitespace')}
+                </button>
+              </div>
+              {parsedFiles.length > 0 ? (
+                <div className={css.diffViewer}>
+                  {parsedFiles.map(file => (
+                    <div key={file.path} className={css.diffFile}>
+                      <div className={css.diffFileHeader}>{file.path}</div>
+                      {file.hunks.map((hunk, hunkIdx) => (
+                        <div key={hunkIdx}>
+                          <div className={css.diffHunkHeader}>{hunk.header}</div>
+                          {prefs.diffViewMode === 'side-by-side' ? (
+                            buildSideBySideRows(hunk.lines).map((row, rowIdx) => {
+                              const leftLineNum = row.left?.oldLineNumber
+                              const rightLineNum = row.right?.newLineNumber
+                              return (
+                                <div key={rowIdx}>
+                                  <div className={css.diffSideBySideRow}>
+                                    {row.left ? (
+                                      <div className={`${css.diffSideLeft} ${row.left.type === 'deletion' ? css.diffDeletion : ''}`}>
+                                        <span className={css.diffLineOldNum}>{row.left.oldLineNumber ?? ''}</span>
+                                        <span className={css.diffLineSign}>{row.left.type === 'deletion' ? '-' : ' '}</span>
+                                        <span className={`${css.diffLineContent} ${prefs.diffWordWrap ? css.diffLineWrap : css.diffLineNoWrap}`}>
+                                          {renderDiffText(row.left.text, prefs.showWhitespace)}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          className={css.diffAddCommentBtn}
+                                          title={t('review.addLineComment')}
+                                          aria-label={`${t('review.addLineComment')} ${file.path}:${row.left.oldLineNumber}`}
+                                          onClick={() => { setDraft({ filePath: file.path, line: row.left!.oldLineNumber ?? 1, side: 'original', text: '' }) }}
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div className={css.diffEmptyCol} />
+                                    )}
+                                    {row.right ? (
+                                      <div className={`${css.diffSideRight} ${row.right.type === 'addition' ? css.diffAddition : ''}`}>
+                                        <span className={css.diffLineNewNum}>{row.right.newLineNumber ?? ''}</span>
+                                        <span className={css.diffLineSign}>{row.right.type === 'addition' ? '+' : ' '}</span>
+                                        <span className={`${css.diffLineContent} ${prefs.diffWordWrap ? css.diffLineWrap : css.diffLineNoWrap}`}>
+                                          {renderDiffText(row.right.text, prefs.showWhitespace)}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          className={css.diffAddCommentBtn}
+                                          title={t('review.addLineComment')}
+                                          aria-label={`${t('review.addLineComment')} ${file.path}:${row.right.newLineNumber}`}
+                                          onClick={() => { setDraft({ filePath: file.path, line: row.right!.newLineNumber ?? 1, side: 'modified', text: '' }) }}
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div className={css.diffEmptyCol} />
+                                    )}
+                                  </div>
+                                  {leftLineNum ? (
+                                    <>
+                                      {draft !== null && draft.filePath === file.path && draft.line === leftLineNum && draft.side === 'original' ? (
+                                        <div className={css.commentBox}>
+                                          <textarea
+                                            className={css.commentTextarea}
+                                            placeholder={t('review.commentPlaceholder')}
+                                            value={draft.text}
+                                            onChange={(e) => { setDraft(prev => (prev ? { ...prev, text: e.target.value } : null)) }}
+                                          />
+                                          <div className={css.commentActions}>
+                                            <button type="button" className={css.button} onClick={() => { setDraft(null) }}>
+                                              {t('review.cancelComment')}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className={css.primaryButton}
+                                              disabled={!draft.text.trim()}
+                                              onClick={() => {
+                                                if (!draft.text.trim()) return
+                                                setComments(prev => [
+                                                  ...prev,
+                                                  {
+                                                    id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                                                    filePath: draft.filePath,
+                                                    line: draft.line,
+                                                    side: draft.side,
+                                                    text: draft.text.trim(),
+                                                    createdAt: Date.now(),
+                                                    status: 'saved',
+                                                  },
+                                                ])
+                                                setDraft(null)
+                                              }}
+                                            >
+                                              {t('review.saveComment')}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : null}
+                                      {comments.filter(c => c.filePath === file.path && c.line === leftLineNum && c.side === 'original').map(c => (
+                                        <div key={c.id} className={css.commentCard}>
+                                          <div className={css.commentHeader}>
+                                            <span>{t('review.lineRef', { line: c.line, side: c.side })}</span>
+                                            <span className={`${css.badge} ${c.status === 'sent' ? css.badgeSent : css.badgeSaved}`}>
+                                              {c.status === 'sent' ? t('review.sentStatus') : t('review.savedStatus')}
+                                            </span>
+                                          </div>
+                                          <div className={css.commentText}>{c.text}</div>
+                                          <div className={css.commentActions}>
+                                            <button
+                                              type="button"
+                                              className={css.button}
+                                              onClick={() => { setComments(prev => prev.filter(item => item.id !== c.id)) }}
+                                            >
+                                              {t('review.deleteComment')}
+                                            </button>
+                                            {c.status !== 'sent' ? (
+                                              <button
+                                                type="button"
+                                                className={css.primaryButton}
+                                                onClick={() => { void sendComment(c) }}
+                                              >
+                                                {t('review.sendToAgent')}
+                                              </button>
+                                            ) : null}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </>
+                                  ) : null}
+                                  {rightLineNum ? (
+                                    <>
+                                      {draft !== null && draft.filePath === file.path && draft.line === rightLineNum && draft.side === 'modified' ? (
+                                        <div className={css.commentBox}>
+                                          <textarea
+                                            className={css.commentTextarea}
+                                            placeholder={t('review.commentPlaceholder')}
+                                            value={draft.text}
+                                            onChange={(e) => { setDraft(prev => (prev ? { ...prev, text: e.target.value } : null)) }}
+                                          />
+                                          <div className={css.commentActions}>
+                                            <button type="button" className={css.button} onClick={() => { setDraft(null) }}>
+                                              {t('review.cancelComment')}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className={css.primaryButton}
+                                              disabled={!draft.text.trim()}
+                                              onClick={() => {
+                                                if (!draft.text.trim()) return
+                                                setComments(prev => [
+                                                  ...prev,
+                                                  {
+                                                    id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                                                    filePath: draft.filePath,
+                                                    line: draft.line,
+                                                    side: draft.side,
+                                                    text: draft.text.trim(),
+                                                    createdAt: Date.now(),
+                                                    status: 'saved',
+                                                  },
+                                                ])
+                                                setDraft(null)
+                                              }}
+                                            >
+                                              {t('review.saveComment')}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : null}
+                                      {comments.filter(c => c.filePath === file.path && c.line === rightLineNum && c.side === 'modified').map(c => (
+                                        <div key={c.id} className={css.commentCard}>
+                                          <div className={css.commentHeader}>
+                                            <span>{t('review.lineRef', { line: c.line, side: c.side })}</span>
+                                            <span className={`${css.badge} ${c.status === 'sent' ? css.badgeSent : css.badgeSaved}`}>
+                                              {c.status === 'sent' ? t('review.sentStatus') : t('review.savedStatus')}
+                                            </span>
+                                          </div>
+                                          <div className={css.commentText}>{c.text}</div>
+                                          <div className={css.commentActions}>
+                                            <button
+                                              type="button"
+                                              className={css.button}
+                                              onClick={() => { setComments(prev => prev.filter(item => item.id !== c.id)) }}
+                                            >
+                                              {t('review.deleteComment')}
+                                            </button>
+                                            {c.status !== 'sent' ? (
+                                              <button
+                                                type="button"
+                                                className={css.primaryButton}
+                                                onClick={() => { void sendComment(c) }}
+                                              >
+                                                {t('review.sendToAgent')}
+                                              </button>
+                                            ) : null}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </>
+                                  ) : null}
+                                </div>
+                              )
+                            })
+                          ) : (
+                            hunk.lines.map((line, lineIdx) => {
+                              const lineNum = line.newLineNumber ?? line.oldLineNumber ?? 1
+                              const side = line.type === 'deletion' ? 'original' : 'modified'
+                              const lineComments = comments.filter(c => c.filePath === file.path && c.line === lineNum && c.side === side)
+                              const isDrafting = draft !== null && draft.filePath === file.path && draft.line === lineNum && draft.side === side
+                              return (
+                                <div key={lineIdx}>
+                                  <div
+                                    className={`${css.diffLine} ${line.type === 'addition' ? css.diffAddition : line.type === 'deletion' ? css.diffDeletion : ''}`}
+                                  >
+                                    <span className={css.diffLineOldNum}>{line.oldLineNumber ?? ''}</span>
+                                    <span className={css.diffLineNewNum}>{line.newLineNumber ?? ''}</span>
+                                    <span className={css.diffLineSign}>
+                                      {line.type === 'addition' ? '+' : line.type === 'deletion' ? '-' : ' '}
+                                    </span>
                                     <span className={`${css.diffLineContent} ${prefs.diffWordWrap ? css.diffLineWrap : css.diffLineNoWrap}`}>
-                                      {renderDiffText(row.left.text, prefs.showWhitespace)}
+                                      {renderDiffText(line.text, prefs.showWhitespace)}
                                     </span>
                                     <button
                                       type="button"
                                       className={css.diffAddCommentBtn}
                                       title={t('review.addLineComment')}
-                                      aria-label={`${t('review.addLineComment')} ${file.path}:${row.left.oldLineNumber}`}
-                                      onClick={() => { setDraft({ filePath: file.path, line: row.left!.oldLineNumber ?? 1, side: 'original', text: '' }) }}
+                                      aria-label={`${t('review.addLineComment')} ${file.path}:${lineNum}`}
+                                      onClick={() => { setDraft({ filePath: file.path, line: lineNum, side, text: '' }) }}
                                     >
                                       +
                                     </button>
                                   </div>
-                                ) : (
-                                  <div className={css.diffEmptyCol} />
-                                )}
-                                {row.right ? (
-                                  <div className={`${css.diffSideRight} ${row.right.type === 'addition' ? css.diffAddition : ''}`}>
-                                    <span className={css.diffLineNewNum}>{row.right.newLineNumber ?? ''}</span>
-                                    <span className={css.diffLineSign}>{row.right.type === 'addition' ? '+' : ' '}</span>
-                                    <span className={`${css.diffLineContent} ${prefs.diffWordWrap ? css.diffLineWrap : css.diffLineNoWrap}`}>
-                                      {renderDiffText(row.right.text, prefs.showWhitespace)}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      className={css.diffAddCommentBtn}
-                                      title={t('review.addLineComment')}
-                                      aria-label={`${t('review.addLineComment')} ${file.path}:${row.right.newLineNumber}`}
-                                      onClick={() => { setDraft({ filePath: file.path, line: row.right!.newLineNumber ?? 1, side: 'modified', text: '' }) }}
-                                    >
-                                      +
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className={css.diffEmptyCol} />
-                                )}
-                              </div>
-                              {leftLineNum ? (
-                                <>
-                                  {draft !== null && draft.filePath === file.path && draft.line === leftLineNum && draft.side === 'original' ? (
+                                  {isDrafting ? (
                                     <div className={css.commentBox}>
                                       <textarea
                                         className={css.commentTextarea}
                                         placeholder={t('review.commentPlaceholder')}
                                         value={draft.text}
-                                        onChange={e => { setDraft(prev => (prev ? { ...prev, text: e.target.value } : null)) }}
+                                        onChange={(e) => { setDraft(prev => (prev ? { ...prev, text: e.target.value } : null)) }}
                                       />
                                       <div className={css.commentActions}>
                                         <button type="button" className={css.button} onClick={() => { setDraft(null) }}>
@@ -537,7 +709,7 @@ export function ReviewBody({
                                       </div>
                                     </div>
                                   ) : null}
-                                  {comments.filter(c => c.filePath === file.path && c.line === leftLineNum && c.side === 'original').map(c => (
+                                  {lineComments.map(c => (
                                     <div key={c.id} className={css.commentCard}>
                                       <div className={css.commentHeader}>
                                         <span>{t('review.lineRef', { line: c.line, side: c.side })}</span>
@@ -566,192 +738,20 @@ export function ReviewBody({
                                       </div>
                                     </div>
                                   ))}
-                                </>
-                              ) : null}
-                              {rightLineNum ? (
-                                <>
-                                  {draft !== null && draft.filePath === file.path && draft.line === rightLineNum && draft.side === 'modified' ? (
-                                    <div className={css.commentBox}>
-                                      <textarea
-                                        className={css.commentTextarea}
-                                        placeholder={t('review.commentPlaceholder')}
-                                        value={draft.text}
-                                        onChange={e => { setDraft(prev => (prev ? { ...prev, text: e.target.value } : null)) }}
-                                      />
-                                      <div className={css.commentActions}>
-                                        <button type="button" className={css.button} onClick={() => { setDraft(null) }}>
-                                          {t('review.cancelComment')}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className={css.primaryButton}
-                                          disabled={!draft.text.trim()}
-                                          onClick={() => {
-                                            if (!draft.text.trim()) return
-                                            setComments(prev => [
-                                              ...prev,
-                                              {
-                                                id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                                                filePath: draft.filePath,
-                                                line: draft.line,
-                                                side: draft.side,
-                                                text: draft.text.trim(),
-                                                createdAt: Date.now(),
-                                                status: 'saved',
-                                              },
-                                            ])
-                                            setDraft(null)
-                                          }}
-                                        >
-                                          {t('review.saveComment')}
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : null}
-                                  {comments.filter(c => c.filePath === file.path && c.line === rightLineNum && c.side === 'modified').map(c => (
-                                    <div key={c.id} className={css.commentCard}>
-                                      <div className={css.commentHeader}>
-                                        <span>{t('review.lineRef', { line: c.line, side: c.side })}</span>
-                                        <span className={`${css.badge} ${c.status === 'sent' ? css.badgeSent : css.badgeSaved}`}>
-                                          {c.status === 'sent' ? t('review.sentStatus') : t('review.savedStatus')}
-                                        </span>
-                                      </div>
-                                      <div className={css.commentText}>{c.text}</div>
-                                      <div className={css.commentActions}>
-                                        <button
-                                          type="button"
-                                          className={css.button}
-                                          onClick={() => { setComments(prev => prev.filter(item => item.id !== c.id)) }}
-                                        >
-                                          {t('review.deleteComment')}
-                                        </button>
-                                        {c.status !== 'sent' ? (
-                                          <button
-                                            type="button"
-                                            className={css.primaryButton}
-                                            onClick={() => { void sendComment(c) }}
-                                          >
-                                            {t('review.sendToAgent')}
-                                          </button>
-                                        ) : null}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </>
-                              ) : null}
-                            </div>
-                          )
-                        })
-                      ) : (
-                        hunk.lines.map((line, lineIdx) => {
-                          const lineNum = line.newLineNumber ?? line.oldLineNumber ?? 1
-                          const side = line.type === 'deletion' ? 'original' : 'modified'
-                          const lineComments = comments.filter(c => c.filePath === file.path && c.line === lineNum && c.side === side)
-                          const isDrafting = draft !== null && draft.filePath === file.path && draft.line === lineNum && draft.side === side
-                          return (
-                            <div key={lineIdx}>
-                              <div
-                                className={`${css.diffLine} ${line.type === 'addition' ? css.diffAddition : line.type === 'deletion' ? css.diffDeletion : ''}`}
-                              >
-                                <span className={css.diffLineOldNum}>{line.oldLineNumber ?? ''}</span>
-                                <span className={css.diffLineNewNum}>{line.newLineNumber ?? ''}</span>
-                                <span className={css.diffLineSign}>
-                                  {line.type === 'addition' ? '+' : line.type === 'deletion' ? '-' : ' '}
-                                </span>
-                                <span className={`${css.diffLineContent} ${prefs.diffWordWrap ? css.diffLineWrap : css.diffLineNoWrap}`}>
-                                  {renderDiffText(line.text, prefs.showWhitespace)}
-                                </span>
-                                <button
-                                  type="button"
-                                  className={css.diffAddCommentBtn}
-                                  title={t('review.addLineComment')}
-                                  aria-label={`${t('review.addLineComment')} ${file.path}:${lineNum}`}
-                                  onClick={() => { setDraft({ filePath: file.path, line: lineNum, side, text: '' }) }}
-                                >
-                                  +
-                                </button>
-                              </div>
-                              {isDrafting ? (
-                                <div className={css.commentBox}>
-                                  <textarea
-                                    className={css.commentTextarea}
-                                    placeholder={t('review.commentPlaceholder')}
-                                    value={draft.text}
-                                    onChange={e => { setDraft(prev => (prev ? { ...prev, text: e.target.value } : null)) }}
-                                  />
-                                  <div className={css.commentActions}>
-                                    <button type="button" className={css.button} onClick={() => { setDraft(null) }}>
-                                      {t('review.cancelComment')}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className={css.primaryButton}
-                                      disabled={!draft.text.trim()}
-                                      onClick={() => {
-                                        if (!draft.text.trim()) return
-                                        setComments(prev => [
-                                          ...prev,
-                                          {
-                                            id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                                            filePath: draft.filePath,
-                                            line: draft.line,
-                                            side: draft.side,
-                                            text: draft.text.trim(),
-                                            createdAt: Date.now(),
-                                            status: 'saved',
-                                          },
-                                        ])
-                                        setDraft(null)
-                                      }}
-                                    >
-                                      {t('review.saveComment')}
-                                    </button>
-                                  </div>
                                 </div>
-                              ) : null}
-                              {lineComments.map(c => (
-                                <div key={c.id} className={css.commentCard}>
-                                  <div className={css.commentHeader}>
-                                    <span>{t('review.lineRef', { line: c.line, side: c.side })}</span>
-                                    <span className={`${css.badge} ${c.status === 'sent' ? css.badgeSent : css.badgeSaved}`}>
-                                      {c.status === 'sent' ? t('review.sentStatus') : t('review.savedStatus')}
-                                    </span>
-                                  </div>
-                                  <div className={css.commentText}>{c.text}</div>
-                                  <div className={css.commentActions}>
-                                    <button
-                                      type="button"
-                                      className={css.button}
-                                      onClick={() => { setComments(prev => prev.filter(item => item.id !== c.id)) }}
-                                    >
-                                      {t('review.deleteComment')}
-                                    </button>
-                                    {c.status !== 'sent' ? (
-                                      <button
-                                        type="button"
-                                        className={css.primaryButton}
-                                        onClick={() => { void sendComment(c) }}
-                                      >
-                                        {t('review.sendToAgent')}
-                                      </button>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )
-                        })
-                      )}
+                              )
+                            })
+                          )}
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <pre className={css.output}>{comparison.patch || t('review.noPatch')}</pre>
-          )}
-        </>
-      ) : null}
+              ) : (
+                <pre className={css.output}>{comparison.patch || t('review.noPatch')}</pre>
+              )}
+            </>
+          ) : null}
         </>
       )}
       {busy && leases.length === 0 ? <p className={css.muted}>{t('review.loading')}</p> : null}

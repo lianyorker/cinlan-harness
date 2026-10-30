@@ -1,6 +1,91 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/security/security-skills/assets/skills/kb/ctf-website/techniques/README.md
-README.md: 4baab9c1cbbe823576c8ce3faa180c6de83243b2
-README.zh.md: 2e1494aac14766b33430ea0bf3025e33d8e0b094
+/web-ctf:
+  en: a19c00617f8f9738
+  zh: 1a7ead2115497e11
+/web-ctf/25-112:
+  en: 678931a00401f468
+  zh: 678931a00401f468
+/web-ctf/25-112/01-recon-5:
+  en: ec385acdb9be33bd
+  zh: ec385acdb9be33bd
+/web-ctf/25-112/02-auth-14:
+  en: 61c31189ff79d3be
+  zh: 61c31189ff79d3be
+/web-ctf/25-112/03-injection-7:
+  en: 9c213ffdb5791b10
+  zh: 9c213ffdb5791b10
+/web-ctf/25-112/04-ssrf-ssrf-2:
+  en: 2b9f0cd436bd673a
+  zh: 2b9f0cd436bd673a
+/web-ctf/25-112/05-deserialization-1:
+  en: e8ee8d884f23b813
+  zh: e8ee8d884f23b813
+/web-ctf/25-112/06-file-attacks-1:
+  en: 6a8e76ea8392dde6
+  zh: 6a8e76ea8392dde6
+/web-ctf/25-112/07-client-6:
+  en: 5a650837210885f9
+  zh: 5a650837210885f9
+/web-ctf/25-112/08-infra-3:
+  en: e46b09032ba88ec8
+  zh: e46b09032ba88ec8
+/web-ctf/25-112/09-cve-cve-3-6:
+  en: c01ad6642b08bdd3
+  zh: c01ad6642b08bdd3
+/web-ctf/25-112/10-web-app-web-1:
+  en: 76001c9547d89dfc
+  zh: 76001c9547d89dfc
+/web-ctf/25-112/11-dos-2:
+  en: ad0b04f61c4e3be8
+  zh: ad0b04f61c4e3be8
+/web-ctf/25-112/10-cloud-3:
+  en: 3c341fa097289e54
+  zh: 3c341fa097289e54
+/web-ctf/25-112/11-supply-chain-1:
+  en: 429d95159eec4c39
+  zh: 429d95159eec4c39
+/web-ctf/25-112/12-payment-10:
+  en: f82fe7658b642b07
+  zh: f82fe7658b642b07
+/web-ctf/25-112/13-signature-7:
+  en: 5f84eb27c5f06a29
+  zh: 5f84eb27c5f06a29
+/web-ctf/25-112/14-idor-idor-2:
+  en: e253fec0885b3e69
+  zh: e253fec0885b3e69
+/web-ctf/25-112/15-mass-assignment-2:
+  en: db3311ab6787b9e8
+  zh: db3311ab6787b9e8
+/web-ctf/25-112/16-rate-limit-2:
+  en: 7509723b60935e7d
+  zh: 7509723b60935e7d
+/web-ctf/25-112/17-api-attacks-api-2:
+  en: 97ab4b11806e196c
+  zh: 97ab4b11806e196c
+/web-ctf/25-112/18-cors-csp-advanced-2:
+  en: 5f89fe2c2512bb23
+  zh: 5f89fe2c2512bb23
+/web-ctf/25-112/19-dns-email-dns-2:
+  en: 1862f01c8ee40641
+  zh: 1862f01c8ee40641
+/web-ctf/25-112/20-oauth-deep-oauth-2:
+  en: c6eabb58398eecae
+  zh: c6eabb58398eecae
+/web-ctf/25-112/21-mobile-bridge-web-2:
+  en: 96287369f6fc19ec
+  zh: 96287369f6fc19ec
+/web-ctf/25-112/22-dos-dos-ddos-13:
+  en: bd0c5ca477c6b843
+  zh: bd0c5ca477c6b843
+/web-ctf/25-112/23-paywall-bypass-paywall-5:
+  en: d2ce0fa2cacee263
+  zh: d2ce0fa2cacee263
+/web-ctf/section:
+  en: 67f79a76082ae032
+  zh: 67f79a76082ae032
+/web-ctf/web:
+  en: 87d566dfef4b4b41
+  zh: 87d566dfef4b4b41

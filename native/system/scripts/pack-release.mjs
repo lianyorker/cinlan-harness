@@ -68,6 +68,8 @@ for (const dir of dirs) {
   const tarballPath = path.join(destination, tarball);
   if (!fs.existsSync(tarballPath)) {
     throw new Error(`expected pack output not found: ${tarballPath}`);
+    // Platform packages have no workspace dependencies; npm preserves their
+    // executable modes. Entry packages need pnpm's workspace version conversion.
   }
   publishOrder.push(tarball);
 }

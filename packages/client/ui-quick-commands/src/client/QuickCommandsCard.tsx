@@ -126,26 +126,26 @@ export function QuickCommandsCard({ t, list, create, update, remove }: QuickComm
       <label className={css.field}>
         <span>{t('nameLabel')}</span>
         <input value={draft.name} placeholder={t('namePlaceholder')}
-          onChange={event => { setDraft({ ...draft, name: event.currentTarget.value }) }} />
+          onChange={(event) => { setDraft({ ...draft, name: event.currentTarget.value }) }} />
       </label>
       <label className={css.field}>
         <span>{t('commandLabel')}</span>
         <textarea value={draft.command} rows={3} placeholder={t('commandPlaceholder')}
-          onChange={event => { setDraft({ ...draft, command: event.currentTarget.value }) }} />
+          onChange={(event) => { setDraft({ ...draft, command: event.currentTarget.value }) }} />
       </label>
       <label className={css.field}>
         <span>{t('descriptionLabel')}</span>
         <input value={draft.description}
-          onChange={event => { setDraft({ ...draft, description: event.currentTarget.value }) }} />
+          onChange={(event) => { setDraft({ ...draft, description: event.currentTarget.value }) }} />
       </label>
       <label className={css.field}>
         <span>{t('cwdLabel')}</span>
         <input value={draft.cwd} placeholder={t('cwdPlaceholder')}
-          onChange={event => { setDraft({ ...draft, cwd: event.currentTarget.value }) }} />
+          onChange={(event) => { setDraft({ ...draft, cwd: event.currentTarget.value }) }} />
       </label>
       <label className={css.check}>
         <input type="checkbox" checked={draft.confirm}
-          onChange={event => { setDraft({ ...draft, confirm: event.currentTarget.checked }) }} />
+          onChange={(event) => { setDraft({ ...draft, confirm: event.currentTarget.checked }) }} />
         <span><strong>{t('confirmLabel')}</strong><small>{t('confirmHint')}</small></span>
       </label>
       <div className={css.actions}>

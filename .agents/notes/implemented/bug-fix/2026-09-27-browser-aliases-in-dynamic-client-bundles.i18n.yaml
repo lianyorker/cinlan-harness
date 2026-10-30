@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-27-browser-aliases-in-dynamic-client-bundles.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-27-browser-aliases-in-dynamic-client-bundles.md
-2026-09-27-browser-aliases-in-dynamic-client-bundles.md: eb36407c5c15d561b3e97fd3b86a2fe044e52cdf
-2026-09-27-browser-aliases-in-dynamic-client-bundles.zh.md: d1f71bc0904aa6539668045e6a8b45c769e6d389
+/agent-note-honor-browser-aliases-in-dynamic-client-bundles:
+  en: 040a4f801ecd0934
+  zh: 020f1e3988cd419d
+/agent-note-honor-browser-aliases-in-dynamic-client-bundles/problem:
+  en: 0b01553512d4b996
+  zh: 40456ccbc3ecc632
+/agent-note-honor-browser-aliases-in-dynamic-client-bundles/decision:
+  en: 33658f5f8a3f9559
+  zh: 3da699cfd625f93d
+/agent-note-honor-browser-aliases-in-dynamic-client-bundles/alternatives-considered:
+  en: 9a884dee05df7cf7
+  zh: 66957e12f60766ee
+/agent-note-honor-browser-aliases-in-dynamic-client-bundles/consequences:
+  en: 16817192d0333dba
+  zh: 8f488b2ffbe20ca4
+/agent-note-honor-browser-aliases-in-dynamic-client-bundles/verification:
+  en: 7f8312149006c89f
+  zh: 1020744c4fcb5bf1

@@ -38,6 +38,7 @@ apps/web/dist/
 .artifacts/
 .dsh-build/
 .clh-run/
+.clh-report/
 .playwright-mcp/
 apps/desktop/coverage-floating/
 .orig
@@ -53,3 +54,6 @@ reports/
 
 # Local scratch files
 .scratch-*
+
+# Generated company-signed CUA release record.
+/packages/experimental/cua-macos/cua-helper.json

@@ -1,0 +1,10 @@
+- id: sessions
+  name: 'cordis:title-test-sessions'
+- id: projections
+  name: 'cordis:title-test-projections'
+- id: session-title
+  name: 'cordis:title-test-service'
+  config:
+    fallbackMaxWords: 5
+    fallbackMaxBytes: 40
+    maxTitleBytes: 80

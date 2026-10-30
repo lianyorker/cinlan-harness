@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/browser/browser-permission-policy/README.md
-README.md: 2e6d391b400b44ad36e47cb8819934de3813c04a
-README.zh.md: a8d61025b81dafef01d9d43ab7e3501a1f9c31df
+/:
+  en: 8c6e5d58b10d5235
+  zh: 3cef7757c304f517
+/deepseek-ai-dsh-browser-permission-policy:
+  en: 89c8438463fe4342
+  zh: a3c04bf9c7863f6a
+/deepseek-ai-dsh-browser-permission-policy/summary:
+  en: cf16974e8ea3fd91
+  zh: c6781d596544f16f
+/deepseek-ai-dsh-browser-permission-policy/table-of-contents:
+  en: 8ae62f2011d18267
+  zh: 4e7db17ea774aa7f
+/deepseek-ai-dsh-browser-permission-policy/configuration:
+  en: 7b708bf5b3c7edc9
+  zh: 2af330938bc83798
+/deepseek-ai-dsh-browser-permission-policy/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-browser-permission-policy/model-experience/permission-outcomes:
+  en: 988b22c335657921
+  zh: 7f003ad08544a7d2
+/deepseek-ai-dsh-browser-permission-policy/model-experience/permission-outcomes/what-the-model-sees:
+  en: 8b8eef03a23b5407
+  zh: e1abe8de5a14e476
+/deepseek-ai-dsh-browser-permission-policy/model-experience/permission-outcomes/what-the-model-sees/approval-and-denial-text:
+  en: 10d965c4a2c05267
+  zh: 54cfb316e4231db5
+/deepseek-ai-dsh-browser-permission-policy/model-experience/permission-outcomes/token-effect:
+  en: e169f989d7e8a1be
+  zh: c14d87626ec0c60f
+/deepseek-ai-dsh-browser-permission-policy/model-experience/permission-outcomes/kv-cache-effect:
+  en: 217d1ec675c6cd9f
+  zh: 82cad6745a96a83c
+/deepseek-ai-dsh-browser-permission-policy/known-limitations-and-deferred-work:
+  en: 51cdbcf0e663a218
+  zh: 5d336c2208f32dcd
+/deepseek-ai-dsh-browser-permission-policy/known-limitations-and-deferred-work/dev-note:
+  en: c4f4f9302e4b03c9
+  zh: 91b1013e524ce02a

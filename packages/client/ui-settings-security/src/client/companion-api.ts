@@ -22,6 +22,6 @@ export function companionApi(rpc: ClientConnectionRpc): CompanionApi {
     state: async signal => AdminStateSchema.parse(await call({ operation: 'state' }, signal)),
     save: async settings => AdminStateSchema.parse(await call({ operation: 'save', settings })),
     pair: async () => z.object({ pairingUrl: z.string(), expiresAt: z.number() }).strict().parse(await call({ operation: 'pair' })),
-    revoke: async deviceId => { await call({ operation: 'revoke', deviceId }) },
+    revoke: async (deviceId) => { await call({ operation: 'revoke', deviceId }) },
   }
 }

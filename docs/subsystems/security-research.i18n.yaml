@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for security-research.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/security-research.md
-security-research.md: b4e52d769219fbb1581fa49bac9e299c165e9b7b
-security-research.zh.md: e135beb03338733e77c21eae0ea8247944045df9
+/security-research:
+  en: 04ec810e56ec15c6
+  zh: 1e0ec412d433573f
+/security-research/summary:
+  en: 79a300f811beeb9a
+  zh: dfe66464b374df45
+/security-research/table-of-contents:
+  en: 83507d1f6b014117
+  zh: 5a777358835df16e
+/security-research/assessment-grants:
+  en: fff4b670a4b8c42d
+  zh: a8808306493d15a8
+/security-research/session-assessment-state:
+  en: d106a6c55e62f124
+  zh: 96a8d422798a7d49
+/security-research/durable-findings:
+  en: 3bc334288e4a58f7
+  zh: 010af8d905cde5df
+/security-research/durable-findings/identity-and-evidence:
+  en: da743c2a4ed7813c
+  zh: 608e1cae335c8a2f
+/security-research/durable-findings/records-transitions-and-queries:
+  en: c2e654c9ac1598ee
+  zh: 1e9d6d63514c4a29
+/security-research/vulnerability-knowledge-base:
+  en: 77e00d7700e2ee76
+  zh: 29619aac57b7fac0
+/security-research/skill-resources:
+  en: 7b5a337d9881c069
+  zh: 0ecdda0d3ae85003
+/security-research/cordis-api/security-skill-resources-events/security-skill-resources-changed-parallel:
+  en: 67ce200d49f5caaa
+  zh: 67ce200d49f5caaa
+/security-research/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

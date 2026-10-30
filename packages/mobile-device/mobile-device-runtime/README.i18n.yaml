@@ -1,6 +1,37 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/mobile-device/mobile-device-runtime/README.md
-README.md: 7e89311a2f2d769f0756f2a2295592be550cb741
-README.zh.md: 98e396cadb73b0712a7f93dfc85d76c9c07e60e3
+/:
+  en: d8d7c075b96ff5a6
+  zh: 6b7e213c272961f3
+/deepseek-ai-dsh-mobile-device-runtime:
+  en: 71875c63ef6008b3
+  zh: 7ec2620dd82da5fe
+/deepseek-ai-dsh-mobile-device-runtime/summary:
+  en: 243d6c3618f01212
+  zh: d1aa7e59e3e34937
+/deepseek-ai-dsh-mobile-device-runtime/table-of-contents:
+  en: 9ff7801121a635fb
+  zh: c0490aab92ddb387
+/deepseek-ai-dsh-mobile-device-runtime/resources:
+  en: 5ddbb310f490bc85
+  zh: 97f387c836f15629
+/deepseek-ai-dsh-mobile-device-runtime/configuration:
+  en: 0c6c371556eeca98
+  zh: 37dee32e841ab55b
+/deepseek-ai-dsh-mobile-device-runtime/execution-and-ownership:
+  en: e1145a5bfecf7aab
+  zh: d6589ff77d42e893
+/deepseek-ai-dsh-mobile-device-runtime/model-experience:
+  en: 74f64b79c5f58cee
+  zh: 3d810fb5880abaaa
+/deepseek-ai-dsh-mobile-device-runtime/model-experience/kv-cache-effect:
+  en: 1fd6ce09ceda78e4
+  zh: ca91de07e5735391
+/deepseek-ai-dsh-mobile-device-runtime/known-limitations-and-deferred-work:
+  en: 17a0b1602c3eaab7
+  zh: d2de8703881feb50
+/deepseek-ai-dsh-mobile-device-runtime/known-limitations-and-deferred-work/dev-note:
+  en: 999ca6ba9b634d22
+  zh: 65deda033dc5bd69

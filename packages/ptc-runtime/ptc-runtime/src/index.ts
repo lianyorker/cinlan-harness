@@ -5,7 +5,7 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { PtcRunRequest, PtcRunResult, PtcRunSpec } from './types.ts'
+import type { PtcProgramFormat, PtcRunRequest, PtcRunResult, PtcRunSpec } from './types.ts'
 import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 
 export type {
@@ -13,6 +13,7 @@ export type {
   PtcBindingFunction,
   PtcBindingNamespace,
   PtcJsonValue,
+  PtcProgramFormat,
   PtcRunFailure,
   PtcRunRequest,
   PtcRunResult,
@@ -108,7 +109,7 @@ export abstract class PtcRuntime extends Service {
    * generates language-specific presentation (typed SDK stubs, usage
    * instructions) switches on it and fails loud on a language it cannot
    * present. Well-known values: `'typescript'` and `'python'`, those
-   * `dsh-tools` presents; the TypeScript backend is released, the Python
+   * `dsh-tool-executor-ptc` presents; the TypeScript backend is released, the Python
    * backend is experimental and private (not published).
    */
   abstract readonly language: string
@@ -123,6 +124,21 @@ export abstract class PtcRuntime extends Service {
 
   /** Source evaluation form, independent of whether the provider retains state for an owner. */
   get programFormat(): 'function-body' | 'repl' { return 'function-body' }
+
+  /**
+   * Release an owner's retained environment and await its execution resources.
+   * Stateless providers have no retained resources to release.
+   * @param owner - The exact object supplied as the request's state owner.
+   * @returns Completion after all owned execution resources have been released.
+   * @throws When managed resource cleanup fails.
+   */
+  release(owner: object): Promise<void> { void owner; return Promise.resolve() }
+
+  /** Source evaluation form, independent of whether the provider retains state for an owner. */
+  get programFormat(): PtcProgramFormat { return 'function-body' }
+
+  /** Whether this provider retains program memory across runs for the same stateOwner. */
+  get retainsState(): boolean { return false }
 
   /**
    * Release an owner's retained environment and await its execution resources.

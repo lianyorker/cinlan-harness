@@ -98,7 +98,7 @@ describe('ElementInspectorOverlay', () => {
         pageUrl="https://example.com"
         onInspectElement={onInspect}
         onCancel={onCancel}
-      />
+      />,
     )
 
     const overlay = screen.getByTestId('browser-inspector-overlay')
@@ -125,7 +125,7 @@ describe('ElementInspectorOverlay', () => {
         pageUrl="https://example.com"
         onInspectElement={onInspect}
         onCancel={onCancel}
-      />
+      />,
     )
 
     const overlay = screen.getByTestId('browser-inspector-overlay')

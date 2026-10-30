@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/security/security-skills/assets/skills/kb/apk-reverse/techniques/README.md
-README.md: 8918d872f6fea1b9bea9d9bc83ada6dc695c0fe1
-README.zh.md: 8db586799cbcf4d36515d3ce5a4d69f79e5978d5
+/apk:
+  en: 651a7d714348f77d
+  zh: 0a68f85130073334
+/apk/8-17:
+  en: 4877463be49ad484
+  zh: 4877463be49ad484
+/apk/8-17/01-dex-java-dex-java-1:
+  en: c94a4932a94bb331
+  zh: c94a4932a94bb331
+/apk/8-17/02-native-native-so-5:
+  en: 2b6a1458a5c25d87
+  zh: 2b6a1458a5c25d87
+/apk/8-17/03-manifest-manifest-1:
+  en: 043ef943868b8f78
+  zh: 043ef943868b8f78
+/apk/8-17/04-crypto-2:
+  en: c1d41031467ab384
+  zh: c1d41031467ab384
+/apk/8-17/05-network-2:
+  en: df419907a336eb6c
+  zh: df419907a336eb6c
+/apk/8-17/06-dynamic-3:
+  en: 029ed50e35891518
+  zh: 029ed50e35891518
+/apk/8-17/07-packer-2:
+  en: 6198d12f42043882
+  zh: 6198d12f42043882
+/apk/8-17/08-patch-repack-patch-1:
+  en: d21c6546190e201a
+  zh: d21c6546190e201a
+/apk/section:
+  en: 67f79a76082ae032
+  zh: 67f79a76082ae032
+/apk/section~2:
+  en: d41833bb2185fba5
+  zh: d41833bb2185fba5

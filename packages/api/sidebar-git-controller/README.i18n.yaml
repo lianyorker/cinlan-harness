@@ -1,6 +1,37 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/sidebar-git-controller/README.md
-README.md: 3ad38015ebc24eabd9a2ce8882d6c570763a4755
-README.zh.md: 63b4583dc6e58582ad43ca4476614301a53495a1
+/:
+  en: 6b46d53fb8cedbe3
+  zh: 79f0c6d5dd5b967e
+/deepseek-ai-dsh-api-sidebar-git-controller:
+  en: b5000436277ab005
+  zh: 7613c2a232757e42
+/deepseek-ai-dsh-api-sidebar-git-controller/summary:
+  en: c032525a7d4d531d
+  zh: bb4a5ae3c0518327
+/deepseek-ai-dsh-api-sidebar-git-controller/table-of-contents:
+  en: 07f3642294ee905d
+  zh: b73c83ce583f5a94
+/deepseek-ai-dsh-api-sidebar-git-controller/use-this-package:
+  en: bef539d82fc69beb
+  zh: fb45170a06b0bdbf
+/deepseek-ai-dsh-api-sidebar-git-controller/understand-the-implementation:
+  en: 033954a47f6e1c5b
+  zh: af75d7d3263bb17d
+/deepseek-ai-dsh-api-sidebar-git-controller/further-exploration:
+  en: c5247985a51079b0
+  zh: 3d07c26fc53d04be
+/deepseek-ai-dsh-api-sidebar-git-controller/further-exploration/dev-note:
+  en: 5f99a4051eeb25e5
+  zh: 767f501d3528a4d4
+/deepseek-ai-dsh-api-sidebar-git-controller/model-experience:
+  en: 3b214ae24febbba1
+  zh: 57a77d091feb17bc
+/deepseek-ai-dsh-api-sidebar-git-controller/model-experience/kv-cache-effect:
+  en: 5b4ede835740a2e0
+  zh: 59e6c5128a8029ef
+/deepseek-ai-dsh-api-sidebar-git-controller/known-limitations-and-deferred-work:
+  en: 094773665e7e0281
+  zh: 50104701c7cf08d4

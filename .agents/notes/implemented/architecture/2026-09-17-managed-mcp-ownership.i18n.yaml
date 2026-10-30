@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-managed-mcp-ownership.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-managed-mcp-ownership.md
-2026-09-17-managed-mcp-ownership.md: 65c1f6fac0fc020e1627be994102e943ae4e3c41
-2026-09-17-managed-mcp-ownership.zh.md: 9758660cc9740362949fc29391290332fc932b71
+/agent-note-mcp-management-separates-desired-records-from-observed-connections:
+  en: bcb5124423ecc61c
+  zh: 545833726060a4b1
+/agent-note-mcp-management-separates-desired-records-from-observed-connections/problem:
+  en: 82d5e625532d6114
+  zh: f4cd3702c76ef684
+/agent-note-mcp-management-separates-desired-records-from-observed-connections/decision:
+  en: 3e08c32a5a575b78
+  zh: 97e57e53b53ddecc
+/agent-note-mcp-management-separates-desired-records-from-observed-connections/alternatives-considered:
+  en: d44d1de2a1744eb1
+  zh: 0f3416cdc05ca0c1
+/agent-note-mcp-management-separates-desired-records-from-observed-connections/consequences:
+  en: 55637e7bf392783c
+  zh: fa29af914d0bfc55

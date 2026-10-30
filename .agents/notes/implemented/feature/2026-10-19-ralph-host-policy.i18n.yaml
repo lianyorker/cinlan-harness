@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-19-ralph-host-policy.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-19-ralph-host-policy.md
+/agent-note-host-owned-ralph-admission:
+  en: a4d0838ddd4fe69f
+  zh: ca51fd321176cb6d
+/agent-note-host-owned-ralph-admission/problem:
+  en: e37c2c027e4dc720
+  zh: f7ae7729772742c2
+/agent-note-host-owned-ralph-admission/decision:
+  en: 92cead0698c5007b
+  zh: 2d3e04ffa2d79b1a
+/agent-note-host-owned-ralph-admission/alternatives-considered:
+  en: eb825bb1db1de25d
+  zh: fa20e39064f7902b
+/agent-note-host-owned-ralph-admission/consequences:
+  en: be883e2786e132ae
+  zh: 22c5bf2617a4b160

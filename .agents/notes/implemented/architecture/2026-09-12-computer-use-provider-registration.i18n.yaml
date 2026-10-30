@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-12-computer-use-provider-registration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-12-computer-use-provider-registration.md
-2026-09-12-computer-use-provider-registration.md: eaf09d949dd78de5faa4017bfd505b67787b74f7
-2026-09-12-computer-use-provider-registration.zh.md: 668792f94e868be0a7861dfbeb39fae10b9d51f6
+/agent-note-computer-use-provider-registration:
+  en: 7179585d8663cf3c
+  zh: e0ac002425dfd40b
+/agent-note-computer-use-provider-registration/problem:
+  en: 915ca3edbd83a8fd
+  zh: 98fe85c63c6b2135
+/agent-note-computer-use-provider-registration/decision:
+  en: 190c5345e73360c4
+  zh: 04cf8012b4e09a0c
+/agent-note-computer-use-provider-registration/alternatives-considered:
+  en: 97aebd377dff8ea6
+  zh: 698bbfebc4177336
+/agent-note-computer-use-provider-registration/consequences:
+  en: eed0c10237bf13b1
+  zh: e077a9b42e2d9e71

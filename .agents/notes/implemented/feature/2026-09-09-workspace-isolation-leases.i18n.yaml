@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-09-workspace-isolation-leases.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-09-workspace-isolation-leases.md
-2026-09-09-workspace-isolation-leases.md: 7cdb1032cb6596102e1d3cbe34a4139abb63fae5
-2026-09-09-workspace-isolation-leases.zh.md: 0ed62447ccdaaf9f6610db5affd4b243966531e9
+/agent-note-git-workspace-isolation-leases:
+  en: e54f4f7646e1d4b8
+  zh: 02d85a60365322a1
+/agent-note-git-workspace-isolation-leases/problem:
+  en: 039190172cdc8c1d
+  zh: fdd7aaea8f4553a2
+/agent-note-git-workspace-isolation-leases/decision:
+  en: 422f847beadb51e6
+  zh: b9ada10779b2b4cb
+/agent-note-git-workspace-isolation-leases/consequences:
+  en: de360ab7e0b6c0d6
+  zh: 823b21143fb3ac53
+/agent-note-git-workspace-isolation-leases/alternatives-considered:
+  en: 211871c2e0abeb27
+  zh: 35ecf7495a973164
+/agent-note-git-workspace-isolation-leases/testing:
+  en: 1ccef875941d1a62
+  zh: 134b20e83f2964c3

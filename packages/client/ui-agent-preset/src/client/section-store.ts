@@ -98,6 +98,27 @@ export class AgentPresetSectionController {
     await this.save(() => writeDefaultPreset(this.ctx, 'standard', settings.revision))
   }
 
+
+  /** Replace a hidden built-in default after accepted Coding Tools changes.
+   * @param shouldReset Rechecked after waiting; false when tools are enabled or this owner is disposed.
+   * @returns Once the conditional save settles; errors remain visible in the section.
+   */
+  async reconcileCodingTools(shouldReset: () => boolean): Promise<void> {
+    while (this.pendingSave !== undefined) await this.pendingSave
+    if (!shouldReset()) return
+    const settings = this.ctx.configForms.get(AGENT_PRESET_SETTINGS_NS).getSnapshot()
+    if (settings.status !== 'ready' || !settings.writable || settings.revision === undefined) return
+    await this.load()
+    if (!shouldReset() || this.store.getSnapshot().status !== 'ready') return
+    const rows = this.store.getSnapshot().rows
+    if (!requiresCodingTools(rows.find(row => row.isDefault))) return
+    if (!rows.some(row => row.id === 'standard' && row.broken === undefined)) {
+      this.set({ error: this.ctx.locale.bind('settings.agentPreset')('standardUnavailable') })
+      return
+    }
+    await this.save(() => writeDefaultPreset(this.ctx, 'standard', settings.revision))
+  }
+
   private async save(write: () => Promise<string | undefined>, sync?: (id: string) => Promise<string | undefined>): Promise<void> {
     if (this.store.getSnapshot().saving) return
     const completion = Promise.withResolvers<void>()

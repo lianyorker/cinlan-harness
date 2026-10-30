@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/usage-controller/README.md
-README.md: 7a13fe698feff67a6be78ca26f7cb2b4bb02eeb3
-README.zh.md: 3c4436ff9fd6b8462ad7f44a0ba1a45eb229a023
+/:
+  en: 8d7bc25374bd8caa
+  zh: 0a0b23e117224594
+/usage-controller:
+  en: a731cacf5d555f54
+  zh: 8bf4de8a86ef5572
+/usage-controller/summary:
+  en: cece58e7eb54c781
+  zh: 4ebeb158e0becb3e
+/usage-controller/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 87d6b45405bb805b
+/usage-controller/use-this-package:
+  en: fc5e0d75bed55631
+  zh: fb5a446874aa5837
+/usage-controller/use-this-package/minimal-configuration:
+  en: 0ee26b603c58da45
+  zh: af74d76932ba2dc9
+/usage-controller/use-this-package/authentication-and-failures:
+  en: 0edbec0ae69946a0
+  zh: a10c5aec54e568c6
+/usage-controller/understand-the-implementation:
+  en: 7d8f0216407ca0f9
+  zh: 45c6dd915833c144
+/usage-controller/further-exploration:
+  en: fe290f183ec5b7c9
+  zh: 19306def73c5f805
+/usage-controller/model-experience:
+  en: b97e8762f8cb78f1
+  zh: 83497f38a7c34292
+/usage-controller/model-experience/kv-cache-effect:
+  en: ca9d57998c249794
+  zh: 56ad04cc89efd2ac
+/usage-controller/known-limitations-and-deferred-work:
+  en: 029bcf6d4d4193f4
+  zh: 374a19b1a2e424e7
+/usage-controller/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: e88aeb617ffb74ea

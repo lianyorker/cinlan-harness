@@ -166,6 +166,8 @@ describe('ui-team browser plugin', () => {
       'agentTeams/view', 'agentTeams/createTask', 'agentTeams/updateTask', 'agentTeams/updateTask',
     ])
     expect(b.calls.at(-1)?.args[1]).toMatchObject({ owner: 'worker' })
+    const t = b.ctx.locale.bind('agent-team')
+    expect(t('trigger')).toBe('Agent team')
 
     await actions.openTeammate(SESSION, {
       id: SESSION,

@@ -34,7 +34,7 @@ async function renderMarkdown(text: string): Promise<{ container: HTMLElement; r
   await act(async () => {
     root.render(createElement(MermaidMarkdown, { text, labels: codeLabels }))
     // Let the mocked mermaid.render promise settle inside the act scope.
-    await new Promise(resolve => { setTimeout(resolve, 0) })
+    await new Promise((resolve) => { setTimeout(resolve, 0) })
   })
   return { container, root }
 }

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-23-cinlan-multimodal-tool-result-retention.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-23-cinlan-multimodal-tool-result-retention.md
-2026-09-23-cinlan-multimodal-tool-result-retention.md: 8fe37e0593e552a22ead3a1746565f13936e24c5
-2026-09-23-cinlan-multimodal-tool-result-retention.zh.md: 82d9ab2179fec0cf061a8f4d0902767513599ded
+/agent-note-multimodal-tool-result-retention:
+  en: dc08d6bd66d424d9
+  zh: 7e64c2642f07e085
+/agent-note-multimodal-tool-result-retention/problem:
+  en: fef4ca867a19d39f
+  zh: fa9ed4be586455d0
+/agent-note-multimodal-tool-result-retention/decision:
+  en: e71c3279d1446cd6
+  zh: fe48677ca4978652
+/agent-note-multimodal-tool-result-retention/consequences:
+  en: 3eb41439cc81da8b
+  zh: 5e452029260e3d45
+/agent-note-multimodal-tool-result-retention/alternatives-considered:
+  en: d9647027728a6706
+  zh: 22642cdc7b1afb00
+/agent-note-multimodal-tool-result-retention/verification:
+  en: 985e49232e2c2df5
+  zh: 43ec5525c4485d52

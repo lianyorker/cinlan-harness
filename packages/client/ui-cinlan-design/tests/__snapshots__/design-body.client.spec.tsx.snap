@@ -1,0 +1,5 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`starts without a score and explains unavailable documents 1`] = `"Demo1440768390 Not checked Style Presets 1440 × 850 CSS px · Display scale 100%Anti-Slop Design AuditCannot read the current page. Wait for loading to finish; cross-origin pages support preview only and receive no audit score"`;
+
+exports[`starts without a score and explains unavailable documents 2`] = `"示例原型1440768390 未检查 风格库 1440 × 850 CSS px · 显示缩放 100%Anti-Slop 设计体检无法读取当前页面。请等待加载完成；跨域页面仅支持预览，不会生成体检分数"`;

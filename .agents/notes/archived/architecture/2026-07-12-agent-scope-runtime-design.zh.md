@@ -121,12 +121,11 @@ Setup 接收完整的子上下文和确切的未发布 Agent，可以等待插�
 2. 将 agent 写入注册表。
 3. 宣告 `session/created`。
 4. 等待串行 `agent/created` 监听器。
-5. 发射 `agent/session-start`。
-6. 向 driver 释放排队输入。
+5. 向驱动器释放已排队输入。
 
-Agent 在两个注册表和创建通知都达成一致之前绝不驱动。监听器可以拒绝创建或请求所有者 disposal；事务记录发布进行中，并等待分发结算后再继续拆除。每个已开始的创建宣告在回滚期间都有匹配的销毁宣告。[等待初始化决策](2026-09-09-awaited-agent-creation.zh.md)拥有串行回调、取消和排队输入语义。
+Agent 在两个注册表与创建监听器都完成前绝不驱动。监听器可以拒绝或 dispose 一个所有者；事务保留作用域与会话，等待分发结算后再继续拆除。每个已开始的创建宣告在回滚期间都有匹配的销毁宣告。[可等待创建决策](2026-09-09-awaited-agent-creation.zh.md)拥有异步初始化器时序。
 
-以下序列图展示创建监听器在发布仍保留两个注册表条目时请求 disposal。拆除立即取消，并等待监听器结算后才停止工作或分离资源。
+创建监听器可以在发布仍拥有两个注册表条目时请求 dispose。Teardown 会立即停用，并等待所调用的异步分发完成后才停止和分离资源。
 
 ```mermaid
 sequenceDiagram
@@ -137,31 +136,30 @@ sequenceDiagram
 
   Tx->>Tx: mark publication in progress
   Tx->>Registries: announce agent/created
-  Registries->>Listener: invoke and await
+  Registries->>Listener: await listener
   Listener->>Tx: dispose reentrantly
   Tx->>Tx: deactivate, teardown waits for publication
   Tx-->>Listener: disposal request accepted
   Listener-->>Registries: settle
-  Registries-->>Tx: announcement settled
+  Registries-->>Tx: dispatch settled
   Tx->>Tx: resolve publication settlement
   Tx->>Driver: stop and drain
-  Tx->>Tx: dispose scope and close storage
   Tx->>Registries: detach agent, then session
-  Tx->>Tx: resolve teardown
+  Tx->>Tx: dispose scope and resolve teardown
 ```
 
 ### 拆除在撤销注册之前保留工作
 
 每个拆除请求加入一条记忆化路径。顺序为：
 
-1. 取消创建并等待发布结算。
+1. 停用创建或驱动，并等待创建分发。
 2. 停止并排空 driver，丢弃仍处于待处理状态的注入。
-3. dispose agent 作用域。
-4. 关闭会话写路径。
-5. 分离 agent，然后分离会话。
+3. 分离 agent。
+4. 分离会话。
+5. dispose agent 作用域。
 6. 退役事务所有权追踪。
 
-此顺序将作用域监听器保留到驱动与初始化完成，并将持久化保留到最终 close。注册表条目保持可见，直到私有资源清理完成。
+此顺序让最终的 agent 和会话事件能使用匹配的作用域监听器，并使持久化观察者在最终刷新完成前保持附加。作用域 dispose 放在最后，因为注册撤销是外部可见的生命期边界。
 
 <a id="session-append-materialize-validate-commit-notify"></a>
 
@@ -345,7 +343,7 @@ TypeScript 无法管控 JavaScript 强制转换、直接 Cordis dispatch、进�
 
 事件目录、服务目录、生产者/消费方矩阵、配置目录、模块图、工具目录、type-equiv 块和作用域事件解析器映射都是从源码生成或受新鲜度门禁约束的。[TypeScript 语义门禁 Agent Note](../../archived/process/2026-07-14-typescript-program-backed-semantic-gates.md) 拥有 Program 构造、语义事件发现和解析器生成规则。
 
-行为测试固定了作用域路由和 dispose、最终写入注册表时的碰撞清理、发布回滚、有序完全停稳、持久化前/后提交行为、跨展示和执行的活跃工具过滤、协作式提示词组装、原生和 PTC mode 中的结构化输出提交、异步 subagent 启动和信号取消、worker 终端仲裁、ACP 结算和进程拆除。
+行为测试固定了作用域路由和 dispose、最终写入注册表时的碰撞清理、发布回滚、有序完全停稳、持久化前/后提交行为、跨展示和执行的活跃工具过滤、协作式提示词组装、原生和 PTC mode 中的结构化输出提交、异步 subagent 启动和信号取消、工作流终态仲裁、ACP 结算和进程拆除。
 
 ## 曾考虑的替代方案
 

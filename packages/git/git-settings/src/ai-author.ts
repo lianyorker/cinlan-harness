@@ -64,7 +64,7 @@ export function filterSensitiveFiles(paths: readonly string[]): {
  */
 export function filterSensitiveDiff(
   diff: string,
-  paths: readonly string[]
+  paths: readonly string[],
 ): {
   readonly filteredDiff: string
   readonly omittedFiles: readonly string[]
@@ -107,7 +107,7 @@ export function filterSensitiveDiff(
  */
 export function truncateDiff(
   diff: string,
-  maxBytes: number
+  maxBytes: number,
 ): {
   readonly text: string
   readonly truncated: boolean
@@ -153,7 +153,7 @@ export function interpolateTemplate(
     readonly diff: string
     readonly branch?: string
     readonly stagedFiles?: readonly string[]
-  }
+  },
 ): string {
   const filesStr = (vars.stagedFiles ?? []).join('\n')
   return template
@@ -198,7 +198,7 @@ export interface GenerateCommitMessageResult {
  * @returns Generation result.
  */
 export async function generateCommitMessageDraft(
-  options: GenerateCommitMessageOptions
+  options: GenerateCommitMessageOptions,
 ): Promise<GenerateCommitMessageResult> {
   const { diff, branch, stagedFiles, recipe, settings, runner, signal } = options
   const filterSensitive = settings?.filterSensitiveFiles ?? DEFAULT_SOURCE_CONTROL_AI_SETTINGS.filterSensitiveFiles

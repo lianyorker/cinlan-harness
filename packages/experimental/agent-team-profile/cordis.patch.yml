@@ -5,9 +5,6 @@
 - id: tool-subagent-control
   disabled: true
 
-- id: tool-subagent-list-agents
-  disabled: true
-
 - id: tool-subagent
   config:
     provider: spawn
@@ -26,7 +23,6 @@
       config:
         maxMembers: 8
         maxTasks: 256
-        maxPendingMessagesPerMember: 64
         maxMessageBytes: 65536
         disposalTimeoutMs: 5000
 

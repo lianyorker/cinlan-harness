@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-19-native-auto-review.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-19-native-auto-review.md
+/agent-note-native-current-session-auto-backend:
+  en: 4cd4364bca3ea87b
+  zh: 6b18708f66f13995
+/agent-note-native-current-session-auto-backend/problem:
+  en: 98910361cde32e91
+  zh: c0bb81bccb308cac
+/agent-note-native-current-session-auto-backend/decision:
+  en: bc799b0fb93bf010
+  zh: b159acceafbcf9ba
+/agent-note-native-current-session-auto-backend/alternatives-considered:
+  en: 69af97021a20a879
+  zh: a529f0965daa918b
+/agent-note-native-current-session-auto-backend/consequences:
+  en: d3c7afb53e79b7cb
+  zh: 03ffb23f07de7912

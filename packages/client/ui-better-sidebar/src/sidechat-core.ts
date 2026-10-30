@@ -102,7 +102,7 @@ function dataOf(event: SidechatLogEvent): Record<string, unknown> {
  *  The FULL envelope is preserved — stripping `surfaceOp` would make the
  *  seed validator reject every surface-eligible message event. */
 function copyEvents(events: readonly SidechatLogEvent[]): SeedEvent[] {
-  return events.map(event => {
+  return events.map((event) => {
     const source = event as SidechatLogEvent & {
       surfaceOp?: unknown
       sourceEventSeqs?: unknown

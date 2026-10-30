@@ -1,0 +1,93 @@
+- region "Settings":
+  - text: Settings
+  - navigation "Settings navigation":
+    - button "Back to app"
+    - searchbox "Search settings..."
+    - text: Ctrl / ⌘ K
+    - button "Configure models"
+    - button "Personal" [expanded]
+    - button "Model service account"
+    - button "General"
+    - button "Workspace layout"
+    - button "Notifications"
+    - button "Voice"
+    - button "Keybindings"
+    - button "Floating Workspace"
+    - button "Agents" [expanded]
+    - button "Agent presets"
+    - button "Subagents"
+    - button "Limits"
+    - button "Orchestration"
+    - button "Workspace" [expanded]
+    - button "Git & Source Control"
+    - button "Terminal"
+    - button "Terminal quick commands"
+    - button "Worktree tasks"
+    - button "Execution & security" [expanded]
+    - button "Automation tasks"
+    - button "SSH hosts"
+    - button "Tools & devices" [expanded]
+    - button "Models"
+    - button "Mobile emulator"
+    - button "Mobile"
+    - button "Connections & extensions" [expanded]
+    - button "MCP"
+    - button "Integrations"
+    - button "Web search"
+    - button "Data & advanced" [expanded]
+    - button "Runtime diagnostics"
+    - button "Archived sessions"
+    - button "Usage"
+  - text: Personal
+  - strong: General
+  - button "Open configuration file"
+  - heading "General" [level=1]
+  - paragraph: Customize the interface and conversations for your work.
+  - text: Language
+  - button "English"
+  - text: Appearance
+  - button "Light"
+  - button "Dark"
+  - button "System" [pressed]
+  - text: Font size Only affects conversation content 15
+  - button "Increase font size"
+  - button "Decrease font size"
+  - text: px
+  - button "More font settings" [expanded]
+  - text: Text font Used for the interface and conversation text. Separate fonts with commas; leave empty for the default
+  - textbox "Text font":
+    - /placeholder: Default
+    - text: "\"Arial\""
+  - text: Code font Used for code blocks, inline code, and tool output. Separate fonts with commas; leave empty for the default
+  - textbox "Code font":
+    - /placeholder: Default
+    - text: "\"Consolas\""
+  - text: Code font size Used for code blocks, inline code, and tool output 12
+  - button "Increase code font size"
+  - button "Decrease code font size"
+  - text: px Terminal font Used for the sidebar terminal. Separate fonts with commas; leave empty for the default
+  - textbox "Terminal font":
+    - /placeholder: Default
+    - text: "\"Courier New\""
+  - text: Terminal font size Used for the sidebar terminal 14
+  - button "Increase terminal font size"
+  - button "Decrease terminal font size"
+  - text: px Work details Choose how much detail to show for tool calls
+  - button "Detailed"
+  - text: Show coding view Shows trajectory, code diffs, and all Agent presets
+  - switch "Show coding view" [checked]
+  - text: Open chat links in Choose where to open web links
+  - button "In-App Sidebar"
+  - text: Send behavior while busy What Enter and the Send button do while the agent is running; Cmd/Ctrl+Enter uses the other behavior
+  - button "Queue"
+  - text: Performance & usage Choose how much performance and usage information to show
+  - button "Detailed"
+  - text: Parallel tool calls Upper bound on parallel-safe calls running at once within one step.
+  - textbox "Parallel tool calls": "10"
+  - button "Increase parallel calls"
+  - button "Decrease parallel calls"
+  - text: Permission Choose the default permission mode for new sessions
+  - button "Workspace Write"
+  - text: Upload Session Log when using the official model API Help improve DeepSeek models and products.
+  - switch "Upload Session Log when using the official model API"
+  - text: "Current version: 0.2.1-alpha.1"

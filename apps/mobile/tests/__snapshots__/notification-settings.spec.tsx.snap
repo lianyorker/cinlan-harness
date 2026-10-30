@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`describes online-only reminders and unavailable dictation in en-US > notification-settings 1`] = `"NotificationsIn-app remindersWhile this page is visible and connected to a desktop, show an in-app reminder for newly received tool approvals and observed running-to-idle session changes.Delivery is not guaranteed in the background, while locked, offline, or after closing the page. Offline push is not connected.Receive in-app remindersOnMute the session being viewedOffOnly the open session is muted. Other sessions and desktops can still show reminders.Test in-app reminder"`;
+
+exports[`describes online-only reminders and unavailable dictation in en-US > voice-settings 1`] = `"VoicePhone dictation is not connectedThis phone app cannot record or transcribe audio, or control desktop dictation.Use keyboard dictationUse your phone keyboard’s voice input, review the text, then send it to the session. Availability and privacy settings are controlled by your phone.Speech modelsDownload or switch speech models in Web or desktop voice settings. SenseVoice and Paraformer support Chinese. Phone model management is not available."`;
+
+exports[`describes online-only reminders and unavailable dictation in zh-CN > notification-settings 1`] = `"通知应用内提醒保持此页面可见并连接电脑时，收到新的工具审批或观察到会话从运行变为空闲，会在应用内显示提醒后台、锁屏、断网或关闭页面后无法保证收到提醒；离线推送尚未接通接收应用内提醒开启查看当前会话时不提醒关闭仅静默当前打开的会话，其他会话与其他电脑的提醒仍然显示测试应用内提醒"`;
+
+exports[`describes online-only reminders and unavailable dictation in zh-CN > voice-settings 1`] = `"语音手机听写尚未接通当前手机端无法录音转写，也不能控制桌面听写使用系统键盘听写可使用手机键盘自带的语音输入，确认文本后再发送到会话；其可用性与隐私设置由手机系统决定语音模型请在 Web 或桌面端的语音设置中下载或切换模型。中文可选择 SenseVoice 或 Paraformer；手机端暂不支持模型管理"`;

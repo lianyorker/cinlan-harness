@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/security/security-skills/assets/skills/kb/ctf-website/techniques/09-cve/README.md
-README.md: 93504b6901eea86c5da8ded6cd45404fe080046c
-README.zh.md: 07d6b331c755083ae0cbf1bc77fbe977ef7e8f4d
+/cve-web:
+  en: af9932620094ea5e
+  zh: 2e465385dceb618d
+/cve-web/section:
+  en: 8c84c1261fded3ec
+  zh: 8c84c1261fded3ec
+/cve-web/section~2:
+  en: 93e8ea0b2d47ce33
+  zh: 93e8ea0b2d47ce33
+/cve-web/section/09-cve-cve-6:
+  en: c777e394be816d75
+  zh: c777e394be816d75
+/cve-web/section/11-dos-2:
+  en: 337cf49a28c7b19e
+  zh: 337cf49a28c7b19e
+/cve-web/section~3:
+  en: 00491d942325fbca
+  zh: 00491d942325fbca

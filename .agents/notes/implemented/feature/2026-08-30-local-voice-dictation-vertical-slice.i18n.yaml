@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-30-local-voice-dictation-vertical-slice.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-30-local-voice-dictation-vertical-slice.md
-2026-08-30-local-voice-dictation-vertical-slice.md: 67efe731cc87adc9a18716084549799d5b1e4953
-2026-08-30-local-voice-dictation-vertical-slice.zh.md: ae408ae8988054153ce1e9963c7e12accea2ebf8
+/agent-note-local-voice-dictation-vertical-slice-sherpa-onnx-ctrl-shift-e:
+  en: e241bce05000ad0f
+  zh: cb057a26ef7cc220
+/agent-note-local-voice-dictation-vertical-slice-sherpa-onnx-ctrl-shift-e/problem:
+  en: 3b0153a7f88cc0e8
+  zh: f68e605a5188e47f
+/agent-note-local-voice-dictation-vertical-slice-sherpa-onnx-ctrl-shift-e/decision:
+  en: a7174e68f0d4ac91
+  zh: ea9d267c2b8b1e3d
+/agent-note-local-voice-dictation-vertical-slice-sherpa-onnx-ctrl-shift-e/alternatives-considered:
+  en: 45b04402834cac83
+  zh: 5f5fac605b06d1f3
+/agent-note-local-voice-dictation-vertical-slice-sherpa-onnx-ctrl-shift-e/consequences:
+  en: d20b5d53521dc9bf
+  zh: 025b4d36c7ffce6a
+/agent-note-local-voice-dictation-vertical-slice-sherpa-onnx-ctrl-shift-e/testing:
+  en: fbbd5bf782dfc90e
+  zh: d1f7233315517435

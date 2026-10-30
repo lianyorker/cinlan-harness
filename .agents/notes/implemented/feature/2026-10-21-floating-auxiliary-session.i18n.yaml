@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-10-21-floating-auxiliary-session.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-21-floating-auxiliary-session.md
+/agent-note-floating-workspace-owns-an-auxiliary-session:
+  en: 9d7141f4d82b9035
+  zh: 074eaec35e13f3b2
+/agent-note-floating-workspace-owns-an-auxiliary-session/problem:
+  en: 409aa20d77f787a1
+  zh: 9d1d6321cbb41a50
+/agent-note-floating-workspace-owns-an-auxiliary-session/decision:
+  en: d13b2b24cf24f6e7
+  zh: b3e60a14981f46b1
+/agent-note-floating-workspace-owns-an-auxiliary-session/alternatives-considered:
+  en: 47f4cfda955a02f2
+  zh: 38bd94e6d4fcf681
+/agent-note-floating-workspace-owns-an-auxiliary-session/consequences:
+  en: b3168ec48aac72a8
+  zh: c44f9207cf6ad38b
+/agent-note-floating-workspace-owns-an-auxiliary-session/verification:
+  en: c4856d5aab2a4ced
+  zh: afb734561f961cea
