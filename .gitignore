@@ -50,3 +50,6 @@ native/system/test/bin/
 %SystemDrive%/
 reports/
 .cinlan-mobile-relay/
+
+# Local scratch files
+.scratch-*

@@ -35,6 +35,7 @@
       "@cinlan/mobile-relay/config": ["./apps/mobile-relay/src/config.ts"],
       "@cinlan/mobile-relay/director": ["./apps/mobile-relay/src/director.ts"],
       "@deepseek-ai/dsh-cinlan-remote-tunnel": ["./packages/bundle/cinlan-remote-tunnel/src/index.ts"],
+      "@deepseek-ai/dsh-cinlan-web": ["./packages/bundle/cinlan-web/src/index.ts"],
       "@deepseek-ai/dsh-client-product-analytics": ["./packages/client/product-analytics/src/index.ts"],
       "@deepseek-ai/dsh-client-product-analytics/types": ["./packages/client/product-analytics/src/events.ts"],
       "@deepseek-ai/dsh-client-product-analytics/client": ["./packages/client/product-analytics/src/client/index.ts"],

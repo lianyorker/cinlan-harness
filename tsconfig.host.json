@@ -221,6 +221,7 @@
   "references": [
     { "path": "./apps/mobile-relay" },
     { "path": "./packages/bundle/cinlan-remote-tunnel" },
+    { "path": "./packages/bundle/cinlan-web" },
     {
       "path": "./packages/client/product-analytics/tsconfig.host.json"
     },

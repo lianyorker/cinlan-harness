@@ -833,7 +833,7 @@ importers:
         version: 18.3.7(@types/react@18.3.31)
       '@vitejs/plugin-react':
         specifier: ^4.3.4
-        version: 4.7.0(vite@6.4.3(@types/node@26.1.2)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 4.7.0(supports-color@9.4.0)(vite@6.4.3(@types/node@26.1.2)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
       autoprefixer:
         specifier: ^10.4.20
         version: 10.6.1(postcss@8.5.15)
@@ -972,7 +972,7 @@ importers:
         version: 8.18.1
       '@vitejs/plugin-react':
         specifier: ^4.0.0
-        version: 4.7.0(supports-color@9.4.0)(vite@6.4.3(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 4.7.0(vite@6.4.3(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
       fflate:
         specifier: ^0.8.2
         version: 0.8.3
@@ -3631,6 +3631,142 @@ importers:
         specifier: ^5.6.0
         version: 5.7.2
 
+  packages/bundle/cinlan-web:
+    dependencies:
+      '@deepseek-ai/dsh-api-device-capabilities-controller':
+        specifier: workspace:*
+        version: link:../../api/device-capabilities-controller
+      '@deepseek-ai/dsh-api-execution-host-controller':
+        specifier: workspace:*
+        version: link:../../api/execution-host-controller
+      '@deepseek-ai/dsh-api-integration-preflight-controller':
+        specifier: workspace:*
+        version: link:../../api/integration-preflight-controller
+      '@deepseek-ai/dsh-api-mcp-controller':
+        specifier: workspace:*
+        version: link:../../api/mcp-controller
+      '@deepseek-ai/dsh-api-security-research-controller':
+        specifier: workspace:*
+        version: link:../../api/security-research-controller
+      '@deepseek-ai/dsh-api-sidebar-git-controller':
+        specifier: workspace:*
+        version: link:../../api/sidebar-git-controller
+      '@deepseek-ai/dsh-api-terminal-quick-commands-controller':
+        specifier: workspace:*
+        version: link:../../api/terminal-quick-commands-controller
+      '@deepseek-ai/dsh-api-usage-controller':
+        specifier: workspace:*
+        version: link:../../api/usage-controller
+      '@deepseek-ai/dsh-api-voice-controller':
+        specifier: workspace:*
+        version: link:../../api/voice-controller
+      '@deepseek-ai/dsh-api-worktree-task-controller':
+        specifier: workspace:*
+        version: link:../../api/worktree-task-controller
+      '@deepseek-ai/dsh-cinlan-remote-tunnel':
+        specifier: workspace:*
+        version: link:../cinlan-remote-tunnel
+      '@deepseek-ai/dsh-client-keyboard':
+        specifier: workspace:*
+        version: link:../../client/keyboard
+      '@deepseek-ai/dsh-client-ui-cinlan-design':
+        specifier: workspace:*
+        version: link:../../client/ui-cinlan-design
+      '@deepseek-ai/dsh-client-ui-floating-workspace':
+        specifier: workspace:*
+        version: link:../../client/ui-floating-workspace
+      '@deepseek-ai/dsh-client-ui-git-settings':
+        specifier: workspace:*
+        version: link:../../client/ui-git-settings
+      '@deepseek-ai/dsh-client-ui-integrations':
+        specifier: workspace:*
+        version: link:../../client/ui-integrations
+      '@deepseek-ai/dsh-client-ui-notifications':
+        specifier: workspace:*
+        version: link:../../client/ui-notifications
+      '@deepseek-ai/dsh-client-ui-orchestration':
+        specifier: workspace:*
+        version: link:../../client/ui-orchestration
+      '@deepseek-ai/dsh-client-ui-quick-commands':
+        specifier: workspace:*
+        version: link:../../client/ui-quick-commands
+      '@deepseek-ai/dsh-client-ui-settings-automation':
+        specifier: workspace:*
+        version: link:../../client/ui-settings-automation
+      '@deepseek-ai/dsh-client-ui-settings-hosts':
+        specifier: workspace:*
+        version: link:../../client/ui-settings-hosts
+      '@deepseek-ai/dsh-client-ui-settings-mcp':
+        specifier: workspace:*
+        version: link:../../client/ui-settings-mcp
+      '@deepseek-ai/dsh-client-ui-settings-security':
+        specifier: workspace:*
+        version: link:../../client/ui-settings-security
+      '@deepseek-ai/dsh-client-ui-settings-unarchive-sessions':
+        specifier: workspace:*
+        version: link:../../client/ui-settings-unarchive-sessions
+      '@deepseek-ai/dsh-client-ui-settings-usage':
+        specifier: workspace:*
+        version: link:../../client/ui-settings-usage
+      '@deepseek-ai/dsh-client-ui-voice-dictation':
+        specifier: workspace:*
+        version: link:../../client/ui-voice-dictation
+      '@deepseek-ai/dsh-client-ui-worktree-task':
+        specifier: workspace:*
+        version: link:../../client/ui-worktree-task
+      '@deepseek-ai/dsh-execution-binding':
+        specifier: workspace:*
+        version: link:../../execution-host/execution-binding
+      '@deepseek-ai/dsh-execution-host-local':
+        specifier: workspace:*
+        version: link:../../execution-host/execution-host-local
+      '@deepseek-ai/dsh-execution-host-targets':
+        specifier: workspace:*
+        version: link:../../execution-host/execution-host-targets
+      '@deepseek-ai/dsh-execution-runtime':
+        specifier: workspace:*
+        version: link:../../execution-host/execution-runtime
+      '@deepseek-ai/dsh-git-settings':
+        specifier: workspace:*
+        version: link:../../git/git-settings
+      '@deepseek-ai/dsh-mcp-client':
+        specifier: workspace:*
+        version: link:../../mcp/mcp-client
+      '@deepseek-ai/dsh-mcp-management':
+        specifier: workspace:*
+        version: link:../../mcp/mcp-management
+      '@deepseek-ai/dsh-notifications':
+        specifier: workspace:*
+        version: link:../../notifications/notifications
+      '@deepseek-ai/dsh-security-skills':
+        specifier: workspace:*
+        version: link:../../security/security-skills
+      '@deepseek-ai/dsh-sidebar-git':
+        specifier: workspace:*
+        version: link:../../git/sidebar-git
+      '@deepseek-ai/dsh-terminal-quick-commands':
+        specifier: workspace:*
+        version: link:../../terminal/terminal-quick-commands
+      '@deepseek-ai/dsh-usage-query':
+        specifier: workspace:*
+        version: link:../../session-query/usage-query
+      '@deepseek-ai/dsh-voice':
+        specifier: workspace:*
+        version: link:../../voice/voice
+      '@deepseek-ai/dsh-voice-sherpa-onnx':
+        specifier: workspace:*
+        version: link:../../voice/voice-sherpa-onnx
+      '@deepseek-ai/dsh-working-directory':
+        specifier: workspace:*
+        version: link:../../session/working-directory
+      '@deepseek-ai/dsh-worktree-task-git':
+        specifier: workspace:*
+        version: link:../../workspace/worktree-task-git
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/bundle/cinlan-work-items:
     dependencies:
       '@deepseek-ai/dsh-api-work-items-controller':
@@ -3985,66 +4121,30 @@ importers:
       '@deepseek-ai/dsh-api-account-controller':
         specifier: workspace:*
         version: link:../../api/account-controller
-      '@deepseek-ai/dsh-api-device-capabilities-controller':
-        specifier: workspace:^
-        version: link:../../api/device-capabilities-controller
-      '@deepseek-ai/dsh-api-execution-host-controller':
-        specifier: workspace:^
-        version: link:../../api/execution-host-controller
-      '@deepseek-ai/dsh-api-integration-preflight-controller':
-        specifier: workspace:^
-        version: link:../../api/integration-preflight-controller
       '@deepseek-ai/dsh-api-job-controller':
         specifier: workspace:*
         version: link:../../api/job-controller
-      '@deepseek-ai/dsh-api-mcp-controller':
-        specifier: workspace:^
-        version: link:../../api/mcp-controller
       '@deepseek-ai/dsh-api-remotes':
         specifier: workspace:*
         version: link:../../api/remotes
-      '@deepseek-ai/dsh-api-security-research-controller':
-        specifier: workspace:^
-        version: link:../../api/security-research-controller
       '@deepseek-ai/dsh-api-session-controller':
         specifier: workspace:*
         version: link:../../api/session-controller
       '@deepseek-ai/dsh-api-settings-controller':
         specifier: workspace:*
         version: link:../../api/settings-controller
-      '@deepseek-ai/dsh-api-sidebar-git-controller':
-        specifier: workspace:^
-        version: link:../../api/sidebar-git-controller
-      '@deepseek-ai/dsh-api-sidebar-terminal-controller':
-        specifier: workspace:^
-        version: link:../../api/sidebar-terminal-controller
       '@deepseek-ai/dsh-api-terminal-controller':
         specifier: workspace:*
         version: link:../../api/terminal-controller
-      '@deepseek-ai/dsh-api-usage-controller':
-        specifier: workspace:^
-        version: link:../../api/usage-controller
-      '@deepseek-ai/dsh-api-voice-controller':
-        specifier: workspace:^
-        version: link:../../api/voice-controller
       '@deepseek-ai/dsh-api-workspace-controller':
         specifier: workspace:*
         version: link:../../api/workspace-controller
       '@deepseek-ai/dsh-api-workspace-files':
         specifier: workspace:*
         version: link:../../api/workspace-files
-      '@deepseek-ai/dsh-api-workspace-isolation-controller':
-        specifier: workspace:^
-        version: link:../../api/workspace-isolation-controller
-      '@deepseek-ai/dsh-api-worktree-task-controller':
-        specifier: workspace:^
-        version: link:../../api/worktree-task-controller
       '@deepseek-ai/dsh-app-boot':
         specifier: workspace:*
         version: link:../../boot/app-boot
-      '@deepseek-ai/dsh-cinlan-remote-tunnel':
-        specifier: workspace:*
-        version: link:../cinlan-remote-tunnel
       '@deepseek-ai/dsh-client-connection':
         specifier: workspace:*
         version: link:../../client/connection
@@ -4054,9 +4154,6 @@ importers:
       '@deepseek-ai/dsh-client-hmr':
         specifier: workspace:*
         version: link:../../client/hmr
-      '@deepseek-ai/dsh-client-keyboard':
-        specifier: workspace:^
-        version: link:../../client/keyboard
       '@deepseek-ai/dsh-client-locale':
         specifier: workspace:*
         version: link:../../client/locale
@@ -4081,18 +4178,12 @@ importers:
       '@deepseek-ai/dsh-client-ui-attachment':
         specifier: workspace:*
         version: link:../../client/ui-attachment
-      '@deepseek-ai/dsh-client-ui-better-sidebar':
-        specifier: workspace:^
-        version: link:../../client/ui-better-sidebar
       '@deepseek-ai/dsh-client-ui-brand-official':
         specifier: workspace:*
         version: link:../../client/ui-brand-official
       '@deepseek-ai/dsh-client-ui-chat':
         specifier: workspace:*
         version: link:../../client/ui-chat
-      '@deepseek-ai/dsh-client-ui-cinlan-design':
-        specifier: workspace:*
-        version: link:../../client/ui-cinlan-design
       '@deepseek-ai/dsh-client-ui-commands':
         specifier: workspace:*
         version: link:../../client/ui-commands
@@ -4111,21 +4202,12 @@ importers:
       '@deepseek-ai/dsh-client-ui-directory-picker-native':
         specifier: workspace:*
         version: link:../../client/ui-directory-picker-native
-      '@deepseek-ai/dsh-client-ui-floating-workspace':
-        specifier: workspace:^
-        version: link:../../client/ui-floating-workspace
-      '@deepseek-ai/dsh-client-ui-git-settings':
-        specifier: workspace:^
-        version: link:../../client/ui-git-settings
       '@deepseek-ai/dsh-client-ui-goal':
         specifier: workspace:*
         version: link:../../client/ui-goal
       '@deepseek-ai/dsh-client-ui-input-trigger':
         specifier: workspace:*
         version: link:../../client/ui-input-trigger
-      '@deepseek-ai/dsh-client-ui-integrations':
-        specifier: workspace:^
-        version: link:../../client/ui-integrations
       '@deepseek-ai/dsh-client-ui-jobs':
         specifier: workspace:*
         version: link:../../client/ui-jobs
@@ -4138,15 +4220,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-model-selection':
         specifier: workspace:*
         version: link:../../client/ui-model-selection
-      '@deepseek-ai/dsh-client-ui-notifications':
-        specifier: workspace:^
-        version: link:../../client/ui-notifications
       '@deepseek-ai/dsh-client-ui-open-in-app':
         specifier: workspace:*
         version: link:../../client/ui-open-in-app
-      '@deepseek-ai/dsh-client-ui-orchestration':
-        specifier: workspace:*
-        version: link:../../client/ui-orchestration
       '@deepseek-ai/dsh-client-ui-permission-presets':
         specifier: workspace:*
         version: link:../../client/ui-permission-presets
@@ -4162,9 +4238,6 @@ importers:
       '@deepseek-ai/dsh-client-ui-renderer':
         specifier: workspace:*
         version: link:../../client/ui-renderer
-      '@deepseek-ai/dsh-client-ui-right-sidebar':
-        specifier: workspace:^
-        version: link:../../client/ui-right-sidebar
       '@deepseek-ai/dsh-client-ui-schedule':
         specifier: workspace:^
         version: link:../../client/ui-schedule
@@ -4180,18 +4253,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-settings-agent-loop':
         specifier: workspace:*
         version: link:../../client/ui-settings-agent-loop
-      '@deepseek-ai/dsh-client-ui-settings-automation':
-        specifier: workspace:*
-        version: link:../../client/ui-settings-automation
       '@deepseek-ai/dsh-client-ui-settings-general':
         specifier: workspace:*
         version: link:../../client/ui-settings-general
-      '@deepseek-ai/dsh-client-ui-settings-hosts':
-        specifier: workspace:^
-        version: link:../../client/ui-settings-hosts
-      '@deepseek-ai/dsh-client-ui-settings-mcp':
-        specifier: workspace:^
-        version: link:../../client/ui-settings-mcp
       '@deepseek-ai/dsh-client-ui-settings-models':
         specifier: workspace:*
         version: link:../../client/ui-settings-models
@@ -4201,9 +4265,6 @@ importers:
       '@deepseek-ai/dsh-client-ui-settings-plugins':
         specifier: workspace:*
         version: link:../../client/ui-settings-plugins
-      '@deepseek-ai/dsh-client-ui-settings-security':
-        specifier: workspace:^
-        version: link:../../client/ui-settings-security
       '@deepseek-ai/dsh-client-ui-settings-session-log':
         specifier: workspace:*
         version: link:../../client/ui-settings-session-log
@@ -4213,12 +4274,6 @@ importers:
       '@deepseek-ai/dsh-client-ui-settings-subagent':
         specifier: workspace:*
         version: link:../../client/ui-settings-subagent
-      '@deepseek-ai/dsh-client-ui-settings-unarchive-sessions':
-        specifier: workspace:^
-        version: link:../../client/ui-settings-unarchive-sessions
-      '@deepseek-ai/dsh-client-ui-settings-usage':
-        specifier: workspace:^
-        version: link:../../client/ui-settings-usage
       '@deepseek-ai/dsh-client-ui-settings-web-search':
         specifier: workspace:*
         version: link:../../client/ui-settings-web-search
@@ -4261,21 +4316,12 @@ importers:
       '@deepseek-ai/dsh-client-ui-user-questions':
         specifier: workspace:*
         version: link:../../client/ui-user-questions
-      '@deepseek-ai/dsh-client-ui-voice-dictation':
-        specifier: workspace:^
-        version: link:../../client/ui-voice-dictation
       '@deepseek-ai/dsh-client-ui-workflow-run':
         specifier: workspace:*
         version: link:../../client/ui-workflow-run
       '@deepseek-ai/dsh-client-ui-workspace':
         specifier: workspace:*
         version: link:../../client/ui-workspace
-      '@deepseek-ai/dsh-client-ui-workspace-isolation':
-        specifier: workspace:^
-        version: link:../../client/ui-workspace-isolation
-      '@deepseek-ai/dsh-client-ui-worktree-task':
-        specifier: workspace:^
-        version: link:../../client/ui-worktree-task
       '@deepseek-ai/dsh-cmdline':
         specifier: workspace:*
         version: link:../../boot/cmdline
@@ -4297,30 +4343,12 @@ importers:
       '@deepseek-ai/dsh-cordis-host-runner':
         specifier: workspace:*
         version: link:../../extensions/cordis-host-runner
-      '@deepseek-ai/dsh-execution-binding':
-        specifier: workspace:^
-        version: link:../../execution-host/execution-binding
-      '@deepseek-ai/dsh-execution-host-local':
-        specifier: workspace:^
-        version: link:../../execution-host/execution-host-local
-      '@deepseek-ai/dsh-execution-host-targets':
-        specifier: workspace:^
-        version: link:../../execution-host/execution-host-targets
-      '@deepseek-ai/dsh-execution-runtime':
-        specifier: workspace:^
-        version: link:../../execution-host/execution-runtime
       '@deepseek-ai/dsh-file-reference':
         specifier: workspace:*
         version: link:../../context/file-reference
       '@deepseek-ai/dsh-file-reference-local':
         specifier: workspace:*
         version: link:../../context/file-reference-local
-      '@deepseek-ai/dsh-git-local':
-        specifier: workspace:^
-        version: link:../../git/git-local
-      '@deepseek-ai/dsh-git-settings':
-        specifier: workspace:^
-        version: link:../../git/git-settings
       '@deepseek-ai/dsh-host-directory-picker-auto':
         specifier: workspace:*
         version: link:../../host/directory-picker-auto
@@ -4348,27 +4376,9 @@ importers:
       '@deepseek-ai/dsh-launch-environment':
         specifier: workspace:*
         version: link:../../util/launch-environment
-      '@deepseek-ai/dsh-mcp-client':
-        specifier: workspace:^
-        version: link:../../mcp/mcp-client
-      '@deepseek-ai/dsh-mcp-management':
-        specifier: workspace:^
-        version: link:../../mcp/mcp-management
       '@deepseek-ai/dsh-message-feedback':
         specifier: workspace:*
         version: link:../../feedback/message-feedback
-      '@deepseek-ai/dsh-mobile-device':
-        specifier: workspace:^
-        version: link:../../mobile-device/mobile-device
-      '@deepseek-ai/dsh-mobile-device-adb':
-        specifier: workspace:^
-        version: link:../../mobile-device/mobile-device-adb
-      '@deepseek-ai/dsh-mobile-device-runtime':
-        specifier: workspace:^
-        version: link:../../mobile-device/mobile-device-runtime
-      '@deepseek-ai/dsh-notifications':
-        specifier: workspace:^
-        version: link:../../notifications/notifications
       '@deepseek-ai/dsh-office-to-pdf':
         specifier: workspace:*
         version: link:../../document/office-to-pdf
@@ -4384,9 +4394,6 @@ importers:
       '@deepseek-ai/dsh-schedule':
         specifier: workspace:*
         version: link:../../schedule/schedule
-      '@deepseek-ai/dsh-security-skills':
-        specifier: workspace:^
-        version: link:../../security/security-skills
       '@deepseek-ai/dsh-session-log-export':
         specifier: workspace:*
         version: link:../../session-query/session-log-export
@@ -4399,9 +4406,6 @@ importers:
       '@deepseek-ai/dsh-session-turn-outline':
         specifier: workspace:*
         version: link:../../session/session-turn-outline
-      '@deepseek-ai/dsh-sidebar-git':
-        specifier: workspace:^
-        version: link:../../git/sidebar-git
       '@deepseek-ai/dsh-skill-filesystem':
         specifier: workspace:*
         version: link:../../skill/skill-filesystem
@@ -4414,9 +4418,6 @@ importers:
       '@deepseek-ai/dsh-terminal-bash':
         specifier: workspace:*
         version: link:../../terminal/terminal-bash
-      '@deepseek-ai/dsh-terminal-quick-commands':
-        specifier: workspace:^
-        version: link:../../terminal/terminal-quick-commands
       '@deepseek-ai/dsh-time-context':
         specifier: workspace:*
         version: link:../../context/time-context
@@ -4477,39 +4478,18 @@ importers:
       '@deepseek-ai/dsh-tool-workflow':
         specifier: workspace:*
         version: link:../../workflow/tool-workflow
-      '@deepseek-ai/dsh-usage-query':
-        specifier: workspace:^
-        version: link:../../session-query/usage-query
-      '@deepseek-ai/dsh-voice':
-        specifier: workspace:^
-        version: link:../../voice/voice
-      '@deepseek-ai/dsh-voice-sherpa-onnx':
-        specifier: workspace:^
-        version: link:../../voice/voice-sherpa-onnx
       '@deepseek-ai/dsh-web-frontend':
         specifier: workspace:*
         version: link:../../../apps/web
       '@deepseek-ai/dsh-workflow-ptc':
         specifier: workspace:*
         version: link:../../workflow/workflow-ptc
-      '@deepseek-ai/dsh-working-directory':
-        specifier: workspace:*
-        version: link:../../session/working-directory
       '@deepseek-ai/dsh-workspace':
         specifier: workspace:*
         version: link:../../workspace/workspace
       '@deepseek-ai/dsh-workspace-changes':
         specifier: workspace:*
         version: link:../../deliverables/workspace-changes
-      '@deepseek-ai/dsh-workspace-isolation-git':
-        specifier: workspace:^
-        version: link:../../workspace/workspace-isolation-git
-      '@deepseek-ai/dsh-worktree-task':
-        specifier: workspace:^
-        version: link:../../workspace/worktree-task
-      '@deepseek-ai/dsh-worktree-task-git':
-        specifier: workspace:^
-        version: link:../../workspace/worktree-task-git
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -4529,18 +4509,15 @@ importers:
       '@deepseek-ai/cordis-plugin-loader':
         specifier: workspace:~
         version: link:../../../vendor/loader
-      '@deepseek-ai/dsh-api-terminal-quick-commands-controller':
-        specifier: workspace:*
-        version: link:../../api/terminal-quick-commands-controller
-      '@deepseek-ai/dsh-client-ui-quick-commands':
-        specifier: workspace:*
-        version: link:../../client/ui-quick-commands
       '@deepseek-ai/dsh-fs':
         specifier: workspace:*
         version: link:../../fs/fs
       '@deepseek-ai/dsh-fs-local':
         specifier: workspace:*
         version: link:../../fs/fs-local
+      '@deepseek-ai/dsh-mcp-management':
+        specifier: workspace:*
+        version: link:../../mcp/mcp-management
       '@deepseek-ai/dsh-otel':
         specifier: workspace:*
         version: link:../../telemetry/otel
@@ -11895,7 +11872,7 @@ importers:
         version: 11.0.4
       serve-static:
         specifier: ^2.2.1
-        version: 2.2.1
+        version: 2.2.1(supports-color@9.4.0)
       ws:
         specifier: ^8.21.0
         version: 8.21.0
@@ -24770,6 +24747,10 @@ packages:
     resolution: {integrity: sha512-Q0n9HRi4m6JuGIV1eFlmvJB7ZEVxu93IrMyiMsGC0lrMJMWzRgx6WGquyfQgZVb31vhGgXnfmPNNXmxnOkRBrg==}
     engines: {node: '>= 0.8'}
 
+  encodeurl@2.0.1:
+    resolution: {integrity: sha512-Ev/hIyePLZtpL98x562lvPtenrUfGr0lfaf44HFZ+hDEwso7ccV9QAZrEVLg0hxNAzygaAFxy2dYaAKKM0G06A==}
+    engines: {node: '>= 0.8'}
+
   end-of-stream@1.4.5:
     resolution: {integrity: sha512-ooEGc6HP26xXq/N+GCGOT0JKCLDGrq2bQUZrQ7gyrJiZANJ/8YDTxTpQBXGMn+WbIQXNVpyWymm7KYVICQnyOg==}
 
@@ -28830,12 +28811,32 @@ snapshots:
 
   '@babel/compat-data@7.29.7': {}
 
-  '@babel/core@7.29.7(supports-color@9.4.0)':
+  '@babel/core@7.29.7':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/generator': 7.29.7
       '@babel/helper-compilation-targets': 7.29.7
       '@babel/helper-module-transforms': 7.29.7(@babel/core@7.29.7)
+      '@babel/helpers': 7.29.7
+      '@babel/parser': 7.29.7
+      '@babel/template': 7.29.7
+      '@babel/traverse': 7.29.7(supports-color@9.4.0)
+      '@babel/types': 7.29.7
+      '@jridgewell/remapping': 2.3.5
+      convert-source-map: 2.0.0
+      debug: 4.4.3(supports-color@9.4.0)
+      gensync: 1.0.0-beta.2
+      json5: 2.2.3
+      semver: 6.3.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@babel/core@7.29.7(supports-color@9.4.0)':
+    dependencies:
+      '@babel/code-frame': 7.29.7
+      '@babel/generator': 7.29.7
+      '@babel/helper-compilation-targets': 7.29.7
+      '@babel/helper-module-transforms': 7.29.7(@babel/core@7.29.7(supports-color@9.4.0))
       '@babel/helpers': 7.29.7
       '@babel/parser': 7.29.7
       '@babel/template': 7.29.7
@@ -28884,9 +28885,18 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@babel/helper-module-transforms@7.29.7(@babel/core@7.29.7)':
+  '@babel/helper-module-transforms@7.29.7(@babel/core@7.29.7(supports-color@9.4.0))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@9.4.0)
+      '@babel/helper-module-imports': 7.29.7
+      '@babel/helper-validator-identifier': 7.29.7
+      '@babel/traverse': 7.29.7(supports-color@9.4.0)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@babel/helper-module-transforms@7.29.7(@babel/core@7.29.7)':
+    dependencies:
+      '@babel/core': 7.29.7
       '@babel/helper-module-imports': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
       '@babel/traverse': 7.29.7(supports-color@9.4.0)
@@ -28918,14 +28928,24 @@ snapshots:
     dependencies:
       '@babel/types': 8.0.0-rc.6
 
+  '@babel/plugin-transform-react-jsx-self@7.29.7(@babel/core@7.29.7(supports-color@9.4.0))':
+    dependencies:
+      '@babel/core': 7.29.7(supports-color@9.4.0)
+      '@babel/helper-plugin-utils': 7.29.7
+
   '@babel/plugin-transform-react-jsx-self@7.29.7(@babel/core@7.29.7)':
+    dependencies:
+      '@babel/core': 7.29.7
+      '@babel/helper-plugin-utils': 7.29.7
+
+  '@babel/plugin-transform-react-jsx-source@7.29.7(@babel/core@7.29.7(supports-color@9.4.0))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@9.4.0)
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-transform-react-jsx-source@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@9.4.0)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/runtime@7.29.7': {}
@@ -31516,27 +31536,27 @@ snapshots:
       d3-selection: 3.0.0
       d3-transition: 3.0.1(d3-selection@3.0.0)
 
-  '@vitejs/plugin-react@4.7.0(supports-color@9.4.0)(vite@6.4.3(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))':
+  '@vitejs/plugin-react@4.7.0(supports-color@9.4.0)(vite@6.4.3(@types/node@26.1.2)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@9.4.0)
+      '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7(supports-color@9.4.0))
+      '@babel/plugin-transform-react-jsx-source': 7.29.7(@babel/core@7.29.7(supports-color@9.4.0))
+      '@rolldown/pluginutils': 1.0.0-beta.27
+      '@types/babel__core': 7.20.5
+      react-refresh: 0.17.0
+      vite: 6.4.3(@types/node@26.1.2)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@vitejs/plugin-react@4.7.0(vite@6.4.3(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))':
+    dependencies:
+      '@babel/core': 7.29.7
       '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7)
       '@babel/plugin-transform-react-jsx-source': 7.29.7(@babel/core@7.29.7)
       '@rolldown/pluginutils': 1.0.0-beta.27
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
       vite: 6.4.3(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
-    transitivePeerDependencies:
-      - supports-color
-
-  '@vitejs/plugin-react@4.7.0(vite@6.4.3(@types/node@26.1.2)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))':
-    dependencies:
-      '@babel/core': 7.29.7(supports-color@9.4.0)
-      '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7)
-      '@babel/plugin-transform-react-jsx-source': 7.29.7(@babel/core@7.29.7)
-      '@rolldown/pluginutils': 1.0.0-beta.27
-      '@types/babel__core': 7.20.5
-      react-refresh: 0.17.0
-      vite: 6.4.3(@types/node@26.1.2)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -32984,6 +33004,8 @@ snapshots:
 
   encodeurl@2.0.0: {}
 
+  encodeurl@2.0.1: {}
+
   end-of-stream@1.4.5:
     dependencies:
       once: 1.4.0
@@ -33322,7 +33344,7 @@ snapshots:
       cookie-signature: 1.2.2
       debug: 4.4.3(supports-color@9.4.0)
       depd: 2.0.0
-      encodeurl: 2.0.0
+      encodeurl: 2.0.1
       escape-html: 1.0.3
       etag: 1.8.1
       finalhandler: 2.1.1
@@ -33337,8 +33359,8 @@ snapshots:
       qs: 6.15.3
       range-parser: 1.3.0
       router: 2.2.0
-      send: 1.2.1
-      serve-static: 2.2.1
+      send: 1.2.1(supports-color@9.4.0)
+      serve-static: 2.2.1(supports-color@9.4.0)
       statuses: 2.0.2
       type-is: 2.1.0
       vary: 1.1.2
@@ -33457,7 +33479,7 @@ snapshots:
   finalhandler@2.1.1:
     dependencies:
       debug: 4.4.3(supports-color@9.4.0)
-      encodeurl: 2.0.0
+      encodeurl: 2.0.1
       escape-html: 1.0.3
       on-finished: 2.4.2
       parseurl: 1.3.3
@@ -35943,7 +35965,7 @@ snapshots:
 
   semver@7.8.5: {}
 
-  send@1.2.1:
+  send@1.2.1(supports-color@9.4.0):
     dependencies:
       debug: 4.4.3(supports-color@9.4.0)
       encodeurl: 2.0.0
@@ -35964,12 +35986,12 @@ snapshots:
       type-fest: 0.13.1
     optional: true
 
-  serve-static@2.2.1:
+  serve-static@2.2.1(supports-color@9.4.0):
     dependencies:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       parseurl: 1.3.3
-      send: 1.2.1
+      send: 1.2.1(supports-color@9.4.0)
     transitivePeerDependencies:
       - supports-color
 

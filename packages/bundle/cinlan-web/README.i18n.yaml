@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/bundle/cinlan-web/README.md
+/:
+  en: 4b79b1fbbd480d3e
+  zh: 2eb713ccd7e2c76d
+/deepseek-ai-dsh-cinlan-web:
+  en: 6c8db90d140914a4
+  zh: 4688aed836ae2ac2
+/deepseek-ai-dsh-cinlan-web/summary:
+  en: 0e8d75f0db3c1a75
+  zh: 2a85d76586275747
+/deepseek-ai-dsh-cinlan-web/use-this-package:
+  en: 071c44480bc1093a
+  zh: 11e3a14179f6711c
+/deepseek-ai-dsh-cinlan-web/use-this-package/what-you-get:
+  en: 39269cea66c255c1
+  zh: 45ea4d29c77f3e9f
+/deepseek-ai-dsh-cinlan-web/understand-the-implementation:
+  en: 6e8578c29b777233
+  zh: af20716b585f3802
+/deepseek-ai-dsh-cinlan-web/further-exploration:
+  en: ab7569ca20d70309
+  zh: dd3c563958d2e03d
