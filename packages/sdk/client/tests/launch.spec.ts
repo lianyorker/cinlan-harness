@@ -80,7 +80,7 @@ describe('SDK dsh launch resolution', () => {
       disposeEofGraceMs: 12,
       disposeGraceMs: 34,
     })
-    expect(launch.environment()).toEqual({ PATH: '/bin', DSH_HOME: join(caller, 'home') })
+    expect(launch.environment()).toEqual({ PATH: '/bin', DSH_HOME: join(caller, 'home'), CLH_HOME: join(caller, 'home') })
   })
 
   it('falls back to the same package source entry through an absolute tsx loader', () => {
@@ -155,6 +155,15 @@ describe('SDK dsh launch resolution', () => {
 
   it('accepts the string npm bin form', () => {
     const pair = manifestPair({ version: '1.0.0', bin: './bin.js' }, { version: '1.0.0' })
+    expect(resolveDshBinFromManifests(pair.dshUrl, pair.clientUrl)).toBe(join(pair.root, 'bin.js'))
+  })
+
+  it.each([
+    { dsh: 'bin.js' },
+    { clh: 'bin.js' },
+    { clh: 'bin.js', 'cinlan-harness': 'other.js' },
+  ])('accepts the object npm bin form (%j)', (bin) => {
+    const pair = manifestPair({ version: '1.0.0', bin }, { version: '1.0.0' })
     expect(resolveDshBinFromManifests(pair.dshUrl, pair.clientUrl)).toBe(join(pair.root, 'bin.js'))
   })
 

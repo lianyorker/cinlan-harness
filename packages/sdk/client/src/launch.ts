@@ -58,9 +58,14 @@ export function resolveDshBinFromManifests(dshManifestUrl: string, clientManifes
   if (typeof dshManifest.version !== 'string' || dshManifest.version !== clientManifest.version) {
     throw new Error(`dsh SDK client ${String(clientManifest.version)} requires the same dsh version, got ${String(dshManifest.version)}`)
   }
-  const bin = typeof dshManifest.bin === 'object' && dshManifest.bin !== null
-    ? (dshManifest.bin as Record<string, unknown>).dsh
-    : dshManifest.bin
+  const binRecord = typeof dshManifest.bin === 'object' && dshManifest.bin !== null
+    ? dshManifest.bin as Record<string, unknown>
+    : undefined
+  // The shipped executable names product-first (`clh`/`cinlan-harness`); upstream
+  // and installed `dsh` manifests keep `bin.dsh`, so probe all three keys.
+  const bin = binRecord === undefined
+    ? dshManifest.bin
+    : (binRecord.dsh ?? binRecord.clh ?? binRecord['cinlan-harness'])
   if (typeof bin !== 'string' || bin === '') throw new Error('@deepseek-ai/dsh declares no dsh executable')
   return resolve(dirname(fileURLToPath(dshManifestUrl)), bin)
 }
@@ -145,7 +150,9 @@ export function resolveDshLaunch(
     environment: () => ({
       ...(options.env ?? process.env),
       ...dshLaunch.environment,
-      ...dshHome === undefined ? {} : { DSH_HOME: dshHome },
+      // `resolveClhHome` never consults DSH_HOME; both variables must name the
+      // same root or the clh child resolves the real `~/.clh`.
+      ...dshHome === undefined ? {} : { DSH_HOME: dshHome, CLH_HOME: dshHome },
     }),
     description: `dsh profile ${JSON.stringify(profile)}`,
     initializeTimeoutMs: options.initializeTimeoutMs ?? DEFAULT_INITIALIZE_TIMEOUT_MS,
