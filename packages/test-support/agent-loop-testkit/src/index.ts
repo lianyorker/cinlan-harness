@@ -83,10 +83,6 @@ export async function mountAgentLoopTestDependencies(
     if (ctx.get('fs') === undefined) await ctx.plugin(FsLocal)
     await ctx.plugin(WorkingDirectory)
   }
-  if (options.workingDirectory) {
-    if (ctx.get('fs') === undefined) await ctx.plugin(FsLocal)
-    await ctx.plugin(WorkingDirectory)
-  }
   await ctx.plugin(ToolRuntime)
   if (options.tools?.mode === 'ptc') await ctx.plugin(PtcToolExecutor, { ...options.tools.maxParallelSubCalls !== undefined ? { maxParallelSubCalls: options.tools.maxParallelSubCalls } : {} })
   else await ctx.plugin(NativeToolExecutor)

@@ -42,7 +42,7 @@ export class BrowserTerminal {
     const { SerializeAddon } = requireSerialize()
     this.screen = new Terminal({ cols: info.cols, rows: info.rows, scrollback, allowProposedApi: true })
     this.serializer = new SerializeAddon()
-    this.screen.loadAddon(this.serializer as never)
+    this.screen.loadAddon(this.serializer)
     this.drained = this.consume()
   }
 
