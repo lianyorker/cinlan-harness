@@ -1,0 +1,17 @@
+version: 1
+scenario: rea-routing
+profile: headless
+composition: security-research
+recording: authored
+input:
+  task: 帮我看看这个 exe 是干嘛的
+# REA writes JSON tool-execution logs to its stderr, which the MCP SDK pipes
+# straight onto the child's stderr; exact-match replay must not observe them.
+environment:
+  REA_LOG_LEVEL: silent
+# workspace-write renders the per-run temp cwd inside sandbox:policy, which the
+# fixture cannot normalize; read-only is also the honest mode for this task.
+permission: read-only
+header:
+  class: security-research
+  pin: true

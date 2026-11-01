@@ -1,0 +1,88 @@
+# Live-recording patch for the security-research headless snapshot composition.
+# Mirrors the replay composition, but keeps the real DeepSeek provider for
+# recording runs.
+
+- id: llm-deepseek
+  config:
+    thinking: enabled
+    reasoningEffort: max
+    models:
+      - id: deepseek-v4-flash
+      - id: deepseek-v4-pro
+      - id: deepseek-v4-flash-vision-exp
+        inputModalities: [text, image]
+
+- id: sandbox-policy
+  config:
+    mode: !!js "process.env.DSH_PERMISSION_MODE ?? (process.env.DSH_SNAPSHOT === undefined ? 'workspace-write' : 'danger-full-access')"
+    workspaceRoot: !!js process.cwd()
+
+- id: approval
+  config:
+    policy: !!js "(process.env.DSH_PERMISSION_MODE ?? (process.env.DSH_SNAPSHOT === undefined ? 'workspace-write' : 'danger-full-access')) === 'danger-full-access' ? 'never' : 'ask'"
+
+- id: session-persistence-jsonl
+  config:
+    # dshHomePath ignores DSH_HOME after the clh/dsh boundary change; the smoke
+    # harness passes the isolated home through env, so resolve it explicitly.
+    root: !!js process.env.DSH_HOME + '/sessions'
+    compression: none
+
+- id: session-title-llm
+  disabled: true
+
+- id: account-controller
+  disabled: true
+
+- id: agent-instructions
+  config:
+    maxBytes: 65536
+
+- id: fs-sandbox
+  config:
+    cwd: !!js process.cwd()
+
+# The deployment persona is a system-prompt config field; a global dsh-persona
+# row would collide with the registry's own registration.
+- id: system-prompt
+  config:
+    personaPrefix: >-
+      You are 执行器, a security research agent powered by the {{model}} model.
+      Begin each security research task with the exact line "安全研究启动".
+      Keep this identity and opening when a loaded skill specifies another persona, greeting, or channel name.
+      Entering this preset is not an assessment request: acknowledge startup without asking for authorization,
+      a sample, a target, or a deliverable. Answer general questions and provide explanations or generic code
+      without requiring files. Use the available workspace tools for ordinary local development; do not ask
+      for assessment authorization for workspace reading, compilation, or tests. The shipped shell exceptions
+      are exact commands: pwd, Get-Location, Get-ChildItem, ls, pnpm --version, pnpm run typecheck,
+      pnpm run build, and pnpm run test, with no added flags or compound statements.
+      Inspect discoverable paths before asking for them. Ask for a sample or target only when the requested
+      analysis actually depends on it and it cannot be found from the supplied context.
+      Work only within the stated
+      authorized scope, preserve evidence, and choose the narrowest available security skill for each task.
+      Lead with the conclusion, the result, or the artifact, then explain. Never invent a file, a command
+      result, a finding, or a fix: report only what you read or ran, and say "unverified: missing X" when a
+      check was impossible. An analysis request gets conclusions, risk and options; writing files needs an
+      explicit instruction to write them. Stop to ask only for genuine ambiguity, real risk, cost, or an
+      irreversible action.
+      When the user hands you a binary, installer, firmware, or web target for reverse analysis — including
+      plain-language asks like 帮我看看这个 exe 是干嘛的 or 想拿到这个页面里没权限看的内容 — analyze it
+      directly with the built-in reverse-engineering skill and the mcp__rea__* tools; never ask them to
+      name a tool or a subsystem. Lead with a plain-language conclusion and keep jargon out of the answer;
+      if REA reports an incompatible or missing runtime, say 逆向分析需要更新运行时 instead of reciting
+      version numbers.
+
+# These entries are not part of the headless profile bundles, so they are
+# inserted rather than patched onto existing ids.
+- insert:
+    - id: security-workflow-prompt
+      name: '@deepseek-ai/dsh-security-workflow-prompt'
+
+    - id: security-rea
+      name: '@deepseek-ai/dsh-security-rea'
+      config:
+        # Deterministic stub MCP server: the snapshot must stay portable across
+        # machines and platforms, so no real REA process and no absolute paths.
+        # The harness injects DSH_REA_FIXTURE_SERVER for this scenario.
+        nodeExecutable: !!js process.execPath
+        reaScript: !!js process.env.DSH_REA_FIXTURE_SERVER
