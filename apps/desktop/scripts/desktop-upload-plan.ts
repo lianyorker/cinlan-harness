@@ -278,11 +278,6 @@ export async function createDesktopUploadPlan(
     contents: dump(published),
   }
   artifacts.push(channelArtifact)
-  if (prerelease(buildVersion) === null) {
-    const stableFilename = metadataFilename.replace('nightly', 'latest')
-    artifacts.push({ ...channelArtifact, filename: stableFilename, key: `${update.keyPrefix}/${stableFilename}` })
-  }
-  const latestFilename = `dsh-latest-${target.platform === 'darwin' ? 'macos' : 'windows'}-${target.arch}.${target.platform === 'darwin' ? 'dmg' : 'exe'}`
   const latestFilename = desktopLatestInstallerFilename(targetName)
   const latestKey = `desktop/${latestFilename}`
   return {

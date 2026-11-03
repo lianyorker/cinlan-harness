@@ -86,9 +86,9 @@ describe('web e2e: Agent Teams panel', () => {
 
   it('loads the roster and creates one shared task through generated Remote', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-agent-team-panel'))
-    const action = page.locator('[data-team-action]')
-    await action.getByRole('button', { name: /Agent Team/iu }).click()
-    await action.getByText('No shared tasks yet').waitFor()
+    const trigger = page.locator('[data-team-action]')
+    await trigger.getByRole('button', { name: /Agent Team/iu }).click()
+    await trigger.getByText('No shared tasks yet').waitFor()
     await page.locator('[data-team-action]').getByRole('button', { name: 'Agent team', exact: true }).click()
     const action = page.getByRole('dialog', { name: 'Agent team', exact: true })
     await action.getByText('lead').waitFor()
@@ -106,13 +106,6 @@ describe('web e2e: Agent Teams panel', () => {
     expect(tripwire.warnings).toEqual([])
   }, 60_000)
 
-    const panel = page.getByRole('dialog', { name: 'Agent team', exact: true })
-    const trigger = page.locator('[data-team-action]').getByRole('button', { name: 'Agent team', exact: true })
-      const outside = page.getByRole('button', { name: 'Account menu', exact: true })
-    const trigger = page.locator('[data-team-action]').getByRole('button', { name: 'Agent team', exact: true })
-    const panel = page.getByRole('dialog', { name: 'Agent team', exact: true })
-    const trigger = page.locator('[data-team-action]').getByRole('button', { name: 'Agent team', exact: true })
-    const panel = page.getByRole('dialog', { name: 'Agent team', exact: true })
   it.skipIf(MODE === 'record')('keeps the fixture inventory closed', async () => {
     await assertFixtureInventory(SNAPSHOT_DIR, ['task.expected.md'])
   })

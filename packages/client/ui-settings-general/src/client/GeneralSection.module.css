@@ -1,12 +1,30 @@
-/* Feature-contributed rows own their chrome and separators; the section
- * strips the trailing separator wherever the column ends. */
+/* Feature-contributed rows share one quiet surface on the General page. */
 
 .section {
   display: flex;
   flex-direction: column;
+  gap: 10px;
   width: 100%;
+}
+
+.section > :global([data-slot='settings.general.item']) {
+  min-width: 0;
+  overflow: hidden;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-settings-control-bg);
 }
 
 .section > :global([data-slot='settings.general.item']) > :last-child {
   border-bottom: none;
+}
+
+@media (max-width: 700px) {
+  .section {
+    gap: 8px;
+  }
+
+  .section > :global([data-slot='settings.general.item']) {
+    border-radius: 8px;
+  }
 }
