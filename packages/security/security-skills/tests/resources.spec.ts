@@ -433,7 +433,7 @@ describe('security skill resources through YAML Loader', () => {
     expect((await h.settled()).installed?.version).not.toBe(installed.installed?.version)
   })
 
-  it('auto-installs the bundled generation when no release endpoint is configured', { timeout: 120_000 }, async () => {
+  it('auto-installs the bundled generation when no release endpoint is configured', { timeout: 300_000 }, async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-skill-resources-auto-'))
     onTestFinished(() => rm(root, { recursive: true, force: true }))
     const configFile = join(root, 'cordis.yml')
@@ -458,11 +458,11 @@ describe('security skill resources through YAML Loader', () => {
     const manager = host.get('securitySkillResources')!
     await vi.waitFor(async () => {
       const status = await manager.status()
+      if (status.lastError !== undefined) throw new Error('install failed: ' + JSON.stringify(status.lastError))
       expect(status.installed?.source).toEqual({ kind: 'bundled' })
-      expect(status.installed?.skillCount).toBe(169)
-      expect(status.lastError).toBeUndefined()
-    }, { timeout: 90_000 })
-    expect(await host.skills.list()).toHaveLength(169)
+      expect(status.installed?.skillCount).toBe(387)
+    }, { timeout: 300_000 })
+    expect(await host.skills.list()).toHaveLength(387)
   })
 
   it('keeps resources uninstalled when autoInstallBundled is disabled', async () => {

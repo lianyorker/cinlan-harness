@@ -13,8 +13,12 @@
     "thirdPartyReview": "Authorship, upstream revisions, and reuse or redistribution permissions have not been independently verified per skill."
   },
   "audit": {
-    "skillCount": 169,
+    "skillCount": 387,
     "sourceDirectory": "dsh-lazy-pack-v5/materials/skills",
+    "additions": {
+      "eni-reverse-skill": { "count": 1, "source": "D:/Company/cinlan/docs/migaration/dualMode-migration/skills/eni-reverse-skill", "note": "KB router layer (kb/, templates, skills/mcp) not present in the archive import." },
+      "as-*": { "count": 217, "source": "C:/Users/ASUS/.codeium/skills", "note": "Zero-coverage subset only; 32 domain-methodology skills already covered by eni-redteam detail-packs were not imported." }
+    },
     "excludedArchiveContent": ["installers", "runtime patches", "purge/shield plugins", "prompt-injection plugin", "workspace AGENTS.md"],
     "excludedReason": "The request was to expand skill resources; archive installers and host-level behavior patches are not skill resources and are not loaded or executed.",
     "bootstrapStatus": "Imported skill files are data; referenced bootstrap helpers and external tools are not installed by this package.",

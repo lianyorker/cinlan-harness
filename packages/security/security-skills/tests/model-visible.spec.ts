@@ -9,7 +9,7 @@ import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-test
 import { createUserMessage, LlmAdapter, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, GenerateOptions, Message, RequestMessage, StreamChunk, ToolResultMessage } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
-import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
+import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import SkillRegistry, { escapeText, renderSkillContent } from '@deepseek-ai/dsh-skill'
 import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
 import { expect, it, onTestFinished, vi } from 'vitest'
@@ -101,9 +101,9 @@ it('publishes all managed skills and persists complete official skill results fr
   await vi.waitFor(async () => {
     const status = await ctx.securitySkillResources.status()
     expect(status.operation).toBeUndefined()
-    expect(status.installed?.skillCount).toBe(169)
+    expect(status.installed?.skillCount).toBe(387)
     expect(status.lastError).toBeUndefined()
-    expect(await ctx.skills.list()).toHaveLength(169)
+    expect(await ctx.skills.list()).toHaveLength(387)
   }, { timeout: 30_000 })
   const id = SessionId('managed-security-skills')
   const agent = await ctx.agentLoop.create(id, { provider: 'fixture', model: 'fixture' }, { cwd: root })
@@ -123,7 +123,7 @@ it('publishes all managed skills and persists complete official skill results fr
   const catalog = first.messages.find(message => (message.source as any)?.kind === 'skill-catalog')
   if (!catalog || (catalog.source as any)?.kind !== 'skill-catalog') throw new Error('First model request lacks the official skill catalog')
   const catalogNames = ((catalog?.source as any)?.entries as any[]).map(entry => entry.name)
-  expect(catalogNames).toHaveLength(169)
+  expect(catalogNames).toHaveLength(387)
   expect(catalogNames).toContain('cinlan-cyber-security')
   expect(catalogNames).toContain('js-reverse')
   expect(catalogNames).not.toContain('orca-cli')
@@ -146,7 +146,7 @@ it('publishes all managed skills and persists complete official skill results fr
     expect(bodies[index]).toBe(skill.content)
     portableResults.push(rendered[index]!.replace(escapeText(skill.resourceBase.path), '<SKILL_BASE:' + name + '>'))
   }
-  expect(bodies[0]).toContain('169 个 skill 入口')
+  expect(bodies[0]).toContain('387 个 skill 入口')
   for (const name of ['coldbrew-identity', 'eni-blackbox-reverse-boost', 'eni-unpack-reverse-lab']) {
     const skill = await ctx.skills.get(name)
     expect(skill?.content).toContain('安全研究启动')

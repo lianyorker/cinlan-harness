@@ -8,6 +8,13 @@ Only that skills directory was imported. The archive's installers, runtime
 patches, prompt-injection plugin, purge/shield plugins, and workspace-level
 `AGENTS.md` were not imported or executed.
 
+Additional skills were added after that import: `eni-reverse-skill` (a KB
+router layer from `D:\Company\cinlan\docs\migaration\dualMode-migration\skills\eni-reverse-skill`)
+and 217 `as-*` methodology/tool-runbook skills from the operator's local
+`C:\Users\ASUS\.codeium\skills` library (zero-coverage subset; 32
+domain-methodology skills already covered by `eni-redteam-*-detail-pack`
+entries were not imported). The bundle now contains 387 skill entries.
+
 The Harness source code remains under the repository's MIT license; that
 license does not establish reuse or redistribution rights for the imported
 skill content. Per-skill authorship, upstream revisions, and licenses have not
