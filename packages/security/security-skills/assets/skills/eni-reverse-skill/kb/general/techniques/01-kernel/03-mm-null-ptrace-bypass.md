@@ -177,9 +177,9 @@ sudo install -m 4755 vuln_target /usr/local/bin/vuln_target
 ```text
 uid=1000  target=/usr/lib/ssh/ssh-keysign
 fd 5 -> /etc/ssh/ssh_host_ed25519_key (round=37 try=812)
------BEGIN OPENSSH PRIVATE KEY-----
-...
------END OPENSSH PRIVATE KEY-----
+-----BEGIN OPENSSH EXAMPLE KEY-----
+[redacted example]
+-----END OPENSSH EXAMPLE KEY-----
 ```
 
 ### Hits 范围

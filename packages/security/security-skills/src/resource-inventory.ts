@@ -5,7 +5,7 @@ import { extname, resolve } from 'node:path'
 import { parse } from 'yaml'
 
 const OMIT = new Set(['.gitkeep', '.gitignore', '.claude-plugin'])
-const TEXT_EXTENSIONS = new Set(['.md', '.json', '.yaml', '.yml', '.ps1', '.sh', '.py', '.txt'])
+const TEXT_EXTENSIONS = new Set(['.md', '.json', '.yaml', '.yml', '.jsonl', '.toml', '.yar', '.lock', '.ps1', '.sh', '.py', '.txt'])
 
 /** One immutable UTF-8 file in the archive. */
 export interface ResourceFile {
