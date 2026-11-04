@@ -195,6 +195,7 @@ describe('FileSystemSkillProvider', () => {
     await writeSkill(join(home, '.dsh/skills'), 'same', 'user dsh skill')
     await writeSkill(custom, 'same', 'custom skill')
     await writeSkill(join(project, '.agents/skills'), 'same', 'project agents skill')
+    await writeSkill(join(project, '.clh/skills'), 'same', 'project clh skill')
     await writeSkill(join(project, '.dsh/skills'), 'same', 'project dsh skill')
     await writeSkill(custom, 'custom-only', 'custom only')
     await writeSkill(join(home, '.dsh/skills/.system'), 'hidden-system', 'hidden system')
@@ -211,8 +212,8 @@ describe('FileSystemSkillProvider', () => {
       'same',
     ])
     expect(skills.find(skill => skill.name === 'custom-only')?.description).toBe('custom only')
-    expect(skills.find(skill => skill.name === 'same')?.description).toBe('project dsh skill')
-    expect(skills.find(skill => skill.name === 'same')?.source).toBe('project-dsh')
+    expect(skills.find(skill => skill.name === 'same')?.description).toBe('project clh skill')
+    expect(skills.find(skill => skill.name === 'same')?.source).toBe('project-clh')
     expect(skills.find(skill => skill.name === 'hidden-system')).toBeUndefined()
     expect(skills.find(skill => skill.name === 'bundled-only')).toMatchObject({ source: 'bundled' })
     expect((await ctx.skills.get('bundled-only'))?.content).toBe('Use the skill.')

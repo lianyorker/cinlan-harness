@@ -47,7 +47,8 @@ Default roots are scanned in this provider's rank order:
 
 | Rank | Source | Path |
 |---|---|---|
-| 100 | `project-dsh` | `<projectRoot>/.dsh/skills` |
+| 50 | `project-clh` | `<projectRoot>/.clh/skills` |
+| 100 | `project-dsh` | `<projectRoot>/.dsh/skills` (upstream compat) |
 | 200 | `project-agents` | `<projectRoot>/.agents/skills` |
 | 300 | `custom` | `Config.customSkillDirs` |
 | 400 | `user-dsh` | `<dshHome>/skills` |

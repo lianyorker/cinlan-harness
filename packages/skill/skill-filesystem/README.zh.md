@@ -47,7 +47,8 @@ skill 可以是被扫描根目录顶层的目录 bundle `<name>/SKILL.md`，也�
 
 | Rank | 来源 | 路径 |
 |---|---|---|
-| 100 | `project-dsh` | `<projectRoot>/.dsh/skills` |
+| 50 | `project-clh` | `<projectRoot>/.clh/skills` |
+| 100 | `project-dsh` | `<projectRoot>/.dsh/skills`（上游兼容） |
 | 200 | `project-agents` | `<projectRoot>/.agents/skills` |
 | 300 | `custom` | `Config.customSkillDirs` |
 | 400 | `user-dsh` | `<dshHome>/skills` |
