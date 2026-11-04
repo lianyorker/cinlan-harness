@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "operator-provided archive",
-  "archive": "D:/Company/cinlan/docs/四个破甲/DSH 破甲.zip",
+  "archive": "DSH 破甲.zip (dsh-lazy-pack-v5)",
   "archiveSha256": "73cfaaf5d473bd26ec94600206c50e49ab96f221f19a3ffb7b8e4ffc418627f7",
   "archivePath": "dsh-lazy-pack-v5/materials/skills",
   "revisionPolicy": "Version derives from the normalized resource file inventory; the archive hash identifies the imported input, not an independently audited origin.",
@@ -16,11 +16,34 @@
     "skillCount": 387,
     "sourceDirectory": "dsh-lazy-pack-v5/materials/skills",
     "additions": {
-      "eni-reverse-skill": { "count": 1, "source": "D:/Company/cinlan/docs/migaration/dualMode-migration/skills/eni-reverse-skill", "note": "KB router layer (kb/, templates, skills/mcp) not present in the archive import." },
-      "as-*": { "count": 217, "source": "C:/Users/ASUS/.codeium/skills", "note": "Zero-coverage subset only; 32 domain-methodology skills already covered by eni-redteam detail-packs were not imported." }
+      "eni-reverse-skill": { "count": 1, "source": "cinlan workspace docs/migaration/dualMode-migration/skills/eni-reverse-skill", "note": "KB router layer (kb/, templates, skills/mcp) not present in the archive import." },
+      "as-*": { "count": 217, "source": "operator's local as-* skills index (build-machine import origin only)", "note": "Zero-coverage subset only; 32 domain-methodology skills already covered by eni-redteam detail-packs were not imported. User-side install target is ~/.clh/resources/security-skills; user skill roots are ~/.clh/skills and ~/.agents/skills." }
     },
     "excludedArchiveContent": ["installers", "runtime patches", "purge/shield plugins", "prompt-injection plugin", "workspace AGENTS.md"],
     "excludedReason": "The request was to expand skill resources; archive installers and host-level behavior patches are not skill resources and are not loaded or executed.",
+    "pojiaGroups": {
+      "taxonomy": "14 破甲组 + 通用，与本地破甲技能 INDEX 同名同义；competition-* 归破甲-CTF",
+      "counts": {
+        "破甲-入口": 15,
+        "破甲-逆向": 38,
+        "破甲-移动": 11,
+        "破甲-抓包": 5,
+        "破甲-挖洞": 55,
+        "破甲-免杀": 14,
+        "破甲-渗透": 64,
+        "破甲-云容器": 33,
+        "破甲-固件": 5,
+        "破甲-取证": 7,
+        "破甲-AI": 12,
+        "破甲-供应链": 10,
+        "破甲-工具链": 48,
+        "破甲-CTF": 56,
+        "通用": 11,
+        "(support-dirs)": 3
+      },
+      "note": "Counts cover all 387 top-level directories under skills/. The 3 support dirs (kb/, scripts/, templates/) are assets, not skill entries."
+    },
+    "pathPolicy": "Shipped provenance never contains build-machine absolute paths; origins are logical names and the archive is identified by archiveSha256 and archivePath inside the zip.",
     "bootstrapStatus": "Imported skill files are data; referenced bootstrap helpers and external tools are not installed by this package.",
     "executionPolicy": "Packaging and resource installation read files only; no script execution, network fetch, external Agent setup, or credential configuration.",
     "textPolicy": "Normalize CRLF to LF; preserve UTF-8 content otherwise. User-level instruction files and non-skill plugins are excluded."

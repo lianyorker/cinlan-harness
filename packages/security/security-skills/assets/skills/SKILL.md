@@ -28,28 +28,30 @@ Sandbox、workspace、permission、approval、credential、资源上限和审计
 
 ## 模块
 
-| 场景                                  | 子模块                   |
-| ------------------------------------- | ------------------------ |
-| 通用二进制、字节码、WASM、反分析      | `reverse-engineering/`   |
-| Android APK、smali、重打包            | `apk-reverse/`           |
-| Android/iOS 移动安全、Frida/Objection | `mobile-reverse/`        |
-| IDA Pro / idalib 深度分析             | `ida-reverse/`           |
-| radare2 CLI 分析                      | `radare2/`               |
-| 前端 JavaScript 签名与补环境          | `js-reverse/`            |
-| 已知漏洞后的稳定 exploit / pwn        | `pwn-chain/`             |
-| 跨版本符号迁移                        | `binary-diff/`           |
-| 补丁差分到 N-day 研究                 | `patch-diff-exploit/`    |
-| 固件与 IoT                            | `firmware-pentest/`      |
-| Web、主机和网络渗透工具链             | `pentest-tools/`         |
-| 多阶段攻击路径编排                    | `attack-chain/`          |
-| EDR/AV 防御实现研究                   | `edr-bypass-re/`         |
-| REST、GraphQL、WebSocket、SOAP 安全   | `api-security/`          |
-| LLM、RAG、Agent 安全                  | `llm-security/`          |
-| 恶意软件分析、IOC、YARA/Sigma         | `malware-analysis/`      |
-| 软件供应链、SBOM、CI/CD               | `supply-chain-security/` |
-| 浏览器与 Windows 桌面自动化           | `browser-automation/`    |
-| Mermaid/Graphviz/PlantUML 图表        | `diagram-generator/`     |
-| README、报告和技术文档                | `docs-generator/`        |
+20 个直属子模块按「破甲分组」归属，与本地 `.codeium` 索引和 `routing.md` 分组速查同一张表。
+
+| 破甲组        | 场景                                  | 子模块                   |
+| ------------- | ------------------------------------- | ------------------------ |
+| 破甲-逆向     | 通用二进制、字节码、WASM、反分析      | `reverse-engineering/`   |
+| 破甲-逆向     | IDA Pro / idalib 深度分析             | `ida-reverse/`           |
+| 破甲-逆向     | radare2 CLI 分析                      | `radare2/`               |
+| 破甲-逆向     | 前端 JavaScript 签名与补环境          | `js-reverse/`            |
+| 破甲-逆向     | 跨版本符号迁移                        | `binary-diff/`           |
+| 破甲-逆向     | 补丁差分到 N-day 研究                 | `patch-diff-exploit/`    |
+| 破甲-移动     | Android APK、smali、重打包            | `apk-reverse/`           |
+| 破甲-移动     | Android/iOS 移动安全、Frida/Objection | `mobile-reverse/`        |
+| 破甲-挖洞     | 已知漏洞后的稳定 exploit / pwn        | `pwn-chain/`             |
+| 破甲-挖洞     | REST、GraphQL、WebSocket、SOAP 安全   | `api-security/`          |
+| 破甲-渗透     | Web、主机和网络渗透工具链             | `pentest-tools/`         |
+| 破甲-渗透     | 多阶段攻击路径编排                    | `attack-chain/`          |
+| 破甲-免杀     | EDR/AV 防御实现研究                   | `edr-bypass-re/`         |
+| 破甲-固件     | 固件与 IoT                            | `firmware-pentest/`      |
+| 破甲-取证     | 恶意软件分析、IOC、YARA/Sigma         | `malware-analysis/`      |
+| 破甲-AI       | LLM、RAG、Agent 安全                  | `llm-security/`          |
+| 破甲-供应链   | 软件供应链、SBOM、CI/CD               | `supply-chain-security/` |
+| 通用          | 浏览器与 Windows 桌面自动化           | `browser-automation/`    |
+| 通用          | Mermaid/Graphviz/PlantUML 图表        | `diagram-generator/`     |
+| 通用          | README、报告和技术文档                | `docs-generator/`        |
 
 CTF 按证据面分流到上述现有模块，不依赖外部 `CTF-Sandbox-Orchestrator`。
 
@@ -64,7 +66,7 @@ CTF 按证据面分流到上述现有模块，不依赖外部 `CTF-Sandbox-Orche
 ## 知识库
 
 - 本 bundle 包含 387 个 skill 入口：本路由入口、20 个直属子模块，以及合并的扩展技能族（`eni-*` 工作流与路由、`competition-*` 赛题场景、`coldbrew-*` 逆向专题、`xigong-*`/`yingan-*`/`linker-*` 等专项、`as-*` 安全方法论与工具 runbook、`eni-reverse-skill` 知识库路由层）；同时保留本地 references、scripts、`kb/` 和 `templates/`。
-- 扩展技能族不在上表内：按技能目录的 `description` 与触发词匹配，命中后直接读取该技能的 `SKILL.md`，路由协议不变。
+- 扩展技能族不在上表内：按技能目录的 `description` 与触发词匹配，命中后直接读取该技能的 `SKILL.md`，路由协议不变。各族的破甲归属：`competition-*`/`ctf-sandbox-orchestrator`/`eni-ctf-orchestrator` → 破甲-CTF；`coldbrew-*`、`xigong-*`、`yingan-*`、`linker-*`、`eni-unpack-reverse-lab`、`eni-reverse-skill` 与其余 `eni-reverse*`/`eni-ida-reverse`/`eni-radare2`/`eni-binary-diff`/`eni-patch-diff-exploit`/`eni-license-security`/`eni-reverselab-*`/`asm-analysis`/`elf-local-auth-patcher`/`eni-*game*` → 破甲-逆向；`as-*` 与 `eni-redteam-*-detail-pack` 按 detail-pack 域名分属挖洞/渗透/云容器/免杀/移动/逆向/工具链/AI；`eni-*pentest*`/`eni-attack-chain`/`eni-kali`/`shiyi-*`/`eni-unified-router`/`eni-core`/`eni-five-edge`/`eni-universal-workflow`/`eni-case-lab`/`eni-field-journal` → 渗透或入口；其余通用编排类（`eni-docs`/`eni-diagram`/`eni-software-workflow`/`eni-browser*`/`eni-architecture-workflow`/`eni-fuzzing-workflow`/`game-assets`）归通用组。分组速查见 `routing.md`。
 - 路由后只读取 `kb/` 中与当前证据信号匹配的文件；实际创建 case、notes、reports 或检测规则时才读取 `templates/` 中的对应模板。
 - 发布资产只读。产品内容的修订发生在本 package 源目录并通过重新构建发布，不在已安装包中回写。
 - 当前 workspace 的 `.agents/field-journal/cyber-security/` 是待审学习队列，不是 Skill discovery root 或产品 KB。记录使用 `templates/knowledge-candidate.md`；用户手工复制或归档该目录，经维护者复核后才可合入产品源码。

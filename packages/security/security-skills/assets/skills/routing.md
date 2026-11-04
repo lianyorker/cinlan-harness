@@ -9,6 +9,29 @@ Route tasks to the most appropriate skill module by target type, user intent, an
 3. Add another module only when the task actually crosses module boundaries.
 4. If no route matches, state the gap and follow the current task's analysis/execution boundary; do not force-fit.
 
+## 破甲分组速查
+
+14 个破甲组是本 bundle 的第一级分类：先定组，再在组内按下面三张表定模块/技能。与本地 `.codeium` INDEX 同名同义。
+
+| 破甲组     | 覆盖内容                                                                                  | 主模块/族                                                                          |
+| ---------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 破甲-入口  | 域入口、编排、评估、报告                                                                  | `aboutsecurity`、`eni-unified-router`、`eni-redteam-doctrine`、`shiyi-*`、`judge-*` |
+| 破甲-逆向  | 二进制/WASM/托管码/JS 逆向、差分、脱壳加固、授权研究                                      | `reverse-engineering`、`ida-reverse`、`radare2`、`js-reverse`、`binary-diff`、`patch-diff-exploit`、`coldbrew-*`、`xigong-*`、`yingan-*`、`linker-*`、`eni-reverse*`、`eni-unpack-reverse-lab`、`eni-reverselab-*`、`asm-analysis`、`elf-local-auth-patcher` |
+| 破甲-移动  | APK/iOS/小程序逆向与移动安全                                                              | `apk-reverse`、`mobile-reverse`、`eni-*mobile*`、`as-android-app-pentesting` 等      |
+| 破甲-抓包  | 流量、协议、信令截获与分析                                                                | `coldbrew-protocol-reverse`、`as-ntlm-relay-attack`、`as-network-poisoning-attack`、`as-responder-poison`、`as-voip-pentesting` |
+| 破甲-挖洞  | Web 与业务漏洞方法论（含代码审计）                                                        | `api-security`、`pwn-chain`、`as-php-*`/`as-java-*` 审计族、`as-*` web 漏洞族、`eni-redteam-*-detail-pack`（sqli/ssrf/xss/xxe/ssti/cmdi/csrf/cors/cache-poison/clickjacking/open-redirect/deserialize/injection/logic/file/web/crypto/cve/code-audit/auth/api/subdomain-takeover） |
+| 破甲-免杀  | EDR/AV/WAF/日志/取证规避、payload 构建                                                    | `edr-bypass-re`、`eni-edr-bypass`、`as-*` evasion 族、`eni-redteam-evasion-detail-pack` |
+| 破甲-渗透  | 基础设施、AD/域、后渗透、横向、C2、服务渗透                                               | `pentest-tools`、`attack-chain`、`eni-*pentest*`、`eni-kali`、`as-ad-*`、`as-kerberos*`、服务 `as-*-pentesting` 族、`as-cobalt-strike`/`as-sliver-c2`/`as-mythic-c2`/`as-impacket-toolkit`/`as-nxc-cme`/`as-msf-oneshot`、post-exploit/lateral/cred-spray/persist 族 |
+| 破甲-云容器 | 云（AWS/Azure/GCP/阿里/腾讯/华为）、容器、K8s、Serverless                                | `as-*` 云容器族、`eni-cloud-container-workflow`、`eni-redteam-cloud/container-detail-pack` |
+| 破甲-固件  | 固件、IoT、OT/ICS、信号                                                                   | `firmware-pentest`、`eni-firmware-*`、`as-firmware-analysis`、`as-ot-ics-attack`     |
+| 破甲-取证  | 恶意软件、内存、事件取证                                                                  | `malware-analysis`、`eni-malware-*`、`eni-memory-forensics`、`as-c2-beacon-analysis`、`as-emergency-response` |
+| 破甲-AI    | LLM/Agent/MCP/RAG 安全                                                                    | `llm-security`、`eni-llm-security`、`as-ai-*`、`as-agent-security`、`as-mcp-security`、`as-prompt-*`、`as-cot-injection` |
+| 破甲-供应链 | CI/CD、依赖与 SBOM 投毒                                                                  | `supply-chain-security`、`eni-supply-chain*`、`as-supply-chain-*`、`as-cicd-pipeline-attack`、`as-argocd-tactics`、`as-concourse-tactics`、`as-sonarqube-tactics`、`as-terraform-tactics` |
+| 破甲-工具链 | 扫描器、爆破器、字典、侦察 runbook                                                       | `as-*` 工具族（nmap/ffuf/nuclei/hydra/hashcat/sqlmap/dalfox/gau/katana/subfinder/uncover/fscan/gogo/nerva/fingerprintx/tlsx/mapcidr/nxc/bloodhound/adinfo/iox/githacker/k8spider/ccupp/local-resources/social-engineering/recon 系）、`eni-burp-mcp`、`eni-scraper-workflow`、`eni-redteam-recon*` |
+| 破甲-CTF   | 赛题场景与编排                                                                            | `competition-*`（40 个场景包）、`ctf-sandbox-orchestrator`、`eni-ctf-orchestrator`、`as-ctf-*` |
+
+`kb/`、`scripts/`、`templates/` 是支撑资产目录，不计入技能分组。
+
 ## By Target Type
 
 | Target Type                                      | Recommended Entry                                                                 | Alternative                                                                                                        |

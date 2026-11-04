@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { boot } from '@deepseek-ai/dsh-app-boot'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { createUserMessage, LlmAdapter, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, GenerateOptions, Message, RequestMessage, StreamChunk, ToolResultMessage } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
@@ -73,6 +73,7 @@ it('publishes all managed skills and persists complete official skill results fr
     name: 'model-fixture-dependencies',
     async apply(ctx: Context) {
       await mountAgentLoopTestDependencies(ctx)
+      provideWorkingDirectoryFixture(ctx, root)
     },
   }
   const persistence = join(root, 'sessions')
@@ -120,9 +121,9 @@ it('publishes all managed skills and persists complete official skill results fr
   expect(adapter.requests).toHaveLength(3)
   const first = adapter.requests[0]!
   expect(first.tools?.map(tool => tool.name)).toContain('skill')
-  const catalog = first.messages.find(message => (message.source as any)?.kind === 'skill-catalog')
-  if (!catalog || (catalog.source as any)?.kind !== 'skill-catalog') throw new Error('First model request lacks the official skill catalog')
-  const catalogNames = ((catalog?.source as any)?.entries as any[]).map(entry => entry.name)
+  const catalog = first.messages.find(message => (message.source as { kind?: string } | undefined)?.kind === 'skill-catalog')
+  if (!catalog || (catalog.source as { kind?: string } | undefined)?.kind !== 'skill-catalog') throw new Error('First model request lacks the official skill catalog')
+  const catalogNames = ((catalog?.source as { entries?: { name: string }[] } | undefined)?.entries ?? []).map(entry => entry.name)
   expect(catalogNames).toHaveLength(387)
   expect(catalogNames).toContain('cinlan-cyber-security')
   expect(catalogNames).toContain('js-reverse')
