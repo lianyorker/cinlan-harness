@@ -42,6 +42,8 @@ dsh plugin --profile <name> remove @deepseek-ai/dsh-security-research
 
 ### 模式说明
 
+**REA。** 默认组合不安装或挂载 REA，研究 persona 不指定调用 REA 工具。独立的 REA 实现不在本轮交付范围内。
+
 **会话预设。** 组合包向 preset 名册贡献 `security-research` Agent 预设。标准模式的普通会话通过全局提供方同样能使用内置安全技能目录，安全问题会经由内置的 `cinlan-cyber-security` 路由技能分流。选择“安全研究”预设会加入研究 persona、限定范围的安全技能目录与编码组合，面向授权安全评估、逆向分析、漏洞验证、恶意软件分析和安全报告。
 
 **技能资源模式。** 内置模式（默认）在启动时安装经过审核的包内清单——不发起网络请求，版本由内容派生；设置 `autoInstallBundled: false` 可改为显式调用 `installBundled()`。发布模式在部署配置 `releaseManifestUrl` 后启用，`install()`、`reinstall()` 和 `update()` 从该端点下载并校验带清单的归档。两种模式都发布不可变 generation，切换模式不会混合清单。
@@ -51,6 +53,12 @@ dsh plugin --profile <name> remove @deepseek-ai/dsh-security-research
 **工作区开发。** 启动、普通问答、解释与通用代码不要求评估授权或样本文件。profile 显式允许 [`cordis.patch.yml`](cordis.patch.yml) 列出的工作区本地 shell 命令，包括 `pwd` 及标准 pnpm 版本、类型检查、构建和测试命令。匹配必须精确，不可追加参数或复合语句；目录检查和保留的 sandbox 执行规则见[工具策略](../../security/assessment-scope-tool-policy/README.zh.md#use-this-package)。
 
 **审批策略。** 由 `security-research` 组合的 Agent 会把会话审批策略设为 `never`，安全研究流程不会被审批提示打断。这不会授予 assessment target、action、execution host、credential 或 egress；随包评估范围仍为空，需由操作者通过显式授权补丁配置。Sandbox policy 仍由部署及会话 permission preset 独立控制。
+
+**委派。** 预设挂载一份共享 subagent-control 插件，提供消息发送、中断与子 Agent 发现。Spawn 启用 `modelSelection` 与 `modelDiscovery`；fork 继承父级路由。自定义补丁遵循 [subagent 迁移指南](../../../docs/upgrade-guide/v0.2.1-rc.1/subagent-control-tools/guide.zh.md)。
+
+**文件补丁。** 随包预设在 `edit` 之外启用 `apply_patch`，用于跨文件的结构化修改。修改已有文件前必须先读取；观察状态检查与 sandbox policy 仍然生效。启用此预设不会改变其他预设的文件系统默认值。
+
+Host 通过 runtime context 提供当前有效工作目录。研究 persona 不使用工作目录模板变量。
 
 ### 如何使用
 
@@ -90,7 +98,7 @@ dsh plugin --profile <name> remove @deepseek-ai/dsh-security-research
 
 间接通过插入的 Finding、漏洞、Skill 与工作流包，以及可选研究预设的 persona、作用域内技能目录和编码组装产生影响。
 
-研究 persona 使用 `执行器` 身份，在每项安全任务开头输出 `安全研究启动`；加载的技能即使包含其他问候语或通道名称，也保留该身份和开场。
+研究 persona 使用 `执行器` 身份；加载的技能即使包含其他问候语或通道名称，也保留该身份。
 
 #### KV Cache 影响
 

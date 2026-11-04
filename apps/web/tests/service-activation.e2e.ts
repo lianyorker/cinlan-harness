@@ -53,7 +53,6 @@ it('activates resources and sidebar terminals before a research Session uses the
   const assembly = await host.ctx.systemPrompt.assemble(assembleContextFor(agent))
   const persona = assembly.sections.find(section => section.name === 'deployment:persona-prefix')?.text
   if (persona === undefined) throw new Error('Research persona is missing')
-  expect(persona).toContain('Begin each security research task with the exact line "安全研究启动".')
   expect(persona).toContain('You are 执行器, a security research agent')
   expect(persona).not.toMatch(/冷咖啡|石井|星澜|I am here, LO\./u)
   expect(persona).toContain('loaded skill specifies another persona, greeting, or channel name')
@@ -62,13 +61,11 @@ it('activates resources and sidebar terminals before a research Session uses the
   await expect(persona + '\n').toMatchFileSnapshot('./expected/service-activation/research-persona.txt')
   const { ToolCallId } = requireBuilt('@deepseek-ai/dsh-llm') as typeof import('@deepseek-ai/dsh-llm')
   const shellTool = process.platform === 'win32' ? 'pwsh' : 'bash'
-  const shellResult = await host.ctx.tools.execute({ agent, name: shellTool, callId: ToolCallId('workspace-pwd'),
-    arguments: { command: 'pwd', description: 'Read the Session workspace' }, signal: new AbortController().signal })
+  const shellResult = (await host.ctx.tools.execute({ calls: [{ type: 'tool-call', id: ToolCallId('workspace-pwd'), name: shellTool, arguments: JSON.stringify({ command: 'pwd', description: 'Read the Session workspace' }) }], agent, signal: new AbortController().signal })).results[0]!.result
   expect(shellResult.isError).toBe(false)
   expect(shellResult.content.filter(block => block.type === 'text').map(block => block.text).join('\n'))
     .toContain(host.workspaceCwd)
-  const denied = await host.ctx.tools.execute({ agent, name: shellTool, callId: ToolCallId('compound-denied'),
-    arguments: { command: 'pwd; whoami', description: 'Check compound commands remain scope checked' }, signal: new AbortController().signal })
+  const denied = (await host.ctx.tools.execute({ calls: [{ type: 'tool-call', id: ToolCallId('compound-denied'), name: shellTool, arguments: JSON.stringify({ command: 'pwd; whoami', description: 'Check compound commands remain scope checked' }) }], agent, signal: new AbortController().signal })).results[0]!.result
   expect(denied.isError).toBe(true)
   expect(denied.content.filter(block => block.type === 'text').map(block => block.text).join('\n'))
     .toContain('ASSESSMENT_HOST_OUT_OF_SCOPE')

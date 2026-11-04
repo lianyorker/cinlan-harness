@@ -42,6 +42,8 @@ The layer mounts local persistent Artifact storage under $DSH_HOME/artifacts/v1,
 
 ### Modes
 
+**REA.** The default bundle does not install or mount REA, and the research persona does not prescribe REA tools. The independent REA implementation is outside this iteration.
+
 **Session presets.** The bundle contributes the `security-research` Agent preset to the preset roster. Standard-mode sessions already serve the bundled security skill catalog through the global provider, so a security question routes through the bundled `cinlan-cyber-security` router skill. Selecting the Security Research preset adds a research persona, a scoped security skill catalog, and the coding composition for authorized assessment, reverse engineering, vulnerability validation, malware analysis, and reporting.
 
 **Skill resource modes.** Bundled mode (default) installs the audited package inventory at startup — no network request, content-derived version; set `autoInstallBundled: false` to require an explicit `installBundled()`. Release mode activates when a deployment configures `releaseManifestUrl`; `install()`, `reinstall()`, and `update()` then download and verify an inventoried archive from that endpoint. Both modes publish immutable generations, and switching modes never mixes inventories.
@@ -51,6 +53,12 @@ The layer mounts local persistent Artifact storage under $DSH_HOME/artifacts/v1,
 **Workspace development.** Startup, general questions, explanations, and generic code require neither assessment authorization nor sample files. The profile explicitly admits workspace-local shell commands listed in [`cordis.patch.yml`](cordis.patch.yml), including `pwd` and the standard pnpm version, typecheck, build, and test commands. Matching is exact, without added flags or compound statements; the [tool policy](../../security/assessment-scope-tool-policy/README.md#use-this-package) defines directory checks and remaining sandbox enforcement.
 
 **Approval policy.** Agents composed from `security-research` start with the session approval policy `never`, so approval prompts do not interrupt that preset. This does not grant assessment targets, actions, execution hosts, credentials, or egress: the bundled assessment scope remains empty until an operator supplies an explicit authorization patch. Sandbox policy remains independently controlled by the deployment and session permission preset.
+
+**Delegation.** The preset mounts one shared subagent-control plugin for messaging, interruption, and child discovery. Spawn enables `modelSelection` and `modelDiscovery`; fork inherits the parent route. Custom patches follow the [subagent migration guide](../../../docs/upgrade-guide/v0.2.1-rc.1/subagent-control-tools/guide.md).
+
+**File patches.** The packaged preset enables `apply_patch` alongside `edit` for structured changes across files. Existing files must be read before patching; observation guards and sandbox policy still apply. Enabling this preset does not change the filesystem defaults of other presets.
+
+The Host supplies the effective working directory through runtime context. The research persona uses no working-directory template variable.
 
 ### How to use
 
@@ -90,7 +98,7 @@ See [`cordis.patch.yml`](cordis.patch.yml) for the composed rows and [`src/index
 
 Indirectly, through the inserted finding, vulnerability, skill, and workflow packages and the optional research preset's persona, scoped skill catalog, and coding composition.
 
-The research persona is `执行器`, opens each security task with `安全研究启动`, and keeps that identity and opening when a loaded skill supplies another greeting or channel name.
+The research persona is `执行器`, and keeps that identity when a loaded skill supplies another greeting or channel name.
 
 #### KV Cache effect
 
