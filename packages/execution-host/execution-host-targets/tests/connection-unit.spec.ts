@@ -52,12 +52,14 @@ const script = vi.hoisted(() => ({
 }))
 
 function subprocess(): SubprocessRuntime {
-  return Object.assign(Object.create(SubprocessRuntime.prototype) as object, {
+  const runtime = Object.create(SubprocessRuntime.prototype) as SubprocessRuntime
+  Object.assign(runtime, {
     resolveExecutable: (_name: string, _cwd: string | undefined, signal: AbortSignal) =>
       (script.resolve ?? (async () => 'ssh'))(signal),
     spawn: () => script.spawn?.() as never,
     spawnTerminal: () => Promise.reject(new Error('terminal spawning is not exercised')),
-  }) as SubprocessRuntime
+  })
+  return runtime
 }
 
 /** Capture JSON-RPC request frames and let the test script each response. */

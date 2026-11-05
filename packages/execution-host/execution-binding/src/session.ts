@@ -42,4 +42,4 @@ export function foldExecutionBinding(events: readonly SessionEvent[]): Execution
 export const executionBindingProjection = {
   key: 'executionBinding', stateVersion: 1, stateSchema: executionBindingSchema.nullable(), init: () => null,
   apply: applyBinding, wire: { viewSchema: executionBindingSchema.nullable(), view: state => state },
-} satisfies ProjectionDefinition<'executionBinding'>
+} satisfies ProjectionDefinition<'executionBinding', ExecutionBinding | null>

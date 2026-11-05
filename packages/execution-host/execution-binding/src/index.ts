@@ -68,6 +68,12 @@ export default class ExecutionBindings extends Service {
     super(ctx, 'executionBindings')
     this.owner = { ctx }
     ctx.sessionProjections.register(executionBindingProjection)
+    ctx.on('agent/created', ({ agent }) => {
+      const binding = foldExecutionBinding(agent.session.snapshotEvents())
+      if (binding !== null && this.agents.get(agent.id)?.agent !== agent) {
+        throw new Error('Session execution selection has no admitted Agent provider world')
+      }
+    })
     ctx.effect(() => async () => {
       this.lifetime.abort(new Error('Execution binding service disposed'))
       await Promise.allSettled([...this.pending])
@@ -391,7 +397,10 @@ export default class ExecutionBindings extends Service {
     }
     const execution = { agent, lease, ctx: agentCtx }
     this.prepared.set(agent, execution)
-    if (prior === null) agent.session.append('execution/bound', { binding: selected })
+    if (prior === null) {
+      agent.session.append('execution/bound', { binding: selected })
+      await agentCtx.sessions.flush(agent.session)
+    }
     return { commit: () => {
       cancellation.signal.throwIfAborted()
       lease.assertCurrent()
@@ -485,15 +494,7 @@ export default class ExecutionBindings extends Service {
     const policyProvider = session === undefined && policy === undefined ? SandboxPolicyService : BoundPolicy
     await ctx.plugin(policyProvider, { mode: this.config.sandboxMode, workspaceRoot: cwd })
     await ctx.plugin(SshFileSystem)
-    await ctx.plugin(NodePtcRuntime, {
-      ...ssh.nodeExecutable ? {
-        launch: {
-          kind: 'node-script' as const,
-          executable: ssh.nodeExecutable,
-          ...ssh.bootstrapPath ? { bootstrapPath: ssh.bootstrapPath } : {},
-        },
-      } : {},
-    })
+    await ctx.plugin(NodePtcRuntime, { launch: ssh.ptcLaunch })
     await ctx.isolate('settings').plugin(SandboxBashExecutor, {
       cwd, timeoutMs: this.config.shellTimeoutMs, maxTimeoutMs: this.config.shellMaxTimeoutMs,
       maxOutputBytes: this.config.maxOutputBytes, maxSpillBytes: this.config.maxSpillBytes, graceMs: this.config.graceMs,

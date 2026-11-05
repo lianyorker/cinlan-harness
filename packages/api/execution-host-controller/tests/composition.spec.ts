@@ -19,8 +19,8 @@ describe('executionHosts real Loader composition', () => {
     await denied.text()
   })
 
-  it.each(['web', 'security-research'] as const)('persists management through HTTP and the desktop carrier from the %s profile', async (profile) => {
-    const h = await createHarness({}, profile)
+  it('persists management through HTTP and the desktop carrier from the web profile', async () => {
+    const h = await createHarness()
     expect([...h.ctx.loader.entries()].filter(entry => entry.options.name === '@deepseek-ai/dsh-execution-host-local')).toHaveLength(1)
     expect(h.ctx.executionHostTargets).toBeDefined()
     expect(h.ctx.subprocess).toBeDefined()

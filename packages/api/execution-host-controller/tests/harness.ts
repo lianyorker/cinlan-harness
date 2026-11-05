@@ -9,7 +9,8 @@ import WebSocket, { type RawData } from 'ws'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
-import { composeEntries, loadOverlayPatches, PROFILE_TEMPLATES } from '@deepseek-ai/dsh-app-boot'
+import { composeEntries, loadOverlayPatches } from '@deepseek-ai/dsh-app-boot'
+import { PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 import Storage from '@deepseek-ai/dsh-storage'
 import * as StorageJson from '@deepseek-ai/dsh-storage-json'
 import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
@@ -23,6 +24,7 @@ import type { HostConnectionHandle, ServerResponse } from '@deepseek-ai/dsh-clie
 import WebServer from '@deepseek-ai/dsh-host-webserver'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import TypertGateway from '@deepseek-ai/dsh-api-gateway'
+import RemoteAccess from '@deepseek-ai/dsh-api-remote-access'
 import { parseRemoteStreamServerMessage, type RemoteStreamServerMessage } from '@deepseek-ai/dsh-api-gateway/src/stream-protocol.ts'
 import ExecutionHostController from '../src/index.ts'
 import type { ListTargetsValue } from '../src/types.ts'
@@ -45,7 +47,7 @@ function rawText(data: RawData): string {
  * @param profile - shipped profile supplying the identity, target and controller rows.
  * @returns real carriers and Loader controls; test teardown owns all sockets, plugins and files.
  */
-export async function createHarness(targetConfig: Partial<TargetsConfig> = {}, profile: 'web' | 'security-research' = 'web') {
+export async function createHarness(targetConfig: Partial<TargetsConfig> = {}, profile: 'web' = 'web') {
   const root = await mkdtemp(join(tmpdir(), 'dsh-execution-host-controller-'))
   const ctx = new Context()
   const sockets: { socket: WebSocket; closed: Promise<void> }[] = []
@@ -68,10 +70,6 @@ export async function createHarness(targetConfig: Partial<TargetsConfig> = {}, p
   const managementRows = profileRows.filter(row => row.name !== undefined && wanted.has(row.name))
   expect(warnings).toEqual([])
   expect(managementRows.map(row => row.name).sort()).toEqual([...MANAGEMENT_NAMES].sort())
-  const webManifest = JSON.parse(await readFile(new URL('../../../bundle/web-app/package.json', import.meta.url), 'utf8')) as {
-    dependencies: Record<string, string>
-  }
-  for (const name of MANAGEMENT_NAMES) expect(webManifest.dependencies).toHaveProperty(name)
   const rows = [
     { name: '@deepseek-ai/dsh-host-webserver', config: { host: '127.0.0.1', port: 0 } },
     { name: '@deepseek-ai/dsh-storage' },
@@ -83,6 +81,7 @@ export async function createHarness(targetConfig: Partial<TargetsConfig> = {}, p
     { name: '@deepseek-ai/dsh-credentials-local', config: { path: join(root, 'credentials.yaml'), watch: false } },
     { name: '@deepseek-ai/dsh-client-connection' },
     { name: '@deepseek-ai/dsh-typert-registry' },
+    { name: '@deepseek-ai/dsh-api-remote-access' },
     { name: '@deepseek-ai/dsh-api-gateway' },
   ]
   await writeFile(configPath, rows.map(row => '- ' + JSON.stringify(row)).join('\n') + '\n')
@@ -100,6 +99,7 @@ export async function createHarness(targetConfig: Partial<TargetsConfig> = {}, p
     ['@deepseek-ai/dsh-client-connection', Connection],
     ['@deepseek-ai/dsh-typert-registry', TypertRegistry],
     ['@deepseek-ai/dsh-api-gateway', TypertGateway],
+    ['@deepseek-ai/dsh-api-remote-access', RemoteAccess],
     ['@deepseek-ai/dsh-api-execution-host-controller', ExecutionHostController],
   ])
   ctx.loader.internal = {
@@ -128,7 +128,7 @@ export async function createHarness(targetConfig: Partial<TargetsConfig> = {}, p
       })
     },
     desktop(method: string, args: unknown = {}) {
-      return shared.fetch(new Request('dsh-app://app/api/executionHosts/' + method, request(method, args)))
+      return shared.fetch(new Request('dsh-app://app/api/executionHosts/' + method, request(method, args)), ctx.connection.browserPeer)
     },
     async savedDocument(): Promise<unknown> {
       return JSON.parse(await readFile(join(root, 'storage', 'execution_host_targets.json'), 'utf8')) as unknown

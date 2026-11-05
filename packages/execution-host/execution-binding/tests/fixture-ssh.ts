@@ -15,6 +15,10 @@ export interface RemoteFixture {
   readonly requests: { method: string; params: unknown }[]
   readonly connections: FixtureSsh[]
   readonly commands: string[][]
+  hideNode?: boolean
+  hideBootstrap?: boolean
+  hideSignal?: boolean
+  failDispose?: boolean
   disposed: number
 }
 
@@ -43,10 +47,10 @@ export class FixtureSsh extends Service {
   private disposed = false
   protected readonly world: RemoteFixture
 
-  constructor(ctx: Context, private readonly config: Config) {
+  constructor(ctx: Context, private readonly config: Config & { endpoint?: { readonly host: string } }) {
     super(ctx, 'ssh')
-    const host = config.host ?? (config as unknown as { endpoint?: { host: string } }).endpoint?.host
-    const world = host === undefined ? undefined : endpoints.get(host)
+    // Saved targets share an OpenSSH alias; their captured endpoints identify isolated test peers.
+    const world = endpoints.get(config.endpoint?.host ?? config.host)
     if (world === undefined) throw new Error('Unknown test SSH endpoint')
     this.world = world
     world.connections.push(this)
@@ -58,13 +62,18 @@ export class FixtureSsh extends Service {
   drop(): void { this.lifetime.abort(new Error('Fixture SSH connection lost')) }
 
   /** The official providers observe one connection lifetime. */
-  get signal(): AbortSignal { return this.lifetime.signal }
+  get signal(): AbortSignal | undefined { return this.world.hideSignal ? undefined : this.lifetime.signal }
   /** The remote handshake confirms the deployment Node executable. */
-  get nodeExecutable(): string { return this.config.node }
+  get nodeExecutable(): string {
+    if (this.world.hideNode || this.config.launch.kind !== 'node-script') throw new Error('Fixture Node executable missing')
+    return this.config.launch.node
+  }
   /** Full execution requires a deployed bootstrap. */
   get bootstrapPath(): string {
-    if (this.config.bootstrapPath === undefined) throw new Error('Fixture bootstrap missing')
-    return this.config.bootstrapPath
+    if (this.world.hideBootstrap || this.config.launch.kind !== 'node-script' || this.config.launch.bootstrapPath === undefined) {
+      throw new Error('Fixture bootstrap missing')
+    }
+    return this.config.launch.bootstrapPath
   }
 
   /**
@@ -77,7 +86,7 @@ export class FixtureSsh extends Service {
    */
   request<T>(method: string, params: unknown, result: ZodType<T>, signal?: AbortSignal): Promise<T> {
     return Promise.resolve().then(() => {
-      this.signal.throwIfAborted()
+      this.lifetime.signal.throwIfAborted()
       signal?.throwIfAborted()
       const wire: unknown = JSON.parse(JSON.stringify(params))
       this.world.requests.push({ method, params: wire })
@@ -156,6 +165,6 @@ export class FixtureSsh extends Service {
       this.world.disposed++
       this.lifetime.abort(new Error('Fixture SSH disposed'))
     }
-    return Promise.resolve()
+    return this.world.failDispose ? Promise.reject(new Error('Fixture SSH disposal failed')) : Promise.resolve()
   }
 }

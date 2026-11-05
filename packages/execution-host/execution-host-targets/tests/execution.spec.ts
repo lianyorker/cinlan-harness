@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createHarness } from './harness.ts'
+import type { Config as SshConfig } from '@deepseek-ai/dsh-ssh'
 import type { ExecutionTargetId, SavedTarget, SshExecutionConfiguration, SshExecutionSnapshot } from '../src/types.ts'
 
 function deployment(root: string): SshExecutionConfiguration {
@@ -23,8 +24,35 @@ function deployment(root: string): SshExecutionConfiguration {
  * @param execution - the saved deployment configuration.
  * @returns the configuration the owner resolves for that record.
  */
-function resolvedConfig(sshAlias: string, execution: SshExecutionConfiguration): SshExecutionConfiguration & { host: string } {
-  return { host: sshAlias, ...execution }
+function resolvedConfig(sshAlias: string, execution: SshExecutionConfiguration): SshConfig {
+  const { endpoint, node, bootstrapPath, bootstrapHash, ...deployment } = execution
+  const resolvedEndpoint = {
+    host: endpoint.host, port: endpoint.port, username: endpoint.username,
+    privateKeyFile: endpoint.privateKeyFile, hostKeySHA256: endpoint.hostKeySHA256,
+    ...endpoint.proxyCommand === undefined ? {} : { proxyCommand: endpoint.proxyCommand },
+    ...endpoint.jumpHost === undefined ? {} : { jumpHost: endpoint.jumpHost },
+    ...endpoint.multiplex === undefined ? {} : { multiplex: endpoint.multiplex },
+    ...endpoint.keepAliveIntervalSeconds === undefined
+      ? {} : { keepAliveIntervalSeconds: endpoint.keepAliveIntervalSeconds },
+    ...endpoint.connectTimeoutSeconds === undefined
+      ? {} : { connectTimeoutSeconds: endpoint.connectTimeoutSeconds },
+  }
+  return {
+    ...deployment, host: sshAlias, endpoint: resolvedEndpoint,
+    port: endpoint.port, username: endpoint.username, identityFile: endpoint.privateKeyFile,
+    ...endpoint.proxyCommand === undefined ? {} : { proxyCommand: endpoint.proxyCommand },
+    ...endpoint.jumpHost === undefined ? {} : { jumpHost: endpoint.jumpHost },
+    ...endpoint.multiplex === undefined ? {} : { multiplex: endpoint.multiplex },
+    ...endpoint.keepAliveIntervalSeconds === undefined
+      ? {} : { keepAliveIntervalSeconds: endpoint.keepAliveIntervalSeconds },
+    ...endpoint.connectTimeoutSeconds === undefined
+      ? {} : { connectTimeoutSeconds: endpoint.connectTimeoutSeconds },
+    launch: {
+      kind: 'node-script', node,
+      ...bootstrapPath === undefined ? {} : { bootstrapPath },
+      ...bootstrapHash === undefined ? {} : { bootstrapHash },
+    },
+  }
 }
 
 function revision(target: SavedTarget) {
@@ -271,7 +299,7 @@ describe('saved SSH execution bindings', () => {
     // The resolved value is the ssh plugin configuration, so it carries the
     // plugin's own host field alongside the saved endpoint; the input record
     // keeps the endpoint form only.
-    expect(resolved).toMatchObject(execution)
+    expect(resolved).toEqual(resolvedConfig(target.sshAlias, execution))
     // The alias remains the ssh destination; the endpoint refines it.
     expect(resolved.host).toBe(target.sshAlias)
     expect(resolved).not.toBe(target.execution)
@@ -284,10 +312,10 @@ describe('saved SSH execution bindings', () => {
     const restored = await h.registry()
     expect(restored.targets.snapshotExecution(revision(target))).toEqual(snapshot)
     expect(restored.targets.resolveExecution(JSON.parse(JSON.stringify(snapshot)) as SshExecutionSnapshot))
-      .toEqual({ host: target.sshAlias, ...deployment(h.root) })
+      .toEqual(resolvedConfig(target.sshAlias, deployment(h.root)))
   })
 
-  it('refuses a stored version-one unit at open, because the storage layer never migrates versions', async () => {
+  it('preserves version-one alias records and stamps the next write with the current domain version', async () => {
     const h = await createHarness()
     const legacy: SavedTarget = { id: '11111111-1111-4111-8111-111111111111' as ExecutionTargetId,
       revision: 1, label: 'Legacy', sshAlias: 'inspection',
@@ -297,14 +325,13 @@ describe('saved SSH execution bindings', () => {
     const path = join(root, 'execution_host_targets.json')
     await writeFile(path, JSON.stringify({ unit: { name: 'execution_host_targets', version: 1 },
       global: null, tables: { targets: { [legacy.id]: legacy } } }))
-    // storage-domain owns this rule: "a domain whose stored version differs
-    // from its spec rejects at open (version-mismatch); changing a schema
-    // requires migrating stored data by hand". The Loader entry therefore fails
-    // its init, no service is published, and the stored unit is left untouched
-    // for the operator's own migration.
     const { targets } = await h.registry()
-    expect(targets).toBeUndefined()
-    expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({ unit: { version: 1 } })
+    expect(targets.list().targets).toEqual([{ ...legacy, state: { phase: 'disconnected' } }])
+    expect(() => targets.snapshotExecution(revision(legacy))).toThrow(expect.objectContaining({ code: 'incompatible' }))
+    const { target } = await targets.update({ ...editable(legacy), execution: deployment(h.root) })
+    expect(targets.resolveExecution(targets.snapshotExecution(revision(target))))
+      .toEqual(resolvedConfig('inspection', deployment(h.root)))
+    expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({ unit: { version: 2 } })
   })
 
   it('allows inspection-only targets but requires the complete bootstrap pair for execution', async () => {

@@ -236,8 +236,31 @@ export default class ExecutionHostTargets extends Service {
     if (!isDeepStrictEqual(value, current)) {
       throw new ExecutionTargetError('conflict', 'Saved execution binding does not match the target deployment')
     }
-    return structuredClone({ ...execution, host: record.sshAlias, bootstrapPath: current.bootstrapPath,
-      bootstrapHash: current.bootstrapHash })
+    const { endpoint, node, bootstrapPath: _bootstrapPath, bootstrapHash: _bootstrapHash, ...deployment } = execution
+    const resolvedEndpoint = {
+      host: endpoint.host, port: endpoint.port, username: endpoint.username,
+      privateKeyFile: endpoint.privateKeyFile, hostKeySHA256: endpoint.hostKeySHA256,
+      ...endpoint.proxyCommand === undefined ? {} : { proxyCommand: endpoint.proxyCommand },
+      ...endpoint.jumpHost === undefined ? {} : { jumpHost: endpoint.jumpHost },
+      ...endpoint.multiplex === undefined ? {} : { multiplex: endpoint.multiplex },
+      ...endpoint.keepAliveIntervalSeconds === undefined
+        ? {} : { keepAliveIntervalSeconds: endpoint.keepAliveIntervalSeconds },
+      ...endpoint.connectTimeoutSeconds === undefined
+        ? {} : { connectTimeoutSeconds: endpoint.connectTimeoutSeconds },
+    }
+    return structuredClone({
+      ...deployment, host: record.sshAlias,
+      endpoint: resolvedEndpoint,
+      port: endpoint.port, username: endpoint.username, identityFile: endpoint.privateKeyFile,
+      ...endpoint.proxyCommand === undefined ? {} : { proxyCommand: endpoint.proxyCommand },
+      ...endpoint.jumpHost === undefined ? {} : { jumpHost: endpoint.jumpHost },
+      ...endpoint.multiplex === undefined ? {} : { multiplex: endpoint.multiplex },
+      ...endpoint.keepAliveIntervalSeconds === undefined
+        ? {} : { keepAliveIntervalSeconds: endpoint.keepAliveIntervalSeconds },
+      ...endpoint.connectTimeoutSeconds === undefined
+        ? {} : { connectTimeoutSeconds: endpoint.connectTimeoutSeconds },
+      launch: { kind: 'node-script', node, bootstrapPath: current.bootstrapPath, bootstrapHash: current.bootstrapHash },
+    })
   }
 
   /**

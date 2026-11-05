@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { createHarness } from './harness.ts'
+import type { Config } from '../src/config.ts'
 import type { TargetView } from '../src/types.ts'
 
 function ready(target: TargetView) {
@@ -10,10 +11,10 @@ function ready(target: TargetView) {
   return { id: target.id, generation: target.state.generation, rootId: target.state.info.roots[0]!.id, path: '' }
 }
 
-async function connected(alias = 'target') {
+async function connected(alias = 'target', overrides: Partial<Config> = {}) {
   const h = await createHarness()
   const worker = await h.worker(alias)
-  const { ctx, targets, fiber } = await h.registry()
+  const { ctx, targets, fiber } = await h.registry(overrides)
   const saved = (await targets.create({ label: 'Remote project', sshAlias: alias })).target
   const target = (await targets.connect({ id: saved.id, revision: saved.revision }).catch((cause: unknown) => {
     throw new Error('SSH authentication steps: ' + worker.authentication.join(', '), { cause })
@@ -262,8 +263,8 @@ describe('saved execution targets through OpenSSH and real Loader composition', 
     expect(() => targets.list()).toThrow('Execution target registry is unavailable')
   })
 
-  it('full Host shutdown reports unconfirmed work when the process provider closes first', async () => {
-    const { ctx, targets, target, worker } = await connected()
+  it('full Host shutdown reports unconfirmed work when cancellation is not acknowledged', async () => {
+    const { ctx, targets, target, worker } = await connected('target', { shutdownTimeoutMs: 100 })
     const gate = worker.hold()
     const operation = targets.inspectDirectory(ready(target)).catch((error: unknown) => error)
     await gate.entered

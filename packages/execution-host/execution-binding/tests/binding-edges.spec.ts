@@ -2,6 +2,7 @@
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { createScope } from '@deepseek-ai/dsh-scope'
+import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ExecutionBinding } from '../src/types.ts'
@@ -114,17 +115,17 @@ describe('execution binding setup guards', () => {
     await created.dispose()
   })
 
-  it('rejects a setup whose selection differs from the recorded binding', async () => {
+  it('rejects a second setup that requests a different selection', async () => {
     const h = await createHarness()
     const left = await h.remote('recorded remote')
     const right = await h.remote('conflicting remote')
     const id = SessionId('conflict-setup')
     const created = await h.ctx.agents.create({ sessionId: id, meta: { cwd: '/project' },
       setup: async (agentCtx, agent) => {
-        agent.session.append('execution/bound', { binding: left.binding })
+        const prepared = await h.ctx.executionBindings.setup(agentCtx, agent, left.binding)
         await expect(h.ctx.executionBindings.setup(agentCtx, agent, right.binding))
-          .rejects.toThrow('cannot change')
-        return undefined
+          .rejects.toThrow('already prepared')
+        return prepared
       } })
     await created.dispose()
   })
@@ -327,7 +328,7 @@ describe('admission observation invalidation', () => {
     const id = SessionId('mode-session')
     const session = h.ctx.sessions.create(id, { meta: { cwd: '/project' } })
     session.append('execution/bound', { binding: remote.binding })
-    session.append('sandbox/mode', { mode: 'danger-full-access' } as never)
+    setSandboxMode(session, 'danger-full-access')
     const lease = await h.ctx.executionBindings.forSession(id)
     expect(lease.binding).toEqual(remote.binding)
     await lease.release()

@@ -29,6 +29,30 @@ export type HelperLaunch = {
   kind: 'executable'
 }
 
+/** Saved deployment endpoint retained for provider adapters that need its pinned identity. */
+export interface ConnectionEndpoint {
+  /** Concrete endpoint host captured during deployment. */
+  host: string
+  /** Concrete endpoint port captured during deployment. */
+  port: number
+  /** Concrete endpoint user captured during deployment. */
+  username: string
+  /** Managing-host private-key reference used by OpenSSH. */
+  privateKeyFile: string
+  /** Lowercase SHA-256 host-key digest captured during deployment. */
+  hostKeySHA256: string
+  /** Optional OpenSSH proxy command captured during deployment. */
+  proxyCommand?: string
+  /** Optional OpenSSH jump host captured during deployment. */
+  jumpHost?: string
+  /** Whether OpenSSH connection multiplexing is enabled. */
+  multiplex?: boolean
+  /** Optional OpenSSH keep-alive interval. */
+  keepAliveIntervalSeconds?: number
+  /** Optional OpenSSH connection timeout. */
+  connectTimeoutSeconds?: number
+}
+
 /** Deployment-owned SSH identity and installed helper; no model argument selects these values. */
 export interface Config {
   /** OpenSSH host alias, including its existing user, key and known-host configuration. */
@@ -47,6 +71,8 @@ export interface Config {
   keepAliveIntervalSeconds?: number
   /** Optional connection deadline in seconds. */
   connectTimeoutSeconds?: number
+  /** Saved endpoint identity retained for execution-host provider adapters. */
+  endpoint?: ConnectionEndpoint
   /**
    * OpenSSH connection multiplexing. The default keeps one master connection
    * with a control socket, which the forwarded-stream channel needs; a
@@ -54,8 +80,6 @@ export interface Config {
    * instead of a half-open connection.
    */
   multiplex?: boolean
-  /** Absolute remote Node executable. */
-  node: string
   /** Explicit script or self-contained executable invocation. */
   launch: HelperLaunch
   /** Absolute path to the installed, bundled helper entry. */
@@ -93,6 +117,13 @@ export class SshConnection extends Service {
     proxyCommand: schema.string(), jumpHost: schema.string(),
     keepAliveIntervalSeconds: schema.number().min(1).max(86_400), connectTimeoutSeconds: schema.number().min(1).max(604_800),
     multiplex: schema.boolean().default(true),
+    endpoint: schema.object({
+      host: schema.string().required(), port: schema.number().min(1).max(65_535).required(),
+      username: schema.string().required(), privateKeyFile: schema.string().required(),
+      hostKeySHA256: schema.string().required(), proxyCommand: schema.string(), jumpHost: schema.string(),
+      multiplex: schema.boolean(), keepAliveIntervalSeconds: schema.number().min(1).max(86_400),
+      connectTimeoutSeconds: schema.number().min(1).max(604_800),
+    }),
   })
 
   /**
@@ -148,6 +179,21 @@ export class SshConnection extends Service {
       workspace: z.string().startsWith('/'), requestTimeoutMs: z.number().int().positive().max(2_147_483_647),
       maxFrameBytes: z.number().int().positive().max(64 * 1024 * 1024), maxPending: z.number().int().positive().max(128),
       leaseMs: z.number().int().min(3000).max(600_000),
+      port: z.number().int().min(1).max(65_535).optional(),
+      username: z.string().min(1).optional(),
+      identityFile: z.string().min(1).optional(),
+      proxyCommand: z.string().min(1).optional(),
+      jumpHost: z.string().min(1).optional(),
+      keepAliveIntervalSeconds: z.number().int().min(1).max(86_400).optional(),
+      connectTimeoutSeconds: z.number().int().min(1).max(604_800).optional(),
+      multiplex: z.boolean().optional(),
+      endpoint: z.object({
+        host: z.string().min(1), port: z.number().int().min(1).max(65_535), username: z.string().min(1),
+        privateKeyFile: z.string().min(1), hostKeySHA256: z.string().regex(/^[0-9a-f]{64}$/),
+        proxyCommand: z.string().min(1).optional(), jumpHost: z.string().min(1).optional(),
+        multiplex: z.boolean().optional(), keepAliveIntervalSeconds: z.number().int().min(1).max(86_400).optional(),
+        connectTimeoutSeconds: z.number().int().min(1).max(604_800).optional(),
+      }).strict().optional(),
     }).strict().parse(config) as Required<Config>
     this.ready = this.start()
     // Startup uses Node I/O, local validation, and Error-valued RPC failures.

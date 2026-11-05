@@ -18,10 +18,10 @@ import { PROTOCOL_VERSION } from '@deepseek-ai/dsh-execution-host-worker/protoco
 import type { DirectoryInspection, WorkerInfo } from '@deepseek-ai/dsh-execution-host-worker/protocol'
 import type { ExecutionHostId } from '@deepseek-ai/dsh-execution-host/types'
 import Targets from '../src/index.ts'
-import { executionTargetsDomain } from '../src/spec.ts'
+import { executionTargetsDomain, type StoredTarget } from '../src/spec.ts'
 import { readImportableHosts } from '../src/import.ts'
 import type { Config } from '../src/config.ts'
-import type { ExecutionTargetId, SshExecutionSnapshot, StoredTarget } from '../src/types.ts'
+import type { ExecutionTargetId, SshExecutionSnapshot } from '../src/types.ts'
 
 const HOST_ID = 'edge-worker-1' as ExecutionHostId
 const INFO: WorkerInfo = {

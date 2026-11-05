@@ -199,9 +199,12 @@ describe('execution bindings in a Loader-owned Host', () => {
     const h = await createHarness()
     const remote = await h.remote('forged remote')
     const id = SessionId('unadmitted-binding')
-    await expect(h.ctx.agents.create({ sessionId: id, meta: { cwd: '/project' },
+    const creation = h.ctx.agents.create({ sessionId: id, meta: { cwd: '/project' },
       setup: (_agentCtx, agent) => { agent.session.append('execution/bound', { binding: remote.binding }) },
-    })).rejects.toThrow('Session execution selection has no admitted Agent provider world')
+    }).then(() => undefined, (error: unknown) => error)
+    const failure = await creation
+    expect(failure instanceof Error ? failure.message : String(failure))
+      .toBe('Session execution selection has no admitted Agent provider world')
     expect(h.ctx.agents.get(id)).toBeUndefined()
     expect(h.ctx.sessions.get(id)).toBeUndefined()
     expect(remote.world.connections).toEqual([])
@@ -230,7 +233,7 @@ describe('execution bindings in a Loader-owned Host', () => {
     try {
       await Promise.race([entered.promise, creating])
       expect(h.ctx.agents.get(id)).toBeUndefined()
-      expect(h.ctx.sessions.get(id)).toBeUndefined()
+      expect(h.ctx.sessions.get(id)).toBeDefined()
       await expect(h.ctx.executionBindings.forSession(id)).rejects.toThrow('admission is not published')
       await expect(h.ctx.executionHostTargets.update(edit)).rejects.toMatchObject({ code: 'conflict' })
     } finally { proceed.resolve(undefined) }

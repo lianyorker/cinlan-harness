@@ -30,17 +30,18 @@ function appendBarrier(persistence: SessionPersistence, id: SessionIdentity, fai
     owned = handle
     const appendFailure = nextFailure
     nextFailure = undefined
-    const append = handle.append.bind(handle)
+    const liveHandle = handle as SessionHandle & { drainLive(): Promise<void> }
+    const drainLive = liveHandle.drainLive.bind(liveHandle)
     const close = handle.close.bind(handle)
     vi.spyOn(handle, 'close').mockImplementation(async () => {
       await close()
       closed = true
     })
-    vi.spyOn(handle, 'append').mockImplementationOnce(async (events, appendOptions) => {
+    vi.spyOn(liveHandle, 'drainLive').mockImplementationOnce(async () => {
       entered.resolve(undefined)
       await proceed.promise
       if (appendFailure !== undefined) throw appendFailure
-      await append(events, appendOptions)
+      await drainLive()
       appended = true
     })
     return handle
@@ -113,8 +114,8 @@ describe('execution publication through real JSONL persistence', () => {
     try {
       await Promise.race([barrier.entered, creating])
       expect(h.ctx.agents.get(id)).toBeUndefined()
-      expect(h.ctx.sessions.get(id)).toBeUndefined()
-      expect(seen).toEqual([])
+      expect(h.ctx.sessions.get(id) !== undefined).toBe(true)
+      expect(seen).toEqual(['session'])
       await refusedWhilePending(h.ctx, id)
     } finally { barrier.release() }
     const settled = await result
@@ -191,18 +192,17 @@ describe('execution publication through real JSONL persistence', () => {
     expect(commit).not.toHaveBeenCalled()
     expect(barrier.closed).toBe(true)
     expect(remote.world.disposed).toBe(1)
-    expect(seen).toEqual([])
+    expect(seen).toEqual(['session'])
     expect(h.ctx.agents.get(id)).toBeUndefined()
     expect(h.ctx.sessions.get(id)).toBeUndefined()
     const header = barrier.handle?.header
     if (header === undefined) throw new Error('Persistence handle was not created')
     {
-      await using recreated = await persistence.create(header)
-      expect((await recreated.read()).events).toEqual([])
+      await using stored = await persistence.open(id, 'read')
+      expect((await stored.read()).events.filter(event => event.type === 'execution/bound')).toHaveLength(1)
     }
-    const retried = await h.ctx.agents.create({ sessionId: id, meta: { cwd: '/project' },
-      setup: (ctx, agent) => h.ctx.executionBindings.setup(ctx, agent, remote.binding) })
-    expect(retried.agent.session.snapshotEvents().filter(event => event.type === 'execution/bound')).toHaveLength(1)
+    const retried = await h.ctx.agents.resume({ resumeSessionId: id,
+      setup: (ctx, agent) => h.ctx.executionBindings.setup(ctx, agent) })
     await retried.dispose()
     expect(remote.world.disposed).toBe(2)
   })
@@ -230,7 +230,7 @@ describe('execution publication through real JSONL persistence', () => {
     if ('value' in settled) await settled.value.dispose()
     expect(settled).toHaveProperty('error')
     expect(commit).not.toHaveBeenCalled()
-    expect(seen).toEqual([])
+    expect(seen).toEqual(['session'])
     expect(h.ctx.agents.get(id)).toBeUndefined()
     expect(h.ctx.sessions.get(id)).toBeUndefined()
     expect(barrier.closed).toBe(true)
@@ -307,8 +307,8 @@ describe('execution publication through real JSONL persistence', () => {
     try {
       await Promise.race([entered.promise, resuming])
       expect(h.ctx.agents.get(id)).toBeUndefined()
-      expect(h.ctx.sessions.get(id)).toBeUndefined()
-      expect(seen).toEqual([])
+      expect(h.ctx.sessions.get(id) !== undefined).toBe(true)
+      expect(seen).toEqual(['session'])
       const count = remote.world.connections.length
       deliver.resolve(undefined)
       expect(await cold).toMatchObject({ message: 'Session execution admission is not published' })

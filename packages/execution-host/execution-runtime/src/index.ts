@@ -247,7 +247,7 @@ export default class ExecutionRuntimes extends Service {
     return task
   }
 
-  readonly ephemeralVms = new EphemeralVmManager()
+  readonly ephemeralVms: EphemeralVmManager = new EphemeralVmManager()
 
   /**
    * List approved VM recipes.

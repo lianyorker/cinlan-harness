@@ -220,7 +220,7 @@ export async function createHarness() {
                   join(workspace, 'apps', 'cli', 'src', 'bin.ts'), '--profile', 'execution-host',
                 ], {
                   cwd: directory, stdio: ['pipe', 'pipe', 'pipe'],
-                  env: { ...process.env, DSH_HOME: processHome, TSX_TSCONFIG_PATH: join(workspace, 'tsconfig.json') },
+                  env: { ...process.env, CLH_HOME: processHome, TSX_TSCONFIG_PATH: join(workspace, 'tsconfig.json') },
                 })
                 if (child.pid !== undefined) childPids.push(child.pid)
                 input.pipe(child.stdin)
