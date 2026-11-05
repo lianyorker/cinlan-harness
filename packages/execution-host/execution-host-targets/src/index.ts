@@ -237,9 +237,19 @@ export default class ExecutionHostTargets extends Service {
       throw new ExecutionTargetError('conflict', 'Saved execution binding does not match the target deployment')
     }
     const { endpoint, node, bootstrapPath: _bootstrapPath, bootstrapHash: _bootstrapHash, ...deployment } = execution
-    const resolvedEndpoint = {
-      host: endpoint.host, port: endpoint.port, username: endpoint.username,
-      privateKeyFile: endpoint.privateKeyFile, hostKeySHA256: endpoint.hostKeySHA256,
+    const resolvedConnection = endpoint === undefined ? {} : {
+      endpoint: {
+        host: endpoint.host, port: endpoint.port, username: endpoint.username,
+        privateKeyFile: endpoint.privateKeyFile, hostKeySHA256: endpoint.hostKeySHA256,
+        ...endpoint.proxyCommand === undefined ? {} : { proxyCommand: endpoint.proxyCommand },
+        ...endpoint.jumpHost === undefined ? {} : { jumpHost: endpoint.jumpHost },
+        ...endpoint.multiplex === undefined ? {} : { multiplex: endpoint.multiplex },
+        ...endpoint.keepAliveIntervalSeconds === undefined
+          ? {} : { keepAliveIntervalSeconds: endpoint.keepAliveIntervalSeconds },
+        ...endpoint.connectTimeoutSeconds === undefined
+          ? {} : { connectTimeoutSeconds: endpoint.connectTimeoutSeconds },
+      },
+      port: endpoint.port, username: endpoint.username, identityFile: endpoint.privateKeyFile,
       ...endpoint.proxyCommand === undefined ? {} : { proxyCommand: endpoint.proxyCommand },
       ...endpoint.jumpHost === undefined ? {} : { jumpHost: endpoint.jumpHost },
       ...endpoint.multiplex === undefined ? {} : { multiplex: endpoint.multiplex },
@@ -250,15 +260,7 @@ export default class ExecutionHostTargets extends Service {
     }
     return structuredClone({
       ...deployment, host: record.sshAlias,
-      endpoint: resolvedEndpoint,
-      port: endpoint.port, username: endpoint.username, identityFile: endpoint.privateKeyFile,
-      ...endpoint.proxyCommand === undefined ? {} : { proxyCommand: endpoint.proxyCommand },
-      ...endpoint.jumpHost === undefined ? {} : { jumpHost: endpoint.jumpHost },
-      ...endpoint.multiplex === undefined ? {} : { multiplex: endpoint.multiplex },
-      ...endpoint.keepAliveIntervalSeconds === undefined
-        ? {} : { keepAliveIntervalSeconds: endpoint.keepAliveIntervalSeconds },
-      ...endpoint.connectTimeoutSeconds === undefined
-        ? {} : { connectTimeoutSeconds: endpoint.connectTimeoutSeconds },
+      ...resolvedConnection,
       launch: { kind: 'node-script', node, bootstrapPath: current.bootstrapPath, bootstrapHash: current.bootstrapHash },
     })
   }
