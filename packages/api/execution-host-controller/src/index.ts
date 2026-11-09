@@ -1,9 +1,9 @@
 /** Authenticated management of saved SSH targets over the shared Remote carrier. */
 import { Context } from '@deepseek-ai/cordis'
 import { Remote, RemoteError, remoteErrorOf, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
-import { ExecutionTargetError } from '@deepseek-ai/dsh-execution-host-targets'
+import { ExecutionTargetError } from '@cinlan/execution-host-targets'
 import type {} from '@deepseek-ai/dsh-api-gateway'
-import { RuntimeError } from '@deepseek-ai/dsh-execution-runtime'
+import { RuntimeError } from '@cinlan/execution-runtime'
 import type { RuntimeInspection, RuntimeLocation, RuntimeStartRequest, RuntimeTaskRequest, RuntimeTasksValue, RuntimeTaskValue } from './types.ts'
 import type {
   CreateTargetRequest, ImportableHostsValue, InspectDirectoryRequest, InspectionValue, ListTargetsValue,

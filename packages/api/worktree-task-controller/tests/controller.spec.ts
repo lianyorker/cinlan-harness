@@ -1,6 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
-import { WorktreeTaskError, WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task'
-import type { WorktreeTask, WorktreeTaskCleanupReceipt, WorktreeTaskReview, WorktreeTaskService, WorktreeTaskSettings, WorktreeTaskMergeResult } from '@deepseek-ai/dsh-worktree-task'
+import { WorktreeTaskError, WorktreeTaskId } from '@cinlan/worktree-task'
+import type { WorktreeTask, WorktreeTaskCleanupReceipt, WorktreeTaskReview, WorktreeTaskService, WorktreeTaskSettings, WorktreeTaskMergeResult } from '@cinlan/worktree-task'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import WorktreeTaskController from '../src/index.ts'
 

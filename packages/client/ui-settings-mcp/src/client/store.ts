@@ -1,6 +1,6 @@
 /** Remount-surviving drafts and explicit remove confirmation; Host readback stays in the source. */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
-import type { McpRemoveRequest, McpServerRecord } from '@deepseek-ai/dsh-api-mcp-controller/types'
+import type { McpRemoveRequest, McpServerRecord } from '@cinlan/api-mcp-controller/types'
 import { openDraft, type McpDraft, type ReferenceDraft } from './draft.ts'
 
 /** Settings-only interaction state, never a mirror of the manager snapshot. */

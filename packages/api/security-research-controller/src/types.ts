@@ -1,9 +1,9 @@
 /** Browser-safe Security Research status returned by the Host Remote. */
 
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { SecuritySkillResourceErrorCode, SecuritySkillResourceOperation, SecuritySkillResourceStatus } from '@deepseek-ai/dsh-security-skills/types'
+import type { SecuritySkillResourceErrorCode, SecuritySkillResourceOperation, SecuritySkillResourceStatus } from '@cinlan/security-skills/types'
 
-export type { SecuritySkillResourceStatus } from '@deepseek-ai/dsh-security-skills/types'
+export type { SecuritySkillResourceStatus } from '@cinlan/security-skills/types'
 
 /** Manager-owned resource state or an explicitly absent resource component. */
 export type SecurityResourceAvailability = SecuritySkillResourceStatus | {

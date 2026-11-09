@@ -1,6 +1,6 @@
 /** JSON data shared by the sidebar Git owner and its HTTP and Remote callers. */
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { SourceControlGroupOrder } from '@deepseek-ai/dsh-git-settings/types'
+import type { SourceControlGroupOrder } from '@cinlan/git-settings/types'
 
 /** One attached Session whose authoritative cwd selects the repository. */
 export interface GitSessionRequest { sessionId: SessionId }

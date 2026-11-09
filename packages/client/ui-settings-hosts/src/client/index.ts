@@ -1,6 +1,6 @@
 /** Native execution-host settings registration. */
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-api-execution-host-controller/remote'
+import type {} from '@cinlan/api-execution-host-controller/remote'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'

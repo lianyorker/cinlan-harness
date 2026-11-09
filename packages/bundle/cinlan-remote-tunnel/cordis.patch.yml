@@ -3,6 +3,6 @@
 
 - insert:
     - id: cinlan-remote-tunnel
-      name: '@deepseek-ai/dsh-cinlan-remote-tunnel'
+      name: '@cinlan/cinlan-remote-tunnel'
       config:
         port: 3081

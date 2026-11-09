@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ShortcutCatalogEntry, ShortcutCommandId, ShortcutFixedCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
-import type { KeyboardSnapshot } from '@deepseek-ai/dsh-client-keyboard/client'
+import type { KeyboardSnapshot } from '@cinlan/client-keyboard/client'
 import { ShortcutReference, ShortcutSettingsPage } from '../src/client/Reference.tsx'
 import { createShortcutsStore } from '../src/client/store.ts'
 import { en, zh } from '../src/client/locales.ts'
@@ -174,8 +174,10 @@ function referenceFixture({ runtime = 'web', dictionary = en }: { runtime?: 'web
   const edit = vi.fn<Parameters<typeof ShortcutReference>[0]['edit']>(async () => ({ status: 'saved', snapshot: config.getSnapshot() }))
   store.actions.open()
   const props = { actions: store.actions, useStore: bindSnapshotSelector(store), useCatalog: bindSnapshotSelector(catalog),
-    useConfig: bindSnapshotSelector(config), useFixedCatalog: bindSnapshotSelector(fixedCatalog), runtime, platform: 'macos', edit,
-    recording: async () => {}, describeBinding, t: makeTranslate(dictionary), ...keyboardFace } as unknown as Parameters<typeof ShortcutReference>[0]
+    useConfig: bindSnapshotSelector(config), useFixedCatalog: bindSnapshotSelector(fixedCatalog),
+    runtime, platform: 'macos', edit,
+    recording: async () => {}, describeBinding, t: makeTranslate(dictionary), ...keyboardFace,
+  } as unknown as Parameters<typeof ShortcutReference>[0]
   const view = render(<ShortcutReference {...props} />)
   return { store, catalog, fixedCatalog, config, edit, view }
 }

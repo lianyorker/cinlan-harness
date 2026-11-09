@@ -10,7 +10,7 @@ import { expect, it, onTestFinished, vi } from 'vitest'
 import Runtime from '../src/index.ts'
 import { RuntimeConnectionError } from '../src/transport.ts'
 import type { RuntimeGeneration, RuntimeInspection, RuntimeStartRequest } from '../src/types.ts'
-import type { ExecutionTargetId, TargetView } from '@deepseek-ai/dsh-execution-host-targets/types'
+import type { ExecutionTargetId, TargetView } from '@cinlan/execution-host-targets/types'
 
 const fixture = vi.hoisted(() => ({ run: vi.fn(), artifact: vi.fn() }))
 vi.mock('../src/transport.ts', () => ({

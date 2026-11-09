@@ -1,7 +1,7 @@
 /** Injected face and presentation component for the quick-commands card. */
 import { useState, type ReactNode } from 'react'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { QuickCommand, QuickCommandDraft, QuickCommandHostId, QuickCommandWireResult } from '@deepseek-ai/dsh-api-terminal-quick-commands-controller/types'
+import type { QuickCommand, QuickCommandDraft, QuickCommandHostId, QuickCommandWireResult } from '@cinlan/api-terminal-quick-commands-controller/types'
 import css from './QuickCommandsCard.module.css'
 
 /** Data and callbacks the apply closure injects; components never see ctx. */

@@ -881,26 +881,6 @@ export class PluginManagerController {
   }
 
   /**
-   * Open the install dialog: a new one starts from the registry last used here and reads what the Host offers; a hidden
-   * installation reopens as it is.
-   * @returns whether a new dialog started.
-   */
-  private openDialog(): boolean {
-    const started = this.getSnapshot().install.requestId === undefined
-    if (started) {
-      this.transientRegistry = false
-      this.patch({ install: { ...IDLE_INSTALL, open: true, registry: this.registryMemory.getSnapshot() ?? OFFICIAL_REGISTRY } })
-      const read: RegistryRead = { choice: this.getSnapshot().install.registry }
-      this.registryRead = read
-      read.done = this.readRegistries(read).finally(() => { delete read.done })
-    } else {
-      this.patchInstall({ open: true })
-    }
-    void this.reconcileInstall()
-    return started
-  }
-
-  /**
    * Follow the Host's steps of this tab's update.
    * @param progress - a request id and step received from the Host.
    */

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { UsageQueryResult } from '@deepseek-ai/dsh-api-usage-controller/types'
+import type { UsageQueryResult } from '@cinlan/api-usage-controller/types'
 import { UsageSource, type QueryUsage } from '../src/client/source.ts'
 import { deferred, report, request } from './fixtures.ts'
 

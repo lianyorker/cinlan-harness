@@ -1,0 +1,31 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/security-rea/README.md
+/:
+  en: 3b639f4d8668dbbc
+  zh: 3568b9e9d72b805d
+/cinlan-security-rea:
+  en: 5507627181af4723
+  zh: 60760fe8dd174c52
+/cinlan-security-rea/summary:
+  en: 8e0128e9f5741e83
+  zh: 25379b02d01a8dce
+/cinlan-security-rea/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 01a392b707f082d9
+/cinlan-security-rea/use-this-package:
+  en: 4ed90f4813ed3660
+  zh: ca5d8520b3160d4c
+/cinlan-security-rea/model-experience:
+  en: b814edc692760084
+  zh: a3c18bdf87e76331
+/cinlan-security-rea/model-experience/kv-cache-effect:
+  en: 1a1291dec93b3154
+  zh: 57361a3978ca40d1
+/cinlan-security-rea/known-limitations-and-deferred-work:
+  en: fa3cbb66e365c498
+  zh: 0e585c92f232113c
+/cinlan-security-rea/known-limitations-and-deferred-work/dev-note:
+  en: 82772f6516fedda5
+  zh: df514e12e7085152

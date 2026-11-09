@@ -1,6 +1,6 @@
 /** Deployment-selected runtime artifacts and verified remote observations. */
 import type { Branded } from '@deepseek-ai/dsh-brand'
-import type { TargetRevisionRequest, TargetValue } from '@deepseek-ai/dsh-execution-host-targets/types'
+import type { TargetRevisionRequest, TargetValue } from '@cinlan/execution-host-targets/types'
 
 /** SHA-256 of the complete runtime manifest, also its immutable remote directory name. */
 export type RuntimeGeneration = Branded<'RuntimeGeneration'>

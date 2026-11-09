@@ -10,7 +10,7 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import Storage from '@deepseek-ai/dsh-storage'
 import * as StorageJson from '@deepseek-ai/dsh-storage-json'
 import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
-import QuickCommands from '@deepseek-ai/dsh-terminal-quick-commands'
+import QuickCommands from '@cinlan/terminal-quick-commands'
 import Controller from '../src/index.ts'
 import type { QuickCommandHostId } from '../src/types.ts'
 
@@ -48,13 +48,13 @@ async function bench() {
     { name: '@deepseek-ai/dsh-storage' },
     { name: '@deepseek-ai/dsh-storage-json', config: { root: join(root, 'storage') } },
     { name: '@deepseek-ai/dsh-storage-domain', config: { backend: 'json' } },
-    { name: '@deepseek-ai/dsh-terminal-quick-commands' },
+    { name: '@cinlan/terminal-quick-commands' },
   ]
   await load(ctx, join(root, 'registry'), rows, new Map<string, unknown>([
     ['@deepseek-ai/dsh-storage', Storage],
     ['@deepseek-ai/dsh-storage-json', StorageJson],
     ['@deepseek-ai/dsh-storage-domain', StorageDomain],
-    ['@deepseek-ai/dsh-terminal-quick-commands', QuickCommands],
+    ['@cinlan/terminal-quick-commands', QuickCommands],
   ]))
   // The Gateway-facing typert registry is host infrastructure; the Remote CRUD
   // contract under test never touches it, so a stub satisfies the inject seat.

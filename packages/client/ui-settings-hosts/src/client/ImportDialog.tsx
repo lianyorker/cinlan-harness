@@ -1,7 +1,7 @@
 /** Read-only import of concrete Host entries from the managing Host's OpenSSH configuration. */
 import type { ReactNode } from 'react'
 import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ImportableHostsValue } from '@deepseek-ai/dsh-api-execution-host-controller/types'
+import type { ImportableHostsValue } from '@cinlan/api-execution-host-controller/types'
 import type { HostDiagnostic, HostsTranslate, ImportCandidate } from './types.ts'
 import { diagnosticLabel } from './diagnostics.ts'
 import css from './HostsSection.module.css'

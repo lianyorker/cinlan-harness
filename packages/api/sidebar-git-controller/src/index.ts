@@ -1,8 +1,8 @@
 /** Desktop and Web Remote carrier for the concrete sidebar Git owner. */
 import { Context } from '@deepseek-ai/cordis'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
-import { SidebarGitError } from '@deepseek-ai/dsh-sidebar-git'
-import type { SidebarGit } from '@deepseek-ai/dsh-sidebar-git'
+import { SidebarGitError } from '@cinlan/sidebar-git'
+import type { SidebarGit } from '@cinlan/sidebar-git'
 import type {
   GitSessionRequest,
   GitStatusResult,

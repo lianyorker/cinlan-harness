@@ -1,6 +1,6 @@
 /** Mobile Emulator setup card: availability, Android SDK, and default device. */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { DeviceCapabilitySnapshot, MobileDeviceListSnapshot, MobileSdkSnapshot } from '@deepseek-ai/dsh-api-device-capabilities-controller/types'
+import type { DeviceCapabilitySnapshot, MobileDeviceListSnapshot, MobileSdkSnapshot } from '@cinlan/api-device-capabilities-controller/types'
 import type { MobileDeviceSettings } from '@deepseek-ai/dsh-mobile-device/types'
 import type { InjectFace, PropsRenderFactories } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'

@@ -1,7 +1,7 @@
 /** Revision-checked defaults editor; saving never invokes a lifecycle program. */
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { WorktreeTaskHook, WorktreeTaskSettings } from '@deepseek-ai/dsh-api-worktree-task-controller/types'
+import type { WorktreeTaskHook, WorktreeTaskSettings } from '@cinlan/api-worktree-task-controller/types'
 import type { WorktreeTaskSectionInjected, WorktreeTaskSectionProps } from './WorktreeTaskSection.tsx'
 import css from './WorktreeTaskSection.module.css'
 

@@ -2,8 +2,8 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { WorkItemId } from '@deepseek-ai/dsh-work-items'
-import type {} from '@deepseek-ai/dsh-work-items'
+import { WorkItemId } from '@cinlan/work-items'
+import type {} from '@cinlan/work-items'
 import type {
   WorkItem,
   WorkItemBoard,
@@ -16,7 +16,7 @@ import type {
   WorkItemSource,
   WorkItemWriteId,
   WorkItemWriteOperation,
-} from '@deepseek-ai/dsh-work-items/types'
+} from '@cinlan/work-items/types'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { GenericCallView } from '@deepseek-ai/dsh-tools'

@@ -5,12 +5,12 @@ import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import {
   CoordinationError, CoordinationService, RunId, TaskId,
-} from '@deepseek-ai/dsh-coordination'
+} from '@cinlan/coordination'
 import type {
   CoordinationApprovalDecision, CoordinationApprovalRequest, CoordinationApprovalRequestListener,
   CoordinationEvent, CoordinationEventListener, CoordinationRun, RunSnapshot, StartRunRequest,
   TaskExecutor, TaskMessage, TaskMessageListener, TaskOutcome, TaskSnapshot, TaskSpec, TaskStatus,
-} from '@deepseek-ai/dsh-coordination'
+} from '@cinlan/coordination'
 
 /** Local scheduler configuration. */
 export interface Config {

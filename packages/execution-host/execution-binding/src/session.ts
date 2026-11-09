@@ -1,6 +1,6 @@
 /** Immutable execution selection recorded in the owning Session log. */
 import { z } from 'zod'
-import { executionSnapshotSchema } from '@deepseek-ai/dsh-execution-host-targets'
+import { executionSnapshotSchema } from '@cinlan/execution-host-targets'
 import type { ExecutionBinding } from './types.ts'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'

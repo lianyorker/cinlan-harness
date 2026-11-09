@@ -1,8 +1,8 @@
 /** Captured execution location and caller-owned provider leases. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { Branded } from '@deepseek-ai/dsh-brand'
-import type { ExecutionBinding } from '@deepseek-ai/dsh-execution-host-targets/types'
-export type { ExecutionBinding, SshExecutionSnapshot } from '@deepseek-ai/dsh-execution-host-targets/types'
+import type { ExecutionBinding } from '@cinlan/execution-host-targets/types'
+export type { ExecutionBinding, SshExecutionSnapshot } from '@cinlan/execution-host-targets/types'
 
 /** One process-local execution connection lifetime. */
 export type ExecutionIncarnation = Branded<'ExecutionIncarnation'>

@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import type { ListTargetsValue } from '@deepseek-ai/dsh-api-execution-host-controller/types'
+import type { ListTargetsValue } from '@cinlan/api-execution-host-controller/types'
 import { HostsSection } from '../src/client/HostsSection.tsx'
 import type { HostsProps, HostsSnapshot } from '../src/client/types.ts'
 import { en, zh } from '../src/client/locales.ts'

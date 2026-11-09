@@ -145,8 +145,7 @@ export default defineConfig({
   // Relative asset URLs: preview.html mounts the same output under any base
   // directory, and the served index resolves identically from the site root.
   base: './',
-  plugins: [rejectStandaloneServe(), clientDocumentTitle(), react(), emitPreviewPage()],
-    rejectStandaloneServe(), clientDocumentTitle(), brandFontLicense(), katexWoff2Fonts(), react(), emitPreviewPage(),
+  plugins: [rejectStandaloneServe(), clientDocumentTitle(), katexWoff2Fonts(), react(), emitPreviewPage()],
   build: {
     // Paired shells serve only the index entry's transitive runtime artifacts.
     manifest: 'phone-runtime-manifest.json',

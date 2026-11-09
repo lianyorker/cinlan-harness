@@ -5,7 +5,7 @@ import { CinlanDesignBody } from '../src/client/view/CinlanDesignBody.tsx'
 import type { SidebarRightTabRegistry } from '@deepseek-ai/dsh-client-ui-sidebar-right/src/client/tab-registry.ts'
 
 const it = createClientTest({ roster: webApp })
-const SELF = '@deepseek-ai/dsh-client-ui-cinlan-design'
+const SELF = '@cinlan/client-ui-cinlan-design'
 afterEach(() => { localStorage.clear() })
 
 it('registers the Design body and persistence seat through the shipped Loader and removes them on unload', async ({ start }) => {

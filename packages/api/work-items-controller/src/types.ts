@@ -2,8 +2,8 @@
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
-import type { WorkItemMutation, WorkItemWriteId, WorkItemWriteOperation, WorkItemSource, WorkItem, WorkItemId, WorkItemListRequest, WorkItemsErrorCode } from '@deepseek-ai/dsh-work-items/types'
-export type { WorkItemId, WorkItemSource } from '@deepseek-ai/dsh-work-items/types'
+import type { WorkItemMutation, WorkItemWriteId, WorkItemWriteOperation, WorkItemSource, WorkItem, WorkItemId, WorkItemListRequest, WorkItemsErrorCode } from '@cinlan/work-items/types'
+export type { WorkItemId, WorkItemSource } from '@cinlan/work-items/types'
 
 /** One explicitly saved association; branch status is derived from the current lease. */
 export interface WorkItemAssociation {
@@ -53,4 +53,4 @@ export interface WorkItemsWriteHistoryRequest { readonly source: WorkItemSource;
 export interface WorkItemsWriteValue { readonly operation: WorkItemWriteOperation }
 /** Durable write history includes pending approvals and uncertain effects. */
 export interface WorkItemsWriteHistoryValue { readonly operations: readonly WorkItemWriteOperation[] }
-export type { WorkItemMutation, WorkItemWriteId, WorkItemWriteOperation } from '@deepseek-ai/dsh-work-items/types'
+export type { WorkItemMutation, WorkItemWriteId, WorkItemWriteOperation } from '@cinlan/work-items/types'

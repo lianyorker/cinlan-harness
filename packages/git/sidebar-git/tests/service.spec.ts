@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GitError } from '@deepseek-ai/dsh-git'
 import { SessionId } from '@deepseek-ai/dsh-session'
-import { GIT_SETTINGS_NAMESPACE } from '@deepseek-ai/dsh-git-settings/settings-schema'
+import { GIT_SETTINGS_NAMESPACE } from '@cinlan/git-settings/settings-schema'
 import { cleanup, fixtureGit, harness, TEST_GIT_EXECUTABLE } from './fixture.ts'
 
 afterEach(cleanup, 90_000)

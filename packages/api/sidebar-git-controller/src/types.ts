@@ -1,5 +1,5 @@
 /** Browser-safe request and response data for the sidebarGit Remote namespace. */
-export type * from '@deepseek-ai/dsh-sidebar-git/types'
+export type * from '@cinlan/sidebar-git/types'
 
 /** Failure details shared by every operation in the sidebarGit namespace. */
 export interface SidebarGitFailureDetails { operation: string }

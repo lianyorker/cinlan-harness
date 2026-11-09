@@ -67,7 +67,6 @@ export interface StoreInstanceLike {
  * the same source object for the same arguments while that source is live.
  */
 export type KeyedStandardSource = (key: string, member?: string) => HostObservable<unknown> | undefined
-export type KeyedStandardSource = (key: string, member?: string) => HostObservable<unknown> | undefined
 
 /**
  * Framework-neutral inputs from which the renderer materializes standard

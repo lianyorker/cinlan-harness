@@ -4,7 +4,7 @@ import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task/types'
+import type { WorktreeTaskId } from '@cinlan/worktree-task/types'
 
 /** Identifies the implicit team rooted at one top-level Session. */
 export type TeamId = Branded<'TeamId'>

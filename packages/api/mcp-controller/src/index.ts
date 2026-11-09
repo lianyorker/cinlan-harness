@@ -1,7 +1,7 @@
 /** MCP Remote exposes profile-owned desired state and secret-free bridge observations. */
 import { Context } from '@deepseek-ai/cordis'
-import { McpManagementError } from '@deepseek-ai/dsh-mcp-management'
-import type {} from '@deepseek-ai/dsh-mcp-management'
+import { McpManagementError } from '@cinlan/mcp-management'
+import type {} from '@cinlan/mcp-management'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {
   McpManagementSnapshot, McpRemoveRequest, McpSaveRequest, McpSaveResult, McpServerRequest, McpSetEnabledRequest,

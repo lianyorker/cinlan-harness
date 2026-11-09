@@ -7,7 +7,7 @@
  * be replayed against a different host: the caller names the host it will run
  * on, and receives only that host's commands.
  *
- * @module @deepseek-ai/dsh-terminal-quick-commands
+ * @module @cinlan/terminal-quick-commands
  */
 import { randomUUID } from 'node:crypto'
 import { Context, Service } from '@deepseek-ai/cordis'

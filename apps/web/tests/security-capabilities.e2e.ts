@@ -13,7 +13,7 @@ import { join } from 'node:path'
 import { chromium, type Browser, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type {} from '@deepseek-ai/dsh-agent-presets'
-import type {} from '@deepseek-ai/dsh-api-security-research-controller'
+import type {} from '@cinlan/api-security-research-controller'
 import { captureStableAria, compareOrRefreshGolden, launchWebScaffold, watchConsole, webSnapshotMode, type WebScaffold } from './scaffold.ts'
 
 const bundle = fileURLToPath(new URL('../../../packages/bundle/security-research/cordis.patch.yml', import.meta.url))

@@ -215,7 +215,7 @@
 # The bundled security provider is scoped to this preset so ordinary coding
 # sessions do not receive security-specific guidance.
 - id: security-skills
-  name: '@deepseek-ai/dsh-security-skills'
+  name: '@cinlan/security-skills'
 
 # `skill-filesystem` contributes local-root discovery for agents on this preset, and
 # `tool-skill` gives them the catalog and loader; the merged catalog also

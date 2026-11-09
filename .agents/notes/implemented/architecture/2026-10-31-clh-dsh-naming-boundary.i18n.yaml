@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-31-clh-dsh-naming-boundary.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-31-clh-dsh-naming-boundary.md
+/agent-note-product-faces-clh-packages-stay-dsh-and-the-harness-home-never-falls-back-to-dsh-home:
+  en: e95958bcfa81f0da
+  zh: 9c68f90b2441ab1c
+/agent-note-product-faces-clh-packages-stay-dsh-and-the-harness-home-never-falls-back-to-dsh-home/problem:
+  en: e6c3eafeed963be6
+  zh: 36b5cd7ac060dc47
+/agent-note-product-faces-clh-packages-stay-dsh-and-the-harness-home-never-falls-back-to-dsh-home/decision:
+  en: c7f68817c1e1b37f
+  zh: 2da1a41f682df742
+/agent-note-product-faces-clh-packages-stay-dsh-and-the-harness-home-never-falls-back-to-dsh-home/alternatives-considered:
+  en: 066b6353ba280a68
+  zh: b962cb096bf13cc7
+/agent-note-product-faces-clh-packages-stay-dsh-and-the-harness-home-never-falls-back-to-dsh-home/consequences:
+  en: d23b06507a02e670
+  zh: bd79547b2fac9e62

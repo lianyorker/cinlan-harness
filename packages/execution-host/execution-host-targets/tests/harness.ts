@@ -15,7 +15,7 @@ import Storage from '@deepseek-ai/dsh-storage'
 import * as StorageJson from '@deepseek-ai/dsh-storage-json'
 import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
 import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
-import ExecutionHostLocal from '@deepseek-ai/dsh-execution-host-local'
+import ExecutionHostLocal from '@cinlan/execution-host-local'
 import LocalFs from '@deepseek-ai/dsh-fs-local'
 import * as Worker from '@deepseek-ai/dsh-execution-host-worker'
 import Targets from '../src/index.ts'
@@ -103,16 +103,16 @@ export async function createHarness() {
         { name: '@deepseek-ai/dsh-storage' },
         { name: '@deepseek-ai/dsh-storage-json', config: { root: join(root, 'storage') } },
         { name: '@deepseek-ai/dsh-storage-domain', config: { backend: 'json' } },
-        { name: '@deepseek-ai/dsh-execution-host-local' },
+        { name: '@cinlan/execution-host-local' },
         { name: '@deepseek-ai/dsh-subprocess-local' },
-        { name: '@deepseek-ai/dsh-execution-host-targets', config: { sshConfigFile: configPath, ...overrides } },
+        { name: '@cinlan/execution-host-targets', config: { sshConfigFile: configPath, ...overrides } },
       ]
       await load(ctx, join(root, 'registry-' + String(++registryIndex)), rows, new Map<string, unknown>([
         ['@deepseek-ai/dsh-storage', Storage], ['@deepseek-ai/dsh-storage-json', StorageJson],
-        ['@deepseek-ai/dsh-storage-domain', StorageDomain], ['@deepseek-ai/dsh-execution-host-local', ExecutionHostLocal],
-        ['@deepseek-ai/dsh-subprocess-local', LocalSubprocess], ['@deepseek-ai/dsh-execution-host-targets', Targets],
+        ['@deepseek-ai/dsh-storage-domain', StorageDomain], ['@cinlan/execution-host-local', ExecutionHostLocal],
+        ['@deepseek-ai/dsh-subprocess-local', LocalSubprocess], ['@cinlan/execution-host-targets', Targets],
       ]))
-      const entry = [...ctx.loader.entries()].find(value => value.options.name === '@deepseek-ai/dsh-execution-host-targets')
+      const entry = [...ctx.loader.entries()].find(value => value.options.name === '@cinlan/execution-host-targets')
       const fiber = entry?.fiber
       const rangeError = loggedErrors.find(err => err instanceof RangeError)
       if (rangeError) throw rangeError
@@ -253,11 +253,11 @@ export async function createHarness() {
               } })
               const roots = options.roots === false ? [] : [{ id: 'project', label: 'Project', path: directory }]
               void load(ctx, join(root, alias, 'worker-' + String(++sequence)), [
-                { name: '@deepseek-ai/dsh-execution-host-local' }, { name: '@deepseek-ai/dsh-fs-local' },
+                { name: '@cinlan/execution-host-local' }, { name: '@deepseek-ai/dsh-fs-local' },
                 { name: '@deepseek-ai/dsh-subprocess-local' },
                 { name: '@deepseek-ai/dsh-execution-host-worker', config: { roots } },
               ], new Map<string, unknown>([
-                ['@deepseek-ai/dsh-execution-host-local', ExecutionHostLocal], ['@deepseek-ai/dsh-fs-local', LocalFs],
+                ['@cinlan/execution-host-local', ExecutionHostLocal], ['@deepseek-ai/dsh-fs-local', LocalFs],
                 ['@deepseek-ai/dsh-subprocess-local', LocalSubprocess],
                 ['@deepseek-ai/dsh-execution-host-worker', {
                   ...Worker, apply: (owner: Context, config: Worker.WorkerConfig) => Worker.apply(owner, { ...config, input, output }),

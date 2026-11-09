@@ -1,0 +1,44 @@
+.badge {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.status {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--dsw-alias-accent-soft);
+  color: var(--dsw-alias-accent-ink);
+  white-space: nowrap;
+}
+
+.hibernated,
+.archived {
+  background: var(--dsw-alias-bg-skeleton);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.issue {
+  flex: none;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-accent);
+  text-decoration: none;
+}
+
+.issue:hover {
+  text-decoration: underline;
+}
+
+.action {
+  flex: none;
+  font-size: 11px;
+  line-height: 16px;
+}

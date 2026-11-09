@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SESSION_FORMAT_VERSION, SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
-import { WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task'
+import { WorktreeTaskId } from '@cinlan/worktree-task'
 import type { SessionEvent, SessionEventMap, SessionEventType } from '@deepseek-ai/dsh-session'
 import { teamProjectionDefinition } from '../src/projection.ts'
 import type { TeamProjectionState, TeamState } from '../src/projection.ts'

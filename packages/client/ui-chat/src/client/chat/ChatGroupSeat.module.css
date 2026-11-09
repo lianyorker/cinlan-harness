@@ -24,7 +24,6 @@
   .title:hover {
     color: var(--dsw-alias-label-secondary);
   }
-  color: var(--dsw-alias-label-secondary);
 }
 
 /* The leading box and its glyph ride the body font-size delta so the icon

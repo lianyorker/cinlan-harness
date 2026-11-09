@@ -1,5 +1,5 @@
 /** Deterministic Host-shaped reports shared by the package's behavior tests. */
-import type { UsageQueryRequest, UsageQueryResult } from '@deepseek-ai/dsh-api-usage-controller/types'
+import type { UsageQueryRequest, UsageQueryResult } from '@cinlan/api-usage-controller/types'
 
 export const request: UsageQueryRequest = { from: Date.UTC(2026, 8, 1), to: Date.UTC(2026, 8, 8) }
 

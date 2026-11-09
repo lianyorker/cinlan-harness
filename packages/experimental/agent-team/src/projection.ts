@@ -30,7 +30,7 @@ const teamTaskIdSchema = z.string().min(1).refine((value) => {
   return match === null || Number.isSafeInteger(Number(match[1]))
 }, { message: 'numeric task id suffix must be a safe integer' }).transform(value => toTeamTaskId(value))
 const teamMessageIdSchema = z.string().min(1).transform(value => toTeamMessageId(value))
-const worktreeTaskIdSchema = z.string().min(1).transform(value => brandString<import('@deepseek-ai/dsh-worktree-task/types').WorktreeTaskId>(value))
+const worktreeTaskIdSchema = z.string().min(1).transform(value => brandString<import('@cinlan/worktree-task/types').WorktreeTaskId>(value))
 
 const coreContentBlockTypes = new Set(['text', 'reasoning', 'image', 'tool-call', 'tool-result'])
 const imageAttachmentSchema = z.object({

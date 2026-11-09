@@ -9,7 +9,7 @@ import type {
   QuickCommandHostId,
   QuickCommandId,
   QuickCommandWireResult,
-} from '@deepseek-ai/dsh-api-terminal-quick-commands-controller/types'
+} from '@cinlan/api-terminal-quick-commands-controller/types'
 import { QuickCommandsCard, type QuickCommandsCardInjected, type QuickCommandsCardProps } from '../src/client/QuickCommandsCard.tsx'
 import { zh } from '../src/client/locales.ts'
 

@@ -1,6 +1,6 @@
 /** View-only filters and explicit UTC-midnight conversion. */
 import { defineStore } from '@deepseek-ai/dsh-client-store'
-import type { UsageQueryRequest } from '@deepseek-ai/dsh-api-usage-controller/types'
+import type { UsageQueryRequest } from '@cinlan/api-usage-controller/types'
 
 /** Draft controls survive section remounts but never persist in Host settings. */
 export interface UsageFilters {

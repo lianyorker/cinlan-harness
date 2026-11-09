@@ -1,5 +1,5 @@
 /** CSV projection of one displayed Host report; export never issues another query. */
-import type { UsageCounts, UsageQueryResult } from '@deepseek-ai/dsh-api-usage-controller/types'
+import type { UsageCounts, UsageQueryResult } from '@cinlan/api-usage-controller/types'
 import type { UsageKey } from './locales.ts'
 
 /** Locale callback shared by the report table and download. */

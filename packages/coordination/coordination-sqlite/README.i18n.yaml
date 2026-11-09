@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/coordination/coordination-sqlite/README.md
+/:
+  en: d91604cd688bb5a5
+  zh: 5b2856f53e77f1b5
+/coordination-sqlite:
+  en: b0ac1f1061bc1bdb
+  zh: ec093583b71c1da7
+/coordination-sqlite/summary:
+  en: 8069449112a1199a
+  zh: 693e37123bee775c
+/coordination-sqlite/use-this-package:
+  en: 6d9f04ee7b4b2fb8
+  zh: a77b5268c73c671c
+/coordination-sqlite/table-of-contents:
+  en: c2d498a6d1452b42
+  zh: 9e4d9bbce5d8ad96
+/coordination-sqlite/config:
+  en: ae43f822e03500b2
+  zh: 96f8661e07e044a4
+/coordination-sqlite/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/coordination-sqlite/model-experience/no-direct-model-context:
+  en: 11330a3eaa3637ca
+  zh: 3629eb90e2bdce40
+/coordination-sqlite/model-experience/no-direct-model-context/what-the-model-sees:
+  en: 6b7c81615f9a3c12
+  zh: 119c207e7d4b6950
+/coordination-sqlite/model-experience/no-direct-model-context/token-effect:
+  en: 0c22e54da683e554
+  zh: 0e5f869f86a462b9
+/coordination-sqlite/model-experience/no-direct-model-context/kv-cache-effect:
+  en: 5c36f69bc12b2e7e
+  zh: 6e8dda88f830d375
+/coordination-sqlite/known-limitations-and-deferred-work:
+  en: 40754326f911b23d
+  zh: f8aa98a1a2555032
+/coordination-sqlite/known-limitations-and-deferred-work/dev-note:
+  en: 0fa97eb5d82a35e1
+  zh: 48fd9bc8d01ec879

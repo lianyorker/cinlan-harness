@@ -1,0 +1,31 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/workspace/worktree-task-workspace/README.md
+/:
+  en: 51107f4c60299051
+  zh: 1922f3868f2f37f4
+/cinlan-worktree-task-workspace:
+  en: 78a08c04b2346bf9
+  zh: b383ec4314b3a895
+/cinlan-worktree-task-workspace/summary:
+  en: 6168b058dc832deb
+  zh: 99b5bec1932dd383
+/cinlan-worktree-task-workspace/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/cinlan-worktree-task-workspace/use-this-package:
+  en: 396f732dd0f8b12b
+  zh: 4c6bf263d63cc2be
+/cinlan-worktree-task-workspace/model-experience:
+  en: 1c4b1766d3532a5b
+  zh: c286de85e224fd9c
+/cinlan-worktree-task-workspace/model-experience/kv-cache-effect:
+  en: 6b521258fd9ff285
+  zh: 0d75e5867081e0cf
+/cinlan-worktree-task-workspace/known-limitations-and-deferred-work:
+  en: 2c40c430f539ab3a
+  zh: 2310af37044dd07f
+/cinlan-worktree-task-workspace/known-limitations-and-deferred-work/dev-note:
+  en: 3da6c91fffcd00fa
+  zh: 9cc4cadc1c13fdeb

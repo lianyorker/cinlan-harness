@@ -4,7 +4,7 @@ import { Button, IconCloseOutlineRegular, IconRefreshOutlineRegular, Modal, Shor
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot, PropsStore } from '@deepseek-ai/dsh-client-store'
 import type { ShortcutCatalogEntry, ShortcutPlatform, Shortcuts } from '@deepseek-ai/dsh-client-shortcuts/client'
-import type { KeyboardService } from '@deepseek-ai/dsh-client-keyboard/client'
+import type { KeyboardService } from '@cinlan/client-keyboard/client'
 import type { SettingsNavigationTarget } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { ShortcutEditor } from './Editor.tsx'
 import { KeyboardCommands } from './KeyboardCommands.tsx'

@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { AgentOptions } from '@deepseek-ai/dsh-agent'
-import type { TaskOutcome, TaskSnapshot } from '@deepseek-ai/dsh-coordination'
+import type { TaskOutcome, TaskSnapshot } from '@cinlan/coordination'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { assertNever, snapshotJsonValue } from '@deepseek-ai/dsh-util-values'

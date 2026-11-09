@@ -5,7 +5,7 @@
  * Discovery caches only complete observations. Loaded directory resources
  * retain their generation until the enclosing realm is disposed.
  *
- * @module @deepseek-ai/dsh-security-skills
+ * @module @cinlan/security-skills
  */
 
 import type { Dirent, Stats } from 'node:fs'

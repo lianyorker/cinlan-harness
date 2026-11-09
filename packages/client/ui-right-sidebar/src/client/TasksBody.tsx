@@ -1,7 +1,7 @@
 /** Worktree Task panel backed by the Worktree Task Remote. */
 import { useCallback, useEffect, useState } from 'react'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { WorktreeTaskId, WorktreeTaskView } from '@deepseek-ai/dsh-api-worktree-task-controller/types'
+import type { WorktreeTaskId, WorktreeTaskView } from '@cinlan/api-worktree-task-controller/types'
 import css from './SidebarContributors.module.css'
 
 export interface TasksBodyInjected {
@@ -18,7 +18,10 @@ export function TasksBody({ t, list, activate, hibernate }: TasksBodyProps): JSX
   const [error, setError] = useState<string>()
   const refresh = useCallback(async () => {
     setBusy(true)
-    try { setError(undefined); setTasks((await list()).items) } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) } finally { setBusy(false) }
+    try {
+      setError(undefined)
+      setTasks((await list()).items)
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) } finally { setBusy(false) }
   }, [list])
   useEffect(() => { void refresh() }, [refresh])
   const transition = useCallback(async (task: WorktreeTaskView, operation: 'activate' | 'hibernate') => {

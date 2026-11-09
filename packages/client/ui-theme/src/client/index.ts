@@ -283,24 +283,6 @@ export class ThemeRuntime {
   }
 
   /**
-   * Change one role's font size. Accepted
-   * values are written through the settings scope and emit `theme/change`.
-   * @param role - font role.
-   * @param px - integer px within the role's `FONT_SIZE_SPECS` range; out-of-range or fractional values throw.
-   * Step all font sizes within their own ranges and save changed fields in one mutation.
-   * Emits one `theme/change`; no write or event occurs when every role is at its limit.
-   * @param delta - one pixel to add or remove from each role's current size.
-   */
-  setFontSize(role: FontRole, px: number): void {
-    const spec = FONT_SIZE_SPECS[role]
-    if (!isFontSize(role, px)) throw new Error(`${role} font size ${px} is outside ${spec.min}..${spec.max}`)
-    if (this.fontSizes[role] === px) return
-    this.fontSizes = Object.freeze({ ...this.fontSizes, [role]: px })
-    this.write(() => this.host.set(spec.field, px))
-    this.publish()
-  }
-
-  /**
    * Step all font sizes within their own ranges and save changed fields in one mutation.
    * Emits one `theme/change`; no write or event occurs when every role is at its limit.
    * @param delta - one pixel to add or remove from each role's current size.
@@ -320,30 +302,6 @@ export class ThemeRuntime {
     this.fontSizes = Object.freeze(fontSizes)
     this.write(() => this.host.mutate(ops))
     this.publish()
-  }
-
-  /**
-   * Change one role's font list — the only font-family write entry. The value
-   * is normalized, written through the settings scope, and emits `theme/change`
-   * when the normalized list differs.
-   * @param role - font role.
-   * @param value - comma-separated family names; a value without names restores the built-in stack.
-   */
-  setFontFamily(role: FontRole, value: string): void {
-    const list = normalizeFontFamily(value)
-    if (this.fontFamilies[role] === list) return
-    this.fontFamilies = Object.freeze({ ...this.fontFamilies, [role]: list })
-    this.write(() => this.host.set(FONT_FAMILY_FIELDS[role], list))
-    this.publish()
-  }
-
-  /** Queue one settings write, then adopt the durable section once no own write remains. */
-  private write(operation: () => Promise<boolean>): void {
-    this.pendingWrites += 1
-    void operation().finally(() => {
-      this.pendingWrites -= 1
-      this.adopt()
-    })
   }
 
   /**
@@ -492,17 +450,6 @@ export class ThemeRuntime {
  * fall back to each role's default; the durable settings adoption still lands afterwards.
  */
 function bootstrapFontSizes(): FontSizes {
-  /* v8 ignore next -- needs a documentless run (node e2e booting the client tree), not constructible under jsdom */
-  if (typeof document === 'undefined') return DEFAULT_FONT_SIZES
-  const read = (role: FontRole): number => {
-    const parsed = Number.parseInt(document.body.style.getPropertyValue(FONT_SIZE_SPECS[role].variable), 10)
-    return isFontSize(role, parsed) ? parsed : FONT_SIZE_SPECS[role].default
-  }
-  return Object.freeze({ text: read('text'), code: read('code'), terminal: read('terminal') })
-}
-
-/** Font lists the Host boot script wrote on `body`, read for the same first-paint reason as {@link bootstrapFontSizes}. */
-function bootstrapFontFamilies(): FontFamilies {
   /* v8 ignore next -- needs a documentless run (node e2e booting the client tree), not constructible under jsdom */
   if (typeof document === 'undefined') return DEFAULT_FONT_SIZES
   const read = (role: FontRole): number => {

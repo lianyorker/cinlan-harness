@@ -4,7 +4,7 @@ import {
   Button, IconDownloadOutline16, IconEditOutline16, IconInspectOutlineRegular, IconPlayOutline16,
   IconPlusOutline16, IconRefreshOutline16, IconStopFill16, IconTrashOutline16, Modal, StateDot, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ImportableHostsValue, TargetView } from '@deepseek-ai/dsh-api-execution-host-controller/types'
+import type { ImportableHostsValue, TargetView } from '@cinlan/api-execution-host-controller/types'
 import type { HostDiagnostic, HostsProps, HostsTranslate, ImportCandidate, TargetDraft, TargetRevision } from './types.ts'
 import type { HostsKey } from './locales.ts'
 import {
@@ -329,7 +329,8 @@ export function HostsSection(props: HostsProps): ReactNode {
       }}
       onCancel={() => { setEditor(undefined); setFailure(undefined) }}
     />}
-    {importState !== undefined && <ImportDialog state={importState} t={t} onPick={acceptImport} onClose={() => { setImportState(undefined) }} />}
+    {importState !== undefined && <ImportDialog state={importState} t={t} onPick={acceptImport}
+      onClose={() => { setImportState(undefined) }} />}
     <Modal open={deleting !== undefined} onClose={() => { if (pending === undefined) setDeleting(undefined) }}
       title={t('deleteTitle')} description={t('deleteDescription')} closeLabel={t('close')}
       footer={<div className={css.dialogFooter}>

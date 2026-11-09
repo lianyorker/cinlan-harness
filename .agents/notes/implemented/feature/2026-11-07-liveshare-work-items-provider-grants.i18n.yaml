@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-07-liveshare-work-items-provider-grants.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-07-liveshare-work-items-provider-grants.md
+/agent-note-liveshare-work-items-provider-grants:
+  en: b7fa199a789b15f0
+  zh: d2f7ffc72c2cb253
+/agent-note-liveshare-work-items-provider-grants/problem:
+  en: 9482a9467107c9b4
+  zh: 9da3643739f72496
+/agent-note-liveshare-work-items-provider-grants/decision:
+  en: a255c8b100e6e4b4
+  zh: 5453d64ca3b56376
+/agent-note-liveshare-work-items-provider-grants/alternatives-considered:
+  en: 13ceef719f5850eb
+  zh: 4e804d401628f7db
+/agent-note-liveshare-work-items-provider-grants/consequences:
+  en: d527bacb82197301
+  zh: 3840ccd7c4cba335
+/agent-note-liveshare-work-items-provider-grants/verification:
+  en: 4712f3825871fd8b
+  zh: 7982ded9c8cf584a

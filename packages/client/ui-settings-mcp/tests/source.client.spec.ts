@@ -1,6 +1,6 @@
 /** Remote-result and generation races use deferred promises instead of elapsed time. */
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import type { McpManagementSnapshot, McpSaveResult } from '@deepseek-ai/dsh-api-mcp-controller/types'
+import type { McpManagementSnapshot, McpSaveResult } from '@cinlan/api-mcp-controller/types'
 import { RemoteError, type RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { McpSettingsSource, canRefreshTools } from '../src/client/source.ts'
 import { remoteFixture, snapshot, record, failure, serverId, streamHandle } from './fixture.client.ts'

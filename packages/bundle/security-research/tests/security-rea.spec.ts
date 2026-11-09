@@ -20,10 +20,10 @@ describe('security-research REA integration', () => {
     const { rows, warnings } = composedRows()
     const row = rows.find(item => item.id === 'security-rea')
     expect(row).toBeUndefined()
-    expect(rows.some(item => item.name === '@deepseek-ai/dsh-security-rea')).toBe(false)
+    expect(rows.some(item => item.name === '@cinlan/security-rea')).toBe(false)
     expect(warnings).toEqual([])
     const manifest = JSON.parse(readFileSync(new URL('package.json', bundleDir), 'utf8'))
-    expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-security-rea')
+    expect(manifest.dependencies).not.toHaveProperty('@cinlan/security-rea')
   })
 
   it('categorizes the effectful mcp__rea__* tools under the assessment-scope policy', () => {

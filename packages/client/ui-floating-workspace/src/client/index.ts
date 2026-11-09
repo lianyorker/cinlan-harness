@@ -9,7 +9,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import type {} from '@deepseek-ai/dsh-client-keyboard/client'
+import type {} from '@cinlan/client-keyboard/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { FloatingWorkspaceSettings, ToggleButtonPosition } from '../types.ts'
 import { FLOATING_WORKSPACE_NAMESPACE } from '../schema.ts'
@@ -26,7 +26,7 @@ export { Config } from '../config.ts'
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap { 'settings.floatingWorkspace': FloatingWorkspaceSettingsKey }
 }
-declare module '@deepseek-ai/dsh-client-keyboard/client' {
+declare module '@cinlan/client-keyboard/client' {
   interface KeyboardCommandMap { 'floatingWorkspace.toggle': { scope: 'shell' } }
 }
 declare module '@deepseek-ai/dsh-api-session-controller/client' {
@@ -34,7 +34,7 @@ declare module '@deepseek-ai/dsh-api-session-controller/client' {
 }
 
 /** Stable identity of the right-Sidebar tab body. */
-export const SIDEBAR_TAB_ID = '@deepseek-ai/dsh-client-ui-floating-workspace'
+export const SIDEBAR_TAB_ID = '@cinlan/client-ui-floating-workspace'
 
 /** Page kind the right-Sidebar opens for the pinned chat. */
 export const SIDEBAR_TAB_KIND = 'floatingWorkspace'

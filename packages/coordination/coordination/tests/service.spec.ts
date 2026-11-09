@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { CoordinationError, CoordinationService, RunId, TaskId } from '@deepseek-ai/dsh-coordination'
+import { CoordinationError, CoordinationService, RunId, TaskId } from '@cinlan/coordination'
 
 class StubCoordination extends CoordinationService {
   registerExecutor(): () => void { return () => {} }

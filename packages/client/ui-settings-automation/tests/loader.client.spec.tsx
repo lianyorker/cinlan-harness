@@ -31,7 +31,7 @@ async function load() {
   const config = join(root, 'cordis.yml')
   await writeFile(config, [
     '- id: slots', '  name: test-slots', '- id: host', '  name: test-host',
-    '- id: ui', "  name: '@deepseek-ai/dsh-client-ui-settings-automation'", '',
+    '- id: ui', "  name: '@cinlan/client-ui-settings-automation'", '',
   ].join('\n'))
   const ctx = new Context()
   contexts.push(ctx)
@@ -45,7 +45,7 @@ async function load() {
     context.provide('layout', { selectPanel } as never)
   } }
   const modules = new Map<string, unknown>([['test-slots', SlotRegistry], ['test-host', host],
-    ['@deepseek-ai/dsh-client-ui-settings-automation', plugin]])
+    ['@cinlan/client-ui-settings-automation', plugin]])
   ctx.baseUrl = pathToFileURL(root).href + '/'
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
@@ -100,7 +100,7 @@ describe('automation settings Loader composition', () => {
     await vi.waitFor(() => { expect(b.ctx.slots.entries('settings.section')).toHaveLength(1) })
     b.locale.setLocale('zh')
     expect(b.ctx.settingsMetadata.getSnapshot().items[0]?.title).toBe('任务计划')
-    const ui = [...b.ctx.loader.entries()].find(row => row.options.name === '@deepseek-ai/dsh-client-ui-settings-automation')!
+    const ui = [...b.ctx.loader.entries()].find(row => row.options.name === '@cinlan/client-ui-settings-automation')!
     await ui.fiber!.dispose()
     expect(b.ctx.settingsMetadata.getSnapshot().items).toEqual([])
     expect(b.ctx.slots.entries('settings.section')).toHaveLength(0)

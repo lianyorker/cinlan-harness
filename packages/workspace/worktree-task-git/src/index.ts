@@ -6,8 +6,8 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
-import { GIT_SETTINGS_NAMESPACE, GitSourceControlSettingsSchema } from '@deepseek-ai/dsh-git-settings/settings-schema'
-import type { GitSourceControlSettings } from '@deepseek-ai/dsh-git-settings/types'
+import { GIT_SETTINGS_NAMESPACE, GitSourceControlSettingsSchema } from '@cinlan/git-settings/settings-schema'
+import type { GitSourceControlSettings } from '@cinlan/git-settings/types'
 import type {} from '@deepseek-ai/dsh-settings'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -17,7 +17,7 @@ import {
   WorktreeTaskError,
   WorktreeTaskId,
   WorktreeTaskService,
-} from '@deepseek-ai/dsh-worktree-task'
+} from '@cinlan/worktree-task'
 import type {
   ActivateTaskRequest,
   ArchiveTaskRequest,
@@ -36,8 +36,8 @@ import type {
   WorktreeTaskCleanupReceipt,
   MergeTaskRequest,
   WorktreeTaskMergeResult,
-} from '@deepseek-ai/dsh-worktree-task'
-import type { WorktreeTaskId as WorktreeTaskIdType } from '@deepseek-ai/dsh-worktree-task/types'
+} from '@cinlan/worktree-task'
+import type { WorktreeTaskId as WorktreeTaskIdType } from '@cinlan/worktree-task/types'
 import { gitWorktreeTaskSpec, worktreeTaskDefaults } from './spec.ts'
 import type { GitWorktreeTaskRecord } from './spec.ts'
 

@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react'
 import { Button, Modal, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import type { McpConnectionState, McpRemoveRequest, McpSetEnabledRequest, McpServerRequest } from '@deepseek-ai/dsh-api-mcp-controller/types'
+import type { McpConnectionState, McpRemoveRequest, McpSetEnabledRequest, McpServerRequest } from '@cinlan/api-mcp-controller/types'
 import type { McpDraft } from './draft.ts'
 import type { createMcpSettingsStore } from './store.ts'
 import { canRefreshTools, type McpReadback } from './source.ts'
@@ -82,7 +82,7 @@ export function McpSettingsSection({
       onClose={() => { if (!pending) actions.confirmRemove(null) }}
       footer={<>
         <Button variant="outline" disabled={pending} onClick={() => { actions.confirmRemove(null) }}>{t('cancel')}</Button>
-        <Button variant="primary" disabled={disabled} onClick={() => { void remove(removing!) }}>{t('remove')}</Button>
+        <Button variant="primary" disabled={disabled} onClick={() => { if (removing !== null) void remove(removing) }}>{t('remove')}</Button>
       </>} />
     {snapshot !== null && snapshot.external.length > 0 && <section>
       <h2 className={css.label}>{t('external')}</h2><p className={css.help}>{t('externalHelp')}</p>

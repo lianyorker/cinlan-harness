@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { closeTopModal } from '@deepseek-ai/dsh-client-ui-primitives'
-import type {} from '@deepseek-ai/dsh-client-keyboard/client'
+import type {} from '@cinlan/client-keyboard/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
@@ -67,7 +67,7 @@ export function apply(ctx: Context): void {
             })),
           ])
         } catch (err: unknown) {
-          if ((err as any)?.code === 'INACTIVE_EFFECT') return
+          if ((err as { code?: string } | null)?.code === 'INACTIVE_EFFECT') return
           throw err
         }
       }

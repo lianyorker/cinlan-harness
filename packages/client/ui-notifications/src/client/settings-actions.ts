@@ -1,7 +1,7 @@
 /** Notification preference writes require Host acceptance and confirmed user values. */
 
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { NotificationSettings } from '@deepseek-ai/dsh-notifications/types'
+import type { NotificationSettings } from '@cinlan/notifications/types'
 import type { NotificationRuntimeFace } from './runtime.ts'
 
 const FIELDS = [

@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/knowledge/tool-knowledge-search/README.md
+/cinlan-tool-knowledge-search:
+  en: 47ab4f6433a32401
+  zh: cc5598f40cd45b93
+/cinlan-tool-knowledge-search/use-this-package:
+  en: 206f95576d977c30
+  zh: 7cb480993cbcb965
+/cinlan-tool-knowledge-search/config:
+  en: 68971e7cce567323
+  zh: ee0a03e72f8bef8d
+/cinlan-tool-knowledge-search/known-limitations-and-deferred-work:
+  en: 00a776f2988a7258
+  zh: 8d15c94bff3b5a57

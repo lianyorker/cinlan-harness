@@ -3,7 +3,7 @@
  *
  * Counts here describe the provider's own request quota. They are never LLM
  * token usage, and the probes read no credential material.
- * @module @deepseek-ai/dsh-api-integration-preflight-controller/budget
+ * @module @cinlan/api-integration-preflight-controller/budget
  */
 
 import type { IntegrationProvider } from './types.ts'

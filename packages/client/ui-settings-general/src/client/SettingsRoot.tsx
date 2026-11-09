@@ -266,46 +266,6 @@ function SettingsPage({ rows, narrow, renderSlot, activeId, onSelect, onClose, r
               </div>
             </div>
           </div>
-  // Portalled beside #root like the Modal primitive: a covering surface mounted
-  // inside the root would precede the columns' chrome in document order, so a
-  // chrome row that declares window drag after it would override its subtraction.
-  // Beside the root, base.css's `body > :not(#root)` rule subtracts it instead.
-  return createPortal((
-    <div className={css.overlay} role="presentation">
-      <div className={css.mask} aria-hidden="true" onClick={onClose} />
-      <div ref={panel} tabIndex={-1} data-shortcut-modal="settings" className={css.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        {/* The four seats stay direct children of the panel and take their
-            places from its grid: title and header share the first row, the
-            navigation and the active section the second. */}
-        <div className={css.navTitle} id={titleId} tabIndex={-1}
-          data-modal-autofocus={active === undefined ? '' : undefined}>{renderSlot('settings.header', {})}</div>
-        <nav className={css.nav}>
-          <div className={css.navList}>
-            {rows.map(row => (
-              <button
-                key={row.id}
-                type="button"
-                className={clsx(css.navCell, row.id === active && css.active)}
-                aria-current={row.id === active ? 'true' : undefined}
-                data-modal-autofocus={row.id === active ? '' : undefined}
-                onFocus={(event) => { event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }}
-                onClick={() => { onSelect(row.id) }}
-              >
-                {navIcon(row.id)}
-                <span className={css.navLabel}>{row.label}</span>
-              </button>
-            ))}
-          </div>
-        </nav>
-        <div className={css.header}>
-          <div className={css.actions}>{renderSlot('settings.action', {})}</div>
-          <button type="button" className={css.close} onClick={onClose}>
-            <IconCloseOutlineRegular size={14} />
-            <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
-          </button>
-        </div>
-        <div className={css.options}>
-          {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
         </div>
       </div>
     </section>,
@@ -322,10 +282,15 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   const { wide, useSections, useOnboardingSteps, useNarrowViewport, useSessions, renderSlot, t } = props
   const [localOpen, setLocalOpen] = useState(false)
   const [localActiveId, setLocalActiveId] = useState<string | undefined>(undefined)
-  const storeState = (props as any).useStore ? (props as any).useStore((s: any) => s) : undefined
+  type SettingsRootStoreState = { open: boolean; activeId: string | undefined }
+  const storeProps = props as Partial<{
+    useStore: (selector: (state: unknown) => SettingsRootStoreState) => SettingsRootStoreState
+    actions: unknown
+  }>
+  const storeState = storeProps.useStore !== undefined ? storeProps.useStore(state => state) : undefined
   const open = storeState !== undefined ? storeState.open : localOpen
   const activeId = storeState !== undefined ? storeState.activeId : localActiveId
-  const actions = (props as any).actions
+  const actions = storeProps.actions
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const restoreFocus = useCallback(() => { triggerRef.current?.focus() }, [])

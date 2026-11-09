@@ -6,8 +6,8 @@ import { Context } from '@deepseek-ai/cordis'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import type { WorkItem, WorkItemsProvider } from '@deepseek-ai/dsh-work-items/types'
-import WorkItemsRuntime, { WorkItemId } from '@deepseek-ai/dsh-work-items'
+import type { WorkItem, WorkItemsProvider } from '@cinlan/work-items/types'
+import WorkItemsRuntime, { WorkItemId } from '@cinlan/work-items'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -58,7 +58,7 @@ describe('dsh-tool-work-items through a real cordis.yml Loader composition', () 
     root = await mkdtemp(join(tmpdir(), 'dsh-tool-work-items-loader-'))
     const configPath = join(root, 'cordis.yml')
     await writeFile(configPath, [
-      "- name: '@deepseek-ai/dsh-work-items'",
+      "- name: '@cinlan/work-items'",
       "- name: '@deepseek-ai/dsh-test-work-items-provider'",
       "- name: '@deepseek-ai/dsh-system-prompt'",
       "- name: '@deepseek-ai/dsh-tools'",
@@ -73,7 +73,7 @@ describe('dsh-tool-work-items through a real cordis.yml Loader composition', () 
     await context.plugin(Loader)
     context.loader.builtins.include = Include
     const modules = new Map<string, unknown>([
-      ['@deepseek-ai/dsh-work-items', WorkItemsRuntime],
+      ['@cinlan/work-items', WorkItemsRuntime],
       ['@deepseek-ai/dsh-test-work-items-provider', TestProvider],
       ['@deepseek-ai/dsh-system-prompt', SystemPrompt],
       ['@deepseek-ai/dsh-tools', ToolRuntime],

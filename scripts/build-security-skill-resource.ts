@@ -4,9 +4,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { zipSync, type Zippable } from 'fflate'
-import { assertResourcePath, collectResourceInventory, compareResourcePaths, resourceContentSha256, type ResourceFile, type ResourceSkill } from '@deepseek-ai/dsh-security-skills/resource-inventory'
+import { assertResourcePath, collectResourceInventory, compareResourcePaths, resourceContentSha256, type ResourceFile, type ResourceSkill } from '@cinlan/security-skills/resource-inventory'
 
-export { assertResourcePath, collectResourceInventory } from '@deepseek-ai/dsh-security-skills/resource-inventory'
+export { assertResourcePath, collectResourceInventory } from '@cinlan/security-skills/resource-inventory'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SOURCE = 'packages/security/security-skills/assets/skills'

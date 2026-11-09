@@ -47,13 +47,13 @@ async function bench() {
     { name: '@deepseek-ai/dsh-storage' },
     { name: '@deepseek-ai/dsh-storage-json', config: { root: join(root, 'storage') } },
     { name: '@deepseek-ai/dsh-storage-domain', config: { backend: 'json' } },
-    { name: '@deepseek-ai/dsh-terminal-quick-commands' },
+    { name: '@cinlan/terminal-quick-commands' },
   ]
   await load(ctx, join(root, 'registry'), rows, new Map<string, unknown>([
     ['@deepseek-ai/dsh-storage', Storage],
     ['@deepseek-ai/dsh-storage-json', StorageJson],
     ['@deepseek-ai/dsh-storage-domain', StorageDomain],
-    ['@deepseek-ai/dsh-terminal-quick-commands', TerminalQuickCommands],
+    ['@cinlan/terminal-quick-commands', TerminalQuickCommands],
   ]))
   return ctx.terminalQuickCommands
 }

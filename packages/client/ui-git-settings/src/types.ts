@@ -5,4 +5,4 @@ export type {
   SourceControlAiActionId,
   SourceControlAiActionRecipe,
   SourceControlAiSettings,
-} from '@deepseek-ai/dsh-git-settings/types'
+} from '@cinlan/git-settings/types'

@@ -2,7 +2,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as GitLabPlugin from '../src/index.ts'
 import { GitLabWorkItemsProvider, GITLAB_API_ORIGIN, resolveGitLabWorkItemsConfig } from '../src/index.ts'
-import WorkItemsRuntime, { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
+import WorkItemsRuntime, { WorkItemId, WorkItemsError } from '@cinlan/work-items'
 
 const calls: { url: string; init?: RequestInit }[] = []
 function record(url: string, init: RequestInit | undefined): void { calls.push({ url, ...(init === undefined ? {} : { init }) }) }

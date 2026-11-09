@@ -19,5 +19,5 @@ export type {
   McpHeaderReference, McpServerCommon, McpStdioServer, McpHttpServer, McpServerInput, McpServerRecord,
   McpManagedServerView, McpExternalServerView, McpManagementSnapshot, McpSaveRequest, McpSaveResult, McpRemoveRequest,
   McpSetEnabledRequest, McpServerRequest, McpManagementErrorCode,
-} from '@deepseek-ai/dsh-mcp-management/types'
+} from '@cinlan/mcp-management/types'
 export type { McpServerId, McpConnectionSnapshot, McpConnectionState, McpToolDescriptor } from '@deepseek-ai/dsh-mcp-client/types'

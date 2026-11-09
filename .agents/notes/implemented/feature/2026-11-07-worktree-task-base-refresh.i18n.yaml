@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-07-worktree-task-base-refresh.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-07-worktree-task-base-refresh.md
+/agent-note-worktree-task-base-refresh-preference:
+  en: a2f9c4f2cfe908e2
+  zh: ffe60d9bb3ad0d18
+/agent-note-worktree-task-base-refresh-preference/problem:
+  en: d8518545b8e04294
+  zh: 4a915cbe92a02937
+/agent-note-worktree-task-base-refresh-preference/decision:
+  en: 5de733dabcaf0205
+  zh: a3138df1173332c2
+/agent-note-worktree-task-base-refresh-preference/alternatives-considered:
+  en: ee81f6ce424d56e0
+  zh: 81776293e6708ab0
+/agent-note-worktree-task-base-refresh-preference/consequences:
+  en: a70b08d62cfdd95c
+  zh: 555e541ad66ed8dc
+/agent-note-worktree-task-base-refresh-preference/verification:
+  en: 3bd899c53a418b38
+  zh: 486984c76ebef694

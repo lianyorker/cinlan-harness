@@ -15,9 +15,9 @@ import Storage from '@deepseek-ai/dsh-storage'
 import * as StorageJson from '@deepseek-ai/dsh-storage-json'
 import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
 import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
-import LocalExecutionHost from '@deepseek-ai/dsh-execution-host-local'
-import ExecutionHostTargets from '@deepseek-ai/dsh-execution-host-targets'
-import type { Config as TargetsConfig } from '@deepseek-ai/dsh-execution-host-targets'
+import LocalExecutionHost from '@cinlan/execution-host-local'
+import ExecutionHostTargets from '@cinlan/execution-host-targets'
+import type { Config as TargetsConfig } from '@cinlan/execution-host-targets'
 import LocalCredentials from '@deepseek-ai/dsh-credentials-local'
 import * as Connection from '@deepseek-ai/dsh-client-connection'
 import type { HostConnectionHandle, ServerResponse } from '@deepseek-ai/dsh-client-connection'
@@ -30,9 +30,9 @@ import ExecutionHostController from '../src/index.ts'
 import type { ListTargetsValue } from '../src/types.ts'
 
 const MANAGEMENT_NAMES = [
-  '@deepseek-ai/dsh-execution-host-local',
-  '@deepseek-ai/dsh-execution-host-targets',
-  '@deepseek-ai/dsh-api-execution-host-controller',
+  '@cinlan/execution-host-local',
+  '@cinlan/execution-host-targets',
+  '@cinlan/api-execution-host-controller',
 ] as const
 
 function rawText(data: RawData): string {
@@ -76,7 +76,7 @@ export async function createHarness(targetConfig: Partial<TargetsConfig> = {}, p
     { name: '@deepseek-ai/dsh-storage-json', config: { root: join(root, 'storage') } },
     { name: '@deepseek-ai/dsh-storage-domain', config: { backend: 'json' } },
     { name: '@deepseek-ai/dsh-subprocess-local' },
-    ...managementRows.map(row => row.name === '@deepseek-ai/dsh-execution-host-targets'
+    ...managementRows.map(row => row.name === '@cinlan/execution-host-targets'
       ? { ...row, config: { sshExecutable: join(root, 'absent-ssh'), ...targetConfig } } : row),
     { name: '@deepseek-ai/dsh-credentials-local', config: { path: join(root, 'credentials.yaml'), watch: false } },
     { name: '@deepseek-ai/dsh-client-connection' },
@@ -93,14 +93,14 @@ export async function createHarness(targetConfig: Partial<TargetsConfig> = {}, p
     ['@deepseek-ai/dsh-storage-json', StorageJson],
     ['@deepseek-ai/dsh-storage-domain', StorageDomain],
     ['@deepseek-ai/dsh-subprocess-local', LocalSubprocess],
-    ['@deepseek-ai/dsh-execution-host-local', LocalExecutionHost],
-    ['@deepseek-ai/dsh-execution-host-targets', ExecutionHostTargets],
+    ['@cinlan/execution-host-local', LocalExecutionHost],
+    ['@cinlan/execution-host-targets', ExecutionHostTargets],
     ['@deepseek-ai/dsh-credentials-local', LocalCredentials],
     ['@deepseek-ai/dsh-client-connection', Connection],
     ['@deepseek-ai/dsh-typert-registry', TypertRegistry],
     ['@deepseek-ai/dsh-api-gateway', TypertGateway],
     ['@deepseek-ai/dsh-api-remote-access', RemoteAccess],
-    ['@deepseek-ai/dsh-api-execution-host-controller', ExecutionHostController],
+    ['@cinlan/api-execution-host-controller', ExecutionHostController],
   ])
   ctx.loader.internal = {
     version: 'v2',

@@ -1,7 +1,7 @@
 /** Pure mapping between the target form, saved records and OpenSSH import entries. */
 import type {
   CreateTargetRequest, SshConfigHost, SshConnection, TargetView,
-} from '@deepseek-ai/dsh-api-execution-host-controller/types'
+} from '@cinlan/api-execution-host-controller/types'
 import type { HostsKey } from './locales.ts'
 import type { TargetDraft } from './types.ts'
 

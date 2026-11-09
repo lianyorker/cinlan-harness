@@ -10,7 +10,7 @@ import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import type { AppReady } from '@deepseek-ai/dsh-cmdline'
-import ExecutionHostLocal from '@deepseek-ai/dsh-execution-host-local'
+import ExecutionHostLocal from '@cinlan/execution-host-local'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import * as Worker from '../src/index.ts'
@@ -77,7 +77,7 @@ export async function createHarness(config: WorkerConfig = {}, options: { deferR
     await mkdir(outside)
     const deployment = { roots: [{ id: 'project', label: 'Project', path: root }], ...config }
     await writeFile(join(directory, 'cordis.yml'), [
-      '- name: "@deepseek-ai/dsh-execution-host-local"',
+      '- name: "@cinlan/execution-host-local"',
       '- name: "@deepseek-ai/dsh-fs-local"',
       '- name: "@deepseek-ai/dsh-subprocess-local"',
       '- name: "@deepseek-ai/dsh-execution-host-worker"',
@@ -88,7 +88,7 @@ export async function createHarness(config: WorkerConfig = {}, options: { deferR
     await ctx.plugin(Loader)
     ctx.loader.builtins.include = Include
     const modules = new Map<string, unknown>([
-      ['@deepseek-ai/dsh-execution-host-local', ExecutionHostLocal],
+      ['@cinlan/execution-host-local', ExecutionHostLocal],
       ['@deepseek-ai/dsh-fs-local', LocalFileSystem],
       ['@deepseek-ai/dsh-subprocess-local', LocalSubprocessRuntime],
       ['@deepseek-ai/dsh-execution-host-worker', {

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
-import { SidebarGitError } from '@deepseek-ai/dsh-sidebar-git'
+import { SidebarGitError } from '@cinlan/sidebar-git'
 import SidebarGitController from '../src/index.ts'
 import { cleanup, fixtureGit, harness } from '../../../git/sidebar-git/tests/fixture.ts'
 
@@ -11,7 +11,7 @@ afterEach(cleanup, 90_000)
 
 const extra = [
   { name: '@deepseek-ai/dsh-typert-registry', module: TypertRegistry },
-  { name: '@deepseek-ai/dsh-api-sidebar-git-controller', module: SidebarGitController },
+  { name: '@cinlan/api-sidebar-git-controller', module: SidebarGitController },
 ]
 
 describe('sidebar Git controller through real Loader composition', { timeout: 90_000 }, () => {

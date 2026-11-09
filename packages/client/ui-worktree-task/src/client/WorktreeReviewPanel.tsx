@@ -1,7 +1,7 @@
 /** Read-only task review with captured programs and durable cleanup settlement. */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { WorktreeTaskReview, WorktreeTaskView } from '@deepseek-ai/dsh-api-worktree-task-controller/types'
+import type { WorktreeTaskReview, WorktreeTaskView } from '@cinlan/api-worktree-task-controller/types'
 import type { WorktreeTaskSectionInjected, WorktreeTaskSectionProps } from './WorktreeTaskSection.tsx'
 import css from './WorktreeTaskSection.module.css'
 

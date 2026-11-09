@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-31-worktree-task-parent-links-in-fork-domain.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-31-worktree-task-parent-links-in-fork-domain.md
+/agent-note-worktree-task-parent-links-live-in-the-fork-domain-not-the-official-workspacerecord:
+  en: 951a50dafb55cd03
+  zh: 954ae01bd3172546
+/agent-note-worktree-task-parent-links-live-in-the-fork-domain-not-the-official-workspacerecord/problem:
+  en: d36d3c44bf25c97f
+  zh: e5c34a095a08d5ae
+/agent-note-worktree-task-parent-links-live-in-the-fork-domain-not-the-official-workspacerecord/decision:
+  en: 96e2886827568115
+  zh: 5ad67daf2f845dea
+/agent-note-worktree-task-parent-links-live-in-the-fork-domain-not-the-official-workspacerecord/alternatives-considered:
+  en: a5b52b9487fc98ea
+  zh: d262b3269b20087e
+/agent-note-worktree-task-parent-links-live-in-the-fork-domain-not-the-official-workspacerecord/consequences:
+  en: 84896cbd06aa99e0
+  zh: 2549b0ee5ab82500

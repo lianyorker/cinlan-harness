@@ -1,7 +1,7 @@
 /** Editable rows for commands registered with the keyboard service. */
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { focusWithoutRing } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { EffectiveKeyboardCommand, KeyboardService, KeyboardWriteResult } from '@deepseek-ai/dsh-client-keyboard/client'
+import type { EffectiveKeyboardCommand, KeyboardService, KeyboardWriteResult } from '@cinlan/client-keyboard/client'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import { ShortcutIcon } from './Icons.tsx'
 import css from './Reference.module.css'
@@ -69,7 +69,6 @@ export function KeyboardCommands({ commands, writable, hasOverrides, captureKey,
     const facts = {
       key: event.key, ctrlKey: event.ctrlKey, shiftKey: event.shiftKey, altKey: event.altKey, metaKey: event.metaKey,
       isComposing: native.isComposing, repeat: event.repeat, defaultPrevented: event.defaultPrevented,
-      // oxlint-disable-next-line typescript/no-deprecated
       keyCode: native.keyCode, altGraph: event.getModifierState('AltGraph'),
     }
     if (facts.isComposing || facts.keyCode === 229 || facts.altGraph) return

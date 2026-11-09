@@ -1,7 +1,7 @@
 /** Shared callbacks for feature-owned capability settings registrations. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ChangeResult, PluginEntryId, PluginInfo, SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
-import type {} from '@deepseek-ai/dsh-api-device-capabilities-controller/remote'
+import type {} from '@cinlan/api-device-capabilities-controller/remote'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { CapabilitySectionProps, MobileSectionInjected } from './CapabilitySection.tsx'
 

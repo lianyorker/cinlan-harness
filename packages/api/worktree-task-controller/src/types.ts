@@ -1,13 +1,13 @@
 /** Browser-safe requests and projections for Worktree Task management. */
 
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { WorktreeTaskId, WorktreeTaskStatus, WorktreeTaskCleanupReceipt } from '@deepseek-ai/dsh-worktree-task/types'
+import type { WorktreeTaskId, WorktreeTaskStatus, WorktreeTaskCleanupReceipt } from '@cinlan/worktree-task/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 
 export type {
   WorktreeTaskId, WorktreeTaskHook, WorktreeTaskDefaults, WorktreeTaskSettings,
   UpdateWorktreeTaskSettingsRequest, WorktreeTaskReview, WorktreeTaskCleanupReceipt,
-} from '@deepseek-ai/dsh-worktree-task/types'
+} from '@cinlan/worktree-task/types'
 
 /** Detached JSON projection of one Worktree Task. */
 export interface WorktreeTaskView {

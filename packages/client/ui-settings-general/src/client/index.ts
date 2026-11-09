@@ -70,7 +70,7 @@ const NS = 'settings'
  * ui-settings' apply, whose activation order relative to this one is NOT
  * constrained; registrations depend on their slots through `slots.inject()`.
  */
-  export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settings', 'configForms', 'shortcuts', 'modules', 'remoteAccess', 'settingsScope', 'settingsMetadata']
+export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settings', 'configForms', 'shortcuts', 'modules', 'remoteAccess', 'settingsScope', 'settingsMetadata']
 
 /**
  * Register the `settings` dictionaries, the chrome content, and the General
@@ -202,7 +202,7 @@ export function apply(ctx: ClientContext): void {
         subscribe: listener => ctx.slots.subscribe('settings.onboarding', listener),
       },
     },
-  })
+  }
   // The settings shell reads this host's configuration, so it follows access to its description.
   ctx.remoteAccess.whenAccess('settings/describe', () =>
     ctx.slots.inject('sidebar.settings', () => {
@@ -239,7 +239,7 @@ export function apply(ctx: ClientContext): void {
           'settings.action': { kind: 'list', scope: 'root' },
           'settings.close': { kind: 'single', scope: 'root' },
           'settings.section': { kind: 'list', scope: 'root' },
-            'settings.section.icon': { kind: 'keyed', scope: 'root' },
+          'settings.section.icon': { kind: 'keyed', scope: 'root' },
           'settings.onboarding': { kind: 'list', scope: 'root' },
         },
         inject: shellInjected,
@@ -277,7 +277,6 @@ export function apply(ctx: ClientContext): void {
       children: { 'settings.general.item': { kind: 'list', scope: 'root' } },
     }, GeneralSection)
   })
-  }, GeneralSection))
   // The page's module system applies no plugin update from another Host release; this dialog offers the reload.
   const releasePromptInjected = (): HostReleasePromptInjected => ({
     dismissRelease: () => { ctx.modules.entries.dismissRelease() },

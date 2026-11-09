@@ -17,7 +17,7 @@
 - id: locale
   name: '@deepseek-ai/dsh-client-locale'
 - id: keyboard
-  name: '@deepseek-ai/dsh-client-keyboard'
+  name: '@cinlan/client-keyboard'
 - id: theme
   name: '@deepseek-ai/dsh-client-ui-theme'
 - id: renderer

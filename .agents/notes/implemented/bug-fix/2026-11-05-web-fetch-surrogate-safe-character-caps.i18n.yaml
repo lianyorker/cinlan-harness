@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-05-web-fetch-surrogate-safe-character-caps.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-05-web-fetch-surrogate-safe-character-caps.md
+/agent-note-web-fetch-character-cap-boundary-safety:
+  en: 45a08d81dbc6e675
+  zh: ab84fb3c2699295a
+/agent-note-web-fetch-character-cap-boundary-safety/problem:
+  en: 8b2126eeff3baff7
+  zh: 0c5777faa7d7ac3e
+/agent-note-web-fetch-character-cap-boundary-safety/decision:
+  en: d43aac7702c11294
+  zh: 87b7a32c2b298fdf
+/agent-note-web-fetch-character-cap-boundary-safety/alternatives-considered:
+  en: 98adb59b20aac9cb
+  zh: 077020b1545310eb
+/agent-note-web-fetch-character-cap-boundary-safety/consequences:
+  en: e81bdc595af10237
+  zh: b861e5a19385ad52
+/agent-note-web-fetch-character-cap-boundary-safety/testing:
+  en: 5f753dd7884684d2
+  zh: d502ab42b983907b

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button, Input, Switch, fileSizeText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
-import { DEFAULT_SOURCE_CONTROL_AI_SETTINGS } from '@deepseek-ai/dsh-git-settings/ai-author'
+import { DEFAULT_SOURCE_CONTROL_AI_SETTINGS } from '@cinlan/git-settings/ai-author'
 import type {
   GitSourceControlSettings,
   BranchPrefixMode,

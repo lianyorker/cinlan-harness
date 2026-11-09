@@ -10,11 +10,11 @@ import * as ClientApi from '@deepseek-ai/dsh-api-gateway/client'
 import { z } from 'zod'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
-import { McpSettingsSource } from '@deepseek-ai/dsh-client-ui-settings-mcp/src/client/source.ts'
-import { McpSettingsSection, type McpSettingsSectionProps } from '@deepseek-ai/dsh-client-ui-settings-mcp/src/client/McpSettingsSection.tsx'
-import { createMcpSettingsStore } from '@deepseek-ai/dsh-client-ui-settings-mcp/src/client/store.ts'
-import { draftRequest } from '@deepseek-ai/dsh-client-ui-settings-mcp/src/client/draft.ts'
-import { en, zh } from '@deepseek-ai/dsh-client-ui-settings-mcp/src/client/locales.ts'
+import { McpSettingsSource } from '@cinlan/client-ui-settings-mcp/src/client/source.ts'
+import { McpSettingsSection, type McpSettingsSectionProps } from '@cinlan/client-ui-settings-mcp/src/client/McpSettingsSection.tsx'
+import { createMcpSettingsStore } from '@cinlan/client-ui-settings-mcp/src/client/store.ts'
+import { draftRequest } from '@cinlan/client-ui-settings-mcp/src/client/draft.ts'
+import { en, zh } from '@cinlan/client-ui-settings-mcp/src/client/locales.ts'
 import { startHttpMcpFixture } from '../../../mcp/mcp-client/tests/http-fixture.ts'
 import { bootFixture } from '../../../mcp/mcp-management/tests/harness.ts'
 import McpController from '../src/index.ts'
@@ -63,7 +63,7 @@ describe('MCP Remote to native Settings', () => {
     // Live markers own endpoint names; the fixture carries request objects to Host validation.
     const requestCodec = { mode: 'strict', typeSymbol: '@fixture/mcp#Request', schema: z.record(z.string(), z.unknown()) } as const
     const descriptors: InvocationDescriptor[] = remoteMethods(ctx.mcpController).map(marker => ({
-      id: '@deepseek-ai/dsh-api-mcp-controller#mcp/' + marker.method,
+      id: '@cinlan/api-mcp-controller#mcp/' + marker.method,
       service: 'mcpController', namespace: 'mcp', method: marker.exportName ?? marker.method,
       invocation: { kind: 'direct' }, ...marker.mode === undefined ? {} : { mode: marker.mode },
       parameters: marker.method === 'snapshot' || marker.mode === 'stream' ? []
@@ -71,7 +71,7 @@ describe('MCP Remote to native Settings', () => {
       ...marker.mode === 'stream' || marker.method === 'probe' ? { cancellation: { parameter: 'signal' } } : {},
       result: { mode: 'src-json' },
     }))
-    const unmount = await client.remote.$mount({ package: '@deepseek-ai/dsh-api-mcp-controller', descriptors })
+    const unmount = await client.remote.$mount({ package: '@cinlan/api-mcp-controller', descriptors })
     expect(typeof client.remote.mcp.removeServer).toBe('function')
     const source = new McpSettingsSource(client.remote.mcp)
     onTestFinished(async () => { await source.dispose() })

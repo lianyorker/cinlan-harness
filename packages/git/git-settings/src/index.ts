@@ -9,7 +9,7 @@ export * from './types.ts'
 export * from './ai-author.ts'
 
 /** Cordis plugin identity. */
-export const name = '@deepseek-ai/dsh-git-settings'
+export const name = '@cinlan/git-settings'
 
 /** The existing settings provider owns persistence and registration disposal. */
 export const inject = ['settings']

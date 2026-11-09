@@ -2,7 +2,7 @@
 
 - insert:
     - id: execution-host
-      name: '@deepseek-ai/dsh-execution-host-local'
+      name: '@cinlan/execution-host-local'
 
     - id: fs
       name: '@deepseek-ai/dsh-fs-local'

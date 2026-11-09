@@ -10,7 +10,7 @@ import Loader, { type ModuleLoaderV2 } from '@deepseek-ai/cordis-plugin-loader'
 import { profileComposition } from '../../../settings/settings/tests/profile-composition.ts'
 import ConfigEditor from '@deepseek-ai/dsh-config-editor'
 import Settings from '../../../settings/settings/src/index.ts'
-import * as Page from '@deepseek-ai/dsh-client-ui-notifications'
+import * as Page from '@cinlan/client-ui-notifications'
 import * as Notifications from '../src/index.ts'
 
 interface PatchRow {
@@ -27,12 +27,12 @@ it('persists quiet hours through profile edits and preserves entry ownership lif
   const baseFile = join(root, 'bundle.yml')
   await writeFile(baseFile, [
     '- id: notifications',
-    "  name: '@deepseek-ai/dsh-notifications'",
+    "  name: '@cinlan/notifications'",
     '  config:',
     '    enabled: true',
     '    sound: pop',
     '- id: page',
-    "  name: '@deepseek-ai/dsh-client-ui-notifications'",
+    "  name: '@cinlan/client-ui-notifications'",
     '',
   ].join('\n'))
   const ctx = new Context()
@@ -41,8 +41,8 @@ it('persists quiet hours through profile edits and preserves entry ownership lif
   ctx.loader.builtins.editor = ConfigEditor
   ctx.loader.builtins.settings = Settings
   const modules = new Map<string, unknown>([
-    ['@deepseek-ai/dsh-notifications', Notifications],
-    ['@deepseek-ai/dsh-client-ui-notifications', Page],
+    ['@cinlan/notifications', Notifications],
+    ['@cinlan/client-ui-notifications', Page],
   ])
   ctx.loader.internal = {
     version: 'v2', loadCache: new Map(),

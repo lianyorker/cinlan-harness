@@ -11,10 +11,10 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import SessionQuery from '@deepseek-ai/dsh-session-query-sqlite'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import ExecutionBindings from '@deepseek-ai/dsh-execution-binding'
-import * as gitSettings from '@deepseek-ai/dsh-git-settings'
-import { GIT_SETTINGS_NAMESPACE, GitSourceControlSettingsSchema } from '@deepseek-ai/dsh-git-settings/settings-schema'
-import type { GitSourceControlSettings } from '@deepseek-ai/dsh-git-settings/types'
+import ExecutionBindings from '@cinlan/execution-binding'
+import * as gitSettings from '@cinlan/git-settings'
+import { GIT_SETTINGS_NAMESPACE, GitSourceControlSettingsSchema } from '@cinlan/git-settings/settings-schema'
+import type { GitSourceControlSettings } from '@cinlan/git-settings/types'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import type { SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import SidebarGit from '../src/index.ts'
@@ -105,16 +105,16 @@ export async function harness(
     { id: 'projections', name: 'session-projections' },
     { id: 'bindings', name: 'execution-bindings' },
     { id: 'settings', name: 'test-settings' },
-    { id: 'git-settings', name: '@deepseek-ai/dsh-git-settings' },
+    { id: 'git-settings', name: '@cinlan/git-settings' },
     { id: 'subprocess', name: 'test-subprocess', config: { globalConfig } },
-    { id: 'sidebar-git', name: '@deepseek-ai/dsh-sidebar-git', config: options.config ?? {} },
+    { id: 'sidebar-git', name: '@cinlan/sidebar-git', config: options.config ?? {} },
     ...(options.extra ?? []).map(entry => ({ name: entry.name, config: entry.config })),
   ]))
   const modules = new Map<string, unknown>([
     ['session-query', SessionQuery], ['session-projections', SessionProjectionRegistry],
     ['execution-bindings', LocalBindings],
     ['@deepseek-ai/dsh-session', SessionStore], ['test-settings', mockSettings],
-    ['@deepseek-ai/dsh-git-settings', gitSettings], ['test-subprocess', HermeticSubprocess], ['@deepseek-ai/dsh-sidebar-git', SidebarGit],
+    ['@cinlan/git-settings', gitSettings], ['test-subprocess', HermeticSubprocess], ['@cinlan/sidebar-git', SidebarGit],
   ])
   for (const entry of options.extra ?? []) modules.set(entry.name, entry.module)
   const ctx = new Context()

@@ -1,7 +1,7 @@
 /** Terminal quick-commands Remote adapter; the carrier authorizes callers. */
 import type { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
-import type {} from '@deepseek-ai/dsh-terminal-quick-commands'
+import type {} from '@cinlan/terminal-quick-commands'
 import type {
   QuickCommandCreateRequest, QuickCommandHostList, QuickCommandListRequest, QuickCommandFailure,
   QuickCommandRemoveRequest, QuickCommandUpdateRequest, QuickCommandWireResult,

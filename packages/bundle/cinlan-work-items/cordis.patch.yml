@@ -1,7 +1,7 @@
 # Apply after dsh-base and dsh-web-app. Providers stay unavailable until scoped.
 - insert:
     - id: work-items
-      name: '@deepseek-ai/dsh-work-items'
+      name: '@cinlan/work-items'
     - id: work-items-github
       name: '@deepseek-ai/dsh-work-items-github'
       config:

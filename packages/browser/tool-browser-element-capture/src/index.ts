@@ -17,7 +17,7 @@ import {
   BrowserPageId,
 } from '@deepseek-ai/dsh-browser'
 import type { BrowserElementCaptureTarget, BrowserScreenshotFormat } from '@deepseek-ai/dsh-browser'
-import { TaskId } from '@deepseek-ai/dsh-coordination'
+import { TaskId } from '@cinlan/coordination'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 
@@ -82,7 +82,6 @@ export function resolveBrowserElementCaptureConfig(config: Config = {}): Resolve
     throw new Error(`tool-browser-element-capture: timeoutMs must be a positive safe integer no greater than ${MAX_TIMER_DELAY_MS}`)
   }
   const screenshotFormat = config.screenshotFormat ?? DEFAULT_FORMAT
-  // oxlint-disable-next-line typescript/no-unnecessary-condition -- direct JavaScript and parsed config cross a runtime boundary.
   if (screenshotFormat !== 'png' && screenshotFormat !== 'jpeg') {
     throw new Error('tool-browser-element-capture: screenshotFormat must be "png" or "jpeg"')
   }

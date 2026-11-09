@@ -8,9 +8,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
-import * as gitSettings from '@deepseek-ai/dsh-git-settings'
-import { GIT_SETTINGS_NAMESPACE } from '@deepseek-ai/dsh-git-settings/settings-schema'
-import type { GitSourceControlSettings } from '@deepseek-ai/dsh-git-settings/types'
+import * as gitSettings from '@cinlan/git-settings'
+import { GIT_SETTINGS_NAMESPACE } from '@cinlan/git-settings/settings-schema'
+import type { GitSourceControlSettings } from '@cinlan/git-settings/types'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
@@ -19,7 +19,7 @@ import * as storageJson from '@deepseek-ai/dsh-storage-json'
 import * as storageSqlite from '@deepseek-ai/dsh-storage-sqlite'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import { WorkspaceId } from '@deepseek-ai/dsh-workspace'
-import { WorktreeTaskError } from '@deepseek-ai/dsh-worktree-task'
+import { WorktreeTaskError } from '@cinlan/worktree-task'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import GitWorktreeTask from '../src/index.ts'
 import { gitWorktreeTaskSpec } from '../src/spec.ts'
@@ -123,8 +123,8 @@ async function harness(options: {
         } as never)
       },
     }],
-    ['@deepseek-ai/dsh-git-settings', gitSettings],
-    ['@deepseek-ai/dsh-worktree-task-git', GitWorktreeTask],
+    ['@cinlan/git-settings', gitSettings],
+    ['@cinlan/worktree-task-git', GitWorktreeTask],
   ])
   const configPath = join(fixtureRoot, 'cordis.yml')
   await writeFile(configPath, JSON.stringify([
@@ -137,9 +137,9 @@ async function harness(options: {
     { id: 'subprocess', name: '@deepseek-ai/dsh-subprocess-local' },
     ...options.preferences === undefined ? [] : [
       { id: 'settings', name: '@deepseek-ai/dsh-settings', config: { path: settingsPath, watch: false } },
-      ...options.registerPreferences === false ? [] : [{ id: 'git-settings', name: '@deepseek-ai/dsh-git-settings' }],
+      ...options.registerPreferences === false ? [] : [{ id: 'git-settings', name: '@cinlan/git-settings' }],
     ],
-    { id: 'tasks', name: '@deepseek-ai/dsh-worktree-task-git', config: {
+    { id: 'tasks', name: '@cinlan/worktree-task-git', config: {
       root: paths.managed, maxActiveCheckouts: options.maxActiveCheckouts ?? 4, commandTimeoutMs: 30_000,
       ...options.maxOutputBytes === undefined ? {} : { maxOutputBytes: options.maxOutputBytes },
     } },
@@ -1152,5 +1152,5 @@ describe('GitWorktreeTask', { timeout: 90_000 }, () => {
 })
 
 function WorktreeTaskIdLike(value: string) {
-  return value as unknown as ReturnType<typeof import('@deepseek-ai/dsh-worktree-task').WorktreeTaskId>
+  return value as unknown as ReturnType<typeof import('@cinlan/worktree-task').WorktreeTaskId>
 }

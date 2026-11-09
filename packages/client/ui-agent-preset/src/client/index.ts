@@ -75,8 +75,6 @@ export function apply(ctx: ClientContext): void {
   const presetSettings = ctx.configForms.get(AGENT_PRESET_SETTINGS_NS)
   let active = true
   // Host preferences start at false before their first accepted document.
-  const codingToolsDisabled = (): boolean => active && toolsSettings.getSnapshot().mode === 'host'
-    && toolsSettings.getSnapshot().value?.enabled === false
   const codingToolsDisabled = (): boolean => active && toolsSettings.getSnapshot().value?.enabled === false
   const controller = new AgentPresetSettingsController(ctx)
   const staged: AgentPresetStage = { id: undefined, introduce: false }
@@ -223,11 +221,11 @@ export function apply(ctx: ClientContext): void {
       void seat.apply()
     }
 
-      // The Host composes the reused draft or new Session; the stage only drives the chip's display and introduction.
-      // Navigation opens another blank when the main blank lists a different preset, so that blank is not staged.
-      const listed = mainBlank()?.projectionValues?.agentPreset
-      if (typeof listed !== 'string' || listed === 'cordis') (mainBlankSeat() ?? unboundSeat).stage('cordis', true)
-      scope.uiWorkspace.startSession(undefined, { clearPreviousDraft: false, agentPreset: 'cordis' })
+    // The Host composes the reused draft or new Session; the stage only drives the chip's display and introduction.
+    // Navigation opens another blank when the main blank lists a different preset, so that blank is not staged.
+    const listed = mainBlank()?.projectionValues?.agentPreset
+    if (typeof listed !== 'string' || listed === 'cordis') (mainBlankSeat() ?? unboundSeat).stage('cordis', true)
+    scope.uiWorkspace.startSession(undefined, { clearPreviousDraft: false, agentPreset: 'cordis' })
     scope.effect(() => {
       creatorDraft = startCreatorDraft
       const chip = scope.slots.register({

@@ -52,7 +52,7 @@ async function boot(state: { exitCode?: number; output?: string; pending?: boole
     } },
     { name: '@deepseek-ai/dsh-subprocess-local' },
     { name: '@deepseek-ai/dsh-typert-registry' },
-    { name: '@deepseek-ai/dsh-api-device-capabilities-controller', config: {
+    { name: '@cinlan/api-device-capabilities-controller', config: {
       probeTimeoutMs: 30_000, probeGraceMs: 100, maxProbeOutputBytes: 64,
     } },
   ]))
@@ -65,7 +65,7 @@ async function boot(state: { exitCode?: number; output?: string; pending?: boole
     ['@deepseek-ai/dsh-mobile-device', MobileDeviceRuntime],
     ['@deepseek-ai/dsh-subprocess-local', LocalSubprocessRuntime],
     ['@deepseek-ai/dsh-typert-registry', TypertRegistry],
-    ['@deepseek-ai/dsh-api-device-capabilities-controller', DeviceCapabilitiesController],
+    ['@cinlan/api-device-capabilities-controller', DeviceCapabilitiesController],
   ])
   ctx.loader.internal = {
     version: 'v2',

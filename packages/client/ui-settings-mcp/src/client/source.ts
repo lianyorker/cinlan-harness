@@ -1,13 +1,13 @@
 /** Apply-owned MCP Remote readback and cancellable command lifetimes. */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
-import type {} from '@deepseek-ai/dsh-api-mcp-controller/remote'
+import type {} from '@cinlan/api-mcp-controller/remote'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {
   McpManagementSnapshot, McpManagementErrorCode, McpManagedServerView, McpSaveRequest,
   McpRemoveRequest, McpSetEnabledRequest, McpServerRequest,
-} from '@deepseek-ai/dsh-api-mcp-controller/types'
+} from '@cinlan/api-mcp-controller/types'
 
 /** Narrow generated namespace consumed by the settings source. */
 export type McpRemote = Pick<Context['remote']['mcp'], 'snapshot' | 'watch' | 'save' | 'removeServer' | 'setEnabled' | 'reconnect' | 'probe'>

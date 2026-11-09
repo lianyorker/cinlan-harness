@@ -111,9 +111,9 @@ it('persists defaults, reviews a real task, hibernates without cleanup, and expo
   const overlay = join(root, 'worktree.patch.yml')
   // These optional production rows extend the shipped Web composition through its normal overlay.
   await writeFile(overlay, JSON.stringify([{ insert: [
-    { id: 'worktree-task-git', name: '@deepseek-ai/dsh-worktree-task-git', config: { root: managed } },
-    { id: 'worktree-task-controller', name: '@deepseek-ai/dsh-api-worktree-task-controller' },
-    { id: 'ui-worktree-task', name: '@deepseek-ai/dsh-client-ui-worktree-task' },
+    { id: 'worktree-task-git', name: '@cinlan/worktree-task-git', config: { root: managed } },
+    { id: 'worktree-task-controller', name: '@cinlan/api-worktree-task-controller' },
+    { id: 'ui-worktree-task', name: '@cinlan/client-ui-worktree-task' },
   ] }]) + '\n')
   scaffold = await launchWebScaffold({
     extraOverlayPath: overlay, harnessHome: join(root, 'home'), storageRoot: join(root, 'storage'),

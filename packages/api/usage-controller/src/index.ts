@@ -1,7 +1,7 @@
 /** Authenticated human-facing usage queries; the Connection carrier owns browser authorization. */
 import type { Context } from '@deepseek-ai/cordis'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
-import { UsageQueryError } from '@deepseek-ai/dsh-usage-query'
+import { UsageQueryError } from '@cinlan/usage-query'
 import type { UsageQueryRequest, UsageQueryResult } from './types.ts'
 export type * from './types.ts'
 

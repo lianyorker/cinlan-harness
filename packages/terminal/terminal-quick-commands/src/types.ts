@@ -7,7 +7,7 @@
  * user switches targets, and so a refreshed Host can drop commands it does not
  * own.
  *
- * @module @deepseek-ai/dsh-terminal-quick-commands/types
+ * @module @cinlan/terminal-quick-commands/types
  */
 
 /** Stable identity of one saved command. */

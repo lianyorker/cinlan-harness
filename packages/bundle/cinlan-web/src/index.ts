@@ -1,7 +1,7 @@
 /**
  * Patch-only bundle: this package ships `cordis.patch.yml` and mounts no row of
  * its own, so the entry exists only to give the workspace build an artifact.
- * @module @deepseek-ai/dsh-cinlan-web
+ * @module @cinlan/cinlan-web
  */
 
 /** Stable Cordis plugin name. */

@@ -1,6 +1,6 @@
 import { RemoteMock } from '@deepseek-ai/dsh-remote-mock'
 import type { ClientTransportHooks, ClientRequest } from '@deepseek-ai/dsh-client-connection/client'
-import type { ListTargetsValue, TargetView } from '@deepseek-ai/dsh-api-execution-host-controller/types'
+import type { ListTargetsValue, TargetView } from '@cinlan/api-execution-host-controller/types'
 
 export const target: TargetView = {
   id: 'remote-target' as TargetView['id'], revision: 4, label: 'Remote Linux', sshAlias: 'inspect-linux',

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { observeHosts } from '../src/client/observation.ts'
 import { createHostsCallbacks } from '../src/client/callbacks.ts'
 import { baseline, deferred, failure, readyTarget, remoteFixture } from './fixtures.client.ts'
-import type { ListTargetsValue } from '@deepseek-ai/dsh-api-execution-host-controller/types'
+import type { ListTargetsValue } from '@cinlan/api-execution-host-controller/types'
 
 const observers: ReturnType<typeof observeHosts>[] = []
 afterEach(async () => { for (const observer of observers.splice(0)) await observer.dispose() })

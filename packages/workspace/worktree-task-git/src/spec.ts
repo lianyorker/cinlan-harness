@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
-import { WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task'
+import { WorktreeTaskId } from '@cinlan/worktree-task'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 
 /** Direct program invocation captured by a task or selected for future tasks. */

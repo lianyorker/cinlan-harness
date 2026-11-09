@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/work-items/work-items-gitee/README.md
+/:
+  en: 3f9451c7839310a6
+  zh: 0867ba2d088cccb6
+/cinlan-work-items-gitee:
+  en: cb01626ca473db7a
+  zh: d6d7265b69e0e641
+/cinlan-work-items-gitee/summary:
+  en: a7ce9f53bdafd0f7
+  zh: 74ba91b3693ce7ea
+/cinlan-work-items-gitee/use-this-package:
+  en: 3b46f8cbf213fea8
+  zh: cf6fc0f8d34b273e
+/cinlan-work-items-gitee/model-experience:
+  en: 89c17d4681a40397
+  zh: cba8072659ea9aab
+/cinlan-work-items-gitee/model-experience/kv-cache-effect:
+  en: a88125763fcfb8f4
+  zh: 77834663ff2ca1d6
+/cinlan-work-items-gitee/known-limitations-and-deferred-work:
+  en: 86fdae8d9886092d
+  zh: 0823a5d41a9a35ca
+/cinlan-work-items-gitee/dev-note:
+  en: 02d90c106545958b
+  zh: 9153931bab47db9d

@@ -3,10 +3,10 @@ import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
-import { WorkItemId, WorkItemsError } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemAttachment, WorkItemBoard, WorkItemBoardRequest, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemLink, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@deepseek-ai/dsh-work-items'
+import { WorkItemId, WorkItemsError } from '@cinlan/work-items'
+import type { WorkItem, WorkItemAttachment, WorkItemBoard, WorkItemBoardRequest, WorkItemComment, WorkItemEstimate, WorkItemGetRequest, WorkItemLink, WorkItemListRequest, WorkItemPage, WorkItemsProvider } from '@cinlan/work-items'
 import z from '@deepseek-ai/schemastery'
-import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@deepseek-ai/dsh-work-items/types'
+import type { WorkItemMutation, WorkItemMutationResult, WorkItemsWriter } from '@cinlan/work-items/types'
 
 /** Cordis plugin name. */
 export const name = 'work-items-jira'

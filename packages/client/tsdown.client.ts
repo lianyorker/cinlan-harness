@@ -18,7 +18,7 @@
  */
 import { randomBytes } from 'node:crypto'
 import { readFile, readdir, rm, rmdir, stat, utimes } from 'node:fs/promises'
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync, globSync } from 'node:fs'
 import { createRequire, isBuiltin } from 'node:module'
 import { basename, dirname, isAbsolute, join, posix, relative, resolve as resolvePath, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -82,7 +82,7 @@ function styleInjectionModule(
  * Everything else under @deepseek-ai/* is either a module-table entry
  * (external) or a leak the purity gate rejects.
  */
-export const INLINE_SAFE = /^(?:@deepseek-ai\/dsh-(?:file-reference|session|llm|tools|brand|official-bundles|deque|output-retention|typert-protocol|util-crypto|util-time|util-values|util-workspace-path)(?:\/|$)|@deepseek-ai\/dsh-util-file-drag$|@deepseek-ai\/dsh-token-meter\/client$|@deepseek-ai\/dsh-commands\/builtin$|@deepseek-ai\/dsh-native-command\/types$|@deepseek-ai\/dsh-host-open-in-app\/shared$|@deepseek-ai\/dsh-plugin-manager\/registry$|@deepseek-ai\/dsh-agent-preset-registry\/display$|@deepseek-ai\/dsh-api-workspace-controller\/default-workspace$|@deepseek-ai\/dsh-spill-policy\/notice$)/
+export const INLINE_SAFE = /^(?:@deepseek-ai\/dsh-(?:file-reference|session|llm|tools|brand|official-bundles|deque|output-retention|typert-protocol|util-crypto|util-time|util-values|util-workspace-path|util-code-language)(?:\/|$)|@deepseek-ai\/dsh-util-file-drag$|@deepseek-ai\/dsh-token-meter\/client$|@deepseek-ai\/dsh-commands\/builtin$|@deepseek-ai\/dsh-native-command\/types$|@deepseek-ai\/dsh-host-open-in-app\/shared$|@deepseek-ai\/dsh-plugin-manager\/registry$|@deepseek-ai\/dsh-agent-preset-registry\/display$|@deepseek-ai\/dsh-api-workspace-controller\/default-workspace$|@deepseek-ai\/dsh-spill-policy\/notice$)/
 
 /**
  * Vendored framework libraries: rescoped into @deepseek-ai, so the gate below
@@ -139,7 +139,7 @@ export function clientBundle(
   const lib = clientLibraryConfig(manifest, libEntry, options.lib)
   return ({ env }) => {
     const face = buildFace(env?.DSH_BUILD_FACE)
-    const clientEntry = face === undefined ? 'src/client/index.ts' : 'lib/types/client/index.js'
+    const clientEntry = face === undefined ? options.clientSource ?? 'src/client/index.ts' : 'lib/types/client/index.js'
     const client = clientConfig(manifest, packageDir, clientEntry, options.clientBanner, options.dualClient === true)
     const node = [lib, ...(options.companions ?? [])]
     const clientFaces = options.dualClient === true
@@ -362,6 +362,33 @@ function isBareSpecifier(specifier: string): boolean {
   return !specifier.startsWith('.') && !specifier.startsWith('\0') && !isAbsolute(specifier)
 }
 
+const manifestCache = new Map<string, WorkspaceManifest>()
+const packageDirCache = new Map<string, string>()
+
+/**
+ * Locate a workspace package's directory by name. Located by package name rather
+ * than by cwd, because tsdown evaluates every package config with the repository
+ * root as `process.cwd()` during a workspace build.
+ * @param id - package name, as spelled at the import site.
+ * @returns the absolute package directory.
+ * @throws {Error} when no workspace package declares that name.
+ */
+function workspacePackageDir(id: string): string {
+  const cached = packageDirCache.get(id)
+  if (cached !== undefined) return cached
+  for (const manifestPath of globSync('packages/*/*/package.json', { cwd: REPOSITORY_ROOT })) {
+    const manifest = JSON.parse(
+      readFileSync(resolvePath(REPOSITORY_ROOT, manifestPath), 'utf8'),
+    ) as WorkspaceManifest
+    if (manifest.name === undefined) continue
+    const dir = resolvePath(REPOSITORY_ROOT, dirname(manifestPath))
+    manifestCache.set(manifest.name, manifest)
+    packageDirCache.set(manifest.name, dir)
+    if (manifest.name === id) return dir
+  }
+  throw new Error(`tsdown: no packages/*/*/package.json declares the name ${id}`)
+}
+
 /**
  * Locate a stylesheet import against the package sources and name its emitted position.
  * @param source - relative import specifier as written in the source.
@@ -373,6 +400,11 @@ function stylesheetAsset(source: string, importer: string): { readonly file: str
   const boundary = file.lastIndexOf(SOURCE_MARKER)
   if (boundary < 0) throw new Error(`tsdown: stylesheet ${file} is outside the package sources`)
   return { file, fileName: file.slice(boundary + SOURCE_MARKER.length).split(sep).join('/') }
+}
+
+/** The manifest fields the build faces read to name the package and state its own module edges. */
+interface WorkspaceManifest {
+  readonly name?: string
 }
 
 /** The manifest fields the build faces read to name the package and state its own module edges. */

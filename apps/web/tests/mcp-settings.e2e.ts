@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { chromium, type Browser, type Page } from 'playwright'
 import { afterAll, beforeAll, expect, it, onTestFinished } from 'vitest'
-import type {} from '@deepseek-ai/dsh-api-mcp-controller'
+import type {} from '@cinlan/api-mcp-controller'
 import {
   launchWebScaffold, watchConsole, acknowledgeReloadConnectionLoss, captureStableAria, compareOrRefreshGolden,
   webSnapshotMode, type WebScaffold,

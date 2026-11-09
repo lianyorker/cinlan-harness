@@ -3,7 +3,7 @@
  * lifecycle, session binding, and state transitions. Providers manage durable
  * storage, Git operations, and worktree checkouts.
  *
- * @module @deepseek-ai/dsh-worktree-task
+ * @module @cinlan/worktree-task
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'

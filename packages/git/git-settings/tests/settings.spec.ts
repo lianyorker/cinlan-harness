@@ -29,7 +29,7 @@ describe('git-settings', () => {
   })
 
   it('declares plugin metadata and config schema', () => {
-    expect(plugin.name).toBe('@deepseek-ai/dsh-git-settings')
+    expect(plugin.name).toBe('@cinlan/git-settings')
     expect(plugin.inject).toEqual(['settings'])
     expect(plugin.Config).toBeDefined()
     expect(plugin.Config.meta?.volatile).toBe(true)

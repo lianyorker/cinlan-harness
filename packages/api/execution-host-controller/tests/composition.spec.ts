@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest'
 import type { ListTargetsValue, TargetValue } from '../src/types.ts'
 import { createHarness, remoteResult, success } from './harness.ts'
 
-const TARGETS = '@deepseek-ai/dsh-execution-host-targets'
-const CONTROLLER = '@deepseek-ai/dsh-api-execution-host-controller'
+const TARGETS = '@cinlan/execution-host-targets'
+const CONTROLLER = '@cinlan/api-execution-host-controller'
 
 describe('executionHosts real Loader composition', () => {
   it('reports the optional runtime installer as unavailable on the trusted desktop carrier', async () => {
@@ -21,7 +21,7 @@ describe('executionHosts real Loader composition', () => {
 
   it('persists management through HTTP and the desktop carrier from the web profile', async () => {
     const h = await createHarness()
-    expect([...h.ctx.loader.entries()].filter(entry => entry.options.name === '@deepseek-ai/dsh-execution-host-local')).toHaveLength(1)
+    expect([...h.ctx.loader.entries()].filter(entry => entry.options.name === '@cinlan/execution-host-local')).toHaveLength(1)
     expect(h.ctx.executionHostTargets).toBeDefined()
     expect(h.ctx.subprocess).toBeDefined()
     const initial = await success<ListTargetsValue>(await h.http('list'))

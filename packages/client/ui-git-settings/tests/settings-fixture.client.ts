@@ -2,7 +2,7 @@
 import { vi } from 'vitest'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
-import { GitSourceControlSettingsSchema } from '@deepseek-ai/dsh-git-settings/settings-schema'
+import { GitSourceControlSettingsSchema } from '@cinlan/git-settings/settings-schema'
 import type { GitSourceControlSettings } from '../src/types.ts'
 
 export function settingsFixture(initial: Partial<SettingsScopeSnapshot<GitSourceControlSettings>> = {}) {

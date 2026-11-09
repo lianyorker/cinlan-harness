@@ -61,14 +61,14 @@ async function load(): Promise<Context> {
     '- id: slots', '  name: test-slot-registry',
     '- id: client-context', '  name: test-client-context',
     '- id: settings', "  name: '@deepseek-ai/dsh-client-ui-settings'",
-    '- id: capability-settings', "  name: '@deepseek-ai/dsh-client-ui-settings-security'", '',
+    '- id: capability-settings', "  name: '@cinlan/client-ui-settings-security'", '',
   ].join('\n'))
 
   const modules = new Map<string, unknown>([
     ['test-slot-registry', SlotRegistry],
     ['test-client-context', createFixture()],
     ['@deepseek-ai/dsh-client-ui-settings', settingsPlugin],
-    ['@deepseek-ai/dsh-client-ui-settings-security', capabilitySettingsPlugin],
+    ['@cinlan/client-ui-settings-security', capabilitySettingsPlugin],
   ])
   const ctx = new Context()
   context = ctx

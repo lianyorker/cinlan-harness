@@ -4,8 +4,8 @@ import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import {
   RunId, TaskId,
-} from '@deepseek-ai/dsh-coordination'
-import type { CoordinationEvent, RunSnapshot, TaskSnapshot, TaskSpec } from '@deepseek-ai/dsh-coordination'
+} from '@cinlan/coordination'
+import type { CoordinationEvent, RunSnapshot, TaskSnapshot, TaskSpec } from '@cinlan/coordination'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import { snapshotJsonValue, type JsonValue } from '@deepseek-ai/dsh-util-values'
 import { defineTool } from '@deepseek-ai/dsh-tools'

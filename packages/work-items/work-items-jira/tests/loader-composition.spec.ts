@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import Loader, { type ModuleLoaderV2 } from '@deepseek-ai/cordis-plugin-loader'
-import WorkItemsRuntime, { WorkItemId } from '@deepseek-ai/dsh-work-items'
+import WorkItemsRuntime, { WorkItemId } from '@cinlan/work-items'
 import WorkItemsController from '@deepseek-ai/dsh-api-work-items-controller'
 import Storage from '@deepseek-ai/dsh-storage'
 import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
@@ -34,7 +34,7 @@ async function boot(root: string): Promise<Context> {
     { name: '@deepseek-ai/dsh-session-persistence-jsonl', config: { root: join(root, 'sessions'), compression: 'none' } },
     { name: '@deepseek-ai/dsh-workspace' },
     { name: '@deepseek-ai/dsh-typert-registry' },
-    { name: '@deepseek-ai/dsh-work-items', config: { provider: 'jira' } },
+    { name: '@cinlan/work-items', config: { provider: 'jira' } },
     { name: '@deepseek-ai/dsh-work-items-jira', config: { project: 'ENG', origin: 'https://jira.fixture.invalid', allowWrites: true } },
     { name: '@deepseek-ai/dsh-api-work-items-controller' },
   ], null, 2) + '\n')
@@ -53,7 +53,7 @@ async function boot(root: string): Promise<Context> {
     ['@deepseek-ai/dsh-session-persistence-jsonl', SessionPersistenceJsonl],
     ['@deepseek-ai/dsh-workspace', WorkspaceRegistry],
     ['@deepseek-ai/dsh-typert-registry', TypertRegistry],
-    ['@deepseek-ai/dsh-work-items', WorkItemsRuntime],
+    ['@cinlan/work-items', WorkItemsRuntime],
     ['@deepseek-ai/dsh-work-items-jira', Jira],
     ['@deepseek-ai/dsh-api-work-items-controller', WorkItemsController],
   ])

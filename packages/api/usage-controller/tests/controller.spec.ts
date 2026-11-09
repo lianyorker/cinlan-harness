@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { remoteMethods, RemoteError } from '@deepseek-ai/dsh-typert-protocol'
-import { UsageQueryError } from '@deepseek-ai/dsh-usage-query'
+import { UsageQueryError } from '@cinlan/usage-query'
 import { createHarness } from './harness.ts'
 import { interval, knownTokens } from './fixture.ts'
 

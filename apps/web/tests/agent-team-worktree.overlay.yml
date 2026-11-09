@@ -22,13 +22,13 @@
 
 - insert:
     - id: worktree-task-git
-      name: '@deepseek-ai/dsh-worktree-task-git'
+      name: '@cinlan/worktree-task-git'
 
     - id: worktree-task-controller
-      name: '@deepseek-ai/dsh-api-worktree-task-controller'
+      name: '@cinlan/api-worktree-task-controller'
 
     - id: ui-worktree-task
-      name: '@deepseek-ai/dsh-client-ui-worktree-task'
+      name: '@cinlan/client-ui-worktree-task'
 
     - id: agent-team
       name: '@deepseek-ai/dsh-experimental-agent-team'

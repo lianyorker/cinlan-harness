@@ -1,11 +1,11 @@
 import type {
   CreateTargetRequest, ImportableHostsValue, ListTargetsValue, SshConfigHost, TargetRequest,
   TargetRevisionRequest, TargetTestValue, TargetValue, UpdateTargetRequest,
-} from '@deepseek-ai/dsh-api-execution-host-controller/types'
+} from '@cinlan/api-execution-host-controller/types'
 import type {
   DestroyVmRequest, EphemeralVm, EphemeralVmId, EphemeralVmOverview, EphemeralVmState, LaunchVmRequest,
   VmQuotaLimits, VmRecipe,
-} from '@deepseek-ai/dsh-execution-runtime/types'
+} from '@cinlan/execution-runtime/types'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 

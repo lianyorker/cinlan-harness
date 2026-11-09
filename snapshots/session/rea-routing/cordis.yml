@@ -78,7 +78,7 @@
       name: '@deepseek-ai/dsh-security-workflow-prompt'
 
     - id: security-rea
-      name: '@deepseek-ai/dsh-security-rea'
+      name: '@cinlan/security-rea'
       config:
         # Deterministic stub MCP server: the snapshot must stay portable across
         # machines and platforms, so no real REA process and no absolute paths.

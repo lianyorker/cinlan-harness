@@ -9,10 +9,10 @@ import { lstat, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs
 import { tmpdir } from 'node:os'
 import { extname, isAbsolute, join, posix } from 'node:path'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { RuntimeInspection, RuntimeStartRequest, RuntimeTask, RuntimeTaskValue } from '@deepseek-ai/dsh-execution-runtime'
+import type { RuntimeInspection, RuntimeStartRequest, RuntimeTask, RuntimeTaskValue } from '@cinlan/execution-runtime'
 import type {
   CreateTargetRequest, ListTargetsValue, TargetRevisionRequest, TargetValue,
-} from '@deepseek-ai/dsh-execution-host-targets'
+} from '@cinlan/execution-host-targets'
 import type { WorkspaceCreateValue } from '@deepseek-ai/dsh-api-workspace-controller'
 import type { SessionCreateValue } from '@deepseek-ai/dsh-api-session-controller'
 import { LlmAdapter, ToolCallId, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
@@ -24,10 +24,10 @@ import { expect, it } from 'vitest'
 import { launchWebScaffold, type WebScaffold } from './scaffold.ts'
 
 // These imports install the host-side Context merges used below.
-import type {} from '@deepseek-ai/dsh-api-execution-host-controller'
-import type {} from '@deepseek-ai/dsh-execution-host-targets'
-import type {} from '@deepseek-ai/dsh-execution-runtime'
-import type {} from '@deepseek-ai/dsh-execution-binding'
+import type {} from '@cinlan/api-execution-host-controller'
+import type {} from '@cinlan/execution-host-targets'
+import type {} from '@cinlan/execution-runtime'
+import type {} from '@cinlan/execution-binding'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
 

@@ -2,7 +2,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { WorkItemMutation, WorkItemSource, WorkItemWriteStatus } from '@deepseek-ai/dsh-work-items/types'
+import type { WorkItemMutation, WorkItemSource, WorkItemWriteStatus } from '@cinlan/work-items/types'
 import type { WorkItemView, WorkItemWriteOperation } from '@deepseek-ai/dsh-api-work-items-controller/types'
 import type { WorkItemsSectionProps } from './WorkItemsSection.tsx'
 import type { WorkItemsKey } from './locales.ts'

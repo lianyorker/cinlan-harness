@@ -109,24 +109,6 @@ export function apply(ctx: ClientContext): void {
       shortcuts: ctx.shortcuts.catalog,
     },
     launch: (appId, path) => controller.launch(appId, path),
-    choose: (appId) => { controller.choose(appId) },
-    iconUrl: appId => `${OPEN_IN_APP_ICON_PREFIX_ROUTE}/${appId}`,
-  })
-  function SessionOpenInAppAction(
-    props: PropsRuntime<'conversation.session.header.utilities'> & Omit<OpenInAppActionProps, 'absolutePath'>,
-  ) {
-    const { sessionId, useSessions } = props
-    const cwd = useSessions(state => state.byId[sessionId]?.cwd)
-    return cwd ? createElement(OpenInAppAction, { ...props, absolutePath: cwd }) : null
-  }
-  const directoryInjected = (): OpenInAppActionInjected => ({
-    hooks: {
-      openInAppApps: controller.apps,
-      openInAppChoice: controller.choice,
-      openInAppLaunch: controller.operation,
-      shortcuts: ctx.shortcuts.catalog,
-    },
-    launch: (appId, path) => controller.launch(appId, path),
     report: announcement.report,
     choose: (appId) => { controller.choose(appId) },
     iconUrl: appId => `${OPEN_IN_APP_ICON_PREFIX_ROUTE}/${appId}`,

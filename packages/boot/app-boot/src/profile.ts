@@ -180,7 +180,7 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
     bundles: [
       '@deepseek-ai/dsh-base',
       '@deepseek-ai/dsh-web-app',
-      '@deepseek-ai/dsh-cinlan-web',
+      '@cinlan/cinlan-web',
       '@deepseek-ai/dsh-security-research',
       '@deepseek-ai/dsh-cinlan-browser',
       '@deepseek-ai/dsh-cinlan-computer-use',

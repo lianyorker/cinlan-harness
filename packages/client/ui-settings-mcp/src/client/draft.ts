@@ -1,5 +1,5 @@
 /** Editable text fields retain their opening revision and optional bridge overrides. */
-import type { McpServerInput, McpServerRecord, McpSaveRequest, McpServerId } from '@deepseek-ai/dsh-api-mcp-controller/types'
+import type { McpServerInput, McpServerRecord, McpSaveRequest, McpServerId } from '@cinlan/api-mcp-controller/types'
 
 /** One reference row contains variable names, never credential values. */
 export interface ReferenceDraft { name: string; ref: string; prefix: string }

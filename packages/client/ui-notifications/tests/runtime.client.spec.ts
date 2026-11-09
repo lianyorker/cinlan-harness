@@ -4,10 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TestRemote, TestSessions, stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
 import type { MutableSessionEventSource, SessionLiveEventEntry, SessionReference } from '@deepseek-ai/dsh-api-session-controller/client'
 import { MessageId, ToolCallId } from '@deepseek-ai/dsh-llm/brand'
-import type { NotificationSettings } from '@deepseek-ai/dsh-notifications/types'
+import type { NotificationSettings } from '@cinlan/notifications/types'
 import { SessionSeq } from '@deepseek-ai/dsh-session/types'
 import { createNotificationRuntime, isQuietHours } from '../src/client/runtime.ts'
-import { NotificationSettingsSchema } from '@deepseek-ai/dsh-notifications/src/settings.ts'
+import { NotificationSettingsSchema } from '@cinlan/notifications/src/settings.ts'
 
 interface OwnedRuntime {
   ctx: Context
@@ -76,8 +76,8 @@ function result(seq: number, text: string): SessionLiveEventEntry {
     data: { turn: 1, step: 1, message: {
       id: MessageId(`result-${seq}`), role: 'user', source: { kind: 'tool', callId },
       content: [{ type: 'tool-result', toolCallId: callId, content: [{ type: 'text', text }], isError: false }],
-    } } as any,
-  } } as any
+    } },
+  } }
 }
 
 describe('daily local quiet hours', () => {

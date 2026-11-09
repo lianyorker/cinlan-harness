@@ -1,6 +1,6 @@
 /** Host-backed settings section for the Mobile Emulator. */
 import { useEffect, useState, type ReactNode } from 'react'
-import type { DeviceCapabilityKind, DeviceCapabilitySnapshot, MobileSdkSnapshot, MobileDeviceListSnapshot } from '@deepseek-ai/dsh-api-device-capabilities-controller/types'
+import type { DeviceCapabilityKind, DeviceCapabilitySnapshot, MobileSdkSnapshot, MobileDeviceListSnapshot } from '@cinlan/api-device-capabilities-controller/types'
 import type { InjectFace, PropsLocale, PropsRenderFactories, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { CapabilitySettingsKey } from './locales.ts'
 import css from './CapabilitySection.module.css'

@@ -258,7 +258,6 @@ class LookupStore {
     return {
       parameter: provider.parameter,
       wire: provider.wire,
-      // oxlint-disable-next-line typescript/no-unnecessary-condition -- domain packages merge resource kinds into TypertResourceMap.
       ...provider.resource === undefined ? {} : { resource: provider.resource },
       hostTypeSymbol: provider.hostTypeSymbol,
       wireTypeSymbol: provider.wireTypeSymbol,
@@ -377,7 +376,6 @@ class ContextStore {
     return {
       wire: adapter.wire,
       wireTypeSymbol: adapter.wireTypeSymbol,
-      // oxlint-disable-next-line typescript/no-unnecessary-condition -- domain packages merge resource kinds into TypertResourceMap.
       ...adapter.resource === undefined ? {} : { resource: adapter.resource },
       resolve: id => resolver.resolve(id),
     }
@@ -444,48 +442,6 @@ class ContextStore {
 
 interface HostContextResolverEntry {
   resolve(id: unknown): Promise<Context | undefined>
-}
-
-/** The built-in identity-less resource kind; no declared resource kind may take its name. */
-const GLOBAL_RESOURCE_KIND = 'global' satisfies RemoteAccessResourceKind
-
-class ResourceStore {
-  private readonly declarations = new Map<string, ProviderEntry<TypertResourceDeclaration>>()
-  private readonly changes: ChangeSource
-
-  constructor(report: ReportObserverError) {
-    this.changes = new ChangeSource(report)
-  }
-
-  view(ctx: Context): TypertResourceRegistry {
-    return {
-      register: (kind, declaration) => this.register(ctx, kind, declaration),
-      get: kind => this.declarations.get(kind)?.provider,
-      entries: () => [...this.declarations].map(([kind, entry]) => Object.freeze({ kind, field: entry.provider.field })),
-      subscribe: listener => this.changes.subscribe(ctx, listener),
-    }
-  }
-
-  private register(ctx: Context, kind: string, declaration: TypertResourceDeclaration): TypertDisposer {
-    validateSegment('resource kind', kind)
-    if (kind === GLOBAL_RESOURCE_KIND) {
-      throw new Error(`typert: resource kind "${GLOBAL_RESOURCE_KIND}" is reserved for the built-in global resource`)
-    }
-    validateWireName('resource field', declaration.field)
-    if (this.declarations.has(kind)) throw new Error(`typert: resource kind "${kind}" is already registered`)
-    const entry: ProviderEntry<TypertResourceDeclaration> = { provider: { field: declaration.field }, owner: {} }
-    const { declarations, changes } = this
-    return ctx.effect(function* () {
-      declarations.set(kind, entry)
-      changes.emit({ kind: 'resource', key: kind })
-      yield () => {
-        /* v8 ignore next -- duplicate registration is rejected, so this effect remains the kind's unique owner. */
-        if (declarations.get(kind) !== entry) return
-        declarations.delete(kind)
-        changes.emit({ kind: 'resource', key: kind })
-      }
-    }, `typert.resources.register(${JSON.stringify(kind)})`)
-  }
 }
 
 /** The built-in identity-less resource kind; no declared resource kind may take its name. */

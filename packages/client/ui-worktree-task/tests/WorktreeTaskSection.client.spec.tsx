@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { WorktreeTaskView, WorktreeTaskSettings, WorktreeTaskReview } from '@deepseek-ai/dsh-api-worktree-task-controller/types'
+import type { WorktreeTaskView, WorktreeTaskSettings, WorktreeTaskReview } from '@cinlan/api-worktree-task-controller/types'
 import { WorktreeTaskSection, type WorktreeTaskSectionProps } from '../src/client/WorktreeTaskSection.tsx'
 import { en } from '../src/client/locales.ts'
 

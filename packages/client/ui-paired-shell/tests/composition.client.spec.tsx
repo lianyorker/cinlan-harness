@@ -22,7 +22,7 @@ import * as sessions from '@deepseek-ai/dsh-api-session-controller/client'
 import * as fileUpload from '@deepseek-ai/dsh-client-file-upload/client'
 import * as settings from '@deepseek-ai/dsh-client-ui-settings/client'
 import * as locale from '@deepseek-ai/dsh-client-locale/client'
-import * as keyboard from '@deepseek-ai/dsh-client-keyboard/client'
+import * as keyboard from '@cinlan/client-keyboard/client'
 import * as theme from '@deepseek-ai/dsh-client-ui-theme/client'
 import * as renderer from '@deepseek-ai/dsh-client-ui-renderer/client'
 import * as uiSession from '@deepseek-ai/dsh-client-ui-session/client'
@@ -43,7 +43,7 @@ const roster = new Map<string, Record<string, unknown>>([
   ['@deepseek-ai/dsh-client-file-upload', fileUpload],
   ['@deepseek-ai/dsh-client-ui-settings', settings],
   ['@deepseek-ai/dsh-client-locale', locale],
-  ['@deepseek-ai/dsh-client-keyboard', keyboard],
+  ['@cinlan/client-keyboard', keyboard],
   ['@deepseek-ai/dsh-client-ui-theme', theme],
   ['@deepseek-ai/dsh-client-ui-renderer', renderer],
   ['@deepseek-ai/dsh-client-ui-session', uiSession],

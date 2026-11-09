@@ -9,7 +9,7 @@ import type {} from './locales.ts'
 export const CINLAN_DESIGN_KIND = 'cinlan-design'
 
 /** Implementation identity and Slot dispatch key. */
-export const CINLAN_DESIGN_ID = '@deepseek-ai/dsh-client-ui-cinlan-design'
+export const CINLAN_DESIGN_ID = '@cinlan/client-ui-cinlan-design'
 
 /** Ornamental artwork icon for the guide entry. */
 export function GuideArtworkCinlanDesign(props: IconProps) {

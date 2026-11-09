@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { Branded } from '@deepseek-ai/dsh-brand'
-import type { WorkItemId } from '@deepseek-ai/dsh-work-items/types'
+import type { WorkItemId } from '@cinlan/work-items/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 /** Key identifies an exact item, Workspace and optional Session tuple. */

@@ -11,8 +11,8 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import SessionStore from '@deepseek-ai/dsh-session'
 import SessionPersistenceJsonl from '@deepseek-ai/dsh-session-persistence-jsonl'
 import SessionQuerySqlite from '@deepseek-ai/dsh-session-query-sqlite'
-import UsageQueryService from '@deepseek-ai/dsh-usage-query'
-import type { Config as UsageQueryConfig, UsageQueryRequest } from '@deepseek-ai/dsh-usage-query'
+import UsageQueryService from '@cinlan/usage-query'
+import type { Config as UsageQueryConfig, UsageQueryRequest } from '@cinlan/usage-query'
 import LocalCredentials from '@deepseek-ai/dsh-credentials-local'
 import * as Connection from '@deepseek-ai/dsh-client-connection'
 import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
@@ -58,12 +58,12 @@ export async function createHarness(queryConfig: Partial<UsageQueryConfig> = {})
     { name: '@deepseek-ai/dsh-session' },
     { name: '@deepseek-ai/dsh-session-persistence-jsonl', config: { root: join(root, 'sessions'), compression: 'none' } },
     { name: '@deepseek-ai/dsh-session-query-sqlite', config: { path: join(root, 'query.sqlite') } },
-    { name: '@deepseek-ai/dsh-usage-query', config: queryConfig },
+    { name: '@cinlan/usage-query', config: queryConfig },
     { name: '@deepseek-ai/dsh-credentials-local', config: { path: join(root, 'credentials.yaml'), watch: false } },
     { name: '@deepseek-ai/dsh-client-connection' },
     { name: '@deepseek-ai/dsh-typert-registry' },
     { name: '@deepseek-ai/dsh-api-gateway' },
-    { name: '@deepseek-ai/dsh-api-usage-controller' },
+    { name: '@cinlan/api-usage-controller' },
   ]
   await writeFile(configPath, rows.map(row => '- ' + JSON.stringify(row)).join('\n') + '\n')
   await ctx.plugin(Loader)
@@ -72,12 +72,12 @@ export async function createHarness(queryConfig: Partial<UsageQueryConfig> = {})
     ['@deepseek-ai/dsh-session', SessionStore],
     ['@deepseek-ai/dsh-session-persistence-jsonl', SessionPersistenceJsonl],
     ['@deepseek-ai/dsh-session-query-sqlite', SessionQuerySqlite],
-    ['@deepseek-ai/dsh-usage-query', UsageQueryService],
+    ['@cinlan/usage-query', UsageQueryService],
     ['@deepseek-ai/dsh-credentials-local', LocalCredentials],
     ['@deepseek-ai/dsh-client-connection', Connection],
     ['@deepseek-ai/dsh-typert-registry', TypertRegistry],
     ['@deepseek-ai/dsh-api-gateway', TypertGateway],
-    ['@deepseek-ai/dsh-api-usage-controller', UsageController],
+    ['@cinlan/api-usage-controller', UsageController],
   ])
   ctx.loader.internal = {
     version: 'v2',

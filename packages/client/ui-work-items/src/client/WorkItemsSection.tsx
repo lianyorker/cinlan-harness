@@ -3,10 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { WorkItemSource, WorkItemStateFilter } from '@deepseek-ai/dsh-work-items/types'
+import type { WorkItemSource, WorkItemStateFilter } from '@cinlan/work-items/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { IntegrationProvider, IntegrationPreflightSnapshot } from '@deepseek-ai/dsh-api-integration-preflight-controller/types'
+import type { IntegrationProvider, IntegrationPreflightSnapshot } from '@cinlan/api-integration-preflight-controller/types'
 import type {
   WorkItemsPrepareWriteRequest, WorkItemsWriteRequest, WorkItemsWriteValue, WorkItemsWriteHistoryRequest, WorkItemsWriteHistoryValue,
   WorkItemAssociation, WorkItemView, WorkItemsAssociationRequest, WorkItemsAssociationValue,

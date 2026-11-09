@@ -11,7 +11,7 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import Storage from '@deepseek-ai/dsh-storage'
 import * as StorageJson from '@deepseek-ai/dsh-storage-json'
 import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
-import ExecutionHostLocal from '@deepseek-ai/dsh-execution-host-local'
+import ExecutionHostLocal from '@cinlan/execution-host-local'
 import { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
 import type { SubprocessHandle, SubprocessSpawnSpec, SubprocessTerminalEnvironment, SubprocessTerminalHandle, SubprocessTerminalSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { PROTOCOL_VERSION } from '@deepseek-ai/dsh-execution-host-worker/protocol'
@@ -136,9 +136,9 @@ async function boot(root: string, options: { config?: Record<string, unknown>; s
     { name: '@deepseek-ai/dsh-storage-json', config: { root: options.store ?? join(root, 'storage') } },
     { name: '@deepseek-ai/dsh-storage-domain', config: { backend: 'json' } },
     ...options.storageOnly === true ? [] : [
-      { name: '@deepseek-ai/dsh-execution-host-local' },
+      { name: '@cinlan/execution-host-local' },
       { name: '@deepseek-ai/dsh-subprocess-local' },
-      { name: '@deepseek-ai/dsh-execution-host-targets', config: { sshConfigFile: join(root, 'ssh_config'), ...options.config } },
+      { name: '@cinlan/execution-host-targets', config: { sshConfigFile: join(root, 'ssh_config'), ...options.config } },
     ],
   ]
   await writeFile(file, rows.map(row => '- ' + JSON.stringify(row)).join('\n') + '\n')
@@ -160,9 +160,9 @@ const modules = new Map<string, unknown>([
   ['@deepseek-ai/dsh-storage', Storage],
   ['@deepseek-ai/dsh-storage-json', StorageJson],
   ['@deepseek-ai/dsh-storage-domain', StorageDomain],
-  ['@deepseek-ai/dsh-execution-host-local', ExecutionHostLocal],
+  ['@cinlan/execution-host-local', ExecutionHostLocal],
   ['@deepseek-ai/dsh-subprocess-local', { default: FakeSubprocess }],
-  ['@deepseek-ai/dsh-execution-host-targets', Targets],
+  ['@cinlan/execution-host-targets', Targets],
 ])
 
 async function fixture(): Promise<{ root: string }> {

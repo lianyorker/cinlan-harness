@@ -1,7 +1,7 @@
 /** React-free query lifetime; only the active request may publish a report. */
 import { notifySubscribers } from '@deepseek-ai/dsh-client-store'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
-import type { UsageQueryRequest, UsageQueryResult } from '@deepseek-ai/dsh-api-usage-controller/types'
+import type { UsageQueryRequest, UsageQueryResult } from '@cinlan/api-usage-controller/types'
 
 /** Generated Remote method projected into one cancellable callback. */
 export type QueryUsage = (request: UsageQueryRequest, options: { signal: AbortSignal }) => Promise<UsageQueryResult>

@@ -35,7 +35,7 @@ export interface CoordinationRun {
 export abstract class CoordinationService extends Service {
   constructor(ctx: Context) {
     if (new.target === CoordinationService) {
-      throw new Error('@deepseek-ai/dsh-coordination is the abstract coordination seam; load @deepseek-ai/dsh-coordination-local')
+      throw new Error('@cinlan/coordination is the abstract coordination seam; load @deepseek-ai/dsh-coordination-local')
     }
     super(ctx, 'coordination')
   }

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
-import { TaskId } from '@deepseek-ai/dsh-coordination'
+import { TaskId } from '@cinlan/coordination'
 import LocalCoordinationService from '@deepseek-ai/dsh-coordination-local'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'

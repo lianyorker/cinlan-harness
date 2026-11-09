@@ -6,8 +6,8 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
   WorktreeTaskView,
-} from '@deepseek-ai/dsh-api-worktree-task-controller/types'
-import type { WorktreeTaskId } from '@deepseek-ai/dsh-worktree-task/types'
+} from '@cinlan/api-worktree-task-controller/types'
+import type { WorktreeTaskId } from '@cinlan/worktree-task/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { apply, inject } from '../src/client/index.ts'

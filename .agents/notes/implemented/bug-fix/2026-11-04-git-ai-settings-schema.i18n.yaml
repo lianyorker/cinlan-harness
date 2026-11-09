@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-04-git-ai-settings-schema.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-04-git-ai-settings-schema.md
+/agent-note-git-ai-settings-schema-ownership:
+  en: 46e6bc000d4d1c80
+  zh: 183ee8da83f25d55
+/agent-note-git-ai-settings-schema-ownership/problem:
+  en: 419e54d75eea25f0
+  zh: 06aa278a25d78652
+/agent-note-git-ai-settings-schema-ownership/decision:
+  en: 251f0cf26742b394
+  zh: 494216dd84d8d709
+/agent-note-git-ai-settings-schema-ownership/alternatives-considered:
+  en: bf0bea833fbcc3a4
+  zh: e4bfa41a54a5bbe0
+/agent-note-git-ai-settings-schema-ownership/consequences:
+  en: f528b1e220df50b4
+  zh: fc377da60e4e16c2
+/agent-note-git-ai-settings-schema-ownership/testing:
+  en: e19532e6a20f0cb9
+  zh: c7e8bb26ed4ee82c

@@ -1,10 +1,8 @@
-/* oxlint-disable typescript/no-unsafe-assignment -- Vitest mocks and asymmetric matchers are intentionally dynamic. */
-
 import { Context } from '@deepseek-ai/cordis'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import type { WorkItemsRuntime } from '@deepseek-ai/dsh-work-items'
-import { WorkItemId } from '@deepseek-ai/dsh-work-items'
-import type { WorkItem, WorkItemBoard, WorkItemMutation, WorkItemPage, WorkItemWriteOperation } from '@deepseek-ai/dsh-work-items/types'
+import type { WorkItemsRuntime } from '@cinlan/work-items'
+import { WorkItemId } from '@cinlan/work-items'
+import type { WorkItem, WorkItemBoard, WorkItemMutation, WorkItemPage, WorkItemWriteOperation } from '@cinlan/work-items/types'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import type { ToolExecutionResult } from '@deepseek-ai/dsh-tools'

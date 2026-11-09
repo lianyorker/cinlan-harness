@@ -1,5 +1,5 @@
 /** Typed external Remote fixtures; no HTTP or framework replacement. */
-import type { ExecutionHostInfo, ImportableHostsValue, ListTargetsValue, TargetErrorCode, TargetView } from '@deepseek-ai/dsh-api-execution-host-controller/types'
+import type { ExecutionHostInfo, ImportableHostsValue, ListTargetsValue, TargetErrorCode, TargetView } from '@cinlan/api-execution-host-controller/types'
 import type { HostsRemote } from '../src/client/callbacks.ts'
 
 export const current: ExecutionHostInfo = {

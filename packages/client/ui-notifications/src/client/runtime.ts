@@ -5,7 +5,7 @@ import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { NotificationSettings, NotificationSound } from '@deepseek-ai/dsh-notifications/types'
+import type { NotificationSettings, NotificationSound } from '@cinlan/notifications/types'
 
 /** User-visible notification payload. */
 export interface NotificationPayload {

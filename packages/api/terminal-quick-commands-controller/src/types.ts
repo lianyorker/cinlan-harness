@@ -1,9 +1,9 @@
 /** Wire requests and results for the terminal quick-commands Remote. */
-import type { QuickCommand, QuickCommandDraft, QuickCommandFailure, QuickCommandHostId, QuickCommandId } from '@deepseek-ai/dsh-terminal-quick-commands/types'
+import type { QuickCommand, QuickCommandDraft, QuickCommandFailure, QuickCommandHostId, QuickCommandId } from '@cinlan/terminal-quick-commands/types'
 
 export type {
   QuickCommand, QuickCommandDraft, QuickCommandFailure, QuickCommandHostId, QuickCommandHostList, QuickCommandId,
-} from '@deepseek-ai/dsh-terminal-quick-commands/types'
+} from '@cinlan/terminal-quick-commands/types'
 
 /** Request to list one host's commands. */
 export interface QuickCommandListRequest {

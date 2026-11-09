@@ -5,7 +5,7 @@ import { Button, IconPlusOutline16, IconRefreshOutline16, RiskConfirmation } fro
 import type {
   WorktreeTaskView, WorktreeTaskCreateRequest, WorktreeTaskDeleteValue, WorktreeTaskId,
   WorktreeTaskSettings, UpdateWorktreeTaskSettingsRequest, WorktreeTaskReview, WorktreeTaskMergeValue,
-} from '@deepseek-ai/dsh-api-worktree-task-controller/types'
+} from '@cinlan/api-worktree-task-controller/types'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { WorktreeDefaultsForm } from './WorktreeDefaultsForm.tsx'

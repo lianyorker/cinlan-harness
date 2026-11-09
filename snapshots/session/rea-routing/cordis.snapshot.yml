@@ -78,7 +78,7 @@
       name: '@deepseek-ai/dsh-security-workflow-prompt'
 
     - id: security-rea
-      name: '@deepseek-ai/dsh-security-rea'
+      name: '@cinlan/security-rea'
       config:
         # Deterministic stub MCP server: replay must run keyless on every
         # platform, so no real REA process and no absolute paths. The harness

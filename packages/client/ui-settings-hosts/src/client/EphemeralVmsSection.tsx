@@ -9,7 +9,7 @@ import {
   Modal,
   StateDot,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { TargetView } from '@deepseek-ai/dsh-api-execution-host-controller/types'
+import type { TargetView } from '@cinlan/api-execution-host-controller/types'
 import type {
   DestroyVmRequest,
   EphemeralVm,
@@ -214,7 +214,7 @@ export function EphemeralVmsSection({
                   <span className={css.cardLabel}>{vm.label}</span>
                   <StateDot state={VM_DOT[vm.state] ?? 'idle'} size={8} />
                   <span className={css.cardStatus} role="status">
-                    {t(`vmStatus${vm.state.charAt(0).toUpperCase() + vm.state.slice(1)}` as any)}
+                    {t(`vmStatus${vm.state.charAt(0).toUpperCase() + vm.state.slice(1)}` as Parameters<typeof t>[0])}
                   </span>
                 </div>
                 <p className={css.cardLine}>

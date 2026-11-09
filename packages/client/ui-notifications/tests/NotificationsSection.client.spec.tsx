@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { bindSnapshotSelector, makeTranslate, stubSettingsScope, TestSessions, TestWorkspaces } from '@deepseek-ai/dsh-client-test-runtime'
-import type { NotificationSettings } from '@deepseek-ai/dsh-notifications/types'
+import type { NotificationSettings } from '@cinlan/notifications/types'
 import { NotificationsSection } from '../src/client/NotificationsSection.tsx'
 import type { NotificationsSectionProps } from '../src/client/NotificationsSection.tsx'
 import { en } from '../src/client/locales.ts'
@@ -29,9 +29,9 @@ function bench(value: Partial<NotificationSettings> = {}) {
   const props: NotificationsSectionProps = {
     close: vi.fn(),
     t: makeTranslate(en, {}),
-    usePanelInfo: (() => ({})) as any,
-    useSessionStatus: (() => ({})) as any,
-    useSessionRetainInfo: (() => ({})) as any,
+    usePanelInfo: (() => ({})) as NotificationsSectionProps['usePanelInfo'],
+    useSessionStatus: (() => ({})) as NotificationsSectionProps['useSessionStatus'],
+    useSessionRetainInfo: (() => ({})) as NotificationsSectionProps['useSessionRetainInfo'],
     useSessions: bindSnapshotSelector(sessions.list),
     useWorkspaces: bindSnapshotSelector(workspaces.list),
     useResource: () => { throw new Error('Resource hook is not used by this fixture') },

@@ -1,11 +1,11 @@
 /** Host Remote controller for Worktree Task lifecycle management. */
 import { Context } from '@deepseek-ai/cordis'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
-import { WorktreeTaskError } from '@deepseek-ai/dsh-worktree-task'
-import type { WorktreeTask, WorktreeTaskService } from '@deepseek-ai/dsh-worktree-task'
+import { WorktreeTaskError } from '@cinlan/worktree-task'
+import type { WorktreeTask, WorktreeTaskService } from '@cinlan/worktree-task'
 import type {
   WorktreeTaskId, WorktreeTaskSettings, UpdateWorktreeTaskSettingsRequest, WorktreeTaskReview,
-} from '@deepseek-ai/dsh-worktree-task/types'
+} from '@cinlan/worktree-task/types'
 import type {
   WorktreeTaskBindSessionRequest,
   WorktreeTaskBindSessionValue,

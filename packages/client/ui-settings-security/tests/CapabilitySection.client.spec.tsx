@@ -5,7 +5,7 @@ import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { DeviceCapabilitySnapshot } from '@deepseek-ai/dsh-api-device-capabilities-controller/types'
+import type { DeviceCapabilitySnapshot } from '@cinlan/api-device-capabilities-controller/types'
 import { MOBILE_CAPABILITY, CapabilitySection, type MobileSectionInjected } from '../src/client/CapabilitySection.tsx'
 import { en, zh } from '../src/client/locales.ts'
 

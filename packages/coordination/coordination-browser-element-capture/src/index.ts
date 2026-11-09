@@ -8,7 +8,7 @@ import {
   BrowserPageId,
 } from '@deepseek-ai/dsh-browser'
 import type { BrowserElementCaptureRequest } from '@deepseek-ai/dsh-browser'
-import type { TaskOutcome, TaskSnapshot } from '@deepseek-ai/dsh-coordination'
+import type { TaskOutcome, TaskSnapshot } from '@cinlan/coordination'
 import { isJsonValue } from '@deepseek-ai/dsh-util-values'
 
 /** Cordis plugin name. */

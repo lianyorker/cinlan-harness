@@ -6,10 +6,14 @@
 - insert:
     # Host settings namespace and browser system-notification preferences.
     - id: notifications
-      name: '@deepseek-ai/dsh-notifications'
+      name: '@cinlan/notifications'
 
     - id: worktree-task-git
-      name: '@deepseek-ai/dsh-worktree-task-git'
+      name: '@cinlan/worktree-task-git'
+
+    # Registers task checkouts as Workspaces linked to their source Workspace.
+    - id: worktree-task-workspace
+      name: '@cinlan/worktree-task-workspace'
 
     # Session working directory service.
     - id: working-directory
@@ -20,139 +24,158 @@
         defaultDirectory: !!js process.cwd()
 
     - id: terminal-quick-commands
-      name: '@deepseek-ai/dsh-terminal-quick-commands'
+      name: '@cinlan/terminal-quick-commands'
 
     # The settings document keys every namespace by its Loader entry id, and
     # every Git preference consumer reads the durable 'git-source-control'
     # namespace, so this row's id must be that namespace rather than a short name.
     - id: git-source-control
-      name: '@deepseek-ai/dsh-git-settings'
+      name: '@cinlan/git-settings'
 
     - id: sidebar-git
-      name: '@deepseek-ai/dsh-sidebar-git'
+      name: '@cinlan/sidebar-git'
 
     - id: sidebar-git-controller
-      name: '@deepseek-ai/dsh-api-sidebar-git-controller'
+      name: '@cinlan/api-sidebar-git-controller'
 
     # Settings entry point for that same Schedule manager. The local automation
     # subsystem is retired: this page owns the navigation and opens the Schedule
     # panel, so no second task store is mounted.
     - id: ui-settings-automation
-      name: '@deepseek-ai/dsh-client-ui-settings-automation'
+      name: '@cinlan/client-ui-settings-automation'
 
     # Worktree task operations over Typert Remote.
     - id: worktree-task-controller
-      name: '@deepseek-ai/dsh-api-worktree-task-controller'
+      name: '@cinlan/api-worktree-task-controller'
 
     - id: usage-query
-      name: '@deepseek-ai/dsh-usage-query'
+      name: '@cinlan/usage-query'
 
     - id: usage-controller
-      name: '@deepseek-ai/dsh-api-usage-controller'
+      name: '@cinlan/api-usage-controller'
 
     - id: execution-host-local
-      name: '@deepseek-ai/dsh-execution-host-local'
+      name: '@cinlan/execution-host-local'
 
     - id: execution-host-targets
-      name: '@deepseek-ai/dsh-execution-host-targets'
+      name: '@cinlan/execution-host-targets'
 
     - id: execution-binding
-      name: '@deepseek-ai/dsh-execution-binding'
+      name: '@cinlan/execution-binding'
 
     - id: execution-runtime
-      name: '@deepseek-ai/dsh-execution-runtime'
+      name: '@cinlan/execution-runtime'
 
     - id: execution-host-controller
-      name: '@deepseek-ai/dsh-api-execution-host-controller'
+      name: '@cinlan/api-execution-host-controller'
 
     - id: mcp-registry
       name: '@deepseek-ai/dsh-mcp-client/registry'
 
     - id: mcp-management
-      name: '@deepseek-ai/dsh-mcp-management'
+      name: '@cinlan/mcp-management'
       config:
         profile: !!js "ctx.get('clhProfileName') ?? ctx.get('dshProfileName')"
 
     - id: mcp-controller
-      name: '@deepseek-ai/dsh-api-mcp-controller'
+      name: '@cinlan/api-mcp-controller'
 
     - id: device-capabilities-controller
-      name: '@deepseek-ai/dsh-api-device-capabilities-controller'
+      name: '@cinlan/api-device-capabilities-controller'
 
     - id: security-research-controller
-      name: '@deepseek-ai/dsh-api-security-research-controller'
+      name: '@cinlan/api-security-research-controller'
 
     - id: security-skill-resources
-      name: '@deepseek-ai/dsh-security-skills/resources'
+      name: '@cinlan/security-skills/resources'
 
     - id: security-skills
-      name: '@deepseek-ai/dsh-security-skills'
+      name: '@cinlan/security-skills'
 
     - id: integration-preflight-controller
-      name: '@deepseek-ai/dsh-api-integration-preflight-controller'
+      name: '@cinlan/api-integration-preflight-controller'
     - id: terminal-quick-commands-controller
-      name: '@deepseek-ai/dsh-api-terminal-quick-commands-controller'
+      name: '@cinlan/api-terminal-quick-commands-controller'
 
     # Shared dictation providers for the Web voice settings and composer
     # shortcut. The provider itself keeps model files under the configured
     # local cache and exposes no credentials through the Remote.
     - id: voice
-      name: '@deepseek-ai/dsh-voice'
+      name: '@cinlan/voice'
 
     - id: voice-controller
-      name: '@deepseek-ai/dsh-api-voice-controller'
+      name: '@cinlan/api-voice-controller'
 
     - id: voice-sherpa-onnx
-      name: '@deepseek-ai/dsh-voice-sherpa-onnx'
+      name: '@cinlan/voice-sherpa-onnx'
+
+    - id: voice-openai
+      name: '@cinlan/voice-openai'
 
     - id: ui-notifications
-      name: '@deepseek-ai/dsh-client-ui-notifications'
+      name: '@cinlan/client-ui-notifications'
 
     # Cinlan Design Studio: Collaborative AI design workspace with TasteSkill engine.
     - id: ui-cinlan-design
-      name: '@deepseek-ai/dsh-client-ui-cinlan-design'
+      name: '@cinlan/client-ui-cinlan-design'
 
     - id: ui-settings-unarchive-sessions
-      name: '@deepseek-ai/dsh-client-ui-settings-unarchive-sessions'
+      name: '@cinlan/client-ui-settings-unarchive-sessions'
 
     - id: ui-voice-dictation
-      name: '@deepseek-ai/dsh-client-ui-voice-dictation'
+      name: '@cinlan/client-ui-voice-dictation'
 
     # The settings document keys every namespace by its Loader entry id, and
     # every shortcut consumer reads the durable 'keybindings' namespace, so this
     # row's id must be that namespace rather than a short name.
     - id: keybindings
-      name: '@deepseek-ai/dsh-client-keyboard'
+      name: '@cinlan/client-keyboard'
 
     - id: ui-floating-workspace
-      name: '@deepseek-ai/dsh-client-ui-floating-workspace'
+      name: '@cinlan/client-ui-floating-workspace'
 
     # The orchestration settings section: Host tool parallelism and the
     # evaluated agent-preset capability list.
     - id: ui-orchestration
-      name: '@deepseek-ai/dsh-client-ui-orchestration'
+      name: '@cinlan/client-ui-orchestration'
 
     - id: ui-integrations
-      name: '@deepseek-ai/dsh-client-ui-integrations'
+      name: '@cinlan/client-ui-integrations'
     - id: ui-quick-commands
-      name: '@deepseek-ai/dsh-client-ui-quick-commands'
+      name: '@cinlan/client-ui-quick-commands'
     - id: ui-worktree-task
-      name: '@deepseek-ai/dsh-client-ui-worktree-task'
+      name: '@cinlan/client-ui-worktree-task'
 
     - id: ui-git-settings
-      name: '@deepseek-ai/dsh-client-ui-git-settings'
+      name: '@cinlan/client-ui-git-settings'
 
     - id: ui-settings-usage
-      name: '@deepseek-ai/dsh-client-ui-settings-usage'
+      name: '@cinlan/client-ui-settings-usage'
 
     - id: ui-settings-hosts
-      name: '@deepseek-ai/dsh-client-ui-settings-hosts'
+      name: '@cinlan/client-ui-settings-hosts'
 
     - id: ui-settings-mcp
-      name: '@deepseek-ai/dsh-client-ui-settings-mcp'
+      name: '@cinlan/client-ui-settings-mcp'
 
     - id: cinlan-mobile-host
-      name: '@deepseek-ai/dsh-cinlan-remote-tunnel'
+      name: '@cinlan/cinlan-remote-tunnel'
+
+    # Knowledge base service + its model-facing search tools. The KV unit in
+    # the storage hub is the system of record; this row owns the derived FTS5
+    # index. root is a deployment-level choice and stays in config.
+    - id: storage-sqlite
+      name: '@deepseek-ai/dsh-storage-sqlite'
+      config:
+        path: !!js dshHomePath('knowledge/knowledge.db')
+    - id: knowledge-base
+      name: '@cinlan/knowledge-base'
+      config:
+        indexPath: !!js dshHomePath('knowledge/knowledge.index.db')
+    - id: tool-knowledge-search
+      name: '@cinlan/tool-knowledge-search'
+    - id: bot-registry
+      name: '@cinlan/bot-registry'
 
     - id: ui-settings-security
-      name: '@deepseek-ai/dsh-client-ui-settings-security'
+      name: '@cinlan/client-ui-settings-security'

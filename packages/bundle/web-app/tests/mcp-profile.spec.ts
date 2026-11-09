@@ -3,14 +3,14 @@ import { fileURLToPath } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import { loadOverlayPatches } from '@deepseek-ai/dsh-app-boot'
-import McpManagement, { type Config } from '@deepseek-ai/dsh-mcp-management'
+import McpManagement, { type Config } from '@cinlan/mcp-management'
 import { expect, it, onTestFinished } from 'vitest'
 
 it.each(['web', 'desktop', 'custom-web'])('resolves MCP ownership from the launch profile: %s', async (profile) => {
   const rows = loadOverlayPatches('mcp-profile', fileURLToPath(new URL('../../cinlan-web/cordis.patch.yml', import.meta.url)))
     .flatMap(patch => patch.insert ?? []).filter(row => row.id === 'mcp-management')
   expect(rows).toHaveLength(1)
-  expect(rows[0]!.name).toBe('@deepseek-ai/dsh-mcp-management')
+  expect(rows[0]!.name).toBe('@cinlan/mcp-management')
   const ctx = new Context()
   onTestFinished(() => ctx.fiber.dispose())
   ctx.provide('profileContext', {

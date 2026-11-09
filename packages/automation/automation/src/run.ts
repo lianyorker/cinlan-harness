@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-execution-binding'
+import type {} from '@cinlan/execution-binding'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import { realpath } from 'node:fs/promises'
 import { installModelSelection, type AgentHandle } from '@deepseek-ai/dsh-agent'

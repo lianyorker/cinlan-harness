@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { RunId, TaskId } from '@deepseek-ai/dsh-coordination'
-import type { CoordinationApprovalDecision, CoordinationEvent, TaskSnapshot } from '@deepseek-ai/dsh-coordination'
+import { RunId, TaskId } from '@cinlan/coordination'
+import type { CoordinationApprovalDecision, CoordinationEvent, TaskSnapshot } from '@cinlan/coordination'
 import { LocalCoordinationService, type Config } from '@deepseek-ai/dsh-coordination-local'
 
 function deferred(): {

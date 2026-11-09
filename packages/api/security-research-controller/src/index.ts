@@ -12,7 +12,7 @@ import type {} from '@deepseek-ai/dsh-artifact'
 import type {} from '@deepseek-ai/dsh-finding'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-skill'
-import { SecuritySkillResourceError } from '@deepseek-ai/dsh-security-skills/resources'
+import { SecuritySkillResourceError } from '@cinlan/security-skills/resources'
 import type { SecurityResearchResourceCancelRequest, SecurityResourceAvailability, SecuritySkillResourceStatus } from './types.ts'
 import type {} from 'zod'
 import type {} from '@deepseek-ai/dsh-vuln-kb-service'
@@ -39,7 +39,7 @@ function isAborted(signal: AbortSignal): boolean { return signal.aborted }
 
 /** Module names that make up the Security Research Host layer. */
 const SECURITY_MODULES = {
-  securitySkills: '@deepseek-ai/dsh-security-skills',
+  securitySkills: '@cinlan/security-skills',
   workflowPrompt: '@deepseek-ai/dsh-security-workflow-prompt',
   findingTools: '@deepseek-ai/dsh-tool-finding',
 } as const

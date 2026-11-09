@@ -1,13 +1,13 @@
 /** Follow snapshots and teardown through the real authenticated stream carrier and Gateway iterator. */
 import { describe, expect, it, vi } from 'vitest'
-import { RuntimeError } from '@deepseek-ai/dsh-execution-runtime'
-import type ExecutionRuntimes from '@deepseek-ai/dsh-execution-runtime'
-import type { ExecutionTargetId } from '@deepseek-ai/dsh-execution-host-targets/types'
-import type { RuntimeTaskId, RuntimeTaskRequest, RuntimeTaskValue } from '@deepseek-ai/dsh-execution-runtime/types'
+import { RuntimeError } from '@cinlan/execution-runtime'
+import type ExecutionRuntimes from '@cinlan/execution-runtime'
+import type { ExecutionTargetId } from '@cinlan/execution-host-targets/types'
+import type { RuntimeTaskId, RuntimeTaskRequest, RuntimeTaskValue } from '@cinlan/execution-runtime/types'
 import type { ListTargetsValue, TargetValue } from '../src/types.ts'
 import { createHarness, remoteResult, success } from './harness.ts'
 
-const CONTROLLER = '@deepseek-ai/dsh-api-execution-host-controller'
+const CONTROLLER = '@cinlan/api-execution-host-controller'
 
 describe('executionHosts follow composition', () => {
   it('captures trusted-local authority before iterating runtime task receipts', async () => {

@@ -4,8 +4,8 @@ export type {
   InspectDirectoryRequest, InspectionValue, ListTargetsValue, SavedTarget, SshConfigHost, SshConnection,
   TargetErrorCode, TargetRequest, TargetRevisionRequest, TargetState, TargetTestValue, TargetValue, TargetView,
   UpdateTargetRequest, WorkerInfo,
-} from '@deepseek-ai/dsh-execution-host-targets/types'
+} from '@cinlan/execution-host-targets/types'
 export type {
   RuntimeInspection, RuntimeLocation, RuntimeStartRequest, RuntimeTask, RuntimeTaskId,
   RuntimeTaskRequest, RuntimeTasksValue, RuntimeTaskValue,
-} from '@deepseek-ai/dsh-execution-runtime/types'
+} from '@cinlan/execution-runtime/types'

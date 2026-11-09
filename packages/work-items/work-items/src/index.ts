@@ -2,7 +2,7 @@
  * Provider-neutral Work Items reads and confirmed writes (ctx.workItems).
  * Providers own HTTP, credentials, pagination, and source-specific mapping;
  * this registry owns selection, lifecycle, and the normalized reads and durable write approval protocol.
- * @module @deepseek-ai/dsh-work-items
+ * @module @cinlan/work-items
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
