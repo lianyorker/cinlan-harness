@@ -687,7 +687,6 @@ export class SystemPrompt extends Service {
     )
     if (completeSection === undefined && !runtimeContextSuppressed) return { ...transformed, tools }
     const requiredContexts = new Set([...contextByName.values()].filter(entry => entry.required === true).map(entry => entry.name))
-    const requiredContexts = new Set([...contextByName.values()].filter(entry => entry.required === true).map(entry => entry.name))
     return {
       ...transformed,
       tools,

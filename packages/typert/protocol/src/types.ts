@@ -878,45 +878,6 @@ export interface TypertContextRegistry {
   subscribe(listener: TypertRegistryListener): TypertDisposer
 }
 
-/** Default wire field of one resource kind. */
-export interface TypertResourceDeclaration {
-  /** Top-level or first-object wire field holding one identity of the kind. */
-  readonly field: string
-}
-
-/** One registered resource kind with its default wire field. */
-export interface TypertResourceEntry extends TypertResourceDeclaration {
-  /** Registered resource kind. */
-  readonly kind: string
-}
-
-/** Runtime registry of resource kinds' default wire fields. */
-export interface TypertResourceRegistry {
-  /**
-   * Register one kind's default wire field for the calling fiber. Only the
-   * domain that owns the kind registers it.
-   * @param kind - merge-declared resource kind.
-   * @param declaration - the kind's default wire field.
-   * @returns disposer withdrawing the exact registration.
-   * @throws Error when the kind is already registered or is `global`, the built-in resource kind.
-   */
-  register(kind: TypertResourceKind, declaration: TypertResourceDeclaration): TypertDisposer
-  /**
-   * Look up one kind's declaration.
-   * @param kind - resource kind.
-   * @returns the live declaration, or `undefined` when unregistered.
-   */
-  get(kind: string): TypertResourceDeclaration | undefined
-  /** @returns a registration-order snapshot of registered kinds with their fields. */
-  entries(): readonly TypertResourceEntry[]
-  /**
-   * Observe later resource-kind changes.
-   * @param listener - synchronous contained observer.
-   * @returns disposer for this subscription.
-   */
-  subscribe(listener: TypertRegistryListener): TypertDisposer
-}
-
 /** Validated wire values and their ordered business parameters for resource extraction. */
 export interface TypertResourceResolveInput {
   /** Wire field to its validated value, including lookup and Context identities as wire values. */

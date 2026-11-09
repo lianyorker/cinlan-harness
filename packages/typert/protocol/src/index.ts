@@ -73,15 +73,6 @@ export type {
   TypertResourceReader,
   TypertResourceReaders,
   TypertResourceRegistry,
-  TypertResource,
-  TypertResourceDeclaration,
-  TypertResourceEntry,
-  TypertResourceId,
-  TypertResourceKind,
-  TypertResourceMap,
-  TypertResourceReader,
-  TypertResourceReaders,
-  TypertResourceRegistry,
   TypertResourceResolveInput,
   TypertLocalRegistry,
   TypertLookup,
@@ -174,11 +165,6 @@ export interface RemoteScopeOptions<WireArgs extends readonly unknown[] = never>
    * accesses: access control never checks a resource they omit.
    */
   readonly resources?: TypertResourceReaders<WireArgs>
-  /**
-   * Declared `resources` readers keyed by resource kind. Callers spread the
-   * method's wire arguments into each one and validate its result.
-   */
-  readonly resources?: Readonly<Record<string, TypertResourceReader>>
 }
 
 /**

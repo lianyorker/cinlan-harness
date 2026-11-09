@@ -9937,6 +9937,9 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@cinlan/api-integration-preflight-controller':
+        specifier: workspace:^
+        version: link:../../api/integration-preflight-controller
       '@cinlan/work-items':
         specifier: workspace:^
         version: link:../../work-items/work-items
