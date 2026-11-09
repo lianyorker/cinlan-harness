@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-security-skills",
+  "name": "@cinlan/security-skills",
   "description": "Bundled Cinlan skill provider for cyber-security, design, and browser evidence workflows",
   "version": "0.1.7-rc.2",
   "publishConfig": {

@@ -52,7 +52,7 @@
     "@deepseek-ai/dsh-agent-preset": "workspace:^",
     "@deepseek-ai/dsh-agent-preset-registry": "workspace:^",
     "@deepseek-ai/dsh-app-boot": "workspace:^",
-    "@deepseek-ai/dsh-execution-binding": "workspace:^",
+    "@cinlan/execution-binding": "workspace:^",
     "@deepseek-ai/dsh-session-query-sqlite": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-permission-presets": "workspace:^",

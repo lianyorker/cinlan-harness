@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-api-execution-host-controller",
+  "name": "@cinlan/api-execution-host-controller",
   "publishConfig": {
     "access": "public"
   },
@@ -45,8 +45,8 @@
   ],
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-execution-host-targets": "workspace:^",
-    "@deepseek-ai/dsh-execution-runtime": "workspace:^"
+    "@cinlan/execution-host-targets": "workspace:^",
+    "@cinlan/execution-runtime": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
@@ -55,7 +55,7 @@
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-app-boot": "workspace:^",
-    "@deepseek-ai/dsh-execution-host-targets": "workspace:^",
+    "@cinlan/execution-host-targets": "workspace:^",
     "@deepseek-ai/dsh-execution-host": "workspace:^",
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
@@ -67,10 +67,10 @@
     "@deepseek-ai/dsh-storage-json": "workspace:^",
     "@deepseek-ai/dsh-storage-domain": "workspace:^",
     "@deepseek-ai/dsh-subprocess-local": "workspace:^",
-    "@deepseek-ai/dsh-execution-host-local": "workspace:^",
+    "@cinlan/execution-host-local": "workspace:^",
     "@deepseek-ai/dsh-host-webserver": "workspace:^",
     "ws": "^8.21.0",
     "@types/ws": "^8.18.1",
-    "@deepseek-ai/dsh-execution-runtime": "workspace:^"
+    "@cinlan/execution-runtime": "workspace:^"
   }
 }

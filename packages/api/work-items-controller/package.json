@@ -47,7 +47,7 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
     "@deepseek-ai/dsh-storage-domain": "workspace:^",
-    "@deepseek-ai/dsh-work-items": "workspace:^",
+    "@cinlan/work-items": "workspace:^",
     "@deepseek-ai/dsh-workspace": "workspace:^",
     "@deepseek-ai/dsh-workspace-isolation": "workspace:^"
   },
@@ -59,7 +59,7 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
     "@deepseek-ai/dsh-storage-domain": "workspace:^",
-    "@deepseek-ai/dsh-work-items": "workspace:^",
+    "@cinlan/work-items": "workspace:^",
     "@deepseek-ai/dsh-workspace": "workspace:^",
     "@deepseek-ai/dsh-workspace-isolation": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",

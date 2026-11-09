@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-floating-workspace",
+  "name": "@cinlan/client-ui-floating-workspace",
   "description": "Floating Workspace settings: enable toggle, terminal directory, toggle button position",
   "version": "0.1.7-rc.2",
   "publishConfig": {
@@ -32,7 +32,7 @@
         "@deepseek-ai/dsh-client-ui-settings",
         "@deepseek-ai/dsh-client-ui-sidebar-right",
         "@deepseek-ai/dsh-client-ui-workspace",
-        "@deepseek-ai/dsh-client-keyboard",
+        "@cinlan/client-keyboard",
         "@deepseek-ai/dsh-api-session-controller"
       ],
       "platform": "web"
@@ -63,7 +63,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "@deepseek-ai/dsh-client-store": "workspace:^",
-    "@deepseek-ai/dsh-client-keyboard": "workspace:^",
+    "@cinlan/client-keyboard": "workspace:^",
     "@deepseek-ai/dsh-client-ui-layout": "workspace:^",
     "@deepseek-ai/dsh-client-ui-sidebar": "workspace:^",
     "@deepseek-ai/dsh-client-ui-sidebar-right": "workspace:^",

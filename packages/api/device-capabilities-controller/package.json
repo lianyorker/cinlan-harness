@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-api-device-capabilities-controller",
+  "name": "@cinlan/api-device-capabilities-controller",
   "description": "Read-only Computer Use and Mobile Device runtime readiness for Web Settings",
   "version": "0.1.7-rc.2",
   "publishConfig": {

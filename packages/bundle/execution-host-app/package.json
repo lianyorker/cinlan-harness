@@ -34,7 +34,7 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-execution-host-local": "workspace:^",
+    "@cinlan/execution-host-local": "workspace:^",
     "@deepseek-ai/dsh-execution-host-worker": "workspace:^",
     "@deepseek-ai/dsh-fs-local": "workspace:^",
     "@deepseek-ai/dsh-subprocess-local": "workspace:^"

@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-integrations",
+  "name": "@cinlan/client-ui-integrations",
   "description": "Integration settings section for the dsh web client: GitHub, GitLab, and Gitee connection status",
   "version": "0.1.7-rc.2",
   "publishConfig": { "access": "public" },
@@ -16,7 +16,7 @@
     "client": {
       "inject": [
         "@deepseek-ai/dsh-api-remotes",
-        "@deepseek-ai/dsh-api-integration-preflight-controller",
+        "@cinlan/api-integration-preflight-controller",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-settings"
       ],
@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-api-integration-preflight-controller": "workspace:^",
+    "@cinlan/api-integration-preflight-controller": "workspace:^",
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-test-runtime": "workspace:^",

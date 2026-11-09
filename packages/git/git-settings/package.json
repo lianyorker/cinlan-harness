@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-git-settings",
+  "name": "@cinlan/git-settings",
   "description": "Shared Git and source control preferences for Worktree Tasks and source control",
   "version": "0.1.7-rc.2",
   "publishConfig": {

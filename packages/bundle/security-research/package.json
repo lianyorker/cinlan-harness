@@ -50,7 +50,7 @@
     "@deepseek-ai/dsh-execution-host": "workspace:^",
     "@deepseek-ai/dsh-finding": "workspace:^",
     "@deepseek-ai/dsh-finding-session": "workspace:^",
-    "@deepseek-ai/dsh-security-skills": "workspace:^",
+    "@cinlan/security-skills": "workspace:^",
     "@deepseek-ai/dsh-security-workflow-prompt": "workspace:^",
     "@deepseek-ai/dsh-tool-finding": "workspace:^",
     "@deepseek-ai/dsh-tool-vuln-kb": "workspace:^",

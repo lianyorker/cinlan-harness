@@ -32,6 +32,7 @@
       "types": "./lib/typert.remote-client.d.ts",
       "default": "./lib/typert.remote-client.js"
     },
+    "./assets/*": "./lib/assets/*",
     "./locale/*.json": "./locale/*.json"
   },
   "dsh": {
@@ -84,7 +85,8 @@
     "lib/typert.host.js",
     "lib/typert.host.d.ts",
     "lib/typert.remote-client.js",
-    "lib/typert.remote-client.d.ts"
+    "lib/typert.remote-client.d.ts",
+    "lib/assets"
   ],
   "dependencies": {
     "@deepseek-ai/dsh-timeout": "workspace:*",

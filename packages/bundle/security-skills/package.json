@@ -12,7 +12,7 @@
     "./cordis.patch.yml": "./cordis.patch.yml"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-security-skills": "workspace:*"
+    "@cinlan/security-skills": "workspace:*"
   },
   "repository": {
     "type": "git",

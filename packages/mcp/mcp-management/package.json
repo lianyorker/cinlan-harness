@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-mcp-management",
+  "name": "@cinlan/mcp-management",
   "description": "Durable current-profile MCP server records and owned bridge lifetimes",
   "version": "0.1.7-rc.2",
   "publishConfig": {

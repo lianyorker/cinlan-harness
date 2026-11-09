@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-work-items",
+  "name": "@cinlan/work-items",
   "description": "Provider-neutral Work Items capability with durable approved writes",
   "version": "0.2.0-rc.1",
   "publishConfig": {

@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-api-mcp-controller",
+  "name": "@cinlan/api-mcp-controller",
   "description": "Revisioned current-profile MCP management Remote and status stream",
   "version": "0.1.7-rc.2",
   "publishConfig": {
@@ -45,7 +45,7 @@
   "license": "MIT",
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-mcp-management": "workspace:^",
+    "@cinlan/mcp-management": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^"
   },
   "dependencies": {
@@ -53,13 +53,13 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-mcp-management": "workspace:^",
+    "@cinlan/mcp-management": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
     "@deepseek-ai/dsh-mcp-client": "workspace:^",
     "@deepseek-ai/dsh-typert-registry": "workspace:^",
     "@deepseek-ai/dsh-api-gateway": "workspace:^",
     "@deepseek-ai/dsh-app-boot": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-settings-mcp": "workspace:^",
+    "@cinlan/client-ui-settings-mcp": "workspace:^",
     "@deepseek-ai/dsh-client-test-runtime": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "react": "^18.2.0",

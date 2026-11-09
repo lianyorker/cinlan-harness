@@ -29,7 +29,7 @@
   "peerDependencies": {
     "@deepseek-ai/dsh-attachment": "workspace:^",
     "@deepseek-ai/dsh-browser": "workspace:^",
-    "@deepseek-ai/dsh-coordination": "workspace:^",
+    "@cinlan/coordination": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-system-prompt": "workspace:^",
     "@deepseek-ai/dsh-timeout": "workspace:^",
@@ -48,7 +48,7 @@
     "@deepseek-ai/dsh-browser": "workspace:^",
     "@deepseek-ai/dsh-browser-permission-policy": "workspace:^",
     "@deepseek-ai/dsh-browser-playwright": "workspace:^",
-    "@deepseek-ai/dsh-coordination": "workspace:^",
+    "@cinlan/coordination": "workspace:^",
     "@deepseek-ai/dsh-coordination-browser-element-capture": "workspace:^",
     "@deepseek-ai/dsh-coordination-local": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",

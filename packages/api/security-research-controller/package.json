@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-api-security-research-controller",
+  "name": "@cinlan/api-security-research-controller",
   "description": "Security skill resource management and Session assessment Remotes",
   "version": "0.2.0-rc.1",
   "publishConfig": {
@@ -44,12 +44,12 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/dsh-security-skills": "workspace:^",
+    "@cinlan/security-skills": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-security-skills": "workspace:^",
+    "@cinlan/security-skills": "workspace:^",
     "@deepseek-ai/dsh-app-boot": "workspace:^",
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
     "@deepseek-ai/dsh-api-gateway": "workspace:^",

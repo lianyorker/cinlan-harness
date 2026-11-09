@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-settings-mcp",
+  "name": "@cinlan/client-ui-settings-mcp",
   "description": "Manage current-profile MCP servers and inspect discovered tools",
   "version": "0.1.7-rc.2",
   "publishConfig": {
@@ -49,7 +49,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-api-mcp-controller": "workspace:^",
+    "@cinlan/api-mcp-controller": "workspace:^",
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
     "@deepseek-ai/dsh-client-connection": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",

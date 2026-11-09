@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-quick-commands",
+  "name": "@cinlan/client-ui-quick-commands",
   "publishConfig": {
     "access": "public"
   },
@@ -36,7 +36,7 @@
     "client": {
       "inject": [
         "@deepseek-ai/dsh-api-remotes",
-        "@deepseek-ai/dsh-api-terminal-quick-commands-controller",
+        "@cinlan/api-terminal-quick-commands-controller",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-settings"
       ],
@@ -45,7 +45,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-api-terminal-quick-commands-controller": "workspace:^",
+    "@cinlan/api-terminal-quick-commands-controller": "workspace:^",
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-ui-primitives": "workspace:^",

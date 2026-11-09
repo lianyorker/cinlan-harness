@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-api-usage-controller",
+  "name": "@cinlan/api-usage-controller",
   "version": "0.1.7-rc.2",
   "description": "Authenticated usage reporting API with bounded cancellation.",
   "type": "module",
@@ -46,12 +46,12 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
-    "@deepseek-ai/dsh-usage-query": "workspace:^"
+    "@cinlan/usage-query": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
-    "@deepseek-ai/dsh-usage-query": "workspace:^",
+    "@cinlan/usage-query": "workspace:^",
     "@deepseek-ai/dsh-api-gateway": "workspace:^",
     "@deepseek-ai/dsh-client-connection": "workspace:^",
     "@deepseek-ai/dsh-typert-registry": "workspace:^",

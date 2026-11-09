@@ -64,13 +64,13 @@
     "@deepseek-ai/dsh-subagent": "workspace:*",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
     "@deepseek-ai/dsh-workspace": "workspace:*",
-    "@deepseek-ai/dsh-worktree-task": "workspace:*"
+    "@cinlan/worktree-task": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-workspace": {
       "optional": true
     },
-    "@deepseek-ai/dsh-worktree-task": {
+    "@cinlan/worktree-task": {
       "optional": true
     }
   },
@@ -90,6 +90,6 @@
     "@deepseek-ai/dsh-subagent-spawn-in-process": "workspace:*",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
     "@deepseek-ai/dsh-workspace": "workspace:*",
-    "@deepseek-ai/dsh-worktree-task": "workspace:*"
+    "@cinlan/worktree-task": "workspace:*"
   }
 }

@@ -34,7 +34,7 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-work-items": "workspace:^",
+    "@cinlan/work-items": "workspace:^",
     "@deepseek-ai/dsh-work-items-github": "workspace:^",
     "@deepseek-ai/dsh-work-items-gitlab": "workspace:^",
     "@deepseek-ai/dsh-work-items-jira": "workspace:^",

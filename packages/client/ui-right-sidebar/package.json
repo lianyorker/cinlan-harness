@@ -36,7 +36,7 @@
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
     "@deepseek-ai/dsh-api-terminal-controller": "workspace:^",
     "@deepseek-ai/dsh-api-workspace-isolation-controller": "workspace:^",
-    "@deepseek-ai/dsh-api-worktree-task-controller": "workspace:^",
+    "@cinlan/api-worktree-task-controller": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-ui-primitives": "workspace:^",
     "@deepseek-ai/dsh-client-ui-renderer": "workspace:^",

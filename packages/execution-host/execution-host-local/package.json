@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-execution-host-local",
+  "name": "@cinlan/execution-host-local",
   "description": "Local execution host provider",
   "version": "0.1.7-rc.2",
   "type": "module",

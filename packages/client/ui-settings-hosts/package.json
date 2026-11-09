@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-settings-hosts",
+  "name": "@cinlan/client-ui-settings-hosts",
   "description": "Native settings for saved SSH execution hosts and directory inspection",
   "version": "0.1.7-rc.2",
   "publishConfig": {
@@ -40,9 +40,9 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-api-execution-host-controller": "workspace:^",
+    "@cinlan/api-execution-host-controller": "workspace:^",
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
-    "@deepseek-ai/dsh-execution-runtime": "workspace:^",
+    "@cinlan/execution-runtime": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-store": "workspace:^",
     "@deepseek-ai/dsh-client-test-runtime": "workspace:^",

@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-api-terminal-quick-commands-controller",
+  "name": "@cinlan/api-terminal-quick-commands-controller",
   "publishConfig": {
     "access": "public"
   },
@@ -49,11 +49,11 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-terminal-quick-commands": "workspace:^"
+    "@cinlan/terminal-quick-commands": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-terminal-quick-commands": "workspace:^",
+    "@cinlan/terminal-quick-commands": "workspace:^",
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
     "@deepseek-ai/dsh-storage": "workspace:^",
     "@deepseek-ai/dsh-storage-json": "workspace:^",

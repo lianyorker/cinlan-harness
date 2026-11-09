@@ -70,8 +70,8 @@
     "@deepseek-ai/dsh-client-ui-conversation": "workspace:*",
     "@deepseek-ai/dsh-client-ui-theme": "workspace:*",
     "@deepseek-ai/dsh-client-shortcuts": "workspace:*",
-    "@deepseek-ai/dsh-terminal-quick-commands": "workspace:*",
-    "@deepseek-ai/dsh-api-terminal-quick-commands-controller": "workspace:*"
+    "@cinlan/terminal-quick-commands": "workspace:*",
+    "@cinlan/api-terminal-quick-commands-controller": "workspace:*"
   },
   "files": [
     "locale/*.json",

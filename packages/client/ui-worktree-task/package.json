@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-worktree-task",
+  "name": "@cinlan/client-ui-worktree-task",
   "description": "Worktree Task lifecycle UI: create dialog, task list, and task management",
   "version": "0.1.7-rc.2",
   "publishConfig": {
@@ -46,7 +46,7 @@
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
-    "@deepseek-ai/dsh-api-worktree-task-controller": "workspace:^",
+    "@cinlan/api-worktree-task-controller": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-ui-primitives": "workspace:^",
     "@deepseek-ai/dsh-client-ui-renderer": "workspace:^",
@@ -56,7 +56,7 @@
     "@deepseek-ai/dsh-session": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
     "@deepseek-ai/dsh-workspace": "workspace:^",
-    "@deepseek-ai/dsh-worktree-task": "workspace:^",
+    "@cinlan/worktree-task": "workspace:^",
     "@testing-library/react": "^16.1.0",
     "@types/react": "~18.3.1",
     "react": "^18.2.0",

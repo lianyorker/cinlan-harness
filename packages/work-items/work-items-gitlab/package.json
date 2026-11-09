@@ -28,7 +28,7 @@
   "license": "MIT",
   "peerDependencies": {
     "@deepseek-ai/dsh-credentials": "workspace:^",
-    "@deepseek-ai/dsh-work-items": "workspace:^",
+    "@cinlan/work-items": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "dependencies": {
@@ -45,7 +45,7 @@
     "@deepseek-ai/dsh-typert-registry": "workspace:^",
     "@deepseek-ai/dsh-workspace": "workspace:^",
     "@deepseek-ai/dsh-credentials": "workspace:^",
-    "@deepseek-ai/dsh-work-items": "workspace:^",
+    "@cinlan/work-items": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

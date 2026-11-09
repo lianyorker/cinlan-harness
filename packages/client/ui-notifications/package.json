@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-notifications",
+  "name": "@cinlan/client-ui-notifications",
   "description": "Notifications Settings page and browser notification delivery",
   "version": "0.1.7-rc.2",
   "publishConfig": { "access": "public" },
@@ -25,7 +25,7 @@
     "@deepseek-ai/dsh-client-ui-session": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings": "workspace:^",
     "@deepseek-ai/dsh-client-ui-slots": "workspace:^",
-    "@deepseek-ai/dsh-notifications": "workspace:^",
+    "@cinlan/notifications": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",
     "@types/react": "~18.3.1",
     "react": "^18.2.0",

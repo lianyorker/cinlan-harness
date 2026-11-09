@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-api-worktree-task-controller",
+  "name": "@cinlan/api-worktree-task-controller",
   "description": "Worktree Task lifecycle Remote for local Web clients",
   "version": "0.1.7-rc.2",
   "publishConfig": {
@@ -46,17 +46,17 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
-    "@deepseek-ai/dsh-worktree-task": "workspace:^"
+    "@cinlan/worktree-task": "workspace:^"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-worktree-task": "workspace:^",
+    "@cinlan/worktree-task": "workspace:^",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
-    "@deepseek-ai/dsh-worktree-task": "workspace:^",
+    "@cinlan/worktree-task": "workspace:^",
     "@deepseek-ai/dsh-workspace": "workspace:^"
   }
 }

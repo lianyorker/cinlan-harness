@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-cinlan-remote-tunnel",
+  "name": "@cinlan/cinlan-remote-tunnel",
   "version": "0.1.0",
   "description": "Cordis plugin establishing reverse WebSocket tunnel to Cinlan Relay for Mobile Companion",
   "type": "module",

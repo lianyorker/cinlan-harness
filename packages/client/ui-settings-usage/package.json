@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-settings-usage",
+  "name": "@cinlan/client-ui-settings-usage",
   "version": "0.2.0-rc.1",
   "description": "Localized usage reports and CSV export for real Host accounting.",
   "type": "module",
@@ -43,7 +43,7 @@
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-store": "workspace:^",
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
-    "@deepseek-ai/dsh-api-usage-controller": "workspace:^",
+    "@cinlan/api-usage-controller": "workspace:^",
     "@deepseek-ai/dsh-client-test-runtime": "workspace:^",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0"

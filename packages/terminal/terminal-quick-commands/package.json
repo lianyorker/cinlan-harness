@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-terminal-quick-commands",
+  "name": "@cinlan/terminal-quick-commands",
   "publishConfig": {
     "access": "public"
   },

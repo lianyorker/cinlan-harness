@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-api-integration-preflight-controller",
+  "name": "@cinlan/api-integration-preflight-controller",
   "description": "Read-only integration readiness Remote for GitHub, GitLab, and Gitee",
   "version": "0.1.7-rc.2",
   "publishConfig": { "access": "public" },

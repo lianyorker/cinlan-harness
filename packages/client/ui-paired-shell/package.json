@@ -69,7 +69,7 @@
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
     "@deepseek-ai/dsh-client-file-upload": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings": "workspace:^",
-    "@deepseek-ai/dsh-client-keyboard": "workspace:^",
+    "@cinlan/client-keyboard": "workspace:^",
     "@deepseek-ai/dsh-client-ui-chat": "workspace:^",
     "@deepseek-ai/dsh-client-ui-tool": "workspace:^",
     "@deepseek-ai/dsh-client-ui-approval": "workspace:^",

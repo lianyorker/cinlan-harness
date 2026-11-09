@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-cinlan-design",
+  "name": "@cinlan/client-ui-cinlan-design",
   "description": "Cinlan Design Studio: Collaborative AI design workspace with TasteSkill anti-slop engine, 20 direction presets, and responsive sandbox",
   "version": "0.2.1-alpha.1",
   "publishConfig": {

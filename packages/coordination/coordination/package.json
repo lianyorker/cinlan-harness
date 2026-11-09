@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-coordination",
+  "name": "@cinlan/coordination",
   "description": "Task graph and lifecycle Service Definition for the DeepSeek Harness",
   "version": "0.1.7-rc.2",
   "publishConfig": {
